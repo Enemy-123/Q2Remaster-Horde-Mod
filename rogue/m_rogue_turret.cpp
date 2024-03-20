@@ -747,7 +747,7 @@ MOVEINFO_ENDFUNC(turret_wake) (edict_t *ent) -> void
 USE(turret_activate) (edict_t *self, edict_t *other, edict_t *activator) -> void
 {
 	vec3_t	 endpos;
-	vec3_t	 forward;
+	vec3_t	 forward = { 0, 0, 0 };
 	edict_t *base;
 
 	self->movetype = MOVETYPE_PUSH;

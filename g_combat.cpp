@@ -12,19 +12,19 @@ Returns true if the inflictor can directly damage the target.  Used for
 explosions and melee attacks.
 ============
 */
-bool CanDamage(edict_t *targ, edict_t *inflictor)
+bool CanDamage(edict_t* targ, edict_t* inflictor)
 {
 	vec3_t	dest;
 	trace_t trace;
-	
+
 	// bmodels need special checking because their origin is 0,0,0
 	vec3_t inflictor_center;
-	
+
 	if (inflictor->linked)
 		inflictor_center = (inflictor->absmin + inflictor->absmax) * 0.5f;
 	else
 		inflictor_center = inflictor->s.origin;
-	
+
 	if (targ->solid == SOLID_BSP)
 	{
 		dest = closest_point_to_box(inflictor_center, targ->absmin, targ->absmax);
@@ -35,7 +35,7 @@ bool CanDamage(edict_t *targ, edict_t *inflictor)
 	}
 
 	vec3_t targ_center;
-	
+
 	if (targ->linked)
 		targ_center = (targ->absmin + targ->absmax) * 0.5f;
 	else
@@ -81,7 +81,7 @@ bool CanDamage(edict_t *targ, edict_t *inflictor)
 Killed
 ============
 */
-void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, mod_t mod)
+void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, mod_t mod)
 {
 	if (targ->health < -999)
 		targ->health = -999;
@@ -116,7 +116,7 @@ void Killed(edict_t *targ, edict_t *inflictor, edict_t *attacker, int damage, co
 SpawnDamage
 ================
 */
-void SpawnDamage(int type, const vec3_t &origin, const vec3_t &normal, int damage)
+void SpawnDamage(int type, const vec3_t& origin, const vec3_t& normal, int damage)
 {
 	if (damage > 255)
 		damage = 255;
@@ -152,14 +152,14 @@ dflags		these flags are used to control how T_Damage works
 	DAMAGE_NO_PROTECTION	kills godmode, armor, everything
 ============
 */
-static int CheckPowerArmor(edict_t *ent, const vec3_t &point, const vec3_t &normal, int damage, damageflags_t dflags)
+static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, int damage, damageflags_t dflags)
 {
-	gclient_t *client;
+	gclient_t* client;
 	int		   save;
 	item_id_t  power_armor_type;
 	int		   damagePerCell;
 	int		   pa_te_type;
-	int		*power;
+	int* power;
 	int		   power_used;
 
 	if (ent->health <= 0)
@@ -187,7 +187,7 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t &point, const vec3_t &norm
 		return 0;
 
 	if (power_armor_type == IT_NULL)
-		return 2;
+		return 0;
 	if (!*power)
 		return 0;
 
@@ -268,14 +268,14 @@ static int CheckPowerArmor(edict_t *ent, const vec3_t &point, const vec3_t &norm
 	return save;
 }
 
-static int CheckArmor(edict_t *ent, const vec3_t &point, const vec3_t &normal, int damage, int te_sparks,
-					  damageflags_t dflags)
+static int CheckArmor(edict_t* ent, const vec3_t& point, const vec3_t& normal, int damage, int te_sparks,
+	damageflags_t dflags)
 {
-	gclient_t *client;
+	gclient_t* client;
 	int		   save;
 	item_id_t  index;
-	gitem_t	*armor;
-	int *power;
+	gitem_t* armor;
+	int* power;
 
 	if (!damage)
 		return 0;
@@ -294,9 +294,9 @@ static int CheckArmor(edict_t *ent, const vec3_t &point, const vec3_t &normal, i
 	armor = GetItemByIndex(index);
 
 	if (dflags & DAMAGE_ENERGY)
-		save = (int) ceilf(armor->armor_info->energy_protection * damage);
+		save = (int)ceilf(armor->armor_info->energy_protection * damage);
 	else
-		save = (int) ceilf(armor->armor_info->normal_protection * damage);
+		save = (int)ceilf(armor->armor_info->normal_protection * damage);
 
 	if (client)
 		power = &client->pers.inventory[index];
@@ -319,15 +319,13 @@ static int CheckArmor(edict_t *ent, const vec3_t &point, const vec3_t &normal, i
 	return save;
 }
 
-void M_ReactToDamage(edict_t *targ, edict_t *attacker, edict_t *inflictor)
+void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 {
 	// pmm
 	bool new_tesla;
 
 	if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
 		return;
-
-
 
 	//=======
 	// ROGUE
@@ -365,7 +363,7 @@ void M_ReactToDamage(edict_t *targ, edict_t *attacker, edict_t *inflictor)
 		// make sure whatever we were pissed at is still around.
 		if (targ->enemy->inuse)
 		{
-			percentHealth = (float) (targ->health) / (float) (targ->max_health);
+			percentHealth = (float)(targ->health) / (float)(targ->max_health);
 			if (targ->enemy->inuse && percentHealth > 0.33f)
 				return;
 		}
@@ -385,7 +383,7 @@ void M_ReactToDamage(edict_t *targ, edict_t *attacker, edict_t *inflictor)
 	{
 		float percentHealth;
 
-		percentHealth = (float) (targ->health) / (float) (targ->max_health);
+		percentHealth = (float)(targ->health) / (float)(targ->max_health);
 		// ignore it some of the time
 		if (targ->enemy->inuse && percentHealth > 0.25f)
 			return;
@@ -441,8 +439,8 @@ void M_ReactToDamage(edict_t *targ, edict_t *attacker, edict_t *inflictor)
 		// it's the same base (walk/swim/fly) type and both don't ignore shots,
 		// get mad at them
 		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
-		(strcmp(targ->classname, attacker->classname) != 0) && !(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) &&
-		!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
+			(strcmp(targ->classname, attacker->classname) != 0) && !(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) &&
+			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
 	{
 		if (targ->enemy != attacker)
 		{
@@ -492,7 +490,7 @@ void M_ReactToDamage(edict_t *targ, edict_t *attacker, edict_t *inflictor)
 }
 
 // check if the two given entities are on the same team
-bool OnSameTeam(edict_t *ent1, edict_t *ent2)
+bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
 	// monsters are never on our team atm
 	if (!ent1->client || !ent2->client)
@@ -517,7 +515,7 @@ bool OnSameTeam(edict_t *ent1, edict_t *ent2)
 
 // check if the two entities are on a team and that
 // they wouldn't damage each other
-bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
+bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
 {
 	// always damage teammates if friendly fire is enabled
 	if (g_friendly_fire->integer)
@@ -526,10 +524,10 @@ bool CheckTeamDamage(edict_t *targ, edict_t *attacker)
 	return OnSameTeam(targ, attacker);
 }
 
-void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t &dir, const vec3_t &point,
-			  const vec3_t &normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
+void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
+	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
 {
-	gclient_t *client;
+	gclient_t* client;
 	int		   take;
 	int		   save;
 	int		   asave;
@@ -586,9 +584,10 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 			damage = 1;
 	}
 
-	if ( ( targ->svflags & SVF_MONSTER ) != 0 ) {
+	if ((targ->svflags & SVF_MONSTER) != 0) {
 		damage *= ai_damage_scale->integer;
-	} else {
+	}
+	else {
 		damage *= g_damage_scale->integer;
 	} // mal: just for debugging...
 
@@ -637,7 +636,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 			if (targ->mass < 50)
 				mass = 50;
 			else
-				mass = (float) targ->mass;
+				mass = (float)targ->mass;
 
 			if (targ->client && attacker == targ)
 				kvel = normalized * (1600.0f * knockback / mass); // the rocket jump hack...
@@ -654,7 +653,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 	// check for godmode
 	if ((targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION))
 	{
-		take = damage;
+		take = 0;
 		save = damage;
 		SpawnDamage(te_sparks, point, normal, save);
 	}
@@ -663,8 +662,8 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 	// ROGUE
 	if (!(dflags & DAMAGE_NO_PROTECTION) &&
 		(((client && client->invincible_time > level.time)) ||
-		 ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.invincible_time > level.time)))
-	// ROGUE
+			((targ->svflags & SVF_MONSTER) && targ->monsterinfo.invincible_time > level.time)))
+		// ROGUE
 	{
 		if (targ->pain_debounce_time < level.time)
 		{
@@ -791,7 +790,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 	}
 	// PGM
 
-	if ( targ->client ) {
+	if (targ->client) {
 		targ->client->last_attacker_time = level.time;
 	}
 
@@ -813,7 +812,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 			targ->monsterinfo.setskin(targ);
 	}
 	else if (take && targ->pain)
-		targ->pain(targ, attacker, (float) knockback, take, mod);
+		targ->pain(targ, attacker, (float)knockback, take, mod);
 
 	// add to the damage inflicted on a player this frame
 	// the total will be turned into screen blends and view angle kicks
@@ -829,7 +828,7 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 
 		if (!(dflags & DAMAGE_NO_INDICATOR) && inflictor != world && attacker != world && (take || psave || asave))
 		{
-			damage_indicator_t *indicator = nullptr;
+			damage_indicator_t* indicator = nullptr;
 			size_t i;
 
 			for (i = 0; i < client->num_damage_indicators; i++)
@@ -866,14 +865,14 @@ void T_Damage(edict_t *targ, edict_t *inflictor, edict_t *attacker, const vec3_t
 T_RadiusDamage
 ============
 */
-void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t *ignore, float radius, damageflags_t dflags, mod_t mod)
+void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t* ignore, float radius, damageflags_t dflags, mod_t mod)
 {
 	float	 points;
-	edict_t *ent = nullptr;
+	edict_t* ent = nullptr;
 	vec3_t	 v;
 	vec3_t	 dir;
 	vec3_t   inflictor_center;
-	
+
 	if (inflictor->linked)
 		inflictor_center = (inflictor->absmax + inflictor->absmin) * 0.5f;
 	else
@@ -905,8 +904,8 @@ void T_RadiusDamage(edict_t *inflictor, edict_t *attacker, float damage, edict_t
 				// [Paril-KEX] use closest point on bbox to explosion position
 				// to spawn damage effect
 
-				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir, (int) points, (int) points,
-						 dflags | DAMAGE_RADIUS, mod);
+				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir, (int)points, (int)points,
+					dflags | DAMAGE_RADIUS, mod);
 			}
 		}
 	}

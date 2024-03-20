@@ -858,8 +858,8 @@ void GunnerCmdrGrenade(edict_t *self)
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
 	vec3_t					 aim;
-	monster_muzzleflash_id_t flash_number;
-	float					 spread;
+	monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
+	float					 spread = 0.f;
 	float					 pitch = 0;
 	// PMM
 	vec3_t target;
