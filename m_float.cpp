@@ -682,7 +682,12 @@ void SP_monster_floater(edict_t *self)
 	self->mins = { -24, -24, -24 };
 	self->maxs = { 24, 24, 48 };
 
-	self->health = 200 * st.health_multiplier;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 450;
+
+	self->health = 300 * st.health_multiplier;
 	self->gib_health = -80;
 	self->mass = 300;
 

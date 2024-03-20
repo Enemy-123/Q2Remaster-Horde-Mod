@@ -747,7 +747,7 @@ void SP_monster_makron(edict_t* self)
 		self->monsterinfo.power_armor_power = 3800;
 
 	self->health = 3700 * st.health_multiplier;
-	self->gib_health = -1300;
+	self->gib_health = -800;
 	self->mass = 500;
 
 	self->pain = makron_pain;
