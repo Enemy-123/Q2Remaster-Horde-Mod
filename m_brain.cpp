@@ -425,7 +425,7 @@ void brain_tounge_attack(edict_t *self)
 	if (tr.ent != self->enemy)
 		return;
 
-	damage = 5;
+	damage = 18;
 	gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
 
 	gi.WriteByte(svc_temp_entity);
