@@ -799,7 +799,12 @@ void SP_monster_berserk(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 240 * st.health_multiplier;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 450;
+
+	self->health = 440 * st.health_multiplier;
 	self->gib_health = -60;
 	self->mass = 250;
 
