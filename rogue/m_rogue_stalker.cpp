@@ -472,7 +472,7 @@ void stalker_shoot_attack(edict_t *self)
 	if (trace.ent == self->enemy || trace.ent == world)
 	{
 		dir.normalize();
-		monster_fire_blaster2(self, start, dir, 5, 800, MZ2_STALKER_BLASTER, EF_BLASTER);
+		monster_fire_blueblaster(self, start, dir, 15, 1400, MZ2_STALKER_BLASTER, EF_PLASMA|EF_TRACKER);
 	}
 }
 

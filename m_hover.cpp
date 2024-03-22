@@ -384,6 +384,7 @@ void hover_fire_blaster(edict_t *self)
 	vec3_t	  forward, right;
 	vec3_t	  end;
 	vec3_t	  dir;
+	int		rocketSpeed;
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
@@ -397,11 +398,13 @@ void hover_fire_blaster(edict_t *self)
 	dir = end - start;
 	dir.normalize();
 
+	rocketSpeed = 900;
+
 	// PGM	- daedalus fires blaster2
 	if (self->mass < 200)
-		monster_fire_blaster(self, start, dir, 1, 1000, (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+		monster_fire_rocket(self, start, dir, 25, rocketSpeed, MZ2_BOSS2_ROCKET_3);
 	else
-		monster_fire_blaster2(self, start, dir, 1, 1000, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, 1, 1500, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 	// PGM
 }
 
@@ -561,11 +564,11 @@ static void hover_set_fly_parameters(edict_t *self)
 {
 	self->monsterinfo.fly_thrusters = false;
 	self->monsterinfo.fly_acceleration = 20.f;
-	self->monsterinfo.fly_speed = 120.f;
+	self->monsterinfo.fly_speed = 320.f;
 	// Icarus prefers to keep its distance, but flies slower than the flyer.
 	// he never pins because of this.
-	self->monsterinfo.fly_min_distance = 150.f;
-	self->monsterinfo.fly_max_distance = 350.f;
+	self->monsterinfo.fly_min_distance = 350.f;
+	self->monsterinfo.fly_max_distance = 650.f;
 }
 
 /*QUAKED monster_hover (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -616,7 +619,7 @@ void SP_monster_hover(edict_t *self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 100;
+			self->monsterinfo.power_armor_power = 400;
 		// PMM - daedalus sounds
 		self->monsterinfo.engine_sound = gi.soundindex("daedalus/daedidle1.wav");
 		daed_sound_pain1.assign("daedalus/daedpain1.wav");

@@ -2253,7 +2253,6 @@ constexpr spawnflags_t SPAWNFLAG_MONSTER_DEAD = 16_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_SUPER_STEP = 17_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_NO_DROP = 18_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_SCENIC = 19_spawnflag_bit;
-
 // fixbot spawnflags
 constexpr spawnflags_t SPAWNFLAG_FIXBOT_FIXIT = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_FIXBOT_TAKEOFF = 8_spawnflag;

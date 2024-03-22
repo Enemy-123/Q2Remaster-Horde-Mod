@@ -394,6 +394,7 @@ void TankBlaster(edict_t *self)
 	monster_fire_blaster(self, start, dir, 30, 800, flash_number, EF_BLASTER);
 }
 
+
 void TankStrike(edict_t *self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
@@ -429,10 +430,10 @@ void TankRocket(edict_t *self)
 
 	if (self->speed)
 		rocketSpeed = self->speed;
-	else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
-		rocketSpeed = 500;
+	else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
+		rocketSpeed = 1400;
 	else
-		rocketSpeed = 650;
+		rocketSpeed = 750;
 
 	// PMM
 	if (blindfire)
@@ -482,7 +483,7 @@ void TankRocket(edict_t *self)
 		if (M_AdjustBlindfireTarget(self, start, vec, right, dir))
 		{
 			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+				monster_fire_heat(self,start, dir, 50, rocketSpeed, flash_number, self->accel);
 			else
 				monster_fire_rocket(self, start, dir, 50, rocketSpeed, flash_number);
 		}
@@ -1066,6 +1067,12 @@ void SP_monster_tank(edict_t *self)
 		self->count = 1;
 		sound_pain2.assign("tank/pain.wav");
 	}
+	if (strcmp(self->classname, "monster_tank_64") == 0)
+	{
+		self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN;
+		self->count = 1;
+		sound_pain2.assign("tank/pain.wav");
+	}
 	else
 	{
 		self->health = 750 * st.health_multiplier;
@@ -1076,7 +1083,7 @@ void SP_monster_tank(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 650;
+		self->monsterinfo.power_armor_power = 950;
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
@@ -1085,7 +1092,7 @@ void SP_monster_tank(edict_t *self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-		self->health = 1500 * st.health_multiplier;
+		self->health = 5500 * st.health_multiplier;
 	}
 
 	// heat seekingness
@@ -1118,6 +1125,8 @@ void SP_monster_tank(edict_t *self)
 	self->monsterinfo.blindfire = true;
 	// pmm
 	if (strcmp(self->classname, "monster_tank_commander") == 0)
+		self->s.skinnum = 2;
+	if (strcmp(self->classname, "monster_tank_64") == 0)
 		self->s.skinnum = 2;
 }
 
@@ -1167,3 +1176,5 @@ void SP_monster_tank_stand(edict_t *self)
 	self->nextthink = level.time + 10_hz;
 	gi.linkentity(self);
 }
+
+

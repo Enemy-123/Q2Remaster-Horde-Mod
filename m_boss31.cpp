@@ -466,171 +466,109 @@ MONSTERINFO_SETSKIN(jorg_setskin) (edict_t *self) -> void
 		self->s.skinnum = 0;
 }
 
-void jorgBFG(edict_t *self)
+void jorgBFG(edict_t* self)
 {
-	vec3_t	forward, right;
-	vec3_t	start;
-	vec3_t	dir;
-	vec3_t	vec;
-	trace_t trace; // PMM - check target
-	int		rocketSpeed;
-	// pmm - blindfire
-	vec3_t target;
-	bool   blindfire = false;
-	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
-		blindfire = true;
-	else
-		blindfire = false;
-
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
-
-	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CHICK_ROCKET_1], forward, right);
-
-	// [Paril-KEX]
-	if (self->s.skinnum > 1)
-		rocketSpeed = 750;
-	else
-		rocketSpeed = 900;
-
-	// PMM
-	if (blindfire)
-		target = self->monsterinfo.blind_fire_target;
-	else
-		target = self->enemy->s.origin;
-	// pmm
-	// PGM
-	//  PMM - blindfire shooting
-	if (blindfire)
-	{
-		vec = target;
-		dir = vec - start;
-	}
-	// pmm
-	// don't shoot at feet if they're above where i'm shooting from.
-	else if (frandom() < 0.33f || (start[2] < self->enemy->absmin[2]))
-	{
-		vec = target;
-		vec[2] += self->enemy->viewheight;
-		dir = vec - start;
-	}
-	else
-	{
-		vec = target;
-		vec[2] = self->enemy->absmin[2] + 1;
-		dir = vec - start;
-	}
-	// PGM
-
-	//======
-	// PMM - lead target  (not when blindfiring)
-	// 20, 35, 50, 65 chance of leading
-	if ((!blindfire) && (frandom() < 0.35f))
-		PredictAim(self, self->enemy, start, rocketSpeed, false, 0.f, &dir, &vec);
-	// PMM - lead target
-	//======
-
-	dir.normalize();
-
-	// pmm blindfire doesn't check target (done in checkattack)
-	// paranoia, make sure we're not shooting a target right next to us
-	trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
-	if (blindfire)
-	{
-		// blindfire has different fail criteria for the trace
-		if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
-		{
-			// RAFAEL
-			if (self->s.skinnum > 1)
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
-			else
-				// RAFAEL
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
-		}
-		else
-		{
-			// geez, this is bad.  she's avoiding about 80% of her blindfires due to hitting things.
-			// hunt around for a good shot
-			// try shifting the target to the left a little (to help counter her large offset)
-			vec = target;
-			vec += (right * -10);
-			dir = vec - start;
-			dir.normalize();
-			trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
-			if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
-			{
-				// RAFAEL
-
-					monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
-
-			}
-			else
-			{
-				// ok, that failed.  try to the right
-				vec = target;
-				vec += (right * 10);
-				dir = vec - start;
-				dir.normalize();
-				trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
-				if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
-				{
-					// RAFAEL
-						monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
-
-				}
-			}
-		}
-	}
-	else
-	{
-		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
-		{
-			// RAFAEL
-			if (self->s.skinnum > 1)
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.15f);
-			else
-				// RAFAEL
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
-		}
-	}
-}
-
-void jorg_firebullet_right(edict_t *self)
-{
-	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
-	vec3_t vec;
+	vec3_t forward, right;
+	float  len;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_BFG_1], forward, right);
+	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_BFG_1], forward, right);
 
-	vec = self->enemy->s.origin;
-	vec[2] += self->enemy->viewheight;
-	dir = vec - start;
+	dir = self->pos1 - self->enemy->s.origin;
+	len = dir.length();
+
+	if (len < 30)
+	{
+		// calc direction to where we targeted
+		dir = self->pos1 - start;
+		dir.normalize();
+
+		monster_fire_tracker(self, start, dir, 20, 2000, self->enemy, MZ2_JORG_BFG_1);
+	}
+	else
+	{
+		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
+		monster_fire_tracker(self, start, dir, 20, 2000, nullptr, MZ2_JORG_BFG_1);
+	}
+}
+void jorg_firebullet_right(edict_t *self)
+{
+//	vec3_t forward, right;
+//	vec3_t start;
+//	vec3_t dir;
+//	vec3_t vec;
+
+//	AngleVectors(self->s.angles, forward, right, nullptr);
+//	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_R1], forward, right);
+
+//	vec = self->enemy->s.origin;
+//	vec[2] += self->enemy->viewheight;
+//	dir = vec - start;
+//	dir.normalize();
+//	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
+//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
+//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
+
+	vec3_t start;
+	vec3_t dir;
+	vec3_t forward, right;
+
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_R1], forward, right);
+
+	// calc direction to where we targeted
+	dir = self->pos1 - start;
 	dir.normalize();
-	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
-	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
+
+	int damage = 35;
+	int radius_damage = 45;
+
+
+	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+
+	// save for aiming the shot
+	self->pos1 = self->enemy->s.origin;
+	self->pos1[2] += self->enemy->viewheight;
 }
 
 void jorg_firebullet_left(edict_t *self)
 {
-	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
-	vec3_t vec;
+	vec3_t forward, right;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_BFG_1], forward, right);
-	vec = self->enemy->s.origin;
-	vec[2] += self->enemy->viewheight;
-	dir = vec - start;
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_L1], forward, right);
+
+	// calc direction to where we targeted
+	dir = self->pos1 - start;
 	dir.normalize();
-	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
-	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
+
+	int damage = 35;
+	int radius_damage = 45;
+
+	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+
+	// save for aiming the shot
+	self->pos1 = self->enemy->s.origin;
+	self->pos1[2] += self->enemy->viewheight;
+//BFG
+//	vec3_t forward, right;
+//	vec3_t start;
+//	vec3_t dir;
+//	vec3_t vec;
+
+//	AngleVectors(self->s.angles, forward, right, nullptr);
+//	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_L1], forward, right);
+//	vec = self->enemy->s.origin;
+//	vec[2] += self->enemy->viewheight;
+//	dir = vec - start;
+//	dir.normalize();
+//	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
+//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
+//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
 }
 void jorg_firebullet(edict_t *self)
 {
@@ -742,6 +680,11 @@ void SP_monster_jorg(edict_t *self)
 
 	self->mins = { -80, -80, 0 };
 	self->maxs = { 80, 80, 140 };
+
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 1500;
 
 	self->health = 8000 * st.health_multiplier;
 	self->gib_health = -2000;

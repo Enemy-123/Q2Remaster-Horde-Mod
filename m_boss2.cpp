@@ -706,6 +706,4 @@ void SP_monster_boss2_64(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
-	gi.soundindex("weapons/railgr1a.wav");
-	self->s.skinnum = 2;
 }
