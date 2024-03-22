@@ -653,8 +653,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// check for godmode
 	if ((targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION))
 	{
-		take = 0;
-		save = damage;
+		take = damage;
+		save = 0;
 		SpawnDamage(te_sparks, point, normal, save);
 	}
 

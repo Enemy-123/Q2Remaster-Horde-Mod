@@ -2144,8 +2144,8 @@ void T_RadiusClassDamage(edict_t *inflictor, edict_t *attacker, float damage, ch
 void cleanupHealTarget(edict_t *ent);
 // ROGUE
 
-constexpr int32_t DEFAULT_BULLET_HSPREAD = 300;
-constexpr int32_t DEFAULT_BULLET_VSPREAD = 500;
+constexpr int32_t DEFAULT_BULLET_HSPREAD = 250;
+constexpr int32_t DEFAULT_BULLET_VSPREAD = 400;
 constexpr int32_t DEFAULT_SHOTGUN_HSPREAD = 1000;
 constexpr int32_t DEFAULT_SHOTGUN_VSPREAD = 500;
 constexpr int32_t DEFAULT_DEATHMATCH_SHOTGUN_COUNT = 12;

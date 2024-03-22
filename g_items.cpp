@@ -429,7 +429,7 @@ void Use_Quad(edict_t *ent, gitem_t *item)
 	}
 	else
 	{
-		timeout = 30_sec;
+		timeout = 99_sec;
 	}
 
 	ent->client->quad_time = max(level.time, ent->client->quad_time) + timeout;
@@ -452,7 +452,7 @@ void Use_QuadFire(edict_t *ent, gitem_t *item)
 	}
 	else
 	{
-		timeout = 99_sec;
+		timeout = 30_sec;
 	}
 
 	ent->client->quadfire_time = max(level.time, ent->client->quadfire_time) + timeout;
@@ -489,7 +489,7 @@ void Use_Invulnerability(edict_t *ent, gitem_t *item)
 {
 	ent->client->pers.inventory[item->id]--;
 
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 30_sec;
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 10_sec;
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
 }

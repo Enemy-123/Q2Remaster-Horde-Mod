@@ -568,8 +568,8 @@ void SP_monster_shambler(edict_t* self)
 	sound_smack.assign("shambler/smack.wav");
 	sound_boom.assign("shambler/sboom.wav");
 
-	self->health = 600 * st.health_multiplier;
-	self->gib_health = -60;
+	self->health = 650 * st.health_multiplier;
+	self->gib_health = -90;
 
 	self->mass = 500;
 

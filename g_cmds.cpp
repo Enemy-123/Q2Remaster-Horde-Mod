@@ -350,7 +350,7 @@ void Cmd_God_f(edict_t* ent)
 	if (!(ent->flags & FL_GODMODE))
 		msg = "godmode OFF\n";
 	else
-		msg = "godmode... ¿ON? >:),\n";
+		msg = "godmode...  ON? >:),\n";
 
 	gi.LocClient_Print(ent, PRINT_HIGH, msg);
 }

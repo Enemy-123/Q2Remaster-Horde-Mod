@@ -1337,7 +1337,7 @@ void Blaster_Fire(edict_t *ent, const vec3_t &g_offset, int damage, bool hyper, 
 		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
-	int speed = hyper ? 1000 : 1500;
+	int speed = hyper ? 1000 : 3500;
 
 	fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER);
 
@@ -1366,7 +1366,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
 	}
 	else
 	{
-		 damage = 120;
+		 damage = 250;
 		 kick = 500;
 	}
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
@@ -1471,7 +1471,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 8;
+	int damage = 15;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1695,7 +1695,7 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 4;
+	int damage = 12;
 	int kick = 8;
 
 	vec3_t start, dir;
@@ -1738,7 +1738,7 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 6;
+	int damage = 18;
 	int kick = 12;
 
 	if (is_quad)
@@ -1799,12 +1799,12 @@ void weapon_railgun_fire(edict_t *ent)
 	// normal damage too extreme for DM
 	if (deathmatch->integer)
 	{
-		damage = 100;
+		damage = 150;
 		kick = 200;
 	}
 	else
 	{
-		damage = 260;
+		damage = 280;
 		kick = 285;
 	}
 

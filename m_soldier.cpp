@@ -1911,14 +1911,14 @@ void SP_monster_soldier_light(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 180;
+		self->monsterinfo.power_armor_power = 280;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 60 * st.health_multiplier;
-	self->gib_health = -30;
+	self->health = self->max_health = 280 * st.health_multiplier;
+	self->gib_health = -80;
 
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;

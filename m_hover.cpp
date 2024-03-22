@@ -592,7 +592,7 @@ void SP_monster_hover(edict_t *self)
 	self->mins = { -24, -24, -24 };
 	self->maxs = { 24, 24, 32 };
 
-	self->health = 240 * st.health_multiplier;
+	self->health = 290 * st.health_multiplier;
 	self->gib_health = -100;
 	self->mass = 150;
 

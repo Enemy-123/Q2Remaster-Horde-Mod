@@ -955,7 +955,7 @@ void SP_monster_turret(edict_t *self)
 
 	// map designer didn't specify weapon type. set it now.
 	if (!self->spawnflags.has(SPAWNFLAG_TURRET_WEAPONCHOICE))
-		self->spawnflags |= SPAWNFLAG_TURRET_BLASTER;
+		self->spawnflags |= SPAWNFLAG_TURRET_ROCKET;
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_HEATBEAM))
 	{

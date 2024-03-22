@@ -1259,10 +1259,10 @@ void SP_monster_widow(edict_t *self)
 	self->mins = { -40, -40, 0 };
 	self->maxs = { 40, 40, 144 };
 
-	self->health = (2000 + 1000 * skill->integer) * st.health_multiplier;
+	self->health = (2400 + 1000 * skill->integer) * st.health_multiplier;
 	if (coop->integer)
 		self->health += 500 * skill->integer;
-	self->gib_health = -5000;
+	self->gib_health = -1000;
 	self->mass = 1500;
 
 	if (skill->integer == 3)
@@ -1270,7 +1270,7 @@ void SP_monster_widow(edict_t *self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 500;
+			self->monsterinfo.power_armor_power = 800;
 	}
 
 	self->yaw_speed = 30;
