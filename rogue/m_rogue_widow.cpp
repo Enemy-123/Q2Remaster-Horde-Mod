@@ -1262,7 +1262,7 @@ void SP_monster_widow(edict_t *self)
 	self->health = (2400 + 1000 * skill->integer) * st.health_multiplier;
 	if (coop->integer)
 		self->health += 500 * skill->integer;
-	self->gib_health = -1000;
+	self->gib_health = -7000;
 	self->mass = 1500;
 
 	if (skill->integer == 3)

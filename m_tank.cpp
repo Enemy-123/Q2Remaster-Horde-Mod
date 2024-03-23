@@ -691,8 +691,8 @@ mframe_t tank_frames_attack_fire_rocket[] = {
 	{ ai_charge, -3, tank_blind_check }, // Loop Start	22
 	{ ai_charge },
 	{ ai_charge, 0, TankRocket }, // 24
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, TankRocket },
+	{ ai_charge, 0, TankRocket },
 	{ ai_charge, 0, TankRocket },
 	{ ai_charge },
 	{ ai_charge },

@@ -1026,7 +1026,7 @@ void SP_monster_widow2(edict_t *self)
 	if (coop->integer)
 		self->health += 500 * skill->integer;
 	//	self->health = 1;
-	self->gib_health = -900;
+	self->gib_health = -700;
 	self->mass = 2500;
 
 	/*	if (skill->integer == 2)

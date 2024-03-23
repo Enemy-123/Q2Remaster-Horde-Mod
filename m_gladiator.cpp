@@ -117,8 +117,8 @@ void GladiatorMelee(edict_t *self)
 }
 
 mframe_t gladiator_frames_attack_melee[] = {
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, gladiator_cleaver_swing },
+	{ ai_charge, 0, GladiatorMelee },
 	{ ai_charge, 0, gladiator_cleaver_swing },
 	{ ai_charge },
 	{ ai_charge, 0, GladiatorMelee },
@@ -130,7 +130,7 @@ mframe_t gladiator_frames_attack_melee[] = {
 	{ ai_charge },
 	{ ai_charge, 0, GladiatorMelee },
 	{ ai_charge },
-	{ ai_charge }
+	{ ai_charge, 0, GladiatorMelee },
 };
 MMOVE_T(gladiator_move_attack_melee) = { FRAME_melee3, FRAME_melee16, gladiator_frames_attack_melee, gladiator_run };
 
@@ -157,9 +157,9 @@ void GladiatorGun(edict_t *self)
 
 mframe_t gladiator_frames_attack_gun[] = {
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, GladiatorGun },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },

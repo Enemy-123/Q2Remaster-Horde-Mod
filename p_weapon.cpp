@@ -987,7 +987,7 @@ GRENADE
 
 void weapon_grenade_fire(edict_t *ent, bool held)
 {
-	int	  damage = 125;
+	int	  damage = 225;
 	int	  speed;
 	float radius;
 
@@ -1107,12 +1107,12 @@ void Throw_Generic(edict_t *ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int F
 				gi.sound(ent, CHAN_WEAPON, gi.soundindex(prime_sound), 1, ATTN_NORM, 0);
 
 			// [Paril-KEX] dualfire/time accel
-			gtime_t grenade_wait_time = 1_sec;
+			gtime_t grenade_wait_time = 0.1_sec;
 
 			if (CTFApplyHaste(ent))
-				grenade_wait_time *= 0.5f;
+				grenade_wait_time *= 0.1f;
 			if (is_quadfire)
-				grenade_wait_time *= 0.5f;
+				grenade_wait_time *= 0.1f;
 
 			if (ent->client->ps.gunframe == FRAME_THROW_HOLD)
 			{
@@ -1233,7 +1233,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t *ent)
 {
-	int	  damage = 120;
+	int	  damage = 200;
 	float radius;
 
 	radius = (float) (damage + 40);
@@ -1281,7 +1281,7 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(140, 180);
+	damage = irandom(180, 240);
 	radius_damage = 130;
 	damage_radius = 130;
 	if (is_quad)
@@ -1366,7 +1366,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
 	}
 	else
 	{
-		 damage = 40;
+		 damage = 220;
 		 kick = 500;
 	}
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
@@ -1431,7 +1431,7 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
 			if (deathmatch->integer)
 				damage = 15;
 			else
-				damage = 20;
+				damage = 24;
 			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
 			Weapon_PowerupSound(ent);
 
@@ -1471,7 +1471,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 17;
+	int damage = 19;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1804,7 +1804,7 @@ void weapon_railgun_fire(edict_t *ent)
 	}
 	else
 	{
-		damage = 280;
+		damage = 320;
 		kick = 285;
 	}
 

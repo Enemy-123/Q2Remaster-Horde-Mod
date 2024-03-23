@@ -282,7 +282,7 @@ void Drop_General(edict_t *ent, gitem_t *item)
 void Use_Adrenaline(edict_t *ent, gitem_t *item)
 {
 	if (!deathmatch->integer)
-		ent->max_health += 1;
+		ent->max_health += 50;
 
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
@@ -294,7 +294,7 @@ void Use_Adrenaline(edict_t *ent, gitem_t *item)
 
 bool Pickup_LegacyHead(edict_t *ent, edict_t *other)
 {
-	other->max_health += 5;
+	other->max_health += 50;
 	other->health += 5;
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && deathmatch->integer)
