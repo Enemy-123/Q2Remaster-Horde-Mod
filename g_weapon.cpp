@@ -392,14 +392,14 @@ void fire_blaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 	if (self->client && !G_ShouldPlayersCollide(true))
 		bolt->clipmask &= ~CONTENTS_PLAYER;
 	bolt->solid = SOLID_BBOX;
-	bolt->s.effects |= EF_PLASMA|EF_BLUEHYPERBLASTER;
+	bolt->s.effects |= EF_PLASMA|EF_GREENGIB;
 	bolt->svflags |= SVF_PROJECTILE;
 	bolt->flags |= FL_DODGE;
 	bolt->s.renderfx |= RF_FULLBRIGHT;
 	bolt->s.modelindex = gi.modelindex("models/objects/laser/tris.md2");
 	bolt->dmg_radius = 156;
 	bolt->s.skinnum = 2;
-	bolt->s.scale = 2.3f;
+	bolt->s.scale = 2.8f;
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
 	bolt->touch = blaster_touch;

@@ -559,11 +559,11 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 
 	if (self->count <= 1)
 	{
-		monster_fire_blaster(self, start, aim, 5, 600, flash_index, EF_BLASTER);
+		monster_fire_blaster(self, start, aim, 15, 1200, flash_index, EF_BLASTER);
 	}
 	else if (self->count <= 3)
 	{
-		monster_fire_shotgun(self, start, aim, 2, 1, 1500, 750, 9, flash_index);
+		monster_fire_shotgun(self, start, aim, 5, 1, 1500, 750, 9, flash_index);
 		// [Paril-KEX] indicates to soldier that he must cock
 		self->dmg = 1;
 	}
@@ -573,7 +573,7 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 			self->monsterinfo.fire_wait = level.time + random_time(300_ms, 1.1_sec);
 
-		monster_fire_bullet(self, start, aim, 2, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+		monster_fire_bullet(self, start, aim, 5, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
 
 		if (level.time >= self->monsterinfo.fire_wait)
 			self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
@@ -811,8 +811,8 @@ mframe_t soldier_frames_attack1[] = {
 	{ ai_charge, 0, soldier_blind_check },
 	{ ai_charge, 0, soldier_attack1_shotgun_check },
 	{ ai_charge, 0, soldier_fire1 },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, soldier_fire1 },
+	{ ai_charge, 0, soldier_fire1 },
 	{ ai_charge, 0, soldier_attack1_refire1 },
 	{ ai_charge },
 	{ ai_charge, 0, soldier_cock },
@@ -958,8 +958,8 @@ void soldierh_hyperripper2(edict_t *self)
 
 mframe_t soldierh_frames_attack2[] = {
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, soldier_fire2 },
+	{ ai_charge, 0, soldier_fire2 },
 	{ ai_charge, 0, soldierh_hyper_laser_sound_start },
 	{ ai_charge, 0, soldier_fire2 },
 	{ ai_charge, 0, soldierh_hyperripper2 },
@@ -967,8 +967,8 @@ mframe_t soldierh_frames_attack2[] = {
 	{ ai_charge, 0, soldier_attack2_refire1 },
 	{ ai_charge, 0, soldierh_hyper_refire2 },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, soldierh_hyperripper2 },
+	{ ai_charge, 0, soldierh_hyperripper2 },
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge },
 	{ ai_charge, 0, soldier_attack2_refire2 },

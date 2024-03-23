@@ -257,10 +257,10 @@ void mutant_check_refire(edict_t *self)
 }
 
 mframe_t mutant_frames_attack[] = {
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, mutant_hit_left },
-	{ ai_charge },
+	{ ai_charge, 0, mutant_hit_right },
+	{ ai_charge, 0, mutant_hit_left },
+	{ ai_charge, 0, mutant_hit_right },
 	{ ai_charge },
 	{ ai_charge, 0, mutant_hit_right },
 	{ ai_charge, 0, mutant_check_refire }
@@ -322,11 +322,11 @@ void mutant_jump_takeoff(edict_t *self)
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin[2] += 1;
-	self->velocity = forward * 425;
+	self->velocity = forward * 725;
 	self->velocity[2] = 160;
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
-	self->monsterinfo.attack_finished = level.time + 3_sec;
+	self->monsterinfo.attack_finished = level.time + 2_sec;
 	self->style = 1;
 	self->touch = mutant_jump_touch;
 }
@@ -707,7 +707,7 @@ void SP_monster_mutant(edict_t *self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 300 * st.health_multiplier;
+	self->health = 400 * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 300;
 

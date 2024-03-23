@@ -391,7 +391,7 @@ void TankBlaster(edict_t *self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	monster_fire_blaster(self, start, dir, 30, 800, flash_number, EF_BLASTER);
+	monster_fire_blaster2(self, start, dir, 30, 1400, flash_number, EF_BLASTER);
 }
 
 
@@ -562,11 +562,11 @@ mframe_t tank_frames_attack_blast[] = {
 	{ ai_charge, -1, tank_blind_check },
 	{ ai_charge },
 	{ ai_charge, 0, TankBlaster }, // 10
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, TankBlaster },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, TankBlaster },
+	{ ai_charge, 0, TankBlaster },
+	{ ai_charge, 0, TankBlaster },
+	{ ai_charge, 0, TankBlaster },
 	{ ai_charge, 0, TankBlaster } // 16
 };
 MMOVE_T(tank_move_attack_blast) = { FRAME_attak101, FRAME_attak116, tank_frames_attack_blast, tank_reattack_blaster };
@@ -1089,6 +1089,7 @@ void SP_monster_tank(edict_t *self)
 
 	// [Paril-KEX] N64 tank commander is a chonky boy
 	if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
+
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;

@@ -237,7 +237,7 @@ void guardian_fire_blaster(edict_t *self)
 	forward = target - start;
 	forward.normalize();
 
-	monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+	monster_fire_blaster2(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
 
 	if (self->enemy && self->enemy->health > 0 && 
 		self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
@@ -247,8 +247,8 @@ void guardian_fire_blaster(edict_t *self)
 mframe_t guardian_frames_atk1_spin[] = {
 	{ ai_charge, 0, guardian_atk1_charge },
 	{ ai_charge },
+	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge, 0, guardian_fire_blaster },
@@ -257,9 +257,9 @@ mframe_t guardian_frames_atk1_spin[] = {
 	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge, 0, guardian_fire_blaster },
-	{ ai_charge, 0 },
-	{ ai_charge, 0 },
-	{ ai_charge, 0 }
+	{ ai_charge, 0, guardian_fire_blaster },
+	{ ai_charge, 0, guardian_fire_blaster },
+	{ ai_charge, 0, guardian_fire_blaster },
 };
 MMOVE_T(guardian_move_atk1_spin) = { FRAME_atk1_spin1, FRAME_atk1_spin15, guardian_frames_atk1_spin, guardian_atk1_finish };
 

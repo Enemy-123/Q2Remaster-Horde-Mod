@@ -652,7 +652,7 @@ THINK(MegaHealth_think) (edict_t *self) -> void
 		)
 	{
 		self->nextthink = level.time + 1_sec;
-		self->owner->health -= 1;
+		self->owner->health -= 0;
 		return;
 	}
 

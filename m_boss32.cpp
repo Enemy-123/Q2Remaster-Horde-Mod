@@ -186,6 +186,11 @@ MONSTERINFO_WALK(makron_walk) (edict_t *self) -> void
 
 MONSTERINFO_RUN(makron_run) (edict_t *self) -> void
 {
+	if (self->enemy && self->enemy->client)
+		self->monsterinfo.aiflags |= AI_BRUTAL;
+	else
+		self->monsterinfo.aiflags &= ~AI_BRUTAL;
+
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &makron_move_stand);
 	else
@@ -443,7 +448,7 @@ void makronBFG(edict_t *self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_VOICE, sound_attack_bfg, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
+	monster_fire_bfg(self, start, dir, 50, 800, 100, 300, MZ2_MAKRON_BFG);
 }
 
 mframe_t makron_frames_attack3[] = {
@@ -453,7 +458,7 @@ mframe_t makron_frames_attack3[] = {
 	{ ai_charge, 0, makronBFG },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
+	{ ai_charge, 0, makronBFG },
 	{ ai_move }
 };
 MMOVE_T(makron_move_attack3) = { FRAME_attak301, FRAME_attak308, makron_frames_attack3, makron_run };
@@ -493,20 +498,22 @@ mframe_t makron_frames_attack5[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, MakronSaveloc },
+	{ ai_move, 0, MakronRailgun }, // Fire railgun
 	{ ai_charge },
 	{ ai_charge, 0, MakronSaveloc },
 	{ ai_move, 0, MakronRailgun }, // Fire railgun
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
+	{ ai_move, 0, MakronRailgun }, // Fire railgun
+	{ ai_charge, 0, MakronSaveloc },
+	{ ai_move, 0, MakronRailgun }, // Fire railgun
+	{ ai_move, 0, MakronRailgun }, // Fire railgun
+	{ ai_charge, 0, MakronSaveloc },
+	{ ai_move, 0, MakronRailgun }, // Fire railgun
+	{ ai_move, 0, MakronRailgun }, // Fire railgun
 };
 MMOVE_T(makron_move_attack5) = { FRAME_attak501, FRAME_attak516, makron_frames_attack5, makron_run };
+
+
 
 void MakronSaveloc(edict_t *self)
 {
@@ -531,6 +538,7 @@ void MakronRailgun(edict_t *self)
 
 
 }
+
 
 void MakronHyperblaster(edict_t *self)
 {
@@ -564,7 +572,7 @@ void MakronHyperblaster(edict_t *self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	monster_fire_blaster(self, start, forward, 15, 1000, flash_number, EF_BLASTER);
+	monster_fire_blaster2(self, start, forward, 35, 2300, flash_number, EF_BLASTER);
 }
 
 PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
@@ -632,9 +640,11 @@ MONSTERINFO_SIGHT(makron_sight) (edict_t *self, edict_t *other) -> void
 	M_SetAnimation(self, &makron_move_sight);
 }
 
+
 MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 {
 	float r;
+
 
 	r = frandom();
 
@@ -644,6 +654,8 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 		M_SetAnimation(self, &makron_move_attack4);
 	else
 		M_SetAnimation(self, &makron_move_attack5);
+
+
 }
 
 //
@@ -692,6 +704,25 @@ DIE(makron_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 	self->mins = { -60, -60, 0 };
 	self->maxs = { 60, 60, 48 };
+
+	/*	unused: when makron dies, it will trigger teleport, leaving torso.
+    if (self->enemy->health <= 0)
+	{
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BOSSTPORT);
+		gi.WritePosition(self->s.origin);
+		gi.multicast(self->s.origin, MULTICAST_PHS, false);
+
+		// just hide, don't kill ent so we can trigger it again
+		self->svflags |= SVF_NOCLIENT|SVF_DEADMONSTER;
+		self->solid = SOLID_NOT;
+		gi.linkentity(self);
+		monster_dead(self);
+		self->monsterinfo.aiflags &= ~AI_BRUTAL;
+		return;
+	}
+
+	*/
 }
 
 // [Paril-KEX] use generic function
@@ -744,7 +775,7 @@ void SP_monster_makron(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 3800;
+		self->monsterinfo.power_armor_power = 4200;
 
 	self->health = 3700 * st.health_multiplier;
 	self->gib_health = -800;
@@ -768,6 +799,8 @@ void SP_monster_makron(edict_t* self)
 	//	M_SetAnimation(self, &makron_move_stand);
 	M_SetAnimation(self, &makron_move_sight);
 	self->monsterinfo.scale = MODEL_SCALE;
+	if (!self->s.scale)
+		self->s.scale = 1.35f;
 
 	walkmonster_start(self);
 

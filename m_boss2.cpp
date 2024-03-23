@@ -295,7 +295,7 @@ void Boss2HyperBlaster(edict_t *self)
 	forward = target - start;
 	forward.normalize();
 
-	monster_fire_blaster(self, start, forward, 2, 1000, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+	monster_fire_blaster(self, start, forward, 2, 1700, id, (self->s.frame % 4) ? EF_BLUEHYPERBLASTER : EF_HYPERBLASTER);
 }
 
 mframe_t boss2_frames_attack_hb[] = {
@@ -353,16 +353,16 @@ mframe_t boss2_frames_attack_rocket2[] = {
 	{ ai_charge, 2 },
 	{ ai_charge, 2, Boss2Rocket64 },
 	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
 	{ ai_charge, 2, Boss2Rocket64 },
 	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
 	{ ai_charge, 2, Boss2Rocket64 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 },
-	{ ai_charge, 2 }
+	{ ai_charge, 2, Boss2Rocket64 },
+	{ ai_charge, 2, Boss2Rocket64 },
+	{ ai_charge, 2, Boss2Rocket64 },
+	{ ai_charge, 2, Boss2Rocket64 },
+	{ ai_charge, 2, Boss2Rocket64 },
+	{ ai_charge, 2, Boss2Rocket64 },
+	{ ai_charge, 2, Boss2Rocket64 },
 };
 MMOVE_T(boss2_move_attack_rocket2) = { FRAME_attack20, FRAME_attack39, boss2_frames_attack_rocket2, boss2_run };
 
@@ -706,4 +706,6 @@ void SP_monster_boss2_64(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
+	if (!self->s.scale)
+		self->s.scale = 1.3f;
 }

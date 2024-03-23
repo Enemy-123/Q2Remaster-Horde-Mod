@@ -669,7 +669,7 @@ void SP_monster_supertank(edict_t *self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
-	self->health = 1500 * st.health_multiplier;
+	self->health = 3500 * st.health_multiplier;
 	self->gib_health = -500;
 	self->mass = 800;
 
@@ -693,7 +693,7 @@ void SP_monster_supertank(edict_t *self)
 
 	// RAFAEL
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 1500;
 
@@ -702,7 +702,7 @@ void SP_monster_supertank(edict_t *self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 800;
+			self->monsterinfo.power_armor_power = 4800;
 	}
 	// RAFAEL
 
@@ -733,4 +733,19 @@ void SP_monster_boss5(edict_t *self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
+}
+
+void SP_monster_janitor(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
+	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
+	self->count = 10;
+	SP_monster_supertank(self);
+	gi.soundindex("weapons/railgr1a.wav");
+	self->s.skinnum = 2;
+	if (!self->s.scale)
+		self->s.scale = 0.3f;
+
+	self->mins = { -20, -20, 0 };
+	self->maxs = { 20,20, 36 };
 }
