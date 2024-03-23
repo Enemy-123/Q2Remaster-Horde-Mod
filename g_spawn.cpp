@@ -168,6 +168,7 @@ void SP_monster_chick_heat(edict_t *self);
 void SP_monster_gladb(edict_t *self);
 void SP_monster_boss5(edict_t *self);
 void SP_monster_janitor(edict_t* self);
+void SP_monster_janitor2(edict_t* self);
 void SP_rotating_light(edict_t *self);
 void SP_object_repair(edict_t *self);
 void SP_misc_crashviper(edict_t *ent);
@@ -392,6 +393,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_gladb", SP_monster_gladb },
 	{ "monster_boss5", SP_monster_boss5 },
 	{ "monster_janitor", SP_monster_janitor },
+	{ "monster_janitor2", SP_monster_janitor2 },
 	// RAFAEL
 
 	//==============

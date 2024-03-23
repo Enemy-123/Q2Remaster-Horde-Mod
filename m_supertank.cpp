@@ -325,22 +325,16 @@ MMOVE_T(supertank_move_death) = { FRAME_death_1, FRAME_death_24, supertank_frame
 
 mframe_t supertank_frames_attack4[] = {
 	{ ai_move, 0, supertankGrenade },
-	{ ai_move },
-	{ ai_move },
 	{ ai_move, 0, supertankGrenade },
 	{ ai_move },
+	{ ai_move, 0, supertankGrenade },
+	{ ai_move, 0, supertankGrenade },
 	{ ai_move }
 };
 MMOVE_T(supertank_move_attack4) = { FRAME_attak4_1, FRAME_attak4_6, supertank_frames_attack4, supertank_run };
 
 mframe_t supertank_frames_attack2[] = {
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, supertankRocket },
 	{ ai_charge },
 	{ ai_charge },
@@ -350,11 +344,17 @@ mframe_t supertank_frames_attack2[] = {
 	{ ai_charge, 0, supertankRocket },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge, 0, supertankRocket },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge, 0, supertankRocket },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge, 0, supertankRocket },
+	{ ai_charge, 0, supertankRocket },
+	{ ai_charge, 0, supertankRocket },
 	{ ai_charge },
+	{ ai_charge, 0, supertankRocket },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },

@@ -12,6 +12,8 @@ GUARDIAN
 #include "m_guardian.h"
 #include "m_flash.h"
 
+constexpr spawnflags_t SPAWNFLAG_GUARDIAN_JANITOR = 8_spawnflag;
+
 //
 // stand
 //
@@ -246,9 +248,9 @@ void guardian_fire_blaster(edict_t *self)
 
 mframe_t guardian_frames_atk1_spin[] = {
 	{ ai_charge, 0, guardian_atk1_charge },
-	{ ai_charge },
 	{ ai_charge, 0, guardian_fire_blaster },
-	{ ai_charge },
+	{ ai_charge, 0, guardian_fire_blaster },
+	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge, 0, guardian_fire_blaster },
 	{ ai_charge, 0, guardian_fire_blaster },
@@ -525,4 +527,19 @@ void SP_monster_guardian(edict_t *self)
 	M_SetAnimation(self, &guardian_move_stand);
 
 	walkmonster_start(self);
+}
+
+
+void SP_monster_janitor2(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_GUARDIAN_JANITOR;
+	SP_monster_guardian(self);
+	gi.soundindex("weapons/railgr1a.wav");
+	self->s.skinnum = 2;
+if (!self->s.scale)
+self->s.scale = 0.4f;
+self->health = 2500 * st.health_multiplier;
+
+	self->mins = { -38, -38, -26 };
+	self->maxs = { 38,38, 24 };
 }
