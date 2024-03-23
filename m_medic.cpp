@@ -1332,8 +1332,8 @@ mframe_t medic_frames_callReinforcements[] = {
 	{ ai_charge, 5 },
 	{ ai_charge, 4.4f }, // 36
 	{ ai_charge, 4.7f },
-	{ ai_charge, 5 },
-	{ ai_charge, 6 },
+	{ ai_charge, 0, medic_spawngrows },	   // 49
+	{ ai_charge, 0, medic_spawngrows },	   // 49
 	{ ai_charge, 4 }, // 40
 	{ ai_charge, 0, monster_footstep },
 	{ ai_move, 0, medic_start_spawn }, // 42

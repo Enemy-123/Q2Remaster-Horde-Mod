@@ -186,11 +186,12 @@ MONSTERINFO_WALK(makron_walk) (edict_t *self) -> void
 
 MONSTERINFO_RUN(makron_run) (edict_t *self) -> void
 {
-	if (self->enemy && self->enemy->client)
+/* unused atm to avoid makron spawning bfgs at player corpse, spawn camping
+if (self->enemy && self->enemy->client)
 		self->monsterinfo.aiflags |= AI_BRUTAL;
 	else
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
-
+		*/
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &makron_move_stand);
 	else

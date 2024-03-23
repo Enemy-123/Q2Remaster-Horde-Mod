@@ -419,7 +419,7 @@ void SP_monster_gladiator(edict_t *self)
 	// RAFAEL
 	if (strcmp(self->classname, "monster_gladb") == 0)
 	{
-		sound_gunb.assign("weapons/plasshot.wav");
+		sound_gunb.assign("weapons/disrupt.wav");
 
 		self->health = 1000 * st.health_multiplier;
 		self->mass = 350;

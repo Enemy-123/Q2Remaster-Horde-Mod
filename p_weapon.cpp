@@ -1281,9 +1281,9 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(100, 120);
-	radius_damage = 120;
-	damage_radius = 120;
+	damage = irandom(140, 180);
+	radius_damage = 130;
+	damage_radius = 130;
 	if (is_quad)
 	{
 		damage *= damage_multiplier;
@@ -1292,7 +1292,7 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-	fire_rocket(ent, start, dir, damage, 650, damage_radius, radius_damage);
+	fire_rocket(ent, start, dir, damage, 1220, damage_radius, radius_damage);
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
@@ -1366,7 +1366,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
 	}
 	else
 	{
-		 damage = 160;
+		 damage = 40;
 		 kick = 500;
 	}
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
@@ -1431,7 +1431,7 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
 			if (deathmatch->integer)
 				damage = 15;
 			else
-				damage = 30;
+				damage = 20;
 			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
 			Weapon_PowerupSound(ent);
 
@@ -1471,7 +1471,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 20;
+	int damage = 17;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1568,7 +1568,7 @@ void Chaingun_Fire(edict_t *ent)
 	if (deathmatch->integer)
 		damage = 6;
 	else
-		damage = 14;
+		damage = 17;
 
 	if (ent->client->ps.gunframe > 31)
 	{
@@ -1695,8 +1695,8 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 16;
-	int kick = 8;
+	int damage = 18;
+	int kick = 14;
 
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
@@ -1738,8 +1738,8 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 19;
-	int kick = 12;
+	int damage = 22;
+	int kick = 30;
 
 	if (is_quad)
 	{

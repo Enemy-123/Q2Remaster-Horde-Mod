@@ -643,6 +643,9 @@ enum player_muzzle_t : uint8_t
     MZ_PHALANX = 18,
     MZ_BFG2 = 19,
     MZ_PHALANX2 = 20,
+    MZ_PHALANX3 = 20,
+    MZ_PHALANX4 = 20,
+
 
     // ROGUE
     MZ_ETF_RIFLE = 30,

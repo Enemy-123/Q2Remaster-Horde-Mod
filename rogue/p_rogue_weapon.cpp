@@ -188,7 +188,7 @@ void weapon_tracker_fire(edict_t *self)
 	if (deathmatch->integer)
 		damage = 45;
 	else
-		damage = 185;
+		damage = 145;
 
 	if (is_quad)
 		damage *= damage_multiplier; // pgm
@@ -272,7 +272,7 @@ void weapon_etf_rifle_fire(edict_t *ent)
 	if (deathmatch->integer)
 		damage = 10;
 	else
-		damage = 40;
+		damage = 24;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -350,7 +350,7 @@ void Weapon_ETF_Rifle(edict_t *ent)
 }
 
 constexpr int32_t HEATBEAM_DM_DMG = 10;
-constexpr int32_t HEATBEAM_SP_DMG = 35;
+constexpr int32_t HEATBEAM_SP_DMG = 23;
 
 void Heatbeam_Fire(edict_t *ent)
 {
