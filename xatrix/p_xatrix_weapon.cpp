@@ -16,7 +16,7 @@ void weapon_ionripper_fire(edict_t *ent)
 		// tone down for deathmatch
 		damage = 30;
 	else
-		damage = 50;
+		damage = 115;
 
 	if (is_quad)
 		damage *= damage_multiplier;
@@ -61,7 +61,7 @@ void weapon_phalanx_fire(edict_t *ent)
 	float  damage_radius;
 	int	   radius_damage;
 
-	damage = irandom(70, 80);
+	damage = irandom(90, 140);
 	radius_damage = 120;
 	damage_radius = 120;
 

@@ -79,7 +79,7 @@ void weapon_chainfist_fire(edict_t *ent)
 		}
 	}
 
-	int damage = 7;
+	int damage = 40;
 
 	if (deathmatch->integer)
 		damage = 15;
@@ -188,7 +188,7 @@ void weapon_tracker_fire(edict_t *self)
 	if (deathmatch->integer)
 		damage = 45;
 	else
-		damage = 135;
+		damage = 185;
 
 	if (is_quad)
 		damage *= damage_multiplier; // pgm
@@ -272,7 +272,7 @@ void weapon_etf_rifle_fire(edict_t *ent)
 	if (deathmatch->integer)
 		damage = 10;
 	else
-		damage = 10;
+		damage = 40;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -349,8 +349,8 @@ void Weapon_ETF_Rifle(edict_t *ent)
 	Weapon_Repeating(ent, 4, 7, 37, 41, pause_frames, weapon_etf_rifle_fire);
 }
 
-constexpr int32_t HEATBEAM_DM_DMG = 15;
-constexpr int32_t HEATBEAM_SP_DMG = 15;
+constexpr int32_t HEATBEAM_DM_DMG = 10;
+constexpr int32_t HEATBEAM_SP_DMG = 35;
 
 void Heatbeam_Fire(edict_t *ent)
 {
