@@ -526,7 +526,11 @@ Deathball Ball
 */
 void SP_dm_dball_ball(edict_t *self)
 {
-	if (!deathmatch->integer)
+	
+
+
+
+
 	{
 		G_FreeEdict(self);
 		return;
@@ -564,7 +568,9 @@ Deathball team 1 start point
 */
 void SP_dm_dball_team1_start(edict_t *self)
 {
-	if (!deathmatch->integer)
+	
+
+
 	{
 		G_FreeEdict(self);
 		return;
@@ -581,7 +587,8 @@ Deathball team 2 start point
 */
 void SP_dm_dball_team2_start(edict_t *self)
 {
-	if (!deathmatch->integer)
+	
+
 	{
 		G_FreeEdict(self);
 		return;
@@ -598,7 +605,9 @@ Deathball ball start point
 */
 void SP_dm_dball_ball_start(edict_t *self)
 {
-	if (!deathmatch->integer)
+	
+
+
 	{
 		G_FreeEdict(self);
 		return;
@@ -619,7 +628,9 @@ delay: time between speed changes (default: 0.2 sec)
 */
 void SP_dm_dball_speed_change(edict_t *self)
 {
-	if (!deathmatch->integer)
+	
+
+
 	{
 		G_FreeEdict(self);
 		return;
@@ -659,7 +670,7 @@ Team1/Team2 - beneficiary of this goal. when the ball enters this goal, the bene
 */
 void SP_dm_dball_goal(edict_t *self)
 {
-	if (!deathmatch->integer)
+	if (!G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;

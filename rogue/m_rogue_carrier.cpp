@@ -85,7 +85,9 @@ void CarrierCoopCheck(edict_t *self)
 	// if we're not in coop, this is a noop
 	// [Paril-KEX] might as well let this work in SP too, so he fires it
 	// if you get below him
-	//if (!coop->integer)
+	//if (!
+	// 
+	// )
 	//	return;
 	// if we are, and we have recently fired, bail
 	if (self->monsterinfo.fire_wait > level.time)
@@ -1100,7 +1102,13 @@ void SP_monster_carrier(edict_t *self)
 	// 2000 - 4000 health
 	self->health = max(2000, 2000 + 1000 * (skill->integer - 1)) * st.health_multiplier;
 	// add health in coop (500 * skill)
-	if (coop->integer)
+	
+
+
+
+
+
+
 		self->health += 700 * skill->integer;
 
 	self->gib_health = -200;

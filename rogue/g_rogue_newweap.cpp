@@ -161,7 +161,7 @@ TOUCH(Prox_Field_Touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool o
 	if (CheckTeamDamage(prox->teammaster, other))
 		return;
 
-	if (!deathmatch->integer && other->client)
+	if (!G_IsDeathmatch() && other->client)
 		return;
 
 	if (other == prox) // don't set self off
@@ -214,7 +214,8 @@ THINK(prox_open) (edict_t *ent) -> void
 		// doesn't get stuck on it while it's opening if fired at point blank wall
 		ent->s.sound = 0;
 
-		if (deathmatch->integer)
+		
+
 			ent->owner = nullptr;
 
 		if (ent->teamchain)
@@ -235,8 +236,8 @@ THINK(prox_open) (edict_t *ent) -> void
 			if (
 				search != ent &&
 				(
-					(((search->svflags & SVF_MONSTER) || (deathmatch->integer && (search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) && (search->health > 0)) ||
-					(deathmatch->integer &&
+					(((search->svflags & SVF_MONSTER) || (G_IsDeathmatch() && (search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) && (search->health > 0)) ||
+					(G_IsDeathmatch() &&
 					 ((!strncmp(search->classname, "info_player_", 12)) ||
 					  (!strcmp(search->classname, "misc_teleporter_dest")) ||
 					  (!strncmp(search->classname, "item_flag_", 10))))) &&
@@ -827,9 +828,9 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 3_sec;
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
 
-void tesla_remove(edict_t *self)
+void tesla_remove(edict_t* self)
 {
-	edict_t *cur, *next;
+	edict_t* cur, * next;
 
 	self->takedamage = false;
 	if (self->teamchain)
@@ -856,25 +857,25 @@ void tesla_remove(edict_t *self)
 	Grenade_Explode(self);
 }
 
-DIE(tesla_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(tesla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	tesla_remove(self);
 }
 
-void tesla_blow(edict_t *self)
+void tesla_blow(edict_t* self)
 {
 	self->dmg *= TESLA_EXPLOSION_DAMAGE_MULT;
 	self->dmg_radius = TESLA_EXPLOSION_RADIUS;
 	tesla_remove(self);
 }
 
-TOUCH(tesla_zap) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 }
 
-static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t *check, void *data)
+static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
 {
-	edict_t *self = (edict_t *) data;
+	edict_t* self = (edict_t*)data;
 
 	if (!check->inuse)
 		return BoxEdictsResult_t::Skip;
@@ -885,7 +886,7 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t *check, void *data
 	// don't hit teammates
 	if (check->client)
 	{
-		if (!deathmatch->integer)
+		if (!G_IsDeathmatch())
 			return BoxEdictsResult_t::Skip;
 		else if (CheckTeamDamage(check, self->teammaster))
 			return BoxEdictsResult_t::Skip;
@@ -894,17 +895,17 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t *check, void *data
 		return BoxEdictsResult_t::Skip;
 
 	// don't hit other teslas in SP/coop
-	if (!deathmatch->integer && check->classname && (check->flags & FL_TRAP))
+	if (!G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP))
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;
 }
 
-THINK(tesla_think_active) (edict_t *self) -> void
+THINK(tesla_think_active) (edict_t* self) -> void
 {
 	int		 i, num;
-	static edict_t *touch[MAX_EDICTS];
-	edict_t *hit;
+	static edict_t* touch[MAX_EDICTS];
+	edict_t* hit;
 	vec3_t	 dir, start;
 	trace_t	 tr;
 
@@ -934,7 +935,7 @@ THINK(tesla_think_active) (edict_t *self) -> void
 		// don't hit teammates
 		if (hit->client)
 		{
-			if (!deathmatch->integer)
+			if (!G_IsDeathmatch())
 				continue;
 			else if (CheckTeamDamage(hit, self->teamchain->owner))
 				continue;
@@ -954,10 +955,10 @@ THINK(tesla_think_active) (edict_t *self) -> void
 			// PGM - don't do knockback to walking monsters
 			if ((hit->svflags & SVF_MONSTER) && !(hit->flags & (FL_FLY | FL_SWIM)))
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-						 self->dmg, 0, DAMAGE_NONE, MOD_TESLA);
+					self->dmg, 0, DAMAGE_NONE, MOD_TESLA);
 			else
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-						 self->dmg, TESLA_KNOCKBACK, DAMAGE_NONE, MOD_TESLA);
+					self->dmg, TESLA_KNOCKBACK, DAMAGE_NONE, MOD_TESLA);
 
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LIGHTNING);
@@ -976,10 +977,10 @@ THINK(tesla_think_active) (edict_t *self) -> void
 	}
 }
 
-THINK(tesla_activate) (edict_t *self) -> void
+THINK(tesla_activate) (edict_t* self) -> void
 {
-	edict_t *trigger;
-	edict_t *search;
+	edict_t* trigger;
+	edict_t* search;
 
 	if (gi.pointcontents(self->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WATER))
 	{
@@ -988,7 +989,7 @@ THINK(tesla_activate) (edict_t *self) -> void
 	}
 
 	// only check for spawn points in deathmatch
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 	{
 		search = nullptr;
 		while ((search = findradius(search, self->s.origin, 1.5f * TESLA_DAMAGE_RADIUS)) != nullptr)
@@ -998,8 +999,8 @@ THINK(tesla_activate) (edict_t *self) -> void
 			// or it's a player start point
 			// and we can see it
 			// blow up
-			if (search->classname && ((deathmatch->integer &&
-					((!strncmp(search->classname, "info_player_", 12)) ||
+			if (search->classname && ((G_IsDeathmatch() &&
+				((!strncmp(search->classname, "info_player_", 12)) ||
 					(!strcmp(search->classname, "misc_teleporter_dest")) ||
 					(!strncmp(search->classname, "item_flag_", 10))))) &&
 				(visible(search, self)))
@@ -1024,7 +1025,7 @@ THINK(tesla_activate) (edict_t *self) -> void
 
 	self->s.angles = {};
 	// clear the owner if in deathmatch
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 		self->owner = nullptr;
 	self->teamchain = trigger;
 	self->think = tesla_think_active;
@@ -1032,7 +1033,7 @@ THINK(tesla_activate) (edict_t *self) -> void
 	self->air_finished = level.time + TESLA_TIME_TO_LIVE;
 }
 
-THINK(tesla_think) (edict_t *ent) -> void
+THINK(tesla_think) (edict_t* ent) -> void
 {
 	if (gi.pointcontents(ent->s.origin) & (CONTENTS_SLIME | CONTENTS_LAVA))
 	{
@@ -1074,7 +1075,7 @@ THINK(tesla_think) (edict_t *ent) -> void
 	}
 }
 
-TOUCH(tesla_lava) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA))
 	{
@@ -1091,9 +1092,9 @@ TOUCH(tesla_lava) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_t
 	}
 }
 
-void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int tesla_damage_multiplier, int speed)
+void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
-	edict_t *tesla;
+	edict_t* tesla;
 	vec3_t	 dir;
 	vec3_t	 forward, right, up;
 
@@ -1128,7 +1129,7 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 	// blow up on contact with lava & slime code
 	tesla->touch = tesla_lava;
 
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 		// PMM - lowered from 50 - 7/29/1998
 		tesla->health = 20;
 	else
@@ -1138,7 +1139,7 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 	tesla->die = tesla_die;
 	tesla->dmg = TESLA_DAMAGE * tesla_damage_multiplier;
 	tesla->classname = "tesla_mine";
-	tesla->flags |= ( FL_DAMAGEABLE | FL_TRAP );
+	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
 
 	// [Paril-KEX]
@@ -1154,7 +1155,7 @@ void fire_tesla(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int te
 //  HEATBEAM
 // *************************
 
-static void fire_beams(edict_t *self, const vec3_t &start, const vec3_t &aimdir, const vec3_t &offset, int damage, int kick, int te_beam, int te_impact, mod_t mod)
+static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset, int damage, int kick, int te_beam, int te_impact, mod_t mod)
 {
 	trace_t	   tr;
 	vec3_t	   dir;

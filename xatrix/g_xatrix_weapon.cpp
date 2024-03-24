@@ -427,7 +427,9 @@ THINK(Trap_Think) (edict_t *ent) -> void
 	{
 		ent->s.effects |= EF_TRAP;
 		// clear the owner if in deathmatch
-		if (deathmatch->integer)
+		
+
+
 			ent->owner = nullptr;
 	}
 
@@ -447,8 +449,8 @@ THINK(Trap_Think) (edict_t *ent) -> void
 		// or it's a player start point
 		// and we can see it
 		// blow up
-		if (target->classname && ((deathmatch->integer &&
-				((!strncmp(target->classname, "info_player_", 12)) ||
+		if (target->classname && ((G_IsDeathmatch() &&
+			((!strncmp(target->classname, "info_player_", 12)) ||
 				(!strcmp(target->classname, "misc_teleporter_dest")) ||
 				(!strncmp(target->classname, "item_flag_", 10))))) &&
 			(visible(target, ent)))
@@ -457,12 +459,13 @@ THINK(Trap_Think) (edict_t *ent) -> void
 			return;
 		}
 
+
 		if (!(target->svflags & SVF_MONSTER) && !target->client)
 			continue;
 		if (target != ent->teammaster && CheckTeamDamage(target, ent->teammaster))
 			continue;
 		// [Paril-KEX]
-		if (!deathmatch->integer && target->client)
+		if (!G_IsDeathmatch() && target->client)
 			continue;
 		if (target->health <= 0)
 			continue;
@@ -518,7 +521,7 @@ THINK(Trap_Think) (edict_t *ent) -> void
 				ent->s.old_origin = ent->s.origin;
 				ent->timestamp = level.time + 30_sec;
 				ent->accel = best->mass;
-				if (deathmatch->integer)
+				if (G_IsDeathmatch())
 					ent->mass = best->mass / 4;
 				else
 					ent->mass = best->mass / 10;

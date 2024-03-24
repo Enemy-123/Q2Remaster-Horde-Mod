@@ -5,8 +5,8 @@
 #include "m_player.h"
 #include "bots/bot_includes.h"
 
-static edict_t   *current_player;
-static gclient_t *current_client;
+static edict_t* current_player;
+static gclient_t* current_client;
 
 static vec3_t forward, right, up;
 float		  xyspeed;
@@ -21,12 +21,12 @@ SkipViewModifiers
 ===============
 */
 inline bool SkipViewModifiers() {
-	if ( g_skipViewModifiers->integer && sv_cheats->integer ) {
+	if (g_skipViewModifiers->integer && sv_cheats->integer) {
 		return true;
 	}
 	// don't do bobbing, etc on grapple
 	if (current_client->ctf_grapple &&
-		 current_client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY) {
+		current_client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY) {
 		return true;
 	}
 	// spectator mode
@@ -42,9 +42,9 @@ SV_CalcRoll
 
 ===============
 */
-float SV_CalcRoll(const vec3_t &angles, const vec3_t &velocity)
+float SV_CalcRoll(const vec3_t& angles, const vec3_t& velocity)
 {
-	if ( SkipViewModifiers() ) {
+	if (SkipViewModifiers()) {
 		return 0.0f;
 	}
 
@@ -73,9 +73,9 @@ P_DamageFeedback
 Handles color blends and view kicks
 ===============
 */
-void P_DamageFeedback(edict_t *player)
+void P_DamageFeedback(edict_t* player)
 {
-	gclient_t		  *client;
+	gclient_t* client;
 	float			 side;
 	float			 realcount, count, kick;
 	vec3_t			 v;
@@ -103,7 +103,7 @@ void P_DamageFeedback(edict_t *player)
 		client->ps.stats[STAT_FLASHES] = 0;
 
 	// total points of damage shot at the player this frame
-	count = (float) (client->damage_blood + client->damage_armor + client->damage_parmor);
+	count = (float)(client->damage_blood + client->damage_armor + client->damage_parmor);
 	if (count == 0)
 		return; // didn't take any damage
 
@@ -160,7 +160,7 @@ void P_DamageFeedback(edict_t *player)
 	{
 		player->pain_debounce_time = level.time + 700_ms;
 
-		constexpr const char *pain_sounds[] = {
+		constexpr const char* pain_sounds[] = {
 			"*pain25_1.wav",
 			"*pain25_2.wav",
 			"*pain50_1.wav",
@@ -218,7 +218,7 @@ void P_DamageFeedback(edict_t *player)
 	//
 	// calculate view angle kicks
 	//
-	kick = (float) abs(client->damage_knockback);
+	kick = (float)abs(client->damage_knockback);
 	if (kick && player->health > 0) // kick of 0 means no view adjust at all
 	{
 		kick = kick * 100 / player->health;
@@ -248,7 +248,7 @@ void P_DamageFeedback(edict_t *player)
 
 		for (uint8_t i = 0; i < client->num_damage_indicators; i++)
 		{
-			auto &indicator = client->damage_indicators[i];
+			auto& indicator = client->damage_indicators[i];
 
 			// encode total damage into 5 bits
 			uint8_t encoded = std::clamp((indicator.health + indicator.power + indicator.armor) / 3, 1, 0x1F);
@@ -294,7 +294,7 @@ Auto pitching on slopes?
 
 ===============
 */
-void SV_CalcViewOffset(edict_t *ent)
+void SV_CalcViewOffset(edict_t* ent)
 {
 	float  bob;
 	float  ratio;
@@ -304,7 +304,7 @@ void SV_CalcViewOffset(edict_t *ent)
 	//===================================
 
 	// base angles
-	vec3_t &angles = ent->client->ps.kick_angles;
+	vec3_t& angles = ent->client->ps.kick_angles;
 
 	// if dead, fix the angle and don't add any kick
 	if (ent->deadflag && !ent->client->resp.spectator)
@@ -438,7 +438,7 @@ void SV_CalcViewOffset(edict_t *ent)
 			v[2] -= ratio * ent->client->fall_value * 0.4f;
 		}
 
-	// add bob height
+		// add bob height
 		bob = bobfracsin * xyspeed * bob_up->value;
 		if (bob > 6)
 			bob = 6;
@@ -475,13 +475,13 @@ void SV_CalcViewOffset(edict_t *ent)
 SV_CalcGunOffset
 ==============
 */
-void SV_CalcGunOffset(edict_t *ent)
+void SV_CalcGunOffset(edict_t* ent)
 {
 	int	  i;
 	// ROGUE
 
 	// ROGUE - heatbeam shouldn't bob so the beam looks right
-	if (ent->client->pers.weapon && 
+	if (ent->client->pers.weapon &&
 		!((ent->client->pers.weapon->id == IT_WEAPON_PLASMABEAM || ent->client->pers.weapon->id == IT_WEAPON_GRAPPLE) && ent->client->weaponstate == WEAPON_FIRING)
 		&& !SkipViewModifiers())
 	{
@@ -498,14 +498,14 @@ void SV_CalcGunOffset(edict_t *ent)
 		ent->client->ps.gunangles[PITCH] = xyspeed * bobfracsin * 0.005f;
 
 		vec3_t viewangles_delta = ent->client->oldviewangles - ent->client->ps.viewangles;
-		
+
 		for (i = 0; i < 3; i++)
 			ent->client->slow_view_angles[i] += viewangles_delta[i];
 
 		// gun angles from delta movement
 		for (i = 0; i < 3; i++)
 		{
-			float &d = ent->client->slow_view_angles[i];
+			float& d = ent->client->slow_view_angles[i];
 
 			if (!d)
 				continue;
@@ -561,7 +561,7 @@ void SV_CalcGunOffset(edict_t *ent)
 SV_CalcBlend
 =============
 */
-void SV_CalcBlend(edict_t *ent)
+void SV_CalcBlend(edict_t* ent)
 {
 	gtime_t remaining;
 
@@ -809,7 +809,7 @@ void P_WorldEffects()
 		{
 			if (current_player->client->next_drown_time < level.time)
 			{
-				gi.sound(current_player, CHAN_VOICE, gi.soundindex(fmt::format("player/wade{}.wav", 1 + ((int32_t) level.time.seconds() % 3)).c_str()), 1, ATTN_NORM, 0);
+				gi.sound(current_player, CHAN_VOICE, gi.soundindex(fmt::format("player/wade{}.wav", 1 + ((int32_t)level.time.seconds() % 3)).c_str()), 1, ATTN_NORM, 0);
 				current_player->client->next_drown_time = level.time + 1_sec;
 			}
 		}
@@ -858,7 +858,7 @@ void P_WorldEffects()
 G_SetClientEffects
 ===============
 */
-void G_SetClientEffects(edict_t *ent)
+void G_SetClientEffects(edict_t* ent)
 {
 	int pa_type;
 
@@ -912,7 +912,8 @@ void G_SetClientEffects(edict_t *ent)
 
 	// RAFAEL
 	if (ent->client->quadfire_time > level.time)
-	{;
+	{
+		;
 		if (G_PowerUpExpiring(ent->client->quadfire_time))
 			CTFSetPowerUpEffect(ent, EF_DUALFIRE);
 	}
@@ -993,14 +994,14 @@ void G_SetClientEffects(edict_t *ent)
 G_SetClientEvent
 ===============
 */
-void G_SetClientEvent(edict_t *ent)
+void G_SetClientEvent(edict_t* ent)
 {
 	if (ent->s.event)
 		return;
 
 	if (ent->client->ps.pmove.pm_flags & PMF_ON_LADDER)
 	{
-		if (!deathmatch->integer &&
+		if (!G_IsDeathmatch() &&
 			current_client->last_ladder_sound < level.time &&
 			(current_client->last_ladder_pos - ent->s.origin).length() > 48.f)
 		{
@@ -1011,7 +1012,7 @@ void G_SetClientEvent(edict_t *ent)
 	}
 	else if (ent->groundentity && xyspeed > 225)
 	{
-		if ((int) (current_client->bobtime + bobmove) != bobcycle_run)
+		if ((int)(current_client->bobtime + bobmove) != bobcycle_run)
 			ent->s.event = EV_FOOTSTEP;
 	}
 }
@@ -1021,7 +1022,7 @@ void G_SetClientEvent(edict_t *ent)
 G_SetClientSound
 ===============
 */
-void G_SetClientSound(edict_t *ent)
+void G_SetClientSound(edict_t* ent)
 {
 	// help beep (no more than three times)
 	if (ent->client->pers.helpchanged && ent->client->pers.helpchanged <= 3 && ent->client->pers.help_time < level.time)
@@ -1080,9 +1081,9 @@ void G_SetClientSound(edict_t *ent)
 G_SetClientFrame
 ===============
 */
-void G_SetClientFrame(edict_t *ent)
+void G_SetClientFrame(edict_t* ent)
 {
-	gclient_t *client;
+	gclient_t* client;
 	bool	   duck, run;
 
 	if (ent->s.modelindex != MODELINDEX_PLAYER)
@@ -1106,7 +1107,7 @@ void G_SetClientFrame(edict_t *ent)
 		goto newanim;
 	if (!ent->groundentity && client->anim_priority <= ANIM_WAVE)
 		goto newanim;
-	
+
 	if (client->anim_time > level.time)
 		return;
 	else if ((client->anim_priority & ANIM_REVERSED) && (ent->s.frame > client->anim_end))
@@ -1224,7 +1225,7 @@ newanim:
 }
 
 // [Paril-KEX]
-static void P_RunMegaHealth(edict_t *ent)
+static void P_RunMegaHealth(edict_t* ent)
 {
 	if (!ent->client->pers.megahealth_time)
 		return;
@@ -1248,12 +1249,12 @@ static void P_RunMegaHealth(edict_t *ent)
 }
 
 // [Paril-KEX] push all players' origins back to match their lag compensation
-void G_LagCompensate(edict_t *from_player, const vec3_t &start, const vec3_t &dir)
+void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& dir)
 {
 	uint32_t current_frame = gi.ServerFrame();
 
 	// if you need this to fight monsters, you need help
-	if (!deathmatch->integer)
+	if (!G_IsDeathmatch())
 		return;
 	else if (!g_lag_compensation->integer)
 		return;
@@ -1290,7 +1291,7 @@ void G_LagCompensate(edict_t *from_player, const vec3_t &start, const vec3_t &di
 			return;
 		}
 
-		const vec3_t &lag_origin = (game.lag_origins + ((player->s.number - 1) * game.max_lag_origins))[lag_id];
+		const vec3_t& lag_origin = (game.lag_origins + ((player->s.number - 1) * game.max_lag_origins))[lag_id];
 
 		// no way they'd be hit if they aren't in the PVS
 		if (!gi.inPVS(lag_origin, start, false))
@@ -1302,7 +1303,7 @@ void G_LagCompensate(edict_t *from_player, const vec3_t &start, const vec3_t &di
 			player->client->is_lag_compensated = true;
 			player->client->lag_restore_origin = player->s.origin;
 		}
-			
+
 		player->s.origin = lag_origin;
 
 		gi.linkentity(player);
@@ -1324,7 +1325,7 @@ void G_UnLagCompensate()
 }
 
 // [Paril-KEX] save the current lag compensation value
-static void G_SaveLagCompensation(edict_t *ent)
+static void G_SaveLagCompensation(edict_t* ent)
 {
 	(game.lag_origins + ((ent->s.number - 1) * game.max_lag_origins))[ent->client->next_lag_origin] = ent->s.origin;
 	ent->client->next_lag_origin = (ent->client->next_lag_origin + 1) % game.max_lag_origins;
@@ -1341,7 +1342,7 @@ Called for each player at the end of the server frame
 and right after spawning
 =================
 */
-void ClientEndServerFrame(edict_t *ent)
+void ClientEndServerFrame(edict_t* ent)
 {
 	// no player exists yet (load game)
 	if (!ent->client->pers.spawned)
@@ -1378,7 +1379,7 @@ void ClientEndServerFrame(edict_t *ent)
 	//
 	if (level.intermissiontime || ent->client->awaiting_respawn)
 	{
-		if (ent->client->awaiting_respawn || (level.intermission_eou || level.is_n64 || (deathmatch->integer && level.intermissiontime)))
+		if (ent->client->awaiting_respawn || (level.intermission_eou || level.is_n64 || (G_IsDeathmatch() && level.intermissiontime)))
 		{
 			current_client->ps.screen_blend[3] = current_client->ps.damage_blend[3] = 0;
 			current_client->ps.fov = 90;
@@ -1388,7 +1389,7 @@ void ClientEndServerFrame(edict_t *ent)
 		G_SetCoopStats(ent);
 
 		// if the scoreboard is up, update it if a client leaves
-		if (deathmatch->integer && ent->client->showscores && ent->client->menutime)
+		if (G_IsDeathmatch() && ent->client->showscores && ent->client->menutime)
 		{
 			DeathmatchScoreboardMessage(ent, ent->enemy);
 			gi.unicast(ent, false);
@@ -1416,7 +1417,7 @@ void ClientEndServerFrame(edict_t *ent)
 		ent->s.angles[PITCH] = (-360 + ent->client->v_angle[PITCH]) / 3;
 	else
 		ent->s.angles[PITCH] = ent->client->v_angle[PITCH] / 3;
-	
+
 	ent->s.angles[YAW] = ent->client->v_angle[YAW];
 	ent->s.angles[ROLL] = 0;
 	// [Paril-KEX] cl_rollhack
@@ -1449,8 +1450,8 @@ void ClientEndServerFrame(edict_t *ent)
 	if ((current_client->ps.pmove.pm_flags & PMF_DUCKED) && ent->groundentity)
 		bobtime *= 4;
 
-	bobcycle = (int) bobtime;
-	bobcycle_run = (int) bobtime_run;
+	bobcycle = (int)bobtime;
+	bobcycle_run = (int)bobtime_run;
 	bobfracsin = fabsf(sinf(bobtime * PIf));
 
 	// apply all the damage taken this frame
@@ -1518,13 +1519,13 @@ void ClientEndServerFrame(edict_t *ent)
 		ent->client->menutime = level.time + 3_sec;
 	}
 
-	if ( ( ent->svflags & SVF_BOT ) != 0 ) {
-		Bot_EndFrame( ent );
+	if ((ent->svflags & SVF_BOT) != 0) {
+		Bot_EndFrame(ent);
 	}
 
 	P_AssignClientSkinnum(ent);
 
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 		G_SaveLagCompensation(ent);
 
 	Compass_Update(ent, false);
@@ -1532,7 +1533,7 @@ void ClientEndServerFrame(edict_t *ent)
 	// [Paril-KEX] in coop, if player collision is enabled and
 	// we are currently in no-player-collision mode, check if
 	// it's safe.
-	if (coop->integer && G_ShouldPlayersCollide(false) && !(ent->clipmask & CONTENTS_PLAYER) && ent->takedamage)
+	if (G_IsCooperative() && G_ShouldPlayersCollide(false) && !(ent->clipmask & CONTENTS_PLAYER) && ent->takedamage)
 	{
 		bool clipped_player = false;
 

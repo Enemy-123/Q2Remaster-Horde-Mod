@@ -11,7 +11,7 @@ constexpr spawnflags_t SPAWNFLAG_TRIGGER_LATCHED = 0x10_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TRIGGER_CLIP = 0x20_spawnflag;
 // PGM
 
-void InitTrigger(edict_t *self)
+void InitTrigger(edict_t* self)
 {
 	if (st.was_key_specified("angle") || st.was_key_specified("angles") || self->s.angles)
 		G_SetMovedir(self->s.angles, self->movedir);
@@ -26,7 +26,7 @@ void InitTrigger(edict_t *self)
 }
 
 // the wait time has passed, so set back up for another activation
-THINK(multi_wait) (edict_t *ent) -> void
+THINK(multi_wait) (edict_t* ent) -> void
 {
 	ent->nextthink = 0_ms;
 }
@@ -34,7 +34,7 @@ THINK(multi_wait) (edict_t *ent) -> void
 // the trigger was just activated
 // ent->activator should be set to the activator so it can be held through a delay
 // so wait for the delay time before firing
-void multi_trigger(edict_t *ent)
+void multi_trigger(edict_t* ent)
 {
 	if (ent->nextthink)
 		return; // already been triggered
@@ -55,7 +55,7 @@ void multi_trigger(edict_t *ent)
 	}
 }
 
-USE(Use_Multi) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(Use_Multi) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	// PGM
 	if (ent->spawnflags.has(SPAWNFLAG_TRIGGER_TOGGLE))
@@ -74,7 +74,7 @@ USE(Use_Multi) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 	// PGM
 }
 
-TOUCH(Touch_Multi) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(Touch_Multi) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other->client)
 	{
@@ -124,16 +124,16 @@ sounds
 4)
 set "message" to text string
 */
-USE(trigger_enable) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_enable) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->solid = SOLID_TRIGGER;
 	self->use = Use_Multi;
 	gi.linkentity(self);
 }
 
-static BoxEdictsResult_t latched_trigger_filter(edict_t *other, void *data)
+static BoxEdictsResult_t latched_trigger_filter(edict_t* other, void* data)
 {
-	edict_t *self = (edict_t *) data;
+	edict_t* self = (edict_t*)data;
 
 	if (other->client)
 	{
@@ -161,7 +161,7 @@ static BoxEdictsResult_t latched_trigger_filter(edict_t *other, void *data)
 	return BoxEdictsResult_t::Keep | BoxEdictsResult_t::End;
 }
 
-THINK(latched_trigger_think) (edict_t *self) -> void
+THINK(latched_trigger_think) (edict_t* self) -> void
 {
 	self->nextthink = level.time + 1_ms;
 
@@ -174,7 +174,7 @@ THINK(latched_trigger_think) (edict_t *self) -> void
 	}
 }
 
-void SP_trigger_multiple(edict_t *ent)
+void SP_trigger_multiple(edict_t* ent)
 {
 	if (ent->sounds == 1)
 		ent->noise_index = gi.soundindex("misc/secret.wav");
@@ -203,7 +203,7 @@ void SP_trigger_multiple(edict_t *ent)
 
 	// PGM
 	if (ent->spawnflags.has(SPAWNFLAG_TRIGGER_TRIGGERED | SPAWNFLAG_TRIGGER_TOGGLE))
-	// PGM
+		// PGM
 	{
 		ent->solid = SOLID_NOT;
 		ent->use = trigger_enable;
@@ -235,7 +235,7 @@ sounds
 "message"	string to be displayed when triggered
 */
 
-void SP_trigger_once(edict_t *ent)
+void SP_trigger_once(edict_t* ent)
 {
 	// make old maps work because I messed up on flag assignments here
 	// triggered was on bit 1 when it should have been on bit 4
@@ -255,7 +255,7 @@ This fixed size trigger cannot be touched, it can only be fired by other events.
 */
 constexpr spawnflags_t SPAWNFLAGS_TRIGGER_RELAY_NO_SOUND = 1_spawnflag;
 
-USE(trigger_relay_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_relay_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->crosslevel_flags && !(self->crosslevel_flags == (game.cross_level_flags & SFL_CROSS_TRIGGER_MASK & self->crosslevel_flags)))
 		return;
@@ -263,7 +263,7 @@ USE(trigger_relay_use) (edict_t *self, edict_t *other, edict_t *activator) -> vo
 	G_UseTargets(self, activator);
 }
 
-void SP_trigger_relay(edict_t *self)
+void SP_trigger_relay(edict_t* self)
 {
 	self->use = trigger_relay_use;
 
@@ -283,7 +283,7 @@ trigger_key
 A relay trigger that only fires it's targets if player has the proper key.
 Use "item" to specify the required key, for example "key_data_cd"
 */
-USE(trigger_key_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_key_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	item_id_t index;
 
@@ -304,9 +304,9 @@ USE(trigger_key_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	}
 
 	gi.sound(activator, CHAN_AUTO, gi.soundindex("misc/keyuse.wav"), 1, ATTN_NORM, 0);
-	if (coop->integer)
+	if (G_IsCooperative())
 	{
-		edict_t *ent;
+		edict_t* ent;
 
 		if (self->item->id == IT_KEY_POWER_CUBE || self->item->id == IT_KEY_EXPLOSIVE_CHARGES)
 		{
@@ -365,7 +365,7 @@ USE(trigger_key_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	self->use = nullptr;
 }
 
-void SP_trigger_key(edict_t *self)
+void SP_trigger_key(edict_t* self)
 {
 	if (!st.item)
 	{
@@ -410,7 +410,7 @@ After the counter has been triggered "count" times (default 2), it will fire all
 
 constexpr spawnflags_t SPAWNFLAG_COUNTER_NOMESSAGE = 1_spawnflag;
 
-USE(trigger_counter_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_counter_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->count == 0)
 		return;
@@ -436,7 +436,7 @@ USE(trigger_counter_use) (edict_t *self, edict_t *other, edict_t *activator) -> 
 	multi_trigger(self);
 }
 
-void SP_trigger_counter(edict_t *self)
+void SP_trigger_counter(edict_t* self)
 {
 	self->wait = -1;
 	if (!self->count)
@@ -456,7 +456,7 @@ trigger_always
 /*QUAKED trigger_always (.5 .5 .5) (-8 -8 -8) (8 8 8)
 This trigger will always fire.  It is activated by the world.
 */
-void SP_trigger_always(edict_t *ent)
+void SP_trigger_always(edict_t* ent)
 {
 	// we must have some delay to make sure our use targets are present
 	if (!ent->delay)
@@ -482,7 +482,7 @@ constexpr spawnflags_t SPAWNFLAG_PUSH_CLIP = 0x10_spawnflag;
 
 static cached_soundindex windsound;
 
-TOUCH(trigger_push_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(trigger_push_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_PUSH_CLIP))
 	{
@@ -521,7 +521,7 @@ TOUCH(trigger_push_touch) (edict_t *self, edict_t *other, const trace_t &tr, boo
 
 //======
 // PGM
-USE(trigger_push_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_push_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->solid == SOLID_NOT)
 		self->solid = SOLID_TRIGGER;
@@ -533,9 +533,9 @@ USE(trigger_push_use) (edict_t *self, edict_t *other, edict_t *activator) -> voi
 //======
 
 // RAFAEL
-void trigger_push_active(edict_t *self);
+void trigger_push_active(edict_t* self);
 
-void trigger_effect(edict_t *self)
+void trigger_effect(edict_t* self)
 {
 	vec3_t origin;
 	int	   i;
@@ -555,7 +555,7 @@ void trigger_effect(edict_t *self)
 	}
 }
 
-THINK(trigger_push_inactive) (edict_t *self) -> void
+THINK(trigger_push_inactive) (edict_t* self) -> void
 {
 	if (self->delay > level.time.seconds())
 	{
@@ -570,7 +570,7 @@ THINK(trigger_push_inactive) (edict_t *self) -> void
 	}
 }
 
-THINK(trigger_push_active) (edict_t *self) -> void
+THINK(trigger_push_active) (edict_t* self) -> void
 {
 	if (self->delay > level.time.seconds())
 	{
@@ -597,7 +597,7 @@ If targeted, it will toggle on and off when used.
 START_OFF - toggled trigger_push begins in off setting
 SILENT - doesn't make wind noise
 */
-void SP_trigger_push(edict_t *self)
+void SP_trigger_push(edict_t* self)
 {
 	InitTrigger(self);
 	if (!(self->spawnflags & SPAWNFLAG_PUSH_SILENT))
@@ -672,7 +672,7 @@ constexpr spawnflags_t SPAWNFLAG_HURT_NO_PLAYERS = 32_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_HURT_NO_MONSTERS = 64_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_HURT_CLIPPED = 128_spawnflag;
 
-USE(hurt_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(hurt_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->solid == SOLID_NOT)
 		self->solid = SOLID_TRIGGER;
@@ -684,7 +684,7 @@ USE(hurt_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 		self->use = nullptr;
 }
 
-TOUCH(hurt_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(hurt_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	damageflags_t dflags;
 
@@ -730,7 +730,7 @@ TOUCH(hurt_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, self->dmg, dflags, MOD_TRIGGER_HURT);
 }
 
-void SP_trigger_hurt(edict_t *self)
+void SP_trigger_hurt(edict_t* self)
 {
 	InitTrigger(self);
 
@@ -775,7 +775,7 @@ constexpr spawnflags_t SPAWNFLAG_GRAVITY_START_OFF = 2_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GRAVITY_CLIPPED = 4_spawnflag;
 
 // PGM
-USE(trigger_gravity_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_gravity_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->solid == SOLID_NOT)
 		self->solid = SOLID_TRIGGER;
@@ -785,7 +785,7 @@ USE(trigger_gravity_use) (edict_t *self, edict_t *other, edict_t *activator) -> 
 }
 // PGM
 
-TOUCH(trigger_gravity_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(trigger_gravity_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_GRAVITY_CLIPPED))
 	{
@@ -798,7 +798,7 @@ TOUCH(trigger_gravity_touch) (edict_t *self, edict_t *other, const trace_t &tr, 
 	other->gravity = self->gravity;
 }
 
-void SP_trigger_gravity(edict_t *self)
+void SP_trigger_gravity(edict_t* self)
 {
 	if (!st.gravity || !*st.gravity)
 	{
@@ -810,7 +810,7 @@ void SP_trigger_gravity(edict_t *self)
 	InitTrigger(self);
 
 	// PGM
-	self->gravity = (float) atof(st.gravity);
+	self->gravity = (float)atof(st.gravity);
 
 	if (self->spawnflags.has(SPAWNFLAG_GRAVITY_TOGGLE))
 		self->use = trigger_gravity_use;
@@ -860,7 +860,7 @@ USE(trigger_monsterjump_use) (edict_t* self, edict_t* other, edict_t* activator)
 	gi.linkentity(self);
 }
 
-TOUCH(trigger_monsterjump_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(trigger_monsterjump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other->flags & (FL_FLY | FL_SWIM))
 		return;
@@ -888,7 +888,7 @@ TOUCH(trigger_monsterjump_touch) (edict_t *self, edict_t *other, const trace_t &
 	other->velocity[2] = self->movedir[2];
 }
 
-void SP_trigger_monsterjump(edict_t *self)
+void SP_trigger_monsterjump(edict_t* self)
 {
 	if (!self->speed)
 		self->speed = 200;
@@ -898,7 +898,7 @@ void SP_trigger_monsterjump(edict_t *self)
 		self->s.angles[YAW] = 360;
 	InitTrigger(self);
 	self->touch = trigger_monsterjump_touch;
-	self->movedir[2] = (float) st.height;
+	self->movedir[2] = (float)st.height;
 
 	if (self->spawnflags.has(SPAWNFLAG_MONSTERJUMP_TOGGLE))
 		self->use = trigger_monsterjump_use;
@@ -926,12 +926,12 @@ trigger_flashlight
 /*QUAKED trigger_flashlight (.5 .5 .5) ?
 Players moving against this trigger will have their flashlight turned on or off.
 "style" default to 0, set to 1 to always turn flashlight on, 2 to always turn off,
-        otherwise "angles" are used to control on/off state
+		otherwise "angles" are used to control on/off state
 */
 
 constexpr spawnflags_t SPAWNFLAG_FLASHLIGHT_CLIPPED = 1_spawnflag;
 
-TOUCH(trigger_flashlight_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(trigger_flashlight_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (!other->client)
 		return;
@@ -959,13 +959,13 @@ TOUCH(trigger_flashlight_touch) (edict_t *self, edict_t *other, const trace_t &t
 	}
 }
 
-void SP_trigger_flashlight(edict_t *self)
+void SP_trigger_flashlight(edict_t* self)
 {
 	if (self->s.angles[YAW] == 0)
 		self->s.angles[YAW] = 360;
 	InitTrigger(self);
 	self->touch = trigger_flashlight_touch;
-	self->movedir[2] = (float) st.height;
+	self->movedir[2] = (float)st.height;
 
 	if (self->spawnflags.has(SPAWNFLAG_FLASHLIGHT_CLIPPED))
 		self->svflags |= SVF_HULL;
@@ -1019,7 +1019,7 @@ constexpr spawnflags_t SPAWNFLAG_FOG_INSTANTANEOUS = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_FOG_FORCE = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_FOG_BLEND = 16_spawnflag;
 
-TOUCH(trigger_fog_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(trigger_fog_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (!other->client)
 		return;
@@ -1029,7 +1029,7 @@ TOUCH(trigger_fog_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool
 
 	self->timestamp = level.time + gtime_t::from_sec(self->wait);
 
-	edict_t *fog_value_storage = self;
+	edict_t* fog_value_storage = self;
 
 	if (self->movetarget)
 		fog_value_storage = self->movetarget;
@@ -1045,7 +1045,7 @@ TOUCH(trigger_fog_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool
 		vec3_t half_size = (self->size * 0.5f) + (other->size * 0.5f);
 		vec3_t start = (-self->movedir).scaled(half_size);
 		vec3_t end = (self->movedir).scaled(half_size);
-		vec3_t player_dist = (other->s.origin - center).scaled(vec3_t{fabs(self->movedir[0]),fabs(self->movedir[1]),fabs(self->movedir[2])});
+		vec3_t player_dist = (other->s.origin - center).scaled(vec3_t{ fabs(self->movedir[0]),fabs(self->movedir[1]),fabs(self->movedir[2]) });
 
 		float dist = (player_dist - start).length();
 		dist /= (start - end).length();
@@ -1167,7 +1167,7 @@ TOUCH(trigger_fog_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool
 	}
 }
 
-void SP_trigger_fog(edict_t *self)
+void SP_trigger_fog(edict_t* self)
 {
 	if (self->s.angles[YAW] == 0)
 		self->s.angles[YAW] = 360;
@@ -1202,23 +1202,23 @@ AUTO_FIRE: check every `wait` seconds for containment instead of
 requiring to be fired by something else. Frees itself after firing.
 
 "message"; message to print to the one activating the relay if
-           not all players are inside the bounds
+		   not all players are inside the bounds
 "message2"; message to print to players not inside the trigger
-            if they aren't in the bounds
+			if they aren't in the bounds
 */
 
 constexpr spawnflags_t SPAWNFLAG_COOP_RELAY_AUTO_FIRE = 1_spawnflag;
 
-inline bool trigger_coop_relay_filter(edict_t *player)
+inline bool trigger_coop_relay_filter(edict_t* player)
 {
 	return (player->health <= 0 || player->deadflag || player->movetype == MOVETYPE_NOCLIP ||
 		player->client->resp.spectator || player->s.modelindex != MODELINDEX_PLAYER);
 }
 
-static bool trigger_coop_relay_can_use(edict_t *self, edict_t *activator)
+static bool trigger_coop_relay_can_use(edict_t* self, edict_t* activator)
 {
 	// not coop, so act like a standard trigger_relay minus the message
-	if (!coop->integer)
+	if (!G_IsCooperative())
 		return true;
 
 	// coop; scan for all alive players, print appropriate message
@@ -1242,7 +1242,7 @@ static bool trigger_coop_relay_can_use(edict_t *self, edict_t *activator)
 	return can_use;
 }
 
-USE(trigger_coop_relay_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_coop_relay_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (!trigger_coop_relay_can_use(self, activator))
 	{
@@ -1253,13 +1253,13 @@ USE(trigger_coop_relay_use) (edict_t *self, edict_t *other, edict_t *activator) 
 		return;
 	}
 
-	const char *msg = self->message;
+	const char* msg = self->message;
 	self->message = nullptr;
 	G_UseTargets(self, activator);
 	self->message = msg;
 }
 
-static BoxEdictsResult_t trigger_coop_relay_player_filter(edict_t *ent, void *data)
+static BoxEdictsResult_t trigger_coop_relay_player_filter(edict_t* ent, void* data)
 {
 	if (!ent->client)
 		return BoxEdictsResult_t::Skip;
@@ -1269,9 +1269,9 @@ static BoxEdictsResult_t trigger_coop_relay_player_filter(edict_t *ent, void *da
 	return BoxEdictsResult_t::Keep;
 }
 
-THINK(trigger_coop_relay_think) (edict_t *self) -> void
+THINK(trigger_coop_relay_think) (edict_t* self) -> void
 {
-	std::array<edict_t *, MAX_SPLIT_PLAYERS> players;
+	std::array<edict_t*, MAX_SPLIT_PLAYERS> players;
 	size_t num_active = 0;
 
 	for (auto player : active_players())
@@ -1282,7 +1282,7 @@ THINK(trigger_coop_relay_think) (edict_t *self) -> void
 
 	if (n == num_active)
 	{
-		const char *msg = self->message;
+		const char* msg = self->message;
 		self->message = nullptr;
 		G_UseTargets(self, &globals.edicts[1]);
 		self->message = msg;
@@ -1305,13 +1305,13 @@ THINK(trigger_coop_relay_think) (edict_t *self) -> void
 	self->nextthink = level.time + gtime_t::from_sec(self->wait);
 }
 
-void SP_trigger_coop_relay(edict_t *self)
+void SP_trigger_coop_relay(edict_t* self)
 {
 	if (self->targetname && self->spawnflags.has(SPAWNFLAG_COOP_RELAY_AUTO_FIRE))
 		gi.Com_PrintFmt("{}: targetname and auto-fire are mutually exclusive\n", *self);
 
 	InitTrigger(self);
-	
+
 	if (!self->message)
 		self->message = "$g_coop_wait_for_players";
 

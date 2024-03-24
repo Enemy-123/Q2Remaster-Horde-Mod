@@ -230,7 +230,7 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 	vec3_t dir = ent->velocity.normalized(current_speed);
 
 	// FIXME
-	if (std::isnan(dir[0]) || std::isnan(dir[1]) || std::isnan(dir[2]))
+	if (isnan(dir[0]) || isnan(dir[1]) || isnan(dir[2]))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
@@ -347,7 +347,7 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 	vec3_t final_dir = dir ? dir : wanted_dir;
 
 	// FIXME
-	if (std::isnan(final_dir[0]) || std::isnan(final_dir[1]) || std::isnan(final_dir[2]))
+	if (isnan(final_dir[0]) || isnan(final_dir[1]) || isnan(final_dir[2]))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
@@ -414,8 +414,8 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 		current_speed = min(wanted_speed, current_speed + accel);
 
 	// FIXME
-	if (std::isnan(final_dir[0]) || std::isnan(final_dir[1]) || std::isnan(final_dir[2]) ||
-		std::isnan(current_speed))
+	if (isnan(final_dir[0]) || isnan(final_dir[1]) || isnan(final_dir[2]) ||
+		isnan(current_speed))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
@@ -667,6 +667,10 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 
 	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
+	// Paril: horde
+	if (g_horde->integer)
+		mask &= ~CONTENTS_MONSTER;
+
 	vec3_t start_up = oldorg + ent->gravityVector * (-1 * stepsize);
 
 	start_up = gi.trace(oldorg, ent->mins, ent->maxs, start_up, ent, mask).endpos;
@@ -736,7 +740,8 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 			if (relink)
 			{
 				gi.linkentity(ent);
-				G_TouchTriggers(ent);
+				if (!g_horde->integer) // Paril
+					G_TouchTriggers(ent);
 			}
 			ent->groundentity = nullptr;
 			return true;
@@ -822,7 +827,8 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 			if (relink)
 			{
 				gi.linkentity(ent);
-				G_TouchTriggers(ent);
+				if (!g_horde->integer) // Paril
+					G_TouchTriggers(ent);
 			}
 			return true;
 		}
@@ -871,8 +877,9 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 
 		// [Paril-KEX] this is something N64 does to avoid doors opening
 		// at the start of a level, which triggers some monsters to spawn.
-		if (!level.is_n64 || level.time > FRAME_TIME_S)
-			G_TouchTriggers(ent);
+		if (!g_horde->integer) // Paril
+			if (!level.is_n64 || level.time > FRAME_TIME_S)
+				G_TouchTriggers(ent);
 	}
 
 	if (stepped)
@@ -1003,12 +1010,14 @@ bool SV_StepDirection(edict_t *ent, float yaw, float dist, bool allow_no_turns)
 			}
 		}
 		gi.linkentity(ent);
-		G_TouchTriggers(ent);
+		if (!g_horde->integer) // Paril
+			G_TouchTriggers(ent);
 		G_TouchProjectiles(ent, oldorigin);
 		return true;
 	}
 	gi.linkentity(ent);
-	G_TouchTriggers(ent);
+	if (!g_horde->integer) // Paril
+		G_TouchTriggers(ent);
 	ent->ideal_yaw = old_ideal_yaw;
 	ent->s.angles[YAW] = old_current_yaw;
 	return false;

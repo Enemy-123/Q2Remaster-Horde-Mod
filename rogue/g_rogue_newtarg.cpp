@@ -280,7 +280,10 @@ THINK(blacklight_think) (edict_t *self) -> void
 
 void SP_target_blacklight(edict_t *ent)
 {
-	if (deathmatch->integer)
+	
+
+
+
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -303,7 +306,9 @@ Translucent pulsing orb with speckles
 */
 void SP_target_orb(edict_t *ent)
 {
-	if (deathmatch->integer)
+	
+
+
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;

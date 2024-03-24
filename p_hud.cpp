@@ -11,14 +11,14 @@ INTERMISSION
 ======================================================================
 */
 
-void DeathmatchScoreboard(edict_t *ent);
+void DeathmatchScoreboard(edict_t* ent);
 
-void MoveClientToIntermission(edict_t *ent)
+void MoveClientToIntermission(edict_t* ent)
 {
 	// [Paril-KEX]
 	if (ent->client->ps.pmove.pm_type != PM_FREEZE)
 		ent->s.event = EV_OTHER_TELEPORT;
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 		ent->client->showscores = true;
 	ent->s.origin = level.intermission_origin;
 	ent->client->ps.pmove.origin = level.intermission_origin;
@@ -37,7 +37,7 @@ void MoveClientToIntermission(edict_t *ent)
 	ent->client->invisible_time = 0_ms;
 	ent->client->grenade_blew_up = false;
 	ent->client->grenade_time = 0_ms;
-	
+
 	ent->client->showhelp = false;
 	ent->client->showscores = false;
 
@@ -67,7 +67,7 @@ void MoveClientToIntermission(edict_t *ent)
 
 	// add the layout
 
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 	{
 		DeathmatchScoreboard(ent);
 		ent->client->showscores = true;
@@ -79,14 +79,14 @@ void G_UpdateLevelEntry()
 {
 	if (!level.entry)
 		return;
-	
+
 	level.entry->found_secrets = level.found_secrets;
 	level.entry->total_secrets = level.total_secrets;
 	level.entry->killed_monsters = level.killed_monsters;
 	level.entry->total_monsters = level.total_monsters;
 }
 
-inline void G_EndOfUnitEntry(std::stringstream &layout, const int &y, const level_entry_t &entry)
+inline void G_EndOfUnitEntry(std::stringstream& layout, const int& y, const level_entry_t& entry)
 {
 	layout << G_Fmt("yv {} ", y);
 
@@ -97,8 +97,8 @@ inline void G_EndOfUnitEntry(std::stringstream &layout, const int &y, const leve
 		return;
 	}
 
-	layout << G_Fmt("table_row 4 \"{}\" ", entry.pretty_name) << 
-		G_Fmt("{}/{} ", entry.killed_monsters, entry.total_monsters) << 
+	layout << G_Fmt("table_row 4 \"{}\" ", entry.pretty_name) <<
+		G_Fmt("{}/{} ", entry.killed_monsters, entry.total_monsters) <<
 		G_Fmt("{}/{} ", entry.found_secrets, entry.total_secrets);
 
 	int32_t minutes = entry.time.milliseconds() / 60000;
@@ -116,20 +116,20 @@ void G_EndOfUnitMessage()
 	std::stringstream layout;
 
 	// sort entries
-	std::sort(game.level_entries.begin(), game.level_entries.end(), [](const level_entry_t &a, const level_entry_t &b) {
+	std::sort(game.level_entries.begin(), game.level_entries.end(), [](const level_entry_t& a, const level_entry_t& b) {
 		int32_t a_order = a.visit_order ? a.visit_order : (*a.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
 		int32_t b_order = b.visit_order ? b.visit_order : (*b.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
 
 		return a_order < b_order;
-	});
+		});
 
 	layout << "start_table 4 $m_eou_level $m_eou_kills $m_eou_secrets $m_eou_time ";
 
 	int y = 16;
-	level_entry_t totals {};
+	level_entry_t totals{};
 	int32_t num_rows = 0;
 
-	for (auto &entry : game.level_entries)
+	for (auto& entry : game.level_entries)
 	{
 		if (!*entry.map_name)
 			break;
@@ -137,7 +137,7 @@ void G_EndOfUnitMessage()
 		G_EndOfUnitEntry(layout, y, entry);
 
 		y += 8;
-		
+
 		totals.found_secrets += entry.found_secrets;
 		totals.killed_monsters += entry.killed_monsters;
 		totals.time += entry.time;
@@ -202,13 +202,13 @@ void G_ReportMatchDetails(bool is_end)
 	{
 		// sort players by score, then match everybody to
 		// the current highest score downwards until we run out of players.
-		static std::array<edict_t *, MAX_CLIENTS> sorted_players;
+		static std::array<edict_t*, MAX_CLIENTS> sorted_players;
 		size_t num_active_players = 0;
 
 		for (auto player : active_players())
 			sorted_players[num_active_players++] = player;
 
-		std::sort(sorted_players.begin(), sorted_players.begin() + num_active_players, [](const edict_t *a, const edict_t *b) { return b->client->resp.score < a->client->resp.score; });
+		std::sort(sorted_players.begin(), sorted_players.begin() + num_active_players, [](const edict_t* a, const edict_t* b) { return b->client->resp.score < a->client->resp.score; });
 
 		int32_t current_score = INT_MIN;
 		int32_t current_rank = 0;
@@ -265,9 +265,9 @@ void G_ReportMatchDetails(bool is_end)
 	gi.ReportMatchDetails_Multicast(is_end);
 }
 
-void BeginIntermission(edict_t *targ)
+void BeginIntermission(edict_t* targ)
 {
-	edict_t *ent, *client;
+	edict_t* ent, * client;
 
 	if (level.intermissiontime)
 		return; // already activated
@@ -313,7 +313,7 @@ void BeginIntermission(edict_t *targ)
 
 	if (strstr(level.changemap, "*"))
 	{
-		if (coop->integer)
+		if (G_IsCooperative())
 		{
 			for (uint32_t i = 0; i < game.maxclients; i++)
 			{
@@ -339,7 +339,7 @@ void BeginIntermission(edict_t *targ)
 		// "no end of unit" maps handle intermission differently
 		if (!targ->spawnflags.has(SPAWNFLAG_CHANGELEVEL_NO_END_OF_UNIT))
 			G_EndOfUnitMessage();
-		else if (targ->spawnflags.has(SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE) && !deathmatch->integer)
+		else if (targ->spawnflags.has(SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE) && !G_IsDeathmatch())
 		{
 			// Need to call this now
 			G_ReportMatchDetails(true);
@@ -349,7 +349,7 @@ void BeginIntermission(edict_t *targ)
 	}
 	else
 	{
-		if (!deathmatch->integer)
+		if (!G_IsDeathmatch())
 		{
 			level.exitintermission = 1; // go immediately to the next level
 			return;
@@ -404,7 +404,7 @@ DeathmatchScoreboardMessage
 
 ==================
 */
-void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
+void DeathmatchScoreboardMessage(edict_t* ent, edict_t* killer)
 {
 	static std::string entry, string;
 	size_t		j;
@@ -412,9 +412,9 @@ void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 	int			sortedscores[MAX_CLIENTS];
 	int			score;
 	int			x, y;
-	gclient_t  *cl;
-	edict_t	*cl_ent;
-	const char *tag;
+	gclient_t* cl;
+	edict_t* cl_ent;
+	const char* tag;
 
 	// ZOID
 	if (G_TeamplayEnabled())
@@ -499,8 +499,8 @@ void DeathmatchScoreboardMessage(edict_t *ent, edict_t *killer)
 		entry.clear();
 
 		fmt::format_to(std::back_inserter(entry),
-					FMT_STRING("client {} {} {} {} {} {} "),
-					x, y, sorted[i], cl->resp.score, cl->ping, (int32_t) (level.time - cl->resp.entertime).minutes());
+			FMT_STRING("client {} {} {} {} {} {} "),
+			x, y, sorted[i], cl->resp.score, cl->ping, (int32_t)(level.time - cl->resp.entertime).minutes());
 
 		if (string.length() + entry.length() > MAX_SCOREBOARD_SIZE)
 			break;
@@ -535,7 +535,7 @@ Draw instead of help message.
 Note that it isn't that hard to overflow the 1400 byte message limit!
 ==================
 */
-void DeathmatchScoreboard(edict_t *ent)
+void DeathmatchScoreboard(edict_t* ent)
 {
 	DeathmatchScoreboardMessage(ent, ent->enemy);
 	gi.unicast(ent, true);
@@ -549,7 +549,7 @@ Cmd_Score_f
 Display the scoreboard
 ==================
 */
-void Cmd_Score_f(edict_t *ent)
+void Cmd_Score_f(edict_t* ent)
 {
 	if (level.intermissiontime)
 		return;
@@ -564,7 +564,7 @@ void Cmd_Score_f(edict_t *ent)
 		PMenu_Close(ent);
 	// ZOID
 
-	if (!deathmatch->integer && !coop->integer)
+	if (!G_IsDeathmatch() && !G_IsCooperative())
 		return;
 
 	if (ent->client->showscores)
@@ -585,9 +585,9 @@ HelpComputer
 Draw help computer.
 ==================
 */
-void HelpComputer(edict_t *ent)
+void HelpComputer(edict_t* ent)
 {
-	const char *sk;
+	const char* sk;
 
 	if (skill->integer == 0)
 		sk = "$m_easy";
@@ -611,7 +611,7 @@ void HelpComputer(edict_t *ent)
 		helpString += G_Fmt("xv 0 yv 54 loc_cstring 1 \"{{}}\" \"{}\" ",  // help 1
 			game.helpmessage1);
 	}
-	else 
+	else
 	{
 		int y = 54;
 		if (strlen(game.helpmessage1))
@@ -657,10 +657,10 @@ Cmd_Help_f
 Display the current help message
 ==================
 */
-void Cmd_Help_f(edict_t *ent)
+void Cmd_Help_f(edict_t* ent)
 {
 	// this is for backwards compatability
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 	{
 		Cmd_Score_f(ent);
 		return;
@@ -673,7 +673,7 @@ void Cmd_Help_f(edict_t *ent)
 	ent->client->showscores = false;
 
 	if (ent->client->showhelp &&
-			(ent->client->pers.game_help1changed == game.help1changed ||
+		(ent->client->pers.game_help1changed == game.help1changed ||
 			ent->client->pers.game_help2changed == game.help2changed))
 	{
 		ent->client->showhelp = false;
@@ -691,9 +691,9 @@ void Cmd_Help_f(edict_t *ent)
 
 // [Paril-KEX] for stats we want to always be set in coop
 // even if we're spectating
-void G_SetCoopStats(edict_t *ent)
+void G_SetCoopStats(edict_t* ent)
 {
-	if (coop->integer && g_coop_enable_lives->integer)
+	if (G_IsCooperative() && g_coop_enable_lives->integer)
 		ent->client->ps.stats[STAT_LIVES] = ent->client->pers.lives + 1;
 	else
 		ent->client->ps.stats[STAT_LIVES] = 0;
@@ -708,8 +708,8 @@ void G_SetCoopStats(edict_t *ent)
 struct powerup_info_t
 {
 	item_id_t item;
-	gtime_t gclient_t::*time_ptr = nullptr;
-	int32_t gclient_t::*count_ptr = nullptr;
+	gtime_t gclient_t::* time_ptr = nullptr;
+	int32_t gclient_t::* count_ptr = nullptr;
 } powerup_table[] = {
 	{ IT_ITEM_QUAD, &gclient_t::quad_time },
 	{ IT_ITEM_QUADFIRE, &gclient_t::quadfire_time },
@@ -727,9 +727,9 @@ struct powerup_info_t
 G_SetStats
 ===============
 */
-void G_SetStats(edict_t *ent)
+void G_SetStats(edict_t* ent)
 {
-	gitem_t	*item;
+	gitem_t* item;
 	item_id_t index;
 	int		  cells = 0;
 	item_id_t power_armor_type;
@@ -753,7 +753,7 @@ void G_SetStats(edict_t *ent)
 	{
 		if (ent->client->pers.inventory[invIndex])
 		{
-			weaponbits |= 1 << GetItemByIndex((item_id_t) invIndex)->weapon_wheel_index;
+			weaponbits |= 1 << GetItemByIndex((item_id_t)invIndex)->weapon_wheel_index;
 		}
 	}
 
@@ -781,13 +781,13 @@ void G_SetStats(edict_t *ent)
 			ent->client->ps.stats[STAT_AMMO] = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
 		}
 	}
-	
+
 	memset(&ent->client->ps.stats[STAT_AMMO_INFO_START], 0, sizeof(uint16_t) * NUM_AMMO_STATS);
 	for (unsigned int ammoIndex = AMMO_BULLETS; ammoIndex < AMMO_MAX; ++ammoIndex)
 	{
-		gitem_t *ammo = GetItemByAmmo((ammo_t) ammoIndex);
+		gitem_t* ammo = GetItemByAmmo((ammo_t)ammoIndex);
 		uint16_t val = G_CheckInfiniteAmmo(ammo) ? AMMO_VALUE_INFINITE : clamp(ent->client->pers.inventory[ammo->id], 0, AMMO_VALUE_INFINITE - 1);
-		G_SetAmmoStat((uint16_t *) &ent->client->ps.stats[STAT_AMMO_INFO_START], ammo->ammo_wheel_index, val);
+		G_SetAmmoStat((uint16_t*)&ent->client->ps.stats[STAT_AMMO_INFO_START], ammo->ammo_wheel_index, val);
 	}
 
 	//
@@ -828,7 +828,7 @@ void G_SetStats(edict_t *ent)
 	memset(&ent->client->ps.stats[STAT_POWERUP_INFO_START], 0, sizeof(uint16_t) * NUM_POWERUP_STATS);
 	for (unsigned int powerupIndex = POWERUP_SCREEN; powerupIndex < POWERUP_MAX; ++powerupIndex)
 	{
-		gitem_t *powerup = GetItemByPowerup((powerup_t) powerupIndex);
+		gitem_t* powerup = GetItemByPowerup((powerup_t)powerupIndex);
 		uint16_t val;
 
 		switch (powerup->id)
@@ -855,7 +855,7 @@ void G_SetStats(edict_t *ent)
 			break;
 		}
 
-		G_SetPowerupStat((uint16_t *) &ent->client->ps.stats[STAT_POWERUP_INFO_START], powerup->powerup_wheel_index, val);
+		G_SetPowerupStat((uint16_t*)&ent->client->ps.stats[STAT_POWERUP_INFO_START], powerup->powerup_wheel_index, val);
 	}
 
 	ent->client->ps.stats[STAT_TIMER_ICON] = 0;
@@ -880,12 +880,12 @@ void G_SetStats(edict_t *ent)
 	}
 	else
 	{
-		powerup_info_t *best_powerup = nullptr;
+		powerup_info_t* best_powerup = nullptr;
 
-		for (auto &powerup : powerup_table)
+		for (auto& powerup : powerup_table)
 		{
-			auto *powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
-			auto *powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
+			auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
+			auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
 
 			if (powerup_time && *powerup_time <= level.time)
 				continue;
@@ -897,7 +897,7 @@ void G_SetStats(edict_t *ent)
 				best_powerup = &powerup;
 				continue;
 			}
-			
+
 			if (powerup_time && *powerup_time < ent->client->*best_powerup->time_ptr)
 			{
 				best_powerup = &powerup;
@@ -945,7 +945,7 @@ void G_SetStats(edict_t *ent)
 	//
 	ent->client->ps.stats[STAT_LAYOUTS] = 0;
 
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 	{
 		if (ent->client->pers.health <= 0 || level.intermissiontime || ent->client->showscores)
 			ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_LAYOUT;
@@ -965,35 +965,35 @@ void G_SetStats(edict_t *ent)
 
 	if (level.intermissiontime || ent->client->awaiting_respawn)
 	{
-		if (ent->client->awaiting_respawn || (level.intermission_eou || level.is_n64 || (deathmatch->integer && level.intermissiontime)))
+		if (ent->client->awaiting_respawn || (level.intermission_eou || level.is_n64 || (G_IsDeathmatch() && level.intermissiontime)))
 			ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_HIDE_HUD;
 
 		// N64 always merges into one screen on level ends
-		if (level.intermission_eou || level.is_n64 || (deathmatch->integer && level.intermissiontime))
+		if (level.intermission_eou || level.is_n64 || (G_IsDeathmatch() && level.intermissiontime))
 			ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_INTERMISSION;
 	}
-	
+
 	if (level.story_active)
 		ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_HIDE_CROSSHAIR;
 	else
 		ent->client->ps.stats[STAT_LAYOUTS] &= ~LAYOUTS_HIDE_CROSSHAIR;
 
 	// [Paril-KEX] key display
-	if (!deathmatch->integer)
+	if (!G_IsDeathmatch())
 	{
 		int32_t key_offset = 0;
 		player_stat_t stat = STAT_KEY_A;
-		
-		ent->client->ps.stats[STAT_KEY_A] = 
-		ent->client->ps.stats[STAT_KEY_B] = 
-		ent->client->ps.stats[STAT_KEY_C] = 0;
+
+		ent->client->ps.stats[STAT_KEY_A] =
+			ent->client->ps.stats[STAT_KEY_B] =
+			ent->client->ps.stats[STAT_KEY_C] = 0;
 
 		// there's probably a way to do this in one pass but
 		// I'm lazy
 		std::array<item_id_t, IT_TOTAL> keys_held;
 		size_t num_keys_held = 0;
 
-		for (auto &item : itemlist)
+		for (auto& item : itemlist)
 		{
 			if (!(item.flags & IF_KEY))
 				continue;
@@ -1004,9 +1004,9 @@ void G_SetStats(edict_t *ent)
 		}
 
 		if (num_keys_held > 3)
-			key_offset = (int32_t) (level.time.seconds() / 5);
+			key_offset = (int32_t)(level.time.seconds() / 5);
 
-		for (int32_t i = 0; i < min(num_keys_held, (size_t) 3); i++, stat = (player_stat_t) (stat + 1))
+		for (int32_t i = 0; i < min(num_keys_held, (size_t)3); i++, stat = (player_stat_t)(stat + 1))
 			ent->client->ps.stats[stat] = gi.imageindex(GetItemByIndex(keys_held[(i + key_offset) % num_keys_held])->icon);
 	}
 
@@ -1030,7 +1030,7 @@ void G_SetStats(edict_t *ent)
 	// set & run the health bar stuff
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
 	{
-		byte *health_byte = reinterpret_cast<byte *>(&ent->client->ps.stats[STAT_HEALTH_BARS]) + i;
+		byte* health_byte = reinterpret_cast<byte*>(&ent->client->ps.stats[STAT_HEALTH_BARS]) + i;
 
 		if (!level.health_bar_entities[i])
 			*health_byte = 0;
@@ -1067,7 +1067,7 @@ void G_SetStats(edict_t *ent)
 					level.health_bar_entities[i] = nullptr;
 					*health_byte = 0;
 				}
-				
+
 				continue;
 			}
 			else if (level.health_bar_entities[i]->spawnflags.has(SPAWNFLAG_HEALTHBAR_PVS_ONLY) && !gi.inPVS(ent->s.origin, level.health_bar_entities[i]->enemy->s.origin, true))
@@ -1076,8 +1076,8 @@ void G_SetStats(edict_t *ent)
 				continue;
 			}
 
-			float health_remaining = ((float) level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->max_health;
-			*health_byte = ((byte) (health_remaining * 0b01111111)) | 0b10000000;
+			float health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->max_health;
+			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}
 	}
 
@@ -1091,9 +1091,9 @@ void G_SetStats(edict_t *ent)
 G_CheckChaseStats
 ===============
 */
-void G_CheckChaseStats(edict_t *ent)
+void G_CheckChaseStats(edict_t* ent)
 {
-	gclient_t *cl;
+	gclient_t* cl;
 
 	for (uint32_t i = 1; i <= game.maxclients; i++)
 	{
@@ -1110,9 +1110,9 @@ void G_CheckChaseStats(edict_t *ent)
 G_SetSpectatorStats
 ===============
 */
-void G_SetSpectatorStats(edict_t *ent)
+void G_SetSpectatorStats(edict_t* ent)
 {
-	gclient_t *cl = ent->client;
+	gclient_t* cl = ent->client;
 
 	if (!cl->chase_target)
 		G_SetStats(ent);
@@ -1128,7 +1128,7 @@ void G_SetSpectatorStats(edict_t *ent)
 
 	if (cl->chase_target && cl->chase_target->inuse)
 		cl->ps.stats[STAT_CHASE] = CS_PLAYERSKINS +
-								   (cl->chase_target - g_edicts) - 1;
+		(cl->chase_target - g_edicts) - 1;
 	else
 		cl->ps.stats[STAT_CHASE] = 0;
 }

@@ -12,10 +12,10 @@ constexpr spawnflags_t SPAWNFLAGS_PLAT2_BOX_LIFT = 32_spawnflag;
 // PGM
 //====
 
-void plat2_go_down(edict_t *ent);
-void plat2_go_up(edict_t *ent);
+void plat2_go_down(edict_t* ent);
+void plat2_go_up(edict_t* ent);
 
-void plat2_spawn_danger_area(edict_t *ent)
+void plat2_spawn_danger_area(edict_t* ent)
 {
 	vec3_t mins, maxs;
 
@@ -26,9 +26,9 @@ void plat2_spawn_danger_area(edict_t *ent)
 	SpawnBadArea(mins, maxs, 0_ms, ent);
 }
 
-void plat2_kill_danger_area(edict_t *ent)
+void plat2_kill_danger_area(edict_t* ent)
 {
-	edict_t *t;
+	edict_t* t;
 
 	t = nullptr;
 	while ((t = G_FindByString<&edict_t::classname>(t, "bad_area")))
@@ -38,7 +38,7 @@ void plat2_kill_danger_area(edict_t *ent)
 	}
 }
 
-MOVEINFO_ENDFUNC(plat2_hit_top) (edict_t *ent) -> void
+MOVEINFO_ENDFUNC(plat2_hit_top) (edict_t* ent) -> void
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -77,7 +77,7 @@ MOVEINFO_ENDFUNC(plat2_hit_top) (edict_t *ent) -> void
 	G_UseTargets(ent, ent);
 }
 
-MOVEINFO_ENDFUNC(plat2_hit_bottom) (edict_t *ent) -> void
+MOVEINFO_ENDFUNC(plat2_hit_bottom) (edict_t* ent) -> void
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -117,7 +117,7 @@ MOVEINFO_ENDFUNC(plat2_hit_bottom) (edict_t *ent) -> void
 	G_UseTargets(ent, ent);
 }
 
-THINK(plat2_go_down) (edict_t *ent) -> void
+THINK(plat2_go_down) (edict_t* ent) -> void
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -133,7 +133,7 @@ THINK(plat2_go_down) (edict_t *ent) -> void
 	Move_Calc(ent, ent->moveinfo.end_origin, plat2_hit_bottom);
 }
 
-THINK(plat2_go_up) (edict_t *ent) -> void
+THINK(plat2_go_up) (edict_t* ent) -> void
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -151,12 +151,12 @@ THINK(plat2_go_up) (edict_t *ent) -> void
 	Move_Calc(ent, ent->moveinfo.start_origin, plat2_hit_top);
 }
 
-void plat2_operate(edict_t *ent, edict_t *other)
+void plat2_operate(edict_t* ent, edict_t* other)
 {
 	int		 otherState;
 	gtime_t	 pauseTime;
 	float	 platCenter;
-	edict_t *trigger;
+	edict_t* trigger;
 
 	trigger = ent;
 	ent = ent->enemy; // now point at the plat, not the trigger
@@ -217,7 +217,7 @@ void plat2_operate(edict_t *ent, edict_t *other)
 	}
 }
 
-TOUCH(Touch_Plat_Center2) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(Touch_Plat_Center2) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	// this requires monsters to actively trigger plats, not just step on them.
 
@@ -235,7 +235,7 @@ TOUCH(Touch_Plat_Center2) (edict_t *ent, edict_t *other, const trace_t &tr, bool
 	plat2_operate(ent, other);
 }
 
-MOVEINFO_BLOCKED(plat2_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(plat2_blocked) (edict_t* self, edict_t* other) -> void
 {
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 	{
@@ -265,9 +265,9 @@ MOVEINFO_BLOCKED(plat2_blocked) (edict_t *self, edict_t *other) -> void
 		plat2_go_up(self);
 }
 
-USE(Use_Plat2) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(Use_Plat2) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
-	edict_t *trigger;
+	edict_t* trigger;
 
 	if (ent->moveinfo.state > STATE_BOTTOM)
 		return;
@@ -292,9 +292,9 @@ USE(Use_Plat2) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 	}
 }
 
-USE(plat2_activate) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(plat2_activate) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
-	edict_t *trigger;
+	edict_t* trigger;
 
 	//	if(ent->targetname)
 	//		ent->targetname[0] = 0;
@@ -336,9 +336,9 @@ If the plat is the target of another trigger or button, it will start out disabl
 If the "height" key is set, that will determine the amount the plat moves, instead of being implicitly determoveinfoned by the model's height.
 
 */
-void SP_func_plat2(edict_t *ent)
+void SP_func_plat2(edict_t* ent)
 {
-	edict_t *trigger;
+	edict_t* trigger;
 
 	ent->s.angles = {};
 	ent->solid = SOLID_BSP;

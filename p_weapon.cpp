@@ -27,7 +27,7 @@ bool G_CheckInfiniteAmmo(gitem_t *item)
 	if (item->flags & IF_NO_INFINITE_AMMO)
 		return false;
 
-	return g_infinite_ammo->integer || (deathmatch->integer && g_instagib->integer);
+	return g_infinite_ammo->integer || (G_IsDeathmatch() && g_instagib->integer);
 }
 
 //========
@@ -164,7 +164,10 @@ void PlayerNoise(edict_t *who, const vec3_t &where, player_noise_t type)
 		}
 	}
 
-	if (deathmatch->integer)
+	
+
+
+
 		return;
 
 	if (who->flags & FL_NOTARGET)
@@ -228,9 +231,9 @@ void PlayerNoise(edict_t *who, const vec3_t &where, player_noise_t type)
 
 inline bool G_WeaponShouldStay()
 {
-	if (deathmatch->integer)
+	if (G_IsDeathmatch())
 		return g_dm_weapons_stay->integer;
-	else if (coop->integer)
+	else if (G_IsCooperative())
 		return !P_UseCoopInstancedItems();
 
 	return false;
@@ -271,14 +274,20 @@ bool Pickup_Weapon(edict_t *ent, edict_t *other)
 
 		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER))
 		{
-			if (deathmatch->integer)
+			
+
+
+
+
+
+
 			{
 				if (g_dm_weapons_stay->integer)
 					ent->flags |= FL_RESPAWN;
 
 				SetRespawn( ent, gtime_t::from_sec(g_weapon_respawn_time->integer), !g_dm_weapons_stay->integer);
 			}
-			if (coop->integer)
+			if (G_IsCooperative())
 				ent->flags |= FL_RESPAWN;
 		}
 	}
@@ -636,7 +645,7 @@ Drop_Weapon
 void Drop_Weapon(edict_t *ent, gitem_t *item)
 {
 	// [Paril-KEX]
-	if (deathmatch->integer && g_dm_weapons_stay->integer)
+	if (G_IsDeathmatch() && g_dm_weapons_stay->integer)
 		return;
 
 	item_id_t index = item->id;
@@ -1359,7 +1368,9 @@ void Weapon_Blaster_Fire(edict_t *ent)
 		// normal damage too extreme for DM
 	int damage;
 	int kick;
-	if (deathmatch->integer)
+	
+
+	if (G_IsDeathmatch())
 	{
 		 damage = 15;
 		 kick = 0;
@@ -1428,7 +1439,9 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
 			offset[2] = 0;
 			offset[1] = 4 * cosf(rotation);
 
-			if (deathmatch->integer)
+			
+
+			if (G_IsDeathmatch())
 				damage = 15;
 			else
 				damage = 24;
@@ -1511,7 +1524,10 @@ void Machinegun_Fire(edict_t *ent)
 	// raise the gun as it is firing
 	// [Paril-KEX] disabled as this is a bit hard to do with high
 	// tickrate, but it also just sucks in general.
-	/*if (!deathmatch->integer)
+	/*
+	* 
+	* 
+	* 
 	{
 		ent->client->machinegun_shots++;
 		if (ent->client->machinegun_shots > 9)
@@ -1565,7 +1581,10 @@ void Chaingun_Fire(edict_t *ent)
 	int	  damage;
 	int	  kick = 2;
 
-	if (deathmatch->integer)
+	
+
+
+	if (G_IsDeathmatch())
 		damage = 6;
 	else
 		damage = 17;
@@ -1711,7 +1730,9 @@ void weapon_shotgun_fire(edict_t *ent)
 	}
 
 	G_LagCompensate(ent, start, dir);
-	if (deathmatch->integer)
+	
+
+	if (G_IsDeathmatch())
 		fire_shotgun(ent, start, dir, damage, kick, 500, 500, DEFAULT_DEATHMATCH_SHOTGUN_COUNT, MOD_SHOTGUN);
 	else
 		fire_shotgun(ent, start, dir, damage, kick, 500, 500, DEFAULT_SHOTGUN_COUNT, MOD_SHOTGUN);
@@ -1797,7 +1818,10 @@ void weapon_railgun_fire(edict_t *ent)
 	int damage, kick;
 	
 	// normal damage too extreme for DM
-	if (deathmatch->integer)
+	
+
+
+	if (G_IsDeathmatch())
 	{
 		damage = 150;
 		kick = 200;
@@ -1854,7 +1878,9 @@ void weapon_bfg_fire(edict_t *ent)
 	int	  damage;
 	float damage_radius = 1000;
 
-	if (deathmatch->integer)
+	
+
+	if (G_IsDeathmatch())
 		damage = 200;
 	else
 		damage = 500;

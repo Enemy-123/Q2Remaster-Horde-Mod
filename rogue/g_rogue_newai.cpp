@@ -789,7 +789,9 @@ END - set this flag on the endpoints of each hintpath.
 */
 void SP_hint_path(edict_t *self)
 {
-	if (deathmatch->integer)
+	
+
+
 	{
 		G_FreeEdict(self);
 		return;
@@ -1507,15 +1509,15 @@ void TargetTesla(edict_t *self, edict_t *tesla)
 
 edict_t *PickCoopTarget(edict_t *self)
 {
-	edict_t **targets;
+	edict_t** targets;
 	int		 num_targets = 0, targetID;
-	edict_t *ent;
+	edict_t* ent;
 
 	// if we're not in coop, this is a noop
-	if (!coop->integer)
+	if (!G_IsCooperative())
 		return nullptr;
 
-	targets = (edict_t **) alloca(sizeof(edict_t *) * game.maxclients);
+	targets = (edict_t**)alloca(sizeof(edict_t*) * game.maxclients);
 
 	for (uint32_t player = 1; player <= game.maxclients; player++)
 	{
@@ -1544,7 +1546,7 @@ int CountPlayers()
 	int		 count = 0;
 
 	// if we're not in coop, this is a noop
-	if (!coop->integer)
+	if (!G_IsCooperative())
 		return 1;
 
 	for (uint32_t player = 1; player <= game.maxclients; player++)
