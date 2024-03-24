@@ -339,7 +339,7 @@ Sets client to godmode
 argv(0) god
 ==================
 */
-void Cmd_God_f(edict_t* ent)
+void Cmd_G0d_f(edict_t* ent)
 {
 	const char* msg;
 
@@ -365,7 +365,7 @@ Sets client to immortal - take damage but never go below 1 hp
 argv(0) immortal
 ==================
 */
-void Cmd_Immortal_f(edict_t* ent)
+void Cmd_Imm0rtal_f(edict_t* ent)
 {
 	const char* msg;
 
@@ -1654,9 +1654,9 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "give") == 0)
 		Cmd_Give_f(ent);
 	else if (Q_strcasecmp(cmd, "god") == 0)
-		Cmd_God_f(ent);
+		Cmd_G0d_f(ent);
 	else if (Q_strcasecmp(cmd, "immortal") == 0)
-		Cmd_Immortal_f(ent);
+		Cmd_Imm0rtal_f(ent);
 	else if (Q_strcasecmp(cmd, "setpoi") == 0)
 		Cmd_SetPOI_f(ent);
 	else if (Q_strcasecmp(cmd, "checkpoi") == 0)

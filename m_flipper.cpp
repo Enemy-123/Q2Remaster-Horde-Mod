@@ -165,18 +165,18 @@ mframe_t flipper_frames_attack[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge, 0, flipper_bite },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, flipper_bite },
 	{ ai_charge },
 	{ ai_charge, 0, flipper_bite },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge, 0, flipper_bite },
+	{ ai_charge },
+	{ ai_charge, 0, flipper_bite },
+	{ ai_charge, 0, flipper_bite },
+	{ ai_charge, 0, flipper_bite },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, flipper_bite },
@@ -342,6 +342,8 @@ void SP_monster_flipper(edict_t *self)
 		G_FreeEdict( self );
 		return;
 	}
+	(!self->s.scale);
+		self->s.scale = 1.5f;
 
 	sound_pain1.assign("flipper/flppain1.wav");
 	sound_pain2.assign("flipper/flppain2.wav");
@@ -382,3 +384,5 @@ void SP_monster_flipper(edict_t *self)
 
 	swimmonster_start(self);
 }
+
+

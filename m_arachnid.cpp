@@ -12,6 +12,8 @@ TANK
 #include "m_arachnid.h"
 #include "m_flash.h"
 
+constexpr spawnflags_t SPAWNFLAG_SPIDER = 8_spawnflag;
+
 static cached_soundindex sound_pain;
 static cached_soundindex sound_death;
 static cached_soundindex sound_sight;
@@ -387,4 +389,19 @@ void SP_monster_arachnid(edict_t *self)
 	M_SetAnimation(self, &arachnid_move_stand);
 
 	walkmonster_start(self);
+}
+
+void SP_monster_spider(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_SPIDER;
+	SP_monster_arachnid(self);
+	gi.soundindex("weapons/railgr1a.wav");
+	self->s.skinnum = 1;
+	if (!self->s.scale)
+		self->s.scale = 0.4f;
+	self->health = 1700 * st.health_multiplier;
+
+	self->mins = { -19, 19, -8 };
+	self->maxs = { 19, 19, 19 };
+
 }

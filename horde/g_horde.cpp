@@ -99,6 +99,7 @@ void adjust_weight_armor(const weighted_item_t &item, float &weight)
 }
 
 constexpr weighted_item_t monsters[] = {
+	{ "monster_gekk", 3, 6, 0.50f },
 	{ "monster_soldier_lasergun", -1, 6, 0.90f },
 	{ "monster_soldier_ripper", -1, 5, 0.85f },
 	{ "monster_soldier_hypergun", 2, 4, 0.85f },
@@ -119,9 +120,11 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_flyer", 3, 6, 1.05f },
 	{ "monster_makron", 10, -1, 0.3f },
 	{ "monster_guncmdr", 5, -1, 1.1f },
-	{ "monster_tank_64", 8, -1, 0.4f },
+    { "monster_tank_64", 9, -1, 0.4f },
 	{ "monster_boss2_64", 12, -1, 0.5f },
+	{ "monster_carrier2", 12, -1, 0.2f },
 	{ "monster_berserk", 4, -1, 1.15f },
+    { "monster_spider", 5, -1, 0.95f },
 };
 
 struct picked_item_t {
@@ -182,6 +185,7 @@ const char *G_HordePickMonster()
 
 	for (auto &item : monsters)
 	{
+
 		if (item.min_level != -1 && g_horde_local.level < item.min_level)
 			continue;
 		if (item.max_level != -1 && g_horde_local.level > item.max_level)
@@ -297,7 +301,7 @@ void Horde_RunFrame()
 		{
 			edict_t* e = G_Spawn();
 			e->classname = G_HordePickMonster();
-			select_spawn_result_t result = SelectDeathmatchSpawnPoint(true, true, false);
+			select_spawn_result_t result = SelectDeathmatchSpawnPoint(false, true, false);
 
 			if (result.any_valid)
 			{
@@ -315,8 +319,8 @@ void Horde_RunFrame()
 				if (!g_horde_local.num_to_spawn)
 				{
 
-					gi.LocBroadcast_Print(PRINT_CENTER, "A new enemy wave has been fully deployed!\n");
-						gi.sound(world, CHAN_VOICE, gi.soundindex("world/world_wall_break1.wav"), 1, ATTN_NONE, 0);
+					gi.LocBroadcast_Print(PRINT_CENTER, "MONSTERS COMING \n");
+					//gi.sound(world, CHAN_VOICE, gi.soundindex("world/world_wall_break1.wav"), 1, ATTN_NONE, 0);
 
 					g_horde_local.state = horde_state_t::cleanup;
 					g_horde_local.monster_spawn_time = level.time + 3_sec;
@@ -340,8 +344,8 @@ void Horde_RunFrame()
 			else
 				g_horde_local.monster_spawn_time = level.time + 3_sec;
 		}
-			break;
-		
+		break;
+
 
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
@@ -356,4 +360,5 @@ void Horde_RunFrame()
 		}
 		break;
 	}
+
 }

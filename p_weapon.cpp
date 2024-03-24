@@ -1876,14 +1876,14 @@ BFG10K
 void weapon_bfg_fire(edict_t *ent)
 {
 	int	  damage;
-	float damage_radius = 1000;
+	float damage_radius = 1400;
 
 	
 
 	if (G_IsDeathmatch())
 		damage = 200;
 	else
-		damage = 500;
+		damage = 1880;
 
 	if (ent->client->ps.gunframe == 9)
 	{
@@ -1907,16 +1907,16 @@ void weapon_bfg_fire(edict_t *ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-	fire_bfg(ent, start, dir, damage, 400, damage_radius);
+	fire_bfg(ent, start, dir, damage, 1200, damage_radius);
 
-	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -20.f, 0, crandom() * 8 });
+	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -20.f, 0, crandom() * 2 });
 	ent->client->kick.total = DAMAGE_TIME();
 	ent->client->kick.time = level.time + ent->client->kick.total;
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_BFG2 | is_silenced);
+	gi.WriteByte(MZ_BFG | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
@@ -1941,7 +1941,7 @@ void weapon_disint_fire(edict_t *self)
 
 	P_AddWeaponKick(self, self->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	fire_disintegrator(self, start, dir, 800);
+	fire_disintegrator(self, start, dir, 1200);
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);

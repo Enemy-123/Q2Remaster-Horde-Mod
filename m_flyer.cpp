@@ -397,8 +397,8 @@ void flyer_fireright(edict_t *self)
 }
 
 mframe_t flyer_frames_attack2[] = {
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
 	{ ai_charge },
 	{ ai_charge, -10, flyer_fireleft },	 // left gun
 	{ ai_charge, -10, flyer_fireright }, // right gun
@@ -409,10 +409,10 @@ mframe_t flyer_frames_attack2[] = {
 	{ ai_charge, -10, flyer_fireleft },	 // left gun
 	{ ai_charge, -10, flyer_fireright }, // right gun
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
 	{ ai_charge }
 };
 MMOVE_T(flyer_move_attack2) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack2, flyer_run };
@@ -421,10 +421,6 @@ MMOVE_T(flyer_move_attack2) = { FRAME_attak201, FRAME_attak217, flyer_frames_att
 // circle strafe frames
 
 mframe_t flyer_frames_attack3[] = {
-	{ ai_charge, 10 },
-	{ ai_charge, 10 },
-	{ ai_charge, 10 },
-	{ ai_charge, 10, flyer_fireleft },	// left gun
 	{ ai_charge, 10, flyer_fireright }, // right gun
 	{ ai_charge, 10, flyer_fireleft },	// left gun
 	{ ai_charge, 10, flyer_fireright }, // right gun
@@ -432,11 +428,15 @@ mframe_t flyer_frames_attack3[] = {
 	{ ai_charge, 10, flyer_fireright }, // right gun
 	{ ai_charge, 10, flyer_fireleft },	// left gun
 	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
 	{ ai_charge, 10 },
-	{ ai_charge, 10 },
-	{ ai_charge, 10 },
-	{ ai_charge, 10 },
-	{ ai_charge, 10 },
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
 	{ ai_charge, 10 }
 };
 MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack3, flyer_run };
@@ -476,16 +476,16 @@ mframe_t flyer_frames_end_melee[] = {
 MMOVE_T(flyer_move_end_melee) = { FRAME_attak119, FRAME_attak121, flyer_frames_end_melee, flyer_run };
 
 mframe_t flyer_frames_loop_melee[] = {
-	{ ai_charge }, // Loop Start
-	{ ai_charge },
+	{ ai_charge, 0, flyer_slash_left }, // Left Wing Strike // Loop Start
+	{ ai_charge, 0, flyer_slash_right },
 	{ ai_charge, 0, flyer_slash_left }, // Left Wing Strike
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, flyer_slash_right },
+	{ ai_charge, 0, flyer_slash_left }, // Left Wing Strike
+	{ ai_charge, 0, flyer_slash_right },
 	{ ai_charge },
 	{ ai_charge, 0, flyer_slash_right }, // Right Wing Strike
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, flyer_slash_right },
 	{ ai_charge },
 	{ ai_charge } // Loop Ends
 

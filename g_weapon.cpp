@@ -392,21 +392,21 @@ void fire_blaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 	if (self->client && !G_ShouldPlayersCollide(true))
 		bolt->clipmask &= ~CONTENTS_PLAYER;
 	bolt->solid = SOLID_BBOX;
-	bolt->s.effects |= EF_PLASMA;
+	bolt->s.effects |= EF_BLASTER;
 	bolt->svflags |= SVF_PROJECTILE;
 	bolt->flags |= FL_DODGE;
 	bolt->s.renderfx |= RF_FULLBRIGHT;
 	bolt->s.modelindex = gi.modelindex("models/objects/laser/tris.md2");
 	bolt->dmg_radius = 156;
-	bolt->s.skinnum = 2;
-	bolt->s.scale = 2.8f;
+	bolt->s.skinnum = 1;
+	bolt->s.scale = 1.5f;
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
 	bolt->touch = blaster_touch;
 	bolt->nextthink = level.time + 4_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
-	bolt->dmg_radius = 128;
+	bolt->dmg_radius = 156;
 	gi.linkentity(bolt);
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
@@ -1081,7 +1081,7 @@ THINK(bfg_think) (edict_t *self) -> void
 	if (G_IsDeathmatch())
 		dmg = 5;
 	else
-		dmg = 10;
+		dmg = 40;
 
 	bfg_spawn_laser(self);
 
@@ -1153,7 +1153,7 @@ void fire_bfg(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage,
 	if (self->client && !G_ShouldPlayersCollide(true))
 		bfg->clipmask &= ~CONTENTS_PLAYER;
 	bfg->solid = SOLID_BBOX;
-	bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
+	bfg->s.effects |= EF_BFG|EF_ANIM_ALLFAST;
 	bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
 	bfg->owner = self;
 	bfg->touch = bfg_touch;
@@ -1161,7 +1161,7 @@ void fire_bfg(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage,
 	bfg->think = G_FreeEdict;
 	bfg->radius_dmg = damage;
 	bfg->dmg_radius = damage_radius;
-	bfg->classname = "bfg blast";
+	bfg->classname = "disint ball";
 	bfg->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
 
 	bfg->think = bfg_think;
