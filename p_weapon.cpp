@@ -1377,7 +1377,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
 	}
 	else
 	{
-		 damage = 220;
+		 damage = 180;
 		 kick = 500;
 	}
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);

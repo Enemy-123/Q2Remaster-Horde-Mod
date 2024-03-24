@@ -19,6 +19,7 @@ carrier
 // nb: specifying flyer multiple times so it has a higher chance
 constexpr const char *default_reinforcements = "monster_daedalus 3;monster_daedalus 1;monster_floater 2;monster_floater 1;monster_kamikaze 1;monster_hover 2";
 constexpr int32_t default_monster_slots_base = 9;
+constexpr spawnflags_t SPAWNFLAG_CARRIER2 = 8_spawnflag;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 2_sec; // number of seconds between rocket shots
 constexpr int32_t CARRIER_ROCKET_SPEED = 750;
@@ -65,7 +66,11 @@ void CarrierRocket(edict_t *self);
 
 MONSTERINFO_SIGHT(carrier_sight) (edict_t *self, edict_t *other) -> void
 {
-	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+	
+	
+	
+	
+	(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
 //
@@ -1055,10 +1060,10 @@ void CarrierPrecache()
 
 /*QUAKED monster_carrier (1 .5 0) (-56 -56 -44) (56 56 44) Ambush Trigger_Spawn Sight
  */
-void SP_monster_carrier(edict_t *self)
+void SP_monster_carrier(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -1079,7 +1084,7 @@ void SP_monster_carrier(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/carrier/tris.md2");
-	
+
 	gi.modelindex("models/monsters/carrier/gibs/base.md2");
 	gi.modelindex("models/monsters/carrier/gibs/chest.md2");
 	gi.modelindex("models/monsters/carrier/gibs/gl.md2");
@@ -1102,14 +1107,14 @@ void SP_monster_carrier(edict_t *self)
 	// 2000 - 4000 health
 	self->health = max(2000, 2000 + 1000 * (skill->integer - 1)) * st.health_multiplier;
 	// add health in coop (500 * skill)
-	
 
 
 
 
 
 
-		self->health += 700 * skill->integer;
+
+	self->health += 700 * skill->integer;
 
 	self->gib_health = -200;
 	self->mass = 1000;
@@ -1142,7 +1147,7 @@ void SP_monster_carrier(edict_t *self)
 
 	self->monsterinfo.attack_finished = 0_ms;
 
-	const char *reinforcements = default_reinforcements;
+	const char* reinforcements = default_reinforcements;
 
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = default_monster_slots_base;
@@ -1164,3 +1169,19 @@ void SP_monster_carrier(edict_t *self)
 	self->monsterinfo.fly_min_distance = 1000.f;
 	self->monsterinfo.fly_max_distance = 1000.f;
 }
+
+	void SP_monster_carrier2(edict_t * self)
+	{
+		self->spawnflags |= SPAWNFLAG_CARRIER2;
+		SP_monster_carrier(self);
+
+		if (!self->s.scale)
+			self->s.scale = 0.6f;
+
+		self->mins = { -34, -34, -26 };
+		self->maxs = { 34, 34, 26 };
+
+		self->health = max(500, 500 + 1200 * (skill->integer - 1)) * st.health_multiplier;
+	}
+
+

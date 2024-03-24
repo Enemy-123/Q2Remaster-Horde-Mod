@@ -560,10 +560,3 @@ bool KillBox(edict_t *ent, bool from_spawning, mod_id_t mod, bool bsp_clipping)
 
 	return true; // all clear
 }
-
-//void G_PrintGreenText(char* text)
-//{
-//	char* msg = HiPrint(text);
-//	gi.bprintf(PRINT_HIGH, "%s\n", msg);
-//	V_Free(msg);
-//}

@@ -707,5 +707,12 @@ void SP_monster_boss2_64(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (!self->s.scale)
-		self->s.scale = 1.3f;
+		self->s.scale = 0.6f;
+
+	self->mins = { -34, -34, 0 };
+	self->maxs = { 34, 34, 48 };
+
+	self->health = 1200 * st.health_multiplier;
+	self->gib_health = -200;
+	self->mass = 1000;
 }

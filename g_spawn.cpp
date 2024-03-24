@@ -200,6 +200,7 @@ void SP_target_orb(edict_t *self);
 // pmm
 void SP_hint_path(edict_t *self);
 void SP_monster_carrier(edict_t *self);
+void SP_monster_carrier2(edict_t* self);
 void SP_monster_widow(edict_t *self);
 void SP_monster_widow2(edict_t *self);
 void SP_dm_tag_token(edict_t *self);
@@ -417,6 +418,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_daedalus", SP_monster_hover },
 	{ "hint_path", SP_hint_path },
 	{ "monster_carrier", SP_monster_carrier },
+	{ "monster_carrier2", SP_monster_carrier2 },
 	{ "monster_widow", SP_monster_widow },
 	{ "monster_widow2", SP_monster_widow2 },
 	{ "monster_medic_commander", SP_monster_medic },

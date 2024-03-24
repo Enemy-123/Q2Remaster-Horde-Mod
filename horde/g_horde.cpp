@@ -14,7 +14,7 @@ enum class horde_state_t
 };
 
 static struct {
-	gtime_t			warm_time = 10_sec;
+	gtime_t			warm_time = 15_sec;
 	horde_state_t	state = horde_state_t::warmup;
 
 	gtime_t			monster_spawn_time;
@@ -56,24 +56,30 @@ constexpr struct weighted_item_t {
 	weight_adjust_func_t	adjust_weight = nullptr;
 } items[] = {
 	{ "item_health_small" },
-	
-	{ "item_health", -1, -1, 1.0f, adjust_weight_health },
-	{ "item_health_large", -1, -1, 0.85f, adjust_weight_health },
+	{ "item_health", -1, -1, 0.70f, adjust_weight_health },
+	{ "item_health_large", -1, -1, 0.45f, adjust_weight_health },
 
-	{ "item_armor_shard" },
-	{ "item_armor_jacket", -1, 4, 0.65f, adjust_weight_armor },
-	{ "item_armor_combat", 2, -1, 0.62f, adjust_weight_armor },
-	{ "item_armor_body", 4, -1, 0.35f, adjust_weight_armor },
+	{ "item_armor_shard", -1, -1, 0.85f, adjust_weight_armor },
+	{ "item_armor_jacket", -1, 4, 0.45f, adjust_weight_armor },
+	{ "item_armor_combat", 2, -1, 0.32f, adjust_weight_armor },
+	{ "item_armor_body", 4, -1, 0.25f, adjust_weight_armor },
 	
-	{ "weapon_shotgun", -1, -1, 0.98f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 2, -1, 1.02f, adjust_weight_weapon },
-	{ "weapon_machinegun", -1, -1, 1.05f, adjust_weight_weapon },
-	{ "weapon_chaingun", 3, -1, 1.01f, adjust_weight_weapon },
-	{ "weapon_grenadelauncher", 4, -1, 0.75f, adjust_weight_weapon },
+	{ "weapon_shotgun", -1, -1, 0.58f, adjust_weight_weapon },
+	{ "weapon_supershotgun", 6, -1, 0.36f, adjust_weight_weapon },
+	{ "weapon_machinegun", -1, -1, .45f, adjust_weight_weapon },
+	{ "weapon_chaingun", 3, -1, 0.31f, adjust_weight_weapon },
+	{ "weapon_grenadelauncher", 6, -1, 0.45f, adjust_weight_weapon },
+	{ "weapon_hyperblaster", 7, -1, 0.35f, adjust_weight_weapon },
+	{ "weapon_phalanx", 6, -1, 0.25f, adjust_weight_weapon },
+	{ "weapon_disruptor", 9, -1, 0.25f, adjust_weight_weapon },
 	
 	{ "ammo_shells", -1, -1, 1.25f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 1.25f, adjust_weight_ammo },
 	{ "ammo_grenades", 2, -1, 1.25f, adjust_weight_ammo },
+	{ "ammo_cells", 5, -1, 1.25f, adjust_weight_ammo },
+	{ "ammo_magslug", 5, -1, 1.25f, adjust_weight_ammo },
+	{ "ammo_disruptor", 7, -1, 1.25f, adjust_weight_ammo },
+	
 };
 
 void adjust_weight_health(const weighted_item_t &item, float &weight)
@@ -93,14 +99,29 @@ void adjust_weight_armor(const weighted_item_t &item, float &weight)
 }
 
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, 2, 1.50f },
-	{ "monster_soldier", -1, 6, 0.85f },
-	{ "monster_soldier_ss", 2, 6, 1.01f },
-	{ "monster_infantry", 2, 6, 1.15f },
-	{ "monster_gunner", 2, -1, 1.15f },
-	{ "monster_chick", 3, 8, 1.01f },
-	{ "monster_gladiator", 4, -1, 1.2f },
-	{ "monster_tank", 5, -1, 0.85f },
+	{ "monster_soldier_lasergun", -1, 6, 0.90f },
+	{ "monster_soldier_ripper", -1, 5, 0.85f },
+	{ "monster_soldier_hypergun", 2, 4, 0.85f },
+	{ "monster_infantry", 2, 6, 0.90f },
+	{ "monster_gunner", 2, -1, 0.90f },
+	{ "monster_chick", 4, 8, 0.92f },
+	{ "monster_chick_heat", 4, 2, 0.93f },
+	{ "monster_stalker", 8, -1, 0.8f },
+	{ "monster_gladiator", 4, -1, 1.1f },
+	{ "monster_gladb", 6, -1, 1.2f },
+	{ "monster_tank", 4, 9, 0.85f },
+	{ "monster_tank_commander", 6, 9, 0.95f },
+	{ "monster_mutant", 6, -1, 1.05f },
+	{ "monster_tank", 6, -1, 0.85f },
+	{ "monster_janitor2", 7, -1, 1.25f },
+	{ "monster_janitor", 7, -1, 1.25f },
+	{ "monster_hover", 6, -1, 1.35f },
+	{ "monster_flyer", 3, 6, 1.05f },
+	{ "monster_makron", 10, -1, 0.3f },
+	{ "monster_guncmdr", 5, -1, 1.1f },
+	{ "monster_tank_64", 8, -1, 0.4f },
+	{ "monster_boss2_64", 12, -1, 0.5f },
+	{ "monster_berserk", 4, -1, 1.15f },
 };
 
 struct picked_item_t {
@@ -260,29 +281,31 @@ void Horde_RunFrame()
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time)
+		if (g_horde_local.warm_time < level.time + 5_sec)
 		{
-			gi.LocBroadcast_Print(PRINT_CENTER, "Warmup ended.\nSpawning monsters.");
+			gi.LocBroadcast_Print(PRINT_CENTER, "???\n");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
+
+			if (!coop->value)
+				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 
 	case horde_state_t::spawning:
 		if (g_horde_local.monster_spawn_time <= level.time)
 		{
-			edict_t *e = G_Spawn();
+			edict_t* e = G_Spawn();
 			e->classname = G_HordePickMonster();
-			select_spawn_result_t result = SelectDeathmatchSpawnPoint(false, true, false);
+			select_spawn_result_t result = SelectDeathmatchSpawnPoint(true, true, false);
 
 			if (result.any_valid)
 			{
 				e->s.origin = result.spot->s.origin;
-				e->s.origin[2] += 20.0f;
 				e->s.angles = result.spot->s.angles;
 				e->item = G_HordePickItem();
 				ED_CallSpawn(e);
-				g_horde_local.monster_spawn_time = level.time + random_time(0.2_sec, 1.5_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 1.5_sec);
 
 				e->enemy = &g_edicts[1];
 				FoundTarget(e);
@@ -291,7 +314,10 @@ void Horde_RunFrame()
 
 				if (!g_horde_local.num_to_spawn)
 				{
-					gi.LocBroadcast_Print(PRINT_CENTER, "All monsters spawned.\nClean up time!");
+
+					gi.LocBroadcast_Print(PRINT_CENTER, "A new enemy wave has been fully deployed!\n");
+						gi.sound(world, CHAN_VOICE, gi.soundindex("world/world_wall_break1.wav"), 1, ATTN_NONE, 0);
+
 					g_horde_local.state = horde_state_t::cleanup;
 					g_horde_local.monster_spawn_time = level.time + 3_sec;
 				}
@@ -306,23 +332,27 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "All monsters dead.\nShort rest time.");
-				g_horde_local.warm_time = level.time + 10_sec;
+				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated.\n GG !");
+
+				g_horde_local.warm_time = level.time + 5_sec;
 				g_horde_local.state = horde_state_t::rest;
 			}
 			else
 				g_horde_local.monster_spawn_time = level.time + 3_sec;
 		}
-
-		break;
+			break;
+		
 
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
-			gi.LocBroadcast_Print(PRINT_CENTER, "Starting next level.");
+			gi.LocBroadcast_Print(PRINT_CENTER, "Starting Next Wave.");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
+
+			gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
+
 		}
 		break;
 	}

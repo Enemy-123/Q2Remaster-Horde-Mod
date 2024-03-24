@@ -801,7 +801,7 @@ void SP_monster_makron(edict_t* self)
 	M_SetAnimation(self, &makron_move_sight);
 	self->monsterinfo.scale = MODEL_SCALE;
 	if (!self->s.scale)
-		self->s.scale = 1.35f;
+		self->s.scale = 1.10f;
 
 	walkmonster_start(self);
 
