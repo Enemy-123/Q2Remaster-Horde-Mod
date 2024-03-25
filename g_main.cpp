@@ -662,11 +662,11 @@ void CheckDMRules()
 		return;
 
          // Paril
-//if (g_horde->integer)
-//	{
-//	Horde_RunFrame();
-//	return;
-//	}
+if (g_horde->integer)
+	{
+	Horde_RunFrame();
+	return;
+	}
 
 	if (!deathmatch->integer)
 		return;
