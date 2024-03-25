@@ -540,6 +540,6 @@ if (!self->s.scale)
 self->s.scale = 0.4f;
 self->health = 2500 * st.health_multiplier;
 
-	self->mins = { -38, -38, -26 };
-	self->maxs = { 38,38, 24 };
+	self->mins = { -18, -18, -24 };
+	self->maxs = { 18, 18, 30 };
 }

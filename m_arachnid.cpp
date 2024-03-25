@@ -398,10 +398,10 @@ void SP_monster_spider(edict_t* self)
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 1;
 	if (!self->s.scale)
-		self->s.scale = 0.4f;
+		self->s.scale = 0.5f;
 	self->health = 1700 * st.health_multiplier;
 
-	self->mins = { -19, -19, -8 };
-	self->maxs = { 19, 19, 19 };
+	self->mins = { -28, -19, -8 };
+	self->maxs = { 28, 19, 19 };
 
 }

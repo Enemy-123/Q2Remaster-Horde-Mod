@@ -25,7 +25,7 @@ static struct {
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 10 + (lvl * 2);
+	g_horde_local.num_to_spawn = 20 + (lvl * 2);
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 }
 
@@ -99,32 +99,35 @@ void adjust_weight_armor(const weighted_item_t &item, float &weight)
 }
 
 constexpr weighted_item_t monsters[] = {
-	{ "monster_gekk", 3, 6, 0.50f },
-	{ "monster_soldier_lasergun", -1, 6, 0.90f },
-	{ "monster_soldier_ripper", -1, 5, 0.85f },
+	{ "monster_soldier_light", -1, 3, 0.90f },
+	{ "monster_soldier", -1, 3, 0.85f },
 	{ "monster_soldier_hypergun", 2, 4, 0.85f },
-	{ "monster_infantry", 2, 6, 0.90f },
-	{ "monster_gunner", 2, -1, 0.90f },
-	{ "monster_chick", 4, 8, 0.92f },
-	{ "monster_chick_heat", 4, 2, 0.93f },
-	{ "monster_stalker", 8, -1, 0.8f },
-	{ "monster_gladiator", 4, -1, 1.1f },
-	{ "monster_gladb", 6, -1, 1.2f },
+	{ "monster_gekk", 3, 6, 0.50f },
+	{ "monster_soldier_lasergun", 3, 6, 0.90f },
+	{ "monster_soldier_ripper", 3, 5, 0.85f },
+	{ "monster_infantry", 3, 6, 0.90f },
+	{ "monster_gunner", 4, -1, 0.90f },
+	{ "monster_chick", 5, 7, 0.92f },
+	{ "monster_chick_heat", 6, -1, 0.93f },
+	{ "monster_stalker", 2, -1, 0.2f },
+	{ "monster_gladiator", 5, -1, 1.1f },
+	{ "monster_gladb", 8, -1, 1.2f },
 	{ "monster_tank", 4, 9, 0.85f },
 	{ "monster_tank_commander", 6, 9, 0.95f },
 	{ "monster_mutant", 6, -1, 1.05f },
 	{ "monster_tank", 6, -1, 0.85f },
-	{ "monster_janitor2", 7, -1, 1.25f },
-	{ "monster_janitor", 7, -1, 1.25f },
+	{ "monster_janitor2", 11, -1, 1.25f },
+	{ "monster_janitor", 8, -1, 1.25f },
 	{ "monster_hover", 6, -1, 1.35f },
-	{ "monster_flyer", 3, 6, 1.05f },
+	{ "monster_flyer", -1, 3, 1.05f },
+	{ "monster_floater", 3, 6, 1.05f },
 	{ "monster_makron", 10, -1, 0.3f },
 	{ "monster_guncmdr", 5, -1, 1.1f },
     { "monster_tank_64", 9, -1, 0.4f },
-	{ "monster_boss2_64", 12, -1, 0.5f },
+	{ "monster_boss2_64", 7, -1, 0.5f },
 	{ "monster_carrier2", 12, -1, 0.2f },
 	{ "monster_berserk", 4, -1, 1.15f },
-    { "monster_spider", 5, -1, 0.95f },
+    { "monster_spider", 6, -1, 0.95f },
 };
 
 struct picked_item_t {
