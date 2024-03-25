@@ -1377,7 +1377,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
 	}
 	else
 	{
-		 damage = 180;
+		 damage = 240;
 		 kick = 500;
 	}
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
@@ -1444,7 +1444,7 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
 			if (G_IsDeathmatch())
 				damage = 15;
 			else
-				damage = 24;
+				damage = 27;
 			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
 			Weapon_PowerupSound(ent);
 
@@ -1587,7 +1587,7 @@ void Chaingun_Fire(edict_t *ent)
 	if (G_IsDeathmatch())
 		damage = 6;
 	else
-		damage = 17;
+		damage = 22;
 
 	if (ent->client->ps.gunframe > 31)
 	{

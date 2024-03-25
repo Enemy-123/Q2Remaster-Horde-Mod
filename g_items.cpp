@@ -1373,10 +1373,10 @@ void SpawnItem(edict_t *ent, gitem_t *item)
 				return;
 			}
 
-			// [Paril-KEX] some item swappage 
+			// [Paril-KEX] some item swappage    - Spawn Disruptor instead of BFG
 			// BFG too strong in Infinite Ammo mode
-			if (item->id == IT_WEAPON_BFG)
-				item = GetItemByIndex(IT_WEAPON_DISRUPTOR);
+		//	if (item->id == IT_WEAPON_BFG)
+		//		item = GetItemByIndex(IT_WEAPON_DISRUPTOR);
 		}
 
 		//==========

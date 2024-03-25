@@ -250,6 +250,8 @@ void Horde_Init()
 	g_horde_local.warm_time = level.time + 10_sec;
 }
 
+// gi.cvar_set("kill_ai", "");
+
 static bool Horde_AllMonstersDead()
 {
 	for (size_t i = 0; i < globals.max_edicts; i++)
@@ -319,7 +321,7 @@ void Horde_RunFrame()
 				if (!g_horde_local.num_to_spawn)
 				{
 
-					gi.LocBroadcast_Print(PRINT_CENTER, "MONSTERS COMING \n");
+					gi.LocBroadcast_Print(PRINT_CENTER, "Monsters wave\nis\nfully deployed \n");
 					//gi.sound(world, CHAN_VOICE, gi.soundindex("world/world_wall_break1.wav"), 1, ATTN_NONE, 0);
 
 					g_horde_local.state = horde_state_t::cleanup;
@@ -332,7 +334,7 @@ void Horde_RunFrame()
 		break;
 
 	case horde_state_t::cleanup:
-		if (g_horde_local.monster_spawn_time < level.time)
+		g_horde_local.monster_spawn_time = level.time - 15_sec; // Espera 120 segundos antes de ejecutar el cleanup
 		{
 			if (Horde_AllMonstersDead())
 			{

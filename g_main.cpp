@@ -661,12 +661,12 @@ void CheckDMRules()
 	if (level.intermissiontime)
 		return;
 
-	// Paril
-	if (g_horde->integer)
-	{
-		Horde_RunFrame();
-		return;
-	}
+         // Paril
+//if (g_horde->integer)
+//	{
+//	Horde_RunFrame();
+//	return;
+//	}
 
 	if (!deathmatch->integer)
 		return;

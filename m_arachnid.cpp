@@ -401,7 +401,7 @@ void SP_monster_spider(edict_t* self)
 		self->s.scale = 0.4f;
 	self->health = 1700 * st.health_multiplier;
 
-	self->mins = { -19, 19, -8 };
+	self->mins = { -19, -19, -8 };
 	self->maxs = { 19, 19, 19 };
 
 }
