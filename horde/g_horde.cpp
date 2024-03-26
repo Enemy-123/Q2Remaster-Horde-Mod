@@ -22,11 +22,18 @@ static struct {
 	int32_t			level;
 } g_horde_local;
 bool next_wave_message_sent = false;
-
+static const int MAX_MONSTERS_PER_WAVE = 26;
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 12 + (lvl * 1.3);
+	g_horde_local.num_to_spawn = 16 + (lvl * 1.5);
+
+	// limiting max monsters
+	if (g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
+	{
+		g_horde_local.num_to_spawn = MAX_MONSTERS_PER_WAVE;
+	}
+
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 }
 
@@ -60,16 +67,16 @@ constexpr struct weighted_item_t {
 	{ "item_health_small", -1, -1, 0.40f, adjust_weight_health },
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.15f, adjust_weight_health },
-	{ "item_health_mega", -1, -1, 0.13f, adjust_weight_health },
+	{ "item_health_mega", -1, -1, 0.03f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
 	{ "item_armor_jacket", 4, 4, 0.25f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 
-	{ "item_quad", -1, -1, 0.002f, adjust_weight_powerup },
-	{ "item_quadfire", -1, -1, 0.007f, adjust_weight_powerup },
-	{ "item_invulnerability", -1, -1, 0.003f, adjust_weight_powerup },
+	{ "item_quad", -1, -1, 0.04f, adjust_weight_powerup },
+	{ "item_quadfire", -1, -1, 0.01f, adjust_weight_powerup },
+	{ "item_invulnerability", -1, -1, 0.005f, adjust_weight_powerup },
 
 	{ "weapon_blaster", 5, -1, 0.18f, adjust_weight_weapon },
 	{ "weapon_shotgun", 2, 6, 0.18f, adjust_weight_weapon },
@@ -119,13 +126,13 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, 3, 0.75f },
 	{ "monster_soldier", -1, 3, 0.45f },
-	{ "monster_soldier_hypergun", 2, 4, 0.85f },
+	{ "monster_soldier_hypergun", -1, 4, 0.85f },
 	{ "monster_stalker", 2, -1, 0.25f },
 	{ "monster_gekk", 3, 6, 0.50f },
-	{ "monster_parasite", 3, 6, 0.50f },
+	{ "monster_parasite", 3, 4, 0.50f },
 	{ "monster_brain", 4, 11, 0.30f },
-	{ "monster_soldier_lasergun", 3, 6, 0.90f },
-	{ "monster_soldier_ripper", 3, 5, 0.85f },
+	{ "monster_soldier_lasergun", 2, 6, 0.90f },
+	{ "monster_soldier_ripper", 2, 5, 0.85f },
 	{ "monster_infantry", 3, 6, 0.90f },
 	{ "monster_gunner", 3, -1, 0.90f },
 	{ "monster_tank", 4, 9, 0.85f },
@@ -140,7 +147,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gladb", 8, -1, 1.2f },
 	{ "monster_janitor", 8, -1, 1.25f },
 	{ "monster_hover", 6, -1, 1.35f },
-	{ "monster_flyer", -1, 3, 1.05f },
+	{ "monster_flyer", -1, 3, 0.75f },
 	{ "monster_floater", 3, 6, 1.05f },
 	{ "monster_makron", 9, -1, 0.3f },
 	{ "monster_boss2_64", 9, -1, 0.4f },
@@ -342,7 +349,7 @@ void Horde_RunFrame()
 				e->s.angles = result.spot->s.angles;
 				e->item = G_HordePickItem();
 				ED_CallSpawn(e);
-				g_horde_local.monster_spawn_time = level.time + random_time(0.6_sec, 0.8_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.3_sec, 0.4_sec);
 
 				e->enemy = &g_edicts[1];
 				FoundTarget(e);
@@ -353,7 +360,7 @@ void Horde_RunFrame()
 				{
 					{
 						std::ostringstream message_stream;
-						message_stream << "Starting Wave.\n Current Level is: " << g_horde_local.level << "\n";
+						message_stream << "New Wave Is Here.\n Current Level: " << g_horde_local.level << "\n";
 						gi.LocBroadcast_Print(PRINT_CENTER, message_stream.str().c_str());
 
 					}
@@ -364,7 +371,7 @@ void Horde_RunFrame()
 			}
 			else
 			{
-				gi.LocBroadcast_Print(PRINT_HIGH, "Cleaning... \n");
+
 				g_horde_local.monster_spawn_time = level.time + 1.5_sec;
 			}
 
@@ -379,7 +386,7 @@ void Horde_RunFrame()
 			{
 				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated GG !");
 
-				g_horde_local.warm_time = level.time + 8_sec;
+				g_horde_local.warm_time = level.time + 7_sec;
 				g_horde_local.state = horde_state_t::rest;
 			}
 			else
@@ -391,7 +398,7 @@ void Horde_RunFrame()
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
-			gi.LocBroadcast_Print(PRINT_CENTER, "Starting  Wave");
+			gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
