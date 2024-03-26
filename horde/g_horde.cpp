@@ -2,6 +2,8 @@
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include <optional>
+#include <sstream>
+
 
 cvar_t *g_horde;
 
@@ -14,7 +16,7 @@ enum class horde_state_t
 };
 
 static struct {
-	gtime_t			warm_time = 15_sec;
+	gtime_t			warm_time = gtime_t::from_sec(10); // Inicialización de warm_time a 10 segundos
 	horde_state_t	state = horde_state_t::warmup;
 
 	gtime_t			monster_spawn_time;
@@ -22,12 +24,13 @@ static struct {
 	int32_t			level;
 } g_horde_local;
 
-static void Horde_InitLevel(int32_t lvl)
-{
+static void Horde_InitLevel(int32_t lvl) {
 	g_horde_local.level = lvl;
 	g_horde_local.num_to_spawn = 12 + (lvl * 1.3);
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
+
 }
+
 
 bool G_IsDeathmatch()
 {
@@ -66,9 +69,9 @@ constexpr struct weighted_item_t {
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 
-	{ "item_quad", -1, -1, 0.03f, adjust_weight_powerup },
-	{ "item_quadfire", -1, -1, 0.1f, adjust_weight_powerup },
-	{ "item_invulnerability", -1, -1, 0.04f, adjust_weight_powerup },
+	{ "item_quad", -1, -1, 0.01f, adjust_weight_powerup },
+	{ "item_quadfire", -1, -1, 0.02f, adjust_weight_powerup },
+	{ "item_invulnerability", -1, -1, 0.01f, adjust_weight_powerup },
 
 	{ "weapon_blaster", 5, -1, 0.18f, adjust_weight_weapon },
 	{ "weapon_shotgun", 2, 6, 0.18f, adjust_weight_weapon },
@@ -271,10 +274,8 @@ void Horde_Init()
 		G_FreeEdict(e);
 	}
 
-	g_horde_local.warm_time = level.time + 10_sec;
+	g_horde_local.warm_time = level.time + 25_sec;
 }
-
-// gi.cvar_set("kill_ai", "");
 
 static bool Horde_AllMonstersDead()
 {
@@ -300,21 +301,36 @@ static void Horde_CleanBodies()
 			continue;
 		else if (g_edicts[i].svflags & SVF_MONSTER)
 		{
+			// Eliminar el monstruo si su salud es menor o igual a cero
 			if (g_edicts[i].health <= 0 || g_edicts[i].deadflag || (g_edicts[i].svflags & SVF_DEADMONSTER))
 				G_FreeEdict(&g_edicts[i]);
+/*			// También eliminar el monstruo si su salud es positiva
+			else
+				G_FreeEdict(&g_edicts[i]);
+*/
 		}
 	}
 }
 
+
 void Horde_RunFrame()
 {
+	// Variable para controlar si el mensaje de inicio de la próxima oleada ya se ha enviado
+	static bool next_wave_message_sent = false;
+
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time + 5_sec)
+		if (g_horde_local.warm_time <= level.time)
 		{
-			gi.LocBroadcast_Print(PRINT_CENTER, "???\n");
+			// Envía el mensaje de "warmup"
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\n\n\nGet ready! The horde is coming!\n");
+
+			// Establece un breve espacio de tiempo antes de cambiar al estado de "spawning"
 			g_horde_local.state = horde_state_t::spawning;
+			g_horde_local.monster_spawn_time = level.time + 2000_sec; // Espera 2 segundos antes de comenzar a generar monstruos
+
+			// Inicializa el nivel
 			Horde_InitLevel(1);
 
 			if (!coop->value)
@@ -322,7 +338,27 @@ void Horde_RunFrame()
 		}
 		break;
 
+
+
+
 	case horde_state_t::spawning:
+	{
+		if (!next_wave_message_sent) // Verifica si el mensaje de inicio de la próxima oleada aún no se ha enviado
+		{
+			std::ostringstream message_stream;
+			message_stream << "Starting Wave.\n Current Level is: " << g_horde_local.level << "\n";
+			gi.LocBroadcast_Print(PRINT_CENTER, message_stream.str().c_str());
+
+			next_wave_message_sent = true; // Marca el mensaje como enviado
+		}
+
+		/*	unused for now
+		// Agregar un mensaje para describir la cantidad de monstruos a generar
+			std::ostringstream start_message_stream;
+			start_message_stream << "Number of Monsters to Spawn: " << g_horde_local.num_to_spawn << "\n";
+			gi.LocBroadcast_Print(PRINT_CENTER, start_message_stream.str().c_str());
+*/
+
 		if (g_horde_local.monster_spawn_time <= level.time)
 		{
 			edict_t* e = G_Spawn();
@@ -344,8 +380,7 @@ void Horde_RunFrame()
 
 				if (!g_horde_local.num_to_spawn)
 				{
-
-					gi.LocBroadcast_Print(PRINT_CENTER, "Monsters wave\nis\nfully deployed \n");
+					gi.LocBroadcast_Print(PRINT_CENTER, "Monsters wave  \nfully deployed \n");
 					//gi.sound(world, CHAN_VOICE, gi.soundindex("world/world_wall_break1.wav"), 1, ATTN_NONE, 0);
 
 					g_horde_local.state = horde_state_t::cleanup;
@@ -355,20 +390,29 @@ void Horde_RunFrame()
 			else
 				g_horde_local.monster_spawn_time = level.time + 1.5_sec;
 		}
-		break;
+	}
+	break;
 
 	case horde_state_t::cleanup:
-		if (g_horde_local.monster_spawn_time < level.time)
+		// Código para limpiar la oleada anterior...
+		if (g_horde_local.monster_spawn_time < level.time && Horde_AllMonstersDead())
 		{
-			if (Horde_AllMonstersDead())
-			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated.\n GG !");
+			gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated.\nGG.");
 
-				g_horde_local.warm_time = level.time + 8_sec;
-				g_horde_local.state = horde_state_t::rest;
-			}
-			else
-				g_horde_local.monster_spawn_time = level.time + 3_sec;
+			// Establecer el estado de reposo para preparar la próxima oleada
+			g_horde_local.warm_time = level.time + 10_sec;
+			g_horde_local.state = horde_state_t::rest;
+		}
+		else if (g_horde_local.monster_spawn_time < level.time)
+		{
+			// Realizar la limpieza automáticamente si la oleada no se completa dentro del tiempo deseado
+			gi.LocBroadcast_Print(PRINT_CENTER, "Forcing cleanup due to incomplete wave.\n");
+			// Ejecutar la limpieza
+			Horde_CleanBodies();
+
+			// Establecer el estado de reposo para preparar la próxima oleada
+			g_horde_local.warm_time = level.time + 10_sec;
+			g_horde_local.state = horde_state_t::rest;
 		}
 		break;
 
@@ -376,12 +420,20 @@ void Horde_RunFrame()
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
+			// Restablecimiento y preparación para la próxima oleada...
+			next_wave_message_sent = false; // Restablece el indicador de mensaje enviado
 			gi.LocBroadcast_Print(PRINT_CENTER, "Starting Next Wave.");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
-
 			gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
+
+			// Establecer el tiempo de espera para la próxima oleada en caso de que hayan monstruos vivos
+			if (!Horde_AllMonstersDead())
+			{
+				g_horde_local.warm_time = level.time + 60_sec; // O cualquier otro valor de tiempo deseado
+				return;
+			}
 
 		}
 		break;
