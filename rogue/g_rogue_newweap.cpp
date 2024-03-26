@@ -1339,8 +1339,8 @@ TOUCH(blaster2_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool ot
 		// defender sphere.
 		if (self->owner && self->owner->client)
 			mod = MOD_DEFENDER_SPHERE;
-		else
-			mod = MOD_BLASTER;
+		//  else
+		//	mod = MOD_BLASTER;
 
 		if (self->owner)
 		{

@@ -66,7 +66,7 @@ void Weapon_Tesla(edict_t *ent)
 //
 constexpr int32_t CHAINFIST_REACH = 24;
 
-void weapon_chainfist_fire(edict_t *ent)
+void weapon_chainfist_fire(edict_t* ent)
 {
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -79,17 +79,14 @@ void weapon_chainfist_fire(edict_t *ent)
 		}
 	}
 
-		int damage = 80;
+	int damage = 7;
 
-	
-
-
-
-
-		damage = 85;
+	if (G_IsDeathmatch())
+		damage = 15;
 
 	if (is_quad)
 		damage *= damage_multiplier;
+
 
 	// set start point
 	vec3_t start, dir;

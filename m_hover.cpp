@@ -595,7 +595,7 @@ void SP_monster_hover(edict_t *self)
 	self->mins = { -24, -24, -24 };
 	self->maxs = { 24, 24, 32 };
 
-	self->health = 290 * st.health_multiplier;
+	self->health = 175 * st.health_multiplier;
 	self->gib_health = -100;
 	self->mass = 150;
 
@@ -613,13 +613,13 @@ void SP_monster_hover(edict_t *self)
 	// PGM
 	if (strcmp(self->classname, "monster_daedalus") == 0)
 	{
-		self->health = 450 * st.health_multiplier;
+		self->health = 120 * st.health_multiplier;
 		self->mass = 225;
 		self->yaw_speed = 23;
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 400;
+			self->monsterinfo.power_armor_power = 170;
 		// PMM - daedalus sounds
 		self->monsterinfo.engine_sound = gi.soundindex("daedalus/daedidle1.wav");
 		daed_sound_pain1.assign("daedalus/daedpain1.wav");

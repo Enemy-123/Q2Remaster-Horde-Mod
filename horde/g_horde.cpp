@@ -66,9 +66,9 @@ constexpr struct weighted_item_t {
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 
-	{ "item_quad", -1, -1, 0.07f, adjust_weight_powerup },
-	{ "item_quadfire", -1, -1, 0.07f, adjust_weight_powerup },
-	{ "item_invulnerability", -1, -1, 0.13f, adjust_weight_powerup },
+	{ "item_quad", -1, -1, 0.03f, adjust_weight_powerup },
+	{ "item_quadfire", -1, -1, 0.1f, adjust_weight_powerup },
+	{ "item_invulnerability", -1, -1, 0.04f, adjust_weight_powerup },
 
 	{ "weapon_blaster", 5, -1, 0.18f, adjust_weight_weapon },
 	{ "weapon_shotgun", 2, 6, 0.18f, adjust_weight_weapon },

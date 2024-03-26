@@ -6,7 +6,7 @@
 Fire an origin based temp entity event to the clients.
 "style"		type byte
 */
-USE(Use_Target_Tent) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(Use_Target_Tent) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(ent->style);
@@ -14,7 +14,7 @@ USE(Use_Target_Tent) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 }
 
-void SP_target_temp_entity(edict_t *ent)
+void SP_target_temp_entity(edict_t* ent)
 {
 	if (level.is_n64 && ent->style == 27)
 		ent->style = TE_TELEPORT_EFFECT;
@@ -45,7 +45,7 @@ constexpr spawnflags_t SPAWNFLAG_SPEAKER_LOOPED_OFF = 2_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_SPEAKER_RELIABLE = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_SPEAKER_NO_STEREO = 8_spawnflag;
 
-USE(Use_Target_Speaker) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(Use_Target_Speaker) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	soundchan_t chan;
 
@@ -68,7 +68,7 @@ USE(Use_Target_Speaker) (edict_t *ent, edict_t *other, edict_t *activator) -> vo
 	}
 }
 
-void SP_target_speaker(edict_t *ent)
+void SP_target_speaker(edict_t* ent)
 {
 	if (!st.noise)
 	{
@@ -124,17 +124,17 @@ constexpr spawnflags_t SPAWNFLAG_HELP_HELP1 = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_SET_POI = 2_spawnflag;
 
 extern void target_poi_use(edict_t* ent, edict_t* other, edict_t* activator);
-USE(Use_Target_Help) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(Use_Target_Help) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
-    if (ent->spawnflags.has(SPAWNFLAG_HELP_HELP1))
+	if (ent->spawnflags.has(SPAWNFLAG_HELP_HELP1))
 	{
 		if (strcmp(game.helpmessage1, ent->message))
 		{
-	        Q_strlcpy(game.helpmessage1, ent->message, sizeof(game.helpmessage1));
-		    game.help1changed++;
+			Q_strlcpy(game.helpmessage1, ent->message, sizeof(game.helpmessage1));
+			game.help1changed++;
 		}
 	}
-    else
+	else
 	{
 		if (strcmp(game.helpmessage2, ent->message))
 		{
@@ -152,10 +152,9 @@ USE(Use_Target_Help) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 /*QUAKED target_help (1 0 1) (-16 -16 -24) (16 16 24) help1 setpoi
 When fired, the "message" key becomes the current personal computer string, and the message light will be set on all clients status bars.
 */
-void SP_target_help(edict_t *ent)
+void SP_target_help(edict_t* ent)
 {
-	
-
+	if (G_IsDeathmatch())
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -185,7 +184,7 @@ void SP_target_help(edict_t *ent)
 Counts a secret found.
 These are single use targets.
 */
-USE(use_target_secret) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(use_target_secret) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	gi.sound(ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
 
@@ -195,7 +194,7 @@ USE(use_target_secret) (edict_t *ent, edict_t *other, edict_t *activator) -> voi
 	G_FreeEdict(ent);
 }
 
-THINK(G_VerifyTargetted) (edict_t *ent) -> void
+THINK(G_VerifyTargetted) (edict_t* ent) -> void
 {
 	if (!ent->targetname || !*ent->targetname)
 		gi.Com_PrintFmt("WARNING: missing targetname on {}\n", *ent);
@@ -203,11 +202,9 @@ THINK(G_VerifyTargetted) (edict_t *ent) -> void
 		gi.Com_PrintFmt("WARNING: doesn't appear to be anything targeting {}\n", *ent);
 }
 
-void SP_target_secret(edict_t *ent)
+void SP_target_secret(edict_t* ent)
 {
-	
-
-
+	if (G_IsDeathmatch())
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -226,12 +223,10 @@ void SP_target_secret(edict_t *ent)
 
 //==========================================================
 // [Paril-KEX] notify this player of a goal change
-void G_PlayerNotifyGoal(edict_t *player)
+void G_PlayerNotifyGoal(edict_t* player)
 {
 	// no goals in DM
-	
-
-
+	if (G_IsDeathmatch())
 		return;
 
 	if (!player->client->pers.spawned)
@@ -245,7 +240,7 @@ void G_PlayerNotifyGoal(edict_t *player)
 		// if the goal has updated, commit it first
 		if (game.help1changed != game.help2changed)
 		{
-			const char *current_goal = level.goals;
+			const char* current_goal = level.goals;
 
 			// skip ahead by the number of goals we've finished
 			for (int32_t i = 0; i < level.goal_num; i++)
@@ -260,16 +255,16 @@ void G_PlayerNotifyGoal(edict_t *player)
 			}
 
 			// find the end of this goal
-			const char *goal_end = current_goal;
-	
+			const char* goal_end = current_goal;
+
 			while (*goal_end && *goal_end != '\t')
 				goal_end++;
 
-			Q_strlcpy(game.helpmessage1, current_goal, min((size_t) (goal_end - current_goal + 1), sizeof(game.helpmessage1)));
+			Q_strlcpy(game.helpmessage1, current_goal, min((size_t)(goal_end - current_goal + 1), sizeof(game.helpmessage1)));
 
 			game.help2changed = game.help1changed;
 		}
-		
+
 		if (player->client->pers.game_help1changed != game.help1changed)
 		{
 			gi.LocClient_Print(player, PRINT_TYPEWRITER, game.helpmessage1);
@@ -292,7 +287,7 @@ void G_PlayerNotifyGoal(edict_t *player)
 			// [Sam-KEX] Print objective to screen
 			gi.LocClient_Print(player, PRINT_TYPEWRITER, "$g_primary_mission_objective", game.helpmessage1);
 	}
-	
+
 	if (player->client->pers.game_help2changed != game.help2changed)
 	{
 		player->client->pers.game_help2changed = game.help2changed;
@@ -311,7 +306,7 @@ These are single use targets.
 */
 constexpr spawnflags_t SPAWNFLAG_GOAL_KEEP_MUSIC = 1_spawnflag;
 
-USE(use_target_goal) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(use_target_goal) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	gi.sound(ent, CHAN_VOICE, ent->noise_index, 1, ATTN_NORM, 0);
 
@@ -320,7 +315,7 @@ USE(use_target_goal) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 	if (level.found_goals == level.total_goals && !ent->spawnflags.has(SPAWNFLAG_GOAL_KEEP_MUSIC))
 	{
 		if (ent->sounds)
-			gi.configstring (CS_CDTRACK, G_Fmt("{}", ent->sounds).data() );
+			gi.configstring(CS_CDTRACK, G_Fmt("{}", ent->sounds).data());
 		else
 			gi.configstring(CS_CDTRACK, "0");
 	}
@@ -339,12 +334,9 @@ USE(use_target_goal) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 	G_FreeEdict(ent);
 }
 
-void SP_target_goal(edict_t *ent)
+void SP_target_goal(edict_t* ent)
 {
-	
-
-
-
+	if (G_IsDeathmatch())
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -366,7 +358,7 @@ Spawns an explosion temporary entity when used.
 "delay"		wait this long before going off
 "dmg"		how much radius damage should be done, defaults to 0
 */
-THINK(target_explosion_explode) (edict_t *self) -> void
+THINK(target_explosion_explode) (edict_t* self) -> void
 {
 	float save;
 
@@ -375,7 +367,7 @@ THINK(target_explosion_explode) (edict_t *self) -> void
 	gi.WritePosition(self->s.origin);
 	gi.multicast(self->s.origin, MULTICAST_PHS, false);
 
-	T_RadiusDamage(self, self->activator, (float) self->dmg, nullptr, (float) self->dmg + 40, DAMAGE_NONE, MOD_EXPLOSIVE);
+	T_RadiusDamage(self, self->activator, (float)self->dmg, nullptr, (float)self->dmg + 40, DAMAGE_NONE, MOD_EXPLOSIVE);
 
 	save = self->delay;
 	self->delay = 0;
@@ -383,7 +375,7 @@ THINK(target_explosion_explode) (edict_t *self) -> void
 	self->delay = save;
 }
 
-USE(use_target_explosion) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_explosion) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->activator = activator;
 
@@ -397,7 +389,7 @@ USE(use_target_explosion) (edict_t *self, edict_t *other, edict_t *activator) ->
 	self->nextthink = level.time + gtime_t::from_sec(self->delay);
 }
 
-void SP_target_explosion(edict_t *ent)
+void SP_target_explosion(edict_t* ent)
 {
 	ent->use = use_target_explosion;
 	ent->svflags = SVF_NOCLIENT;
@@ -427,9 +419,7 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 	}
 
 	// if multiplayer, let everyone know who hit the exit
-	
-
-
+	if (G_IsDeathmatch())
 	{
 		if (level.time < 10_sec)
 			return;
@@ -473,7 +463,7 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 	BeginIntermission(self);
 }
 
-void SP_target_changelevel(edict_t *ent)
+void SP_target_changelevel(edict_t* ent)
 {
 	if (!ent->map)
 	{
@@ -504,7 +494,7 @@ Set "sounds" to one of the following:
 		useful for lava/sparks
 */
 
-USE(use_target_splash) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_splash) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_SPLASH);
@@ -515,10 +505,10 @@ USE(use_target_splash) (edict_t *self, edict_t *other, edict_t *activator) -> vo
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
 	if (self->dmg)
-		T_RadiusDamage(self, activator, (float) self->dmg, nullptr, (float) self->dmg + 40, DAMAGE_NONE, MOD_SPLASH);
+		T_RadiusDamage(self, activator, (float)self->dmg, nullptr, (float)self->dmg + 40, DAMAGE_NONE, MOD_SPLASH);
 }
 
-void SP_target_splash(edict_t *self)
+void SP_target_splash(edict_t* self)
 {
 	self->use = use_target_splash;
 	G_SetMovedir(self->s.angles, self->movedir);
@@ -547,11 +537,11 @@ For gibs:
 	speed how fast it should be moving otherwise it
 	will just be dropped
 */
-void ED_CallSpawn(edict_t *ent);
+void ED_CallSpawn(edict_t* ent);
 
-USE(use_target_spawner) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_spawner) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	ent = G_Spawn();
 	ent->classname = self->target;
@@ -577,7 +567,7 @@ USE(use_target_spawner) (edict_t *self, edict_t *other, edict_t *activator) -> v
 	ent->s.renderfx |= RF_IR_VISIBLE; // PGM
 }
 
-void SP_target_spawner(edict_t *self)
+void SP_target_spawner(edict_t* self)
 {
 	self->use = use_target_spawner;
 	self->svflags = SVF_NOCLIENT;
@@ -600,7 +590,7 @@ speed	default is 1000
 constexpr spawnflags_t SPAWNFLAG_BLASTER_NOTRAIL = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_BLASTER_NOEFFECTS = 2_spawnflag;
 
-USE(use_target_blaster) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_blaster) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	effects_t effect;
 
@@ -611,11 +601,11 @@ USE(use_target_blaster) (edict_t *self, edict_t *other, edict_t *activator) -> v
 	else
 		effect = EF_BLASTER;
 
-	fire_blaster(self, self->s.origin, self->movedir, self->dmg, (int) self->speed, effect, MOD_TARGET_BLASTER);
+	fire_blaster(self, self->s.origin, self->movedir, self->dmg, (int)self->speed, effect, MOD_TARGET_BLASTER);
 	gi.sound(self, CHAN_VOICE, self->noise_index, 1, ATTN_NORM, 0);
 }
 
-void SP_target_blaster(edict_t *self)
+void SP_target_blaster(edict_t* self)
 {
 	self->use = use_target_blaster;
 	G_SetMovedir(self->s.angles, self->movedir);
@@ -634,13 +624,13 @@ void SP_target_blaster(edict_t *self)
 /*QUAKED target_crosslevel_trigger (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
 Once this trigger is touched/used, any trigger_crosslevel_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and killtarget also work.
 */
-USE(trigger_crosslevel_trigger_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_crosslevel_trigger_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	game.cross_level_flags |= self->spawnflags.value;
 	G_FreeEdict(self);
 }
 
-void SP_target_crosslevel_trigger(edict_t *self)
+void SP_target_crosslevel_trigger(edict_t* self)
 {
 	self->svflags = SVF_NOCLIENT;
 	self->use = trigger_crosslevel_trigger_use;
@@ -652,7 +642,7 @@ killtarget also work.
 
 "delay"		delay before using targets if the trigger has been activated (default 1)
 */
-THINK(target_crosslevel_target_think) (edict_t *self) -> void
+THINK(target_crosslevel_target_think) (edict_t* self) -> void
 {
 	if (self->spawnflags.value == (game.cross_level_flags & SFL_CROSS_TRIGGER_MASK & self->spawnflags.value))
 	{
@@ -661,7 +651,7 @@ THINK(target_crosslevel_target_think) (edict_t *self) -> void
 	}
 }
 
-void SP_target_crosslevel_target(edict_t *self)
+void SP_target_crosslevel_target(edict_t* self)
 {
 	if (!self->delay)
 		self->delay = 1;
@@ -688,11 +678,11 @@ constexpr spawnflags_t SPAWNFLAG_LASER_STOPWINDOW = 0x0080_spawnflag;
 
 struct laser_pierce_t : pierce_args_t
 {
-	edict_t *self;
+	edict_t* self;
 	int32_t count;
 	bool damaged_thing = false;
 
-	inline laser_pierce_t(edict_t *self, int32_t count) :
+	inline laser_pierce_t(edict_t* self, int32_t count) :
 		pierce_args_t(),
 		self(self),
 		count(count)
@@ -701,7 +691,7 @@ struct laser_pierce_t : pierce_args_t
 
 	// we hit an entity; return false to stop the piercing.
 	// you can adjust the mask for the re-trace (for water, etc).
-	virtual bool hit(contents_t &mask, vec3_t &end) override
+	virtual bool hit(contents_t& mask, vec3_t& end) override
 	{
 		// hurt it if we can
 		if (self->dmg > 0 && (tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && self->damage_debounce_time <= level.time)
@@ -713,7 +703,7 @@ struct laser_pierce_t : pierce_args_t
 		// if we hit something that's not a monster or player or is immune to lasers, we're done
 		// ROGUE
 		if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client) && !(tr.ent->flags & FL_DAMAGEABLE))
-		// ROGUE
+			// ROGUE
 		{
 			if (self->spawnflags.has(SPAWNFLAG_LASER_ZAP))
 			{
@@ -726,7 +716,7 @@ struct laser_pierce_t : pierce_args_t
 				gi.WriteByte(self->s.skinnum);
 				gi.multicast(tr.endpos, MULTICAST_PVS, false);
 			}
-			
+
 			return false;
 		}
 
@@ -737,7 +727,7 @@ struct laser_pierce_t : pierce_args_t
 	}
 };
 
-THINK(target_laser_think) (edict_t *self) -> void
+THINK(target_laser_think) (edict_t* self) -> void
 {
 	int32_t count;
 
@@ -745,7 +735,7 @@ THINK(target_laser_think) (edict_t *self) -> void
 		count = 8;
 	else
 		count = 4;
-	
+
 	if (self->enemy)
 	{
 		vec3_t last_movedir = self->movedir;
@@ -758,8 +748,8 @@ THINK(target_laser_think) (edict_t *self) -> void
 
 	vec3_t start = self->s.origin;
 	vec3_t end = start + (self->movedir * 2048);
-	
-	laser_pierce_t args {
+
+	laser_pierce_t args{
 		self,
 		count
 	};
@@ -777,7 +767,7 @@ THINK(target_laser_think) (edict_t *self) -> void
 	gi.linkentity(self);
 }
 
-void target_laser_on(edict_t *self)
+void target_laser_on(edict_t* self)
 {
 	if (!self->activator)
 		self->activator = self;
@@ -787,7 +777,7 @@ void target_laser_on(edict_t *self)
 	target_laser_think(self);
 }
 
-void target_laser_off(edict_t *self)
+void target_laser_off(edict_t* self)
 {
 	self->spawnflags &= ~SPAWNFLAG_LASER_ON;
 	self->svflags |= SVF_NOCLIENT;
@@ -795,7 +785,7 @@ void target_laser_off(edict_t *self)
 	self->nextthink = 0_ms;
 }
 
-USE(target_laser_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(target_laser_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->activator = activator;
 	if (self->spawnflags.has(SPAWNFLAG_LASER_ON))
@@ -804,15 +794,15 @@ USE(target_laser_use) (edict_t *self, edict_t *other, edict_t *activator) -> voi
 		target_laser_on(self);
 }
 
-THINK(target_laser_start) (edict_t *self) -> void
+THINK(target_laser_start) (edict_t* self) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	self->movetype = MOVETYPE_NONE;
 	self->solid = SOLID_NOT;
 	self->s.renderfx |= RF_BEAM;
 	self->s.modelindex = MODELINDEX_WORLD; // must be non-zero
-	
+
 	// [Sam-KEX] On Q2N64, spawnflag of 128 turns it into a lightning bolt
 	if (level.is_n64)
 	{
@@ -892,7 +882,7 @@ THINK(target_laser_start) (edict_t *self) -> void
 		target_laser_off(self);
 }
 
-void SP_target_laser(edict_t *self)
+void SP_target_laser(edict_t* self)
 {
 	// let everything else get spawned before we start firing
 	self->think = target_laser_start;
@@ -909,11 +899,11 @@ message		two letters; starting lightlevel and ending lightlevel
 
 constexpr spawnflags_t SPAWNFLAG_LIGHTRAMP_TOGGLE = 1_spawnflag;
 
-THINK(target_lightramp_think) (edict_t *self) -> void
+THINK(target_lightramp_think) (edict_t* self) -> void
 {
 	char style[2];
 
-	style[0] = (char) ('a' + self->movedir[0] + ((level.time - self->timestamp) / gi.frame_time_s).seconds() * self->movedir[2]);
+	style[0] = (char)('a' + self->movedir[0] + ((level.time - self->timestamp) / gi.frame_time_s).seconds() * self->movedir[2]);
 	style[1] = 0;
 
 	gi.configstring(CS_LIGHTS + self->enemy->style, style);
@@ -926,18 +916,18 @@ THINK(target_lightramp_think) (edict_t *self) -> void
 	{
 		char temp;
 
-		temp = (char) self->movedir[0];
+		temp = (char)self->movedir[0];
 		self->movedir[0] = self->movedir[1];
 		self->movedir[1] = temp;
 		self->movedir[2] *= -1;
 	}
 }
 
-USE(target_lightramp_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(target_lightramp_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (!self->enemy)
 	{
-		edict_t *e;
+		edict_t* e;
 
 		// check all the targets
 		e = nullptr;
@@ -968,7 +958,7 @@ USE(target_lightramp_use) (edict_t *self, edict_t *other, edict_t *activator) ->
 	target_lightramp_think(self);
 }
 
-void SP_target_lightramp(edict_t *self)
+void SP_target_lightramp(edict_t* self)
 {
 	if (!self->message || strlen(self->message) != 2 || self->message[0] < 'a' || self->message[0] > 'z' || self->message[1] < 'a' || self->message[1] > 'z' || self->message[0] == self->message[1])
 	{
@@ -977,9 +967,7 @@ void SP_target_lightramp(edict_t *self)
 		return;
 	}
 
-	
-
-
+	if (G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;
@@ -996,8 +984,8 @@ void SP_target_lightramp(edict_t *self)
 	self->use = target_lightramp_use;
 	self->think = target_lightramp_think;
 
-	self->movedir[0] = (float) (self->message[0] - 'a');
-	self->movedir[1] = (float) (self->message[1] - 'a');
+	self->movedir[0] = (float)(self->message[0] - 'a');
+	self->movedir[1] = (float)(self->message[1] - 'a');
 	self->movedir[2] = (self->movedir[1] - self->movedir[0]) / (self->speed / gi.frame_time_s);
 }
 
@@ -1015,10 +1003,10 @@ constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
 [[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
-THINK(target_earthquake_think) (edict_t *self) -> void
+THINK(target_earthquake_think) (edict_t* self) -> void
 {
 	uint32_t i;
-	edict_t *e;
+	edict_t* e;
 
 	if (!(self->spawnflags & SPAWNFLAGS_EARTHQUAKE_SILENT)) // PGM
 	{														// PGM
@@ -1043,12 +1031,12 @@ THINK(target_earthquake_think) (edict_t *self) -> void
 		self->nextthink = level.time + 10_hz;
 }
 
-USE(target_earthquake_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(target_earthquake_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAGS_EARTHQUAKE_ONE_SHOT))
 	{
 		uint32_t i;
-		edict_t *e;
+		edict_t* e;
 
 		for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++)
 		{
@@ -1084,7 +1072,7 @@ USE(target_earthquake_use) (edict_t *self, edict_t *other, edict_t *activator) -
 	self->activator = activator;
 }
 
-void SP_target_earthquake(edict_t *self)
+void SP_target_earthquake(edict_t* self)
 {
 	if (!self->targetname)
 		gi.Com_PrintFmt("{}: untargeted\n", *self);
@@ -1094,7 +1082,7 @@ void SP_target_earthquake(edict_t *self)
 		self->spawnflags |= SPAWNFLAGS_EARTHQUAKE_TOGGLE;
 		self->speed = 5;
 	}
-	
+
 	if (!self->count)
 		self->count = 5;
 
@@ -1119,46 +1107,46 @@ constexpr size_t HACKFLAG_END_OF_UNIT = 128;
 
 static void camera_lookat_pathtarget(edict_t* self, vec3_t origin, vec3_t* dest)
 {
-    if(self->pathtarget)
-    {
-        edict_t* pt = nullptr;
-        pt = G_FindByString<&edict_t::targetname>(pt, self->pathtarget);
-        if(pt)
-        {
-            float yaw, pitch;
-            vec3_t delta = pt->s.origin - origin;
+	if (self->pathtarget)
+	{
+		edict_t* pt = nullptr;
+		pt = G_FindByString<&edict_t::targetname>(pt, self->pathtarget);
+		if (pt)
+		{
+			float yaw, pitch;
+			vec3_t delta = pt->s.origin - origin;
 
-            float d = delta[0] * delta[0] + delta[1] * delta[1];
-            if(d == 0.0f)
-            {
-                yaw = 0.0f;
-                pitch = (delta[2] > 0.0f) ? 90.0f : -90.0f;
-            }
-            else
-            {
-                yaw = atan2(delta[1], delta[0]) * (180.0f / PIf);
-                pitch = atan2(delta[2], sqrt(d)) * (180.0f / PIf);
-            }
+			float d = delta[0] * delta[0] + delta[1] * delta[1];
+			if (d == 0.0f)
+			{
+				yaw = 0.0f;
+				pitch = (delta[2] > 0.0f) ? 90.0f : -90.0f;
+			}
+			else
+			{
+				yaw = atan2(delta[1], delta[0]) * (180.0f / PIf);
+				pitch = atan2(delta[2], sqrt(d)) * (180.0f / PIf);
+			}
 
-            (*dest)[YAW] = yaw;
-            (*dest)[PITCH] = -pitch;
-            (*dest)[ROLL] = 0;
-        }
-    }
+			(*dest)[YAW] = yaw;
+			(*dest)[PITCH] = -pitch;
+			(*dest)[ROLL] = 0;
+		}
+	}
 }
 
-THINK(update_target_camera) (edict_t *self) -> void
+THINK(update_target_camera) (edict_t* self) -> void
 {
 	bool do_skip = false;
 
 	// only allow skipping after 2 seconds
 	if ((self->hackflags & HACKFLAG_SKIPPABLE) && level.time > 2_sec)
 	{
-        for (uint32_t i = 0; i < game.maxclients; i++)
-        {
-            edict_t *client = g_edicts + 1 + i;
-            if (!client->inuse || !client->client->pers.connected)
-                continue;
+		for (uint32_t i = 0; i < game.maxclients; i++)
+		{
+			edict_t* client = g_edicts + 1 + i;
+			if (!client->inuse || !client->client->pers.connected)
+				continue;
 
 			if (client->client->buttons & BUTTON_ANY)
 			{
@@ -1169,11 +1157,11 @@ THINK(update_target_camera) (edict_t *self) -> void
 	}
 
 	if (!do_skip && self->movetarget)
-    {
+	{
 		self->moveinfo.remaining_distance -= (self->moveinfo.move_speed * gi.frame_time_s) * 0.8f;
 
-		if(self->moveinfo.remaining_distance <= 0)
-        {
+		if (self->moveinfo.remaining_distance <= 0)
+		{
 			if (self->movetarget->hackflags & HACKFLAG_TELEPORT_OUT)
 			{
 				if (self->enemy)
@@ -1184,8 +1172,8 @@ THINK(update_target_camera) (edict_t *self) -> void
 				}
 			}
 
-            self->s.origin = self->movetarget->s.origin;
-            self->nextthink = level.time + gtime_t::from_sec(self->movetarget->wait);
+			self->s.origin = self->movetarget->s.origin;
+			self->nextthink = level.time + gtime_t::from_sec(self->movetarget->wait);
 			if (self->movetarget->target)
 			{
 				self->movetarget = G_PickTarget(self->movetarget->target);
@@ -1200,72 +1188,72 @@ THINK(update_target_camera) (edict_t *self) -> void
 			else
 				self->movetarget = nullptr;
 
-            return;
-        }
-        else
-        {
-            float frac = 1.0f - (self->moveinfo.remaining_distance / self->moveinfo.distance);
+			return;
+		}
+		else
+		{
+			float frac = 1.0f - (self->moveinfo.remaining_distance / self->moveinfo.distance);
 
 			if (self->enemy && (self->enemy->hackflags & HACKFLAG_TELEPORT_OUT))
 				self->enemy->s.alpha = max(1.f / 255.f, frac);
 
-            vec3_t delta = self->movetarget->s.origin - self->s.origin;
-            delta *= frac;
-            vec3_t newpos = self->s.origin + delta;
+			vec3_t delta = self->movetarget->s.origin - self->s.origin;
+			delta *= frac;
+			vec3_t newpos = self->s.origin + delta;
 
-            camera_lookat_pathtarget(self, newpos, &level.intermission_angle);
+			camera_lookat_pathtarget(self, newpos, &level.intermission_angle);
 			level.intermission_origin = newpos;
 
-            // move all clients to the intermission point
-            for (uint32_t i = 0; i < game.maxclients; i++)
-            {
-                edict_t* client = g_edicts + 1 + i;
-                if (!client->inuse)
-                {
-                    continue;
-                }
+			// move all clients to the intermission point
+			for (uint32_t i = 0; i < game.maxclients; i++)
+			{
+				edict_t* client = g_edicts + 1 + i;
+				if (!client->inuse)
+				{
+					continue;
+				}
 
-                MoveClientToIntermission(client);
-            }
-        }
-    }
-    else
-    {
+				MoveClientToIntermission(client);
+			}
+		}
+	}
+	else
+	{
 		if (self->killtarget)
-        {
+		{
 			// destroy dummy player
 			if (self->enemy)
 				G_FreeEdict(self->enemy);
 
-            edict_t* t = nullptr;
-            level.intermissiontime = 0_ms;
+			edict_t* t = nullptr;
+			level.intermissiontime = 0_ms;
 			level.level_intermission_set = true;
 
 			while ((t = G_FindByString<&edict_t::targetname>(t, self->killtarget)))
-            {
-                t->use(t, self, self->activator);
-            }
+			{
+				t->use(t, self, self->activator);
+			}
 
-            level.intermissiontime = level.time;
+			level.intermissiontime = level.time;
 			level.intermission_server_frame = gi.ServerFrame();
 
 			// end of unit requires a wait
 			if (level.changemap && !strchr(level.changemap, '*'))
 				level.exitintermission = true;
-        }
+		}
 
-        self->think = nullptr;
-        return;
-    }
-    
-    self->nextthink = level.time + FRAME_TIME_S;
+		self->think = nullptr;
+		return;
+	}
+
+	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-void G_SetClientFrame(edict_t *ent);
+void G_SetClientFrame(edict_t* ent);
 
 extern float xyspeed;
 
-THINK(target_camera_dummy_think) (edict_t *self) -> void
+THINK(target_camera_dummy_think) (edict_t* self) -> void
 {
 	// bit of a hack, but this will let the dummy
 	// move like a player
@@ -1284,27 +1272,27 @@ THINK(target_camera_dummy_think) (edict_t *self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-USE(use_target_camera) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_camera) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->sounds)
-		gi.configstring (CS_CDTRACK, G_Fmt("{}", self->sounds).data() );
+		gi.configstring(CS_CDTRACK, G_Fmt("{}", self->sounds).data());
 
 	if (!self->target)
 		return;
 
-    self->movetarget = G_PickTarget(self->target);
+	self->movetarget = G_PickTarget(self->target);
 
-    if (!self->movetarget)
-        return;
+	if (!self->movetarget)
+		return;
 
-    level.intermissiontime = level.time;
+	level.intermissiontime = level.time;
 	level.intermission_server_frame = gi.ServerFrame();
-    level.exitintermission = 0;
-    
+	level.exitintermission = 0;
+
 	// spawn fake player dummy where we were
 	if (activator->client)
 	{
-		edict_t *dummy = self->enemy = G_Spawn();
+		edict_t* dummy = self->enemy = G_Spawn();
 		dummy->owner = activator;
 		dummy->clipmask = activator->clipmask;
 		dummy->s.origin = activator->s.origin;
@@ -1325,19 +1313,19 @@ USE(use_target_camera) (edict_t *self, edict_t *other, edict_t *activator) -> vo
 		gi.linkentity(dummy);
 	}
 
-    camera_lookat_pathtarget(self, self->s.origin, &level.intermission_angle);
-    level.intermission_origin = self->s.origin;
+	camera_lookat_pathtarget(self, self->s.origin, &level.intermission_angle);
+	level.intermission_origin = self->s.origin;
 
-    // move all clients to the intermission point
-    for (uint32_t i = 0; i < game.maxclients; i++)
-    {
-        edict_t* client = g_edicts + 1 + i;
-        if (!client->inuse)
-        {
-            continue;
-        }
-		
-	// respawn any dead clients
+	// move all clients to the intermission point
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
+		edict_t* client = g_edicts + 1 + i;
+		if (!client->inuse)
+		{
+			continue;
+		}
+
+		// respawn any dead clients
 		if (client->health <= 0)
 		{
 			// give us our max health back since it will reset
@@ -1349,16 +1337,16 @@ USE(use_target_camera) (edict_t *self, edict_t *other, edict_t *activator) -> vo
 			respawn(client);
 		}
 
-        MoveClientToIntermission(client);
-    }
-    
-    self->activator = activator;
-    self->think = update_target_camera;
-    self->nextthink = level.time + gtime_t::from_sec(self->wait);
-    self->moveinfo.move_speed = self->speed;
+		MoveClientToIntermission(client);
+	}
 
-    self->moveinfo.remaining_distance = (self->movetarget->s.origin - self->s.origin).normalize();
-    self->moveinfo.distance = self->moveinfo.remaining_distance;
+	self->activator = activator;
+	self->think = update_target_camera;
+	self->nextthink = level.time + gtime_t::from_sec(self->wait);
+	self->moveinfo.move_speed = self->speed;
+
+	self->moveinfo.remaining_distance = (self->movetarget->s.origin - self->s.origin).normalize();
+	self->moveinfo.distance = self->moveinfo.remaining_distance;
 
 	if (self->hackflags & HACKFLAG_END_OF_UNIT)
 		G_EndOfUnitMessage();
@@ -1366,24 +1354,21 @@ USE(use_target_camera) (edict_t *self, edict_t *other, edict_t *activator) -> vo
 
 void SP_target_camera(edict_t* self)
 {
-	
-
-
-
+	if (G_IsDeathmatch())
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;
 	}
 
-    self->use = use_target_camera;
-    self->svflags = SVF_NOCLIENT;
+	self->use = use_target_camera;
+	self->svflags = SVF_NOCLIENT;
 }
 
 /*QUAKED target_gravity (1 0 0) (-8 -8 -8) (8 8 8) NOTRAIL NOEFFECTS
 [Sam-KEX] Changes gravity, as seen in the N64 version
 */
 
-USE(use_target_gravity) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_gravity) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	gi.cvar_set("sv_gravity", G_Fmt("{}", self->gravity).data());
 	level.gravity = self->gravity;
@@ -1399,12 +1384,12 @@ void SP_target_gravity(edict_t* self)
 [Sam-KEX] Plays a sound fx, as seen in the N64 version
 */
 
-THINK(update_target_soundfx) (edict_t *self) -> void
+THINK(update_target_soundfx) (edict_t* self) -> void
 {
 	gi.positioned_sound(self->s.origin, self, CHAN_VOICE, self->noise_index, self->volume, self->attenuation, 0);
 }
 
-USE(use_target_soundfx) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_soundfx) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->think = update_target_soundfx;
 	self->nextthink = level.time + gtime_t::from_sec(self->delay);
@@ -1422,7 +1407,7 @@ void SP_target_soundfx(edict_t* self)
 
 	self->noise_index = atoi(st.noise);
 
-	switch(self->noise_index)
+	switch (self->noise_index)
 	{
 	case 1:
 		self->noise_index = gi.soundindex("world/x_alarm.wav");
@@ -1456,7 +1441,7 @@ constexpr spawnflags_t SPAWNFLAG_TARGET_LIGHT_START_ON = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TARGET_LIGHT_NO_LERP = 2_spawnflag; // not used in N64, but I'll use it for this
 constexpr spawnflags_t SPAWNFLAG_TARGET_LIGHT_FLICKER = 4_spawnflag;
 
-THINK(target_light_flicker_think) (edict_t *self) -> void
+THINK(target_light_flicker_think) (edict_t* self) -> void
 {
 	if (brandom())
 		self->svflags ^= SVF_NOCLIENT;
@@ -1465,17 +1450,17 @@ THINK(target_light_flicker_think) (edict_t *self) -> void
 }
 
 // think function handles interpolation from start to finish.
-THINK(target_light_think) (edict_t *self) -> void
+THINK(target_light_think) (edict_t* self) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_TARGET_LIGHT_FLICKER))
 		target_light_flicker_think(self);
 
-	const char *style = gi.get_configstring(CS_LIGHTS + self->style);
+	const char* style = gi.get_configstring(CS_LIGHTS + self->style);
 	self->delay += self->speed;
 
-	int32_t index = ((int32_t) self->delay) % strlen(style);
+	int32_t index = ((int32_t)self->delay) % strlen(style);
 	char style_value = style[index];
-	float current_lerp = (float) (style_value - 'a') / (float) ('z' - 'a');
+	float current_lerp = (float)(style_value - 'a') / (float)('z' - 'a');
 	float lerp;
 
 	if (!(self->spawnflags & SPAWNFLAG_TARGET_LIGHT_NO_LERP))
@@ -1483,7 +1468,7 @@ THINK(target_light_think) (edict_t *self) -> void
 		int32_t next_index = (index + 1) % strlen(style);
 		char next_style_value = style[next_index];
 
-		float next_lerp = (float) (next_style_value - 'a') / (float) ('z' - 'a');
+		float next_lerp = (float)(next_style_value - 'a') / (float)('z' - 'a');
 
 		float mod_lerp = fmod(self->delay, 1.0f);
 		lerp = (next_lerp * mod_lerp) + (current_lerp * (1.f - mod_lerp));
@@ -1493,17 +1478,17 @@ THINK(target_light_think) (edict_t *self) -> void
 
 	int my_rgb = self->count;
 	int target_rgb = self->chain->s.skinnum;
-	
-	int my_b = ((my_rgb >> 8 ) & 0xff);
+
+	int my_b = ((my_rgb >> 8) & 0xff);
 	int my_g = ((my_rgb >> 16) & 0xff);
 	int my_r = ((my_rgb >> 24) & 0xff);
 
-	int target_b = ((target_rgb >> 8 ) & 0xff);
+	int target_b = ((target_rgb >> 8) & 0xff);
 	int target_g = ((target_rgb >> 16) & 0xff);
 	int target_r = ((target_rgb >> 24) & 0xff);
 
 	float backlerp = 1.0f - lerp;
-	
+
 	int b = (target_b * lerp) + (my_b * backlerp);
 	int g = (target_g * lerp) + (my_g * backlerp);
 	int r = (target_r * lerp) + (my_r * backlerp);
@@ -1513,7 +1498,7 @@ THINK(target_light_think) (edict_t *self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-USE(target_light_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(target_light_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->health = !self->health;
 
@@ -1528,7 +1513,7 @@ USE(target_light_use) (edict_t *self, edict_t *other, edict_t *activator) -> voi
 		self->nextthink = 0_ms;
 		return;
 	}
-	
+
 	// has dynamic light "target"
 	if (self->chain)
 	{
@@ -1542,7 +1527,7 @@ USE(target_light_use) (edict_t *self, edict_t *other, edict_t *activator) -> voi
 	}
 }
 
-void SP_target_light(edict_t *self)
+void SP_target_light(edict_t* self)
 {
 	self->s.modelindex = 1;
 	self->s.renderfx = RF_CUSTOM_LIGHT;
@@ -1556,7 +1541,7 @@ void SP_target_light(edict_t *self)
 
 	if (self->spawnflags.has(SPAWNFLAG_TARGET_LIGHT_START_ON))
 		target_light_use(self, self, self);
-	
+
 	if (!self->speed)
 		self->speed = 1.0f;
 	else
@@ -1635,7 +1620,7 @@ static float distance_to_poi(vec3_t start, vec3_t end)
 	return std::numeric_limits<float>::infinity();
 }
 
-USE(target_poi_use) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	// we were disabled, so remove the disable check
 	if (ent->spawnflags.has(SPAWNFLAG_POI_DISABLED))
@@ -1648,7 +1633,7 @@ USE(target_poi_use) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 	// teamed POIs work a bit differently
 	if (ent->team)
 	{
-		edict_t *poi_master = ent->teammaster;
+		edict_t* poi_master = ent->teammaster;
 
 		// unset ent, since we need to find one that matches
 		ent = nullptr;
@@ -1656,9 +1641,9 @@ USE(target_poi_use) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 		float best_distance = std::numeric_limits<float>::infinity();
 		int32_t best_style = std::numeric_limits<int32_t>::max();
 
-		edict_t *dummy_fallback = nullptr;
+		edict_t* dummy_fallback = nullptr;
 
-		for (edict_t *poi = poi_master; poi; poi = poi->teamchain)
+		for (edict_t* poi = poi_master; poi; poi = poi->teamchain)
 		{
 			// currently disabled
 			if (poi->spawnflags.has(SPAWNFLAG_POI_DISABLED))
@@ -1759,7 +1744,7 @@ USE(target_poi_use) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 		// pick the dummy POI, since it isn't supposed to get freed
 		// FIXME maybe store the team string instead?
 
-		for (edict_t *m = ent->teammaster; m; m = m->teamchain)
+		for (edict_t* m = ent->teammaster; m; m = m->teamchain)
 			if (m->spawnflags.has(SPAWNFLAG_POI_DUMMY))
 			{
 				level.current_dynamic_poi = m;
@@ -1773,16 +1758,16 @@ USE(target_poi_use) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 		level.current_dynamic_poi = nullptr;
 }
 
-THINK(target_poi_setup) (edict_t *self) -> void
+THINK(target_poi_setup) (edict_t* self) -> void
 {
 	if (self->team)
 	{
 		// copy dynamic/nearest over to all teammates
 		if (self->spawnflags.has((SPAWNFLAG_POI_NEAREST | SPAWNFLAG_POI_DYNAMIC)))
-			for (edict_t *m = self->teammaster; m; m = m->teamchain)
+			for (edict_t* m = self->teammaster; m; m = m->teamchain)
 				m->spawnflags |= self->spawnflags & (SPAWNFLAG_POI_NEAREST | SPAWNFLAG_POI_DYNAMIC);
 
-		for (edict_t *m = self->teammaster; m; m = m->teamchain)
+		for (edict_t* m = self->teammaster; m; m = m->teamchain)
 		{
 			if (strcmp(m->classname, "target_poi"))
 				gi.Com_PrintFmt("WARNING: {} is teamed with target_poi's; unintentional\n", *m);
@@ -1790,11 +1775,9 @@ THINK(target_poi_setup) (edict_t *self) -> void
 	}
 }
 
-void SP_target_poi(edict_t *self)
+void SP_target_poi(edict_t* self)
 {
-	
-
-
+	if (G_IsDeathmatch())
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;
@@ -1834,15 +1817,15 @@ void SP_target_music(edict_t* self)
 }
 
 /*QUAKED target_healthbar (0 1 0) (-8 -8 -8) (8 8 8) PVS_ONLY
-* 
+*
 * Hook up health bars to monsters.
 * "delay" is how long to show the health bar for after death.
 * "message" is their name
 */
 
-USE(use_target_healthbar) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
-	edict_t *target = G_PickTarget(ent->target);
+	edict_t* target = G_PickTarget(ent->target);
 
 	if (!target || ent->health != target->spawn_count)
 	{
@@ -1869,13 +1852,13 @@ USE(use_target_healthbar) (edict_t *ent, edict_t *other, edict_t *activator) -> 
 	G_FreeEdict(ent);
 }
 
-THINK(check_target_healthbar) (edict_t *ent) -> void
+THINK(check_target_healthbar) (edict_t* ent) -> void
 {
-	edict_t *target = G_PickTarget(ent->target);
+	edict_t* target = G_PickTarget(ent->target);
 	if (!target || !(target->svflags & SVF_MONSTER))
 	{
-		if ( target != nullptr ) {
-			gi.Com_PrintFmt( "{}: target {} does not appear to be a monster\n", *ent, *target );
+		if (target != nullptr) {
+			gi.Com_PrintFmt("{}: target {} does not appear to be a monster\n", *ent, *target);
 		}
 		G_FreeEdict(ent);
 		return;
@@ -1885,10 +1868,9 @@ THINK(check_target_healthbar) (edict_t *ent) -> void
 	ent->health = target->spawn_count;
 }
 
-void SP_target_healthbar(edict_t *self)
+void SP_target_healthbar(edict_t* self)
 {
-	
-
+	if (G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;
@@ -1914,11 +1896,11 @@ void SP_target_healthbar(edict_t *self)
 }
 
 /*QUAKED target_autosave (0 1 0) (-8 -8 -8) (8 8 8)
-* 
+*
 * Auto save on command.
 */
 
-USE(use_target_autosave) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(use_target_autosave) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	gtime_t save_time = gtime_t::from_sec(gi.cvar("g_athena_auto_save_min_time", "60", CVAR_NOSET)->value);
 
@@ -1929,7 +1911,7 @@ USE(use_target_autosave) (edict_t *ent, edict_t *other, edict_t *activator) -> v
 	}
 }
 
-void SP_target_autosave(edict_t *self)
+void SP_target_autosave(edict_t* self)
 {
 	if (G_IsDeathmatch())
 	{
@@ -1941,14 +1923,14 @@ void SP_target_autosave(edict_t *self)
 }
 
 /*QUAKED target_sky (0 1 0) (-8 -8 -8) (8 8 8)
-* 
+*
 * Change sky parameters.
 "sky"	environment map name
 "skyaxis"	vector axis for rotating sky
 "skyrotate"	speed of rotation in degrees/second
 */
 
-USE(use_target_sky) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->map)
 		gi.configstring(CS_SKY, self->map);
@@ -1973,7 +1955,7 @@ USE(use_target_sky) (edict_t *self, edict_t *other, edict_t *activator) -> void
 		gi.configstring(CS_SKYAXIS, G_Fmt("{}", self->movedir).data());
 }
 
-void SP_target_sky(edict_t *self)
+void SP_target_sky(edict_t* self)
 {
 	self->use = use_target_sky;
 	if (st.was_key_specified("sky"))
@@ -2000,13 +1982,13 @@ void SP_target_sky(edict_t *self)
 /*QUAKED target_crossunit_trigger (.5 .5 .5) (-8 -8 -8) (8 8 8) trigger1 trigger2 trigger3 trigger4 trigger5 trigger6 trigger7 trigger8
 Once this trigger is touched/used, any trigger_crossunit_target with the same trigger number is automatically used when a level is started within the same unit.  It is OK to check multiple triggers.  Message, delay, target, and killtarget also work.
 */
-USE(trigger_crossunit_trigger_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_crossunit_trigger_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	game.cross_unit_flags |= self->spawnflags.value;
 	G_FreeEdict(self);
 }
 
-void SP_target_crossunit_trigger(edict_t *self)
+void SP_target_crossunit_trigger(edict_t* self)
 {
 	if (G_IsDeathmatch())
 	{
@@ -2024,7 +2006,7 @@ killtarget also work.
 
 "delay"		delay before using targets if the trigger has been activated (default 1)
 */
-THINK(target_crossunit_target_think) (edict_t *self) -> void
+THINK(target_crossunit_target_think) (edict_t* self) -> void
 {
 	if (self->spawnflags.value == (game.cross_unit_flags & SFL_CROSS_TRIGGER_MASK & self->spawnflags.value))
 	{
@@ -2033,7 +2015,7 @@ THINK(target_crossunit_target_think) (edict_t *self) -> void
 	}
 }
 
-void SP_target_crossunit_target(edict_t *self)
+void SP_target_crossunit_target(edict_t* self)
 {
 	if (G_IsDeathmatch())
 	{
@@ -2054,14 +2036,14 @@ Give an achievement.
 
 "achievement"		cheevo to give
 */
-USE(use_target_achievement) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_achievement) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	gi.WriteByte(svc_achievement);
 	gi.WriteString(self->map);
 	gi.multicast(vec3_origin, MULTICAST_ALL, true);
 }
 
-void SP_target_achievement(edict_t *self)
+void SP_target_achievement(edict_t* self)
 {
 	if (G_IsDeathmatch())
 	{
@@ -2073,7 +2055,7 @@ void SP_target_achievement(edict_t *self)
 	self->use = use_target_achievement;
 }
 
-USE(use_target_story) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_target_story) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->message && *self->message)
 		level.story_active = true;
@@ -2083,7 +2065,7 @@ USE(use_target_story) (edict_t *self, edict_t *other, edict_t *activator) -> voi
 	gi.configstring(CONFIG_STORY, self->message ? self->message : "");
 }
 
-void SP_target_story(edict_t *self)
+void SP_target_story(edict_t* self)
 {
 	if (G_IsDeathmatch())
 	{

@@ -1385,7 +1385,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
 	}
 	else
 	{
-		 damage = 100;
+		 damage = 20;
 		 kick = 500;
 	}
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
@@ -1722,7 +1722,7 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 14;
+	int damage = 5;
 	int kick = 14;
 
 	vec3_t start, dir;
@@ -1767,7 +1767,7 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 17;
+	int damage = 8;
 	int kick = 30;
 
 	if (is_quad)
@@ -1874,6 +1874,7 @@ void Weapon_Railgun(edict_t *ent)
 }
 
 /*
+/*
 ======================================================================
 
 BFG10K
@@ -1881,17 +1882,15 @@ BFG10K
 ======================================================================
 */
 
-void weapon_bfg_fire(edict_t *ent)
+void weapon_bfg_fire(edict_t* ent)
 {
 	int	  damage;
-	float damage_radius = 1400;
-
-	
+	float damage_radius = 1000;
 
 	if (G_IsDeathmatch())
 		damage = 200;
 	else
-		damage = 1880;
+		damage = 700;
 
 	if (ent->client->ps.gunframe == 9)
 	{
@@ -1915,30 +1914,31 @@ void weapon_bfg_fire(edict_t *ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-	fire_bfg(ent, start, dir, damage, 1200, damage_radius);
+	fire_bfg(ent, start, dir, damage, 900, damage_radius);
 
-	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -20.f, 0, crandom() * 2 });
+	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -20.f, 0, crandom() * 8 });
 	ent->client->kick.total = DAMAGE_TIME();
 	ent->client->kick.time = level.time + ent->client->kick.total;
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
-	gi.WriteByte(MZ_BFG | is_silenced);
+	gi.WriteByte(MZ_BFG2 | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-	
+
 	G_RemoveAmmo(ent);
 }
 
-void Weapon_BFG(edict_t *ent)
+void Weapon_BFG(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 39, 45, 50, 55, 0 };
 	constexpr int fire_frames[] = { 9, 17, 0 };
 
 	Weapon_Generic(ent, 8, 32, 54, 58, pause_frames, fire_frames, weapon_bfg_fire);
 }
+
 
 //======================================================================
 

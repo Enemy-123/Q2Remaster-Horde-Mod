@@ -632,7 +632,9 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 	if (self->count < 2)
 		flash_index = ripper_flash[flash_number]; // ripper
 	else if (self->count < 4)
-		flash_index = hyper_flash[flash_number]; // hyperblaster
+		flash_index = hyper_flash[flash_number]; // 
+
+
 	else
 		flash_index = machinegun_flash[flash_number]; // laserbeam
 
@@ -1911,13 +1913,13 @@ void SP_monster_soldier_light(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 70;
+		self->monsterinfo.power_armor_power = 15;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 280 * st.health_multiplier;
+	self->health = self->max_health = 23 * st.health_multiplier;
 	self->gib_health = -80;
 
 	// PMM - blindfire
@@ -1940,7 +1942,7 @@ void SP_monster_soldier(edict_t *self)
 	gi.soundindex("soldier/solatck1.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 70;
+		self->monsterinfo.power_armor_power = 18;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
@@ -2006,7 +2008,7 @@ void SP_monster_soldier_ripper(edict_t *self)
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 50 * st.health_multiplier;
+	self->health = self->max_health = 40 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire

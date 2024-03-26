@@ -858,7 +858,7 @@ void fire_rail(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int dam
 	// a slightly different approach...
 	for (auto player : active_players())
 	{
-		vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float) player->client->ps.pmove.viewheight };
+		vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
 
 		if (binary_positional_search(org, start, args.tr.endpos, gi.inPHS, 3))
 		{
@@ -879,7 +879,7 @@ static vec3_t bfg_laser_pos(vec3_t p, float dist)
 	float theta = frandom(2 * PIf);
 	float phi = acos(crandom());
 
-	vec3_t d {
+	vec3_t d{
 		sin(phi) * cos(theta),
 		sin(phi) * sin(theta),
 		cos(phi)
@@ -888,7 +888,7 @@ static vec3_t bfg_laser_pos(vec3_t p, float dist)
 	return p + (d * dist);
 }
 
-THINK(bfg_laser_update) (edict_t *self) -> void
+THINK(bfg_laser_update) (edict_t* self) -> void
 {
 	if (level.time > self->timestamp || !self->owner->inuse)
 	{
@@ -901,7 +901,7 @@ THINK(bfg_laser_update) (edict_t *self) -> void
 	gi.linkentity(self);
 }
 
-static void bfg_spawn_laser(edict_t *self)
+static void bfg_spawn_laser(edict_t* self)
 {
 	vec3_t end = bfg_laser_pos(self->s.origin, 256);
 	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE);
@@ -909,7 +909,7 @@ static void bfg_spawn_laser(edict_t *self)
 	if (tr.fraction == 1.0f)
 		return;
 
-	edict_t *laser = G_Spawn();
+	edict_t* laser = G_Spawn();
 	laser->s.frame = 3;
 	laser->s.renderfx = RF_BEAM_LIGHTNING;
 	laser->movetype = MOVETYPE_NONE;
@@ -930,9 +930,9 @@ static void bfg_spawn_laser(edict_t *self)
 fire_bfg
 =================
 */
-THINK(bfg_explode) (edict_t *self) -> void
+THINK(bfg_explode) (edict_t* self) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 	float	 points;
 	vec3_t	 v;
 	float	 dist;
@@ -969,7 +969,7 @@ THINK(bfg_explode) (edict_t *self) -> void
 			dist = v.length();
 			points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
 
-			T_Damage(ent, self, self->owner, self->velocity, centroid, vec3_origin, (int) points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
+			T_Damage(ent, self, self->owner, self->velocity, centroid, vec3_origin, (int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
 
 			// Paril: draw BFG lightning laser to enemies
 			gi.WriteByte(svc_temp_entity);
@@ -986,7 +986,7 @@ THINK(bfg_explode) (edict_t *self) -> void
 		self->think = G_FreeEdict;
 }
 
-TOUCH(bfg_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other == self->owner)
 		return;
@@ -1027,11 +1027,11 @@ TOUCH(bfg_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_t
 
 struct bfg_laser_pierce_t : pierce_args_t
 {
-	edict_t *self;
+	edict_t* self;
 	vec3_t	 dir;
 	int		 damage;
 
-	inline bfg_laser_pierce_t(edict_t *self, vec3_t dir, int damage) :
+	inline bfg_laser_pierce_t(edict_t* self, vec3_t dir, int damage) :
 		pierce_args_t(),
 		self(self),
 		dir(dir),
@@ -1041,7 +1041,7 @@ struct bfg_laser_pierce_t : pierce_args_t
 
 	// we hit an entity; return false to stop the piercing.
 	// you can adjust the mask for the re-trace (for water, etc).
-	bool hit(contents_t &mask, vec3_t &end) override
+	bool hit(contents_t& mask, vec3_t& end) override
 	{
 		// hurt it if we can
 		if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && (tr.ent != self->owner))
@@ -1062,14 +1062,14 @@ struct bfg_laser_pierce_t : pierce_args_t
 
 		if (!mark(tr.ent))
 			return false;
-		
+
 		return true;
 	}
 };
 
-THINK(bfg_think) (edict_t *self) -> void
+THINK(bfg_think) (edict_t* self) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 	vec3_t	 point;
 	vec3_t	 dir;
 	vec3_t	 start;
@@ -1077,11 +1077,10 @@ THINK(bfg_think) (edict_t *self) -> void
 	int		 dmg;
 	trace_t	 tr;
 
-	
 	if (G_IsDeathmatch())
 		dmg = 5;
 	else
-		dmg = 40;
+		dmg = 10;
 
 	bfg_spawn_laser(self);
 
@@ -1120,12 +1119,12 @@ THINK(bfg_think) (edict_t *self) -> void
 		if (tr.fraction < 1.0f)
 			continue;
 
-		bfg_laser_pierce_t args {
+		bfg_laser_pierce_t args{
 			self,
 			dir,
 			dmg
 		};
-		
+
 		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
 
 		gi.WriteByte(svc_temp_entity);
@@ -1138,9 +1137,9 @@ THINK(bfg_think) (edict_t *self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-void fire_bfg(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, float damage_radius)
+void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius)
 {
-	edict_t *bfg;
+	edict_t* bfg;
 
 	bfg = G_Spawn();
 	bfg->s.origin = start;
@@ -1153,7 +1152,7 @@ void fire_bfg(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage,
 	if (self->client && !G_ShouldPlayersCollide(true))
 		bfg->clipmask &= ~CONTENTS_PLAYER;
 	bfg->solid = SOLID_BBOX;
-	bfg->s.effects |= EF_BFG|EF_ANIM_ALLFAST;
+	bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
 	bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
 	bfg->owner = self;
 	bfg->touch = bfg_touch;
@@ -1161,7 +1160,7 @@ void fire_bfg(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage,
 	bfg->think = G_FreeEdict;
 	bfg->radius_dmg = damage;
 	bfg->dmg_radius = damage_radius;
-	bfg->classname = "disint ball";
+	bfg->classname = "bfg blast";
 	bfg->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
 
 	bfg->think = bfg_think;
@@ -1172,7 +1171,7 @@ void fire_bfg(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage,
 	gi.linkentity(bfg);
 }
 
-TOUCH(disintegrator_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(disintegrator_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WIDOWSPLASH);
@@ -1187,6 +1186,7 @@ TOUCH(disintegrator_touch) (edict_t *self, edict_t *other, const trace_t &tr, bo
 		other->disintegrator = self->owner;
 	}
 }
+
 
 void fire_disintegrator(edict_t *self, const vec3_t &start, const vec3_t &forward, int speed)
 {

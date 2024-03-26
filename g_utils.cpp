@@ -14,7 +14,7 @@ Searches beginning at the edict after from, or the beginning if nullptr
 nullptr will be returned if the end of the list is reached.
 =============
 */
-edict_t *G_Find(edict_t *from, std::function<bool(edict_t *e)> matcher)
+edict_t* G_Find(edict_t* from, std::function<bool(edict_t* e)> matcher)
 {
 	if (!from)
 		from = g_edicts;
@@ -41,7 +41,7 @@ Returns entities that have origins within a spherical area
 findradius (origin, radius)
 =================
 */
-edict_t *findradius(edict_t *from, const vec3_t &org, float rad)
+edict_t* findradius(edict_t* from, const vec3_t& org, float rad)
 {
 	vec3_t eorg;
 	int	   j;
@@ -80,11 +80,11 @@ nullptr will be returned if the end of the list is reached.
 */
 constexpr size_t MAXCHOICES = 8;
 
-edict_t *G_PickTarget(const char *targetname)
+edict_t* G_PickTarget(const char* targetname)
 {
-	edict_t *ent = nullptr;
+	edict_t* ent = nullptr;
 	int		 num_choices = 0;
-	edict_t *choice[MAXCHOICES];
+	edict_t* choice[MAXCHOICES];
 
 	if (!targetname)
 	{
@@ -111,13 +111,13 @@ edict_t *G_PickTarget(const char *targetname)
 	return choice[irandom(num_choices)];
 }
 
-THINK(Think_Delay) (edict_t *ent) -> void
+THINK(Think_Delay) (edict_t* ent) -> void
 {
 	G_UseTargets(ent, ent->activator);
 	G_FreeEdict(ent);
 }
 
-void G_PrintActivationMessage(edict_t *ent, edict_t *activator, bool coop_global)
+void G_PrintActivationMessage(edict_t* ent, edict_t* activator, bool coop_global)
 {
 	//
 	// print the message
@@ -140,7 +140,7 @@ void G_PrintActivationMessage(edict_t *ent, edict_t *activator, bool coop_global
 	}
 }
 
-void G_MonsterKilled(edict_t *self);
+void G_MonsterKilled(edict_t* self);
 
 /*
 ==============================
@@ -158,9 +158,9 @@ match (string)self.target and call their .use function
 
 ==============================
 */
-void G_UseTargets(edict_t *ent, edict_t *activator)
+void G_UseTargets(edict_t* ent, edict_t* activator)
 {
-	edict_t *t;
+	edict_t* t;
 
 	//
 	// check for a delay
@@ -199,7 +199,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 				// PMM - if this entity is part of a chain, cleanly remove it
 				if (t->flags & FL_TEAMSLAVE)
 				{
-					for (edict_t *master = t->teammaster; master; master = master->teamchain)
+					for (edict_t* master = t->teammaster; master; master = master->teamchain)
 					{
 						if (master->teamchain == t)
 						{
@@ -213,14 +213,14 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 				{
 					t->teammaster->flags &= ~FL_TEAMMASTER;
 
-					edict_t *new_master = t->teammaster->teamchain;
+					edict_t* new_master = t->teammaster->teamchain;
 
 					if (new_master)
 					{
 						new_master->flags |= FL_TEAMMASTER;
 						new_master->flags &= ~FL_TEAMSLAVE;
 
-						for (edict_t *m = new_master; m; m = m->teamchain)
+						for (edict_t* m = new_master; m; m = m->teamchain)
 							m->teammaster = new_master;
 					}
 				}
@@ -255,7 +255,7 @@ void G_UseTargets(edict_t *ent, edict_t *activator)
 			// doors fire area portals in a specific way
 			if (!Q_strcasecmp(t->classname, "func_areaportal") &&
 				(!Q_strcasecmp(ent->classname, "func_door") || !Q_strcasecmp(ent->classname, "func_door_rotating")
-				|| !Q_strcasecmp(ent->classname, "func_door_secret") || !Q_strcasecmp(ent->classname, "func_water")))
+					|| !Q_strcasecmp(ent->classname, "func_door_secret") || !Q_strcasecmp(ent->classname, "func_water")))
 				continue;
 
 			if (t == ent)
@@ -281,7 +281,7 @@ constexpr vec3_t MOVEDIR_UP = { 0, 0, 1 };
 constexpr vec3_t VEC_DOWN = { 0, -2, 0 };
 constexpr vec3_t MOVEDIR_DOWN = { 0, 0, -1 };
 
-void G_SetMovedir(vec3_t &angles, vec3_t &movedir)
+void G_SetMovedir(vec3_t& angles, vec3_t& movedir)
 {
 	if (angles == VEC_UP)
 	{
@@ -299,17 +299,17 @@ void G_SetMovedir(vec3_t &angles, vec3_t &movedir)
 	angles = {};
 }
 
-char *G_CopyString(const char *in, int32_t tag)
+char* G_CopyString(const char* in, int32_t tag)
 {
-    if(!in)
-        return nullptr;
-    const size_t amt = strlen(in) + 1;
-    char *const out = static_cast<char *>(gi.TagMalloc(amt, tag));
-    Q_strlcpy(out, in, amt);
-    return out;
+	if (!in)
+		return nullptr;
+	const size_t amt = strlen(in) + 1;
+	char* const out = static_cast<char*>(gi.TagMalloc(amt, tag));
+	Q_strlcpy(out, in, amt);
+	return out;
 }
 
-void G_InitEdict(edict_t *e)
+void G_InitEdict(edict_t* e)
 {
 	// ROGUE
 	// FIXME -
@@ -344,10 +344,10 @@ instead of being removed and recreated, which can cause interpolated
 angles and bad trails.
 =================
 */
-edict_t *G_Spawn()
+edict_t* G_Spawn()
 {
 	uint32_t i;
-	edict_t *e;
+	edict_t* e;
 
 	e = &g_edicts[game.maxclients + 1];
 	for (i = game.maxclients + 1; i < globals.num_edicts; i++, e++)
@@ -376,7 +376,7 @@ G_FreeEdict
 Marks the edict as free
 =================
 */
-THINK(G_FreeEdict) (edict_t *ed) -> void
+THINK(G_FreeEdict) (edict_t* ed) -> void
 {
 	// already freed
 	if (!ed->inuse)
@@ -384,7 +384,7 @@ THINK(G_FreeEdict) (edict_t *ed) -> void
 
 	gi.unlinkentity(ed); // unlink from world
 
-	if ((ed - g_edicts) <= (ptrdiff_t) (game.maxclients + BODY_QUEUE_SIZE))
+	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE))
 	{
 #ifdef _DEBUG
 		gi.Com_Print("tried to free special edict\n");
@@ -392,7 +392,7 @@ THINK(G_FreeEdict) (edict_t *ed) -> void
 		return;
 	}
 
-	gi.Bot_UnRegisterEdict( ed );
+	gi.Bot_UnRegisterEdict(ed);
 
 	int32_t id = ed->spawn_count + 1;
 	memset(ed, 0, sizeof(*ed));
@@ -404,7 +404,7 @@ THINK(G_FreeEdict) (edict_t *ed) -> void
 	ed->sv.init = false;
 }
 
-BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t *hit, void *)
+BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)
 {
 	if (!hit->touch)
 		return BoxEdictsResult_t::Skip;
@@ -418,11 +418,11 @@ G_TouchTriggers
 
 ============
 */
-void G_TouchTriggers(edict_t *ent)
+void G_TouchTriggers(edict_t* ent)
 {
 	int		 i, num;
-	static edict_t *touch[MAX_EDICTS];
-	edict_t *hit;
+	static edict_t* touch[MAX_EDICTS];
+	edict_t* hit;
 
 	// dead things don't activate triggers!
 	if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
@@ -445,11 +445,11 @@ void G_TouchTriggers(edict_t *ent)
 
 // [Paril-KEX] scan for projectiles between our movement positions
 // to see if we need to collide against them
-void G_TouchProjectiles(edict_t *ent, vec3_t previous_origin)
+void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 {
 	struct skipped_projectile
 	{
-		edict_t		*projectile;
+		edict_t* projectile;
 		int32_t		spawn_count;
 	};
 	// a bit ugly, but we'll store projectiles we are ignoring here.
@@ -476,7 +476,7 @@ void G_TouchProjectiles(edict_t *ent, vec3_t previous_origin)
 		G_Impact(ent, tr);
 	}
 
-	for (auto &skip : skipped)
+	for (auto& skip : skipped)
 		if (skip.projectile->inuse && skip.projectile->spawn_count == skip.spawn_count)
 			skip.projectile->svflags |= SVF_PROJECTILE;
 
@@ -500,7 +500,7 @@ of ent.
 =================
 */
 
-BoxEdictsResult_t KillBox_BoxFilter(edict_t *hit, void *)
+BoxEdictsResult_t KillBox_BoxFilter(edict_t* hit, void*)
 {
 	if (!hit->solid || !hit->takedamage || hit->solid == SOLID_TRIGGER)
 		return BoxEdictsResult_t::Skip;
@@ -508,7 +508,7 @@ BoxEdictsResult_t KillBox_BoxFilter(edict_t *hit, void *)
 	return BoxEdictsResult_t::Keep;
 }
 
-bool KillBox(edict_t *ent, bool from_spawning, mod_id_t mod, bool bsp_clipping)
+bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping)
 {
 	// don't telefrag as spectator...
 	if (ent->movetype == MOVETYPE_NOCLIP)
@@ -521,8 +521,8 @@ bool KillBox(edict_t *ent, bool from_spawning, mod_id_t mod, bool bsp_clipping)
 		mask &= ~CONTENTS_PLAYER;
 
 	int		 i, num;
-	static edict_t *touch[MAX_EDICTS];
-	edict_t *hit;
+	static edict_t* touch[MAX_EDICTS];
+	edict_t* hit;
 
 	num = gi.BoxEdicts(ent->absmin, ent->absmax, touch, MAX_EDICTS, AREA_SOLID, KillBox_BoxFilter, nullptr);
 
