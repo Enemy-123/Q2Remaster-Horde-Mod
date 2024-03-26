@@ -79,7 +79,7 @@ MMOVE_T(chick_move_fidget) = { FRAME_stand201, FRAME_stand230, chick_frames_fidg
 void chick_fidget(edict_t *self)
 {
 
-	if (frandom() <= 2.6f)
+	if (frandom() <= 0.3f)
 		M_SetAnimation(self, &chick_move_fidget);
 }
 
@@ -391,7 +391,7 @@ mframe_t chick_frames_duck[] = {
 	{ ai_move, 4, monster_duck_hold },
 	{ ai_move, -4 },
 	{ ai_move, -5, monster_duck_up },
-	{ ai_move, 3 },
+	{ ai_charge, 0, chick_attack1 },
 	{ ai_move, 1 }
 };
 MMOVE_T(chick_move_duck) = { FRAME_duck01, FRAME_duck07, chick_frames_duck, chick_run };

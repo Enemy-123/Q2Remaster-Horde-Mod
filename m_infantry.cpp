@@ -300,7 +300,7 @@ void InfantryMachineGun(edict_t *self)
 	if (trace.ent == self->enemy || trace.ent == world)
 	{
 		dir.normalize();
-		monster_fire_blaster2(self, start, dir, 23, 800, MZ2_STALKER_BLASTER, EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, 12, 600, MZ2_STALKER_BLASTER, EF_BLASTER);
 	}
 }
 
@@ -314,6 +314,7 @@ MONSTERINFO_SIGHT(infantry_sight) (edict_t *self, edict_t *other) -> void
 
 void infantry_dead(edict_t *self)
 {
+
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
 	monster_dead(self);
@@ -576,7 +577,7 @@ void infantry_fire(edict_t *self)
 	InfantryMachineGun(self);
 
 	// we fired, so we must cock again before firing
-	self->count = 0;
+	self->count = 1;
 
 	// check if we ran out of firing time
 	if (self->monsterinfo.active_move == &infantry_move_attack4)
