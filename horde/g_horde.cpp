@@ -22,7 +22,7 @@ static struct {
 	int32_t			level;
 } g_horde_local;
 bool next_wave_message_sent = false;
-static const int MAX_MONSTERS_PER_WAVE = 26;
+static const int MAX_MONSTERS_PER_WAVE = 22;
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
@@ -78,7 +78,7 @@ constexpr struct weighted_item_t {
 	{ "item_quadfire", -1, -1, 0.01f, adjust_weight_powerup },
 	{ "item_invulnerability", -1, -1, 0.005f, adjust_weight_powerup },
 
-	{ "weapon_blaster", 5, -1, 0.18f, adjust_weight_weapon },
+	{ "weapon_blaster", -1, 2, 0.18f, adjust_weight_weapon },
 	{ "weapon_shotgun", 2, 6, 0.18f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 6, 9, 0.16f, adjust_weight_weapon },
@@ -90,6 +90,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_disruptor", 9, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 3, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_railgun", 3, -1, 0.15f, adjust_weight_weapon },
+		{ "weapon_railgun", 3, -1, 0.15f, adjust_weight_weapon },
 
 	{ "ammo_shells", 2, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", 3, -1, 0.25f, adjust_weight_ammo },
@@ -155,7 +156,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_berserk", 4, -1, 1.15f },
 	{ "monster_spider", 7, -1, 0.95f },
 	{ "monster_tank_64", 10, -1, 0.45f },
-	{ "monster_medic_commander", 5, -1, 0.22f },
+	{ "monster_medic_commander", 5, -1, 0.27f },
 };
 
 struct picked_item_t {

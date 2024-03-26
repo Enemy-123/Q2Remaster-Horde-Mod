@@ -884,11 +884,11 @@ void SP_monster_infantry(edict_t *self)
 	self->maxs = { 16, 16, 32 };
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 20;
+		self->monsterinfo.power_armor_power = 55;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
-	self->health = 110 * st.health_multiplier;
+	self->health = 120 * st.health_multiplier;
 	self->gib_health = -65;
 	self->mass = 200;
 

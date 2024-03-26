@@ -13,7 +13,7 @@ MEDIC
 #include "m_flash.h"
 
 constexpr float MEDIC_MIN_DISTANCE = 32;
-constexpr float MEDIC_MAX_HEAL_DISTANCE = 400;
+constexpr float MEDIC_MAX_HEAL_DISTANCE = 750;
 constexpr gtime_t MEDIC_TRY_TIME = 10_sec;
 
 // FIXME -
@@ -53,8 +53,8 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_soldier_light 1;monster_soldier 2;monster_soldier_ss 2;monster_infantry 3;monster_gunner 4;monster_medic 5;monster_gladiator 6";
-constexpr int32_t default_monster_slots_base = 3;
+constexpr const char* default_reinforcements = "monster_boss5 5; monster_arachnid 1; monster_jorg 5; monster_widow 5; monster_guardian 5; monster_shambler 4";
+constexpr int32_t default_monster_slots_base = 5;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
 
@@ -1295,7 +1295,10 @@ void medic_finish_spawn(edict_t* self)
 		else
 			designated_enemy = self->enemy;
 
-		if (G_IsCooperative())
+
+
+
+
 		{
 			designated_enemy = PickCoopTarget(ent);
 			if (designated_enemy)
@@ -1523,13 +1526,13 @@ void SP_monster_medic(edict_t* self)
 	gi.modelindex("models/monsters/medic/gibs/hook.md2");
 	gi.modelindex("models/monsters/medic/gibs/leg.md2");
 
-	self->mins = { -24, -24, -24 };
-	self->maxs = { 24, 24, 32 };
+	self->mins = { -18, -18, -24 };
+	self->maxs = { 18, 18, 30 };
 
 	// PMM
 	if (strcmp(self->classname, "monster_medic_commander") == 0)
 	{
-		self->health = 600 * st.health_multiplier;
+		self->health = 370 * st.health_multiplier;
 		self->gib_health = -130;
 		self->mass = 600;
 		self->yaw_speed = 40; // default is 20
@@ -1538,7 +1541,7 @@ void SP_monster_medic(edict_t* self)
 	else
 	{
 		// PMM
-		self->health = 300 * st.health_multiplier;
+		self->health = 270 * st.health_multiplier;
 		self->gib_health = -130;
 		self->mass = 400;
 	}
