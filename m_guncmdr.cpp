@@ -1459,7 +1459,7 @@ void SP_monster_guncmdr(edict_t *self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 500;
+		self->monsterinfo.power_armor_power = 175;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 

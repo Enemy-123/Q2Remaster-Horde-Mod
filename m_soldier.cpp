@@ -702,11 +702,11 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 	{
 		// RAFAEL 24-APR-98
 		// droped the damage from 15 to 5
-		monster_fire_ionripper(self, start, aim, 5, 600, flash_index, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, 5, 900, flash_index, EF_IONRIPPER);
 	}
 	else if (self->count <= 3)
 	{
-		monster_fire_blueblaster(self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER);
+		monster_fire_blueblaster(self, start, aim, 1, 900, flash_index, EF_BLUEHYPERBLASTER);
 	}
 	else
 	{
@@ -814,12 +814,12 @@ mframe_t soldier_frames_attack1[] = {
 	{ ai_charge, 0, soldier_fire1 },
 	{ ai_charge, 0, soldier_fire1 },
 	{ ai_charge, 0, soldier_attack1_refire1 },
-	{ ai_charge },
+	{ ai_charge, 0, soldier_attack1_refire1 },
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge, 0, soldier_attack1_refire2 },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge }
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldier_attack1_refire2 },
 };
 MMOVE_T(soldier_move_attack1) = { FRAME_attak101, FRAME_attak112, soldier_frames_attack1, soldier_run };
 
@@ -1426,7 +1426,7 @@ mframe_t soldier_frames_death1[] = {
 
 	{ ai_move, 0, soldierh_hyper_laser_sound_start },
 	{ ai_move, 0, soldier_fire6 },
-	{ ai_move },
+	{ ai_move, 0, soldier_fire6 },
 	{ ai_move },
 	{ ai_move, 0, soldier_fire7 },
 	{ ai_move, 0, soldierh_hyper_laser_sound_end },
@@ -1911,7 +1911,7 @@ void SP_monster_soldier_light(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 280;
+		self->monsterinfo.power_armor_power = 70;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
@@ -1938,6 +1938,11 @@ void SP_monster_soldier(edict_t *self)
 	sound_pain.assign("soldier/solpain1.wav");
 	sound_death.assign("soldier/soldeth1.wav");
 	gi.soundindex("soldier/solatck1.wav");
+
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 70;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
@@ -1993,6 +1998,11 @@ void SP_monster_soldier_ripper(edict_t *self)
 	gi.modelindex("models/objects/boomrang/tris.md2");
 	gi.soundindex("misc/lasfly.wav");
 	gi.soundindex("soldier/solatck2.wav");
+
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 40;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;

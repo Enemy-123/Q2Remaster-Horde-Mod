@@ -939,9 +939,9 @@ void SP_monster_parasite(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 250;
+		self->monsterinfo.power_armor_power = 45;
 
-	self->health = 275 * st.health_multiplier;
+	self->health = 160 * st.health_multiplier;
 	self->gib_health = -50;
 	self->mass = 250;
 

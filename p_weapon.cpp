@@ -146,9 +146,9 @@ Monsters that don't directly see the player can move
 to a noise in hopes of seeing the player from there.
 ===============
 */
-void PlayerNoise(edict_t *who, const vec3_t &where, player_noise_t type)
+void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 {
-	edict_t *noise;
+	edict_t* noise;
 
 	if (type == PNOISE_WEAPON)
 	{
@@ -164,10 +164,7 @@ void PlayerNoise(edict_t *who, const vec3_t &where, player_noise_t type)
 		}
 	}
 
-	
-
-
-
+	if (G_IsDeathmatch())
 		return;
 
 	if (who->flags & FL_NOTARGET)
@@ -177,6 +174,17 @@ void PlayerNoise(edict_t *who, const vec3_t &where, player_noise_t type)
 		(who->client->landmark_free_fall || who->client->landmark_noise_time >= level.time))
 		return;
 
+	// ROGUE
+	if (who->flags & FL_DISGUISED)
+	{
+		if (type == PNOISE_WEAPON)
+		{
+			level.disguise_violator = who;
+			level.disguise_violation_time = level.time + 500_ms;
+		}
+		else
+			return;
+	}
 	// ROGUE
 	if (who->flags & FL_DISGUISED)
 	{
@@ -474,9 +482,9 @@ inline gtime_t Weapon_AnimationTime(edict_t *ent)
 	if (ent->client->ps.gunframe != 0 && (!(ent->client->pers.weapon->flags & IF_NO_HASTE) || ent->client->weaponstate != WEAPON_FIRING))
 	{
 		if (is_quadfire)
-			ent->client->ps.gunrate *= 4;
+			ent->client->ps.gunrate *= 2;
 		if (CTFApplyHaste(ent))
-			ent->client->ps.gunrate *= 4;
+			ent->client->ps.gunrate *= 2;
 	}
 
 	// network optimization...
@@ -1377,7 +1385,7 @@ void Weapon_Blaster_Fire(edict_t *ent)
 	}
 	else
 	{
-		 damage = 240;
+		 damage = 100;
 		 kick = 500;
 	}
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
@@ -1484,7 +1492,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 19;
+	int damage = 13;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1587,7 +1595,7 @@ void Chaingun_Fire(edict_t *ent)
 	if (G_IsDeathmatch())
 		damage = 6;
 	else
-		damage = 22;
+		damage = 16;
 
 	if (ent->client->ps.gunframe > 31)
 	{
@@ -1714,7 +1722,7 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 18;
+	int damage = 14;
 	int kick = 14;
 
 	vec3_t start, dir;
@@ -1759,7 +1767,7 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 22;
+	int damage = 17;
 	int kick = 30;
 
 	if (is_quad)
@@ -1828,7 +1836,7 @@ void weapon_railgun_fire(edict_t *ent)
 	}
 	else
 	{
-		damage = 320;
+		damage = 190;
 		kick = 285;
 	}
 

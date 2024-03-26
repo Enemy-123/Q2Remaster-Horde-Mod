@@ -707,7 +707,7 @@ void SP_monster_mutant(edict_t *self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 400 * st.health_multiplier;
+	self->health = 290 * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 300;
 

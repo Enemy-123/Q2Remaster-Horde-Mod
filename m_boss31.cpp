@@ -684,9 +684,9 @@ void SP_monster_jorg(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 1500;
+		self->monsterinfo.power_armor_power = 1300;
 
-	self->health = 8000 * st.health_multiplier;
+	self->health = 2200 * st.health_multiplier;
 	self->gib_health = -2000;
 	self->mass = 1000;
 

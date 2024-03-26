@@ -1105,16 +1105,10 @@ void SP_monster_carrier(edict_t* self)
 		self->monsterinfo.power_armor_power = 15;
 
 	// 2000 - 4000 health
-	self->health = max(2000, 2000 + 1000 * (skill->integer - 1)) * st.health_multiplier;
+	self->health = max(2000, 2000 + 700 * (skill->integer - 1)) * st.health_multiplier;
 	// add health in coop (500 * skill)
 
 
-
-
-
-
-
-	self->health += 700 * skill->integer;
 
 	self->gib_health = -200;
 	self->mass = 1000;
@@ -1178,10 +1172,11 @@ void SP_monster_carrier(edict_t* self)
 		if (!self->s.scale)
 			self->s.scale = 0.6f;
 
-		self->mins = { -34, -34, -26 };
-		self->maxs = { 34, 34, 26 };
+		self->mins = { -24, -24, -17 };
+		self->maxs = { 24, 24, 48 };
 
-		self->health = max(500, 500 + 1200 * (skill->integer - 1)) * st.health_multiplier;
+		self->health = 800 * st.health_multiplier;
+		self->mass = 1000;
 	}
 
 

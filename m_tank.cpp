@@ -1083,7 +1083,7 @@ void SP_monster_tank(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 950;
+		self->monsterinfo.power_armor_power = 350;
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
@@ -1092,8 +1092,16 @@ void SP_monster_tank(edict_t *self)
 
 	{
 		if (!self->s.scale)
-			self->s.scale = 1.5f;
-		self->health = 5500 * st.health_multiplier;
+			self->s.scale = 1.3f;
+		self->health = 1500 * st.health_multiplier;
+
+		self->gib_health = -130;
+
+		self->mins = { -24, -24, -16 };
+		self->maxs = { 24, 24, 48 };
+
+		if (!self->accel)
+			self->accel = 1.75f;
 	}
 
 	// heat seekingness

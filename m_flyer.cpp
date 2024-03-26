@@ -460,8 +460,8 @@ void flyer_slash_right(edict_t *self)
 
 mframe_t flyer_frames_start_melee[] = {
 	{ ai_charge, 0, flyer_pop_blades },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, flyer_pop_blades },
+	{ ai_charge, 0, flyer_pop_blades },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge }

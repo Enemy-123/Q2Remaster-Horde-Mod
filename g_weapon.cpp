@@ -432,7 +432,7 @@ THINK(Grenade_Explode) (edict_t *ent) -> void
 
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
-
+	
 	// FIXME: if we are onground then raise our Z just a bit since we are a point?
 	if (ent->enemy)
 	{

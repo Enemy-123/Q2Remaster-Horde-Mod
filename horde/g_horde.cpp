@@ -25,7 +25,7 @@ static struct {
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 20 + (lvl * 2);
+	g_horde_local.num_to_spawn = 12 + (lvl * 1.3);
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 }
 
@@ -48,6 +48,7 @@ void adjust_weight_health(const weighted_item_t &item, float &weight);
 void adjust_weight_weapon(const weighted_item_t &item, float &weight);
 void adjust_weight_ammo(const weighted_item_t &item, float &weight);
 void adjust_weight_armor(const weighted_item_t &item, float &weight);
+void adjust_weight_powerup(const weighted_item_t& item, float& weight);
 
 constexpr struct weighted_item_t {
 	const char				*classname;
@@ -55,30 +56,42 @@ constexpr struct weighted_item_t {
 	float					weight = 1.0f;
 	weight_adjust_func_t	adjust_weight = nullptr;
 } items[] = {
-	{ "item_health_small" },
-	{ "item_health", -1, -1, 0.70f, adjust_weight_health },
-	{ "item_health_large", -1, -1, 0.45f, adjust_weight_health },
+	{ "item_health_small", -1, -1, 0.40f, adjust_weight_health },
+	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
+	{ "item_health_large", -1, -1, 0.15f, adjust_weight_health },
+	{ "item_health_mega", -1, -1, 0.13f, adjust_weight_health },
 
-	{ "item_armor_shard", -1, -1, 0.85f, adjust_weight_armor },
-	{ "item_armor_jacket", -1, 4, 0.45f, adjust_weight_armor },
-	{ "item_armor_combat", 2, -1, 0.32f, adjust_weight_armor },
-	{ "item_armor_body", 4, -1, 0.25f, adjust_weight_armor },
+	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
+	{ "item_armor_jacket", 4, 4, 0.25f, adjust_weight_armor },
+	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
+	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
+
+	{ "item_quad", -1, -1, 0.07f, adjust_weight_powerup },
+	{ "item_quadfire", -1, -1, 0.07f, adjust_weight_powerup },
+	{ "item_invulnerability", -1, -1, 0.13f, adjust_weight_powerup },
+
+	{ "weapon_blaster", 5, -1, 0.18f, adjust_weight_weapon },
+	{ "weapon_shotgun", 2, 6, 0.18f, adjust_weight_weapon },
+	{ "weapon_boomer", 4, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_supershotgun", 6, 9, 0.16f, adjust_weight_weapon },
+	{ "weapon_machinegun", 3, -1, .15f, adjust_weight_weapon },
+	{ "weapon_chaingun", 6, -1, 0.11f, adjust_weight_weapon },
+	{ "weapon_grenadelauncher", 6, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_hyperblaster", 8, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_phalanx", 6, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_disruptor", 9, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_rocketlauncher", 3, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_railgun", 3, -1, 0.15f, adjust_weight_weapon },
 	
-	{ "weapon_shotgun", -1, -1, 0.58f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 6, -1, 0.36f, adjust_weight_weapon },
-	{ "weapon_machinegun", -1, -1, .45f, adjust_weight_weapon },
-	{ "weapon_chaingun", 3, -1, 0.31f, adjust_weight_weapon },
-	{ "weapon_grenadelauncher", 6, -1, 0.45f, adjust_weight_weapon },
-	{ "weapon_hyperblaster", 7, -1, 0.35f, adjust_weight_weapon },
-	{ "weapon_phalanx", 6, -1, 0.25f, adjust_weight_weapon },
-	{ "weapon_disruptor", 9, -1, 0.25f, adjust_weight_weapon },
-	
-	{ "ammo_shells", -1, -1, 1.25f, adjust_weight_ammo },
-	{ "ammo_bullets", -1, -1, 1.25f, adjust_weight_ammo },
-	{ "ammo_grenades", 2, -1, 1.25f, adjust_weight_ammo },
-	{ "ammo_cells", 5, -1, 1.25f, adjust_weight_ammo },
-	{ "ammo_magslug", 5, -1, 1.25f, adjust_weight_ammo },
-	{ "ammo_disruptor", 7, -1, 1.25f, adjust_weight_ammo },
+	{ "ammo_shells", 2, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_bullets", 3, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_grenades", 2, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_cells", 7, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_magslug", 5, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_slugs", 3, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_disruptor", 8, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_rockets", 6, -1, 0.25f, adjust_weight_ammo },
+	{ "item_pack", 6, -1, 0.12f, adjust_weight_ammo },
 	
 };
 
@@ -98,36 +111,44 @@ void adjust_weight_armor(const weighted_item_t &item, float &weight)
 {
 }
 
+void adjust_weight_powerup(const weighted_item_t& item, float& weight)
+{
+}
+
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, 3, 0.90f },
-	{ "monster_soldier", -1, 3, 0.85f },
+	{ "monster_soldier_light", -1, 3, 0.75f },
+	{ "monster_soldier", -1, 3, 0.45f },
 	{ "monster_soldier_hypergun", 2, 4, 0.85f },
+	{ "monster_stalker", 2, -1, 0.25f },
 	{ "monster_gekk", 3, 6, 0.50f },
+	{ "monster_parasite", 3, 6, 0.50f },
+	{ "monster_brain", 4, 11, 0.30f },
 	{ "monster_soldier_lasergun", 3, 6, 0.90f },
 	{ "monster_soldier_ripper", 3, 5, 0.85f },
 	{ "monster_infantry", 3, 6, 0.90f },
-	{ "monster_gunner", 4, -1, 0.90f },
-	{ "monster_chick", 5, 7, 0.92f },
-	{ "monster_chick_heat", 6, -1, 0.93f },
-	{ "monster_stalker", 2, -1, 0.2f },
-	{ "monster_gladiator", 5, -1, 1.1f },
-	{ "monster_gladb", 8, -1, 1.2f },
+	{ "monster_gunner", 3, -1, 0.90f },
 	{ "monster_tank", 4, 9, 0.85f },
+	{ "monster_chick", 5, 7, 0.92f },
+	{ "monster_guncmdr", 5, -1, 1.1f },
+	{ "monster_gladiator", 5, -1, 1.1f },
+	{ "monster_chick_heat", 6, -1, 0.63f },
 	{ "monster_tank_commander", 6, 9, 0.95f },
 	{ "monster_mutant", 6, -1, 1.05f },
 	{ "monster_tank", 6, -1, 0.85f },
 	{ "monster_janitor2", 11, -1, 1.25f },
+	{ "monster_gladb", 8, -1, 1.2f },
 	{ "monster_janitor", 8, -1, 1.25f },
 	{ "monster_hover", 6, -1, 1.35f },
 	{ "monster_flyer", -1, 3, 1.05f },
 	{ "monster_floater", 3, 6, 1.05f },
-	{ "monster_makron", 10, -1, 0.3f },
-	{ "monster_guncmdr", 5, -1, 1.1f },
-    { "monster_tank_64", 9, -1, 0.4f },
-	{ "monster_boss2_64", 7, -1, 0.5f },
-	{ "monster_carrier2", 12, -1, 0.2f },
+	{ "monster_makron", 9, -1, 0.3f },
+	{ "monster_boss2_64", 9, -1, 0.4f },
+	{ "monster_carrier2", 12, -1, 0.3f },
 	{ "monster_berserk", 4, -1, 1.15f },
-    { "monster_spider", 6, -1, 0.95f },
+    { "monster_spider", 7, -1, 0.95f },
+	{ "monster_tank_64", 10, -1, 0.45f },
+	{ "monster_medic_commander", 5, -1, 0.22f },
+
 };
 
 struct picked_item_t {
@@ -314,7 +335,7 @@ void Horde_RunFrame()
 				e->s.angles = result.spot->s.angles;
 				e->item = G_HordePickItem();
 				ED_CallSpawn(e);
-				g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 1.5_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.6_sec, 0.8_sec);
 
 				e->enemy = &g_edicts[1];
 				FoundTarget(e);
@@ -337,13 +358,13 @@ void Horde_RunFrame()
 		break;
 
 	case horde_state_t::cleanup:
-		g_horde_local.monster_spawn_time = level.time - 15_sec; // Espera 120 segundos antes de ejecutar el cleanup
+		if (g_horde_local.monster_spawn_time < level.time)
 		{
 			if (Horde_AllMonstersDead())
 			{
 				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated.\n GG !");
 
-				g_horde_local.warm_time = level.time + 5_sec;
+				g_horde_local.warm_time = level.time + 8_sec;
 				g_horde_local.state = horde_state_t::rest;
 			}
 			else

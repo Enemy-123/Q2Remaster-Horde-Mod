@@ -802,9 +802,9 @@ void SP_monster_berserk(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 450;
+		self->monsterinfo.power_armor_power = 65;
 
-	self->health = 440 * st.health_multiplier;
+	self->health = 225 * st.health_multiplier;
 	self->gib_health = -60;
 	self->mass = 250;
 

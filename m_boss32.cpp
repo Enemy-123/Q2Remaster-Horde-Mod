@@ -665,8 +665,8 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 
 void makron_dead(edict_t *self)
 {
-	self->mins = { -60, -60, 0 };
-	self->maxs = { 60, 60, 24 };
+	self->mins = { -24, -24, -16 };
+	self->maxs = { 24, 24, 48 };
 	self->movetype = MOVETYPE_TOSS;
 	self->svflags |= SVF_DEADMONSTER;
 	gi.linkentity(self);
@@ -776,9 +776,9 @@ void SP_monster_makron(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 4200;
+		self->monsterinfo.power_armor_power = 1200;
 
-	self->health = 3700 * st.health_multiplier;
+	self->health = 1700 * st.health_multiplier;
 	self->gib_health = -800;
 	self->mass = 500;
 
@@ -801,7 +801,7 @@ void SP_monster_makron(edict_t* self)
 	M_SetAnimation(self, &makron_move_sight);
 	self->monsterinfo.scale = MODEL_SCALE;
 	if (!self->s.scale)
-		self->s.scale = 1.10f;
+		self->s.scale = 1.0f;
 
 	walkmonster_start(self);
 
