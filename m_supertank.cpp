@@ -669,7 +669,7 @@ void SP_monster_supertank(edict_t *self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
-	self->health = 1700 * st.health_multiplier;
+	self->health = 2700 * st.health_multiplier;
 	self->gib_health = -500;
 	self->mass = 800;
 
