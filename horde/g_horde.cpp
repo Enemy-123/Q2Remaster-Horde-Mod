@@ -266,6 +266,8 @@ void Horde_PreInit()
 
 void Horde_Init()
 {
+/*
+
 	// precache all items
 	for (auto& item : itemlist)
 		PrecacheItem(&item);
@@ -278,7 +280,7 @@ void Horde_Init()
 		ED_CallSpawn(e);
 		G_FreeEdict(e);
 	}
-
+	*/
 	g_horde_local.warm_time = level.time + 10_sec;
 }
 
