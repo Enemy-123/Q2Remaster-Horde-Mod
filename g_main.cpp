@@ -661,11 +661,19 @@ void CheckDMRules()
 	if (level.intermissiontime)
 		return;
 
-         // Paril
-if (g_horde->integer)
+	if (g_horde->integer)
 	{
-	Horde_RunFrame();
-	return;
+		Horde_RunFrame();
+
+		if (timelimit->value)
+		{
+			if (level.time >= gtime_t::from_min(timelimit->value))
+			{
+				gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
+				EndDMLevel();
+				return;
+			}
+		}
 	}
 
 	if (!deathmatch->integer)

@@ -133,7 +133,6 @@ bool CTFStartClient(edict_t *ent);
 void CTFVoteYes(edict_t *ent);
 void CTFVoteNo(edict_t *ent);
 void CTFReady(edict_t *ent);
-void CTFNotReady(edict_t *ent);
 bool CTFNextMap();
 bool CTFMatchSetup();
 bool CTFMatchOn();

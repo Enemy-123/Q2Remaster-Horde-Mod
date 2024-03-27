@@ -3,6 +3,9 @@
 #include "../g_local.h"
 #include <sstream>
 
+
+
+
 cvar_t* g_horde;
 
 enum class horde_state_t
@@ -152,11 +155,11 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_floater", 3, 6, 1.05f },
 	{ "monster_makron", 9, -1, 0.3f },
 	{ "monster_boss2_64", 9, -1, 0.4f },
-	{ "monster_carrier2", 12, -1, 0.3f },
+	{ "monster_carrier2", 15, -1, 0.3f },
 	{ "monster_berserk", 4, -1, 1.15f },
 	{ "monster_spider", 7, -1, 0.95f },
 	{ "monster_tank_64", 10, -1, 0.45f },
-	{ "monster_medic_commander", 5, -1, 0.27f },
+	{ "monster_medic_commander", 14, -1, 0.47f },
 };
 
 struct picked_item_t {
@@ -261,12 +264,14 @@ void Horde_PreInit()
 		gi.cvar_set("ctf", "0");
 		gi.cvar_set("teamplay", "0");
 		gi.cvar_set("coop", "0");
+		gi.cvar_set("timelimit", "15");
+		gi.cvar_set("competition", "0");
+
 	}
 }
 
 void Horde_Init()
 {
-/*
 
 	// precache all items
 	for (auto& item : itemlist)
@@ -280,7 +285,7 @@ void Horde_Init()
 		ED_CallSpawn(e);
 		G_FreeEdict(e);
 	}
-	*/
+
 	g_horde_local.warm_time = level.time + 10_sec;
 }
 
@@ -298,7 +303,6 @@ static bool Horde_AllMonstersDead()
 				return false;
 		}
 	}
-
 	return true;
 }
 
@@ -315,6 +319,8 @@ static void Horde_CleanBodies()
 		}
 	}
 }
+
+
 
 void Horde_RunFrame()
 {
@@ -365,19 +371,15 @@ void Horde_RunFrame()
 						std::ostringstream message_stream;
 						message_stream << "New Wave Is Here.\n Current Level: " << g_horde_local.level << "\n";
 						gi.LocBroadcast_Print(PRINT_CENTER, message_stream.str().c_str());
-
 					}
-	
 					g_horde_local.state = horde_state_t::cleanup;
 					g_horde_local.monster_spawn_time = level.time + 3_sec;
 				}
 			}
 			else
 			{
-
 				g_horde_local.monster_spawn_time = level.time + 1.5_sec;
 			}
-
 		}
 		break;
 
@@ -410,3 +412,5 @@ void Horde_RunFrame()
 		break;
 	}
 }
+
+

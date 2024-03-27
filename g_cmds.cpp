@@ -1723,8 +1723,6 @@ void ClientCommand(edict_t* ent)
 		CTFVoteNo(ent);
 	else if (Q_strcasecmp(cmd, "ready") == 0)
 		CTFReady(ent);
-	else if (Q_strcasecmp(cmd, "notready") == 0)
-		CTFNotReady(ent);
 	else if (Q_strcasecmp(cmd, "ghost") == 0)
 		CTFGhost(ent);
 	else if (Q_strcasecmp(cmd, "admin") == 0)

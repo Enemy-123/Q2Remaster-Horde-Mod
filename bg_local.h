@@ -213,6 +213,7 @@ enum player_stat_t
     STAT_FLASHES = 15, // cleared each frame, 1 = health, 2 = armor
     STAT_CHASE = 16,
     STAT_SPECTATOR = 17,
+	STAT_TECH = 27,
 
 	STAT_CTF_TEAM1_PIC = 18,
 	STAT_CTF_TEAM1_CAPS = 19,
@@ -245,9 +246,9 @@ enum player_stat_t
     // [Paril-KEX] currently active wheel weapon (or one we're switching to)
     STAT_ACTIVE_WHEEL_WEAPON,
 	// [Paril-KEX] top of screen coop respawn state
-	STAT_COOP_RESPAWN,
+	STAT_COOP_RESPAWN = 18,
 	// [Paril-KEX] respawns remaining
-	STAT_LIVES,
+	STAT_LIVES = 19,
 	// [Paril-KEX] hit marker; # of damage we successfully landed
 	STAT_HIT_MARKER,
 	// [Paril-KEX]
