@@ -22,11 +22,11 @@ static struct {
 	int32_t			level;
 } g_horde_local;
 bool next_wave_message_sent = false;
-static const int MAX_MONSTERS_PER_WAVE = 26;
+static const int MAX_MONSTERS_PER_WAVE = 22;
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 20 + (lvl * 1.2);
+	g_horde_local.num_to_spawn = 16 + (lvl * 1.5);
 
 	// limiting max monsters
 	if (g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
@@ -83,20 +83,19 @@ constexpr struct weighted_item_t {
 	{ "weapon_boomer", 4, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 6, 9, 0.16f, adjust_weight_weapon },
 	{ "weapon_machinegun", 3, -1, .15f, adjust_weight_weapon },
-	{ "weapon_chaingun", 6, -1, 0.13f, adjust_weight_weapon },
+	{ "weapon_chaingun", 6, -1, 0.11f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 8, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_phalanx", 6, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_disruptor", 9, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 3, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_railgun", 3, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 8, -1, 0.11f, adjust_weight_weapon },
-	{ "weapon_bfg", 8, -1, 0.05f, adjust_weight_weapon },
+		{ "weapon_railgun", 3, -1, 0.15f, adjust_weight_weapon },
 
 	{ "ammo_shells", 2, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", 3, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_grenades", 2, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_cells", 7, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_cells", 7, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_magslug", 5, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_slugs", 3, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 8, -1, 0.25f, adjust_weight_ammo },
@@ -136,7 +135,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_lasergun", 2, 6, 0.90f },
 	{ "monster_soldier_ripper", 2, 5, 0.85f },
 	{ "monster_infantry", 3, 6, 0.90f },
-	{ "monster_gunner", 3, 7, 0.90f },
+	{ "monster_gunner", 3, -1, 0.90f },
 	{ "monster_tank", 4, 9, 0.85f },
 	{ "monster_chick", 5, 7, 0.92f },
 	{ "monster_guncmdr", 5, -1, 1.1f },
@@ -145,9 +144,9 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_tank_commander", 6, 9, 0.95f },
 	{ "monster_mutant", 6, -1, 1.05f },
 	{ "monster_tank", 6, -1, 0.85f },
-	{ "monster_janitor2", 11, -1, 0.65f },
+	{ "monster_janitor2", 11, -1, 1.25f },
 	{ "monster_gladb", 8, -1, 1.2f },
-	{ "monster_janitor", 8, -1, 0.85f },
+	{ "monster_janitor", 8, -1, 1.25f },
 	{ "monster_hover", 6, -1, 1.35f },
 	{ "monster_flyer", -1, 3, 0.75f },
 	{ "monster_floater", 3, 6, 1.05f },
