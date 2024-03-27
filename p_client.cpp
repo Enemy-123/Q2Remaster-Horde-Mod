@@ -717,7 +717,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 	if (!self->deadflag)
 	{
-		if (G_IsCooperative() && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
+		if (g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
 		{
 			if (g_coop_enable_lives->integer && self->client->pers.lives)
 			{
@@ -736,11 +736,14 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 			if (allPlayersDead) // allow respawns for telefrags and weird shit
 			{
-				level.coop_level_restart_time = level.time + 5_sec;
-
-				for (auto player : active_players())
-					gi.LocCenter_Print(player, "$g_coop_lose");
+				EndDMLevel();
+				return;
 			}
+
+		/*		for (auto player : active_players())
+					gi.LocCenter_Print(player, "$g_coop_lose");
+					*/
+			
 
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode

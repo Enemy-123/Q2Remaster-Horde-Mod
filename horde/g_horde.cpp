@@ -264,7 +264,7 @@ void Horde_PreInit()
 		gi.cvar_set("ctf", "0");
 		gi.cvar_set("teamplay", "0");
 		gi.cvar_set("coop", "0");
-		gi.cvar_set("timelimit", "15");
+		gi.cvar_set("timelimit", "20");
 		gi.cvar_set("competition", "0");
 
 	}
