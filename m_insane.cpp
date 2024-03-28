@@ -680,6 +680,11 @@ void SP_misc_insane(edict_t *self)
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 120;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+
 	if (self->spawnflags.has(SPAWNFLAG_INSANE_CRUCIFIED)) // Crucified ?
 	{
 		self->flags |= FL_NO_KNOCKBACK | FL_STATIONARY;
@@ -690,3 +695,5 @@ void SP_misc_insane(edict_t *self)
 
 	self->s.skinnum = irandom(3);
 }
+
+

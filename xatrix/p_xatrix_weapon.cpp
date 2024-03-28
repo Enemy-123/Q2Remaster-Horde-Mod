@@ -19,7 +19,7 @@ void weapon_ionripper_fire(edict_t* ent)
 		// tone down for deathmatch
 		damage = 30;
 	else
-		damage = 115;
+		damage = 60;
 
 	if (is_quad)
 		damage *= damage_multiplier;

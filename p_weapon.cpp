@@ -1250,7 +1250,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t *ent)
 {
-	int	  damage = 200;
+	int	  damage = 145;
 	float radius;
 
 	radius = (float) (damage + 40);
@@ -1264,7 +1264,7 @@ void weapon_grenadelauncher_fire(edict_t *ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	fire_grenade(ent, start, dir, damage, 600, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
+	fire_grenade(ent, start, dir, damage, 1200, 2.5_sec, radius, (crandom_open() * 10.0f), (200 + crandom_open() * 10.0f), false);
 
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
@@ -1298,9 +1298,9 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(180, 240);
-	radius_damage = 130;
-	damage_radius = 130;
+	damage = irandom(125, 150);
+	radius_damage = 125;
+	damage_radius = 125;
 	if (is_quad)
 	{
 		damage *= damage_multiplier;
@@ -1373,21 +1373,7 @@ void Blaster_Fire(edict_t *ent, const vec3_t &g_offset, int damage, bool hyper, 
 void Weapon_Blaster_Fire(edict_t *ent)
 {
 	// give the blaster 15 across the board instead of just in dm
-		// normal damage too extreme for DM
-	int damage;
-	int kick;
-	
-
-	if (G_IsDeathmatch())
-	{
-		 damage = 15;
-		 kick = 0;
-	}
-	else
-	{
-		 damage = 20;
-		 kick = 500;
-	}
+	int damage = 15;
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
@@ -1452,7 +1438,7 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
 			if (G_IsDeathmatch())
 				damage = 15;
 			else
-				damage = 27;
+				damage = 20;
 			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
 			Weapon_PowerupSound(ent);
 
@@ -1492,7 +1478,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 13;
+	int damage = 8;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1722,8 +1708,8 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 5;
-	int kick = 14;
+	int damage = 4;
+	int kick = 8;
 
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
@@ -1767,8 +1753,8 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 8;
-	int kick = 30;
+	int damage = 6;
+	int kick = 16;
 
 	if (is_quad)
 	{

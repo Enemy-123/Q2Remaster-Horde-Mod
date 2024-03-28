@@ -79,7 +79,7 @@ void weapon_chainfist_fire(edict_t* ent)
 		}
 	}
 
-	int damage = 7;
+	int damage = 10;
 
 	if (G_IsDeathmatch())
 		damage = 15;
@@ -351,7 +351,7 @@ void Weapon_ETF_Rifle(edict_t *ent)
 }
 
 constexpr int32_t HEATBEAM_DM_DMG = 10;
-constexpr int32_t HEATBEAM_SP_DMG = 23;
+constexpr int32_t HEATBEAM_SP_DMG = 15;
 
 void Heatbeam_Fire(edict_t *ent)
 {
@@ -394,7 +394,7 @@ void Heatbeam_Fire(edict_t *ent)
 
 	if (G_IsDeathmatch())
 	// really knock 'em around in deathmatch
-		kick = 75;
+		kick = 45;
 	else
 		kick = 30;
 

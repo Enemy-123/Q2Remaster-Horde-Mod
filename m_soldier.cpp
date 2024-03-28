@@ -563,7 +563,7 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 	}
 	else if (self->count <= 3)
 	{
-		monster_fire_shotgun(self, start, aim, 5, 1, 1500, 750, 9, flash_index);
+		monster_fire_shotgun(self, start, aim, 3, 1, 1500, 750, 9, flash_index);
 		// [Paril-KEX] indicates to soldier that he must cock
 		self->dmg = 1;
 	}
@@ -573,7 +573,7 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 			self->monsterinfo.fire_wait = level.time + random_time(300_ms, 1.1_sec);
 
-		monster_fire_bullet(self, start, aim, 5, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+		monster_fire_bullet(self, start, aim, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
 
 		if (level.time >= self->monsterinfo.fire_wait)
 			self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
@@ -1913,13 +1913,13 @@ void SP_monster_soldier_light(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 15;
+		self->monsterinfo.power_armor_power = 25;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 23 * st.health_multiplier;
+	self->health = self->max_health = 38 * st.health_multiplier;
 	self->gib_health = -80;
 
 	// PMM - blindfire
@@ -1942,13 +1942,13 @@ void SP_monster_soldier(edict_t *self)
 	gi.soundindex("soldier/solatck1.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 18;
+		self->monsterinfo.power_armor_power = 28;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 30 * st.health_multiplier;
+	self->health = self->max_health = 35 * st.health_multiplier;
 	self->gib_health = -30;
 }
 
@@ -2002,7 +2002,7 @@ void SP_monster_soldier_ripper(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 40;
+		self->monsterinfo.power_armor_power = 46;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
@@ -2059,7 +2059,7 @@ void SP_monster_soldier_lasergun(edict_t *self)
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 70 * st.health_multiplier;
+	self->health = self->max_health = 80 * st.health_multiplier;
 	self->gib_health = -30;
 }
 

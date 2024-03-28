@@ -300,7 +300,7 @@ void InfantryMachineGun(edict_t *self)
 	if (trace.ent == self->enemy || trace.ent == world)
 	{
 		dir.normalize();
-		monster_fire_blaster2(self, start, dir, 7, 600, MZ2_INFANTRY_MACHINEGUN_1, EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, 2, 600, MZ2_INFANTRY_MACHINEGUN_1, EF_BLASTER);
 	}
 }
 
@@ -367,7 +367,7 @@ mframe_t infantry_frames_death2[] = {
 	{ ai_move, 1, monster_footstep },
 	{ ai_move, 4 },
 	{ ai_move, 1, monster_footstep },
-	{ ai_move, -2, InfantryMachineGun },
+	{ ai_move, 4 },
 	{ ai_move, 3 },
 	{ ai_move, 1, monster_footstep },
 	{ ai_move, 4 },
