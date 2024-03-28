@@ -103,6 +103,10 @@ cvar_t* g_coop_health_scaling;
 cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
+cvar_t* sv_centerprint_frags;
+cvar_t* sv_eyecam;
+cvar_t* sv_target_id;
+cvar_t* g_no_self_damage;
 cvar_t* g_no_health;
 cvar_t* g_no_items;
 cvar_t* g_dm_weapons_stay;
@@ -250,6 +254,10 @@ void InitGame()
 	g_instagib = gi.cvar("g_instagib", "0", CVAR_NOFLAGS);
 
 	// [Paril-KEX]
+	sv_eyecam = gi.cvar("sv_eyecam", "0", CVAR_NOFLAGS);
+	sv_centerprint_frags = gi.cvar("sv_centerprint_frags", "0", CVAR_NOFLAGS);
+	g_no_self_damage = gi.cvar("g_no_self_damage", "0", CVAR_NOFLAGS);
+	sv_target_id = gi.cvar("sv_target_id", "0", CVAR_NOFLAGS);
 	g_coop_player_collision = gi.cvar("g_coop_player_collision", "0", CVAR_LATCH);
 	g_coop_squad_respawn = gi.cvar("g_coop_squad_respawn", "1", CVAR_LATCH);
 	g_coop_enable_lives = gi.cvar("g_coop_enable_lives", "0", CVAR_LATCH);

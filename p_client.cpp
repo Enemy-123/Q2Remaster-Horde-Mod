@@ -329,6 +329,13 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
+		// Q2ETweaks frag message centerprints on attacker and victim
+		if (sv_centerprint_frags->integer)
+		{
+			gi.LocClient_Print(attacker, PRINT_CENTER, "You fragged {}", self->client->pers.netname);
+			gi.LocClient_Print(self, PRINT_CENTER, "\n\n\n\nFragged by {}", attacker->client->pers.netname);
+		}
+
 
 		if (G_TeamplayEnabled())
 		{
@@ -2304,6 +2311,18 @@ void PutClientInServer(edict_t* ent)
 
 /*
 =====================
+HORDE TWEAKS 
+============================
+
+std::string q2etweaks_welcome;
+if (g_no_self_damage->integer)
+q2etweaks_welcome += "\tNo Self Damage\n";
+
+if (sv_target_id && sv_target_id->integer)
+	q2etweaks_welcome += "\tTarget ID\n";
+
+	*/
+/*
 ClientBeginDeathmatch
 
 A client has just connected to the server in
@@ -3385,8 +3404,22 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 			if (client->chase_target)
 			{
-				client->chase_target = nullptr;
-				client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
+				// Q2Eaks add eyecam to freecam<->chasecam cycle
+				if (!client->use_eyecam)
+				{
+					// Q2Eaks chasecam -> eyecam
+					client->use_eyecam = true;
+				}
+				else
+				{
+					// Q2Eaks eyecam -> freecam
+					client->use_eyecam = false;
+					client->ps.gunindex = 0;
+					client->ps.gunskin = 0;
+
+					client->chase_target = nullptr;
+					client->ps.pmove.pm_flags &= ~(PMF_NO_POSITIONAL_PREDICTION | PMF_NO_ANGULAR_PREDICTION);
+				}
 			}
 			else
 				GetChaseTarget(ent);

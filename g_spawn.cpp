@@ -1357,6 +1357,16 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		// tech
 		sb.ifstat(STAT_TECH).yb(-137).xr(-26).pic(STAT_TECH).endifstat();
+
+
+		// Q2ETweaks target id view state
+		// TODO move back to xv 112 if we find an image for below
+		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+
+		// Q2ETweaks target id view color
+		// TODO populate this with a small image if we can find one
+		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-78).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
+
 	}
 	else if (G_TeamplayEnabled())
 	{
@@ -1404,7 +1414,9 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
 
 		// chase cam
-		sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_string(STAT_CHASE).endifstat();
+		// Q2Eaks fix bugged chasecam name showing name\model/skin\tag
+		//sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_string(STAT_CHASE).endifstat();
+		sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_pname(STAT_CHASE).endifstat();
 	}
 
 	// ---- more shared stuff ----

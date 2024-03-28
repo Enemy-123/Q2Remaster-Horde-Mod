@@ -899,6 +899,13 @@ void Drop_PowerArmor(edict_t* ent, gitem_t* item)
 
 bool Entity_IsVisibleToPlayer(edict_t* ent, edict_t* player)
 {
+	// Q2Eaks make eyecam chase target invisible, but keep other client visible
+	if (player->client->use_eyecam && ent == player->client->chase_target)
+		return false;
+	else if (ent->client)
+		return true;
+
+
 	return !ent->item_picked_up_by[player->s.number - 1];
 }
 

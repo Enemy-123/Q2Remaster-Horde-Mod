@@ -1896,6 +1896,9 @@ extern cvar_t *sv_dedicated;
 
 extern cvar_t *filterban;
 
+extern cvar_t* sv_eyecam;
+extern cvar_t* sv_target_id;
+extern cvar_t* sv_centerprint_frags;
 extern cvar_t *sv_gravity;
 extern cvar_t *sv_maxvelocity;
 
@@ -1931,6 +1934,7 @@ extern cvar_t *g_strict_saves;
 extern cvar_t *g_coop_health_scaling;
 extern cvar_t *g_weapon_respawn_time;
 
+extern cvar_t* g_no_self_damage;
 extern cvar_t* g_no_health;
 extern cvar_t* g_no_items;
 extern cvar_t* g_dm_weapons_stay;
@@ -2834,6 +2838,8 @@ struct gclient_t
 	client_respawn_t	resp;
 	pmove_state_t		old_pmove; // for detecting out-of-pmove changes
 
+
+
 	bool showscores;	// set layout stat
 	bool showeou;       // end of unit screen
 	bool showinventory; // set layout stat
@@ -2928,6 +2934,8 @@ struct gclient_t
 
 	edict_t *chase_target; // player we are chasing
 	bool	 update_chase; // need to update chase info?
+	// Q2Eaks are we in eyecam mode?
+	bool use_eyecam;
 
 	//=======
 	// ROGUE
