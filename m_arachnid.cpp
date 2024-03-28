@@ -364,7 +364,7 @@ void SP_monster_arachnid(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 750 * st.health_multiplier;
+	self->health = 550 * st.health_multiplier;
 	self->gib_health = -200;
 
 	if (!st.was_key_specified("power_armor_type"))

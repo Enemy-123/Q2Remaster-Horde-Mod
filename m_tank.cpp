@@ -1062,7 +1062,7 @@ void SP_monster_tank(edict_t *self)
 
 	if (strcmp(self->classname, "monster_tank_commander") == 0)
 	{
-		self->health = 1000 * st.health_multiplier;
+		self->health = 800 * st.health_multiplier;
 		self->gib_health = -225;
 		self->count = 1;
 		sound_pain2.assign("tank/pain.wav");
@@ -1093,7 +1093,7 @@ void SP_monster_tank(edict_t *self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.3f;
-		self->health = 1500 * st.health_multiplier;
+		self->health = 1300 * st.health_multiplier;
 
 		self->gib_health = -130;
 

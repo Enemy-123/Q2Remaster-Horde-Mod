@@ -503,7 +503,7 @@ void SP_monster_guardian(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 9000 * st.health_multiplier;
+	self->health = 2400 * st.health_multiplier;
 	self->gib_health = -200;
 
 	if (!st.was_key_specified("power_armor_type"))
@@ -538,7 +538,7 @@ void SP_monster_janitor2(edict_t* self)
 	self->s.skinnum = 2;
 if (!self->s.scale)
 self->s.scale = 0.4f;
-self->health = 2500 * st.health_multiplier;
+self->health = 800 * st.health_multiplier;
 
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
