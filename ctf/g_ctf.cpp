@@ -2053,7 +2053,7 @@ bool CTFApplyStrengthSound(edict_t* ent)
 	return false;
 }
 
-bool CTFApplyHaste(edict_t* ent) // HACK HASTE TECH DEJAR TRUE
+bool CTFApplyHaste(edict_t* ent)// HACK HASTE TECH DEJAR TRUE
 {
 	if (ent->client &&
 		ent->client->pers.inventory[IT_TECH_HASTE])

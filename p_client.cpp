@@ -4,7 +4,6 @@
 #include "m_player.h"
 #include "bots/bot_includes.h"
 
-
 void SP_misc_teleporter_dest(edict_t* ent);
 
 THINK(info_player_start_drop) (edict_t* self) -> void
@@ -716,38 +715,32 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		}
 	}
 
-
-
 	if (!self->deadflag)
 	{
 		if (G_IsCooperative() && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
-			if (g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
+		{
+			if (g_coop_enable_lives->integer && self->client->pers.lives)
 			{
-				if (g_coop_enable_lives->integer && self->client->pers.lives)
+				self->client->pers.lives--;
+				self->client->resp.coop_respawn.lives--;
+			}
+
+			bool allPlayersDead = true;
+
+			for (auto player : active_players())
+				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
 				{
-					self->client->pers.lives--;
-					self->client->resp.coop_respawn.lives--;
+					allPlayersDead = false;
+					break;
 				}
 
-				bool allPlayersDead = true;
+			if (allPlayersDead) // allow respawns for telefrags and weird shit
+			{
+				level.coop_level_restart_time = level.time + 5_sec;
 
 				for (auto player : active_players())
-					if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
-					{
-						allPlayersDead = false;
-						break;
-					}
-
-						if (allPlayersDead) // allow respawns for telefrags and weird shit
-						{
-							level.coop_level_restart_time = level.time + 5_sec;
-							EndDMLevel();
-							return; }
-					for (auto player : active_players())
-/*	for (auto player : active_players())
-	gi.LocCenter_Print(player, "$g_coop_lose");}
-*/
-// in 3 seconds, attempt a respawn or put us into
+					gi.LocCenter_Print(player, "$g_coop_lose");
+			}
 
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
@@ -2592,10 +2585,10 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
 
 	// spectators are only supported in deathmatch
-	if (G_IsDeathmatch() && !G_TeamplayEnabled() && *val && strcmp(val, "0"))
+	if ((G_IsDeathmatch() &&  g_horde->integer) || G_IsCooperative() && *val && strcmp(val, "0"))
 		ent->client->pers.spectator = true;
 	else
-		ent->client->pers.spectator = false;
+		ent->client->pers.spectator = false; //HACK SPECTATOR
 
 	// set skin
 	if (!gi.Info_ValueForKey(userinfo, "skin", val, sizeof(val)))
@@ -3814,7 +3807,7 @@ void ClientBeginServerFrame(edict_t* ent)
 			if (!G_CoopRespawn(ent))
 			{
 				// in deathmatch, only wait for attack button
-				if (G_IsDeathmatch())
+				if (G_IsDeathmatch() || G_IsCooperative())
 					buttonMask = BUTTON_ATTACK;
 				else
 					buttonMask = -1;
@@ -3831,7 +3824,11 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-	if (!G_IsDeathmatch())
+// add player trail so monsters can follow
+	if (G_IsDeathmatch())
+		PlayerTrail_Add(ent);
+
+	if (G_IsCooperative())
 		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;

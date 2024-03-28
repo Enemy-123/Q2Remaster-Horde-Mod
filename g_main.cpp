@@ -176,8 +176,7 @@ void PreInitGame()
 	// ZOID
 	CTFInit();
 	// ZOID
-
-	// Paril
+		// Paril
 	Horde_PreInit();
 
 	// ZOID
@@ -267,7 +266,7 @@ void InitGame()
 	bot_debug_move_to_point = gi.cvar("bot_debug_move_to_point", "0", CVAR_NOFLAGS);
 
 	// noset vars
-	sv_dedicated = gi.cvar("dedicated", "0", CVAR_NOSET);
+	sv_dedicated = gi.cvar("dedicated", "1", CVAR_NOSET);
 
 	// latched vars
 	sv_cheats = gi.cvar("cheats",
@@ -317,8 +316,8 @@ void InitGame()
 	g_damage_scale = gi.cvar("g_damage_scale", "1", CVAR_NOFLAGS);
 	g_disable_player_collision = gi.cvar("g_disable_player_collision", "0", CVAR_NOFLAGS);
 	ai_damage_scale = gi.cvar("ai_damage_scale", "1", CVAR_NOFLAGS);
-	ai_model_scale = gi.cvar("ai_model_scale", "0", CVAR_NOFLAGS);
-	ai_allow_dm_spawn = gi.cvar("ai_allow_dm_spawn", "0", CVAR_NOFLAGS);
+	ai_model_scale = gi.cvar("ai_model_scale", "1", CVAR_NOFLAGS);
+	ai_allow_dm_spawn = gi.cvar("ai_allow_dm_spawn", "1", CVAR_NOFLAGS);
 	ai_movement_disabled = gi.cvar("ai_movement_disabled", "0", CVAR_NOFLAGS);
 
 	g_frames_per_frame = gi.cvar("g_frames_per_frame", "1", CVAR_NOFLAGS);
@@ -660,8 +659,7 @@ void CheckDMRules()
 
 	if (level.intermissiontime)
 		return;
-
-	if (g_horde->integer)
+		if (g_horde->integer)
 	{
 		Horde_RunFrame();
 
@@ -680,15 +678,6 @@ void CheckDMRules()
 		return;
 
 	// ZOID
-	if (ctf->integer && CTFCheckRules())
-	{
-		EndDMLevel();
-		return;
-	}
-	if (CTFInMatch())
-		return; // no checking in match mode
-	// ZOID
-
 	if (ctf->integer && CTFCheckRules())
 	{
 		EndDMLevel();

@@ -6,7 +6,7 @@
 //
 // monster weapons
 //
-void monster_muzzleflash(edict_t *self, const vec3_t &start, monster_muzzleflash_id_t id)
+void monster_muzzleflash(edict_t* self, const vec3_t& start, monster_muzzleflash_id_t id)
 {
 	if (id <= 255)
 		gi.WriteByte(svc_muzzleflash2);
@@ -23,50 +23,50 @@ void monster_muzzleflash(edict_t *self, const vec3_t &start, monster_muzzleflash
 	gi.multicast(start, MULTICAST_PHS, false);
 }
 
-void monster_fire_bullet(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int kick, int hspread,
-						 int vspread, monster_muzzleflash_id_t flashtype)
+void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int kick, int hspread,
+	int vspread, monster_muzzleflash_id_t flashtype)
 {
-	fire_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_CHAINGUN);
+	fire_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_UNKNOWN);
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_shotgun(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick, int hspread,
-						  int vspread, int count, monster_muzzleflash_id_t flashtype)
+void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
+	int vspread, int count, monster_muzzleflash_id_t flashtype)
 {
-	fire_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, MOD_SHOTGUN);
+	fire_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, MOD_UNKNOWN);
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_blaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed,
-						  monster_muzzleflash_id_t flashtype, effects_t effect)
+void monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
+	monster_muzzleflash_id_t flashtype, effects_t effect)
 {
 	fire_blaster(self, start, dir, damage, speed, effect, MOD_BLASTER);
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_flechette(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed,
-						    monster_muzzleflash_id_t flashtype)
+void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
+	monster_muzzleflash_id_t flashtype)
 {
 	fire_flechette(self, start, dir, damage, speed, damage / 2);
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_grenade(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int speed,
-						  monster_muzzleflash_id_t flashtype, float right_adjust, float up_adjust)
+void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed,
+	monster_muzzleflash_id_t flashtype, float right_adjust, float up_adjust)
 {
 	fire_grenade(self, start, aimdir, damage, speed, 2.5_sec, damage + 40.f, right_adjust, up_adjust, true);
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_rocket(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed,
-						 monster_muzzleflash_id_t flashtype)
+void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
+	monster_muzzleflash_id_t flashtype)
 {
-	fire_rocket(self, start, dir, damage, speed, (float) damage + 20, damage);
+	fire_rocket(self, start, dir, damage, speed, (float)damage + 20, damage);
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_railgun(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick,
-						  monster_muzzleflash_id_t flashtype)
+void monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick,
+	monster_muzzleflash_id_t flashtype)
 {
 	if (gi.pointcontents(start) & MASK_SOLID)
 		return;
@@ -76,22 +76,22 @@ void monster_fire_railgun(edict_t *self, const vec3_t &start, const vec3_t &aimd
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_bfg(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int speed, int kick,
-					  float damage_radius, monster_muzzleflash_id_t flashtype)
+void monster_fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, int kick,
+	float damage_radius, monster_muzzleflash_id_t flashtype)
 {
 	fire_bfg(self, start, aimdir, damage, speed, damage_radius);
 	monster_muzzleflash(self, start, flashtype);
 }
 
 // [Paril-KEX]
-vec3_t M_ProjectFlashSource(edict_t *self, const vec3_t &offset, const vec3_t &forward, const vec3_t &right)
+vec3_t M_ProjectFlashSource(edict_t* self, const vec3_t& offset, const vec3_t& forward, const vec3_t& right)
 {
 	return G_ProjectSource(self->s.origin, self->s.scale ? (offset * self->s.scale) : offset, forward, right);
 }
 
 // [Paril-KEX] check if shots fired from the given offset
 // might be blocked by something
-bool M_CheckClearShot(edict_t *self, const vec3_t &offset, vec3_t &start)
+bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
 {
 	// no enemy, just do whatever
 	if (!self->enemy)
@@ -107,11 +107,11 @@ bool M_CheckClearShot(edict_t *self, const vec3_t &offset, vec3_t &start)
 	vec3_t target;
 
 	bool is_blind = self->monsterinfo.attack_state == AS_BLIND || (self->monsterinfo.aiflags & (AI_MANUAL_STEERING | AI_LOST_SIGHT));
-	
+
 	if (is_blind)
 		target = self->monsterinfo.blind_fire_target;
 	else
-		target = self->enemy->s.origin + vec3_t{ 0, 0, (float) self->enemy->viewheight };
+		target = self->enemy->s.origin + vec3_t{ 0, 0, (float)self->enemy->viewheight };
 
 	trace_t tr = gi.traceline(start, target, self, MASK_PROJECTILE & ~CONTENTS_DEADMONSTER);
 
@@ -131,13 +131,13 @@ bool M_CheckClearShot(edict_t *self, const vec3_t &offset, vec3_t &start)
 	return false;
 }
 
-bool M_CheckClearShot(edict_t *self, const vec3_t &offset)
+bool M_CheckClearShot(edict_t* self, const vec3_t& offset)
 {
 	vec3_t start;
 	return M_CheckClearShot(self, offset, start);
 }
 
-void M_CheckGround(edict_t *ent, contents_t mask)
+void M_CheckGround(edict_t* ent, contents_t mask)
 {
 	vec3_t	point;
 	trace_t trace;
@@ -187,7 +187,7 @@ void M_CheckGround(edict_t *ent, contents_t mask)
 	}
 }
 
-void M_CatagorizePosition(edict_t *self, const vec3_t &in_point, water_level_t &waterlevel, contents_t &watertype)
+void M_CatagorizePosition(edict_t* self, const vec3_t& in_point, water_level_t& waterlevel, contents_t& watertype)
 {
 	vec3_t	   point;
 	contents_t cont;
@@ -224,7 +224,7 @@ void M_CatagorizePosition(edict_t *self, const vec3_t &in_point, water_level_t &
 		waterlevel = WATER_UNDER;
 }
 
-bool M_ShouldReactToPain(edict_t *self, const mod_t &mod)
+bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 {
 	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
 		return false;
@@ -232,7 +232,7 @@ bool M_ShouldReactToPain(edict_t *self, const mod_t &mod)
 	return mod.id == MOD_CHAINFIST || skill->integer < 3;
 }
 
-void M_WorldEffects(edict_t *ent)
+void M_WorldEffects(edict_t* ent)
 {
 	int dmg;
 
@@ -248,11 +248,11 @@ void M_WorldEffects(edict_t *ent)
 			{ // drown!
 				if (ent->pain_debounce_time < level.time)
 				{
-					dmg = 2 + (int) (2 * floorf((level.time - ent->air_finished).seconds()));
+					dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
 					if (dmg > 15)
 						dmg = 15;
 					T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR,
-							 MOD_WATER);
+						MOD_WATER);
 					ent->pain_debounce_time = level.time + 1_sec;
 				}
 			}
@@ -267,11 +267,11 @@ void M_WorldEffects(edict_t *ent)
 			{ // suffocate!
 				if (ent->pain_debounce_time < level.time)
 				{
-					dmg = 2 + (int) (2 * floorf((level.time - ent->air_finished).seconds()));
+					dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
 					if (dmg > 15)
 						dmg = 15;
 					T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR,
-							 MOD_WATER);
+						MOD_WATER);
 					ent->pain_debounce_time = level.time + 1_sec;
 				}
 			}
@@ -294,7 +294,7 @@ void M_WorldEffects(edict_t *ent)
 			{
 				ent->damage_debounce_time = level.time + 100_ms;
 				T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 10 * ent->waterlevel, 0, DAMAGE_NONE,
-						 MOD_LAVA);
+					MOD_LAVA);
 			}
 		}
 		if ((ent->watertype & CONTENTS_SLIME) && !(ent->flags & FL_IMMUNE_SLIME))
@@ -303,7 +303,7 @@ void M_WorldEffects(edict_t *ent)
 			{
 				ent->damage_debounce_time = level.time + 100_ms;
 				T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, 4 * ent->waterlevel, 0, DAMAGE_NONE,
-						 MOD_SLIME);
+					MOD_SLIME);
 			}
 		}
 
@@ -332,7 +332,7 @@ void M_WorldEffects(edict_t *ent)
 	}
 }
 
-bool M_droptofloor_generic(vec3_t &origin, const vec3_t &mins, const vec3_t &maxs, bool ceiling, edict_t *ignore, contents_t mask, bool allow_partial)
+bool M_droptofloor_generic(vec3_t& origin, const vec3_t& mins, const vec3_t& maxs, bool ceiling, edict_t* ignore, contents_t mask, bool allow_partial)
 {
 	vec3_t	end;
 	trace_t trace;
@@ -368,7 +368,7 @@ bool M_droptofloor_generic(vec3_t &origin, const vec3_t &mins, const vec3_t &max
 	return true;
 }
 
-bool M_droptofloor(edict_t *ent)
+bool M_droptofloor(edict_t* ent)
 {
 	contents_t mask = G_GetClipMask(ent);
 
@@ -390,7 +390,7 @@ bool M_droptofloor(edict_t *ent)
 	return true;
 }
 
-void M_SetEffects(edict_t *ent)
+void M_SetEffects(edict_t* ent)
 {
 	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES);
 	ent->s.renderfx &= ~(RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE);
@@ -455,14 +455,14 @@ void M_SetEffects(edict_t *ent)
 	}
 }
 
-bool M_AllowSpawn( edict_t * self ) {
-if (G_IsDeathmatch() && !ai_allow_dm_spawn->integer) {
-		return true;
+bool M_AllowSpawn(edict_t* self) {
+	if (G_IsDeathmatch() && !ai_allow_dm_spawn->integer) {
+		return false;
 	}
 	return true;
 }
 
-void M_SetAnimation(edict_t *self, const save_mmove_t &move, bool instant)
+void M_SetAnimation(edict_t* self, const save_mmove_t& move, bool instant)
 {
 	// [Paril-KEX] free the beams if we switch animations.
 	if (self->beam)
@@ -489,9 +489,9 @@ void M_SetAnimation(edict_t *self, const save_mmove_t &move, bool instant)
 	self->monsterinfo.next_move = move;
 }
 
-void M_MoveFrame(edict_t *self)
+void M_MoveFrame(edict_t* self)
 {
-	const mmove_t *move = self->monsterinfo.active_move.pointer();
+	const mmove_t* move = self->monsterinfo.active_move.pointer();
 
 	// [Paril-KEX] high tick rate adjustments;
 	// monsters still only step frames and run thinkfunc's at
@@ -610,7 +610,7 @@ void M_MoveFrame(edict_t *self)
 	}
 }
 
-void G_MonsterKilled(edict_t *self)
+void G_MonsterKilled(edict_t* self)
 {
 	level.killed_monsters++;
 
@@ -621,7 +621,7 @@ void G_MonsterKilled(edict_t *self)
 	{
 		bool found = false;
 
-		for (auto &ent : level.monsters_registered)
+		for (auto& ent : level.monsters_registered)
 		{
 			if (ent == self)
 			{
@@ -646,7 +646,7 @@ void G_MonsterKilled(edict_t *self)
 	}
 }
 
-void M_ProcessPain(edict_t *e)
+void M_ProcessPain(edict_t* e)
 {
 	if (!e->monsterinfo.damage_blood)
 		return;
@@ -693,13 +693,13 @@ void M_ProcessPain(edict_t *e)
 
 			if (!(e->monsterinfo.aiflags & AI_DO_NOT_COUNT) && !(e->spawnflags & SPAWNFLAG_MONSTER_DEAD))
 				G_MonsterKilled(e);
-		
+
 			e->touch = nullptr;
 			monster_death_use(e);
 		}
 
 		e->die(e, e->monsterinfo.damage_inflictor, e->monsterinfo.damage_attacker, e->monsterinfo.damage_blood, e->monsterinfo.damage_from, e->monsterinfo.damage_mod);
-		
+
 		// [Paril-KEX] medic commander only gets his slots back after the monster is gibbed, since we can revive them
 		if (e->health <= e->gib_health)
 		{
@@ -721,7 +721,7 @@ void M_ProcessPain(edict_t *e)
 		}
 	}
 	else
-		e->pain(e, e->monsterinfo.damage_attacker, (float) e->monsterinfo.damage_knockback, e->monsterinfo.damage_blood, e->monsterinfo.damage_mod);
+		e->pain(e, e->monsterinfo.damage_attacker, (float)e->monsterinfo.damage_knockback, e->monsterinfo.damage_blood, e->monsterinfo.damage_mod);
 
 	if (!e->inuse)
 		return;
@@ -736,7 +736,7 @@ void M_ProcessPain(edict_t *e)
 	// [Paril-KEX] fire health target
 	if (e->healthtarget)
 	{
-		const char *target = e->target;
+		const char* target = e->target;
 		e->target = e->healthtarget;
 		G_UseTargets(e, e->enemy);
 		e->target = target;
@@ -746,7 +746,7 @@ void M_ProcessPain(edict_t *e)
 //
 // Monster utility functions
 //
-THINK(monster_dead_think) (edict_t *self) -> void
+THINK(monster_dead_think) (edict_t* self) -> void
 {
 	// flies
 	if ((self->monsterinfo.aiflags & AI_STINKY) && !(self->monsterinfo.aiflags & AI_STUNK))
@@ -779,7 +779,7 @@ THINK(monster_dead_think) (edict_t *self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-void monster_dead(edict_t *self)
+void monster_dead(edict_t* self)
 {
 	self->think = monster_dead_think;
 	self->nextthink = level.time + 10_hz;
@@ -798,7 +798,7 @@ infront
 returns 1 if the entity is in front (in sight) of self
 =============
 */
-static bool projectile_infront(edict_t *self, edict_t *other)
+static bool projectile_infront(edict_t* self, edict_t* other)
 {
 	vec3_t vec;
 	float  dot;
@@ -811,9 +811,9 @@ static bool projectile_infront(edict_t *self, edict_t *other)
 	return dot > 0.35f;
 }
 
-static BoxEdictsResult_t M_CheckDodge_BoxEdictsFilter(edict_t *ent, void *data)
+static BoxEdictsResult_t M_CheckDodge_BoxEdictsFilter(edict_t* ent, void* data)
 {
-	edict_t *self = (edict_t *) data;
+	edict_t* self = (edict_t*)data;
 
 	// not a valid projectile
 	if (!(ent->svflags & SVF_PROJECTILE) || !(ent->flags & FL_DODGE))
@@ -844,16 +844,16 @@ static BoxEdictsResult_t M_CheckDodge_BoxEdictsFilter(edict_t *ent, void *data)
 }
 
 // [Paril-KEX] active checking for projectiles to dodge
-static void M_CheckDodge(edict_t *self)
+static void M_CheckDodge(edict_t* self)
 {
 	// we recently made a valid dodge, don't try again for a bit
 	if (self->monsterinfo.dodge_time > level.time)
 		return;
 
-	gi.BoxEdicts(self->absmin - vec3_t{512, 512, 512}, self->absmax + vec3_t{512, 512, 512}, nullptr, 0, AREA_SOLID, M_CheckDodge_BoxEdictsFilter, self);
+	gi.BoxEdicts(self->absmin - vec3_t{ 512, 512, 512 }, self->absmax + vec3_t{ 512, 512, 512 }, nullptr, 0, AREA_SOLID, M_CheckDodge_BoxEdictsFilter, self);
 }
 
-static bool CheckPathVisibility(const vec3_t &start, const vec3_t &end)
+static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 {
 	trace_t tr = gi.traceline(start, end, nullptr, MASK_SOLID | CONTENTS_PROJECTILECLIP | CONTENTS_MONSTERCLIP | CONTENTS_PLAYERCLIP);
 
@@ -863,8 +863,8 @@ static bool CheckPathVisibility(const vec3_t &start, const vec3_t &end)
 	{
 		// try raising some of the points
 		bool can_raise_start = false, can_raise_end = false;
-		vec3_t raised_start = start + vec3_t{0.f, 0.f, 16.f};
-		vec3_t raised_end = end + vec3_t{0.f, 0.f, 16.f};
+		vec3_t raised_start = start + vec3_t{ 0.f, 0.f, 16.f };
+		vec3_t raised_end = end + vec3_t{ 0.f, 0.f, 16.f };
 
 		if (gi.traceline(start, raised_start, nullptr, MASK_SOLID | CONTENTS_PROJECTILECLIP | CONTENTS_MONSTERCLIP | CONTENTS_PLAYERCLIP).fraction == 1.0f)
 			can_raise_start = true;
@@ -905,7 +905,7 @@ static bool CheckPathVisibility(const vec3_t &start, const vec3_t &end)
 	return valid;
 }
 
-THINK(monster_think) (edict_t *self) -> void
+THINK(monster_think) (edict_t* self) -> void
 {
 	// [Paril-KEX] monster sniff testing; if we can make an unobstructed path to the player, murder ourselves.
 	if (g_debug_monster_kills->integer)
@@ -944,8 +944,8 @@ THINK(monster_think) (edict_t *self) -> void
 							info.returnCode != PathReturnCode::NoNavAvailable &&
 							info.numPathPoints < q_countof(points))
 						{
-							if (CheckPathVisibility(g_edicts[1].s.origin + vec3_t { 0.f, 0.f, g_edicts[1].mins.z }, points[info.numPathPoints - 1]) &&
-								CheckPathVisibility(self->s.origin + vec3_t { 0.f, 0.f, self->mins.z }, points[0]))
+							if (CheckPathVisibility(g_edicts[1].s.origin + vec3_t{ 0.f, 0.f, g_edicts[1].mins.z }, points[info.numPathPoints - 1]) &&
+								CheckPathVisibility(self->s.origin + vec3_t{ 0.f, 0.f, self->mins.z }, points[0]))
 							{
 								size_t i = 0;
 
@@ -1016,7 +1016,7 @@ monster_use
 Using a monster makes it angry at the current activator
 ================
 */
-USE(monster_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(monster_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->enemy)
 		return;
@@ -1036,9 +1036,9 @@ USE(monster_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	FoundTarget(self);
 }
 
-void monster_start_go(edict_t *self);
+void monster_start_go(edict_t* self);
 
-THINK(monster_triggered_spawn) (edict_t *self) -> void
+THINK(monster_triggered_spawn) (edict_t* self) -> void
 {
 	self->s.origin[2] += 1;
 
@@ -1080,7 +1080,7 @@ THINK(monster_triggered_spawn) (edict_t *self) -> void
 	}
 }
 
-USE(monster_triggered_spawn_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(monster_triggered_spawn_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	// we have a one frame delay here so we don't telefrag the guy who activated us
 	self->think = monster_triggered_spawn;
@@ -1107,7 +1107,7 @@ USE(monster_triggered_spawn_use) (edict_t *self, edict_t *other, edict_t *activa
 	}
 }
 
-THINK(monster_triggered_think) (edict_t *self) -> void
+THINK(monster_triggered_think) (edict_t* self) -> void
 {
 	if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
 		gi.Draw_Bounds(self->absmin, self->absmax, rgba_blue, gi.frame_time_s, false);
@@ -1115,7 +1115,7 @@ THINK(monster_triggered_think) (edict_t *self) -> void
 	self->nextthink = level.time + 1_ms;
 }
 
-void monster_triggered_start(edict_t *self)
+void monster_triggered_start(edict_t* self)
 {
 	self->solid = SOLID_NOT;
 	self->movetype = MOVETYPE_NONE;
@@ -1131,11 +1131,11 @@ void monster_triggered_start(edict_t *self)
 
 	if (!self->targetname ||
 		(G_FindByString<&edict_t::target>(nullptr, self->targetname) == nullptr &&
-		 G_FindByString<&edict_t::pathtarget>(nullptr, self->targetname) == nullptr &&
-		 G_FindByString<&edict_t::deathtarget>(nullptr, self->targetname) == nullptr &&
-		 G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
-		 G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
-		 G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr))
+			G_FindByString<&edict_t::pathtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::deathtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr))
 	{
 		gi.Com_PrintFmt("{}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
 	}
@@ -1149,14 +1149,14 @@ When a monster dies, it fires all of its targets with the current
 enemy as activator.
 ================
 */
-void monster_death_use(edict_t *self)
+void monster_death_use(edict_t* self)
 {
 	self->flags &= ~(FL_FLY | FL_SWIM);
 	self->monsterinfo.aiflags &= (AI_DOUBLE_TROUBLE | AI_GOOD_GUY | AI_STINKY | AI_SPAWNED_MASK);
 
 	if (self->item)
 	{
-		edict_t *dropped = Drop_Item(self, self->item);
+		edict_t* dropped = Drop_Item(self, self->item);
 
 		if (self->itemtarget)
 		{
@@ -1183,7 +1183,7 @@ void monster_death_use(edict_t *self)
 
 // [Paril-KEX] adjust the monster's health from how
 // many active players we have
-void G_Monster_ScaleCoopHealth(edict_t *self)
+void G_Monster_ScaleCoopHealth(edict_t* self)
 {
 	// already scaled
 	if (self->monsterinfo.health_scaling >= level.coop_scale_players)
@@ -1195,7 +1195,7 @@ void G_Monster_ScaleCoopHealth(edict_t *self)
 		self->monsterinfo.base_health = self->max_health;
 
 	int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
-	int32_t additional_health = delta * (int32_t) (self->monsterinfo.base_health * level.coop_health_scaling);
+	int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
 
 	self->health = max(1, self->health + additional_health);
 	self->max_health += additional_health;
@@ -1205,7 +1205,7 @@ void G_Monster_ScaleCoopHealth(edict_t *self)
 
 struct monster_filter_t
 {
-	inline bool operator()(edict_t *self) const
+	inline bool operator()(edict_t* self) const
 	{
 		return self->inuse && (self->flags & FL_COOP_HEALTH_SCALE) && self->health > 0;
 	}
@@ -1221,10 +1221,10 @@ void G_Monster_CheckCoopHealthScaling()
 //============================================================================
 constexpr spawnflags_t SPAWNFLAG_MONSTER_FUBAR = 4_spawnflag;
 
-bool monster_start(edict_t *self)
+bool monster_start(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return false;
 	}
 
@@ -1272,7 +1272,7 @@ bool monster_start(edict_t *self)
 	if (!self->monsterinfo.checkattack)
 		self->monsterinfo.checkattack = M_CheckAttack;
 
-	if ( ai_model_scale->value > 0 ) {
+	if (ai_model_scale->value > 0) {
 		self->s.scale = ai_model_scale->value;
 	}
 
@@ -1303,7 +1303,7 @@ bool monster_start(edict_t *self)
 	// randomize what frame they start on
 	if (self->monsterinfo.active_move)
 		self->s.frame =
-			irandom(self->monsterinfo.active_move->firstframe, self->monsterinfo.active_move->lastframe + 1);
+		irandom(self->monsterinfo.active_move->firstframe, self->monsterinfo.active_move->lastframe + 1);
 
 	// PMM - get this so I don't have to do it in all of the monsters
 	self->monsterinfo.base_height = self->maxs[2];
@@ -1312,7 +1312,7 @@ bool monster_start(edict_t *self)
 	// is all messed up for certain monsters. Calculate
 	// from maxs to make a bit more sense.
 	if (!self->viewheight)
-		self->viewheight = (int) (self->maxs[2] - 8.f);
+		self->viewheight = (int)(self->maxs[2] - 8.f);
 
 	// PMM - clear these
 	self->monsterinfo.quad_time = 0_ms;
@@ -1329,12 +1329,12 @@ bool monster_start(edict_t *self)
 	return true;
 }
 
-stuck_result_t G_FixStuckObject(edict_t *self, vec3_t check)
+stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 {
 	contents_t mask = G_GetClipMask(self);
-	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask] (const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end) {
+	stuck_result_t result = G_FixStuckObject_Generic(check, self->mins, self->maxs, [self, mask](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
 		return gi.trace(start, mins, maxs, end, self, mask);
-	});
+		});
 
 	if (result == stuck_result_t::NO_GOOD_POSITION)
 		return result;
@@ -1347,7 +1347,7 @@ stuck_result_t G_FixStuckObject(edict_t *self, vec3_t check)
 	return result;
 }
 
-void monster_start_go(edict_t *self)
+void monster_start_go(edict_t* self)
 {
 	// Paril: moved here so this applies to swim/fly monsters too
 	if (!(self->flags & FL_STATIONARY))
@@ -1393,7 +1393,7 @@ void monster_start_go(edict_t *self)
 						self->s.origin[0] = check[0] + adjust[x];
 						self->s.origin[1] = check[1] + adjust[y];
 						self->s.origin[2] = check[2] + adjust[z];
-						
+
 						if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 						{
 							is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
@@ -1425,7 +1425,7 @@ void monster_start_go(edict_t *self)
 	{
 		bool	 notcombat;
 		bool	 fixup;
-		edict_t *target;
+		edict_t* target;
 
 		target = nullptr;
 		notcombat = false;
@@ -1451,7 +1451,7 @@ void monster_start_go(edict_t *self)
 	// validate combattarget
 	if (self->combattarget)
 	{
-		edict_t *target;
+		edict_t* target;
 
 		target = nullptr;
 		while ((target = G_FindByString<&edict_t::targetname>(target, self->combattarget)) != nullptr)
@@ -1499,7 +1499,7 @@ void monster_start_go(edict_t *self)
 		if (!spawn_dead)
 			self->monsterinfo.stand(self);
 	}
-	
+
 	if (spawn_dead)
 	{
 		// to spawn dead, we'll mimick them dying naturally
@@ -1555,7 +1555,7 @@ void monster_start_go(edict_t *self)
 	}
 }
 
-THINK(walkmonster_start_go) (edict_t *self) -> void
+THINK(walkmonster_start_go) (edict_t* self) -> void
 {
 	if (!self->yaw_speed)
 		self->yaw_speed = 20;
@@ -1566,13 +1566,13 @@ THINK(walkmonster_start_go) (edict_t *self) -> void
 		monster_start_go(self);
 }
 
-void walkmonster_start(edict_t *self)
+void walkmonster_start(edict_t* self)
 {
 	self->think = walkmonster_start_go;
 	monster_start(self);
 }
 
-THINK(flymonster_start_go) (edict_t *self) -> void
+THINK(flymonster_start_go) (edict_t* self) -> void
 {
 	if (!self->yaw_speed)
 		self->yaw_speed = 30;
@@ -1583,14 +1583,14 @@ THINK(flymonster_start_go) (edict_t *self) -> void
 		monster_start_go(self);
 }
 
-void flymonster_start(edict_t *self)
+void flymonster_start(edict_t* self)
 {
 	self->flags |= FL_FLY;
 	self->think = flymonster_start_go;
 	monster_start(self);
 }
 
-THINK(swimmonster_start_go) (edict_t *self) -> void
+THINK(swimmonster_start_go) (edict_t* self) -> void
 {
 	if (!self->yaw_speed)
 		self->yaw_speed = 30;
@@ -1601,16 +1601,16 @@ THINK(swimmonster_start_go) (edict_t *self) -> void
 		monster_start_go(self);
 }
 
-void swimmonster_start(edict_t *self)
+void swimmonster_start(edict_t* self)
 {
 	self->flags |= FL_SWIM;
 	self->think = swimmonster_start_go;
 	monster_start(self);
 }
 
-USE(trigger_health_relay_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_health_relay_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	float percent_health = clamp((float) (other->health) / (float) (other->max_health), 0.f, 1.f);
+	float percent_health = clamp((float)(other->health) / (float)(other->max_health), 0.f, 1.f);
 
 	// not ready to trigger yet
 	if (percent_health > self->speed)
@@ -1629,7 +1629,7 @@ beyond a certain amount of health.
 
 It will only fire once, and free itself afterwards.
 */
-void SP_trigger_health_relay(edict_t *self)
+void SP_trigger_health_relay(edict_t* self)
 {
 	if (!self->targetname)
 	{

@@ -9,21 +9,21 @@
 
 // compatibility with legacy float[3] stuff for engine
 #ifdef GAME_INCLUDE
-    using gvec3_t = vec3_t;
-    using gvec3_ptr_t = vec3_t *;
-    using gvec3_cptr_t = const vec3_t *;
-    using gvec3_ref_t = vec3_t &;
-    using gvec3_cref_t = const vec3_t &;
-    using gvec4_t = std::array<float, 4>;
+using gvec3_t = vec3_t;
+using gvec3_ptr_t = vec3_t*;
+using gvec3_cptr_t = const vec3_t*;
+using gvec3_ref_t = vec3_t&;
+using gvec3_cref_t = const vec3_t&;
+using gvec4_t = std::array<float, 4>;
 #else
-    using gvec3_t = float[3];
-    using gvec3_ptr_t = gvec3_t;
-    using gvec3_ref_t = gvec3_t;
-    using gvec3_cref_t = const gvec3_t;
-    using gvec3_cptr_t = const gvec3_t;
-    using gvec4_t = float[4];
+using gvec3_t = float[3];
+using gvec3_ptr_t = gvec3_t;
+using gvec3_ref_t = gvec3_t;
+using gvec3_cref_t = const gvec3_t;
+using gvec3_cptr_t = const gvec3_t;
+using gvec4_t = float[4];
 #endif
-    
+
 constexpr size_t MAX_SPLIT_PLAYERS = 8;
 
 struct rgba_t
@@ -36,15 +36,15 @@ struct vec2_t
     float x, y;
 };
 
-constexpr rgba_t rgba_red { 255, 0, 0, 255 };
-constexpr rgba_t rgba_blue { 0, 0, 255, 255 };
-constexpr rgba_t rgba_green { 0, 255, 0, 255 };
-constexpr rgba_t rgba_yellow { 255, 255, 0, 255 };
-constexpr rgba_t rgba_white { 255, 255, 255, 255 };
-constexpr rgba_t rgba_black { 0, 0, 0, 255 };
-constexpr rgba_t rgba_cyan { 0, 255, 255, 255 };
-constexpr rgba_t rgba_magenta { 255, 0, 255, 255 };
-constexpr rgba_t rgba_orange { 116, 61, 50, 255 };
+constexpr rgba_t rgba_red{ 255, 0, 0, 255 };
+constexpr rgba_t rgba_blue{ 0, 0, 255, 255 };
+constexpr rgba_t rgba_green{ 0, 255, 0, 255 };
+constexpr rgba_t rgba_yellow{ 255, 255, 0, 255 };
+constexpr rgba_t rgba_white{ 255, 255, 255, 255 };
+constexpr rgba_t rgba_black{ 0, 0, 0, 255 };
+constexpr rgba_t rgba_cyan{ 0, 255, 255, 255 };
+constexpr rgba_t rgba_magenta{ 255, 0, 255, 255 };
+constexpr rgba_t rgba_orange{ 116, 61, 50, 255 };
 
 constexpr size_t MAX_NETNAME = 32;
 
@@ -100,15 +100,14 @@ using bit_t = std::conditional_t<n >= 32, uint64_t, uint32_t>;
 template<size_t n>
 constexpr bit_t<n> bit_v = 1ull << n;
 
-#if defined(_WIN32)
-#define Q2DLL_EXPORT   __declspec( dllexport )
-#elif defined(__linux__)
-#define Q2DLL_EXPORT   __attribute__((visibility("default")))
+#if defined(KEX_Q2GAME_EXPORTS)
+#define Q2GAME_API extern "C" __declspec( dllexport )
+#elif defined(KEX_Q2GAME_IMPORTS)
+#define Q2GAME_API extern "C" __declspec( dllimport )
 #else
-#define Q2DLL_EXPORT
+#define Q2GAME_API
 #endif
 
-#define Q2GAME_API extern "C" Q2DLL_EXPORT
 // game.h -- game dll information visible to server
 // PARIL_NEW_API - value likely not used by any other Q2-esque engine in the wild
 constexpr int32_t GAME_API_VERSION = 2023;
@@ -143,10 +142,10 @@ constexpr size_t MAX_SHADOW_LIGHTS = 256;
 // game print flags
 enum print_type_t
 {
-	PRINT_LOW = 0,	  // pickup messages
-	PRINT_MEDIUM = 1, // death messages
-	PRINT_HIGH = 2,	  // critical messages
-	PRINT_CHAT = 3,	  // chat messages
+    PRINT_LOW = 0,	  // pickup messages
+    PRINT_MEDIUM = 1, // death messages
+    PRINT_HIGH = 2,	  // critical messages
+    PRINT_CHAT = 3,	  // chat messages
     PRINT_TYPEWRITER = 4, // centerprint but typed out one char at a time
     PRINT_CENTER = 5, // centerprint without a separate function (loc variants only)
     PRINT_TTS = 6, // PRINT_HIGH but will speak for players with narration on
@@ -164,9 +163,9 @@ constexpr size_t MAX_LOCALIZATION_ARGS = 8;
 // destination class for gi.multicast()
 enum multicast_t
 {
-	MULTICAST_ALL,
-	MULTICAST_PHS,
-	MULTICAST_PVS
+    MULTICAST_ALL,
+    MULTICAST_PHS,
+    MULTICAST_PVS
 };
 
 /*
@@ -179,13 +178,13 @@ CVARS (console variables)
 
 enum cvar_flags_t : uint32_t
 {
-	CVAR_NOFLAGS = 0,
-	CVAR_ARCHIVE = bit_v<0>,	 // set to cause it to be saved to config
-	CVAR_USERINFO = bit_v<1>,	 // added to userinfo  when changed
-	CVAR_SERVERINFO = bit_v<2>,  // added to serverinfo when changed
-	CVAR_NOSET = bit_v<3>,		 // don't allow change from console at all,
-						         // but can be set from the command line
-	CVAR_LATCH = bit_v<4>,		 // save changes until server restart
+    CVAR_NOFLAGS = 0,
+    CVAR_ARCHIVE = bit_v<0>,	 // set to cause it to be saved to config
+    CVAR_USERINFO = bit_v<1>,	 // added to userinfo  when changed
+    CVAR_SERVERINFO = bit_v<2>,  // added to serverinfo when changed
+    CVAR_NOSET = bit_v<3>,		 // don't allow change from console at all,
+    // but can be set from the command line
+    CVAR_LATCH = bit_v<4>,		 // save changes until server restart
     CVAR_USER_PROFILE = bit_v<5>, // like CVAR_USERINFO but not sent to server
 };
 MAKE_ENUM_BITFLAGS(cvar_flags_t);
@@ -193,20 +192,20 @@ MAKE_ENUM_BITFLAGS(cvar_flags_t);
 // nothing outside the Cvar_*() functions should modify these fields!
 struct cvar_t
 {
-	char		 *name;
-	char		 *string;
-	char		 *latched_string; // for CVAR_LATCH vars
-	cvar_flags_t flags;
-	int32_t      modified_count; // changed each time the cvar is changed, but never zero
-	float		 value;
-	cvar_t	    *next;
-	int32_t      integer; // integral value
+    char* name;
+    char* string;
+    char* latched_string; // for CVAR_LATCH vars
+    cvar_flags_t flags;
+    int32_t      modified_count; // changed each time the cvar is changed, but never zero
+    float		 value;
+    cvar_t* next;
+    int32_t      integer; // integral value
 };
 
 // convenience function to check if the given cvar ptr has been
 // modified from its previous modified value, and automatically
 // assigns modified to cvar's current value
-inline bool Cvar_WasModified(const cvar_t *cvar, int32_t &modified)
+inline bool Cvar_WasModified(const cvar_t* cvar, int32_t& modified)
 {
     if (cvar->modified_count != modified)
     {
@@ -228,45 +227,45 @@ COLLISION DETECTION
 // lower bits are stronger, and will eat weaker brushes completely
 enum contents_t : uint32_t
 {
-	CONTENTS_NONE = 0,
-	CONTENTS_SOLID = bit_v<0>,	 // an eye is never valid in a solid
-	CONTENTS_WINDOW = bit_v<1>, // translucent, but not watery
-	CONTENTS_AUX = bit_v<2>,
-	CONTENTS_LAVA = bit_v<3>,
-	CONTENTS_SLIME = bit_v<4>,
-	CONTENTS_WATER = bit_v<5>,
-	CONTENTS_MIST = bit_v<6>,
+    CONTENTS_NONE = 0,
+    CONTENTS_SOLID = bit_v<0>,	 // an eye is never valid in a solid
+    CONTENTS_WINDOW = bit_v<1>, // translucent, but not watery
+    CONTENTS_AUX = bit_v<2>,
+    CONTENTS_LAVA = bit_v<3>,
+    CONTENTS_SLIME = bit_v<4>,
+    CONTENTS_WATER = bit_v<5>,
+    CONTENTS_MIST = bit_v<6>,
 
-	// remaining contents are non-visible, and don't eat brushes
+    // remaining contents are non-visible, and don't eat brushes
 
     CONTENTS_NO_WATERJUMP = bit_v<13>, // [Paril-KEX] this brush cannot be waterjumped out of
     CONTENTS_PROJECTILECLIP = bit_v<14>, // [Paril-KEX] projectiles will collide with this
 
-	CONTENTS_AREAPORTAL = bit_v<15>,
+    CONTENTS_AREAPORTAL = bit_v<15>,
 
-	CONTENTS_PLAYERCLIP = bit_v<16>,
-	CONTENTS_MONSTERCLIP = bit_v<17>,
+    CONTENTS_PLAYERCLIP = bit_v<16>,
+    CONTENTS_MONSTERCLIP = bit_v<17>,
 
-	// currents can be added to any other contents, and may be mixed
-	CONTENTS_CURRENT_0 = bit_v<18>,
-	CONTENTS_CURRENT_90 = bit_v<19>,
-	CONTENTS_CURRENT_180 = bit_v<20>,
-	CONTENTS_CURRENT_270 = bit_v<21>,
-	CONTENTS_CURRENT_UP = bit_v<22>,
-	CONTENTS_CURRENT_DOWN = bit_v<23>,
+    // currents can be added to any other contents, and may be mixed
+    CONTENTS_CURRENT_0 = bit_v<18>,
+    CONTENTS_CURRENT_90 = bit_v<19>,
+    CONTENTS_CURRENT_180 = bit_v<20>,
+    CONTENTS_CURRENT_270 = bit_v<21>,
+    CONTENTS_CURRENT_UP = bit_v<22>,
+    CONTENTS_CURRENT_DOWN = bit_v<23>,
 
-	CONTENTS_ORIGIN = bit_v<24>, // removed before bsping an entity
+    CONTENTS_ORIGIN = bit_v<24>, // removed before bsping an entity
 
-	CONTENTS_MONSTER = bit_v<25>, // should never be on a brush, only in game
-	CONTENTS_DEADMONSTER = bit_v<26>,
+    CONTENTS_MONSTER = bit_v<25>, // should never be on a brush, only in game
+    CONTENTS_DEADMONSTER = bit_v<26>,
 
-	CONTENTS_DETAIL = bit_v<27>,	   // brushes to be added after vis leafs
-	CONTENTS_TRANSLUCENT = bit_v<28>, // auto set if any surface has trans
-	CONTENTS_LADDER = bit_v<29>,
+    CONTENTS_DETAIL = bit_v<27>,	   // brushes to be added after vis leafs
+    CONTENTS_TRANSLUCENT = bit_v<28>, // auto set if any surface has trans
+    CONTENTS_LADDER = bit_v<29>,
 
     CONTENTS_PLAYER = bit_v<30>, // [Paril-KEX] should never be on a brush, only in game; player
     CONTENTS_PROJECTILE = bit_v<31>  // [Paril-KEX] should never be on a brush, only in game; projectiles.
-                                     // used to solve deadmonster collision issues.
+    // used to solve deadmonster collision issues.
 };
 
 MAKE_ENUM_BITFLAGS(contents_t);
@@ -276,14 +275,14 @@ constexpr contents_t LAST_VISIBLE_CONTENTS = CONTENTS_MIST;
 enum surfflags_t : uint32_t
 {
     SURF_NONE = 0,
-	SURF_LIGHT = bit_v<0>, // value will hold the light strength
-	SURF_SLICK = bit_v<1>, // effects game physics
-	SURF_SKY = bit_v<2>,	  // don't draw, but add to skybox
-	SURF_WARP = bit_v<3>,  // turbulent water warp
-	SURF_TRANS33 = bit_v<4>,
-	SURF_TRANS66 = bit_v<5>,
-	SURF_FLOWING = bit_v<6>, // scroll towards angle
-	SURF_NODRAW = bit_v<7>,	 // don't bother referencing the texture
+    SURF_LIGHT = bit_v<0>, // value will hold the light strength
+    SURF_SLICK = bit_v<1>, // effects game physics
+    SURF_SKY = bit_v<2>,	  // don't draw, but add to skybox
+    SURF_WARP = bit_v<3>,  // turbulent water warp
+    SURF_TRANS33 = bit_v<4>,
+    SURF_TRANS66 = bit_v<5>,
+    SURF_FLOWING = bit_v<6>, // scroll towards angle
+    SURF_NODRAW = bit_v<7>,	 // don't bother referencing the texture
     SURF_ALPHATEST = bit_v<25>,   // [Paril-KEX] alpha test using widely supported flag
     SURF_N64_UV = bit_v<28>,  // [Sam-KEX] Stretches texture UVs
     SURF_N64_SCROLL_X = bit_v<29>,  // [Sam-KEX] Texture scroll X-axis
@@ -303,29 +302,29 @@ constexpr contents_t MASK_WATER = (CONTENTS_WATER | CONTENTS_LAVA | CONTENTS_SLI
 constexpr contents_t MASK_OPAQUE = (CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA);
 constexpr contents_t MASK_SHOT = (CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_WINDOW | CONTENTS_DEADMONSTER);
 constexpr contents_t MASK_CURRENT = (CONTENTS_CURRENT_0 | CONTENTS_CURRENT_90 | CONTENTS_CURRENT_180 | CONTENTS_CURRENT_270 | CONTENTS_CURRENT_UP | CONTENTS_CURRENT_DOWN);
-constexpr contents_t MASK_BLOCK_SIGHT = ( CONTENTS_SOLID | CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_MONSTER | CONTENTS_PLAYER );
-constexpr contents_t MASK_NAV_SOLID = ( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW );
-constexpr contents_t MASK_LADDER_NAV_SOLID = ( CONTENTS_SOLID | CONTENTS_WINDOW );
-constexpr contents_t MASK_WALK_NAV_SOLID = ( CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTERCLIP );
+constexpr contents_t MASK_BLOCK_SIGHT = (CONTENTS_SOLID | CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_MONSTER | CONTENTS_PLAYER);
+constexpr contents_t MASK_NAV_SOLID = (CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW);
+constexpr contents_t MASK_LADDER_NAV_SOLID = (CONTENTS_SOLID | CONTENTS_WINDOW);
+constexpr contents_t MASK_WALK_NAV_SOLID = (CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTERCLIP);
 constexpr contents_t MASK_PROJECTILE = MASK_SHOT | CONTENTS_PROJECTILECLIP;
 
 // gi.BoxEdicts() can return a list of either solid or trigger entities
 // FIXME: eliminate AREA_ distinction?
 enum solidity_area_t
 {
-	AREA_SOLID = 1,
-	AREA_TRIGGERS = 2
+    AREA_SOLID = 1,
+    AREA_TRIGGERS = 2
 };
 
 // plane_t structure
 // !!! if this is changed, it must be changed in asm code too !!!
 struct cplane_t
 {
-	gvec3_t	normal;
-	float	dist;
-	byte	type;	 // for fast side tests
-	byte	signbits; // signx + (signy<<1) + (signz<<1)
-	byte	pad[2];
+    gvec3_t	normal;
+    float	dist;
+    byte	type;	 // for fast side tests
+    byte	signbits; // signx + (signy<<1) + (signz<<1)
+    byte	pad[2];
 };
 
 // [Paril-KEX]
@@ -333,9 +332,9 @@ constexpr size_t MAX_MATERIAL_NAME = 16;
 
 struct csurface_t
 {
-	char        name[32];
-	surfflags_t flags;
-	int32_t		value;
+    char        name[32];
+    surfflags_t flags;
+    int32_t		value;
 
     // [Paril-KEX]
     uint32_t    id; // unique texinfo ID, offset by 1 (0 is 'null')
@@ -345,46 +344,46 @@ struct csurface_t
 // a trace is returned when a box is swept through the world
 struct trace_t
 {
-	bool	    allsolid;	// if true, plane is not valid
-	bool        startsolid; // if true, the initial point was in a solid area
-	float		fraction;	// time completed, 1.0 = didn't hit anything
-	gvec3_t		endpos;		// final position
-	cplane_t	plane;		// surface normal at impact
-	csurface_t *surface;	// surface hit
-	contents_t	contents;	// contents on other side of surface hit
-	edict_t	    *ent;		// not set by CM_*() functions
+    bool	    allsolid;	// if true, plane is not valid
+    bool        startsolid; // if true, the initial point was in a solid area
+    float		fraction;	// time completed, 1.0 = didn't hit anything
+    gvec3_t		endpos;		// final position
+    cplane_t	plane;		// surface normal at impact
+    csurface_t* surface;	// surface hit
+    contents_t	contents;	// contents on other side of surface hit
+    edict_t* ent;		// not set by CM_*() functions
 
     // [Paril-KEX] the second-best surface hit from a trace
     cplane_t	plane2;		// second surface normal at impact
-	csurface_t *surface2;	// second surface hit
+    csurface_t* surface2;	// second surface hit
 };
 
 // pmove_state_t is the information necessary for client side movement
 // prediction
 enum pmtype_t
 {
-	// can accelerate and turn
-	PM_NORMAL,
+    // can accelerate and turn
+    PM_NORMAL,
     PM_GRAPPLE, // [Paril-KEX] pull towards velocity, no gravity
-	PM_NOCLIP,
+    PM_NOCLIP,
     PM_SPECTATOR, // [Paril-KEX] clip against walls, but not entities
-	// no acceleration or turning
-	PM_DEAD,
-	PM_GIB, // different bounding box
-	PM_FREEZE
+    // no acceleration or turning
+    PM_DEAD,
+    PM_GIB, // different bounding box
+    PM_FREEZE
 };
 
 // pmove->pm_flags
 enum pmflags_t : uint16_t
 {
     PMF_NONE = 0,
-	PMF_DUCKED = bit_v<0>,
-	PMF_JUMP_HELD = bit_v<1>,
-	PMF_ON_GROUND = bit_v<2>,
-	PMF_TIME_WATERJUMP = bit_v<3>, // pm_time is waterjump
-	PMF_TIME_LAND = bit_v<4>,		// pm_time is time before rejump
-	PMF_TIME_TELEPORT = bit_v<5>, // pm_time is non-moving time
-	PMF_NO_POSITIONAL_PREDICTION = bit_v<6>,	// temporarily disables positional prediction (used for grappling hook)
+    PMF_DUCKED = bit_v<0>,
+    PMF_JUMP_HELD = bit_v<1>,
+    PMF_ON_GROUND = bit_v<2>,
+    PMF_TIME_WATERJUMP = bit_v<3>, // pm_time is waterjump
+    PMF_TIME_LAND = bit_v<4>,		// pm_time is time before rejump
+    PMF_TIME_TELEPORT = bit_v<5>, // pm_time is non-moving time
+    PMF_NO_POSITIONAL_PREDICTION = bit_v<6>,	// temporarily disables positional prediction (used for grappling hook)
     PMF_ON_LADDER = bit_v<7>,    // signal to game that we are on a ladder
     PMF_NO_ANGULAR_PREDICTION = bit_v<8>, // temporary disables angular prediction
     PMF_IGNORE_PLAYER_COLLISION = bit_v<9>, // don't collide with other players
@@ -400,15 +399,15 @@ MAKE_ENUM_BITFLAGS(pmflags_t);
 // will result in a prediction error of some degree.
 struct pmove_state_t
 {
-	pmtype_t pm_type;
+    pmtype_t pm_type;
 
-	vec3_t                 origin;
-	vec3_t                 velocity;
-	pmflags_t			   pm_flags; // ducked, jump_held, etc
-	uint16_t			   pm_time;
-	int16_t				   gravity;
-	gvec3_t                delta_angles; // add to command angles to get view direction
-										 // changed by spawns, rotating objects, and teleporters
+    vec3_t                 origin;
+    vec3_t                 velocity;
+    pmflags_t			   pm_flags; // ducked, jump_held, etc
+    uint16_t			   pm_time;
+    int16_t				   gravity;
+    gvec3_t                delta_angles; // add to command angles to get view direction
+    // changed by spawns, rotating objects, and teleporters
     int8_t                 viewheight; // view height, added to origin[2] + viewoffset[2], for crouching
 };
 
@@ -417,13 +416,13 @@ struct pmove_state_t
 //
 enum button_t : uint8_t
 {
-	BUTTON_NONE = 0,
-	BUTTON_ATTACK = bit_v<0>,
-	BUTTON_USE = bit_v<1>,
+    BUTTON_NONE = 0,
+    BUTTON_ATTACK = bit_v<0>,
+    BUTTON_USE = bit_v<1>,
     BUTTON_HOLSTER = bit_v<2>, // [Paril-KEX]
     BUTTON_JUMP = bit_v<3>,
     BUTTON_CROUCH = bit_v<4>,
-	BUTTON_ANY = bit_v<7> // any key whatsoever
+    BUTTON_ANY = bit_v<7> // any key whatsoever
 };
 
 MAKE_ENUM_BITFLAGS(button_t);
@@ -431,19 +430,19 @@ MAKE_ENUM_BITFLAGS(button_t);
 // usercmd_t is sent to the server each client frame
 struct usercmd_t
 {
-	byte				   msec;
-	button_t			   buttons;
-	gvec3_t                angles;
-	float				   forwardmove, sidemove;
-	uint32_t               server_frame;	   // for integrity, etc
+    byte				   msec;
+    button_t			   buttons;
+    gvec3_t                angles;
+    float				   forwardmove, sidemove;
+    uint32_t               server_frame;	   // for integrity, etc
 };
 
 enum water_level_t : uint8_t
 {
-	WATER_NONE,
-	WATER_FEET,
-	WATER_WAIST,
-	WATER_UNDER
+    WATER_NONE,
+    WATER_FEET,
+    WATER_WAIST,
+    WATER_UNDER
 };
 
 // player_state_t->refdef flags
@@ -485,19 +484,19 @@ struct pmove_t
 
     gvec3_t mins, maxs; // bounding box size
 
-    edict_t      *groundentity;
+    edict_t* groundentity;
     cplane_t      groundplane;
     contents_t    watertype;
     water_level_t waterlevel;
 
-    edict_t *player; // opaque handle
+    edict_t* player; // opaque handle
 
     // clip against world & entities
-    trace_t (*trace)(gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, const edict_t* passent, contents_t contentmask);
+    trace_t(*trace)(gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, const edict_t* passent, contents_t contentmask);
     // [Paril-KEX] clip against world only
-    trace_t (*clip)(gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, contents_t contentmask);
+    trace_t(*clip)(gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, contents_t contentmask);
 
-    contents_t (*pointcontents)(gvec3_cref_t point);
+    contents_t(*pointcontents)(gvec3_cref_t point);
 
     // [KEX] variables (in)
     vec3_t viewoffset; // last viewoffset (for accurate calculation of blending)
@@ -581,7 +580,7 @@ enum renderfx_t : uint32_t
     RF_NO_ORIGIN_LERP = bit_v<6>, // no interpolation for origins
     RF_BEAM = bit_v<7>,
     RF_CUSTOMSKIN = bit_v<8>, // [Paril-KEX] implemented; set skinnum (or frame for RF_FLARE) to specify
-                              // an image in CS_IMAGES to use as skin.
+    // an image in CS_IMAGES to use as skin.
     RF_GLOW = bit_v<9>,		 // pulse lighting for bonus items
     RF_SHELL_RED = bit_v<10>,
     RF_SHELL_GREEN = bit_v<11>,
@@ -602,7 +601,7 @@ enum renderfx_t : uint32_t
     RF_OLD_FRAME_LERP = bit_v<22>, // [Paril-KEX] force model to lerp from oldframe in entity state; otherwise it uses last frame client received
     RF_DOT_SHADOW = bit_v<23>, // [Paril-KEX] draw blobby shadow
     RF_LOW_PRIORITY = bit_v<24>, // [Paril-KEX] low priority object; if we can't be added to the scene, don't bother replacing entities,
-                                 // and we can be replaced if anything non-low-priority needs room
+    // and we can be replaced if anything non-low-priority needs room
     RF_NO_LOD = bit_v<25>, // [Paril-KEX] never LOD
     RF_NO_STEREO = RF_WEAPONMODEL, // [Paril-KEX] this is a bit dumb, but, for looping noises if this is set there's no stereo
     RF_STAIR_STEP = bit_v<26>, // [Paril-KEX] re-tuned, now used to handle stair steps for monsters
@@ -926,7 +925,7 @@ enum monster_muzzleflash_id_t : uint16_t
     MZ2_ARACHNID_RAIL2,
     MZ2_ARACHNID_RAIL_UP1,
     MZ2_ARACHNID_RAIL_UP2,
-        
+
     MZ2_INFANTRY_MACHINEGUN_14, // run-attack
     MZ2_INFANTRY_MACHINEGUN_15, // run-attack
     MZ2_INFANTRY_MACHINEGUN_16, // run-attack
@@ -935,7 +934,7 @@ enum monster_muzzleflash_id_t : uint16_t
     MZ2_INFANTRY_MACHINEGUN_19, // run-attack
     MZ2_INFANTRY_MACHINEGUN_20, // run-attack
     MZ2_INFANTRY_MACHINEGUN_21, // run-attack
-    
+
     MZ2_GUNCMDR_CHAINGUN_1, // straight
     MZ2_GUNCMDR_CHAINGUN_2, // dodging
 
@@ -1183,9 +1182,9 @@ ROGUE - VERSIONS
 //
 // key / value info strings
 //
-constexpr size_t MAX_INFO_KEY		= 64;
-constexpr size_t MAX_INFO_VALUE		= 256;
-constexpr size_t MAX_INFO_STRING	= 2048;
+constexpr size_t MAX_INFO_KEY = 64;
+constexpr size_t MAX_INFO_VALUE = 256;
+constexpr size_t MAX_INFO_STRING = 2048;
 
 // CONFIG STRINGS
 
@@ -1230,17 +1229,17 @@ enum
     CS_MAPCHECKSUM, // for catching cheater maps
 
     CS_MODELS,
-    CS_SOUNDS           = (CS_MODELS + MAX_MODELS),
-    CS_IMAGES           = (CS_SOUNDS + MAX_SOUNDS),
-    CS_LIGHTS           = (CS_IMAGES + MAX_IMAGES),
-    CS_SHADOWLIGHTS     = (CS_LIGHTS + MAX_LIGHTSTYLES), // [Sam-KEX]
-    CS_ITEMS            = (CS_SHADOWLIGHTS + MAX_SHADOW_LIGHTS),
-    CS_PLAYERSKINS      = (CS_ITEMS + MAX_ITEMS),
-    CS_GENERAL          = (CS_PLAYERSKINS + MAX_CLIENTS),
-    CS_WHEEL_WEAPONS    = (CS_GENERAL + MAX_GENERAL), // [Paril-KEX] see MAX_WHEEL_ITEMS
-    CS_WHEEL_AMMO       = (CS_WHEEL_WEAPONS + MAX_WHEEL_ITEMS), // [Paril-KEX] see MAX_WHEEL_ITEMS
-    CS_WHEEL_POWERUPS   = (CS_WHEEL_AMMO + MAX_WHEEL_ITEMS), // [Paril-KEX] see MAX_WHEEL_ITEMS
-    CS_CD_LOOP_COUNT    = (CS_WHEEL_POWERUPS + MAX_WHEEL_ITEMS), // [Paril-KEX] override default loop count
+    CS_SOUNDS = (CS_MODELS + MAX_MODELS),
+    CS_IMAGES = (CS_SOUNDS + MAX_SOUNDS),
+    CS_LIGHTS = (CS_IMAGES + MAX_IMAGES),
+    CS_SHADOWLIGHTS = (CS_LIGHTS + MAX_LIGHTSTYLES), // [Sam-KEX]
+    CS_ITEMS = (CS_SHADOWLIGHTS + MAX_SHADOW_LIGHTS),
+    CS_PLAYERSKINS = (CS_ITEMS + MAX_ITEMS),
+    CS_GENERAL = (CS_PLAYERSKINS + MAX_CLIENTS),
+    CS_WHEEL_WEAPONS = (CS_GENERAL + MAX_GENERAL), // [Paril-KEX] see MAX_WHEEL_ITEMS
+    CS_WHEEL_AMMO = (CS_WHEEL_WEAPONS + MAX_WHEEL_ITEMS), // [Paril-KEX] see MAX_WHEEL_ITEMS
+    CS_WHEEL_POWERUPS = (CS_WHEEL_AMMO + MAX_WHEEL_ITEMS), // [Paril-KEX] see MAX_WHEEL_ITEMS
+    CS_CD_LOOP_COUNT = (CS_WHEEL_POWERUPS + MAX_WHEEL_ITEMS), // [Paril-KEX] override default loop count
     CS_GAME_STYLE, // [Paril-KEX] see game_style_t
     MAX_CONFIGSTRINGS
 };
@@ -1257,12 +1256,12 @@ constexpr size_t CS_MAX_STRING_LENGTH_OLD = 64;
 // since vanilla didn't do a very good job of size checking
 constexpr size_t CS_SIZE(int32_t in)
 {
-	if (in >= CS_STATUSBAR && in < CS_AIRACCEL)
-		return CS_MAX_STRING_LENGTH * (CS_AIRACCEL - in);
-	else if (in >= CS_GENERAL && in < CS_WHEEL_WEAPONS)
-		return CS_MAX_STRING_LENGTH * (MAX_CONFIGSTRINGS - in);
-	
-	return CS_MAX_STRING_LENGTH;
+    if (in >= CS_STATUSBAR && in < CS_AIRACCEL)
+        return CS_MAX_STRING_LENGTH * (CS_AIRACCEL - in);
+    else if (in >= CS_GENERAL && in < CS_WHEEL_WEAPONS)
+        return CS_MAX_STRING_LENGTH * (MAX_CONFIGSTRINGS - in);
+
+    return CS_MAX_STRING_LENGTH;
 }
 
 constexpr size_t MAX_MODELS_OLD = 256, MAX_SOUNDS_OLD = 256, MAX_IMAGES_OLD = 256;
@@ -1372,7 +1371,7 @@ union player_skinnum_t
         uint8_t     vwep_index; // vwep index
         int8_t      viewheight; // viewheight
         uint8_t     team_index : 4; // team #; note that teams are 1-indexed here, with 0 meaning no team
-                                    // (spectators in CTF would be 0, for instance)
+        // (spectators in CTF would be 0, for instance)
         uint8_t     poi_icon : 4;   // poi icon; 0 default friendly, 1 dead, others unused
     };
 };
@@ -1396,19 +1395,17 @@ struct entity_state_t
     uint32_t       solid;   // for client side prediction
     int32_t        sound;   // for looping sounds, to guarantee shutoff
     entity_event_t event;   // impulse events -- muzzle flashes, footsteps, etc
-                            // events only go out for a single frame, they
-                            // are automatically cleared each frame
+    // events only go out for a single frame, they
+    // are automatically cleared each frame
     float          alpha;   // [Paril-KEX] alpha scalar; 0 is a "default" value, which will respect other
-                            // settings (default 1.0 for most things, 
-                            // 
-                            // TRANSLUCENT will default this
-                            // to 0.3, etc)
+    // settings (default 1.0 for most things, EF_TRANSLUCENT will default this
+    // to 0.3, etc)
     float          scale;   // [Paril-KEX] model scale scalar; 0 is a "default" value, like with alpha.
     uint8_t        instance_bits; // [Paril-KEX] players that *can't* see this entity will have a bit of 1. handled by
-                                  // the server, do not set directly.
-    // [Paril-KEX] allow specifying volume/attn for looping noises; note that
-    // zero will be defaults (1.0 and 3.0 respectively); -1 attenuation is used
-    // for "none" (similar to target_speaker) for no phs/pvs looping noises
+    // the server, do not set directly.
+// [Paril-KEX] allow specifying volume/attn for looping noises; note that
+// zero will be defaults (1.0 and 3.0 respectively); -1 attenuation is used
+// for "none" (similar to target_speaker) for no phs/pvs looping noises
     float          loop_volume;
     float          loop_attenuation;
     // [Paril-KEX] for proper client-side owner collision skipping
@@ -1432,7 +1429,7 @@ struct player_state_t
     gvec3_t viewangles;  // for fixed views
     gvec3_t viewoffset;  // add to pmovestate->origin
     gvec3_t kick_angles; // add to view direction to get render angles
-                         // set by weapon kicks, pain effects, etc
+    // set by weapon kicks, pain effects, etc
 
     gvec3_t gunangles;
     gvec3_t gunoffset;
@@ -1537,7 +1534,7 @@ struct svc_fog_data_t
     uint8_t     green; // bits & BIT_G
     uint8_t     blue; // bits & BIT_B
     uint16_t    time; // bits & BIT_TIME
-    
+
     float       hf_falloff; // bits & BIT_HEIGHTFOG_FALLOFF
     float       hf_density; // bits & BIT_HEIGHTFOG_DENSITY
     uint8_t     hf_start_r; // bits & (BIT_MORE_BITS | BIT_HEIGHTFOG_START_R)
@@ -1551,29 +1548,29 @@ struct svc_fog_data_t
 };
 
 MAKE_ENUM_BITFLAGS(svc_fog_data_t::bits_t);
-    
+
 // bit masks
 static constexpr svc_fog_data_t::bits_t BITS_GLOBAL_FOG = (svc_fog_data_t::BIT_DENSITY | svc_fog_data_t::BIT_R | svc_fog_data_t::BIT_G | svc_fog_data_t::BIT_B);
 static constexpr svc_fog_data_t::bits_t BITS_HEIGHTFOG = (svc_fog_data_t::BIT_HEIGHTFOG_FALLOFF | svc_fog_data_t::BIT_HEIGHTFOG_DENSITY | svc_fog_data_t::BIT_HEIGHTFOG_START_R | svc_fog_data_t::BIT_HEIGHTFOG_START_G |
-                                            svc_fog_data_t::BIT_HEIGHTFOG_START_B | svc_fog_data_t::BIT_HEIGHTFOG_START_DIST | svc_fog_data_t::BIT_HEIGHTFOG_END_R | svc_fog_data_t::BIT_HEIGHTFOG_END_G |
-                                            svc_fog_data_t::BIT_HEIGHTFOG_END_B | svc_fog_data_t::BIT_HEIGHTFOG_END_DIST);
+    svc_fog_data_t::BIT_HEIGHTFOG_START_B | svc_fog_data_t::BIT_HEIGHTFOG_START_DIST | svc_fog_data_t::BIT_HEIGHTFOG_END_R | svc_fog_data_t::BIT_HEIGHTFOG_END_G |
+    svc_fog_data_t::BIT_HEIGHTFOG_END_B | svc_fog_data_t::BIT_HEIGHTFOG_END_DIST);
 
 // edict->svflags
 enum svflags_t : uint32_t
 {
-    SVF_NONE        = 0,          // no serverflags
-    SVF_NOCLIENT    = bit_v<0>,   // don't send entity to clients, even if it has effects
+    SVF_NONE = 0,          // no serverflags
+    SVF_NOCLIENT = bit_v<0>,   // don't send entity to clients, even if it has effects
     SVF_DEADMONSTER = bit_v<1>,   // treat as CONTENTS_DEADMONSTER for collision
-    SVF_MONSTER     = bit_v<2>,   // treat as CONTENTS_MONSTER for collision
-    SVF_PLAYER      = bit_v<3>,   // [Paril-KEX] treat as CONTENTS_PLAYER for collision
-    SVF_BOT         = bit_v<4>,   // entity is controlled by a bot AI.
-    SVF_NOBOTS      = bit_v<5>,   // don't allow bots to use/interact with entity
-    SVF_RESPAWNING  = bit_v<6>,   // entity will respawn on it's next think.
-    SVF_PROJECTILE  = bit_v<7>,   // treat as CONTENTS_PROJECTILE for collision
-    SVF_INSTANCED   = bit_v<8>,   // entity has different visibility per player
-    SVF_DOOR        = bit_v<9>,   // entity is a door of some kind
-    SVF_NOCULL      = bit_v<10>,  // always send, even if we normally wouldn't
-    SVF_HULL        = bit_v<11>   // always use hull when appropriate (triggers, etc; for gi.clip)
+    SVF_MONSTER = bit_v<2>,   // treat as CONTENTS_MONSTER for collision
+    SVF_PLAYER = bit_v<3>,   // [Paril-KEX] treat as CONTENTS_PLAYER for collision
+    SVF_BOT = bit_v<4>,   // entity is controlled by a bot AI.
+    SVF_NOBOTS = bit_v<5>,   // don't allow bots to use/interact with entity
+    SVF_RESPAWNING = bit_v<6>,   // entity will respawn on it's next think.
+    SVF_PROJECTILE = bit_v<7>,   // treat as CONTENTS_PROJECTILE for collision
+    SVF_INSTANCED = bit_v<8>,   // entity has different visibility per player
+    SVF_DOOR = bit_v<9>,   // entity is a door of some kind
+    SVF_NOCULL = bit_v<10>,  // always send, even if we normally wouldn't
+    SVF_HULL = bit_v<11>   // always use hull when appropriate (triggers, etc; for gi.clip)
 };
 MAKE_ENUM_BITFLAGS(svflags_t);
 
@@ -1589,73 +1586,73 @@ enum solid_t : uint8_t
 // bitflags for STAT_LAYOUTS
 enum layout_flags_t : int16_t
 {
-	LAYOUTS_LAYOUT		      = bit_v<0>, // svc_layout is active; escape remapped to putaway
-	LAYOUTS_INVENTORY	      = bit_v<1>, // inventory is active; escape remapped to putaway
-	LAYOUTS_HIDE_HUD	      = bit_v<2>, // hide entire hud, for cameras, etc
-	LAYOUTS_INTERMISSION      = bit_v<3>, // intermission is being drawn; collapse splitscreen into 1 view
-	LAYOUTS_HELP              = bit_v<4>, // help is active; escape remapped to putaway
-    LAYOUTS_HIDE_CROSSHAIR	  = bit_v<5> // hide crosshair only
+    LAYOUTS_LAYOUT = bit_v<0>, // svc_layout is active; escape remapped to putaway
+    LAYOUTS_INVENTORY = bit_v<1>, // inventory is active; escape remapped to putaway
+    LAYOUTS_HIDE_HUD = bit_v<2>, // hide entire hud, for cameras, etc
+    LAYOUTS_INTERMISSION = bit_v<3>, // intermission is being drawn; collapse splitscreen into 1 view
+    LAYOUTS_HELP = bit_v<4>, // help is active; escape remapped to putaway
+    LAYOUTS_HIDE_CROSSHAIR = bit_v<5> // hide crosshair only
 };
 MAKE_ENUM_BITFLAGS(layout_flags_t);
 
 enum GoalReturnCode {
-	Error = 0,
-	Started,
-	InProgress,
+    Error = 0,
+    Started,
+    InProgress,
     Finished
 };
 
 enum gesture_type {
-	GESTURE_NONE = -1,
-	GESTURE_FLIP_OFF,
-	GESTURE_SALUTE,
-	GESTURE_TAUNT,
-	GESTURE_WAVE,
-	GESTURE_POINT,
+    GESTURE_NONE = -1,
+    GESTURE_FLIP_OFF,
+    GESTURE_SALUTE,
+    GESTURE_TAUNT,
+    GESTURE_WAVE,
+    GESTURE_POINT,
     GESTURE_POINT_NO_PING,
     GESTURE_MAX
 };
 
 enum class PathReturnCode {
-	ReachedGoal = 0,        // we're at our destination
-	ReachedPathEnd,         // we're as close to the goal as we can get with a path
-	TraversalPending,       // the upcoming path segment is a traversal
+    ReachedGoal = 0,        // we're at our destination
+    ReachedPathEnd,         // we're as close to the goal as we can get with a path
+    TraversalPending,       // the upcoming path segment is a traversal
     RawPathFound,           // user wanted ( and got ) just a raw path ( no processing )
-	InProgress,             // pathing in progress
-	StartPathErrors,        // any code after this one indicates an error of some kind.
-	InvalidStart,           // start position is invalid.
-	InvalidGoal,            // goal position is invalid.
-	NoNavAvailable,         // no nav file available for this map.
-	NoStartNode,            // can't find a nav node near the start position
-	NoGoalNode,             // can't find a nav node near the goal position
-	NoPathFound,            // can't find a path from the start to the goal
+    InProgress,             // pathing in progress
+    StartPathErrors,        // any code after this one indicates an error of some kind.
+    InvalidStart,           // start position is invalid.
+    InvalidGoal,            // goal position is invalid.
+    NoNavAvailable,         // no nav file available for this map.
+    NoStartNode,            // can't find a nav node near the start position
+    NoGoalNode,             // can't find a nav node near the goal position
+    NoPathFound,            // can't find a path from the start to the goal
     MissingWalkOrSwimFlag   // MUST have at least Walk or Water path flags set!
 };
 
 enum class PathLinkType {
-	Walk,               // can walk between the path points
-	WalkOffLedge,       // will walk off a ledge going between path points
-	LongJump,           // will need to perform a long jump between path points
-	BarrierJump,        // will need to jump over a low barrier between path points
-	Elevator            // will need to use an elevator between path points
+    Walk,               // can walk between the path points
+    WalkOffLedge,       // will walk off a ledge going between path points
+    LongJump,           // will need to perform a long jump between path points
+    BarrierJump,        // will need to jump over a low barrier between path points
+    Elevator            // will need to use an elevator between path points
 };
 
 enum PathFlags : uint32_t {
-	All             = static_cast<uint32_t>( -1 ),
-	Water           = bit_v<0>,  // swim to your goal ( useful for fish/gekk/etc. )
-	Walk            = bit_v<1>,  // walk to your goal
-	WalkOffLedge    = bit_v<2>,  // allow walking over ledges
-	LongJump        = bit_v<3>,  // allow jumping over gaps
-	BarrierJump     = bit_v<4>,  // allow jumping over low barriers
-	Elevator        = bit_v<5>   // allow using elevators
+    All = static_cast<uint32_t>(-1),
+    Water = bit_v<0>,  // swim to your goal ( useful for fish/gekk/etc. )
+    Walk = bit_v<1>,  // walk to your goal
+    WalkOffLedge = bit_v<2>,  // allow walking over ledges
+    LongJump = bit_v<3>,  // allow jumping over gaps
+    BarrierJump = bit_v<4>,  // allow jumping over low barriers
+    Elevator = bit_v<5>   // allow using elevators
 };
 MAKE_ENUM_BITFLAGS(PathFlags);
 
 struct PathRequest {
     gvec3_t     start = { 0.0f, 0.0f, 0.0f };
     gvec3_t     goal = { 0.0f, 0.0f, 0.0f };
-	PathFlags   pathFlags = PathFlags::Walk;
-	float       moveDist = 0.0f;
+    PathFlags   pathFlags = PathFlags::Walk;
+    float       moveDist = 0.0f;
 
     struct DebugSettings {
         float   drawTime = 0.0f; // if > 0, how long ( in seconds ) to draw path in world
@@ -1668,23 +1665,23 @@ struct PathRequest {
         float   radius = 0.0f;    // 0 <= use default values
     } nodeSearch;
 
-	struct TraversalSettings {
-		float dropHeight = 0.0f;    // 0 = don't drop down
-		float jumpHeight = 0.0f;    // 0 = don't jump up
-	} traversals;
+    struct TraversalSettings {
+        float dropHeight = 0.0f;    // 0 = don't drop down
+        float jumpHeight = 0.0f;    // 0 = don't jump up
+    } traversals;
 
-	struct PathArray {
-        mutable gvec3_t * array = nullptr;  // array to store raw path points
-		int64_t           count = 0;        // number of elements in array
-	} pathPoints;
+    struct PathArray {
+        mutable gvec3_t* array = nullptr;  // array to store raw path points
+        int64_t           count = 0;        // number of elements in array
+    } pathPoints;
 };
 
 struct PathInfo {
     int32_t         numPathPoints = 0;
     float           pathDistSqr = 0.0f;
-	gvec3_t         firstMovePoint = { 0.0f, 0.0f, 0.0f };
-	gvec3_t         secondMovePoint = { 0.0f, 0.0f, 0.0f };
-	PathLinkType    pathLinkType = PathLinkType::Walk;
+    gvec3_t         firstMovePoint = { 0.0f, 0.0f, 0.0f };
+    gvec3_t         secondMovePoint = { 0.0f, 0.0f, 0.0f };
+    PathLinkType    pathLinkType = PathLinkType::Walk;
     PathReturnCode  returnCode = PathReturnCode::StartPathErrors;
 };
 
@@ -1713,40 +1710,40 @@ static constexpr int32_t    Item_Invalid = -1;
 static constexpr int32_t    Item_Null = 0;
 
 enum sv_ent_flags_t : uint64_t {
-    SVFL_NONE               = 0, // no flags
-    SVFL_ONGROUND           = bit_v< 0 >,
-    SVFL_HAS_DMG_BOOST      = bit_v< 1 >,
-    SVFL_HAS_PROTECTION     = bit_v< 2 >,
-    SVFL_HAS_INVISIBILITY   = bit_v< 3 >,
-    SVFL_IS_JUMPING         = bit_v< 4 >,
-    SVFL_IS_CROUCHING       = bit_v< 5 >,
-    SVFL_IS_ITEM            = bit_v< 6 >,
-    SVFL_IS_OBJECTIVE       = bit_v< 7 >,
-    SVFL_HAS_TELEPORTED     = bit_v< 8 >,
-    SVFL_TAKES_DAMAGE       = bit_v< 9 >,
-    SVFL_IS_HIDDEN          = bit_v< 10 >,
-    SVFL_IS_NOCLIP          = bit_v< 11 >,
-    SVFL_IN_WATER           = bit_v< 12 >,
-    SVFL_NO_TARGET          = bit_v< 13 >,
-    SVFL_GOD_MODE           = bit_v< 14 >,
-    SVFL_IS_FLIPPING_OFF    = bit_v< 15 >,
-    SVFL_IS_SALUTING        = bit_v< 16 >,
-    SVFL_IS_TAUNTING        = bit_v< 17 >,
-    SVFL_IS_WAVING          = bit_v< 18 >,
-    SVFL_IS_POINTING        = bit_v< 19 >,
-    SVFL_ON_LADDER          = bit_v< 20 >,
-    SVFL_MOVESTATE_TOP      = bit_v< 21 >,
-    SVFL_MOVESTATE_BOTTOM   = bit_v< 22 >,
-    SVFL_MOVESTATE_MOVING   = bit_v< 23 >,
-    SVFL_IS_LOCKED_DOOR     = bit_v< 24 >,
-    SVFL_CAN_GESTURE        = bit_v< 25 >,
-    SVFL_WAS_TELEFRAGGED    = bit_v< 26 >,
-    SVFL_TRAP_DANGER        = bit_v< 27 >,
-    SVFL_ACTIVE             = bit_v< 28 >,
-    SVFL_IS_SPECTATOR       = bit_v< 29 >,
-    SVFL_IN_TEAM            = bit_v< 30 >
+    SVFL_NONE = 0, // no flags
+    SVFL_ONGROUND = bit_v< 0 >,
+    SVFL_HAS_DMG_BOOST = bit_v< 1 >,
+    SVFL_HAS_PROTECTION = bit_v< 2 >,
+    SVFL_HAS_INVISIBILITY = bit_v< 3 >,
+    SVFL_IS_JUMPING = bit_v< 4 >,
+    SVFL_IS_CROUCHING = bit_v< 5 >,
+    SVFL_IS_ITEM = bit_v< 6 >,
+    SVFL_IS_OBJECTIVE = bit_v< 7 >,
+    SVFL_HAS_TELEPORTED = bit_v< 8 >,
+    SVFL_TAKES_DAMAGE = bit_v< 9 >,
+    SVFL_IS_HIDDEN = bit_v< 10 >,
+    SVFL_IS_NOCLIP = bit_v< 11 >,
+    SVFL_IN_WATER = bit_v< 12 >,
+    SVFL_NO_TARGET = bit_v< 13 >,
+    SVFL_GOD_MODE = bit_v< 14 >,
+    SVFL_IS_FLIPPING_OFF = bit_v< 15 >,
+    SVFL_IS_SALUTING = bit_v< 16 >,
+    SVFL_IS_TAUNTING = bit_v< 17 >,
+    SVFL_IS_WAVING = bit_v< 18 >,
+    SVFL_IS_POINTING = bit_v< 19 >,
+    SVFL_ON_LADDER = bit_v< 20 >,
+    SVFL_MOVESTATE_TOP = bit_v< 21 >,
+    SVFL_MOVESTATE_BOTTOM = bit_v< 22 >,
+    SVFL_MOVESTATE_MOVING = bit_v< 23 >,
+    SVFL_IS_LOCKED_DOOR = bit_v< 24 >,
+    SVFL_CAN_GESTURE = bit_v< 25 >,
+    SVFL_WAS_TELEFRAGGED = bit_v< 26 >,
+    SVFL_TRAP_DANGER = bit_v< 27 >,
+    SVFL_ACTIVE = bit_v< 28 >,
+    SVFL_IS_SPECTATOR = bit_v< 29 >,
+    SVFL_IN_TEAM = bit_v< 30 >
 };
-MAKE_ENUM_BITFLAGS( sv_ent_flags_t );
+MAKE_ENUM_BITFLAGS(sv_ent_flags_t);
 
 static constexpr int Max_Armor_Types = 3;
 
@@ -1779,13 +1776,13 @@ struct sv_entity_t {
     gvec3_t                     velocity;
     gvec3_t                     start_origin;
     gvec3_t                     end_origin;
-    edict_t *                   enemy;
-    edict_t *                   ground_entity;
-    const char *                classname;
-    const char *                targetname;
-    char                        netname[ MAX_NETNAME ];
-    int32_t                     inventory[ MAX_ITEMS ] = { 0 };
-    armorInfo_t                 armor_info[ Max_Armor_Types ];
+    edict_t* enemy;
+    edict_t* ground_entity;
+    const char* classname;
+    const char* targetname;
+    char                        netname[MAX_NETNAME];
+    int32_t                     inventory[MAX_ITEMS] = { 0 };
+    armorInfo_t                 armor_info[Max_Armor_Types];
 };
 
 #ifndef GAME_INCLUDE
@@ -1795,26 +1792,26 @@ struct edict_shared_t
 #endif
 {
     entity_state_t s;
-    gclient_t     *client; // nullptr if not a player
-                           // the server expects the first part
-                           // of gclient_t to be a player_state_t
-                           // but the rest of it is opaque
+    gclient_t* client; // nullptr if not a player
+    // the server expects the first part
+    // of gclient_t to be a player_state_t
+    // but the rest of it is opaque
 
     sv_entity_t sv;        // read only info about this entity for the server
 
-	bool     inuse;
+    bool     inuse;
 
-	// world linkage data
-	bool     linked;
-	int32_t	 linkcount;
-	int32_t  areanum, areanum2;
+    // world linkage data
+    bool     linked;
+    int32_t	 linkcount;
+    int32_t  areanum, areanum2;
 
-	svflags_t  svflags;
-	vec3_t	   mins, maxs;
-	vec3_t	   absmin, absmax, size;
-	solid_t	   solid;
-	contents_t clipmask;
-	edict_t	   *owner;
+    svflags_t  svflags;
+    vec3_t	   mins, maxs;
+    vec3_t	   absmin, absmax, size;
+    solid_t	   solid;
+    contents_t clipmask;
+    edict_t* owner;
 };
 
 #define CHECK_INTEGRITY(from_type, to_type, member)                           \
@@ -1852,12 +1849,12 @@ using fs_handle_t = uint64_t;
 
 enum fs_search_flags_t
 {
-    FS_SEARCH_NONE          = 0,
+    FS_SEARCH_NONE = 0,
 
     // flags for individual file filtering; note that if none
     // of these are set, they will all apply.
-    FS_SEARCH_FOR_DIRECTORIES   = bit_v<0>, // only get directories
-    FS_SEARCH_FOR_FILES         = bit_v<1> // only get files
+    FS_SEARCH_FOR_DIRECTORIES = bit_v<0>, // only get directories
+    FS_SEARCH_FOR_FILES = bit_v<1> // only get files
 };
 
 MAKE_ENUM_BITFLAGS(fs_search_flags_t);
@@ -1874,7 +1871,7 @@ enum class BoxEdictsResult_t
 
 MAKE_ENUM_BITFLAGS(BoxEdictsResult_t);
 
-using BoxEdictsFilter_t = BoxEdictsResult_t (*)(edict_t *, void *);
+using BoxEdictsFilter_t = BoxEdictsResult_t(*)(edict_t*, void*);
 
 //
 // functions provided by the main engine
@@ -1886,58 +1883,58 @@ struct game_import_t
     uint32_t    frame_time_ms;
 
     // broadcast to all clients
-    void (*Broadcast_Print)(print_type_t printlevel, const char *message);
-    
+    void (*Broadcast_Print)(print_type_t printlevel, const char* message);
+
     // print to appropriate places (console, log file, etc)
-    void (*Com_Print)(const char *msg);
+    void (*Com_Print)(const char* msg);
 
     // print directly to a single client (or nullptr for server console)
-    void (*Client_Print)(edict_t *ent, print_type_t printlevel, const char *message);
+    void (*Client_Print)(edict_t* ent, print_type_t printlevel, const char* message);
 
     // center-print to player (legacy function)
-    void (*Center_Print)(edict_t *ent, const char *message);
+    void (*Center_Print)(edict_t* ent, const char* message);
 
-    void (*sound)(edict_t *ent, soundchan_t channel, int soundindex, float volume, float attenuation, float timeofs);
-    void (*positioned_sound)(gvec3_cref_t origin, edict_t *ent, soundchan_t channel, int soundindex, float volume, float attenuation, float timeofs);
+    void (*sound)(edict_t* ent, soundchan_t channel, int soundindex, float volume, float attenuation, float timeofs);
+    void (*positioned_sound)(gvec3_cref_t origin, edict_t* ent, soundchan_t channel, int soundindex, float volume, float attenuation, float timeofs);
     // [Paril-KEX] like sound, but only send to the player indicated by the parameter;
     // this is mainly to handle split screen properly
-    void (*local_sound)(edict_t *target, gvec3_cptr_t origin, edict_t *ent, soundchan_t channel, int soundindex, float volume, float attenuation, float timeofs, uint32_t dupe_key);
+    void (*local_sound)(edict_t* target, gvec3_cptr_t origin, edict_t* ent, soundchan_t channel, int soundindex, float volume, float attenuation, float timeofs, uint32_t dupe_key);
 
     // config strings hold all the index strings, the lightstyles,
     // and misc data like the sky definition and cdtrack.
     // All of the current configstrings are sent to clients when
     // they connect, and changes are sent to all connected clients.
-    void (*configstring)(int num, const char *string);
-    const char *(*get_configstring)(int num);
+    void (*configstring)(int num, const char* string);
+    const char* (*get_configstring)(int num);
 
-    void (*Com_Error)(const char *message);
+    void (*Com_Error)(const char* message);
 
     // the *index functions create configstrings and some internal server state
-    int (*modelindex)(const char *name);
-    int (*soundindex)(const char *name);
+    int (*modelindex)(const char* name);
+    int (*soundindex)(const char* name);
     // [Paril-KEX] imageindex can precache both pics for the HUD and
     // textures used for RF_CUSTOMSKIN; to register an image as a texture,
     // the path must be relative to the mod dir and end in an extension
     // ie models/my_model/skin.tga
-    int (*imageindex)(const char *name);
+    int (*imageindex)(const char* name);
 
-    void (*setmodel)(edict_t *ent, const char *name);
+    void (*setmodel)(edict_t* ent, const char* name);
 
     // collision detection
-    trace_t (*trace)(gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, const edict_t *passent, contents_t contentmask);
+    trace_t(*trace)(gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, const edict_t* passent, contents_t contentmask);
     // [Paril-KEX] clip the box against the specified entity
-    trace_t (*clip)(edict_t *entity, gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, contents_t contentmask);
-    contents_t (*pointcontents)(gvec3_cref_t point);
-	bool (*inPVS)(gvec3_cref_t p1, gvec3_cref_t p2, bool portals);
-	bool (*inPHS)(gvec3_cref_t p1, gvec3_cref_t p2, bool portals);
+    trace_t(*clip)(edict_t* entity, gvec3_cref_t start, gvec3_cptr_t mins, gvec3_cptr_t maxs, gvec3_cref_t end, contents_t contentmask);
+    contents_t(*pointcontents)(gvec3_cref_t point);
+    bool (*inPVS)(gvec3_cref_t p1, gvec3_cref_t p2, bool portals);
+    bool (*inPHS)(gvec3_cref_t p1, gvec3_cref_t p2, bool portals);
     void (*SetAreaPortalState)(int portalnum, bool open);
     bool (*AreasConnected)(int area1, int area2);
 
     // an entity will never be sent to a client or used for collision
     // if it is not passed to linkentity.  If the size, position, or
     // solidity changes, it must be relinked.
-    void (*linkentity)(edict_t *ent);
-    void (*unlinkentity)(edict_t *ent); // call before removing an interactive edict
+    void (*linkentity)(edict_t* ent);
+    void (*unlinkentity)(edict_t* ent); // call before removing an interactive edict
 
     // return a list of entities that touch the input absmin/absmax.
     // if maxcount is 0, it will return a count but not attempt to fill "list".
@@ -1945,89 +1942,89 @@ struct game_import_t
     // any more of list (the return count will cap at maxcount).
     // the filter function can remove unnecessary entities from the final list; it is illegal
     // to modify world links in this callback.
-    size_t (*BoxEdicts)(gvec3_cref_t mins, gvec3_cref_t maxs, edict_t **list, size_t maxcount, solidity_area_t areatype, BoxEdictsFilter_t filter, void *filter_data);
+    size_t(*BoxEdicts)(gvec3_cref_t mins, gvec3_cref_t maxs, edict_t** list, size_t maxcount, solidity_area_t areatype, BoxEdictsFilter_t filter, void* filter_data);
 
     // network messaging
     void (*multicast)(gvec3_cref_t origin, multicast_t to, bool reliable);
     // [Paril-KEX] `dupe_key` is a key unique to a group of calls to unicast
     // that will prevent sending the message on this frame with the same key
     // to the same player (for splitscreen players).
-    void (*unicast)(edict_t *ent, bool reliable, uint32_t dupe_key);
+    void (*unicast)(edict_t* ent, bool reliable, uint32_t dupe_key);
 
     void (*WriteChar)(int c);
     void (*WriteByte)(int c);
     void (*WriteShort)(int c);
     void (*WriteLong)(int c);
     void (*WriteFloat)(float f);
-    void (*WriteString)(const char *s);
+    void (*WriteString)(const char* s);
     void (*WritePosition)(gvec3_cref_t pos);
     void (*WriteDir)(gvec3_cref_t pos);	  // single byte encoded, very coarse
     void (*WriteAngle)(float f); // legacy 8-bit angle
-    void (*WriteEntity)(const edict_t *e);
+    void (*WriteEntity)(const edict_t* e);
 
     // managed memory allocation
-    void *(*TagMalloc)(size_t size, int tag);
-    void (*TagFree)(void *block);
+    void* (*TagMalloc)(size_t size, int tag);
+    void (*TagFree)(void* block);
     void (*FreeTags)(int tag);
 
     // console variable interaction
-	cvar_t *(*cvar)(const char *var_name, const char *value, cvar_flags_t flags);
-    cvar_t *(*cvar_set)(const char *var_name, const char *value);
-    cvar_t *(*cvar_forceset)(const char *var_name, const char *value);
+    cvar_t* (*cvar)(const char* var_name, const char* value, cvar_flags_t flags);
+    cvar_t* (*cvar_set)(const char* var_name, const char* value);
+    cvar_t* (*cvar_forceset)(const char* var_name, const char* value);
 
     // ClientCommand and ServerCommand parameter access
     int (*argc)();
-	const char *(*argv)(int n);
-	const char *(*args)(); // concatenation of all argv >= 1
+    const char* (*argv)(int n);
+    const char* (*args)(); // concatenation of all argv >= 1
 
     // add commands to the server console as if they were typed in
     // for map changing, etc
-    void (*AddCommandString)(const char *text);
+    void (*AddCommandString)(const char* text);
 
     void (*DebugGraph)(float value, int color);
 
     // Fetch named extension from engine.
-    void *(*GetExtension)(const char *name);
+    void* (*GetExtension)(const char* name);
 
     // === [KEX] Additional APIs ===
 
     // bots
-    void (*Bot_RegisterEdict)(const edict_t * edict);
-    void (*Bot_UnRegisterEdict)(const edict_t * edict);
-    GoalReturnCode (*Bot_MoveToPoint)(const edict_t * bot, gvec3_cref_t point, const float moveTolerance);
-    GoalReturnCode (*Bot_FollowActor)(const edict_t * bot, const edict_t * actor);
+    void (*Bot_RegisterEdict)(const edict_t* edict);
+    void (*Bot_UnRegisterEdict)(const edict_t* edict);
+    GoalReturnCode(*Bot_MoveToPoint)(const edict_t* bot, gvec3_cref_t point, const float moveTolerance);
+    GoalReturnCode(*Bot_FollowActor)(const edict_t* bot, const edict_t* actor);
 
     // pathfinding - returns true if a path was found
-    bool (*GetPathToGoal)(const PathRequest & request, PathInfo & info);
+    bool (*GetPathToGoal)(const PathRequest& request, PathInfo& info);
 
     // localization
     void (*Loc_Print)(edict_t* ent, print_type_t level, const char* base, const char** args, size_t num_args);
 
     // drawing
-    void (*Draw_Line)(gvec3_cref_t start, gvec3_cref_t end, const rgba_t &color, const float lifeTime, const bool depthTest);
-    void (*Draw_Point)(gvec3_cref_t point, const float size, const rgba_t &color, const float lifeTime, const bool depthTest);
-    void (*Draw_Circle)(gvec3_cref_t origin, const float radius, const rgba_t &color, const float lifeTime, const bool depthTest);
-    void (*Draw_Bounds)(gvec3_cref_t mins, gvec3_cref_t maxs, const rgba_t &color, const float lifeTime, const bool depthTest);
-    void (*Draw_Sphere)(gvec3_cref_t origin, const float radius, const rgba_t &color, const float lifeTime, const bool depthTest);
-    void (*Draw_OrientedWorldText)(gvec3_cref_t origin, const char * text, const rgba_t &color, const float size, const float lifeTime, const bool depthTest);
-    void (*Draw_StaticWorldText)(gvec3_cref_t origin, gvec3_cref_t angles, const char * text, const rgba_t & color, const float size, const float lifeTime, const bool depthTest);
-    void (*Draw_Cylinder)(gvec3_cref_t origin, const float halfHeight, const float radius, const rgba_t &color, const float lifeTime, const bool depthTest);
-    void (*Draw_Ray)(gvec3_cref_t origin, gvec3_cref_t direction, const float length, const float size, const rgba_t &color, const float lifeTime, const bool depthTest);
-    void (*Draw_Arrow)(gvec3_cref_t start, gvec3_cref_t end, const float size, const rgba_t & lineColor, const rgba_t & arrowColor, const float lifeTime, const bool depthTest);
+    void (*Draw_Line)(gvec3_cref_t start, gvec3_cref_t end, const rgba_t& color, const float lifeTime, const bool depthTest);
+    void (*Draw_Point)(gvec3_cref_t point, const float size, const rgba_t& color, const float lifeTime, const bool depthTest);
+    void (*Draw_Circle)(gvec3_cref_t origin, const float radius, const rgba_t& color, const float lifeTime, const bool depthTest);
+    void (*Draw_Bounds)(gvec3_cref_t mins, gvec3_cref_t maxs, const rgba_t& color, const float lifeTime, const bool depthTest);
+    void (*Draw_Sphere)(gvec3_cref_t origin, const float radius, const rgba_t& color, const float lifeTime, const bool depthTest);
+    void (*Draw_OrientedWorldText)(gvec3_cref_t origin, const char* text, const rgba_t& color, const float size, const float lifeTime, const bool depthTest);
+    void (*Draw_StaticWorldText)(gvec3_cref_t origin, gvec3_cref_t angles, const char* text, const rgba_t& color, const float size, const float lifeTime, const bool depthTest);
+    void (*Draw_Cylinder)(gvec3_cref_t origin, const float halfHeight, const float radius, const rgba_t& color, const float lifeTime, const bool depthTest);
+    void (*Draw_Ray)(gvec3_cref_t origin, gvec3_cref_t direction, const float length, const float size, const rgba_t& color, const float lifeTime, const bool depthTest);
+    void (*Draw_Arrow)(gvec3_cref_t start, gvec3_cref_t end, const float size, const rgba_t& lineColor, const rgba_t& arrowColor, const float lifeTime, const bool depthTest);
 
     // scoreboard
     void (*ReportMatchDetails_Multicast)(bool is_end);
 
     // get server frame #
-    uint32_t (*ServerFrame)();
+    uint32_t(*ServerFrame)();
 
     // misc utils
-    void (*SendToClipBoard)(const char * text);
+    void (*SendToClipBoard)(const char* text);
 
     // info string stuff
-    size_t (*Info_ValueForKey) (const char *s, const char *key, char *buffer, size_t buffer_len);
-    bool (*Info_RemoveKey) (char *s, const char *key);
-    bool (*Info_SetValueForKey) (char *s, const char *key, const char *value);
+    size_t(*Info_ValueForKey) (const char* s, const char* key, char* buffer, size_t buffer_len);
+    bool (*Info_RemoveKey) (char* s, const char* key);
+    bool (*Info_SetValueForKey) (char* s, const char* key, const char* value);
 };
 
 enum class shadow_light_type_t
@@ -2039,22 +2036,22 @@ enum class shadow_light_type_t
 struct shadow_light_data_t
 {
     shadow_light_type_t lighttype;
-	float		radius;
-	int			resolution;
-	float		intensity = 1;
-	float		fade_start;
-	float		fade_end;
-	int			lightstyle = -1;
-	float		coneangle = 45;
+    float		radius;
+    int			resolution;
+    float		intensity = 1;
+    float		fade_start;
+    float		fade_end;
+    int			lightstyle = -1;
+    float		coneangle = 45;
     vec3_t      conedirection;
 };
 
 enum server_flags_t
 {
-    SERVER_FLAGS_NONE           = 0,
-    SERVER_FLAG_SLOW_TIME       = bit_v<0>,
-    SERVER_FLAG_INTERMISSION    = bit_v<1>,
-    SERVER_FLAG_LOADING         = bit_v<2>
+    SERVER_FLAGS_NONE = 0,
+    SERVER_FLAG_SLOW_TIME = bit_v<0>,
+    SERVER_FLAG_INTERMISSION = bit_v<1>,
+    SERVER_FLAG_LOADING = bit_v<2>
 };
 
 MAKE_ENUM_BITFLAGS(server_flags_t);
@@ -2074,7 +2071,7 @@ struct game_export_t
     void (*Shutdown)();
 
     // each new level entered will cause a call to SpawnEntities
-    void (*SpawnEntities)(const char *mapname, const char *entstring, const char *spawnpoint);
+    void (*SpawnEntities)(const char* mapname, const char* entstring, const char* spawnpoint);
 
     // Read/Write Game is for storing persistant cross level information
     // about the world state and the clients.
@@ -2083,15 +2080,15 @@ struct game_export_t
 
     // returns pointer to tagmalloc'd allocated string.
     // tagfree after use
-    char *(*WriteGameJson)(bool autosave, size_t *out_size);
-    void (*ReadGameJson)(const char *json);
+    char* (*WriteGameJson)(bool autosave, size_t* out_size);
+    void (*ReadGameJson)(const char* json);
 
     // ReadLevel is called after the default map information has been
     // loaded with SpawnEntities
     // returns pointer to tagmalloc'd allocated string.
     // tagfree after use
-    char *(*WriteLevelJson)(bool transition, size_t *out_size);
-    void (*ReadLevelJson)(const char *json);
+    char* (*WriteLevelJson)(bool transition, size_t* out_size);
+    void (*ReadLevelJson)(const char* json);
 
     // [Paril-KEX] game can tell the server whether a save is allowed
     // currently or not.
@@ -2101,13 +2098,13 @@ struct game_export_t
     // coop slot re-use. Return nullptr if none is available. You can not
     // return a slot that is currently in use by another client; that must
     // throw a fatal error.
-    edict_t *(*ClientChooseSlot) (const char *userinfo, const char *social_id, bool isBot, edict_t **ignore, size_t num_ignore, bool cinematic);
-    bool (*ClientConnect)(edict_t *ent, char *userinfo, const char *social_id, bool isBot);
-    void (*ClientBegin)(edict_t *ent);
-    void (*ClientUserinfoChanged)(edict_t *ent, const char *userinfo);
-    void (*ClientDisconnect)(edict_t *ent);
-    void (*ClientCommand)(edict_t *ent);
-    void (*ClientThink)(edict_t *ent, usercmd_t *cmd);
+    edict_t* (*ClientChooseSlot) (const char* userinfo, const char* social_id, bool isBot, edict_t** ignore, size_t num_ignore, bool cinematic);
+    bool (*ClientConnect)(edict_t* ent, char* userinfo, const char* social_id, bool isBot);
+    void (*ClientBegin)(edict_t* ent);
+    void (*ClientUserinfoChanged)(edict_t* ent, const char* userinfo);
+    void (*ClientDisconnect)(edict_t* ent);
+    void (*ClientCommand)(edict_t* ent);
+    void (*ClientThink)(edict_t* ent, usercmd_t* cmd);
 
     void (*RunFrame)(bool main_loop);
     // [Paril-KEX] allow the game DLL to clear per-frame stuff
@@ -2127,7 +2124,7 @@ struct game_export_t
     // can vary in size from one game to another.
     //
     // The size will be fixed when ge->Init() is called
-    edict_t     *edicts;
+    edict_t* edicts;
     size_t      edict_size;
     uint32_t    num_edicts; // current number, <= max_edicts
     uint32_t    max_edicts;
@@ -2136,23 +2133,23 @@ struct game_export_t
     server_flags_t  server_flags;
 
     // [KEX]: Pmove as export
-    void (*Pmove)(pmove_t *pmove); // player movement code called by server & client
+    void (*Pmove)(pmove_t* pmove); // player movement code called by server & client
 
     // Fetch named extension from game DLL.
-    void *(*GetExtension)(const char *name);
+    void* (*GetExtension)(const char* name);
 
-    void    (*Bot_SetWeapon)(edict_t * botEdict, const int weaponIndex, const bool instantSwitch);
-    void    (*Bot_TriggerEdict)(edict_t * botEdict, edict_t * edict);
-    void    (*Bot_UseItem)(edict_t * botEdict, const int32_t itemID);
-    int32_t (*Bot_GetItemID)(const char * classname);
-    void    (*Edict_ForceLookAtPoint)(edict_t * edict, gvec3_cref_t point);
-    bool    (*Bot_PickedUpItem )(edict_t * botEdict, edict_t * itemEdict);
+    void    (*Bot_SetWeapon)(edict_t* botEdict, const int weaponIndex, const bool instantSwitch);
+    void    (*Bot_TriggerEdict)(edict_t* botEdict, edict_t* edict);
+    void    (*Bot_UseItem)(edict_t* botEdict, const int32_t itemID);
+    int32_t(*Bot_GetItemID)(const char* classname);
+    void    (*Edict_ForceLookAtPoint)(edict_t* edict, gvec3_cref_t point);
+    bool    (*Bot_PickedUpItem)(edict_t* botEdict, edict_t* itemEdict);
 
     // [KEX]: Checks entity visibility instancing
     bool (*Entity_IsVisibleToPlayer)(edict_t* ent, edict_t* player);
 
     // Fetch info from the shadow light, for culling
-    const shadow_light_data_t *(*GetShadowLightData)(int32_t entity_number);
+    const shadow_light_data_t* (*GetShadowLightData)(int32_t entity_number);
 };
 
 // generic rectangle
@@ -2175,9 +2172,9 @@ struct cg_server_data_t
     std::array<int16_t, MAX_ITEMS> inventory;
 };
 
-constexpr int32_t PROTOCOL_VERSION_3XX   = 34;
+constexpr int32_t PROTOCOL_VERSION_3XX = 34;
 constexpr int32_t PROTOCOL_VERSION_DEMOS = 2022;
-constexpr int32_t PROTOCOL_VERSION       = 2023;
+constexpr int32_t PROTOCOL_VERSION = 2023;
 
 //
 // functions provided by main engine for client
@@ -2189,32 +2186,32 @@ struct cgame_import_t
     uint32_t    frame_time_ms;
 
     // print to appropriate places (console, log file, etc)
-    void (*Com_Print)(const char *msg);
-    
+    void (*Com_Print)(const char* msg);
+
     // config strings hold all the index strings, the lightstyles,
     // and misc data like the sky definition and cdtrack.
     // All of the current configstrings are sent to clients when
     // they connect, and changes are sent to all connected clients.
-    const char *(*get_configstring)(int num);
+    const char* (*get_configstring)(int num);
 
-    void (*Com_Error)(const char *message);
+    void (*Com_Error)(const char* message);
 
     // managed memory allocation
-    void *(*TagMalloc)(size_t size, int tag);
-    void (*TagFree)(void *block);
+    void* (*TagMalloc)(size_t size, int tag);
+    void (*TagFree)(void* block);
     void (*FreeTags)(int tag);
 
     // console variable interaction
-	cvar_t *(*cvar)(const char *var_name, const char *value, cvar_flags_t flags);
-    cvar_t *(*cvar_set)(const char *var_name, const char *value);
-    cvar_t *(*cvar_forceset)(const char *var_name, const char *value);
+    cvar_t* (*cvar)(const char* var_name, const char* value, cvar_flags_t flags);
+    cvar_t* (*cvar_set)(const char* var_name, const char* value);
+    cvar_t* (*cvar_forceset)(const char* var_name, const char* value);
 
     // add commands to the server console as if they were typed in
     // for map changing, etc
-    void (*AddCommandString)(const char *text);
+    void (*AddCommandString)(const char* text);
 
     // Fetch named extension from engine.
-    void *(*GetExtension)(const char *name);
+    void* (*GetExtension)(const char* name);
 
     // Check whether current frame is valid
     bool (*CL_FrameValid) ();
@@ -2223,39 +2220,39 @@ struct cgame_import_t
     float (*CL_FrameTime) ();
 
     // [Paril-KEX] cgame-specific stuff
-    uint64_t (*CL_ClientTime) ();
-    uint64_t (*CL_ClientRealTime) ();
-    int32_t (*CL_ServerFrame) ();
-    int32_t (*CL_ServerProtocol) ();
-    const char *(*CL_GetClientName) (int32_t index);
-    const char *(*CL_GetClientPic) (int32_t index);
-    const char *(*CL_GetClientDogtag) (int32_t index);
-    const char *(*CL_GetKeyBinding) (const char *binding); // fetch key bind for key, or empty string
-    bool (*Draw_RegisterPic) (const char *name);
-    void (*Draw_GetPicSize) (int *w, int *h, const char *name); // will return 0 0 if not found
+    uint64_t(*CL_ClientTime) ();
+    uint64_t(*CL_ClientRealTime) ();
+    int32_t(*CL_ServerFrame) ();
+    int32_t(*CL_ServerProtocol) ();
+    const char* (*CL_GetClientName) (int32_t index);
+    const char* (*CL_GetClientPic) (int32_t index);
+    const char* (*CL_GetClientDogtag) (int32_t index);
+    const char* (*CL_GetKeyBinding) (const char* binding); // fetch key bind for key, or empty string
+    bool (*Draw_RegisterPic) (const char* name);
+    void (*Draw_GetPicSize) (int* w, int* h, const char* name); // will return 0 0 if not found
     void (*SCR_DrawChar)(int x, int y, int scale, int num, bool shadow);
-    void (*SCR_DrawPic) (int x, int y, int w, int h, const char *name);
-    void (*SCR_DrawColorPic)(int x, int y, int w, int h, const char* name, const rgba_t &color);
+    void (*SCR_DrawPic) (int x, int y, int w, int h, const char* name);
+    void (*SCR_DrawColorPic)(int x, int y, int w, int h, const char* name, const rgba_t& color);
 
     // [Paril-KEX] kfont stuff
     void(*SCR_SetAltTypeface)(bool enabled);
-    void (*SCR_DrawFontString)(const char *str, int x, int y, int scale, const rgba_t &color, bool shadow, text_align_t align);
-    vec2_t (*SCR_MeasureFontString)(const char *str, int scale);
+    void (*SCR_DrawFontString)(const char* str, int x, int y, int scale, const rgba_t& color, bool shadow, text_align_t align);
+    vec2_t(*SCR_MeasureFontString)(const char* str, int scale);
     float (*SCR_FontLineHeight)(int scale);
 
     // [Paril-KEX] for legacy text input (not used in lobbies)
-    bool (*CL_GetTextInput)(const char **msg, bool *is_team);
+    bool (*CL_GetTextInput)(const char** msg, bool* is_team);
 
     // [Paril-KEX] FIXME this probably should be an export instead...
-    int32_t (*CL_GetWarnAmmoCount)(int32_t weapon_id);
+    int32_t(*CL_GetWarnAmmoCount)(int32_t weapon_id);
 
     // === [KEX] Additional APIs ===
     // returns a *temporary string* ptr to a localized input
-    const char* (*Localize) (const char *base, const char **args, size_t num_args);
+    const char* (*Localize) (const char* base, const char** args, size_t num_args);
 
     // [Paril-KEX] Draw binding, for centerprint; returns y offset
-    int32_t (*SCR_DrawBind) (int32_t isplit, const char *binding, const char *purpose, int x, int y, int scale);
-    
+    int32_t(*SCR_DrawBind) (int32_t isplit, const char* binding, const char* purpose, int x, int y, int scale);
+
     // [Paril-KEX]
     bool (*CL_InAutoDemoLoop) ();
 };
@@ -2273,36 +2270,36 @@ struct cgame_export_t
     void (*Shutdown)();
 
     // [Paril-KEX] hud drawing
-    void (*DrawHUD) (int32_t isplit, const cg_server_data_t *data, vrect_t hud_vrect, vrect_t hud_safe, int32_t scale, int32_t playernum, const player_state_t *ps);
+    void (*DrawHUD) (int32_t isplit, const cg_server_data_t* data, vrect_t hud_vrect, vrect_t hud_safe, int32_t scale, int32_t playernum, const player_state_t* ps);
     // [Paril-KEX] precache special pics used by hud
     void (*TouchPics) ();
 
     // [Paril-KEX] layout flags; see layout_flags_t
-    layout_flags_t (*LayoutFlags) (const player_state_t *ps);
+    layout_flags_t(*LayoutFlags) (const player_state_t* ps);
 
     // [Paril-KEX] fetch the current wheel weapon ID in use
-    int32_t (*GetActiveWeaponWheelWeapon) (const player_state_t *ps);
+    int32_t(*GetActiveWeaponWheelWeapon) (const player_state_t* ps);
 
     // [Paril-KEX] fetch owned weapon IDs
-    uint32_t (*GetOwnedWeaponWheelWeapons) (const player_state_t *ps);
+    uint32_t(*GetOwnedWeaponWheelWeapons) (const player_state_t* ps);
 
     // [Paril-KEX] fetch ammo count for given ammo id
-    int16_t (*GetWeaponWheelAmmoCount)(const player_state_t *ps, int32_t ammo_id);
-    
+    int16_t(*GetWeaponWheelAmmoCount)(const player_state_t* ps, int32_t ammo_id);
+
     // [Paril-KEX] fetch powerup count for given powerup id
-    int16_t (*GetPowerupWheelCount)(const player_state_t *ps, int32_t powerup_id);
+    int16_t(*GetPowerupWheelCount)(const player_state_t* ps, int32_t powerup_id);
 
     // [Paril-KEX] fetch how much damage was registered by these stats
-    int16_t (*GetHitMarkerDamage)(const player_state_t *ps);
+    int16_t(*GetHitMarkerDamage)(const player_state_t* ps);
 
     // [KEX]: Pmove as export
-    void (*Pmove)(pmove_t *pmove); // player movement code called by server & client
+    void (*Pmove)(pmove_t* pmove); // player movement code called by server & client
 
     // [Paril-KEX] allow cgame to react to configstring changes
-    void (*ParseConfigString)(int32_t i, const char *s);
+    void (*ParseConfigString)(int32_t i, const char* s);
 
     // [Paril-KEX] parse centerprint-like messages
-    void (*ParseCenterPrint)(const char *str, int isplit, bool instant);
+    void (*ParseCenterPrint)(const char* str, int isplit, bool instant);
 
     // [Paril-KEX] tell the cgame to clear notify stuff
     void (*ClearNotify)(int32_t isplit);
@@ -2311,13 +2308,13 @@ struct cgame_export_t
     void (*ClearCenterprint)(int32_t isplit);
 
     // [Paril-KEX] be notified by the game DLL of a message of some sort
-    void (*NotifyMessage)(int32_t isplit, const char *msg, bool is_chat);
+    void (*NotifyMessage)(int32_t isplit, const char* msg, bool is_chat);
 
     // [Paril-KEX]
     void (*GetMonsterFlashOffset)(monster_muzzleflash_id_t id, gvec3_ref_t offset);
 
     // Fetch named extension from cgame DLL.
-    void *(*GetExtension)(const char *name);
+    void* (*GetExtension)(const char* name);
 };
 
 // EOF

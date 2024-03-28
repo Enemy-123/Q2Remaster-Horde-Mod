@@ -4,8 +4,8 @@
 
 #include "g_local.h"
 
-bool FindTarget(edict_t *self);
-bool ai_checkattack(edict_t *self, float dist);
+bool FindTarget(edict_t* self);
+bool ai_checkattack(edict_t* self, float dist);
 
 bool    enemy_vis;
 bool    enemy_infront;
@@ -26,12 +26,12 @@ who we can see. We don't care who we see, as long
 as it's something we can shoot.
 =================
 */
-edict_t *AI_GetSightClient(edict_t *self)
+edict_t* AI_GetSightClient(edict_t* self)
 {
     if (level.intermissiontime)
         return nullptr;
 
-    edict_t **visible_players = (edict_t **) alloca(sizeof(edict_t *) * game.maxclients);
+    edict_t** visible_players = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
     size_t num_visible = 0;
 
     for (auto player : active_players())
@@ -67,7 +67,7 @@ Move the specified distance at current facing.
 This replaces the QC functions: ai_forward, ai_back, ai_pain, and ai_painforward
 ==============
 */
-void ai_move(edict_t *self, float dist)
+void ai_move(edict_t* self, float dist)
 {
     M_walkmove(self, self->s.angles[YAW], dist);
 }
@@ -80,7 +80,7 @@ Used for standing around and looking for players
 Distance is for slight position adjustments needed by the animations
 ==============
 */
-void ai_stand(edict_t *self, float dist)
+void ai_stand(edict_t* self, float dist)
 {
     vec3_t v;
     // ROGUE
@@ -136,7 +136,7 @@ void ai_stand(edict_t *self, float dist)
                 {
                     if (FindTarget(self))
                         return;
-                    
+
                     self->monsterinfo.aiflags |= AI_LOST_SIGHT;
                 }
 
@@ -200,9 +200,9 @@ ai_walk
 The monster is walking it's beat
 =============
 */
-void ai_walk(edict_t *self, float dist)
+void ai_walk(edict_t* self, float dist)
 {
-    edict_t *temp_goal = nullptr;
+    edict_t* temp_goal = nullptr;
 
     if (!self->goalentity && (self->monsterinfo.aiflags & AI_GOOD_GUY))
     {
@@ -248,7 +248,7 @@ Turns towards target and advances
 Use this call with a distance of 0 to replace ai_face
 ==============
 */
-void ai_charge(edict_t *self, float dist)
+void ai_charge(edict_t* self, float dist)
 {
     vec3_t v;
     // ROGUE
@@ -278,7 +278,7 @@ void ai_charge(edict_t *self, float dist)
     M_ChangeYaw(self);
 
     if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
-    // ROGUE
+        // ROGUE
     {
         if (self->monsterinfo.aiflags & AI_CHARGING)
         {
@@ -325,7 +325,7 @@ don't move, but turn towards ideal_yaw
 Distance is for slight position adjustments needed by the animations
 =============
 */
-void ai_turn(edict_t *self, float dist)
+void ai_turn(edict_t* self, float dist)
 {
     if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
         M_walkmove(self, self->s.angles[YAW], dist);
@@ -377,7 +377,7 @@ mid	    infront and show hostile
 > mid	only triggered by damage
 =============
 */
-float range_to(edict_t *self, edict_t *other)
+float range_to(edict_t* self, edict_t* other)
 {
     return distance_between_boxes(self->absmin, self->absmax, other->absmin, other->absmax);
 }
@@ -389,7 +389,7 @@ visible
 returns 1 if the entity is visible to self, even if not infront ()
 =============
 */
-bool visible(edict_t *self, edict_t *other, bool through_glass)
+bool visible(edict_t* self, edict_t* other, bool through_glass)
 {
     // never visible
     if (other->flags & FL_NOVISIBLE)
@@ -444,7 +444,7 @@ infront
 returns 1 if the entity is in front (in sight) of self
 =============
 */
-bool infront(edict_t *self, edict_t *other)
+bool infront(edict_t* self, edict_t* other)
 {
     vec3_t vec;
     float  dot;
@@ -465,7 +465,7 @@ bool infront(edict_t *self, edict_t *other)
 
 //============================================================================
 
-void HuntTarget(edict_t *self, bool animate_state)
+void HuntTarget(edict_t* self, bool animate_state)
 {
     vec3_t vec;
 
@@ -481,7 +481,7 @@ void HuntTarget(edict_t *self, bool animate_state)
     self->ideal_yaw = vectoyaw(vec);
 }
 
-void FoundTarget(edict_t *self)
+void FoundTarget(edict_t* self)
 {
     // let other monsters see this monster for a while
     if (self->enemy->client)
@@ -552,7 +552,7 @@ void FoundTarget(edict_t *self)
 // [Paril-KEX] monsters that were alerted by players will
 // be temporarily stored on player entities, so we can
 // check them & get mad at them even around corners
-static edict_t *AI_GetMonsterAlertedByPlayers(edict_t *self)
+static edict_t* AI_GetMonsterAlertedByPlayers(edict_t* self)
 {
     for (auto player : active_players())
     {
@@ -571,14 +571,14 @@ static edict_t *AI_GetMonsterAlertedByPlayers(edict_t *self)
         // probably good
         return player->client->sight_entity;
     }
-    
+
     return nullptr;
 }
 
 // [Paril-KEX] per-player sounds
-static edict_t *AI_GetSoundClient(edict_t *self, bool direct)
+static edict_t* AI_GetSoundClient(edict_t* self, bool direct)
 {
-    edict_t *best_sound = nullptr;
+    edict_t* best_sound = nullptr;
     float best_distance = std::numeric_limits<float>::max();
 
     for (auto player : active_players())
@@ -587,13 +587,13 @@ static edict_t *AI_GetSoundClient(edict_t *self, bool direct)
         if (player->health <= 0 || player->deadflag || !player->solid)
             continue;
 
-        edict_t *sound = direct ? player->client->sound_entity : player->client->sound2_entity;
+        edict_t* sound = direct ? player->client->sound_entity : player->client->sound2_entity;
 
         if (!sound)
             continue;
 
         // too late
-        gtime_t &time = direct ? player->client->sound_entity_time : player->client->sound2_entity_time;
+        gtime_t& time = direct ? player->client->sound_entity_time : player->client->sound2_entity_time;
 
         if (!(time >= (level.time - FRAME_TIME_S)))
             continue;
@@ -611,7 +611,7 @@ static edict_t *AI_GetSoundClient(edict_t *self, bool direct)
     return best_sound;
 }
 
-bool G_MonsterSourceVisible(edict_t *self, edict_t *client)
+bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 {
     // this is where we would check invisibility
     float r = range_to(self, client);
@@ -646,9 +646,9 @@ checked each frame.  This means multi player games will have slightly
 slower noticing monsters.
 ============
 */
-bool FindTarget(edict_t *self)
+bool FindTarget(edict_t* self)
 {
-    edict_t *client = nullptr;
+    edict_t* client = nullptr;
     bool     heardit;
     bool     ignore_sight_sound = false;
 
@@ -683,7 +683,7 @@ bool FindTarget(edict_t *self)
     // revised behavior so they will wake up if they "see" a player make a noise
     // but not weapon impact/explosion noises
     heardit = false;
-    
+
     // Paril: revised so that monsters will first try to consider
     // the current sight client immediately if they can see it.
     // this fixes them dancing in front of you if you fire every frame.
@@ -797,7 +797,7 @@ bool FindTarget(edict_t *self)
         // if they are close enough. they don't have to be visible.
         bool is_visible =
             ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
-            (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
+                (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
 
         if (!is_visible)
             return false;
@@ -892,7 +892,7 @@ FacingIdeal
 
 ============
 */
-bool FacingIdeal(edict_t *self)
+bool FacingIdeal(edict_t* self)
 {
     float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
 
@@ -905,7 +905,7 @@ bool FacingIdeal(edict_t *self)
 //=============================================================================
 
 // [Paril-KEX] split this out so we can use it for the other bosses
-bool M_CheckAttack_Base(edict_t *self, float stand_ground_chance, float melee_chance, float near_chance, float mid_chance, float far_chance, float strafe_scalar)
+bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_chance, float near_chance, float mid_chance, float far_chance, float strafe_scalar)
 {
     vec3_t  spot1, spot2;
     float   chance;
@@ -928,7 +928,6 @@ bool M_CheckAttack_Base(edict_t *self, float stand_ground_chance, float melee_ch
 
         spot1 = self->s.origin;
         spot1[2] += self->viewheight;
-
         // see if any entities are in the way of the shot
         if (!self->enemy->client || self->enemy->solid)
         {
@@ -940,9 +939,9 @@ bool M_CheckAttack_Base(edict_t *self, float stand_ground_chance, float melee_ch
                 | CONTENTS_PROJECTILECLIP // Paril: horde
             );
 
-            // Paril: horde
-            if (tr.startsolid)
-                return false;
+                // Paril: horde
+                if (tr.startsolid)
+                    return false;
         }
         else
         {
@@ -1099,7 +1098,7 @@ bool M_CheckAttack_Base(edict_t *self, float stand_ground_chance, float melee_ch
     return false;
 }
 
-MONSTERINFO_CHECKATTACK(M_CheckAttack) (edict_t *self) -> bool
+MONSTERINFO_CHECKATTACK(M_CheckAttack) (edict_t* self) -> bool
 {
     return M_CheckAttack_Base(self, 0.7f, 0.4f, 0.25f, 0.06f, 0.f, 1.0f);
 }
@@ -1111,7 +1110,7 @@ ai_run_melee
 Turn and close until within an angle to launch a melee attack
 =============
 */
-void ai_run_melee(edict_t *self)
+void ai_run_melee(edict_t* self)
 {
     self->ideal_yaw = enemy_yaw;
     // ROGUE
@@ -1133,7 +1132,7 @@ ai_run_missile
 Turn in place until within an angle to launch a missile attack
 =============
 */
-void ai_run_missile(edict_t *self)
+void ai_run_missile(edict_t* self)
 {
     self->ideal_yaw = enemy_yaw;
     // ROGUE
@@ -1164,7 +1163,7 @@ Strafe sideways, but stay at aproximately the same range
 =============
 */
 // ROGUE
-void ai_run_slide(edict_t *self, float distance)
+void ai_run_slide(edict_t* self, float distance)
 {
     float ofs;
     float angle;
@@ -1215,7 +1214,7 @@ Decides if we're going to attack or do something else
 used by ai_run and ai_stand
 =============
 */
-bool ai_checkattack(edict_t *self, float dist)
+bool ai_checkattack(edict_t* self, float dist)
 {
     vec3_t temp;
     bool   hesDeadJim;
@@ -1263,7 +1262,8 @@ bool ai_checkattack(edict_t *self, float dist)
     if ((!self->enemy) || (!self->enemy->inuse))
     {
         hesDeadJim = true;
-    } else if ( self->monsterinfo.aiflags & AI_FORGET_ENEMY )
+    }
+    else if (self->monsterinfo.aiflags & AI_FORGET_ENEMY)
     {
         self->monsterinfo.aiflags &= ~AI_FORGET_ENEMY;
         hesDeadJim = true;
@@ -1409,13 +1409,13 @@ ai_run
 The monster has an enemy it is trying to kill
 =============
 */
-void ai_run(edict_t *self, float dist)
+void ai_run(edict_t* self, float dist)
 {
     vec3_t   v;
-    edict_t *tempgoal;
-    edict_t *save;
+    edict_t* tempgoal;
+    edict_t* save;
     bool     newEnemy;
-    edict_t *marker;
+    edict_t* marker;
     float    d1, d2;
     trace_t  tr;
     vec3_t   v_forward, v_right;
@@ -1425,7 +1425,7 @@ void ai_run(edict_t *self, float dist)
     bool     retval;
     bool     alreadyMoved = false;
     bool     gotcha = false;
-    edict_t *realEnemy;
+    edict_t* realEnemy;
     // ROGUE
 
     // if we're going to a combat point, just proceed
@@ -1459,7 +1459,7 @@ void ai_run(edict_t *self, float dist)
 
     // PMM
     if ((self->monsterinfo.aiflags & AI_DUCKED) && self->monsterinfo.unduck)
-		self->monsterinfo.unduck(self);
+        self->monsterinfo.unduck(self);
 
     //==========
     // PGM
@@ -1533,7 +1533,7 @@ void ai_run(edict_t *self, float dist)
         bool touching_noise = SV_CloseEnough(self, self->enemy, dist * (gi.tick_rate / 10));
 
         if ((!self->enemy) || (touching_noise && FacingIdeal(self)))
-        // pmm
+            // pmm
         {
             self->monsterinfo.aiflags |= (AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
             self->s.angles[YAW] = self->ideal_yaw;
@@ -1628,7 +1628,7 @@ void ai_run(edict_t *self, float dist)
             M_MoveToGoal(self, dist);
         if (!self->inuse)
             return; // PGM - g_touchtrigger free problem
-        
+
         if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
         {
             self->monsterinfo.aiflags &= ~AI_LOST_SIGHT;
@@ -1696,10 +1696,10 @@ void ai_run(edict_t *self, float dist)
         self->monsterinfo.aiflags |= (AI_LOST_SIGHT | AI_PURSUIT_LAST_SEEN);
         self->monsterinfo.aiflags &= ~(AI_PURSUE_NEXT | AI_PURSUE_TEMP);
         newEnemy = true;
-        
+
         // immediately try paths
-		self->monsterinfo.path_blocked_counter = 0_ms;
-		self->monsterinfo.path_wait_time = 0_ms;
+        self->monsterinfo.path_blocked_counter = 0_ms;
+        self->monsterinfo.path_wait_time = 0_ms;
     }
 
     if (self->monsterinfo.aiflags & AI_PURSUE_NEXT)
