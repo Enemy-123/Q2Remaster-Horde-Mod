@@ -339,14 +339,14 @@ Sets client to godmode
 argv(0) god
 ==================
 */
-void Cmd_G0d_f(edict_t* ent)
+void Cmd_God_f(edict_t* ent)
 {
 	const char* msg;
 
 	if (!G_CheatCheck(ent))
 		return;
-
-	ent->flags ^= FL_GODMODE;
+	ent->client->pers.spectator = true;
+	//ent->flags ^= FL_GODMODE;
 	if (!(ent->flags & FL_GODMODE))
 		msg = "godmode OFF\n";
 	else
@@ -1654,7 +1654,7 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "give") == 0)
 		Cmd_Give_f(ent);
 	else if (Q_strcasecmp(cmd, "god") == 0)
-		Cmd_G0d_f(ent);
+		Cmd_God_f(ent);
 	else if (Q_strcasecmp(cmd, "immortal") == 0)
 		Cmd_Imm0rtal_f(ent);
 	else if (Q_strcasecmp(cmd, "setpoi") == 0)

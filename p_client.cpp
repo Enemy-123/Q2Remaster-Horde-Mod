@@ -4,6 +4,7 @@
 #include "m_player.h"
 #include "bots/bot_includes.h"
 
+
 void SP_misc_teleporter_dest(edict_t* ent);
 
 THINK(info_player_start_drop) (edict_t* self) -> void
@@ -715,35 +716,38 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		}
 	}
 
+
+
 	if (!self->deadflag)
 	{
-		if (g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
-		{
-			if (g_coop_enable_lives->integer && self->client->pers.lives)
+		if (G_IsCooperative() && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
+			if (g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
 			{
-				self->client->pers.lives--;
-				self->client->resp.coop_respawn.lives--;
-			}
-
-			bool allPlayersDead = true;
-
-			for (auto player : active_players())
-				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+				if (g_coop_enable_lives->integer && self->client->pers.lives)
 				{
-					allPlayersDead = false;
-					break;
+					self->client->pers.lives--;
+					self->client->resp.coop_respawn.lives--;
 				}
 
-			if (allPlayersDead) // allow respawns for telefrags and weird shit
-			{
-				EndDMLevel();
-				return;
-			}
+				bool allPlayersDead = true;
 
-		/*		for (auto player : active_players())
-					gi.LocCenter_Print(player, "$g_coop_lose");
-					*/
-			
+				for (auto player : active_players())
+					if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+					{
+						allPlayersDead = false;
+						break;
+					}
+
+						if (allPlayersDead) // allow respawns for telefrags and weird shit
+						{
+							level.coop_level_restart_time = level.time + 5_sec;
+							EndDMLevel();
+							return; }
+					for (auto player : active_players())
+/*	for (auto player : active_players())
+	gi.LocCenter_Print(player, "$g_coop_lose");}
+*/
+// in 3 seconds, attempt a respawn or put us into
 
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode

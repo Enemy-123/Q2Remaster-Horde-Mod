@@ -193,7 +193,7 @@ void gladbGun(edict_t* self)
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 20, 1200, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, 15, 1200, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
 void gladbGun_check(edict_t *self)
@@ -421,13 +421,13 @@ void SP_monster_gladiator(edict_t *self)
 	{
 		sound_gunb.assign("weapons/disrupt.wav");
 
-		self->health = 1000 * st.health_multiplier;
+		self->health = 600 * st.health_multiplier;
 		self->mass = 350;
 
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 1250;
+			self->monsterinfo.power_armor_power = 550;
 
 		self->s.skinnum = 2;
 

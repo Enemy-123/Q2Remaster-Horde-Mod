@@ -20,26 +20,26 @@ static cached_soundindex sound_slash;
 static cached_soundindex sound_sproing;
 static cached_soundindex sound_die;
 
-void flyer_check_melee(edict_t *self);
-void flyer_loop_melee(edict_t *self);
-void flyer_setstart(edict_t *self);
+void flyer_check_melee(edict_t* self);
+void flyer_loop_melee(edict_t* self);
+void flyer_setstart(edict_t* self);
 
 // ROGUE - kamikaze stuff
-void flyer_kamikaze(edict_t *self);
-void flyer_kamikaze_check(edict_t *self);
-void flyer_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
+void flyer_kamikaze(edict_t* self);
+void flyer_kamikaze_check(edict_t* self);
+void flyer_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 
-MONSTERINFO_SIGHT(flyer_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(flyer_sight) (edict_t* self, edict_t* other) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_IDLE(flyer_idle) (edict_t *self) -> void
+MONSTERINFO_IDLE(flyer_idle) (edict_t* self) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
-void flyer_pop_blades(edict_t *self)
+void flyer_pop_blades(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_sproing, 1, ATTN_NORM, 0);
 }
@@ -200,7 +200,7 @@ mframe_t flyer_frames_kamizake[] = {
 };
 MMOVE_T(flyer_move_kamikaze) = { FRAME_rollr02, FRAME_rollr06, flyer_frames_kamizake, flyer_kamikaze };
 
-MONSTERINFO_RUN(flyer_run) (edict_t *self) -> void
+MONSTERINFO_RUN(flyer_run) (edict_t* self) -> void
 {
 	if (self->mass > 50)
 		M_SetAnimation(self, &flyer_move_kamikaze);
@@ -210,7 +210,7 @@ MONSTERINFO_RUN(flyer_run) (edict_t *self) -> void
 		M_SetAnimation(self, &flyer_move_run);
 }
 
-MONSTERINFO_WALK(flyer_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(flyer_walk) (edict_t* self) -> void
 {
 	if (self->mass > 50)
 		flyer_run(self);
@@ -218,7 +218,7 @@ MONSTERINFO_WALK(flyer_walk) (edict_t *self) -> void
 		M_SetAnimation(self, &flyer_move_walk);
 }
 
-MONSTERINFO_STAND(flyer_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(flyer_stand) (edict_t* self) -> void
 {
 	if (self->mass > 50)
 		flyer_run(self);
@@ -228,7 +228,7 @@ MONSTERINFO_STAND(flyer_stand) (edict_t *self) -> void
 
 // ROGUE - kamikaze stuff
 
-void flyer_kamikaze_explode(edict_t *self)
+void flyer_kamikaze_explode(edict_t* self)
 {
 	vec3_t dir;
 
@@ -239,18 +239,18 @@ void flyer_kamikaze_explode(edict_t *self)
 	if (self->enemy)
 	{
 		dir = self->enemy->s.origin - self->s.origin;
-		T_Damage(self->enemy, self, self, dir, self->s.origin, vec3_origin, (int) 50, (int) 50, DAMAGE_RADIUS, MOD_UNKNOWN);
+		T_Damage(self->enemy, self, self, dir, self->s.origin, vec3_origin, (int)50, (int)50, DAMAGE_RADIUS, MOD_UNKNOWN);
 	}
 
 	flyer_die(self, nullptr, nullptr, 0, dir, MOD_EXPLOSIVE);
 }
 
-void flyer_kamikaze(edict_t *self)
+void flyer_kamikaze(edict_t* self)
 {
 	M_SetAnimation(self, &flyer_move_kamikaze);
 }
 
-void flyer_kamikaze_check(edict_t *self)
+void flyer_kamikaze_check(edict_t* self)
 {
 	float dist;
 
@@ -365,7 +365,7 @@ mframe_t flyer_frames_bankleft[] = {
 MMOVE_T(flyer_move_bankleft) = { FRAME_bankl01, FRAME_bankl07, flyer_frames_bankleft, nullptr };
 #endif
 
-void flyer_fire(edict_t *self, monster_muzzleflash_id_t flash_number)
+void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 {
 	vec3_t	  start;
 	vec3_t	  forward, right;
@@ -386,12 +386,12 @@ void flyer_fire(edict_t *self, monster_muzzleflash_id_t flash_number)
 	monster_fire_blaster(self, start, dir, 1, 1000, flash_number, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 }
 
-void flyer_fireleft(edict_t *self)
+void flyer_fireleft(edict_t* self)
 {
 	flyer_fire(self, MZ2_FLYER_BLASTER_1);
 }
 
-void flyer_fireright(edict_t *self)
+void flyer_fireright(edict_t* self)
 {
 	flyer_fire(self, MZ2_FLYER_BLASTER_2);
 }
@@ -442,7 +442,7 @@ mframe_t flyer_frames_attack3[] = {
 MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack3, flyer_run };
 // pmm
 
-void flyer_slash_left(edict_t *self)
+void flyer_slash_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
 	if (!fire_hit(self, aim, 5, 0))
@@ -450,7 +450,7 @@ void flyer_slash_left(edict_t *self)
 	gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
 }
 
-void flyer_slash_right(edict_t *self)
+void flyer_slash_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
 	if (!fire_hit(self, aim, 5, 0))
@@ -492,12 +492,12 @@ mframe_t flyer_frames_loop_melee[] = {
 };
 MMOVE_T(flyer_move_loop_melee) = { FRAME_attak107, FRAME_attak118, flyer_frames_loop_melee, flyer_check_melee };
 
-void flyer_loop_melee(edict_t *self)
+void flyer_loop_melee(edict_t* self)
 {
 	M_SetAnimation(self, &flyer_move_loop_melee);
 }
 
-static void flyer_set_fly_parameters(edict_t *self, bool melee)
+static void flyer_set_fly_parameters(edict_t* self, bool melee)
 {
 	if (melee)
 	{
@@ -520,7 +520,7 @@ static void flyer_set_fly_parameters(edict_t *self, bool melee)
 	}
 }
 
-MONSTERINFO_ATTACK(flyer_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 {
 	if (self->mass > 50)
 	{
@@ -559,7 +559,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t *self) -> void
 	// if we're currently pinned, fly_position_time will unpin us eventually
 }
 
-MONSTERINFO_MELEE(flyer_melee) (edict_t *self) -> void
+MONSTERINFO_MELEE(flyer_melee) (edict_t* self) -> void
 {
 	if (self->mass > 50)
 		flyer_run(self);
@@ -570,7 +570,7 @@ MONSTERINFO_MELEE(flyer_melee) (edict_t *self) -> void
 	}
 }
 
-void flyer_check_melee(edict_t *self)
+void flyer_check_melee(edict_t* self)
 {
 	if (range_to(self, self->enemy) <= RANGE_MELEE)
 	{
@@ -585,7 +585,7 @@ void flyer_check_melee(edict_t *self)
 	flyer_set_fly_parameters(self, false);
 }
 
-PAIN(flyer_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(flyer_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	int n;
 
@@ -620,7 +620,7 @@ PAIN(flyer_pain) (edict_t *self, edict_t *other, float kick, int damage, const m
 		M_SetAnimation(self, &flyer_move_pain3);
 }
 
-MONSTERINFO_SETSKIN(flyer_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(flyer_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -628,7 +628,7 @@ MONSTERINFO_SETSKIN(flyer_setskin) (edict_t *self) -> void
 		self->s.skinnum = 0;
 }
 
-DIE(flyer_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(flyer_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 
@@ -646,13 +646,13 @@ DIE(flyer_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage
 		{ 2, "models/monsters/flyer/gibs/gun.md2", GIB_SKINNED },
 		{ 2, "models/monsters/flyer/gibs/wing.md2", GIB_SKINNED },
 		{ "models/monsters/flyer/gibs/head.md2", GIB_SKINNED | GIB_HEAD }
-	});
-	
+		});
+
 	self->touch = nullptr;
 }
 
 // PMM - kamikaze code .. blow up if blocked
-MONSTERINFO_BLOCKED(flyer_blocked) (edict_t *self, float dist) -> bool
+MONSTERINFO_BLOCKED(flyer_blocked) (edict_t* self, float dist) -> bool
 {
 	// kamikaze = 100, normal = 50
 	if (self->mass == 100)
@@ -669,12 +669,12 @@ MONSTERINFO_BLOCKED(flyer_blocked) (edict_t *self, float dist) -> bool
 	return false;
 }
 
-TOUCH(kamikaze_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(kamikaze_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	T_Damage(ent, ent, ent, ent->velocity.normalized(), ent->s.origin, ent->velocity.normalized(), 9999, 100, DAMAGE_NONE, MOD_UNKNOWN);
 }
 
-TOUCH(flyer_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if ((other->monsterinfo.aiflags & AI_ALTERNATE_FLY) && (other->flags & FL_FLY) &&
 		(ent->monsterinfo.duck_wait_time < level.time))
@@ -697,10 +697,10 @@ TOUCH(flyer_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_
 
 /*QUAKED monster_flyer (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_flyer(edict_t *self)
+void SP_monster_flyer(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -715,7 +715,7 @@ void SP_monster_flyer(edict_t *self)
 	gi.soundindex("flyer/flyatck3.wav");
 
 	self->s.modelindex = gi.modelindex("models/monsters/flyer/tris.md2");
-	
+
 	gi.modelindex("models/monsters/flyer/gibs/base.md2");
 	gi.modelindex("models/monsters/flyer/gibs/wing.md2");
 	gi.modelindex("models/monsters/flyer/gibs/gun.md2");
@@ -771,10 +771,10 @@ void SP_monster_flyer(edict_t *self)
 }
 
 // PMM - suicide fliers
-void SP_monster_kamikaze(edict_t *self)
+void SP_monster_kamikaze(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 

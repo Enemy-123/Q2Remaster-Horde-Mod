@@ -37,23 +37,30 @@ void floater_zap(edict_t *self);
 
 void floater_fire_blaster(edict_t *self)
 {
-	vec3_t	  start;
-	vec3_t	  forward, right;
-	vec3_t	  end;
-	vec3_t	  dir;
+vec3_t start;
+vec3_t dir;
+vec3_t forward, right;
+float  len;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
+AngleVectors(self->s.angles, forward, right, nullptr);
+start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right);
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right);
+dir = self->pos1 - self->enemy->s.origin;
+len = dir.length();
 
-	end = self->enemy->s.origin;
-	end[2] += self->enemy->viewheight;
-	dir = end - start;
+if (len < 30)
+{
+	// calc direction to where we targeted
+	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_blaster2(self, start, dir, 1, 1000, MZ2_FLOAT_BLASTER_1, (self->s.frame % 4) ? EF_GREENGIB : EF_HYPERBLASTER);
+	monster_fire_tracker(self, start, dir, 7, 600, self->enemy, MZ2_FLOAT_BLASTER_1);
+}
+else
+{
+	PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
+	monster_fire_tracker(self, start, dir, 7, 600, nullptr, MZ2_FLOAT_BLASTER_1);
+}
 }
 
 mframe_t floater_frames_stand1[] = {

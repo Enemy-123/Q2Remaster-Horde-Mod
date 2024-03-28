@@ -689,6 +689,15 @@ void CheckDMRules()
 		return; // no checking in match mode
 	// ZOID
 
+	if (ctf->integer && CTFCheckRules())
+	{
+		EndDMLevel();
+		return;
+	}
+	if (CTFInMatch())
+		return; // no checking in match mode
+	// ZOID
+
 //=======
 // ROGUE
 	if (gamerules->integer && DMGame.CheckDMRules)

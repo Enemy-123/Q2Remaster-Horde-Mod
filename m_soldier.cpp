@@ -559,7 +559,7 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 
 	if (self->count <= 1)
 	{
-		monster_fire_blaster(self, start, aim, 15, 1200, flash_index, EF_BLASTER);
+		monster_fire_blaster(self, start, aim, 8, 1200, flash_index, EF_BLASTER);
 	}
 	else if (self->count <= 3)
 	{
@@ -708,7 +708,7 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 	}
 	else if (self->count <= 3)
 	{
-		monster_fire_blueblaster(self, start, aim, 1, 900, flash_index, EF_BLUEHYPERBLASTER);
+		monster_fire_blaster2(self, start, aim, 3, 900, flash_index, EF_BLUEHYPERBLASTER);
 	}
 	else
 	{
