@@ -31,7 +31,7 @@ edict_t* AI_GetSightClient(edict_t* self)
     if (level.intermissiontime)
         return nullptr;
 
-    edict_t** visible_players = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
+    edict_t** visible_players = (edict_t**)alloca(sizeof(edict_t*) * game.maxclients);
     size_t num_visible = 0;
 
     for (auto player : active_players())
@@ -928,6 +928,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 
         spot1 = self->s.origin;
         spot1[2] += self->viewheight;
+
         // see if any entities are in the way of the shot
         if (!self->enemy->client || self->enemy->solid)
         {
@@ -939,9 +940,9 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
                 | CONTENTS_PROJECTILECLIP // Paril: horde
             );
 
-                // Paril: horde
-                if (tr.startsolid)
-                    return false;
+            // Paril: horde
+            if (tr.startsolid)
+                return false;
         }
         else
         {

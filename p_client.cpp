@@ -2585,7 +2585,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
 
 	// spectators are only supported in deathmatch
-	if ((G_IsDeathmatch() &&  g_horde->integer) || G_IsCooperative() && *val && strcmp(val, "0"))
+	if ((G_IsDeathmatch() && g_horde->integer) || G_IsCooperative() && *val && strcmp(val, "0"))
 		ent->client->pers.spectator = true;
 	else
 		ent->client->pers.spectator = false; //HACK SPECTATOR
@@ -3807,7 +3807,7 @@ void ClientBeginServerFrame(edict_t* ent)
 			if (!G_CoopRespawn(ent))
 			{
 				// in deathmatch, only wait for attack button
-				if (G_IsDeathmatch() || G_IsCooperative())
+				if (G_IsDeathmatch())
 					buttonMask = BUTTON_ATTACK;
 				else
 					buttonMask = -1;
@@ -3824,11 +3824,11 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-// add player trail so monsters can follow
 	if (G_IsDeathmatch())
 		PlayerTrail_Add(ent);
 
 	if (G_IsCooperative())
+		PlayerTrail_Add(ent);
 		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;

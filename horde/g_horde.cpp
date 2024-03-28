@@ -266,7 +266,6 @@ void Horde_PreInit()
 		gi.cvar_set("coop", "0");
 		gi.cvar_set("timelimit", "0");
 		gi.cvar_set("fraglimit", "0");
-		gi.cvar_set("competition", "0");
 
 	}
 }
