@@ -1093,7 +1093,7 @@ void SP_monster_tank(edict_t *self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.3f;
-		self->health = 1300 * st.health_multiplier;
+		self->health = 1400 * st.health_multiplier;
 
 		self->gib_health = -130;
 

@@ -483,10 +483,10 @@ void stalker_shoot_attack2(edict_t *self)
 }
 
 mframe_t stalker_frames_shoot[] = {
-	{ ai_charge, 13 },
 	{ ai_charge, 17, stalker_shoot_attack },
-	{ ai_charge, 21 },
-	{ ai_charge, 18, stalker_shoot_attack2 }
+	{ ai_charge, 13},
+	{ ai_charge, 18, stalker_shoot_attack2 },
+	{ ai_charge, 23},
 };
 MMOVE_T(stalker_move_shoot) = { FRAME_run01, FRAME_run04, stalker_frames_shoot, stalker_run };
 
@@ -535,7 +535,7 @@ mframe_t stalker_frames_swing_l[] = {
 
 	{ ai_charge, 5, stalker_swing_attack },
 	{ ai_charge, 5 },
-	{ ai_charge, 5 },
+	{ ai_charge, 5, stalker_swing_attack },
 	{ ai_charge, 5, monster_footstep } // stalker_swing_check_l
 };
 MMOVE_T(stalker_move_swing_l) = { FRAME_attack01, FRAME_attack08, stalker_frames_swing_l, stalker_run };

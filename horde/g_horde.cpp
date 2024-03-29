@@ -8,6 +8,7 @@
 
 cvar_t* g_horde;
 
+
 enum class horde_state_t
 {
 	warmup,
@@ -25,11 +26,11 @@ static struct {
 	int32_t			level;
 } g_horde_local;
 bool next_wave_message_sent = false;
-static const int MAX_MONSTERS_PER_WAVE = 16;
+static const int MAX_MONSTERS_PER_WAVE = 42;
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 6 + (lvl * 2);
+	g_horde_local.num_to_spawn = 12 + (lvl * 2);
 
 	// limiting max monsters
 	if (g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
@@ -67,9 +68,9 @@ constexpr struct weighted_item_t {
 	float					weight = 1.0f;
 	weight_adjust_func_t	adjust_weight = nullptr;
 } items[] = {
-	{ "item_health_small", -1, -1, 0.40f, adjust_weight_health },
+	{ "item_health_small", -1, -1, 0.35f, adjust_weight_health },
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
-	{ "item_health_large", -1, -1, 0.15f, adjust_weight_health },
+	{ "item_health_large", -1, -1, 0.17f, adjust_weight_health },
 	{ "item_health_mega", -1, -1, 0.03f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
@@ -78,8 +79,8 @@ constexpr struct weighted_item_t {
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 
 	{ "item_quad", -1, -1, 0.04f, adjust_weight_powerup },
-	{ "item_quadfire", -1, -1, 0.01f, adjust_weight_powerup },
-	{ "item_invulnerability", -1, -1, 0.005f, adjust_weight_powerup },
+	{ "item_quadfire", -1, -1, 0.05f, adjust_weight_powerup },
+	{ "item_invulnerability", -1, -1, 0.02f, adjust_weight_powerup },
 
 	{ "weapon_blaster", -1, 2, 0.1f, adjust_weight_weapon },
 	{ "weapon_shotgun", 2, 3, 0.18f, adjust_weight_weapon },
@@ -90,20 +91,21 @@ constexpr struct weighted_item_t {
 	{ "weapon_grenadelauncher", 6, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 4, 6, 0.15f, adjust_weight_weapon },
 	{ "weapon_phalanx", 6, 9, 0.15f, adjust_weight_weapon },
-	{ "weapon_disruptor", 5, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_rocketlauncher", 3, 6, 0.15f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 5, 8, 0.15f, adjust_weight_weapon },
+	{ "weapon_rocketlauncher", 3, 6, 0.10f, adjust_weight_weapon },
 	{ "weapon_railgun", 3, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 4, 7, 0.15f, adjust_weight_weapon },
+	{ "weapon_plasmabeam", 4, 7, 0.10f, adjust_weight_weapon },
 
-	{ "ammo_shells", 2, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_bullets", 2, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_grenades", 2, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_cells", 2, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_magslug", 3, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_slugs", 3, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_disruptor", 4, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_rockets", 3, -1, 0.25f, adjust_weight_ammo },
-	{ "item_pack", 2, -1, 0.12f, adjust_weight_ammo },
+
+	{ "ammo_shells", 2, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_bullets", 2, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_grenades", 2, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_cells", 2, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_magslug", 3, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_slugs", 3, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_disruptor", 4, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_rockets", 3, -1, 0.45f, adjust_weight_ammo },
+	{ "item_pack", 2, -1, 0.22f, adjust_weight_ammo },
 
 };
 
@@ -144,9 +146,9 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_guncmdr", 5, -1, 1.1f },
 	{ "monster_gladiator", 5, 10, 1.1f },
 	{ "monster_chick_heat", 9, -1, 0.63f },
-	{ "monster_tank_commander", 6, 9, 0.95f },
+	{ "monster_tank_commander", 6, 9, 0.65f },
 	{ "monster_mutant", 3, -1, 0.75f },
-	{ "monster_tank", 6, -1, 0.85f },
+	{ "monster_tank", 6, -1, 0.45f },
 	{ "monster_janitor2", 8, -1, 0.15f },
 	{ "monster_gladb", 8, -1, 1.2f },
 	{ "monster_janitor", 5, -1, 0.25f },
@@ -155,11 +157,11 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_floater", 2, 6, 0.85f },
 	{ "monster_makron", 9, -1, 0.2f },
 	{ "monster_boss2_64", 9, -1, 0.4f },
-	{ "monster_carrier2", 9, -1, 0.1f },
+	{ "monster_carrier2", 9, -1, 0.08f },
 	{ "monster_berserk", 4, -1, 1.15f },
-	{ "monster_spider", 9, -1, 0.25f },
+	{ "monster_spider", 7, -1, 0.34f },
 	{ "monster_tank_64", 10, -1, 0.45f },
-	{ "monster_medic_commander", 7, -1, 0.1f },
+	{ "monster_medic_commander", 7, -1, 0.08f },
 };
 
 struct picked_item_t {
@@ -320,8 +322,6 @@ static void Horde_CleanBodies()
 	}
 }
 
-
-
 void Horde_RunFrame()
 {
 	switch (g_horde_local.state)
@@ -389,7 +389,7 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated GG !");
+				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated \nGG !");
 
 				g_horde_local.warm_time = level.time + 7_sec;
 				g_horde_local.state = horde_state_t::rest;
@@ -399,8 +399,6 @@ void Horde_RunFrame()
 		}
 		break;
 
-
-	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
 			gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
@@ -412,3 +410,4 @@ void Horde_RunFrame()
 		break;
 	}
 }
+

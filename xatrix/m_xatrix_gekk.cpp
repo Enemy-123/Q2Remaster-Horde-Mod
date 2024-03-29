@@ -759,9 +759,9 @@ void reloogie(edict_t *self)
 
 mframe_t gekk_frames_spit[] = {
 	{ ai_charge },
+	{ ai_charge, 0, loogie },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, loogie },
 	{ ai_charge },
 
 	{ ai_charge, 0, loogie },
@@ -776,7 +776,7 @@ mframe_t gekk_frames_attack1[] = {
 
 	{ ai_charge, 0, gekk_hit_left },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, gekk_hit_left },
 
 	{ ai_charge },
 	{ ai_charge },

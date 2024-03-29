@@ -392,7 +392,7 @@ mframe_t chick_frames_duck[] = {
 	{ ai_move, -4 },
 	{ ai_move, -5, monster_duck_up },
 	{ ai_charge, 0, chick_attack1 },
-	{ ai_move, 1 }
+	{ ai_charge, 0, chick_attack1 },
 };
 MMOVE_T(chick_move_duck) = { FRAME_duck01, FRAME_duck07, chick_frames_duck, chick_run };
 
@@ -566,7 +566,7 @@ mframe_t chick_frames_start_attack1[] = {
 	{ ai_charge, 5 },
 	{ ai_charge, 7, monster_footstep },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, chick_attack1 },
 	{ ai_charge },
 	{ ai_charge, 0, chick_attack1 }
 };
@@ -576,7 +576,7 @@ mframe_t chick_frames_attack1[] = {
 	{ ai_charge, 19, ChickRocket },
 	{ ai_charge, -6, monster_footstep },
 	{ ai_charge, -5 },
-	{ ai_charge, -2 },
+	{ ai_charge, 19, ChickRocket },
 	{ ai_charge, -7, monster_footstep },
 	{ ai_charge },
 	{ ai_charge, 1 },
