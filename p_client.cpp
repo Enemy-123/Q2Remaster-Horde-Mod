@@ -2311,7 +2311,7 @@ void PutClientInServer(edict_t* ent)
 
 /*
 =====================
-HORDE TWEAKS 
+HORDE TWEAKS
 ============================
 
 std::string q2etweaks_welcome;
@@ -2322,13 +2322,13 @@ if (sv_target_id && sv_target_id->integer)
 	q2etweaks_welcome += "\tTarget ID\n";
 
 	*/
-/*
-ClientBeginDeathmatch
+	/*
+	ClientBeginDeathmatch
 
-A client has just connected to the server in
-deathmatch mode, so clear everything out before starting them.
-=====================
-*/
+	A client has just connected to the server in
+	deathmatch mode, so clear everything out before starting them.
+	=====================
+	*/
 void ClientBeginDeathmatch(edict_t* ent)
 {
 	G_InitEdict(ent);
@@ -3862,7 +3862,7 @@ void ClientBeginServerFrame(edict_t* ent)
 
 	if (G_IsCooperative())
 		PlayerTrail_Add(ent);
-		PlayerTrail_Add(ent);
+	PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;
 }

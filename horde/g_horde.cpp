@@ -8,7 +8,6 @@
 
 cvar_t* g_horde;
 
-
 enum class horde_state_t
 {
 	warmup,
@@ -26,11 +25,11 @@ static struct {
 	int32_t			level;
 } g_horde_local;
 bool next_wave_message_sent = false;
-static const int MAX_MONSTERS_PER_WAVE = 42;
+static const int MAX_MONSTERS_PER_WAVE = 35;
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 12 + (lvl * 2);
+	g_horde_local.num_to_spawn = 16 + (lvl * 2);
 
 	// limiting max monsters
 	if (g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
@@ -70,7 +69,7 @@ constexpr struct weighted_item_t {
 } items[] = {
 	{ "item_health_small", -1, -1, 0.35f, adjust_weight_health },
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
-	{ "item_health_large", -1, -1, 0.17f, adjust_weight_health },
+	{ "item_health_large", -1, -1, 0.15f, adjust_weight_health },
 	{ "item_health_mega", -1, -1, 0.03f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
@@ -159,9 +158,9 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_boss2_64", 9, -1, 0.4f },
 	{ "monster_carrier2", 9, -1, 0.08f },
 	{ "monster_berserk", 4, -1, 1.15f },
-	{ "monster_spider", 7, -1, 0.34f },
+	{ "monster_spider", 9, -1, 0.34f },
 	{ "monster_tank_64", 10, -1, 0.45f },
-	{ "monster_medic_commander", 7, -1, 0.08f },
+	{ "monster_medic_commander", 7, -1, 0.07f },
 };
 
 struct picked_item_t {
@@ -322,6 +321,8 @@ static void Horde_CleanBodies()
 	}
 }
 
+
+
 void Horde_RunFrame()
 {
 	switch (g_horde_local.state)
@@ -389,7 +390,7 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated \nGG !");
+				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated, GG !");
 
 				g_horde_local.warm_time = level.time + 7_sec;
 				g_horde_local.state = horde_state_t::rest;
@@ -399,6 +400,8 @@ void Horde_RunFrame()
 		}
 		break;
 
+
+	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
 			gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
@@ -410,4 +413,3 @@ void Horde_RunFrame()
 		break;
 	}
 }
-

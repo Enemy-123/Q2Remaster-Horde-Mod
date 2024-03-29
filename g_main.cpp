@@ -103,7 +103,6 @@ cvar_t* g_coop_health_scaling;
 cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
-cvar_t* sv_motd;
 cvar_t* sv_centerprint_frags;
 cvar_t* sv_eyecam;
 cvar_t* sv_target_id;
@@ -145,7 +144,6 @@ cvar_t* ai_movement_disabled;
 static cvar_t* g_frames_per_frame;
 
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint);
-static void G_InitStatusbar();
 void ClientThink(edict_t* ent, usercmd_t* cmd);
 edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBot, edict_t** ignore, size_t num_ignore, bool cinematic);
 bool  ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isBot);
@@ -256,7 +254,6 @@ void InitGame()
 	g_instagib = gi.cvar("g_instagib", "0", CVAR_NOFLAGS);
 
 	// [Paril-KEX]
-	sv_motd = gi.cvar("sv_motd", "", CVAR_NOFLAGS);
 	sv_eyecam = gi.cvar("sv_eyecam", "0", CVAR_NOFLAGS);
 	sv_centerprint_frags = gi.cvar("sv_centerprint_frags", "0", CVAR_NOFLAGS);
 	g_no_self_damage = gi.cvar("g_no_self_damage", "0", CVAR_NOFLAGS);
@@ -676,9 +673,28 @@ void CheckDMRules()
 	if (g_horde->integer)
 	{
 		Horde_RunFrame();
-		return;
-	}
 
+		if (timelimit->value)
+		{
+			if (level.time >= gtime_t::from_min(timelimit->value))
+			{
+				gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
+				for (int i = 0; i < maxclients->integer; i++)
+				{
+					edict_t* ent = g_edicts + 1 + i;
+					if (ent->inuse && ent->client)
+					{
+						InitClientPersistant(ent, ent->client);
+						gi.LocCenter_Print(ent, "Horde Mode is being reset.");
+					}
+					CheckEndTDMLevel();
+				
+				}
+
+			}
+			return;
+		}
+	}
 	if (!deathmatch->integer)
 		return;
 

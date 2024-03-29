@@ -5,220 +5,220 @@
 
 struct spawn_t
 {
-	const char *name;
-	void (*spawn)(edict_t *ent);
+	const char* name;
+	void (*spawn)(edict_t* ent);
 };
 
-void SP_info_player_start(edict_t *ent);
-void SP_info_player_deathmatch(edict_t *ent);
-void SP_info_player_coop(edict_t *ent);
-void SP_info_player_intermission(edict_t *ent);
+void SP_info_player_start(edict_t* ent);
+void SP_info_player_deathmatch(edict_t* ent);
+void SP_info_player_coop(edict_t* ent);
+void SP_info_player_intermission(edict_t* ent);
 
-void SP_func_plat(edict_t *ent);
-void SP_func_rotating(edict_t *ent);
-void SP_func_button(edict_t *ent);
-void SP_func_door(edict_t *ent);
-void SP_func_door_secret(edict_t *ent);
-void SP_func_door_rotating(edict_t *ent);
-void SP_func_water(edict_t *ent);
-void SP_func_train(edict_t *ent);
-void SP_func_conveyor(edict_t *self);
-void SP_func_wall(edict_t *self);
-void SP_func_object(edict_t *self);
-void SP_func_explosive(edict_t *self);
-void SP_func_timer(edict_t *self);
-void SP_func_areaportal(edict_t *ent);
-void SP_func_clock(edict_t *ent);
-void SP_func_killbox(edict_t *ent);
-void SP_func_eye(edict_t *ent); // [Paril-KEX]
-void SP_func_animation(edict_t *ent); // [Paril-KEX]
-void SP_func_spinning(edict_t *ent); // [Paril-KEX]
+void SP_func_plat(edict_t* ent);
+void SP_func_rotating(edict_t* ent);
+void SP_func_button(edict_t* ent);
+void SP_func_door(edict_t* ent);
+void SP_func_door_secret(edict_t* ent);
+void SP_func_door_rotating(edict_t* ent);
+void SP_func_water(edict_t* ent);
+void SP_func_train(edict_t* ent);
+void SP_func_conveyor(edict_t* self);
+void SP_func_wall(edict_t* self);
+void SP_func_object(edict_t* self);
+void SP_func_explosive(edict_t* self);
+void SP_func_timer(edict_t* self);
+void SP_func_areaportal(edict_t* ent);
+void SP_func_clock(edict_t* ent);
+void SP_func_killbox(edict_t* ent);
+void SP_func_eye(edict_t* ent); // [Paril-KEX]
+void SP_func_animation(edict_t* ent); // [Paril-KEX]
+void SP_func_spinning(edict_t* ent); // [Paril-KEX]
 
-void SP_trigger_always(edict_t *ent);
-void SP_trigger_once(edict_t *ent);
-void SP_trigger_multiple(edict_t *ent);
-void SP_trigger_relay(edict_t *ent);
-void SP_trigger_push(edict_t *ent);
-void SP_trigger_hurt(edict_t *ent);
-void SP_trigger_key(edict_t *ent);
-void SP_trigger_counter(edict_t *ent);
-void SP_trigger_elevator(edict_t *ent);
-void SP_trigger_gravity(edict_t *ent);
-void SP_trigger_monsterjump(edict_t *ent);
-void SP_trigger_flashlight(edict_t *self); // [Paril-KEX]
-void SP_trigger_fog(edict_t *self); // [Paril-KEX]
-void SP_trigger_coop_relay(edict_t *self); // [Paril-KEX]
-void SP_trigger_health_relay(edict_t *self); // [Paril-KEX]
+void SP_trigger_always(edict_t* ent);
+void SP_trigger_once(edict_t* ent);
+void SP_trigger_multiple(edict_t* ent);
+void SP_trigger_relay(edict_t* ent);
+void SP_trigger_push(edict_t* ent);
+void SP_trigger_hurt(edict_t* ent);
+void SP_trigger_key(edict_t* ent);
+void SP_trigger_counter(edict_t* ent);
+void SP_trigger_elevator(edict_t* ent);
+void SP_trigger_gravity(edict_t* ent);
+void SP_trigger_monsterjump(edict_t* ent);
+void SP_trigger_flashlight(edict_t* self); // [Paril-KEX]
+void SP_trigger_fog(edict_t* self); // [Paril-KEX]
+void SP_trigger_coop_relay(edict_t* self); // [Paril-KEX]
+void SP_trigger_health_relay(edict_t* self); // [Paril-KEX]
 
-void SP_target_temp_entity(edict_t *ent);
-void SP_target_speaker(edict_t *ent);
-void SP_target_explosion(edict_t *ent);
-void SP_target_changelevel(edict_t *ent);
-void SP_target_secret(edict_t *ent);
-void SP_target_goal(edict_t *ent);
-void SP_target_splash(edict_t *ent);
-void SP_target_spawner(edict_t *ent);
-void SP_target_blaster(edict_t *ent);
-void SP_target_crosslevel_trigger(edict_t *ent);
-void SP_target_crosslevel_target(edict_t *ent);
-void SP_target_crossunit_trigger(edict_t *ent); // [Paril-KEX]
-void SP_target_crossunit_target(edict_t *ent); // [Paril-KEX]
-void SP_target_laser(edict_t *self);
-void SP_target_help(edict_t *ent);
-void SP_target_actor(edict_t *ent);
-void SP_target_lightramp(edict_t *self);
-void SP_target_earthquake(edict_t *ent);
-void SP_target_character(edict_t *ent);
-void SP_target_string(edict_t *ent);
+void SP_target_temp_entity(edict_t* ent);
+void SP_target_speaker(edict_t* ent);
+void SP_target_explosion(edict_t* ent);
+void SP_target_changelevel(edict_t* ent);
+void SP_target_secret(edict_t* ent);
+void SP_target_goal(edict_t* ent);
+void SP_target_splash(edict_t* ent);
+void SP_target_spawner(edict_t* ent);
+void SP_target_blaster(edict_t* ent);
+void SP_target_crosslevel_trigger(edict_t* ent);
+void SP_target_crosslevel_target(edict_t* ent);
+void SP_target_crossunit_trigger(edict_t* ent); // [Paril-KEX]
+void SP_target_crossunit_target(edict_t* ent); // [Paril-KEX]
+void SP_target_laser(edict_t* self);
+void SP_target_help(edict_t* ent);
+void SP_target_actor(edict_t* ent);
+void SP_target_lightramp(edict_t* self);
+void SP_target_earthquake(edict_t* ent);
+void SP_target_character(edict_t* ent);
+void SP_target_string(edict_t* ent);
 void SP_target_camera(edict_t* self); // [Sam-KEX]
 void SP_target_gravity(edict_t* self); // [Sam-KEX]
 void SP_target_soundfx(edict_t* self); // [Sam-KEX]
-void SP_target_light(edict_t *self); // [Paril-KEX]
-void SP_target_poi(edict_t *ent); // [Paril-KEX]
-void SP_target_music(edict_t *ent);
-void SP_target_healthbar(edict_t *self); // [Paril-KEX]
-void SP_target_autosave(edict_t *self); // [Paril-KEX]
-void SP_target_sky(edict_t *self); // [Paril-KEX]
-void SP_target_achievement(edict_t *self); // [Paril-KEX]
-void SP_target_story(edict_t *self); // [Paril-KEX]
+void SP_target_light(edict_t* self); // [Paril-KEX]
+void SP_target_poi(edict_t* ent); // [Paril-KEX]
+void SP_target_music(edict_t* ent);
+void SP_target_healthbar(edict_t* self); // [Paril-KEX]
+void SP_target_autosave(edict_t* self); // [Paril-KEX]
+void SP_target_sky(edict_t* self); // [Paril-KEX]
+void SP_target_achievement(edict_t* self); // [Paril-KEX]
+void SP_target_story(edict_t* self); // [Paril-KEX]
 
-void SP_worldspawn(edict_t *ent);
+void SP_worldspawn(edict_t* ent);
 
 void SP_dynamic_light(edict_t* self);
-void SP_light(edict_t *self);
-void SP_light_mine1(edict_t *ent);
-void SP_light_mine2(edict_t *ent);
-void SP_info_null(edict_t *self);
-void SP_info_notnull(edict_t *self);
-void SP_info_landmark (edict_t* self); // [Paril-KEX]
-void SP_info_world_text(edict_t * self);
-void SP_misc_player_mannequin(edict_t * self);
-void SP_misc_model(edict_t *self); // [Paril-KEX]
-void SP_path_corner(edict_t *self);
-void SP_point_combat(edict_t *self);
-void SP_info_nav_lock(edict_t *self); // [Paril-KEX]
+void SP_light(edict_t* self);
+void SP_light_mine1(edict_t* ent);
+void SP_light_mine2(edict_t* ent);
+void SP_info_null(edict_t* self);
+void SP_info_notnull(edict_t* self);
+void SP_info_landmark(edict_t* self); // [Paril-KEX]
+void SP_info_world_text(edict_t* self);
+void SP_misc_player_mannequin(edict_t* self);
+void SP_misc_model(edict_t* self); // [Paril-KEX]
+void SP_path_corner(edict_t* self);
+void SP_point_combat(edict_t* self);
+void SP_info_nav_lock(edict_t* self); // [Paril-KEX]
 
-void SP_misc_explobox(edict_t *self);
-void SP_misc_banner(edict_t *self);
-void SP_misc_satellite_dish(edict_t *self);
-void SP_misc_actor(edict_t *self);
-void SP_misc_gib_arm(edict_t *self);
-void SP_misc_gib_leg(edict_t *self);
-void SP_misc_gib_head(edict_t *self);
-void SP_misc_insane(edict_t *self);
-void SP_misc_deadsoldier(edict_t *self);
-void SP_misc_viper(edict_t *self);
-void SP_misc_viper_bomb(edict_t *self);
-void SP_misc_bigviper(edict_t *self);
-void SP_misc_strogg_ship(edict_t *self);
-void SP_misc_teleporter(edict_t *self);
-void SP_misc_teleporter_dest(edict_t *self);
-void SP_misc_blackhole(edict_t *self);
-void SP_misc_eastertank(edict_t *self);
-void SP_misc_easterchick(edict_t *self);
-void SP_misc_easterchick2(edict_t *self);
+void SP_misc_explobox(edict_t* self);
+void SP_misc_banner(edict_t* self);
+void SP_misc_satellite_dish(edict_t* self);
+void SP_misc_actor(edict_t* self);
+void SP_misc_gib_arm(edict_t* self);
+void SP_misc_gib_leg(edict_t* self);
+void SP_misc_gib_head(edict_t* self);
+void SP_misc_insane(edict_t* self);
+void SP_misc_deadsoldier(edict_t* self);
+void SP_misc_viper(edict_t* self);
+void SP_misc_viper_bomb(edict_t* self);
+void SP_misc_bigviper(edict_t* self);
+void SP_misc_strogg_ship(edict_t* self);
+void SP_misc_teleporter(edict_t* self);
+void SP_misc_teleporter_dest(edict_t* self);
+void SP_misc_blackhole(edict_t* self);
+void SP_misc_eastertank(edict_t* self);
+void SP_misc_easterchick(edict_t* self);
+void SP_misc_easterchick2(edict_t* self);
 
 void SP_misc_flare(edict_t* ent); // [Sam-KEX]
-void SP_misc_hologram(edict_t *ent);
-void SP_misc_lavaball(edict_t *ent);
+void SP_misc_hologram(edict_t* ent);
+void SP_misc_lavaball(edict_t* ent);
 
-void SP_monster_berserk(edict_t *self);
-void SP_monster_gladiator(edict_t *self);
-void SP_monster_gunner(edict_t *self);
-void SP_monster_infantry(edict_t *self);
-void SP_monster_soldier_light(edict_t *self);
-void SP_monster_soldier(edict_t *self);
-void SP_monster_soldier_ss(edict_t *self);
-void SP_monster_tank(edict_t *self);
+void SP_monster_berserk(edict_t* self);
+void SP_monster_gladiator(edict_t* self);
+void SP_monster_gunner(edict_t* self);
+void SP_monster_infantry(edict_t* self);
+void SP_monster_soldier_light(edict_t* self);
+void SP_monster_soldier(edict_t* self);
+void SP_monster_soldier_ss(edict_t* self);
+void SP_monster_tank(edict_t* self);
 void SP_monster_tank_64(edict_t* self);
-void SP_monster_medic(edict_t *self);
-void SP_monster_flipper(edict_t *self);
-void SP_monster_chick(edict_t *self);
-void SP_monster_parasite(edict_t *self);
-void SP_monster_flyer(edict_t *self);
-void SP_monster_brain(edict_t *self);
-void SP_monster_floater(edict_t *self);
-void SP_monster_hover(edict_t *self);
-void SP_monster_mutant(edict_t *self);
-void SP_monster_supertank(edict_t *self);
-void SP_monster_boss2(edict_t *self);
+void SP_monster_medic(edict_t* self);
+void SP_monster_flipper(edict_t* self);
+void SP_monster_chick(edict_t* self);
+void SP_monster_parasite(edict_t* self);
+void SP_monster_flyer(edict_t* self);
+void SP_monster_brain(edict_t* self);
+void SP_monster_floater(edict_t* self);
+void SP_monster_hover(edict_t* self);
+void SP_monster_mutant(edict_t* self);
+void SP_monster_supertank(edict_t* self);
+void SP_monster_boss2(edict_t* self);
 void SP_monster_boss2_64(edict_t* self);
-void SP_monster_jorg(edict_t *self);
-void SP_monster_boss3_stand(edict_t *self);
-void SP_monster_makron(edict_t *self);
+void SP_monster_jorg(edict_t* self);
+void SP_monster_boss3_stand(edict_t* self);
+void SP_monster_makron(edict_t* self);
 // Paril
-void SP_monster_tank_stand(edict_t *self);
-void SP_monster_guardian(edict_t *self);
-void SP_monster_arachnid(edict_t *self);
+void SP_monster_tank_stand(edict_t* self);
+void SP_monster_guardian(edict_t* self);
+void SP_monster_arachnid(edict_t* self);
 void SP_monster_spider(edict_t* self);
-void SP_monster_guncmdr(edict_t *self);
+void SP_monster_guncmdr(edict_t* self);
 
-void SP_monster_commander_body(edict_t *self);
+void SP_monster_commander_body(edict_t* self);
 
-void SP_turret_breach(edict_t *self);
-void SP_turret_base(edict_t *self);
-void SP_turret_driver(edict_t *self);
+void SP_turret_breach(edict_t* self);
+void SP_turret_base(edict_t* self);
+void SP_turret_driver(edict_t* self);
 
 // RAFAEL 14-APR-98
-void SP_monster_soldier_hypergun(edict_t *self);
-void SP_monster_soldier_lasergun(edict_t *self);
-void SP_monster_soldier_ripper(edict_t *self);
-void SP_monster_fixbot(edict_t *self);
-void SP_monster_gekk(edict_t *self);
-void SP_monster_chick_heat(edict_t *self);
-void SP_monster_gladb(edict_t *self);
-void SP_monster_boss5(edict_t *self);
+void SP_monster_soldier_hypergun(edict_t* self);
+void SP_monster_soldier_lasergun(edict_t* self);
+void SP_monster_soldier_ripper(edict_t* self);
+void SP_monster_fixbot(edict_t* self);
+void SP_monster_gekk(edict_t* self);
+void SP_monster_chick_heat(edict_t* self);
+void SP_monster_gladb(edict_t* self);
+void SP_monster_boss5(edict_t* self);
 void SP_monster_janitor(edict_t* self);
 void SP_monster_janitor2(edict_t* self);
-void SP_rotating_light(edict_t *self);
-void SP_object_repair(edict_t *self);
-void SP_misc_crashviper(edict_t *ent);
-void SP_misc_viper_missile(edict_t *self);
-void SP_misc_amb4(edict_t *ent);
-void SP_target_mal_laser(edict_t *ent);
-void SP_misc_transport(edict_t *ent);
+void SP_rotating_light(edict_t* self);
+void SP_object_repair(edict_t* self);
+void SP_misc_crashviper(edict_t* ent);
+void SP_misc_viper_missile(edict_t* self);
+void SP_misc_amb4(edict_t* ent);
+void SP_target_mal_laser(edict_t* ent);
+void SP_misc_transport(edict_t* ent);
 // END 14-APR-98
 
-void SP_misc_nuke(edict_t *ent);
+void SP_misc_nuke(edict_t* ent);
 
 //===========
 // ROGUE
-void SP_func_plat2(edict_t *ent);
-void SP_func_door_secret2(edict_t *ent);
-void SP_func_force_wall(edict_t *ent);
-void SP_info_player_coop_lava(edict_t *self);
-void SP_info_teleport_destination(edict_t *self);
-void SP_trigger_teleport(edict_t *self);
-void SP_trigger_disguise(edict_t *self);
-void SP_monster_stalker(edict_t *self);
-void SP_monster_turret(edict_t *self);
-void SP_target_steam(edict_t *self);
-void SP_target_anger(edict_t *self);
-void SP_target_killplayers(edict_t *self);
+void SP_func_plat2(edict_t* ent);
+void SP_func_door_secret2(edict_t* ent);
+void SP_func_force_wall(edict_t* ent);
+void SP_info_player_coop_lava(edict_t* self);
+void SP_info_teleport_destination(edict_t* self);
+void SP_trigger_teleport(edict_t* self);
+void SP_trigger_disguise(edict_t* self);
+void SP_monster_stalker(edict_t* self);
+void SP_monster_turret(edict_t* self);
+void SP_target_steam(edict_t* self);
+void SP_target_anger(edict_t* self);
+void SP_target_killplayers(edict_t* self);
 // PMM - still experimental!
-void SP_target_blacklight(edict_t *self);
-void SP_target_orb(edict_t *self);
+void SP_target_blacklight(edict_t* self);
+void SP_target_orb(edict_t* self);
 // pmm
-void SP_hint_path(edict_t *self);
-void SP_monster_carrier(edict_t *self);
+void SP_hint_path(edict_t* self);
+void SP_monster_carrier(edict_t* self);
 void SP_monster_carrier2(edict_t* self);
-void SP_monster_widow(edict_t *self);
-void SP_monster_widow2(edict_t *self);
-void SP_dm_tag_token(edict_t *self);
-void SP_dm_dball_goal(edict_t *self);
-void SP_dm_dball_ball(edict_t *self);
-void SP_dm_dball_team1_start(edict_t *self);
-void SP_dm_dball_team2_start(edict_t *self);
-void SP_dm_dball_ball_start(edict_t *self);
-void SP_dm_dball_speed_change(edict_t *self);
-void SP_monster_kamikaze(edict_t *self);
-void SP_turret_invisible_brain(edict_t *self);
-void SP_misc_nuke_core(edict_t *self);
+void SP_monster_widow(edict_t* self);
+void SP_monster_widow2(edict_t* self);
+void SP_dm_tag_token(edict_t* self);
+void SP_dm_dball_goal(edict_t* self);
+void SP_dm_dball_ball(edict_t* self);
+void SP_dm_dball_team1_start(edict_t* self);
+void SP_dm_dball_team2_start(edict_t* self);
+void SP_dm_dball_ball_start(edict_t* self);
+void SP_dm_dball_speed_change(edict_t* self);
+void SP_monster_kamikaze(edict_t* self);
+void SP_turret_invisible_brain(edict_t* self);
+void SP_misc_nuke_core(edict_t* self);
 // ROGUE
 //===========
 //  ZOID
-void SP_trigger_ctf_teleport(edict_t *self);
-void SP_info_ctf_teleport_destination(edict_t *self);
+void SP_trigger_ctf_teleport(edict_t* self);
+void SP_info_ctf_teleport_destination(edict_t* self);
 // ZOID
 
 void SP_monster_shambler(edict_t* self);
@@ -456,9 +456,9 @@ ED_CallSpawn
 Finds the spawn function for the entity and calls it
 ===============
 */
-void ED_CallSpawn(edict_t *ent)
+void ED_CallSpawn(edict_t* ent)
 {
-	gitem_t *item;
+	gitem_t* item;
 	int		 i;
 
 	if (!ent->classname)
@@ -512,7 +512,7 @@ void ED_CallSpawn(edict_t *ent)
 	}
 
 	// check normal spawn functions
-	for (auto &s : spawns)
+	for (auto& s : spawns)
 	{
 		if (!strcmp(s.name, ent->classname))
 		{ // found it
@@ -534,15 +534,15 @@ void ED_CallSpawn(edict_t *ent)
 ED_NewString
 =============
 */
-char *ED_NewString(const char *string)
+char* ED_NewString(const char* string)
 {
-	char	*newb, *new_p;
+	char* newb, * new_p;
 	int		i;
 	size_t	l;
 
 	l = strlen(string) + 1;
 
-	newb = (char *) gi.TagMalloc(l, TAG_LEVEL);
+	newb = (char*)gi.TagMalloc(l, TAG_LEVEL);
 
 	new_p = newb;
 
@@ -569,8 +569,8 @@ char *ED_NewString(const char *string)
 
 struct field_t
 {
-	const char *name;
-	void (*load_func) (edict_t *e, const char *s) = nullptr;
+	const char* name;
+	void (*load_func) (edict_t* e, const char* s) = nullptr;
 };
 
 // utility template for getting the type of a field
@@ -583,32 +583,32 @@ using member_object_container_type_t = typename member_object_container_type<std
 
 struct type_loaders_t
 {
-	template<typename T, std::enable_if_t<std::is_same_v<T, const char *>, int> = 0>
-	static T load(const char *s)
+	template<typename T, std::enable_if_t<std::is_same_v<T, const char*>, int> = 0>
+	static T load(const char* s)
 	{
 		return ED_NewString(s);
 	}
 
 	template<typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
-	static T load(const char *s)
+	static T load(const char* s)
 	{
 		return atoi(s);
 	}
 
 	template<typename T, std::enable_if_t<std::is_same_v<T, spawnflags_t>, int> = 0>
-	static T load(const char *s)
+	static T load(const char* s)
 	{
 		return spawnflags_t(atoi(s));
 	}
 
 	template<typename T, std::enable_if_t<std::is_floating_point_v<T>, int> = 0>
-	static T load(const char *s)
+	static T load(const char* s)
 	{
 		return atof(s);
 	}
 
 	template<typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
-	static T load(const char *s)
+	static T load(const char* s)
 	{
 		if constexpr (sizeof(T) > 4)
 			return static_cast<T>(atoll(s));
@@ -617,11 +617,11 @@ struct type_loaders_t
 	}
 
 	template<typename T, std::enable_if_t<std::is_same_v<T, vec3_t>, int> = 0>
-	static T load(const char *s)
+	static T load(const char* s)
 	{
 		vec3_t vec;
 		static char vec_buffer[32];
-		const char *token = COM_Parse(&s, vec_buffer, sizeof(vec_buffer));
+		const char* token = COM_Parse(&s, vec_buffer, sizeof(vec_buffer));
 		vec.x = atof(token);
 		token = COM_Parse(&s);
 		vec.y = atof(token);
@@ -636,18 +636,18 @@ struct type_loaders_t
 		e->M = type_loaders_t::load<decltype(e->M)>(s); \
 	}
 
-static int32_t ED_LoadColor(const char *value)
+static int32_t ED_LoadColor(const char* value)
 {
 	// space means rgba as values
 	if (strchr(value, ' '))
 	{
 		static char color_buffer[32];
-		std::array<float, 4> raw_values { 0, 0, 0, 1.0f };
+		std::array<float, 4> raw_values{ 0, 0, 0, 1.0f };
 		bool is_float = true;
 
-		for (auto &v : raw_values)
+		for (auto& v : raw_values)
 		{
-			const char *token = COM_Parse(&value, color_buffer, sizeof(color_buffer));
+			const char* token = COM_Parse(&value, color_buffer, sizeof(color_buffer));
 
 			if (*token)
 			{
@@ -659,10 +659,10 @@ static int32_t ED_LoadColor(const char *value)
 		}
 
 		if (is_float)
-			for (auto &v : raw_values)
+			for (auto& v : raw_values)
 				v *= 255.f;
 
-		return ((int32_t) raw_values[3]) | (((int32_t) raw_values[2]) << 8) | (((int32_t) raw_values[1]) << 16) | (((int32_t) raw_values[0]) << 24);
+		return ((int32_t)raw_values[3]) | (((int32_t)raw_values[2]) << 8) | (((int32_t)raw_values[1]) << 16) | (((int32_t)raw_values[0]) << 24);
 	}
 
 	// integral
@@ -719,7 +719,7 @@ static const std::initializer_list<field_t> entity_fields = {
 	FIELD_AUTO(map),
 	FIELD_AUTO_NAMED("origin", s.origin),
 	FIELD_AUTO_NAMED("angles", s.angles),
-	{ "angle", [](edict_t *e, const char *value) {
+	{ "angle", [](edict_t* e, const char* value) {
 		e->s.angles = {};
 		e->s.angles[YAW] = atof(value);
 	} },
@@ -740,7 +740,7 @@ static const std::initializer_list<field_t> entity_fields = {
 	FIELD_AUTO_NAMED("fog_density_off", fog.density_off),
 	FIELD_AUTO_NAMED("fog_sky_factor", fog.sky_factor),
 	FIELD_AUTO_NAMED("fog_sky_factor_off", fog.sky_factor_off),
-	
+
 	FIELD_AUTO_NAMED("heightfog_falloff", heightfog.falloff),
 	FIELD_AUTO_NAMED("heightfog_density", heightfog.density),
 	FIELD_AUTO_NAMED("heightfog_start_color", heightfog.start_color),
@@ -779,7 +779,7 @@ static const std::initializer_list<field_t> entity_fields = {
 
 	// [Paril-KEX] customizable power armor stuff
 	FIELD_AUTO_NAMED("power_armor_power", monsterinfo.power_armor_power),
-	{ "power_armor_type", [](edict_t *s, const char *v)
+	{ "power_armor_type", [](edict_t* s, const char* v)
 		{
 			int32_t type = atoi(v);
 
@@ -804,8 +804,8 @@ static const std::initializer_list<field_t> entity_fields = {
 
 struct temp_field_t
 {
-	const char *name;
-	void (*load_func) (spawn_temp_t *e, const char *s) = nullptr;
+	const char* name;
+	void (*load_func) (spawn_temp_t* e, const char* s) = nullptr;
 };
 
 // temp spawn vars -- only valid when the spawn function is called
@@ -870,10 +870,10 @@ Takes a key/value pair and sets the binary values
 in an edict
 ===============
 */
-void ED_ParseField(const char *key, const char *value, edict_t *ent)
+void ED_ParseField(const char* key, const char* value, edict_t* ent)
 {
 	// check st first
-	for (auto &f : temp_fields)
+	for (auto& f : temp_fields)
 	{
 		if (Q_strcasecmp(f.name, key))
 			continue;
@@ -883,12 +883,12 @@ void ED_ParseField(const char *key, const char *value, edict_t *ent)
 		// found it
 		if (f.load_func)
 			f.load_func(&st, value);
-		
+
 		return;
 	}
 
 	// now entity
-	for (auto &f : entity_fields)
+	for (auto& f : entity_fields)
 	{
 		if (Q_strcasecmp(f.name, key))
 			continue;
@@ -917,15 +917,15 @@ Parses an edict out of the given string, returning the new position
 ed should be a properly initialized empty edict.
 ====================
 */
-const char *ED_ParseEdict(const char *data, edict_t *ent)
+const char* ED_ParseEdict(const char* data, edict_t* ent)
 {
 	bool  init;
 	char  keyname[256];
-	const char *com_token;
+	const char* com_token;
 
 	init = false;
 	st = {};
-	
+
 	// go through all the dictionary pairs
 	while (1)
 	{
@@ -953,7 +953,7 @@ const char *ED_ParseEdict(const char *data, edict_t *ent)
 		if (keyname[0] == '_')
 		{
 			// [Sam-KEX] Hack for setting RGBA for shadow-casting lights
-			if(!strcmp(keyname, "_color"))
+			if (!strcmp(keyname, "_color"))
 				ent->s.skinnum = ED_LoadColor(com_token);
 
 			continue;
@@ -983,7 +983,7 @@ All but the last will have the teamchain field set to the next one
 // are in the front of the team
 void G_FixTeams()
 {
-	edict_t *e, *e2, *chain;
+	edict_t* e, * e2, * chain;
 	uint32_t i, j;
 	uint32_t c;
 
@@ -1033,7 +1033,7 @@ void G_FixTeams()
 
 void G_FindTeams()
 {
-	edict_t *e, *e2, *chain;
+	edict_t* e, * e2, * chain;
 	uint32_t i, j;
 	uint32_t c, c2;
 
@@ -1079,7 +1079,7 @@ void G_FindTeams()
 }
 
 // inhibit entities from game based on cvars & spawnflags
-inline bool G_InhibitEntity(edict_t *ent)
+inline bool G_InhibitEntity(edict_t* ent)
 {
 	// dm-only
 	if (G_IsDeathmatch())
@@ -1102,14 +1102,14 @@ void setup_shadow_lights();
 // [Paril-KEX]
 void G_PrecacheInventoryItems()
 {
-	
 
 
-		return;
+
+	return;
 
 	for (size_t i = 0; i < game.maxclients; i++)
 	{
-		gclient_t *cl = g_edicts[i + 1].client;
+		gclient_t* cl = g_edicts[i + 1].client;
 
 		if (!cl)
 			continue;
@@ -1127,16 +1127,16 @@ static void G_PrecacheStartItems()
 		return;
 
 	char token_copy[MAX_TOKEN_CHARS];
-	const char *token;
-	const char *ptr = g_start_items->string;
+	const char* token;
+	const char* ptr = g_start_items->string;
 
 	while (*(token = COM_ParseEx(&ptr, ";")))
 	{
 		Q_strlcpy(token_copy, token, sizeof(token_copy));
-		const char *ptr_copy = token_copy;
+		const char* ptr_copy = token_copy;
 
-		const char *item_name = COM_Parse(&ptr_copy);
-		gitem_t *item = FindItemByClassname(item_name);
+		const char* item_name = COM_Parse(&ptr_copy);
+		gitem_t* item = FindItemByClassname(item_name);
 
 		if (!item || !item->pickup)
 			gi.Com_ErrorFmt("Invalid g_start_item entry: {}\n", item_name);
@@ -1156,16 +1156,16 @@ Creates a server's entity / program execution context by
 parsing textual entity definitions out of an ent file.
 ==============
 */
-void SpawnEntities(const char *mapname, const char *entities, const char *spawnpoint)
+void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
 	// clear cached indices
 	cached_soundindex::clear_all();
 	cached_modelindex::clear_all();
 	cached_imageindex::clear_all();
 
-	edict_t *ent;
+	edict_t* ent;
 	int		 inhibit;
-	const char	 *com_token;
+	const char* com_token;
 
 	int skill_level = clamp(skill->integer, 0, 3);
 	if (skill->integer != skill_level)
@@ -1297,14 +1297,6 @@ static void G_InitStatusbar()
 	statusbar_t sb;
 
 	// ---- shared stuff that every gamemode uses ----
-			// spectator
-	sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
-
-	// chase cam
-	// Q2Eaks fix bugged chasecam name showing name\model/skin\tag
-	//sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_string(STAT_CHASE).endifstat();
-	sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_pname(STAT_CHASE).endifstat();
-
 	sb.yb(-24);
 
 	// health
@@ -1329,7 +1321,7 @@ static void G_InitStatusbar()
 
 	// timer
 	sb.ifstat(STAT_TIMER_ICON).xv(262).num(2, STAT_TIMER).xv(296).pic(STAT_TIMER_ICON).endifstat();
-	
+
 	sb.yb(-50);
 
 	// help / weapon icon
@@ -1411,16 +1403,20 @@ static void G_InitStatusbar()
 
 		// team info
 		sb.ifstat(STAT_CTF_TEAMINFO).xl(0).yb(-88).stat_string(STAT_CTF_TEAMINFO).endifstat();
-
-		}
-	
+	}
 	else
-	{ 
+	{
 		// dm
 		// frags
 		sb.xr(-50).yt(2).num(3, STAT_FRAGS);
 
+		// spectator
+		sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
 
+		// chase cam
+		// Q2Eaks fix bugged chasecam name showing name\model/skin\tag
+		//sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_string(STAT_CHASE).endifstat();
+		sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_pname(STAT_CHASE).endifstat();
 	}
 
 	// ---- more shared stuff ----
@@ -1448,7 +1444,7 @@ Only used for the world.
 "gravity"	800 is default gravity
 "message"	text to print at user logon
 */
-void SP_worldspawn(edict_t *ent)
+void SP_worldspawn(edict_t* ent)
 {
 	ent->movetype = MOVETYPE_PUSH;
 	ent->solid = SOLID_BSP;
@@ -1582,7 +1578,7 @@ void SP_worldspawn(edict_t *ent)
 	}
 
 	snd_fry.assign("player/fry.wav"); // standing in lava / slime
-	
+
 	PrecacheItem(GetItemByIndex(IT_ITEM_COMPASS));
 	PrecacheItem(GetItemByIndex(IT_WEAPON_BLASTER));
 
@@ -1623,15 +1619,15 @@ void SP_worldspawn(edict_t *ent)
 	gi.soundindex("*drown1.wav"); // [Paril-KEX]
 
 	// sexed models
-	for (auto &item : itemlist)
+	for (auto& item : itemlist)
 		item.vwep_index = 0;
 
-	for (auto &item : itemlist)
+	for (auto& item : itemlist)
 	{
 		if (!item.vwep_model)
 			continue;
 
-		for (auto &check : itemlist)
+		for (auto& check : itemlist)
 		{
 			if (check.vwep_model && !Q_strcasecmp(item.vwep_model, check.vwep_model) && check.vwep_index)
 			{
@@ -1745,7 +1741,7 @@ void SP_worldspawn(edict_t *ent)
 	gi.configstring(CS_LIGHTS + 63, "a");
 
 	// coop respawn strings
-	
+
 
 
 	{
