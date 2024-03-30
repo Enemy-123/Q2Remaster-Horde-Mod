@@ -273,7 +273,7 @@ void weapon_etf_rifle_fire(edict_t *ent)
 	if (G_IsDeathmatch())
 		damage = 10;
 	else
-		damage = 26;
+		damage = 10;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -394,9 +394,9 @@ void Heatbeam_Fire(edict_t *ent)
 
 	if (G_IsDeathmatch())
 	// really knock 'em around in deathmatch
-		kick = 45;
+		kick = 75;
 	else
-		kick = 30;
+		kick = 45;
 
 	if (is_quad)
 	{

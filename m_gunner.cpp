@@ -883,11 +883,11 @@ void SP_monster_gunner(edict_t *self)
 	self->maxs = { 16, 16, 36 };
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 100;
+		self->monsterinfo.power_armor_power = 80;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
-	self->health = 245 * st.health_multiplier;
+	self->health = 225 * st.health_multiplier;
 	self->gib_health = -70;
 	self->mass = 200;
 

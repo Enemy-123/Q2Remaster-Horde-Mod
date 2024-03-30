@@ -1297,6 +1297,14 @@ static void G_InitStatusbar()
 	statusbar_t sb;
 
 	// ---- shared stuff that every gamemode uses ----
+			// spectator
+	sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
+
+	// chase cam
+	// Q2Eaks fix bugged chasecam name showing name\model/skin\tag
+	//sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_string(STAT_CHASE).endifstat();
+	sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_pname(STAT_CHASE).endifstat();
+
 	sb.yb(-24);
 
 	// health
@@ -1410,13 +1418,6 @@ static void G_InitStatusbar()
 		// frags
 		sb.xr(-50).yt(2).num(3, STAT_FRAGS);
 
-		// spectator
-		sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
-
-		// chase cam
-		// Q2Eaks fix bugged chasecam name showing name\model/skin\tag
-		//sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_string(STAT_CHASE).endifstat();
-		sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_pname(STAT_CHASE).endifstat();
 	}
 
 	// ---- more shared stuff ----

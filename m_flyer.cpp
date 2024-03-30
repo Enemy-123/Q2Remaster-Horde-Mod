@@ -460,8 +460,8 @@ void flyer_slash_right(edict_t* self)
 
 mframe_t flyer_frames_start_melee[] = {
 	{ ai_charge, 0, flyer_pop_blades },
-	{ ai_charge, 0, flyer_pop_blades },
-	{ ai_charge, 0, flyer_pop_blades },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge }
@@ -476,19 +476,18 @@ mframe_t flyer_frames_end_melee[] = {
 MMOVE_T(flyer_move_end_melee) = { FRAME_attak119, FRAME_attak121, flyer_frames_end_melee, flyer_run };
 
 mframe_t flyer_frames_loop_melee[] = {
-	{ ai_charge, 0, flyer_slash_left }, // Left Wing Strike // Loop Start
-	{ ai_charge, 0, flyer_slash_right },
+	{ ai_charge }, // Loop Start
+	{ ai_charge },
 	{ ai_charge, 0, flyer_slash_left }, // Left Wing Strike
-	{ ai_charge, 0, flyer_slash_right },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge, 0, flyer_slash_left }, // Left Wing Strike
-	{ ai_charge, 0, flyer_slash_right },
 	{ ai_charge },
 	{ ai_charge, 0, flyer_slash_right }, // Right Wing Strike
 	{ ai_charge },
-	{ ai_charge, 0, flyer_slash_right },
+	{ ai_charge, 0, flyer_slash_right }, // Right Wing Strike
 	{ ai_charge },
 	{ ai_charge } // Loop Ends
-
 };
 MMOVE_T(flyer_move_loop_melee) = { FRAME_attak107, FRAME_attak118, flyer_frames_loop_melee, flyer_check_melee };
 

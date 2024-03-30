@@ -587,6 +587,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 		if (G_IsCooperative() && !P_UseCoopInstancedItems())
 		{
+
 			// clear inventory
 			// this is kind of ugly, but it's how we want to handle keys in coop
 			for (int n = 0; n < IT_TOTAL; n++)
@@ -604,12 +605,13 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			DMGame.PlayerDeath(self, inflictor, attacker);
 	}
 
+
 	// remove powerups
 	self->client->quad_time = 0_ms;
 	self->client->invincible_time = 0_ms;
 	self->client->breather_time = 0_ms;
 	self->client->enviro_time = 0_ms;
-	self->client->invisible_time = 0_ms;
+    self->client->invincible_time = 0_ms;
 	self->flags &= ~FL_POWER_ARMOR;
 
 	// clear inventory
@@ -619,6 +621,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	// RAFAEL
 	self->client->quadfire_time = 0_ms;
 	// RAFAEL
+
 
 	//==============
 	// ROGUE stuff
@@ -2146,6 +2149,7 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec; // INVULNERABILITY EACH RESPAWN EVERY MODE
 
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));

@@ -669,7 +669,7 @@ void SP_monster_supertank(edict_t *self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
-	self->health = 1700 * st.health_multiplier;
+	self->health = 2400 * st.health_multiplier;
 	self->gib_health = -500;
 	self->mass = 800;
 
@@ -744,16 +744,16 @@ void SP_monster_janitor(edict_t* self)
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
 	if (!self->s.scale)
-		self->s.scale = 0.4f;
+		self->s.scale = 0.5f;
 
-	self->mins = { -22, -22, 0 };
-	self->maxs = { 22,22, 40 };
+	self->mins = { -24, -24, 0 };
+	self->maxs = { 24,24, 44 };
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 1500;
+		self->monsterinfo.power_armor_power = 800;
 
-	self->health = 600 * st.health_multiplier;
+	self->health = 800 * st.health_multiplier;
 	self->mass = 200;
 }

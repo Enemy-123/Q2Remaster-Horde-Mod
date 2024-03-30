@@ -398,12 +398,12 @@ void fire_blaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 	bolt->s.renderfx |= RF_FULLBRIGHT;
 	bolt->s.modelindex = gi.modelindex("models/objects/laser/tris.md2");
 	bolt->dmg_radius = 156;
-	bolt->s.skinnum = 1;
+	bolt->s.skinnum = 2;
 	bolt->s.scale = 1.5f;
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
 	bolt->touch = blaster_touch;
-	bolt->nextthink = level.time + 4_sec;
+	bolt->nextthink = level.time + 1.5_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
 	bolt->dmg_radius = 156;

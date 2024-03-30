@@ -1677,7 +1677,7 @@ struct monsterinfo_t
 	gtime_t invincible_time;
 	gtime_t double_time;
 	// ROGUE
-
+	// 
 	// Paril
 	gtime_t	  surprise_time;
 	item_id_t armor_type;
@@ -2820,10 +2820,10 @@ struct damage_indicator_t
 constexpr gtime_t LADDER_SOUND_TIME = 300_ms;
 
 // time after damage that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 2000_ms;
+constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 1200_ms;
 
 // time after firing that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 2500_ms;
+constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 1000_ms;
 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'

@@ -704,11 +704,11 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 	{
 		// RAFAEL 24-APR-98
 		// droped the damage from 15 to 5
-		monster_fire_ionripper(self, start, aim, 5, 900, flash_index, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, 3, 900, flash_index, EF_IONRIPPER);
 	}
 	else if (self->count <= 3)
 	{
-		monster_fire_blaster2(self, start, aim, 3, 900, flash_index, EF_BLUEHYPERBLASTER);
+		monster_fire_blaster2(self, start, aim, 3, 975, flash_index, EF_BLUEHYPERBLASTER);
 	}
 	else
 	{
@@ -855,8 +855,8 @@ mframe_t soldierh_frames_attack1[] = {
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge, 0, soldier_attack1_refire2 },
 	{ ai_charge, 0, soldierh_hyper_laser_sound_end },
-	{ ai_charge },
-	{ ai_charge }
+	{ ai_charge, 0, soldier_fire1 },
+	{ ai_charge, 0, soldier_fire1 },
 };
 MMOVE_T(soldierh_move_attack1) = { FRAME_attak101, FRAME_attak112, soldierh_frames_attack1, soldier_run };
 
@@ -2002,13 +2002,13 @@ void SP_monster_soldier_ripper(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 46;
+		self->monsterinfo.power_armor_power = 36;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 40 * st.health_multiplier;
+	self->health = self->max_health = 30 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2035,7 +2035,7 @@ void SP_monster_soldier_hypergun(edict_t *self)
 
 	self->s.skinnum = 8;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 60 * st.health_multiplier;
+	self->health = self->max_health = 40 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2059,7 +2059,7 @@ void SP_monster_soldier_lasergun(edict_t *self)
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 80 * st.health_multiplier;
+	self->health = self->max_health = 40 * st.health_multiplier;
 	self->gib_health = -30;
 }
 

@@ -201,7 +201,7 @@ void SetRespawn(edict_t* ent, gtime_t delay, bool hide_self)
 
 bool IsInstantItemsEnabled()
 {
-	if (G_IsDeathmatch() && g_dm_instant_items->integer)
+	if (g_horde->integer || G_IsDeathmatch() && g_dm_instant_items->integer) // instant items on horde mode too!
 	{
 		return true;
 	}
@@ -282,7 +282,7 @@ void Drop_General(edict_t* ent, gitem_t* item)
 void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
 	if (!G_IsDeathmatch())
-		ent->max_health += 50;
+		ent->max_health += 10;
 
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
@@ -294,7 +294,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 
 bool Pickup_LegacyHead(edict_t* ent, edict_t* other)
 {
-	other->max_health += 50;
+	other->max_health += 10;
 	other->health += 5;
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
@@ -484,6 +484,13 @@ void Use_Envirosuit(edict_t* ent, gitem_t* item)
 }
 
 //======================================================================
+
+void Use_Invulnerabilityonrespawn(edict_t* ent, gitem_t* item)
+{
+	ent->client->pers.inventory[item->id]--;
+
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
+}
 
 void Use_Invulnerability(edict_t* ent, gitem_t* item)
 {
@@ -1312,22 +1319,22 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 		gi.Com_PrintFmt("{} has invalid spawnflags set\n", *ent);
 	}
 
-	// some items will be prevented in deathmatch
+	// [Kex] In instagib, spawn no pickups! //moved outside DM for horde modes
+	if (g_instagib->value)
+	{
+		if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
+			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
+			(item->flags & IF_HEALTH) || (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
+			item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
+			item->id == IT_AMMO_NUKE)
+		{
+			G_FreeEdict(ent);
+			return;
+		}
+	}
+
 	if (G_IsDeathmatch())
 	{
-		// [Kex] In instagib, spawn no pickups!
-		if (g_instagib->value)
-		{
-			if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
-				item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
-				(item->flags & IF_HEALTH) || (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
-				item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
-				item->id == IT_AMMO_NUKE)
-			{
-				G_FreeEdict(ent);
-				return;
-			}
-		}
 
 		if (g_no_armor->integer)
 		{
@@ -2770,6 +2777,9 @@ always owned, never in the world
 			/* tag */ POWERUP_QUADFIRE,
 			/* precaches */ "items/quadfire1.wav items/quadfire2.wav items/quadfire3.wav"
 		},
+
+
+
 	// RAFAEL
 
 	/*QUAKED item_invulnerability (.3 .3 1) (-16 -16 -16) (16 16 16)
