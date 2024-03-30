@@ -1372,7 +1372,8 @@ void SP_misc_easterchick2(edict_t* ent)
 	gi.linkentity(ent);
 }
 
-/*QUAKED monster_commander_body (1 .5 0) (-32 -32 0) (32 32 48)
+/*QUAKED monster_
+(1 .5 0) (-32 -32 0) (32 32 48)
 Not really a monster, this is the Tank Commander's decapitated body.
 There should be a item_commander_head that has this as it's target.
 */
@@ -1410,7 +1411,7 @@ void SP_monster_commander_body(edict_t* self)
 	self->mins = { -32, -32, 0 };
 	self->maxs = { 32, 32, 48 };
 	self->use = commander_body_use;
-	self->takedamage = true;
+	self->takedamage = false;
 	self->flags = FL_GODMODE;
 	gi.linkentity(self);
 

@@ -65,7 +65,7 @@ constexpr struct weighted_item_t {
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
 	{ "item_health_mega", -1, -1, 0.1f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.08f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.12f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
 	{ "item_armor_jacket", 4, 4, 0.25f, adjust_weight_armor },
@@ -73,12 +73,12 @@ constexpr struct weighted_item_t {
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 	{ "item_power_screen", 6, -1, 0.1f, adjust_weight_armor },
 
-	{ "item_quad", 5, -1, 0.09f, adjust_weight_powerup },
-	{ "item_double", -1, 5, 0.11f, adjust_weight_powerup },
+	{ "item_quad", 5, -1, 0.13f, adjust_weight_powerup },
+	{ "item_double", -1, 5, 0.16f, adjust_weight_powerup },
 	{ "item_quadfire", -1, -1, 0.13f, adjust_weight_powerup },
-	{ "item_invulnerability", 4, -1, 0.09f, adjust_weight_powerup },
-	{ "item_item_sphere_defender", 3, -1, 0.02f, adjust_weight_powerup },
-	{ "item_invisibility", 4, -1, 0.01f, adjust_weight_powerup },
+	{ "item_invulnerability", 4, -1, 0.08f, adjust_weight_powerup },
+	{ "item_item_sphere_defender", 3, -1, 0.1f, adjust_weight_powerup },
+	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.23f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, 3, 0.23f, adjust_weight_weapon },
