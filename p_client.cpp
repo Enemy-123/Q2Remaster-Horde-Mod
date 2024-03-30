@@ -2149,8 +2149,8 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec; // INVULNERABILITY EACH RESPAWN EVERY MODE
-
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec; // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+	
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
 

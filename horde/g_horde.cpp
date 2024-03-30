@@ -73,10 +73,10 @@ constexpr struct weighted_item_t {
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 	{ "item_power_screen", 6, -1, 0.1f, adjust_weight_armor },
 
-	{ "item_quad", 5, -1, 0.2f, adjust_weight_powerup },
-	{ "item_double", -1, 5, 0.2f, adjust_weight_powerup },
-	{ "item_quadfire", -1, -1, 0.2f, adjust_weight_powerup },
-	{ "item_invulnerability", 4, -1, 0.1f, adjust_weight_powerup },
+	{ "item_quad", 5, -1, 0.09f, adjust_weight_powerup },
+	{ "item_double", -1, 5, 0.11f, adjust_weight_powerup },
+	{ "item_quadfire", -1, -1, 0.13f, adjust_weight_powerup },
+	{ "item_invulnerability", 4, -1, 0.09f, adjust_weight_powerup },
 	{ "item_item_sphere_defender", 3, -1, 0.02f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.01f, adjust_weight_powerup },
 
@@ -89,12 +89,12 @@ constexpr struct weighted_item_t {
 	{ "weapon_chaingun", 6, 9, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 4, 6, 0.15f, adjust_weight_weapon },
-	{ "weapon_phalanx", 6, 9, 0.15f, adjust_weight_weapon },
+	{ "weapon_phalanx", 6, 9, 0.16f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 7, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_rocketlauncher", 4, 6, 0.26f, adjust_weight_weapon },
-	{ "weapon_railgun", 5, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 4, 7, 0.26, adjust_weight_weapon },
-	{ "weapon_bfg", 6, 12, 0.16f, adjust_weight_weapon },
+	{ "weapon_rocketlauncher", 4, 6, 0.16, adjust_weight_weapon },
+	{ "weapon_railgun", 5, 8, 0.16f, adjust_weight_weapon },
+	{ "weapon_plasmabeam", 4, 7, 0.16f, adjust_weight_weapon },
+	{ "weapon_bfg", 8, 13, 0.16f, adjust_weight_weapon },
 
 
 	{ "ammo_shells", -1, -1, 0.45f, adjust_weight_ammo },
@@ -252,6 +252,7 @@ const char* G_HordePickMonster()
 	return nullptr;
 }
 
+
 void Horde_PreInit()
 {
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
@@ -373,6 +374,7 @@ void Horde_RunFrame()
 						message_stream << "New Wave Is Here.\n Current Level: " << g_horde_local.level << "\n";
 						gi.LocBroadcast_Print(PRINT_CENTER, message_stream.str().c_str());
 					}
+
 					g_horde_local.state = horde_state_t::cleanup;
 					g_horde_local.monster_spawn_time = level.time + 3_sec;
 				}
