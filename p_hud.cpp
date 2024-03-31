@@ -349,7 +349,7 @@ void BeginIntermission(edict_t* targ)
 	}
 	else
 	{
-		if (!G_IsDeathmatch())
+		if (!G_IsDeathmatch() && !g_horde->integer) // FIX NO INTERMISSION ON HORDE MODE
 		{
 			level.exitintermission = 1; // go immediately to the next level
 			return;

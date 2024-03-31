@@ -687,13 +687,13 @@ void CheckDMRules()
 						InitClientPersistant(ent, ent->client);
 						gi.LocCenter_Print(ent, "Horde Mode is being reset.");
 					}
-					CheckEndTDMLevel();
-				
+					EndDMLevel();
 				}
-
 			}
 			return;
+
 		}
+		Horde_RunFrame();
 	}
 	if (!deathmatch->integer)
 		return;

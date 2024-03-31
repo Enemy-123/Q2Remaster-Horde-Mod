@@ -73,28 +73,28 @@ constexpr struct weighted_item_t {
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 	{ "item_power_screen", 6, -1, 0.1f, adjust_weight_armor },
 
-	{ "item_quad", 5, -1, 0.13f, adjust_weight_powerup },
-	{ "item_double", -1, 5, 0.16f, adjust_weight_powerup },
-	{ "item_quadfire", -1, -1, 0.13f, adjust_weight_powerup },
+	{ "item_quad", 5, -1, 0.1f, adjust_weight_powerup },
+	{ "item_double", -1, 5, 0.11f, adjust_weight_powerup },
+	{ "item_quadfire", -1, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_item_sphere_defender", 3, -1, 0.1f, adjust_weight_powerup },
-	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, -1, 0.34f, adjust_weight_powerup },
+	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
-	{ "weapon_chainfist", -1, 2, 0.23f, adjust_weight_weapon },
-	{ "weapon_shotgun", -1, 3, 0.23f, adjust_weight_weapon },
+	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
+	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 2, 6, 0.20f, adjust_weight_weapon },
 	{ "weapon_machinegun", 2, 6, 0.25f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", 4, 8, 0.23f, adjust_weight_weapon },
+	{ "weapon_etf_rifle", 4, 7, 0.23f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, 9, 0.15f, adjust_weight_weapon },
 	{ "weapon_chaingun", 6, 9, 0.15f, adjust_weight_weapon },
-	{ "weapon_grenadelauncher", 6, 7, 0.15f, adjust_weight_weapon },
-	{ "weapon_hyperblaster", 4, 6, 0.15f, adjust_weight_weapon },
-	{ "weapon_phalanx", 6, 9, 0.16f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 7, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_rocketlauncher", 4, 6, 0.16, adjust_weight_weapon },
+	{ "weapon_grenadelauncher", 6, 9, 0.15f, adjust_weight_weapon },
+	{ "weapon_hyperblaster", 5, 7, 0.15f, adjust_weight_weapon },
+	{ "weapon_phalanx", 6, 10, 0.16f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 7, 10, 0.15f, adjust_weight_weapon },
+	{ "weapon_rocketlauncher", 4, 7, 0.16f, adjust_weight_weapon },
 	{ "weapon_railgun", 5, 8, 0.16f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 4, 7, 0.16f, adjust_weight_weapon },
-	{ "weapon_bfg", 8, 13, 0.16f, adjust_weight_weapon },
+	{ "weapon_plasmabeam", 5, 7, 0.16f, adjust_weight_weapon },
+	{ "weapon_bfg", 8, 12, 0.16f, adjust_weight_weapon },
 
 
 	{ "ammo_shells", -1, -1, 0.45f, adjust_weight_ammo },
@@ -140,21 +140,21 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_brain", 4, 11, 0.30f },
 	{ "monster_soldier_lasergun", 3, 8, 0.90f },
 	{ "monster_soldier_ripper", 3, 6, 0.85f },
-	{ "monster_infantry", 2, 7, 0.90f },
-	{ "monster_gunner", 3, 7, 0.80f },
-	{ "monster_chick", 4, 8, 0.92f },
-	{ "monster_guncmdr", 6, -1, 1.1f },
+	{ "monster_infantry", 2, 9, 0.90f },
+	{ "monster_gunner", 3, 8, 0.80f },
+	{ "monster_chick", 4, 9, 0.92f },
+	{ "monster_guncmdr", 8, -1, 1.1f },
 	{ "monster_gladiator", 4, 10, 1.1f },
 	{ "monster_chick_heat", 7, -1, 0.63f },
 	{ "monster_tank_commander", 7, 10, 0.65f },
 	{ "monster_mutant", 3, -1, 0.75f },
-	{ "monster_tank", 5, 7, 0.45f },
+	{ "monster_tank", 5, 8, 0.45f },
 	{ "monster_janitor2", 9, -1, 0.15f },
 	{ "monster_gladb", 7, -1, 0.5f },
-	{ "monster_janitor", 7, -1, 0.25f },
+	{ "monster_janitor", 8, -1, 0.25f },
 	{ "monster_hover", 9, -1, 1.35f },
 	{ "monster_flyer", -1, 6, 0.75f },
-	{ "monster_floater", 4, 8, 0.85f },
+	{ "monster_floater", 4, 9, 0.85f },
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 11, -1, 0.4f },
 	{ "monster_carrier2", 12, -1, 0.06f },
@@ -337,6 +337,10 @@ void Horde_RunFrame()
 
 			if (!coop->value)
 				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+
+			// Reiniciar el calentamiento
+			g_horde_local.warm_time = level.time + 5_sec;
+		
 		}
 		break;
 
