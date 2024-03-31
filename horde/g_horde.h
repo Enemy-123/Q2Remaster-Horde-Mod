@@ -7,3 +7,7 @@ void Horde_RunFrame();
 gitem_t* G_HordePickItem();
 bool G_IsDeathmatch();
 bool G_IsCooperative();
+
+void ResetGame();
+void HandleResetEvent();
+

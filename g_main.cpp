@@ -673,27 +673,30 @@ void CheckDMRules()
 	if (g_horde->integer)
 	{
 		Horde_RunFrame();
-
-		if (timelimit->value)
+	}
+	if (timelimit->value)
+	{
 		{
-			if (level.time >= gtime_t::from_min(timelimit->value))
+		if (level.time >= gtime_t::from_min(timelimit->value))
+		{
+			gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
+			for (int i = 0; i < maxclients->integer; i++)
 			{
-				gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
-				for (int i = 0; i < maxclients->integer; i++)
+				edict_t* ent = g_edicts + 1 + i;
+				if (ent->inuse && ent->client)
 				{
-					edict_t* ent = g_edicts + 1 + i;
-					if (ent->inuse && ent->client)
-					{
-						InitClientPersistant(ent, ent->client);
-						gi.LocCenter_Print(ent, "Horde Mode is being reset.");
-					}
-					EndDMLevel();
+					InitClientPersistant(ent, ent->client);
+					gi.LocCenter_Print(ent, "Horde Mode is being reset.");
+					gi.cvar_set("timelimit", "20");
 				}
+				EndDMLevel();
+				HandleResetEvent();
 			}
-			return;
-
 		}
-		Horde_RunFrame();
+		return;
+
+	}
+
 	}
 	if (!deathmatch->integer)
 		return;

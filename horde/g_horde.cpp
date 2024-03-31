@@ -267,7 +267,7 @@ void Horde_PreInit()
 		gi.cvar_set("ctf", "0");
 		gi.cvar_set("teamplay", "0");
 		gi.cvar_set("coop", "0");
-		gi.cvar_set("timelimit", "0");
+		gi.cvar_set("timelimit", "20");
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("g_dm_instant_items", "1");
 
@@ -323,7 +323,11 @@ static void Horde_CleanBodies()
 }
 
 
-
+void ResetGame() {
+	// Reinicia las variables de estado del juego
+	g_horde_local.state = horde_state_t::warmup;
+	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
+	}
 void Horde_RunFrame()
 {
 	switch (g_horde_local.state)
@@ -337,10 +341,6 @@ void Horde_RunFrame()
 
 			if (!coop->value)
 				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-
-			// Reiniciar el calentamiento
-			g_horde_local.warm_time = level.time + 5_sec;
-		
 		}
 		break;
 
@@ -421,3 +421,8 @@ void Horde_RunFrame()
 }
 
 
+// Función para manejar una interrupción o evento que requiera reiniciar el juego
+void HandleResetEvent() {
+	// Llama a la función de reinicio del juego
+	ResetGame();
+}

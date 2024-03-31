@@ -744,13 +744,25 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 					break;
 				}
 
-			if (allPlayersDead) // allow respawns for telefrags and weird shit
+			if (!g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
 			{
 				level.coop_level_restart_time = level.time + 5_sec;
 
 				for (auto player : active_players())
 					gi.LocCenter_Print(player, "$g_coop_lose");
 			}
+
+			//HORDE MODE: NO MORE BUG MESSAGE BUT NOW WILL SPECTATE UNTIL TIMELIMIT SO FIX IS NEEDED YET 
+
+
+			if	(g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
+			{	
+					for (auto player : active_players())
+						gi.LocCenter_Print(player, "$g_coop_lose");
+					gi.cvar_set("timelimit", "0.01");
+
+			}
+
 
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
@@ -2098,7 +2110,7 @@ void PutClientInServer(edict_t* ent)
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
 	// deathmatch wipes most client data every spawn
-	if (G_IsDeathmatch() || g_horde->integer && InitClientPersistant) // ugly? :) bug fix health not resetting on DM after ugly timelimit
+	if (G_IsDeathmatch()) // restored due to not working with lives on coop or horde
 	{
 		client->pers.health = 0;
 		resp = client->resp;
@@ -2149,7 +2161,10 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec; // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec; // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+
+	if (g_horde->integer) // changed fix to reset health to 100 after timelimit on horde mode, removing client data restored num_lives on coop
+		ent->client->pers.health = 100;
 	
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
@@ -3725,6 +3740,7 @@ static bool G_CoopRespawn(edict_t* ent)
 
 			// all dead, so if we ever get here we have lives enabled;
 			// we should just respawn at the start of the level
+
 			if (allDead)
 				state = RESPAWN_START;
 			else
