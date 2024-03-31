@@ -736,7 +736,6 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			}
 
 			bool allPlayersDead = true;
-
 			for (auto player : active_players())
 				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
 				{
@@ -752,9 +751,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 					gi.LocCenter_Print(player, "$g_coop_lose");
 			}
 
-			//HORDE MODE: NO MORE BUG MESSAGE BUT NOW WILL SPECTATE UNTIL TIMELIMIT SO FIX IS NEEDED YET 
 
-
+			// TIMELIMIT BEAUTIFUL FIX FOR HORDE MODE 
 			if	(g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
 			{	
 					for (auto player : active_players())
@@ -2162,7 +2160,7 @@ void PutClientInServer(edict_t* ent)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
 	if (!(client->pers.spectator))
-		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec; 	           // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 
 
 

@@ -3438,7 +3438,7 @@ struct active_players_filter_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
-		return (ent->inuse && ent->client && ent->client->pers.connected);
+		return (ent->inuse && ent->client && ent->client->pers.connected && (!(ent->client->pers.spectator))); // FIX SQUAD TRYING TO REVIVE WHEN A PLAYER IS SPECTATOR = 1
 	}
 };
 
