@@ -2161,11 +2161,13 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec; // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+	if (!(client->pers.spectator))
+		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec; 	           // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+
+
 
 	if (g_horde->integer) // changed fix to reset health to 100 after timelimit on horde mode, removing client data restored num_lives on coop
-		ent->client->pers.health = 100;
-	
+		ent->client->pers.max_health;
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
 

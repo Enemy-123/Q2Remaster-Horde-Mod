@@ -563,7 +563,7 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 	}
 	else if (self->count <= 3)
 	{
-		monster_fire_shotgun(self, start, aim, 3, 1, 1500, 750, 9, flash_index);
+		monster_fire_shotgun(self, start, aim, 2, 1, 1500, 750, 9, flash_index);
 		// [Paril-KEX] indicates to soldier that he must cock
 		self->dmg = 1;
 	}
@@ -573,7 +573,7 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 			self->monsterinfo.fire_wait = level.time + random_time(300_ms, 1.1_sec);
 
-		monster_fire_bullet(self, start, aim, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
+		monster_fire_bullet(self, start, aim, 2, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_index);
 
 		if (level.time >= self->monsterinfo.fire_wait)
 			self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;

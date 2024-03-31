@@ -2101,20 +2101,20 @@ void CTFApplyRegeneration(edict_t* ent)
 		if (client->ctf_regentime < level.time)
 		{
 			client->ctf_regentime = level.time;
-			if (ent->health < 150)
+			if (ent->health < 100)
 			{
 				ent->health += 5;
-				if (ent->health > 150)
-					ent->health = 150;
+				if (ent->health > 100)
+					ent->health = 100;
 				client->ctf_regentime += 800_ms;
 				noise = true;
 			}
 			index = ArmorIndex(ent);
-			if (index && client->pers.inventory[index] < 150)
+			if (index && client->pers.inventory[index] < 100)
 			{
 				client->pers.inventory[index] += 5;
-				if (client->pers.inventory[index] > 150)
-					client->pers.inventory[index] = 150;
+				if (client->pers.inventory[index] > 100)
+					client->pers.inventory[index] = 100;
 				client->ctf_regentime += 800_ms;
 				noise = true;
 			}

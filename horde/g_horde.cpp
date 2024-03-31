@@ -65,7 +65,7 @@ constexpr struct weighted_item_t {
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
 	{ "item_health_mega", -1, -1, 0.1f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.12f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.14f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
 	{ "item_armor_jacket", 4, 4, 0.25f, adjust_weight_armor },
@@ -73,11 +73,11 @@ constexpr struct weighted_item_t {
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
 	{ "item_power_screen", 6, -1, 0.1f, adjust_weight_armor },
 
-	{ "item_quad", 5, -1, 0.1f, adjust_weight_powerup },
-	{ "item_double", -1, 5, 0.11f, adjust_weight_powerup },
-	{ "item_quadfire", -1, -1, 0.12f, adjust_weight_powerup },
+	{ "item_quad", 6, -1, 0.1f, adjust_weight_powerup },
+	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
+	{ "item_quadfire", 2, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, -1, 0.34f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, -1, 0.24f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
@@ -286,6 +286,8 @@ void Horde_Init()
 	{
 		edict_t* e = G_Spawn();
 		e->classname = monster.classname;
+		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT; // FIX BUG COUNT MONSTER IN COOP BEING +8
+
 		ED_CallSpawn(e);
 		G_FreeEdict(e);
 	}
@@ -339,7 +341,6 @@ void Horde_RunFrame()
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 
-			if (!coop->value)
 				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
