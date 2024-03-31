@@ -67,7 +67,7 @@ constexpr gtime_t CTF_RETURN_FLAG_ASSIST_TIMEOUT = 10_sec;
 
 constexpr gtime_t CTF_AUTO_FLAG_RETURN_TIMEOUT = 30_sec; // number of seconds before dropped flag auto-returns
 
-constexpr gtime_t CTF_TECH_TIMEOUT = 60_sec; // seconds before techs spawn again
+constexpr gtime_t CTF_TECH_TIMEOUT = 15_sec; // seconds before techs spawn again
 
 constexpr int32_t CTF_DEFAULT_GRAPPLE_SPEED = 650;		// speed of grapple in flight
 constexpr float	  CTF_DEFAULT_GRAPPLE_PULL_SPEED = 650; // speed player is pulled at

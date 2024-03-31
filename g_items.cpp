@@ -373,6 +373,18 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
+	G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
+	G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
+	G_AddAmmoAndCapQuantity(other, AMMO_ROCKETS);
+	G_AddAmmoAndCapQuantity(other, AMMO_SLUGS);
+	// RAFAEL
+	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
+	// RAFAEL
+
+	// ROGUE
+	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
+	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
+	// ROGUE
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
@@ -382,15 +394,15 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 
 bool Pickup_Pack(edict_t* ent, edict_t* other)
 {
-	G_AdjustAmmoCap(other, AMMO_BULLETS, 300);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 200);
-	G_AdjustAmmoCap(other, AMMO_ROCKETS, 100);
-	G_AdjustAmmoCap(other, AMMO_GRENADES, 100);
-	G_AdjustAmmoCap(other, AMMO_CELLS, 300);
-	G_AdjustAmmoCap(other, AMMO_SLUGS, 100);
-	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 100);
-	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 300);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 30);
+	G_AdjustAmmoCap(other, AMMO_BULLETS, 600);
+	G_AdjustAmmoCap(other, AMMO_SHELLS, 400);
+	G_AdjustAmmoCap(other, AMMO_ROCKETS, 200);
+	G_AdjustAmmoCap(other, AMMO_GRENADES, 200);
+	G_AdjustAmmoCap(other, AMMO_CELLS, 600);
+	G_AdjustAmmoCap(other, AMMO_SLUGS, 200);
+	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 200);
+	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 600);
+	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 60);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
@@ -429,7 +441,7 @@ void Use_Quad(edict_t* ent, gitem_t* item)
 	}
 	else
 	{
-		timeout = 31_sec;
+		timeout = 30_sec;
 	}
 
 	ent->client->quad_time = max(level.time, ent->client->quad_time) + timeout;
@@ -452,7 +464,7 @@ void Use_QuadFire(edict_t* ent, gitem_t* item)
 	}
 	else
 	{
-		timeout = 45_sec;
+		timeout = 40_sec;
 	}
 
 	ent->client->quadfire_time = max(level.time, ent->client->quadfire_time) + timeout;
@@ -484,13 +496,6 @@ void Use_Envirosuit(edict_t* ent, gitem_t* item)
 }
 
 //======================================================================
-
-void Use_Invulnerabilityonrespawn(edict_t* ent, gitem_t* item)
-{
-	ent->client->pers.inventory[item->id]--;
-
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
-}
 
 void Use_Invulnerability(edict_t* ent, gitem_t* item)
 {

@@ -257,8 +257,8 @@ void mutant_check_refire(edict_t *self)
 }
 
 mframe_t mutant_frames_attack[] = {
-	{ ai_charge, 0, mutant_hit_left },
-	{ ai_charge, 0, mutant_hit_right },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge, 0, mutant_hit_left },
 	{ ai_charge, 0, mutant_hit_right },
 	{ ai_charge },

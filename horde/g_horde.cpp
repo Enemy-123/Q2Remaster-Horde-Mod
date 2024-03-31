@@ -71,7 +71,7 @@ constexpr struct weighted_item_t {
 	{ "item_armor_jacket", 4, 4, 0.25f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
-	{ "item_power_screen", 6, -1, 0.1f, adjust_weight_armor },
+//	{ "item_power_screen", 6, -1, 0.1f, adjust_weight_armor },
 
 	{ "item_quad", 6, -1, 0.1f, adjust_weight_powerup },
 	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
@@ -99,14 +99,15 @@ constexpr struct weighted_item_t {
 
 	{ "ammo_shells", -1, -1, 0.45f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.55f, adjust_weight_ammo },
-	{ "ammo_flechettes", -1, -1, 0.55f, adjust_weight_ammo },
+	{ "ammo_flechettes", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_grenades", -1, -1, 0.55f, adjust_weight_ammo },
 	{ "ammo_cells", -1, -1, 0.45f, adjust_weight_ammo },
-	{ "ammo_magslug", -1, -1, 0.45f, adjust_weight_ammo },
-	{ "ammo_slugs", -1, -1, 0.55f, adjust_weight_ammo },
+	{ "ammo_magslug", -1, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_slugs", -1, -1, 0.53f, adjust_weight_ammo },
 	{ "ammo_disruptor", -1, -1, 0.45f, adjust_weight_ammo },
 	{ "ammo_rockets", -1, -1, 0.55f, adjust_weight_ammo },
-	{ "item_pack", -1, -1, 0.35f, adjust_weight_ammo },
+	{ "item_bandolier", -1, 6, 0.35f, adjust_weight_ammo },
+	{ "item_ammo", 6, -1, 0.25f, adjust_weight_ammo },
 
 };
 
@@ -134,7 +135,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, 3, 0.75f },
 	{ "monster_soldier", -1, 3, 0.45f },
 	{ "monster_soldier_hypergun", -1, 8, 0.85f },
-	{ "monster_stalker", 2, -1, 0.25f },
+	{ "monster_stalker", 2, -1, 0.22f },
 	{ "monster_gekk", 3, 7, 0.30f },
 	{ "monster_parasite", 4, 7, 0.30f },
 	{ "monster_brain", 4, 11, 0.30f },
@@ -267,7 +268,7 @@ void Horde_PreInit()
 		gi.cvar_set("ctf", "0");
 		gi.cvar_set("teamplay", "0");
 		gi.cvar_set("coop", "0");
-		gi.cvar_set("timelimit", "20");
+		gi.cvar_set("timelimit", "25");
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("g_dm_instant_items", "1");
 
