@@ -836,9 +836,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.health = 100;
 	client->pers.max_health = 100;
 
-	// don't give us weapons if we shouldn't have any
-	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-		(!G_TeamplayEnabled() && !client->resp.spectator))
+	// don't give us weapons if we shouldn't have any / ANOTHER BEAUTIFUL HORDE BUGFIX, UNTIL NOW...
+	// 
+	// 
+	//if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
+	//	(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
 		// in coop, if there's already a player in the game and we're new,
 		// steal their loadout. this would fix a potential softlock where a new
