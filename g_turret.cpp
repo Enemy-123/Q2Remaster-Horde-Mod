@@ -6,7 +6,7 @@
 
 constexpr spawnflags_t SPAWNFLAG_TURRET_BREACH_FIRE = 65536_spawnflag;
 
-void AnglesNormalize(vec3_t &vec)
+void AnglesNormalize(vec3_t& vec)
 {
 	while (vec[0] > 360)
 		vec[0] -= 360;
@@ -18,9 +18,9 @@ void AnglesNormalize(vec3_t &vec)
 		vec[1] += 360;
 }
 
-MOVEINFO_BLOCKED(turret_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(turret_blocked) (edict_t* self, edict_t* other) -> void
 {
-	edict_t *attacker;
+	edict_t* attacker;
 
 	if (other->takedamage)
 	{
@@ -48,7 +48,7 @@ Use "angle" to set the starting angle.
 "maxyaw"	max acceptable yaw angle   : default 360
 */
 
-void turret_breach_fire(edict_t *self)
+void turret_breach_fire(edict_t* self)
 {
 	vec3_t f, r, u;
 	vec3_t start;
@@ -63,17 +63,17 @@ void turret_breach_fire(edict_t *self)
 	if (self->count)
 		damage = self->count;
 	else
-		damage = (int) frandom(100, 150);
-	speed = 550 + 50 * skill->integer;
-	edict_t *rocket = fire_rocket(self->teammaster->owner->activator ? self->teammaster->owner->activator : self->teammaster->owner, start, f, damage, speed, 150, damage);
+		damage = (int)frandom(150, 180);
+	speed = 1250 + 150 * skill->integer;
+	edict_t* rocket = fire_rocket(self->teammaster->owner->activator ? self->teammaster->owner->activator : self->teammaster->owner, start, f, damage, speed, 150, damage);
 	rocket->s.scale = self->teammaster->dmg_radius;
 
 	gi.positioned_sound(start, self, CHAN_WEAPON, gi.soundindex("weapons/rocklf1a.wav"), 1, ATTN_NORM, 0);
 }
 
-THINK(turret_breach_think) (edict_t *self) -> void
+THINK(turret_breach_think) (edict_t* self) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 	vec3_t	 current_angles;
 	vec3_t	 delta;
 
@@ -166,7 +166,7 @@ THINK(turret_breach_think) (edict_t *self) -> void
 
 		// x & y
 		angle = self->s.angles[1] + self->owner->move_origin[1];
-		angle *= (float) (PI * 2 / 360);
+		angle *= (float)(PI * 2 / 360);
 		target[0] = self->s.origin[0] + cosf(angle) * self->owner->move_origin[0];
 		target[1] = self->s.origin[1] + sinf(angle) * self->owner->move_origin[0];
 		target[2] = self->owner->s.origin[2];
@@ -176,7 +176,7 @@ THINK(turret_breach_think) (edict_t *self) -> void
 		self->owner->velocity[1] = dir[1] * 1.0f / gi.frame_time_s;
 
 		// z
-		angle = self->s.angles[PITCH] * (float) (PI * 2 / 360);
+		angle = self->s.angles[PITCH] * (float)(PI * 2 / 360);
 		target_z = self->s.origin[2] + self->owner->move_origin[0] * tan(angle) + self->owner->move_origin[2];
 
 		diff = target_z - self->owner->s.origin[2];
@@ -190,7 +190,7 @@ THINK(turret_breach_think) (edict_t *self) -> void
 	}
 }
 
-THINK(turret_breach_finish_init) (edict_t *self) -> void
+THINK(turret_breach_finish_init) (edict_t* self) -> void
 {
 	// get and save info for muzzle location
 	if (!self->target)
@@ -215,7 +215,7 @@ THINK(turret_breach_finish_init) (edict_t *self) -> void
 	self->think(self);
 }
 
-void SP_turret_breach(edict_t *self)
+void SP_turret_breach(edict_t* self)
 {
 	self->solid = SOLID_BSP;
 	self->movetype = MOVETYPE_PUSH;
@@ -226,7 +226,7 @@ void SP_turret_breach(edict_t *self)
 	gi.setmodel(self, self->model);
 
 	if (!self->speed)
-		self->speed = 50;
+		self->speed = 150;
 	if (!self->dmg)
 		self->dmg = 10;
 
@@ -261,7 +261,7 @@ This portion of the turret changes yaw only.
 MUST be teamed with a turret_breach.
 */
 
-void SP_turret_base(edict_t *self)
+void SP_turret_base(edict_t* self)
 {
 	self->solid = SOLID_BSP;
 	self->movetype = MOVETYPE_PUSH;
@@ -279,16 +279,16 @@ Must NOT be on the team with the rest of the turret parts.
 Instead it must target the turret_breach.
 */
 
-void infantry_die(edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod);
-void infantry_stand(edict_t *self);
-void infantry_pain(edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod);
-void infantry_setskin(edict_t *self);
+void infantry_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void infantry_stand(edict_t* self);
+void infantry_pain(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod);
+void infantry_setskin(edict_t* self);
 
-DIE(turret_driver_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(turret_driver_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	if (!self->deadflag)
 	{
-		edict_t *ent;
+		edict_t* ent;
 
 		// level the gun
 		self->target_ent->move_angles[0] = 0;
@@ -320,9 +320,9 @@ DIE(turret_driver_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, in
 	self->velocity.z += 110.f;
 }
 
-bool FindTarget(edict_t *self);
+bool FindTarget(edict_t* self);
 
-THINK(turret_driver_think) (edict_t *self) -> void
+THINK(turret_driver_think) (edict_t* self) -> void
 {
 	vec3_t target;
 	vec3_t dir;
@@ -375,10 +375,10 @@ THINK(turret_driver_think) (edict_t *self) -> void
 	self->target_ent->spawnflags |= SPAWNFLAG_TURRET_BREACH_FIRE;
 }
 
-THINK(turret_driver_link) (edict_t *self) -> void
+THINK(turret_driver_link) (edict_t* self) -> void
 {
 	vec3_t	 vec;
-	edict_t *ent;
+	edict_t* ent;
 
 	self->think = turret_driver_think;
 	self->nextthink = level.time + FRAME_TIME_S;
@@ -410,11 +410,9 @@ THINK(turret_driver_link) (edict_t *self) -> void
 
 void InfantryPrecache();
 
-void SP_turret_driver(edict_t *self)
+void SP_turret_driver(edict_t* self)
 {
-	
-
-
+	if (G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;
@@ -428,7 +426,12 @@ void SP_turret_driver(edict_t *self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = self->max_health = 100;
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 55;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+
+	self->health = self->max_health = 120 * st.health_multiplier;
 	self->gib_health = -40;
 	self->mass = 200;
 	self->viewheight = 24;
@@ -474,7 +477,7 @@ void SP_turret_driver(edict_t *self)
 
 constexpr spawnflags_t SPAWNFLAG_TURRET_BRAIN_IGNORE_SIGHT = 1_spawnflag;
 
-THINK(turret_brain_think) (edict_t *self) -> void
+THINK(turret_brain_think) (edict_t* self) -> void
 {
 	vec3_t	target;
 	vec3_t	dir;
@@ -546,10 +549,10 @@ THINK(turret_brain_think) (edict_t *self) -> void
 
 // =================
 // =================
-THINK(turret_brain_link) (edict_t *self) -> void
+THINK(turret_brain_link) (edict_t* self) -> void
 {
 	vec3_t	 vec;
-	edict_t *ent;
+	edict_t* ent;
 
 	if (self->killtarget)
 	{
@@ -587,7 +590,7 @@ THINK(turret_brain_link) (edict_t *self) -> void
 
 // =================
 // =================
-USE(turret_brain_deactivate) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(turret_brain_deactivate) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->think = nullptr;
 	self->nextthink = 0_ms;
@@ -595,7 +598,7 @@ USE(turret_brain_deactivate) (edict_t *self, edict_t *other, edict_t *activator)
 
 // =================
 // =================
-USE(turret_brain_activate) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(turret_brain_activate) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (!self->enemy)
 		self->enemy = activator;
@@ -604,7 +607,7 @@ USE(turret_brain_activate) (edict_t *self, edict_t *other, edict_t *activator) -
 	if (self->wait)
 		self->monsterinfo.attack_finished = level.time + gtime_t::from_sec(self->wait);
 	else
-		self->monsterinfo.attack_finished = level.time + 3_sec;
+		self->monsterinfo.attack_finished = level.time + 1.2_sec;
 	self->use = turret_brain_deactivate;
 
 	// Paril NOTE: rhangar1 has a turret_invisible_brain that breaks the
@@ -630,7 +633,7 @@ and then off once. After that they are completely disabled.
 Target the brain if you want it activated later, instead of immediately. It will wait 3 seconds
 before firing to acquire the target.
 */
-void SP_turret_invisible_brain(edict_t *self)
+void SP_turret_invisible_brain(edict_t* self)
 {
 	if (!self->killtarget)
 	{
