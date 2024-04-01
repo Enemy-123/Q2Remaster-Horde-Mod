@@ -739,7 +739,7 @@ void loogie(edict_t *self)
 	dir = end - start;
 	dir.normalize();
 
-	fire_loogie(self, start, dir, 5, 550);
+	fire_loogie(self, start, dir, 5, 850);
 
 	gi.sound(self, CHAN_BODY, sound_speet, 1.0f, ATTN_NORM, 0);
 }
@@ -758,7 +758,7 @@ void reloogie(edict_t *self)
 }
 
 mframe_t gekk_frames_spit[] = {
-	{ ai_charge },
+	{ ai_charge, 0, loogie },
 	{ ai_charge, 0, loogie },
 	{ ai_charge },
 	{ ai_charge, 0, loogie },
@@ -771,7 +771,7 @@ MMOVE_T(gekk_move_spit) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spit, gekk
 
 mframe_t gekk_frames_attack1[] = {
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, gekk_hit_left },
 	{ ai_charge },
 
 	{ ai_charge, 0, gekk_hit_left },

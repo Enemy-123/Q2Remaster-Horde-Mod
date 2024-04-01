@@ -436,45 +436,35 @@ MONSTERINFO_SETSKIN(stalker_setskin) (edict_t *self) -> void
 // ******************
 // STALKER ATTACK
 // ******************
-
+#include "C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\modd\rerelease\m_flash.h"
 void stalker_shoot_attack(edict_t *self)
 {
-	vec3_t	offset, start, f, r, dir;
-	vec3_t	end;
-	float	dist;
-	trace_t trace;
+	vec3_t start;
+	vec3_t dir;
+	vec3_t forward, right;
+	float  len;
 
-	if (!has_valid_enemy(self))
-		return;
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_STALKER_BLASTER], forward, right);
 
-	if (self->groundentity && frandom() < 0.33f)
+	dir = self->pos1 - self->enemy->s.origin;
+	len = dir.length();
+
+	if (len < 30)
 	{
-		dir = self->enemy->s.origin - self->s.origin;
-		dist = dir.length();
-
-		if ((dist > 256) || (frandom() < 0.5f))
-			stalker_do_pounce(self, self->enemy->s.origin);
-		else
-			stalker_jump_straightup(self);
-	}
-
-	AngleVectors(self->s.angles, f, r, nullptr);
-	offset = { 24, 0, 6 };
-	start = M_ProjectFlashSource(self, offset, f, r);
-
-	dir = self->enemy->s.origin - start;
-	if (frandom() < 0.3f)
-		PredictAim(self, self->enemy, start, 1000, true, 0, &dir, &end);
-	else
-		end = self->enemy->s.origin;
-
-	trace = gi.traceline(start, end, self, MASK_PROJECTILE);
-	if (trace.ent == self->enemy || trace.ent == world)
-	{
+		// calc direction to where we targeted
+		dir = self->pos1 - start;
 		dir.normalize();
-		monster_fire_blueblaster(self, start, dir, 15, 1400, MZ2_STALKER_BLASTER, EF_PLASMA|EF_TRACKER);
+
+		monster_fire_tracker(self, start, dir, 7, 900, self->enemy, MZ2_STALKER_BLASTER);
+	}
+	else
+	{
+		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
+		monster_fire_tracker(self, start, dir, 7, 760, nullptr, MZ2_STALKER_BLASTER);
 	}
 }
+
 
 void stalker_shoot_attack2(edict_t *self)
 {
@@ -484,9 +474,9 @@ void stalker_shoot_attack2(edict_t *self)
 
 mframe_t stalker_frames_shoot[] = {
 	{ ai_charge, 17, stalker_shoot_attack },
-	{ ai_charge, 13},
+	{ ai_charge, 17, stalker_shoot_attack },
 	{ ai_charge, 18, stalker_shoot_attack2 },
-	{ ai_charge, 23},
+	{ ai_charge, 18, stalker_shoot_attack2 },
 };
 MMOVE_T(stalker_move_shoot) = { FRAME_run01, FRAME_run04, stalker_frames_shoot, stalker_run };
 

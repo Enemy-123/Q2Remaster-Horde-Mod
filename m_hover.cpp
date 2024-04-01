@@ -402,9 +402,9 @@ void hover_fire_blaster(edict_t *self)
 
 	// PGM	- daedalus fires blaster2
 	if (self->mass < 200)
-		monster_fire_rocket(self, start, dir,12, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+		monster_fire_rocket(self, start, dir, 14, rocketSpeed, MZ2_BOSS2_ROCKET_3);
 	else
-		monster_fire_blaster2(self, start, dir, 3, 1500, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, 5, 1500, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 	// PGM
 }
 

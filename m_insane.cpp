@@ -681,7 +681,7 @@ void SP_misc_insane(edict_t *self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 120;
+		self->monsterinfo.power_armor_power = 30;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 

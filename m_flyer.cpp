@@ -506,7 +506,7 @@ static void flyer_set_fly_parameters(edict_t* self, bool melee)
 		self->monsterinfo.fly_position_time = 0_sec;
 		self->monsterinfo.fly_acceleration = 20.f;
 		self->monsterinfo.fly_speed = 210.f;
-		self->monsterinfo.fly_min_distance = 0.f;
+		self->monsterinfo.fly_min_distance = 3.f;
 		self->monsterinfo.fly_max_distance = 10.f;
 	}
 	else

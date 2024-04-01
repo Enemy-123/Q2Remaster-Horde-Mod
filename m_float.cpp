@@ -54,12 +54,12 @@ if (len < 30)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_tracker(self, start, dir, 7, 600, self->enemy, MZ2_FLOAT_BLASTER_1);
+	monster_fire_tracker(self, start, dir, 7, 800, self->enemy, MZ2_FLOAT_BLASTER_1);
 }
 else
 {
 	PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-	monster_fire_tracker(self, start, dir, 7, 600, nullptr, MZ2_FLOAT_BLASTER_1);
+	monster_fire_tracker(self, start, dir, 7, 800, nullptr, MZ2_FLOAT_BLASTER_1);
 }
 }
 

@@ -363,7 +363,7 @@ mframe_t infantry_frames_death2[] = {
 	{ ai_move, 4 },
 	{ ai_move, 3 },
 	{ ai_move },
-	{ ai_move, -2, InfantryMachineGun },
+	{ ai_move, -2 },
 	{ ai_move, 1, monster_footstep },
 	{ ai_move, 4 },
 	{ ai_move, 1, monster_footstep },

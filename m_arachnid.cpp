@@ -399,7 +399,7 @@ void SP_monster_spider(edict_t* self)
 	self->s.skinnum = 1;
 	if (!self->s.scale)
 		self->s.scale = 0.6f;
-	self->health = 460 * st.health_multiplier;
+	self->health = 580 * st.health_multiplier;
 
 	self->mins = { -31, -21, -9 };
 	self->maxs = { 31, 21, 21 };

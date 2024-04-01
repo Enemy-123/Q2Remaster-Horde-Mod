@@ -792,11 +792,11 @@ void GunnerCmdrFire(edict_t *self)
 }
 
 mframe_t guncmdr_frames_attack_chain[] = {
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, guncmdr_opengun },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge,},
 	{ ai_charge }
 };
 MMOVE_T(guncmdr_move_attack_chain) = { FRAME_c_attack101, FRAME_c_attack106, guncmdr_frames_attack_chain, guncmdr_fire_chain };
@@ -1006,9 +1006,9 @@ void GunnerCmdrGrenade(edict_t *self)
 }
 
 mframe_t guncmdr_frames_attack_mortar[] = {
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
+	{ ai_charge, 0, GunnerCmdrGrenade },
+	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
 	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
@@ -1023,10 +1023,10 @@ mframe_t guncmdr_frames_attack_mortar[] = {
 	{ ai_charge, 0, monster_duck_up },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge }
 };
 MMOVE_T(guncmdr_move_attack_mortar) = { FRAME_c_attack201, FRAME_c_attack221, guncmdr_frames_attack_mortar, guncmdr_run };
@@ -1053,24 +1053,24 @@ mframe_t guncmdr_frames_attack_back[] = {
 	{ ai_charge, -2.f },
 	{ ai_charge, -1.5f },
 	{ ai_charge, -0.5f, GunnerCmdrGrenade },
-	{ ai_charge, -6.0f },
+	{ ai_charge, -1.1f, GunnerCmdrGrenade },
 	{ ai_charge, -4.f },
 	{ ai_charge, -2.5f, GunnerCmdrGrenade },
-	{ ai_charge, -7.0f },
+	{ ai_charge, -1.1f, GunnerCmdrGrenade },
 	{ ai_charge, -3.5f },
 	{ ai_charge, -1.1f, GunnerCmdrGrenade },
 
 	{ ai_charge, -4.6f },
-	{ ai_charge, 1.9f },
+	{ ai_charge, -0.5f, GunnerCmdrGrenade },
 	{ ai_charge, 1.0f },
 	{ ai_charge, -4.5f },
-	{ ai_charge, 3.2f },
+	{ ai_charge, -1.1f, GunnerCmdrGrenade },
 	{ ai_charge, 4.4f, GunnerCmdrGrenade },
 	{ ai_charge, -6.5f },
-	{ ai_charge, -6.1f },
+	{ ai_charge },
 	{ ai_charge, 3.0f },
-	{ ai_charge, -0.7f },
-	{ ai_charge, -1.0f }
+	{ ai_charge },
+	{ ai_charge },
 };
 MMOVE_T(guncmdr_move_attack_grenade_back) = { FRAME_c_attack302, FRAME_c_attack321, guncmdr_frames_attack_back, guncmdr_run };
 

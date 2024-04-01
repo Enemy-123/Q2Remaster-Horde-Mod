@@ -712,7 +712,7 @@ void SP_monster_boss2_64(edict_t* self)
 	self->mins = { -24, -24, 0 };
 	self->maxs = { 24, 24, 48 };
 
-	self->health = 600 * st.health_multiplier;
+	self->health = 800 * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
 }

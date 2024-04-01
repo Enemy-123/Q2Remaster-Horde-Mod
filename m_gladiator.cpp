@@ -193,7 +193,7 @@ void gladbGun(edict_t* self)
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 15, 1200, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, 11, 1100, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
 void gladbGun_check(edict_t *self)
