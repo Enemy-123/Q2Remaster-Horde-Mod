@@ -484,7 +484,7 @@ void HuntTarget(edict_t* self, bool animate_state)
 void FoundTarget(edict_t* self)
 {
     // let other monsters see this monster for a while
-    if (self->enemy->client && !(self->enemy->client->pers.spectator)) // maybe this will prevent something... 
+    if (self->enemy->client) // && !(self->enemy->client->pers.spectator)) // maybe this will prevent something... 
     {
         // ROGUE
         if (self->enemy->flags & FL_DISGUISED)

@@ -67,7 +67,7 @@ void MoveClientToIntermission(edict_t* ent)
 
 	// add the layout
 
-	if (G_IsDeathmatch())
+	if (g_horde-> integer || G_IsDeathmatch())
 	{
 		DeathmatchScoreboard(ent);
 		ent->client->showscores = true;

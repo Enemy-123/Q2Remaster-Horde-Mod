@@ -765,7 +765,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 3_sec;
+				self->client->respawn_time = level.time + 1.5_sec;
 		}
 	}
 
