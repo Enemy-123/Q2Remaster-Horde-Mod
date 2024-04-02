@@ -17,7 +17,7 @@ enum class horde_state_t
 };
 
 static struct {
-	gtime_t			warm_time = 7_sec;
+	gtime_t			warm_time = 1_sec;
 	horde_state_t	state = horde_state_t::warmup;
 
 	gtime_t			monster_spawn_time;
@@ -29,7 +29,7 @@ bool next_wave_message_sent = false;
 static void Horde_InitLevel(int32_t lvl)
 {
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 10 + (lvl * 2);
+	g_horde_local.num_to_spawn = 50 + (lvl * 2);
 
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 }
@@ -268,7 +268,7 @@ void Horde_PreInit()
 		gi.cvar_set("ctf", "0");
 		gi.cvar_set("teamplay", "0");
 		gi.cvar_set("coop", "0");
-		gi.cvar_set("timelimit", "25");
+		gi.cvar_set("timelimit", "20");
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("g_dm_instant_items", "1");
 
@@ -336,11 +336,11 @@ void Horde_RunFrame()
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time + 5_sec)
+		if (g_horde_local.warm_time < level.time + 3_sec)
 		{
 			gi.LocBroadcast_Print(PRINT_CENTER, "???\n");
 			g_horde_local.state = horde_state_t::spawning;
-			Horde_InitLevel(1);
+			Horde_InitLevel(13);
 
 				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
 		}
@@ -366,9 +366,20 @@ void Horde_RunFrame()
 				e->s.angles = result.spot->s.angles;
 				e->item = G_HordePickItem();
 				ED_CallSpawn(e);
-				g_horde_local.monster_spawn_time = level.time + random_time(0.2_sec, 1.2_sec);
 
-				e->enemy = &g_edicts[1];
+				{
+					// Generación del Spawngrow con tamaño basado en la posición del lugar de spawneo del monstruo
+					vec3_t spawngrow_pos = result.spot->s.origin;
+					float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.04f; // Multiplicar por 2
+					float end_size = start_size;
+
+					// Generar el Spawngrow con los tamaños calculados
+					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+				}
+
+
+				g_horde_local.monster_spawn_time = level.time + random_time(0.2_sec, 1.2_sec);
+				e->enemy = &g_edicts[1];;
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -400,7 +411,7 @@ void Horde_RunFrame()
 			{
 				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated, GG !");
 
-				g_horde_local.warm_time = level.time + 7_sec;
+				g_horde_local.warm_time = level.time + 4_sec;
 				g_horde_local.state = horde_state_t::rest;
 			}
 			else
