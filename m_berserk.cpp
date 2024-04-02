@@ -172,7 +172,7 @@ mframe_t berserk_frames_attack_spike[] = {
 	{ ai_charge },
 	{ ai_charge, 0, berserk_swing },
 	{ ai_charge, 0, berserk_attack_spike },
-	{ ai_charge },
+	{ ai_charge, 0, berserk_attack_spike },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge }
@@ -195,7 +195,7 @@ mframe_t berserk_frames_attack_club[] = {
 	{ ai_charge, 0, berserk_swing },
 	{ ai_charge },
 	{ ai_charge, 0, berserk_attack_club },
-	{ ai_charge },
+	{ ai_charge, 0, berserk_attack_club },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -800,13 +800,16 @@ void SP_monster_berserk(edict_t *self)
 	self->solid = SOLID_BBOX;
 
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 45;
+		self->monsterinfo.power_armor_power = 55;
 
-	self->health = 145 * st.health_multiplier;
-	self->gib_health = -60;
+	self->health = 245 * st.health_multiplier;
+	self->gib_health = -80;
 	self->mass = 250;
+
+	if (!self->s.scale)
+		self->s.scale = 1.3f;
 
 	self->pain = berserk_pain;
 	self->die = berserk_die;

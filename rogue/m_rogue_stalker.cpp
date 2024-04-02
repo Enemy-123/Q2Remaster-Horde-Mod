@@ -456,12 +456,12 @@ void stalker_shoot_attack(edict_t *self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 7, 900, self->enemy, MZ2_STALKER_BLASTER);
+		monster_fire_tracker(self, start, dir, 13, 960, self->enemy, MZ2_STALKER_BLASTER);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 7, 760, nullptr, MZ2_STALKER_BLASTER);
+		monster_fire_tracker(self, start, dir, 13, 960, nullptr, MZ2_STALKER_BLASTER);
 	}
 }
 
@@ -969,6 +969,9 @@ void SP_monster_stalker(edict_t *self)
 		return;
 	}
 
+	if (!self->s.scale)
+		self->s.scale = 0.8f;
+
 	sound_pain.assign("stalker/pain.wav");
 	sound_die.assign("stalker/death.wav");
 	sound_sight.assign("stalker/sight.wav");
@@ -993,8 +996,8 @@ void SP_monster_stalker(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 250 * st.health_multiplier;
-	self->gib_health = -50;
+	self->health = 350 * st.health_multiplier;
+	self->gib_health = -80;
 	self->mass = 250;
 
 	self->pain = stalker_pain;

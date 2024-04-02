@@ -199,33 +199,33 @@ void arachnid_rail(edict_t *self)
 mframe_t arachnid_frames_attack1[] = {
 	{ ai_charge, 0, arachnid_charge_rail },
 	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_rail },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge, 0, arachnid_charge_rail },
 	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge }
 };
 MMOVE_T(arachnid_attack1) = { FRAME_rails1, FRAME_rails11, arachnid_frames_attack1, arachnid_run };
 
 mframe_t arachnid_frames_attack_up1[] = {
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_charge_rail },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_rail },
+	{ ai_charge },
 	{ ai_charge, 0, arachnid_charge_rail },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge, 0, arachnid_charge_rail },
+	{ ai_charge, 0, arachnid_rail },
+	{ ai_charge, 0, arachnid_charge_rail },
+	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge },
+	{ ai_charge, 0, arachnid_charge_rail },
+	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge },
 	{ ai_charge },
 };
@@ -246,10 +246,10 @@ void arachnid_melee_hit(edict_t *self)
 
 mframe_t arachnid_frames_melee[] = {
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_melee_charge },
 	{ ai_charge },
+	{ ai_charge, 0, arachnid_melee_hit },
+	{ ai_charge, 0, arachnid_melee_charge },
 	{ ai_charge, 0, arachnid_melee_hit },
 	{ ai_charge },
 	{ ai_charge },
@@ -398,10 +398,10 @@ void SP_monster_spider(edict_t* self)
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 1;
 	if (!self->s.scale)
-		self->s.scale = 0.6f;
+		self->s.scale = 0.7f;
 	self->health = 580 * st.health_multiplier;
 
-	self->mins = { -31, -21, -9 };
-	self->maxs = { 31, 21, 21 };
+	self->mins = { -33, -23, -11 };
+	self->maxs = { 33, 27, 23 };
 
 }

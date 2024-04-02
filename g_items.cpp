@@ -281,7 +281,9 @@ void Drop_General(edict_t* ent, gitem_t* item)
 
 void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
-	if (!G_IsDeathmatch())
+	if (G_IsCooperative() && !g_horde->integer)
+		ent->max_health += 5;
+	else 
 		ent->max_health += 10;
 
 	if (ent->health < ent->max_health)
@@ -363,13 +365,13 @@ inline void G_AdjustAmmoCap(edict_t* other, ammo_t ammo, int16_t new_max)
 
 bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 {
-	G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 150);
-	G_AdjustAmmoCap(other, AMMO_CELLS, 250);
-	G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
-	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 75);
-	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 21);
+	G_AdjustAmmoCap(other, AMMO_BULLETS, 275);
+	G_AdjustAmmoCap(other, AMMO_SHELLS, 180);
+	G_AdjustAmmoCap(other, AMMO_CELLS, 275);
+	G_AdjustAmmoCap(other, AMMO_SLUGS, 80);
+	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 80);
+	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 275);
+	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 25);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
@@ -394,14 +396,14 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 
 bool Pickup_Pack(edict_t* ent, edict_t* other)
 {
-	G_AdjustAmmoCap(other, AMMO_BULLETS, 600);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 400);
+	G_AdjustAmmoCap(other, AMMO_BULLETS, 400);
+	G_AdjustAmmoCap(other, AMMO_SHELLS, 250);
 	G_AdjustAmmoCap(other, AMMO_ROCKETS, 200);
 	G_AdjustAmmoCap(other, AMMO_GRENADES, 200);
-	G_AdjustAmmoCap(other, AMMO_CELLS, 600);
-	G_AdjustAmmoCap(other, AMMO_SLUGS, 200);
-	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 200);
-	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 600);
+	G_AdjustAmmoCap(other, AMMO_CELLS, 300);
+	G_AdjustAmmoCap(other, AMMO_SLUGS, 175);
+	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 150);
+	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 400);
 	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 60);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);

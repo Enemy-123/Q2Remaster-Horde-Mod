@@ -449,6 +449,7 @@ static const std::initializer_list<spawn_t> spawns = {
 };
 // clang-format on
 
+
 /*
 ===============
 ED_CallSpawn
@@ -458,6 +459,63 @@ Finds the spawn function for the entity and calls it
 */
 void ED_CallSpawn(edict_t* ent)
 {
+	if (G_IsCooperative() && !g_horde->integer) {
+		if (!strcmp(ent->classname, "monster_soldier_light")) {
+			ent->classname = "monster_soldier_hypergun";
+		}
+		else if (!strcmp(ent->classname, "monster_soldier")) {
+			ent->classname = "monster_soldier_ripper";
+		}
+		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
+			ent->classname = "monster_infantry";
+		}
+		else if (!strcmp(ent->classname, "monster_infantry")) {
+			ent->classname = "monster_gunner";
+		}
+		else if (!strcmp(ent->classname, "monster_gunner")) {
+			ent->classname = "monster_guncmdr";
+		}
+		else if (!strcmp(ent->classname, "monster_flyer")) {
+			ent->classname = "monster_hover";
+		}
+		else if (!strcmp(ent->classname, "monster_parasite")) {
+			ent->classname = "monster_stalker";
+		}
+		else if (!strcmp(ent->classname, "monster_berserk")) {
+			ent->classname = "monster_brain";
+		}
+		else if (!strcmp(ent->classname, "monster_tank")) {
+			ent->classname = "monster_tank_64";
+		}
+		else if (!strcmp(ent->classname, "monster_tank_commander")) {
+			ent->classname = "monster_shambler";
+		}
+		else if (!strcmp(ent->classname, "monster_supertank")) {
+			ent->classname = "monster_boss5";
+		}
+		else if (!strcmp(ent->classname, "monster_chick")) {
+			ent->classname = "monster_chick_heat";
+		}
+		else if (!strcmp(ent->classname, "monster_gladiator")) {
+			ent->classname = "monster_gladb";
+		}
+		else if (!strcmp(ent->classname, "monster_boss2")) {
+			ent->classname = "monster_carrier";
+		}
+		else if (!strcmp(ent->classname, "monster_flipper")) {
+			ent->classname = "monster_gekk";
+		}
+		else if (!strcmp(ent->classname, "monster_medic")) {
+			ent->classname = "monster_spider";
+		}
+		else if (!strcmp(ent->classname, "monster_brain")) {
+			ent->classname = "monster_berserk";
+		
+
+    }
+}
+
+
 	gitem_t* item;
 	int		 i;
 

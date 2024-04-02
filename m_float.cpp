@@ -54,12 +54,12 @@ if (len < 30)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_tracker(self, start, dir, 7, 800, self->enemy, MZ2_FLOAT_BLASTER_1);
+	monster_fire_tracker(self, start, dir, 8, 945, self->enemy, MZ2_FLOAT_BLASTER_1);
 }
 else
 {
 	PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-	monster_fire_tracker(self, start, dir, 7, 800, nullptr, MZ2_FLOAT_BLASTER_1);
+	monster_fire_tracker(self, start, dir, 8, 945, nullptr, MZ2_FLOAT_BLASTER_1);
 }
 }
 
@@ -647,11 +647,11 @@ DIE(floater_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 static void float_set_fly_parameters(edict_t *self)
 {
 	self->monsterinfo.fly_thrusters = false;
-	self->monsterinfo.fly_acceleration = 10.f;
-	self->monsterinfo.fly_speed = 100.f;
+	self->monsterinfo.fly_acceleration = 12.f;
+	self->monsterinfo.fly_speed = 200.f;
 	// Technician gets in closer because he has two melee attacks
 	self->monsterinfo.fly_min_distance = 20.f;
-	self->monsterinfo.fly_max_distance = 200.f;
+	self->monsterinfo.fly_max_distance = 280.f;
 }
 
 constexpr spawnflags_t SPAWNFLAG_FLOATER_DISGUISE = 8_spawnflag;
@@ -697,6 +697,10 @@ void SP_monster_floater(edict_t *self)
 	self->health = 180 * st.health_multiplier;
 	self->gib_health = -80;
 	self->mass = 300;
+
+	if (!self->s.scale)
+		self->s.scale = 1.2f;
+
 
 	self->pain = floater_pain;
 	self->die = floater_die;

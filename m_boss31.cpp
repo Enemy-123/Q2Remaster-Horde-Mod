@@ -686,7 +686,7 @@ void SP_monster_jorg(edict_t *self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 1300;
 
-	self->health = 1800 * st.health_multiplier;
+	self->health = 2500 * st.health_multiplier;
 	self->gib_health = -2000;
 	self->mass = 1000;
 
