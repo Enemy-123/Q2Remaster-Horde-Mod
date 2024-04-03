@@ -1425,9 +1425,10 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
 
 
-if (G_IsCooperative() && !g_horde->integer)
+if (G_IsCooperative() && skill->integer==3 && !g_horde->integer)
+
 {			// 		// COOPWAVE
-	sb.ifstat(STAT_HORDE_WAVE).xv(-15).yb(-23).loc_rstring("Cooperative.\nCHAOTIC NIGHTMARE").endifstat();
+	sb.ifstat(STAT_HORDE_WAVE).xv(-55).yb(-23).loc_rstring("Chaotic Coop\n ENABLED").endifstat();
 }
 		if (G_IsCooperative())
 		{
