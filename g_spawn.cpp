@@ -1404,7 +1404,7 @@ static void G_InitStatusbar()
 	// ---- gamemode-specific stuff ----
 	if (g_horde->integer) 
 		// 		// HORDE WAVE
-		sb.ifstat(STAT_HORDE_WAVE).xv(-50).yb(-23).waves_num(STAT_HORDE_WAVE).xv(-65).yb(-23).loc_rstring("Horde Mode.\nWave number:").endifstat();
+		sb.ifstat(STAT_HORDE_WAVE).xv(-65).yb(-23).waves_num(STAT_HORDE_WAVE).xv(-65).yb(-23).loc_rstring("Horde Mode.\nWave Number:").endifstat();
 
 	
 	if (!G_IsDeathmatch())
@@ -1427,7 +1427,7 @@ static void G_InitStatusbar()
 
 if (G_IsCooperative() && !g_horde->integer)
 {			// 		// COOPWAVE
-	sb.ifstat(STAT_HORDE_WAVE).xv(-15).yb(-23).loc_rstring("Cooperative.\nINSANE NIGHTMARE++").endifstat();
+	sb.ifstat(STAT_HORDE_WAVE).xv(-15).yb(-23).loc_rstring("Cooperative.\nCHAOTIC NIGHTMARE").endifstat();
 }
 		if (G_IsCooperative())
 		{

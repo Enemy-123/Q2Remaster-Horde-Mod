@@ -596,7 +596,7 @@ void HelpComputer(edict_t* ent)
 	else if (skill->integer == 2)
 		sk = "$m_hard";
 	else
-		sk = "INSANE";
+		sk = "CHAOTIC";
 
 	// send the layout
 
