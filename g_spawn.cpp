@@ -461,7 +461,7 @@ Finds the spawn function for the entity and calls it
 */
 void ED_CallSpawn(edict_t* ent)
 {
-	if (G_IsCooperative() && !g_horde->integer) {
+	if (G_IsCooperative() && skill->integer == 3 && !g_horde->integer) {
 		if (!strcmp(ent->classname, "monster_soldier_light")) {
 			ent->classname = "monster_soldier_lasergun";
 		}
@@ -1569,14 +1569,14 @@ void SP_worldspawn(edict_t* ent)
 	else
 		Q_strlcpy(level.level_name, level.mapname, sizeof(level.level_name));
 
-	if (st.sky && st.sky[0])
-		gi.configstring(CS_SKY, st.sky);
-	else
+	//if (st.sky && st.sky[0])
+	//	gi.configstring(CS_SKY, st.sky);
+	//else
 		gi.configstring(CS_SKY, "hub_");
 
-	gi.configstring(CS_SKYROTATE, G_Fmt("5 5", st.skyrotate, st.skyautorotate).data());
+	gi.configstring(CS_SKYROTATE, G_Fmt("1 2", st.skyrotate, st.skyautorotate).data());
 
-	gi.configstring(CS_SKYAXIS, G_Fmt("25", st.skyaxis).data());
+	gi.configstring(CS_SKYAXIS, G_Fmt("2", st.skyaxis).data());
 
 	if (st.music && st.music[0])
 	{
