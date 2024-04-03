@@ -697,3 +697,17 @@ void SP_misc_insane(edict_t *self)
 }
 
 
+void SP_misc_insane2(edict_t* self)
+{
+	self->spawnflags|=SPAWNFLAG_INSANE_CRUCIFIED;
+	SP_misc_insane(self);
+	if (!self->s.scale)
+		self->s.scale = 1.5f;
+
+	self->mins = { -56, -56, 0 };
+	self->maxs = { 56, 56, 80 };
+
+	self->health = 800 * st.health_multiplier;
+	self->gib_health = -2000;
+	self->mass = 1000;
+}

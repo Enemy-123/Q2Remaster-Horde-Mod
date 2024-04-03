@@ -331,7 +331,7 @@ static void Horde_CleanBodies()
 void ResetGame() {
 	// Reinicia las variables de estado del juego
 	g_horde_local.state = horde_state_t::warmup;
-	current_wave_number = 0;
+	current_wave_number = 1;
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
 	}
 void Horde_RunFrame()
