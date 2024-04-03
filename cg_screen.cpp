@@ -1024,9 +1024,11 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             if (!skip_depth)
             {
                 int value = current_wave_number; // Obtener el número de oleada actual
-                CG_DrawField(x, y, value <= 1 ? flash_frame : 0, 1, max(0, value - 1), scale); // Dibujar el número de oleada
+                int width = 2; // Ancho suficiente para dos dígitos
+                CG_DrawField(x, y, value <= 1 ? flash_frame : 0, width, max(0, value - 1), scale); // Dibujar el número de oleada
             }
         }
+
         if (!strcmp(token, "hnum"))
         {
             // health number
