@@ -461,10 +461,10 @@ void ED_CallSpawn(edict_t* ent)
 {
 	if (G_IsCooperative() && !g_horde->integer) {
 		if (!strcmp(ent->classname, "monster_soldier_light")) {
-			ent->classname = "monster_soldier_hypergun";
+			ent->classname = "monster_soldier_lasergun";
 		}
 		else if (!strcmp(ent->classname, "monster_soldier")) {
-			ent->classname = "monster_soldier_ripper";
+			ent->classname = "monster_soldier_hypergun";
 		}
 		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
 			ent->classname = "monster_infantry";
@@ -510,7 +510,15 @@ void ED_CallSpawn(edict_t* ent)
 		}
 		else if (!strcmp(ent->classname, "monster_brain")) {
 			ent->classname = "monster_berserk";
-		
+		}
+		else if (!strcmp(ent->classname, "item_quad")) {
+			ent->classname = "item_double";
+		}
+		else if (!strcmp(ent->classname, "item_invulnerability")) {
+			ent->classname = "item_quadfire";
+		}
+		else if (!strcmp(ent->classname, "item_power_shield")) {
+			ent->classname = "item_power_screen";
 
     }
 }
@@ -1394,6 +1402,11 @@ static void G_InitStatusbar()
 	sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
 
 	// ---- gamemode-specific stuff ----
+	if (g_horde->integer) 
+		// 		// HORDE WAVE
+		sb.ifstat(STAT_HORDE_WAVE).xv(-50).yb(-23).waves_num(STAT_HORDE_WAVE).xv(-65).yb(-23).loc_rstring("Horde Mode.\nWave number:").endifstat();
+
+	
 	if (!G_IsDeathmatch())
 	{
 		// SP/coop
@@ -1411,8 +1424,14 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_KEY_B).xv(272).pic(STAT_KEY_B).endifstat();
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
 
+
+if (G_IsCooperative() && !g_horde->integer)
+{			// 		// COOPWAVE
+	sb.ifstat(STAT_HORDE_WAVE).xv(-15).yb(-23).loc_rstring("Cooperative.\nINSANE NIGHTMARE++").endifstat();
+}
 		if (G_IsCooperative())
 		{
+		
 			// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 

@@ -481,10 +481,17 @@ inline gtime_t Weapon_AnimationTime(edict_t *ent)
 
 	if (ent->client->ps.gunframe != 0 && (!(ent->client->pers.weapon->flags & IF_NO_HASTE) || ent->client->weaponstate != WEAPON_FIRING))
 	{
+		bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
+		bool using_shotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+		bool using_glauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
+
 		if (is_quadfire)
 			ent->client->ps.gunrate *= 2;
 		if (CTFApplyHaste(ent))
 			ent->client->ps.gunrate *= 2;
+		if (!G_IsDeathmatch() && using_blaster || using_shotgun || using_glauncher) // faster weapons
+			ent->client->ps.gunrate *= 1.4;
+
 	}
 
 	// network optimization...
@@ -1004,7 +1011,7 @@ GRENADE
 
 void weapon_grenade_fire(edict_t *ent, bool held)
 {
-	int	  damage = 195;
+	int	  damage = 200;
 	int	  speed;
 	float radius;
 
@@ -1250,7 +1257,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t *ent)
 {
-	int	  damage = 175;
+	int	  damage = 185;
 	float radius;
 
 	radius = (float) (damage + 40);
@@ -1298,7 +1305,7 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(135, 180);
+	damage = irandom(135, 150);
 	radius_damage = 125;
 	damage_radius = 125;
 	if (is_quad)
@@ -1478,7 +1485,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 8;
+	int damage = 9;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1822,7 +1829,7 @@ void weapon_railgun_fire(edict_t *ent)
 	}
 	else
 	{
-		damage = 190;
+		damage = 175;
 		kick = 285;
 	}
 

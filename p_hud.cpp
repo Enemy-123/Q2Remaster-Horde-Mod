@@ -596,7 +596,7 @@ void HelpComputer(edict_t* ent)
 	else if (skill->integer == 2)
 		sk = "$m_hard";
 	else
-		sk = "$m_nightmare";
+		sk = "INSANE";
 
 	// send the layout
 
@@ -689,6 +689,14 @@ void Cmd_Help_f(edict_t* ent)
 
 //=======================================================================
 
+#include "horde/g_horde.h"
+//HORDE WAVE STATS
+void G_SetHordeStats(edict_t* ent)
+{
+	if (g_horde->integer)
+		ent->client->ps.stats[STAT_HORDE_WAVE] = current_wave_number; // HORDE WAVE
+
+}
 // [Paril-KEX] for stats we want to always be set in coop
 // even if we're spectating
 void G_SetCoopStats(edict_t* ent)

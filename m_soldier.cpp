@@ -610,7 +610,7 @@ PRETHINK(soldierh_laser_update) (edict_t *laser) -> void
 void soldierh_laserbeam(edict_t *self, int flash_index)
 {
 	self->radius_dmg = flash_index;
-	monster_fire_dabeam(self, 1, false, soldierh_laser_update);
+	monster_fire_dabeam(self, 2, false, soldierh_laser_update);
 }
 
 constexpr monster_muzzleflash_id_t ripper_flash[] = { MZ2_SOLDIER_RIPPER_1, MZ2_SOLDIER_RIPPER_2, MZ2_SOLDIER_RIPPER_3, MZ2_SOLDIER_RIPPER_4, MZ2_SOLDIER_RIPPER_5, MZ2_SOLDIER_RIPPER_6, MZ2_SOLDIER_RIPPER_7, MZ2_SOLDIER_RIPPER_8, MZ2_SOLDIER_RIPPER_9 };

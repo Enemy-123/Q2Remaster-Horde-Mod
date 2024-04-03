@@ -2443,6 +2443,7 @@ void G_UnLagCompensate();
 //
 void MoveClientToIntermission(edict_t* client);
 void G_SetStats(edict_t* ent);
+void G_SetHordeStats(edict_t* ent);
 void G_SetCoopStats(edict_t* ent);
 void G_SetSpectatorStats(edict_t* ent);
 void G_CheckChaseStats(edict_t* ent);
@@ -3585,7 +3586,7 @@ inline bool pierce_args_t::mark(edict_t* ent)
 
 	return true;
 }
-
+extern int current_wave_number;
 // implementation of pierce stuff
 inline void pierce_args_t::restore()
 {

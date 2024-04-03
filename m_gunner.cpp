@@ -512,10 +512,10 @@ void GunnerGrenade(edict_t *self)
 
 	// try search for best pitch
 	if (M_CalculatePitchToFire(self, target, start, aim, 600, 2.5f, false))
-		monster_fire_grenade(self, start, aim, 70, 630, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+		monster_fire_grenade(self, start, aim, 50, 600, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
 	else
 		// normal shot
-		monster_fire_grenade(self, start, aim, 70, 630, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+		monster_fire_grenade(self, start, aim, 50, 600, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 mframe_t gunner_frames_attack_chain[] = {
@@ -883,11 +883,11 @@ void SP_monster_gunner(edict_t *self)
 	self->maxs = { 16, 16, 36 };
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 80;
+		self->monsterinfo.power_armor_power = 65;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
-	self->health = 225 * st.health_multiplier;
+	self->health = 245 * st.health_multiplier;
 	self->gib_health = -70;
 	self->mass = 200;
 

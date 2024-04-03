@@ -54,7 +54,7 @@ struct statusbar_t
 			sb << "loc_rstring 0 " << str << ' ';
 		return *this;
 	}
-
+	inline auto &waves_num(player_stat_t stat) { sb << "waves_num " << stat << ' '; return *this; }
 	inline auto &lives_num(player_stat_t stat) { sb << "lives_num " << stat << ' '; return *this; }
 	inline auto &stat_pname(player_stat_t stat) { sb << "stat_pname " << stat << ' '; return *this; }
 

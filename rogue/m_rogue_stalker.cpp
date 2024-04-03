@@ -996,7 +996,7 @@ void SP_monster_stalker(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 350 * st.health_multiplier;
+	self->health = 175 * st.health_multiplier;
 	self->gib_health = -80;
 	self->mass = 250;
 

@@ -5,7 +5,7 @@
 
 
 
-
+int current_wave_number = 1; // Inicializa current_wave_number en 1
 cvar_t* g_horde;
 
 enum class horde_state_t
@@ -17,7 +17,7 @@ enum class horde_state_t
 };
 
 static struct {
-	gtime_t			warm_time = 1_sec;
+	gtime_t			warm_time = 5_sec;
 	horde_state_t	state = horde_state_t::warmup;
 
 	gtime_t			monster_spawn_time;
@@ -28,8 +28,10 @@ bool next_wave_message_sent = false;
 
 static void Horde_InitLevel(int32_t lvl)
 {
+	// Incrementa el número de la oleada actual
+	current_wave_number++;
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 50 + (lvl * 2);
+	g_horde_local.num_to_spawn = 10 + (lvl * 2);
 
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 }
@@ -82,14 +84,14 @@ constexpr struct weighted_item_t {
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 2, 6, 0.20f, adjust_weight_weapon },
+	{ "weapon_supershotgun", 4, 6, 0.20f, adjust_weight_weapon },
 	{ "weapon_machinegun", 2, 6, 0.25f, adjust_weight_weapon },
 	{ "weapon_etf_rifle", 4, 7, 0.23f, adjust_weight_weapon },
-	{ "weapon_boomer", 4, 9, 0.15f, adjust_weight_weapon },
+	{ "weapon_boomer", 5, 9, 0.15f, adjust_weight_weapon },
 	{ "weapon_chaingun", 6, 9, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 4, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 5, 7, 0.15f, adjust_weight_weapon },
-	{ "weapon_phalanx", 6, 10, 0.16f, adjust_weight_weapon },
+	{ "weapon_phalanx", 7, 10, 0.16f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 7, 10, 0.15f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 5, 8, 0.16f, adjust_weight_weapon },
 	{ "weapon_railgun", 5, 8, 0.16f, adjust_weight_weapon },
@@ -101,11 +103,11 @@ constexpr struct weighted_item_t {
 	{ "ammo_bullets", -1, -1, 0.55f, adjust_weight_ammo },
 	{ "ammo_flechettes", 5, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_grenades", -1, -1, 0.55f, adjust_weight_ammo },
-	{ "ammo_cells", -1, -1, 0.45f, adjust_weight_ammo },
-	{ "ammo_magslug", -6, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_slugs", 5, -1, 0.53f, adjust_weight_ammo },
-	{ "ammo_disruptor", 7, -1, 0.45f, adjust_weight_ammo },
-	{ "ammo_rockets", 6, -1, 0.55f, adjust_weight_ammo },
+	{ "ammo_cells", 5, -1, 0.45f, adjust_weight_ammo },
+	{ "ammo_magslug", 6, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_slugs", 5, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_disruptor", 7, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_rockets", 6, -1, 0.45f, adjust_weight_ammo },
 	{ "item_bandolier", -1, 6, 0.35f, adjust_weight_ammo },
 	{ "item_pack", 6, -1, 0.25f, adjust_weight_ammo },
 
@@ -139,8 +141,8 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gekk", 3, 7, 0.30f },
 	{ "monster_parasite", 4, 7, 0.30f },
 	{ "monster_brain", 4, 11, 0.30f },
-	{ "monster_soldier_lasergun", 3, 8, 0.90f },
-	{ "monster_soldier_ripper", 3, 6, 0.85f },
+	{ "monster_soldier_lasergun", -1, 8, 0.90f },
+	{ "monster_soldier_ripper", 3, 9, 0.85f },
 	{ "monster_infantry", 2, 9, 0.90f },
 	{ "monster_gunner", 3, 8, 0.80f },
 	{ "monster_chick", 4, 9, 0.92f },
@@ -152,14 +154,14 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_tank", 5, 8, 0.45f },
 	{ "monster_janitor2", 9, -1, 0.15f },
 	{ "monster_gladb", 7, -1, 0.5f },
-	{ "monster_janitor", 8, -1, 0.25f },
-	{ "monster_hover", 9, -1, 1.35f },
+	{ "monster_janitor", 8, -1, 0.18f },
+	{ "monster_hover", 9, -1, 0.85f },
 	{ "monster_flyer", -1, 6, 0.75f },
-	{ "monster_floater", 4, 9, 0.85f },
+	{ "monster_floater", 6, 9, 0.85f },
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 11, -1, 0.4f },
 	{ "monster_carrier2", 12, -1, 0.07f },
-	{ "monster_berserk", 8, -1, 0.85f },
+	{ "monster_berserk", 8, -1, 0.65f },
 	{ "monster_spider", 6, -1, 0.34f },
 	{ "monster_tank_64", 10, -1, 0.45f },
 	{ "monster_medic_commander",12, -1, 0.07f },
@@ -340,7 +342,7 @@ void Horde_RunFrame()
 		{
 			gi.LocBroadcast_Print(PRINT_CENTER, "???\n");
 			g_horde_local.state = horde_state_t::spawning;
-			Horde_InitLevel(13);
+			Horde_InitLevel(1);
 
 				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
 		}
