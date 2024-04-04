@@ -2821,10 +2821,10 @@ struct damage_indicator_t
 constexpr gtime_t LADDER_SOUND_TIME = 300_ms;
 
 // time after damage that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 1200_ms;
+constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 500_ms;
 
 // time after firing that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 1000_ms;
+constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;
 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
@@ -3439,7 +3439,7 @@ struct active_players_filter_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
-		return (ent->inuse && ent->client && ent->client->pers.connected && (!(ent->client->pers.spectator))); // FIX SQUAD TRYING TO REVIVE WHEN A PLAYER IS SPECTATOR AFK = 1 
+		return (ent->inuse && ent->client && ent->client->pers.connected && (!(ent->client->pers.spectator || ent->client->resp.spectator))); // FIX SQUAD TRYING TO REVIVE WHEN A PLAYER IS SPECTATOR AFK = 1 
 	}
 };
 

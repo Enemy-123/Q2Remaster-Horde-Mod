@@ -969,7 +969,7 @@ void SP_monster_stalker(edict_t *self)
 		return;
 	}
 
-	if (!self->s.scale)
+	if (!self->s.scale && !g_horde->integer)
 		self->s.scale = 0.8f;
 
 	sound_pain.assign("stalker/pain.wav");

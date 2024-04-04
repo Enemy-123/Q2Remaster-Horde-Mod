@@ -445,6 +445,7 @@ void Cmd_Spawn_f(edict_t* ent)
 			float dy = other->mins[1] - other->maxs[1];
 			other->s.origin += forward * -sqrtf(dx * dx + dy * dy);
 
+
 			if ((other->s.origin - ent->s.origin).dot(forward) < 0)
 			{
 				gi.Client_Print(ent, PRINT_HIGH, "Couldn't find a suitable spawn location\n");
@@ -453,11 +454,37 @@ void Cmd_Spawn_f(edict_t* ent)
 			}
 		}
 
+
+		other->maxs *= 2;
+		other->mins *= 2;
+		other->s.scale = 2;
+		other->health *= current_wave_number;
+		other->s.renderfx = RF_TRANSLUCENT;
+		other->s.effects = EF_FLAG1;
+		other->gib_health = -80000;
+
+		vec3_t effectPosition = other->s.origin;
+		effectPosition[0] += (other->s.origin[0] - effectPosition[0]) * (other->s.scale - 3);
+		effectPosition[1] += (other->s.origin[1] - effectPosition[1]) * (other->s.scale - 3);
+		effectPosition[2] += (other->s.origin[2] - effectPosition[2]) * (other->s.scale - 3);
+
+		char message[128]; // Asumiendo un tamaño máximo de mensaje de 128 caracteres
+		sprintf(message, "***A BOSS LEVEL %d HAS SPAWNED***", current_wave_number - 1);
+		gi.LocBroadcast_Print(PRINT_CENTER, message);
+
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BOSSTPORT);
+		gi.WritePosition(effectPosition);
+		gi.multicast(effectPosition, MULTICAST_PHS, false);
+
+
 		if (other->inuse)
 			gi.linkentity(other);
 
 		if ((other->svflags & SVF_MONSTER) && other->think)
 			other->think(other);
+
 	}
 
 	ent->solid = backup;
@@ -1033,11 +1060,14 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 			continue;
 		}
 
-		G_FreeEdict(edict);
+		// Dañar severamente al AI
+		if (!edict->deadflag && !(edict->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 9999, 9999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
 	}
 
-	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Are Dead...\n");
+	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");
 }
+
 
 /*
 =================

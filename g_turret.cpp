@@ -427,11 +427,11 @@ void SP_turret_driver(edict_t* self)
 	self->maxs = { 16, 16, 32 };
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 55;
+		self->monsterinfo.power_armor_power = 125;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
-	self->health = self->max_health = 120 * st.health_multiplier;
+	self->health = self->max_health = 240 * st.health_multiplier;
 	self->gib_health = -40;
 	self->mass = 200;
 	self->viewheight = 24;

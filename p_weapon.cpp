@@ -1011,7 +1011,7 @@ GRENADE
 
 void weapon_grenade_fire(edict_t *ent, bool held)
 {
-	int	  damage = 200;
+	int	  damage = 165;
 	int	  speed;
 	float radius;
 
@@ -1257,7 +1257,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t *ent)
 {
-	int	  damage = 185;
+	int	  damage = 155;
 	float radius;
 
 	radius = (float) (damage + 40);
@@ -1380,7 +1380,7 @@ void Blaster_Fire(edict_t *ent, const vec3_t &g_offset, int damage, bool hyper, 
 void Weapon_Blaster_Fire(edict_t *ent)
 {
 	// give the blaster 15 across the board instead of just in dm
-	int damage = 15;
+	int damage = 13;
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
@@ -1485,7 +1485,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 9;
+	int damage = 8;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1588,7 +1588,7 @@ void Chaingun_Fire(edict_t *ent)
 	if (G_IsDeathmatch())
 		damage = 6;
 	else
-		damage = 16;
+		damage = 8;
 
 	if (ent->client->ps.gunframe > 31)
 	{
@@ -1715,7 +1715,7 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 4;
+	int damage = 3;
 	int kick = 8;
 
 	vec3_t start, dir;
@@ -1760,8 +1760,8 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 6;
-	int kick = 16;
+	int damage = 7;
+	int kick = 17;
 
 	if (is_quad)
 	{
