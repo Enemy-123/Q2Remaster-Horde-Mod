@@ -469,7 +469,7 @@ void Cmd_Spawn_f(edict_t* ent)
 		effectPosition[2] += (other->s.origin[2] - effectPosition[2]) * (other->s.scale - 3);
 
 		char message[128]; // Asumiendo un tamaño máximo de mensaje de 128 caracteres
-		sprintf(message, "***A BOSS LEVEL %d HAS SPAWNED***", current_wave_number - 1);
+		sprintf(message, "*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
 		gi.LocBroadcast_Print(PRINT_CENTER, message);
 
 

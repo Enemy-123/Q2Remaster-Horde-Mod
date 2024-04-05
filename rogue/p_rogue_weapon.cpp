@@ -79,10 +79,10 @@ void weapon_chainfist_fire(edict_t* ent)
 		}
 	}
 
-	int damage = 10;
+	int damage = 20;
 
 	if (G_IsDeathmatch())
-		damage = 15;
+		damage = 25;
 
 	if (is_quad)
 		damage *= damage_multiplier;
@@ -271,9 +271,9 @@ void weapon_etf_rifle_fire(edict_t *ent)
 	vec3_t offset;
 
 	if (G_IsDeathmatch())
-		damage = 10;
+		damage = 13;
 	else
-		damage = 10;
+		damage = 13;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{

@@ -824,9 +824,9 @@ void SP_monster_chick(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 180;
+		self->monsterinfo.power_armor_power = 120;
 
-	self->health = 175 * st.health_multiplier;
+	self->health = 145 * st.health_multiplier;
 	self->gib_health = -70;
 	self->mass = 200;
 

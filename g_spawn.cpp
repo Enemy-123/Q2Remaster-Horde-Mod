@@ -521,6 +521,9 @@ void ED_CallSpawn(edict_t* ent)
 		}
 		else if (!strcmp(ent->classname, "item_power_shield")) {
 			ent->classname = "item_power_screen";
+		}
+		else if (!strcmp(ent->classname, "item_silencer")) {
+			ent->classname = "item_bandolier";
 
     }
 }

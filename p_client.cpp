@@ -847,7 +847,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		// player may not have weapons at all.
 		bool taken_loadout = false;
 
-		if (G_IsCooperative())
+		if (G_IsCooperative() || !g_horde->integer)
 		{
 			for (auto player : active_players())
 			{

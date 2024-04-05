@@ -25,7 +25,9 @@ static struct {
 	int32_t			level;
 } g_horde_local;
 bool next_wave_message_sent = false;
+// Define una constante para el número de jefes a spawn
 
+const int BOSS_TO_SPAWN = 1;
 static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
@@ -69,10 +71,10 @@ constexpr struct weighted_item_t {
 	{ "item_adrenaline", -1, -1, 0.14f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
-	{ "item_armor_jacket", 4, 4, 0.25f, adjust_weight_armor },
+	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
-//	{ "item_power_screen", 6, -1, 0.1f, adjust_weight_armor },
+	{ "item_power_screen", 4, -1, 0.1f, adjust_weight_armor },
 
 	{ "item_quad", 6, -1, 0.1f, adjust_weight_powerup },
 	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
@@ -85,12 +87,12 @@ constexpr struct weighted_item_t {
 	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 4, 7, 0.20f, adjust_weight_weapon },
 	{ "weapon_machinegun", 2, 5, 0.25f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", 2, 5, 0.23f, adjust_weight_weapon },
+	{ "weapon_etf_rifle", -1, 3, 0.23f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_chaingun", 5, 8, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, 9, 0.15f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 5, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_phalanx", 10, 13, 0.16f, adjust_weight_weapon },
+	{ "weapon_phalanx", 7, 11, 0.16f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 7, 10, 0.15f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 5, 8, 0.16f, adjust_weight_weapon },
 	{ "weapon_railgun", 6, 9, 0.16f, adjust_weight_weapon },
@@ -98,17 +100,17 @@ constexpr struct weighted_item_t {
 	{ "weapon_bfg", 9, 12, 0.16f, adjust_weight_weapon },
 
 
-	{ "ammo_shells", -1, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_bullets", -1, -1, 0.40f, adjust_weight_ammo },
-	{ "ammo_flechettes", 5, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_bullets", -1, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_flechettes", 5, -1, 0.15f, adjust_weight_ammo },
 	{ "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_cells", 5, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_magslug", 6, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_slugs", 5, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 7, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_rockets", 6, -1, 0.45f, adjust_weight_ammo },
-	{ "item_bandolier", -1, 6, 0.17f, adjust_weight_ammo },
-	{ "item_pack", 6, -1, 0.25f, adjust_weight_ammo },
+	{ "item_bandolier", -1, -1, 0.3f, adjust_weight_ammo },
+	{ "item_pack", 6, -1, 0.38f, adjust_weight_ammo },
 
 };
 
@@ -149,21 +151,54 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gladiator", 4, 10, 1.1f },
 	{ "monster_chick_heat", 7, -1, 0.63f },
 	{ "monster_tank_commander", 7, 10, 0.65f },
-	{ "monster_mutant", 3, -1, 0.75f },
-	{ "monster_tank", 5, 8, 0.45f },
+	{ "monster_mutant", 5, -1, 0.75f },
+	{ "monster_tank", 6, 8, 0.45f },
 	{ "monster_janitor2", 9, -1, 0.15f },
-	{ "monster_gladb", 7, -1, 0.5f },
+	{ "monster_gladb", 9, -1, 0.5f },
 	{ "monster_janitor", 8, -1, 0.18f },
 	{ "monster_hover", 7, -1, 0.85f },
 	{ "monster_flyer", -1, 6, 0.75f },
-	{ "monster_floater", 6, 9, 0.85f },
+	{ "monster_floater", 7, 10, 0.85f },
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 11, -1, 0.4f },
-	{ "monster_carrier2", 11, -1, 0.07f },
+	{ "monster_carrier2", 12, -1, 0.07f },
 	{ "monster_berserk", 5, -1, 0.55f },
-	{ "monster_spider", 6, -1, 0.34f },
+	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 10, -1, 0.45f },
 	{ "monster_medic_commander",10, -1, 0.09f },
+};
+
+struct boss_t {
+	const char* classname;
+	int32_t min_level;
+	int32_t max_level;
+	float weight;
+};
+
+constexpr boss_t BOSS[] = {
+	{ "monster_jorg", 8, 3, 0.75f },
+	{ "monster_shambler", 5, 3, 0.45f },
+	{ "monster_arachnid", 4, 8, 0.85f },
+	{ "monster_guncmdr", -1, -1, 0.22f },
+	{ "monster_boss2", 7, 7, 0.30f },
+	{ "monster_berserk", -1, 7, 0.30f },
+	{ "monster_brain", -1, 11, 0.30f },
+	{ "monster_soldier_lasergun", -1, 8, 0.90f },
+	{ "monster_soldier_ripper", -1, 9, 0.85f },
+	{ "monster_chick", -1, 9, 0.92f },
+	{ "monster_guncmdr", -1, -1, 1.1f },
+	{ "monster_chick_heat", -1, -1, 0.63f },
+	{ "monster_mutant", -1, -1, 0.75f },
+	{ "monster_tank_commander", -1, 8, 0.45f },
+	{ "monster_gladb", -1, -1, 0.5f },
+	{ "monster_boss5", -1, -1, 0.18f },
+	{ "monster_hover", -1, -1, 0.85f },
+	{ "monster_flyer", -1, 6, 0.75f },
+	{ "monster_floater", -1, 9, 0.85f },
+	{ "monster_guardian", 11, 9, 0.85f },
+	{ "monster_carrier", -1, -1, 0.07f },
+		{ "monster_parasite", -1, -1, 0.07f },
+			{ "monster_stalker", -1, -1, 0.07f },
 };
 
 struct picked_item_t {
@@ -253,7 +288,37 @@ const char* G_HordePickMonster()
 
 	return nullptr;
 }
+const char* G_HordePickBOSS()
+{
+	const char* desired_boss = nullptr;
 
+	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
+		desired_boss = "monster_guardian";
+	}
+	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
+		desired_boss = "monster_guncmdr";
+	}
+	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7")|| !Q_strcasecmp(level.mapname, "q64\\dm7")) {
+		desired_boss = "monster_parasite";
+	}
+	else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
+
+		desired_boss = "monster_stalker";
+	}
+	else {
+		return nullptr; // Mapa no reconocido
+	}
+
+	for (const auto& item : BOSS)
+	{
+		if (strcmp(item.classname, desired_boss) == 0)
+		{
+			return item.classname; // Jefe deseado encontrado
+		}
+	}
+
+	return nullptr; // Jefe deseado no encontrado
+}
 
 void Horde_PreInit()
 {
@@ -326,6 +391,95 @@ static void Horde_CleanBodies()
 	}
 }
 
+void SpawnBossAutomatically()
+{
+	// Utiliza la constante BOSS_TO_SPAWN para establecer el número de jefes a spawn
+	const int BOSS_TO_SPAWN = 1;
+
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 4 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0 && current_wave_number != 0))
+	
+
+	{
+		// Solo necesitas un bucle aquí para generar un jefe
+		edict_t* boss = G_Spawn(); // Creas un nuevo edict_t solo si es necesario
+		if (!boss)
+			return;
+
+		// Aquí selecciona el jefe deseado
+		const char* desired_boss = G_HordePickBOSS();
+		if (!desired_boss) {
+			return; // No se pudo encontrar un jefe válido
+		}
+
+		// Asigna el nombre de clase del jefe deseado al edict
+		boss->classname = desired_boss;
+
+		// Asigna la posición y los ángulos del jefe dependiendo del mapa
+		if (!Q_strcasecmp(level.mapname, "q2dm1")) {
+			boss->s.origin[0] = 1224;
+			boss->s.origin[1] = 648;
+			boss->s.origin[2] = 768;
+		}
+		else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
+			boss->s.origin[0] = 112;
+			boss->s.origin[1] = 1216;
+			boss->s.origin[2] = 88;
+		}
+		else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) {
+			boss->s.origin[0] = 64;
+			boss->s.origin[1] = 224;
+			boss->s.origin[2] = 120;
+		}
+		else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
+			boss->s.origin[0] = -304;
+			boss->s.origin[1] = 512;
+			boss->s.origin[2] = -128;
+		}
+		else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
+			boss->s.origin[0] = 896;
+			boss->s.origin[1] = 64;
+			boss->s.origin[2] = 24;
+		}
+		else {
+			return; // Mapa no reconocido
+		}
+
+		// Ajusta los ángulos del monstruo
+		boss->s.angles[0] = 0;
+		boss->s.angles[1] = -45;
+		boss->s.angles[2] = 0;
+
+		// Ajustes adicionales
+		boss->maxs *= 2;
+		boss->mins *= 2;
+		boss->s.scale = 2;
+		boss->health *= current_wave_number;
+		boss->monsterinfo.power_armor_power *= current_wave_number;
+		boss->s.renderfx = RF_TRANSLUCENT;
+		boss->s.effects = EF_FLAG2;
+
+		vec3_t effectPosition = boss->s.origin;
+		effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
+		effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
+		effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
+
+		char message[128]; // Asumiendo un tamaño máximo de mensaje de 128 caracteres
+		sprintf(message, "*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
+		gi.LocBroadcast_Print(PRINT_CENTER, message);
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BOSSTPORT);
+		gi.WritePosition(effectPosition);
+		gi.multicast(effectPosition, MULTICAST_PHS, false);
+
+		// Llama a la función para spawnear el monstruo
+		ED_CallSpawn(boss);
+	}
+}
 
 void ResetGame() {
 	// Reinicia las variables de estado del juego
@@ -367,22 +521,29 @@ void Horde_RunFrame()
 				e->s.origin = result.spot->s.origin;
 				e->s.angles = result.spot->s.angles;
 				e->item = G_HordePickItem();
-		//		e->s.renderfx = RF_TRANSLUCENT;
+				// e->s.renderfx = RF_TRANSLUCENT;
 				ED_CallSpawn(e);
 
+				// Llama a la función para spawnear el jefe solo si es el momento adecuado
+				if (g_horde_local.num_to_spawn == BOSS_TO_SPAWN)
 				{
-					// Generación del Spawngrow con tamaño basado en la posición del lugar de spawneo del monstruo
+					SpawnBossAutomatically();
+				}
+
+				{
+					// spawn animation
 					vec3_t spawngrow_pos = result.spot->s.origin;
-					float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.04f; // Multiplicar por 2
+					float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.04f; // scaling
 					float end_size = start_size;
 
 					// Generar el Spawngrow con los tamaños calculados
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-
 				g_horde_local.monster_spawn_time = level.time + random_time(0.2_sec, 1.2_sec);
 				e->enemy = &g_edicts[1];;
+				e->gib_health = -800;
+				e->health *= pow(1.025, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -405,6 +566,7 @@ void Horde_RunFrame()
 			}
 		}
 		break;
+
 
 
 	case horde_state_t::cleanup:
@@ -435,6 +597,7 @@ void Horde_RunFrame()
 		break;
 	}
 }
+
 
 
 // Función para manejar una interrupción o evento que requiera reiniciar el juego

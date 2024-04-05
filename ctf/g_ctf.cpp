@@ -1888,17 +1888,11 @@ void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 {
 	edict_t* tech;
 
-	// Soltar el elemento tecnológico
 	tech = Drop_Item(ent, item);
-
-	// Configurar el tiempo de desaparición y la función de pensamiento
 	tech->nextthink = level.time + CTF_TECH_TIMEOUT;
 	tech->think = TechThink;
-
-	// Eliminar el elemento del inventario del jugador
 	ent->client->pers.inventory[item->id] = 0;
 
-	// Eliminar el elemento del mundo
 	G_FreeEdict(tech);
 }
 
@@ -1916,14 +1910,11 @@ void CTFDeadDropTech(edict_t* ent)
 {
 	int i;
 
-	// Iterar a través de los ítems tecnológicos
+
 	for (i = 0; i < q_countof(tech_ids); i++)
 	{
-		// Si el jugador tiene el ítem tecnológico, no hacer nada
 		if (ent->client->pers.inventory[tech_ids[i]])
 		{
-			// Simplemente restablecer el ítem tecnológico en el inventario del jugador
-			// Esto asegura que el jugador conserve el ítem al morir
 			ent->client->pers.inventory[tech_ids[i]] = 1;
 		}
 	}
@@ -2058,7 +2049,7 @@ int CTFApplyResistance(edict_t* ent, int dmg)
 	{
 		// make noise
 		gi.sound(ent, CHAN_AUX, gi.soundindex("ctf/tech1.wav"), volume, ATTN_NORM, 0);
-		return dmg / 2;
+		return dmg / 1.5;
 	}
 	return dmg;
 }

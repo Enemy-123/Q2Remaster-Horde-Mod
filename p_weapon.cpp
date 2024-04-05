@@ -483,14 +483,28 @@ inline gtime_t Weapon_AnimationTime(edict_t *ent)
 	{
 		bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
 		bool using_shotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+		bool using_sshotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
 		bool using_glauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
+		bool using_etfrifle = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_ETF_RIFLE;
+
 
 		if (is_quadfire)
 			ent->client->ps.gunrate *= 2;
 		if (CTFApplyHaste(ent))
 			ent->client->ps.gunrate *= 2;
-		if (!G_IsDeathmatch() && using_blaster || using_shotgun || using_glauncher) // faster weapons
-			ent->client->ps.gunrate *= 1.4;
+
+		
+		if (!G_IsDeathmatch()) {
+	
+			if (using_blaster || using_glauncher || using_etfrifle) {
+				ent->client->ps.gunrate *= 1.4;
+			}
+
+		
+			if (using_shotgun) {
+				ent->client->ps.gunrate *= 1.5;
+			}
+		}
 
 	}
 
@@ -1257,7 +1271,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t *ent)
 {
-	int	  damage = 155;
+	int	  damage = 170;
 	float radius;
 
 	radius = (float) (damage + 40);
@@ -1305,7 +1319,7 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(135, 150);
+	damage = irandom(145, 160);
 	radius_damage = 125;
 	damage_radius = 125;
 	if (is_quad)
@@ -1380,7 +1394,7 @@ void Blaster_Fire(edict_t *ent, const vec3_t &g_offset, int damage, bool hyper, 
 void Weapon_Blaster_Fire(edict_t *ent)
 {
 	// give the blaster 15 across the board instead of just in dm
-	int damage = 13;
+	int damage = 16;
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
@@ -1443,9 +1457,9 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
 			
 
 			if (G_IsDeathmatch())
-				damage = 15;
+				damage = 23;
 			else
-				damage = 20;
+				damage = 23;
 			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
 			Weapon_PowerupSound(ent);
 
@@ -1485,7 +1499,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 8;
+	int damage = 9;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
@@ -1588,7 +1602,7 @@ void Chaingun_Fire(edict_t *ent)
 	if (G_IsDeathmatch())
 		damage = 6;
 	else
-		damage = 8;
+		damage = 9;
 
 	if (ent->client->ps.gunframe > 31)
 	{
@@ -1715,7 +1729,7 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 3;
+	int damage = 6;
 	int kick = 8;
 
 	vec3_t start, dir;

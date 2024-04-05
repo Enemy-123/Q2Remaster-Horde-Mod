@@ -698,7 +698,7 @@ void SP_monster_floater(edict_t *self)
 	self->gib_health = -80;
 	self->mass = 300;
 
-	if (!self->s.scale)
+	if (!self->s.scale && !g_horde->integer)
 		self->s.scale = 1.2f;
 
 

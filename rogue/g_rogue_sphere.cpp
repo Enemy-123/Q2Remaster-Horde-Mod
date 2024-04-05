@@ -588,7 +588,7 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 	sphere->s.origin = owner->s.origin;
 	sphere->s.origin[2] = owner->absmax[2];
 	sphere->s.angles[YAW] = owner->s.angles[YAW];
-	sphere->solid = SOLID_BBOX;
+	sphere->solid = SOLID_NOT;
 	sphere->clipmask = MASK_PROJECTILE;
 	sphere->s.renderfx = RF_FULLBRIGHT | RF_IR_VISIBLE;
 	sphere->movetype = MOVETYPE_FLYMISSILE;

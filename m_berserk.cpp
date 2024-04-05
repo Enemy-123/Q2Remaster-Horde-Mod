@@ -808,7 +808,7 @@ void SP_monster_berserk(edict_t *self)
 	self->gib_health = -80;
 	self->mass = 250;
 
-	if (!self->s.scale)
+	if (!self->s.scale && !g_horde->integer)
 		self->s.scale = 1.3f;
 
 	self->pain = berserk_pain;
