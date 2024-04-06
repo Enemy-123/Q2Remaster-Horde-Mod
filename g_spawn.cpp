@@ -136,23 +136,28 @@ void SP_monster_medic(edict_t* self);
 void SP_monster_flipper(edict_t* self);
 void SP_monster_chick(edict_t* self);
 void SP_monster_parasite(edict_t* self);
+void SP_monster_perrokl(edict_t* self);
 void SP_monster_flyer(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_floater(edict_t* self);
 void SP_monster_hover(edict_t* self);
 void SP_monster_mutant(edict_t* self);
 void SP_monster_supertank(edict_t* self);
+void SP_monster_supertankkl(edict_t* self);
 void SP_monster_boss2(edict_t* self);
+void SP_monster_boss2kl(edict_t* self);
 void SP_monster_boss2_64(edict_t* self);
 void SP_monster_jorg(edict_t* self);
 void SP_monster_boss3_stand(edict_t* self);
 void SP_monster_makron(edict_t* self);
+void SP_monster_makronkl(edict_t* self);
 // Paril
 void SP_monster_tank_stand(edict_t* self);
 void SP_monster_guardian(edict_t* self);
 void SP_monster_arachnid(edict_t* self);
 void SP_monster_spider(edict_t* self);
 void SP_monster_guncmdr(edict_t* self);
+void SP_monster_guncmdrkl(edict_t* self);
 
 void SP_monster_commander_body(edict_t* self);
 
@@ -223,6 +228,7 @@ void SP_info_ctf_teleport_destination(edict_t* self);
 // ZOID
 
 void SP_monster_shambler(edict_t* self);
+void SP_monster_shamblerkl(edict_t* self);
 
 // clang-format off
 static const std::initializer_list<spawn_t> spawns = {
@@ -348,24 +354,28 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_soldier", SP_monster_soldier },
 	{ "monster_soldier_ss", SP_monster_soldier_ss },
 	{ "monster_tank", SP_monster_tank },
-	{ "monster_tank_64", SP_monster_tank },
+	{ "monster_tank_64", SP_monster_tank_64 },
 	{ "monster_tank_commander", SP_monster_tank },
 	{ "monster_medic", SP_monster_medic },
 	{ "monster_flipper", SP_monster_flipper },
 	{ "monster_chick", SP_monster_chick },
 	{ "monster_parasite", SP_monster_parasite },
+	{ "monster_perrokl", SP_monster_perrokl },
 	{ "monster_flyer", SP_monster_flyer },
 	{ "monster_brain", SP_monster_brain },
 	{ "monster_floater", SP_monster_floater },
 	{ "monster_hover", SP_monster_hover },
 	{ "monster_mutant", SP_monster_mutant },
 	{ "monster_supertank", SP_monster_supertank },
+	{ "monster_supertankkl", SP_monster_supertankkl },
 	{ "monster_boss2", SP_monster_boss2 },
+	{ "monster_boss2kl", SP_monster_boss2kl },
 	{ "monster_boss2_64", SP_monster_boss2_64 }, // check later
 	{ "monster_boss3_stand", SP_monster_boss3_stand },
 	{ "monster_jorg", SP_monster_jorg },
 	// Paril: allow spawning makron
 	{ "monster_makron", SP_monster_makron },
+	{ "monster_makronkl", SP_monster_makronkl },
 	// Paril: N64
 	{ "monster_tank_stand", SP_monster_tank_stand },
 	// Paril: PSX
@@ -373,6 +383,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_arachnid", SP_monster_arachnid },
 	{ "monster_spider", SP_monster_spider },
 	{ "monster_guncmdr", SP_monster_guncmdr },
+	{ "monster_guncmdrkl", SP_monster_guncmdrkl },
 
 	{ "monster_commander_body", SP_monster_commander_body },
 
@@ -447,7 +458,8 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "info_player_team2", SP_info_player_team2 },
 	// ZOID
 
-	{ "monster_shambler", SP_monster_shambler }
+	{ "monster_shambler", SP_monster_shambler },
+	{ "monster_shamblerkl", SP_monster_shamblerkl }
 };
 // clang-format on
 

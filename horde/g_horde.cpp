@@ -27,7 +27,7 @@ static struct {
 bool next_wave_message_sent = false;
 // Define una constante para el número de jefes a spawn
 
-const int BOSS_TO_SPAWN = 1;
+
 static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
@@ -36,7 +36,7 @@ static void Horde_InitLevel(int32_t lvl)
 
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 }
-
+const int BOSS_TO_SPAWN = 1;
 bool G_IsDeathmatch()
 {
 	return deathmatch->integer && !g_horde->integer;
@@ -80,7 +80,7 @@ constexpr struct weighted_item_t {
 	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
 	{ "item_quadfire", 2, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, -1, 0.24f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, 5, 0.24f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
@@ -162,7 +162,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 11, -1, 0.4f },
 	{ "monster_carrier2", 12, -1, 0.07f },
-	{ "monster_berserk", 5, -1, 0.55f },
+	{ "monster_berserk", 5, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 10, -1, 0.45f },
 	{ "monster_medic_commander",10, -1, 0.09f },
@@ -180,13 +180,11 @@ constexpr boss_t BOSS[] = {
 	{ "monster_shambler", 5, 3, 0.45f },
 	{ "monster_arachnid", 4, 8, 0.85f },
 	{ "monster_guncmdr", -1, -1, 0.22f },
-	{ "monster_boss2", 7, 7, 0.30f },
 	{ "monster_berserk", -1, 7, 0.30f },
 	{ "monster_brain", -1, 11, 0.30f },
 	{ "monster_soldier_lasergun", -1, 8, 0.90f },
 	{ "monster_soldier_ripper", -1, 9, 0.85f },
 	{ "monster_chick", -1, 9, 0.92f },
-	{ "monster_guncmdr", -1, -1, 1.1f },
 	{ "monster_chick_heat", -1, -1, 0.63f },
 	{ "monster_mutant", -1, -1, 0.75f },
 	{ "monster_tank_commander", -1, 8, 0.45f },
@@ -197,8 +195,13 @@ constexpr boss_t BOSS[] = {
 	{ "monster_floater", -1, 9, 0.85f },
 	{ "monster_guardian", 11, 9, 0.85f },
 	{ "monster_carrier", -1, -1, 0.07f },
-		{ "monster_parasite", -1, -1, 0.07f },
-			{ "monster_stalker", -1, -1, 0.07f },
+	{ "monster_stalker", -1, -1, 0.07f },
+	{ "monster_makronkl", -1, -1, 0.07f },
+	{ "monster_perrokl", -1, -1, 0.07f },
+	{ "monster_shamblerkl", -1, -1, 0.07f },
+	{ "monster_guncmdrkl", -1, -1, 0.07f },
+	{ "monster_boss2kl", -1, -1, 0.07f },
+	{ "monster_supertankkl", -1, -1, 0.07f },
 };
 
 struct picked_item_t {
@@ -293,18 +296,26 @@ const char* G_HordePickBOSS()
 	const char* desired_boss = nullptr;
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-		desired_boss = "monster_guardian";
+		desired_boss = "monster_makronkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
-		desired_boss = "monster_guncmdr";
+		desired_boss = "monster_shamblerkl";
+	}
+	else if (!Q_strcasecmp(level.mapname, "xdm2")) {
+		desired_boss = "monster_boss2kl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7")|| !Q_strcasecmp(level.mapname, "q64\\dm7")) {
-		desired_boss = "monster_parasite";
+		desired_boss = "monster_perrokl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
 
-		desired_boss = "monster_stalker";
+		desired_boss = "monster_guncmdrkl";
 	}
+	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
+		desired_boss = "monster_supertankkl";
+	}
+
+
 	else {
 		return nullptr; // Mapa no reconocido
 	}
@@ -393,11 +404,11 @@ static void Horde_CleanBodies()
 
 void SpawnBossAutomatically()
 {
-	// Utiliza la constante BOSS_TO_SPAWN para establecer el número de jefes a spawn
-	const int BOSS_TO_SPAWN = 1;
 
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 8 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 4 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0 && current_wave_number != 0))
@@ -420,14 +431,24 @@ void SpawnBossAutomatically()
 
 		// Asigna la posición y los ángulos del jefe dependiendo del mapa
 		if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-			boss->s.origin[0] = 1224;
-			boss->s.origin[1] = 648;
-			boss->s.origin[2] = 768;
+			boss->s.origin[0] = 1280;
+			boss->s.origin[1] = 336;
+			boss->s.origin[2] = 664;
 		}
 		else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
 			boss->s.origin[0] = 112;
 			boss->s.origin[1] = 1216;
 			boss->s.origin[2] = 88;
+		}
+		else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
+			boss->s.origin[0] = 2432;
+			boss->s.origin[1] = -960;
+			boss->s.origin[2] = 168;
+		}
+		else if (!Q_strcasecmp(level.mapname, "xdm2")) {
+			boss->s.origin[0] = -232;
+			boss->s.origin[1] = 472;
+			boss->s.origin[2] = 424;
 		}
 		else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) {
 			boss->s.origin[0] = 64;
@@ -458,7 +479,6 @@ void SpawnBossAutomatically()
 		boss->mins *= 2;
 		boss->s.scale = 2;
 		boss->health *= current_wave_number;
-		boss->monsterinfo.power_armor_power *= current_wave_number;
 		boss->s.renderfx = RF_TRANSLUCENT;
 		boss->s.effects = EF_FLAG2;
 
@@ -469,7 +489,7 @@ void SpawnBossAutomatically()
 
 		char message[128]; // Asumiendo un tamaño máximo de mensaje de 128 caracteres
 		sprintf(message, "*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
-		gi.LocBroadcast_Print(PRINT_CENTER, message);
+		gi.LocBroadcast_Print(PRINT_MEDIUM, message);
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BOSSTPORT);
@@ -494,11 +514,12 @@ void Horde_RunFrame()
 	case horde_state_t::warmup:
 		if (g_horde_local.warm_time < level.time + 3_sec)
 		{
-			gi.LocBroadcast_Print(PRINT_CENTER, "???\n");
+			gi.LocBroadcast_Print(PRINT_CENTER, "?\n");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 
-				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+				//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 
@@ -509,9 +530,15 @@ void Horde_RunFrame()
 		{
 			next_wave_message_sent = true;
 		}
-
 		if (g_horde_local.monster_spawn_time <= level.time)
 		{
+			
+			// Llama a la función para spawnear el jefe solo si es el momento adecuado
+			if (g_horde_local.num_to_spawn == BOSS_TO_SPAWN)
+			{
+				SpawnBossAutomatically();
+			}
+
 			edict_t* e = G_Spawn();
 			e->classname = G_HordePickMonster();
 			select_spawn_result_t result = SelectDeathmatchSpawnPoint(false, true, false);
@@ -524,11 +551,7 @@ void Horde_RunFrame()
 				// e->s.renderfx = RF_TRANSLUCENT;
 				ED_CallSpawn(e);
 
-				// Llama a la función para spawnear el jefe solo si es el momento adecuado
-				if (g_horde_local.num_to_spawn == BOSS_TO_SPAWN)
-				{
-					SpawnBossAutomatically();
-				}
+
 
 				{
 					// spawn animation
@@ -543,7 +566,7 @@ void Horde_RunFrame()
 				g_horde_local.monster_spawn_time = level.time + random_time(0.2_sec, 1.2_sec);
 				e->enemy = &g_edicts[1];;
 				e->gib_health = -800;
-				e->health *= pow(1.025, current_wave_number);
+				e->health *= pow(1.033, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;

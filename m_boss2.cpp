@@ -716,3 +716,15 @@ void SP_monster_boss2_64(edict_t* self)
 	self->gib_health = -200;
 	self->mass = 1000;
 }
+
+//HORDE BOSS
+constexpr spawnflags_t SPAWNFLAG_BOSS2KL = 8_spawnflag;
+void SP_monster_boss2kl(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_BOSS2KL;
+	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
+	SP_monster_boss2(self);
+	self->s.skinnum = 2;
+	self->health = 325 * current_wave_number;
+	self->gib_health = -130;
+}

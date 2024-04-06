@@ -285,7 +285,7 @@ static void supertankGrenade(edict_t *self)
 	vec3_t aim_point;
 	PredictAim(self, self->enemy, start, 0, false, crandom_open() * 0.1f, &forward, &aim_point);
 
-	for (float speed = 500.f; speed < 1000.f; speed += 100.f)
+	for (float speed = 500.f; speed < 1000.f; speed += 180.f)
 	{
 		if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
 			continue;
@@ -482,7 +482,7 @@ void supertankRocket(edict_t *self)
 	else
 	{
 		PredictAim(self, self->enemy, start, 750, false, 0.f, &forward, nullptr);
-		monster_fire_rocket(self, start, forward, 50, 750, flash_number);
+		monster_fire_rocket(self, start, forward, 50, 1050, flash_number);
 	}
 }
 
@@ -738,7 +738,6 @@ void SP_monster_boss5(edict_t *self)
 void SP_monster_janitor(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
-	self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 	self->count = 10;
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
@@ -755,5 +754,23 @@ void SP_monster_janitor(edict_t* self)
 		self->monsterinfo.power_armor_power = 800;
 
 	self->health = 800 * st.health_multiplier;
+	self->mass = 200;
+}
+
+void SP_monster_supertankkl(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
+	self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
+	self->count = 10;
+	SP_monster_supertank(self);
+	gi.soundindex("weapons/railgr1a.wav");
+	self->s.skinnum = 2;
+
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 800;
+
+	self->health = 580 * current_wave_number;
 	self->mass = 200;
 }

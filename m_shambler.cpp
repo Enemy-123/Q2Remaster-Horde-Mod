@@ -596,3 +596,16 @@ void SP_monster_shambler(edict_t* self)
 
 	walkmonster_start(self);
 }
+
+//HORDE BOSS
+constexpr spawnflags_t SPAWNFLAG_SHAMBLERKL = 8_spawnflag;
+void SP_monster_shamblerkl(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
+	SP_monster_shambler(self);
+	self->s.skinnum = 2;
+	self->health = 250 * current_wave_number;
+	self->gib_health = -130;
+	self->yaw_speed = 65;
+
+}

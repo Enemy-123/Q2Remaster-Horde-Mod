@@ -778,7 +778,7 @@ void SP_monster_makron(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 1200;
 
-	self->health = 3700 * st.health_multiplier;
+	self->health = 2400 * st.health_multiplier;
 	self->gib_health = -800;
 	self->mass = 500;
 
@@ -866,4 +866,15 @@ void MakronToss(edict_t *self)
 	for (size_t i = 0; i < 2; i++)
 		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == self)
 			level.health_bar_entities[i]->enemy = ent;
+}
+
+//HORDE BOSS
+constexpr spawnflags_t SPAWNFLAG_MAKRONKL = 8_spawnflag;
+void SP_monster_makronkl(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_MAKRONKL;
+	SP_monster_makron(self);
+	self->s.skinnum = 2;
+	self->health = 325 * current_wave_number;
+	self->gib_health = -130;
 }

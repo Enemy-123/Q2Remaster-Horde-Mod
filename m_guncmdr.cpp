@@ -1471,3 +1471,14 @@ void SP_monster_guncmdr(edict_t *self)
 
 	walkmonster_start(self);
 }
+
+//HORDE BOSS
+constexpr spawnflags_t SPAWNFLAG_GUNCMDRKL = 8_spawnflag;
+void SP_monster_guncmdrkl(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
+	SP_monster_guncmdr(self);
+	self->s.skinnum = 2;
+	self->health = 285 * current_wave_number;
+	self->gib_health = -130;
+}

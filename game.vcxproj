@@ -96,7 +96,8 @@
       <GenerateDebugInformation>true</GenerateDebugInformation>
     </Link>
     <PreBuildEvent>
-      <Command>copy "$(TargetDir)game_x64.dll" "C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\baseq2\gamex86_64.dll"</Command>
+      <Command>
+      </Command>
     </PreBuildEvent>
   </ItemDefinitionGroup>
   <ItemGroup>

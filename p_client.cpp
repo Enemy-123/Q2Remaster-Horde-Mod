@@ -2625,7 +2625,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
 
 	// spectators are only supported in deathmatch
-	if ((G_IsDeathmatch() && g_horde->integer) || G_IsCooperative() && *val && strcmp(val, "0"))
+	if ((G_IsDeathmatch() && g_horde->integer) || G_IsCooperative() && *val && strcmp(val, "0")) //check horde mode later
 		ent->client->pers.spectator = true;
 	else
 		ent->client->pers.spectator = false; //HACK SPECTATOR
@@ -2883,7 +2883,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	char value[MAX_INFO_VALUE] = { 0 };
 	gi.Info_ValueForKey(userinfo, "spectator", value, sizeof(value));
 
-	if (G_IsDeathmatch() && *value && strcmp(value, "0"))
+	if (G_IsDeathmatch() && *value && strcmp(value, "0")) // check later horde
 	{
 		uint32_t i, numspec;
 

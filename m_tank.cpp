@@ -1187,3 +1187,11 @@ void SP_monster_tank_stand(edict_t *self)
 }
 
 
+
+void SP_monster_tank_64(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN;
+	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING;
+	SP_monster_tank(self);
+	self->s.skinnum = 2;
+}
