@@ -34,6 +34,9 @@ static void Horde_InitLevel(int32_t lvl)
 	if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		g_horde_local.num_to_spawn = 22 + (lvl * 2);
 	}
+	if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
+		g_horde_local.num_to_spawn = 7 + (lvl * 2);
+	}
 	else 
 		g_horde_local.num_to_spawn = 10 + (lvl * 2);
 
@@ -152,21 +155,21 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_guncmdr", 8, -1, 1.1f },
 	{ "monster_gladiator", 4, 10, 1.1f },
 	{ "monster_chick_heat", 7, -1, 0.63f },
-	{ "monster_tank_commander", 7, 10, 0.65f },
-	{ "monster_mutant", 5, -1, 0.75f },
-	{ "monster_tank", 6, 8, 0.45f },
-	{ "monster_janitor2", 9, -1, 0.15f },
-	{ "monster_gladb", 9, -1, 0.5f },
-	{ "monster_janitor", 8, -1, 0.18f },
-	{ "monster_hover", 7, -1, 0.85f },
+	{ "monster_tank_commander", 7, 11, 0.65f },
+	{ "monster_mutant", 5, -1, 0.65f },
+	{ "monster_tank", 6, 10, 0.45f },
+	{ "monster_janitor2", 11, -1, 0.15f },
+	{ "monster_gladb", 10, -1, 0.5f },
+	{ "monster_janitor", 9, -1, 0.18f },
+	{ "monster_hover", 8, -1, 0.85f },
 	{ "monster_flyer", -1, 6, 0.75f },
-	{ "monster_floater", 7, 10, 0.85f },
+	{ "monster_floater", 4, -1, 0.85f },
 	{ "monster_makron", 13, -1, 0.2f },
-	{ "monster_boss2_64", 11, -1, 0.4f },
-	{ "monster_carrier2", 12, -1, 0.07f },
+	{ "monster_boss2_64", 12, -1, 0.4f },
+	{ "monster_carrier2", 14, -1, 0.07f },
 	{ "monster_berserk", 5, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
-	{ "monster_tank_64", 10, -1, 0.45f },
+	{ "monster_tank_64", 12, -1, 0.5f },
 	{ "monster_medic_commander",10, -1, 0.09f },
 };
 
@@ -301,6 +304,9 @@ const char* G_HordePickBOSS()
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
 		desired_boss = "monster_makronkl";
 	}
+	else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
+		desired_boss = "monster_boss2kl";
+	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
 		desired_boss = "monster_shamblerkl";
 	}
@@ -320,21 +326,18 @@ const char* G_HordePickBOSS()
 		desired_boss = "monster_supertankkl";
 	}
 
-
-
 	else {
-		return nullptr; // Mapa no reconocido
+		return nullptr;
 	}
 
 	for (const auto& item : BOSS)
 	{
 		if (strcmp(item.classname, desired_boss) == 0)
 		{
-			return item.classname; // Jefe deseado encontrado
+			return item.classname;
 		}
 	}
-
-	return nullptr; // Jefe deseado no encontrado
+	return nullptr;
 }
 
 void Horde_PreInit()
@@ -428,7 +431,8 @@ void SpawnBossAutomatically()
 {
 
 	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 8 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 4 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
@@ -456,6 +460,11 @@ void SpawnBossAutomatically()
 			boss->s.origin[0] = 1280;
 			boss->s.origin[1] = 336;
 			boss->s.origin[2] = 664;
+		}
+		if (!Q_strcasecmp(level.mapname, "q2dm2")) {
+			boss->s.origin[0] = 128;
+			boss->s.origin[1] = -960;
+			boss->s.origin[2] = 704;
 		}
 		else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
 			boss->s.origin[0] = 112;

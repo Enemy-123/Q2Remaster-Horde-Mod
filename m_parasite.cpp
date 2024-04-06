@@ -977,7 +977,6 @@ void SP_monster_perrokl(edict_t* self)
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;
 	self->health = 175 * current_wave_number;
-	self->gib_health = -130;
 	self->yaw_speed = 65;
 	self->style = 2;
 }
