@@ -204,6 +204,7 @@ constexpr boss_t BOSS[] = {
 	{ "monster_guncmdrkl", -1, -1, 0.07f },
 	{ "monster_boss2kl", -1, -1, 0.07f },
 	{ "monster_supertankkl", -1, -1, 0.07f },
+	{ "monster_turretkl", -1, -1, 0.07f },
 };
 
 struct picked_item_t {
@@ -310,12 +311,15 @@ const char* G_HordePickBOSS()
 		desired_boss = "monster_perrokl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
-
 		desired_boss = "monster_guncmdrkl";
+	}
+	else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
+		desired_boss = "monster_turretkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		desired_boss = "monster_supertankkl";
 	}
+
 
 
 	else {
@@ -479,9 +483,9 @@ void SpawnBossAutomatically()
 			boss->s.origin[2] = -128;
 		}
 		else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
-			boss->s.origin[0] = 896;
-			boss->s.origin[1] = 64;
-			boss->s.origin[2] = 24;
+			boss->s.origin[0] = 1328;
+			boss->s.origin[1] = -256;
+			boss->s.origin[2] = 272;
 		}
 		else {
 			return; // Mapa no reconocido
@@ -505,9 +509,9 @@ void SpawnBossAutomatically()
 		effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
 		effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
 
-		char message[128]; // Asumiendo un tamaño máximo de mensaje de 128 caracteres
-		sprintf(message, "*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
-		gi.LocBroadcast_Print(PRINT_MEDIUM, message);
+		char message[128]; 
+		sprintf(message, "\n\n\n\n\n\n\n\n\n*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
+		gi.LocBroadcast_Print(PRINT_CENTER, message);
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BOSSTPORT);

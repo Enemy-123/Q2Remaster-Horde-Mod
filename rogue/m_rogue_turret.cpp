@@ -1073,3 +1073,14 @@ void SP_monster_turret(edict_t *self)
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET | SPAWNFLAG_TURRET_BLASTER))
 		self->monsterinfo.blindfire = true;
 }
+
+//HORDE BOSS
+constexpr spawnflags_t SPAWNFLAG_TURRETKL = 8_spawnflag;
+void SP_monster_turretkl(edict_t* self)
+{
+	self->spawnflags |= SPAWNFLAG_TURRET_ROCKET;
+	SP_monster_turret(self);
+	self->s.skinnum = 2;
+	self->health = 350 * current_wave_number;
+	self->gib_health = -130;
+}

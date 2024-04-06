@@ -604,8 +604,8 @@ void SP_monster_shamblerkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
 	self->s.skinnum = 2;
-	self->health = 250 * current_wave_number;
-	self->gib_health = -130;
+	self->health = 375 * current_wave_number;
+	self->gib_health = -1000;
 	self->yaw_speed = 65;
 
 }
