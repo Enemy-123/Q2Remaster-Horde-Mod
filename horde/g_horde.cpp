@@ -2,7 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include <sstream>
-int remainingMonsters = 0; //
+int remainingMonsters = 0;
 int current_wave_number = 1;
 cvar_t* g_horde;
 enum class horde_state_t
@@ -29,9 +29,14 @@ static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
 	g_horde_local.level = lvl;
-	g_horde_local.num_to_spawn = 10 + (lvl * 2);
-
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
+
+	if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
+		g_horde_local.num_to_spawn = 22 + (lvl * 2);
+	}
+	else 
+		g_horde_local.num_to_spawn = 10 + (lvl * 2);
+
 }
 const int BOSS_TO_SPAWN = 1;
 bool G_IsDeathmatch()

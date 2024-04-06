@@ -1421,7 +1421,7 @@ static void G_InitStatusbar()
 	// ---- gamemode-specific stuff ----
 	if (g_horde->integer) {
 		// 		// HORDE MONSTERS
-		sb.ifstat(STAT_HORDE_MONSTERS).xv(405).yb(-23).monsters_num(STAT_HORDE_MONSTERS).xv(400).yb(-23).loc_rstring("Monsters.\nRemaining:").endifstat();
+		sb.ifstat(STAT_HORDE_MONSTERS).xv(405).yb(-23).monsters_num(STAT_HORDE_MONSTERS).xv(418).yb(-23).loc_rstring("Monsters.\nRemaining:").endifstat();
 		// 		// HORDE WAVE
 		sb.ifstat(STAT_HORDE_WAVE).xv(-65).yb(-23).waves_num(STAT_HORDE_WAVE).xv(-65).yb(-23).loc_rstring("Horde Mode.\nWave Number:").endifstat();
 
