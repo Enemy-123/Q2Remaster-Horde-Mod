@@ -11,5 +11,5 @@ bool G_IsCooperative();
 void ResetGame();
 void HandleResetEvent();
 extern int current_wave_number;
-
+extern int remainingMonsters;
 

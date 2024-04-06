@@ -2,12 +2,9 @@
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include <sstream>
-
-
-
+int remainingMonsters = 0; //
 int current_wave_number = 1;
 cvar_t* g_horde;
-
 enum class horde_state_t
 {
 	warmup,
@@ -402,6 +399,22 @@ static void Horde_CleanBodies()
 	}
 }
 
+int CountLivingMonsters() {
+	int count = 0;
+	edict_t* ent;
+
+	for (ent = g_edicts + 1; ent < g_edicts + game.maxclients; ent++) {
+		if (!ent->inuse || !ent->classname) continue; // Saltar entidades no válidas
+
+		// Verificar si es un monstruo (ajusta esto según la lógica de tu juego)
+		if (strstr(ent->classname, "monster_")) {
+			count++;
+		}
+	}
+
+	return count;
+}
+
 void SpawnBossAutomatically()
 {
 
@@ -506,6 +519,7 @@ void ResetGame() {
 	g_horde_local.state = horde_state_t::warmup;
 	current_wave_number = 1;
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
+	remainingMonsters = 0;
 	}
 void Horde_RunFrame()
 {
@@ -514,6 +528,7 @@ void Horde_RunFrame()
 	case horde_state_t::warmup:
 		if (g_horde_local.warm_time < level.time + 3_sec)
 		{
+		remainingMonsters = 0;
 			gi.LocBroadcast_Print(PRINT_CENTER, "?\n");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
@@ -550,7 +565,7 @@ void Horde_RunFrame()
 				e->item = G_HordePickItem();
 				// e->s.renderfx = RF_TRANSLUCENT;
 				ED_CallSpawn(e);
-
+				remainingMonsters = level.total_monsters + 1 - level.killed_monsters; // Calcula la cantidad de monstruos restantes
 
 
 				{
@@ -577,6 +592,7 @@ void Horde_RunFrame()
 						std::ostringstream message_stream;
 						message_stream << "New Wave Is Here.\n Current Level: " << g_horde_local.level << "\n";
 						gi.LocBroadcast_Print(PRINT_CENTER, message_stream.str().c_str());
+
 					}
 
 					g_horde_local.state = horde_state_t::cleanup;
@@ -585,6 +601,7 @@ void Horde_RunFrame()
 			}
 			else
 			{
+	            remainingMonsters = level.total_monsters + 1 - level.killed_monsters;; // Calcula la cantidad de monstruos restantes
 				g_horde_local.monster_spawn_time = level.time + 1.5_sec;
 			}
 		}
@@ -601,8 +618,10 @@ void Horde_RunFrame()
 
 				g_horde_local.warm_time = level.time + 4_sec;
 				g_horde_local.state = horde_state_t::rest;
+				remainingMonsters = 0; // Actualiza remainingMonsters cuando todos los monstruos han sido eliminados
 			}
 			else
+				remainingMonsters = level.total_monsters + 1 - level.killed_monsters; // Calcula la cantidad de monstruos restantes
 				g_horde_local.monster_spawn_time = level.time + 3_sec;
 		}
 		break;
@@ -627,4 +646,5 @@ void Horde_RunFrame()
 void HandleResetEvent() {
 	// Llama a la función de reinicio del juego
 	ResetGame();
+
 }

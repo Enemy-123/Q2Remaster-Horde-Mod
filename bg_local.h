@@ -195,6 +195,8 @@ constexpr uint16_t G_GetPowerupStat(uint16_t* start, uint8_t powerup_id)
 // player_state->stats[] indexes
 enum player_stat_t
 {
+	STAT_HORDE_MONSTERS,
+	STAT_HORDE_WAVE,
 	STAT_HEALTH_ICON = 0,
 	STAT_HEALTH = 1,
 	STAT_AMMO_ICON = 2,
@@ -228,8 +230,6 @@ enum player_stat_t
 	STAT_CTF_MATCH = 29,
 	STAT_CTF_ID_VIEW_COLOR = 30,
 	STAT_CTF_TEAMINFO = 31,
-	// HORDE WAVE
-	STAT_HORDE_WAVE,
 
 	// [Kex] More stats for weapon wheel
 	STAT_WEAPONS_OWNED_1 = 32,
