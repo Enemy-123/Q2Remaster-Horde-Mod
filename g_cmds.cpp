@@ -1240,6 +1240,8 @@ bool CheckFlood(edict_t* ent)
 	return false;
 }
 
+
+
 /*
 =================
 Cmd_Wave_f
@@ -1385,6 +1387,20 @@ void Cmd_Wave_f(edict_t* ent)
 
 				gi.local_sound(player, CHAN_AUTO, gi.soundindex("misc/help_marker.wav"), 1.0f, ATTN_NONE, 0.0f, key);
 				gi.LocClient_Print(player, PRINT_HIGH, other_notify_msg, ent->client->pers.netname);
+			}
+		}
+	}
+	// Kyper - Lithium port
+// In an attempt to be console friendly, append hook_toggle to wave 3
+	else if (i == GESTURE_WAVE && g_hook_wave->integer)
+	{
+		if (g_use_hook->integer)
+		{
+			if (!ent->client->resp.spectator && !ent->deadflag)
+			{
+				ent->client->hook_toggle = true;
+				Weapon_Hook_Fire(ent);
+				ent->safety_time = 0_ms;
 			}
 		}
 	}
@@ -1632,6 +1648,34 @@ void ClientCommand(edict_t* ent)
 		return; // not fully in game yet
 
 	cmd = gi.argv(0);
+
+	// Kyper - Lithium port
+	if (Q_strcasecmp(cmd, "hook") == 0 || Q_strcasecmp(cmd, "hook_toggle") == 0)
+	{
+		if (g_use_hook->integer)
+		{
+			if (!ent->client->resp.spectator && !ent->deadflag)
+			{
+				ent->client->hook_toggle = !(Q_strcasecmp(cmd, "hook_toggle"));
+				Weapon_Hook_Fire(ent);
+				ent->safety_time = 0_ms;
+			}
+		}
+		else
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "Hook disabled on this server.\n");
+		}
+		return;
+	}
+
+	if (Q_strcasecmp(cmd, "unhook") == 0)
+	{
+		//if (use_hook->value && !(ent->lithium_flags & LITHIUM_OBSERVER))
+		if (g_use_hook->integer && !ent->client->resp.spectator)
+			Hook_Reset(ent->client->hook);
+		return;
+	}
+	// Kyper
 
 	if (Q_strcasecmp(cmd, "players") == 0)
 	{

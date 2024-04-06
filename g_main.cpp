@@ -141,6 +141,12 @@ cvar_t* ai_model_scale;
 cvar_t* ai_allow_dm_spawn;
 cvar_t* ai_movement_disabled;
 
+// Kyper - Lithium port
+cvar_t* g_use_hook;
+cvar_t* g_hook_help;
+cvar_t* g_hook_wave;
+
+
 static cvar_t* g_frames_per_frame;
 
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint);
@@ -224,6 +230,13 @@ Called after PreInitGame when the game has set up cvars.
 void InitGame()
 {
 	gi.Com_Print("==== InitGame ====\n");
+
+	// Kyper - Lithium port
+	g_use_hook = gi.cvar("g_use_hook", "1", CVAR_NOFLAGS);
+	g_hook_help = gi.cvar("g_hook_help", "1", CVAR_NOFLAGS);
+	g_hook_wave = gi.cvar("g_hook_wave", "1", CVAR_NOFLAGS);
+
+	Hook_InitGame();
 
 	InitSave();
 

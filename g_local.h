@@ -1075,7 +1075,10 @@ enum mod_id_t : uint8_t
 	// ROGUE
 	//========
 	MOD_GRAPPLE,
-	MOD_BLUEBLASTER
+	MOD_BLUEBLASTER,
+	// Kyper - Lithium port
+	MOD_HOOK
+	// Kyper
 };
 
 struct mod_t
@@ -1989,6 +1992,13 @@ extern cvar_t* ai_damage_scale;
 extern cvar_t* ai_model_scale;
 extern cvar_t* ai_allow_dm_spawn;
 extern cvar_t* ai_movement_disabled;
+
+
+
+// Kyper - Lithium port
+extern cvar_t* g_use_hook;
+extern cvar_t* g_hook_help;
+extern cvar_t* g_hook_wave;
 
 #define world (&g_edicts[0])
 
@@ -3018,7 +3028,18 @@ struct gclient_t
 	gtime_t	 last_attacker_time;
 	// saved - for coop; last time we were in a firing state
 	gtime_t	 last_firing_time;
+
+	// Orange 2 Hook
+	bool    hook_out;
+	bool    hook_on;
+	bool    hook_toggle;      // Kyper - Lithium port - added for remaster
+	edict_t* hook;
+	float		last_hook_time;
+	int			hook_damage;
+	// Kyper
 };
+
+
 
 // ==========================================
 // PLAT 2
@@ -3247,6 +3268,11 @@ struct edict_t
 	uint32_t crosslevel_flags;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
+	gtime_t safety_time;
+	// Orange 2 Hook
+	edict_t* laser;
+	gtime_t hook_time;
+	// Kyper
 };
 
 //=============

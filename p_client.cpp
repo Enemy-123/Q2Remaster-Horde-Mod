@@ -322,6 +322,9 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_GRAPPLE:
 			base = "$g_mod_kill_grapple";
 			break;
+		case MOD_HOOK:     // Kyper - Lithium port
+			base = "{0} was disemboweled by {1}'s hook.\n";
+			break;
 			// ZOID
 		default:
 			base = "$g_mod_kill_generic";
@@ -575,6 +578,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		ClientObituary(self, inflictor, attacker, mod);
 
 		CTFFragBonuses(self, inflictor, attacker);
+		// Kyper - Lithium Port
+		Hook_PlayerDie(attacker, self);
 		// ZOID
 		TossClientWeapon(self);
 		// ZOID
@@ -2321,7 +2326,8 @@ void PutClientInServer(edict_t* ent)
 		if (!G_IsDeathmatch())
 			client->pers.inventory[IT_KEY_NUKE] = 1;
 	}
-
+	// Kyper - Lithium port
+		ent->safety_time = 0_ms;
 	// force the current weapon up
 	client->newweapon = client->pers.weapon;
 	ChangeWeapon(ent);
@@ -3212,6 +3218,10 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			gi.LocClient_Print(ent, PRINT_CENTER, "$g_n64_crouching");
 		}
 	}
+
+	if (client->hook_on && ent->client->hook)
+		Hook_Service(client->hook);
+
 
 	if (level.intermissiontime || ent->client->awaiting_respawn)
 	{

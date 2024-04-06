@@ -666,6 +666,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	take = damage;
 	save = 0;
 
+
+	if (targ->safety_time && !(dflags & DAMAGE_NO_PROTECTION))
+		return;
 	// check for godmode
 	if ((targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION))
 	{
