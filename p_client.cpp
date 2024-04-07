@@ -3139,7 +3139,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 			damage = 1;
 		dir = { 0, 0, 1 };
 
-		if (!G_IsDeathmatch() || !g_dm_no_fall_damage->integer)
+		if (!g_dm_no_fall_damage->integer)
 			T_Damage(ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING);
 	}
 	else
@@ -3648,7 +3648,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 			continue;
 
 		// check combat state; we can't have taken damage recently
-		if ((!G_IsCooperative || g_horde->integer &&  player->client->last_damage_time >= level.time))
+		if (player->client->last_damage_time >= level.time) //add !G_IsCooperative || g_horde->integer &&  for ez noob coop
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
@@ -3656,7 +3656,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 
 		// check if any monsters are currently targeting us
 		// or searching for us
-		if (!G_IsCooperative || g_horde->integer && G_MonstersSearchingFor(player))
+		if (G_MonstersSearchingFor(player)) //add !G_IsCooperative || g_horde->integer &&  for ez noob coop
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
@@ -3664,7 +3664,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 
 		// check firing state; if any enemies are mad at any players,
 		// don't respawn until everybody has cooled down
-		if ((!G_IsCooperative || g_horde->integer && monsters_searching_for_anybody && player->client->last_firing_time >= level.time))
+		if ((monsters_searching_for_anybody && player->client->last_firing_time >= level.time)) //add !G_IsCooperative || g_horde->integer &&  for ez noob coop
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
