@@ -1479,5 +1479,5 @@ void SP_monster_guncmdrkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
 	SP_monster_guncmdr(self);
 	self->s.skinnum = 2;
-	self->health = 315 * current_wave_number;
+	self->health = 400 * current_wave_number;
 }

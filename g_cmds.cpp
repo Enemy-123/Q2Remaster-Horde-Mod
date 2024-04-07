@@ -1062,7 +1062,7 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 
 		// Dañar severamente al AI
 		if (!edict->deadflag && !(edict->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 9999, 9999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
+			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
 	}
 
 	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");

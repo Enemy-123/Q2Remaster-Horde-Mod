@@ -976,7 +976,7 @@ void SP_monster_perrokl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_PERROKL;
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;
-	self->health = 175 * current_wave_number;
+	self->health = 375 * current_wave_number;
 	self->yaw_speed = 65;
 	self->style = 2;
 }

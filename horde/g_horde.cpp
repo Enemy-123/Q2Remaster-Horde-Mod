@@ -23,7 +23,7 @@ static struct {
 } g_horde_local;
 bool next_wave_message_sent = false;
 // Define una constante para el número de jefes a spawn
-
+const int BOSS_TO_SPAWN = 1;
 
 static void Horde_InitLevel(int32_t lvl)
 {
@@ -41,7 +41,7 @@ static void Horde_InitLevel(int32_t lvl)
 		g_horde_local.num_to_spawn = 10 + (lvl * 2);
 
 }
-const int BOSS_TO_SPAWN = 1;
+
 bool G_IsDeathmatch()
 {
 	return deathmatch->integer && !g_horde->integer;
@@ -170,7 +170,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_berserk", 5, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 12, -1, 0.5f },
-	{ "monster_medic_commander",10, -1, 0.09f },
+	{ "monster_medic_commander",10, -1, 0.07f },
 };
 
 struct boss_t {
@@ -411,25 +411,8 @@ static void Horde_CleanBodies()
 	}
 }
 
-int CountLivingMonsters() {
-	int count = 0;
-	edict_t* ent;
-
-	for (ent = g_edicts + 1; ent < g_edicts + game.maxclients; ent++) {
-		if (!ent->inuse || !ent->classname) continue; // Saltar entidades no válidas
-
-		// Verificar si es un monstruo (ajusta esto según la lógica de tu juego)
-		if (strstr(ent->classname, "monster_")) {
-			count++;
-		}
-	}
-
-	return count;
-}
-
-void SpawnBossAutomatically()
+void  SpawnBossAutomatically()
 {
-
 	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 8 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
@@ -438,8 +421,6 @@ void SpawnBossAutomatically()
 		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0 && current_wave_number != 0))
-	
-
 	{
 		// Solo necesitas un bucle aquí para generar un jefe
 		edict_t* boss = G_Spawn(); // Creas un nuevo edict_t solo si es necesario
@@ -451,11 +432,8 @@ void SpawnBossAutomatically()
 		if (!desired_boss) {
 			return; // No se pudo encontrar un jefe válido
 		}
-
-		// Asigna el nombre de clase del jefe deseado al edict
 		boss->classname = desired_boss;
-
-		// Asigna la posición y los ángulos del jefe dependiendo del mapa
+		// origin for monsters
 		if (!Q_strcasecmp(level.mapname, "q2dm1")) {
 			boss->s.origin[0] = 1280;
 			boss->s.origin[1] = 336;
@@ -489,7 +467,7 @@ void SpawnBossAutomatically()
 		else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
 			boss->s.origin[0] = -304;
 			boss->s.origin[1] = 512;
-			boss->s.origin[2] = -128;
+			boss->s.origin[2] = -92;
 		}
 		else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
 			boss->s.origin[0] = 1328;
@@ -497,7 +475,7 @@ void SpawnBossAutomatically()
 			boss->s.origin[2] = 272;
 		}
 		else {
-			return; // Mapa no reconocido
+			return; 
 		}
 
 		// Ajusta los ángulos del monstruo
@@ -517,10 +495,6 @@ void SpawnBossAutomatically()
 		effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
 		effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
 		effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
-
-		char message[128]; 
-		sprintf(message, "\n\n\n\n\n\n\n\n\n*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
-		gi.LocBroadcast_Print(PRINT_CENTER, message);
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BOSSTPORT);
@@ -546,13 +520,13 @@ void Horde_RunFrame()
 	case horde_state_t::warmup:
 		if (g_horde_local.warm_time < level.time + 3_sec)
 		{
-		remainingMonsters = 0;
-			gi.LocBroadcast_Print(PRINT_CENTER, "?\n");
+			remainingMonsters = 0;
+			gi.LocBroadcast_Print(PRINT_CENTER, "We have now offhand hook!\n console players configure [wave] emote \n PC players can bind/alias +hook!");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 
-				//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 
@@ -565,7 +539,7 @@ void Horde_RunFrame()
 		}
 		if (g_horde_local.monster_spawn_time <= level.time)
 		{
-			
+
 			// Llama a la función para spawnear el jefe solo si es el momento adecuado
 			if (g_horde_local.num_to_spawn == BOSS_TO_SPAWN)
 			{
@@ -596,9 +570,9 @@ void Horde_RunFrame()
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-				g_horde_local.monster_spawn_time = level.time + random_time(0.2_sec, 1.2_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.5_sec);
 				e->enemy = &g_edicts[1];;
-				e->gib_health = -800;
+				e->gib_health = -1000;
 				e->health *= pow(1.033, current_wave_number);
 				FoundTarget(e);
 
@@ -619,7 +593,7 @@ void Horde_RunFrame()
 			}
 			else
 			{
-	            remainingMonsters = level.total_monsters + 1 - level.killed_monsters;; // Calcula la cantidad de monstruos restantes
+				remainingMonsters = level.total_monsters + 1 - level.killed_monsters;; // Calcula la cantidad de monstruos restantes
 				g_horde_local.monster_spawn_time = level.time + 1.5_sec;
 			}
 		}
@@ -640,7 +614,7 @@ void Horde_RunFrame()
 			}
 			else
 				remainingMonsters = level.total_monsters + 1 - level.killed_monsters; // Calcula la cantidad de monstruos restantes
-				g_horde_local.monster_spawn_time = level.time + 3_sec;
+			g_horde_local.monster_spawn_time = level.time + 3_sec;
 		}
 		break;
 
@@ -648,6 +622,7 @@ void Horde_RunFrame()
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
+			remainingMonsters = 0;
 			gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
@@ -657,8 +632,6 @@ void Horde_RunFrame()
 		break;
 	}
 }
-
-
 
 // Función para manejar una interrupción o evento que requiera reiniciar el juego
 void HandleResetEvent() {

@@ -875,5 +875,5 @@ void SP_monster_makronkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_MAKRONKL;
 	SP_monster_makron(self);
 	self->s.skinnum = 2;
-	self->health = 385 * current_wave_number;
+	self->health = 485 * current_wave_number;
 }
