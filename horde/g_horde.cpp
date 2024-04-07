@@ -4,6 +4,7 @@
 #include <sstream>
 int remainingMonsters = 0;
 int current_wave_number = 1;
+const int BOSS_TO_SPAWN = 1;
 cvar_t* g_horde;
 enum class horde_state_t
 {
@@ -23,7 +24,7 @@ static struct {
 } g_horde_local;
 bool next_wave_message_sent = false;
 // Define una constante para el número de jefes a spawn
-const int BOSS_TO_SPAWN = 1;
+
 
 static void Horde_InitLevel(int32_t lvl)
 {
@@ -513,6 +514,33 @@ void ResetGame() {
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
 	remainingMonsters = 0;
 	}
+
+#include <chrono>
+
+// Define una variable global para almacenar el tiempo de referencia cuando se cumple la condición
+std::chrono::steady_clock::time_point condition_start_time;
+
+// Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
+bool CheckRemainingMonstersCondition() {
+	if (remainingMonsters <= 5) {
+
+		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
+		if (condition_start_time == std::chrono::steady_clock::time_point()) {
+			condition_start_time = std::chrono::steady_clock::now();
+		}
+
+		// Verifica si la condición ha estado activa durante más de 10 segundos
+		auto current_time = std::chrono::steady_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
+		return duration.count() >= 20;
+	}
+	else {
+		// Si la condición no se cumple, reinicia el tiempo de referencia
+		condition_start_time = std::chrono::steady_clock::time_point();
+	}
+
+	return false;
+}
 void Horde_RunFrame()
 {
 	switch (g_horde_local.state)
@@ -602,7 +630,15 @@ void Horde_RunFrame()
 
 
 	case horde_state_t::cleanup:
+
+		if (CheckRemainingMonstersCondition()) {
+			gi.LocBroadcast_Print(PRINT_CENTER, "Wave skipped!");
+			// Si se cumple la condición durante más de 15 segundos, avanza al estado 'rest'
+			g_horde_local.state = horde_state_t::rest;
+			break;
+		}
 		if (g_horde_local.monster_spawn_time < level.time)
+
 		{
 			if (Horde_AllMonstersDead())
 			{
@@ -622,7 +658,6 @@ void Horde_RunFrame()
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
-			remainingMonsters = 0;
 			gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
