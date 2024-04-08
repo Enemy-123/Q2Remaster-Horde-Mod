@@ -984,7 +984,7 @@ void SaveClientData()
 
 void FetchClientEntData(edict_t* ent)
 {
-	ent->health = ent->client->pers.health = 100;
+	ent->health = ent->client->pers.health;
 	ent->max_health = ent->client->pers.max_health = 100;
 	ent->flags |= ent->client->pers.savedFlags;
 

@@ -56,7 +56,6 @@ bool G_IsCooperative()
 	return coop->integer || g_horde->integer;
 }
 
-
 struct weighted_item_t;
 
 using weight_adjust_func_t = void(*)(const weighted_item_t& item, float& weight);
@@ -312,6 +311,9 @@ const char* G_HordePickBOSS()
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
 		desired_boss = "monster_makronkl";
 	}
+	if (!Q_strcasecmp(level.mapname, "rdm14")) {
+		desired_boss = "monster_makronkl";
+	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
 		desired_boss = "monster_boss2kl";
 	}
@@ -356,6 +358,18 @@ void Horde_PreInit()
 		return;
 
 	if (!deathmatch->integer || ctf->integer || teamplay->integer || coop->integer)
+
+		gi.Com_Print("Horde mode must be DM.\n");
+	gi.cvar_set("deathmatch", "1");
+	gi.cvar_set("ctf", "0");
+	gi.cvar_set("teamplay", "0");
+	gi.cvar_set("coop", "0");
+	gi.cvar_set("timelimit", "20");
+	gi.cvar_set("fraglimit", "0");
+
+		g_horde = gi.cvar("horde", "0", CVAR_LATCH);
+
+	if (g_horde->integer)
 	{
 		gi.Com_Print("Horde mode must be DM.\n");
 		gi.cvar_set("deathmatch", "1");
@@ -364,7 +378,21 @@ void Horde_PreInit()
 		gi.cvar_set("coop", "0");
 		gi.cvar_set("timelimit", "20");
 		gi.cvar_set("fraglimit", "0");
+//		gi.cvar_set("g_instagib", "1");
+//		gi.cvar_set("g_dm_no_self_damage", "1");
+//		gi.cvar_set("g_allow_techs", "1");
+//		gi.cvar_set("g_use_hook", "1");
+//		gi.cvar_set("hook_pullspeed", "1200");
+//		gi.cvar_set("hook_speed", "3000");
+//		gi.cvar_set("hook_sky", "1");
+//		gi.cvar_set("g_no_nukes", "1");
+//		gi.cvar_set("g_allow_grapple 1", "1");
+//		gi.cvar_set("g_grapple_fly_speed", "3000");
+//		gi.cvar_set("g_grapple_pull_speed", "1200");
 		gi.cvar_set("g_dm_instant_items", "1");
+//		gi.cvar_set("g_dm_no_fall_damage", "1");
+//		gi.cvar_set("g_instant_weapon_switch", "1");
+//		gi.cvar_set("g_start_items", "item_bandolier 1");
 
 	}
 }
@@ -426,16 +454,13 @@ static void Horde_CleanBodies()
 			{
 				G_FreeEdict(&g_edicts[i]);
 			}
-	    	else if (strstr(g_edicts[i].classname, "weapon_"))
-			{
-				G_FreeEdict(&g_edicts[i]);
-			}
 		}
 	}
 }
 void  SpawnBossAutomatically()
 {
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 8 == 0 && current_wave_number != 0) ||
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
@@ -457,6 +482,11 @@ void  SpawnBossAutomatically()
 		boss->classname = desired_boss;
 		// origin for monsters
 		if (!Q_strcasecmp(level.mapname, "q2dm1")) {
+			boss->s.origin[0] = 1280;
+			boss->s.origin[1] = 336;
+			boss->s.origin[2] = 664;
+		}
+		if (!Q_strcasecmp(level.mapname, "rdm14")) {
 			boss->s.origin[0] = 1280;
 			boss->s.origin[1] = 336;
 			boss->s.origin[2] = 664;
