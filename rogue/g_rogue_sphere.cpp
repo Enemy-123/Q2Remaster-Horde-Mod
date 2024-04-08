@@ -10,7 +10,7 @@
 
 #include "../g_local.h"
 
-constexpr gtime_t DEFENDER_LIFESPAN = 30_sec;
+constexpr gtime_t DEFENDER_LIFESPAN = 20_sec;
 constexpr gtime_t HUNTER_LIFESPAN = 30_sec;
 constexpr gtime_t VENGEANCE_LIFESPAN = 30_sec;
 constexpr gtime_t MINIMUM_FLY_TIME = 15_sec;
@@ -297,7 +297,7 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 
 	start = self->s.origin;
 	start[2] += 2;
-	fire_blaster2(self->owner, start, dir, 10, 1000, EF_BLASTER, 0);
+	fire_blaster2(self->owner, start, dir, 40, 1300, EF_BLASTER, 0);
 
 	self->monsterinfo.attack_finished = level.time + 400_ms;
 }
@@ -654,14 +654,15 @@ void Own_Sphere(edict_t *self, edict_t *sphere)
 {
 	if (!sphere)
 		return;
-
 	// ownership only for players
 	if (self->client)
 	{
 		// if they don't have one
 		if (!(self->client->owned_sphere))
 		{
+
 			self->client->owned_sphere = sphere;
+
 		}
 		// they already have one, take care of the old one
 		else

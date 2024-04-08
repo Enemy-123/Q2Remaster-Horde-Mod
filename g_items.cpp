@@ -382,10 +382,11 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 	// RAFAEL
 	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
 	// RAFAEL
-
+	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
 	// ROGUE
 	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
 	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
+	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
 	// ROGUE
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
@@ -412,17 +413,24 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
 	G_AddAmmoAndCapQuantity(other, AMMO_ROCKETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SLUGS);
-
-	// RAFAEL
 	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
-	// RAFAEL
-
-	// ROGUE
 	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
 	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
-	// ROGUE
 
-	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
+	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
+	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
+	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
+	G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
+	G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
+	G_AddAmmoAndCapQuantity(other, AMMO_ROCKETS);
+	G_AddAmmoAndCapQuantity(other, AMMO_SLUGS);
+	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
+	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
+	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
+	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
+
+
+	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch() && !g_horde->integer)
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
 
 	return true;
@@ -606,7 +614,7 @@ bool Pickup_Ammo(edict_t* ent, edict_t* other)
 	int	 count;
 	bool weapon;
 
-	weapon = (ent->item->flags & IF_WEAPON);
+	weapon = (ent->item->flags & IF_WEAPON & IF_AMMO);
 	if (weapon && G_CheckInfiniteAmmo(ent->item))
 		count = 1000;
 	else if (ent->count)

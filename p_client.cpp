@@ -852,7 +852,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		// player may not have weapons at all.
 		bool taken_loadout = false;
 
-		if (G_IsCooperative() || !g_horde->integer)
+		if (G_IsCooperative() && !g_horde->integer)
 		{
 			for (auto player : active_players())
 			{
@@ -973,9 +973,10 @@ void SaveClientData()
 		if (!ent->inuse)
 			continue;
 		if (!g_horde->integer)
-		game.clients[i].pers.health = ent->health;
+			game.clients[i].pers.health = ent->health;
 		game.clients[i].pers.max_health = ent->max_health;
 		game.clients[i].pers.savedFlags = (ent->flags & (FL_FLASHLIGHT | FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR | FL_WANTS_POWER_ARMOR));
+
 		if (G_IsCooperative() && !g_horde->integer)
 			game.clients[i].pers.score = ent->client->resp.score;
 	}
@@ -983,9 +984,10 @@ void SaveClientData()
 
 void FetchClientEntData(edict_t* ent)
 {
-	ent->health = ent->client->pers.health;
-	ent->max_health = ent->client->pers.max_health;
+	ent->health = ent->client->pers.health = 100;
+	ent->max_health = ent->client->pers.max_health = 100;
 	ent->flags |= ent->client->pers.savedFlags;
+
 	if (G_IsCooperative() && !g_horde->integer)
 		ent->client->resp.score = ent->client->pers.score;
 }
@@ -2148,7 +2150,7 @@ void PutClientInServer(edict_t* ent)
 
 		ClientUserinfoChanged(ent, userinfo);
 
-		if (G_IsCooperative())
+		if (G_IsCooperative() && !g_horde->integer)
 		{
 			if (resp.score > client->pers.score)
 				client->pers.score = resp.score;
@@ -2170,10 +2172,6 @@ void PutClientInServer(edict_t* ent)
 	if (!(client->pers.spectator))
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 
-
-
-	if (g_horde->integer) // changed fix to reset health to 100 after timelimit on horde mode, removing client data restored num_lives on coop
-		ent->client->pers.max_health;
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
 
@@ -2327,8 +2325,7 @@ void PutClientInServer(edict_t* ent)
 		if (!G_IsDeathmatch())
 			client->pers.inventory[IT_KEY_NUKE] = 1;
 	}
-	// Kyper - Lithium port
-		ent->safety_time = 0_ms;
+
 	// force the current weapon up
 	client->newweapon = client->pers.weapon;
 	ChangeWeapon(ent);
@@ -2337,26 +2334,6 @@ void PutClientInServer(edict_t* ent)
 		G_PostRespawn(ent);
 }
 
-/*
-=====================
-HORDE TWEAKS
-============================
-
-std::string q2etweaks_welcome;
-if (g_no_self_damage->integer)
-q2etweaks_welcome += "\tNo Self Damage\n";
-
-if (sv_target_id && sv_target_id->integer)
-	q2etweaks_welcome += "\tTarget ID\n";
-
-	*/
-	/*
-	ClientBeginDeathmatch
-
-	A client has just connected to the server in
-	deathmatch mode, so clear everything out before starting them.
-	=====================
-	*/
 void ClientBeginDeathmatch(edict_t* ent)
 {
 	G_InitEdict(ent);
@@ -2635,7 +2612,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	if ((G_IsDeathmatch() && g_horde->integer) || G_IsCooperative() && *val && strcmp(val, "0")) //check horde mode later
 		ent->client->pers.spectator = true;
 	else
-		ent->client->pers.spectator = false; //HACK SPECTATOR
+		ent->client->pers.spectator = false; 
 
 	// set skin
 	if (!gi.Info_ValueForKey(userinfo, "skin", val, sizeof(val)))

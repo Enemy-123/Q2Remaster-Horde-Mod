@@ -79,14 +79,14 @@ constexpr struct weighted_item_t {
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
-	{ "item_armor_body", 8, -1, 0.10f, adjust_weight_armor },
-	{ "item_power_screen", 4, -1, 0.1f, adjust_weight_armor },
+	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
+	{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
 
 	{ "item_quad", 6, -1, 0.1f, adjust_weight_powerup },
 	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
 	{ "item_quadfire", 2, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, 3, 0.24f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, 5, 0.20f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
@@ -111,15 +111,15 @@ constexpr struct weighted_item_t {
 	{ "ammo_bullets", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_flechettes", 5, -1, 0.15f, adjust_weight_ammo },
 	{ "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_prox", -1, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_tesla", -1, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_prox", -1, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_tesla", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_magslug", 6, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_slugs", 5, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 7, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_rockets", 6, -1, 0.45f, adjust_weight_ammo },
 	{ "item_bandolier", -1, -1, 0.3f, adjust_weight_ammo },
-	{ "item_pack", 6, -1, 0.38f, adjust_weight_ammo },
+	{ "item_pack", 5, -1, 0.15f, adjust_weight_ammo },
 
 };
 

@@ -527,6 +527,9 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_brain")) {
 			ent->classname = "monster_berserk";
 		}
+	    else if (!strcmp(ent->classname, "monster_commander_body")) {
+		ent->classname = "monster_tank_64";
+	    }
 		else if (!strcmp(ent->classname, "item_quad")) {
 			ent->classname = "item_double";
 		}
@@ -1448,13 +1451,11 @@ static void G_InitStatusbar()
 
 
 if (G_IsCooperative() && skill->integer==3 && !g_horde->integer)
-
 {			// 		// COOPWAVE
 	sb.ifstat(STAT_HORDE_WAVE).xv(-55).yb(-23).loc_rstring("Chaotic Coop\n ENABLED").endifstat();
 }
 		if (G_IsCooperative())
 		{
-		
 			// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 
