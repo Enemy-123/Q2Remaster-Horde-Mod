@@ -106,22 +106,22 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	switch (mod.id)
 	{
 	case MOD_SUICIDE:
-		base = "$g_mod_generic_suicide";
+		base = "{0} becomes bored with life";
 		break;
 	case MOD_FALLING:
-		base = "$g_mod_generic_falling";
+		base = "{0} made a leap of faith";
 		break;
 	case MOD_CRUSH:
-		base = "$g_mod_generic_crush";
+		base = "{0} suffers from claustrophobia\n";
 		break;
 	case MOD_WATER:
-		base = "$g_mod_generic_water";
+		base = "{0} forgot to breath";
 		break;
 	case MOD_SLIME:
 		base = "$g_mod_generic_slime";
 		break;
 	case MOD_LAVA:
-		base = "$g_mod_generic_lava";
+		base = "{0} joins the lava gods";
 		break;
 	case MOD_EXPLOSIVE:
 	case MOD_BARREL:
@@ -647,7 +647,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	if (mod.id == MOD_TRACKER)
 	{
 		self->health = -100;
-		damage = 400;
+		damage = 4000;
 	}
 
 	// make sure no trackers are still hurting us.
@@ -770,7 +770,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 1.5_sec;
+				self->client->respawn_time = level.time + 1.0_sec;
 		}
 	}
 
@@ -972,6 +972,7 @@ void SaveClientData()
 		ent = &g_edicts[1 + i];
 		if (!ent->inuse)
 			continue;
+		if (!g_horde->integer)
 		game.clients[i].pers.health = ent->health;
 		game.clients[i].pers.max_health = ent->max_health;
 		game.clients[i].pers.savedFlags = (ent->flags & (FL_FLASHLIGHT | FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR | FL_WANTS_POWER_ARMOR));
