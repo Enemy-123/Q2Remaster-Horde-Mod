@@ -146,6 +146,7 @@ cvar_t* g_use_hook;
 cvar_t* g_hook_help;
 cvar_t* g_hook_wave;
 
+cvar_t* g_entity_override_load;
 
 static cvar_t* g_frames_per_frame;
 
@@ -370,6 +371,9 @@ void InitGame()
 	g_teamplay_force_join = gi.cvar("g_teamplay_force_join", "0", CVAR_NOFLAGS);
 	g_teamplay_armor_protect = gi.cvar("g_teamplay_armor_protect", "0", CVAR_NOFLAGS);
 	g_allow_techs = gi.cvar("g_allow_techs", "auto", CVAR_NOFLAGS);
+
+	g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
+
 
 	g_start_items = gi.cvar("g_start_items", "", CVAR_LATCH);
 	g_map_list = gi.cvar("g_map_list", "", CVAR_NOFLAGS);
@@ -842,6 +846,8 @@ void ExitLevel()
 
 	level.changemap = nullptr;
 }
+
+
 
 static void G_CheckCvars()
 {

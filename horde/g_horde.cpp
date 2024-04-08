@@ -33,10 +33,13 @@ static void Horde_InitLevel(int32_t lvl)
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 
 	if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
-		g_horde_local.num_to_spawn = 22 + (lvl * 2);
+		g_horde_local.num_to_spawn = 28 + (lvl * 5);
+	}
+	if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
+		g_horde_local.num_to_spawn = 22 + (lvl * 3);
 	}
 	if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
-		g_horde_local.num_to_spawn = 7 + (lvl * 2);
+		g_horde_local.num_to_spawn = 8 + (lvl * 2);
 	}
 	else 
 		g_horde_local.num_to_spawn = 10 + (lvl * 2);
@@ -73,8 +76,8 @@ constexpr struct weighted_item_t {
 	{ "item_health_small", -1, -1, 0.35f, adjust_weight_health },
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
-	{ "item_health_mega", -1, -1, 0.1f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.14f, adjust_weight_health },
+	{ "item_health_mega", -1, -1, 0.08f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.12f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
@@ -82,29 +85,29 @@ constexpr struct weighted_item_t {
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
 	{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, -1, 0.1f, adjust_weight_powerup },
-	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
+	{ "item_quad", 6, -1, 0.09f, adjust_weight_powerup },
+	{ "item_double", 4, -1, 0.10f, adjust_weight_powerup },
 	{ "item_quadfire", 2, -1, 0.12f, adjust_weight_powerup },
-	{ "item_invulnerability", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, 5, 0.20f, adjust_weight_powerup },
+	{ "item_invulnerability", 4, -1, 0.06f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, 5, 0.14f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 4, 7, 0.20f, adjust_weight_weapon },
-	{ "weapon_machinegun", 2, 5, 0.25f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", -1, 3, 0.23f, adjust_weight_weapon },
+	{ "weapon_machinegun", -1, 5, 0.25f, adjust_weight_weapon },
+	{ "weapon_etf_rifle", 3, 6, 0.23f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_chaingun", 5, 8, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, 9, 0.15f, adjust_weight_weapon },
-	{ "weapon_proxlauncher", 4, 9, 0.15f, adjust_weight_weapon },
+	{ "weapon_proxlauncher", 8, 11, 0.15f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 5, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_phalanx", 7, 11, 0.16f, adjust_weight_weapon },
+	{ "weapon_phalanx", 9, 13, 0.16f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 7, 10, 0.15f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 5, 8, 0.16f, adjust_weight_weapon },
 	{ "weapon_railgun", 6, 9, 0.16f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 7, 10, 0.16f, adjust_weight_weapon },
-	{ "weapon_bfg", 9, 12, 0.16f, adjust_weight_weapon },
+	{ "weapon_bfg", 14, 17, 0.16f, adjust_weight_weapon },
 
 
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
@@ -408,14 +411,28 @@ static void Horde_CleanBodies()
 	{
 		if (!g_edicts[i].inuse)
 			continue;
-		else if (g_edicts[i].svflags & SVF_MONSTER)
+		else if (g_edicts[i].svflags & SVF_DEADMONSTER)
 		{
-			if (g_edicts[i].health <= 0 || g_edicts[i].deadflag || (g_edicts[i].svflags & SVF_DEADMONSTER))
+			G_FreeEdict(&g_edicts[i]);
+		}
+		else if (g_edicts[i].item)
+		{
+			// Eliminar elementos de munición
+			if (strstr(g_edicts[i].classname, "ammo_"))
+			{
 				G_FreeEdict(&g_edicts[i]);
+			}
+			else if (strstr(g_edicts[i].classname, "item_"))
+			{
+				G_FreeEdict(&g_edicts[i]);
+			}
+	    	else if (strstr(g_edicts[i].classname, "weapon_"))
+			{
+				G_FreeEdict(&g_edicts[i]);
+			}
 		}
 	}
 }
-
 void  SpawnBossAutomatically()
 {
 	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 8 == 0 && current_wave_number != 0) ||

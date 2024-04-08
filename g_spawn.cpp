@@ -950,6 +950,54 @@ static const std::initializer_list<temp_field_t> temp_fields = {
 };
 // clang-format on
 
+
+/*
+==============
+VerifyEntityString
+==============
+*/
+static bool VerifyEntityString(const char* entities) {
+	const char* or_token;
+	edict_t* or_ent = nullptr;
+	const char* or_buf = entities;
+	bool		or_error = false;
+
+	while (1) {
+		// parse the opening brace
+		or_token = COM_Parse(&or_buf);
+		if (!or_buf)
+			break;
+		if (or_token[0] != '{') {
+			gi.Com_PrintFmt("{}: Found \"{}\" when expecting {{ in override.\n", __FUNCTION__, or_token);
+			return false;
+		}
+
+		while (1) {
+			// parse key
+			or_token = COM_Parse(&or_buf);
+			if (or_token[0] == '}')
+				break;
+			if (!or_buf) {
+				gi.Com_ErrorFmt("{}: EOF without closing brace.\n", __FUNCTION__);
+				return false;
+			}
+			// parse value
+			or_token = COM_Parse(&or_buf);
+			if (!or_buf) {
+				gi.Com_ErrorFmt("{}: EOF without closing brace.\n", __FUNCTION__);
+				return false;
+			}
+			if (or_token[0] == '}') {
+				gi.Com_ErrorFmt("{}: Closing brace without data.\n", __FUNCTION__);
+				return false;
+			}
+		}
+
+	}
+	return true;
+}
+
+
 /*
 ===============
 ED_ParseField
@@ -1297,6 +1345,70 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	// reserve some spots for dead player bodies for coop / deathmatch
 	InitBodyQue();
 
+
+
+
+
+	////////////ENT LOAD///////////////
+
+		//bool ent_file_loaded = false;
+	bool	ent_file_exists = false;
+	bool	ent_valid = true;
+
+	// load up ent override
+	const char* name = G_Fmt("baseq2/maps/{}.ent", mapname).data();
+	FILE* f = fopen(name, "rb");
+	if (f != NULL) {
+		char* buffer = nullptr;
+		size_t length;
+		size_t read_length;
+
+		fseek(f, 0, SEEK_END);
+		length = ftell(f);
+		fseek(f, 0, SEEK_SET);
+
+		if (length > 0x40000) {
+			//gi.Com_PrintFmt("{}: Entities override file length exceeds maximum: \"{}\"\n", __FUNCTION__, name);
+			ent_valid = false;
+		}
+		if (ent_valid) {
+			buffer = (char*)gi.TagMalloc(length + 1, '\0');
+			if (length) {
+				read_length = fread(buffer, 1, length, f);
+
+				if (length != read_length) {
+					//gi.Com_PrintFmt("{}: Entities override file read error: \"{}\"\n", __FUNCTION__, name);
+					ent_valid = false;
+				}
+			}
+		}
+		ent_file_exists = true;
+		fclose(f);
+
+		cvar_t* g_entity_override_load;
+
+
+		g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
+
+		if (ent_valid) {
+			if (g_entity_override_load->integer) {
+
+				if (VerifyEntityString((const char*)buffer)) {
+					entities = (const char*)buffer;
+					gi.Com_PrintFmt("{}: Entities override file verified and loaded: \"{}\"\n", __FUNCTION__, name);
+				}
+			}
+		}
+		else {
+			gi.Com_PrintFmt("{}: Entities override file load error for \"{}\", discarding.\n", __FUNCTION__, name);
+		}
+	}
+
+
+	//////////////////////////////////
+
+
+
 	// parse ents
 	while (1)
 	{
@@ -1378,7 +1490,6 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 //===================================================================
 #include "g_statusbar.h"
-
 // create & set the statusbar string for the current gamemode
 static void G_InitStatusbar()
 {
