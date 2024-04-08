@@ -771,6 +771,6 @@ void SP_monster_supertankkl(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 800;
 
-	self->health = 580 * current_wave_number;
-	self->mass = 200;
+	self->health = 620 * current_wave_number;
+	self->mass = 600;
 }

@@ -1271,7 +1271,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t *ent)
 {
-	int	  damage = 170;
+	int	  damage = 150;
 	float radius;
 
 	radius = (float) (damage + 40);
@@ -1499,7 +1499,7 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 9;
+	int damage = 8;
 	int kick = 2;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))

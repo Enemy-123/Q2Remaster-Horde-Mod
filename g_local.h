@@ -14,6 +14,9 @@ constexpr const char* GAMEVERSION = "baseq2";
 constexpr vec3_t PLAYER_MINS = { -16, -16, -24 };
 constexpr vec3_t PLAYER_MAXS = { 16, 16, 32 };
 
+constexpr vec3_t spawnmin = { -56, -56, -117 };
+constexpr vec3_t spawnmax = { 56, 56, 117 };
+
 #include <charconv>
 
 template<typename T>

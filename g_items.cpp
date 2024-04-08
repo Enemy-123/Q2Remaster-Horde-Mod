@@ -290,7 +290,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 		ent->health = ent->max_health;
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
-
+	//ent->s.renderfx = RF_SHELL_BLUE;
 	ent->client->pers.inventory[item->id]--;
 }
 

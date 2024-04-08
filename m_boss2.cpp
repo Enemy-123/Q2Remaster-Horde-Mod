@@ -725,6 +725,6 @@ void SP_monster_boss2kl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	self->s.skinnum = 2;
-	self->health = 325 * current_wave_number;
+	self->health = 725 * current_wave_number;
 	self->gib_health = -130;
 }

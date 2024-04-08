@@ -86,7 +86,7 @@ constexpr struct weighted_item_t {
 	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
 	{ "item_quadfire", 2, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, 5, 0.24f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, 3, 0.24f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
@@ -97,6 +97,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_chaingun", 5, 8, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, 9, 0.15f, adjust_weight_weapon },
+	{ "weapon_proxlauncher", 4, 9, 0.15f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 5, 8, 0.15f, adjust_weight_weapon },
 	{ "weapon_phalanx", 7, 11, 0.16f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 7, 10, 0.15f, adjust_weight_weapon },
@@ -110,6 +111,8 @@ constexpr struct weighted_item_t {
 	{ "ammo_bullets", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_flechettes", 5, -1, 0.15f, adjust_weight_ammo },
 	{ "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_prox", -1, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_tesla", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_magslug", 6, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_slugs", 5, -1, 0.25f, adjust_weight_ammo },
@@ -142,16 +145,17 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 
 constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, 3, 0.75f },
+	{ "monster_fixbot", 5, -1, 0.45f },
 	{ "monster_soldier", -1, 3, 0.45f },
-	{ "monster_soldier_hypergun", -1, 8, 0.85f },
-	{ "monster_stalker", 5, -1, 0.22f },
-	{ "monster_gekk", 3, 7, 0.30f },
-	{ "monster_parasite", 4, 7, 0.30f },
+	{ "monster_soldier_hypergun", -1, 8, 0.75f },
+	{ "monster_stalker", 3, 6, 0.22f },
+	{ "monster_gekk", 3, 8, 0.30f },
+	{ "monster_parasite", 4, 9, 0.30f },
 	{ "monster_brain", 4, 11, 0.30f },
-	{ "monster_soldier_lasergun", -1, 8, 0.90f },
-	{ "monster_soldier_ripper", 3, 9, 0.85f },
+	{ "monster_soldier_lasergun", -1, 8, 0.75f },
+	{ "monster_soldier_ripper", 2, 9, 0.75f },
 	{ "monster_infantry", 2, 9, 0.90f },
-	{ "monster_gunner", 3, 8, 0.80f },
+	{ "monster_gunner", 3, -1, 0.80f },
 	{ "monster_chick", 4, 9, 0.92f },
 	{ "monster_guncmdr", 8, -1, 1.1f },
 	{ "monster_gladiator", 4, 10, 1.1f },
@@ -167,11 +171,11 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_floater", 4, -1, 0.85f },
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 12, -1, 0.4f },
-	{ "monster_carrier2", 14, -1, 0.07f },
+	//{ "monster_carrier2", 14, -1, 0.07f },
 	{ "monster_berserk", 5, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 12, -1, 0.5f },
-	{ "monster_medic_commander",10, -1, 0.07f },
+	{ "monster_medic", 9, -1, 0.12f },
 };
 
 struct boss_t {
@@ -522,7 +526,7 @@ std::chrono::steady_clock::time_point condition_start_time;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
 bool CheckRemainingMonstersCondition() {
-	if (remainingMonsters <= 5) {
+	if (remainingMonsters <= 7) {
 
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
@@ -600,7 +604,7 @@ void Horde_RunFrame()
 
 				g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.5_sec);
 				e->enemy = &g_edicts[1];;
-				e->gib_health = -1000;
+				e->gib_health = -200;
 				e->health *= pow(1.033, current_wave_number);
 				FoundTarget(e);
 

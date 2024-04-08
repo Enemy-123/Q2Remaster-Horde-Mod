@@ -1106,14 +1106,14 @@ mframe_t fixbot_frames_attack2[] = {
 	{ ai_charge, -10 },
 
 	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
 
 	{ ai_charge }
@@ -1238,29 +1238,34 @@ void fixbot_fire_welder(edict_t *self)
 	}
 }
 
-void fixbot_fire_blaster(edict_t *self)
+void fixbot_fire_blaster(edict_t* self)
 {
 	vec3_t start;
-	vec3_t forward, right, up;
-	vec3_t end;
 	vec3_t dir;
+	vec3_t forward, right;
 
-	if (!visible(self, self->enemy))
-	{
-		M_SetAnimation(self, &fixbot_move_run);
-	}
-
-	AngleVectors(self->s.angles, forward, right, up);
+	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right);
+	{
+		// calc direction to where we targeted
+		dir = self->pos1 - start;
+		dir.normalize();
 
-	end = self->enemy->s.origin;
-	end[2] += self->enemy->viewheight;
-	dir = end - start;
-	dir.normalize();
+		int damage = 30;
+		int radius_damage = 45;
 
-	monster_fire_blaster(self, start, dir, 15, 1000, MZ2_HOVER_BLASTER_1, EF_BLASTER);
+		{
+			damage /= 1.7;
+			radius_damage /= 2;
+		}
+
+		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+
+		// save for aiming the shot
+		self->pos1 = self->enemy->s.origin;
+		self->pos1[2] += self->enemy->viewheight;
+	}
 }
-
 MONSTERINFO_STAND(fixbot_stand) (edict_t *self) -> void
 {
 	M_SetAnimation(self, &fixbot_move_stand);
@@ -1381,7 +1386,7 @@ void SP_monster_fixbot(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 150 * st.health_multiplier;
+	self->health = 350 * st.health_multiplier;
 	self->mass = 150;
 
 	self->pain = fixbot_pain;
@@ -1400,4 +1405,7 @@ void SP_monster_fixbot(edict_t *self)
 	fixbot_set_fly_parameters(self, false, false);
 
 	flymonster_start(self);
+
+	if (!self->s.scale)
+		self->s.scale = 1.7f;
 }

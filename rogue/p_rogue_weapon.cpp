@@ -13,7 +13,7 @@ void weapon_prox_fire(edict_t *ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
-	fire_prox(ent, start, dir, damage_multiplier, 600);
+	fire_prox(ent, start, dir, damage_multiplier, 1200);
 
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
@@ -316,7 +316,7 @@ void weapon_etf_rifle_fire(edict_t *ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle + kick_angles, offset, start, dir);
-	fire_flechette(ent, start, dir, damage, 1150, kick);
+	fire_flechette(ent, start, dir, damage, 2450, kick);
 	Weapon_PowerupSound(ent);
 
 	// send muzzle flash
@@ -351,7 +351,7 @@ void Weapon_ETF_Rifle(edict_t *ent)
 }
 
 constexpr int32_t HEATBEAM_DM_DMG = 10;
-constexpr int32_t HEATBEAM_SP_DMG = 15;
+constexpr int32_t HEATBEAM_SP_DMG = 20;
 
 void Heatbeam_Fire(edict_t *ent)
 {
@@ -396,7 +396,7 @@ void Heatbeam_Fire(edict_t *ent)
 	// really knock 'em around in deathmatch
 		kick = 75;
 	else
-		kick = 45;
+		kick = 55;
 
 	if (is_quad)
 	{
