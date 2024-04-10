@@ -36,7 +36,7 @@ static void Horde_InitLevel(int32_t lvl)
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
 	if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
-		g_horde_local.num_to_spawn = 24 + (lvl * 3);
+		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
 	if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 2);
@@ -559,7 +559,7 @@ void  SpawnBossAutomatically()
 		// Ajustes adicionales
 		boss->maxs *= 2;
 		boss->mins *= 2;
-		boss->s.scale = 2;
+		boss->s.scale = 1.4;
 		boss->health *= current_wave_number;
 		boss->s.renderfx = RF_TRANSLUCENT;
 		boss->s.effects = EF_FLAG2;
@@ -621,7 +621,7 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time + 3_sec)
 		{
 			remainingMonsters = 0;
-			gi.LocBroadcast_Print(PRINT_CENTER, "We have now offhand hook!\n console players configure [wave] emote \n PC players can bind/alias +hook!");
+			gi.LocBroadcast_Print(PRINT_CENTER, "We have  offhand hook!\n console players configure [wave] emote \n PC players can bind/alias +hook!\n");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 
@@ -714,7 +714,7 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "Wave Defeated, GG !");
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !!\n\n\n\n*****\n\n\n\n REWARDING: RESPAWNING\n ON REACHING \n60 FRAGS\n\n\n\n*****");
 
 				g_horde_local.warm_time = level.time + 4_sec;
 				g_horde_local.state = horde_state_t::rest;

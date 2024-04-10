@@ -2150,7 +2150,7 @@ void PutClientInServer(edict_t* ent)
 
 		ClientUserinfoChanged(ent, userinfo);
 
-		if (G_IsCooperative() && !g_horde->integer)
+		if (G_IsCooperative())
 		{
 			if (resp.score > client->pers.score)
 				client->pers.score = resp.score;
@@ -2169,9 +2169,13 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	if (!(client->pers.spectator))
-		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+	if (!(client->pers.spectator)) {
+		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 1.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+	}
 
+	if (client->pers.score >= 60 && (!(client->pers.spectator))) {
+		ent->client->quad_time = max(level.time, ent->client->quad_time) + 15.0_sec;
+	}
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
 

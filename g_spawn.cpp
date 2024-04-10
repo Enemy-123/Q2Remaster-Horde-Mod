@@ -1569,6 +1569,8 @@ static void G_InitStatusbar()
 		}
 		if (G_IsCooperative())
 		{
+			sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
+
 			// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 

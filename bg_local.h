@@ -213,7 +213,7 @@ enum player_stat_t
 	STAT_FLASHES = 15, // cleared each frame, 1 = health, 2 = armor
 	STAT_CHASE = 16,
 	STAT_SPECTATOR = 17,
-	STAT_TECH = 27,
+
 	STAT_CTF_TEAM1_PIC = 18,
 	STAT_CTF_TEAM1_CAPS = 19,
 	STAT_CTF_TEAM2_PIC = 20,
@@ -228,6 +228,7 @@ enum player_stat_t
 	STAT_CTF_MATCH = 29,
 	STAT_CTF_ID_VIEW_COLOR = 30,
 	STAT_CTF_TEAMINFO = 31,
+	STAT_TECH = 27,
 
 	// [Kex] More stats for weapon wheel
 	STAT_WEAPONS_OWNED_1 = 32,
