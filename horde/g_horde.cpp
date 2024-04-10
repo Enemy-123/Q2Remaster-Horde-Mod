@@ -36,7 +36,7 @@ static void Horde_InitLevel(int32_t lvl)
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
 	if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
-		g_horde_local.num_to_spawn = 22 + (lvl * 3);
+		g_horde_local.num_to_spawn = 24 + (lvl * 3);
 	}
 	if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 2);
@@ -378,6 +378,7 @@ void Horde_PreInit()
 		gi.cvar_set("coop", "0");
 		gi.cvar_set("timelimit", "20");
 		gi.cvar_set("fraglimit", "0");
+		gi.cvar_set("sv_target_id", "1");
 //		gi.cvar_set("g_instagib", "1");
 //		gi.cvar_set("g_dm_no_self_damage", "1");
 //		gi.cvar_set("g_allow_techs", "1");
@@ -446,17 +447,37 @@ static void Horde_CleanBodies()
 		else if (g_edicts[i].item)
 		{
 			// Eliminar elementos de munición
-			if (strstr(g_edicts[i].classname, "ammo_"))
+	//		if (strstr(g_edicts[i].classname, "weapon_"))
+	//		{
+	//			G_FreeEdict(&g_edicts[i]);
+	//		}
+			 if (strstr(g_edicts[i].classname, "item_"))
 			{
-				G_FreeEdict(&g_edicts[i]);
-			}
-			else if (strstr(g_edicts[i].classname, "item_"))
-			{
-				G_FreeEdict(&g_edicts[i]);
+				// Verificar si el nombre coincide con "item_tech1", "item_tech2", "item_tech3" o "item_tech4"
+				if (strcmp(g_edicts[i].classname, "item_tech1") == 0 ||
+					strcmp(g_edicts[i].classname, "item_tech2") == 0 ||
+					strcmp(g_edicts[i].classname, "item_tech3") == 0 ||
+					strcmp(g_edicts[i].classname, "item_tech4") == 0 ||
+					strcmp(g_edicts[i].classname, "item_pack") == 0  ||
+					strcmp(g_edicts[i].classname, "item_bandolier") == 0)
+				{
+					// No hacer nada, simplemente continuar con el siguiente elemento
+					continue;
+				}
+				else
+				{
+					G_FreeEdict(&g_edicts[i]);
+				}
+			 if (strstr(g_edicts[i].classname, "weapon_"))
+			 {
+				 G_FreeEdict(&g_edicts[i]);
+			 }
 			}
 		}
 	}
 }
+
+
 void  SpawnBossAutomatically()
 {
 	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
@@ -725,3 +746,4 @@ void HandleResetEvent() {
 	ResetGame();
 
 }
+

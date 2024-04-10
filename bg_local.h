@@ -195,8 +195,6 @@ constexpr uint16_t G_GetPowerupStat(uint16_t* start, uint8_t powerup_id)
 // player_state->stats[] indexes
 enum player_stat_t
 {
-	STAT_HORDE_MONSTERS,
-	STAT_HORDE_WAVE,
 	STAT_HEALTH_ICON = 0,
 	STAT_HEALTH = 1,
 	STAT_AMMO_ICON = 2,

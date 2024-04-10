@@ -1496,7 +1496,7 @@ static void G_InitStatusbar()
 	statusbar_t sb;
 
 	// ---- shared stuff that every gamemode uses ----
-			// spectator
+	// spectator
 	sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
 
 	// chase cam
@@ -1507,7 +1507,7 @@ static void G_InitStatusbar()
 	sb.yb(-24);
 
 	// health
-	sb.xv(0).hnum().xv(50).pic(STAT_HEALTH_ICON);
+	sb.xv(0).hnum().xv(65).pic(STAT_HEALTH_ICON);
 
 	// ammo
 	sb.ifstat(STAT_AMMO_ICON).xv(100).anum().xv(150).pic(STAT_AMMO_ICON).endifstat();
@@ -1536,11 +1536,12 @@ static void G_InitStatusbar()
 
 	// ---- gamemode-specific stuff ----
 	if (g_horde->integer) {
-		// 		// HORDE MONSTERS
-		sb.ifstat(STAT_HORDE_MONSTERS).xv(405).yb(-23).monsters_num(STAT_HORDE_MONSTERS).xv(418).yb(-23).loc_rstring("Monsters.\nRemaining:").endifstat();
-		// 		// HORDE WAVE
-		sb.ifstat(STAT_HORDE_WAVE).xv(-65).yb(-23).waves_num(STAT_HORDE_WAVE).xv(-65).yb(-23).loc_rstring("Horde Mode.\nWave Number:").endifstat();
 
+	// HORDE MONSTERS
+	//	sb.xv(405).yb(-23).monsters_num( STAT_TIMER).xv(350).yb(-23).string2("Stroggs.\nAlive:");
+		// 		// HORDE WAVE
+		sb.xv(-155).yb(-23).string2("\nHorde Mode");// \nWave Number:");
+	//sb.xv(-65).yb(-23).waves_num(STAT_FRAGS) // need to find bug numer is only showing to server host
 	}
 	
 	if (!G_IsDeathmatch())
@@ -1561,10 +1562,11 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
 
 
-if (G_IsCooperative() && skill->integer==3 && !g_horde->integer)
-{			// 		// COOPWAVE
-	sb.ifstat(STAT_HORDE_WAVE).xv(-55).yb(-23).loc_rstring("Chaotic Coop\n ENABLED").endifstat();
-}
+		if (G_IsCooperative() && skill->integer == 3 && !g_horde->integer) {
+
+					// 		// COOPWAVE
+			sb.xv(-155).yb(-23).string2("Chaotic Coop\n ENABLED");
+		}
 		if (G_IsCooperative())
 		{
 			// top of screen coop respawn display
@@ -1575,12 +1577,11 @@ if (G_IsCooperative() && skill->integer==3 && !g_horde->integer)
 		}
 
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-		// tech
+		    // tech
 		sb.ifstat(STAT_TECH).yb(-137).xr(-26).pic(STAT_TECH).endifstat();
 
-
 		// Q2ETweaks target id view state
-		// TODO move back to xv 112 if we find an image for below
+        // TODO move back to xv 112 if we find an image for below
 		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 
 		// Q2ETweaks target id view color

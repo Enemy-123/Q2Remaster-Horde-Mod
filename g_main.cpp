@@ -268,7 +268,7 @@ void InitGame()
 	g_instagib = gi.cvar("g_instagib", "0", CVAR_NOFLAGS);
 
 	// [Paril-KEX]
-	sv_eyecam = gi.cvar("sv_eyecam", "0", CVAR_NOFLAGS);
+	sv_eyecam = gi.cvar("sv_eyecam", "1", CVAR_NOFLAGS);
 	sv_centerprint_frags = gi.cvar("sv_centerprint_frags", "0", CVAR_NOFLAGS);
 	g_no_self_damage = gi.cvar("g_no_self_damage", "0", CVAR_NOFLAGS);
 	sv_target_id = gi.cvar("sv_target_id", "0", CVAR_NOFLAGS);

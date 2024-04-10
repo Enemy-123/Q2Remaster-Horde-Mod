@@ -689,19 +689,7 @@ void Cmd_Help_f(edict_t* ent)
 
 //=======================================================================
 
-#include "horde/g_horde.h"
-//HORDE WAVE STATS
-void G_SetHordeStats(edict_t* ent)
-{
-	if (g_horde->integer) {
-		// Establecer el número de monstruos restantes si la horda está habilitada
-		ent->client->ps.stats[STAT_HORDE_MONSTERS] = remainingMonsters;
-		// Establecer el número de la oleada de la horda si está habilitado
-		ent->client->ps.stats[STAT_HORDE_WAVE] = current_wave_number;
-	}
 
-
-}
 // [Paril-KEX] for stats we want to always be set in coop
 // even if we're spectating
 void G_SetCoopStats(edict_t* ent)
