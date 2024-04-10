@@ -692,12 +692,19 @@ void Cmd_Help_f(edict_t* ent)
 
 // [Paril-KEX] for stats we want to always be set in coop
 // even if we're spectating
-void G_SetCoopStats(edict_t* ent)
-{
+void G_SetCoopStats(edict_t* ent) {
+
+
 	if (G_IsCooperative() && g_coop_enable_lives->integer)
 		ent->client->ps.stats[STAT_LIVES] = ent->client->pers.lives + 1;
 	else
 		ent->client->ps.stats[STAT_LIVES] = 0;
+
+	if (G_IsCooperative())
+		ent->client->ps.stats[STAT_TIMER] = level.total_monsters - level.killed_monsters;
+
+	ent->client->ps.stats[STAT_FRAGS] = current_wave_number - 1;
+
 
 	// stat for text on what we're doing for respawn
 	if (ent->client->coop_respawn_state)

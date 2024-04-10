@@ -1538,11 +1538,12 @@ static void G_InitStatusbar()
 	if (g_horde->integer) {
 
 	// HORDE MONSTERS
-	//	sb.xv(405).yb(-23).monsters_num( STAT_TIMER).xv(350).yb(-23).string2("Stroggs.\nAlive:");
+
+		sb.xv(405).yb(-23).num(2, STAT_TIMER).xv(350).yb(-23).string2("Stroggs.\n Alive:");
 		// 		// HORDE WAVE
-		sb.xv(-155).yb(-23).string2("\nHorde Mode");// \nWave Number:");
-	//sb.xv(-65).yb(-23).waves_num(STAT_FRAGS) // need to find bug numer is only showing to server host
+	sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_FRAGS); // need to find why number bug is only showing to server hoster
 	}
+
 	
 	if (!G_IsDeathmatch())
 	{
@@ -1569,7 +1570,7 @@ static void G_InitStatusbar()
 		}
 		if (G_IsCooperative())
 		{
-			sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
+		//	sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
 
 			// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();

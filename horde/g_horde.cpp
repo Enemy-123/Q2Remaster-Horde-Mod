@@ -76,7 +76,7 @@ constexpr struct weighted_item_t {
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
 	{ "item_health_mega", -1, -1, 0.08f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.12f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.16f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
@@ -170,7 +170,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_janitor", 9, -1, 0.18f },
 	{ "monster_hover", 8, -1, 0.85f },
 	{ "monster_flyer", -1, 6, 0.75f },
-	{ "monster_floater", 4, -1, 0.85f },
+	{ "monster_floater", 6, -1, 0.65f },
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 12, -1, 0.4f },
 	//{ "monster_carrier2", 14, -1, 0.07f },
@@ -714,7 +714,7 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !!\n\n\n\n*****\n\n\n\n REWARDING: RESPAWNING\n ON REACHING \n60 FRAGS\n\n\n\n*****");
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !!\n\n\n\n*****\n\n\n\n REWARD: RESPAWNING QUAD\nWHEN REACHING \n60 FRAGS\n\n\n\n*****");
 
 				g_horde_local.warm_time = level.time + 4_sec;
 				g_horde_local.state = horde_state_t::rest;
