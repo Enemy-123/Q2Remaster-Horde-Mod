@@ -20,47 +20,40 @@ static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
 static cached_soundindex sound_sight;
 
-MONSTERINFO_SIGHT(floater_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(floater_sight) (edict_t* self, edict_t* other) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_IDLE(floater_idle) (edict_t *self) -> void
+MONSTERINFO_IDLE(floater_idle) (edict_t* self) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
-void floater_dead(edict_t *self);
-void floater_run(edict_t *self);
-void floater_wham(edict_t *self);
-void floater_zap(edict_t *self);
+void floater_dead(edict_t* self);
+void floater_run(edict_t* self);
+void floater_wham(edict_t* self);
+void floater_zap(edict_t* self);
 
-void floater_fire_blaster(edict_t *self)
+void floater_fire_blaster(edict_t* self)
 {
-vec3_t start;
-vec3_t dir;
-vec3_t forward, right;
-float  len;
+	vec3_t	  start;
+	vec3_t	  forward, right;
+	vec3_t	  end;
+	vec3_t	  dir;
 
-AngleVectors(self->s.angles, forward, right, nullptr);
-start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right);
+	if (!self->enemy || !self->enemy->inuse) // PGM
+		return;								 // PGM
 
-dir = self->pos1 - self->enemy->s.origin;
-len = dir.length();
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right);
 
-if (len < 30)
-{
-	// calc direction to where we targeted
-	dir = self->pos1 - start;
+	end = self->enemy->s.origin;
+	end[2] += self->enemy->viewheight;
+	dir = end - start;
 	dir.normalize();
 
-	monster_fire_tracker(self, start, dir, 8, 945, self->enemy, MZ2_FLOAT_BLASTER_1);
-}
-else
-{
-	PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-	monster_fire_tracker(self, start, dir, 8, 945, nullptr, MZ2_FLOAT_BLASTER_1);
-}
+	monster_fire_blaster(self, start, dir, 4, 1300, MZ2_FLOAT_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 }
 
 mframe_t floater_frames_stand1[] = {
@@ -211,7 +204,7 @@ mframe_t floater_frames_disguise[] = {
 };
 MMOVE_T(floater_move_disguise) = { FRAME_actvat01, FRAME_actvat01, floater_frames_disguise, nullptr };
 
-MONSTERINFO_STAND(floater_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(floater_stand) (edict_t* self) -> void
 {
 	if (self->monsterinfo.active_move == &floater_move_disguise)
 		M_SetAnimation(self, &floater_move_disguise);
@@ -498,7 +491,7 @@ mframe_t floater_frames_run[] = {
 };
 MMOVE_T(floater_move_run) = { FRAME_stand101, FRAME_stand152, floater_frames_run, nullptr };
 
-MONSTERINFO_RUN(floater_run) (edict_t *self) -> void
+MONSTERINFO_RUN(floater_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.active_move == &floater_move_disguise)
 		M_SetAnimation(self, &floater_move_pop);
@@ -508,12 +501,12 @@ MONSTERINFO_RUN(floater_run) (edict_t *self) -> void
 		M_SetAnimation(self, &floater_move_run);
 }
 
-MONSTERINFO_WALK(floater_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(floater_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &floater_move_walk);
 }
 
-void floater_wham(edict_t *self)
+void floater_wham(edict_t* self)
 {
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
@@ -522,7 +515,7 @@ void floater_wham(edict_t *self)
 		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
 }
 
-void floater_zap(edict_t *self)
+void floater_zap(edict_t* self)
 {
 	vec3_t forward, right;
 	vec3_t origin;
@@ -550,7 +543,7 @@ void floater_zap(edict_t *self)
 	T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, irandom(5, 11), -10, DAMAGE_ENERGY, MOD_UNKNOWN);
 }
 
-MONSTERINFO_ATTACK(floater_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(floater_attack) (edict_t* self) -> void
 {
 	float chance = 0.5f;
 
@@ -568,7 +561,7 @@ MONSTERINFO_ATTACK(floater_attack) (edict_t *self) -> void
 	}
 }
 
-MONSTERINFO_MELEE(floater_melee) (edict_t *self) -> void
+MONSTERINFO_MELEE(floater_melee) (edict_t* self) -> void
 {
 	if (frandom() < 0.5f)
 		M_SetAnimation(self, &floater_move_attack3);
@@ -576,7 +569,7 @@ MONSTERINFO_MELEE(floater_melee) (edict_t *self) -> void
 		M_SetAnimation(self, &floater_move_attack2);
 }
 
-PAIN(floater_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(floater_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	int n;
 
@@ -605,7 +598,7 @@ PAIN(floater_pain) (edict_t *self, edict_t *other, float kick, int damage, const
 		M_SetAnimation(self, &floater_move_pain2);
 }
 
-MONSTERINFO_SETSKIN(floater_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(floater_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -613,7 +606,7 @@ MONSTERINFO_SETSKIN(floater_setskin) (edict_t *self) -> void
 		self->s.skinnum = 0;
 }
 
-void floater_dead(edict_t *self)
+void floater_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
@@ -623,7 +616,7 @@ void floater_dead(edict_t *self)
 	gi.linkentity(self);
 }
 
-DIE(floater_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(floater_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_death1, 1, ATTN_NORM, 0);
 
@@ -641,10 +634,10 @@ DIE(floater_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 		{ "models/monsters/float/gibs/gun.md2", GIB_SKINNED },
 		{ "models/monsters/float/gibs/base.md2", GIB_SKINNED },
 		{ "models/monsters/float/gibs/jar.md2", GIB_SKINNED | GIB_HEAD }
-	});
+		});
 }
 
-static void float_set_fly_parameters(edict_t *self)
+static void float_set_fly_parameters(edict_t* self)
 {
 	self->monsterinfo.fly_thrusters = false;
 	self->monsterinfo.fly_acceleration = 12.f;
@@ -658,10 +651,10 @@ constexpr spawnflags_t SPAWNFLAG_FLOATER_DISGUISE = 8_spawnflag;
 
 /*QUAKED monster_floater (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight Disguise
  */
-void SP_monster_floater(edict_t *self)
+void SP_monster_floater(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -692,15 +685,14 @@ void SP_monster_floater(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 450;
+		self->monsterinfo.power_armor_power = 250;
 
-	self->health = 180 * st.health_multiplier;
+	self->health = 130 * st.health_multiplier;
 	self->gib_health = -80;
 	self->mass = 300;
 
-	if (!self->s.scale && !g_horde->integer)
+	if (!self->s.scale)
 		self->s.scale = 1.2f;
-
 
 	self->pain = floater_pain;
 	self->die = floater_die;

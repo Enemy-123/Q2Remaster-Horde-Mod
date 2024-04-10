@@ -891,7 +891,7 @@ void SP_monster_gunner(edict_t *self)
 	self->gib_health = -70;
 	self->mass = 200;
 
-	if (!self->s.scale && !g_horde->integer)
+	if (!self->s.scale)
 		self->s.scale = 1.1f;
 
 	self->pain = gunner_pain;

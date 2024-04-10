@@ -701,7 +701,10 @@ void G_SetCoopStats(edict_t* ent) {
 		ent->client->ps.stats[STAT_LIVES] = 0;
 
 	if (G_IsCooperative())
-		ent->client->ps.stats[STAT_TIMER] = level.total_monsters - level.killed_monsters;
+
+
+
+		ent->client->ps.stats[STAT_CTF_MATCH] = level.total_monsters - level.killed_monsters;
 
 	ent->client->ps.stats[STAT_FRAGS] = current_wave_number - 1;
 
