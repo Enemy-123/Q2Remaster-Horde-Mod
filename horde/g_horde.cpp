@@ -32,11 +32,26 @@ static void Horde_InitLevel(int32_t lvl)
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 
+	if 	(!Q_strcasecmp(level.mapname, "base1")) {
+		g_horde_local.num_to_spawn = 30 + (lvl * 5);
+	}
+		if 	(!Q_strcasecmp(level.mapname, "base2")) {
+		g_horde_local.num_to_spawn = 38 + (lvl * 5);
+	}
+		if 	(!Q_strcasecmp(level.mapname, "base3")) {
+		g_horde_local.num_to_spawn = 38 + (lvl * 5);
+	}
+		if 	(!Q_strcasecmp(level.mapname, "bunk1")) {
+		g_horde_local.num_to_spawn = 38 + (lvl * 5);
+	}
+		if 	(!Q_strcasecmp(level.mapname, "ware1")) {
+		g_horde_local.num_to_spawn = 38 + (lvl * 5);
+	}
 	if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
 	if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
-		g_horde_local.num_to_spawn = 28 + (lvl * 5);
+		g_horde_local.num_to_spawn = 34 + (lvl * 4);
 	}
 	if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
@@ -96,20 +111,20 @@ constexpr struct weighted_item_t {
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 4, 7, 0.20f, adjust_weight_weapon },
+	{ "weapon_supershotgun", 4, -1, 0.1f, adjust_weight_weapon },
 	{ "weapon_machinegun", -1, 5, 0.25f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", 2, 6, 0.23f, adjust_weight_weapon },
+	{ "weapon_etf_rifle", 2, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
-	{ "weapon_chaingun", 5, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_grenadelauncher", 6, 9, 0.15f, adjust_weight_weapon },
-	{ "weapon_proxlauncher", 8, 11, 0.15f, adjust_weight_weapon },
-	{ "weapon_hyperblaster", 5, 8, 0.15f, adjust_weight_weapon },
-	{ "weapon_phalanx", 9, 13, 0.16f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 7, 10, 0.15f, adjust_weight_weapon },
-	{ "weapon_rocketlauncher", 5, 8, 0.16f, adjust_weight_weapon },
-	{ "weapon_railgun", 6, 9, 0.16f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 7, 10, 0.16f, adjust_weight_weapon },
-	{ "weapon_bfg", 14, 17, 0.16f, adjust_weight_weapon },
+	{ "weapon_chaingun", 5, -1, 0.1f, adjust_weight_weapon },
+	{ "weapon_grenadelauncher", 6, -1, 0.1f, adjust_weight_weapon },
+	{ "weapon_proxlauncher", 8, -1, 0.1f, adjust_weight_weapon },
+	{ "weapon_hyperblaster", 5, -1, 0.1f, adjust_weight_weapon },
+	{ "weapon_phalanx", 9, -1, 0.1f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 7, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_rocketlauncher", 5, -1, 0.12f, adjust_weight_weapon },
+	{ "weapon_railgun", 6, -1, 0.12f, adjust_weight_weapon },
+	{ "weapon_plasmabeam", 7, -1, 0.12f, adjust_weight_weapon },
+	{ "weapon_bfg", 14, 17, 0.13f, adjust_weight_weapon },
 
 
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
@@ -567,7 +582,7 @@ std::chrono::steady_clock::time_point condition_start_time;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
 bool CheckRemainingMonstersCondition() {
-	if (remainingMonsters <= 7) {
+	if (remainingMonsters <= 9) {
 
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
@@ -577,7 +592,7 @@ bool CheckRemainingMonstersCondition() {
 		// Verifica si la condición ha estado activa durante más de 10 segundos
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
-		return duration.count() >= 20;
+		return duration.count() >= 15;
 	}
 	else {
 		// Si la condición no se cumple, reinicia el tiempo de referencia
