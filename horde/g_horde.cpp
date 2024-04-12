@@ -60,7 +60,7 @@ static void Horde_InitLevel(int32_t lvl)
 		g_horde_local.num_to_spawn = 8 + (lvl * 2);
 	}
 	else 
-		g_horde_local.num_to_spawn = 10 + (lvl * 2);
+		g_horde_local.num_to_spawn = 12 + (lvl * 2);
 
 }
 
@@ -545,9 +545,9 @@ void  SpawnBossAutomatically()
 		boss->s.angles[2] = 0;
 
 		// Ajustes adicionales
-		boss->maxs *= 2;
-		boss->mins *= 2;
-		boss->s.scale = 1.4;
+		boss->maxs *= 1.4;
+		boss->mins *= 1.4;
+		boss->s.scale == 1.4;
 		boss->health *= current_wave_number;
 		boss->s.renderfx = RF_TRANSLUCENT;
 		boss->s.effects = EF_FLAG2;
@@ -582,7 +582,8 @@ std::chrono::steady_clock::time_point condition_start_time;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
 bool CheckRemainingMonstersCondition() {
-	if (remainingMonsters <= 9) {
+	//if (remainingMonsters <= 13 && current_wave_number >= 3) {
+	if (remainingMonsters <= 13) {
 
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
@@ -592,7 +593,7 @@ bool CheckRemainingMonstersCondition() {
 		// Verifica si la condición ha estado activa durante más de 10 segundos
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
-		return duration.count() >= 15;
+		return duration.count() >= 12;
 	}
 	else {
 		// Si la condición no se cumple, reinicia el tiempo de referencia
@@ -613,8 +614,8 @@ void Horde_RunFrame()
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 
-			gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-			//gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 
@@ -658,9 +659,9 @@ void Horde_RunFrame()
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-				g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.5_sec);
-				e->enemy = &g_edicts[1];;
-				e->gib_health = -200;
+				g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 1.4_sec);
+				e->enemy = &g_edicts[1];
+				e->gib_health = -280;
 				e->health *= pow(1.033, current_wave_number);
 				FoundTarget(e);
 
@@ -692,8 +693,8 @@ void Horde_RunFrame()
 	case horde_state_t::cleanup:
 
 		if (CheckRemainingMonstersCondition()) {
-			gi.LocBroadcast_Print(PRINT_CENTER, "Wave skipped!");
-			// Si se cumple la condición durante más de 15 segundos, avanza al estado 'rest'
+			gi.LocBroadcast_Print(PRINT_MEDIUM, "Wave skipped!");
+			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 			g_horde_local.state = horde_state_t::rest;
 			break;
 		}
@@ -706,7 +707,7 @@ void Horde_RunFrame()
 
 
 
-				g_horde_local.warm_time = level.time + 4_sec;
+				g_horde_local.warm_time = level.time + 3_sec;
 				g_horde_local.state = horde_state_t::rest;
 				remainingMonsters = 0; // Actualiza remainingMonsters cuando todos los monstruos han sido eliminados
 			}
