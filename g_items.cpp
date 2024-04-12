@@ -274,7 +274,7 @@ void Drop_General(edict_t* ent, gitem_t* item)
 	edict_t* dropped = Drop_Item(ent, item);
 	dropped->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
 	dropped->svflags &= ~SVF_INSTANCED;
-	ent->client->pers.inventory[item->id]--;
+	ent->client->pers.inventory[item->id]++;
 }
 
 //======================================================================
@@ -1900,7 +1900,7 @@ always owned, never in the world
 		/* quantity */ 0,
 		/* ammo */ IT_NULL,
 		/* chain */ IT_WEAPON_BLASTER,
-		/* flags */ IF_WEAPON | IF_STAY_COOP,
+		/* flags */ IF_WEAPON | IF_STAY_COOP | IF_NO_HASTE,
 		/* vwep_model */ "#w_chainfist.md2",
 		/* armor_info */ nullptr,
 		/* tag */ 0,

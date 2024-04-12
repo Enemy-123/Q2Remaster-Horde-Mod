@@ -180,7 +180,8 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_berserk", 5, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 12, -1, 0.5f },
-	{ "monster_medic", 9, -1, 0.12f },
+	{ "monster_medic", 9, 14, 0.12f },
+	{ "monster_medic_commander", 15, -1, 0.13f },
 };
 
 struct boss_t {
@@ -593,12 +594,12 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time + 3_sec)
 		{
 			remainingMonsters = 0;
-			gi.LocBroadcast_Print(PRINT_CENTER, "We have  offhand hook!\n console players configure [wave] emote \n PC players can bind/alias +hook!\n");
+			gi.LocBroadcast_Print(PRINT_CENTER, "???");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 
-			//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			//gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 

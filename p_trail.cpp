@@ -103,7 +103,7 @@ void PlayerTrail_Add(edict_t *player)
 edict_t *PlayerTrail_Pick(edict_t *self, bool next)
 {
 	// not player or doesn't have a trail yet
-	if (!self->enemy->client || !self->enemy->client->trail_head)
+	if (!self->enemy->client || !self->enemy->client->trail_head)  // debugger crash
 		return nullptr;
 
 	// find which marker head that was dropped while we
