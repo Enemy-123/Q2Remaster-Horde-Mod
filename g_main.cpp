@@ -704,7 +704,7 @@ void CheckDMRules()
 				{
 					InitClientPersistant(ent, ent->client);
 					gi.LocCenter_Print(ent, "Horde Mode is being reset.");
-					gi.cvar_set("timelimit", "20");
+					gi.cvar_set("timelimit", "25");
 				}
 				EndDMLevel();
 				HandleResetEvent();
