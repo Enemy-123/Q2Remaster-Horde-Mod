@@ -427,7 +427,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	{
 		ent->s.effects |= EF_TRAP;
 		// clear the owner if in deathmatch
-
+		if (G_IsDeathmatch())
 
 
 		ent->owner = nullptr;

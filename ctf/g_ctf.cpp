@@ -1014,10 +1014,10 @@ void SetCTFStats(edict_t* ent)
 	int		 p1, p2;
 	edict_t* e;
 
-	if (ctfgame.match > MATCH_NONE)
-		ent->client->ps.stats[STAT_CTF_MATCH] = CONFIG_CTF_MATCH;
-	else
-		ent->client->ps.stats[STAT_CTF_MATCH] = 0;
+	//if (ctfgame.match > MATCH_NONE)
+	//	ent->client->ps.stats[STAT_CTF_MATCH] = CONFIG_CTF_MATCH;     //unused so it works on horde hud 
+	//else
+//		ent->client->ps.stats[STAT_CTF_MATCH] = 0;
 
 	if (ctfgame.warnactive)
 		ent->client->ps.stats[STAT_CTF_TEAMINFO] = CONFIG_CTF_TEAMINFO;

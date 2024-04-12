@@ -190,7 +190,7 @@ void Monster_UpdateState(edict_t* monster) {
 		monster->sv.ent_flags |= SVFL_IN_WATER;
 	}
 
-	if (G_IsCooperative()) {
+	if (G_IsCooperative() || g_horde->integer) {
 		monster->sv.team = Team_Coop_Monster;
 	}
 	else {

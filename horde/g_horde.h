@@ -28,5 +28,3 @@ void Hook_Fire(edict_t* owner, vec3_t start, vec3_t forward);
 void Weapon_Hook_Fire(edict_t* ent);
 void Weapon_Hook(edict_t* ent);
 
-extern cvar_t* use_safety;
-extern cvar_t* safety_time;

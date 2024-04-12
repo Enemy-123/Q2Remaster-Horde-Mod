@@ -841,11 +841,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.health = 100;
 	client->pers.max_health = 100;
 
-	// don't give us weapons if we shouldn't have any / ANOTHER BEAUTIFUL HORDE BUGFIX, UNTIL NOW...
+	// don't give us weapons if we shouldn't have any / ANOTHER BEAUTIFUL HORDE BUGFIX, UNTIL NOW...., maybe no more!...
 	// 
 	// 
-	//if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-	//	(!G_TeamplayEnabled() && !client->resp.spectator))
+	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
+		(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
 		// in coop, if there's already a player in the game and we're new,
 		// steal their loadout. this would fix a potential softlock where a new
@@ -984,12 +984,14 @@ void SaveClientData()
 
 void FetchClientEntData(edict_t* ent)
 {
-	ent->health = ent->client->pers.health;
-	ent->max_health = ent->client->pers.max_health = 100;
-	ent->flags |= ent->client->pers.savedFlags;
+		ent->health = ent->client->pers.health;
+		ent->flags |= ent->client->pers.savedFlags;
+	//if (g_horde->integer || !G_IsCooperative())
+	//ent->max_health = ent->client->pers.max_health;
 
-	if (G_IsCooperative() && !g_horde->integer)
-		ent->client->resp.score = ent->client->pers.score;
+	if (G_IsCooperative() && g_horde->integer)
+	ent->client->resp.score = ent->client->pers.score;
+	ent->max_health = ent->client->pers.max_health;
 }
 
 /*
@@ -2172,10 +2174,11 @@ void PutClientInServer(edict_t* ent)
 	if (!(client->pers.spectator)) {
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 1.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 	}
+// HORDE QUAD RESPAWN
 
-	if (client->pers.score >= 60 && (!(client->pers.spectator))) {
-		ent->client->quad_time = max(level.time, ent->client->quad_time) + 15.0_sec;
-	}
+//	if (g_horde->integer && client->pers.score >= 60 && (!(client->pers.spectator && G_IsCooperative()))) {
+//		ent->client->quad_time = max(level.time, ent->client->quad_time) + 15.0_sec;  }
+	
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
 

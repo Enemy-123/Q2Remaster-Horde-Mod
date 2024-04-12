@@ -374,6 +374,8 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 25);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
+	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
+	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
 	G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
 	G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
@@ -430,7 +432,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
 
 
-	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch() && !g_horde->integer)
+	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
 
 	return true;
@@ -1061,9 +1063,9 @@ TOUCH(drop_temp_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool ot
 THINK(drop_make_touchable) (edict_t* ent) -> void
 {
 	ent->touch = Touch_Item;
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() || g_horde->integer)
 	{
-		ent->nextthink = level.time + 29_sec;
+		ent->nextthink = level.time + 45_sec;
 		ent->think = G_FreeEdict;
 	}
 }
@@ -1898,7 +1900,7 @@ always owned, never in the world
 		/* quantity */ 0,
 		/* ammo */ IT_NULL,
 		/* chain */ IT_WEAPON_BLASTER,
-		/* flags */ IF_WEAPON | IF_STAY_COOP | IF_NO_HASTE,
+		/* flags */ IF_WEAPON | IF_STAY_COOP,
 		/* vwep_model */ "#w_chainfist.md2",
 		/* armor_info */ nullptr,
 		/* tag */ 0,

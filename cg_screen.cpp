@@ -1018,28 +1018,6 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             }
         }
 
-        if (!strcmp(token, "waves_num"))
-        {
-            token = COM_Parse(&s);
-            if (!skip_depth)
-            {
-                value = current_wave_number; // Obtener el número de oleada actual
-                int width = 2; // Ancho suficiente para dos dígitos
-                CG_DrawField(x, y, value <= 1 ? flash_frame : 0, width, max(0, value - 1), scale); // Dibujar el número de oleada
-            }
-        }
-
-        if (!strcmp(token, "monsters_num"))
-        {
-            token = COM_Parse(&s);
-            if (!skip_depth)
-            {
-                value = remainingMonsters; // Obtener el número de monsters actual
-                int width = 3;
-                CG_DrawField(x, y, value <= 1 ? flash_frame : 0, width, max(0, value - 1), scale); // Dibujar el número de monsters
-            }
-        }
-
         if (!strcmp(token, "hnum"))
         {
             // health number

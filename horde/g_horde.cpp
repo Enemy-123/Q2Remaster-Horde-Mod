@@ -35,6 +35,9 @@ static void Horde_InitLevel(int32_t lvl)
 	if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
+	if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
+		g_horde_local.num_to_spawn = 28 + (lvl * 5);
+	}
 	if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
@@ -95,7 +98,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 4, 7, 0.20f, adjust_weight_weapon },
 	{ "weapon_machinegun", -1, 5, 0.25f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", 3, 6, 0.23f, adjust_weight_weapon },
+	{ "weapon_etf_rifle", 2, 6, 0.23f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_chaingun", 5, 8, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, 9, 0.15f, adjust_weight_weapon },
@@ -190,7 +193,6 @@ struct boss_t {
 constexpr boss_t BOSS[] = {
 	{ "monster_jorg", 8, 3, 0.75f },
 	{ "monster_shambler", 5, 3, 0.45f },
-	{ "monster_arachnid", 4, 8, 0.85f },
 	{ "monster_guncmdr", -1, -1, 0.22f },
 	{ "monster_berserk", -1, 7, 0.30f },
 	{ "monster_brain", -1, 11, 0.30f },
@@ -442,37 +444,7 @@ static void Horde_CleanBodies()
 			continue;
 		else if (g_edicts[i].svflags & SVF_DEADMONSTER)
 		{
-			G_FreeEdict(&g_edicts[i]);
-		}
-		else if (g_edicts[i].item)
-		{
-			// Eliminar elementos de munición
-	//		if (strstr(g_edicts[i].classname, "weapon_"))
-	//		{
-	//			G_FreeEdict(&g_edicts[i]);
-	//		}
-			 if (strstr(g_edicts[i].classname, "item_"))
-			{
-				// Verificar si el nombre coincide con "item_tech1", "item_tech2", "item_tech3" o "item_tech4"
-				if (strcmp(g_edicts[i].classname, "item_tech1") == 0 ||
-					strcmp(g_edicts[i].classname, "item_tech2") == 0 ||
-					strcmp(g_edicts[i].classname, "item_tech3") == 0 ||
-					strcmp(g_edicts[i].classname, "item_tech4") == 0 ||
-					strcmp(g_edicts[i].classname, "item_pack") == 0  ||
-					strcmp(g_edicts[i].classname, "item_bandolier") == 0)
-				{
-					// No hacer nada, simplemente continuar con el siguiente elemento
-					continue;
-				}
-				else
-				{
-					G_FreeEdict(&g_edicts[i]);
-				}
-			 if (strstr(g_edicts[i].classname, "weapon_"))
-			 {
-				 G_FreeEdict(&g_edicts[i]);
-			 }
-			}
+			G_FreeEdict(&g_edicts[i]);			
 		}
 	}
 }
@@ -714,7 +686,9 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !!\n\n\n\n*****\n\n\n\n REWARD: RESPAWNING QUAD\nWHEN REACHING \n60 FRAGS\n\n\n\n*****");
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !");
+
+
 
 				g_horde_local.warm_time = level.time + 4_sec;
 				g_horde_local.state = horde_state_t::rest;
