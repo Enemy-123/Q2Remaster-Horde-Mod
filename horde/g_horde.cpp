@@ -111,19 +111,19 @@ constexpr struct weighted_item_t {
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 4, -1, 0.1f, adjust_weight_weapon },
+	{ "weapon_supershotgun", 4, -1, 0.14f, adjust_weight_weapon },
 	{ "weapon_machinegun", -1, 5, 0.25f, adjust_weight_weapon },
 	{ "weapon_etf_rifle", 2, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
-	{ "weapon_chaingun", 5, -1, 0.1f, adjust_weight_weapon },
-	{ "weapon_grenadelauncher", 6, -1, 0.1f, adjust_weight_weapon },
-	{ "weapon_proxlauncher", 8, -1, 0.1f, adjust_weight_weapon },
-	{ "weapon_hyperblaster", 5, -1, 0.1f, adjust_weight_weapon },
-	{ "weapon_phalanx", 9, -1, 0.1f, adjust_weight_weapon },
+	{ "weapon_chaingun", 5, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_grenadelauncher", 6, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_proxlauncher", 8, -1, 0.14f, adjust_weight_weapon },
+	{ "weapon_hyperblaster", 5, -1, 0.14f, adjust_weight_weapon },
+	{ "weapon_phalanx", 9, -1, 0.14f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 7, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 5, -1, 0.12f, adjust_weight_weapon },
 	{ "weapon_railgun", 6, -1, 0.12f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 7, -1, 0.12f, adjust_weight_weapon },
+	{ "weapon_plasmabeam", 7, -1, 0.14f, adjust_weight_weapon },
 	{ "weapon_bfg", 14, 17, 0.13f, adjust_weight_weapon },
 
 
@@ -138,8 +138,8 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 5, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 7, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_rockets", 6, -1, 0.45f, adjust_weight_ammo },
-	{ "item_bandolier", -1, -1, 0.3f, adjust_weight_ammo },
-	{ "item_pack", 5, -1, 0.15f, adjust_weight_ammo },
+	{ "item_bandolier", -1, -1, 0.32f, adjust_weight_ammo },
+	{ "item_pack", 5, -1, 0.22f, adjust_weight_ammo },
 
 };
 
@@ -394,7 +394,7 @@ void Horde_PreInit()
 		gi.cvar_set("ctf", "0");
 		gi.cvar_set("teamplay", "0");
 		gi.cvar_set("coop", "0");
-		gi.cvar_set("timelimit", "20");
+		gi.cvar_set("timelimit", "25");
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("sv_target_id", "1");
 //		gi.cvar_set("g_instagib", "1");
@@ -547,7 +547,7 @@ void  SpawnBossAutomatically()
 		// Ajustes adicionales
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
-		boss->s.scale == 1.4;
+		boss->s.scale = 1.4;
 		boss->health *= current_wave_number;
 		boss->s.renderfx = RF_TRANSLUCENT;
 		boss->s.effects = EF_FLAG2;
@@ -581,27 +581,24 @@ void ResetGame() {
 std::chrono::steady_clock::time_point condition_start_time;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
-bool CheckRemainingMonstersCondition() {
-	//if (remainingMonsters <= 13 && current_wave_number >= 3) {
-	if (remainingMonsters <= 13) {
+	bool CheckRemainingMonstersCondition() {
+		if (remainingMonsters <= 9) {
 
-		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
-		if (condition_start_time == std::chrono::steady_clock::time_point()) {
-			condition_start_time = std::chrono::steady_clock::now();
+				// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
+				if (condition_start_time == std::chrono::steady_clock::time_point()) {
+					condition_start_time = std::chrono::steady_clock::now();
+				}
+				// Verifica si la condición ha estado activa durante más de 10 segundos
+				auto current_time = std::chrono::steady_clock::now();
+				auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
+				return duration.count() >= 12;
+			}
+			else {
+				// Si la condición no se cumple, reinicia el tiempo de referencia
+				condition_start_time = std::chrono::steady_clock::time_point();
+			}
+			return false;
 		}
-
-		// Verifica si la condición ha estado activa durante más de 10 segundos
-		auto current_time = std::chrono::steady_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
-		return duration.count() >= 12;
-	}
-	else {
-		// Si la condición no se cumple, reinicia el tiempo de referencia
-		condition_start_time = std::chrono::steady_clock::time_point();
-	}
-
-	return false;
-}
 void Horde_RunFrame()
 {
 	switch (g_horde_local.state)
