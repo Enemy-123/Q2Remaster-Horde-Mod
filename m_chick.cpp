@@ -428,9 +428,9 @@ void ChickRocket(edict_t *self)
 	
 	// [Paril-KEX]
 	if (self->s.skinnum > 1)
-		rocketSpeed = 750;
+		rocketSpeed = 850;
 	else
-		rocketSpeed = 900;
+		rocketSpeed = 1060;
 
 	// PMM
 	if (blindfire)

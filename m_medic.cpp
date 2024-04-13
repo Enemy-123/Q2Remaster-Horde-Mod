@@ -53,8 +53,8 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_boss5 1; monster_arachnid 2; monster_jorg 1; monster_guardian 1; monster_shambler 3; monster_boss2 1";
-constexpr int32_t default_monster_slots_base = 3;
+constexpr const char* default_reinforcements = "monster_arachnid 2; monster_jorg 6; monster_shambler 3; monster_boss2 6";
+constexpr int32_t default_monster_slots_base = 4;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
 

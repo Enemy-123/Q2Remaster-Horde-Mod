@@ -199,10 +199,10 @@ MMOVE_T(tank_move_stop_run) = { FRAME_walk21, FRAME_walk25, tank_frames_stop_run
 
 MONSTERINFO_RUN(tank_run) (edict_t *self) -> void
 {
-	if (self->enemy && self->enemy->client)
-		self->monsterinfo.aiflags |= AI_BRUTAL;
-	else
-		self->monsterinfo.aiflags &= ~AI_BRUTAL;
+	//if (self->enemy && self->enemy->client)
+	//	self->monsterinfo.aiflags |= AI_BRUTAL;
+	//else
+	//	self->monsterinfo.aiflags &= ~AI_BRUTAL;    //trying to unable tank brutal, so he don't lose time after killing a player and its being attacked by another
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 	{

@@ -17,13 +17,13 @@ carrier
 #include "../m_flash.h"
 
 // nb: specifying flyer multiple times so it has a higher chance
-constexpr const char *default_reinforcements = "monster_daedalus 3;monster_daedalus 1;monster_floater 2;monster_floater 1;monster_kamikaze 1;monster_hover 2";
-constexpr int32_t default_monster_slots_base = 9;
+constexpr const char *default_reinforcements = "monster_daedalus 1;monster_floater 2;monster_floater 3;monster_kamikaze 1;monster_hover 4";
+constexpr int32_t default_monster_slots_base = 5;
 constexpr spawnflags_t SPAWNFLAG_CARRIER2 = 8_spawnflag;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 2_sec; // number of seconds between rocket shots
-constexpr int32_t CARRIER_ROCKET_SPEED = 750;
-constexpr gtime_t RAIL_FIRE_TIME = 3_sec;
+constexpr int32_t CARRIER_ROCKET_SPEED = 950;
+constexpr gtime_t RAIL_FIRE_TIME = 2_sec;
 
 bool infront(edict_t *self, edict_t *other);
 bool inback(edict_t *self, edict_t *other);

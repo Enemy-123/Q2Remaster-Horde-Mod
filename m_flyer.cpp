@@ -505,15 +505,15 @@ static void flyer_set_fly_parameters(edict_t* self, bool melee)
 		self->monsterinfo.fly_thrusters = true;
 		self->monsterinfo.fly_position_time = 0_sec;
 		self->monsterinfo.fly_acceleration = 20.f;
-		self->monsterinfo.fly_speed = 210.f;
-		self->monsterinfo.fly_min_distance = 3.f;
-		self->monsterinfo.fly_max_distance = 10.f;
+		self->monsterinfo.fly_speed = 310.f;
+		self->monsterinfo.fly_min_distance = 0.f;
+		self->monsterinfo.fly_max_distance = 40.f;
 	}
 	else
 	{
 		self->monsterinfo.fly_thrusters = false;
 		self->monsterinfo.fly_acceleration = 15.f;
-		self->monsterinfo.fly_speed = 165.f;
+		self->monsterinfo.fly_speed = 175.f;
 		self->monsterinfo.fly_min_distance = 45.f;
 		self->monsterinfo.fly_max_distance = 200.f;
 	}
@@ -533,7 +533,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	{
 		// fly-by slicing!
 		self->monsterinfo.attack_state = AS_STRAIGHT;
-		M_SetAnimation(self, &flyer_move_start_melee);
+		M_SetAnimation(self, &flyer_move_kamikaze);
 		flyer_set_fly_parameters(self, true);
 	}
 	else

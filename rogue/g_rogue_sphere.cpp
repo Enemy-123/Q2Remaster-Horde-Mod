@@ -10,7 +10,7 @@
 
 #include "../g_local.h"
 
-constexpr gtime_t DEFENDER_LIFESPAN = 20_sec;
+constexpr gtime_t DEFENDER_LIFESPAN = 30_sec;
 constexpr gtime_t HUNTER_LIFESPAN = 30_sec;
 constexpr gtime_t VENGEANCE_LIFESPAN = 30_sec;
 constexpr gtime_t MINIMUM_FLY_TIME = 15_sec;

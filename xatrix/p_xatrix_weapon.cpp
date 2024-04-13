@@ -107,7 +107,6 @@ void weapon_phalanx_fire(edict_t* ent)
 		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 		G_RemoveAmmo(ent);
-		G_RemoveAmmo(ent);
 	}
 	else
 	{

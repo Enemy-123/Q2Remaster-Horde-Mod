@@ -1430,7 +1430,7 @@ void SP_monster_guncmdr(edict_t *self)
 	self->maxs = vec3_t { 16, 16, 36 };
 	self->s.skinnum = 2;
 
-	self->health = 325 * st.health_multiplier;
+	self->health = 275 * st.health_multiplier;
 	self->gib_health = -175;
 	self->mass = 255;
 

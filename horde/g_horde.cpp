@@ -32,7 +32,7 @@ static void Horde_InitLevel(int32_t lvl)
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 
-	if 	(!Q_strcasecmp(level.mapname, "base1")) {
+	    if 	(!Q_strcasecmp(level.mapname, "base1")) {
 		g_horde_local.num_to_spawn = 30 + (lvl * 5);
 	}
 		if 	(!Q_strcasecmp(level.mapname, "base2")) {
@@ -47,19 +47,26 @@ static void Horde_InitLevel(int32_t lvl)
 		if 	(!Q_strcasecmp(level.mapname, "ware1")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-	if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
+	    if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
-	if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
+	    if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
 		g_horde_local.num_to_spawn = 34 + (lvl * 4);
 	}
-	if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
+	    if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
-	if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
+	    if 	(!Q_strcasecmp(level.mapname, "q2dm1")) {
+		g_horde_local.num_to_spawn = 10 + (lvl * 2);
+	}
+	    if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 2);
 	}
-	else 
+        if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
+		g_horde_local.num_to_spawn = 10 + (lvl * 2);
+	}
+
+	    else 
 		g_horde_local.num_to_spawn = 12 + (lvl * 2);
 
 }
@@ -138,7 +145,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 5, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 7, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_rockets", 6, -1, 0.45f, adjust_weight_ammo },
-	{ "item_bandolier", -1, -1, 0.32f, adjust_weight_ammo },
+	{ "item_bandolier", 3, -1, 0.32f, adjust_weight_ammo },
 	{ "item_pack", 5, -1, 0.22f, adjust_weight_ammo },
 
 };
@@ -165,36 +172,37 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 
 constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, 3, 0.75f },
-	{ "monster_fixbot", 5, -1, 0.45f },
+	{ "monster_fixbot", 6, -1, 0.53f },
 	{ "monster_soldier", -1, 3, 0.45f },
-	{ "monster_soldier_hypergun", -1, 8, 0.75f },
-	{ "monster_stalker", 3, 6, 0.22f },
-	{ "monster_gekk", 3, 8, 0.30f },
-	{ "monster_parasite", 4, 9, 0.30f },
-	{ "monster_brain", 4, 11, 0.30f },
+	{ "monster_soldier_hypergun", -1, 8, 0.65f },
+	{ "monster_stalker", 3, 10, 0.23f },
+	{ "monster_gekk", 3, -1, 0.30f },
+	{ "monster_parasite", 4, -1, 0.2f },
+	{ "monster_brain", 4, 13, 0.30f },
 	{ "monster_soldier_lasergun", -1, 8, 0.75f },
 	{ "monster_soldier_ripper", 2, 9, 0.75f },
-	{ "monster_infantry", 2, 9, 0.90f },
+	{ "monster_infantry", 2, 13, 0.90f },
 	{ "monster_gunner", 3, -1, 0.80f },
-	{ "monster_chick", 4, 9, 0.92f },
+	{ "monster_chick", 4, 14, 0.92f },
 	{ "monster_guncmdr", 8, -1, 1.1f },
-	{ "monster_gladiator", 4, 10, 1.1f },
+	{ "monster_gladiator", 6, -1, 1.1f },
 	{ "monster_chick_heat", 7, -1, 0.63f },
-	{ "monster_tank_commander", 7, 11, 0.65f },
-	{ "monster_mutant", 5, -1, 0.65f },
-	{ "monster_tank", 6, 10, 0.45f },
+	{ "monster_tank_commander", 10, -1, 0.65f },
+	{ "monster_mutant", 7, -1, 0.65f },
+	{ "monster_tank", 8, 14, 0.45f },
 	{ "monster_janitor2", 11, -1, 0.15f },
 	{ "monster_gladb", 10, -1, 0.5f },
 	{ "monster_janitor", 9, -1, 0.18f },
-	{ "monster_hover", 8, -1, 0.85f },
-	{ "monster_flyer", -1, 6, 0.65f },
-	{ "monster_floater", 5, -1, 0.65f },
+	{ "monster_hover", 8, -1, 0.65f },
+	{ "monster_flyer", -1, 9, 0.45f },
+	{ "monster_floater", 8, -1, 0.55f },
+	{ "monster_daedalus", 7, -1, 0.52f },
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 12, -1, 0.4f },
-	//{ "monster_carrier2", 14, -1, 0.07f },
-	{ "monster_berserk", 5, -1, 0.65f },
+	{ "monster_carrier2", 18, -1, 0.07f },
+	{ "monster_berserk", 6, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
-	{ "monster_tank_64", 12, -1, 0.5f },
+	{ "monster_tank_64", 13, -1, 0.5f },
 	{ "monster_medic", 9, 14, 0.12f },
 	{ "monster_medic_commander", 15, -1, 0.13f },
 };
@@ -535,6 +543,7 @@ void  SpawnBossAutomatically()
 			boss->s.origin[1] = -256;
 			boss->s.origin[2] = 272;
 		}
+
 		else {
 			return; 
 		}
@@ -550,7 +559,7 @@ void  SpawnBossAutomatically()
 		boss->s.scale = 1.4;
 		boss->health *= current_wave_number;
 		boss->s.renderfx = RF_TRANSLUCENT;
-		boss->s.effects = EF_FLAG2;
+		boss->s.effects = EF_FLAG1;
 
 		vec3_t effectPosition = boss->s.origin;
 		effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
@@ -564,6 +573,8 @@ void  SpawnBossAutomatically()
 
 		// Llama a la función para spawnear el monstruo
 		ED_CallSpawn(boss);
+		gi.LocBroadcast_Print(PRINT_MEDIUM, "CHAMPION STROGG SPAWNED!\n");
+
 	}
 }
 
@@ -656,7 +667,7 @@ void Horde_RunFrame()
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-				g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 1.4_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.0_sec);
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
 				e->health *= pow(1.033, current_wave_number);
@@ -674,13 +685,13 @@ void Horde_RunFrame()
 					}
 
 					g_horde_local.state = horde_state_t::cleanup;
-					g_horde_local.monster_spawn_time = level.time + 3_sec;
+					g_horde_local.monster_spawn_time = level.time + 2_sec;
 				}
 			}
 			else
 			{
 				remainingMonsters = level.total_monsters + 1 - level.killed_monsters;; // Calcula la cantidad de monstruos restantes
-				g_horde_local.monster_spawn_time = level.time + 1.5_sec;
+				g_horde_local.monster_spawn_time = level.time + 1.3_sec;
 			}
 		}
 		break;
@@ -690,7 +701,7 @@ void Horde_RunFrame()
 	case horde_state_t::cleanup:
 
 		if (CheckRemainingMonstersCondition()) {
-			gi.LocBroadcast_Print(PRINT_MEDIUM, "Wave skipped!");
+			gi.LocBroadcast_Print(PRINT_MEDIUM, "--Wave SKIPPED!--\n");
 			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 			g_horde_local.state = horde_state_t::rest;
 			break;

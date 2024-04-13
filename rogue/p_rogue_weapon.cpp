@@ -266,14 +266,14 @@ ETF RIFLE
 void weapon_etf_rifle_fire(edict_t *ent)
 {
 	int	   damage;
-	int	   kick = 3;
+	int	   kick = 4;
 	int	   i;
 	vec3_t offset;
 
 	if (G_IsDeathmatch())
-		damage = 13;
+		damage = 14;
 	else
-		damage = 13;
+		damage = 14;
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -316,7 +316,7 @@ void weapon_etf_rifle_fire(edict_t *ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle + kick_angles, offset, start, dir);
-	fire_flechette(ent, start, dir, damage, 2450, kick);
+	fire_flechette(ent, start, dir, damage, 2650, kick);
 	Weapon_PowerupSound(ent);
 
 	// send muzzle flash
@@ -351,7 +351,7 @@ void Weapon_ETF_Rifle(edict_t *ent)
 }
 
 constexpr int32_t HEATBEAM_DM_DMG = 10;
-constexpr int32_t HEATBEAM_SP_DMG = 20;
+constexpr int32_t HEATBEAM_SP_DMG = 23;
 
 void Heatbeam_Fire(edict_t *ent)
 {
@@ -396,7 +396,7 @@ void Heatbeam_Fire(edict_t *ent)
 	// really knock 'em around in deathmatch
 		kick = 75;
 	else
-		kick = 55;
+		kick = 60;
 
 	if (is_quad)
 	{

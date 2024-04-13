@@ -326,7 +326,7 @@ MMOVE_T(supertank_move_death) = { FRAME_death_1, FRAME_death_24, supertank_frame
 mframe_t supertank_frames_attack4[] = {
 	{ ai_move, 0, supertankGrenade },
 	{ ai_move, 0, supertankGrenade },
-	{ ai_move },
+	{ ai_move, 0, supertankGrenade },
 	{ ai_move, 0, supertankGrenade },
 	{ ai_move, 0, supertankGrenade },
 	{ ai_move }
@@ -334,10 +334,10 @@ mframe_t supertank_frames_attack4[] = {
 MMOVE_T(supertank_move_attack4) = { FRAME_attak4_1, FRAME_attak4_6, supertank_frames_attack4, supertank_run };
 
 mframe_t supertank_frames_attack2[] = {
-	{ ai_charge },
+	{ ai_charge, 0, supertankRocket },
 	{ ai_charge, 0, supertankRocket },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, supertankRocket },
 	{ ai_charge, 0, supertankRocket },
 	{ ai_charge },
 	{ ai_charge },
@@ -477,7 +477,7 @@ void supertankRocket(edict_t *self)
 		vec[2] += self->enemy->viewheight;
 		dir = vec - start;
 		dir.normalize();
-		monster_fire_heat(self, start, dir, 40, 500, flash_number, 0.075f);
+		monster_fire_heat(self, start, dir, 40, 900, flash_number, 0.075f);
 	}
 	else
 	{
@@ -743,17 +743,18 @@ void SP_monster_janitor(edict_t* self)
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
 	if (!self->s.scale)
-		self->s.scale = 0.5f;
+		self->s.scale = 0.6f;
 
-	self->mins = { -24, -24, 0 };
-	self->maxs = { 24,24, 44 };
+
+	self->mins = { -26, -26, 0 };
+	self->maxs = { 26,26, 48 };
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 800;
 
-	self->health = 800 * st.health_multiplier;
+	self->health = 900 * st.health_multiplier;
 	self->mass = 200;
 }
 

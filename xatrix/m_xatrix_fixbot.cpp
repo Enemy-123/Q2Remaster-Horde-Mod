@@ -102,8 +102,8 @@ edict_t *fixbot_FindDeadMonster(edict_t *self)
 static void fixbot_set_fly_parameters(edict_t *self, bool heal, bool weld)
 {
 	self->monsterinfo.fly_position_time = 0_sec;
-	self->monsterinfo.fly_acceleration = 5.f;
-	self->monsterinfo.fly_speed = 110.f;
+	self->monsterinfo.fly_acceleration = 25.f;
+	self->monsterinfo.fly_speed = 210.f;
 	self->monsterinfo.fly_buzzard = false;
 
 	if (heal)
@@ -1083,25 +1083,25 @@ MMOVE_T(fixbot_move_laserattack) = { FRAME_shoot_01, FRAME_shoot_06, fixbot_fram
 	for the charge attack
 */
 mframe_t fixbot_frames_attack2[] = {
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
 
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
-	{ ai_charge, -10 },
-	{ ai_charge, -10 },
-	{ ai_charge, -10 },
-	{ ai_charge, -10 },
-	{ ai_charge, -10 },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
 	{ ai_charge, -10 },
 
@@ -1259,7 +1259,7 @@ void fixbot_fire_blaster(edict_t* self)
 			radius_damage /= 2;
 		}
 
-		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+		fire_plasma(self, start, dir, damage, 755, radius_damage, radius_damage);
 
 		// save for aiming the shot
 		self->pos1 = self->enemy->s.origin;
@@ -1407,5 +1407,5 @@ void SP_monster_fixbot(edict_t *self)
 	flymonster_start(self);
 
 	if (!self->s.scale)
-		self->s.scale = 1.7f;
+		self->s.scale = 1.8f;
 }

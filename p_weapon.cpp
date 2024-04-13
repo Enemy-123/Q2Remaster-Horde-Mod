@@ -1600,10 +1600,9 @@ void Chaingun_Fire(edict_t *ent)
 
 
 	if (G_IsDeathmatch())
-		damage = 6;
+		damage = 11;
 	else
-		damage = 9;
-
+		damage = 11;
 	if (ent->client->ps.gunframe > 31)
 	{
 		ent->client->ps.gunframe = 5;
@@ -1774,7 +1773,7 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 7;
+	int damage = 13;
 	int kick = 17;
 
 	if (is_quad)

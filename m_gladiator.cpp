@@ -152,7 +152,7 @@ void GladiatorGun(edict_t *self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 50, 100, MZ2_GLADIATOR_RAILGUN_1);
+	monster_fire_railgun(self, start, dir, 80, 100, MZ2_GLADIATOR_RAILGUN_1);
 }
 
 mframe_t gladiator_frames_attack_gun[] = {
@@ -188,12 +188,12 @@ void gladbGun(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 20, 500, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, 20, 900, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 11, 1100, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, 11, 1250, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
 void gladbGun_check(edict_t *self)
@@ -204,11 +204,11 @@ void gladbGun_check(edict_t *self)
 
 mframe_t gladb_frames_attack_gun[] = {
 	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, gladbGun },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, gladbGun },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, gladbGun_check }
@@ -421,14 +421,13 @@ void SP_monster_gladiator(edict_t *self)
 	{
 		sound_gunb.assign("weapons/disrupt.wav");
 
-		self->health = 600 * st.health_multiplier;
+		self->health = 380 * st.health_multiplier;
 		self->mass = 350;
 
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 550;
-
+			self->monsterinfo.power_armor_power = 215;
 		self->s.skinnum = 2;
 
 		self->style = 1;
@@ -440,7 +439,7 @@ void SP_monster_gladiator(edict_t *self)
 		// RAFAEL
 		sound_gun.assign("gladiator/railgun.wav");
 
-		self->health = 400 * st.health_multiplier;
+		self->health = 320 * st.health_multiplier;
 		self->mass = 400;
 		// RAFAEL
 
