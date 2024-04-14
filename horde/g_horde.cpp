@@ -199,12 +199,12 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_daedalus", 7, -1, 0.52f },
 	{ "monster_makron", 13, -1, 0.2f },
 	{ "monster_boss2_64", 12, -1, 0.4f },
-	{ "monster_carrier2", 18, -1, 0.07f },
+//	{ "monster_carrier2", 18, -1, 0.07f },
 	{ "monster_berserk", 6, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 13, -1, 0.5f },
 	{ "monster_medic", 9, 14, 0.12f },
-	{ "monster_medic_commander", 15, -1, 0.13f },
+//	{ "monster_medic_commander", 15, -1, 0.13f },
 };
 
 struct boss_t {
@@ -654,7 +654,7 @@ void Horde_RunFrame()
 				e->item = G_HordePickItem();
 				// e->s.renderfx = RF_TRANSLUCENT;
 				ED_CallSpawn(e);
-				remainingMonsters = level.total_monsters + 1 - level.killed_monsters; // Calcula la cantidad de monstruos restantes
+				remainingMonsters = level.total_monsters - level.killed_monsters; // Calcula la cantidad de monstruos restantes
 
 
 				{

@@ -55,12 +55,25 @@ struct statusbar_t
 		return *this;
 	}
 
-	inline auto &waves_num(player_stat_t stat) { sb << "waves_num " << stat << ' '; return *this; }
-	inline auto &monsters_num(player_stat_t stat) { sb << "monsters_num " << stat << ' '; return *this; }
-
 	inline auto &lives_num(player_stat_t stat) { sb << "lives_num " << stat << ' '; return *this; }
 	inline auto &stat_pname(player_stat_t stat) { sb << "stat_pname " << stat << ' '; return *this; }
 
 	inline auto &health_bars() { sb << "health_bars "; return *this; }
 	inline auto &story() { sb << "story "; return *this; }
+/*
+	inline auto& player_info(statusbar_t& sb, player_stat_t name_stat, player_stat_t health_stat, player_stat_t armor_stat)
+	{
+		sb.sb << "stat_pname " << name_stat << ' ';
+
+		sb.sb << "loc_stat_string " << health_stat << " ";
+		sb.sb << "loc_rstring \"HP: \" ";
+		sb.sb << "num 3 " << health_stat << ' ';
+
+		sb.sb << "loc_stat_string " << armor_stat << " ";
+		sb.sb << "loc_rstring \"Armor: \" ";
+		sb.sb << "num 3 " << armor_stat << ' ';
+
+		return sb;
+	}
+	*/
 };

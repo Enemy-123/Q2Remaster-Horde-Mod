@@ -387,7 +387,7 @@ R_ConcatRotations
 
 	for (size_t i = 0; i < 3; i++)
     {
-        if (absmaxsa[i] < absminsb[i])
+        if (absmaxsa[i] < absminsb[i]) // CRASH q2dm4 debugger!
         {
             float d = absmaxsa[i] - absminsb[i];
             len += d * d;

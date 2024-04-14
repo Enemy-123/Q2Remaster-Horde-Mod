@@ -1570,7 +1570,7 @@ static void G_InitStatusbar()
 
 			//  MONSTERS COUNT
 
-			sb.xv(405).yb(-23).num(2, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+			sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
 
 
 		//	sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");

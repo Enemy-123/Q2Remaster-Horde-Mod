@@ -338,7 +338,7 @@ bool M_droptofloor_generic(vec3_t& origin, const vec3_t& mins, const vec3_t& max
 	trace_t trace;
 
 	// PGM
-	if (gi.trace(origin, mins, maxs, origin, ignore, mask).startsolid)
+	if (gi.trace(origin, mins, maxs, origin, ignore, mask).startsolid)  // crash en q2dm4 visto debugger, commander muere arrinconado mirando a pared por disruptor, dropeó item probable, commander_64 con mayor hitbox
 	{
 		if (!ceiling)
 			origin[2] += 1;

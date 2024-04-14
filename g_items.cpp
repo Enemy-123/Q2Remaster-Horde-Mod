@@ -371,7 +371,8 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_SLUGS, 80);
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 80);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 275);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 25);
+	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 20);
+	G_AdjustAmmoCap(other, AMMO_TESLA, 7);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
@@ -408,6 +409,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 150);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 400);
 	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 60);
+	G_AdjustAmmoCap(other, AMMO_TESLA, 10);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
