@@ -1936,6 +1936,8 @@ extern cvar_t* g_strict_saves;
 extern cvar_t* g_coop_health_scaling;
 extern cvar_t* g_weapon_respawn_time;
 
+extern cvar_t* g_chaotic;
+
 extern cvar_t* g_no_self_damage;
 extern cvar_t* g_no_health;
 extern cvar_t* g_no_items;

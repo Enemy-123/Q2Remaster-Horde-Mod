@@ -143,10 +143,10 @@ cvar_t* ai_movement_disabled;
 
 // Kyper - Lithium port
 cvar_t* g_use_hook;
-cvar_t* g_hook_help;
 cvar_t* g_hook_wave;
-
+cvar_t* g_hook_help;
 cvar_t* g_entity_override_load;
+cvar_t* g_chaotic;
 
 static cvar_t* g_frames_per_frame;
 
@@ -373,6 +373,7 @@ void InitGame()
 	g_allow_techs = gi.cvar("g_allow_techs", "auto", CVAR_NOFLAGS);
 
 	g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
+	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
 
 
 	g_start_items = gi.cvar("g_start_items", "", CVAR_LATCH);

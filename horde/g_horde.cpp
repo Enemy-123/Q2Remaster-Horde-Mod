@@ -15,7 +15,7 @@ enum class horde_state_t
 };
 
 static struct {
-	gtime_t			warm_time = 5_sec;
+	gtime_t			warm_time = 2_sec;
 	horde_state_t	state = horde_state_t::warmup;
 
 	gtime_t			monster_spawn_time;
@@ -56,15 +56,15 @@ static void Horde_InitLevel(int32_t lvl)
 	    if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
-	    if 	(!Q_strcasecmp(level.mapname, "q2dm1")) {
-		g_horde_local.num_to_spawn = 10 + (lvl * 2);
-	}
+//	    if 	(!Q_strcasecmp(level.mapname, "q2dm1")) {
+//		g_horde_local.num_to_spawn = 10 + (lvl * 2);
+//	}
 	    if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 2);
 	}
-        if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
-		g_horde_local.num_to_spawn = 10 + (lvl * 2);
-	}
+ //       if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
+//		g_horde_local.num_to_spawn = 10 + (lvl * 2);
+//	}
 
 	    else 
 		g_horde_local.num_to_spawn = 12 + (lvl * 2);
@@ -171,16 +171,17 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 }
 
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, 3, 0.75f },
+	{ "monster_soldier_light", -1, 5, 0.75f },
+	{ "monster_soldier_ss", -1, 5, 0.75f },
 	{ "monster_fixbot", 6, -1, 0.53f },
-	{ "monster_soldier", -1, 3, 0.45f },
-	{ "monster_soldier_hypergun", -1, 8, 0.65f },
+	{ "monster_soldier", -1, 4, 0.45f },
+	{ "monster_soldier_hypergun", 2, 8, 0.65f },
 	{ "monster_stalker", 3, 10, 0.23f },
 	{ "monster_gekk", 3, -1, 0.30f },
 	{ "monster_parasite", 4, -1, 0.2f },
-	{ "monster_brain", 4, 13, 0.30f },
-	{ "monster_soldier_lasergun", -1, 8, 0.75f },
-	{ "monster_soldier_ripper", 2, 9, 0.75f },
+	{ "monster_brain", 4, -1, 0.25f },
+	{ "monster_soldier_lasergun", 2, 8, 0.75f },
+	{ "monster_soldier_ripper", 3, 9, 0.75f },
 	{ "monster_infantry", 2, 13, 0.90f },
 	{ "monster_gunner", 3, -1, 0.80f },
 	{ "monster_chick", 4, 14, 0.92f },
@@ -189,7 +190,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_chick_heat", 7, -1, 0.63f },
 	{ "monster_tank_commander", 10, -1, 0.65f },
 	{ "monster_mutant", 7, -1, 0.65f },
-	{ "monster_tank", 8, 14, 0.45f },
+	{ "monster_tank", 8, -1, 0.45f },
 	{ "monster_janitor2", 11, -1, 0.15f },
 	{ "monster_gladb", 10, -1, 0.5f },
 	{ "monster_janitor", 9, -1, 0.18f },
@@ -204,6 +205,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 13, -1, 0.5f },
 	{ "monster_medic", 9, 14, 0.12f },
+	{ "monster_shambler", 16, -1, 0.72f },
 //	{ "monster_medic_commander", 15, -1, 0.13f },
 };
 
@@ -557,9 +559,9 @@ void  SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health *= current_wave_number;
+		boss->health *= pow(1.18, current_wave_number);
 		boss->s.renderfx = RF_TRANSLUCENT;
-		boss->s.effects = EF_FLAG1;
+		boss->s.effects = EF_FLAG1 | EF_QUAD;
 
 		vec3_t effectPosition = boss->s.origin;
 		effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
@@ -570,11 +572,8 @@ void  SpawnBossAutomatically()
 		gi.WriteByte(TE_BOSSTPORT);
 		gi.WritePosition(effectPosition);
 		gi.multicast(effectPosition, MULTICAST_PHS, false);
-
 		// Llama a la función para spawnear el monstruo
 		ED_CallSpawn(boss);
-		gi.LocBroadcast_Print(PRINT_MEDIUM, "CHAMPION STROGG SPAWNED!\n");
-
 	}
 }
 
@@ -592,38 +591,62 @@ void ResetGame() {
 std::chrono::steady_clock::time_point condition_start_time;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
-	bool CheckRemainingMonstersCondition() {
-		if (remainingMonsters <= 9) {
-
-				// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
-				if (condition_start_time == std::chrono::steady_clock::time_point()) {
-					condition_start_time = std::chrono::steady_clock::now();
-				}
-				// Verifica si la condición ha estado activa durante más de 10 segundos
-				auto current_time = std::chrono::steady_clock::now();
-				auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
-				return duration.count() >= 12;
-			}
-			else {
-				// Si la condición no se cumple, reinicia el tiempo de referencia
-				condition_start_time = std::chrono::steady_clock::time_point();
-			}
-			return false;
+bool CheckRemainingMonstersCondition() {
+	if (remainingMonsters <= 7 && current_wave_number <= 7) {
+		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
+		if (condition_start_time == std::chrono::steady_clock::time_point()) {
+			condition_start_time = std::chrono::steady_clock::now();
 		}
+
+		// Verifica si la condición ha estado activa durante más de 12 segundos
+		auto current_time = std::chrono::steady_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
+
+		if (duration.count() >= 25) {
+			return true;
+		}
+	}
+	else if (remainingMonsters <= 12 && current_wave_number >= 8) {
+		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
+		if (condition_start_time == std::chrono::steady_clock::time_point()) {
+			condition_start_time = std::chrono::steady_clock::now();
+		}
+
+		// Verifica si la condición ha estado activa durante más de 12 segundos
+		auto current_time = std::chrono::steady_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
+
+		if (duration.count() >= 12) {
+			return true;
+		}
+	}
+	else {
+		// Si la condición no se cumple, reinicia el tiempo de referencia
+		condition_start_time = std::chrono::steady_clock::time_point();
+	}
+	return false;
+}
+
 void Horde_RunFrame()
 {
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time + 3_sec)
+		if (g_horde_local.warm_time < level.time + 1_sec)
 		{
 			remainingMonsters = 0;
-			gi.LocBroadcast_Print(PRINT_CENTER, "???");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 
+			if (!g_chaotic->integer) {
+				gi.LocBroadcast_Print(PRINT_CENTER, "???");
+				//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			}
+			else if (g_chaotic->integer)
+				gi.LocBroadcast_Print(PRINT_CENTER, "CHAOS IMMINENT");
 			//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 
@@ -640,6 +663,7 @@ void Horde_RunFrame()
 			// Llama a la función para spawnear el jefe solo si es el momento adecuado
 			if (g_horde_local.num_to_spawn == BOSS_TO_SPAWN)
 			{
+				gi.LocBroadcast_Print(PRINT_CENTER, "CHAMPION STROGG INCOMING!\n");
 				SpawnBossAutomatically();
 			}
 
@@ -681,7 +705,6 @@ void Horde_RunFrame()
 						std::ostringstream message_stream;
 						message_stream << "New Wave Is Here.\n Current Level: " << g_horde_local.level << "\n";
 						gi.LocBroadcast_Print(PRINT_CENTER, message_stream.str().c_str());
-
 					}
 
 					g_horde_local.state = horde_state_t::cleanup;
@@ -690,7 +713,7 @@ void Horde_RunFrame()
 			}
 			else
 			{
-				remainingMonsters = level.total_monsters + 1 - level.killed_monsters;; // Calcula la cantidad de monstruos restantes
+				remainingMonsters = level.total_monsters - level.killed_monsters;; // Calcula la cantidad de monstruos restantes
 				g_horde_local.monster_spawn_time = level.time + 1.3_sec;
 			}
 		}
@@ -701,7 +724,8 @@ void Horde_RunFrame()
 	case horde_state_t::cleanup:
 
 		if (CheckRemainingMonstersCondition()) {
-			gi.LocBroadcast_Print(PRINT_MEDIUM, "--Wave SKIPPED!--\n");
+			gi.cvar_set("g_chaotic", "1");
+
 			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 			g_horde_local.state = horde_state_t::rest;
 			break;
@@ -711,13 +735,18 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !");
-
-
-
 				g_horde_local.warm_time = level.time + 3_sec;
 				g_horde_local.state = horde_state_t::rest;
 				remainingMonsters = 0; // Actualiza remainingMonsters cuando todos los monstruos han sido eliminados
+
+				if (g_chaotic->integer) {
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG !");
+					gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
+					gi.cvar_set("g_chaotic", "0");
+				}
+				else if (!g_chaotic->integer) {
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !");
+				}
 			}
 			else
 				remainingMonsters = level.total_monsters + 1 - level.killed_monsters; // Calcula la cantidad de monstruos restantes
@@ -729,11 +758,19 @@ void Horde_RunFrame()
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
-			gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
+			if (g_chaotic->integer) {
+				gi.LocBroadcast_Print(PRINT_CENTER, "*******\n--Wave SKIPPED!--\n*******\n CHAOS IMMINENT !!!");
+				gi.sound(world, CHAN_VOICE, gi.soundindex("world/incoming.wav"), 1, ATTN_NONE, 0);
+			}
+			else if (!g_chaotic->integer){
+				gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
+			gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
+		}
+			//gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
-			gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
+
 		}
 		break;
 	}

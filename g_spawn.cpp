@@ -475,7 +475,8 @@ Finds the spawn function for the entity and calls it
 */
 void ED_CallSpawn(edict_t* ent)
 {
-	if (G_IsCooperative() && skill->integer == 3 && !g_horde->integer) {
+	if (g_chaotic->integer == 1) {
+
 		if (!strcmp(ent->classname, "monster_soldier_light")) {
 			ent->classname = "monster_soldier_lasergun";
 		}
@@ -527,7 +528,16 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_brain")) {
 			ent->classname = "monster_berserk";
 		}
-	    else if (!strcmp(ent->classname, "monster_commander_body")) {
+	    else if (!strcmp(ent->classname, "monster_gekk")) {
+		ent->classname = "monster_mutant";
+	    }
+		else if (!strcmp(ent->classname, "monster_daedalus")) {
+		ent->classname = "monster_hover";
+	    }
+		else if (!strcmp(ent->classname, "monster_fixbot")) {
+		ent->classname = "monster_hover";
+	    }
+		else if (!strcmp(ent->classname, "monster_commander_body")) {
 		ent->classname = "monster_tank_64";
 	    }
 		else if (!strcmp(ent->classname, "item_quad")) {
@@ -541,9 +551,8 @@ void ED_CallSpawn(edict_t* ent)
 		}
 		else if (!strcmp(ent->classname, "item_silencer")) {
 			ent->classname = "item_bandolier";
-
+		}
     }
-}
 
 
 	gitem_t* item;

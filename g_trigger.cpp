@@ -1218,7 +1218,7 @@ inline bool trigger_coop_relay_filter(edict_t* player)
 static bool trigger_coop_relay_can_use(edict_t* self, edict_t* activator)
 {
 	// not coop, so act like a standard trigger_relay minus the message
-	if (!G_IsCooperative())
+//	if (!G_IsCooperative()) // improved QOL here, thanks muff!
 		return true;
 
 	// coop; scan for all alive players, print appropriate message
