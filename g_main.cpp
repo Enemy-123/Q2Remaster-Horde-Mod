@@ -550,7 +550,6 @@ The timelimit or fraglimit has been exceeded
 void EndDMLevel()
 {
 	edict_t* ent;
-
 	// stay on same level flag
 	if (g_dm_same_level->integer)
 	{

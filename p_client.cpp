@@ -763,6 +763,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 					for (auto player : active_players())
 						gi.LocCenter_Print(player, "$g_coop_lose");
 					gi.cvar_set("timelimit", "0.01");
+					gi.cvar_set("g_chaotic", "0");
 
 			}
 

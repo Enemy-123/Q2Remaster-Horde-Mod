@@ -2,6 +2,10 @@
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include <sstream>
+
+current_wave_number = 1; // INTENCION: DEJAR QUE AL INTERMISSION SE SIGA VIENDO ULTIMA OLA
+
+
 int remainingMonsters = 0;
 int current_wave_number = 1;
 const int BOSS_TO_SPAWN = 1;
@@ -171,31 +175,31 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 }
 
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, 5, 0.75f },
-	{ "monster_soldier_ss", -1, 5, 0.75f },
+	{ "monster_soldier_light", -1, 6, 0.75f },
+	{ "monster_soldier_ss", -1, 7, 0.75f },
 	{ "monster_fixbot", 6, -1, 0.53f },
 	{ "monster_soldier", -1, 4, 0.45f },
 	{ "monster_soldier_hypergun", 2, 8, 0.65f },
 	{ "monster_stalker", 3, 10, 0.23f },
-	{ "monster_gekk", 3, -1, 0.30f },
+	{ "monster_gekk", 4, -1, 0.30f },
 	{ "monster_parasite", 4, -1, 0.2f },
 	{ "monster_brain", 4, -1, 0.25f },
 	{ "monster_soldier_lasergun", 2, 8, 0.75f },
 	{ "monster_soldier_ripper", 3, 9, 0.75f },
-	{ "monster_infantry", 2, 13, 0.90f },
-	{ "monster_gunner", 3, -1, 0.80f },
-	{ "monster_chick", 4, 14, 0.92f },
-	{ "monster_guncmdr", 8, -1, 1.1f },
-	{ "monster_gladiator", 6, -1, 1.1f },
-	{ "monster_chick_heat", 7, -1, 0.63f },
+	{ "monster_infantry", 3, 14, 0.80f },
+	{ "monster_gunner", 4, -1, 0.74f },
+	{ "monster_chick", 5, 14, 0.80f },
+	{ "monster_guncmdr", 8, -1, 0.9f },
+	{ "monster_gladiator", 6, -1, 0.94f },
+	{ "monster_chick_heat", 7, -1, 0.73f },
 	{ "monster_tank_commander", 10, -1, 0.65f },
-	{ "monster_mutant", 7, -1, 0.65f },
+	{ "monster_mutant", 7, -1, 0.75f },
 	{ "monster_tank", 8, -1, 0.45f },
-	{ "monster_janitor2", 11, -1, 0.15f },
-	{ "monster_gladb", 10, -1, 0.5f },
+	{ "monster_janitor2", 11, -1, 0.12f },
+	{ "monster_gladb", 10, -1, 0.45f },
 	{ "monster_janitor", 9, -1, 0.18f },
-	{ "monster_hover", 8, -1, 0.65f },
-	{ "monster_flyer", -1, 9, 0.45f },
+	{ "monster_hover", 8, -1, 0.55f },
+	{ "monster_flyer", 2, 9, 0.45f },
 	{ "monster_floater", 8, -1, 0.55f },
 	{ "monster_daedalus", 7, -1, 0.52f },
 	{ "monster_makron", 13, -1, 0.2f },
@@ -205,7 +209,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 13, -1, 0.5f },
 	{ "monster_medic", 9, 14, 0.12f },
-	{ "monster_shambler", 16, -1, 0.72f },
+	{ "monster_shambler", 16, -1, 0.65f },
 //	{ "monster_medic_commander", 15, -1, 0.13f },
 };
 
@@ -478,16 +482,26 @@ static void Horde_CleanBodies()
 
 void  SpawnBossAutomatically()
 {
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
-		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
-		((!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
-		((!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0 && current_wave_number != 0))
+	if (current_wave_number != 0 &&
+		((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0) ||
+			(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 7 == 0) ||
+			(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0) ||
+			(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0) ||
+			(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0) ||
+			(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0) ||
+			((!Q_strcasecmp(level.mapname, "dm10") ||
+				!Q_strcasecmp(level.mapname, "q64/dm10") ||
+				!Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0) ||
+			((!Q_strcasecmp(level.mapname, "dm7") ||
+				!Q_strcasecmp(level.mapname, "q64/dm7") ||
+				!Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0) ||
+			((!Q_strcasecmp(level.mapname, "dm2") ||
+				!Q_strcasecmp(level.mapname, "q64/dm2") ||
+				!Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0)))
 	{
+	
+	
+
 		// Solo necesitas un bucle aquí para generar un jefe
 		edict_t* boss = G_Spawn(); // Creas un nuevo edict_t solo si es necesario
 		if (!boss)
@@ -580,9 +594,7 @@ void  SpawnBossAutomatically()
 void ResetGame() {
 	// Reinicia las variables de estado del juego
 	g_horde_local.state = horde_state_t::warmup;
-	current_wave_number = 1;
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
-	remainingMonsters = 0;
 	}
 
 #include <chrono>
