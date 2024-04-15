@@ -9,6 +9,7 @@ bool G_IsDeathmatch();
 bool G_IsCooperative();
 
 void ResetGame();
+bool CheckRemainingMonstersCondition();
 void HandleResetEvent();
 extern int current_wave_number;
 extern int remainingMonsters;

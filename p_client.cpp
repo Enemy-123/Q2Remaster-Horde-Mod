@@ -44,7 +44,7 @@ void SP_info_player_deathmatch(edict_t* self)
 		G_FreeEdict(self);
 		return;
 	}
-	SP_misc_teleporter_dest(self);
+		SP_misc_teleporter_dest(self);
 }
 
 /*QUAKED info_player_coop (1 0 1) (-16 -16 -24) (16 16 32)

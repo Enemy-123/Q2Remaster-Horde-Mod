@@ -34,7 +34,7 @@ void boss2_dead(edict_t *self);
 void boss2_attack_mg(edict_t *self);
 void boss2_reattack_mg(edict_t *self);
 
-constexpr int32_t BOSS2_ROCKET_SPEED = 750;
+constexpr int32_t BOSS2_ROCKET_SPEED = 950;
 
 void Boss2PredictiveRocket(edict_t *self)
 {

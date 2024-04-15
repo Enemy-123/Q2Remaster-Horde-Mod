@@ -845,8 +845,10 @@ void InfantryPrecache()
 	sound_die1.assign("infantry/infdeth1.wav");
 	sound_die2.assign("infantry/infdeth2.wav");
 
-	sound_gunshot.assign("infantry/infatck1.wav");
-	sound_weapon_cock.assign("infantry/infatck3.wav");
+	//sound_gunshot.assign("infantry/infatck1.wav");
+	sound_gunshot.assign("weapons/hyprbf1a.wav");
+//	sound_weapon_cock.assign("infantry/infatck3.wav");
+	sound_weapon_cock.assign("weapons/hyprbu1a.wav");
 	sound_punch_swing.assign("infantry/infatck2.wav");
 	sound_punch_hit.assign("infantry/melee2.wav");
 

@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include <sstream>
 
-current_wave_number = 1; // INTENCION: DEJAR QUE AL INTERMISSION SE SIGA VIENDO ULTIMA OLA
+// current_wave_number = 1; // INTENCION: DEJAR QUE AL INTERMISSION SE SIGA VIENDO ULTIMA OLA
 
 
 int remainingMonsters = 0;
@@ -55,16 +55,19 @@ static void Horde_InitLevel(int32_t lvl)
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
 	    if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
-		g_horde_local.num_to_spawn = 34 + (lvl * 4);
+		g_horde_local.num_to_spawn = 38 + (lvl * 8);
 	}
 	    if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
-		g_horde_local.num_to_spawn = 28 + (lvl * 5);
+		g_horde_local.num_to_spawn = 32 + (lvl * 5);
 	}
 //	    if 	(!Q_strcasecmp(level.mapname, "q2dm1")) {
 //		g_horde_local.num_to_spawn = 10 + (lvl * 2);
 //	}
 	    if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 2);
+	}
+		if 	(!Q_strcasecmp(level.mapname, "q2dm8")) {
+		g_horde_local.num_to_spawn = 12 + (lvl * 4);
 	}
  //       if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
 //		g_horde_local.num_to_spawn = 10 + (lvl * 2);
@@ -175,42 +178,42 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 }
 
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, 6, 0.75f },
-	{ "monster_soldier_ss", -1, 7, 0.75f },
-	{ "monster_fixbot", 6, -1, 0.53f },
+	{ "monster_soldier_light", -1, 8, 0.55f },
+	{ "monster_soldier_ss", -1, -1, 0.55f },
+	{ "monster_fixbot", 6, -1, 0.3f },
 	{ "monster_soldier", -1, 4, 0.45f },
-	{ "monster_soldier_hypergun", 2, 8, 0.65f },
+	{ "monster_soldier_hypergun", 2, 8, 0.55f },
 	{ "monster_stalker", 3, 10, 0.23f },
 	{ "monster_gekk", 4, -1, 0.30f },
 	{ "monster_parasite", 4, -1, 0.2f },
-	{ "monster_brain", 4, -1, 0.25f },
-	{ "monster_soldier_lasergun", 2, 8, 0.75f },
-	{ "monster_soldier_ripper", 3, 9, 0.75f },
-	{ "monster_infantry", 3, 14, 0.80f },
+	{ "monster_brain", 4, -1, 0.35f },
+	{ "monster_soldier_lasergun", 2, -1, 0.55f },
+	{ "monster_soldier_ripper", 3, 9, 0.55f },
+	{ "monster_infantry", 3, -1, 0.80f },
 	{ "monster_gunner", 4, -1, 0.74f },
-	{ "monster_chick", 5, 14, 0.80f },
-	{ "monster_guncmdr", 8, -1, 0.9f },
-	{ "monster_gladiator", 6, -1, 0.94f },
-	{ "monster_chick_heat", 7, -1, 0.73f },
-	{ "monster_tank_commander", 10, -1, 0.65f },
+	{ "monster_chick", 5, -1, 0.80f },
+	{ "monster_guncmdr", 8, -1, 0.4f },
+	{ "monster_gladiator", 8, -1, 0.84f },
+	{ "monster_gladb", 6, -1, 0.95f},
+//	{ "monster_chick_heat", 7, -1, 0.73f },
+	{ "monster_tank_commander", 12, -1, 0.45f },
 	{ "monster_mutant", 7, -1, 0.75f },
 	{ "monster_tank", 8, -1, 0.45f },
 	{ "monster_janitor2", 11, -1, 0.12f },
-	{ "monster_gladb", 10, -1, 0.45f },
 	{ "monster_janitor", 9, -1, 0.18f },
 	{ "monster_hover", 8, -1, 0.55f },
 	{ "monster_flyer", 2, 9, 0.45f },
 	{ "monster_floater", 8, -1, 0.55f },
 	{ "monster_daedalus", 7, -1, 0.52f },
 	{ "monster_makron", 13, -1, 0.2f },
-	{ "monster_boss2_64", 12, -1, 0.4f },
-//	{ "monster_carrier2", 18, -1, 0.07f },
+	{ "monster_boss2_64", 12, 16, 0.27f },
 	{ "monster_berserk", 6, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
-	{ "monster_tank_64", 13, -1, 0.5f },
-	{ "monster_medic", 9, 14, 0.12f },
-	{ "monster_shambler", 16, -1, 0.65f },
-//	{ "monster_medic_commander", 15, -1, 0.13f },
+	{ "monster_tank_64", 11, -1, 0.27f },
+	{ "monster_medic", 3, -1, 0.12f },
+	{ "monster_shambler", 15, -1, 0.37f },
+//	{ "monster_medic_commander", 16, -1, 0.13f },
+//	{ "monster_carrier2", 16, -1, 0.07f },
 };
 
 struct boss_t {
@@ -482,22 +485,15 @@ static void Horde_CleanBodies()
 
 void  SpawnBossAutomatically()
 {
-	if (current_wave_number != 0 &&
-		((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0) ||
-			(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 7 == 0) ||
-			(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0) ||
-			(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0) ||
-			(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0) ||
-			(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0) ||
-			((!Q_strcasecmp(level.mapname, "dm10") ||
-				!Q_strcasecmp(level.mapname, "q64/dm10") ||
-				!Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0) ||
-			((!Q_strcasecmp(level.mapname, "dm7") ||
-				!Q_strcasecmp(level.mapname, "q64/dm7") ||
-				!Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0) ||
-			((!Q_strcasecmp(level.mapname, "dm2") ||
-				!Q_strcasecmp(level.mapname, "q64/dm2") ||
-				!Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0)))
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0 && current_wave_number != 0))
 	{
 	
 	
@@ -573,7 +569,7 @@ void  SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health *= pow(1.18, current_wave_number);
+		boss->health *= pow(1.24, current_wave_number);
 		boss->s.renderfx = RF_TRANSLUCENT;
 		boss->s.effects = EF_FLAG1 | EF_QUAD;
 
@@ -604,34 +600,36 @@ std::chrono::steady_clock::time_point condition_start_time;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
 bool CheckRemainingMonstersCondition() {
-	if (remainingMonsters <= 7 && current_wave_number <= 7) {
+
+	if (remainingMonsters <= 6 && current_wave_number <= 7 && !g_horde_local.num_to_spawn) {
+		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
+		if (condition_start_time == std::chrono::steady_clock::time_point()) {
+			condition_start_time = std::chrono::steady_clock::now();
+		}
+		// Verifica si la condición ha estado activa durante más de 25 segundos
+		auto current_time = std::chrono::steady_clock::now();
+		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
+
+
+		if (duration.count() >= 16) {
+			return true;
+		}
+	}
+	else if (remainingMonsters <= 8 && current_wave_number >= 8 && !g_horde_local.num_to_spawn) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
 		}
 
-		// Verifica si la condición ha estado activa durante más de 12 segundos
+		// Verifica si la condición ha estado activa durante más de 17 segundos
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 25) {
+		if (duration.count() >= 19) {
 			return true;
 		}
 	}
-	else if (remainingMonsters <= 12 && current_wave_number >= 8) {
-		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
-		if (condition_start_time == std::chrono::steady_clock::time_point()) {
-			condition_start_time = std::chrono::steady_clock::now();
-		}
 
-		// Verifica si la condición ha estado activa durante más de 12 segundos
-		auto current_time = std::chrono::steady_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
-
-		if (duration.count() >= 12) {
-			return true;
-		}
-	}
 	else {
 		// Si la condición no se cumple, reinicia el tiempo de referencia
 		condition_start_time = std::chrono::steady_clock::time_point();
@@ -649,6 +647,7 @@ void Horde_RunFrame()
 			remainingMonsters = 0;
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
+			current_wave_number = 2;
 
 			if (!g_chaotic->integer) {
 				gi.LocBroadcast_Print(PRINT_CENTER, "???");
@@ -675,7 +674,6 @@ void Horde_RunFrame()
 			// Llama a la función para spawnear el jefe solo si es el momento adecuado
 			if (g_horde_local.num_to_spawn == BOSS_TO_SPAWN)
 			{
-				gi.LocBroadcast_Print(PRINT_CENTER, "CHAMPION STROGG INCOMING!\n");
 				SpawnBossAutomatically();
 			}
 
@@ -703,10 +701,10 @@ void Horde_RunFrame()
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.0_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.8_sec, 1.3_sec);
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
-				e->health *= pow(1.033, current_wave_number);
+				e->health *= pow(1.038, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -771,8 +769,8 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time)
 		{
 			if (g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "*******\n--Wave SKIPPED!--\n*******\n CHAOS IMMINENT !!!");
-				gi.sound(world, CHAN_VOICE, gi.soundindex("world/incoming.wav"), 1, ATTN_NONE, 0);
+				gi.LocBroadcast_Print(PRINT_CENTER, "*******\n--Wave INCOMPLETE--\n\n STROGGS TAKING ADVANTAGE !!!\n *******");
+				gi.sound(world, CHAN_VOICE, gi.soundindex("medic_commander/monsterspawn1.wav"), 1, ATTN_NONE, 0);
 			}
 			else if (!g_chaotic->integer){
 				gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");

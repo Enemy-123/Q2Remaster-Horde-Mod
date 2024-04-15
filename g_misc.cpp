@@ -2110,7 +2110,7 @@ void SP_misc_teleporter_dest(edict_t* ent)
 
 	gi.setmodel(ent, "models/objects/dmspot/tris.md2");
 	ent->s.skinnum = 0;
-	ent->solid = SOLID_BBOX;
+	ent->solid = SOLID_NOT;
 	//	ent->s.effects |= EF_FLIES;
 	ent->mins = { -32, -32, -24 };
 	ent->maxs = { 32, 32, -16 };

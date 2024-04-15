@@ -2050,7 +2050,6 @@ void	  droptofloor(edict_t* ent);
 void      P_ToggleFlashlight(edict_t* ent, bool state);
 bool      Entity_IsVisibleToPlayer(edict_t* ent, edict_t* player);
 void      Compass_Update(edict_t* ent, bool first);
-
 //
 // g_utils.c
 //

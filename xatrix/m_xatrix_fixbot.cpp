@@ -1085,25 +1085,25 @@ MMOVE_T(fixbot_move_laserattack) = { FRAME_shoot_01, FRAME_shoot_06, fixbot_fram
 mframe_t fixbot_frames_attack2[] = {
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
 
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
 	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, -10 },
-	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge, -10 },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
+	{ ai_charge, 0, fixbot_fire_blaster },
+	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, -10 },
+	{ ai_charge, 0, fixbot_fire_blaster },
 
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge, 0, fixbot_fire_blaster },
@@ -1114,7 +1114,7 @@ mframe_t fixbot_frames_attack2[] = {
 	{ ai_charge, 0, fixbot_fire_blaster },
 	{ ai_charge },
 	{ ai_charge, 0, fixbot_fire_blaster },
-	{ ai_charge },
+	{ ai_charge, 0, fixbot_fire_blaster },
 
 	{ ai_charge }
 };
@@ -1386,7 +1386,7 @@ void SP_monster_fixbot(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 220 * st.health_multiplier;
+	self->health = 90 * st.health_multiplier;
 	self->mass = 150;
 
 	self->pain = fixbot_pain;
