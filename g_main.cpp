@@ -103,6 +103,7 @@ cvar_t* g_coop_health_scaling;
 cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
+cvar_t* g_dm_spawns;
 cvar_t* sv_centerprint_frags;
 cvar_t* sv_eyecam;
 cvar_t* sv_target_id;
@@ -374,6 +375,7 @@ void InitGame()
 
 	g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
+	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 
 
 	g_start_items = gi.cvar("g_start_items", "", CVAR_LATCH);

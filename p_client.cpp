@@ -44,6 +44,7 @@ void SP_info_player_deathmatch(edict_t* self)
 		G_FreeEdict(self);
 		return;
 	}
+	if (g_dm_spawns->integer)
 		SP_misc_teleporter_dest(self);
 }
 
@@ -1489,7 +1490,7 @@ bool SelectSpawnPoint(edict_t* ent, vec3_t& origin, vec3_t& angles, bool force_s
 
 		if (spot)
 		{
-			origin = spot->s.origin + vec3_t{ 0, 0, 9 };
+			origin = spot->s.origin + vec3_t{ 0, 0, (float)(g_dm_spawns->integer ? 9 : 1) };
 			angles = spot->s.angles;
 
 			return true;

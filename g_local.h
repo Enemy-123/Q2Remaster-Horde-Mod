@@ -1898,6 +1898,7 @@ extern cvar_t* sv_dedicated;
 
 extern cvar_t* filterban;
 
+extern cvar_t* g_dm_spawns;
 extern cvar_t* sv_eyecam;
 extern cvar_t* sv_target_id;
 extern cvar_t* sv_centerprint_frags;

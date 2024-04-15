@@ -403,7 +403,7 @@ Changes level to "map" when fired
 USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	HandleResetEvent();
-	//gi.cvar_set("g_chaotic", "1");
+	gi.cvar_set("g_chaotic", "1");
 	if (level.intermissiontime)
 		return; // already activated
 
@@ -423,7 +423,7 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 	// if multiplayer, let everyone know who hit the exit
 	if (G_IsDeathmatch())
 		HandleResetEvent();
-	//gi.cvar_set("g_chaotic", "1");
+	gi.cvar_set("g_chaotic", "1");
 	{
 		if (level.time < 10_sec)
 			return;
