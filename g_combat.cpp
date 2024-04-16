@@ -693,6 +693,26 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
+	if (g_vampire_damage->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 0) {
+		int vtake = take;
+		int hmax = g_vampire_health_max->integer;
+
+		if (hmax < 100) hmax = 100;
+		else if (hmax > 999) hmax = 999;
+
+		if (vtake > targ->health)
+			vtake = targ->health;
+
+		vtake = max(1, vtake / 8);
+
+		if (attacker->health < hmax) {
+			attacker->health += vtake;
+
+			if (attacker->health > hmax)
+				attacker->health = hmax;
+		}
+	}
+
 	// ZOID
 	// team armor protect
 	if (G_TeamplayEnabled() && targ->client && attacker->client &&

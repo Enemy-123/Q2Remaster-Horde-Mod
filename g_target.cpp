@@ -431,6 +431,7 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 		if (activator && activator->client)
 			gi.LocBroadcast_Print(PRINT_HIGH, "$g_exited_level", activator->client->pers.netname);
 		HandleResetEvent();
+		gi.cvar_set("g_chaotic", "1");
 	}
 
 	// if going to a new unit, clear cross triggers

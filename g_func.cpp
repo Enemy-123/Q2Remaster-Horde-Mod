@@ -733,6 +733,15 @@ void SP_func_plat(edict_t *ent)
 	else
 		ent->decel *= 0.1f;
 
+	if (g_mover_speed_scale->value != 1.0f) {
+		ent->speed = floor(ent->speed * g_mover_speed_scale->value);
+		ent->accel = floor(ent->accel * g_mover_speed_scale->value);
+		ent->decel = floor(ent->decel * g_mover_speed_scale->value);
+	}
+
+	if (g_mover_debug->integer)
+		gi.Com_PrintFmt("Spawning {} - speed:{} accel:{} decel:{}\n", *ent, ent->speed, ent->accel, ent->decel);
+
 	if (!ent->dmg)
 		ent->dmg = 2;
 
@@ -940,6 +949,13 @@ void SP_func_rotating(edict_t *ent)
 
 	if (!ent->speed)
 		ent->speed = 100;
+
+	if (g_mover_speed_scale->value != 1.0f) {
+		ent->speed *= g_mover_speed_scale->value;
+		ent->accel *= g_mover_speed_scale->value;
+		ent->decel *= g_mover_speed_scale->value;
+	}
+
 	if (!st.was_key_specified("dmg"))
 		ent->dmg = 2;
 
@@ -1154,6 +1170,12 @@ void SP_func_button(edict_t *ent)
 		ent->accel = ent->speed;
 	if (!ent->decel)
 		ent->decel = ent->speed;
+
+	if (g_mover_speed_scale->value != 1.0f) {
+		ent->speed *= g_mover_speed_scale->value;
+		ent->accel *= g_mover_speed_scale->value;
+		ent->decel *= g_mover_speed_scale->value;
+	}
 
 	if (!ent->wait)
 		ent->wait = 3;
@@ -1729,15 +1751,19 @@ void SP_func_door(edict_t *ent)
 
 	if (!ent->speed)
 		ent->speed = 100;
-	
-
-
+    if (G_IsDeathmatch())
 		ent->speed *= 2;
 
 	if (!ent->accel)
 		ent->accel = ent->speed;
 	if (!ent->decel)
 		ent->decel = ent->speed;
+
+	if (g_mover_speed_scale->value != 1.0f) {
+		ent->speed *= g_mover_speed_scale->value;
+		ent->accel *= g_mover_speed_scale->value;
+		ent->decel *= g_mover_speed_scale->value;
+	}
 
 	if (!ent->wait)
 		ent->wait = 3;
@@ -1908,6 +1934,12 @@ void SP_func_door_rotating(edict_t *ent)
 		ent->accel = ent->speed;
 	if (!ent->decel)
 		ent->decel = ent->speed;
+
+	if (g_mover_speed_scale->value != 1.0f) {
+		ent->speed *= g_mover_speed_scale->value;
+		ent->accel *= g_mover_speed_scale->value;
+		ent->decel *= g_mover_speed_scale->value;
+	}
 
 	if (!ent->wait)
 		ent->wait = 3;
@@ -2085,6 +2117,13 @@ void SP_func_water(edict_t *self)
 
 	if (!self->speed)
 		self->speed = 25;
+
+	if (g_mover_speed_scale->value != 1.0f) {
+		self->speed *= g_mover_speed_scale->value;
+		self->accel *= g_mover_speed_scale->value;
+		self->decel *= g_mover_speed_scale->value;
+	}
+
 	self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed = self->speed;
 
 	// ROGUE
@@ -2449,6 +2488,12 @@ void SP_func_train(edict_t *self)
 
 	if (!self->speed)
 		self->speed = 100;
+
+	if (g_mover_speed_scale->value != 1.0f) {
+		self->speed *= g_mover_speed_scale->value;
+		self->accel *= g_mover_speed_scale->value;
+		self->decel *= g_mover_speed_scale->value;
+	}
 
 	self->moveinfo.speed = self->speed;
 	self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed;

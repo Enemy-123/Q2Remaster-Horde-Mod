@@ -134,6 +134,12 @@ cvar_t* g_map_list;
 cvar_t* g_map_list_shuffle;
 cvar_t* g_lag_compensation;
 
+cvar_t* g_vampire_damage;
+cvar_t* g_vampire_health_max;
+
+cvar_t* g_mover_speed_scale;
+cvar_t* g_mover_debug;
+
 cvar_t* sv_airaccelerate;
 cvar_t* g_damage_scale;
 cvar_t* g_disable_player_collision;
@@ -377,6 +383,12 @@ void InitGame()
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 
+	// muff mode: vampire
+	g_vampire_damage = gi.cvar("g_vampire_damage", "0", CVAR_NOFLAGS);
+	g_vampire_health_max = gi.cvar("g_vampire_health_max", "150", CVAR_NOFLAGS);
+
+	g_mover_speed_scale = gi.cvar("g_mover_speed_scale", "1.0f", CVAR_NOFLAGS);
+	g_mover_debug = gi.cvar("g_mover_debug", "0", CVAR_NOFLAGS);
 
 	g_start_items = gi.cvar("g_start_items", "", CVAR_LATCH);
 	g_map_list = gi.cvar("g_map_list", "", CVAR_NOFLAGS);

@@ -2002,6 +2002,12 @@ extern cvar_t* g_use_hook;
 extern cvar_t* g_hook_help;
 extern cvar_t* g_hook_wave;
 
+extern cvar_t* g_vampire_damage;
+extern cvar_t* g_vampire_health_max;
+
+extern cvar_t* g_mover_speed_scale;
+extern cvar_t* g_mover_debug;
+
 #define world (&g_edicts[0])
 
 uint32_t GetUnicastKey();
