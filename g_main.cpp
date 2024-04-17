@@ -154,6 +154,7 @@ cvar_t* g_hook_wave;
 cvar_t* g_hook_help;
 cvar_t* g_entity_override_load;
 cvar_t* g_chaotic;
+cvar_t* g_chaotic2;
 
 static cvar_t* g_frames_per_frame;
 
@@ -381,6 +382,7 @@ void InitGame()
 
 	g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
+	g_chaotic2 = gi.cvar("g_chaotic2", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 
 	// muff mode: vampire

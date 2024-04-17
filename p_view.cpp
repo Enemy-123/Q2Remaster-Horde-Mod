@@ -989,6 +989,97 @@ void G_SetClientEffects(edict_t* ent)
 #endif
 }
 
+void HORDE_ApplyAmmoRegen(edict_t* ent) {
+	gclient_t* client;
+
+	if (!g_chaotic2->integer)
+		return;
+
+	client = ent->client;
+	if (!client)
+		return;
+
+	if (!client->ammoregentime) {
+		client->ammoregentime = level.time;
+		return;
+	}
+
+	if (client->ammoregentime < level.time) {
+		client->ammoregentime = level.time;
+
+		if (client->pers.inventory[IT_WEAPON_SHOTGUN] || client->pers.inventory[IT_WEAPON_SSHOTGUN]) {
+			client->pers.inventory[IT_AMMO_SHELLS] += 7;
+
+			if (client->pers.inventory[IT_AMMO_SHELLS] > client->pers.max_ammo[AMMO_SHELLS])
+				client->pers.inventory[IT_AMMO_SHELLS] = client->pers.max_ammo[AMMO_SHELLS];
+		}
+
+		if (client->pers.inventory[IT_WEAPON_MACHINEGUN] || client->pers.inventory[IT_WEAPON_CHAINGUN]) {
+			client->pers.inventory[IT_AMMO_BULLETS] += 25;
+
+			if (client->pers.inventory[IT_AMMO_BULLETS] > client->pers.max_ammo[AMMO_BULLETS])
+				client->pers.inventory[IT_AMMO_BULLETS] = client->pers.max_ammo[AMMO_BULLETS];
+		}
+
+		client->pers.inventory[IT_AMMO_GRENADES] += 5;
+
+		if (client->pers.inventory[IT_AMMO_GRENADES] > client->pers.max_ammo[AMMO_GRENADES])
+			client->pers.inventory[IT_AMMO_GRENADES] = client->pers.max_ammo[AMMO_GRENADES];
+
+		if (client->pers.inventory[IT_WEAPON_RLAUNCHER]) {
+			client->pers.inventory[IT_AMMO_ROCKETS] += 10;
+
+			if (client->pers.inventory[IT_AMMO_ROCKETS] > client->pers.max_ammo[AMMO_ROCKETS])
+				client->pers.inventory[IT_AMMO_ROCKETS] = client->pers.max_ammo[AMMO_ROCKETS];
+		}
+
+		if (client->pers.inventory[IT_WEAPON_HYPERBLASTER] || client->pers.inventory[IT_WEAPON_BFG] || client->pers.inventory[IT_WEAPON_IONRIPPER] || client->pers.inventory[IT_WEAPON_PLASMABEAM]) {
+			client->pers.inventory[IT_AMMO_CELLS] += 25;
+
+			if (client->pers.inventory[IT_AMMO_CELLS] > client->pers.max_ammo[AMMO_CELLS])
+				client->pers.inventory[IT_AMMO_CELLS] = client->pers.max_ammo[AMMO_CELLS];
+		}
+
+		if (client->pers.inventory[IT_WEAPON_RAILGUN]) {
+			client->pers.inventory[IT_AMMO_SLUGS] += 5;
+
+			if (client->pers.inventory[IT_AMMO_SLUGS] > client->pers.max_ammo[AMMO_SLUGS])
+				client->pers.inventory[IT_AMMO_SLUGS] = client->pers.max_ammo[AMMO_SLUGS];
+		}
+
+		if (client->pers.inventory[IT_WEAPON_PHALANX]) {
+			client->pers.inventory[IT_AMMO_MAGSLUG] += 9;
+
+			if (client->pers.inventory[IT_AMMO_MAGSLUG] > client->pers.max_ammo[AMMO_MAGSLUG])
+				client->pers.inventory[IT_AMMO_MAGSLUG] = client->pers.max_ammo[AMMO_MAGSLUG];
+		}
+
+		if (client->pers.inventory[IT_WEAPON_ETF_RIFLE]) {
+			client->pers.inventory[IT_AMMO_FLECHETTES] += 50;
+
+			if (client->pers.inventory[IT_AMMO_FLECHETTES] > client->pers.max_ammo[AMMO_FLECHETTES])
+				client->pers.inventory[IT_AMMO_FLECHETTES] = client->pers.max_ammo[AMMO_FLECHETTES];
+		}
+
+		if (client->pers.inventory[IT_WEAPON_PROXLAUNCHER]) {
+			client->pers.inventory[IT_AMMO_PROX] += 5;
+
+			if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX])
+				client->pers.inventory[IT_AMMO_PROX] = client->pers.max_ammo[AMMO_PROX];
+		}
+
+		if (client->pers.inventory[IT_WEAPON_DISRUPTOR]) {
+			client->pers.inventory[IT_AMMO_ROUNDS] += 5;
+
+			if (client->pers.inventory[IT_AMMO_ROUNDS] > client->pers.max_ammo[AMMO_DISRUPTOR])
+				client->pers.inventory[IT_AMMO_ROUNDS] = client->pers.max_ammo[AMMO_DISRUPTOR];
+		}
+
+		client->ammoregentime += 10000_ms;
+	}
+}
+
+
 /*
 ===============
 G_SetClientEvent
@@ -1403,11 +1494,14 @@ void ClientEndServerFrame(edict_t* ent)
 	// regen tech
 	CTFApplyRegeneration(ent);
 	// ZOID
+		// muff mode: weapons frenzy ammo regen
+	HORDE_ApplyAmmoRegen(ent);
 
 	AngleVectors(ent->client->v_angle, forward, right, up);
 
 	// burn from lava, etc
 	P_WorldEffects();
+
 
 	//
 	// set model angles from view angles so other things in

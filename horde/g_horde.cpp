@@ -37,6 +37,7 @@ static void Horde_InitLevel(int32_t lvl)
 
 	if (g_horde_local.level == 5) {
 		gi.cvar_set("g_vampire_damage", "1");
+		gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
 		gi.cvar_set("g_damage_scale", "1.5");
 		gi.LocBroadcast_Print(PRINT_HIGH, "BLOODTHIRST! You Gained Vampire Ability!\n");
 		gi.LocBroadcast_Print(PRINT_CENTER, "You're covered in blood and Gained Vampire Ability!");
@@ -44,10 +45,15 @@ static void Horde_InitLevel(int32_t lvl)
 		next_wave_message_sent = false;
 	}
 
-	if (g_horde_local.level == 8) {
+	if (g_horde_local.level == 10) {
 		gi.cvar_set("g_damage_scale", "1.7");
+		gi.cvar_set("ai_damage_scale", "1.5");
+		gi.cvar_set("g_chaotic2", "1");
+	//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NONE, 0);
+		gi.sound(world, CHAN_VOICE, gi.soundindex("misc/keyuse.wav"), 1, ATTN_NONE, 0);
+		gi.LocBroadcast_Print(PRINT_CENTER, "\nYou have found a Strogg Ammo Generator!");
 	}	
-	
+
 	if (g_horde_local.level == 15) {
 		gi.cvar_set("g_damage_scale", "2.0");
 	}
@@ -134,7 +140,8 @@ constexpr struct weighted_item_t {
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
-	{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
+	//{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
+	{ "item_power_shield", 4, -1, 0.07f, adjust_weight_armor },
 
 	{ "item_quad", 6, 19, 0.1f, adjust_weight_powerup },
 	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
@@ -235,8 +242,6 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_medic_commander", 9, -1, 0.18f },
 	{ "monster_carrier2", 10, -1, 0.27f },
 	{ "monster_guncmdrkl", 18, -1, 0.27f },
-	{ "monster_perrokl", 18, -1, 0.37f },
-	{ "monster_makronkl", 18, -1, 0.09f },
 };
 
 struct boss_t {
@@ -617,6 +622,7 @@ void ResetGame() {
 	gi.cvar_set("g_vampire_damage", "0");
 	gi.cvar_set("ai_damage_scale", "1");
 	gi.cvar_set("g_damage_scale", "1");
+	gi.cvar_set("g_chaotic2", "0");
 
 	}
 
@@ -733,7 +739,7 @@ void Horde_RunFrame()
 				g_horde_local.monster_spawn_time = level.time + random_time(0.8_sec, 1.3_sec);
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
-				e->health *= pow(1.042, current_wave_number);
+				e->health *= pow(1.028, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -785,6 +791,7 @@ void Horde_RunFrame()
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG");// !\n\n*** ALL PLAYERS EARNED VAMPIRE ABILITY*** ");
 					gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
 					gi.cvar_set("g_chaotic", "0");
+					gi.cvar_set("ai_damage_scale", "1.3");
 				}
 				else if (!g_chaotic->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");//\n\n***  ALL PLAYERS EARNED VAMPIRE ABILITY  ***");
@@ -803,9 +810,9 @@ void Horde_RunFrame()
 			if (g_chaotic->integer) {
 				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS TAKING ADVANTAGE !!!\n\n\n **************");// \nYOU LOSE VAMPIRE ABILITY!\n **************");
 			//	gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
-			 gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
-			 gi.sound(world, CHAN_VOICE, gi.soundindex("world/battle5.wav"), 1, ATTN_NONE, 0);
-			// gi.sound(world, CHAN_VOICE, gi.soundindex("makron/voice.wav"), 1, ATTN_NONE, 0);
+//			 gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
+//			 gi.sound(world, CHAN_VOICE, gi.soundindex("world/battle5.wav"), 1, ATTN_NONE, 0);
+			 gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
 
 			}
 			else if (!g_chaotic->integer){

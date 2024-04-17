@@ -1938,6 +1938,7 @@ extern cvar_t* g_coop_health_scaling;
 extern cvar_t* g_weapon_respawn_time;
 
 extern cvar_t* g_chaotic;
+extern cvar_t* g_chaotic2;
 
 extern cvar_t* g_no_self_damage;
 extern cvar_t* g_no_health;
@@ -2980,6 +2981,8 @@ struct gclient_t
 	gtime_t		ctf_techsndtime;
 	gtime_t		ctf_lasttechmsg;
 	// ZOID
+
+	gtime_t		ammoregentime;
 
 	// used for player trails.
 	edict_t* trail_head, * trail_tail;
