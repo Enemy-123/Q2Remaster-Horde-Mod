@@ -288,7 +288,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
-
+ 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
 	//ent->s.renderfx = RF_SHELL_BLUE;
 	ent->client->pers.inventory[item->id]--;
@@ -365,25 +365,22 @@ inline void G_AdjustAmmoCap(edict_t* other, ammo_t ammo, int16_t new_max)
 
 bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 {
-	G_AdjustAmmoCap(other, AMMO_BULLETS, 275);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 180);
-	G_AdjustAmmoCap(other, AMMO_CELLS, 275);
-	G_AdjustAmmoCap(other, AMMO_SLUGS, 80);
-	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 80);
+	G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
+	G_AdjustAmmoCap(other, AMMO_SHELLS, 120);
+	G_AdjustAmmoCap(other, AMMO_CELLS, 250);
+	G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
+	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 75);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 275);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 20);
+	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 16);
 	G_AdjustAmmoCap(other, AMMO_TESLA, 7);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
-	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
 	G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
 	G_AddAmmoAndCapQuantity(other, AMMO_GRENADES);
 	G_AddAmmoAndCapQuantity(other, AMMO_ROCKETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SLUGS);
-	// RAFAEL
-	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
 	// RAFAEL
 	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
 	// ROGUE
@@ -401,14 +398,14 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 bool Pickup_Pack(edict_t* ent, edict_t* other)
 {
 	G_AdjustAmmoCap(other, AMMO_BULLETS, 400);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 250);
+	G_AdjustAmmoCap(other, AMMO_SHELLS, 150);
 	G_AdjustAmmoCap(other, AMMO_ROCKETS, 200);
 	G_AdjustAmmoCap(other, AMMO_GRENADES, 200);
 	G_AdjustAmmoCap(other, AMMO_CELLS, 300);
-	G_AdjustAmmoCap(other, AMMO_SLUGS, 175);
-	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 150);
+	G_AdjustAmmoCap(other, AMMO_SLUGS, 125);
+	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 125);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 400);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 60);
+	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 40);
 	G_AdjustAmmoCap(other, AMMO_TESLA, 10);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);

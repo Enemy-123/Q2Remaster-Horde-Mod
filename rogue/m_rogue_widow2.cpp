@@ -1022,7 +1022,7 @@ void SP_monster_widow2(edict_t *self)
 	self->mins = { -70, -70, 0 };
 	self->maxs = { 70, 70, 144 };
 
-	self->health = (2000 + 800 + 1000 * skill->integer) * st.health_multiplier;
+	self->health = (2900 * skill->integer) * st.health_multiplier;
 	
 
 

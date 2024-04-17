@@ -758,7 +758,7 @@ void SP_monster_brain(edict_t *self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = 300 * st.health_multiplier;
+	self->health = 230 * st.health_multiplier;
 	self->gib_health = -150;
 	self->mass = 400;
 
@@ -785,7 +785,7 @@ void SP_monster_brain(edict_t *self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 350;
+		self->monsterinfo.power_armor_power = 420;
 
 	gi.linkentity(self);
 

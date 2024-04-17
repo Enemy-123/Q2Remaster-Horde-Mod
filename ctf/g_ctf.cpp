@@ -2049,7 +2049,7 @@ int CTFApplyResistance(edict_t* ent, int dmg)
 	{
 		// make noise
 		gi.sound(ent, CHAN_AUX, gi.soundindex("ctf/tech1.wav"), volume, ATTN_NORM, 0);
-		return dmg / 1.5;
+		return dmg / 2;
 	}
 	return dmg;
 }
@@ -2134,7 +2134,7 @@ void CTFApplyRegeneration(edict_t* ent)
 				ent->health += 5;
 				if (ent->health > 100)
 					ent->health = 100;
-				client->ctf_regentime += 800_ms;
+				client->ctf_regentime += 500_ms;
 				noise = true;
 			}
 			index = ArmorIndex(ent);
@@ -2143,7 +2143,7 @@ void CTFApplyRegeneration(edict_t* ent)
 				client->pers.inventory[index] += 5;
 				if (client->pers.inventory[index] > 100)
 					client->pers.inventory[index] = 100;
-				client->ctf_regentime += 800_ms;
+				client->ctf_regentime += 500_ms;
 				noise = true;
 			}
 		}

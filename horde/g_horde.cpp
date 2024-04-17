@@ -29,12 +29,32 @@ static struct {
 bool next_wave_message_sent = false;
 // Define una constante para el número de jefes a spawn
 
-
 static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
+
+	if (g_horde_local.level == 5) {
+		gi.cvar_set("g_vampire_damage", "1");
+		gi.cvar_set("g_damage_scale", "1.5");
+		gi.LocBroadcast_Print(PRINT_HIGH, "BLOODTHIRST! You Gained Vampire Ability!\n");
+		gi.LocBroadcast_Print(PRINT_CENTER, "You're covered in blood and Gained Vampire Ability!");
+
+		next_wave_message_sent = false;
+	}
+
+	if (g_horde_local.level == 8) {
+		gi.cvar_set("g_damage_scale", "1.7");
+	}	
+	
+	if (g_horde_local.level == 15) {
+		gi.cvar_set("g_damage_scale", "2.0");
+	}
+
+	if (g_horde_local.level == 20) {
+		gi.cvar_set("g_damage_scale", "2.5");
+	}
 
 	    if 	(!Q_strcasecmp(level.mapname, "base1")) {
 		g_horde_local.num_to_spawn = 30 + (lvl * 5);
@@ -104,23 +124,23 @@ constexpr struct weighted_item_t {
 	float					weight = 1.0f;
 	weight_adjust_func_t	adjust_weight = nullptr;
 } items[] = {
-	{ "item_health_small", -1, -1, 0.35f, adjust_weight_health },
+	{ "item_health_small", -1, 9, 0.35f, adjust_weight_health },
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
-	{ "item_health_mega", -1, -1, 0.08f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.16f, adjust_weight_health },
+	{ "item_health_mega", -1, -1, 0.06f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.13f, adjust_weight_health },
 
-	{ "item_armor_shard", -1, -1, 0.35f, adjust_weight_armor },
+	{ "item_armor_shard", -1, 9, 0.35f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
 	{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, -1, 0.09f, adjust_weight_powerup },
-	{ "item_double", 4, -1, 0.10f, adjust_weight_powerup },
+	{ "item_quad", 6, 19, 0.1f, adjust_weight_powerup },
+	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
 	{ "item_quadfire", 2, -1, 0.12f, adjust_weight_powerup },
-	{ "item_invulnerability", 4, -1, 0.06f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, 5, 0.14f, adjust_weight_powerup },
+	{ "item_invulnerability", 4, -1, 0.05f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, -1, 0.14f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
@@ -143,17 +163,17 @@ constexpr struct weighted_item_t {
 
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_flechettes", 5, -1, 0.15f, adjust_weight_ammo },
+	{ "ammo_flechettes", 5, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_prox", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_tesla", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_magslug", 6, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_slugs", 5, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_disruptor", 7, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_rockets", 6, -1, 0.45f, adjust_weight_ammo },
-	{ "item_bandolier", 3, -1, 0.32f, adjust_weight_ammo },
-	{ "item_pack", 5, -1, 0.22f, adjust_weight_ammo },
+	{ "ammo_disruptor", 7, -1, 0.24f, adjust_weight_ammo },
+	{ "ammo_rockets", 6, -1, 0.30f, adjust_weight_ammo },
+	{ "item_bandolier", 5, -1, 0.32f, adjust_weight_ammo },
+	{ "item_pack", 8, -1, 0.24f, adjust_weight_ammo },
 
 };
 
@@ -193,10 +213,10 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gunner", 4, -1, 0.74f },
 	{ "monster_chick", 5, -1, 0.80f },
 	{ "monster_guncmdr", 8, -1, 0.4f },
-	{ "monster_gladiator", 8, -1, 0.84f },
-	{ "monster_gladb", 6, -1, 0.95f},
+	{ "monster_gladiator", 6, -1, 0.84f },
+	{ "monster_gladb", 6, -1, 0.75f},
 //	{ "monster_chick_heat", 7, -1, 0.73f },
-	{ "monster_tank_commander", 12, -1, 0.45f },
+	{ "monster_tank_commander", 12, -1, 0.28f },
 	{ "monster_mutant", 7, -1, 0.75f },
 	{ "monster_tank", 8, -1, 0.45f },
 	{ "monster_janitor2", 11, -1, 0.12f },
@@ -205,15 +225,18 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_flyer", 2, 9, 0.45f },
 	{ "monster_floater", 8, -1, 0.55f },
 	{ "monster_daedalus", 7, -1, 0.52f },
-	{ "monster_makron", 13, -1, 0.2f },
-	{ "monster_boss2_64", 12, 16, 0.27f },
+	{ "monster_makron", 13, 19, 0.2f },
+	{ "monster_boss2_64", 12, 16, 0.17f },
 	{ "monster_berserk", 6, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 11, -1, 0.27f },
-	{ "monster_medic", 3, -1, 0.12f },
-	{ "monster_shambler", 15, -1, 0.37f },
-//	{ "monster_medic_commander", 16, -1, 0.13f },
-//	{ "monster_carrier2", 16, -1, 0.07f },
+	{ "monster_medic", 3, 8, 0.12f },
+	{ "monster_shambler", 15, -1, 0.15f },
+	{ "monster_medic_commander", 9, -1, 0.18f },
+	{ "monster_carrier2", 10, -1, 0.27f },
+	{ "monster_guncmdrkl", 18, -1, 0.27f },
+	{ "monster_perrokl", 18, -1, 0.37f },
+	{ "monster_makronkl", 18, -1, 0.09f },
 };
 
 struct boss_t {
@@ -591,6 +614,10 @@ void ResetGame() {
 	// Reinicia las variables de estado del juego
 	g_horde_local.state = horde_state_t::warmup;
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
+	gi.cvar_set("g_vampire_damage", "0");
+	gi.cvar_set("ai_damage_scale", "1");
+	gi.cvar_set("g_damage_scale", "1");
+
 	}
 
 #include <chrono>
@@ -650,14 +677,16 @@ void Horde_RunFrame()
 			current_wave_number = 2;
 
 			if (!g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "???");
-				//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+				gi.LocBroadcast_Print(PRINT_CENTER, "???????");
+			  gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+
 			}
 			else if (g_chaotic->integer)
 				gi.LocBroadcast_Print(PRINT_CENTER, "CHAOS IMMINENT");
-			//gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
+		//  gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+		//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 
@@ -704,7 +733,7 @@ void Horde_RunFrame()
 				g_horde_local.monster_spawn_time = level.time + random_time(0.8_sec, 1.3_sec);
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
-				e->health *= pow(1.038, current_wave_number);
+				e->health *= pow(1.042, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -736,6 +765,7 @@ void Horde_RunFrame()
 		if (CheckRemainingMonstersCondition()) {
 			gi.cvar_set("g_chaotic", "1");
 
+
 			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 			g_horde_local.state = horde_state_t::rest;
 			break;
@@ -747,19 +777,21 @@ void Horde_RunFrame()
 			{
 				g_horde_local.warm_time = level.time + 3_sec;
 				g_horde_local.state = horde_state_t::rest;
-				remainingMonsters = 0; // Actualiza remainingMonsters cuando todos los monstruos han sido eliminados
+				remainingMonsters = 0; 
+
+	//			gi.cvar_set("g_vampire_damage", "1"); // CAMBIAR A 1 cuando sea la hora
 
 				if (g_chaotic->integer) {
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG !");
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG");// !\n\n*** ALL PLAYERS EARNED VAMPIRE ABILITY*** ");
 					gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
 					gi.cvar_set("g_chaotic", "0");
 				}
 				else if (!g_chaotic->integer) {
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !");
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");//\n\n***  ALL PLAYERS EARNED VAMPIRE ABILITY  ***");
 				}
 			}
 			else
-				remainingMonsters = level.total_monsters + 1 - level.killed_monsters; // Calcula la cantidad de monstruos restantes
+				remainingMonsters = level.total_monsters + 1 - level.killed_monsters;
 			g_horde_local.monster_spawn_time = level.time + 3_sec;
 		}
 		break;
@@ -769,22 +801,28 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time)
 		{
 			if (g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "*******\n--Wave INCOMPLETE--\n\n STROGGS TAKING ADVANTAGE !!!\n *******");
-				gi.sound(world, CHAN_VOICE, gi.soundindex("medic_commander/monsterspawn1.wav"), 1, ATTN_NONE, 0);
+				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS TAKING ADVANTAGE !!!\n\n\n **************");// \nYOU LOSE VAMPIRE ABILITY!\n **************");
+			//	gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
+			 gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
+			 gi.sound(world, CHAN_VOICE, gi.soundindex("world/battle5.wav"), 1, ATTN_NONE, 0);
+			// gi.sound(world, CHAN_VOICE, gi.soundindex("makron/voice.wav"), 1, ATTN_NONE, 0);
+
 			}
 			else if (!g_chaotic->integer){
 				gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
 			gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
 		}
-			//gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
 
 		}
 		break;
+
+
 	}
 }
+
 
 // Función para manejar una interrupción o evento que requiera reiniciar el juego
 void HandleResetEvent() {

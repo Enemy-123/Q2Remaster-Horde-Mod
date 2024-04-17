@@ -53,8 +53,8 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_arachnid 2; monster_jorg 6; monster_shambler 3; monster_boss2 6";
-constexpr int32_t default_monster_slots_base = 4;
+constexpr const char* default_reinforcements = "monster_widow 5;monster_jorg 5;monster_widow2 5;monster_boss2kl 5";
+constexpr int32_t default_monster_slots_base = 3;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
 
@@ -1295,10 +1295,7 @@ void medic_finish_spawn(edict_t* self)
 		else
 			designated_enemy = self->enemy;
 
-
-
-
-
+		if (G_IsCooperative())
 		{
 			designated_enemy = PickCoopTarget(ent);
 			if (designated_enemy)
@@ -1335,8 +1332,8 @@ mframe_t medic_frames_callReinforcements[] = {
 	{ ai_charge, 5 },
 	{ ai_charge, 4.4f }, // 36
 	{ ai_charge, 4.7f },
-	{ ai_charge, 0, medic_spawngrows },	   // 49
-	{ ai_charge, 0, medic_spawngrows },	   // 49
+	{ ai_charge, 5 },
+	{ ai_charge, 6 },
 	{ ai_charge, 4 }, // 40
 	{ ai_charge, 0, monster_footstep },
 	{ ai_move, 0, medic_start_spawn }, // 42
@@ -1526,8 +1523,8 @@ void SP_monster_medic(edict_t* self)
 	gi.modelindex("models/monsters/medic/gibs/hook.md2");
 	gi.modelindex("models/monsters/medic/gibs/leg.md2");
 
-	self->mins = { -18, -18, -24 };
-	self->maxs = { 18, 18, 30 };
+	self->mins = { -24, -24, -24 };
+	self->maxs = { 24, 24, 32 };
 
 	// PMM
 	if (strcmp(self->classname, "monster_medic_commander") == 0)
@@ -1537,6 +1534,11 @@ void SP_monster_medic(edict_t* self)
 		self->mass = 600;
 		self->yaw_speed = 40; // default is 20
 		MedicCommanderCache();
+
+		if (!st.was_key_specified("power_armor_type"))
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = 380;
 	}
 	else
 	{

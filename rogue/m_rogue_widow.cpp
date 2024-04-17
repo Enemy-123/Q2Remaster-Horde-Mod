@@ -17,8 +17,8 @@ black widow
 
 constexpr gtime_t RAIL_TIME = 3_sec;
 constexpr gtime_t BLASTER_TIME = 2_sec;
-constexpr int	BLASTER2_DAMAGE = 10;
-constexpr int	WIDOW_RAIL_DAMAGE = 50;
+constexpr int	BLASTER2_DAMAGE = 20;
+constexpr int	WIDOW_RAIL_DAMAGE = 90;
 
 bool infront(edict_t *self, edict_t *other);
 
@@ -1261,7 +1261,7 @@ void SP_monster_widow(edict_t *self)
 	self->mins = { -40, -40, 0 };
 	self->maxs = { 40, 40, 144 };
 
-	self->health = (2000 + 1000 * skill->integer) * st.health_multiplier;
+	self->health = (23 * skill->integer) * st.health_multiplier;
 	if (G_IsCooperative())
 		self->health += 1000 * skill->integer;
 	self->gib_health = -7000;

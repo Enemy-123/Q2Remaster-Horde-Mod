@@ -271,9 +271,9 @@ void weapon_etf_rifle_fire(edict_t *ent)
 	vec3_t offset;
 
 	if (G_IsDeathmatch())
-		damage = 14;
+		damage = irandom(9, 14);
 	else
-		damage = 14;
+		damage = irandom(9, 14);
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{

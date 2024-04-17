@@ -271,7 +271,7 @@ static void berserk_attack_slam(edict_t *self)
 	self->velocity = {};
 	self->flags |= FL_KILL_VELOCITY;
 
-	T_SlamRadiusDamage(tr.endpos, self, self, 8, 300.f, self, 165, MOD_UNKNOWN);
+	T_SlamRadiusDamage(tr.endpos, self, self, 12, 300.f, self, 165, MOD_UNKNOWN);
 }
 
 TOUCH(berserk_jump_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void

@@ -486,6 +486,9 @@ inline gtime_t Weapon_AnimationTime(edict_t *ent)
 		bool using_sshotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
 		bool using_glauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
 		bool using_etfrifle = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_ETF_RIFLE;
+		bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
+		bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
+		bool using_HYPERBLASTER = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
 
 
 		if (is_quadfire)
@@ -1499,8 +1502,10 @@ MACHINEGUN / CHAINGUN
 void Machinegun_Fire(edict_t *ent)
 {
 	int i;
-	int damage = 8;
+	int damage;
 	int kick = 2;
+
+	damage = irandom(7, 11);
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -1600,9 +1605,9 @@ void Chaingun_Fire(edict_t *ent)
 
 
 	if (G_IsDeathmatch())
-		damage = 11;
+		damage = irandom(6, 10);
 	else
-		damage = 11;
+		damage = irandom(6, 10);
 	if (ent->client->ps.gunframe > 31)
 	{
 		ent->client->ps.gunframe = 5;
@@ -1773,8 +1778,10 @@ void Weapon_Shotgun(edict_t *ent)
 
 void weapon_supershotgun_fire(edict_t *ent)
 {
-	int damage = 13;
+	int damage;
 	int kick = 17;
+
+	damage = irandom(8, 13);
 
 	if (is_quad)
 	{
@@ -1792,10 +1799,10 @@ void weapon_supershotgun_fire(edict_t *ent)
 	v[ROLL] = ent->client->v_angle[ROLL];
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir);
-	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2, MOD_SSHOTGUN);
+	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2.7, MOD_SSHOTGUN);
 	v[YAW] = ent->client->v_angle[YAW] + 5;
 	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir);
-	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2, MOD_SSHOTGUN);
+	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2.7, MOD_SSHOTGUN);
 	G_UnLagCompensate();
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });

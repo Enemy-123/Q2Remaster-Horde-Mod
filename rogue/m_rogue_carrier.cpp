@@ -1102,7 +1102,7 @@ void SP_monster_carrier(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 15;
+		self->monsterinfo.power_armor_power = 155;
 
 	// 2000 - 4000 health
 	self->health = max(2000, 2000 + 700 * (skill->integer - 1)) * st.health_multiplier;
@@ -1175,7 +1175,7 @@ void SP_monster_carrier(edict_t* self)
 		self->mins = { -24, -24, -17 };
 		self->maxs = { 24, 24, 48 };
 
-		self->health = 800 * st.health_multiplier;
+		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;
 	}
 

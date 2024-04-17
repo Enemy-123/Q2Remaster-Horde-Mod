@@ -2171,7 +2171,7 @@ constexpr int32_t DEFAULT_SHOTGUN_HSPREAD = 1000;
 constexpr int32_t DEFAULT_SHOTGUN_VSPREAD = 500;
 constexpr int32_t DEFAULT_DEATHMATCH_SHOTGUN_COUNT = 12;
 constexpr int32_t DEFAULT_SHOTGUN_COUNT = 14;
-constexpr int32_t DEFAULT_SSHOTGUN_COUNT = 25;
+constexpr int32_t DEFAULT_SSHOTGUN_COUNT = 20;
 
 //
 // g_func.c

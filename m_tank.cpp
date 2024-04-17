@@ -431,7 +431,7 @@ void TankRocket(edict_t *self)
 	if (self->speed)
 		rocketSpeed = self->speed;
 	else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
-		rocketSpeed = 1400;
+		rocketSpeed = 1200;
 	else
 		rocketSpeed = 750;
 
@@ -1062,7 +1062,7 @@ void SP_monster_tank(edict_t *self)
 
 	if (strcmp(self->classname, "monster_tank_commander") == 0)
 	{
-		self->health = 800 * st.health_multiplier;
+		self->health = 730 * st.health_multiplier;
 		self->gib_health = -225;
 		self->count = 1;
 		sound_pain2.assign("tank/pain.wav");
@@ -1075,7 +1075,7 @@ void SP_monster_tank(edict_t *self)
 	}
 	else
 	{
-		self->health = 750 * st.health_multiplier;
+		self->health = 630 * st.health_multiplier;
 		self->gib_health = -200;
 		sound_pain.assign("tank/tnkpain2.wav");
 	}
@@ -1093,7 +1093,7 @@ void SP_monster_tank(edict_t *self)
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.3f;
-		self->health = 1250 * st.health_multiplier;
+		self->health = 850 * st.health_multiplier;
 
 		self->gib_health = -130;
 
