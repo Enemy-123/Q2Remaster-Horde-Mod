@@ -607,5 +607,6 @@ void SP_monster_shamblerkl(edict_t* self)
 	self->health = 675 * current_wave_number;
 	self->gib_health = -1000;
 	self->yaw_speed = 65;
-
+	self->s.renderfx = RF_TRANSLUCENT;
+	self->s.effects = EF_FLAG1 | EF_QUAD;
 }

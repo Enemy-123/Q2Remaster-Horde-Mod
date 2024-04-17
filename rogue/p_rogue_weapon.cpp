@@ -79,10 +79,13 @@ void weapon_chainfist_fire(edict_t* ent)
 		}
 	}
 
-	int damage = 20;
+	int damage;
+		
 
 	if (G_IsDeathmatch())
-		damage = 25;
+		damage = irandom(8, 20);
+		if (G_IsCooperative())
+		damage = irandom(8, 20);
 
 	if (is_quad)
 		damage *= damage_multiplier;
@@ -271,9 +274,9 @@ void weapon_etf_rifle_fire(edict_t *ent)
 	vec3_t offset;
 
 	if (G_IsDeathmatch())
-		damage = irandom(9, 14);
+		damage = irandom(7, 14);
 	else
-		damage = irandom(9, 14);
+		damage = irandom(7, 14);
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -351,7 +354,7 @@ void Weapon_ETF_Rifle(edict_t *ent)
 }
 
 constexpr int32_t HEATBEAM_DM_DMG = 10;
-constexpr int32_t HEATBEAM_SP_DMG = 23;
+constexpr int32_t HEATBEAM_SP_DMG = 18;
 
 void Heatbeam_Fire(edict_t *ent)
 {

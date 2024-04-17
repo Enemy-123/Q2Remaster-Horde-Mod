@@ -1064,7 +1064,7 @@ THINK(drop_make_touchable) (edict_t* ent) -> void
 	ent->touch = Touch_Item;
 	if (G_IsDeathmatch() || g_horde->integer)
 	{
-		ent->nextthink = level.time + 60_sec;
+		ent->nextthink = level.time + 45_sec;
 		ent->think = G_FreeEdict;
 	}
 }

@@ -773,5 +773,7 @@ void SP_monster_supertankkl(edict_t* self)
 		self->monsterinfo.power_armor_power = 800;
 
 	self->health = 620 * current_wave_number;
-	self->mass = 600;
+	self->mass = 1200;
+	self->s.renderfx = RF_TRANSLUCENT;
+	self->s.effects = EF_FLAG1 | EF_QUAD;
 }

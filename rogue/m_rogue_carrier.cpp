@@ -18,7 +18,7 @@ carrier
 
 // nb: specifying flyer multiple times so it has a higher chance
 constexpr const char *default_reinforcements = "monster_daedalus 1;monster_floater 2;monster_floater 3;monster_kamikaze 1;monster_hover 4";
-constexpr int32_t default_monster_slots_base = 5;
+constexpr int32_t default_monster_slots_base = 3;
 constexpr spawnflags_t SPAWNFLAG_CARRIER2 = 8_spawnflag;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 2_sec; // number of seconds between rocket shots
@@ -201,7 +201,7 @@ void CarrierGrenade(edict_t *self)
 		aim[2] = -0.5f;
 
 	flash_number = MZ2_GUNNER_GRENADE_1;
-	monster_fire_grenade(self, start, aim, 50, 600, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, 50, 850, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 void CarrierPredictiveRocket(edict_t *self)

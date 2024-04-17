@@ -979,4 +979,6 @@ void SP_monster_perrokl(edict_t* self)
 	self->health = 475 * current_wave_number;
 	self->yaw_speed = 65;
 	self->style = 2;
+	self->s.renderfx = RF_TRANSLUCENT;
+	self->s.effects = EF_FLAG1 | EF_QUAD;
 }

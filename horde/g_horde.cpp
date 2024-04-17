@@ -3,7 +3,6 @@
 #include "../g_local.h"
 #include <sstream>
 
-// current_wave_number = 1; // INTENCION: DEJAR QUE AL INTERMISSION SE SIGA VIENDO ULTIMA OLA
 
 
 int remainingMonsters = 0;
@@ -26,8 +25,8 @@ static struct {
 	int32_t			num_to_spawn;
 	int32_t			level;
 } g_horde_local;
+
 bool next_wave_message_sent = false;
-// Define una constante para el número de jefes a spawn
 
 static void Horde_InitLevel(int32_t lvl)
 {
@@ -39,7 +38,7 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.cvar_set("g_vampire_damage", "1");
 		gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
 		gi.cvar_set("g_damage_scale", "1.5");
-		gi.LocBroadcast_Print(PRINT_HIGH, "BLOODTHIRST! You Gained Vampire Ability!\n");
+	//	gi.LocBroadcast_Print(PRINT_HIGH, "BLOODTHIRST! You Gained Vampire Ability!\n");
 		gi.LocBroadcast_Print(PRINT_CENTER, "You're covered in blood and Gained Vampire Ability!");
 
 		next_wave_message_sent = false;
@@ -83,9 +82,9 @@ static void Horde_InitLevel(int32_t lvl)
 	    if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 8);
 	}
-	    if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
-		g_horde_local.num_to_spawn = 32 + (lvl * 5);
-	}
+//	    if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
+//		g_horde_local.num_to_spawn = 32 + (lvl * 5);
+//	}
 //	    if 	(!Q_strcasecmp(level.mapname, "q2dm1")) {
 //		g_horde_local.num_to_spawn = 10 + (lvl * 2);
 //	}
@@ -100,7 +99,7 @@ static void Horde_InitLevel(int32_t lvl)
 //	}
 
 	    else 
-		g_horde_local.num_to_spawn = 12 + (lvl * 2);
+		g_horde_local.num_to_spawn = 10 + (lvl * 2);
 
 }
 
@@ -176,9 +175,9 @@ constexpr struct weighted_item_t {
 	{ "ammo_tesla", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_magslug", 6, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_slugs", 5, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_slugs", 7, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 7, -1, 0.24f, adjust_weight_ammo },
-	{ "ammo_rockets", 6, -1, 0.30f, adjust_weight_ammo },
+	{ "ammo_rockets", 7, -1, 0.30f, adjust_weight_ammo },
 	{ "item_bandolier", 5, -1, 0.32f, adjust_weight_ammo },
 	{ "item_pack", 8, -1, 0.24f, adjust_weight_ammo },
 
@@ -233,15 +232,16 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_floater", 8, -1, 0.55f },
 	{ "monster_daedalus", 7, -1, 0.52f },
 	{ "monster_makron", 13, 19, 0.2f },
-	{ "monster_boss2_64", 12, 16, 0.17f },
+	{ "monster_boss2_64", 10, 16, 0.17f },
 	{ "monster_berserk", 6, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 11, -1, 0.27f },
 	{ "monster_medic", 3, 8, 0.12f },
 	{ "monster_shambler", 15, -1, 0.15f },
 	{ "monster_medic_commander", 9, -1, 0.18f },
-	{ "monster_carrier2", 10, -1, 0.27f },
-	{ "monster_guncmdrkl", 18, -1, 0.27f },
+	{ "monster_carrier2", 12, -1, 0.23f },
+	{ "monster_guncmdrkl", 19, -1, 0.27f },
+	{ "monster_perrokl", 18, -1, 0.27f },
 };
 
 struct boss_t {
@@ -372,7 +372,7 @@ const char* G_HordePickBOSS()
 	const char* desired_boss = nullptr;
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-		desired_boss = "monster_makronkl";
+		desired_boss = "monster_guncmdr";
 	}
 	if (!Q_strcasecmp(level.mapname, "rdm14")) {
 		desired_boss = "monster_makronkl";
@@ -393,7 +393,7 @@ const char* G_HordePickBOSS()
 		desired_boss = "monster_guncmdrkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
-		desired_boss = "monster_turretkl";
+		desired_boss = "monster_guncmdrkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		desired_boss = "monster_supertankkl";
@@ -513,9 +513,9 @@ static void Horde_CleanBodies()
 
 void  SpawnBossAutomatically()
 {
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
@@ -597,9 +597,9 @@ void  SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health *= pow(1.24, current_wave_number);
-		boss->s.renderfx = RF_TRANSLUCENT;
-		boss->s.effects = EF_FLAG1 | EF_QUAD;
+		boss->health *= pow(1.32, current_wave_number);
+	//	boss->s.renderfx = RF_TRANSLUCENT;
+	//	boss->s.effects = EF_FLAG1 | EF_QUAD;
 
 		vec3_t effectPosition = boss->s.origin;
 		effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);

@@ -305,9 +305,6 @@ edict_t* Hook_Start(edict_t* ent)
 	// set the color
 	self->s.skinnum = 0xf0f0f0f0;  // red
 
-	//if (ctf->value && ctf_coloredhook->value && ent->owner->client->resp.ctf_team == 2)
-	if ((ctf->integer || teamplay->integer) && ent->owner->client->resp.ctf_team == CTF_TEAM2)   // Kyper - Lithium port - forget the option, just give Blue team blue...
-		self->s.skinnum = 0xf1f1f1f1;  // blue
 
 	self->think = Hook_Think;
 

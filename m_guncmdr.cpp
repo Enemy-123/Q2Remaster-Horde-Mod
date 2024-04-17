@@ -1480,4 +1480,6 @@ void SP_monster_guncmdrkl(edict_t* self)
 	SP_monster_guncmdr(self);
 	self->s.skinnum = 2;
 	self->health = 530 * current_wave_number;
+	self->s.renderfx = RF_TRANSLUCENT;
+	self->s.effects = EF_FLAG1 | EF_QUAD;
 }

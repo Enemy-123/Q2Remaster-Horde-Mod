@@ -1322,7 +1322,7 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(145, 160);
+	damage = irandom(155, 170);
 	radius_damage = 125;
 	damage_radius = 125;
 	if (is_quad)
@@ -1733,9 +1733,10 @@ SHOTGUN / SUPERSHOTGUN
 
 void weapon_shotgun_fire(edict_t *ent)
 {
-	int damage = 6;
+	int damage;
 	int kick = 8;
 
+	damage = irandom(3, 12);
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir);

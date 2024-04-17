@@ -37,7 +37,7 @@ void ShowMonsterPathToPlayer(const edict_t* player) {
 	request.debugging.drawTime = 0.10f;
 	request.nodeSearch.minHeight = 64.0f;
 	request.nodeSearch.maxHeight = 64.0f;
-	request.nodeSearch.radius = 9999.0f;
+	request.nodeSearch.radius = 512.0f;
 	request.pathPoints.array = &pathPoints.front();
 	request.pathPoints.count = pathPoints.size();
 

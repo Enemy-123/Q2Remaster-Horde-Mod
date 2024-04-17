@@ -1083,4 +1083,6 @@ void SP_monster_turretkl(edict_t* self)
 	self->s.skinnum = 2;
 	self->health = 350 * current_wave_number;
 	self->gib_health = -130;
+	self->s.renderfx = RF_TRANSLUCENT;
+	self->s.effects = EF_FLAG1 | EF_QUAD;
 }

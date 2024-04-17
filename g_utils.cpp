@@ -379,7 +379,7 @@ Marks the edict as free
 THINK(G_FreeEdict) (edict_t* ed) -> void
 {
 	// already freed
-	if (!ed->inuse)
+	if (!ed->inuse)    // debugger crash
 		return;
 
 	gi.unlinkentity(ed); // unlink from world

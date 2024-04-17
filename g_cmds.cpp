@@ -454,7 +454,7 @@ void Cmd_Spawn_f(edict_t* ent)
 			}
 		}
 
-
+/*
 		other->maxs *= 2;
 		other->mins *= 2;
 		other->s.scale = 2;
@@ -463,14 +463,16 @@ void Cmd_Spawn_f(edict_t* ent)
 		other->s.effects = EF_FLAG1;
 		other->gib_health = -80000;
 
-		vec3_t effectPosition = other->s.origin;
-		effectPosition[0] += (other->s.origin[0] - effectPosition[0]) * (other->s.scale - 3);
-		effectPosition[1] += (other->s.origin[1] - effectPosition[1]) * (other->s.scale - 3);
-		effectPosition[2] += (other->s.origin[2] - effectPosition[2]) * (other->s.scale - 3);
 
 		char message[128]; // Asumiendo un tamaño máximo de mensaje de 128 caracteres
 		sprintf(message, "*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
 		gi.LocBroadcast_Print(PRINT_CENTER, message);
+
+		*/
+		vec3_t effectPosition = other->s.origin;
+		effectPosition[0] += (other->s.origin[0] - effectPosition[0]) * (other->s.scale - 3);
+		effectPosition[1] += (other->s.origin[1] - effectPosition[1]) * (other->s.scale - 3);
+		effectPosition[2] += (other->s.origin[2] - effectPosition[2]) * (other->s.scale - 3);
 
 
 		gi.WriteByte(svc_temp_entity);
@@ -1551,8 +1553,6 @@ void Cmd_Switchteam_f(edict_t* ent)
 			case CTF_TEAM1:
 				team1count++;
 				break;
-			case CTF_TEAM2:
-				team2count++;
 				break;
 			default:
 				break;
@@ -1561,8 +1561,6 @@ void Cmd_Switchteam_f(edict_t* ent)
 
 		if (team1count < team2count)
 			best_team = CTF_TEAM1;
-		else
-			best_team = CTF_TEAM2;
 
 		if (ent->client->resp.ctf_team != best_team)
 		{

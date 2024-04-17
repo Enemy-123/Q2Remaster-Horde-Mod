@@ -391,7 +391,7 @@ void TankBlaster(edict_t *self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	monster_fire_blaster2(self, start, dir, 7, 1400, flash_number, EF_BLASTER);
+	monster_fire_blaster2(self, start, dir, 8, 1400, flash_number, EF_BLASTER);
 }
 
 

@@ -53,7 +53,7 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_widow 5;monster_jorg 5;monster_widow2 5;monster_boss2kl 5";
+constexpr const char* default_reinforcements = "monster_boss2 3;monster_widow 4;monster_jorg 5;monster_widow2 6";
 constexpr int32_t default_monster_slots_base = 3;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
@@ -1529,7 +1529,7 @@ void SP_monster_medic(edict_t* self)
 	// PMM
 	if (strcmp(self->classname, "monster_medic_commander") == 0)
 	{
-		self->health = 370 * st.health_multiplier;
+		self->health = 270 * st.health_multiplier;
 		self->gib_health = -130;
 		self->mass = 600;
 		self->yaw_speed = 40; // default is 20
@@ -1538,7 +1538,7 @@ void SP_monster_medic(edict_t* self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 380;
+			self->monsterinfo.power_armor_power = 120;
 	}
 	else
 	{
