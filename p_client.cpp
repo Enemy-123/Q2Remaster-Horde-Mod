@@ -909,6 +909,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 			if (!G_IsDeathmatch())
 				client->pers.inventory[IT_ITEM_COMPASS] = 1;
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
