@@ -1969,7 +1969,7 @@ void SP_worldspawn(edict_t* ent)
 	// coop respawn strings
 
 
-
+	if (G_IsCooperative())
 	{
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "$g_coop_respawn_in_combat");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "$g_coop_respawn_bad_area");

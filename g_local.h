@@ -1938,7 +1938,7 @@ extern cvar_t* g_coop_health_scaling;
 extern cvar_t* g_weapon_respawn_time;
 
 extern cvar_t* g_chaotic;
-extern cvar_t* g_chaotic2;
+extern cvar_t* g_ammoregen;
 
 extern cvar_t* g_no_self_damage;
 extern cvar_t* g_no_health;
@@ -2000,11 +2000,10 @@ extern cvar_t* ai_movement_disabled;
 
 // Kyper - Lithium port
 extern cvar_t* g_use_hook;
-extern cvar_t* g_hook_help;
 extern cvar_t* g_hook_wave;
 
-extern cvar_t* g_vampire_damage;
-extern cvar_t* g_vampire_health_max;
+extern cvar_t* g_vampire;
+//extern cvar_t* g_vampire_health_max;
 
 extern cvar_t* g_mover_speed_scale;
 extern cvar_t* g_mover_debug;
@@ -2839,10 +2838,10 @@ struct damage_indicator_t
 constexpr gtime_t LADDER_SOUND_TIME = 300_ms;
 
 // time after damage that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 500_ms;
+constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 400_ms;
 
 // time after firing that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;
+constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 400_ms;
 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'

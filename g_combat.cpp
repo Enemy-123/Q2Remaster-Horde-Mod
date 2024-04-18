@@ -693,7 +693,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
-	if (g_vampire_damage->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 8) {
+	if (g_vampire->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 8) {
 		int vtake = take;
 		int hmax = attacker->max_health;
 

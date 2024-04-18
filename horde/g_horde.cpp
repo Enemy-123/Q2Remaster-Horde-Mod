@@ -35,7 +35,7 @@ static void Horde_InitLevel(int32_t lvl)
 	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
 
 	if (g_horde_local.level == 5) {
-		gi.cvar_set("g_vampire_damage", "1");
+		gi.cvar_set("g_vampire", "1");
 		gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
 		gi.cvar_set("g_damage_scale", "1.5");
 	//	gi.LocBroadcast_Print(PRINT_HIGH, "BLOODTHIRST! You Gained Vampire Ability!\n");
@@ -47,7 +47,7 @@ static void Horde_InitLevel(int32_t lvl)
 	if (g_horde_local.level == 10) {
 		gi.cvar_set("g_damage_scale", "1.7");
 		gi.cvar_set("ai_damage_scale", "1.5");
-		gi.cvar_set("g_chaotic2", "1");
+		gi.cvar_set("g_ammoregen", "1");
 	//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NONE, 0);
 		gi.sound(world, CHAN_VOICE, gi.soundindex("misc/keyuse.wav"), 1, ATTN_NONE, 0);
 		gi.LocBroadcast_Print(PRINT_CENTER, "\nYou have found a Strogg Ammo Generator!");
@@ -422,7 +422,7 @@ void Horde_PreInit()
 
 	if (!deathmatch->integer || ctf->integer || teamplay->integer || coop->integer)
 
-		gi.Com_Print("Horde mode must be DM.\n");
+	gi.Com_Print("Horde mode must be DM.\n");
 	gi.cvar_set("deathmatch", "1");
 	gi.cvar_set("ctf", "0");
 	gi.cvar_set("teamplay", "0");
@@ -442,6 +442,7 @@ void Horde_PreInit()
 		gi.cvar_set("timelimit", "25");
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("sv_target_id", "1");
+		gi.cvar_set("g_dm_instant_items", "1");
 //		gi.cvar_set("g_instagib", "1");
 //		gi.cvar_set("g_dm_no_self_damage", "1");
 //		gi.cvar_set("g_allow_techs", "1");
@@ -453,7 +454,6 @@ void Horde_PreInit()
 //		gi.cvar_set("g_allow_grapple 1", "1");
 //		gi.cvar_set("g_grapple_fly_speed", "3000");
 //		gi.cvar_set("g_grapple_pull_speed", "1200");
-		gi.cvar_set("g_dm_instant_items", "1");
 //		gi.cvar_set("g_dm_no_fall_damage", "1");
 //		gi.cvar_set("g_instant_weapon_switch", "1");
 //		gi.cvar_set("g_start_items", "item_bandolier 1");
@@ -619,10 +619,10 @@ void ResetGame() {
 	// Reinicia las variables de estado del juego
 	g_horde_local.state = horde_state_t::warmup;
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
-	gi.cvar_set("g_vampire_damage", "0");
+	gi.cvar_set("g_vampire", "0");
 	gi.cvar_set("ai_damage_scale", "1");
 	gi.cvar_set("g_damage_scale", "1");
-	gi.cvar_set("g_chaotic2", "0");
+	gi.cvar_set("g_ammoregen", "0");
 
 	}
 
@@ -683,16 +683,16 @@ void Horde_RunFrame()
 			current_wave_number = 2;
 
 			if (!g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "???????");
-			  gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-			//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+				gi.LocBroadcast_Print(PRINT_CENTER, "????");
+			//  gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
 
 			}
 			else if (g_chaotic->integer)
 				gi.LocBroadcast_Print(PRINT_CENTER, "CHAOS IMMINENT");
 		//  gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
-		//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
+		//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
 
@@ -751,7 +751,6 @@ void Horde_RunFrame()
 						message_stream << "New Wave Is Here.\n Current Level: " << g_horde_local.level << "\n";
 						gi.LocBroadcast_Print(PRINT_CENTER, message_stream.str().c_str());
 					}
-
 					g_horde_local.state = horde_state_t::cleanup;
 					g_horde_local.monster_spawn_time = level.time + 2_sec;
 				}
@@ -764,8 +763,6 @@ void Horde_RunFrame()
 		}
 		break;
 
-
-
 	case horde_state_t::cleanup:
 
 		if (CheckRemainingMonstersCondition()) {
@@ -776,16 +773,14 @@ void Horde_RunFrame()
 			g_horde_local.state = horde_state_t::rest;
 			break;
 		}
-		if (g_horde_local.monster_spawn_time < level.time)
 
+		if (g_horde_local.monster_spawn_time < level.time)
 		{
 			if (Horde_AllMonstersDead())
 			{
 				g_horde_local.warm_time = level.time + 3_sec;
 				g_horde_local.state = horde_state_t::rest;
 				remainingMonsters = 0; 
-
-	//			gi.cvar_set("g_vampire_damage", "1"); // CAMBIAR A 1 cuando sea la hora
 
 				if (g_chaotic->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG");// !\n\n*** ALL PLAYERS EARNED VAMPIRE ABILITY*** ");
@@ -808,11 +803,11 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time)
 		{
 			if (g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS TAKING ADVANTAGE !!!\n\n\n **************");// \nYOU LOSE VAMPIRE ABILITY!\n **************");
-			//	gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
+			gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS TAKING ADVANTAGE !!!\n\n\n **************");// \nYOU LOSE VAMPIRE ABILITY!\n **************");
+		   	gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
 //			 gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
 //			 gi.sound(world, CHAN_VOICE, gi.soundindex("world/battle5.wav"), 1, ATTN_NONE, 0);
-			 gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
+//			 gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
 
 			}
 			else if (!g_chaotic->integer){
@@ -831,9 +826,7 @@ void Horde_RunFrame()
 }
 
 
-// Función para manejar una interrupción o evento que requiera reiniciar el juego
 void HandleResetEvent() {
-	// Llama a la función de reinicio del juego
 	ResetGame();
 
 }

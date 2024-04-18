@@ -617,7 +617,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->client->invincible_time = 0_ms;
 	self->client->breather_time = 0_ms;
 	self->client->enviro_time = 0_ms;
-    self->client->invincible_time = 0_ms;
+    self->client->invisible_time = 0_ms;
 	self->flags &= ~FL_POWER_ARMOR;
 
 	// clear inventory
@@ -765,7 +765,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 						gi.LocCenter_Print(player, "$g_coop_lose");
 					gi.cvar_set("timelimit", "0.01");
 					gi.cvar_set("g_chaotic", "0");
-					gi.cvar_set("g_chaotic2", "0");
+					gi.cvar_set("g_ammoregen", "0");
 
 			}
 

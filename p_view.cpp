@@ -992,7 +992,7 @@ void G_SetClientEffects(edict_t* ent)
 void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	gclient_t* client;
 
-	if (!g_chaotic2->integer)
+	if (!g_ammoregen->integer)
 		return;
 
 	client = ent->client;
