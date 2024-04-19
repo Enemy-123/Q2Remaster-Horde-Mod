@@ -45,7 +45,7 @@ static void Horde_InitLevel(int32_t lvl)
 	}
 
 	if (g_horde_local.level == 10) {
-		gi.cvar_set("g_damage_scale", "1.7");
+		gi.cvar_set("g_damage_scale", "1.8");
 		gi.cvar_set("ai_damage_scale", "1.5");
 		gi.cvar_set("g_ammoregen", "1");
 	//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NONE, 0);
@@ -247,7 +247,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_tank_64", 11, -1, 0.27f },
 	{ "monster_medic", 3, 8, 0.12f },
 	{ "monster_shambler", 15, -1, 0.15f },
-	{ "monster_medic_commander", 9, -1, 0.18f },
+	{ "monster_medic_commander", 9, -1, 0.16f },
 	{ "monster_carrier2", 12, -1, 0.23f },
 	{ "monster_guncmdrkl", 19, -1, 0.27f },
 	{ "monster_perrokl", 18, -1, 0.27f },
@@ -795,7 +795,7 @@ void Horde_RunFrame()
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG");// !\n\n*** ALL PLAYERS EARNED VAMPIRE ABILITY*** ");
 					gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
 					gi.cvar_set("g_chaotic", "0");
-					gi.cvar_set("ai_damage_scale", "1.3");
+					gi.cvar_set("ai_damage_scale", "1.2");
 				}
 				else if (!g_chaotic->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");//\n\n***  ALL PLAYERS EARNED VAMPIRE ABILITY  ***");
