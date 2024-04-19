@@ -300,7 +300,7 @@ void InfantryMachineGun(edict_t *self)
 	if (trace.ent == self->enemy || trace.ent == world)
 	{
 		dir.normalize();
-		monster_fire_blaster2(self, start, dir, 2, 750, MZ2_INFANTRY_MACHINEGUN_1, EF_BLASTER);
+		monster_fire_blaster2(self, start, dir, 2, 750, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
 	}
 }
 

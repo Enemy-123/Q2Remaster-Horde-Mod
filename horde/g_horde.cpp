@@ -94,6 +94,15 @@ static void Horde_InitLevel(int32_t lvl)
 		if 	(!Q_strcasecmp(level.mapname, "q2dm8")) {
 		g_horde_local.num_to_spawn = 12 + (lvl * 4);
 	}
+		if 	(!Q_strcasecmp(level.mapname, "dm3")) {
+		g_horde_local.num_to_spawn = 10 + (lvl * 1);
+	}
+		if 	(!Q_strcasecmp(level.mapname, "q64/dm3")) {
+		g_horde_local.num_to_spawn = 10 + (lvl * 1);
+	}
+		if 	(!Q_strcasecmp(level.mapname, "q64\dm3")) {
+		g_horde_local.num_to_spawn = 10 + (lvl * 1);
+	}
  //       if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
 //		g_horde_local.num_to_spawn = 10 + (lvl * 2);
 //	}
