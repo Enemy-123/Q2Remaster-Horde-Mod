@@ -14,7 +14,7 @@ MEDIC
 
 constexpr float MEDIC_MIN_DISTANCE = 32;
 constexpr float MEDIC_MAX_HEAL_DISTANCE = 750;
-constexpr gtime_t MEDIC_TRY_TIME = 10_sec;
+constexpr gtime_t MEDIC_TRY_TIME = 4_sec;
 
 // FIXME -
 //

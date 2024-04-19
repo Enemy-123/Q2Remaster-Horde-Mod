@@ -18,6 +18,7 @@ static cached_soundindex sound_die;
 static cached_soundindex sound_die2;
 static cached_soundindex sound_gun;
 static cached_soundindex sound_gunb;
+static cached_soundindex sound_gunc;
 static cached_soundindex sound_cleaver_swing;
 static cached_soundindex sound_cleaver_hit;
 static cached_soundindex sound_cleaver_miss;
@@ -212,8 +213,59 @@ mframe_t gladb_frames_attack_gun[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, gladbGun_check }
+
 };
 MMOVE_T(gladb_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladb_frames_attack_gun, gladiator_run };
+// HORDE
+// RAFAEL
+void gladcGun(edict_t* self)
+{
+	vec3_t start;
+	vec3_t dir;
+	vec3_t forward, right;
+
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_GLADIATOR_RAILGUN_1], forward, right);
+
+	// calc direction to where we targeted
+	dir = self->pos1 - start;
+	dir.normalize();
+
+	int damage = 35;
+	int radius_damage = 45;
+
+	if (self->s.frame > FRAME_attack3)
+	{
+		damage /= 2;
+		radius_damage /= 2;
+	}
+
+	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+
+	// save for aiming the shot
+	self->pos1 = self->enemy->s.origin;
+	self->pos1[2] += self->enemy->viewheight;
+}
+
+void gladcGun_check(edict_t* self)
+{
+	if (skill->integer == 3)
+		gladcGun(self);
+}
+
+mframe_t gladc_frames_attack_gun[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, gladcGun },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, gladcGun },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, gladcGun_check }
+};
+MMOVE_T(gladc_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladc_frames_attack_gun, gladiator_run };
+
 // RAFAEL
 
 MONSTERINFO_ATTACK(gladiator_attack) (edict_t *self) -> void
@@ -237,6 +289,11 @@ MONSTERINFO_ATTACK(gladiator_attack) (edict_t *self) -> void
 	{
 		gi.sound(self, CHAN_WEAPON, sound_gunb, 1, ATTN_NORM, 0);
 		M_SetAnimation(self, &gladb_move_attack_gun);
+	}
+	else 	if (self->style == 3)
+	{
+		gi.sound(self, CHAN_WEAPON, sound_gunc, 1, ATTN_NORM, 0);
+		M_SetAnimation(self, &gladc_move_attack_gun);
 	}
 	else
 	{
@@ -434,6 +491,23 @@ void SP_monster_gladiator(edict_t *self)
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
 	}
+	else if (strcmp(self->classname, "monster_gladc") == 0)
+	{
+		sound_gunc.assign("weapons/plasshot.wav");
+
+		self->health = 280 * st.health_multiplier;
+		self->mass = 350;
+
+		if (!st.was_key_specified("power_armor_type"))
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = 100;
+		self->s.skinnum = 3;
+
+		self->style = 3;
+
+		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
+	}
 	else
 	{
 		// RAFAEL
@@ -481,6 +555,11 @@ void SP_monster_gladiator(edict_t *self)
 /*QUAKED monster_gladb (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
  */
 void SP_monster_gladb(edict_t *self)
+{
+	SP_monster_gladiator(self);
+}
+
+void SP_monster_gladc(edict_t *self)
 {
 	SP_monster_gladiator(self);
 }

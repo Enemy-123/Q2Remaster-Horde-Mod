@@ -1041,7 +1041,7 @@ void monster_start_go(edict_t* self);
 THINK(monster_triggered_spawn) (edict_t* self) -> void
 {
 	self->s.origin[2] += 1;
-
+	self->monsterinfo.aiflags = AI_DO_NOT_COUNT;
 	self->solid = SOLID_BBOX;
 	self->movetype = MOVETYPE_STEP;
 	self->svflags &= ~SVF_NOCLIENT;
