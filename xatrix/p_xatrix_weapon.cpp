@@ -64,7 +64,7 @@ void weapon_phalanx_fire(edict_t* ent)
 	float  damage_radius;
 	int	   radius_damage;
 
-	damage = irandom(90, 140);
+	damage = irandom(70, 100);
 	radius_damage = 120;
 	damage_radius = 120;
 

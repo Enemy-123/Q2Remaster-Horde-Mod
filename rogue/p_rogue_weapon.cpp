@@ -83,9 +83,9 @@ void weapon_chainfist_fire(edict_t* ent)
 		
 
 	if (G_IsDeathmatch())
-		damage = irandom(8, 20);
+		damage = irandom(8, 14);
 		if (G_IsCooperative())
-		damage = irandom(8, 20);
+		damage = irandom(8, 14);
 
 	if (is_quad)
 		damage *= damage_multiplier;

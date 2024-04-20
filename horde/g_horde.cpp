@@ -151,29 +151,29 @@ constexpr struct weighted_item_t {
 	//{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
 	{ "item_power_shield", 4, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, 19, 0.1f, adjust_weight_powerup },
-	{ "item_double", 4, -1, 0.11f, adjust_weight_powerup },
-	{ "item_quadfire", 2, -1, 0.12f, adjust_weight_powerup },
+	{ "item_quad", 6, 19, 0.09f, adjust_weight_powerup },
+	{ "item_double", 4, -1, 0.1f, adjust_weight_powerup },
+	{ "item_quadfire", 2, -1, 0.1f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.05f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.14f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.23f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, 3, 0.23f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 4, -1, 0.14f, adjust_weight_weapon },
+	{ "weapon_supershotgun", 4, -1, 0.12f, adjust_weight_weapon },
 	{ "weapon_machinegun", -1, 5, 0.23f, adjust_weight_weapon },
 	{ "weapon_etf_rifle", 3, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
+	{ "weapon_boomer", 4, -1, 0.13f, adjust_weight_weapon },
 	{ "weapon_chaingun", 5, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_proxlauncher", 8, -1, 0.14f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 5, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_phalanx", 9, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 7, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_phalanx", 10, -1, 0.14f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 9, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 5, -1, 0.12f, adjust_weight_weapon },
 	{ "weapon_railgun", 6, -1, 0.12f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 7, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_bfg", 14, 17, 0.13f, adjust_weight_weapon },
+	{ "weapon_bfg", 13, 17, 0.11f, adjust_weight_weapon },
 
 
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
@@ -222,8 +222,8 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gekk", 3, -1, 0.22f },
 	{ "monster_parasite", 4, -1, 0.2f },
 	{ "monster_brain", 6, -1, 0.22f },
-	{ "monster_soldier_lasergun", 2, -1, 0.45f },
-	{ "monster_soldier_ripper", 2, 9, 0.45f },
+	{ "monster_soldier_lasergun", 3, -1, 0.45f },
+	{ "monster_soldier_ripper", 3, -1, 0.45f },
 	{ "monster_infantry2", 2, 8, 0.36f },
 	{ "monster_infantry", 7, -1, 0.80f },
 	{ "monster_gunner",5, -1, 0.74f },
@@ -657,7 +657,7 @@ bool CheckRemainingMonstersCondition() {
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
 
-		if (duration.count() >= 16) {
+		if (duration.count() >= 19) {
 			return true;
 		}
 	}
@@ -671,7 +671,7 @@ bool CheckRemainingMonstersCondition() {
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 19) {
+		if (duration.count() >= 23) {
 			return true;
 		}
 	}

@@ -484,13 +484,13 @@ void ED_CallSpawn(edict_t* ent)
 {
 	if (g_chaotic->integer == 1) {
 
-		if (!strcmp(ent->classname, "monster_soldier_light")) {
-			ent->classname = "monster_soldier_lasergun";
-		}
-		else if (!strcmp(ent->classname, "monster_soldier")) {
-			ent->classname = "monster_soldier_hypergun";
-		}
-		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
+//		if (!strcmp(ent->classname, "monster_soldier_light")) {
+//			ent->classname = "monster_soldier_lasergun";
+//		}
+//		else if (!strcmp(ent->classname, "monster_soldier")) {
+//			ent->classname = "monster_soldier_hypergun";
+//		}
+		if (!strcmp(ent->classname, "monster_soldier_ss")) {
 			ent->classname = "monster_infantry2";
 		}
 		else if (!strcmp(ent->classname, "monster_infantry")) {
@@ -532,9 +532,9 @@ void ED_CallSpawn(edict_t* ent)
 //		else if (!strcmp(ent->classname, "monster_brain")) {
 //			ent->classname = "monster_berserk";
 //		}
-	    else if (!strcmp(ent->classname, "monster_gekk")) {
-		ent->classname = "monster_mutant";
-	    }
+//	    else if (!strcmp(ent->classname, "monster_gekk")) {
+//		ent->classname = "monster_mutant";
+//	    }
 //		else if (!strcmp(ent->classname, "monster_fixbot")) {
 //		ent->classname = "monster_hover";
 //	    }

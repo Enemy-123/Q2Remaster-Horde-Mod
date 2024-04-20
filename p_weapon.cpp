@@ -1028,7 +1028,7 @@ GRENADE
 
 void weapon_grenade_fire(edict_t *ent, bool held)
 {
-	int	  damage = 165;
+	int	  damage = 125;
 	int	  speed;
 	float radius;
 
@@ -1274,7 +1274,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t *ent)
 {
-	int	  damage = 150;
+	int	  damage = 115;
 	float radius;
 
 	radius = (float) (damage + 40);
@@ -1322,7 +1322,7 @@ void Weapon_RocketLauncher_Fire(edict_t *ent)
 	float damage_radius;
 	int	  radius_damage;
 
-	damage = irandom(155, 170);
+	damage = irandom(100, 120);
 	radius_damage = 125;
 	damage_radius = 125;
 	if (is_quad)
