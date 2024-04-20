@@ -2838,10 +2838,10 @@ struct damage_indicator_t
 constexpr gtime_t LADDER_SOUND_TIME = 300_ms;
 
 // time after damage that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 7000_ms;
+constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 3000_ms;
 
 // time after firing that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 400_ms;
+constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;
 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'

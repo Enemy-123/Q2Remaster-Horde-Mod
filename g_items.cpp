@@ -474,7 +474,7 @@ void Use_QuadFire(edict_t* ent, gitem_t* item)
 	}
 	else
 	{
-		timeout = 40_sec;
+		timeout = 30_sec;
 	}
 
 	ent->client->quadfire_time = max(level.time, ent->client->quadfire_time) + timeout;

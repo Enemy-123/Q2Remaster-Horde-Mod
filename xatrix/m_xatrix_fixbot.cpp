@@ -16,6 +16,7 @@ static cached_soundindex sound_die;
 static cached_soundindex sound_weld1;
 static cached_soundindex sound_weld2;
 static cached_soundindex sound_weld3;
+static cached_soundindex sound_gun;
 
 void fixbot_run(edict_t* self);
 void fixbot_attack(edict_t* self);
@@ -1241,32 +1242,30 @@ void fixbot_fire_welder(edict_t* self)
 void fixbot_fire_blaster(edict_t* self)
 {
 	vec3_t start;
+	vec3_t forward, right, up;
+	vec3_t end;
 	vec3_t dir;
-	vec3_t forward, right;
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right);
+	if (!visible(self, self->enemy))
 	{
-		// calc direction to where we targeted
-		dir = self->pos1 - start;
-		dir.normalize();
-
-		int damage = 15;
-		int radius_damage = 45;
-
-		{
-			damage /= 1.7;
-			radius_damage /= 2;
-		}
-
-		fire_plasma(self, start, dir, damage, 905, radius_damage, radius_damage);
-
-		// save for aiming the shot
-		self->pos1 = self->enemy->s.origin;
-		self->pos1[2] += self->enemy->viewheight;
+		M_SetAnimation(self, &fixbot_move_run);
 	}
+
+	AngleVectors(self->s.angles, forward, right, up);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_HOVER_BLASTER_1], forward, right);
+
+	end = self->enemy->s.origin;
+	end[2] += self->enemy->viewheight;
+	dir = end - start;
+	dir.normalize();
+
+	monster_fire_blaster(self, start, dir, 15, 1000, MZ2_HOVER_BLASTER_1, EF_BLASTER);
+	// save for aiming the shot
+	self->pos1 = self->enemy->s.origin;
+	self->pos1[2] += self->enemy->viewheight;
 }
-	MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
+
+MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &fixbot_move_stand);
 }
@@ -1371,8 +1370,8 @@ void SP_monster_fixbot(edict_t* self)
 		return;
 	}
 
-	sound_pain1.assign("flyer/flypain1.wav");
-	sound_die.assign("flyer/flydeth1.wav");
+	sound_pain1.assign("daedalus/daedpain1.wav");
+	sound_die.assign("daedalus/daeddeth1.wav");
 
 	sound_weld1.assign("misc/welder1.wav");
 	sound_weld2.assign("misc/welder2.wav");

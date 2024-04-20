@@ -292,7 +292,7 @@ MONSTERINFO_ATTACK(gladiator_attack) (edict_t* self) -> void
 	}
 	else 	if (self->style == 3)
 	{
-		gi.sound(self, CHAN_WEAPON, sound_gunc, 1, ATTN_NORM, 0);
+		gi.sound(self, CHAN_WEAPON, sound_gun, 1, ATTN_NORM, 0);
 		M_SetAnimation(self, &gladc_move_attack_gun);
 	}
 	else

@@ -310,7 +310,7 @@ void WidowDisrupt(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 20, 500, self->enemy, MZ2_WIDOW_DISRUPTOR);
+		monster_fire_tracker(self, start, dir, 20, 900, self->enemy, MZ2_WIDOW_DISRUPTOR);
 	}
 	else
 	{

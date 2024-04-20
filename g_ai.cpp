@@ -1720,7 +1720,7 @@ void ai_run(edict_t* self, float dist)
         else if (self->monsterinfo.aiflags & AI_PURSUIT_LAST_SEEN)
         {
             self->monsterinfo.aiflags &= ~AI_PURSUIT_LAST_SEEN;
-            marker = PlayerTrail_Pick(self, false);
+            marker = PlayerTrail_Pick(self, false); // crash debugger
         }
         else
         {

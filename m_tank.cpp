@@ -1079,9 +1079,10 @@ void SP_monster_tank(edict_t* self)
 	if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
 	{
 		if (!self->s.scale)
-			self->s.scale = 1.5f;
+			self->s.scale = 1.3f;
 		self->health = 850 * st.health_multiplier;
 		self->accel = 1.75f;
+		self->gib_health = -130;
 	}
 
 	// heat seekingness

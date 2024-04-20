@@ -496,9 +496,9 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner";
 		}
-//		else if (!strcmp(ent->classname, "monster_gunner")) {
-//			ent->classname = "monster_guncmdr";
-//		}
+		else if (!strcmp(ent->classname, "monster_brain")) {
+			ent->classname = "monster_guncmdr";
+		}
 		else if (!strcmp(ent->classname, "monster_flyer")) {
 			ent->classname = "monster_hover2";
 		}
@@ -508,8 +508,11 @@ void ED_CallSpawn(edict_t* ent)
 //		else if (!strcmp(ent->classname, "monster_berserk")) {
 //			ent->classname = "monster_brain";
 //		}
-		else if (!strcmp(ent->classname, "monster_tank")) {
+		else if (!strcmp(ent->classname, "monster_shambler")) {
 			ent->classname = "monster_tank_64";
+		}
+		else if (!strcmp(ent->classname, "monster_tank")) {
+			ent->classname = "monster_tank_commander";
 		}
 		else if (!strcmp(ent->classname, "monster_tank_commander")) {
 			ent->classname = "monster_shambler";

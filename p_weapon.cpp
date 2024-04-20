@@ -1362,7 +1362,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
-	int speed = hyper ? 1000 : 10000;
+	int speed = hyper ? 5000 : 10000;
 
 	fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER);
 
@@ -1821,7 +1821,7 @@ void weapon_railgun_fire(edict_t* ent)
 	}
 	else
 	{
-		damage = 175;
+		damage = 150;
 		kick = 285;
 	}
 

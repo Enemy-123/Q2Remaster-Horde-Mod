@@ -610,8 +610,8 @@ void SP_monster_hover2(edict_t* self)
 	// PGM
 	if (strcmp(self->classname, "monster_daedalus2") == 0)
 	{
-		self->health = 450 * st.health_multiplier;
-		self->mass = 225;
+		self->health = 250 * st.health_multiplier;
+		self->mass = 350;
 		self->yaw_speed = 23;
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;

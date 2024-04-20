@@ -39,7 +39,7 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
 		gi.cvar_set("g_damage_scale", "1.5");
 	//	gi.LocBroadcast_Print(PRINT_HIGH, "BLOODTHIRST! You Gained Vampire Ability!\n");
-		gi.LocBroadcast_Print(PRINT_CENTER, "You're covered in blood and Gained Vampire Ability!");
+		gi.LocBroadcast_Print(PRINT_CENTER, "You're covered in blood!\nAND\n Unlocked\nVampire Ability!\n");
 
 		next_wave_message_sent = false;
 	}
@@ -50,7 +50,7 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.cvar_set("g_ammoregen", "1");
 	//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NONE, 0);
 		gi.sound(world, CHAN_VOICE, gi.soundindex("misc/keyuse.wav"), 1, ATTN_NONE, 0);
-		gi.LocBroadcast_Print(PRINT_CENTER, "\nYou have found a Strogg Ammo Generator!");
+		gi.LocBroadcast_Print(PRINT_CENTER, "\n\nAMMO REGEN\nIS\nENABLED!\n");
 	}	
 
 	if (g_horde_local.level == 15) {
@@ -58,7 +58,7 @@ static void Horde_InitLevel(int32_t lvl)
 	}
 
 	if (g_horde_local.level == 20) {
-		gi.cvar_set("g_damage_scale", "2.5");
+		gi.cvar_set("g_damage_scale", "2.3");
 	}
 
 	    if 	(!Q_strcasecmp(level.mapname, "base1")) {
@@ -85,9 +85,9 @@ static void Horde_InitLevel(int32_t lvl)
 //	    if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
 //		g_horde_local.num_to_spawn = 32 + (lvl * 5);
 //	}
-//	    if 	(!Q_strcasecmp(level.mapname, "q2dm1")) {
-//		g_horde_local.num_to_spawn = 10 + (lvl * 2);
-//	}
+	    if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
+		g_horde_local.num_to_spawn = 10 + (lvl * 1);
+	}
 	    if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 2);
 	}
@@ -108,7 +108,7 @@ static void Horde_InitLevel(int32_t lvl)
 //	}
 
 	    else 
-		g_horde_local.num_to_spawn = 10 + (lvl * 2);
+		g_horde_local.num_to_spawn = 12 + (lvl * 2);
 
 }
 
@@ -138,48 +138,48 @@ constexpr struct weighted_item_t {
 	float					weight = 1.0f;
 	weight_adjust_func_t	adjust_weight = nullptr;
 } items[] = {
-	{ "item_health_small", -1, 9, 0.35f, adjust_weight_health },
+	{ "item_health_small", -1, 9, 0.26f, adjust_weight_health },
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
-	{ "item_health_mega", -1, -1, 0.06f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.13f, adjust_weight_health },
+	{ "item_health_mega", -1, -1, 0.09f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.15f, adjust_weight_health },
 
-	{ "item_armor_shard", -1, 9, 0.35f, adjust_weight_armor },
+	{ "item_armor_shard", -1, 9, 0.26f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
 	//{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
-	{ "item_power_shield", 4, -1, 0.07f, adjust_weight_armor },
+	{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, 19, 0.09f, adjust_weight_powerup },
-	{ "item_double", 4, -1, 0.1f, adjust_weight_powerup },
-	{ "item_quadfire", 2, -1, 0.1f, adjust_weight_powerup },
+	{ "item_quad", 6, 19, 0.065f, adjust_weight_powerup },
+	{ "item_double", 5, -1, 0.078f, adjust_weight_powerup },
+	{ "item_quadfire", 4, -1, 0.08f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.05f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, -1, 0.14f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
-	{ "weapon_chainfist", -1, 2, 0.23f, adjust_weight_weapon },
-	{ "weapon_shotgun", -1, 3, 0.23f, adjust_weight_weapon },
-	{ "weapon_supershotgun", 4, -1, 0.12f, adjust_weight_weapon },
-	{ "weapon_machinegun", -1, 5, 0.23f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", 3, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_boomer", 4, -1, 0.13f, adjust_weight_weapon },
-	{ "weapon_chaingun", 5, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_grenadelauncher", 6, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_proxlauncher", 8, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_hyperblaster", 5, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_phalanx", 10, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 11, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_rocketlauncher", 5, -1, 0.12f, adjust_weight_weapon },
-	{ "weapon_railgun", 6, -1, 0.12f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 7, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_bfg", 13, 17, 0.11f, adjust_weight_weapon },
+	{ "weapon_chainfist", -1, 3, 0.23f, adjust_weight_weapon },
+	{ "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
+	{ "weapon_supershotgun", 4, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_machinegun", -1, -1, 0.29f, adjust_weight_weapon },
+	{ "weapon_etf_rifle", 3, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_boomer", 4, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_chaingun", 5, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_grenadelauncher", 6, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_proxlauncher", 8, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_hyperblaster", 5, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_phalanx", 10, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_rocketlauncher", 5, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_railgun", 6, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 15, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_bfg", 17, -1, 0.15f, adjust_weight_weapon },
 
 
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_flechettes", 5, -1, 0.35f, adjust_weight_ammo },
-	{ "ammo_grenades", 2, -1, 0.35f, adjust_weight_ammo },
+	{ "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_prox", 7, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_tesla", 4, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
@@ -187,9 +187,8 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 7, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 7, -1, 0.24f, adjust_weight_ammo },
 	{ "ammo_rockets", 7, -1, 0.30f, adjust_weight_ammo },
-	{ "item_bandolier", 5, -1, 0.32f, adjust_weight_ammo },
-	{ "item_pack", 12, -1, 0.18f, adjust_weight_ammo },
-
+	{ "item_bandolier", 4, -1, 0.37f, adjust_weight_ammo },
+	{ "item_pack", 8, -1, 0.34f, adjust_weight_ammo },
 };
 
 void adjust_weight_health(const weighted_item_t& item, float& weight)
@@ -213,48 +212,48 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 }
 
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, 8, 0.55f },
+	{ "monster_soldier_light", -1, 6, 0.55f },
 	{ "monster_soldier_ss", -1, -1, 0.55f },
 	{ "monster_fixbot", 6, -1, 0.3f },
 	{ "monster_soldier", -1, 4, 0.45f },
-	{ "monster_soldier_hypergun", 2, 8, 0.55f },
-	{ "monster_stalker", 4, 10, 0.13f },
-	{ "monster_gekk", 3, -1, 0.22f },
-	{ "monster_parasite", 4, -1, 0.2f },
-	{ "monster_brain", 6, -1, 0.22f },
-	{ "monster_soldier_lasergun", 3, -1, 0.45f },
-	{ "monster_soldier_ripper", 3, -1, 0.45f },
+	{ "monster_soldier_hypergun", 2, 7, 0.55f },
+	{ "monster_stalker", 4, 8, 0.13f },
+	{ "monster_gekk", 3, 9, 0.22f },
+	{ "monster_parasite", 4, 12, 0.2f },
+	{ "monster_soldier_lasergun", 3, 10, 0.45f },
+	{ "monster_soldier_ripper", 3, 7, 0.45f },
 	{ "monster_infantry2", 2, 8, 0.36f },
-	{ "monster_infantry", 7, -1, 0.80f },
-	{ "monster_gunner", 4, -1, 0.74f },
-	{ "monster_chick", 5, -1, 0.80f },
-	{ "monster_guncmdr", 8, -1, 0.4f },
-	{ "monster_gladiator", 6, -1, 0.84f },
-	{ "monster_gladc", 6, 11, 0.84f },
-	{ "monster_gladb", 11, -1, 0.75f},
+	{ "monster_infantry", 7, -1, 0.50f },
+	{ "monster_gunner", 4, 11, 0.54f },
+	{ "monster_guncmdr", 8, -1, 0.3f },
 //	{ "monster_chick_heat", 7, -1, 0.73f },
-	{ "monster_tank_commander", 12, -1, 0.22f },
-	{ "monster_mutant", 8, -1, 0.55f },
-	{ "monster_tank", 8, -1, 0.3f },
-	{ "monster_janitor2", 13, -1, 0.12f },
-	{ "monster_janitor", 8, -1, 0.18f },
-	{ "monster_hover", 10, -1, 0.45f },
-	{ "monster_hover2", 4, 10, 0.55f },
-	{ "monster_flyer", -1, 9, 0.35f },
-	{ "monster_floater", 8, -1, 0.55f },
-	{ "monster_daedalus", 9, -1, 0.52f },
-	{ "monster_daedalus2", 6, 10, 0.42f },
-	{ "monster_makron", 13, 19, 0.2f },
-	{ "monster_boss2_64", 10, 16, 0.17f },
-	{ "monster_berserk", 6, -1, 0.65f },
-	{ "monster_spider", 8, -1, 0.34f },
-	{ "monster_tank_64", 11, -1, 0.27f },
+	{ "monster_hover2", 4, 10, 0.27f },
 	{ "monster_medic", 5, 8, 0.12f },
-	{ "monster_shambler", 15, -1, 0.15f },
-	{ "monster_medic_commander", 9, -1, 0.16f },
+	{ "monster_flyer", -1, -1, 0.34f },
+	{ "monster_floater", 8, -1, 0.3f },
+	{ "monster_daedalus", 9, -1, 0.22f },
+	{ "monster_brain", 5, -1, 0.3f },
+	{ "monster_daedalus2", 6, 8, 0.22f },
+	{ "monster_gladiator", 5, -1, 0.54f },
+	{ "monster_gladc", 6, -1, 0.54f },
+	{ "monster_mutant", 7, -1, 0.55f },
+	{ "monster_chick", 7, -1, 0.7f },
+	{ "monster_tank", 8, -1, 0.3f },
+	{ "monster_berserk", 9, -1, 0.45f },
+	{ "monster_boss2_64", 10, -1, 0.17f },
+	{ "monster_hover", 11, -1, 0.27f },
+	{ "monster_gladb", 11, -1, 0.75f},
 	{ "monster_carrier2", 12, -1, 0.23f },
-	{ "monster_guncmdrkl", 19, -1, 0.27f },
-	{ "monster_perrokl", 18, -1, 0.27f },
+	{ "monster_spider", 12, -1, 0.24f },
+	{ "monster_tank_commander", 11, -1, 0.22f },
+	{ "monster_janitor", 11, -1, 0.18f },
+    { "monster_medic_commander", 13, -1, 0.18f },
+	{ "monster_shambler", 15, -1, 0.15f },
+	{ "monster_tank_64", 16, -1, 0.27f },
+	{ "monster_janitor2", 17, -1, 0.1f },
+	{ "monster_makron", 18, 19, 0.2f },
+	{ "monster_perrokl", 21, -1, 0.27f },
+	{ "monster_guncmdrkl", 23, -1, 0.34f },
 };
 
 struct boss_t {
@@ -749,10 +748,10 @@ void Horde_RunFrame()
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-				g_horde_local.monster_spawn_time = level.time + random_time(0.8_sec, 1.3_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(1.2_sec, 1.7_sec);
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
-				e->health *= pow(1.028, current_wave_number);
+				e->health *= pow(1.007, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;

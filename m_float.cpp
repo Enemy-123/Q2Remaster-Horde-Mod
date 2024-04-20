@@ -690,7 +690,7 @@ void SP_monster_floater(edict_t* self)
 	self->health = 130 * st.health_multiplier;
 	self->gib_health = -80;
 	self->mass = 300;
-	self->s.scale = 1.2f;
+	self->s.scale = 1.0f;
 	self->pain = floater_pain;
 	self->die = floater_die;
 
