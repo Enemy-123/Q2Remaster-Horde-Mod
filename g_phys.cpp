@@ -53,8 +53,8 @@ contents_t G_GetClipMask(edict_t* ent)
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// horde mode
-//	if (g_horde->integer && (ent->svflags & SVF_MONSTER))
-//		mask &= ~CONTENTS_MONSTER;
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (!((!strcmp(ent->classname, "monster_flyer")))))
+		mask &= ~CONTENTS_MONSTER;
 
 	return mask;
 }
