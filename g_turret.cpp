@@ -64,7 +64,7 @@ void turret_breach_fire(edict_t* self)
 		damage = self->count;
 	else
 		damage = (int)frandom(150, 180);
-	speed = 1250 + 150 * skill->integer;
+	speed = 1150 + 50 * skill->integer;
 	edict_t* rocket = fire_rocket(self->teammaster->owner->activator ? self->teammaster->owner->activator : self->teammaster->owner, start, f, damage, speed, 150, damage);
 	rocket->s.scale = self->teammaster->dmg_radius;
 
@@ -427,11 +427,11 @@ void SP_turret_driver(edict_t* self)
 	self->maxs = { 16, 16, 32 };
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 125;
+		self->monsterinfo.power_armor_power = 85;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
-	self->health = self->max_health = 240 * st.health_multiplier;
+	self->health = self->max_health = 175 * st.health_multiplier;
 	self->gib_health = -40;
 	self->mass = 200;
 	self->viewheight = 24;
@@ -607,7 +607,7 @@ USE(turret_brain_activate) (edict_t* self, edict_t* other, edict_t* activator) -
 	if (self->wait)
 		self->monsterinfo.attack_finished = level.time + gtime_t::from_sec(self->wait);
 	else
-		self->monsterinfo.attack_finished = level.time + 1.2_sec;
+		self->monsterinfo.attack_finished = level.time + 1.0_sec;
 	self->use = turret_brain_deactivate;
 
 	// Paril NOTE: rhangar1 has a turret_invisible_brain that breaks the

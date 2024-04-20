@@ -53,7 +53,7 @@ void floater_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster(self, start, dir, 4, 1300, MZ2_FLOAT_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+	monster_fire_blaster(self, start, dir, 4, 1150, MZ2_FLOAT_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 }
 
 mframe_t floater_frames_stand1[] = {
@@ -685,15 +685,12 @@ void SP_monster_floater(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 250;
+		self->monsterinfo.power_armor_power = 120;
 
 	self->health = 130 * st.health_multiplier;
 	self->gib_health = -80;
 	self->mass = 300;
-
-	if (!self->s.scale)
-		self->s.scale = 1.2f;
-
+	self->s.scale = 1.2f;
 	self->pain = floater_pain;
 	self->die = floater_die;
 

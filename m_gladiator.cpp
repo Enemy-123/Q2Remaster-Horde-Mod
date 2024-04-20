@@ -26,22 +26,22 @@ static cached_soundindex sound_idle;
 static cached_soundindex sound_search;
 static cached_soundindex sound_sight;
 
-MONSTERINFO_IDLE(gladiator_idle) (edict_t *self) -> void
+MONSTERINFO_IDLE(gladiator_idle) (edict_t* self) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
-MONSTERINFO_SIGHT(gladiator_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(gladiator_sight) (edict_t* self, edict_t* other) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_SEARCH(gladiator_search) (edict_t *self) -> void
+MONSTERINFO_SEARCH(gladiator_search) (edict_t* self) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 }
 
-void gladiator_cleaver_swing(edict_t *self)
+void gladiator_cleaver_swing(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_cleaver_swing, 1, ATTN_NORM, 0);
 }
@@ -57,7 +57,7 @@ mframe_t gladiator_frames_stand[] = {
 };
 MMOVE_T(gladiator_move_stand) = { FRAME_stand1, FRAME_stand7, gladiator_frames_stand, nullptr };
 
-MONSTERINFO_STAND(gladiator_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(gladiator_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &gladiator_move_stand);
 }
@@ -82,7 +82,7 @@ mframe_t gladiator_frames_walk[] = {
 };
 MMOVE_T(gladiator_move_walk) = { FRAME_walk1, FRAME_walk16, gladiator_frames_walk, nullptr };
 
-MONSTERINFO_WALK(gladiator_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(gladiator_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &gladiator_move_walk);
 }
@@ -97,7 +97,7 @@ mframe_t gladiator_frames_run[] = {
 };
 MMOVE_T(gladiator_move_run) = { FRAME_run1, FRAME_run6, gladiator_frames_run, nullptr };
 
-MONSTERINFO_RUN(gladiator_run) (edict_t *self) -> void
+MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &gladiator_move_stand);
@@ -105,7 +105,7 @@ MONSTERINFO_RUN(gladiator_run) (edict_t *self) -> void
 		M_SetAnimation(self, &gladiator_move_run);
 }
 
-void GladiatorMelee(edict_t *self)
+void GladiatorMelee(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
 	if (fire_hit(self, aim, irandom(20, 25), 300))
@@ -135,12 +135,12 @@ mframe_t gladiator_frames_attack_melee[] = {
 };
 MMOVE_T(gladiator_move_attack_melee) = { FRAME_melee3, FRAME_melee16, gladiator_frames_attack_melee, gladiator_run };
 
-MONSTERINFO_MELEE(gladiator_melee) (edict_t *self) -> void
+MONSTERINFO_MELEE(gladiator_melee) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &gladiator_move_attack_melee);
 }
 
-void GladiatorGun(edict_t *self)
+void GladiatorGun(edict_t* self)
 {
 	vec3_t start;
 	vec3_t dir;
@@ -197,7 +197,7 @@ void gladbGun(edict_t* self)
 		monster_fire_tracker(self, start, dir, 23, 1250, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
-void gladbGun_check(edict_t *self)
+void gladbGun_check(edict_t* self)
 {
 	if (skill->integer == 3)
 		gladbGun(self);
@@ -268,7 +268,7 @@ MMOVE_T(gladc_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladc_frames_at
 
 // RAFAEL
 
-MONSTERINFO_ATTACK(gladiator_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(gladiator_attack) (edict_t* self) -> void
 {
 	float  range;
 	vec3_t v;
@@ -322,7 +322,7 @@ mframe_t gladiator_frames_pain_air[] = {
 };
 MMOVE_T(gladiator_move_pain_air) = { FRAME_painup2, FRAME_painup6, gladiator_frames_pain_air, gladiator_run };
 
-PAIN(gladiator_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(gladiator_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	if (level.time < self->pain_debounce_time)
 	{
@@ -347,7 +347,7 @@ PAIN(gladiator_pain) (edict_t *self, edict_t *other, float kick, int damage, con
 		M_SetAnimation(self, &gladiator_move_pain);
 }
 
-MONSTERINFO_SETSKIN(gladiator_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(gladiator_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum |= 1;
@@ -355,14 +355,14 @@ MONSTERINFO_SETSKIN(gladiator_setskin) (edict_t *self) -> void
 		self->s.skinnum &= ~1;
 }
 
-void gladiator_dead(edict_t *self)
+void gladiator_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
 	monster_dead(self);
 }
 
-static void gladiator_shrink(edict_t *self)
+static void gladiator_shrink(edict_t* self)
 {
 	self->maxs[2] = 0;
 	self->svflags |= SVF_DEADMONSTER;
@@ -394,7 +394,7 @@ mframe_t gladiator_frames_death[] = {
 };
 MMOVE_T(gladiator_move_death) = { FRAME_death2, FRAME_death22, gladiator_frames_death, gladiator_dead };
 
-DIE(gladiator_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(gladiator_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	// check for gib
 	if (M_CheckGib(self, mod))
@@ -411,7 +411,7 @@ DIE(gladiator_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 			{ "models/monsters/gladiatr/gibs/rarm.md2", GIB_SKINNED | GIB_UPRIGHT },
 			{ "models/monsters/gladiatr/gibs/chest.md2", GIB_SKINNED },
 			{ "models/monsters/gladiatr/gibs/head.md2", GIB_SKINNED | GIB_HEAD }
-		});
+			});
 		self->deadflag = true;
 		return;
 	}
@@ -433,7 +433,7 @@ DIE(gladiator_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 
 //===========
 // PGM
-MONSTERINFO_BLOCKED(gladiator_blocked) (edict_t *self, float dist) -> bool
+MONSTERINFO_BLOCKED(gladiator_blocked) (edict_t* self, float dist) -> bool
 {
 	if (blocked_checkplat(self, dist))
 		return true;
@@ -445,10 +445,10 @@ MONSTERINFO_BLOCKED(gladiator_blocked) (edict_t *self, float dist) -> bool
 
 /*QUAKED monster_gladiator (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
  */
-void SP_monster_gladiator(edict_t *self)
+void SP_monster_gladiator(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -466,7 +466,7 @@ void SP_monster_gladiator(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/gladiatr/tris.md2");
-	
+
 	gi.modelindex("models/monsters/gladiatr/gibs/chest.md2");
 	gi.modelindex("models/monsters/gladiatr/gibs/head.md2");
 	gi.modelindex("models/monsters/gladiatr/gibs/larm.md2");
@@ -478,13 +478,13 @@ void SP_monster_gladiator(edict_t *self)
 	{
 		sound_gunb.assign("weapons/disrupt.wav");
 
-		self->health = 280 * st.health_multiplier;
+		self->health = 250 * st.health_multiplier;
 		self->mass = 350;
 
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 100;
+			self->monsterinfo.power_armor_power = 250;
 		self->s.skinnum = 2;
 
 		self->style = 1;
@@ -495,7 +495,7 @@ void SP_monster_gladiator(edict_t *self)
 	{
 		sound_gunc.assign("weapons/plasshot.wav");
 
-		self->health = 280 * st.health_multiplier;
+		self->health = 250 * st.health_multiplier;
 		self->mass = 350;
 
 		if (!st.was_key_specified("power_armor_type"))
@@ -554,13 +554,13 @@ void SP_monster_gladiator(edict_t *self)
 //
 /*QUAKED monster_gladb (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
  */
-void SP_monster_gladb(edict_t *self)
+void SP_monster_gladb(edict_t* self)
 {
 	self->s.renderfx = RF_GLOW;
 	SP_monster_gladiator(self);
 }
 
-void SP_monster_gladc(edict_t *self)
+void SP_monster_gladc(edict_t* self)
 {
 	SP_monster_gladiator(self);
 }

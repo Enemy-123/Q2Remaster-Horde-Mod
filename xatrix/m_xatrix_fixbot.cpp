@@ -8,8 +8,8 @@
 #include "m_xatrix_fixbot.h"
 #include "../m_flash.h"
 
-bool infront(edict_t *self, edict_t *other);
-bool FindTarget(edict_t *self);
+bool infront(edict_t* self, edict_t* other);
+bool FindTarget(edict_t* self);
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_die;
@@ -17,17 +17,17 @@ static cached_soundindex sound_weld1;
 static cached_soundindex sound_weld2;
 static cached_soundindex sound_weld3;
 
-void fixbot_run(edict_t *self);
-void fixbot_attack(edict_t *self);
-void fixbot_dead(edict_t *self);
-void fixbot_fire_blaster(edict_t *self);
-void fixbot_fire_welder(edict_t *self);
+void fixbot_run(edict_t* self);
+void fixbot_attack(edict_t* self);
+void fixbot_dead(edict_t* self);
+void fixbot_fire_blaster(edict_t* self);
+void fixbot_fire_welder(edict_t* self);
 
-void use_scanner(edict_t *self);
-void change_to_roam(edict_t *self);
-void fly_vertical(edict_t *self);
+void use_scanner(edict_t* self);
+void change_to_roam(edict_t* self);
+void fly_vertical(edict_t* self);
 
-void fixbot_stand(edict_t *self);
+void fixbot_stand(edict_t* self);
 
 extern const mmove_t fixbot_move_forward;
 extern const mmove_t fixbot_move_stand;
@@ -41,10 +41,10 @@ extern const mmove_t fixbot_move_takeoff;
 extern const mmove_t fixbot_move_landing;
 extern const mmove_t fixbot_move_turn;
 
-void roam_goal(edict_t *self);
+void roam_goal(edict_t* self);
 
 // [Paril-KEX] clean up bot goals if we get interrupted
-THINK(bot_goal_check) (edict_t *self) -> void
+THINK(bot_goal_check) (edict_t* self) -> void
 {
 	if (!self->owner || !self->owner->inuse || self->owner->goalentity != self)
 	{
@@ -55,12 +55,12 @@ THINK(bot_goal_check) (edict_t *self) -> void
 	self->nextthink = level.time + 1_ms;
 }
 
-void ED_CallSpawn(edict_t *ent);
+void ED_CallSpawn(edict_t* ent);
 
-edict_t *fixbot_FindDeadMonster(edict_t *self)
+edict_t* fixbot_FindDeadMonster(edict_t* self)
 {
-	edict_t *ent = nullptr;
-	edict_t *best = nullptr;
+	edict_t* ent = nullptr;
+	edict_t* best = nullptr;
 
 	while ((ent = findradius(ent, self->s.origin, 1024)) != nullptr)
 	{
@@ -99,11 +99,11 @@ edict_t *fixbot_FindDeadMonster(edict_t *self)
 	return best;
 }
 
-static void fixbot_set_fly_parameters(edict_t *self, bool heal, bool weld)
+static void fixbot_set_fly_parameters(edict_t* self, bool heal, bool weld)
 {
 	self->monsterinfo.fly_position_time = 0_sec;
-	self->monsterinfo.fly_acceleration = 25.f;
-	self->monsterinfo.fly_speed = 210.f;
+	self->monsterinfo.fly_acceleration = 14.f;
+	self->monsterinfo.fly_speed = 160.f;
 	self->monsterinfo.fly_buzzard = false;
 
 	if (heal)
@@ -125,9 +125,9 @@ static void fixbot_set_fly_parameters(edict_t *self, bool heal, bool weld)
 	}
 }
 
-int fixbot_search(edict_t *self)
+int fixbot_search(edict_t* self)
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	if (!self->enemy)
 	{
@@ -146,12 +146,12 @@ int fixbot_search(edict_t *self)
 	return (0);
 }
 
-void landing_goal(edict_t *self)
+void landing_goal(edict_t* self)
 {
 	trace_t	 tr;
 	vec3_t	 forward, right, up;
 	vec3_t	 end;
-	edict_t *ent;
+	edict_t* ent;
 
 	ent = G_Spawn();
 	ent->classname = "bot_goal";
@@ -175,12 +175,12 @@ void landing_goal(edict_t *self)
 	M_SetAnimation(self, &fixbot_move_landing);
 }
 
-void takeoff_goal(edict_t *self)
+void takeoff_goal(edict_t* self)
 {
 	trace_t	 tr;
 	vec3_t	 forward, right, up;
 	vec3_t	 end;
-	edict_t *ent;
+	edict_t* ent;
 
 	ent = G_Spawn();
 	ent->classname = "bot_goal";
@@ -204,7 +204,7 @@ void takeoff_goal(edict_t *self)
 	M_SetAnimation(self, &fixbot_move_takeoff);
 }
 
-void change_to_roam(edict_t *self)
+void change_to_roam(edict_t* self)
 {
 
 	if (fixbot_search(self))
@@ -238,18 +238,18 @@ void change_to_roam(edict_t *self)
 	}
 }
 
-void roam_goal(edict_t *self)
+void roam_goal(edict_t* self)
 {
 
 	trace_t	 tr;
 	vec3_t	 forward, right, up;
 	vec3_t	 end;
-	edict_t *ent;
+	edict_t* ent;
 	vec3_t	 dang;
 	float	 len, oldlen;
 	int		 i;
 	vec3_t	 vec;
-	vec3_t	 whichvec {};
+	vec3_t	 whichvec{};
 
 	ent = G_Spawn();
 	ent->classname = "bot_goal";
@@ -292,9 +292,9 @@ void roam_goal(edict_t *self)
 	M_SetAnimation(self, &fixbot_move_turn);
 }
 
-void use_scanner(edict_t *self)
+void use_scanner(edict_t* self)
 {
-	edict_t *ent = nullptr;
+	edict_t* ent = nullptr;
 
 	float  radius = 1024;
 	vec3_t vec;
@@ -388,7 +388,7 @@ void use_scanner(edict_t *self)
 	decend translated along the z the current
 	frames are at 10fps
 */
-void blastoff(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick, int te_impact, int hspread, int vspread)
+void blastoff(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int te_impact, int hspread, int vspread)
 {
 	trace_t	   tr;
 	vec3_t	   dir;
@@ -525,7 +525,7 @@ void blastoff(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int dama
 	}
 }
 
-void fly_vertical(edict_t *self)
+void fly_vertical(edict_t* self)
 {
 	int	   i;
 	vec3_t v;
@@ -558,7 +558,7 @@ void fly_vertical(edict_t *self)
 	// needs sound
 }
 
-void fly_vertical2(edict_t *self)
+void fly_vertical2(edict_t* self)
 {
 	vec3_t v;
 	float  len;
@@ -747,7 +747,7 @@ mframe_t fixbot_frames_roamgoal[] = {
 };
 MMOVE_T(fixbot_move_roamgoal) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_roamgoal, nullptr };
 
-void ai_facing(edict_t *self, float dist)
+void ai_facing(edict_t* self, float dist)
 {
 	if (!self->goalentity)
 	{
@@ -772,7 +772,7 @@ mframe_t fixbot_frames_turn[] = {
 };
 MMOVE_T(fixbot_move_turn) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_turn, nullptr };
 
-void go_roam(edict_t *self)
+void go_roam(edict_t* self)
 {
 	M_SetAnimation(self, &fixbot_move_stand);
 }
@@ -847,9 +847,9 @@ mframe_t fixbot_frames_land[] = {
 MMOVE_T(fixbot_move_land) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_land, nullptr };
 #endif
 
-void M_MoveToGoal(edict_t *ent, float dist);
+void M_MoveToGoal(edict_t* ent, float dist);
 
-void ai_movetogoal(edict_t *self, float dist)
+void ai_movetogoal(edict_t* self, float dist)
 {
 	M_MoveToGoal(self, dist);
 }
@@ -919,11 +919,11 @@ mframe_t fixbot_frames_attack1[] = {
 MMOVE_T(fixbot_move_attack1) = { FRAME_shoot_01, FRAME_shoot_06, fixbot_frames_attack1, nullptr };
 #endif
 
-void abortHeal(edict_t *self, bool change_frame, bool gib, bool mark);
+void abortHeal(edict_t* self, bool change_frame, bool gib, bool mark);
 
-PRETHINK(fixbot_laser_update) (edict_t *laser) -> void
+PRETHINK(fixbot_laser_update) (edict_t* laser) -> void
 {
-	edict_t *self = laser->owner;
+	edict_t* self = laser->owner;
 
 	vec3_t start, dir;
 	AngleVectors(self->s.angles, dir, nullptr, nullptr);
@@ -945,7 +945,7 @@ PRETHINK(fixbot_laser_update) (edict_t *laser) -> void
 	dabeam_update(laser, true);
 }
 
-void fixbot_fire_laser(edict_t *self)
+void fixbot_fire_laser(edict_t* self)
 {
 	// critter dun got blown up while bein' fixed
 	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= self->enemy->gib_health)
@@ -1120,7 +1120,7 @@ mframe_t fixbot_frames_attack2[] = {
 };
 MMOVE_T(fixbot_move_attack2) = { FRAME_charging_01, FRAME_charging_31, fixbot_frames_attack2, fixbot_run };
 
-void weldstate(edict_t *self)
+void weldstate(edict_t* self)
 {
 	if (self->s.frame == FRAME_weldstart_10)
 		M_SetAnimation(self, &fixbot_move_weld);
@@ -1141,7 +1141,7 @@ void weldstate(edict_t *self)
 	}
 }
 
-void ai_move2(edict_t *self, float dist)
+void ai_move2(edict_t* self, float dist)
 {
 	if (!self->goalentity)
 	{
@@ -1194,7 +1194,7 @@ mframe_t fixbot_frames_weld_end[] = {
 };
 MMOVE_T(fixbot_move_weld_end) = { FRAME_weldend_01, FRAME_weldend_07, fixbot_frames_weld_end, nullptr };
 
-void fixbot_fire_welder(edict_t *self)
+void fixbot_fire_welder(edict_t* self)
 {
 	vec3_t start;
 	vec3_t forward, right, up;
@@ -1251,7 +1251,7 @@ void fixbot_fire_blaster(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		int damage = 30;
+		int damage = 15;
 		int radius_damage = 45;
 
 		{
@@ -1259,19 +1259,19 @@ void fixbot_fire_blaster(edict_t* self)
 			radius_damage /= 2;
 		}
 
-		fire_plasma(self, start, dir, damage, 755, radius_damage, radius_damage);
+		fire_plasma(self, start, dir, damage, 905, radius_damage, radius_damage);
 
 		// save for aiming the shot
 		self->pos1 = self->enemy->s.origin;
 		self->pos1[2] += self->enemy->viewheight;
 	}
 }
-MONSTERINFO_STAND(fixbot_stand) (edict_t *self) -> void
+	MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &fixbot_move_stand);
 }
 
-MONSTERINFO_RUN(fixbot_run) (edict_t *self) -> void
+MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &fixbot_move_stand);
@@ -1279,7 +1279,7 @@ MONSTERINFO_RUN(fixbot_run) (edict_t *self) -> void
 		M_SetAnimation(self, &fixbot_move_run);
 }
 
-MONSTERINFO_WALK(fixbot_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void
 {
 	vec3_t vec;
 	float  len;
@@ -1297,12 +1297,12 @@ MONSTERINFO_WALK(fixbot_walk) (edict_t *self) -> void
 	M_SetAnimation(self, &fixbot_move_walk);
 }
 
-void fixbot_start_attack(edict_t *self)
+void fixbot_start_attack(edict_t* self)
 {
 	M_SetAnimation(self, &fixbot_move_start_attack);
 }
 
-MONSTERINFO_ATTACK(fixbot_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
 {
 	vec3_t vec;
 	float  len;
@@ -1325,7 +1325,7 @@ MONSTERINFO_ATTACK(fixbot_attack) (edict_t *self) -> void
 	}
 }
 
-PAIN(fixbot_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	if (level.time < self->pain_debounce_time)
 		return;
@@ -1344,7 +1344,7 @@ PAIN(fixbot_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 	abortHeal(self, false, false, false);
 }
 
-void fixbot_dead(edict_t *self)
+void fixbot_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
@@ -1354,7 +1354,7 @@ void fixbot_dead(edict_t *self)
 	gi.linkentity(self);
 }
 
-DIE(fixbot_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	BecomeExplosion1(self);
@@ -1364,10 +1364,10 @@ DIE(fixbot_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 /*QUAKED monster_fixbot (1 .5 0) (-32 -32 -24) (32 32 24) Ambush Trigger_Spawn Fixit Takeoff Landing
  */
-void SP_monster_fixbot(edict_t *self)
+void SP_monster_fixbot(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -1388,6 +1388,7 @@ void SP_monster_fixbot(edict_t *self)
 
 	self->health = 90 * st.health_multiplier;
 	self->mass = 150;
+	self->s.scale = 1.8f;
 
 	self->pain = fixbot_pain;
 	self->die = fixbot_die;
@@ -1405,7 +1406,4 @@ void SP_monster_fixbot(edict_t *self)
 	fixbot_set_fly_parameters(self, false, false);
 
 	flymonster_start(self);
-
-	if (!self->s.scale)
-		self->s.scale = 1.8f;
 }

@@ -25,12 +25,12 @@ static cached_soundindex sound_search2;
 
 static cached_soundindex tread_sound;
 
-void TreadSound(edict_t *self)
+void TreadSound(edict_t* self)
 {
 	gi.sound(self, CHAN_BODY, tread_sound, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_SEARCH(supertank_search) (edict_t *self) -> void
+MONSTERINFO_SEARCH(supertank_search) (edict_t* self) -> void
 {
 	if (frandom() < 0.5f)
 		gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
@@ -38,10 +38,10 @@ MONSTERINFO_SEARCH(supertank_search) (edict_t *self) -> void
 		gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
 }
 
-void supertank_dead(edict_t *self);
-void supertankRocket(edict_t *self);
-void supertankMachineGun(edict_t *self);
-void supertank_reattack1(edict_t *self);
+void supertank_dead(edict_t* self);
+void supertankRocket(edict_t* self);
+void supertankMachineGun(edict_t* self);
+void supertank_reattack1(edict_t* self);
 
 //
 // stand
@@ -111,7 +111,7 @@ mframe_t supertank_frames_stand[] = {
 };
 MMOVE_T(supertank_move_stand) = { FRAME_stand_1, FRAME_stand_60, supertank_frames_stand, nullptr };
 
-MONSTERINFO_STAND(supertank_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(supertank_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &supertank_move_stand);
 }
@@ -164,17 +164,17 @@ mframe_t supertank_frames_forward[] = {
 };
 MMOVE_T(supertank_move_forward) = { FRAME_forwrd_1, FRAME_forwrd_18, supertank_frames_forward, nullptr };
 
-void supertank_forward(edict_t *self)
+void supertank_forward(edict_t* self)
 {
 	M_SetAnimation(self, &supertank_move_forward);
 }
 
-MONSTERINFO_WALK(supertank_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(supertank_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &supertank_move_forward);
 }
 
-MONSTERINFO_RUN(supertank_run) (edict_t *self) -> void
+MONSTERINFO_RUN(supertank_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &supertank_move_stand);
@@ -252,7 +252,7 @@ mframe_t supertank_frames_pain1[] = {
 };
 MMOVE_T(supertank_move_pain1) = { FRAME_pain1_1, FRAME_pain1_4, supertank_frames_pain1, supertank_run };
 
-static void BossLoop(edict_t *self)
+static void BossLoop(edict_t* self)
 {
 	if (!(self->spawnflags & SPAWNFLAG_SUPERTANK_LONG_DEATH))
 		return;
@@ -265,7 +265,7 @@ static void BossLoop(edict_t *self)
 	self->monsterinfo.nextframe = FRAME_death_19;
 }
 
-static void supertankGrenade(edict_t *self)
+static void supertankGrenade(edict_t* self)
 {
 	vec3_t					 forward, right;
 	vec3_t					 start;
@@ -285,7 +285,7 @@ static void supertankGrenade(edict_t *self)
 	vec3_t aim_point;
 	PredictAim(self, self->enemy, start, 0, false, crandom_open() * 0.1f, &forward, &aim_point);
 
-	for (float speed = 500.f; speed < 1000.f; speed += 180.f)
+	for (float speed = 800.f; speed < 1000.f; speed += 100.f)
 	{
 		if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
 			continue;
@@ -357,9 +357,9 @@ mframe_t supertank_frames_attack2[] = {
 	{ ai_charge, 0, supertankRocket },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
+	{ ai_charge, 0, supertankRocket },
+	{ ai_charge, 0, supertankRocket },
+	{ ai_charge, 0, supertankRocket },
 	{ ai_move }
 };
 MMOVE_T(supertank_move_attack2) = { FRAME_attak2_1, FRAME_attak2_27, supertank_frames_attack2, supertank_run };
@@ -392,7 +392,7 @@ mframe_t supertank_frames_end_attack1[] = {
 };
 MMOVE_T(supertank_move_end_attack1) = { FRAME_attak1_7, FRAME_attak1_20, supertank_frames_end_attack1, supertank_run };
 
-void supertank_reattack1(edict_t *self)
+void supertank_reattack1(edict_t* self)
 {
 	if (visible(self, self->enemy))
 	{
@@ -405,7 +405,7 @@ void supertank_reattack1(edict_t *self)
 		M_SetAnimation(self, &supertank_move_end_attack1);
 }
 
-PAIN(supertank_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(supertank_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	if (level.time < self->pain_debounce_time)
 		return;
@@ -430,7 +430,7 @@ PAIN(supertank_pain) (edict_t *self, edict_t *other, float kick, int damage, con
 		gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NORM, 0);
 
 	self->pain_debounce_time = level.time + 3_sec;
-	
+
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
@@ -442,7 +442,7 @@ PAIN(supertank_pain) (edict_t *self, edict_t *other, float kick, int damage, con
 		M_SetAnimation(self, &supertank_move_pain3);
 }
 
-MONSTERINFO_SETSKIN(supertank_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(supertank_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum |= 1;
@@ -450,7 +450,7 @@ MONSTERINFO_SETSKIN(supertank_setskin) (edict_t *self) -> void
 		self->s.skinnum &= ~1;
 }
 
-void supertankRocket(edict_t *self)
+void supertankRocket(edict_t* self)
 {
 	vec3_t					 forward, right;
 	vec3_t					 start;
@@ -477,16 +477,16 @@ void supertankRocket(edict_t *self)
 		vec[2] += self->enemy->viewheight;
 		dir = vec - start;
 		dir.normalize();
-		monster_fire_heat(self, start, dir, 40, 900, flash_number, 0.075f);
+		monster_fire_heat(self, start, dir, 40, 980, flash_number, 0.075f);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 750, false, 0.f, &forward, nullptr);
-		monster_fire_rocket(self, start, forward, 50, 1050, flash_number);
+		monster_fire_rocket(self, start, forward, 50, 1100, flash_number);
 	}
 }
 
-void supertankMachineGun(edict_t *self)
+void supertankMachineGun(edict_t* self)
 {
 	vec3_t					 dir;
 	vec3_t					 start;
@@ -508,7 +508,7 @@ void supertankMachineGun(edict_t *self)
 	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 3, DEFAULT_BULLET_VSPREAD * 3, flash_number);
 }
 
-MONSTERINFO_ATTACK(supertank_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 {
 	vec3_t vec;
 	float  range;
@@ -551,7 +551,7 @@ MONSTERINFO_ATTACK(supertank_attack) (edict_t *self) -> void
 // death
 //
 
-static void supertank_gib(edict_t *self)
+static void supertank_gib(edict_t* self)
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_EXPLOSION1_BIG);
@@ -572,10 +572,10 @@ static void supertank_gib(edict_t *self)
 		{ "models/monsters/boss1/gibs/rtread.md2", GIB_SKINNED | GIB_UPRIGHT },
 		{ "models/monsters/boss1/gibs/tube.md2", GIB_SKINNED | GIB_UPRIGHT },
 		{ "models/monsters/boss1/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
-	});
+		});
 }
 
-void supertank_dead(edict_t *self)
+void supertank_dead(edict_t* self)
 {
 	// no blowy on deady
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
@@ -588,7 +588,7 @@ void supertank_dead(edict_t *self)
 	supertank_gib(self);
 }
 
-DIE(supertank_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(supertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
 	{
@@ -615,7 +615,7 @@ DIE(supertank_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 
 //===========
 // PGM
-MONSTERINFO_BLOCKED(supertank_blocked) (edict_t *self, float dist) -> bool
+MONSTERINFO_BLOCKED(supertank_blocked) (edict_t* self, float dist) -> bool
 {
 	if (blocked_checkplat(self, dist))
 		return true;
@@ -633,10 +633,10 @@ MONSTERINFO_BLOCKED(supertank_blocked) (edict_t *self, float dist) -> bool
 
 /*QUAKED monster_supertank (1 .5 0) (-64 -64 0) (64 64 72) Ambush Trigger_Spawn Sight Powershield LongDeath
  */
-void SP_monster_supertank(edict_t *self)
+void SP_monster_supertank(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -656,7 +656,7 @@ void SP_monster_supertank(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/boss1/tris.md2");
-	
+
 	gi.modelindex("models/monsters/boss1/gibs/cgun.md2");
 	gi.modelindex("models/monsters/boss1/gibs/chest.md2");
 	gi.modelindex("models/monsters/boss1/gibs/core.md2");
@@ -727,7 +727,7 @@ void SP_monster_supertank(edict_t *self)
 
 /*QUAKED monster_boss5 (1 .5 0) (-64 -64 0) (64 64 72) Ambush Trigger_Spawn Sight
  */
-void SP_monster_boss5(edict_t *self)
+void SP_monster_boss5(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 	SP_monster_supertank(self);
@@ -772,7 +772,7 @@ void SP_monster_supertankkl(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 800;
 
-	self->health = 620 * current_wave_number;
+	self->health = 620 * current_wave_number/1.5;
 	self->mass = 1200;
 	self->s.renderfx = RF_TRANSLUCENT;
 	self->s.effects = EF_FLAG1 | EF_QUAD;

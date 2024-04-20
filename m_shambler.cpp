@@ -47,9 +47,9 @@ constexpr vec3_t lightning_right_hand[] = {
 	{ 27, -11, 83 }
 };
 
-static void shambler_lightning_update(edict_t *self)
+static void shambler_lightning_update(edict_t* self)
 {
-	edict_t *lightning = self->beam;
+	edict_t* lightning = self->beam;
 
 	if (self->s.frame >= FRAME_magic01 + q_countof(lightning_left_hand))
 	{
@@ -60,7 +60,7 @@ static void shambler_lightning_update(edict_t *self)
 
 	vec3_t f, r;
 	AngleVectors(self->s.angles, f, r, nullptr);
-	lightning->s.origin = M_ProjectFlashSource(self, lightning_left_hand[self->s.frame - FRAME_magic01], f, r);  // crash debugger ???
+	lightning->s.origin = M_ProjectFlashSource(self, lightning_left_hand[self->s.frame - FRAME_magic01], f, r);
 	lightning->s.old_origin = M_ProjectFlashSource(self, lightning_right_hand[self->s.frame - FRAME_magic01], f, r);
 	gi.linkentity(lightning);
 }
@@ -69,7 +69,7 @@ void shambler_windup(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
 
-	edict_t *lightning = self->beam = G_Spawn();
+	edict_t* lightning = self->beam = G_Spawn();
 	lightning->s.modelindex = gi.modelindex("models/proj/lightning/tris.md2");
 	lightning->s.renderfx |= RF_BEAM;
 	lightning->owner = self;
@@ -192,7 +192,7 @@ mframe_t shambler_frames_pain[] = {
 };
 MMOVE_T(shambler_move_pain) = { FRAME_pain01, FRAME_pain06, shambler_frames_pain, shambler_run };
 
-PAIN(shambler_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t &mod) -> void
+PAIN(shambler_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	if (level.time < self->timestamp)
 		return;
@@ -215,7 +215,7 @@ PAIN(shambler_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 		if ((self->s.frame >= FRAME_swingr01) && (self->s.frame <= FRAME_swingr09))
 			return;
 	}
-	
+
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
@@ -269,7 +269,7 @@ void ShamblerSaveLoc(edict_t* self)
 
 constexpr spawnflags_t SPAWNFLAG_SHAMBLER_PRECISE = 1_spawnflag;
 
-vec3_t FindShamblerOffset(edict_t *self)
+vec3_t FindShamblerOffset(edict_t* self)
 {
 	vec3_t offset = { 0, 0, 48.f };
 
@@ -388,7 +388,7 @@ void ShamClaw(edict_t* self)
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
-	
+
 	// 250 if left, -250 if right
 	/*
 	if (side)
@@ -505,7 +505,7 @@ mframe_t shambler_frames_death[] = {
 };
 MMOVE_T(shambler_move_death) = { FRAME_death01, FRAME_death11, shambler_frames_death, shambler_dead };
 
-DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t &mod) -> void
+DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	if (self->beam)
 	{
@@ -528,7 +528,7 @@ DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 			{ "models/objects/gibs/sm_meat/tris.md2" },
 			{ "models/objects/gibs/chest/tris.md2" },
 			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
-		});
+			});
 		self->deadflag = true;
 		return;
 	}
@@ -546,8 +546,8 @@ DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 
 void SP_monster_shambler(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -568,8 +568,8 @@ void SP_monster_shambler(edict_t* self)
 	sound_smack.assign("shambler/smack.wav");
 	sound_boom.assign("shambler/sboom.wav");
 
-	self->health = 950 * st.health_multiplier;
-	self->gib_health = -240;
+	self->health = 600 * st.health_multiplier;
+	self->gib_health = -60;
 
 	self->mass = 500;
 
@@ -604,9 +604,9 @@ void SP_monster_shamblerkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
 	self->s.skinnum = 2;
-	self->health = 675 * current_wave_number;
+	self->health = 675 * current_wave_number/1.3;
 	self->gib_health = -1000;
 	self->yaw_speed = 65;
 	self->s.renderfx = RF_TRANSLUCENT;
-	self->s.effects = EF_FLAG1 | EF_QUAD;
+	self->s.effects = EF_FLAG1;
 }

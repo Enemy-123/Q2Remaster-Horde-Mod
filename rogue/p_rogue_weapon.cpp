@@ -4,7 +4,7 @@
 #include "../g_local.h"
 #include "../m_player.h"
 
-void weapon_prox_fire(edict_t *ent)
+void weapon_prox_fire(edict_t* ent)
 {
 	vec3_t start, dir;
 	// Paril: kill sideways angle on grenades
@@ -21,11 +21,11 @@ void weapon_prox_fire(edict_t *ent)
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-	
+
 	G_RemoveAmmo(ent);
 }
 
-void Weapon_ProxLauncher(edict_t *ent)
+void Weapon_ProxLauncher(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 34, 51, 59, 0 };
 	constexpr int fire_frames[] = { 6, 0 };
@@ -33,7 +33,7 @@ void Weapon_ProxLauncher(edict_t *ent)
 	Weapon_Generic(ent, 5, 16, 59, 64, pause_frames, fire_frames, weapon_prox_fire);
 }
 
-void weapon_tesla_fire(edict_t *ent, bool held)
+void weapon_tesla_fire(edict_t* ent, bool held)
 {
 	vec3_t start, dir;
 	// Paril: kill sideways angle on grenades
@@ -41,8 +41,8 @@ void weapon_tesla_fire(edict_t *ent, bool held)
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 0, 0, -22 }, start, dir);
 
 	gtime_t timer = ent->client->grenade_time - level.time;
-	int	  speed = (int) (ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
-	
+	int	  speed = (int)(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
+
 	ent->client->grenade_time = 0_ms;
 
 	fire_tesla(ent, start, dir, damage_multiplier, speed);
@@ -50,7 +50,7 @@ void weapon_tesla_fire(edict_t *ent, bool held)
 	G_RemoveAmmo(ent, 1);
 }
 
-void Weapon_Tesla(edict_t *ent)
+void Weapon_Tesla(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 21, 0 };
 
@@ -78,18 +78,16 @@ void weapon_chainfist_fire(edict_t* ent)
 			return;
 		}
 	}
-
 	int damage;
-		
+
 
 	if (G_IsDeathmatch())
 		damage = irandom(8, 14);
-		if (G_IsCooperative())
+	if (G_IsCooperative())
 		damage = irandom(8, 14);
 
 	if (is_quad)
 		damage *= damage_multiplier;
-
 
 	// set start point
 	vec3_t start, dir;
@@ -108,7 +106,7 @@ void weapon_chainfist_fire(edict_t* ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	ent->client->ps.gunframe++;
-	
+
 	if (ent->client->buttons & BUTTON_ATTACK)
 	{
 		if (ent->client->ps.gunframe == 12)
@@ -138,7 +136,7 @@ void weapon_chainfist_fire(edict_t* ent)
 }
 
 // this spits out some smoke from the motor. it's a two-stroke, you know.
-void chainfist_smoke(edict_t *ent)
+void chainfist_smoke(edict_t* ent)
 {
 	vec3_t tempVec, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -4 }, tempVec, dir);
@@ -149,12 +147,12 @@ void chainfist_smoke(edict_t *ent)
 	gi.unicast(ent, 0);
 }
 
-void Weapon_ChainFist(edict_t *ent)
+void Weapon_ChainFist(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 0 };
 
 	Weapon_Repeating(ent, 4, 32, 57, 60, pause_frames, weapon_chainfist_fire);
-	
+
 	// smoke on idle sequence
 	if (ent->client->ps.gunframe == 42 && irandom(8))
 	{
@@ -180,10 +178,10 @@ void Weapon_ChainFist(edict_t *ent)
 // Disintegrator
 //
 
-void weapon_tracker_fire(edict_t *self)
+void weapon_tracker_fire(edict_t* self)
 {
 	vec3_t	 end;
-	edict_t *enemy;
+	edict_t* enemy;
 	trace_t	 tr;
 	int		 damage;
 	vec3_t	 mins, maxs;
@@ -192,7 +190,7 @@ void weapon_tracker_fire(edict_t *self)
 	if (G_IsDeathmatch())
 		damage = 45;
 	else
-		damage = 145;
+		damage = 135;
 
 	if (is_quad)
 		damage *= damage_multiplier; // pgm
@@ -251,7 +249,7 @@ void weapon_tracker_fire(edict_t *self)
 	G_RemoveAmmo(self);
 }
 
-void Weapon_Disintegrator(edict_t *ent)
+void Weapon_Disintegrator(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 14, 19, 23, 0 };
 	constexpr int fire_frames[] = { 5, 0 };
@@ -266,17 +264,17 @@ ETF RIFLE
 
 ======================================================================
 */
-void weapon_etf_rifle_fire(edict_t *ent)
+void weapon_etf_rifle_fire(edict_t* ent)
 {
 	int	   damage;
-	int	   kick = 4;
+	int	   kick = 3;
 	int	   i;
 	vec3_t offset;
 
 	if (G_IsDeathmatch())
-		damage = irandom(7, 14);
+		damage = irandom(7, 11);
 	else
-		damage = irandom(7, 14);
+		damage = irandom(7, 11);
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -303,7 +301,7 @@ void weapon_etf_rifle_fire(edict_t *ent)
 		kick *= damage_multiplier;
 	}
 
-	vec3_t kick_origin {}, kick_angles {};
+	vec3_t kick_origin{}, kick_angles{};
 	for (i = 0; i < 3; i++)
 	{
 		kick_origin[i] = crandom() * 0.85f;
@@ -319,7 +317,7 @@ void weapon_etf_rifle_fire(edict_t *ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle + kick_angles, offset, start, dir);
-	fire_flechette(ent, start, dir, damage, 2650, kick);
+	fire_flechette(ent, start, dir, damage, 1150, kick);
 	Weapon_PowerupSound(ent);
 
 	// send muzzle flash
@@ -335,28 +333,28 @@ void weapon_etf_rifle_fire(edict_t *ent)
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 	{
-		ent->s.frame = FRAME_crattak1 - (int) (frandom() + 0.25f);
+		ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_crattak9;
 	}
 	else
 	{
-		ent->s.frame = FRAME_attack1 - (int) (frandom() + 0.25f);
+		ent->s.frame = FRAME_attack1 - (int)(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_attack8;
 	}
 	ent->client->anim_time = 0_ms;
 }
 
-void Weapon_ETF_Rifle(edict_t *ent)
+void Weapon_ETF_Rifle(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 18, 28, 0 };
 
 	Weapon_Repeating(ent, 4, 7, 37, 41, pause_frames, weapon_etf_rifle_fire);
 }
 
-constexpr int32_t HEATBEAM_DM_DMG = 10;
-constexpr int32_t HEATBEAM_SP_DMG = 18;
+constexpr int32_t HEATBEAM_DM_DMG = 15;
+constexpr int32_t HEATBEAM_SP_DMG = 15;
 
-void Heatbeam_Fire(edict_t *ent)
+void Heatbeam_Fire(edict_t* ent)
 {
 	bool firing = (ent->client->buttons & BUTTON_ATTACK);
 	bool has_ammo = ent->client->pers.inventory[ent->client->pers.weapon->ammo] >= ent->client->pers.weapon->quantity;
@@ -395,11 +393,10 @@ void Heatbeam_Fire(edict_t *ent)
 	else
 		damage = HEATBEAM_SP_DMG;
 
-	if (G_IsDeathmatch())
-	// really knock 'em around in deathmatch
+	if (G_IsDeathmatch()) // really knock 'em around in deathmatch
 		kick = 75;
 	else
-		kick = 60;
+		kick = 30;
 
 	if (is_quad)
 	{
@@ -426,24 +423,24 @@ void Heatbeam_Fire(edict_t *ent)
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-	
+
 	G_RemoveAmmo(ent);
 
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 	{
-		ent->s.frame = FRAME_crattak1 - (int) (frandom() + 0.25f);
+		ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_crattak9;
 	}
 	else
 	{
-		ent->s.frame = FRAME_attack1 - (int) (frandom() + 0.25f);
+		ent->s.frame = FRAME_attack1 - (int)(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_attack8;
 	}
 	ent->client->anim_time = 0_ms;
 }
 
-void Weapon_Heatbeam(edict_t *ent)
+void Weapon_Heatbeam(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 35, 0 };
 

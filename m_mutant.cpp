@@ -31,7 +31,7 @@ static cached_soundindex sound_thud;
 // SOUNDS
 //
 
-void mutant_step(edict_t *self)
+void mutant_step(edict_t* self)
 {
 	int n = irandom(3);
 	if (n == 0)
@@ -42,17 +42,17 @@ void mutant_step(edict_t *self)
 		gi.sound(self, CHAN_BODY, sound_step3, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_SIGHT(mutant_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(mutant_sight) (edict_t* self, edict_t* other) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_SEARCH(mutant_search) (edict_t *self) -> void
+MONSTERINFO_SEARCH(mutant_search) (edict_t* self) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 }
 
-void mutant_swing(edict_t *self)
+void mutant_swing(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_swing, 1, ATTN_NORM, 0);
 }
@@ -121,7 +121,7 @@ mframe_t mutant_frames_stand[] = {
 };
 MMOVE_T(mutant_move_stand) = { FRAME_stand101, FRAME_stand151, mutant_frames_stand, nullptr };
 
-MONSTERINFO_STAND(mutant_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(mutant_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &mutant_move_stand);
 }
@@ -130,7 +130,7 @@ MONSTERINFO_STAND(mutant_stand) (edict_t *self) -> void
 // IDLE
 //
 
-void mutant_idle_loop(edict_t *self)
+void mutant_idle_loop(edict_t* self)
 {
 	if (frandom() < 0.75f)
 		self->monsterinfo.nextframe = FRAME_stand155;
@@ -153,7 +153,7 @@ mframe_t mutant_frames_idle[] = {
 };
 MMOVE_T(mutant_move_idle) = { FRAME_stand152, FRAME_stand164, mutant_frames_idle, mutant_stand };
 
-MONSTERINFO_IDLE(mutant_idle) (edict_t *self) -> void
+MONSTERINFO_IDLE(mutant_idle) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &mutant_move_idle);
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
@@ -179,7 +179,7 @@ mframe_t mutant_frames_walk[] = {
 };
 MMOVE_T(mutant_move_walk) = { FRAME_walk05, FRAME_walk16, mutant_frames_walk, nullptr };
 
-void mutant_walk_loop(edict_t *self)
+void mutant_walk_loop(edict_t* self)
 {
 	M_SetAnimation(self, &mutant_move_walk);
 }
@@ -192,7 +192,7 @@ mframe_t mutant_frames_start_walk[] = {
 };
 MMOVE_T(mutant_move_start_walk) = { FRAME_walk01, FRAME_walk04, mutant_frames_start_walk, mutant_walk_loop };
 
-MONSTERINFO_WALK(mutant_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(mutant_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &mutant_move_start_walk);
 }
@@ -211,7 +211,7 @@ mframe_t mutant_frames_run[] = {
 };
 MMOVE_T(mutant_move_run) = { FRAME_run03, FRAME_run08, mutant_frames_run, nullptr };
 
-MONSTERINFO_RUN(mutant_run) (edict_t *self) -> void
+MONSTERINFO_RUN(mutant_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &mutant_move_stand);
@@ -223,7 +223,7 @@ MONSTERINFO_RUN(mutant_run) (edict_t *self) -> void
 // MELEE
 //
 
-void mutant_hit_left(edict_t *self)
+void mutant_hit_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
 	if (fire_hit(self, aim, irandom(5, 15), 100))
@@ -235,7 +235,7 @@ void mutant_hit_left(edict_t *self)
 	}
 }
 
-void mutant_hit_right(edict_t *self)
+void mutant_hit_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 	if (fire_hit(self, aim, irandom(5, 15), 100))
@@ -247,7 +247,7 @@ void mutant_hit_right(edict_t *self)
 	}
 }
 
-void mutant_check_refire(edict_t *self)
+void mutant_check_refire(edict_t* self)
 {
 	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 		return;
@@ -267,7 +267,7 @@ mframe_t mutant_frames_attack[] = {
 };
 MMOVE_T(mutant_move_attack) = { FRAME_attack09, FRAME_attack15, mutant_frames_attack, mutant_run };
 
-MONSTERINFO_MELEE(mutant_melee) (edict_t *self) -> void
+MONSTERINFO_MELEE(mutant_melee) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &mutant_move_attack);
 }
@@ -276,7 +276,7 @@ MONSTERINFO_MELEE(mutant_melee) (edict_t *self) -> void
 // ATTACK
 //
 
-TOUCH(mutant_jump_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(mutant_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (self->health <= 0)
 	{
@@ -296,7 +296,7 @@ TOUCH(mutant_jump_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool
 			normal = self->velocity;
 			normal.normalize();
 			point = self->s.origin + (normal * self->maxs[0]);
-			damage = (int) frandom(40, 50);
+			damage = (int)frandom(40, 50);
 			T_Damage(other, self, self, self->velocity, point, normal, damage, damage, DAMAGE_NONE, MOD_UNKNOWN);
 			self->style = 0;
 		}
@@ -315,7 +315,7 @@ TOUCH(mutant_jump_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool
 	self->touch = nullptr;
 }
 
-void mutant_jump_takeoff(edict_t *self)
+void mutant_jump_takeoff(edict_t* self)
 {
 	vec3_t forward;
 
@@ -326,12 +326,12 @@ void mutant_jump_takeoff(edict_t *self)
 	self->velocity[2] = 160;
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
-	self->monsterinfo.attack_finished = level.time + 2_sec;
+	self->monsterinfo.attack_finished = level.time + 3_sec;
 	self->style = 1;
 	self->touch = mutant_jump_touch;
 }
 
-void mutant_check_landing(edict_t *self)
+void mutant_check_landing(edict_t* self)
 {
 	monster_jump_finished(self);
 
@@ -367,7 +367,7 @@ mframe_t mutant_frames_jump[] = {
 };
 MMOVE_T(mutant_move_jump) = { FRAME_attack01, FRAME_attack08, mutant_frames_jump, mutant_run };
 
-MONSTERINFO_ATTACK(mutant_jump) (edict_t *self) -> void
+MONSTERINFO_ATTACK(mutant_jump) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &mutant_move_jump);
 }
@@ -376,12 +376,12 @@ MONSTERINFO_ATTACK(mutant_jump) (edict_t *self) -> void
 // CHECKATTACK
 //
 
-bool mutant_check_melee(edict_t *self)
+bool mutant_check_melee(edict_t* self)
 {
 	return range_to(self, self->enemy) <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time;
 }
 
-bool mutant_check_jump(edict_t *self)
+bool mutant_check_jump(edict_t* self)
 {
 	vec3_t v;
 	float  distance;
@@ -409,7 +409,7 @@ bool mutant_check_jump(edict_t *self)
 	return self->monsterinfo.attack_finished < level.time && brandom();
 }
 
-MONSTERINFO_CHECKATTACK(mutant_checkattack) (edict_t *self) -> bool
+MONSTERINFO_CHECKATTACK(mutant_checkattack) (edict_t* self) -> bool
 {
 	if (!self->enemy || self->enemy->health <= 0)
 		return false;
@@ -467,7 +467,7 @@ mframe_t mutant_frames_pain3[] = {
 };
 MMOVE_T(mutant_move_pain3) = { FRAME_pain301, FRAME_pain311, mutant_frames_pain3, mutant_run };
 
-PAIN(mutant_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(mutant_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	float r;
 
@@ -483,7 +483,7 @@ PAIN(mutant_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 		gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NORM, 0);
 	else
 		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
-	
+
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
@@ -495,7 +495,7 @@ PAIN(mutant_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 		M_SetAnimation(self, &mutant_move_pain3);
 }
 
-MONSTERINFO_SETSKIN(mutant_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(mutant_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -507,7 +507,7 @@ MONSTERINFO_SETSKIN(mutant_setskin) (edict_t *self) -> void
 // DEATH
 //
 
-void mutant_shrink(edict_t *self)
+void mutant_shrink(edict_t* self)
 {
 	self->maxs[2] = 0;
 	self->svflags |= SVF_DEADMONSTER;
@@ -515,12 +515,12 @@ void mutant_shrink(edict_t *self)
 }
 
 // [Paril-KEX]
-static void ai_move_slide_right(edict_t *self, float dist)
+static void ai_move_slide_right(edict_t* self, float dist)
 {
 	M_walkmove(self, self->s.angles[YAW] + 90, dist);
 }
 
-static void ai_move_slide_left(edict_t *self, float dist)
+static void ai_move_slide_left(edict_t* self, float dist)
 {
 	M_walkmove(self, self->s.angles[YAW] - 90, dist);
 }
@@ -552,7 +552,7 @@ mframe_t mutant_frames_death2[] = {
 };
 MMOVE_T(mutant_move_death2) = { FRAME_death201, FRAME_death210, mutant_frames_death2, monster_dead };
 
-DIE(mutant_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(mutant_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	if (M_CheckGib(self, mod))
 	{
@@ -567,7 +567,7 @@ DIE(mutant_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 			{ 2, "models/monsters/mutant/gibs/foot.md2", GIB_SKINNED },
 			{ "models/monsters/mutant/gibs/chest.md2", GIB_SKINNED },
 			{ "models/monsters/mutant/gibs/head.md2", GIB_SKINNED | GIB_HEAD }
-		});
+			});
 
 		self->deadflag = true;
 		return;
@@ -588,7 +588,7 @@ DIE(mutant_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 //================
 // ROGUE
-void mutant_jump_down(edict_t *self)
+void mutant_jump_down(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -597,7 +597,7 @@ void mutant_jump_down(edict_t *self)
 	self->velocity += (up * 300);
 }
 
-void mutant_jump_up(edict_t *self)
+void mutant_jump_up(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -606,7 +606,7 @@ void mutant_jump_up(edict_t *self)
 	self->velocity += (up * 450);
 }
 
-void mutant_jump_wait_land(edict_t *self)
+void mutant_jump_wait_land(edict_t* self)
 {
 	if (!monster_jump_finished(self) && self->groundentity == nullptr)
 		self->monsterinfo.nextframe = self->s.frame;
@@ -632,7 +632,7 @@ mframe_t mutant_frames_jump_down[] = {
 };
 MMOVE_T(mutant_move_jump_down) = { FRAME_jump01, FRAME_jump05, mutant_frames_jump_down, mutant_run };
 
-void mutant_jump_updown(edict_t *self, blocked_jump_result_t result)
+void mutant_jump_updown(edict_t* self, blocked_jump_result_t result)
 {
 	if (!self->enemy)
 		return;
@@ -648,7 +648,7 @@ void mutant_jump_updown(edict_t *self, blocked_jump_result_t result)
 Blocked
 ===
 */
-MONSTERINFO_BLOCKED(mutant_blocked) (edict_t *self, float dist) -> bool
+MONSTERINFO_BLOCKED(mutant_blocked) (edict_t* self, float dist) -> bool
 {
 	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
@@ -672,10 +672,10 @@ MONSTERINFO_BLOCKED(mutant_blocked) (edict_t *self, float dist) -> bool
 /*QUAKED monster_mutant (1 .5 0) (-32 -32 -24) (32 32 32) Ambush Trigger_Spawn Sight NoJumping
 model="models/monsters/mutant/tris.md2"
 */
-void SP_monster_mutant(edict_t *self)
+void SP_monster_mutant(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -698,7 +698,7 @@ void SP_monster_mutant(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/mutant/tris.md2");
-	
+
 	gi.modelindex("models/monsters/mutant/gibs/head.md2");
 	gi.modelindex("models/monsters/mutant/gibs/chest.md2");
 	gi.modelindex("models/monsters/mutant/gibs/hand.md2");

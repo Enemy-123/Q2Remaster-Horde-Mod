@@ -24,12 +24,12 @@ static cached_soundindex sound_thud;
 static cached_soundindex sound_explod;
 static cached_soundindex sound_jump;
 
-MONSTERINFO_SIGHT(berserk_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(berserk_sight) (edict_t* self, edict_t* other) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_SEARCH(berserk_search) (edict_t *self) -> void
+MONSTERINFO_SEARCH(berserk_search) (edict_t* self) -> void
 {
 	if (brandom())
 		gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);
@@ -37,7 +37,7 @@ MONSTERINFO_SEARCH(berserk_search) (edict_t *self) -> void
 		gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 }
 
-void	 berserk_fidget(edict_t *self);
+void	 berserk_fidget(edict_t* self);
 
 mframe_t berserk_frames_stand[] = {
 	{ ai_stand, 0, berserk_fidget },
@@ -48,7 +48,7 @@ mframe_t berserk_frames_stand[] = {
 };
 MMOVE_T(berserk_move_stand) = { FRAME_stand1, FRAME_stand5, berserk_frames_stand, nullptr };
 
-MONSTERINFO_STAND(berserk_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(berserk_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &berserk_move_stand);
 }
@@ -77,7 +77,7 @@ mframe_t berserk_frames_stand_fidget[] = {
 };
 MMOVE_T(berserk_move_stand_fidget) = { FRAME_standb1, FRAME_standb20, berserk_frames_stand_fidget, berserk_stand };
 
-void berserk_fidget(edict_t *self)
+void berserk_fidget(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		return;
@@ -105,7 +105,7 @@ mframe_t berserk_frames_walk[] = {
 };
 MMOVE_T(berserk_move_walk) = { FRAME_walkc1, FRAME_walkc11, berserk_frames_walk, nullptr };
 
-MONSTERINFO_WALK(berserk_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(berserk_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &berserk_move_walk);
 }
@@ -144,7 +144,7 @@ mframe_t berserk_frames_run1[] = {
 };
 MMOVE_T(berserk_move_run1) = { FRAME_run1, FRAME_run6, berserk_frames_run1, nullptr };
 
-MONSTERINFO_RUN(berserk_run) (edict_t *self) -> void
+MONSTERINFO_RUN(berserk_run) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
@@ -154,15 +154,15 @@ MONSTERINFO_RUN(berserk_run) (edict_t *self) -> void
 		M_SetAnimation(self, &berserk_move_run1);
 }
 
-void berserk_attack_spike(edict_t *self)
+void berserk_attack_spike(edict_t* self)
 {
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, -24 };
-	
-	if (!fire_hit(self, aim, irandom(5, 11), 80)) //	Faster attack -- upwards and backwards
+
+	if (!fire_hit(self, aim, irandom(6, 13), 80)) //	Faster attack -- upwards and backwards
 		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
 }
 
-void berserk_swing(edict_t *self)
+void berserk_swing(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_punch, 1, ATTN_NORM, 0);
 }
@@ -179,10 +179,10 @@ mframe_t berserk_frames_attack_spike[] = {
 };
 MMOVE_T(berserk_move_attack_spike) = { FRAME_att_c1, FRAME_att_c8, berserk_frames_attack_spike, berserk_run };
 
-void berserk_attack_club(edict_t *self)
+void berserk_attack_club(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	
+
 	if (!fire_hit(self, aim, irandom(15, 21), 400)) // Slower attack
 		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
 }
@@ -209,10 +209,10 @@ MMOVE_T(berserk_move_attack_club) = { FRAME_att_c9, FRAME_att_c20, berserk_frame
 T_RadiusDamage
 ============
 */
-void T_SlamRadiusDamage(vec3_t point, edict_t *inflictor, edict_t *attacker, float damage, float kick, edict_t *ignore, float radius, mod_t mod)
+void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage, float kick, edict_t* ignore, float radius, mod_t mod)
 {
 	float	 points;
-	edict_t *ent = nullptr;
+	edict_t* ent = nullptr;
 	vec3_t	 v;
 	vec3_t	 dir;
 
@@ -246,15 +246,15 @@ void T_SlamRadiusDamage(vec3_t point, edict_t *inflictor, edict_t *attacker, flo
 
 		// keep the point at their feet so they always get knocked up
 		point[2] = ent->absmin[2];
-		T_Damage(ent, inflictor, attacker, dir, point, dir, (int) points, (int) (kick * amount),
-					DAMAGE_RADIUS, mod);
+		T_Damage(ent, inflictor, attacker, dir, point, dir, (int)points, (int)(kick * amount),
+			DAMAGE_RADIUS, mod);
 
 		if (ent->client)
 			ent->velocity.z = max(270.f, ent->velocity.z);
 	}
 }
 
-static void berserk_attack_slam(edict_t *self)
+static void berserk_attack_slam(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_thud, 1, ATTN_NORM, 0);
 	gi.sound(self, CHAN_AUTO, sound_explod, 0.75f, ATTN_NORM, 0);
@@ -271,10 +271,10 @@ static void berserk_attack_slam(edict_t *self)
 	self->velocity = {};
 	self->flags |= FL_KILL_VELOCITY;
 
-	T_SlamRadiusDamage(tr.endpos, self, self, 12, 300.f, self, 165, MOD_UNKNOWN);
+	T_SlamRadiusDamage(tr.endpos, self, self, 15, 300.f, self, 165, MOD_UNKNOWN);
 }
 
-TOUCH(berserk_jump_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(berserk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (self->health <= 0)
 	{
@@ -293,7 +293,7 @@ TOUCH(berserk_jump_touch) (edict_t *self, edict_t *other, const trace_t &tr, boo
 	}
 }
 
-static void berserk_high_gravity(edict_t *self)
+static void berserk_high_gravity(edict_t* self)
 {
 	if (self->velocity[2] < 0)
 		self->gravity = 2.25f * (800.f / level.gravity);
@@ -301,7 +301,7 @@ static void berserk_high_gravity(edict_t *self)
 		self->gravity = 5.25f * (800.f / level.gravity);
 }
 
-void berserk_jump_takeoff(edict_t *self)
+void berserk_jump_takeoff(edict_t* self)
 {
 	vec3_t forward;
 
@@ -325,7 +325,7 @@ void berserk_jump_takeoff(edict_t *self)
 	berserk_high_gravity(self);
 }
 
-void berserk_check_landing(edict_t *self)
+void berserk_check_landing(edict_t* self)
 {
 	berserk_high_gravity(self);
 
@@ -378,7 +378,7 @@ MMOVE_T(berserk_move_attack_strike) = { FRAME_slam1, FRAME_slam23, berserk_frame
 
 extern const mmove_t berserk_move_run_attack1;
 
-MONSTERINFO_MELEE(berserk_melee) (edict_t *self) -> void
+MONSTERINFO_MELEE(berserk_melee) (edict_t* self) -> void
 {
 	if (self->monsterinfo.melee_debounce_time > level.time)
 		return;
@@ -399,7 +399,7 @@ MONSTERINFO_MELEE(berserk_melee) (edict_t *self) -> void
 		M_SetAnimation(self, &berserk_move_attack_club);
 }
 
-static void berserk_run_attack_speed(edict_t *self)
+static void berserk_run_attack_speed(edict_t* self)
 {
 	if (self->enemy && range_to(self, self->enemy) < MELEE_DISTANCE)
 	{
@@ -408,7 +408,7 @@ static void berserk_run_attack_speed(edict_t *self)
 	}
 }
 
-static void berserk_run_swing(edict_t *self)
+static void berserk_run_swing(edict_t* self)
 {
 	berserk_swing(self);
 	self->monsterinfo.melee_debounce_time = level.time + 0.6_sec;
@@ -422,10 +422,10 @@ static void berserk_run_swing(edict_t *self)
 
 mframe_t berserk_frames_run_attack1[] = {
 	{ ai_run, 21, berserk_run_attack_speed },
-	{ ai_run, 11, [](edict_t *self) { berserk_run_attack_speed(self); monster_footstep(self); } },
+	{ ai_run, 11, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
 	{ ai_run, 21, berserk_run_attack_speed },
-	{ ai_run, 25, [](edict_t *self) { berserk_run_attack_speed(self); monster_done_dodge(self); } },
-	{ ai_run, 18, [](edict_t *self) { berserk_run_attack_speed(self); monster_footstep(self); } },
+	{ ai_run, 25, [](edict_t* self) { berserk_run_attack_speed(self); monster_done_dodge(self); } },
+	{ ai_run, 18, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
 	{ ai_run, 19, berserk_run_attack_speed },
 	{ ai_run, 21 },
 	{ ai_run, 11, monster_footstep },
@@ -442,7 +442,7 @@ mframe_t berserk_frames_run_attack1[] = {
 };
 MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frames_run_attack1, berserk_run };
 
-MONSTERINFO_ATTACK(berserk_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(berserk_attack) (edict_t* self) -> void
 {
 	if (self->monsterinfo.melee_debounce_time <= level.time && (range_to(self, self->enemy) < MELEE_DISTANCE))
 		berserk_melee(self);
@@ -496,7 +496,7 @@ MMOVE_T(berserk_move_pain2) = { FRAME_painb1, FRAME_painb20, berserk_frames_pain
 
 extern const mmove_t berserk_move_jump, berserk_move_jump2;
 
-PAIN(berserk_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(berserk_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	// if we're jumping, don't pain
 	if ((self->monsterinfo.active_move == &berserk_move_jump) ||
@@ -511,7 +511,7 @@ PAIN(berserk_pain) (edict_t *self, edict_t *other, float kick, int damage, const
 
 	self->pain_debounce_time = level.time + 3_sec;
 	gi.sound(self, CHAN_VOICE, sound_pain, 1, ATTN_NORM, 0);
-	
+
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
@@ -523,7 +523,7 @@ PAIN(berserk_pain) (edict_t *self, edict_t *other, float kick, int damage, const
 		M_SetAnimation(self, &berserk_move_pain2);
 }
 
-MONSTERINFO_SETSKIN(berserk_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(berserk_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -531,14 +531,14 @@ MONSTERINFO_SETSKIN(berserk_setskin) (edict_t *self) -> void
 		self->s.skinnum = 0;
 }
 
-void berserk_dead(edict_t *self)
+void berserk_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
 	monster_dead(self);
 }
 
-static void berserk_shrink(edict_t *self)
+static void berserk_shrink(edict_t* self)
 {
 	self->maxs[2] = 0;
 	self->svflags |= SVF_DEADMONSTER;
@@ -574,7 +574,7 @@ mframe_t berserk_frames_death2[] = {
 };
 MMOVE_T(berserk_move_death2) = { FRAME_deathc1, FRAME_deathc8, berserk_frames_death2, berserk_dead };
 
-DIE(berserk_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(berserk_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	if (M_CheckGib(self, mod))
 	{
@@ -590,7 +590,7 @@ DIE(berserk_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 			{ "models/monsters/berserk/gibs/hammer.md2", GIB_SKINNED | GIB_UPRIGHT },
 			{ "models/monsters/berserk/gibs/thigh.md2", GIB_SKINNED },
 			{ "models/monsters/berserk/gibs/head.md2", GIB_HEAD | GIB_SKINNED }
-		});
+			});
 		self->deadflag = true;
 		return;
 	}
@@ -610,7 +610,7 @@ DIE(berserk_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 
 //===========
 // PGM
-void berserk_jump_now(edict_t *self)
+void berserk_jump_now(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -619,7 +619,7 @@ void berserk_jump_now(edict_t *self)
 	self->velocity += (up * 300);
 }
 
-void berserk_jump2_now(edict_t *self)
+void berserk_jump2_now(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -628,7 +628,7 @@ void berserk_jump2_now(edict_t *self)
 	self->velocity += (up * 400);
 }
 
-void berserk_jump_wait_land(edict_t *self)
+void berserk_jump_wait_land(edict_t* self)
 {
 	if (self->groundentity == nullptr)
 	{
@@ -667,7 +667,7 @@ mframe_t berserk_frames_jump2[] = {
 };
 MMOVE_T(berserk_move_jump2) = { FRAME_jump1, FRAME_jump9, berserk_frames_jump2, berserk_run };
 
-void berserk_jump(edict_t *self, blocked_jump_result_t result)
+void berserk_jump(edict_t* self, blocked_jump_result_t result)
 {
 	if (!self->enemy)
 		return;
@@ -678,7 +678,7 @@ void berserk_jump(edict_t *self, blocked_jump_result_t result)
 		M_SetAnimation(self, &berserk_move_jump);
 }
 
-MONSTERINFO_BLOCKED(berserk_blocked) (edict_t *self, float dist) -> bool
+MONSTERINFO_BLOCKED(berserk_blocked) (edict_t* self, float dist) -> bool
 {
 	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
@@ -696,7 +696,7 @@ MONSTERINFO_BLOCKED(berserk_blocked) (edict_t *self, float dist) -> bool
 // PGM
 //===========
 
-MONSTERINFO_SIDESTEP(berserk_sidestep) (edict_t *self) -> bool
+MONSTERINFO_SIDESTEP(berserk_sidestep) (edict_t* self) -> bool
 {
 	// if we're jumping or in long pain, don't dodge
 	if ((self->monsterinfo.active_move == &berserk_move_jump) ||
@@ -746,7 +746,7 @@ mframe_t berserk_frames_duck2[] = {
 };
 MMOVE_T(berserk_move_duck2) = { FRAME_fall2, FRAME_fall18, berserk_frames_duck2, berserk_run };
 
-MONSTERINFO_DUCK(berserk_duck) (edict_t *self, gtime_t eta) -> bool
+MONSTERINFO_DUCK(berserk_duck) (edict_t* self, gtime_t eta) -> bool
 {
 	// berserk only dives forward, and very rarely
 	if (frandom() >= 0.05f)
@@ -768,10 +768,10 @@ MONSTERINFO_DUCK(berserk_duck) (edict_t *self, gtime_t eta) -> bool
 
 /*QUAKED monster_berserk (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_berserk(edict_t *self)
+void SP_monster_berserk(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -788,7 +788,7 @@ void SP_monster_berserk(edict_t *self)
 	sound_jump.assign("berserk/jump.wav");
 
 	self->s.modelindex = gi.modelindex("models/monsters/berserk/tris.md2");
-	
+
 	gi.modelindex("models/monsters/berserk/gibs/head.md2");
 	gi.modelindex("models/monsters/berserk/gibs/chest.md2");
 	gi.modelindex("models/monsters/berserk/gibs/hammer.md2");
@@ -804,12 +804,9 @@ void SP_monster_berserk(edict_t *self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 85;
 
-	self->health = 285 * st.health_multiplier;
-	self->gib_health = -80;
+	self->health = 240 * st.health_multiplier;
+	self->gib_health = -60;
 	self->mass = 250;
-
-	if (!self->s.scale)
-		self->s.scale = 1.3f;
 
 	self->pain = berserk_pain;
 	self->die = berserk_die;

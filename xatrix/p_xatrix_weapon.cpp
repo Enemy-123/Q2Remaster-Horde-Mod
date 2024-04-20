@@ -12,14 +12,11 @@ void weapon_ionripper_fire(edict_t* ent)
 	vec3_t tempang;
 	int	   damage;
 
-
-
-
 	if (G_IsDeathmatch())
 		// tone down for deathmatch
 		damage = 30;
 	else
-		damage = 60;
+		damage = 50;
 
 	if (is_quad)
 		damage *= damage_multiplier;
@@ -88,22 +85,12 @@ void weapon_phalanx_fire(edict_t* ent)
 		radius_damage = 30;
 		damage_radius = 120;
 
-		fire_plasma(ent, start, dir, damage, 1025, damage_radius, radius_damage);
-
-		// send muzzle flash
-		gi.WriteByte(svc_muzzleflash);
-		gi.WriteEntity(ent);
-		gi.WriteByte(MZ_PHALANX2 | is_silenced);
-		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-
-		G_RemoveAmmo(ent);
-
 		fire_plasma(ent, start, dir, damage, 725, damage_radius, radius_damage);
 
 		// send muzzle flash
 		gi.WriteByte(svc_muzzleflash);
 		gi.WriteEntity(ent);
-		gi.WriteByte(MZ_PHALANX3 | is_silenced);
+		gi.WriteByte(MZ_PHALANX2 | is_silenced);
 		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 		G_RemoveAmmo(ent);
@@ -117,7 +104,7 @@ void weapon_phalanx_fire(edict_t* ent)
 		vec3_t start;
 		P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
 
-		fire_plasma(ent, start, dir, damage, 825, damage_radius, radius_damage);
+		fire_plasma(ent, start, dir, damage, 725, damage_radius, radius_damage);
 
 		// send muzzle flash
 		gi.WriteByte(svc_muzzleflash);
@@ -126,16 +113,6 @@ void weapon_phalanx_fire(edict_t* ent)
 		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 		PlayerNoise(ent, start, PNOISE_WEAPON);
-
-		fire_plasma(ent, start, dir, damage, 925, damage_radius, radius_damage);
-
-		// send muzzle flash
-		gi.WriteByte(svc_muzzleflash);
-		gi.WriteEntity(ent);
-		gi.WriteByte(MZ_PHALANX4 | is_silenced);
-		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-
-		G_RemoveAmmo(ent);
 	}
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });

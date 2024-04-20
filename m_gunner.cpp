@@ -20,27 +20,27 @@ static cached_soundindex sound_open;
 static cached_soundindex sound_search;
 static cached_soundindex sound_sight;
 
-void gunner_idlesound(edict_t *self)
+void gunner_idlesound(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
-MONSTERINFO_SIGHT(gunner_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(gunner_sight) (edict_t* self, edict_t* other) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_SEARCH(gunner_search) (edict_t *self) -> void
+MONSTERINFO_SEARCH(gunner_search) (edict_t* self) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 }
 
-void GunnerGrenade(edict_t *self);
-void GunnerFire(edict_t *self);
-void gunner_fire_chain(edict_t *self);
-void gunner_refire_chain(edict_t *self);
+void GunnerGrenade(edict_t* self);
+void GunnerFire(edict_t* self);
+void gunner_fire_chain(edict_t* self);
+void gunner_refire_chain(edict_t* self);
 
-void gunner_stand(edict_t *self);
+void gunner_stand(edict_t* self);
 
 mframe_t gunner_frames_fidget[] = {
 	{ ai_stand },
@@ -90,7 +90,7 @@ mframe_t gunner_frames_fidget[] = {
 };
 MMOVE_T(gunner_move_fidget) = { FRAME_stand31, FRAME_stand70, gunner_frames_fidget, gunner_stand };
 
-void gunner_fidget(edict_t *self)
+void gunner_fidget(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		return;
@@ -136,7 +136,7 @@ mframe_t gunner_frames_stand[] = {
 };
 MMOVE_T(gunner_move_stand) = { FRAME_stand01, FRAME_stand30, gunner_frames_stand, nullptr };
 
-MONSTERINFO_STAND(gunner_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(gunner_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &gunner_move_stand);
 }
@@ -158,7 +158,7 @@ mframe_t gunner_frames_walk[] = {
 };
 MMOVE_T(gunner_move_walk) = { FRAME_walk07, FRAME_walk19, gunner_frames_walk, nullptr };
 
-MONSTERINFO_WALK(gunner_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(gunner_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &gunner_move_walk);
 }
@@ -176,7 +176,7 @@ mframe_t gunner_frames_run[] = {
 
 MMOVE_T(gunner_move_run) = { FRAME_run01, FRAME_run08, gunner_frames_run, nullptr };
 
-MONSTERINFO_RUN(gunner_run) (edict_t *self) -> void
+MONSTERINFO_RUN(gunner_run) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
@@ -196,7 +196,7 @@ mframe_t gunner_frames_runandshoot[] = {
 
 MMOVE_T(gunner_move_runandshoot) = { FRAME_runs01, FRAME_runs06, gunner_frames_runandshoot, nullptr };
 
-void gunner_runandshoot(edict_t *self)
+void gunner_runandshoot(edict_t* self)
 {
 	M_SetAnimation(self, &gunner_move_runandshoot);
 }
@@ -247,11 +247,11 @@ MMOVE_T(gunner_move_pain1) = { FRAME_pain101, FRAME_pain118, gunner_frames_pain1
 extern const mmove_t gunner_move_jump;
 extern const mmove_t gunner_move_jump2;
 
-PAIN(gunner_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(gunner_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	monster_done_dodge(self);
-	
-	if (self->monsterinfo.active_move == &gunner_move_jump || 
+
+	if (self->monsterinfo.active_move == &gunner_move_jump ||
 		self->monsterinfo.active_move == &gunner_move_jump2)
 		return;
 
@@ -282,7 +282,7 @@ PAIN(gunner_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 		monster_duck_up(self);
 }
 
-MONSTERINFO_SETSKIN(gunner_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(gunner_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -290,14 +290,14 @@ MONSTERINFO_SETSKIN(gunner_setskin) (edict_t *self) -> void
 		self->s.skinnum = 0;
 }
 
-void gunner_dead(edict_t *self)
+void gunner_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
 	monster_dead(self);
 }
 
-static void gunner_shrink(edict_t *self)
+static void gunner_shrink(edict_t* self)
 {
 	self->maxs[2] = -4;
 	self->svflags |= SVF_DEADMONSTER;
@@ -319,7 +319,7 @@ mframe_t gunner_frames_death[] = {
 };
 MMOVE_T(gunner_move_death) = { FRAME_death01, FRAME_death11, gunner_frames_death, gunner_dead };
 
-DIE(gunner_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(gunner_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	// check for gib
 	if (M_CheckGib(self, mod))
@@ -336,7 +336,7 @@ DIE(gunner_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 			{ "models/monsters/gunner/gibs/gun.md2", GIB_SKINNED | GIB_UPRIGHT },
 			{ "models/monsters/gunner/gibs/foot.md2", GIB_SKINNED },
 			{ "models/monsters/gunner/gibs/head.md2", GIB_SKINNED | GIB_HEAD }
-		});
+			});
 
 		self->deadflag = true;
 		return;
@@ -368,12 +368,12 @@ MMOVE_T(gunner_move_duck) = { FRAME_duck01, FRAME_duck08, gunner_frames_duck, gu
 
 // PMM - gunner dodge moved below so I know about attack sequences
 
-void gunner_opengun(edict_t *self)
+void gunner_opengun(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_open, 1, ATTN_IDLE, 0);
 }
 
-void GunnerFire(edict_t *self)
+void GunnerFire(edict_t* self)
 {
 	vec3_t					 start;
 	vec3_t					 forward, right;
@@ -391,7 +391,7 @@ void GunnerFire(edict_t *self)
 	monster_fire_bullet(self, start, aim, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 }
 
-bool gunner_grenade_check(edict_t *self)
+bool gunner_grenade_check(edict_t* self)
 {
 	vec3_t	dir;
 
@@ -423,7 +423,7 @@ bool gunner_grenade_check(edict_t *self)
 	return M_CalculatePitchToFire(self, target, start, aim, 600, 2.5f, false);
 }
 
-void GunnerGrenade(edict_t *self)
+void GunnerGrenade(edict_t* self)
 {
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
@@ -552,7 +552,7 @@ mframe_t gunner_frames_endfire_chain[] = {
 };
 MMOVE_T(gunner_move_endfire_chain) = { FRAME_attak224, FRAME_attak230, gunner_frames_endfire_chain, gunner_run };
 
-void gunner_blind_check(edict_t *self)
+void gunner_blind_check(edict_t* self)
 {
 	vec3_t aim;
 
@@ -617,7 +617,7 @@ mframe_t gunner_frames_attack_grenade2[] = {
 };
 MMOVE_T(gunner_move_attack_grenade2) = { FRAME_attak305, FRAME_attak324, gunner_frames_attack_grenade2, gunner_run };
 
-MONSTERINFO_ATTACK(gunner_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(gunner_attack) (edict_t* self) -> void
 {
 	float chance, r;
 
@@ -670,7 +670,7 @@ MONSTERINFO_ATTACK(gunner_attack) (edict_t *self) -> void
 	// pmm
 
 	// PGM - gunner needs to use his chaingun if he's being attacked by a tesla.
-	if (self->bad_area || self->timestamp > level.time || 
+	if (self->bad_area || self->timestamp > level.time ||
 		(range_to(self, self->enemy) <= RANGE_NEAR * 0.35f && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNNER_MACHINEGUN_1])))
 	{
 		M_SetAnimation(self, &gunner_move_attack_chain);
@@ -687,12 +687,12 @@ MONSTERINFO_ATTACK(gunner_attack) (edict_t *self) -> void
 	}
 }
 
-void gunner_fire_chain(edict_t *self)
+void gunner_fire_chain(edict_t* self)
 {
 	M_SetAnimation(self, &gunner_move_fire_chain);
 }
 
-void gunner_refire_chain(edict_t *self)
+void gunner_refire_chain(edict_t* self)
 {
 	if (self->enemy->health > 0)
 		if (visible(self, self->enemy))
@@ -706,7 +706,7 @@ void gunner_refire_chain(edict_t *self)
 
 //===========
 // PGM
-void gunner_jump_now(edict_t *self)
+void gunner_jump_now(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -715,7 +715,7 @@ void gunner_jump_now(edict_t *self)
 	self->velocity += (up * 300);
 }
 
-void gunner_jump2_now(edict_t *self)
+void gunner_jump2_now(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -724,7 +724,7 @@ void gunner_jump2_now(edict_t *self)
 	self->velocity += (up * 400);
 }
 
-void gunner_jump_wait_land(edict_t *self)
+void gunner_jump_wait_land(edict_t* self)
 {
 	if (self->groundentity == nullptr)
 	{
@@ -765,7 +765,7 @@ mframe_t gunner_frames_jump2[] = {
 };
 MMOVE_T(gunner_move_jump2) = { FRAME_jump01, FRAME_jump10, gunner_frames_jump2, gunner_run };
 
-void gunner_jump(edict_t *self, blocked_jump_result_t result)
+void gunner_jump(edict_t* self, blocked_jump_result_t result)
 {
 	if (!self->enemy)
 		return;
@@ -780,11 +780,11 @@ void gunner_jump(edict_t *self, blocked_jump_result_t result)
 
 //===========
 // PGM
-MONSTERINFO_BLOCKED(gunner_blocked) (edict_t *self, float dist) -> bool
+MONSTERINFO_BLOCKED(gunner_blocked) (edict_t* self, float dist) -> bool
 {
 	if (blocked_checkplat(self, dist))
 		return true;
-	
+
 	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
@@ -798,7 +798,7 @@ MONSTERINFO_BLOCKED(gunner_blocked) (edict_t *self, float dist) -> bool
 //===========
 
 // PMM - new duck code
-MONSTERINFO_DUCK(gunner_duck) (edict_t *self, gtime_t eta) -> bool
+MONSTERINFO_DUCK(gunner_duck) (edict_t* self, gtime_t eta) -> bool
 {
 	if ((self->monsterinfo.active_move == &gunner_move_jump2) ||
 		(self->monsterinfo.active_move == &gunner_move_jump))
@@ -824,7 +824,7 @@ MONSTERINFO_DUCK(gunner_duck) (edict_t *self, gtime_t eta) -> bool
 	return true;
 }
 
-MONSTERINFO_SIDESTEP(gunner_sidestep) (edict_t *self) -> bool
+MONSTERINFO_SIDESTEP(gunner_sidestep) (edict_t* self) -> bool
 {
 	if ((self->monsterinfo.active_move == &gunner_move_jump2) ||
 		(self->monsterinfo.active_move == &gunner_move_jump) ||
@@ -851,10 +851,10 @@ constexpr spawnflags_t SPAWNFLAG_GUNNER_NOJUMPING = 8_spawnflag;
 /*QUAKED monster_gunner (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight NoJumping
 model="models/monsters/gunner/tris.md2"
 */
-void SP_monster_gunner(edict_t *self)
+void SP_monster_gunner(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -872,27 +872,26 @@ void SP_monster_gunner(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/gunner/tris.md2");
-	
+
 	gi.modelindex("models/monsters/gunner/gibs/chest.md2");
 	gi.modelindex("models/monsters/gunner/gibs/foot.md2");
 	gi.modelindex("models/monsters/gunner/gibs/garm.md2");
 	gi.modelindex("models/monsters/gunner/gibs/gun.md2");
 	gi.modelindex("models/monsters/gunner/gibs/head.md2");
 
-	self->mins = { -16, -16, -24 };
-	self->maxs = { 16, 16, 36 };
-
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 65;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
-	self->health = 245 * st.health_multiplier;
+
+	self->mins = { -16, -16, -24 };
+	self->maxs = { 16, 16, 36 };
+
+	self->health = 175 * st.health_multiplier;
 	self->gib_health = -70;
 	self->mass = 200;
-
-	if (!self->s.scale)
-		self->s.scale = 1.1f;
+	self->s.scale = 1.1f;
 
 	self->pain = gunner_pain;
 	self->die = gunner_die;

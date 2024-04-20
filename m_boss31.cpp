@@ -12,7 +12,7 @@ jorg
 #include "m_boss31.h"
 #include "m_flash.h"
 
-void SP_monster_makron(edict_t *self);
+void SP_monster_makron(edict_t* self);
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -29,9 +29,9 @@ static cached_soundindex sound_step_left;
 static cached_soundindex sound_step_right;
 static cached_soundindex sound_death_hit;
 
-void MakronToss(edict_t *self);
+void MakronToss(edict_t* self);
 
-void jorg_attack1_end_sound(edict_t *self)
+void jorg_attack1_end_sound(edict_t* self)
 {
 	if (self->monsterinfo.weapon_sound)
 	{
@@ -40,7 +40,7 @@ void jorg_attack1_end_sound(edict_t *self)
 	}
 }
 
-MONSTERINFO_SEARCH(jorg_search) (edict_t *self) -> void
+MONSTERINFO_SEARCH(jorg_search) (edict_t* self) -> void
 {
 	float r;
 
@@ -54,15 +54,15 @@ MONSTERINFO_SEARCH(jorg_search) (edict_t *self) -> void
 		gi.sound(self, CHAN_VOICE, sound_search3, 1, ATTN_NORM, 0);
 }
 
-void jorg_dead(edict_t *self);
-void jorgBFG(edict_t *self);
-void jorg_firebullet(edict_t *self);
-void jorg_reattack1(edict_t *self);
-void jorg_attack1(edict_t *self);
-void jorg_idle(edict_t *self);
-void jorg_step_left(edict_t *self);
-void jorg_step_right(edict_t *self);
-void jorg_death_hit(edict_t *self);
+void jorg_dead(edict_t* self);
+void jorgBFG(edict_t* self);
+void jorg_firebullet(edict_t* self);
+void jorg_reattack1(edict_t* self);
+void jorg_attack1(edict_t* self);
+void jorg_idle(edict_t* self);
+void jorg_step_left(edict_t* self);
+void jorg_step_right(edict_t* self);
+void jorg_death_hit(edict_t* self);
 
 //
 // stand
@@ -123,27 +123,27 @@ mframe_t jorg_frames_stand[] = {
 };
 MMOVE_T(jorg_move_stand) = { FRAME_stand01, FRAME_stand51, jorg_frames_stand, nullptr };
 
-void jorg_idle (edict_t *self)
+void jorg_idle(edict_t* self)
 {
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
 }
 
-void jorg_death_hit(edict_t *self)
+void jorg_death_hit(edict_t* self)
 {
 	gi.sound(self, CHAN_BODY, sound_death_hit, 1, ATTN_NORM, 0);
 }
 
-void jorg_step_left(edict_t *self)
+void jorg_step_left(edict_t* self)
 {
 	gi.sound(self, CHAN_BODY, sound_step_left, 1, ATTN_NORM, 0);
 }
 
-void jorg_step_right(edict_t *self)
+void jorg_step_right(edict_t* self)
 {
 	gi.sound(self, CHAN_BODY, sound_step_right, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_STAND(jorg_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(jorg_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &jorg_move_stand);
 
@@ -212,12 +212,12 @@ mframe_t jorg_frames_end_walk[] = {
 MMOVE_T(jorg_move_end_walk) = { FRAME_walk20, FRAME_walk25, jorg_frames_end_walk, nullptr };
 #endif
 
-MONSTERINFO_WALK(jorg_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(jorg_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &jorg_move_walk);
 }
 
-MONSTERINFO_RUN(jorg_run) (edict_t *self) -> void
+MONSTERINFO_RUN(jorg_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &jorg_move_stand);
@@ -274,7 +274,7 @@ mframe_t jorg_frames_death1[] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move, 0, BossExplode },
+	{ ai_move },
 	{ ai_move },
 	{ ai_move, -2 },
 	{ ai_move, -5 },
@@ -371,7 +371,7 @@ mframe_t jorg_frames_end_attack1[] = {
 };
 MMOVE_T(jorg_move_end_attack1) = { FRAME_attak115, FRAME_attak118, jorg_frames_end_attack1, jorg_run };
 
-void jorg_reattack1(edict_t *self)
+void jorg_reattack1(edict_t* self)
 {
 	if (visible(self, self->enemy))
 	{
@@ -390,12 +390,12 @@ void jorg_reattack1(edict_t *self)
 	}
 }
 
-void jorg_attack1(edict_t *self)
+void jorg_attack1(edict_t* self)
 {
 	M_SetAnimation(self, &jorg_move_attack1);
 }
 
-PAIN(jorg_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(jorg_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	if (level.time < self->pain_debounce_time)
 		return;
@@ -447,7 +447,7 @@ PAIN(jorg_pain) (edict_t *self, edict_t *other, float kick, int damage, const mo
 
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
-	
+
 	jorg_attack1_end_sound(self);
 
 	if (damage <= 50)
@@ -458,7 +458,7 @@ PAIN(jorg_pain) (edict_t *self, edict_t *other, float kick, int damage, const mo
 		M_SetAnimation(self, &jorg_move_pain3);
 }
 
-MONSTERINFO_SETSKIN(jorg_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(jorg_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -468,48 +468,39 @@ MONSTERINFO_SETSKIN(jorg_setskin) (edict_t *self) -> void
 
 void jorgBFG(edict_t* self)
 {
+	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
-	vec3_t forward, right;
-	float  len;
+	vec3_t vec;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_JORG_BFG_1], forward, right);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_BFG_1], forward, right);
 
-	dir = self->pos1 - self->enemy->s.origin;
-	len = dir.length();
-
-	if (len < 30)
-	{
-		// calc direction to where we targeted
-		dir = self->pos1 - start;
-		dir.normalize();
-
-		monster_fire_tracker(self, start, dir, 20, 2000, self->enemy, MZ2_JORG_BFG_1);
-	}
-	else
-	{
-		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 20, 2000, nullptr, MZ2_JORG_BFG_1);
-	}
+	vec = self->enemy->s.origin;
+	vec[2] += self->enemy->viewheight;
+	dir = vec - start;
+	dir.normalize();
+	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
+	monster_fire_bfg(self, start, dir, 50, 800, 100, 200, MZ2_JORG_BFG_1);
 }
-void jorg_firebullet_right(edict_t *self)
+
+void jorg_firebullet_right(edict_t* self)
 {
-//	vec3_t forward, right;
-//	vec3_t start;
-//	vec3_t dir;
-//	vec3_t vec;
+	//	vec3_t forward, right;
+	//	vec3_t start;
+	//	vec3_t dir;
+	//	vec3_t vec;
 
-//	AngleVectors(self->s.angles, forward, right, nullptr);
-//	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_R1], forward, right);
+	//	AngleVectors(self->s.angles, forward, right, nullptr);
+	//	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_R1], forward, right);
 
-//	vec = self->enemy->s.origin;
-//	vec[2] += self->enemy->viewheight;
-//	dir = vec - start;
-//	dir.normalize();
-//	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
-//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
+	//	vec = self->enemy->s.origin;
+	//	vec[2] += self->enemy->viewheight;
+	//	dir = vec - start;
+	//	dir.normalize();
+	//	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
+	//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
+	//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
 
 	vec3_t start;
 	vec3_t dir;
@@ -533,7 +524,7 @@ void jorg_firebullet_right(edict_t *self)
 	self->pos1[2] += self->enemy->viewheight;
 }
 
-void jorg_firebullet_left(edict_t *self)
+void jorg_firebullet_left(edict_t* self)
 {
 	vec3_t start;
 	vec3_t dir;
@@ -554,29 +545,29 @@ void jorg_firebullet_left(edict_t *self)
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;
 	self->pos1[2] += self->enemy->viewheight;
-//BFG
-//	vec3_t forward, right;
-//	vec3_t start;
-//	vec3_t dir;
-//	vec3_t vec;
+	//BFG
+	//	vec3_t forward, right;
+	//	vec3_t start;
+	//	vec3_t dir;
+	//	vec3_t vec;
 
-//	AngleVectors(self->s.angles, forward, right, nullptr);
-//	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_L1], forward, right);
-//	vec = self->enemy->s.origin;
-//	vec[2] += self->enemy->viewheight;
-//	dir = vec - start;
-//	dir.normalize();
-//	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
-//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
+	//	AngleVectors(self->s.angles, forward, right, nullptr);
+	//	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_L1], forward, right);
+	//	vec = self->enemy->s.origin;
+	//	vec[2] += self->enemy->viewheight;
+	//	dir = vec - start;
+	//	dir.normalize();
+	//	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
+	//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
+	//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
 }
-void jorg_firebullet(edict_t *self)
+void jorg_firebullet(edict_t* self)
 {
 	jorg_firebullet_left(self);
 	jorg_firebullet_right(self);
 };
 
-MONSTERINFO_ATTACK(jorg_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(jorg_attack) (edict_t* self) -> void
 {
 	if (frandom() <= 0.75f)
 	{
@@ -591,10 +582,10 @@ MONSTERINFO_ATTACK(jorg_attack) (edict_t *self) -> void
 	}
 }
 
-void jorg_dead(edict_t *self)
+void jorg_dead(edict_t* self)
 {
 	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_BOSSTPORT);
+	gi.WriteByte(TE_EXPLOSION1_BIG);
 	gi.WritePosition(self->s.origin);
 	gi.multicast(self->s.origin, MULTICAST_PHS, false);
 
@@ -612,12 +603,12 @@ void jorg_dead(edict_t *self)
 		{ 4, "models/monsters/boss3/jorg/gibs/tube.md2", GIB_SKINNED },
 		{ 6, "models/monsters/boss3/jorg/gibs/spike.md2", GIB_SKINNED },
 		{ "models/monsters/boss3/jorg/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
-	});
+		});
 
 	MakronToss(self);
 }
 
-DIE(jorg_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(jorg_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
 	jorg_attack1_end_sound(self);
@@ -628,7 +619,7 @@ DIE(jorg_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage,
 }
 
 // [Paril-KEX] use generic function
-MONSTERINFO_CHECKATTACK(Jorg_CheckAttack) (edict_t *self) -> bool
+MONSTERINFO_CHECKATTACK(Jorg_CheckAttack) (edict_t* self) -> bool
 {
 	return M_CheckAttack_Base(self, 0.4f, 0.8f, 0.4f, 0.2f, 0.0f, 0.f);
 }
@@ -637,10 +628,10 @@ void MakronPrecache();
 
 /*QUAKED monster_jorg (1 .5 0) (-80 -80 0) (90 90 140) Ambush Trigger_Spawn Sight
  */
-void SP_monster_jorg(edict_t *self)
+void SP_monster_jorg(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -668,7 +659,7 @@ void SP_monster_jorg(edict_t *self)
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/boss3/jorg/tris.md2");
 	self->s.modelindex2 = gi.modelindex("models/monsters/boss3/rider/tris.md2");
-	
+
 	gi.modelindex("models/monsters/boss3/jorg/gibs/chest.md2");
 	gi.modelindex("models/monsters/boss3/jorg/gibs/foot.md2");
 	gi.modelindex("models/monsters/boss3/jorg/gibs/gun.md2");
@@ -681,12 +672,7 @@ void SP_monster_jorg(edict_t *self)
 	self->mins = { -80, -80, 0 };
 	self->maxs = { 80, 80, 140 };
 
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 1300;
-
-	self->health = 5500 * st.health_multiplier;
+	self->health = 8000 * st.health_multiplier;
 	self->gib_health = -2000;
 	self->mass = 1000;
 
