@@ -445,7 +445,7 @@ MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_att
 void flyer_slash_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
-	if (!fire_hit(self, aim, 5, 0))
+	if (!fire_hit(self, aim, 3, 0))
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
 	gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
 }
@@ -453,14 +453,14 @@ void flyer_slash_left(edict_t* self)
 void flyer_slash_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
-	if (!fire_hit(self, aim, 5, 0))
+	if (!fire_hit(self, aim, 3, 0))
 		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
 	gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
 }
 
 mframe_t flyer_frames_start_melee[] = {
-	{ ai_charge, 0, flyer_pop_blades },
-	{ ai_charge },
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -730,7 +730,7 @@ void SP_monster_flyer(edict_t* self)
 
 	self->monsterinfo.engine_sound = gi.soundindex("flyer/flyidle1.wav");
 
-	self->health = 50 * st.health_multiplier;
+	self->health = 26 * st.health_multiplier;
 	self->mass = 50;
 
 	self->pain = flyer_pain;

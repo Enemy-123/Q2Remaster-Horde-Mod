@@ -180,6 +180,7 @@
     <ClCompile Include="g_weapon.cpp" />
     <ClCompile Include="hook.cpp" />
     <ClCompile Include="horde\g_horde.cpp" />
+    <ClCompile Include="m_hover2.cpp" />
     <ClCompile Include="m_actor.cpp" />
     <ClCompile Include="m_arachnid.cpp" />
     <ClCompile Include="m_berserk.cpp" />
@@ -198,6 +199,7 @@
     <ClCompile Include="m_gunner.cpp" />
     <ClCompile Include="m_hover.cpp" />
     <ClCompile Include="m_infantry.cpp" />
+    <ClCompile Include="m_infantry2.cpp" />
     <ClCompile Include="m_insane.cpp" />
     <ClCompile Include="m_medic.cpp" />
     <ClCompile Include="m_move.cpp" />

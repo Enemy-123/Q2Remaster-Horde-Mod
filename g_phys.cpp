@@ -53,10 +53,14 @@ contents_t G_GetClipMask(edict_t* ent)
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// horde mode
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER))
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER)) {
 		mask &= ~CONTENTS_MONSTER;
 
-	return mask;
+		// Para evitar que los monstruos atraviesen a los jugadores en modo "horde"
+		mask |= MASK_PLAYERSOLID;
+
+		return mask;
+	}
 }
 
 /*

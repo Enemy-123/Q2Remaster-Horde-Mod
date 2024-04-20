@@ -1397,7 +1397,7 @@ void Blaster_Fire(edict_t *ent, const vec3_t &g_offset, int damage, bool hyper, 
 void Weapon_Blaster_Fire(edict_t *ent)
 {
 	// give the blaster 15 across the board instead of just in dm
-	int damage = 16;
+	int damage = 15;
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
@@ -1460,9 +1460,9 @@ void Weapon_HyperBlaster_Fire(edict_t *ent)
 			
 
 			if (G_IsDeathmatch())
-				damage = 23;
+				damage = 15;
 			else
-				damage = 23;
+				damage = 20;
 			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
 			Weapon_PowerupSound(ent);
 
@@ -1505,7 +1505,7 @@ void Machinegun_Fire(edict_t *ent)
 	int damage;
 	int kick = 2;
 
-	damage = irandom(7, 11);
+	damage = irandom(7, 10);
 
 	if (!(ent->client->buttons & BUTTON_ATTACK))
 	{
@@ -1605,9 +1605,9 @@ void Chaingun_Fire(edict_t *ent)
 
 
 	if (G_IsDeathmatch())
-		damage = irandom(6, 10);
+		damage = irandom(5, 9);
 	else
-		damage = irandom(6, 10);
+		damage = irandom(5, 9);
 	if (ent->client->ps.gunframe > 31)
 	{
 		ent->client->ps.gunframe = 5;
@@ -1736,7 +1736,7 @@ void weapon_shotgun_fire(edict_t *ent)
 	int damage;
 	int kick = 8;
 
-	damage = irandom(3, 12);
+	damage = irandom(3, 6);
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
 	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir);

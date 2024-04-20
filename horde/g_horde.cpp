@@ -100,7 +100,7 @@ static void Horde_InitLevel(int32_t lvl)
 		if 	(!Q_strcasecmp(level.mapname, "q64/dm3")) {
 		g_horde_local.num_to_spawn = 10 + (lvl * 1);
 	}
-		if 	(!Q_strcasecmp(level.mapname, "q64\dm3")) {
+		if 	(!Q_strcasecmp(level.mapname, "q64\\dm3")) {
 		g_horde_local.num_to_spawn = 10 + (lvl * 1);
 	}
  //       if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
@@ -158,11 +158,11 @@ constexpr struct weighted_item_t {
 	{ "item_sphere_defender", -1, -1, 0.14f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
-	{ "weapon_chainfist", -1, 2, 0.27f, adjust_weight_weapon },
-	{ "weapon_shotgun", -1, 3, 0.27f, adjust_weight_weapon },
+	{ "weapon_chainfist", -1, 2, 0.23f, adjust_weight_weapon },
+	{ "weapon_shotgun", -1, 3, 0.23f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 4, -1, 0.14f, adjust_weight_weapon },
-	{ "weapon_machinegun", -1, 5, 0.25f, adjust_weight_weapon },
-	{ "weapon_etf_rifle", 2, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_machinegun", -1, 5, 0.23f, adjust_weight_weapon },
+	{ "weapon_etf_rifle", 3, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_boomer", 4, 7, 0.15f, adjust_weight_weapon },
 	{ "weapon_chaingun", 5, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 6, -1, 0.15f, adjust_weight_weapon },
@@ -218,34 +218,38 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_fixbot", 6, -1, 0.3f },
 	{ "monster_soldier", -1, 4, 0.45f },
 	{ "monster_soldier_hypergun", 2, 8, 0.55f },
-	{ "monster_stalker", 3, 10, 0.23f },
-	{ "monster_gekk", 4, -1, 0.30f },
+	{ "monster_stalker", 4, 10, 0.13f },
+	{ "monster_gekk", 3, -1, 0.22f },
 	{ "monster_parasite", 4, -1, 0.2f },
-	{ "monster_brain", 4, -1, 0.35f },
-	{ "monster_soldier_lasergun", 2, -1, 0.55f },
-	{ "monster_soldier_ripper", 3, 9, 0.55f },
-	{ "monster_infantry", 3, -1, 0.80f },
-	{ "monster_gunner", 4, -1, 0.74f },
+	{ "monster_brain", 6, -1, 0.22f },
+	{ "monster_soldier_lasergun", 2, -1, 0.45f },
+	{ "monster_soldier_ripper", 2, 9, 0.45f },
+	{ "monster_infantry2", 2, 8, 0.36f },
+	{ "monster_infantry", 7, -1, 0.80f },
+	{ "monster_gunner",5, -1, 0.74f },
 	{ "monster_chick", 5, -1, 0.80f },
 	{ "monster_guncmdr", 8, -1, 0.4f },
 	{ "monster_gladiator", 6, -1, 0.84f },
-	{ "monster_gladb", 6, -1, 0.75f},
+	{ "monster_gladc", 6, 11, 0.84f },
+	{ "monster_gladb", 11, -1, 0.75f},
 //	{ "monster_chick_heat", 7, -1, 0.73f },
-	{ "monster_tank_commander", 12, -1, 0.28f },
-	{ "monster_mutant", 7, -1, 0.75f },
-	{ "monster_tank", 8, -1, 0.45f },
-	{ "monster_janitor2", 11, -1, 0.12f },
-	{ "monster_janitor", 9, -1, 0.18f },
-	{ "monster_hover", 8, -1, 0.55f },
-	{ "monster_flyer", 2, 9, 0.45f },
+	{ "monster_tank_commander", 12, -1, 0.22f },
+	{ "monster_mutant", 8, -1, 0.55f },
+	{ "monster_tank", 8, -1, 0.3f },
+	{ "monster_janitor2", 13, -1, 0.12f },
+	{ "monster_janitor", 8, -1, 0.18f },
+	{ "monster_hover", 10, -1, 0.45f },
+	{ "monster_hover2", 4, 10, 0.55f },
+	{ "monster_flyer", -1, 9, 0.35f },
 	{ "monster_floater", 8, -1, 0.55f },
-	{ "monster_daedalus", 7, -1, 0.52f },
+	{ "monster_daedalus", 9, -1, 0.52f },
+	{ "monster_daedalus2", 6, 10, 0.42f },
 	{ "monster_makron", 13, 19, 0.2f },
 	{ "monster_boss2_64", 10, 16, 0.17f },
 	{ "monster_berserk", 6, -1, 0.65f },
 	{ "monster_spider", 8, -1, 0.34f },
 	{ "monster_tank_64", 11, -1, 0.27f },
-	{ "monster_medic", 3, 8, 0.12f },
+	{ "monster_medic", 5, 8, 0.12f },
 	{ "monster_shambler", 15, -1, 0.15f },
 	{ "monster_medic_commander", 9, -1, 0.16f },
 	{ "monster_carrier2", 12, -1, 0.23f },
@@ -606,7 +610,7 @@ void  SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health *= pow(1.32, current_wave_number);
+		boss->health *= pow(1.52, current_wave_number);
 	//	boss->s.renderfx = RF_TRANSLUCENT;
 	//	boss->s.effects = EF_FLAG1 | EF_QUAD;
 

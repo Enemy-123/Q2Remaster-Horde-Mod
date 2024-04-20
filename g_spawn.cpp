@@ -127,6 +127,7 @@ void SP_monster_berserk(edict_t* self);
 void SP_monster_gladiator(edict_t* self);
 void SP_monster_gunner(edict_t* self);
 void SP_monster_infantry(edict_t* self);
+void SP_monster_infantry2(edict_t* self);
 void SP_monster_soldier_light(edict_t* self);
 void SP_monster_soldier(edict_t* self);
 void SP_monster_soldier_ss(edict_t* self);
@@ -141,6 +142,7 @@ void SP_monster_flyer(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_floater(edict_t* self);
 void SP_monster_hover(edict_t* self);
+void SP_monster_hover2(edict_t* self);
 void SP_monster_mutant(edict_t* self);
 void SP_monster_supertank(edict_t* self);
 void SP_monster_supertankkl(edict_t* self);
@@ -352,6 +354,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_gladiator", SP_monster_gladiator },
 	{ "monster_gunner", SP_monster_gunner },
 	{ "monster_infantry", SP_monster_infantry },
+	{ "monster_infantry2", SP_monster_infantry2 },
 	{ "monster_soldier_light", SP_monster_soldier_light },
 	{ "monster_soldier", SP_monster_soldier },
 	{ "monster_soldier_ss", SP_monster_soldier_ss },
@@ -367,6 +370,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_brain", SP_monster_brain },
 	{ "monster_floater", SP_monster_floater },
 	{ "monster_hover", SP_monster_hover },
+	{ "monster_hover2", SP_monster_hover2 },
 	{ "monster_mutant", SP_monster_mutant },
 	{ "monster_supertank", SP_monster_supertank },
 	{ "monster_supertankkl", SP_monster_supertankkl },
@@ -435,6 +439,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "target_orb", SP_target_orb },
 	// pmm
 	{ "monster_daedalus", SP_monster_hover },
+	{ "monster_daedalus2", SP_monster_hover2 },
 	{ "hint_path", SP_hint_path },
 	{ "monster_carrier", SP_monster_carrier },
 	{ "monster_carrier2", SP_monster_carrier2 },
@@ -486,7 +491,7 @@ void ED_CallSpawn(edict_t* ent)
 			ent->classname = "monster_soldier_hypergun";
 		}
 		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
-			ent->classname = "monster_infantry";
+			ent->classname = "monster_infantry2";
 		}
 		else if (!strcmp(ent->classname, "monster_infantry")) {
 			ent->classname = "monster_gunner";
@@ -495,7 +500,7 @@ void ED_CallSpawn(edict_t* ent)
 			ent->classname = "monster_guncmdr";
 		}
 		else if (!strcmp(ent->classname, "monster_flyer")) {
-			ent->classname = "monster_hover";
+			ent->classname = "monster_hover2";
 		}
 		else if (!strcmp(ent->classname, "monster_stalker")) {
 			ent->classname = "monster_parasite";

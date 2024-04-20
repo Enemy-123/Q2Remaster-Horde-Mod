@@ -189,12 +189,12 @@ void gladbGun(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 20, 900, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, 23, 900, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 11, 1250, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, 23, 1250, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
 void gladbGun_check(edict_t *self)
@@ -556,6 +556,7 @@ void SP_monster_gladiator(edict_t *self)
  */
 void SP_monster_gladb(edict_t *self)
 {
+	self->s.renderfx = RF_GLOW;
 	SP_monster_gladiator(self);
 }
 

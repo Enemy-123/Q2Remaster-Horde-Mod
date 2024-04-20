@@ -364,7 +364,7 @@ void SP_monster_arachnid(edict_t *self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 550 * st.health_multiplier;
+	self->health = 650 * current_wave_number;
 	self->gib_health = -200;
 
 	if (!st.was_key_specified("power_armor_type"))
@@ -399,7 +399,7 @@ void SP_monster_spider(edict_t* self)
 	self->s.skinnum = 1;
 	if (!self->s.scale)
 		self->s.scale = 0.8f;
-	self->health = 580 * st.health_multiplier;
+	self->health = 620 * st.health_multiplier;
 
 	self->mins = { -38, -38, -16 };
 	self->maxs = { 38, 38, 38 };
