@@ -32,7 +32,7 @@ static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
 	g_horde_local.level = lvl;
-	g_horde_local.monster_spawn_time = level.time + random_time(1_sec, 3_sec);
+	g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.4_sec);
 
 	if (g_horde_local.level == 5) {
 		gi.cvar_set("g_vampire", "1");
@@ -643,41 +643,45 @@ void ResetGame() {
 // Define una variable global para almacenar el tiempo de referencia cuando se cumple la condición
 std::chrono::steady_clock::time_point condition_start_time;
 
-// Función para verificar si la condición de remainingMonsters se cumple durante más de 10 segundos
+// Variable para almacenar el valor anterior de remainingMonsters
+int previous_remainingMonsters = 0;
+
+// Función para verificar si la condición de remainingMonsters se cumple durante más de x segundos
 bool CheckRemainingMonstersCondition() {
-
-	if (remainingMonsters <= 6 && current_wave_number <= 7 && !g_horde_local.num_to_spawn) {
+	if (remainingMonsters <= 6 && current_wave_number <= 7) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
 		}
-		// Verifica si la condición ha estado activa durante más de 25 segundos
+		// Verifica si la condición ha estado activa durante más de x segundos
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-
-		if (duration.count() >= 19) {
+		if (duration.count() >= 8) {
 			return true;
 		}
 	}
-	else if (remainingMonsters <= 8 && current_wave_number >= 8 && !g_horde_local.num_to_spawn) {
+	else if (remainingMonsters <= 8 && current_wave_number >= 8) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
 		}
 
-		// Verifica si la condición ha estado activa durante más de 17 segundos
+		// Verifica si la condición ha estado activa durante más de x segundos
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 23) {
+		if (duration.count() >= 12) {
 			return true;
 		}
 	}
-
 	else {
-		// Si la condición no se cumple, reinicia el tiempo de referencia
-		condition_start_time = std::chrono::steady_clock::time_point();
+		// Si la condición no se cumple, reinicia el tiempo de referencia si remainingMonsters está aumentando
+		if (remainingMonsters > previous_remainingMonsters) {
+			condition_start_time = std::chrono::steady_clock::time_point();
+		}
+		// Actualiza el valor anterior de remainingMonsters
+		previous_remainingMonsters = remainingMonsters;
 	}
 	return false;
 }

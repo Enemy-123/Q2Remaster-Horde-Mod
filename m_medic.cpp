@@ -12,8 +12,8 @@ MEDIC
 #include "m_medic.h"
 #include "m_flash.h"
 
-constexpr float MEDIC_MIN_DISTANCE = 32;
-constexpr float MEDIC_MAX_HEAL_DISTANCE = 400;
+constexpr float MEDIC_MIN_DISTANCE = 64;
+constexpr float MEDIC_MAX_HEAL_DISTANCE = 500;
 constexpr gtime_t MEDIC_TRY_TIME = 10_sec;
 
 // FIXME -
@@ -53,7 +53,7 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_arachnid 3;monster_widow 4;monster_jorg 5;monster_widow2 6;monster_boss2kl 6";
+constexpr const char* default_reinforcements = "monster_arachnid 3;monster_widow 4;monster_jorg 5;monster_widow2 6";
 constexpr int32_t default_monster_slots_base = 3;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
