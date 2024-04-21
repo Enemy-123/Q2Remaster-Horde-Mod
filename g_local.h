@@ -1938,7 +1938,11 @@ extern cvar_t* g_coop_health_scaling;
 extern cvar_t* g_weapon_respawn_time;
 
 extern cvar_t* g_chaotic;
+extern cvar_t* g_insane;
 extern cvar_t* g_ammoregen;
+extern cvar_t* g_vampire;
+//extern cvar_t* g_vampire_health_max;
+
 
 extern cvar_t* g_no_self_damage;
 extern cvar_t* g_no_health;
@@ -2001,9 +2005,6 @@ extern cvar_t* ai_movement_disabled;
 // Kyper - Lithium port
 extern cvar_t* g_use_hook;
 extern cvar_t* g_hook_wave;
-
-extern cvar_t* g_vampire;
-//extern cvar_t* g_vampire_health_max;
 
 extern cvar_t* g_mover_speed_scale;
 extern cvar_t* g_mover_debug;

@@ -3,7 +3,8 @@
 #include "../g_local.h"
 #include <sstream>
 
-
+static const int MAX_MONSTERS_PER_WAVE = 24;
+static const int MAX_MONSTERS_SMALL_MAP = 19;
 
 int remainingMonsters = 0;
 int current_wave_number = 1;
@@ -33,6 +34,8 @@ static void Horde_InitLevel(int32_t lvl)
 	current_wave_number++;
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.4_sec);
+
+	bool isSmallMap = false; // Variable que indica si el mapa es pequeño o no
 
 	if (g_horde_local.level == 5) {
 		gi.cvar_set("g_vampire", "1");
@@ -82,35 +85,108 @@ static void Horde_InitLevel(int32_t lvl)
 	    if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 8);
 	}
-//	    if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
-//		g_horde_local.num_to_spawn = 32 + (lvl * 5);
-//	}
-	    if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
-		g_horde_local.num_to_spawn = 10 + (lvl * 1);
-	}
-	    if 	(!Q_strcasecmp(level.mapname, "q2dm2")) {
-		g_horde_local.num_to_spawn = 8 + (lvl * 2);
-	}
 		if 	(!Q_strcasecmp(level.mapname, "q2dm8")) {
-		g_horde_local.num_to_spawn = 12 + (lvl * 4);
+		g_horde_local.num_to_spawn = 12 + (lvl * 3);
 	}
+		if (!Q_strcasecmp(level.mapname, "q2dm3")) {
+			g_horde_local.num_to_spawn = 10 + (lvl * 1);
+			isSmallMap = true;
+		}
+		if (!Q_strcasecmp(level.mapname, "q2dm2")) {
+			g_horde_local.num_to_spawn = 8 + (lvl * 2);
+			isSmallMap = true;
+		}
+		if 	(!Q_strcasecmp(level.mapname, "dm10")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "q64/dm10")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+     	}
+		if 	(!Q_strcasecmp(level.mapname, "q64\\dm10")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+    	}
+		if 	(!Q_strcasecmp(level.mapname, "dm9")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+    	}
+		if 	(!Q_strcasecmp(level.mapname, "q64/dm9")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "q64\\dm9")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+	  	isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "dm7")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "q64/dm7")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "q64\\dm7")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
 		if 	(!Q_strcasecmp(level.mapname, "dm3")) {
-		g_horde_local.num_to_spawn = 10 + (lvl * 1);
-	}
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
 		if 	(!Q_strcasecmp(level.mapname, "q64/dm3")) {
-		g_horde_local.num_to_spawn = 10 + (lvl * 1);
-	}
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
 		if 	(!Q_strcasecmp(level.mapname, "q64\\dm3")) {
-		g_horde_local.num_to_spawn = 10 + (lvl * 1);
-	}
- //       if 	(!Q_strcasecmp(level.mapname, "q2dm3")) {
-//		g_horde_local.num_to_spawn = 10 + (lvl * 2);
-//	}
-
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+    	}
+		if 	(!Q_strcasecmp(level.mapname, "dm2")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "q64/dm2")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+    	}
+		if 	(!Q_strcasecmp(level.mapname, "q64\\dm2")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "mgu6m3")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
+		if 	(!Q_strcasecmp(level.mapname, "fact3")) {
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
+		isSmallMap = true;
+	    }
 	    else 
-		g_horde_local.num_to_spawn = 12 + (lvl * 2);
+		g_horde_local.num_to_spawn = 12 + (lvl * 1.5);
+
+
+		if (!isSmallMap) {
+			g_horde_local.num_to_spawn = 12 + (lvl * 1.5);
+		}
+		else {
+			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
+				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
+			}
+		}
+		// limiting max monsters
+		if (g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
+		{
+			g_horde_local.num_to_spawn = MAX_MONSTERS_PER_WAVE;
+		}
+
 
 }
+
+
+
 
 bool G_IsDeathmatch()
 {
@@ -213,8 +289,8 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 
 constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, 6, 0.55f },
-	{ "monster_soldier_ss", -1, -1, 0.55f },
-	{ "monster_fixbot", 6, -1, 0.3f },
+	{ "monster_soldier_ss", -1, 21, 0.55f },
+	{ "monster_fixbot", 6, 19, 0.3f },
 	{ "monster_soldier", -1, 4, 0.45f },
 	{ "monster_soldier_hypergun", 2, 7, 0.55f },
 	{ "monster_stalker", 4, 8, 0.13f },
@@ -224,31 +300,33 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_ripper", 3, 7, 0.45f },
 	{ "monster_infantry2", 2, 8, 0.36f },
 	{ "monster_infantry", 7, -1, 0.50f },
-	{ "monster_gunner", 4, 11, 0.54f },
+	{ "monster_gunner", 9, -1, 0.54f },
+	{ "monster_gunner2", 3, 8, 0.44f },
 	{ "monster_guncmdr", 8, -1, 0.3f },
 //	{ "monster_chick_heat", 7, -1, 0.73f },
 	{ "monster_hover2", 4, 10, 0.27f },
 	{ "monster_medic", 5, 8, 0.12f },
-	{ "monster_flyer", -1, -1, 0.34f },
-	{ "monster_floater", 8, -1, 0.3f },
+	{ "monster_flyer", -1, 19, 0.34f },
+	{ "monster_floater", 8, 16, 0.3f },
 	{ "monster_daedalus", 9, -1, 0.22f },
 	{ "monster_brain", 5, -1, 0.3f },
-	{ "monster_daedalus2", 6, 8, 0.22f },
+//	{ "monster_daedalus2", 6, 8, 0.22f },
 	{ "monster_gladiator", 5, -1, 0.54f },
-	{ "monster_gladc", 6, -1, 0.54f },
-	{ "monster_mutant", 7, -1, 0.55f },
-	{ "monster_chick", 7, -1, 0.7f },
+	{ "monster_gladc", 6, 19, 0.54f },
+	{ "monster_mutant", 7, 18, 0.55f },
+	{ "monster_chick", 7, 19, 0.7f },
 	{ "monster_tank", 8, -1, 0.3f },
 	{ "monster_berserk", 9, -1, 0.45f },
 	{ "monster_boss2_64", 10, -1, 0.17f },
-	{ "monster_hover", 11, -1, 0.27f },
+	{ "monster_hover", 10, -1, 0.27f },
 	{ "monster_gladb", 11, -1, 0.75f},
+	{ "monster_floater2", 16, -1, 0.75f},
 	{ "monster_carrier2", 12, -1, 0.23f },
 	{ "monster_spider", 12, -1, 0.24f },
-	{ "monster_tank_commander", 11, -1, 0.22f },
+	{ "monster_tank_commander", 11, 18, 0.22f },
 	{ "monster_janitor", 11, -1, 0.18f },
     { "monster_medic_commander", 13, -1, 0.18f },
-	{ "monster_shambler", 15, -1, 0.15f },
+	{ "monster_shambler", 15, -1, 0.1f },
 	{ "monster_tank_64", 16, -1, 0.27f },
 	{ "monster_janitor2", 17, -1, 0.1f },
 	{ "monster_makron", 18, 19, 0.2f },
@@ -609,7 +687,7 @@ void  SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health * pow(1.28, current_wave_number);
+		boss->health *= pow(1.28, current_wave_number);
 	//	boss->s.renderfx = RF_TRANSLUCENT;
 	//	boss->s.effects = EF_FLAG1 | EF_QUAD;
 
@@ -657,11 +735,11 @@ bool CheckRemainingMonstersCondition() {
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 9) {
+		if (duration.count() >= 10) {
 			return true;
 		}
 	}
-	else if (remainingMonsters <= 5 && current_wave_number >= 8) {
+	else if (remainingMonsters <= 8 && current_wave_number >= 8) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
@@ -773,7 +851,7 @@ void Horde_RunFrame()
 				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.3_sec);
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
-				e->health *= pow(1.008, current_wave_number);
+				e->health *= pow(1.08, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -837,7 +915,7 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time)
 		{
 			if (g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS TAKING ADVANTAGE !!!\n\n\n **************");
+				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS STARTING TO PUSH !!!\n\n\n **************");
 				float r = frandom();
 
 				if (r < 0.167f) // Aproximadamente 16.7% de probabilidad para cada sonido

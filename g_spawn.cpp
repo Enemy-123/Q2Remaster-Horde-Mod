@@ -126,6 +126,7 @@ void SP_misc_lavaball(edict_t* ent);
 void SP_monster_berserk(edict_t* self);
 void SP_monster_gladiator(edict_t* self);
 void SP_monster_gunner(edict_t* self);
+void SP_monster_gunner2(edict_t* self);
 void SP_monster_infantry(edict_t* self);
 void SP_monster_infantry2(edict_t* self);
 void SP_monster_soldier_light(edict_t* self);
@@ -141,6 +142,7 @@ void SP_monster_perrokl(edict_t* self);
 void SP_monster_flyer(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_floater(edict_t* self);
+void SP_monster_floater2(edict_t* self);
 void SP_monster_hover(edict_t* self);
 void SP_monster_hover2(edict_t* self);
 void SP_monster_mutant(edict_t* self);
@@ -353,6 +355,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_berserk", SP_monster_berserk },
 	{ "monster_gladiator", SP_monster_gladiator },
 	{ "monster_gunner", SP_monster_gunner },
+	{ "monster_gunner2", SP_monster_gunner2 },
 	{ "monster_infantry", SP_monster_infantry },
 	{ "monster_infantry2", SP_monster_infantry2 },
 	{ "monster_soldier_light", SP_monster_soldier_light },
@@ -369,6 +372,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_flyer", SP_monster_flyer },
 	{ "monster_brain", SP_monster_brain },
 	{ "monster_floater", SP_monster_floater },
+	{ "monster_floater2", SP_monster_floater2 },
 	{ "monster_hover", SP_monster_hover },
 	{ "monster_hover2", SP_monster_hover2 },
 	{ "monster_mutant", SP_monster_mutant },
@@ -484,17 +488,11 @@ void ED_CallSpawn(edict_t* ent)
 {
 	if (g_chaotic->integer == 1) {
 
-//		if (!strcmp(ent->classname, "monster_soldier_light")) {
-//			ent->classname = "monster_soldier_lasergun";
-//		}
-//		else if (!strcmp(ent->classname, "monster_soldier")) {
-//			ent->classname = "monster_soldier_hypergun";
-//		}
 		if (!strcmp(ent->classname, "monster_soldier_ss")) {
 			ent->classname = "monster_infantry2";
 		}
 		else if (!strcmp(ent->classname, "monster_infantry2")) {
-			ent->classname = "monster_gunner";
+			ent->classname = "monster_gunner2";
 		}
 		else if (!strcmp(ent->classname, "monster_brain")) {
 			ent->classname = "monster_guncmdr";
@@ -505,9 +503,9 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_stalker")) {
 			ent->classname = "monster_parasite";
 		}
-//		else if (!strcmp(ent->classname, "monster_berserk")) {
-//			ent->classname = "monster_brain";
-//		}
+		//		else if (!strcmp(ent->classname, "monster_berserk")) {
+		//			ent->classname = "monster_brain";
+		//		}
 		else if (!strcmp(ent->classname, "monster_shambler")) {
 			ent->classname = "monster_tank_64";
 		}
@@ -532,21 +530,70 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_medic")) {
 			ent->classname = "monster_spider";
 		}
-//		else if (!strcmp(ent->classname, "monster_brain")) {
-//			ent->classname = "monster_berserk";
-//		}
-//	    else if (!strcmp(ent->classname, "monster_gekk")) {
-//		ent->classname = "monster_mutant";
-//	    }
-//		else if (!strcmp(ent->classname, "monster_fixbot")) {
-//		ent->classname = "monster_hover";
-//	    }
+	}
+
+	if (g_insane->integer == 1) {
+
+		if (!strcmp(ent->classname, "monster_soldier_light")) {
+			ent->classname = "monster_soldier_lasergun";
+		}
+		else if (!strcmp(ent->classname, "monster_soldier")) {
+			ent->classname = "monster_soldier_hypergun";
+		}
+		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
+			ent->classname = "monster_infantry2";
+		}
+		else if (!strcmp(ent->classname, "monster_infantry2")) {
+			ent->classname = "monster_gunner";
+		}
+		else if (!strcmp(ent->classname, "monster_brain")) {
+			ent->classname = "monster_guncmdr";
+		}
+		else if (!strcmp(ent->classname, "monster_flyer")) {
+			ent->classname = "monster_hover";
+		}
+		else if (!strcmp(ent->classname, "monster_stalker")) {
+			ent->classname = "monster_parasite";
+		}
+		else if (!strcmp(ent->classname, "monster_shambler")) {
+			ent->classname = "monster_tank_64";
+		}
+		else if (!strcmp(ent->classname, "monster_tank")) {
+			ent->classname = "monster_tank_commander";
+		}
+		else if (!strcmp(ent->classname, "monster_tank_commander")) {
+			ent->classname = "monster_shambler";
+		}
+		else if (!strcmp(ent->classname, "monster_supertank")) {
+			ent->classname = "monster_boss5";
+		}
+		else if (!strcmp(ent->classname, "monster_chick")) {
+			ent->classname = "monster_chick_heat";
+		}
+		else if (!strcmp(ent->classname, "monster_boss2")) {
+			ent->classname = "monster_carrier";
+		}
+		else if (!strcmp(ent->classname, "monster_flipper")) {
+			ent->classname = "monster_gekk";
+		}
+		else if (!strcmp(ent->classname, "monster_medic")) {
+			ent->classname = "monster_spider";
+		}
+		else if (!strcmp(ent->classname, "monster_gekk")) {
+			ent->classname = "monster_mutant";
+		}
+		else if (!strcmp(ent->classname, "monster_fixbot")) {
+			ent->classname = "monster_hover";
+		}
+		else if (!strcmp(ent->classname, "monster_boss2_64")) {
+			ent->classname = "monster_carrier2";
+		}
+		else if (!strcmp(ent->classname, "monster_floater")) {
+			ent->classname = "monster_floater2";
+		}
 		else if (!strcmp(ent->classname, "monster_commander_body")) {
-		ent->classname = "monster_tank_64";
-	    }
-	//	else if (!strcmp(ent->classname, "monster_boss2_64")) {
-	//	ent->classname = "monster_carrier2";
-	//    }
+			ent->classname = "monster_tank_64";
+		}
 		else if (!strcmp(ent->classname, "item_quad")) {
 			ent->classname = "item_double";
 		}
@@ -559,7 +606,8 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "item_silencer")) {
 			ent->classname = "item_bandolier";
 		}
-    }
+	}
+
 
 
 	gitem_t* item;
