@@ -363,7 +363,7 @@ void SP_monster_arachnid(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 1000 * current_wave_number;
+	self->health = 1000 * st.health_multiplier;
 	self->gib_health = -200;
 
 	self->monsterinfo.scale = MODEL_SCALE;

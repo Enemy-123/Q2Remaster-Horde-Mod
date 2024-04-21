@@ -694,21 +694,39 @@ void Horde_RunFrame()
 			Horde_InitLevel(1);
 			current_wave_number = 2;
 
-			if (!g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "????");
-			//  gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			// init random
+			std::srand(static_cast<unsigned int>(std::time(nullptr)));
 
+			//generate random number
+			float r = frandom();
+
+			if (r < 0.333f) // less than 0.333
+			{
+				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
 			}
-			else if (g_chaotic->integer)
+			else if (r < 0.666f) // if less than 0.666
+			{
+				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			}
+			else // same or more than 0.666
+			{
+				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
+			}
+			// Print message according difficult
+			if (!g_chaotic->integer)
+				gi.LocBroadcast_Print(PRINT_CENTER, "????");
+			else
 				gi.LocBroadcast_Print(PRINT_CENTER, "CHAOS IMMINENT");
-		//  gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
-		//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
-			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
+
+			// random sound
+			if (!g_chaotic->integer || (g_chaotic->integer && r > 0.666f))
+				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+			else if (r > 0.333f)
+				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			else
+				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
 		}
 		break;
-
-
 
 	case horde_state_t::spawning:
 		if (!next_wave_message_sent)
@@ -792,7 +810,7 @@ void Horde_RunFrame()
 			{
 				g_horde_local.warm_time = level.time + 3_sec;
 				g_horde_local.state = horde_state_t::rest;
-				remainingMonsters = 0; 
+				remainingMonsters = 0;
 
 				if (g_chaotic->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG");// !\n\n*** ALL PLAYERS EARNED VAMPIRE ABILITY*** ");
@@ -815,28 +833,33 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time)
 		{
 			if (g_chaotic->integer) {
-			gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS TAKING ADVANTAGE !!!\n\n\n **************");// \nYOU LOSE VAMPIRE ABILITY!\n **************");
-		   	gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
-//			 gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
-//			 gi.sound(world, CHAN_VOICE, gi.soundindex("world/battle5.wav"), 1, ATTN_NONE, 0);
-//			 gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
+				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS TAKING ADVANTAGE !!!\n\n\n **************");
+				float r = frandom();
 
+				if (r < 0.167f) // Aproximadamente 16.7% de probabilidad para cada sonido
+					gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
+				else if (r < 0.333f)
+					gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
+				else if (r < 0.5f)
+					gi.sound(world, CHAN_VOICE, gi.soundindex("world/battle5.wav"), 1, ATTN_NONE, 0);
+				else if (r < 0.667f)
+					gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
+				else if (r < 0.833f)
+					gi.sound(world, CHAN_VOICE, gi.soundindex("makron/voice3.wav"), 1, ATTN_NONE, 0);
+				else
+					gi.sound(world, CHAN_VOICE, gi.soundindex("world/v_fac3.wav"), 1, ATTN_NONE, 0);
 			}
-			else if (!g_chaotic->integer){
+			else if (!g_chaotic->integer) {
 				gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
-			gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
-		}
+				gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
+			}
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
-
 		}
 		break;
-
-
 	}
 }
-
 
 void HandleResetEvent() {
 	ResetGame();

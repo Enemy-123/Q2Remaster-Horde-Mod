@@ -108,7 +108,7 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 void GladiatorMelee(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	if (fire_hit(self, aim, irandom(20, 25), 300))
+	if (fire_hit(self, aim, irandom(30, 35), 300))
 		gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);
 	else
 	{
