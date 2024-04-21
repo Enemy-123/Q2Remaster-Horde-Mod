@@ -19,7 +19,7 @@ enum class horde_state_t
 };
 
 static struct {
-	gtime_t			warm_time = 2_sec;
+	gtime_t			warm_time = 5_sec;
 	horde_state_t	state = horde_state_t::warmup;
 
 	gtime_t			monster_spawn_time = 0.5_sec;
@@ -225,12 +225,12 @@ constexpr struct weighted_item_t {
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
 	//{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
-	{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
+	{ "item_power_shield", 4, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, 19, 0.065f, adjust_weight_powerup },
+	{ "item_quad", 6, 19, 0.073f, adjust_weight_powerup },
 	{ "item_double", 5, -1, 0.078f, adjust_weight_powerup },
-	{ "item_quadfire", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_invulnerability", 4, -1, 0.05f, adjust_weight_powerup },
+	{ "item_quadfire", 4, -1, 0.085f, adjust_weight_powerup },
+	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 
@@ -307,7 +307,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_hover2", 4, 10, 0.27f },
 	{ "monster_medic", 5, 8, 0.12f },
 	{ "monster_flyer", -1, 19, 0.34f },
-	{ "monster_floater", 8, 16, 0.3f },
+	{ "monster_floater", 6, 16, 0.3f },
 	{ "monster_daedalus", 9, -1, 0.22f },
 	{ "monster_brain", 5, -1, 0.3f },
 //	{ "monster_daedalus2", 6, 8, 0.22f },
@@ -678,12 +678,11 @@ void  SpawnBossAutomatically()
 			return; 
 		}
 
-		// Ajusta los ángulos del monstruo
 		boss->s.angles[0] = 0;
 		boss->s.angles[1] = -45;
 		boss->s.angles[2] = 0;
 
-		// Ajustes adicionales
+
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
@@ -700,15 +699,15 @@ void  SpawnBossAutomatically()
 		gi.WriteByte(TE_BOSSTPORT);
 		gi.WritePosition(effectPosition);
 		gi.multicast(effectPosition, MULTICAST_PHS, false);
-		// Llama a la función para spawnear el monstruo
 		ED_CallSpawn(boss);
 	}
 }
 
 void ResetGame() {
-	// Reinicia las variables de estado del juego
 	g_horde_local.state = horde_state_t::warmup;
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
+	gi.cvar_set("g_chaotic", "0");
+	gi.cvar_set("g_insane", "0");
 	gi.cvar_set("g_vampire", "0");
 	gi.cvar_set("ai_damage_scale", "1");
 	gi.cvar_set("g_damage_scale", "1");
@@ -726,7 +725,7 @@ int previous_remainingMonsters = 0;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de x segundos
 bool CheckRemainingMonstersCondition() {
-	if (remainingMonsters <= 6 && current_wave_number <= 7) {
+	if (remainingMonsters <= 4 && current_wave_number <= 7) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
@@ -735,11 +734,11 @@ bool CheckRemainingMonstersCondition() {
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 10) {
+		if (duration.count() >= 12) {
 			return true;
 		}
 	}
-	else if (remainingMonsters <= 8 && current_wave_number >= 8) {
+	else if (remainingMonsters <= 6 && current_wave_number >= 8) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
@@ -848,10 +847,10 @@ void Horde_RunFrame()
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.3_sec);
-				e->enemy = &g_edicts[1];
+				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.1_sec);
+				e->enemy = &g_edicts[1]; 
 				e->gib_health = -280;
-				e->health *= pow(1.08, current_wave_number);
+				e->health *= pow(1.045, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -878,6 +877,14 @@ void Horde_RunFrame()
 	case horde_state_t::cleanup:
 
 		if (CheckRemainingMonstersCondition()) {
+			if (current_wave_number >= 10) {
+				gi.cvar_set("g_insane", "1");
+
+				// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
+				g_horde_local.state = horde_state_t::rest;
+				break;
+			}
+			else if ((current_wave_number <= 9))
 			gi.cvar_set("g_chaotic", "1");
 
 
@@ -894,10 +901,11 @@ void Horde_RunFrame()
 				g_horde_local.state = horde_state_t::rest;
 				remainingMonsters = 0;
 
-				if (g_chaotic->integer) {
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nChaotic Wave Controlled, GG");// !\n\n*** ALL PLAYERS EARNED VAMPIRE ABILITY*** ");
+				if (g_chaotic->integer || g_insane->integer) {
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nHarder Wave Controlled, GG\n");// !\n\n*** ALL PLAYERS EARNED VAMPIRE ABILITY*** ");
 					gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
 					gi.cvar_set("g_chaotic", "0");
+					gi.cvar_set("g_insane", "0");
 					gi.cvar_set("ai_damage_scale", "1.2");
 				}
 				else if (!g_chaotic->integer) {
@@ -905,7 +913,7 @@ void Horde_RunFrame()
 				}
 			}
 			else
-				remainingMonsters = level.total_monsters + 1 - level.killed_monsters;
+			remainingMonsters = level.total_monsters + 1 - level.killed_monsters;
 			g_horde_local.monster_spawn_time = level.time + 3_sec;
 		}
 		break;
@@ -914,8 +922,8 @@ void Horde_RunFrame()
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time)
 		{
-			if (g_chaotic->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS STARTING TO PUSH !!!\n\n\n **************");
+			if (g_chaotic->integer || g_insane->integer) {
+				gi.LocBroadcast_Print(PRINT_CENTER, "**************\n\n\n--Wave INCOMPLETE--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
 				float r = frandom();
 
 				if (r < 0.167f) // Aproximadamente 16.7% de probabilidad para cada sonido

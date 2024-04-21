@@ -53,12 +53,27 @@ contents_t G_GetClipMask(edict_t* ent)
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// horde mode
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (!((!strcmp(ent->classname, "monster_flyer") && (!((!strcmp(ent->classname, "monster_berserk"))))))))
-	
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
+		strcmp(ent->classname, "monster_flyer") &&
+		strcmp(ent->classname, "monster_berserk") &&
+		strcmp(ent->classname, "monster_guncmdr") &&
+		strcmp(ent->classname, "monster_gladiator") &&
+		strcmp(ent->classname, "monster_gladb") &&
+		strcmp(ent->classname, "monster_gladc") &&
+		strcmp(ent->classname, "monster_makron") &&
+		strcmp(ent->classname, "monster_widow") &&
+		strcmp(ent->classname, "monster_widow2") &&
+		strcmp(ent->classname, "monster_carrier") &&
+		strcmp(ent->classname, "monster_carrier2") &&
+		strcmp(ent->classname, "monster_boss2") &&
+		strcmp(ent->classname, "monster_boss2kl") &&
+		strcmp(ent->classname, "monster_boss2_64")) {
 		mask &= ~CONTENTS_MONSTER;
+	}
 
 	return mask;
 }
+
 /*
 ============
 SV_TestEntityPosition

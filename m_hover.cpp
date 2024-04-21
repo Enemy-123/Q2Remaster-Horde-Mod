@@ -601,7 +601,7 @@ void SP_monster_hover(edict_t *self)
 
 	self->pain = hover_pain;
 	self->die = hover_die;
-	self->s.scale = 1.1f;
+	self->s.scale = 1.15f;
 
 	self->monsterinfo.stand = hover_stand;
 	self->monsterinfo.walk = hover_walk;

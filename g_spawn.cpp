@@ -494,18 +494,18 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner2";
 		}
-		else if (!strcmp(ent->classname, "monster_brain")) {
-			ent->classname = "monster_guncmdr";
-		}
+//		else if (!strcmp(ent->classname, "monster_brain")) {
+//			ent->classname = "monster_guncmdr";
+//		}
 		else if (!strcmp(ent->classname, "monster_flyer")) {
 			ent->classname = "monster_hover2";
 		}
 		else if (!strcmp(ent->classname, "monster_stalker")) {
 			ent->classname = "monster_parasite";
 		}
-		//		else if (!strcmp(ent->classname, "monster_berserk")) {
-		//			ent->classname = "monster_brain";
-		//		}
+//		else if (!strcmp(ent->classname, "monster_berserk")) {
+//			ent->classname = "monster_brain";
+//	   	}
 		else if (!strcmp(ent->classname, "monster_shambler")) {
 			ent->classname = "monster_tank_64";
 		}
@@ -527,9 +527,9 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_flipper")) {
 			ent->classname = "monster_gekk";
 		}
-		else if (!strcmp(ent->classname, "monster_medic")) {
-			ent->classname = "monster_spider";
-		}
+//	   else if (!strcmp(ent->classname, "monster_medic")) {
+//			ent->classname = "monster_spider";
+//		}
 	}
 
 	if (g_insane->integer == 1) {
@@ -559,7 +559,7 @@ void ED_CallSpawn(edict_t* ent)
 			ent->classname = "monster_tank_64";
 		}
 		else if (!strcmp(ent->classname, "monster_tank")) {
-			ent->classname = "monster_tank_commander";
+			ent->classname = "monster_tank_64";
 		}
 		else if (!strcmp(ent->classname, "monster_tank_commander")) {
 			ent->classname = "monster_shambler";
