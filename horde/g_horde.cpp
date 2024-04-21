@@ -21,7 +21,7 @@ static struct {
 	gtime_t			warm_time = 2_sec;
 	horde_state_t	state = horde_state_t::warmup;
 
-	gtime_t			monster_spawn_time;
+	gtime_t			monster_spawn_time = 0.5_sec;
 	int32_t			num_to_spawn;
 	int32_t			level;
 } g_horde_local;
@@ -609,7 +609,7 @@ void  SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health *= pow(1.52, current_wave_number);
+		boss->health * pow(1.28, current_wave_number);
 	//	boss->s.renderfx = RF_TRANSLUCENT;
 	//	boss->s.effects = EF_FLAG1 | EF_QUAD;
 
@@ -657,11 +657,11 @@ bool CheckRemainingMonstersCondition() {
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 8) {
+		if (duration.count() >= 9) {
 			return true;
 		}
 	}
-	else if (remainingMonsters <= 8 && current_wave_number >= 8) {
+	else if (remainingMonsters <= 5 && current_wave_number >= 8) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
@@ -671,7 +671,7 @@ bool CheckRemainingMonstersCondition() {
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 12) {
+		if (duration.count() >= 14) {
 			return true;
 		}
 	}
@@ -770,10 +770,10 @@ void Horde_RunFrame()
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
 
-				g_horde_local.monster_spawn_time = level.time + random_time(1.2_sec, 1.7_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.3_sec);
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
-				e->health *= pow(1.007, current_wave_number);
+				e->health *= pow(1.008, current_wave_number);
 				FoundTarget(e);
 
 				--g_horde_local.num_to_spawn;
@@ -792,7 +792,7 @@ void Horde_RunFrame()
 			else
 			{
 				remainingMonsters = level.total_monsters - level.killed_monsters;; // Calcula la cantidad de monstruos restantes
-				g_horde_local.monster_spawn_time = level.time + 1.3_sec;
+				g_horde_local.monster_spawn_time = level.time + 0.5_sec;
 			}
 		}
 		break;
