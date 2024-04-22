@@ -161,6 +161,7 @@ void SP_monster_guardian(edict_t* self);
 void SP_monster_arachnid(edict_t* self);
 void SP_monster_spider(edict_t* self);
 void SP_monster_guncmdr(edict_t* self);
+void SP_monster_guncmdr2(edict_t* self);
 void SP_monster_guncmdrkl(edict_t* self);
 
 void SP_monster_commander_body(edict_t* self);
@@ -393,6 +394,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_arachnid", SP_monster_arachnid },
 	{ "monster_spider", SP_monster_spider },
 	{ "monster_guncmdr", SP_monster_guncmdr },
+	{ "monster_guncmdr2", SP_monster_guncmdr2 },
 	{ "monster_guncmdrkl", SP_monster_guncmdrkl },
 
 	{ "monster_commander_body", SP_monster_commander_body },
@@ -494,20 +496,14 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner2";
 		}
-//		else if (!strcmp(ent->classname, "monster_brain")) {
-//			ent->classname = "monster_guncmdr";
-//		}
 		else if (!strcmp(ent->classname, "monster_flyer")) {
-			ent->classname = "monster_hover2";
+			ent->classname = "monster_parasite";
 		}
 		else if (!strcmp(ent->classname, "monster_stalker")) {
 			ent->classname = "monster_parasite";
 		}
-//		else if (!strcmp(ent->classname, "monster_berserk")) {
-//			ent->classname = "monster_brain";
-//	   	}
-		else if (!strcmp(ent->classname, "monster_shambler")) {
-			ent->classname = "monster_tank_64";
+		else if (!strcmp(ent->classname, "monster_gunner")) {
+			ent->classname = "monster_gunner2";
 		}
 		else if (!strcmp(ent->classname, "monster_tank")) {
 			ent->classname = "monster_tank_commander";
@@ -527,9 +523,6 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_flipper")) {
 			ent->classname = "monster_gekk";
 		}
-//	   else if (!strcmp(ent->classname, "monster_medic")) {
-//			ent->classname = "monster_spider";
-//		}
 	}
 
 	if (g_insane->integer == 1) {
@@ -541,7 +534,7 @@ void ED_CallSpawn(edict_t* ent)
 			ent->classname = "monster_soldier_hypergun";
 		}
 		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
-			ent->classname = "monster_infantry2";
+			ent->classname = "monster_infantry";
 		}
 		else if (!strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner";
@@ -552,14 +545,14 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_flyer")) {
 			ent->classname = "monster_hover";
 		}
-		else if (!strcmp(ent->classname, "monster_stalker")) {
-			ent->classname = "monster_parasite";
+		else if (!strcmp(ent->classname, "monster_daedalus")) {
+			ent->classname = "monster_hover";
 		}
 		else if (!strcmp(ent->classname, "monster_shambler")) {
 			ent->classname = "monster_tank_64";
 		}
 		else if (!strcmp(ent->classname, "monster_tank")) {
-			ent->classname = "monster_tank_64";
+			ent->classname = "monster_tank_commander";
 		}
 		else if (!strcmp(ent->classname, "monster_tank_commander")) {
 			ent->classname = "monster_shambler";
@@ -608,9 +601,7 @@ void ED_CallSpawn(edict_t* ent)
 		}
 	}
 
-
-	if (g_insane->integer <= 2)
-		if (G_IsCooperative() && !g_horde->integer) {
+	if (!g_horde->integer && g_hardcoop->integer) {
 			if (!strcmp(ent->classname, "monster_soldier_light")) {
 				ent->classname = "monster_soldier_hypergun";
 			}
@@ -678,7 +669,6 @@ void ED_CallSpawn(edict_t* ent)
 				ent->classname = "item_bandolier";
 			}
 		}
-
 
 
 
@@ -1696,7 +1686,7 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
 
 
-		if (G_IsCooperative() && skill->integer == 3 && !g_horde->integer) {
+		if (G_IsCooperative() && g_insane->integer == 2 && !g_horde->integer ) {
 
 					// 		// COOPWAVE
 			sb.xv(-155).yb(-23).string2("Chaotic Coop\n ENABLED");

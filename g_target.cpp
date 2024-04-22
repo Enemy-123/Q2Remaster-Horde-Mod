@@ -402,7 +402,10 @@ Changes level to "map" when fired
 */
 USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	HandleResetEvent();
+	if (g_horde->integer && !G_IsCooperative())
+	{
+		HandleResetEvent();
+	}
 	if (level.intermissiontime)
 		return; // already activated
 
@@ -421,14 +424,20 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 
 	// if multiplayer, let everyone know who hit the exit
 	if (G_IsDeathmatch())
-		HandleResetEvent();
+		if (g_horde->integer && !G_IsCooperative())
+		{
+			HandleResetEvent();
+		}
 	{
 		if (level.time < 10_sec)
 			return;
 
 		if (activator && activator->client)
 			gi.LocBroadcast_Print(PRINT_HIGH, "$g_exited_level", activator->client->pers.netname);
-		HandleResetEvent();
+		if (g_horde->integer && !G_IsCooperative())
+		{
+			HandleResetEvent();
+		}
 	}
 
 	// if going to a new unit, clear cross triggers

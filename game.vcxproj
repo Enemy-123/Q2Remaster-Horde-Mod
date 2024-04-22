@@ -160,6 +160,7 @@
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
+    <ClCompile Include="m_guncmdr2.cpp" />
     <ClCompile Include="m_gunner2.cpp" />
     <ClCompile Include="g_ai.cpp" />
     <ClCompile Include="g_chase.cpp" />

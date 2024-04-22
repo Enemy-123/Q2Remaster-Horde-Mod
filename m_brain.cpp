@@ -443,6 +443,9 @@ void brain_tounge_attack(edict_t* self)
 	self->s.origin[2] += 1;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->enemy->velocity = forward * -1200;
+
+	//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
+	//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
 }
 
 // Brian right eye center

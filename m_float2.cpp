@@ -51,12 +51,12 @@ void floater2_fire_blaster(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 19, 950, self->enemy, MZ2_FLOAT_BLASTER_1);
+		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_FLOAT_BLASTER_1);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 19, 860, nullptr, MZ2_FLOAT_BLASTER_1);
+		monster_fire_tracker(self, start, dir, 13, 860, nullptr, MZ2_FLOAT_BLASTER_1);
 	}
 }
 

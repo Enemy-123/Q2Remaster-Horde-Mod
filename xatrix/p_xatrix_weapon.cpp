@@ -85,7 +85,7 @@ void weapon_phalanx_fire(edict_t* ent)
 		radius_damage = 30;
 		damage_radius = 120;
 
-		fire_plasma(ent, start, dir, damage, 725, damage_radius, radius_damage);
+		fire_plasma(ent, start, dir, damage, 1025, damage_radius, radius_damage);
 
 		// send muzzle flash
 		gi.WriteByte(svc_muzzleflash);
@@ -104,7 +104,7 @@ void weapon_phalanx_fire(edict_t* ent)
 		vec3_t start;
 		P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
 
-		fire_plasma(ent, start, dir, damage, 725, damage_radius, radius_damage);
+		fire_plasma(ent, start, dir, damage, 925, damage_radius, radius_damage);
 
 		// send muzzle flash
 		gi.WriteByte(svc_muzzleflash);

@@ -152,6 +152,7 @@ cvar_t* g_hook_wave;
 cvar_t* g_entity_override_load;
 cvar_t* g_chaotic;
 cvar_t* g_insane;
+cvar_t* g_hardcoop;
 cvar_t* g_ammoregen;
 cvar_t* g_vampire;
 //cvar_t* g_vampire_health_max;
@@ -382,6 +383,7 @@ void InitGame()
 	g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
 	g_insane = gi.cvar("g_insane", "0", CVAR_NOFLAGS);
+	g_hardcoop = gi.cvar("g_hardcoop", "0", CVAR_NOFLAGS);
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 
@@ -723,7 +725,10 @@ void CheckDMRules()
 					gi.cvar_set("timelimit", "25");
 				}
 				EndDMLevel();
+				if (g_horde->integer)
+				{
 				HandleResetEvent();
+				}
 			}
 		}
 		return;

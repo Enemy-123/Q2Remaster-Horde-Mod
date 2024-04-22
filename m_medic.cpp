@@ -13,7 +13,7 @@ MEDIC
 #include "m_flash.h"
 
 constexpr float MEDIC_MIN_DISTANCE = 64;
-constexpr float MEDIC_MAX_HEAL_DISTANCE = 500;
+constexpr float MEDIC_MAX_HEAL_DISTANCE = 400;
 constexpr gtime_t MEDIC_TRY_TIME = 10_sec;
 
 // FIXME -

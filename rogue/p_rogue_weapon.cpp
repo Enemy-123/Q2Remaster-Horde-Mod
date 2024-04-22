@@ -317,7 +317,7 @@ void weapon_etf_rifle_fire(edict_t* ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle + kick_angles, offset, start, dir);
-	fire_flechette(ent, start, dir, damage, 1150, kick);
+	fire_flechette(ent, start, dir, damage, 1450, kick);
 	Weapon_PowerupSound(ent);
 
 	// send muzzle flash

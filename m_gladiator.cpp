@@ -478,7 +478,7 @@ void SP_monster_gladiator(edict_t* self)
 	{
 		sound_gunb.assign("weapons/disrupt.wav");
 
-		self->health = 250 * st.health_multiplier;
+		self->health = 280 * st.health_multiplier;
 		self->mass = 350;
 
 		if (!st.was_key_specified("power_armor_type"))
@@ -486,7 +486,7 @@ void SP_monster_gladiator(edict_t* self)
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.power_armor_power = 250;
 		self->s.skinnum = 2;
-
+		self->s.scale = 1.2;
 		self->style = 1;
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
@@ -502,8 +502,7 @@ void SP_monster_gladiator(edict_t* self)
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.power_armor_power = 100;
-		self->s.skinnum = 3;
-
+		self->s.skinnum = 2;
 		self->style = 3;
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");

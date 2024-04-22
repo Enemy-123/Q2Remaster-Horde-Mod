@@ -1939,6 +1939,7 @@ extern cvar_t* g_weapon_respawn_time;
 
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
+extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
 extern cvar_t* g_vampire;
 //extern cvar_t* g_vampire_health_max;
@@ -2839,7 +2840,7 @@ struct damage_indicator_t
 constexpr gtime_t LADDER_SOUND_TIME = 300_ms;
 
 // time after damage that we can't respawn on a player for
-constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 3000_ms;
+constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 4700_ms;
 
 // time after firing that we can't respawn on a player for
 constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;
