@@ -66,101 +66,102 @@ static void Horde_InitLevel(int32_t lvl)
 	    if 	(!Q_strcasecmp(level.mapname, "base1")) {
 		g_horde_local.num_to_spawn = 30 + (lvl * 5);
 	}
-		if 	(!Q_strcasecmp(level.mapname, "base2")) {
+		else if 	(!Q_strcasecmp(level.mapname, "base2")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-		if 	(!Q_strcasecmp(level.mapname, "base3")) {
+		else if 	(!Q_strcasecmp(level.mapname, "base3")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-		if 	(!Q_strcasecmp(level.mapname, "bunk1")) {
+		else if 	(!Q_strcasecmp(level.mapname, "bunk1")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-		if 	(!Q_strcasecmp(level.mapname, "ware1")) {
+		else if 	(!Q_strcasecmp(level.mapname, "ware1")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-	    if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
+		else  if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		g_horde_local.num_to_spawn = 28 + (lvl * 5);
 	}
-	    if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
+		else if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 8);
 	}
-		if 	(!Q_strcasecmp(level.mapname, "q2dm8")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q2dm8")) {
 		g_horde_local.num_to_spawn = 12 + (lvl * 3);
 	}
-		if (!Q_strcasecmp(level.mapname, "q2dm3")) {
+		else if (!Q_strcasecmp(level.mapname, "q2dm3")) {
 		isSmallMap = true;
 		}
-		if (!Q_strcasecmp(level.mapname, "q2dm2")) {
+		else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
 		isSmallMap = true;
 		}
-		if 	(!Q_strcasecmp(level.mapname, "dm10")) {
+		else if 	(!Q_strcasecmp(level.mapname, "dm10")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "q64/dm10")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q64/dm10")) {
 		isSmallMap = true;
      	}
-		if 	(!Q_strcasecmp(level.mapname, "q64\\dm10")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm10")) {
 		isSmallMap = true;
     	}
-		if 	(!Q_strcasecmp(level.mapname, "dm3")) {
-		g_horde_local.num_to_spawn = 9 + (lvl * 1);
+		else if 	(!Q_strcasecmp(level.mapname, "dm3")) {
+		g_horde_local.num_to_spawn = 14 + (lvl * 1);
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "q64/dm3")) {
-		g_horde_local.num_to_spawn = 9 + (lvl * 1);
+		else if 	(!Q_strcasecmp(level.mapname, "q64/dm3")) {
+		g_horde_local.num_to_spawn = 14 + (lvl * 1);
 		isSmallMap = true;
      	}
-		if 	(!Q_strcasecmp(level.mapname, "q64\\dm3")) {
-		g_horde_local.num_to_spawn = 9 + (lvl * 1);
+		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm3")) {
+		g_horde_local.num_to_spawn = 14 + (lvl * 1);
 		isSmallMap = true;
     	}
-		if 	(!Q_strcasecmp(level.mapname, "xdm2")) {
+		else if 	(!Q_strcasecmp(level.mapname, "xdm2")) {
 		g_horde_local.num_to_spawn = 12 + (lvl * 3);
     	}
-		if 	(!Q_strcasecmp(level.mapname, "dm9")) {
+		else if 	(!Q_strcasecmp(level.mapname, "dm9")) {
 		isSmallMap = true;
     	}
-		if 	(!Q_strcasecmp(level.mapname, "q64/dm9")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q64/dm9")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "q64\\dm9")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm9")) {
 	  	isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "dm7")) {
+		else	if 	(!Q_strcasecmp(level.mapname, "dm7")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "q64/dm7")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q64/dm7")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "q64\\dm7")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm7")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "dm2")) {
+		else if 	(!Q_strcasecmp(level.mapname, "dm2")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "q64/dm2")) {
+		else 	if 	(!Q_strcasecmp(level.mapname, "q64/dm2")) {
 		isSmallMap = true;
     	}
-		if 	(!Q_strcasecmp(level.mapname, "q64\\dm2")) {
+		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm2")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "mgu6m3")) {
+		else if 	(!Q_strcasecmp(level.mapname, "mgu6m3")) {
 		isSmallMap = true;
 	    }
-		if 	(!Q_strcasecmp(level.mapname, "fact3")) {
-		isSmallMap = true;
-	    }
-		if 	(!Q_strcasecmp(level.mapname, "mgdm1")) {
-		isSmallMap = true;
-	    }
-	    else 
-		g_horde_local.num_to_spawn = 7 + (lvl * 1);
+		else if (!Q_strcasecmp(level.mapname, "fact3")) {
+			isSmallMap = true;
+		}
+		else if (!Q_strcasecmp(level.mapname, "mgdm1")) {
+			isSmallMap = true;
+		}
+		else
+			g_horde_local.num_to_spawn = 7 + (lvl * 1);
 
 
 		if (!isSmallMap) {
 			g_horde_local.num_to_spawn = 9 + (lvl * 1.3);
 		}
 		else {
+			g_horde_local.num_to_spawn = 7 + (lvl * 1);
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 			}
@@ -172,7 +173,8 @@ static void Horde_InitLevel(int32_t lvl)
 		}
 
 
-}
+		}
+
 
 
 

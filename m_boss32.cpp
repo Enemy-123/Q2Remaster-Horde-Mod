@@ -876,4 +876,6 @@ void SP_monster_makronkl(edict_t* self)
 	SP_monster_makron(self);
 	self->s.skinnum = 2;
 	self->health = 585 * current_wave_number;
+	self->s.renderfx = RF_TRANSLUCENT;
+	self->s.effects = EF_FLAG1;
 }
