@@ -3,6 +3,7 @@
 #include "../g_local.h"
 #include <sstream>
 
+static const int MAX_MONSTERS_BIG_MAP = 40;
 static const int MAX_MONSTERS_PER_WAVE = 22;
 static const int MAX_MONSTERS_SMALL_MAP = 17;
 
@@ -35,7 +36,8 @@ static void Horde_InitLevel(int32_t lvl)
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.9_sec);
 
-	bool isSmallMap = false; // Variable que indica si el mapa es pequeño o no
+	bool isSmallMap = false;
+	bool isBigMap = false;
 
 	if (g_horde_local.level == 5) {
 		gi.cvar_set("g_vampire", "1");
@@ -50,10 +52,10 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.cvar_set("g_damage_scale", "1.8");
 		gi.cvar_set("ai_damage_scale", "1.5");
 		gi.cvar_set("g_ammoregen", "1");
-	//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NONE, 0);
+		//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NONE, 0);
 		gi.sound(world, CHAN_VOICE, gi.soundindex("misc/keyuse.wav"), 1, ATTN_NONE, 0);
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\nAMMO REGEN\n\nENABLED!\n");
-	}	
+	}
 
 	if (g_horde_local.level == 15) {
 		gi.cvar_set("g_damage_scale", "2.0");
@@ -63,117 +65,105 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.cvar_set("g_damage_scale", "2.3");
 	}
 
-	    if 	(!Q_strcasecmp(level.mapname, "base1")) {
+	if (!Q_strcasecmp(level.mapname, "base1")) {
 		g_horde_local.num_to_spawn = 30 + (lvl * 5);
 	}
-		else if 	(!Q_strcasecmp(level.mapname, "base2")) {
+	else if (!Q_strcasecmp(level.mapname, "base2")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-		else if 	(!Q_strcasecmp(level.mapname, "base3")) {
+	else if (!Q_strcasecmp(level.mapname, "base3")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-		else if 	(!Q_strcasecmp(level.mapname, "bunk1")) {
+	else if (!Q_strcasecmp(level.mapname, "bunk1")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-		else if 	(!Q_strcasecmp(level.mapname, "ware1")) {
+	else if (!Q_strcasecmp(level.mapname, "ware1")) {
 		g_horde_local.num_to_spawn = 38 + (lvl * 5);
 	}
-		else  if 	(!Q_strcasecmp(level.mapname, "q2ctf5")) {
-		g_horde_local.num_to_spawn = 28 + (lvl * 5);
+	else  if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
+		isBigMap = true;
 	}
-		else if 	(!Q_strcasecmp(level.mapname, "xdm6")) {
-		g_horde_local.num_to_spawn = 38 + (lvl * 8);
+	else  if (!Q_strcasecmp(level.mapname, "xdm2")) {
+		isBigMap = true;
 	}
-		else if 	(!Q_strcasecmp(level.mapname, "q2dm8")) {
+	else  if (!Q_strcasecmp(level.mapname, "xdm6")) {
+		isBigMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
 		g_horde_local.num_to_spawn = 12 + (lvl * 3);
 	}
-		else if (!Q_strcasecmp(level.mapname, "q2dm3")) {
+	else if (!Q_strcasecmp(level.mapname, "q2dm3")) {
 		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "dm10")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q64/dm10")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q64\\dm10")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "dm9")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q64/dm9")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q64\\dm9")) {
+		isSmallMap = true;
+	}
+	else	if (!Q_strcasecmp(level.mapname, "dm7")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q64/dm7")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q64\\dm7")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "dm2")) {
+		isSmallMap = true;
+	}
+	else 	if (!Q_strcasecmp(level.mapname, "q64/dm2")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "q64\\dm2")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "fact3")) {
+		isSmallMap = true;
+	}
+	else if (!Q_strcasecmp(level.mapname, "mgdm1")) {
+		isSmallMap = true;
+	}
+	if (isSmallMap && !isBigMap) {
+		g_horde_local.num_to_spawn = 9 + (lvl * 1);
+		if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
+			g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 		}
-		else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
-		isSmallMap = true;
-		}
-		else if 	(!Q_strcasecmp(level.mapname, "dm10")) {
-		isSmallMap = true;
-	    }
-		else if 	(!Q_strcasecmp(level.mapname, "q64/dm10")) {
-		isSmallMap = true;
-     	}
-		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm10")) {
-		isSmallMap = true;
-    	}
-		else if 	(!Q_strcasecmp(level.mapname, "dm3")) {
-		g_horde_local.num_to_spawn = 14 + (lvl * 1);
-		isSmallMap = true;
-	    }
-		else if 	(!Q_strcasecmp(level.mapname, "q64/dm3")) {
-		g_horde_local.num_to_spawn = 14 + (lvl * 1);
-		isSmallMap = true;
-     	}
-		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm3")) {
-		g_horde_local.num_to_spawn = 14 + (lvl * 1);
-		isSmallMap = true;
-    	}
-		else if 	(!Q_strcasecmp(level.mapname, "xdm2")) {
-		g_horde_local.num_to_spawn = 12 + (lvl * 3);
-    	}
-		else if 	(!Q_strcasecmp(level.mapname, "dm9")) {
-		isSmallMap = true;
-    	}
-		else if 	(!Q_strcasecmp(level.mapname, "q64/dm9")) {
-		isSmallMap = true;
-	    }
-		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm9")) {
-	  	isSmallMap = true;
-	    }
-		else	if 	(!Q_strcasecmp(level.mapname, "dm7")) {
-		isSmallMap = true;
-	    }
-		else if 	(!Q_strcasecmp(level.mapname, "q64/dm7")) {
-		isSmallMap = true;
-	    }
-		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm7")) {
-		isSmallMap = true;
-	    }
-		else if 	(!Q_strcasecmp(level.mapname, "dm2")) {
-		isSmallMap = true;
-	    }
-		else 	if 	(!Q_strcasecmp(level.mapname, "q64/dm2")) {
-		isSmallMap = true;
-    	}
-		else if 	(!Q_strcasecmp(level.mapname, "q64\\dm2")) {
-		isSmallMap = true;
-	    }
-		else if 	(!Q_strcasecmp(level.mapname, "mgu6m3")) {
-		isSmallMap = true;
-	    }
-		else if (!Q_strcasecmp(level.mapname, "fact3")) {
-			isSmallMap = true;
-		}
-		else if (!Q_strcasecmp(level.mapname, "mgdm1")) {
-			isSmallMap = true;
-		}
-		else
-			g_horde_local.num_to_spawn = 7 + (lvl * 1);
+	}
+
+	if (isBigMap && !isSmallMap) {
+		g_horde_local.num_to_spawn = 24 + (lvl * 4);
+			if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
+				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
+			};
+	}
 
 
-		if (!isSmallMap) {
-			g_horde_local.num_to_spawn = 9 + (lvl * 1.3);
-		}
-		else {
-			g_horde_local.num_to_spawn = 7 + (lvl * 1);
-			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
-				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
-			}
-		}
-		// limiting max monsters
-		if (g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
-		{
-			g_horde_local.num_to_spawn = MAX_MONSTERS_PER_WAVE;
-		}
-
-
-		}
+	if (!isBigMap && !isSmallMap) {
+		g_horde_local.num_to_spawn = 10 + (lvl * 1.3);
+	}
+	// limiting max monsters
+	if (!isBigMap && !isSmallMap && g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
+	{
+		g_horde_local.num_to_spawn = MAX_MONSTERS_PER_WAVE;
+	}
+}
 
 
 
@@ -562,7 +552,7 @@ void Horde_Init()
 		G_FreeEdict(e);
 	}
 
-	g_horde_local.warm_time = level.time + 6_sec;
+	g_horde_local.warm_time = level.time + 4_sec;
 }
 
 static bool Horde_AllMonstersDead()
@@ -895,7 +885,7 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				g_horde_local.warm_time = level.time + 8_sec;
+				g_horde_local.warm_time = level.time + 5_sec;
 				g_horde_local.state = horde_state_t::rest;
 				remainingMonsters = 0;
 
