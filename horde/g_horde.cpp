@@ -41,17 +41,16 @@ void IsMapSize(const std::string& mapname, bool isSmallMap, bool isBigMap, bool&
 		isMediumMap = true;
 	}
 }
-
+bool isMediumMap = true;
+bool isSmallMap = false;
+bool isBigMap = false;
 static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.9_sec);
 
-
-	bool isSmallMap = false;
-	bool isBigMap = false;
-	bool isMediumMap = true; // by default, consider it a medium map size
+//
 
 	IsMapSize(level.mapname, isSmallMap, isBigMap, isMediumMap); 
 
@@ -670,44 +669,51 @@ std::chrono::steady_clock::time_point condition_start_time;
 int previous_remainingMonsters = 0;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de x segundos
-bool CheckRemainingMonstersCondition() {
-	if (remainingMonsters <= 6 && current_wave_number <= 7) {
-		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
-		if (condition_start_time == std::chrono::steady_clock::time_point()) {
-			condition_start_time = std::chrono::steady_clock::now();
-		}
-		// Verifica si la condición ha estado activa durante más de x segundos
-		auto current_time = std::chrono::steady_clock::now();
-		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time) ;
+bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMediumMap) {
+	int maxMonsters;
+	int timeThreshold;
 
-		if (duration.count() >= 15) {
-			return true;
-		}
+	// Ajustar los valores según el tipo de mapa
+	if (isSmallMap) {
+		maxMonsters = 5;
+		timeThreshold = 4;
 	}
-	else if (remainingMonsters <= 8 && current_wave_number >= 8) {
+	else if (isBigMap) {
+		maxMonsters = 17;
+		timeThreshold = 15;
+	}
+	else {
+		maxMonsters = 7;
+		timeThreshold = 10;
+	}
+
+	if (remainingMonsters <= maxMonsters) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
 		}
-
 		// Verifica si la condición ha estado activa durante más de x segundos
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 18 ) {
+		if (duration.count() >= timeThreshold) {
+			// Reinicia el tiempo de referencia para la próxima ola
+			condition_start_time = std::chrono::steady_clock::time_point();
 			return true;
 		}
 	}
 	else {
-		// Si la condición no se cumple, reinicia el tiempo de referencia si remainingMonsters está aumentando
+		// Reinicia el tiempo de referencia si remainingMonsters está aumentando
 		if (remainingMonsters > previous_remainingMonsters) {
 			condition_start_time = std::chrono::steady_clock::time_point();
 		}
-		// Actualiza el valor anterior de remainingMonsters
-		previous_remainingMonsters = remainingMonsters;
 	}
+	// Actualiza el valor anterior de remainingMonsters
+	previous_remainingMonsters = remainingMonsters;
 	return false;
 }
+
+
 
 void Horde_RunFrame()
 {
@@ -826,7 +832,7 @@ void Horde_RunFrame()
 
 	case horde_state_t::cleanup:
 
-		if (CheckRemainingMonstersCondition()) {
+		if (CheckRemainingMonstersCondition(isSmallMap, isBigMap, isMediumMap)) {
 			if (current_wave_number >= 15) {
 				gi.cvar_set("g_insane", "1");
 
