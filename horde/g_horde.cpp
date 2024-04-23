@@ -676,7 +676,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 	// Ajustar los valores según el tipo de mapa
 	if (isSmallMap) {
 		maxMonsters = 5;
-		timeThreshold = 4;
+		timeThreshold = 5;
 	}
 	else if (isBigMap) {
 		maxMonsters = 17;
@@ -840,7 +840,7 @@ void Horde_RunFrame()
 				g_horde_local.state = horde_state_t::rest;
 				break;
 			}
-			else if ((current_wave_number <= 14))
+			else 
 			gi.cvar_set("g_chaotic", "1");
 
 
