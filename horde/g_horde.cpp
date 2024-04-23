@@ -104,12 +104,15 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "q64/dm2") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm2") ||
 		!Q_strcasecmp(level.mapname, "fact3") ||
+		!Q_strcasecmp(level.mapname, "mgu6trial") ||
+		!Q_strcasecmp(level.mapname, "mgu4trial") ||
 		!Q_strcasecmp(level.mapname, "mgdm1")) {
 		isSmallMap = true;
 		isMediumMap = false;
 		isBigMap = false;
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5") ||
+	    !Q_strcasecmp(level.mapname, "old/kmdm3") ||
 		!Q_strcasecmp(level.mapname, "xdm2") ||
 		!Q_strcasecmp(level.mapname, "xdm6")) {
 		isBigMap = true;
