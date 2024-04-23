@@ -3031,7 +3031,7 @@ void CTFObserver(edict_t* ent)
 		CTFPlayerResetGrapple(ent);
 
 	CTFDeadDropFlag(ent);
-	CTFDeadDropTech(ent);
+	CTFDeadDropTech(ent); // todo horde: create a similar one to remove tech when spectating
 
 	ent->deadflag = false;
 	ent->movetype = MOVETYPE_NOCLIP;
@@ -3836,6 +3836,7 @@ void CTFWarp(edict_t* ent)
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} is warping to level {}.\n",
 			ent->client->pers.netname, gi.argv(1));
 		Q_strlcpy(level.forcemap, gi.argv(1), sizeof(level.forcemap));
+		HandleResetEvent();
 		EndDMLevel();
 		return;
 	}

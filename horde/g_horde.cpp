@@ -107,12 +107,14 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "mgdm1")) {
 		isSmallMap = true;
 		isMediumMap = false;
+		isBigMap = false;
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5") ||
 		!Q_strcasecmp(level.mapname, "xdm2") ||
 		!Q_strcasecmp(level.mapname, "xdm6")) {
 		isBigMap = true;
 		isMediumMap = false;
+		isSmallMap = false;
 	}
 
 	// logic to establish num of monsters to spawn according to map size
@@ -176,9 +178,9 @@ constexpr struct weighted_item_t {
 	//{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
 	{ "item_power_shield", 4, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, 19, 0.073f, adjust_weight_powerup },
-	{ "item_double", 5, -1, 0.078f, adjust_weight_powerup },
-	{ "item_quadfire", 4, -1, 0.085f, adjust_weight_powerup },
+	{ "item_quad", 6, 19, 0.08f, adjust_weight_powerup },
+	{ "item_double", 5, -1, 0.084f, adjust_weight_powerup },
+	{ "item_quadfire", 4, -1, 0.088f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
@@ -194,7 +196,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_proxlauncher", 8, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 5, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_phalanx", 10, -1, 0.19f, adjust_weight_weapon },
-	{ "weapon_rocketlauncher", 5, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_rocketlauncher", 6, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_railgun", 6, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 12, -1, 0.15f, adjust_weight_weapon },
@@ -210,7 +212,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_magslug", 9, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_slugs", 7, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_disruptor", 7, -1, 0.24f, adjust_weight_ammo },
+	{ "ammo_disruptor", 12, -1, 0.24f, adjust_weight_ammo },
 	{ "ammo_rockets", 7, -1, 0.30f, adjust_weight_ammo },
 	{ "item_bandolier", 4, -1, 0.37f, adjust_weight_ammo },
 	{ "item_pack", 8, -1, 0.34f, adjust_weight_ammo },
@@ -294,24 +296,6 @@ struct boss_t {
 
 constexpr boss_t BOSS[] = {
 	{ "monster_jorg", 8, 3, 0.75f },
-	{ "monster_shambler", 5, 3, 0.45f },
-	{ "monster_guncmdr", -1, -1, 0.22f },
-	{ "monster_berserk", -1, 7, 0.30f },
-	{ "monster_brain", -1, 11, 0.30f },
-	{ "monster_soldier_lasergun", -1, 8, 0.90f },
-	{ "monster_soldier_ripper", -1, 9, 0.85f },
-	{ "monster_chick", -1, 9, 0.92f },
-	{ "monster_chick_heat", -1, -1, 0.63f },
-	{ "monster_mutant", -1, -1, 0.75f },
-	{ "monster_tank_commander", -1, 8, 0.45f },
-	{ "monster_gladb", -1, -1, 0.5f },
-	{ "monster_boss5", -1, -1, 0.18f },
-	{ "monster_hover", -1, -1, 0.85f },
-	{ "monster_flyer", -1, 6, 0.75f },
-	{ "monster_floater", -1, 9, 0.85f },
-	{ "monster_guardian", 11, 9, 0.85f },
-	{ "monster_carrier", -1, -1, 0.07f },
-	{ "monster_stalker", -1, -1, 0.07f },
 	{ "monster_makronkl", -1, -1, 0.07f },
 	{ "monster_perrokl", -1, -1, 0.07f },
 	{ "monster_shamblerkl", -1, -1, 0.07f },
