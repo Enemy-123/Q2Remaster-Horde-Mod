@@ -30,16 +30,20 @@ static struct {
 
 bool next_wave_message_sent = false;
 
-void IsMapSize(const std::string& mapname, bool isSmallMap, bool isBigMap, bool& isMediumMap) {
-	if (isSmallMap) {
-		isMediumMap = false;
-	}
-	else if (isBigMap) {
-		isMediumMap = false;
-	}
-	else {
-		isMediumMap = true;
-	}
+void IsMapSize(const std::string& mapname, bool& isSmallMap, bool& isBigMap, bool& isMediumMap) {
+    if (isSmallMap) {
+        isMediumMap = false;
+        isBigMap = false;
+    }
+    else if (isBigMap) {
+        isMediumMap = false;
+        isSmallMap = false;
+    }
+    else {
+        isMediumMap = true;
+        isSmallMap = false;
+        isBigMap = false;
+    }
 }
 bool isMediumMap = true;
 bool isSmallMap = false;
@@ -50,6 +54,9 @@ static void Horde_InitLevel(int32_t lvl)
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.9_sec);
 
+	isSmallMap = false;
+	isMediumMap = false;
+	isBigMap = false;
 //
 
 	IsMapSize(level.mapname, isSmallMap, isBigMap, isMediumMap); 
