@@ -4,7 +4,7 @@
 #include <sstream>
 
 static const int MAX_MONSTERS_BIG_MAP = 40;
-static const int MAX_MONSTERS_PER_WAVE = 22;
+static const int MAX_MONSTERS_MEDIUM_MAP = 22;
 static const int MAX_MONSTERS_SMALL_MAP = 17;
 
 int remainingMonsters = 0;
@@ -20,15 +20,27 @@ enum class horde_state_t
 };
 
 static struct {
-	gtime_t			warm_time = 5_sec;
-	horde_state_t	state = horde_state_t::warmup;
+	gtime_t         warm_time = 5_sec;
+	horde_state_t   state = horde_state_t::warmup;
 
-	gtime_t			monster_spawn_time = 0.5_sec;
-	int32_t			num_to_spawn;
-	int32_t			level;
+	gtime_t         monster_spawn_time = 0.5_sec;
+	int32_t         num_to_spawn;
+	int32_t         level;
 } g_horde_local;
 
 bool next_wave_message_sent = false;
+
+void IsMapSize(const std::string& mapname, bool isSmallMap, bool isBigMap, bool& isMediumMap) {
+	if (isSmallMap) {
+		isMediumMap = false;
+	}
+	else if (isBigMap) {
+		isMediumMap = false;
+	}
+	else {
+		isMediumMap = true;
+	}
+}
 
 static void Horde_InitLevel(int32_t lvl)
 {
@@ -36,8 +48,12 @@ static void Horde_InitLevel(int32_t lvl)
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.9_sec);
 
+
 	bool isSmallMap = false;
 	bool isBigMap = false;
+	bool isMediumMap = true; // by default, consider it a medium map size
+
+	IsMapSize(level.mapname, isSmallMap, isBigMap, isMediumMap); 
 
 	if (g_horde_local.level == 5) {
 		gi.cvar_set("g_vampire", "1");
@@ -65,108 +81,54 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.cvar_set("g_damage_scale", "2.3");
 	}
 
-	if (!Q_strcasecmp(level.mapname, "base1")) {
-		g_horde_local.num_to_spawn = 30 + (lvl * 5);
+
+	// Lógica para determinar el tamaño del mapa
+	if (!Q_strcasecmp(level.mapname, "q2dm3") ||
+		!Q_strcasecmp(level.mapname, "q2dm2") ||
+		!Q_strcasecmp(level.mapname, "dm10") ||
+		!Q_strcasecmp(level.mapname, "q64/dm10") ||
+		!Q_strcasecmp(level.mapname, "q64\\dm10") ||
+		!Q_strcasecmp(level.mapname, "dm9") ||
+		!Q_strcasecmp(level.mapname, "q64/dm9") ||
+		!Q_strcasecmp(level.mapname, "q64\\dm9") ||
+		!Q_strcasecmp(level.mapname, "dm7") ||
+		!Q_strcasecmp(level.mapname, "q64/dm7") ||
+		!Q_strcasecmp(level.mapname, "q64\\dm7") ||
+		!Q_strcasecmp(level.mapname, "dm2") ||
+		!Q_strcasecmp(level.mapname, "q64/dm2") ||
+		!Q_strcasecmp(level.mapname, "q64\\dm2") ||
+		!Q_strcasecmp(level.mapname, "fact3") ||
+		!Q_strcasecmp(level.mapname, "mgdm1")) {
+		isSmallMap = true;
+		isMediumMap = false;
 	}
-	else if (!Q_strcasecmp(level.mapname, "base2")) {
-		g_horde_local.num_to_spawn = 38 + (lvl * 5);
-	}
-	else if (!Q_strcasecmp(level.mapname, "base3")) {
-		g_horde_local.num_to_spawn = 38 + (lvl * 5);
-	}
-	else if (!Q_strcasecmp(level.mapname, "bunk1")) {
-		g_horde_local.num_to_spawn = 38 + (lvl * 5);
-	}
-	else if (!Q_strcasecmp(level.mapname, "ware1")) {
-		g_horde_local.num_to_spawn = 38 + (lvl * 5);
-	}
-	else  if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
+	else if (!Q_strcasecmp(level.mapname, "q2ctf5") ||
+		!Q_strcasecmp(level.mapname, "xdm2") ||
+		!Q_strcasecmp(level.mapname, "xdm6")) {
 		isBigMap = true;
+		isMediumMap = false;
 	}
-	else  if (!Q_strcasecmp(level.mapname, "xdm2")) {
-		isBigMap = true;
-	}
-	else  if (!Q_strcasecmp(level.mapname, "xdm6")) {
-		isBigMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
-		g_horde_local.num_to_spawn = 12 + (lvl * 3);
-	}
-	else if (!Q_strcasecmp(level.mapname, "q2dm3")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "dm10")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q64/dm10")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q64\\dm10")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "dm9")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q64/dm9")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q64\\dm9")) {
-		isSmallMap = true;
-	}
-	else	if (!Q_strcasecmp(level.mapname, "dm7")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q64/dm7")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q64\\dm7")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "dm2")) {
-		isSmallMap = true;
-	}
-	else 	if (!Q_strcasecmp(level.mapname, "q64/dm2")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "q64\\dm2")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "fact3")) {
-		isSmallMap = true;
-	}
-	else if (!Q_strcasecmp(level.mapname, "mgdm1")) {
-		isSmallMap = true;
-	}
-	if (isSmallMap && !isBigMap) {
+
+	// logic to establish num of monsters to spawn according to map size
+	if (isSmallMap) {
 		g_horde_local.num_to_spawn = 9 + (lvl * 1);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 		}
 	}
-
-	if (isBigMap && !isSmallMap) {
+	else if (isBigMap) {
 		g_horde_local.num_to_spawn = 24 + (lvl * 4);
-			if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
-				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
-			};
+		if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
+			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
+		}
 	}
-
-
-	if (!isBigMap && !isSmallMap) {
+	else {
 		g_horde_local.num_to_spawn = 10 + (lvl * 1.3);
-	}
-	// limiting max monsters
-	if (!isBigMap && !isSmallMap && g_horde_local.num_to_spawn > MAX_MONSTERS_PER_WAVE)
-	{
-		g_horde_local.num_to_spawn = MAX_MONSTERS_PER_WAVE;
+		if (g_horde_local.num_to_spawn > MAX_MONSTERS_MEDIUM_MAP) {
+			g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
+		}
 	}
 }
-
-
-
 
 
 bool G_IsDeathmatch()
@@ -709,7 +671,7 @@ int previous_remainingMonsters = 0;
 
 // Función para verificar si la condición de remainingMonsters se cumple durante más de x segundos
 bool CheckRemainingMonstersCondition() {
-	if (remainingMonsters <= 3 && current_wave_number <= 7) {
+	if (remainingMonsters <= 6 && current_wave_number <= 7) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
@@ -718,11 +680,11 @@ bool CheckRemainingMonstersCondition() {
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time) ;
 
-		if (duration.count() >= 12) {
+		if (duration.count() >= 15) {
 			return true;
 		}
 	}
-	else if (remainingMonsters <= 6 && current_wave_number >= 8) {
+	else if (remainingMonsters <= 8 && current_wave_number >= 8) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
@@ -732,7 +694,7 @@ bool CheckRemainingMonstersCondition() {
 		auto current_time = std::chrono::steady_clock::now();
 		auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
 
-		if (duration.count() >= 14 ) {
+		if (duration.count() >= 18 ) {
 			return true;
 		}
 	}

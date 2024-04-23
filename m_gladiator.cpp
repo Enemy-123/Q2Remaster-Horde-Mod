@@ -486,8 +486,9 @@ void SP_monster_gladiator(edict_t* self)
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.power_armor_power = 250;
 		self->s.skinnum = 2;
-		self->s.scale = 1.2;
+	//	self->s.scale = 1.2;
 		self->style = 1;
+		self->s.effects = EF_TRACKER;
 
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
 	}

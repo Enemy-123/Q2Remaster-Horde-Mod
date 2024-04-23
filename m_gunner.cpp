@@ -891,10 +891,10 @@ void SP_monster_gunner(edict_t* self)
 	self->health = 175 * st.health_multiplier;
 	self->gib_health = -70;
 	self->mass = 200;
-	if (g_horde->integer) {
-		self->s.scale = 1.2f;
-	}
-//	self->s.effects = EF_BLUEHYPERBLASTER;
+//	if (g_horde->integer) {
+//		self->s.scale = 1.2f;
+//	}
+	self->s.effects = EF_BLUEHYPERBLASTER;
 
 	self->pain = gunner_pain;
 	self->die = gunner_die;
