@@ -516,10 +516,10 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_boss2")) {
 			ent->classname = "monster_carrier";
 		}
-		else if (current_wave_number <= 5 && !strcmp(ent->classname, "monster_gunner2")) {
+		else if (current_wave_number <= 8 && !strcmp(ent->classname, "monster_gunner2")) {
 			ent->classname = "monster_gunner";
 		}
-		else if (current_wave_number <= 6 && !strcmp(ent->classname, "monster_infantry2")) {
+		else if (current_wave_number <= 8 && !strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner";
 		}
 		else if (current_wave_number <= 11 && !strcmp(ent->classname, "monster_guncmdr2")) {

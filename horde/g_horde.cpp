@@ -3,7 +3,7 @@
 #include "../g_local.h"
 #include <sstream>
 
-static const int MAX_MONSTERS_BIG_MAP = 44;
+static const int MAX_MONSTERS_BIG_MAP = 45;
 static const int MAX_MONSTERS_MEDIUM_MAP = 24;
 static const int MAX_MONSTERS_SMALL_MAP = 18;
 
@@ -105,6 +105,7 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "q64/dm2") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm2") ||
 		!Q_strcasecmp(level.mapname, "fact3") ||
+		!Q_strcasecmp(level.mapname, "mgu4trial") ||
 		!Q_strcasecmp(level.mapname, "mgu6trial") ||
 		!Q_strcasecmp(level.mapname, "mgdm1")) {
 		isSmallMap = true;
@@ -113,7 +114,6 @@ static void Horde_InitLevel(int32_t lvl)
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5") ||
 	    !Q_strcasecmp(level.mapname, "old/kmdm3") ||
-		!Q_strcasecmp(level.mapname, "mgu4trial") ||
 		!Q_strcasecmp(level.mapname, "xdm2") ||
 		!Q_strcasecmp(level.mapname, "xdm6")) {
 		isBigMap = true;
@@ -123,13 +123,13 @@ static void Horde_InitLevel(int32_t lvl)
 
 	// logic to establish num of monsters to spawn according to map size
 	if (isSmallMap) {
-		g_horde_local.num_to_spawn = 9 + (lvl * 1);
+		g_horde_local.num_to_spawn = 8 + (lvl * 1);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 		}
 	}
 	else if (isBigMap) {
-		g_horde_local.num_to_spawn = 24 + (lvl * 4);
+		g_horde_local.num_to_spawn = 22 + (lvl * 2);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 		}
@@ -182,12 +182,12 @@ constexpr struct weighted_item_t {
 	//{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
 	{ "item_power_shield", 4, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, 19, 0.08f, adjust_weight_powerup },
-	{ "item_double", 5, -1, 0.084f, adjust_weight_powerup },
-	{ "item_quadfire", 4, -1, 0.088f, adjust_weight_powerup },
+	{ "item_quad", 6, 19, 0.1f, adjust_weight_powerup },
+	{ "item_double", 5, -1, 0.011f, adjust_weight_powerup },
+	{ "item_quadfire", 4, -1, 0.012f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
-	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
+	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 3, 0.23f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -248,23 +248,29 @@ constexpr weighted_item_t monsters[] = {
 { "monster_soldier_light", -1, 6, 0.55f },
 { "monster_soldier_ss", -1, 21, 0.55f },
 { "monster_soldier", -1, 4, 0.45f },
-
-{ "monster_infantry", 8, -1, 0.36f },
-{ "monster_infantry2", 2, 13, 0.36f },
 { "monster_soldier_hypergun", 2, 7, 0.55f },
-{ "monster_flyer", 3, 19, 0.18f },
-{ "monster_gekk", 3, 12, 0.22f },
 { "monster_soldier_lasergun", 3, 10, 0.45f },
 { "monster_soldier_ripper", 3, 7, 0.45f },
-{ "monster_gunner2", 3, 12, 0.35f },
-{ "monster_medic", 5, 8, 0.12f },
+
+{ "monster_infantry2", 2, 13, 0.36f },
+{ "monster_infantry", 8, -1, 0.36f },
+
+
+
+{ "monster_flyer", 3, 19, 0.18f },
 { "monster_hover2", 5, 10, 0.17f },
-{ "monster_brain", 5, -1, 0.3f }, 
+
+{ "monster_gekk", 3, 12, 0.22f },
+
+{ "monster_gunner2", 3, 9, 0.35f },
 { "monster_gunner", 7, -1, 0.34f },
+
+{ "monster_medic", 5, 8, 0.12f },
+{ "monster_brain", 5, -1, 0.3f }, 
 { "monster_stalker", 4, 8, 0.13f },
 { "monster_parasite", 4, 14, 0.2f },
 { "monster_tank", 7, -1, 0.3f },  
-{ "monster_guncmdr2", 7, 15, 0.29f },
+{ "monster_guncmdr2", 6, 10, 0.18f },
 { "monster_mutant", 7, 18, 0.55f },
 { "monster_chick", 7, 19, 0.7f },
 { "monster_berserk", 8, -1, 0.45f },
@@ -273,7 +279,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_medic_commander", 13, -1, 0.18f }, 
 { "monster_tank_commander", 11, 18, 0.15f },
 { "monster_spider", 12, -1, 0.24f },
-{ "monster_guncmdr", 12, 22, 0.19f },
+{ "monster_guncmdr", 11, 22, 0.28f },
 { "monster_gladc", 8, 19, 0.24f }, 
 { "monster_gladiator", 5, -1, 0.24f },
 { "monster_shambler", 17, -1, 0.1f },
@@ -671,8 +677,8 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		timeThreshold = 8;
 	}
 	else if (isBigMap) {
-		maxMonsters = 15;
-		timeThreshold = 11;
+		maxMonsters = 23;
+		timeThreshold = 17;
 	}
 	else {
 		maxMonsters = 7;
