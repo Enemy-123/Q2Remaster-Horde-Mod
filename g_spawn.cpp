@@ -489,7 +489,6 @@ Finds the spawn function for the entity and calls it
 void ED_CallSpawn(edict_t* ent)
 {
 	if (g_chaotic->integer == 1) {
-
 		if (!strcmp(ent->classname, "monster_soldier_ss")) {
 			ent->classname = "monster_infantry2";
 		}
@@ -501,9 +500,6 @@ void ED_CallSpawn(edict_t* ent)
 		}
 		else if (!strcmp(ent->classname, "monster_stalker")) {
 			ent->classname = "monster_parasite";
-		}
-		else if (!strcmp(ent->classname, "monster_gunner")) {
-			ent->classname = "monster_gunner2";
 		}
 		else if (!strcmp(ent->classname, "monster_tank")) {
 			ent->classname = "monster_tank_commander";
@@ -520,8 +516,17 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_boss2")) {
 			ent->classname = "monster_carrier";
 		}
-		else if (!strcmp(ent->classname, "monster_flipper")) {
-			ent->classname = "monster_gekk";
+		else if (current_wave_number <= 5 && !strcmp(ent->classname, "monster_gunner2")) {
+			ent->classname = "monster_gunner";
+		}
+		else if (current_wave_number <= 6 && !strcmp(ent->classname, "monster_infantry2")) {
+			ent->classname = "monster_gunner";
+		}
+		else if (current_wave_number <= 11 && !strcmp(ent->classname, "monster_guncmdr2")) {
+			ent->classname = "monster_guncmdr";
+		}
+		else if (current_wave_number <= 9 && !strcmp(ent->classname, "monster_flyer")) {
+			ent->classname = "monster_daedalus";
 		}
 	}
 
@@ -1613,7 +1618,6 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	setup_shadow_lights();
 }
-
 //===================================================================
 #include "g_statusbar.h"
 // create & set the statusbar string for the current gamemode

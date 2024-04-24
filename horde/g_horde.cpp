@@ -255,7 +255,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_infantry2", 2, 13, 0.36f },
 	{ "monster_infantry", 8, -1, 0.36f },
 	{ "monster_gunner", 10, -1, 0.54f },
-	{ "monster_gunner2", 4, 9, 0.3f },
+	{ "monster_gunner2", 3, 9, 0.3f },
 	{ "monster_brain", 5, -1, 0.3f },
 	{ "monster_guncmdr2", 8, 15, 0.3f },
 	{ "monster_guncmdr", 16, 22, 0.3f },
@@ -670,11 +670,11 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 	// Ajustar los valores según el tipo de mapa
 	if (isSmallMap) {
 		maxMonsters = 5;
-		timeThreshold = 5;
+		timeThreshold = 8;
 	}
 	else if (isBigMap) {
-		maxMonsters = 17;
-		timeThreshold = 15;
+		maxMonsters = 15;
+		timeThreshold = 11;
 	}
 	else {
 		maxMonsters = 7;
@@ -714,7 +714,7 @@ void Horde_RunFrame()
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time + 1_sec)
+		if (g_horde_local.warm_time < level.time + 2.5_sec)
 		{
 			remainingMonsters = 0;
 			g_horde_local.state = horde_state_t::spawning;
@@ -792,6 +792,12 @@ void Horde_RunFrame()
 					// Generar el Spawngrow con los tamaños calculados
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 				}
+
+				if (!Q_strcasecmp(level.mapname, "mgu4trial")) {
+					e->s.renderfx = RF_GLOW;
+				}
+
+
 
 				e->enemy = &g_edicts[1]; 
 				e->gib_health = -280;
