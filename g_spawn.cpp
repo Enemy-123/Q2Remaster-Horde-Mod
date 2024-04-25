@@ -1731,14 +1731,14 @@ static void G_InitStatusbar()
 
 		// ctf/tdm
 		// red team
-		sb.yb(-110).ifstat(STAT_CTF_TEAM1_PIC).xr(-26).pic(STAT_CTF_TEAM1_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM1_CAPS);
+//		sb.yb(-110).ifstat(STAT_CTF_TEAM1_PIC).xr(-26).pic(STAT_CTF_TEAM1_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM1_CAPS);
 		// joined overlay
-		sb.ifstat(STAT_CTF_JOINED_TEAM1_PIC).yb(-112).xr(-28).pic(STAT_CTF_JOINED_TEAM1_PIC).endifstat();
+//		sb.ifstat(STAT_CTF_JOINED_TEAM1_PIC).yb(-112).xr(-28).pic(STAT_CTF_JOINED_TEAM1_PIC).endifstat();
 
 		// blue team
-		sb.yb(-83).ifstat(STAT_CTF_TEAM2_PIC).xr(-26).pic(STAT_CTF_TEAM2_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM2_CAPS);
+//		sb.yb(-83).ifstat(STAT_CTF_TEAM2_PIC).xr(-26).pic(STAT_CTF_TEAM2_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM2_CAPS);
 		// joined overlay
-		sb.ifstat(STAT_CTF_JOINED_TEAM2_PIC).yb(-85).xr(-28).pic(STAT_CTF_JOINED_TEAM2_PIC).endifstat();
+//		sb.ifstat(STAT_CTF_JOINED_TEAM2_PIC).yb(-85).xr(-28).pic(STAT_CTF_JOINED_TEAM2_PIC).endifstat();
 
 		if (ctf->integer)
 		{
@@ -1755,11 +1755,11 @@ static void G_InitStatusbar()
 		if (ctf->integer)
 		{
 			// match
-			sb.ifstat(STAT_CTF_MATCH).xl(0).yb(-78).stat_string(STAT_CTF_MATCH).endifstat();
+	//		sb.ifstat(STAT_CTF_MATCH).xl(0).yb(-78).stat_string(STAT_CTF_MATCH).endifstat();
 		}
 
 		// team info
-		sb.ifstat(STAT_CTF_TEAMINFO).xl(0).yb(-88).stat_string(STAT_CTF_TEAMINFO).endifstat();
+	//	sb.ifstat(STAT_CTF_TEAMINFO).xl(0).yb(-88).stat_string(STAT_CTF_TEAMINFO).endifstat();
 	}
 	else
 	{

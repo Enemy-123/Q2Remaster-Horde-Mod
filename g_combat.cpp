@@ -693,7 +693,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
-	if (g_vampire->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 8) {
+	if (g_vampire->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 7) {
 		int vtake = take;
 		int hmax = attacker->max_health;
 
@@ -708,25 +708,39 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			vtake = vtake / 12;
 
 			if ((client && client->quad_time > level.time && client && client->double_time > level.time)) {
-				vtake =  vtake / 23;
+				vtake = vtake / 23;
 			}
 
-				if (
-					(client && client->double_time > level.time) ||
-					(client && client->quadfire_time > level.time) ||
-					(client && client->pers.inventory[IT_TECH_HASTE]) ||
-					(client && client->pers.inventory[IT_TECH_STRENGTH]))
-					vtake = vtake / 11;
-			}
-
-			if (attacker->health < hmax) {
-				attacker->health += vtake;
-
-				if (attacker->health > hmax)
-					attacker->health = hmax;
-			}
+			if (
+				(client && client->double_time > level.time) ||
+				(client && client->quadfire_time > level.time) ||
+				(client && client->pers.inventory[IT_TECH_HASTE]) ||
+				(client && client->pers.inventory[IT_TECH_STRENGTH]))
+				vtake = vtake / 11;
 		}
-	
+
+		if (attacker->health < hmax) {
+			attacker->health += vtake;
+
+			if (attacker->health > hmax)
+				attacker->health = hmax;
+
+	//		// Robar armadura si la condición de la ola se cumple
+	//		if (current_wave_number >= 15) {
+	//			// Calcula el valor de la armadura robada
+	//			float mult = 0.1666; // Esto es aproximadamente el 16.6%
+	//			int armor_stolen = (int)(mult * vtake);
+	//			// Definir el límite máximo de armadura
+	//			// Asegurarse de que no se exceda el límite máximo de armadura
+	//			armor_stolen = min(armor_stolen, max_armor - *armor);
+	//			// Añadir la armadura robada al jugador
+	//			*armor += armor_stolen;
+	//		}
+		}
+	}
+
+
+
 		// ZOID
 		// team armor protect
 		if (G_TeamplayEnabled() && targ->client && attacker->client &&

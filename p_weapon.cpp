@@ -1359,8 +1359,8 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
-	int speed = hyper ? 5000 : 10000;
-
+	int speed = hyper ? 7000 : 10000;
+	//left hb / right blaster
 	fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER);
 
 	// send muzzle flash
@@ -1439,7 +1439,7 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 			offset[1] = 4 * cosf(rotation);
 
 			if (G_IsDeathmatch())
-				damage = 15;
+				damage = 20;
 			else
 				damage = 20;
 			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
@@ -1814,7 +1814,7 @@ void weapon_railgun_fire(edict_t* ent)
 	if (G_IsDeathmatch())
 	{
 		damage = 150;
-		kick = 200;
+		kick = 285;
 	}
 	else
 	{
@@ -1869,7 +1869,7 @@ void weapon_bfg_fire(edict_t* ent)
 	float damage_radius = 1000;
 
 	if (G_IsDeathmatch())
-		damage = 200;
+		damage = 700;
 	else
 		damage = 700;
 

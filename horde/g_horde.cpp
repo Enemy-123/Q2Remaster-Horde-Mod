@@ -173,7 +173,7 @@ constexpr struct weighted_item_t {
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
 	{ "item_health_mega", -1, -1, 0.09f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.15f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.24f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, 9, 0.26f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
@@ -186,7 +186,7 @@ constexpr struct weighted_item_t {
 	{ "item_double", 5, -1, 0.011f, adjust_weight_powerup },
 	{ "item_quadfire", 4, -1, 0.012f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 3, 0.23f, adjust_weight_weapon },
@@ -263,7 +263,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_gekk", 3, 12, 0.22f },
 
 { "monster_gunner2", 3, 9, 0.35f },
-{ "monster_gunner", 7, -1, 0.34f },
+{ "monster_gunner", 8, -1, 0.34f },
 
 { "monster_medic", 5, 8, 0.12f },
 { "monster_brain", 5, -1, 0.3f }, 

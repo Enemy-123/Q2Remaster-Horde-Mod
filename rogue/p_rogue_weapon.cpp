@@ -188,7 +188,7 @@ void weapon_tracker_fire(edict_t* self)
 
 	// PMM - felt a little high at 25
 	if (G_IsDeathmatch())
-		damage = 45;
+		damage = 135;
 	else
 		damage = 135;
 
@@ -394,9 +394,9 @@ void Heatbeam_Fire(edict_t* ent)
 		damage = HEATBEAM_SP_DMG;
 
 	if (G_IsDeathmatch()) // really knock 'em around in deathmatch
-		kick = 75;
+		kick = 50;
 	else
-		kick = 30;
+		kick = 50;
 
 	if (is_quad)
 	{

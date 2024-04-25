@@ -14,7 +14,7 @@ void weapon_ionripper_fire(edict_t* ent)
 
 	if (G_IsDeathmatch())
 		// tone down for deathmatch
-		damage = 30;
+		damage = 50;
 	else
 		damage = 50;
 
@@ -29,7 +29,7 @@ void weapon_ionripper_fire(edict_t* ent)
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -3, { -3.f, 0.f, 0.f });
 
-	fire_ionripper(ent, start, dir, damage, 500, EF_IONRIPPER);
+	fire_ionripper(ent, start, dir, damage, 900, EF_IONRIPPER);
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);
