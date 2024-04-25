@@ -951,7 +951,7 @@ inline void G_RunFrame_(bool main_loop)
 	// clear client coop respawn states; this is done
 	// early since it may be set multiple times for different
 	// players
-	if (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
+	if (G_IsCooperative() || G_IsDeathmatch() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
 	{
 		for (auto player : active_players())
 		{
@@ -1034,7 +1034,7 @@ inline void G_RunFrame_(bool main_loop)
 	// see if needpass needs updated
 	CheckNeedPass();
 
-	if (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
+	if (G_IsCooperative() || G_IsDeathmatch() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
 	{
 		// rarely, we can see a flash of text if all players respawned
 		// on some other player, so if everybody is now alive we'll reset

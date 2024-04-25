@@ -593,14 +593,16 @@ void G_CheckAutoSwitch(edict_t* ent, gitem_t* item, bool is_new)
 	else if (ent->client->pers.autoswitch == auto_switch_t::SMART)
 	{
 		bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
+		bool using_chainfist = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINFIST;
 
 		// smartness algorithm: in DM, we will always switch if we have the blaster out
 		// otherwise leave our active weapon alone
-		if (G_IsDeathmatch() && !using_blaster && !is_new)
+	 if (G_IsDeathmatch() && !using_blaster && !is_new)
+	//	if (G_IsDeathmatch() && !using_blaster || !using_chainfist)
 		//if (G_IsDeathmatch() && !using_blaster)
 			return;
 		// in SP, only switch if it's a new weapon, or we have the blaster out
-		else if (!G_IsDeathmatch() && !using_blaster && !is_new)
+		else if (!G_IsDeathmatch() && !using_blaster  && !is_new)
 			return;
 	}
 
@@ -784,9 +786,9 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 	if (ent->item->id == IT_ARMOR_SHARD)
 	{
 		if (!old_armor_index)
-			other->client->pers.inventory[IT_ARMOR_JACKET] = 2;
+			other->client->pers.inventory[IT_ARMOR_JACKET] = irandom(2, 5);
 		else
-			other->client->pers.inventory[old_armor_index] += 2;
+			other->client->pers.inventory[old_armor_index] += irandom(4, 7);
 	}
 	// if player has no armor, just use it
 	else if (!old_armor_index)

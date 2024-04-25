@@ -179,8 +179,8 @@ constexpr struct weighted_item_t {
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
-	//{ "item_power_screen", 4, -1, 0.07f, adjust_weight_armor },
-	{ "item_power_shield", 4, -1, 0.07f, adjust_weight_armor },
+	{ "item_power_screen", 2, 8, 0.07f, adjust_weight_armor },
+	{ "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
 	{ "item_quad", 6, 19, 0.1f, adjust_weight_powerup },
 	{ "item_double", 5, -1, 0.011f, adjust_weight_powerup },
@@ -189,7 +189,7 @@ constexpr struct weighted_item_t {
 	{ "item_sphere_defender", -1, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
 
-	{ "weapon_chainfist", -1, 3, 0.23f, adjust_weight_weapon },
+	{ "weapon_chainfist", -1, 2, 0.12f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
 	{ "weapon_supershotgun", 4, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_machinegun", -1, -1, 0.29f, adjust_weight_weapon },
@@ -507,7 +507,6 @@ void Horde_Init()
 		edict_t* e = G_Spawn();
 		e->classname = monster.classname;
 		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT; // FIX BUG COUNT MONSTER IN COOP BEING +8
-
 		ED_CallSpawn(e);
 		G_FreeEdict(e);
 	}
@@ -836,6 +835,7 @@ void Horde_RunFrame()
 	case horde_state_t::cleanup:
 
 		if (CheckRemainingMonstersCondition(isSmallMap, isBigMap, isMediumMap)) {
+
 			if (current_wave_number >= 15) {
 				gi.cvar_set("g_insane", "1");
 
@@ -845,6 +845,7 @@ void Horde_RunFrame()
 			}
 			else 
 			gi.cvar_set("g_chaotic", "1");
+
 
 
 			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'

@@ -303,7 +303,8 @@ edict_t* Hook_Start(edict_t* ent)
 	self->s.frame = 4;
 
 	// set the color
-	self->s.skinnum = 0xf0f0f0f0;  // red
+	//self->s.skinnum = 0xf0f0f0f0;  // red
+	self->s.skinnum = 0xdcdddedf;  // yellow
 
 
 	self->think = Hook_Think;

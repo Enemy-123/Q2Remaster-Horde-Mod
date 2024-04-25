@@ -484,7 +484,7 @@ void HuntTarget(edict_t* self, bool animate_state)
 void FoundTarget(edict_t* self)
 {
     // let other monsters see this monster for a while
-    if (self->enemy->client) // && !(self->enemy->client->pers.spectator)) // maybe this will prevent something... 
+    if (self->enemy->client && (!(self->enemy->client->pers.spectator || self->enemy->client->resp.spectator))) // maybe this will prevent something... 
     {
         // ROGUE
         if (self->enemy->flags & FL_DISGUISED)
@@ -764,7 +764,7 @@ bool FindTarget(edict_t* self)
     }
 
     // ROGUE - hintpath coop fix
-    if ((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative() || G_IsDeathmatch())
+    if ((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative())
         heardit = false;
     // ROGUE
 

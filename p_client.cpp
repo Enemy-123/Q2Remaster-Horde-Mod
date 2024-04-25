@@ -2109,9 +2109,12 @@ void PutClientInServer(edict_t* ent)
 	char social_id[MAX_INFO_VALUE];
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
+
+
 	// deathmatch wipes most client data every spawn
-	if (G_IsDeathmatch())
+	if (!G_IsDeathmatch())
 	{
+		ent->client->ps.team_id = ent->client->resp.ctf_team;
 		client->pers.health = 0;
 		resp = client->resp;
 	}
@@ -2121,8 +2124,9 @@ void PutClientInServer(edict_t* ent)
 		char userinfo[MAX_INFO_STRING];
 		memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
-		if (G_IsCooperative())
+		if (G_IsDeathmatch())
 		{
+			ent->client->ps.team_id = ent->client->resp.ctf_team;
 			resp = client->resp;
 
 			if (!P_UseCoopInstancedItems())
