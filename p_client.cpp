@@ -820,7 +820,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	ClientUserinfoChanged(ent, userinfo);
 
 	client->pers.health = 100;
-	client->pers.max_health = 100;
+	client->pers.max_health;
 
 	// don't give us weapons if we shouldn't have any / ANOTHER BEAUTIFUL HORDE BUGFIX, UNTIL NOW...., maybe no more!...,
 	// nope, beautiful fix indeed

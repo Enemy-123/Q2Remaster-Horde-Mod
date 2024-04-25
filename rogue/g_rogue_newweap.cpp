@@ -817,14 +817,14 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 // TESLA
 // *************************
 
-constexpr gtime_t TESLA_TIME_TO_LIVE = 55_sec;
-constexpr float	  TESLA_DAMAGE_RADIUS = 182;
-constexpr int32_t TESLA_DAMAGE = 3;
+constexpr gtime_t TESLA_TIME_TO_LIVE = 30_sec;
+constexpr float	  TESLA_DAMAGE_RADIUS = 128;
+constexpr int32_t TESLA_DAMAGE = 5;
 constexpr int32_t TESLA_KNOCKBACK = 8;
 
-constexpr gtime_t TESLA_ACTIVATE_TIME = 2_sec;
+constexpr gtime_t TESLA_ACTIVATE_TIME = 1_sec;
 
-constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 80; // this is the amount the damage is multiplied by for underwater explosions
+constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
 
 void tesla_remove(edict_t* self)
@@ -890,11 +890,11 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 		else if (CheckTeamDamage(check, self->teammaster))
 			return BoxEdictsResult_t::Skip;
 	}
-	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && !check->client)
+	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->svflags & SVF_PLAYER)
 		return BoxEdictsResult_t::Skip;
 
 	// don't hit other teslas in SP/coop
-	if (!G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP))
+	if (G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP))
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;

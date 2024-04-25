@@ -203,8 +203,8 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 	if (other->client) 		// we hit a player	
 	{
 		// ignore hitting a teammate
-		if (OnSameTeam(other, self->owner))
-			return;
+	//	if (OnSameTeam(other, self->owner))
+	//		return;
 
 		// we hit an enemy, so do a bit of damage
 		dir = self->owner->s.origin - other->s.origin;
