@@ -2966,7 +2966,7 @@ void CTFUpdateJoinMenu(edict_t* ent)
 	entries[jmenu_reqmatch].SelectFunc = nullptr;
 	if (competition->integer && ctfgame.match < MATCH_SETUP)
 	{
-		Q_strlcpy(entries[jmenu_reqmatch].text, "Request Match", sizeof(entries[jmenu_reqmatch].text));
+		Q_strlcpy(entries[jmenu_reqmatch].text, "Original Mod by Paril\nMixed with a Coop Mod by Enemy", sizeof(entries[jmenu_reqmatch].text));
 		entries[jmenu_reqmatch].SelectFunc = CTFRequestMatch;
 	}
 }
