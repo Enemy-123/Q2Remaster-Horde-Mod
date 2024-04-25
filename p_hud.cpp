@@ -67,7 +67,7 @@ void MoveClientToIntermission(edict_t* ent)
 
 	// add the layout
 
-	if (g_horde-> integer || G_IsDeathmatch())
+	if (g_horde->integer || G_IsDeathmatch())
 	{
 		DeathmatchScoreboard(ent);
 		ent->client->showscores = true;
@@ -195,7 +195,7 @@ void G_ReportMatchDetails(bool is_end)
 		CTFCalcRankings(player_ranks);
 
 		gi.WriteByte(2);
-		gi.WriteString("RED TEAM"); // team 0
+		gi.WriteString("STROGG Slaughter"); // team 0
 		gi.WriteString("BLUE TEAM"); // team 1
 	}
 	else
@@ -695,12 +695,12 @@ void Cmd_Help_f(edict_t* ent)
 void G_SetCoopStats(edict_t* ent) {
 
 
-	if (G_IsCooperative() && g_coop_enable_lives->integer)
+	if (G_IsDeathmatch() && g_coop_enable_lives->integer)
 		ent->client->ps.stats[STAT_LIVES] = ent->client->pers.lives + 1;
 	else
 		ent->client->ps.stats[STAT_LIVES] = 0;
 
-	if (G_IsCooperative())
+	if (G_IsDeathmatch())
 
 
 	ent->client->ps.stats[STAT_CTF_MATCH] = level.total_monsters - level.killed_monsters;

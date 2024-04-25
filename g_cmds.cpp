@@ -339,22 +339,23 @@ Sets client to godmode
 argv(0) god
 ==================
 */
-void Cmd_God_f(edict_t* ent)
+void Cmd_God_f(edict_t *ent)
 {
-	const char* msg;
+	const char *msg;
 
 	if (!G_CheatCheck(ent))
 		return;
-	ent->client->pers.spectator = true;
-	//ent->flags ^= FL_GODMODE;
+
+	ent->flags ^= FL_GODMODE;
 	if (!(ent->flags & FL_GODMODE))
 		msg = "godmode OFF\n";
 	else
-		msg = "godmode...  ON? >:),\n";
+		msg = "godmode ON\n";
 
 	gi.LocClient_Print(ent, PRINT_HIGH, msg);
 }
-void ED_ParseField(const char* key, const char* value, edict_t* ent);
+void ED_ParseField(const char *key, const char *value, edict_t *ent);
+
 
 /*
 ==================
@@ -365,7 +366,7 @@ Sets client to immortal - take damage but never go below 1 hp
 argv(0) immortal
 ==================
 */
-void Cmd_Imm0rtal_f(edict_t* ent)
+void Cmd_Immortal_f(edict_t* ent)
 {
 	const char* msg;
 
@@ -1728,7 +1729,7 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "god") == 0)
 		Cmd_God_f(ent);
 	else if (Q_strcasecmp(cmd, "immortal") == 0)
-		Cmd_Imm0rtal_f(ent);
+		Cmd_Immortal_f(ent);
 	else if (Q_strcasecmp(cmd, "setpoi") == 0)
 		Cmd_SetPOI_f(ent);
 	else if (Q_strcasecmp(cmd, "checkpoi") == 0)
@@ -1795,6 +1796,8 @@ void ClientCommand(edict_t* ent)
 		CTFVoteNo(ent);
 	else if (Q_strcasecmp(cmd, "ready") == 0)
 		CTFReady(ent);
+	else if (Q_strcasecmp(cmd, "notready") == 0)
+		CTFNotReady(ent);
 	else if (Q_strcasecmp(cmd, "ghost") == 0)
 		CTFGhost(ent);
 	else if (Q_strcasecmp(cmd, "admin") == 0)

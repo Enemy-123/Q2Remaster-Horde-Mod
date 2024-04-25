@@ -897,7 +897,7 @@ void SP_monster_infantry(edict_t *self)
 
 		self->health = 150 * st.health_multiplier;
 	}
-	else
+
 	self->health = 100 * st.health_multiplier;
 
 	self->gib_health = -65;

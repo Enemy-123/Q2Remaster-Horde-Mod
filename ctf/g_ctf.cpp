@@ -55,7 +55,7 @@ cvar_t* g_teamplay_force_join;
 // [Paril-KEX]
 bool G_TeamplayEnabled()
 {
-	return ctf->integer || teamplay->integer;
+	return ctf->integer || teamplay->integer || g_horde->integer;
 }
 
 // [Paril-KEX]
@@ -239,11 +239,11 @@ const char* CTFTeamName(int team)
 	switch (team)
 	{
 	case CTF_TEAM1:
-		return "RED";
+		return "Strogg Slaughter";
 	case CTF_TEAM2:
 		return "BLUE";
 	case CTF_NOTEAM:
-		return "SPECTATOR";
+		return "SPECTATOR/AFK";
 	}
 	return "UNKNOWN"; // Hanzo pointed out this was spelled wrong as "UKNOWN"
 }
@@ -289,12 +289,6 @@ void CTFAssignSkin(edict_t* ent, const char* s)
 
 	switch (ent->client->resp.ctf_team)
 	{
-	case CTF_TEAM1:
-		t = G_Fmt("{}\\{}{}\\default", ent->client->pers.netname, t, CTF_TEAM1_SKIN);
-		break;
-	case CTF_TEAM2:
-		t = G_Fmt("{}\\{}{}\\default", ent->client->pers.netname, t, CTF_TEAM2_SKIN);
-		break;
 	default:
 		t = G_Fmt("{}\\{}\\default", ent->client->pers.netname, s);
 		break;
@@ -337,14 +331,9 @@ void CTFAssignTeam(gclient_t* who)
 			break;
 		}
 	}
-	if (team1count < team2count)
+
 		who->resp.ctf_team = CTF_TEAM1;
-	else if (team2count < team1count)
-		who->resp.ctf_team = CTF_TEAM2;
-	else if (brandom())
-		who->resp.ctf_team = CTF_TEAM1;
-	else
-		who->resp.ctf_team = CTF_TEAM2;
+
 }
 
 /*
@@ -370,7 +359,7 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	switch (ent->client->resp.ctf_team)
 	{
 	case CTF_TEAM1:
-		cname = "info_player_team1";
+		cname = "info_player_start";
 		break;
 	case CTF_TEAM2:
 		cname = "info_player_team2";
@@ -982,9 +971,8 @@ static void CTFSetIDView(edict_t* ent)
 		dir = who->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-
 		// Q2ETweaks wrapped original if+continue to allow player id in non-teamplay modes
-		if (!sv_target_id->integer || G_TeamplayEnabled())
+		if (!sv_target_id->integer) //check horde
 		{
 			// we have teammate indicators that are better for this
 			if (ent->client->resp.ctf_team == who->client->resp.ctf_team)
@@ -1709,7 +1697,6 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 	}
-
 	for (i = 0; i < 16; i++)
 	{
 		if (i >= total[0] && i >= total[1])
@@ -1883,7 +1870,6 @@ THINK(TechThink) (edict_t* tech) -> void
 	}
 }
 
-
 void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 {
 	edict_t* tech;
@@ -1892,7 +1878,6 @@ void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 	tech->nextthink = level.time + CTF_TECH_TIMEOUT;
 	tech->think = TechThink;
 	ent->client->pers.inventory[item->id] = 0;
-
 	G_FreeEdict(tech);
 }
 
@@ -1919,7 +1904,6 @@ void CTFDeadDropTech(edict_t* ent)
 		}
 	}
 }
-
 /*
 void CTFDeadDropTech(edict_t* ent)
 {
@@ -1943,6 +1927,7 @@ void CTFDeadDropTech(edict_t* ent)
 	}
 }
 */
+
 static void SpawnTech(gitem_t* item, edict_t* spot)
 {
 	edict_t* ent;
@@ -2086,7 +2071,7 @@ bool CTFApplyStrengthSound(edict_t* ent)
 	return false;
 }
 
-bool CTFApplyHaste(edict_t* ent)// HACK HASTE TECH DEJAR TRUE
+bool CTFApplyHaste(edict_t* ent)
 {
 	if (ent->client &&
 		ent->client->pers.inventory[IT_TECH_HASTE])
@@ -2246,7 +2231,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "$g_pc_teamplay", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
@@ -2719,7 +2704,7 @@ void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
 static const int jmenu_level = 1;
 static const int jmenu_match = 2;
 static const int jmenu_red = 4;
-static const int jmenu_blue = 7;
+//static const int jmenu_blue = 7;
 static const int jmenu_chase = 10;
 static const int jmenu_reqmatch = 12;
 
@@ -2731,16 +2716,18 @@ const pmenu_t joinmenu[] = {
 	{ "$g_pc_join_red_team", PMENU_ALIGN_LEFT, CTFJoinTeam1 },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "$g_pc_join_blue_team", PMENU_ALIGN_LEFT, CTFJoinTeam2 },
+	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "$g_pc_chase_camera", PMENU_ALIGN_LEFT, CTFChaseCam },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 };
 
 const pmenu_t nochasemenu[] = {
-	{ "$g_pc_3wctf", PMENU_ALIGN_CENTER, nullptr },
+	{ "Horde MOD BETA", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "$g_pc_no_chase", PMENU_ALIGN_LEFT, nullptr },
@@ -2756,8 +2743,8 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 	ent->client->resp.ctf_team = desired_team;
 	ent->client->resp.ctf_state = 0;
 	char value[MAX_INFO_VALUE] = { 0 };
-	gi.Info_ValueForKey(ent->client->pers.userinfo, "skin", value, sizeof(value));
-	CTFAssignSkin(ent, value);
+//	gi.Info_ValueForKey(ent->client->pers.userinfo, "skin", value, sizeof(value));
+//	CTFAssignSkin(ent, value);
 
 	// assign a ghost if we are in match mode
 	if (ctfgame.match == MATCH_GAME)
@@ -2867,23 +2854,23 @@ void CTFUpdateJoinMenu(edict_t* ent)
 	{
 		Q_strlcpy(entries[jmenu_red].text, "MATCH IS LOCKED", sizeof(entries[jmenu_red].text));
 		entries[jmenu_red].SelectFunc = nullptr;
-		Q_strlcpy(entries[jmenu_blue].text, "  (entry is not permitted)", sizeof(entries[jmenu_blue].text));
-		entries[jmenu_blue].SelectFunc = nullptr;
+//		Q_strlcpy(entries[jmenu_blue].text, "  (entry is not permitted)", sizeof(entries[jmenu_blue].text));
+//		entries[jmenu_blue].SelectFunc = nullptr;
 	}
 	else
 	{
 		if (ctfgame.match >= MATCH_PREGAME)
 		{
 			Q_strlcpy(entries[jmenu_red].text, "Join Red MATCH Team", sizeof(entries[jmenu_red].text));
-			Q_strlcpy(entries[jmenu_blue].text, "Join Blue MATCH Team", sizeof(entries[jmenu_blue].text));
+	//		Q_strlcpy(entries[jmenu_blue].text, "Join Blue MATCH Team", sizeof(entries[jmenu_blue].text));
 		}
 		else
 		{
-			Q_strlcpy(entries[jmenu_red].text, "$g_pc_join_red_team", sizeof(entries[jmenu_red].text));
-			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
+			Q_strlcpy(entries[jmenu_red].text, "Join and Fight the HORDE!", sizeof(entries[jmenu_red].text));
+//			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
 		}
 		entries[jmenu_red].SelectFunc = CTFJoinTeam1;
-		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
+//		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
 	}
 
 	// KEX_FIXME: what's this for?
@@ -2891,8 +2878,8 @@ void CTFUpdateJoinMenu(edict_t* ent)
 	{
 		if (Q_strcasecmp(g_teamplay_force_join->string, "red") == 0)
 		{
-			entries[jmenu_blue].text[0] = '\0';
-			entries[jmenu_blue].SelectFunc = nullptr;
+//			entries[jmenu_blue].text[0] = '\0';
+//			entries[jmenu_blue].SelectFunc = nullptr;
 		}
 		else if (Q_strcasecmp(g_teamplay_force_join->string, "blue") == 0)
 		{
@@ -2951,23 +2938,22 @@ void CTFUpdateJoinMenu(edict_t* ent)
 		entries[jmenu_red + 1].text[0] = '\0';
 		entries[jmenu_red + 1].text_arg1[0] = '\0';
 	}
-	if (*entries[jmenu_blue].text)
+//	if (*entries[jmenu_blue].text)
 	{
-		Q_strlcpy(entries[jmenu_blue + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_blue + 1].text));
-		G_FmtTo(entries[jmenu_blue + 1].text_arg1, "{}", num2);
-	}
-	else
-	{
-		entries[jmenu_blue + 1].text[0] = '\0';
-		entries[jmenu_blue + 1].text_arg1[0] = '\0';
+//		Q_strlcpy(entries[jmenu_blue + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_blue + 1].text));
+//		G_FmtTo(entries[jmenu_blue + 1].text_arg1, "{}", num2);
+//	}
+//	else
+//	{
+	//	entries[jmenu_blue + 1].text[0] = '\0';
+	//	entries[jmenu_blue + 1].text_arg1[0] = '\0';
 	}
 
 	entries[jmenu_reqmatch].text[0] = '\0';
 	entries[jmenu_reqmatch].SelectFunc = nullptr;
-	if (competition->integer && ctfgame.match < MATCH_SETUP)
+	if (g_horde->integer)
 	{
-		Q_strlcpy(entries[jmenu_reqmatch].text, "Original Mod by Paril\nMixed with a Coop Mod by Enemy", sizeof(entries[jmenu_reqmatch].text));
-		entries[jmenu_reqmatch].SelectFunc = CTFRequestMatch;
+		Q_strlcpy(entries[jmenu_reqmatch].text, "\n\nOriginal Mod by Paril.\nModified by Enemy.", sizeof(entries[jmenu_reqmatch].text));
 	}
 }
 
@@ -3887,10 +3873,10 @@ void CTFBoot(edict_t* ent)
 
 void CTFSetPowerUpEffect(edict_t* ent, effects_t def)
 {
-	if (ent->client->resp.ctf_team == CTF_TEAM1 && def == EF_QUAD)
-		ent->s.effects |= EF_PENT; // red
-	else if (ent->client->resp.ctf_team == CTF_TEAM2 && def == EF_PENT)
-		ent->s.effects |= EF_QUAD; // blue
-	else
+//	if (ent->client->resp.ctf_team == CTF_TEAM1 && def == EF_QUAD)
+//		ent->s.effects |= EF_PENT; // red
+//	else if (ent->client->resp.ctf_team == CTF_TEAM2 && def == EF_PENT)
+//		ent->s.effects |= EF_QUAD; // blue
+//	else
 		ent->s.effects |= def;
 }

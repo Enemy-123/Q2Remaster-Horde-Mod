@@ -27,7 +27,7 @@ bool G_CheckInfiniteAmmo(gitem_t* item)
 	if (item->flags & IF_NO_INFINITE_AMMO)
 		return false;
 
-	return g_infinite_ammo->integer || (G_IsDeathmatch() && g_instagib->integer);
+	return g_infinite_ammo->integer; // || (G_IsDeathmatch() && g_instagib->integer);
 }
 
 //========
@@ -229,7 +229,7 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 inline bool G_WeaponShouldStay()
 {
 	if (G_IsDeathmatch())
-		return g_dm_weapons_stay->integer;
+		return !P_UseCoopInstancedItems();
 	else if (G_IsCooperative())
 		return !P_UseCoopInstancedItems();
 
@@ -269,14 +269,13 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 				Add_Ammo(other, ammo, ammo->quantity);
 		}
 
-		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER))
+		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER) )
 		{
 			if (G_IsDeathmatch())
 			{
-				if (g_dm_weapons_stay->integer)
 					ent->flags |= FL_RESPAWN;
 
-				SetRespawn(ent, gtime_t::from_sec(g_weapon_respawn_time->integer), !g_dm_weapons_stay->integer);
+
 			}
 			if (G_IsCooperative())
 				ent->flags |= FL_RESPAWN;
@@ -480,7 +479,6 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 			ent->client->ps.gunrate *= 2;
 
 
-		if (!G_IsDeathmatch()) {
 
 			if (using_blaster || using_glauncher || using_etfrifle) {
 				ent->client->ps.gunrate *= 1.4;
@@ -490,8 +488,7 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 			if (using_shotgun) {
 				ent->client->ps.gunrate *= 1.5;
 			}
-		}
-
+	
 	}
 	
 

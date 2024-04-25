@@ -514,7 +514,7 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping)
 	if (ent->movetype == MOVETYPE_NOCLIP)
 		return true;
 
-	contents_t mask = CONTENTS_MONSTER | CONTENTS_PLAYER;
+	contents_t mask = CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 
 	// [Paril-KEX] don't gib other players in coop if we're not colliding
 	if (from_spawning && ent->client && G_IsCooperative() && !G_ShouldPlayersCollide(false))

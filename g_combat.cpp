@@ -506,7 +506,7 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		return false;
 
 	// [Paril-KEX] coop 'team' support
-	if (G_IsCooperative())
+	if (G_IsCooperative() || g_horde->integer)
 		return ent1->client && ent2->client;
 	// ZOID
 	else if (G_TeamplayEnabled() && ent1->client && ent2->client)
@@ -544,7 +544,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (!targ->takedamage)
 		return;
 
-	if (g_instagib->integer && attacker->client && targ->client)
+	if (g_instagib->integer && !g_horde->integer && attacker->client && targ->client)
 	{
 		// [Kex] always kill no matter what on instagib
 		damage = 9999;

@@ -1668,11 +1668,11 @@ static void G_InitStatusbar()
 	if (g_horde->integer) {
 
 		// 		// HORDE WAVE
-	sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_FRAGS);
+		sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_FRAGS);
 	}
 
-	
-	if (!G_IsDeathmatch())
+
+	if (G_IsDeathmatch() || G_IsCooperative())
 	{
 		// SP/coop
 		// key display
@@ -1690,12 +1690,12 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
 
 
-		if (G_IsCooperative() && g_insane->integer == 2 && !g_horde->integer ) {
+		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer) {
 
-					// 		// COOPWAVE
-			sb.xv(-155).yb(-23).string2("Chaotic Coop\n ENABLED");
+			// 		// COOPWAVE
+			sb.xv(-155).yb(-23).string2("Harder Coop\n ENABLED");
 		}
-		if (G_IsCooperative())
+		if (G_IsDeathmatch())
 		{
 
 			//  MONSTERS COUNT
@@ -1703,7 +1703,7 @@ static void G_InitStatusbar()
 			sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
 
 
-		//	sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
+			//	sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
 
 			// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
@@ -1713,11 +1713,11 @@ static void G_InitStatusbar()
 		}
 
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-		    // tech
+		// tech
 		sb.ifstat(STAT_TECH).yb(-137).xr(-26).pic(STAT_TECH).endifstat();
 
 		// Q2ETweaks target id view state
-        // TODO move back to xv 112 if we find an image for below
+		// TODO move back to xv 112 if we find an image for below
 		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 
 		// Q2ETweaks target id view color
@@ -1768,7 +1768,9 @@ static void G_InitStatusbar()
 		sb.xr(-50).yt(2).num(3, STAT_FRAGS);
 
 	}
-
+	if (G_IsCooperative()){
+		sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+}
 	// ---- more shared stuff ----
 	if (G_IsDeathmatch())
 	{

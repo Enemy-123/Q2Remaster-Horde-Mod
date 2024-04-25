@@ -145,12 +145,12 @@ static void Horde_InitLevel(int32_t lvl)
 
 bool G_IsDeathmatch()
 {
-	return deathmatch->integer && !g_horde->integer;
+	return deathmatch->integer && g_horde->integer;
 }
 
 bool G_IsCooperative()
 {
-	return coop->integer || g_horde->integer;
+	return coop->integer;
 }
 
 struct weighted_item_t;
@@ -548,7 +548,7 @@ void  SpawnBossAutomatically()
 	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 4 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||

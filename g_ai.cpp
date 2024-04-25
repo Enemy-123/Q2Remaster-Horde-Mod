@@ -764,7 +764,7 @@ bool FindTarget(edict_t* self)
     }
 
     // ROGUE - hintpath coop fix
-    if ((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative())
+    if ((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative() || G_IsDeathmatch())
         heardit = false;
     // ROGUE
 
@@ -1501,7 +1501,7 @@ void ai_run(edict_t* self, float dist)
             return;
         }
 
-        if (G_IsCooperative())
+        if (G_IsCooperative() || G_IsDeathmatch())
         {
             // if we're in coop, check my real enemy first .. if I SEE him, set gotcha to true
             if (self->enemy && visible(self, realEnemy))
@@ -1672,7 +1672,7 @@ void ai_run(edict_t* self, float dist)
 
     // PMM - moved down here to allow monsters to get on hint paths
     // coop will change to another enemy if visible
-    if (G_IsCooperative())
+    if (G_IsCooperative() || G_IsDeathmatch())
         FindTarget(self);
     // pmm
 

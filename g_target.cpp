@@ -154,7 +154,7 @@ When fired, the "message" key becomes the current personal computer string, and 
 */
 void SP_target_help(edict_t* ent)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -204,7 +204,7 @@ THINK(G_VerifyTargetted) (edict_t* ent) -> void
 
 void SP_target_secret(edict_t* ent)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -416,7 +416,7 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 	}
 
 	// if noexit, do a ton of damage to other
-	if (G_IsDeathmatch() && !g_dm_allow_exit->integer && other != world)
+	if (G_IsDeathmatch() && !g_horde->integer && !g_dm_allow_exit->integer && other != world)
 	{
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, DAMAGE_NONE, MOD_EXIT);
 		return;
@@ -979,7 +979,7 @@ void SP_target_lightramp(edict_t* self)
 		return;
 	}
 
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -1366,7 +1366,7 @@ USE(use_target_camera) (edict_t* self, edict_t* other, edict_t* activator) -> vo
 
 void SP_target_camera(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;
@@ -1789,7 +1789,7 @@ THINK(target_poi_setup) (edict_t* self) -> void
 
 void SP_target_poi(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;
@@ -1882,7 +1882,7 @@ THINK(check_target_healthbar) (edict_t* ent) -> void
 
 void SP_target_healthbar(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -2002,7 +2002,7 @@ USE(trigger_crossunit_trigger_use) (edict_t* self, edict_t* other, edict_t* acti
 
 void SP_target_crossunit_trigger(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -2029,7 +2029,7 @@ THINK(target_crossunit_target_think) (edict_t* self) -> void
 
 void SP_target_crossunit_target(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -2057,7 +2057,7 @@ USE(use_target_achievement) (edict_t* self, edict_t* other, edict_t* activator) 
 
 void SP_target_achievement(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -2079,7 +2079,7 @@ USE(use_target_story) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 
 void SP_target_story(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;

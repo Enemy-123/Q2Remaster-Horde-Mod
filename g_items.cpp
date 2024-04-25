@@ -224,7 +224,7 @@ bool Pickup_Powerup(edict_t* ent, edict_t* other)
 		(skill->integer >= 2 && quantity >= 1))
 		return false;
 
-	if (G_IsCooperative() && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))
+	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;
@@ -948,7 +948,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 		return; // not a grabbable item?
 
 	// already got this instanced item
-	if (G_IsCooperative() && P_UseCoopInstancedItems())
+	if  (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems())
 	{
 		if (ent->item_picked_up_by[other->s.number - 1])
 			return;
@@ -987,7 +987,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 
 		int32_t player_number = other->s.number - 1;
 
-		if (G_IsCooperative() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
 		{
 			ent->item_picked_up_by[player_number] = true;
 
@@ -1024,7 +1024,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	{
 		bool should_remove = false;
 
-		if (G_IsCooperative())
+		if (G_IsCooperative()  || g_horde->integer)
 		{
 			// in coop with instanced items, *only* dropped 
 			// player items will ever get deleted permanently.
@@ -1036,7 +1036,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 				should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER) || !(ent->item->flags & IF_STAY_COOP);
 		}
 		else
-			should_remove = !G_IsDeathmatch() || ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
+			should_remove = G_IsDeathmatch() && !g_horde->integer || ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
 
 		if (should_remove)
 		{
@@ -1113,7 +1113,7 @@ edict_t* Drop_Item(edict_t* ent, gitem_t* item)
 	dropped->think = drop_make_touchable;
 	dropped->nextthink = level.time + 1_sec;
 
-	if (G_IsCooperative() && P_UseCoopInstancedItems())
+	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems())
 		dropped->svflags |= SVF_INSTANCED;
 
 	gi.linkentity(dropped);

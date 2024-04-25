@@ -53,7 +53,7 @@ potential spawning position for coop games
 */
 void SP_info_player_coop(edict_t* self)
 {
-	if (!G_IsCooperative())
+	if (!G_IsCooperative() || !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -107,22 +107,22 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	switch (mod.id)
 	{
 	case MOD_SUICIDE:
-		base = "{0} becomes bored with life";
+		base = "{0} becomes bored with life\n";
 		break;
 	case MOD_FALLING:
-		base = "{0} made a leap of faith";
+		base = "{0} made a leap of faith\n";
 		break;
 	case MOD_CRUSH:
 		base = "{0} suffers from claustrophobia\n";
 		break;
 	case MOD_WATER:
-		base = "{0} forgot to breath";
+		base = "{0} forgot to breath\n";
 		break;
 	case MOD_SLIME:
 		base = "$g_mod_generic_slime";
 		break;
 	case MOD_LAVA:
-		base = "{0} joins the lava gods";
+		base = "{0} joins the lava gods\n";
 		break;
 	case MOD_EXPLOSIVE:
 	case MOD_BARREL:
@@ -181,7 +181,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			break;
 			// ROGUE
 		default:
-			base = "$g_mod_self_default";
+			base = "{0} becomes bored with life\n";
 			break;
 		}
 	}
@@ -340,20 +340,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			gi.LocClient_Print(self, PRINT_CENTER, "\n\n\n\nFragged by {}", attacker->client->pers.netname);
 		}
 
-
-		if (G_TeamplayEnabled())
-		{
-			// ZOID
-			//  if at start and same team, clear.
-			// [Paril-KEX] moved here so it's not an outlier in player_die.
-			if (mod.id == MOD_TELEFRAG_SPAWN &&
-				self->client->resp.ctf_state < 2 &&
-				self->client->resp.ctf_team == attacker->client->resp.ctf_team)
-			{
-				self->client->resp.ctf_state = 0;
-				return;
-			}
-		}
 
 		// ROGUE
 		if (gamerules->integer)
@@ -591,9 +577,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		if (G_IsDeathmatch() && !self->client->showscores)
 			Cmd_Help_f(self); // show scores
 
-		if (G_IsCooperative() && !P_UseCoopInstancedItems())
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && !P_UseCoopInstancedItems())
 		{
-
 			// clear inventory
 			// this is kind of ugly, but it's how we want to handle keys in coop
 			for (int n = 0; n < IT_TOTAL; n++)
@@ -611,13 +596,12 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			DMGame.PlayerDeath(self, inflictor, attacker);
 	}
 
-
 	// remove powerups
 	self->client->quad_time = 0_ms;
 	self->client->invincible_time = 0_ms;
 	self->client->breather_time = 0_ms;
 	self->client->enviro_time = 0_ms;
-    self->client->invisible_time = 0_ms;
+	self->client->invisible_time = 0_ms;
 	self->flags &= ~FL_POWER_ARMOR;
 
 	// clear inventory
@@ -627,7 +611,6 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	// RAFAEL
 	self->client->quadfire_time = 0_ms;
 	// RAFAEL
-
 
 	//==============
 	// ROGUE stuff
@@ -648,7 +631,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	if (mod.id == MOD_TRACKER)
 	{
 		self->health = -100;
-		damage = 4000;
+		damage = 999;
 	}
 
 	// make sure no trackers are still hurting us.
@@ -733,7 +716,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 	if (!self->deadflag)
 	{
-		if (G_IsCooperative() && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
+		if (G_IsCooperative() || g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
 		{
 			if (g_coop_enable_lives->integer && self->client->pers.lives)
 			{
@@ -757,21 +740,18 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 					gi.LocCenter_Print(player, "$g_coop_lose");
 			}
 
-
 			// TIMELIMIT BEAUTIFUL FIX FOR HORDE MODE 
-			if	(g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
-			{	
-					for (auto player : active_players())
-						gi.LocCenter_Print(player, "$g_coop_lose");
-					gi.cvar_set("timelimit", "0.01");
+			if (g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
+			{
+				for (auto player : active_players())
+					gi.LocCenter_Print(player, "$g_coop_lose");
+				gi.cvar_set("timelimit", "0.01");
 
 			}
-
-
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 1.0_sec;
+				self->client->respawn_time = level.time + 1.3_sec;
 		}
 	}
 
@@ -846,17 +826,16 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// nope, beautiful fix indeed
 	// 
 	// 
-	//if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-	//	(!G_TeamplayEnabled() && !client->resp.spectator))
+	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
+     	(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
 
-	
 		// in coop, if there's already a player in the game and we're new,
 		// steal their loadout. this would fix a potential softlock where a new
 		// player may not have weapons at all.
 		bool taken_loadout = false;
 
-		if (G_IsCooperative() && !g_horde->integer)
+		if (G_IsCooperative() || G_IsDeathmatch())
 		{
 			for (auto player : active_players())
 			{
@@ -907,7 +886,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 			if (!G_IsDeathmatch())
 				client->pers.inventory[IT_ITEM_COMPASS] = 1;
-				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;	
+			
+			if (G_IsDeathmatch())
+		//	client->pers.inventory[IT_ITEM_COMPASS] = 1;
+			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
@@ -989,15 +972,16 @@ void SaveClientData()
 
 void FetchClientEntData(edict_t* ent)
 {
-		ent->health = ent->client->pers.health;
-		ent->flags |= ent->client->pers.savedFlags;
+	ent->health = ent->client->pers.health;
+	ent->flags |= ent->client->pers.savedFlags;
 	//if (g_horde->integer || !G_IsCooperative())
 	//ent->max_health = ent->client->pers.max_health;
 
 	if (G_IsCooperative() && g_horde->integer)
-	ent->client->resp.score = ent->client->pers.score;
+		ent->client->resp.score = ent->client->pers.score;
 	ent->max_health = ent->client->pers.max_health;
 }
+
 
 /*
 =======================================================================
@@ -1063,6 +1047,7 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 
 	// gather all spawn points 
 	edict_t* spot = nullptr;
+
 	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr)
 		spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
 
@@ -2125,7 +2110,7 @@ void PutClientInServer(edict_t* ent)
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
 	// deathmatch wipes most client data every spawn
-	if (G_IsDeathmatch()) // restored due to not working with lives on coop or horde
+	if (G_IsDeathmatch())
 	{
 		client->pers.health = 0;
 		resp = client->resp;
@@ -2176,14 +2161,14 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	if (!(client->pers.spectator)) {
+	if (!(client->resp.spectator || client->pers.spectator)) {
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 1.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 	}
-// HORDE QUAD RESPAWN
+	// HORDE QUAD RESPAWN
 
-//	if (g_horde->integer && client->pers.score >= 60 && (!(client->pers.spectator && G_IsCooperative()))) {
-//		ent->client->quad_time = max(level.time, ent->client->quad_time) + 15.0_sec;  }
-	
+	//	if (g_horde->integer && client->pers.score >= 60 && (!(client->pers.spectator && G_IsCooperative()))) {
+	//		ent->client->quad_time = max(level.time, ent->client->quad_time) + 15.0_sec;  }
+
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
 
@@ -2346,6 +2331,14 @@ void PutClientInServer(edict_t* ent)
 		G_PostRespawn(ent);
 }
 
+/*
+=====================
+ClientBeginDeathmatch
+
+A client has just connected to the server in
+deathmatch mode, so clear everything out before starting them.
+=====================
+*/
 void ClientBeginDeathmatch(edict_t* ent)
 {
 	G_InitEdict(ent);
@@ -2621,10 +2614,10 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
 
 	// spectators are only supported in deathmatch
-	if ((G_IsDeathmatch() && g_horde->integer) || G_IsCooperative() && *val && strcmp(val, "0")) //check horde mode later
+	if (!G_IsDeathmatch() && !G_TeamplayEnabled() && *val && strcmp(val, "0")) // test horde
 		ent->client->pers.spectator = true;
 	else
-		ent->client->pers.spectator = false; 
+		ent->client->pers.spectator = false;
 
 	// set skin
 	if (!gi.Info_ValueForKey(userinfo, "skin", val, sizeof(val)))
@@ -2879,7 +2872,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	char value[MAX_INFO_VALUE] = { 0 };
 	gi.Info_ValueForKey(userinfo, "spectator", value, sizeof(value));
 
-	if (G_IsDeathmatch() && *value && strcmp(value, "0")) // check later horde
+	if (G_IsDeathmatch() && *value && strcmp(value, "0")) 
 	{
 		uint32_t i, numspec;
 
@@ -3208,10 +3201,8 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			gi.LocClient_Print(ent, PRINT_CENTER, "$g_n64_crouching");
 		}
 	}
-
 	if (client->hook_on && ent->client->hook)
 		Hook_Service(client->hook);
-
 
 	if (level.intermissiontime || ent->client->awaiting_respawn)
 	{
@@ -3660,6 +3651,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 			continue;
 		}
 
+
 		// check positioning; we must be on world ground
 		if (player->groundentity != world)
 		{
@@ -3674,7 +3666,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 			continue;
 		}
 
-	// good player; pick a spot
+		// good player; pick a spot
 		vec3_t spot;
 
 		if (!G_FindRespawnSpot(player, spot))
@@ -3702,13 +3694,15 @@ enum respawn_state_t
 // [Paril-KEX] return false to fall back to click-to-respawn behavior.
 // note that this is only called if they are allowed to respawn (not
 // restarting the level due to all being dead)
+
+
 static bool G_CoopRespawn(edict_t* ent)
 {
 	// don't do this in non-coop
-	if (!G_IsCooperative())
-		return false;
+//	if (!G_IsCooperative())
+//		return false;
 	// if we don't have squad or lives, it doesn't matter
-	else if (!g_coop_squad_respawn->integer && !g_coop_enable_lives->integer)
+	if (!g_coop_squad_respawn->integer && !g_coop_enable_lives->integer)
 		return false;
 
 	respawn_state_t state = RESPAWN_NONE;
@@ -3742,7 +3736,6 @@ static bool G_CoopRespawn(edict_t* ent)
 
 			// all dead, so if we ever get here we have lives enabled;
 			// we should just respawn at the start of the level
-
 			if (allDead)
 				state = RESPAWN_START;
 			else
@@ -3885,6 +3878,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	if (G_IsCooperative())
 		PlayerTrail_Add(ent);
 	PlayerTrail_Add(ent);
+		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;
 }
