@@ -827,7 +827,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// 
 	// 
 	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-     	(!G_TeamplayEnabled() && !client->resp.spectator))
+		(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
 
 		// in coop, if there's already a player in the game and we're new,
@@ -886,11 +886,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 			if (!G_IsDeathmatch())
 				client->pers.inventory[IT_ITEM_COMPASS] = 1;
-			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;	
-			
-			if (G_IsDeathmatch())
-		//	client->pers.inventory[IT_ITEM_COMPASS] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+
+			if (G_IsDeathmatch())
+				//	client->pers.inventory[IT_ITEM_COMPASS] = 1;
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
@@ -2109,12 +2109,9 @@ void PutClientInServer(edict_t* ent)
 	char social_id[MAX_INFO_VALUE];
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
-
-
 	// deathmatch wipes most client data every spawn
-	if (!G_IsDeathmatch())
+	if (G_IsDeathmatch())
 	{
-		ent->client->ps.team_id = ent->client->resp.ctf_team;
 		client->pers.health = 0;
 		resp = client->resp;
 	}
@@ -2124,9 +2121,8 @@ void PutClientInServer(edict_t* ent)
 		char userinfo[MAX_INFO_STRING];
 		memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
-		if (G_IsDeathmatch())
+		if (G_IsCooperative())
 		{
-			ent->client->ps.team_id = ent->client->resp.ctf_team;
 			resp = client->resp;
 
 			if (!P_UseCoopInstancedItems())
@@ -2165,9 +2161,9 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	if (!(client->resp.spectator || client->pers.spectator)) {
+
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 1.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
-	}
+	
 	// HORDE QUAD RESPAWN
 
 	//	if (g_horde->integer && client->pers.score >= 60 && (!(client->pers.spectator && G_IsCooperative()))) {
@@ -2876,7 +2872,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	char value[MAX_INFO_VALUE] = { 0 };
 	gi.Info_ValueForKey(userinfo, "spectator", value, sizeof(value));
 
-	if (G_IsDeathmatch() && *value && strcmp(value, "0")) 
+	if (G_IsDeathmatch() && *value && strcmp(value, "0"))
 	{
 		uint32_t i, numspec;
 
@@ -3882,7 +3878,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	if (G_IsCooperative())
 		PlayerTrail_Add(ent);
 	PlayerTrail_Add(ent);
-		PlayerTrail_Add(ent);
+	PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;
 }

@@ -596,7 +596,7 @@ void HelpComputer(edict_t* ent)
 	else if (skill->integer == 2)
 		sk = "$m_hard";
 	else
-		sk = "CHAOTIC";
+		sk = "INSANE";
 
 	// send the layout
 
@@ -1129,6 +1129,8 @@ void G_SetSpectatorStats(edict_t* ent)
 		G_SetStats(ent);
 
 	cl->ps.stats[STAT_SPECTATOR] = 1;
+	cl->ps.stats[STAT_TIMER] = 0;
+	ent->client->ps.stats[STAT_TIMER_ICON] = 0;
 
 	// layouts are independant in spectator
 	cl->ps.stats[STAT_LAYOUTS] = 0;
