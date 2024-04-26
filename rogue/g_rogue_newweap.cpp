@@ -161,7 +161,7 @@ TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool o
 	if (CheckTeamDamage(prox->teammaster, other))
 		return;
 
-	if (!G_IsDeathmatch() && other->client)
+	if (G_IsDeathmatch() && other->client)
 		return;
 
 	if (other == prox) // don't set self off
@@ -214,7 +214,7 @@ THINK(prox_open) (edict_t* ent) -> void
 		// doesn't get stuck on it while it's opening if fired at point blank wall
 		ent->s.sound = 0;
 
-		if (G_IsDeathmatch())
+		if (G_IsDeathmatch() && !g_horde->integer)
 			ent->owner = nullptr;
 
 		if (ent->teamchain)
@@ -222,11 +222,11 @@ THINK(prox_open) (edict_t* ent) -> void
 		while ((search = findradius(search, ent->s.origin, PROX_DAMAGE_RADIUS + 10)) != nullptr)
 		{
 			if (!search->classname) // tag token and other weird shit
-				continue;
+				break;
 
 			// teammate avoidance
 			if (CheckTeamDamage(search, ent->teammaster))
-				continue;
+				break;
 
 			// if it's a monster or player with health > 0
 			// or it's a player start point
@@ -235,11 +235,11 @@ THINK(prox_open) (edict_t* ent) -> void
 			if (
 				search != ent &&
 				(
-					(((search->svflags & SVF_MONSTER) || (G_IsDeathmatch() && (search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) && (search->health > 0)) ||
-					(G_IsDeathmatch() &&
-						((!strncmp(search->classname, "info_player_", 12)) ||
-							(!strcmp(search->classname, "misc_teleporter_dest")) ||
-							(!strncmp(search->classname, "item_flag_", 10))))) &&
+					(((search->svflags & SVF_MONSTER) || (!G_IsDeathmatch() && (search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) && (search->health > 0)) ||
+					(G_IsDeathmatch() && g_horde->integer &&
+						((!strncmp(search->classname, "monster_", 12)) ||
+							(!strcmp(search->classname, "monster_")) ||
+							(!strncmp(search->classname, "monster_", 10))))) &&
 				(visible(search, ent)))
 			{
 				gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
@@ -317,7 +317,7 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 
 	constexpr float PROX_STOP_EPSILON = 0.1f;
 
-	if (!tr.plane.normal || (other->svflags & SVF_MONSTER) || other->client || (other->flags & FL_DAMAGEABLE))
+	if (!tr.plane.normal || (other->svflags & SVF_MONSTER) || (other->flags & FL_DAMAGEABLE))
 	{
 		if (other != ent->teammaster)
 			Prox_Explode(ent);
