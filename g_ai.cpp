@@ -87,19 +87,22 @@ void ai_stand(edict_t* self, float dist)
     bool retval;
     // ROGUE
 
-            // Check if enemy is nullptr and select a random alive player to be angry at
-    if (!self->enemy) {
-        edict_t* player = nullptr;
-        for (int i = 1; i <= game.maxclients; i++) {
-            edict_t* client = &g_edicts[i];
-            if (!client->inuse || client->client->pers.spectator || client->health <= 0)
-                continue;
-            player = client;
-        }
-        if (player) {
-            self->enemy = player;
-            self->monsterinfo.run(self);
-            return;
+
+    if (g_horde->integer && !level.intermissiontime) {  // TY PARIL!
+        // Check if enemy is nullptr and select a random alive player to be angry at
+        if (!self->enemy) {
+            edict_t* player = nullptr;
+            for (int i = 1; i <= game.maxclients; i++) {
+                edict_t* client = &g_edicts[i];
+                if (!client->inuse || client->client->pers.spectator || client->health <= 0)// || (self->client->invisible_time && self->client->invisibility_fade_time ))
+                    continue;
+                player = client;
+            }
+            if (player) {
+                self->enemy = player;
+                self->monsterinfo.run(self);
+                return;
+            }
         }
     }
 
@@ -1444,13 +1447,15 @@ void ai_run(edict_t* self, float dist)
     bool     gotcha = false;
     edict_t* realEnemy;
     // ROGUE
-
-    if (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP)) {
-        // Si el enemigo ha muerto o se ha vuelto inelegible de alguna otra forma
-        self->enemy = nullptr; // Elimina el enemigo actual
-        self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
-        // Ahora el código de espera se activará en el siguiente fotograma para que el monstruo cace a alguien
+    if (g_horde->integer) {
+        if (level.intermissiontime || (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP))) {// || (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time)) {
+            // Si el enemigo ha muerto, se ha vuelto inelegible de alguna otra forma, o el jugador está invisible
+            self->enemy = nullptr; // Elimina el enemigo actual
+            self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
+            // Ahora el código de espera se activará en el siguiente fotograma para que el monstruo cace a alguien
+        }
     }
+
 
     // if we're going to a combat point, just proceed
     if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
@@ -1524,7 +1529,7 @@ void ai_run(edict_t* self, float dist)
             return;
         }
 
-        if (G_IsCooperative() || G_IsDeathmatch())
+        if (G_IsCooperative())
         {
             // if we're in coop, check my real enemy first .. if I SEE him, set gotcha to true
             if (self->enemy && visible(self, realEnemy))
@@ -1555,7 +1560,6 @@ void ai_run(edict_t* self, float dist)
             v = self->s.origin - self->enemy->s.origin;
 
         bool touching_noise = SV_CloseEnough(self, self->enemy, dist * (gi.tick_rate / 10));
-
         if ((!self->enemy) || (touching_noise && FacingIdeal(self)))
             // pmm
         {
@@ -1695,7 +1699,7 @@ void ai_run(edict_t* self, float dist)
 
     // PMM - moved down here to allow monsters to get on hint paths
     // coop will change to another enemy if visible
-    if (G_IsCooperative() || G_IsDeathmatch())
+    if (G_IsCooperative())
         FindTarget(self);
     // pmm
 

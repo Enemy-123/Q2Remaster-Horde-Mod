@@ -333,13 +333,26 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
+
 		// Q2ETweaks frag message centerprints on attacker and victim
 		if (sv_centerprint_frags->integer)
 		{
 			gi.LocClient_Print(attacker, PRINT_CENTER, "You fragged {}", self->client->pers.netname);
 			gi.LocClient_Print(self, PRINT_CENTER, "\n\n\n\nFragged by {}", attacker->client->pers.netname);
 		}
-
+	/*	if (G_TeamplayEnabled())
+		{
+			// ZOID
+			//  if at start and same team, clear.
+			// [Paril-KEX] moved here so it's not an outlier in player_die.
+			if (mod.id == MOD_TELEFRAG_SPAWN &&
+				self->client->resp.ctf_state < 2 &&
+				self->client->resp.ctf_team == attacker->client->resp.ctf_team)
+			{
+				self->client->resp.ctf_state = 0;
+				return;
+			}
+		}*/
 
 		// ROGUE
 		if (gamerules->integer)
@@ -577,7 +590,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		if (G_IsDeathmatch() && !self->client->showscores)
 			Cmd_Help_f(self); // show scores
 
-		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && !P_UseCoopInstancedItems())
+		if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative() && !P_UseCoopInstancedItems())
 		{
 			// clear inventory
 			// this is kind of ugly, but it's how we want to handle keys in coop
@@ -820,22 +833,18 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	ClientUserinfoChanged(ent, userinfo);
 
 	client->pers.health = 100;
-	client->pers.max_health = 150;
+	client->pers.max_health = 100;
 
-	// don't give us weapons if we shouldn't have any / ANOTHER BEAUTIFUL HORDE BUGFIX, UNTIL NOW...., maybe no more!...,
-	// nope, beautiful fix indeed
-	// 
-	// 
+	// don't give us weapons if we shouldn't have any
 	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
 		(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
-
 		// in coop, if there's already a player in the game and we're new,
 		// steal their loadout. this would fix a potential softlock where a new
 		// player may not have weapons at all.
 		bool taken_loadout = false;
 
-		if (G_IsCooperative() || G_IsDeathmatch())
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 		{
 			for (auto player : active_players())
 			{
@@ -846,7 +855,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory = player->client->pers.inventory;
 				client->pers.max_ammo = player->client->pers.max_ammo;
 				client->pers.power_cubes = player->client->pers.power_cubes;
-				taken_loadout = false;
+				taken_loadout = true;
 				break;
 			}
 		}
@@ -889,7 +898,6 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			if (G_IsDeathmatch())
-				//	client->pers.inventory[IT_ITEM_COMPASS] = 1;
 				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			// ZOID
@@ -960,12 +968,10 @@ void SaveClientData()
 		ent = &g_edicts[1 + i];
 		if (!ent->inuse)
 			continue;
-		if (!g_horde->integer)
-			game.clients[i].pers.health = ent->health;
+		game.clients[i].pers.health = ent->health;
 		game.clients[i].pers.max_health = ent->max_health;
 		game.clients[i].pers.savedFlags = (ent->flags & (FL_FLASHLIGHT | FL_GODMODE | FL_NOTARGET | FL_POWER_ARMOR | FL_WANTS_POWER_ARMOR));
-
-		if (G_IsCooperative() && !g_horde->integer)
+		if (G_IsCooperative() || g_horde->integer)
 			game.clients[i].pers.score = ent->client->resp.score;
 	}
 }
@@ -973,15 +979,12 @@ void SaveClientData()
 void FetchClientEntData(edict_t* ent)
 {
 	ent->health = ent->client->pers.health;
+	ent->max_health = ent->client->pers.max_health;
 	ent->flags |= ent->client->pers.savedFlags;
-	//if (g_horde->integer || !G_IsCooperative())
-	//ent->max_health = ent->client->pers.max_health;
-
-	if (G_IsCooperative() && g_horde->integer)
-		ent->client->resp.score = ent->client->pers.score;
+	if (G_IsCooperative() || g_horde->integer)
+	ent->client->resp.score = ent->client->pers.score;
 	ent->max_health = ent->client->pers.max_health;
 }
-
 
 /*
 =======================================================================
@@ -2161,9 +2164,9 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-
-		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 1.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
-	
+	if (!ent->client->pers.spectator) {
+		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+	}
 	// HORDE QUAD RESPAWN
 
 	//	if (g_horde->integer && client->pers.score >= 60 && (!(client->pers.spectator && G_IsCooperative()))) {
@@ -2614,7 +2617,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
 
 	// spectators are only supported in deathmatch
-	if (!G_IsDeathmatch() && !G_TeamplayEnabled() && *val && strcmp(val, "0")) // test horde
+	if (G_IsDeathmatch() && !G_TeamplayEnabled() && *val && strcmp(val, "0"))
 		ent->client->pers.spectator = true;
 	else
 		ent->client->pers.spectator = false;
@@ -3122,7 +3125,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 			damage = 1;
 		dir = { 0, 0, 1 };
 
-		if (!g_dm_no_fall_damage->integer)
+		if (!G_IsDeathmatch() || !g_dm_no_fall_damage->integer)
 			T_Damage(ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING);
 	}
 	else
@@ -3646,6 +3649,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 		// check firing state; if any enemies are mad at any players,
 		// don't respawn until everybody has cooled down
 		if ((monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer))  //add !G_IsCooperative || g_horde->integer &&  for ez noob coop
+
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
@@ -3694,13 +3698,11 @@ enum respawn_state_t
 // [Paril-KEX] return false to fall back to click-to-respawn behavior.
 // note that this is only called if they are allowed to respawn (not
 // restarting the level due to all being dead)
-
-
 static bool G_CoopRespawn(edict_t* ent)
 {
 	// don't do this in non-coop
-//	if (!G_IsCooperative())
-//		return false;
+    //	if (!G_IsCooperative())
+    //		return false;
 	// if we don't have squad or lives, it doesn't matter
 	if (!g_coop_squad_respawn->integer && !g_coop_enable_lives->integer)
 		return false;
@@ -3872,11 +3874,9 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-	if (G_IsDeathmatch())
+	if (!G_IsDeathmatch())
 		PlayerTrail_Add(ent);
 
-	if (G_IsCooperative())
-		PlayerTrail_Add(ent);
 	client->latched_buttons = BUTTON_NONE;
 }
 /*

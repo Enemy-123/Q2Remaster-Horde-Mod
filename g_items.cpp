@@ -201,8 +201,8 @@ void SetRespawn(edict_t* ent, gtime_t delay, bool hide_self)
 
 bool IsInstantItemsEnabled()
 {
-	if (g_horde->integer || G_IsDeathmatch() && g_dm_instant_items->integer) // instant items on horde mode too!
-	{
+if (g_horde->integer || G_IsDeathmatch() && g_dm_instant_items->integer) // instant items on horde mode too!
+{
 		return true;
 	}
 
@@ -224,7 +224,7 @@ bool Pickup_Powerup(edict_t* ent, edict_t* other)
 		(skill->integer >= 2 && quantity >= 1))
 		return false;
 
-	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))
+	if (G_IsCooperative() && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;
@@ -266,7 +266,7 @@ bool Pickup_General(edict_t* ent, edict_t* other)
 			SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
 	}
 
-	return true; // BUG ?
+	return true;
 }
 
 void Drop_General(edict_t* ent, gitem_t* item)
@@ -274,7 +274,7 @@ void Drop_General(edict_t* ent, gitem_t* item)
 	edict_t* dropped = Drop_Item(ent, item);
 	dropped->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
 	dropped->svflags &= ~SVF_INSTANCED;
-	ent->client->pers.inventory[item->id]++;
+	ent->client->pers.inventory[item->id]--;
 }
 
 //======================================================================
@@ -283,20 +283,20 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
 	if (G_IsCooperative() && !g_horde->integer)
 		ent->max_health += 5;
-	else 
+	else
 		ent->max_health += 10;
 
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
- 
+
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
-	//ent->s.renderfx = RF_SHELL_BLUE;
+
 	ent->client->pers.inventory[item->id]--;
 }
 
 bool Pickup_LegacyHead(edict_t* ent, edict_t* other)
 {
-	other->max_health += 10;
+	other->max_health += 5;
 	other->health += 5;
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
@@ -385,7 +385,6 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
 	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
 	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
-	// ROGUE
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
@@ -427,7 +426,6 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
 	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
 	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
-
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
@@ -510,7 +508,7 @@ void Use_Invulnerability(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
 
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 15_sec;
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 20_sec;
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
 }
@@ -593,16 +591,13 @@ void G_CheckAutoSwitch(edict_t* ent, gitem_t* item, bool is_new)
 	else if (ent->client->pers.autoswitch == auto_switch_t::SMART)
 	{
 		bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
-		bool using_chainfist = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINFIST;
 
 		// smartness algorithm: in DM, we will always switch if we have the blaster out
 		// otherwise leave our active weapon alone
-	 if (G_IsDeathmatch() && !using_blaster && !is_new)
-	//	if (G_IsDeathmatch() && !using_blaster || !using_chainfist)
-		//if (G_IsDeathmatch() && !using_blaster)
+	    if (!G_IsDeathmatch() && !using_blaster)
 			return;
 		// in SP, only switch if it's a new weapon, or we have the blaster out
-		else if (!G_IsDeathmatch() && !using_blaster  && !is_new)
+		else if (!G_IsDeathmatch() && !using_blaster && !is_new)
 			return;
 	}
 
@@ -616,7 +611,7 @@ bool Pickup_Ammo(edict_t* ent, edict_t* other)
 	int	 count;
 	bool weapon;
 
-	weapon = (ent->item->flags & IF_WEAPON & IF_AMMO);
+	weapon = (ent->item->flags & IF_WEAPON);
 	if (weapon && G_CheckInfiniteAmmo(ent->item))
 		count = 1000;
 	else if (ent->count)
@@ -786,9 +781,9 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 	if (ent->item->id == IT_ARMOR_SHARD)
 	{
 		if (!old_armor_index)
-			other->client->pers.inventory[IT_ARMOR_JACKET] = irandom(2, 5); //
+			other->client->pers.inventory[IT_ARMOR_JACKET] = irandom(2, 5); //2
 		else
-			other->client->pers.inventory[old_armor_index] += irandom(4, 7);
+			other->client->pers.inventory[old_armor_index] += irandom(4, 7); //2
 	}
 	// if player has no armor, just use it
 	else if (!old_armor_index)
@@ -950,7 +945,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 		return; // not a grabbable item?
 
 	// already got this instanced item
-	if  (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems())
+	if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative() && P_UseCoopInstancedItems())
 	{
 		if (ent->item_picked_up_by[other->s.number - 1])
 			return;
@@ -989,7 +984,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 
 		int32_t player_number = other->s.number - 1;
 
-		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
+		if (G_IsDeathmatch() && g_horde->integer  || G_IsCooperative() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
 		{
 			ent->item_picked_up_by[player_number] = true;
 
@@ -1026,7 +1021,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	{
 		bool should_remove = false;
 
-		if (G_IsCooperative()  || g_horde->integer)
+		if (G_IsCooperative() || G_IsDeathmatch && g_horde->integer)
 		{
 			// in coop with instanced items, *only* dropped 
 			// player items will ever get deleted permanently.
@@ -1039,7 +1034,6 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 		}
 		else
 			should_remove = G_IsDeathmatch() && !g_horde->integer || ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
-
 		if (should_remove)
 		{
 			if (ent->flags & FL_RESPAWN)
@@ -1115,7 +1109,7 @@ edict_t* Drop_Item(edict_t* ent, gitem_t* item)
 	dropped->think = drop_make_touchable;
 	dropped->nextthink = level.time + 1_sec;
 
-	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems())
+	if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative() && P_UseCoopInstancedItems())
 		dropped->svflags |= SVF_INSTANCED;
 
 	gi.linkentity(dropped);
@@ -1336,20 +1330,19 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 		gi.Com_PrintFmt("{} has invalid spawnflags set\n", *ent);
 	}
 
-	// [Kex] In instagib, spawn no pickups! //moved outside DM for horde modes
+	// [Kex] In instagib, spawn no pickups! //moved outside DM for horde modes (when it was coop)
 	if (g_instagib->value)
-	{
-		if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
-			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
-			(item->flags & IF_HEALTH) || (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
-			item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
-			item->id == IT_AMMO_NUKE)
 		{
-			G_FreeEdict(ent);
-			return;
+			if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
+				item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
+				(item->flags & IF_HEALTH) || (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
+				item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
+				item->id == IT_AMMO_NUKE)
+			{
+				G_FreeEdict(ent);
+				return;
+			}
 		}
-	}
-
 	if (G_IsDeathmatch())
 	{
 
@@ -1399,10 +1392,10 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 				return;
 			}
 
-			/* [Paril-KEX] some item swappage
+			// [Paril-KEX] some item swappage 
 			// BFG too strong in Infinite Ammo mode
 			if (item->id == IT_WEAPON_BFG)
-				item = GetItemByIndex(IT_WEAPON_DISRUPTOR);*/
+				item = GetItemByIndex(IT_WEAPON_DISRUPTOR);
 		}
 
 		//==========
@@ -2751,7 +2744,7 @@ always owned, never in the world
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
 			/* world_model */ "models/items/quaddama/tris.md2",
-			/* world_model_flags */ EF_BOB | EF_GIB,
+			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
 			/* icon */ "p_quad",
 			/* use_name */  "Quad Damage",
@@ -2779,7 +2772,7 @@ always owned, never in the world
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
 			/* world_model */ "models/items/quadfire/tris.md2",
-			/* world_model_flags */ EF_BOB | EF_GIB,
+			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
 			/* icon */ "p_quadfire",
 			/* use_name */  "DualFire Damage",
@@ -2794,9 +2787,6 @@ always owned, never in the world
 			/* tag */ POWERUP_QUADFIRE,
 			/* precaches */ "items/quadfire1.wav items/quadfire2.wav items/quadfire3.wav"
 		},
-
-
-
 	// RAFAEL
 
 	/*QUAKED item_invulnerability (.3 .3 1) (-16 -16 -16) (16 16 16)
@@ -2810,7 +2800,7 @@ always owned, never in the world
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
 			/* world_model */ "models/items/invulner/tris.md2",
-			/* world_model_flags */ EF_BOB | EF_GIB,
+			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
 			/* icon */ "p_invulnerability",
 			/* use_name */  "Invulnerability",

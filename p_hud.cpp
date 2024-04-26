@@ -706,7 +706,11 @@ void G_SetCoopStats(edict_t* ent) {
 	ent->client->ps.stats[STAT_CTF_MATCH] = level.total_monsters - level.killed_monsters;
 
 
-	ent->client->ps.stats[STAT_FRAGS] = current_wave_number - 1;
+	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
+
+	ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = current_wave_number - 1;;
+
+	ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = level.total_monsters - level.killed_monsters;
 
 
 	// stat for text on what we're doing for respawn

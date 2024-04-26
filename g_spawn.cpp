@@ -1689,15 +1689,16 @@ static void G_InitStatusbar()
 
 		//  MONSTERS COUNT
 
-			sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+			sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
 
+		// frags
 
-			//	sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
+			sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
 
-			// top of screen coop respawn display
+		// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 
-			// coop lives
+		// coop lives
 			sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		}
 
@@ -1705,13 +1706,6 @@ static void G_InitStatusbar()
 		// tech
 		sb.ifstat(STAT_TECH).yb(-137).xr(-26).pic(STAT_TECH).endifstat();
 
-		// Q2ETweaks target id view state
-		// TODO move back to xv 112 if we find an image for below
-		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-
-		// Q2ETweaks target id view color
-		// TODO populate this with a small image if we can find one
-		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-78).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
 
 	}
 	else if (G_TeamplayEnabled())
@@ -1720,12 +1714,12 @@ static void G_InitStatusbar()
 
 		// ctf/tdm
 		// red team
-	//	sb.yb(-110).ifstat(STAT_CTF_TEAM1_PIC).xr(-26).pic(STAT_CTF_TEAM1_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM1_CAPS);
+	//	sb.yb(-110).ifstat(STAT_CTF_TEAM1_PIC).xr(-26).pic(STAT_CTF_TEAM1_PIC).endifstat().xr(-78).num(3, STAT_FRAGS);
 		// joined overlay
 	//	sb.ifstat(STAT_CTF_JOINED_TEAM1_PIC).yb(-112).xr(-28).pic(STAT_CTF_JOINED_TEAM1_PIC).endifstat();
 
 		// blue team
-	  //  sb.yb(-83).ifstat(STAT_CTF_TEAM2_PIC).xr(-26).pic(STAT_CTF_TEAM2_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM2_CAPS);
+	//    sb.yb(-83).ifstat(STAT_CTF_TEAM2_PIC).xr(-26).pic(STAT_CTF_TEAM2_PIC).endifstat().xr(-78).num(3, STAT_CTF_MATCH);
 		// joined overlay
 	//	sb.ifstat(STAT_CTF_JOINED_TEAM2_PIC).yb(-85).xr(-28).pic(STAT_CTF_JOINED_TEAM2_PIC).endifstat();
 
@@ -1759,16 +1753,32 @@ static void G_InitStatusbar()
 	}
 
 	// ---- more shared stuff ----
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch()) // and horde.
 	{
+		// frags
+
+		sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
+
+		// top of screen coop respawn display
+		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
+
+		// coop lives
+		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
+		// Q2ETweaks target id view state
+        // TODO move back to xv 112 if we find an image for below
+		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+
+		// Q2ETweaks target id view color
+		// TODO populate this with a small image if we can find one
+		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-84).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
 
 		// HORDE WAVE
 
-		sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_FRAGS);
+		sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
 
 		//  MONSTERS COUNT
 
-		sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+		sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();

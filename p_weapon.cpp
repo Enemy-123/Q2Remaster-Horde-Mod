@@ -164,6 +164,8 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 		}
 	}
 
+	if (G_IsDeathmatch())
+		return;
 
 	if (who->flags & FL_NOTARGET)
 		return;

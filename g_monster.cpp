@@ -614,8 +614,8 @@ void G_MonsterKilled(edict_t* self)
 {
 	level.killed_monsters++;
 
-	if (G_IsCooperative() || G_IsDeathmatch() && self->enemy && self->enemy->client)
-		self->enemy->client->resp.score++;
+	if (G_IsCooperative() || g_horde->integer && self->enemy && self->enemy->client)
+		self->enemy->client->resp.score++; //testear con pers
 
 	if (g_debug_monster_kills->integer)
 	{
@@ -1041,6 +1041,7 @@ void monster_start_go(edict_t* self);
 THINK(monster_triggered_spawn) (edict_t* self) -> void
 {
 	self->s.origin[2] += 1;
+
 	self->solid = SOLID_BBOX;
 	self->movetype = MOVETYPE_STEP;
 	self->svflags &= ~SVF_NOCLIENT;

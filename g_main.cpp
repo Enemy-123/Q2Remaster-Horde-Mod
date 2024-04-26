@@ -389,7 +389,7 @@ void InitGame()
 
 	// muff mode: vampire
 	g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
-//	g_vampire_health_max = gi.cvar("g_vampire_health_max", "150", CVAR_NOFLAGS);
+	//	g_vampire_health_max = gi.cvar("g_vampire_health_max", "150", CVAR_NOFLAGS);
 
 	g_mover_speed_scale = gi.cvar("g_mover_speed_scale", "1.0f", CVAR_NOFLAGS);
 	g_mover_debug = gi.cvar("g_mover_debug", "0", CVAR_NOFLAGS);
@@ -568,6 +568,7 @@ The timelimit or fraglimit has been exceeded
 void EndDMLevel()
 {
 	edict_t* ent;
+
 	// stay on same level flag
 	if (g_dm_same_level->integer)
 	{
@@ -712,30 +713,32 @@ void CheckDMRules()
 	if (timelimit->value)
 	{
 		{
-		if (level.time >= gtime_t::from_min(timelimit->value))
-		{
-			gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
-			for (int i = 0; i < maxclients->integer; i++)
+			if (level.time >= gtime_t::from_min(timelimit->value))
 			{
-				edict_t* ent = g_edicts + 1 + i;
-				if (ent->inuse && ent->client)
+				gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
+				for (int i = 0; i < maxclients->integer; i++)
 				{
-					InitClientPersistant(ent, ent->client);
-					gi.LocCenter_Print(ent, "Horde Mode is being reset.");
-					gi.cvar_set("timelimit", "25");
-				}
-				EndDMLevel();
-				if (g_horde->integer)
-				{
-				HandleResetEvent();
+					edict_t* ent = g_edicts + 1 + i;
+					if (ent->inuse && ent->client)
+					{
+						InitClientPersistant(ent, ent->client);
+						gi.LocCenter_Print(ent, "Horde Mode is being reset.");
+						gi.cvar_set("timelimit", "25");
+					}
+					EndDMLevel();
+					if (g_horde->integer)
+					{
+						HandleResetEvent();
+					}
 				}
 			}
+			return;
+
 		}
-		return;
 
 	}
 
-	}
+
 	if (!deathmatch->integer)
 		return;
 
@@ -867,8 +870,6 @@ void ExitLevel()
 
 	level.changemap = nullptr;
 }
-
-
 
 static void G_CheckCvars()
 {
@@ -1090,6 +1091,8 @@ inline bool G_AnyPlayerSpawned()
 
 void G_RunFrame(bool main_loop)
 {
+	if (main_loop && !G_AnyPlayerSpawned())       //these pause the game at start, back to normal if crashing here
+		return;                                     //
 
 
 	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)

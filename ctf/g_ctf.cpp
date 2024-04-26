@@ -222,7 +222,7 @@ void CTFPrecache()
 	imageindex_i_ctf1t = gi.imageindex("i_ctf1t");
 	imageindex_i_ctf2t = gi.imageindex("i_ctf2t");
 	imageindex_i_ctfj = gi.imageindex("i_ctfj");
-	imageindex_sbfctf1 = gi.imageindex("sbfctf1");
+	imageindex_sbfctf1 = gi.imageindex("m_cursor14");
 	imageindex_sbfctf2 = gi.imageindex("sbfctf2");
 	imageindex_ctfsb1 = gi.imageindex("tag4");
 	imageindex_ctfsb2 = gi.imageindex("tag5");
@@ -887,8 +887,6 @@ void CTFCalcScores()
 			continue;
 		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
 			ctfgame.total1 += game.clients[i].resp.score;
-		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
-			ctfgame.total2 += game.clients[i].resp.score;
 	}
 }
 
@@ -1022,12 +1020,14 @@ void SetCTFStats(edict_t* ent)
 
 	// logo headers for the frag display
 	ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_ctfsb1;
+
 	ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_ctfsb2;
+	
 
 	bool blink = (level.time.milliseconds() % 1000) < 500;
 
 	// if during intermission, we must blink the team header of the winning team
-	if (level.intermissiontime && blink)
+/*	if (level.intermissiontime && blink)
 	{
 		// blink half second
 		// note that ctfgame.total[12] is set when we go to intermission
@@ -1044,7 +1044,7 @@ void SetCTFStats(edict_t* ent)
 			ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = 0;
 			ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = 0;
 		}
-	}
+	}*/
 
 	// tech icon
 	i = 0;
@@ -1152,8 +1152,8 @@ void SetCTFStats(edict_t* ent)
 				ent->client->ps.stats[STAT_CTF_TEAM2_PIC] = 0;
 		}
 
-		ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = ctfgame.team1;
-		ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = ctfgame.team2;
+	//	ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = STAT_FRAGS;
+	//	ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = STAT_CTF_MATCH;
 
 		ent->client->ps.stats[STAT_CTF_FLAG_PIC] = 0;
 		if (ent->client->resp.ctf_team == CTF_TEAM1 &&
@@ -1171,8 +1171,8 @@ void SetCTFStats(edict_t* ent)
 		ent->client->ps.stats[STAT_CTF_TEAM1_PIC] = imageindex_i_ctf1;
 		ent->client->ps.stats[STAT_CTF_TEAM2_PIC] = imageindex_i_ctf2;
 
-		ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = ctfgame.total1;
-		ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = ctfgame.total2;
+		//	ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = STAT_FRAGS;
+	//		ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = STAT_CTF_MATCH;
 	}
 
 	ent->client->ps.stats[STAT_CTF_JOINED_TEAM1_PIC] = 0;
@@ -1662,14 +1662,14 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	}
 	else
 	{
-		if (capturelimit->integer)
+		if (g_horde->integer)
 		{
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_captures \"{}\" "), capturelimit->integer);
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:               Stroggs Remaining:\""), g_horde->integer);
 		}
 	}
 	if (timelimit->value)
 	{
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -10 time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
 	// team one

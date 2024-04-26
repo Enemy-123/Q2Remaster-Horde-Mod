@@ -506,7 +506,7 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		return false;
 
 	// [Paril-KEX] coop 'team' support
-	if (G_IsCooperative() || g_horde->integer)
+	if (G_IsCooperative())
 		return ent1->client && ent2->client;
 	// ZOID
 	else if (G_TeamplayEnabled() && ent1->client && ent2->client)

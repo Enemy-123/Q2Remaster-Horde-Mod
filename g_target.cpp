@@ -204,7 +204,7 @@ THINK(G_VerifyTargetted) (edict_t* ent) -> void
 
 void SP_target_secret(edict_t* ent)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (G_IsDeathmatch())
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -226,7 +226,7 @@ void SP_target_secret(edict_t* ent)
 void G_PlayerNotifyGoal(edict_t* player)
 {
 	// no goals in DM
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (G_IsDeathmatch())
 		return;
 
 	if (!player->client->pers.spawned)
@@ -336,7 +336,7 @@ USE(use_target_goal) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 void SP_target_goal(edict_t* ent)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (G_IsDeathmatch())
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -439,7 +439,6 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 			HandleResetEvent();
 		}
 	}
-
 	// if going to a new unit, clear cross triggers
 	if (strstr(self->map, "*"))
 		game.cross_level_flags &= ~(SFL_CROSS_TRIGGER_MASK);
@@ -1925,7 +1924,7 @@ USE(use_target_autosave) (edict_t* ent, edict_t* other, edict_t* activator) -> v
 
 void SP_target_autosave(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;
@@ -2029,7 +2028,7 @@ THINK(target_crossunit_target_think) (edict_t* self) -> void
 
 void SP_target_crossunit_target(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;
