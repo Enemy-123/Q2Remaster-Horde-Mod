@@ -786,7 +786,7 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 	if (ent->item->id == IT_ARMOR_SHARD)
 	{
 		if (!old_armor_index)
-			other->client->pers.inventory[IT_ARMOR_JACKET] = irandom(2, 5);
+			other->client->pers.inventory[IT_ARMOR_JACKET] = irandom(2, 5); //
 		else
 			other->client->pers.inventory[old_armor_index] += irandom(4, 7);
 	}
