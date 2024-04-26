@@ -87,6 +87,22 @@ void ai_stand(edict_t* self, float dist)
     bool retval;
     // ROGUE
 
+            // Check if enemy is nullptr and select a random alive player to be angry at
+    if (!self->enemy) {
+        edict_t* player = nullptr;
+        for (int i = 1; i <= game.maxclients; i++) {
+            edict_t* client = &g_edicts[i];
+            if (!client->inuse || client->client->pers.spectator || client->health <= 0)
+                continue;
+            player = client;
+        }
+        if (player) {
+            self->enemy = player;
+            self->monsterinfo.run(self);
+            return;
+        }
+    }
+
     if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
         M_walkmove(self, self->s.angles[YAW], dist);
 
@@ -484,7 +500,7 @@ void HuntTarget(edict_t* self, bool animate_state)
 void FoundTarget(edict_t* self)
 {
     // let other monsters see this monster for a while
-    if (self->enemy->client && (!(self->enemy->client->pers.spectator || self->enemy->client->resp.spectator))) // maybe this will prevent something... 
+    if (self->enemy->client)
     {
         // ROGUE
         if (self->enemy->flags & FL_DISGUISED)
@@ -1428,6 +1444,13 @@ void ai_run(edict_t* self, float dist)
     bool     gotcha = false;
     edict_t* realEnemy;
     // ROGUE
+
+    if (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP)) {
+        // Si el enemigo ha muerto o se ha vuelto inelegible de alguna otra forma
+        self->enemy = nullptr; // Elimina el enemigo actual
+        self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
+        // Ahora el código de espera se activará en el siguiente fotograma para que el monstruo cace a alguien
+    }
 
     // if we're going to a combat point, just proceed
     if (self->monsterinfo.aiflags & AI_COMBAT_POINT)

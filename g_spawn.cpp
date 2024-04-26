@@ -516,16 +516,16 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_boss2")) {
 			ent->classname = "monster_carrier";
 		}
-		else if (current_wave_number <= 8 && !strcmp(ent->classname, "monster_gunner2")) {
+		else if (current_wave_number >= 7 && !strcmp(ent->classname, "monster_gunner2")) {
 			ent->classname = "monster_gunner";
 		}
-		else if (current_wave_number <= 8 && !strcmp(ent->classname, "monster_infantry2")) {
+		else if (current_wave_number >= 5 && !strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner";
 		}
-		else if (current_wave_number <= 11 && !strcmp(ent->classname, "monster_guncmdr2")) {
+		else if (current_wave_number >= 11 && !strcmp(ent->classname, "monster_guncmdr2")) {
 			ent->classname = "monster_guncmdr";
 		}
-		else if (current_wave_number <= 9 && !strcmp(ent->classname, "monster_flyer")) {
+		else if (current_wave_number >= 8 && !strcmp(ent->classname, "monster_flyer")) {
 			ent->classname = "monster_daedalus";
 		}
 	}
@@ -1370,8 +1370,7 @@ void setup_shadow_lights();
 void G_PrecacheInventoryItems()
 {
 
-
-
+if (G_IsDeathmatch())
 	return;
 
 	for (size_t i = 0; i < game.maxclients; i++)
@@ -1475,10 +1474,6 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	// reserve some spots for dead player bodies for coop / deathmatch
 	InitBodyQue();
-
-
-
-
 
 	////////////ENT LOAD///////////////
 
@@ -1665,14 +1660,8 @@ static void G_InitStatusbar()
 	sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
 
 	// ---- gamemode-specific stuff ----
-	if (g_horde->integer) {
 
-		// 		// HORDE WAVE
-		sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_FRAGS);
-	}
-
-
-	if (G_IsDeathmatch() || G_IsCooperative())
+	if (G_IsDeathmatch() && !g_horde->integer || G_IsCooperative())
 	{
 		// SP/coop
 		// key display
@@ -1692,13 +1681,13 @@ static void G_InitStatusbar()
 
 		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer) {
 
-			// 		// COOPWAVE
+		//  COOP HARDMODE 
 			sb.xv(-155).yb(-23).string2("Harder Coop\n ENABLED");
 		}
-		if (G_IsDeathmatch())
+		if (G_IsCooperative())
 		{
 
-			//  MONSTERS COUNT
+		//  MONSTERS COUNT
 
 			sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
 
@@ -1731,49 +1720,56 @@ static void G_InitStatusbar()
 
 		// ctf/tdm
 		// red team
-//		sb.yb(-110).ifstat(STAT_CTF_TEAM1_PIC).xr(-26).pic(STAT_CTF_TEAM1_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM1_CAPS);
+	//	sb.yb(-110).ifstat(STAT_CTF_TEAM1_PIC).xr(-26).pic(STAT_CTF_TEAM1_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM1_CAPS);
 		// joined overlay
-//		sb.ifstat(STAT_CTF_JOINED_TEAM1_PIC).yb(-112).xr(-28).pic(STAT_CTF_JOINED_TEAM1_PIC).endifstat();
+	//	sb.ifstat(STAT_CTF_JOINED_TEAM1_PIC).yb(-112).xr(-28).pic(STAT_CTF_JOINED_TEAM1_PIC).endifstat();
 
 		// blue team
-//		sb.yb(-83).ifstat(STAT_CTF_TEAM2_PIC).xr(-26).pic(STAT_CTF_TEAM2_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM2_CAPS);
+	  //  sb.yb(-83).ifstat(STAT_CTF_TEAM2_PIC).xr(-26).pic(STAT_CTF_TEAM2_PIC).endifstat().xr(-78).num(3, STAT_CTF_TEAM2_CAPS);
 		// joined overlay
-//		sb.ifstat(STAT_CTF_JOINED_TEAM2_PIC).yb(-85).xr(-28).pic(STAT_CTF_JOINED_TEAM2_PIC).endifstat();
+	//	sb.ifstat(STAT_CTF_JOINED_TEAM2_PIC).yb(-85).xr(-28).pic(STAT_CTF_JOINED_TEAM2_PIC).endifstat();
 
-		if (ctf->integer)
-		{
+//		if (ctf->integer)
+//		{
 			// have flag graph
-			sb.ifstat(STAT_CTF_FLAG_PIC).yt(26).xr(-24).pic(STAT_CTF_FLAG_PIC).endifstat();
-		}
+//			sb.ifstat(STAT_CTF_FLAG_PIC).yt(26).xr(-24).pic(STAT_CTF_FLAG_PIC).endifstat();
+//		}
 
 		// id view state
-		sb.ifstat(STAT_CTF_ID_VIEW).xv(112).yb(-58).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+//		sb.ifstat(STAT_CTF_ID_VIEW).xv(112).yb(-58).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 
 		// id view color
-		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-58).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
+//		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-58).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
 
-		if (ctf->integer)
+//		if (ctf->integer)
 		{
 			// match
-	//		sb.ifstat(STAT_CTF_MATCH).xl(0).yb(-78).stat_string(STAT_CTF_MATCH).endifstat();
+//			sb.ifstat(STAT_CTF_MATCH).xl(0).yb(-78).stat_string(STAT_CTF_MATCH).endifstat();
 		}
 
-		// team info
-	//	sb.ifstat(STAT_CTF_TEAMINFO).xl(0).yb(-88).stat_string(STAT_CTF_TEAMINFO).endifstat();
-	}
-	else
-	{
+//		// team info
+//		sb.ifstat(STAT_CTF_TEAMINFO).xl(0).yb(-88).stat_string(STAT_CTF_TEAMINFO).endifstat();
+//	}
+//	else
+//	{
 		// dm
 		// frags
-		sb.xr(-50).yt(2).num(3, STAT_FRAGS);
+	//	sb.xr(-50).yt(2).num(3, STAT_FRAGS);
 
 	}
-	if (G_IsCooperative()){
-		sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
-}
+
 	// ---- more shared stuff ----
 	if (G_IsDeathmatch())
 	{
+
+		// HORDE WAVE
+
+		sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_FRAGS);
+
+		//  MONSTERS COUNT
+
+		sb.xv(405).yb(-23).num(3, STAT_CTF_MATCH).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
 	}
@@ -1871,7 +1867,7 @@ void SP_worldspawn(edict_t* ent)
 	}
 
 	// [Paril-KEX]
-	if (!G_IsDeathmatch())
+	if (G_IsDeathmatch() && g_horde->integer || !G_IsDeathmatch())
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_PVE).data());
 	else if (teamplay->integer || ctf->integer)
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
@@ -2095,7 +2091,7 @@ void SP_worldspawn(edict_t* ent)
 	// coop respawn strings
 
 
-	if (G_IsCooperative() || G_IsDeathmatch && g_horde->integer)
+	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 	{
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "$g_coop_respawn_in_combat");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "$g_coop_respawn_bad_area");

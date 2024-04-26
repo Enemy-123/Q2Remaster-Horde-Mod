@@ -226,7 +226,7 @@ void SP_target_secret(edict_t* ent)
 void G_PlayerNotifyGoal(edict_t* player)
 {
 	// no goals in DM
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 		return;
 
 	if (!player->client->pers.spawned)
@@ -336,7 +336,7 @@ USE(use_target_goal) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 void SP_target_goal(edict_t* ent)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -409,7 +409,7 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 	if (level.intermissiontime)
 		return; // already activated
 
-	if (!G_IsDeathmatch() && !G_IsCooperative())
+	if (!G_IsDeathmatch() || !G_IsCooperative())
 	{
 		if (g_edicts[1].health <= 0)
 			return;
@@ -423,8 +423,8 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 	}
 
 	// if multiplayer, let everyone know who hit the exit
-	if (G_IsDeathmatch())
-		if (g_horde->integer && !G_IsCooperative())
+	if (G_IsCooperative() || !G_IsCooperative())
+		if (g_horde->integer)
 		{
 			HandleResetEvent();
 		}
@@ -434,7 +434,7 @@ USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) 
 
 		if (activator && activator->client)
 			gi.LocBroadcast_Print(PRINT_HIGH, "$g_exited_level", activator->client->pers.netname);
-		if (g_horde->integer && !G_IsCooperative())
+		if (g_horde->integer)
 		{
 			HandleResetEvent();
 		}
@@ -1925,7 +1925,7 @@ USE(use_target_autosave) (edict_t* ent, edict_t* other, edict_t* activator) -> v
 
 void SP_target_autosave(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;

@@ -39,7 +39,7 @@ potential spawning position for deathmatch games
 */
 void SP_info_player_deathmatch(edict_t* self)
 {
-	if (!g_horde->integer && !deathmatch->integer)
+	if (!g_horde->integer && !G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;
@@ -631,7 +631,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	if (mod.id == MOD_TRACKER)
 	{
 		self->health = -100;
-		damage = 999;
+		damage = 9999;
 	}
 
 	// make sure no trackers are still hurting us.
@@ -846,7 +846,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory = player->client->pers.inventory;
 				client->pers.max_ammo = player->client->pers.max_ammo;
 				client->pers.power_cubes = player->client->pers.power_cubes;
-				taken_loadout = true;
+				taken_loadout = false;
 				break;
 			}
 		}
@@ -2110,7 +2110,7 @@ void PutClientInServer(edict_t* ent)
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
 	// deathmatch wipes most client data every spawn
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() || !g_horde->integer)
 	{
 		client->pers.health = 0;
 		resp = client->resp;
