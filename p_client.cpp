@@ -3877,9 +3877,6 @@ void ClientBeginServerFrame(edict_t* ent)
 
 	if (G_IsCooperative())
 		PlayerTrail_Add(ent);
-	PlayerTrail_Add(ent);
-	PlayerTrail_Add(ent);
-
 	client->latched_buttons = BUTTON_NONE;
 }
 /*

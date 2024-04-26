@@ -648,7 +648,7 @@ slower noticing monsters.
 */
 bool FindTarget(edict_t* self)
 {
-    edict_t* client = nullptr;
+    edict_t* client;
     bool     heardit;
     bool     ignore_sight_sound = false;
 

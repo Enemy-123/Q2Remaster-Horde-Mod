@@ -1074,7 +1074,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	trace_t	 tr;
 
 	if (G_IsDeathmatch())
-		dmg = 5;
+		dmg = 10;
 	else
 		dmg = 10;
 

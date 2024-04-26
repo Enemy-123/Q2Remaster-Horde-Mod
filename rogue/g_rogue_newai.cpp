@@ -1514,7 +1514,7 @@ edict_t *PickCoopTarget(edict_t *self)
 	edict_t* ent;
 
 	// if we're not in coop, this is a noop
-	if (!G_IsCooperative())
+	if (!G_IsDeathmatch())
 		return nullptr;
 
 	targets = (edict_t**)alloca(sizeof(edict_t*) * game.maxclients);
@@ -1546,7 +1546,7 @@ int CountPlayers()
 	int		 count = 0;
 
 	// if we're not in coop, this is a noop
-	if (!G_IsCooperative())
+	if (!G_IsDeathmatch())
 		return 1;
 
 	for (uint32_t player = 1; player <= game.maxclients; player++)
