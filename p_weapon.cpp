@@ -467,6 +467,7 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		bool using_shotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
 		bool using_sshotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
 		bool using_glauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
+		bool using_proxlauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_PROXLAUNCHER;
 		bool using_etfrifle = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_ETF_RIFLE;
 		bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
 		bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
@@ -480,7 +481,7 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 
 
 
-			if (using_blaster || using_glauncher || using_etfrifle) {
+			if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher) {
 				ent->client->ps.gunrate *= 1.4;
 			}
 

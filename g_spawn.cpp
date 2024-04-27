@@ -1755,9 +1755,11 @@ static void G_InitStatusbar()
 	// ---- more shared stuff ----
 	if (G_IsDeathmatch()) // and horde.
 	{
+		// Health Bar
+		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		// frags
 
-		sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
+		sb.xr(-53).yt(2).num(3, STAT_FRAGS).xr(-79).yt(2).string2("Frags:");
 
 		// top of screen coop respawn display
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
@@ -1770,7 +1772,7 @@ static void G_InitStatusbar()
 
 		// Q2ETweaks target id view color
 		// TODO populate this with a small image if we can find one
-		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-84).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
+		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-78).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
 
 		// HORDE WAVE
 

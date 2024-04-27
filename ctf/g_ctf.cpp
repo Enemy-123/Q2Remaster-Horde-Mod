@@ -222,7 +222,8 @@ void CTFPrecache()
 	imageindex_i_ctf1t = gi.imageindex("i_ctf1t");
 	imageindex_i_ctf2t = gi.imageindex("i_ctf2t");
 	imageindex_i_ctfj = gi.imageindex("i_ctfj");
-	imageindex_sbfctf1 = gi.imageindex("m_cursor14");
+	//imageindex_sbfctf1 = gi.imageindex("m_cursor14");
+	imageindex_sbfctf1 = gi.imageindex("sbfctf1");
 	imageindex_sbfctf2 = gi.imageindex("sbfctf2");
 	imageindex_ctfsb1 = gi.imageindex("tag4");
 	imageindex_ctfsb2 = gi.imageindex("tag5");

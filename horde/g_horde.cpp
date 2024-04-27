@@ -179,12 +179,12 @@ constexpr struct weighted_item_t {
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
-	{ "item_power_screen", 2, 8, 0.07f, adjust_weight_armor },
+	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
 	{ "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
 	{ "item_quad", 6, 19, 0.1f, adjust_weight_powerup },
 	{ "item_double", 5, -1, 0.011f, adjust_weight_powerup },
-	{ "item_quadfire", 4, -1, 0.012f, adjust_weight_powerup },
+	{ "item_quadfire", 4, -1, 0.014f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.12f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
@@ -203,8 +203,8 @@ constexpr struct weighted_item_t {
 	{ "weapon_rocketlauncher", 6, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_railgun", 8, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 14, -1, 0.1f, adjust_weight_weapon },
-	{ "weapon_bfg", 17, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 13, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_bfg", 14, -1, 0.15f, adjust_weight_weapon },
 
 
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
@@ -218,7 +218,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 7, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 12, -1, 0.24f, adjust_weight_ammo },
 	{ "ammo_rockets", 7, -1, 0.30f, adjust_weight_ammo },
-	{ "item_bandolier", 4, -1, 0.37f, adjust_weight_ammo },
+	{ "item_bandolier", 4, -1, 0.32f, adjust_weight_ammo },
 	{ "item_pack", 8, -1, 0.34f, adjust_weight_ammo },
 };
 

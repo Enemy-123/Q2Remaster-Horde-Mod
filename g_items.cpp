@@ -594,7 +594,7 @@ void G_CheckAutoSwitch(edict_t* ent, gitem_t* item, bool is_new)
 
 		// smartness algorithm: in DM, we will always switch if we have the blaster out
 		// otherwise leave our active weapon alone
-	    if (!G_IsDeathmatch() && !using_blaster)
+	    if (G_IsDeathmatch() && !using_blaster && !is_new)
 			return;
 		// in SP, only switch if it's a new weapon, or we have the blaster out
 		else if (!G_IsDeathmatch() && !using_blaster && !is_new)
