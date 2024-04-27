@@ -3,8 +3,8 @@
 #include "../g_local.h"
 #include <sstream>
 
-static const int MAX_MONSTERS_BIG_MAP = 45;
-static const int MAX_MONSTERS_MEDIUM_MAP = 24;
+static const int MAX_MONSTERS_BIG_MAP = 52;
+static const int MAX_MONSTERS_MEDIUM_MAP = 25;
 static const int MAX_MONSTERS_SMALL_MAP = 18;
 
 int remainingMonsters = 0;
@@ -130,7 +130,7 @@ static void Horde_InitLevel(int32_t lvl)
 		}
 	}
 	else if (isBigMap) {
-		g_horde_local.num_to_spawn = 22 + (lvl * 2);
+		g_horde_local.num_to_spawn = 27 + (lvl * 2);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 		}
@@ -183,7 +183,7 @@ constexpr struct weighted_item_t {
 	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
 	{ "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, 19, 0.1f, adjust_weight_powerup },
+	{ "item_quad", 6, 16, 0.1f, adjust_weight_powerup },
 	{ "item_double", 5, -1, 0.011f, adjust_weight_powerup },
 	{ "item_quadfire", 4, -1, 0.014f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
@@ -292,7 +292,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_makron", 18, 19, 0.2f },
 { "monster_gladb", 14, -1, 0.75f},
 { "monster_perrokl", 21, -1, 0.27f },
-{ "monster_guncmdrkl", 25, -1, 0.34f }
+{ "monster_guncmdrkl", 25, -1, 0.39f }
 };
 
 struct boss_t {
@@ -677,8 +677,8 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		timeThreshold = 8;
 	}
 	else if (isBigMap) {
-		maxMonsters = 23;
-		timeThreshold = 17;
+		maxMonsters = 27;
+		timeThreshold = 12;
 	}
 	else {
 		maxMonsters = 7;

@@ -1259,7 +1259,7 @@ void SP_monster_widow(edict_t* self)
 	self->mins = { -40, -40, 0 };
 	self->maxs = { 40, 40, 144 };
 
-	self->health = (2000 * skill->integer) * st.health_multiplier;
+	self->health = (2800 * skill->integer) * st.health_multiplier;
 	if (G_IsCooperative())
 		self->health += 500 * skill->integer;
 	self->gib_health = -5000;

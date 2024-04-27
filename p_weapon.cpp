@@ -164,8 +164,8 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 		}
 	}
 
-//	if (G_IsDeathmatch())
-//		return;
+	if (G_IsDeathmatch())  // hordenoise HORDE MONSTERS PLAYERS HEARING HERE, disabling for testing, with ai_stand & run changes feels better
+		return;
 
 	if (who->flags & FL_NOTARGET)
 		return;
@@ -229,7 +229,8 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 inline bool G_WeaponShouldStay()
 {
 	if (G_IsDeathmatch())
-		return g_dm_weapons_stay->integer;
+		return !P_UseCoopInstancedItems(); // somehow works for horde, probably
+		//return g_dm_weapons_stay->integer;
 	else if (G_IsCooperative())
 		return !P_UseCoopInstancedItems();
 
@@ -276,7 +277,7 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 				if (g_dm_weapons_stay->integer)
 					ent->flags |= FL_RESPAWN;
 
-				SetRespawn( ent, gtime_t::from_sec(g_weapon_respawn_time->integer), !g_dm_weapons_stay->integer);
+	//			SetRespawn( ent, gtime_t::from_sec(g_weapon_respawn_time->integer), !g_dm_weapons_stay->integer); //horde wont respawn dropped weapons
 			}
 			if (G_IsCooperative())
 				ent->flags |= FL_RESPAWN;

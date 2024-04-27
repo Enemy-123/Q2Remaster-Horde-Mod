@@ -594,7 +594,7 @@ void G_CheckAutoSwitch(edict_t* ent, gitem_t* item, bool is_new)
 
 		// smartness algorithm: in DM, we will always switch if we have the blaster out
 		// otherwise leave our active weapon alone
-	    if (G_IsDeathmatch() && !using_blaster && !is_new)
+	    if (G_IsDeathmatch() && !using_blaster)
 			return;
 		// in SP, only switch if it's a new weapon, or we have the blaster out
 		else if (!G_IsDeathmatch() && !using_blaster && !is_new)
@@ -984,7 +984,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 
 		int32_t player_number = other->s.number - 1;
 
-		if (G_IsDeathmatch() && g_horde->integer  || G_IsCooperative() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
+		if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
 		{
 			ent->item_picked_up_by[player_number] = true;
 
@@ -1033,7 +1033,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 				should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER) || !(ent->item->flags & IF_STAY_COOP);
 		}
 		else
-			should_remove = !G_IsDeathmatch()|| ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
+			should_remove = G_IsDeathmatch() || ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER); // needed so items can dissapear on horde mode
 		if (should_remove)
 		{
 			if (ent->flags & FL_RESPAWN)
@@ -1041,9 +1041,9 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			else
 				G_FreeEdict(ent);
 		}
+
 	}
 }
-
 //======================================================================
 
 TOUCH(drop_temp_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -1059,7 +1059,7 @@ THINK(drop_make_touchable) (edict_t* ent) -> void
 	ent->touch = Touch_Item;
 	if (G_IsDeathmatch() || g_horde->integer)
 	{
-		ent->nextthink = level.time + 45_sec;
+		ent->nextthink = level.time + 30_sec;
 		ent->think = G_FreeEdict;
 	}
 }

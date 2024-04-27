@@ -669,7 +669,7 @@ void SP_monster_supertank(edict_t* self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
-	self->health = 2900 * st.health_multiplier;
+	self->health = 3300 * st.health_multiplier;
 	self->gib_health = -500;
 	self->mass = 800;
 
@@ -754,7 +754,7 @@ void SP_monster_janitor(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 800;
 
-	self->health = 900 * st.health_multiplier;
+	self->health = 1300 * st.health_multiplier;
 	self->mass = 200;
 }
 
