@@ -1851,7 +1851,15 @@ void SP_worldspawn(edict_t* ent)
 	//if (st.sky && st.sky[0])
 	//	gi.configstring(CS_SKY, st.sky);
 	//else
+	
+	float r = frandom();
+
+	if (r < 0.333f)
+		gi.configstring(CS_SKY, "space");
+	else if (r < 0.666f)
 		gi.configstring(CS_SKY, "hub_");
+	else
+		gi.configstring(CS_SKY, "space1");
 
 	gi.configstring(CS_SKYROTATE, G_Fmt("1 2", st.skyrotate, st.skyautorotate).data());
 

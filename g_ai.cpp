@@ -94,7 +94,7 @@ void ai_stand(edict_t* self, float dist)
             edict_t* player = nullptr;
             for (int i = 1; i <= game.maxclients; i++) {
                 edict_t* client = &g_edicts[i];
-                if (!client->inuse || client->client->pers.spectator || client->health <= 0)// || (self->client->invisible_time && self->client->invisibility_fade_time ))
+                if (!client->inuse || client->client->pers.spectator || client->health <= 0 || client->client->invisible_time > level.time)
                     continue;
                 player = client;
             }

@@ -164,8 +164,8 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 		}
 	}
 
-	if (G_IsDeathmatch())
-		return;
+//	if (G_IsDeathmatch())
+//		return;
 
 	if (who->flags & FL_NOTARGET)
 		return;
@@ -229,7 +229,7 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 inline bool G_WeaponShouldStay()
 {
 	if (G_IsDeathmatch())
-		return !P_UseCoopInstancedItems();
+		return g_dm_weapons_stay->integer;
 	else if (G_IsCooperative())
 		return !P_UseCoopInstancedItems();
 
@@ -269,13 +269,14 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 				Add_Ammo(other, ammo, ammo->quantity);
 		}
 
-		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER) )
+		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER))
 		{
 			if (G_IsDeathmatch())
 			{
+				if (g_dm_weapons_stay->integer)
 					ent->flags |= FL_RESPAWN;
 
-
+				SetRespawn( ent, gtime_t::from_sec(g_weapon_respawn_time->integer), !g_dm_weapons_stay->integer);
 			}
 			if (G_IsCooperative())
 				ent->flags |= FL_RESPAWN;
