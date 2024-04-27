@@ -81,6 +81,7 @@ static void Horde_InitLevel(int32_t lvl)
 
 	if (g_horde_local.level == 15) {
 		gi.cvar_set("g_damage_scale", "2.0");
+		gi.LocBroadcast_Print(PRINT_CENTER, "\n\nAUTO QUAD IS ENABLED!\nEACH KILL WHILE QUAD\nGIVES 0.5 EXTRA SECONDS!\n");
 	}
 
 	if (g_horde_local.level == 20) {

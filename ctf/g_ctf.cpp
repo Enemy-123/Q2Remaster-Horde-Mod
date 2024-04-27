@@ -225,10 +225,14 @@ void CTFPrecache()
 	//imageindex_sbfctf1 = gi.imageindex("m_cursor14");
 	imageindex_sbfctf1 = gi.imageindex("sbfctf1");
 	imageindex_sbfctf2 = gi.imageindex("sbfctf2");
-	imageindex_ctfsb1 = gi.imageindex("tag4");
-	imageindex_ctfsb2 = gi.imageindex("tag5");
 	modelindex_flag1 = gi.modelindex("players/male/flag1.md2");
 	modelindex_flag2 = gi.modelindex("players/male/flag2.md2");
+
+	imageindex_ctfsb1 = gi.imageindex("tag4");// & gi.imageindex("ach/ACH_eou5_on");
+	imageindex_ctfsb2 = gi.imageindex("tag5");// & gi.imageindex("ach/ACH_eou7_on");
+
+//	imageindex_ctfsb1 = gi.imageindex("ach/ACH_eou5_on");
+//	imageindex_ctfsb2 = gi.imageindex("ach/ACH_eou7_on");
 
 	PrecacheItem(GetItemByIndex(IT_WEAPON_GRAPPLE));
 }

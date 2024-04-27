@@ -479,8 +479,6 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		if (CTFApplyHaste(ent))
 			ent->client->ps.gunrate *= 2;
 
-
-
 			if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher) {
 				ent->client->ps.gunrate *= 1.4;
 			}

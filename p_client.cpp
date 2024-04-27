@@ -982,9 +982,8 @@ void FetchClientEntData(edict_t* ent)
 	ent->health = ent->client->pers.health;
 	ent->max_health = ent->client->pers.max_health;
 	ent->flags |= ent->client->pers.savedFlags;
-	if (G_IsCooperative() || g_horde->integer)
+	if (G_IsCooperative())
 	ent->client->resp.score = ent->client->pers.score;
-	ent->max_health = ent->client->pers.max_health;
 }
 
 /*
@@ -2114,7 +2113,7 @@ void PutClientInServer(edict_t* ent)
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
 	// deathmatch wipes most client data every spawn
-	if (G_IsDeathmatch() || !g_horde->integer)
+	if (G_IsDeathmatch())
 	{
 		client->pers.health = 0;
 		resp = client->resp;
@@ -2165,10 +2164,6 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	// HORDE QUAD RESPAWN
-
-	//	if (g_horde->integer && client->pers.score >= 60 && (!(client->pers.spectator && G_IsCooperative()))) {
-	//		ent->client->quad_time = max(level.time, ent->client->quad_time) + 15.0_sec;  }
 
 	// restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
