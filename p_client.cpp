@@ -851,6 +851,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				if (player == ent || !player->client->pers.spawned ||
 					player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
 					continue;
+				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 
 				client->pers.inventory = player->client->pers.inventory;
 				client->pers.max_ammo = player->client->pers.max_ammo;
@@ -2164,9 +2165,6 @@ void PutClientInServer(edict_t* ent)
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
-	if (!ent->client->pers.spectator) {
-		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
-	}
 	// HORDE QUAD RESPAWN
 
 	//	if (g_horde->integer && client->pers.score >= 60 && (!(client->pers.spectator && G_IsCooperative()))) {

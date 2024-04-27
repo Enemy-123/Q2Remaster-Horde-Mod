@@ -2775,6 +2775,7 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p)
 {
 	CTFJoinTeam(ent, CTF_TEAM1);
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 }
 
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p)
@@ -2989,6 +2990,7 @@ bool CTFStartClient(edict_t* ent)
 
 	if (ent->client->resp.ctf_team != CTF_NOTEAM)
 		return false;
+
 
 	if ((!(ent->svflags & SVF_BOT) && !g_teamplay_force_join->integer) || ctfgame.match >= MATCH_SETUP)
 	{
