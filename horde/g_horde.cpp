@@ -258,7 +258,7 @@ constexpr weighted_item_t monsters[] = {
 
 
 
-{ "monster_flyer", 3, 19, 0.18f },
+{ "monster_flyer", -1, 19, 0.14f },
 { "monster_hover2", 5, 10, 0.17f },
 
 { "monster_gekk", 3, 12, 0.22f },
@@ -276,7 +276,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_chick", 7, 19, 0.7f },
 { "monster_berserk", 8, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
-{ "monster_hover", 13, -1, 0.27f }, 
+{ "monster_hover", 11, -1, 0.27f }, 
 { "monster_medic_commander", 13, -1, 0.18f }, 
 { "monster_tank_commander", 11, 18, 0.15f },
 { "monster_spider", 12, -1, 0.24f },
@@ -292,7 +292,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_makron", 18, 19, 0.2f },
 { "monster_gladb", 14, -1, 0.75f},
 { "monster_perrokl", 21, -1, 0.27f },
-{ "monster_guncmdrkl", 25, -1, 0.39f }
+{ "monster_guncmdrkl", 23, -1, 0.39f }
 };
 
 struct boss_t {

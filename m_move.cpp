@@ -6,7 +6,7 @@
 
 // this is used for communications out of sv_movestep to say what entity
 // is blocking us
-edict_t *new_bad; // pmm
+edict_t* new_bad; // pmm
 
 /*
 =============
@@ -17,7 +17,7 @@ is not a staircase.
 
 =============
 */
-bool M_CheckBottom_Fast_Generic(const vec3_t &absmins, const vec3_t &absmaxs, bool ceiling)
+bool M_CheckBottom_Fast_Generic(const vec3_t& absmins, const vec3_t& absmaxs, bool ceiling)
 {
 	// PGM
 	//  FIXME - this will only handle 0,0,1 and 0,0,-1 gravity vectors
@@ -40,7 +40,7 @@ bool M_CheckBottom_Fast_Generic(const vec3_t &absmins, const vec3_t &absmaxs, bo
 	return true; // we got out easy
 }
 
-bool M_CheckBottom_Slow_Generic(const vec3_t &origin, const vec3_t &mins, const vec3_t &maxs, edict_t *ignore, contents_t mask, bool ceiling, bool allow_any_step_height)
+bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs, edict_t* ignore, contents_t mask, bool ceiling, bool allow_any_step_height)
 {
 	vec3_t start;
 
@@ -128,7 +128,7 @@ bool M_CheckBottom_Slow_Generic(const vec3_t &origin, const vec3_t &mins, const 
 	return true;
 }
 
-bool M_CheckBottom(edict_t *ent)
+bool M_CheckBottom(edict_t* ent)
 {
 	// if all of the points under the corners are solid world, don't bother
 	// with the tougher checks
@@ -142,7 +142,7 @@ bool M_CheckBottom(edict_t *ent)
 
 //============
 // ROGUE
-bool IsBadAhead(edict_t *self, edict_t *bad, const vec3_t &move)
+bool IsBadAhead(edict_t* self, edict_t* bad, const vec3_t& move)
 {
 	vec3_t dir;
 	vec3_t forward;
@@ -168,15 +168,15 @@ bool IsBadAhead(edict_t *self, edict_t *bad, const vec3_t &move)
 	return false;
 }
 
-static vec3_t G_IdealHoverPosition(edict_t *ent)
+static vec3_t G_IdealHoverPosition(edict_t* ent)
 {
 	if ((!ent->enemy && !(ent->monsterinfo.aiflags & AI_MEDIC)) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_HINT_PATH | AI_PATHING)))
 		return { 0, 0, 0 }; // go right for the center
 
 	// pick random direction
-    float theta = frandom(2 * PIf);
-    float phi;
-	
+	float theta = frandom(2 * PIf);
+	float phi;
+
 	// buzzards pick half sphere
 	if (ent->monsterinfo.fly_above)
 		phi = acos(0.7f + frandom(0.3f));
@@ -186,7 +186,7 @@ static vec3_t G_IdealHoverPosition(edict_t *ent)
 	else
 		phi = acos(crandom() * 0.06f);
 
-    vec3_t d {
+	vec3_t d{
 		sin(phi) * cos(theta),
 		sin(phi) * sin(theta),
 		cos(phi)
@@ -195,10 +195,10 @@ static vec3_t G_IdealHoverPosition(edict_t *ent)
 	return d * frandom(ent->monsterinfo.fly_min_distance, ent->monsterinfo.fly_max_distance);
 }
 
-inline bool SV_flystep_testvisposition(vec3_t start, vec3_t end, vec3_t starta, vec3_t startb, edict_t *ent)
+inline bool SV_flystep_testvisposition(vec3_t start, vec3_t end, vec3_t starta, vec3_t startb, edict_t* ent)
 {
 	trace_t tr = gi.traceline(start, end, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
-			
+
 	if (tr.fraction == 1.0f)
 	{
 		tr = gi.trace(starta, ent->mins, ent->maxs, startb, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
@@ -210,7 +210,7 @@ inline bool SV_flystep_testvisposition(vec3_t start, vec3_t end, vec3_t starta, 
 	return false;
 }
 
-static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t *current_bad)
+static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_bad)
 {
 	// swimming monsters just follow their velocity in the air
 	if ((ent->flags & FL_SWIM) && ent->waterlevel < WATER_UNDER)
@@ -230,17 +230,17 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 	vec3_t dir = ent->velocity.normalized(current_speed);
 
 	// FIXME
-	if (std::isnan(dir[0]) || std::isnan(dir[1]) || std::isnan(dir[2]))
+	if (isnan(dir[0]) || isnan(dir[1]) || isnan(dir[2]))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
 #endif
 		return false;
 	}
-	
+
 	if (ent->monsterinfo.aiflags & AI_PATHING)
 		towards_origin = (ent->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
-			ent->monsterinfo.nav_path.secondMovePoint : ent->monsterinfo.nav_path.firstMovePoint;
+		ent->monsterinfo.nav_path.secondMovePoint : ent->monsterinfo.nav_path.firstMovePoint;
 	else if (ent->enemy && !(ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT)))
 	{
 		towards_origin = ent->enemy->s.origin;
@@ -265,7 +265,7 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 	}
 
 	vec3_t wanted_pos;
-		
+
 	if (ent->monsterinfo.fly_pinned)
 		wanted_pos = ent->monsterinfo.fly_ideal_position;
 	else if (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT))
@@ -289,7 +289,7 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 
 	if (!(ent->monsterinfo.aiflags & AI_MANUAL_STEERING))
 		ent->ideal_yaw = vectoyaw((towards_origin - ent->s.origin).normalized());
-		
+
 	// check if we're blocked from moving this way from where we are
 	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
@@ -301,10 +301,10 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 	// it's a fairly close block, so we may want to shift more dramatically
 	if (tr.fraction < 0.25f)
 	{
-		bool bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{0, 0, ent->mins.z}, wanted_pos,
-			ent->s.origin, ent->s.origin + vec3_t{0, 0, ent->mins.z - ent->monsterinfo.fly_acceleration}, ent);
-		bool top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{0, 0, ent->maxs.z}, wanted_pos,
-			ent->s.origin, ent->s.origin + vec3_t{0, 0, ent->maxs.z + ent->monsterinfo.fly_acceleration}, ent);
+		bool bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
+			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->mins.z - ent->monsterinfo.fly_acceleration }, ent);
+		bool top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
+			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->maxs.z + ent->monsterinfo.fly_acceleration }, ent);
 
 		// top & bottom are same, so we need to try right/left
 		if (bottom_visible == top_visible)
@@ -338,7 +338,7 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 	// if we're pushed past our max speed we shouldn't
 	// turn at all.
 	float turn_factor;
-			
+
 	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)) && dir.dot(wanted_dir) > 0.0f)
 		turn_factor = 0.45f;
 	else
@@ -385,7 +385,7 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 	// the closer we are to the wanted position, we want to slow
 	// down so we don't fly past it.
 	float speed_factor;
-		
+
 	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)))
 		speed_factor = 1.f;
 	else if (aim_fwd.dot(wanted_dir) < -0.25 && dir)
@@ -414,8 +414,8 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 		current_speed = min(wanted_speed, current_speed + accel);
 
 	// FIXME
-	if (std::isnan(final_dir[0]) || std::isnan(final_dir[1]) || std::isnan(final_dir[2]) ||
-		std::isnan(current_speed))
+	if (isnan(final_dir[0]) || isnan(final_dir[1]) || isnan(final_dir[2]) ||
+		isnan(current_speed))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
@@ -440,7 +440,7 @@ static bool SV_alternate_flystep(edict_t *ent, vec3_t move, bool relink, edict_t
 }
 
 // flying monsters don't step up
-static bool SV_flystep(edict_t *ent, vec3_t move, bool relink, edict_t *current_bad)
+static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_bad)
 {
 	if (ent->monsterinfo.aiflags & AI_ALTERNATE_FLY)
 	{
@@ -472,7 +472,7 @@ static bool SV_flystep(edict_t *ent, vec3_t move, bool relink, edict_t *current_
 			if (!ent->goalentity)
 				ent->goalentity = ent->enemy;
 
-			vec3_t &goal_position = (ent->monsterinfo.aiflags & AI_PATHING) ? ent->monsterinfo.nav_path.firstMovePoint : ent->goalentity->s.origin;
+			vec3_t& goal_position = (ent->monsterinfo.aiflags & AI_PATHING) ? ent->monsterinfo.nav_path.firstMovePoint : ent->goalentity->s.origin;
 
 			float dz = ent->s.origin[2] - goal_position[2];
 			float dist = move.length();
@@ -547,7 +547,7 @@ static bool SV_flystep(edict_t *ent, vec3_t move, bool relink, edict_t *current_
 		{
 			if (!ent->waterlevel)
 			{
-				vec3_t test { trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
+				vec3_t test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
 				contents_t contents = gi.pointcontents(test);
 				if (contents & MASK_WATER)
 					return false;
@@ -559,7 +559,7 @@ static bool SV_flystep(edict_t *ent, vec3_t move, bool relink, edict_t *current_
 		{
 			if (ent->waterlevel < WATER_WAIST)
 			{
-				vec3_t test { trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
+				vec3_t test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
 				contents_t contents = gi.pointcontents(test);
 				if (!(contents & MASK_WATER))
 					return false;
@@ -568,7 +568,7 @@ static bool SV_flystep(edict_t *ent, vec3_t move, bool relink, edict_t *current_
 
 		// ROGUE
 		if ((trace.fraction == 1) && (!trace.allsolid) && (!trace.startsolid))
-		// ROGUE
+			// ROGUE
 		{
 			ent->s.origin = trace.endpos;
 			//=====
@@ -610,11 +610,11 @@ pr_global_struct->trace_normal is set to the normal of the blocking wall
 */
 // FIXME since we need to test end position contents here, can we avoid doing
 // it again later in catagorize position?
-bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
+bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 {
 	//======
 	// PGM
-	edict_t *current_bad = nullptr;
+	edict_t* current_bad = nullptr;
 
 	// PMM - who cares about bad areas if you're dead?
 	if (ent->health > 0)
@@ -684,7 +684,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 		start_up += ent->gravityVector * (-1 * stepsize);
 		up_trace = gi.trace(start_up, ent->mins, ent->maxs, end_up, ent, mask);
 	}
-	
+
 	vec3_t start_fwd = oldorg;
 	vec3_t end_fwd = start_fwd + move;
 
@@ -697,7 +697,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 	}
 
 	// pick the one that went farther
-	trace_t &chosen_forward = (up_trace.fraction > fwd_trace.fraction) ? up_trace : fwd_trace;
+	trace_t& chosen_forward = (up_trace.fraction > fwd_trace.fraction) ? up_trace : fwd_trace;
 
 	if (chosen_forward.startsolid || chosen_forward.allsolid)
 		return false;
@@ -707,7 +707,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 
 	if (up_trace.fraction > fwd_trace.fraction)
 		steps = 2;
-	
+
 	// step us down
 	vec3_t end = chosen_forward.endpos + (ent->gravityVector * (steps * stepsize));
 	trace_t trace = gi.trace(chosen_forward.endpos, ent->mins, ent->maxs, end, ent, mask);
@@ -750,7 +750,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 		else if (!ent->spawnflags.has(SPAWNFLAG_MONSTER_SUPER_STEP) && ent->health > 0)
 			return false; // walked off an edge
 	}
-	
+
 	// [Paril-KEX] if we didn't move at all (or barely moved), don't count it
 	if ((trace.endpos - oldorg).length() < move.length() * 0.05f)
 	{
@@ -759,7 +759,7 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 		if (ent->monsterinfo.bump_time < level.time && chosen_forward.fraction < 1.0f)
 		{
 			// adjust ideal_yaw to move against the object we hit and try again
-			vec3_t dir = SlideClipVelocity(AngleVectors(vec3_t{0.f, ent->ideal_yaw, 0.f}).forward, chosen_forward.plane.normal, 1.0f);
+			vec3_t dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
 			float new_yaw = vectoyaw(dir);
 
 			if (dir.lengthSquared() > 0.1f && ent->ideal_yaw != new_yaw)
@@ -892,9 +892,9 @@ bool SV_movestep(edict_t *ent, vec3_t move, bool relink)
 }
 
 // check if a movement would succeed
-bool ai_check_move(edict_t *self, float dist)
+bool ai_check_move(edict_t* self, float dist)
 {
-	if ( ai_movement_disabled->integer ) {
+	if (ai_movement_disabled->integer) {
 		return false;
 	}
 
@@ -923,7 +923,7 @@ M_ChangeYaw
 
 ===============
 */
-void M_ChangeYaw(edict_t *ent)
+void M_ChangeYaw(edict_t* ent)
 {
 	float ideal;
 	float current;
@@ -973,7 +973,7 @@ facing it.
 
 ======================
 */
-bool SV_StepDirection(edict_t *ent, float yaw, float dist, bool allow_no_turns)
+bool SV_StepDirection(edict_t* ent, float yaw, float dist, bool allow_no_turns)
 {
 	vec3_t move, oldorigin;
 
@@ -1029,7 +1029,7 @@ SV_FixCheckBottom
 
 ======================
 */
-void SV_FixCheckBottom(edict_t *ent)
+void SV_FixCheckBottom(edict_t* ent)
 {
 	ent->flags |= FL_PARTIALGROUND;
 }
@@ -1042,7 +1042,7 @@ SV_NewChaseDir
 */
 constexpr float DI_NODIR = -1;
 
-bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
+bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 {
 	float deltax, deltay;
 	float d[3];
@@ -1065,7 +1065,7 @@ bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
 		d[2] = 90;
 	else
 		d[2] = DI_NODIR;
-	
+
 	// try direct route
 	if (d[1] != DI_NODIR && d[2] != DI_NODIR)
 	{
@@ -1103,7 +1103,7 @@ bool SV_NewChaseDir(edict_t *actor, vec3_t pos, float dist)
 				actor->monsterinfo.move_block_counter = -2;
 				return true;
 			}
-			
+
 			// we couldn't step; instead of running endlessly in our current
 			// spot, try switching to node navigation temporarily to get to
 			// where we need to go.
@@ -1158,7 +1158,7 @@ SV_CloseEnough
 
 ======================
 */
-bool SV_CloseEnough(edict_t *ent, edict_t *goal, float dist)
+bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 {
 	int i;
 
@@ -1172,12 +1172,12 @@ bool SV_CloseEnough(edict_t *ent, edict_t *goal, float dist)
 	return true;
 }
 
-static bool M_NavPathToGoal(edict_t *self, float dist, const vec3_t &goal)
+static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 {
 	// mark us as *trying* now (nav_pos is valid)
 	self->monsterinfo.aiflags |= AI_PATHING;
 
-	vec3_t &path_to = (self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
+	vec3_t& path_to = (self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
 		self->monsterinfo.nav_path.secondMovePoint : self->monsterinfo.nav_path.firstMovePoint;
 
 	if ((self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending && (path_to - self->s.origin).length() <= (self->size.length() * 0.5f)) ||
@@ -1228,14 +1228,14 @@ static bool M_NavPathToGoal(edict_t *self, float dist, const vec3_t &goal)
 	float yaw;
 	float old_yaw = self->s.angles[YAW];
 	float old_ideal_yaw = self->ideal_yaw;
-	
+
 	if (self->monsterinfo.random_change_time >= level.time &&
 		!(self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
 		yaw = self->ideal_yaw;
 	else
 		yaw = vectoyaw((path_to - self->s.origin).normalized());
 
-	if ( !SV_StepDirection( self, yaw, dist, true ) ) {
+	if (!SV_StepDirection(self, yaw, dist, true)) {
 
 		if (!self->inuse)
 			return false;
@@ -1257,8 +1257,8 @@ static bool M_NavPathToGoal(edict_t *self, float dist, const vec3_t &goal)
 			yaw = self->ideal_yaw;
 		else
 			yaw = vectoyaw((self->monsterinfo.nav_path.firstMovePoint - self->s.origin).normalized());
-		
-		if ( !SV_StepDirection( self, yaw, dist, true ) ) {
+
+		if (!SV_StepDirection(self, yaw, dist, true)) {
 
 			// we got blocked, but all is not lost yet; do a similar bump around-ish behavior
 			// to try to regain our composure
@@ -1293,7 +1293,7 @@ Advanced movement code that use the bots pathfinder if allowed and conditions ar
 Feel free to add any other conditions needed.
 =============
 */
-static bool M_MoveToPath(edict_t *self, float dist)
+static bool M_MoveToPath(edict_t* self, float dist)
 {
 	if (self->flags & FL_STATIONARY)
 		return false;
@@ -1312,37 +1312,42 @@ static bool M_MoveToPath(edict_t *self, float dist)
 
 	if (self->monsterinfo.aiflags & AI_TEMP_MELEE_COMBAT)
 		style = COMBAT_MELEE;
-	
-	if ( visible(self, self->enemy, false) ) {
-		if ( (self->flags & (FL_SWIM | FL_FLY)) || style == COMBAT_RANGED ) {
+
+	if (visible(self, self->enemy, false)) {
+		if ((self->flags & (FL_SWIM | FL_FLY)) || style == COMBAT_RANGED) {
 			// do the normal "shoot, walk, shoot" behavior...
 			return false;
-		} else if ( style == COMBAT_MELEE ) {
+		}
+		else if (style == COMBAT_MELEE) {
 			// path pretty close to the enemy, then let normal Quake movement take over.
-			if ( range_to(self, self->enemy) > 240.f ||
-					fabs(self->s.origin.z - self->enemy->s.origin.z) > max(self->maxs.z, -self->mins.z) ) {
-				if ( M_NavPathToGoal( self, dist, self->enemy->s.origin ) ) {
+			if (range_to(self, self->enemy) > 240.f ||
+				fabs(self->s.origin.z - self->enemy->s.origin.z) > max(self->maxs.z, -self->mins.z)) {
+				if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
 					return true;
 				}
 				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
-			} else {
-				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
-				return false;
 			}
-		} else if ( style == COMBAT_MIXED ) {
-			// most mixed combat AI have fairly short range attacks, so try to path within mid range.
-			if ( range_to(self, self->enemy) > RANGE_NEAR ||
-					fabs(self->s.origin.z - self->enemy->s.origin.z) > max(self->maxs.z, -self->mins.z) * 2.0f ) {
-				if ( M_NavPathToGoal( self, dist, self->enemy->s.origin ) ) {
-					return true;
-				}
-			} else {
+			else {
+				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
 				return false;
 			}
 		}
-	} else {
+		else if (style == COMBAT_MIXED) {
+			// most mixed combat AI have fairly short range attacks, so try to path within mid range.
+			if (range_to(self, self->enemy) > RANGE_NEAR ||
+				fabs(self->s.origin.z - self->enemy->s.origin.z) > max(self->maxs.z, -self->mins.z) * 2.0f) {
+				if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
+					return true;
+				}
+			}
+			else {
+				return false;
+			}
+		}
+	}
+	else {
 		// we can't see our enemy, let's see if we can path to them
-		if ( M_NavPathToGoal( self, dist, self->enemy->s.origin ) ) {
+		if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
 			return true;
 		}
 	}
@@ -1374,16 +1379,16 @@ static bool M_MoveToPath(edict_t *self, float dist)
 M_MoveToGoal
 ======================
 */
-void M_MoveToGoal(edict_t *ent, float dist)
+void M_MoveToGoal(edict_t* ent, float dist)
 {
-	if ( ai_movement_disabled->integer ) {
-		if ( !FacingIdeal( ent ) ) {
-			M_ChangeYaw( ent );
+	if (ai_movement_disabled->integer) {
+		if (!FacingIdeal(ent)) {
+			M_ChangeYaw(ent);
 		} // mal: don't move, but still face toward target
 		return;
 	}
 
-	edict_t *goal;
+	edict_t* goal;
 
 	goal = ent->goalentity;
 
@@ -1407,7 +1412,7 @@ void M_MoveToGoal(edict_t *ent, float dist)
 
 	//if (goal)
 	//	gi.Draw_Point(goal->s.origin, 1.f, rgba_red, gi.frame_time_ms, false);
-	
+
 	// [Paril-KEX] dumb hack; in some n64 maps, the corners are way too high and
 	// I'm too lazy to fix them individually in maps, so here's a game fix..
 	if (!(goal->flags & FL_PARTIALGROUND) && !(ent->flags & (FL_FLY | FL_SWIM)) &&
@@ -1485,9 +1490,9 @@ void M_MoveToGoal(edict_t *ent, float dist)
 M_walkmove
 ===============
 */
-bool M_walkmove(edict_t *ent, float yaw, float dist)
+bool M_walkmove(edict_t* ent, float yaw, float dist)
 {
-	if ( ai_movement_disabled->integer ) {
+	if (ai_movement_disabled->integer) {
 		return false;
 	}
 

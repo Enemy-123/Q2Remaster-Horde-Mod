@@ -56,13 +56,13 @@ contents_t G_GetClipMask(edict_t* ent)
 	if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
 		strcmp(ent->classname, "monster_flyer") &&
 		strcmp(ent->classname, "monster_berserk") &&
-//		strcmp(ent->classname, "monster_guncmdr") &&
+		//		strcmp(ent->classname, "monster_guncmdr") &&
 		strcmp(ent->classname, "monster_gladiator") &&
-//		strcmp(ent->classname, "monster_gladc") &&
+		//		strcmp(ent->classname, "monster_gladc") &&
 		strcmp(ent->classname, "monster_makron") &&
 		strcmp(ent->classname, "monster_widow") &&
 		strcmp(ent->classname, "monster_widow2") &&
-//		strcmp(ent->classname, "monster_mutant") &&
+		//		strcmp(ent->classname, "monster_mutant") &&
 		strcmp(ent->classname, "monster_carrier") &&
 		strcmp(ent->classname, "monster_boss2") &&
 		strcmp(ent->classname, "monster_carrier2") &&
@@ -433,7 +433,7 @@ push all box objects
 void SV_Physics_Pusher(edict_t* ent)
 {
 	vec3_t	 move, amove;
-	edict_t *part;
+	edict_t* part;
 
 	// if not a team captain, so movement will be handled elsewhere
 	if (ent->flags & FL_TEAMSLAVE)
@@ -877,6 +877,9 @@ void SV_Physics_Step(edict_t* ent)
 
 	if (g_horde->integer)
 		G_TouchTriggers(ent);
+
+	if (!ent->inuse) // PGM g_touchtrigger free problem
+		return;
 
 	if (ent->svflags & SVF_MONSTER)
 	{

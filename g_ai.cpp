@@ -87,7 +87,7 @@ void ai_stand(edict_t* self, float dist)   // HORDESTAND
     bool retval;
     // ROGUE
 
-    
+
     if (g_horde->integer && !level.intermissiontime) {
         // Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
         if (!self->enemy) {
@@ -106,7 +106,7 @@ void ai_stand(edict_t* self, float dist)   // HORDESTAND
             }
         }
     }
-  
+
     if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
         M_walkmove(self, self->s.angles[YAW], dist);
 
@@ -668,7 +668,7 @@ slower noticing monsters.
 */
 bool FindTarget(edict_t* self)
 {
-    edict_t* client;
+    edict_t* client = nullptr;
     bool     heardit;
     bool     ignore_sight_sound = false;
 
@@ -1126,7 +1126,6 @@ MONSTERINFO_CHECKATTACK(M_CheckAttack) (edict_t* self) -> bool
 
 /*
 =============
-
 ai_run_melee
 
 Turn and close until within an angle to launch a melee attack
@@ -1247,36 +1246,36 @@ bool ai_checkattack(edict_t* self, float dist)
     if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
         self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 
-        // this causes monsters to run blindly to the combat point w/o firing 
-        if (self->goalentity)
+    // this causes monsters to run blindly to the combat point w/o firing
+    if (self->goalentity)
+    {
+        if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
         {
-            if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
-            {
-                if (self->enemy && range_to(self, self->enemy) > 100.f)
-                    return false;
-            }
+            if (self->enemy && range_to(self, self->enemy) > 100.f)
+                return false;
+        }
 
-            if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
+        if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
+        {
+            if ((level.time - self->enemy->teleport_time) > 5_sec)
             {
-                if ((level.time - self->enemy->teleport_time) > 5_sec)
+                if (self->goalentity == self->enemy)
                 {
-                    if (self->goalentity == self->enemy)
-                    {
-                        if (self->movetarget)
-                            self->goalentity = self->movetarget;
-                        else
-                            self->goalentity = nullptr;
-                    }
-                    self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
+                    if (self->movetarget)
+                        self->goalentity = self->movetarget;
+                    else
+                        self->goalentity = nullptr;
                 }
-                else
-                {
-                    self->enemy->show_hostile = level.time + 1_sec;
-                    return false;
-                }
+                self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
+            }
+            else
+            {
+                self->enemy->show_hostile = level.time + 1_sec;
+                return false;
             }
         }
-      
+    }
+
     enemy_vis = false;
 
     // see if the enemy is dead
@@ -1453,7 +1452,7 @@ void ai_run(edict_t* self, float dist)
         if (level.intermissiontime || (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP) || (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time))) {
             // Si el enemigo ha muerto, se ha vuelto inelegible de alguna otra forma, o el jugador está invisible
             self->enemy = nullptr; // Elimina el enemigo actual
-           self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
+            self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
             // Ahora el código de espera se activará en el siguiente fotograma para que el monstruo cace a alguien
         }
 
@@ -1563,6 +1562,7 @@ void ai_run(edict_t* self, float dist)
             v = self->s.origin - self->enemy->s.origin;
 
         bool touching_noise = SV_CloseEnough(self, self->enemy, dist * (gi.tick_rate / 10));
+
         if ((!self->enemy) || (touching_noise && FacingIdeal(self)))
             // pmm
         {

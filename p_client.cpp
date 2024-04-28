@@ -3889,7 +3889,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-	if (!G_IsDeathmatch())
+	if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative)
 		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;
