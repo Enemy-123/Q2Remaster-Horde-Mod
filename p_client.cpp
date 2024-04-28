@@ -590,7 +590,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		if (G_IsDeathmatch() && !self->client->showscores)
 			Cmd_Help_f(self); // show scores
 
-		if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative() && !P_UseCoopInstancedItems())
+		if (G_IsDeathmatch() && g_horde->integer && !P_UseCoopInstancedItems() || G_IsCooperative() && !P_UseCoopInstancedItems())
 		{
 			// clear inventory
 			// this is kind of ugly, but it's how we want to handle keys in coop
@@ -764,7 +764,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 0.8_sec;
+				self->client->respawn_time = level.time + 1.5_sec;
 		}
 	}
 
@@ -897,6 +897,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 			if (!G_IsDeathmatch())
 			client->pers.inventory[IT_ITEM_COMPASS] = 1;
+			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;	
+			
+			if (G_IsDeathmatch())
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 
@@ -905,7 +908,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				(ctf->integer ? !level.no_grapple : 0) :
 				g_allow_grapple->integer;
 
-			if (G_IsDeathmatch() && g_horde->integer)
+			if (G_IsDeathmatch() && g_horde->integer && current_wave_number > 5)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
@@ -914,7 +917,6 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
 				client->pers.inventory[IT_AMMO_BULLETS] = 50;
 				client->pers.inventory[IT_AMMO_SHELLS] = 20;
-				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 			}
 
 			if (give_grapple)
@@ -2135,7 +2137,7 @@ void PutClientInServer(edict_t* ent)
 		char userinfo[MAX_INFO_STRING];
 		memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
-		if (G_IsCooperative())
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 		{
 			resp = client->resp;
 

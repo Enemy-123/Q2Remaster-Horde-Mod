@@ -1661,7 +1661,7 @@ static void G_InitStatusbar()
 
 	// ---- gamemode-specific stuff ----
 
-	if (G_IsDeathmatch() && !g_horde->integer || G_IsCooperative())
+	if (G_IsCooperative())
 	{
 		// SP/coop
 		// key display
@@ -1686,22 +1686,15 @@ static void G_InitStatusbar()
 		}
 		if (G_IsCooperative())
 		{
-
 		//  MONSTERS COUNT
-
 			sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
-
 		// frags
-
 			sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
-
 		// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
-
 		// coop lives
 			sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		}
-
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		// tech
 		sb.ifstat(STAT_TECH).yb(-137).xr(-26).pic(STAT_TECH).endifstat();

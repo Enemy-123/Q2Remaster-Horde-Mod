@@ -41,8 +41,8 @@ void Hook_InitGame(void)
 	hook_speed = gi.cvar("hook_speed", "900", CVAR_NOFLAGS);
 	hook_pullspeed = gi.cvar("hook_pullspeed", "700", CVAR_NOFLAGS);
 	hook_sky = gi.cvar("hook_sky", "0", CVAR_NOFLAGS);
-	hook_maxtime = gi.cvar("hook_maxtime", "5", CVAR_NOFLAGS);
-	hook_damage = gi.cvar("hook_damage", "1", CVAR_NOFLAGS);
+	hook_maxtime = gi.cvar("hook_maxtime", "15", CVAR_NOFLAGS);
+	hook_damage = gi.cvar("hook_damage", "20", CVAR_NOFLAGS);
 	hook_initdamage = gi.cvar("hook_initdamage", "10", CVAR_NOFLAGS);
 	hook_maxdamage = gi.cvar("hook_maxdamage", "20", CVAR_NOFLAGS);
 	hook_delay = gi.cvar("hook_delay", "0.2", CVAR_NOFLAGS);
@@ -203,8 +203,8 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 	if (other->client) 		// we hit a player	
 	{
 		// ignore hitting a teammate
-		if (OnSameTeam(other, self->owner))
-			return;
+	//	if (OnSameTeam(other, self->owner))
+	//		return;
 
 		// we hit an enemy, so do a bit of damage
 		dir = self->owner->s.origin - other->s.origin;

@@ -614,7 +614,8 @@ void G_MonsterKilled(edict_t* self)
 {
 	level.killed_monsters++;
 
-	if (G_IsCooperative() || g_horde->integer && self->enemy && self->enemy->client)
+	if (G_IsCooperative() && self->enemy && self->enemy->client ||
+		G_IsDeathmatch() && g_horde->integer && self->enemy && self->enemy->client)
 		self->enemy->client->resp.score++; //testear con pers
 
 	if (g_debug_monster_kills->integer)
