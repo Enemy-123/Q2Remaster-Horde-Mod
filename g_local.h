@@ -2976,6 +2976,7 @@ struct gclient_t
 	pmenuhnd_t* menu;	  // current menu
 	gtime_t		menutime; // time to update menu
 	bool		menudirty;
+	float hook_release_time;
 	edict_t* ctf_grapple;			// entity of grapple
 	int32_t		ctf_grapplestate;		// true if pulling
 	gtime_t		ctf_grapplereleasetime; // time of grapple release

@@ -3082,6 +3082,15 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 		(ent->client->ctf_grapple &&
 			ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY))
 		return;
+
+	// Ignore falling damage if the player has the hook out or if the hook release time is within the last 3 seconds
+	if (ent->client && (ent->client->hook_out || ent->client->hook_release_time + 1.0 >= level.time.seconds())) {
+		return;
+	}
+
+
+
+
 	// ZOID
 
 	float delta = pm.impact_delta;
