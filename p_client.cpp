@@ -863,16 +863,6 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 		if (!taken_loadout)
 		{
-			if (G_IsDeathmatch && g_horde->integer)
-			{
-				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-				client->pers.inventory[IT_AMMO_BULLETS] = 50;
-				client->pers.inventory[IT_AMMO_SHELLS] = 20;
-			}
 
 			// fill with 50s, since it's our most common value
 			client->pers.max_ammo.fill(50);
@@ -896,26 +886,36 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			// start items!
 			if (*g_start_items->string)
 				Player_GiveStartItems(ent, g_start_items->string);
-			else if (G_IsDeathmatch() && g_instagib->integer)
-			{
-				client->pers.inventory[IT_WEAPON_RAILGUN] = 1;
-				client->pers.inventory[IT_AMMO_SLUGS] = 99;
-			}
+	//		else if (G_IsDeathmatch() && g_instagib->integer)
+	//		{
+	//			client->pers.inventory[IT_WEAPON_RAILGUN] = 1;
+	//			client->pers.inventory[IT_AMMO_SLUGS] = 99;
+	//		}
 
 			if (level.start_items && *level.start_items)
 				Player_GiveStartItems(ent, level.start_items);
 
 			if (!G_IsDeathmatch())
-				client->pers.inventory[IT_ITEM_COMPASS] = 1;
+			client->pers.inventory[IT_ITEM_COMPASS] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
-			if (G_IsDeathmatch())
-				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
 				(ctf->integer ? !level.no_grapple : 0) :
 				g_allow_grapple->integer;
+
+			if (G_IsDeathmatch() && g_horde->integer)
+			{
+				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+				client->pers.inventory[IT_AMMO_BULLETS] = 50;
+				client->pers.inventory[IT_AMMO_SHELLS] = 20;
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			}
 
 			if (give_grapple)
 				client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;

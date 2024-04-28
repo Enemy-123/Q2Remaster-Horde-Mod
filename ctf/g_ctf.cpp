@@ -292,11 +292,9 @@ void CTFAssignSkin(edict_t* ent, const char* s)
 	else
 		t = "male/";
 
-	switch (ent->client->resp.ctf_team)
+	if  (ent->client->resp.ctf_team)
 	{
-	default:
 		t = G_Fmt("{}\\{}\\default", ent->client->pers.netname, s);
-		break;
 	}
 
 	gi.configstring(CS_PLAYERSKINS + playernum, t.data());

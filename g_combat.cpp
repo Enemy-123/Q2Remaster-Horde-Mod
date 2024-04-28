@@ -593,13 +593,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// ROGUE
 
 // HORDE AUTO QUAD (probably only for damage amplifier users... someday)
-	if (g_horde->integer && current_wave_number >=15 && attacker != nullptr && attacker->client != nullptr) {
+	if (g_horde->integer && current_wave_number > 15 && attacker != nullptr && attacker->client != nullptr) {
 		if (attacker->client->pers.score % 8 == 0) {
 			// randomize quads
 			float quadchance = frandom();
 
 			// 20% chance
-			if (quadchance <= 0.012f) {
+			if (quadchance <= 0.014f) {
 				// If player has no quad effect, generate it
 				if (attacker->client->quad_time < level.time) {
 					attacker->client->quad_time = level.time + (5.0_sec);

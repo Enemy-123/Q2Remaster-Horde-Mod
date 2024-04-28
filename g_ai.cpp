@@ -92,11 +92,12 @@ void ai_stand(edict_t* self, float dist)   // HORDESTAND
         // Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
         if (!self->enemy) {
             edict_t* player = nullptr;
-            for (int i = 1; i < game.maxclients + 1; i++) { // Ajusta el límite del bucle para incluir todos los clientes
+            for (unsigned int i = 1; i <= game.maxclients; ++i) {
                 edict_t* client = &g_edicts[i];
-                if (!client->inuse || client->client->pers.spectator || client->health <= 0 || client->client->invisible_time > level.time)
+                if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
                     continue;
-                player = &g_edicts[i];
+                }
+                player = client;
             }
             if (player) {
                 self->enemy = player;
