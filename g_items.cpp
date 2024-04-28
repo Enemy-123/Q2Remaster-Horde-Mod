@@ -1021,7 +1021,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	{
 		bool should_remove = false;
 
-		if (G_IsCooperative() || G_IsDeathmatch && g_horde->integer)
+		if (G_IsCooperative())
 		{
 			// in coop with instanced items, *only* dropped 
 			// player items will ever get deleted permanently.
@@ -1033,7 +1033,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 				should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER) || !(ent->item->flags & IF_STAY_COOP);
 		}
 		else
-			should_remove = G_IsDeathmatch() || ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER); // needed so items can dissapear on horde mode
+			should_remove = should_remove = G_IsDeathmatch() || ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER); // needed so items can dissapear on horde mode
 		if (should_remove)
 		{
 			if (ent->flags & FL_RESPAWN)

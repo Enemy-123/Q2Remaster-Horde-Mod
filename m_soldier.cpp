@@ -1731,6 +1731,97 @@ DIE(soldier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 		M_SetAnimation(self, &soldier_move_death6);
 }
 
+/*
+
+//================
+// ROGUE
+void soldier_jump_down(edict_t* self)
+{
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 100);
+	self->velocity += (up * 300);
+}
+
+void soldier_jump_up(edict_t* self)
+{
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 200);
+	self->velocity += (up * 450);
+}
+
+void soldier_jump_wait_land(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+}
+
+mframe_t soldier_frames_jump_up[] = {
+	{ ai_move, -8 },
+	{ ai_move, -8 },
+	{ ai_move, -8 },
+	{ ai_move, -8, soldier_jump_up },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move }
+};
+MMOVE_T(soldier_move_jump_up) = { FRAME_attak303, FRAME_attak308, soldier_frames_jump_up, M_MonsterDodge };
+
+mframe_t soldier_frames_jump_down[] = {
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, soldier_jump_down },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move }
+};
+MMOVE_T(soldier_move_jump_down) = { FRAME_attak303, FRAME_attak308, soldier_frames_jump_down, M_MonsterDodge };
+
+void soldier_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+		M_SetAnimation(self, &soldier_move_jump_up);
+	else
+		M_SetAnimation(self, &soldier_move_jump_down);
+}
+
+
+===
+Blocked
+===
+
+MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool
+{
+	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	{
+		if (result != blocked_jump_result_t::JUMP_TURN)
+			soldier_jump(self, result);
+		return true;
+	}
+
+	if (blocked_checkplat(self, dist))
+		return true;
+
+	return false;
+}
+*/
+
 //
 // NEW DODGE CODE
 //
@@ -1784,6 +1875,7 @@ MONSTERINFO_DUCK(soldier_duck) (edict_t *self, gtime_t eta) -> bool
 	soldierh_hyper_laser_sound_end(self);
 	return true;
 }
+
 
 //=========
 // ROGUE
@@ -2061,6 +2153,8 @@ void SP_monster_soldier_lasergun(edict_t *self)
 	self->count = self->s.skinnum - 6;
 	self->health = self->max_health = 40 * st.health_multiplier;
 	self->gib_health = -30;
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
 }
 
 // END 13-APR-98

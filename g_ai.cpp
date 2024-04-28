@@ -80,23 +80,23 @@ Used for standing around and looking for players
 Distance is for slight position adjustments needed by the animations
 ==============
 */
-void ai_stand(edict_t* self, float dist)
+void ai_stand(edict_t* self, float dist)   // HORDESTAND
 {
     vec3_t v;
     // ROGUE
     bool retval;
     // ROGUE
 
-
-    if (g_horde->integer && !level.intermissiontime) {  // TY PARIL!
-        // Check if enemy is nullptr and select a random alive player to be angry at
+    
+    if (g_horde->integer && !level.intermissiontime) {
+        // Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
         if (!self->enemy) {
             edict_t* player = nullptr;
-            for (int i = 1; i <= game.maxclients; i++) {
+            for (int i = 1; i < game.maxclients + 1; i++) { // Ajusta el límite del bucle para incluir todos los clientes
                 edict_t* client = &g_edicts[i];
-                if (!client->inuse || client->client->pers.spectator || client->health <= 0 || client->client->invisible_time > level.time)// || client->client->invincible_time > level.time) test later
+                if (!client->inuse || client->client->pers.spectator || client->health <= 0 || client->client->invisible_time > level.time)
                     continue;
-                player = client;
+                player = &g_edicts[i];
             }
             if (player) {
                 self->enemy = player;
@@ -105,7 +105,7 @@ void ai_stand(edict_t* self, float dist)
             }
         }
     }
-
+  
     if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
         M_walkmove(self, self->s.angles[YAW], dist);
 
@@ -1125,6 +1125,7 @@ MONSTERINFO_CHECKATTACK(M_CheckAttack) (edict_t* self) -> bool
 
 /*
 =============
+
 ai_run_melee
 
 Turn and close until within an angle to launch a melee attack
@@ -1245,36 +1246,36 @@ bool ai_checkattack(edict_t* self, float dist)
     if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
         self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
 
-    // this causes monsters to run blindly to the combat point w/o firing
-    if (self->goalentity)
-    {
-        if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
+        // this causes monsters to run blindly to the combat point w/o firing 
+        if (self->goalentity)
         {
-            if (self->enemy && range_to(self, self->enemy) > 100.f)
-                return false;
-        }
-
-        if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
-        {
-            if ((level.time - self->enemy->teleport_time) > 5_sec)
+            if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
             {
-                if (self->goalentity == self->enemy)
+                if (self->enemy && range_to(self, self->enemy) > 100.f)
+                    return false;
+            }
+
+            if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
+            {
+                if ((level.time - self->enemy->teleport_time) > 5_sec)
                 {
-                    if (self->movetarget)
-                        self->goalentity = self->movetarget;
-                    else
-                        self->goalentity = nullptr;
+                    if (self->goalentity == self->enemy)
+                    {
+                        if (self->movetarget)
+                            self->goalentity = self->movetarget;
+                        else
+                            self->goalentity = nullptr;
+                    }
+                    self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
                 }
-                self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
-            }
-            else
-            {
-                self->enemy->show_hostile = level.time + 1_sec;
-                return false;
+                else
+                {
+                    self->enemy->show_hostile = level.time + 1_sec;
+                    return false;
+                }
             }
         }
-    }
-
+      
     enemy_vis = false;
 
     // see if the enemy is dead
@@ -1447,13 +1448,14 @@ void ai_run(edict_t* self, float dist)
     bool     gotcha = false;
     edict_t* realEnemy;
     // ROGUE
-    if (g_horde->integer) {
-        if (level.intermissiontime || (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP))) {// || (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time)) {
+    if (g_horde->integer) {  //HORDERUN
+        if (level.intermissiontime || (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP) || (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time))) {
             // Si el enemigo ha muerto, se ha vuelto inelegible de alguna otra forma, o el jugador está invisible
             self->enemy = nullptr; // Elimina el enemigo actual
-            self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
+           self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
             // Ahora el código de espera se activará en el siguiente fotograma para que el monstruo cace a alguien
         }
+
     }
 
 

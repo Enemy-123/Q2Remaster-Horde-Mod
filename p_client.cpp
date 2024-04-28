@@ -851,7 +851,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				if (player == ent || !player->client->pers.spawned ||
 					player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
 					continue;
-				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 
 				client->pers.inventory = player->client->pers.inventory;
 				client->pers.max_ammo = player->client->pers.max_ammo;
@@ -863,6 +863,17 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 		if (!taken_loadout)
 		{
+			if (G_IsDeathmatch && g_horde->integer)
+			{
+				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+				client->pers.inventory[IT_AMMO_BULLETS] = 50;
+				client->pers.inventory[IT_AMMO_SHELLS] = 20;
+			}
+
 			// fill with 50s, since it's our most common value
 			client->pers.max_ammo.fill(50);
 			client->pers.max_ammo[AMMO_BULLETS] = 200;
@@ -878,7 +889,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.max_ammo[AMMO_TESLA] = 5;
 			// ROGUE
 
-			if (!G_IsDeathmatch() || !g_instagib->integer)
+			if (G_IsDeathmatch())
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 			// [Kex]
@@ -2051,7 +2062,7 @@ void PutClientInServer(edict_t* ent)
 			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 			ClientUserinfoChanged(ent, userinfo);
 
-			client->respawn_timeout = level.time + 3_sec;
+			client->respawn_timeout = level.time + 6_sec;
 		}
 
 		// find a spot to place us

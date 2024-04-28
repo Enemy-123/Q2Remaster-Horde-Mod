@@ -2935,7 +2935,7 @@ struct gclient_t
 	gtime_t enviro_time;
 	gtime_t invisible_time;
 
-	gtime_t last_autoquad_time;
+
 
 	bool	grenade_blew_up;
 	gtime_t grenade_time, grenade_finished_time;
