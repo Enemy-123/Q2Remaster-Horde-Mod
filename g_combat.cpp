@@ -563,7 +563,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			mod.friendly_fire = true;
 
 			// if we're not a nuke & friendly fire is disabled, just kill the damage
-			if (!g_friendly_fire->integer && (mod.id != MOD_NUKE))
+			if (!g_friendly_fire->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE))
 				damage = 0;
 		}
 	}
