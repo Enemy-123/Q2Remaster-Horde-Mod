@@ -87,8 +87,8 @@ void ai_stand(edict_t* self, float dist)   // HORDESTAND
     bool retval;
     // ROGUE
 
-
-    if (g_horde->integer && !level.intermissiontime) {
+/*
+    //if (g_horde->integer && !level.intermissiontime) {
         // Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
         if (!self->enemy) {
             edict_t* player = nullptr;
@@ -106,7 +106,7 @@ void ai_stand(edict_t* self, float dist)   // HORDESTAND
             }
         }
     }
-
+    */
     if (dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
         M_walkmove(self, self->s.angles[YAW], dist);
 

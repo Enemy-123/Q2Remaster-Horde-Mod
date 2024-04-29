@@ -642,7 +642,7 @@ void SP_monster_hover2(edict_t* self)
 		sound_search2.assign("hover/hovsrch2.wav");
 		gi.soundindex("hover/hovatck1.wav");
 
-		self->monsterinfo.engine_sound = gi.soundindex("hover2/hovidle1.wav");
+		self->monsterinfo.engine_sound = gi.soundindex("hover/hovidle1.wav");
 	}
 	// PGM
 

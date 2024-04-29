@@ -272,7 +272,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_parasite", 4, 14, 0.2f },
 { "monster_tank", 7, -1, 0.3f },  
 { "monster_guncmdr2", 6, 10, 0.18f },
-{ "monster_mutant", 7, 18, 0.55f },
+{ "monster_mutant", 5, 18, 0.55f },
 { "monster_chick", 7, 19, 0.7f },
 { "monster_berserk", 8, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
@@ -281,8 +281,8 @@ constexpr weighted_item_t monsters[] = {
 { "monster_tank_commander", 11, 18, 0.15f },
 { "monster_spider", 12, -1, 0.24f },
 { "monster_guncmdr", 11, 22, 0.28f },
-{ "monster_gladc", 8, 19, 0.24f }, 
-{ "monster_gladiator", 5, -1, 0.24f },
+{ "monster_gladc", 6, 19, 0.16f }, 
+{ "monster_gladiator", 9, -1, 0.24f },
 { "monster_shambler", 17, -1, 0.1f },
 { "monster_floater2", 17, -1, 0.35f },
 { "monster_carrier2", 17, -1, 0.23f },
@@ -802,7 +802,7 @@ void Horde_RunFrame()
 					e->s.effects = EF_GRENADE_LIGHT;
 				}
 
-				e->enemy = &g_edicts[1]; 
+				e->enemy = &g_edicts[1] + 1; 
 				e->gib_health = -280;
 				e->health *= pow(1.045, current_wave_number);
 				FoundTarget(e);
