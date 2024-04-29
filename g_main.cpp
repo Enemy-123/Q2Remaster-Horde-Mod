@@ -1091,8 +1091,8 @@ inline bool G_AnyPlayerSpawned()
 
 void G_RunFrame(bool main_loop)
 {
-	if (main_loop && !G_AnyPlayerSpawned())       //these pause the game at start, back to normal if crashing here
-		return;                                     //
+//	if (main_loop && !G_AnyPlayerSpawned())       //these pause the game at start, back to normal if crashing here
+//		return;                                     //
 
 
 	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)

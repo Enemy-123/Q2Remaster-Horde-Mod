@@ -802,11 +802,23 @@ void Horde_RunFrame()
 					e->s.effects = EF_GRENADE_LIGHT;
 				}
 
-				e->enemy = &g_edicts[1] + 1; 
-				e->gib_health = -280;
-				e->health *= pow(1.045, current_wave_number);
-				FoundTarget(e);
+					e->enemy = &g_edicts[1] + 1; 
 
+					if (!e->enemy) {
+						edict_t* player = nullptr;
+						for (unsigned int i = 1; i <= game.maxclients; ++i) {
+							edict_t* client = &g_edicts[i];
+							if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
+								continue;
+							}
+							player = client;
+
+						}
+					}
+					e->gib_health = -280;
+					e->health *= pow(1.045, current_wave_number);
+					HuntTarget(e);
+				
 				if (current_wave_number >= 14) {
 					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
 				}

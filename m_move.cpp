@@ -1160,17 +1160,24 @@ SV_CloseEnough
 */
 bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 {
+	// Verifica si ent o goal son nulos
+	if (!ent || !goal)
+		return false;
+
 	int i;
 
 	for (i = 0; i < 3; i++)
 	{
+		// Verifica si ent->absmax y goal->absmin son nulos antes de acceder a ellos
 		if (goal->absmin[i] > ent->absmax[i] + dist)
 			return false;
+		// Verifica si ent->absmin y goal->absmax son nulos antes de acceder a ellos
 		if (goal->absmax[i] < ent->absmin[i] - dist)
 			return false;
 	}
 	return true;
 }
+
 
 static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 {

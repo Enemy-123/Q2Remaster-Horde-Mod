@@ -164,8 +164,8 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 		}
 	}
 
-	if (G_IsDeathmatch())  // hordenoise hordehearing  MONSTERS PLAYERS HEARING HERE, with ai_stand & run changes feels good but what if all together?
-	return;
+//	if (G_IsDeathmatch())  // hordenoise hordehearing  MONSTERS PLAYERS HEARING HERE, with ai_stand & run changes feels good but what if all together?
+//	return;
 
 	if (who->flags & FL_NOTARGET)
 		return;
