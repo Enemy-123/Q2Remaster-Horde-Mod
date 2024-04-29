@@ -205,9 +205,10 @@ constexpr struct weighted_item_t {
 	{ "weapon_railgun", 8, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 13, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_bfg", 14, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_bfg", 10, -1, 0.15f, adjust_weight_weapon },
 
 
+	{ "ammo_trap", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.35f, adjust_weight_ammo },
 	{ "ammo_flechettes", 5, -1, 0.35f, adjust_weight_ammo },
@@ -292,7 +293,8 @@ constexpr weighted_item_t monsters[] = {
 { "monster_makron", 18, 19, 0.2f },
 { "monster_gladb", 14, -1, 0.75f},
 { "monster_perrokl", 21, -1, 0.27f },
-{ "monster_guncmdrkl", 23, -1, 0.39f }
+{ "monster_guncmdrkl", 23, -1, 0.39f },
+{ "monster_shamblerkl", 23, -1, 0.39f }
 };
 
 struct boss_t {

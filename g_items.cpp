@@ -1022,7 +1022,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	{
 		bool should_remove = false;
 
-		if (G_IsCooperative() || G_IsDeathmatch && g_horde->integer)
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 		{
 			// in coop with instanced items, *only* dropped 
 			// player items will ever get deleted permanently.
@@ -1333,17 +1333,19 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 
 	// [Kex] In instagib, spawn no pickups! //moved outside DM for horde modes (when it was coop)
 	if (g_instagib->value)
+	{
+		if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
+			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
+			((item->flags & IF_HEALTH && !strcmp(ent->classname, "item_foodcube")))
+			|| (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
+			item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
+			item->id == IT_AMMO_NUKE)
 		{
-			if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
-				item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
-				(item->flags & IF_HEALTH) || (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
-				item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
-				item->id == IT_AMMO_NUKE)
-			{
-				G_FreeEdict(ent);
-				return;
-			}
+			G_FreeEdict(ent);
+			return;
 		}
+	}
+
 	if (G_IsDeathmatch())
 	{
 

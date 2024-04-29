@@ -2776,7 +2776,7 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p)
 {
 	CTFJoinTeam(ent, CTF_TEAM1);
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2.5_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 3_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 }
 
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p)

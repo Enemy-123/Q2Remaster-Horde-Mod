@@ -434,8 +434,8 @@ void TossClientWeapon(edict_t* self)
 		return;
 
 	item = self->client->pers.weapon;
-	if (item && g_instagib->integer)
-		item = nullptr;
+//	if (item && g_instagib->integer)
+//		item = nullptr;
 	if (item && !self->client->pers.inventory[self->client->pers.weapon->ammo])
 		item = nullptr;
 	if (item && !item->drop)
@@ -618,8 +618,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->flags &= ~FL_POWER_ARMOR;
 
 	// clear inventory
-	if (G_TeamplayEnabled())
-		self->client->pers.inventory.fill(0);
+//	if (G_TeamplayEnabled())					// fixing no weapons loadout
+//		self->client->pers.inventory.fill(0);
 
 	// RAFAEL
 	self->client->quadfire_time = 0_ms;
@@ -764,7 +764,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 3_sec;
+				self->client->respawn_time = level.time + 1_sec;
 		}
 	}
 
@@ -836,8 +836,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.max_health = 100;
 
 	// don't give us weapons if we shouldn't have any
-	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-		(!G_TeamplayEnabled() && !client->resp.spectator))
+//	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
+//		(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
 		// in coop, if there's already a player in the game and we're new,
 		// steal their loadout. this would fix a potential softlock where a new
@@ -851,8 +851,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				if (player == ent || !player->client->pers.spawned ||
 					player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
 					continue;
-				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 
+				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 3_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
 				client->pers.inventory = player->client->pers.inventory;
 				client->pers.max_ammo = player->client->pers.max_ammo;
 				client->pers.power_cubes = player->client->pers.power_cubes;
@@ -909,7 +909,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				(ctf->integer ? !level.no_grapple : 0) :
 				g_allow_grapple->integer;
 
-			if (current_wave_number > 2 && current_wave_number < 5)
+			if (current_wave_number > 3 && G_IsDeathmatch() && g_instagib->integer && current_wave_number < 5)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
@@ -918,7 +918,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_AMMO_BULLETS] = 50;
 				client->pers.inventory[IT_AMMO_SHELLS] = 20;
 			}
-				else if (current_wave_number > 5)
+				else if (G_IsDeathmatch() && g_instagib->integer && current_wave_number > 5)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
