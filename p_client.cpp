@@ -764,7 +764,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 1.5_sec;
+				self->client->respawn_time = level.time + 3_sec;
 		}
 	}
 
@@ -901,6 +901,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			
 			if (G_IsDeathmatch())
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 
 			// ZOID
@@ -908,7 +909,16 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				(ctf->integer ? !level.no_grapple : 0) :
 				g_allow_grapple->integer;
 
-			if (G_IsDeathmatch() && g_horde->integer && current_wave_number > 5)
+			if (current_wave_number > 2 && current_wave_number < 5)
+			{
+				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+				client->pers.inventory[IT_AMMO_BULLETS] = 50;
+				client->pers.inventory[IT_AMMO_SHELLS] = 20;
+			}
+				else if (current_wave_number > 5)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
@@ -2064,7 +2074,7 @@ void PutClientInServer(edict_t* ent)
 			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 			ClientUserinfoChanged(ent, userinfo);
 
-			client->respawn_timeout = level.time + 6_sec;
+			client->respawn_timeout = level.time + 8_sec;
 		}
 
 		// find a spot to place us
@@ -2074,7 +2084,7 @@ void PutClientInServer(edict_t* ent)
 			edict_t* pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_intermission");
 			if (!pt)
 			{ // the map creator forgot to put in an intermission point...
-				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
 				if (!pt)
 					pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
 			}
