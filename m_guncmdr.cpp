@@ -1478,8 +1478,12 @@ void SP_monster_guncmdrkl(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
 	SP_monster_guncmdr(self);
-	self->s.skinnum = 2;
 	self->health = 420 * current_wave_number/1.5;
+	if (current_wave_number < 20) {
+		if (self->health > 5000) {
+			self->health = 5000;
+		}
+	}
 	self->s.renderfx = RF_TRANSLUCENT;
 	self->s.effects = EF_FLAG1;
 }

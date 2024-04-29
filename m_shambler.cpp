@@ -603,8 +603,14 @@ void SP_monster_shamblerkl(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
-	self->s.skinnum = 2;
 	self->health = 675 * current_wave_number/1.3;
+
+	if (current_wave_number < 20) {
+		if (self->health > 5000) {
+			self->health = 5000;
+		}
+	}
+
 	self->gib_health = -1000;
 	self->yaw_speed = 65;
 	self->s.renderfx = RF_TRANSLUCENT;

@@ -90,9 +90,7 @@ void CarrierCoopCheck(edict_t *self)
 	// if we're not in coop, this is a noop
 	// [Paril-KEX] might as well let this work in SP too, so he fires it
 	// if you get below him
-	//if (!
-	// 
-	// )
+	//if (!coop->integer)
 	//	return;
 	// if we are, and we have recently fired, bail
 	if (self->monsterinfo.fire_wait > level.time)
@@ -107,6 +105,8 @@ void CarrierCoopCheck(edict_t *self)
 		if (!ent->inuse)
 			continue;
 		if (!ent->client)
+			continue;
+		if (ent->movetype == MOVETYPE_NOCLIP)
 			continue;
 		if (inback(self, ent) || below(self, ent))
 		{

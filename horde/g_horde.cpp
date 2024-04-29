@@ -292,6 +292,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_janitor2", 19, -1, 0.1f },
 { "monster_makron", 18, 19, 0.2f },
 { "monster_gladb", 14, -1, 0.75f},
+{ "monster_boss2_64", 14, -1, 0.08f },
 { "monster_perrokl", 21, -1, 0.27f },
 { "monster_guncmdrkl", 23, -1, 0.39f },
 { "monster_shamblerkl", 23, -1, 0.39f }
@@ -869,6 +870,7 @@ void Horde_RunFrame()
 				
 				if (current_wave_number >= 14) {
 					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
+					e->health *= pow(1.165, current_wave_number);
 				}
 				g_horde_local.monster_spawn_time = level.time + random_time(0.3_sec, 0.9_sec);
 
