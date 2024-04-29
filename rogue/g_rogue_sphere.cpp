@@ -297,9 +297,9 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 
 	start = self->s.origin;
 	start[2] += 2;
-	fire_blaster2(self->owner, start, dir, 40, 1300, EF_BLASTER, 0);
+	fire_blaster2(self->owner, start, dir, 20, 1400, EF_BLASTER, 0);
 
-	self->monsterinfo.attack_finished = level.time + 400_ms;
+	self->monsterinfo.attack_finished = level.time + 300_ms;
 }
 
 // *************************
@@ -456,6 +456,13 @@ THINK(defender_think) (edict_t *self) -> void
 	if (level.intermissiontime)
 	{
 		sphere_think_explode(self);
+		return;
+	}
+
+	// if we are spectator, FreeEdict.
+	if (self->owner->movetype == MOVETYPE_NOCLIP)
+	{
+		G_FreeEdict(self);
 		return;
 	}
 

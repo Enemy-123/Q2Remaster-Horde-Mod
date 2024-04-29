@@ -522,6 +522,7 @@ void Horde_PreInit()
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("sv_target_id", "1");
 		gi.cvar_set("g_dm_instant_items", "1");
+		gi.cvar_set("g_disable_player_collision", "1");
 //		gi.cvar_set("g_instagib", "1");
 //		gi.cvar_set("g_dm_no_self_damage", "1");
 //		gi.cvar_set("g_allow_techs", "1");
