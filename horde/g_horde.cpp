@@ -403,10 +403,11 @@ const char* G_HordePickMonster()
 
 const char* G_HordePickBOSS()
 {
+	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 	const char* desired_boss = nullptr;
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-		desired_boss = "monster_guncmdr";
+		desired_boss = "monster_guncmdrkl";
 	}
 	if (!Q_strcasecmp(level.mapname, "rdm14")) {
 		desired_boss = "monster_makronkl";
@@ -415,10 +416,40 @@ const char* G_HordePickBOSS()
 		desired_boss = "monster_boss2kl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
-		desired_boss = "monster_shamblerkl";
+
+
+		//generate random number
+		float r = frandom();
+
+		if (r < 0.333f) // less than 0.333
+		{
+			desired_boss = "monster_shamblerkl";
+		}
+		else if (r < 0.666f) // if less than 0.666
+		{
+			desired_boss = "monster_boss2kl";
+		}
+		else // same or more than 0.666
+		{
+			desired_boss = "monster_makronkl";
+		}
 	}
 	else if (!Q_strcasecmp(level.mapname, "xdm2")) {
-		desired_boss = "monster_boss2kl";
+		//generate random number
+		float r = frandom();
+
+		if (r < 0.333f) // less than 0.333
+		{
+			desired_boss = "monster_gunnercmdrkl";
+		}
+		else if (r < 0.666f) // if less than 0.666
+		{
+			desired_boss = "monster_boss2kl";
+		}
+		else // same or more than 0.666
+		{
+			desired_boss = "monster_makronkl";
+		}
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) {
 		desired_boss = "monster_perrokl";
@@ -430,7 +461,21 @@ const char* G_HordePickBOSS()
 		desired_boss = "monster_guncmdrkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
-		desired_boss = "monster_supertankkl";
+		//generate random number
+		float r = frandom();
+
+		if (r < 0.333f) // less than 0.333
+		{
+			desired_boss = "monster_supertankkl";
+		}
+		else if (r < 0.666f) // if less than 0.666
+		{
+			desired_boss = "monster_boss2kl";
+		}
+		else // same or more than 0.666
+		{
+			desired_boss = "monster_jorg";
+		}
 	}
 
 	else {
@@ -545,12 +590,12 @@ static void Horde_CleanBodies()
 
 void  SpawnBossAutomatically()
 {
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 2 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 4 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 6 == 0 && current_wave_number != 0) ||
-		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 7 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
 		((!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0 && current_wave_number != 0))
@@ -571,14 +616,14 @@ void  SpawnBossAutomatically()
 		boss->classname = desired_boss;
 		// origin for monsters
 		if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-			boss->s.origin[0] = 1280;
-			boss->s.origin[1] = 336;
-			boss->s.origin[2] = 664;
+			boss->s.origin[0] = 1184;
+			boss->s.origin[1] = 568;
+			boss->s.origin[2] = 704;
 		}
 		if (!Q_strcasecmp(level.mapname, "rdm14")) {
-			boss->s.origin[0] = 1280;
-			boss->s.origin[1] = 336;
-			boss->s.origin[2] = 664;
+			boss->s.origin[0] = 1248;
+			boss->s.origin[1] = 664;
+			boss->s.origin[2] = 896;
 		}
 		if (!Q_strcasecmp(level.mapname, "q2dm2")) {
 			boss->s.origin[0] = 128;

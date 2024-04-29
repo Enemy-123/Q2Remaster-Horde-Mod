@@ -574,7 +574,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if ((targ == attacker) && !(dflags & DAMAGE_NO_PROTECTION))
 	{
 		// if we're not a nuke & self damage is disabled, just kill the damage
-		if (g_no_self_damage->integer && (mod.id != MOD_NUKE))
+		if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE))
+
 			damage = 0;
 	}
 
@@ -805,7 +806,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// ROGUE
 
 		// [Paril-KEX] player hit markers
-		if (targ != attacker && attacker->client && targ->health > 0 && !((targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) && mod.id != MOD_TARGET_LASER)
+		if (targ != attacker && attacker->client && targ->health > 0 && !((targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) && mod.id != MOD_TARGET_LASER && !((attacker->movetype == MOVETYPE_NOCLIP)))
 			attacker->client->ps.stats[STAT_HIT_MARKER] += take + psave + asave;
 
 		// do the damage

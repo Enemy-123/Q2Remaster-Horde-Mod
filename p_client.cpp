@@ -101,7 +101,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 {
 	const char* base = nullptr;
 
-	if (G_IsCooperative() && attacker->client)
+	if (G_IsCooperative() && attacker->client || G_IsDeathmatch() && g_horde->integer)
 		mod.friendly_fire = true;
 
 	switch (mod.id)
@@ -132,7 +132,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		base = "$g_mod_generic_exit";
 		break;
 	case MOD_TARGET_LASER:
-		base = "$g_mod_generic_laser";
+		base = "{0} saw the light!\n";
 		break;
 	case MOD_TARGET_BLASTER:
 		base = "$g_mod_generic_blaster";
@@ -3899,7 +3899,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-	if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative)
+	if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative())
 		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;
