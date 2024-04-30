@@ -522,7 +522,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 				ent->timestamp = level.time + 30_sec;
 				ent->accel = best->mass;
 				if (G_IsDeathmatch())
-					ent->mass = best->mass / 4;
+					ent->mass = best->mass / 10;
 				else
 					ent->mass = best->mass / 10;
 				// ok spawn the food cube

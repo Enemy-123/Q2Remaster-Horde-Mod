@@ -1751,7 +1751,7 @@ void SP_func_door(edict_t *ent)
 
 	if (!ent->speed)
 		ent->speed = 100;
-    if (G_IsDeathmatch() && !g_horde->integer)
+    if (G_IsDeathmatch() && g_horde->integer)
 		ent->speed *= 2;
 
 	if (!ent->accel)

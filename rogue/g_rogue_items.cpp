@@ -5,7 +5,7 @@
 
 // ================
 // PMM
-bool Pickup_Nuke(edict_t *ent, edict_t *other)
+bool Pickup_Nuke(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
@@ -19,9 +19,7 @@ bool Pickup_Nuke(edict_t *ent, edict_t *other)
 
 	other->client->pers.inventory[ent->item->id]++;
 
-	
-
-
+	if (G_IsDeathmatch())
 	{
 		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED))
 			SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
@@ -32,7 +30,7 @@ bool Pickup_Nuke(edict_t *ent, edict_t *other)
 
 // ================
 // PGM
-void Use_IR(edict_t *ent, gitem_t *item)
+void Use_IR(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
 
@@ -41,7 +39,7 @@ void Use_IR(edict_t *ent, gitem_t *item)
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NORM, 0);
 }
 
-void Use_Double(edict_t *ent, gitem_t *item)
+void Use_Double(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
 
@@ -50,7 +48,7 @@ void Use_Double(edict_t *ent, gitem_t *item)
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ddamage1.wav"), 1, ATTN_NORM, 0);
 }
 
-void Use_Nuke(edict_t *ent, gitem_t *item)
+void Use_Nuke(edict_t* ent, gitem_t* item)
 {
 	vec3_t forward, right, start;
 	int	   speed;
@@ -64,7 +62,7 @@ void Use_Nuke(edict_t *ent, gitem_t *item)
 	fire_nuke(ent, start, forward, speed);
 }
 
-void Use_Doppleganger(edict_t *ent, gitem_t *item)
+void Use_Doppleganger(edict_t* ent, gitem_t* item)
 {
 	vec3_t forward, right;
 	vec3_t createPt, spawnPt;
@@ -89,14 +87,11 @@ void Use_Doppleganger(edict_t *ent, gitem_t *item)
 	fire_doppleganger(ent, spawnPt, forward);
 }
 
-bool Pickup_Doppleganger(edict_t *ent, edict_t *other)
+bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
-	
-	
-	
-	// item is DM only
+	if (!deathmatch->integer) // item is DM only
 		return false;
 
 	quantity = other->client->pers.inventory[ent->item->id];
@@ -111,7 +106,7 @@ bool Pickup_Doppleganger(edict_t *ent, edict_t *other)
 	return true;
 }
 
-bool Pickup_Sphere(edict_t *ent, edict_t *other)
+bool Pickup_Sphere(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
@@ -147,7 +142,8 @@ bool Pickup_Sphere(edict_t *ent, edict_t *other)
 
 	return true;
 }
-void Use_Defender(edict_t *ent, gitem_t *item)
+
+void Use_Defender(edict_t* ent, gitem_t* item)
 {
 	if (ent->client && ent->client->owned_sphere)
 	{
@@ -160,7 +156,7 @@ void Use_Defender(edict_t *ent, gitem_t *item)
 	Defender_Launch(ent);
 }
 
-void Use_Hunter(edict_t *ent, gitem_t *item)
+void Use_Hunter(edict_t* ent, gitem_t* item)
 {
 	if (ent->client && ent->client->owned_sphere)
 	{
@@ -173,7 +169,7 @@ void Use_Hunter(edict_t *ent, gitem_t *item)
 	Hunter_Launch(ent);
 }
 
-void Use_Vengeance(edict_t *ent, gitem_t *item)
+void Use_Vengeance(edict_t* ent, gitem_t* item)
 {
 	if (ent->client && ent->client->owned_sphere)
 	{
@@ -192,7 +188,7 @@ void Use_Vengeance(edict_t *ent, gitem_t *item)
 //=================
 // Item_TriggeredSpawn - create the item marked for spawn creation
 //=================
-USE(Item_TriggeredSpawn) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(Item_TriggeredSpawn) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->svflags &= ~SVF_NOCLIENT;
 	self->use = nullptr;
@@ -218,7 +214,7 @@ USE(Item_TriggeredSpawn) (edict_t *self, edict_t *other, edict_t *activator) -> 
 //=================
 // SetTriggeredSpawn - set up an item to spawn in later.
 //=================
-void SetTriggeredSpawn(edict_t *ent)
+void SetTriggeredSpawn(edict_t* ent)
 {
 	// don't do anything on key_power_cubes.
 	if (ent->item->id == IT_KEY_POWER_CUBE || ent->item->id == IT_KEY_EXPLOSIVE_CHARGES)

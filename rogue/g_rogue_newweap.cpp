@@ -1130,7 +1130,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 
 	if (G_IsDeathmatch())
 		// PMM - lowered from 50 - 7/29/1998
-		tesla->health = 20;
+		tesla->health = 50;
 	else
 		tesla->health = 50; // FIXME - change depending on skill?
 
