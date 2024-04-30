@@ -98,17 +98,15 @@ void PlayerTrail_Add(edict_t *player)
 	trail->owner = player;
 }
 
-// pick a trail node that matches the player
-// we're hunting that is visible to us.
-edict_t *PlayerTrail_Pick(edict_t *self, bool next)
+edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 {
-	// not player or doesn't have a trail yet
-	if (!self->enemy->client || !self->enemy->client->trail_head)  // debugger crash
+	// Verifica si self o self->enemy son nulos // fixing crash probably
+	if (!self || !self->enemy || !self->enemy->client || !self->enemy->client->trail_head)
 		return nullptr;
 
 	// find which marker head that was dropped while we
 	// were searching for this enemy
-	edict_t *marker;
+	edict_t* marker;
 
 	for (marker = self->enemy->client->trail_head; marker; marker = marker->enemy)
 	{
@@ -122,9 +120,9 @@ edict_t *PlayerTrail_Pick(edict_t *self, bool next)
 	{
 		// find the marker we're closest to
 		float closest_dist = std::numeric_limits<float>::infinity();
-		edict_t *closest = nullptr;
+		edict_t* closest = nullptr;
 
-		for (edict_t *m2 = marker; m2; m2 = m2->enemy)
+		for (edict_t* m2 = marker; m2; m2 = m2->enemy)
 		{
 			float len = (m2->s.origin - self->s.origin).lengthSquared();
 

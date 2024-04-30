@@ -93,6 +93,9 @@ int imageindex_sbfctf1;
 int imageindex_sbfctf2;
 int imageindex_ctfsb1;
 int imageindex_ctfsb2;
+int imageindex_strogg;
+int imageindex_human;
+int imageindex_victory;
 int modelindex_flag1, modelindex_flag2; // [Paril-KEX]
 
 constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
@@ -228,11 +231,12 @@ void CTFPrecache()
 	modelindex_flag1 = gi.modelindex("players/male/flag1.md2");
 	modelindex_flag2 = gi.modelindex("players/male/flag2.md2");
 
-	imageindex_ctfsb1 = gi.imageindex("tag4");// & gi.imageindex("ach/ACH_eou5_on");
-	imageindex_ctfsb2 = gi.imageindex("tag5");// & gi.imageindex("ach/ACH_eou7_on");
+	imageindex_ctfsb1 = gi.imageindex("tag4");
+	imageindex_ctfsb2 = gi.imageindex("tag5");
 
-//	imageindex_ctfsb1 = gi.imageindex("ach/ACH_eou5_on");
-//	imageindex_ctfsb2 = gi.imageindex("ach/ACH_eou7_on");
+	imageindex_human = gi.imageindex("ach/ACH_eou5_on");
+
+
 
 	PrecacheItem(GetItemByIndex(IT_WEAPON_GRAPPLE));
 }
@@ -1021,6 +1025,13 @@ void SetCTFStats(edict_t* ent)
 	}
 
 	// logo headers for the frag display
+	if (level.intermissiontime)
+	{
+		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_human;
+
+		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
+	}
+	else
 	ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_ctfsb1;
 
 	ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_ctfsb2;
@@ -1655,47 +1666,60 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	string.clear();
 
 	// [Paril-KEX] time & frags
-	if (teamplay->integer)
+//	if (teamplay->integer)
+	//{
+	//	if (fraglimit->integer)
+	//	{
+	//		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
+	//	}
+	//}
+	
+	
+	if (g_horde->integer)
+
 	{
-		if (fraglimit->integer)
-		{
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
-		}
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""), g_horde->integer);
 	}
-	else
-	{
-		if (g_horde->integer)
-		{
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:               Stroggs Remaining:\""), g_horde->integer);
-		}
-	}
+	
 	if (timelimit->value)
 	{
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
 	// team one
-	if (teamplay->integer)
+	//if (teamplay->integer)
+	//{
+	//	fmt::format_to(std::back_inserter(string),
+	//		FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
+	//			"xv -123 yv 28 cstring \"{}\" "
+	//			"xv 41 yv 12 num 3 19 "
+	//			"if 26 xv 208 yv 8 pic 26 endif "
+	//			"xv 117 yv 28 cstring \"{}\" "
+	//			"xv 280 yv 12 num 3 21 "),
+	//		total[0],
+	//		total[1]);
+	//}
+	if (!level.intermissiontime)
 	{
 		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
-				"xv -123 yv 28 cstring \"{}\" "
-				"xv 41 yv 12 num 3 19 "
+			FMT_STRING("if 25 xv -25 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
+				"xv 70 yv -20 num 2 19 "
 				"if 26 xv 208 yv 8 pic 26 endif "
-				"xv 117 yv 28 cstring \"{}\" "
-				"xv 280 yv 12 num 3 21 "),
-			total[0],
-			total[1]);
+				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
+				"xv 296 yv -20 num 2 21 "),
+			totalscore[0], total[0],
+			totalscore[1], total[1]);
 	}
-	else
-	{
+	else if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
-				"xv 0 yv 28 string \"{:4}/{:<3}\" "
-				"xv 58 yv 12 num 2 19 "
-				"if 26 xv 208 yv 8 pic 26 endif "
-				"xv 240 yv 28 string \"{:4}/{:<3}\" "
-				"xv 296 yv 12 num 2 21 "),
+			FMT_STRING(  // RED TEAM, yv 8 normal, menos es mas alto
+				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
+				"xv 70 yv -20 num 2 19 "
+		//		"if 26 xv 208 yv 8 pic 26 endif "
+				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
+				"xv 296 yv -20 num 2 21 "
+			   "if 25 xv 165 yv 30 pic 25 endif "),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 	}

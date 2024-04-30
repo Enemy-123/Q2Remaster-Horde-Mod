@@ -1749,7 +1749,8 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		// frags
 
-		sb.xr(-53).yt(2).num(3, STAT_FRAGS).xr(-79).yt(2).string2("Frags:");
+		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
+		//sb.xr(-53).yt(2).num(3, STAT_FRAGS).xr(-82).yt(15).string2("Frags:");
 
 		// top of screen coop respawn display
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
