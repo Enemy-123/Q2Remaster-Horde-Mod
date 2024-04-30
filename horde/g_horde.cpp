@@ -868,9 +868,9 @@ void Horde_RunFrame()
 					e->health *= pow(1.045, current_wave_number);
 					HuntTarget(e);
 				
-				if (current_wave_number >= 14) {
+				if (current_wave_number >= 15) {
 					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
-					e->health *= pow(1.165, current_wave_number);
+					e->health *= pow(1.048, current_wave_number);
 				}
 				g_horde_local.monster_spawn_time = level.time + random_time(0.3_sec, 0.9_sec);
 

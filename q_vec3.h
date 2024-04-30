@@ -381,26 +381,32 @@ R_ConcatRotations
 	};
 }
 
-[[nodiscard]] inline float distance_between_boxes(const vec3_t &absminsa, const vec3_t &absmaxsa, const vec3_t &absminsb, const vec3_t &absmaxsb)
+[[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa, const vec3_t& absminsb, const vec3_t& absmaxsb)
 {
-    float len = 0;
+	if (!&absminsa || !&absmaxsa || !&absminsb || !&absmaxsb) {
+		// Manejo de error, como retornar un valor predeterminado o lanzar una excepción
+		return 0.0f; // Por ejemplo, si es apropiado para tu caso
+	}
+
+	float len = 0;
 
 	for (size_t i = 0; i < 3; i++)
-    {
-        if (absmaxsa[i] < absminsb[i]) // CRASH q2dm4 debugger!
-        {
-            float d = absmaxsa[i] - absminsb[i];
-            len += d * d;
-        }
-        else if (absminsa[i] > absmaxsb[i])
-        {
-            float d = absminsa[i] - absmaxsb[i];
-            len += d * d;
-        }
-    }
-    
-    return sqrt(len);
+	{
+		if (absmaxsa[i] < absminsb[i]) // CRASH debugger!
+		{
+			float d = absmaxsa[i] - absminsb[i];
+			len += d * d;
+		}
+		else if (absminsa[i] > absmaxsb[i])
+		{
+			float d = absminsa[i] - absmaxsb[i];
+			len += d * d;
+		}
+	}
+
+	return sqrt(len);
 }
+
 
 [[nodiscard]] constexpr bool boxes_intersect(const vec3_t &amins, const vec3_t &amaxs, const vec3_t &bmins, const vec3_t &bmaxs)
 {

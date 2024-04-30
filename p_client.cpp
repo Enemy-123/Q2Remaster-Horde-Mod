@@ -909,25 +909,27 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				(ctf->integer ? !level.no_grapple : 0) :
 				g_allow_grapple->integer;
 
-			if (current_wave_number > 3 && G_IsDeathmatch() && g_instagib->integer && current_wave_number < 5)
-			{
-				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-				client->pers.inventory[IT_AMMO_BULLETS] = 50;
-				client->pers.inventory[IT_AMMO_SHELLS] = 20;
-			}
-				else if (G_IsDeathmatch() && g_instagib->integer && current_wave_number > 5)
-			{
-				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-				client->pers.inventory[IT_AMMO_BULLETS] = 50;
-				client->pers.inventory[IT_AMMO_SHELLS] = 20;
-			}
+
+			//maybe wont be needed now
+			//if (current_wave_number > 5 && current_wave_number < 7 && G_IsDeathmatch() && g_instagib->integer)
+			//{
+			//	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+			//	client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+			//	client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+			//	client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+			//	client->pers.inventory[IT_AMMO_BULLETS] = 50;
+			//	client->pers.inventory[IT_AMMO_SHELLS] = 20;
+			//}
+			//	else if (G_IsDeathmatch() && g_instagib->integer && current_wave_number > 7)
+			//{
+			//	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+			//	client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+			//	client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+			//	client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
+			//	client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+			//	client->pers.inventory[IT_AMMO_BULLETS] = 50;
+			//	client->pers.inventory[IT_AMMO_SHELLS] = 20;
+			//} 
 
 			if (give_grapple)
 				client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
