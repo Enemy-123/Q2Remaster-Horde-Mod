@@ -383,7 +383,7 @@ R_ConcatRotations
 
 [[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa, const vec3_t& absminsb, const vec3_t& absmaxsb)
 {
-	if (!&absminsa || !&absmaxsa || !&absminsb || !&absmaxsb) {
+	if (!absminsa || !absmaxsa || !absminsb || !absmaxsb) {
 		// Manejo de error, como retornar un valor predeterminado o lanzar una excepción
 		return 0.0f; // Por ejemplo, si es apropiado para tu caso
 	}

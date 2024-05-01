@@ -575,6 +575,34 @@ static void hover2_set_fly_parameters(edict_t* self)
  */
 void SP_monster_hover2(edict_t* self)
 {
+	if (g_horde->integer) {
+		if (strcmp(self->classname, "monster_daedalus2"))
+		{
+			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+			if (randomsearch < 0.23f)
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+			else if (randomsearch < 0.56f)
+				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+		else
+		{
+			if (!strcmp(self->classname, "monster_daedalus2"))
+			{
+				float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+				if (randomsearch < 0.23f)
+					gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);
+				else if (randomsearch < 0.56f)
+					gi.sound(self, CHAN_VOICE, daed_sound_search2, 1, ATTN_NORM, 0);
+				else
+					NULL;
+			}
+		}
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

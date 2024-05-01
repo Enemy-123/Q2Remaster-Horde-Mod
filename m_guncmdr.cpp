@@ -1399,6 +1399,17 @@ model="models/monsters/guncmdr/tris.md2"
 */
 void SP_monster_guncmdr(edict_t* self)
 {
+
+	if (g_horde->integer) {
+		{
+			if (brandom())
+				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

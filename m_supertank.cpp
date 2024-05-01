@@ -635,6 +635,21 @@ MONSTERINFO_BLOCKED(supertank_blocked) (edict_t* self, float dist) -> bool
  */
 void SP_monster_supertank(edict_t* self)
 {
+
+	if (g_horde->integer) {
+		{
+			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+			if (randomsearch < 0.33f)
+
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+			else if (randomsearch < 0.66f)
+				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

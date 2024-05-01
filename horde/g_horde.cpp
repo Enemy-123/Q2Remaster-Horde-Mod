@@ -131,7 +131,7 @@ static void Horde_InitLevel(int32_t lvl)
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 		}
-		if (g_chaotic->integer && !g_insane->integer) {
+		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
 			g_horde_local.num_to_spawn += 5; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
@@ -140,7 +140,7 @@ static void Horde_InitLevel(int32_t lvl)
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 		}
-		if (g_chaotic->integer && !g_insane->integer) {
+		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
 			g_horde_local.num_to_spawn += 15; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
@@ -149,7 +149,7 @@ static void Horde_InitLevel(int32_t lvl)
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_MEDIUM_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 		}
-		if (g_chaotic->integer && !g_insane->integer) {
+		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
 			g_horde_local.num_to_spawn += 8; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
@@ -743,7 +743,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		timeThreshold = 9;
 	}
 	else if (isBigMap) {
-		maxMonsters = 27;
+		maxMonsters = 23;
 		timeThreshold = 20;
 	}
 	else {
@@ -803,7 +803,9 @@ void Horde_RunFrame()
 			}
 			else if (r < 0.666f) // if less than 0.666
 			{
-				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+			//	gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+				gi.sound(world, CHAN_VOICE, gi.soundindex("world/klaxon2.wav"), 1, ATTN_NONE, 0);
+			//	gi.sound(world, CHAN_VOICE, gi.soundindex("bosshovr/bhvunqv1.wav"), 1, ATTN_NONE, 0);
 			}
 			else // same or more than 0.666
 			{
@@ -819,7 +821,7 @@ void Horde_RunFrame()
 			if (!g_chaotic->integer || (g_chaotic->integer && r > 0.666f))
 				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
 			else if (r > 0.333f)
-				gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
+				gi.sound(world, CHAN_VOICE, gi.soundindex("world/incoming.wav"), 1, ATTN_NONE, 0);
 			else
 				gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
 		}

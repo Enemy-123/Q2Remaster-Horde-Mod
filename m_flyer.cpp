@@ -698,6 +698,16 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
  */
 void SP_monster_flyer(edict_t* self)
 {
+		if (g_horde->integer) {
+		{
+			if (brandom())
+				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

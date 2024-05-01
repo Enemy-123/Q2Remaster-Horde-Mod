@@ -674,6 +674,17 @@ model="models/monsters/mutant/tris.md2"
 */
 void SP_monster_mutant(edict_t* self)
 {
+
+	if (g_horde->integer) {
+		{
+			if (brandom())
+				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -683,11 +694,11 @@ void SP_monster_mutant(edict_t* self)
 	sound_hit.assign("mutant/mutatck2.wav");
 	sound_hit2.assign("mutant/mutatck3.wav");
 	sound_death.assign("mutant/mutdeth1.wav");
-	sound_idle.assign("mutant/mutidle1.wav");
+	sound_search.assign("mutant/mutidle1.wav");
 	sound_pain1.assign("mutant/mutpain1.wav");
 	sound_pain2.assign("mutant/mutpain2.wav");
 	sound_sight.assign("mutant/mutsght1.wav");
-	sound_search.assign("mutant/mutsrch1.wav");
+	sound_idle.assign("mutant/mutsrch1.wav");
 	sound_step1.assign("mutant/step1.wav");
 	sound_step2.assign("mutant/step2.wav");
 	sound_step3.assign("mutant/step3.wav");

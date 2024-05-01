@@ -770,6 +770,15 @@ MONSTERINFO_DUCK(berserk_duck) (edict_t* self, gtime_t eta) -> bool
  */
 void SP_monster_berserk(edict_t* self)
 {
+	if (g_horde->integer) {
+		{
+			if (brandom())
+				gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);
+			else
+				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+		}
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

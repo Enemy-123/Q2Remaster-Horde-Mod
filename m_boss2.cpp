@@ -680,6 +680,17 @@ void SP_monster_boss2(edict_t* self)
 	self->monsterinfo.setskin = boss2_setskin;
 	gi.linkentity(self);
 
+	if (g_horde->integer) {
+		{
+			if (brandom())
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+	
+	}
+
+
 	M_SetAnimation(self, &boss2_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
 

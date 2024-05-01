@@ -398,11 +398,11 @@ void hover_fire_blaster(edict_t *self)
 	dir = end - start;
 	dir.normalize();
 
-	rocketSpeed = 850;
+	rocketSpeed = 650;
 
 	// PGM	- daedalus fires blaster2
 	if (self->mass < 200)
-		monster_fire_rocket(self, start, dir, 17, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+		monster_fire_rocket(self, start, dir, 14, rocketSpeed, MZ2_BOSS2_ROCKET_3);
 	else
 		monster_fire_blaster2(self, start, dir, 9, 1400, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 	// PGM
@@ -576,8 +576,36 @@ static void hover_set_fly_parameters(edict_t *self)
 /*QUAKED monster_daedalus (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
 This is the improved icarus monster.
 */
-void SP_monster_hover(edict_t *self)
+void SP_monster_hover(edict_t* self)
 {
+	if (g_horde->integer) {
+		if (strcmp(self->classname, "monster_daedalus"))
+		{
+			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+			if (randomsearch < 0.23f)
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+			else if (randomsearch < 0.56f)
+				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+
+		else if (!strcmp(self->classname, "monster_daedalus")) {
+
+			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+			if (randomsearch < 0.23f)
+				gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);
+			else if (randomsearch < 0.56f)
+				gi.sound(self, CHAN_VOICE, daed_sound_search2, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+	}
+	
+
+
 	if ( !M_AllowSpawn( self ) ) {
 		G_FreeEdict( self );
 		return;
