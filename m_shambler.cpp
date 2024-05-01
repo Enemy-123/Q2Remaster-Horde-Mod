@@ -197,7 +197,7 @@ PAIN(shambler_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 	if (level.time < self->timestamp)
 		return;
 
-	self->timestamp = level.time + 1_ms;
+	self->timestamp = level.time + 1.5_sec;
 	gi.sound(self, CHAN_AUTO, sound_pain, 1, ATTN_NORM, 0);
 
 	if (mod.id != MOD_CHAINFIST && damage <= 30 && frandom() > 0.2f)

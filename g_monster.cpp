@@ -1118,11 +1118,6 @@ THINK(monster_triggered_think) (edict_t* self) -> void
 
 void monster_triggered_start(edict_t* self)
 {
-	if (g_horde->integer) {
-		self->nextthink = 1_ms;
-		monster_start_go(self);
-	}
-	else
 	self->solid = SOLID_NOT;
 	self->movetype = MOVETYPE_NONE;
 	self->svflags |= SVF_NOCLIENT;

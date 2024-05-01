@@ -371,7 +371,7 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_CELLS, 250);
 	G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 60);
-	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 275);
+	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
 	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 18);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
@@ -398,7 +398,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_BULLETS, 400);
 	G_AdjustAmmoCap(other, AMMO_SHELLS, 125);
 	G_AdjustAmmoCap(other, AMMO_ROCKETS, 100);
-	G_AdjustAmmoCap(other, AMMO_GRENADES, 200);
+	G_AdjustAmmoCap(other, AMMO_GRENADES, 125);
 	G_AdjustAmmoCap(other, AMMO_CELLS, 300);
 	G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 125);
@@ -417,6 +417,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
+	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
 	G_AddAmmoAndCapQuantity(other, AMMO_CELLS);
@@ -426,7 +427,6 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
 	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
 	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
-	G_AddAmmoAndCapQuantity(other, AMMO_PROX);
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
