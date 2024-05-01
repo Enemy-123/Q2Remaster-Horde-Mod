@@ -132,7 +132,7 @@ static void Horde_InitLevel(int32_t lvl)
 			g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 		}
 		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
-			g_horde_local.num_to_spawn += 5; // Aumentar el número de monstruos si chaotic->integer es verdadero
+			g_horde_local.num_to_spawn += 4; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 	else if (isBigMap) {
@@ -141,7 +141,7 @@ static void Horde_InitLevel(int32_t lvl)
 			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 		}
 		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
-			g_horde_local.num_to_spawn += 15; // Aumentar el número de monstruos si chaotic->integer es verdadero
+			g_horde_local.num_to_spawn += 11; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 	else {
@@ -150,7 +150,7 @@ static void Horde_InitLevel(int32_t lvl)
 			g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 		}
 		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
-			g_horde_local.num_to_spawn += 8; // Aumentar el número de monstruos si chaotic->integer es verdadero
+			g_horde_local.num_to_spawn += 5; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 }
@@ -472,13 +472,28 @@ const char* G_HordePickBOSS()
 		}
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) {
-		desired_boss = "monster_perrokl";
+		{
+			if (brandom()) {
+				desired_boss = "monster_perrokl";
+			}
+			else desired_boss = "monster_guncmdrkl";
+		}
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
-		desired_boss = "monster_guncmdrkl";
+		{
+			if (brandom()) {
+				desired_boss = "monster_perrokl";
+			}
+			else desired_boss = "monster_guncmdrkl";
+		}
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
-		desired_boss = "monster_guncmdrkl";
+		{
+			if (brandom()) {
+				desired_boss = "monster_perrokl";
+			}
+			else desired_boss = "monster_guncmdrkl";
+		}
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		//generate random number

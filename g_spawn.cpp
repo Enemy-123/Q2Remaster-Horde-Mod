@@ -1685,10 +1685,15 @@ static void G_InitStatusbar()
 		}
 		if (G_IsCooperative())
 		{
+			// Q2ETweaks target id view state
+			// TODO move back to xv 112 if we find an image for below
+			sb.ifstat(STAT_CTF_ID_VIEW).xv(112).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+
+		// frags
+		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
+
 		//  MONSTERS COUNT
 			sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
-		// frags
-			sb.xr(-50).yt(2).num(3, STAT_FRAGS).xr(-70).yt(10).string2("Frags:");
 		// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 		// coop lives
@@ -1749,8 +1754,8 @@ static void G_InitStatusbar()
 	{
 		// Health Bar
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-		// frags
 
+		// frags
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 		//sb.xr(-53).yt(2).num(3, STAT_FRAGS).xr(-82).yt(15).string2("Frags:");
 
