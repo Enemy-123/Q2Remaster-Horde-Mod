@@ -885,11 +885,11 @@ void Horde_RunFrame()
 					e->health *= pow(1.05, current_wave_number);
 					HuntTarget(e);
 				
-				if (current_wave_number >= 15 && g_insane->integer) {
-					g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.9_sec);
+				if (current_wave_number >= 13 || g_insane->integer) {
+					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
 					e->health *= pow(1.045, current_wave_number);
 				}
-				g_horde_local.monster_spawn_time = level.time + random_time(1.3_sec, 1.9_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.9_sec);
 
 				--g_horde_local.num_to_spawn;
 
@@ -918,14 +918,18 @@ void Horde_RunFrame()
 
 			if (current_wave_number >= 15) {
 				gi.cvar_set("g_insane", "1");
+				gi.cvar_set("g_chaotic", "0");
+
 
 				// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 				g_horde_local.state = horde_state_t::rest;
 				break;
 			}
-			else 
-			gi.cvar_set("g_chaotic", "1");
-
+			else if (!isSmallMap) {
+				gi.cvar_set("g_chaotic", "1");
+			}
+			else
+				gi.cvar_set("g_chaotic", "2");
 
 			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 			g_horde_local.state = horde_state_t::rest;

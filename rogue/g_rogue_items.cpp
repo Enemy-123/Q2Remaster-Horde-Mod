@@ -91,7 +91,7 @@ bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
-	if (!deathmatch->integer) // item is DM only
+	if (!G_IsDeathmatch()) // item is DM only
 		return false;
 
 	quantity = other->client->pers.inventory[ent->item->id];

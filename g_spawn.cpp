@@ -490,47 +490,47 @@ Finds the spawn function for the entity and calls it
 */
 void ED_CallSpawn(edict_t* ent)
 {
-	//if (g_chaotic->integer == 1) {
-	//	if (!strcmp(ent->classname, "monster_soldier_ss")) {
-	//		ent->classname = "monster_infantry2";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_infantry2")) {
-	//		ent->classname = "monster_gunner2";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_flyer")) {
-	//		ent->classname = "monster_parasite";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_stalker")) {
-	//		ent->classname = "monster_parasite";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_tank")) {
-	//		ent->classname = "monster_tank_commander";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_tank_commander")) {
-	//		ent->classname = "monster_shambler";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_supertank")) {
-	//		ent->classname = "monster_boss5";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_chick")) {
-	//		ent->classname = "monster_chick_heat";
-	//	}
-	//	else if (!strcmp(ent->classname, "monster_boss2")) {
-	//		ent->classname = "monster_carrier";
-	//	}
-	//	else if (current_wave_number >= 7 && !strcmp(ent->classname, "monster_gunner2")) {
-	//		ent->classname = "monster_gunner";
-	//	}
-	//	else if (current_wave_number >= 5 && !strcmp(ent->classname, "monster_infantry2")) {
-	//		ent->classname = "monster_gunner";
-	//	}
-	//	else if (current_wave_number >= 11 && !strcmp(ent->classname, "monster_guncmdr2")) {
-	//		ent->classname = "monster_guncmdr";
-	//	}
-	//	else if (current_wave_number >= 8 && !strcmp(ent->classname, "monster_flyer")) {
-	//		ent->classname = "monster_daedalus";
-	//	}
-	//}
+	if (g_chaotic->integer == 2) {
+		if (!strcmp(ent->classname, "monster_soldier_ss")) {
+			ent->classname = "monster_infantry2";
+		}
+		else if (!strcmp(ent->classname, "monster_infantry2")) {
+			ent->classname = "monster_gunner2";
+		}
+		else if (!strcmp(ent->classname, "monster_flyer")) {
+			ent->classname = "monster_parasite";
+		}
+		else if (!strcmp(ent->classname, "monster_stalker")) {
+			ent->classname = "monster_parasite";
+		}
+		else if (!strcmp(ent->classname, "monster_tank")) {
+			ent->classname = "monster_tank_commander";
+		}
+		else if (!strcmp(ent->classname, "monster_tank_commander")) {
+			ent->classname = "monster_shambler";
+		}
+		else if (!strcmp(ent->classname, "monster_supertank")) {
+			ent->classname = "monster_boss5";
+		}
+		else if (!strcmp(ent->classname, "monster_chick")) {
+			ent->classname = "monster_chick_heat";
+		}
+		else if (!strcmp(ent->classname, "monster_boss2")) {
+			ent->classname = "monster_carrier";
+		}
+		else if (current_wave_number >= 7 && !strcmp(ent->classname, "monster_gunner2")) {
+			ent->classname = "monster_gunner";
+		}
+		else if (current_wave_number >= 5 && !strcmp(ent->classname, "monster_infantry2")) {
+			ent->classname = "monster_gunner";
+		}
+		else if (current_wave_number >= 11 && !strcmp(ent->classname, "monster_guncmdr2")) {
+			ent->classname = "monster_guncmdr";
+		}
+		else if (current_wave_number >= 8 && !strcmp(ent->classname, "monster_flyer")) {
+			ent->classname = "monster_daedalus";
+		}
+	}
 
 	if (g_insane->integer == 1) {
 
