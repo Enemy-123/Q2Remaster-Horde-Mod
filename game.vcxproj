@@ -212,6 +212,7 @@
     <ClCompile Include="m_soldier.cpp" />
     <ClCompile Include="m_supertank.cpp" />
     <ClCompile Include="m_tank.cpp" />
+    <ClCompile Include="m_tank2.cpp" />
     <ClCompile Include="p_client.cpp" />
     <ClCompile Include="p_hud.cpp" />
     <ClCompile Include="p_move.cpp" />

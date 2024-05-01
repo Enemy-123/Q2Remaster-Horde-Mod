@@ -1148,7 +1148,11 @@ DIE(button_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker, int da
 	self->takedamage = false;
 	button_fire(self);
 }
-
+void activate_button(edict_t* self)
+{
+	self->activator = self; // Puedes establecer el activador como la propia entidad del botón
+	button_fire(self);
+}
 void SP_func_button(edict_t *ent)
 {
 	vec3_t abs_movedir;
@@ -1215,6 +1219,10 @@ void SP_func_button(edict_t *ent)
 	ent->moveinfo.end_angles = ent->s.angles;
 
 	gi.linkentity(ent);
+
+	if (g_horde->integer) {
+	activate_button(ent);
+	}
 }
 
 /*

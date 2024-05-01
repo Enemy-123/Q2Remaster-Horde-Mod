@@ -4,8 +4,12 @@
 #include <sstream>
 
 static const int MAX_MONSTERS_BIG_MAP = 52;
+
 static const int MAX_MONSTERS_MEDIUM_MAP = 25;
+
 static const int MAX_MONSTERS_SMALL_MAP = 18;
+
+
 
 int remainingMonsters = 0;
 int current_wave_number = 1;
@@ -122,11 +126,13 @@ static void Horde_InitLevel(int32_t lvl)
 		isSmallMap = false;
 	}
 
-	// logic to establish num of monsters to spawn according to map size
 	if (isSmallMap) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 1);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
+		}
+		if (g_chaotic->integer && !g_insane->integer) {
+			g_horde_local.num_to_spawn += 5; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 	else if (isBigMap) {
@@ -134,11 +140,17 @@ static void Horde_InitLevel(int32_t lvl)
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 		}
+		if (g_chaotic->integer && !g_insane->integer) {
+			g_horde_local.num_to_spawn += 15; // Aumentar el número de monstruos si chaotic->integer es verdadero
+		}
 	}
 	else {
 		g_horde_local.num_to_spawn = 10 + (lvl * 1.3);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_MEDIUM_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
+		}
+		if (g_chaotic->integer && !g_insane->integer) {
+			g_horde_local.num_to_spawn += 8; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 }
@@ -187,9 +199,10 @@ constexpr struct weighted_item_t {
 	{ "item_double", 5, -1, 0.011f, adjust_weight_powerup },
 	{ "item_quadfire", 4, -1, 0.014f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
-	{ "item_sphere_defender", -1, -1, 0.12f, adjust_weight_powerup },
+	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
+	{ "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_doppleganger", 3, -1, 0.06f, adjust_weight_powerup },
+	{ "item_doppleganger", 6, -1, 0.06f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.12f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -209,7 +222,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_bfg", 12, -1, 0.15f, adjust_weight_weapon },
 
 
-	{ "ammo_trap", -1, -1, 0.15f, adjust_weight_ammo },
+	{ "ammo_trap", 5, -1, 0.15f, adjust_weight_ammo },
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_flechettes", 5, -1, 0.25f, adjust_weight_ammo },
@@ -248,11 +261,11 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 //	{ "monster_chick_heat", 7, -1, 0.73f },
 
 constexpr weighted_item_t monsters[] = {
-{ "monster_soldier_light", -1, 6, 0.55f },
-{ "monster_soldier_ss", -1, 21, 0.55f },
+{ "monster_soldier_light", -1, 18, 0.55f },
+{ "monster_soldier_ss", -1, 7, 0.55f },
 { "monster_soldier", -1, 4, 0.45f },
 { "monster_soldier_hypergun", 2, 7, 0.55f },
-{ "monster_soldier_lasergun", 3, 10, 0.45f },
+{ "monster_soldier_lasergun", 3, 9, 0.45f },
 { "monster_soldier_ripper", 3, 7, 0.45f },
 
 { "monster_infantry2", 2, 13, 0.36f },
@@ -261,24 +274,27 @@ constexpr weighted_item_t monsters[] = {
 
 
 { "monster_flyer", -1, 19, 0.14f },
-{ "monster_hover2", 5, 10, 0.17f },
+{ "monster_hover2", 5, 12, 0.17f },
 
 { "monster_gekk", 3, 12, 0.22f },
 
-{ "monster_gunner2", 3, 9, 0.35f },
+{ "monster_gunner2", 3, 11, 0.35f },
 { "monster_gunner", 8, -1, 0.34f },
 
-{ "monster_medic", 5, 8, 0.12f },
+{ "monster_medic", 5, 12, 0.1f },
 { "monster_brain", 5, -1, 0.3f }, 
-{ "monster_stalker", 4, 8, 0.13f },
+{ "monster_stalker", 4, 11, 0.13f },
 { "monster_parasite", 4, 14, 0.2f },
-{ "monster_tank", 7, -1, 0.3f },  
+{ "monster_tank", 14, -1, 0.3f },  
+{ "monster_tank2", 5, 13, 0.3f },  
 { "monster_guncmdr2", 6, 10, 0.18f },
 { "monster_mutant", 5, 18, 0.55f },
-{ "monster_chick", 7, 19, 0.7f },
+{ "monster_chick", 6, 18, 0.7f },
+{ "monster_chick_heat", 10, -1, 0.7f },
 { "monster_berserk", 8, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
 { "monster_hover", 11, -1, 0.27f }, 
+{ "monster_daedalus", 6, -1, 0.008f }, 
 { "monster_medic_commander", 13, -1, 0.18f }, 
 { "monster_tank_commander", 11, 18, 0.15f },
 { "monster_spider", 12, -1, 0.24f },
@@ -290,7 +306,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_carrier2", 17, -1, 0.23f },
 { "monster_tank_64", 16, -1, 0.13f },
 { "monster_janitor", 16, -1, 0.18f },
-{ "monster_janitor2", 19, -1, 0.1f },
+{ "monster_janitor2", 19, -1, 0.12f },
 { "monster_makron", 18, 19, 0.2f },
 { "monster_gladb", 14, -1, 0.75f},
 { "monster_boss2_64", 14, -1, 0.08f },
@@ -724,15 +740,15 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 	// Ajustar los valores según el tipo de mapa
 	if (isSmallMap) {
 		maxMonsters = 5;
-		timeThreshold = 8;
+		timeThreshold = 9;
 	}
 	else if (isBigMap) {
 		maxMonsters = 27;
-		timeThreshold = 12;
+		timeThreshold = 20;
 	}
 	else {
-		maxMonsters = 7;
-		timeThreshold = 10;
+		maxMonsters = 8;
+		timeThreshold = 14;
 	}
 
 	if (remainingMonsters <= maxMonsters) {
@@ -826,9 +842,9 @@ void Horde_RunFrame()
 			edict_t* e = G_Spawn();
 			e->classname = G_HordePickMonster();
 			select_spawn_result_t result = SelectDeathmatchSpawnPoint(false, true, false);
-
 			if (result.any_valid)
 			{
+
 				e->s.origin = result.spot->s.origin;
 				e->s.angles = result.spot->s.angles;
 				e->item = G_HordePickItem();
@@ -866,14 +882,14 @@ void Horde_RunFrame()
 						}
 					}
 					e->gib_health = -280;
-					e->health *= pow(1.045, current_wave_number);
+					e->health *= pow(1.05, current_wave_number);
 					HuntTarget(e);
 				
-				if (current_wave_number >= 15) {
-					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
-					e->health *= pow(1.048, current_wave_number);
+				if (current_wave_number >= 15 && g_insane->integer) {
+					g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 1.9_sec);
+					e->health *= pow(1.045, current_wave_number);
 				}
-				g_horde_local.monster_spawn_time = level.time + random_time(0.3_sec, 0.9_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(1.3_sec, 1.9_sec);
 
 				--g_horde_local.num_to_spawn;
 
@@ -911,7 +927,6 @@ void Horde_RunFrame()
 			gi.cvar_set("g_chaotic", "1");
 
 
-
 			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 			g_horde_local.state = horde_state_t::rest;
 			break;
@@ -947,7 +962,13 @@ void Horde_RunFrame()
 		if (g_horde_local.warm_time < level.time)
 		{
 			if (g_chaotic->integer || g_insane->integer) {
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
+				if (!g_insane->integer) {
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n STROGGS STARTING TO PUSH !\n\n\n ");
+				  }
+				else if (g_insane->integer) {
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
+				  }
+					//"\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
 				float r = frandom();
 
 				if (r < 0.167f) // Aproximadamente 16.7% de probabilidad para cada sonido

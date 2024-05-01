@@ -268,7 +268,7 @@ void fire_doppleganger(edict_t *ent, const vec3_t &start, const vec3_t &aimdir)
 	base->pain = doppleganger_pain;
 	base->die = doppleganger_die;
 
-	base->nextthink = level.time + 30_sec;
+	base->nextthink = level.time + 5_sec;
 	base->think = doppleganger_timeout;
 
 	base->classname = "doppleganger";

@@ -6,19 +6,19 @@
 
 #include "../g_local.h"
 
-void SP_dm_tag_token(edict_t *self);
+void SP_dm_tag_token(edict_t* self);
 
 // ***********************
 // Tag Specific Stuff
 // ***********************
 
-edict_t *tag_token;
-edict_t *tag_owner;
+edict_t* tag_token;
+edict_t* tag_owner;
 int		 tag_count;
 
 //=================
 //=================
-void Tag_PlayerDeath(edict_t *targ, edict_t *inflictor, edict_t *attacker)
+void Tag_PlayerDeath(edict_t* targ, edict_t* inflictor, edict_t* attacker)
 {
 	if (tag_token && targ && (targ == tag_owner))
 	{
@@ -30,9 +30,9 @@ void Tag_PlayerDeath(edict_t *targ, edict_t *inflictor, edict_t *attacker)
 
 //=================
 //=================
-void Tag_KillItBonus(edict_t *self)
+void Tag_KillItBonus(edict_t* self)
 {
-	edict_t *armor;
+	edict_t* armor;
 
 	// if the player is hurt, boost them up to max.
 	if (self->health < self->max_health)
@@ -53,7 +53,7 @@ void Tag_KillItBonus(edict_t *self)
 
 //=================
 //=================
-void Tag_PlayerDisconnect(edict_t *self)
+void Tag_PlayerDisconnect(edict_t* self)
 {
 	if (tag_token && self && (self == tag_owner))
 	{
@@ -65,9 +65,9 @@ void Tag_PlayerDisconnect(edict_t *self)
 
 //=================
 //=================
-void Tag_Score(edict_t *attacker, edict_t *victim, int scoreChange, const mod_t &mod)
+void Tag_Score(edict_t* attacker, edict_t* victim, int scoreChange, const mod_t& mod)
 {
-	gitem_t *quad;
+	gitem_t* quad;
 
 	if (tag_token && tag_owner)
 	{
@@ -110,7 +110,7 @@ void Tag_Score(edict_t *attacker, edict_t *victim, int scoreChange, const mod_t 
 
 //=================
 //=================
-bool Tag_PickupToken(edict_t *ent, edict_t *other)
+bool Tag_PickupToken(edict_t* ent, edict_t* other)
 {
 	if (gamerules->integer != RDM_TAG)
 	{
@@ -133,9 +133,9 @@ bool Tag_PickupToken(edict_t *ent, edict_t *other)
 
 //=================
 //=================
-THINK(Tag_Respawn) (edict_t *ent) -> void
+THINK(Tag_Respawn) (edict_t* ent) -> void
 {
-	edict_t *spot;
+	edict_t* spot;
 
 	spot = SelectDeathmatchSpawnPoint(true, false, true).spot;
 	if (spot == nullptr)
@@ -150,7 +150,7 @@ THINK(Tag_Respawn) (edict_t *ent) -> void
 
 //=================
 //=================
-THINK(Tag_MakeTouchable) (edict_t *ent) -> void
+THINK(Tag_MakeTouchable) (edict_t* ent) -> void
 {
 	ent->touch = Touch_Item;
 
@@ -165,7 +165,7 @@ THINK(Tag_MakeTouchable) (edict_t *ent) -> void
 
 //=================
 //=================
-void Tag_DropToken(edict_t *ent, gitem_t *item)
+void Tag_DropToken(edict_t* ent, gitem_t* item)
 {
 	trace_t trace;
 	vec3_t	forward, right;
@@ -194,7 +194,7 @@ void Tag_DropToken(edict_t *ent, gitem_t *item)
 	offset = { 24, 0, -16 };
 	tag_token->s.origin = G_ProjectSource(ent->s.origin, offset, forward, right);
 	trace = gi.trace(ent->s.origin, tag_token->mins, tag_token->maxs,
-					 tag_token->s.origin, ent, CONTENTS_SOLID);
+		tag_token->s.origin, ent, CONTENTS_SOLID);
 	tag_token->s.origin = trace.endpos;
 
 	tag_token->velocity = forward * 100;
@@ -211,7 +211,7 @@ void Tag_DropToken(edict_t *ent, gitem_t *item)
 
 //=================
 //=================
-void Tag_PlayerEffects(edict_t *ent)
+void Tag_PlayerEffects(edict_t* ent)
 {
 	if (ent == tag_owner)
 		ent->s.effects |= EF_TAGTRAIL;
@@ -219,7 +219,7 @@ void Tag_PlayerEffects(edict_t *ent)
 
 //=================
 //=================
-void Tag_DogTag(edict_t *ent, edict_t *killer, const char **pic)
+void Tag_DogTag(edict_t* ent, edict_t* killer, const char** pic)
 {
 	if (ent == tag_owner)
 		(*pic) = "tag3";
@@ -229,7 +229,7 @@ void Tag_DogTag(edict_t *ent, edict_t *killer, const char **pic)
 // Tag_ChangeDamage - damage done that does not involve the tag owner
 //		is at 75% original to encourage folks to go after the tag owner.
 //=================
-int Tag_ChangeDamage(edict_t *targ, edict_t *attacker, int damage, mod_t mod)
+int Tag_ChangeDamage(edict_t* targ, edict_t* attacker, int damage, mod_t mod)
 {
 	if ((targ != tag_owner) && (attacker != tag_owner))
 		return (damage * 3 / 4);
@@ -250,7 +250,7 @@ void Tag_GameInit()
 //=================
 void Tag_PostInitSetup()
 {
-	edict_t *e;
+	edict_t* e;
 	vec3_t	 origin, angles;
 
 	// automatic spawning of tag token if one is not present on map.
@@ -272,12 +272,9 @@ void Tag_PostInitSetup()
 /*QUAKED dm_tag_token (.3 .3 1) (-16 -16 -16) (16 16 16)
 The tag token for deathmatch tag games.
 */
-void SP_dm_tag_token(edict_t *self)
+void SP_dm_tag_token(edict_t* self)
 {
-	
-
-
-
+	if (!G_IsDeathmatch())
 	{
 		G_FreeEdict(self);
 		return;

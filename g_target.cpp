@@ -1879,6 +1879,8 @@ THINK(check_target_healthbar) (edict_t* ent) -> void
 	ent->health = target->spawn_count;
 }
 
+
+
 void SP_target_healthbar(edict_t* self)
 {
 	if (G_IsDeathmatch() && !g_horde->integer)

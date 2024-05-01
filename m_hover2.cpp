@@ -399,7 +399,7 @@ void hover2_fire_blaster(edict_t* self)
 
 	// PGM	- daedalus2 fires blaster2
 	if (self->mass < 200)
-		monster_fire_blaster(self, start, dir, 1, 1000, (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+		monster_fire_blaster(self, start, dir, 1, 1200, (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 	else
 		monster_fire_blaster2(self, start, dir, 1, 1000, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 	// PGM
@@ -561,11 +561,11 @@ static void hover2_set_fly_parameters(edict_t* self)
 {
 	self->monsterinfo.fly_thrusters = false;
 	self->monsterinfo.fly_acceleration = 20.f;
-	self->monsterinfo.fly_speed = 120.f;
+	self->monsterinfo.fly_speed = 170.f;
 	// Icarus prefers to keep its distance, but flies slower than the flyer.
 	// he never pins because of this.
-	self->monsterinfo.fly_min_distance = 150.f;
-	self->monsterinfo.fly_max_distance = 350.f;
+	self->monsterinfo.fly_min_distance = 250.f;
+	self->monsterinfo.fly_max_distance = 450.f;
 }
 
 /*QUAKED monster_hover2 (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight

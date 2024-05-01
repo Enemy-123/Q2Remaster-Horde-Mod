@@ -1118,28 +1118,32 @@ THINK(monster_triggered_think) (edict_t* self) -> void
 
 void monster_triggered_start(edict_t* self)
 {
+	if (g_horde->integer) {
+		self->nextthink = 1_ms;
+		monster_start_go(self);
+	}
+	else
 	self->solid = SOLID_NOT;
 	self->movetype = MOVETYPE_NONE;
 	self->svflags |= SVF_NOCLIENT;
 	self->nextthink = 0_ms;
 	self->use = monster_triggered_spawn_use;
 
-	if (g_debug_monster_kills->integer)
-	{
-		self->think = monster_triggered_think;
-		self->nextthink = level.time + 1_ms;
-	}
 
-	if (!self->targetname ||
-		(G_FindByString<&edict_t::target>(nullptr, self->targetname) == nullptr &&
-			G_FindByString<&edict_t::pathtarget>(nullptr, self->targetname) == nullptr &&
-			G_FindByString<&edict_t::deathtarget>(nullptr, self->targetname) == nullptr &&
-			G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
-			G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
-			G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr))
-	{
-		gi.Com_PrintFmt("{}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
-	}
+    if (g_debug_monster_kills->integer) {
+        self->think = monster_triggered_think;
+        self->nextthink = level.time + 1_ms;
+    }
+
+    if (!self->targetname ||
+        (G_FindByString<&edict_t::target>(nullptr, self->targetname) == nullptr &&
+         G_FindByString<&edict_t::pathtarget>(nullptr, self->targetname) == nullptr &&
+         G_FindByString<&edict_t::deathtarget>(nullptr, self->targetname) == nullptr &&
+         G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
+         G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
+         G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr)) {
+        gi.Com_PrintFmt("{}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
+    }
 }
 
 /*
@@ -1254,7 +1258,7 @@ bool monster_start(edict_t* self)
 		// ROGUE
 		level.total_monsters++;
 	}
-
+	
 	self->nextthink = level.time + FRAME_TIME_S;
 	self->svflags |= SVF_MONSTER;
 	self->takedamage = true;
