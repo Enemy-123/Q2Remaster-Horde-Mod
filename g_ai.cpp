@@ -1548,7 +1548,7 @@ void ai_run(edict_t* self, float dist)
         if (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP)) {
             // Si el enemigo ha muerto, se ha vuelto inelegible de alguna otra forma, o el jugador está invisible
             self->enemy = nullptr; // Elimina el enemigo actual
-            self->monsterinfo.walk(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
+            self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
             // Ahora el código de espera se activará en el siguiente fotograma para que el monstruo cace a alguien
         }
     }

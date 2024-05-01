@@ -925,7 +925,7 @@ void Horde_RunFrame()
 				g_horde_local.state = horde_state_t::rest;
 				break;
 			}
-			else if (!isSmallMap) {
+			else if ((!isSmallMap) || current_wave_number > 6 && current_wave_number <= 14) {
 				gi.cvar_set("g_chaotic", "1");
 			}
 			else
@@ -980,7 +980,7 @@ void Horde_RunFrame()
 				else if (r < 0.333f)
 					gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
 				else if (r < 0.5f)
-					gi.sound(world, CHAN_VOICE, gi.soundindex("world/battle5.wav"), 1, ATTN_NONE, 0);
+					gi.sound(world, CHAN_VOICE, gi.soundindex("zortemp/ack.wav"), 1, ATTN_NONE, 0);
 				else if (r < 0.667f)
 					gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
 				else if (r < 0.833f)
