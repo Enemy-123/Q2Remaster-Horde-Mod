@@ -560,7 +560,7 @@ static void Horde_CleanBodies()
 
 void SpawnBossAutomatically()
 {
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 9 && current_wave_number != 0) ||
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 8 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
@@ -793,25 +793,22 @@ void Horde_RunFrame()
 					e->s.effects = EF_GRENADE_LIGHT;
 				}
 						
-				e->enemy = nullptr; 
-
-
-
-				for (unsigned int i = 1; i <= game.maxclients; ++i) {
-					edict_t* client = &g_edicts[i];
-					if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
-						continue;
+				e->enemy = &g_edicts[1];
+				if (!e->enemy) {
+					edict_t* player = nullptr;
+					for (unsigned int i = 1; i <= game.maxclients; ++i) {
+						edict_t* client = &g_edicts[i];
+						if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
+							continue;
+						}
+						player = client;
 					}
-
-					e->enemy = client;
-					break;
 				}
-
-
-					e->gib_health = -280;
-					e->health *= pow(1.072, current_wave_number);
-					HuntTarget(e);
-				
+				e->gib_health = -280;
+				e->health *= pow(1.07, current_wave_number);
+				e->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+				HuntTarget(e);
+	
 				if (current_wave_number >= 13 || g_insane->integer) {
 					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
 					e->health *= pow(1.0085, current_wave_number);

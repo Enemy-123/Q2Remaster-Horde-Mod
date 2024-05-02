@@ -561,7 +561,7 @@ void Cmd_Score_f(edict_t* ent)
 
 	// ZOID
 	if (ent->client->menu)
-		PMenu_Close(ent);
+		PMenu_Close(ent); // crash debugger
 	// ZOID
 
 	if (!G_IsDeathmatch() && !G_IsCooperative())
