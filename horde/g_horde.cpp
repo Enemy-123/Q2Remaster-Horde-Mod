@@ -56,7 +56,7 @@ static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
 	g_horde_local.level = lvl;
-	g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.9_sec);
+	g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.9_sec); // wea debug
 
 	isSmallMap = false;
 	isMediumMap = false;
@@ -84,12 +84,12 @@ static void Horde_InitLevel(int32_t lvl)
 	}
 
 	if (g_horde_local.level == 15) {
-		gi.cvar_set("g_damage_scale", "2.0");
-		gi.LocBroadcast_Print(PRINT_CENTER, "\n\nAUTO QUAD IS ENABLED!\nEACH KILL WHILE QUAD\nGIVES 0.5 EXTRA SECONDS!\n");
+//		gi.cvar_set("g_damage_scale", "2.0");
+		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nGIVES 0.5 EXTRA SECONDS!\n");
 	}
 
 	if (g_horde_local.level == 20) {
-		gi.cvar_set("g_damage_scale", "2.3");
+		gi.cvar_set("g_damage_scale", "2.0");
 	}
 
 
@@ -97,16 +97,14 @@ static void Horde_InitLevel(int32_t lvl)
 	if (!Q_strcasecmp(level.mapname, "q2dm3") ||
 		!Q_strcasecmp(level.mapname, "q2dm7") ||
 		!Q_strcasecmp(level.mapname, "q2dm2") ||
+		!Q_strcasecmp(level.mapname, "q2ctf4") ||
 		!Q_strcasecmp(level.mapname, "dm10") ||
 		!Q_strcasecmp(level.mapname, "q64/dm10") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm10") ||
-		!Q_strcasecmp(level.mapname, "dm9") ||
 		!Q_strcasecmp(level.mapname, "q64/dm9") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm9") ||
-		!Q_strcasecmp(level.mapname, "dm7") ||
 		!Q_strcasecmp(level.mapname, "q64/dm7") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm7") ||
-		!Q_strcasecmp(level.mapname, "dm2") ||
 		!Q_strcasecmp(level.mapname, "q64/dm2") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm2") ||
 		!Q_strcasecmp(level.mapname, "fact3") ||
@@ -140,7 +138,7 @@ static void Horde_InitLevel(int32_t lvl)
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 		}
-		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
+		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 5) {
 			g_horde_local.num_to_spawn += 11; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
@@ -149,7 +147,7 @@ static void Horde_InitLevel(int32_t lvl)
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_MEDIUM_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 		}
-		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
+		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 5) {
 			g_horde_local.num_to_spawn += 5; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
@@ -186,7 +184,7 @@ constexpr struct weighted_item_t {
 	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
 	{ "item_health_mega", -1, -1, 0.09f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.24f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.2f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, 9, 0.26f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
@@ -195,7 +193,7 @@ constexpr struct weighted_item_t {
 	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
 	{ "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, 16, 0.1f, adjust_weight_powerup },
+	{ "item_quad", 6, -1, 0.1f, adjust_weight_powerup },
 	{ "item_double", 5, -1, 0.011f, adjust_weight_powerup },
 	{ "item_quadfire", 4, -1, 0.014f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
@@ -257,8 +255,6 @@ void adjust_weight_armor(const weighted_item_t& item, float& weight)
 void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 {
 }
-//	{ "monster_daedalus2", 6, 8, 0.22f },
-//	{ "monster_chick_heat", 7, -1, 0.73f },
 
 constexpr weighted_item_t monsters[] = {
 { "monster_soldier_light", -1, 18, 0.55f },
@@ -423,103 +419,38 @@ const char* G_HordePickMonster()
 
 const char* G_HordePickBOSS()
 {
-	std::srand(static_cast<unsigned int>(std::time(nullptr)));
 	const char* desired_boss = nullptr;
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
 		desired_boss = "monster_guncmdrkl";
 	}
-	if (!Q_strcasecmp(level.mapname, "rdm14")) {
+	else if (!Q_strcasecmp(level.mapname, "rdm14")) {
 		desired_boss = "monster_makronkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
 		desired_boss = "monster_boss2kl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
-
-
-		//generate random number
 		float r = frandom();
-
-		if (r < 0.333f) // less than 0.333
-		{
-			desired_boss = "monster_shamblerkl";
-		}
-		else if (r < 0.666f) // if less than 0.666
-		{
-			desired_boss = "monster_boss2kl";
-		}
-		else // same or more than 0.666
-		{
-			desired_boss = "monster_makronkl";
-		}
+		desired_boss = (r < 0.333f) ? "monster_shamblerkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_makronkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "xdm2")) {
-		//generate random number
 		float r = frandom();
-
-		if (r < 0.333f) // less than 0.333
-		{
-			desired_boss = "monster_gunnercmdrkl";
-		}
-		else if (r < 0.666f) // if less than 0.666
-		{
-			desired_boss = "monster_boss2kl";
-		}
-		else // same or more than 0.666
-		{
-			desired_boss = "monster_makronkl";
-		}
+		desired_boss = (r < 0.333f) ? "monster_gunnercmdrkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_makronkl";
 	}
-	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) {
-		{
-			if (brandom()) {
-				desired_boss = "monster_perrokl";
-			}
-			else desired_boss = "monster_guncmdrkl";
-		}
-	}
-	else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
-		{
-			if (brandom()) {
-				desired_boss = "monster_perrokl";
-			}
-			else desired_boss = "monster_guncmdrkl";
-		}
-	}
-	else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
-		{
-			if (brandom()) {
-				desired_boss = "monster_perrokl";
-			}
-			else desired_boss = "monster_guncmdrkl";
-		}
+	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7") ||
+		!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10") ||
+		!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
+		desired_boss = brandom() ? "monster_perrokl" : "monster_guncmdrkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
-		//generate random number
 		float r = frandom();
-
-		if (r < 0.333f) // less than 0.333
-		{
-			desired_boss = "monster_supertankkl";
-		}
-		else if (r < 0.666f) // if less than 0.666
-		{
-			desired_boss = "monster_boss2kl";
-		}
-		else // same or more than 0.666
-		{
-			desired_boss = "monster_jorg";
-		}
-	}
-
-	else {
-		return nullptr;
+		desired_boss = (r < 0.333f) ? "monster_supertankkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_makronkl";
 	}
 
 	for (const auto& item : BOSS)
 	{
-		if (strcmp(item.classname, desired_boss) == 0)
+		if (!strcmp(item.classname, desired_boss))
 		{
 			return item.classname;
 		}
@@ -624,20 +555,18 @@ static void Horde_CleanBodies()
 	}
 }
 
-void  SpawnBossAutomatically()
+void SpawnBossAutomatically()
 {
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 2 == 0 && current_wave_number != 0) ||
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-		((!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
-		((!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 3 == 0 && current_wave_number != 0) ||
-		((!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 3 == 0 && current_wave_number != 0))
+		((!Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+		((!Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 5 == 0 && current_wave_number != 0))
 	{
-
-
 
 		// Solo necesitas un bucle aquí para generar un jefe
 		edict_t* boss = G_Spawn(); // Creas un nuevo edict_t solo si es necesario
@@ -651,65 +580,43 @@ void  SpawnBossAutomatically()
 		}
 		boss->classname = desired_boss;
 		// origin for monsters
-		if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-			boss->s.origin[0] = 1184;
-			boss->s.origin[1] = 568;
-			boss->s.origin[2] = 704;
-		}
-		if (!Q_strcasecmp(level.mapname, "rdm14")) {
-			boss->s.origin[0] = 1248;
-			boss->s.origin[1] = 664;
-			boss->s.origin[2] = 896;
-		}
-		if (!Q_strcasecmp(level.mapname, "q2dm2")) {
-			boss->s.origin[0] = 128;
-			boss->s.origin[1] = -960;
-			boss->s.origin[2] = 704;
-		}
-		else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
-			boss->s.origin[0] = 112;
-			boss->s.origin[1] = 1216;
-			boss->s.origin[2] = 88;
-		}
-		else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
-			boss->s.origin[0] = 2432;
-			boss->s.origin[1] = -960;
-			boss->s.origin[2] = 168;
-		}
-		else if (!Q_strcasecmp(level.mapname, "xdm2")) {
-			boss->s.origin[0] = -232;
-			boss->s.origin[1] = 472;
-			boss->s.origin[2] = 424;
-		}
-		else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) {
-			boss->s.origin[0] = 64;
-			boss->s.origin[1] = 224;
-			boss->s.origin[2] = 120;
-		}
-		else if (!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) {
-			boss->s.origin[0] = -304;
-			boss->s.origin[1] = 512;
-			boss->s.origin[2] = -92;
-		}
-		else if (!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
-			boss->s.origin[0] = 1328;
-			boss->s.origin[1] = -256;
-			boss->s.origin[2] = 272;
-		}
+// Define un mapa que mapea los nombres de los mapas a las coordenadas de origen
+		std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
+			{"q2dm1", {1184, 568, 704}},
+			{"rdm14", {1248, 664, 896}},
+			{"q2dm2", {128, -960, 704}},
+			{"q2dm8", {112, 1216, 88}},
+			{"q2ctf5", {2432, -960, 168}},
+			{"xdm2", {-232, 472, 424}},
+			{"q64/dm7", {64, 224, 120}},
+			{"q64\\dm7", {64, 224, 120}},
+			{"q64/dm10", {-304, 512, -92}},
+			{"q64\\dm10", {-304, 512, -92}},
+			{"q64/dm2", {1328, -256, 272}},
+			{"q64\\dm2", {1328, -256, 272}}
+		};
 
+		// Busca las coordenadas de origen del mapa actual y asígnalas al jefe
+		auto it = mapOrigins.find(level.mapname);
+		if (it != mapOrigins.end()) {
+			boss->s.origin[0] = it->second[0];
+			boss->s.origin[1] = it->second[1];
+			boss->s.origin[2] = it->second[2];
+		}
 		else {
-			return;
+			return; // Si el mapa actual no se encuentra en el mapa, devuelve
 		}
 
 		boss->s.angles[0] = 0;
-		boss->s.angles[1] = -45;
+		boss->s.angles[1] = 0;
 		boss->s.angles[2] = 0;
 
-
+		gi.LocBroadcast_Print(PRINT_BROADCAST, "\n\nCHAMPION STROGG SPAWNED");
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
 		boss->health *= pow(1.28, current_wave_number);
+		boss->gib_health *= 3;
 		//	boss->s.renderfx = RF_TRANSLUCENT;
 		//	boss->s.effects = EF_FLAG1 | EF_QUAD;
 
@@ -792,8 +699,6 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 	return false;
 }
 
-
-
 void Horde_RunFrame()
 {
 	switch (g_horde_local.state)
@@ -820,7 +725,6 @@ void Horde_RunFrame()
 			{
 			//	gi.sound(world, CHAN_VOICE, gi.soundindex("world/redforce.wav"), 1, ATTN_NONE, 0);
 				gi.sound(world, CHAN_VOICE, gi.soundindex("world/klaxon2.wav"), 1, ATTN_NONE, 0);
-			//	gi.sound(world, CHAN_VOICE, gi.soundindex("bosshovr/bhvunqv1.wav"), 1, ATTN_NONE, 0);
 			}
 			else // same or more than 0.666
 			{
@@ -828,7 +732,7 @@ void Horde_RunFrame()
 			}
 			// Print message according difficult
 			if (!g_chaotic->integer)
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n?????");
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n???");
 			else
 				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nHorde Imminent");
 
@@ -872,41 +776,44 @@ void Horde_RunFrame()
 
 				{
 					// spawn animation
-					vec3_t spawngrow_pos = result.spot->s.origin;
-					float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.04f; // scaling
+					vec3_t spawngrow_pos = e->s.origin;
+					float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f; // scaling
 					float end_size = start_size;
 
 					// Generar el Spawngrow con los tamaños calculados
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+
 				}
 
 				if (!Q_strcasecmp(level.mapname, "mgu4trial")) {
 					e->s.renderfx = RF_GLOW;
 					e->s.effects = EF_GRENADE_LIGHT;
 				}
+						
+				e->enemy = nullptr; 
 
-					e->enemy = &g_edicts[1]; 
 
-					if (!e->enemy) {
-						edict_t* player = nullptr;
-						for (unsigned int i = 1; i <= game.maxclients; ++i) {
-							edict_t* client = &g_edicts[i];
-							if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
-								continue;
-							}
-							player = client;
 
-						}
+				for (unsigned int i = 1; i <= game.maxclients; ++i) {
+					edict_t* client = &g_edicts[i];
+					if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
+						continue;
 					}
+
+					e->enemy = client;
+					break;
+				}
+
+
 					e->gib_health = -280;
-					e->health *= pow(1.05, current_wave_number);
+					e->health *= pow(1.072, current_wave_number);
 					HuntTarget(e);
 				
 				if (current_wave_number >= 13 || g_insane->integer) {
 					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
-					e->health *= pow(1.045, current_wave_number);
+					e->health *= pow(1.0085, current_wave_number);
 				}
-				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.9_sec);
+				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.6_sec);
 
 				--g_horde_local.num_to_spawn;
 
@@ -989,7 +896,7 @@ void Horde_RunFrame()
 				else if (g_insane->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
 				  }
-					//"\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
+
 				float r = frandom();
 
 				if (r < 0.167f) // Aproximadamente 16.7% de probabilidad para cada sonido

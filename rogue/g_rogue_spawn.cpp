@@ -237,6 +237,10 @@ void SpawnGrow_Spawn(const vec3_t &startpos, float start_size, float end_size)
 	// [Paril-KEX]
 	edict_t *beam = ent->target_ent = G_Spawn();
 	beam->s.modelindex = MODELINDEX_WORLD;
+
+	if (g_horde->integer) { beam->s.renderfx = RF_NO_ORIGIN_LERP; }
+	else
+
 	beam->s.renderfx = RF_BEAM_LIGHTNING | RF_NO_ORIGIN_LERP;
 	beam->s.frame = 1;
 	beam->s.skinnum = 0x30303030;

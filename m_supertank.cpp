@@ -636,15 +636,26 @@ MONSTERINFO_BLOCKED(supertank_blocked) (edict_t* self, float dist) -> bool
 void SP_monster_supertank(edict_t* self)
 {
 
-	if (g_horde->integer) {
+	if (g_horde->integer && strcmp(self->classname, "monster_janitor")) {
+		{
+			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+			if (randomsearch < 0.5f)
+
+				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NONE, 0);
+			else
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
+		}
+	}
+		if (!strcmp(self->classname, "monster_janitor")) {
 		{
 			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 			if (randomsearch < 0.33f)
 
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-			else if (randomsearch < 0.66f)
 				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
+			else  if (randomsearch < 0.66f)
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
 			else
 				NULL;
 		}

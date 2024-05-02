@@ -617,6 +617,25 @@ MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
  */
 void SP_monster_boss2(edict_t* self)
 {
+	if (g_horde->integer && strcmp(self->classname, "monster_boss2_64")) {
+		{
+
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
+		}
+	}
+		if (!strcmp(self->classname, "monster_boss2_64")) {
+		{
+			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+			if (randomsearch < 0.5f)
+
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+			else 
+				NULL;
+		}
+	}
+
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -680,15 +699,6 @@ void SP_monster_boss2(edict_t* self)
 	self->monsterinfo.setskin = boss2_setskin;
 	gi.linkentity(self);
 
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-			else
-				NULL;
-		}
-	
-	}
 
 
 	M_SetAnimation(self, &boss2_move_stand);

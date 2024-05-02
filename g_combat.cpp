@@ -600,14 +600,14 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			float quadchance = frandom();
 
 			// 20% chance
-			if (quadchance <= 0.014f) {
+			if (quadchance <= 0.017f) {
 				// If player has no quad effect, generate it
-				if (attacker->client->quad_time < level.time) {
-					attacker->client->quad_time = level.time + (5.0_sec);
+				if (attacker->client->quadfire_time < level.time) {
+					attacker->client->quadfire_time = level.time + (5.0_sec);
 				}
 				// Increase quad time if already in quad
 				else {
-					attacker->client->quad_time = max(level.time, attacker->client->quad_time) + random_time(0.5_sec, 0.6_sec);
+					attacker->client->quadfire_time = max(level.time, attacker->client->quad_time) + random_time(0.5_sec, 0.6_sec);
 				}
 			}
 		}

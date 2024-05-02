@@ -1707,6 +1707,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 				"xv 70 yv -20 num 2 19 "
 				"if 26 xv 208 yv 8 pic 26 endif "
 				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
+	//			"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using ¨wave¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
 				"xv 296 yv -20 num 2 21 "),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
@@ -1714,12 +1715,12 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	else if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
 			FMT_STRING(  // RED TEAM, yv 8 normal, menos es mas alto
+				"if 25 xv 165 yv 30 pic 25 endif "
 				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
 				"xv 70 yv -20 num 2 19 "
-		//		"if 26 xv 208 yv 8 pic 26 endif "
+			//		"if 26 xv 208 yv 8 pic 26 endif "
 				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-				"xv 296 yv -20 num 2 21 "
-			   "if 25 xv 165 yv 30 pic 25 endif "),
+				"xv 296 yv -20 num 2 21 "),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 	}
@@ -1734,7 +1735,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			cl = &game.clients[sorted[0][i]];
 			cl_ent = g_edicts + 1 + sorted[0][i];
 
-			std::string_view entry = G_Fmt("ctf -40 {} {} {} {} {} ",
+			std::string_view entry = G_Fmt("ctf -70 {} {} {} {} {} ",  // -70, and lower, names will go to left on scoreboard ctf/horde
 				42 + i * 8,
 				sorted[0][i],
 				cl->resp.score,
@@ -1819,7 +1820,8 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
 
 	if (level.intermissiontime)
-		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"MAKE THEM PAY\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+	//	fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 
 	gi.WriteByte(svc_layout);
 	gi.WriteString(string.c_str());
@@ -2764,7 +2766,6 @@ const pmenu_t nochasemenu[] = {
 void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 {
 	PMenu_Close(ent);
-
 	ent->svflags &= ~SVF_NOCLIENT;
 	ent->client->resp.ctf_team = desired_team;
 	ent->client->resp.ctf_state = 0;
@@ -2800,7 +2801,6 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p)
 {
 	CTFJoinTeam(ent, CTF_TEAM1);
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 3_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 }
 
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p)

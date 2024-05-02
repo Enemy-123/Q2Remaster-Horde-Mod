@@ -1026,6 +1026,17 @@ model="models/monsters/tank/tris.md2"
  */
 void SP_monster_tank(edict_t* self)
 {
+
+	if (g_horde->integer) {
+		{
+			if (brandom())
+				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

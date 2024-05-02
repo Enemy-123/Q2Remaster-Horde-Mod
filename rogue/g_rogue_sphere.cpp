@@ -501,6 +501,13 @@ THINK(hunter_think) (edict_t *self) -> void
 		return;
 	}
 
+	// if we are spectator, FreeEdict.
+	if (self->owner->movetype == MOVETYPE_NOCLIP)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
 	edict_t *owner = self->owner;
 
 	if (!owner && !(self->spawnflags & SPHERE_DOPPLEGANGER))
@@ -562,6 +569,13 @@ THINK(vengeance_think) (edict_t *self) -> void
 	if (level.intermissiontime)
 	{
 		sphere_think_explode(self);
+		return;
+	}
+
+	// if we are spectator, FreeEdict.
+	if (self->owner->movetype == MOVETYPE_NOCLIP)
+	{
+		G_FreeEdict(self);
 		return;
 	}
 

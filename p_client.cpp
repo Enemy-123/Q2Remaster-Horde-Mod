@@ -851,8 +851,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				if (player == ent || !player->client->pers.spawned ||
 					player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
 					continue;
-
-				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 3_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
+				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
 				client->pers.inventory = player->client->pers.inventory;
 				client->pers.max_ammo = player->client->pers.max_ammo;
 				client->pers.power_cubes = player->client->pers.power_cubes;
@@ -2088,7 +2087,7 @@ void PutClientInServer(edict_t* ent)
 			{ // the map creator forgot to put in an intermission point...
 				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
 				if (!pt)
-					pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
+					pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
 			}
 			else
 			{ // choose one of four spots
@@ -2097,7 +2096,7 @@ void PutClientInServer(edict_t* ent)
 				{
 					pt = G_FindByString<&edict_t::classname>(pt, "info_player_intermission");
 					if (!pt) // wrap around the list
-						pt = G_FindByString<&edict_t::classname>(pt, "info_player_intermission");
+						pt = G_FindByString<&edict_t::classname>(pt, "info_player_start");
 				}
 			}
 
