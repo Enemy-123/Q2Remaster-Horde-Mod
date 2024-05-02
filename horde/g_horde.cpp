@@ -117,7 +117,8 @@ static void Horde_InitLevel(int32_t lvl)
 		isMediumMap = false;
 		isBigMap = false;
 	}
-	else if (!Q_strcasecmp(level.mapname, "q2ctf5") ||
+	else if 
+		(!Q_strcasecmp(level.mapname, "q2ctf5") ||
 	    !Q_strcasecmp(level.mapname, "old/kmdm3") ||
 		!Q_strcasecmp(level.mapname, "xdm2") ||
 		!Q_strcasecmp(level.mapname, "xdm6")) {
@@ -424,7 +425,7 @@ const char* G_HordePickBOSS()
 	const char* desired_boss = nullptr;
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-		desired_boss = "monster_guncmdrkl";
+		desired_boss = brandom() ? "monster_supertankkl" : "monster_boss2kl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "rdm14")) {
 		desired_boss = "monster_makronkl";
@@ -559,7 +560,7 @@ static void Horde_CleanBodies()
 
 void SpawnBossAutomatically()
 {
-	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 9 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
 		(Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
