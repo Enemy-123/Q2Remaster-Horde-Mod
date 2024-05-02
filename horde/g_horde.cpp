@@ -4,12 +4,8 @@
 #include <sstream>
 
 static const int MAX_MONSTERS_BIG_MAP = 52;
-
 static const int MAX_MONSTERS_MEDIUM_MAP = 25;
-
 static const int MAX_MONSTERS_SMALL_MAP = 18;
-
-
 
 int remainingMonsters = 0;
 int current_wave_number = 1;
@@ -61,37 +57,32 @@ static void Horde_InitLevel(int32_t lvl)
 	isSmallMap = false;
 	isMediumMap = false;
 	isBigMap = false;
-//
 
 	IsMapSize(level.mapname, isSmallMap, isBigMap, isMediumMap); 
 
 	if (g_horde_local.level == 5) {
 		gi.cvar_set("g_vampire", "1");
-	//	gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
-		gi.cvar_set("g_damage_scale", "1.5");
+	//	gi.cvar_set("g_damage_scale", "1.5");
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
 
 		next_wave_message_sent = false;
 	}
 
 	if (g_horde_local.level == 10) {
-		gi.cvar_set("g_damage_scale", "1.8");
-		gi.cvar_set("ai_damage_scale", "1.5");
+//		gi.cvar_set("g_damage_scale", "1.8");
+//		gi.cvar_set("ai_damage_scale", "1.5");
 		gi.cvar_set("g_ammoregen", "1");
-		//	gi.sound(world, CHAN_VOICE, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NONE, 0);
 		gi.sound(world, CHAN_VOICE, gi.soundindex("misc/keyuse.wav"), 1, ATTN_NONE, 0);
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\nAMMO REGEN\n\nENABLED!\n");
 	}
 
 	if (g_horde_local.level == 15) {
-//		gi.cvar_set("g_damage_scale", "2.0");
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nGIVES 0.5 EXTRA SECONDS!\n");
 	}
 
 	if (g_horde_local.level == 20) {
 		gi.cvar_set("g_damage_scale", "2.0");
 	}
-
 
 	// Lógica para determinar el tamaño del mapa
 	if (!Q_strcasecmp(level.mapname, "q2dm3") ||
@@ -127,13 +118,16 @@ static void Horde_InitLevel(int32_t lvl)
 		isSmallMap = false;
 	}
 
+
+
+
 	if (isSmallMap) {
 		g_horde_local.num_to_spawn = 8 + (lvl * 1);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 		}
-		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 4) {
-			g_horde_local.num_to_spawn += 4; // Aumentar el número de monstruos si chaotic->integer es verdadero
+		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 13) {
+			g_horde_local.num_to_spawn += lvl * 1; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 	else if (isBigMap) {
@@ -142,20 +136,19 @@ static void Horde_InitLevel(int32_t lvl)
 			g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 		}
 		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 5) {
-			g_horde_local.num_to_spawn += 11; // Aumentar el número de monstruos si chaotic->integer es verdadero
+			g_horde_local.num_to_spawn += lvl * 1.3; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 	else {
-		g_horde_local.num_to_spawn = 10 + (lvl * 1.3);
+		g_horde_local.num_to_spawn = 10 + (lvl * 1);
 		if (g_horde_local.num_to_spawn > MAX_MONSTERS_MEDIUM_MAP) {
 			g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 		}
-		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 5) {
-			g_horde_local.num_to_spawn += 5; // Aumentar el número de monstruos si chaotic->integer es verdadero
+		if (g_chaotic->integer && !g_insane->integer && current_wave_number > 7) {
+			g_horde_local.num_to_spawn += lvl * 2; // Aumentar el número de monstruos si chaotic->integer es verdadero
 		}
 	}
 }
-
 
 bool G_IsDeathmatch()
 {
@@ -222,7 +215,6 @@ constexpr struct weighted_item_t {
 	{ "weapon_disintegrator", 14, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_bfg", 12, -1, 0.15f, adjust_weight_weapon },
 
-
 	{ "ammo_trap", 5, -1, 0.15f, adjust_weight_ammo },
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
@@ -270,10 +262,8 @@ constexpr weighted_item_t monsters[] = {
 { "monster_infantry2", 2, 13, 0.36f },
 { "monster_infantry", 8, -1, 0.36f },
 
-
-
 { "monster_flyer", -1, 19, 0.14f },
-{ "monster_hover2", 5, 12, 0.17f },
+{ "monster_hover2", 5, 12, 0.18f },
 
 { "monster_gekk", 3, 12, 0.22f },
 
@@ -281,7 +271,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_gunner", 8, -1, 0.34f },
 
 { "monster_medic", 5, 12, 0.1f },
-{ "monster_brain", 5, -1, 0.3f }, 
+{ "monster_brain", 6, -1, 0.23f }, 
 { "monster_stalker", 4, 11, 0.13f },
 { "monster_parasite", 4, 14, 0.2f },
 { "monster_tank", 14, -1, 0.3f },  
@@ -292,7 +282,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_chick_heat", 10, -1, 0.7f },
 { "monster_berserk", 8, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
-{ "monster_hover", 11, -1, 0.27f }, 
+{ "monster_hover", 11, -1, 0.23f }, 
 { "monster_daedalus", 6, -1, 0.008f }, 
 { "monster_medic_commander", 13, -1, 0.18f }, 
 { "monster_tank_commander", 11, 18, 0.15f },
@@ -662,20 +652,52 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 	int maxMonsters;
 	int timeThreshold;
 
-	// Ajustar los valores según el tipo de mapa
-	if (isSmallMap) {
-		maxMonsters = 5;
-		timeThreshold = 9;
-	}
-	else if (isBigMap) {
-		maxMonsters = 23;
-		timeThreshold = 20;
-	}
-	else {
-		maxMonsters = 8;
-		timeThreshold = 14;
-	}
+	// Declaración de ent fuera del bucle
+	edict_t* ent;
 
+	// Ciclo a través de jugadores
+	for (uint32_t player = 1; player <= game.maxclients; player++)
+	{
+		ent = &g_edicts[player];
+		if (!ent->inuse || !ent->client || ent->movetype == MOVETYPE_NOCLIP)
+			continue;
+
+		// Contar jugadores activos
+		int numActivePlayers = 0;
+		for (auto player : active_players()) {
+			numActivePlayers++;
+		}
+
+		// Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
+		if (numActivePlayers > 5) {
+			if (isSmallMap) {
+				maxMonsters = 5;
+				timeThreshold = 9;
+			}
+			else if (isBigMap) {
+				maxMonsters = 23;
+				timeThreshold = 20;
+			}
+			else {
+				maxMonsters = 8;
+				timeThreshold = 14;
+			}
+		}
+		else {
+			if (isSmallMap) {
+				maxMonsters = 5;
+				timeThreshold = 18; // Ajustar el umbral de tiempo más alto
+			}
+			else if (isBigMap) {
+				maxMonsters = 15;
+				timeThreshold = 19; // Ajustar el umbral de tiempo más alto
+			}
+			else {
+				maxMonsters = 7;
+				timeThreshold = 18; // Ajustar el umbral de tiempo más alto
+			}
+		}
+	}
 	if (remainingMonsters <= maxMonsters) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
@@ -707,7 +729,7 @@ void Horde_RunFrame()
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time + 1_sec) // lesser seconds is more time before first wave
+		if (g_horde_local.warm_time < level.time + 1.5_sec) // lesser seconds is more time before first wave
 		{
 			remainingMonsters = 0;
 			g_horde_local.state = horde_state_t::spawning;
@@ -794,26 +816,22 @@ void Horde_RunFrame()
 				}
 						
 				e->enemy = &g_edicts[1];
-				if (!e->enemy) {
-					edict_t* player = nullptr;
-					for (unsigned int i = 1; i <= game.maxclients; ++i) {
-						edict_t* client = &g_edicts[i];
-						if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
-							continue;
-						}
-						player = client;
-					}
-				}
+
+
 				e->gib_health = -280;
-				e->health *= pow(1.07, current_wave_number);
-				e->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+				// e->health *= pow(1.07, current_wave_number);  // trying with coop health caling again
 				HuntTarget(e);
 	
-				if (current_wave_number >= 13 || g_insane->integer) {
-					g_horde_local.monster_spawn_time = level.time + random_time(1.4_sec, 1.9_sec);
-					e->health *= pow(1.0085, current_wave_number);
+				if (current_wave_number >= 13 || g_insane->integer || g_chaotic->integer == 2) {
+					g_horde_local.monster_spawn_time = level.time + random_time(1.3_sec, 1.4_sec);
+				//	e->health *= pow(1.0085, current_wave_number); // trying with coop health caling again
 				}
-				g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.6_sec);
+				else if (!g_insane->integer || !g_chaotic->integer) {
+					g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.3_sec);  // monster spawn speed
+				}
+				else if (g_chaotic->integer == 1) {
+					g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.8_sec);  // monster spawn speed
+				}
 
 				--g_horde_local.num_to_spawn;
 
@@ -873,7 +891,7 @@ void Horde_RunFrame()
 					gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
 					gi.cvar_set("g_chaotic", "0");
 					gi.cvar_set("g_insane", "0");
-					gi.cvar_set("ai_damage_scale", "1.2");
+//					gi.cvar_set("ai_damage_scale", "1.2");
 				}
 				else if (!g_chaotic->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");
