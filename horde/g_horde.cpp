@@ -108,6 +108,8 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "q64/dm2") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm2") ||
 		!Q_strcasecmp(level.mapname, "fact3") ||
+		!Q_strcasecmp(level.mapname, "q2ctf4") ||
+		!Q_strcasecmp(level.mapname, "mgu3m4") ||
 		!Q_strcasecmp(level.mapname, "mgu4trial") ||
 		!Q_strcasecmp(level.mapname, "mgu6trial") ||
 		!Q_strcasecmp(level.mapname, "mgdm1")) {

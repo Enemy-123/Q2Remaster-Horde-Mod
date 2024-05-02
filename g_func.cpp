@@ -1105,9 +1105,13 @@ MOVEINFO_ENDFUNC(button_wait) (edict_t *self) -> void
 
 	G_UseTargets(self, self->activator);
 
-	if (self->moveinfo.wait >= 0)
+	if (self->moveinfo.wait >= 0 && !g_horde->integer)
 	{
 		self->nextthink = level.time + gtime_t::from_sec(self->moveinfo.wait);
+		self->think = button_return;
+	}
+	else if (g_horde->integer) {
+		self->nextthink = level.time + gtime_t::from_sec(self->moveinfo.wait) + 999999_sec;
 		self->think = button_return;
 	}
 }
