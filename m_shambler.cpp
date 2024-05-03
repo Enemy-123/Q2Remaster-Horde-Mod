@@ -605,9 +605,9 @@ void SP_monster_shamblerkl(edict_t* self)
 	SP_monster_shambler(self);
 	self->health = 675 * current_wave_number/1.3;
 
-	if (current_wave_number < 20) {
-		if (self->health > 5000) {
-			self->health = 5000;
+	if (current_wave_number < 15) {
+		if (self->health > 2500) {
+			self->health = 2500;
 		}
 	}
 

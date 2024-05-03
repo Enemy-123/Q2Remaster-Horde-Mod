@@ -1002,7 +1002,6 @@ void Widow2Precache()
  */
 void SP_monster_widow2(edict_t* self)
 {
-
 	if (g_horde->integer) {
 		{
 			if (brandom())

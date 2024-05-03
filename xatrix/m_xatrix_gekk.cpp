@@ -1588,6 +1588,15 @@ MONSTERINFO_BLOCKED(gekk_blocked) (edict_t* self, float dist) -> bool
  */
 void SP_monster_gekk(edict_t* self)
 {
+	if (g_horde->integer) {
+		{
+			if (brandom())
+				gi.sound(self, CHAN_VOICE, gi.soundindex("gek/wolfboy3.wav"), 1, ATTN_NORM, 0);
+			else
+				NULL;
+		}
+	}
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

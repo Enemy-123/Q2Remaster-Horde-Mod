@@ -550,10 +550,10 @@ void ED_CallSpawn(edict_t* ent)
 			ent->classname = "monster_guncmdr";
 		}
 		else if (!strcmp(ent->classname, "monster_flyer")) {
-			ent->classname = "monster_hover";
+			ent->classname = "monster_daedalus";
 		}
 		else if (!strcmp(ent->classname, "monster_daedalus")) {
-			ent->classname = "monster_hover";
+			ent->classname = "monster_gladc";
 		}
 		else if (!strcmp(ent->classname, "monster_shambler")) {
 			ent->classname = "monster_tank_64";

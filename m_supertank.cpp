@@ -786,20 +786,28 @@ void SP_monster_janitor(edict_t* self)
 
 void SP_monster_supertankkl(edict_t* self)
 {
-	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
-	self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
-	self->count = 10;
-	SP_monster_supertank(self);
-	gi.soundindex("weapons/railgr1a.wav");
-	self->s.skinnum = 2;
+	if (!strcmp(self->classname, "monster_supertankkl")) {
+		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
+		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
+		self->count = 10;
+		SP_monster_supertank(self);
+		gi.soundindex("weapons/railgr1a.wav");
+		self->s.skinnum = 2;
 
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 800;
+		if (current_wave_number < 15) {
+			if (self->health > 4500) {
+				self->health = 4500;
+			}
+		}
 
-	self->health = 620 * current_wave_number/1.5;
-	self->mass = 1200;
-	self->s.renderfx = RF_TRANSLUCENT;
-	self->s.effects = EF_FLAG1 | EF_QUAD;
+		if (!st.was_key_specified("power_armor_type"))
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = 1800;
+
+		self->health = 620 * current_wave_number / 2;
+		self->mass = 1200;
+		self->s.renderfx = RF_TRANSLUCENT;
+		self->s.effects = EF_FLAG1 | EF_QUAD;
+	}
 }

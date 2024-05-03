@@ -398,7 +398,7 @@ void hover_fire_blaster(edict_t *self)
 	dir = end - start;
 	dir.normalize();
 
-	rocketSpeed = 650;
+	rocketSpeed = 780;
 
 	// PGM	- daedalus fires blaster2
 	if (self->mass < 200)

@@ -267,8 +267,8 @@ void adjust_weight_powerup(const weighted_item_t& item, float& weight)
 }
 
 constexpr weighted_item_t monsters[] = {
-{ "monster_soldier_light", -1, 18, 0.55f },
-{ "monster_soldier_ss", -1, 7, 0.55f },
+{ "monster_soldier_light", -1, 19, 0.35f },
+{ "monster_soldier_ss", -1, 20, 0.45f },
 { "monster_soldier", -1, 4, 0.45f },
 { "monster_soldier_hypergun", 2, 7, 0.55f },
 { "monster_soldier_lasergun", 3, 9, 0.45f },
@@ -277,10 +277,10 @@ constexpr weighted_item_t monsters[] = {
 { "monster_infantry2", 2, 13, 0.36f },
 { "monster_infantry", 8, -1, 0.36f },
 
-{ "monster_flyer", -1, 19, 0.14f },
-{ "monster_hover2", 5, 12, 0.18f },
+{ "monster_flyer", -1, -1, 0.14f },
+{ "monster_hover2", 5, 16, 0.14f },
 
-{ "monster_gekk", 3, 12, 0.22f },
+{ "monster_gekk", 3, 12, 0.12f },
 
 { "monster_gunner2", 3, 11, 0.35f },
 { "monster_gunner", 8, -1, 0.34f },
@@ -297,7 +297,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_chick_heat", 10, -1, 0.7f },
 { "monster_berserk", 8, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
-{ "monster_hover", 11, -1, 0.23f }, 
+{ "monster_hover", 11, -1, 0.18f }, 
 { "monster_daedalus", 6, -1, 0.008f }, 
 { "monster_medic_commander", 13, -1, 0.18f }, 
 { "monster_tank_commander", 11, 18, 0.15f },
@@ -315,8 +315,9 @@ constexpr weighted_item_t monsters[] = {
 { "monster_gladb", 14, -1, 0.75f},
 { "monster_boss2_64", 14, -1, 0.08f },
 { "monster_perrokl", 21, -1, 0.27f },
-{ "monster_guncmdrkl", 23, -1, 0.39f },
-{ "monster_shamblerkl", 23, -1, 0.39f }
+{ "monster_guncmdrkl", 23, -1, 0.18f },
+{ "monster_shamblerkl", 23, -1, 0.39f },
+{ "monster_makronkl", 23, -1, 0.09f }
 };
 
 struct boss_t {

@@ -1699,13 +1699,16 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	//		total[0],
 	//		total[1]);
 	//}
+
 	if (!level.intermissiontime)
 	{
 		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -25 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
+			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+//			FMT_STRING("if 25 xv -65 yv 4 dogtag 54 endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
+                "if 26 xv 188 yv 8 pic 26 endif "
+			//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
 				"xv 70 yv -20 num 2 19 "
-				"if 26 xv 208 yv 8 pic 26 endif "
+//				"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
 				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
 	//			"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using ¨wave¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
 				"xv 296 yv -20 num 2 21 "),
@@ -1714,7 +1717,8 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	}
 	else if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
-			FMT_STRING(  // RED TEAM, yv 8 normal, menos es mas alto
+//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+			FMT_STRING("if 25 xv -65 yv 4 dogtag endif"  // RED TEAM, yv 8 normal, menos es mas alto
 				"if 25 xv 165 yv 30 pic 25 endif "
 				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
 				"xv 70 yv -20 num 2 19 "
