@@ -136,7 +136,7 @@ static void Horde_InitLevel(int32_t lvl)
 		// Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
 
 
-		if (isSmallMap) {
+		if (isSmallMap) { // Horde Monsters to Spawn
 			g_horde_local.num_to_spawn = 8 + (lvl * 1);
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
@@ -150,8 +150,8 @@ static void Horde_InitLevel(int32_t lvl)
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 			}
-			if (g_chaotic->integer&& !g_insane->integer) { //  && current_wave_number > 5 
-				g_horde_local.num_to_spawn += numActiveHPlayers + (current_wave_number / 2); // Aumentar el número de monstruos si chaotic->integer es verdadero
+			if (g_chaotic->integer && !g_insane->integer) { //  && current_wave_number > 5 
+				g_horde_local.num_to_spawn += (numActiveHPlayers + 7); // Aumentar el número de monstruos si chaotic->integer es verdadero
 			}
 		}
 		else {
@@ -160,7 +160,7 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
 			if (g_chaotic->integer && !g_insane->integer) { // && current_wave_number > 7
-				g_horde_local.num_to_spawn += (numActiveHPlayers); // Aumentar el número de monstruos si chaotic->integer es verdadero
+				g_horde_local.num_to_spawn += (numActiveHPlayers + 3); // Aumentar el número de monstruos si chaotic->integer es verdadero
 			}
 		}
 	}
