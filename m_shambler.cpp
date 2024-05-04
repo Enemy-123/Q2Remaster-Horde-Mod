@@ -568,7 +568,10 @@ void SP_monster_shambler(edict_t* self)
 	sound_smack.assign("shambler/smack.wav");
 	sound_boom.assign("shambler/sboom.wav");
 
-	self->health = 600 * st.health_multiplier;
+	if (!strcmp(self->classname, "monster_shambler")) {
+		self->health = 600 * st.health_multiplier;
+	}
+
 	self->gib_health = -60;
 
 	self->mass = 500;
@@ -603,11 +606,12 @@ void SP_monster_shamblerkl(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
-	self->health = 675 * current_wave_number/1.3;
-
+	if (!strcmp(self->classname, "monster_shamblerkl")) {
+		self->health = 675 * (current_wave_number / 2);
+	}
 	if (current_wave_number < 15) {
-		if (self->health > 2500) {
-			self->health = 2500;
+		if (self->health > 1700) {
+			self->health = 1700;
 		}
 	}
 

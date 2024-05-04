@@ -23,7 +23,7 @@ static struct {
 	gtime_t         warm_time = 5_sec;
 	horde_state_t   state = horde_state_t::warmup;
 
-	gtime_t         monster_spawn_time = 0.5_sec;
+	gtime_t         monster_spawn_time;
 	int32_t         num_to_spawn;
 	int32_t         level;
 } g_horde_local;
@@ -80,11 +80,11 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nGIVES 0.5 EXTRA SECONDS!\n");
 	}
 
-	if (g_horde_local.level == 20) {
-		gi.cvar_set("g_damage_scale", "2.0");
+	if (g_horde_local.level == 25) {
+		gi.cvar_set("g_damage_scale", "2");
 	}
 
-	// Lógica para determinar el tamaño del mapa
+	// Small Maps
 	if (!Q_strcasecmp(level.mapname, "q2dm3") ||
 		!Q_strcasecmp(level.mapname, "q2dm7") ||
 		!Q_strcasecmp(level.mapname, "q2dm2") ||
@@ -108,7 +108,7 @@ static void Horde_InitLevel(int32_t lvl)
 		isMediumMap = false;
 		isBigMap = false;
 	}
-	else if
+	else if // Big Maps
 		(!Q_strcasecmp(level.mapname, "q2ctf5") ||
 			!Q_strcasecmp(level.mapname, "old/kmdm3") ||
 			!Q_strcasecmp(level.mapname, "xdm2") ||
@@ -137,7 +137,7 @@ static void Horde_InitLevel(int32_t lvl)
 
 
 		if (isSmallMap) { // Horde Monsters to Spawn
-			g_horde_local.num_to_spawn = 8 + (lvl * 1);
+			g_horde_local.num_to_spawn = 6 + (lvl * 1);
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 			}
@@ -146,21 +146,21 @@ static void Horde_InitLevel(int32_t lvl)
 			}
 		}
 		else if (isBigMap) {
-			g_horde_local.num_to_spawn = 22 + (lvl * 2);
+			g_horde_local.num_to_spawn = 22 + (lvl * 1.5);
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 			}
-			if (g_chaotic->integer && !g_insane->integer) { //  && current_wave_number > 5 
-				g_horde_local.num_to_spawn += (numActiveHPlayers + 7); // Aumentar el número de monstruos si chaotic->integer es verdadero
+			if (g_chaotic->integer && !g_insane->integer && current_wave_number > 5) { //  && current_wave_number > 5 
+				g_horde_local.num_to_spawn += (numActiveHPlayers + 7); //more spawning if chaotic and wave is 5+
 			}
 		}
 		else {
-			g_horde_local.num_to_spawn = 10 + (lvl * 1.2);
+			g_horde_local.num_to_spawn = 8 + (lvl * 1.2);
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_MEDIUM_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
-			if (g_chaotic->integer && !g_insane->integer) { // && current_wave_number > 7
-				g_horde_local.num_to_spawn += (numActiveHPlayers + 3); // Aumentar el número de monstruos si chaotic->integer es verdadero
+			if (g_chaotic->integer && !g_insane->integer && current_wave_number > 7) { // && current_wave_number > 7
+				g_horde_local.num_to_spawn += (numActiveHPlayers + 3); //more spawning if chaotic and wave is 7+
 			}
 		}
 	}
@@ -278,7 +278,8 @@ constexpr weighted_item_t monsters[] = {
 { "monster_infantry", 8, -1, 0.36f },
 
 { "monster_flyer", -1, -1, 0.14f },
-{ "monster_hover2", 5, 16, 0.14f },
+{ "monster_hover2", 5, 13, 0.14f },
+{ "monster_fixbot", 5, 18, 0.16f },
 
 { "monster_gekk", 3, 12, 0.12f },
 
@@ -292,23 +293,23 @@ constexpr weighted_item_t monsters[] = {
 { "monster_tank", 14, -1, 0.3f },  
 { "monster_tank2", 5, 13, 0.3f },  
 { "monster_guncmdr2", 6, 10, 0.18f },
-{ "monster_mutant", 5, 18, 0.55f },
+{ "monster_mutant", 5, -1, 0.55f },
 { "monster_chick", 6, 18, 0.7f },
 { "monster_chick_heat", 10, -1, 0.7f },
 { "monster_berserk", 8, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
 { "monster_hover", 11, -1, 0.18f }, 
-{ "monster_daedalus", 6, -1, 0.008f }, 
+{ "monster_daedalus", 13, -1, 0.08f }, 
 { "monster_medic_commander", 13, -1, 0.18f }, 
 { "monster_tank_commander", 11, 18, 0.15f },
 { "monster_spider", 12, -1, 0.24f },
 { "monster_guncmdr", 11, 22, 0.28f },
-{ "monster_gladc", 6, 19, 0.16f }, 
+{ "monster_gladc", 6, -1, 0.16f }, 
 { "monster_gladiator", 9, -1, 0.24f },
-{ "monster_shambler", 17, -1, 0.1f },
+{ "monster_shambler", 17, -1, 0.08f },
 { "monster_floater2", 17, -1, 0.35f },
-{ "monster_carrier2", 17, -1, 0.23f },
-{ "monster_tank_64", 16, -1, 0.13f },
+{ "monster_carrier2", 17, -1, 0.09f },
+{ "monster_tank_64", 16, -1, 0.06f },
 { "monster_janitor", 16, -1, 0.18f },
 { "monster_janitor2", 19, -1, 0.12f },
 { "monster_makron", 18, 19, 0.2f },
@@ -605,7 +606,6 @@ void SpawnBossAutomatically()
 			{"q64\\dm2", {1328, -256, 272}}
 		};
 
-		// Busca las coordenadas de origen del mapa actual y asígnalas al jefe
 		auto it = mapOrigins.find(level.mapname);
 		if (it != mapOrigins.end()) {
 			boss->s.origin[0] = it->second[0];
@@ -613,21 +613,20 @@ void SpawnBossAutomatically()
 			boss->s.origin[2] = it->second[2];
 		}
 		else {
-			return; // Si el mapa actual no se encuentra en el mapa, devuelve
+			return;
 		}
 
-		boss->s.angles[0] = 0;
+		boss->s.angles[0] = 0; // are these needed?
 		boss->s.angles[1] = 0;
 		boss->s.angles[2] = 0;
 
-		gi.LocBroadcast_Print(PRINT_BROADCAST, "\n\nCHAMPION STROGG SPAWNED");
+//		gi.LocBroadcast_Print(PRINT_TTS, "\n\nCHAMPION STROGG SPAWNED");  // test tts later
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
 		boss->health *= pow(1.28, current_wave_number);
+		boss->monsterinfo.power_armor_power *= pow(1.28, current_wave_number);
 		boss->gib_health *= 3;
-		//	boss->s.renderfx = RF_TRANSLUCENT;
-		//	boss->s.effects = EF_FLAG1 | EF_QUAD;
 
 		vec3_t effectPosition = boss->s.origin;
 		effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
@@ -685,7 +684,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		}
 
 		// Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
-		if (numActivePlayers > 5) {
+		if (numActivePlayers >= 6) {
 			if (isSmallMap) {
 				maxMonsters = 9; // remainingmonsters
 				timeThreshold = 9 - numActivePlayers;  // timer in seconds whento get to next wave, activating chaotic or insane,
@@ -713,16 +712,16 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		}
 		else {
 			if (isSmallMap) {   // less than 5 players, smallmap works nice 5/2/24
-				maxMonsters = 5;
-				timeThreshold = 14; // Ajustar el umbral de tiempo más alto
+				maxMonsters = 9;
+				timeThreshold = 13; // Ajustar el umbral de tiempo más alto
 			}
 			else if (isBigMap) { // adjusted day 5/2 8pm
 				maxMonsters = 22;
 				timeThreshold = 19; // Ajustar el umbral de tiempo más alto
 			}
 			else {
-				maxMonsters = 7;
-				timeThreshold = 15; // Ajustar el umbral de tiempo más alto
+				maxMonsters = 10;
+				timeThreshold = 16; // Ajustar el umbral de tiempo más alto
 			}
 		}
 		// Agregar la condición adicional para timeThreshold
@@ -758,7 +757,7 @@ void Horde_RunFrame()
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time + 1.5_sec) // lesser seconds is more time before first wave
+		if (g_horde_local.warm_time < level.time + 0.5_sec) // less seconds is more time before first wave
 		{
 			remainingMonsters = 0;
 			g_horde_local.state = horde_state_t::spawning;
@@ -842,12 +841,9 @@ void Horde_RunFrame()
 					e->s.renderfx = RF_GLOW;
 					e->s.effects = EF_GRENADE_LIGHT;
 				}
-						
+				e->monsterinfo.power_armor_power *= pow(1.082, current_wave_number);  // trying with coop health scaling + multiplying power armor by currentwave
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
-
-				e->monsterinfo.power_armor_power *= pow(1.082, current_wave_number);  // trying with coop health scaling + multiplying power armor by currentwave
-			
 
 				HuntTarget(e);
 	
@@ -861,7 +857,6 @@ void Horde_RunFrame()
 				else if (g_chaotic->integer == 1) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.7_sec);  // monster spawn speed
 				}
-
 				--g_horde_local.num_to_spawn;
 
 				if (!g_horde_local.num_to_spawn)
@@ -973,6 +968,5 @@ void Horde_RunFrame()
 
 void HandleResetEvent() {
 	ResetGame();
-
 }
 

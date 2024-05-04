@@ -635,7 +635,7 @@ mframe_t infantry_frames_attack2[] = {
 	{ ai_charge, 8, monster_footstep },
 	{ ai_charge, 5 },
 	{ ai_charge, 8, infantry_smack },
-	{ ai_charge, 6 },
+	{ ai_charge, 8, infantry_smack },
 	{ ai_charge, 3 }
 };
 MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_frames_attack2, infantry_run };
@@ -905,7 +905,6 @@ void SP_monster_infantry(edict_t *self)
 
 	self->pain = infantry_pain;
 	self->die = infantry_die;
-	self->s.renderfx = RF_GLOW;
 	self->monsterinfo.combat_style = COMBAT_MIXED;
 
 	self->monsterinfo.stand = infantry_stand;

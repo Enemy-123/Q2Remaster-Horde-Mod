@@ -638,7 +638,7 @@ void SP_monster_supertank(edict_t* self)
 
 	if (g_horde->integer && strcmp(self->classname, "monster_janitor")) {
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			float randomsearch = frandom(); // Generate search sounds
 
 			if (randomsearch < 0.5f)
 
@@ -649,7 +649,7 @@ void SP_monster_supertank(edict_t* self)
 	}
 		if (!strcmp(self->classname, "monster_janitor")) {
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			float randomsearch = frandom(); // Generate Search sounds
 
 			if (randomsearch < 0.33f)
 
@@ -695,7 +695,10 @@ void SP_monster_supertank(edict_t* self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
+	if (!strcmp(self->classname, "monster_supertank")) {
 	self->health = 3300 * st.health_multiplier;
+	}
+
 	self->gib_health = -500;
 	self->mass = 800;
 
@@ -779,20 +782,23 @@ void SP_monster_janitor(edict_t* self)
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 800;
-
-	self->health = 1300 * st.health_multiplier;
+	if (!strcmp(self->classname, "monster_janitor")) {
+		self->health = 1300 * st.health_multiplier;
+	}
 	self->mass = 200;
 }
 
 void SP_monster_supertankkl(edict_t* self)
 {
 	if (!strcmp(self->classname, "monster_supertankkl")) {
-		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
-		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 		self->count = 10;
 		SP_monster_supertank(self);
 		gi.soundindex("weapons/railgr1a.wav");
-		self->s.skinnum = 2;
+
+	self->health = 675 * (current_wave_number / 2);
+	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
+	self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
+		
 
 		if (current_wave_number < 15) {
 			if (self->health > 4500) {
