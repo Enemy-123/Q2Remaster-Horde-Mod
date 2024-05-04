@@ -453,7 +453,7 @@ const char* G_HordePickBOSS()
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
 		float r = frandom();
-		desired_boss = (r < 0.333f) ? "monster_supertankkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_jorg";
+		desired_boss = (r < 0.333f) ? "monster_supertankkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_guncmdrkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "rdm14")) {
 		desired_boss = "monster_makronkl";
@@ -467,7 +467,7 @@ const char* G_HordePickBOSS()
 	}
 	else if (!Q_strcasecmp(level.mapname, "xdm2")) {
 		float r = frandom();
-		desired_boss = (r < 0.333f) ? "monster_gunnercmdrkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_widow";
+		desired_boss = (r < 0.333f) ? "monster_gunnercmdrkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_widow2";
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7") ||
 		!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10") ||

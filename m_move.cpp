@@ -241,7 +241,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	if (ent->monsterinfo.aiflags & AI_PATHING)
 		towards_origin = (ent->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
 		ent->monsterinfo.nav_path.secondMovePoint : ent->monsterinfo.nav_path.firstMovePoint;
- if (ent->enemy && !(ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT)))
+	else if (ent->enemy && !(ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT)))
 	{
 		towards_origin = ent->enemy->s.origin;
 		towards_velocity = ent->enemy->velocity;
@@ -1177,7 +1177,6 @@ bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 	}
 	return true;
 }
-
 
 static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 {
