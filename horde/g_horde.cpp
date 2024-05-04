@@ -690,7 +690,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 	for (uint32_t player = 1; player <= game.maxclients; player++)
 	{
 		ent = &g_edicts[player];
-		if (!ent->inuse || !ent->client || !ent->solid) //|| ent->svflags & SVF_BOT)  //no needed if using bot_minclients below "numActivePlayers"
+		if (!ent->inuse || !ent->client || !ent->solid) //|| ent->svflags & SVF_PLAYER)  no needed if sometimes i want to make it harder adding bots lol
 			continue;
 
 		// Contar jugadores activos
@@ -700,7 +700,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		}
 
 		// Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
-		if (numActivePlayers >= 6) { // by default bot minclients is 5, and above that, im spectating a lot of time
+		if (numActivePlayers >= 6) { // by default bot minclients is 5, and above that, i could be not spectating
 			if (isSmallMap) {
 				maxMonsters = 9; // remainingmonsters
 				timeThreshold = 9 - numActivePlayers;  // timer in seconds whento get to next wave, activating chaotic or insane,
@@ -733,17 +733,17 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 					timeThreshold = 7;
 				}
 				else {
-					maxMonsters = 9;
+					maxMonsters = 7;
 					timeThreshold = 13; // Ajustar el umbral de tiempo más alto
 				}
 			}
 			else if (isBigMap) { // adjusted day 5/2 8pm
 				if (current_wave_number <= 4) {
-					maxMonsters = 12;
-					timeThreshold = 15;
+					maxMonsters = 10;
+					timeThreshold = 16;
 				}
 				else {
-					maxMonsters = 22;
+					maxMonsters = 15;
 					timeThreshold = 19; // Ajustar el umbral de tiempo más alto
 				}
 			}
@@ -753,8 +753,8 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 					timeThreshold = 8;
 				}
 				else {
-					maxMonsters = 7;
-					timeThreshold = 15; // Ajustar el umbral de tiempo más alto
+					maxMonsters = 8;
+					timeThreshold = 14; // Ajustar el umbral de tiempo más alto
 				}
 			}
 		}
