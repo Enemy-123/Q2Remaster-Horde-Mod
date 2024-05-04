@@ -164,7 +164,7 @@ static void Horde_InitLevel(int32_t lvl)
 			}
 		}
 		// additional spawning
-		if (numActiveHPlayers > 5) {
+		if (numActiveHPlayers >= 6) {
 			int additionalSpawn = 0; // Variable para el aumento adicional
 
 			if (isSmallMap) {
@@ -700,7 +700,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		}
 
 		// Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
-		if (numActivePlayers >= 5) { // by default bot minclients is 5, and above that, im spectating a lot of time
+		if (numActivePlayers >= 6) { // by default bot minclients is 5, and above that, im spectating a lot of time
 			if (isSmallMap) {
 				maxMonsters = 9; // remainingmonsters
 				timeThreshold = 9 - numActivePlayers;  // timer in seconds whento get to next wave, activating chaotic or insane,
