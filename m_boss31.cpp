@@ -604,8 +604,9 @@ void jorg_dead(edict_t* self)
 		{ 6, "models/monsters/boss3/jorg/gibs/spike.md2", GIB_SKINNED },
 		{ "models/monsters/boss3/jorg/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
 		});
-
-	MakronToss(self);
+//	if (!g_horde->integer) { //dont spawn makron, for now
+		MakronToss(self);
+//	}
 }
 
 DIE(jorg_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
@@ -633,16 +634,26 @@ void SP_monster_jorg(edict_t* self)
 	if (g_horde->integer) {
 		if (!strcmp(self->classname, "monster_jorg"))
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-			if (randomsearch < 0.23f)
+			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
-			else if (randomsearch < 0.56f)
-				gi.sound(self, CHAN_VOICE, sound_search3, 1, ATTN_NONE, 0);
 			else
-				NULL;
+
+				gi.sound(self, CHAN_VOICE, sound_search3, 1, ATTN_NONE, 0);
+
 		}
 	}
+	//		if (!strcmp(self->classname, "monster_jorg"))
+	//	{
+	//		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+	//		if (randomsearch < 0.23f)
+	//			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
+	//		else if (randomsearch < 0.56f)
+	//			gi.sound(self, CHAN_VOICE, sound_search3, 1, ATTN_NONE, 0);
+	//		else
+	//			NULL;
+	//	}
+	//}
 
 
 
