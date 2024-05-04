@@ -80,7 +80,7 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nGIVES 0.5 EXTRA SECONDS!\n");
 	}
 
-	if (g_horde_local.level == 25) {
+	if (g_horde_local.level == 23) {
 		gi.cvar_set("g_damage_scale", "2");
 	}
 
@@ -702,32 +702,20 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		// Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
 		if (numActivePlayers >= 6) { // by default bot minclients is 5, and above that, i could be not spectating
 			if (isSmallMap) {
-				maxMonsters = 9; // remainingmonsters
-				timeThreshold = 9 - numActivePlayers;  // timer in seconds whento get to next wave, activating chaotic or insane,
-
-				if (timeThreshold <= 4) {
-					timeThreshold = 4;
-				}
+				maxMonsters = 7; // remainingmonsters
+				timeThreshold = 4 ;  // timer in seconds whento get to next wave, activating chaotic or insane,
 			}
 			else if (isBigMap) {
-				maxMonsters = 27;
-				timeThreshold = 20 - numActivePlayers;
-
-				if (timeThreshold <= 12) {
-					timeThreshold = 13;
-				}
+				maxMonsters = 25;
+				timeThreshold = 18;
 			}
 			else {
 				maxMonsters = 12;
-				timeThreshold = 14 - numActivePlayers;
-
-				if (timeThreshold <= 9) {
-					timeThreshold = 9;
-				}
+				timeThreshold = 8;
 			}
 		}
 		else {
-			if (isSmallMap) {   // less than 5 players, smallmap works nice 5/2/24
+			if (isSmallMap) {   // less than 5 players, smallmap works nice 5/4/24
 				if (current_wave_number <= 4) {
 					maxMonsters = 3;
 					timeThreshold = 7;
@@ -737,26 +725,27 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 					timeThreshold = 10; // Ajustar el umbral de tiempo más alto
 				}
 			}
-			else if (isBigMap) { // adjusted day 5/2 8pm
+			else if (isBigMap) { // adjusted day 5/4 8pm
 				if (current_wave_number <= 4) {
-					maxMonsters = 9;
-					timeThreshold = 17;
+					maxMonsters = 15;
+					timeThreshold = 18;
 				}
 				else {
 					maxMonsters = 23;
-					timeThreshold = 17; // Ajustar el umbral de tiempo más alto
+					timeThreshold = 12; // Ajustar el umbral de tiempo más alto
 				}
 			}
 			else {
 				if (current_wave_number <= 4) {
 					maxMonsters = 4;
-					timeThreshold = 8;
+					timeThreshold = 7;
 				}
 				else {
-					maxMonsters = 7;
+					maxMonsters = 6;
 					timeThreshold = 15; // Ajustar el umbral de tiempo más alto
 				}
 			}
+			if (g_chaotic || g_insane) { timeThreshold += 4; }
 		}
 	}
 	
@@ -882,8 +871,8 @@ void Horde_RunFrame()
 
 				HuntTarget(e);
 	
-				if (current_wave_number >= 13 || g_insane->integer || g_chaotic->integer == 2) {
-					g_horde_local.monster_spawn_time = level.time + random_time(1.1_sec, 1.3_sec);
+				if (current_wave_number >= 13  || g_chaotic->integer == 2) {
+					g_horde_local.monster_spawn_time = level.time + random_time(0.6_sec, 1.3_sec);
 				//	e->health *= pow(1.0085, current_wave_number); // trying with coop health caling again
 				}
 				else if (!g_insane->integer || !g_chaotic->integer) {
