@@ -1041,6 +1041,9 @@ float PlayersRangeFromSpot(edict_t* spot)
 		if (!player->inuse)
 			continue;
 
+		if (!player->solid)
+			continue;
+
 		if (player->health <= 0)
 			continue;
 

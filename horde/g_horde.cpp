@@ -733,18 +733,18 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 					timeThreshold = 7;
 				}
 				else {
-					maxMonsters = 7;
-					timeThreshold = 13; // Ajustar el umbral de tiempo más alto
+					maxMonsters = 6;
+					timeThreshold = 10; // Ajustar el umbral de tiempo más alto
 				}
 			}
 			else if (isBigMap) { // adjusted day 5/2 8pm
 				if (current_wave_number <= 4) {
-					maxMonsters = 10;
-					timeThreshold = 16;
+					maxMonsters = 9;
+					timeThreshold = 17;
 				}
 				else {
-					maxMonsters = 15;
-					timeThreshold = 19; // Ajustar el umbral de tiempo más alto
+					maxMonsters = 23;
+					timeThreshold = 17; // Ajustar el umbral de tiempo más alto
 				}
 			}
 			else {
@@ -753,8 +753,8 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 					timeThreshold = 8;
 				}
 				else {
-					maxMonsters = 8;
-					timeThreshold = 14; // Ajustar el umbral de tiempo más alto
+					maxMonsters = 7;
+					timeThreshold = 15; // Ajustar el umbral de tiempo más alto
 				}
 			}
 		}
