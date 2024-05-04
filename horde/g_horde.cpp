@@ -151,7 +151,7 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 			}
 			if (g_chaotic->integer && !g_insane->integer && current_wave_number > 5) { //  && current_wave_number > 5 
-				g_horde_local.num_to_spawn += (numActiveHPlayers + 7); //more spawning if chaotic and wave is 5+
+				g_horde_local.num_to_spawn += (numActiveHPlayers + 3); //more spawning if chaotic and wave is 5+
 			}
 		}
 		else {
@@ -160,8 +160,24 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
 			if (g_chaotic->integer && !g_insane->integer && current_wave_number > 7) { // && current_wave_number > 7
-				g_horde_local.num_to_spawn += (numActiveHPlayers + 3); //more spawning if chaotic and wave is 7+
+				g_horde_local.num_to_spawn += (numActiveHPlayers + 2); //more spawning if chaotic and wave is 7+
 			}
+		}
+		// additional spawning
+		if (numActiveHPlayers > 5) {
+			int additionalSpawn = 0; // Variable para el aumento adicional
+
+			if (isSmallMap) {
+				additionalSpawn = 5;
+			}
+			else if (isBigMap) {
+				additionalSpawn = numActiveHPlayers * 2;
+			}
+			else {
+				additionalSpawn = 5;
+			}
+
+			g_horde_local.num_to_spawn += additionalSpawn;
 		}
 	}
 }
@@ -674,7 +690,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 	for (uint32_t player = 1; player <= game.maxclients; player++)
 	{
 		ent = &g_edicts[player];
-		if (!ent->inuse || !ent->client || ent->movetype == MOVETYPE_NOCLIP)
+		if (!ent->inuse || !ent->client || !ent->solid) //|| ent->svflags & SVF_BOT)  //no needed if using bot_minclients below "numActivePlayers"
 			continue;
 
 		// Contar jugadores activos
@@ -684,13 +700,13 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		}
 
 		// Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
-		if (numActivePlayers >= 6) {
+		if (numActivePlayers >= 5) { // by default bot minclients is 5, and above that, im spectating a lot of time
 			if (isSmallMap) {
 				maxMonsters = 9; // remainingmonsters
 				timeThreshold = 9 - numActivePlayers;  // timer in seconds whento get to next wave, activating chaotic or insane,
 
-				if (timeThreshold <= 5) {
-					timeThreshold = 6;
+				if (timeThreshold <= 4) {
+					timeThreshold = 4;
 				}
 			}
 			else if (isBigMap) {
@@ -712,21 +728,40 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 		}
 		else {
 			if (isSmallMap) {   // less than 5 players, smallmap works nice 5/2/24
-				maxMonsters = 9;
-				timeThreshold = 13; // Ajustar el umbral de tiempo más alto
+				if (current_wave_number <= 4) {
+					maxMonsters = 3;
+					timeThreshold = 7;
+				}
+				else {
+					maxMonsters = 9;
+					timeThreshold = 13; // Ajustar el umbral de tiempo más alto
+				}
 			}
 			else if (isBigMap) { // adjusted day 5/2 8pm
-				maxMonsters = 22;
-				timeThreshold = 19; // Ajustar el umbral de tiempo más alto
+				if (current_wave_number <= 4) {
+					maxMonsters = 12;
+					timeThreshold = 15;
+				}
+				else {
+					maxMonsters = 22;
+					timeThreshold = 19; // Ajustar el umbral de tiempo más alto
+				}
 			}
 			else {
-				maxMonsters = 10;
-				timeThreshold = 16; // Ajustar el umbral de tiempo más alto
+				if (current_wave_number <= 4) {
+					maxMonsters = 4;
+					timeThreshold = 8;
+				}
+				else {
+					maxMonsters = 7;
+					timeThreshold = 15; // Ajustar el umbral de tiempo más alto
+				}
 			}
 		}
-		// Agregar la condición adicional para timeThreshold
 	}
-	if (remainingMonsters <= maxMonsters) {
+	
+	//if (remainingMonsters <= maxMonsters) {
+	if ((level.total_monsters - level.killed_monsters) <= maxMonsters) {
 		// Si la condición se cumple por primera vez, actualiza el tiempo de referencia
 		if (condition_start_time == std::chrono::steady_clock::time_point()) {
 			condition_start_time = std::chrono::steady_clock::now();
