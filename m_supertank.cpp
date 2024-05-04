@@ -800,11 +800,11 @@ void SP_monster_supertankkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 		
 
-		if (current_wave_number < 15) {
-			if (self->health > 4500) {
-				self->health = 4500;
+	
+			if (self->health > 2200) {
+				self->health = 2200;
 			}
-		}
+		
 
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;

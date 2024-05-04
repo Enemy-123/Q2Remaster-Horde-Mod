@@ -935,12 +935,22 @@ PAIN(widow_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	self->pain_debounce_time = level.time + 5_sec;
 
-	if (damage < 15)
-		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NONE, 0);
-	else if (damage < 75)
-		gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NONE, 0);
-	else
-		gi.sound(self, CHAN_VOICE, sound_pain3, 1, ATTN_NONE, 0);
+	if (!strcmp(self->classname, "monster_widow1")) {
+		if (damage < 15)
+			gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
+		else if (damage < 75)
+			gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NORM, 0);
+		else
+			gi.sound(self, CHAN_VOICE, sound_pain3, 1, ATTN_NORM, 0);
+	}
+	else if (!strcmp(self->classname, "monster_widow")) {
+		if (damage < 15)
+			gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NONE, 0);
+		else if (damage < 75)
+			gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NONE, 0);
+		else
+			gi.sound(self, CHAN_VOICE, sound_pain3, 1, ATTN_NONE, 0);
+	}
 
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
@@ -1241,65 +1251,134 @@ void WidowPrecache()
 
 /*QUAKED monster_widow (1 .5 0) (-40 -40 0) (40 40 144) Ambush Trigger_Spawn Sight
  */
-void SP_monster_widow(edict_t* self)
-{
-	if (!M_AllowSpawn(self)) {
-		G_FreeEdict(self);
-		return;
+void SP_monster_widow(edict_t* self) {
+	if (!strcmp(self->classname, "monster_widow")) {
+		{
+			if (!M_AllowSpawn(self)) {
+				G_FreeEdict(self);
+				return;
+			}
+
+			sound_pain1.assign("widow/bw1pain1.wav");
+			sound_pain2.assign("widow/bw1pain2.wav");
+			sound_pain3.assign("widow/bw1pain3.wav");
+			sound_rail.assign("gladiator/railgun.wav");
+
+			self->movetype = MOVETYPE_STEP;
+			self->solid = SOLID_BBOX;
+			self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
+			self->mins = { -40, -40, 0 };
+			self->maxs = { 40, 40, 144 };
+
+			self->health = (2800 * skill->integer) * st.health_multiplier;
+			if (G_IsCooperative())
+				self->health += 500 * skill->integer;
+			self->gib_health = -5000;
+			self->mass = 1500;
+
+			if (skill->integer == 3)
+			{
+				if (!st.was_key_specified("power_armor_type"))
+					self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+				if (!st.was_key_specified("power_armor_power"))
+					self->monsterinfo.power_armor_power = 500;
+			}
+			self->yaw_speed = 30;
+
+			self->flags |= FL_IMMUNE_LASER;
+			self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+
+			self->pain = widow_pain;
+			self->die = widow_die;
+
+			self->monsterinfo.melee = widow_melee;
+			self->monsterinfo.stand = widow_stand;
+			self->monsterinfo.walk = widow_walk;
+			self->monsterinfo.run = widow_run;
+			self->monsterinfo.attack = widow_attack;
+			self->monsterinfo.search = widow_search;
+			self->monsterinfo.checkattack = Widow_CheckAttack;
+			self->monsterinfo.sight = widow_sight;
+			self->monsterinfo.setskin = widow_setskin;
+			self->monsterinfo.blocked = widow_blocked;
+
+			gi.linkentity(self);
+
+			M_SetAnimation(self, &widow_move_stand);
+			self->monsterinfo.scale = MODEL_SCALE;
+
+			WidowPrecache();
+			WidowCalcSlots(self);
+			widow_damage_multiplier = 1;
+
+			walkmonster_start(self);
+		}
 	}
+}
 
-	sound_pain1.assign("widow/bw1pain1.wav");
-	sound_pain2.assign("widow/bw1pain2.wav");
-	sound_pain3.assign("widow/bw1pain3.wav");
-	sound_rail.assign("gladiator/railgun.wav");
+void SP_monster_widow1(edict_t* self)  
 
-	self->movetype = MOVETYPE_STEP;
-	self->solid = SOLID_BBOX;
-	self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
-	self->mins = { -40, -40, 0 };
-	self->maxs = { 40, 40, 144 };
-
-	self->health = (2800 * skill->integer) * st.health_multiplier;
-	if (G_IsCooperative())
-		self->health += 500 * skill->integer;
-	self->gib_health = -5000;
-	self->mass = 1500;
-
-	if (skill->integer == 3)
 	{
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 500;
+	if (!strcmp(self->classname, "monster_widow1")) {
+		constexpr int	WIDOW_RAIL_DAMAGE = 70;
+		if (!M_AllowSpawn(self)) {
+			G_FreeEdict(self);
+			return;
+		}
+
+		sound_pain1.assign("widow/bw1pain1.wav");
+		sound_pain2.assign("widow/bw1pain2.wav");
+		sound_pain3.assign("widow/bw1pain3.wav");
+		sound_rail.assign("gladiator/railgun.wav");
+
+		self->movetype = MOVETYPE_STEP;
+		self->solid = SOLID_BBOX;
+		self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
+		self->mins = { -40, -40, 0 };
+		self->maxs = { 40, 40, 144 };
+
+		self->health = (1500);
+		if (G_IsCooperative())
+			self->health += 500 * skill->integer;
+		self->gib_health = -5000;
+		self->mass = 1500;
+
+		if (skill->integer == 3)
+		{
+			if (!st.was_key_specified("power_armor_type"))
+				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+			if (!st.was_key_specified("power_armor_power"))
+				self->monsterinfo.power_armor_power = 500;
+		}
+		self->s.scale = 0.5;
+		self->yaw_speed = 40;
+
+		self->flags |= FL_IMMUNE_LASER;
+		self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+
+		self->pain = widow_pain;
+		self->die = widow_die;
+
+		self->monsterinfo.melee = widow_melee;
+		self->monsterinfo.stand = widow_stand;
+		self->monsterinfo.walk = widow_walk;
+		self->monsterinfo.run = widow_run;
+		self->monsterinfo.attack = widow_attack;
+		self->monsterinfo.search = widow_search;
+		self->monsterinfo.checkattack = Widow_CheckAttack;
+		self->monsterinfo.sight = widow_sight;
+		self->monsterinfo.setskin = widow_setskin;
+		self->monsterinfo.blocked = widow_blocked;
+
+		gi.linkentity(self);
+
+		M_SetAnimation(self, &widow_move_stand);
+		self->monsterinfo.scale = MODEL_SCALE;
+
+		WidowPrecache();
+		WidowCalcSlots(self);
+		widow_damage_multiplier = 1;
+
+		walkmonster_start(self);
 	}
-
-	self->yaw_speed = 30;
-
-	self->flags |= FL_IMMUNE_LASER;
-	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-
-	self->pain = widow_pain;
-	self->die = widow_die;
-
-	self->monsterinfo.melee = widow_melee;
-	self->monsterinfo.stand = widow_stand;
-	self->monsterinfo.walk = widow_walk;
-	self->monsterinfo.run = widow_run;
-	self->monsterinfo.attack = widow_attack;
-	self->monsterinfo.search = widow_search;
-	self->monsterinfo.checkattack = Widow_CheckAttack;
-	self->monsterinfo.sight = widow_sight;
-	self->monsterinfo.setskin = widow_setskin;
-	self->monsterinfo.blocked = widow_blocked;
-
-	gi.linkentity(self);
-
-	M_SetAnimation(self, &widow_move_stand);
-	self->monsterinfo.scale = MODEL_SCALE;
-
-	WidowPrecache();
-	WidowCalcSlots(self);
-	widow_damage_multiplier = 1;
-
-	walkmonster_start(self);
 }

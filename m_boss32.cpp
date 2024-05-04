@@ -887,6 +887,9 @@ void MakronToss(edict_t *self)
 constexpr spawnflags_t SPAWNFLAG_MAKRONKL = 8_spawnflag;
 void SP_monster_makronkl(edict_t* self)
 {
+	if (self->health > 1700) {
+		self->health = 1700;
+	}
 	self->spawnflags |= SPAWNFLAG_MAKRONKL;
 	SP_monster_makron(self);
 	self->s.skinnum = 2;

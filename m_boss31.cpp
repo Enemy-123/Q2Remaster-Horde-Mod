@@ -604,9 +604,8 @@ void jorg_dead(edict_t* self)
 		{ 6, "models/monsters/boss3/jorg/gibs/spike.md2", GIB_SKINNED },
 		{ "models/monsters/boss3/jorg/gibs/head.md2", GIB_SKINNED | GIB_METALLIC | GIB_HEAD }
 		});
-//	if (!g_horde->integer) { //dont spawn makron, for now
+
 		MakronToss(self);
-//	}
 }
 
 DIE(jorg_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void

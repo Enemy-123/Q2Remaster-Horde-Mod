@@ -304,15 +304,15 @@ constexpr weighted_item_t monsters[] = {
 
 { "monster_medic", 5, 12, 0.1f },
 { "monster_brain", 6, -1, 0.23f }, 
-{ "monster_stalker", 4, 11, 0.13f },
-{ "monster_parasite", 4, 14, 0.2f },
+{ "monster_stalker", 4, 11, 0.19f },
+{ "monster_parasite", 4, 14, 0.23f },
 { "monster_tank", 14, -1, 0.3f },  
 { "monster_tank2", 5, 13, 0.3f },  
 { "monster_guncmdr2", 6, 10, 0.18f },
 { "monster_mutant", 5, -1, 0.55f },
-{ "monster_chick", 6, 18, 0.7f },
-{ "monster_chick_heat", 10, -1, 0.7f },
-{ "monster_berserk", 8, -1, 0.45f },
+{ "monster_chick", 6, 18, 0.5f },
+{ "monster_chick_heat", 10, -1, 0.4f },
+{ "monster_berserk", 7, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
 { "monster_hover", 11, -1, 0.18f }, 
 { "monster_daedalus", 13, -1, 0.08f }, 
@@ -321,20 +321,21 @@ constexpr weighted_item_t monsters[] = {
 { "monster_spider", 12, -1, 0.24f },
 { "monster_guncmdr", 11, 22, 0.28f },
 { "monster_gladc", 6, -1, 0.16f }, 
-{ "monster_gladiator", 9, -1, 0.24f },
-{ "monster_shambler", 17, -1, 0.08f },
+{ "monster_gladiator", 8, -1, 0.24f },
+{ "monster_shambler", 15, -1, 0.12f },
 { "monster_floater2", 17, -1, 0.35f },
 { "monster_carrier2", 17, -1, 0.09f },
-{ "monster_tank_64", 16, -1, 0.06f },
+{ "monster_tank_64", 18, -1, 0.1f },
 { "monster_janitor", 16, -1, 0.18f },
 { "monster_janitor2", 19, -1, 0.12f },
 { "monster_makron", 18, 19, 0.2f },
-{ "monster_gladb", 14, -1, 0.75f},
+{ "monster_gladb", 16, -1, 0.55f},
 { "monster_boss2_64", 14, -1, 0.08f },
 { "monster_perrokl", 21, -1, 0.27f },
-{ "monster_guncmdrkl", 23, -1, 0.18f },
-{ "monster_shamblerkl", 23, -1, 0.39f },
-{ "monster_makronkl", 23, -1, 0.09f }
+{ "monster_guncmdrkl", 23, -1, 0.1f },
+{ "monster_shamblerkl", 28, -1, 0.14f },
+{ "monster_makronkl", 26, -1, 0.05f },
+{ "monster_widow", 23, -1, 0.15f }
 };
 
 struct boss_t {
@@ -351,6 +352,9 @@ constexpr boss_t BOSS[] = {
   {"monster_shamblerkl", -1, -1, 0.07f},
   {"monster_guncmdrkl", -1, -1, 0.07f},
   {"monster_boss2kl", -1, -1, 0.07f},
+  {"monster_carrier", -1, -1, 0.07f},
+  {"monster_widow", -1, -1, 0.07f},
+  {"monster_widow2", -1, -1, 0.07f},
   {"monster_supertankkl", -1, -1, 0.07f},
   {"monster_turretkl", -1, -1, 0.07f},
 };
@@ -448,7 +452,8 @@ const char* G_HordePickBOSS()
 	const char* desired_boss = nullptr;
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
-		desired_boss = brandom() ? "monster_supertankkl" : "monster_boss2kl";
+		float r = frandom();
+		desired_boss = (r < 0.333f) ? "monster_supertankkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_jorg";
 	}
 	else if (!Q_strcasecmp(level.mapname, "rdm14")) {
 		desired_boss = "monster_makronkl";
@@ -462,16 +467,17 @@ const char* G_HordePickBOSS()
 	}
 	else if (!Q_strcasecmp(level.mapname, "xdm2")) {
 		float r = frandom();
-		desired_boss = (r < 0.333f) ? "monster_gunnercmdrkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_makronkl";
+		desired_boss = (r < 0.333f) ? "monster_gunnercmdrkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_widow";
 	}
 	else if (!Q_strcasecmp(level.mapname, "dm7") || !Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7") ||
 		!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10") ||
 		!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
-		desired_boss = brandom() ? "monster_perrokl" : "monster_guncmdrkl";
+		float r = frandom();
+		desired_boss = (r < 0.333f) ? "monster_perrokl" : (r < 0.666f) ? "monster_guncmdrkl" : "monster_turretkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		float r = frandom();
-		desired_boss = (r < 0.333f) ? "monster_supertankkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_makronkl";
+		desired_boss = (r < 0.333f) ? "monster_supertankkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_widow2";
 	}
 
 	for (const auto& item : BOSS)
