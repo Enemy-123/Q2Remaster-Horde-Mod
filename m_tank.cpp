@@ -432,7 +432,7 @@ void TankRocket(edict_t* self)
 	else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
 		rocketSpeed = 700;
 	else
-		rocketSpeed = 850;
+		rocketSpeed = 800;
 
 	// PMM
 	if (blindfire)
