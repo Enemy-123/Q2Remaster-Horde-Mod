@@ -1,4 +1,4 @@
-// Copyright (c) ZeniMax Media Inc.
+ï»¿// Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include "../m_player.h"
@@ -296,9 +296,9 @@ void CTFAssignSkin(edict_t* ent, const char* s)
 	else
 		t = "male/";
 
-		ent->client->resp.ctf_team;
-		t = G_Fmt("{}\\{}\\default", ent->client->pers.netname, s);
-	
+	ent->client->resp.ctf_team;
+	t = G_Fmt("{}\\{}\\default", ent->client->pers.netname, s);
+
 
 	gi.configstring(CS_PLAYERSKINS + playernum, t.data());
 
@@ -338,7 +338,7 @@ void CTFAssignTeam(gclient_t* who)
 		}
 	}
 
-		who->resp.ctf_team = CTF_TEAM1;
+	who->resp.ctf_team = CTF_TEAM1;
 
 }
 
@@ -957,7 +957,7 @@ static void CTFSetIDView(edict_t* ent)
 	tr = gi.traceline(ent->s.origin, forward, ent, MASK_SOLID);
 	if (tr.fraction < 1 && tr.ent && tr.ent->client)
 	{
-		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts); 
+		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
 		if (tr.ent->client->resp.ctf_team == CTF_TEAM1)
 			ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf1;
 		else if (tr.ent->client->resp.ctf_team == CTF_TEAM2)
@@ -1032,10 +1032,10 @@ void SetCTFStats(edict_t* ent)
 		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
 	}
 	else
-	ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_ctfsb1;
+		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_ctfsb1;
 
 	ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_ctfsb2;
-	
+
 
 	bool blink = (level.time.milliseconds() % 1000) < 500;
 
@@ -1165,8 +1165,8 @@ void SetCTFStats(edict_t* ent)
 				ent->client->ps.stats[STAT_CTF_TEAM2_PIC] = 0;
 		}
 
-	//	ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = STAT_FRAGS;
-	//	ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = STAT_CTF_MATCH;
+		//	ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = STAT_FRAGS;
+		//	ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = STAT_CTF_MATCH;
 
 		ent->client->ps.stats[STAT_CTF_FLAG_PIC] = 0;
 		if (ent->client->resp.ctf_team == CTF_TEAM1 &&
@@ -1673,14 +1673,14 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	//		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
 	//	}
 	//}
-	
-	
-	if (g_horde->integer)
+
+
+	if (g_horde->integer && level.intermissiontime)
 
 	{
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""), g_horde->integer);
 	}
-	
+
 	if (timelimit->value)
 	{
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
@@ -1703,28 +1703,29 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	if (!level.intermissiontime)
 	{
 		fmt::format_to(std::back_inserter(string),
-//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-			FMT_STRING("if 25 xv -65 yv 4 dogtag 54 endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
- //               "if 26 xv 188 yv 8 pic 26 endif "
-			//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-				"xv 70 yv -20 num 2 19 "
-				"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
+			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+			FMT_STRING("if 25 xv -65 yv 10 dogtag endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
+				//               "if 26 xv 188 yv 8 pic 26 endif "
 				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-	//			"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using ¨wave¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
-				"xv 296 yv -20 num 2 21 "),
+				//"xv 70 yv -20 num 2 19 "  // wave and stroggs numbers
+	//			"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
+			//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
+			//	"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using Â¨waveÂ¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
+			//"xv 296 yv -20 num 2 21 "
+			),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 	}
 	else if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
-//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-			FMT_STRING("if 25 xv -65 yv 4 dogtag endif"  // RED TEAM, yv 8 normal, menos es mas alto
-				"if 25 xv 165 yv 30 pic 25 endif "
+			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+			FMT_STRING("if 25 xv -65 yv 10 dogtag endif"  // RED TEAM, yv 8 normal, menos es mas alto
+				"if 25 xv 205 yv 8 pic 25 endif "
 				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
-				"xv 70 yv -20 num 2 19 "
 			//		"if 26 xv 208 yv 8 pic 26 endif "
 				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-				"xv 296 yv -20 num 2 21 "),
+				"xv 70 yv -20 num 2 19 "
+				"xv 302 yv -20 num 2 21 "),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 	}
@@ -1796,7 +1797,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			if (!k)
 			{
 				k = 1;
-				fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yv {} loc_string2 0 \"$g_pc_spectators\" "), j);
+				fmt::format_to(std::back_inserter(string), FMT_STRING("xv 105 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
 				j += 8;
 			}
 
@@ -1824,7 +1825,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
 
 	if (level.intermissiontime)
-		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"MAKE THEM PAY\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 	//	fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 
 	gi.WriteByte(svc_layout);
@@ -1840,8 +1841,8 @@ void CTFHasTech(edict_t* who)
 	if (level.time - who->client->ctf_lasttechmsg > 5_sec)
 	{
 		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
-	//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
-	//	gi.LocBroadcast_Print(PRINT_CHAT, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn: Menu > Options > Input > Customize Bindings\n");
+		//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
+		//	gi.LocBroadcast_Print(PRINT_CHAT, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn: Menu > Options > Input > Customize Bindings\n");
 		who->client->ctf_lasttechmsg = (level.time);
 	}
 }
@@ -2776,10 +2777,10 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 	ent->client->resp.ctf_team = desired_team;
 	ent->client->resp.ctf_state = 0;
 	char value[MAX_INFO_VALUE] = { 0 };
-//	gi.Info_ValueForKey(ent->client->pers.userinfo, "skin", value, sizeof(value));
-//	CTFAssignSkin(ent, value);
+	//	gi.Info_ValueForKey(ent->client->pers.userinfo, "skin", value, sizeof(value));
+	//	CTFAssignSkin(ent, value);
 
-	// assign a ghost if we are in match mode
+		// assign a ghost if we are in match mode
 	if (ctfgame.match == MATCH_GAME)
 	{
 		if (ent->client->resp.ghost)
@@ -2887,23 +2888,23 @@ void CTFUpdateJoinMenu(edict_t* ent)
 	{
 		Q_strlcpy(entries[jmenu_red].text, "MATCH IS LOCKED", sizeof(entries[jmenu_red].text));
 		entries[jmenu_red].SelectFunc = nullptr;
-//		Q_strlcpy(entries[jmenu_blue].text, "  (entry is not permitted)", sizeof(entries[jmenu_blue].text));
-//		entries[jmenu_blue].SelectFunc = nullptr;
+		//		Q_strlcpy(entries[jmenu_blue].text, "  (entry is not permitted)", sizeof(entries[jmenu_blue].text));
+		//		entries[jmenu_blue].SelectFunc = nullptr;
 	}
 	else
 	{
 		if (ctfgame.match >= MATCH_PREGAME)
 		{
 			Q_strlcpy(entries[jmenu_red].text, "Join Red MATCH Team", sizeof(entries[jmenu_red].text));
-	//		Q_strlcpy(entries[jmenu_blue].text, "Join Blue MATCH Team", sizeof(entries[jmenu_blue].text));
+			//		Q_strlcpy(entries[jmenu_blue].text, "Join Blue MATCH Team", sizeof(entries[jmenu_blue].text));
 		}
 		else
 		{
 			Q_strlcpy(entries[jmenu_red].text, "Join and Fight the HORDE!", sizeof(entries[jmenu_red].text));
-//			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
+			//			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
 		}
 		entries[jmenu_red].SelectFunc = CTFJoinTeam1;
-//		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
+		//		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
 	}
 
 	// KEX_FIXME: what's this for?
@@ -2911,8 +2912,8 @@ void CTFUpdateJoinMenu(edict_t* ent)
 	{
 		if (Q_strcasecmp(g_teamplay_force_join->string, "red") == 0)
 		{
-//			entries[jmenu_blue].text[0] = '\0';
-//			entries[jmenu_blue].SelectFunc = nullptr;
+			//			entries[jmenu_blue].text[0] = '\0';
+			//			entries[jmenu_blue].SelectFunc = nullptr;
 		}
 		else if (Q_strcasecmp(g_teamplay_force_join->string, "blue") == 0)
 		{
@@ -2971,15 +2972,15 @@ void CTFUpdateJoinMenu(edict_t* ent)
 		entries[jmenu_red + 1].text[0] = '\0';
 		entries[jmenu_red + 1].text_arg1[0] = '\0';
 	}
-//	if (*entries[jmenu_blue].text)
+	//	if (*entries[jmenu_blue].text)
 	{
-//		Q_strlcpy(entries[jmenu_blue + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_blue + 1].text));
-//		G_FmtTo(entries[jmenu_blue + 1].text_arg1, "{}", num2);
-//	}
-//	else
-//	{
-	//	entries[jmenu_blue + 1].text[0] = '\0';
-	//	entries[jmenu_blue + 1].text_arg1[0] = '\0';
+		//		Q_strlcpy(entries[jmenu_blue + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_blue + 1].text));
+		//		G_FmtTo(entries[jmenu_blue + 1].text_arg1, "{}", num2);
+		//	}
+		//	else
+		//	{
+			//	entries[jmenu_blue + 1].text[0] = '\0';
+			//	entries[jmenu_blue + 1].text_arg1[0] = '\0';
 	}
 
 	entries[jmenu_reqmatch].text[0] = '\0';
@@ -3907,10 +3908,10 @@ void CTFBoot(edict_t* ent)
 
 void CTFSetPowerUpEffect(edict_t* ent, effects_t def)
 {
-//	if (ent->client->resp.ctf_team == CTF_TEAM1 && def == EF_QUAD)
-//		ent->s.effects |= EF_PENT; // red
-//	else if (ent->client->resp.ctf_team == CTF_TEAM2 && def == EF_PENT)
-//		ent->s.effects |= EF_QUAD; // blue
-//	else
-		ent->s.effects |= def;
+	//	if (ent->client->resp.ctf_team == CTF_TEAM1 && def == EF_QUAD)
+	//		ent->s.effects |= EF_PENT; // red
+	//	else if (ent->client->resp.ctf_team == CTF_TEAM2 && def == EF_PENT)
+	//		ent->s.effects |= EF_QUAD; // blue
+	//	else
+	ent->s.effects |= def;
 }

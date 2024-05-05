@@ -722,7 +722,7 @@ void CheckDMRules()
 					edict_t* ent = g_edicts + 1 + i;
 					if (ent->inuse && ent->client)
 					{
-						InitClientPt(ent, ent->client);
+					InitClientPt(ent, ent->client);
 						gi.LocCenter_Print(ent, "Horde Mode is being reset.");
 						gi.cvar_set("timelimit", "25");
 					}

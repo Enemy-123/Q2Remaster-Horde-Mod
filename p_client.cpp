@@ -822,8 +822,17 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
-	memset(&client->pers, 0, sizeof(client->pers));
-	ClientUserinfoChanged(ent, userinfo);
+	// Limpiar el inventario
+	int i;
+	for (i = 0; i < MAX_ITEMS; i++) {
+		if (i != IT_WEAPON_BLASTER) {
+			client->pers.inventory[i] = 0;
+		}
+	}
+
+	// Establecer el blaster de arma
+	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+
 
 	client->pers.health = 100;
 	client->pers.max_health = 100;

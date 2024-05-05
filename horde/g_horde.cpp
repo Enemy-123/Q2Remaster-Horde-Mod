@@ -147,7 +147,7 @@ static void Horde_InitLevel(int32_t lvl)
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 			}
-			if (g_chaotic->integer == 2 && current_wave_number >=7 || !g_insane->integer) {
+			if (g_chaotic->integer == 2 && current_wave_number >=7 || g_insane->integer) {
 				g_horde_local.num_to_spawn += 3; // more spawning when chaotic and wave is 7+ and not insane
 			}
 		}
@@ -156,7 +156,7 @@ static void Horde_InitLevel(int32_t lvl)
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 			}
-			if (g_chaotic->integer && current_wave_number >= 7 || !g_insane->integer) { //  && current_wave_number > 5 
+			if (g_chaotic->integer && current_wave_number >= 7 || g_insane->integer) { //  && current_wave_number > 5 
 				g_horde_local.num_to_spawn += 8; //more spawning if chaotic and wave is 7+ and not insane
 			}
 		}
@@ -165,7 +165,7 @@ static void Horde_InitLevel(int32_t lvl)
 			if (g_horde_local.num_to_spawn >= MAX_MONSTERS_MEDIUM_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
-			if (g_chaotic->integer && current_wave_number >= 7 || !g_insane->integer) { // && current_wave_number > 7
+			if (g_chaotic->integer && current_wave_number >= 7 || g_insane->integer) { // && current_wave_number > 7
 				g_horde_local.num_to_spawn += (6); //more spawning if chaotic and wave is 7+ and not insane
 			}
 		}
@@ -303,7 +303,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_hover2", 5, 13, 0.14f },
 { "monster_fixbot", 5, 18, 0.16f },
 
-{ "monster_gekk", 3, 12, 0.12f },
+{ "monster_gekk", 3, 17, 0.12f },
 
 { "monster_gunner2", 3, 11, 0.35f },
 { "monster_gunner", 8, -1, 0.34f },
@@ -316,31 +316,31 @@ constexpr weighted_item_t monsters[] = {
 { "monster_tank2", 5, 13, 0.3f },  
 { "monster_guncmdr2", 6, 10, 0.18f },
 { "monster_mutant", 5, -1, 0.55f },
-{ "monster_chick", 6, 18, 0.5f },
-{ "monster_chick_heat", 10, -1, 0.4f },
+{ "monster_chick", 6, 18, 0.3f },
+{ "monster_chick_heat", 10, -1, 0.34f },
 { "monster_berserk", 7, -1, 0.45f },
 { "monster_floater", 9, 16, 0.13f },
 { "monster_hover", 11, -1, 0.18f }, 
 { "monster_daedalus", 13, -1, 0.08f }, 
 { "monster_medic_commander", 13, -1, 0.18f }, 
-{ "monster_tank_commander", 11, 18, 0.15f },
+{ "monster_tank_commander", 11, -1, 0.15f },
 { "monster_spider", 12, -1, 0.24f },
-{ "monster_guncmdr", 11, 22, 0.28f },
+{ "monster_guncmdr", 11, -1, 0.28f },
 { "monster_gladc", 6, -1, 0.16f }, 
 { "monster_gladiator", 8, -1, 0.24f },
-{ "monster_shambler", 15, -1, 0.12f },
+{ "monster_shambler", 10, -1, 0.03f },
 { "monster_floater2", 17, -1, 0.35f },
 { "monster_carrier2", 19, -1, 0.09f },
 { "monster_tank_64", 18, -1, 0.1f },
 { "monster_janitor", 16, -1, 0.18f },
 { "monster_janitor2", 19, -1, 0.12f },
-{ "monster_makron", 18, 19, 0.2f },
+{ "monster_makron", 16, 19, 0.03f },
 { "monster_gladb", 16, -1, 0.55f},
 { "monster_boss2_64", 17, -1, 0.08f },
 { "monster_perrokl", 21, -1, 0.27f },
 { "monster_guncmdrkl", 23, -1, 0.1f },
-{ "monster_shamblerkl", 28, -1, 0.14f },
-{ "monster_makronkl", 26, -1, 0.05f },
+{ "monster_shamblerkl", 18, -1, 0.14f },
+{ "monster_makronkl", 20, -1, 0.05f },
 { "monster_widow1", 23, -1, 0.15f }
 };
 
@@ -652,8 +652,9 @@ void SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health *= pow(1.28, current_wave_number);
-		boss->monsterinfo.power_armor_power *= pow(1.28, current_wave_number);
+		boss->health *= pow(1.15, current_wave_number);
+		boss->monsterinfo.power_armor_power *= current_wave_number * 1.35; // Escalar la armadura de energía basada en la oleada actual
+
 		boss->gib_health *= 3;
 
 		vec3_t effectPosition = boss->s.origin;
@@ -879,20 +880,21 @@ void Horde_RunFrame()
 					e->s.renderfx = RF_GLOW;
 					e->s.effects = EF_GRENADE_LIGHT;
 				}
-				e->monsterinfo.power_armor_power *= pow(1.082, current_wave_number);  // trying with coop health scaling + multiplying power armor by currentwave
+				
+				e->monsterinfo.power_armor_power *= current_wave_number * 1.115; // Escalar la armadura de energía basada en la oleada actual
+				
 				e->enemy = &g_edicts[1];
 				e->gib_health = -280;
 
 				HuntTarget(e);
 	
-				if (current_wave_number >= 13  || g_chaotic->integer == 2 && current_wave_number >= 7) {
+				if (current_wave_number <= 13 || g_chaotic->integer == 2 && current_wave_number >= 7) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.2_sec);
-				//	e->health *= pow(1.0085, current_wave_number); // trying with coop health scaling again
 				}
 				else if (!g_insane->integer || !g_chaotic->integer) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 0.9_sec);  // monster spawn speed
 				}
-				else if (g_chaotic->integer == 1) {
+				else if (g_chaotic->integer == 1 || g_insane->integer && current_wave_number >= 23) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.7_sec);  // monster spawn speed
 				}
 				--g_horde_local.num_to_spawn;
