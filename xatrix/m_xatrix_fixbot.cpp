@@ -1387,7 +1387,7 @@ void SP_monster_fixbot(edict_t* self)
 
 	self->health = 90 * st.health_multiplier;
 	self->mass = 150;
-	self->s.scale = 1.8f;
+	//self->s.scale = 1.8f;
 
 	self->pain = fixbot_pain;
 	self->die = fixbot_die;

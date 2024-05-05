@@ -1703,12 +1703,12 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	if (!level.intermissiontime)
 	{
 		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-//			FMT_STRING("if 25 xv -65 yv 4 dogtag 54 endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
-                "if 26 xv 188 yv 8 pic 26 endif "
+//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+			FMT_STRING("if 25 xv -65 yv 4 dogtag 54 endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
+ //               "if 26 xv 188 yv 8 pic 26 endif "
 			//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
 				"xv 70 yv -20 num 2 19 "
-//				"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
+				"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
 				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
 	//			"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using ¨wave¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
 				"xv 296 yv -20 num 2 21 "),
@@ -1837,10 +1837,12 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 
 void CTFHasTech(edict_t* who)
 {
-	if (level.time - who->client->ctf_lasttechmsg > 2_sec)
+	if (level.time - who->client->ctf_lasttechmsg > 5_sec)
 	{
-		gi.LocCenter_Print(who, "$g_already_have_tech");
-		who->client->ctf_lasttechmsg = level.time;
+		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
+	//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
+	//	gi.LocBroadcast_Print(PRINT_CHAT, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn: Menu > Options > Input > Customize Bindings\n");
+		who->client->ctf_lasttechmsg = (level.time);
 	}
 }
 

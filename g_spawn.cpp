@@ -499,9 +499,6 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner2";
 		}
-		else if (!strcmp(ent->classname, "monster_flyer")) {
-			ent->classname = "monster_parasite";
-		}
 		else if (!strcmp(ent->classname, "monster_stalker")) {
 			ent->classname = "monster_parasite";
 		}
@@ -530,7 +527,7 @@ void ED_CallSpawn(edict_t* ent)
 			ent->classname = "monster_guncmdr";
 		}
 		else if (current_wave_number >= 8 && !strcmp(ent->classname, "monster_flyer")) {
-			ent->classname = "monster_daedalus";
+			ent->classname = "monster_hover2";
 		}
 	}
 
@@ -554,9 +551,6 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_flyer")) {
 			ent->classname = "monster_daedalus";
 		}
-//		else if (!strcmp(ent->classname, "monster_daedalus")) {
-//			ent->classname = "monster_gladc";
-//		}
 		else if (!strcmp(ent->classname, "monster_shambler")) {
 			ent->classname = "monster_tank_64";
 		}
@@ -581,9 +575,6 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_medic")) {
 			ent->classname = "monster_spider";
 		}
-//		else if (!strcmp(ent->classname, "monster_gekk")) {
-//			ent->classname = "monster_mutant";
-//		}
 		else if (!strcmp(ent->classname, "monster_fixbot")) {
 			ent->classname = "monster_hover";
 		}
@@ -675,8 +666,6 @@ void ED_CallSpawn(edict_t* ent)
 				ent->classname = "item_bandolier";
 			}
 		}
-
-
 
 	gitem_t* item;
 	int		 i;
@@ -1889,8 +1878,8 @@ void SP_worldspawn(edict_t* ent)
 	// [Paril-KEX]
 	if (G_IsDeathmatch() && g_horde->integer || !G_IsDeathmatch())
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_PVE).data());
-	else if (teamplay->integer || ctf->integer)
-		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
+//	else if (teamplay->integer || ctf->integer)
+//		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
 	else
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_FFA).data());
 
