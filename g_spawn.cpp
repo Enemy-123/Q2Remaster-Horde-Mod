@@ -1677,8 +1677,8 @@ static void G_InitStatusbar()
 		if (G_IsCooperative())
 		{
 			// Q2ETweaks target id view state
-			// TODO move back to xv 112 if we find an image for below
-			sb.ifstat(STAT_CTF_ID_VIEW).xv(112).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+			// TODO move back to xv 112 (128) if we find an image for below
+			sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 
 		// frags
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
@@ -1756,8 +1756,8 @@ static void G_InitStatusbar()
 		// coop lives
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		// Q2ETweaks target id view state
-        // TODO move back to xv 112 if we find an image for below
-		sb.ifstat(STAT_CTF_ID_VIEW).xv(112).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+        // TODO move back to xv 112 if we find an image for below (defaulkt 128)
+		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 
 		// Q2ETweaks target id view color
 		// TODO populate this with a small image if we can find one

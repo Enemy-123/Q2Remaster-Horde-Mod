@@ -993,10 +993,10 @@ static void CTFSetIDView(edict_t* ent)
 	if (bd > 0.90f)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);  // check id horde
-		if (best->client->resp.ctf_team == CTF_TEAM1)
-			ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf1;
-		else if (best->client->resp.ctf_team == CTF_TEAM2)
-			ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf2;
+		//if (best->client->resp.ctf_team == CTF_TEAM1)
+		//	ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf1;
+		//else if (best->client->resp.ctf_team == CTF_TEAM2)
+		//	ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf2;
 	}
 }
 

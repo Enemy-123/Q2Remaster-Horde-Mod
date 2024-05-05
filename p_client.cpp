@@ -340,21 +340,21 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			gi.LocClient_Print(attacker, PRINT_CENTER, "You fragged {}", self->client->pers.netname);
 			gi.LocClient_Print(self, PRINT_CENTER, "\n\n\n\nFragged by {}", attacker->client->pers.netname);
 		}
-	/*	if (G_TeamplayEnabled())
-		{
-			// ZOID
-			//  if at start and same team, clear.
-			// [Paril-KEX] moved here so it's not an outlier in player_die.
-			if (mod.id == MOD_TELEFRAG_SPAWN &&
-				self->client->resp.ctf_state < 2 &&
-				self->client->resp.ctf_team == attacker->client->resp.ctf_team)
+		/*	if (G_TeamplayEnabled())
 			{
-				self->client->resp.ctf_state = 0;
-				return;
-			}
-		}*/
+				// ZOID
+				//  if at start and same team, clear.
+				// [Paril-KEX] moved here so it's not an outlier in player_die.
+				if (mod.id == MOD_TELEFRAG_SPAWN &&
+					self->client->resp.ctf_state < 2 &&
+					self->client->resp.ctf_team == attacker->client->resp.ctf_team)
+				{
+					self->client->resp.ctf_state = 0;
+					return;
+				}
+			}*/
 
-		// ROGUE
+			// ROGUE
 		if (gamerules->integer)
 		{
 			if (DMGame.Score)
@@ -434,8 +434,8 @@ void TossClientWeapon(edict_t* self)
 		return;
 
 	item = self->client->pers.weapon;
-//	if (item && g_instagib->integer)
-//		item = nullptr;
+	//	if (item && g_instagib->integer)
+	//		item = nullptr;
 	if (item && !self->client->pers.inventory[self->client->pers.weapon->ammo])
 		item = nullptr;
 	if (item && !item->drop)
@@ -815,6 +815,19 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 	}
 }
 
+
+void InitClientPt(edict_t* ent, gclient_t* client)
+{
+	// backup & restore userinfo
+	char userinfo[MAX_INFO_STRING];
+	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+
+	memset(&client->pers, 0, sizeof(client->pers));
+	ClientUserinfoChanged(ent, userinfo);
+
+	client->pers.health = 100;
+	client->pers.max_health = 100;
+}
 /*
 ==============
 InitClientPersistant
@@ -828,12 +841,44 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// backup & restore userinfo
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
-
-	memset(&client->pers, 0, sizeof(client->pers));
 	ClientUserinfoChanged(ent, userinfo);
 
-	client->pers.health = 100;
-	client->pers.max_health = 100;
+		if (current_wave_number >= 25)
+		{
+			client->pers.health = 200;
+			client->pers.max_health = 200;
+		}
+		else if (current_wave_number >= 20 && current_wave_number < 25)
+		{
+			client->pers.health = 180;
+			client->pers.max_health = 180;
+		}
+		else if (current_wave_number >= 15 && current_wave_number < 20)
+		{
+			client->pers.health = 160;
+			client->pers.max_health = 160;
+		}
+		else if (current_wave_number >= 10 && current_wave_number < 15)
+		{
+			client->pers.health = 140;
+			client->pers.max_health = 140;
+		}
+		else if (current_wave_number >= 5 && current_wave_number < 10)
+		{
+			client->pers.health = 120;
+			client->pers.max_health = 120;
+		}
+		else if (current_wave_number >= 1 && current_wave_number < 5)
+		{
+			client->pers.health = 100;
+			client->pers.max_health = 100;
+		}
+		else
+		{
+			client->pers.health = 100; // default, and wave 0
+			client->pers.max_health = 100;
+		}
+
 
 	// don't give us weapons if we shouldn't have any
 //	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
@@ -844,7 +889,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		// player may not have weapons at all.
 		bool taken_loadout = false;
 
-		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+		if (G_IsCooperative()) //|| G_IsDeathmatch() && g_horde->integer)
 		{
 			for (auto player : active_players())
 			{
@@ -885,21 +930,21 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			// start items!
 			if (*g_start_items->string)
 				Player_GiveStartItems(ent, g_start_items->string);
-	//		else if (G_IsDeathmatch() && g_instagib->integer)
-	//		{
-	//			client->pers.inventory[IT_WEAPON_RAILGUN] = 1;
-	//			client->pers.inventory[IT_AMMO_SLUGS] = 99;
-	//		}
+			//		else if (G_IsDeathmatch() && g_instagib->integer)
+			//		{
+			//			client->pers.inventory[IT_WEAPON_RAILGUN] = 1;
+			//			client->pers.inventory[IT_AMMO_SLUGS] = 99;
+			//		}
 
 			if (level.start_items && *level.start_items)
 				Player_GiveStartItems(ent, level.start_items);
 
 			if (!G_IsDeathmatch())
-			client->pers.inventory[IT_ITEM_COMPASS] = 1;
-			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;	
-			
-			if (G_IsDeathmatch())
+				client->pers.inventory[IT_ITEM_COMPASS] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+
+			if (G_IsDeathmatch())
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 
@@ -1007,7 +1052,7 @@ void FetchClientEntData(edict_t* ent)
 	ent->max_health = ent->client->pers.max_health;
 	ent->flags |= ent->client->pers.savedFlags;
 	if (G_IsCooperative())
-	ent->client->resp.score = ent->client->pers.score;
+		ent->client->resp.score = ent->client->pers.score;
 }
 
 /*
@@ -3730,8 +3775,8 @@ enum respawn_state_t
 static bool G_CoopRespawn(edict_t* ent)
 {
 	// don't do this in non-coop
-    //	if (!G_IsCooperative())
-    //		return false;
+	//	if (!G_IsCooperative())
+	//		return false;
 	// if we don't have squad or lives, it doesn't matter
 	if (!g_coop_squad_respawn->integer && !g_coop_enable_lives->integer)
 		return false;

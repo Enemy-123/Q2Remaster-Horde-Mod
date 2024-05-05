@@ -73,7 +73,7 @@ static void Horde_InitLevel(int32_t lvl)
 
 	if (g_horde_local.level == 10) {
 		//		gi.cvar_set("g_damage_scale", "1.8");
-		//		gi.cvar_set("ai_damage_scale", "1.5");
+				gi.cvar_set("ai_damage_scale", "1.5");
 		gi.cvar_set("g_ammoregen", "1");
 		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "AMMO REGEN\n\nENABLED!\n");
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nAMMO REGEN IS NOW ENABLED!\n");
@@ -84,8 +84,8 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nAUTO DUAL FIRE ENABLED !\nEACH KILL WHILE TIME-ACCELATED WILL GIVE YOU 0.5 EXTRA SECONDS\n");
 	}
 
-	if (g_horde_local.level == 23) {
-		gi.cvar_set("g_damage_scale", "2");
+	if (g_horde_local.level == 17) {
+		gi.cvar_set("g_damage_scale", "2.2");
 	}
 
 	// Small Maps
@@ -130,7 +130,7 @@ static void Horde_InitLevel(int32_t lvl)
 	for (uint32_t Hplayer = 1; Hplayer <= game.maxclients; Hplayer++)  // Hplayer doesn't includes bots? no for now
 	{
 		ent = &g_edicts[Hplayer];
-		if (!ent->inuse || !ent->client) //|| !ent->solid) counting spect to avoid infinite spawn when there's no bots or players //|| ent->svflags & SVF_PLAYER) bots won't add more monsters per player here?
+		if (!ent->inuse || !ent->client) // ent->svflags & SVF_BOT) //|| !ent->solid) counting spect to avoid infinite spawn when there's no bots or players //  svf_player? bots won't add more monsters per player here?
 			continue;
 
 		// Contar jugadores activos
@@ -161,16 +161,16 @@ static void Horde_InitLevel(int32_t lvl)
 			}
 		}
 		else {
-			g_horde_local.num_to_spawn = 8 + (lvl * 1.2);
-			if (g_horde_local.num_to_spawn > MAX_MONSTERS_MEDIUM_MAP) {
+			g_horde_local.num_to_spawn = 8 + (lvl * 1);
+			if (g_horde_local.num_to_spawn >= MAX_MONSTERS_MEDIUM_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
-			if (g_chaotic->integer  && current_wave_number >= 7 || !g_insane->integer) { // && current_wave_number > 7
+			if (g_chaotic->integer && current_wave_number >= 7 || !g_insane->integer) { // && current_wave_number > 7
 				g_horde_local.num_to_spawn += (6); //more spawning if chaotic and wave is 7+ and not insane
 			}
 		}
 		// additional spawning
-		if (numActiveHPlayers >= 6) {
+		if (numActiveHPlayers >= 6 || current_wave_number <=22) {
 			int additionalSpawn = 0; // Variable para el aumento adicional
 
 			if (isSmallMap) {
@@ -341,7 +341,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_guncmdrkl", 23, -1, 0.1f },
 { "monster_shamblerkl", 28, -1, 0.14f },
 { "monster_makronkl", 26, -1, 0.05f },
-{ "monster_widow", 23, -1, 0.15f }
+{ "monster_widow1", 23, -1, 0.15f }
 };
 
 struct boss_t {
@@ -459,7 +459,7 @@ const char* G_HordePickBOSS()
 
 	if (!Q_strcasecmp(level.mapname, "q2dm1")) {
 		float r = frandom();
-		desired_boss = (r < 0.333f) ? "monster_supertankkl" : (r < 0.666f) ? "monster_boss2kl" : "monster_guncmdrkl";
+		desired_boss = (r < 0.450f) ? "monster_supertankkl" : (r < 0.900) ? "monster_boss2kl" : "monster_carrier";
 	}
 	else if (!Q_strcasecmp(level.mapname, "rdm14")) {
 		desired_boss = "monster_makronkl";
@@ -648,7 +648,7 @@ void SpawnBossAutomatically()
 		boss->s.angles[1] = 0;
 		boss->s.angles[2] = 0;
 
-		gi.LocBroadcast_Print(PRINT_CHAT, "***** A CHAMPION STROGG HAS SPAWNED *****");  // test tts later
+		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");  // test tts later
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;

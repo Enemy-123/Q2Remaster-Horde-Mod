@@ -801,8 +801,8 @@ void SP_monster_supertankkl(edict_t* self)
 		
 
 	
-			if (self->health > 2200) {
-				self->health = 2200;
+			if (self->health > 3200) {
+				self->health = 3200;
 			}
 		
 
