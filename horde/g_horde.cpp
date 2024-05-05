@@ -72,12 +72,11 @@ static void Horde_InitLevel(int32_t lvl)
 		//		gi.cvar_set("g_damage_scale", "1.8");
 		//		gi.cvar_set("ai_damage_scale", "1.5");
 		gi.cvar_set("g_ammoregen", "1");
-		gi.sound(world, CHAN_VOICE, gi.soundindex("misc/keyuse.wav"), 1, ATTN_NONE, 0);
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\nAMMO REGEN\n\nENABLED!\n");
 	}
 
 	if (g_horde_local.level == 15) {
-		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nGIVES 0.5 EXTRA SECONDS!\n");
+		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nADDS 0.5 EXTRA SECONDS!\n");
 	}
 
 	if (g_horde_local.level == 23) {
@@ -123,13 +122,15 @@ static void Horde_InitLevel(int32_t lvl)
 	edict_t* ent;
 
 	// Ciclo a través de jugadores
-	for (uint32_t player = 1; player <= game.maxclients; player++)
+	for (uint32_t Hplayer = 1; Hplayer <= game.maxclients; Hplayer++)  // Hplayer doesn't includes bots? no for now
 	{
-		ent = &g_edicts[player];
+		ent = &g_edicts[Hplayer];
+		if (!ent->inuse || !ent->client) //|| !ent->solid) counting spect to avoid infinite spawn //|| ent->svflags & SVF_PLAYER) bots won't add more monsters per player here?
+			continue;
 
 		// Contar jugadores activos
 		int numActiveHPlayers = 0;
-		for (auto player : active_players()) {
+		for (auto Hplayer : active_players()) {
 			numActiveHPlayers++;
 		}
 
@@ -141,8 +142,8 @@ static void Horde_InitLevel(int32_t lvl)
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 			}
-			if (g_chaotic->integer && !g_insane->integer) {
-				g_horde_local.num_to_spawn += numActiveHPlayers; // Aumentar el número de monstruos si chaotic->integer es verdadero
+			if (g_chaotic->integer == 2 || g_insane->integer) {
+				g_horde_local.num_to_spawn += 3; // Aumentar el número de monstruos si chaotic->integer es verdadero
 			}
 		}
 		else if (isBigMap) {
@@ -151,7 +152,7 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 			}
 			if (g_chaotic->integer && !g_insane->integer && current_wave_number > 5) { //  && current_wave_number > 5 
-				g_horde_local.num_to_spawn += (numActiveHPlayers + 3); //more spawning if chaotic and wave is 5+
+				g_horde_local.num_to_spawn += 8; //more spawning if chaotic and wave is 5+
 			}
 		}
 		else {
@@ -160,7 +161,7 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
 			if (g_chaotic->integer && !g_insane->integer && current_wave_number > 7) { // && current_wave_number > 7
-				g_horde_local.num_to_spawn += (numActiveHPlayers + 2); //more spawning if chaotic and wave is 7+
+				g_horde_local.num_to_spawn += (6); //more spawning if chaotic and wave is 7+
 			}
 		}
 		// additional spawning
@@ -168,10 +169,10 @@ static void Horde_InitLevel(int32_t lvl)
 			int additionalSpawn = 0; // Variable para el aumento adicional
 
 			if (isSmallMap) {
-				additionalSpawn = 5;
+				additionalSpawn = 3;
 			}
 			else if (isBigMap) {
-				additionalSpawn = numActiveHPlayers * 2;
+				additionalSpawn = 8;
 			}
 			else {
 				additionalSpawn = 5;
@@ -259,7 +260,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_disruptor", 12, -1, 0.24f, adjust_weight_ammo },
 	{ "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
 	{ "item_bandolier", 4, -1, 0.32f, adjust_weight_ammo },
-	{ "item_pack", 8, -1, 0.34f, adjust_weight_ammo },
+	{ "item_pack", 11, -1, 0.34f, adjust_weight_ammo },
 };
 
 void adjust_weight_health(const weighted_item_t& item, float& weight)
@@ -324,13 +325,13 @@ constexpr weighted_item_t monsters[] = {
 { "monster_gladiator", 8, -1, 0.24f },
 { "monster_shambler", 15, -1, 0.12f },
 { "monster_floater2", 17, -1, 0.35f },
-{ "monster_carrier2", 17, -1, 0.09f },
+{ "monster_carrier2", 19, -1, 0.09f },
 { "monster_tank_64", 18, -1, 0.1f },
 { "monster_janitor", 16, -1, 0.18f },
 { "monster_janitor2", 19, -1, 0.12f },
 { "monster_makron", 18, 19, 0.2f },
 { "monster_gladb", 16, -1, 0.55f},
-{ "monster_boss2_64", 14, -1, 0.08f },
+{ "monster_boss2_64", 17, -1, 0.08f },
 { "monster_perrokl", 21, -1, 0.27f },
 { "monster_guncmdrkl", 23, -1, 0.1f },
 { "monster_shamblerkl", 28, -1, 0.14f },
@@ -751,7 +752,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 					timeThreshold = 15; // Ajustar el umbral de tiempo más alto
 				}
 			}
-			if (g_chaotic || g_insane) { timeThreshold += 4; }
+			if (g_chaotic->integer && numActivePlayers <= 5 || g_insane->integer && numActivePlayers <= 5) { timeThreshold += 4; }
 		}
 	}
 	
@@ -878,8 +879,8 @@ void Horde_RunFrame()
 				HuntTarget(e);
 	
 				if (current_wave_number >= 13  || g_chaotic->integer == 2) {
-					g_horde_local.monster_spawn_time = level.time + random_time(0.6_sec, 1.3_sec);
-				//	e->health *= pow(1.0085, current_wave_number); // trying with coop health caling again
+					g_horde_local.monster_spawn_time = level.time + random_time(0.6_sec, 1.2_sec);
+				//	e->health *= pow(1.0085, current_wave_number); // trying with coop health scaling again
 				}
 				else if (!g_insane->integer || !g_chaotic->integer) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 0.9_sec);  // monster spawn speed
@@ -921,11 +922,12 @@ void Horde_RunFrame()
 				g_horde_local.state = horde_state_t::rest;
 				break;
 			}
-			else if ((!isSmallMap) || current_wave_number > 6 && current_wave_number <= 14) {
+			else if ((!isSmallMap) && current_wave_number <= 14) { // is it ok current wave >= 6?
 				gi.cvar_set("g_chaotic", "1");
 			}
-			else
+			else if (isSmallMap && current_wave_number <= 14) {
 				gi.cvar_set("g_chaotic", "2");
+			}
 
 			// Si se cumple la condición durante más de x segundos, avanza al estado 'rest'
 			g_horde_local.state = horde_state_t::rest;
@@ -947,7 +949,7 @@ void Horde_RunFrame()
 					gi.cvar_set("g_insane", "0");
 //					gi.cvar_set("ai_damage_scale", "1.2");
 				}
-				else if (!g_chaotic->integer) {
+				else if (!g_chaotic->integer && !g_insane->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");
 				}
 			}

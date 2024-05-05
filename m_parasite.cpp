@@ -967,10 +967,16 @@ void SP_monster_parasite(edict_t* self)
 constexpr spawnflags_t SPAWNFLAG_PERROKL = 8_spawnflag;
 void SP_monster_perrokl(edict_t* self)
 {
+	if (!strcmp(self->classname, "monster_perrokl")) {
+		self->health = 675 * (current_wave_number / 2);
+		self->s.scale = 1.2;
+		if (self->health > 1400) {
+			self->health = 1400;
+		}
+	}
 	self->spawnflags |= SPAWNFLAG_PERROKL;
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;
-	self->health = 575 * current_wave_number;
 	self->yaw_speed = 65;
 	self->style = 1;
 	self->s.renderfx = RF_TRANSLUCENT;

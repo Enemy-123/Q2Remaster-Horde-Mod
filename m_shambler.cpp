@@ -609,8 +609,8 @@ void SP_monster_shamblerkl(edict_t* self)
 	if (!strcmp(self->classname, "monster_shamblerkl")) {
 		self->health = 675 * (current_wave_number / 2);
 	
-		if (self->health > 1200) {
-			self->health = 1200;
+		if (self->health > 1400) {
+			self->health = 1400;
 		}
 	}
 

@@ -1032,9 +1032,10 @@ void SP_monster_widow2(edict_t* self)
 	self->mins = { -70, -70, 0 };
 	self->maxs = { 70, 70, 144 };
 
-	self->health = (3200 + 200 + 500 * skill->integer) * st.health_multiplier;
+	self->health = (3000 * skill->integer) * st.health_multiplier;
 	if (G_IsCooperative())
 		self->health += 500 * skill->integer;
+	if (g_horde->integer) { self->health = 3000; }
 	//	self->health = 1;
 	self->gib_health = -900;
 	self->mass = 2500;

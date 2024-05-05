@@ -520,7 +520,7 @@ void FoundTarget(edict_t* self)
     // [Paril-KEX] the first time we spot something, give us a bit of a grace
     // period on firing
     if (!self->monsterinfo.trail_time)
-        self->monsterinfo.attack_finished = level.time + 200_ms;
+        self->monsterinfo.attack_finished = level.time + 325_ms;
 
     // give easy/medium a little more reaction time
     self->monsterinfo.attack_finished += skill->integer == 0 ? 400_ms : skill->integer == 1 ? 200_ms : 0_ms;

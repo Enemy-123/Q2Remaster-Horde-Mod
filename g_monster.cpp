@@ -338,7 +338,7 @@ bool M_droptofloor_generic(vec3_t& origin, const vec3_t& mins, const vec3_t& max
 	trace_t trace;
 
 	// PGM
-	if (gi.trace(origin, mins, maxs, origin, ignore, mask).startsolid)  // crash en q2dm4 visto debugger, commander muere arrinconado mirando a pared por disruptor, dropeó item probable, commander_64 con mayor hitbox
+	if (gi.trace(origin, mins, maxs, origin, ignore, mask).startsolid)   // crash en q2dm4 visto debugger
 	{
 		if (!ceiling)
 			origin[2] += 1;
@@ -616,7 +616,7 @@ void G_MonsterKilled(edict_t* self)
 
 	if (G_IsCooperative() && self->enemy && self->enemy->client ||
 		G_IsDeathmatch() && g_horde->integer && self->enemy && self->enemy->client)
-		self->enemy->client->resp.score++; //testear con pers
+		self->enemy->client->resp.score++;
 
 	if (g_debug_monster_kills->integer)
 	{
@@ -1124,21 +1124,20 @@ void monster_triggered_start(edict_t* self)
 	self->nextthink = 0_ms;
 	self->use = monster_triggered_spawn_use;
 
+	if (g_debug_monster_kills->integer) {
+		self->think = monster_triggered_think;
+		self->nextthink = level.time + 1_ms;
+	}
 
-    if (g_debug_monster_kills->integer) {
-        self->think = monster_triggered_think;
-        self->nextthink = level.time + 1_ms;
-    }
-
-    if (!self->targetname ||
-        (G_FindByString<&edict_t::target>(nullptr, self->targetname) == nullptr &&
-         G_FindByString<&edict_t::pathtarget>(nullptr, self->targetname) == nullptr &&
-         G_FindByString<&edict_t::deathtarget>(nullptr, self->targetname) == nullptr &&
-         G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
-         G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
-         G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr)) {
-        gi.Com_PrintFmt("{}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
-    }
+	if (!self->targetname ||
+		(G_FindByString<&edict_t::target>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::pathtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::deathtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
+			G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr)) {
+		gi.Com_PrintFmt("{}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
+	}
 }
 
 /*
@@ -1253,7 +1252,7 @@ bool monster_start(edict_t* self)
 		// ROGUE
 		level.total_monsters++;
 	}
-	
+
 	self->nextthink = level.time + FRAME_TIME_S;
 	self->svflags |= SVF_MONSTER;
 	self->takedamage = true;
