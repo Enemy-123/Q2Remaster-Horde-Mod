@@ -1662,7 +1662,7 @@ void ClientCommand(edict_t* ent)
 		}
 		else
 		{
-			gi.LocClient_Print(ent, PRINT_HIGH, "Hook disabled on this server.\n");
+			gi.LocClient_Print(ent, PRINT_HIGH, "Offhand Hook is currently disabled.\n");
 		}
 		return;
 	}
