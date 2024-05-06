@@ -65,7 +65,7 @@ static void Horde_InitLevel(int32_t lvl)
 		//	gi.cvar_set("g_damage_scale", "1.5");
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
 	//	gi.LocBroadcast_Print(PRINT_LOW, "You're covered in blood! Vampire Ability ENABLED!");
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNow you get a percentage of health when doing damage!\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNow you recover a percentage of health when doing damage!\n");
 
 
 		next_wave_message_sent = false;

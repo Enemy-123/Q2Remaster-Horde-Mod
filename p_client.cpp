@@ -852,6 +852,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
 
+	if (g_horde->integer) {
 		if (current_wave_number >= 25)
 		{
 			client->pers.health = 200;
@@ -887,7 +888,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.health = 100; // default, and wave 0
 			client->pers.max_health = 100;
 		}
-
+	}
 
 	// don't give us weapons if we shouldn't have any
 //	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
