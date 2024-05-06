@@ -635,7 +635,10 @@ MONSTERINFO_BLOCKED(supertank_blocked) (edict_t* self, float dist) -> bool
  */
 void SP_monster_supertank(edict_t* self)
 {
-
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
+		return;
+	}
 	if (g_horde->integer && strcmp(self->classname, "monster_janitor")) {
 		{
 			float randomsearch = frandom(); // Generate search sounds
@@ -660,11 +663,6 @@ void SP_monster_supertank(edict_t* self)
 				NULL;
 		}
 	}
-
-		if (!M_AllowSpawn(self)) {
-			G_FreeEdict(self);
-			return;
-		}
 
 	sound_pain1.assign("bosstank/btkpain1.wav");
 	sound_pain2.assign("bosstank/btkpain2.wav");
