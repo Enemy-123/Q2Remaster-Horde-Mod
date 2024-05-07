@@ -233,8 +233,18 @@ void CTFPrecache()
 
 	imageindex_ctfsb1 = gi.imageindex("tag4");
 	imageindex_ctfsb2 = gi.imageindex("tag5");
+	imageindex_strogg = gi.imageindex("ach/ACH_eou7_on");
+
+	//imageindex_human = frandom() < 0.2 ? gi.imageindex("ach/ACH_eou7_on") :
+	//	frandom() < 0.4 ? gi.imageindex("ach/ACH_eou5_on") :
+	//	frandom() < 0.6 ? gi.imageindex("ach/ACH_xatrix_on") :
+	//	frandom() < 0.8 ? gi.imageindex("ach/ACH_rogue_on") :
+	//	gi.imageindex("ach/ACH_eou3_on");
 
 	imageindex_human = gi.imageindex("ach/ACH_eou5_on");
+
+
+
 
 
 
@@ -1027,9 +1037,12 @@ void SetCTFStats(edict_t* ent)
 	// logo headers for the frag display
 	if (level.intermissiontime)
 	{
-		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_human;
+		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] =  imageindex_human;
+
+		
 
 		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
+
 	}
 	else
 		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_ctfsb1;
@@ -1037,7 +1050,7 @@ void SetCTFStats(edict_t* ent)
 	ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_ctfsb2;
 
 
-	bool blink = (level.time.milliseconds() % 1000) < 500;
+	bool blink = (level.time.milliseconds() % 0) < 00;
 
 	// if during intermission, we must blink the team header of the winning team
 /*	if (level.intermissiontime && blink)
@@ -1797,7 +1810,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			if (!k)
 			{
 				k = 1;
-				fmt::format_to(std::back_inserter(string), FMT_STRING("xv 105 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
+				fmt::format_to(std::back_inserter(string), FMT_STRING("xv 60 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
 				j += 8;
 			}
 
@@ -2925,7 +2938,7 @@ void CTFUpdateJoinMenu(edict_t* ent)
 	if (ent->client->chase_target)
 		Q_strlcpy(entries[jmenu_chase].text, "$g_pc_leave_chase_camera", sizeof(entries[jmenu_chase].text));
 	else
-		Q_strlcpy(entries[jmenu_chase].text, "$g_pc_chase_camera", sizeof(entries[jmenu_chase].text));
+		Q_strlcpy(entries[jmenu_chase].text, "Go Spectator", sizeof(entries[jmenu_chase].text));
 
 	SetLevelName(entries + jmenu_level);
 

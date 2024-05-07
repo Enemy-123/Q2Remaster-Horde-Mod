@@ -1453,12 +1453,11 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
                     cgi.SCR_DrawFontString(locStr, x - xOffs, y - (font_y_offset * scale), scale, green ? alt_color : rgba_white, true, text_align_t::LEFT);
             }
         }
-
         // draw client dogtag
         if (!strcmp(token, "dogtag"))
         {
-            token = COM_Parse (&s);
-            
+            token = COM_Parse(&s);
+
             if (!skip_depth)
             {
                 value = atoi(token);
@@ -1469,6 +1468,25 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
                 cgi.SCR_DrawPic(x, y, 198 * scale, 32 * scale, path.data());
             }
         }
+
+        //// draw client dogtag
+        //if (!strcmp(token, "dogtag"))
+        //{
+        //    token = COM_Parse(&s);
+
+        //    if (!skip_depth)
+        //    {
+        //        value = atoi(token);
+        //        if (value >= MAX_CLIENTS || value < 0)
+        //            cgi.Com_Error("client >= MAX_CLIENTS");
+
+        //        token = COM_Parse(&s); // Extraer el siguiente token que será el nombre del dogtag
+        //        const std::string_view dogtagName = token;
+
+        //        const std::string_view path = G_Fmt("/tags/{}", dogtagName);
+        //        cgi.SCR_DrawPic(x, y, 198 * scale, 32 * scale, path.data());
+        //    }
+        //}
 
         if (!strcmp(token, "start_table"))
         {

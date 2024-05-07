@@ -52,7 +52,7 @@ static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
 	g_horde_local.level = lvl;
-	g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.9_sec); // wea debug
+	g_horde_local.monster_spawn_time = level.time; 
 
 	isSmallMap = false;
 	isMediumMap = false;
@@ -64,8 +64,7 @@ static void Horde_InitLevel(int32_t lvl)
 		gi.cvar_set("g_vampire", "1");
 		//	gi.cvar_set("g_damage_scale", "1.5");
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
-	//	gi.LocBroadcast_Print(PRINT_LOW, "You're covered in blood! Vampire Ability ENABLED!");
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nNow you recover a percentage of health when doing damage!\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING A PERCENTAGE OF DAMAGE DONE!\n");
 
 
 		next_wave_message_sent = false;
@@ -76,12 +75,12 @@ static void Horde_InitLevel(int32_t lvl)
 				gi.cvar_set("ai_damage_scale", "1.5");
 		gi.cvar_set("g_ammoregen", "1");
 		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "AMMO REGEN\n\nENABLED!\n");
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nAMMO REGEN IS NOW ENABLED!\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "AMMO REGEN IS NOW ENABLED!\n");
 	}
 
 	if (g_horde_local.level == 15) {
-		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nADDS 0.5 EXTRA SECONDS!\n");
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\n\nAUTO DUAL FIRE ENABLED !\nEACH KILL WHILE TIME-ACCELATED WILL GIVE YOU 0.5 EXTRA SECONDS\n");
+		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nADDS 0.5 EXTRA SECONDS!\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
 	}
 
 	if (g_horde_local.level == 17) {
@@ -93,7 +92,6 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "q2dm7") ||
 		!Q_strcasecmp(level.mapname, "q2dm2") ||
 		!Q_strcasecmp(level.mapname, "q2ctf4") ||
-		!Q_strcasecmp(level.mapname, "dm10") ||
 		!Q_strcasecmp(level.mapname, "q64/dm10") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm10") ||
 		!Q_strcasecmp(level.mapname, "q64/dm9") ||
@@ -102,6 +100,8 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "q64\\dm7") ||
 		!Q_strcasecmp(level.mapname, "q64/dm2") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm2") ||
+//		!Q_strcasecmp(level.mapname, "q64/dm1") ||
+//		!Q_strcasecmp(level.mapname, "q64\\dm1") ||
 		!Q_strcasecmp(level.mapname, "fact3") ||
 		!Q_strcasecmp(level.mapname, "q2ctf4") ||
 		!Q_strcasecmp(level.mapname, "mgu3m4") ||
@@ -148,7 +148,7 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 			}
 			if (g_chaotic->integer == 2 && current_wave_number >=7 || g_insane->integer) {
-				g_horde_local.num_to_spawn += 3; // more spawning when chaotic and wave is 7+ and not insane
+				g_horde_local.num_to_spawn += 3; // more spawning when chaotic and wave is 7+ OR insane
 			}
 		}
 		else if (isBigMap) {
@@ -157,7 +157,7 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 			}
 			if (g_chaotic->integer && current_wave_number >= 7 || g_insane->integer) { //  && current_wave_number > 5 
-				g_horde_local.num_to_spawn += 8; //more spawning if chaotic and wave is 7+ and not insane
+				g_horde_local.num_to_spawn += 8; //more spawning if chaotic and wave is 7+ or insane
 			}
 		}
 		else {
@@ -166,7 +166,7 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
 			if (g_chaotic->integer && current_wave_number >= 7 || g_insane->integer) { // && current_wave_number > 7
-				g_horde_local.num_to_spawn += (6); //more spawning if chaotic and wave is 7+ and not insane
+				g_horde_local.num_to_spawn += (6); //more spawning if chaotic and wave is 7+ or insane
 			}
 		}
 		// additional spawning
@@ -728,24 +728,24 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 			}
 		}
 		else {
-			if (isSmallMap) {   // less than 5 players, smallmap works nice 5/4/24
+			if (isSmallMap) {   // less than 5 players, smallmap works nice... a bit longer time maybe?
 				if (current_wave_number <= 4) {
 					maxMonsters = 3;
 					timeThreshold = 7;
 				}
 				else {
 					maxMonsters = 6;
-					timeThreshold = 11; // Ajustar el umbral de tiempo más alto
+					timeThreshold = 13; 
 				}
 			}
-			else if (isBigMap) { // adjusted day 5/4 8pm
+			else if (isBigMap) { 
 				if (current_wave_number <= 4) {
 					maxMonsters = 17;
 					timeThreshold = 18;
 				}
 				else {
 					maxMonsters = 23;
-					timeThreshold = 12; // Ajustar el umbral de tiempo más alto
+					timeThreshold = 12; 
 				}
 			}
 			else {
@@ -755,7 +755,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 				}
 				else {
 					maxMonsters = 6;
-					timeThreshold = 15; // Ajustar el umbral de tiempo más alto
+					timeThreshold = 15; 
 				}
 			}
 			if (g_chaotic->integer && numActivePlayers <= 5 || g_insane->integer && numActivePlayers <= 5) { timeThreshold += 4; }
@@ -794,7 +794,7 @@ void Horde_RunFrame()
 	switch (g_horde_local.state)
 	{
 	case horde_state_t::warmup:
-		if (g_horde_local.warm_time < level.time + 0.5_sec) // less seconds is more time before first wave
+		if (g_horde_local.warm_time < level.time + 0.4_sec) // less seconds is more time before first wave
 		{
 			remainingMonsters = 0;
 			g_horde_local.state = horde_state_t::spawning;
@@ -824,9 +824,9 @@ void Horde_RunFrame()
 		//	if (!g_chaotic->integer || !g_insane->integer) 
 
 			if (brandom())
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n???");
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n???\n");
 			else
-				gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n?????");
+				gi.LocBroadcast_Print(PRINT_CENTER, "\n?????\n");
 
 			// random sound
 			if (!g_chaotic->integer || (g_chaotic->integer && r > 0.666f))
@@ -882,9 +882,8 @@ void Horde_RunFrame()
 				}
 				
 				e->monsterinfo.power_armor_power *= current_wave_number * 1.115; // Escalar la armadura de energía basada en la oleada actual
-				
 				e->enemy = &g_edicts[1];
-				e->gib_health = -280;
+				e->gib_health = -180;
 
 				HuntTarget(e);
 	
@@ -894,7 +893,7 @@ void Horde_RunFrame()
 				else if (!g_insane->integer || !g_chaotic->integer) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 0.9_sec);  // monster spawn speed
 				}
-				else if (g_chaotic->integer == 1 || g_insane->integer && current_wave_number >= 23) {
+				else if (g_chaotic->integer == 1 || g_insane->integer && current_wave_number >= 21) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.7_sec);  // monster spawn speed
 				}
 				--g_horde_local.num_to_spawn;
@@ -903,7 +902,7 @@ void Horde_RunFrame()
 				{
 					{
 						std::ostringstream message_stream;
-						message_stream << "New Wave Is Here.\nCurrent Level: " << g_horde_local.level << "\n";
+						message_stream << "New Wave Is Here.\nWave Level: " << g_horde_local.level << "\n";
 						gi.LocBroadcast_Print(PRINT_TYPEWRITER, message_stream.str().c_str());
 					}
 					g_horde_local.state = horde_state_t::cleanup;
@@ -947,7 +946,7 @@ void Horde_RunFrame()
 		{
 			if (Horde_AllMonstersDead())
 			{
-				g_horde_local.warm_time = level.time + 5_sec;
+				g_horde_local.warm_time = level.time + random_time(2.2_sec, 5_sec);  // Break time after defeating wave. default 5 sec
 				g_horde_local.state = horde_state_t::rest;
 				remainingMonsters = 0;
 

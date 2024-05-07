@@ -793,23 +793,22 @@ void SP_monster_supertankkl(edict_t* self)
 		SP_monster_supertank(self);
 		gi.soundindex("weapons/railgr1a.wav");
 
-	self->health = 675 * (current_wave_number / 2);
-	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
-	self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
-		
+		self->health = 675 * current_wave_number;
+		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
+		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 
+
+
+		if (self->health > 5500) {
+			self->health = 5500;
+		}
 	
-			if (self->health > 3200) {
-				self->health = 3200;
-			}
-		
 
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.power_armor_power = 1800;
 
-		self->health = 620 * current_wave_number / 2;
 		self->mass = 1200;
 		self->s.renderfx = RF_TRANSLUCENT;
 		self->s.effects = EF_FLAG1 | EF_QUAD;

@@ -1672,7 +1672,10 @@ static void G_InitStatusbar()
 		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer) {
 
 		//  COOP HARDMODE 
-			sb.xv(-155).yb(-23).string2("Harder Coop\n ENABLED");
+		//	sb.xv(-155).yb(-23).string("\nTresspasa into suffer");
+			sb.xv(-155).yb(-23).string2("\nINSANE COOP");
+
+	//	sb.xv(-155).yb(-23).string2("Harder Coop\n ENABLED");
 		}
 		if (G_IsCooperative())
 		{
@@ -1684,7 +1687,8 @@ static void G_InitStatusbar()
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 
 		//  MONSTERS COUNT
-			sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+	//		sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
 		// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 		// coop lives
@@ -1765,11 +1769,13 @@ static void G_InitStatusbar()
 
 		// HORDE WAVE
 
-		sb.xv(-155).yb(-23).string2("Horde Mode \nWave Number:").xv(-65).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
+		sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
+		sb.xv(-155).yb(-23).string(" \nWave Level:");
 
 		//  MONSTERS COUNT
 
-		sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
+
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
@@ -1843,17 +1849,22 @@ void SP_worldspawn(edict_t* ent)
 
 	float r = frandom();
 
-	if (r < 0.333f)
-		gi.configstring(CS_SKY, "space");
-	else if (r < 0.666f)
+	if (r < 0.4f) {
 		gi.configstring(CS_SKY, "hub_");
-	else
+	}
+	else if (r < 0.7f) {
+		gi.configstring(CS_SKY, "u6_");
+	}
+	else if (r < 0.85f) {
+		gi.configstring(CS_SKY, "space");
+	}
+	else {
 		gi.configstring(CS_SKY, "space1");
+	}
 
-	gi.configstring(CS_SKYROTATE, G_Fmt("1 2", st.skyrotate, st.skyautorotate).data());
-
-	gi.configstring(CS_SKYAXIS, G_Fmt("2", st.skyaxis).data());
-
+	gi.configstring(CS_SKYROTATE, G_Fmt("1 1 1 1", st.skyrotate, st.skyautorotate).data());
+	gi.configstring(CS_SKYAXIS, G_Fmt("-2", st.skyaxis).data());
+	
 	if (st.music && st.music[0])
 	{
 		gi.configstring(CS_CDTRACK, st.music);
