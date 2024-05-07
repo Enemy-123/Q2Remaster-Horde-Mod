@@ -851,7 +851,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
-
+	if (ent->client->resp.spectator) {
+		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
+	}   // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
 	if (g_horde->integer) {
 		if (current_wave_number >= 25)
 		{
@@ -910,7 +912,6 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				if (player == ent || !player->client->pers.spawned ||
 					player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
 					continue;
-				ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
 				client->pers.inventory = player->client->pers.inventory;
 				client->pers.max_ammo = player->client->pers.max_ammo;
 				client->pers.power_cubes = player->client->pers.power_cubes;

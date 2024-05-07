@@ -1327,6 +1327,10 @@ MONSTERINFO_DODGE(M_MonsterDodge) (edict_t *self, edict_t *attacker, gtime_t eta
 		FoundTarget(self);
 	}
 
+	if (self->enemy->svflags & SVF_MONSTER) {
+		self->enemy = nullptr;
+	}
+
 	// PMM - don't bother if it's going to hit anyway; fix for weird in-your-face etas (I was
 	// seeing numbers like 13 and 14)
 	if ((eta < FRAME_TIME_MS) || (eta > 2.5_sec))

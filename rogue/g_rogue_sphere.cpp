@@ -286,10 +286,10 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 	if (enemy == self->owner || enemy->client) // enemy client so it doesnt attack players, for horde mode 
 		return;
 
-	if (enemy->svflags == SVF_BOT) // trying to avoid it to attack bots too
+	if (enemy->svflags & SVF_BOT) // trying to avoid it to attack bots too
 		return;
 
-	if (!(enemy->svflags == SVF_MONSTER)) // trying to attack only monsters
+	if (!(enemy->svflags & SVF_MONSTER)) // trying to attack only monsters
 		return;
 
 	dir = enemy->s.origin - self->s.origin;

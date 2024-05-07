@@ -564,9 +564,16 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 			// if we're not a nuke & friendly fire is disabled, just kill the damage
 			if (!g_friendly_fire->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE))
+			{
 				damage = 0;
+			}
+			else if (attacker->svflags & SVF_MONSTER && targ->svflags & SVF_MONSTER && mod.id == MOD_TARGET_LASER)
+			{
+				damage = 0; // Monsters don't hurt each other with lasers
+			}
 		}
 	}
+
 
 	// Q2ETweaks self damage avoidance
 // if enabled you can't hurt yourself
