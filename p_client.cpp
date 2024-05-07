@@ -822,6 +822,10 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
+	if (!(ent->svflags & SVF_BOT) && ent->client->resp.score <= 15) { // this is for those afk players, they will get to observer on the next map if score is below 15
+		memset(&client->resp, 0, sizeof(client->resp));
+	}
+
 	// Limpiar el inventario
 	int i;
 	for (i = 0; i < MAX_ITEMS; i++) {
