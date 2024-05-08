@@ -824,7 +824,7 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 
 	if (g_horde->integer) {
 		if (!(ent->svflags & SVF_BOT) && ent->client->resp.score <= 15) { // this is for those afk players, they will get to observer on the next map if score is below 15
-			memset(&client->resp, 0, sizeof(client->resp));
+			client->resp.ctf_team = CTF_NOTEAM;
 		}
 	}
 	// Limpiar el inventario
