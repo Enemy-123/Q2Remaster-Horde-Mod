@@ -135,7 +135,7 @@ cvar_t* g_map_list_shuffle;
 cvar_t* g_lag_compensation;
 
 
-cvar_t* g_mover_speed_scale;
+cvar_t* g_speedstuff;
 cvar_t* g_mover_debug;
 
 cvar_t* sv_airaccelerate;
@@ -149,7 +149,7 @@ cvar_t* ai_movement_disabled;
 //HORDE STUFF
 cvar_t* g_use_hook;
 cvar_t* g_hook_wave;
-cvar_t* g_entity_override_load;
+cvar_t* g_loadent;
 cvar_t* g_chaotic;
 cvar_t* g_insane;
 cvar_t* g_hardcoop;
@@ -199,7 +199,6 @@ void PreInitGame()
 
 	// Paril
 	Horde_PreInit();
-
 	// ZOID
 	// This gamemode only supports deathmatch
 	if (ctf->integer)
@@ -243,7 +242,10 @@ void InitGame()
 
 	// Kyper - Lithium port
 	g_use_hook = gi.cvar("g_use_hook", "1", CVAR_NOFLAGS);
-	g_hook_wave = gi.cvar("g_hook_wave", "1", CVAR_NOFLAGS);
+	g_hook_wave = gi.cvar("g_hook_wave", "0", CVAR_NOFLAGS);
+	gi.cvar_set("hook_pullspeed", "1200");
+	gi.cvar_set("hook_speed", "3000");
+	gi.cvar_set("hook_sky", "1");
 
 	Hook_InitGame();
 
@@ -380,18 +382,15 @@ void InitGame()
 	g_teamplay_armor_protect = gi.cvar("g_teamplay_armor_protect", "0", CVAR_NOFLAGS);
 	g_allow_techs = gi.cvar("g_allow_techs", "auto", CVAR_NOFLAGS);
 
-	g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
+	g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
 	g_insane = gi.cvar("g_insane", "0", CVAR_NOFLAGS);
 	g_hardcoop = gi.cvar("g_hardcoop", "0", CVAR_NOFLAGS);
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
-
-	// muff mode: vampire
 	g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
-	//	g_vampire_health_max = gi.cvar("g_vampire_health_max", "150", CVAR_NOFLAGS);
 
-	g_mover_speed_scale = gi.cvar("g_mover_speed_scale", "1.0f", CVAR_NOFLAGS);
+	g_speedstuff = gi.cvar("g_speedstuff", "1.0f", CVAR_NOFLAGS);
 	g_mover_debug = gi.cvar("g_mover_debug", "0", CVAR_NOFLAGS);
 
 	g_start_items = gi.cvar("g_start_items", "", CVAR_LATCH);

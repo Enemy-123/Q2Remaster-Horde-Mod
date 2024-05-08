@@ -2279,7 +2279,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.1\n\n\n\n\n\n\n\n\nMod download on discord:\n Enemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
@@ -2753,7 +2753,7 @@ static const int jmenu_level = 1;
 static const int jmenu_match = 2;
 static const int jmenu_red = 4;
 //static const int jmenu_blue = 7;
-static const int jmenu_chase = 10;
+static const int jmenu_chase = 8;
 static const int jmenu_reqmatch = 12;
 
 const pmenu_t joinmenu[] = {
@@ -2765,9 +2765,9 @@ const pmenu_t joinmenu[] = {
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
-	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "$g_pc_chase_camera", PMENU_ALIGN_LEFT, CTFChaseCam },
+	{ "", PMENU_ALIGN_LEFT, nullptr },
+	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_LEFT, nullptr },
@@ -2977,6 +2977,7 @@ void CTFUpdateJoinMenu(edict_t* ent)
 
 	if (*entries[jmenu_red].text)
 	{
+
 		Q_strlcpy(entries[jmenu_red + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_red + 1].text));
 		G_FmtTo(entries[jmenu_red + 1].text_arg1, "{}", num1);
 	}

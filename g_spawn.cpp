@@ -1501,13 +1501,13 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		ent_file_exists = true;
 		fclose(f);
 
-		cvar_t* g_entity_override_load;
+		cvar_t* g_loadent;
 
 
-		g_entity_override_load = gi.cvar("g_entity_override_load", "1", CVAR_NOFLAGS);
+		g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
 
 		if (ent_valid) {
-			if (g_entity_override_load->integer) {
+			if (g_loadent->integer) {
 
 				if (VerifyEntityString((const char*)buffer)) {
 					entities = (const char*)buffer;

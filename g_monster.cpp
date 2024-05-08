@@ -909,7 +909,7 @@ static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 THINK(monster_think) (edict_t* self) -> void
 {
 	// [Paril-KEX] monster sniff testing; if we can make an unobstructed path to the player, murder ourselves.
-	if (g_debug_monster_kills->integer)
+	if (g_debug_monster_kills->integer) // todo horde, create cmd to track monsters without restart map
 	{
 		if (g_edicts[1].inuse)
 		{

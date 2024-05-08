@@ -465,7 +465,7 @@ const char* G_HordePickBOSS()
 		desired_boss = "monster_makronkl";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm2")) {
-		desired_boss = "monster_boss2kl";
+		desired_boss = brandom() ? "monster_boss2kl" : "monster_carrier";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2dm8")) {
 		float r = frandom();
@@ -525,24 +525,38 @@ void Horde_PreInit()
 		gi.cvar_set("timelimit", "25");
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("sv_target_id", "1");
+		gi.cvar_set("g_speedstuff", "2.3f");
+		gi.cvar_set("sv_eyecam", "1");
 		gi.cvar_set("g_dm_instant_items", "1");
 		gi.cvar_set("g_disable_player_collision", "1");
-//		gi.cvar_set("g_instagib", "1");
-//		gi.cvar_set("g_dm_no_self_damage", "1");
-//		gi.cvar_set("g_allow_techs", "1");
-//		gi.cvar_set("g_use_hook", "1");
-//		gi.cvar_set("hook_pullspeed", "1200");
-//		gi.cvar_set("hook_speed", "3000");
-//		gi.cvar_set("hook_sky", "1");
-//		gi.cvar_set("g_no_nukes", "1");
-//		gi.cvar_set("g_allow_grapple 1", "1");
-//		gi.cvar_set("g_grapple_fly_speed", "3000");
-//		gi.cvar_set("g_grapple_pull_speed", "1200");
-//		gi.cvar_set("g_dm_no_fall_damage", "1");
-//		gi.cvar_set("g_instant_weapon_switch", "1");
-//		gi.cvar_set("g_start_items", "item_bandolier 1");
-
-	}
+		gi.cvar_set("g_instagib", "1");
+		gi.cvar_set("g_dm_no_self_damage", "1");
+		gi.cvar_set("g_allow_techs", "1");
+		gi.cvar_set("g_no_nukes", "1");
+		gi.cvar_set("g_use_hook", "1");
+		gi.cvar_set("set g_hook_wave", "1");
+		gi.cvar_set("hook_pullspeed", "1200");
+		gi.cvar_set("hook_speed", "3000");
+		gi.cvar_set("hook_sky", "1");
+		gi.cvar_set("g_allow_grapple 1", "1");
+		gi.cvar_set("g_grapple_fly_speed", "3000");
+		gi.cvar_set("g_grapple_pull_speed", "1200");
+		gi.cvar_set("g_instant_weapon_switch", "1");
+		gi.cvar_set("g_dm_no_quad_drop", "0");
+		gi.cvar_set("g_dm_no_quadfire_drop", "0");
+		gi.cvar_set("g_vampire", "0");
+		gi.cvar_set("g_ammoregen", "0");
+		gi.cvar_set("g_chaotic", "0");
+		gi.cvar_set("g_insane", "0");
+		gi.cvar_set("g_hardcoop", "0");
+		gi.cvar_set("capturelimit", "0");
+		gi.cvar_set("g_dm_spawns", "0");
+		gi.cvar_set("g_damage_scale", "1");
+		gi.cvar_set("ai_damage_scale", "1");
+		gi.cvar_set("bot_chat_enable", "0");
+		gi.cvar_set("bot_skill", "5");
+		gi.cvar_set("g_coop_squad_respawn", "1");
+	}	
 }
 
 void Horde_Init()

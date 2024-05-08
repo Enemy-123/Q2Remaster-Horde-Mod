@@ -1494,7 +1494,6 @@ void ClientEndServerFrame(edict_t* ent)
 	// regen tech
 	CTFApplyRegeneration(ent);
 	// ZOID
-		// muff mode: weapons frenzy ammo regen
 	HORDE_ApplyAmmoRegen(ent);
 
 	AngleVectors(ent->client->v_angle, forward, right, up);

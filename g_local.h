@@ -2007,7 +2007,7 @@ extern cvar_t* ai_movement_disabled;
 extern cvar_t* g_use_hook;
 extern cvar_t* g_hook_wave;
 
-extern cvar_t* g_mover_speed_scale;
+extern cvar_t* g_speedstuff;
 extern cvar_t* g_mover_debug;
 
 #define world (&g_edicts[0])
