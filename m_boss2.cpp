@@ -623,7 +623,7 @@ void SP_monster_boss2(edict_t* self)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
 	}
-		if (!strcmp(self->classname, "monster_boss2_64")) {
+		if (g_horde->integer && !strcmp(self->classname, "monster_boss2_64")) {
 		{
 			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 

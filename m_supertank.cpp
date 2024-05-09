@@ -650,7 +650,7 @@ void SP_monster_supertank(edict_t* self)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
 	}
-	if (!strcmp(self->classname, "monster_janitor")) {
+	if (g_horde->integer &&  !strcmp(self->classname, "monster_janitor")) {
 		{
 			float randomsearch = frandom(); // Generate Search sounds
 
@@ -788,7 +788,7 @@ void SP_monster_janitor(edict_t* self)
 
 void SP_monster_supertankkl(edict_t* self)
 {
-	if (!strcmp(self->classname, "monster_supertankkl")) {
+	if (g_horde->integer &&  !strcmp(self->classname, "monster_supertankkl")) {
 		self->count = 10;
 		SP_monster_supertank(self);
 		gi.soundindex("weapons/railgr1a.wav");

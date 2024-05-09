@@ -1327,8 +1327,10 @@ MONSTERINFO_DODGE(M_MonsterDodge) (edict_t *self, edict_t *attacker, gtime_t eta
 		FoundTarget(self);
 	}
 
-	if (self->enemy->svflags & SVF_MONSTER) {
-		self->enemy = nullptr;
+	if (g_horde->integer) {
+		if (self->enemy->svflags & SVF_MONSTER) {  //maybe crashing? added to avoid monsters fighting even if they're on team
+			self->enemy = nullptr;
+		}
 	}
 
 	// PMM - don't bother if it's going to hit anyway; fix for weird in-your-face etas (I was
