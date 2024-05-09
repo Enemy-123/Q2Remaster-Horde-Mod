@@ -639,31 +639,35 @@ void SP_monster_supertank(edict_t* self)
 		G_FreeEdict(self);
 		return;
 	}
-	if (g_horde->integer && strcmp(self->classname, "monster_janitor")) {
-		{
-			float randomsearch = frandom(); // Generate search sounds
 
-			if (randomsearch < 0.5f)
+	if (g_horde->integer) {
 
-				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NONE, 0);
-			else
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
+		if (strcmp(self->classname, "monster_janitor")) {
+			{
+				float randomsearch = frandom(); // Generate search sounds
+
+				if (randomsearch < 0.5f)
+
+					gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NONE, 0);
+				else
+					gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
+			}
+			self->health = 3300 * st.health_multiplier;
+		}
+		if (!strcmp(self->classname, "monster_janitor")) {
+			{
+				float randomsearch = frandom(); // Generate Search sounds
+
+				if (randomsearch < 0.33f)
+
+					gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
+				else  if (randomsearch < 0.66f)
+					gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+				else
+					NULL;
+			}
 		}
 	}
-	if (g_horde->integer &&  !strcmp(self->classname, "monster_janitor")) {
-		{
-			float randomsearch = frandom(); // Generate Search sounds
-
-			if (randomsearch < 0.33f)
-
-				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
-			else  if (randomsearch < 0.66f)
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-			else
-				NULL;
-		}
-	}
-
 	sound_pain1.assign("bosstank/btkpain1.wav");
 	sound_pain2.assign("bosstank/btkpain2.wav");
 	sound_pain3.assign("bosstank/btkpain3.wav");
@@ -693,10 +697,7 @@ void SP_monster_supertank(edict_t* self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
-	if (!strcmp(self->classname, "monster_supertank")) {
 	self->health = 3300 * st.health_multiplier;
-	}
-
 	self->gib_health = -500;
 	self->mass = 800;
 
