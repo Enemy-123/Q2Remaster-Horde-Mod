@@ -103,6 +103,7 @@ cvar_t* g_coop_health_scaling;
 cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
+cvar_t* g_autohaste;
 cvar_t* g_dm_spawns;
 cvar_t* sv_centerprint_frags;
 cvar_t* sv_eyecam;
@@ -389,6 +390,7 @@ void InitGame()
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 	g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
+	g_autohaste = gi.cvar("g_autohaste", "0", CVAR_NOFLAGS);
 
 	g_speedstuff = gi.cvar("g_speedstuff", "1.0f", CVAR_NOFLAGS);
 	g_mover_debug = gi.cvar("g_mover_debug", "0", CVAR_NOFLAGS);

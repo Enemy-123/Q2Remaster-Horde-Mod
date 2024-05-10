@@ -1328,11 +1328,10 @@ MONSTERINFO_DODGE(M_MonsterDodge) (edict_t *self, edict_t *attacker, gtime_t eta
 	}
 
 	if (g_horde->integer) {
-		if (self->enemy->svflags & SVF_MONSTER) {  //maybe crashing? added to avoid monsters fighting even if they're on team
+		if (self->enemy->svflags & SVF_MONSTER) {  //added to avoid monsters fighting even if they're on team, HORDE
 			self->enemy = nullptr;
 		}
 	}
-
 	// PMM - don't bother if it's going to hit anyway; fix for weird in-your-face etas (I was
 	// seeing numbers like 13 and 14)
 	if ((eta < FRAME_TIME_MS) || (eta > 2.5_sec))

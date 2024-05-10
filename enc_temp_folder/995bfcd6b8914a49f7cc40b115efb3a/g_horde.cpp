@@ -554,7 +554,6 @@ void Horde_PreInit()
 		gi.cvar_set("g_dm_spawns", "0");
 		gi.cvar_set("g_damage_scale", "1");
 		gi.cvar_set("ai_damage_scale", "1");
-		gi.cvar_set("g_loadent", "1");
 		gi.cvar_set("bot_chat_enable", "0");
 		gi.cvar_set("bot_skill", "5");
 		gi.cvar_set("g_coop_squad_respawn", "1");

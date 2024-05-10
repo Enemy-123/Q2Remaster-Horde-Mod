@@ -161,7 +161,7 @@ TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool o
 	if (CheckTeamDamage(prox->teammaster, other))
 		return;
 
-	if (G_IsDeathmatch() && other->client)
+	if (!G_IsDeathmatch() && other->client)
 		return;
 
 	if (other == prox) // don't set self off
@@ -222,11 +222,11 @@ THINK(prox_open) (edict_t* ent) -> void
 		while ((search = findradius(search, ent->s.origin, PROX_DAMAGE_RADIUS + 10)) != nullptr)
 		{
 			if (!search->classname) // tag token and other weird shit
-				break;
+				continue;
 
 			// teammate avoidance
 			if (CheckTeamDamage(search, ent->teammaster))
-				break;
+				continue;
 
 			// if it's a monster or player with health > 0
 			// or it's a player start point
@@ -235,11 +235,11 @@ THINK(prox_open) (edict_t* ent) -> void
 			if (
 				search != ent &&
 				(
-					(((search->svflags & SVF_MONSTER) || (!G_IsDeathmatch() && (search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) && (search->health > 0)) ||
-					(G_IsDeathmatch() && g_horde->integer &&
-						((!strncmp(search->classname, "monster_", 12)) ||
-							(!strcmp(search->classname, "monster_")) ||
-							(!strncmp(search->classname, "monster_", 10))))) &&
+					(((search->svflags & SVF_MONSTER) || (G_IsDeathmatch() && !g_horde->integer && (search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) && (search->health > 0)) ||
+					(G_IsDeathmatch() && !g_horde->integer &&
+						((!strncmp(search->classname, "info_player_", 12)) ||
+							(!strcmp(search->classname, "misc_teleporter_dest")) ||
+							(!strncmp(search->classname, "item_flag_", 10))))) &&
 				(visible(search, ent)))
 			{
 				gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
@@ -317,7 +317,7 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 
 	constexpr float PROX_STOP_EPSILON = 0.1f;
 
-	if (!tr.plane.normal || (other->svflags & SVF_MONSTER) || (other->flags & FL_DAMAGEABLE))
+	if (!tr.plane.normal || (other->svflags & SVF_MONSTER) || other->client || (other->flags & FL_DAMAGEABLE))
 	{
 		if (other != ent->teammaster)
 			Prox_Explode(ent);
@@ -822,7 +822,7 @@ constexpr float	  TESLA_DAMAGE_RADIUS = 128;
 constexpr int32_t TESLA_DAMAGE = 5;
 constexpr int32_t TESLA_KNOCKBACK = 8;
 
-constexpr gtime_t TESLA_ACTIVATE_TIME = 1_sec;
+constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
@@ -885,16 +885,16 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 	// don't hit teammates
 	if (check->client)
 	{
-		if (!G_IsDeathmatch())
+		if (!G_IsDeathmatch() && !g_horde->integer)
 			return BoxEdictsResult_t::Skip;
 		else if (CheckTeamDamage(check, self->teammaster))
 			return BoxEdictsResult_t::Skip;
 	}
-	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->svflags & SVF_PLAYER)
+	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->client)
 		return BoxEdictsResult_t::Skip;
 
 	// don't hit other teslas in SP/coop
-	if (G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP))
+	if (!G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP))
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;

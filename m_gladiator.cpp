@@ -240,7 +240,7 @@ void gladcGun(edict_t* self)
 		radius_damage /= 2;
 	}
 
-	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+	fire_plasma(self, start, dir, damage, 925, radius_damage, radius_damage);
 
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;

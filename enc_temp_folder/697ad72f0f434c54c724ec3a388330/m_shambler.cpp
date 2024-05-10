@@ -576,7 +576,7 @@ void SP_monster_shambler(edict_t* self)
 	sound_boom.assign("shambler/sboom.wav");
 
 	if (!strcmp(self->classname, "monster_shambler")) {
-		self->health = 650 * st.health_multiplier;
+		self->health = 600 * st.health_multiplier;
 	}
 
 	self->gib_health = -190;

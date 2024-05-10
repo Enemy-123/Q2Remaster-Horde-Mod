@@ -693,7 +693,7 @@ void gunner_fire_chain(edict_t* self)
 }
 void gunner_refire_chain(edict_t* self)
 {
-	if (self->enemy && self->enemy->health > 0) // Comprueba si self->enemy no es nullptr antes de acceder a su propiedad health
+	if (self->enemy->health > 0) //	if (self->enemy && self->enemy->health > 0) // Comprueba si self->enemy no es nullptr antes de acceder a su propiedad health
 		if (visible(self, self->enemy))
 			if (frandom() <= 0.5f)
 			{

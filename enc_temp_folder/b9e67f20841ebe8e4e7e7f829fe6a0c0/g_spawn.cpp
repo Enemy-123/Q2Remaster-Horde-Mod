@@ -723,7 +723,7 @@ void ED_CallSpawn(edict_t* ent)
 			}
 			else if (!strcmp(ent->classname, "monster_boss2")) {
 				if (brandom()) {
-					ent->classname = "monster_boss2"; // boss2kl pero grande y con mas vida todo
+					ent->classname = "monster_boss2kl";
 				}
 				else
 					ent->classname = "monster_carrier";
