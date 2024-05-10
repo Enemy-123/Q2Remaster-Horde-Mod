@@ -968,15 +968,14 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 			// starting items for horde mod
-			if (G_IsDeathmatch() && g_horde->integer && (current_wave_number > 3 && current_wave_number < 7))
+			if (G_IsDeathmatch() && g_horde->integer && g_vampire->integer && current_wave_number < 10)
 			{
-				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
 			}
-			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number > 7)
+			else if (G_IsDeathmatch() && g_horde->integer && g_ammoregen->integer)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
@@ -985,9 +984,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
 				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
-				client->pers.inventory[IT_WEAPON_IONRIPPER] = 1;
 				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
-
+				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
 			} 
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?

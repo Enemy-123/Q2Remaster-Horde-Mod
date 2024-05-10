@@ -968,7 +968,7 @@ constexpr spawnflags_t SPAWNFLAG_PERROKL = 8_spawnflag;
 void SP_monster_perrokl(edict_t* self)
 {
 	if (!strcmp(self->classname, "monster_perrokl")) {
-		self->health = 675 * (current_wave_number / 2);
+		self->health = 675 * current_wave_number;
 		self->s.scale = 1.2;
 		if (self->health > 1400) {
 			self->health = 1400;

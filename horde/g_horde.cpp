@@ -336,7 +336,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_janitor2", 19, -1, 0.12f },
 { "monster_makron", 16, 19, 0.03f },
 { "monster_gladb", 16, -1, 0.55f},
-{ "monster_boss2_64", 17, -1, 0.08f },
+{ "monster_boss2_64", 16, -1, 0.08f },
 { "monster_perrokl", 21, -1, 0.27f },
 { "monster_guncmdrkl", 23, -1, 0.1f },
 { "monster_shamblerkl", 18, -1, 0.14f },
@@ -899,7 +899,7 @@ void Horde_RunFrame()
 				}
 				
 				e->monsterinfo.power_armor_power *= current_wave_number * 1.115; // Escalar la armadura de energía basada en la oleada actual
-				e->enemy = &g_edicts[1];
+				e->enemy = &g_edicts[1] + 1;
 				e->gib_health = -180;
 
 				HuntTarget(e);
