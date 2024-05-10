@@ -245,7 +245,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_grenadelauncher", 6, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_proxlauncher", 8, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 7, -1, 0.19f, adjust_weight_weapon },
-	{ "weapon_phalanx", 10, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_phalanx", 9, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 6, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_railgun", 9, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },

@@ -967,33 +967,32 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
+			// starting items for horde mod
+			if (G_IsDeathmatch() && g_horde->integer && (current_wave_number > 3 && current_wave_number < 7))
+			{
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+			}
+			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number > 7)
+			{
+				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
+				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
+				client->pers.inventory[IT_WEAPON_IONRIPPER] = 1;
+				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
 
+			} 
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
 				(ctf->integer ? !level.no_grapple : 0) :
 				g_allow_grapple->integer;
-
-
-			//maybe wont be needed now
-			//if (current_wave_number > 5 && current_wave_number < 7 && G_IsDeathmatch() && g_instagib->integer)
-			//{
-			//	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-			//	client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-			//	client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-			//	client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-			//	client->pers.inventory[IT_AMMO_BULLETS] = 50;
-			//	client->pers.inventory[IT_AMMO_SHELLS] = 20;
-			//}
-			//	else if (G_IsDeathmatch() && g_instagib->integer && current_wave_number > 7)
-			//{
-			//	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-			//	client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-			//	client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-			//	client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-			//	client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-			//	client->pers.inventory[IT_AMMO_BULLETS] = 50;
-			//	client->pers.inventory[IT_AMMO_SHELLS] = 20;
-			//} 
 
 			if (give_grapple)
 				client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;

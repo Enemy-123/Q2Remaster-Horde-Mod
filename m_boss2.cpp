@@ -34,7 +34,7 @@ void boss2_dead(edict_t* self);
 void boss2_attack_mg(edict_t* self);
 void boss2_reattack_mg(edict_t* self);
 
-constexpr int32_t BOSS2_ROCKET_SPEED = 950;
+constexpr int32_t BOSS2_ROCKET_SPEED = 1150;
 
 void Boss2PredictiveRocket(edict_t* self)
 {
@@ -91,7 +91,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 700, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, 50, 800, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
@@ -100,7 +100,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 650, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, 50, 750, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
@@ -109,7 +109,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 550, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, 50, 650, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
@@ -119,7 +119,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 500, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, 50, 600, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket64(edict_t* self)
@@ -166,7 +166,7 @@ void boss2_firebullet_right(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_R1], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
+	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
 }
 
 void boss2_firebullet_left(edict_t* self)
@@ -175,7 +175,7 @@ void boss2_firebullet_left(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_L1], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
+	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
 }
 
 void Boss2MachineGun(edict_t* self)
@@ -295,7 +295,7 @@ void Boss2HyperBlaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
-	monster_fire_blaster(self, start, forward, 2, 1000, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+	monster_fire_blaster(self, start, forward, 4, 1300, id, (self->s.frame % 4) ? EF_PENT : EF_HYPERBLASTER);
 }
 
 mframe_t boss2_frames_attack_hb[] = {
@@ -725,13 +725,12 @@ void SP_monster_boss2_64(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
-	if (!self->s.scale)
+	if (g_horde->integer)	{
+		self->mins = { -24, -24, 0 };
+		self->maxs = { 24, 24, 48 };
 		self->s.scale = 0.6f;
-
-	self->mins = { -24, -24, 0 };
-	self->maxs = { 24, 24, 48 };
-
-	self->health = 800 * st.health_multiplier;
+	}
+	self->health = 1100 * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;
@@ -745,8 +744,13 @@ void SP_monster_boss2kl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	self->s.skinnum = 2;
-	self->health = 700 * current_wave_number;
+	self->health = 1100 * st.health_multiplier;
 	self->gib_health = -130;
-	self->s.renderfx = RF_TRANSLUCENT;
-	self->s.effects = EF_FLAG1;
+
+	if (g_horde->integer) {
+		self->health = 700 * current_wave_number;
+		self->s.renderfx = RF_TRANSLUCENT;
+		self->s.effects = EF_FLAG1;
+	}
+
 }

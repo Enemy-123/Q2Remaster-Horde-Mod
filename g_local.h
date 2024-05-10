@@ -3043,7 +3043,7 @@ struct gclient_t
 	// saved - for coop; last time we were in a firing state
 	gtime_t	 last_firing_time;
 
-	// Orange 2 Hook
+
 	bool    hook_out;
 	bool    hook_on;
 	bool    hook_toggle;      // Kyper - Lithium port - added for remaster
@@ -3283,7 +3283,6 @@ struct edict_t
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 	gtime_t safety_time;
-	// Orange 2 Hook
 	edict_t* laser;
 	gtime_t hook_time;
 	// Kyper
