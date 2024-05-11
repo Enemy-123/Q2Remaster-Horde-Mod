@@ -894,7 +894,8 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 		return BoxEdictsResult_t::Skip;
 
 	// don't hit other teslas in SP/coop
-	if (!G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP))
+	if (!G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP) ||
+		g_horde->integer && check->classname && (check->flags & FL_TRAP))
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;

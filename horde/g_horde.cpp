@@ -906,10 +906,8 @@ void Horde_RunFrame()
 
 				// Initialize the random number generator
 				srand(time(NULL));
-
 				// Generate a random index within the range of 1 to game.maxclients
 				int randomIndex = rand() % game.maxclients + 1;
-
 				// Assign the enemy corresponding to the random index
 				e->enemy = &g_edicts[randomIndex];
 
