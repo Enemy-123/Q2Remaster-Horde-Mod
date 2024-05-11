@@ -295,7 +295,7 @@ void Boss2HyperBlaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
-	monster_fire_blaster(self, start, forward, 4, 1300, id, (self->s.frame % 4) ? EF_PENT : EF_HYPERBLASTER);
+	monster_fire_blaster(self, start, forward, 4, 1330, id, (self->s.frame % 4) ? EF_PENT : EF_HYPERBLASTER);
 }
 
 mframe_t boss2_frames_attack_hb[] = {

@@ -739,6 +739,10 @@ void ED_CallSpawn(edict_t* ent)
 				float r = frandom();
 				ent->classname = (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
 			}
+			else if (!strcmp(ent->classname, "monster_berserk")) {
+				float r = frandom();
+				ent->classname = (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
+			}
 			else if (!strcmp(ent->classname, "monster_floater")) {
 				if (brandom()) {
 					ent->classname = "monster_floater";

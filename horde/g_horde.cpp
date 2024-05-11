@@ -86,6 +86,11 @@ static void Horde_InitLevel(int32_t lvl)
 	if (g_horde_local.level == 17) {
 		gi.cvar_set("g_damage_scale", "2.2");
 	}
+		
+	
+	if (g_horde_local.level == 27) {
+		gi.cvar_set("g_damage_scale", "2.5");
+	}
 
 	// Small Maps
 	if (!Q_strcasecmp(level.mapname, "q2dm3") ||
@@ -479,7 +484,7 @@ const char* G_HordePickBOSS()
 		!Q_strcasecmp(level.mapname, "dm10") || !Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10") ||
 		!Q_strcasecmp(level.mapname, "dm2") || !Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) {
 		float r = frandom();
-		desired_boss = (r < 0.333f) ? "monster_perrokl" : (r < 0.666f) ? "monster_guncmdrkl" : "monster_turretkl";
+		desired_boss = (r < 0.333f) ? "monster_shamblerkl" : (r < 0.666f) ? "monster_guncmdrkl" : "monster_carrier";
 	}
 	else if (!Q_strcasecmp(level.mapname, "q2ctf5")) {
 		float r = frandom();
@@ -899,8 +904,16 @@ void Horde_RunFrame()
 				}
 				
 				e->monsterinfo.power_armor_power *= current_wave_number * 1.115; // Escalar la armadura de energía basada en la oleada actual
+
+				if (brandom()) {
+					e->enemy = &g_edicts[1];
+				}
+				else
 				e->enemy = &g_edicts[1] + 1;
+
+
 				e->gib_health = -180;
+
 
 				HuntTarget(e);
 	

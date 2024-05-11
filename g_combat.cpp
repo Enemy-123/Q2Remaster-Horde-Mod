@@ -722,6 +722,39 @@ if ((targ == attacker) && !(dflags & DAMAGE_NO_PROTECTION))
 		int vtake = take;
 		int hmax = attacker->max_health;
 
+		if (g_horde->integer) {
+			if (current_wave_number >= 25 && current_wave_number < 200)
+			{
+				if (hmax < 200) hmax = 200;
+			}
+			else if (current_wave_number >= 20 && current_wave_number < 25)
+			{
+				if (hmax < 180) hmax = 180;
+			}
+			else if (current_wave_number >= 15 && current_wave_number < 20)
+			{
+				if (hmax < 160) hmax = 160;
+			}
+			else if (current_wave_number >= 10 && current_wave_number < 15)
+			{
+				if (hmax < 140) hmax = 140;
+			}
+			else if (current_wave_number >= 5 && current_wave_number < 10)
+			{
+				if (hmax < 120) hmax = 120;
+			}
+			else if (current_wave_number >= 1 && current_wave_number < 5)
+			{
+				if (hmax < 100) hmax = 100;
+			}
+			else
+			{
+				if (hmax < 100) hmax = 100;
+			}
+
+		}
+		else
+
 		if (hmax < 100) hmax = 100;
 		else if (hmax > 999) hmax = 999;
 

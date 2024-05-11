@@ -815,7 +815,6 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 	}
 }
 
-
 void InitClientPt(edict_t* ent, gclient_t* client)
 {
 	// backup & restore userinfo
@@ -856,11 +855,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
-	if (ent->client->resp.spectator) {
+	if (!(ent->client && ent->movetype == MOVETYPE_WALK)) {
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 	}   // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
-	if (g_horde->integer) {
-		if (current_wave_number >= 25)
+	if (g_horde->integer) { // probar con resp
+		if (current_wave_number >= 25 && current_wave_number < 200)
 		{
 			client->pers.health = 200;
 			client->pers.max_health = 200;
@@ -927,7 +926,23 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 		if (!taken_loadout)
 		{
+			if (g_horde->integer && current_wave_number >= 10) {
 
+				// fill with 50s, since it's our most common value
+				client->pers.max_ammo.fill(50);
+				client->pers.max_ammo[AMMO_BULLETS] = 400;
+				client->pers.max_ammo[AMMO_SHELLS] = 175;
+				client->pers.max_ammo[AMMO_CELLS] = 400;
+
+				// RAFAEL
+				client->pers.max_ammo[AMMO_TRAP] = 5;
+				// RAFAEL
+				// ROGUE
+				client->pers.max_ammo[AMMO_FLECHETTES] = 400;
+				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+				client->pers.max_ammo[AMMO_TESLA] = 7;
+			}
+		else
 			// fill with 50s, since it's our most common value
 			client->pers.max_ammo.fill(50);
 			client->pers.max_ammo[AMMO_BULLETS] = 200;
@@ -941,6 +956,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.max_ammo[AMMO_FLECHETTES] = 200;
 			client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
 			client->pers.max_ammo[AMMO_TESLA] = 5;
+			
 			// ROGUE
 
 			if (G_IsDeathmatch())
@@ -974,6 +990,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 			}
 			else if (G_IsDeathmatch() && g_horde->integer && g_ammoregen->integer)
 			{
