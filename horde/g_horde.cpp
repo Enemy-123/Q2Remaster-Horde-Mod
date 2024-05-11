@@ -669,7 +669,7 @@ void SpawnBossAutomatically()
 		boss->s.angles[1] = 0;
 		boss->s.angles[2] = 0;
 
-		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");  // test tts later
+		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");  
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
@@ -895,25 +895,23 @@ void Horde_RunFrame()
 
 					// Generar el Spawngrow con los tamaños calculados
 					SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
-
 				}
 
 				if (!Q_strcasecmp(level.mapname, "mgu4trial")) {
 					e->s.renderfx = RF_GLOW;
-					e->s.effects = EF_GRENADE_LIGHT;
-				}
+					e->s.effects = EF_GRENADE_LIGHT;	}
 				
 				e->monsterinfo.power_armor_power *= current_wave_number * 1.115; // Escalar la armadura de energía basada en la oleada actual
-
-				if (brandom()) {
-					e->enemy = &g_edicts[1];
-				}
-				else
-				e->enemy = &g_edicts[1] + 1;
-
-
 				e->gib_health = -180;
 
+				// Initialize the random number generator
+				srand(time(NULL));
+
+				// Generate a random index within the range of 1 to game.maxclients
+				int randomIndex = rand() % game.maxclients + 1;
+
+				// Assign the enemy corresponding to the random index
+				e->enemy = &g_edicts[randomIndex];
 
 				HuntTarget(e);
 	

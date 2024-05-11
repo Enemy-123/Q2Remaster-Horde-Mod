@@ -855,39 +855,50 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
-	if (!(ent->client && ent->movetype == MOVETYPE_WALK)) {
+	if (!(ent->client && ent->movetype == MOVETYPE_WALK) && ent->client->resp.ctf_team == CTF_TEAM1) {
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 	}   // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
-	if (g_horde->integer) { // probar con resp
-		if (current_wave_number >= 25 && current_wave_number < 200)
+	if (g_horde->integer) {
+		if (current_wave_number >= 25 && current_wave_number <= 200)
 		{
 			client->pers.health = 200;
-			client->pers.max_health = 200;
+			client->pers.max_health += 200;
+			ent->health = 200;
+			ent->max_health += 200;
 		}
-		else if (current_wave_number >= 20 && current_wave_number < 25)
+		else if (current_wave_number >= 20 && current_wave_number <= 24)
 		{
 			client->pers.health = 180;
-			client->pers.max_health = 180;
+			client->pers.max_health += 180;
+			ent->health = 180;
+			ent->max_health += 180;
 		}
-		else if (current_wave_number >= 15 && current_wave_number < 20)
+		else if (current_wave_number >= 15 && current_wave_number <= 19)
 		{
 			client->pers.health = 160;
-			client->pers.max_health = 160;
+			client->pers.max_health += 160;
+			ent->health = 160;
+			ent->max_health += 160;
 		}
-		else if (current_wave_number >= 10 && current_wave_number < 15)
+		else if (current_wave_number >= 10 && current_wave_number <= 14)
 		{
 			client->pers.health = 140;
-			client->pers.max_health = 140;
+			client->pers.max_health += 140;
+			ent->max_health += 140;
 		}
-		else if (current_wave_number >= 5 && current_wave_number < 10)
+		else if (current_wave_number >= 5 && current_wave_number <= 9)
 		{
 			client->pers.health = 120;
-			client->pers.max_health = 120;
+			client->pers.max_health += 120;
+			ent->health = 120;
+			ent->max_health += 120;
 		}
-		else if (current_wave_number >= 1 && current_wave_number < 5)
+		else if (current_wave_number >= 1 && current_wave_number <= 4)
 		{
 			client->pers.health = 100;
 			client->pers.max_health = 100;
+			ent->health = 100;
+			ent->max_health = 100;
 		}
 		else
 		{
@@ -2157,7 +2168,7 @@ void PutClientInServer(edict_t* ent)
 			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 			ClientUserinfoChanged(ent, userinfo);
 
-			client->respawn_timeout = level.time + 8_sec;
+			client->respawn_timeout = level.time + 0_ms;
 		}
 
 		// find a spot to place us

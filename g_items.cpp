@@ -284,9 +284,9 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
 	if (G_IsCooperative() && !g_horde->integer)
 		ent->max_health += 5;
-	else
+	else if (!G_IsCooperative())
 		ent->max_health += 10;
-
+		
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
 

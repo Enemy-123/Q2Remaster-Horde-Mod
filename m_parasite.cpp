@@ -967,13 +967,6 @@ void SP_monster_parasite(edict_t* self)
 constexpr spawnflags_t SPAWNFLAG_PERROKL = 8_spawnflag;
 void SP_monster_perrokl(edict_t* self)
 {
-	if (!strcmp(self->classname, "monster_perrokl")) {
-		self->health = 675 * current_wave_number;
-		self->s.scale = 1.2;
-		if (self->health > 1400) {
-			self->health = 1400;
-		}
-	}
 	self->spawnflags |= SPAWNFLAG_PERROKL;
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;
@@ -981,4 +974,11 @@ void SP_monster_perrokl(edict_t* self)
 	self->style = 1;
 	self->s.renderfx = RF_TRANSLUCENT;
 	self->s.effects = EF_FLAG1;
+	if (!strcmp(self->classname, "monster_perrokl")) {
+		self->health = 775 * current_wave_number;
+		self->s.scale = 1.2;
+		if (self->health > 1400) {
+			self->health = 1400;
+		}
+	}
 }
