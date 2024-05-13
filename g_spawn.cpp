@@ -1723,7 +1723,7 @@ static void G_InitStatusbar()
 	sb.yb(-24);
 
 	// health
-	sb.xv(0).hnum().xv(65).pic(STAT_HEALTH_ICON);
+	sb.xv(0).hnum().xv(50).pic(STAT_HEALTH_ICON);
 
 	// ammo
 	sb.ifstat(STAT_AMMO_ICON).xv(100).anum().xv(150).pic(STAT_AMMO_ICON).endifstat();

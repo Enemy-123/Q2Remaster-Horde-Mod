@@ -233,12 +233,12 @@ constexpr struct weighted_item_t {
 
 	{ "item_quad", 6, -1, 0.08f, adjust_weight_powerup },
 	{ "item_double", 5, -1, 0.11f, adjust_weight_powerup },
-	{ "item_quadfire", 4, -1, 0.012f, adjust_weight_powerup },
+	{ "item_quadfire", 4, -1, 0.05f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
 	{ "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-//	{ "item_doppleganger", 6, -1, 0.06f, adjust_weight_powerup },
+	{ "item_doppleganger", 16, -1, 0.2f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.12f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },

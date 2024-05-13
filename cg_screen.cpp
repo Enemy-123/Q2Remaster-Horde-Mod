@@ -1025,7 +1025,7 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             {
                 int     color;
 
-                width = 4;
+                width = 3;
                 value = ps->stats[STAT_HEALTH];
                 if (value > 25)
                     color = 0;  // green
@@ -1039,7 +1039,7 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
                     cgi.SCR_DrawPic(x, y, w * scale, h * scale, "field_3");
                 }
 
-                CG_DrawField (x, y, color, width, value, scale);
+                CG_DrawField(x, y, color, width, value, scale);
             }
             continue;
         }

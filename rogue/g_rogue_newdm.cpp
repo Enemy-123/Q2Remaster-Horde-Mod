@@ -168,6 +168,11 @@ DIE(doppleganger_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int
 	float	 dist;
 	vec3_t	 dir;
 
+	if (self->enemy != nullptr) {
+		if (!(self->enemy->svflags & SVF_MONSTER)) {
+			return; // No es un monstruo, no hacemos nada
+		}
+	}
 	if ((self->enemy) && (self->enemy != self->teammaster))
 	{
 		dir = self->enemy->s.origin - self->s.origin;
@@ -191,18 +196,19 @@ DIE(doppleganger_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int
 	self->takedamage = DAMAGE_NONE;
 
 	// [Paril-KEX]
-	T_RadiusDamage(self, self->teammaster, 160.f, self, 140.f, DAMAGE_NONE, MOD_DOPPLE_EXPLODE);
+	T_RadiusDamage(self, self->teammaster, 360.f, self, 340.f, DAMAGE_NONE, MOD_DOPPLE_EXPLODE);
 
 	if (self->teamchain)
 		BecomeExplosion1(self->teamchain);
 	BecomeExplosion1(self);
 }
 
-PAIN(doppleganger_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(doppleganger_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	self->enemy = other;
+	if (other != nullptr && (other->svflags & SVF_MONSTER)) {
+		self->enemy = other;
+	}
 }
-
 THINK(doppleganger_timeout) (edict_t *self) -> void
 {
 	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);

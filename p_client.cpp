@@ -1013,6 +1013,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
 				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
+				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
 			} 
 			// ZOID

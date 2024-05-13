@@ -508,7 +508,7 @@ THINK(hunter_think) (edict_t *self) -> void
 	}
 
 	// if we are spectator, FreeEdict.
-	if (self->owner->movetype == MOVETYPE_NOCLIP)
+	if (self->owner && self->owner->movetype == MOVETYPE_NOCLIP && !(self->spawnflags & SPHERE_DOPPLEGANGER))
 	{
 		G_FreeEdict(self);
 		return;
@@ -579,12 +579,11 @@ THINK(vengeance_think) (edict_t *self) -> void
 	}
 
 	// if we are spectator, FreeEdict.
-	if (self->owner->movetype == MOVETYPE_NOCLIP)
+	if (self->owner && self->owner->movetype == MOVETYPE_NOCLIP && !(self->spawnflags & SPHERE_DOPPLEGANGER))
 	{
 		G_FreeEdict(self);
 		return;
 	}
-
 	if (!(self->owner) && !(self->spawnflags & SPHERE_DOPPLEGANGER))
 	{
 		G_FreeEdict(self);
@@ -615,7 +614,8 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 	sphere->s.origin = owner->s.origin;
 	sphere->s.origin[2] = owner->absmax[2];
 	sphere->s.angles[YAW] = owner->s.angles[YAW];
-	sphere->solid = SOLID_NOT;
+	sphere->solid = SOLID_BBOX;
+
 	sphere->clipmask = MASK_PROJECTILE;
 	sphere->s.renderfx = RF_FULLBRIGHT | RF_IR_VISIBLE;
 	sphere->movetype = MOVETYPE_FLYMISSILE;
@@ -689,6 +689,7 @@ void Own_Sphere(edict_t *self, edict_t *sphere)
 		{
 
 			self->client->owned_sphere = sphere;
+			sphere->solid = SOLID_NOT;
 
 		}
 		// they already have one, take care of the old one
