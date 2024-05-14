@@ -977,6 +977,10 @@ void SP_monster_perrokl(edict_t* self)
 	if (!strcmp(self->classname, "monster_perrokl")) {
 		self->health = 775 * current_wave_number;
 		self->s.scale = 1.2;
+
+		self->mins = { -19, -19, -29 };
+		self->maxs = { 19, 19, 29 };
+
 		if (self->health > 1400) {
 			self->health = 1400;
 		}

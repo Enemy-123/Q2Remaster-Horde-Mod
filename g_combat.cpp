@@ -600,7 +600,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// ROGUE
 		// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
 	if (g_horde->integer && current_wave_number > 15 && attacker != nullptr && attacker->client != nullptr || g_autohaste->integer && attacker != nullptr && attacker->client != nullptr) {
-		if (attacker->client->resp.score % 8 == 0) {
+		if (attacker->client->resp.score % 8 == 0 && (!(attacker->health < 1))) {
 			// randomize quads
 			float quadchance = frandom();
 
@@ -720,7 +720,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
-	if (g_vampire->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 6) {
+	if (g_vampire->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 6 && (!(attacker->health < 1))) {
 		int vtake = take;
 		int hmax = attacker->max_health;
 

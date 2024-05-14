@@ -1483,12 +1483,12 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 		level.power_cubes++;
 	}
 
-	//// mark all items as instanced
-	//if (G_IsCooperative() || g_horde->integer)
-	//{
-	//	if (P_UseCoopInstancedItems())
-	//		ent->svflags |= SVF_INSTANCED;
-	//}
+	// mark all items as instanced
+	if (G_IsCooperative())
+	{
+		if (P_UseCoopInstancedItems())
+			ent->svflags |= SVF_INSTANCED;
+	}
 
 	ent->item = item;
 	ent->nextthink = level.time + 20_hz; // items start after other solids

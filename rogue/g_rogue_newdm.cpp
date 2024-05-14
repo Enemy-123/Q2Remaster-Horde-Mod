@@ -168,31 +168,27 @@ DIE(doppleganger_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int
 	float	 dist;
 	vec3_t	 dir;
 
-	if (self->enemy != nullptr) {
-		if (!(self->enemy->svflags & SVF_MONSTER)) {
-			return;
-		}
+	if (self->enemy && (self->enemy->svflags & SVF_MONSTER))
+	{
+		dir = self->enemy->s.origin - self->s.origin;
+		dist = dir.length();
 
-			if ((self->enemy) && (self->enemy != self->teammaster))
+		if (dist > 80.f)
+		{
+			if (dist > 768)
 			{
-				dir = self->enemy->s.origin - self->s.origin;
-				dist = dir.length();
-
-				if (dist > 80.f)
-				{
-					if (dist > 768)
-					{
-						sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
-						sphere->pain(sphere, attacker, 0, 0, mod);
-					}
-					else
-					{
-						sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
-						sphere->pain(sphere, attacker, 0, 0, mod);
-					}
-				}
+				sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
+				sphere->pain(sphere, attacker, 0, 0, mod);
+			}
+			else
+			{
+				sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
+				sphere->pain(sphere, attacker, 0, 0, mod);
 			}
 		}
+	}
+
+		
 	
 			
 	self->takedamage = DAMAGE_NONE;
@@ -272,7 +268,7 @@ void fire_doppleganger(edict_t *ent, const vec3_t &start, const vec3_t &aimdir)
 	base->teammaster = ent;
 	base->flags |= ( FL_DAMAGEABLE | FL_TRAP );
 	base->takedamage = true;
-	base->health = 3;
+	base->health = 20;
 	base->pain = doppleganger_pain;
 	base->die = doppleganger_die;
 
