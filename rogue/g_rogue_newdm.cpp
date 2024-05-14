@@ -170,27 +170,30 @@ DIE(doppleganger_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int
 
 	if (self->enemy != nullptr) {
 		if (!(self->enemy->svflags & SVF_MONSTER)) {
+			return;
 		}
-		if ((self->enemy) && (self->enemy != self->teammaster))
-		{
-			dir = self->enemy->s.origin - self->s.origin;
-			dist = dir.length();
 
-			if (dist > 80.f)
+			if ((self->enemy) && (self->enemy != self->teammaster))
 			{
-				if (dist > 768)
+				dir = self->enemy->s.origin - self->s.origin;
+				dist = dir.length();
+
+				if (dist > 80.f)
 				{
-					sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
-					sphere->pain(sphere, attacker, 0, 0, mod);
-				}
-				else
-				{
-					sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
-					sphere->pain(sphere, attacker, 0, 0, mod);
+					if (dist > 768)
+					{
+						sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
+						sphere->pain(sphere, attacker, 0, 0, mod);
+					}
+					else
+					{
+						sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
+						sphere->pain(sphere, attacker, 0, 0, mod);
+					}
 				}
 			}
 		}
-	}
+	
 			
 	self->takedamage = DAMAGE_NONE;
 

@@ -545,6 +545,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		return;
 
 	if (g_instagib->integer && !g_horde->integer && attacker->client && targ->client) {
+
 		// [Kex] always kill no matter what on instagib
 		damage = 9999;
 	}
@@ -597,7 +598,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			return;
 	}
 	// ROGUE
-	// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
+		// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
 	if (g_horde->integer && current_wave_number > 15 && attacker != nullptr && attacker->client != nullptr || g_autohaste->integer && attacker != nullptr && attacker->client != nullptr) {
 		if (attacker->client->resp.score % 8 == 0) {
 			// randomize quads
@@ -987,7 +988,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
-
 
 /*
 ============

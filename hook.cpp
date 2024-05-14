@@ -305,7 +305,10 @@ edict_t* Hook_Start(edict_t* ent)
 
 	// set the color
 	//self->s.skinnum = 0xf0f0f0f0;  // red
-	self->s.skinnum = 0xdcdddedf;  // yellow
+	//self->s.skinnum = 0xd0d1d2d3;  // green
+	//self->s.skinnum = 0xe0e1e2e3;  // orange
+	//self->s.skinnum = 0xdcdddedf;  // yellow
+	self->s.skinnum = 0xe0e1e2e3;  // yellow
 
 
 	self->think = Hook_Think;

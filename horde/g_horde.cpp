@@ -226,26 +226,26 @@ constexpr struct weighted_item_t {
 	weight_adjust_func_t	adjust_weight = nullptr;
 } items[] = {
 //	{ "item_health_small", -1, 9, 0.26f, adjust_weight_health },
-//	{ "item_health", -1, -1, 0.20f, adjust_weight_health },
-	{ "item_health_large", -1, -1, 0.25f, adjust_weight_health },
-	{ "item_health_mega", -1, -1, 0.09f, adjust_weight_health },
-	{ "item_adrenaline", -1, -1, 0.2f, adjust_weight_health },
+	{ "item_health", -1, 5, 0.20f, adjust_weight_health },
+	{ "item_health_large", -1, -1, 0.12f, adjust_weight_health },
+	{ "item_health_mega", -1, -1, 0.06f, adjust_weight_health },
+	{ "item_adrenaline", -1, -1, 0.17f, adjust_weight_health },
 
 	{ "item_armor_shard", -1, -1, 0.09f, adjust_weight_armor },
-	{ "item_armor_jacket", -1, 5, 0.25f, adjust_weight_armor },
-	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
-	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
+	{ "item_armor_jacket", -1, 5, 0.12f, adjust_weight_armor },
+	{ "item_armor_combat", 6, -1, 0.06f, adjust_weight_armor },
+	{ "item_armor_body", 8, -1, 0.05f, adjust_weight_armor },
 	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
 	{ "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
 	{ "item_quad", 6, -1, 0.07f, adjust_weight_powerup },
-	{ "item_double", 5, -1, 0.08f, adjust_weight_powerup },
-	{ "item_quadfire", 4, -1, 0.05f, adjust_weight_powerup },
+	{ "item_double", 5, -1, 0.076f, adjust_weight_powerup },
+	{ "item_quadfire", 4, -1, 0.056f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
 	{ "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_doppleganger", 3, -1, 0.1f, adjust_weight_powerup },
+	{ "item_doppleganger", 6, -1, 0.09f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.12f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -264,7 +264,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_disintegrator", 14, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_bfg", 12, -1, 0.15f, adjust_weight_weapon },
 
-	{ "ammo_trap", 5, -1, 0.15f, adjust_weight_ammo },
+	{ "ammo_trap", 5, -1, 0.18f, adjust_weight_ammo },
 	{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
 	{ "ammo_flechettes", 5, -1, 0.25f, adjust_weight_ammo },
@@ -680,8 +680,8 @@ void SpawnBossAutomatically()
 		boss->maxs *= 1.4;
 		boss->mins *= 1.4;
 		boss->s.scale = 1.4;
-		boss->health *= pow(1.15, current_wave_number);
-		boss->monsterinfo.power_armor_power *= current_wave_number * 1.35; // Escalar la armadura de energía basada en la oleada actual
+		boss->health *= pow(1.2, current_wave_number);
+		boss->monsterinfo.power_armor_power *= current_wave_number * 1.45; // Escalar la armadura de energía basada en la oleada actual
 
 		boss->gib_health *= 3;
 
@@ -909,7 +909,7 @@ void Horde_RunFrame()
 					e->s.effects = EF_GRENADE_LIGHT;	}
 				
 				e->monsterinfo.power_armor_power *= current_wave_number * 1.115; // Escalar la armadura de energía basada en la oleada actual
-				e->gib_health = -180;
+				e->gib_health = -100;
 
 				// Initialize the random number generator
 				srand(time(NULL));
