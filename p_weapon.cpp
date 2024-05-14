@@ -270,14 +270,14 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 				Add_Ammo(other, ammo, ammo->quantity);
 		}
 
-		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER))
+		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER & SPAWNFLAG_ITEM_DROPPED))
 		{
 			if (G_IsDeathmatch())
 			{
 				if (g_dm_weapons_stay->integer)
 					ent->flags |= FL_RESPAWN;
 
-	//			SetRespawn( ent, gtime_t::from_sec(g_weapon_respawn_time->integer), !g_dm_weapons_stay->integer); //horde wont respawn dropped weapons
+		//		SetRespawn( ent, gtime_t::from_sec(g_weapon_respawn_time->integer), !g_dm_weapons_stay->integer); //horde wont respawn dropped weapons
 			}
 			if (G_IsCooperative())
 				ent->flags |= FL_RESPAWN;

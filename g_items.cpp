@@ -156,8 +156,12 @@ THINK(DoRespawn) (edict_t* ent) -> void
 	ent->solid = SOLID_TRIGGER;
 	gi.linkentity(ent);
 
+	// Reiniciar el marcado para este objeto
+	ent->item_picked_up_by.reset();
+
 	// send an effect
 	ent->s.event = EV_ITEM_RESPAWN;
+
 
 	// ROGUE
 	if (g_dm_random_items->integer)
@@ -201,8 +205,8 @@ void SetRespawn(edict_t* ent, gtime_t delay, bool hide_self)
 
 bool IsInstantItemsEnabled()
 {
-if (g_horde->integer || G_IsDeathmatch() && g_dm_instant_items->integer) // instant items on horde mode too!
-{
+	if (G_IsDeathmatch() && g_dm_instant_items->integer)
+	{
 		return true;
 	}
 
@@ -286,7 +290,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 		ent->max_health += 5;
 	else if (!G_IsCooperative())
 		ent->max_health += 10;
-		
+
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
 
@@ -366,13 +370,13 @@ inline void G_AdjustAmmoCap(edict_t* other, ammo_t ammo, int16_t new_max)
 
 bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 {
-	G_AdjustAmmoCap(other, AMMO_BULLETS, 250);
-	G_AdjustAmmoCap(other, AMMO_SHELLS, 100);
-	G_AdjustAmmoCap(other, AMMO_CELLS, 250);
+	G_AdjustAmmoCap(other, AMMO_BULLETS, 200);
+	G_AdjustAmmoCap(other, AMMO_SHELLS, 80);
+	G_AdjustAmmoCap(other, AMMO_CELLS, 200);
 	G_AdjustAmmoCap(other, AMMO_SLUGS, 75);
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 60);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
-	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 18);
+	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 16);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
@@ -595,7 +599,7 @@ void G_CheckAutoSwitch(edict_t* ent, gitem_t* item, bool is_new)
 
 		// smartness algorithm: in DM, we will always switch if we have the blaster out
 		// otherwise leave our active weapon alone
-	    if (G_IsDeathmatch() && !using_blaster)
+		if (G_IsDeathmatch() && !using_blaster)
 			return;
 		// in SP, only switch if it's a new weapon, or we have the blaster out
 		else if (!G_IsDeathmatch() && !using_blaster && !is_new)
@@ -782,9 +786,9 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 	if (ent->item->id == IT_ARMOR_SHARD)
 	{
 		if (!old_armor_index)
-			other->client->pers.inventory[IT_ARMOR_JACKET] = irandom(2, 5); //2
+			other->client->pers.inventory[IT_ARMOR_JACKET] = 2;
 		else
-			other->client->pers.inventory[old_armor_index] += irandom(4, 7); //2
+			other->client->pers.inventory[old_armor_index] += 2;
 	}
 	// if player has no armor, just use it
 	else if (!old_armor_index)
@@ -921,7 +925,7 @@ bool Entity_IsVisibleToPlayer(edict_t* ent, edict_t* player)
 {
 	// Q2Eaks make eyecam chase target invisible, but keep other client visible
 	if (player->client->use_eyecam && ent == player->client->chase_target)
-		return false;
+		return false; 
 	else if (ent->client)
 		return true;
 
@@ -985,7 +989,8 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 
 		int32_t player_number = other->s.number - 1;
 
-		if (G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number] || G_IsCooperative() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
+		if (G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number] ||
+			G_IsCooperative() && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
 		{
 			ent->item_picked_up_by[player_number] = true;
 
@@ -1037,7 +1042,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			should_remove = G_IsDeathmatch() || ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER); // needed so items can dissapear on horde mode
 		if (should_remove)
 		{
-			if (ent->flags & FL_RESPAWN)
+			if (!g_horde->integer && ent->flags & FL_RESPAWN)
 				ent->flags &= ~FL_RESPAWN;
 			else
 				G_FreeEdict(ent);
@@ -1058,9 +1063,9 @@ TOUCH(drop_temp_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool ot
 THINK(drop_make_touchable) (edict_t* ent) -> void
 {
 	ent->touch = Touch_Item;
-	if (G_IsDeathmatch() || g_horde->integer)
+	if (G_IsDeathmatch())
 	{
-		ent->nextthink = level.time + 30_sec;
+		ent->nextthink = level.time + 29_sec;
 		ent->think = G_FreeEdict;
 	}
 }
@@ -1331,10 +1336,12 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 		gi.Com_PrintFmt("{} has invalid spawnflags set\n", *ent);
 	}
 
+	if (G_IsDeathmatch())
+	{
 	// [Kex] In instagib, spawn no pickups! //moved outside DM for horde modes (when it was coop)
 	if (g_instagib->value)
 	{
-		if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
+		if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
 			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
 			((item->flags & IF_HEALTH && !strcmp(ent->classname, "item_foodcube")))
 			|| (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
@@ -1345,9 +1352,6 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 			return;
 		}
 	}
-
-	if (G_IsDeathmatch())
-	{
 
 		if (g_no_armor->integer)
 		{
@@ -1479,12 +1483,12 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 		level.power_cubes++;
 	}
 
-	// mark all items as instanced
-	if (G_IsCooperative() || g_horde->integer)
-	{
-		if (P_UseCoopInstancedItems())
-			ent->svflags |= SVF_INSTANCED;
-	}
+	//// mark all items as instanced
+	//if (G_IsCooperative() || g_horde->integer)
+	//{
+	//	if (P_UseCoopInstancedItems())
+	//		ent->svflags |= SVF_INSTANCED;
+	//}
 
 	ent->item = item;
 	ent->nextthink = level.time + 20_hz; // items start after other solids

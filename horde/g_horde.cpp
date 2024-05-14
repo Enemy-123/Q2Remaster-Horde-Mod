@@ -231,7 +231,7 @@ constexpr struct weighted_item_t {
 	{ "item_health_mega", -1, -1, 0.09f, adjust_weight_health },
 	{ "item_adrenaline", -1, -1, 0.2f, adjust_weight_health },
 
-	{ "item_armor_shard", -1, 3, 0.26f, adjust_weight_armor },
+	{ "item_armor_shard", -1, -1, 0.09f, adjust_weight_armor },
 	{ "item_armor_jacket", -1, 5, 0.25f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },

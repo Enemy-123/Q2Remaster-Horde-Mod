@@ -855,6 +855,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
+
 	if (!(ent->client && ent->movetype == MOVETYPE_WALK) && ent->client->resp.ctf_team == CTF_TEAM1) {
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 	}   // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
