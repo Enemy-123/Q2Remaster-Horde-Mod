@@ -86,7 +86,14 @@ static void Horde_InitLevel(int32_t lvl)
 	if (g_horde_local.level == 17) {
 		gi.cvar_set("g_damage_scale", "2.2");
 	}
-		
+	
+	if (g_horde_local.level == 20) {
+		gi.cvar_set("g_vampire", "2");
+		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nVampire Ability\nUPGRADED!\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
+
+		next_wave_message_sent = false;
+	}
 	
 	if (g_horde_local.level == 27) {
 		gi.cvar_set("g_damage_scale", "2.5");
@@ -224,21 +231,21 @@ constexpr struct weighted_item_t {
 	{ "item_health_mega", -1, -1, 0.09f, adjust_weight_health },
 	{ "item_adrenaline", -1, -1, 0.2f, adjust_weight_health },
 
-//	{ "item_armor_shard", -1, 9, 0.26f, adjust_weight_armor },
-	{ "item_armor_jacket", -1, 4, 0.35f, adjust_weight_armor },
+	{ "item_armor_shard", -1, 3, 0.26f, adjust_weight_armor },
+	{ "item_armor_jacket", -1, 5, 0.25f, adjust_weight_armor },
 	{ "item_armor_combat", 6, -1, 0.12f, adjust_weight_armor },
 	{ "item_armor_body", 8, -1, 0.1f, adjust_weight_armor },
 	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
 	{ "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
-	{ "item_quad", 6, -1, 0.08f, adjust_weight_powerup },
-	{ "item_double", 5, -1, 0.11f, adjust_weight_powerup },
+	{ "item_quad", 6, -1, 0.07f, adjust_weight_powerup },
+	{ "item_double", 5, -1, 0.08f, adjust_weight_powerup },
 	{ "item_quadfire", 4, -1, 0.05f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
 	{ "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-	{ "item_doppleganger", 16, -1, 0.2f, adjust_weight_powerup },
+	{ "item_doppleganger", 3, -1, 0.1f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 2, 0.12f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -534,7 +541,7 @@ void Horde_PreInit()
 		gi.cvar_set("sv_eyecam", "1");
 		gi.cvar_set("g_dm_instant_items", "1");
 		gi.cvar_set("g_disable_player_collision", "1");
-		gi.cvar_set("g_instagib", "1");
+	//	gi.cvar_set("g_instagib", "1");
 		gi.cvar_set("g_dm_no_self_damage", "1");
 		gi.cvar_set("g_allow_techs", "1");
 		gi.cvar_set("g_no_nukes", "1");

@@ -170,33 +170,32 @@ DIE(doppleganger_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int
 
 	if (self->enemy != nullptr) {
 		if (!(self->enemy->svflags & SVF_MONSTER)) {
-			return; // No es un monstruo, no hacemos nada
 		}
-	}
-	if ((self->enemy) && (self->enemy != self->teammaster))
-	{
-		dir = self->enemy->s.origin - self->s.origin;
-		dist = dir.length();
-
-		if (dist > 80.f)
+		if ((self->enemy) && (self->enemy != self->teammaster))
 		{
-			if (dist > 768)
+			dir = self->enemy->s.origin - self->s.origin;
+			dist = dir.length();
+
+			if (dist > 80.f)
 			{
-				sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
-				sphere->pain(sphere, attacker, 0, 0, mod);
-			}
-			else
-			{
-				sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
-				sphere->pain(sphere, attacker, 0, 0, mod);
+				if (dist > 768)
+				{
+					sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
+					sphere->pain(sphere, attacker, 0, 0, mod);
+				}
+				else
+				{
+					sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
+					sphere->pain(sphere, attacker, 0, 0, mod);
+				}
 			}
 		}
 	}
-
+			
 	self->takedamage = DAMAGE_NONE;
 
 	// [Paril-KEX]
-	T_RadiusDamage(self, self->teammaster, 360.f, self, 340.f, DAMAGE_NONE, MOD_DOPPLE_EXPLODE);
+	T_RadiusDamage(self, self->teammaster, 160.f, self, 140.f, DAMAGE_NONE, MOD_DOPPLE_EXPLODE);
 
 	if (self->teamchain)
 		BecomeExplosion1(self->teamchain);
@@ -270,15 +269,14 @@ void fire_doppleganger(edict_t *ent, const vec3_t &start, const vec3_t &aimdir)
 	base->teammaster = ent;
 	base->flags |= ( FL_DAMAGEABLE | FL_TRAP );
 	base->takedamage = true;
-	base->health = 30;
+	base->health = 3;
 	base->pain = doppleganger_pain;
 	base->die = doppleganger_die;
 
-	base->nextthink = level.time + 5_sec;
+	base->nextthink = level.time + 10_sec;
 	base->think = doppleganger_timeout;
 
 	base->classname = "doppleganger";
-
 	gi.linkentity(base);
 
 	body = G_Spawn();

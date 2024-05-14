@@ -764,7 +764,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 1_sec;
+				self->client->respawn_time = level.time + 2_sec;
 		}
 	}
 
@@ -3648,7 +3648,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 {
 	// sanity check; make sure there's enough room for ourselves.
 	// (crouching in a small area, etc)
-	trace_t tr = gi.trace(player->s.origin, PLAYER_MINS, PLAYER_MAXS, player->s.origin, player, MASK_PLAYERSOLID);
+	trace_t tr = gi.trace(player->s.origin, PLAYER_MINS, PLAYER_MAXS, player->s.origin, player, MASK_SOLID);
 
 	if (tr.startsolid || tr.allsolid)
 		return false;
@@ -3660,7 +3660,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 	constexpr float player_viewheight = 22.f;
 
 	// we don't want to spawn inside of these
-	contents_t mask = MASK_PLAYERSOLID | CONTENTS_LAVA | CONTENTS_SLIME;
+	contents_t mask = MASK_SOLID | CONTENTS_LAVA | CONTENTS_SLIME;
 
 	for (auto& yaw : yaw_spread)
 	{
@@ -3752,7 +3752,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 			continue;
 
 		// check combat state; we can't have taken damage recently
-		if (player->client->last_damage_time >= level.time)  // only respawn when we don't receive damage for some seconds 
+		if (player->client->last_damage_time >= level.time)  // will respawn if only we don't have receive damage for some seconds 
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
@@ -3760,7 +3760,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 
 		// check if any monsters are currently targeting us
 		// or searching for us
-		if (G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative() ) //add !G_IsCooperative || g_horde->integer &&  for ez noob coop
+		if (G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative() ) // Ignoring if monsters are searching for us
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
@@ -3768,7 +3768,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 
 		// check firing state; if any enemies are mad at any players,
 		// don't respawn until everybody has cooled down
-		if ((monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()))  //add !G_IsCooperative || g_horde->integer &&  for ez noob coop
+		if ((monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()))  // Ignore if monsters are mad at us
 
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;

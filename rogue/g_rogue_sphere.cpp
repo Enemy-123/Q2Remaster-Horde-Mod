@@ -184,7 +184,7 @@ void sphere_fire(edict_t *self, edict_t *enemy)
 	dir = dest - self->s.origin;
 	dir.normalize();
 	self->s.angles = vectoangles(dir);
-	self->velocity = dir * 1000;
+	self->velocity = dir * 1500;
 
 	self->touch = vengeance_touch;
 	self->think = sphere_think_explode;
@@ -507,7 +507,7 @@ THINK(hunter_think) (edict_t *self) -> void
 		return;
 	}
 
-	// if we are spectator, FreeEdict.
+	// if we are spectator and no a doppleganger, FreeEdict.
 	if (self->owner && self->owner->movetype == MOVETYPE_NOCLIP && !(self->spawnflags & SPHERE_DOPPLEGANGER))
 	{
 		G_FreeEdict(self);
