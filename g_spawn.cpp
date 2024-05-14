@@ -1862,8 +1862,7 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		// Q2ETweaks target id view state
         // TODO move back to xv 112 if we find an image for below (defaulkt 128)
-		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-
+		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 		// Q2ETweaks target id view color
 		// TODO populate this with a small image if we can find one
 		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-78).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
