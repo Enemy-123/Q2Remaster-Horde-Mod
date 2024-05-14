@@ -871,6 +871,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 	}   // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
 	if (g_horde->integer) {
+
+
+
 		if (current_wave_number >= 25 && current_wave_number <= 200)
 		{
 			client->pers.health = 200;
@@ -922,6 +925,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	else
 		client->pers.health = 100;
 	client->pers.max_health = 100;
+
+	client->pers.inventory[IT_ARMOR_BODY] = 0;
+	client->pers.inventory[IT_ARMOR_COMBAT] = 0;
+	client->pers.inventory[IT_ARMOR_JACKET] = 0;
+	client->pers.inventory[IT_ARMOR_SHARD] = 0;
 
 	// don't give us weapons if we shouldn't have any
 //	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
@@ -1003,7 +1011,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			if (G_IsDeathmatch())
-				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 			// starting items for horde mod
