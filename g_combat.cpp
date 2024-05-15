@@ -599,25 +599,25 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	}
 	// ROGUE
 		// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
-	if (g_horde->integer && current_wave_number > 15 && attacker != nullptr && attacker->client != nullptr || g_autohaste->integer && attacker != nullptr && attacker->client != nullptr) {
-		if (attacker->client->resp.score % 8 == 0 && (!(attacker->health < 1))) {
-			// randomize quads
-			float quadchance = frandom();
+// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
+	if ((g_horde->integer && current_wave_number > 15 || g_autohaste->integer) && attacker != nullptr && attacker->client != nullptr) {
+		if (damage > 0 && (!(attacker->health < 1))) {
+			// Calcular probabilidad en función del daño realizado
+			float probabilidad = damage / 900.0f; // Ajusta este valor según lo que consideres adecuado
 
-			// 20% chance
-			if (quadchance <= 0.7f) {
+			// Probabilidad de activación
+			float randomChance = frandom();
 
-
-				// If player has no quad effect, generate it
+			if (randomChance <= probabilidad) {
+				// Si el jugador no tiene el efecto de quad, generar uno nuevo
 				if (attacker->client->quadfire_time < level.time) {
 					attacker->client->quadfire_time = level.time + (5.0_sec);
 				}
+				else {
+					// Aumentar el tiempo del quad si ya está activo
+					attacker->client->quadfire_time += random_time(0.7_sec, 1.8_sec);
+				}
 			}
-			// Increase quad time if already in quad
-			else if (attacker->client->quadfire_time > level.time) {
-				attacker->client->quadfire_time += random_time(0.5_sec, 1_sec);
-			}
-
 		}
 	}
 
