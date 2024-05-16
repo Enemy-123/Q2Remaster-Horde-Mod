@@ -228,8 +228,11 @@ bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 {
 	if (self->monsterinfo.aiflags & (AI_DUCKED | AI_COMBAT_POINT))
 		return false;
-
-	return mod.id == MOD_CHAINFIST || skill->integer < 3;
+	if (g_horde->integer) {
+		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || current_wave_number <= 10;
+	}
+	else
+	return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
 }
 
 void M_WorldEffects(edict_t* ent)

@@ -104,6 +104,7 @@ cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
 cvar_t* g_autohaste;
+cvar_t* g_wavelevel;
 cvar_t* g_dm_spawns;
 cvar_t* sv_centerprint_frags;
 cvar_t* sv_eyecam;
@@ -320,6 +321,7 @@ void InitGame()
 	// change anytime vars
 	fraglimit = gi.cvar("fraglimit", "0", CVAR_SERVERINFO);
 	timelimit = gi.cvar("timelimit", "0", CVAR_SERVERINFO);
+	g_wavelevel = gi.cvar("g_wavelevel", "0", CVAR_SERVERINFO);
 	// ZOID
 	capturelimit = gi.cvar("capturelimit", "0", CVAR_SERVERINFO);
 	g_quick_weapon_switch = gi.cvar("g_quick_weapon_switch", "1", CVAR_LATCH);

@@ -603,7 +603,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if ((g_horde->integer && current_wave_number > 15 || g_autohaste->integer) && attacker != nullptr && attacker->client != nullptr) {
 		if (damage > 0 && (!(attacker->health < 1))) {
 			// Calcular probabilidad en función del daño realizado
-			float probabilidad = damage / 900.0f; // Ajusta este valor según lo que consideres adecuado
+			float probabilidad = damage / 950.0f; // Ajusta este valor según lo que consideres adecuado
 
 			// Probabilidad de activación
 			float randomChance = frandom();
@@ -615,7 +615,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 				}
 				else {
 					// Aumentar el tiempo del quad si ya está activo
-					attacker->client->quadfire_time += random_time(0.7_sec, 1.8_sec);
+					attacker->client->quadfire_time += random_time(0.5_sec, 0.7_sec);
 				}
 			}
 		}

@@ -79,7 +79,7 @@ static void Horde_InitLevel(int32_t lvl)
 	}
 
 	if (g_horde_local.level == 15) {
-		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nEACH KILL WHILE ACCEL\nADDS 0.5 EXTRA SECONDS!\n");
+		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGHT YOUR VEINS \nDAMAGING WHILE ACCEL\nWILL EXTEND TIME!\n");
 		gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
 	}
 
@@ -119,6 +119,7 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "mgu3m4") ||
 		!Q_strcasecmp(level.mapname, "mgu4trial") ||
 		!Q_strcasecmp(level.mapname, "mgu6trial") ||
+		!Q_strcasecmp(level.mapname, "ec/base_ec") ||
 		!Q_strcasecmp(level.mapname, "mgdm1")) {
 		isSmallMap = true;
 		isMediumMap = false;

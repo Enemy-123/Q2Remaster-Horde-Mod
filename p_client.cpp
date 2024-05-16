@@ -964,27 +964,26 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.max_ammo[AMMO_BULLETS] = 400;
 				client->pers.max_ammo[AMMO_SHELLS] = 175;
 				client->pers.max_ammo[AMMO_CELLS] = 400;
-
-				// RAFAEL
-				client->pers.max_ammo[AMMO_TRAP] = 5;
-				// RAFAEL
-				// ROGUE
 				client->pers.max_ammo[AMMO_FLECHETTES] = 400;
-				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+				client->pers.max_ammo[AMMO_ROCKETS] = 100;
+				client->pers.max_ammo[AMMO_SLUGS] = 75;
+				client->pers.max_ammo[AMMO_MAGSLUG] = 125;
+				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
 				client->pers.max_ammo[AMMO_TESLA] = 7;
+
 			}
 		else
 			// fill with 50s, since it's our most common value
 			client->pers.max_ammo.fill(50);
-			client->pers.max_ammo[AMMO_BULLETS] = 200;
+			client->pers.max_ammo[AMMO_BULLETS] = 250;
 			client->pers.max_ammo[AMMO_SHELLS] = 100;
-			client->pers.max_ammo[AMMO_CELLS] = 200;
+			client->pers.max_ammo[AMMO_CELLS] = 250;
 
 			// RAFAEL
 			client->pers.max_ammo[AMMO_TRAP] = 5;
 			// RAFAEL
 			// ROGUE
-			client->pers.max_ammo[AMMO_FLECHETTES] = 200;
+			client->pers.max_ammo[AMMO_FLECHETTES] = 250;
 			client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
 			client->pers.max_ammo[AMMO_TESLA] = 5;
 			
@@ -3125,7 +3124,7 @@ void ClientDisconnect(edict_t* ent)
 	//============
 
 	// send effect
-	if (!(ent->svflags & SVF_NOCLIENT))
+	if (!(ent->svflags & SVF_NOCLIENT || SVF_BOT))
 	{
 		gi.WriteByte(svc_muzzleflash);
 		gi.WriteEntity(ent);

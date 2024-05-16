@@ -582,12 +582,8 @@ void ED_CallSpawn(edict_t* ent)
 
 		}
 		else if (!strcmp(ent->classname, "monster_stalker")) {
-			if (brandom()) {
-				ent->classname = "monster_stalker";
-			}
-			else
-				ent->classname = "monster_parasite";
-
+			float r = frandom();
+			ent->classname = (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
 		}
 		else if (!strcmp(ent->classname, "monster_supertank")) {
 			ent->classname = "monster_boss5";
@@ -681,14 +677,10 @@ void ED_CallSpawn(edict_t* ent)
 			else if (!strcmp(ent->classname, "monster_flyer")) {
 			float r = frandom();
 			ent->classname = (r < 0.103f) ? "monster_fixbot" : (r < 0.303f) ? "monster_flyer" : (r < 0.766f) ? "monster_hover" : "monster_hover2";
-		}
+			}
 			else if (!strcmp(ent->classname, "monster_parasite")) {
-				if (brandom()) {
-					ent->classname = "monster_stalker";
-				}
-				else
-					ent->classname = "monster_parasite";
-
+			float r = frandom();
+			ent->classname = (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
 			}
 			else if (!strcmp(ent->classname, "monster_tank")) {
 				if (brandom()) {
@@ -733,8 +725,12 @@ void ED_CallSpawn(edict_t* ent)
 					ent->classname = "monster_flipper";
 			}
 			else if (!strcmp(ent->classname, "monster_medic")) {
-				ent->classname = "monster_spider";
-			}
+				if (brandom()) {
+					ent->classname = "monster_medic";
+				}
+				else
+					ent->classname = "monster_spider";
+					}
 			else if (!strcmp(ent->classname, "monster_brain")) {
 				float r = frandom();
 				ent->classname = (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";

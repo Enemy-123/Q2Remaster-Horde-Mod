@@ -628,8 +628,19 @@ static void parasite_fire_proboscis(edict_t* self)
 	vec3_t dir;
 	PredictAim(self, self->enemy, start, g_athena_parasite_proboscis_speed, false, crandom_open() * g_athena_parasite_miss_chance, &dir, nullptr);
 
-	fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed);
-}
+	//// pull the enemy in
+	//vec3_t forward;
+	//self->s.origin[2] += 1;
+	//AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	//self->enemy->velocity = forward * -200;
+
+	if (strcmp(self->classname, "monster_perrokl")) {
+
+		fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed);
+	}
+else
+		fire_proboscis(self, start, dir, g_athena_parasite_proboscis_speed * 5);
+	}
 
 static void parasite_proboscis_wait(edict_t* self)
 {
@@ -671,11 +682,11 @@ mframe_t parasite_frames_fire_proboscis[] = {
 	{ parasite_charge_proboscis, -2 }, // drain
 	{ parasite_charge_proboscis, -3 }, // drain
 	{ parasite_charge_proboscis, -2 }, // drain
-	{ parasite_charge_proboscis, 0, parasite_proboscis_pull_wait },  // drain
-	{ parasite_charge_proboscis, -1, parasite_proboscis_pull_wait }, // drain
+	{ parasite_charge_proboscis, -2 }, // drain
+	{ parasite_charge_proboscis, -2 }, // drain
+	{ parasite_charge_proboscis, -3 }, // drain
+	{ parasite_charge_proboscis, -2 }, // drain
 	{ parasite_charge_proboscis, 0, parasite_reel_in },		  // let go
-	{ parasite_charge_proboscis, -2 },
-	{ parasite_charge_proboscis, -2 },
 	{ parasite_charge_proboscis, -3 },
 	{ parasite_charge_proboscis }
 };
@@ -976,7 +987,9 @@ void SP_monster_perrokl(edict_t* self)
 	self->s.effects = EF_FLAG1;
 	if (!strcmp(self->classname, "monster_perrokl")) {
 		self->health = 775 * current_wave_number;
-		self->s.scale = 1.2;
+		if (g_horde->integer) {
+			self->s.scale = 1.2;
+		}
 
 		self->mins = { -19, -19, -29 };
 		self->maxs = { 19, 19, 29 };

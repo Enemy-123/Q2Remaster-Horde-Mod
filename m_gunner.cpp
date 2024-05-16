@@ -388,8 +388,15 @@ void GunnerFire(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &aim, nullptr);
+
+	float r = frandom();
 	monster_fire_bullet(self, start, aim, 4, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+
+	if (r < 0.85f && current_wave_number >= 15) {
+		monster_fire_ionripper(self, start, aim, 6, 1280, flash_number, EF_IONRIPPER);
+	}
 }
+
 
 bool gunner_grenade_check(edict_t* self)
 {

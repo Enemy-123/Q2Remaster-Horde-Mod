@@ -239,8 +239,12 @@ void gladcGun(edict_t* self)
 		damage /= 2;
 		radius_damage /= 2;
 	}
-
+	float r = frandom();
 	fire_plasma(self, start, dir, damage, 925, radius_damage, radius_damage);
+	if (r < 0.5f && current_wave_number >= 18) {
+		fire_plasma(self, start, dir, damage, 1225, radius_damage, radius_damage);
+	}
+
 
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;

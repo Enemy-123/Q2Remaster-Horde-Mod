@@ -1943,6 +1943,7 @@ extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
 extern cvar_t* g_vampire;
 extern cvar_t* g_autohaste;
+extern cvar_t* g_wavelevel;
 
 
 extern cvar_t* g_no_self_damage;
