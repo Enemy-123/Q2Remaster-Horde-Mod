@@ -392,6 +392,9 @@ void TankBlaster(edict_t* self)
 	// pmm
 
 	if (current_wave_number >= 25 || g_hardcoop->integer == 2) {
+
+		PredictAim(self, self->enemy, start, 0, false, 0.08f, &dir, nullptr);
+
 		vec3_t end = start + (dir * 8192);
 		trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
 
