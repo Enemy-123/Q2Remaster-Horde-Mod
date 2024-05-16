@@ -1355,9 +1355,16 @@ void fixbot_dead(edict_t* self)
 
 DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+
+
+
+	ThrowGibs(self, damage, {
+
+	{ 1, "models/objects/gibs/sm_metal/tris.md2", GIB_ACID },
+	{ 1, "models/objects/gibs/gear/tris.md2", GIB_METALLIC },
+		});
 	gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	BecomeExplosion1(self);
-
 	// shards
 }
 
