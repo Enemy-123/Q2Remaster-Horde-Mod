@@ -52,7 +52,7 @@ static void Horde_InitLevel(int32_t lvl)
 {
 	current_wave_number++;
 	g_horde_local.level = lvl;
-	g_horde_local.monster_spawn_time = level.time; 
+	g_horde_local.monster_spawn_time = level.time;
 
 	isSmallMap = false;
 	isMediumMap = false;
@@ -72,7 +72,7 @@ static void Horde_InitLevel(int32_t lvl)
 
 	if (g_horde_local.level == 10) {
 		//		gi.cvar_set("g_damage_scale", "1.8");
-				gi.cvar_set("ai_damage_scale", "1.5");
+		gi.cvar_set("ai_damage_scale", "1.5");
 		gi.cvar_set("g_ammoregen", "1");
 		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "AMMO REGEN\n\nENABLED!\n");
 		gi.LocBroadcast_Print(PRINT_CHAT, "AMMO REGEN IS NOW ENABLED!\n");
@@ -86,7 +86,7 @@ static void Horde_InitLevel(int32_t lvl)
 	if (g_horde_local.level == 17) {
 		gi.cvar_set("g_damage_scale", "2.2");
 	}
-	
+
 	if (g_horde_local.level == 20) {
 		gi.cvar_set("g_vampire", "2");
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nVampire Ability\nUPGRADED!\n");
@@ -94,7 +94,7 @@ static void Horde_InitLevel(int32_t lvl)
 
 		next_wave_message_sent = false;
 	}
-	
+
 	if (g_horde_local.level == 27) {
 		gi.cvar_set("g_damage_scale", "2.5");
 	}
@@ -112,7 +112,7 @@ static void Horde_InitLevel(int32_t lvl)
 		!Q_strcasecmp(level.mapname, "q64\\dm7") ||
 		!Q_strcasecmp(level.mapname, "q64/dm2") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm2") ||
-	 	!Q_strcasecmp(level.mapname, "q64/dm1") ||
+		!Q_strcasecmp(level.mapname, "q64/dm1") ||
 		!Q_strcasecmp(level.mapname, "q64\\dm1") ||
 		!Q_strcasecmp(level.mapname, "fact3") ||
 		!Q_strcasecmp(level.mapname, "q2ctf4") ||
@@ -160,17 +160,17 @@ static void Horde_InitLevel(int32_t lvl)
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
 			}
-			if (g_chaotic->integer == 2 && current_wave_number >=7 || g_insane->integer) {
-				g_horde_local.num_to_spawn += 3; // more spawning when chaotic and wave is 7+ OR insane
+			if (g_chaotic->integer == 2 && current_wave_number >= 7 || g_insane->integer) {
+				g_horde_local.num_to_spawn += (g_insane->integer ? 5 : 3); // more spawning when chaotic and wave is 7+ OR insane
 			}
 		}
 		else if (isBigMap) {
-			g_horde_local.num_to_spawn = 22 + (lvl * 1.5);
+			g_horde_local.num_to_spawn = 27 + (lvl * 1.5);
 			if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
 				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
 			}
-			if (g_chaotic->integer && current_wave_number >= 7 || g_insane->integer) { //  && current_wave_number > 5 
-				g_horde_local.num_to_spawn += 8; //more spawning if chaotic and wave is 7+ or insane
+			if ((g_chaotic->integer && current_wave_number >= 7) || g_insane->integer) {
+				g_horde_local.num_to_spawn += (g_insane->integer ? 16 : 8);
 			}
 		}
 		else {
@@ -179,11 +179,11 @@ static void Horde_InitLevel(int32_t lvl)
 				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
 			}
 			if (g_chaotic->integer && current_wave_number >= 7 || g_insane->integer) { // && current_wave_number > 7
-				g_horde_local.num_to_spawn += (6); //more spawning if chaotic and wave is 7+ or insane
+				g_horde_local.num_to_spawn += (g_insane->integer ? 9 : 6); //more spawning if chaotic and wave is 7+ or insane
 			}
 		}
 		// additional spawning
-		if (numActiveHPlayers >= 6 || current_wave_number <=22) {
+		if (numActiveHPlayers >= 6 || current_wave_number <= 27) {
 			int additionalSpawn = 0; // Variable para el aumento adicional
 
 			if (isSmallMap) {
@@ -194,6 +194,11 @@ static void Horde_InitLevel(int32_t lvl)
 			}
 			else {
 				additionalSpawn = 5;
+			}
+
+			// Duplicar el aumento si current_wave_number es mayor que 22
+			if (current_wave_number > 27) {
+				additionalSpawn *= 1.6;
 			}
 
 			g_horde_local.num_to_spawn += additionalSpawn;
@@ -354,7 +359,7 @@ constexpr weighted_item_t monsters[] = {
 { "monster_guncmdrkl", 23, -1, 0.1f },
 { "monster_shamblerkl", 18, -1, 0.14f },
 { "monster_makronkl", 20, -1, 0.05f },
-{ "monster_widow1", 23, -1, 0.15f }
+{ "monster_widow1", 23, -1, 0.08f }
 };
 
 struct boss_t {
@@ -678,9 +683,9 @@ void SpawnBossAutomatically()
 		boss->s.angles[2] = 0;
 
 		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");  
-		boss->maxs *= 1.4;
-		boss->mins *= 1.4;
-		boss->s.scale = 1.4;
+		boss->maxs *= 1.4f;
+		boss->mins *= 1.4f;
+		boss->s.scale = 1.4f;
 		boss->health *= pow(1.2, current_wave_number);
 		boss->monsterinfo.power_armor_power *= current_wave_number * 1.45; // Escalar la armadura de energía basada en la oleada actual
 
@@ -921,7 +926,7 @@ void Horde_RunFrame()
 
 				HuntTarget(e);
 	
-				if (current_wave_number <= 13 || g_chaotic->integer == 2 && current_wave_number >= 7) {
+				if (g_chaotic->integer == 2 && current_wave_number >= 7 || g_insane->integer && current_wave_number < 20) {
 					g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.2_sec);
 				}
 				else if (!g_insane->integer || !g_chaotic->integer) {
@@ -989,7 +994,6 @@ void Horde_RunFrame()
 					gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
 					gi.cvar_set("g_chaotic", "0");
 					gi.cvar_set("g_insane", "0");
-//					gi.cvar_set("ai_damage_scale", "1.2");
 				}
 				else if (!g_chaotic->integer && !g_insane->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");

@@ -3566,8 +3566,16 @@ struct gib_def_t
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
 {
 	for (auto& gib : gibs)
-		for (size_t i = 0; i < gib.count; i++)
-			ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1));
+	{
+
+		for (size_t j = 0; j < 3; j++) // triplicar
+		{
+			for (size_t i = 0; i < gib.count; i++)
+			{
+				ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1));
+			}
+		}
+	}
 }
 
 inline bool M_CheckGib(edict_t* self, const mod_t& mod)

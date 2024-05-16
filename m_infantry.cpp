@@ -888,7 +888,7 @@ void SP_monster_infantry(edict_t *self)
 
 	if (g_horde->integer) {
 
-		self->s.scale = 1.2;
+		self->s.scale = 1.2f;
 
 		if (!st.was_key_specified("power_armor_power"))
 			self->monsterinfo.power_armor_power = 85;

@@ -1098,7 +1098,7 @@ void SP_monster_carrier(edict_t* self)
 	sound_cg_up.assign("weapons/chngnu1a.wav");
 
 	self->monsterinfo.engine_sound = gi.soundindex("bosshovr/bhvengn1.wav");
-
+	self->accel = 0.095f;
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/carrier/tris.md2");
@@ -1190,8 +1190,8 @@ void SP_monster_carrier(edict_t* self)
 		if (!self->s.scale)
 			self->s.scale = 0.6f;
 
-		self->mins = { -24, -24, -17 };
-		self->maxs = { 24, 24, 48 };
+		self->mins = { -33, -33, -26 };
+		self->maxs = { 33, 33, 26 };
 
 		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;

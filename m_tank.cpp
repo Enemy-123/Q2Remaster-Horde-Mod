@@ -391,7 +391,22 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	monster_fire_blaster2(self, start, dir, 30, 950, flash_number, EF_BLASTER);
+	if (current_wave_number >= 25 || g_hardcoop->integer == 2) {
+		vec3_t end = start + (dir * 8192);
+		trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_LIGHTNING);
+		gi.WriteEntity(self);	// source entity
+		gi.WriteEntity(world); // destination entity
+		gi.WritePosition(start);
+		gi.WritePosition(tr.endpos);
+		gi.multicast(start, MULTICAST_PVS, false);
+
+		fire_bullet(self, start, dir, irandom(8, 12), 15, 0, 0, MOD_TESLA);
+	}
+	else
+		monster_fire_blaster2(self, start, dir, 30, 950, flash_number, EF_BLASTER);
 }
 
 void TankStrike(edict_t* self)

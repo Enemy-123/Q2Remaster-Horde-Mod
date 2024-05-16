@@ -956,7 +956,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
             spot2[2] += self->enemy->viewheight;
 
             tr = gi.traceline(spot1, spot2, self,
-                MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA
+                MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA
                 | CONTENTS_PROJECTILECLIP // Paril: horde
             );
 

@@ -1031,7 +1031,7 @@ void SP_monster_widow2(edict_t* self)
 	self->s.modelindex = gi.modelindex("models/monsters/blackwidow2/tris.md2");
 	self->mins = { -70, -70, 0 };
 	self->maxs = { 70, 70, 144 };
-	self->s.scale = 0.8;
+	self->s.scale = 0.8f;
 
 	self->health = (3000 * skill->integer) * st.health_multiplier;
 	if (G_IsCooperative())

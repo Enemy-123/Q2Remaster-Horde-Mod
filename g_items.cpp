@@ -1342,8 +1342,8 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	if (g_instagib->value)
 	{
 		if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
-			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger ||
-			((item->flags & IF_HEALTH && !strcmp(ent->classname, "item_foodcube")))
+			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger /*||
+			(item->flags & IF_HEALTH)*/
 			|| (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
 			item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
 			item->id == IT_AMMO_NUKE)

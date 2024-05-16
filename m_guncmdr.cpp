@@ -1116,11 +1116,11 @@ static void guncmdr_kick(edict_t* self)
 
 mframe_t guncmdr_frames_attack_kick[] = {
 	{ ai_charge, -7.7f },
-	{ ai_charge, -4.9f },
 	{ ai_charge, 12.6f, guncmdr_kick },
+	{ ai_charge, -4.9f },
 	{ ai_charge },
 	{ ai_charge, -3.0f },
-	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge, -4.1f },
 	{ ai_charge, 8.6f },
 	//{ ai_charge, -3.5f }

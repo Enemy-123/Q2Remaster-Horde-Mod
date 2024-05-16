@@ -946,6 +946,16 @@ void CTFID_f(edict_t* ent)
 	}
 }
 
+int GetArmorInfo(edict_t* ent) // future id armor view?
+{
+	int index;
+	index = ArmorIndex(ent);
+	if (ent->client)
+		return ent->client->pers.inventory[index];
+	else
+		return 0;
+}
+
 static void CTFSetIDView(edict_t* ent)
 {
 	vec3_t	 forward, dir;
@@ -986,7 +996,7 @@ static void CTFSetIDView(edict_t* ent)
 		dir.normalize();
 		d = forward.dot(dir);
 		// Q2ETweaks wrapped original if+continue to allow player id in non-teamplay modes
-		if (!sv_target_id->integer) //check horde
+		if (!sv_target_id->integer)
 		{
 			// we have teammate indicators that are better for this
 			if (ent->client->resp.ctf_team == who->client->resp.ctf_team)

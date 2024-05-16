@@ -671,19 +671,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
 
 			// more meaty gibs for your dollar!
-			if (G_IsDeathmatch()) {
+			if (G_IsDeathmatch() && (self->health < -80))
 				ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
-				if (self->health < -320)
-					ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
-				if (self->health < -250)
-					ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
-				if (self->health < -160)
-					ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
-				if (self->health < -120)
-					ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
-				if (self->health < -80)
-					ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
-			}
 
 			ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
 			// PMM

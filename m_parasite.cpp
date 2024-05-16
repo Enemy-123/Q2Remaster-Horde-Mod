@@ -672,10 +672,10 @@ static void parasite_proboscis_pull_wait(edict_t* self)
 
 mframe_t parasite_frames_fire_proboscis[] = {
 	{ parasite_charge_proboscis, 0, parasite_launch },
-	{ parasite_charge_proboscis },
 	{ parasite_charge_proboscis, 15, parasite_fire_proboscis }, // Target hits
 	{ parasite_charge_proboscis, 0, parasite_proboscis_wait },  // drain
 	{ parasite_charge_proboscis, 0, parasite_proboscis_wait },  // drain
+	{ parasite_charge_proboscis, 0 },  // drain
 	{ parasite_charge_proboscis, 0 },  // drain
 	{ parasite_charge_proboscis, 0 },  // drain
 	{ parasite_charge_proboscis, -2 }, // drain
@@ -988,7 +988,7 @@ void SP_monster_perrokl(edict_t* self)
 	if (!strcmp(self->classname, "monster_perrokl")) {
 		self->health = 775 * current_wave_number;
 		if (g_horde->integer) {
-			self->s.scale = 1.2;
+			self->s.scale = 1.2f;
 		}
 
 		self->mins = { -19, -19, -29 };
