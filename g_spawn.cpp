@@ -1939,7 +1939,7 @@ void SP_worldspawn(edict_t* ent)
 	else
 		Q_strlcpy(level.level_name, level.mapname, sizeof(level.level_name));
 
-	//if (st.sky && st.sky[0])
+	//if (st.sky && st.sky[0]) 
 	//	gi.configstring(CS_SKY, st.sky);
 	//else
 
@@ -1954,13 +1954,12 @@ void SP_worldspawn(edict_t* ent)
 	else if (r < 0.85f) {
 		gi.configstring(CS_SKY, "space");
 	}
-	else {
+	else 
 		gi.configstring(CS_SKY, "space1");
-	}
-
-	gi.configstring(CS_SKYROTATE, G_Fmt("1 1 1 1", st.skyrotate, st.skyautorotate).data());
-	gi.configstring(CS_SKYAXIS, G_Fmt("-2", st.skyaxis).data());
 	
+	gi.configstring(CS_SKYROTATE, G_Fmt("1 1", st.skyrotate, st.skyautorotate).data());
+	gi.configstring(CS_SKYAXIS, G_Fmt("2 2 2", st.skyaxis).data());
+
 	if (st.music && st.music[0])
 	{
 		gi.configstring(CS_CDTRACK, st.music);
