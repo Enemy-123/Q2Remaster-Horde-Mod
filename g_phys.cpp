@@ -4,6 +4,7 @@
 
 #include "g_local.h"
 
+// Definir funciones de vectores
 inline void VectorScale(const vec3_t in, float scale, vec3_t out)
 {
 	out[0] = in[0] * scale;
@@ -23,6 +24,32 @@ inline void VectorCopy(const vec3_t in, vec3_t out)
 	out[0] = in[0];
 	out[1] = in[1];
 	out[2] = in[2];
+}
+
+inline void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out)
+{
+	out[0] = veca[0] - vecb[0];
+	out[1] = veca[1] - vecb[1];
+	out[2] = veca[2] - vecb[2];
+}
+
+inline void VectorNormalize(vec3_t v)
+{
+	float length = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+	if (length)
+	{
+		float ilength = 1.0f / length;
+		v[0] *= ilength;
+		v[1] *= ilength;
+		v[2] *= ilength;
+	}
+}
+
+inline void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc)
+{
+	vecc[0] = veca[0] + scale * vecb[0];
+	vecc[1] = veca[1] + scale * vecb[1];
+	vecc[2] = veca[2] + scale * vecb[2];
 }
 
 /*
@@ -859,6 +886,7 @@ void SV_Physics_Step(edict_t* ent)
 		{
 			trace_t tr;
 			vec3_t move = { 0, 0, 0 }; // Inicializar move
+			vec3_t pushback = { 0, 0, 0 }; // Inicializar pushback
 
 			VectorScale(ent->velocity, gi.frame_time_s, move);
 			tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, move, ent, MASK_PLAYERSOLID);
@@ -867,20 +895,19 @@ void SV_Physics_Step(edict_t* ent)
 			if (tr.ent && (tr.ent->svflags & SVF_PLAYER))
 			{
 				VectorClear(ent->velocity);
+				VectorClear(ent->avelocity);  // También detener la velocidad angular
 				VectorCopy(tr.endpos, ent->s.origin);
 
-				//// Mensaje de depuración
-				//gi.Com_PrintFmt("Monster collided with player, stopping movement.\n");
+				// Alejar al monstruo un poco del jugador para evitar atascos
+				VectorSubtract(ent->s.origin, tr.ent->s.origin, pushback);
+				VectorNormalize(pushback);
+				VectorMA(ent->s.origin, 15.0f, pushback, ent->s.origin); // Ajusta el valor 10.0f según sea necesario
 			}
 			else
 			{
 				SV_FlyMove(ent, gi.frame_time_s, mask);
-
-				//// Mensaje de depuración
-				//gi.Com_PrintFmt("Monster moved without colliding with player.\n");
 			}
 		}
-
 		else
 		{
 			SV_FlyMove(ent, gi.frame_time_s, mask);

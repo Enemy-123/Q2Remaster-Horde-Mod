@@ -2,7 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include <sstream>
-
+//add SPAWNFLAG_MONSTER_SUPER_STEP?
 static const int MAX_MONSTERS_BIG_MAP = 44;
 static const int MAX_MONSTERS_MEDIUM_MAP = 18;
 static const int MAX_MONSTERS_SMALL_MAP = 15;
