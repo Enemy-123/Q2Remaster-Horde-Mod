@@ -954,7 +954,7 @@ static void CTFSetIDView(edict_t* ent)
 	float bd = 0, d;
 
 	// only check every few frames
-	if (level.time - ent->client->resp.lastidtime < 250_ms)
+	if (level.time - ent->client->resp.lastidtime < 800_ms)
 		return;
 	ent->client->resp.lastidtime = level.time;
 
@@ -1203,7 +1203,7 @@ void SetCTFStats(edict_t* ent)
 	else
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-		ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = 0;
+		ent->client->ps.stats[STAT_TARGET_HEALTH] = 0;
 	}
 }
 

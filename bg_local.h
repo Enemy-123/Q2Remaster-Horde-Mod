@@ -226,7 +226,7 @@ enum player_stat_t
 	STAT_CTF_TECH = 27,
 	STAT_CTF_ID_VIEW = 28,
 	STAT_CTF_MATCH = 29,
-	STAT_CTF_ID_VIEW_COLOR = 30,
+	STAT_TARGET_HEALTH = 30,
 	STAT_CTF_TEAMINFO = 31,
 
 	// [Kex] More stats for weapon wheel
@@ -263,4 +263,4 @@ enum player_stat_t
 
 static_assert(STAT_LAST <= MAX_STATS + 1, "stats list overflow");
 
-#define STAT_TARGET_HEALTH 30 
+//#define STAT_TARGET_HEALTH 40 
