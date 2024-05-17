@@ -4,6 +4,27 @@
 
 #include "g_local.h"
 
+inline void VectorScale(const vec3_t in, float scale, vec3_t out)
+{
+	out[0] = in[0] * scale;
+	out[1] = in[1] * scale;
+	out[2] = in[2] * scale;
+}
+
+inline void VectorClear(vec3_t v)
+{
+	v[0] = 0;
+	v[1] = 0;
+	v[2] = 0;
+}
+
+inline void VectorCopy(const vec3_t in, vec3_t out)
+{
+	out[0] = in[0];
+	out[1] = in[1];
+	out[2] = in[2];
+}
+
 /*
 
 
@@ -31,7 +52,7 @@ contents_t G_GetClipMask(edict_t* ent)
 {
 	contents_t mask = ent->clipmask;
 
-	// default masks
+	// Default masks
 	if (!mask)
 	{
 		if (ent->svflags & SVF_MONSTER)
@@ -42,32 +63,19 @@ contents_t G_GetClipMask(edict_t* ent)
 			mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
 	}
 
-	// non-solid objects (items, etc) shouldn't try to clip
-	// against players/monsters
+	// Non-solid objects (items, etc.) shouldn't try to clip against players/monsters
 	if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// monsters/players that are also dead shouldn't clip
-	// against players/monsters
+	// Monsters/players that are also dead shouldn't clip against players/monsters
 	if ((ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER))
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// horde mode
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
-		strcmp(ent->classname, "monster_flyer") &&
-		strcmp(ent->classname, "monster_berserk") &&
-		//		strcmp(ent->classname, "monster_guncmdr") &&
-		strcmp(ent->classname, "monster_gladiator") &&
-		//		strcmp(ent->classname, "monster_gladc") &&
-		strcmp(ent->classname, "monster_makron") &&
-		strcmp(ent->classname, "monster_widow") &&
-		strcmp(ent->classname, "monster_widow2") &&
-		//		strcmp(ent->classname, "monster_mutant") &&
-		strcmp(ent->classname, "monster_carrier") &&
-		strcmp(ent->classname, "monster_boss2") &&
-		strcmp(ent->classname, "monster_carrier2") &&
-		strcmp(ent->classname, "monster_boss2kl")) {
-		mask &= ~CONTENTS_MONSTER;
+	// Horde mode adjustments
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER))
+	{
+		mask &= ~CONTENTS_MONSTER; // Allow monsters to pass through each other
+		mask &= ~CONTENTS_PLAYER;  // Ensure monsters do not push players
 	}
 
 	return mask;
@@ -751,11 +759,11 @@ void SV_AddRotationalFriction(edict_t* ent)
 
 void SV_Physics_Step(edict_t* ent)
 {
-	bool	   wasonground;
-	bool	   hitsound = false;
+	bool wasonground;
+	bool hitsound = false;
 	float* vel;
-	float	   speed, newspeed, control;
-	float	   friction;
+	float speed, newspeed, control;
+	float friction;
 	edict_t* groundentity;
 	contents_t mask = G_GetClipMask(ent);
 
@@ -846,7 +854,37 @@ void SV_Physics_Step(edict_t* ent)
 
 		vec3_t old_origin = ent->s.origin;
 
-		SV_FlyMove(ent, gi.frame_time_s, mask);
+		// Evitar que los monstruos empujen al jugador en modo horda
+		if (g_horde->integer && (ent->svflags & SVF_MONSTER))
+		{
+			trace_t tr;
+			vec3_t move = { 0, 0, 0 }; // Inicializar move
+
+			VectorScale(ent->velocity, gi.frame_time_s, move);
+			tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, move, ent, MASK_PLAYERSOLID);
+
+			// Si colisiona con el jugador, detén el movimiento del monstruo
+			if (tr.ent && (tr.ent->svflags & SVF_PLAYER))
+			{
+				VectorClear(ent->velocity);
+				VectorCopy(tr.endpos, ent->s.origin);
+
+				//// Mensaje de depuración
+				//gi.Com_PrintFmt("Monster collided with player, stopping movement.\n");
+			}
+			else
+			{
+				SV_FlyMove(ent, gi.frame_time_s, mask);
+
+				//// Mensaje de depuración
+				//gi.Com_PrintFmt("Monster moved without colliding with player.\n");
+			}
+		}
+
+		else
+		{
+			SV_FlyMove(ent, gi.frame_time_s, mask);
+		}
 
 		G_TouchProjectiles(ent, old_origin);
 
@@ -897,6 +935,7 @@ void SV_Physics_Step(edict_t* ent)
 	// regular thinking
 	SV_RunThink(ent);
 }
+
 
 // [Paril-KEX]
 inline void G_RunBmodelAnimation(edict_t* ent)
