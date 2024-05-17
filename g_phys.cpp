@@ -4,54 +4,6 @@
 
 #include "g_local.h"
 
-// Definir funciones de vectores
-inline void VectorScale(const vec3_t in, float scale, vec3_t out)
-{
-	out[0] = in[0] * scale;
-	out[1] = in[1] * scale;
-	out[2] = in[2] * scale;
-}
-
-inline void VectorClear(vec3_t v)
-{
-	v[0] = 0;
-	v[1] = 0;
-	v[2] = 0;
-}
-
-inline void VectorCopy(const vec3_t in, vec3_t out)
-{
-	out[0] = in[0];
-	out[1] = in[1];
-	out[2] = in[2];
-}
-
-inline void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out)
-{
-	out[0] = veca[0] - vecb[0];
-	out[1] = veca[1] - vecb[1];
-	out[2] = veca[2] - vecb[2];
-}
-
-inline void VectorNormalize(vec3_t v)
-{
-	float length = sqrtf(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-	if (length)
-	{
-		float ilength = 1.0f / length;
-		v[0] *= ilength;
-		v[1] *= ilength;
-		v[2] *= ilength;
-	}
-}
-
-inline void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t vecc)
-{
-	vecc[0] = veca[0] + scale * vecb[0];
-	vecc[1] = veca[1] + scale * vecb[1];
-	vecc[2] = veca[2] + scale * vecb[2];
-}
-
 /*
 
 
@@ -79,7 +31,7 @@ contents_t G_GetClipMask(edict_t* ent)
 {
 	contents_t mask = ent->clipmask;
 
-	// Default masks
+	// default masks
 	if (!mask)
 	{
 		if (ent->svflags & SVF_MONSTER)
@@ -90,19 +42,32 @@ contents_t G_GetClipMask(edict_t* ent)
 			mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
 	}
 
-	// Non-solid objects (items, etc.) shouldn't try to clip against players/monsters
+	// non-solid objects (items, etc) shouldn't try to clip
+	// against players/monsters
 	if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// Monsters/players that are also dead shouldn't clip against players/monsters
+	// monsters/players that are also dead shouldn't clip
+	// against players/monsters
 	if ((ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER))
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// Horde mode adjustments
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER))
-	{
-		mask &= ~CONTENTS_MONSTER; // Allow monsters to pass through each other
-		mask &= ~CONTENTS_PLAYER;  // Ensure monsters do not push players
+	// horde mode
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
+		strcmp(ent->classname, "monster_flyer") &&
+		strcmp(ent->classname, "monster_berserk") &&
+		//		strcmp(ent->classname, "monster_guncmdr") &&
+		strcmp(ent->classname, "monster_gladiator") &&
+		//		strcmp(ent->classname, "monster_gladc") &&
+		strcmp(ent->classname, "monster_makron") &&
+		strcmp(ent->classname, "monster_widow") &&
+		strcmp(ent->classname, "monster_widow2") &&
+		//		strcmp(ent->classname, "monster_mutant") &&
+		strcmp(ent->classname, "monster_carrier") &&
+		strcmp(ent->classname, "monster_boss2") &&
+		strcmp(ent->classname, "monster_carrier2") &&
+		strcmp(ent->classname, "monster_boss2kl")) {
+		mask &= ~CONTENTS_MONSTER;
 	}
 
 	return mask;
@@ -786,11 +751,11 @@ void SV_AddRotationalFriction(edict_t* ent)
 
 void SV_Physics_Step(edict_t* ent)
 {
-	bool wasonground;
-	bool hitsound = false;
+	bool	   wasonground;
+	bool	   hitsound = false;
 	float* vel;
-	float speed, newspeed, control;
-	float friction;
+	float	   speed, newspeed, control;
+	float	   friction;
 	edict_t* groundentity;
 	contents_t mask = G_GetClipMask(ent);
 
@@ -881,37 +846,7 @@ void SV_Physics_Step(edict_t* ent)
 
 		vec3_t old_origin = ent->s.origin;
 
-		// Evitar que los monstruos empujen al jugador en modo horda
-		if (g_horde->integer && (ent->svflags & SVF_MONSTER))
-		{
-			trace_t tr;
-			vec3_t move = { 0, 0, 0 }; // Inicializar move
-			vec3_t pushback = { 0, 0, 0 }; // Inicializar pushback
-
-			VectorScale(ent->velocity, gi.frame_time_s, move);
-			tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, move, ent, MASK_PLAYERSOLID);
-
-			// Si colisiona con el jugador, detén el movimiento del monstruo
-			if (tr.ent && (tr.ent->svflags & SVF_PLAYER))
-			{
-				VectorClear(ent->velocity);
-				VectorClear(ent->avelocity);  // También detener la velocidad angular
-				VectorCopy(tr.endpos, ent->s.origin);
-
-				// Alejar al monstruo un poco del jugador para evitar atascos
-				VectorSubtract(ent->s.origin, tr.ent->s.origin, pushback);
-				VectorNormalize(pushback);
-				VectorMA(ent->s.origin, 15.0f, pushback, ent->s.origin); // Ajusta el valor 10.0f según sea necesario
-			}
-			else
-			{
-				SV_FlyMove(ent, gi.frame_time_s, mask);
-			}
-		}
-		else
-		{
-			SV_FlyMove(ent, gi.frame_time_s, mask);
-		}
+		SV_FlyMove(ent, gi.frame_time_s, mask);
 
 		G_TouchProjectiles(ent, old_origin);
 
@@ -962,7 +897,6 @@ void SV_Physics_Step(edict_t* ent)
 	// regular thinking
 	SV_RunThink(ent);
 }
-
 
 // [Paril-KEX]
 inline void G_RunBmodelAnimation(edict_t* ent)
