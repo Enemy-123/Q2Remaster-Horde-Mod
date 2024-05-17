@@ -5,7 +5,7 @@
 
 struct statusbar_t
 {
-    std::stringstream sb;
+    std::ostringstream sb;
 
     statusbar_t() = default;
 

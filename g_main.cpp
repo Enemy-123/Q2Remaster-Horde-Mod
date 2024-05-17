@@ -1093,10 +1093,6 @@ inline bool G_AnyPlayerSpawned()
 	return false;
 }
 
-
-#include "g_local.h"
-
-
 #include "g_local.h"
 
 void G_RunFrame(bool main_loop)

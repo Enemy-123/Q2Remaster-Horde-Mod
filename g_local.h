@@ -2863,7 +2863,7 @@ struct gclient_t
 	// shared with server; do not touch members until the "private" section
 	player_state_t ps; // communicated by server to clients
 	int32_t		   ping;
-
+	std::string last_statusbar;  // último statusbar para comparar cambios
 	// private to game
 	client_persistant_t pers;
 	client_respawn_t	resp;
@@ -2947,7 +2947,6 @@ struct gclient_t
 	gtime_t enviro_time;
 	gtime_t invisible_time;
 
-	std::string last_statusbar;  // último statusbar para comparar cambios
 
 	bool	grenade_blew_up;
 	gtime_t grenade_time, grenade_finished_time;

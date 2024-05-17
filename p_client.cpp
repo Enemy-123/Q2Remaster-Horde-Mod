@@ -2268,6 +2268,14 @@ void PutClientInServer(edict_t* ent)
 					client->pers.weapon = client->pers.lastweapon;
 			}
 		}
+#include "g_statusbar.h"
+#include "g_local.h"
+
+		// Inicializar y actualizar el HUD inmediatamente después de que el jugador entre al juego
+		statusbar_t sb;
+		G_InitStatusbar(sb);
+		UpdateHUD(sb, ent);
+		gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 
 		ClientUserinfoChanged(ent, userinfo);
 
