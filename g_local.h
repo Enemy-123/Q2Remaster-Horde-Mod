@@ -2103,20 +2103,15 @@ char* G_CopyString(const char* in, size_t len, int32_t tag);
 // ROGUE
 edict_t* findradius2(edict_t* from, const vec3_t& org, float rad);
 // ROGUE
-
 #ifndef G_LOCAL_H
 #define G_LOCAL_H
 
-#include "g_statusbar.h" // Incluir g_statusbar.h para la declaración de statusbar_t
+#include "g_statusbar.h"
 
-// Declaración de funciones
 void UpdateHUD(statusbar_t& sb, edict_t* ent);
 void G_InitStatusbar(statusbar_t& sb);
 
-// Otras declaraciones y definiciones
-
 #endif // G_LOCAL_H
-
 
 void G_PlayerNotifyGoal(edict_t* player);
 
@@ -2952,7 +2947,7 @@ struct gclient_t
 	gtime_t enviro_time;
 	gtime_t invisible_time;
 
-
+	std::string last_statusbar;  // último statusbar para comparar cambios
 
 	bool	grenade_blew_up;
 	gtime_t grenade_time, grenade_finished_time;

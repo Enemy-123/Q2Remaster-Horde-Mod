@@ -3,10 +3,27 @@
 
 #include <sstream>
 
-// Definición de la estructura statusbar_t
 struct statusbar_t
 {
     std::stringstream sb;
+
+    statusbar_t() = default;
+
+    statusbar_t(const statusbar_t& other)
+    {
+        sb << other.sb.rdbuf();
+    }
+
+    statusbar_t& operator=(const statusbar_t& other)
+    {
+        if (this != &other)
+        {
+            sb.str("");
+            sb.clear();
+            sb << other.sb.rdbuf();
+        }
+        return *this;
+    }
 
     inline auto& yb(int32_t offset) { sb << "yb " << offset << ' '; return *this; }
     inline auto& yt(int32_t offset) { sb << "yt " << offset << ' '; return *this; }
@@ -61,9 +78,5 @@ struct statusbar_t
     inline auto& health_bars() { sb << "health_bars "; return *this; }
     inline auto& story() { sb << "story "; return *this; }
 };
-
-// Declaración de funciones
-void UpdateHUD(statusbar_t& sb, edict_t* ent);
-void G_InitStatusbar(statusbar_t& sb);
 
 #endif // G_STATUSBAR_H

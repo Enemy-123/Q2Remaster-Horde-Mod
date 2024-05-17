@@ -1702,6 +1702,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 }
 //===================================================================
 #include "g_local.h"
+#include "g_statusbar.h"
 
 // Función para actualizar el HUD del jugador
 void UpdateHUD(statusbar_t& sb, edict_t* ent)
@@ -1782,7 +1783,8 @@ void G_InitStatusbar(statusbar_t& sb)
 		sb.ifstat(STAT_KEY_B).xv(272).pic(STAT_KEY_B).endifstat();
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
 
-		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer) {
+		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer)
+		{
 			sb.xv(-155).yb(-23).string2("\nINSANE COOP");
 		}
 		if (G_IsCooperative())
@@ -1800,14 +1802,14 @@ void G_InitStatusbar(statusbar_t& sb)
 	{
 		CTFPrecache();
 	}
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch()) // & Horde
 	{
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-78).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
+	//	sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-78).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
 
 		// HORDE WAVE
 		sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
@@ -1823,6 +1825,8 @@ void G_InitStatusbar(statusbar_t& sb)
 	{
 		sb.story();
 	}
+
+	gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 }
 
 /*QUAKED worldspawn (0 0 0) ?

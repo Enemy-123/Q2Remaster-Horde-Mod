@@ -1097,6 +1097,8 @@ inline bool G_AnyPlayerSpawned()
 #include "g_local.h"
 
 
+#include "g_local.h"
+
 void G_RunFrame(bool main_loop)
 {
 	for (int i = 1; i <= maxclients->value; i++)
@@ -1107,12 +1109,20 @@ void G_RunFrame(bool main_loop)
 			statusbar_t sb;
 			G_InitStatusbar(sb); // Inicializa el statusbar para el jugador
 			UpdateHUD(sb, ent);  // Actualiza el HUD del jugador
-			gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
+
+			// Solo actualizar la configstring si ha cambiado
+			if (sb.sb.str() != ent->client->last_statusbar)
+			{
+				gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
+				ent->client->last_statusbar = sb.sb.str();
+			}
 		}
 	}
 
 	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
+	{
 		G_RunFrame_(main_loop);
+	}
 
 	if (G_AnyPlayerSpawned() && !level.intermissiontime)
 	{

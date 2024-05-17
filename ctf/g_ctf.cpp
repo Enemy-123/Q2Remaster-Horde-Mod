@@ -959,7 +959,6 @@ static void CTFSetIDView(edict_t* ent)
 	ent->client->resp.lastidtime = level.time;
 
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-	ent->client->ps.stats[STAT_TARGET_HEALTH] = 0; // Reset health stat
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 1024;
@@ -968,7 +967,7 @@ static void CTFSetIDView(edict_t* ent)
 	if (tr.fraction < 1 && tr.ent && tr.ent->client)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
-		ent->client->ps.stats[STAT_TARGET_HEALTH] = tr.ent->health; // Set health stat
+		ent->client->ps.stats[STAT_TARGET_HEALTH] = tr.ent->health;
 		return;
 	}
 
@@ -991,9 +990,15 @@ static void CTFSetIDView(edict_t* ent)
 	if (bd > 0.90f)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-		ent->client->ps.stats[STAT_TARGET_HEALTH] = best->health; // Set health stat
+		ent->client->ps.stats[STAT_TARGET_HEALTH] = best->health;
+	}
+	else
+	{
+		// Mantén el valor actual de la salud si no se apunta a ningún jugador
+		ent->client->ps.stats[STAT_TARGET_HEALTH] = ent->client->ps.stats[STAT_TARGET_HEALTH];
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
