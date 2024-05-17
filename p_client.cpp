@@ -2179,6 +2179,19 @@ void PutClientInServer(edict_t* ent)
 
 			client->respawn_timeout = level.time + 0_ms;
 		}
+			#include "g_statusbar.h"
+
+			// Inicializar y actualizar el HUD inmediatamente después de que el jugador entre al juego
+			statusbar_t sb;
+			G_InitStatusbar(sb);
+			UpdateHUD(sb, ent);
+			gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
+
+			// Asegúrate de que ent->client->last_statusbar esté correctamente inicializado
+			if (ent->client) {
+				ent->client->last_statusbar = sb.sb.str(); // Guardar el estado inicial del HUD
+			}
+
 
 		// find a spot to place us
 		if (!level.respawn_intermission)
