@@ -2129,66 +2129,66 @@ Called when a player connects to a server or respawns in
 a deathmatch.
 ============
 */
-void PutClientInServer(edict_t* ent)
-{
-	int					index;
-	vec3_t				spawn_origin, spawn_angles;
-	gclient_t* client;
-	client_persistant_t saved;
-	client_respawn_t	resp;
-
-	index = ent - g_edicts - 1;
-	client = ent->client;
-
-	// clear velocity now, since landmark may change it
-	ent->velocity = {};
-
-	bool keepVelocity = client->landmark_name != nullptr;
-
-	if (keepVelocity)
-		ent->velocity = client->oldvelocity;
-
-	// find a spawn point
-	// do it before setting health back up, so farthest
-	// ranging doesn't count this client
-	bool valid_spawn = false;
-	bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
-	bool is_landmark = false;
-
-	if (use_squad_respawn)
-	{
-		spawn_origin = squad_respawn_position;
-		spawn_angles = squad_respawn_angles;
-		valid_spawn = true;
-	}
-	else if (gamerules->integer && DMGame.SelectSpawnPoint) // PGM
-		valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn); // PGM
-	else										  // PGM
-		valid_spawn = SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn, is_landmark);
-
-	// [Paril-KEX] if we didn't get a valid spawn, hold us in
-	// limbo for a while until we do get one
-	if (!valid_spawn)
-	{
-		// only do this once per spawn
-		if (!client->awaiting_respawn)
+		void PutClientInServer(edict_t * ent)
 		{
-			char userinfo[MAX_INFO_STRING];
-			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
-			ClientUserinfoChanged(ent, userinfo);
+			int					index;
+			vec3_t				spawn_origin, spawn_angles;
+			gclient_t* client;
+			client_persistant_t saved;
+			client_respawn_t	resp;
 
-			client->respawn_timeout = level.time + 0_ms;
-		}
-			#include "g_statusbar.h"
+			index = ent - g_edicts - 1;
+			client = ent->client;
 
+			// clear velocity now, since landmark may change it
+			ent->velocity = {};
 
-    // Asegúrate de que ent->client->last_statusbar esté correctamente inicializado
-    if (ent->client) {
-        statusbar_t sb;
-        G_InitStatusbar(sb);
-        ent->client->last_statusbar = sb.sb.str(); // Guardar el estado inicial del HUD
-    }
+			bool keepVelocity = client->landmark_name != nullptr;
 
+			if (keepVelocity)
+				ent->velocity = client->oldvelocity;
+
+			// find a spawn point
+			// do it before setting health back up, so farthest
+			// ranging doesn't count this client
+			bool valid_spawn = false;
+			bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
+			bool is_landmark = false;
+
+			if (use_squad_respawn)
+			{
+				spawn_origin = squad_respawn_position;
+				spawn_angles = squad_respawn_angles;
+				valid_spawn = true;
+			}
+			else if (gamerules->integer && DMGame.SelectSpawnPoint) // PGM
+				valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn); // PGM
+			else										  // PGM
+				valid_spawn = SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn, is_landmark);
+
+			// [Paril-KEX] if we didn't get a valid spawn, hold us in
+			// limbo for a while until we do get one
+			if (!valid_spawn)
+			{
+				// only do this once per spawn
+				if (!client->awaiting_respawn)
+				{
+					char userinfo[MAX_INFO_STRING];
+					memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+					ClientUserinfoChanged(ent, userinfo);
+
+					client->respawn_timeout = level.time + 0_ms;
+				}
+
+					// Inicializar target_health_str y last_statusbar
+					ent->client->target_health_str.clear();
+					ent->client->last_statusbar.clear();
+
+					// Inicializar y actualizar el HUD inmediatamente después de que el jugador entre al juego
+					statusbar_t sb;
+					G_InitStatusbar(sb);
+					UpdateHUD(sb, ent);
+					gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 
 		// find a spot to place us
 		if (!level.respawn_intermission)

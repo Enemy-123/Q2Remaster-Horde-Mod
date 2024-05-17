@@ -2832,6 +2832,8 @@ struct client_respawn_t
 	bool	 admin;
 	ghost_t* ghost; // for ghost codes
 	// ZOID
+	//std::string target_health_str;  // Cadena para mostrar la salud del objetivo
+	//std::string last_statusbar;  // último statusbar para comparar cambios
 };
 
 // [Paril-KEX] seconds until we are fully invisible after
@@ -2868,7 +2870,6 @@ struct gclient_t
 	client_respawn_t	resp;
 	pmove_state_t		old_pmove; // for detecting out-of-pmove changes
 
-	std::string last_statusbar;  // último statusbar para comparar cambios
 
 
 
@@ -3062,6 +3063,8 @@ struct gclient_t
 	float		last_hook_time;
 	int			hook_damage;
 	// Kyper
+	std::string target_health_str;  // Cadena para mostrar la salud del objetivo
+	std::string last_statusbar;  // último statusbar para comparar cambios
 };
 
 
@@ -3720,3 +3723,5 @@ template<> cached_imageindex* cached_imageindex::head;
 
 extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
+
+//#define  STAT_TARGET_HEALTH_STRING = 43, // Asegúrate de que no choque con otros STAT

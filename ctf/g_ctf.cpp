@@ -956,10 +956,10 @@ static void CTFSetIDView(edict_t* ent)
 	// only check every few frames
 	if (level.time - ent->client->resp.lastidtime < 250_ms)
 		return;
-	ent->client->resp.lastidtime = level.time;
 
+	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-	ent->client->ps.stats[STAT_TARGET_HEALTH] = 0; // Reset health stat
+	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;  // Reset target health string
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 1024;
@@ -968,7 +968,11 @@ static void CTFSetIDView(edict_t* ent)
 	if (tr.fraction < 1 && tr.ent && tr.ent->client)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
-		ent->client->ps.stats[STAT_TARGET_HEALTH] = tr.ent->health; // Set health stat
+		std::ostringstream health_stream;
+		health_stream << "Health: " << tr.ent->health;
+		ent->client->target_health_str = health_stream.str();
+		gi.configstring(CS_GENERAL + (tr.ent - g_edicts), ent->client->target_health_str.c_str());
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (tr.ent - g_edicts);
 		return;
 	}
 
@@ -991,9 +995,14 @@ static void CTFSetIDView(edict_t* ent)
 	if (bd > 0.90f)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-		ent->client->ps.stats[STAT_TARGET_HEALTH] = best->health; // Set health stat
+		std::ostringstream health_stream;
+		health_stream << "Health: " << best->health;
+		ent->client->target_health_str = health_stream.str();
+		gi.configstring(CS_GENERAL + (best - g_edicts), ent->client->target_health_str.c_str());
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (best - g_edicts);
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {

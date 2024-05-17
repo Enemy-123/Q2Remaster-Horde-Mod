@@ -750,6 +750,8 @@ void G_SetStats(edict_t* ent)
 	item_id_t power_armor_type;
 	unsigned int invIndex;
 
+	// ... Código existente ...
+
 	//
 	// health
 	//
@@ -758,6 +760,24 @@ void G_SetStats(edict_t* ent)
 	else
 		ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
 	ent->client->ps.stats[STAT_HEALTH] = ent->health;
+
+	// Verificar y mantener el target_health_str
+	if (ent->client->ps.stats[STAT_CTF_ID_VIEW] != 0) {
+		int target_index = ent->client->ps.stats[STAT_CTF_ID_VIEW];
+		edict_t* target = &g_edicts[target_index];
+
+		if (target->inuse && target->client) {
+			ent->client->target_health_str = "Health: " + std::to_string(target->health);
+		}
+		else {
+			ent->client->target_health_str.clear();
+		}
+	}
+	else {
+		ent->client->target_health_str.clear();
+	}
+
+
 
 	//
 	// weapons

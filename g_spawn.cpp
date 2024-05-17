@@ -1705,15 +1705,15 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 #include "g_statusbar.h"
 
 // Función para actualizar el HUD del jugador
-void UpdateHUD(statusbar_t& sb, edict_t* ent)
-{
+void UpdateHUD(statusbar_t& sb, edict_t* ent) {
 	if (!ent || !ent->client) return;  // Asegúrate de que ent y ent->client no sean nulos
 
 	// Mostrar el nombre del jugador al que se apunta
 	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 
 	// Mostrar la salud del jugador al que se apunta
-	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-70);
+	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-70).string2(ent->client->target_health_str.c_str()).endifstat();
+
 
 	{
 		std::ostringstream health_stream;
@@ -1726,7 +1726,6 @@ void UpdateHUD(statusbar_t& sb, edict_t* ent)
 	sb.endifstat();
 }
 
-// Función para inicializar la barra de estado
 void G_InitStatusbar(statusbar_t& sb)
 {
 	// ---- shared stuff that every gamemode uses ----
@@ -1801,32 +1800,40 @@ void G_InitStatusbar(statusbar_t& sb)
 	{
 		CTFPrecache();
 	}
-	if (G_IsDeathmatch()) // & Horde
-	{
-		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
-		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
-		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
-//		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+		// ---- shared stuff that every gamemode uses ----
 
-		// HORDE WAVE
-		sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
-		sb.xv(-155).yb(-23).string(" \nWave Level:");
 
-		// MONSTERS COUNT
-		sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
+		if (G_IsDeathmatch()) // & Horde
+		{
+			sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
+			sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
+			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
+			sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 
-		// tech
-		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
+			// HORDE MODE specific HUD elements
+			if (g_horde && g_horde->integer)
+			{
+				sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+				sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-70).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
+			}
+
+			// HORDE WAVE
+			sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
+			sb.xv(-155).yb(-23).string(" \nWave Level:");
+
+			// MONSTERS COUNT
+			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
+
+			// tech
+			sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
+		}
+		else
+		{
+			sb.story();
+		}
+
+		gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 	}
-	else
-	{
-		sb.story();
-	}
-
-	gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
-}
-
 
 /*QUAKED worldspawn (0 0 0) ?
 

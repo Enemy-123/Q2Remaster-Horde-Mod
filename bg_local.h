@@ -256,11 +256,9 @@ enum player_stat_t
 	STAT_HEALTH_BARS, // two health bar values; 7 bits for value, 1 bit for active
 	// [Paril-KEX]
 	STAT_ACTIVE_WEAPON,
-
+	STAT_TARGET_HEALTH_STRING,
 	// don't use; just for verification
 	STAT_LAST
 };
 
 static_assert(STAT_LAST <= MAX_STATS + 1, "stats list overflow");
-
-//#define STAT_TARGET_HEALTH 40 
