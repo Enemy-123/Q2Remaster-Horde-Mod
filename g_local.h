@@ -2863,11 +2863,12 @@ struct gclient_t
 	// shared with server; do not touch members until the "private" section
 	player_state_t ps; // communicated by server to clients
 	int32_t		   ping;
-	std::string last_statusbar;  // último statusbar para comparar cambios
 	// private to game
 	client_persistant_t pers;
 	client_respawn_t	resp;
 	pmove_state_t		old_pmove; // for detecting out-of-pmove changes
+
+	std::string last_statusbar;  // último statusbar para comparar cambios
 
 
 

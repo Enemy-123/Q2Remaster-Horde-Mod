@@ -1092,46 +1092,59 @@ inline bool G_AnyPlayerSpawned()
 
 	return false;
 }
-
 #include "g_local.h"
+
+static statusbar_t initial_statusbar;
+
+void InitializeStatusbar()
+{
+	G_InitStatusbar(initial_statusbar);
+	gi.configstring(CS_STATUSBAR, initial_statusbar.sb.str().c_str());
+}
 
 void G_RunFrame(bool main_loop)
 {
-	for (int i = 1; i <= maxclients->value; i++)
+	static bool statusbar_initialized = false;
+	if (!statusbar_initialized)
 	{
-		edict_t* ent = &g_edicts[i];
-		if (ent->inuse && ent->client)
-		{
-			statusbar_t sb;
-			G_InitStatusbar(sb); // Inicializa el statusbar para el jugador
-			UpdateHUD(sb, ent);  // Actualiza el HUD del jugador
+		InitializeStatusbar();
+		statusbar_initialized = true;
+	}
 
-			// Solo actualizar la configstring si ha cambiado
-			if (sb.sb.str() != ent->client->last_statusbar)
+		for (int i = 1; i <= maxclients->value; i++)
+		{
+			edict_t* ent = &g_edicts[i];
+			if (ent->inuse && ent->client)
 			{
-				gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
-				ent->client->last_statusbar = sb.sb.str();
+				statusbar_t sb;
+				G_InitStatusbar(sb); // Inicializa el statusbar para el jugador
+				UpdateHUD(sb, ent);  // Actualiza el HUD del jugador
+
+				// Solo actualizar la configstring si ha cambiado
+				if (sb.sb.str() != ent->client->last_statusbar)
+				{
+					gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
+					ent->client->last_statusbar = sb.sb.str();
+				}
+			}
+		}
+
+		for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
+		{
+			G_RunFrame_(main_loop);
+		}
+
+		if (G_AnyPlayerSpawned() && !level.intermissiontime)
+		{
+			constexpr gtime_t MATCH_REPORT_TIME = 45_sec;
+
+			if (level.time - level.next_match_report > MATCH_REPORT_TIME)
+			{
+				level.next_match_report = level.time + MATCH_REPORT_TIME;
+				G_ReportMatchDetails(false);
 			}
 		}
 	}
-
-	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
-	{
-		G_RunFrame_(main_loop);
-	}
-
-	if (G_AnyPlayerSpawned() && !level.intermissiontime)
-	{
-		constexpr gtime_t MATCH_REPORT_TIME = 45_sec;
-
-		if (level.time - level.next_match_report > MATCH_REPORT_TIME)
-		{
-			level.next_match_report = level.time + MATCH_REPORT_TIME;
-			G_ReportMatchDetails(false);
-		}
-	}
-}
-
 
 
 

@@ -1789,7 +1789,6 @@ void G_InitStatusbar(statusbar_t& sb)
 		}
 		if (G_IsCooperative())
 		{
-	//		sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 			sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
@@ -1808,7 +1807,7 @@ void G_InitStatusbar(statusbar_t& sb)
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
-	//	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+//		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 
 		// HORDE WAVE
 		sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
@@ -1827,6 +1826,7 @@ void G_InitStatusbar(statusbar_t& sb)
 
 	gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 }
+
 
 /*QUAKED worldspawn (0 0 0) ?
 
