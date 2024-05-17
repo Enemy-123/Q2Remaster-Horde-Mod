@@ -2108,7 +2108,6 @@ edict_t* findradius2(edict_t* from, const vec3_t& org, float rad);
 
 #include "g_statusbar.h"
 
-void UpdateHUD(statusbar_t& sb, edict_t* ent);
 void G_InitStatusbar(statusbar_t& sb);
 
 #endif // G_LOCAL_H

@@ -2187,7 +2187,7 @@ a deathmatch.
 					// Inicializar y actualizar el HUD inmediatamente después de que el jugador entre al juego
 					statusbar_t sb;
 					G_InitStatusbar(sb);
-					UpdateHUD(sb, ent);
+					//UpdateHUD(sb, ent);
 					gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 
 		// find a spot to place us
@@ -2284,7 +2284,7 @@ a deathmatch.
 		// Inicializar y actualizar el HUD inmediatamente después de que el jugador entre al juego
 		statusbar_t sb;
 		G_InitStatusbar(sb);
-		UpdateHUD(sb, ent);
+		//UpdateHUD(sb, ent);
 		gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 
 		ClientUserinfoChanged(ent, userinfo);

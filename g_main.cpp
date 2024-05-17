@@ -1113,8 +1113,6 @@ void G_RunFrame(bool main_loop) {
 		edict_t* ent = &g_edicts[i];
 		if (ent->inuse && ent->client) {
 			statusbar_t sb = initial_statusbar; // Copia el HUD inicial
-			UpdateHUD(sb, ent);  // Actualiza el HUD del jugador
-
 			// Solo actualizar la configstring si ha cambiado
 			if (sb.sb.str() != ent->client->last_statusbar) {
 				gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());

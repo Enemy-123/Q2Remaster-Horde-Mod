@@ -996,13 +996,12 @@ static void CTFSetIDView(edict_t* ent)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 		std::ostringstream health_stream;
-		health_stream << "Health: " << best->health;
+		health_stream << "H: " << best->health;
 		ent->client->target_health_str = health_stream.str();
 		gi.configstring(CS_GENERAL + (best - g_edicts), ent->client->target_health_str.c_str());
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (best - g_edicts);
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {

@@ -4,7 +4,6 @@
 #include "g_local.h"
 
 // Declaración de funciones
-void UpdateHUD(statusbar_t& sb, edict_t* ent);
 void G_InitStatusbar(statusbar_t& sb);
 void SP_worldspawn(edict_t* ent);
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint);

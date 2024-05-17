@@ -1793,8 +1793,8 @@ void G_InitStatusbar(statusbar_t& sb)
 
 			// HORDE MODE specific HUD elements
 
-				sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-				sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
+				sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+				sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-70).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 			// HORDE WAVE
 			sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
