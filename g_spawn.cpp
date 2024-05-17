@@ -1701,9 +1701,33 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	setup_shadow_lights();
 }
 //===================================================================
+#include "g_local.h"
 #include "g_statusbar.h"
-// create & set the statusbar string for the current gamemode
-static void G_InitStatusbar()
+
+// Función para actualizar el HUD del jugador
+void UpdateHUD(statusbar_t& sb, edict_t* ent)
+{
+	if (!ent || !ent->client) return;  // Asegúrate de que ent y ent->client no sean nulos
+
+	// Mostrar el nombre del jugador al que se apunta
+	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+
+	// Mostrar la salud del jugador al que se apunta
+	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-70);
+
+	{
+		std::ostringstream health_stream;
+		// Obtener la salud del jugador desde las estadísticas
+		int target_health = ent->client->ps.stats[STAT_TARGET_HEALTH];
+		health_stream << "Health: " << target_health;
+		sb.string2(health_stream.str().c_str());
+	}
+
+	sb.endifstat();
+}
+
+// Función para inicializar la barra de estado
+void G_InitStatusbar()
 {
 	statusbar_t sb;
 
@@ -1712,8 +1736,6 @@ static void G_InitStatusbar()
 	sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
 
 	// chase cam
-	// Q2Eaks fix bugged chasecam name showing name\model/skin\tag
-	//sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_string(STAT_CHASE).endifstat();
 	sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_pname(STAT_CHASE).endifstat();
 
 	sb.yb(-24);
@@ -1752,8 +1774,6 @@ static void G_InitStatusbar()
 	{
 		// SP/coop
 		// key display
-		// move up if the timer is active
-		// FIXME: ugly af
 		sb.ifstat(STAT_TIMER_ICON).yb(-76).endifstat();
 		sb.ifstat(STAT_SELECTED_ITEM_NAME)
 			.yb(-58)
@@ -1765,113 +1785,40 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_KEY_B).xv(272).pic(STAT_KEY_B).endifstat();
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
 
-
 		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer) {
-
-		//  COOP HARDMODE 
-		//	sb.xv(-155).yb(-23).string("\nTresspasa into suffer");
 			sb.xv(-155).yb(-23).string2("\nINSANE COOP");
-
-	//	sb.xv(-155).yb(-23).string2("Harder Coop\n ENABLED");
 		}
 		if (G_IsCooperative())
 		{
-			// Q2ETweaks target id view state
-			// TODO move back to xv 112 (128) if we find an image for below
 			sb.ifstat(STAT_CTF_ID_VIEW).xv(128).yb(-78).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-
-		// frags
-		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
-
-		//  MONSTERS COUNT
-	//		sb.xv(405).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(350).yb(-23).string2("Stroggs.\n Alive:");
+			sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
-		// top of screen coop respawn display
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
-		// coop lives
 			sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		}
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
-
-
 	}
 	else if (G_TeamplayEnabled())
 	{
 		CTFPrecache();
-
-		// ctf/tdm
-		// red team
-	//	sb.yb(-110).ifstat(STAT_CTF_TEAM1_PIC).xr(-26).pic(STAT_CTF_TEAM1_PIC).endifstat().xr(-78).num(3, STAT_FRAGS);
-		// joined overlay
-	//	sb.ifstat(STAT_CTF_JOINED_TEAM1_PIC).yb(-112).xr(-28).pic(STAT_CTF_JOINED_TEAM1_PIC).endifstat();
-
-		// blue team
-	//    sb.yb(-83).ifstat(STAT_CTF_TEAM2_PIC).xr(-26).pic(STAT_CTF_TEAM2_PIC).endifstat().xr(-78).num(3, STAT_CTF_MATCH);
-		// joined overlay
-	//	sb.ifstat(STAT_CTF_JOINED_TEAM2_PIC).yb(-85).xr(-28).pic(STAT_CTF_JOINED_TEAM2_PIC).endifstat();
-
-//		if (ctf->integer)
-//		{
-			// have flag graph
-//			sb.ifstat(STAT_CTF_FLAG_PIC).yt(26).xr(-24).pic(STAT_CTF_FLAG_PIC).endifstat();
-//		}
-
-		// id view state
-//		sb.ifstat(STAT_CTF_ID_VIEW).xv(112).yb(-58).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-
-		// id view color
-//		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-58).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
-
-//		if (ctf->integer)
-		{
-			// match
-//			sb.ifstat(STAT_CTF_MATCH).xl(0).yb(-78).stat_string(STAT_CTF_MATCH).endifstat();
-		}
-
-//		// team info
-//		sb.ifstat(STAT_CTF_TEAMINFO).xl(0).yb(-88).stat_string(STAT_CTF_TEAMINFO).endifstat();
-//	}
-//	else
-//	{
-		// dm
-		// frags
-	//	sb.xr(-50).yt(2).num(3, STAT_FRAGS);
-
 	}
 
-	// ---- more shared stuff ----
-	if (G_IsDeathmatch()) // and horde.
+	if (G_IsDeathmatch()) // & Horde
 	{
-		// Health Bar
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
-
-		// frags
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
-		//sb.xr(-53).yt(2).num(3, STAT_FRAGS).xr(-82).yt(15).string2("Frags:");
-
-		// top of screen coop respawn display
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
-
-		// coop lives
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
-		// Q2ETweaks target id view state
-        // TODO move back to xv 112 if we find an image for below (defaulkt 128)
 		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-90).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-		// Q2ETweaks target id view color
-		// TODO populate this with a small image if we can find one
 		sb.ifstat(STAT_CTF_ID_VIEW_COLOR).xv(96).yb(-78).pic(STAT_CTF_ID_VIEW_COLOR).endifstat();
 
 		// HORDE WAVE
-
 		sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_CTF_TEAM1_CAPS);
 		sb.xv(-155).yb(-23).string(" \nWave Level:");
 
-		//  MONSTERS COUNT
-
-			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
-
+		// MONSTERS COUNT
+		sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();

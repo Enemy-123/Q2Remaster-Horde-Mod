@@ -946,22 +946,12 @@ void CTFID_f(edict_t* ent)
 	}
 }
 
-int GetArmorInfo(edict_t* ent) // future id armor view?
-{
-	int index;
-	index = ArmorIndex(ent);
-	if (ent->client)
-		return ent->client->pers.inventory[index];
-	else
-		return 0;
-}
-
 static void CTFSetIDView(edict_t* ent)
 {
-	vec3_t	 forward, dir;
-	trace_t	 tr;
+	vec3_t forward, dir;
+	trace_t tr;
 	edict_t* who, * best;
-	float	 bd = 0, d;
+	float bd = 0, d;
 
 	// only check every few frames
 	if (level.time - ent->client->resp.lastidtime < 250_ms)
@@ -969,7 +959,7 @@ static void CTFSetIDView(edict_t* ent)
 	ent->client->resp.lastidtime = level.time;
 
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-	ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = 0;
+	ent->client->ps.stats[STAT_TARGET_HEALTH] = 0; // Reset health stat
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 1024;
@@ -978,10 +968,7 @@ static void CTFSetIDView(edict_t* ent)
 	if (tr.fraction < 1 && tr.ent && tr.ent->client)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
-		if (tr.ent->client->resp.ctf_team == CTF_TEAM1)
-			ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf1;
-		else if (tr.ent->client->resp.ctf_team == CTF_TEAM2)
-			ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf2;
+		ent->client->ps.stats[STAT_TARGET_HEALTH] = tr.ent->health; // Set health stat
 		return;
 	}
 
@@ -995,15 +982,6 @@ static void CTFSetIDView(edict_t* ent)
 		dir = who->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-		// Q2ETweaks wrapped original if+continue to allow player id in non-teamplay modes
-		if (!sv_target_id->integer)
-		{
-			// we have teammate indicators that are better for this
-			if (ent->client->resp.ctf_team == who->client->resp.ctf_team)
-				continue;
-		}
-
-
 		if (d > bd && loc_CanSee(ent, who))
 		{
 			bd = d;
@@ -1012,11 +990,8 @@ static void CTFSetIDView(edict_t* ent)
 	}
 	if (bd > 0.90f)
 	{
-		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);  // check id horde
-		//if (best->client->resp.ctf_team == CTF_TEAM1)
-		//	ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf1;
-		//else if (best->client->resp.ctf_team == CTF_TEAM2)
-		//	ent->client->ps.stats[STAT_CTF_ID_VIEW_COLOR] = imageindex_sbfctf2;
+		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
+		ent->client->ps.stats[STAT_TARGET_HEALTH] = best->health; // Set health stat
 	}
 }
 

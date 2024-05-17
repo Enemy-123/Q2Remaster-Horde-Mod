@@ -262,3 +262,5 @@ enum player_stat_t
 };
 
 static_assert(STAT_LAST <= MAX_STATS + 1, "stats list overflow");
+
+#define STAT_TARGET_HEALTH 30 

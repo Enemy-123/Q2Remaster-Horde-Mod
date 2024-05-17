@@ -78,6 +78,7 @@
       <Filter>xatrix</Filter>
     </ClInclude>
     <ClInclude Include="horde\g_horde.h" />
+    <ClInclude Include="g_spawn.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />

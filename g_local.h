@@ -2562,6 +2562,20 @@ void fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& aimdir, con
 	bool monster);
 void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, edict_t* enemy);
 
+
+///////statusbar
+#ifndef G_LOCAL_H
+#define G_LOCAL_H
+
+#include "g_statusbar.h" // Asegúrate de incluir g_statusbar.h aquí
+
+// Otras declaraciones y definiciones
+
+void UpdateHUD(statusbar_t& sb, edict_t* ent); // Declaración de UpdateHUD
+void G_InitStatusbar(); // Declaración de G_InitStatusbar
+
+#endif // G_LOCAL_H
+
 //
 // g_newai.c
 //

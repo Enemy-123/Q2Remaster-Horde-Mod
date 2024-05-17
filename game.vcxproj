@@ -112,6 +112,7 @@
     <ClInclude Include="ctf\p_ctf_menu.h" />
     <ClInclude Include="game.h" />
     <ClInclude Include="g_local.h" />
+    <ClInclude Include="g_spawn.h" />
     <ClInclude Include="g_statusbar.h" />
     <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="m_actor.h" />
