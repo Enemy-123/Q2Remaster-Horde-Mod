@@ -2104,6 +2104,20 @@ char* G_CopyString(const char* in, size_t len, int32_t tag);
 edict_t* findradius2(edict_t* from, const vec3_t& org, float rad);
 // ROGUE
 
+#ifndef G_LOCAL_H
+#define G_LOCAL_H
+
+#include "g_statusbar.h" // Incluir g_statusbar.h para la declaración de statusbar_t
+
+// Declaración de funciones
+void UpdateHUD(statusbar_t& sb, edict_t* ent);
+void G_InitStatusbar(statusbar_t& sb);
+
+// Otras declaraciones y definiciones
+
+#endif // G_LOCAL_H
+
+
 void G_PlayerNotifyGoal(edict_t* player);
 
 //
@@ -2562,19 +2576,6 @@ void fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& aimdir, con
 	bool monster);
 void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, edict_t* enemy);
 
-
-///////statusbar
-#ifndef G_LOCAL_H
-#define G_LOCAL_H
-
-#include "g_statusbar.h" // Asegúrate de incluir g_statusbar.h aquí
-
-// Otras declaraciones y definiciones
-
-void UpdateHUD(statusbar_t& sb, edict_t* ent); // Declaración de UpdateHUD
-void G_InitStatusbar(); // Declaración de G_InitStatusbar
-
-#endif // G_LOCAL_H
 
 //
 // g_newai.c

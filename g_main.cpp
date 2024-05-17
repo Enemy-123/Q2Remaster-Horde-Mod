@@ -1095,43 +1095,37 @@ inline bool G_AnyPlayerSpawned()
 
 
 #include "g_local.h"
-#include "g_statusbar.h"
+
 
 void G_RunFrame(bool main_loop)
 {
-	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
+	for (int i = 1; i <= maxclients->value; i++)
 	{
-		if (main_loop && !G_AnyPlayerSpawned()) // Estas pausan el juego al principio, vuelve a lo normal si crashea aquí
-			return;
-
-		// Llama a UpdateHUD para cada jugador
-		for (int32_t i = 1; i <= maxclients->value; i++)
+		edict_t* ent = &g_edicts[i];
+		if (ent->inuse && ent->client)
 		{
-			edict_t* ent = &g_edicts[i];
-			if (ent->inuse && ent->client)
-			{
-				statusbar_t sb;
-				UpdateHUD(sb, ent);
-				gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
-			}
+			statusbar_t sb;
+			G_InitStatusbar(sb); // Inicializa el statusbar para el jugador
+			UpdateHUD(sb, ent);  // Actualiza el HUD del jugador
+			gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 		}
+	}
 
+	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
 		G_RunFrame_(main_loop);
 
-		// Match details.. only bother if there's at least 1 player in-game
-		// and not already end of game
-		if (G_AnyPlayerSpawned() && !level.intermissiontime)
-		{
-			constexpr gtime_t MATCH_REPORT_TIME = 45_sec;
+	if (G_AnyPlayerSpawned() && !level.intermissiontime)
+	{
+		constexpr gtime_t MATCH_REPORT_TIME = 45_sec;
 
-			if (level.time - level.next_match_report > MATCH_REPORT_TIME)
-			{
-				level.next_match_report = level.time + MATCH_REPORT_TIME;
-				G_ReportMatchDetails(false);
-			}
+		if (level.time - level.next_match_report > MATCH_REPORT_TIME)
+		{
+			level.next_match_report = level.time + MATCH_REPORT_TIME;
+			G_ReportMatchDetails(false);
 		}
 	}
 }
+
 
 
 /*

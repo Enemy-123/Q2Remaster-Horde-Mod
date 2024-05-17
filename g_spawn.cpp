@@ -1702,7 +1702,6 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 }
 //===================================================================
 #include "g_local.h"
-#include "g_statusbar.h"
 
 // Función para actualizar el HUD del jugador
 void UpdateHUD(statusbar_t& sb, edict_t* ent)
@@ -1727,10 +1726,8 @@ void UpdateHUD(statusbar_t& sb, edict_t* ent)
 }
 
 // Función para inicializar la barra de estado
-void G_InitStatusbar()
+void G_InitStatusbar(statusbar_t& sb)
 {
-	statusbar_t sb;
-
 	// ---- shared stuff that every gamemode uses ----
 	// spectator
 	sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
@@ -1803,8 +1800,7 @@ void G_InitStatusbar()
 	{
 		CTFPrecache();
 	}
-
-	if (G_IsDeathmatch()) // & Horde
+	if (G_IsDeathmatch())
 	{
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
@@ -1827,10 +1823,7 @@ void G_InitStatusbar()
 	{
 		sb.story();
 	}
-
-	gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 }
-
 
 /*QUAKED worldspawn (0 0 0) ?
 
@@ -1958,8 +1951,9 @@ void SP_worldspawn(edict_t* ent)
 		pm_config.n64_physics = false;
 	}
 
-	// statusbar prog
-	G_InitStatusbar();
+	statusbar_t sb;
+	G_InitStatusbar(sb);  // Cambia esto para pasar el parámetro 'sb'
+
 
 	// [Paril-KEX] air accel handled by game DLL now, and allow
 	// it to be changed in sp/coop
