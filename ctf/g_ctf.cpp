@@ -945,6 +945,11 @@ void CTFID_f(edict_t* ent)
 		ent->client->resp.id_state = true;
 	}
 }
+#include <unordered_map>
+#include <string>
+#include <sstream>
+
+// Se asume que CS_MAX_STRING_LENGTH y MAX_CONFIGSTRINGS ya están definidos en game.h
 
 int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
@@ -955,7 +960,7 @@ int GetArmorInfo(edict_t* ent) {
 }
 
 std::string GetDisplayName(const std::string& classname) {
-	static std::unordered_map<std::string, std::string> name_replacements = {
+	static const std::unordered_map<std::string, std::string> name_replacements = {
 		{ "monster_soldier_light", "Light Soldier" },
 		{ "monster_soldier_ss", "SS Soldier" },
 		{ "monster_soldier", "Soldier" },
@@ -1043,7 +1048,7 @@ void CTFSetIDView(edict_t* ent) {
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
 
-	if (level.time - ent->client->resp.lastidtime < 0.25_ms)
+	if (level.time - ent->client->resp.lastidtime < 0.45_ms)
 		return;
 
 	ent->client->resp.lastidtime = level.time;
@@ -1053,6 +1058,7 @@ void CTFSetIDView(edict_t* ent) {
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 1024;
 	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SOLID);
+
 	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
 		std::ostringstream health_stream;
 		if (tr.ent->svflags & SVF_MONSTER) {
@@ -1067,11 +1073,15 @@ void CTFSetIDView(edict_t* ent) {
 		else if (tr.ent->svflags & SVF_MONSTER) {
 			health_stream << " PA: " << tr.ent->monsterinfo.power_armor_power;
 		}
-		ent->client->target_health_str = health_stream.str();
-		int index = CS_GENERAL + (tr.ent - g_edicts);
-		if (index < MAX_CONFIGSTRINGS) {
-			gi.configstring(index, ent->client->target_health_str.c_str());
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = index;
+
+		std::string health_string = health_stream.str();
+		if (health_string.length() <= CS_MAX_STRING_LENGTH) { // Ensure the string is within a safe length
+			ent->client->target_health_str = health_string;
+			int index = CS_GENERAL + (tr.ent - g_edicts);
+			if (index < MAX_CONFIGSTRINGS) {
+				gi.configstring(index, ent->client->target_health_str.c_str());
+				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = index;
+			}
 		}
 		return;
 	}
@@ -1089,6 +1099,7 @@ void CTFSetIDView(edict_t* ent) {
 			best = who;
 		}
 	}
+
 	if (bd > 0.90f) {
 		std::ostringstream health_stream;
 		if (best->svflags & SVF_MONSTER) {
@@ -1103,15 +1114,18 @@ void CTFSetIDView(edict_t* ent) {
 		else if (best->svflags & SVF_MONSTER) {
 			health_stream << " PA: " << best->monsterinfo.power_armor_power;
 		}
-		ent->client->target_health_str = health_stream.str();
-		int index = CS_GENERAL + (best - g_edicts);
-		if (index < MAX_CONFIGSTRINGS) {
-			gi.configstring(index, ent->client->target_health_str.c_str());
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = index;
+
+		std::string health_string = health_stream.str();
+		if (health_string.length() <= CS_MAX_STRING_LENGTH) { // Ensure the string is within a safe length
+			ent->client->target_health_str = health_string;
+			int index = CS_GENERAL + (best - g_edicts);
+			if (index < MAX_CONFIGSTRINGS) {
+				gi.configstring(index, ent->client->target_health_str.c_str());
+				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = index;
+			}
 		}
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {
