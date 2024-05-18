@@ -1708,10 +1708,10 @@ void G_InitStatusbar(statusbar_t& sb)
 {
 	// ---- shared stuff that every gamemode uses ----
 	// spectator
-	sb.ifstat(STAT_SPECTATOR).xv(0).yb(-58).string2("SPECTATOR MODE").endifstat();
+	sb.ifstat(STAT_SPECTATOR).xv(0).yb(-70).string2("SPECTATOR MODE").endifstat();
 
 	// chase cam
-	sb.ifstat(STAT_CHASE).xv(0).yb(-68).string("CHASING").xv(64).stat_pname(STAT_CHASE).endifstat();
+	sb.ifstat(STAT_CHASE).xv(0).yb(-60).string("CHASING").xv(64).yb(-58).stat_pname(STAT_CHASE).endifstat();
 
 	sb.yb(-24);
 
