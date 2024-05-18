@@ -946,6 +946,15 @@ void CTFID_f(edict_t* ent)
 	}
 }
 
+int GetArmorInfo(edict_t* ent) // future id armor view?
+{
+	int index = ArmorIndex(ent);
+	if (ent->client && index != IT_NULL)
+		return ent->client->pers.inventory[index];
+	else
+		return 0;
+}
+
 static void CTFSetIDView(edict_t* ent)
 {
 	vec3_t forward, dir;
@@ -969,7 +978,7 @@ static void CTFSetIDView(edict_t* ent)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
 		std::ostringstream health_stream;
-		health_stream << "Health: " << tr.ent->health;
+		health_stream << "H: " << tr.ent->health << " A: " << GetArmorInfo(tr.ent);
 		ent->client->target_health_str = health_stream.str();
 		gi.configstring(CS_GENERAL + (tr.ent - g_edicts), ent->client->target_health_str.c_str());
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (tr.ent - g_edicts);
@@ -996,12 +1005,13 @@ static void CTFSetIDView(edict_t* ent)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 		std::ostringstream health_stream;
-		health_stream << "H: " << best->health;
+		health_stream << "H: " << best->health << " A: " << GetArmorInfo(best);
 		ent->client->target_health_str = health_stream.str();
 		gi.configstring(CS_GENERAL + (best - g_edicts), ent->client->target_health_str.c_str());
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (best - g_edicts);
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
