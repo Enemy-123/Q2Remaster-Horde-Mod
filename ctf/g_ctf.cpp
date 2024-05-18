@@ -957,8 +957,80 @@ int GetArmorInfo(edict_t* ent) // future id armor view?
 	else
 		return 0;
 }
-#include <algorithm>
+#include <unordered_map>
+#include <string>
 #include <sstream>
+#include <iostream>
+
+// Función para obtener el nombre para mostrar con reemplazos
+std::string GetDisplayName(const std::string& classname)
+{
+	static std::unordered_map<std::string, std::string> name_replacements = {
+		{ "monster_soldier_light", "Light Soldier" },
+		{ "monster_soldier_ss", "SS Soldier" },
+		{ "monster_soldier", "Soldier" },
+		{ "monster_soldier_hypergun", "Hypergun Soldier" },
+		{ "monster_soldier_lasergun", "Lasergun Soldier" },
+		{ "monster_soldier_ripper", "Ripper Soldier" },
+		{ "monster_infantry2", "Vanilla Infantry" },
+		{ "monster_infantry", "Enforcer" },
+		{ "monster_flyer", "Flyer" },
+		{ "monster_hover2", "Blaster Icarus" },
+		{ "monster_fixbot", "Fixbot" },
+		{ "monster_gekk", "Gekk" },
+		{ "monster_gunner2", "Vanilla Gunner" },
+		{ "monster_gunner", "Gunner" },
+		{ "monster_medic", "Medic" },
+		{ "monster_brain", "Brain" },
+		{ "monster_stalker", "Stalker" },
+		{ "monster_parasite", "Parasite" },
+		{ "monster_tank", "Tank" },
+		{ "monster_tank2", "Vanilla Tank" },
+		{ "monster_guncmdr2", "Gunner Commander" },
+		{ "monster_mutant", "Mutant" },
+		{ "monster_chick", "Iron Maiden" },
+		{ "monster_chick_heat", "Iron Praetor" },
+		{ "monster_berserk", "Berserker" },
+		{ "monster_floater", "Technician" },
+		{ "monster_hover", "Rocket Icarus" },
+		{ "monster_daedalus", "Daedalus" },
+		{ "monster_medic_commander", "Medic Commander" },
+		{ "monster_tank_commander", "Tank Commander" },
+		{ "monster_spider", "Arachnid" },
+		{ "monster_arachnid", "Arachnid" },
+		{ "monster_guncmdr", "Grenadier Commander" },
+		{ "monster_gladc", "Plasma Gladiator" },
+		{ "monster_gladiator", "Gladiator" },
+		{ "monster_shambler", "Shambler" },
+		{ "monster_floater2", "DarkMatter Technician" },
+		{ "monster_carrier2", "Mini Carrier" },
+		{ "monster_carrier", "CARRIER" },
+		{ "monster_tank_64", "N64 Tank" },
+		{ "monster_janitor", "Janitor" },
+		{ "monster_janitor2", "Mini Guardian" },
+		{ "monster_guardian", "Guardian" },
+		{ "monster_makron", "Makron" },
+		{ "monster_jorg", "JORG" },
+		{ "monster_gladb", "DarkMatter Gladiator" },
+		{ "monster_boss2_64", "N64 Hornet" },
+		{ "monster_boss2kl", "HORNET" },
+		{ "monster_perrokl", "Infected Parasite" },
+		{ "monster_guncmdrkl", "Enraged Gunner Grenadier" },
+		{ "monster_shamblerkl", "Stygian Shambler" },
+		{ "monster_makronkl", "Ghostly Makron" },
+		{ "monster_widow1", "Widow Apprentice" },
+		{ "monster_widow", "Widow Centinel" },
+		{ "monster_widow2", "Widow Creator" }
+		// Add other replacements as needed
+	};
+
+	auto it = name_replacements.find(classname);
+	if (it != name_replacements.end())
+	{
+		return it->second;
+	}
+	return classname;
+}
 
 // Function to format the classname
 std::string FormatClassname(const std::string& classname)
@@ -1010,8 +1082,19 @@ static void CTFSetIDView(edict_t* ent)
 
 			if (tr.ent->svflags & SVF_MONSTER)
 			{
-				std::string name = (!tr.ent->classname || strlen(tr.ent->classname) == 0) ? "Strogg" : FormatClassname(tr.ent->classname);
+				std::string classname = tr.ent->classname ? tr.ent->classname : "Unknown Monster";
+				std::string display_name = GetDisplayName(classname);
+				std::string name = FormatClassname(display_name);
+
+				// Ensure no "unnamed" monster
+				if (name == "Unnamed" || name.empty())
+				{
+					name = "";
+				}
 				health_stream << name << "\n"; // Add newline after the name
+
+				// Debugging information
+				std::cout << "Debug: Monster classname: " << classname << ", Display name: " << display_name << ", Formatted name: " << name << std::endl;
 			}
 
 			health_stream << "H: " << tr.ent->health;
@@ -1053,8 +1136,19 @@ static void CTFSetIDView(edict_t* ent)
 
 		if (best->svflags & SVF_MONSTER)
 		{
-			std::string name = (!best->classname || strlen(best->classname) == 0) ? "Strogg" : FormatClassname(best->classname);
+			std::string classname = best->classname ? best->classname : "Unknown Monster";
+			std::string display_name = GetDisplayName(classname);
+			std::string name = FormatClassname(display_name);
+
+			// Ensure no "unnamed" monster
+			if (name == "Unnamed" || name.empty())
+			{
+				name = "";
+			}
 			health_stream << name << "\n"; // Add newline after the name
+
+			// Debugging information
+			std::cout << "Debug: Monster classname: " << classname << ", Display name: " << display_name << ", Formatted name: " << name << std::endl;
 		}
 
 		health_stream << "H: " << best->health;
@@ -1071,6 +1165,7 @@ static void CTFSetIDView(edict_t* ent)
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (best - g_edicts);
 	}
 }
+
 
 
 void SetCTFStats(edict_t* ent)
