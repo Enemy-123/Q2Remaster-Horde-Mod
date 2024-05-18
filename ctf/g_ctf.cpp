@@ -960,7 +960,6 @@ int GetArmorInfo(edict_t* ent) // future id armor view?
 #include <unordered_map>
 #include <string>
 #include <sstream>
-#include <iostream>
 
 // Función para obtener el nombre para mostrar con reemplazos
 std::string GetDisplayName(const std::string& classname)
@@ -1023,6 +1022,7 @@ std::string GetDisplayName(const std::string& classname)
 		{ "monster_widow2", "Widow Creator" },
 		{ "monster_supertank", "Super-Tank" },
 		{ "monster_supertankkl", "Super-Tank!" },
+		{ "monster_boss5", "Super-Tank" },
 		{ "monster_boss5", "Super-Tank" },
 		{ "monster_turret", "TurretGun" },
 		{ "monster_turretkl", "TurretGun" }
@@ -1101,8 +1101,6 @@ static void CTFSetIDView(edict_t* ent)
 				}
 				health_stream << name << "\n"; // Add newline after the name
 
-				// Debugging information
-				std::cout << "Debug: Monster classname: " << classname << ", Display name: " << display_name << ", Formatted name: " << name << std::endl;
 			}
 
 			health_stream << "H: " << tr.ent->health;
@@ -1158,8 +1156,6 @@ static void CTFSetIDView(edict_t* ent)
 			}
 			health_stream << name << "\n"; // Add newline after the name
 
-			// Debugging information
-			std::cout << "Debug: Monster classname: " << classname << ", Display name: " << display_name << ", Formatted name: " << name << std::endl;
 		}
 
 		health_stream << "H: " << best->health;
