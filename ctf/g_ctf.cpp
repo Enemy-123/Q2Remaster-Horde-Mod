@@ -1077,7 +1077,10 @@ static void CTFSetIDView(edict_t* ent)
 	{
 		if ((tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER))
 		{
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
+			if (tr.ent->client)
+			{
+				ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
+			}
 			std::ostringstream health_stream;
 
 			if (tr.ent->svflags & SVF_MONSTER)
@@ -1131,7 +1134,10 @@ static void CTFSetIDView(edict_t* ent)
 	}
 	if (bd > 0.90f)
 	{
-		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
+		if (best->client)
+		{
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
+		}
 		std::ostringstream health_stream;
 
 		if (best->svflags & SVF_MONSTER)
@@ -1165,9 +1171,6 @@ static void CTFSetIDView(edict_t* ent)
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (best - g_edicts);
 	}
 }
-
-
-
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;
