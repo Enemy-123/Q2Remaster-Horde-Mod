@@ -720,7 +720,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
-	if (g_vampire->integer && attacker != targ && !OnSameTeam(targ, attacker) && take > 6 && (!(attacker->health < 1))) {
+	if (g_vampire->integer &&
+		attacker != targ &&
+		!OnSameTeam(targ, attacker) &&
+		take > 6 &&
+		!(attacker->health < 1) &&
+		!(attacker->svflags & SVF_MONSTER)) {
+
 		int vtake = take;
 		int hmax = attacker->max_health;
 

@@ -698,7 +698,7 @@ void SP_monster_jorg(edict_t* self)
 	self->mins = { -80, -80, 0 };
 	self->maxs = { 80, 80, 140 };
 
-	self->health = 8000 * st.health_multiplier;
+	self->health = 10000 * st.health_multiplier;
 	self->gib_health = -2000;
 	self->mass = 1000;
 

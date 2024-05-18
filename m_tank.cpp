@@ -1105,11 +1105,11 @@ void SP_monster_tank(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	// [Paril-KEX] N64 tank commander is a chonky boy
-	if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
+	if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN) || !strcmp(self->classname, "monster_tank_64"))
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.3f;
-		self->health = 850 * st.health_multiplier;
+		self->health = 1750 * st.health_multiplier;
 		self->accel = 1.75f;
 		self->gib_health = -130;
 	}
