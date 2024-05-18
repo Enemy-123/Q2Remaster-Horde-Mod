@@ -915,7 +915,8 @@ void Horde_RunFrame() {
 					e->s.renderfx = RF_GLOW;
 					e->s.effects = EF_GRENADE_LIGHT;
 				}
-
+				// Aumentar la salud del enemigo en un 2% por cada current_wave_number
+				e->health *= 1 + (0.02 * current_wave_number);
 				e->monsterinfo.power_armor_power *= current_wave_number * 1.115; // Escalar la armadura de energía basada en la oleada actual
 				e->gib_health = -100;
 
