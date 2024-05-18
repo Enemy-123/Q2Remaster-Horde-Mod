@@ -571,7 +571,6 @@ void SP_monster_gladiator(edict_t* self)
  */
 void SP_monster_gladb(edict_t* self)
 {
-	self->s.renderfx = RF_GLOW;
 	SP_monster_gladiator(self);
 }
 
