@@ -946,24 +946,15 @@ void CTFID_f(edict_t* ent)
 	}
 }
 
-int GetArmorInfo(edict_t* ent) // future id armor view?
-{
+int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
 	}
 	int index = ArmorIndex(ent);
-	if (ent->client && index != IT_NULL)
-		return ent->client->pers.inventory[index];
-	else
-		return 0;
+	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
-#include <unordered_map>
-#include <string>
-#include <sstream>
 
-// Función para obtener el nombre para mostrar con reemplazos
-std::string GetDisplayName(const std::string& classname)
-{
+std::string GetDisplayName(const std::string& classname) {
 	static std::unordered_map<std::string, std::string> name_replacements = {
 		{ "monster_soldier_light", "Light Soldier" },
 		{ "monster_soldier_ss", "SS Soldier" },
@@ -1030,148 +1021,98 @@ std::string GetDisplayName(const std::string& classname)
 	};
 
 	auto it = name_replacements.find(classname);
-	if (it != name_replacements.end())
-	{
-		return it->second;
-	}
-	return classname;
+	return (it != name_replacements.end()) ? it->second : classname;
 }
 
-// Function to format the classname
-std::string FormatClassname(const std::string& classname)
-{
+std::string FormatClassname(const std::string& classname) {
 	std::stringstream ss(classname);
-	std::string segment;
-	std::string formatted_name;
+	std::string segment, formatted_name;
 	bool first_word = true;
-
-	while (std::getline(ss, segment, '_'))
-	{
-		if (!first_word)
-		{
-			formatted_name += " ";
-		}
+	while (std::getline(ss, segment, '_')) {
+		if (!first_word) formatted_name += " ";
 		segment[0] = toupper(segment[0]);
 		formatted_name += segment;
 		first_word = false;
 	}
-
 	return formatted_name;
 }
 
-static void CTFSetIDView(edict_t* ent)
-{
-	vec3_t forward, dir;
+void CTFSetIDView(edict_t* ent) {
+	vec3_t forward;
 	trace_t tr;
-	edict_t* who, * best;
+	edict_t* who, * best = nullptr;
 	float bd = 0, d;
 
-	// only check every few frames
-	if (level.time - ent->client->resp.lastidtime < 250_ms)
+	if (level.time - ent->client->resp.lastidtime < 0.25_ms)
 		return;
 
 	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;  // Reset target health string
+	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 1024;
-	forward = ent->s.origin + forward;
-	tr = gi.traceline(ent->s.origin, forward, ent, MASK_SOLID);
-	if (tr.fraction < 1 && tr.ent)
-	{
-		if ((tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER))
-		{
-			if (tr.ent->client)
-			{
-				ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
-			}
-			std::ostringstream health_stream;
-
-			if (tr.ent->svflags & SVF_MONSTER)
-			{
-				std::string classname = tr.ent->classname ? tr.ent->classname : "Unknown Monster";
-				std::string display_name = GetDisplayName(classname);
-				std::string name = FormatClassname(display_name);
-
-				// Ensure no "unnamed" monster
-				if (name == "Unnamed" || name.empty())
-				{
-					name = "";
-				}
-				health_stream << name << "\n"; // Add newline after the name
-
-			}
-
-			health_stream << "H: " << tr.ent->health;
-			if (tr.ent->client)
-			{
-				health_stream << " A: " << GetArmorInfo(tr.ent);
-			}
-			else if (tr.ent->svflags & SVF_MONSTER)
-			{
-				health_stream << " PA: " << tr.ent->monsterinfo.power_armor_power;
-			}
-			ent->client->target_health_str = health_stream.str();
-			gi.configstring(CS_GENERAL + (tr.ent - g_edicts), ent->client->target_health_str.c_str());
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (tr.ent - g_edicts);
-			return;
+	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SOLID);
+	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
+		std::ostringstream health_stream;
+		if (tr.ent->svflags & SVF_MONSTER) {
+			std::string name = FormatClassname(GetDisplayName(tr.ent->classname ? tr.ent->classname : "Unknown Monster"));
+			health_stream << name << "\n";
 		}
+		health_stream << "H: " << tr.ent->health;
+		if (tr.ent->client) {
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
+			health_stream << " A: " << GetArmorInfo(tr.ent);
+		}
+		else if (tr.ent->svflags & SVF_MONSTER) {
+			health_stream << " PA: " << tr.ent->monsterinfo.power_armor_power;
+		}
+		ent->client->target_health_str = health_stream.str();
+		int index = CS_GENERAL + (tr.ent - g_edicts);
+		if (index < MAX_CONFIGSTRINGS) {
+			gi.configstring(index, ent->client->target_health_str.c_str());
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = index;
+		}
+		return;
 	}
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	best = nullptr;
-	for (uint32_t i = 1; i < globals.num_edicts; i++)
-	{
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		who = g_edicts + i;
 		if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER)) || (who->svflags & SVF_DEADMONSTER)))
 			continue;
-		dir = who->s.origin - ent->s.origin;
+		vec3_t dir = who->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-		if (d > bd && loc_CanSee(ent, who))
-		{
+		if (d > bd && loc_CanSee(ent, who)) {
 			bd = d;
 			best = who;
 		}
 	}
-	if (bd > 0.90f)
-	{
-		if (best->client)
-		{
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-		}
+	if (bd > 0.90f) {
 		std::ostringstream health_stream;
-
-		if (best->svflags & SVF_MONSTER)
-		{
-			std::string classname = best->classname ? best->classname : "Unknown Monster";
-			std::string display_name = GetDisplayName(classname);
-			std::string name = FormatClassname(display_name);
-
-			// Ensure no "unnamed" monster
-			if (name == "Unnamed" || name.empty())
-			{
-				name = "";
-			}
-			health_stream << name << "\n"; // Add newline after the name
-
+		if (best->svflags & SVF_MONSTER) {
+			std::string name = FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
+			health_stream << name << "\n";
 		}
-
 		health_stream << "H: " << best->health;
-		if (best->client)
-		{
+		if (best->client) {
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 			health_stream << " A: " << GetArmorInfo(best);
 		}
-		else if (best->svflags & SVF_MONSTER)
-		{
+		else if (best->svflags & SVF_MONSTER) {
 			health_stream << " PA: " << best->monsterinfo.power_armor_power;
 		}
 		ent->client->target_health_str = health_stream.str();
-		gi.configstring(CS_GENERAL + (best - g_edicts), ent->client->target_health_str.c_str());
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (best - g_edicts);
+		int index = CS_GENERAL + (best - g_edicts);
+		if (index < MAX_CONFIGSTRINGS) {
+			gi.configstring(index, ent->client->target_health_str.c_str());
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = index;
+		}
 	}
 }
+
+
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;
@@ -1183,10 +1124,10 @@ void SetCTFStats(edict_t* ent)
 	//else
 //		ent->client->ps.stats[STAT_CTF_MATCH] = 0;
 
-	if (ctfgame.warnactive)
-		ent->client->ps.stats[STAT_CTF_TEAMINFO] = CONFIG_CTF_TEAMINFO;
-	else
-		ent->client->ps.stats[STAT_CTF_TEAMINFO] = 0;
+	//if (ctfgame.warnactive)
+	//	ent->client->ps.stats[STAT_CTF_TEAMINFO] = CONFIG_CTF_TEAMINFO;
+	//else
+	//	ent->client->ps.stats[STAT_CTF_TEAMINFO] = 0;
 
 	// ghosting
 	if (ent->client->resp.ghost)

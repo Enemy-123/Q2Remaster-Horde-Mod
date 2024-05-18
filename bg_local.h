@@ -227,7 +227,7 @@ enum player_stat_t
 	STAT_CTF_ID_VIEW = 28,
 	STAT_CTF_MATCH = 29,
 	STAT_TARGET_HEALTH = 30,
-	STAT_CTF_TEAMINFO = 31,
+	STAT_TARGET_HEALTH_STRING = 31,
 
 	// [Kex] More stats for weapon wheel
 	STAT_WEAPONS_OWNED_1 = 32,
@@ -256,7 +256,6 @@ enum player_stat_t
 	STAT_HEALTH_BARS, // two health bar values; 7 bits for value, 1 bit for active
 	// [Paril-KEX]
 	STAT_ACTIVE_WEAPON,
-	STAT_TARGET_HEALTH_STRING,
 	// don't use; just for verification
 	STAT_LAST
 };
