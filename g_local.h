@@ -3299,6 +3299,7 @@ struct edict_t
 	edict_t* laser;
 	gtime_t hook_time;
 	// Kyper
+	//const char* monster_name; // Añadido este campo para el nombre del monstruo
 };
 
 //=============

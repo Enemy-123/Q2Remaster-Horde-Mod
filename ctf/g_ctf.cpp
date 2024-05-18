@@ -948,11 +948,38 @@ void CTFID_f(edict_t* ent)
 
 int GetArmorInfo(edict_t* ent) // future id armor view?
 {
+	if (ent->svflags & SVF_MONSTER) {
+		return ent->monsterinfo.power_armor_power;
+	}
 	int index = ArmorIndex(ent);
 	if (ent->client && index != IT_NULL)
 		return ent->client->pers.inventory[index];
 	else
 		return 0;
+}
+#include <algorithm>
+#include <sstream>
+
+// Function to format the classname
+std::string FormatClassname(const std::string& classname)
+{
+	std::stringstream ss(classname);
+	std::string segment;
+	std::string formatted_name;
+	bool first_word = true;
+
+	while (std::getline(ss, segment, '_'))
+	{
+		if (!first_word)
+		{
+			formatted_name += " ";
+		}
+		segment[0] = toupper(segment[0]);
+		formatted_name += segment;
+		first_word = false;
+	}
+
+	return formatted_name;
 }
 
 static void CTFSetIDView(edict_t* ent)
@@ -974,23 +1001,41 @@ static void CTFSetIDView(edict_t* ent)
 	forward *= 1024;
 	forward = ent->s.origin + forward;
 	tr = gi.traceline(ent->s.origin, forward, ent, MASK_SOLID);
-	if (tr.fraction < 1 && tr.ent && tr.ent->client)
+	if (tr.fraction < 1 && tr.ent)
 	{
-		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
-		std::ostringstream health_stream;
-		health_stream << "H: " << tr.ent->health << " A: " << GetArmorInfo(tr.ent);
-		ent->client->target_health_str = health_stream.str();
-		gi.configstring(CS_GENERAL + (tr.ent - g_edicts), ent->client->target_health_str.c_str());
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (tr.ent - g_edicts);
-		return;
+		if ((tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER))
+		{
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
+			std::ostringstream health_stream;
+
+			if (tr.ent->svflags & SVF_MONSTER)
+			{
+				std::string name = (!tr.ent->classname || strlen(tr.ent->classname) == 0) ? "Strogg" : FormatClassname(tr.ent->classname);
+				health_stream << name << "\n"; // Add newline after the name
+			}
+
+			health_stream << "H: " << tr.ent->health;
+			if (tr.ent->client)
+			{
+				health_stream << " A: " << GetArmorInfo(tr.ent);
+			}
+			else if (tr.ent->svflags & SVF_MONSTER)
+			{
+				health_stream << " PA: " << tr.ent->monsterinfo.power_armor_power;
+			}
+			ent->client->target_health_str = health_stream.str();
+			gi.configstring(CS_GENERAL + (tr.ent - g_edicts), ent->client->target_health_str.c_str());
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (tr.ent - g_edicts);
+			return;
+		}
 	}
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	best = nullptr;
-	for (uint32_t i = 1; i <= game.maxclients; i++)
+	for (uint32_t i = 1; i < globals.num_edicts; i++)
 	{
 		who = g_edicts + i;
-		if (!who->inuse || who->solid == SOLID_NOT)
+		if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER)) || (who->svflags & SVF_DEADMONSTER)))
 			continue;
 		dir = who->s.origin - ent->s.origin;
 		dir.normalize();
@@ -1005,7 +1050,22 @@ static void CTFSetIDView(edict_t* ent)
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 		std::ostringstream health_stream;
-		health_stream << "H: " << best->health << " A: " << GetArmorInfo(best);
+
+		if (best->svflags & SVF_MONSTER)
+		{
+			std::string name = (!best->classname || strlen(best->classname) == 0) ? "Strogg" : FormatClassname(best->classname);
+			health_stream << name << "\n"; // Add newline after the name
+		}
+
+		health_stream << "H: " << best->health;
+		if (best->client)
+		{
+			health_stream << " A: " << GetArmorInfo(best);
+		}
+		else if (best->svflags & SVF_MONSTER)
+		{
+			health_stream << " PA: " << best->monsterinfo.power_armor_power;
+		}
 		ent->client->target_health_str = health_stream.str();
 		gi.configstring(CS_GENERAL + (best - g_edicts), ent->client->target_health_str.c_str());
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = CS_GENERAL + (best - g_edicts);
