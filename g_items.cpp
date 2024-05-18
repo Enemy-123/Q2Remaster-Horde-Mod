@@ -286,18 +286,16 @@ void Drop_General(edict_t* ent, gitem_t* item)
 
 void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
-	if (G_IsCooperative() && !g_horde->integer)
-		ent->max_health += 5;
-	else if (!G_IsCooperative())
-		ent->max_health += 10;
+	int health_increase = (G_IsCooperative() && !g_horde->integer) ? 5 : 10;
 
+	ent->max_health += health_increase;
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
-
 	ent->client->pers.inventory[item->id]--;
 }
+
 
 bool Pickup_LegacyHead(edict_t* ent, edict_t* other)
 {
