@@ -4,6 +4,13 @@
 #include <array>
 #include <chrono>
 
+#include "../g_local.h"
+#include <sstream>
+#include <unordered_map>
+#include <unordered_set>
+#include <array>
+#include <chrono>
+
 static const int MAX_MONSTERS_BIG_MAP = 44;
 static const int MAX_MONSTERS_MEDIUM_MAP = 18;
 static const int MAX_MONSTERS_SMALL_MAP = 15;
@@ -35,19 +42,20 @@ bool isSmallMap = false;
 bool isBigMap = false;
 
 void IsMapSize(const std::string& mapname, bool& isSmallMap, bool& isBigMap, bool& isMediumMap) {
-    if (isSmallMap) {
-        isMediumMap = false;
-        isBigMap = false;
-    }
-    else if (isBigMap) {
-        isMediumMap = false;
-        isSmallMap = false;
-    }
-    else {
-        isMediumMap = true;
-        isSmallMap = false;
-        isBigMap = false;
-    }
+    static const std::unordered_set<std::string> smallMaps = {
+        "q2dm3", "q2dm7", "q2dm2", "q2ctf4", "q64/dm10", "q64\\dm10",
+        "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2",
+        "q64\\dm2", "q64/dm1", "q64\\dm1", "fact3", "q2ctf4",
+        "mgu3m4", "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1"
+    };
+
+    static const std::unordered_set<std::string> bigMaps = {
+        "q2ctf5", "old/kmdm3", "xdm2", "xdm6"
+    };
+
+    isSmallMap = smallMaps.count(mapname) > 0;
+    isBigMap = bigMaps.count(mapname) > 0;
+    isMediumMap = !isSmallMap && !isBigMap;
 }
 
 static void Horde_InitLevel(int32_t lvl)
@@ -94,41 +102,6 @@ static void Horde_InitLevel(int32_t lvl)
 
     if (g_horde_local.level == 27) {
         gi.cvar_set("g_damage_scale", "2.5");
-    }
-
-    // Small Maps
-    if (!Q_strcasecmp(level.mapname, "q2dm3") ||
-        !Q_strcasecmp(level.mapname, "q2dm7") ||
-        !Q_strcasecmp(level.mapname, "q2dm2") ||
-        !Q_strcasecmp(level.mapname, "q2ctf4") ||
-        !Q_strcasecmp(level.mapname, "q64/dm10") ||
-        !Q_strcasecmp(level.mapname, "q64\\dm10") ||
-        !Q_strcasecmp(level.mapname, "q64/dm9") ||
-        !Q_strcasecmp(level.mapname, "q64\\dm9") ||
-        !Q_strcasecmp(level.mapname, "q64/dm7") ||
-        !Q_strcasecmp(level.mapname, "q64\\dm7") ||
-        !Q_strcasecmp(level.mapname, "q64/dm2") ||
-        !Q_strcasecmp(level.mapname, "q64\\dm2") ||
-        !Q_strcasecmp(level.mapname, "q64/dm1") ||
-        !Q_strcasecmp(level.mapname, "q64\\dm1") ||
-        !Q_strcasecmp(level.mapname, "fact3") ||
-        !Q_strcasecmp(level.mapname, "q2ctf4") ||
-        !Q_strcasecmp(level.mapname, "mgu3m4") ||
-        !Q_strcasecmp(level.mapname, "mgu4trial") ||
-        !Q_strcasecmp(level.mapname, "mgu6trial") ||
-        !Q_strcasecmp(level.mapname, "ec/base_ec") ||
-        !Q_strcasecmp(level.mapname, "mgdm1")) {
-        isSmallMap = true;
-        isMediumMap = false;
-        isBigMap = false;
-    }
-    else if (!Q_strcasecmp(level.mapname, "q2ctf5") ||
-        !Q_strcasecmp(level.mapname, "old/kmdm3") ||
-        !Q_strcasecmp(level.mapname, "xdm2") ||
-        !Q_strcasecmp(level.mapname, "xdm6")) {
-        isBigMap = true;
-        isMediumMap = false;
-        isSmallMap = false;
     }
 
     // Declaración de ent fuera del bucle
@@ -562,36 +535,66 @@ static void Horde_CleanBodies()
 
 void SpawnBossAutomatically()
 {
-    if (current_wave_number % 5 == 0 && current_wave_number != 0) {
-        edict_t* boss = G_Spawn();
+    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        (Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        (Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        (Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        (Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        (Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        ((!Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        ((!Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 5 == 0 && current_wave_number != 0) ||
+        ((!Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 5 == 0 && current_wave_number != 0))
+    {
+
+        // Solo necesitas un bucle aquí para generar un jefe
+        edict_t* boss = G_Spawn(); // Creas un nuevo edict_t solo si es necesario
         if (!boss)
             return;
 
+        // Aquí selecciona el jefe deseado
         const char* desired_boss = G_HordePickBOSS();
         if (!desired_boss) {
-            return;
+            return; // No se pudo encontrar un jefe válido
         }
         boss->classname = desired_boss;
+        // origin for monsters
+// Define un mapa que mapea los nombres de los mapas a las coordenadas de origen
+        std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
+            {"q2dm1", {1184, 568, 704}},
+            {"rdm14", {1248, 664, 896}},
+            {"q2dm2", {128, -960, 704}},
+            {"q2dm8", {112, 1216, 88}},
+            {"q2ctf5", {2432, -960, 168}},
+            {"xdm2", {-232, 472, 424}},
+            {"q64/dm7", {64, 224, 120}},
+            {"q64\\dm7", {64, 224, 120}},
+            {"q64/dm10", {-304, 512, -92}},
+            {"q64\\dm10", {-304, 512, -92}},
+            {"q64/dm2", {1328, -256, 272}},
+            {"q64\\dm2", {1328, -256, 272}}
+        };
 
-        select_spawn_result_t result;
-        do {
-            result = SelectDeathmatchSpawnPoint(false, true, false);
-        } while (result.any_valid && (result.spot->s.origin[0] < 100 || result.spot->s.origin[1] < 100 || result.spot->s.origin[2] < 100));
-
-        if (result.any_valid) {
-            boss->s.origin = result.spot->s.origin;
-            boss->s.angles = result.spot->s.angles;
+        auto it = mapOrigins.find(level.mapname);
+        if (it != mapOrigins.end()) {
+            boss->s.origin[0] = it->second[0];
+            boss->s.origin[1] = it->second[1];
+            boss->s.origin[2] = it->second[2];
         }
         else {
             return;
         }
+
+        boss->s.angles[0] = 0; // are these needed?
+        boss->s.angles[1] = 0;
+        boss->s.angles[2] = 0;
 
         gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
         boss->maxs *= 1.4f;
         boss->mins *= 1.4f;
         boss->s.scale = 1.4f;
         boss->health *= pow(1.2, current_wave_number);
-        boss->monsterinfo.power_armor_power *= current_wave_number * 1.45;
+        boss->monsterinfo.power_armor_power *= current_wave_number * 1.45; // Escalar la armadura de energía basada en la oleada actual
+
         boss->gib_health *= 3;
 
         vec3_t effectPosition = boss->s.origin;
@@ -605,8 +608,7 @@ void SpawnBossAutomatically()
         gi.multicast(effectPosition, MULTICAST_PHS, false);
         ED_CallSpawn(boss);
     }
-}
-void ResetGame() {
+}void ResetGame() {
     g_horde_local.state = horde_state_t::warmup;
     next_wave_message_sent = false;
     gi.cvar_set("g_chaotic", "0");

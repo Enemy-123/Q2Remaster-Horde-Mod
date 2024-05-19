@@ -380,24 +380,31 @@ R_ConcatRotations
 		(from[2] < absmins[2]) ? absmins[2] : (from[2] > absmaxs[2]) ? absmaxs[2] : from[2]
 	};
 }
-
 [[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa, const vec3_t& absminsb, const vec3_t& absmaxsb)
 {
+	// Comprobar si los punteros son nulos
 	if (!absminsa || !absmaxsa || !absminsb || !absmaxsb) {
 		// Manejo de error, como retornar un valor predeterminado o lanzar una excepción
 		return 0.0f; // Por ejemplo, si es apropiado para tu caso
+	}
+
+	// Verificar que todos los valores dentro de los vectores sean válidos
+	for (size_t i = 0; i < 3; i++) {
+		if (std::isnan(absminsa[i]) || std::isnan(absmaxsa[i]) || std::isnan(absminsb[i]) || std::isnan(absmaxsb[i])) {
+			return 0.0f; // Manejar caso de valores no válidos
+		}
 	}
 
 	float len = 0;
 
 	for (size_t i = 0; i < 3; i++)
 	{
-		if (absmaxsa[i] < absminsb[i]) // CRASH debugger!
+		if (absmaxsa[i] < absminsb[i]) // Si el max de A es menor que el min de B
 		{
 			float d = absmaxsa[i] - absminsb[i];
 			len += d * d;
 		}
-		else if (absminsa[i] > absmaxsb[i])
+		else if (absminsa[i] > absmaxsb[i]) // Si el min de A es mayor que el max de B
 		{
 			float d = absminsa[i] - absmaxsb[i];
 			len += d * d;
