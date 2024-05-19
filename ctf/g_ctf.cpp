@@ -1757,7 +1757,6 @@ void CTFTeam_f(edict_t* ent)
 	gi.LocBroadcast_Print(PRINT_HIGH, "$g_changed_team",
 		ent->client->pers.netname, CTFTeamName(desired_team));
 }
-
 constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
 
 /*
@@ -1767,17 +1766,21 @@ CTFScoreboardMessage
 */
 void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 {
-	uint32_t sorted[2][MAX_CLIENTS] = { 0 };
-	int32_t sortedscores[2][MAX_CLIENTS] = { 0 };
-	uint32_t total_clients_per_team[2] = { 0 };
-	int total_scores_per_team[2] = { 0 };
-	uint32_t last_client_per_team[2] = { 0 };
-	uint32_t i, j, k, n;
+	uint32_t   i, j, k, n;
+	uint32_t   sorted[2][MAX_CLIENTS];
+	int32_t    sortedscores[2][MAX_CLIENTS];
+	int		   score;
+	uint32_t   total[2];
+	int        totalscore[2];
+	uint32_t   last[2];
 	gclient_t* cl;
 	edict_t* cl_ent;
-	int team;
+	int		   team;
 
-	// Sort the clients by team and score
+	// sort the clients by team and score
+	total[0] = total[1] = 0;
+	last[0] = last[1] = 0;
+	totalscore[0] = totalscore[1] = 0;
 	for (i = 0; i < game.maxclients; i++)
 	{
 		cl_ent = g_edicts + 1 + i;
@@ -1788,75 +1791,121 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
 			team = 1;
 		else
-			continue; // Unknown team
+			continue; // unknown team?
 
-		int score = game.clients[i].resp.score;
-		for (j = 0; j < total_clients_per_team[team]; j++)
+		score = game.clients[i].resp.score;
+		for (j = 0; j < total[team]; j++)
 		{
 			if (score > sortedscores[team][j])
 				break;
 		}
-		for (k = total_clients_per_team[team]; k > j; k--)
+		for (k = total[team]; k > j; k--)
 		{
 			sorted[team][k] = sorted[team][k - 1];
 			sortedscores[team][k] = sortedscores[team][k - 1];
 		}
 		sorted[team][j] = i;
 		sortedscores[team][j] = score;
-		total_scores_per_team[team] += score;
-		total_clients_per_team[team]++;
+		totalscore[team] += score;
+		total[team]++;
 	}
 
-	// Prepare the scoreboard string
-	std::string scoreboard_string;
-	scoreboard_string.clear();
+	// print level name and exit rules
+	// add the clients in sorted order
+	static std::string string;
+	string.clear();
+
+	// [Paril-KEX] time & frags
+//	if (teamplay->integer)
+	//{
+	//	if (fraglimit->integer)
+	//	{
+	//		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
+	//	}
+	//}
+
 
 	if (g_horde->integer && level.intermissiontime)
+
 	{
-		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""));
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""), g_horde->integer);
 	}
 
 	if (timelimit->value)
 	{
-		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
-	// Display team scores
+	// team one
+	//if (teamplay->integer)
+	//{
+	//	fmt::format_to(std::back_inserter(string),
+	//		FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
+	//			"xv -123 yv 28 cstring \"{}\" "
+	//			"xv 41 yv 12 num 3 19 "
+	//			"if 26 xv 208 yv 8 pic 26 endif "
+	//			"xv 117 yv 28 cstring \"{}\" "
+	//			"xv 280 yv 12 num 3 21 "),
+	//		total[0],
+	//		total[1]);
+	//}
+
 	if (!level.intermissiontime)
 	{
-		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("if 25 xv -65 yv 10 dogtag endif "));
+		fmt::format_to(std::back_inserter(string),
+			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+			FMT_STRING("if 25 xv -65 yv 10 dogtag endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
+				//               "if 26 xv 188 yv 8 pic 26 endif "
+				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
+				//"xv 70 yv -20 num 2 19 "  // wave and stroggs numbers
+	//			"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
+			//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
+			//	"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using ¨wave¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
+			//"xv 296 yv -20 num 2 21 "
+			),
+			totalscore[0], total[0],
+			totalscore[1], total[1]);
 	}
-	else
-	{
-		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("if 25 xv -65 yv 10 dogtag endif"));
+	else if (level.intermissiontime) {
+		fmt::format_to(std::back_inserter(string),
+			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
+			FMT_STRING("if 25 xv -65 yv 10 dogtag endif"  // RED TEAM, yv 8 normal, menos es mas alto
+				"if 25 xv 205 yv 8 pic 25 endif "
+				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
+			//		"if 26 xv 208 yv 8 pic 26 endif "
+				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
+				"xv 70 yv -20 num 2 19 "
+				"xv 302 yv -20 num 2 21 "),
+			totalscore[0], total[0],
+			totalscore[1], total[1]);
 	}
-
-	// Display individual scores for each team
 	for (i = 0; i < 16; i++)
 	{
-		if (i >= total_clients_per_team[0] && i >= total_clients_per_team[1])
-			break;
+		if (i >= total[0] && i >= total[1])
+			break; // we're done
 
-		if (i < total_clients_per_team[0])
+		// left side
+		if (i < total[0])
 		{
 			cl = &game.clients[sorted[0][i]];
 			cl_ent = g_edicts + 1 + sorted[0][i];
 
-			std::string_view entry = G_Fmt("ctf -70 {} {} {} {} {} ",
+			std::string_view entry = G_Fmt("ctf -70 {} {} {} {} {} ",  // -70, and lower, names will go to left on scoreboard ctf/horde
 				42 + i * 8,
 				sorted[0][i],
 				cl->resp.score,
 				cl->ping > 999 ? 999 : cl->ping,
 				cl_ent->client->pers.inventory[IT_FLAG2] ? "sbfctf2" : "\"\"");
 
-			if (scoreboard_string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
+			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
 			{
-				scoreboard_string += entry;
-				last_client_per_team[0] = i;
+				string += entry;
+				last[0] = i;
 			}
 		}
 
-		if (i < total_clients_per_team[1])
+		// right side
+		if (i < total[1])
 		{
 			cl = &game.clients[sorted[1][i]];
 			cl_ent = g_edicts + 1 + sorted[1][i];
@@ -1868,47 +1917,49 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 				cl->ping > 999 ? 999 : cl->ping,
 				cl_ent->client->pers.inventory[IT_FLAG1] ? "sbfctf1" : "\"\"");
 
-			if (scoreboard_string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
+			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
 			{
-				scoreboard_string += entry;
-				last_client_per_team[1] = i;
+				string += entry;
+				last[1] = i;
 			}
 		}
 	}
 
-	// Display spectators
-	if (last_client_per_team[0] > last_client_per_team[1])
-		j = last_client_per_team[0];
+	// put in spectators if we have enough room
+	if (last[0] > last[1])
+		j = last[0];
 	else
-		j = last_client_per_team[1];
+		j = last[1];
 	j = (j + 2) * 8 + 42;
 
 	k = n = 0;
-	if (scoreboard_string.size() < MAX_CTF_STAT_LENGTH - 50)
+	if (string.size() < MAX_CTF_STAT_LENGTH - 50)
 	{
 		for (i = 0; i < game.maxclients; i++)
 		{
 			cl_ent = g_edicts + 1 + i;
 			cl = &game.clients[i];
-			if (!cl_ent->inuse || cl_ent->solid != SOLID_NOT || cl_ent->client->resp.ctf_team != CTF_NOTEAM)
+			if (!cl_ent->inuse ||
+				cl_ent->solid != SOLID_NOT ||
+				cl_ent->client->resp.ctf_team != CTF_NOTEAM)
 				continue;
 
 			if (!k)
 			{
 				k = 1;
-				fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv 60 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
+				fmt::format_to(std::back_inserter(string), FMT_STRING("xv 60 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
 				j += 8;
 			}
 
 			std::string_view entry = G_Fmt("ctf {} {} {} {} {} \"\" ",
-				(n & 1) ? 200 : -40,
-				j,
-				i,
+				(n & 1) ? 200 : -40, // x
+				j,				   // y
+				i,				   // playernum
 				cl->resp.score,
 				cl->ping > 999 ? 999 : cl->ping);
 
-			if (scoreboard_string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
-				scoreboard_string += entry;
+			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
+				string += entry;
 
 			if (n & 1)
 				j += 8;
@@ -1916,19 +1967,19 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 		}
 	}
 
-	// Display additional clients if not enough space
-	if (total_clients_per_team[0] - last_client_per_team[0] > 1)
-		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
-			42 + (last_client_per_team[0] + 1) * 8, total_clients_per_team[0] - last_client_per_team[0] - 1);
-	if (total_clients_per_team[1] - last_client_per_team[1] > 1)
-		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv 208 yv {} loc_string 1 $g_ctf_and_more {} "),
-			42 + (last_client_per_team[1] + 1) * 8, total_clients_per_team[1] - last_client_per_team[1] - 1);
+	if (total[0] - last[0] > 1) // couldn't fit everyone
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
+			42 + (last[0] + 1) * 8, total[0] - last[0] - 1);
+	if (total[1] - last[1] > 1) // couldn't fit everyone
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 208 yv {} loc_string 1 $g_ctf_and_more {} "),
+			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
 
 	if (level.intermissiontime)
-		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+	//	fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 
 	gi.WriteByte(svc_layout);
-	gi.WriteString(scoreboard_string.c_str());
+	gi.WriteString(string.c_str());
 }
 
 /*------------------------------------------------------------------------*/
