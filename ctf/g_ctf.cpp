@@ -1109,7 +1109,7 @@ void CTFSetIDView(edict_t* ent) {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
 		}
 		else {
-			name = best->client->pers.netname ? best->client->pers.netname : "Unknown Player";
+
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 		}
 
