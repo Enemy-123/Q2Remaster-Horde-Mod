@@ -104,7 +104,7 @@ cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
 cvar_t* g_autohaste;
-cvar_t* g_wavelevel;
+cvar_t* wavenext;
 cvar_t* dm_monsters;
 cvar_t* g_dm_spawns;
 cvar_t* sv_centerprint_frags;

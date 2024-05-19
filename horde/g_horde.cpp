@@ -471,7 +471,7 @@ const char* G_HordePickBOSS()
 void Horde_PreInit()
 {
 
-    g_wavelevel = gi.cvar("g_wavelevel", "0", CVAR_SERVERINFO);
+    wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
     dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO); // Nuevo cvar
     g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 
