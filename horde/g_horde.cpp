@@ -134,7 +134,6 @@ static void ApplyBenefit(const std::string& benefit) {
     // Track the obtained benefit
     obtained_benefits.insert(benefit);
 }
-
 static void Horde_InitLevel(int32_t lvl) {
     current_wave_number++;
     g_horde_local.level = lvl;
@@ -156,22 +155,11 @@ static void Horde_InitLevel(int32_t lvl) {
         }
     }
 
-    // Declaración de ent fuera del bucle
-    edict_t* ent;
-
-    // Ciclo a través de jugadores
-    for (uint32_t Hplayer = 1; Hplayer <= game.maxclients; Hplayer++) {
-        ent = &g_edicts[Hplayer];
-        if (!ent->inuse || !ent->client)
-            continue;
-
-        // Contar jugadores activos
-        int numActiveHPlayers = 0;
-        for (auto Hplayer : active_players()) {
-            numActiveHPlayers++;
-        }
-
-        // Ajustar los valores según el tipo de mapa y la cantidad de jugadores activos
+    int custom_monster_count = dm_monsters->integer;
+    if (custom_monster_count > 0) {
+        g_horde_local.num_to_spawn = custom_monster_count;
+    }
+    else {
         if (isSmallMap) {
             g_horde_local.num_to_spawn = 6 + (lvl * 1);
             if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
@@ -199,26 +187,28 @@ static void Horde_InitLevel(int32_t lvl) {
                 g_horde_local.num_to_spawn += (g_insane->integer ? 9 : 6);
             }
         }
+    }
 
-        if (numActiveHPlayers >= 6 || current_wave_number <= 27) {
-            int additionalSpawn = 0;
-
-            if (isSmallMap) {
-                additionalSpawn = 3;
-            }
-            else if (isBigMap) {
-                additionalSpawn = 8;
-            }
-            else {
-                additionalSpawn = 5;
-            }
-
-            if (current_wave_number > 27) {
-                additionalSpawn *= 1.6;
-            }
-
-            g_horde_local.num_to_spawn += additionalSpawn;
+    // Ajuste adicional según el número de jugadores
+    int numActiveHPlayers = 0;
+    for (auto Hplayer : active_players()) {
+        numActiveHPlayers++;
+    }
+    if (numActiveHPlayers >= 6 || current_wave_number <= 27) {
+        int additionalSpawn = 0;
+        if (isSmallMap) {
+            additionalSpawn = 3;
         }
+        else if (isBigMap) {
+            additionalSpawn = 8;
+        }
+        else {
+            additionalSpawn = 5;
+        }
+        if (current_wave_number > 27) {
+            additionalSpawn *= 1.6;
+        }
+        g_horde_local.num_to_spawn += additionalSpawn;
     }
 }
 
@@ -480,6 +470,9 @@ const char* G_HordePickBOSS()
 
 void Horde_PreInit()
 {
+
+    g_wavelevel = gi.cvar("g_wavelevel", "0", CVAR_SERVERINFO);
+    dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO); // Nuevo cvar
     g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 
     if (!g_horde->integer)
