@@ -4,6 +4,8 @@
 #include <unordered_set>
 #include <array>
 #include <chrono>
+#include <random>
+#include <algorithm>
 
 static const int MAX_MONSTERS_BIG_MAP = 44;
 static const int MAX_MONSTERS_MEDIUM_MAP = 18;
@@ -17,7 +19,7 @@ enum class horde_state_t
 {
     warmup,
     spawning,
-    cleanup,    
+    cleanup,
     rest
 };
 
@@ -34,6 +36,9 @@ bool next_wave_message_sent = false;
 bool isMediumMap = true;
 bool isSmallMap = false;
 bool isBigMap = false;
+int vampire_level = 0;
+std::vector<std::string> shuffled_benefits;
+std::unordered_set<std::string> obtained_benefits;
 
 void IsMapSize(const std::string& mapname, bool& isSmallMap, bool& isBigMap, bool& isMediumMap) {
     static const std::unordered_set<std::string> smallMaps = {
@@ -52,8 +57,85 @@ void IsMapSize(const std::string& mapname, bool& isSmallMap, bool& isBigMap, boo
     isMediumMap = !isSmallMap && !isBigMap;
 }
 
-static void Horde_InitLevel(int32_t lvl)
-{
+static std::vector<std::pair<int, std::string>> benefits = {
+    {5, "vampire"},
+    {10, "ammo regen"},
+    {15, "auto haste"},
+    {20, "vampire upgraded"}
+};
+
+void ShuffleBenefits() {
+    shuffled_benefits.clear();
+    for (const auto& benefit : benefits) {
+        shuffled_benefits.push_back(benefit.second);
+    }
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), gen);
+
+    // Ensure 'vampire upgraded' is after 'vampire'
+    auto vampire_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire");
+    auto upgraded_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire upgraded");
+    if (vampire_it != shuffled_benefits.end() && upgraded_it != shuffled_benefits.end() && vampire_it > upgraded_it) {
+        std::iter_swap(vampire_it, upgraded_it);
+    }
+}
+
+static std::string SelectRandomBenefit(int wave) {
+    std::vector<std::string> possible_benefits;
+
+    if (vampire_level == 0 && wave >= 5) {
+        possible_benefits.push_back("vampire");
+    }
+    else if (vampire_level == 1 && wave >= 10) {
+        possible_benefits.push_back("vampire upgraded");
+    }
+
+    for (const auto& benefit : shuffled_benefits) {
+        if (obtained_benefits.find(benefit) == obtained_benefits.end() && benefit != "vampire" && benefit != "vampire upgraded") {
+            possible_benefits.push_back(benefit);
+        }
+    }
+
+    if (!possible_benefits.empty()) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, possible_benefits.size() - 1);
+        return possible_benefits[dis(gen)];
+    }
+
+    return "";
+}
+
+static void ApplyBenefit(const std::string& benefit) {
+    if (benefit == "vampire") {
+        vampire_level = 1;
+        gi.cvar_set("g_vampire", "1");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
+        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING A PERCENTAGE OF DAMAGE DONE!\n");
+    }
+    else if (benefit == "ammo regen") {
+        gi.cvar_set("g_ammoregen", "1");
+        gi.LocBroadcast_Print(PRINT_TYPEWRITER, "AMMO REGEN\n\nENABLED!\n");
+        gi.LocBroadcast_Print(PRINT_CHAT, "AMMO REGEN IS NOW ENABLED!\n");
+    }
+    else if (benefit == "auto haste") {
+        gi.cvar_set("g_autohaste", "1");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGH YOUR VEINS \nDAMAGING WHILE ACCEL\nWILL EXTEND TIME!\n");
+        gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
+    }
+    else if (benefit == "vampire upgraded") {
+        vampire_level = 2;
+        gi.cvar_set("g_vampire", "2");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nVampire Ability\nUPGRADED!\n");
+        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
+    }
+
+    // Track the obtained benefit
+    obtained_benefits.insert(benefit);
+}
+
+static void Horde_InitLevel(int32_t lvl) {
     current_wave_number++;
     g_horde_local.level = lvl;
     g_horde_local.monster_spawn_time = level.time;
@@ -64,38 +146,14 @@ static void Horde_InitLevel(int32_t lvl)
 
     IsMapSize(level.mapname, isSmallMap, isBigMap, isMediumMap);
 
-    if (g_horde_local.level == 5) {
-        gi.cvar_set("g_vampire", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING A PERCENTAGE OF DAMAGE DONE!\n");
-        next_wave_message_sent = false;
-    }
-
-    if (g_horde_local.level == 10) {
-        gi.cvar_set("ai_damage_scale", "1.5");
-        gi.cvar_set("g_ammoregen", "1");
-        gi.LocBroadcast_Print(PRINT_TYPEWRITER, "AMMO REGEN\n\nENABLED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "AMMO REGEN IS NOW ENABLED!\n");
-    }
-
-    if (g_horde_local.level == 15) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGH YOUR VEINS \nDAMAGING WHILE ACCEL\nWILL EXTEND TIME!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
-    }
-
-    if (g_horde_local.level == 17) {
-        gi.cvar_set("g_damage_scale", "2.2");
-    }
-
-    if (g_horde_local.level == 20) {
-        gi.cvar_set("g_vampire", "2");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nVampire Ability\nUPGRADED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
-        next_wave_message_sent = false;
-    }
-
-    if (g_horde_local.level == 27) {
-        gi.cvar_set("g_damage_scale", "2.5");
+    if (g_horde_local.level % 5 == 0) {
+        if (shuffled_benefits.empty()) {
+            ShuffleBenefits();
+        }
+        std::string benefit = SelectRandomBenefit(g_horde_local.level);
+        if (!benefit.empty()) {
+            ApplyBenefit(benefit);
+        }
     }
 
     // Declaración de ent fuera del bucle
@@ -529,15 +587,15 @@ static void Horde_CleanBodies()
 
 void SpawnBossAutomatically()
 {
-    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        (Q_strcasecmp(level.mapname, "rdm14") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        (Q_strcasecmp(level.mapname, "q2dm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        (Q_strcasecmp(level.mapname, "q2dm8") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        (Q_strcasecmp(level.mapname, "xdm2") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        (Q_strcasecmp(level.mapname, "q2ctf5") == 0 && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        ((!Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        ((!Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && current_wave_number % 5 == 0 && current_wave_number != 0) ||
-        ((!Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && current_wave_number % 5 == 0 && current_wave_number != 0))
+    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        (Q_strcasecmp(level.mapname, "rdm14") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        (Q_strcasecmp(level.mapname, "q2dm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        (Q_strcasecmp(level.mapname, "q2dm8") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        (Q_strcasecmp(level.mapname, "xdm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        (Q_strcasecmp(level.mapname, "q2ctf5") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        ((!Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        ((!Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+        ((!Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && g_horde_local.level % 5 == 0 && g_horde_local.level != 0))
     {
 
         // Solo necesitas un bucle aquí para generar un jefe
@@ -880,7 +938,7 @@ void Horde_RunFrame() {
             Horde_CleanBodies();
         }
         break;
-    }
+}
 }
 
 void HandleResetEvent() {
