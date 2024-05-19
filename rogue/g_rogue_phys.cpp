@@ -13,7 +13,7 @@ Toss, bounce, and fly movement. When on ground and no velocity, do nothing. With
 slide.
 =============
 */
-void SV_Physics_NewToss(edict_t *ent)
+void SV_Physics_NewToss_Rogue(edict_t *ent)
 {
 	trace_t trace;
 	vec3_t	move;
