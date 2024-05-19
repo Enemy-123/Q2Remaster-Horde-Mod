@@ -1045,9 +1045,8 @@ std::string FormatClassname(const std::string& classname) {
 
 
 #define MAX_MONSTER_CONFIGSTRINGS 20
-
 void CTFSetIDView(edict_t* ent) {
-	static std::unordered_map<int, int> monster_configstrings;  // Cambiado a int
+	static std::unordered_map<int, int> monster_configstrings;
 	static std::vector<int> available_configstrings;
 	if (available_configstrings.empty()) {
 		for (int i = 0; i < MAX_MONSTER_CONFIGSTRINGS; ++i) {
@@ -1059,6 +1058,8 @@ void CTFSetIDView(edict_t* ent) {
 	trace_t tr;
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
+	float closest_dist = 2048; // Aumentar la distancia máxima inicial
+	float min_dot = 0.95f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
 
 	if (level.time - ent->client->resp.lastidtime < 250_ms)
 		return;
@@ -1068,38 +1069,19 @@ void CTFSetIDView(edict_t* ent) {
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	forward *= 1024;
+	forward *= 2048; // Aumentar la distancia del rayo
 	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SOLID);
 	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
-		std::ostringstream health_stream;
-		if (tr.ent->svflags & SVF_MONSTER) {
-			std::string name = FormatClassname(GetDisplayName(tr.ent->classname ? tr.ent->classname : "Unknown Monster"));
-			health_stream << name << "\n";
-		}
-		health_stream << "H: " << tr.ent->health;
-		if (tr.ent->client) {
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (tr.ent - g_edicts);
-			health_stream << " A: " << GetArmorInfo(tr.ent);
-		}
-		else if (tr.ent->svflags & SVF_MONSTER) {
-			health_stream << " PA: " << tr.ent->monsterinfo.power_armor_power;
-		}
-		ent->client->target_health_str = health_stream.str();
-
-		if (monster_configstrings.find(tr.ent - g_edicts) == monster_configstrings.end()) {
-			if (!available_configstrings.empty()) {
-				int cs_index = available_configstrings.back();
-				available_configstrings.pop_back();
-				monster_configstrings[tr.ent - g_edicts] = cs_index;
-				gi.configstring(cs_index, ent->client->target_health_str.c_str());
+		vec3_t dir = tr.ent->s.origin - ent->s.origin;
+		dir.normalize();
+		d = forward.dot(dir);
+		if (d > min_dot) { // El objetivo debe estar cerca del centro de la mira
+			float dist = (tr.ent->s.origin - ent->s.origin).length();
+			if (dist < closest_dist) {
+				closest_dist = dist;
+				best = tr.ent;
 			}
 		}
-		else {
-			gi.configstring(monster_configstrings[tr.ent - g_edicts], ent->client->target_health_str.c_str());
-		}
-
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[tr.ent - g_edicts];
-		return;
 	}
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
@@ -1110,20 +1092,30 @@ void CTFSetIDView(edict_t* ent) {
 		vec3_t dir = who->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-		if (d > bd && loc_CanSee(ent, who)) {
+		float dist = (who->s.origin - ent->s.origin).length();
+		if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && d > min_dot) { // El objetivo debe estar cerca del centro de la mira
 			bd = d;
+			closest_dist = dist;
 			best = who;
 		}
 	}
-	if (bd > 0.90f) {
+
+	if (best) {
 		std::ostringstream health_stream;
+		std::string name;
+
 		if (best->svflags & SVF_MONSTER) {
-			std::string name = FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
-			health_stream << name << "\n";
+			name = FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
 		}
+		else {
+			name = best->client->pers.netname ? best->client->pers.netname : "Unknown Player";
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
+		}
+
+		health_stream << name << "\n";
 		health_stream << "H: " << best->health;
 		if (best->client) {
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 			health_stream << " A: " << GetArmorInfo(best);
 		}
 		else if (best->svflags & SVF_MONSTER) {
@@ -1146,7 +1138,6 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {
