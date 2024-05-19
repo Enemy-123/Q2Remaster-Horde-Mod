@@ -1,12 +1,6 @@
 #include "../g_local.h"
 #include <sstream>
 #include <unordered_map>
-#include <array>
-#include <chrono>
-
-#include "../g_local.h"
-#include <sstream>
-#include <unordered_map>
 #include <unordered_set>
 #include <array>
 #include <chrono>
@@ -23,7 +17,7 @@ enum class horde_state_t
 {
     warmup,
     spawning,
-    cleanup,
+    cleanup,    
     rest
 };
 
@@ -309,18 +303,18 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS[] = {
- //   {"monster_jorg", -1, -1, 0.7f},
-    {"monster_makronkl", -1, -1, 0.07f},
-  //  {"monster_perrokl", -1, -1, 0.07f},
-    {"monster_shamblerkl", -1, -1, 0.07f},
-    {"monster_guncmdrkl", -1, -1, 0.07f},
-    {"monster_boss2kl", -1, -1, 0.07f},
-    {"monster_carrier", -1, -1, 0.07f},
-  //  {"monster_widow", -1, -1, 0.07f},
-  //  {"monster_widow2", -1, -1, 0.07f},
-  //  {"monster_supertankkl", -1, -1, 0.07f},
-   // {"monster_supertank", -1, -1, 0.07f},
-    {"monster_boss2", -1, -1, 0.07f},
+    //   {"monster_jorg", -1, -1, 0.7f},
+       {"monster_makronkl", -1, -1, 0.07f},
+       //  {"monster_perrokl", -1, -1, 0.07f},
+         {"monster_shamblerkl", -1, -1, 0.07f},
+         {"monster_guncmdrkl", -1, -1, 0.07f},
+         {"monster_boss2kl", -1, -1, 0.07f},
+         {"monster_carrier", -1, -1, 0.07f},
+         //  {"monster_widow", -1, -1, 0.07f},
+         //  {"monster_widow2", -1, -1, 0.07f},
+         //  {"monster_supertankkl", -1, -1, 0.07f},
+          // {"monster_supertank", -1, -1, 0.07f},
+           {"monster_boss2", -1, -1, 0.07f},
 };
 
 struct picked_item_t {
@@ -608,7 +602,9 @@ void SpawnBossAutomatically()
         gi.multicast(effectPosition, MULTICAST_PHS, false);
         ED_CallSpawn(boss);
     }
-}void ResetGame() {
+}
+
+void ResetGame() {
     g_horde_local.state = horde_state_t::warmup;
     next_wave_message_sent = false;
     gi.cvar_set("g_chaotic", "0");
