@@ -964,17 +964,17 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_soldier_light", "Light Soldier" },
 		{ "monster_soldier_ss", "SS Soldier" },
 		{ "monster_soldier", "Soldier" },
-		{ "monster_soldier_hypergun", "Hypergun Soldier" },
-		{ "monster_soldier_lasergun", "Lasergun Soldier" },
+		{ "monster_soldier_hypergun", "Hyper Soldier" },
+		{ "monster_soldier_lasergun", "Laser Soldier" },
 		{ "monster_soldier_ripper", "Ripper Soldier" },
-		{ "monster_infantry2", "Vanilla Infantry" },
+		{ "monster_infantry2", "Infantry" },
 		{ "monster_infantry", "Enforcer" },
 		{ "monster_flyer", "Flyer" },
 		{ "monster_hover2", "Blaster Icarus" },
 		{ "monster_fixbot", "Fixbot" },
 		{ "monster_gekk", "Gekk" },
-		{ "monster_gunner2", "Vanilla Gunner" },
-		{ "monster_gunner", "Gunner" },
+		{ "monster_gunner2", " Gunner" },
+		{ "monster_gunner", "Improved Gunner" },
 		{ "monster_medic", "Medic" },
 		{ "monster_brain", "Brain" },
 		{ "monster_stalker", "Stalker" },
@@ -999,7 +999,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_shambler", "Shambler" },
 		{ "monster_floater2", "DarkMatter Technician" },
 		{ "monster_carrier2", "Mini Carrier" },
-		{ "monster_carrier", "CARRIER" },
+		{ "monster_carrier", "Carrier" },
 		{ "monster_tank_64", "N64 Tank" },
 		{ "monster_janitor", "Janitor" },
 		{ "monster_janitor2", "Mini Guardian" },
@@ -1008,7 +1008,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_jorg", "JORG" },
 		{ "monster_gladb", "DarkMatter Gladiator" },
 		{ "monster_boss2_64", "N64 Hornet" },
-		{ "monster_boss2kl", "HORNET" },
+		{ "monster_boss2kl", "Ghostly Hornet" },
 		{ "monster_perrokl", "Infected Parasite" },
 		{ "monster_guncmdrkl", "Enraged Gunner Grenadier" },
 		{ "monster_shamblerkl", "Stygian Shambler" },
@@ -1021,7 +1021,8 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_boss5", "Super-Tank" },
 		{ "monster_boss5", "Super-Tank" },
 		{ "monster_turret", "TurretGun" },
-		{ "monster_turretkl", "TurretGun" }
+		{ "monster_turretkl", "TurretGun" },
+		{ "monster_boss2", "Hornet" }
 		// Add other replacements as needed
 	};
 
@@ -1042,7 +1043,6 @@ std::string FormatClassname(const std::string& classname) {
 	return formatted_name;
 }
 
-#define MAX_MONSTER_CONFIGSTRINGS 20
 
 #define MAX_MONSTER_CONFIGSTRINGS 20
 
@@ -1767,21 +1767,17 @@ CTFScoreboardMessage
 */
 void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 {
-	uint32_t   i, j, k, n;
-	uint32_t   sorted[2][MAX_CLIENTS];
-	int32_t    sortedscores[2][MAX_CLIENTS];
-	int		   score;
-	uint32_t   total[2];
-	int        totalscore[2];
-	uint32_t   last[2];
+	uint32_t sorted[2][MAX_CLIENTS] = { 0 };
+	int32_t sortedscores[2][MAX_CLIENTS] = { 0 };
+	uint32_t total_clients_per_team[2] = { 0 };
+	int total_scores_per_team[2] = { 0 };
+	uint32_t last_client_per_team[2] = { 0 };
+	uint32_t i, j, k, n;
 	gclient_t* cl;
 	edict_t* cl_ent;
-	int		   team;
+	int team;
 
-	// sort the clients by team and score
-	total[0] = total[1] = 0;
-	last[0] = last[1] = 0;
-	totalscore[0] = totalscore[1] = 0;
+	// Sort the clients by team and score
 	for (i = 0; i < game.maxclients; i++)
 	{
 		cl_ent = g_edicts + 1 + i;
@@ -1792,121 +1788,75 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
 			team = 1;
 		else
-			continue; // unknown team?
+			continue; // Unknown team
 
-		score = game.clients[i].resp.score;
-		for (j = 0; j < total[team]; j++)
+		int score = game.clients[i].resp.score;
+		for (j = 0; j < total_clients_per_team[team]; j++)
 		{
 			if (score > sortedscores[team][j])
 				break;
 		}
-		for (k = total[team]; k > j; k--)
+		for (k = total_clients_per_team[team]; k > j; k--)
 		{
 			sorted[team][k] = sorted[team][k - 1];
 			sortedscores[team][k] = sortedscores[team][k - 1];
 		}
 		sorted[team][j] = i;
 		sortedscores[team][j] = score;
-		totalscore[team] += score;
-		total[team]++;
+		total_scores_per_team[team] += score;
+		total_clients_per_team[team]++;
 	}
 
-	// print level name and exit rules
-	// add the clients in sorted order
-	static std::string string;
-	string.clear();
-
-	// [Paril-KEX] time & frags
-//	if (teamplay->integer)
-	//{
-	//	if (fraglimit->integer)
-	//	{
-	//		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
-	//	}
-	//}
-
+	// Prepare the scoreboard string
+	std::string scoreboard_string;
+	scoreboard_string.clear();
 
 	if (g_horde->integer && level.intermissiontime)
-
 	{
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""), g_horde->integer);
+		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""));
 	}
 
 	if (timelimit->value)
 	{
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
+		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
-	// team one
-	//if (teamplay->integer)
-	//{
-	//	fmt::format_to(std::back_inserter(string),
-	//		FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
-	//			"xv -123 yv 28 cstring \"{}\" "
-	//			"xv 41 yv 12 num 3 19 "
-	//			"if 26 xv 208 yv 8 pic 26 endif "
-	//			"xv 117 yv 28 cstring \"{}\" "
-	//			"xv 280 yv 12 num 3 21 "),
-	//		total[0],
-	//		total[1]);
-	//}
-
+	// Display team scores
 	if (!level.intermissiontime)
 	{
-		fmt::format_to(std::back_inserter(string),
-			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-			FMT_STRING("if 25 xv -65 yv 10 dogtag endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
-				//               "if 26 xv 188 yv 8 pic 26 endif "
-				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-				//"xv 70 yv -20 num 2 19 "  // wave and stroggs numbers
-	//			"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
-			//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-			//	"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using ¨wave¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
-			//"xv 296 yv -20 num 2 21 "
-			),
-			totalscore[0], total[0],
-			totalscore[1], total[1]);
+		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("if 25 xv -65 yv 10 dogtag endif "));
 	}
-	else if (level.intermissiontime) {
-		fmt::format_to(std::back_inserter(string),
-			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-			FMT_STRING("if 25 xv -65 yv 10 dogtag endif"  // RED TEAM, yv 8 normal, menos es mas alto
-				"if 25 xv 205 yv 8 pic 25 endif "
-				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
-			//		"if 26 xv 208 yv 8 pic 26 endif "
-				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-				"xv 70 yv -20 num 2 19 "
-				"xv 302 yv -20 num 2 21 "),
-			totalscore[0], total[0],
-			totalscore[1], total[1]);
+	else
+	{
+		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("if 25 xv -65 yv 10 dogtag endif"));
 	}
+
+	// Display individual scores for each team
 	for (i = 0; i < 16; i++)
 	{
-		if (i >= total[0] && i >= total[1])
-			break; // we're done
+		if (i >= total_clients_per_team[0] && i >= total_clients_per_team[1])
+			break;
 
-		// left side
-		if (i < total[0])
+		if (i < total_clients_per_team[0])
 		{
 			cl = &game.clients[sorted[0][i]];
 			cl_ent = g_edicts + 1 + sorted[0][i];
 
-			std::string_view entry = G_Fmt("ctf -70 {} {} {} {} {} ",  // -70, and lower, names will go to left on scoreboard ctf/horde
+			std::string_view entry = G_Fmt("ctf -70 {} {} {} {} {} ",
 				42 + i * 8,
 				sorted[0][i],
 				cl->resp.score,
 				cl->ping > 999 ? 999 : cl->ping,
 				cl_ent->client->pers.inventory[IT_FLAG2] ? "sbfctf2" : "\"\"");
 
-			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
+			if (scoreboard_string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
 			{
-				string += entry;
-				last[0] = i;
+				scoreboard_string += entry;
+				last_client_per_team[0] = i;
 			}
 		}
 
-		// right side
-		if (i < total[1])
+		if (i < total_clients_per_team[1])
 		{
 			cl = &game.clients[sorted[1][i]];
 			cl_ent = g_edicts + 1 + sorted[1][i];
@@ -1918,49 +1868,47 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 				cl->ping > 999 ? 999 : cl->ping,
 				cl_ent->client->pers.inventory[IT_FLAG1] ? "sbfctf1" : "\"\"");
 
-			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
+			if (scoreboard_string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
 			{
-				string += entry;
-				last[1] = i;
+				scoreboard_string += entry;
+				last_client_per_team[1] = i;
 			}
 		}
 	}
 
-	// put in spectators if we have enough room
-	if (last[0] > last[1])
-		j = last[0];
+	// Display spectators
+	if (last_client_per_team[0] > last_client_per_team[1])
+		j = last_client_per_team[0];
 	else
-		j = last[1];
+		j = last_client_per_team[1];
 	j = (j + 2) * 8 + 42;
 
 	k = n = 0;
-	if (string.size() < MAX_CTF_STAT_LENGTH - 50)
+	if (scoreboard_string.size() < MAX_CTF_STAT_LENGTH - 50)
 	{
 		for (i = 0; i < game.maxclients; i++)
 		{
 			cl_ent = g_edicts + 1 + i;
 			cl = &game.clients[i];
-			if (!cl_ent->inuse ||
-				cl_ent->solid != SOLID_NOT ||
-				cl_ent->client->resp.ctf_team != CTF_NOTEAM)
+			if (!cl_ent->inuse || cl_ent->solid != SOLID_NOT || cl_ent->client->resp.ctf_team != CTF_NOTEAM)
 				continue;
 
 			if (!k)
 			{
 				k = 1;
-				fmt::format_to(std::back_inserter(string), FMT_STRING("xv 60 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
+				fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv 60 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
 				j += 8;
 			}
 
 			std::string_view entry = G_Fmt("ctf {} {} {} {} {} \"\" ",
-				(n & 1) ? 200 : -40, // x
-				j,				   // y
-				i,				   // playernum
+				(n & 1) ? 200 : -40,
+				j,
+				i,
 				cl->resp.score,
 				cl->ping > 999 ? 999 : cl->ping);
 
-			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
-				string += entry;
+			if (scoreboard_string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
+				scoreboard_string += entry;
 
 			if (n & 1)
 				j += 8;
@@ -1968,19 +1916,19 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 		}
 	}
 
-	if (total[0] - last[0] > 1) // couldn't fit everyone
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
-			42 + (last[0] + 1) * 8, total[0] - last[0] - 1);
-	if (total[1] - last[1] > 1) // couldn't fit everyone
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 208 yv {} loc_string 1 $g_ctf_and_more {} "),
-			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
+	// Display additional clients if not enough space
+	if (total_clients_per_team[0] - last_client_per_team[0] > 1)
+		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
+			42 + (last_client_per_team[0] + 1) * 8, total_clients_per_team[0] - last_client_per_team[0] - 1);
+	if (total_clients_per_team[1] - last_client_per_team[1] > 1)
+		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("xv 208 yv {} loc_string 1 $g_ctf_and_more {} "),
+			42 + (last_client_per_team[1] + 1) * 8, total_clients_per_team[1] - last_client_per_team[1] - 1);
 
 	if (level.intermissiontime)
-		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
-	//	fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+		fmt::format_to(std::back_inserter(scoreboard_string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 
 	gi.WriteByte(svc_layout);
-	gi.WriteString(string.c_str());
+	gi.WriteString(scoreboard_string.c_str());
 }
 
 /*------------------------------------------------------------------------*/

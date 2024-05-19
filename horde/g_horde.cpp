@@ -379,6 +379,8 @@ constexpr boss_t BOSS[] = {
   {"monster_widow", -1, -1, 0.07f},
   {"monster_widow2", -1, -1, 0.07f},
   {"monster_supertankkl", -1, -1, 0.07f},
+  {"monster_supertank", -1, -1, 0.07f},
+  {"monster_boss2", -1, -1, 0.07f},
   {"monster_turretkl", -1, -1, 0.07f},
 };
 
@@ -635,6 +637,7 @@ static void Horde_CleanBodies()
 	}
 }
 
+
 void SpawnBossAutomatically()
 {
 	if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && current_wave_number % 8 == 0 && current_wave_number != 0) ||
@@ -690,7 +693,7 @@ void SpawnBossAutomatically()
 		boss->s.angles[1] = 0;
 		boss->s.angles[2] = 0;
 
-		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");  
+		gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
 		boss->maxs *= 1.4f;
 		boss->mins *= 1.4f;
 		boss->s.scale = 1.4f;
@@ -711,7 +714,6 @@ void SpawnBossAutomatically()
 		ED_CallSpawn(boss);
 	}
 }
-
 void ResetGame() {
 	g_horde_local.state = horde_state_t::warmup;
 	next_wave_message_sent = false; // Reinicia la bandera de mensaje de próxima oleada
