@@ -155,8 +155,6 @@ static void Horde_InitLevel(int32_t lvl) {
         }
     }
 
-    if (g_horde_local.level == 18) { gi.cvar_set("g_damage_scale", "1.8");  } // harder for the love of map rotation
-
     int custom_monster_count = dm_monsters->integer;
     if (custom_monster_count > 0) {
         g_horde_local.num_to_spawn = custom_monster_count;
@@ -733,7 +731,6 @@ void ResetGame() {
     gi.cvar_set("g_ammoregen", "0");
     gi.cvar_set("g_hardcoop", "0");
     gi.cvar_set("g_autohaste", "0");
-    gi.cvar_set("dm_monsters", "0");
 }
 
 std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
