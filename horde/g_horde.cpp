@@ -352,17 +352,18 @@ struct boss_t {
 
 constexpr boss_t BOSS[] = {
     //   {"monster_jorg", -1, -1, 0.7f},
-       {"monster_makronkl", -1, -1, 0.07f},
+     //  {"monster_makronkl", -1, -1, 0.07f},
        //  {"monster_perrokl", -1, -1, 0.07f},
-         {"monster_shamblerkl", -1, -1, 0.07f},
-         {"monster_guncmdrkl", -1, -1, 0.07f},
-         {"monster_boss2kl", -1, -1, 0.07f},
+      //   {"monster_shamblerkl", -1, -1, 0.07f},
+       //  {"monster_guncmdrkl", -1, -1, 0.07f},
+       //  {"monster_boss2kl", -1, -1, 0.07f},
          {"monster_carrier", -1, -1, 0.07f},
          //  {"monster_widow", -1, -1, 0.07f},
          //  {"monster_widow2", -1, -1, 0.07f},
          //  {"monster_supertankkl", -1, -1, 0.07f},
           // {"monster_supertank", -1, -1, 0.07f},
            {"monster_boss2", -1, -1, 0.07f},
+           {"monster_guardian", -1, -1, 0.07f},
 };
 
 struct picked_item_t {
@@ -578,9 +579,64 @@ static void Horde_CleanBodies()
     }
 }
 
+inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
+    dest[0] = src[0];
+    dest[1] = src[1];
+    dest[2] = src[2];
+}
+
+// Declarar funciones externas
+extern void SP_target_healthbar(edict_t* self);
+extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
+extern void check_target_healthbar(edict_t* self);
+
+// Declarar la función GetDisplayName
+extern std::string GetDisplayName(const std::string& classname);
+
+void AttachHealthBar(edict_t* boss) {
+    edict_t* healthbar = G_Spawn();
+    if (!healthbar) {
+        return;
+    }
+
+    healthbar->classname = "target_healthbar";
+
+    // Colocar la barra de salud ligeramente por encima del monstruo
+    VectorCopy(boss->s.origin, healthbar->s.origin);
+    healthbar->s.origin[2] += 20; // Ajustar este valor según sea necesario
+
+    // Retardo antes de que la barra de salud desaparezca después de la muerte del monstruo
+    healthbar->delay = 4.0f;  // Ajustar este valor según sea necesario
+
+    // Inicializar timestamp a cero para asegurar que no desaparezca inmediatamente
+    healthbar->timestamp = 0_ms;
+
+    // Vincular la barra de salud al monstruo usando target y targetname
+    healthbar->target = boss->targetname;
+
+    // Asegurar que SP_target_healthbar esté definida o reemplazar con función equivalente
+    SP_target_healthbar(healthbar);
+
+    // Vincular la barra de salud al monstruo
+    healthbar->enemy = boss;
+
+    // Agregar healthbar a las entidades de barra de salud del nivel, asegurando no exceder el límite
+    for (size_t i = 0; i < MAX_HEALTH_BARS; i++) {
+        if (!level.health_bar_entities[i]) {
+            level.health_bar_entities[i] = healthbar;
+            break;
+        }
+    }
+
+    // Asegurar que la barra de salud se actualice regularmente
+    healthbar->think = check_target_healthbar;
+    healthbar->nextthink = level.time + 0.1_sec; // Ajusta el tiempo de verificación según sea necesario
+}
+
+
 void SpawnBossAutomatically()
 {
-    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 1 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "rdm14") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm8") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
@@ -647,11 +703,14 @@ void SpawnBossAutomatically()
         effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
         effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
 
-        gi.WriteByte(svc_temp_entity);
+                gi.WriteByte(svc_temp_entity);
         gi.WriteByte(TE_BOSSTPORT);
         gi.WritePosition(effectPosition);
         gi.multicast(effectPosition, MULTICAST_PHS, false);
         ED_CallSpawn(boss);
+
+        // Adjuntar barra de salud al jefe
+        AttachHealthBar(boss);
     }
 }
 

@@ -1061,16 +1061,14 @@ void G_SetStats(edict_t* ent)
 	ent->client->ps.stats[STAT_SPECTATOR] = 0;
 
 	// set & run the health bar stuff
-	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
-	{
+	for (size_t i = 0; i < MAX_HEALTH_BARS; i++) {
 		byte* health_byte = reinterpret_cast<byte*>(&ent->client->ps.stats[STAT_HEALTH_BARS]) + i;
 
-		if (!level.health_bar_entities[i])
+		if (!level.health_bar_entities[i]) {
 			*health_byte = 0;
-		else if (level.health_bar_entities[i]->timestamp)
-		{
-			if (level.health_bar_entities[i]->timestamp < level.time)
-			{
+		}
+		else if (level.health_bar_entities[i]->timestamp) {
+			if (level.health_bar_entities[i]->timestamp < level.time) {
 				level.health_bar_entities[i] = nullptr;
 				*health_byte = 0;
 				continue;
@@ -1078,38 +1076,35 @@ void G_SetStats(edict_t* ent)
 
 			*health_byte = 0b10000000;
 		}
-		else
-		{
+		else {
 			// enemy dead
-			if (!level.health_bar_entities[i]->enemy->inuse || level.health_bar_entities[i]->enemy->health <= 0) // debugger
-			{
+			if (!level.health_bar_entities[i]->enemy || !level.health_bar_entities[i]->enemy->inuse || level.health_bar_entities[i]->enemy->health <= 0) {
 				// hack for Makron
-				if (level.health_bar_entities[i]->enemy->monsterinfo.aiflags & AI_DOUBLE_TROUBLE)
-				{
+				if (level.health_bar_entities[i]->enemy && (level.health_bar_entities[i]->enemy->monsterinfo.aiflags & AI_DOUBLE_TROUBLE)) {
 					*health_byte = 0b10000000;
 					continue;
 				}
 
-				if (level.health_bar_entities[i]->delay)
-				{
+				if (level.health_bar_entities[i]->delay) {
 					level.health_bar_entities[i]->timestamp = level.time + gtime_t::from_sec(level.health_bar_entities[i]->delay);
 					*health_byte = 0b10000000;
 				}
-				else
-				{
+				else {
 					level.health_bar_entities[i] = nullptr;
 					*health_byte = 0;
 				}
 
 				continue;
 			}
-			else if (level.health_bar_entities[i]->spawnflags.has(SPAWNFLAG_HEALTHBAR_PVS_ONLY) && !gi.inPVS(ent->s.origin, level.health_bar_entities[i]->enemy->s.origin, true))
-			{
+			else if (level.health_bar_entities[i]->spawnflags.has(SPAWNFLAG_HEALTHBAR_PVS_ONLY) && !gi.inPVS(ent->s.origin, level.health_bar_entities[i]->enemy->s.origin, true)) {
 				*health_byte = 0;
 				continue;
 			}
 
-			float health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->max_health;
+			float health_remaining = 0.0f;
+			if (level.health_bar_entities[i]->enemy) {
+				health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->max_health;
+			}
 			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}
 	}

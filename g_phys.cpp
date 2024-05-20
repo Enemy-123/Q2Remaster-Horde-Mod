@@ -764,10 +764,10 @@ will fall if the floor is pulled out from under them.
 */
 // Define the vector functions if they are not already defined
 // Copy a vector
-void VectorCopy(const vec3_t in, vec3_t out) {
-	out[0] = in[0];
-	out[1] = in[1];
-	out[2] = in[2];
+inline void InlineVectorCopy(const vec3_t& src, vec3_t& dest) {
+    dest[0] = src[0];
+    dest[1] = src[1];
+    dest[2] = src[2];
 }
 
 // Subtracts two vectors
