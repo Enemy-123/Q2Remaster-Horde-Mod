@@ -723,92 +723,59 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (g_vampire->integer &&
 		attacker != targ &&
 		!OnSameTeam(targ, attacker) &&
-		take > 6 &&
-		!(attacker->health < 1) &&
+		damage > 0 && // Aceptar cualquier cantidad de daño
+		attacker->health > 0 &&
 		!(attacker->svflags & SVF_MONSTER)) {
 
-		int vtake = take;
-		int hmax = attacker->max_health;
+		int health_stolen = damage / 4; // Robar 25% del daño como vida
 
-		if (g_horde->integer) {
-			// Ajustes de máximo de salud según la oleada
-			if (current_wave_number >= 25 && current_wave_number < 200)
-			{
-				if (hmax < 200) hmax = 200;
-			}
-			else if (current_wave_number >= 20 && current_wave_number < 25)
-			{
-				if (hmax < 180) hmax = 180;
-			}
-			else if (current_wave_number >= 15 && current_wave_number < 20)
-			{
-				if (hmax < 160) hmax = 160;
-			}
-			else if (current_wave_number >= 10 && current_wave_number < 15)
-			{
-				if (hmax < 140) hmax = 140;
-			}
-			else if (current_wave_number >= 5 && current_wave_number < 10)
-			{
-				if (hmax < 120) hmax = 120;
-			}
-			else if (current_wave_number >= 1 && current_wave_number < 5)
-			{
-				if (hmax < 100) hmax = 100;
-			}
-			else
-			{
-				if (hmax < 100) hmax = 100;
-			}
+		// Verificar si el atacante está usando una escopeta o una super escopeta
+		bool using_shotgun = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+		bool using_sshotgun = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+		bool using_hyperblaster = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
+		bool using_ripper = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+
+		// Ajustar el robo de vida basado en el tipo de arma
+		if (using_shotgun) {
+			health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT); // Ajustar por la cantidad de proyectiles
+		}
+		else if (using_sshotgun) {
+			health_stolen = max(1, health_stolen / DEFAULT_SSHOTGUN_COUNT); // Ajustar por la cantidad de proyectiles
+		}
+		else if (using_hyperblaster) {
+			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
+		}	
+		else if (using_ripper) {
+			health_stolen = max(1, health_stolen / 3); // Ajustar por la cantidad de proyectiles
 		}
 		else {
-			if (hmax < 100) hmax = 100;
-			else if (hmax > 999) hmax = 999;
+			health_stolen = max(1, health_stolen); // Asegurar que sea al menos 1 para otras armas
 		}
 
-		vtake = vtake / 8; // Reducir en una octava parte
-		vtake = max(1, vtake); // Asegurarse de que sea al menos 1
-		vtake = min(14, vtake); // Asegurarse de que sea como máximo 22
-
-		if ((client && client->quad_time > level.time)) {
-			vtake = vtake / 12;
-
-			if ((client && client->quad_time > level.time && client && client->double_time > level.time)) {
-				vtake = vtake / 23;
-			}
-
-			if (
-				(client && client->double_time > level.time) ||
-				(client && client->quadfire_time > level.time) ||
-				(client && client->pers.inventory[IT_TECH_HASTE]) ||
-				(client && client->pers.inventory[IT_TECH_STRENGTH]))
-				vtake = vtake / 11;
-		}
-		if (attacker->health < hmax) {
-			attacker->health += vtake;
-
-			if (attacker->health > hmax)
-				attacker->health = hmax;
+		// Asegurarse de que no se robe más de la salud máxima del atacante
+		attacker->health += health_stolen;
+		if (attacker->health > attacker->max_health) {
+			attacker->health = attacker->max_health;
 		}
 
-		// Obtener el índice del tipo de armadura del atacante
-		int index = ArmorIndex(attacker);
-
-		// Asegurarse de que el índice de la armadura es válido y que el atacante tiene armadura
+		// Robar armadura si está habilitado
 		if (g_vampire->integer == 2) {
+			int index = ArmorIndex(attacker);
 			if (index && attacker->client->pers.inventory[index] > 0) {
-				// Calcula el valor de la armadura robada
-				int armor_stolen = (int)(0.7 * vtake);
+				// Robar 70% del valor de la salud robada como armadura
+				int armor_stolen = max(1, (int)(0.7 * health_stolen)); // Asegurar al menos 1 de armadura
 
 				// Asegurarse de que no se exceda el límite máximo de armadura
 				int max_armor = 200;
 				armor_stolen = min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
 
-				// Añadir el valor de la armadura robada al índice del inventario
+				// Añadir el valor de la armadura robada al inventario
 				attacker->client->pers.inventory[index] += armor_stolen;
 			}
 		}
 	}
+
+
 		// ZOID
 		// team armor protect
 		if (G_TeamplayEnabled() && targ->client && attacker->client &&
@@ -875,7 +842,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 					// ROGUE
 					else
 					//	SpawnDamage(TE_BLOOD, point, normal, take);
-						SpawnDamage(TE_MOREBLOOD | TE_MOREBLOOD, point, normal, take);
+						SpawnDamage(TE_MOREBLOOD, point, normal, take);
 				}
 				else
 					SpawnDamage(te_sparks, point, normal, take);

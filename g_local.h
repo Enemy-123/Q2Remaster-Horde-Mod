@@ -2424,7 +2424,6 @@ constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_NO_END_OF_UNIT = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_FADE_OUT = 32_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE = 64_spawnflag;
 
-void G_ApplyVampire(edict_t* attacker, float take);
 void respawn(edict_t* ent);
 void BeginIntermission(edict_t* targ);
 void PutClientInServer(edict_t* ent);
