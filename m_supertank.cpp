@@ -770,12 +770,10 @@ void SP_monster_janitor(edict_t* self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
-	if (!self->s.scale)
-		self->s.scale = 0.6f;
 
-
-	self->mins = { -26, -26, 0 };
-	self->maxs = { 26,26, 48 };
+	self->s.scale = 0.6f;
+	self->mins *= 0.6f;
+	self->maxs *= 0.6f;
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;

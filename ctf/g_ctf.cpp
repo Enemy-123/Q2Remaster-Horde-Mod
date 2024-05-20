@@ -1179,7 +1179,7 @@ void SetCTFStats(edict_t* ent)
 	ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_ctfsb2;
 
 
-	bool blink = (level.time.milliseconds() % 0) < 00;
+	bool blink = 0;
 
 	// if during intermission, we must blink the team header of the winning team
 /*	if (level.intermissiontime && blink)

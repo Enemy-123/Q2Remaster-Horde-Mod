@@ -816,7 +816,8 @@ void SP_monster_berserk(edict_t* self)
 	self->health = 240 * st.health_multiplier;
 	self->gib_health = -60;
 	self->mass = 250;
-	self->s.scale = 1.15f;
+	self->s.scale = 1.2f;
+
 
 	self->pain = berserk_pain;
 	self->die = berserk_die;

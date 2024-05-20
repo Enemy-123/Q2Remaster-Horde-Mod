@@ -630,13 +630,19 @@ void AttachHealthBar(edict_t* boss) {
 
     // Asegurar que la barra de salud se actualice regularmente
     healthbar->think = check_target_healthbar;
-    healthbar->nextthink = level.time + 0.1_sec; // Ajusta el tiempo de verificación según sea necesario
+    healthbar->nextthink = level.time + 20_sec; // Ajusta el tiempo de verificación según sea necesario
+
+    // Use GetDisplayName to get the display name of the boss's class
+    std::string display_name = GetDisplayName(boss->classname);
+
+    // Set the configstring with the display name
+    gi.configstring(CONFIG_HEALTH_BAR_NAME, display_name.c_str());
 }
 
 
 void SpawnBossAutomatically()
 {
-    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 1 == 0 && g_horde_local.level != 0) ||
+    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "rdm14") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm8") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
@@ -703,14 +709,14 @@ void SpawnBossAutomatically()
         effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
         effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
 
-                gi.WriteByte(svc_temp_entity);
+        gi.WriteByte(svc_temp_entity);
         gi.WriteByte(TE_BOSSTPORT);
         gi.WritePosition(effectPosition);
         gi.multicast(effectPosition, MULTICAST_PHS, false);
         ED_CallSpawn(boss);
 
         // Adjuntar barra de salud al jefe
-        AttachHealthBar(boss);
+      //  AttachHealthBar(boss);
     }
 }
 

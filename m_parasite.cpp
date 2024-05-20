@@ -989,6 +989,8 @@ void SP_monster_perrokl(edict_t* self)
 		self->health = 775 * current_wave_number;
 		if (g_horde->integer) {
 			self->s.scale = 1.2f;
+			self->mins *= 1.2f;
+			self->maxs *= 1.2f;
 		}
 
 		self->mins = { -19, -19, -29 };

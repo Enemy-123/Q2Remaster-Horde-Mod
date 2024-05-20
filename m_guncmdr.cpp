@@ -205,11 +205,11 @@ MONSTERINFO_WALK(guncmdr_walk) (edict_t* self) -> void
 }
 
 mframe_t guncmdr_frames_run[] = {
-	{ ai_run, 15.f, monster_done_dodge },
-	{ ai_run, 16.f, monster_footstep },
+	{ ai_run, 16.f, monster_done_dodge },
+	{ ai_run, 18.f, monster_footstep },
 	{ ai_run, 20.f },
 	{ ai_run, 18.f },
-	{ ai_run, 24.f, monster_footstep },
+	{ ai_run, 25.f, monster_footstep },
 	{ ai_run, 13.5f }
 };
 
@@ -775,7 +775,7 @@ void GunnerCmdrFire(edict_t* self)
 	vec3_t					 aim;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
+	if (self->enemy || self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
 		return;								 // PGM
 
 	if (self->s.frame >= FRAME_c_attack401 && self->s.frame <= FRAME_c_attack505)
@@ -792,7 +792,7 @@ void GunnerCmdrFire(edict_t* self)
 }
 
 mframe_t guncmdr_frames_attack_chain[] = {
-	{ ai_charge, 0, guncmdr_opengun },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -842,7 +842,7 @@ MMOVE_T(guncmdr_move_fire_chain_dodge_left) = { FRAME_c_attack501, FRAME_c_attac
 mframe_t guncmdr_frames_endfire_chain[] = {
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, guncmdr_opengun },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -1134,7 +1134,7 @@ constexpr float RANGE_GRENADE = 100.f;
 constexpr float RANGE_GRENADE_MORTAR = 525.f;
 
 // at this range, run towards the enemy
-constexpr float RANGE_CHAINGUN_RUN = 400.f;
+constexpr float RANGE_CHAINGUN_RUN = 0.f;
 
 MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
 {
@@ -1149,8 +1149,6 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void
 	// kick close enemies
 	if (!self->bad_area && d < RANGE_MELEE && self->monsterinfo.melee_debounce_time < level.time)
 		M_SetAnimation(self, &guncmdr_move_attack_kick);
-	else if (self->bad_area || ((d <= RANGE_GRENADE || brandom()) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_CHAINGUN_1])))
-		M_SetAnimation(self, &guncmdr_move_attack_chain);
 	else if ((d >= RANGE_GRENADE_MORTAR ||
 		fabs(self->absmin.z - self->enemy->absmax.z) > 64.f // enemy is far below or above us, always try mortar
 		) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1]) &&

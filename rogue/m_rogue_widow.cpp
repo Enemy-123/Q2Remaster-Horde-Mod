@@ -1332,7 +1332,6 @@ void SP_monster_widow1(edict_t* self) {
 		self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
 		self->mins = { -40, -40, 0 };
 		self->maxs = { 40, 40, 144 };
-
 		self->health = 2500; // Fija la salud de monster_widow1 a 2500
 		if (G_IsCooperative())
 			self->health += 500 * skill->integer;
@@ -1346,6 +1345,8 @@ void SP_monster_widow1(edict_t* self) {
 				self->monsterinfo.power_armor_power = 500;
 		}
 		self->s.scale = 0.6f; // Ajusta la escala si es necesario
+		self->mins *= 0.6f;
+		self->maxs *= 0.6f;
 		self->yaw_speed = 40; // Diferente velocidad de giro
 
 		self->flags |= FL_IMMUNE_LASER;

@@ -875,7 +875,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 					// ROGUE
 					else
 					//	SpawnDamage(TE_BLOOD, point, normal, take);
-						SpawnDamage(TE_MOREBLOOD|TE_MOREBLOOD, point, normal, take);
+						SpawnDamage(TE_MOREBLOOD | TE_MOREBLOOD, point, normal, take);
 				}
 				else
 					SpawnDamage(te_sparks, point, normal, take);
