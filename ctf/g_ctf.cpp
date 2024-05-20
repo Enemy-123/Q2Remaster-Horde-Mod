@@ -4011,10 +4011,6 @@ void CTFBoot(edict_t* ent)
 
 void CTFSetPowerUpEffect(edict_t* ent, effects_t def)
 {
-	//	if (ent->client->resp.ctf_team == CTF_TEAM1 && def == EF_QUAD)
-	//		ent->s.effects |= EF_PENT; // red
-	//	else if (ent->client->resp.ctf_team == CTF_TEAM2 && def == EF_PENT)
-	//		ent->s.effects |= EF_QUAD; // blue
-	//	else
-	//ent->s.effects |= def;
+
+	ent->s.effects |= def;
 }

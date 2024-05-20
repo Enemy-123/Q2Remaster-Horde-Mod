@@ -1724,11 +1724,12 @@ struct monsterinfo_t
 	gtime_t move_block_change_time;
 	gtime_t react_to_damage_time;
 
+
 	reinforcement_list_t					reinforcements;
 	std::array<uint8_t, MAX_REINFORCEMENTS>	chosen_reinforcements; // readied for spawn; 255 is value for none
 
 	gtime_t jump_time;
-
+	float noise_cooldown_time;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
