@@ -121,7 +121,7 @@ static void ApplyBenefit(const std::string& benefit) {
     }
     else if (benefit == "auto haste") {
         gi.cvar_set("g_autohaste", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGH YOUR VEINS \nDAMAGING WHILE ACCEL\nWILL EXTEND TIME!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGH YOUR VEINS \FRAGGING WHILE ACCEL\nWILL EXTEND TIME!\n");
         gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
     }
     else if (benefit == "vampire upgraded") {
@@ -242,21 +242,24 @@ constexpr struct weighted_item_t {
     { "item_health_large", -1, -1, 0.12f, adjust_weight_health },
     { "item_health_mega", -1, -1, 0.06f, adjust_weight_health },
     { "item_adrenaline", -1, -1, 0.17f, adjust_weight_health },
+
     { "item_armor_shard", -1, -1, 0.09f, adjust_weight_armor },
     { "item_armor_jacket", -1, 5, 0.12f, adjust_weight_armor },
     { "item_armor_combat", 6, -1, 0.06f, adjust_weight_armor },
     { "item_armor_body", 8, -1, 0.05f, adjust_weight_armor },
     { "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
     { "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
+
     { "item_quad", 6, -1, 0.07f, adjust_weight_powerup },
     { "item_double", 5, -1, 0.076f, adjust_weight_powerup },
     { "item_quadfire", 4, -1, 0.056f, adjust_weight_powerup },
     { "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
-    { "item_sphere_defender", -1, -1, 0.1f, adjust_weight_powerup },
+    { "item_sphere_defender", -1, -1, 0.05f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
     { "item_doppleganger", 6, -1, 0.09f, adjust_weight_powerup },
-    { "weapon_chainfist", -1, 2, 0.12f, adjust_weight_weapon },
+
+    { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
     { "weapon_supershotgun", 4, -1, 0.19f, adjust_weight_weapon },
     { "weapon_machinegun", -1, -1, 0.29f, adjust_weight_weapon },
@@ -272,6 +275,7 @@ constexpr struct weighted_item_t {
     { "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },
     { "weapon_disintegrator", 14, -1, 0.15f, adjust_weight_weapon },
     { "weapon_bfg", 12, -1, 0.15f, adjust_weight_weapon },
+
     { "ammo_trap", 5, -1, 0.18f, adjust_weight_ammo },
     { "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
     { "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
@@ -284,6 +288,7 @@ constexpr struct weighted_item_t {
     { "ammo_slugs", 7, -1, 0.25f, adjust_weight_ammo },
     { "ammo_disruptor", 12, -1, 0.24f, adjust_weight_ammo },
     { "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
+
     { "item_bandolier", 4, -1, 0.32f, adjust_weight_ammo },
     { "item_pack", 11, -1, 0.34f, adjust_weight_ammo },
 };
@@ -882,8 +887,8 @@ void Horde_RunFrame() {
                     e->s.effects = EF_GRENADE_LIGHT;
                 }
 
-                e->health *= 1 + (0.02 * current_wave_number);
-                e->monsterinfo.power_armor_power *= current_wave_number * 1.115;
+                e->health *= 1 + (0.02 * g_horde_local.level);
+                e->monsterinfo.power_armor_power *= g_horde_local.level * 0.05;
                 e->gib_health = -100;
 
                 std::srand(static_cast<unsigned int>(std::time(nullptr)));

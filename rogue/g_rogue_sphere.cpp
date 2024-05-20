@@ -303,9 +303,9 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 
 	start = self->s.origin;
 	start[2] += 2;
-	fire_blaster2(self->owner, start, dir, 12, 1400, EF_BLASTER, 0);
+	fire_blaster2(self->owner, start, dir, 9, 1400, EF_BLASTER, 0);
 
-	self->monsterinfo.attack_finished = level.time + 300_ms;
+	self->monsterinfo.attack_finished = level.time + 335_ms;
 }
 
 // *************************

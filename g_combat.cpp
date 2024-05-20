@@ -742,22 +742,43 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		bool using_sshotgun = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
 		bool using_hyperblaster = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
 		bool using_ripper = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+		bool using_rail = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
+		bool using_rocketl = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
 
 		// Ajustar el robo de vida basado en el tipo de arma
 		if (using_shotgun) {
 			health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT); // Ajustar por la cantidad de proyectiles
 		}
 		else if (using_sshotgun) {
+			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
+		}
+		else if (using_rocketl) {
 			health_stolen = max(1, health_stolen / DEFAULT_SSHOTGUN_COUNT); // Ajustar por la cantidad de proyectiles
 		}
 		else if (using_hyperblaster) {
 			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
-		}	
+		}
 		else if (using_ripper) {
 			health_stolen = max(1, health_stolen / 3); // Ajustar por la cantidad de proyectiles
 		}
+		else if (using_rail) {
+			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
+		}
 		else {
 			health_stolen = max(1, health_stolen); // Asegurar que sea al menos 1 para otras armas
+		}
+
+		// Ajustar el robo de vida basado en los powerups
+		if (attacker->client) {
+			if (attacker->client->quad_time > level.time) {
+				health_stolen = max(1, health_stolen / 4); // Quad Damage multiplica por 4
+			}
+			if (attacker->client->double_time > level.time) {
+				health_stolen = max(1, health_stolen / 2); // Double Damage multiplica por 2
+			}
+			if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
+				health_stolen = max(1, static_cast<int>(health_stolen / 1.5)); // Tech Strength multiplica por 1.5
+			}
 		}
 
 		// Asegurarse de que no se robe más de la salud máxima del atacante
@@ -782,6 +803,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
+
+
 
 
 		// ZOID
