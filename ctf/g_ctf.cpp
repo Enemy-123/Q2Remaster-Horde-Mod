@@ -1806,18 +1806,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	static std::string string;
 	string.clear();
 
-	// [Paril-KEX] time & frags
-//	if (teamplay->integer)
-	//{
-	//	if (fraglimit->integer)
-	//	{
-	//		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 $g_score_frags \"{}\" "), fraglimit->integer);
-	//	}
-	//}
-
-
 	if (g_horde->integer && level.intermissiontime)
-
 	{
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""), g_horde->integer);
 	}
@@ -1827,44 +1816,17 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
-	// team one
-	//if (teamplay->integer)
-	//{
-	//	fmt::format_to(std::back_inserter(string),
-	//		FMT_STRING("if 25 xv -32 yv 8 pic 25 endif "
-	//			"xv -123 yv 28 cstring \"{}\" "
-	//			"xv 41 yv 12 num 3 19 "
-	//			"if 26 xv 208 yv 8 pic 26 endif "
-	//			"xv 117 yv 28 cstring \"{}\" "
-	//			"xv 280 yv 12 num 3 21 "),
-	//		total[0],
-	//		total[1]);
-	//}
-
 	if (!level.intermissiontime)
 	{
 		fmt::format_to(std::back_inserter(string),
-			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-			FMT_STRING("if 25 xv -65 yv 10 dogtag endif "  // RED TEAM, yv 8 normal, menos es mas alto DOGTAG
-				//               "if 26 xv 188 yv 8 pic 26 endif "
-				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-				//"xv 70 yv -20 num 2 19 "  // wave and stroggs numbers
-	//			"if 26 xv 178 yv 4 dogtag endif "  // DOGTAG
-			//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
-			//	"ifgef {} yb -100 xv -75 loc_cstring2 0 \"There is OffHand-Hook using ¨wave¨ emote for Controller Players\nAlso if you on keyboard,\n you could do the Binds + Aliases\" endif "
-			//"xv 296 yv -20 num 2 21 "
-			),
+			FMT_STRING("if 25 xv -65 yv 10 dogtag endif "),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 	}
 	else if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
-			//			FMT_STRING("if 25 xv -45 yv 8 pic 25 endif "  // RED TEAM, yv 8 normal, menos es mas alto
-			FMT_STRING("if 25 xv -65 yv 10 dogtag endif"  // RED TEAM, yv 8 normal, menos es mas alto
+			FMT_STRING("if 25 xv -65 yv 10 dogtag endif"
 				"if 25 xv 205 yv 8 pic 25 endif "
-				//"xv 0 yv 28 string \"{:4}/{:<3}\" "
-			//		"if 26 xv 208 yv 8 pic 26 endif "
-				//	"xv 240 yv 28 string \"{:4}/{:<3}\" "
 				"xv 70 yv -20 num 2 19 "
 				"xv 302 yv -20 num 2 21 "),
 			totalscore[0], total[0],
@@ -1967,7 +1929,6 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 
 	if (level.intermissiontime)
 		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
-	//	fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"$m_eou_press_button\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 
 	gi.WriteByte(svc_layout);
 	gi.WriteString(string.c_str());
@@ -1979,7 +1940,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 
 void CTFHasTech(edict_t* who)
 {
-	if (level.time - who->client->ctf_lasttechmsg > 5_sec)
+	if (level.time - who->client->ctf_lasttechmsg > 5_sec || current_wave_number <= 4)
 	{
 		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
 		//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
