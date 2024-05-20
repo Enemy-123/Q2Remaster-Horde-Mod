@@ -1005,79 +1005,68 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	}
 
 	if (client->ammoregentime < level.time) {
-		client->ammoregentime = level.time;
+		client->ammoregentime = level.time + 10000_ms;
 
 		if (client->pers.inventory[IT_WEAPON_SHOTGUN] || client->pers.inventory[IT_WEAPON_SSHOTGUN]) {
 			client->pers.inventory[IT_AMMO_SHELLS] += 8;
-
 			if (client->pers.inventory[IT_AMMO_SHELLS] > client->pers.max_ammo[AMMO_SHELLS])
 				client->pers.inventory[IT_AMMO_SHELLS] = client->pers.max_ammo[AMMO_SHELLS];
 		}
 
 		if (client->pers.inventory[IT_WEAPON_MACHINEGUN] || client->pers.inventory[IT_WEAPON_CHAINGUN]) {
 			client->pers.inventory[IT_AMMO_BULLETS] += 30;
-
 			if (client->pers.inventory[IT_AMMO_BULLETS] > client->pers.max_ammo[AMMO_BULLETS])
 				client->pers.inventory[IT_AMMO_BULLETS] = client->pers.max_ammo[AMMO_BULLETS];
 		}
 
 		client->pers.inventory[IT_AMMO_GRENADES] += 6;
-
 		if (client->pers.inventory[IT_AMMO_GRENADES] > client->pers.max_ammo[AMMO_GRENADES])
 			client->pers.inventory[IT_AMMO_GRENADES] = client->pers.max_ammo[AMMO_GRENADES];
 
 		if (client->pers.inventory[IT_WEAPON_RLAUNCHER]) {
 			client->pers.inventory[IT_AMMO_ROCKETS] += 6;
-
 			if (client->pers.inventory[IT_AMMO_ROCKETS] > client->pers.max_ammo[AMMO_ROCKETS])
 				client->pers.inventory[IT_AMMO_ROCKETS] = client->pers.max_ammo[AMMO_ROCKETS];
 		}
 
 		if (client->pers.inventory[IT_WEAPON_HYPERBLASTER] || client->pers.inventory[IT_WEAPON_BFG] || client->pers.inventory[IT_WEAPON_IONRIPPER] || client->pers.inventory[IT_WEAPON_PLASMABEAM]) {
 			client->pers.inventory[IT_AMMO_CELLS] += 25;
-
 			if (client->pers.inventory[IT_AMMO_CELLS] > client->pers.max_ammo[AMMO_CELLS])
 				client->pers.inventory[IT_AMMO_CELLS] = client->pers.max_ammo[AMMO_CELLS];
 		}
 
 		if (client->pers.inventory[IT_WEAPON_RAILGUN]) {
 			client->pers.inventory[IT_AMMO_SLUGS] += 6;
-
 			if (client->pers.inventory[IT_AMMO_SLUGS] > client->pers.max_ammo[AMMO_SLUGS])
 				client->pers.inventory[IT_AMMO_SLUGS] = client->pers.max_ammo[AMMO_SLUGS];
 		}
 
 		if (client->pers.inventory[IT_WEAPON_PHALANX]) {
 			client->pers.inventory[IT_AMMO_MAGSLUG] += 9;
-
 			if (client->pers.inventory[IT_AMMO_MAGSLUG] > client->pers.max_ammo[AMMO_MAGSLUG])
 				client->pers.inventory[IT_AMMO_MAGSLUG] = client->pers.max_ammo[AMMO_MAGSLUG];
 		}
 
 		if (client->pers.inventory[IT_WEAPON_ETF_RIFLE]) {
 			client->pers.inventory[IT_AMMO_FLECHETTES] += 30;
-
 			if (client->pers.inventory[IT_AMMO_FLECHETTES] > client->pers.max_ammo[AMMO_FLECHETTES])
 				client->pers.inventory[IT_AMMO_FLECHETTES] = client->pers.max_ammo[AMMO_FLECHETTES];
 		}
 
 		if (client->pers.inventory[IT_WEAPON_PROXLAUNCHER]) {
 			client->pers.inventory[IT_AMMO_PROX] += 6;
-
 			if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX])
 				client->pers.inventory[IT_AMMO_PROX] = client->pers.max_ammo[AMMO_PROX];
 		}
 
 		if (client->pers.inventory[IT_WEAPON_DISRUPTOR]) {
 			client->pers.inventory[IT_AMMO_ROUNDS] += 4;
-
 			if (client->pers.inventory[IT_AMMO_ROUNDS] > client->pers.max_ammo[AMMO_DISRUPTOR])
 				client->pers.inventory[IT_AMMO_ROUNDS] = client->pers.max_ammo[AMMO_DISRUPTOR];
 		}
-
-		client->ammoregentime += 10000_ms;
 	}
 }
+
 
 
 /*

@@ -556,6 +556,9 @@ void ED_CallSpawn(edict_t* ent)
 		else if (!strcmp(ent->classname, "monster_infantry2")) {
 			ent->classname = "monster_gunner";
 		}
+		else if (!strcmp(ent->classname, "monster_gunner2")) {
+			ent->classname = "monster_gunner";
+		}
 		else if (!strcmp(ent->classname, "monster_brain")) {
 			if (brandom()) {
 				ent->classname = "monster_brain";

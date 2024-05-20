@@ -97,6 +97,9 @@ bool P_UseCoopInstancedItems()
 
 //=======================================================================
 
+// Declarar la función GetDisplayName
+extern std::string GetDisplayName(const std::string& classname);
+
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
 	const char* base = nullptr;
@@ -333,6 +336,95 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
+		return;
+	}
+
+	// Si el atacante es un monstruo
+	if (attacker && (attacker->svflags & SVF_MONSTER))
+	{
+		std::string monster_display_name = GetDisplayName(attacker->classname);
+		switch (mod.id)
+		{
+		case MOD_BLASTER:
+			base = "{0} was blasted by a {1}\n";
+			break;
+		case MOD_SHOTGUN:
+			base = "{0}'s face was impacted by a {1}\n";
+			break;
+		case MOD_SSHOTGUN:
+			base = "{0} was blown to pieces by a {1}\n";
+			break;
+		case MOD_MACHINEGUN:
+			base = "{0} was shredded by a {1}\n";
+			break;
+		case MOD_CHAINGUN:
+			base = "{0}'s torso was removed by a {1}\n";
+			break;
+		case MOD_GRENADE:
+			base = "{0} was gibbed by a {1}\n";
+			break;
+		case MOD_G_SPLASH:
+			base = "{0} was splattered by a {1}\n";
+			break;
+		case MOD_ROCKET:
+			base = "{0} rides the rocked of a {1}\n";
+			break;
+		case MOD_R_SPLASH:
+			base = "{0} was rocked by a {1}\n";
+			break;
+		case MOD_HYPERBLASTER:
+			base = "{0} was blasted by a {1}\n";
+			break;
+		case MOD_RAILGUN:
+			base = "{0} was railgunned by a {1}\n";
+			break;
+		case MOD_BFG_LASER:
+			base = "{0} was blasted by a {1}\n";
+			break;
+		case MOD_BFG_BLAST:
+			base = "{0} was disintegrated by a {1}\n";
+			break;
+		case MOD_BFG_EFFECT:
+			base = "{0} couldn't hide from the BFG of a {1}\n";
+			break;
+		case MOD_HANDGRENADE:
+			base = "{0} was blown up by a {1}\n";
+			break;
+		case MOD_HG_SPLASH:
+			base = "{0} was splashed by a {1}\n";
+			break;
+		case MOD_HELD_GRENADE:
+			base = "{0} was blown up by a {1}\n";
+			break;
+		case MOD_TELEFRAG:
+		case MOD_TELEFRAG_SPAWN:
+			base = "{0} was telefragged by a {1}\n";
+			break;
+		default:
+			base = "{0} was killed by a {1}\n";
+			break;
+		}
+		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name.c_str());
+		return;
+	}
+
+	// Otros casos de muerte (como MOD_LAVA, MOD_SLIME, etc.)
+	switch (mod.id)
+	{
+	case MOD_FALLING:
+		base = "fell to their death.";
+		break;
+	case MOD_CRUSH:
+		base = "was crushed.";
+		break;
+	default:
+		base = "died.";
+		break;
+	}
+
+	gi.LocBroadcast_Print(PRINT_MEDIUM, "%s %s\n", self->client->pers.netname, base);
+
+
 
 		// Q2ETweaks frag message centerprints on attacker and victim
 		if (sv_centerprint_frags->integer)
@@ -395,9 +487,8 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			self->client->resp.score--;
 
 		return;
-	}
 
-	gi.LocBroadcast_Print(PRINT_MEDIUM, "$g_mod_generic_died", self->client->pers.netname);
+	
 	if (G_IsDeathmatch() && !mod.no_point_loss)
 		// ROGUE
 	{
