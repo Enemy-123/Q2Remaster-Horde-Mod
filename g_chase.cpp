@@ -75,7 +75,7 @@ void UpdateChaseCam(edict_t* ent)
 			angles[PITCH] = 56;
 		AngleVectors(angles, forward, right, nullptr);
 		forward.normalize();
-		o = ownerv + (forward * -30);
+		o = ownerv + (forward * -55);
 
 		if (o[2] < targ->s.origin[2] + 20)
 			o[2] = targ->s.origin[2] + 20;

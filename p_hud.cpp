@@ -777,8 +777,6 @@ void G_SetStats(edict_t* ent)
 		ent->client->target_health_str.clear();
 	}
 
-
-
 	//
 	// weapons
 	//

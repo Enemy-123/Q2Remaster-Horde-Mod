@@ -212,7 +212,7 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 	else
 	{
 		if (ctf->integer)
-			damagePerCell = 1; // power armor is weaker in CTF
+			damagePerCell = 2; // power armor is weaker in CTF
 		else
 			damagePerCell = 2;
 		pa_te_type = TE_SCREEN_SPARKS;
@@ -874,7 +874,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 						SpawnDamage(TE_MOREBLOOD, point, normal, 255);
 					// ROGUE
 					else
-						SpawnDamage(TE_BLOOD, point, normal, take);
+					//	SpawnDamage(TE_BLOOD, point, normal, take);
+						SpawnDamage(TE_MOREBLOOD|TE_MOREBLOOD, point, normal, take);
 				}
 				else
 					SpawnDamage(te_sparks, point, normal, take);
