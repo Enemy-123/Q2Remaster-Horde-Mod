@@ -600,31 +600,33 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 
 	// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
-	if ((g_autohaste->integer) && attacker != nullptr && attacker->client != nullptr) {
-		if (damage > 0 && (!(attacker->health < 1))) {
-			// Calcular probabilidad en función del daño realizado
-			float probabilidad = damage / 950.0f; // Ajusta este valor según lo que consideres adecuado
+	if (g_autohaste->integer) {
+		if (attacker != nullptr && attacker->client != nullptr) {
+			// Verificar si el atacante no tiene quadfire activo y darle 5 segundos de quadfire
+			if (attacker->client->quadfire_time < level.time) {
+				if (damage > 0 && (!(attacker->health < 1))) {
+					// Calcular probabilidad en función del daño realizado
+					float probabilidad = damage / 950.0f; // Ajusta este valor según lo que consideres adecuado
 
-			// Probabilidad de activación
-			float randomChance = frandom();
+					// Probabilidad de activación
+					float randomChance = frandom();
 
-			if (randomChance <= probabilidad) {
-				// Si el jugador no tiene el efecto de quad, generar uno nuevo
-				if (attacker->client->quadfire_time < level.time) {
-					attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
+					if (randomChance <= probabilidad) {
+						attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
+					}
 				}
 			}
-		}
 
-		// Verificar si el atacante ha matado a alguien y tiene haste activo
-		if (attacker->client->quadfire_time > level.time && targ != nullptr && attacker->client->resp.spree++) {
-			// Incrementar el contador de muertes (spree) del atacante solo si no estaba muerto antes
-			if (targ->health + damage > 0) {
-				attacker->client->resp.spree++;
+			// Verificar si el atacante tiene quadfire activo y ha matado a alguien
+			if (attacker->client->quadfire_time > level.time && targ != nullptr) {
+				// Incrementar el contador de muertes (spree) del atacante solo si no estaba muerto antes
+				if (targ->health + damage > 0) {
+					attacker->client->resp.spree++;
 
-				// Aumentar el tiempo del quadfire basado en el contador de muertes (spree)
-				gtime_t extra_time = gtime_t::from_sec(1); // Ajusta este valor según sea necesario
-				attacker->client->quadfire_time += extra_time;
+					// Aumentar el tiempo del quadfire basado en el contador de muertes (spree)
+					gtime_t extra_time = gtime_t::from_sec(1); // Ajusta este valor según sea necesario
+					attacker->client->quadfire_time += extra_time;
+				}
 			}
 		}
 	}
