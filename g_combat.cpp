@@ -619,8 +619,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 			// Verificar si el atacante tiene quadfire activo y ha matado a alguien
 			if (attacker->client->quadfire_time > level.time && targ != nullptr) {
-				// Incrementar el contador de muertes (spree) del atacante solo si no estaba muerto antes
-				if (targ->health + damage > 0) {
+				// Verificar si el objetivo ha muerto como resultado del daño infligido
+				if (targ->health <= damage && (targ->health > 0 || targ->health + damage > 0)) {
+					// Incrementar el contador de muertes (spree) del atacante solo si no estaba muerto antes
 					attacker->client->resp.spree++;
 
 					// Aumentar el tiempo del quadfire basado en el contador de muertes (spree)
