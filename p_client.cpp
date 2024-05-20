@@ -1871,6 +1871,8 @@ void respawn(edict_t* self)
 		self->svflags &= ~SVF_NOCLIENT;
 		PutClientInServer(self);
 
+		self->client->resp.spree = 0;
+
 		G_PostRespawn(self);
 		return;
 	}

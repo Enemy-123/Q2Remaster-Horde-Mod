@@ -2423,7 +2423,7 @@ constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_CLEAR_INVENTORY = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_NO_END_OF_UNIT = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_FADE_OUT = 32_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE = 64_spawnflag;
-
+void trigger_spree_abilities(edict_t* attacker);
 void respawn(edict_t* ent);
 void BeginIntermission(edict_t* targ);
 void PutClientInServer(edict_t* ent);
@@ -2814,6 +2814,7 @@ struct client_respawn_t
 	client_persistant_t coop_respawn; // what to set client->pers to on a respawn
 	gtime_t				entertime;	  // level.time the client entered the game
 	int32_t				score;		  // frags, etc
+	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 	vec3_t				cmd_angles;	  // angles sent over in the last command
 
 	bool spectator; // client is a spectator
