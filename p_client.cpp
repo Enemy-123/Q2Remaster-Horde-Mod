@@ -367,10 +367,10 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was splattered by a {1}\n";
 			break;
 		case MOD_ROCKET:
-			base = "{0} rides the rocket of a {1}\n";
+			base = "{0} ate the rocket of a {1}\n";
 			break;
 		case MOD_R_SPLASH:
-			base = "{0} was rocked by a {1}\n";
+			base = "{0} was blown up by a {1}\n";
 			break;
 		case MOD_HYPERBLASTER:
 			base = "{0} was blasted by a {1}\n";
