@@ -164,8 +164,8 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 		}
 	}
 
-	if (G_IsDeathmatch())  // hordenoise hordehearing  MONSTERS PLAYERS HEARING HERE, with ai_stand & run changes feels good, if removing this they will behave a bit bugged
-	return;
+//	if (G_IsDeathmatch())  // hordenoise hordehearing  MONSTERS PLAYERS HEARING HERE,disabled to give hearing to monsters!
+//	return;
 
 	if (who->flags & FL_NOTARGET)
 		return;
