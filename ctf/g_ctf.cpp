@@ -1042,10 +1042,6 @@ std::string FormatClassname(const std::string& classname) {
 	}
 	return formatted_name;
 }
-
-#define MAX_MONSTER_CONFIGSTRINGS 50
-#define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
-
 #define MAX_MONSTER_CONFIGSTRINGS 50
 #define MAX_PLAYER_CONFIGSTRINGS 32
 #define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
@@ -1121,18 +1117,19 @@ void CTFSetIDView(edict_t* ent) {
 		if (best->svflags & SVF_MONSTER) {
 			name = FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
-			health_stream << name << "\n"; // Solo agregar el nombre del monstruo
+			health_stream << name << "\n"; // Agregar el nombre del monstruo con salto de línea
 		}
 		else {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
+			health_stream << "\n"; // Agregar un salto de línea extra para los jugadores
 		}
 
-		health_stream << "H: " << best->health;
+		health_stream << "H: " << best->health; // Agregar la salud
 		if (best->client) {
-			health_stream << " A: " << GetArmorInfo(best);
+			health_stream << " A: " << GetArmorInfo(best); // Agregar la armadura
 		}
 		else if (best->svflags & SVF_MONSTER) {
-			health_stream << " PA: " << best->monsterinfo.power_armor_power;
+			health_stream << " PA: " << best->monsterinfo.power_armor_power; // Agregar el power armor para los monstruos
 		}
 		ent->client->target_health_str = health_stream.str();
 
