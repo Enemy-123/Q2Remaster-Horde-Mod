@@ -1940,7 +1940,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 
 void CTFHasTech(edict_t* who)
 {
-	if (level.time - who->client->ctf_lasttechmsg > 5_sec || current_wave_number <= 4)
+	if (level.time - who->client->ctf_lasttechmsg > 5_sec && current_wave_number <= 4)
 	{
 		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
 		//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");

@@ -243,7 +243,7 @@ constexpr struct weighted_item_t {
     { "item_health", -1, 5, 0.20f, adjust_weight_health },
     { "item_health_large", -1, -1, 0.12f, adjust_weight_health },
     { "item_health_mega", -1, -1, 0.06f, adjust_weight_health },
-    { "item_adrenaline", -1, -1, 0.17f, adjust_weight_health },
+    { "item_adrenaline", -1, -1, 0.08f, adjust_weight_health },
 
     { "item_armor_shard", -1, -1, 0.09f, adjust_weight_armor },
     { "item_armor_jacket", -1, 5, 0.12f, adjust_weight_armor },
@@ -252,9 +252,9 @@ constexpr struct weighted_item_t {
     { "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
     { "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
-    { "item_quad", 6, -1, 0.055f, adjust_weight_powerup },
+    { "item_quad", 6, -1, 0.054f, adjust_weight_powerup },
     { "item_double", 5, -1, 0.07f, adjust_weight_powerup },
-    { "item_quadfire", 4, -1, 0.056f, adjust_weight_powerup },
+    { "item_quadfire", 3, -1, 0.06f, adjust_weight_powerup },
     { "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
     { "item_sphere_defender", -1, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
@@ -729,7 +729,14 @@ void SpawnBossAutomatically()
     }
 }
 
+static void ResetBenefits() {
+    shuffled_benefits.clear();
+    obtained_benefits.clear();
+    vampire_level = 0;
+}
+
 void ResetGame() {
+    ResetBenefits();
     current_wave_number = 1;
     g_horde_local.state = horde_state_t::warmup;
     next_wave_message_sent = false;
@@ -742,12 +749,13 @@ void ResetGame() {
     gi.cvar_set("g_hardcoop", "0");
     gi.cvar_set("g_autohaste", "0");
     gi.cvar_set("dm_monsters", "0");
+    gi.cvar_set("timelimit", "25");
 }
 
 std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
 int previous_remainingMonsters = 0;
 
-bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMediumMap) {
+static bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMediumMap) {
     int maxMonsters{};
     int timeThreshold{};
 
@@ -817,6 +825,7 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
     previous_remainingMonsters = remainingMonsters;
     return false;
 }
+
 
 void Horde_RunFrame() {
     switch (g_horde_local.state) {
