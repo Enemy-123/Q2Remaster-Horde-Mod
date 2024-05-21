@@ -734,6 +734,7 @@ void CheckDMRules()
 					{
 						HandleResetEvent();
 					}
+
 					InitClientPt(ent, ent->client);
 				}
 			}
@@ -944,6 +945,7 @@ inline void G_RunFrame_(bool main_loop)
 	{
 		ExitLevel();
 		level.in_frame = false;
+		last_wave_number = 0;
 		return;
 	}
 

@@ -700,15 +700,22 @@ void G_SetCoopStats(edict_t* ent) {
 	else
 		ent->client->ps.stats[STAT_LIVES] = 0;
 
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !level.intermissiontime) {
 
-
+		ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = current_wave_number - 1;
+	}
 	ent->client->ps.stats[STAT_CTF_MATCH] = level.total_monsters - level.killed_monsters;
-
-
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
-	ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = current_wave_number - 1;;
+
+if (G_IsDeathmatch() && level.intermissiontime) {
+
+			ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = last_wave_number;
+}
+
+
+
+
 
 	ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = level.total_monsters - level.killed_monsters;
 

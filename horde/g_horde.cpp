@@ -13,6 +13,7 @@ static const int MAX_MONSTERS_SMALL_MAP = 15;
 
 int remainingMonsters = 0;
 int current_wave_number = 1;
+int last_wave_number = 0;
 const int BOSS_TO_SPAWN = 1;
 cvar_t* g_horde;
 enum class horde_state_t
@@ -136,6 +137,7 @@ static void ApplyBenefit(const std::string& benefit) {
 }
 static void Horde_InitLevel(int32_t lvl) {
     current_wave_number++;
+    last_wave_number++;
     g_horde_local.level = lvl;
     g_horde_local.monster_spawn_time = level.time;
 
@@ -728,6 +730,7 @@ void SpawnBossAutomatically()
 }
 
 void ResetGame() {
+    current_wave_number = 1;
     g_horde_local.state = horde_state_t::warmup;
     next_wave_message_sent = false;
     gi.cvar_set("g_chaotic", "0");
