@@ -157,7 +157,8 @@ static void Horde_InitLevel(int32_t lvl) {
         }
     }
 
-    if (g_horde_local.level == 18) { gi.cvar_set("g_damage_scale", "1.8");  } // harder for the love of map rotation
+    if (g_horde_local.level == 18) { gi.cvar_set("g_damage_scale", "2.2");  } // harder for the love of map rotation
+    if (g_horde_local.level == 26) { gi.cvar_set("g_damage_scale", "3");  } // harder for the love of map rotation
 
     int custom_monster_count = dm_monsters->integer;
     if (custom_monster_count > 0) {

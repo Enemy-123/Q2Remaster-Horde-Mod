@@ -1046,12 +1046,25 @@ std::string FormatClassname(const std::string& classname) {
 #define MAX_MONSTER_CONFIGSTRINGS 50
 #define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
 
+#define MAX_MONSTER_CONFIGSTRINGS 50
+#define MAX_PLAYER_CONFIGSTRINGS 32
+#define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
+
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
-	static std::vector<int> available_configstrings;
-	if (available_configstrings.empty()) {
+	static std::unordered_map<int, int> player_configstrings;
+	static std::vector<int> available_monster_configstrings;
+	static std::vector<int> available_player_configstrings;
+
+	if (available_monster_configstrings.empty()) {
 		for (int i = 0; i < MAX_MONSTER_CONFIGSTRINGS; ++i) {
-			available_configstrings.push_back(CS_GENERAL + i);
+			available_monster_configstrings.push_back(CS_GENERAL + i);
+		}
+	}
+
+	if (available_player_configstrings.empty()) {
+		for (int i = 0; i < MAX_PLAYER_CONFIGSTRINGS; ++i) {
+			available_player_configstrings.push_back(PLAYER_HEALTH_CONFIGSTRING_BASE + i);
 		}
 	}
 
@@ -1127,9 +1140,9 @@ void CTFSetIDView(edict_t* ent) {
 			// Mantener el configstring del monstruo si ya existe
 			auto it = monster_configstrings.find(best - g_edicts);
 			if (it == monster_configstrings.end()) {
-				if (!available_configstrings.empty()) {
-					int cs_index = available_configstrings.back();
-					available_configstrings.pop_back();
+				if (!available_monster_configstrings.empty()) {
+					int cs_index = available_monster_configstrings.back();
+					available_monster_configstrings.pop_back();
 					monster_configstrings[best - g_edicts] = cs_index;
 					gi.configstring(cs_index, ent->client->target_health_str.c_str());
 				}
@@ -1141,14 +1154,25 @@ void CTFSetIDView(edict_t* ent) {
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
 		}
 		else {
-			// Asignar un configstring único para jugadores
-			int player_index = best - g_edicts;
-			int player_configstring = PLAYER_HEALTH_CONFIGSTRING_BASE + player_index;
-			gi.configstring(player_configstring, ent->client->target_health_str.c_str());
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstring;
+			// Mantener el configstring del jugador si ya existe
+			auto it = player_configstrings.find(best - g_edicts);
+			if (it == player_configstrings.end()) {
+				if (!available_player_configstrings.empty()) {
+					int cs_index = available_player_configstrings.back();
+					available_player_configstrings.pop_back();
+					player_configstrings[best - g_edicts] = cs_index;
+					gi.configstring(cs_index, ent->client->target_health_str.c_str());
+				}
+			}
+			else {
+				gi.configstring(it->second, ent->client->target_health_str.c_str());
+			}
+
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstrings[best - g_edicts];
 		}
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
