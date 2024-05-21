@@ -859,6 +859,10 @@ bool FindTarget(edict_t* self)
             if (!visible(self, client))
                 return false;
         }
+        if (g_horde->integer && (!(self->flags & FL_FLY))) {
+            return false;
+        }
+
         else
         {
             if (!gi.inPHS(self->s.origin, client->s.origin, true))

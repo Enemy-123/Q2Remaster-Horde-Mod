@@ -1743,9 +1743,6 @@ void G_InitStatusbar(statusbar_t& sb)
 
 	sb.yb(-50);
 
-	// help / weapon icon
-	sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
-
 	// ---- gamemode-specific stuff ----
 
 	if (G_IsCooperative())
@@ -1762,6 +1759,9 @@ void G_InitStatusbar(statusbar_t& sb)
 		sb.ifstat(STAT_KEY_A).xv(296).pic(STAT_KEY_A).endifstat();
 		sb.ifstat(STAT_KEY_B).xv(272).pic(STAT_KEY_B).endifstat();
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
+
+		// help / weapon icon
+		sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
 
 		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer)
 		{
