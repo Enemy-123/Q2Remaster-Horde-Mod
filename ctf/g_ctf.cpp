@@ -973,7 +973,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_hover2", "Blaster Icarus" },
 		{ "monster_fixbot", "Fixbot" },
 		{ "monster_gekk", "Gekk" },
-		{ "monster_gunner2", " Gunner" },
+		{ "monster_gunner2", "Gunner" },
 		{ "monster_gunner", "Improved Gunner" },
 		{ "monster_medic", "Medic" },
 		{ "monster_brain", "Brain" },
@@ -1043,8 +1043,8 @@ std::string FormatClassname(const std::string& classname) {
 	return formatted_name;
 }
 
-
 #define MAX_MONSTER_CONFIGSTRINGS 20
+
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::vector<int> available_configstrings;
@@ -1109,7 +1109,6 @@ void CTFSetIDView(edict_t* ent) {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
 		}
 		else {
-
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 		}
 
@@ -1123,19 +1122,23 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		ent->client->target_health_str = health_stream.str();
 
-		if (monster_configstrings.find(best - g_edicts) == monster_configstrings.end()) {
-			if (!available_configstrings.empty()) {
-				int cs_index = available_configstrings.back();
-				available_configstrings.pop_back();
-				monster_configstrings[best - g_edicts] = cs_index;
-				gi.configstring(cs_index, ent->client->target_health_str.c_str());
+		if (best->svflags & SVF_MONSTER) {
+			// Mantener el configstring del monstruo si ya existe
+			auto it = monster_configstrings.find(best - g_edicts);
+			if (it == monster_configstrings.end()) {
+				if (!available_configstrings.empty()) {
+					int cs_index = available_configstrings.back();
+					available_configstrings.pop_back();
+					monster_configstrings[best - g_edicts] = cs_index;
+					gi.configstring(cs_index, ent->client->target_health_str.c_str());
+				}
 			}
-		}
-		else {
-			gi.configstring(monster_configstrings[best - g_edicts], ent->client->target_health_str.c_str());
-		}
+			else {
+				gi.configstring(it->second, ent->client->target_health_str.c_str());
+			}
 
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
+		}
 	}
 }
 

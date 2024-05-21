@@ -1047,7 +1047,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
 				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 			}
-			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number < 10)
+			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number > 10)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;

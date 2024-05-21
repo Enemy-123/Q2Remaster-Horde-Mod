@@ -1005,7 +1005,7 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	}
 
 	if (client->ammoregentime < level.time) {
-		client->ammoregentime = level.time + 10000_ms;
+		client->ammoregentime = level.time + 11300_ms;
 
 		if (client->pers.inventory[IT_WEAPON_SHOTGUN] || client->pers.inventory[IT_WEAPON_SSHOTGUN]) {
 			client->pers.inventory[IT_AMMO_SHELLS] += 8;
