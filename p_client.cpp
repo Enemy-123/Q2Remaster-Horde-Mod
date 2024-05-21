@@ -898,54 +898,47 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
 
-	// Asegurar invulnerabilidad al respawn si es CTF_TEAM1
 	if (!(ent->client && ent->movetype == MOVETYPE_WALK) && ent->client->resp.ctf_team == CTF_TEAM1) {
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 	}
 
 	// Usar max_health de resp para inicializar pers.max_health
-	if (client->resp.max_health > 0) {
-		client->pers.max_health = client->resp.max_health;
+	client->pers.max_health = client->resp.max_health > 0 ? client->resp.max_health : 100;
+
+	if (g_horde->integer) {
+		// Ajustar health y max_health basado en el número de oleadas actuales
+		if (current_wave_number >= 25 && current_wave_number <= 200) {
+			client->pers.max_health = max(200, client->pers.max_health);
+		}
+		else if (current_wave_number >= 20 && current_wave_number <= 24) {
+			client->pers.max_health = max(180, client->pers.max_health);
+		}
+		else if (current_wave_number >= 15 && current_wave_number <= 19) {
+			client->pers.max_health = max(160, client->pers.max_health);
+		}
+		else if (current_wave_number >= 10 && current_wave_number <= 14) {
+			client->pers.max_health = max(140, client->pers.max_health);
+		}
+		else if (current_wave_number >= 5 && current_wave_number <= 9) {
+			client->pers.max_health = max(120, client->pers.max_health);
+		}
+		else if (current_wave_number >= 1 && current_wave_number <= 4) {
+			client->pers.max_health = max(100, client->pers.max_health);
+		}
+		else {
+			client->pers.max_health = max(100, client->pers.max_health); // default, and wave 0
+		}
 	}
 	else {
-		client->pers.max_health = 100;
+		client->pers.max_health = max(100, client->pers.max_health);
 	}
 
 	// Inicializar health basado en max_health
 	client->pers.health = client->pers.max_health;
 
-	if (g_horde->integer) {
-		// Ajustar health basado en el número de oleadas actuales
-		if (current_wave_number >= 25 && current_wave_number <= 200) {
-			client->pers.health = max(200, client->pers.max_health);
-		}
-		else if (current_wave_number >= 20 && current_wave_number <= 24) {
-			client->pers.health = max(180, client->pers.max_health);
-		}
-		else if (current_wave_number >= 15 && current_wave_number <= 19) {
-			client->pers.health = max(160, client->pers.max_health);
-		}
-		else if (current_wave_number >= 10 && current_wave_number <= 14) {
-			client->pers.health = max(140, client->pers.max_health);
-		}
-		else if (current_wave_number >= 5 && current_wave_number <= 9) {
-			client->pers.health = max(120, client->pers.max_health);
-		}
-		else if (current_wave_number >= 1 && current_wave_number <= 4) {
-			client->pers.health = max(100, client->pers.max_health);
-		}
-		else {
-			client->pers.health = max(100, client->pers.max_health); // default, and wave 0
-		}
-	}
-	else {
-		client->pers.health = max(100, client->pers.max_health);
-	}
-
 	// Asegurar que health no exceda max_health
 	client->pers.health = min(client->pers.health, client->pers.max_health);
 
-	// Inicializar inventario de armaduras
 	client->pers.inventory[IT_ARMOR_BODY] = 0;
 	client->pers.inventory[IT_ARMOR_COMBAT] = 0;
 	client->pers.inventory[IT_ARMOR_JACKET] = 0;
@@ -955,6 +948,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	if (client->resp.weapon) {
 		client->pers.weapon = client->resp.weapon;
 		client->pers.selected_item = client->resp.weapon->id;
+		client->pers.inventory[client->pers.selected_item] = 1; // Asegurarse de que el arma esté en el inventario
 	}
 	else {
 		gitem_t* item = FindItem("Blaster");
@@ -962,7 +956,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.inventory[item->id] = 1;
 		client->pers.weapon = item;
 	}
-	// don't give us weapons if we shouldn't have any
+// don't give us weapons if we shouldn't have any
 //	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
 //		(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
