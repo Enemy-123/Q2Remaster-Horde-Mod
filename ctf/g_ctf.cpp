@@ -2243,6 +2243,9 @@ void CTFApplyRegeneration(edict_t* ent)
 	if (!client)
 		return;
 
+	if (client && ent->deadflag)
+		return;
+
 	if (ent->client->silencer_shots)
 		volume = 0.2f;
 
