@@ -874,8 +874,15 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 
 
 	client->pers.health = 100;
-	client->pers.max_health = 100;
+	
 }
+
+void SaveClientWeaponBeforeDeath(gclient_t* client)
+{
+	client->resp.weapon = client->pers.weapon;
+	client->resp.max_health = client->pers.max_health; // Guardar la salud máxima
+}
+
 /*
 ==============
 InitClientPersistant
@@ -886,58 +893,75 @@ but is called after each death and level change in deathmatch
 */
 void InitClientPersistant(edict_t* ent, gclient_t* client)
 {
-	// backup & restore userinfo
+	// Backup & restore userinfo
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
 
+	// Asegurar invulnerabilidad al respawn si es CTF_TEAM1
 	if (!(ent->client && ent->movetype == MOVETYPE_WALK) && ent->client->resp.ctf_team == CTF_TEAM1) {
 		ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
-	}   // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MOD
-	if (g_horde->integer) {
-
-
-
-		if (current_wave_number >= 25 && current_wave_number <= 200)
-		{
-			client->pers.health = 200;
-		}
-		else if (current_wave_number >= 20 && current_wave_number <= 24)
-		{
-			client->pers.health = 180;
-		}
-		else if (current_wave_number >= 15 && current_wave_number <= 19)
-		{
-		        client->pers.health = 160;
-		}
-		else if (current_wave_number >= 10 && current_wave_number <= 14)
-		{
-			client->pers.health = 140;
-		}
-		else if (current_wave_number >= 5 && current_wave_number <= 9)
-		{
-			client->pers.health = 120;
-		}
-		else if (current_wave_number >= 1 && current_wave_number <= 4)
-		{
-			client->pers.health = 100;
-		}
-		else
-		{
-			client->pers.health = 100; // default, and wave 0
-			client->pers.max_health = 100;
-		}
-
 	}
-	else
-		client->pers.health = 100;
-	client->pers.max_health = 100;
 
+	// Usar max_health de resp para inicializar pers.max_health
+	if (client->resp.max_health > 0) {
+		client->pers.max_health = client->resp.max_health;
+	}
+	else {
+		client->pers.max_health = 100;
+	}
+
+	// Inicializar health basado en max_health
+	client->pers.health = client->pers.max_health;
+
+	if (g_horde->integer) {
+		// Ajustar health basado en el número de oleadas actuales
+		if (current_wave_number >= 25 && current_wave_number <= 200) {
+			client->pers.health = max(200, client->pers.max_health);
+		}
+		else if (current_wave_number >= 20 && current_wave_number <= 24) {
+			client->pers.health = max(180, client->pers.max_health);
+		}
+		else if (current_wave_number >= 15 && current_wave_number <= 19) {
+			client->pers.health = max(160, client->pers.max_health);
+		}
+		else if (current_wave_number >= 10 && current_wave_number <= 14) {
+			client->pers.health = max(140, client->pers.max_health);
+		}
+		else if (current_wave_number >= 5 && current_wave_number <= 9) {
+			client->pers.health = max(120, client->pers.max_health);
+		}
+		else if (current_wave_number >= 1 && current_wave_number <= 4) {
+			client->pers.health = max(100, client->pers.max_health);
+		}
+		else {
+			client->pers.health = max(100, client->pers.max_health); // default, and wave 0
+		}
+	}
+	else {
+		client->pers.health = max(100, client->pers.max_health);
+	}
+
+	// Asegurar que health no exceda max_health
+	client->pers.health = min(client->pers.health, client->pers.max_health);
+
+	// Inicializar inventario de armaduras
 	client->pers.inventory[IT_ARMOR_BODY] = 0;
 	client->pers.inventory[IT_ARMOR_COMBAT] = 0;
 	client->pers.inventory[IT_ARMOR_JACKET] = 0;
 	client->pers.inventory[IT_ARMOR_SHARD] = 0;
 
+	// Restaurar el arma que el jugador estaba usando antes de morir
+	if (client->resp.weapon) {
+		client->pers.weapon = client->resp.weapon;
+		client->pers.selected_item = client->resp.weapon->id;
+	}
+	else {
+		gitem_t* item = FindItem("Blaster");
+		client->pers.selected_item = item->id;
+		client->pers.inventory[item->id] = 1;
+		client->pers.weapon = item;
+	}
 	// don't give us weapons if we shouldn't have any
 //	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
 //		(!G_TeamplayEnabled() && !client->resp.spectator))
@@ -1792,20 +1816,21 @@ void respawn(edict_t* self)
 {
 	if (G_IsDeathmatch() || G_IsCooperative())
 	{
+		// Guardar el arma y la salud máxima antes de la muerte
+		SaveClientWeaponBeforeDeath(self->client);
+
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
 			CopyToBodyQue(self);
 		self->svflags &= ~SVF_NOCLIENT;
 		PutClientInServer(self);
-
 		self->client->resp.spree = 0;
 
 		G_PostRespawn(self);
 		return;
 	}
 
-	// restart the entire server
-	gi.AddCommandString("menu_loadgame\n");
+	// Lógica adicional para otros modos...
 }
 
 /*

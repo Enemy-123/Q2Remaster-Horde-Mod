@@ -774,10 +774,10 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// Ajustar el robo de vida basado en los powerups
 		if (attacker->client) {
 			if (attacker->client->quad_time > level.time) {
-				health_stolen = max(1, health_stolen / 4); // Quad Damage multiplica por 4
+				health_stolen = max(1, static_cast<int>(health_stolen / 2.4)); // Tech Strength multiplica por 1.5
 			}
 			if (attacker->client->double_time > level.time) {
-				health_stolen = max(1, health_stolen / 2); // Double Damage multiplica por 2
+				health_stolen = max(1, static_cast<int>(health_stolen / 1.5)); // Tech Strength multiplica por 1.5
 			}
 			if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
 				health_stolen = max(1, static_cast<int>(health_stolen / 1.5)); // Tech Strength multiplica por 1.5

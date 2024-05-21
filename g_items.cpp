@@ -292,6 +292,12 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
 
+	// Actualizar también en client->resp
+	if (ent->client)
+	{
+		ent->client->resp.max_health = ent->max_health;
+	}
+
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
 	ent->client->pers.inventory[item->id]--;
 }
