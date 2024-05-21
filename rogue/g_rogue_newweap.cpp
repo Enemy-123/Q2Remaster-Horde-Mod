@@ -330,7 +330,7 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 		// Note that plane can be nullptr
 
 		// PMM - code stolen from g_phys (ClipVelocity)
-		vec3_t out;
+		vec3_t out{};
 		float  backoff, change;
 		int	   i;
 

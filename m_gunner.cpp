@@ -392,10 +392,12 @@ void GunnerFire(edict_t* self)
 
 	if (current_wave_number < 15) {
 		monster_fire_bullet(self, start, aim, 4, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+		flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_GUNNER_MACHINEGUN_1 + (self->s.frame - FRAME_attak216));
 	}
 	if (current_wave_number >= 15 || g_hardcoop->integer == 2) {
+		flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_GUNCMDR_GRENADE_CROUCH_1 + (self->s.frame - FRAME_attak216));
+
 		monster_fire_ionripper(self, start, aim, 6, 1300, flash_number, EF_IONRIPPER);
-		monster_fire_ionripper(self, start, aim, 3, 1150, flash_number, EF_IONRIPPER);
 	}
 }
 

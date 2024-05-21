@@ -511,7 +511,7 @@ void Use_Invulnerability(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
 
-	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 20_sec;
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 15_sec;
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/protect.wav"), 1, ATTN_NORM, 0);
 }

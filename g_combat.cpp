@@ -606,7 +606,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			if (attacker->client->quadfire_time < level.time) {
 				if (damage > 0 && (!(attacker->health < 1))) {
 					// Calcular probabilidad en función del daño realizado
-					float probabilidad = damage / 950.0f; // Ajusta este valor según lo que consideres adecuado
+					float probabilidad = damage / 1150.0f; // Ajusta este valor según lo que consideres adecuado
 
 					// Probabilidad de activación
 					float randomChance = frandom();
@@ -625,7 +625,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 					attacker->client->resp.spree++;
 
 					// Aumentar el tiempo del quadfire basado en el contador de muertes (spree)
-					gtime_t extra_time = gtime_t::from_sec(1); // Ajusta este valor según sea necesario
+					gtime_t extra_time = gtime_t::from_sec(0.6); // Ajusta este valor según sea necesario
 					attacker->client->quadfire_time += extra_time;
 				}
 			}

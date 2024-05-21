@@ -121,7 +121,7 @@ static void ApplyBenefit(const std::string& benefit) {
     }
     else if (benefit == "auto haste") {
         gi.cvar_set("g_autohaste", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGH YOUR VEINS \FRAGGING WHILE ACCEL\nWILL EXTEND TIME!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE ACCEL\nWILL EXTEND TIME!\n");
         gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
     }
     else if (benefit == "vampire upgraded") {
@@ -250,14 +250,14 @@ constexpr struct weighted_item_t {
     { "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
     { "item_power_shield", 9, -1, 0.07f, adjust_weight_armor },
 
-    { "item_quad", 6, -1, 0.07f, adjust_weight_powerup },
-    { "item_double", 5, -1, 0.076f, adjust_weight_powerup },
+    { "item_quad", 6, -1, 0.055f, adjust_weight_powerup },
+    { "item_double", 5, -1, 0.07f, adjust_weight_powerup },
     { "item_quadfire", 4, -1, 0.056f, adjust_weight_powerup },
     { "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
-    { "item_sphere_defender", -1, -1, 0.05f, adjust_weight_powerup },
+    { "item_sphere_defender", -1, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-    { "item_doppleganger", 6, -1, 0.09f, adjust_weight_powerup },
+    { "item_doppleganger", 6, -1, 0.05f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },

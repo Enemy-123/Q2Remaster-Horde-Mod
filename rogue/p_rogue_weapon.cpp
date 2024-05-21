@@ -78,7 +78,7 @@ void weapon_chainfist_fire(edict_t* ent)
 			return;
 		}
 	}
-	int damage;
+	int damage{};
 
 
 	if (G_IsDeathmatch())

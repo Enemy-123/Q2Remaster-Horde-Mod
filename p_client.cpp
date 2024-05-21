@@ -412,86 +412,31 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	switch (mod.id)
 	{
 	case MOD_FALLING:
-		base = "fell to their death.";
+		base = "{0} fell to their death.";
 		break;
 	case MOD_CRUSH:
-		base = "was crushed.";
+		base = "{0} was crushed.";
 		break;
 	default:
-		base = "died.";
+		base = "{0} died.";
 		break;
 	}
 
-	gi.LocBroadcast_Print(PRINT_MEDIUM, "%s %s\n", self->client->pers.netname, base);
+	gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
 
-
-
-		// Q2ETweaks frag message centerprints on attacker and victim
-		if (sv_centerprint_frags->integer)
-		{
-			gi.LocClient_Print(attacker, PRINT_CENTER, "You fragged {}", self->client->pers.netname);
-			gi.LocClient_Print(self, PRINT_CENTER, "\n\n\n\nFragged by {}", attacker->client->pers.netname);
-		}
-		/*	if (G_TeamplayEnabled())
-			{
-				// ZOID
-				//  if at start and same team, clear.
-				// [Paril-KEX] moved here so it's not an outlier in player_die.
-				if (mod.id == MOD_TELEFRAG_SPAWN &&
-					self->client->resp.ctf_state < 2 &&
-					self->client->resp.ctf_team == attacker->client->resp.ctf_team)
-				{
-					self->client->resp.ctf_state = 0;
-					return;
-				}
-			}*/
-
-			// ROGUE
-		if (gamerules->integer)
-		{
-			if (DMGame.Score)
-			{
-				if (mod.friendly_fire)
-				{
-					if (!mod.no_point_loss)
-						DMGame.Score(attacker, self, -1, mod);
-				}
-				else
-					DMGame.Score(attacker, self, 1, mod);
-			}
-			return;
-		}
-		// ROGUE
-
-		if (G_IsDeathmatch())
-		{
-			if (mod.friendly_fire)
-			{
-				if (!mod.no_point_loss)
-				{
-					attacker->client->resp.score--;
-
-					if (teamplay->integer)
-						G_AdjustTeamScore(attacker->client->resp.ctf_team, -1);
-				}
-			}
-			else
-			{
-				attacker->client->resp.score++;
-
-				if (teamplay->integer)
-					G_AdjustTeamScore(attacker->client->resp.ctf_team, 1);
-			}
-		}
-		else if (!G_IsCooperative())
-			self->client->resp.score--;
-
-		return;
-
-	
-	if (G_IsDeathmatch() && !mod.no_point_loss)
-		// ROGUE
+	// Q2ETweaks frag message centerprints on attacker and victim
+	if (sv_centerprint_frags->integer)
 	{
+		if (attacker && attacker->client)
+		{
+			gi.LocClient_Print(attacker, PRINT_CENTER, "You fragged {0}", self->client->pers.netname);
+			gi.LocClient_Print(self, PRINT_CENTER, "\n\n\n\nFragged by {0}", attacker->client->pers.netname);
+		}
+	}
+
+	if (G_IsDeathmatch() && !mod.no_point_loss)
+	{
+		// ROGUE
 		if (gamerules->integer)
 		{
 			if (DMGame.Score)
@@ -508,7 +453,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 				G_AdjustTeamScore(attacker->client->resp.ctf_team, -1);
 		}
 	}
-	// ROGUE
 }
 
 void TossClientWeapon(edict_t* self)
@@ -957,43 +901,26 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		if (current_wave_number >= 25 && current_wave_number <= 200)
 		{
 			client->pers.health = 200;
-			client->pers.max_health += 200;
-			ent->health = 200;
-			ent->max_health += 200;
 		}
 		else if (current_wave_number >= 20 && current_wave_number <= 24)
 		{
 			client->pers.health = 180;
-			client->pers.max_health += 180;
-			ent->health = 180;
-			ent->max_health += 180;
 		}
 		else if (current_wave_number >= 15 && current_wave_number <= 19)
 		{
-			client->pers.health = 160;
-			client->pers.max_health += 160;
-			ent->health = 160;
-			ent->max_health += 160;
+		        client->pers.health = 160;
 		}
 		else if (current_wave_number >= 10 && current_wave_number <= 14)
 		{
 			client->pers.health = 140;
-			client->pers.max_health += 140;
-			ent->max_health += 140;
 		}
 		else if (current_wave_number >= 5 && current_wave_number <= 9)
 		{
 			client->pers.health = 120;
-			client->pers.max_health += 120;
-			ent->health = 120;
-			ent->max_health += 120;
 		}
 		else if (current_wave_number >= 1 && current_wave_number <= 4)
 		{
 			client->pers.health = 100;
-			client->pers.max_health = 100;
-			ent->health = 100;
-			ent->max_health = 100;
 		}
 		else
 		{
