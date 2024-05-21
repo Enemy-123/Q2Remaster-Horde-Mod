@@ -756,7 +756,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
 		}
 		else if (using_rocketl) {
-			health_stolen = max(1, health_stolen / DEFAULT_SSHOTGUN_COUNT); // Ajustar por la cantidad de proyectiles
+			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
 		}
 		else if (using_hyperblaster) {
 			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
