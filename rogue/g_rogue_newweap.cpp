@@ -1024,8 +1024,8 @@ THINK(tesla_activate) (edict_t* self) -> void
 	gi.linkentity(trigger);
 
 	self->s.angles = {};
-	// clear the owner if in deathmatch
-	if (G_IsDeathmatch())
+	// clear the owner if in deathmatch and not horde
+	if (G_IsDeathmatch() && !g_horde->integer)
 		self->owner = nullptr;
 	self->teamchain = trigger;
 	self->think = tesla_think_active;
