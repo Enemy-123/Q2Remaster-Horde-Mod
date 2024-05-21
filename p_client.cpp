@@ -874,6 +874,7 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 
 
 	client->pers.health = 100;
+	client->pers.max_health = 100;
 	
 }
 
@@ -882,7 +883,6 @@ void SaveClientWeaponBeforeDeath(gclient_t* client)
 	client->resp.weapon = client->pers.weapon;
 	client->resp.max_health = client->pers.max_health; // Guardar la salud máxima
 }
-
 /*
 ==============
 InitClientPersistant
