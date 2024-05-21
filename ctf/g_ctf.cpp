@@ -1005,7 +1005,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_janitor2", "Mini Guardian" },
 		{ "monster_guardian", "Guardian" },
 		{ "monster_makron", "Makron" },
-		{ "monster_jorg", "JORG" },
+		{ "monster_jorg", "Jorg" },
 		{ "monster_gladb", "DarkMatter Gladiator" },
 		{ "monster_boss2_64", "N64 Hornet" },
 		{ "monster_boss2kl", "Ghostly Hornet" },
@@ -1014,7 +1014,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_shamblerkl", "Stygian Shambler" },
 		{ "monster_makronkl", "Ghostly Makron" },
 		{ "monster_widow1", "Widow Apprentice" },
-		{ "monster_widow", "Widow Centinel" },
+		{ "monster_widow", "Widow Emperor" },
 		{ "monster_widow2", "Widow Creator" },
 		{ "monster_supertank", "Super-Tank" },
 		{ "monster_supertankkl", "Super-Tank!" },
@@ -1043,7 +1043,8 @@ std::string FormatClassname(const std::string& classname) {
 	return formatted_name;
 }
 
-#define MAX_MONSTER_CONFIGSTRINGS 20
+#define MAX_MONSTER_CONFIGSTRINGS 50
+#define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
 
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
@@ -1107,12 +1108,12 @@ void CTFSetIDView(edict_t* ent) {
 		if (best->svflags & SVF_MONSTER) {
 			name = FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
+			health_stream << name << "\n"; // Solo agregar el nombre del monstruo
 		}
 		else {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
 		}
 
-		health_stream << name << "\n";
 		health_stream << "H: " << best->health;
 		if (best->client) {
 			health_stream << " A: " << GetArmorInfo(best);
@@ -1138,6 +1139,13 @@ void CTFSetIDView(edict_t* ent) {
 			}
 
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
+		}
+		else {
+			// Asignar un configstring único para jugadores
+			int player_index = best - g_edicts;
+			int player_configstring = PLAYER_HEALTH_CONFIGSTRING_BASE + player_index;
+			gi.configstring(player_configstring, ent->client->target_health_str.c_str());
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstring;
 		}
 	}
 }
