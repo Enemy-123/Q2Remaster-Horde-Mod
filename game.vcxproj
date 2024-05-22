@@ -152,6 +152,7 @@
     <ClInclude Include="rogue\m_rogue_turret.h" />
     <ClInclude Include="rogue\m_rogue_widow.h" />
     <ClInclude Include="rogue\m_rogue_widow2.h" />
+    <ClInclude Include="shared.h" />
     <ClInclude Include="xatrix\m_xatrix_fixbot.h" />
     <ClInclude Include="xatrix\m_xatrix_gekk.h" />
   </ItemGroup>
@@ -247,6 +248,7 @@
     <ClCompile Include="rogue\p_rogue_weapon.cpp" />
     <ClCompile Include="rogue\rogue_dm_ball.cpp" />
     <ClCompile Include="rogue\rogue_dm_tag.cpp" />
+    <ClCompile Include="shared.cpp" />
     <ClCompile Include="xatrix\g_xatrix_func.cpp" />
     <ClCompile Include="xatrix\g_xatrix_items.cpp" />
     <ClCompile Include="xatrix\g_xatrix_misc.cpp" />

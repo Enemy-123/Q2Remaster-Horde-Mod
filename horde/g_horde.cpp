@@ -1,4 +1,5 @@
 #include "../g_local.h"
+#include "../shared.h"
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -503,7 +504,6 @@ const char* G_HordePickMonster()
     return nullptr;
 }
 
-
 void Horde_PreInit() {
     wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
     dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
@@ -604,14 +604,6 @@ inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
     dest[2] = src[2];
 }
 
-// Declarar funciones externas
-extern void SP_target_healthbar(edict_t* self);
-extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
-extern void check_target_healthbar(edict_t* self);
-
-// Declarar la función GetDisplayName
-extern std::string GetDisplayName(const std::string& classname);
-
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
     if (!healthbar) return;
@@ -634,17 +626,10 @@ void AttachHealthBar(edict_t* boss) {
 
     healthbar->think = check_target_healthbar;
     healthbar->nextthink = level.time + 20_sec;
-
-    std::vector<std::string> titles = { "Champion", "Plagued", "Invictus", "Bloodthirsty", "Ragequit" };
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
-    std::string random_title = titles[std::rand() % titles.size()];
-    std::string display_name = GetDisplayName(boss->classname);
-    std::string titled_display_name = random_title + " " + display_name;
-
-    gi.configstring(CONFIG_HEALTH_BAR_NAME, titled_display_name.c_str());
 }
 
-    const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
+// Define los orígenes del mapa como un unordered_map
+const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm1", {1184, 568, 704}},
     {"rdm14", {1248, 664, 896}},
     {"ec/base_ec", {-112, 704, 128}},
@@ -656,86 +641,11 @@ void AttachHealthBar(edict_t* boss) {
     {"mgdm1", {176, 64, 288}},
     {"fact3", {0, -64, 192}},
     {"mgu6m3", {0, 592, 1600}},
-
     {"q64/dm7", {64, 224, 120}},
     {"q64\\dm7", {64, 224, 120}},
     {"q64/dm10", {-304, 512, -92}},
-    {"q64\\dm10", {-304, 512, -92}},
-    };
-
-// Define los títulos como un arreglo de cadenas de caracteres
-const char* titles[] = { "Champion", "Plagued", "Invictus", "Bloodthirsty", "Posessed" };
-const int num_titles = sizeof(titles) / sizeof(titles[0]);
-
-// Función para obtener un título al azar
-const char* PickRandomTitle() {
-    std::srand(static_cast<unsigned int>(std::time(nullptr)));
-    return titles[std::rand() % num_titles];
-}
-
-// Función para obtener un título basado en los flags de bonus
-const char* GetTitleFromFlags(int bonus_flags) {
-    if (bonus_flags & BF_CHAMPION) {
-        return "Champion";
-    } else if (bonus_flags & BF_PLAGUED) {
-        return "Plagued";
-    } else if (bonus_flags & BF_INVICTUS) {
-        return "Invictus";
-    } else if (bonus_flags & BF_BERSERKER) {
-        return "Ragequit";
-    } else if (bonus_flags & BF_POSESSED) {
-        return "Posessed";
-    }
-    return "Unknown";
-}
-
-// Función para aplicar los efectos del jefe
-void ApplyBossEffects(edict_t* boss, const char* title, bool isSmallMap, bool isMediumMap, bool isBigMap, float& health_multiplier, float& power_armor_multiplier) {
-    health_multiplier = 1.0f;
-    power_armor_multiplier = 1.0f;
-
-    if (strcmp(title, "Champion") == 0) {
-        boss->s.scale = 1.3f;
-        boss->s.effects |= EF_ROCKET;
-        boss->s.renderfx |= RF_SHELL_RED;
-        health_multiplier = 1.5f;
-        power_armor_multiplier = 1.5f;
-        boss->monsterinfo.bonus_flags |= BF_CHAMPION;
-    } else if (strcmp(title, "Plagued") == 0) {
-        boss->s.scale = 1.5f;
-        boss->s.effects |= EF_FLIES;
-        health_multiplier = 1.4f;
-        power_armor_multiplier = 1.4f;
-        boss->monsterinfo.bonus_flags |= BF_PLAGUED;
-    } else if (strcmp(title, "Invictus") == 0) {
-        boss->s.scale = 1.0f;
-        boss->s.effects |= EF_BLUEHYPERBLASTER;
-        boss->s.renderfx |= RF_TRANSLUCENT;
-        health_multiplier = 1.0f;
-        power_armor_multiplier = 1.6f;
-        boss->monsterinfo.bonus_flags |= BF_INVICTUS;
-    } else if (strcmp(title, "Bloodthirsty") == 0) {
-        boss->s.scale = 1.4f;
-        boss->s.effects |= EF_GIB | EF_FIREBALL;
-        health_multiplier = 1.3f;
-        power_armor_multiplier = 1.3f;
-        boss->monsterinfo.bonus_flags |= BF_BERSERKER;
-    } else if (strcmp(title, "Posessed") == 0) {
-        boss->s.scale = 1.8f;
-        boss->s.effects |= EF_BARREL_EXPLODING | EF_SPHERETRANS;
-        health_multiplier = 1.7f;
-        power_armor_multiplier = 1.7f;
-        boss->monsterinfo.bonus_flags |= BF_POSESSED;
-    }
-
-    if (isSmallMap) {
-        boss->s.scale *= 0.8f;
-    } else if (isMediumMap) {
-        boss->s.scale *= 1.2f;
-    } else if (isBigMap) {
-        boss->s.scale *= 1.4f;
-    }
-}
+    {"q64\\dm10", {-304, 512, -92}}
+};
 
 // Función para generar automáticamente el jefe
 void SpawnBossAutomatically() {
@@ -755,16 +665,16 @@ void SpawnBossAutomatically() {
 
             gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
 
-            const char* random_title = PickRandomTitle();
-            std::string display_name = GetDisplayName(boss->classname);
-            const char* c_display_name = display_name.c_str();
-            char titled_display_name[50];
-            snprintf(titled_display_name, sizeof(titled_display_name), "%s %s", random_title, c_display_name);
-            gi.configstring(CONFIG_HEALTH_BAR_NAME, titled_display_name);
+            // Elegir un flag de bonus al azar
+            int random_flag = 1 << (std::rand() % 5); // Hay 5 flags (BF_CHAMPION, BF_PLAGUED, etc.)
+            boss->monsterinfo.bonus_flags |= random_flag;
 
             float health_multiplier = 1.0f;
             float power_armor_multiplier = 1.0f;
-            ApplyBossEffects(boss, random_title, isSmallMap, isMediumMap, isBigMap, health_multiplier, power_armor_multiplier);
+            ApplyBossEffects(boss, isSmallMap, isMediumMap, isBigMap, health_multiplier, power_armor_multiplier);
+
+            std::string full_display_name = GetDisplayName(boss);
+            gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
 
             boss->monsterinfo.attack_state = AS_BLIND;
             boss->accel *= 2;
@@ -774,23 +684,6 @@ void SpawnBossAutomatically() {
             // Ajusta la salud después de aplicar todos los multiplicadores
             boss->health = static_cast<int>(boss->health * health_multiplier);
             boss->health *= (3 * g_horde_local.level);
-
-            // Aplica los flags de bonus
-            if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
-                boss->health *= 1.5f; // Ejemplo: 50% más de salud
-            }
-            if (boss->monsterinfo.bonus_flags & BF_PLAGUED) {
-                boss->health *= 1.4f; // Ejemplo: 40% más de salud
-            }
-            if (boss->monsterinfo.bonus_flags & BF_INVICTUS) {
-                boss->health *= 1.6f; // Ejemplo: 60% más de salud
-            }
-            if (boss->monsterinfo.bonus_flags & BF_BERSERKER) {
-                boss->health *= 1.3f; // Ejemplo: 30% más de salud
-            }
-            if (boss->monsterinfo.bonus_flags & BF_POSESSED) {
-                boss->health *= 1.7f; // Ejemplo: 70% más de salud
-            }
 
             boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
@@ -811,7 +704,6 @@ void SpawnBossAutomatically() {
         }
     }
 }
-
 
 void ResetBenefits() {
     shuffled_benefits.clear();

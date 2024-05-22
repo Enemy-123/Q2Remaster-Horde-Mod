@@ -959,6 +959,7 @@ int GetArmorInfo(edict_t* ent) {
 	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
 
+// Sobrecargar GetDisplayName para aceptar un string
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
 		{ "monster_soldier_light", "Light Soldier" },
@@ -1019,7 +1020,6 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_supertank", "Super-Tank" },
 		{ "monster_supertankkl", "Super-Tank!" },
 		{ "monster_boss5", "Super-Tank" },
-		{ "monster_boss5", "Super-Tank" },
 		{ "monster_turret", "TurretGun" },
 		{ "monster_turretkl", "TurretGun" },
 		{ "monster_boss2", "Hornet" }
@@ -1030,6 +1030,7 @@ std::string GetDisplayName(const std::string& classname) {
 	return (it != name_replacements.end()) ? it->second : classname;
 }
 
+// Función para formatear el nombre de la clase
 std::string FormatClassname(const std::string& classname) {
 	std::stringstream ss(classname);
 	std::string segment, formatted_name;
@@ -1042,6 +1043,7 @@ std::string FormatClassname(const std::string& classname) {
 	}
 	return formatted_name;
 }
+
 #define MAX_MONSTER_CONFIGSTRINGS 70
 #define MAX_PLAYER_CONFIGSTRINGS 32
 #define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
