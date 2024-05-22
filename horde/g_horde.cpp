@@ -652,7 +652,7 @@ void AttachHealthBar(edict_t* boss) {
 
 void SpawnBossAutomatically()
 {
-    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 1 == 0 && g_horde_local.level != 0) ||
+    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "rdm14") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm8") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
@@ -704,12 +704,11 @@ void SpawnBossAutomatically()
         boss->s.angles[0] = 0; // are these needed?
         boss->s.angles[1] = 0;
         boss->s.angles[2] = 0;
-
         gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
         boss->maxs *= 1.4f;
         boss->mins *= 1.4f;
         boss->s.scale = 1.4f;
-        boss->health *= pow(1.2, current_wave_number);
+        boss->health *= pow(1.2, current_wave_number + 1000);
         boss->monsterinfo.power_armor_power *= current_wave_number * 1.45; // Escalar la armadura de energía basada en la oleada actual
 
         boss->gib_health *= 3;
