@@ -619,7 +619,7 @@ void AttachHealthBar(edict_t* boss) {
     healthbar->delay = 4.0f;  // Ajustar este valor según sea necesario
 
     // Inicializar timestamp a cero para asegurar que no desaparezca inmediatamente
-    healthbar->timestamp = 0_ms;
+    healthbar->timestamp = 500_ms;
 
     // Vincular la barra de salud al monstruo usando target y targetname
     healthbar->target = boss->targetname;
@@ -652,7 +652,7 @@ void AttachHealthBar(edict_t* boss) {
 
 void SpawnBossAutomatically()
 {
-    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
+    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 1 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "rdm14") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
         (Q_strcasecmp(level.mapname, "q2dm8") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
@@ -726,7 +726,7 @@ void SpawnBossAutomatically()
         ED_CallSpawn(boss);
 
         // Adjuntar barra de salud al jefe
-      //  AttachHealthBar(boss);
+        AttachHealthBar(boss);
     }
 }
 

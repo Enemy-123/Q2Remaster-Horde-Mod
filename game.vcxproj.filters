@@ -77,8 +77,8 @@
     <ClInclude Include="xatrix\m_xatrix_gekk.h">
       <Filter>xatrix</Filter>
     </ClInclude>
-    <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="g_spawn.h" />
+    <ClInclude Include="horde\g_horde.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -249,7 +249,6 @@
     <ClCompile Include="xatrix\p_xatrix_weapon.cpp">
       <Filter>xatrix</Filter>
     </ClCompile>
-    <ClCompile Include="horde\g_horde.cpp" />
     <ClCompile Include="hook.cpp" />
     <ClCompile Include="m_infantry2.cpp" />
     <ClCompile Include="m_hover2.cpp" />
@@ -257,6 +256,7 @@
     <ClCompile Include="m_gunner2.cpp" />
     <ClCompile Include="m_guncmdr2.cpp" />
     <ClCompile Include="m_tank2.cpp" />
+    <ClCompile Include="horde\g_horde.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="bots">

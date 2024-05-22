@@ -1834,27 +1834,19 @@ void SP_target_music(edict_t* self)
 * "message" is their name
 */
 
-#include <cstring> // Asegúrate de incluir la cabecera necesaria para _strdup
-
-/*QUAKED target_healthbar (0 1 0) (-8 -8 -8) (8 8 8) PVS_ONLY
-*
-* Conectar barras de salud a los monstruos.
-* "delay" es cuánto tiempo mostrar la barra de salud después de la muerte.
-* "message" es su nombre
-*/
 USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	edict_t* target = G_PickTarget(ent->target);
 
-	if (!target || ent->health != target->spawn_count)
-	{
-		if (target)
-			gi.Com_PrintFmt("{}: target {} changed from what it used to be\n", *ent, *target);
-		else
-			gi.Com_PrintFmt("{}: no target\n", *ent);
-		G_FreeEdict(ent);
-		return;
-	}
+	//if (!target || ent->health != target->spawn_count)
+	//{
+	//	if (target)
+	//		gi.Com_PrintFmt("{}: target {} changed from what it used to be\n", *ent, *target);
+	//	else
+	//		gi.Com_PrintFmt("{}: no target\n", *ent);
+	//	G_FreeEdict(ent);
+	//	return;
+	//}
 
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
 	{
@@ -1873,26 +1865,18 @@ USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> 
 
 THINK(check_target_healthbar) (edict_t* ent) -> void
 {
-	if (!ent->enemy || !ent->enemy->inuse || ent->enemy->health <= 0) {
-		// Si el enemigo ya no es válido, desactiva la barra de salud
-		if (ent->delay) {
-			ent->timestamp = level.time + gtime_t::from_sec(ent->delay);
+	edict_t* target = G_PickTarget(ent->target);
+	if (!target || !(target->svflags & SVF_MONSTER))
+	{
+		if (target != nullptr) {
+			gi.Com_PrintFmt("{}: target {} does not appear to be a monster\n", *ent, *target);
 		}
-		else {
-			G_FreeEdict(ent);
-			return;
-		}
-	}
-	else {
-		// Asegurar que la barra de salud sigue vinculada al enemigo
-		edict_t* target = G_PickTarget(ent->target);
-		if (target && (target->svflags & SVF_MONSTER)) {
-			ent->enemy = target;
-		}
+		G_FreeEdict(ent);
+		return;
 	}
 
-	// Programar la siguiente verificación
-	ent->nextthink = level.time + 0.1_sec; // Ajusta el tiempo de verificación según sea necesario
+	// just for sanity check
+	ent->health = target->spawn_count;
 }
 
 void SP_target_healthbar(edict_t* self)
@@ -1903,25 +1887,11 @@ void SP_target_healthbar(edict_t* self)
 		return;
 	}
 
-	if (!self->target || !*self->target)
-	{
-		gi.Com_PrintFmt("{}: missing target\n", *self);
-		G_FreeEdict(self);
-		return;
-	}
-
-	if (!self->message)
-	{
-		gi.Com_PrintFmt("{}: missing message\n", *self);
-		G_FreeEdict(self);
-		return;
-	}
 
 	self->use = use_target_healthbar;
 	self->think = check_target_healthbar;
 	self->nextthink = level.time + 25_ms;
 }
-
 
 /*QUAKED target_autosave (0 1 0) (-8 -8 -8) (8 8 8)
 *
