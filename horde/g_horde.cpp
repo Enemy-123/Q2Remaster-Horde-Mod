@@ -619,7 +619,7 @@ void AttachHealthBar(edict_t* boss) {
     healthbar->delay = 4.0f;  // Ajustar este valor según sea necesario
 
     // Inicializar timestamp a cero para asegurar que no desaparezca inmediatamente
-    healthbar->timestamp = 500_ms;
+    healthbar->timestamp = 0_ms;
 
     // Vincular la barra de salud al monstruo usando target y targetname
     healthbar->target = boss->targetname;

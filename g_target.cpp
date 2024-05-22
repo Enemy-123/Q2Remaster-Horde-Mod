@@ -1888,6 +1888,12 @@ void SP_target_healthbar(edict_t* self)
 	}
 
 
+	if (!self->message)
+	{
+		gi.Com_PrintFmt("{}: missing message\n", *self);
+		return;
+	}
+
 	self->use = use_target_healthbar;
 	self->think = check_target_healthbar;
 	self->nextthink = level.time + 25_ms;
