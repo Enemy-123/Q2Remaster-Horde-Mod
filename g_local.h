@@ -1611,6 +1611,7 @@ struct monsterinfo_t
 	// NB: always use `M_SetAnimation` as it handles edge cases.
 	save_mmove_t	   active_move, next_move;
 	monster_ai_flags_t aiflags; // PGM - unsigned, since we're close to the max
+	int bonus_flags; // Nuevo campo para flags de bonus Horde
 	int32_t			   nextframe; // if next_move is set, this is ignored until a frame is ran
 	float			   scale;
 
@@ -1733,6 +1734,14 @@ struct monsterinfo_t
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
+
+// Define los flags de bonus
+#define BF_CHAMPION   0x00000001
+#define BF_PLAGUED    0x00000002
+#define BF_INVICTUS   0x00000004
+#define BF_BERSERKER  0x00000008
+#define BF_POSESSED   0x00000010
+#define BF_STYGIAN    0x00000020
 
 // non-monsterinfo save stuff
 using save_prethink_t = save_data_t<void(*)(edict_t* self), SAVE_FUNC_PRETHINK>;

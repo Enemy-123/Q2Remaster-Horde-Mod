@@ -1008,7 +1008,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_jorg", "Jorg" },
 		{ "monster_gladb", "DarkMatter Gladiator" },
 		{ "monster_boss2_64", "N64 Hornet" },
-		{ "monster_boss2kl", "Ghostly Hornet" },
+		{ "monster_boss2kl", "N64 Hornet" },
 		{ "monster_perrokl", "Infected Parasite" },
 		{ "monster_guncmdrkl", "Enraged Gunner Grenadier" },
 		{ "monster_shamblerkl", "Stygian Shambler" },

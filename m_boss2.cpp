@@ -743,14 +743,11 @@ void SP_monster_boss2kl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2KL;
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
-	self->s.skinnum = 2;
-	self->health = 1100 * st.health_multiplier;
-	self->gib_health = -130;
-
 	if (g_horde->integer) {
-		self->health = 700 * current_wave_number;
-		self->s.renderfx = RF_TRANSLUCENT;
-		self->s.effects = EF_FLAG1;
+		self->mins = { -24, -24, 0 };
+		self->maxs = { 24, 24, 48 };
+		self->s.scale = 0.6f;
 	}
-
+	self->s.skinnum = 2;
+	self->gib_health = -130;
 }
