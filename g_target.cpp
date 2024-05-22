@@ -1889,7 +1889,7 @@ void SP_target_healthbar(edict_t* self)
 
 	if (!self->message)
 	{
-		gi.Com_PrintFmt("{}: missing message\n", *self);
+//		gi.Com_PrintFmt("{}: missing message\n", *self);
 		return;
 	}
 

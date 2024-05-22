@@ -88,7 +88,7 @@ edict_t* G_PickTarget(const char* targetname)
 
 	if (!targetname)
 	{
-		gi.Com_Print("G_PickTarget called with nullptr targetname\n");
+//		gi.Com_Print("G_PickTarget called with nullptr targetname\n");
 		return nullptr;
 	}
 

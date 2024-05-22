@@ -362,22 +362,58 @@ struct boss_t {
     float weight;
 };
 
-constexpr boss_t BOSS[] = {
-    // {"monster_jorg", 19, -1, 0.07f},
-   //  {"monster_makronkl", -1, -1, 0.07f},
-     //  {"monster_perrokl", -1, -1, 0.07f},
-    //   {"monster_shamblerkl", -1, -1, 0.07f},
-     //  {"monster_guncmdrkl", -1, -1, 0.07f},
-     //  {"monster_boss2kl", -1, -1, 0.07f},
-       {"monster_carrier", 9, -1, 0.07f},
-       //  {"monster_widow", -1, -1, 0.07f},
-       //  {"monster_widow2", -1, -1, 0.07f},
-         {"monster_supertank", -1, -1, 0.07f},
-         {"monster_boss5", 11, -1, 0.07f},
-         {"monster_boss2", -1, -1, 0.07f},
-         {"monster_guardian", 9, -1, 0.07f},
-         {"monster_shambler", -1, -1, 0.08f},
+constexpr boss_t BOSS_SMALL[] = {
+    {"monster_chick_heat", 9, -1, 0.07f},
+    {"monster_carrier2", -1, -1, 0.15f},
+    {"monster_boss2_64", -1, -1, 0.05f},
+    {"monster_gekk", -1, -1, 0.05f},
+    {"monster_guncmdr", -1, -1, 0.05f},
 };
+
+constexpr boss_t BOSS_MEDIUM[] = {
+    {"monster_carrier", 9, -1, 0.10f},
+    {"monster_supertank", -1, -1, 0.12f},
+    {"monster_boss2", -1, -1, 0.10f},
+    {"monster_tank_64", -1, -1, 0.10f},
+    {"monster_guardian", 9, -1, 0.07f},
+    {"monster_shambler", -1, -1, 0.10f},
+};
+
+constexpr boss_t BOSS_LARGE[] = {
+    {"monster_carrier", 9, -1, 0.12f},
+    {"monster_supertank", -1, -1, 0.14f},
+    {"monster_boss2", -1, -1, 0.12f},
+    {"monster_tank_64", 9, -1, 0.09f},
+    {"monster_guardian", 9, -1, 0.09f},
+    {"monster_shambler", -1, -1, 0.15f},
+};
+
+const boss_t* GetBossList(bool isSmallMap, bool isMediumMap, bool isBigMap) {
+    if (isSmallMap) return BOSS_SMALL;
+    if (isMediumMap) return BOSS_MEDIUM;
+    if (isBigMap) return BOSS_LARGE;
+    return nullptr;
+}
+
+const char* G_HordePickBOSS(bool isSmallMap, bool isMediumMap, bool isBigMap) {
+    const boss_t* boss_list = GetBossList(isSmallMap, isMediumMap, isBigMap);
+    if (!boss_list) return nullptr;
+
+    float total_weight = 0.0f;
+    for (int i = 0; i < 5; ++i) {
+        total_weight += boss_list[i].weight;
+    }
+
+    float r = frandom() * total_weight;
+    for (int i = 0; i < 5; ++i) {
+        if (r < boss_list[i].weight) {
+            return boss_list[i].classname;
+        }
+        r -= boss_list[i].weight;
+    }
+
+    return nullptr; // Esto no debería ocurrir si los pesos están configurados correctamente
+}
 
 struct picked_item_t {
     const weighted_item_t* item;
@@ -462,24 +498,6 @@ const char* G_HordePickMonster()
             return picked_monsters[i].item->classname;
 
     return nullptr;
-}
-
-const char* G_HordePickBOSS()
-{
-    float total_weight = 0.0f;
-    for (const auto& boss : BOSS) {
-        total_weight += boss.weight;
-    }
-
-    float r = frandom() * total_weight;
-    for (const auto& boss : BOSS) {
-        if (r < boss.weight) {
-            return boss.classname;
-        }
-        r -= boss.weight;
-    }
-
-    return nullptr; // This should never happen if the weights are set correctly
 }
 
 
@@ -590,6 +608,7 @@ extern void check_target_healthbar(edict_t* self);
 
 // Declarar la función GetDisplayName
 extern std::string GetDisplayName(const std::string& classname);
+
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
     if (!healthbar) return;
@@ -622,7 +641,6 @@ void AttachHealthBar(edict_t* boss) {
     gi.configstring(CONFIG_HEALTH_BAR_NAME, titled_display_name.c_str());
 }
 
-void SpawnBossAutomatically() {
     const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
         {"q2dm1", {1184, 568, 704}},
         {"rdm14", {1248, 664, 896}},
@@ -638,44 +656,95 @@ void SpawnBossAutomatically() {
         {"q64\\dm2", {1328, -256, 272}}
     };
 
-    if (g_horde_local.level % 1 == 0 && g_horde_local.level != 0) {
-        const auto it = mapOrigins.find(level.mapname);
-        if (it != mapOrigins.end()) {
-            edict_t* boss = G_Spawn();
-            if (!boss) return;
+    const std::vector<std::string> titles = { "Champion", "Chosen", "Invictus", "Bloodthirsty", "Ragequitter" };
 
-            const char* desired_boss = G_HordePickBOSS();
-            if (!desired_boss) return;
-            boss->classname = desired_boss;
+    std::string PickRandomTitle() {
+        std::srand(static_cast<unsigned int>(std::time(nullptr)));
+        return titles[std::rand() % titles.size()];
+    }
 
-            boss->s.origin[0] = it->second[0];
-            boss->s.origin[1] = it->second[1];
-            boss->s.origin[2] = it->second[2];
-
-            gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
-            boss->maxs *= 1.4f;
-            boss->mins *= 1.4f;
+    void ApplyBossEffects(edict_t* boss, const std::string& title, bool isSmallMap, bool isMediumMap, bool isBigMap) {
+        if (title == "Champion") {
+            boss->s.scale = 1.6f;
+            boss->s.effects |= EF_ROCKET;
+            boss->s.renderfx |= RF_SHELL_RED;
+            boss->health *= 4500 + (0.1 * g_horde_local.level);
+            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.5;
+        }
+        else if (title == "Chosen") {
+            boss->s.scale = 1.5f;
+            boss->s.effects |= EF_BLASTER;
+            boss->s.renderfx |= RF_SHELL_BLUE;
+            boss->health *= 4000 + (0.09 * g_horde_local.level);
+            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.4;
+        }
+        else if (title == "Invictus") {
+            boss->s.scale = 1.7f;
+            boss->s.effects |= EF_HYPERBLASTER;
+            boss->s.renderfx |= RF_SHELL_GREEN;
+            boss->health *= 5000 + (0.12 * g_horde_local.level);
+            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.6;
+        }
+        else if (title == "Bloodthirsty") {
             boss->s.scale = 1.4f;
-            boss->health *= 4000 + (0.07 * g_horde_local.level);
-            boss->monsterinfo.power_armor_power *= g_horde_local.level * 0.05;
-            boss->monsterinfo.power_armor_power *= current_wave_number * 1.45;
-            boss->gib_health *= 3;
-
-            vec3_t effectPosition = boss->s.origin;
-            effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
-            effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
-            effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
-
-            gi.WriteByte(svc_temp_entity);
-            gi.WriteByte(TE_BOSSTPORT);
-            gi.WritePosition(effectPosition);
-            gi.multicast(effectPosition, MULTICAST_PHS, false);
-            ED_CallSpawn(boss);
-
-            AttachHealthBar(boss);
+            boss->s.effects |= EF_GIB;
+            boss->health *= 4200 + (0.08 * g_horde_local.level);
+            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.3;
+        }
+        else if (title == "Ragequitter") {
+            boss->s.scale = 1.8f;
+            boss->s.effects |= EF_COLOR_SHELL;
+            boss->s.renderfx |= RF_SHELL_DOUBLE;
+            boss->health *= 4800 + (0.11 * g_horde_local.level);
+            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.7;
         }
     }
-}
+    void SpawnBossAutomatically() {
+        if (g_horde_local.level % 1 == 0 && g_horde_local.level != 0) {
+            const auto it = mapOrigins.find(level.mapname);
+            if (it != mapOrigins.end()) {
+                edict_t* boss = G_Spawn();
+                if (!boss) return;
+
+                const char* desired_boss = G_HordePickBOSS(isSmallMap, isMediumMap, isBigMap);
+                if (!desired_boss) return;
+                boss->classname = desired_boss;
+
+                boss->s.origin[0] = it->second[0];
+                boss->s.origin[1] = it->second[1];
+                boss->s.origin[2] = it->second[2];
+
+                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
+
+                std::string random_title = PickRandomTitle();
+                std::string display_name = GetDisplayName(boss->classname);
+                std::string titled_display_name = random_title + " " + display_name;
+                gi.configstring(CONFIG_HEALTH_BAR_NAME, titled_display_name.c_str());
+
+                ApplyBossEffects(boss, random_title, isSmallMap, isMediumMap, isBigMap);
+
+                boss->maxs *= boss->s.scale;
+                boss->mins *= boss->s.scale;
+                boss->health = 6000 * (1.07 * g_horde_local.level);
+                boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
+                boss->gib_health *= 3;
+
+                vec3_t effectPosition = boss->s.origin;
+                effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
+                effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
+                effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
+
+                gi.WriteByte(svc_temp_entity);
+                gi.WriteByte(TE_BOSSTPORT);
+                gi.WritePosition(effectPosition);
+                gi.multicast(effectPosition, MULTICAST_PHS, false);
+                ED_CallSpawn(boss);
+
+                AttachHealthBar(boss);
+            }
+        }
+    }
+
 
 void ResetBenefits() {
     shuffled_benefits.clear();
