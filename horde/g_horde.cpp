@@ -361,19 +361,20 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS[] = {
-    //   {"monster_jorg", -1, -1, 0.7f},
+      // {"monster_jorg", 19, -1, 0.07f},
      //  {"monster_makronkl", -1, -1, 0.07f},
        //  {"monster_perrokl", -1, -1, 0.07f},
       //   {"monster_shamblerkl", -1, -1, 0.07f},
        //  {"monster_guncmdrkl", -1, -1, 0.07f},
        //  {"monster_boss2kl", -1, -1, 0.07f},
-         {"monster_carrier", -1, -1, 0.07f},
+         {"monster_carrier", 9, -1, 0.07f},
          //  {"monster_widow", -1, -1, 0.07f},
          //  {"monster_widow2", -1, -1, 0.07f},
-         //  {"monster_supertankkl", -1, -1, 0.07f},
-          // {"monster_supertank", -1, -1, 0.07f},
+           {"monster_supertank", -1, -1, 0.07f},
+           {"monster_boss5", 11, -1, 0.07f},
            {"monster_boss2", -1, -1, 0.07f},
-           {"monster_guardian", -1, -1, 0.07f},
+           {"monster_guardian", 9, -1, 0.07f},
+           {"monster_shambler", -1, -1, 0.08f},
 };
 
 struct picked_item_t {
@@ -642,11 +643,28 @@ void AttachHealthBar(edict_t* boss) {
     healthbar->think = check_target_healthbar;
     healthbar->nextthink = level.time + 20_sec; // Ajusta el tiempo de verificación según sea necesario
 
+#include <vector>
+#include <cstdlib>
+#include <ctime>
+
+    // Define a list of titles
+    std::vector<std::string> titles = { "Champion", "Chosen", "Invictus", "Bloodthirsty", "Ragequitter" };
+
+    // Seed the random number generator
+    std::srand(std::time(nullptr));
+
+    // Select a random title
+    std::string random_title = titles[std::rand() % titles.size()];
+
     // Use GetDisplayName to get the display name of the boss's class
     std::string display_name = GetDisplayName(boss->classname);
 
-    // Set the configstring with the display name
-    gi.configstring(CONFIG_HEALTH_BAR_NAME, display_name.c_str());
+    // Concatenate the random title with the display name
+    std::string titled_display_name = random_title + " " + display_name;
+
+    // Set the configstring with the titled display name
+    gi.configstring(CONFIG_HEALTH_BAR_NAME, titled_display_name.c_str());
+
 }
 
 
@@ -708,7 +726,8 @@ void SpawnBossAutomatically()
         boss->maxs *= 1.4f;
         boss->mins *= 1.4f;
         boss->s.scale = 1.4f;
-        boss->health *= pow(1.2, current_wave_number + 1000);
+        boss->health *= 4000 + (0.07 * g_horde_local.level);
+        boss->monsterinfo.power_armor_power *= g_horde_local.level * 0.05;
         boss->monsterinfo.power_armor_power *= current_wave_number * 1.45; // Escalar la armadura de energía basada en la oleada actual
 
         boss->gib_health *= 3;
@@ -900,7 +919,7 @@ void Horde_RunFrame() {
                 }
 
                 e->health *= 1 + (0.02 * g_horde_local.level);
-                e->monsterinfo.power_armor_power *= g_horde_local.level * 0.05;
+                e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
                 e->gib_health = -100;
 
                 std::srand(static_cast<unsigned int>(std::time(nullptr)));
