@@ -2836,8 +2836,9 @@ struct client_respawn_t
 	bool	 admin;
 	ghost_t* ghost; // for ghost codes
 	// ZOID
-	//std::string target_health_str;  // Cadena para mostrar la salud del objetivo
-	//std::string last_statusbar;  // último statusbar para comparar cambios
+	bool inactivity_warning;
+	gtime_t inactivity_time;
+	bool inactive;
 };
 
 // [Paril-KEX] seconds until we are fully invisible after
@@ -2881,6 +2882,7 @@ struct gclient_t
 	bool showeou;       // end of unit screen
 	bool showinventory; // set layout stat
 	bool showhelp;
+
 
 	button_t buttons;
 	button_t oldbuttons;
@@ -3069,6 +3071,9 @@ struct gclient_t
 	// Kyper
 	std::string target_health_str;  // Cadena para mostrar la salud del objetivo
 	std::string last_statusbar;  // último statusbar para comparar cambios
+
+	vec3_t old_origin; // Agregar para almacenar la posición anterior del jugador
+	vec3_t old_angles; // Agregar para almacenar los ángulos anteriores del jugador
 };
 
 

@@ -1871,7 +1871,6 @@ THINK(check_target_healthbar) (edict_t* ent) -> void
 		if (target != nullptr) {
 			gi.Com_PrintFmt("{}: target {} does not appear to be a monster\n", *ent, *target);
 		}
-		G_FreeEdict(ent);
 		return;
 	}
 

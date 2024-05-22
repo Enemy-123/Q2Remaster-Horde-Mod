@@ -638,7 +638,7 @@ void SpawnBossAutomatically() {
         {"q64\\dm2", {1328, -256, 272}}
     };
 
-    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 0) {
+    if (g_horde_local.level % 1 == 0 && g_horde_local.level != 0) {
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();

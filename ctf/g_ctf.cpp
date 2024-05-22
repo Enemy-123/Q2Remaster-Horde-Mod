@@ -2990,6 +2990,10 @@ void CTFChaseCam(edict_t* ent, pmenuhnd_t* p)
 	PMenu_Open(ent, nochasemenu, -1, sizeof(nochasemenu) / sizeof(pmenu_t), nullptr, CTFNoChaseCamUpdate);
 }
 
+
+
+
+
 void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p)
 {
 	PMenu_Close(ent);

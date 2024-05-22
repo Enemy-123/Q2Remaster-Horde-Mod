@@ -2290,6 +2290,11 @@ a deathmatch.
 	// deathmatch wipes most client data every spawn
 	if (G_IsDeathmatch())
 	{
+
+		client->resp.inactivity_time = 0_sec; // Inicializa a 0 o a un valor apropiado
+		client->resp.inactivity_warning = false;
+		client->resp.inactive = false;
+
 		client->pers.health = 0;
 		resp = client->resp;
 	}
@@ -3195,6 +3200,18 @@ void ClientDisconnect(edict_t* ent)
 				player->client->menutime = level.time;
 }
 
+/*
+=================
+ClientIsSpectating
+=================
+*/
+bool ClientIsSpectating(gclient_t* cl) {
+	if (!cl) return false;
+
+	return cl->resp.ctf_team == CTF_NOTEAM;
+}
+
+
 //==============================================================
 
 trace_t SV_PM_Clip(const vec3_t& start, const vec3_t* mins, const vec3_t* maxs, const vec3_t& end, contents_t mask)
@@ -3354,6 +3371,97 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 	return false;
 }
 
+
+extern bool ClientIsSpectating(gclient_t* cl);
+extern void CTFJoinTeam(edict_t * ent, ctfteam_t desired_team);
+static bool ClientInactivityTimer(edict_t* ent) {
+	gtime_t inactivity_duration = 35_sec; // 20 segundos para prueba
+
+	if (!ent->client) {
+		return true;
+	}
+
+	// Asegurar que el tiempo de inactividad sea al menos 15 segundos
+	if (inactivity_duration < 15_sec) {
+		inactivity_duration = 15_sec;
+	}
+
+	// Configurar el tiempo de inactividad si no está establecido
+	if (!ent->client->resp.inactivity_time) {
+		ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
+		ent->client->resp.inactivity_warning = false;
+		ent->client->resp.inactive = false;
+		return true;
+	}
+
+	// Verificar si el jugador está en un estado donde no se debe aplicar inactividad
+	if (!g_horde->integer || ClientIsSpectating(ent->client) || (ent->svflags & SVF_BOT)) {
+		ent->client->resp.inactivity_time = (level.time) + 1_min; // 1 minuto
+		ent->client->resp.inactivity_warning = false;
+		ent->client->resp.inactive = false;
+	}
+	else {
+		// Verificar si el jugador está activo
+		bool is_active = (ent->client->latched_buttons & BUTTON_ANY) ||
+			ent->client->old_origin[0] != ent->s.origin[0] ||
+			ent->client->old_origin[1] != ent->s.origin[1] ||
+			ent->client->old_origin[2] != ent->s.origin[2] ||
+			ent->client->old_angles[0] != ent->client->v_angle[0] ||
+			ent->client->old_angles[1] != ent->client->v_angle[1] ||
+			ent->client->old_angles[2] != ent->client->v_angle[2];
+
+		if (is_active) {
+			// Si el jugador está activo, restablecer el temporizador de inactividad
+			ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
+			ent->client->resp.inactivity_warning = false;
+			ent->client->resp.inactive = false;
+		}
+		else {
+			// Obtener el tiempo actual
+			 gtime_t current_time = (level.time);
+
+			// Verificar si el tiempo de inactividad ha expirado
+			if (current_time > ent->client->resp.inactivity_time) {
+				gi.LocClient_Print(ent, PRINT_CENTER, "You have deserted the war against stroggs! UNACCEPTABLE\n");
+				CTFJoinTeam(ent, CTF_NOTEAM); // Mueve al jugador al equipo espectador
+				ent->client->resp.inactive = true;
+				return false;
+			}
+
+			// Dar una advertencia si está cerca del tiempo de inactividad
+			if (current_time > ent->client->resp.inactivity_time - 5_sec && !ent->client->resp.inactivity_warning) {
+				ent->client->resp.inactivity_warning = true;
+				gi.LocClient_Print(ent, PRINT_CENTER, "5 seconds to go AFK!\n");
+				gi.local_sound(ent, CHAN_AUTO, gi.soundindex("world/brick_wall_break1.wav"), 1, ATTN_NONE, 0);
+			}
+		}
+
+		// Reset warning if the player is active again
+		if (ent->client->resp.inactivity_warning && is_active) {
+			ent->client->resp.inactivity_warning = false;
+		}
+	}
+
+	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
+	// Actualizar old_origin y old_angles después de procesar la entrada del jugador
+	VectorCopy(ent->s.origin, ent->client->old_origin);
+	VectorCopy(ent->client->v_angle, ent->client->old_angles);
+
+	return true;
+}
+
+
+
+cvar_t* maxclients;
+// Definir CheckClientsInactivity
+void CheckClientsInactivity() {
+	for (int i = 0; i < maxclients->value; i++) {
+		edict_t* ent = &g_edicts[i + 1];
+		if (ent->inuse && ent->client) {
+			ClientInactivityTimer(ent);
+		}
+	}
+}
 /*
 ==============
 ClientThink
@@ -3364,6 +3472,8 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
+
+
 	gclient_t* client;
 	edict_t* other;
 	uint32_t   i;
@@ -3378,6 +3488,10 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	client->buttons = ucmd->buttons;
 	client->latched_buttons |= client->buttons & ~client->oldbuttons;
 	client->cmd = *ucmd;
+
+	// check for inactivity timer
+	if (!ClientInactivityTimer(ent))
+		return;
 
 	if ((ucmd->buttons & BUTTON_CROUCH) && pm_config.n64_physics)
 	{
