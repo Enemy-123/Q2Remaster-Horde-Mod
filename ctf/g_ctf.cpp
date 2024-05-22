@@ -1071,7 +1071,8 @@ void CTFSetIDView(edict_t* ent) {
 	float closest_dist = 2048; // Aumentar la distancia máxima inicial
 	float min_dot = 0.95f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
 
-	if (level.time - ent->client->resp.lastidtime < 250_ms)
+	// Reduce the update interval
+	if (level.time - ent->client->resp.lastidtime < 50_ms) 
 		return;
 
 	ent->client->resp.lastidtime = level.time;
@@ -1169,7 +1170,6 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {

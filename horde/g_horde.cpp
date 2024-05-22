@@ -7,24 +7,24 @@
 #include <random>
 #include <algorithm>
 
-static const int MAX_MONSTERS_BIG_MAP = 44;
-static const int MAX_MONSTERS_MEDIUM_MAP = 18;
-static const int MAX_MONSTERS_SMALL_MAP = 15;
+constexpr int MAX_MONSTERS_BIG_MAP = 44;
+constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
+constexpr int MAX_MONSTERS_SMALL_MAP = 15;
 
 int remainingMonsters = 0;
 int current_wave_number = 1;
 int last_wave_number = 0;
-const int BOSS_TO_SPAWN = 1;
+constexpr int BOSS_TO_SPAWN = 1;
 cvar_t* g_horde;
-enum class horde_state_t
-{
+
+enum class horde_state_t {
     warmup,
     spawning,
     cleanup,
     rest
 };
 
-static struct {
+struct HordeState {
     gtime_t         warm_time = 5_sec;
     horde_state_t   state = horde_state_t::warmup;
 
@@ -41,24 +41,24 @@ int vampire_level = 0;
 std::vector<std::string> shuffled_benefits;
 std::unordered_set<std::string> obtained_benefits;
 
+const std::unordered_set<std::string> smallMaps = {
+    "q2dm3", "q2dm7", "q2dm2", "q2ctf4", "q64/dm10", "q64\\dm10",
+    "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2",
+    "q64\\dm2", "q64/dm1", "fact3", "q2ctf4",
+    "mgu3m4", "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1"
+};
+
+const std::unordered_set<std::string> bigMaps = {
+    "q2ctf5", "old/kmdm3", "xdm2", "xdm6"
+};
+
 void IsMapSize(const std::string& mapname, bool& isSmallMap, bool& isBigMap, bool& isMediumMap) {
-    static const std::unordered_set<std::string> smallMaps = {
-        "q2dm3", "q2dm7", "q2dm2", "q2ctf4", "q64/dm10", "q64\\dm10",
-        "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2",
-        "q64\\dm2", "q64/dm1", "q64\\dm1", "fact3", "q2ctf4",
-        "mgu3m4", "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1"
-    };
-
-    static const std::unordered_set<std::string> bigMaps = {
-        "q2ctf5", "old/kmdm3", "xdm2", "xdm6"
-    };
-
     isSmallMap = smallMaps.count(mapname) > 0;
     isBigMap = bigMaps.count(mapname) > 0;
     isMediumMap = !isSmallMap && !isBigMap;
 }
 
-static std::vector<std::pair<int, std::string>> benefits = {
+const std::vector<std::pair<int, std::string>> benefits = {
     {5, "vampire"},
     {10, "ammo regen"},
     {15, "auto haste"},
@@ -74,7 +74,6 @@ void ShuffleBenefits() {
     std::mt19937 gen(rd());
     std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), gen);
 
-    // Ensure 'vampire upgraded' is after 'vampire'
     auto vampire_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire");
     auto upgraded_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire upgraded");
     if (vampire_it != shuffled_benefits.end() && upgraded_it != shuffled_benefits.end() && vampire_it > upgraded_it) {
@@ -82,7 +81,7 @@ void ShuffleBenefits() {
     }
 }
 
-static std::string SelectRandomBenefit(int wave) {
+std::string SelectRandomBenefit(int wave) {
     std::vector<std::string> possible_benefits;
 
     if (vampire_level == 0 && wave >= 5) {
@@ -108,7 +107,7 @@ static std::string SelectRandomBenefit(int wave) {
     return "";
 }
 
-static void ApplyBenefit(const std::string& benefit) {
+void ApplyBenefit(const std::string& benefit) {
     if (benefit == "vampire") {
         vampire_level = 1;
         gi.cvar_set("g_vampire", "1");
@@ -132,10 +131,10 @@ static void ApplyBenefit(const std::string& benefit) {
         gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
     }
 
-    // Track the obtained benefit
     obtained_benefits.insert(benefit);
 }
-static void Horde_InitLevel(int32_t lvl) {
+
+void Horde_InitLevel(int32_t lvl) {
     current_wave_number++;
     last_wave_number++;
     g_horde_local.level = lvl;
@@ -157,8 +156,12 @@ static void Horde_InitLevel(int32_t lvl) {
         }
     }
 
-    if (g_horde_local.level == 18) { gi.cvar_set("g_damage_scale", "2.2");  } // harder for the love of map rotation
-    if (g_horde_local.level == 26) { gi.cvar_set("g_damage_scale", "3");  } // harder for the love of map rotation
+    if (g_horde_local.level == 18) {
+        gi.cvar_set("g_damage_scale", "2.2");
+    }
+    if (g_horde_local.level == 26) {
+        gi.cvar_set("g_damage_scale", "3");
+    }
 
     int custom_monster_count = dm_monsters->integer;
     if (custom_monster_count > 0) {
@@ -194,7 +197,6 @@ static void Horde_InitLevel(int32_t lvl) {
         }
     }
 
-    // Ajuste adicional según el número de jugadores
     int numActiveHPlayers = 0;
     for (auto Hplayer : active_players()) {
         numActiveHPlayers++;
@@ -361,20 +363,20 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS[] = {
-      // {"monster_jorg", 19, -1, 0.07f},
-     //  {"monster_makronkl", -1, -1, 0.07f},
-       //  {"monster_perrokl", -1, -1, 0.07f},
-      //   {"monster_shamblerkl", -1, -1, 0.07f},
-       //  {"monster_guncmdrkl", -1, -1, 0.07f},
-       //  {"monster_boss2kl", -1, -1, 0.07f},
-         {"monster_carrier", 9, -1, 0.07f},
-         //  {"monster_widow", -1, -1, 0.07f},
-         //  {"monster_widow2", -1, -1, 0.07f},
-           {"monster_supertank", -1, -1, 0.07f},
-           {"monster_boss5", 11, -1, 0.07f},
-           {"monster_boss2", -1, -1, 0.07f},
-           {"monster_guardian", 9, -1, 0.07f},
-           {"monster_shambler", -1, -1, 0.08f},
+    // {"monster_jorg", 19, -1, 0.07f},
+   //  {"monster_makronkl", -1, -1, 0.07f},
+     //  {"monster_perrokl", -1, -1, 0.07f},
+    //   {"monster_shamblerkl", -1, -1, 0.07f},
+     //  {"monster_guncmdrkl", -1, -1, 0.07f},
+     //  {"monster_boss2kl", -1, -1, 0.07f},
+       {"monster_carrier", 9, -1, 0.07f},
+       //  {"monster_widow", -1, -1, 0.07f},
+       //  {"monster_widow2", -1, -1, 0.07f},
+         {"monster_supertank", -1, -1, 0.07f},
+         {"monster_boss5", 11, -1, 0.07f},
+         {"monster_boss2", -1, -1, 0.07f},
+         {"monster_guardian", 9, -1, 0.07f},
+         {"monster_shambler", -1, -1, 0.08f},
 };
 
 struct picked_item_t {
@@ -480,15 +482,13 @@ const char* G_HordePickBOSS()
     return nullptr; // This should never happen if the weights are set correctly
 }
 
-void Horde_PreInit()
-{
 
+void Horde_PreInit() {
     wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
-    dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO); // Nuevo cvar
+    dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
     g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 
-    if (!g_horde->integer)
-        return;
+    if (!g_horde->integer) return;
 
     if (!deathmatch->integer || ctf->integer || teamplay->integer || coop->integer) {
         gi.Com_Print("Horde mode must be DM.\n");
@@ -500,8 +500,7 @@ void Horde_PreInit()
         gi.cvar_set("fraglimit", "0");
     }
 
-    if (g_horde->integer)
-    {
+    if (g_horde->integer) {
         gi.Com_Print("Horde mode must be DM.\n");
         gi.cvar_set("deathmatch", "1");
         gi.cvar_set("ctf", "0");
@@ -514,7 +513,6 @@ void Horde_PreInit()
         gi.cvar_set("sv_eyecam", "1");
         gi.cvar_set("g_dm_instant_items", "1");
         gi.cvar_set("g_disable_player_collision", "1");
-        //	gi.cvar_set("g_instagib", "1");
         gi.cvar_set("g_dm_no_self_damage", "1");
         gi.cvar_set("g_allow_techs", "1");
         gi.cvar_set("g_no_nukes", "1");
@@ -523,7 +521,7 @@ void Horde_PreInit()
         gi.cvar_set("hook_pullspeed", "1200");
         gi.cvar_set("hook_speed", "3000");
         gi.cvar_set("hook_sky", "1");
-        gi.cvar_set("g_allow_grapple 1", "1");
+        gi.cvar_set("g_allow_grapple", "1");
         gi.cvar_set("g_grapple_fly_speed", "3000");
         gi.cvar_set("g_grapple_pull_speed", "1200");
         gi.cvar_set("g_instant_weapon_switch", "1");
@@ -545,13 +543,11 @@ void Horde_PreInit()
         gi.cvar_set("g_coop_squad_respawn", "1");
     }
 }
-void Horde_Init()
-{
-    for (auto& item : itemlist)
-        PrecacheItem(&item);
 
-    for (auto& monster : monsters)
-    {
+void Horde_Init() {
+    for (auto& item : itemlist) PrecacheItem(&item);
+
+    for (const auto& monster : monsters) {
         edict_t* e = G_Spawn();
         e->classname = monster.classname;
         e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
@@ -562,29 +558,20 @@ void Horde_Init()
     g_horde_local.warm_time = level.time + 4_sec;
 }
 
-static bool Horde_AllMonstersDead()
-{
-    for (size_t i = 0; i < globals.max_edicts; i++)
-    {
-        if (!g_edicts[i].inuse)
-            continue;
-        else if (g_edicts[i].svflags & SVF_MONSTER)
-        {
-            if (!g_edicts[i].deadflag && g_edicts[i].health > 0)
-                return false;
+bool Horde_AllMonstersDead() {
+    for (size_t i = 0; i < globals.max_edicts; ++i) {
+        if (!g_edicts[i].inuse) continue;
+        if (g_edicts[i].svflags & SVF_MONSTER) {
+            if (!g_edicts[i].deadflag && g_edicts[i].health > 0) return false;
         }
     }
     return true;
 }
 
-static void Horde_CleanBodies()
-{
-    for (size_t i = 0; i < globals.max_edicts; i++)
-    {
-        if (!g_edicts[i].inuse)
-            continue;
-        else if (g_edicts[i].svflags & SVF_DEADMONSTER)
-        {
+void Horde_CleanBodies() {
+    for (size_t i = 0; i < globals.max_edicts; ++i) {
+        if (!g_edicts[i].inuse) continue;
+        if (g_edicts[i].svflags & SVF_DEADMONSTER) {
             G_FreeEdict(&g_edicts[i]);
         }
     }
@@ -603,152 +590,94 @@ extern void check_target_healthbar(edict_t* self);
 
 // Declarar la función GetDisplayName
 extern std::string GetDisplayName(const std::string& classname);
-
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
-    if (!healthbar) {
-        return;
-    }
+    if (!healthbar) return;
 
     healthbar->classname = "target_healthbar";
-
-    // Colocar la barra de salud ligeramente por encima del monstruo
     VectorCopy(boss->s.origin, healthbar->s.origin);
-    healthbar->s.origin[2] += 20; // Ajustar este valor según sea necesario
-
-    // Retardo antes de que la barra de salud desaparezca después de la muerte del monstruo
-    healthbar->delay = 4.0f;  // Ajustar este valor según sea necesario
-
-    // Inicializar timestamp a cero para asegurar que no desaparezca inmediatamente
+    healthbar->s.origin[2] += 20;
+    healthbar->delay = 4.0f;
     healthbar->timestamp = 0_ms;
-
-    // Vincular la barra de salud al monstruo usando target y targetname
     healthbar->target = boss->targetname;
-
-    // Asegurar que SP_target_healthbar esté definida o reemplazar con función equivalente
     SP_target_healthbar(healthbar);
-
-    // Vincular la barra de salud al monstruo
     healthbar->enemy = boss;
 
-    // Agregar healthbar a las entidades de barra de salud del nivel, asegurando no exceder el límite
-    for (size_t i = 0; i < MAX_HEALTH_BARS; i++) {
+    for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
         if (!level.health_bar_entities[i]) {
             level.health_bar_entities[i] = healthbar;
             break;
         }
     }
 
-    // Asegurar que la barra de salud se actualice regularmente
     healthbar->think = check_target_healthbar;
-    healthbar->nextthink = level.time + 20_sec; // Ajusta el tiempo de verificación según sea necesario
+    healthbar->nextthink = level.time + 20_sec;
 
-#include <vector>
-#include <cstdlib>
-#include <ctime>
-
-    // Define a list of titles
     std::vector<std::string> titles = { "Champion", "Chosen", "Invictus", "Bloodthirsty", "Ragequitter" };
-
-    // Seed the random number generator
-    std::srand(std::time(nullptr));
-
-    // Select a random title
+    std::srand(static_cast<unsigned int>(std::time(nullptr)));
     std::string random_title = titles[std::rand() % titles.size()];
-
-    // Use GetDisplayName to get the display name of the boss's class
     std::string display_name = GetDisplayName(boss->classname);
-
-    // Concatenate the random title with the display name
     std::string titled_display_name = random_title + " " + display_name;
 
-    // Set the configstring with the titled display name
     gi.configstring(CONFIG_HEALTH_BAR_NAME, titled_display_name.c_str());
-
 }
 
+void SpawnBossAutomatically() {
+    const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
+        {"q2dm1", {1184, 568, 704}},
+        {"rdm14", {1248, 664, 896}},
+        {"q2dm2", {128, -960, 704}},
+        {"q2dm8", {112, 1216, 88}},
+        {"q2ctf5", {2432, -960, 168}},
+        {"xdm2", {-232, 472, 424}},
+        {"q64/dm7", {64, 224, 120}},
+        {"q64\\dm7", {64, 224, 120}},
+        {"q64/dm10", {-304, 512, -92}},
+        {"q64\\dm10", {-304, 512, -92}},
+        {"q64/dm2", {1328, -256, 272}},
+        {"q64\\dm2", {1328, -256, 272}}
+    };
 
-void SpawnBossAutomatically()
-{
-    if ((Q_strcasecmp(level.mapname, "q2dm1") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        (Q_strcasecmp(level.mapname, "rdm14") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        (Q_strcasecmp(level.mapname, "q2dm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        (Q_strcasecmp(level.mapname, "q2dm8") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        (Q_strcasecmp(level.mapname, "xdm2") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        (Q_strcasecmp(level.mapname, "q2ctf5") == 0 && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        ((!Q_strcasecmp(level.mapname, "q64/dm10") || !Q_strcasecmp(level.mapname, "q64\\dm10")) && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        ((!Q_strcasecmp(level.mapname, "q64/dm7") || !Q_strcasecmp(level.mapname, "q64\\dm7")) && g_horde_local.level % 5 == 0 && g_horde_local.level != 0) ||
-        ((!Q_strcasecmp(level.mapname, "q64/dm2") || !Q_strcasecmp(level.mapname, "q64\\dm2")) && g_horde_local.level % 5 == 0 && g_horde_local.level != 0))
-    {
-
-        // Solo necesitas un bucle aquí para generar un jefe
-        edict_t* boss = G_Spawn(); // Creas un nuevo edict_t solo si es necesario
-        if (!boss)
-            return;
-
-        // Aquí selecciona el jefe deseado
-        const char* desired_boss = G_HordePickBOSS();
-        if (!desired_boss) {
-            return; // No se pudo encontrar un jefe válido
-        }
-        boss->classname = desired_boss;
-        // origin for monsters
-// Define un mapa que mapea los nombres de los mapas a las coordenadas de origen
-        std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
-            {"q2dm1", {1184, 568, 704}},
-            {"rdm14", {1248, 664, 896}},
-            {"q2dm2", {128, -960, 704}},
-            {"q2dm8", {112, 1216, 88}},
-            {"q2ctf5", {2432, -960, 168}},
-            {"xdm2", {-232, 472, 424}},
-            {"q64/dm7", {64, 224, 120}},
-            {"q64\\dm7", {64, 224, 120}},
-            {"q64/dm10", {-304, 512, -92}},
-            {"q64\\dm10", {-304, 512, -92}},
-            {"q64/dm2", {1328, -256, 272}},
-            {"q64\\dm2", {1328, -256, 272}}
-        };
-
-        auto it = mapOrigins.find(level.mapname);
+    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 0) {
+        const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
+            edict_t* boss = G_Spawn();
+            if (!boss) return;
+
+            const char* desired_boss = G_HordePickBOSS();
+            if (!desired_boss) return;
+            boss->classname = desired_boss;
+
             boss->s.origin[0] = it->second[0];
             boss->s.origin[1] = it->second[1];
             boss->s.origin[2] = it->second[2];
+
+            gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
+            boss->maxs *= 1.4f;
+            boss->mins *= 1.4f;
+            boss->s.scale = 1.4f;
+            boss->health *= 4000 + (0.07 * g_horde_local.level);
+            boss->monsterinfo.power_armor_power *= g_horde_local.level * 0.05;
+            boss->monsterinfo.power_armor_power *= current_wave_number * 1.45;
+            boss->gib_health *= 3;
+
+            vec3_t effectPosition = boss->s.origin;
+            effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
+            effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
+            effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
+
+            gi.WriteByte(svc_temp_entity);
+            gi.WriteByte(TE_BOSSTPORT);
+            gi.WritePosition(effectPosition);
+            gi.multicast(effectPosition, MULTICAST_PHS, false);
+            ED_CallSpawn(boss);
+
+            AttachHealthBar(boss);
         }
-        else {
-            return;
-        }
-
-        boss->s.angles[0] = 0; // are these needed?
-        boss->s.angles[1] = 0;
-        boss->s.angles[2] = 0;
-        gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
-        boss->maxs *= 1.4f;
-        boss->mins *= 1.4f;
-        boss->s.scale = 1.4f;
-        boss->health *= 4000 + (0.07 * g_horde_local.level);
-        boss->monsterinfo.power_armor_power *= g_horde_local.level * 0.05;
-        boss->monsterinfo.power_armor_power *= current_wave_number * 1.45; // Escalar la armadura de energía basada en la oleada actual
-
-        boss->gib_health *= 3;
-
-        vec3_t effectPosition = boss->s.origin;
-        effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
-        effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
-        effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
-
-        gi.WriteByte(svc_temp_entity);
-        gi.WriteByte(TE_BOSSTPORT);
-        gi.WritePosition(effectPosition);
-        gi.multicast(effectPosition, MULTICAST_PHS, false);
-        ED_CallSpawn(boss);
-
-        // Adjuntar barra de salud al jefe
-        AttachHealthBar(boss);
     }
 }
 
-static void ResetBenefits() {
+void ResetBenefits() {
     shuffled_benefits.clear();
     obtained_benefits.clear();
     vampire_level = 0;
@@ -774,15 +703,14 @@ void ResetGame() {
 std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
 int previous_remainingMonsters = 0;
 
-static bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMediumMap) {
+bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMediumMap) {
     int maxMonsters{};
     int timeThreshold{};
 
     edict_t* ent;
-    for (uint32_t player = 1; player <= game.maxclients; player++) {
+    for (uint32_t player = 1; player <= game.maxclients; ++player) {
         ent = &g_edicts[player];
-        if (!ent->inuse || !ent->client || !ent->solid)
-            continue;
+        if (!ent->inuse || !ent->client || !ent->solid) continue;
 
         int numActivePlayers = 0;
         for (auto player : active_players()) {
@@ -844,7 +772,6 @@ static bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool
     previous_remainingMonsters = remainingMonsters;
     return false;
 }
-
 
 void Horde_RunFrame() {
     switch (g_horde_local.state) {
@@ -1035,7 +962,7 @@ void Horde_RunFrame() {
             Horde_CleanBodies();
         }
         break;
-}
+    }
 }
 
 void HandleResetEvent() {
