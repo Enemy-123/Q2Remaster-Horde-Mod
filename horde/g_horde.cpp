@@ -351,7 +351,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_perrokl", 21, -1, 0.33f },
     //  { "monster_guncmdrkl", 23, -1, 0.1f },
      // { "monster_shamblerkl", 18, -1, 0.14f },
-      { "monster_makronkl", 20, -1, 0.05f },
+    //  { "monster_makronkl", 20, -1, 0.05f },
       { "monster_widow1", 23, -1, 0.08f }
 };
 
@@ -368,17 +368,16 @@ constexpr boss_t BOSS_SMALL[] = {
       {"monster_tank_64", -1, -1, 0.05f},
       {"monster_shamblerkl", -1, -1, 0.05f},
       {"monster_guncmdrkl", -1, -1, 0.05f},
-      {"monster_makron", -1, -1, 0.05f},
+      {"monster_makronkl", -1, -1, 0.05f},
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_carrier", -1, -1, 0.1f},
-    {"monster_supertank", -1, -1, 0.1f},
     {"monster_boss2", -1, -1, 0.1f},
     {"monster_tank_64", -1, -1, 0.1f},
     {"monster_guardian", -1, -1, 0.1f},
     {"monster_shamblerkl", -1, -1, 0.1f},
-    {"monster_makron", -1, -1, 0.1f},
+    {"monster_makronkl", -1, -1, 0.1f},
 };
 
 constexpr boss_t BOSS_LARGE[] = {
@@ -388,7 +387,9 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_tank_64", 9, -1, 0.15f},
     {"monster_guardian", 9, -1, 0.15f},
     {"monster_shamblerkl", -1, -1, 0.15f},
-    {"monster_makron", -1, -1, 0.15f},
+    {"monster_boss5", -1, -1, 0.1f},
+  //  {"monster_supertank", -1, -1, 0.1f},
+    {"monster_makronkl", -1, -1, 0.15f},
     {"monster_jorg", -1, -1, 0.15f},
 };
 
@@ -651,12 +652,13 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64\\dm2", {840, 80, 96}},
     {"q64/dm7", {840, 80, 960}},
     {"q64/dm10", {-304, 512, -92}},
-    {"q64\\dm10", {-304, 512, -92}}
+    {"q64\\dm10", {-304, 512, -92}},
+    {"q64/dm3", {488, 392, 64}},
+    {"q64\\dm3", {488, 392, 64}}
 };
-
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 0) {
+    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();

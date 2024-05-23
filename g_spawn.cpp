@@ -2141,11 +2141,11 @@ void SP_worldspawn(edict_t* ent)
 
 	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 	{
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "$g_coop_respawn_in_combat");
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "$g_coop_respawn_bad_area");
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 2, "$g_coop_respawn_blocked");
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 3, "$g_coop_respawn_waiting");
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 4, "$g_coop_respawn_no_lives");
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "\n\n\n$g_coop_respawn_in_combat");
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "\n\n\n$g_coop_respawn_bad_area");
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 2, "\n\n\n$g_coop_respawn_blocked");
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 3, "\n\n\n$g_coop_respawn_waiting");
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 4, "\n\n\n$g_coop_respawn_no_lives");
 	}
 
 	if (g_horde->integer) {

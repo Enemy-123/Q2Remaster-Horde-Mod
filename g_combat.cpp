@@ -3,6 +3,7 @@
 // g_combat.c
 
 #include "g_local.h"
+#include "shared.h"
 
 /*
 ============
@@ -731,78 +732,83 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
-	if (g_vampire->integer &&
-		attacker != targ &&
-		!OnSameTeam(targ, attacker) &&
-		damage > 0 && // Aceptar cualquier cantidad de daño
-		attacker->health > 0 &&
-		!(attacker->svflags & SVF_MONSTER)) {
+	if ((g_vampire->integer && !(attacker->svflags & SVF_MONSTER)) ||
+		(!(targ->svflags & SVF_MONSTER) &&
+			((targ->monsterinfo.bonus_flags & BF_STYGIAN) ||
+				(targ->monsterinfo.bonus_flags & BF_POSSESSED) ||
+				targ->spawnflags.has(SPAWNFLAG_IS_BOSS)))) {
 
-		int health_stolen = damage / 4; // Robar 25% del daño como vida
+		if (attacker != targ &&
+			!OnSameTeam(targ, attacker) &&
+			damage > 0 && // Aceptar cualquier cantidad de daño
+			attacker->health > 0) {
 
-		// Verificar si el atacante está usando una escopeta o una super escopeta
-		bool using_shotgun = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
-		bool using_sshotgun = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
-		bool using_hyperblaster = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-		bool using_ripper = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
-		bool using_rail = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
-		bool using_rocketl = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+			int health_stolen = damage / 4; // Robar 25% del daño como vida
 
-		// Ajustar el robo de vida basado en el tipo de arma
-		if (using_shotgun) {
-			health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT); // Ajustar por la cantidad de proyectiles
-		}
-		else if (using_sshotgun) {
-			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
-		}
-		else if (using_rocketl) {
-			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
-		}
-		else if (using_hyperblaster) {
-			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
-		}
-		else if (using_ripper) {
-			health_stolen = max(1, health_stolen / 3); // Ajustar por la cantidad de proyectiles
-		}
-		else if (using_rail) {
-			health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
-		}
-		else {
-			health_stolen = max(1, health_stolen); // Asegurar que sea al menos 1 para otras armas
-		}
+			// Verificar si el atacante está usando una escopeta o una super escopeta
+			bool using_shotgun = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+			bool using_sshotgun = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+			bool using_hyperblaster = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
+			bool using_ripper = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+			bool using_rail = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
+			bool using_rocketl = attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
 
-		// Ajustar el robo de vida basado en los powerups
-		if (attacker->client) {
-			if (attacker->client->quad_time > level.time) {
-				health_stolen = max(1, static_cast<int>(health_stolen / 2.4)); // Tech Strength multiplica por 1.5
+			// Ajustar el robo de vida basado en el tipo de arma
+			if (using_shotgun) {
+				health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT); // Ajustar por la cantidad de proyectiles
 			}
-			if (attacker->client->double_time > level.time) {
-				health_stolen = max(1, static_cast<int>(health_stolen / 1.5)); // Tech Strength multiplica por 1.5
+			else if (using_sshotgun) {
+				health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
 			}
-			if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
-				health_stolen = max(1, static_cast<int>(health_stolen / 1.5)); // Tech Strength multiplica por 1.5
+			else if (using_rocketl) {
+				health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
 			}
-		}
+			else if (using_hyperblaster) {
+				health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
+			}
+			else if (using_ripper) {
+				health_stolen = max(1, health_stolen / 3); // Ajustar por la cantidad de proyectiles
+			}
+			else if (using_rail) {
+				health_stolen = max(1, health_stolen / 2); // Ajustar por la cantidad de proyectiles
+			}
+			else {
+				health_stolen = max(1, health_stolen); // Asegurar que sea al menos 1 para otras armas
+			}
 
-		// Asegurarse de que no se robe más de la salud máxima del atacante
-		attacker->health += health_stolen;
-		if (attacker->health > attacker->max_health) {
-			attacker->health = attacker->max_health;
-		}
+			// Ajustar el robo de vida basado en los powerups
+			if (attacker->client) {
+				if (attacker->client->quad_time > level.time) {
+					health_stolen = max(1, static_cast<int>(health_stolen / 2.4)); // Quad multiplica por 3/2.4 (1.25)
+				}
+				if (attacker->client->double_time > level.time) {
+					health_stolen = max(1, static_cast<int>(health_stolen / 1.5)); // Double multiplica por 1.5
+				}
+				if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
+					health_stolen = max(1, static_cast<int>(health_stolen / 1.5)); // Tech Strength multiplica por 1.5
+				}
+			}
 
-		// Robar armadura si está habilitado
-		if (g_vampire->integer == 2) {
-			int index = ArmorIndex(attacker);
-			if (index && attacker->client->pers.inventory[index] > 0) {
-				// Robar 70% del valor de la salud robada como armadura
-				int armor_stolen = max(1, (int)(0.7 * health_stolen)); // Asegurar al menos 1 de armadura
+			// Asegurarse de que no se robe más de la salud máxima del atacante
+			attacker->health += health_stolen;
+			if (attacker->health > attacker->max_health) {
+				attacker->health = attacker->max_health;
+			}
 
-				// Asegurarse de que no se exceda el límite máximo de armadura
-				int max_armor = 200;
-				armor_stolen = min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
+			// Robar armadura si está habilitado
+			if (g_vampire->integer == 2) {
+				int index = ArmorIndex(attacker);
+				if (index && attacker->client->pers.inventory[index] > 0) {
+					// Robar 70% del valor de la salud robada como armadura
+					int armor_stolen = max(1, (int)(0.7 * health_stolen)); // Asegurar al menos 1 de armadura
 
-				// Añadir el valor de la armadura robada al inventario
-				attacker->client->pers.inventory[index] += armor_stolen;
+					// Asegurarse de que no se exceda el límite máximo de armadura
+					int max_armor = 200;
+					armor_stolen = min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
+
+					// Añadir el valor de la armadura robada al inventario
+					attacker->client->pers.inventory[index] += armor_stolen;
+				}
 			}
 		}
 	}
