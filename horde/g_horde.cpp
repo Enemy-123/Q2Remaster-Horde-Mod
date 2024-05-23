@@ -1,3 +1,4 @@
+// Includes y definiciones relevantes
 #include "../g_local.h"
 #include "../shared.h"
 #include <sstream>
@@ -29,7 +30,6 @@ enum class horde_state_t {
 struct HordeState {
     gtime_t         warm_time = 5_sec;
     horde_state_t   state = horde_state_t::warmup;
-
     gtime_t         monster_spawn_time;
     int32_t         num_to_spawn = 0;
     int32_t         level = 0;
@@ -350,10 +350,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_gladb", 16, -1, 0.45f},
     { "monster_boss2_64", 16, -1, 0.08f },
     { "monster_perrokl", 21, -1, 0.33f },
-    //  { "monster_guncmdrkl", 23, -1, 0.1f },
-     // { "monster_shamblerkl", 18, -1, 0.14f },
-    //  { "monster_makronkl", 20, -1, 0.05f },
-      { "monster_widow1", 23, -1, 0.08f }
+    { "monster_widow1", 23, -1, 0.08f }
 };
 
 struct boss_t {
@@ -364,12 +361,11 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS_SMALL[] = {
-    //  {"monster_boss2_64", -1, -1, 0.05f},
-      {"monster_carrier2", -1, -1, 0.05f},
-      {"monster_tank_64", -1, -1, 0.05f},
-      {"monster_shamblerkl", -1, -1, 0.05f},
-      {"monster_guncmdrkl", -1, -1, 0.05f},
-      {"monster_makronkl", -1, -1, 0.05f},
+    {"monster_carrier2", -1, -1, 0.05f},
+    {"monster_tank_64", -1, -1, 0.05f},
+    {"monster_shamblerkl", -1, -1, 0.05f},
+    {"monster_guncmdrkl", -1, -1, 0.05f},
+    {"monster_makronkl", -1, -1, 0.05f},
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {
@@ -389,9 +385,8 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_guardian", 9, -1, 0.15f},
     {"monster_shamblerkl", -1, -1, 0.15f},
     {"monster_boss5", -1, -1, 0.1f},
-    //  {"monster_supertank", -1, -1, 0.1f},
-      {"monster_makronkl", -1, -1, 0.15f},
-      {"monster_jorg", -1, -1, 0.15f},
+    {"monster_makronkl", -1, -1, 0.15f},
+    {"monster_jorg", -1, -1, 0.15f},
 };
 
 const boss_t* GetBossList(const MapSize& mapSize) {
@@ -603,6 +598,87 @@ void Horde_Init() {
     g_horde_local.warm_time = level.time + 4_sec;
 }
 
+
+inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
+    dest[0] = src[0];
+    dest[1] = src[1];
+    dest[2] = src[2];
+}
+void BossDeathHandler(edict_t* boss) {
+    std::vector<const char*> itemsToDrop = {
+        "item_adrenaline",
+        "item_health_large",
+        "item_health_mega",
+        "item_armor_body"
+    };
+
+    // Soltar ítem especial (quad o quadfire)
+    edict_t* specialItem;
+    if (rand() % 2 == 0) {
+        specialItem = Drop_Item(boss, FindItemByClassname("item_quad"));
+    }
+    else {
+        specialItem = Drop_Item(boss, FindItemByClassname("item_quadfire"));
+    }
+
+    // Establecer posición del ítem especial y hacer que salga volando
+    VectorCopy(boss->s.origin, specialItem->s.origin);
+    vec3_t velocity;
+    velocity[0] = (rand() % 400) - 200;
+    velocity[1] = (rand() % 400) - 200;
+    velocity[2] = 300 + (rand() % 200);
+    VectorCopy(velocity, specialItem->velocity);
+
+    // Soltar los demás ítems y hacer que cada uno salga volando en diferentes direcciones
+    for (const auto& itemClassname : itemsToDrop) {
+        edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
+
+        // Establecer posición del ítem
+        VectorCopy(boss->s.origin, droppedItem->s.origin);
+
+        // Aplicar velocidad al ítem
+        velocity[0] = (rand() % 400) - 200;
+        velocity[1] = (rand() % 400) - 200;
+        velocity[2] = 700 + (rand() % 200);
+        VectorCopy(velocity, droppedItem->velocity);
+
+        // Asegurar que el ítem tenga una velocidad instantánea
+        droppedItem->movetype = MOVETYPE_TOSS;
+        droppedItem->s.effects |= EF_BLASTER;
+    }
+
+    // Asegurar que el ítem especial tenga una velocidad instantánea
+    specialItem->movetype = MOVETYPE_TOSS;
+    specialItem->s.effects |= EF_BLASTER;
+
+    // Crear efecto de teletransporte del jefe al morir
+    vec3_t effectPosition;
+    VectorCopy(boss->s.origin, effectPosition);
+    gi.WriteByte(svc_temp_entity);
+    gi.WriteByte(TE_BOSSTPORT);
+    gi.WritePosition(effectPosition);
+    gi.multicast(effectPosition, MULTICAST_PHS, false);
+
+    // Marcar el jefe como muerto y liberar su entidad
+    boss->takedamage = false;
+    boss->think = G_FreeEdict;
+    boss->nextthink = level.time + 0.1_ms;
+    boss->svflags |= SVF_NOCLIENT;
+    boss->solid = SOLID_NOT;
+    gi.linkentity(boss);
+}
+
+void Horde_CleanBodies() {
+    for (size_t i = 0; i < globals.max_edicts; ++i) {
+        if (!g_edicts[i].inuse) continue;
+        if (g_edicts[i].svflags & SVF_DEADMONSTER) {
+            if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+                BossDeathHandler(&g_edicts[i]);
+            }
+            G_FreeEdict(&g_edicts[i]);
+        }
+    }
+}
 bool Horde_AllMonstersDead() {
     for (size_t i = 0; i < globals.max_edicts; ++i) {
         if (!g_edicts[i].inuse) continue;
@@ -613,20 +689,6 @@ bool Horde_AllMonstersDead() {
     return true;
 }
 
-void Horde_CleanBodies() {
-    for (size_t i = 0; i < globals.max_edicts; ++i) {
-        if (!g_edicts[i].inuse) continue;
-        if (g_edicts[i].svflags & SVF_DEADMONSTER) {
-            G_FreeEdict(&g_edicts[i]);
-        }
-    }
-}
-
-inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
-    dest[0] = src[0];
-    dest[1] = src[1];
-    dest[2] = src[2];
-}
 
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
@@ -680,6 +742,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64/dm3", {488, 392, 64}},
     {"q64\\dm3", {488, 392, 64}}
 };
+
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
     if (g_horde_local.level % 5 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
@@ -775,44 +838,46 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
         ent = &g_edicts[player];
         if (!ent->inuse || !ent->client || !ent->solid) continue;
-        numActivePlayers++;
-    }
 
-    if (numActivePlayers >= 6) {
-        if (mapSize.isSmallMap) {
-            maxMonsters = 7;
-            timeThreshold = 4;
+        int numActivePlayers = 0;
+        for (auto player : active_players()) {
+            numActivePlayers++;
         }
-        else if (mapSize.isBigMap) {
-            maxMonsters = 25;
-            timeThreshold = 18;
+
+        if (numActivePlayers >= 6) {
+            if (mapSize.isSmallMap) {
+                maxMonsters = 7;
+                timeThreshold = 4;
+            }
+            else if (mapSize.isBigMap) {
+                maxMonsters = 25;
+                timeThreshold = 18;
+            }
+            else {
+                maxMonsters = 12;
+                timeThreshold = 8;
+            }
         }
         else {
-            maxMonsters = 12;
-            timeThreshold = 8;
-        }
-    }
-    else {
-        if (mapSize.isSmallMap) {
-            maxMonsters = (current_wave_number <= 4) ? 3 : 6;
-            timeThreshold = (current_wave_number <= 4) ? 7 : 13;
-        }
-        else if (mapSize.isBigMap) {
-            maxMonsters = (current_wave_number <= 4) ? 17 : 23;
-            timeThreshold = (current_wave_number <= 4) ? 18 : 12;
-        }
-        else {
-            maxMonsters = (current_wave_number <= 4) ? 3 : 6;
-            timeThreshold = (current_wave_number <= 4) ? 7 : 15;
-        }
-        if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
-            timeThreshold += 4;
+            if (mapSize.isSmallMap) {
+                maxMonsters = (current_wave_number <= 4) ? 3 : 6;
+                timeThreshold = (current_wave_number <= 4) ? 7 : 13;
+            }
+            else if (mapSize.isBigMap) {
+                maxMonsters = (current_wave_number <= 4) ? 17 : 23;
+                timeThreshold = (current_wave_number <= 4) ? 18 : 12;
+            }
+            else {
+                maxMonsters = (current_wave_number <= 4) ? 3 : 6;
+                timeThreshold = (current_wave_number <= 4) ? 7 : 15;
+            }
+            if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
+                timeThreshold += 4;
+            }
         }
     }
 
-    remainingMonsters = level.total_monsters - level.killed_monsters;
-
-    if (remainingMonsters <= maxMonsters) {
+    if ((level.total_monsters - level.killed_monsters) <= maxMonsters) {
         if (condition_start_time == std::chrono::steady_clock::time_point::min()) {
             condition_start_time = std::chrono::steady_clock::now();
         }
@@ -834,7 +899,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     previous_remainingMonsters = remainingMonsters;
     return false;
 }
-
 
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);
