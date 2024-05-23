@@ -389,9 +389,29 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_jorg", -1, -1, 0.15f},
 };
 
-const boss_t* GetBossList(const MapSize& mapSize) {
+
+const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
     if (mapSize.isSmallMap) return BOSS_SMALL;
-    if (mapSize.isMediumMap) return BOSS_MEDIUM;
+    if (mapSize.isMediumMap) {
+        if (mapname == "q64/dm3" ||
+            mapname == "q64\\dm3" ||
+            mapname == "mgu6m3") {
+
+            // Crear una copia de BOSS_MEDIUM sin "monster_guardian"
+            static std::vector<boss_t> filteredBossList;
+            if (filteredBossList.empty()) {
+                for (const auto& boss : BOSS_MEDIUM) {
+                    if (std::strcmp(boss.classname, "monster_guardian") != 0) {
+                        filteredBossList.push_back(boss);
+                    }
+                }
+            }
+            return filteredBossList.data();
+        }
+        return BOSS_MEDIUM;
+    }
+
+
     if (mapSize.isBigMap) return BOSS_LARGE;
     return nullptr;
 }
