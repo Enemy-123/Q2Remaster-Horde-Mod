@@ -604,6 +604,7 @@ inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
     dest[1] = src[1];
     dest[2] = src[2];
 }
+
 void BossDeathHandler(edict_t* boss) {
     if (boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
         boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
@@ -654,10 +655,10 @@ void BossDeathHandler(edict_t* boss) {
         specialItem->movetype = MOVETYPE_TOSS;
         specialItem->s.effects |= EF_BLASTER;
 
-
+        // Marcar al boss como no atacable para evitar doble manejo
+        boss->takedamage = false;
     }
 }
-
 
 void boss_die(edict_t* boss) {
     if (boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
@@ -665,18 +666,37 @@ void boss_die(edict_t* boss) {
     }
 }
 
-bool Horde_AllMonstersDead() {
-    for (size_t i = 0; i < globals.max_edicts; ++i) {
-        if (!g_edicts[i].inuse) continue;
-        if (g_edicts[i].svflags & SVF_MONSTER) {
-            if (!g_edicts[i].deadflag && g_edicts[i].health > 0) return false;
+static bool Horde_AllMonstersDead() {
+    for (size_t i = 0; i < globals.max_edicts; i++) {
+        if (!g_edicts[i].inuse)
+            continue;
+        else if (g_edicts[i].svflags & SVF_MONSTER) {
+            if (!g_edicts[i].deadflag && g_edicts[i].health > 0)
+                return false;
             if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && g_edicts[i].health <= 0) {
-                boss_die(&g_edicts[i]);
+                if (!g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+                    boss_die(&g_edicts[i]);
+                    g_edicts[i].spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
+                }
             }
         }
     }
     return true;
 }
+
+static void Horde_CleanBodies() {
+    for (size_t i = 0; i < globals.max_edicts; i++) {
+        if (!g_edicts[i].inuse)
+            continue;
+        else if (g_edicts[i].svflags & SVF_DEADMONSTER) {
+            if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && !g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+                boss_die(&g_edicts[i]);
+            }
+            G_FreeEdict(&g_edicts[i]);
+        }
+    }
+}
+
 
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
@@ -773,7 +793,7 @@ void SpawnBossAutomatically() {
 
             boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
-            boss->gib_health *= 3;
+            boss->gib_health = -2000000;
 
             vec3_t effectPosition = boss->s.origin;
             effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
@@ -1089,6 +1109,7 @@ void Horde_RunFrame() {
             }
             g_horde_local.state = horde_state_t::spawning;
             Horde_InitLevel(g_horde_local.level + 1);
+            Horde_CleanBodies();
         }
         break;
     }
