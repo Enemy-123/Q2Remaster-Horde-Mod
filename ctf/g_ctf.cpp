@@ -1047,7 +1047,6 @@ std::string FormatClassname(const std::string& classname) {
 #define MAX_MONSTER_CONFIGSTRINGS 70
 #define MAX_PLAYER_CONFIGSTRINGS 32
 #define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
-
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -1071,7 +1070,7 @@ void CTFSetIDView(edict_t* ent) {
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
 	float closest_dist = 2048; // Aumentar la distancia máxima inicial
-	float min_dot = 0.95f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
+	float min_dot = 0.93f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
 
 	// Reduce the update interval
 	if (level.time - ent->client->resp.lastidtime < 50_ms)
@@ -1106,7 +1105,7 @@ void CTFSetIDView(edict_t* ent) {
 		dir.normalize();
 		d = forward.dot(dir);
 		float dist = (who->s.origin - ent->s.origin).length();
-		if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && d > min_dot) { // El objetivo debe estar cerca del centro de la mira
+		if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) { // El objetivo debe estar cerca del centro de la mira o muy cerca del jugador
 			bd = d;
 			closest_dist = dist;
 			best = who;
@@ -1175,7 +1174,6 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {
