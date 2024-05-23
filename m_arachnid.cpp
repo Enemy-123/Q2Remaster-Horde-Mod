@@ -11,6 +11,7 @@ TANK
 #include "g_local.h"
 #include "m_arachnid.h"
 #include "m_flash.h"
+#include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_SPIDER = 8_spawnflag;
 static cached_soundindex sound_pain;
@@ -388,6 +389,8 @@ void SP_monster_arachnid(edict_t* self)
 	M_SetAnimation(self, &arachnid_move_stand);
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 void SP_monster_spider(edict_t* self)
@@ -403,4 +406,5 @@ void SP_monster_spider(edict_t* self)
 	self->mins = { -41, -41, -17 };
 	self->maxs = { 41, 41, 41 };
 
+	ApplyMonsterBonusFlags(self);
 }

@@ -11,6 +11,7 @@ stalker
 #include "../g_local.h"
 #include "m_rogue_stalker.h"
 #include <float.h>
+#include "../shared.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_die;
@@ -1073,4 +1074,6 @@ void SP_monster_stalker(edict_t* self)
 	self->monsterinfo.jump_height = 68;
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

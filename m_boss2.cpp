@@ -11,6 +11,7 @@ boss2
 #include "g_local.h"
 #include "m_boss2.h"
 #include "m_flash.h"
+#include "shared.h"
 
 // [Paril-KEX]
 constexpr spawnflags_t SPAWNFLAG_BOSS2_N64 = 8_spawnflag;
@@ -679,7 +680,7 @@ void SP_monster_boss2(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 500;
 
-	self->health = 1600 * st.health_multiplier;
+	self->health = 6500 + (1.08 * current_wave_number);
 	self->gib_health = -200;
 	self->mass = 1000;
 
@@ -708,6 +709,8 @@ void SP_monster_boss2(edict_t* self)
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 
 	flymonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 //void SP_monster_boss2_64(edict_t* self)
 //{
@@ -734,6 +737,8 @@ void SP_monster_boss2_64(edict_t* self)
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 //HORDE BOSS
@@ -750,4 +755,6 @@ void SP_monster_boss2kl(edict_t* self)
 	}
 	self->s.skinnum = 2;
 	self->gib_health = -130;
+
+	ApplyMonsterBonusFlags(self);
 }

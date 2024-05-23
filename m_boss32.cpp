@@ -11,6 +11,7 @@ Makron -- Final Boss
 #include "g_local.h"
 #include "m_boss32.h"
 #include "m_flash.h"
+#include "shared.h"
 
 void MakronRailgun(edict_t *self);
 void MakronSaveloc(edict_t *self);
@@ -823,6 +824,8 @@ void SP_monster_makron(edict_t* self)
 	// PMM
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	// pmm
+
+	ApplyMonsterBonusFlags(self);
 }
 
 /*
@@ -897,5 +900,7 @@ void SP_monster_makronkl(edict_t* self)
 		self->health = 585 * current_wave_number;
 		self->s.renderfx = RF_TRANSLUCENT;
 		self->s.effects = EF_FLAG1;
+	
+		ApplyMonsterBonusFlags(self);
 	}
 }

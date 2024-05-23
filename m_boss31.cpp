@@ -11,6 +11,7 @@ jorg
 #include "g_local.h"
 #include "m_boss31.h"
 #include "m_flash.h"
+#include "shared.h"
 
 void SP_monster_makron(edict_t* self);
 
@@ -724,4 +725,6 @@ void SP_monster_jorg(edict_t* self)
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	// pmm
 	self->monsterinfo.aiflags |= AI_DOUBLE_TROUBLE;
+
+	ApplyMonsterBonusFlags(self);
 }

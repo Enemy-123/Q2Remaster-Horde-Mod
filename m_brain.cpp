@@ -10,6 +10,7 @@ brain
 
 #include "g_local.h"
 #include "m_brain.h"
+#include "shared.h"
 
 static cached_soundindex sound_chest_open;
 static cached_soundindex sound_tentacles_extend;
@@ -805,4 +806,6 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

@@ -11,6 +11,7 @@ gunner2
 #include "g_local.h"
 #include "m_gunner.h"
 #include "m_flash.h"
+#include "shared.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_pain2;
@@ -930,4 +931,6 @@ void SP_monster_gunner2(edict_t* self)
 	self->monsterinfo.jump_height = 40;
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

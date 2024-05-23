@@ -11,6 +11,7 @@ floater2
 #include "g_local.h"
 #include "m_float.h"
 #include "m_flash.h"
+#include "shared.h"
 
 static cached_soundindex sound_attack2;
 static cached_soundindex sound_attack3;
@@ -734,4 +735,6 @@ void SP_monster_floater2(edict_t* self)
 	float_set_fly_parameters(self);
 
 	flymonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

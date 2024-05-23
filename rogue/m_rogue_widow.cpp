@@ -14,6 +14,7 @@ black widow
 #include "../g_local.h"
 #include "m_rogue_widow.h"
 #include "../m_flash.h"
+#include "../shared.h"
 
 constexpr gtime_t RAIL_TIME = 1.5_sec;
 constexpr gtime_t BLASTER_TIME = 1_sec;
@@ -1309,6 +1310,8 @@ void SP_monster_widow(edict_t* self) {
 		widow_damage_multiplier = 1;
 
 		walkmonster_start(self);
+
+		ApplyMonsterBonusFlags(self);
 	}
 }
 
@@ -1376,5 +1379,7 @@ void SP_monster_widow1(edict_t* self) {
 		widow_damage_multiplier = 1;
 
 		walkmonster_start(self);
+
+		ApplyMonsterBonusFlags(self);
 	}
 }

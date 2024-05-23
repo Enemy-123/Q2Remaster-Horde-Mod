@@ -11,6 +11,7 @@ TANK
 #include "g_local.h"
 #include "m_tank.h"
 #include "m_flash.h"
+#include "shared.h"
 
 void tank2_refire_rocket(edict_t* self);
 void tank2_doattack_rocket(edict_t* self);
@@ -1126,6 +1127,9 @@ void SP_monster_tank2(edict_t* self)
 	// pmm
 	if (strcmp(self->classname, "monster_tank2_commander") == 0)
 		self->s.skinnum = 2;
+
+	ApplyMonsterBonusFlags(self);
+
 }
 
 void Use_Boss3(edict_t* ent, edict_t* other, edict_t* activator);

@@ -11,6 +11,7 @@ TANK
 #include "g_local.h"
 #include "m_tank.h"
 #include "m_flash.h"
+#include "shared.h"
 
 void tank_refire_rocket(edict_t* self);
 void tank_doattack_rocket(edict_t* self);
@@ -391,7 +392,7 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	if (current_wave_number >= 25 || g_hardcoop->integer == 2) {
+	if (current_wave_number >= 25 || g_hardcoop->integer == 2 || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 
 		PredictAim(self, self->enemy, start, 0, false, 0.08f, &dir, nullptr);
 
@@ -1145,6 +1146,8 @@ void SP_monster_tank(edict_t* self)
 	// pmm
 	if (strcmp(self->classname, "monster_tank_commander") == 0)
 		self->s.skinnum = 2;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 void Use_Boss3(edict_t* ent, edict_t* other, edict_t* activator);
@@ -1200,4 +1203,6 @@ void SP_monster_tank_64(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING;
 	SP_monster_tank(self);
 	self->s.skinnum = 2;
+
+	ApplyMonsterBonusFlags(self);
 }

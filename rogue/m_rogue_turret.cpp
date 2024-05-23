@@ -10,6 +10,7 @@ TURRET
 
 #include "../g_local.h"
 #include "m_rogue_turret.h"
+#include "../shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_TURRET_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_MACHINEGUN = 0x0010_spawnflag;
@@ -1072,6 +1073,8 @@ void SP_monster_turret(edict_t *self)
 	// PMM - blindfire
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET | SPAWNFLAG_TURRET_BLASTER))
 		self->monsterinfo.blindfire = true;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 //HORDE BOSS
@@ -1088,4 +1091,6 @@ void SP_monster_turretkl(edict_t* self)
 	self->gib_health = -130;
 	self->s.renderfx = RF_TRANSLUCENT;
 	self->s.effects = EF_FLAG1 | EF_QUAD;
+
+	ApplyMonsterBonusFlags(self);
 }

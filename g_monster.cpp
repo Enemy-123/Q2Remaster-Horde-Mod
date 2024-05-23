@@ -2,6 +2,47 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "bots/bot_includes.h"
+#include "shared.h"
+
+
+void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number) {
+	// Determinar la salud mínima en función del número de oleadas
+	int health_min = 100; // Valor por defecto
+
+	if (current_wave_number >= 25 && current_wave_number <= 200) {
+		health_min = 1000;
+	}
+	else if (current_wave_number >= 20 && current_wave_number <= 24) {
+		health_min = 800;
+	}
+	else if (current_wave_number >= 15 && current_wave_number <= 19) {
+		health_min = 600;
+	}
+	else if (current_wave_number >= 10 && current_wave_number <= 14) {
+		health_min = 400;
+	}
+	else if (current_wave_number >= 5 && current_wave_number <= 9) {
+		health_min = 200;
+	}
+	else if (current_wave_number >= 1 && current_wave_number <= 4) {
+		health_min = 100;
+	}
+
+	// Ajustar la salud del monstruo
+	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		monster->health = base_health;
+		monster->max_health = base_health;
+	}
+	else {
+		monster->health = base_health * 4;
+		monster->max_health = base_health * 4;
+	}
+
+	// Asegurar que la salud no sea inferior al mínimo
+	monster->health = std::max(monster->health, health_min);
+	monster->initial_max_health = monster->health; // Asegúrate de que initial_max_health se establece correctamente
+}
+
 
 //
 // monster weapons

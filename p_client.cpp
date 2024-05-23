@@ -97,8 +97,9 @@ bool P_UseCoopInstancedItems()
 
 //=======================================================================
 
-// Declarar la función GetDisplayName
-extern std::string GetDisplayName(const std::string& classname);
+// Declarar la función GetDisplayName y GetTitleFromFlags
+extern std::string GetDisplayName(edict_t* ent);
+extern std::string GetTitleFromFlags(int bonus_flags);
 
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
@@ -119,7 +120,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		base = "{0} suffers from claustrophobia\n";
 		break;
 	case MOD_WATER:
-		base = "{0} forgot to breath\n";
+		base = "{0} forgot to breathe\n";
 		break;
 	case MOD_SLIME:
 		base = "$g_mod_generic_slime";
@@ -342,7 +343,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	// Si el atacante es un monstruo
 	if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
-		std::string monster_display_name = GetDisplayName(attacker->classname);
+		std::string monster_display_name = GetDisplayName(attacker);
 		switch (mod.id)
 		{
 		case MOD_BLASTER:

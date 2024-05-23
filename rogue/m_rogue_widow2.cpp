@@ -13,6 +13,7 @@ black widow, part 2
 #include "../g_local.h"
 #include "m_rogue_widow2.h"
 #include "../m_flash.h"
+#include "../shared.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -1033,7 +1034,7 @@ void SP_monster_widow2(edict_t* self)
 	self->maxs = { 70, 70, 144 };
 	self->s.scale = 0.8f;
 
-	self->health = (3000 * skill->integer) * st.health_multiplier;
+	self->health = 6800 + (1.08 * current_wave_number);
 	if (G_IsCooperative())
 		self->health += 500 * skill->integer;
 	if (g_horde->integer) { self->health = 5500; }
@@ -1079,6 +1080,8 @@ void SP_monster_widow2(edict_t* self)
 	Widow2Precache();
 	WidowCalcSlots(self);
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 //

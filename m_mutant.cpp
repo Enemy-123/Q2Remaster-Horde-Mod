@@ -10,6 +10,7 @@ mutant
 
 #include "g_local.h"
 #include "m_mutant.h"
+#include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_MUTANT_NOJUMPING = 8_spawnflag;
 
@@ -750,4 +751,6 @@ void SP_monster_mutant(edict_t* self)
 	self->monsterinfo.jump_height = 68;
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

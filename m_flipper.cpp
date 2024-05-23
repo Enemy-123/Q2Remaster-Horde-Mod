@@ -10,6 +10,7 @@ FLIPPER
 
 #include "g_local.h"
 #include "m_flipper.h"
+#include "shared.h"
 
 static cached_soundindex sound_chomp;
 static cached_soundindex sound_attack;
@@ -383,6 +384,8 @@ void SP_monster_flipper(edict_t *self)
 	flipper_set_fly_parameters(self);
 
 	swimmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 

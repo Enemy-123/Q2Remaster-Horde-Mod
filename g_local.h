@@ -1735,14 +1735,6 @@ struct monsterinfo_t
 	// in g_save.cpp too!
 };
 
-// Define los flags de bonus
-#define BF_CHAMPION   0x00000001
-#define BF_PLAGUED    0x00000002
-#define BF_INVICTUS   0x00000004
-#define BF_BERSERKER  0x00000008
-#define BF_POSESSED   0x00000010
-#define BF_STYGIAN    0x00000020
-
 // non-monsterinfo save stuff
 using save_prethink_t = save_data_t<void(*)(edict_t* self), SAVE_FUNC_PRETHINK>;
 #define PRETHINK(n) \
@@ -3197,6 +3189,8 @@ struct edict_t
 	int32_t		max_health;
 	int32_t		gib_health;
 	gtime_t		show_hostile;
+
+	int initial_max_health; // healthbar max health fix
 
 	gtime_t powerarmor_time;
 

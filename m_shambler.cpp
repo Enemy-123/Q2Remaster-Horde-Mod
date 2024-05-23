@@ -11,6 +11,7 @@ SHAMBLER
 #include "g_local.h"
 #include "m_shambler.h"
 #include "m_flash.h"
+#include "shared.h"
 
 static cached_soundindex sound_pain;
 static cached_soundindex sound_idle;
@@ -305,7 +306,7 @@ void ShamblerCastLightning(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// calc direction to where we targted
-	if (g_hardcoop->integer == 2 || current_wave_number >=22)
+	if (g_hardcoop->integer == 2 || current_wave_number >=22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	{		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr); }
 	else
 	PredictAim(self, self->enemy, start, 0, false, self->spawnflags.has(SPAWNFLAG_SHAMBLER_PRECISE) ? 0.f : 0.1f, &dir, nullptr);
@@ -608,6 +609,7 @@ void SP_monster_shambler(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	walkmonster_start(self);
+	ApplyMonsterBonusFlags(self);
 }
 
 //HORDE BOSS
@@ -617,15 +619,12 @@ void SP_monster_shamblerkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
 	if (!strcmp(self->classname, "monster_shamblerkl")) {
-		self->health = 675 * (current_wave_number / 2);
-	
-		if (self->health > 2000) {
-			self->health = 2000;
-		}
+		self->health = 6500 + (1.08 * current_wave_number);
 	}
 
 	self->gib_health = -1000;
 	self->yaw_speed = 65;
-	self->s.renderfx = RF_TRANSLUCENT;
-	self->s.effects = EF_FLAG1;
+//	self->s.renderfx = RF_TRANSLUCENT;
+//	self->s.effects = EF_FLAG1;
+	ApplyMonsterBonusFlags(self);
 }

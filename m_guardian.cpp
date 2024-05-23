@@ -11,6 +11,7 @@ GUARDIAN
 #include "g_local.h"
 #include "m_guardian.h"
 #include "m_flash.h"
+#include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_GUARDIAN_JANITOR = 8_spawnflag;
 //
@@ -502,7 +503,7 @@ void SP_monster_guardian(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 6500 + (1.05 * current_wave_number);
+	self->health = 6500 + (1.08 * current_wave_number);
 	self->gib_health = -200;
 
 	if (!st.was_key_specified("power_armor_type"))
@@ -526,6 +527,8 @@ void SP_monster_guardian(edict_t* self)
 	M_SetAnimation(self, &guardian_move_stand);
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 void SP_monster_janitor2(edict_t* self)
@@ -539,4 +542,6 @@ void SP_monster_janitor2(edict_t* self)
 
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
+
+	ApplyMonsterBonusFlags(self);
 }

@@ -11,6 +11,7 @@ SUPERTANK
 #include "g_local.h"
 #include "m_supertank.h"
 #include "m_flash.h"
+#include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_SUPERTANK_POWERSHIELD = 8_spawnflag;
 // n64
@@ -746,6 +747,8 @@ void SP_monster_supertank(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 		self->count = 10;
 	}
+
+	ApplyMonsterBonusFlags(self);
 }
 
 //
@@ -761,6 +764,8 @@ void SP_monster_boss5(edict_t* self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
+	self->health = 5600 + (1.08 * current_wave_number);
+	ApplyMonsterBonusFlags(self);
 }
 
 void SP_monster_janitor(edict_t* self)
@@ -783,6 +788,8 @@ void SP_monster_janitor(edict_t* self)
 		self->health = 1300 * st.health_multiplier;
 	}
 	self->mass = 200;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 void SP_monster_supertankkl(edict_t* self)
@@ -796,11 +803,8 @@ void SP_monster_supertankkl(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 
-
-
-		if (self->health > 5500) {
 			self->health = 5500;
-		}
+	
 	
 
 		if (!st.was_key_specified("power_armor_type"))
@@ -812,4 +816,5 @@ void SP_monster_supertankkl(edict_t* self)
 		self->s.renderfx = RF_TRANSLUCENT;
 		self->s.effects = EF_FLAG1 | EF_QUAD;
 	}
+	ApplyMonsterBonusFlags(self);
 }

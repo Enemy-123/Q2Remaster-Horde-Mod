@@ -15,6 +15,7 @@ carrier
 #include "../g_local.h"
 #include "m_rogue_carrier.h"
 #include "../m_flash.h"
+#include "../shared.h"
 
 // nb: specifying flyer multiple times so it has a higher chance
 constexpr const char *default_reinforcements = "monster_daedalus2 1;monster_floater 2;monster_floater2 3;monster_kamikaze 1;monster_hover2 4";
@@ -1180,6 +1181,8 @@ void SP_monster_carrier(edict_t* self)
 	self->monsterinfo.fly_above = true;
 	self->monsterinfo.fly_min_distance = 1000.f;
 	self->monsterinfo.fly_max_distance = 1000.f;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 	void SP_monster_carrier2(edict_t * self)
@@ -1194,6 +1197,8 @@ void SP_monster_carrier(edict_t* self)
 
 		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;
+
+		ApplyMonsterBonusFlags(self);
 	}
 
 

@@ -10,6 +10,7 @@ BERSERK
 
 #include "g_local.h"
 #include "m_berserk.h"
+#include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_BERSERK_NOJUMPING = 8_spawnflag;
 
@@ -849,4 +850,6 @@ void SP_monster_berserk(edict_t* self)
 	gi.linkentity(self);
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

@@ -11,6 +11,8 @@ GLADIATOR
 #include "g_local.h"
 #include "m_gladiator.h"
 #include "m_flash.h"
+#include "shared.h"
+#include "shared.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -561,6 +563,8 @@ void SP_monster_gladiator(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 //
@@ -572,9 +576,13 @@ void SP_monster_gladiator(edict_t* self)
 void SP_monster_gladb(edict_t* self)
 {
 	SP_monster_gladiator(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 void SP_monster_gladc(edict_t* self)
 {
 	SP_monster_gladiator(self);
+
+	ApplyMonsterBonusFlags(self);
 }

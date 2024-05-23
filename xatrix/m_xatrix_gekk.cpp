@@ -7,6 +7,7 @@
 
 #include "../g_local.h"
 #include "m_xatrix_gekk.h"
+#include "../shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_GEKK_CHANT = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GEKK_NOJUMPING = 16_spawnflag;
@@ -1670,6 +1671,8 @@ void SP_monster_gekk(edict_t* self)
 	self->monsterinfo.blocked = gekk_blocked;
 
 	gekk_set_fly_parameters(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 void water_to_land(edict_t* self)

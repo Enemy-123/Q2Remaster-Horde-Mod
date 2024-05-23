@@ -1110,7 +1110,12 @@ void G_SetStats(edict_t* ent)
 
 			float health_remaining = 0.0f;
 			if (level.health_bar_entities[i]->enemy) {
-				health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->max_health;
+				if (level.health_bar_entities[i]->enemy->initial_max_health > 0) {
+					health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->initial_max_health;
+				}
+				else {
+					health_remaining = 0.0f; // Manejar el caso donde initial_max_health no esté configurado
+				}
 			}
 			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}

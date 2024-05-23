@@ -11,6 +11,7 @@ SOLDIER
 #include "g_local.h"
 #include "m_soldier.h"
 #include "m_flash.h"
+#include "shared.h"
 
 static cached_soundindex sound_idle;
 static cached_soundindex sound_sight1;
@@ -1980,6 +1981,8 @@ void SP_monster_soldier_x(edict_t *self)
 	self->monsterinfo.stand(self);
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 void SP_monster_soldier_vanilla(edict_t *self)
@@ -2016,6 +2019,8 @@ void SP_monster_soldier_light(edict_t *self)
 
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 /*QUAKED monster_soldier (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -2042,6 +2047,8 @@ void SP_monster_soldier(edict_t *self)
 	self->count = self->s.skinnum;
 	self->health = self->max_health = 35 * st.health_multiplier;
 	self->gib_health = -30;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 /*QUAKED monster_soldier_ss (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -2063,6 +2070,8 @@ void SP_monster_soldier_ss(edict_t *self)
 	self->count = self->s.skinnum;
 	self->health = self->max_health = 40 * st.health_multiplier;
 	self->gib_health = -30;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 //
@@ -2073,6 +2082,8 @@ void SP_monster_soldier_h(edict_t *self)
 {
 	SP_monster_soldier_x(self);
 	self->style = 1;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 /*QUAKED monster_soldier_ripper (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -2105,6 +2116,8 @@ void SP_monster_soldier_ripper(edict_t *self)
 
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 /*QUAKED monster_soldier_hypergun (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -2132,6 +2145,8 @@ void SP_monster_soldier_hypergun(edict_t *self)
 
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 /*QUAKED monster_soldier_lasergun (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -2155,6 +2170,8 @@ void SP_monster_soldier_lasergun(edict_t *self)
 	self->gib_health = -30;
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 68;
+
+	ApplyMonsterBonusFlags(self);
 }
 
 // END 13-APR-98

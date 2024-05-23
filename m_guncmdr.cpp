@@ -11,6 +11,7 @@ GUNNER
 #include "g_local.h"
 #include "m_gunner.h"
 #include "m_flash.h"
+#include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_GUNCMDR_NOJUMPING = 8_spawnflag;
 
@@ -1479,6 +1480,8 @@ void SP_monster_guncmdr(edict_t* self)
 	self->monsterinfo.jump_height = 40;
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 //HORDE BOSS
@@ -1487,10 +1490,7 @@ void SP_monster_guncmdrkl(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
 	SP_monster_guncmdr(self);
-	self->health = 220 * (current_wave_number / 2);
-	if (self->health >= 1400) {
-		self->health = 1400;
-	}
+	self->health = 4500 + (1.08 * current_wave_number);
 
 
 		if (self->health < (self->max_health / 2))
@@ -1502,4 +1502,6 @@ void SP_monster_guncmdrkl(edict_t* self)
 	
 	self->s.renderfx = RF_TRANSLUCENT;
 	self->s.effects = EF_FLAG1;
+
+	ApplyMonsterBonusFlags(self);
 }

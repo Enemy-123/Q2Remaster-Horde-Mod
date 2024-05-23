@@ -11,6 +11,7 @@ chick
 #include "g_local.h"
 #include "m_chick.h"
 #include "m_flash.h"
+#include "shared.h"
 
 void chick_stand(edict_t* self);
 void chick_run(edict_t* self);
@@ -869,6 +870,7 @@ void SP_monster_chick(edict_t* self)
 	self->monsterinfo.blindfire = true;
 	// pmm
 	walkmonster_start(self);
+	ApplyMonsterBonusFlags(self);
 }
 
 // RAFAEL
@@ -879,5 +881,6 @@ void SP_monster_chick_heat(edict_t* self)
 	SP_monster_chick(self);
 	self->s.skinnum = 2;
 	gi.soundindex("weapons/railgr1a.wav");
+	ApplyMonsterBonusFlags(self);
 }
 // RAFAEL

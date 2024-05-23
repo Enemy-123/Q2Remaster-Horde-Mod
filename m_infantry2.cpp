@@ -11,6 +11,7 @@ INFANTRY
 #include "g_local.h"
 #include "m_infantry.h"
 #include "m_flash.h"
+#include "shared.h"
 
 void InfantryMachineGun(edict_t* self);
 
@@ -925,4 +926,6 @@ void SP_monster_infantry2(edict_t* self)
 	self->monsterinfo.jump_height = 40;
 
 	walkmonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

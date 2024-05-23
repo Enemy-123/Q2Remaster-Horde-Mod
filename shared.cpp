@@ -1,5 +1,3 @@
-// shared.cpp
-
 #include "shared.h"
 
 std::string GetTitleFromFlags(int bonus_flags) {
@@ -13,14 +11,65 @@ std::string GetTitleFromFlags(int bonus_flags) {
     if (bonus_flags & BF_INVICTUS) {
         title += "Invictus ";
     }
-    if (bonus_flags & BF_BERSERKER) {
-        title += "Bloodthirsty ";
+    if (bonus_flags & BF_BERSERKING) {
+        title += "Berserking ";
     }
     if (bonus_flags & BF_POSESSED) {
         title += "Posessed ";
     }
+    if (bonus_flags & BF_STYGIAN) {
+        title += "Stygian ";
+    }
     return title;
 }
+
+// shared.cpp
+#include "shared.h"
+void ApplyMonsterBonusFlags(edict_t* monster) {
+
+    monster->initial_max_health = monster->health;
+
+    if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
+        monster->s.scale = 1.3f;
+        monster->s.effects |= EF_ROCKET | EF_FIREBALL;
+        monster->s.renderfx |= RF_SHELL_RED;
+        monster->health *= 1.5f;
+        monster->monsterinfo.power_armor_power *= 1.5f;
+        monster->initial_max_health *= 1.5f; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_PLAGUED) {
+        monster->s.scale = 1.5f;
+        monster->s.effects |= EF_PLASMA| EF_TAGTRAIL;
+        monster->health *= 1.4f;
+        monster->monsterinfo.power_armor_power *= 1.4f;
+        monster->initial_max_health *= 1.4f; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_INVICTUS) {
+        monster->s.effects |= EF_BLUEHYPERBLASTER;
+        monster->s.renderfx |= RF_TRANSLUCENT;
+        monster->monsterinfo.power_armor_power *= 1.6f;
+    }
+    if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
+        monster->s.effects |= EF_GIB | EF_FLAG2;
+        monster->health *= 1.5f;
+        monster->monsterinfo.power_armor_power *= 1.5f;
+        monster->initial_max_health *= 1.5; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_POSESSED) {
+        monster->s.effects |= EF_BARREL_EXPLODING | EF_SPHERETRANS;
+        monster->health *= 1.7f;
+        monster->monsterinfo.power_armor_power *= 1.7f;
+        monster->initial_max_health *= 1.7f; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
+        monster->s.scale = 1.2f;
+        monster->s.effects |= EF_TRACKER | EF_FLAG1;
+        monster->health *= 1.6f;
+        monster->monsterinfo.power_armor_power *= 1.6f;
+        monster->initial_max_health *= 1.6f; // Incrementar initial_max_health
+    }
+}
+
 
 std::string GetDisplayName(edict_t* ent) {
     static const std::unordered_map<std::string, std::string> name_replacements = {
@@ -74,7 +123,7 @@ std::string GetDisplayName(edict_t* ent) {
         { "monster_boss2kl", "N64 Hornet" },
         { "monster_perrokl", "Infected Parasite" },
         { "monster_guncmdrkl", "Enraged Gunner Grenadier" },
-        { "monster_shamblerkl", "Stygian Shambler" },
+        { "monster_shambler", "Shambler" },
         { "monster_makronkl", "Ghostly Makron" },
         { "monster_widow1", "Widow Apprentice" },
         { "monster_widow", "Widow Emperor" },
@@ -85,7 +134,6 @@ std::string GetDisplayName(edict_t* ent) {
         { "monster_turret", "TurretGun" },
         { "monster_turretkl", "TurretGun" },
         { "monster_boss2", "Hornet" }
-        // Add other replacements as needed
     };
 
     auto it = name_replacements.find(ent->classname);
@@ -114,23 +162,24 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
         power_armor_multiplier = 1.4f;
     }
     if (boss->monsterinfo.bonus_flags & BF_INVICTUS) {
-        boss->s.scale = 1.0f;
         boss->s.effects |= EF_BLUEHYPERBLASTER;
         boss->s.renderfx |= RF_TRANSLUCENT;
         health_multiplier = 1.0f;
         power_armor_multiplier = 1.6f;
     }
-    if (boss->monsterinfo.bonus_flags & BF_BERSERKER) {
-        boss->s.scale = 1.4f;
+    if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
         boss->s.effects |= EF_GIB | EF_FIREBALL;
         health_multiplier = 1.3f;
         power_armor_multiplier = 1.3f;
     }
     if (boss->monsterinfo.bonus_flags & BF_POSESSED) {
-        boss->s.scale = 1.8f;
         boss->s.effects |= EF_BARREL_EXPLODING | EF_SPHERETRANS;
         health_multiplier = 1.7f;
         power_armor_multiplier = 1.7f;
+
+        if (boss->spawnflags.has(SPAWNFLAG_IS_BOSS))
+            boss->yaw_speed *= 2;
+            boss->speed *= 2;
     }
 
     if (isSmallMap) {

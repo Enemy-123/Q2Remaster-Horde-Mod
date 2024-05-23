@@ -10,6 +10,7 @@ parasite
 
 #include "g_local.h"
 #include "m_parasite.h"
+#include "shared.h"
 
 constexpr float g_athena_parasite_miss_chance = 0.1f;
 constexpr float g_athena_parasite_proboscis_speed = 1250;
@@ -973,6 +974,7 @@ void SP_monster_parasite(edict_t* self)
 	self->monsterinfo.jump_height = 68;
 
 	walkmonster_start(self);
+	ApplyMonsterBonusFlags(self);
 }
 //HORDE BOSS
 constexpr spawnflags_t SPAWNFLAG_PERROKL = 8_spawnflag;
@@ -1000,4 +1002,5 @@ void SP_monster_perrokl(edict_t* self)
 			self->health = 1400;
 		}
 	}
+	ApplyMonsterBonusFlags(self);
 }

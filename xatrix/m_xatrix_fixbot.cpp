@@ -7,6 +7,7 @@
 #include "../g_local.h"
 #include "m_xatrix_fixbot.h"
 #include "../m_flash.h"
+#include "../shared.h"
 
 bool infront(edict_t* self, edict_t* other);
 bool FindTarget(edict_t* self);
@@ -1412,4 +1413,6 @@ void SP_monster_fixbot(edict_t* self)
 	fixbot_set_fly_parameters(self, false, false);
 
 	flymonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }

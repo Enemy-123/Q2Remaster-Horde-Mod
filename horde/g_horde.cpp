@@ -35,9 +35,6 @@ struct HordeState {
 } g_horde_local;
 
 bool next_wave_message_sent = false;
-bool isMediumMap = true;
-bool isSmallMap = false;
-bool isBigMap = false;
 int vampire_level = 0;
 std::vector<std::string> shuffled_benefits;
 std::unordered_set<std::string> obtained_benefits;
@@ -53,10 +50,18 @@ const std::unordered_set<std::string> bigMaps = {
     "q2ctf5", "old/kmdm3", "xdm2", "xdm6"
 };
 
-void IsMapSize(const std::string& mapname, bool& isSmallMap, bool& isBigMap, bool& isMediumMap) {
-    isSmallMap = smallMaps.count(mapname) > 0;
-    isBigMap = bigMaps.count(mapname) > 0;
-    isMediumMap = !isSmallMap && !isBigMap;
+struct MapSize {
+    bool isSmallMap = false;
+    bool isMediumMap = false;
+    bool isBigMap = false;
+};
+
+MapSize GetMapSize(const std::string& mapname) {
+    MapSize mapSize;
+    mapSize.isSmallMap = smallMaps.count(mapname) > 0;
+    mapSize.isBigMap = bigMaps.count(mapname) > 0;
+    mapSize.isMediumMap = !mapSize.isSmallMap && !mapSize.isBigMap;
+    return mapSize;
 }
 
 const std::vector<std::pair<int, std::string>> benefits = {
@@ -135,27 +140,27 @@ void ApplyBenefit(const std::string& benefit) {
     obtained_benefits.insert(benefit);
 }
 
+void CheckAndApplyBenefit(int wave) {
+    if (wave % 5 == 0) {
+        if (shuffled_benefits.empty()) {
+            ShuffleBenefits();
+        }
+        std::string benefit = SelectRandomBenefit(wave);
+        if (!benefit.empty()) {
+            ApplyBenefit(benefit);
+        }
+    }
+}
+
 void Horde_InitLevel(int32_t lvl) {
     current_wave_number++;
     last_wave_number++;
     g_horde_local.level = lvl;
     g_horde_local.monster_spawn_time = level.time;
 
-    isSmallMap = false;
-    isMediumMap = false;
-    isBigMap = false;
+    auto mapSize = GetMapSize(level.mapname);
 
-    IsMapSize(level.mapname, isSmallMap, isBigMap, isMediumMap);
-
-    if (g_horde_local.level % 5 == 0) {
-        if (shuffled_benefits.empty()) {
-            ShuffleBenefits();
-        }
-        std::string benefit = SelectRandomBenefit(g_horde_local.level);
-        if (!benefit.empty()) {
-            ApplyBenefit(benefit);
-        }
-    }
+    CheckAndApplyBenefit(g_horde_local.level);
 
     if (g_horde_local.level == 18) {
         gi.cvar_set("g_damage_scale", "2.2");
@@ -169,7 +174,7 @@ void Horde_InitLevel(int32_t lvl) {
         g_horde_local.num_to_spawn = custom_monster_count;
     }
     else {
-        if (isSmallMap) {
+        if (mapSize.isSmallMap) {
             g_horde_local.num_to_spawn = 6 + (lvl * 1);
             if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
                 g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
@@ -178,7 +183,7 @@ void Horde_InitLevel(int32_t lvl) {
                 g_horde_local.num_to_spawn += (g_insane->integer ? 5 : 3);
             }
         }
-        else if (isBigMap) {
+        else if (mapSize.isBigMap) {
             g_horde_local.num_to_spawn = 27 + (lvl * 1.5);
             if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
                 g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
@@ -202,16 +207,16 @@ void Horde_InitLevel(int32_t lvl) {
     for (auto Hplayer : active_players()) {
         numActiveHPlayers++;
     }
-    if (numActiveHPlayers >= 6 || current_wave_number <= 27) {
+    if (numActiveHPlayers >= 6 || current_wave_number >= 27) {
         int additionalSpawn = 0;
-        if (isSmallMap) {
-            additionalSpawn = 3;
+        if (mapSize.isSmallMap) {
+            additionalSpawn = 4;
         }
-        else if (isBigMap) {
-            additionalSpawn = 8;
+        else if (mapSize.isBigMap) {
+            additionalSpawn = 9;
         }
         else {
-            additionalSpawn = 5;
+            additionalSpawn = 7;
         }
         if (current_wave_number > 27) {
             additionalSpawn *= 1.6;
@@ -232,11 +237,11 @@ struct weighted_item_t;
 
 using weight_adjust_func_t = void(*)(const weighted_item_t& item, float& weight);
 
-void adjust_weight_health(const weighted_item_t& item, float& weight);
-void adjust_weight_weapon(const weighted_item_t& item, float& weight);
-void adjust_weight_ammo(const weighted_item_t& item, float& weight);
-void adjust_weight_armor(const weighted_item_t& item, float& weight);
-void adjust_weight_powerup(const weighted_item_t& item, float& weight);
+void adjust_weight_health(const weighted_item_t& item, float& weight) {}
+void adjust_weight_weapon(const weighted_item_t& item, float& weight) {}
+void adjust_weight_ammo(const weighted_item_t& item, float& weight) {}
+void adjust_weight_armor(const weighted_item_t& item, float& weight) {}
+void adjust_weight_powerup(const weighted_item_t& item, float& weight) {}
 
 constexpr struct weighted_item_t {
     const char* classname;
@@ -299,12 +304,6 @@ constexpr struct weighted_item_t {
     { "item_pack", 11, -1, 0.34f, adjust_weight_ammo },
 };
 
-void adjust_weight_health(const weighted_item_t& item, float& weight) {}
-void adjust_weight_weapon(const weighted_item_t& item, float& weight) {}
-void adjust_weight_ammo(const weighted_item_t& item, float& weight) {}
-void adjust_weight_armor(const weighted_item_t& item, float& weight) {}
-void adjust_weight_powerup(const weighted_item_t& item, float& weight) {}
-
 constexpr weighted_item_t monsters[] = {
     { "monster_soldier_light", -1, 19, 0.35f },
     { "monster_soldier_ss", -1, 20, 0.45f },
@@ -350,10 +349,10 @@ constexpr weighted_item_t monsters[] = {
     { "monster_gladb", 16, -1, 0.45f},
     { "monster_boss2_64", 16, -1, 0.08f },
     { "monster_perrokl", 21, -1, 0.33f },
-    { "monster_guncmdrkl", 23, -1, 0.1f },
-    { "monster_shamblerkl", 18, -1, 0.14f },
-    { "monster_makronkl", 20, -1, 0.05f },
-    { "monster_widow1", 23, -1, 0.08f }
+    //  { "monster_guncmdrkl", 23, -1, 0.1f },
+     // { "monster_shamblerkl", 18, -1, 0.14f },
+      { "monster_makronkl", 20, -1, 0.05f },
+      { "monster_widow1", 23, -1, 0.08f }
 };
 
 struct boss_t {
@@ -364,11 +363,12 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS_SMALL[] = {
-    {"monster_boss2kl", -1, -1, 0.05f},
-    {"monster_tank_64", -1, -1, 0.05f},
-    {"monster_shambler", -1, -1, 0.05f},
-    {"monster_guncmdr", -1, -1, 0.05f},
-    {"monster_makron", -1, -1, 0.05f},
+    //  {"monster_boss2_64", -1, -1, 0.05f},
+      {"monster_carrier2", -1, -1, 0.05f},
+      {"monster_tank_64", -1, -1, 0.05f},
+      {"monster_shamblerkl", -1, -1, 0.05f},
+      {"monster_guncmdrkl", -1, -1, 0.05f},
+      {"monster_makron", -1, -1, 0.05f},
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {
@@ -377,7 +377,7 @@ constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_boss2", -1, -1, 0.1f},
     {"monster_tank_64", -1, -1, 0.1f},
     {"monster_guardian", -1, -1, 0.1f},
-    {"monster_shambler", -1, -1, 0.1f},
+    {"monster_shamblerkl", -1, -1, 0.1f},
     {"monster_makron", -1, -1, 0.1f},
 };
 
@@ -387,26 +387,25 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_boss2", -1, -1, 0.15f},
     {"monster_tank_64", 9, -1, 0.15f},
     {"monster_guardian", 9, -1, 0.15f},
-    {"monster_shambler", -1, -1, 0.15f},
+    {"monster_shamblerkl", -1, -1, 0.15f},
     {"monster_makron", -1, -1, 0.15f},
     {"monster_jorg", -1, -1, 0.15f},
 };
 
-const boss_t* GetBossList(bool isSmallMap, bool isMediumMap, bool isBigMap) {
-    if (isSmallMap) return BOSS_SMALL;
-    if (isMediumMap) return BOSS_MEDIUM;
-    if (isBigMap) return BOSS_LARGE;
+const boss_t* GetBossList(const MapSize& mapSize) {
+    if (mapSize.isSmallMap) return BOSS_SMALL;
+    if (mapSize.isMediumMap) return BOSS_MEDIUM;
+    if (mapSize.isBigMap) return BOSS_LARGE;
     return nullptr;
 }
 
-const char* G_HordePickBOSS(bool isSmallMap, bool isMediumMap, bool isBigMap) {
-    const boss_t* boss_list = GetBossList(isSmallMap, isMediumMap, isBigMap);
+const char* G_HordePickBOSS(const MapSize& mapSize) {
+    const boss_t* boss_list = GetBossList(mapSize);
     if (!boss_list) return nullptr;
 
-    float total_weight = 0.0f;
-    for (int i = 0; i < 5; ++i) {
-        total_weight += boss_list[i].weight;
-    }
+    float total_weight = std::accumulate(boss_list, boss_list + 5, 0.0f, [](float sum, const boss_t& boss) {
+        return sum + boss.weight;
+        });
 
     float r = frandom() * total_weight;
     for (int i = 0; i < 5; ++i) {
@@ -634,28 +633,36 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"rdm14", {1248, 664, 896}},
     {"ec/base_ec", {-112, 704, 128}},
     {"q2dm2", {128, -960, 704}},
+    {"q2dm3", {192, -136, 72}},
+    {"q2dm5", {48, 952, 376}},
     {"q2dm8", {112, 1216, 88}},
+    {"ndctf0", {-608, -304, 184}},
+    {"q2ctf4", {-2390, 1112, 218}},
     {"q2ctf5", {2432, -960, 168}},
     {"old/kmdm3", {-480, -572, 144}},
     {"xdm2", {-232, 472, 424}},
+    {"xdm6", {-1088, -128, 528}},
+    {"mgu3m4", {3312, 3344, 864}},
     {"mgdm1", {176, 64, 288}},
     {"fact3", {0, -64, 192}},
     {"mgu6m3", {0, 592, 1600}},
     {"q64/dm7", {64, 224, 120}},
     {"q64\\dm7", {64, 224, 120}},
+    {"q64\\dm2", {840, 80, 96}},
+    {"q64/dm7", {840, 80, 960}},
     {"q64/dm10", {-304, 512, -92}},
     {"q64\\dm10", {-304, 512, -92}}
 };
 
-// Función para generar automáticamente el jefe
 void SpawnBossAutomatically() {
-    if (g_horde_local.level % 1 == 0 && g_horde_local.level != 0) {
+    auto mapSize = GetMapSize(level.mapname);
+    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 0) {
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();
             if (!boss) return;
 
-            const char* desired_boss = G_HordePickBOSS(isSmallMap, isMediumMap, isBigMap);
+            const char* desired_boss = G_HordePickBOSS(mapSize);
             if (!desired_boss) return;
             boss->classname = desired_boss;
 
@@ -665,13 +672,16 @@ void SpawnBossAutomatically() {
 
             gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
 
-            // Elegir un flag de bonus al azar
-            int random_flag = 1 << (std::rand() % 5); // Hay 5 flags (BF_CHAMPION, BF_PLAGUED, etc.)
+            int random_flag = 1 << (std::rand() % 6); // Include all defined flags
             boss->monsterinfo.bonus_flags |= random_flag;
+            boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
+
+            // Apply bonus flags and ensure health multiplier is applied correctly
+            ApplyMonsterBonusFlags(boss);
 
             float health_multiplier = 1.0f;
             float power_armor_multiplier = 1.0f;
-            ApplyBossEffects(boss, isSmallMap, isMediumMap, isBigMap, health_multiplier, power_armor_multiplier);
+            ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
 
             std::string full_display_name = GetDisplayName(boss);
             gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
@@ -681,9 +691,8 @@ void SpawnBossAutomatically() {
             boss->maxs *= boss->s.scale;
             boss->mins *= boss->s.scale;
 
-            // Ajusta la salud después de aplicar todos los multiplicadores
-            boss->health = static_cast<int>(boss->health * health_multiplier);
-            boss->health *= (3 * g_horde_local.level);
+            int base_health = static_cast<int>(boss->health * health_multiplier);
+            SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
 
             boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
@@ -731,7 +740,7 @@ void ResetGame() {
 std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
 int previous_remainingMonsters = 0;
 
-bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMediumMap) {
+bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     int maxMonsters{};
     int timeThreshold{};
 
@@ -746,11 +755,11 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
         }
 
         if (numActivePlayers >= 6) {
-            if (isSmallMap) {
+            if (mapSize.isSmallMap) {
                 maxMonsters = 7;
                 timeThreshold = 4;
             }
-            else if (isBigMap) {
+            else if (mapSize.isBigMap) {
                 maxMonsters = 25;
                 timeThreshold = 18;
             }
@@ -760,11 +769,11 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
             }
         }
         else {
-            if (isSmallMap) {
+            if (mapSize.isSmallMap) {
                 maxMonsters = (current_wave_number <= 4) ? 3 : 6;
                 timeThreshold = (current_wave_number <= 4) ? 7 : 13;
             }
-            else if (isBigMap) {
+            else if (mapSize.isBigMap) {
                 maxMonsters = (current_wave_number <= 4) ? 17 : 23;
                 timeThreshold = (current_wave_number <= 4) ? 18 : 12;
             }
@@ -802,6 +811,8 @@ bool CheckRemainingMonstersCondition(bool isSmallMap, bool isBigMap, bool isMedi
 }
 
 void Horde_RunFrame() {
+    auto mapSize = GetMapSize(level.mapname);
+
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
         if (g_horde_local.warm_time < level.time + 0.4_sec) {
@@ -863,6 +874,20 @@ void Horde_RunFrame() {
                 ED_CallSpawn(e);
                 remainingMonsters = level.total_monsters - level.killed_monsters;
 
+                if (current_wave_number >= 30 && (rand() % 100) < 20) { // 20% de probabilidad
+                    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
+                    e->monsterinfo.bonus_flags |= random_flag;
+                    ApplyMonsterBonusFlags(e); // Aplica los flags aquí
+                }
+
+                if (current_wave_number > 15 && current_wave_number <= 29 && (rand() % 100) < 4) { // 20% de probabilidad
+                    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
+                    e->monsterinfo.bonus_flags |= random_flag;
+                    ApplyMonsterBonusFlags(e); // Aplica los flags aquí
+                }
+
+
+
                 vec3_t spawngrow_pos = e->s.origin;
                 float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;
                 float end_size = start_size;
@@ -885,13 +910,13 @@ void Horde_RunFrame() {
                 HuntTarget(e);
 
                 if ((g_chaotic->integer == 2 && current_wave_number >= 7) || (g_insane->integer && current_wave_number < 20)) {
-                    g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 1.2_sec);
+                    g_horde_local.monster_spawn_time = level.time + random_time(0.6_sec, 1.2_sec);
                 }
                 else if (!g_insane->integer || !g_chaotic->integer) {
-                    g_horde_local.monster_spawn_time = level.time + random_time(0.7_sec, 0.9_sec);
+                    g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.9_sec);
                 }
                 else if (g_chaotic->integer == 1 || (g_insane->integer && current_wave_number >= 21)) {
-                    g_horde_local.monster_spawn_time = level.time + random_time(0.5_sec, 0.7_sec);
+                    g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.6_sec);
                 }
 
                 --g_horde_local.num_to_spawn;
@@ -912,17 +937,17 @@ void Horde_RunFrame() {
         break;
 
     case horde_state_t::cleanup:
-        if (CheckRemainingMonstersCondition(isSmallMap, isBigMap, isMediumMap)) {
+        if (CheckRemainingMonstersCondition(mapSize)) {
             if (current_wave_number >= 15) {
                 gi.cvar_set("g_insane", "1");
                 gi.cvar_set("g_chaotic", "0");
                 g_horde_local.state = horde_state_t::rest;
                 break;
             }
-            else if (!isSmallMap && current_wave_number <= 14) {
+            else if (!mapSize.isSmallMap && current_wave_number <= 14) {
                 gi.cvar_set("g_chaotic", "1");
             }
-            else if (isSmallMap && current_wave_number <= 14) {
+            else if (mapSize.isSmallMap && current_wave_number <= 14) {
                 gi.cvar_set("g_chaotic", "2");
             }
             g_horde_local.state = horde_state_t::rest;

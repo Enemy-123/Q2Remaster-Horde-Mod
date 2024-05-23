@@ -11,6 +11,7 @@ flyer
 #include "g_local.h"
 #include "m_flyer.h"
 #include "m_flash.h"
+#include "shared.h"
 
 static cached_soundindex sound_sight;
 static cached_soundindex sound_idle;
@@ -777,6 +778,8 @@ void SP_monster_flyer(edict_t* self)
 	}
 
 	flymonster_start(self);
+
+	ApplyMonsterBonusFlags(self);
 }
 
 // PMM - suicide fliers
@@ -790,4 +793,6 @@ void SP_monster_kamikaze(edict_t* self)
 	self->s.effects |= EF_ROCKET;
 
 	SP_monster_flyer(self);
+	ApplyMonsterBonusFlags(self);
+
 }

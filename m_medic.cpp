@@ -11,6 +11,7 @@ MEDIC
 #include "g_local.h"
 #include "m_medic.h"
 #include "m_flash.h"
+#include "shared.h"
 
 constexpr float MEDIC_MIN_DISTANCE = 64;
 constexpr float MEDIC_MAX_HEAL_DISTANCE = 400;
@@ -1628,5 +1629,7 @@ void SP_monster_medic(edict_t* self)
 
 		self->s.skinnum = 0;
 	}
+
+	ApplyMonsterBonusFlags(self);
 	// pmm
 }

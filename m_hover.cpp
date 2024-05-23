@@ -11,6 +11,7 @@ hover
 #include "g_local.h"
 #include "m_hover.h"
 #include "m_flash.h"
+#include "shared.h"
 
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
@@ -691,4 +692,6 @@ void SP_monster_hover(edict_t* self)
 
 	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
 	hover_set_fly_parameters(self);
+
+	ApplyMonsterBonusFlags(self);
 }

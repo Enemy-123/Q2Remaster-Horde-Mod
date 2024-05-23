@@ -1029,7 +1029,7 @@ std::string GetDisplayName(const std::string& classname) {
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
-
+#include "../shared.h"
 // Función para formatear el nombre de la clase
 std::string FormatClassname(const std::string& classname) {
 	std::stringstream ss(classname);
@@ -1074,7 +1074,7 @@ void CTFSetIDView(edict_t* ent) {
 	float min_dot = 0.95f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
 
 	// Reduce the update interval
-	if (level.time - ent->client->resp.lastidtime < 50_ms) 
+	if (level.time - ent->client->resp.lastidtime < 50_ms)
 		return;
 
 	ent->client->resp.lastidtime = level.time;
@@ -1118,7 +1118,10 @@ void CTFSetIDView(edict_t* ent) {
 		std::string name;
 
 		if (best->svflags & SVF_MONSTER) {
-			name = FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
+			// Obtener el título basado en los flags de bonus
+			std::string title = GetTitleFromFlags(best->monsterinfo.bonus_flags);
+			// Obtener el nombre del monstruo con el título
+			name = title + FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
 			health_stream << name << "\n"; // Agregar el nombre del monstruo con salto de línea
 		}
@@ -1172,6 +1175,7 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
@@ -2405,7 +2409,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.004\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.005\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
