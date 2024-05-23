@@ -767,53 +767,52 @@ std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady
 int previous_remainingMonsters = 0;
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
-    int maxMonsters{};
-    int timeThreshold{};
+    int maxMonsters = 0;
+    int timeThreshold = 0;
 
+    int numActivePlayers = 0;
     edict_t* ent;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
         ent = &g_edicts[player];
         if (!ent->inuse || !ent->client || !ent->solid) continue;
+        numActivePlayers++;
+    }
 
-        int numActivePlayers = 0;
-        for (auto player : active_players()) {
-            numActivePlayers++;
+    if (numActivePlayers >= 6) {
+        if (mapSize.isSmallMap) {
+            maxMonsters = 7;
+            timeThreshold = 4;
         }
-
-        if (numActivePlayers >= 6) {
-            if (mapSize.isSmallMap) {
-                maxMonsters = 7;
-                timeThreshold = 4;
-            }
-            else if (mapSize.isBigMap) {
-                maxMonsters = 25;
-                timeThreshold = 18;
-            }
-            else {
-                maxMonsters = 12;
-                timeThreshold = 8;
-            }
+        else if (mapSize.isBigMap) {
+            maxMonsters = 25;
+            timeThreshold = 18;
         }
         else {
-            if (mapSize.isSmallMap) {
-                maxMonsters = (current_wave_number <= 4) ? 3 : 6;
-                timeThreshold = (current_wave_number <= 4) ? 7 : 13;
-            }
-            else if (mapSize.isBigMap) {
-                maxMonsters = (current_wave_number <= 4) ? 17 : 23;
-                timeThreshold = (current_wave_number <= 4) ? 18 : 12;
-            }
-            else {
-                maxMonsters = (current_wave_number <= 4) ? 3 : 6;
-                timeThreshold = (current_wave_number <= 4) ? 7 : 15;
-            }
-            if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
-                timeThreshold += 4;
-            }
+            maxMonsters = 12;
+            timeThreshold = 8;
+        }
+    }
+    else {
+        if (mapSize.isSmallMap) {
+            maxMonsters = (current_wave_number <= 4) ? 3 : 6;
+            timeThreshold = (current_wave_number <= 4) ? 7 : 13;
+        }
+        else if (mapSize.isBigMap) {
+            maxMonsters = (current_wave_number <= 4) ? 17 : 23;
+            timeThreshold = (current_wave_number <= 4) ? 18 : 12;
+        }
+        else {
+            maxMonsters = (current_wave_number <= 4) ? 3 : 6;
+            timeThreshold = (current_wave_number <= 4) ? 7 : 15;
+        }
+        if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
+            timeThreshold += 4;
         }
     }
 
-    if ((level.total_monsters - level.killed_monsters) <= maxMonsters) {
+    remainingMonsters = level.total_monsters - level.killed_monsters;
+
+    if (remainingMonsters <= maxMonsters) {
         if (condition_start_time == std::chrono::steady_clock::time_point::min()) {
             condition_start_time = std::chrono::steady_clock::now();
         }
@@ -835,6 +834,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     previous_remainingMonsters = remainingMonsters;
     return false;
 }
+
 
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);

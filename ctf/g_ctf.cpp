@@ -1044,7 +1044,7 @@ std::string FormatClassname(const std::string& classname) {
 	return formatted_name;
 }
 
-#define MAX_MONSTER_CONFIGSTRINGS 70
+#define MAX_MONSTER_CONFIGSTRINGS 80
 #define MAX_PLAYER_CONFIGSTRINGS 32
 #define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
 void CTFSetIDView(edict_t* ent) {
