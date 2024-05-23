@@ -605,90 +605,78 @@ inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
     dest[2] = src[2];
 }
 void BossDeathHandler(edict_t* boss) {
-    std::vector<const char*> itemsToDrop = {
-        "item_adrenaline",
-        "item_health_large",
-        "item_health_mega",
-        "item_armor_body"
-    };
+    if (boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+        boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
 
-    // Soltar ítem especial (quad o quadfire)
-    edict_t* specialItem;
-    if (rand() % 2 == 0) {
-        specialItem = Drop_Item(boss, FindItemByClassname("item_quad"));
-    }
-    else {
-        specialItem = Drop_Item(boss, FindItemByClassname("item_quadfire"));
-    }
+        std::vector<const char*> itemsToDrop = {
+            "item_adrenaline",
+            "item_health_large",
+            "item_health_mega",
+            "item_armor_body"
+        };
 
-    // Establecer posición del ítem especial y hacer que salga volando
-    VectorCopy(boss->s.origin, specialItem->s.origin);
-    vec3_t velocity;
-    velocity[0] = (rand() % 400) - 200;
-    velocity[1] = (rand() % 400) - 200;
-    velocity[2] = 300 + (rand() % 200);
-    VectorCopy(velocity, specialItem->velocity);
+        // Soltar ítem especial (quad o quadfire)
+        edict_t* specialItem;
+        if (rand() % 2 == 0) {
+            specialItem = Drop_Item(boss, FindItemByClassname("item_quad"));
+        }
+        else {
+            specialItem = Drop_Item(boss, FindItemByClassname("item_quadfire"));
+        }
 
-    // Soltar los demás ítems y hacer que cada uno salga volando en diferentes direcciones
-    for (const auto& itemClassname : itemsToDrop) {
-        edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
-
-        // Establecer posición del ítem
-        VectorCopy(boss->s.origin, droppedItem->s.origin);
-
-        // Aplicar velocidad al ítem
+        // Establecer posición del ítem especial y hacer que salga volando
+        VectorCopy(boss->s.origin, specialItem->s.origin);
+        vec3_t velocity;
         velocity[0] = (rand() % 400) - 200;
         velocity[1] = (rand() % 400) - 200;
-        velocity[2] = 700 + (rand() % 200);
-        VectorCopy(velocity, droppedItem->velocity);
+        velocity[2] = 300 + (rand() % 200);
+        VectorCopy(velocity, specialItem->velocity);
 
-        // Asegurar que el ítem tenga una velocidad instantánea
-        droppedItem->movetype = MOVETYPE_TOSS;
-        droppedItem->s.effects |= EF_BLASTER;
-    }
+        // Soltar los demás ítems y hacer que cada uno salga volando en diferentes direcciones
+        for (const auto& itemClassname : itemsToDrop) {
+            edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
 
-    // Asegurar que el ítem especial tenga una velocidad instantánea
-    specialItem->movetype = MOVETYPE_TOSS;
-    specialItem->s.effects |= EF_BLASTER;
+            // Establecer posición del ítem
+            VectorCopy(boss->s.origin, droppedItem->s.origin);
 
-    // Crear efecto de teletransporte del jefe al morir
-    vec3_t effectPosition;
-    VectorCopy(boss->s.origin, effectPosition);
-    gi.WriteByte(svc_temp_entity);
-    gi.WriteByte(TE_BOSSTPORT);
-    gi.WritePosition(effectPosition);
-    gi.multicast(effectPosition, MULTICAST_PHS, false);
+            // Aplicar velocidad al ítem
+            velocity[0] = (rand() % 400) - 200;
+            velocity[1] = (rand() % 400) - 200;
+            velocity[2] = 700 + (rand() % 200);
+            VectorCopy(velocity, droppedItem->velocity);
 
-    // Marcar el jefe como muerto y liberar su entidad
-    boss->takedamage = false;
-    boss->think = G_FreeEdict;
-    boss->nextthink = level.time + 0.1_ms;
-    boss->svflags |= SVF_NOCLIENT;
-    boss->solid = SOLID_NOT;
-    gi.linkentity(boss);
-}
-
-void Horde_CleanBodies() {
-    for (size_t i = 0; i < globals.max_edicts; ++i) {
-        if (!g_edicts[i].inuse) continue;
-        if (g_edicts[i].svflags & SVF_DEADMONSTER) {
-            if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-                BossDeathHandler(&g_edicts[i]);
-            }
-            G_FreeEdict(&g_edicts[i]);
+            // Asegurar que el ítem tenga una velocidad instantánea
+            droppedItem->movetype = MOVETYPE_TOSS;
+            droppedItem->s.effects |= EF_BLASTER;
         }
+
+        // Asegurar que el ítem especial tenga una velocidad instantánea
+        specialItem->movetype = MOVETYPE_TOSS;
+        specialItem->s.effects |= EF_BLASTER;
+
+
     }
 }
+
+
+void boss_die(edict_t* boss) {
+    if (boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+        BossDeathHandler(boss);
+    }
+}
+
 bool Horde_AllMonstersDead() {
     for (size_t i = 0; i < globals.max_edicts; ++i) {
         if (!g_edicts[i].inuse) continue;
         if (g_edicts[i].svflags & SVF_MONSTER) {
             if (!g_edicts[i].deadflag && g_edicts[i].health > 0) return false;
+            if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && g_edicts[i].health <= 0) {
+                boss_die(&g_edicts[i]);
+            }
         }
     }
     return true;
 }
-
 
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
@@ -1101,7 +1089,6 @@ void Horde_RunFrame() {
             }
             g_horde_local.state = horde_state_t::spawning;
             Horde_InitLevel(g_horde_local.level + 1);
-            Horde_CleanBodies();
         }
         break;
     }

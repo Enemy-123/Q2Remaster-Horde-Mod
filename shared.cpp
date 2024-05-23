@@ -162,4 +162,7 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
         boss->maxs *= 1.5f;
         boss->s.effects |= EF_FLIES;
     }
+
 }
+
+

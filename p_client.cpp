@@ -995,7 +995,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.max_ammo[AMMO_SLUGS] = 75;
 				client->pers.max_ammo[AMMO_MAGSLUG] = 125;
 				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
-				client->pers.max_ammo[AMMO_TESLA] = 10;
+				client->pers.max_ammo[AMMO_TESLA] = 12;
 
 			}
 		else

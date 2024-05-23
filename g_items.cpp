@@ -412,7 +412,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 125);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 400);
 	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 30);
-	G_AdjustAmmoCap(other, AMMO_TESLA, 10);
+	G_AdjustAmmoCap(other, AMMO_TESLA, 12);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);

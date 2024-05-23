@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "../g_local.h"
+#include "../shared.h"
 
 //===============================
 // BLOCKED Logic
@@ -1604,8 +1605,16 @@ THINK(BossExplode_think) (edict_t *self) -> void
 	self->nextthink = level.time + random_time(50_ms, 200_ms);
 }
 
+extern void BossDeathHandler(edict_t* boss);
+
 void BossExplode(edict_t *self)
 {
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
+		self->deadflag == true &&
+		!self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+	{
+		BossDeathHandler(self);
+	}
 	// no blowy on deady
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
 		return;
