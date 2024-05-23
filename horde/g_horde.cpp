@@ -7,6 +7,7 @@
 #include <chrono>
 #include <random>
 #include <algorithm>
+#include <deque>
 
 constexpr int MAX_MONSTERS_BIG_MAP = 44;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
@@ -388,9 +389,9 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_guardian", 9, -1, 0.15f},
     {"monster_shamblerkl", -1, -1, 0.15f},
     {"monster_boss5", -1, -1, 0.1f},
-  //  {"monster_supertank", -1, -1, 0.1f},
-    {"monster_makronkl", -1, -1, 0.15f},
-    {"monster_jorg", -1, -1, 0.15f},
+    //  {"monster_supertank", -1, -1, 0.1f},
+      {"monster_makronkl", -1, -1, 0.15f},
+      {"monster_jorg", -1, -1, 0.15f},
 };
 
 const boss_t* GetBossList(const MapSize& mapSize) {
@@ -400,20 +401,43 @@ const boss_t* GetBossList(const MapSize& mapSize) {
     return nullptr;
 }
 
+constexpr int MAX_RECENT_BOSSES = 2;
+std::deque<const char*> recent_bosses;
+
 const char* G_HordePickBOSS(const MapSize& mapSize) {
     const boss_t* boss_list = GetBossList(mapSize);
     if (!boss_list) return nullptr;
 
-    float total_weight = std::accumulate(boss_list, boss_list + 5, 0.0f, [](float sum, const boss_t& boss) {
-        return sum + boss.weight;
+    // Crear una lista temporal de bosses que no estén en recent_bosses
+    std::vector<const boss_t*> eligible_bosses;
+    for (int i = 0; i < 5; ++i) {
+        if (std::find(recent_bosses.begin(), recent_bosses.end(), boss_list[i].classname) == recent_bosses.end()) {
+            eligible_bosses.push_back(&boss_list[i]);
+        }
+    }
+
+    // Si todos los bosses están en recent_bosses, permitir seleccionar cualquiera
+    if (eligible_bosses.empty()) {
+        for (int i = 0; i < 5; ++i) {
+            eligible_bosses.push_back(&boss_list[i]);
+        }
+    }
+
+    float total_weight = std::accumulate(eligible_bosses.begin(), eligible_bosses.end(), 0.0f, [](float sum, const boss_t* boss) {
+        return sum + boss->weight;
         });
 
     float r = frandom() * total_weight;
-    for (int i = 0; i < 5; ++i) {
-        if (r < boss_list[i].weight) {
-            return boss_list[i].classname;
+    for (const boss_t* boss : eligible_bosses) {
+        if (r < boss->weight) {
+            // Actualizar la lista de recent_bosses
+            recent_bosses.push_back(boss->classname);
+            if (recent_bosses.size() > MAX_RECENT_BOSSES) {
+                recent_bosses.pop_front();
+            }
+            return boss->classname;
         }
-        r -= boss_list[i].weight;
+        r -= boss->weight;
     }
 
     return nullptr; // Esto no debería ocurrir si los pesos están configurados correctamente
@@ -887,8 +911,6 @@ void Horde_RunFrame() {
                     e->monsterinfo.bonus_flags |= random_flag;
                     ApplyMonsterBonusFlags(e); // Aplica los flags aquí
                 }
-
-
 
                 vec3_t spawngrow_pos = e->s.origin;
                 float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;

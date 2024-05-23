@@ -482,296 +482,129 @@ static const std::initializer_list<spawn_t> spawns = {
 };
 // clang-format on
 
+#include <map>
+#include <string>
+#include <functional>
 
-/*
-===============
-ED_CallSpawn
+std::map<std::string, std::function<std::string()>> chaotic_map = {
+	{"monster_soldier_ss", []() { return "monster_infantry2"; }},
+	{"monster_infantry2", []() { return brandom() ? "monster_gunner2" : "monster_gunner"; }},
+	{"monster_stalker", []() { return brandom() ? "monster_parasite" : "monster_stalker"; }},
+	{"monster_parasite", []() { return brandom() ? "monster_parasite" : "monster_stalker"; }},
+	{"monster_tank", []() { return "monster_tank_commander"; }},
+	{"monster_tank_commander", []() { return "monster_shambler"; }},
+	{"monster_supertank", []() { return "monster_boss5"; }},
+	{"monster_chick", []() { return brandom() ? "monster_chick" : "monster_chick_heat"; }},
+	{"monster_boss2kl", []() { return "monster_carrier"; }}
+};
 
-Finds the spawn function for the entity and calls it
-===============
-*/
-void ED_CallSpawn(edict_t* ent)
-{
+std::map<std::string, std::function<std::string()>> insane_map = {
+	{"monster_soldier_light", []() { return "monster_soldier_lasergun"; }},
+	{"monster_soldier", []() { return "monster_soldier_hypergun"; }},
+	{"monster_soldier_ss", []() { return "monster_infantry"; }},
+	{"monster_infantry2", []() { return "monster_gunner"; }},
+	{"monster_gunner2", []() { return "monster_gunner"; }},
+	{"monster_brain", []() { return brandom() ? "monster_brain" : "monster_guncmdr"; }},
+	{"monster_flyer", []() { return "monster_daedalus"; }},
+	{"monster_shambler", []() { return "monster_tank_64"; }},
+	{"monster_tank", []() { return "monster_tank_commander"; }},
+	{"monster_tank_commander", []() { return brandom() ? "monster_tank_64" : "monster_shambler"; }},
+	{"monster_stalker", []() {
+		float r = frandom();
+		return (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
+	}},
+	{"monster_supertank", []() { return "monster_boss5"; }},
+	{"monster_chick", []() { return "monster_chick_heat"; }},
+	{"monster_boss2kl", []() { return "monster_carrier"; }},
+	{"monster_medic", []() { return "monster_spider"; }},
+	{"monster_fixbot", []() { return brandom() ? "monster_parasite" : "monster_daedalus"; }},
+	{"monster_floater", []() { return "monster_floater2"; }}
+};
+
+std::map<std::string, std::function<std::string()>> hardcoop_map = {
+	{"monster_soldier_light", []() {
+		float r = frandom();
+		if (r < 0.2f) return "monster_soldier_ripper";
+		if (r < 0.4f) return "monster_soldier_hypergun";
+		if (r < 0.6f) return "monster_soldier_lasergun";
+		if (r < 0.8f) return "monster_soldier";
+		return (r < 0.9f) ? "monster_soldier_ss" : "monster_soldier_light";
+	}},
+	{"monster_soldier", []() {
+		float r = frandom();
+		if (r < 0.2f) return "monster_soldier_ripper";
+		if (r < 0.4f) return "monster_soldier_hypergun";
+		if (r < 0.6f) return "monster_soldier_lasergun";
+		if (r < 0.8f) return "monster_soldier";
+		return (r < 0.9f) ? "monster_soldier_ss" : "monster_soldier_light";
+	}},
+	{"monster_soldier_ss", []() { return brandom() ? "monster_infantry" : "monster_infantry2"; }},
+	{"monster_infantry", []() { return brandom() ? "monster_gunner" : "monster_gunner2"; }},
+	{"monster_gunner", []() { return brandom() ? "monster_guncmdr" : "monster_guncmdr2"; }},
+	{"monster_flyer", []() {
+		float r = frandom();
+		return (r < 0.103f) ? "monster_fixbot" : (r < 0.303f) ? "monster_flyer" : (r < 0.766f) ? "monster_hover" : "monster_hover2";
+	}},
+	{"monster_parasite", []() {
+		float r = frandom();
+		return (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
+	}},
+	{"monster_tank", []() { return brandom() ? "monster_shambler" : "monster_tank_64"; }},
+	{"monster_tank_commander", []() { return brandom() ? "monster_shambler" : "monster_janitor2"; }},
+	{"monster_supertank", []() { return "monster_boss5"; }},
+	{"monster_chick", []() { return brandom() ? "monster_chick" : "monster_chick_heat"; }},
+	{"monster_gladiator", []() {
+		float r = frandom();
+		return (r < 0.333f) ? "monster_gladb" : (r < 0.666f) ? "monster_gladc" : "monster_gladiator";
+	}},
+	{"monster_boss2", []() {
+		float r = frandom();
+		return (r < 0.333f) ? "monster_boss2" : (r < 0.666f) ? "monster_carrier" : "monster_boss2_64";
+	}},
+	{"monster_flipper", []() { return brandom() ? "monster_gekk" : "monster_flipper"; }},
+	{"monster_medic", []() { return brandom() ? "monster_medic" : "monster_spider"; }},
+	{"monster_brain", []() {
+		float r = frandom();
+		return (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
+	}},
+	{"monster_berserk", []() {
+		float r = frandom();
+		return (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
+	}},
+	{"monster_floater", []() { return brandom() ? "monster_floater" : "monster_floater2"; }},
+	{"monster_commander_body", []() { return "monster_tank_64"; }},
+	{"item_quad", []() { return "item_double"; }},
+	{"item_invulnerability", []() { return "item_quadfire"; }},
+	{"item_power_shield", []() { return "item_power_screen"; }},
+	{"item_silencer", []() { return "item_bandolier"; }}
+};
+
+void update_entity_classname(edict_t* ent, const std::map<std::string, std::function<std::string()>>& transformation_map) {
+	auto it = transformation_map.find(ent->classname);
+	if (it != transformation_map.end()) {
+		ent->classname = it->second().c_str();
+	}
+}
+
+void ED_CallSpawn(edict_t* ent) {
 	if (g_chaotic->integer == 2) {
-		if (!strcmp(ent->classname, "monster_soldier_ss")) {
-			ent->classname = "monster_infantry2";
-		}
-		else if (!strcmp(ent->classname, "monster_infantry2")) {
-			if (brandom()) {
-				ent->classname = "monster_gunner2";
-			}
-			else
-				ent->classname = "monster_gunner";
-
-		}
-		else if (!strcmp(ent->classname, "monster_stalker")) {
-			if (brandom()) {
-				ent->classname = "monster_parasite";
-			}
-			else
-				ent->classname = "monster_stalker";
-
-		}
-		else if (!strcmp(ent->classname, "monster_parasite")) {
-			if (brandom()) {
-				ent->classname = "monster_parasite";
-			}
-			else
-				ent->classname = "monster_stalker";
-
-		}
-		else if (!strcmp(ent->classname, "monster_tank")) {
-			ent->classname = "monster_tank_commander";
-		}
-		else if (!strcmp(ent->classname, "monster_tank_commander")) {
-			ent->classname = "monster_shambler";
-		}
-		else if (!strcmp(ent->classname, "monster_supertank")) {
-			ent->classname = "monster_boss5";
-		}
-		else if (!strcmp(ent->classname, "monster_chick")) {
-			if (brandom()) {
-				ent->classname = "monster_chick";
-			}
-			else
-				ent->classname = "monster_chick_heat";
-
-		}
-		else if (!strcmp(ent->classname, "monster_boss2kl")) {
-			ent->classname = "monster_carrier";
-		}
+		update_entity_classname(ent, chaotic_map);
 	}
 
 	if (g_insane->integer == 1) {
-
-		if (!strcmp(ent->classname, "monster_soldier_light")) {
-			ent->classname = "monster_soldier_lasergun";
-		}
-		else if (!strcmp(ent->classname, "monster_soldier")) {
-			ent->classname = "monster_soldier_hypergun";
-		}
-		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
-			ent->classname = "monster_infantry";
-		}
-		else if (!strcmp(ent->classname, "monster_infantry2")) {
-			ent->classname = "monster_gunner";
-		}
-		else if (!strcmp(ent->classname, "monster_gunner2")) {
-			ent->classname = "monster_gunner";
-		}
-		else if (!strcmp(ent->classname, "monster_brain")) {
-			if (brandom()) {
-				ent->classname = "monster_brain";
-			}
-			else
-				ent->classname = "monster_guncmdr";
-
-		}
-		else if (!strcmp(ent->classname, "monster_flyer")) {
-			ent->classname = "monster_daedalus";
-		}
-		else if (!strcmp(ent->classname, "monster_shambler")) {
-			ent->classname = "monster_tank_64";
-		}
-		else if (!strcmp(ent->classname, "monster_tank")) {
-			ent->classname = "monster_tank_commander";
-		}
-		else if (!strcmp(ent->classname, "monster_tank_commander")) {
-			if (brandom()) {
-				ent->classname = "monster_tank_64";
-			}
-			else
-				ent->classname = "monster_shambler";
-
-		}
-		else if (!strcmp(ent->classname, "monster_stalker")) {
-			float r = frandom();
-			ent->classname = (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
-		}
-		else if (!strcmp(ent->classname, "monster_supertank")) {
-			ent->classname = "monster_boss5";
-		}
-		else if (!strcmp(ent->classname, "monster_chick")) {
-			ent->classname = "monster_chick_heat";
-		}
-		else if (!strcmp(ent->classname, "monster_boss2kl")) {
-			ent->classname = "monster_carrier";
-		}
-		else if (!strcmp(ent->classname, "monster_medic")) {
-			ent->classname = "monster_spider";
-		}
-		else if (!strcmp(ent->classname, "monster_fixbot")) {
-			if (brandom()) {
-				ent->classname = "monster_parasite";
-			}
-			else
-				ent->classname = "monster_daedalus";
-
-		}
-		else if (!strcmp(ent->classname, "monster_floater")) {
-			ent->classname = "monster_floater2";
-		}
+		update_entity_classname(ent, insane_map);
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
-		if (!strcmp(ent->classname, "monster_soldier_light")) {
-			float r = frandom();
-			if (r < 0.2f) {
-				ent->classname = "monster_soldier_ripper";
-			}
-			else if (r < 0.4f) {
-				ent->classname = "monster_soldier_hypergun";
-			}
-			else if (r < 0.6f) {
-				ent->classname = "monster_soldier_lasergun";
-			}
-			else if (r < 0.8f) {
-				ent->classname = "monster_soldier";
-			}
-			else if (r < 0.9f) {
-				ent->classname = "monster_soldier_ss";
-			}
-		}
-		else if (!strcmp(ent->classname, "monster_soldier")) {
-			float r = frandom();
-			if (r < 0.2f) {
-				ent->classname = "monster_soldier_ripper";
-			}
-			else if (r < 0.4f) {
-				ent->classname = "monster_soldier_hypergun";
-			}
-			else if (r < 0.6f) {
-				ent->classname = "monster_soldier_lasergun";
-			}
-			else if (r < 0.8f) {
-				ent->classname = "monster_soldier";
-			}
-			else if (r < 0.9f) {
-				ent->classname = "monster_soldier_ss";
-			}
-			else {
-				ent->classname = "monster_soldier_light";
-			}
-		}
-			else if (!strcmp(ent->classname, "monster_soldier_ss")) {
-				if (brandom()) {
-					ent->classname = "monster_infantry";
-				}
-				else
-					ent->classname = "monster_infantry2";
+		update_entity_classname(ent, hardcoop_map);
+	}
 
-			}
-			else if (!strcmp(ent->classname, "monster_infantry")) {
-				if (brandom()) {
-					ent->classname = "monster_gunner";
-				}
-				else
-					ent->classname = "monster_gunner2";
-
-			}
-			else if (!strcmp(ent->classname, "monster_gunner")) {
-				if (brandom()) {
-					ent->classname = "monster_guncmdr";
-				}
-				else
-					ent->classname = "monster_guncmdr2";
-
-			}
-			else if (!strcmp(ent->classname, "monster_flyer")) {
-			float r = frandom();
-			ent->classname = (r < 0.103f) ? "monster_fixbot" : (r < 0.303f) ? "monster_flyer" : (r < 0.766f) ? "monster_hover" : "monster_hover2";
-			}
-			else if (!strcmp(ent->classname, "monster_parasite")) {
-			float r = frandom();
-			ent->classname = (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
-			}
-			else if (!strcmp(ent->classname, "monster_tank")) {
-				if (brandom()) {
-					ent->classname = "monster_shambler";
-				}
-				else
-					ent->classname = "monster_tank_64";
-
-			}
-			else if (!strcmp(ent->classname, "monster_tank_commander")) {
-				if (brandom()) {
-					ent->classname = "monster_shambler";
-				}
-				else
-					ent->classname = "monster_janitor2";
-
-			}
-			else if (!strcmp(ent->classname, "monster_supertank")) {
-				ent->classname = "monster_boss5";
-			}
-			else if (!strcmp(ent->classname, "monster_chick")) {
-				if (brandom()) {
-					ent->classname = "monster_chick";
-				}
-				else
-					ent->classname = "monster_chick_heat";
-
-			}
-			else if (!strcmp(ent->classname, "monster_gladiator")) {
-				float r = frandom();
-				ent->classname = (r < 0.333f) ? "monster_gladb" : (r < 0.666f) ? "monster_gladc" : "monster_gladiator";
-			}
-			else if (!strcmp(ent->classname, "monster_boss2")) {
-				float r = frandom();
-				ent->classname = (r < 0.333f) ? "monster_boss2" : (r < 0.666f) ? "monster_carrier" : "monster_boss2_64";
-			}
-			else if (!strcmp(ent->classname, "monster_flipper")) {
-				if (brandom()) {
-					ent->classname = "monster_gekk";
-				}
-				else
-					ent->classname = "monster_flipper";
-			}
-			else if (!strcmp(ent->classname, "monster_medic")) {
-				if (brandom()) {
-					ent->classname = "monster_medic";
-				}
-				else
-					ent->classname = "monster_spider";
-					}
-			else if (!strcmp(ent->classname, "monster_brain")) {
-				float r = frandom();
-				ent->classname = (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
-			}
-			else if (!strcmp(ent->classname, "monster_berserk")) {
-				float r = frandom();
-				ent->classname = (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
-			}
-			else if (!strcmp(ent->classname, "monster_floater")) {
-				if (brandom()) {
-					ent->classname = "monster_floater";
-				}
-				else
-					ent->classname = "monster_floater2";
-
-					}
-			else if (!strcmp(ent->classname, "monster_commander_body")) {
-				ent->classname = "monster_tank_64";
-			}
-			else if (!strcmp(ent->classname, "item_quad")) {
-				ent->classname = "item_double";
-			}
-			else if (!strcmp(ent->classname, "item_invulnerability")) {
-				ent->classname = "item_quadfire";
-			}
-			else if (!strcmp(ent->classname, "item_power_shield")) {
-				ent->classname = "item_power_screen";
-			}
-			else if (!strcmp(ent->classname, "item_silencer")) {
-				ent->classname = "item_bandolier";
-			}
-		}
+	// Aquí sigue el resto del código que maneja el proceso de spawn
 
 	gitem_t* item;
-	int		 i;
+	int i;
 
-	if (!ent->classname)
-	{
+	if (!ent->classname) {
 		gi.Com_Print("ED_CallSpawn: nullptr classname\n");
 		G_FreeEdict(ent);
 		return;
@@ -784,7 +617,6 @@ void ED_CallSpawn(edict_t* ent)
 	// PGM
 
 	ent->sv.init = false;
-
 	// FIXME - PMM classnames hack
 	if (!strcmp(ent->classname, "weapon_nailgun"))
 		ent->classname = GetItemByIndex(IT_WEAPON_ETF_RIFLE)->classname;
