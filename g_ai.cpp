@@ -193,25 +193,24 @@ void ai_stand(edict_t* self, float dist)
     }
 
 //
-    if (g_horde->integer && !level.intermissiontime || g_horde->integer && level.intermissiontime) { // HORDESTAND
-        // Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
-        if (!self->enemy) {
-            edict_t* player = nullptr;
-            for (unsigned int i = 1; i <= game.maxclients; ++i) {
-                edict_t* client = &g_edicts[i];
-                if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
-                    continue;
-                }
-                player = client;
+    // HORDESTAND: Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
+    if (g_horde->integer && !self->enemy) {
+        edict_t* player = nullptr;
+        for (unsigned int i = 1; i <= game.maxclients; ++i) {
+            edict_t* client = &g_edicts[i];
+            if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
+                continue;
             }
-            if (player) {
-                self->enemy = player;
-                self->monsterinfo.run(self);
-                return;
-            }
+            player = client;
+        }
+        if (player) {
+            self->enemy = player;
+            self->monsterinfo.run(self);
+            return;
         }
     }
 }
+
 
 /*
 =============
@@ -671,7 +670,7 @@ bool FindTarget(edict_t* self)
     edict_t* client = nullptr;
     bool     heardit;
     bool     ignore_sight_sound = false;
-
+    
     // [Paril-KEX] if we're in a level transition, don't worry about enemies
     if (globals.server_flags & SERVER_FLAG_LOADING)
         return false;
@@ -859,9 +858,15 @@ bool FindTarget(edict_t* self)
             if (!visible(self, client))
                 return false;
         }
-        if (g_horde->integer && (!(self->flags & FL_FLY))) {
-            return false;
-        }
+
+            if (g_horde->integer)
+            {
+                // Allow monsters with FL_FLY or with AI_STAND_GROUND | AI_TEMP_STAND_GROUND to hear in horde mode
+                if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
+                {
+                    return false;
+                }
+            }
 
         else
         {
@@ -1548,12 +1553,20 @@ void ai_run(edict_t* self, float dist)
         return;
     }
 
-    if (g_horde->integer || g_horde->integer && level.intermissiontime) {  //HORDERUN
-        if (self->enemy && (self->enemy->deadflag || self->enemy->movetype == MOVETYPE_NOCLIP)) {
-            // Si el enemigo ha muerto, se ha vuelto inelegible de alguna otra forma, o el jugador está invisible
-            self->enemy = nullptr; // Elimina el enemigo actual
-            self->monsterinfo.stand(self); // Llama a monsterinfo.stand para forzar al monstruo a volver a estar en espera
-            // Ahora el código de espera se activará en el siguiente fotograma para que el monstruo cace a alguien
+    // Si no hay enemigo, buscar un nuevo jugador válido
+    if (!self->enemy) {
+        edict_t* player = nullptr;
+        for (unsigned int i = 1; i <= game.maxclients; ++i) {
+            edict_t* client = &g_edicts[i];
+            if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
+                continue;
+            }
+            player = client;
+        }
+        if (player) {
+            self->enemy = player;
+            self->monsterinfo.run(self); // Pone al monstruo en modo de persecución
+            return;
         }
     }
     // PGM
