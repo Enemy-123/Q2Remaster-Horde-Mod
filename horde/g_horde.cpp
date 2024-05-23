@@ -419,8 +419,8 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 constexpr int MAX_RECENT_BOSSES = 2;
 std::deque<const char*> recent_bosses;
 
-const char* G_HordePickBOSS(const MapSize& mapSize) {
-    const boss_t* boss_list = GetBossList(mapSize);
+const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname) {
+    const boss_t* boss_list = GetBossList(mapSize, mapname);
     if (!boss_list) return nullptr;
 
     // Crear una lista temporal de bosses que no estén en recent_bosses
@@ -457,7 +457,6 @@ const char* G_HordePickBOSS(const MapSize& mapSize) {
 
     return nullptr; // Esto no debería ocurrir si los pesos están configurados correctamente
 }
-
 struct picked_item_t {
     const weighted_item_t* item;
     float weight;
@@ -770,7 +769,6 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64/dm3", {488, 392, 64}},
     {"q64\\dm3", {488, 392, 64}}
 };
-
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
     if (g_horde_local.level % 5 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
@@ -779,7 +777,7 @@ void SpawnBossAutomatically() {
             edict_t* boss = G_Spawn();
             if (!boss) return;
 
-            const char* desired_boss = G_HordePickBOSS(mapSize);
+            const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname);
             if (!desired_boss) return;
             boss->classname = desired_boss;
 
