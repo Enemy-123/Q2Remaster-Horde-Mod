@@ -795,24 +795,24 @@ void SpawnBossAutomatically() {
             ApplyMonsterBonusFlags(boss);
 
        
-            std::string full_display_name = GetDisplayName(boss);
-            gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
-
             boss->monsterinfo.attack_state = AS_BLIND;
             boss->accel *= 2;
             boss->maxs *= boss->s.scale;
             boss->mins *= boss->s.scale;
 
-
-            //Healthbar 100% health calc here is base_health + applybosseffects?
-
+           
+            ////////THIS SETS HEALTHBAR to 100%, how? idk
             float health_multiplier = 1.0f;
             float power_armor_multiplier = 1.0f;
             ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
 
+            std::string full_display_name = GetDisplayName(boss);
+            gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
+
+
             int base_health = static_cast<int>(boss->health * health_multiplier);
             SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
-            /////////////////////////////////////////////////////////////////////////////////
+            ////////////////////////////// KEEP THIS ORDER 
 
             boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
@@ -1017,9 +1017,10 @@ void Horde_RunFrame() {
                     e->s.effects = EF_GRENADE_LIGHT;
                 }
 
-                // Remover la adición de salud
-                // e->health *= 1 + (0.02 * g_horde_local.level);
-                // e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
+
+                 e->health *= 1 + (0.02 * g_horde_local.level);
+                 e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
+
                 e->gib_health = -100;
 
                 std::srand(static_cast<unsigned int>(std::time(nullptr)));
