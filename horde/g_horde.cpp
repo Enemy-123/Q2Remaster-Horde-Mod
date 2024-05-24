@@ -794,10 +794,7 @@ void SpawnBossAutomatically() {
             // Apply bonus flags and ensure health multiplier is applied correctly
             ApplyMonsterBonusFlags(boss);
 
-            float health_multiplier = 1.0f;
-            float power_armor_multiplier = 1.0f;
-            ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
-
+       
             std::string full_display_name = GetDisplayName(boss);
             gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
 
@@ -807,9 +804,15 @@ void SpawnBossAutomatically() {
             boss->mins *= boss->s.scale;
 
 
-            //Healthbar 100% health calc here is base_health
+            //Healthbar 100% health calc here is base_health + applybosseffects?
+
+            float health_multiplier = 1.0f;
+            float power_armor_multiplier = 1.0f;
+            ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
+
             int base_health = static_cast<int>(boss->health * health_multiplier);
             SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
+            /////////////////////////////////////////////////////////////////////////////////
 
             boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
