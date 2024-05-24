@@ -1,11 +1,5 @@
 #include "shared.h"
-
-
-
-
-//MONSTER FLAGS STUFF
-
-
+#include <unordered_map>
 
 std::string GetTitleFromFlags(int bonus_flags) {
     std::string title;
@@ -21,57 +15,13 @@ std::string GetTitleFromFlags(int bonus_flags) {
     if (bonus_flags & BF_BERSERKING) {
         title += "Berserking ";
     }
-    if (bonus_flags & BF_POSSESSED) { // Corregido aquí
-        title += "Possessed "; // Corregido aquí
+    if (bonus_flags & BF_POSSESSED) {
+        title += "Possessed ";
     }
     if (bonus_flags & BF_STYGIAN) {
         title += "Stygian ";
     }
     return title;
-}
-
-// shared.cpp
-#include "shared.h"
-void ApplyMonsterBonusFlags(edict_t* monster) {
-    monster->initial_max_health = monster->health;
-
-    if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
-        monster->s.effects |= EF_ROCKET | EF_FIREBALL;
-        monster->s.renderfx |= RF_SHELL_RED;
-        monster->health *= 2.0f;
-        monster->monsterinfo.power_armor_power *= 1.5f;
-        monster->initial_max_health *= 1.5f; // Incrementar initial_max_health
-    }
-    if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
-        monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-        monster->health *= 1.3f;
-        monster->monsterinfo.power_armor_power *= 1.4f;
-        monster->initial_max_health *= 1.4f; // Incrementar initial_max_health
-    }
-    if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
-        monster->s.effects |= EF_BLUEHYPERBLASTER;
-        monster->s.renderfx |= RF_TRANSLUCENT;
-        monster->monsterinfo.power_armor_power *= 4.0f;
-    }
-    if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
-        monster->s.effects |= EF_GIB | EF_FLAG2;
-        monster->health *= 1.5f;
-        monster->monsterinfo.power_armor_power *= 1.5f;
-        monster->initial_max_health *= 1.5f; // Incrementar initial_max_health
-    }
-    if (monster->monsterinfo.bonus_flags & BF_POSSESSED) { // Corregido aquí
-        monster->s.effects |= EF_BARREL_EXPLODING;
-        monster->s.renderfx |= RF_TRANSLUCENT;
-        monster->health *= 1.7f;
-        monster->monsterinfo.power_armor_power *= 1.7f;
-        monster->initial_max_health *= 1.7f; // Incrementar initial_max_health
-    }
-    if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
-        monster->s.effects |= EF_TRACKER | EF_FLAG1;
-        monster->health *= 1.6f;
-        monster->monsterinfo.power_armor_power *= 1.6f;
-        monster->initial_max_health *= 1.6f; // Incrementar initial_max_health
-    }
 }
 
 std::string GetDisplayName(edict_t* ent) {
@@ -148,6 +98,48 @@ std::string GetDisplayName(edict_t* ent) {
     return title + display_name;
 }
 
+void ApplyMonsterBonusFlags(edict_t* monster) {
+    monster->initial_max_health = monster->health;
+
+    if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
+        monster->s.effects |= EF_ROCKET | EF_FIREBALL;
+        monster->s.renderfx |= RF_SHELL_RED;
+        monster->health *= 2.0f;
+        monster->monsterinfo.power_armor_power *= 1.5f;
+        monster->initial_max_health = monster->health; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
+        monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
+        monster->health *= 1.3f;
+        monster->monsterinfo.power_armor_power *= 1.4f;
+        monster->initial_max_health = monster->health; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
+        monster->s.effects |= EF_BLUEHYPERBLASTER;
+        monster->s.renderfx |= RF_TRANSLUCENT;
+        monster->monsterinfo.power_armor_power *= 4.0f;
+    }
+    if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
+        monster->s.effects |= EF_GIB | EF_FLAG2;
+        monster->health *= 1.5f;
+        monster->monsterinfo.power_armor_power *= 1.5f;
+        monster->initial_max_health = monster->health; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
+        monster->s.effects |= EF_BARREL_EXPLODING;
+        monster->s.renderfx |= RF_TRANSLUCENT;
+        monster->health *= 1.7f;
+        monster->monsterinfo.power_armor_power *= 1.7f;
+        monster->initial_max_health = monster->health; // Incrementar initial_max_health
+    }
+    if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
+        monster->s.effects |= EF_TRACKER | EF_FLAG1;
+        monster->health *= 1.6f;
+        monster->monsterinfo.power_armor_power *= 1.6f;
+        monster->initial_max_health = monster->health; // Incrementar initial_max_health
+    }
+}
+
 void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isBigMap, float& health_multiplier, float& power_armor_multiplier) {
     // Resetea multiplicadores a valores predeterminados
     health_multiplier = 1.0f;
@@ -210,12 +202,6 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
         boss->monsterinfo.power_armor_power *= 1.2f;
     }
 }
-
-
-
-
-/////////////
-//Healthbar keep it at 100% + last health calc
 
 void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number) {
     // Determinar la salud mínima en función del número de oleadas

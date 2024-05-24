@@ -771,7 +771,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 };
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level %  1 == 0 && g_horde_local.level != 0) { // Evita que el jefe aparezca en la primera ola
+    if (g_horde_local.level % 1 == 0 && g_horde_local.level != 0) { // Evita que el jefe aparezca en la primera ola
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();
@@ -794,14 +794,11 @@ void SpawnBossAutomatically() {
             // Apply bonus flags and ensure health multiplier is applied correctly
             ApplyMonsterBonusFlags(boss);
 
-       
             boss->monsterinfo.attack_state = AS_BLIND;
             boss->accel *= 2;
             boss->maxs *= boss->s.scale;
             boss->mins *= boss->s.scale;
 
-           
-            ////////THIS SETS HEALTHBAR to 100%, how? idk
             float health_multiplier = 1.0f;
             float power_armor_multiplier = 1.0f;
             ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
@@ -809,10 +806,8 @@ void SpawnBossAutomatically() {
             std::string full_display_name = GetDisplayName(boss);
             gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
 
-
             int base_health = static_cast<int>(boss->health * health_multiplier);
             SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
-            ////////////////////////////// KEEP THIS ORDER 
 
             boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
@@ -1018,7 +1013,7 @@ void Horde_RunFrame() {
                 }
 
 
-                 e->health *= 1 + (0.02 * g_horde_local.level);
+                 /*e->health *= 1 + (0.02 * g_horde_local.level);*/
                  e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
 
                 e->gib_health = -100;
