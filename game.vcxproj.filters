@@ -78,8 +78,10 @@
       <Filter>xatrix</Filter>
     </ClInclude>
     <ClInclude Include="g_spawn.h" />
-    <ClInclude Include="horde\g_horde.h" />
     <ClInclude Include="shared.h" />
+    <ClInclude Include="horde\g_horde.h">
+      <Filter>horde</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -257,8 +259,10 @@
     <ClCompile Include="m_gunner2.cpp" />
     <ClCompile Include="m_guncmdr2.cpp" />
     <ClCompile Include="m_tank2.cpp" />
-    <ClCompile Include="horde\g_horde.cpp" />
     <ClCompile Include="shared.cpp" />
+    <ClCompile Include="horde\g_horde.cpp">
+      <Filter>horde</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <Filter Include="bots">
@@ -272,6 +276,9 @@
     </Filter>
     <Filter Include="xatrix">
       <UniqueIdentifier>{6565427e-a805-4dc7-ba57-3ce0b62e4336}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="horde">
+      <UniqueIdentifier>{288861d7-238d-4c49-a9e1-79ce7d491152}</UniqueIdentifier>
     </Filter>
   </ItemGroup>
 </Project>
