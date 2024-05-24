@@ -14,6 +14,7 @@ constexpr int MAX_MONSTERS_BIG_MAP = 44;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
 
+int remainingMonsters = 0; // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
 constexpr int BOSS_TO_SPAWN = 1;
@@ -770,7 +771,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 };
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level % 1 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
+    if (g_horde_local.level %  1 == 0 && g_horde_local.level != 0) { // Evita que el jefe aparezca en la primera ola
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();
@@ -791,6 +792,8 @@ void SpawnBossAutomatically() {
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
 
             // Apply bonus flags and ensure health multiplier is applied correctly
+            ApplyMonsterBonusFlags(boss);
+
             float health_multiplier = 1.0f;
             float power_armor_multiplier = 1.0f;
             ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
@@ -803,12 +806,13 @@ void SpawnBossAutomatically() {
             boss->maxs *= boss->s.scale;
             boss->mins *= boss->s.scale;
 
-            // Remover la adición de salud
-            // int base_health = static_cast<int>(boss->health * health_multiplier);
-            // SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
 
-            // boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
-            // boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
+            //Healthbar 100% health calc here is base_health
+            int base_health = static_cast<int>(boss->health * health_multiplier);
+            SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
+
+            boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
+            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
             boss->gib_health = -2000000;
 
             vec3_t effectPosition = boss->s.origin;

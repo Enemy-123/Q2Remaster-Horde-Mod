@@ -800,7 +800,7 @@ void SP_monster_makron(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 700;
 
-	self->health = 1600 * st.health_multiplier;
+	self->health = 2300 * st.health_multiplier;
 	self->gib_health = -800;
 	self->mass = 500;
 

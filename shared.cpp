@@ -1,5 +1,12 @@
 #include "shared.h"
 
+
+
+
+//MONSTER FLAGS STUFF
+
+
+
 std::string GetTitleFromFlags(int bonus_flags) {
     std::string title;
     if (bonus_flags & BF_CHAMPION) {
@@ -202,4 +209,48 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
         boss->health *= 1.2f;
         boss->monsterinfo.power_armor_power *= 1.2f;
     }
+}
+
+
+
+
+/////////////
+//Healthbar keep it at 100% + last health calc
+
+void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number) {
+    // Determinar la salud mínima en función del número de oleadas
+    int health_min = 5000; // Valor por defecto
+
+    if (current_wave_number >= 25 && current_wave_number <= 200) {
+        health_min = 18000;
+    }
+    else if (current_wave_number >= 20 && current_wave_number <= 24) {
+        health_min = 15000;
+    }
+    else if (current_wave_number >= 15 && current_wave_number <= 19) {
+        health_min = 12000;
+    }
+    else if (current_wave_number >= 10 && current_wave_number <= 14) {
+        health_min = 10000;
+    }
+    else if (current_wave_number >= 5 && current_wave_number <= 9) {
+        health_min = 8000;
+    }
+    else if (current_wave_number >= 1 && current_wave_number <= 4) {
+        health_min = 5000;
+    }
+
+    // Ajustar la salud del monstruo
+    if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+        monster->health = base_health;
+        monster->max_health = base_health;
+    }
+    else {
+        monster->health = base_health * 4;
+        monster->max_health = base_health * 4;
+    }
+
+    // Asegurar que la salud no sea inferior al mínimo
+    monster->health = std::max(monster->health, health_min);
+    monster->initial_max_health = monster->health; // Asegúrate de que initial_max_health se establece correctamente
 }
