@@ -1055,11 +1055,15 @@ void Horde_RunFrame() {
 
     case horde_state_t::cleanup:
         if (CheckRemainingMonstersCondition(mapSize)) {
-            if (current_wave_number >= 15) {
+            if (current_wave_number >= 15 && current_wave_number <= 33) {
                 gi.cvar_set("g_insane", "1");
                 gi.cvar_set("g_chaotic", "0");
                 g_horde_local.state = horde_state_t::rest;
                 break;
+            }
+            else if (current_wave_number >= 34) {
+                gi.cvar_set("g_insane", "2");
+                gi.cvar_set("g_chaotic", "0");
             }
             else if (!mapSize.isSmallMap && current_wave_number <= 14) {
                 gi.cvar_set("g_chaotic", "1");
@@ -1082,6 +1086,13 @@ void Horde_RunFrame() {
                     gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
                     gi.cvar_set("g_chaotic", "0");
                     gi.cvar_set("g_insane", "0");
+                }
+
+                if (g_insane->integer == 2) {
+                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nInsane Wave Controlled, GG!\n");
+                    gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
+                    gi.cvar_set("g_chaotic", "0");
+                    gi.cvar_set("g_insane", "1");
                 }
                 else {
                     gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");
