@@ -8,7 +8,7 @@
 // Define los flags de bonus
 #define BF_CHAMPION   0x00000001
 #define BF_CORRUPTED    0x00000002
-#define BF_INVICTUS   0x00000004
+#define BF_RAGEQUITTER   0x00000004
 #define BF_BERSERKING  0x00000008
 #define BF_POSSESSED   0x00000010
 #define BF_STYGIAN    0x00000020

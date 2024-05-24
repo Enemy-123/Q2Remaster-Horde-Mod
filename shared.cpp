@@ -8,8 +8,8 @@ std::string GetTitleFromFlags(int bonus_flags) {
     if (bonus_flags & BF_CORRUPTED) {
         title += "Corrupted ";
     }
-    if (bonus_flags & BF_INVICTUS) {
-        title += "Invictus ";
+    if (bonus_flags & BF_RAGEQUITTER) {
+        title += "Ragequitter ";
     }
     if (bonus_flags & BF_BERSERKING) {
         title += "Berserking ";
@@ -41,7 +41,7 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->monsterinfo.power_armor_power *= 1.4f;
         monster->initial_max_health *= 1.4f; // Incrementar initial_max_health
     }
-    if (monster->monsterinfo.bonus_flags & BF_INVICTUS) {
+    if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
         monster->s.effects |= EF_BLUEHYPERBLASTER;
         monster->s.renderfx |= RF_TRANSLUCENT;
         monster->monsterinfo.power_armor_power *= 4.0f;
@@ -164,7 +164,7 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
         health_multiplier *= 1.4f;
         power_armor_multiplier *= 1.4f;
     }
-    if (boss->monsterinfo.bonus_flags & BF_INVICTUS) {
+    if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
         boss->s.effects |= EF_BLUEHYPERBLASTER;
         boss->s.renderfx |= RF_TRANSLUCENT;
         power_armor_multiplier *= 1.6f;

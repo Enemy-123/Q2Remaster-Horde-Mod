@@ -517,7 +517,7 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 
 				if (rand_val < 0.2f) flag = BF_CHAMPION;
 				else if (rand_val < 0.35f) flag = BF_CORRUPTED;
-				else if (rand_val < 0.45f) flag = BF_INVICTUS;
+				else if (rand_val < 0.45f) flag = BF_RAGEQUITTER;
 				else if (rand_val < 0.7f) flag = BF_BERSERKING;
 				else if (rand_val < 0.8f) flag = BF_POSSESSED;
 				else if (rand_val < 1.0f) flag = BF_STYGIAN;
