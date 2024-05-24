@@ -792,8 +792,6 @@ void SpawnBossAutomatically() {
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
 
             // Apply bonus flags and ensure health multiplier is applied correctly
-            ApplyMonsterBonusFlags(boss);
-
             float health_multiplier = 1.0f;
             float power_armor_multiplier = 1.0f;
             ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
@@ -806,11 +804,12 @@ void SpawnBossAutomatically() {
             boss->maxs *= boss->s.scale;
             boss->mins *= boss->s.scale;
 
-            int base_health = static_cast<int>(boss->health * health_multiplier);
-            SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
+            // Remover la adición de salud
+            // int base_health = static_cast<int>(boss->health * health_multiplier);
+            // SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
 
-            boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
-            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
+            // boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
+            // boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
             boss->gib_health = -2000000;
 
             vec3_t effectPosition = boss->s.origin;
@@ -990,19 +989,19 @@ void Horde_RunFrame() {
                 ED_CallSpawn(e);
                 remainingMonsters = level.total_monsters - level.killed_monsters;
 
-                // Determinar flags de bonificación
-                if (current_wave_number >= 30 && (rand() % 100) < 12) { // 12% de probabilidad
-                    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
-                    e->monsterinfo.bonus_flags |= random_flag;
-                }
+                //// Determinar flags de bonificación
+                //if (current_wave_number >= 30 && (rand() % 100) < 12) { // 12% de probabilidad
+                //    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
+                //    e->monsterinfo.bonus_flags |= random_flag;
+                //}
 
-                if (current_wave_number > 15 && current_wave_number <= 29 && (rand() % 100) < 4) { // 4% de probabilidad
-                    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
-                    e->monsterinfo.bonus_flags |= random_flag;
-                }
+                //if (current_wave_number > 15 && current_wave_number <= 29 && (rand() % 100) < 4) { // 4% de probabilidad
+                //    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
+                //    e->monsterinfo.bonus_flags |= random_flag;
+                //}
 
-                // Aplicar los flags acumulados
-                ApplyMonsterBonusFlags(e);
+                //// Aplicar los flags acumulados
+                //ApplyMonsterBonusFlags(e);
 
                 vec3_t spawngrow_pos = e->s.origin;
                 float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;
@@ -1014,8 +1013,9 @@ void Horde_RunFrame() {
                     e->s.effects = EF_GRENADE_LIGHT;
                 }
 
-                e->health *= 1 + (0.02 * g_horde_local.level);
-                e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
+                // Remover la adición de salud
+                // e->health *= 1 + (0.02 * g_horde_local.level);
+                // e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
                 e->gib_health = -100;
 
                 std::srand(static_cast<unsigned int>(std::time(nullptr)));

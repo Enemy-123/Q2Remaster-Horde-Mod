@@ -480,7 +480,11 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_shambler", SP_monster_shambler },
 	{ "monster_shamblerkl", SP_monster_shamblerkl }
 };
+
 #include <stdlib.h>
+#include "g_local.h"
+#include "shared.h"
+#include <cstdlib>
 
 // Estructura para almacenar reemplazos de monstruos
 typedef struct {
@@ -500,11 +504,27 @@ const char* get_random_replacement(const MonsterReplacement* replacement) {
 	}
 }
 
-// Función que realiza los reemplazos
-void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count) {
+// Función que realiza los reemplazos y aplica los bonus flags
+void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
 	for (int i = 0; i < replacement_count; i++) {
 		if (!strcmp(ent->classname, replacements[i].original)) {
 			ent->classname = get_random_replacement(&replacements[i]);
+
+			// Asignar una única flag de bonus según la probabilidad dada
+			if ((rand() / (float)RAND_MAX) < bonus_prob) {
+				float rand_val = rand() / (float)RAND_MAX;
+				int flag = 0;
+
+				if (rand_val < 0.2f) flag = BF_CHAMPION;
+				else if (rand_val < 0.35f) flag = BF_CORRUPTED;
+				else if (rand_val < 0.45f) flag = BF_INVICTUS;
+				else if (rand_val < 0.7f) flag = BF_BERSERKING;
+				else if (rand_val < 0.8f) flag = BF_POSSESSED;
+				else if (rand_val < 1.0f) flag = BF_STYGIAN;
+
+				ent->monsterinfo.bonus_flags = flag;
+				ApplyMonsterBonusFlags(ent);
+			}
 			break;
 		}
 	}
@@ -573,18 +593,31 @@ void ED_CallSpawn(edict_t* ent) {
 	};
 	int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
 
-	// Realizar los reemplazos según el modo de juego
+	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
 	if (g_chaotic->integer == 2) {
-		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count);
+		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
+	}
+	else if (g_chaotic->integer == 3) {
+		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
 	}
 
 	if (g_insane->integer == 1) {
-		perform_replacement(ent, insane_replacements, insane_replacement_count);
+		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.0f);
+	}
+	else if (g_insane->integer == 2) {
+		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.3f);
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
-		perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count);
+		if (g_hardcoop->integer == 3) {
+			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.50f);
+		}
+		else {
+			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.0f);
+		}
 	}
+
+
 
 
 	gitem_t* item;
