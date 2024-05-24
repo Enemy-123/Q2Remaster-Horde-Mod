@@ -771,7 +771,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 };
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
+    if (g_horde_local.level % 1 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();
@@ -853,56 +853,54 @@ void ResetGame() {
 
 std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
 int previous_remainingMonsters = 0;
-
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     int maxMonsters = 0;
     int timeThreshold = 0;
 
     int numActivePlayers = 0;
-    edict_t* ent;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
-        ent = &g_edicts[player];
+        edict_t* ent = &g_edicts[player];
         if (!ent->inuse || !ent->client || !ent->solid) continue;
 
-        int numActivePlayers = 0;
-        for (auto player : active_players()) {
-            numActivePlayers++;
-        }
+        numActivePlayers++;
+    }
 
-        if (numActivePlayers >= 6) {
-            if (mapSize.isSmallMap) {
-                maxMonsters = 7;
-                timeThreshold = 4;
-            }
-            else if (mapSize.isBigMap) {
-                maxMonsters = 25;
-                timeThreshold = 18;
-            }
-            else {
-                maxMonsters = 12;
-                timeThreshold = 8;
-            }
+    if (numActivePlayers >= 6) {
+        if (mapSize.isSmallMap) {
+            maxMonsters = 7;
+            timeThreshold = 4;
+        }
+        else if (mapSize.isBigMap) {
+            maxMonsters = 25;
+            timeThreshold = 18;
         }
         else {
-            if (mapSize.isSmallMap) {
-                maxMonsters = (current_wave_number <= 4) ? 3 : 6;
-                timeThreshold = (current_wave_number <= 4) ? 7 : 13;
-            }
-            else if (mapSize.isBigMap) {
-                maxMonsters = (current_wave_number <= 4) ? 17 : 23;
-                timeThreshold = (current_wave_number <= 4) ? 18 : 12;
-            }
-            else {
-                maxMonsters = (current_wave_number <= 4) ? 3 : 6;
-                timeThreshold = (current_wave_number <= 4) ? 7 : 15;
-            }
-            if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
-                timeThreshold += 4;
-            }
+            maxMonsters = 12;
+            timeThreshold = 8;
+        }
+    }
+    else {
+        if (mapSize.isSmallMap) {
+            maxMonsters = (current_wave_number <= 4) ? 3 : 6;
+            timeThreshold = (current_wave_number <= 4) ? 7 : 13;
+        }
+        else if (mapSize.isBigMap) {
+            maxMonsters = (current_wave_number <= 4) ? 17 : 23;
+            timeThreshold = (current_wave_number <= 4) ? 18 : 12;
+        }
+        else {
+            maxMonsters = (current_wave_number <= 4) ? 3 : 6;
+            timeThreshold = (current_wave_number <= 4) ? 7 : 15;
+        }
+
+        if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
+            timeThreshold += 4;
         }
     }
 
-    if ((level.total_monsters - level.killed_monsters) <= maxMonsters) {
+    int remainingMonsters = level.total_monsters - level.killed_monsters;
+
+    if (remainingMonsters <= maxMonsters) {
         if (condition_start_time == std::chrono::steady_clock::time_point::min()) {
             condition_start_time = std::chrono::steady_clock::now();
         }
