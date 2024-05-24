@@ -1679,6 +1679,8 @@ struct monsterinfo_t
 	gtime_t quad_time;
 	gtime_t invincible_time;
 	gtime_t double_time;
+
+	float damage_quad; // trying to multiply dmg based on powerup
 	// ROGUE
 	// 
 	// Paril

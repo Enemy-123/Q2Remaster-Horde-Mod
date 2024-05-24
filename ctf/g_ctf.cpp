@@ -1044,10 +1044,10 @@ std::string FormatClassname(const std::string& classname) {
 	}
 	return formatted_name;
 }
-
 #define MAX_MONSTER_CONFIGSTRINGS 80
 #define MAX_PLAYER_CONFIGSTRINGS 32
 #define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
+
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -1102,14 +1102,31 @@ void CTFSetIDView(edict_t* ent) {
 		who = g_edicts + i;
 		if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER)) || (who->svflags & SVF_DEADMONSTER)))
 			continue;
-		vec3_t dir = who->s.origin - ent->s.origin;
-		dir.normalize();
-		d = forward.dot(dir);
-		float dist = (who->s.origin - ent->s.origin).length();
-		if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) { // El objetivo debe estar cerca del centro de la mira o muy cerca del jugador
-			bd = d;
-			closest_dist = dist;
-			best = who;
+
+		if (who->svflags & SVF_MONSTER) {
+			vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
+			for (const auto& point : points) {
+				vec3_t dir = point - ent->s.origin;
+				dir.normalize();
+				d = forward.dot(dir);
+				float dist = (point - ent->s.origin).length();
+				if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
+					bd = d;
+					closest_dist = dist;
+					best = who;
+				}
+			}
+		}
+		else {
+			vec3_t dir = who->s.origin - ent->s.origin;
+			dir.normalize();
+			d = forward.dot(dir);
+			float dist = (who->s.origin - ent->s.origin).length();
+			if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
+				bd = d;
+				closest_dist = dist;
+				best = who;
+			}
 		}
 	}
 
@@ -1153,7 +1170,6 @@ void CTFSetIDView(edict_t* ent) {
 			else {
 				gi.configstring(it->second, ent->client->target_health_str.c_str());
 			}
-
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
 		}
 		else {
@@ -1170,11 +1186,11 @@ void CTFSetIDView(edict_t* ent) {
 			else {
 				gi.configstring(it->second, ent->client->target_health_str.c_str());
 			}
-
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstrings[best - g_edicts];
 		}
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
