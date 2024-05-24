@@ -14,7 +14,6 @@ constexpr int MAX_MONSTERS_BIG_MAP = 44;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
 
-int remainingMonsters = 0;
 int current_wave_number = 1;
 int last_wave_number = 0;
 constexpr int BOSS_TO_SPAWN = 1;
