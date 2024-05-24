@@ -118,12 +118,14 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->s.effects |= EF_BLUEHYPERBLASTER;
         monster->s.renderfx |= RF_TRANSLUCENT;
         monster->monsterinfo.power_armor_power *= 4.0f;
+        monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 15_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
         monster->s.effects |= EF_GIB | EF_FLAG2;
         monster->health *= 1.5f;
         monster->monsterinfo.power_armor_power *= 1.5f;
         monster->initial_max_health = monster->health; // Incrementar initial_max_health
+        monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 10_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
         monster->s.effects |= EF_BARREL_EXPLODING;
