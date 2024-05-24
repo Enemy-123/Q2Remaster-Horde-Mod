@@ -999,15 +999,30 @@ void widow_dead(edict_t* self)
 
 DIE(widow_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	self->deadflag = true;
-	self->takedamage = false;
-	self->count = 0;
-	self->monsterinfo.quad_time = 0_ms;
-	self->monsterinfo.double_time = 0_ms;
-	self->monsterinfo.invincible_time = 0_ms;
-	M_SetAnimation(self, &widow_move_death);
-}
+	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
+		self->deadflag = true;
+		self->takedamage = false;
+		self->count = 0;
+		self->monsterinfo.quad_time = 0_ms;
+		self->monsterinfo.double_time = 0_ms;
+		self->monsterinfo.invincible_time = 0_ms;
+		M_SetAnimation(self, &widow_move_death);
+	}
+	else
+	{
+		if (!strcmp(self->classname, "monster_widow") == 0 || !strcmp(self->classname, "monster_widow2") == 0) {
+			self->deadflag = true;
+			self->takedamage = false;
+			self->count = 0;
+			self->monsterinfo.quad_time = 0_ms;
+			self->monsterinfo.double_time = 0_ms;
+			self->monsterinfo.invincible_time = 0_ms;
+			BecomeExplosion1(self);
+		}
 
+	}
+
+}
 MONSTERINFO_MELEE(widow_melee) (edict_t* self) -> void
 {
 	//	monster_done_dodge (self);
