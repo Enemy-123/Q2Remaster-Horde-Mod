@@ -29,24 +29,22 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
     monster->initial_max_health = monster->health;
 
     if (monster->monsterinfo.bonus_flags & BF_CHAMPION) {
-        monster->s.scale = 1.3f;
         monster->s.effects |= EF_ROCKET | EF_FIREBALL;
         monster->s.renderfx |= RF_SHELL_RED;
-        monster->health *= 1.5f;
+        monster->health *= 2.0f;
         monster->monsterinfo.power_armor_power *= 1.5f;
         monster->initial_max_health *= 1.5f; // Incrementar initial_max_health
     }
     if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
-        monster->s.scale = 1.5f;
         monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-        monster->health *= 1.4f;
+        monster->health *= 1.3f;
         monster->monsterinfo.power_armor_power *= 1.4f;
         monster->initial_max_health *= 1.4f; // Incrementar initial_max_health
     }
     if (monster->monsterinfo.bonus_flags & BF_INVICTUS) {
         monster->s.effects |= EF_BLUEHYPERBLASTER;
         monster->s.renderfx |= RF_TRANSLUCENT;
-        monster->monsterinfo.power_armor_power *= 1.6f;
+        monster->monsterinfo.power_armor_power *= 4.0f;
     }
     if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
         monster->s.effects |= EF_GIB | EF_FLAG2;
@@ -55,13 +53,13 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->initial_max_health *= 1.5f; // Incrementar initial_max_health
     }
     if (monster->monsterinfo.bonus_flags & BF_POSSESSED) { // Corregido aquí
-        monster->s.effects |= EF_BARREL_EXPLODING | EF_SPHERETRANS;
+        monster->s.effects |= EF_BARREL_EXPLODING;
+        monster->s.renderfx |= RF_TRANSLUCENT;
         monster->health *= 1.7f;
         monster->monsterinfo.power_armor_power *= 1.7f;
         monster->initial_max_health *= 1.7f; // Incrementar initial_max_health
     }
     if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
-        monster->s.scale = 1.2f;
         monster->s.effects |= EF_TRACKER | EF_FLAG1;
         monster->health *= 1.6f;
         monster->monsterinfo.power_armor_power *= 1.6f;
@@ -144,25 +142,64 @@ std::string GetDisplayName(edict_t* ent) {
 }
 
 void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isBigMap, float& health_multiplier, float& power_armor_multiplier) {
+    // Resetea multiplicadores a valores predeterminados
     health_multiplier = 1.0f;
     power_armor_multiplier = 1.0f;
 
+    // Aplicar efectos según los flags de bonificación
     if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
         boss->s.scale = 1.3f;
         boss->mins *= 1.3f;
         boss->maxs *= 1.3f;
         boss->s.effects |= EF_ROCKET;
         boss->s.renderfx |= RF_SHELL_RED;
-        health_multiplier = 1.5f;
-        power_armor_multiplier = 1.5f;
+        health_multiplier *= 1.5f;
+        power_armor_multiplier *= 1.5f;
     }
     if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
         boss->s.scale = 1.5f;
         boss->mins *= 1.5f;
         boss->maxs *= 1.5f;
         boss->s.effects |= EF_FLIES;
+        health_multiplier *= 1.4f;
+        power_armor_multiplier *= 1.4f;
+    }
+    if (boss->monsterinfo.bonus_flags & BF_INVICTUS) {
+        boss->s.effects |= EF_BLUEHYPERBLASTER;
+        boss->s.renderfx |= RF_TRANSLUCENT;
+        power_armor_multiplier *= 1.6f;
+    }
+    if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
+        boss->s.effects |= EF_GIB | EF_FLAG2;
+        health_multiplier *= 1.5f;
+        power_armor_multiplier *= 1.5f;
+    }
+    if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
+        boss->s.effects |= EF_BARREL_EXPLODING;
+        boss->s.renderfx |= RF_TRANSLUCENT;
+        health_multiplier *= 1.7f;
+        power_armor_multiplier *= 1.7f;
+    }
+    if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
+        boss->s.scale = 1.2f;
+        boss->mins *= 1.2f;
+        boss->maxs *= 1.2f;
+        boss->s.effects |= EF_TRACKER | EF_FLAG1;
+        health_multiplier *= 1.6f;
+        power_armor_multiplier *= 1.6f;
     }
 
+    // Ajustar la salud y armadura de acuerdo a los multiplicadores
+    boss->health *= health_multiplier;
+    boss->monsterinfo.power_armor_power *= power_armor_multiplier;
+
+    // Aplicar ajustes adicionales dependiendo del tamaño del mapa
+    if (isSmallMap) {
+        boss->health *= 0.8f;
+        boss->monsterinfo.power_armor_power *= 0.8f;
+    }
+    else if (isBigMap) {
+        boss->health *= 1.2f;
+        boss->monsterinfo.power_armor_power *= 1.2f;
+    }
 }
-
-

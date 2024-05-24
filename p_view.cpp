@@ -1005,7 +1005,7 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	}
 
 	if (client->ammoregentime < level.time) {
-		client->ammoregentime = level.time + 11300_ms;
+		client->ammoregentime = level.time + 11000_ms;
 
 		if (client->pers.inventory[IT_WEAPON_SHOTGUN] || client->pers.inventory[IT_WEAPON_SSHOTGUN]) {
 			client->pers.inventory[IT_AMMO_SHELLS] += 8;
@@ -1048,7 +1048,7 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		}
 
 		if (client->pers.inventory[IT_WEAPON_ETF_RIFLE]) {
-			client->pers.inventory[IT_AMMO_FLECHETTES] += 30;
+			client->pers.inventory[IT_AMMO_FLECHETTES] += 25;
 			if (client->pers.inventory[IT_AMMO_FLECHETTES] > client->pers.max_ammo[AMMO_FLECHETTES])
 				client->pers.inventory[IT_AMMO_FLECHETTES] = client->pers.max_ammo[AMMO_FLECHETTES];
 		}
@@ -1064,8 +1064,19 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 			if (client->pers.inventory[IT_AMMO_ROUNDS] > client->pers.max_ammo[AMMO_DISRUPTOR])
 				client->pers.inventory[IT_AMMO_ROUNDS] = client->pers.max_ammo[AMMO_DISRUPTOR];
 		}
+		if (client->pers.inventory[IT_AMMO_TESLA]) {
+			client->pers.inventory[IT_AMMO_TESLA] += 1;
+			if (client->pers.inventory[IT_AMMO_TESLA] > client->pers.max_ammo[AMMO_TESLA])
+				client->pers.inventory[IT_AMMO_TESLA] = client->pers.max_ammo[AMMO_TESLA];
+		}
+		if (client->pers.inventory[IT_AMMO_TRAP]) {
+			client->pers.inventory[IT_AMMO_TRAP] += 1;
+			if (client->pers.inventory[IT_AMMO_TRAP] > client->pers.max_ammo[AMMO_TRAP])
+				client->pers.inventory[IT_AMMO_TRAP] = client->pers.max_ammo[AMMO_TRAP];
+		}
 	}
 }
+
 
 
 

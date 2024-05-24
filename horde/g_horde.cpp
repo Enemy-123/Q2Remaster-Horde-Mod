@@ -164,9 +164,9 @@ void Horde_InitLevel(int32_t lvl) {
     CheckAndApplyBenefit(g_horde_local.level);
 
     if (g_horde_local.level == 18) {
-        gi.cvar_set("g_damage_scale", "2.2");
+        gi.cvar_set("g_damage_scale", "1.7");
     }
-    if (g_horde_local.level == 26) {
+    if (g_horde_local.level == 35) {
         gi.cvar_set("g_damage_scale", "3");
     }
 
@@ -320,7 +320,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_gekk", 3, 17, 0.12f },
     { "monster_gunner2", 3, -1, 0.35f },
     { "monster_gunner", 8, -1, 0.34f },
-    { "monster_medic", 5, 16, 0.1f },
+    { "monster_medic", 5, -1, 0.1f },
     { "monster_brain", 6, -1, 0.23f },
     { "monster_stalker", 4, 11, 0.19f },
     { "monster_parasite", 4, 14, 0.23f },
@@ -990,17 +990,19 @@ void Horde_RunFrame() {
                 ED_CallSpawn(e);
                 remainingMonsters = level.total_monsters - level.killed_monsters;
 
-                if (current_wave_number >= 30 && (rand() % 100) < 20) { // 20% de probabilidad
+                // Determinar flags de bonificación
+                if (current_wave_number >= 30 && (rand() % 100) < 12) { // 12% de probabilidad
                     int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
                     e->monsterinfo.bonus_flags |= random_flag;
-                    ApplyMonsterBonusFlags(e); // Aplica los flags aquí
                 }
 
-                if (current_wave_number > 15 && current_wave_number <= 29 && (rand() % 100) < 4) { // 20% de probabilidad
+                if (current_wave_number > 15 && current_wave_number <= 29 && (rand() % 100) < 4) { // 4% de probabilidad
                     int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
                     e->monsterinfo.bonus_flags |= random_flag;
-                    ApplyMonsterBonusFlags(e); // Aplica los flags aquí
                 }
+
+                // Aplicar los flags acumulados
+                ApplyMonsterBonusFlags(e);
 
                 vec3_t spawngrow_pos = e->s.origin;
                 float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;

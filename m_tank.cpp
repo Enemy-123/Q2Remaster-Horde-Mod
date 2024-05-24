@@ -1020,6 +1020,12 @@ DIE(tank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	self->takedamage = true;
 
 	M_SetAnimation(self, &tank_move_death);
+
+	extern void BossDeathHandler(edict_t * boss);
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		BossDeathHandler(self);
+
+	}
 }
 
 //===========
@@ -1112,7 +1118,7 @@ void SP_monster_tank(edict_t* self)
 			self->s.scale = 1.3f;
 		self->health = 1750 * st.health_multiplier;
 		self->accel = 1.75f;
-		self->gib_health = -130;
+		if (g_horde->integer) { self->gib_health = -999999; }
 	}
 
 	// heat seekingness

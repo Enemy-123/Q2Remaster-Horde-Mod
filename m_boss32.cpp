@@ -291,6 +291,12 @@ void makron_spawn_torso(edict_t *self)
 	self->maxs[2] -= tempent->maxs[2];
 	tempent->s.origin[2] += self->maxs[2] - 15;
 	makron_torso(tempent);
+
+extern void BossDeathHandler(edict_t * boss);
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		BossDeathHandler(self);
+
+	}
 }
 
 mframe_t makron_frames_death2[] = {
