@@ -737,8 +737,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// Verificar si el atacante puede usar la habilidad de vampiro
 	if ((attacker->svflags & SVF_MONSTER) &&
 		((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
-			(attacker->monsterinfo.bonus_flags & BF_POSSESSED) ||
-			attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
+			(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
+		!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
 		CanUseVamp = true;
 	}
 	else if (!(attacker->svflags & SVF_MONSTER)) {
@@ -813,10 +813,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
-
-
-
-
 
 		// ZOID
 		// team armor protect
