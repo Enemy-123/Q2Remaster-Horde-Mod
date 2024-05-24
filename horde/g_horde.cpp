@@ -772,7 +772,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 };
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level % 1 == 0 && g_horde_local.level != 0) { // Evita que el jefe aparezca en la primera ola
+    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();

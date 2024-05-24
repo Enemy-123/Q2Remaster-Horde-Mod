@@ -410,7 +410,7 @@ void hover2_fire_blaster(edict_t* self)
 
 		if (self->mass < 200)
 		{
-			monster_fire_blaster(self, start, dir, 1, 1000, (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+			monster_fire_blaster(self, start, dir, 3, 1000, (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 		}
 		else
 		{
@@ -422,7 +422,7 @@ void hover2_fire_blaster(edict_t* self)
 			VectorMA(aim, pitch, up, aim);
 			VectorNormalize(aim);
 
-			monster_fire_grenade(self, start, aim, 50, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 10.0f);
+			monster_fire_grenade(self, start, aim, 15, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 10.0f);
 		}
 	}
 

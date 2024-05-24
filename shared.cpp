@@ -107,18 +107,19 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->health *= 2.0f;
         monster->monsterinfo.power_armor_power *= 1.5f;
         monster->initial_max_health = monster->health; // Incrementar initial_max_health
+        monster->monsterinfo.double_time = max(level.time, monster->monsterinfo.double_time) + 10_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
         monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-        monster->health *= 1.3f;
-        monster->monsterinfo.power_armor_power *= 1.4f;
+        monster->health *= 1.5f;
+        monster->monsterinfo.power_armor_power *= 0.4f;
         monster->initial_max_health = monster->health; // Incrementar initial_max_health
     }
     if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
         monster->s.effects |= EF_BLUEHYPERBLASTER;
         monster->s.renderfx |= RF_TRANSLUCENT;
         monster->monsterinfo.power_armor_power *= 4.0f;
-        monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 15_sec;
+        monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 6_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
         monster->s.effects |= EF_GIB | EF_FLAG2;
