@@ -422,7 +422,7 @@ void hover2_fire_blaster(edict_t* self)
 			VectorMA(aim, pitch, up, aim);
 			VectorNormalize(aim);
 
-			monster_fire_grenade(self, start, aim, 35, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 10.0f);
+			monster_fire_grenade(self, start, aim, 18, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 10.0f);
 		}
 	}
 
@@ -610,17 +610,30 @@ DIE(hover2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	M_SetAnimation(self, &hover2_move_death1);
 }
 
-static void hover2_set_fly_parameters(edict_t* self)
-{
-	self->monsterinfo.fly_thrusters = false;
-	self->monsterinfo.fly_acceleration = 20.f;
-	self->monsterinfo.fly_speed = 170.f;
-	// Icarus prefers to keep its distance, but flies slower than the flyer.
-	// he never pins because of this.
-	self->monsterinfo.fly_min_distance = 250.f;
-	self->monsterinfo.fly_max_distance = 450.f;
-}
+static void hover2_set_fly_parameters(edict_t* self) {
+	if (strcmp(self->classname, "monster_hover2")) {
+		{
 
+			self->monsterinfo.fly_thrusters = false;
+			self->monsterinfo.fly_acceleration = 20.f;
+			self->monsterinfo.fly_speed = 240.f;
+			// Icarus prefers to keep its distance, but flies slower than the flyer.
+			// he never pins because of this.
+			self->monsterinfo.fly_min_distance = 450.f;
+			self->monsterinfo.fly_max_distance = 800.f;
+		}
+	}
+	else
+	{
+		self->monsterinfo.fly_thrusters = false;
+		self->monsterinfo.fly_acceleration = 20.f;
+		self->monsterinfo.fly_speed = 170.f;
+		// Icarus prefers to keep its distance, but flies slower than the flyer.
+		// he never pins because of this.
+		self->monsterinfo.fly_min_distance = 250.f;
+		self->monsterinfo.fly_max_distance = 450.f;
+	}
+}
 /*QUAKED monster_hover2 (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
  /*QUAKED monster_daedalus2 (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
@@ -673,7 +686,7 @@ void SP_monster_hover2(edict_t* self)
 	self->mins = { -24, -24, -24 };
 	self->maxs = { 24, 24, 32 };
 
-	self->health = 110 * st.health_multiplier;
+	self->health = 120 * st.health_multiplier;
 	self->gib_health = -100;
 	self->mass = 150;
 	self->s.scale = 1.0f;
