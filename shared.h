@@ -30,4 +30,6 @@ extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activat
 extern void check_target_healthbar(edict_t* self);
 extern void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number);
 
+extern float M_DamageModifier(edict_t* monster);
+
 #endif // SHARED_H

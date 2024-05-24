@@ -531,6 +531,13 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 }
 
 void ED_CallSpawn(edict_t* ent) {
+
+	// Inicializa el multiplicador de daño para el monstruo
+	if (ent->svflags & SVF_MONSTER) {
+		ent->monsterinfo.damage_quad = 1.0f;
+	}
+
+
 	// Diccionarios de reemplazos para diferentes modos
 	MonsterReplacement chaotic_replacements[] = {
 		{"monster_soldier_ss", {"monster_infantry2"}, 1},
@@ -616,9 +623,6 @@ void ED_CallSpawn(edict_t* ent) {
 			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.0f);
 		}
 	}
-
-
-
 
 	gitem_t* item;
 	int i;

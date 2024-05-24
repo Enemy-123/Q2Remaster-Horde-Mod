@@ -1,6 +1,23 @@
 #include "shared.h"
 #include <unordered_map>
 
+
+// Función para obtener el multiplicador de daño para monstruos
+float M_DamageModifier(edict_t* monster) {
+    monster->monsterinfo.damage_quad = 1.0f; // Inicializa el multiplicador a 1.0
+
+    if (monster->monsterinfo.quad_time > level.time) {
+        monster->monsterinfo.damage_quad *= 4.0f;
+    }
+
+    if (monster->monsterinfo.double_time > level.time) {
+        monster->monsterinfo.damage_quad *= 2.0f;
+    }
+
+    return monster->monsterinfo.damage_quad;
+}
+
+
 std::string GetTitleFromFlags(int bonus_flags) {
     std::string title;
     if (bonus_flags & BF_CHAMPION) {

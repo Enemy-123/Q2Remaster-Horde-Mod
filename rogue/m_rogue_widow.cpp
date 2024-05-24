@@ -1016,19 +1016,22 @@ MONSTERINFO_MELEE(widow_melee) (edict_t* self) -> void
 
 void WidowGoinQuad(edict_t* self, gtime_t time)
 {
-	self->monsterinfo.quad_time = time;
-	widow_damage_multiplier = 4;
+	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
+		self->monsterinfo.quad_time = time;
+	}
 }
 
 void WidowDouble(edict_t* self, gtime_t time)
 {
-	self->monsterinfo.double_time = time;
-	widow_damage_multiplier = 2;
+	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
+		self->monsterinfo.double_time = time;
+	}
 }
-
 void WidowPent(edict_t* self, gtime_t time)
 {
-	self->monsterinfo.invincible_time = time;
+	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
+		self->monsterinfo.invincible_time = time;
+	}
 }
 
 void WidowPowerArmor(edict_t* self)
@@ -1041,95 +1044,97 @@ void WidowPowerArmor(edict_t* self)
 
 void WidowRespondPowerup(edict_t* self, edict_t* other)
 {
-	if (other->s.effects & EF_QUAD)
-	{
-		if (skill->integer == 1)
-			WidowDouble(self, other->client->quad_time);
-		else if (skill->integer == 2)
-			WidowGoinQuad(self, other->client->quad_time);
-		else if (skill->integer == 3)
+	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
+		if (other->s.effects & EF_QUAD)
 		{
-			WidowGoinQuad(self, other->client->quad_time);
-			WidowPowerArmor(self);
+			if (skill->integer == 1)
+				WidowDouble(self, other->client->quad_time);
+			else if (skill->integer == 2)
+				WidowGoinQuad(self, other->client->quad_time);
+			else if (skill->integer == 3)
+			{
+				WidowGoinQuad(self, other->client->quad_time);
+				WidowPowerArmor(self);
+			}
 		}
-	}
-	else if (other->s.effects & EF_DOUBLE)
-	{
-		if (skill->integer == 2)
-			WidowDouble(self, other->client->double_time);
-		else if (skill->integer == 3)
+		else if (other->s.effects & EF_DOUBLE)
 		{
-			WidowDouble(self, other->client->double_time);
-			WidowPowerArmor(self);
+			if (skill->integer == 2)
+				WidowDouble(self, other->client->double_time);
+			else if (skill->integer == 3)
+			{
+				WidowDouble(self, other->client->double_time);
+				WidowPowerArmor(self);
+			}
 		}
-	}
-	else
-		widow_damage_multiplier = 1;
+		else
+			widow_damage_multiplier = 1;
 
-	if (other->s.effects & EF_PENT)
-	{
-		if (skill->integer == 1)
-			WidowPowerArmor(self);
-		else if (skill->integer == 2)
-			WidowPent(self, other->client->invincible_time);
-		else if (skill->integer == 3)
+		if (other->s.effects & EF_PENT)
 		{
-			WidowPent(self, other->client->invincible_time);
-			WidowPowerArmor(self);
+			if (skill->integer == 1)
+				WidowPowerArmor(self);
+			else if (skill->integer == 2)
+				WidowPent(self, other->client->invincible_time);
+			else if (skill->integer == 3)
+			{
+				WidowPent(self, other->client->invincible_time);
+				WidowPowerArmor(self);
+			}
 		}
 	}
 }
-
 void WidowPowerups(edict_t* self)
 {
 	edict_t* ent;
-
-	if (!G_IsCooperative())
-	{
-		WidowRespondPowerup(self, self->enemy);
-	}
-	else
-	{
-		// in coop, check for pents, then quads, then doubles
-		for (uint32_t player = 1; player <= game.maxclients; player++)
+	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
+		if (!G_IsCooperative())
 		{
-			ent = &g_edicts[player];
-			if (!ent->inuse)
-				continue;
-			if (!ent->client)
-				continue;
-			if (ent->s.effects & EF_PENT)
-			{
-				WidowRespondPowerup(self, ent);
-				return;
-			}
+			WidowRespondPowerup(self, self->enemy);
 		}
-
-		for (uint32_t player = 1; player <= game.maxclients; player++)
+		else
 		{
-			ent = &g_edicts[player];
-			if (!ent->inuse)
-				continue;
-			if (!ent->client)
-				continue;
-			if (ent->s.effects & EF_QUAD)
+			// in coop, check for pents, then quads, then doubles
+			for (uint32_t player = 1; player <= game.maxclients; player++)
 			{
-				WidowRespondPowerup(self, ent);
-				return;
+				ent = &g_edicts[player];
+				if (!ent->inuse)
+					continue;
+				if (!ent->client)
+					continue;
+				if (ent->s.effects & EF_PENT)
+				{
+					WidowRespondPowerup(self, ent);
+					return;
+				}
 			}
-		}
 
-		for (uint32_t player = 1; player <= game.maxclients; player++)
-		{
-			ent = &g_edicts[player];
-			if (!ent->inuse)
-				continue;
-			if (!ent->client)
-				continue;
-			if (ent->s.effects & EF_DOUBLE)
+			for (uint32_t player = 1; player <= game.maxclients; player++)
 			{
-				WidowRespondPowerup(self, ent);
-				return;
+				ent = &g_edicts[player];
+				if (!ent->inuse)
+					continue;
+				if (!ent->client)
+					continue;
+				if (ent->s.effects & EF_QUAD)
+				{
+					WidowRespondPowerup(self, ent);
+					return;
+				}
+			}
+
+			for (uint32_t player = 1; player <= game.maxclients; player++)
+			{
+				ent = &g_edicts[player];
+				if (!ent->inuse)
+					continue;
+				if (!ent->client)
+					continue;
+				if (ent->s.effects & EF_DOUBLE)
+				{
+					WidowRespondPowerup(self, ent);
+					return;
+				}
 			}
 		}
 	}
