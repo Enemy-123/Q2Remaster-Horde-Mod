@@ -54,6 +54,7 @@ std::string GetDisplayName(edict_t* ent) {
         { "monster_floater", "Technician" },
         { "monster_hover", "Rocket Icarus" },
         { "monster_daedalus", "Daedalus" },
+        { "monster_daedalus2", "Bombardier Hover" },
         { "monster_medic_commander", "Medic Commander" },
         { "monster_tank_commander", "Tank Commander" },
         { "monster_spider", "Arachnid" },

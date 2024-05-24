@@ -422,7 +422,7 @@ void hover2_fire_blaster(edict_t* self)
 			VectorMA(aim, pitch, up, aim);
 			VectorNormalize(aim);
 
-			monster_fire_grenade(self, start, aim, 15, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 10.0f);
+			monster_fire_grenade(self, start, aim, 35, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 10.0f);
 		}
 	}
 
