@@ -480,295 +480,115 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_shambler", SP_monster_shambler },
 	{ "monster_shamblerkl", SP_monster_shamblerkl }
 };
-// clang-format on
+#include <stdlib.h>
 
+// Estructura para almacenar reemplazos de monstruos
+typedef struct {
+	const char* original;
+	const char* replacements[3];
+	int replacement_count;
+} MonsterReplacement;
 
-/*
-===============
-ED_CallSpawn
+// Función auxiliar para seleccionar un reemplazo aleatorio
+const char* get_random_replacement(const MonsterReplacement* replacement) {
+	if (replacement->replacement_count == 1) {
+		return replacement->replacements[0];
+	}
+	else {
+		int index = rand() % replacement->replacement_count;
+		return replacement->replacements[index];
+	}
+}
 
-Finds the spawn function for the entity and calls it
-===============
-*/
-void ED_CallSpawn(edict_t* ent)
-{
+// Función que realiza los reemplazos
+void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count) {
+	for (int i = 0; i < replacement_count; i++) {
+		if (!strcmp(ent->classname, replacements[i].original)) {
+			ent->classname = get_random_replacement(&replacements[i]);
+			break;
+		}
+	}
+}
+
+void ED_CallSpawn(edict_t* ent) {
+	// Diccionarios de reemplazos para diferentes modos
+	MonsterReplacement chaotic_replacements[] = {
+		{"monster_soldier_ss", {"monster_infantry2"}, 1},
+		{"monster_infantry2", {"monster_gunner2", "monster_gunner"}, 2},
+		{"monster_stalker", {"monster_parasite", "monster_stalker"}, 2},
+		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
+		{"monster_tank", {"monster_tank_commander"}, 1},
+		{"monster_tank_commander", {"monster_shambler"}, 1},
+		{"monster_supertank", {"monster_boss5"}, 1},
+		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
+		{"monster_boss2kl", {"monster_carrier"}, 1},
+	};
+	int chaotic_replacement_count = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
+
+	MonsterReplacement insane_replacements[] = {
+		{"monster_soldier_light", {"monster_soldier_lasergun"}, 1},
+		{"monster_soldier", {"monster_soldier_hypergun"}, 1},
+		{"monster_soldier_ss", {"monster_infantry"}, 1},
+		{"monster_infantry2", {"monster_gunner"}, 1},
+		{"monster_gunner2", {"monster_gunner"}, 1},
+		{"monster_brain", {"monster_brain", "monster_guncmdr"}, 2},
+		{"monster_flyer", {"monster_daedalus"}, 1},
+		{"monster_shambler", {"monster_tank_64"}, 1},
+		{"monster_tank", {"monster_tank_commander"}, 1},
+		{"monster_tank_commander", {"monster_tank_64", "monster_shambler"}, 2},
+		{"monster_stalker", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
+		{"monster_supertank", {"monster_boss5"}, 1},
+		{"monster_chick", {"monster_chick_heat"}, 1},
+		{"monster_boss2kl", {"monster_carrier"}, 1},
+		{"monster_medic", {"monster_spider"}, 1},
+		{"monster_fixbot", {"monster_parasite", "monster_daedalus"}, 2},
+		{"monster_floater", {"monster_floater2"}, 1},
+	};
+	int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
+
+	MonsterReplacement hardcoop_replacements[] = {
+		{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun"}, 3},
+		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun"}, 3},
+		{"monster_soldier_ss", {"monster_infantry", "monster_infantry2"}, 2},
+		{"monster_infantry", {"monster_gunner", "monster_gunner2"}, 2},
+		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr2"}, 2},
+		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover"}, 3},
+		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
+		{"monster_tank", {"monster_shambler", "monster_tank_64"}, 2},
+		{"monster_tank_commander", {"monster_shambler", "monster_janitor2"}, 2},
+		{"monster_supertank", {"monster_boss5"}, 1},
+		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
+		{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}, 3},
+		{"monster_boss2", {"monster_boss2", "monster_carrier", "monster_boss2_64"}, 3},
+		{"monster_flipper", {"monster_gekk", "monster_flipper"}, 2},
+		{"monster_medic", {"monster_medic", "monster_spider"}, 2},
+		{"monster_brain", {"monster_brain", "monster_berserk", "monster_tank2"}, 3},
+		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_tank2"}, 3},
+		{"monster_floater", {"monster_floater", "monster_floater2"}, 2},
+		{"monster_commander_body", {"monster_tank_64"}, 1},
+		{"item_quad", {"item_double"}, 1},
+		{"item_invulnerability", {"item_quadfire"}, 1},
+		{"item_power_shield", {"item_power_screen"}, 1},
+		{"item_silencer", {"item_bandolier"}, 1},
+	};
+	int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
+
+	// Realizar los reemplazos según el modo de juego
 	if (g_chaotic->integer == 2) {
-		if (!strcmp(ent->classname, "monster_soldier_ss")) {
-			ent->classname = "monster_infantry2";
-		}
-		else if (!strcmp(ent->classname, "monster_infantry2")) {
-			if (brandom()) {
-				ent->classname = "monster_gunner2";
-			}
-			else
-				ent->classname = "monster_gunner";
-
-		}
-		else if (!strcmp(ent->classname, "monster_stalker")) {
-			if (brandom()) {
-				ent->classname = "monster_parasite";
-			}
-			else
-				ent->classname = "monster_stalker";
-
-		}
-		else if (!strcmp(ent->classname, "monster_parasite")) {
-			if (brandom()) {
-				ent->classname = "monster_parasite";
-			}
-			else
-				ent->classname = "monster_stalker";
-
-		}
-		else if (!strcmp(ent->classname, "monster_tank")) {
-			ent->classname = "monster_tank_commander";
-		}
-		else if (!strcmp(ent->classname, "monster_tank_commander")) {
-			ent->classname = "monster_shambler";
-		}
-		else if (!strcmp(ent->classname, "monster_supertank")) {
-			ent->classname = "monster_boss5";
-		}
-		else if (!strcmp(ent->classname, "monster_chick")) {
-			if (brandom()) {
-				ent->classname = "monster_chick";
-			}
-			else
-				ent->classname = "monster_chick_heat";
-
-		}
-		else if (!strcmp(ent->classname, "monster_boss2kl")) {
-			ent->classname = "monster_carrier";
-		}
+		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count);
 	}
 
 	if (g_insane->integer == 1) {
-
-		if (!strcmp(ent->classname, "monster_soldier_light")) {
-			ent->classname = "monster_soldier_lasergun";
-		}
-		else if (!strcmp(ent->classname, "monster_soldier")) {
-			ent->classname = "monster_soldier_hypergun";
-		}
-		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
-			ent->classname = "monster_infantry";
-		}
-		else if (!strcmp(ent->classname, "monster_infantry2")) {
-			ent->classname = "monster_gunner";
-		}
-		else if (!strcmp(ent->classname, "monster_gunner2")) {
-			ent->classname = "monster_gunner";
-		}
-		else if (!strcmp(ent->classname, "monster_brain")) {
-			if (brandom()) {
-				ent->classname = "monster_brain";
-			}
-			else
-				ent->classname = "monster_guncmdr";
-
-		}
-		else if (!strcmp(ent->classname, "monster_flyer")) {
-			ent->classname = "monster_daedalus";
-		}
-		else if (!strcmp(ent->classname, "monster_shambler")) {
-			ent->classname = "monster_tank_64";
-		}
-		else if (!strcmp(ent->classname, "monster_tank")) {
-			ent->classname = "monster_tank_commander";
-		}
-		else if (!strcmp(ent->classname, "monster_tank_commander")) {
-			if (brandom()) {
-				ent->classname = "monster_tank_64";
-			}
-			else
-				ent->classname = "monster_shambler";
-
-		}
-		else if (!strcmp(ent->classname, "monster_stalker")) {
-			float r = frandom();
-			ent->classname = (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
-		}
-		else if (!strcmp(ent->classname, "monster_supertank")) {
-			ent->classname = "monster_boss5";
-		}
-		else if (!strcmp(ent->classname, "monster_chick")) {
-			ent->classname = "monster_chick_heat";
-		}
-		else if (!strcmp(ent->classname, "monster_boss2kl")) {
-			ent->classname = "monster_carrier";
-		}
-		else if (!strcmp(ent->classname, "monster_medic")) {
-			ent->classname = "monster_spider";
-		}
-		else if (!strcmp(ent->classname, "monster_fixbot")) {
-			if (brandom()) {
-				ent->classname = "monster_parasite";
-			}
-			else
-				ent->classname = "monster_daedalus";
-
-		}
-		else if (!strcmp(ent->classname, "monster_floater")) {
-			ent->classname = "monster_floater2";
-		}
+		perform_replacement(ent, insane_replacements, insane_replacement_count);
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
-		if (!strcmp(ent->classname, "monster_soldier_light")) {
-			float r = frandom();
-			if (r < 0.2f) {
-				ent->classname = "monster_soldier_ripper";
-			}
-			else if (r < 0.4f) {
-				ent->classname = "monster_soldier_hypergun";
-			}
-			else if (r < 0.6f) {
-				ent->classname = "monster_soldier_lasergun";
-			}
-			else if (r < 0.8f) {
-				ent->classname = "monster_soldier";
-			}
-			else if (r < 0.9f) {
-				ent->classname = "monster_soldier_ss";
-			}
-		}
-		else if (!strcmp(ent->classname, "monster_soldier")) {
-			float r = frandom();
-			if (r < 0.2f) {
-				ent->classname = "monster_soldier_ripper";
-			}
-			else if (r < 0.4f) {
-				ent->classname = "monster_soldier_hypergun";
-			}
-			else if (r < 0.6f) {
-				ent->classname = "monster_soldier_lasergun";
-			}
-			else if (r < 0.8f) {
-				ent->classname = "monster_soldier";
-			}
-			else if (r < 0.9f) {
-				ent->classname = "monster_soldier_ss";
-			}
-			else {
-				ent->classname = "monster_soldier_light";
-			}
-		}
-		else if (!strcmp(ent->classname, "monster_soldier_ss")) {
-			if (brandom()) {
-				ent->classname = "monster_infantry";
-			}
-			else
-				ent->classname = "monster_infantry2";
-
-		}
-		else if (!strcmp(ent->classname, "monster_infantry")) {
-			if (brandom()) {
-				ent->classname = "monster_gunner";
-			}
-			else
-				ent->classname = "monster_gunner2";
-
-		}
-		else if (!strcmp(ent->classname, "monster_gunner")) {
-			if (brandom()) {
-				ent->classname = "monster_guncmdr";
-			}
-			else
-				ent->classname = "monster_guncmdr2";
-
-		}
-		else if (!strcmp(ent->classname, "monster_flyer")) {
-			float r = frandom();
-			ent->classname = (r < 0.103f) ? "monster_fixbot" : (r < 0.303f) ? "monster_flyer" : (r < 0.766f) ? "monster_hover" : "monster_hover2";
-		}
-		else if (!strcmp(ent->classname, "monster_parasite")) {
-			float r = frandom();
-			ent->classname = (r < 0.15f) ? "monster_perrokl" : (r < 0.55) ? "monster_parasite" : "monster_stalker";
-		}
-		else if (!strcmp(ent->classname, "monster_tank")) {
-			if (brandom()) {
-				ent->classname = "monster_shambler";
-			}
-			else
-				ent->classname = "monster_tank_64";
-
-		}
-		else if (!strcmp(ent->classname, "monster_tank_commander")) {
-			if (brandom()) {
-				ent->classname = "monster_shambler";
-			}
-			else
-				ent->classname = "monster_janitor2";
-
-		}
-		else if (!strcmp(ent->classname, "monster_supertank")) {
-			ent->classname = "monster_boss5";
-		}
-		else if (!strcmp(ent->classname, "monster_chick")) {
-			if (brandom()) {
-				ent->classname = "monster_chick";
-			}
-			else
-				ent->classname = "monster_chick_heat";
-
-		}
-		else if (!strcmp(ent->classname, "monster_gladiator")) {
-			float r = frandom();
-			ent->classname = (r < 0.333f) ? "monster_gladb" : (r < 0.666f) ? "monster_gladc" : "monster_gladiator";
-		}
-		else if (!strcmp(ent->classname, "monster_boss2")) {
-			float r = frandom();
-			ent->classname = (r < 0.333f) ? "monster_boss2" : (r < 0.666f) ? "monster_carrier" : "monster_boss2_64";
-		}
-		else if (!strcmp(ent->classname, "monster_flipper")) {
-			if (brandom()) {
-				ent->classname = "monster_gekk";
-			}
-			else
-				ent->classname = "monster_flipper";
-		}
-		else if (!strcmp(ent->classname, "monster_medic")) {
-			if (brandom()) {
-				ent->classname = "monster_medic";
-			}
-			else
-				ent->classname = "monster_spider";
-		}
-		else if (!strcmp(ent->classname, "monster_brain")) {
-			float r = frandom();
-			ent->classname = (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
-		}
-		else if (!strcmp(ent->classname, "monster_berserk")) {
-			float r = frandom();
-			ent->classname = (r < 0.333f) ? "monster_brain" : (r < 0.666f) ? "monster_berserk" : "monster_tank2";
-		}
-		else if (!strcmp(ent->classname, "monster_floater")) {
-			if (brandom()) {
-				ent->classname = "monster_floater";
-			}
-			else
-				ent->classname = "monster_floater2";
-
-		}
-		else if (!strcmp(ent->classname, "monster_commander_body")) {
-			ent->classname = "monster_tank_64";
-		}
-		else if (!strcmp(ent->classname, "item_quad")) {
-			ent->classname = "item_double";
-		}
-		else if (!strcmp(ent->classname, "item_invulnerability")) {
-			ent->classname = "item_quadfire";
-		}
-		else if (!strcmp(ent->classname, "item_power_shield")) {
-			ent->classname = "item_power_screen";
-		}
-		else if (!strcmp(ent->classname, "item_silencer")) {
-			ent->classname = "item_bandolier";
-		}
+		perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count);
 	}
 
+
 	gitem_t* item;
-	int		 i;
+	int i;
 
 	if (!ent->classname)
 	{
