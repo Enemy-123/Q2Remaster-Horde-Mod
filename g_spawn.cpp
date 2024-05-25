@@ -486,10 +486,13 @@ static const std::initializer_list<spawn_t> spawns = {
 #include "shared.h"
 #include <cstdlib>
 
-// Estructura para almacenar reemplazos de monstruos
+#include <stdlib.h>
+#include <string.h>
+
+// Definir una estructura para almacenar reemplazos de monstruos
 typedef struct {
 	const char* original;
-	const char* replacements[3];
+	const char* replacements[6];  // Aumentado a 6 opciones
 	int replacement_count;
 } MonsterReplacement;
 
@@ -537,7 +540,6 @@ void ED_CallSpawn(edict_t* ent) {
 		ent->monsterinfo.damage_quad = 1.0f;
 	}
 
-
 	// Diccionarios de reemplazos para diferentes modos
 	MonsterReplacement chaotic_replacements[] = {
 		{"monster_soldier_ss", {"monster_infantry2"}, 1},
@@ -559,7 +561,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_infantry2", {"monster_gunner"}, 1},
 		{"monster_gunner2", {"monster_gunner"}, 1},
 		{"monster_brain", {"monster_brain", "monster_guncmdr"}, 2},
-		{"monster_flyer", {"monster_daedalus"}, 1},
+		{"monster_flyer", {"monster_daedalus", "monster_daedalus2"}, 2},
 		{"monster_shambler", {"monster_tank_64"}, 1},
 		{"monster_tank", {"monster_tank_commander"}, 1},
 		{"monster_tank_commander", {"monster_tank_64", "monster_shambler"}, 2},
@@ -569,17 +571,18 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_boss2kl", {"monster_carrier"}, 1},
 		{"monster_medic", {"monster_spider"}, 1},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus"}, 2},
-		{"monster_floater", {"monster_floater2"}, 1},
+		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2"}, 3},
 	};
 	int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 
 	MonsterReplacement hardcoop_replacements[] = {
-		{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun"}, 3},
-		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun"}, 3},
+		{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}, 5},
+		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}, 6},
 		{"monster_soldier_ss", {"monster_infantry", "monster_infantry2"}, 2},
 		{"monster_infantry", {"monster_gunner", "monster_gunner2"}, 2},
 		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr2"}, 2},
-		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover"}, 3},
+		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover2"}, 4},
+		{"monster_hover", {"monster_hover", "monster_hover2", "monster_daedalus2", "monster_daedalus"}, 4},
 		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
 		{"monster_tank", {"monster_shambler", "monster_tank_64"}, 2},
 		{"monster_tank_commander", {"monster_shambler", "monster_janitor2"}, 2},
@@ -591,7 +594,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_medic", {"monster_medic", "monster_spider"}, 2},
 		{"monster_brain", {"monster_brain", "monster_berserk", "monster_tank2"}, 3},
 		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_tank2"}, 3},
-		{"monster_floater", {"monster_floater", "monster_floater2"}, 2},
+		{"monster_floater", {"monster_floater", "monster_floater2", "monster_daedalus2"}, 3},
 		{"monster_commander_body", {"monster_tank_64"}, 1},
 		{"item_quad", {"item_double"}, 1},
 		{"item_invulnerability", {"item_quadfire"}, 1},
@@ -621,10 +624,11 @@ void ED_CallSpawn(edict_t* ent) {
 		}
 		else {
 			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.0f);
-		}
 	}
+}
 
-	gitem_t* item;
+
+gitem_t* item;
 	int i;
 
 	if (!ent->classname)

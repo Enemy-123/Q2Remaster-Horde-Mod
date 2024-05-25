@@ -176,12 +176,12 @@ void Horde_InitLevel(int32_t lvl) {
     }
     else {
         if (mapSize.isSmallMap) {
-            g_horde_local.num_to_spawn = 6 + (lvl * 1);
+            g_horde_local.num_to_spawn = 9 + (lvl * 1);
             if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
                 g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
             }
             if ((g_chaotic->integer == 2 && current_wave_number >= 7) || g_insane->integer) {
-                g_horde_local.num_to_spawn += (g_insane->integer ? 5 : 3);
+                g_horde_local.num_to_spawn += (g_insane->integer ? 6 : 5);
             }
         }
         else if (mapSize.isBigMap) {
@@ -208,7 +208,7 @@ void Horde_InitLevel(int32_t lvl) {
     for (auto Hplayer : active_players()) {
         numActiveHPlayers++;
     }
-    if (numActiveHPlayers >= 6 || current_wave_number >= 27) {
+    if (numActiveHPlayers >= 6 || g_insane->integer == 2) {
         int additionalSpawn = 0;
         if (mapSize.isSmallMap) {
             additionalSpawn = 4;
@@ -331,10 +331,10 @@ constexpr weighted_item_t monsters[] = {
     { "monster_chick", 6, 18, 0.3f },
     { "monster_chick_heat", 10, -1, 0.34f },
     { "monster_berserk", 7, -1, 0.45f },
-    { "monster_floater", 9, 16, 0.13f },
+    { "monster_floater", 9, -1, 0.13f },
     { "monster_hover", 11, -1, 0.18f },
     { "monster_daedalus", 13, -1, 0.08f },
-    { "monster_daedalus2", 23, -1, 0.18f },
+    { "monster_daedalus2", 18, -1, 0.08f },
     { "monster_medic_commander", 13, -1, 0.06f },
     { "monster_tank_commander", 11, -1, 0.15f },
     { "monster_spider", 12, -1, 0.24f },
@@ -375,19 +375,19 @@ constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_tank_64", -1, -1, 0.1f},
     {"monster_guardian", -1, -1, 0.1f},
     {"monster_shamblerkl", -1, -1, 0.1f},
-    {"monster_makronkl", -1, -1, 0.1f},
+    {"monster_makronkl", 17, -1, 0.1f},
 };
 
 constexpr boss_t BOSS_LARGE[] = {
-    {"monster_carrier", 9, -1, 0.15f},
+    {"monster_carrier", -1, -1, 0.15f},
     {"monster_boss5", -1, -1, 0.15f},
     {"monster_boss2", -1, -1, 0.15f},
-    {"monster_tank_64", 9, -1, 0.15f},
-    {"monster_guardian", 9, -1, 0.15f},
+    {"monster_tank_64", -1, -1, 0.15f},
+    {"monster_guardian", -1, -1, 0.15f},
     {"monster_shamblerkl", -1, -1, 0.15f},
     {"monster_boss5", -1, -1, 0.1f},
-    {"monster_makronkl", -1, -1, 0.15f},
-    {"monster_jorg", -1, -1, 0.15f},
+    {"monster_makronkl", 16, -1, 0.15f},
+    {"monster_jorg", 14, -1, 0.15f},
 };
 
 
