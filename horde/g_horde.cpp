@@ -463,6 +463,28 @@ struct picked_item_t {
     float weight;
 };
 
+
+
+const char* flying_monster_classnames[] = {
+    "monster_boss2_64",
+    "monster_carrier2",
+    "monster_flyer",
+    "monster_fixbot",
+    "monster_hover",
+    "monster_hover2",
+    "monster_daedalus",
+    "monster_daedalus2"
+};
+int num_flying_monsters = sizeof(flying_monster_classnames) / sizeof(flying_monster_classnames[0]);
+
+const char* SelectFlyingMonster() {
+    int random_index = rand() % num_flying_monsters;
+    return flying_monster_classnames[random_index];
+}
+
+
+
+
 gitem_t* G_HordePickItem()
 {
     static std::array<picked_item_t, q_countof(items)> picked_items;
@@ -502,27 +524,36 @@ gitem_t* G_HordePickItem()
 
     return nullptr;
 }
-
-const char* G_HordePickMonster()
+const char* G_HordePickMonster(edict_t* spawn_point)
 {
-    static std::array<picked_item_t, q_countof(items)> picked_monsters;
+    static std::array<picked_item_t, q_countof(monsters)> picked_monsters;
     static size_t num_picked_monsters;
 
     num_picked_monsters = 0;
 
     float total_weight = 0;
+    bool spawn_flying = (spawn_point->style == 1); // Check if the style is 1
 
     for (auto& item : monsters)
     {
+        // Ajustar el peso para monstruos voladores
+        float weight = item.weight;
+        if (spawn_flying)
+        {
+            if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames))
+            {
+                weight *= 1; // Mantiene el peso de los monstruos voladores
+            }
+            else
+            {
+                weight = 0; // Establece el peso de los monstruos no voladores a 0
+            }
+        }
+
         if (item.min_level != -1 && g_horde_local.level < item.min_level)
             continue;
         if (item.max_level != -1 && g_horde_local.level > item.max_level)
             continue;
-
-        float weight = item.weight;
-
-        if (item.adjust_weight)
-            item.adjust_weight(item, weight);
 
         if (weight <= 0)
             continue;
@@ -979,29 +1010,15 @@ void Horde_RunFrame() {
             }
 
             edict_t* e = G_Spawn();
-            e->classname = G_HordePickMonster();
             select_spawn_result_t result = SelectDeathmatchSpawnPoint(false, true, false);
 
             if (result.any_valid) {
+                e->classname = G_HordePickMonster(result.spot); // Pasar el punto de spawn
                 e->s.origin = result.spot->s.origin;
                 e->s.angles = result.spot->s.angles;
                 e->item = G_HordePickItem();
                 ED_CallSpawn(e);
                 remainingMonsters = level.total_monsters - level.killed_monsters;
-
-                //// Determinar flags de bonificación
-                //if (current_wave_number >= 30 && (rand() % 100) < 12) { // 12% de probabilidad
-                //    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
-                //    e->monsterinfo.bonus_flags |= random_flag;
-                //}
-
-                //if (current_wave_number > 15 && current_wave_number <= 29 && (rand() % 100) < 4) { // 4% de probabilidad
-                //    int random_flag = 1 << (std::rand() % 6); // Incluye todos los flags definidos
-                //    e->monsterinfo.bonus_flags |= random_flag;
-                //}
-
-                //// Aplicar los flags acumulados
-                //ApplyMonsterBonusFlags(e);
 
                 vec3_t spawngrow_pos = e->s.origin;
                 float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;
@@ -1013,10 +1030,7 @@ void Horde_RunFrame() {
                     e->s.effects = EF_GRENADE_LIGHT;
                 }
 
-
-                 /*e->health *= 1 + (0.02 * g_horde_local.level);*/
-                 e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
-
+                e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
                 e->gib_health = -100;
 
                 std::srand(static_cast<unsigned int>(std::time(nullptr)));
@@ -1146,6 +1160,7 @@ void Horde_RunFrame() {
         break;
     }
 }
+
 
 void HandleResetEvent() {
     ResetGame();

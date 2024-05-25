@@ -1198,7 +1198,6 @@ bool SpawnPointClear(edict_t* spot)
 	vec3_t p = spot->s.origin + vec3_t{ 0, 0, 9.f };
 	return !gi.trace(p, PLAYER_MINS, PLAYER_MAXS, p, spot, CONTENTS_PLAYER | CONTENTS_MONSTER).startsolid;
 }
-
 select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start)
 {
 	struct spawn_point_t
@@ -1298,6 +1297,7 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 
 	return { nullptr, true };
 }
+
 
 //===============
 // ROGUE
