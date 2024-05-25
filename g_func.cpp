@@ -1110,10 +1110,10 @@ MOVEINFO_ENDFUNC(button_wait) (edict_t *self) -> void
 		self->nextthink = level.time + gtime_t::from_sec(self->moveinfo.wait);
 		self->think = button_return;
 	}
-	else if (g_horde->integer) {
-		self->nextthink = level.time + gtime_t::from_sec(self->moveinfo.wait) + 999999_sec;
-		self->think = button_return;
-	}
+	//else if (g_horde->integer) {
+	//	self->nextthink = level.time + gtime_t::from_sec(self->moveinfo.wait) + 999999_sec;
+	//	self->think = button_return;
+	//}
 }
 
 void button_fire(edict_t *self)
