@@ -1572,10 +1572,10 @@ void G_InitStatusbar(statusbar_t& sb)
 {
 	// ---- shared stuff that every gamemode uses ----
 	// spectator
-	sb.ifstat(STAT_SPECTATOR).xv(-90).yb(-68).string2("SPECTATOR MODE").endifstat();
+	sb.ifstat(STAT_SPECTATOR).xv(-110).yb(-68).string2("SPECTATOR MODE").endifstat();
 
 	// chase cam
-	sb.ifstat(STAT_CHASE).xv(-90).yb(-78).string("CHASING").xv(-26).yb(-78).stat_pname(STAT_CHASE).endifstat();
+	sb.ifstat(STAT_CHASE).xv(-110).yb(-78).string("CHASING").xv(-46).yb(-78).stat_pname(STAT_CHASE).endifstat();
 
 	sb.yb(-24);
 
@@ -1652,7 +1652,7 @@ void G_InitStatusbar(statusbar_t& sb)
 	{
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
-		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
+		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 
 		// HORDE MODE specific HUD elements

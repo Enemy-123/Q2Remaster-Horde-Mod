@@ -72,21 +72,28 @@ const std::vector<std::pair<int, std::string>> benefits = {
     {20, "vampire upgraded"}
 };
 
+#include <random>
+
+// Declaración global
+static std::random_device rd;
+static std::mt19937 gen(rd());
+
 void ShuffleBenefits() {
     shuffled_benefits.clear();
     for (const auto& benefit : benefits) {
         shuffled_benefits.push_back(benefit.second);
     }
-    std::random_device rd;
-    std::mt19937 gen(rd());
+
     std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), gen);
 
+    // Asegurar que 'vampire' viene antes que 'vampire upgraded'
     auto vampire_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire");
     auto upgraded_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire upgraded");
     if (vampire_it != shuffled_benefits.end() && upgraded_it != shuffled_benefits.end() && vampire_it > upgraded_it) {
         std::iter_swap(vampire_it, upgraded_it);
     }
 }
+
 
 std::string SelectRandomBenefit(int wave) {
     std::vector<std::string> possible_benefits;
@@ -417,47 +424,52 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
     return nullptr;
 }
 
-constexpr int MAX_RECENT_BOSSES = 2;
-std::deque<const char*> recent_bosses;
+#include <set>
+#include <vector>
+#include <algorithm>
+#include <random>
+constexpr int MAX_RECENT_BOSSES = 3;
+std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
 
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname) {
     const boss_t* boss_list = GetBossList(mapSize, mapname);
     if (!boss_list) return nullptr;
 
-    // Crear una lista temporal de bosses que no estén en recent_bosses
     std::vector<const boss_t*> eligible_bosses;
     for (int i = 0; i < 5; ++i) {
-        if (std::find(recent_bosses.begin(), recent_bosses.end(), boss_list[i].classname) == recent_bosses.end()) {
+        if (recent_bosses.find(boss_list[i].classname) == recent_bosses.end()) {
             eligible_bosses.push_back(&boss_list[i]);
         }
     }
 
-    // Si todos los bosses están en recent_bosses, permitir seleccionar cualquiera
+    // Si todos los jefes están marcados como recientes, permite la selección de cualquier jefe.
     if (eligible_bosses.empty()) {
         for (int i = 0; i < 5; ++i) {
             eligible_bosses.push_back(&boss_list[i]);
         }
     }
 
-    float total_weight = std::accumulate(eligible_bosses.begin(), eligible_bosses.end(), 0.0f, [](float sum, const boss_t* boss) {
-        return sum + boss->weight;
-        });
+    std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
+    float total_weight = 0.0f;
+    for (const auto& boss : eligible_bosses) {
+        total_weight += boss->weight;
+    }
 
-    float r = frandom() * total_weight;
-    for (const boss_t* boss : eligible_bosses) {
-        if (r < boss->weight) {
-            // Actualizar la lista de recent_bosses
-            recent_bosses.push_back(boss->classname);
+    float random_point = distribution(gen) * total_weight;
+    for (const auto& boss : eligible_bosses) {
+        random_point -= boss->weight;
+        if (random_point <= 0) {
+            recent_bosses.insert(boss->classname);
             if (recent_bosses.size() > MAX_RECENT_BOSSES) {
-                recent_bosses.pop_front();
+                recent_bosses.erase(recent_bosses.begin());
             }
             return boss->classname;
         }
-        r -= boss->weight;
     }
 
-    return nullptr; // Esto no debería ocurrir si los pesos están configurados correctamente
+    return nullptr; // En teoría nunca debería llegar aquí.
 }
+
 struct picked_item_t {
     const weighted_item_t* item;
     float weight;
@@ -632,6 +644,7 @@ void Horde_PreInit() {
         gi.cvar_set("bot_chat_enable", "0");
         gi.cvar_set("bot_skill", "5");
         gi.cvar_set("g_coop_squad_respawn", "1");
+        gi.cvar_set("bot_minClients", "5");
     }
 }
 
