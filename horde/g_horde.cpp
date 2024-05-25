@@ -740,6 +740,10 @@ static void Horde_CleanBodies() {
         if (!g_edicts[i].inuse)
             continue;
         else if (g_edicts[i].svflags & SVF_DEADMONSTER) {
+            if (g_edicts[i].s.effects & EF_GIB) {
+                // No limpiar cuerpos gibbeados
+                continue;
+            }
             if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && !g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                 boss_die(&g_edicts[i]);
             }

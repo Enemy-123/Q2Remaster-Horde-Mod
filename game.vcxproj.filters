@@ -77,7 +77,6 @@
     <ClInclude Include="xatrix\m_xatrix_gekk.h">
       <Filter>xatrix</Filter>
     </ClInclude>
-    <ClInclude Include="g_spawn.h" />
     <ClInclude Include="shared.h" />
     <ClInclude Include="horde\g_horde.h">
       <Filter>horde</Filter>
