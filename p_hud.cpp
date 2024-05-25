@@ -1071,6 +1071,11 @@ void G_SetStats(edict_t* ent)
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++) {
 		byte* health_byte = reinterpret_cast<byte*>(&ent->client->ps.stats[STAT_HEALTH_BARS]) + i;
 
+		if (ent->deadflag) {
+			*health_byte = 0;
+			continue;
+		}
+
 		if (!level.health_bar_entities[i]) {
 			*health_byte = 0;
 		}

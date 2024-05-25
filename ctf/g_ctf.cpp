@@ -2041,8 +2041,38 @@ static void SpawnTech(gitem_t* item, edict_t* spot);
 
 static edict_t* FindTechSpawn()
 {
-	return SelectDeathmatchSpawnPoint(false, true, true).spot;
+	edict_t* spot = nullptr;
+	int attempts = 0;
+
+	// Intentar encontrar un punto de generación válido varias veces
+	while (attempts < 10)
+	{
+		spot = SelectDeathmatchSpawnPoint(false, true, true).spot;
+		if (spot)
+		{
+			trace_t tr;
+			vec3_t start, end;
+			vec3_t mins = { 0, 0, 0 }; // Declarar mins y maxs como vectores vacíos
+			vec3_t maxs = { 0, 0, 0 };
+			extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
+			VectorCopy(spot->s.origin, start);
+			VectorCopy(spot->s.origin, end);
+			end[2] -= 128; // Comprobar 128 unidades hacia abajo para asegurarse de que no está flotando
+
+			tr = gi.trace(start, mins, maxs, end, spot, MASK_SOLID);
+
+			if (tr.fraction < 1.0 && !tr.startsolid && !tr.allsolid)
+			{
+				return spot;
+			}
+		}
+		attempts++;
+	}
+
+	// Si no se encontró un punto válido, devolver nullptr
+	return nullptr;
 }
+
 
 THINK(TechThink) (edict_t* tech) -> void
 {
@@ -2071,20 +2101,9 @@ void CTFDrop_Tech(edict_t* ent, gitem_t* item)
 	G_FreeEdict(tech);
 }
 
-/*void CTFDrop_Tech(edict_t* ent, gitem_t* item)
-{
-	edict_t* tech;
-
-	tech = Drop_Item(ent, item);
-	tech->nextthink = level.time + CTF_TECH_TIMEOUT;
-	tech->think = TechThink;
-	ent->client->pers.inventory[item->id] = 0;
-}*/
-
 void CTFDeadDropTech(edict_t* ent)
 {
 	int i;
-
 
 	for (i = 0; i < q_countof(tech_ids); i++)
 	{
@@ -2094,35 +2113,12 @@ void CTFDeadDropTech(edict_t* ent)
 		}
 	}
 }
-/*
-void CTFDeadDropTech(edict_t* ent)
-{
-	edict_t* dropped;
-	int		 i;
-
-	i = 0;
-	for (; i < q_countof(tech_ids); i++)
-	{
-		if (ent->client->pers.inventory[tech_ids[i]])
-		{
-			dropped = Drop_Item(ent, GetItemByIndex(tech_ids[i]));
-			// hack the velocity to make it bounce random
-			dropped->velocity[0] = crandom_open() * 300;
-			dropped->velocity[1] = crandom_open() * 300;
-			dropped->nextthink = level.time + CTF_TECH_TIMEOUT;
-			dropped->think = TechThink;
-			dropped->owner = nullptr;
-			ent->client->pers.inventory[tech_ids[i]] = 0;
-		}
-	}
-}
-*/
 
 static void SpawnTech(gitem_t* item, edict_t* spot)
 {
 	edict_t* ent;
-	vec3_t	 forward, right;
-	vec3_t	 angles;
+	vec3_t forward, right;
+	vec3_t angles;
 
 	ent = G_Spawn();
 
@@ -2158,7 +2154,7 @@ static void SpawnTech(gitem_t* item, edict_t* spot)
 THINK(SpawnTechs) (edict_t* ent) -> void
 {
 	edict_t* spot;
-	int		 i;
+	int i;
 
 	i = 0;
 	for (; i < q_countof(tech_ids); i++)
@@ -2187,9 +2183,9 @@ void CTFSetupTechSpawn()
 
 	// [Paril-KEX]
 	if (!strcmp(g_allow_techs->string, "auto"))
-		techs_allowed = !!ctf->integer;
+		techs_allowed = !!ctf->integer || !!g_horde->integer;
 	else
-		techs_allowed = !!g_allow_techs->integer;
+		techs_allowed = !!g_allow_techs->integer || !!g_horde->integer;
 
 	if (!techs_allowed)
 		return;
@@ -2212,6 +2208,7 @@ void CTFResetTech()
 	}
 	SpawnTechs(nullptr);
 }
+
 
 int CTFApplyResistance(edict_t* ent, int dmg)
 {
