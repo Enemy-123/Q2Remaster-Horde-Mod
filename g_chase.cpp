@@ -36,26 +36,26 @@ void UpdateChaseCam(edict_t* ent)
 		targ->svflags |= SVF_INSTANCED;
 
 		// copy everything from ps but pmove, pov, stats, and team_id
-		ent->client->ps.viewangles = ent->client->chase_target->client->ps.viewangles;
-		ent->client->ps.viewoffset = ent->client->chase_target->client->ps.viewoffset;
-		ent->client->ps.kick_angles = ent->client->chase_target->client->ps.kick_angles;
-		ent->client->ps.gunangles = ent->client->chase_target->client->ps.gunangles;
-		ent->client->ps.gunoffset = ent->client->chase_target->client->ps.gunoffset;
-		ent->client->ps.gunindex = ent->client->chase_target->client->ps.gunindex;
-		ent->client->ps.gunskin = ent->client->chase_target->client->ps.gunskin;
-		ent->client->ps.gunframe = ent->client->chase_target->client->ps.gunframe;
-		ent->client->ps.gunrate = ent->client->chase_target->client->ps.gunrate;
-		ent->client->ps.screen_blend = ent->client->chase_target->client->ps.screen_blend;
-		ent->client->ps.damage_blend = ent->client->chase_target->client->ps.damage_blend;
-		ent->client->ps.rdflags = ent->client->chase_target->client->ps.rdflags;
+		ent->client->ps.viewangles = targ->client->ps.viewangles;
+		ent->client->ps.viewoffset = targ->client->ps.viewoffset;
+		ent->client->ps.kick_angles = targ->client->ps.kick_angles;
+		ent->client->ps.gunangles = targ->client->ps.gunangles;
+		ent->client->ps.gunoffset = targ->client->ps.gunoffset;
+		ent->client->ps.gunindex = targ->client->ps.gunindex;
+		ent->client->ps.gunskin = targ->client->ps.gunskin;
+		ent->client->ps.gunframe = targ->client->ps.gunframe;
+		ent->client->ps.gunrate = targ->client->ps.gunrate;
+		ent->client->ps.screen_blend = targ->client->ps.screen_blend;
+		ent->client->ps.damage_blend = targ->client->ps.damage_blend;
+		ent->client->ps.rdflags = targ->client->ps.rdflags;
 
 		// do pmove stuff so view looks right, but not pm_flags
-		ent->client->ps.pmove.origin = ent->client->chase_target->client->ps.pmove.origin;
-		ent->client->ps.pmove.velocity = ent->client->chase_target->client->ps.pmove.velocity;
-		ent->client->ps.pmove.pm_time = ent->client->chase_target->client->ps.pmove.pm_time;
-		ent->client->ps.pmove.gravity = ent->client->chase_target->client->ps.pmove.gravity;
-		ent->client->ps.pmove.delta_angles = ent->client->chase_target->client->ps.pmove.delta_angles;
-		ent->client->ps.pmove.viewheight = ent->client->chase_target->client->ps.pmove.viewheight;
+		ent->client->ps.pmove.origin = targ->client->ps.pmove.origin;
+		ent->client->ps.pmove.velocity = targ->client->ps.pmove.velocity;
+		ent->client->ps.pmove.pm_time = targ->client->ps.pmove.pm_time;
+		ent->client->ps.pmove.gravity = targ->client->ps.pmove.gravity;
+		ent->client->ps.pmove.delta_angles = targ->client->ps.pmove.delta_angles;
+		ent->client->ps.pmove.viewheight = targ->client->ps.pmove.viewheight;
 
 		// unadjusted view and origin handling
 		angles = targ->client->v_angle;

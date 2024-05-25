@@ -1095,7 +1095,7 @@ void PM_CheckJump()
 	pm->groundentity = nullptr;
 	pm->s.pm_flags &= ~PMF_ON_GROUND;
 
-	float jump_height = 270.f;
+	float jump_height = 270.f; // funny jumps
 
 	pml.velocity[2] += jump_height;
 	if (pml.velocity[2] < jump_height)
