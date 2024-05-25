@@ -537,6 +537,10 @@ DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 		// FIXME: better gibs for shambler, shambler head
 		ThrowGibs(self, damage, {
 			{ "models/objects/gibs/sm_meat/tris.md2" },
+			{ "models/objects/gibs/sm_meat/tris.md2" },
+			{ "models/objects/gibs/sm_meat/tris.md2" },
+			{ "models/objects/gibs/chest/tris.md2" },
+			{ "models/objects/gibs/chest/tris.md2" },
 			{ "models/objects/gibs/chest/tris.md2" },
 			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
 			});
@@ -581,9 +585,10 @@ void SP_monster_shambler(edict_t* self)
 
 	if (!strcmp(self->classname, "monster_shambler")) {
 		self->health = 650 * st.health_multiplier;
+		self->gib_health = -190;
 	}
 
-	self->gib_health = -190;
+
 
 	self->mass = 500;
 
@@ -620,9 +625,10 @@ void SP_monster_shamblerkl(edict_t* self)
 	SP_monster_shambler(self);
 	if (!strcmp(self->classname, "monster_shamblerkl")) {
 		self->health = 6500 + (1.08 * current_wave_number);
+
+		self->gib_health = -190;
 	}
 
-	self->gib_health = -1000;
 	self->yaw_speed = 65;
 //	self->s.renderfx = RF_TRANSLUCENT;
 //	self->s.effects = EF_FLAG1;
