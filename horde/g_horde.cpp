@@ -536,55 +536,70 @@ gitem_t* G_HordePickItem()
 
     return nullptr;
 }
-const char* G_HordePickMonster(edict_t* spawn_point)
-{
-    static std::array<picked_item_t, q_countof(monsters)> picked_monsters;
-    static size_t num_picked_monsters;
 
-    num_picked_monsters = 0;
+int countFlyingSpawns() {
+    int count = 0;
+    for (int i = 0; i < globals.num_edicts; i++) {
+        if (g_edicts[i].inuse && strcmp(g_edicts[i].classname, "info_player_deathmatch") == 0 && g_edicts[i].style == 1) {
+            count++;
+        }
+    }
+    return count;
+}
 
-    float total_weight = 0;
+float adjustFlyingSpawnProbability(int flyingSpawns) {
+    if (flyingSpawns > 0) {
+        // Si hay spawns dedicados solo para monstruos voladores, reducir la probabilidad de seleccionar voladores en otros puntos.
+        return 0.5f; // Reduce la probabilidad a la mitad, ajustable según tus necesidades.
+    }
+    return 1.0f; // Mantén la probabilidad normal si no hay spawns dedicados.
+}
+
+const char* G_HordePickMonster(edict_t* spawn_point) {
+    int flyingSpawns = countFlyingSpawns();  // Contar los spawns de tipo `style = 1`
+    float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
+
+    std::vector<picked_item_t> picked_monsters;
+    float total_weight = 0.0f;
     bool spawn_flying = (spawn_point->style == 1); // Check if the style is 1
 
-    for (auto& item : monsters)
-    {
-        // Ajustar el peso para monstruos voladores
+    for (auto& item : monsters) {
         float weight = item.weight;
-        if (spawn_flying)
-        {
-            if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames))
-            {
-                weight *= 1; // Mantiene el peso de los monstruos voladores
+        if (spawn_flying) {
+            if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
+                weight *= 1.0f; // Mantiene el peso de los monstruos voladores
             }
-            else
-            {
-                weight = 0; // Establece el peso de los monstruos no voladores a 0
+            else {
+                weight = 0.0f; // Establece el peso de los monstruos no voladores a 0
+            }
+        }
+        else {
+            // Ajustar el peso de los monstruos voladores en spawns normales
+            if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
+                weight *= adjustmentFactor;
             }
         }
 
-        if (item.min_level != -1 && g_horde_local.level < item.min_level)
-            continue;
-        if (item.max_level != -1 && g_horde_local.level > item.max_level)
-            continue;
+        if (item.min_level != -1 && g_horde_local.level < item.min_level) continue;
+        if (item.max_level != -1 && g_horde_local.level > item.max_level) continue;
 
-        if (weight <= 0)
-            continue;
-
-        total_weight += weight;
-        picked_monsters[num_picked_monsters++] = { &item, total_weight };
+        if (weight > 0.0f) {
+            picked_monsters.push_back({ &item, total_weight += weight });
+        }
     }
 
-    if (!total_weight)
-        return nullptr;
+    if (total_weight == 0.0f) return nullptr;
 
     float r = frandom() * total_weight;
-
-    for (size_t i = 0; i < num_picked_monsters; i++)
-        if (r < picked_monsters[i].weight)
-            return picked_monsters[i].item->classname;
+    for (const auto& monster : picked_monsters) {
+        if (r < monster.weight) {
+            return monster.item->classname;
+        }
+    }
 
     return nullptr;
 }
+
 
 void Horde_PreInit() {
     wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
