@@ -29,7 +29,7 @@ void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 
-	fire_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_UNKNOWN);
+	fire_bullet(self, start, dir, damage, kick, hspread, vspread, MOD_CHAINGUN);
 	monster_muzzleflash(self, start, flashtype);
 }
 
@@ -37,7 +37,7 @@ void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimd
 	int vspread, int count, monster_muzzleflash_id_t flashtype)
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
-	fire_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, MOD_UNKNOWN);
+	fire_shotgun(self, start, aimdir, damage, kick, hspread, vspread, count, MOD_SSHOTGUN);
 	monster_muzzleflash(self, start, flashtype);
 }
 
