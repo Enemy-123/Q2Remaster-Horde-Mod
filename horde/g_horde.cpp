@@ -993,6 +993,9 @@ void SpawnMonsters() {
     const int monsters_per_spawn = 3; // Ajusta la cantidad de monstruos que deseas spawnar en cada llamada
     int spawned = 0;
 
+    // Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
+    float drop_probability = 0.7f;
+
     for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
         edict_t* spawn_point = SelectDeathmatchSpawnPoint(true, true, false).spot; // Seleccionar punto de spawn
         if (!spawn_point) continue;
@@ -1002,7 +1005,15 @@ void SpawnMonsters() {
 
         edict_t* monster = G_Spawn();
         monster->classname = monster_classname;
-        monster->item = G_HordePickItem();
+
+        // Decidir si dropear un ítem
+        if (frandom() <= drop_probability) {
+            monster->item = G_HordePickItem();
+        }
+        else {
+            monster->item = nullptr;
+        }
+
         VectorCopy(spawn_point->s.origin, monster->s.origin);
         VectorCopy(spawn_point->s.angles, monster->s.angles);
         ED_CallSpawn(monster);
