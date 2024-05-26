@@ -1146,6 +1146,19 @@ void FetchClientEntData(edict_t* ent)
 		ent->client->resp.score = ent->client->pers.score;
 }
 
+
+float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
+	vec3_t v{};
+	VectorSubtract(v1, v2, v);
+	return VectorLength(v);
+}
+
+
+struct spawn_point_t {
+	edict_t* point;
+	float dist;
+};
+
 /*
 =======================================================================
 
@@ -1193,110 +1206,62 @@ float PlayersRangeFromSpot(edict_t* spot)
 	return bestplayerdistance;
 }
 
-bool SpawnPointClear(edict_t* spot)
-{
-	vec3_t p = spot->s.origin + vec3_t{ 0, 0, 9.f };
+float MonsterRangeFromSpot(edict_t* spot) {
+	float total_distance = 0.0f;
+	int count = 0;
+
+	for (int i = 0; i < globals.num_edicts; ++i) {
+		edict_t* ent = &g_edicts[i];
+		if (!ent->inuse || !ent->solid || !(ent->svflags & SVF_MONSTER))
+			continue;
+
+		float dist = VectorDistance(spot->s.origin, ent->s.origin);
+		total_distance += dist;
+		count++;
+	}
+
+	return (count > 0) ? total_distance / count : FLT_MAX; // Retorna la distancia promedio o un valor alto si no hay monstruos.
+}
+
+bool SpawnPointClear(edict_t* spot) {
+	vec3_t p = { spot->s.origin[0], spot->s.origin[1], spot->s.origin[2] + 9.f };
 	return !gi.trace(p, PLAYER_MINS, PLAYER_MAXS, p, spot, CONTENTS_PLAYER | CONTENTS_MONSTER).startsolid;
 }
-select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start)
-{
-	struct spawn_point_t
-	{
-		edict_t* point;
-		float dist;
-	};
 
-	static std::vector<spawn_point_t> spawn_points;
+select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start) {
+	std::vector<spawn_point_t> spawn_points;
 
-	spawn_points.clear();
-
-	// gather all spawn points 
+	// Recolectar todos los puntos de spawn
 	edict_t* spot = nullptr;
-
-	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr)
-		spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-
-	// no points
-	if (spawn_points.size() == 0)
-	{
-		// try CTF spawns...
-		if (fallback_to_ctf_or_start)
-		{
-			spot = nullptr;
-			while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_team1")) != nullptr)
-				spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-			spot = nullptr;
-			while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_team2")) != nullptr)
-				spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-
-			// we only have an info_player_start then
-			if (spawn_points.size() == 0)
-			{
-				spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
-
-				if (spot)
-					spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
-
-				// map is malformed
-				if (spawn_points.size() == 0)
-					return { nullptr, false };
-			}
-		}
-		else
-			return { nullptr, false };
+	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
+		spawn_points.push_back({ spot, MonsterRangeFromSpot(spot) });
 	}
 
-	// if there's only one spawn point, that's the one.
-	if (spawn_points.size() == 1)
-	{
-		if (force_spawn || SpawnPointClear(spawn_points[0].point))
-			return { spawn_points[0].point, true };
-
-		return { nullptr, true };
+	// Manejar el caso de no encontrar puntos
+	if (spawn_points.empty()) {
+		// Implementar lógica de fallback si es necesario
+		return { nullptr, false };
 	}
 
-	// order by distances ascending (top of list has closest players to point)
-	std::sort(spawn_points.begin(), spawn_points.end(), [](const spawn_point_t& a, const spawn_point_t& b) { return a.dist < b.dist; });
+	// Ordenar por la distancia media a monstruos, el más alejado primero
+	std::sort(spawn_points.begin(), spawn_points.end(), [](const spawn_point_t& a, const spawn_point_t& b) {
+		return a.dist > b.dist;
+		});
 
-	// farthest spawn is simple
-	if (farthest)
-	{
-		for (int32_t i = spawn_points.size() - 1; i >= 0; --i)
-		{
-			if (SpawnPointClear(spawn_points[i].point))
-				return { spawn_points[i].point, true };
-		}
-
-		// none clear
-	}
-	else
-	{
-		// for random, select a random point other than the two
-		// that are closest to the player if possible.
-		// shuffle the non-distance-related spawn points
-		std::shuffle(spawn_points.begin() + 2, spawn_points.end(), mt_rand);
-
-		// run down the list and pick the first one that we can use
-		for (auto it = spawn_points.begin() + 2; it != spawn_points.end(); ++it)
-		{
-			auto spot = it->point;
-
-			if (SpawnPointClear(spot))
-				return { spot, true };
-		}
-
-		// none clear, so we have to pick one of the other two
-		if (SpawnPointClear(spawn_points[1].point))
-			return { spawn_points[1].point, true };
-		else if (SpawnPointClear(spawn_points[0].point))
-			return { spawn_points[0].point, true };
+	// Elegir el punto de spawn más alejado que esté libre
+	for (auto& spawn : spawn_points) {
+		if (SpawnPointClear(spawn.point))
+			return { spawn.point, true };
 	}
 
-	if (force_spawn)
+	// Fallback si es forzoso spawnear
+	if (force_spawn) {
 		return { random_element(spawn_points).point, true };
+	}
 
-	return { nullptr, true };
+	return { nullptr, false };
 }
+
 
 
 //===============
