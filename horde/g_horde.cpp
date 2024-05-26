@@ -112,8 +112,6 @@ std::string SelectRandomBenefit(int wave) {
     }
 
     if (!possible_benefits.empty()) {
-        std::random_device rd;
-        std::mt19937 gen(rd());
         std::uniform_int_distribution<> dis(0, possible_benefits.size() - 1);
         return possible_benefits[dis(gen)];
     }
@@ -916,9 +914,10 @@ void ResetGame() {
     gi.cvar_set("timelimit", "25");
 }
 
-std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
-int previous_remainingMonsters = 0;
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
+    static std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
+    static int previous_remainingMonsters = 0;
+
     int maxMonsters = 0;
     int timeThreshold = 0;
 
@@ -970,18 +969,15 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
             condition_start_time = std::chrono::steady_clock::now();
         }
 
-        auto current_time = std::chrono::steady_clock::now();
-        auto duration = std::chrono::duration_cast<std::chrono::seconds>(current_time - condition_start_time);
+        auto duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - condition_start_time);
 
         if (duration.count() >= timeThreshold) {
             condition_start_time = std::chrono::steady_clock::time_point::min();
             return true;
         }
     }
-    else {
-        if (remainingMonsters > previous_remainingMonsters) {
-            condition_start_time = std::chrono::steady_clock::time_point::min();
-        }
+    else if (remainingMonsters > previous_remainingMonsters) {
+        condition_start_time = std::chrono::steady_clock::time_point::min();
     }
 
     previous_remainingMonsters = remainingMonsters;
