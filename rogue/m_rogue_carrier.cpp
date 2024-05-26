@@ -18,7 +18,7 @@ carrier
 #include "../shared.h"
 
 // nb: specifying flyer multiple times so it has a higher chance
-constexpr const char *default_reinforcements = "monster_daedalus2 1;monster_floater 2;monster_floater2 3;monster_kamikaze 1;monster_hover2 4";
+constexpr const char *default_reinforcements = "monster_daedalus2 2;monster_floater 2;monster_floater2 3;monster_kamikaze 1;monster_hover2 4;monster_daedalus 2";
 constexpr int32_t default_monster_slots_base = 3;
 constexpr spawnflags_t SPAWNFLAG_CARRIER2 = 8_spawnflag;
 
@@ -67,10 +67,7 @@ void CarrierRocket(edict_t *self);
 
 MONSTERINFO_SIGHT(carrier_sight) (edict_t *self, edict_t *other) -> void
 {
-	
-	
-	
-	
+
 	(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
@@ -920,7 +917,7 @@ void carrier_reattack_gren(edict_t *self)
 	M_SetAnimation(self, &carrier_move_attack_post_gren);
 }
 
-PAIN(carrier_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(carrier_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	bool changed = false;
 
@@ -929,13 +926,16 @@ PAIN(carrier_pain) (edict_t *self, edict_t *other, float kick, int damage, const
 
 	self->pain_debounce_time = level.time + 5_sec;
 
+	// Determine attenuation based on the monster type
+	float attenuation = (g_horde->integer && strcmp(self->classname, "monster_carrier2") == 0) ? ATTN_NORM : ATTN_NONE;
+
 	if (damage < 10)
-		gi.sound(self, CHAN_VOICE, sound_pain3, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);
 	else if (damage < 30)
-		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain1, 1, attenuation, 0);
 	else
-		gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NONE, 0);
-	
+		gi.sound(self, CHAN_VOICE, sound_pain2, 1, attenuation, 0);
+
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
@@ -966,6 +966,7 @@ PAIN(carrier_pain) (edict_t *self, edict_t *other, float kick, int damage, const
 		self->yaw_speed = orig_yaw_speed;
 	}
 }
+
 
 MONSTERINFO_SETSKIN(carrier_setskin) (edict_t *self) -> void
 {
@@ -1003,9 +1004,12 @@ void carrier_dead(edict_t *self)
 	});
 }
 
-DIE(carrier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+	// Determine attenuation based on the monster type
+	float attenuation = (strcmp(self->classname, "monster_carrier2") == 0) ? ATTN_NORM : ATTN_NONE;
+
+	gi.sound(self, CHAN_VOICE, sound_death, 1, attenuation, 0);
 	self->deadflag = true;
 	self->takedamage = false;
 	self->count = 0;

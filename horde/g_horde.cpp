@@ -1012,7 +1012,7 @@ void SpawnMonsters() {
     int spawned = 0;
 
     // Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
-    float drop_probability = 0.7f;
+  const float drop_probability = 0.7f;
 
 
 
@@ -1041,7 +1041,7 @@ void SpawnMonsters() {
 
         // Efecto de crecimiento en el spawn del monstruo
         vec3_t spawngrow_pos = monster->s.origin;
-        float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.025f;
+        float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.035f;
         float end_size = start_size;
         SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 

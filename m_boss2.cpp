@@ -508,13 +508,15 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	self->pain_debounce_time = level.time + 3_sec;
 
-	// American wanted these at no attenuation
+	// Determine attenuation based on the monster type
+	float attenuation = (strcmp(self->classname, "monster_boss2_64") == 0) ? ATTN_NORM : ATTN_NONE;
+
 	if (damage < 10)
-		gi.sound(self, CHAN_VOICE, sound_pain3, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);
 	else if (damage < 30)
-		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain1, 1, attenuation, 0);
 	else
-		gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain2, 1, attenuation, 0);
 
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
@@ -584,7 +586,7 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 {
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
 	{
-		// check for gib
+		// Check for gib
 		if (M_CheckGib(self, mod))
 		{
 			boss2_gib(self);
@@ -597,7 +599,14 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	}
 	else
 	{
-		gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+		// Check if the monster is boss2_64 to use ATTN_NORM
+		if (g_horde->integer && strcmp(self->classname, "monster_boss2_64") == 0) {
+			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
+		}
+		else {
+			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+		}
+
 		self->deadflag = true;
 		self->takedamage = false;
 		self->count = 0;
@@ -607,6 +616,7 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 
 	M_SetAnimation(self, &boss2_move_death);
 }
+
 
 // [Paril-KEX] use generic function
 MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
