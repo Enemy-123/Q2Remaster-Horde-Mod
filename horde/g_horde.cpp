@@ -299,7 +299,7 @@ constexpr struct weighted_item_t {
     { "ammo_flechettes", 5, -1, 0.25f, adjust_weight_ammo },
     { "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
     { "ammo_prox", 7, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_tesla", 4, -1, 0.15f, adjust_weight_ammo },
+    { "ammo_tesla", 2, -1, 0.15f, adjust_weight_ammo },
     { "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
     { "ammo_magslug", 9, -1, 0.25f, adjust_weight_ammo },
     { "ammo_slugs", 7, -1, 0.25f, adjust_weight_ammo },
@@ -990,40 +990,49 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 }
 
 void SpawnMonsters() {
-    const int monsters_per_spawn = 3; // Ajusta la cantidad de monstruos que deseas spawnar en cada llamada
-    int spawned = 0;
 
-    // Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
-    float drop_probability = 0.7f;
+	if (g_horde_local.level >= 2) {
+		int monsters_per_spawn = 1;
+	}
+	int monsters_per_spawn = 3; // Ajusta la cantidad de monstruos que deseas spawnar en cada llamada
+	int spawned = 0;
 
-    for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
-        edict_t* spawn_point = SelectDeathmatchSpawnPoint(true, true, false).spot; // Seleccionar punto de spawn
-        if (!spawn_point) continue;
+	// Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
+	float drop_probability = 0.7f;
 
-        const char* monster_classname = G_HordePickMonster(spawn_point);
-        if (!monster_classname) continue;
+	for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
+		edict_t* spawn_point = SelectDeathmatchSpawnPoint(true, true, false).spot; // Seleccionar punto de spawn
+		if (!spawn_point) continue;
 
-        edict_t* monster = G_Spawn();
-        monster->classname = monster_classname;
+		const char* monster_classname = G_HordePickMonster(spawn_point);
+		if (!monster_classname) continue;
 
-        // Decidir si dropear un ítem
-        if (frandom() <= drop_probability) {
-            monster->item = G_HordePickItem();
-        }
-        else {
-            monster->item = nullptr;
-        }
+		edict_t* monster = G_Spawn();
+		monster->classname = monster_classname;
 
-        VectorCopy(spawn_point->s.origin, monster->s.origin);
-        VectorCopy(spawn_point->s.angles, monster->s.angles);
-        ED_CallSpawn(monster);
+		// Decidir si dropear un ítem
+		if (frandom() <= drop_probability) {
+			monster->item = G_HordePickItem();
+		}
+		else {
+			monster->item = nullptr;
+		}
 
-        --g_horde_local.num_to_spawn;
-        ++spawned;
-    }
+		VectorCopy(spawn_point->s.origin, monster->s.origin);
+		VectorCopy(spawn_point->s.angles, monster->s.angles);
+		ED_CallSpawn(monster);
 
-    // Ajusta el tiempo de spawn para evitar spawn rápido
-    g_horde_local.monster_spawn_time = level.time + 1.5_sec; // Ajusta el tiempo entre spawns según sea necesario
+		vec3_t spawngrow_pos = monster->s.origin;
+		float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;
+		float end_size = start_size;
+		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+
+		--g_horde_local.num_to_spawn;
+		++spawned;
+	}
+
+	// Ajusta el tiempo de spawn para evitar spawn rápido
+	g_horde_local.monster_spawn_time = level.time + 1.5_sec; // Ajusta el tiempo entre spawns según sea necesario
 }
 
 
