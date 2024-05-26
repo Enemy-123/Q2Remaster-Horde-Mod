@@ -560,7 +560,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     float total_weight = 0.0f;
     bool spawn_flying = (spawn_point->style == 1); // Check if the style is 1
 
-    // Check wave number before allowing flying monsters
     int wave_to_allow_flying = 3; // Set this to the wave number you want to start allowing flying spawns
     if (g_horde_local.level < wave_to_allow_flying && spawn_flying) {
         return nullptr; // Disable flying spawns if the current wave number is less than the threshold
@@ -570,16 +569,16 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
         float weight = item.weight;
         if (spawn_flying) {
             if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
-                weight *= 1.0f; // Mantiene el peso de los monstruos voladores
+                weight *= adjustmentFactor; // Aumenta el peso de los monstruos voladores en flying spawns
             }
             else {
-                weight = 0.0f; // Establece el peso de los monstruos no voladores a 0
+                weight = 0.0f; // Establece el peso de los monstruos no voladores a 0 en flying spawns
             }
         }
         else {
             // Ajustar el peso de los monstruos voladores en spawns normales
             if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
-                weight *= adjustmentFactor;
+                weight *= 0.5; // Reduce el peso de los monstruos voladores en spawns normales
             }
         }
 
@@ -602,6 +601,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     return nullptr;
 }
+
 
 void Horde_PreInit() {
     wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);

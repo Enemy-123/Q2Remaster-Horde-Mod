@@ -1161,13 +1161,14 @@ float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
 std::map<edict_t*, gtime_t> lastSpawnTime; // Mapa para almacenar el último tiempo de uso de cada punto de spawn
 
 bool SpawnPointAvailable(edict_t* point, gtime_t spawnCooldown) {
-	if (lastSpawnTime.find(point) != lastSpawnTime.end() &&
-		(level.time - lastSpawnTime[point]) < spawnCooldown) {
-		return false; // El punto de spawn está en enfriamiento
+	if (point->svflags & SVF_MONSTER) { // Verifica si el punto de spawn es para un monstruo
+		if (lastSpawnTime.find(point) != lastSpawnTime.end() &&
+			(level.time - lastSpawnTime[point]) < spawnCooldown) {
+			return false; // El punto de spawn está en enfriamiento
+		}
 	}
 	return true;
 }
-
 // Estructura para almacenar puntos de spawn y sus distancias
 struct spawn_point_t {
 	edict_t* point;
@@ -1224,13 +1225,13 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 	// Ajustar el tiempo de enfriamiento basado en el tamaño del mapa
 	gtime_t spawnCooldown;
 	if (mapSize.isSmallMap) {
-		spawnCooldown = gtime_t::from_sec(2.5f); // Ejemplo para mapas pequeños
+		spawnCooldown = gtime_t::from_sec(3.5f); // Ejemplo para mapas pequeños
 	}
 	else if (mapSize.isBigMap) {
-		spawnCooldown = gtime_t::from_sec(3.5f); // Ejemplo para mapas grandes
+		spawnCooldown = gtime_t::from_sec(4.5f); // Ejemplo para mapas grandes
 	}
 	else {
-		spawnCooldown = gtime_t::from_sec(3.0f); // Ejemplo para mapas medianos
+		spawnCooldown = gtime_t::from_sec(4.0f); // Ejemplo para mapas medianos
 	}
 
 	if (current_wave_number % 4 == 0) {  // Cada 4 olas, incrementa la dificultad
