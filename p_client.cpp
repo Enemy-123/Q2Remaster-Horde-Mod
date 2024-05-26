@@ -3122,7 +3122,8 @@ Will not be called between levels.
 */
 void ClientDisconnect(edict_t* ent)
 {
-	if (!ent || !ent->client)
+	//if (!ent || !ent->client)
+	if (!ent->client)
 		return;
 
 	// ZOID
@@ -3451,10 +3452,10 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
-	if (!ent || !ucmd)
-	{
-		return;
-	}
+	//if (!ent || !ucmd)
+	//{
+	//	return;
+	//}
 
 	gclient_t* client;
 	edict_t* other;
