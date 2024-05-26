@@ -17,6 +17,9 @@ bool boss_spawned_for_wave = false; // Variable de control para el jefe
 int remainingMonsters = 0; // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
+constexpr gtime_t MONSTER_COOLDOWN = 2.5_sec; // Cooldown en segundos para los monstruos
+constexpr gtime_t SPAWN_POINT_COOLDOWN = 4.0_sec; // Cooldown en segundos para los puntos de spawn
+
 constexpr int BOSS_TO_SPAWN = 1;
 cvar_t* g_horde;
 
@@ -39,6 +42,8 @@ bool next_wave_message_sent = false;
 int vampire_level = 0;
 std::vector<std::string> shuffled_benefits;
 std::unordered_set<std::string> obtained_benefits;
+std::unordered_map<const char*, gtime_t> lastMonsterSpawnTime;
+std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
 
 const std::unordered_set<std::string> smallMaps = {
     "q2dm3", "q2dm7", "q2dm2", "q2ctf4", "q64/dm10", "q64\\dm10",
@@ -551,34 +556,44 @@ float adjustFlyingSpawnProbability(int flyingSpawns) {
     }
     return 1.0f; // Mantén la probabilidad normal si no hay spawns dedicados.
 }
-
 const char* G_HordePickMonster(edict_t* spawn_point) {
-    int flyingSpawns = countFlyingSpawns();  // Contar los spawns de tipo `style = 1`
+    // Verificar cooldown del punto de spawn
+    if (lastSpawnPointTime.find(spawn_point) != lastSpawnPointTime.end() &&
+        (level.time - lastSpawnPointTime[spawn_point] < SPAWN_POINT_COOLDOWN)) {
+        return nullptr;  // Punto de spawn en cooldown
+    }
+
+    int flyingSpawns = countFlyingSpawns();
     float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
     std::vector<picked_item_t> picked_monsters;
     float total_weight = 0.0f;
-    bool spawn_flying = (spawn_point->style == 1); // Check if the style is 1
+    bool spawn_flying = (spawn_point->style == 1); // Comprobar si el estilo es de vuelo
 
-    int wave_to_allow_flying = 3; // Set this to the wave number you want to start allowing flying spawns
+    int wave_to_allow_flying = 3;
     if (g_horde_local.level < wave_to_allow_flying && spawn_flying) {
-        return nullptr; // Disable flying spawns if the current wave number is less than the threshold
+        return nullptr; // Deshabilitar spawns voladores si el nivel de ola es bajo
     }
 
     for (auto& item : monsters) {
+        // Verificar cooldown del tipo de monstruo
+        if (lastMonsterSpawnTime.find(item.classname) != lastMonsterSpawnTime.end() &&
+            (level.time - lastMonsterSpawnTime[item.classname] < MONSTER_COOLDOWN)) {
+            continue;  // Tipo de monstruo en cooldown
+        }
+
         float weight = item.weight;
         if (spawn_flying) {
             if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
-                weight *= adjustmentFactor; // Aumenta el peso de los monstruos voladores en flying spawns
+                weight *= adjustmentFactor; // Ajustar peso para spawns voladores
             }
             else {
-                weight = 0.0f; // Establece el peso de los monstruos no voladores a 0 en flying spawns
+                weight = 0.0f; // Monstruos no voladores no pueden spawnear aquí
             }
         }
         else {
-            // Ajustar el peso de los monstruos voladores en spawns normales
             if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
-                weight *= 0.5; // Reduce el peso de los monstruos voladores en spawns normales
+                weight *= 0.5; // Ajustar peso para spawns normales
             }
         }
 
@@ -595,6 +610,8 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     float r = frandom() * total_weight;
     for (const auto& monster : picked_monsters) {
         if (r < monster.weight) {
+            lastMonsterSpawnTime[monster.item->classname] = level.time; // Registrar uso del tipo de monstruo
+            lastSpawnPointTime[spawn_point] = level.time; // Registrar uso del punto de spawn
             return monster.item->classname;
         }
     }

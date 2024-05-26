@@ -1,4 +1,4 @@
-// Copyright (c) ZeniMax Media Inc.
+ï»¿// Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "m_player.h"
@@ -97,7 +97,7 @@ bool P_UseCoopInstancedItems()
 
 //=======================================================================
 
-// Declarar la función GetDisplayName y GetTitleFromFlags
+// Declarar la funciï¿½n GetDisplayName y GetTitleFromFlags
 extern std::string GetDisplayName(edict_t* ent);
 extern std::string GetTitleFromFlags(int bonus_flags);
 
@@ -876,13 +876,13 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 
 	client->pers.health = 100;
 	client->pers.max_health = 100;
-	
+
 }
 
 void SaveClientWeaponBeforeDeath(gclient_t* client)
 {
 	client->resp.weapon = client->pers.weapon;
-	client->resp.max_health = client->pers.max_health; // Guardar la salud máxima
+	client->resp.max_health = client->pers.max_health; // Guardar la salud mÃ¡xima
 }
 /*
 ==============
@@ -907,7 +907,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.max_health = client->resp.max_health > 0 ? client->resp.max_health : 100;
 
 	if (g_horde->integer) {
-		// Ajustar health y max_health basado en el número de oleadas actuales
+		// Ajustar health y max_health basado en el nÃºmero de oleadas actuales
 		if (current_wave_number >= 25 && current_wave_number <= 200) {
 			client->pers.max_health = max(200, client->pers.max_health);
 		}
@@ -949,7 +949,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	if (client->resp.weapon) {
 		client->pers.weapon = client->resp.weapon;
 		client->pers.selected_item = client->resp.weapon->id;
-		client->pers.inventory[client->pers.selected_item] = 1; // Asegurarse de que el arma esté en el inventario
+		client->pers.inventory[client->pers.selected_item] = 1; // Asegurarse de que el arma estÃ© en el inventario
 	}
 	else {
 		gitem_t* item = FindItem("Blaster");
@@ -957,9 +957,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.inventory[item->id] = 1;
 		client->pers.weapon = item;
 	}
-// don't give us weapons if we shouldn't have any
-//	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
-//		(!G_TeamplayEnabled() && !client->resp.spectator))
+	// don't give us weapons if we shouldn't have any
+	//	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||  // looking to fix no weapons bug
+	//		(!G_TeamplayEnabled() && !client->resp.spectator))
 	{
 		// in coop, if there's already a player in the game and we're new,
 		// steal their loadout. this would fix a potential softlock where a new
@@ -998,9 +998,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.max_ammo[AMMO_TESLA] = 12;
 
 			}
-		else
-			// fill with 50s, since it's our most common value
-			client->pers.max_ammo.fill(50);
+			else
+				// fill with 50s, since it's our most common value
+				client->pers.max_ammo.fill(50);
 			client->pers.max_ammo[AMMO_BULLETS] = 250;
 			client->pers.max_ammo[AMMO_SHELLS] = 100;
 			client->pers.max_ammo[AMMO_CELLS] = 250;
@@ -1012,7 +1012,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.max_ammo[AMMO_FLECHETTES] = 250;
 			client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
 			client->pers.max_ammo[AMMO_TESLA] = 5;
-			
+
 			// ROGUE
 
 			if (G_IsDeathmatch())
@@ -1036,11 +1036,11 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
 			if (G_IsDeathmatch())
-			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 			// starting items for horde mod
-			if (G_IsDeathmatch() && g_horde->integer && current_wave_number >=5 && current_wave_number < 10)
+			if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number < 10)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
@@ -1060,7 +1060,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
-			} 
+			}
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
 				(ctf->integer ? !level.no_grapple : 0) :
@@ -1145,49 +1145,46 @@ void FetchClientEntData(edict_t* ent)
 	if (G_IsCooperative())
 		ent->client->resp.score = ent->client->pers.score;
 }
-#include <map>
-#include <vector>
-#include <algorithm>
-#include <float.h>
-#include "g_local.h"
-#include "shared.h" // Incluir la cabecera correcta
 
-float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
-	vec3_t v{};
-	VectorSubtract(v1, v2, v);
-	return VectorLength(v);
-}
+/*
+=======================================================================
 
-std::map<edict_t*, gtime_t> lastSpawnTime; // Mapa para almacenar el último tiempo de uso de cada punto de spawn
+  SelectSpawnPoint
 
-bool SpawnPointAvailable(edict_t* point, gtime_t spawnCooldown) {
-	if (point->svflags & SVF_MONSTER) { // Verifica si el punto de spawn es para un monstruo
-		if (lastSpawnTime.find(point) != lastSpawnTime.end() &&
-			(level.time - lastSpawnTime[point]) < spawnCooldown) {
-			return false; // El punto de spawn está en enfriamiento
-		}
-	}
-	return true;
-}
-// Estructura para almacenar puntos de spawn y sus distancias
-struct spawn_point_t {
-	edict_t* point;
-	float dist;
-};
+=======================================================================
+*/
 
-// Funciones para manejo de spawn points
-float PlayersRangeFromSpot(edict_t* spot) {
-	float bestplayerdistance = FLT_MAX;
-	vec3_t v{};
+/*
+================
+PlayersRangeFromSpot
 
-	for (uint32_t n = 1; n <= game.maxclients; n++) {
-		edict_t* player = &g_edicts[n];
+Returns the distance to the nearest player from the given spot
+================
+*/
+float PlayersRangeFromSpot(edict_t* spot)
+{
+	edict_t* player;
+	float	 bestplayerdistance;
+	vec3_t	 v;
+	float	 playerdistance;
 
-		if (!player->inuse || !player->solid || player->health <= 0)
+	bestplayerdistance = 9999999;
+
+	for (uint32_t n = 1; n <= game.maxclients; n++)
+	{
+		player = &g_edicts[n];
+
+		if (!player->inuse)
 			continue;
 
-		VectorSubtract(spot->s.origin, player->s.origin, v);
-		float playerdistance = VectorLength(v);
+		if (!player->solid)
+			continue;
+
+		if (player->health <= 0)
+			continue;
+
+		v = spot->s.origin - player->s.origin;
+		playerdistance = v.length();
 
 		if (playerdistance < bestplayerdistance)
 			bestplayerdistance = playerdistance;
@@ -1196,86 +1193,110 @@ float PlayersRangeFromSpot(edict_t* spot) {
 	return bestplayerdistance;
 }
 
-float MonsterRangeFromSpot(edict_t* spot) {
-	float total_distance = 0.0f;
-	unsigned int count = 0; // Cambiado a unsigned int
-
-	for (unsigned int i = 0; i < globals.num_edicts; ++i) { // Cambiado a unsigned int
-		edict_t* ent = &g_edicts[i];
-		if (!ent->inuse || !ent->solid || !(ent->svflags & SVF_MONSTER))
-			continue;
-
-		float dist = VectorDistance(spot->s.origin, ent->s.origin);
-		total_distance += dist;
-		count++;
-	}
-
-	return (count > 0) ? total_distance / count : FLT_MAX; // Retorna la distancia promedio o un valor alto si no hay monstruos.
-}
-
-bool SpawnPointClear(edict_t* spot) {
-	vec3_t p = { spot->s.origin.x, spot->s.origin.y, spot->s.origin.z + 9.0f };
+bool SpawnPointClear(edict_t* spot)
+{
+	vec3_t p = spot->s.origin + vec3_t{ 0, 0, 9.f };
 	return !gi.trace(p, PLAYER_MINS, PLAYER_MAXS, p, spot, CONTENTS_PLAYER | CONTENTS_MONSTER).startsolid;
 }
 
-// Actualiza la función de selección de punto de spawn para considerar la disponibilidad
-select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start) {
-	auto mapSize = GetMapSize(level.mapname);
+select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start)
+{
+	struct spawn_point_t
+	{
+		edict_t* point;
+		float dist;
+	};
 
-	// Ajustar el tiempo de enfriamiento basado en el tamaño del mapa
-	gtime_t spawnCooldown;
-	if (mapSize.isSmallMap) {
-		spawnCooldown = gtime_t::from_sec(3.5f); // Ejemplo para mapas pequeños
-	}
-	else if (mapSize.isBigMap) {
-		spawnCooldown = gtime_t::from_sec(4.5f); // Ejemplo para mapas grandes
-	}
-	else {
-		spawnCooldown = gtime_t::from_sec(4.0f); // Ejemplo para mapas medianos
-	}
+	static std::vector<spawn_point_t> spawn_points;
 
-	if (current_wave_number % 4 == 0) {  // Cada 4 olas, incrementa la dificultad
-		spawnCooldown -= gtime_t::from_sec(0.5f);
-		if (spawnCooldown <= gtime_t::from_sec(2.0f)) {
-			spawnCooldown = gtime_t::from_sec(2.0f);
-		}
-	}
+	spawn_points.clear();
 
-	std::vector<spawn_point_t> spawn_points;
-
+	// gather all spawn points 
 	edict_t* spot = nullptr;
-	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
-		if (SpawnPointAvailable(spot, spawnCooldown) && SpawnPointClear(spot)) {
-			spawn_points.push_back({ spot, MonsterRangeFromSpot(spot) });
+
+	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr)
+		spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+
+	// no points
+	if (spawn_points.size() == 0)
+	{
+		// try CTF spawns...
+		if (fallback_to_ctf_or_start)
+		{
+			spot = nullptr;
+			while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_team1")) != nullptr)
+				spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+			spot = nullptr;
+			while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_team2")) != nullptr)
+				spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+
+			// we only have an info_player_start then
+			if (spawn_points.size() == 0)
+			{
+				spot = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+
+				if (spot)
+					spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+
+				// map is malformed
+				if (spawn_points.size() == 0)
+					return { nullptr, false };
+			}
 		}
+		else
+			return { nullptr, false };
 	}
 
-	if (spawn_points.empty()) {
-		// Implementar lógica de fallback si es necesario
-		return { nullptr, false };
+	// if there's only one spawn point, that's the one.
+	if (spawn_points.size() == 1)
+	{
+		if (force_spawn || SpawnPointClear(spawn_points[0].point))
+			return { spawn_points[0].point, true };
+
+		return { nullptr, true };
 	}
 
-	// Ordenar por la distancia media a monstruos, el más alejado primero
-	std::sort(spawn_points.begin(), spawn_points.end(), [](const spawn_point_t& a, const spawn_point_t& b) {
-		return a.dist > b.dist;
-		});
+	// order by distances ascending (top of list has closest players to point)
+	std::sort(spawn_points.begin(), spawn_points.end(), [](const spawn_point_t& a, const spawn_point_t& b) { return a.dist < b.dist; });
 
-	// Elegir el punto de spawn más alejado que esté libre
-	for (const auto& spawn : spawn_points) {
-		if (SpawnPointClear(spawn.point)) {
-			lastSpawnTime[spawn.point] = level.time;  // Actualiza el tiempo de uso solo cuando el punto de spawn es utilizado
-			return { spawn.point, true };
+	// farthest spawn is simple
+	if (farthest)
+	{
+		for (int32_t i = spawn_points.size() - 1; i >= 0; --i)
+		{
+			if (SpawnPointClear(spawn_points[i].point))
+				return { spawn_points[i].point, true };
 		}
+
+		// none clear
+	}
+	else
+	{
+		// for random, select a random point other than the two
+		// that are closest to the player if possible.
+		// shuffle the non-distance-related spawn points
+		std::shuffle(spawn_points.begin() + 2, spawn_points.end(), mt_rand);
+
+		// run down the list and pick the first one that we can use
+		for (auto it = spawn_points.begin() + 2; it != spawn_points.end(); ++it)
+		{
+			auto spot = it->point;
+
+			if (SpawnPointClear(spot))
+				return { spot, true };
+		}
+
+		// none clear, so we have to pick one of the other two
+		if (SpawnPointClear(spawn_points[1].point))
+			return { spawn_points[1].point, true };
+		else if (SpawnPointClear(spawn_points[0].point))
+			return { spawn_points[0].point, true };
 	}
 
-	// Fallback si es forzoso spawnear
-	if (force_spawn && !spawn_points.empty()) {
-		auto random_point = spawn_points[rand() % spawn_points.size()].point;
-		lastSpawnTime[random_point] = level.time;  // Actualiza el tiempo de uso solo cuando el punto de spawn es utilizado
-		return { random_point, true };
-	}
+	if (force_spawn)
+		return { random_element(spawn_points).point, true };
 
-	return { nullptr, false };
+	return { nullptr, true };
 }
 
 //===============
@@ -1790,7 +1811,7 @@ void respawn(edict_t* self)
 {
 	if (G_IsDeathmatch() || G_IsCooperative())
 	{
-		// Guardar el arma y la salud máxima antes de la muerte
+		// Guardar el arma y la salud mï¿½xima antes de la muerte
 		SaveClientWeaponBeforeDeath(self->client);
 
 		// spectators don't leave bodies
@@ -1804,7 +1825,7 @@ void respawn(edict_t* self)
 		return;
 	}
 
-	// Lógica adicional para otros modos...
+	// Lï¿½gica adicional para otros modos...
 }
 
 /*
@@ -2148,66 +2169,66 @@ Called when a player connects to a server or respawns in
 a deathmatch.
 ============
 */
-		void PutClientInServer(edict_t * ent)
+void PutClientInServer(edict_t* ent)
+{
+	int					index;
+	vec3_t				spawn_origin, spawn_angles;
+	gclient_t* client;
+	client_persistant_t saved;
+	client_respawn_t	resp;
+
+	index = ent - g_edicts - 1;
+	client = ent->client;
+
+	// clear velocity now, since landmark may change it
+	ent->velocity = {};
+
+	bool keepVelocity = client->landmark_name != nullptr;
+
+	if (keepVelocity)
+		ent->velocity = client->oldvelocity;
+
+	// find a spawn point
+	// do it before setting health back up, so farthest
+	// ranging doesn't count this client
+	bool valid_spawn = false;
+	bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
+	bool is_landmark = false;
+
+	if (use_squad_respawn)
+	{
+		spawn_origin = squad_respawn_position;
+		spawn_angles = squad_respawn_angles;
+		valid_spawn = true;
+	}
+	else if (gamerules->integer && DMGame.SelectSpawnPoint) // PGM
+		valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn); // PGM
+	else										  // PGM
+		valid_spawn = SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn, is_landmark);
+
+	// [Paril-KEX] if we didn't get a valid spawn, hold us in
+	// limbo for a while until we do get one
+	if (!valid_spawn)
+	{
+		// only do this once per spawn
+		if (!client->awaiting_respawn)
 		{
-			int					index;
-			vec3_t				spawn_origin, spawn_angles;
-			gclient_t* client;
-			client_persistant_t saved;
-			client_respawn_t	resp;
+			char userinfo[MAX_INFO_STRING];
+			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+			ClientUserinfoChanged(ent, userinfo);
 
-			index = ent - g_edicts - 1;
-			client = ent->client;
+			client->respawn_timeout = level.time + 0_ms;
+		}
 
-			// clear velocity now, since landmark may change it
-			ent->velocity = {};
+		// Inicializar target_health_str y last_statusbar
+		ent->client->target_health_str.clear();
+		ent->client->last_statusbar.clear();
 
-			bool keepVelocity = client->landmark_name != nullptr;
-
-			if (keepVelocity)
-				ent->velocity = client->oldvelocity;
-
-			// find a spawn point
-			// do it before setting health back up, so farthest
-			// ranging doesn't count this client
-			bool valid_spawn = false;
-			bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
-			bool is_landmark = false;
-
-			if (use_squad_respawn)
-			{
-				spawn_origin = squad_respawn_position;
-				spawn_angles = squad_respawn_angles;
-				valid_spawn = true;
-			}
-			else if (gamerules->integer && DMGame.SelectSpawnPoint) // PGM
-				valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn); // PGM
-			else										  // PGM
-				valid_spawn = SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn, is_landmark);
-
-			// [Paril-KEX] if we didn't get a valid spawn, hold us in
-			// limbo for a while until we do get one
-			if (!valid_spawn)
-			{
-				// only do this once per spawn
-				if (!client->awaiting_respawn)
-				{
-					char userinfo[MAX_INFO_STRING];
-					memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
-					ClientUserinfoChanged(ent, userinfo);
-
-					client->respawn_timeout = level.time + 0_ms;
-				}
-
-					// Inicializar target_health_str y last_statusbar
-					ent->client->target_health_str.clear();
-					ent->client->last_statusbar.clear();
-
-					// Inicializar y actualizar el HUD inmediatamente después de que el jugador entre al juego
-					statusbar_t sb;
-					G_InitStatusbar(sb);
-					//UpdateHUD(sb, ent);
-					gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
+		// Inicializar y actualizar el HUD inmediatamente despuï¿½s de que el jugador entre al juego
+		statusbar_t sb;
+		G_InitStatusbar(sb);
+		//UpdateHUD(sb, ent);
+		gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 
 		// find a spot to place us
 		if (!level.respawn_intermission)
@@ -2305,7 +2326,7 @@ a deathmatch.
 #include "g_statusbar.h"
 #include "g_local.h"
 
-		// Inicializar y actualizar el HUD inmediatamente después de que el jugador entre al juego
+		// Inicializar y actualizar el HUD inmediatamente despuï¿½s de que el jugador entre al juego
 		statusbar_t sb;
 		G_InitStatusbar(sb);
 		//UpdateHUD(sb, ent);
@@ -3123,7 +3144,6 @@ Will not be called between levels.
 */
 void ClientDisconnect(edict_t* ent)
 {
-	//if (!ent || !ent->client)
 	if (!ent->client)
 		return;
 
@@ -3354,7 +3374,7 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 
 
 extern bool ClientIsSpectating(gclient_t* cl);
-extern void CTFJoinTeam(edict_t * ent, ctfteam_t desired_team);
+extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
 	gtime_t inactivity_duration = 35_sec; // 20 segundos para prueba
 
@@ -3367,7 +3387,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		inactivity_duration = 15_sec;
 	}
 
-	// Configurar el tiempo de inactividad si no está establecido
+	// Configurar el tiempo de inactividad si no estï¿½ establecido
 	if (!ent->client->resp.inactivity_time) {
 		ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
@@ -3375,14 +3395,14 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		return true;
 	}
 
-	// Verificar si el jugador está en un estado donde no se debe aplicar inactividad
+	// Verificar si el jugador estï¿½ en un estado donde no se debe aplicar inactividad
 	if (!g_horde->integer || ClientIsSpectating(ent->client) || (ent->svflags & SVF_BOT)) {
 		ent->client->resp.inactivity_time = (level.time) + 1_min; // 1 minuto
 		ent->client->resp.inactivity_warning = false;
 		ent->client->resp.inactive = false;
 	}
 	else {
-		// Verificar si el jugador está activo
+		// Verificar si el jugador estï¿½ activo
 		bool is_active = (ent->client->latched_buttons & BUTTON_ANY) ||
 			ent->client->old_origin[0] != ent->s.origin[0] ||
 			ent->client->old_origin[1] != ent->s.origin[1] ||
@@ -3392,14 +3412,14 @@ static bool ClientInactivityTimer(edict_t* ent) {
 			ent->client->old_angles[2] != ent->client->v_angle[2];
 
 		if (is_active) {
-			// Si el jugador está activo, restablecer el temporizador de inactividad
+			// Si el jugador estï¿½ activo, restablecer el temporizador de inactividad
 			ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
 			ent->client->resp.inactivity_warning = false;
 			ent->client->resp.inactive = false;
 		}
 		else {
 			// Obtener el tiempo actual
-			 gtime_t current_time = (level.time);
+			gtime_t current_time = (level.time);
 
 			// Verificar si el tiempo de inactividad ha expirado
 			if (current_time > ent->client->resp.inactivity_time) {
@@ -3409,7 +3429,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 				return false;
 			}
 
-			// Dar una advertencia si está cerca del tiempo de inactividad
+			// Dar una advertencia si estï¿½ cerca del tiempo de inactividad
 			if (current_time > ent->client->resp.inactivity_time - 5_sec && !ent->client->resp.inactivity_warning) {
 				ent->client->resp.inactivity_warning = true;
 				gi.LocClient_Print(ent, PRINT_CENTER, "5 seconds to go AFK!\n");
@@ -3424,7 +3444,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 	}
 
 	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
-	// Actualizar old_origin y old_angles después de procesar la entrada del jugador
+	// Actualizar old_origin y old_angles despuï¿½s de procesar la entrada del jugador
 	VectorCopy(ent->s.origin, ent->client->old_origin);
 	VectorCopy(ent->client->v_angle, ent->client->old_angles);
 
@@ -3453,10 +3473,7 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
-	//if (!ent || !ucmd)
-	//{
-	//	return;
-	//}
+
 
 	gclient_t* client;
 	edict_t* other;
@@ -3923,7 +3940,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 
 		// check if any monsters are currently targeting us
 		// or searching for us
-		if (G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative() ) // Ignoring if monsters are searching for us
+		if (G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative()) // Ignoring if monsters are searching for us
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
