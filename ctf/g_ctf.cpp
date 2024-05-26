@@ -1073,7 +1073,7 @@ void CTFSetIDView(edict_t* ent) {
 	float min_dot = 0.93f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
 
 	// Reduce the update interval
-	if (level.time - ent->client->resp.lastidtime < 50_ms)
+	if (level.time - ent->client->resp.lastidtime < 85_ms)
 		return;
 
 	ent->client->resp.lastidtime = level.time;

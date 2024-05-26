@@ -1235,8 +1235,8 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 
 	if (current_wave_number % 4 == 0) {  // Cada 4 olas, incrementa la dificultad
 		spawnCooldown -= gtime_t::from_sec(0.5f);
-		if (spawnCooldown <= gtime_t::from_sec(1.0f)) {
-			spawnCooldown = gtime_t::from_sec(1.0f);
+		if (spawnCooldown <= gtime_t::from_sec(2.0f)) {
+			spawnCooldown = gtime_t::from_sec(2.0f);
 		}
 	}
 

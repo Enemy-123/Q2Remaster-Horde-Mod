@@ -284,16 +284,16 @@ constexpr struct weighted_item_t {
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
-    { "weapon_supershotgun", 4, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_supershotgun", 4, -1, 0.16f, adjust_weight_weapon },
     { "weapon_machinegun", -1, -1, 0.29f, adjust_weight_weapon },
     { "weapon_etf_rifle", 3, -1, 0.19f, adjust_weight_weapon },
     { "weapon_boomer", 4, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_chaingun", 5, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_chaingun", 6, -1, 0.19f, adjust_weight_weapon },
     { "weapon_grenadelauncher", 6, -1, 0.19f, adjust_weight_weapon },
     { "weapon_proxlauncher", 8, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_hyperblaster", 7, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_phalanx", 9, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_rocketlauncher", 6, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_hyperblaster", 9, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_phalanx", 6, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_rocketlauncher", 7, -1, 0.19f, adjust_weight_weapon },
     { "weapon_railgun", 9, -1, 0.19f, adjust_weight_weapon },
     { "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },
     { "weapon_disintegrator", 14, -1, 0.15f, adjust_weight_weapon },
@@ -955,7 +955,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
             timeThreshold = (current_wave_number <= 4) ? 18 : 12;
         }
         else {
-            maxMonsters = (current_wave_number <= 4) ? 3 : 6;
+            maxMonsters = (current_wave_number <= 4) ? 3 : 8;
             timeThreshold = (current_wave_number <= 4) ? 7 : 15;
         }
 
@@ -1182,7 +1182,7 @@ void Horde_RunFrame() {
                 }
             }
             else {
-                remainingMonsters = level.total_monsters - level.killed_monsters;
+                remainingMonsters = level.total_monsters + 1 - level.killed_monsters;
                 g_horde_local.monster_spawn_time = level.time + 3_sec;
             }
         }
