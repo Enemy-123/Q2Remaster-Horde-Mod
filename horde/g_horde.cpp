@@ -548,7 +548,7 @@ int countFlyingSpawns() {
 float adjustFlyingSpawnProbability(int flyingSpawns) {
     if (flyingSpawns > 0) {
         // Si hay spawns dedicados solo para monstruos voladores, reducir la probabilidad de seleccionar voladores en otros puntos.
-        return 0.5f; // Reduce la probabilidad a la mitad, ajustable según tus necesidades.
+        return 0.75f; // Reduce la probabilidad a la mitad, ajustable según tus necesidades.
     }
     return 1.0f; // Mantén la probabilidad normal si no hay spawns dedicados.
 }
@@ -560,6 +560,12 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     std::vector<picked_item_t> picked_monsters;
     float total_weight = 0.0f;
     bool spawn_flying = (spawn_point->style == 1); // Check if the style is 1
+
+    // Check wave number before allowing flying monsters
+    int wave_to_allow_flying = 3; // Set this to the wave number you want to start allowing flying spawns
+    if (g_horde_local.level < wave_to_allow_flying && spawn_flying) {
+        return nullptr; // Disable flying spawns if the current wave number is less than the threshold
+    }
 
     for (auto& item : monsters) {
         float weight = item.weight;
@@ -597,7 +603,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     return nullptr;
 }
-
 
 void Horde_PreInit() {
     wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
@@ -984,6 +989,33 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     return false;
 }
 
+void SpawnMonsters() {
+    const int monsters_per_spawn = 3; // Ajusta la cantidad de monstruos que deseas spawnar en cada llamada
+    int spawned = 0;
+
+    for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
+        edict_t* spawn_point = SelectDeathmatchSpawnPoint(true, true, false).spot; // Seleccionar punto de spawn
+        if (!spawn_point) continue;
+
+        const char* monster_classname = G_HordePickMonster(spawn_point);
+        if (!monster_classname) continue;
+
+        edict_t* monster = G_Spawn();
+        monster->classname = monster_classname;
+        monster->item = G_HordePickItem();
+        VectorCopy(spawn_point->s.origin, monster->s.origin);
+        VectorCopy(spawn_point->s.angles, monster->s.angles);
+        ED_CallSpawn(monster);
+
+        --g_horde_local.num_to_spawn;
+        ++spawned;
+    }
+
+    // Ajusta el tiempo de spawn para evitar spawn rápido
+    g_horde_local.monster_spawn_time = level.time + 1.5_sec; // Ajusta el tiempo entre spawns según sea necesario
+}
+
+
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);
 
@@ -1037,60 +1069,22 @@ void Horde_RunFrame() {
                 SpawnBossAutomatically();
             }
 
-            edict_t* e = G_Spawn();
-            select_spawn_result_t result = SelectDeathmatchSpawnPoint(false, true, false);
+            // Limitar el número de monstruos activos simultáneamente en el mapa
+            int activeMonsters = level.total_monsters - level.killed_monsters;
+            int maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+                mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP :
+                MAX_MONSTERS_BIG_MAP;
 
-            if (result.any_valid) {
-                e->classname = G_HordePickMonster(result.spot); // Pasar el punto de spawn
-                e->s.origin = result.spot->s.origin;
-                e->s.angles = result.spot->s.angles;
-                e->item = G_HordePickItem();
-                ED_CallSpawn(e);
-                remainingMonsters = level.total_monsters - level.killed_monsters;
-
-                vec3_t spawngrow_pos = e->s.origin;
-                float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;
-                float end_size = start_size;
-                SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
-
-                if (!Q_strcasecmp(level.mapname, "mgu4trial")) {
-                    e->s.renderfx = RF_GLOW;
-                    e->s.effects = EF_GRENADE_LIGHT;
-                }
-
-                e->monsterinfo.power_armor_power *= g_horde_local.level * 0.035;
-                e->gib_health = -100;
-
-                std::srand(static_cast<unsigned int>(std::time(nullptr)));
-                int randomIndex = std::rand() % game.maxclients + 1;
-                e->enemy = &g_edicts[randomIndex];
-                e->enemy->monsterinfo.aiflags &= AI_NO_PATH_FINDING;
-
-                HuntTarget(e);
-
-                if ((g_chaotic->integer == 2 && current_wave_number >= 7) || (g_insane->integer && current_wave_number < 20)) {
-                    g_horde_local.monster_spawn_time = level.time + random_time(0.6_sec, 1.2_sec);
-                }
-                else if (!g_insane->integer || !g_chaotic->integer) {
-                    g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.9_sec);
-                }
-                else if (g_chaotic->integer == 1 || (g_insane->integer && current_wave_number >= 21)) {
-                    g_horde_local.monster_spawn_time = level.time + random_time(0.4_sec, 0.6_sec);
-                }
-
-                --g_horde_local.num_to_spawn;
-
-                if (!g_horde_local.num_to_spawn) {
-                    std::ostringstream message_stream;
-                    message_stream << "New Wave Is Here.\nWave Level: " << g_horde_local.level << "\n";
-                    gi.LocBroadcast_Print(PRINT_TYPEWRITER, message_stream.str().c_str());
-                    g_horde_local.state = horde_state_t::cleanup;
-                    g_horde_local.monster_spawn_time = level.time + 1_sec;
-                }
+            if (activeMonsters < maxMonsters) {
+                SpawnMonsters();
             }
-            else {
-                remainingMonsters = level.total_monsters - level.killed_monsters;
-                g_horde_local.monster_spawn_time = level.time + 0.5_sec;
+
+            if (!g_horde_local.num_to_spawn) {
+                std::ostringstream message_stream;
+                message_stream << "New Wave Is Here.\nWave Level: " << g_horde_local.level << "\n";
+                gi.LocBroadcast_Print(PRINT_TYPEWRITER, message_stream.str().c_str());
+                g_horde_local.state = horde_state_t::cleanup;
+                g_horde_local.monster_spawn_time = level.time + 1_sec;
             }
         }
         break;
