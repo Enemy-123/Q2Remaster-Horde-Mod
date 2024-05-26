@@ -125,7 +125,7 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->health *= 2.0f;
         monster->monsterinfo.power_armor_power *= 1.5f;
         monster->initial_max_health = monster->health; // Incrementar initial_max_health
-        monster->monsterinfo.double_time = max(level.time, monster->monsterinfo.double_time) + 10_sec;
+        monster->monsterinfo.double_time = max(level.time, monster->monsterinfo.double_time) + 15_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_CORRUPTED) {
         monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
@@ -137,14 +137,14 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->s.effects |= EF_BLUEHYPERBLASTER;
         monster->s.renderfx |= RF_TRANSLUCENT;
         monster->monsterinfo.power_armor_power *= 4.0f;
-        monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 6_sec;
+        monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
         monster->s.effects |= EF_GIB | EF_FLAG2;
         monster->health *= 1.5f;
         monster->monsterinfo.power_armor_power *= 1.5f;
         monster->initial_max_health = monster->health; // Incrementar initial_max_health
-        monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 10_sec;
+        monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 15_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
         monster->s.effects |= EF_BARREL_EXPLODING;
@@ -152,15 +152,17 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->health *= 1.7f;
         monster->monsterinfo.power_armor_power *= 1.7f;
         monster->initial_max_health = monster->health; // Incrementar initial_max_health
+        monster->monsterinfo.attack_state = AS_BLIND;
     }
     if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
         monster->s.effects |= EF_TRACKER | EF_FLAG1;
         monster->health *= 1.6f;
         monster->monsterinfo.power_armor_power *= 1.6f;
         monster->initial_max_health = monster->health; // Incrementar initial_max_health
+        monster->monsterinfo.attack_state = AS_BLIND;
     }
 }
-
+//monster->monsterinfo.attack_state = AS_BLIND;
 void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isBigMap, float& health_multiplier, float& power_armor_multiplier) {
     // Resetea multiplicadores a valores predeterminados
     health_multiplier = 1.0f;
