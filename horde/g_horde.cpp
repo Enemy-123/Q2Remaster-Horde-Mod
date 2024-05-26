@@ -13,7 +13,7 @@
 constexpr int MAX_MONSTERS_BIG_MAP = 44;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
-
+bool boss_spawned_for_wave = false; // Variable de control para el jefe
 int remainingMonsters = 0; // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
@@ -51,11 +51,6 @@ const std::unordered_set<std::string> bigMaps = {
     "q2ctf5", "old/kmdm3", "xdm2", "xdm6"
 };
 
-struct MapSize {
-    bool isSmallMap = false;
-    bool isMediumMap = false;
-    bool isBigMap = false;
-};
 
 MapSize GetMapSize(const std::string& mapname) {
     MapSize mapSize;
@@ -93,7 +88,6 @@ void ShuffleBenefits() {
         std::iter_swap(vampire_it, upgraded_it);
     }
 }
-
 
 std::string SelectRandomBenefit(int wave) {
     std::vector<std::string> possible_benefits;
@@ -158,12 +152,22 @@ void CheckAndApplyBenefit(int wave) {
     }
 }
 
+void AdjustMonsterSpawnRate() {
+    if (current_wave_number % 5 == 0) {  // Cada 4 olas, incrementa la dificultad
+        g_horde_local.num_to_spawn++;
+        g_horde_local.monster_spawn_time -= 0.8_sec;  // Reducir el tiempo de enfriamiento
+        if (g_horde_local.monster_spawn_time < 0.7_sec) {
+            g_horde_local.monster_spawn_time = 0.7_sec;  // No menos de 0.7 segundos
+        }
+    }
+}
+
 void Horde_InitLevel(int32_t lvl) {
     current_wave_number++;
     last_wave_number++;
     g_horde_local.level = lvl;
     g_horde_local.monster_spawn_time = level.time;
-
+    boss_spawned_for_wave = false;
     auto mapSize = GetMapSize(level.mapname);
 
     CheckAndApplyBenefit(g_horde_local.level);
@@ -229,6 +233,8 @@ void Horde_InitLevel(int32_t lvl) {
         }
         g_horde_local.num_to_spawn += additionalSpawn;
     }
+
+    AdjustMonsterSpawnRate(); // Llamada a la función para ajustar la tasa de aparición
 }
 
 bool G_IsDeathmatch() {
@@ -395,7 +401,6 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_jorg", 14, -1, 0.15f},
 };
 
-
 const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
     if (mapSize.isSmallMap) return BOSS_SMALL;
     if (mapSize.isMediumMap) {
@@ -416,7 +421,6 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
         }
         return BOSS_MEDIUM;
     }
-
 
     if (mapSize.isBigMap) return BOSS_LARGE;
     return nullptr;
@@ -473,8 +477,6 @@ struct picked_item_t {
     float weight;
 };
 
-
-
 const char* flying_monster_classnames[] = {
     "monster_boss2_64",
     "monster_carrier2",
@@ -491,9 +493,6 @@ const char* SelectFlyingMonster() {
     int random_index = rand() % num_flying_monsters;
     return flying_monster_classnames[random_index];
 }
-
-
-
 
 gitem_t* G_HordePickItem()
 {
@@ -680,7 +679,6 @@ void Horde_Init() {
     g_horde_local.warm_time = level.time + 4_sec;
 }
 
-
 inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
     dest[0] = src[0];
     dest[1] = src[1];
@@ -783,7 +781,6 @@ static void Horde_CleanBodies() {
     }
 }
 
-
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
     if (!healthbar) return;
@@ -838,7 +835,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 };
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level % 5 == 0 && g_horde_local.level != 1) { // Evita que el jefe aparezca en la primera ola
+    if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0) { // Aparece desde la ola 10 y cada 5 olas
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();
@@ -859,9 +856,8 @@ void SpawnBossAutomatically() {
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
 
             // Apply bonus flags and ensure health multiplier is applied correctly if wave 10 or more
-            if (g_horde_local.level >= 9) {
-                ApplyMonsterBonusFlags(boss);
-            }
+            ApplyMonsterBonusFlags(boss);
+
             boss->monsterinfo.attack_state = AS_BLIND;
             boss->accel *= 2;
             boss->maxs *= boss->s.scale;
@@ -992,20 +988,33 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 
 // Función para decidir si se usa el spawn más lejano basado en el nivel actual
 bool UseFarthestSpawn() {
-    if (g_horde_local.level <= 10) {
-        return (rand() % 2 == 0);  // 50% de probabilidad a partir del nivel 10
+    if (g_horde_local.level >= 15) {
+        return (rand() % 2 == 0);  // 50% de probabilidad a partir del nivel 15
     }
     return false;
 }
 
-
 void SpawnMonsters() {
-    // Determinar la cantidad de monstruos por spawn basado en el nivel actual
-    int monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2; // Ajusta según necesidad
+    auto mapSize = GetMapSize(level.mapname);
+
+    // Determinar la cantidad de monstruos por spawn basado en el tamaño del mapa y el nivel actual
+    int monsters_per_spawn;
+    if (mapSize.isSmallMap) {
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
+    }
+    else if (mapSize.isBigMap) {
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 6 : 4;
+    }
+    else { // Para mapas medianos
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
+    }
+
     int spawned = 0;
 
     // Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
     float drop_probability = 0.7f;
+
+
 
     for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
         edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot; // Seleccionar punto de spawn
@@ -1040,22 +1049,17 @@ void SpawnMonsters() {
         ++spawned;
     }
 
-    // Ajusta el tiempo de spawn para evitar spawns rápidos
-    g_horde_local.monster_spawn_time = level.time + 4_sec; // Ajusta el tiempo entre spawns según sea necesario
-}
-
-// Función para ajustar la tasa de aparición de monstruos según la ola actual
-void AdjustMonsterSpawnRate() {
-    if (current_wave_number % 5 == 0) {  // Cada 5 olas, incrementa la dificultad
-        g_horde_local.num_to_spawn++;
-        g_horde_local.monster_spawn_time -= 0.5_sec;  // Reducir el tiempo de enfriamiento
-        if (g_horde_local.monster_spawn_time < 1_sec) {
-            g_horde_local.monster_spawn_time = 1_sec;  // No menos de 10 segundos
-        }
+    // Ajusta el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
+    if (mapSize.isSmallMap) {
+        g_horde_local.monster_spawn_time = level.time + 1.5_sec; // Menos tiempo entre spawns en mapas pequeños
+    }
+    else if (mapSize.isBigMap) {
+        g_horde_local.monster_spawn_time = level.time + 2.5_sec; // Más tiempo entre spawns en mapas grandes
+    }
+    else {
+        g_horde_local.monster_spawn_time = level.time + 1.5_sec; // Tiempo entre spawns en mapas medianos
     }
 }
-
-
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);
 
@@ -1105,9 +1109,12 @@ void Horde_RunFrame() {
         }
 
         if (g_horde_local.monster_spawn_time <= level.time) {
-            if (g_horde_local.num_to_spawn == BOSS_TO_SPAWN) {
+            if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0 && !boss_spawned_for_wave) {
                 SpawnBossAutomatically();
+                boss_spawned_for_wave = true; // Marca que el jefe ha sido generado para esta ola
             }
+
+
 
             // Limitar el número de monstruos activos simultáneamente en el mapa
             int activeMonsters = level.total_monsters - level.killed_monsters;
@@ -1175,7 +1182,7 @@ void Horde_RunFrame() {
                 }
             }
             else {
-                remainingMonsters = level.total_monsters + 1 - level.killed_monsters;
+                remainingMonsters = level.total_monsters - level.killed_monsters;
                 g_horde_local.monster_spawn_time = level.time + 3_sec;
             }
         }
@@ -1222,7 +1229,6 @@ void Horde_RunFrame() {
         break;
     }
 }
-
 
 void HandleResetEvent() {
     ResetGame();

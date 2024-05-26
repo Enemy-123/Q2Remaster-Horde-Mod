@@ -16,7 +16,6 @@ bool IsSolidMonster(edict_t* ent) {
         "monster_flyer",
         "monster_mutant",
         "monster_berserk",
-        "monster_gladiator",
         "monster_makron",
         "monster_widow",
         "monster_widow1",
@@ -78,7 +77,6 @@ contents_t G_GetClipMask(edict_t* ent)
         strcmp(ent->classname, "monster_flyer") &&
         strcmp(ent->classname, "monster_berserk") &&
         strcmp(ent->classname, "monster_mutant") &&
-        strcmp(ent->classname, "monster_gladiator") &&
         strcmp(ent->classname, "monster_makron") &&
         strcmp(ent->classname, "monster_widow") &&
         strcmp(ent->classname, "monster_widow1") &&

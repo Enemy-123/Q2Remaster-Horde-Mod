@@ -32,4 +32,12 @@ extern void SetMonsterHealth(edict_t* monster, int base_health, int current_wave
 
 extern float M_DamageModifier(edict_t* monster);
 //extern void MoveMonsterToPlayer(edict_t* monster);
+
+struct MapSize {
+    bool isSmallMap = false;
+    bool isMediumMap = false;
+    bool isBigMap = false;
+};
+
+MapSize GetMapSize(const std::string& mapname);
 #endif // SHARED_H

@@ -1145,13 +1145,12 @@ void FetchClientEntData(edict_t* ent)
 	if (G_IsCooperative())
 		ent->client->resp.score = ent->client->pers.score;
 }
-
-
 #include <map>
 #include <vector>
 #include <algorithm>
 #include <float.h>
-#include "g_local.h" // Asegúrate de incluir el archivo de cabecera correcto
+#include "g_local.h"
+#include "shared.h" // Incluir la cabecera correcta
 
 float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
 	vec3_t v{};
@@ -1160,9 +1159,8 @@ float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
 }
 
 std::map<edict_t*, gtime_t> lastSpawnTime; // Mapa para almacenar el último tiempo de uso de cada punto de spawn
-gtime_t spawnCooldown = gtime_t::from_sec(8.0f); // tiempo en segundos antes de que un punto pueda ser reutilizado
 
-bool SpawnPointAvailable(edict_t* point) {
+bool SpawnPointAvailable(edict_t* point, gtime_t spawnCooldown) {
 	if (lastSpawnTime.find(point) != lastSpawnTime.end() &&
 		(level.time - lastSpawnTime[point]) < spawnCooldown) {
 		return false; // El punto de spawn está en enfriamiento
@@ -1199,9 +1197,9 @@ float PlayersRangeFromSpot(edict_t* spot) {
 
 float MonsterRangeFromSpot(edict_t* spot) {
 	float total_distance = 0.0f;
-	int count = 0;
+	unsigned int count = 0; // Cambiado a unsigned int
 
-	for (int i = 0; i < globals.num_edicts; ++i) {
+	for (unsigned int i = 0; i < globals.num_edicts; ++i) { // Cambiado a unsigned int
 		edict_t* ent = &g_edicts[i];
 		if (!ent->inuse || !ent->solid || !(ent->svflags & SVF_MONSTER))
 			continue;
@@ -1221,11 +1219,32 @@ bool SpawnPointClear(edict_t* spot) {
 
 // Actualiza la función de selección de punto de spawn para considerar la disponibilidad
 select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start) {
+	auto mapSize = GetMapSize(level.mapname);
+
+	// Ajustar el tiempo de enfriamiento basado en el tamaño del mapa
+	gtime_t spawnCooldown;
+	if (mapSize.isSmallMap) {
+		spawnCooldown = gtime_t::from_sec(2.5f); // Ejemplo para mapas pequeños
+	}
+	else if (mapSize.isBigMap) {
+		spawnCooldown = gtime_t::from_sec(3.5f); // Ejemplo para mapas grandes
+	}
+	else {
+		spawnCooldown = gtime_t::from_sec(3.0f); // Ejemplo para mapas medianos
+	}
+
+	if (current_wave_number % 4 == 0) {  // Cada 4 olas, incrementa la dificultad
+		spawnCooldown -= gtime_t::from_sec(0.5f);
+		if (spawnCooldown <= gtime_t::from_sec(1.0f)) {
+			spawnCooldown = gtime_t::from_sec(1.0f);
+		}
+	}
+
 	std::vector<spawn_point_t> spawn_points;
 
 	edict_t* spot = nullptr;
 	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
-		if (SpawnPointAvailable(spot) && SpawnPointClear(spot)) {
+		if (SpawnPointAvailable(spot, spawnCooldown) && SpawnPointClear(spot)) {
 			spawn_points.push_back({ spot, MonsterRangeFromSpot(spot) });
 		}
 	}
@@ -1257,7 +1276,6 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 
 	return { nullptr, false };
 }
-
 
 //===============
 // ROGUE
