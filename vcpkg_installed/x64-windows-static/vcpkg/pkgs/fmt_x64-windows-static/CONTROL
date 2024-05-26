@@ -4,5 +4,5 @@ Port-Version: 1
 Depends: vcpkg-cmake:x64-windows, vcpkg-cmake-config:x64-windows
 Architecture: x64-windows-static
 Multi-Arch: same
-Abi: c757db02c7b1b0fd2c08a7f5c63c9580eabbf37c3a6fb1c3f952f01d53db9cb2
+Abi: 0d970a8e0f8701622aae6bdc304c899dc96fb825fdfe0d6bf3a2bde877689641
 Description: Formatting library for C++. It can be used as a safe alternative to printf or as a fast alternative to IOStreams.

@@ -1147,57 +1147,48 @@ void FetchClientEntData(edict_t* ent)
 }
 
 
+#include <map>
+#include <vector>
+#include <algorithm>
+#include <float.h>
+#include "g_local.h" // Asegúrate de incluir el archivo de cabecera correcto
+
 float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
 	vec3_t v{};
 	VectorSubtract(v1, v2, v);
 	return VectorLength(v);
 }
 
+std::map<edict_t*, gtime_t> lastSpawnTime; // Mapa para almacenar el último tiempo de uso de cada punto de spawn
+gtime_t spawnCooldown = gtime_t::from_sec(8.0f); // tiempo en segundos antes de que un punto pueda ser reutilizado
 
+bool SpawnPointAvailable(edict_t* point) {
+	if (lastSpawnTime.find(point) != lastSpawnTime.end() &&
+		(level.time - lastSpawnTime[point]) < spawnCooldown) {
+		return false; // El punto de spawn está en enfriamiento
+	}
+	return true;
+}
+
+// Estructura para almacenar puntos de spawn y sus distancias
 struct spawn_point_t {
 	edict_t* point;
 	float dist;
 };
 
-/*
-=======================================================================
+// Funciones para manejo de spawn points
+float PlayersRangeFromSpot(edict_t* spot) {
+	float bestplayerdistance = FLT_MAX;
+	vec3_t v{};
 
-  SelectSpawnPoint
+	for (uint32_t n = 1; n <= game.maxclients; n++) {
+		edict_t* player = &g_edicts[n];
 
-=======================================================================
-*/
-
-/*
-================
-PlayersRangeFromSpot
-
-Returns the distance to the nearest player from the given spot
-================
-*/
-float PlayersRangeFromSpot(edict_t* spot)
-{
-	edict_t* player;
-	float	 bestplayerdistance;
-	vec3_t	 v;
-	float	 playerdistance;
-
-	bestplayerdistance = 9999999;
-
-	for (uint32_t n = 1; n <= game.maxclients; n++)
-	{
-		player = &g_edicts[n];
-
-		if (!player->inuse)
+		if (!player->inuse || !player->solid || player->health <= 0)
 			continue;
 
-		if (!player->solid)
-			continue;
-
-		if (player->health <= 0)
-			continue;
-
-		v = spot->s.origin - player->s.origin;
-		playerdistance = v.length();
+		VectorSubtract(spot->s.origin, player->s.origin, v);
+		float playerdistance = VectorLength(v);
 
 		if (playerdistance < bestplayerdistance)
 			bestplayerdistance = playerdistance;
@@ -1224,20 +1215,21 @@ float MonsterRangeFromSpot(edict_t* spot) {
 }
 
 bool SpawnPointClear(edict_t* spot) {
-	vec3_t p = { spot->s.origin[0], spot->s.origin[1], spot->s.origin[2] + 9.f };
+	vec3_t p = { spot->s.origin.x, spot->s.origin.y, spot->s.origin.z + 9.0f };
 	return !gi.trace(p, PLAYER_MINS, PLAYER_MAXS, p, spot, CONTENTS_PLAYER | CONTENTS_MONSTER).startsolid;
 }
 
+// Actualiza la función de selección de punto de spawn para considerar la disponibilidad
 select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn, bool fallback_to_ctf_or_start) {
 	std::vector<spawn_point_t> spawn_points;
 
-	// Recolectar todos los puntos de spawn
 	edict_t* spot = nullptr;
 	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
-		spawn_points.push_back({ spot, MonsterRangeFromSpot(spot) });
+		if (SpawnPointAvailable(spot) && SpawnPointClear(spot)) {
+			spawn_points.push_back({ spot, MonsterRangeFromSpot(spot) });
+		}
 	}
 
-	// Manejar el caso de no encontrar puntos
 	if (spawn_points.empty()) {
 		// Implementar lógica de fallback si es necesario
 		return { nullptr, false };
@@ -1249,19 +1241,22 @@ select_spawn_result_t SelectDeathmatchSpawnPoint(bool farthest, bool force_spawn
 		});
 
 	// Elegir el punto de spawn más alejado que esté libre
-	for (auto& spawn : spawn_points) {
-		if (SpawnPointClear(spawn.point))
+	for (const auto& spawn : spawn_points) {
+		if (SpawnPointClear(spawn.point)) {
+			lastSpawnTime[spawn.point] = level.time;  // Actualiza el tiempo de uso solo cuando el punto de spawn es utilizado
 			return { spawn.point, true };
+		}
 	}
 
 	// Fallback si es forzoso spawnear
-	if (force_spawn) {
-		return { random_element(spawn_points).point, true };
+	if (force_spawn && !spawn_points.empty()) {
+		auto random_point = spawn_points[rand() % spawn_points.size()].point;
+		lastSpawnTime[random_point] = level.time;  // Actualiza el tiempo de uso solo cuando el punto de spawn es utilizado
+		return { random_point, true };
 	}
 
 	return { nullptr, false };
 }
-
 
 
 //===============

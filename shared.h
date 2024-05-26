@@ -31,5 +31,5 @@ extern void check_target_healthbar(edict_t* self);
 extern void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number);
 
 extern float M_DamageModifier(edict_t* monster);
-
+//extern void MoveMonsterToPlayer(edict_t* monster);
 #endif // SHARED_H

@@ -295,7 +295,6 @@ int CTFOtherTeam(int team)
 
 float PlayersRangeFromSpot(edict_t* spot);
 bool  SpawnPointClear(edict_t* spot);
-
 void CTFAssignSkin(edict_t* ent, const char* s)
 {
 	int	  playernum = ent - g_edicts - 1;

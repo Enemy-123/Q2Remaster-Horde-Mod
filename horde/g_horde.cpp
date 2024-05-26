@@ -537,7 +537,7 @@ gitem_t* G_HordePickItem()
 
 int countFlyingSpawns() {
     int count = 0;
-    for (int i = 0; i < globals.num_edicts; i++) {
+    for (size_t i = 0; i < globals.num_edicts; i++) {
         if (g_edicts[i].inuse && strcmp(g_edicts[i].classname, "info_player_deathmatch") == 0 && g_edicts[i].style == 1) {
             count++;
         }
@@ -858,9 +858,10 @@ void SpawnBossAutomatically() {
             boss->monsterinfo.bonus_flags |= random_flag;
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
 
-            // Apply bonus flags and ensure health multiplier is applied correctly
-            ApplyMonsterBonusFlags(boss);
-
+            // Apply bonus flags and ensure health multiplier is applied correctly if wave 10 or more
+            if (g_horde_local.level >= 9) {
+                ApplyMonsterBonusFlags(boss);
+            }
             boss->monsterinfo.attack_state = AS_BLIND;
             boss->accel *= 2;
             boss->maxs *= boss->s.scale;
@@ -989,50 +990,69 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     return false;
 }
 
+// Función para decidir si se usa el spawn más lejano basado en el nivel actual
+bool UseFarthestSpawn() {
+    if (g_horde_local.level <= 10) {
+        return (rand() % 2 == 0);  // 50% de probabilidad a partir del nivel 10
+    }
+    return false;
+}
+
+
 void SpawnMonsters() {
+    // Determinar la cantidad de monstruos por spawn basado en el nivel actual
+    int monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2; // Ajusta según necesidad
+    int spawned = 0;
 
-	if (g_horde_local.level >= 2) {
-		int monsters_per_spawn = 1;
-	}
-	int monsters_per_spawn = 3; // Ajusta la cantidad de monstruos que deseas spawnar en cada llamada
-	int spawned = 0;
+    // Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
+    float drop_probability = 0.7f;
 
-	// Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
-	float drop_probability = 0.7f;
+    for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
+        edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot; // Seleccionar punto de spawn
+        if (!spawn_point) continue;
 
-	for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
-		edict_t* spawn_point = SelectDeathmatchSpawnPoint(true, true, false).spot; // Seleccionar punto de spawn
-		if (!spawn_point) continue;
+        const char* monster_classname = G_HordePickMonster(spawn_point);
+        if (!monster_classname) continue;
 
-		const char* monster_classname = G_HordePickMonster(spawn_point);
-		if (!monster_classname) continue;
+        edict_t* monster = G_Spawn();
+        monster->classname = monster_classname;
 
-		edict_t* monster = G_Spawn();
-		monster->classname = monster_classname;
+        // Decidir si el monstruo dropeará un ítem
+        if (frandom() <= drop_probability) {
+            monster->item = G_HordePickItem();
+        }
+        else {
+            monster->item = nullptr;
+        }
 
-		// Decidir si dropear un ítem
-		if (frandom() <= drop_probability) {
-			monster->item = G_HordePickItem();
-		}
-		else {
-			monster->item = nullptr;
-		}
+        VectorCopy(spawn_point->s.origin, monster->s.origin);
+        VectorCopy(spawn_point->s.angles, monster->s.angles);
+        ED_CallSpawn(monster);
+        //MoveMonsterToPlayer(monster);
 
-		VectorCopy(spawn_point->s.origin, monster->s.origin);
-		VectorCopy(spawn_point->s.angles, monster->s.angles);
-		ED_CallSpawn(monster);
+        // Efecto de crecimiento en el spawn del monstruo
+        vec3_t spawngrow_pos = monster->s.origin;
+        float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.025f;
+        float end_size = start_size;
+        SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
-		vec3_t spawngrow_pos = monster->s.origin;
-		float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[1] * spawngrow_pos[1])) * 0.025f;
-		float end_size = start_size;
-		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+        --g_horde_local.num_to_spawn;
+        ++spawned;
+    }
 
-		--g_horde_local.num_to_spawn;
-		++spawned;
-	}
+    // Ajusta el tiempo de spawn para evitar spawns rápidos
+    g_horde_local.monster_spawn_time = level.time + 4_sec; // Ajusta el tiempo entre spawns según sea necesario
+}
 
-	// Ajusta el tiempo de spawn para evitar spawn rápido
-	g_horde_local.monster_spawn_time = level.time + 1.5_sec; // Ajusta el tiempo entre spawns según sea necesario
+// Función para ajustar la tasa de aparición de monstruos según la ola actual
+void AdjustMonsterSpawnRate() {
+    if (current_wave_number % 5 == 0) {  // Cada 5 olas, incrementa la dificultad
+        g_horde_local.num_to_spawn++;
+        g_horde_local.monster_spawn_time -= 0.5_sec;  // Reducir el tiempo de enfriamiento
+        if (g_horde_local.monster_spawn_time < 1_sec) {
+            g_horde_local.monster_spawn_time = 1_sec;  // No menos de 10 segundos
+        }
+    }
 }
 
 
