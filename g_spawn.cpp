@@ -1426,13 +1426,12 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	// reserve some spots for dead player bodies for coop / deathmatch
 	InitBodyQue();
 
-	////////////ENT LOAD///////////////
+	//////////// ENT LOAD ////////////
 
-		//bool ent_file_loaded = false;
-	bool	ent_file_exists = false;
-	bool	ent_valid = true;
+	bool ent_file_exists = false;
+	bool ent_valid = true;
 
-	// load up ent override
+	// Load up ent override
 	const char* name = G_Fmt("baseq2/maps/{}.ent", mapname).data();
 	FILE* f = fopen(name, "rb");
 	if (f != NULL) {
@@ -1444,8 +1443,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		length = ftell(f);
 		fseek(f, 0, SEEK_SET);
 
-		if (length > 0x40000) {
-			//gi.Com_PrintFmt("{}: Entities override file length exceeds maximum: \"{}\"\n", __FUNCTION__, name);
+		if (length > 0x40000) { // Maximum file size check
 			ent_valid = false;
 		}
 		if (ent_valid) {
@@ -1454,7 +1452,6 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 				read_length = fread(buffer, 1, length, f);
 
 				if (length != read_length) {
-					//gi.Com_PrintFmt("{}: Entities override file read error: \"{}\"\n", __FUNCTION__, name);
 					ent_valid = false;
 				}
 			}
@@ -1462,14 +1459,10 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		ent_file_exists = true;
 		fclose(f);
 
-		cvar_t* g_loadent;
-
-
-		g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+		cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
 
 		if (ent_valid) {
 			if (g_loadent->integer) {
-
 				if (VerifyEntityString((const char*)buffer)) {
 					entities = (const char*)buffer;
 					gi.Com_PrintFmt("{}: Entities override file verified and loaded: \"{}\"\n", __FUNCTION__, name);
@@ -1481,15 +1474,13 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		}
 	}
 
-
 	//////////////////////////////////
 
-
-
-	// parse ents
-	while (1)
-	{
-		// parse the opening brace
+	// Parse ents
+	edict_t* ent = nullptr;
+	int inhibit = 0;
+	while (1) {
+		// Parse the opening brace
 		com_token = COM_Parse(&entities);
 		if (!entities)
 			break;
@@ -1502,11 +1493,9 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 			ent = G_Spawn();
 		entities = ED_ParseEdict(entities, ent);
 
-		// remove things (except the world) from different skill levels or deathmatch
-		if (ent != g_edicts)
-		{
-			if (G_InhibitEntity(ent))
-			{
+		// Remove things (except the world) from different skill levels or deathmatch
+		if (ent != g_edicts) {
+			if (G_InhibitEntity(ent)) {
 				G_FreeEdict(ent);
 				inhibit++;
 				continue;
@@ -1518,14 +1507,15 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		if (!ent)
 			gi.Com_Error("invalid/empty entity string!");
 
-		// PGM - do this before calling the spawn function so it can be overridden.
+		// Set default gravity vector before calling the spawn function
 		ent->gravityVector[0] = 0.0;
 		ent->gravityVector[1] = 0.0;
 		ent->gravityVector[2] = -1.0;
-		// PGM
+
 		ED_CallSpawn(ent);
 
-		ent->s.renderfx |= RF_IR_VISIBLE; // PGM
+		// Make entity visible to IR
+		ent->s.renderfx |= RF_IR_VISIBLE;
 	}
 
 	gi.Com_PrintFmt("{} entities inhibited\n", inhibit);

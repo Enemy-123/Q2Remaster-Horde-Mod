@@ -926,6 +926,11 @@ void SpawnBossAutomatically() {
 	}
 }
 
+void ResetCooldowns() {
+	lastSpawnPointTime.clear();
+	lastMonsterSpawnTime.clear();
+}
+
 	void ResetBenefits() {
 		shuffled_benefits.clear();
 		obtained_benefits.clear();
@@ -934,9 +939,11 @@ void SpawnBossAutomatically() {
 
 	void ResetGame() {
 		ResetBenefits();
+		ResetCooldowns();
 		current_wave_number = 1;
 		g_horde_local.state = horde_state_t::warmup;
 		next_wave_message_sent = false;
+		boss_spawned_for_wave = false;
 		gi.cvar_set("g_chaotic", "0");
 		gi.cvar_set("g_insane", "0");
 		gi.cvar_set("g_vampire", "0");
