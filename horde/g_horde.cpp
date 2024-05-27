@@ -925,7 +925,7 @@ void SpawnBossAutomatically() {
 			AttachHealthBar(boss);
 
 			// Verifica si el jefe spawnado es de tipo boss2 o boss carrier
-			if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_carrier") == 0)
+			if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_carrier") == 0|| strcmp(desired_boss, "monster_carrier") == 0)
 				flying_monsters_mode = true;  // Activar el modo de monstruos voladores
 
 		}
