@@ -1063,7 +1063,7 @@ When a button is touched, it moves some distance in the direction of it's angle,
 5) in-out
 */
 
-MOVEINFO_ENDFUNC(button_done) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(button_done) (edict_t* self) -> void
 {
 	self->moveinfo.state = STATE_BOTTOM;
 	if (!self->bmodel_anim.enabled)
@@ -1078,7 +1078,7 @@ MOVEINFO_ENDFUNC(button_done) (edict_t *self) -> void
 		self->bmodel_anim.alternate = false;
 }
 
-THINK(button_return) (edict_t *self) -> void
+THINK(button_return) (edict_t* self) -> void
 {
 	self->moveinfo.state = STATE_DOWN;
 
@@ -1088,10 +1088,10 @@ THINK(button_return) (edict_t *self) -> void
 		self->takedamage = true;
 }
 
-MOVEINFO_ENDFUNC(button_wait) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(button_wait) (edict_t* self) -> void
 {
 	self->moveinfo.state = STATE_TOP;
-	
+
 	if (!self->bmodel_anim.enabled)
 	{
 		self->s.effects &= ~EF_ANIM01;
@@ -1105,18 +1105,14 @@ MOVEINFO_ENDFUNC(button_wait) (edict_t *self) -> void
 
 	G_UseTargets(self, self->activator);
 
-	if (self->moveinfo.wait >= 0 && !g_horde->integer)
+	if (self->moveinfo.wait >= 0)
 	{
 		self->nextthink = level.time + gtime_t::from_sec(self->moveinfo.wait);
 		self->think = button_return;
 	}
-	//else if (g_horde->integer) {
-	//	self->nextthink = level.time + gtime_t::from_sec(self->moveinfo.wait) + 999999_sec;
-	//	self->think = button_return;
-	//}
 }
 
-void button_fire(edict_t *self)
+void button_fire(edict_t* self)
 {
 	if (self->moveinfo.state == STATE_UP || self->moveinfo.state == STATE_TOP)
 		return;
@@ -1127,13 +1123,13 @@ void button_fire(edict_t *self)
 	Move_Calc(self, self->moveinfo.end_origin, button_wait);
 }
 
-USE(button_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(button_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->activator = activator;
 	button_fire(self);
 }
 
-TOUCH(button_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(button_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (!other->client)
 		return;
@@ -1145,19 +1141,15 @@ TOUCH(button_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool othe
 	button_fire(self);
 }
 
-DIE(button_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(button_killed) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	self->activator = attacker;
 	self->health = self->max_health;
 	self->takedamage = false;
 	button_fire(self);
 }
-//void activate_button(edict_t* self)
-//{
-//	self->activator = self; // Puedes establecer el activador como la propia entidad del botón
-//	button_fire(self);
-//}
-void SP_func_button(edict_t *ent)
+
+void SP_func_button(edict_t* ent)
 {
 	vec3_t abs_movedir;
 	float  dist;
@@ -1178,12 +1170,6 @@ void SP_func_button(edict_t *ent)
 		ent->accel = ent->speed;
 	if (!ent->decel)
 		ent->decel = ent->speed;
-
-	if (g_speedstuff->value != 1.0f) {
-		ent->speed *= g_speedstuff->value;
-		ent->accel *= g_speedstuff->value;
-		ent->decel *= g_speedstuff->value;
-	}
 
 	if (!ent->wait)
 		ent->wait = 3;
@@ -1223,11 +1209,8 @@ void SP_func_button(edict_t *ent)
 	ent->moveinfo.end_angles = ent->s.angles;
 
 	gi.linkentity(ent);
-
-	//if (g_horde->integer) {
-	//activate_button(ent);
-	//}
 }
+
 
 /*
 ======================================================================

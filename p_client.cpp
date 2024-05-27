@@ -3372,13 +3372,13 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 	return false;
 }
 
-
 extern bool ClientIsSpectating(gclient_t* cl);
 extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
 	gtime_t inactivity_duration = 35_sec; // 20 segundos para prueba
 
-	if (!ent->client) {
+	// Retorna inmediatamente si ent no tiene un cliente o si es un bot
+	if (!ent->client || (ent->svflags & SVF_BOT)) {
 		return true;
 	}
 
@@ -3387,7 +3387,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		inactivity_duration = 15_sec;
 	}
 
-	// Configurar el tiempo de inactividad si no est� establecido
+	// Configurar el tiempo de inactividad si no está establecido
 	if (!ent->client->resp.inactivity_time) {
 		ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
@@ -3395,12 +3395,14 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		return true;
 	}
 
-	// Verificar si el jugador est� en un estado donde no se debe aplicar inactividad
-	if (!g_horde->integer || ClientIsSpectating(ent->client) || (ent->svflags & SVF_BOT)) {
+	// Verificar si el jugador está en un estado donde no se debe aplicar inactividad
+	if (!g_horde->integer || ClientIsSpectating(ent->client)) {
 		ent->client->resp.inactivity_time = (level.time) + 1_min; // 1 minuto
 		ent->client->resp.inactivity_warning = false;
 		ent->client->resp.inactive = false;
+		return true;
 	}
+
 	else {
 		// Verificar si el jugador est� activo
 		bool is_active = (ent->client->latched_buttons & BUTTON_ANY) ||
