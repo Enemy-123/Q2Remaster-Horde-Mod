@@ -867,9 +867,12 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"q64/dm3", {488, 392, 64}},
 	{"q64\\dm3", {488, 392, 64}}
 };
+extern void SP_target_earthquake(edict_t* self);
+extern constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
+
 void SpawnBossAutomatically() {
 	auto mapSize = GetMapSize(level.mapname);
-	if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0) { // Aparece desde la ola 10 y cada 5 olas
+	if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0) {
 		const auto it = mapOrigins.find(level.mapname);
 		if (it != mapOrigins.end()) {
 			edict_t* boss = G_Spawn();
@@ -878,6 +881,16 @@ void SpawnBossAutomatically() {
 			const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname);
 			if (!desired_boss) return;
 			boss->classname = desired_boss;
+
+
+			// earthquake effect
+			edict_t* earthquake = G_Spawn();
+			earthquake->classname = "target_earthquake";
+			earthquake->spawnflags = SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Using one-shot flag to trigger it once
+			earthquake->speed = 200; // Severity of the quake
+			earthquake->count = 5; // Duration of the quake in seconds
+			SP_target_earthquake(earthquake);
+			earthquake->use(earthquake, boss, boss); // Trigger the earthquake
 
 			boss->s.origin[0] = it->second[0];
 			boss->s.origin[1] = it->second[1];

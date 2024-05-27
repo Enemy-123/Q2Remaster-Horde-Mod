@@ -1085,7 +1085,7 @@ USE(target_earthquake_use) (edict_t* self, edict_t* other, edict_t* activator) -
 
 void SP_target_earthquake(edict_t* self)
 {
-	if (!self->targetname)
+	if (!self->targetname && !g_horde->integer)
 		gi.Com_PrintFmt("{}: untargeted\n", *self);
 
 	if (level.is_n64)
