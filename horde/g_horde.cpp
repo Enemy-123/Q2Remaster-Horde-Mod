@@ -956,64 +956,75 @@ void ResetCooldowns() {
 		gi.cvar_set("timelimit", "25");
 	}
 
-	bool CheckRemainingMonstersCondition(const MapSize & mapSize) {
-		static std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
-		static int previous_remainingMonsters = 0;
+	// Variables globales para el estado de la condición
+	std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
+	int previous_remainingMonsters = 0;
 
-		int maxMonsters = 0;
-		int timeThreshold = 0;
+	// Estructura para los parámetros de condición
+	struct ConditionParams {
+		int maxMonsters;
+		int timeThreshold;
+	};
 
+	// Obtener el número de jugadores activos
+	int GetNumActivePlayers() {
 		int numActivePlayers = 0;
 		for (uint32_t player = 1; player <= game.maxclients; ++player) {
 			edict_t* ent = &g_edicts[player];
-			if (!ent->inuse || !ent->client || !ent->solid) continue;
-
-			numActivePlayers++;
+			if (ent->inuse && ent->client && ent->solid) {
+				numActivePlayers++;
+			}
 		}
+		return numActivePlayers;
+	}
+
+	// Calcular los parámetros de la condición en función del mapa y el número de jugadores
+	ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers) {
+		ConditionParams params = { 0, 0 };
 
 		if (numActivePlayers >= 6) {
 			if (mapSize.isSmallMap) {
-				maxMonsters = 7;
-				timeThreshold = 4;
+				params = { 7, 4 };
 			}
 			else if (mapSize.isBigMap) {
-				maxMonsters = 25;
-				timeThreshold = 18;
+				params = { 25, 18 };
 			}
 			else {
-				maxMonsters = 12;
-				timeThreshold = 8;
+				params = { 12, 8 };
 			}
 		}
 		else {
 			if (mapSize.isSmallMap) {
-				maxMonsters = (current_wave_number <= 4) ? 3 : 6;
-				timeThreshold = (current_wave_number <= 4) ? 7 : 13;
+				params = { current_wave_number <= 4 ? 3 : 6, current_wave_number <= 4 ? 7 : 13 };
 			}
 			else if (mapSize.isBigMap) {
-				maxMonsters = (current_wave_number <= 4) ? 17 : 23;
-				timeThreshold = (current_wave_number <= 4) ? 18 : 12;
+				params = { current_wave_number <= 4 ? 17 : 23, current_wave_number <= 4 ? 18 : 12 };
 			}
 			else {
-				maxMonsters = (current_wave_number <= 4) ? 3 : 8;
-				timeThreshold = (current_wave_number <= 4) ? 7 : 15;
+				params = { current_wave_number <= 4 ? 3 : 8, current_wave_number <= 4 ? 7 : 15 };
 			}
 
 			if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
-				timeThreshold += 4;
+				params.timeThreshold += 4;
 			}
 		}
 
+		return params;
+	}
+
+	bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
+		int numActivePlayers = GetNumActivePlayers();
+		ConditionParams params = GetConditionParams(mapSize, numActivePlayers);
+
 		int remainingMonsters = level.total_monsters - level.killed_monsters;
 
-		if (remainingMonsters <= maxMonsters) {
+		if (remainingMonsters <= params.maxMonsters) {
 			if (condition_start_time == std::chrono::steady_clock::time_point::min()) {
 				condition_start_time = std::chrono::steady_clock::now();
 			}
 
-			auto duration = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::steady_clock::now() - condition_start_time);
-
-			if (duration.count() >= timeThreshold) {
+			auto duration = std::chrono::steady_clock::now() - condition_start_time;
+			if (std::chrono::duration_cast<std::chrono::seconds>(duration).count() >= params.timeThreshold) {
 				condition_start_time = std::chrono::steady_clock::time_point::min();
 				return true;
 			}
