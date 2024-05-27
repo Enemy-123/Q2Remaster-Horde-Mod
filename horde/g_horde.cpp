@@ -883,7 +883,31 @@ void SpawnBossAutomatically() {
 			boss->s.origin[1] = it->second[1];
 			boss->s.origin[2] = it->second[2];
 
-			gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A CHAMPION STROGG HAS SPAWNED *****");
+			// Directamente decidir qué mensaje mostrar basado en el classname
+			if (strcmp(desired_boss, "monster_boss2") == 0) {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
+			}
+			else if (strcmp(desired_boss, "monster_carrier2") == 0) {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A menacing Carrier has appeared! *****");
+			}
+			else if (strcmp(desired_boss, "monster_carrier") == 0) {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A menacing Carrier, leading a swarming wave, has appeared! *****");
+			}
+			else if (strcmp(desired_boss, "monster_tank_64") == 0) {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** The ground shakes as the Tank Commander arrives! *****");
+			}
+			else if (strcmp(desired_boss, "monster_shamblerkl") == 0) {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** The Shambler emerges from the darkness! *****");
+			}
+			else if (strcmp(desired_boss, "monster_guncmdrkl") == 0) {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** The Gunner Commander is ready for battle! *****");
+			}
+			else if (strcmp(desired_boss, "monster_makronkl") == 0) {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** Makron descends upon the battlefield! *****");
+			}
+			else {
+				gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A powerful Strogg champion has spawned! *****");
+			}
 
 			int random_flag = 1 << (std::rand() % 6); // Include all defined flags
 			boss->monsterinfo.bonus_flags |= random_flag;
@@ -925,7 +949,7 @@ void SpawnBossAutomatically() {
 			AttachHealthBar(boss);
 
 			// Verifica si el jefe spawnado es de tipo boss2 o boss carrier
-			if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_carrier") == 0|| strcmp(desired_boss, "monster_carrier") == 0)
+			if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_carrier") == 0)
 				flying_monsters_mode = true;  // Activar el modo de monstruos voladores
 
 		}
