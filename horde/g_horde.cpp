@@ -1051,6 +1051,84 @@ void ResetCooldowns() {
 		return false;
 	}
 
+	void PlayWaveStartSound() {
+		std::srand(static_cast<unsigned int>(std::time(nullptr)));
+		float r = frandom();
+
+		if (r < 0.2f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
+		}
+		else if (r < 0.4f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("world/klaxon2.wav"), 1, ATTN_NONE, 0);
+		}
+		else if (r < 0.6f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
+		}
+		else if (r < 0.8f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("world/incoming.wav"), 1, ATTN_NONE, 0);
+		}
+		else {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("world/yelforce"), 1, ATTN_NONE, 0);
+		}
+	}
+
+	void DisplayWaveMessage() {
+		if (brandom()) {
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n???\n");
+		}
+		else {
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n?????\n");
+		}
+	}
+
+	void HandleWaveCleanupMessage(const MapSize& mapSize) {
+		if (current_wave_number >= 15 && current_wave_number <= 33) {
+			gi.cvar_set("g_insane", "1");
+			gi.cvar_set("g_chaotic", "0");
+		}
+		else if (current_wave_number >= 34) {
+			gi.cvar_set("g_insane", "2");
+			gi.cvar_set("g_chaotic", "0");
+		}
+		else if (!mapSize.isSmallMap && current_wave_number <= 14) {
+			gi.cvar_set("g_chaotic", "1");
+		}
+		else if (mapSize.isSmallMap && current_wave_number <= 14) {
+			gi.cvar_set("g_chaotic", "2");
+		}
+
+		g_horde_local.state = horde_state_t::rest;
+	}
+
+	void HandleWaveRestMessage() {
+		if (!g_insane->integer) {
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n STROGGS STARTING TO PUSH !\n\n\n ");
+		}
+		else if (g_insane->integer) {
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
+		}
+
+		float r = frandom();
+		if (r < 0.167f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
+		}
+		else if (r < 0.333f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
+		}
+		else if (r < 0.5f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("zortemp/ack.wav"), 1, ATTN_NONE, 0);
+		}
+		else if (r < 0.667f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
+		}
+		else if (r < 0.833f) {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("makron/voice3.wav"), 1, ATTN_NONE, 0);
+		}
+		else {
+			gi.sound(world, CHAN_VOICE, gi.soundindex("world/v_fac3.wav"), 1, ATTN_NONE, 0);
+		}
+	}
+
 	void SpawnMonsters() {
 		auto mapSize = GetMapSize(level.mapname);
 
@@ -1070,8 +1148,6 @@ void ResetCooldowns() {
 
 		// Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
 		const float drop_probability = 0.7f;
-
-
 
 		for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
 			edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot; // Seleccionar punto de spawn
@@ -1117,6 +1193,8 @@ void ResetCooldowns() {
 			g_horde_local.monster_spawn_time = level.time + 1.5_sec; // Tiempo entre spawns en mapas medianos
 		}
 	}
+
+
 	void Horde_RunFrame() {
 		auto mapSize = GetMapSize(level.mapname);
 
@@ -1127,36 +1205,8 @@ void ResetCooldowns() {
 				g_horde_local.state = horde_state_t::spawning;
 				Horde_InitLevel(1);
 				current_wave_number = 2;
-
-				std::srand(static_cast<unsigned int>(std::time(nullptr)));
-				float r = frandom();
-
-				if (r < 0.333f) {
-					gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
-				}
-				else if (r < 0.666f) {
-					gi.sound(world, CHAN_VOICE, gi.soundindex("world/klaxon2.wav"), 1, ATTN_NONE, 0);
-				}
-				else {
-					gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
-				}
-
-				if (brandom()) {
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n???\n");
-				}
-				else {
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n?????\n");
-				}
-
-				if (!g_chaotic->integer || (g_chaotic->integer && r > 0.666f)) {
-					gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
-				}
-				else if (r > 0.333f) {
-					gi.sound(world, CHAN_VOICE, gi.soundindex("world/incoming.wav"), 1, ATTN_NONE, 0);
-				}
-				else {
-					gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
-				}
+				PlayWaveStartSound();
+				DisplayWaveMessage();
 			}
 			break;
 
@@ -1170,8 +1220,6 @@ void ResetCooldowns() {
 					SpawnBossAutomatically();
 					boss_spawned_for_wave = true; // Marca que el jefe ha sido generado para esta ola
 				}
-
-
 
 				// Limitar el número de monstruos activos simultáneamente en el mapa
 				int activeMonsters = level.total_monsters - level.killed_monsters;
@@ -1195,24 +1243,7 @@ void ResetCooldowns() {
 
 		case horde_state_t::cleanup:
 			if (CheckRemainingMonstersCondition(mapSize)) {
-				if (current_wave_number >= 15 && current_wave_number <= 33) {
-					gi.cvar_set("g_insane", "1");
-					gi.cvar_set("g_chaotic", "0");
-					g_horde_local.state = horde_state_t::rest;
-					break;
-				}
-				else if (current_wave_number >= 34) {
-					gi.cvar_set("g_insane", "2");
-					gi.cvar_set("g_chaotic", "0");
-				}
-				else if (!mapSize.isSmallMap && current_wave_number <= 14) {
-					gi.cvar_set("g_chaotic", "1");
-				}
-				else if (mapSize.isSmallMap && current_wave_number <= 14) {
-					gi.cvar_set("g_chaotic", "2");
-				}
-				g_horde_local.state = horde_state_t::rest;
-				break;
+				HandleWaveCleanupMessage(mapSize);
 			}
 
 			if (g_horde_local.monster_spawn_time < level.time) {
@@ -1248,32 +1279,7 @@ void ResetCooldowns() {
 		case horde_state_t::rest:
 			if (g_horde_local.warm_time < level.time) {
 				if (g_chaotic->integer || g_insane->integer) {
-					if (!g_insane->integer) {
-						gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n STROGGS STARTING TO PUSH !\n\n\n ");
-					}
-					else if (g_insane->integer) {
-						gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
-					}
-
-					float r = frandom();
-					if (r < 0.167f) {
-						gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
-					}
-					else if (r < 0.333f) {
-						gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
-					}
-					else if (r < 0.5f) {
-						gi.sound(world, CHAN_VOICE, gi.soundindex("zortemp/ack.wav"), 1, ATTN_NONE, 0);
-					}
-					else if (r < 0.667f) {
-						gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
-					}
-					else if (r < 0.833f) {
-						gi.sound(world, CHAN_VOICE, gi.soundindex("makron/voice3.wav"), 1, ATTN_NONE, 0);
-					}
-					else {
-						gi.sound(world, CHAN_VOICE, gi.soundindex("world/v_fac3.wav"), 1, ATTN_NONE, 0);
-					}
+					HandleWaveRestMessage();
 				}
 				else {
 					gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
@@ -1286,6 +1292,7 @@ void ResetCooldowns() {
 			break;
 		}
 	}
+
 
 	void HandleResetEvent() {
 		ResetGame();
