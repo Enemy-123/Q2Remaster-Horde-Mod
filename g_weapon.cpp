@@ -64,6 +64,10 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 	point += (up * aim[2]);
 	dir = point - self->enemy->s.origin;
 
+	// Aplica el multiplicador de daño
+	extern float M_DamageModifier(edict_t * monster);
+	damage *= M_DamageModifier(self);
+
 	// do the damage
 	T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
 
@@ -316,7 +320,7 @@ static void fire_lead(edict_t *self, const vec3_t &start, const vec3_t &aimdir, 
 		gi.multicast(pos, MULTICAST_PVS, false);
 	}
 }
-
+extern float M_DamageModifier(edict_t* monster);
 /*
 =================
 fire_bullet
@@ -327,6 +331,9 @@ pistols, rifles, etc....
 */
 void fire_bullet(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
 {
+	if (self->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(self);
+	}
 	fire_lead(self, start, aimdir, damage, kick, mod.id == MOD_TESLA ? -1 : TE_GUNSHOT, hspread, vspread, mod);
 }
 
@@ -339,6 +346,9 @@ Shoots shotgun pellets.  Used by shotgun and super shotgun.
 */
 void fire_shotgun(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
 {
+	if (self->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(self);
+	}
 	for (int i = 0; i < count; i++)
 		fire_lead(self, start, aimdir, damage, kick, TE_SHOTGUN, hspread, vspread, mod);
 }

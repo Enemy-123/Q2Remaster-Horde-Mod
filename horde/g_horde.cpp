@@ -384,7 +384,7 @@ constexpr boss_t BOSS_SMALL[] = {
 	{"monster_tank_64", -1, -1, 0.05f},
 	{"monster_shamblerkl", -1, -1, 0.05f},
 	{"monster_guncmdrkl", -1, -1, 0.05f},
-	{"monster_makronkl", 19, -1, 0.05f},
+	{"monster_makronkl", 24, -1, 0.05f},
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {

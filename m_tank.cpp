@@ -1118,7 +1118,7 @@ void SP_monster_tank(edict_t* self)
 			self->s.scale = 1.3f;
 		self->health = 1750 * st.health_multiplier;
 		self->accel = 1.75f;
-		if (g_horde->integer) { self->gib_health = -999999; }
+		if (g_horde->integer) { self->gib_health = -250; }
 	}
 
 	// heat seekingness

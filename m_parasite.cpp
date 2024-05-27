@@ -525,7 +525,7 @@ THINK(proboscis_think) (edict_t* self) -> void
 				// succ & drain
 				if (self->timestamp <= level.time)
 				{
-					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 2, 0, DAMAGE_NONE, MOD_UNKNOWN);
+					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 2, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
 					self->owner->health = min(self->owner->max_health, self->owner->health + 2);
 					self->owner->monsterinfo.setskin(self->owner);
 					self->timestamp = level.time + 10_hz;
