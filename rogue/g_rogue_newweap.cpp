@@ -1095,8 +1095,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
 	edict_t* tesla;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
+	vec3_t dir, forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -1106,45 +1105,38 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->velocity = aimdir * speed;
 
 	float gravityAdjustment = level.gravity / 800.f;
-
 	tesla->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
 	tesla->velocity += right * (crandom() * 10.0f);
 
 	tesla->s.angles = {};
 	tesla->movetype = MOVETYPE_BOUNCE;
-	tesla->solid = SOLID_BBOX;
+	tesla->solid = SOLID_TRIGGER;
 	tesla->s.effects |= EF_GRENADE;
 	tesla->s.renderfx |= RF_IR_VISIBLE;
 	tesla->mins = { -12, -12, 0 };
 	tesla->maxs = { 12, 12, 20 };
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
 
-	tesla->owner = self; // PGM - we don't want it owned by self YET.
+	tesla->owner = self;
 	tesla->teammaster = self;
 
 	tesla->wait = (level.time + TESLA_TIME_TO_LIVE).seconds();
 	tesla->think = tesla_think;
 	tesla->nextthink = level.time + TESLA_ACTIVATE_TIME;
 
-	// blow up on contact with lava & slime code
-	tesla->touch = tesla_lava;
+
 
 	if (G_IsDeathmatch())
-		// PMM - lowered from 50 - 7/29/1998
 		tesla->health = 50;
 	else
-		tesla->health = 50; // FIXME - change depending on skill?
+		tesla->health = 50;
 
 	tesla->takedamage = true;
 	tesla->die = tesla_die;
 	tesla->dmg = TESLA_DAMAGE * tesla_damage_multiplier;
 	tesla->classname = "tesla_mine";
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
-	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
-
-	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
-		tesla->clipmask &= ~CONTENTS_PLAYER;
+	tesla->clipmask = MASK_SHOT | CONTENTS_MONSTER;  // Ajustado para colisionar sólo con monstruos
 
 	tesla->flags |= FL_MECHANICAL;
 
