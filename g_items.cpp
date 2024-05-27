@@ -1248,8 +1248,8 @@ and for each item in each client's inventory.
 void PrecacheItem(gitem_t* it)
 {
 	const char* s, * start;
-	char		data[MAX_QPATH];
-	ptrdiff_t	len;
+	char data[MAX_QPATH];
+	ptrdiff_t len;
 	gitem_t* ammo;
 
 	if (!it)
@@ -1272,7 +1272,7 @@ void PrecacheItem(gitem_t* it)
 			PrecacheItem(ammo);
 	}
 
-	// parse the space seperated precache string for other items
+	// parse the space separated precache string for other items
 	s = it->precaches;
 	if (!s || !s[0])
 		return;
@@ -1284,21 +1284,30 @@ void PrecacheItem(gitem_t* it)
 			s++;
 
 		len = s - start;
-		if (len >= MAX_QPATH || len < 5)
+		if (len >= MAX_QPATH || len < 5) {
 			gi.Com_ErrorFmt("PrecacheItem: {} has bad precache string", it->classname);
+			continue;  // Skip this iteration to prevent any risky operations
+		}
+
+		// Ensure we don't exceed the buffer limit
+		if (len >= sizeof(data)) {
+			gi.Com_ErrorFmt("PrecacheItem: {} has precache string that exceeds buffer size", it->classname);
+			continue;  // Skip this iteration to prevent overflow
+		}
+
 		memcpy(data, start, len);
-		data[len] = 0;
+		data[len] = '\0';  // Null-terminate the string properly
 		if (*s)
 			s++;
 
-		// determine type based on extension
+		// Determine type based on extension
 		if (!strcmp(data + len - 3, "md2"))
 			gi.modelindex(data);
 		else if (!strcmp(data + len - 3, "sp2"))
 			gi.modelindex(data);
 		else if (!strcmp(data + len - 3, "wav"))
 			gi.soundindex(data);
-		if (!strcmp(data + len - 3, "pcx"))
+		else if (!strcmp(data + len - 3, "pcx"))
 			gi.imageindex(data);
 	}
 }

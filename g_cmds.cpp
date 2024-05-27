@@ -1532,85 +1532,26 @@ void Cmd_Switchteam_f(edict_t* ent)
 	if (!G_TeamplayEnabled())
 		return;
 
-	// [Paril-KEX] in force-join, just do a regular team join.
+	// Si la configuración del mod solo permite un equipo, podemos reducir la función significativamente.
 	if (g_teamplay_force_join->integer)
 	{
-		// check if we should even switch teams
-		edict_t* player;
-		uint32_t team1count = 0, team2count = 0;
-		ctfteam_t best_team;
+		// Solo un equipo posible, cualquier solicitud de cambio de equipo es redundante.
+		gi.LocBroadcast_Print(PRINT_HIGH, "$g_attempted_team_change",
+			ent->client->pers.netname);
 
-		for (uint32_t i = 1; i <= game.maxclients; i++)
-		{
-			player = &g_edicts[i];
-
-			// NB: we are counting ourselves in this one, unlike
-			// the other assign team func
-			if (!player->inuse)
-				continue;
-
-			switch (player->client->resp.ctf_team)
-			{
-			case CTF_TEAM1:
-				team1count++;
-				break;
-				break;
-			default:
-				break;
-			}
-		}
-
-		if (team1count < team2count)
-			best_team = CTF_TEAM1;
-
-		if (ent->client->resp.ctf_team != best_team)
-		{
-			////
-			ent->svflags = SVF_NONE;
-			ent->flags &= ~FL_GODMODE;
-			ent->client->resp.ctf_team = best_team;
-			ent->client->resp.ctf_state = 0;
-			char value[MAX_INFO_VALUE] = { 0 };
-			gi.Info_ValueForKey(ent->client->pers.userinfo, "skin", value, sizeof(value));
-			CTFAssignSkin(ent, value);
-
-			// if anybody has a menu open, update it immediately
-			CTFDirtyTeamMenu();
-
-			if (ent->solid == SOLID_NOT)
-			{
-				// spectator
-				PutClientInServer(ent);
-
-				G_PostRespawn(ent);
-
-				gi.LocBroadcast_Print(PRINT_HIGH, "$g_joined_team",
-					ent->client->pers.netname, CTFTeamName(best_team));
-				return;
-			}
-
-			ent->health = 0;
-			player_die(ent, ent, ent, 100000, vec3_origin, { MOD_SUICIDE, true });
-
-			// don't even bother waiting for death frames
-			ent->deadflag = true;
-			respawn(ent);
-
-			ent->client->resp.score = 0;
-
-			gi.LocBroadcast_Print(PRINT_HIGH, "$g_changed_team",
-				ent->client->pers.netname, CTFTeamName(best_team));
-		}
-
+		// Puede ser un buen lugar para manejar el comportamiento si intentan cambiar de equipo de todos modos.
+		// Por ejemplo, puedes mandar al jugador al menú de equipo o ignorar el comando.
+		CTFOpenJoinMenu(ent);
 		return;
 	}
 
-	if (ent->client->resp.ctf_team != CTF_NOTEAM)
-		CTFObserver(ent);
-
-	if (!ent->client->menu)
+	// Si el jugador no tiene equipo, abrir el menú de equipo.
+	if (ent->client->resp.ctf_team == CTF_NOTEAM)
+	{
 		CTFOpenJoinMenu(ent);
+	}
 }
+
 
 static void Cmd_ListMonsters_f(edict_t* ent)
 {

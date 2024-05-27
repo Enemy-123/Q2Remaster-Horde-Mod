@@ -31,7 +31,7 @@ edict_t* AI_GetSightClient(edict_t* self)
     if (level.intermissiontime)
         return nullptr;
 
-    edict_t** visible_players = (edict_t**)alloca(sizeof(edict_t*) * game.maxclients);
+    edict_t** visible_players = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
     size_t num_visible = 0;
 
     for (auto player : active_players())

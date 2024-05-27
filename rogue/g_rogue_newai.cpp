@@ -1523,7 +1523,7 @@ edict_t *PickCoopTarget(edict_t *self)
 	if (!G_IsDeathmatch())
 		return nullptr;
 
-	targets = (edict_t**)alloca(sizeof(edict_t*) * game.maxclients);
+	targets = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
 
 	for (uint32_t player = 1; player <= game.maxclients; player++)
 	{
