@@ -925,6 +925,7 @@ void SpawnBossAutomatically() {
 			int random_flag = 1 << (std::rand() % 6); // Include all defined flags
 			boss->monsterinfo.bonus_flags |= random_flag;
 			boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
+			boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la bandera de super paso
 
 			// Apply bonus flags and ensure health multiplier is applied correctly if wave 10 or more
 			ApplyMonsterBonusFlags(boss);
@@ -1195,6 +1196,7 @@ void ResetCooldowns() {
 
 			edict_t* monster = G_Spawn();
 			monster->classname = monster_classname;
+			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la bandera de super paso
 
 			// Decidir si el monstruo dropeará un ítem
 			if (frandom() <= drop_probability) {
