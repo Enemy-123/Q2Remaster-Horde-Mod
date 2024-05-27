@@ -380,20 +380,20 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS_SMALL[] = {
-	{"monster_carrier2", -1, -1, 0.05f},
+	{"monster_carrier2", 14, -1, 0.05f},
 	{"monster_tank_64", -1, -1, 0.05f},
 	{"monster_shamblerkl", -1, -1, 0.05f},
 	{"monster_guncmdrkl", -1, -1, 0.05f},
-	{"monster_makronkl", -1, -1, 0.05f},
+	{"monster_makronkl", 19, -1, 0.05f},
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {
-	{"monster_carrier", -1, -1, 0.1f},
-	{"monster_boss2", -1, -1, 0.1f},
+	{"monster_carrier", 19, -1, 0.1f},
+	{"monster_boss2", 9, -1, 0.1f},
 	{"monster_tank_64", -1, -1, 0.1f},
 	{"monster_guardian", -1, -1, 0.1f},
 	{"monster_shamblerkl", -1, -1, 0.1f},
-	{"monster_makronkl", 17, -1, 0.1f},
+	{"monster_makronkl", 24, -1, 0.1f},
 };
 
 constexpr boss_t BOSS_LARGE[] = {
@@ -403,7 +403,7 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_tank_64", -1, -1, 0.15f},
 	{"monster_guardian", -1, -1, 0.15f},
 	{"monster_shamblerkl", -1, -1, 0.15f},
-	{"monster_boss5", -1, -1, 0.1f},
+	{"monster_boss5", -1, -1, 0.15f},
 	{"monster_makronkl", 16, -1, 0.15f},
 	{"monster_jorg", 14, -1, 0.15f},
 };
@@ -451,13 +451,19 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname) 
 		}
 	}
 
-	// Si todos los jefes están marcados como recientes, permite la selección de cualquier jefe.
+	// Si todos los jefes están marcados como recientes, permitir la elección de cualquier jefe menos el último seleccionado
 	if (eligible_bosses.empty()) {
+		const char* last_boss = *recent_bosses.rbegin(); // El último jefe seleccionado
 		for (int i = 0; i < 5; ++i) {
-			eligible_bosses.push_back(&boss_list[i]);
+			if (strcmp(boss_list[i].classname, last_boss) != 0) {
+				eligible_bosses.push_back(&boss_list[i]);
+			}
 		}
 	}
 
+	if (eligible_bosses.empty()) return nullptr; // Si aún no hay elegibles, retorna nullptr
+
+	// Elegir jefe basado en los pesos ajustados
 	std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
 	float total_weight = 0.0f;
 	for (const auto& boss : eligible_bosses) {
