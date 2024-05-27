@@ -100,6 +100,11 @@ edict_t* fixbot_FindDeadMonster(edict_t* self)
 
 	return best;
 }
+static void fixbot_set_attack_fly_parameters(edict_t* self) {
+	self->monsterinfo.fly_min_distance = 50.f;  // Acercarse más para el ataque
+	self->monsterinfo.fly_max_distance = 140.f; // Pero mantener alguna distancia
+	self->monsterinfo.fly_speed = 180.f;        // Velocidad aumentada para el combate
+}
 
 static void fixbot_set_fly_parameters(edict_t* self, bool heal, bool weld)
 {
@@ -122,30 +127,41 @@ static void fixbot_set_fly_parameters(edict_t* self, bool heal, bool weld)
 	else
 	{
 		// timid bot
-		self->monsterinfo.fly_min_distance = 300.f;
-		self->monsterinfo.fly_max_distance = 500.f;
+		self->monsterinfo.fly_min_distance = 80.f;
+		self->monsterinfo.fly_max_distance = 200.f;
 	}
 }
 
+edict_t* fixbot_FindLiveEnemy(edict_t* self) {
+	edict_t* ent = nullptr;
+	while ((ent = findradius(ent, self->s.origin, 1024)) != nullptr) {
+		if (ent == self || !ent->inuse)
+			continue;
+		if (!(ent->client)) // Solo jugadores
+			continue;
+		if (ent->health <= 0)
+			continue;
+		if (!visible(self, ent))
+			continue;
+		return ent;
+	}
+	return nullptr;
+}
 int fixbot_search(edict_t* self)
 {
 	edict_t* ent;
-
+	extern void fixbot_start_attack(edict_t * self);
 	if (!self->enemy)
 	{
-		ent = fixbot_FindDeadMonster(self);
-		if (ent)
-		{
-			self->oldenemy = self->enemy;
+		ent = fixbot_FindLiveEnemy(self);
+		if (ent) {
 			self->enemy = ent;
-			self->enemy->monsterinfo.healer = self;
-			self->monsterinfo.aiflags |= AI_MEDIC;
-			FoundTarget(self);
-			fixbot_set_fly_parameters(self, true, false);
-			return (1);
+			fixbot_set_attack_fly_parameters(self);
+			fixbot_start_attack(self);
+			return 1;  // Enemigo encontrado y ataque iniciado
 		}
 	}
-	return (0);
+	return 0;  // No se encontró enemigo o ya había un enemigo
 }
 
 void landing_goal(edict_t* self)
@@ -355,7 +371,6 @@ void use_scanner(edict_t* self)
 		{
 			self->goalentity->nextthink = level.time + 100_ms;
 			self->goalentity->think = G_FreeEdict;
-			self->goalentity = self->enemy = nullptr;
 			M_SetAnimation(self, &fixbot_move_stand);
 		}
 		return;
@@ -377,7 +392,6 @@ void use_scanner(edict_t* self)
 		{
 			self->goalentity->nextthink = level.time + 100_ms;
 			self->goalentity->think = G_FreeEdict;
-			self->goalentity = self->enemy = nullptr;
 			M_SetAnimation(self, &fixbot_move_stand);
 		}
 	}
@@ -575,7 +589,6 @@ void fly_vertical2(edict_t* self)
 		self->goalentity->nextthink = level.time + 100_ms;
 		self->goalentity->think = G_FreeEdict;
 		M_SetAnimation(self, &fixbot_move_stand);
-		self->goalentity = self->enemy = nullptr;
 	}
 
 	// needs sound
@@ -1268,7 +1281,13 @@ void fixbot_fire_blaster(edict_t* self)
 
 MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 {
-	M_SetAnimation(self, &fixbot_move_stand);
+	if (fixbot_search(self)) {
+		// Si encuentra un enemigo, inicia el ataque
+		self->monsterinfo.run(self);
+	}
+	else {
+		M_SetAnimation(self, &fixbot_move_stand);
+	}
 }
 
 MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
@@ -1299,29 +1318,23 @@ MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void
 
 void fixbot_start_attack(edict_t* self)
 {
-	M_SetAnimation(self, &fixbot_move_start_attack);
+	if (self->enemy && self->enemy->client) { // Solo atacar si el enemigo es un jugador
+		M_SetAnimation(self, &fixbot_move_start_attack);
+	}
+	else {
+		self->enemy = nullptr; // Si el enemigo no es un jugador, cancelar el ataque
+	}
 }
 
-MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void
-{
-	vec3_t vec;
-	float  len;
 
-	if (self->monsterinfo.aiflags & AI_MEDIC)
-	{
-		if (!visible(self, self->enemy))
-			return;
-		vec = self->s.origin - self->enemy->s.origin;
-		len = vec.length();
-		if (len > 128)
-			return;
-		else
-			M_SetAnimation(self, &fixbot_move_laserattack);
-	}
-	else
-	{
+MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void {
+	if (self->enemy && self->enemy->client) { // Solo atacar si el enemigo es un jugador
 		fixbot_set_fly_parameters(self, false, false);
 		M_SetAnimation(self, &fixbot_move_attack2);
+	}
+	else {
+		self->enemy = nullptr; // Si el enemigo no es un jugador, cancelar el ataque
+		M_SetAnimation(self, &fixbot_move_stand);
 	}
 }
 
@@ -1409,7 +1422,7 @@ void SP_monster_fixbot(edict_t* self)
 
 	M_SetAnimation(self, &fixbot_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
-	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
+	self->monsterinfo.aiflags |= AI_PATHING;
 	fixbot_set_fly_parameters(self, false, false);
 
 	flymonster_start(self);

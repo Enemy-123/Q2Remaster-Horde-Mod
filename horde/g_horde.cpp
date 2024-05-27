@@ -14,14 +14,13 @@ constexpr int MAX_MONSTERS_BIG_MAP = 44;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
-bool flying_monsters_mode = false; // Variable de control para el jefe
+bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int remainingMonsters = 0; // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
 constexpr gtime_t MONSTER_COOLDOWN = 2.5_sec; // Cooldown en segundos para los monstruos
-constexpr gtime_t SPAWN_POINT_COOLDOWN = 4.0_sec; // Cooldown en segundos para los puntos de spawn
+constexpr gtime_t SPAWN_POINT_COOLDOWN = 3.5_sec; // Cooldown en segundos para los puntos de spawn
 
-constexpr int BOSS_TO_SPAWN = 1;
 cvar_t* g_horde;
 
 enum class horde_state_t {
@@ -168,79 +167,87 @@ void AdjustMonsterSpawnRate() {
 	}
 }
 
+void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) {
+	if (mapSize.isSmallMap) {
+		g_horde_local.num_to_spawn = std::min(9 + lvl, MAX_MONSTERS_SMALL_MAP);
+	}
+	else if (mapSize.isBigMap) {
+		g_horde_local.num_to_spawn = std::min(27 + static_cast<int>(lvl * 1.5), MAX_MONSTERS_BIG_MAP);
+	}
+	else {
+		g_horde_local.num_to_spawn = std::min(8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
+	}
+}
+
+int CalculateChaosInsanityBonus(int32_t lvl) {
+	if (g_chaotic->integer == 2 && current_wave_number >= 7) {
+		return g_insane->integer ? 6 : 5;
+	}
+	else if (g_insane->integer) {
+		return g_insane->integer == 2 ? 16 : 8;
+	}
+	return 0;
+}
+
+void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) {
+	int additionalSpawn = 0;
+	if (mapSize.isSmallMap) {
+		additionalSpawn = 4;
+	}
+	else if (mapSize.isBigMap) {
+		additionalSpawn = 9;
+	}
+	else {
+		additionalSpawn = 7;
+	}
+
+	if (current_wave_number > 27) {
+		additionalSpawn *= 1.6;
+	}
+
+	if (g_chaotic->integer || g_insane->integer) {
+		additionalSpawn += CalculateChaosInsanityBonus(lvl);
+	}
+
+	g_horde_local.num_to_spawn += additionalSpawn;
+}
+
+void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) {
+	int custom_monster_count = dm_monsters->integer;
+	if (custom_monster_count > 0) {
+		g_horde_local.num_to_spawn = custom_monster_count;
+	}
+	else {
+		CalculateStandardSpawnCount(mapSize, lvl);
+		IncludeDifficultyAdjustments(mapSize, lvl);
+	}
+}
+
 void Horde_InitLevel(int32_t lvl) {
+	// Actualización de variables de control de nivel
 	current_wave_number++;
 	last_wave_number++;
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
-	auto mapSize = GetMapSize(level.mapname);
 
+	// Obtener tamaño del mapa y aplicar beneficios
+	auto mapSize = GetMapSize(level.mapname);
 	CheckAndApplyBenefit(g_horde_local.level);
 
+	// Ajustar escala de daño en niveles específicos
 	if (g_horde_local.level == 18) {
 		gi.cvar_set("g_damage_scale", "1.7");
 	}
-	if (g_horde_local.level == 35) {
+	else if (g_horde_local.level == 35) {
 		gi.cvar_set("g_damage_scale", "3");
 	}
 
-	int custom_monster_count = dm_monsters->integer;
-	if (custom_monster_count > 0) {
-		g_horde_local.num_to_spawn = custom_monster_count;
-	}
-	else {
-		if (mapSize.isSmallMap) {
-			g_horde_local.num_to_spawn = 9 + (lvl * 1);
-			if (g_horde_local.num_to_spawn > MAX_MONSTERS_SMALL_MAP) {
-				g_horde_local.num_to_spawn = MAX_MONSTERS_SMALL_MAP;
-			}
-			if ((g_chaotic->integer == 2 && current_wave_number >= 7) || g_insane->integer) {
-				g_horde_local.num_to_spawn += (g_insane->integer ? 6 : 5);
-			}
-		}
-		else if (mapSize.isBigMap) {
-			g_horde_local.num_to_spawn = 27 + (lvl * 1.5);
-			if (g_horde_local.num_to_spawn > MAX_MONSTERS_BIG_MAP) {
-				g_horde_local.num_to_spawn = MAX_MONSTERS_BIG_MAP;
-			}
-			if ((g_chaotic->integer && current_wave_number >= 7) || g_insane->integer) {
-				g_horde_local.num_to_spawn += (g_insane->integer ? 16 : 8);
-			}
-		}
-		else {
-			g_horde_local.num_to_spawn = 8 + (lvl * 1);
-			if (g_horde_local.num_to_spawn >= MAX_MONSTERS_MEDIUM_MAP) {
-				g_horde_local.num_to_spawn = MAX_MONSTERS_MEDIUM_MAP;
-			}
-			if ((g_chaotic->integer && current_wave_number >= 7) || g_insane->integer) {
-				g_horde_local.num_to_spawn += (g_insane->integer ? 9 : 6);
-			}
-		}
-	}
+	// Configuración de la cantidad de monstruos a spawnear
+	DetermineMonsterSpawnCount(mapSize, lvl);
 
-	int numActiveHPlayers = 0;
-	for (auto Hplayer : active_players()) {
-		numActiveHPlayers++;
-	}
-	if (numActiveHPlayers >= 6 || g_insane->integer == 2) {
-		int additionalSpawn = 0;
-		if (mapSize.isSmallMap) {
-			additionalSpawn = 4;
-		}
-		else if (mapSize.isBigMap) {
-			additionalSpawn = 9;
-		}
-		else {
-			additionalSpawn = 7;
-		}
-		if (current_wave_number > 27) {
-			additionalSpawn *= 1.6;
-		}
-		g_horde_local.num_to_spawn += additionalSpawn;
-	}
-
+	// Ajustar tasa de aparición de monstruos
 	AdjustMonsterSpawnRate(); // Llamada a la función para ajustar la tasa de aparición
 }
 

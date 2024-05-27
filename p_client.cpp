@@ -3423,7 +3423,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 
 			// Verificar si el tiempo de inactividad ha expirado
 			if (current_time > ent->client->resp.inactivity_time) {
-				gi.LocClient_Print(ent, PRINT_CENTER, "You have deserted the war against stroggs! UNACCEPTABLE\n");
+				gi.LocClient_Print(ent, PRINT_CENTER, "\n\n\n\n\nYou have deserted the war against stroggs! UNACCEPTABLE\n");
 				CTFJoinTeam(ent, CTF_NOTEAM); // Mueve al jugador al equipo espectador
 				ent->client->resp.inactive = true;
 				return false;
