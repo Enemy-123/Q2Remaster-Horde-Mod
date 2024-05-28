@@ -625,8 +625,9 @@ void SP_monster_shamblerkl(edict_t* self)
 	SP_monster_shambler(self);
 	if (!strcmp(self->classname, "monster_shamblerkl")) {
 		self->health = 6500 + (1.08 * current_wave_number);
-
 		self->gib_health = -190;
+		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+			self->gib_health = -999999;
 	}
 
 	self->yaw_speed = 65;

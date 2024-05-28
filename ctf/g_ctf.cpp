@@ -1586,9 +1586,13 @@ DIE(grapple_die) (edict_t* self, edict_t* other, edict_t* inflictor, int damage,
 
 bool CTFFireGrapple(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect)
 {
+	if (!self || !self->client) {
+		return false;
+	}
+
 	edict_t* grapple;
-	trace_t	 tr;
-	vec3_t	 normalized = dir.normalized();
+	trace_t  tr;
+	vec3_t   normalized = dir.normalized();
 
 	grapple = G_Spawn();
 	grapple->s.origin = start;
@@ -1597,9 +1601,12 @@ bool CTFFireGrapple(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 	grapple->velocity = normalized * speed;
 	grapple->movetype = MOVETYPE_FLYMISSILE;
 	grapple->clipmask = MASK_PROJECTILE;
+
 	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	if (!G_ShouldPlayersCollide(true)) {
 		grapple->clipmask &= ~CONTENTS_PLAYER;
+	}
+
 	grapple->solid = SOLID_BBOX;
 	grapple->s.effects |= effect;
 	grapple->s.modelindex = gi.modelindex("models/weapons/grapple/hook/tris.md2");
@@ -1609,13 +1616,14 @@ bool CTFFireGrapple(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 	grapple->flags |= FL_NO_KNOCKBACK | FL_NO_DAMAGE_EFFECTS;
 	grapple->takedamage = true;
 	grapple->die = grapple_die;
+
 	self->client->ctf_grapple = grapple;
 	self->client->ctf_grapplestate = CTF_GRAPPLE_STATE_FLY; // we're firing, not on hook
+
 	gi.linkentity(grapple);
 
 	tr = gi.traceline(self->s.origin, grapple->s.origin, grapple, grapple->clipmask);
-	if (tr.fraction < 1.0f)
-	{
+	if (tr.fraction < 1.0f) {
 		grapple->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		grapple->touch(grapple, tr.ent, tr, false);
 		return false;
@@ -1625,6 +1633,7 @@ bool CTFFireGrapple(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 
 	return true;
 }
+
 
 void CTFGrappleFire(edict_t* ent, const vec3_t& g_offset, int damage, effects_t effect)
 {
