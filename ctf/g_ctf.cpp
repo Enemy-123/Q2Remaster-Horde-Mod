@@ -1803,16 +1803,18 @@ void CTFTeam_f(edict_t* ent)
 constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
 
 extern std::unordered_set<std::string> obtained_benefits;
-// Función para obtener la cadena de beneficios activos
 std::string GetActiveBonusesString() {
 	std::string activeBonuses;
 
+	// Check for upgraded vampirism first because it supersedes basic health vampirism
 	if (obtained_benefits.find("vampire upgraded") != obtained_benefits.end()) {
 		activeBonuses += "Health & Armor Vampirism Enabled\n";
 	}
+	// Only check for basic vampirism if upgraded vampirism is not active
 	else if (obtained_benefits.find("vampire") != obtained_benefits.end()) {
 		activeBonuses += "Health Vampirism Enabled\n";
 	}
+	// Check and add other benefits
 	if (obtained_benefits.find("ammo regen") != obtained_benefits.end()) {
 		activeBonuses += "Ammo Regen Enabled\n";
 	}
@@ -1822,7 +1824,6 @@ std::string GetActiveBonusesString() {
 
 	return activeBonuses;
 }
-
 
 void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	uint32_t   i, j, k, n;
@@ -2905,6 +2906,7 @@ void CTFGhost(edict_t* ent)
 	}
 	gi.LocClient_Print(ent, PRINT_HIGH, "Invalid ghost code.\n");
 }
+
 
 bool CTFMatchSetup()
 {

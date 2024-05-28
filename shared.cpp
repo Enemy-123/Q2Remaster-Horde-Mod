@@ -88,7 +88,7 @@ std::string GetDisplayName(edict_t* ent) {
         { "monster_janitor2", "Mini Guardian" },
         { "monster_guardian", "Guardian" },
         { "monster_makron", "Makron" },
-        { "monster_jorg", "Makron" },
+        { "monster_jorg", "Jorg" },
         { "monster_gladb", "DarkMatter Gladiator" },
         { "monster_boss2_64", "N64 Hornet" },
         { "monster_boss2kl", "N64 Hornet" },
