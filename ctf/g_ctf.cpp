@@ -1802,13 +1802,29 @@ void CTFTeam_f(edict_t* ent)
 }
 constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
 
-/*
-==================
-CTFScoreboardMessage
-==================
-*/
-void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
-{
+extern std::unordered_set<std::string> obtained_benefits;
+// Función para obtener la cadena de beneficios activos
+std::string GetActiveBonusesString() {
+	std::string activeBonuses;
+
+	if (obtained_benefits.find("vampire upgraded") != obtained_benefits.end()) {
+		activeBonuses += "Health & Armor Vampirism Enabled\n";
+	}
+	else if (obtained_benefits.find("vampire") != obtained_benefits.end()) {
+		activeBonuses += "Health Vampirism Enabled\n";
+	}
+	if (obtained_benefits.find("ammo regen") != obtained_benefits.end()) {
+		activeBonuses += "Ammo Regen Enabled\n";
+	}
+	if (obtained_benefits.find("auto haste") != obtained_benefits.end()) {
+		activeBonuses += "Auto-Haste Enabled\n";
+	}
+
+	return activeBonuses;
+}
+
+
+void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	uint32_t   i, j, k, n;
 	uint32_t   sorted[2][MAX_CLIENTS];
 	int32_t    sortedscores[2][MAX_CLIENTS];
@@ -1824,8 +1840,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	total[0] = total[1] = 0;
 	last[0] = last[1] = 0;
 	totalscore[0] = totalscore[1] = 0;
-	for (i = 0; i < game.maxclients; i++)
-	{
+	for (i = 0; i < game.maxclients; i++) {
 		cl_ent = g_edicts + 1 + i;
 		if (!cl_ent->inuse)
 			continue;
@@ -1837,13 +1852,11 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			continue; // unknown team?
 
 		score = game.clients[i].resp.score;
-		for (j = 0; j < total[team]; j++)
-		{
+		for (j = 0; j < total[team]; j++) {
 			if (score > sortedscores[team][j])
 				break;
 		}
-		for (k = total[team]; k > j; k--)
-		{
+		for (k = total[team]; k > j; k--) {
 			sorted[team][k] = sorted[team][k - 1];
 			sortedscores[team][k] = sortedscores[team][k - 1];
 		}
@@ -1858,22 +1871,25 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 	static std::string string;
 	string.clear();
 
-	if (g_horde->integer && level.intermissiontime)
-	{
+	if (g_horde->integer && level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""), g_horde->integer);
 	}
 
-	if (timelimit->value)
-	{
+	if (timelimit->value) {
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
-	if (!level.intermissiontime)
-	{
+	if (!level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
 			FMT_STRING("if 25 xv -65 yv 10 dogtag endif "),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
+
+		// Obtener la cadena de beneficios activos
+		std::string activeBonuses = GetActiveBonusesString();
+		if (!activeBonuses.empty()) {
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 216 yv 8 string \"{}\" "), activeBonuses);
+		}
 	}
 	else if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
@@ -1884,6 +1900,9 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer)
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 	}
+	gi.WriteByte(svc_layout);
+	gi.WriteString(string.c_str());
+	gi.unicast(ent, true);
 	for (i = 0; i < 16; i++)
 	{
 		if (i >= total[0] && i >= total[1])
@@ -2438,7 +2457,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0056\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0057\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
