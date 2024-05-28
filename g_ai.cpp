@@ -32,6 +32,9 @@ edict_t* AI_GetSightClient(edict_t* self)
         return nullptr;
 
     edict_t** visible_players = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
+    if (!visible_players)
+        return nullptr; // Aseguramos que la memoria se asignó correctamente
+
     size_t num_visible = 0;
 
     for (auto player : active_players())

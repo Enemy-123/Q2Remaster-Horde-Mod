@@ -357,22 +357,30 @@ THINK(turret_driver_think) (edict_t* self) -> void
 	}
 
 	// let the turret know where we want it to aim
-	target = self->enemy->s.origin;
-	target[2] += self->enemy->viewheight;
-	dir = target - self->target_ent->s.origin;
-	self->target_ent->move_angles = vectoangles(dir);
+	if (self->enemy) {
+		target = self->enemy->s.origin;
+		target[2] += self->enemy->viewheight;
+	}
+	else {
+		VectorClear(target);  // Clear target if enemy is null to avoid undefined behavior
+	}
 
-	// decide if we should shoot
-	if (level.time < self->monsterinfo.attack_finished)
-		return;
+	if (self->target_ent) {
+		dir = target - self->target_ent->s.origin;
+		self->target_ent->move_angles = vectoangles(dir);
 
-	gtime_t reaction_time = gtime_t::from_sec(3 - skill->integer);
-	if ((level.time - self->monsterinfo.trail_time) < reaction_time)
-		return;
+		// decide if we should shoot
+		if (level.time < self->monsterinfo.attack_finished)
+			return;
 
-	self->monsterinfo.attack_finished = level.time + reaction_time + 1_sec;
-	// FIXME how do we really want to pass this along?
-	self->target_ent->spawnflags |= SPAWNFLAG_TURRET_BREACH_FIRE;
+		gtime_t reaction_time = gtime_t::from_sec(3 - skill->integer);
+		if ((level.time - self->monsterinfo.trail_time) < reaction_time)
+			return;
+
+		self->monsterinfo.attack_finished = level.time + reaction_time + 1_sec;
+		// FIXME how do we really want to pass this along?
+		self->target_ent->spawnflags |= SPAWNFLAG_TURRET_BREACH_FIRE;
+	}
 }
 
 THINK(turret_driver_link) (edict_t* self) -> void

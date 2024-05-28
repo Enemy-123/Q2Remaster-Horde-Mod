@@ -1928,13 +1928,12 @@ void SP_target_autosave(edict_t* self)
 /*QUAKED target_sky (0 1 0) (-8 -8 -8) (8 8 8)
 *
 * Change sky parameters.
-"sky"	environment map name
-"skyaxis"	vector axis for rotating sky
-"skyrotate"	speed of rotation in degrees/second
+"sky"    environment map name
+"skyaxis"    vector axis for rotating sky
+"skyrotate"    speed of rotation in degrees/second
 */
 
-USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void
-{
+USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void {
 	if (self->map)
 		gi.configstring(CS_SKY, self->map);
 
@@ -1943,7 +1942,13 @@ USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void
 		float rotate;
 		int32_t autorotate;
 
-		sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate);
+		if (sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate) != 2)
+		{
+			// Handle error, e.g., log a warning or set default values
+			gi.Com_PrintFmt("Warning: Failed to parse skyrotate config string\n");
+			rotate = 0.0f;  // Default value or handle as needed
+			autorotate = 0; // Default value or handle as needed
+		}
 
 		if (self->count & 1)
 			rotate = self->accel;

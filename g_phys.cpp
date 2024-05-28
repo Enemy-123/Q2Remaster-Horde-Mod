@@ -336,6 +336,9 @@ bool SV_Push(edict_t* pusher, vec3_t& move, vec3_t& amove)
     pushed_t* p;
     vec3_t   org, org2, move2, forward, right, up;
 
+    // Initialize pushed_p to the start of the pushed array
+    pushed_p = pushed;
+
     // find the bounding box
     mins = pusher->absmin + move;
     maxs = pusher->absmax + move;
@@ -351,7 +354,7 @@ bool SV_Push(edict_t* pusher, vec3_t& move, vec3_t& amove)
     pushed_p->rotated = false;
     pushed_p++;
 
-    // move the pusher to it's final position
+    // move the pusher to its final position
     pusher->s.origin += move;
     pusher->s.angles += amove;
     gi.linkentity(pusher);
@@ -372,12 +375,12 @@ bool SV_Push(edict_t* pusher, vec3_t& move, vec3_t& amove)
         // if the entity is standing on the pusher, it will definitely be moved
         if (check->groundentity != pusher)
         {
-            // see if the ent needs to be tested
+            // see if the entity needs to be tested
             if (check->absmin[0] >= maxs[0] || check->absmin[1] >= maxs[1] || check->absmin[2] >= maxs[2] ||
                 check->absmax[0] <= mins[0] || check->absmax[1] <= mins[1] || check->absmax[2] <= mins[2])
                 continue;
 
-            // see if the ent's bbox is inside the pusher's final position
+            // see if the entity's bbox is inside the pusher's final position
             if (!SV_TestEntityPosition(check))
                 continue;
         }
@@ -438,7 +441,7 @@ bool SV_Push(edict_t* pusher, vec3_t& move, vec3_t& amove)
             }
 
             // if it is ok to leave in the old position, do it.
-            // this is only relevent for riding entities, not pushed
+            // this is only relevant for riding entities, not pushed
             check->s.origin = old_position;
             block = SV_TestEntityPosition(check);
             if (!block)
@@ -471,7 +474,7 @@ bool SV_Push(edict_t* pusher, vec3_t& move, vec3_t& amove)
     }
 
     // FIXME: is there a better way to handle this?
-    //  see if anything we moved has touched a trigger
+    // see if anything we moved has touched a trigger
     for (p = pushed_p - 1; p >= pushed; p--)
         G_TouchTriggers(p->ent);
 
