@@ -1064,17 +1064,15 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 			if (client->pers.inventory[IT_AMMO_ROUNDS] > client->pers.max_ammo[AMMO_DISRUPTOR])
 				client->pers.inventory[IT_AMMO_ROUNDS] = client->pers.max_ammo[AMMO_DISRUPTOR];
 		}
-		if (client->pers.inventory[IT_AMMO_TESLA]) {
-			client->pers.inventory[IT_AMMO_TESLA] += 1;
-			if (client->pers.inventory[IT_AMMO_TESLA] > client->pers.max_ammo[AMMO_TESLA])
-				client->pers.inventory[IT_AMMO_TESLA] = client->pers.max_ammo[AMMO_TESLA];
-		}
-		if (client->pers.inventory[IT_AMMO_TRAP]) {
-			client->pers.inventory[IT_AMMO_TRAP] += 1;
-			if (client->pers.inventory[IT_AMMO_TRAP] > client->pers.max_ammo[AMMO_TRAP])
-				client->pers.inventory[IT_AMMO_TRAP] = client->pers.max_ammo[AMMO_TRAP];
-		}
+
+		client->pers.inventory[IT_AMMO_TESLA] += 2;
+		if (client->pers.inventory[IT_AMMO_TESLA] > client->pers.max_ammo[AMMO_TESLA])
+			client->pers.inventory[IT_AMMO_TESLA] = client->pers.max_ammo[AMMO_TESLA];
 	}
+
+	client->pers.inventory[IT_AMMO_TRAP] += 2;
+	if (client->pers.inventory[IT_AMMO_TRAP] > client->pers.max_ammo[AMMO_TRAP])
+		client->pers.inventory[IT_AMMO_TRAP] = client->pers.max_ammo[AMMO_TRAP];
 }
 
 
