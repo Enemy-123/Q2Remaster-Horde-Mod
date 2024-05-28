@@ -2072,7 +2072,6 @@ static edict_t* FindTechSpawn()
 	return nullptr;
 }
 
-
 THINK(TechThink) (edict_t* tech) -> void
 {
 	edict_t* spot;
@@ -2088,17 +2087,35 @@ THINK(TechThink) (edict_t* tech) -> void
 		tech->think = TechThink;
 	}
 }
-
-void CTFDrop_Tech(edict_t* ent, gitem_t* item)
-{
-	edict_t* tech;
-
-	tech = Drop_Item(ent, item);
+static THINK(Tech_Make_Touchable) (edict_t* tech) -> void {
+	tech->touch = Touch_Item;
 	tech->nextthink = level.time + CTF_TECH_TIMEOUT;
 	tech->think = TechThink;
-	ent->client->pers.inventory[item->id] = 0;
-	G_FreeEdict(tech);
 }
+void CTFDrop_Tech(edict_t* ent, gitem_t* item)
+{
+    // Eliminar el tech item del inventario del jugador
+    ent->client->pers.inventory[item->id] = 0;
+
+    // Reiniciar el estado de todos los tech items del mismo tipo
+    for (int i = 0; i < game.maxentities; i++)
+    {
+        edict_t* tech = &g_edicts[i];
+        if (tech->inuse && tech->item == item)
+        {
+            tech->svflags &= ~SVF_NOCLIENT;
+            tech->solid = SOLID_TRIGGER;
+            tech->movetype = MOVETYPE_TOSS;
+            tech->touch = Touch_Item;
+            tech->nextthink = level.time + CTF_TECH_TIMEOUT;
+            tech->think = TechThink;
+			// Reiniciar el registro de quién ha recogido el item
+			tech->item_picked_up_by.reset();
+			gi.linkentity(tech);
+        }
+    }
+}
+
 
 void CTFDeadDropTech(edict_t* ent)
 {
