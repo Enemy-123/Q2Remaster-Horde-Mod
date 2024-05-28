@@ -797,7 +797,7 @@ THINK(monster_dead_think) (edict_t* self) -> void
 
 	self->nextthink = level.time + 10_hz;
 }
-
+extern void boss_die(edict_t* boss);
 void monster_dead(edict_t* self)
 {
 	self->think = monster_dead_think;
@@ -807,6 +807,7 @@ void monster_dead(edict_t* self)
 	self->monsterinfo.damage_blood = 0;
 	self->fly_sound_debounce_time = 0_ms;
 	self->monsterinfo.aiflags &= ~AI_STUNK;
+	boss_die(self);
 	gi.linkentity(self);
 }
 

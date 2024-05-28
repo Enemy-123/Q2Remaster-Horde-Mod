@@ -57,6 +57,9 @@ void UpdateChaseCam(edict_t* ent)
 		ent->client->ps.pmove.delta_angles = targ->client->ps.pmove.delta_angles;
 		ent->client->ps.pmove.viewheight = targ->client->ps.pmove.viewheight;
 
+		ent->client->pers.hand = ent->client->chase_target->client->pers.hand;
+		ent->client->pers.weapon = ent->client->chase_target->client->pers.weapon;
+
 		// unadjusted view and origin handling
 		angles = targ->client->v_angle;
 		AngleVectors(angles, forward, right, nullptr);
