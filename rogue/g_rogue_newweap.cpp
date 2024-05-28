@@ -858,8 +858,13 @@ void tesla_remove(edict_t* self)
 
 DIE(tesla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	// Añadir comprobación para rechazar el daño si el atacante es un jugador
+	if (attacker->client) {
+		return;  // No permitir daño de jugadores
+	}
 	tesla_remove(self);
 }
+
 
 void tesla_blow(edict_t* self)
 {
@@ -870,6 +875,12 @@ void tesla_blow(edict_t* self)
 
 TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
+	// Ignorar el contacto si el otro es un jugador
+	if (other->client) {
+		return;
+	}
+
+	// Código existente para manejar el contacto aquí
 }
 
 static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
