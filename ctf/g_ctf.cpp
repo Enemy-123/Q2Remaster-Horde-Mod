@@ -1992,7 +1992,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			}
 
 			std::string_view entry = G_Fmt("ctf {} {} {} {} {} \"\" ",
-				(1) -90, // x
+				(n & 1) ? 150 : -90, // x
 				j,				   // y
 				i,				   // playernum
 				cl->resp.score,
