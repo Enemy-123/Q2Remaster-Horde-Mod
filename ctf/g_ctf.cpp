@@ -1013,7 +1013,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_perrokl", "Infected Parasite" },
 		{ "monster_guncmdrkl", "Gunner Grenadier" },
 		{ "monster_shamblerkl", "Shambler" },
-		{ "monster_makronkl", "Ghostly Makron" },
+		{ "monster_makronkl", "Makron" },
 		{ "monster_widow1", "Widow Apprentice" },
 		{ "monster_widow", "Widow Matriarch" },
 		{ "monster_widow2", "Widow Creator" },
