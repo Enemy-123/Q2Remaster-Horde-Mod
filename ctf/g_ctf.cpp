@@ -1863,7 +1863,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
 			team = 0;
 		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
-			team = 1;
+			team = 0;
 		else
 			continue; // unknown team?
 
@@ -1897,19 +1897,19 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	if (!level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -65 yv 10 dogtag endif "),
+			FMT_STRING("if 25 xv -85 yv 10 dogtag endif "),
 			totalscore[0], total[0],
 			totalscore[1], total[1]);
 
 		// Obtener la cadena de beneficios activos
 		std::string activeBonuses = GetActiveBonusesString();
 		if (!activeBonuses.empty()) {
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 213 yv 8 string \"{}\" "), activeBonuses);
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 208 yv 8 string \"{}\" "), activeBonuses); // now vamp health & armor  barely fit, but fits, leaving it like this to test spectators hud
 		}
 	}
 	else if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -65 yv 10 dogtag endif"
+			FMT_STRING("if 25 xv -95 yv 10 dogtag endif"
 				"if 25 xv 205 yv 8 pic 25 endif "
 				"xv 70 yv -20 num 2 19 "
 				"xv 302 yv -20 num 2 21 "),
@@ -1930,7 +1930,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			cl = &game.clients[sorted[0][i]];
 			cl_ent = g_edicts + 1 + sorted[0][i];
 
-			std::string_view entry = G_Fmt("ctf -70 {} {} {} {} {} ",  // -70, and lower, names will go to left on scoreboard ctf/horde
+			std::string_view entry = G_Fmt("ctf -90 {} {} {} {} {} ",  // -70, and lower, names will go to left on scoreboard ctf/horde
 				42 + i * 8,
 				sorted[0][i],
 				cl->resp.score,
@@ -1987,12 +1987,12 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			if (!k)
 			{
 				k = 1;
-				fmt::format_to(std::back_inserter(string), FMT_STRING("xv 60 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
+				fmt::format_to(std::back_inserter(string), FMT_STRING("xv -70 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
 				j += 8;
 			}
 
 			std::string_view entry = G_Fmt("ctf {} {} {} {} {} \"\" ",
-				(n & 1) ? 200 : -40, // x
+				(1) -90, // x
 				j,				   // y
 				i,				   // playernum
 				cl->resp.score,
@@ -2011,7 +2011,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
 			42 + (last[0] + 1) * 8, total[0] - last[0] - 1);
 	if (total[1] - last[1] > 1) // couldn't fit everyone
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 208 yv {} loc_string 1 $g_ctf_and_more {} "),
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -3 yv -25 {} loc_string 1 $g_ctf_and_more {} "),
 			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
 
 	if (level.intermissiontime)
@@ -2473,7 +2473,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0058\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0059\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)

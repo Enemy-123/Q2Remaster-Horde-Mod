@@ -146,7 +146,7 @@ void ApplyBenefit(const std::string& benefit) {
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nVampire Ability\nUPGRADED!\n");
         gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
     }
-    else if (g_horde_local.level >= 15 && benefit == "Cluster Prox Grenades") {
+    else if (benefit == "Cluster Prox Grenades") {
         gi.cvar_set("g_upgradeproxs", "1");
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nProx Launcher\nUPGRADED!\n");
     }
@@ -664,7 +664,7 @@ void Horde_PreInit() {
         gi.cvar_set("ctf", "0");
         gi.cvar_set("teamplay", "0");
         gi.cvar_set("coop", "0");
-        gi.cvar_set("timelimit", "25");
+        gi.cvar_set("timelimit", "30");
         gi.cvar_set("fraglimit", "0");
         gi.cvar_set("sv_target_id", "1");
         gi.cvar_set("g_speedstuff", "2.3f");
@@ -1006,7 +1006,7 @@ void ResetGame() {
     gi.cvar_set("g_hardcoop", "0");
     gi.cvar_set("g_autohaste", "0");
     gi.cvar_set("dm_monsters", "0");
-    gi.cvar_set("timelimit", "25");
+    gi.cvar_set("timelimit", "30");
 }
 
 // Variables globales para el estado de la condición
@@ -1132,11 +1132,11 @@ void DisplayWaveMessage() {
 
 // Función para manejar el mensaje de limpieza de ola
 void HandleWaveCleanupMessage(const MapSize& mapSize) {
-    if (current_wave_number >= 15 && current_wave_number <= 33) {
+    if (current_wave_number >= 15 && current_wave_number <= 28) {
         gi.cvar_set("g_insane", "1");
         gi.cvar_set("g_chaotic", "0");
     }
-    else if (current_wave_number >= 34) {
+    else if (current_wave_number >= 31) {
         gi.cvar_set("g_insane", "2");
         gi.cvar_set("g_chaotic", "0");
     }
