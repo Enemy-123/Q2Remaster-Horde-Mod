@@ -349,7 +349,7 @@ void BeginIntermission(edict_t* targ)
 	}
 	else
 	{
-		if (!G_IsDeathmatch() && !g_horde->integer) // FIX NO INTERMISSION ON HORDE MODE, when it was coop
+		if (!G_IsDeathmatch())
 		{
 			level.exitintermission = 1; // go immediately to the next level
 			return;
@@ -367,9 +367,9 @@ void BeginIntermission(edict_t* targ)
 		ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_intermission");
 		if (!ent)
 		{ // the map creator forgot to put in an intermission point...
-			ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+			ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
 			if (!ent)
-				ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
+				ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
 		}
 		else
 		{ // choose one of four spots

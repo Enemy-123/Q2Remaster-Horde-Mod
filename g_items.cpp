@@ -436,6 +436,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AddAmmoAndCapQuantity(other, AMMO_MAGSLUG);
 	G_AddAmmoAndCapQuantity(other, AMMO_FLECHETTES);
 	G_AddAmmoAndCapQuantity(other, AMMO_DISRUPTOR);
+	G_AddAmmoAndCapQuantity(other, AMMO_TESLA);
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));

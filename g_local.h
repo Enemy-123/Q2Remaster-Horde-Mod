@@ -1006,6 +1006,7 @@ struct gitem_t
 	int32_t ammo_wheel_index = -1;
 	int32_t weapon_wheel_index = -1;
 	int32_t powerup_wheel_index = -1;
+	float* time_ptr;  // Añadir un puntero a tiempo si es necesario
 };
 
 // means of death
