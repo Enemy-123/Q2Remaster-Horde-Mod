@@ -664,7 +664,7 @@ void Horde_PreInit() {
         gi.cvar_set("ctf", "0");
         gi.cvar_set("teamplay", "0");
         gi.cvar_set("coop", "0");
-        gi.cvar_set("timelimit", "30");
+        gi.cvar_set("timelimit", "40");
         gi.cvar_set("fraglimit", "0");
         gi.cvar_set("sv_target_id", "1");
         gi.cvar_set("g_speedstuff", "2.3f");
@@ -1006,7 +1006,7 @@ void ResetGame() {
     gi.cvar_set("g_hardcoop", "0");
     gi.cvar_set("g_autohaste", "0");
     gi.cvar_set("dm_monsters", "0");
-    gi.cvar_set("timelimit", "30");
+    gi.cvar_set("timelimit", "40");
 }
 
 // Variables globales para el estado de la condición
