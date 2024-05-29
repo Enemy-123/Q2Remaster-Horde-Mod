@@ -322,7 +322,7 @@ void ShamblerCastLightning(edict_t* self)
 	gi.WritePosition(tr.endpos);
 	gi.multicast(start, MULTICAST_PVS, false);
 
-	fire_bullet(self, start, dir, irandom(8, 12), 15, 0, 0, MOD_TESLA);
+	fire_bullet(self, start, dir, irandom(8, 12), 15 * M_DamageModifier(self), 0, 0, MOD_TESLA);
 }
 
 mframe_t shambler_frames_magic[] = {
