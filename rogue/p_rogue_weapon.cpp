@@ -23,6 +23,10 @@ void weapon_prox_fire(edict_t* ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	G_RemoveAmmo(ent);
+	if (g_upgradeproxs->integer)
+	{
+		G_RemoveAmmo(ent, 3);
+	}
 }
 
 void Weapon_ProxLauncher(edict_t* ent)
@@ -82,9 +86,9 @@ void weapon_chainfist_fire(edict_t* ent)
 
 
 	if (G_IsDeathmatch())
-		damage = irandom(8, 17);
+		damage = irandom(12, 17);
 	if (G_IsCooperative())
-		damage = irandom(8, 17);
+		damage = irandom(12, 17);
 
 	if (is_quad)
 		damage *= damage_multiplier;

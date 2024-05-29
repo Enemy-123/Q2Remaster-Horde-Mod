@@ -91,6 +91,7 @@
       <MultiProcessorCompilation>true</MultiProcessorCompilation>
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnablePREfast>true</EnablePREfast>
+      <Optimization>Disabled</Optimization>
     </ClCompile>
     <Link>
       <SubSystem>NotSet</SubSystem>

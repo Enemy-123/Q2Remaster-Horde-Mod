@@ -70,7 +70,8 @@ const std::vector<std::pair<int, std::string>> benefits = {
     {5, "vampire"},
     {10, "ammo regen"},
     {15, "auto haste"},
-    {20, "vampire upgraded"}
+    {20, "vampire upgraded"},
+    {25, "Cluster Prox Grenades" }
 };
 
 static std::random_device rd;
@@ -139,8 +140,13 @@ void ApplyBenefit(const std::string& benefit) {
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nVampire Ability\nUPGRADED!\n");
         gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
     }
+    else if (g_horde_local.level >= 15 && benefit == "Cluster Prox Grenades") {
+        gi.cvar_set("g_upgradeproxs", "1");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nProx Launcher\nUPGRADED!\n");
+    }
     obtained_benefits.insert(benefit);
 }
+
 
 // Función para verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(int wave) {
@@ -989,6 +995,7 @@ void ResetGame() {
     gi.cvar_set("ai_damage_scale", "1");
     gi.cvar_set("g_damage_scale", "1");
     gi.cvar_set("g_ammoregen", "0");
+    gi.cvar_set("g_upgradeproxs", "0");
     gi.cvar_set("g_hardcoop", "0");
     gi.cvar_set("g_autohaste", "0");
     gi.cvar_set("dm_monsters", "0");

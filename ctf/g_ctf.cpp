@@ -1817,18 +1817,21 @@ std::string GetActiveBonusesString() {
 
 	// Check for upgraded vampirism first because it supersedes basic health vampirism
 	if (obtained_benefits.find("vampire upgraded") != obtained_benefits.end()) {
-		activeBonuses += "Health & Armor Vampirism Enabled\n";
+		activeBonuses += "* Health & Armor Vampirism Enabled!\n";
 	}
 	// Only check for basic vampirism if upgraded vampirism is not active
 	else if (obtained_benefits.find("vampire") != obtained_benefits.end()) {
-		activeBonuses += "Health Vampirism Enabled\n";
+		activeBonuses += "* Health Vampirism Enabled!\n";
 	}
 	// Check and add other benefits
 	if (obtained_benefits.find("ammo regen") != obtained_benefits.end()) {
-		activeBonuses += "Ammo Regen Enabled\n";
+		activeBonuses += "* Ammo Regen Enabled!\n";
 	}
 	if (obtained_benefits.find("auto haste") != obtained_benefits.end()) {
-		activeBonuses += "Auto-Haste Enabled\n";
+		activeBonuses += "* Auto-Haste Enabled!\n";
+	}
+	if (obtained_benefits.find("Cluster Prox Grenades") != obtained_benefits.end()) {
+		activeBonuses += "* Upgraded Prox Launcher!\n";
 	}
 
 	return activeBonuses;
@@ -2467,7 +2470,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0057\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0058\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)

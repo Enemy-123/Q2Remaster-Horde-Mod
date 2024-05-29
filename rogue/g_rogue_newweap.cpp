@@ -93,7 +93,10 @@ constexpr int32_t PROX_DAMAGE = 90;
 THINK(Prox_Explode) (edict_t* ent) -> void
 {
 	vec3_t	 origin;
+	vec3_t  forward, right, up;
+	vec3_t  grenade_angs;
 	edict_t* owner;
+	int n;
 
 	// free the trigger field
 
@@ -108,7 +111,7 @@ THINK(Prox_Explode) (edict_t* ent) -> void
 		PlayerNoise(owner, ent->s.origin, PNOISE_IMPACT);
 	}
 
-	// play quad sound if appopriate
+	// play quad sound if appropriate
 	if (ent->dmg > PROX_DAMAGE)
 		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
@@ -124,9 +127,24 @@ THINK(Prox_Explode) (edict_t* ent) -> void
 	gi.WritePosition(origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
-	G_FreeEdict(ent);
-}
 
+	if (g_upgradeproxs->integer) {
+		// Fragmentation effect
+		for (n = 0; n < 12; n++)
+		{
+			grenade_angs[0] = -45;
+			grenade_angs[1] = n * 30.0f;
+			grenade_angs[2] = 0;
+			AngleVectors(grenade_angs, forward, right, up);
+
+			// Here, the function fire_grenade is adapted to include the additional parameters for your mod
+			// Adjust right_adjust and up_adjust as needed for the effect you want (here, set to 0 for no adjustment)
+			fire_grenade(owner, origin, forward, 60, 600, 2_sec, 120, 0.0, 0.0, true);
+		}
+	}
+		G_FreeEdict(ent);
+	
+}
 //===============
 //===============
 DIE(prox_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
@@ -161,7 +179,7 @@ TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool o
 	if (CheckTeamDamage(prox->teammaster, other))
 		return;
 
-	if (!G_IsDeathmatch() && other->client)
+	if (G_IsDeathmatch() && g_horde->integer && other->client) // no self damage using traps on DM/Horde
 		return;
 
 	if (other == prox) // don't set self off
@@ -1010,7 +1028,7 @@ THINK(tesla_activate) (edict_t* self) -> void
 			// or it's a player start point
 			// and we can see it
 			// blow up
-			if (search->classname && ((G_IsDeathmatch() &&
+			if (search->classname && ((G_IsDeathmatch() && !g_horde->integer &&
 				((!strncmp(search->classname, "info_player_", 12)) ||
 					(!strcmp(search->classname, "misc_teleporter_dest")) ||
 					(!strncmp(search->classname, "item_flag_", 10))))) &&

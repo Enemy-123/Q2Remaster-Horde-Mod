@@ -106,6 +106,7 @@ cvar_t* g_weapon_respawn_time;
 cvar_t* g_autohaste;
 cvar_t* wavenext;
 cvar_t* dm_monsters;
+cvar_t* g_upgradeproxs;
 cvar_t* g_dm_spawns;
 cvar_t* sv_centerprint_frags;
 cvar_t* sv_eyecam;
@@ -391,6 +392,7 @@ void InitGame()
 	g_insane = gi.cvar("g_insane", "0", CVAR_NOFLAGS);
 	g_hardcoop = gi.cvar("g_hardcoop", "0", CVAR_NOFLAGS);
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
+	g_upgradeproxs = gi.cvar("g_upgradeproxs", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 	g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
 	g_autohaste = gi.cvar("g_autohaste", "0", CVAR_NOFLAGS);
