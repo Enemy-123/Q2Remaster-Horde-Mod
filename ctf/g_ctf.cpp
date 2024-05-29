@@ -1987,25 +1987,23 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			if (!k)
 			{
 				k = 1;
-				fmt::format_to(std::back_inserter(string), FMT_STRING("xv -70 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
+				fmt::format_to(std::back_inserter(string), FMT_STRING("xv -90 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
 				j += 8;
 			}
-
 			std::string_view entry = G_Fmt("ctf {} {} {} {} {} \"\" ",
-				(n & 1) ? 150 : -90, // x
-				j,				   // y
-				i,				   // playernum
+				-90,
+				j,                  // y
+				i,                  // playernum
 				cl->resp.score,
 				cl->ping > 999 ? 999 : cl->ping);
 
 			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
 				string += entry;
 
-			if (n & 1)
-				j += 8;
-			n++;
+			j += 8;  // Incrementa Y después de cada espectador
 		}
 	}
+
 
 	if (total[0] - last[0] > 1) // couldn't fit everyone
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
