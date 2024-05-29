@@ -495,7 +495,8 @@ THINK(proboscis_think) (edict_t* self) -> void
 	{
 		if (!self->enemy)
 		{
-			// stuck in wall
+			// Enemy not valid, retract early
+			proboscis_retract(self);
 		}
 		else if (!self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
 		{
@@ -513,7 +514,6 @@ THINK(proboscis_think) (edict_t* self) -> void
 
 			// see if we got cut by the world
 			trace_t tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
-
 			if (tr.fraction != 1.0f)
 			{
 				// blocked, so retract
@@ -525,7 +525,7 @@ THINK(proboscis_think) (edict_t* self) -> void
 				// succ & drain
 				if (self->timestamp <= level.time)
 				{
-					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 2, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
+					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 2 * M_DamageModifier(self), 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
 					self->owner->health = min(self->owner->max_health, self->owner->health + 2);
 					self->owner->monsterinfo.setskin(self->owner);
 					self->timestamp = level.time + 10_hz;
@@ -539,9 +539,11 @@ THINK(proboscis_think) (edict_t* self) -> void
 	else if (self->style == 0)
 	{
 		// owner gone away?
-		if (!self->owner->enemy || !self->owner->enemy->inuse || self->owner->enemy->health <= 0)
+		if (!self->owner || !self->owner->enemy || !self->owner->enemy->inuse || self->owner->enemy->health <= 0)
 		{
 			proboscis_retract(self);
+			return
+				proboscis_retract(self);
 			return;
 		}
 
@@ -566,6 +568,13 @@ THINK(proboscis_think) (edict_t* self) -> void
 
 PRETHINK(proboscis_segment_draw) (edict_t* self) -> void
 {
+	// Check if owner is valid
+	if (!self->owner || !self->owner->owner)
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
 	vec3_t start = parasite_get_proboscis_start(self->owner->owner);
 
 	self->s.origin = start;
