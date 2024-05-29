@@ -1090,6 +1090,10 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	client->pers.connected = true;
 	client->pers.spawned = true;
+
+	if (g_startarmor->integer) {
+		client->pers.inventory[IT_ARMOR_BODY] = 50;
+	}
 }
 
 void InitClientResp(gclient_t* client)

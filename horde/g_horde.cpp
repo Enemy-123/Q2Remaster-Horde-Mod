@@ -71,7 +71,8 @@ const std::vector<std::pair<int, std::string>> benefits = {
     {10, "ammo regen"},
     {15, "auto haste"},
     {20, "vampire upgraded"},
-    {25, "Cluster Prox Grenades" }
+    {25, "Cluster Prox Grenades" },
+    {30, "start armor" }
 };
 
 static std::random_device rd;
@@ -118,7 +119,12 @@ std::string SelectRandomBenefit(int wave) {
 
 // Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
-    if (benefit == "vampire") {
+    if (benefit == "start armor") {
+        gi.cvar_set("g_startarmor", "1");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nStarting Armor\nENABLED!\n");
+        gi.LocBroadcast_Print(PRINT_CHAT, "STARTING WITH 50 ARMOR!\n");
+    }
+    else if (benefit == "vampire") {
         vampire_level = 1;
         gi.cvar_set("g_vampire", "1");
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
@@ -992,6 +998,7 @@ void ResetGame() {
     gi.cvar_set("g_chaotic", "0");
     gi.cvar_set("g_insane", "0");
     gi.cvar_set("g_vampire", "0");
+    gi.cvar_set("g_startarmor", "0");
     gi.cvar_set("ai_damage_scale", "1");
     gi.cvar_set("g_damage_scale", "1");
     gi.cvar_set("g_ammoregen", "0");
@@ -1240,7 +1247,6 @@ void SpawnMonsters() {
     }
 }
 
-// Función para manejar el frame de la horda
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);
 
@@ -1249,7 +1255,7 @@ void Horde_RunFrame() {
         if (g_horde_local.warm_time < level.time + 0.4_sec) {
             remainingMonsters = 0;
             g_horde_local.state = horde_state_t::spawning;
-            Horde_InitLevel(1);
+            Horde_InitLevel(1); 
             current_wave_number = 2;
             PlayWaveStartSound();
             DisplayWaveMessage();

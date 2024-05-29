@@ -1945,6 +1945,7 @@ extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
 extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
+extern cvar_t* g_startarmor;
 extern cvar_t* g_vampire;
 extern cvar_t* g_autohaste;
 extern cvar_t* wavenext;

@@ -1827,6 +1827,9 @@ std::string GetActiveBonusesString() {
 	if (obtained_benefits.find("ammo regen") != obtained_benefits.end()) {
 		activeBonuses += "* Ammo Regen Enabled!\n";
 	}
+	if (obtained_benefits.find("start armor") != obtained_benefits.end()) {
+		activeBonuses += "* Starting Armor Enabled!\n";
+	}
 	if (obtained_benefits.find("auto haste") != obtained_benefits.end()) {
 		activeBonuses += "* Auto-Haste Enabled!\n";
 	}
@@ -1901,7 +1904,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 		// Obtener la cadena de beneficios activos
 		std::string activeBonuses = GetActiveBonusesString();
 		if (!activeBonuses.empty()) {
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 216 yv 8 string \"{}\" "), activeBonuses);
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 213 yv 8 string \"{}\" "), activeBonuses);
 		}
 	}
 	else if (level.intermissiontime) {
