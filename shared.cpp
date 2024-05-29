@@ -4,17 +4,33 @@
 
 // Función para obtener el multiplicador de daño para monstruos
 float M_DamageModifier(edict_t* monster) {
-    monster->monsterinfo.damage_quad = 1.0f; // Inicializa el multiplicador a 1.0
+    float damageModifier = 1.0f; // Inicializa el multiplicador a 1.0
 
+    // Comprueba si el monstruo tiene activado el efecto de quad
     if (monster->monsterinfo.quad_time > level.time) {
-        monster->monsterinfo.damage_quad *= 4.0f;
+        damageModifier *= 4.0f;
     }
 
+    // Comprueba si el monstruo tiene activado el efecto de double
     if (monster->monsterinfo.double_time > level.time) {
-        monster->monsterinfo.damage_quad *= 2.0f;
+        // Aplicar double sólo si quad no está activo
+        if (monster->monsterinfo.quad_time <= level.time) {
+            damageModifier *= 2.0f;
+        }
     }
 
-    return monster->monsterinfo.damage_quad;
+    // Limitar el daño máximo si ambos, quad y double, están activos
+    // El máximo es 4.0f ya que es el máximo con quad y no esta la intencion de tener ambos en uso actualmente
+    if (damageModifier > 4.0f) {
+        damageModifier = 4.0f;
+    }
+
+    // Si sólo está activo double, el máximo es 2.0f
+    else if (damageModifier > 2.0f && monster->monsterinfo.quad_time <= level.time) {
+        damageModifier = 2.0f;
+    }
+
+    return damageModifier;
 }
 
 
