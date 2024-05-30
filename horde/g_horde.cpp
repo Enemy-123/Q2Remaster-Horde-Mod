@@ -19,8 +19,9 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int remainingMonsters = 0; // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
-constexpr gtime_t MONSTER_COOLDOWN = 2.5_sec; // Cooldown en segundos para los monstruos
-constexpr gtime_t SPAWN_POINT_COOLDOWN = 3.5_sec; // Cooldown en segundos para los puntos de spawn
+
+gtime_t MONSTER_COOLDOWN = 2.5_sec; // Cooldown en segundos para los monstruos 2.5
+gtime_t SPAWN_POINT_COOLDOWN = 3.5_sec; // Cooldown en segundos para los puntos de spawn 3.5
 
 cvar_t* g_horde;
 
@@ -153,7 +154,6 @@ void ApplyBenefit(const std::string& benefit) {
     obtained_benefits.insert(benefit);
 }
 
-
 // Función para verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(int wave) {
     if (wave % 5 == 0) {
@@ -169,12 +169,20 @@ void CheckAndApplyBenefit(int wave) {
 
 // Función para ajustar la tasa de aparición de monstruos
 void AdjustMonsterSpawnRate() {
-    if (current_wave_number % 5 == 0) {  // Cada 4 olas, incrementa la dificultad
+    if (g_horde_local.level % 5 == 0) {  // Cada 5 olas, incrementa la dificultad
         g_horde_local.num_to_spawn++;
-        g_horde_local.monster_spawn_time -= 0.8_sec;  // Reducir el tiempo de enfriamiento
+        g_horde_local.monster_spawn_time -= 0.8_sec;  // Reducir el tiempo de enfriamiento entre spawns
         if (g_horde_local.monster_spawn_time < 0.7_sec) {
             g_horde_local.monster_spawn_time = 0.7_sec;  // No menos de 0.7 segundos
         }
+
+        // Reducir los cooldowns de monstruos y puntos de spawn
+        MONSTER_COOLDOWN -= 0.2_sec;
+        SPAWN_POINT_COOLDOWN -= 0.2_sec;
+
+        // Asegurarse de que los cooldowns no sean menores a un límite mínimo
+        if (MONSTER_COOLDOWN < 1.2_sec) MONSTER_COOLDOWN = 1.2_sec;
+        if (SPAWN_POINT_COOLDOWN < 2.5_sec) SPAWN_POINT_COOLDOWN = 2.5_sec;
     }
 }
 
@@ -462,50 +470,40 @@ constexpr int MAX_RECENT_BOSSES = 3;
 std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
 
 // Función para seleccionar un jefe basado en el tamaño del mapa y el nombre del mapa
-const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname) {
+const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int waveNumber) {
     const boss_t* boss_list = GetBossList(mapSize, mapname);
     if (!boss_list) return nullptr;
 
     std::vector<const boss_t*> eligible_bosses;
+    // Filtrar jefes que cumplen con la restricción de la ola y que no se han usado recientemente
     for (int i = 0; i < 5; ++i) {
-        if (recent_bosses.find(boss_list[i].classname) == recent_bosses.end()) {
-            eligible_bosses.push_back(&boss_list[i]);
-        }
-    }
-
-    // Si todos los jefes están marcados como recientes, permitir la elección de cualquier jefe menos el último seleccionado
-    if (eligible_bosses.empty()) {
-        const char* last_boss = *recent_bosses.rbegin(); // El último jefe seleccionado
-        for (int i = 0; i < 5; ++i) {
-            if (strcmp(boss_list[i].classname, last_boss) != 0) {
+        if ((waveNumber >= 21 && (strcmp(boss_list[i].classname, "monster_boss2") == 0 || strcmp(boss_list[i].classname, "monster_carrier") == 0 || strcmp(boss_list[i].classname, "monster_carrier2") == 0)) ||
+            (waveNumber < 21 && strcmp(boss_list[i].classname, "monster_boss2") != 0 && strcmp(boss_list[i].classname, "monster_carrier") != 0 && strcmp(boss_list[i].classname, "monster_carrier2") != 0)) {
+            if (recent_bosses.find(boss_list[i].classname) == recent_bosses.end()) {
                 eligible_bosses.push_back(&boss_list[i]);
             }
         }
     }
 
-    if (eligible_bosses.empty()) return nullptr; // Si aún no hay elegibles, retorna nullptr
-
-    // Elegir jefe basado en los pesos ajustados
-    std::uniform_real_distribution<float> distribution(0.0f, 1.0f);
-    float total_weight = 0.0f;
-    for (const auto& boss : eligible_bosses) {
-        total_weight += boss->weight;
+    // Si no hay jefes elegibles no repetidos, resetear el conjunto y volver a intentar sin el último jefe seleccionado
+    if (eligible_bosses.empty() && !recent_bosses.empty()) {
+        recent_bosses.clear();
+        return G_HordePickBOSS(mapSize, mapname, waveNumber);  // Recursivamente intente seleccionar un jefe otra vez
     }
 
-    float random_point = distribution(gen) * total_weight;
-    for (const auto& boss : eligible_bosses) {
-        random_point -= boss->weight;
-        if (random_point <= 0) {
-            recent_bosses.insert(boss->classname);
-            if (recent_bosses.size() > MAX_RECENT_BOSSES) {
-                recent_bosses.erase(recent_bosses.begin());
-            }
-            return boss->classname;
+    if (!eligible_bosses.empty()) {
+        std::uniform_int_distribution<> dis(0, eligible_bosses.size() - 1);
+        const boss_t* chosen_boss = eligible_bosses[dis(gen)];
+        recent_bosses.insert(chosen_boss->classname);  // Agregar al conjunto de usados
+        if (recent_bosses.size() > MAX_RECENT_BOSSES) {
+            recent_bosses.erase(recent_bosses.begin());
         }
+        return chosen_boss->classname;
     }
 
-    return nullptr; // En teoría nunca debería llegar aquí.
+    return nullptr;
 }
+
 
 struct picked_item_t {
     const weighted_item_t* item;
@@ -523,6 +521,7 @@ const char* flying_monster_classnames[] = {
     "monster_daedalus2"
 };
 int num_flying_monsters = sizeof(flying_monster_classnames) / sizeof(flying_monster_classnames[0]);
+
 const char* SelectRandomMonster(const char** monsters, int num_monsters) {
     int random_index = std::rand() % num_monsters;
     return monsters[random_index];
@@ -557,7 +556,6 @@ gitem_t* G_HordePickItem() {
         [random_weight](const picked_item_t& item) { return random_weight < item.weight; });
     return it != picked_items.end() ? FindItemByClassname(it->item->classname) : nullptr;
 }
-
 
 int countFlyingSpawns() {
     int count = 0;
@@ -885,7 +883,7 @@ void SpawnBossAutomatically() {
             edict_t* boss = G_Spawn();
             if (!boss) return;
 
-            const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname);
+            const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
             if (!desired_boss) return;
             boss->classname = desired_boss;
 
@@ -901,7 +899,7 @@ void SpawnBossAutomatically() {
             boss->s.origin[0] = it->second[0];
             boss->s.origin[1] = it->second[1];
             boss->s.origin[2] = it->second[2];
-
+       
             // Directamente decidir qué mensaje mostrar basado en el classname
             if (strcmp(desired_boss, "monster_boss2") == 0) {
                 gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
@@ -969,7 +967,7 @@ void SpawnBossAutomatically() {
             AttachHealthBar(boss);
 
             // Verifica si el jefe spawnado es de tipo boss2 o boss carrier
-            if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_carrier") == 0)
+            if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_carrier") == 0 || strcmp(desired_boss, "monster_carrier2") == 0)
                 flying_monsters_mode = true;  // Activar el modo de monstruos voladores
         }
     }
@@ -1256,7 +1254,7 @@ void Horde_RunFrame() {
         if (g_horde_local.warm_time < level.time + 0.4_sec) {
             remainingMonsters = 0;
             g_horde_local.state = horde_state_t::spawning;
-            Horde_InitLevel(1); 
+            Horde_InitLevel(1);
             current_wave_number = 2;
             PlayWaveStartSound();
             DisplayWaveMessage();
