@@ -970,6 +970,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_infantry2", "Infantry" },
 		{ "monster_infantry", "Enforcer" },
 		{ "monster_flyer", "Flyer" },
+		{ "monster_kamikaze", "Kamikaze" },
 		{ "monster_hover2", "Blaster Icarus" },
 		{ "monster_fixbot", "Fixbot" },
 		{ "monster_gekk", "Gekk" },
