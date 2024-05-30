@@ -523,40 +523,41 @@ const char* flying_monster_classnames[] = {
     "monster_daedalus2"
 };
 int num_flying_monsters = sizeof(flying_monster_classnames) / sizeof(flying_monster_classnames[0]);
+const char* SelectRandomMonster(const char** monsters, int num_monsters) {
+    int random_index = std::rand() % num_monsters;
+    return monsters[random_index];
+}
 
 const char* SelectFlyingMonster() {
-    int random_index = rand() % num_flying_monsters;
-    return flying_monster_classnames[random_index];
+    return SelectRandomMonster(flying_monster_classnames, num_flying_monsters);
 }
 
 gitem_t* G_HordePickItem() {
-    static std::array<picked_item_t, q_countof(items)> picked_items;
-    static size_t num_picked_items;
-    num_picked_items = 0;
+    std::vector<picked_item_t> picked_items;
     float total_weight = 0;
 
-    for (auto& item : items) {
-        if (item.min_level != -1 && g_horde_local.level < item.min_level) continue;
-        if (item.max_level != -1 && g_horde_local.level > item.max_level) continue;
+    for (const auto& item : items) {
+        if ((item.min_level != -1 && g_horde_local.level < item.min_level) ||
+            (item.max_level != -1 && g_horde_local.level > item.max_level)) {
+            continue;
+        }
 
         float weight = item.weight;
         if (item.adjust_weight) item.adjust_weight(item, weight);
         if (weight <= 0) continue;
 
         total_weight += weight;
-        picked_items[num_picked_items++] = { &item, total_weight };
+        picked_items.push_back({ &item, total_weight });
     }
 
-    if (!total_weight) return nullptr;
+    if (total_weight == 0) return nullptr;
 
-    float r = frandom() * total_weight;
-    for (size_t i = 0; i < num_picked_items; i++) {
-        if (r < picked_items[i].weight) {
-            return FindItemByClassname(picked_items[i].item->classname);
-        }
-    }
-    return nullptr;
+    float random_weight = frandom() * total_weight;
+    auto it = std::find_if(picked_items.begin(), picked_items.end(),
+        [random_weight](const picked_item_t& item) { return random_weight < item.weight; });
+    return it != picked_items.end() ? FindItemByClassname(it->item->classname) : nullptr;
 }
+
 
 int countFlyingSpawns() {
     int count = 0;
