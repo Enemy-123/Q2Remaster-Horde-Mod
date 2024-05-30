@@ -807,7 +807,9 @@ void monster_dead(edict_t* self)
 	self->monsterinfo.damage_blood = 0;
 	self->fly_sound_debounce_time = 0_ms;
 	self->monsterinfo.aiflags &= ~AI_STUNK;
+	if (g_horde->integer) {
 	boss_die(self);
+	}
 	gi.linkentity(self);
 }
 

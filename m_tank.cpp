@@ -203,7 +203,7 @@ MONSTERINFO_RUN(tank_run) (edict_t* self) -> void
 	//if (self->enemy && self->enemy->client)
 	//	self->monsterinfo.aiflags |= AI_BRUTAL;
 	//else
-	//	self->monsterinfo.aiflags &= ~AI_BRUTAL;    //trying to unable tank brutal, so he don't lose time after killing a player and its being attacked by another
+		self->monsterinfo.aiflags &= ~AI_BRUTAL;    //trying to unable tank brutal, so he don't lose time after killing a player and its being attacked by another
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 	{
@@ -818,12 +818,12 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	if (self->enemy->health <= 0)
-	{
-		M_SetAnimation(self, &tank_move_attack_strike);
-		self->monsterinfo.aiflags &= ~AI_BRUTAL;
-		return;
-	}
+	//if (self->enemy->health <= 0)
+	//{
+	//	M_SetAnimation(self, &tank_move_attack_strike);
+	//	self->monsterinfo.aiflags &= ~AI_BRUTAL;
+	//	return;
+	//}
 
 	// PMM
 	if (self->monsterinfo.attack_state == AS_BLIND)
