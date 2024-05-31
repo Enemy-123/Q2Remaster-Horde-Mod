@@ -196,19 +196,22 @@ void ai_stand(edict_t* self, float dist)
     }
 
     // HORDESTAND: Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
-    if (g_horde->integer && !self->enemy && strcmp(self->classname, "monster_turret") != 0) {
-        edict_t* player = nullptr;
-        for (unsigned int i = 1; i <= game.maxclients; ++i) {
-            edict_t* client = &g_edicts[i];
-            if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
-                continue;
+    if (g_horde->integer && !self->enemy) {
+
+        if (strcmp(self->classname, "monster_turret")) {
+            edict_t* player = nullptr;
+            for (unsigned int i = 1; i <= game.maxclients; ++i) {
+                edict_t* client = &g_edicts[i];
+                if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
+                    continue;
+                }
+                player = client;
             }
-            player = client;
-        }
-        if (player) {
-            self->enemy = player;
-            self->monsterinfo.run(self);
-            return;
+            if (player) {
+                self->enemy = player;
+                self->monsterinfo.run(self);
+                return;
+            }
         }
     }
 }

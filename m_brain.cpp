@@ -400,54 +400,59 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 
 void brain_tounge_attack(edict_t* self)
 {
-	vec3_t	offset, start, f, r, end, dir;
+	vec3_t offset, start, f, r, end, dir;
 	trace_t tr;
-	int		damage;
+	int damage;
 
 	AngleVectors(self->s.angles, f, r, nullptr);
 	// offset = { 24, 0, 6 };
 	offset = { 24, 0, 16 };
 	start = M_ProjectFlashSource(self, offset, f, r);
 
-	end = self->enemy->s.origin;
-	if (!brain_tounge_attack_ok(start, end))
+	// Verificar que self->enemy no sea nulo antes de acceder a sus miembros
+	if (self->enemy)
 	{
-		end[2] = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
+		end = self->enemy->s.origin;
 		if (!brain_tounge_attack_ok(start, end))
 		{
-			end[2] = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
+			end[2] = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
 			if (!brain_tounge_attack_ok(start, end))
-				return;
+			{
+				end[2] = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
+				if (!brain_tounge_attack_ok(start, end))
+					return;
+			}
 		}
 	}
-	end = self->enemy->s.origin;
+		end = self->enemy->s.origin;
 
-	tr = gi.traceline(start, end, self, MASK_PROJECTILE);
-	if (tr.ent != self->enemy)
-		return;
+		tr = gi.traceline(start, end, self, MASK_PROJECTILE);
+		if (tr.ent != self->enemy)
+			return;
 
-	damage = 18;
-	gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+		damage = 18;
+		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
 
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_PARASITE_ATTACK);
-	gi.WriteEntity(self);
-	gi.WritePosition(start);
-	gi.WritePosition(end);
-	gi.multicast(self->s.origin, MULTICAST_PVS, false);
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_PARASITE_ATTACK);
+		gi.WriteEntity(self);
+		gi.WritePosition(start);
+		gi.WritePosition(end);
+		gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
-	dir = start - end;
-	T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+		dir = start - end;
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
 
-	// pull the enemy in
-	vec3_t forward;
-	self->s.origin[2] += 1;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	self->enemy->velocity = forward * -1200;
+		// pull the enemy in
+		vec3_t forward;
+		self->s.origin[2] += 1;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		self->enemy->velocity = forward * -1200;
 
-	//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
-	//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
-}
+		//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
+		//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
+	}
+
 
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {

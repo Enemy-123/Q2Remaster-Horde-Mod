@@ -167,6 +167,7 @@ DIE(doppleganger_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int 
 	// The turret doesn't need to spawn spheres or explode, so we can simplify this function.
 	self->takedamage = DAMAGE_NONE;
 	BecomeExplosion1(self);
+	bool turretdeployed = false;
 }
 
 PAIN(doppleganger_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
@@ -179,6 +180,7 @@ THINK(doppleganger_timeout)(edict_t* self) -> void
 	// Timeout logic isn't needed for the turret, so this can be simplified or removed.
 	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
 }
+bool turretdeployed = false;
 void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	edict_t* turret;
@@ -230,6 +232,8 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	// Inicializar y enlazar la torreta en el juego
 	ED_CallSpawn(turret);
 	gi.linkentity(turret);
+
+	bool turretdeployed = true;
 }
 
 edict_t* SpawnTurret(edict_t* owner)

@@ -11,14 +11,14 @@
 #include <algorithm>
 #include <deque>
 
-// Función para calcular la cantidad de monstruos restantes excluyendo los "monster_turret"
+// Función para calcular la cantidad de monstruos restantes excluyendo aquellos con la bandera AI_DO_NOT_COUNT
 int CalculateRemainingMonsters() {
     int remaining = 0;
     for (size_t i = 0; i < globals.max_edicts; i++) {
         if (!g_edicts[i].inuse) continue;
         if (g_edicts[i].svflags & SVF_MONSTER) {
             if (!g_edicts[i].deadflag && g_edicts[i].health > 0) {
-                if (strcmp(g_edicts[i].classname, "monster_turret") != 0) {
+                if (!(g_edicts[i].monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
                     remaining++;
                 }
             }
@@ -334,7 +334,7 @@ constexpr struct weighted_item_t {
     { "item_sphere_defender", -1, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-    { "item_doppleganger", -1, -1, 0.05f, adjust_weight_powerup },
+    { "item_doppleganger", 3, -1, 0.05f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -810,7 +810,7 @@ static bool Horde_AllMonstersDead() {
     for (size_t i = 0; i < globals.max_edicts; i++) {
         if (!g_edicts[i].inuse) continue;
         if (g_edicts[i].svflags & SVF_MONSTER) {
-            if (strcmp(g_edicts[i].classname, "monster_turret") == 0) continue; // Excluir monster_turret
+            if (g_edicts[i].monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Excluir monstruos con AI_DO_NOT_COUNT
             if (!g_edicts[i].deadflag && g_edicts[i].health > 0) {
                 return false;
             }

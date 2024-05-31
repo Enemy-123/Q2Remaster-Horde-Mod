@@ -372,22 +372,24 @@ R_ConcatRotations
 	};
 }
 
-[[nodiscard]] constexpr vec3_t closest_point_to_box(const vec3_t &from, const vec3_t &absmins, const vec3_t &absmaxs)
+[[nodiscard]] constexpr vec3_t closest_point_to_box(const vec3_t& from, const vec3_t& absmins, const vec3_t& absmaxs)
 {
-    return {
+	// Verificar que todos los valores dentro de los vectores sean válidos
+	for (size_t i = 0; i < 3; i++) {
+		if (std::isnan(from[i]) || std::isnan(absmins[i]) || std::isnan(absmaxs[i])) {
+			return vec3_t{ 0, 0, 0 }; // Manejar caso de valores no válidos
+		}
+	}
+
+	return {
 		(from[0] < absmins[0]) ? absmins[0] : (from[0] > absmaxs[0]) ? absmaxs[0] : from[0],
 		(from[1] < absmins[1]) ? absmins[1] : (from[1] > absmaxs[1]) ? absmaxs[1] : from[1],
 		(from[2] < absmins[2]) ? absmins[2] : (from[2] > absmaxs[2]) ? absmaxs[2] : from[2]
 	};
 }
+
 [[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa, const vec3_t& absminsb, const vec3_t& absmaxsb)
 {
-	// Comprobar si los punteros son nulos
-	if (!absminsa || !absmaxsa || !absminsb || !absmaxsb) {
-		// Manejo de error, como retornar un valor predeterminado o lanzar una excepción
-		return 0.0f; // Por ejemplo, si es apropiado para tu caso
-	}
-
 	// Verificar que todos los valores dentro de los vectores sean válidos
 	for (size_t i = 0; i < 3; i++) {
 		if (std::isnan(absminsa[i]) || std::isnan(absmaxsa[i]) || std::isnan(absminsb[i]) || std::isnan(absmaxsb[i])) {
@@ -413,6 +415,7 @@ R_ConcatRotations
 
 	return sqrt(len);
 }
+
 
 
 [[nodiscard]] constexpr bool boxes_intersect(const vec3_t &amins, const vec3_t &amaxs, const vec3_t &bmins, const vec3_t &bmaxs)

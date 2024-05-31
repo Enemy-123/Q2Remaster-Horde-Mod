@@ -19,9 +19,14 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 	vec3_t	dir;
 
 	// see if enemy is in range
-	range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
-	if (range > aim[0])
-		return false;
+	if (self->enemy && self->enemy->absmin && self->enemy->absmax) {
+		range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
+		if (range < aim[0])
+			return false;
+
+		// Continuar con el resto del código
+	}
+
 
 	if (!(aim[1] > self->mins[0] && aim[1] < self->maxs[0]))
 	{

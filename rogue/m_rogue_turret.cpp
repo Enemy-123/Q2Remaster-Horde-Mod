@@ -24,7 +24,7 @@ constexpr spawnflags_t SPAWNFLAG_TURRET_NO_LASERSIGHT = 18_spawnflag_bit;
 bool FindMTarget(edict_t* self)
 {
 	edict_t* ent = nullptr;
-	float range = 1000.0f; // Rango de búsqueda
+	float range = 800.0f; // Rango de búsqueda
 	vec3_t dir;
 
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
@@ -84,7 +84,7 @@ void TurretAim(edict_t* self)
 	int	   orientation;
 
 	// Verifica el estado del enemigo
-	bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy) && !self->enemy->deadflag);
+	bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
 
 	// Si el enemigo no es válido, busca un nuevo objetivo
 	if (!enemy_valid)
@@ -94,7 +94,7 @@ void TurretAim(edict_t* self)
 	}
 
 	// Actualiza el enemigo válido después de intentar encontrar un nuevo objetivo
-	enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy) && !self->enemy->deadflag);
+	enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
 	if (!enemy_valid)
 		return;
 
@@ -1020,16 +1020,16 @@ void SP_monster_turret(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 80;
+		self->monsterinfo.power_armor_power = 50;
 
-	self->health = 150 * st.health_multiplier;
+	self->health = 100 * st.health_multiplier;
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;
 	self->clipmask = CONTENTS_PROJECTILE;
 	self->solid = SOLID_BBOX;
-	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-	self->monsterinfo.armor_power = 150;
+	//self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+	//self->monsterinfo.armor_power = 150;
 	self->flags |= FL_MECHANICAL;
 	self->pain = turret_pain;
 	self->die = turret_die;
