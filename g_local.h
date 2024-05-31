@@ -1612,7 +1612,8 @@ struct monsterinfo_t
 	// NB: always use `M_SetAnimation` as it handles edge cases.
 	save_mmove_t	   active_move, next_move;
 	monster_ai_flags_t aiflags; // PGM - unsigned, since we're close to the max
-	int bonus_flags; // Nuevo campo para flags de bonus Horde
+	int bonus_flags; //Powerups or Special Flags for horde
+	int team; // Setting a team, test
 	int32_t			   nextframe; // if next_move is set, this is ignored until a frame is ran
 	float			   scale;
 

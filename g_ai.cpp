@@ -673,7 +673,7 @@ bool FindTarget(edict_t* self)
     edict_t* client = nullptr;
     bool     heardit;
     bool     ignore_sight_sound = false;
-    
+
     // [Paril-KEX] if we're in a level transition, don't worry about enemies
     if (globals.server_flags & SERVER_FLAG_LOADING)
         return false;
@@ -752,7 +752,36 @@ bool FindTarget(edict_t* self)
     }
 
     if (!client)
+    {
+        // Busca enemigos en el equipo contrario
+        edict_t* ent = nullptr;
+        float range = 1000.0f; // Rango de búsqueda
+        vec3_t dir;
+
+        for (int i = 0; i < globals.num_edicts; i++)
+        {
+            ent = &g_edicts[i];
+
+            if (!ent->inuse)
+                continue;
+
+            if (ent == self)
+                continue;
+
+            // Solo busca enemigos en el equipo contrario
+            if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
+            {
+                dir = ent->s.origin - self->s.origin;
+                if (VectorLength(dir) < range)
+                {
+                    self->enemy = ent;
+                    return true;
+                }
+            }
+        }
+
         return false; // no clients to get mad at
+    }
 
     // if the entity went away, forget it
     if (!client->inuse)
@@ -862,14 +891,14 @@ bool FindTarget(edict_t* self)
                 return false;
         }
 
-            if (g_horde->integer)
+        if (g_horde->integer)
+        {
+            // Allow monsters with FL_FLY or with AI_STAND_GROUND | AI_TEMP_STAND_GROUND to hear in horde mode
+            if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
             {
-                // Allow monsters with FL_FLY or with AI_STAND_GROUND | AI_TEMP_STAND_GROUND to hear in horde mode
-                if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
-                {
-                    return false;
-                }
+                return false;
             }
+        }
 
         else
         {
