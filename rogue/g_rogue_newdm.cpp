@@ -155,23 +155,21 @@ void PrecacheForRandomRespawn()
 		PrecacheItem(it);
 	}
 }
-
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 // ***************************
-//  DOPPLEGANGER (MODIFIED TO SPAWN TURRET)
+//  SPAWN TURRET LOGIC
 // ***************************
 
-edict_t* SpawnTurret(edict_t* owner);
+edict_t* SpawnTurret(edict_t* owner, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 
 DIE(doppleganger_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	// The turret doesn't need to spawn spheres or explode, so we can simplify this function.
 	self->takedamage = DAMAGE_NONE;
 	BecomeExplosion1(self);
-	bool turretdeployed = false;
 }
 
-PAIN(doppleganger_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
-{
+PAIN(doppleganger_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void {
 	// Turret doesn't need to track an enemy like a doppleganger, so this can be simplified or removed.
 }
 
@@ -180,38 +178,46 @@ THINK(doppleganger_timeout)(edict_t* self) -> void
 	// Timeout logic isn't needed for the turret, so this can be simplified or removed.
 	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
 }
-bool turretdeployed = false;
+
 void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	edict_t* turret;
-	vec3_t dir, forward, right, up, end{}, new_start;
+	vec3_t forward, right, up, end{}, new_start;
 	trace_t tr;
-	vec3_t mins = { 0, 0, 0 };
-	vec3_t maxs = { 0, 0, 0 };
+	vec3_t mins = { -16, -16, -24 };
+	vec3_t maxs = { 16, 16, 32 };
 
-	// Convertir aimdir en ángulos y obtener los vectores de dirección
-	dir = vectoangles(aimdir); // Ajuste para coincidir con la definición que devuelve un vec3_t
+	// Convert aimdir to angles and get direction vectors
+	vec3_t dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
 
-	// Calcula el punto final del trazo
+	// Calculate the end point of the trace
 	VectorMA(start, distance, forward, end);
 
-	// Realiza un trazo para verificar la colisión con la pared
+	// Perform a trace to check for wall collision
 	tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID);
 
-	// Verificar si el trazo no encontró una pared
+	// Check if the trace didn't find a wall
 	if (tr.fraction == 1)
 	{
 		gi.Client_Print(ent, PRINT_HIGH, "Too far from wall.\n");
 		return;
 	}
-	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
+
 	VectorCopy(tr.endpos, new_start);
 
-	// Añadir altura al nuevo origen
-	new_start[2] += height * 2;
+	// Add height to the new origin
+	new_start[2] += height;
 
-	// Creación y configuración de la torreta
+	// Ensure the position is valid and does not intersect with other entities
+	tr = gi.trace(new_start, mins, maxs, new_start, NULL, CONTENTS_SOLID);
+	if (tr.startsolid || tr.allsolid)
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
+		return;
+	}
+
+	// Create and configure the turret
 	turret = G_Spawn();
 	turret->classname = "monster_turret";
 	VectorCopy(new_start, turret->s.origin);
@@ -228,19 +234,18 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
 	turret->die = doppleganger_die;
 	turret->takedamage = true;
-	turret->owner = ent;  // Establecer el propietario
-	// Inicializar y enlazar la torreta en el juego
+	turret->owner = ent;  // Set the owner
+
+	// Initialize and link the turret in the game
 	ED_CallSpawn(turret);
 	gi.linkentity(turret);
-
-	bool turretdeployed = true;
 }
 
 edict_t* SpawnTurret(edict_t* owner)
 {
-	edict_t* turret = G_Spawn();
-	turret->classname = "monster_turret";
-	return turret;
+	// You can define this function to initialize or configure the turret if needed.
+	// For now, it can just return a null pointer or perform any necessary setup.
+	return nullptr;
 }
 
 void Tag_GameInit();

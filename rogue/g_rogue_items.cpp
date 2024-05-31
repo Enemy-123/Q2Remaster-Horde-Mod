@@ -93,9 +93,8 @@ bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
 
 	if (!G_IsDeathmatch()) // item is DM only
 		return false;
-	extern bool turretdeployed;
 	quantity = other->client->pers.inventory[ent->item->id];
-	if (quantity >= 4 || turretdeployed) // FIXME - apply max to dopplegangers
+	if (quantity >= 4) // FIXME - apply max to dopplegangers
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;
