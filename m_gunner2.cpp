@@ -695,15 +695,20 @@ void gunner2_fire_chain(edict_t* self)
 
 void gunner2_refire_chain(edict_t* self)
 {
-	if (self->enemy->health > 0) //	if (self->enemy && self->enemy->health > 0) // Comprueba si self->enemy no es nullptr antes de acceder a su propiedad health 
+	if (self->enemy && self->enemy->health > 0) // Comprueba si self->enemy no es nullptr antes de acceder a su propiedad health
+	{
 		if (visible(self, self->enemy))
+		{
 			if (frandom() <= 0.5f)
 			{
 				M_SetAnimation(self, &gunner2_move_fire_chain, false);
 				return;
 			}
-	M_SetAnimation(self, &gunner2_move_endfire_chain, false);
+		}
+		M_SetAnimation(self, &gunner2_move_endfire_chain, false);
+	}
 }
+
 
 
 //===========
