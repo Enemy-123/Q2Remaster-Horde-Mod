@@ -761,7 +761,7 @@ bool FindTarget(edict_t* self)
         float range = 1000.0f; // Rango de búsqueda
         vec3_t dir;
 
-        for (int i = 0; i < globals.num_edicts; i++)
+        for (unsigned int i = 0; i < globals.num_edicts; i++)
         {
             ent = &g_edicts[i];
 
