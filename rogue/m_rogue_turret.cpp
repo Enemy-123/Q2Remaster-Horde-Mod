@@ -58,7 +58,7 @@ bool FindMTarget(edict_t* self)
 				else
 				{
 					// Si no es visible, asegúrate de no tenerlo como enemigo
-					self->enemy = NULL;
+					self->enemy = nullptr;
 				}
 			}
 		}
@@ -83,11 +83,21 @@ void TurretAim(edict_t* self)
 	float  move, idealPitch, idealYaw, current, speed;
 	int	   orientation;
 
-	if (!self->enemy || self->enemy == world || !self->enemy->inuse || OnSameTeam(self, self->enemy) || self->enemy->deadflag)
+	// Verifica el estado del enemigo
+	bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy) && !self->enemy->deadflag);
+
+	// Si el enemigo no es válido, busca un nuevo objetivo
+	if (!enemy_valid)
 	{
 		if (!FindMTarget(self))
 			return;
 	}
+
+	// Actualiza el enemigo válido después de intentar encontrar un nuevo objetivo
+	enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy) && !self->enemy->deadflag);
+	if (!enemy_valid)
+		return;
+
 
 
 	// if turret is still in inactive mode, ready the gun, but don't aim
@@ -419,6 +429,7 @@ constexpr int32_t TURRET_BLASTER_DAMAGE = 8;
 constexpr int32_t TURRET_BULLET_DAMAGE = 4;
 // unused
 // constexpr int32_t TURRET_HEAT_DAMAGE	= 4;
+constexpr float ROCKET_FIRE_INTERVAL = 3.0f; // 3 segundos
 
 void TurretFire(edict_t* self)
 {
@@ -487,6 +498,20 @@ void TurretFire(edict_t* self)
 		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
+			// Disparo de cohetes cada 3 segundos
+			if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
+			{
+				gtime_t currentTime = level.time;
+				gtime_t rocketFireInterval = gtime_t::from_sec(ROCKET_FIRE_INTERVAL); // Conversion del intervalo a gtime_t
+				if (currentTime > self->monsterinfo.last_rocket_fire_time + rocketFireInterval)
+				{
+					self->monsterinfo.last_rocket_fire_time = currentTime;
+
+					if (dist * trace.fraction > 72)
+						monster_fire_rocket(self, start, dir, 70, 1000, MZ2_TURRET_ROCKET);
+				}
+			}
+
 			if (self->spawnflags.has(SPAWNFLAG_TURRET_BLASTER))
 				monster_fire_blaster(self, start, dir, TURRET_BLASTER_DAMAGE, rocketSpeed, MZ2_TURRET_BLASTER, EF_BLASTER);
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
@@ -494,8 +519,8 @@ void TurretFire(edict_t* self)
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-					self->monsterinfo.duck_wait_time = level.time + 5_sec + gtime_t::from_sec(frandom(skill->value));
-					self->monsterinfo.next_duck_time = level.time + 0.5_sec;
+					self->monsterinfo.duck_wait_time = level.time + 5_sec + gtime_t::from_sec(frandom(skill->value)); // Reduce el tiempo inicial de espera
+					self->monsterinfo.next_duck_time = level.time + gtime_t::from_sec(0.1f); // Reduce el tiempo inicial de espera
 					gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
 				}
 				else
@@ -966,6 +991,7 @@ When activated, wall units move 32 units in the direction they're facing.
 */
 void SP_monster_turret(edict_t* self)
 {
+	self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
 	int angle;
 	if (g_horde->integer)
 	{
