@@ -155,6 +155,7 @@ void PrecacheForRandomRespawn()
 		PrecacheItem(it);
 	}
 }
+
 // ***************************
 //  DOPPLEGANGER (MODIFIED TO SPAWN TURRET)
 // ***************************
@@ -178,7 +179,6 @@ THINK(doppleganger_timeout)(edict_t* self) -> void
 	// Timeout logic isn't needed for the turret, so this can be simplified or removed.
 	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
 }
-
 void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	edict_t* turret;
@@ -188,7 +188,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	vec3_t maxs = { 0, 0, 0 };
 
 	// Convertir aimdir en ángulos y obtener los vectores de dirección
-	dir = vectoangles(aimdir);
+	dir = vectoangles(aimdir); // Ajuste para coincidir con la definición que devuelve un vec3_t
 	AngleVectors(dir, forward, right, up);
 
 	// Calcula el punto final del trazo
@@ -203,30 +203,31 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 		gi.Client_Print(ent, PRINT_HIGH, "Too far from wall.\n");
 		return;
 	}
-
 	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
 	VectorCopy(tr.endpos, new_start);
 
 	// Añadir altura al nuevo origen
 	new_start[2] += height;
 
-
 	// Creación y configuración de la torreta
 	turret = G_Spawn();
 	turret->classname = "monster_turret";
-	turret->s.origin = new_start;
-	turret->s.angles = dir;
+	VectorCopy(new_start, turret->s.origin);
+	VectorCopy(dir, turret->s.angles);
 	turret->movetype = MOVETYPE_TOSS;
 	turret->solid = SOLID_BBOX;
 	turret->s.renderfx |= RF_IR_VISIBLE;
 	turret->s.angles[PITCH] = 0;
-	turret->mins = { -16, -16, -24 };
-	turret->maxs = { 16, 16, 32 };
+	turret->mins[0] = -16;
+	turret->mins[1] = -16;
+	turret->mins[2] = -24;
+	turret->maxs[0] = 16;
+	turret->maxs[1] = 16;
+	turret->maxs[2] = 32;
 	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
 	turret->health = 100;
 	turret->die = doppleganger_die;
 	turret->takedamage = true;
-	turret->classname = "monster_turret";
 	turret->owner = ent;  // Establecer el propietario
 
 	// Inicializar y enlazar la torreta en el juego
@@ -236,11 +237,11 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 
 edict_t* SpawnTurret(edict_t* owner)
 {
-	// Additional setup for the turret if needed
 	edict_t* turret = G_Spawn();
 	turret->classname = "monster_turret";
 	return turret;
 }
+
 void Tag_GameInit();
 void Tag_PostInitSetup();
 void Tag_PlayerDeath(edict_t *targ, edict_t *inflictor, edict_t *attacker);

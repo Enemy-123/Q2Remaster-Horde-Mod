@@ -11,12 +11,29 @@
 #include <algorithm>
 #include <deque>
 
+// Función para calcular la cantidad de monstruos restantes excluyendo los "monster_turret"
+int CalculateRemainingMonsters() {
+    int remaining = 0;
+    for (size_t i = 0; i < globals.max_edicts; i++) {
+        if (!g_edicts[i].inuse) continue;
+        if (g_edicts[i].svflags & SVF_MONSTER) {
+            if (!g_edicts[i].deadflag && g_edicts[i].health > 0) {
+                if (strcmp(g_edicts[i].classname, "monster_turret") != 0) {
+                    remaining++;
+                }
+            }
+        }
+    }
+    return remaining;
+}
+
+
 constexpr int MAX_MONSTERS_BIG_MAP = 44;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
-int remainingMonsters = 0; // needed, else will cause error
+int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
 
@@ -789,12 +806,14 @@ void boss_die(edict_t* boss) {
         BossDeathHandler(boss);
     }
 }
-
 static bool Horde_AllMonstersDead() {
     for (size_t i = 0; i < globals.max_edicts; i++) {
         if (!g_edicts[i].inuse) continue;
         if (g_edicts[i].svflags & SVF_MONSTER) {
-            if (!g_edicts[i].deadflag && g_edicts[i].health > 0) return false;
+            if (strcmp(g_edicts[i].classname, "monster_turret") == 0) continue; // Excluir monster_turret
+            if (!g_edicts[i].deadflag && g_edicts[i].health > 0) {
+                return false;
+            }
             if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && g_edicts[i].health <= 0) {
                 if (!g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                     boss_die(&g_edicts[i]);
@@ -1076,7 +1095,8 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     int numActivePlayers = GetNumActivePlayers();
     ConditionParams params = GetConditionParams(mapSize, numActivePlayers);
 
-    int remainingMonsters = level.total_monsters - level.killed_monsters;
+    // Utiliza la función CalculateRemainingMonsters para excluir los monster_turret
+    int remainingMonsters = CalculateRemainingMonsters();
 
     if (remainingMonsters <= params.maxMonsters) {
         if (condition_start_time == std::chrono::steady_clock::time_point::min()) {
@@ -1254,13 +1274,14 @@ void SpawnMonsters() {
     }
 }
 
+
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);
 
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
         if (g_horde_local.warm_time < level.time + 0.4_sec) {
-            remainingMonsters = 0;
+            remainingMonsters = CalculateRemainingMonsters();;
             g_horde_local.state = horde_state_t::spawning;
             Horde_InitLevel(1);
             current_wave_number = 2;
@@ -1309,7 +1330,7 @@ void Horde_RunFrame() {
             if (Horde_AllMonstersDead()) {
                 g_horde_local.warm_time = level.time + random_time(2.2_sec, 5_sec);
                 g_horde_local.state = horde_state_t::rest;
-                remainingMonsters = 0;
+                remainingMonsters = CalculateRemainingMonsters();
 
                 if (g_chaotic->integer || g_insane->integer) {
                     gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nHarder Wave Controlled, GG\n");
@@ -1329,7 +1350,7 @@ void Horde_RunFrame() {
                 }
             }
             else {
-                remainingMonsters = level.total_monsters + 1 - level.killed_monsters;
+                remainingMonsters = CalculateRemainingMonsters();
                 g_horde_local.monster_spawn_time = level.time + 3_sec;
             }
         }
@@ -1351,6 +1372,7 @@ void Horde_RunFrame() {
         break;
     }
 }
+
 
 // Función para manejar el evento de reinicio
 void HandleResetEvent() {

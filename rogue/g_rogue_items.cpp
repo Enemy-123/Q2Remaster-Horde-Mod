@@ -83,7 +83,7 @@ void Use_Doppleganger(edict_t* ent, gitem_t* item)
 
 	ent->client->pers.inventory[item->id]--;
 
-//	SpawnGrow_Spawn(spawnPt, 24.f, 48.f);
+	//	SpawnGrow_Spawn(spawnPt, 24.f, 48.f);
 	fire_doppleganger(ent, spawnPt, forward, 500.f, 50);
 }
 

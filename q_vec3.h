@@ -54,7 +54,7 @@ struct vec3_t
 	}
 	[[nodiscard]] constexpr explicit operator bool() const
 	{
-		return x || y || z;
+ 		return x || y || z;
 	}
 
 	// dot
