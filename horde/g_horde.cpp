@@ -819,7 +819,7 @@ static void Horde_CleanBodies() {
     }
 }
 
-// Función para adjuntar una barra de salud a un jefe
+// attaching healthbar
 void AttachHealthBar(edict_t* boss) {
     edict_t* healthbar = G_Spawn();
     if (!healthbar) return;
@@ -844,7 +844,7 @@ void AttachHealthBar(edict_t* boss) {
     healthbar->nextthink = level.time + 20_sec;
 }
 
-// Define los orígenes del mapa como un unordered_map
+// spawning boss origin
 const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm1", {1184, 568, 704}},
     {"rdm14", {1248, 664, 896}},
@@ -875,7 +875,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 extern void SP_target_earthquake(edict_t* self);
 extern constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
-// Función para spawnear un jefe automáticamente
+// Spawning boss code
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
     if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0) {
@@ -970,27 +970,27 @@ void SpawnBossAutomatically() {
 
             AttachHealthBar(boss);
 
-            // Verifica si el jefe spawnado es de tipo boss2 o boss carrier
+            // flying monsters if boss is carrier or boss2, or smaller but same
             if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_boss2kl") == 0 || strcmp(desired_boss, "monster_carrier") == 0 || strcmp(desired_boss, "monster_carrier2") == 0)
                 flying_monsters_mode = true;  // Activar el modo de monstruos voladores
         }
     }
 }
 
-// Función para reiniciar los cooldowns
+// reset cooldowns, fixed no monster spawning on next map
 void ResetCooldowns() {
     lastSpawnPointTime.clear();
     lastMonsterSpawnTime.clear();
 }
 
-// Función para reiniciar los beneficios
+// For resetting bonus 
 void ResetBenefits() {
     shuffled_benefits.clear();
     obtained_benefits.clear();
     vampire_level = 0;
 }
 
-// Función para reiniciar el juego
+// Resetting game every end of level
 void ResetGame() {
     ResetBenefits();
     ResetCooldowns();
@@ -1010,6 +1010,10 @@ void ResetGame() {
     gi.cvar_set("g_autohaste", "0");
     gi.cvar_set("dm_monsters", "0");
     gi.cvar_set("timelimit", "40");
+
+    // reset cooldowns
+    MONSTER_COOLDOWN = 2.5_sec;
+    SPAWN_POINT_COOLDOWN = 3.5_sec;
 }
 
 // Variables globales para el estado de la condición
