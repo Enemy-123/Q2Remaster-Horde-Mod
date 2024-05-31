@@ -19,7 +19,6 @@ constexpr spawnflags_t SPAWNFLAG_TURRET_HEATBEAM = 0x0040_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_WEAPONCHOICE = SPAWNFLAG_TURRET_HEATBEAM | SPAWNFLAG_TURRET_ROCKET | SPAWNFLAG_TURRET_MACHINEGUN | SPAWNFLAG_TURRET_BLASTER;
 constexpr spawnflags_t SPAWNFLAG_TURRET_WALL_UNIT = 0x0080_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_NO_LASERSIGHT = 18_spawnflag_bit;
-constexpr spawnflags_t SPAWNFLAG_TURRET_SENTRYGUN = 0x0090_spawnflag;
 
 
 bool FindMTarget(edict_t* self)
@@ -960,11 +959,11 @@ When activated, wall units move 32 units in the direction they're facing.
 void SP_monster_turret(edict_t* self)
 {
 	int angle;
-
 	if (g_horde->integer)
 	{
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 		self->monsterinfo.team = CTF_TEAM1;
+		self->monsterinfo.attack_state = AS_BLIND;
 	}
 
 	if (!M_AllowSpawn(self))

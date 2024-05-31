@@ -632,9 +632,22 @@ void G_MonsterKilled(edict_t* self)
 {
 	level.killed_monsters++;
 
-	if (G_IsCooperative() && self->enemy && self->enemy->client ||
-		G_IsDeathmatch() && g_horde->integer && self->enemy && self->enemy->client)
-		self->enemy->client->resp.score++;
+	// Verificar si el enemigo es un cliente (jugador) o una torreta propiedad de un jugador
+	if (self->enemy && self->enemy->client)
+	{
+		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
+		{
+			self->enemy->client->resp.score++;
+		}
+	}
+	else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
+	{
+		// Acreditar la muerte al propietario de la torreta
+		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
+		{
+			self->enemy->owner->client->resp.score++;
+		}
+	}
 
 	if (g_debug_monster_kills->integer)
 	{

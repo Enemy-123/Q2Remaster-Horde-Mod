@@ -467,12 +467,8 @@ void Cmd_Spawn_f(edict_t* ent)
 	ent->solid = backup;
 	gi.linkentity(ent);
 }
-
 /*
-=================
-Cmd_Spawn_f
-
-Telepo'
+Teleport
 
 argv(0) teleport
 argv(1) x

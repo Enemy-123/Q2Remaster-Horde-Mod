@@ -1021,7 +1021,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_supertank", "Super-Tank" },
 		{ "monster_supertankkl", "Super-Tank!" },
 		{ "monster_boss5", "Super-Tank" },
-		{ "monster_turret", "TurretGun" },
+		{ "monster_turret", "Friendly SentryGun" },
 		{ "monster_turretkl", "TurretGun" },
 		{ "monster_boss2", "Hornet" }
 		// Add other replacements as needed

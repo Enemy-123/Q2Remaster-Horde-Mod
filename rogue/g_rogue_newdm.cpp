@@ -179,18 +179,42 @@ THINK(doppleganger_timeout)(edict_t* self) -> void
 	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
 }
 
-void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
+void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	edict_t* turret;
-	vec3_t dir, forward, right, up;
+	vec3_t dir, forward, right, up, end{}, new_start;
+	trace_t tr;
+	vec3_t mins = { 0, 0, 0 };
+	vec3_t maxs = { 0, 0, 0 };
 
+	// Convertir aimdir en ángulos y obtener los vectores de dirección
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
 
-	// Spawn the turret instead of the doppleganger base and body
+	// Calcula el punto final del trazo
+	VectorMA(start, distance, forward, end);
+
+	// Realiza un trazo para verificar la colisión con la pared
+	tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID);
+
+	// Verificar si el trazo no encontró una pared
+	if (tr.fraction == 1)
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Too far from wall.\n");
+		return;
+	}
+
+	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
+	VectorCopy(tr.endpos, new_start);
+
+	// Añadir altura al nuevo origen
+	new_start[2] += height;
+
+
+	// Creación y configuración de la torreta
 	turret = G_Spawn();
 	turret->classname = "monster_turret";
-	turret->s.origin = start;
+	turret->s.origin = new_start;
 	turret->s.angles = dir;
 	turret->movetype = MOVETYPE_TOSS;
 	turret->solid = SOLID_BBOX;
@@ -199,14 +223,14 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 	turret->mins = { -16, -16, -24 };
 	turret->maxs = { 16, 16, 32 };
 	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	turret->health = 100;  // Set appropriate health for the turret
-	turret->die = doppleganger_die;  // Use the modified die function
+	turret->health = 100;
+	turret->die = doppleganger_die;
 	turret->takedamage = true;
 	turret->classname = "monster_turret";
+	turret->owner = ent;  // Establecer el propietario
 
-	// Call the function to spawn and initialize the turret
+	// Inicializar y enlazar la torreta en el juego
 	ED_CallSpawn(turret);
-
 	gi.linkentity(turret);
 }
 
@@ -215,7 +239,6 @@ edict_t* SpawnTurret(edict_t* owner)
 	// Additional setup for the turret if needed
 	edict_t* turret = G_Spawn();
 	turret->classname = "monster_turret";
-	// ... Additional initialization code
 	return turret;
 }
 void Tag_GameInit();
