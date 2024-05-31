@@ -836,11 +836,11 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 // *************************
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = 38_sec;
-constexpr float	  TESLA_DAMAGE_RADIUS = 156;
-constexpr int32_t TESLA_DAMAGE = 5;
+constexpr float	  TESLA_DAMAGE_RADIUS = 128;
+constexpr int32_t TESLA_DAMAGE = 4;
 constexpr int32_t TESLA_KNOCKBACK = 8;
 
-constexpr gtime_t TESLA_ACTIVATE_TIME = 1.0_sec;
+constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;

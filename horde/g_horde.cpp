@@ -1100,7 +1100,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 // Función para decidir si se usa el spawn más lejano basado en el nivel actual
 bool UseFarthestSpawn() {
     if (g_horde_local.level >= 15) {
-        return (rand() % 2 == 0);  // 50% de probabilidad a partir del nivel 15
+        return (rand() % 4 == 0);  // 25% de probabilidad a partir del nivel 15
     }
     return false;
 }
