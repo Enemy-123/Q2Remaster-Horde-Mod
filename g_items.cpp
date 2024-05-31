@@ -3224,7 +3224,7 @@ always owned, never in the world
 			/* view_model */ nullptr,
 			/* icon */ "p_doppleganger",
 			/* use_name */  "Doppelganger",
-			/* pickup_name */  "$item_doppleganger",
+			/* pickup_name */  "Sentry Gun\n",
 			/* pickup_name_definite */ "$item_doppleganger_def",
 			/* quantity */ 90,
 			/* ammo */ IT_NULL,

@@ -41,23 +41,24 @@ bool FindMTarget(edict_t* self)
 		if (ent->deadflag)
 			continue;
 
-
 		// Solo busca enemigos en el equipo contrario
 		if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
 		{
 			dir = ent->s.origin - self->s.origin;
 			if (VectorLength(dir) < range)
 			{
-				self->enemy = ent;
-				return true;
+				// Verifica si el enemigo es visible antes de asignarlo
+				if (visible(self, ent))
+				{
+					self->enemy = ent;
+					return true;
+				}
 			}
 		}
 	}
 
 	return false;
 }
-
-
 
 void TurretAim(edict_t *self);
 void turret_ready_gun(edict_t *self);

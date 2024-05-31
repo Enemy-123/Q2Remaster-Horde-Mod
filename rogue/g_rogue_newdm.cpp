@@ -155,152 +155,69 @@ void PrecacheForRandomRespawn()
 		PrecacheItem(it);
 	}
 }
-
 // ***************************
-//  DOPPLEGANGER
+//  DOPPLEGANGER (MODIFIED TO SPAWN TURRET)
 // ***************************
 
-edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags);
+edict_t* SpawnTurret(edict_t* owner);
 
-DIE(doppleganger_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(doppleganger_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	edict_t *sphere;
-	float	 dist;
-	vec3_t	 dir;
-
-	if (self->enemy && (self->enemy->svflags & SVF_MONSTER))
-	{
-		dir = self->enemy->s.origin - self->s.origin;
-		dist = dir.length();
-
-		if (dist > 80.f)
-		{
-			if (dist > 768)
-			{
-				sphere = Sphere_Spawn(self, SPHERE_HUNTER | SPHERE_DOPPLEGANGER);
-				sphere->pain(sphere, attacker, 0, 0, mod);
-			}
-			else
-			{
-				sphere = Sphere_Spawn(self, SPHERE_VENGEANCE | SPHERE_DOPPLEGANGER);
-				sphere->pain(sphere, attacker, 0, 0, mod);
-			}
-		}
-	}
-
-		
-	
-			
+	// The turret doesn't need to spawn spheres or explode, so we can simplify this function.
 	self->takedamage = DAMAGE_NONE;
-
-	// [Paril-KEX]
-	T_RadiusDamage(self, self->teammaster, 160.f, self, 140.f, DAMAGE_NONE, MOD_DOPPLE_EXPLODE);
-
-	if (self->teamchain)
-		BecomeExplosion1(self->teamchain);
 	BecomeExplosion1(self);
 }
 
-PAIN(doppleganger_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+PAIN(doppleganger_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	if (other != nullptr && (other->svflags & SVF_MONSTER)) {
-		self->enemy = other;
-	}
+	// Turret doesn't need to track an enemy like a doppleganger, so this can be simplified or removed.
 }
-THINK(doppleganger_timeout) (edict_t *self) -> void
+
+THINK(doppleganger_timeout)(edict_t* self) -> void
 {
+	// Timeout logic isn't needed for the turret, so this can be simplified or removed.
 	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
 }
 
-THINK(body_think) (edict_t *self) -> void
+void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir)
 {
-	float r;
-
-	if (fabsf(self->ideal_yaw - anglemod(self->s.angles[YAW])) < 2)
-	{
-		if (self->timestamp < level.time)
-		{
-			r = frandom();
-			if (r < 0.10f)
-			{
-				self->ideal_yaw = frandom(350.0f);
-				self->timestamp = level.time + 1_sec;
-			}
-		}
-	}
-	else
-		M_ChangeYaw(self);
-
-	if (self->teleport_time <= level.time)
-	{
-		self->s.frame++;
-		if (self->s.frame > FRAME_stand40)
-			self->s.frame = FRAME_stand01;
-
-		self->teleport_time = level.time + 10_hz;
-	}
-
-	self->nextthink = level.time + FRAME_TIME_MS;
-}
-
-void fire_doppleganger(edict_t *ent, const vec3_t &start, const vec3_t &aimdir)
-{
-	edict_t *base;
-	edict_t *body;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
-	int		 number;
+	edict_t* turret;
+	vec3_t dir, forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
 
-	base = G_Spawn();
-	base->s.origin = start;
-	base->s.angles = dir;
-	base->movetype = MOVETYPE_TOSS;
-	base->solid = SOLID_BBOX;
-	base->s.renderfx |= RF_IR_VISIBLE;
-	base->s.angles[PITCH] = 0;
-	base->mins = { -16, -16, -24 };
-	base->maxs = { 16, 16, 32 };
-	base->s.modelindex = gi.modelindex ("models/objects/dopplebase/tris.md2");
-	base->s.alpha = 0.1f;
-	base->teammaster = ent;
-	base->flags |= ( FL_DAMAGEABLE | FL_TRAP );
-	base->takedamage = true;
-	base->health = 20;
-	base->pain = doppleganger_pain;
-	base->die = doppleganger_die;
+	// Spawn the turret instead of the doppleganger base and body
+	turret = G_Spawn();
+	turret->classname = "monster_turret";
+	turret->s.origin = start;
+	turret->s.angles = dir;
+	turret->movetype = MOVETYPE_TOSS;
+	turret->solid = SOLID_BBOX;
+	turret->s.renderfx |= RF_IR_VISIBLE;
+	turret->s.angles[PITCH] = 0;
+	turret->mins = { -16, -16, -24 };
+	turret->maxs = { 16, 16, 32 };
+	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
+	turret->health = 100;  // Set appropriate health for the turret
+	turret->die = doppleganger_die;  // Use the modified die function
+	turret->takedamage = true;
+	turret->classname = "monster_turret";
 
-	base->nextthink = level.time + 10_sec;
-	base->think = doppleganger_timeout;
+	// Call the function to spawn and initialize the turret
+	ED_CallSpawn(turret);
 
-	base->classname = "doppleganger";
-	gi.linkentity(base);
-
-	body = G_Spawn();
-	number = body->s.number;
-	body->s = ent->s;
-	body->s.sound = 0;
-	body->s.event = EV_NONE;
-	body->s.number = number;
-	body->yaw_speed = 30;
-	body->ideal_yaw = 0;
-	body->s.origin = start;
-	body->s.origin[2] += 8;
-	body->teleport_time = level.time + 10_hz;
-	body->think = body_think;
-	body->nextthink = level.time + FRAME_TIME_MS;
-	gi.linkentity(body);
-
-	base->teamchain = body;
-	body->teammaster = base;
-
-	// [Paril-KEX]
-	body->owner = ent;
-	gi.sound(body, CHAN_AUTO, gi.soundindex("medic_commander/monsterspawn1.wav"), 1.f, ATTN_NORM, 0.f);
+	gi.linkentity(turret);
 }
 
+edict_t* SpawnTurret(edict_t* owner)
+{
+	// Additional setup for the turret if needed
+	edict_t* turret = G_Spawn();
+	turret->classname = "monster_turret";
+	// ... Additional initialization code
+	return turret;
+}
 void Tag_GameInit();
 void Tag_PostInitSetup();
 void Tag_PlayerDeath(edict_t *targ, edict_t *inflictor, edict_t *attacker);

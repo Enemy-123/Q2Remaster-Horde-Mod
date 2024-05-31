@@ -455,32 +455,6 @@ void Cmd_Spawn_f(edict_t* ent)
 			}
 		}
 
-/*
-		other->maxs *= 2;
-		other->mins *= 2;
-		other->s.scale = 2;
-		other->health *= current_wave_number;
-		other->s.renderfx = RF_TRANSLUCENT;
-		other->s.effects = EF_FLAG1;
-		other->gib_health = -80000;
-
-
-		char message[128]; // Asumiendo un tamaño máximo de mensaje de 128 caracteres
-		sprintf(message, "*** A CHAMPION LEVEL %d HAS SPAWNED! ***", current_wave_number - 1);
-		gi.LocBroadcast_Print(PRINT_CENTER, message);
-
-		*/
-		vec3_t effectPosition = other->s.origin;
-		effectPosition[0] += (other->s.origin[0] - effectPosition[0]) * (other->s.scale - 3);
-		effectPosition[1] += (other->s.origin[1] - effectPosition[1]) * (other->s.scale - 3);
-		effectPosition[2] += (other->s.origin[2] - effectPosition[2]) * (other->s.scale - 3);
-
-
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_BOSSTPORT);
-		gi.WritePosition(effectPosition);
-		gi.multicast(effectPosition, MULTICAST_PHS, false);
-
 
 		if (other->inuse)
 			gi.linkentity(other);
