@@ -27,17 +27,20 @@ bool FindMTarget(edict_t* self)
 	float range = 1000.0f; // Rango de búsqueda
 	vec3_t dir;
 
-	for (int i = 0; i < globals.num_edicts; i++)
+	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		ent = &g_edicts[i];
 
 		if (!ent->inuse)
 			continue;
 
+		if (!ent->solid)
+			continue;
+
 		if (ent == self)
 			continue;
 
-		if (ent->deadflag)
+		if (ent->health <= 0)
 			continue;
 
 		// Solo busca enemigos en el equipo contrario
@@ -51,6 +54,11 @@ bool FindMTarget(edict_t* self)
 				{
 					self->enemy = ent;
 					return true;
+				}
+				else
+				{
+					// Si no es visible, asegúrate de no tenerlo como enemigo
+					self->enemy = NULL;
 				}
 			}
 		}
@@ -486,8 +494,8 @@ void TurretFire(edict_t* self)
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-					self->monsterinfo.duck_wait_time = level.time + 2_sec + gtime_t::from_sec(frandom(skill->value));
-					self->monsterinfo.next_duck_time = level.time + 1_sec;
+					self->monsterinfo.duck_wait_time = level.time + 5_sec + gtime_t::from_sec(frandom(skill->value));
+					self->monsterinfo.next_duck_time = level.time + 0.5_sec;
 					gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
 				}
 				else
@@ -982,7 +990,6 @@ void SP_monster_turret(edict_t* self)
 	self->mins = { -12, -12, -12 };
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
-	self->solid = SOLID_BBOX;
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
@@ -993,12 +1000,11 @@ void SP_monster_turret(edict_t* self)
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;
-
+	self->clipmask = CONTENTS_PROJECTILE;
+	self->solid = SOLID_BBOX;
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	self->monsterinfo.armor_power = 150;
-
 	self->flags |= FL_MECHANICAL;
-
 	self->pain = turret_pain;
 	self->die = turret_die;
 

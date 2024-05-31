@@ -1634,6 +1634,7 @@ struct monsterinfo_t
 	gtime_t attack_finished;
 	gtime_t fire_wait;
 
+	gtime_t last_rocket_fire_time;
 	vec3_t				   saved_goal;
 	gtime_t				   search_time;
 	gtime_t				   trail_time;

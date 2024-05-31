@@ -207,15 +207,14 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	VectorCopy(tr.endpos, new_start);
 
 	// Añadir altura al nuevo origen
-	new_start[2] += height;
+	new_start[2] += height * 2;
 
 	// Creación y configuración de la torreta
 	turret = G_Spawn();
 	turret->classname = "monster_turret";
 	VectorCopy(new_start, turret->s.origin);
 	VectorCopy(dir, turret->s.angles);
-	turret->movetype = MOVETYPE_TOSS;
-	turret->solid = SOLID_BBOX;
+	turret->movetype = MOVETYPE_BOUNCE;
 	turret->s.renderfx |= RF_IR_VISIBLE;
 	turret->s.angles[PITCH] = 0;
 	turret->mins[0] = -16;
@@ -225,11 +224,9 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	turret->maxs[1] = 16;
 	turret->maxs[2] = 32;
 	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	turret->health = 100;
 	turret->die = doppleganger_die;
 	turret->takedamage = true;
 	turret->owner = ent;  // Establecer el propietario
-
 	// Inicializar y enlazar la torreta en el juego
 	ED_CallSpawn(turret);
 	gi.linkentity(turret);

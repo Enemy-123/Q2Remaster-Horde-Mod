@@ -4,36 +4,6 @@
 
 #include "g_local.h"
 
-
-// Helper function to determine if a monster should be solid
-bool IsSolidMonster(edict_t* ent) {
-    if (!(ent->svflags & SVF_MONSTER)) {
-        return false;
-    }
-
-    // List of monsters that should be solid
-    const char* solidMonsters[] = {
-        "monster_flyer",
-        "monster_mutant",
-        "monster_berserk",
-        "monster_makron",
-        "monster_widow",
-        "monster_widow1",
-        "monster_widow2",
-        "monster_carrier",
-        "monster_boss2",
-        "monster_carrier2",
-        "monster_boss2kl"
-    };
-
-    for (int i = 0; i < sizeof(solidMonsters) / sizeof(solidMonsters[0]); ++i) {
-        if (strcmp(ent->classname, solidMonsters[i]) == 0) {
-            return true;
-        }
-    }
-    return false;
-}
-
 /*
 ===============================================================================
 
@@ -274,7 +244,7 @@ void SV_Physics_NewToss(edict_t* ent)
     contents_t original_mask = ent->clipmask;
 
     // Adjust the clipmask for horde mode to allow monsters to pass through each other
-    if (g_horde->integer && (ent->svflags & SVF_MONSTER) && !IsSolidMonster(ent)) {
+    if (g_horde->integer && (ent->svflags & SVF_MONSTER)) {
         ent->clipmask &= ~CONTENTS_MONSTER;
     }
 
