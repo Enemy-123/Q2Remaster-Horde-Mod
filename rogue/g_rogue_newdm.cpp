@@ -156,6 +156,7 @@ void PrecacheForRandomRespawn()
 	}
 }
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
+
 // ***************************
 //  SPAWN TURRET LOGIC
 // ***************************
@@ -169,7 +170,8 @@ DIE(doppleganger_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int 
 	BecomeExplosion1(self);
 }
 
-PAIN(doppleganger_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void {
+PAIN(doppleganger_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+{
 	// Turret doesn't need to track an enemy like a doppleganger, so this can be simplified or removed.
 }
 

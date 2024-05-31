@@ -61,31 +61,42 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	speed = 100;
 	fire_nuke(ent, start, forward, speed);
 }
-
 void Use_Doppleganger(edict_t* ent, gitem_t* item)
 {
 	vec3_t forward, right;
 	vec3_t createPt, spawnPt;
 	vec3_t ang;
 
+	// Establecer el ángulo de spawn basado en la dirección del jugador
 	ang[PITCH] = 0;
 	ang[YAW] = ent->client->v_angle[YAW];
 	ang[ROLL] = 0;
 	AngleVectors(ang, forward, right, nullptr);
 
+	// Calcular el punto inicial de creación
 	createPt = ent->s.origin + (forward * 48);
 
+	// Encontrar un punto de spawn válido
 	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, 32))
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "No suitable spawn point found.\n");
 		return;
+	}
 
+	// Verificar si el punto de spawn está en el suelo
 	if (!CheckGroundSpawnPoint(spawnPt, ent->mins, ent->maxs, 64, -1))
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Cannot spawn turret here.\n");
 		return;
+	}
 
+	// Reducir la cantidad de ítems en el inventario
 	ent->client->pers.inventory[item->id]--;
 
-	//	SpawnGrow_Spawn(spawnPt, 24.f, 48.f);
+	// Spawnear la torreta
 	fire_doppleganger(ent, spawnPt, forward, 128.f, 64);
 }
+
 
 bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
 {
