@@ -334,7 +334,7 @@ constexpr struct weighted_item_t {
     { "item_sphere_defender", -1, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-    { "item_doppleganger", 3, -1, 0.05f, adjust_weight_powerup },
+    { "item_doppleganger", 3, -1, 0.068f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
