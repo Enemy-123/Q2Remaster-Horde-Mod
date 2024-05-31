@@ -413,6 +413,7 @@ struct boss_t {
 
 constexpr boss_t BOSS_SMALL[] = {
     {"monster_carrier2", 14, -1, 0.05f},
+    {"monster_boss2kl", 14, -1, 0.05f},
     {"monster_tank_64", -1, -1, 0.05f},
     {"monster_shamblerkl", -1, -1, 0.05f},
     {"monster_guncmdrkl", -1, -1, 0.05f},
@@ -477,8 +478,8 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
     std::vector<const boss_t*> eligible_bosses;
     // Filtrar jefes que cumplen con la restricción de la ola y que no se han usado recientemente
     for (int i = 0; i < 5; ++i) {
-        if ((waveNumber >= 21 && (strcmp(boss_list[i].classname, "monster_boss2") == 0 || strcmp(boss_list[i].classname, "monster_carrier") == 0 || strcmp(boss_list[i].classname, "monster_carrier2") == 0)) ||
-            (waveNumber < 21 && strcmp(boss_list[i].classname, "monster_boss2") != 0 && strcmp(boss_list[i].classname, "monster_carrier") != 0 && strcmp(boss_list[i].classname, "monster_carrier2") != 0)) {
+        if ((waveNumber >= 21 && (strcmp(boss_list[i].classname, "monster_boss2") == 0 || strcmp(boss_list[i].classname, "monster_carrier") == 0 || strcmp(boss_list[i].classname, "monster_carrier2") == 0 || strcmp(boss_list[i].classname, "monster_boss2kl") == 0)) ||
+            (waveNumber < 21 && strcmp(boss_list[i].classname, "monster_boss2") != 0 && strcmp(boss_list[i].classname, "monster_carrier") != 0 && strcmp(boss_list[i].classname, "monster_carrier2") != 0 && strcmp(boss_list[i].classname, "monster_boss2kl") != 0)) {
             if (recent_bosses.find(boss_list[i].classname) == recent_bosses.end()) {
                 eligible_bosses.push_back(&boss_list[i]);
             }
@@ -903,12 +904,15 @@ void SpawnBossAutomatically() {
             // Directamente decidir qué mensaje mostrar basado en el classname
             if (strcmp(desired_boss, "monster_boss2") == 0) {
                 gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
+            } 
+            if (strcmp(desired_boss, "monster_boss2kl") == 0) {
+                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
             }
             else if (strcmp(desired_boss, "monster_carrier2") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A menacing Carrier has appeared! *****");
+                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Menacing Carrier has appeared! *****");
             }
             else if (strcmp(desired_boss, "monster_carrier") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A menacing Carrier, leading a swarming wave, has appeared! *****");
+                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Menacing Carrier, leading a swarming wave, has appeared! *****");
             }
             else if (strcmp(desired_boss, "monster_tank_64") == 0) {
                 gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** The ground shakes as the Tank Commander arrives! *****");
@@ -923,7 +927,7 @@ void SpawnBossAutomatically() {
                 gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** Makron descends upon the battlefield! *****");
             }
             else {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A powerful Strogg champion has spawned! *****");
+                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A  Strogg Boss has spawned! *****");
             }
 
             int random_flag = 1 << (std::rand() % 6); // Include all defined flags
@@ -967,7 +971,7 @@ void SpawnBossAutomatically() {
             AttachHealthBar(boss);
 
             // Verifica si el jefe spawnado es de tipo boss2 o boss carrier
-            if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_carrier") == 0 || strcmp(desired_boss, "monster_carrier2") == 0)
+            if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_boss2kl") == 0 || strcmp(desired_boss, "monster_carrier") == 0 || strcmp(desired_boss, "monster_carrier2") == 0)
                 flying_monsters_mode = true;  // Activar el modo de monstruos voladores
         }
     }
