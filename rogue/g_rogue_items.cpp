@@ -84,7 +84,7 @@ void Use_Doppleganger(edict_t* ent, gitem_t* item)
 	ent->client->pers.inventory[item->id]--;
 
 	//	SpawnGrow_Spawn(spawnPt, 24.f, 48.f);
-	fire_doppleganger(ent, spawnPt, forward, 500.f, 50);
+	fire_doppleganger(ent, spawnPt, forward, 500.f, 60);
 }
 
 bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
@@ -95,7 +95,7 @@ bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
 		return false;
 
 	quantity = other->client->pers.inventory[ent->item->id];
-	if (quantity >= 1) // FIXME - apply max to dopplegangers
+	if (quantity >= 4) // FIXME - apply max to dopplegangers
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;

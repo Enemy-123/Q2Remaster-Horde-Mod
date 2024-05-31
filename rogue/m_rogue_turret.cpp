@@ -490,7 +490,7 @@ void TurretFire(edict_t* self)
 			// more often; makes them more unpredictable
 			if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
 				PredictAim(self, self->enemy, start, 0, true, 0.3f, &dir, nullptr);
-			else if (frandom() < skill->integer / 5.f)
+			else if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET) || frandom() < skill->integer / 5.f)
 				PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 		}
 

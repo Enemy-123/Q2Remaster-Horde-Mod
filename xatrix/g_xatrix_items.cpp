@@ -6,7 +6,7 @@
 // RAFAEL
 void SP_item_foodcube(edict_t *self)
 {
-	if (G_IsDeathmatch() && g_no_health->integer) // check horde later
+	if (G_IsDeathmatch() && g_no_health->integer)
 	{
 		G_FreeEdict(self);
 		return;
