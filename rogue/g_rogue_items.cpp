@@ -60,8 +60,7 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	start = ent->s.origin;
 	speed = 100;
 	fire_nuke(ent, start, forward, speed);
-}
-void Use_Doppleganger(edict_t* ent, gitem_t* item)
+}void Use_Doppleganger(edict_t* ent, gitem_t* item)
 {
 	vec3_t forward, right;
 	vec3_t createPt, spawnPt;
@@ -93,10 +92,9 @@ void Use_Doppleganger(edict_t* ent, gitem_t* item)
 	// Reducir la cantidad de ítems en el inventario
 	ent->client->pers.inventory[item->id]--;
 
-	// Spawnear la torreta
-	fire_doppleganger(ent, spawnPt, forward, 128.f, 64);
+	// Spawnear la torreta con cinco parámetros
+	fire_doppleganger(ent, spawnPt, forward, 128.f, 64.f);
 }
-
 
 bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
 {
