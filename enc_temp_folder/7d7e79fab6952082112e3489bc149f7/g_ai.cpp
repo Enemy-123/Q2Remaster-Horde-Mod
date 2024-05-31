@@ -1125,7 +1125,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
             // originally, just 0.3
             float strafe_chance;
 
-            if (!(strcmp(self->classname, "monster_daedalus")) || !(strcmp(self->classname, "monster_daedalus2"))) 
+            if (!(strcmp(self->classname, "monster_daedalus")))
                 strafe_chance = 0.8f;
             else
                 strafe_chance = 0.6f;

@@ -616,7 +616,7 @@ static void hover2_set_fly_parameters(edict_t* self) {
 
 			self->monsterinfo.fly_thrusters = false;
 			self->monsterinfo.fly_acceleration = 20.f;
-			self->monsterinfo.fly_speed = 320.f;
+			self->monsterinfo.fly_speed = 240.f;
 			// Icarus prefers to keep its distance, but flies slower than the flyer.
 			// he never pins because of this.
 			self->monsterinfo.fly_min_distance = 450.f;
