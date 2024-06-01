@@ -324,8 +324,11 @@ void TurretAim(edict_t* self)
 		self->target_ent->s.modelindex = MODELINDEX_WORLD;
 		self->target_ent->s.renderfx = RF_BEAM;
 		self->target_ent->s.frame = 1;
+	//	self->target_ent->s.skinnum = 0xf0f0f0f0;
+		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->s.skinnum = 0xd0d1d2d3;
 		self->target_ent->classname = "turret_lasersight";
+		self->target_ent->s.effects = EF_BOB;
 		self->target_ent->s.origin = self->s.origin;
 	}
 
@@ -491,7 +494,7 @@ void TurretFire(edict_t* self)
 			if ((self->enemy) && (self->enemy->client))
 				end[2] += self->enemy->viewheight;
 			else
-				end[2] += 22;
+				end[2] += 14;
 		}
 
 		dir = end - start;
@@ -523,7 +526,7 @@ void TurretFire(edict_t* self)
 					self->monsterinfo.last_rocket_fire_time = currentTime;
 
 					if (dist * trace.fraction > 72)
-						monster_fire_rocket(self, start, dir, 70, 1000, MZ2_TURRET_ROCKET);
+						monster_fire_rocket(self, start, dir, 100, 1080, MZ2_TURRET_ROCKET);
 				}
 			}
 
@@ -685,7 +688,7 @@ DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin += (forward * 1);
 
-	ThrowGibs(self, 2, {
+	ThrowGibs(self, 1, {
 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
 	});
 	ThrowGibs(self, 1, {
@@ -1012,6 +1015,7 @@ void SP_monster_turret(edict_t* self)
 	{
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 		self->monsterinfo.team = CTF_TEAM1;
+		self->s.effects = EF_BOB | EF_GRENADE;
 		self->monsterinfo.attack_state = AS_BLIND;
 	}
 
@@ -1043,8 +1047,8 @@ void SP_monster_turret(edict_t* self)
 	self->yaw_speed = 13 * skill->integer;
 	self->clipmask = CONTENTS_PROJECTILE;
 	self->solid = SOLID_BBOX;
-	//self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-	//self->monsterinfo.armor_power = 150;
+	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+	self->monsterinfo.armor_power = 150;
 	self->flags |= FL_MECHANICAL;
 	self->pain = turret_pain;
 	self->die = turret_die;
