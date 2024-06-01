@@ -655,7 +655,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     float total_weight = 0.0f;
     float adjustmentFactor = adjustFlyingSpawnProbability(countFlyingSpawns());
 
-    char buffer[256];
 
     for (auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
@@ -671,7 +670,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     }
 
     if (picked_monsters.empty()) {
-        gi.Com_Print(buffer);
         return nullptr;
     }
 
@@ -680,7 +678,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
         if (r < monster.weight) {
             UpdateCooldowns(spawn_point, monster.item->classname);
             ResetSpawnAttempts(spawn_point);
-            gi.Com_Print(buffer);
             return monster.item->classname;
         }
     }
