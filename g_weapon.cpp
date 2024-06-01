@@ -9,17 +9,33 @@ fire_hit
 Used for all impact (hit/punch/slash) attacks
 =================
 */
+
 bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 {
 	trace_t tr;
-	vec3_t	forward, right, up;
-	vec3_t	v;
-	vec3_t	point;
-	float	range;
-	vec3_t	dir;
+	vec3_t forward, right, up;
+	vec3_t v;
+	vec3_t point;
+	float range;
+	vec3_t dir;
+	char buffer[256];
+
+	// Verificación inicial de null para enemy
+	if (!self->enemy) {
+		std::snprintf(buffer, sizeof(buffer), "Error: enemy is null\n");
+		gi.Com_Print(buffer);
+		return false; // Manejar el error apropiadamente
+	}
+
+	// Verificación de null para attacker si es "monster_turret"
+	if (self->classname && !strcmp(self->classname, "monster_turret")) {
+		std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_turret\n");
+		gi.Com_Print(buffer);
+		return false; // Manejar el error apropiadamente
+	}
 
 	// see if enemy is in range
-	if (self->enemy && self->enemy->absmin && self->enemy->absmax) {
+	if (self->enemy->absmin && self->enemy->absmax) {
 		range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
 		if (range < aim[0])
 			return false;
@@ -27,10 +43,8 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 		// Continuar con el resto del código
 	}
 
-	char buffer[256];
-
 	// Verifica si el enemigo y sus límites mínimos y máximos están inicializados
-	if (self->enemy && self->enemy->mins && self->enemy->maxs) {
+	if (self->enemy->mins && self->enemy->maxs) {
 		std::snprintf(buffer, sizeof(buffer), "enemy mins: %f %f %f\n", self->enemy->mins[0], self->enemy->mins[1], self->enemy->mins[2]);
 		gi.Com_Print(buffer);
 
@@ -43,7 +57,7 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 			aim[1] = self->enemy->maxs[0];
 	}
 	else {
-		std::snprintf(buffer, sizeof(buffer), "Error: enemy or mins/maxs not properly initialized\n");
+		std::snprintf(buffer, sizeof(buffer), "Error: enemy mins/maxs not properly initialized\n");
 		gi.Com_Print(buffer);
 		return false; // Manejar el error apropiadamente
 	}
@@ -102,6 +116,7 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 
 	return true; // Valor de retorno booleano asegurado
 }
+
 
 // helper routine for piercing traces;
 // mask = the input mask for finding what to hit
