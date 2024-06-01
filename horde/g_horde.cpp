@@ -1251,22 +1251,26 @@ void HandleWaveRestMessage() {
 }
 void SpawnMonsters() {
     auto mapSize = GetMapSize(level.mapname);
-    int monsters_per_spawn;
 
+    // Determinar la cantidad de monstruos por spawn basado en el tamaño del mapa y el nivel actual
+    int monsters_per_spawn;
     if (mapSize.isSmallMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
     }
     else if (mapSize.isBigMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 6 : 4;
     }
-    else {
+    else { // Para mapas medianos
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
     }
 
     int spawned = 0;
 
+    // Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
+    const float drop_probability = 0.7f;
+
     for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
-        edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
+        edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot; // Seleccionar punto de spawn
         if (!spawn_point) continue;
 
         const char* monster_classname = G_HordePickMonster(spawn_point);
@@ -1276,10 +1280,19 @@ void SpawnMonsters() {
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 
+        // Decidir si el monstruo dropeará un ítem
+        if (frandom() <= drop_probability) {
+            monster->item = G_HordePickItem();
+        }
+        else {
+            monster->item = nullptr;
+        }
+
         VectorCopy(spawn_point->s.origin, monster->s.origin);
         VectorCopy(spawn_point->s.angles, monster->s.angles);
         ED_CallSpawn(monster);
 
+        // spawngro effect
         vec3_t spawngrow_pos = monster->s.origin;
         float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.035f;
         float end_size = start_size;
@@ -1289,16 +1302,16 @@ void SpawnMonsters() {
         ++spawned;
     }
 
+    // Ajusta el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
     if (mapSize.isSmallMap) {
-        g_horde_local.monster_spawn_time = level.time + 1.5_sec;
-    }
-    else if (mapSize.isBigMap) {
-        g_horde_local.monster_spawn_time = level.time + 2.5_sec;
+        g_horde_local.monster_spawn_time = level.time + 1.5_sec; // are these needed, considering cooldowns?
+        g_horde_local.monster_spawn_time = level.time + 2.5_sec; 
     }
     else {
-        g_horde_local.monster_spawn_time = level.time + 1.5_sec;
+        g_horde_local.monster_spawn_time = level.time + 1.5_sec; 
     }
 }
+
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);
 
