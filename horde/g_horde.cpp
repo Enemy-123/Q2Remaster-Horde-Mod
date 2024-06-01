@@ -10,6 +10,7 @@
 #include <random>
 #include <algorithm>
 #include <deque>
+#include <map>
 
 // Función para calcular la cantidad de monstruos restantes excluyendo aquellos con la bandera AI_DO_NOT_COUNT
 int CalculateRemainingMonsters() {
@@ -37,8 +38,8 @@ int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause
 int current_wave_number = 1;
 int last_wave_number = 0;
 
-gtime_t MONSTER_COOLDOWN = 2.5_sec; // Cooldown en segundos para los monstruos 2.5
-gtime_t SPAWN_POINT_COOLDOWN = 3.5_sec; // Cooldown en segundos para los puntos de spawn 3.5
+gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.5); // Cooldown en segundos para los monstruos 2.5
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.5); // Cooldown en segundos para los puntos de spawn 3.5
 
 cvar_t* g_horde;
 
@@ -63,7 +64,8 @@ std::vector<std::string> shuffled_benefits;
 std::unordered_set<std::string> obtained_benefits;
 std::unordered_map<const char*, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
-
+std::map<edict_t*, int> spawnAttempts;
+std::map<edict_t*, float> spawnPointCooldowns;
 const std::unordered_set<std::string> smallMaps = {
     "q2dm3", "q2dm7", "q2dm2", "q2ctf4", "q64/dm10", "q64\\dm10",
     "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2",
@@ -592,71 +594,102 @@ float adjustFlyingSpawnProbability(int flyingSpawns) {
     }
     return 1.0f; // Mantén la probabilidad normal si no hay spawns dedicados.
 }
+int countTotalSpawns() {
+    int count = 0;
+    for (size_t i = 0; i < globals.num_edicts; i++) {
+        if (g_edicts[i].inuse && strcmp(g_edicts[i].classname, "info_player_deathmatch") == 0) {
+            count++;
+        }
+    }
+    return count;
+}
+
+bool IsSpawnPointEligible(const edict_t* spawn_point, int wave_to_allow_flying, bool spawn_flying) {
+    // Si todos los spawns son voladores, o no hay restricción de ola, o el punto de spawn no es volador
+    return g_horde_local.level >= wave_to_allow_flying || !spawn_flying;
+}
+
+bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool spawn_flying, int wave_to_allow_flying) {
+    if (level.time - lastMonsterSpawnTime[item.classname] < MONSTER_COOLDOWN) return false;
+    if (item.min_level != -1 && g_horde_local.level < item.min_level) return false;
+    if (item.max_level != -1 && g_horde_local.level > item.max_level) return false;
+    if (spawn_flying && g_horde_local.level < wave_to_allow_flying) return false;  // Evitar spawn antes de permitir voladores
+    return true;
+}
+
+float CalculateWeight(const weighted_item_t& item, bool spawn_flying, float adjustmentFactor) {
+    if (spawn_flying && std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
+        return item.weight * adjustmentFactor;
+    }
+    else if (!spawn_flying && std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) == std::end(flying_monster_classnames)) {
+        return item.weight;
+    }
+    return 0.0f;
+}
+
+// Suponiendo que SPAWN_POINT_COOLDOWN y otros tiempos son de tipo gtime_t
+void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
+    lastSpawnPointTime[spawn_point] = level.time; // Asegurarse de que esto es compatible con gtime_t
+    lastMonsterSpawnTime[classname] = level.time;
+    // Convertir a float para almacenar en spawnPointCooldowns
+    spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
+}
+
+void IncreaseSpawnAttempts(edict_t* spawn_point) {
+    spawnAttempts[spawn_point]++;
+    // Multiplicar el tiempo correctamente usando float
+    if (spawnAttempts[spawn_point] % 3 == 0) {
+        spawnPointCooldowns[spawn_point] *= 0.9f;
+    }
+}
+
+void ResetSpawnAttempts(edict_t* spawn_point) {
+    spawnAttempts[spawn_point] = 0;
+    spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
+}
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
-    if (flying_monsters_mode) {
-        return SelectFlyingMonster();  // Solo seleccionar monstruos voladores
-    }
-    // Verificar cooldown del punto de spawn
-    if (lastSpawnPointTime.find(spawn_point) != lastSpawnPointTime.end() &&
-        (level.time - lastSpawnPointTime[spawn_point] < SPAWN_POINT_COOLDOWN)) {
-        return nullptr;  // Punto de spawn en cooldown
+    // Configurar el cooldown inicial
+    float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
+    if (spawnPointCooldowns.find(spawn_point) != spawnPointCooldowns.end()) {
+        currentCooldown = spawnPointCooldowns[spawn_point];
     }
 
-    int flyingSpawns = countFlyingSpawns();
-    float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
+    // Verificar el cooldown
+    if (lastSpawnPointTime.find(spawn_point) != lastSpawnPointTime.end() &&
+        (level.time - lastSpawnPointTime[spawn_point]).seconds<float>() < currentCooldown) {
+        return nullptr;
+    }
 
     std::vector<picked_item_t> picked_monsters;
     float total_weight = 0.0f;
-    bool spawn_flying = (spawn_point->style == 1); // Comprobar si el estilo es de vuelo
-
-    int wave_to_allow_flying = 3;
-    if (g_horde_local.level < wave_to_allow_flying && spawn_flying) {
-        return nullptr; // Deshabilitar spawns voladores si el nivel de ola es bajo
-    }
+    float adjustmentFactor = adjustFlyingSpawnProbability(countFlyingSpawns());
 
     for (auto& item : monsters) {
-        // Verificar cooldown del tipo de monstruo
-        if (lastMonsterSpawnTime.find(item.classname) != lastMonsterSpawnTime.end() &&
-            (level.time - lastMonsterSpawnTime[item.classname] < MONSTER_COOLDOWN)) {
-            continue;  // Tipo de monstruo en cooldown
-        }
+        if (!IsMonsterEligible(spawn_point, item, spawn_point->style == 1, 3)) continue;
 
-        float weight = item.weight;
-        if (spawn_flying) {
-            if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
-                weight *= adjustmentFactor; // Ajustar peso para spawns voladores
-            }
-            else {
-                weight = 0.0f; // Monstruos no voladores no pueden spawnear aquí
-            }
-        }
-        else {
-            if (std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
-                weight *= 0.5; // Ajustar peso para spawns normales
-            }
-        }
-
-        if (item.min_level != -1 && g_horde_local.level < item.min_level) continue;
-        if (item.max_level != -1 && g_horde_local.level > item.max_level) continue;
-
-        if (weight > 0.0f) {
+        float weight = CalculateWeight(item, spawn_point->style == 1, adjustmentFactor);
+        if (weight > 0) {
             picked_monsters.push_back({ &item, total_weight += weight });
         }
     }
 
-    if (total_weight == 0.0f) return nullptr;
-
-    float r = frandom() * total_weight;
-    for (const auto& monster : picked_monsters) {
-        if (r < monster.weight) {
-            lastMonsterSpawnTime[monster.item->classname] = level.time; // Registrar uso del tipo de monstruo
-            lastSpawnPointTime[spawn_point] = level.time; // Registrar uso del punto de spawn
-            return monster.item->classname;
+    if (!picked_monsters.empty()) {
+        float r = frandom() * total_weight;
+        for (const auto& monster : picked_monsters) {
+            if (r < monster.weight) {
+                UpdateCooldowns(spawn_point, monster.item->classname);
+                ResetSpawnAttempts(spawn_point);
+                return monster.item->classname;
+            }
         }
     }
+
+    IncreaseSpawnAttempts(spawn_point);
     return nullptr;
 }
+
+
 
 void Horde_PreInit() {
     wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
