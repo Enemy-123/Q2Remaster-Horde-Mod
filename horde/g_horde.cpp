@@ -556,8 +556,7 @@ gitem_t* G_HordePickItem() {
         [random_weight](const picked_item_t& item) { return random_weight < item.weight; });
     return it != picked_items.end() ? FindItemByClassname(it->item->classname) : nullptr;
 }
-
-const int WAVE_TO_ALLOW_FLYING = 1; // Permitir monstruos voladores a partir de esta oleada
+const int WAVE_TO_ALLOW_FLYING = 3; // Permitir monstruos voladores a partir de esta oleada
 
 const char* flying_monster_classnames[] = {
     "monster_boss2_64",
@@ -590,7 +589,6 @@ bool IsFlyingMonster(const char* classname) {
     return false;
 }
 
-
 // Ajustar probabilidad de spawn de monstruos voladores
 float adjustFlyingSpawnProbability(int flyingSpawns) {
     return (flyingSpawns > 0) ? 0.5f : 1.0f;
@@ -615,7 +613,6 @@ bool IsMonsterEligible(edict_t* spawn_point, const weighted_item_t& item, bool i
 
     return true;
 }
-
 
 // Calcular el peso de un monstruo para aparecer
 float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) {
@@ -642,6 +639,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
         spawnPointCooldowns[spawn_point] *= 0.9f;
     }
 }
+
 const char* G_HordePickMonster(edict_t* spawn_point) {
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     if (spawnPointCooldowns.find(spawn_point) != spawnPointCooldowns.end()) {
