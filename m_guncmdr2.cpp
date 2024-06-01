@@ -1186,23 +1186,32 @@ void guncmdr2_fire_chain(edict_t* self)
 		M_SetAnimation(self, &guncmdr2_move_fire_chain);
 }
 
-void guncmdr2_refire_chain(edict_t* self)
-{
+void guncmdr2_refire_chain(edict_t* self) {
 	monster_done_dodge(self);
 	self->monsterinfo.attack_state = AS_STRAIGHT;
 
-	if (self->enemy->health > 0)
-		if (visible(self, self->enemy))
-			if (frandom() <= 0.5f)
-			{
-				if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && self->enemy && range_to(self, self->enemy) > RANGE_CHAINGUN_RUN && ai_check_move(self, 8.0f))
+	// Null check for self->enemy using nullptr
+	if (self->enemy == nullptr) {
+		M_SetAnimation(self, &guncmdr2_move_endfire_chain, false);
+		return;
+	}
+
+	if (self->enemy->health > 0) {
+		if (visible(self, self->enemy)) {
+			if (frandom() < 0.5f) {
+				if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && self->enemy && range_to(self, self->enemy) > RANGE_CHAINGUN_RUN && ai_check_move(self, 8.0f)) {
 					M_SetAnimation(self, &guncmdr2_move_fire_chain_run, false);
-				else
+				}
+				else {
 					M_SetAnimation(self, &guncmdr2_move_fire_chain, false);
+				}
 				return;
 			}
+		}
+	}
 	M_SetAnimation(self, &guncmdr2_move_endfire_chain, false);
 }
+
 
 //===========
 // PGM
