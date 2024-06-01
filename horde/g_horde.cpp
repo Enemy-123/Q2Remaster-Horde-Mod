@@ -650,9 +650,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     if (lastSpawnPointTime.find(spawn_point) != lastSpawnPointTime.end() &&
         (level.time - lastSpawnPointTime[spawn_point]).seconds<float>() < currentCooldown) {
-        char buffer[256];
-        std::snprintf(buffer, sizeof(buffer), "Spawn point %s is still on cooldown.\n", spawn_point->classname);
-        gi.Com_Print(buffer);
         return nullptr;
     }
 
@@ -661,28 +658,21 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     float adjustmentFactor = adjustFlyingSpawnProbability(countFlyingSpawns());
 
     char buffer[256];
-    std::snprintf(buffer, sizeof(buffer), "Checking spawn point %s (style %d)\n", spawn_point->classname, spawn_point->style);
-    gi.Com_Print(buffer);
 
     for (auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
 
         if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level)) {
-            std::snprintf(buffer, sizeof(buffer), "Monster %s is not eligible to spawn at spawn point %s.\n", item.classname, spawn_point->classname);
-            gi.Com_Print(buffer);
             continue;
         }
 
         float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
         if (weight > 0) {
-            std::snprintf(buffer, sizeof(buffer), "Eligible monster %s added with weight %f.\n", item.classname, weight);
-            gi.Com_Print(buffer);
             picked_monsters.push_back({ &item, total_weight += weight });
         }
     }
 
     if (picked_monsters.empty()) {
-        std::snprintf(buffer, sizeof(buffer), "No valid monster classname found for spawn point %s.\n", spawn_point->classname);
         gi.Com_Print(buffer);
         return nullptr;
     }
@@ -692,7 +682,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
         if (r < monster.weight) {
             UpdateCooldowns(spawn_point, monster.item->classname);
             ResetSpawnAttempts(spawn_point);
-            std::snprintf(buffer, sizeof(buffer), "Spawning monster %s at spawn point %s.\n", monster.item->classname, spawn_point->classname);
             gi.Com_Print(buffer);
             return monster.item->classname;
         }
@@ -1285,10 +1274,6 @@ void SpawnMonsters() {
         edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
         if (!spawn_point) continue;
 
-        char buffer[256];
-        std::snprintf(buffer, sizeof(buffer), "Attempting to spawn at point %s\n", spawn_point->classname);
-        gi.Com_Print(buffer);
-
         const char* monster_classname = G_HordePickMonster(spawn_point);
         if (!monster_classname) continue;
 
@@ -1304,9 +1289,6 @@ void SpawnMonsters() {
         float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.035f;
         float end_size = start_size;
         SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
-
-        std::snprintf(buffer, sizeof(buffer), "Spawned monster %s at position (%f, %f, %f).\n", monster_classname, monster->s.origin[0], monster->s.origin[1], monster->s.origin[2]);
-        gi.Com_Print(buffer);
 
         --g_horde_local.num_to_spawn;
         ++spawned;
