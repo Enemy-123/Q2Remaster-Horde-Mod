@@ -1108,12 +1108,22 @@ static void guncmdr_kick_finished(edict_t* self)
 
 static void guncmdr_kick(edict_t* self)
 {
-	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f))
-	{
-		if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
-			self->enemy->velocity.z = 270.f;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f)) {
+			if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
+				self->enemy->velocity.z = 270.f;
+		}
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "guncmdr_kick: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado, si es necesario
 	}
 }
+
 
 mframe_t guncmdr_frames_attack_kick[] = {
 	{ ai_charge, -7.7f },
@@ -1176,6 +1186,7 @@ void guncmdr_fire_chain(edict_t* self)
 		M_SetAnimation(self, &guncmdr_move_fire_chain);
 }
 
+<<<<<<< HEAD
 void guncmdr_refire_chain(edict_t* self) {
 	monster_done_dodge(self);
 	self->monsterinfo.attack_state = AS_STRAIGHT;
@@ -1199,10 +1210,38 @@ void guncmdr_refire_chain(edict_t* self) {
 			}
 		}
 	}
+=======
+void guncmdr_refire_chain(edict_t* self)
+{
+monster_done_dodge(self);
+self->monsterinfo.attack_state = AS_STRAIGHT;
+
+// Null check for self->enemy using nullptr
+if (self->enemy == nullptr) {
+>>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
 	M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
+	return;
 }
 
+<<<<<<< HEAD
 
+=======
+if (self->enemy->health > 0) {
+	if (visible(self, self->enemy)) {
+		if (frandom() < 0.5f) {
+			if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && self->enemy && range_to(self, self->enemy) > RANGE_CHAINGUN_RUN && ai_check_move(self, 8.0f)) {
+				M_SetAnimation(self, &guncmdr_move_fire_chain_run, false);
+			}
+			else {
+				M_SetAnimation(self, &guncmdr_move_fire_chain, false);
+			}
+			return;
+		}
+	}
+}
+M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
+}
+>>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
 //===========
 // PGM
 void guncmdr_jump_now(edict_t* self)

@@ -367,7 +367,12 @@ void sham_swingr9(edict_t* self);
 void sham_smash10(edict_t* self)
 {
 	if (!self->enemy)
+	{
+		// char buffer[256];
+		// std::snprintf(buffer, sizeof(buffer), "sham_smash10: Error: enemy not properly initialized\n");
+		// gi.Com_Print(buffer);
 		return;
+	}
 
 	ai_charge(self, 0);
 
@@ -387,7 +392,12 @@ void sham_smash10(edict_t* self)
 void ShamClaw(edict_t* self)
 {
 	if (!self->enemy)
+	{
+		// char buffer[256];
+		// std::snprintf(buffer, sizeof(buffer), "ShamClaw: Error: enemy not properly initialized\n");
+		// gi.Com_Print(buffer);
 		return;
+	}
 
 	ai_charge(self, 10);
 

@@ -150,8 +150,17 @@ mframe_t flipper_frames_pain1[] = {
 };
 MMOVE_T(flipper_move_pain1) = { FRAME_flppn201, FRAME_flppn205, flipper_frames_pain1, flipper_run };
 
-void flipper_bite(edict_t *self)
+void flipper_bite(edict_t* self)
 {
+	// Verificar si self->enemy está correctamente inicializado
+	if (!self->enemy)
+	{
+		// char buffer[256];
+		// std::snprintf(buffer, sizeof(buffer), "flipper_bite: Error: enemy not properly initialized\n");
+		// gi.Com_Print(buffer);
+		return;
+	}
+
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	fire_hit(self, aim, 5, 0);
 }

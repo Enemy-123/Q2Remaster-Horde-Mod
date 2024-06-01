@@ -1107,10 +1107,19 @@ static void guncmdr2_kick_finished(edict_t* self)
 
 static void guncmdr2_kick(edict_t* self)
 {
-	if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f))
-	{
-		if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
-			self->enemy->velocity.z = 270.f;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f)) {
+			if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
+				self->enemy->velocity.z = 270.f;
+		}
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "guncmdr_kick: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado, si es necesario
 	}
 }
 
@@ -1202,6 +1211,11 @@ void guncmdr2_refire_chain(edict_t* self) {
 	}
 	M_SetAnimation(self, &guncmdr2_move_endfire_chain, false);
 }
+<<<<<<< HEAD
+=======
+
+
+>>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
 //===========
 // PGM
 void guncmdr2_jump_now(edict_t* self)

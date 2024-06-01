@@ -619,15 +619,28 @@ void infantry_swing(edict_t *self)
 	gi.sound(self, CHAN_WEAPON, sound_punch_swing, 1, ATTN_NORM, 0);
 }
 
-void infantry_smack(edict_t *self)
+void infantry_smack(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 
-	if (fire_hit(self, aim, irandom(5, 10), 50))
-		gi.sound(self, CHAN_WEAPON, sound_punch_hit, 1, ATTN_NORM, 0);
-	else
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		// Llamar a fire_hit solo si self->enemy está inicializado
+		if (fire_hit(self, aim, irandom(5, 10), 50))
+			gi.sound(self, CHAN_WEAPON, sound_punch_hit, 1, ATTN_NORM, 0);
+		else
+			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "infantry_smack: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Puedes ajustar esto según sea necesario
+	}
 }
+
 
 mframe_t infantry_frames_attack2[] = {
 	{ ai_charge, 3 },

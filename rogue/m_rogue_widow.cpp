@@ -745,11 +745,23 @@ MMOVE_T(widow_move_death) = { FRAME_death01, FRAME_death31, widow_frames_death, 
 
 void widow_attack_kick(edict_t* self)
 {
-	vec3_t aim = { 100, 0, 4 };
-	if (self->enemy->groundentity)
-		fire_hit(self, aim, irandom(50, 56), 500);
-	else // not as much kick if they're in the air .. makes it harder to land on her head
-		fire_hit(self, aim, irandom(50, 56), 250);
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		vec3_t aim = { 100, 0, 4 };
+
+		if (self->enemy->groundentity)
+			fire_hit(self, aim, irandom(50, 56), 500);
+		else // not as much kick if they're in the air .. makes it harder to land on her head
+			fire_hit(self, aim, irandom(50, 56), 250);
+	}
+	else {
+		// char buffer[256];
+		// std::snprintf(buffer, sizeof(buffer), "widow_attack_kick: Error: enemy not properly initialized\n");
+		// gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		// Puedes agregar cualquier lógica adicional aquí si es necesario
+	}
 }
 
 mframe_t widow_frames_attack_kick[] = {

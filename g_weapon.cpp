@@ -44,21 +44,45 @@ bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 	}
 
 	// Verifica si el enemigo y sus límites mínimos y máximos están inicializados
+<<<<<<< HEAD
 	if (self->enemy->mins && self->enemy->maxs) {
 		std::snprintf(buffer, sizeof(buffer), "enemy mins: %f %f %f\n", self->enemy->mins[0], self->enemy->mins[1], self->enemy->mins[2]);
 		gi.Com_Print(buffer);
+=======
+	if (self->enemy) {
+		if (self->enemy->mins && self->enemy->maxs) {
+			//std::snprintf(buffer, sizeof(buffer), "enemy mins: %f %f %f\n", self->enemy->mins[0], self->enemy->mins[1], self->enemy->mins[2]);
+			//gi.Com_Print(buffer);
+>>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
 
-		std::snprintf(buffer, sizeof(buffer), "enemy maxs: %f %f %f\n", self->enemy->maxs[0], self->enemy->maxs[1], self->enemy->maxs[2]);
-		gi.Com_Print(buffer);
+			//std::snprintf(buffer, sizeof(buffer), "enemy maxs: %f %f %f\n", self->enemy->maxs[0], self->enemy->maxs[1], self->enemy->maxs[2]);
+			//gi.Com_Print(buffer);
 
-		if (aim[1] < 0)
-			aim[1] = self->enemy->mins[0];
-		else
-			aim[1] = self->enemy->maxs[0];
+			if (aim[1] < 0)
+				aim[1] = self->enemy->mins[0];
+			else
+				aim[1] = self->enemy->maxs[0];
+		}
+		else {
+			if (!self->enemy->mins) {
+	/*			std::snprintf(buffer, sizeof(buffer), "Error: enemy mins not properly initialized\n");
+				gi.Com_Print(buffer);*/
+			}
+			if (!self->enemy->maxs) {
+				//std::snprintf(buffer, sizeof(buffer), "Error: enemy maxs not properly initialized\n");
+				//gi.Com_Print(buffer);
+			}
+			return false; // Manejar el error apropiadamente
+		}
 	}
 	else {
+<<<<<<< HEAD
 		std::snprintf(buffer, sizeof(buffer), "Error: enemy mins/maxs not properly initialized\n");
 		gi.Com_Print(buffer);
+=======
+		//std::snprintf(buffer, sizeof(buffer), "Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+>>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
 		return false; // Manejar el error apropiadamente
 	}
 

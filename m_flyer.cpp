@@ -446,17 +446,42 @@ MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_att
 void flyer_slash_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
-	if (!fire_hit(self, aim, 3, 0))
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
-	gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
+
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		if (!fire_hit(self, aim, 3, 0))
+			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+		gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "flyer_slash_left: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+	}
 }
+
 
 void flyer_slash_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
-	if (!fire_hit(self, aim, 3, 0))
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
-	gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
+
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		if (!fire_hit(self, aim, 3, 0))
+			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+		gi.sound(self, CHAN_WEAPON, sound_slash, 1, ATTN_NORM, 0);
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "flyer_slash_right: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+	}
 }
 
 mframe_t flyer_frames_start_melee[] = {
