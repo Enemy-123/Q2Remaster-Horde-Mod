@@ -588,10 +588,10 @@ int countFlyingSpawns() {
 }
 
 float adjustFlyingSpawnProbability(int flyingSpawns) {
-    if (flyingSpawns > 0) {
-        // Si hay spawns dedicados solo para monstruos voladores, reducir la probabilidad de seleccionar voladores en otros puntos.
-        return 0.75f; // Reduce la probabilidad a la mitad, ajustable según tus necesidades.
-    }
+        if (flyingSpawns > 0) {
+            // Si hay spawns dedicados solo para monstruos voladores, reducir la probabilidad de seleccionar voladores en otros puntos.
+            return 0.75f; // Reduce la probabilidad a la mitad, ajustable según tus necesidades.
+        }
     return 1.0f; // Mantén la probabilidad normal si no hay spawns dedicados.
 }
 int countTotalSpawns() {
@@ -610,23 +610,28 @@ bool IsSpawnPointEligible(const edict_t* spawn_point, int wave_to_allow_flying, 
 }
 
 // Función para verificar si un monstruo es elegible para aparecer
-bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool spawn_flying, int wave_to_allow_flying) {
+bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int wave_to_allow_flying) {
     if (level.time - lastMonsterSpawnTime[item.classname] < MONSTER_COOLDOWN) return false;
     if (item.min_level != -1 && g_horde_local.level < item.min_level) return false;
     if (item.max_level != -1 && g_horde_local.level > item.max_level) return false;
-    if (spawn_flying && g_horde_local.level < wave_to_allow_flying && std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) return false;  // Evitar spawn de voladores antes de permitir voladores
+    if (isFlyingMonster && g_horde_local.level < wave_to_allow_flying) return false;  // Evitar spawn antes de permitir voladores
     return true;
 }
 
+
 // Función para calcular el peso de un monstruo para aparecer
-float CalculateWeight(const weighted_item_t& item, bool spawn_flying, float adjustmentFactor) {
-    if (spawn_flying && std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames)) {
+float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) {
+    if (isFlyingMonster) {
         return item.weight * adjustmentFactor;
     }
-    else if (!spawn_flying && std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) == std::end(flying_monster_classnames)) {
+    else {
         return item.weight;
     }
-    return 0.0f;
+}
+
+void ResetSpawnAttempts(edict_t* spawn_point) {
+    spawnAttempts[spawn_point] = 0;
+    spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
 }
 
 // Suponiendo que SPAWN_POINT_COOLDOWN y otros tiempos son de tipo gtime_t
@@ -644,7 +649,6 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
         spawnPointCooldowns[spawn_point] *= 0.9f;
     }
 }
-
 const char* G_HordePickMonster(edict_t* spawn_point) {
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     if (spawnPointCooldowns.find(spawn_point) != spawnPointCooldowns.end()) {
@@ -661,20 +665,20 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     float adjustmentFactor = adjustFlyingSpawnProbability(countFlyingSpawns());
 
     for (auto& item : monsters) {
-        if (!IsMonsterEligible(spawn_point, item, spawn_point->style == 1, 3)) continue;
+        bool isFlyingMonster = std::find(std::begin(flying_monster_classnames), std::end(flying_monster_classnames), item.classname) != std::end(flying_monster_classnames);
+        if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, 3)) continue;
 
-        float weight = CalculateWeight(item, spawn_point->style == 1, adjustmentFactor);
+        float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
         if (weight > 0) {
             picked_monsters.push_back({ &item, total_weight += weight });
         }
     }
-    void ResetSpawnAttempts(edict_t * spawn_point);
     if (!picked_monsters.empty()) {
         float r = frandom() * total_weight;
         for (const auto& monster : picked_monsters) {
             if (r < monster.weight) {
                 UpdateCooldowns(spawn_point, monster.item->classname);
-                ResetSpawnAttempts(spawn_point); // Aquí debería usar la función para un solo punto de spawn
+                ResetSpawnAttempts(spawn_point);
                 return monster.item->classname;
             }
         }
@@ -684,10 +688,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     return nullptr;
 }
 
-void ResetSpawnAttempts(edict_t* spawn_point) {
-    spawnAttempts[spawn_point] = 0;
-    spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
-}
 
 
 void Horde_PreInit() {
