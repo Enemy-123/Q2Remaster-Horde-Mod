@@ -21,11 +21,14 @@ constexpr spawnflags_t SPAWNFLAG_TURRET_WALL_UNIT = 0x0080_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_NO_LASERSIGHT = 18_spawnflag_bit;
 
 
+
 bool FindMTarget(edict_t* self)
 {
 	edict_t* ent = nullptr;
 	float range = 800.0f; // Rango de búsqueda
-	vec3_t dir;
+	vec3_t dir{};
+	float bestDist = range + 1.0f; // Inicializa con un valor mayor al rango
+	edict_t* bestTarget = nullptr;
 
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
@@ -40,31 +43,43 @@ bool FindMTarget(edict_t* self)
 		if (ent == self)
 			continue;
 
-		if (ent->health <= 0)
+		if (ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
 			continue;
 
 		// Solo busca enemigos en el equipo contrario
 		if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
 		{
-			dir = ent->s.origin - self->s.origin;
-			if (VectorLength(dir) < range)
+			VectorSubtract(ent->s.origin, self->s.origin, dir);
+			float dist = VectorLength(dir);
+			if (dist < range)
 			{
 				// Verifica si el enemigo es visible antes de asignarlo
 				if (visible(self, ent))
 				{
-					self->enemy = ent;
-					return true;
-				}
-				else
-				{
-					// Si no es visible, asegúrate de no tenerlo como enemigo
-					self->enemy = nullptr;
+					if (dist < bestDist)
+					{
+						bestDist = dist;
+						bestTarget = ent;
+					}
 				}
 			}
 		}
 	}
 
-	return false;
+	if (bestTarget)
+	{
+		self->enemy = bestTarget;
+		return true;
+	}
+	else
+	{
+		// Solo desasigna al enemigo si no está visible
+		if (self->enemy && (!visible(self, self->enemy) || self->enemy->health <= 0 || self->enemy->deadflag || self->enemy->solid == SOLID_NOT))
+		{
+			self->enemy = nullptr;
+		}
+		return false;
+	}
 }
 
 void TurretAim(edict_t *self);
@@ -309,7 +324,7 @@ void TurretAim(edict_t* self)
 		self->target_ent->s.modelindex = MODELINDEX_WORLD;
 		self->target_ent->s.renderfx = RF_BEAM;
 		self->target_ent->s.frame = 1;
-		self->target_ent->s.skinnum = 0xf0f0f0f0;
+		self->target_ent->s.skinnum = 0xd0d1d2d3;
 		self->target_ent->classname = "turret_lasersight";
 		self->target_ent->s.origin = self->s.origin;
 	}
@@ -416,7 +431,7 @@ MONSTERINFO_RUN(turret_run) (edict_t *self) -> void
 		if (self->monsterinfo.weapon_sound)
 		{
 			self->monsterinfo.weapon_sound = 0;
-			gi.sound(self, CHAN_WEAPON, sound_moved, 1.0f, ATTN_NORM, 0.f);
+			gi.sound(self, CHAN_WEAPON, sound_moved, 1.0f, ATTN_STATIC, 0.f);
 		}
 	}
 }
@@ -1007,7 +1022,7 @@ void SP_monster_turret(edict_t* self)
 	}
 
 	// pre-caches
-	sound_moved.assign("turret/moved.wav");
+	sound_moved.assign("gunner/gunidle1.wav");
 	sound_moving.assign("turret/moving.wav");
 	gi.modelindex("models/objects/debris1/tris.md2");
 
