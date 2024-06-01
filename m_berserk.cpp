@@ -159,8 +159,20 @@ void berserk_attack_spike(edict_t* self)
 {
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, -24 };
 
-	if (!fire_hit(self, aim, irandom(6, 13) * M_DamageModifier(self), 80)) //	Faster attack -- upwards and backwards
-		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		// Llamar a fire_hit solo si self->enemy está inicializado
+		if (!fire_hit(self, aim, irandom(6, 13) * M_DamageModifier(self), 80)) //	Faster attack -- upwards and backwards
+			self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "berserk_attack_spike: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec; // Puedes ajustar esto según sea necesario
+	}
 }
 
 void berserk_swing(edict_t* self)
@@ -184,9 +196,22 @@ void berserk_attack_club(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	if (!fire_hit(self, aim, irandom(15, 21) * M_DamageModifier(self), 400)) // Slower attack
-		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		// Llamar a fire_hit solo si self->enemy está inicializado
+		if (!fire_hit(self, aim, irandom(15, 21) * M_DamageModifier(self), 400)) // Slower attack
+			self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "berserk_attack_club: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec; // Puedes ajustar esto según sea necesario
+	}
 }
+
 
 mframe_t berserk_frames_attack_club[] = {
 	{ ai_charge },

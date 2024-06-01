@@ -279,11 +279,22 @@ void brain_swing_right(edict_t* self)
 
 void brain_hit_right(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
-	if (fire_hit(self, aim, irandom(15, 20), 40))
-		gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
-	else
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
+		if (fire_hit(self, aim, irandom(15, 20), 40))
+			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
+		else
+			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "brain_hit_right: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+	}
 }
 
 void brain_swing_left(edict_t* self)
@@ -293,12 +304,24 @@ void brain_swing_left(edict_t* self)
 
 void brain_hit_left(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
-	if (fire_hit(self, aim, irandom(15, 20), 40))
-		gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
-	else
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
+		if (fire_hit(self, aim, irandom(15, 20), 40))
+			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
+		else
+			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "brain_hit_left: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+	}
 }
+
 
 mframe_t brain_frames_attack1[] = {
 	{ ai_charge, 8 },
@@ -331,13 +354,24 @@ void brain_chest_open(edict_t* self)
 
 void brain_tentacle_attack(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, 0, 8 };
-	if (fire_hit(self, aim, irandom(10, 15), -600))
-		self->count = 1;
-	else
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-	gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+	if (self->enemy) {
+		vec3_t aim = { MELEE_DISTANCE, 0, 8 };
+		if (fire_hit(self, aim, irandom(10, 15), -600))
+			self->count = 1;
+		else
+			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "brain_tentacle_attack: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+	}
 }
+
 
 void brain_chest_closed(edict_t* self)
 {

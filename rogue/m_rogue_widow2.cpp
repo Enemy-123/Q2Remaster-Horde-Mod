@@ -509,15 +509,21 @@ void Widow2Crunch(edict_t* self)
 
 	Widow2TonguePull(self);
 
-	// 70 + 32
 	aim = { 150, 0, 4 };
 	if (self->s.frame != FRAME_tongs07)
+	{
 		fire_hit(self, aim, irandom(20, 26), 0);
+	}
 	else if (self->enemy->groundentity)
+	{
 		fire_hit(self, aim, irandom(20, 26), 500);
+	}
 	else // not as much kick if they're in the air .. makes it harder to land on her head
+	{
 		fire_hit(self, aim, irandom(20, 26), 250);
+	}
 }
+
 
 void Widow2Toss(edict_t* self)
 {

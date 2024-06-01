@@ -240,9 +240,22 @@ void arachnid_melee_charge(edict_t* self)
 
 void arachnid_melee_hit(edict_t* self)
 {
-	if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
-		self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		// Llamar a fire_hit solo si self->enemy está inicializado
+		if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
+			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "arachnid_melee_hit: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Puedes ajustar esto según sea necesario
+	}
 }
+
 
 mframe_t arachnid_frames_melee[] = {
 	{ ai_charge },

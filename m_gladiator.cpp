@@ -110,14 +110,28 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 void GladiatorMelee(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	if (fire_hit(self, aim, irandom(30, 35), 300))
-		gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);
-	else
-	{
+
+	// Verificar si self->enemy está correctamente inicializado
+	if (self->enemy) {
+		if (fire_hit(self, aim, irandom(30, 35), 300))
+			gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);
+		else
+		{
+			gi.sound(self, CHAN_AUTO, sound_cleaver_miss, 1, ATTN_NORM, 0);
+			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+		}
+	}
+	else {
+		//char buffer[256];
+		//std::snprintf(buffer, sizeof(buffer), "GladiatorMelee: Error: enemy not properly initialized\n");
+		//gi.Com_Print(buffer);
+
+		// Manejar el caso donde self->enemy no está inicializado
 		gi.sound(self, CHAN_AUTO, sound_cleaver_miss, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
 	}
 }
+
 
 mframe_t gladiator_frames_attack_melee[] = {
 	{ ai_charge, 0, gladiator_cleaver_swing },

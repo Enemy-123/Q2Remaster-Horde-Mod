@@ -619,8 +619,14 @@ MMOVE_T(gekk_move_run_start) = { FRAME_stand_01, FRAME_stand_02, gekk_frames_run
 
 void gekk_hit_left(edict_t* self)
 {
+	// Verificar si self->enemy está correctamente inicializado
 	if (!self->enemy)
+	{
+		// char buffer[256];
+		// std::snprintf(buffer, sizeof(buffer), "gekk_hit_left: Error: enemy not properly initialized\n");
+		// gi.Com_Print(buffer);
 		return;
+	}
 
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
 	if (fire_hit(self, aim, irandom(5, 10), 100))
@@ -632,10 +638,17 @@ void gekk_hit_left(edict_t* self)
 	}
 }
 
+
 void gekk_hit_right(edict_t* self)
 {
+	// Verificar si self->enemy está correctamente inicializado
 	if (!self->enemy)
+	{
+		// char buffer[256];
+		// std::snprintf(buffer, sizeof(buffer), "gekk_hit_right: Error: enemy not properly initialized\n");
+		// gi.Com_Print(buffer);
 		return;
+	}
 
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 	if (fire_hit(self, aim, irandom(5, 10), 100))
@@ -856,8 +869,14 @@ MMOVE_T(gekk_move_leapatk2) = { FRAME_leapatk_01, FRAME_leapatk_19, gekk_frames_
 
 void gekk_bite(edict_t* self)
 {
+	// Verificar si self->enemy está correctamente inicializado
 	if (!self->enemy)
+	{
+		// char buffer[256];
+		// std::snprintf(buffer, sizeof(buffer), "gekk_bite: Error: enemy not properly initialized\n");
+		// gi.Com_Print(buffer);
 		return;
+	}
 
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	fire_hit(self, aim, 5, 0);
