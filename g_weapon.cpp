@@ -9,7 +9,7 @@ fire_hit
 Used for all impact (hit/punch/slash) attacks
 =================
 */
-bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
+bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 {
 	trace_t tr;
 	vec3_t	forward, right, up;
@@ -27,42 +27,55 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 		// Continuar con el resto del código
 	}
 
+	char buffer[256];
 
-	if (!(aim[1] > self->mins[0] && aim[1] < self->maxs[0]))
-	{
-		// this is a side hit so adjust the "right" value out to the edge of their bbox
+	// Verifica si el enemigo y sus límites mínimos y máximos están inicializados
+	if (self->enemy && self->enemy->mins && self->enemy->maxs) {
+		std::snprintf(buffer, sizeof(buffer), "enemy mins: %f %f %f\n", self->enemy->mins[0], self->enemy->mins[1], self->enemy->mins[2]);
+		gi.Com_Print(buffer);
+
+		std::snprintf(buffer, sizeof(buffer), "enemy maxs: %f %f %f\n", self->enemy->maxs[0], self->enemy->maxs[1], self->enemy->maxs[2]);
+		gi.Com_Print(buffer);
+
 		if (aim[1] < 0)
 			aim[1] = self->enemy->mins[0];
 		else
 			aim[1] = self->enemy->maxs[0];
 	}
+	else {
+		std::snprintf(buffer, sizeof(buffer), "Error: enemy or mins/maxs not properly initialized\n");
+		gi.Com_Print(buffer);
+		return false; // Manejar el error apropiadamente
+	}
 
+	// Encuentra el punto más cercano a la caja de colisión del enemigo
 	point = closest_point_to_box(self->s.origin, self->enemy->absmin, self->enemy->absmax);
 
-	// check that we can hit the point on the bbox
+	// Verifica que podemos golpear el punto en la caja de colisión
 	tr = gi.traceline(self->s.origin, point, self, MASK_PROJECTILE);
 
 	if (tr.fraction < 1)
 	{
 		if (!tr.ent->takedamage)
 			return false;
-		// if it will hit any client/monster then hit the one we wanted to hit
+		// Si golpea a cualquier cliente/monstruo, golpea al que queríamos golpear
 		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
 			tr.ent = self->enemy;
 	}
 
-	// check that we can hit the player from the point
+	// Verifica que podemos golpear al jugador desde el punto
 	tr = gi.traceline(point, self->enemy->s.origin, self, MASK_PROJECTILE);
 
 	if (tr.fraction < 1)
 	{
 		if (!tr.ent->takedamage)
 			return false;
-		// if it will hit any client/monster then hit the one we wanted to hit
+		// Si golpea a cualquier cliente/monstruo, golpea al que queríamos golpear
 		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
 			tr.ent = self->enemy;
 	}
 
+	// Calcula las direcciones de los ángulos
 	AngleVectors(self->s.angles, forward, right, up);
 	point = self->s.origin + (forward * range);
 	point += (right * aim[1]);
@@ -73,20 +86,21 @@ bool fire_hit(edict_t *self, vec3_t aim, int damage, int kick)
 	extern float M_DamageModifier(edict_t * monster);
 	damage *= M_DamageModifier(self);
 
-	// do the damage
+	// Aplica el daño
 	T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
 
 	if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
 		return false;
 
-	// do our special form of knockback here
+	// Aplica nuestra forma especial de retroceso aquí
 	v = (self->enemy->absmin + self->enemy->absmax) * 0.5f;
 	v -= point;
 	v.normalize();
 	self->enemy->velocity += v * kick;
 	if (self->enemy->velocity[2] > 0)
 		self->enemy->groundentity = nullptr;
-	return true;
+
+	return true; // Valor de retorno booleano asegurado
 }
 
 // helper routine for piercing traces;
