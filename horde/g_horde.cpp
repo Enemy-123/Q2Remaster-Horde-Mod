@@ -566,7 +566,8 @@ gitem_t* G_HordePickItem() {
     return it != picked_items.end() ? FindItemByClassname(it->item->classname) : nullptr;
 }
 
-const int WAVE_TO_ALLOW_FLYING = 3; // Puedes ajustar este valor según tus necesidades
+
+const int WAVE_TO_ALLOW_FLYING = 1; // Puedes ajustar este valor según tus necesidades
 
 int num_flying_monsters = sizeof(flying_monster_classnames) / sizeof(flying_monster_classnames[0]);
 
@@ -696,6 +697,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     IncreaseSpawnAttempts(spawn_point);
     return nullptr;
 }
+
 
 void Horde_PreInit() {
     wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
@@ -834,7 +836,10 @@ void BossDeathHandler(edict_t* boss) {
         boss->takedamage = false;
 
         // Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
-        if (strcmp(boss->classname, "monster_boss2") == 0 || strcmp(boss->classname, "monster_carrier") == 0) {
+        if (strcmp(boss->classname, "monster_boss2") == 0 ||
+            strcmp(boss->classname, "monster_carrier") == 0 || 
+            strcmp(boss->classname, "monster_carrier2") == 0 || 
+            strcmp(boss->classname, "monster_boss2_64") == 0) {
             flying_monsters_mode = false;
         }
     }
@@ -1311,6 +1316,8 @@ void SpawnMonsters() {
         --g_horde_local.num_to_spawn;
         ++spawned;
     }
+
+
 
     // Ajusta el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
     if (mapSize.isSmallMap) {
