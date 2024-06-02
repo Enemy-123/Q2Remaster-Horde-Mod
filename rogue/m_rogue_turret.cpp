@@ -319,8 +319,8 @@ void TurretAim(edict_t* self)
 		self->target_ent->s.modelindex = MODELINDEX_WORLD;
 		self->target_ent->s.renderfx = RF_BEAM;
 		self->target_ent->s.frame = 1;
-		self->target_ent->s.skinnum = 0xf0f0f0f0;
-	//	self->target_ent->s.skinnum = 0xd0d1d2d3;
+	//	self->target_ent->s.skinnum = 0xf0f0f0f0;
+		self->target_ent->s.skinnum = 0xd0d1d2d3;
 		self->target_ent->classname = "turret_lasersight";
 		self->target_ent->s.effects = EF_BOB;
 		self->target_ent->s.origin = self->s.origin;
@@ -1028,8 +1028,8 @@ void SP_monster_turret(edict_t* self)
 	gi.modelindex("models/objects/debris1/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	self->mins = { -7, -7, -7 };
-	self->maxs = { 7, 7, 7 };
+	self->mins = { -12, -12, -12 };
+	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
 
 	if (!st.was_key_specified("power_armor_type"))

@@ -861,7 +861,12 @@ static void Horde_CleanBodies() {
     for (size_t i = 0; i < globals.max_edicts; i++) {
         if (!g_edicts[i].inuse) continue;
         if (g_edicts[i].svflags & SVF_DEADMONSTER) {
-            if (g_edicts[i].s.effects & EF_GIB) continue; // No limpiar cuerpos gibbeados
+
+            // Condición corregida para múltiplo de 3
+            if (g_horde_local.level % 3 == 0) {
+                if (g_edicts[i].s.effects & EF_GIB) continue; // No limpiar cuerpos gibbeados
+            }
+
             if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && !g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                 boss_die(&g_edicts[i]);
             }
@@ -869,6 +874,7 @@ static void Horde_CleanBodies() {
         }
     }
 }
+
 
 // attaching healthbar
 void AttachHealthBar(edict_t* boss) {

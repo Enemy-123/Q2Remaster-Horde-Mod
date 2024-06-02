@@ -93,7 +93,7 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	ent->client->pers.inventory[item->id]--;
 
 	// Spawnear la torreta con cinco parámetros
-	fire_doppleganger(ent, spawnPt, forward, 128.f, 64.f);
+	fire_doppleganger(ent, spawnPt, forward, 128.f, 76.f);
 }
 
 bool Pickup_Doppleganger(edict_t* ent, edict_t* other)

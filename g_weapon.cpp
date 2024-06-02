@@ -686,7 +686,7 @@ TOUCH(rocket_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other
 	else
 	{
 		// don't throw any debris in net games  // check horde later
-		if (!G_IsDeathmatch() || !G_IsCooperative())
+		if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
 		{
 			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
 			{
