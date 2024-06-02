@@ -29,7 +29,7 @@ int CalculateRemainingMonsters() {
 }
 
 
-constexpr int MAX_MONSTERS_BIG_MAP = 32;
+constexpr int MAX_MONSTERS_BIG_MAP = 28;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
@@ -1264,7 +1264,7 @@ void SpawnMonsters() {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
     }
     else if (mapSize.isBigMap) {
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 6 : 4;
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
     }
     else { // Para mapas medianos
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
