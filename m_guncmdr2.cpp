@@ -1211,11 +1211,7 @@ void guncmdr2_refire_chain(edict_t* self) {
 	}
 	M_SetAnimation(self, &guncmdr2_move_endfire_chain, false);
 }
-<<<<<<< HEAD
-=======
 
-
->>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
 //===========
 // PGM
 void guncmdr2_jump_now(edict_t* self)

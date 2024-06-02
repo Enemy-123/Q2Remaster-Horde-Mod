@@ -1,147 +1,95 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
-
 /*
-=================
+================ =
 fire_hit
 
-Used for all impact (hit/punch/slash) attacks
-=================
+Used for all impact(hit / punch / slash) attacks
+================ =
 */
-
-bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
+bool fire_hit(edict_t * self, vec3_t aim, int damage, int kick)
 {
 	trace_t tr;
-	vec3_t forward, right, up;
-	vec3_t v;
-	vec3_t point;
-	float range;
-	vec3_t dir;
+	vec3_t	forward, right, up;
+	vec3_t	v;
+	vec3_t	point;
+	float	range;
+	vec3_t	dir;
 	char buffer[256];
 
 	// Verificación inicial de null para enemy
 	if (!self->enemy) {
-		std::snprintf(buffer, sizeof(buffer), "Error: enemy is null\n");
-		gi.Com_Print(buffer);
 		return false; // Manejar el error apropiadamente
 	}
-
 	// Verificación de null para attacker si es "monster_turret"
-	if (self->classname && !strcmp(self->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
 		std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_turret\n");
 		gi.Com_Print(buffer);
 		return false; // Manejar el error apropiadamente
 	}
 
 	// see if enemy is in range
-	if (self->enemy->absmin && self->enemy->absmax) {
-		range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
-		if (range < aim[0])
-			return false;
+	range = distance_between_boxes(self->enemy->absmin, self->enemy->absmax, self->absmin, self->absmax);
+	if (range > aim[0])
+		return false;
 
-		// Continuar con el resto del código
+	if (!(aim[1] > self->mins[0] && aim[1] < self->maxs[0]))
+	{
+		// this is a side hit so adjust the "right" value out to the edge of their bbox
+		if (aim[1] < 0)
+			aim[1] = self->enemy->mins[0];
+		else
+			aim[1] = self->enemy->maxs[0];
 	}
 
-	// Verifica si el enemigo y sus límites mínimos y máximos están inicializados
-<<<<<<< HEAD
-	if (self->enemy->mins && self->enemy->maxs) {
-		std::snprintf(buffer, sizeof(buffer), "enemy mins: %f %f %f\n", self->enemy->mins[0], self->enemy->mins[1], self->enemy->mins[2]);
-		gi.Com_Print(buffer);
-=======
-	if (self->enemy) {
-		if (self->enemy->mins && self->enemy->maxs) {
-			//std::snprintf(buffer, sizeof(buffer), "enemy mins: %f %f %f\n", self->enemy->mins[0], self->enemy->mins[1], self->enemy->mins[2]);
-			//gi.Com_Print(buffer);
->>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
-
-			//std::snprintf(buffer, sizeof(buffer), "enemy maxs: %f %f %f\n", self->enemy->maxs[0], self->enemy->maxs[1], self->enemy->maxs[2]);
-			//gi.Com_Print(buffer);
-
-			if (aim[1] < 0)
-				aim[1] = self->enemy->mins[0];
-			else
-				aim[1] = self->enemy->maxs[0];
-		}
-		else {
-			if (!self->enemy->mins) {
-	/*			std::snprintf(buffer, sizeof(buffer), "Error: enemy mins not properly initialized\n");
-				gi.Com_Print(buffer);*/
-			}
-			if (!self->enemy->maxs) {
-				//std::snprintf(buffer, sizeof(buffer), "Error: enemy maxs not properly initialized\n");
-				//gi.Com_Print(buffer);
-			}
-			return false; // Manejar el error apropiadamente
-		}
-	}
-	else {
-<<<<<<< HEAD
-		std::snprintf(buffer, sizeof(buffer), "Error: enemy mins/maxs not properly initialized\n");
-		gi.Com_Print(buffer);
-=======
-		//std::snprintf(buffer, sizeof(buffer), "Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
->>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
-		return false; // Manejar el error apropiadamente
-	}
-
-	// Encuentra el punto más cercano a la caja de colisión del enemigo
 	point = closest_point_to_box(self->s.origin, self->enemy->absmin, self->enemy->absmax);
 
-	// Verifica que podemos golpear el punto en la caja de colisión
+	// check that we can hit the point on the bbox
 	tr = gi.traceline(self->s.origin, point, self, MASK_PROJECTILE);
 
 	if (tr.fraction < 1)
 	{
 		if (!tr.ent->takedamage)
 			return false;
-		// Si golpea a cualquier cliente/monstruo, golpea al que queríamos golpear
+		// if it will hit any client/monster then hit the one we wanted to hit
 		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
 			tr.ent = self->enemy;
 	}
 
-	// Verifica que podemos golpear al jugador desde el punto
+	// check that we can hit the player from the point
 	tr = gi.traceline(point, self->enemy->s.origin, self, MASK_PROJECTILE);
 
 	if (tr.fraction < 1)
 	{
 		if (!tr.ent->takedamage)
 			return false;
-		// Si golpea a cualquier cliente/monstruo, golpea al que queríamos golpear
+		// if it will hit any client/monster then hit the one we wanted to hit
 		if ((tr.ent->svflags & SVF_MONSTER) || (tr.ent->client))
 			tr.ent = self->enemy;
 	}
 
-	// Calcula las direcciones de los ángulos
 	AngleVectors(self->s.angles, forward, right, up);
 	point = self->s.origin + (forward * range);
 	point += (right * aim[1]);
 	point += (up * aim[2]);
 	dir = point - self->enemy->s.origin;
 
-	// Aplica el multiplicador de daño
-	extern float M_DamageModifier(edict_t * monster);
-	damage *= M_DamageModifier(self);
-
-	// Aplica el daño
+	// do the damage
 	T_Damage(tr.ent, self, self, dir, point, vec3_origin, damage, kick / 2, DAMAGE_NO_KNOCKBACK, MOD_HIT);
 
 	if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
 		return false;
 
-	// Aplica nuestra forma especial de retroceso aquí
+	// do our special form of knockback here
 	v = (self->enemy->absmin + self->enemy->absmax) * 0.5f;
 	v -= point;
 	v.normalize();
 	self->enemy->velocity += v * kick;
 	if (self->enemy->velocity[2] > 0)
 		self->enemy->groundentity = nullptr;
-
-	return true; // Valor de retorno booleano asegurado
+	return true;
 }
-
-
 // helper routine for piercing traces;
 // mask = the input mask for finding what to hit
 // you can adjust the mask for the re-trace (for water, etc).

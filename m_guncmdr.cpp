@@ -1186,7 +1186,7 @@ void guncmdr_fire_chain(edict_t* self)
 		M_SetAnimation(self, &guncmdr_move_fire_chain);
 }
 
-<<<<<<< HEAD
+
 void guncmdr_refire_chain(edict_t* self) {
 	monster_done_dodge(self);
 	self->monsterinfo.attack_state = AS_STRAIGHT;
@@ -1210,38 +1210,9 @@ void guncmdr_refire_chain(edict_t* self) {
 			}
 		}
 	}
-=======
-void guncmdr_refire_chain(edict_t* self)
-{
-monster_done_dodge(self);
-self->monsterinfo.attack_state = AS_STRAIGHT;
-
-// Null check for self->enemy using nullptr
-if (self->enemy == nullptr) {
->>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
-	M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
-	return;
 }
 
-<<<<<<< HEAD
 
-=======
-if (self->enemy->health > 0) {
-	if (visible(self, self->enemy)) {
-		if (frandom() < 0.5f) {
-			if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && self->enemy && range_to(self, self->enemy) > RANGE_CHAINGUN_RUN && ai_check_move(self, 8.0f)) {
-				M_SetAnimation(self, &guncmdr_move_fire_chain_run, false);
-			}
-			else {
-				M_SetAnimation(self, &guncmdr_move_fire_chain, false);
-			}
-			return;
-		}
-	}
-}
-M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
-}
->>>>>>> e3142c1db632e70b5499be51a966bd505bd6d6ac
 //===========
 // PGM
 void guncmdr_jump_now(edict_t* self)
