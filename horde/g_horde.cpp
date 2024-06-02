@@ -29,7 +29,7 @@ int CalculateRemainingMonsters() {
 }
 
 
-constexpr int MAX_MONSTERS_BIG_MAP = 44;
+constexpr int MAX_MONSTERS_BIG_MAP = 32;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
@@ -236,10 +236,10 @@ void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) {
         additionalSpawn = 4;
     }
     else if (mapSize.isBigMap) {
-        additionalSpawn = 9;
+        additionalSpawn = 7;
     }
     else {
-        additionalSpawn = 7;
+        additionalSpawn = 6;
     }
 
     if (current_wave_number > 27) {
@@ -1115,7 +1115,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers)
             params = { 7, 4 };
         }
         else if (mapSize.isBigMap) {
-            params = { 25, 18 };
+            params = { 22, 16 };
         }
         else {
             params = { 12, 8 };
@@ -1126,7 +1126,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers)
             params = { current_wave_number <= 4 ? 3 : 6, current_wave_number <= 4 ? 7 : 13 };
         }
         else if (mapSize.isBigMap) {
-            params = { current_wave_number <= 4 ? 17 : 23, current_wave_number <= 4 ? 18 : 12 };
+            params = { current_wave_number <= 4 ? 12 : 17, current_wave_number <= 4 ? 13 : 16 };
         }
         else {
             params = { current_wave_number <= 4 ? 3 : 8, current_wave_number <= 4 ? 7 : 15 };
