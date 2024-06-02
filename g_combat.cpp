@@ -609,7 +609,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		if (attacker != nullptr && attacker->client != nullptr) {
 			// Verificar si el atacante no tiene quadfire activo y darle 5 segundos de quadfire
 			if (attacker->client->quadfire_time < level.time) {
-				if (damage > 0 && (!(attacker->health < 1))) {
+				if (damage > 0 && (!(attacker->health < 1 && targ->health < 1))) {
 					// Calcular probabilidad en función del daño realizado
 					float probabilidad = damage / 1150.0f; // Ajusta este valor según lo que consideres adecuado
 
