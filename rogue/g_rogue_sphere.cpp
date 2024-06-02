@@ -289,8 +289,13 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 	if (enemy->svflags & SVF_BOT) // trying to avoid it to attack bots too
 		return;
 
-	if (!(enemy->svflags & SVF_MONSTER)) // trying to attack only monsters
+	if (!(enemy->svflags & SVF_MONSTER && !OnSameTeam(self, enemy))) // trying to attack only monsters
 		return;
+
+	// Check if the enemy has the same owner or if the owner is a client
+	if (enemy->owner == self->owner || (enemy->owner && enemy->owner->client))
+		return;
+
 
 	dir = enemy->s.origin - self->s.origin;
 	dir.normalize();
@@ -305,7 +310,7 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 	start[2] += 2;
 	fire_blaster2(self->owner, start, dir, 9, 1400, EF_BLASTER, 0);
 
-	self->monsterinfo.attack_finished = level.time + 335_ms;
+	self->monsterinfo.attack_finished = level.time + 315_ms;
 }
 
 // *************************

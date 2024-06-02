@@ -30,13 +30,6 @@ bool FindMTarget(edict_t* self)
 	float bestDist = range + 1.0f; // Inicializa con un valor mayor al rango
 	edict_t* bestTarget = nullptr;
 
-	// Desasignar al enemigo si ya no es visible o está muerto
-	if (self->enemy && (!visible(self, self->enemy) || self->enemy->health <= 0 || self->enemy->deadflag || self->enemy->solid == SOLID_NOT))
-	{
-		self->enemy = nullptr;
-	}
-
-	// Buscar un nuevo enemigo
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		ent = &g_edicts[i];
@@ -79,8 +72,9 @@ bool FindMTarget(edict_t* self)
 		return true;
 	}
 
-	return self->enemy != nullptr; // Devuelve true si se mantiene el enemigo actual
-}
+		return self->enemy != nullptr; // Devuelve true si se mantiene el enemigo actual
+	}
+
 
 
 void TurretAim(edict_t *self);
@@ -691,9 +685,6 @@ DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	ThrowGibs(self, 1, {
 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
 		});
-	ThrowGibs(self, 1, {
-		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
-		});
 
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_PLAIN_EXPLOSION);
@@ -733,6 +724,12 @@ DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	edict_t* gib = ThrowGib(self, "models/monsters/turret/tris.md2", damage, GIB_SKINNED | GIB_METALLIC | GIB_HEAD | GIB_DEBRIS, self->s.scale);
 	gib->s.frame = 14;
 }
+
+THINK(turret_timeout) (edict_t* self) -> void
+{
+	turret_die(self, self, self, 0, vec3_origin, MOD_UNKNOWN);
+}
+
 // **********************
 //  WALL SPAWN
 // **********************
@@ -1031,8 +1028,8 @@ void SP_monster_turret(edict_t* self)
 	gi.modelindex("models/objects/debris1/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	self->mins = { -12, -12, -12 };
-	self->maxs = { 12, 12, 12 };
+	self->mins = { -7, -7, -7 };
+	self->maxs = { 7, 7, 7 };
 	self->movetype = MOVETYPE_NONE;
 
 	if (!st.was_key_specified("power_armor_type"))
@@ -1044,12 +1041,14 @@ void SP_monster_turret(edict_t* self)
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;
-	self->solid = SOLID_TRIGGER;
+	self->solid = SOLID_BBOX;
 	self->clipmask = MASK_MONSTERSOLID;
 	self->svflags |= SVF_MONSTER;
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	self->monsterinfo.armor_power = 150;
 	self->flags |= FL_MECHANICAL;
+	//self->nextthink = level.time + 2_sec;
+	//self->think = turret_timeout;
 	self->pain = turret_pain;
 	self->die = turret_die;
 
