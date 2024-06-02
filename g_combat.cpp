@@ -756,58 +756,62 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			damage > 0 && // Aceptar cualquier cantidad de daño
 			attacker->health > 0) {
 
-			int health_stolen = damage / 4; // Robar 25% del daño como vida
+			// Health Vampire
+			if (attacker->health <= attacker->max_health) {
+				int health_stolen = damage / 4; // Robar 25% del daño como vida
 
-			bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
-			bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
-			bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-			bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
-			bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
-			bool using_rocketl = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+				bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+				bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+				bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
+				bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+				bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
+				bool using_rocketl = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
 
-			if (using_shotgun) {
-				health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT);
-			}
-			else if (using_sshotgun) {
-				health_stolen = max(1, health_stolen / 2);
-			}
-			else if (using_rocketl) {
-				health_stolen = max(1, health_stolen / 2);
-			}
-			else if (using_hyperblaster) {
-				health_stolen = max(1, health_stolen / 2);
-			}
-			else if (using_ripper) {
-				health_stolen = max(1, health_stolen / 3);
-			}
-			else if (using_rail) {
-				health_stolen = max(1, health_stolen / 2);
-			}
-			else {
-				health_stolen = max(1, health_stolen);
-			}
-
-			if (attacker->client) {
-				if (attacker->client->quad_time > level.time) {
-					health_stolen = max(1, static_cast<int>(health_stolen / 2.4));
+				if (using_shotgun) {
+					health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT);
 				}
-				if (attacker->client->double_time > level.time) {
-					health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+				else if (using_sshotgun) {
+					health_stolen = max(1, health_stolen / 2);
 				}
-				if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
-					health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+				else if (using_rocketl) {
+					health_stolen = max(1, health_stolen / 2);
+				}
+				else if (using_hyperblaster) {
+					health_stolen = max(1, health_stolen / 2);
+				}
+				else if (using_ripper) {
+					health_stolen = max(1, health_stolen / 3);
+				}
+				else if (using_rail) {
+					health_stolen = max(1, health_stolen / 2);
+				}
+				else {
+					health_stolen = max(1, health_stolen);
+				}
+
+				if (attacker->client) {
+					if (attacker->client->quad_time > level.time) {
+						health_stolen = max(1, static_cast<int>(health_stolen / 2.4));
+					}
+					if (attacker->client->double_time > level.time) {
+						health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+					}
+					if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
+						health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+					}
+				}
+
+				attacker->health += health_stolen;
+				if (attacker->health > attacker->max_health) {
+					attacker->health = attacker->max_health;
 				}
 			}
 
-			attacker->health += health_stolen;
-			if (attacker->health > attacker->max_health) {
-				attacker->health = attacker->max_health;
-			}
-
+			// Armor Vampire
 			if (g_vampire->integer == 2) {
 				int index = ArmorIndex(attacker);
 				if (index && attacker->client && attacker->client->pers.inventory[index] > 0) {
-					int armor_stolen = max(1, (int)(0.7 * health_stolen));
+					int armor_stolen = max(1, (int)(0.7 * (damage / 4))); // Robar 70% del robo de vida como armadura
 
 					int max_armor = 200;
 					armor_stolen = min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
