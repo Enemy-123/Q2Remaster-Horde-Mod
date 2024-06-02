@@ -444,7 +444,15 @@ void brain_tounge_attack(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, f, r);
 
 	// Verificar que self->enemy no sea nulo antes de acceder a sus miembros
-	if (self->enemy)
+
+	// Verificación de null para attacker si es "monster_turret"
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_turret\n");
+		//gi.Com_Print(buffer);
+		return; // Manejar el error apropiadamente
+	}
+
+	if (self && self->enemy)
 	{
 		end = self->enemy->s.origin;
 		if (!brain_tounge_attack_ok(start, end))
@@ -458,6 +466,7 @@ void brain_tounge_attack(edict_t* self)
 			}
 		}
 	}
+	if (self && self->enemy)
 		end = self->enemy->s.origin;
 
 		tr = gi.traceline(start, end, self, MASK_PROJECTILE);

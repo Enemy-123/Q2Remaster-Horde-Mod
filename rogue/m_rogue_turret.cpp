@@ -11,6 +11,7 @@ TURRET
 #include "../g_local.h"
 #include "m_rogue_turret.h"
 #include "../shared.h"
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
 constexpr spawnflags_t SPAWNFLAG_TURRET_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_MACHINEGUN = 0x0010_spawnflag;
@@ -21,7 +22,6 @@ constexpr spawnflags_t SPAWNFLAG_TURRET_WALL_UNIT = 0x0080_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_NO_LASERSIGHT = 18_spawnflag_bit;
 
 
-
 bool FindMTarget(edict_t* self)
 {
 	edict_t* ent = nullptr;
@@ -30,6 +30,13 @@ bool FindMTarget(edict_t* self)
 	float bestDist = range + 1.0f; // Inicializa con un valor mayor al rango
 	edict_t* bestTarget = nullptr;
 
+	// Desasignar al enemigo si ya no es visible o está muerto
+	if (self->enemy && (!visible(self, self->enemy) || self->enemy->health <= 0 || self->enemy->deadflag || self->enemy->solid == SOLID_NOT))
+	{
+		self->enemy = nullptr;
+	}
+
+	// Buscar un nuevo enemigo
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		ent = &g_edicts[i];
@@ -71,16 +78,10 @@ bool FindMTarget(edict_t* self)
 		self->enemy = bestTarget;
 		return true;
 	}
-	else
-	{
-		// Solo desasigna al enemigo si no está visible
-		if (self->enemy && (!visible(self, self->enemy) || self->enemy->health <= 0 || self->enemy->deadflag || self->enemy->solid == SOLID_NOT))
-		{
-			self->enemy = nullptr;
-		}
-		return false;
-	}
+
+	return self->enemy != nullptr; // Devuelve true si se mantiene el enemigo actual
 }
+
 
 void TurretAim(edict_t *self);
 void turret_ready_gun(edict_t *self);
@@ -324,9 +325,8 @@ void TurretAim(edict_t* self)
 		self->target_ent->s.modelindex = MODELINDEX_WORLD;
 		self->target_ent->s.renderfx = RF_BEAM;
 		self->target_ent->s.frame = 1;
-	//	self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->s.skinnum = 0xf0f0f0f0;
-		self->target_ent->s.skinnum = 0xd0d1d2d3;
+	//	self->target_ent->s.skinnum = 0xd0d1d2d3;
 		self->target_ent->classname = "turret_lasersight";
 		self->target_ent->s.effects = EF_BOB;
 		self->target_ent->s.origin = self->s.origin;
@@ -690,10 +690,10 @@ DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 	ThrowGibs(self, 1, {
 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
-	});
+		});
 	ThrowGibs(self, 1, {
 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
-	});
+		});
 
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_PLAIN_EXPLOSION);
@@ -730,10 +730,9 @@ DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		self->target_ent = nullptr;
 	}
 
-	edict_t *gib = ThrowGib(self, "models/monsters/turret/tris.md2", damage, GIB_SKINNED | GIB_METALLIC | GIB_HEAD | GIB_DEBRIS, self->s.scale);
+	edict_t* gib = ThrowGib(self, "models/monsters/turret/tris.md2", damage, GIB_SKINNED | GIB_METALLIC | GIB_HEAD | GIB_DEBRIS, self->s.scale);
 	gib->s.frame = 14;
 }
-
 // **********************
 //  WALL SPAWN
 // **********************
@@ -899,7 +898,7 @@ USE(turret_activate) (edict_t *self, edict_t *other, edict_t *activator) -> void
 
 // PMM
 // checkattack .. ignore range, just attack if available
-MONSTERINFO_CHECKATTACK(turret_checkattack) (edict_t *self) -> bool
+MONSTERINFO_CHECKATTACK(turret_checkattack) (edict_t* self) -> bool
 {
 	vec3_t	spot1, spot2;
 	float	chance;
@@ -953,10 +952,11 @@ MONSTERINFO_CHECKATTACK(turret_checkattack) (edict_t *self) -> bool
 				// pmm
 				return false;
 			}
+			return true;
 		}
 	}
 
-	if (level.time < self->monsterinfo.attack_finished)
+if (level.time < self->monsterinfo.attack_finished)
 		return false;
 
 	gtime_t nexttime;
@@ -1031,7 +1031,6 @@ void SP_monster_turret(edict_t* self)
 	gi.modelindex("models/objects/debris1/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-
 	self->mins = { -12, -12, -12 };
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
@@ -1045,7 +1044,7 @@ void SP_monster_turret(edict_t* self)
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;
-	self->solid = SOLID_BBOX;
+	self->solid = SOLID_TRIGGER;
 	self->clipmask = MASK_MONSTERSOLID;
 	self->svflags |= SVF_MONSTER;
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
