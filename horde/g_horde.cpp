@@ -655,9 +655,19 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     float total_weight = 0.0f;
     float adjustmentFactor = adjustFlyingSpawnProbability(countFlyingSpawns());
 
-
     for (auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
+
+        // Si flying_monsters_mode está activo, solo considerar monstruos voladores
+        if (flying_monsters_mode && !isFlyingMonster) {
+            continue;
+        }
+
+        // Si flying_monsters_mode no está activo, considerar todos los monstruos
+        // incluyendo los voladores, pero respetando los puntos de spawn voladores
+        if (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1) {
+            continue;
+        }
 
         if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level)) {
             continue;
@@ -957,11 +967,11 @@ void SpawnBossAutomatically() {
             boss->s.origin[0] = it->second[0];
             boss->s.origin[1] = it->second[1];
             boss->s.origin[2] = it->second[2];
-       
+
             // Directamente decidir qué mensaje mostrar basado en el classname
             if (strcmp(desired_boss, "monster_boss2") == 0) {
                 gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
-            } 
+            }
             if (strcmp(desired_boss, "monster_boss2kl") == 0) {
                 gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
             }
@@ -1027,9 +1037,14 @@ void SpawnBossAutomatically() {
 
             AttachHealthBar(boss);
 
-            // flying monsters if boss is carrier or boss2, or smaller but same
-            if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_boss2kl") == 0 || strcmp(desired_boss, "monster_carrier") == 0 || strcmp(desired_boss, "monster_carrier2") == 0)
+            if (strcmp(boss->classname, "monster_boss2") == 0 ||
+                strcmp(boss->classname, "monster_carrier") == 0 ||
+                strcmp(boss->classname, "monster_carrier2") == 0 ||
+                strcmp(boss->classname, "monster_boss2_64") == 0) {
+
                 flying_monsters_mode = true;  // Activar el modo de monstruos voladores
+
+            }
         }
     }
 }
