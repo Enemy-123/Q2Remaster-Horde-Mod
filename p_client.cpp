@@ -991,11 +991,13 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.max_ammo[AMMO_SHELLS] = 175;
 				client->pers.max_ammo[AMMO_CELLS] = 400;
 				client->pers.max_ammo[AMMO_FLECHETTES] = 400;
+				client->pers.max_ammo[AMMO_GRENADES] = 125;
 				client->pers.max_ammo[AMMO_ROCKETS] = 100;
 				client->pers.max_ammo[AMMO_SLUGS] = 75;
 				client->pers.max_ammo[AMMO_MAGSLUG] = 125;
 				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
 				client->pers.max_ammo[AMMO_TESLA] = 12;
+				client->pers.max_ammo[AMMO_PROX] = 75;
 
 			}
 			else
@@ -1047,6 +1049,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
 				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
+				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+
 			}
 			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number > 10)
 			{
