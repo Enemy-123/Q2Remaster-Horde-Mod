@@ -226,7 +226,7 @@ enum player_stat_t
 	STAT_CTF_TECH = 27,
 	STAT_CTF_ID_VIEW = 28,
 	STAT_CTF_MATCH = 29,
-	STAT_TARGET_HEALTH = 30,
+	STAT_TARGET_HEALTH = 30, //unused atm
 	STAT_TARGET_HEALTH_STRING = 31,
 
 	// [Kex] More stats for weapon wheel
