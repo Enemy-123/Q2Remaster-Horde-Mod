@@ -69,7 +69,7 @@ std::map<edict_t*, float> spawnPointCooldowns;
 const std::unordered_set<std::string> smallMaps = {
     "q2dm3", "q2dm7", "q2dm2", "q2ctf4", "q64/dm10", "q64\\dm10",
     "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2",
-    "q64\\dm2", "q64/dm1", "fact3", "q2ctf4",
+    "q64\\dm2", "q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","q64\\command",
     "mgu3m4", "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1"
 };
 
@@ -914,6 +914,7 @@ void AttachHealthBar(edict_t* boss) {
 // spawning boss origin
 const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm1", {1184, 568, 704}},
+    {"rdm4", {-336, 2456, -288}},
     {"rdm14", {1248, 664, 896}},
     {"ec/base_ec", {-112, 704, 128}},
     {"q2dm2", {128, -960, 704}},
@@ -931,6 +932,8 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"fact3", {0, -64, 192}},
     {"mgu6m3", {0, 592, 1600}},
     {"q64/dm7", {64, 224, 120}},
+    {"q64/command", {0, -208, 56}},
+    {"q64\\command", {0, -208, 56}},
     {"q64\\dm7", {64, 224, 120}},
     {"q64\\dm2", {840, 80, 96}},
     {"q64/dm7", {840, 80, 960}},
