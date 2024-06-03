@@ -391,10 +391,10 @@ void GunnerFire(edict_t* self)
 	PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 
 
-	if (current_wave_number < 15 && g_hardcoop->integer == 0) {
+	if (current_wave_number <= 12) {
 		monster_fire_bullet(self, start, aim, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
-	if (current_wave_number >= 15 || g_hardcoop->integer == 2) {
+	if (current_wave_number >= 13 || g_hardcoop->integer <= 3) {
 
 		monster_fire_ionripper(self, start, aim, 6, 1300, flash_number, EF_IONRIPPER);
 	}

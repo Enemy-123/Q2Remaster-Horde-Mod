@@ -756,6 +756,7 @@ bool FindTarget(edict_t* self)
 
     if (!client)
     {
+        if (g_horde->integer) { // this makes turrets go crazy maybe
         // Busca enemigos en el equipo contrario
         edict_t* ent = nullptr;
         float range = 1000.0f; // Rango de búsqueda
@@ -782,7 +783,7 @@ bool FindTarget(edict_t* self)
                 }
             }
         }
-
+    }
         return false; // no clients to get mad at
     }
 

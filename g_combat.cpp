@@ -493,35 +493,61 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 // check if the two given entities are on the same team
 bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
-	// Si ambos son clientes, verifica el equipo
-	if (ent1->client && ent2->client)
-	{
-		if (G_IsCooperative() || G_TeamplayEnabled())
-		{
-			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+	if (G_IsCooperative())
+	{// check if the two given entities are on the same team
+	
+			// monsters are never on our team atm
+			if (!ent1->client || !ent2->client)
+			{
+				return false;
+			}
+			// we're never on our own team
+			else if (ent1 == ent2)
+				return false;
+
+			// [Paril-KEX] coop 'team' support
+			if (G_IsCooperative())
+				return ent1->client && ent2->client;
+			// ZOID
+			else if (G_TeamplayEnabled() && ent1->client && ent2->client)
+			{
+				if (ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
+					return true;
+			}
+			// ZOID
+
+			return false;
 		}
+	else if (g_horde->integer) {
+		// Si ambos son clientes, verifica el equipo
+		if (ent1->client && ent2->client)
+		{
+			if (G_IsCooperative() || G_TeamplayEnabled())
+			{
+				return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+			}
+		}
+
+		// Si ambos son monstruos, verifica el equipo
+		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER))
+		{
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
+		}
+
+		// Si uno es cliente y otro es monstruo, verifica el equipo
+		if (ent1->client && (ent2->svflags & SVF_MONSTER))
+		{
+			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
+		}
+
+		if (ent2->client && (ent1->svflags & SVF_MONSTER))
+		{
+			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
+		}
+
+		return false;
 	}
-
-	// Si ambos son monstruos, verifica el equipo
-	if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER))
-	{
-		return ent1->monsterinfo.team == ent2->monsterinfo.team;
 	}
-
-	// Si uno es cliente y otro es monstruo, verifica el equipo
-	if (ent1->client && (ent2->svflags & SVF_MONSTER))
-	{
-		return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
-	}
-
-	if (ent2->client && (ent1->svflags & SVF_MONSTER))
-	{
-		return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
-	}
-
-	return false;
-}
-
 
 // check if the two entities are on a team and that
 // they wouldn't damage each other
