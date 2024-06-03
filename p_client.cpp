@@ -3375,7 +3375,7 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 
 	return false;
 }
-
+extern void RemoveAllTechItems(edict_t* ent);
 extern bool ClientIsSpectating(gclient_t* cl);
 extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
@@ -3431,6 +3431,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 			if (current_time > ent->client->resp.inactivity_time) {
 				gi.LocClient_Print(ent, PRINT_CENTER, "\n\n\n\n\nYou have deserted the war against stroggs! UNACCEPTABLE\n");
 				CTFJoinTeam(ent, CTF_NOTEAM); // Mueve al jugador al equipo espectador
+				RemoveAllTechItems(ent);
 				ent->client->resp.inactive = true;
 				return false;
 			}

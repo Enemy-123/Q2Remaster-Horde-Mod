@@ -1115,7 +1115,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers)
             params = { 7, 4 };
         }
         else if (mapSize.isBigMap) {
-            params = { 22, 16 };
+            params = { 24, 19 };
         }
         else {
             params = { 12, 8 };
@@ -1126,7 +1126,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers)
             params = { current_wave_number <= 4 ? 3 : 6, current_wave_number <= 4 ? 7 : 13 };
         }
         else if (mapSize.isBigMap) {
-            params = { current_wave_number <= 4 ? 12 : 17, current_wave_number <= 4 ? 13 : 16 };
+            params = { current_wave_number <= 4 ? 16 : 17, current_wave_number <= 4 ? 16 : 17 };
         }
         else {
             params = { current_wave_number <= 4 ? 3 : 8, current_wave_number <= 4 ? 7 : 15 };

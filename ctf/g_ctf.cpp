@@ -2472,7 +2472,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0061\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0062\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
@@ -3254,6 +3254,40 @@ bool CTFStartClient(edict_t* ent)
 	return false;
 }
 
+void RemoveAllTechItems(edict_t* ent)
+{
+	// Recorrer todo el inventario del jugador
+	for (int i = 0; i < MAX_ITEMS; i++)
+	{
+		gitem_t* item = &itemlist[i];
+		if (item->flags & IF_TECH && ent->client->pers.inventory[i] > 0 || 
+			(item->flags & IF_ARMOR && ent->client->pers.inventory[i] > 0 || 
+			(item->flags & IF_POWERUP && ent->client->pers.inventory[i] > 0)))
+		{
+			// Eliminar el tech item del inventario del jugador
+			ent->client->pers.inventory[i] = 0;
+
+			// Reiniciar el estado de todos los tech items del mismo tipo
+			for (unsigned int j = 0; j < game.maxentities; j++)
+			{
+				edict_t* tech = &g_edicts[j];
+				if (tech->inuse && tech->item == item)
+				{
+					tech->svflags &= ~SVF_NOCLIENT;
+					tech->solid = SOLID_TRIGGER;
+					tech->movetype = MOVETYPE_TOSS;
+					tech->touch = Touch_Item;
+					tech->nextthink = level.time + CTF_TECH_TIMEOUT;
+					tech->think = TechThink;
+					// Reiniciar el registro de quién ha recogido el item
+					tech->item_picked_up_by.reset();
+					gi.linkentity(tech);
+				}
+			}
+		}
+	}
+}
+
 void CTFObserver(edict_t* ent)
 {
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
@@ -3264,7 +3298,7 @@ void CTFObserver(edict_t* ent)
 		CTFPlayerResetGrapple(ent);
 
 	CTFDeadDropFlag(ent);
-	CTFDeadDropTech(ent); // todo horde: create a similar one to remove tech when spectating
+	RemoveAllTechItems(ent); // Llamar a la función para eliminar los tech items
 
 	ent->deadflag = false;
 	ent->movetype = MOVETYPE_NOCLIP;
