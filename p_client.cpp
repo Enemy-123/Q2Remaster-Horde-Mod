@@ -684,7 +684,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	}
 
 	// make sure no trackers are still hurting us.
-	if (self->client->tracker_pain_time)
+	if (self->client->tracker_pain_time) // || self->monsterinfo.tracker_pain_time)
 	{
 		RemoveAttackingPainDaemons(self);
 	}

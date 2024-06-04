@@ -1736,6 +1736,7 @@ struct monsterinfo_t
 
 	gtime_t jump_time;
 	float noise_cooldown_time;
+//	gtime_t tracker_pain_time;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
@@ -2824,7 +2825,6 @@ struct client_respawn_t
 	client_persistant_t coop_respawn; // what to set client->pers to on a respawn
 	gtime_t				entertime;	  // level.time the client entered the game
 	int32_t				score;		  // frags, etc
-	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 	vec3_t				cmd_angles;	  // angles sent over in the last command
 	int max_health; // Agrega este miembro si no está presente
 	gitem_t* weapon; // Agrega este miembro para almacenar el arma
@@ -2847,6 +2847,7 @@ struct client_respawn_t
 	bool inactivity_warning;
 	gtime_t inactivity_time;
 	bool inactive;
+	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 };
 
 // [Paril-KEX] seconds until we are fully invisible after

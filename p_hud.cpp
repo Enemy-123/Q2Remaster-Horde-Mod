@@ -1053,7 +1053,7 @@ void G_SetStats(edict_t* ent)
 	//
 	// frags
 	//
-	//   ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score; // unused test
+	 ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree; // unused test
 
 	//
 	// help icon / current weapon if not shown

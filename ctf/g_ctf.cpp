@@ -1221,7 +1221,6 @@ void SetCTFStats(edict_t* ent)
 		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] =  imageindex_human;
 
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-		ent->client->ps.stats[STAT_TARGET_HEALTH] = 0;
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
@@ -1396,7 +1395,6 @@ void SetCTFStats(edict_t* ent)
 	else
 	{
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-		ent->client->ps.stats[STAT_TARGET_HEALTH] = 0;
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 }

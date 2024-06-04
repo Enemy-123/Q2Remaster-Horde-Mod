@@ -638,7 +638,7 @@ void G_MonsterKilled(edict_t* self)
 		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
 		{
 			self->enemy->client->resp.score++;
-	//		self->enemy->client->resp.spree++;
+			self->enemy->client->resp.spree++;
 		}
 	}
 	else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
@@ -647,9 +647,12 @@ void G_MonsterKilled(edict_t* self)
 		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
 		{
 			self->enemy->owner->client->resp.score++;
-	//		self->enemy->owner->client->resp.spree++;
+			self->enemy->owner->client->resp.spree++;
 		}
 	}
+
+
+
 
 	if (g_debug_monster_kills->integer)
 	{

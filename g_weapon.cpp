@@ -16,7 +16,7 @@ bool fire_hit(edict_t * self, vec3_t aim, int damage, int kick)
 	vec3_t	point;
 	float	range;
 	vec3_t	dir;
-	char buffer[256];
+//	char buffer[256];
 
 	// Verificación inicial de null para enemy
 	if (!self->enemy) {
