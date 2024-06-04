@@ -38,8 +38,8 @@ int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause
 int current_wave_number = 1;
 int last_wave_number = 0;
 
-gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.5); // Cooldown en segundos para los monstruos 2.5
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.5); // Cooldown en segundos para los puntos de spawn 3.5
+gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.3); // Cooldown en segundos para los monstruos 2.5
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.3); // Cooldown en segundos para los puntos de spawn 3.5
 
 cvar_t* g_horde;
 
@@ -556,7 +556,8 @@ gitem_t* G_HordePickItem() {
         [random_weight](const picked_item_t& item) { return random_weight < item.weight; });
     return it != picked_items.end() ? FindItemByClassname(it->item->classname) : nullptr;
 }
-const int WAVE_TO_ALLOW_FLYING = 3; // Permitir monstruos voladores a partir de esta oleada
+int WAVE_TO_ALLOW_FLYING = 3; // Permitir monstruos voladores a partir de esta oleada
+
 
 const char* flying_monster_classnames[] = {
     "monster_boss2_64",
@@ -641,6 +642,10 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 }
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
+
+    if (Q_strcasecmp(level.mapname, "ec/space_ec") == 0)
+        WAVE_TO_ALLOW_FLYING = 0;
+
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     if (spawnPointCooldowns.find(spawn_point) != spawnPointCooldowns.end()) {
         currentCooldown = spawnPointCooldowns[spawn_point];
