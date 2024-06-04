@@ -294,86 +294,52 @@ struct save_type_deducer<bool>
 };
 
 // integral
-template<>
-struct save_type_deducer<int8_t>
+template<typename T>
+struct save_type_deducer<T, typename std::enable_if_t<std::is_integral_v<T> && !std::is_same_v<T, bool>>>
 {
 	static constexpr save_field_t get_save_type(const char* name, size_t offset)
 	{
-		return { name, offset, { ST_INT8 } };
-	}
-};
-template<>
-struct save_type_deducer<int16_t>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_INT16 } };
-	}
-};
-template<>
-struct save_type_deducer<int32_t>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_INT32 } };
-	}
-};
-template<>
-struct save_type_deducer<int64_t>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_INT64 } };
-	}
-};
-template<>
-struct save_type_deducer<uint8_t>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_UINT8 } };
-	}
-};
-template<>
-struct save_type_deducer<uint16_t>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_UINT16 } };
-	}
-};
-template<>
-struct save_type_deducer<uint32_t>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_UINT32 } };
-	}
-};
-template<>
-struct save_type_deducer<uint64_t>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_UINT64 } };
+		if constexpr (std::is_signed_v<T>)
+		{
+			if constexpr (sizeof(T) == 1)
+				return { name, offset, { ST_INT8 } };
+			else if constexpr (sizeof(T) == 2)
+				return { name, offset, { ST_INT16 } };
+			else if constexpr (sizeof(T) == 4)
+				return { name, offset, { ST_INT32 } };
+			else if constexpr (sizeof(T) == 8)
+				return { name, offset, { ST_INT64 } };
+			else
+				return save_type_deducer<void, void>::get_save_type(name, offset);
+		}
+		else
+		{
+			if constexpr (sizeof(T) == 1)
+				return { name, offset, { ST_UINT8 } };
+			else if constexpr (sizeof(T) == 2)
+				return { name, offset, { ST_UINT16 } };
+			else if constexpr (sizeof(T) == 4)
+				return { name, offset, { ST_UINT32 } };
+			else if constexpr (sizeof(T) == 8)
+				return { name, offset, { ST_UINT64 } };
+			else
+				return save_type_deducer<void, void>::get_save_type(name, offset);
+		}
 	}
 };
 
 // floating point
-template<>
-struct save_type_deducer<float>
+template<typename T>
+struct save_type_deducer<T, typename std::enable_if_t<std::is_floating_point_v<T>>>
 {
 	static constexpr save_field_t get_save_type(const char* name, size_t offset)
 	{
-		return { name, offset, { ST_FLOAT } };
-	}
-};
-template<>
-struct save_type_deducer<double>
-{
-	static constexpr save_field_t get_save_type(const char* name, size_t offset)
-	{
-		return { name, offset, { ST_DOUBLE } };
+		if constexpr (sizeof(T) == 4)
+			return { name, offset, { ST_FLOAT } };
+		else if constexpr (sizeof(T) == 8)
+			return { name, offset, { ST_DOUBLE } };
+		else
+			return save_type_deducer<void, void>::get_save_type(name, offset);
 	}
 };
 
@@ -1535,7 +1501,7 @@ void read_save_type_json(const Json::Value& json, void* data, const save_type_t*
 	case ST_FLOAT:
 		if (!json.isDouble())
 			json_print_error(field, "expected number", false);
-		else if (isnan(json.asDouble()))
+		else if (std::isnan(json.asDouble()))
 			*((float*)data) = std::numeric_limits<float>::quiet_NaN();
 		else
 			*((float*)data) = json.asFloat();
@@ -1557,8 +1523,7 @@ void read_save_type_json(const Json::Value& json, void* data, const save_type_t*
 			{
 				size_t len = strlen(json.asCString());
 				char* str = *((char**)data) = (char*)gi.TagMalloc(type->count ? type->count : (len + 1), type->tag);
-				strcpy(str, json.asCString());
-				str[len] = 0;
+				Q_strlcpy(str, json.asCString(), len + 1);
 			}
 		}
 		else if (json.isArray())
@@ -1594,7 +1559,7 @@ void read_save_type_json(const Json::Value& json, void* data, const save_type_t*
 			if (type->count && strlen(json.asCString()) >= type->count)
 				json_print_error(field, "fixed length string overrun", false);
 			else
-				strcpy((char*)data, json.asCString());
+				Q_strlcpy((char*)data, json.asCString(), type->count);
 		}
 		else if (json.isArray())
 		{
