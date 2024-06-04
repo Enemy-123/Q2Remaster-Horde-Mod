@@ -3323,165 +3323,165 @@ bool CTFInMatch()
 
 bool CTFCheckRules()
 {
-	int		 t;
-	uint32_t i, j;
-	char	 text[64];
-	edict_t* ent;
+	//int		 t;
+	//uint32_t i, j;
+	//char	 text[64];
+	//edict_t* ent;
 
-	if (ctfgame.election != ELECT_NONE && ctfgame.electtime <= level.time)
-	{
-		gi.LocBroadcast_Print(PRINT_CHAT, "Election timed out and has been cancelled.\n");
-		ctfgame.election = ELECT_NONE;
-	}
+	//if (ctfgame.election != ELECT_NONE && ctfgame.electtime <= level.time)
+	//{
+	//	gi.LocBroadcast_Print(PRINT_CHAT, "Election timed out and has been cancelled.\n");
+	//	ctfgame.election = ELECT_NONE;
+	//}
 
-	if (ctfgame.match != MATCH_NONE)
-	{
-		t = (ctfgame.matchtime - level.time).seconds<int>();
+	//if (ctfgame.match != MATCH_NONE)
+	//{
+	//	t = (ctfgame.matchtime - level.time).seconds<int>();
 
-		// no team warnings in match mode
-		ctfgame.warnactive = 0;
+	//	// no team warnings in match mode
+	//	ctfgame.warnactive = 0;
 
-		if (t <= 0)
-		{ // time ended on something
-			switch (ctfgame.match)
-			{
-			case MATCH_SETUP:
-				// go back to normal mode
-				if (competition->integer < 3)
-				{
-					ctfgame.match = MATCH_NONE;
-					gi.cvar_set("competition", "1");
-					CTFResetAllPlayers();
-				}
-				else
-				{
-					// reset the time
-					ctfgame.matchtime = level.time + gtime_t::from_min(matchsetuptime->value);
-				}
-				return false;
+	//	if (t <= 0)
+	//	{ // time ended on something
+	//		switch (ctfgame.match)
+	//		{
+	//		case MATCH_SETUP:
+	//			// go back to normal mode
+	//			if (competition->integer < 3)
+	//			{
+	//				ctfgame.match = MATCH_NONE;
+	//				gi.cvar_set("competition", "1");
+	//				CTFResetAllPlayers();
+	//			}
+	//			else
+	//			{
+	//				// reset the time
+	//				ctfgame.matchtime = level.time + gtime_t::from_min(matchsetuptime->value);
+	//			}
+	//			return false;
 
-			case MATCH_PREGAME:
-				// match started!
-				CTFStartMatch();
-				gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
-				return false;
+	//		case MATCH_PREGAME:
+	//			// match started!
+	//			CTFStartMatch();
+	//			gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
+	//			return false;
 
-			case MATCH_GAME:
-				// match ended!
-				CTFEndMatch();
-				gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("misc/bigtele.wav"), 1, ATTN_NONE, 0);
-				return false;
+	//		case MATCH_GAME:
+	//			// match ended!
+	//			CTFEndMatch();
+	//			gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("misc/bigtele.wav"), 1, ATTN_NONE, 0);
+	//			return false;
 
-			default:
-				break;
-			}
-		}
+	//		default:
+	//			break;
+	//		}
+	//	}
 
-		if (t == ctfgame.lasttime)
-			return false;
+	//	if (t == ctfgame.lasttime)
+	//		return false;
 
-		ctfgame.lasttime = t;
+	//	ctfgame.lasttime = t;
 
-		switch (ctfgame.match)
-		{
-		case MATCH_SETUP:
-			for (j = 0, i = 1; i <= game.maxclients; i++)
-			{
-				ent = g_edicts + i;
-				if (!ent->inuse)
-					continue;
-				if (ent->client->resp.ctf_team != CTF_NOTEAM &&
-					!ent->client->resp.ready)
-					j++;
-			}
+	//	switch (ctfgame.match)
+	//	{
+	//	case MATCH_SETUP:
+	//		for (j = 0, i = 1; i <= game.maxclients; i++)
+	//		{
+	//			ent = g_edicts + i;
+	//			if (!ent->inuse)
+	//				continue;
+	//			if (ent->client->resp.ctf_team != CTF_NOTEAM &&
+	//				!ent->client->resp.ready)
+	//				j++;
+	//		}
 
-			if (competition->integer < 3)
-				G_FmtTo(text, "{:02}:{:02} SETUP: {} not ready", t / 60, t % 60, j);
-			else
-				G_FmtTo(text, "SETUP: {} not ready", j);
+	//		if (competition->integer < 3)
+	//			G_FmtTo(text, "{:02}:{:02} SETUP: {} not ready", t / 60, t % 60, j);
+	//		else
+	//			G_FmtTo(text, "SETUP: {} not ready", j);
 
-			gi.configstring(CONFIG_CTF_MATCH, text);
-			break;
+	//		gi.configstring(CONFIG_CTF_MATCH, text);
+	//		break;
 
-		case MATCH_PREGAME:
-			G_FmtTo(text, "{:02}:{:02} UNTIL START", t / 60, t % 60);
-			gi.configstring(CONFIG_CTF_MATCH, text);
+	//	case MATCH_PREGAME:
+	//		G_FmtTo(text, "{:02}:{:02} UNTIL START", t / 60, t % 60);
+	//		gi.configstring(CONFIG_CTF_MATCH, text);
 
-			if (t <= 10 && !ctfgame.countdown)
-			{
-				ctfgame.countdown = true;
-				gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
-			}
-			break;
+	//		if (t <= 10 && !ctfgame.countdown)
+	//		{
+	//			ctfgame.countdown = true;
+	//			gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
+	//		}
+	//		break;
 
-		case MATCH_GAME:
-			G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
-			gi.configstring(CONFIG_CTF_MATCH, text);
-			if (t <= 10 && !ctfgame.countdown)
-			{
-				ctfgame.countdown = true;
-				gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
-			}
-			break;
+	//	case MATCH_GAME:
+	//		G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
+	//		gi.configstring(CONFIG_CTF_MATCH, text);
+	//		if (t <= 10 && !ctfgame.countdown)
+	//		{
+	//			ctfgame.countdown = true;
+	//			gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
+	//		}
+	//		break;
 
-		default:
-			break;
-		}
-		return false;
-	}
-	else
-	{
-		int team1 = 0, team2 = 0;
+	//	default:
+	//		break;
+	//	}
+	//	return false;
+	//}
+	//else
+	//{
+	//	int team1 = 0, team2 = 0;
 
-		if (level.time == gtime_t::from_sec(ctfgame.lasttime))
-			return false;
-		ctfgame.lasttime = level.time.seconds<int>();
-		// this is only done in non-match (public) mode
+	//	if (level.time == gtime_t::from_sec(ctfgame.lasttime))
+	//		return false;
+	//	ctfgame.lasttime = level.time.seconds<int>();
+	//	// this is only done in non-match (public) mode
 
-		if (warn_unbalanced->integer)
-		{
-			// count up the team totals
-			for (i = 1; i <= game.maxclients; i++)
-			{
-				ent = g_edicts + i;
-				if (!ent->inuse)
-					continue;
-				if (ent->client->resp.ctf_team == CTF_TEAM1)
-					team1++;
-				else if (ent->client->resp.ctf_team == CTF_TEAM2)
-					team2++;
-			}
+	//	if (warn_unbalanced->integer)
+	//	{
+	//		// count up the team totals
+	//		for (i = 1; i <= game.maxclients; i++)
+	//		{
+	//			ent = g_edicts + i;
+	//			if (!ent->inuse)
+	//				continue;
+	//			if (ent->client->resp.ctf_team == CTF_TEAM1)
+	//				team1++;
+	//			else if (ent->client->resp.ctf_team == CTF_TEAM2)
+	//				team2++;
+	//		}
 
-			if (team1 - team2 >= 2 && team2 >= 2)
-			{
-				if (ctfgame.warnactive != CTF_TEAM1)
-				{
-					ctfgame.warnactive = CTF_TEAM1;
-					gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Red has too many players");
-				}
-			}
-			else if (team2 - team1 >= 2 && team1 >= 2)
-			{
-				if (ctfgame.warnactive != CTF_TEAM2)
-				{
-					ctfgame.warnactive = CTF_TEAM2;
-					gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Blue has too many players");
-				}
-			}
-			else
-				ctfgame.warnactive = 0;
-		}
-		else
-			ctfgame.warnactive = 0;
-	}
+	//		if (team1 - team2 >= 2 && team2 >= 2)
+	//		{
+	//			if (ctfgame.warnactive != CTF_TEAM1)
+	//			{
+	//				ctfgame.warnactive = CTF_TEAM1;
+	//				gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Red has too many players");
+	//			}
+	//		}
+	//		else if (team2 - team1 >= 2 && team1 >= 2)
+	//		{
+	//			if (ctfgame.warnactive != CTF_TEAM2)
+	//			{
+	//				ctfgame.warnactive = CTF_TEAM2;
+	//				gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Blue has too many players");
+	//			}
+	//		}
+	//		else
+	//			ctfgame.warnactive = 0;
+	//	}
+	//	else
+	//		ctfgame.warnactive = 0;
+	//}
 
-	if (capturelimit->integer &&
-		(ctfgame.team1 >= capturelimit->integer ||
-			ctfgame.team2 >= capturelimit->integer))
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "$g_capturelimit_hit");
-		return true;
-	}
+	//if (capturelimit->integer &&
+	//	(ctfgame.team1 >= capturelimit->integer ||
+	//		ctfgame.team2 >= capturelimit->integer))
+	//{
+	//	gi.LocBroadcast_Print(PRINT_HIGH, "$g_capturelimit_hit");
+	//	return true;
+	//}
 	return false;
 }
 
