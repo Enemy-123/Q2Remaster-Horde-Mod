@@ -1046,7 +1046,6 @@ std::string FormatClassname(const std::string& classname) {
 }
 #define MAX_MONSTER_CONFIGSTRINGS 80
 #define MAX_PLAYER_CONFIGSTRINGS 32
-#define PLAYER_HEALTH_CONFIGSTRING_BASE (CS_GENERAL + MAX_MONSTER_CONFIGSTRINGS)
 
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
@@ -1055,14 +1054,14 @@ void CTFSetIDView(edict_t* ent) {
 	static std::vector<int> available_player_configstrings;
 
 	if (available_monster_configstrings.empty()) {
-		for (int i = 0; i < MAX_MONSTER_CONFIGSTRINGS; ++i) {
-			available_monster_configstrings.push_back(CS_GENERAL + i);
+		for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+			available_monster_configstrings.push_back(i);
 		}
 	}
 
 	if (available_player_configstrings.empty()) {
-		for (int i = 0; i < MAX_PLAYER_CONFIGSTRINGS; ++i) {
-			available_player_configstrings.push_back(PLAYER_HEALTH_CONFIGSTRING_BASE + i);
+		for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
+			available_player_configstrings.push_back(i);
 		}
 	}
 
