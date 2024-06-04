@@ -1043,7 +1043,7 @@ void SP_monster_turret(edict_t* self)
 	self->yaw_speed = 13 * skill->integer;
 	self->solid = SOLID_BBOX;
 	self->clipmask = MASK_MONSTERSOLID;
-	self->svflags |= SVF_MONSTER;
+	self->svflags |= SVF_PLAYER;
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	self->monsterinfo.armor_power = 150;
 	self->flags |= FL_MECHANICAL;
