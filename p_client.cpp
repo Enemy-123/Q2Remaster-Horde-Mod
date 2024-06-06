@@ -3936,6 +3936,9 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
 
+
+#include <sstream> // Asegúrate de incluir esta cabecera
+
 	for (auto player : active_players())
 	{
 		// no dead players
@@ -3943,11 +3946,34 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 			continue;
 
 		// check combat state; we can't have taken damage recently
-		if (player->client->last_damage_time >= level.time)  // will respawn if only we don't have receive damage for some seconds 
+		if (player->client->last_damage_time >= level.time)
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
+
+			// Calcula el tiempo restante para salir de combate
+			gtime_t time_left = player->client->last_damage_time - level.time;
+
+			// Convierte time_left a segundos
+			float time_left_float = time_left.seconds<float>();
+
+			// Formatea el mensaje con el tiempo restante hasta la décima de segundo
+			std::ostringstream message_stream;
+			message_stream << "In Combat! Reviving in:" << time_left_float;
+
+			// Redondea a una décima de segundo
+			std::string message_str = message_stream.str();
+			size_t pos = message_str.find('.');
+			if (pos != std::string::npos && pos + 2 < message_str.size()) {
+				message_str = message_str.substr(0, pos + 2); // Incluye solo una cifra decimal
+			}
+
+			// Actualiza la configstring con el mensaje
+			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
 			continue;
 		}
+
+
+	
 
 		// check if any monsters are currently targeting us
 		// or searching for us
