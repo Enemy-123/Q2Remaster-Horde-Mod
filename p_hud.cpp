@@ -921,6 +921,7 @@ void G_SetStats(edict_t* ent)
 	else
 	{
 		powerup_info_t* best_powerup = nullptr;
+		powerup_info_t* next_best_powerup = nullptr;
 
 		for (auto& powerup : powerup_table)
 		{
@@ -940,11 +941,13 @@ void G_SetStats(edict_t* ent)
 
 			if (powerup_time && *powerup_time < ent->client->*best_powerup->time_ptr)
 			{
+				next_best_powerup = best_powerup;
 				best_powerup = &powerup;
 				continue;
 			}
 			else if (powerup_count && !best_powerup->time_ptr)
 			{
+				next_best_powerup = best_powerup;
 				best_powerup = &powerup;
 				continue;
 			}
@@ -953,16 +956,40 @@ void G_SetStats(edict_t* ent)
 		if (best_powerup)
 		{
 			int16_t value;
+			const char* icon;
+			int16_t timer_value;
 
 			if (best_powerup->count_ptr)
+			{
 				value = (ent->client->*best_powerup->count_ptr);
+				timer_value = value;
+			}
 			else
+			{
 				value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
+				timer_value = value;
+			}
 
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(GetItemByIndex(best_powerup->item)->icon);
-			ent->client->ps.stats[STAT_TIMER] = value;
+			// Implement blinking logic
+			if (next_best_powerup && ((level.time.milliseconds() % 3000) < 1500))
+			{
+				icon = GetItemByIndex(next_best_powerup->item)->icon;
+				if (next_best_powerup->count_ptr)
+					timer_value = (ent->client->*next_best_powerup->count_ptr);
+				else
+					timer_value = ceil((ent->client->*next_best_powerup->time_ptr - level.time).seconds());
+			}
+			else
+			{
+				icon = GetItemByIndex(best_powerup->item)->icon;
+				timer_value = value;
+			}
+
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(icon);
+			ent->client->ps.stats[STAT_TIMER] = timer_value;
 		}
 	}
+
 	// PGM
 
 	//
@@ -1054,6 +1081,7 @@ void G_SetStats(edict_t* ent)
 	// frags
 	//
 	 ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree; // unused test
+//	 ent->client->ps.stats[STAT_LASTDMG] = ent->client->last_damage_time; // unused test
 
 	//
 	// help icon / current weapon if not shown
