@@ -639,6 +639,16 @@ void G_MonsterKilled(edict_t* self)
 		{
 			self->enemy->client->resp.score++;
 			self->enemy->client->resp.spree++;
+
+			// Incrementar el tiempo de quadfire si g_autohaste está activo
+			if (g_autohaste->integer)
+			{
+				if (self->enemy->client->quadfire_time > level.time)
+				{
+					gtime_t extra_time = gtime_t::from_sec(0.6); // Ajusta este valor según sea necesario
+					self->enemy->client->quadfire_time += extra_time;
+				}
+			}
 		}
 	}
 	else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
@@ -648,6 +658,16 @@ void G_MonsterKilled(edict_t* self)
 		{
 			self->enemy->owner->client->resp.score++;
 			self->enemy->owner->client->resp.spree++;
+
+			// Incrementar el tiempo de quadfire si g_autohaste está activo
+			if (g_autohaste->integer)
+			{
+				if (self->enemy->owner->client->quadfire_time > level.time)
+				{
+					gtime_t extra_time = gtime_t::from_sec(0.6); // Ajusta este valor según sea necesario
+					self->enemy->owner->client->quadfire_time += extra_time;
+				}
+			}
 		}
 	}
 

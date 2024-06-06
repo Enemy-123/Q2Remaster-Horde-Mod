@@ -1154,7 +1154,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->maxs = { 12, 12, 20 };
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
 
-	tesla->owner = self;
+	//tesla->owner = self;
 	tesla->teammaster = self;
 
 	tesla->wait = (level.time + TESLA_TIME_TO_LIVE).seconds();

@@ -650,16 +650,12 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 			// Verificar si el atacante tiene quadfire activo y ha matado a alguien
 			if (attacker->client->quadfire_time > level.time && targ != nullptr) {
-
-
-				if (attacker->client->resp.spree + 1) {
-					// Aumentar el tiempo del quadfire basado en el contador de muertes (spree)
-					gtime_t extra_time = gtime_t::from_sec(0.6); // Ajusta este valor según sea necesario
-					attacker->client->quadfire_time += extra_time;
-				}
+				// No es necesario verificar el aumento de spree aquí,
+				// ya que se maneja en G_MonsterKilled
 			}
 		}
 	}
+
 
 
 	// easy mode takes half damage

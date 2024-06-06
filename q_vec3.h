@@ -392,6 +392,7 @@ R_ConcatRotations
 	// Verificar que todos los valores dentro de los vectores sean válidos
 	for (size_t i = 0; i < 3; i++) {
 	//	gi.Com_PrintFmt("absminsa[%d]: %f, absmaxsa[%d]: %f, absminsb[%d]: %f, absmaxsb[%d]: %f\n", i, absminsa[i], i, absmaxsa[i], i, absminsb[i], i, absmaxsb[i]);
+
 		if (std::isnan(absminsa[i]) || std::isnan(absmaxsa[i]) || std::isnan(absminsb[i]) || std::isnan(absmaxsb[i])) {
 			return 0.0f; // Manejar caso de valores no válidos
 		}
