@@ -842,7 +842,7 @@ void BossDeathHandler(edict_t* boss) {
         if (strcmp(boss->classname, "monster_boss2") == 0 ||
             strcmp(boss->classname, "monster_carrier") == 0 || 
             strcmp(boss->classname, "monster_carrier2") == 0 || 
-            strcmp(boss->classname, "monster_boss2kl") == 0) {
+            strcmp(boss->classname, "monster_boss2_64") == 0) {
             flying_monsters_mode = false;
         }
     }
@@ -1048,7 +1048,7 @@ void SpawnBossAutomatically() {
             if (strcmp(boss->classname, "monster_boss2") == 0 ||
                 strcmp(boss->classname, "monster_carrier") == 0 ||
                 strcmp(boss->classname, "monster_carrier2") == 0 ||
-                strcmp(boss->classname, "monster_boss2kl") == 0) {
+                strcmp(boss->classname, "monster_boss2_64") == 0) {
 
                 flying_monsters_mode = true;  // Activar el modo de monstruos voladores
 
