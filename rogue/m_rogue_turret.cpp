@@ -1041,8 +1041,10 @@ void SP_monster_turret(edict_t* self)
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;
+	self->clipmask = MASK_SHOT | ~CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 	self->solid = SOLID_BBOX;
-	self->svflags |= SVF_PLAYER;
+	self->svflags &= ~(SVF_MONSTER | SVF_NOCLIENT); // Elimina las banderas SVF_MONSTER y SVF_NOCLIENT
+	self->svflags |= SVF_PLAYER;                    // Añade la bandera SVF_PLAYER
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	self->monsterinfo.armor_power = 150;
 	self->flags |= FL_MECHANICAL;
