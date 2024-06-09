@@ -43,9 +43,7 @@ contents_t G_GetClipMask(edict_t* ent)
         mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
     // horde mode
-    if (!strcmp(ent->classname, "monster_turret")) {
-        mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
-    }
+
     if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
         strcmp(ent->classname, "monster_flyer") &&
         strcmp(ent->classname, "monster_berserk") &&
@@ -60,7 +58,9 @@ contents_t G_GetClipMask(edict_t* ent)
         strcmp(ent->classname, "monster_boss2kl")) {
         mask &= ~CONTENTS_MONSTER;
     }
-
+    else if (g_horde->integer && !strcmp(ent->classname, "monster_turret")) {
+        mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
+    }
     return mask;
 }
 

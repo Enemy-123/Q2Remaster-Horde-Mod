@@ -1028,8 +1028,8 @@ void SP_monster_turret(edict_t* self)
 	gi.modelindex("models/objects/debris1/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	self->mins = { -12, -12, -12 };
-	self->maxs = { 12, 12, 12 };
+	self->mins = { -9, -9, -9 };
+	self->maxs = { 9, 9, 9 };
 	self->movetype = MOVETYPE_NONE;
 
 	if (!st.was_key_specified("power_armor_type"))
@@ -1043,8 +1043,7 @@ void SP_monster_turret(edict_t* self)
 	self->yaw_speed = 13 * skill->integer;
 	self->clipmask = MASK_SHOT | ~CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 	self->solid = SOLID_BBOX;
-	self->svflags &= ~(SVF_MONSTER | SVF_NOCLIENT); // Elimina las banderas SVF_MONSTER y SVF_NOCLIENT
-	self->svflags |= SVF_PLAYER;                    // Añade la bandera SVF_PLAYER
+	self->svflags |= SVF_MONSTER;
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	self->monsterinfo.armor_power = 150;
 	self->flags |= FL_MECHANICAL;

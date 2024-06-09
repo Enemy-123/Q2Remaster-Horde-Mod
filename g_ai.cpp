@@ -402,8 +402,19 @@ mid	    infront and show hostile
 > mid	only triggered by damage
 =============
 */
-float range_to(edict_t* self, edict_t* other)
-{
+#include <cassert> // Agrega esta línea al inicio del archivo
+#include <cmath> // Asegúrate de que también tienes la cabecera para std::isnan
+float range_to(edict_t* self, edict_t* other) {
+    assert(self != nullptr && other != nullptr);
+    std::cerr << "self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
+    std::cerr << "self->absmax: [" << self->absmax[0] << ", " << self->absmax[1] << ", " << self->absmax[2] << "]" << std::endl;
+    std::cerr << "other: " << other << ", other->absmin: [" << other->absmin[0] << ", " << other->absmin[1] << ", " << other->absmin[2] << "]" << std::endl;
+    std::cerr << "other->absmax: [" << other->absmax[0] << ", " << other->absmax[1] << ", " << other->absmax[2] << "]" << std::endl;
+    assert(!std::isnan(self->absmin[0]) && !std::isnan(self->absmin[1]) && !std::isnan(self->absmin[2]));
+    assert(!std::isnan(self->absmax[0]) && !std::isnan(self->absmax[1]) && !std::isnan(self->absmax[2]));
+    assert(!std::isnan(other->absmin[0]) && !std::isnan(other->absmin[1]) && !std::isnan(other->absmin[2]));
+    assert(!std::isnan(other->absmax[0]) && !std::isnan(other->absmax[1]) && !std::isnan(other->absmax[2]));
+
     return distance_between_boxes(self->absmin, self->absmax, other->absmin, other->absmax);
 }
 

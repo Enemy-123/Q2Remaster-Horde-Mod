@@ -3958,7 +3958,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 
 			// Formatea el mensaje con el tiempo restante hasta la décima de segundo
 			std::ostringstream message_stream;
-			message_stream << "In Combat! Reviving in:" << time_left_float;
+			message_stream << "In Combat! Reviving in: " << time_left_float;
 
 			// Redondea a una décima de segundo
 			std::string message_str = message_stream.str();

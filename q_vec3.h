@@ -387,16 +387,16 @@ R_ConcatRotations
 		(from[2] < absmins[2]) ? absmins[2] : (from[2] > absmaxs[2]) ? absmaxs[2] : from[2]
 	};
 }
-
+#include <iostream> // Para la depuración
 [[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa, const vec3_t& absminsb, const vec3_t& absmaxsb) {
-	// Verify that all input vectors are valid
-	if (!absminsa || !absmaxsa || !absminsb || !absmaxsb) {
-		return 0.0f; // Handle invalid inputs
-	}
-
 	// Verificar que todos los valores dentro de los vectores sean válidos
 	for (size_t i = 0; i < 3; i++) {
 		if (std::isnan(absminsa[i]) || std::isnan(absmaxsa[i]) || std::isnan(absminsb[i]) || std::isnan(absmaxsb[i])) {
+			std::cerr << "Invalid value detected in distance_between_boxes: "
+				<< "absminsa[" << i << "]=" << absminsa[i] << ", "
+				<< "absmaxsa[" << i << "]=" << absmaxsa[i] << ", "
+				<< "absminsb[" << i << "]=" << absminsb[i] << ", "
+				<< "absmaxsb[" << i << "]=" << absmaxsb[i] << std::endl;
 			return 0.0f; // Manejar caso de valores no válidos
 		}
 	}
