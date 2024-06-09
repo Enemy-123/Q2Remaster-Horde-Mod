@@ -1145,8 +1145,19 @@ constexpr float RANGE_GRENADE_MORTAR = 525.f;
 // at this range, run towards the enemy
 constexpr float RANGE_CHAINGUN_RUN = 400.f;
 
-MONSTERINFO_ATTACK(guncmdr2_attack) (edict_t* self) -> void
-{
+#include <cassert>
+#include <cmath>
+#include <iostream> // Para la depuración
+
+constexpr float RANGE_GRENADE = 100.f;
+constexpr float RANGE_GRENADE_MORTAR = 525.f;
+constexpr float RANGE_CHAINGUN_RUN = 400.f;
+
+MONSTERINFO_ATTACK(guncmdr2_attack) (edict_t* self) -> void {
+	// Asegúrate de que self y su enemigo estén correctamente inicializados
+	assert(self != nullptr);
+	assert(self->enemy != nullptr);
+
 	monster_done_dodge(self);
 
 	float d = range_to(self, self->enemy);
@@ -1154,29 +1165,38 @@ MONSTERINFO_ATTACK(guncmdr2_attack) (edict_t* self) -> void
 	vec3_t forward, right, aim;
 	AngleVectors(self->s.angles, forward, right, nullptr); // PGM
 
+	// Depuración adicional
+	std::cerr << "In guncmdr2_attack, self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
+	std::cerr << "In guncmdr2_attack, self->absmax: [" << self->absmax[0] << ", " << self->absmax[1] << ", " << self->absmax[2] << "]" << std::endl;
+	std::cerr << "In guncmdr2_attack, self->enemy: " << self->enemy << ", self->enemy->absmin: [" << self->enemy->absmin[0] << ", " << self->enemy->absmin[1] << ", " << self->enemy->absmin[2] << "]" << std::endl;
+	std::cerr << "In guncmdr2_attack, self->enemy->absmax: [" << self->enemy->absmax[0] << ", " << self->enemy->absmax[1] << ", " << self->enemy->absmax[2] << "]" << std::endl;
+
 	// always use chaingun on tesla
 	// kick close enemies
-	if (!self->bad_area && d < RANGE_MELEE && self->monsterinfo.melee_debounce_time < level.time)
+	if (!self->bad_area && d < RANGE_MELEE && self->monsterinfo.melee_debounce_time < level.time) {
 		M_SetAnimation(self, &guncmdr2_move_attack_kick);
-	else if (self->bad_area || ((d <= RANGE_GRENADE || brandom()) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_CHAINGUN_1])))
+	}
+	else if (self->bad_area || ((d <= RANGE_GRENADE || brandom()) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_CHAINGUN_1]))) {
 		M_SetAnimation(self, &guncmdr2_move_attack_chain);
-	else if ((d >= RANGE_GRENADE_MORTAR ||
-		fabs(self->absmin.z - self->enemy->absmax.z) > 64.f // enemy is far below or above us, always try mortar
-		) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1]) &&
-		M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
-			aim = (self->enemy->s.origin - self->s.origin).normalized(), MORTAR_SPEED, 2.5f, true)
-		)
-	{
+	}
+	else if ((d >= RANGE_GRENADE_MORTAR || fabs(self->absmin.z - self->enemy->absmax.z) > 64.f) // enemy is far below or above us, always try mortar
+		&& M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1])
+		&& M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
+			aim = (self->enemy->s.origin - self->s.origin).normalized(), MORTAR_SPEED, 2.5f, true)) {
 		M_SetAnimation(self, &guncmdr2_move_attack_mortar);
 		monster_duck_down(self);
 	}
-	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1]) && !(self->monsterinfo.aiflags & AI_STAND_GROUND) &&
-		M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
-			aim = (self->enemy->s.origin - self->s.origin).normalized(), GRENADE_SPEED, 2.5f, false))
+	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1])
+		&& !(self->monsterinfo.aiflags & AI_STAND_GROUND)
+		&& M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
+			aim = (self->enemy->s.origin - self->s.origin).normalized(), GRENADE_SPEED, 2.5f, false)) {
 		M_SetAnimation(self, &guncmdr2_move_attack_grenade_back);
-	else if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+	}
+	else if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
 		M_SetAnimation(self, &guncmdr2_move_attack_chain);
+	}
 }
+
 
 void guncmdr2_fire_chain(edict_t* self)
 {
