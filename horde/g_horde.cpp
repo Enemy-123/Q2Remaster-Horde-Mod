@@ -406,7 +406,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_medic_commander", 13, -1, 0.06f },
     { "monster_tank_commander", 11, -1, 0.15f },
     { "monster_spider", 12, -1, 0.24f },
-    { "monster_guncmdr", 11, -1, 0.28f },
+//    { "monster_guncmdr", 11, -1, 0.14f },
     { "monster_gladc", 6, -1, 0.3f },
     { "monster_gladiator", 8, -1, 0.3f },
     { "monster_shambler", 10, -1, 0.03f },
