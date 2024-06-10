@@ -59,22 +59,38 @@ pmenuhnd_t *PMenu_Open(edict_t *ent, const pmenu_t *entries, int cur, int num, v
 
 	return hnd;
 }
-
-void PMenu_Close(edict_t *ent)
+void PMenu_Close(edict_t* ent)
 {
-	pmenuhnd_t *hnd;
+	pmenuhnd_t* hnd;
+
+	// Verificar si estamos en tiempo de intermisión
+	if (level.intermissiontime)
+	{
+		gi.Com_PrintFmt("Skipping PMenu_Close during intermission\n");
+		return;
+	}
 
 	if (!ent->client->menu)
 		return;
 
 	hnd = ent->client->menu;
-	gi.TagFree(hnd->entries);
+
+	// Verificar y liberar memoria de manera segura
+	if (hnd->entries)
+	{
+		gi.TagFree(hnd->entries);
+		hnd->entries = nullptr;
+	}
 	if (hnd->arg)
+	{
 		gi.TagFree(hnd->arg);
+		hnd->arg = nullptr;
+	}
 	gi.TagFree(hnd);
 	ent->client->menu = nullptr;
 	ent->client->showscores = false;
 }
+
 
 // only use on pmenu's that have been called with PMenu_Open
 void PMenu_UpdateEntry(pmenu_t *entry, const char *text, int align, SelectFunc_t SelectFunc)
