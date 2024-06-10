@@ -418,6 +418,8 @@ float range_to(edict_t* self, edict_t* other) {
     return distance_between_boxes(self->absmin, self->absmax, other->absmin, other->absmax);
 }
 
+#include <stdio.h> // For printf or gi.Com_Printf
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 /*
 =============
 visible
@@ -425,52 +427,69 @@ visible
 returns 1 if the entity is visible to self, even if not infront ()
 =============
 */
-bool visible(edict_t* self, edict_t* other, bool through_glass)
-{
-    // never visible
-    if (other->flags & FL_NOVISIBLE)
+bool visible(edict_t* self, edict_t* other, bool through_glass) {
+    if (!self || !other) {
+        //     gi.Com_PrintFmt("visible: Invalid self or other pointer\n");
+        return false; // Handle invalid pointers gracefully
+    }
+
+    if (other->flags & FL_NOVISIBLE) {
+        //       gi.Com_PrintFmt("visible: Other entity has FL_NOVISIBLE flag\n");
         return false;
+    }
 
-    // [Paril-KEX] bit of a hack, but we'll tweak monster-player visibility
-    // if they have the invisibility powerup.
-    if (other->client)
-    {
-        // always visible in rtest
-        if (self->hackflags & HACKFLAG_ATTACK_PLAYER)
+    if (other->client) {
+        // Always visible in rtest
+        if (self->hackflags & HACKFLAG_ATTACK_PLAYER) {
             return self->inuse;
+        }
 
-        // fix intermission
-        if (!other->solid)
+        // Fix intermission
+        if (!other->solid) {
+            //         gi.Com_PrintFmt("visible: Other entity is not solid\n");
             return false;
+        }
 
-        if (other->client->invisible_time > level.time)
-        {
-            // can't see us at all after this time
-            if (other->client->invisibility_fade_time <= level.time)
+        if (other->client->invisible_time > level.time) {
+            // Can't see us at all after this time
+            if (other->client->invisibility_fade_time <= level.time) {
+                //             gi.Com_PrintFmt("visible: Other entity is invisible due to fade time\n");
                 return false;
+            }
 
-            // otherwise, throw in some randomness
-            if (frandom() > other->s.alpha)
+            // Otherwise, throw in some randomness
+            if (frandom() > other->s.alpha) {
+ //               gi.Com_PrintFmt("visible: Other entity is invisible due to alpha\n");
                 return false;
+            }
         }
     }
 
-    vec3_t  spot1;
-    vec3_t  spot2;
+    vec3_t spot1;
+    vec3_t spot2;
     trace_t trace;
 
-    spot1 = self->s.origin;
+    VectorCopy(self->s.origin, spot1);
     spot1[2] += self->viewheight;
-    spot2 = other->s.origin;
+    VectorCopy(other->s.origin, spot2);
     spot2[2] += other->viewheight;
 
     contents_t mask = MASK_OPAQUE;
 
-    if (!through_glass)
+    if (!through_glass) {
         mask |= CONTENTS_WINDOW;
+    }
 
     trace = gi.traceline(spot1, spot2, self, mask);
-    return trace.fraction == 1.0f || trace.ent == other; // PGM
+
+    if (trace.fraction == 1.0f || trace.ent == other) {
+//        gi.Com_PrintFmt("visible: Other entity is visible\n");
+        return true;
+    }
+    else {
+//        gi.Com_PrintFmt("visible: Other entity is not visible\n");
+        return false;
+    }
 }
 
 /*

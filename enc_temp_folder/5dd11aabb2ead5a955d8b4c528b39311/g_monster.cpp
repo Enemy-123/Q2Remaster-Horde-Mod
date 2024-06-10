@@ -645,7 +645,7 @@ void G_MonsterKilled(edict_t* self)
 			{
 				if (self->enemy->client->quadfire_time > level.time)
 				{
-					gtime_t extra_time = gtime_t::from_sec(1.05); // Ajusta este valor según sea necesario
+					gtime_t extra_time = gtime_t::from_sec(0.6); // Ajusta este valor según sea necesario
 					self->enemy->client->quadfire_time += extra_time;
 				}
 			}
