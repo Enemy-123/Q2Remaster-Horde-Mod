@@ -1,8 +1,8 @@
-# Install script for directory: C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/jsoncpp/src/3918c327b1-034a82149a.clean/src/lib_json
+# Install script for directory: C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/jsoncpp/src/3918c327b1-034a82149a.clean/src/lib_json
 
 # Set the install prefix
 if(NOT DEFINED CMAKE_INSTALL_PREFIX)
-  set(CMAKE_INSTALL_PREFIX "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/pkgs/jsoncpp_x64-windows/debug")
+  set(CMAKE_INSTALL_PREFIX "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/pkgs/jsoncpp_x64-windows/debug")
 endif()
 string(REGEX REPLACE "/$" "" CMAKE_INSTALL_PREFIX "${CMAKE_INSTALL_PREFIX}")
 
@@ -33,11 +33,11 @@ if(NOT DEFINED CMAKE_CROSSCOMPILING)
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/jsoncpp/x64-windows-dbg/lib/jsoncpp.lib")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/lib" TYPE STATIC_LIBRARY OPTIONAL FILES "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/jsoncpp/x64-windows-dbg/lib/jsoncpp.lib")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
-  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/jsoncpp/x64-windows-dbg/bin/jsoncpp.dll")
+  file(INSTALL DESTINATION "${CMAKE_INSTALL_PREFIX}/bin" TYPE SHARED_LIBRARY FILES "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/jsoncpp/x64-windows-dbg/bin/jsoncpp.dll")
 endif()
 
 if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT)
@@ -45,6 +45,6 @@ if(CMAKE_INSTALL_COMPONENT STREQUAL "Unspecified" OR NOT CMAKE_INSTALL_COMPONENT
     "json_reader.cpp.obj"
     "json_value.cpp.obj"
     "json_writer.cpp.obj"
-    FILES_FROM_DIR "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/jsoncpp/x64-windows-dbg/src/lib_json/CMakeFiles/jsoncpp_object.dir/./")
+    FILES_FROM_DIR "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/jsoncpp/x64-windows-dbg/src/lib_json/CMakeFiles/jsoncpp_object.dir/./")
 endif()
 

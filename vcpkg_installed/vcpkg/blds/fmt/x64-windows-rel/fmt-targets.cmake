@@ -7,7 +7,7 @@ if(CMAKE_VERSION VERSION_LESS "2.8.3")
    message(FATAL_ERROR "CMake >= 2.8.3 required")
 endif()
 cmake_policy(PUSH)
-cmake_policy(VERSION 2.8.3...3.25)
+cmake_policy(VERSION 2.8.3...3.26)
 #----------------------------------------------------------------
 # Generated CMake target import file.
 #----------------------------------------------------------------
@@ -56,7 +56,7 @@ add_library(fmt::fmt SHARED IMPORTED)
 set_target_properties(fmt::fmt PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS "FMT_LOCALE;FMT_SHARED"
   INTERFACE_COMPILE_FEATURES "cxx_variadic_templates"
-  INTERFACE_INCLUDE_DIRECTORIES "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/fmt/src/2b3b374f0b-8ea71ee8ea.clean/include"
+  INTERFACE_INCLUDE_DIRECTORIES "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/fmt/src/2b3b374f0b-8ea71ee8ea.clean/include"
 )
 
 # Create imported target fmt::fmt-header-only
@@ -65,14 +65,14 @@ add_library(fmt::fmt-header-only INTERFACE IMPORTED)
 set_target_properties(fmt::fmt-header-only PROPERTIES
   INTERFACE_COMPILE_DEFINITIONS "FMT_HEADER_ONLY=1"
   INTERFACE_COMPILE_FEATURES "cxx_variadic_templates"
-  INTERFACE_INCLUDE_DIRECTORIES "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/fmt/src/2b3b374f0b-8ea71ee8ea.clean/include"
+  INTERFACE_INCLUDE_DIRECTORIES "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/fmt/src/2b3b374f0b-8ea71ee8ea.clean/include"
 )
 
 # Import target "fmt::fmt" for configuration "Release"
 set_property(TARGET fmt::fmt APPEND PROPERTY IMPORTED_CONFIGURATIONS RELEASE)
 set_target_properties(fmt::fmt PROPERTIES
-  IMPORTED_IMPLIB_RELEASE "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/fmt/x64-windows-rel/fmt.lib"
-  IMPORTED_LOCATION_RELEASE "C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/blds/fmt/x64-windows-rel/bin/fmt.dll"
+  IMPORTED_IMPLIB_RELEASE "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/fmt/x64-windows-rel/fmt.lib"
+  IMPORTED_LOCATION_RELEASE "C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/blds/fmt/x64-windows-rel/bin/fmt.dll"
   )
 
 # This file does not depend on other imported targets which have

@@ -1,5 +1,5 @@
-prefix=C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/pkgs/fmt_x64-windows/debug
-exec_prefix=C:/Program Files (x86)/Steam/steamapps/common/Quake 2/rerelease/mymod/src/vcpkg_installed/vcpkg/pkgs/fmt_x64-windows/debug
+prefix=C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/pkgs/fmt_x64-windows/debug
+exec_prefix=C:/Users/pipev/source/repos/Q2Remaster-Horde-Mod/vcpkg_installed/vcpkg/pkgs/fmt_x64-windows/debug
 libdir=${exec_prefix}/lib
 includedir=${prefix}/include
 

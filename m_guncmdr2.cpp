@@ -1101,14 +1101,16 @@ MMOVE_T(guncmdr2_move_attack_grenade_back_dodge_left) = { FRAME_c_attack701, FRA
 
 static void guncmdr2_kick_finished(edict_t* self)
 {
-	self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-	self->monsterinfo.attack(self);
+	if (self && self->enemy && self->monsterinfo.attack) {
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
+		self->monsterinfo.attack(self);
+	}
 }
 
 static void guncmdr2_kick(edict_t* self)
 {
 	// Verificar si self->enemy está correctamente inicializado
-	if (self->enemy) {
+	if (self && self->enemy) {
 		if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f)) {
 			if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
 				self->enemy->velocity.z = 270.f;
@@ -1148,10 +1150,6 @@ constexpr float RANGE_CHAINGUN_RUN = 400.f;
 #include <cassert>
 #include <cmath>
 #include <iostream> // Para la depuración
-
-constexpr float RANGE_GRENADE = 100.f;
-constexpr float RANGE_GRENADE_MORTAR = 525.f;
-constexpr float RANGE_CHAINGUN_RUN = 400.f;
 
 MONSTERINFO_ATTACK(guncmdr2_attack) (edict_t* self) -> void {
 	// Asegúrate de que self y su enemigo estén correctamente inicializados

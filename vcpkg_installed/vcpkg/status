@@ -1,0 +1,32 @@
+Package: vcpkg-cmake-config
+Version: 2021-02-26
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 6ef69b8a614fa88f88c394e81e2d9952b0723194c5f41e84757c5f35cacff87a
+Status: install ok installed
+
+Package: vcpkg-cmake
+Version: 2021-02-26
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 37931a235fc4ea69e93d33468165a0792f821b5402efb7c41db5aab780f8235f
+Status: install ok installed
+
+Package: fmt
+Version: 7.1.3
+Port-Version: 1
+Depends: vcpkg-cmake, vcpkg-cmake-config
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 467e75dd4f20c7dca6831441569fdf25b4ca18f80699770b1bf5a3c7a01659f3
+Description: Formatting library for C++. It can be used as a safe alternative to printf or as a fast alternative to IOStreams.
+Status: install ok installed
+
+Package: jsoncpp
+Version: 1.9.4
+Architecture: x64-windows
+Multi-Arch: same
+Abi: 16ace72f956fd7c106b847ef2190bc736aad79bcea481202fcd26f1b077aa082
+Description: jsoncpp is an implementation of a JSON reader and writer in C++. JSON (JavaScript Object Notation) is a lightweight data-interchange format that it is easy to parse and redeable for human.
+Status: install ok installed
+

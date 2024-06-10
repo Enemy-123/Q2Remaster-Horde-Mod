@@ -1,11 +1,9 @@
 x64-windows/
 x64-windows/bin/
 x64-windows/bin/jsoncpp.dll
-x64-windows/bin/jsoncpp.pdb
 x64-windows/debug/
 x64-windows/debug/bin/
 x64-windows/debug/bin/jsoncpp.dll
-x64-windows/debug/bin/jsoncpp.pdb
 x64-windows/debug/lib/
 x64-windows/debug/lib/jsoncpp.lib
 x64-windows/debug/lib/objects-Debug/
