@@ -233,10 +233,10 @@ int CalculateChaosInsanityBonus(int32_t lvl) {
 void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) {
     int additionalSpawn = 0;
     if (mapSize.isSmallMap) {
-        additionalSpawn = 4;
+        additionalSpawn = 6;
     }
     else if (mapSize.isBigMap) {
-        additionalSpawn = 7;
+        additionalSpawn = 9;
     }
     else {
         additionalSpawn = 6;
@@ -746,6 +746,7 @@ void Horde_PreInit() {
         gi.cvar_set("g_instant_weapon_switch", "1");
         gi.cvar_set("g_dm_no_quad_drop", "0");
         gi.cvar_set("g_dm_no_quadfire_drop", "0");
+        gi.cvar_set("g_startarmor", "0");
         gi.cvar_set("g_vampire", "0");
         gi.cvar_set("g_ammoregen", "0");
         gi.cvar_set("g_autohaste", "0");
@@ -760,11 +761,18 @@ void Horde_PreInit() {
         gi.cvar_set("bot_chat_enable", "0");
         gi.cvar_set("bot_skill", "5");
         gi.cvar_set("g_coop_squad_respawn", "1");
-        gi.cvar_set("bot_minClients", "5");
     }
 }
 
 void Horde_Init() {
+    // Obtener el tamaño del mapa actual
+    auto mapSize = GetMapSize(level.mapname);
+    if (mapSize.isBigMap) {
+        gi.cvar_set("bot_minClients", "7");
+    }
+    else {
+        gi.cvar_set("bot_minClients", "5");
+    }
     for (auto& item : itemlist) PrecacheItem(&item);
 
     for (const auto& monster : monsters) {
