@@ -1036,7 +1036,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
                 // Paril - *and* we have at least seen them once
                 if (!(tr.ent->svflags & SVF_MONSTER) && !visible(self, self->enemy) && self->monsterinfo.had_visibility)
                 {
-                    if (self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 20_sec))
+                    if (self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 5_sec))
                     {
                         if (level.time < self->monsterinfo.attack_finished)
                         {

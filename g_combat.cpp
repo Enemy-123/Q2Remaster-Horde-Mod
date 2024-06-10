@@ -490,35 +490,41 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	}
 }
 
+void AssignMonsterTeam(edict_t* ent) {
+	if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.team != CTF_TEAM1) {
+		ent->monsterinfo.team = CTF_TEAM2;
+	}
+}
+
 // check if the two given entities are on the same team
 bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
 	if (G_IsCooperative())
-	{// check if the two given entities are on the same team
-	
-			// monsters are never on our team atm
-			if (!ent1->client || !ent2->client)
-			{
-				return false;
-			}
-			// we're never on our own team
-			else if (ent1 == ent2)
-				return false;
-
-			// [Paril-KEX] coop 'team' support
-			if (G_IsCooperative())
-				return ent1->client && ent2->client;
-			// ZOID
-			else if (G_TeamplayEnabled() && ent1->client && ent2->client)
-			{
-				if (ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
-					return true;
-			}
-			// ZOID
-
+	{
+		// monsters are never on our team atm
+		if (!ent1->client || !ent2->client)
+		{
 			return false;
 		}
-	else if (g_horde->integer) {
+		// we're never on our own team
+		else if (ent1 == ent2)
+			return false;
+
+		// [Paril-KEX] coop 'team' support
+		if (G_IsCooperative())
+			return ent1->client && ent2->client;
+		// ZOID
+		else if (G_TeamplayEnabled() && ent1->client && ent2->client)
+		{
+			if (ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
+				return true;
+		}
+		// ZOID
+
+		return false;
+	}
+	else if (g_horde->integer)
+	{
 		// Si ambos son clientes, verifica el equipo
 		if (ent1->client && ent2->client)
 		{
@@ -531,6 +537,10 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		// Si ambos son monstruos, verifica el equipo
 		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER))
 		{
+			// Asignar equipo a los monstruos si no tienen
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+
 			return ent1->monsterinfo.team == ent2->monsterinfo.team;
 		}
 
@@ -547,7 +557,10 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 
 		return false;
 	}
+
+	return false;
 }
+
 
 // check if the two entities are on a team and that
 // they wouldn't damage each other
