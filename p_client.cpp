@@ -419,7 +419,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		base = "{0} was crushed.";
 		break;
 	default:
-		base = "{0} died.";
+		base = "{0} died.\n";
 		break;
 	}
 
