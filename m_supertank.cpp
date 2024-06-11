@@ -118,24 +118,24 @@ MONSTERINFO_STAND(supertank_stand) (edict_t* self) -> void
 }
 
 mframe_t supertank_frames_run[] = {
-	{ ai_run, 12, TreadSound },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 },
-	{ ai_run, 12 }
+	{ ai_run, 18, TreadSound },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 },
+	{ ai_run, 18 }
 };
 MMOVE_T(supertank_move_run) = { FRAME_forwrd_1, FRAME_forwrd_18, supertank_frames_run, nullptr };
 

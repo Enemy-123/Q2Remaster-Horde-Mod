@@ -6,11 +6,11 @@
 // this is so that a static set of pmenu entries can be used
 // for multiple clients and changed without interference
 // note that arg will be freed when the menu is closed, it must be allocated memory
-pmenuhnd_t *PMenu_Open(edict_t *ent, const pmenu_t *entries, int cur, int num, void *arg, UpdateFunc_t UpdateFunc)
+pmenuhnd_t* PMenu_Open(edict_t* ent, const pmenu_t* entries, int cur, int num, void* arg, UpdateFunc_t UpdateFunc)
 {
-	pmenuhnd_t *hnd;
-	const pmenu_t	*p;
-	int			i;
+	pmenuhnd_t* hnd;
+	const pmenu_t* p;
+	int i;
 
 	if (!ent->client)
 		return nullptr;
@@ -21,13 +21,25 @@ pmenuhnd_t *PMenu_Open(edict_t *ent, const pmenu_t *entries, int cur, int num, v
 		PMenu_Close(ent);
 	}
 
-	hnd = (pmenuhnd_t *) gi.TagMalloc(sizeof(*hnd), TAG_LEVEL);
-	hnd->UpdateFunc = UpdateFunc;
+	hnd = (pmenuhnd_t*)gi.TagMalloc(sizeof(*hnd), TAG_LEVEL);
+	if (!hnd)
+	{
+		gi.Com_Print("Failed to allocate memory for hnd\n");
+		return nullptr;
+	}
 
+	hnd->UpdateFunc = UpdateFunc;
 	hnd->arg = arg;
-	hnd->entries = (pmenu_t *) gi.TagMalloc(sizeof(pmenu_t) * num, TAG_LEVEL);
+	hnd->entries = (pmenu_t*)gi.TagMalloc(sizeof(pmenu_t) * num, TAG_LEVEL);
+	if (!hnd->entries)
+	{
+		gi.Com_Print("Failed to allocate memory for hnd->entries\n");
+		gi.TagFree(hnd);
+		return nullptr;
+	}
 	memcpy(hnd->entries, entries, sizeof(pmenu_t) * num);
-	// duplicate the strings since they may be from static memory
+
+	// Duplicate the strings since they may be from static memory
 	for (i = 0; i < num; i++)
 		Q_strlcpy(hnd->entries[i].text, entries[i].text, sizeof(entries[i].text));
 
@@ -59,6 +71,7 @@ pmenuhnd_t *PMenu_Open(edict_t *ent, const pmenu_t *entries, int cur, int num, v
 
 	return hnd;
 }
+
 void PMenu_Close(edict_t* ent)
 {
 	pmenuhnd_t* hnd;
@@ -78,19 +91,21 @@ void PMenu_Close(edict_t* ent)
 	// Verificar y liberar memoria de manera segura
 	if (hnd->entries)
 	{
+		gi.Com_PrintFmt("Freeing hnd->entries: %p\n", static_cast<void*>(hnd->entries)); // Cast to void*
 		gi.TagFree(hnd->entries);
 		hnd->entries = nullptr;
 	}
 	if (hnd->arg)
 	{
+		gi.Com_PrintFmt("Freeing hnd->arg: %p\n", static_cast<void*>(hnd->arg)); // Cast to void*
 		gi.TagFree(hnd->arg);
 		hnd->arg = nullptr;
 	}
+	gi.Com_PrintFmt("Freeing hnd: %p\n", static_cast<void*>(hnd)); // Cast to void*
 	gi.TagFree(hnd);
 	ent->client->menu = nullptr;
 	ent->client->showscores = false;
 }
-
 
 // only use on pmenu's that have been called with PMenu_Open
 void PMenu_UpdateEntry(pmenu_t *entry, const char *text, int align, SelectFunc_t SelectFunc)
