@@ -84,16 +84,16 @@ MONSTERINFO_WALK(arachnid_walk) (edict_t* self) -> void
 //
 
 mframe_t arachnid_frames_run[] = {
-	{ ai_run, 8, arachnid_footstep },
-	{ ai_run, 8 },
-	{ ai_run, 8 },
-	{ ai_run, 8 },
-	{ ai_run, 8 },
-	{ ai_run, 8, arachnid_footstep },
-	{ ai_run, 8 },
-	{ ai_run, 8 },
-	{ ai_run, 8 },
-	{ ai_run, 8 }
+	{ ai_run, 13, arachnid_footstep },
+	{ ai_run, 13 },
+	{ ai_run, 13 },
+	{ ai_run, 13 },
+	{ ai_run, 13 },
+	{ ai_run, 13, arachnid_footstep },
+	{ ai_run, 13 },
+	{ ai_run, 13 },
+	{ ai_run, 13 },
+	{ ai_run, 13 }
 };
 MMOVE_T(arachnid_move_run) = { FRAME_walk1, FRAME_walk10, arachnid_frames_run, nullptr };
 
