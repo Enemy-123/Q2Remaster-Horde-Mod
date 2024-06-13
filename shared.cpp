@@ -118,9 +118,9 @@ std::string GetDisplayName(edict_t* ent) {
         { "monster_widow", "Widow Matriarch" },
         { "monster_widow2", "Widow Creator" },
         { "monster_supertank", "Super-Tank" },
-        { "monster_supertankkl", "Super-Tank!" },
+        { "monster_supertankkl", "Super-Tank" },
         { "monster_boss5", "Super-Tank" },
-        { "monster_turret", "Friendly SentryGun" },
+        { "monster_turret", "Friendly Sentry-Gun" },
         { "monster_turretkl", "TurretGun" },
         { "monster_boss2", "Hornet" }
     };

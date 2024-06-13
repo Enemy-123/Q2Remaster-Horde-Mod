@@ -1019,9 +1019,9 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_widow", "Widow Matriarch" },
 		{ "monster_widow2", "Widow Creator" },
 		{ "monster_supertank", "Super-Tank" },
-		{ "monster_supertankkl", "Super-Tank!" },
+		{ "monster_supertankkl", "Super-Tank" },
 		{ "monster_boss5", "Super-Tank" },
-		{ "monster_turret", "Friendly SentryGun" },
+		{ "monster_turret", "Friendly Sentry-Gun" },
 		{ "monster_turretkl", "TurretGun" },
 		{ "monster_boss2", "Hornet" }
 		// Add other replacements as needed
@@ -2472,7 +2472,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0063\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0064\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
