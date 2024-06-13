@@ -558,7 +558,6 @@ gitem_t* G_HordePickItem() {
 }
 int WAVE_TO_ALLOW_FLYING = 0; // Permitir monstruos voladores a partir de esta oleada
 
-
 const char* flying_monster_classnames[] = {
     "monster_boss2_64",
     "monster_carrier2",
@@ -592,12 +591,14 @@ bool IsFlyingMonster(const char* classname) {
 
 // Ajustar probabilidad de spawn de monstruos voladores
 float adjustFlyingSpawnProbability(int flyingSpawns) {
+    // Si hay puntos de spawn voladores, reducir la probabilidad en los normales
     return (flyingSpawns > 0) ? 0.5f : 1.0f;
 }
 
 // Verificar elegibilidad del monstruo para aparecer
-bool IsMonsterEligible(edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int currentWave) {
+bool IsMonsterEligible(edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int currentWave, int flyingSpawns) {
     // Verificar si el monstruo es volador y si el punto de spawn lo permite
+    // Permitir monstruos voladores en puntos de spawn normales si no hay puntos de spawn voladores
     if (spawn_point->style == 1 && !isFlyingMonster) {
         return false;
     }
@@ -643,7 +644,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
 
-    //if (Q_strcasecmp(level.mapname, "ec/space_ec") == 0)
+    // if (Q_strcasecmp(level.mapname, "ec/space_ec") == 0)
     //    WAVE_TO_ALLOW_FLYING = 0;
 
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
@@ -658,7 +659,8 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     std::vector<picked_item_t> picked_monsters;
     float total_weight = 0.0f;
-    float adjustmentFactor = adjustFlyingSpawnProbability(countFlyingSpawns());
+    int flyingSpawns = countFlyingSpawns();
+    float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
     for (auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
@@ -668,13 +670,18 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
             continue;
         }
 
-        // Si flying_monsters_mode no está activo, considerar todos los monstruos
-        // incluyendo los voladores, pero respetando los puntos de spawn voladores
-        if (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1) {
+        // Si el punto de spawn tiene style 1, solo considerar monstruos voladores
+        if (spawn_point->style == 1 && !isFlyingMonster) {
             continue;
         }
 
-        if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level)) {
+        // Si flying_monsters_mode no está activo, considerar todos los monstruos
+        // incluyendo los voladores, pero respetando los puntos de spawn voladores
+        if (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) {
+            continue;
+        }
+
+        if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
             continue;
         }
 
