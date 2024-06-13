@@ -38,8 +38,8 @@ int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause
 int current_wave_number = 1;
 int last_wave_number = 0;
 
-gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.3); // Cooldown en segundos para los monstruos 2.5
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(2.8); // Cooldown en segundos para los puntos de spawn 3.5
+gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.5
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.4); // Cooldown en segundos para los puntos de spawn 3.5
 
 cvar_t* g_horde;
 

@@ -196,10 +196,10 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	// Calculate the end point of the trace
 	VectorMA(start, distance, forward, end);
 
-	// Perform a trace to check for wall collision
-	tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID);
+	// Perform a trace to check for wall collision and other entities
+	tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// Check if the trace didn't find a wall
+	// Check if the trace didn't find a valid placement
 	if (tr.fraction == 1)
 	{
 		gi.Client_Print(ent, PRINT_HIGH, "Too far from wall.\n");
@@ -212,7 +212,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	new_start[2] += height;
 
 	// Ensure the position is valid and does not intersect with other entities
-	tr = gi.trace(new_start, mins, maxs, new_start, NULL, CONTENTS_SOLID);
+	tr = gi.trace(new_start, mins, maxs, new_start, NULL, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 	if (tr.startsolid || tr.allsolid)
 	{
 		gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
@@ -242,6 +242,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	ED_CallSpawn(turret);
 	gi.linkentity(turret);
 }
+
 
 edict_t* SpawnTurret(edict_t* owner)
 {
