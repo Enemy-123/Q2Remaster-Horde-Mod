@@ -260,7 +260,7 @@ void arachnid_melee_hit(edict_t* self)
 mframe_t arachnid_frames_melee[] = {
 	{ ai_charge },
 	{ ai_charge, 0, arachnid_melee_charge },
-	{ ai_charge },
+	{ ai_charge, 0, arachnid_melee_hit },
 	{ ai_charge, 0, arachnid_melee_hit },
 	{ ai_charge, 0, arachnid_melee_charge },
 	{ ai_charge, 0, arachnid_melee_hit },

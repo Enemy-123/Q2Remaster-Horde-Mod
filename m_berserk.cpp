@@ -346,7 +346,7 @@ void berserk_jump_takeoff(edict_t* self)
 	self->velocity[2] = 450;
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
-	self->monsterinfo.attack_finished = level.time + 3_sec;
+	self->monsterinfo.attack_finished = level.time + 2.5_sec;
 	self->touch = berserk_jump_touch;
 	berserk_high_gravity(self);
 }
@@ -377,10 +377,10 @@ void berserk_check_landing(edict_t* self)
 
 mframe_t berserk_frames_attack_strike[] = {
 	{ ai_charge },
-	{ ai_charge },
 	{ ai_move, 0, berserk_jump_takeoff },
 	{ ai_move, 0, berserk_high_gravity },
 	{ ai_move, 0, berserk_check_landing },
+	{ ai_charge },
 	{ ai_move, 0, monster_footstep },
 	{ ai_move },
 	{ ai_move, 0, monster_footstep },
@@ -837,9 +837,9 @@ void SP_monster_berserk(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 85;
+		self->monsterinfo.power_armor_power = 95;
 
-	self->health = 240 * st.health_multiplier;
+	self->health = 250 * st.health_multiplier;
 	self->gib_health = -60;
 	self->mass = 250;
 	self->s.scale = 1.2f;

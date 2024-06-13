@@ -137,7 +137,7 @@ mframe_t gladiator_frames_attack_melee[] = {
 	{ ai_charge, 0, gladiator_cleaver_swing },
 	{ ai_charge, 0, GladiatorMelee },
 	{ ai_charge, 0, gladiator_cleaver_swing },
-	{ ai_charge },
+	{ ai_charge, 0, GladiatorMelee },
 	{ ai_charge, 0, GladiatorMelee },
 	{ ai_charge },
 	{ ai_charge },

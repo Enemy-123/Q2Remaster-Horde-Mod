@@ -578,7 +578,7 @@ mframe_t chick_frames_start_attack1[] = {
 	{ ai_charge, -3 },
 	{ ai_charge, 3 },
 	{ ai_charge, 5 },
-	{ ai_charge, 7, monster_footstep },
+	{ ai_charge, 13, monster_footstep },
 	{ ai_charge },
 	{ ai_charge, 0, chick_attack1 },
 	{ ai_charge },
@@ -647,7 +647,7 @@ void chick_attack1(edict_t* self)
 }
 
 mframe_t chick_frames_slash[] = {
-	{ ai_charge, 1 },
+	{ ai_charge, 7, ChickSlash },
 	{ ai_charge, 7, ChickSlash },
 	{ ai_charge, -7, monster_footstep },
 	{ ai_charge, 1 },

@@ -392,7 +392,7 @@ void tank2Blaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	monster_fire_blaster(self, start, dir, 30, 1130, flash_number, EF_BLASTER);
+	monster_fire_blaster(self, start, dir, 30, 1230, flash_number, EF_BLASTER);
 }
 
 void tank2Strike(edict_t* self)
