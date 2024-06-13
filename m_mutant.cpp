@@ -286,11 +286,11 @@ void mutant_check_refire(edict_t* self)
 
 mframe_t mutant_frames_attack[] = {
 	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, mutant_hit_left },
 	{ ai_charge, 0, mutant_hit_right },
 	{ ai_charge },
 	{ ai_charge, 0, mutant_hit_right },
+	{ ai_charge },
 	{ ai_charge, 0, mutant_check_refire }
 };
 MMOVE_T(mutant_move_attack) = { FRAME_attack09, FRAME_attack15, mutant_frames_attack, mutant_run };
