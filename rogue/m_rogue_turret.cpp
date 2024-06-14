@@ -441,7 +441,7 @@ constexpr int32_t TURRET_BLASTER_DAMAGE = 8;
 constexpr int32_t TURRET_BULLET_DAMAGE = 4;
 // unused
 // constexpr int32_t TURRET_HEAT_DAMAGE	= 4;
-constexpr float ROCKET_FIRE_INTERVAL = 3.0f; // 3 segundos
+constexpr float ROCKET_FIRE_INTERVAL = 2.3f; // 2.3 segundos
 
 void TurretFire(edict_t* self)
 {
@@ -624,41 +624,25 @@ mframe_t turret_frames_fire_blind[] = {
 MMOVE_T(turret_move_fire_blind) = { FRAME_pow01, FRAME_pow04, turret_frames_fire_blind, turret_run };
 // pmm
 
-MONSTERINFO_ATTACK(turret_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(turret_attack) (edict_t* self) -> void
 {
-	float r, chance;
-
 	if (self->s.frame < FRAME_run01)
+	{
 		turret_ready_gun(self);
-	// PMM
+	}
 	else if (self->monsterinfo.attack_state != AS_BLIND)
 	{
 		M_SetAnimation(self, &turret_move_fire);
 	}
 	else
 	{
-		// setup shot probabilities
-		if (self->monsterinfo.blind_fire_delay < 1_sec)
-			chance = 1.0;
-		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
-			chance = 0.4f;
-		else
-			chance = 0.1f;
-
-		r = frandom();
-
-		// minimum of 3 seconds, plus 0-4, after the shots are done - total time should be max less than 7.5
-		self->monsterinfo.blind_fire_delay += random_time(3.4_sec, 7.4_sec);
-		// don't shoot at the origin
+		// No delays or probabilities, directly set the blind fire animation
 		if (!self->monsterinfo.blind_fire_target)
-			return;
-
-		// don't shoot if the dice say not to
-		if (r > chance)
 			return;
 
 		M_SetAnimation(self, &turret_move_fire_blind);
 	}
+
 	// pmm
 }
 

@@ -46,8 +46,8 @@ contents_t G_GetClipMask(edict_t* ent)
 
     if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
         strcmp(ent->classname, "monster_flyer") &&
-        strcmp(ent->classname, "monster_berserk") &&
-        strcmp(ent->classname, "monster_mutant") &&
+     //   strcmp(ent->classname, "monster_berserk") &&
+      //  strcmp(ent->classname, "monster_mutant") &&
         strcmp(ent->classname, "monster_makron") &&
         strcmp(ent->classname, "monster_widow") &&
         strcmp(ent->classname, "monster_widow1") &&
