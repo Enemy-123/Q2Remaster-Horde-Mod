@@ -690,9 +690,9 @@ TOUCH(rocket_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other
 		{
 			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
 			{
-				ThrowGibs(ent, 2, {
+				/*ThrowGibs(ent, 2, {
 					{ (size_t)irandom(5), "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
-					});
+					});*/
 			}
 		}
 	}
