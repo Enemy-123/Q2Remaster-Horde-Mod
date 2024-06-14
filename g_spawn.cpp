@@ -147,6 +147,7 @@ void SP_monster_floater2(edict_t* self);
 void SP_monster_hover(edict_t* self);
 void SP_monster_hover2(edict_t* self);
 void SP_monster_mutant(edict_t* self);
+void SP_monster_redmutant(edict_t* self);
 void SP_monster_supertank(edict_t* self);
 void SP_monster_supertankkl(edict_t* self);
 void SP_monster_boss2(edict_t* self);
@@ -380,6 +381,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_hover", SP_monster_hover },
 	{ "monster_hover2", SP_monster_hover2 },
 	{ "monster_mutant", SP_monster_mutant },
+	{ "monster_redmutant", SP_monster_redmutant },
 	{ "monster_supertank", SP_monster_supertank },
 	{ "monster_supertankkl", SP_monster_supertankkl },
 	{ "monster_boss2", SP_monster_boss2 },

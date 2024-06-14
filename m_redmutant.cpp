@@ -9,6 +9,7 @@ mutant
 */
 
 #include "g_local.h"
+#include "m_redmutant.h"
 #include "shared.h"
 
 constexpr spawnflags_t SPAWNFLAG_REDMUTANT_NOJUMPING = 8_spawnflag;
@@ -73,53 +74,12 @@ mframe_t redmutant_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand }, // 10
 
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand }, // 20
 
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand }, // 30
-
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand }, // 40
-
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
 	{ ai_stand }, // 50
 
 	{ ai_stand }
 };
-MMOVE_T(redmutant_move_stand) = { FRAME_stand101, FRAME_stand151, redmutant_frames_stand, nullptr };
+MMOVE_T(redmutant_move_stand) = { FRAME_stand101, FRAME_stand112, redmutant_frames_stand, nullptr };
 
 MONSTERINFO_STAND(redmutant_stand) (edict_t* self) -> void
 {
@@ -133,7 +93,7 @@ MONSTERINFO_STAND(redmutant_stand) (edict_t* self) -> void
 void redmutant_idle_loop(edict_t* self)
 {
 	if (frandom() < 0.75f)
-		self->monsterinfo.nextframe = FRAME_stand155;
+		self->monsterinfo.nextframe = FRAME_stand201;
 }
 
 mframe_t redmutant_frames_idle[] = {
@@ -149,9 +109,24 @@ mframe_t redmutant_frames_idle[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand },
 	{ ai_stand }
 };
-MMOVE_T(redmutant_move_idle) = { FRAME_stand152, FRAME_stand164, redmutant_frames_idle, redmutant_stand };
+MMOVE_T(redmutant_move_idle) = { FRAME_stand201, FRAME_stand228, redmutant_frames_idle, redmutant_stand };
 
 MONSTERINFO_IDLE(redmutant_idle) (edict_t* self) -> void
 {
@@ -280,7 +255,7 @@ void redmutant_check_refire(edict_t* self)
 		return;
 
 	if ((self->monsterinfo.melee_debounce_time <= level.time) && ((frandom() < 0.5f) || (range_to(self, self->enemy) <= RANGE_MELEE)))
-		self->monsterinfo.nextframe = FRAME_attack09;
+		self->monsterinfo.nextframe = FRAME_attack109;
 }
 
 mframe_t redmutant_frames_attack[] = {
@@ -292,7 +267,7 @@ mframe_t redmutant_frames_attack[] = {
 	{ ai_charge },
 	{ ai_charge, 0, redmutant_check_refire }
 };
-MMOVE_T(redmutant_move_attack) = { FRAME_attack09, FRAME_attack15, redmutant_frames_attack, redmutant_run };
+MMOVE_T(redmutant_move_attack) = { FRAME_attack109, FRAME_attack115, redmutant_frames_attack, redmutant_run };
 
 MONSTERINFO_MELEE(redmutant_melee) (edict_t* self) -> void
 {
@@ -333,7 +308,7 @@ TOUCH(redmutant_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, b
 	{
 		if (self->groundentity)
 		{
-			self->monsterinfo.nextframe = FRAME_attack02;
+			self->monsterinfo.nextframe = FRAME_attack102;
 			self->touch = nullptr;
 		}
 		return;
@@ -377,9 +352,9 @@ void redmutant_check_landing(edict_t* self)
 	}
 
 	if (level.time > self->monsterinfo.attack_finished)
-		self->monsterinfo.nextframe = FRAME_attack02;
+		self->monsterinfo.nextframe = FRAME_attack101;
 	else
-		self->monsterinfo.nextframe = FRAME_attack05;
+		self->monsterinfo.nextframe = FRAME_attack108;
 }
 
 mframe_t redmutant_frames_jump[] = {
@@ -392,7 +367,7 @@ mframe_t redmutant_frames_jump[] = {
 	{ ai_charge, 3 },
 	{ ai_charge }
 };
-MMOVE_T(redmutant_move_jump) = { FRAME_attack01, FRAME_attack08, redmutant_frames_jump, redmutant_run };
+MMOVE_T(redmutant_move_jump) = { FRAME_attack101, FRAME_attack108, redmutant_frames_jump, redmutant_run };
 
 MONSTERINFO_ATTACK(redmutant_jump) (edict_t* self) -> void
 {
@@ -447,7 +422,7 @@ MONSTERINFO_CHECKATTACK(redmutant_checkattack) (edict_t* self) -> bool
 		return true;
 	}
 
-	if (!self->spawnflags.has(SPAWNFLAG_redmutant_NOJUMPING) && redmutant_check_jump(self))
+	if (!self->spawnflags.has(SPAWNFLAG_REDMUTANT_NOJUMPING) && redmutant_check_jump(self))
 	{
 		self->monsterinfo.attack_state = AS_MISSILE;
 		return true;
@@ -573,7 +548,7 @@ mframe_t redmutant_frames_death2[] = {
 	{ ai_move_slide_left, 2 },
 	{ ai_move_slide_left }
 };
-MMOVE_T(redmutant_move_death2) = { FRAME_death201, FRAME_death210, redmutant_frames_death2, monster_dead };
+MMOVE_T(redmutant_move_death2) = { FRAME_death101, FRAME_death110, redmutant_frames_death2, monster_dead };
 
 DIE(redmutant_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
@@ -642,18 +617,24 @@ mframe_t redmutant_frames_jump_up[] = {
 	{ ai_move, -8, redmutant_jump_up },
 	{ ai_move, 0, redmutant_jump_wait_land },
 	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(redmutant_move_jump_up) = { FRAME_jump01, FRAME_jump05, redmutant_frames_jump_up, redmutant_run };
+MMOVE_T(redmutant_move_jump_up) = { FRAME_attack101, FRAME_attack108, redmutant_frames_jump_up, redmutant_run };
 
 mframe_t redmutant_frames_jump_down[] = {
 	{ ai_move },
 	{ ai_move, 0, redmutant_jump_down },
 	{ ai_move, 0, redmutant_jump_wait_land },
 	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(redmutant_move_jump_down) = { FRAME_jump01, FRAME_jump05, redmutant_frames_jump_down, redmutant_run };
+MMOVE_T(redmutant_move_jump_down) = { FRAME_attack101, FRAME_attack108, redmutant_frames_jump_down, redmutant_run };
 
 void redmutant_jump_updown(edict_t* self, blocked_jump_result_t result)
 {

@@ -147,6 +147,7 @@
     <ClInclude Include="m_tank.h" />
     <ClInclude Include="q_std.h" />
     <ClInclude Include="q_vec3.h" />
+    <ClInclude Include="m_redmutant.h" />
     <ClInclude Include="rogue\m_rogue_carrier.h" />
     <ClInclude Include="rogue\m_rogue_stalker.h" />
     <ClInclude Include="rogue\m_rogue_turret.h" />
@@ -213,6 +214,7 @@
     <ClCompile Include="m_move.cpp" />
     <ClCompile Include="m_mutant.cpp" />
     <ClCompile Include="m_parasite.cpp" />
+    <ClCompile Include="m_redmutant.cpp" />
     <ClCompile Include="m_shambler.cpp" />
     <ClCompile Include="m_soldier.cpp" />
     <ClCompile Include="m_supertank.cpp" />

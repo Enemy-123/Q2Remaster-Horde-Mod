@@ -6,9 +6,6 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "game", "game.vcxproj", "{C994B5EA-3058-403C-953D-3673C2C4D64E}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Elementos de la solución", "Elementos de la solución", "{75F3B94F-9C32-461E-BC6F-3D7233A8BFF9}"
-	ProjectSection(SolutionItems) = preProject
-		m_redmutant.cpp = m_redmutant.cpp
-	EndProjectSection
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
