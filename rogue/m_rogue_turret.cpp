@@ -998,6 +998,8 @@ void SP_monster_turret(edict_t* self)
 		self->monsterinfo.team = CTF_TEAM1;
 		self->s.effects = EF_BOB | EF_GRENADE;
 		self->monsterinfo.attack_state = AS_BLIND;
+
+		ApplyMonsterBonusFlags(self);
 	}
 
 	if (!M_AllowSpawn(self))
@@ -1019,9 +1021,9 @@ void SP_monster_turret(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 50;
+		self->monsterinfo.power_armor_power = 65 + (current_wave_number * 5);
 
-	self->health = 100 * st.health_multiplier;
+	self->health = 100 + (current_wave_number * 5);
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;
@@ -1153,7 +1155,6 @@ void SP_monster_turret(edict_t* self)
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET | SPAWNFLAG_TURRET_BLASTER))
 		self->monsterinfo.blindfire = true;
 
-	ApplyMonsterBonusFlags(self);
 }
 
 //HORDE BOSS

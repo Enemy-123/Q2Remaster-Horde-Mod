@@ -928,7 +928,7 @@ bool FindTarget(edict_t* self)
         if (g_horde->integer)
         {
             // Allow monsters with FL_FLY or with AI_STAND_GROUND | AI_TEMP_STAND_GROUND to hear in horde mode
-            if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
+            if (!(self->flags & FL_FLY) || !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
             {
                 return false;
             }
