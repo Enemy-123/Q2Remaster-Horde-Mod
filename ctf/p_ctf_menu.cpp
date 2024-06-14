@@ -13,7 +13,7 @@ pmenuhnd_t* PMenu_Open(edict_t* ent, const pmenu_t* entries, int cur, int num, v
 	int i;
 
 	if (level.intermissiontime)
-		return;
+		return nullptr;
 
 	if (!ent->client)
 		return nullptr;
