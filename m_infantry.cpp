@@ -3,7 +3,7 @@
 /*
 ==============================================================================
 
-INFANTRY
+INFANTRY BLASTER2
 
 ==============================================================================
 */
@@ -253,6 +253,7 @@ MONSTERINFO_SETSKIN(infantry_setskin) (edict_t *self) -> void
 		self->s.skinnum = 1;
 	else
 		self->s.skinnum = 0;
+//		self->s.skinnum = gi.imageindex("models/vault/monsters/infantry/camo.pcx");
 }
 
 constexpr vec3_t aimangles[] = {
@@ -944,6 +945,9 @@ void SP_monster_infantry(edict_t *self)
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_INFANTRY_NOJUMPING);
 	self->monsterinfo.drop_height = 192;
 	self->monsterinfo.jump_height = 40;
+
+//	self->s.renderfx |= RF_CUSTOMSKIN;
+//	self->s.skinnum = gi.imageindex("models/vault/monsters/infantry/camo.pcx");
 
 	walkmonster_start(self);
 

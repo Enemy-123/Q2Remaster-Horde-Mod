@@ -339,7 +339,7 @@ void use_scanner(edict_t* self)
 					vec = self->s.origin - self->goalentity->s.origin;
 					len = vec.normalize();
 
-					fixbot_set_fly_parameters(self, false, true);
+					fixbot_set_fly_parameters(self, false, false);
 
 					if (len < 32)
 					{
@@ -1292,33 +1292,17 @@ MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 
 MONSTERINFO_RUN(fixbot_run) (edict_t* self) -> void
 {
-	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-		M_SetAnimation(self, &fixbot_move_stand);
-	else
 		M_SetAnimation(self, &fixbot_move_run);
 }
 
 MONSTERINFO_WALK(fixbot_walk) (edict_t* self) -> void
 {
-	vec3_t vec;
-	float  len;
-
-	if (self->goalentity && strcmp(self->goalentity->classname, "object_repair") == 0)
-	{
-		vec = self->s.origin - self->goalentity->s.origin;
-		len = vec.length();
-		if (len < 32)
-		{
-			M_SetAnimation(self, &fixbot_move_weld_start);
-			return;
-		}
-	}
 	M_SetAnimation(self, &fixbot_move_walk);
 }
 
 void fixbot_start_attack(edict_t* self)
 {
-	if (self->enemy && self->enemy->client) { // Solo atacar si el enemigo es un jugador
+	if (self->enemy) { 
 		M_SetAnimation(self, &fixbot_move_start_attack);
 	}
 	else {
@@ -1328,7 +1312,7 @@ void fixbot_start_attack(edict_t* self)
 
 
 MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void {
-	if (self->enemy && self->enemy->client) { // Solo atacar si el enemigo es un jugador
+	if (self->enemy) {
 		fixbot_set_fly_parameters(self, false, false);
 		M_SetAnimation(self, &fixbot_move_attack2);
 	}
