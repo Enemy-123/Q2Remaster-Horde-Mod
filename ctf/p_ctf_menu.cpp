@@ -12,6 +12,9 @@ pmenuhnd_t* PMenu_Open(edict_t* ent, const pmenu_t* entries, int cur, int num, v
 	const pmenu_t* p;
 	int i;
 
+	if (level.intermissiontime)
+		return;
+
 	if (!ent->client)
 		return nullptr;
 
@@ -225,6 +228,9 @@ void PMenu_Next(edict_t* ent)
 	int			i;
 	pmenu_t* p;
 
+	if (level.intermissiontime)
+		return;
+
 	if (!ent->client->menu)
 	{
 		gi.Com_Print("warning:  ent has no menu\n");
@@ -261,6 +267,9 @@ void PMenu_Prev(edict_t* ent)
 	pmenuhnd_t* hnd;
 	int			i;
 	pmenu_t* p;
+
+	if (level.intermissiontime)
+		return;
 
 	if (!ent->client->menu)
 	{
@@ -300,6 +309,9 @@ void PMenu_Select(edict_t* ent)
 {
 	pmenuhnd_t* hnd;
 	pmenu_t* p;
+
+	if (level.intermissiontime)
+		return;
 
 	if (!ent->client->menu)
 	{

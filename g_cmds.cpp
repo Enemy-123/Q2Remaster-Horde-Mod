@@ -781,6 +781,9 @@ void Cmd_InvUse_f(edict_t* ent)
 {
 	gitem_t* it;
 
+	if (level.intermissiontime)
+		return;
+
 	// ZOID
 	if (ent->client->menu)
 	{
