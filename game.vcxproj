@@ -166,7 +166,7 @@
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
-    <ClCompile Include="m_guncmdr2.cpp" />
+    <ClCompile Include="m_guncmdr_vanilla.cpp" />
     <ClCompile Include="m_gunner2.cpp" />
     <ClCompile Include="g_ai.cpp" />
     <ClCompile Include="g_chase.cpp" />
@@ -219,7 +219,7 @@
     <ClCompile Include="m_soldier.cpp" />
     <ClCompile Include="m_supertank.cpp" />
     <ClCompile Include="m_tank.cpp" />
-    <ClCompile Include="m_tank2.cpp" />
+    <ClCompile Include="m_tank_vanilla.cpp" />
     <ClCompile Include="p_client.cpp" />
     <ClCompile Include="p_hud.cpp" />
     <ClCompile Include="p_move.cpp" />
