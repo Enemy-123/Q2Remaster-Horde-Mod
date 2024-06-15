@@ -768,7 +768,7 @@ void reloogie(edict_t* self)
 	}
 
 	if (self->enemy->health >= 0)
-		if (frandom() > 0.7f && (range_to(self, self->enemy) <= RANGE_NEAR))
+		if ((range_to(self, self->enemy) <= RANGE_NEAR))
 			M_SetAnimation(self, &gekk_move_spit);
 }
 
@@ -986,12 +986,12 @@ void gekk_jump_takeoff(edict_t* self)
 	// high jump
 	if (gekk_check_jump(self))
 	{
-		self->velocity = forward * 700;
+		self->velocity = forward * 950;
 		self->velocity[2] = 250;
 	}
 	else
 	{
-		self->velocity = forward * 250;
+		self->velocity = forward * 450;
 		self->velocity[2] = 400;
 	}
 
