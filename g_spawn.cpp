@@ -572,6 +572,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_chick", {"monster_chick_heat"}, 1},
 		{"monster_boss2kl", {"monster_carrier"}, 1},
 		{"monster_medic", {"monster_spider"}, 1},
+		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus"}, 2},
 		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2"}, 3},
 	};
@@ -582,6 +583,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}, 6},
 		{"monster_soldier_ss", {"monster_infantry", "monster_infantry2"}, 2},
 		{"monster_infantry", {"monster_gunner", "monster_gunner2"}, 2},
+		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
 		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr2"}, 2},
 		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover2"}, 4},
 		{"monster_hover", {"monster_hover", "monster_hover2", "monster_daedalus2", "monster_daedalus"}, 4},
