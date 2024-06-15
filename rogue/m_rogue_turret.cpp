@@ -438,10 +438,10 @@ MONSTERINFO_RUN(turret_run) (edict_t *self) -> void
 // **********************
 
 constexpr int32_t TURRET_BLASTER_DAMAGE = 8;
-constexpr int32_t TURRET_BULLET_DAMAGE = 4;
+constexpr int32_t TURRET_BULLET_DAMAGE = 6;
 // unused
 // constexpr int32_t TURRET_HEAT_DAMAGE	= 4;
-constexpr float ROCKET_FIRE_INTERVAL = 2.3f; // 2.3 segundos
+constexpr float ROCKET_FIRE_INTERVAL = 2.0f; // 2.3 segundos
 
 void TurretFire(edict_t* self)
 {
@@ -488,7 +488,7 @@ void TurretFire(edict_t* self)
 			if ((self->enemy) && (self->enemy->client))
 				end[2] += self->enemy->viewheight;
 			else
-				end[2] += 14;
+				end[2] += 10;
 		}
 
 		dir = end - start;
@@ -501,7 +501,7 @@ void TurretFire(edict_t* self)
 			// on harder difficulties, randomly fire directly at enemy
 			// more often; makes them more unpredictable
 			if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
-				PredictAim(self, self->enemy, start, 0, true, 0.3f, &dir, nullptr);
+				PredictAim(self, self->enemy, start, 0, true, 0.0f, &dir, nullptr);
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET) || frandom() < skill->integer / 5.f)
 				PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 		}
@@ -540,8 +540,8 @@ void TurretFire(edict_t* self)
 					if (self->monsterinfo.next_duck_time < level.time &&
 						self->monsterinfo.melee_debounce_time <= level.time)
 					{
-						monster_fire_bullet(self, start, dir, TURRET_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
-						self->monsterinfo.melee_debounce_time = level.time + 10_hz;
+						monster_fire_bullet(self, start, dir, TURRET_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD / 3, DEFAULT_BULLET_VSPREAD / 3, MZ2_TURRET_MACHINEGUN);
+						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 					}
 
 					if (self->monsterinfo.duck_wait_time < level.time)
@@ -606,9 +606,9 @@ void TurretFireBlind(edict_t *self)
 
 mframe_t turret_frames_fire[] = {
 	{ ai_run, 0, TurretFire },
-	{ ai_run, 0, TurretAim },
-	{ ai_run, 0, TurretAim },
-	{ ai_run, 0, TurretAim }
+	{ ai_run, 0, TurretFire },
+	{ ai_run, 0, TurretFire },
+	{ ai_run, 0, TurretFire },
 };
 MMOVE_T(turret_move_fire) = { FRAME_pow01, FRAME_pow04, turret_frames_fire, turret_run };
 
@@ -616,10 +616,11 @@ MMOVE_T(turret_move_fire) = { FRAME_pow01, FRAME_pow04, turret_frames_fire, turr
 
 // the blind frames need to aim first
 mframe_t turret_frames_fire_blind[] = {
-	{ ai_run, 0, TurretAim },
-	{ ai_run, 0, TurretAim },
-	{ ai_run, 0, TurretAim },
+	{ ai_run, 0, TurretFireBlind },
+	{ ai_run, 0, TurretFireBlind },
+	{ ai_run, 0, TurretFireBlind },
 	{ ai_run, 0, TurretFireBlind }
+
 };
 MMOVE_T(turret_move_fire_blind) = { FRAME_pow01, FRAME_pow04, turret_frames_fire_blind, turret_run };
 // pmm
