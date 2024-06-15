@@ -201,8 +201,6 @@ MMOVE_T(tank2_move_stop_run) = { FRAME_walk21, FRAME_walk25, tank2_frames_stop_r
 MONSTERINFO_RUN(tank2_run) (edict_t* self) -> void
 {
 	if (self->enemy && self->enemy->client)
-		self->monsterinfo.aiflags |= AI_BRUTAL;
-	else
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
@@ -803,7 +801,6 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 
 	if (self->enemy->health <= 0)
 	{
-		M_SetAnimation(self, &tank2_move_attack_strike);
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
 		return;
 	}

@@ -514,10 +514,10 @@ void ChickRocket(edict_t* self)
 			{
 				// RAFAEL
 				if (self->s.skinnum > 1)
-					monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.075f);
+					monster_fire_heat(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1, 0.095f);
 				else
 					// RAFAEL
-					monster_fire_rocket(self, start, dir, 50, rocketSpeed, MZ2_CHICK_ROCKET_1);
+					monster_fire_rocket(self, start, dir, 60, rocketSpeed, MZ2_CHICK_ROCKET_1);
 			}
 			else
 			{

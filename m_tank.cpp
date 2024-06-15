@@ -392,9 +392,9 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	if (current_wave_number >= 25 || g_hardcoop->integer == 2 || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+	if (current_wave_number >= 25 || g_hardcoop->integer || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 
-		PredictAim(self, self->enemy, start, 0, false, 0.08f, &dir, nullptr);
+		PredictAim(self, self->enemy, start, 0, false, 0.075f, &dir, nullptr);
 
 		vec3_t end = start + (dir * 8192);
 		trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
@@ -1134,7 +1134,7 @@ void SP_monster_tank(edict_t* self)
 
 	// heat seekingness
 	if (!self->accel)
-		self->accel = 0.075f;
+		self->accel = 0.095f;
 
 	self->mass = 500;
 
