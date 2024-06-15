@@ -891,7 +891,7 @@ MMOVE_T(fixbot_move_walk) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_wa
 
 */
 mframe_t fixbot_frames_run[] = {
-	{ ai_run, 10 }
+	{ ai_run, 6 }
 };
 MMOVE_T(fixbot_move_run) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_run, nullptr };
 
@@ -1385,8 +1385,8 @@ void SP_monster_fixbot(edict_t* self)
 
 	self->s.modelindex = gi.modelindex("models/monsters/fixbot/tris.md2");
 
-	self->mins = { -32, -32, -24 };
-	self->maxs = { 32, 32, 24 };
+	self->mins = { -16, -16, -12 };
+	self->maxs = { 16, 16, 12 };
 
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
