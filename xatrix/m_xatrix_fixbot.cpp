@@ -224,6 +224,8 @@ void takeoff_goal(edict_t* self)
 
 void change_to_roam(edict_t* self)
 {
+	if (self->enemy)
+		return;
 
 	if (fixbot_search(self))
 		return;
@@ -312,6 +314,10 @@ void roam_goal(edict_t* self)
 
 void use_scanner(edict_t* self)
 {
+
+	if (self->enemy)
+		return;
+
 	edict_t* ent = nullptr;
 
 	float  radius = 1024;
@@ -543,11 +549,16 @@ void blastoff(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dama
 
 void fly_vertical(edict_t* self)
 {
+	if (self->enemy)
+		return;
 	int	   i;
 	vec3_t v;
 	vec3_t forward, right, up;
 	vec3_t start;
 	vec3_t tempvec;
+
+	if (self->enemy)
+		return;
 
 	v = self->goalentity->s.origin - self->s.origin;
 	self->ideal_yaw = vectoyaw(v);
@@ -576,6 +587,9 @@ void fly_vertical(edict_t* self)
 
 void fly_vertical2(edict_t* self)
 {
+	if (self->enemy)
+		return;
+
 	vec3_t v;
 	float  len;
 
@@ -764,7 +778,6 @@ MMOVE_T(fixbot_move_roamgoal) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frame
 
 void ai_facing(edict_t* self, float dist)
 {
-	if (!self->goalentity)
 	{
 		fixbot_stand(self);
 		return;
@@ -1281,7 +1294,7 @@ void fixbot_fire_blaster(edict_t* self)
 
 MONSTERINFO_STAND(fixbot_stand) (edict_t* self) -> void
 {
-	if (fixbot_search(self)) {
+	if (self->enemy) {
 		// Si encuentra un enemigo, inicia el ataque
 		self->monsterinfo.run(self);
 	}
@@ -1353,8 +1366,6 @@ void fixbot_dead(edict_t* self)
 
 DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-
-
 
 	ThrowGibs(self, damage, {
 
