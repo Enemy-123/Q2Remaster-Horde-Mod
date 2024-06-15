@@ -1638,7 +1638,7 @@ void G_InitStatusbar(statusbar_t& sb)
 			sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 			sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
-			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
+			sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2(" Stroggs  \n To Kill!");
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(0).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 			sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		}
@@ -1670,7 +1670,7 @@ void G_InitStatusbar(statusbar_t& sb)
 		sb.xv(-155).yb(-23).string(" \nWave Level:");
 
 		// MONSTERS COUNT
-		sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2("Stroggs \n Alive:");
+		sb.xv(420).yb(-23).num(3, STAT_CTF_TEAM2_CAPS).xv(360).yb(-23).string2(" Stroggs  \n To Kill!");
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
