@@ -177,12 +177,12 @@ MONSTERINFO_WALK(redmutant_walk) (edict_t* self) -> void
 //
 
 mframe_t redmutant_frames_run[] = {
-	{ ai_run, 40 },
-	{ ai_run, 40, redmutant_step },
-	{ ai_run, 24 },
-	{ ai_run, 5, redmutant_step },
-	{ ai_run, 17 },
-	{ ai_run, 10 }
+	{ ai_run, 44 },
+	{ ai_run, 44, redmutant_step },
+	{ ai_run, 28 },
+	{ ai_run, 8, redmutant_step },
+	{ ai_run, 22 },
+	{ ai_run, 15 }
 };
 MMOVE_T(redmutant_move_run) = { FRAME_run03, FRAME_run08, redmutant_frames_run, nullptr };
 
@@ -204,7 +204,7 @@ void redmutant_hit_left(edict_t* self)
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		if (fire_hit(self, aim, irandom(5, 15) * M_DamageModifier(self), 100))
+		if (fire_hit(self, aim, irandom(10, 20) * M_DamageModifier(self), 100))
 			gi.sound(self, CHAN_WEAPON, sound_hit, 1, ATTN_NORM, 0);
 		else
 		{
@@ -230,7 +230,7 @@ void redmutant_hit_right(edict_t* self)
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		if (fire_hit(self, aim, irandom(5, 15) * M_DamageModifier(self), 100))
+		if (fire_hit(self, aim, irandom(10, 20) * M_DamageModifier(self), 100))
 			gi.sound(self, CHAN_WEAPON, sound_hit2, 1, ATTN_NORM, 0);
 		else
 		{
