@@ -298,7 +298,7 @@ TOUCH(redmutant_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, b
 			normal = self->velocity;
 			normal.normalize();
 			point = self->s.origin + (normal * self->maxs[0]);
-			damage = (int)frandom(40, 50);
+			damage = (int)frandom(70, 80);
 			T_Damage(other, self, self, self->velocity, point, normal, damage, damage, DAMAGE_NONE, MOD_UNKNOWN);
 			self->style = 0;
 		}
@@ -324,11 +324,11 @@ void redmutant_jump_takeoff(edict_t* self)
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin[2] += 1;
-	self->velocity = forward * 725;
+	self->velocity = forward * 1125;
 	self->velocity[2] = 160;
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
-	self->monsterinfo.attack_finished = level.time + 3_sec;
+	self->monsterinfo.attack_finished = level.time + 1.3_sec;
 	self->style = 1;
 	self->touch = redmutant_jump_touch;
 }
@@ -722,9 +722,10 @@ void SP_monster_redmutant(edict_t* self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 160 * st.health_multiplier;
+	self->health = 440 * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 300;
+	self->s.scale = 1.1f;
 
 	self->pain = redmutant_pain;
 	self->die = redmutant_die;
