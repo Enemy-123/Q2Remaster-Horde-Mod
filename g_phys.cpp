@@ -60,8 +60,8 @@ contents_t G_GetClipMask(edict_t* ent)
     }
     else if (g_horde->integer && !strcmp(ent->classname, "monster_turret") ||
    (g_horde->integer && !strcmp(ent->classname, "tesla_mine"))) {
-        mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
-        mask |= CONTENTS_PROJECTILECLIP;
+        mask &= ~(CONTENTS_PLAYER);
+        mask |= CONTENTS_PROJECTILECLIP | CONTENTS_MONSTER;
     }
     return mask;
 }

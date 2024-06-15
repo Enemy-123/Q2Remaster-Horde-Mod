@@ -1017,7 +1017,7 @@ edict_t *CheckForBadArea(edict_t *ent)
 	return hit;
 }
 
-constexpr float TESLA_DAMAGE_RADIUS = 128;
+constexpr float TESLA_DAMAGE_RADIUS = 116;
 
 bool MarkTeslaArea(edict_t *self, edict_t *tesla)
 {
