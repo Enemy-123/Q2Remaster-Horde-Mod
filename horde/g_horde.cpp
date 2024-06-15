@@ -336,7 +336,7 @@ constexpr struct weighted_item_t {
     { "item_sphere_defender", -1, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
-    { "item_doppleganger", 3, -1, 0.068f, adjust_weight_powerup },
+    { "item_doppleganger", 3, -1, 0.054f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -404,8 +404,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_chick", 6, 18, 0.3f },
     { "monster_chick_heat", 10, -1, 0.34f },
     { "monster_berserk", 6, -1, 0.35f },
-    { "monster_floater", 7, -1, 0.16f },
-    { "monster_floater", 4, -1, 0.1f },
+    { "monster_floater", 6, -1, 0.16f },
     { "monster_hover", 15, -1, 0.18f },
     { "monster_daedalus", 13, -1, 0.13f },
     { "monster_daedalus2", 16, -1, 0.11f },
