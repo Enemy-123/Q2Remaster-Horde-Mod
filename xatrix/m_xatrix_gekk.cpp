@@ -629,7 +629,7 @@ void gekk_hit_left(edict_t* self)
 	}
 
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
-	if (fire_hit(self, aim, irandom(5, 10), 100))
+	if (fire_hit(self, aim, irandom(15, 20), 100))
 		gi.sound(self, CHAN_WEAPON, sound_hit, 1, ATTN_NORM, 0);
 	else
 	{
@@ -651,7 +651,7 @@ void gekk_hit_right(edict_t* self)
 	}
 
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
-	if (fire_hit(self, aim, irandom(5, 10), 100))
+	if (fire_hit(self, aim, irandom(15, 20), 100))
 		gi.sound(self, CHAN_WEAPON, sound_hit2, 1, ATTN_NORM, 0);
 	else
 	{
@@ -730,6 +730,7 @@ void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 		loogie->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		loogie->touch(loogie, tr.ent, tr, false);
 	}
+	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 }
 
 void loogie(edict_t* self)
@@ -753,7 +754,7 @@ void loogie(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	fire_loogie(self, start, dir, 5, 550);
+	fire_loogie(self, start, dir, 7, 850);
 
 	gi.sound(self, CHAN_BODY, sound_speet, 1.0f, ATTN_NORM, 0);
 }
@@ -777,7 +778,6 @@ mframe_t gekk_frames_spit[] = {
 	{ ai_charge },
 	{ ai_charge, 0, loogie },
 	{ ai_charge },
-
 	{ ai_charge, 0, loogie },
 	{ ai_charge, 0, reloogie }
 };
