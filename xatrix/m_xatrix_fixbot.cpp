@@ -109,7 +109,7 @@ static void fixbot_set_attack_fly_parameters(edict_t* self) {
 static void fixbot_set_fly_parameters(edict_t* self, bool heal, bool weld)
 {
 	self->monsterinfo.fly_position_time = 0_sec;
-	self->monsterinfo.fly_acceleration = 14.f;
+	self->monsterinfo.fly_acceleration = 8.f;
 	self->monsterinfo.fly_speed = 160.f;
 	self->monsterinfo.fly_buzzard = false;
 
@@ -141,8 +141,6 @@ edict_t* fixbot_FindLiveEnemy(edict_t* self) {
 			continue;
 		if (ent->health <= 0)
 			continue;
-		if (!visible(self, ent))
-			continue;
 		return ent;
 	}
 	return nullptr;
@@ -151,7 +149,7 @@ int fixbot_search(edict_t* self)
 {
 	edict_t* ent;
 	extern void fixbot_start_attack(edict_t * self);
-	if (!self->enemy)
+	if (!self->enemy || self->monsterinfo.aiflags & AI_STAND_GROUND)
 	{
 		ent = fixbot_FindLiveEnemy(self);
 		if (ent) {
@@ -549,16 +547,12 @@ void blastoff(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dama
 
 void fly_vertical(edict_t* self)
 {
-	if (self->enemy)
-		return;
+
 	int	   i;
 	vec3_t v;
 	vec3_t forward, right, up;
 	vec3_t start;
 	vec3_t tempvec;
-
-	if (self->enemy)
-		return;
 
 	v = self->goalentity->s.origin - self->s.origin;
 	self->ideal_yaw = vectoyaw(v);
@@ -587,9 +581,6 @@ void fly_vertical(edict_t* self)
 
 void fly_vertical2(edict_t* self)
 {
-	if (self->enemy)
-		return;
-
 	vec3_t v;
 	float  len;
 
@@ -802,7 +793,6 @@ MMOVE_T(fixbot_move_turn) = { FRAME_freeze_01, FRAME_freeze_01, fixbot_frames_tu
 
 void go_roam(edict_t* self)
 {
-	M_SetAnimation(self, &fixbot_move_stand);
 }
 
 /*
