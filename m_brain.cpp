@@ -279,6 +279,9 @@ void brain_swing_right(edict_t* self)
 
 void brain_hit_right(edict_t* self)
 {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		return;
+	}
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
@@ -304,6 +307,9 @@ void brain_swing_left(edict_t* self)
 
 void brain_hit_left(edict_t* self)
 {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		return;
+	}
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
@@ -354,6 +360,9 @@ void brain_chest_open(edict_t* self)
 
 void brain_tentacle_attack(edict_t* self)
 {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		return;
+	}
 	if (self->enemy) {
 		vec3_t aim = { MELEE_DISTANCE, 0, 8 };
 		if (fire_hit(self, aim, irandom(10, 15), -600))

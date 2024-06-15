@@ -630,7 +630,9 @@ void infantry2_swing(edict_t* self)
 void infantry2_smack(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
-
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		return;
+	}
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		// Llamar a fire_hit solo si self->enemy está inicializado

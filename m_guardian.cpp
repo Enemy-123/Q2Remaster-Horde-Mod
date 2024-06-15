@@ -359,6 +359,9 @@ MMOVE_T(guardian_move_atk2_in) = { FRAME_atk2_in1, FRAME_atk2_in12, guardian_fra
 
 void guardian_kick(edict_t* self)
 {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		return;
+	}
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, 85, 700))

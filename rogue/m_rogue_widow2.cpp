@@ -499,6 +499,9 @@ void Widow2TonguePull(edict_t* self)
 
 void Widow2Crunch(edict_t* self)
 {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		return;
+	}
 	vec3_t aim;
 
 	if ((!self->enemy) || (!self->enemy->inuse))

@@ -550,7 +550,9 @@ MONSTERINFO_ATTACK(stalker_attack_ranged) (edict_t* self) -> void
 void stalker_swing_attack(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
-
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+		return;
+	}
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		if (fire_hit(self, aim, irandom(5, 10), 50)) {
