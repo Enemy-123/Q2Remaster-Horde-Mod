@@ -722,9 +722,9 @@ void SP_monster_redmutant(edict_t* self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 440 * st.health_multiplier;
+	self->health = 640 * st.health_multiplier;
 	self->gib_health = -120;
-	self->mass = 300;
+	self->mass = 450;
 	self->s.scale = 1.1f;
 
 	self->pain = redmutant_pain;

@@ -1023,7 +1023,7 @@ void SP_monster_turret(edict_t* self)
 	self->movetype = MOVETYPE_NONE;
 
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 65 + (current_wave_number * 5);
 

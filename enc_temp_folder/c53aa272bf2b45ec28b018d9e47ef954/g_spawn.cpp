@@ -552,6 +552,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_tank_commander", {"monster_shambler"}, 1},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
+		{"monster_boss2kl", {"monster_carrier"}, 1},
 	};
 	int chaotic_replacement_count = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
 
@@ -569,6 +570,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_stalker", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick_heat"}, 1},
+		{"monster_boss2kl", {"monster_carrier"}, 1},
 		{"monster_medic", {"monster_spider"}, 1},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus"}, 2},
