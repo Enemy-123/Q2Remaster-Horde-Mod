@@ -33,7 +33,10 @@ bool FindMTarget(edict_t* self)
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		ent = &g_edicts[i];
+		for (auto player : active_players())
 
+		if (player)
+				continue;
 		if (!ent->inuse)
 			continue;
 
