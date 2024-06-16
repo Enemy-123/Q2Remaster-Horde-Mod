@@ -331,15 +331,16 @@ constexpr struct weighted_item_t {
     float weight = 1.0f;
     weight_adjust_func_t adjust_weight = nullptr;
 } items[] = {
-    { "item_health", -1, 5, 0.20f, adjust_weight_health },
-    { "item_health_large", -1, -1, 0.12f, adjust_weight_health },
-    { "item_health_mega", -1, -1, 0.04f, adjust_weight_health },
+    { "item_health", 3, 5, 0.20f, adjust_weight_health },
+    { "item_health_large", -1, 4, 0.06f, adjust_weight_health },
+    { "item_health_large", 5, -1, 0.12f, adjust_weight_health },
+    { "item_health_mega", 4, -1, 0.04f, adjust_weight_health },
     { "item_adrenaline", -1, -1, 0.08f, adjust_weight_health },
 
     { "item_armor_shard", -1, 7, 0.09f, adjust_weight_armor },
-    { "item_armor_jacket", -1, 7, 0.12f, adjust_weight_armor },
-    { "item_armor_combat", 8, -1, 0.06f, adjust_weight_armor },
-    { "item_armor_body", 14, -1, 0.05f, adjust_weight_armor },
+    { "item_armor_jacket", -1, 12, 0.12f, adjust_weight_armor },
+    { "item_armor_combat", 13, -1, 0.06f, adjust_weight_armor },
+    { "item_armor_body", 20, -1, 0.05f, adjust_weight_armor },
     { "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
     { "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
 

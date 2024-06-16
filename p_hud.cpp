@@ -1081,7 +1081,6 @@ void G_SetStats(edict_t* ent)
 	// frags
 	//
 	 ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree; // unused test
-//	 ent->client->ps.stats[STAT_LASTDMG] = ent->client->last_damage_time; // unused test
 
 	//
 	// help icon / current weapon if not shown

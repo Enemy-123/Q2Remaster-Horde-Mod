@@ -615,22 +615,19 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
-
-
 	// Q2ETweaks self damage avoidance
 	// if enabled you can't hurt yourself
 	// knockback still occurs
 	if ((targ == attacker) && !(dflags & DAMAGE_NO_PROTECTION))
 	{
 		// if we're not a nuke & self damage is disabled, just kill the damage
-		//if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_TRAP) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
-		if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
-
+				//if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_TRAP) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
+	if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
 			damage = 0;
 	}
 
 	// ROGUE
-	//  allow the deathmatch game to change values
+	// allow the deathmatch game to change values
 	if (G_IsDeathmatch() && gamerules->integer)
 	{
 		if (DMGame.ChangeDamage)
@@ -641,7 +638,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		if (!damage)
 			return;
 	}
-
 
 	// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
 	if (g_autohaste->integer) {
@@ -668,8 +664,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
-
-
 
 	// easy mode takes half damage
 	if (skill->integer == 0 && !G_IsDeathmatch() && targ->client && damage)
@@ -855,193 +849,195 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		}
 	}
 
+	// ZOID
+	// team armor protect
+	if (G_TeamplayEnabled() && targ->client && attacker->client &&
+		targ->client->resp.ctf_team == attacker->client->resp.ctf_team && targ != attacker &&
+		g_teamplay_armor_protect->integer)
+	{
+		psave = asave = 0;
+	}
+	else
+	{
 		// ZOID
-		// team armor protect
-		if (G_TeamplayEnabled() && targ->client && attacker->client &&
-			targ->client->resp.ctf_team == attacker->client->resp.ctf_team && targ != attacker &&
-			g_teamplay_armor_protect->integer)
+		psave = CheckPowerArmor(targ, point, normal, take, dflags);
+		take -= psave;
+
+		asave = CheckArmor(targ, point, normal, take, te_sparks, dflags);
+		take -= asave;
+	}
+
+	// treat cheat/powerup savings the same as armor
+	asave += save;
+
+	// ZOID
+	// resistance tech
+	take = CTFApplyResistance(targ, take);
+	// ZOID
+
+	// ZOID
+	CTFCheckHurtCarrier(targ, attacker);
+	// ZOID
+
+	// ROGUE - this option will do damage both to the armor and person. originally for DPU rounds
+	if (dflags & DAMAGE_DESTROY_ARMOR)
+	{
+		if (!(targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION) &&
+			!(client && client->invincible_time > level.time))
 		{
-			psave = asave = 0;
+			take = damage;
 		}
-		else
+	}
+	// ROGUE
+
+	// [Paril-KEX] player hit markers
+	if (targ != attacker && attacker->client && targ->health > 0 && !((targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) && mod.id != MOD_TARGET_LASER && !((attacker->movetype == MOVETYPE_NOCLIP)))
+		attacker->client->ps.stats[STAT_HIT_MARKER] += take + psave + asave;
+
+	// do the damage
+	if (take)
+	{
+		if (!(targ->flags & FL_NO_DAMAGE_EFFECTS))
 		{
-			// ZOID
-			psave = CheckPowerArmor(targ, point, normal, take, dflags);
-			take -= psave;
-
-			asave = CheckArmor(targ, point, normal, take, te_sparks, dflags);
-			take -= asave;
-		}
-
-		// treat cheat/powerup savings the same as armor
-		asave += save;
-
-		// ZOID
-		// resistance tech
-		take = CTFApplyResistance(targ, take);
-		// ZOID
-
-		// ZOID
-		CTFCheckHurtCarrier(targ, attacker);
-		// ZOID
-
-		// ROGUE - this option will do damage both to the armor and person. originally for DPU rounds
-		if (dflags & DAMAGE_DESTROY_ARMOR)
-		{
-			if (!(targ->flags & FL_GODMODE) && !(dflags & DAMAGE_NO_PROTECTION) &&
-				!(client && client->invincible_time > level.time))
+			// ROGUE
+			if (targ->flags & FL_MECHANICAL)
+				SpawnDamage(TE_ELECTRIC_SPARKS, point, normal, take);
+			// ROGUE
+			else if ((targ->svflags & SVF_MONSTER) || (client))
 			{
-				take = damage;
-			}
-		}
-		// ROGUE
-
-		// [Paril-KEX] player hit markers
-		if (targ != attacker && attacker->client && targ->health > 0 && !((targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) && mod.id != MOD_TARGET_LASER && !((attacker->movetype == MOVETYPE_NOCLIP)))
-			attacker->client->ps.stats[STAT_HIT_MARKER] += take + psave + asave;
-
-		// do the damage
-		if (take)
-		{
-			if (!(targ->flags & FL_NO_DAMAGE_EFFECTS))
-			{
+				// XATRIX
+				if (strcmp(targ->classname, "monster_gekk") == 0)
+					SpawnDamage(TE_GREENBLOOD, point, normal, take);
+				// XATRIX
 				// ROGUE
-				if (targ->flags & FL_MECHANICAL)
-					SpawnDamage(TE_ELECTRIC_SPARKS, point, normal, take);
+				else if (mod.id == MOD_CHAINFIST)
+					SpawnDamage(TE_MOREBLOOD, point, normal, 255);
 				// ROGUE
-				else if ((targ->svflags & SVF_MONSTER) || (client))
-				{
-					// XATRIX
-					if (strcmp(targ->classname, "monster_gekk") == 0)
-						SpawnDamage(TE_GREENBLOOD, point, normal, take);
-					// XATRIX
-					// ROGUE
-					else if (mod.id == MOD_CHAINFIST)
-						SpawnDamage(TE_MOREBLOOD, point, normal, 255);
-					// ROGUE
-					else
-					//	SpawnDamage(TE_BLOOD, point, normal, take);
-						SpawnDamage(TE_MOREBLOOD, point, normal, take);
-				}
 				else
-					SpawnDamage(te_sparks, point, normal, take);
+					//  SpawnDamage(TE_BLOOD, point, normal, take);
+					SpawnDamage(TE_MOREBLOOD, point, normal, take);
 			}
-
-			if (!CTFMatchSetup())
-				targ->health = targ->health - take;
-
-			if ((targ->flags & FL_IMMORTAL) && targ->health <= 0)
-				targ->health = 1;
-
-			// PGM - spheres need to know who to shoot at
-			if (client && client->owned_sphere)
-			{
-				sphere_notified = true;
-				if (client->owned_sphere->pain)
-					client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
-			}
-			// PGM
-
-			if (targ->health <= 0)
-			{
-				if ((targ->svflags & SVF_MONSTER) || (client))
-				{
-					targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
-					targ->dead_time = level.time;
-				}
-				targ->monsterinfo.damage_blood += take;
-				targ->monsterinfo.damage_attacker = attacker;
-				targ->monsterinfo.damage_inflictor = inflictor;
-				targ->monsterinfo.damage_from = point;
-				targ->monsterinfo.damage_mod = mod;
-				targ->monsterinfo.damage_knockback += knockback;
-				Killed(targ, inflictor, attacker, take, point, mod);
-				return;
-			}
+			else
+				SpawnDamage(te_sparks, point, normal, take);
 		}
+
+		if (!CTFMatchSetup())
+			targ->health = targ->health - take;
+
+		if ((targ->flags & FL_IMMORTAL) && targ->health <= 0)
+			targ->health = 1;
 
 		// PGM - spheres need to know who to shoot at
-		if (!sphere_notified)
+		if (client && client->owned_sphere)
 		{
-			if (client && client->owned_sphere)
-			{
-				sphere_notified = true;
-				if (client->owned_sphere->pain)
-					client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
-			}
+			sphere_notified = true;
+			if (client->owned_sphere->pain)
+				client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
 		}
 		// PGM
 
-		if (targ->client) {
-			targ->client->last_attacker_time = level.time;
-		}
-
-		if (targ->svflags & SVF_MONSTER)
+		if (targ->health <= 0)
 		{
-			if (damage > 0)
+			if ((targ->svflags & SVF_MONSTER) || (client))
 			{
-				M_ReactToDamage(targ, attacker, inflictor);
-
-				targ->monsterinfo.damage_attacker = attacker;
-				targ->monsterinfo.damage_inflictor = inflictor;
-				targ->monsterinfo.damage_blood += take;
-				targ->monsterinfo.damage_from = point;
-				targ->monsterinfo.damage_mod = mod;
-				targ->monsterinfo.damage_knockback += knockback;
+				targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
+				targ->dead_time = level.time;
 			}
-
-			if (targ->monsterinfo.setskin)
-				targ->monsterinfo.setskin(targ);
-		}
-		else if (take && targ->pain)
-			targ->pain(targ, attacker, (float)knockback, take, mod);
-
-		// add to the damage inflicted on a player this frame
-		// the total will be turned into screen blends and view angle kicks
-		// at the end of the frame
-		if (client)
-		{
-			client->damage_parmor += psave;
-			client->damage_armor += asave;
-			client->damage_blood += take;
-			client->damage_knockback += knockback;
-			client->damage_from = point;
-			client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
-
-			if (!(dflags & DAMAGE_NO_INDICATOR) && inflictor != world && attacker != world && (take || psave || asave))
-			{
-				damage_indicator_t* indicator = nullptr;
-				size_t i;
-
-				for (i = 0; i < client->num_damage_indicators; i++)
-				{
-					if ((point - client->damage_indicators[i].from).length() < 32.f)
-					{
-						indicator = &client->damage_indicators[i];
-						break;
-					}
-				}
-
-				if (!indicator && i != MAX_DAMAGE_INDICATORS)
-				{
-					indicator = &client->damage_indicators[i];
-					// for projectile direct hits, use the attacker; otherwise
-					// use the inflictor (rocket splash should point to the rocket)
-					indicator->from = (dflags & DAMAGE_RADIUS) ? inflictor->s.origin : attacker->s.origin;
-					indicator->health = indicator->armor = indicator->power = 0;
-					client->num_damage_indicators++;
-				}
-
-				if (indicator)
-				{
-					indicator->health += take;
-					indicator->power += psave;
-					indicator->armor += asave;
-				}
-			}
+			targ->monsterinfo.damage_blood += take;
+			targ->monsterinfo.damage_attacker = attacker;
+			targ->monsterinfo.damage_inflictor = inflictor;
+			targ->monsterinfo.damage_from = point;
+			targ->monsterinfo.damage_mod = mod;
+			targ->monsterinfo.damage_knockback += knockback;
+			Killed(targ, inflictor, attacker, take, point, mod);
+			return;
 		}
 	}
 
+	// PGM - spheres need to know who to shoot at
+	if (!sphere_notified)
+	{
+		if (client && client->owned_sphere)
+		{
+			sphere_notified = true;
+			if (client->owned_sphere->pain)
+				client->owned_sphere->pain(client->owned_sphere, attacker, 0, 0, mod);
+		}
+	}
+	// PGM
+
+	if (targ->client) {
+		targ->client->last_attacker_time = level.time;
+		// Update last_damage only if damage is greater than 0
+		if (take > 0 || psave > 0 || asave > 0) {
+			targ->client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
+		}
+	}
+
+	if (targ->svflags & SVF_MONSTER)
+	{
+		if (damage > 0)
+		{
+			M_ReactToDamage(targ, attacker, inflictor);
+
+			targ->monsterinfo.damage_attacker = attacker;
+			targ->monsterinfo.damage_inflictor = inflictor;
+			targ->monsterinfo.damage_blood += take;
+			targ->monsterinfo.damage_from = point;
+			targ->monsterinfo.damage_mod = mod;
+			targ->monsterinfo.damage_knockback += knockback;
+		}
+
+		if (targ->monsterinfo.setskin)
+			targ->monsterinfo.setskin(targ);
+	}
+	else if (take && targ->pain)
+		targ->pain(targ, attacker, (float)knockback, take, mod);
+
+	// add to the damage inflicted on a player this frame
+	// the total will be turned into screen blends and view angle kicks
+	// at the end of the frame
+	if (client)
+	{
+		client->damage_parmor += psave;
+		client->damage_armor += asave;
+		client->damage_blood += take;
+		client->damage_knockback += knockback;
+		client->damage_from = point;
+
+		if (!(dflags & DAMAGE_NO_INDICATOR) && inflictor != world && attacker != world && (take || psave || asave))
+		{
+			damage_indicator_t* indicator = nullptr;
+			size_t i;
+
+			for (i = 0; i < client->num_damage_indicators; i++)
+			{
+				if ((point - client->damage_indicators[i].from).length() < 32.f)
+				{
+					indicator = &client->damage_indicators[i];
+					break;
+				}
+			}
+
+			if (!indicator && i != MAX_DAMAGE_INDICATORS)
+			{
+				indicator = &client->damage_indicators[i];
+				// for projectile direct hits, use the attacker; otherwise
+				// use the inflictor (rocket splash should point to the rocket)
+				indicator->from = (dflags & DAMAGE_RADIUS) ? inflictor->s.origin : attacker->s.origin;
+				indicator->health = indicator->armor = indicator->power = 0;
+				client->num_damage_indicators++;
+			}
+
+			if (indicator)
+			{
+				indicator->health += take;
+				indicator->power += psave;
+				indicator->armor += asave;
+			}
+		}
+	}
+}
 /*
 ============
 T_RadiusDamage
