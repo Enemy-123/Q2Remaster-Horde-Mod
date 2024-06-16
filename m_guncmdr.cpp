@@ -1482,6 +1482,10 @@ void SP_monster_guncmdr(edict_t* self)
 	self->gib_health = -175;
 	self->mass = 255;
 
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		self->gib_health - 99999;
+	}
+
 	self->pain = guncmdr_pain;
 	self->die = guncmdr_die;
 
@@ -1536,7 +1540,6 @@ void SP_monster_guncmdrkl(edict_t* self)
 		else
 			self->s.skinnum &= ~1;
 	
-			extern void BossDeathHandler(edict_t * boss);
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->gib_health -99999;
 	}	
