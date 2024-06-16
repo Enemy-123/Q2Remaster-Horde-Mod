@@ -1129,7 +1129,7 @@ void ResetGame() {
 
     ResetBenefits();
     ResetCooldowns();
-    current_wave_number = 1;
+    current_wave_number = 2;
     g_horde_local.state = horde_state_t::warmup;
     next_wave_message_sent = false;
     boss_spawned_for_wave = false;
@@ -1149,6 +1149,8 @@ void ResetGame() {
     // reset cooldowns
     MONSTER_COOLDOWN = 2.5_sec;
     SPAWN_POINT_COOLDOWN = 3.5_sec;
+    g_horde_local.num_to_spawn = 0;
+    remainingMonsters = 0;
 }
 
 // Variables globales para el estado de la condición
