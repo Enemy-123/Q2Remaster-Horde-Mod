@@ -117,14 +117,13 @@ void ShuffleBenefits() {
 // Función para seleccionar un beneficio aleatorio basado en la ola actual
 std::string SelectRandomBenefit(int wave) {
     std::vector<std::string> possible_benefits;
-    if (vampire_level == 1 && wave >= 10 && obtained_benefits.find("ammo regen") == obtained_benefits.end()) {
-        possible_benefits.push_back("vampire upgraded");
-    }
 
     for (const auto& benefit : shuffled_benefits) {
-        if (obtained_benefits.find(benefit) == obtained_benefits.end() && benefit != "vampire" && benefit != "ammo regen" && benefit != "vampire upgraded") {
-            // Asegurarse de que "Cluster Prox Grenades" solo esté disponible después de la ola 12
-            if (benefit == "Cluster Prox Grenades" && wave <= 10) {
+        if (obtained_benefits.find(benefit) == obtained_benefits.end() &&
+            benefit != "vampire" && benefit != "ammo regen" &&
+            (benefit != "vampire upgraded" || (benefit == "vampire upgraded" && vampire_level == 1 && wave >= 20))) {
+            // Asegurarse de que "Cluster Prox Grenades" solo esté disponible después de la ola 25
+            if (benefit == "Cluster Prox Grenades" && wave < 25) {
                 continue;
             }
             possible_benefits.push_back(benefit);
@@ -189,6 +188,10 @@ void CheckAndApplyBenefit(int wave) {
         else if (vampire_level == 1 && wave >= 10 && obtained_benefits.find("ammo regen") == obtained_benefits.end()) {
             ApplyBenefit("ammo regen");
         }
+        // Aplicar "vampire upgraded" si "vampire" está activo y la ola es mayor o igual a 20
+        else if (vampire_level == 1 && wave >= 20 && obtained_benefits.find("vampire upgraded") == obtained_benefits.end()) {
+            ApplyBenefit("vampire upgraded");
+        }
         else {
             std::string benefit = SelectRandomBenefit(wave);
             if (!benefit.empty()) {
@@ -197,6 +200,7 @@ void CheckAndApplyBenefit(int wave) {
         }
     }
 }
+
 
 
 
