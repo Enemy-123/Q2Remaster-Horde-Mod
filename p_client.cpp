@@ -3929,15 +3929,15 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
-
 // [Paril-KEX] check each player to find a good
 // respawn target & position
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
 
-
 #include <sstream> // Asegúrate de incluir esta cabecera
+
+	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max()); // Inicializa con el mayor valor posible
 
 	for (auto player : active_players())
 	{
@@ -3953,27 +3953,14 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 			// Calcula el tiempo restante para salir de combate
 			gtime_t time_left = player->client->last_damage_time - level.time;
 
-			// Convierte time_left a segundos
-			float time_left_float = time_left.seconds<float>();
-
-			// Formatea el mensaje con el tiempo restante hasta la décima de segundo
-			std::ostringstream message_stream;
-			message_stream << "In Combat! Reviving in: " << time_left_float;
-
-			// Redondea a una décima de segundo
-			std::string message_str = message_stream.str();
-			size_t pos = message_str.find('.');
-			if (pos != std::string::npos && pos + 2 < message_str.size()) {
-				message_str = message_str.substr(0, pos + 2); // Incluye solo una cifra decimal
+			// Actualiza el tiempo mínimo si el actual es menor
+			if (time_left < min_time_left)
+			{
+				min_time_left = time_left;
 			}
 
-			// Actualiza la configstring con el mensaje
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
 			continue;
 		}
-
-
-	
 
 		// check if any monsters are currently targeting us
 		// or searching for us
@@ -3986,12 +3973,10 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 		// check firing state; if any enemies are mad at any players,
 		// don't respawn until everybody has cooled down
 		if ((monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()))  // Ignore if monsters are mad at us
-
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
 		}
-
 
 		// check positioning; we must be on world ground
 		if (player->groundentity != world)
@@ -4019,6 +4004,26 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 		// good player most likely
 		return { player, spot };
 	}
+
+	// Convierte min_time_left a segundos
+	float min_time_left_float = min_time_left.seconds<float>();
+
+	// Formatea el mensaje con el tiempo restante hasta la décima de segundo
+	std::ostringstream message_stream;
+	message_stream << "In Combat! Reviving in: " << min_time_left_float;
+
+	// Redondea a una décima de segundo
+	std::string message_str = message_stream.str();
+	size_t pos = message_str.find('.');
+	if (pos != std::string::npos && pos + 2 < message_str.size()) {
+		message_str = message_str.substr(0, pos + 2); // Incluye solo una cifra decimal
+	}
+
+	// Añade "(s)" al final del mensaje
+	message_str += "(s)";
+
+	// Actualiza la configstring con el mensaje
+	gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
 
 	// no good player
 	return { nullptr, {} };

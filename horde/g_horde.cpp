@@ -117,15 +117,16 @@ void ShuffleBenefits() {
 // Función para seleccionar un beneficio aleatorio basado en la ola actual
 std::string SelectRandomBenefit(int wave) {
     std::vector<std::string> possible_benefits;
-    if (vampire_level == 0 && wave >= 5) {
-        possible_benefits.push_back("vampire");
-    }
-    else if (vampire_level == 1 && wave >= 10) {
+    if (vampire_level == 1 && wave >= 10 && obtained_benefits.find("ammo regen") == obtained_benefits.end()) {
         possible_benefits.push_back("vampire upgraded");
     }
 
     for (const auto& benefit : shuffled_benefits) {
-        if (obtained_benefits.find(benefit) == obtained_benefits.end() && benefit != "vampire" && benefit != "vampire upgraded") {
+        if (obtained_benefits.find(benefit) == obtained_benefits.end() && benefit != "vampire" && benefit != "ammo regen" && benefit != "vampire upgraded") {
+            // Asegurarse de que "Cluster Prox Grenades" solo esté disponible después de la ola 12
+            if (benefit == "Cluster Prox Grenades" && wave <= 10) {
+                continue;
+            }
             possible_benefits.push_back(benefit);
         }
     }
@@ -179,12 +180,25 @@ void CheckAndApplyBenefit(int wave) {
         if (shuffled_benefits.empty()) {
             ShuffleBenefits();
         }
-        std::string benefit = SelectRandomBenefit(wave);
-        if (!benefit.empty()) {
-            ApplyBenefit(benefit);
+
+        // Aplicar "vampire" si no ha sido obtenido y la ola es mayor o igual a 5
+        if (vampire_level == 0 && wave >= 5) {
+            ApplyBenefit("vampire");
+        }
+        // Aplicar "ammo regen" si "vampire" ha sido obtenido y la ola es mayor o igual a 10
+        else if (vampire_level == 1 && wave >= 10 && obtained_benefits.find("ammo regen") == obtained_benefits.end()) {
+            ApplyBenefit("ammo regen");
+        }
+        else {
+            std::string benefit = SelectRandomBenefit(wave);
+            if (!benefit.empty()) {
+                ApplyBenefit(benefit);
+            }
         }
     }
 }
+
+
 
 // Función para ajustar la tasa de aparición de monstruos
 void AdjustMonsterSpawnRate() {
@@ -335,40 +349,42 @@ constexpr struct weighted_item_t {
     { "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
     { "item_sphere_defender", -1, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
-    { "item_invisibility", 4, -1, 0.08f, adjust_weight_powerup },
+    { "item_invisibility", 4, -1, 0.07f, adjust_weight_powerup },
     { "item_doppleganger", 3, -1, 0.054f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
-    { "weapon_supershotgun", 4, -1, 0.16f, adjust_weight_weapon },
+    { "weapon_supershotgun", 5, -1, 0.16f, adjust_weight_weapon }, 
     { "weapon_machinegun", -1, -1, 0.29f, adjust_weight_weapon },
-    { "weapon_etf_rifle", 3, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_boomer", 4, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_chaingun", 6, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_grenadelauncher", 6, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_proxlauncher", 8, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_hyperblaster", 9, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_phalanx", 6, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_rocketlauncher", 7, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_railgun", 9, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_plasmabeam", 7, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_disintegrator", 14, -1, 0.15f, adjust_weight_weapon },
-    { "weapon_bfg", 12, -1, 0.15f, adjust_weight_weapon },
+    { "weapon_etf_rifle", 4, -1, 0.19f, adjust_weight_weapon },   
+    { "weapon_boomer", 12, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_chaingun", 8, -1, 0.19f, adjust_weight_weapon },      
+    { "weapon_grenadelauncher", 10, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_proxlauncher", 12, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_hyperblaster", 11, -1, 0.19f, adjust_weight_weapon },  
+    { "weapon_phalanx", 15, -1, 0.19f, adjust_weight_weapon },       
+    { "weapon_rocketlauncher", 13, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_railgun", 17, -1, 0.19f, adjust_weight_weapon },       
+    { "weapon_plasmabeam", 14, -1, 0.19f, adjust_weight_weapon },   
+    { "weapon_disintegrator", 19, -1, 0.15f, adjust_weight_weapon }, 
+    { "weapon_bfg", 22, -1, 0.15f, adjust_weight_weapon },           
 
-    { "ammo_trap", 5, -1, 0.14f, adjust_weight_ammo },
-    { "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
-    { "ammo_flechettes", 5, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
-    { "ammo_prox", 7, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_tesla", 2, -1, 0.15f, adjust_weight_ammo },
-    { "ammo_cells", 5, -1, 0.30f, adjust_weight_ammo },
-    { "ammo_magslug", 9, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_slugs", 7, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_disruptor", 12, -1, 0.24f, adjust_weight_ammo },
-    { "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
 
-    { "item_bandolier", 4, -1, 0.32f, adjust_weight_ammo },
+{ "ammo_trap", 4, -1, 0.14f, adjust_weight_ammo },
+{ "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
+{ "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
+{ "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },    
+{ "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
+{ "ammo_prox", 12, -1, 0.25f, adjust_weight_ammo },
+{ "ammo_tesla", 2, -1, 0.15f, adjust_weight_ammo },
+{ "ammo_cells", 9, -1, 0.30f, adjust_weight_ammo },
+{ "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },      
+{ "ammo_slugs", 9, -1, 0.25f, adjust_weight_ammo },
+{ "ammo_disruptor", 14, -1, 0.24f, adjust_weight_ammo },
+{ "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
+
+
+    { "item_bandolier", 3, -1, 0.3f, adjust_weight_ammo },
     { "item_pack", 11, -1, 0.34f, adjust_weight_ammo },
 };
 
@@ -391,7 +407,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_gekk", 4, 17, 0.17f },
     { "monster_gunner2", 3, -1, 0.35f },
     { "monster_gunner", 9, -1, 0.34f },
-    { "monster_brain", 5, -1, 0.16f },
+    { "monster_brain", 5, -1, 0.2f },
     { "monster_stalker", 2, 3, 0.05f },
     { "monster_stalker", 4, 13, 0.19f },
     { "monster_parasite", 4, 17, 0.23f },
@@ -407,7 +423,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_floater", 6, -1, 0.16f },
     { "monster_hover", 15, -1, 0.18f },
     { "monster_daedalus", 13, -1, 0.13f },
-    { "monster_daedalus2", 16, -1, 0.11f },
+    { "monster_daedalus2", 16, -1, 0.14f },
     { "monster_medic", 5, -1, 0.1f },
     { "monster_medic_commander", 16, -1, 0.06f },
     { "monster_tank_commander", 11, -1, 0.15f },
