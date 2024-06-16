@@ -383,8 +383,8 @@ constexpr struct weighted_item_t {
     { "ammo_disruptor", 14, -1, 0.24f, adjust_weight_ammo },
     { "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
 
-    { "item_bandolier", 3, -1, 0.3f, adjust_weight_ammo },
-    { "item_pack", 11, -1, 0.34f, adjust_weight_ammo },
+    { "item_bandolier", 4, -1, 0.3f, adjust_weight_ammo },
+    { "item_pack", 15, -1, 0.34f, adjust_weight_ammo },
 };
 
 // Definición de monstruos ponderados

@@ -983,7 +983,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 		if (!taken_loadout)
 		{
-			if (g_horde->integer && current_wave_number >= 10) {
+			if (g_horde->integer && current_wave_number >= 15) {
 
 				// fill with 50s, since it's our most common value
 				client->pers.max_ammo.fill(50);
@@ -997,7 +997,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.max_ammo[AMMO_MAGSLUG] = 125;
 				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
 				client->pers.max_ammo[AMMO_TESLA] = 12;
-				client->pers.max_ammo[AMMO_PROX] = 75;
+				client->pers.max_ammo[AMMO_PROX] = 125;
 
 			}
 			else
