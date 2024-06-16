@@ -640,8 +640,8 @@ void SP_monster_shamblerkl(edict_t* self)
 		self->health = 6500 + (1.08 * current_wave_number);
 		self->gib_health = -190;
 	}
-		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-			self->gib_health = -999999;
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		self->gib_health -99999;
 		}
 		self->yaw_speed = 65;
 		//	self->s.renderfx = RF_TRANSLUCENT;

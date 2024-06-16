@@ -762,6 +762,12 @@ DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		else
 			M_SetAnimation(self, &guncmdr_move_pain5);
 	}
+
+	extern void BossDeathHandler(edict_t * boss);
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		BossDeathHandler(self);
+
+	}
 }
 
 void guncmdr_opengun(edict_t* self)
@@ -1530,8 +1536,11 @@ void SP_monster_guncmdrkl(edict_t* self)
 		else
 			self->s.skinnum &= ~1;
 	
+			extern void BossDeathHandler(edict_t * boss);
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		self->gib_health -99999;
+	}	
 
-	
 	self->s.renderfx = RF_TRANSLUCENT;
 	self->s.effects = EF_FLAG1;
 
