@@ -1019,31 +1019,34 @@ void SpawnBossAutomatically() {
 
             // Directamente decidir qué mensaje mostrar basado en el classname
             if (strcmp(desired_boss, "monster_boss2") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****");
             }
             if (strcmp(desired_boss, "monster_boss2kl") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Hornet arrives, leading a swarming wave! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****");
             }
             else if (strcmp(desired_boss, "monster_carrier2") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Menacing Carrier has appeared! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****");
             }
             else if (strcmp(desired_boss, "monster_carrier") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A Menacing Carrier, leading a swarming wave, has appeared! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****");
             }
             else if (strcmp(desired_boss, "monster_tank_64") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** The ground shakes as the Tank Commander arrives! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The ground shakes as the Tank Commander arrives! *****");
             }
             else if (strcmp(desired_boss, "monster_shamblerkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** The Shambler emerges from the darkness! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Shambler emerges from the darkness! *****");
             }
             else if (strcmp(desired_boss, "monster_guncmdrkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** The Gunner Commander is ready for battle! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Gunner Commmander is ready for battle! *****");
             }
             else if (strcmp(desired_boss, "monster_makronkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** Makron descends upon the battlefield! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** Makron descends upon the battlefield! *****");
+            }
+            else if (strcmp(desired_boss, "monster_guardian") == 0) {
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Guardian has arrived, imminent destruction! *****");
             }
             else {
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, "***** A  Strogg Boss has spawned! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A  Strogg Boss has spawned! *****");
             }
 
             int random_flag = 1 << (std::rand() % 6); // Include all defined flags
