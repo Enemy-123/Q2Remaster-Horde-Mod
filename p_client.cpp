@@ -1042,17 +1042,18 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 			// starting items for horde mod
-			if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number < 10)
+			if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number <= 12)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
 				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
-				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+				//client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 
 			}
-			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number > 10)
+			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 13)
 			{
 				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
