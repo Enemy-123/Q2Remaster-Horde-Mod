@@ -863,7 +863,6 @@ void G_SetStats(edict_t* ent)
 		ent->client->ps.stats[STAT_PICKUP_ICON] = 0;
 		ent->client->ps.stats[STAT_PICKUP_STRING] = 0;
 	}
-
 	// owned powerups
 	memset(&ent->client->ps.stats[STAT_POWERUP_INFO_START], 0, sizeof(uint16_t) * NUM_POWERUP_STATS);
 	for (unsigned int powerupIndex = POWERUP_SCREEN; powerupIndex < POWERUP_MAX; ++powerupIndex)
@@ -904,7 +903,6 @@ void G_SetStats(edict_t* ent)
 	//
 	// timers
 	//
-	// PGM
 	if (ent->client->owned_sphere)
 	{
 		if (ent->client->owned_sphere->spawnflags == SPHERE_DEFENDER) // defender
@@ -920,8 +918,7 @@ void G_SetStats(edict_t* ent)
 	}
 	else
 	{
-		powerup_info_t* best_powerup = nullptr;
-		powerup_info_t* next_best_powerup = nullptr;
+		std::vector<powerup_info_t*> active_powerups;
 
 		for (auto& powerup : powerup_table)
 		{
@@ -933,28 +930,27 @@ void G_SetStats(edict_t* ent)
 			else if (powerup_count && !*powerup_count)
 				continue;
 
-			if (!best_powerup)
-			{
-				best_powerup = &powerup;
-				continue;
-			}
-
-			if (powerup_time && *powerup_time < ent->client->*best_powerup->time_ptr)
-			{
-				next_best_powerup = best_powerup;
-				best_powerup = &powerup;
-				continue;
-			}
-			else if (powerup_count && !best_powerup->time_ptr)
-			{
-				next_best_powerup = best_powerup;
-				best_powerup = &powerup;
-				continue;
-			}
+			active_powerups.push_back(&powerup);
 		}
 
-		if (best_powerup)
+		if (!active_powerups.empty())
 		{
+			// Sort powerups by remaining time
+			std::sort(active_powerups.begin(), active_powerups.end(), [&ent](powerup_info_t* a, powerup_info_t* b)
+				{
+					if (a->time_ptr && b->time_ptr)
+						return (ent->client->*a->time_ptr) < (ent->client->*b->time_ptr);
+					else if (a->time_ptr)
+						return true;
+					else if (b->time_ptr)
+						return false;
+					return false;
+				});
+
+			// Alternate between the two powerups with the least remaining time
+			powerup_info_t* best_powerup = active_powerups.front();
+			powerup_info_t* next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
+
 			int16_t value;
 			const char* icon;
 			int16_t timer_value;
