@@ -1003,7 +1003,8 @@ void Cmd_Kill_f(edict_t* ent)
 	// [Paril-KEX] don't allow kill to take points away in TDM
 	player_die(ent, ent, ent, 100000, vec3_origin, { MOD_SUICIDE, !!teamplay->integer });
 }
-
+extern void AllowNextWaveAdvance();
+extern bool allowWaveAdvance;
 /*
 =================
 Cmd_Kill_AI_f
@@ -1024,15 +1025,13 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 	looked_at = gi.traceline(start, end, ent, MASK_SHOT).ent;
 
 	const int numEdicts = globals.num_edicts;
-	for (int edictIdx = 1; edictIdx < numEdicts; ++edictIdx)
-	{
+	for (int edictIdx = 1; edictIdx < numEdicts; ++edictIdx) {
 		edict_t* edict = &g_edicts[edictIdx];
 		if (!edict->inuse || edict == looked_at) {
 			continue;
 		}
 
-		if ((edict->svflags & SVF_MONSTER) == 0)
-		{
+		if ((edict->svflags & SVF_MONSTER) == 0) {
 			continue;
 		}
 
@@ -1042,7 +1041,11 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 	}
 
 	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");
+
+	// Permitir avanzar a la siguiente ola
+	AllowNextWaveAdvance();
 }
+
 
 
 /*

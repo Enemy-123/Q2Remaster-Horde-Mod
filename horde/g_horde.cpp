@@ -38,8 +38,8 @@ int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause
 int current_wave_number = 1;
 int last_wave_number = 0;
 
-gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.5
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.4); // Cooldown en segundos para los puntos de spawn 3.5
+gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.2); // Cooldown en segundos para los monstruos 2.5
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(2.8); // Cooldown en segundos para los puntos de spawn 3.5
 
 cvar_t* g_horde;
 
@@ -215,11 +215,11 @@ void AdjustMonsterSpawnRate() {
 
         // Reducir los cooldowns de monstruos y puntos de spawn
         MONSTER_COOLDOWN -= 0.2_sec;
-        SPAWN_POINT_COOLDOWN -= 0.2_sec;
+        SPAWN_POINT_COOLDOWN -= 0.1_sec;
 
         // Asegurarse de que los cooldowns no sean menores a un límite mínimo
         if (MONSTER_COOLDOWN < 1.2_sec) MONSTER_COOLDOWN = 1.2_sec;
-        if (SPAWN_POINT_COOLDOWN < 2.5_sec) SPAWN_POINT_COOLDOWN = 2.5_sec;
+        if (SPAWN_POINT_COOLDOWN < 2.1_sec) SPAWN_POINT_COOLDOWN = 2.1_sec;
     }
 }
 
@@ -278,14 +278,15 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) {
         g_horde_local.num_to_spawn = custom_monster_count;
     }
     else {
+        // Si dm_monsters no está configurado, utiliza la lógica estándar
         CalculateStandardSpawnCount(mapSize, lvl);
         IncludeDifficultyAdjustments(mapSize, lvl);
     }
 }
 
+
 // Función para inicializar el nivel de la horda
 void Horde_InitLevel(int32_t lvl) {
-    // Actualización de variables de control de nivel
     current_wave_number++;
     last_wave_number++;
     g_horde_local.level = lvl;
@@ -293,11 +294,9 @@ void Horde_InitLevel(int32_t lvl) {
     flying_monsters_mode = false;
     boss_spawned_for_wave = false;
 
-    // Obtener tamaño del mapa y aplicar beneficios
     auto mapSize = GetMapSize(level.mapname);
     CheckAndApplyBenefit(g_horde_local.level);
 
-    // Ajustar escala de daño en niveles específicos
     if (g_horde_local.level == 18) {
         gi.cvar_set("g_damage_scale", "1.7");
     }
@@ -308,8 +307,7 @@ void Horde_InitLevel(int32_t lvl) {
     // Configuración de la cantidad de monstruos a spawnear
     DetermineMonsterSpawnCount(mapSize, lvl);
 
-    // Ajustar tasa de aparición de monstruos
-    AdjustMonsterSpawnRate(); // Llamada a la función para ajustar la tasa de aparición
+    AdjustMonsterSpawnRate();
 }
 
 bool G_IsDeathmatch() {
@@ -1211,9 +1209,20 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers)
     }
     return params;
 }
+bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 
 // Función para verificar la condición de monstruos restantes
+
+void AllowNextWaveAdvance() {
+    allowWaveAdvance = true;
+}
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
+    // Si allowWaveAdvance es verdadero, resetea el permiso y establece remainingMonsters a 0
+    if (allowWaveAdvance) {
+        allowWaveAdvance = false; // Resetea el permiso de avance de ola
+        return true;
+    }
+
     int numActivePlayers = GetNumActivePlayers();
     ConditionParams params = GetConditionParams(mapSize, numActivePlayers);
 
@@ -1238,6 +1247,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     previous_remainingMonsters = remainingMonsters;
     return false;
 }
+
 
 // Función para decidir si se usa el spawn más lejano basado en el nivel actual
 bool UseFarthestSpawn() {
@@ -1359,7 +1369,7 @@ void SpawnMonsters() {
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
         monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-        monster->health += (current_wave_number * 1.05);        // Decidir si el monstruo dropeará un ítem
+    // Decidir si el monstruo dropeará un ítem
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
         }
@@ -1394,6 +1404,11 @@ void SpawnMonsters() {
 void Horde_RunFrame() {
     auto mapSize = GetMapSize(level.mapname);
 
+    // Verificar y actualizar el valor de dm_monsters en cada frame
+    if (dm_monsters->integer > 0) {
+        g_horde_local.num_to_spawn = dm_monsters->integer;
+    }
+
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
         if (g_horde_local.warm_time < level.time + 0.4_sec) {
@@ -1414,10 +1429,9 @@ void Horde_RunFrame() {
         if (g_horde_local.monster_spawn_time <= level.time) {
             if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0 && !boss_spawned_for_wave) {
                 SpawnBossAutomatically();
-                boss_spawned_for_wave = true; // Marca que el jefe ha sido generado para esta ola
+                boss_spawned_for_wave = true;
             }
 
-            // Limitar el número de monstruos activos simultáneamente en el mapa
             int activeMonsters = level.total_monsters - level.killed_monsters;
             int maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
                 mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP :
