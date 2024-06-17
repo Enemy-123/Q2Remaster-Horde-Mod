@@ -203,9 +203,6 @@ void CheckAndApplyBenefit(int wave) {
     }
 }
 
-
-
-
 // Función para ajustar la tasa de aparición de monstruos
 void AdjustMonsterSpawnRate() {
     if (g_horde_local.level % 5 == 0) {  // Cada 5 olas, incrementa la dificultad
@@ -999,6 +996,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm3", {192, -136, 72}},
     {"q2dm4", {504, 876, 292}},
     {"q2dm5", {48, 952, 376}},
+    {"q2dm7", {816, 832, 56}},
     {"q2dm8", {112, 1216, 88}},
     {"ndctf0", {-608, -304, 184}},
     {"q2ctf4", {-2390, 1112, 218}},
