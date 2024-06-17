@@ -809,8 +809,8 @@ void VerifyAndAdjustBots() {
     int spectPlayers = GetNumSpectPlayers();
     int requiredBots = 0;
 
-    const int minBotsBigMap = 7;
-    const int minBotsOtherMap = 5;
+    const int minBotsBigMap = 6;
+    const int minBotsOtherMap = 4;
 
     if (mapSize.isBigMap) {
         requiredBots = minBotsBigMap - activePlayers;
@@ -1217,12 +1217,13 @@ int GetNumSpectPlayers() {
     int numSpectPlayers = 0;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
         edict_t* ent = &g_edicts[player];
-        if (ent->inuse && ent->client && !ent->solid) {
+        if (ent->inuse && ent->client && (!ent->solid || (ent->svflags & SVF_BOT))) {
             numSpectPlayers++;
         }
     }
     return numSpectPlayers;
 }
+
 
 // Calcular los parámetros de la condición en función del mapa y el número de jugadores
 ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers) {
