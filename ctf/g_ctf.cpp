@@ -3305,6 +3305,7 @@ void CTFObserver(edict_t* ent)
 	ent->movetype = MOVETYPE_NOCLIP;
 	ent->solid = SOLID_NOT;
 	ent->svflags |= SVF_NOCLIENT;
+	CTFJoinTeam(ent, CTF_NOTEAM);
 	ent->client->resp.ctf_team = CTF_NOTEAM;
 	ent->client->ps.gunindex = 0;
 	ent->client->ps.gunskin = 0;

@@ -799,36 +799,27 @@ void Horde_PreInit() {
         gi.cvar_set("g_coop_squad_respawn", "1");
     }
 }
+// Función para obtener el número de jugadores humanos activos (excluyendo bots)
+int GetNumHumanPlayers() {
+    int numHumanPlayers = 0;
+    for (uint32_t player = 1; player <= game.maxclients; ++player) {
+        edict_t* ent = &g_edicts[player];
+        if (ent->client && ent->client->resp.ctf_team == CTF_TEAM1 && !(ent->svflags & SVF_BOT)) {
+            numHumanPlayers++;
+        }
+    }
+    return numHumanPlayers;
+}
 
+// Función para verificar y ajustar el número de bots
 void VerifyAndAdjustBots() {
     auto mapSize = GetMapSize(level.mapname);
     int activePlayers = GetNumActivePlayers();
+    int humanPlayers = GetNumHumanPlayers();
     int spectPlayers = GetNumSpectPlayers();
-    int requiredBots = 0;
+    int requiredBots = (mapSize.isBigMap ? 6 : 4) - humanPlayers + spectPlayers;
 
-    const int minBotsBigMap = 6;
-    const int minBotsOtherMap = 4;
-
-    if (mapSize.isBigMap) {
-        requiredBots = minBotsBigMap - activePlayers;
-    }
-    else {
-        requiredBots = minBotsOtherMap - activePlayers;
-    }
-
-    // Ajustar el número de bots teniendo en cuenta los espectadores
-    if (spectPlayers > 0) {
-        requiredBots += spectPlayers;
-    }
-
-    // Asegurarse de no tener menos de la cantidad mínima de bots según el tamaño del mapa
-    if (mapSize.isBigMap && requiredBots < minBotsBigMap) {
-        requiredBots = minBotsBigMap;
-    }
-    else if (!mapSize.isBigMap && requiredBots < minBotsOtherMap) {
-        requiredBots = minBotsOtherMap;
-    }
-
+    requiredBots = std::max(requiredBots, mapSize.isBigMap ? 6 : 4);
     gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
 
@@ -1200,6 +1191,7 @@ struct ConditionParams {
     int timeThreshold;
 };
 
+// Función para obtener el número de jugadores activos (excluyendo bots)
 int GetNumActivePlayers() {
     int numActivePlayers = 0;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
@@ -1211,11 +1203,13 @@ int GetNumActivePlayers() {
     return numActivePlayers;
 }
 
+// Función para obtener el número de jugadores espectadores
 int GetNumSpectPlayers() {
     int numSpectPlayers = 0;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
         edict_t* ent = &g_edicts[player];
-        if (ent->inuse && ent->client && (!ent->solid || (ent->svflags & SVF_BOT))) {
+        if (ent->inuse && ent->client &&
+            (ent->client->resp.ctf_team != CTF_TEAM1)) {
             numSpectPlayers++;
         }
     }
