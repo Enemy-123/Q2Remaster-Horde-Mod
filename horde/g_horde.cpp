@@ -32,6 +32,7 @@ int CalculateRemainingMonsters() {
 constexpr int MAX_MONSTERS_BIG_MAP = 28;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
+bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause error
@@ -1210,7 +1211,6 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers)
     }
     return params;
 }
-bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 
 // Función para verificar la condición de monstruos restantes
 
