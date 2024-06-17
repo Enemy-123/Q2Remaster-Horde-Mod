@@ -1135,6 +1135,7 @@ void ResetGame() {
     g_horde_local.state = horde_state_t::warmup;
     next_wave_message_sent = false;
     boss_spawned_for_wave = false;
+    allowWaveAdvance = false;
     gi.cvar_set("g_chaotic", "0");
     gi.cvar_set("g_insane", "0");
     gi.cvar_set("g_vampire", "0");
@@ -1153,7 +1154,6 @@ void ResetGame() {
     SPAWN_POINT_COOLDOWN = 3.5_sec;
     g_horde_local.num_to_spawn = 0;
     remainingMonsters = 0;
-    allowWaveAdvance = false; // Resetea el permiso de avance de ola
 }
 
 // Variables globales para el estado de la condición
