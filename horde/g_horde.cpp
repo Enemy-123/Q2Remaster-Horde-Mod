@@ -1153,6 +1153,7 @@ void ResetGame() {
     SPAWN_POINT_COOLDOWN = 3.5_sec;
     g_horde_local.num_to_spawn = 0;
     remainingMonsters = 0;
+    allowWaveAdvance = false; // Resetea el permiso de avance de ola
 }
 
 // Variables globales para el estado de la condición
