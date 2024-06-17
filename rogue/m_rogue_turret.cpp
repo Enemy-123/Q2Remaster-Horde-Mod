@@ -1025,9 +1025,9 @@ void SP_monster_turret(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 65 + (current_wave_number * 5);
+		self->monsterinfo.power_armor_power = 65;
 
-	self->health = 100 + (current_wave_number * 5);
+	self->health = 125;
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;

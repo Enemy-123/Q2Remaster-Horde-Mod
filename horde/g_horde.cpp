@@ -488,7 +488,7 @@ constexpr boss_t BOSS_LARGE[] = {
 
 // Función para obtener la lista de jefes basada en el tamaño del mapa
 const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
-    if (mapSize.isSmallMap) return BOSS_SMALL;
+    if (mapSize.isSmallMap || mapname == "q2dm4") return BOSS_SMALL;
     if (mapSize.isMediumMap) {
         if (mapname == "q64/dm3" ||
             mapname == "q64\\dm3" ||
@@ -511,6 +511,7 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
     if (mapSize.isBigMap) return BOSS_LARGE;
     return nullptr;
 }
+
 
 constexpr int MAX_RECENT_BOSSES = 3;
 std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
@@ -965,6 +966,7 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"ec/base_ec", {-112, 704, 128}},
     {"q2dm2", {128, -960, 704}},
     {"q2dm3", {192, -136, 72}},
+    {"q2dm4", {504, 876, 292}},
     {"q2dm5", {48, 952, 376}},
     {"q2dm8", {112, 1216, 88}},
     {"ndctf0", {-608, -304, 184}},
@@ -981,6 +983,8 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64/command", {0, -208, 56}},
     {"q64\\command", {0, -208, 56}},
     {"q64\\dm7", {64, 224, 120}},
+    {"q64\\dm9", {160, 56, 40}},
+    {"q64/dm9", {160, 56, 40}},
     {"q64\\dm2", {840, 80, 96}},
     {"q64/dm7", {840, 80, 960}},
     {"q64/dm10", {-304, 512, -92}},
@@ -1355,7 +1359,7 @@ void SpawnMonsters() {
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
         monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-        // Decidir si el monstruo dropeará un ítem
+        monster->health += (current_wave_number * 1.05);        // Decidir si el monstruo dropeará un ítem
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
         }
