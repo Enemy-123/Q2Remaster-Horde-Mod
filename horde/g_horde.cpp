@@ -28,7 +28,8 @@ int CalculateRemainingMonsters() {
     return remaining;
 }
 
-
+int GetNumActivePlayers();
+int GetNumSpectPlayers();
 constexpr int MAX_MONSTERS_BIG_MAP = 28;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 15;
@@ -301,8 +302,11 @@ void Horde_InitLevel(int32_t lvl) {
     if (g_horde_local.level == 18) {
         gi.cvar_set("g_damage_scale", "1.7");
     }
-    else if (g_horde_local.level == 35) {
+    else if (g_horde_local.level == 27) {
         gi.cvar_set("g_damage_scale", "3");
+    }  
+    else if (g_horde_local.level == 37) {
+        gi.cvar_set("g_damage_scale", "4");
     }
 
     // Configuración de la cantidad de monstruos a spawnear
@@ -343,7 +347,7 @@ constexpr struct weighted_item_t {
     { "item_armor_shard", -1, 7, 0.09f, adjust_weight_armor },
     { "item_armor_jacket", -1, 12, 0.12f, adjust_weight_armor },
     { "item_armor_combat", 13, -1, 0.06f, adjust_weight_armor },
-    { "item_armor_body", 20, -1, 0.05f, adjust_weight_armor },
+    { "item_armor_body", 23, -1, 0.05f, adjust_weight_armor },
     { "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
     { "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
 
@@ -361,17 +365,17 @@ constexpr struct weighted_item_t {
     { "weapon_supershotgun", 5, -1, 0.18f, adjust_weight_weapon }, 
     { "weapon_machinegun", -1, -1, 0.29f, adjust_weight_weapon },
     { "weapon_etf_rifle", 4, -1, 0.19f, adjust_weight_weapon },   
-    { "weapon_boomer", 12, -1, 0.19f, adjust_weight_weapon },
     { "weapon_chaingun", 8, -1, 0.19f, adjust_weight_weapon },      
     { "weapon_grenadelauncher", 10, -1, 0.19f, adjust_weight_weapon },
     { "weapon_proxlauncher", 12, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_boomer", 12, -1, 0.19f, adjust_weight_weapon },
     { "weapon_hyperblaster", 11, -1, 0.19f, adjust_weight_weapon },  
     { "weapon_phalanx", 15, -1, 0.19f, adjust_weight_weapon },       
     { "weapon_rocketlauncher", 13, -1, 0.19f, adjust_weight_weapon },
     { "weapon_railgun", 17, -1, 0.19f, adjust_weight_weapon },       
     { "weapon_plasmabeam", 14, -1, 0.19f, adjust_weight_weapon },   
-    { "weapon_disintegrator", 19, -1, 0.15f, adjust_weight_weapon }, 
-    { "weapon_bfg", 22, -1, 0.15f, adjust_weight_weapon },           
+    { "weapon_disintegrator", 21, -1, 0.15f, adjust_weight_weapon }, 
+    { "weapon_bfg", 25, -1, 0.15f, adjust_weight_weapon },           
 
 
     { "ammo_trap", 4, -1, 0.14f, adjust_weight_ammo },
@@ -410,7 +414,8 @@ constexpr weighted_item_t monsters[] = {
     { "monster_gekk", 4, 17, 0.17f },
     { "monster_gunner2", 3, -1, 0.35f },
     { "monster_gunner", 9, -1, 0.34f },
-    { "monster_brain", 5, -1, 0.2f },
+    { "monster_brain", 5, 22, 0.2f },
+    { "monster_brain", 23, -1, 0.35f },
     { "monster_stalker", 2, 3, 0.05f },
     { "monster_stalker", 4, 13, 0.19f },
     { "monster_parasite", 4, 17, 0.23f },
@@ -423,7 +428,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_chick", 6, 18, 0.3f },
     { "monster_chick_heat", 10, -1, 0.34f },
     { "monster_berserk", 6, -1, 0.35f },
-    { "monster_floater", 6, -1, 0.16f },
+    { "monster_floater", 6, -1, 0.26f },
     { "monster_hover", 15, -1, 0.18f },
     { "monster_daedalus", 13, -1, 0.13f },
     { "monster_daedalus2", 16, -1, 0.11f },
@@ -434,7 +439,8 @@ constexpr weighted_item_t monsters[] = {
     { "monster_guncmdr", 11, -1, 0.28f },
     { "monster_gladc", 7, -1, 0.3f },
     { "monster_gladiator", 9, -1, 0.3f },
-    { "monster_shambler", 14, -1, 0.03f },
+    { "monster_shambler", 14, 28, 0.03f },
+    { "monster_shambler", 29, -1, 0.33f },
     { "monster_floater2", 19, -1, 0.35f },
     { "monster_tank_64", 22, -1, 0.14f },
     { "monster_janitor", 16, -1, 0.14f },
@@ -487,7 +493,7 @@ constexpr boss_t BOSS_LARGE[] = {
 
 // Función para obtener la lista de jefes basada en el tamaño del mapa
 const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
-    if (mapSize.isSmallMap || mapname == "q2dm4") return BOSS_SMALL;
+    if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64\\comm" || mapname == "q64/comm") return BOSS_SMALL;
     if (mapSize.isMediumMap) {
         if (mapname == "q64/dm3" ||
             mapname == "q64\\dm3" ||
@@ -797,15 +803,41 @@ void Horde_PreInit() {
     }
 }
 
-void Horde_Init() {
-    // Obtener el tamaño del mapa actual
+void VerifyAndAdjustBots() {
     auto mapSize = GetMapSize(level.mapname);
+    int activePlayers = GetNumActivePlayers();
+    int spectPlayers = GetNumSpectPlayers();
+    int requiredBots = 0;
+
+    const int minBotsBigMap = 7;
+    const int minBotsOtherMap = 5;
+
     if (mapSize.isBigMap) {
-        gi.cvar_set("bot_minClients", "7");
+        requiredBots = minBotsBigMap - activePlayers;
     }
     else {
-        gi.cvar_set("bot_minClients", "5");
+        requiredBots = minBotsOtherMap - activePlayers;
     }
+
+    // Ajustar el número de bots teniendo en cuenta los espectadores
+    if (spectPlayers > 0) {
+        requiredBots += spectPlayers;
+    }
+
+    // Asegurarse de no tener menos de la cantidad mínima de bots según el tamaño del mapa
+    if (mapSize.isBigMap && requiredBots < minBotsBigMap) {
+        requiredBots = minBotsBigMap;
+    }
+    else if (!mapSize.isBigMap && requiredBots < minBotsOtherMap) {
+        requiredBots = minBotsOtherMap;
+    }
+
+    gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+}
+
+void Horde_Init() {
+    VerifyAndAdjustBots();
+
     for (auto& item : itemlist) PrecacheItem(&item);
 
     for (const auto& monster : monsters) {
@@ -976,9 +1008,12 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"xdm6", {-1088, -128, 528}},
     {"mgu3m4", {3312, 3344, 864}},
     {"mgdm1", {176, 64, 288}},
+    {"mgu6trial", {-848, 176, 96}},
     {"fact3", {0, -64, 192}},
     {"mgu6m3", {0, 592, 1600}},
     {"q64/dm7", {64, 224, 120}},
+    {"q64/comm", {1464 - 88 - 432}},
+    {"q64/comm", {1464 - 88 - 432}},
     {"q64/command", {0, -208, 56}},
     {"q64\\command", {0, -208, 56}},
     {"q64\\dm7", {64, 224, 120}},
@@ -1167,7 +1202,6 @@ struct ConditionParams {
     int timeThreshold;
 };
 
-// Obtener el número de jugadores activos
 int GetNumActivePlayers() {
     int numActivePlayers = 0;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
@@ -1177,6 +1211,17 @@ int GetNumActivePlayers() {
         }
     }
     return numActivePlayers;
+}
+
+int GetNumSpectPlayers() {
+    int numSpectPlayers = 0;
+    for (uint32_t player = 1; player <= game.maxclients; ++player) {
+        edict_t* ent = &g_edicts[player];
+        if (ent->inuse && ent->client && !ent->solid) {
+            numSpectPlayers++;
+        }
+    }
+    return numSpectPlayers;
 }
 
 // Calcular los parámetros de la condición en función del mapa y el número de jugadores
@@ -1401,8 +1446,10 @@ void SpawnMonsters() {
         g_horde_local.monster_spawn_time = level.time + 1.5_sec; 
     }
 }
-
 void Horde_RunFrame() {
+    // Verificar y ajustar el número de bots en cada frame
+    VerifyAndAdjustBots();
+
     auto mapSize = GetMapSize(level.mapname);
 
     // Verificar y actualizar el valor de dm_monsters en cada frame
@@ -1413,7 +1460,7 @@ void Horde_RunFrame() {
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
         if (g_horde_local.warm_time < level.time + 0.4_sec) {
-            remainingMonsters = CalculateRemainingMonsters();;
+            remainingMonsters = CalculateRemainingMonsters();
             g_horde_local.state = horde_state_t::spawning;
             Horde_InitLevel(1);
             current_wave_number = 2;

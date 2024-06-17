@@ -787,33 +787,33 @@ bool FindTarget(edict_t* self)
     if (!client)
     {
         if (g_horde->integer && strcmp(self->classname, "monster_turret")) { // this avoid turrets go crazy maybe
-        // Busca enemigos en el equipo contrario
-        edict_t* ent = nullptr;
-        float range = 1000.0f; // Rango de búsqueda
-        vec3_t dir;
+            // Busca enemigos en el equipo contrario
+            edict_t* ent = nullptr;
+            float range = 1000.0f; // Rango de búsqueda
+            vec3_t dir;
 
-        for (unsigned int i = 0; i < globals.num_edicts; i++)
-        {
-            ent = &g_edicts[i];
-
-            if (!ent->inuse)
-                continue;
-
-            if (ent == self)
-                continue;
-
-            // Solo busca enemigos en el equipo contrario
-            if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
+            for (unsigned int i = 0; i < globals.num_edicts; i++)
             {
-                dir = ent->s.origin - self->s.origin;
-                if (VectorLength(dir) < range)
+                ent = &g_edicts[i];
+
+                if (!ent->inuse)
+                    continue;
+
+                if (ent == self)
+                    continue;
+
+                // Solo busca enemigos en el equipo contrario
+                if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
                 {
-                    self->enemy = ent;
-                    return true;
+                    dir = ent->s.origin - self->s.origin;
+                    if (VectorLength(dir) < range)
+                    {
+                        self->enemy = ent;
+                        return true;
+                    }
                 }
             }
         }
-    }
         return false; // no clients to get mad at
     }
 
@@ -925,30 +925,30 @@ bool FindTarget(edict_t* self)
                 return false;
         }
 
+        // Verificación de PHS se aplica en ambos modos
+        if (!gi.inPHS(self->s.origin, client->s.origin, true))
+            return false;
+
         if (g_horde->integer)
         {
-            // Allow monsters with FL_FLY or with AI_STAND_GROUND | AI_TEMP_STAND_GROUND to hear in horde mode
-            if (!(self->flags & FL_FLY) || !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
+            // Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde
+            if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
             {
                 return false;
             }
         }
 
-        else
-        {
-            if (!gi.inPHS(self->s.origin, client->s.origin, true))
-                return false;
-        }
-
         temp = client->s.origin - self->s.origin;
 
-        if (temp.length() > 1000) // too far to hear
+        if (VectorLength(temp) > 1000) // demasiado lejos para oír
             return false;
 
-        // check area portals - if they are different and not connected then we can't hear it
+        // Verificar portales de área - si son diferentes y no están conectados, no podemos oírlo
         if (client->areanum != self->areanum)
+        {
             if (!gi.AreasConnected(self->areanum, client->areanum))
                 return false;
+        }
 
         self->ideal_yaw = vectoyaw(temp);
         // ROGUE
@@ -956,12 +956,12 @@ bool FindTarget(edict_t* self)
             // ROGUE
             M_ChangeYaw(self);
 
-        // hunt the sound for a bit; hopefully find the real player
+        // Caza el sonido por un tiempo; con suerte encuentra al jugador real
         self->monsterinfo.aiflags |= AI_SOUND_TARGET;
         self->enemy = client;
     }
 
-    //
+    // 
     // got one
     //
     // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here

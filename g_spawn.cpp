@@ -572,7 +572,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_medic", {"monster_spider"}, 1},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus"}, 2},
-		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2"}, 3},
+		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2", "monster_floater"}, 4},
 	};
 	int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 
@@ -607,17 +607,17 @@ void ED_CallSpawn(edict_t* ent) {
 
 	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
 	if (g_chaotic->integer == 2) {
-		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
+		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.015f);
 	}
 	else if (g_chaotic->integer == 3) {
 		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
 	}
 
 	if (g_insane->integer == 1) {
-		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.0f);
+		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.001f);
 	}
 	else if (g_insane->integer == 2) {
-		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.3f);
+		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.33f);
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
