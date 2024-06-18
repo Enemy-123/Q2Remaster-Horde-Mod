@@ -1071,7 +1071,7 @@ void CTFSetIDView(edict_t* ent) {
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
 	float closest_dist = 2048; // Aumentar la distancia máxima inicial
-	float min_dot = 0.93f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
+	float min_dot = 0.975f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
 
 	// Reduce the update interval
 	if (level.time - ent->client->resp.lastidtime < 85_ms)
@@ -1156,10 +1156,10 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		else if (best->svflags & SVF_MONSTER) {
 			bool has_armor = false;
-			if (best->monsterinfo.armor_power > 0) {
-				health_stream << " A: " << best->monsterinfo.armor_power; // Agregar la armadura si es mayor a 0
-				has_armor = true;
-			}
+			// if (best->monsterinfo.armor_power > 0) {
+			//     health_stream << " A: " << best->monsterinfo.armor_power; // Agregar la armadura si es mayor a 0
+			//     has_armor = true;
+			// }
 			if (best->monsterinfo.power_armor_power > 0) {
 				health_stream << (has_armor ? " " : "") << " PA: " << best->monsterinfo.power_armor_power; // Agregar el power armor si es mayor a 0
 			}
