@@ -1228,36 +1228,60 @@ int GetNumSpectPlayers() {
     return numSpectPlayers;
 }
 
-// Calcular los parámetros de la condición en función del mapa y el número de jugadores
+// Calcular los parámetros de la condición en función del tamaño del mapa y el número de jugadores
 ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) {
-    ConditionParams params = { 0, 0 };
+    ConditionParams params = { 0, 0 }; // Inicializar parámetros con valores por defecto
 
+    // Caso 1: Mapas grandes (BigMap)
+    // Para mapas grandes, siempre tratar como si hubiera más de 4 jugadores humanos
+    if (mapSize.isBigMap) {
+        params.maxMonsters = 24;
+        params.timeThreshold = 16;
+        return params;
+    }
+
+    // Caso 2: Tres o más jugadores humanos
     if (numHumanPlayers >= 3) {
         if (mapSize.isSmallMap) {
-            params = { 7, 4 };
-        }
-        else if (mapSize.isBigMap) {
-            params = { 24, 16 };
+            params.maxMonsters = 7;
+            params.timeThreshold = 4;
         }
         else {
-            params = { 12, 7 };
+            // Asumimos que cualquier otro mapa en este punto es de tamaño medio (MediumMap)
+            params.maxMonsters = 12;
+            params.timeThreshold = 7;
         }
     }
+    // Caso 3: Menos de tres jugadores humanos
     else {
         if (mapSize.isSmallMap) {
-            params = { current_wave_number <= 4 ? 3 : 6, current_wave_number <= 4 ? 7 : 13 };
-        }
-        else if (mapSize.isBigMap) {
-            params = { current_wave_number <= 4 ? 16 : 17, current_wave_number <= 4 ? 16 : 17 };
+            if (current_wave_number <= 4) {
+                params.maxMonsters = 3;
+                params.timeThreshold = 7;
+            }
+            else {
+                params.maxMonsters = 6;
+                params.timeThreshold = 13;
+            }
         }
         else {
-            params = { current_wave_number <= 4 ? 3 : 8, current_wave_number <= 4 ? 7 : 15 };
+            // Asumimos que cualquier otro mapa en este punto es de tamaño medio (MediumMap)
+            if (current_wave_number <= 4) {
+                params.maxMonsters = 3;
+                params.timeThreshold = 8;
+            }
+            else {
+                params.maxMonsters = 8;
+                params.timeThreshold = 15;
+            }
         }
 
+        // Ajuste adicional si las condiciones de caos o locura están activas
         if ((g_chaotic->integer && numHumanPlayers <= 5) || (g_insane->integer && numHumanPlayers <= 5)) {
             params.timeThreshold += 4;
         }
     }
+
     return params;
 }
 
