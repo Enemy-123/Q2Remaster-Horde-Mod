@@ -1031,19 +1031,19 @@ void SP_monster_turret(edict_t* self)
 	//self->nextthink = level.time + 2_sec;
 
 	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 65;
+		self->monsterinfo.power_armor_power = 100;
 
-	self->health = 125;
+	self->health = 75;
 	self->gib_health = -100;
-	self->mass = 250;
-	self->yaw_speed = 13 * skill->integer;
+	self->mass = 100;
+	self->yaw_speed = 12;
 	self->clipmask = MASK_PROJECTILE | CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 	self->solid = SOLID_BBOX;
 	self->svflags |= SVF_MONSTER;
-	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-	self->monsterinfo.armor_power = 150;
+	//self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+	//self->monsterinfo.armor_power = 150;
 	self->flags |= FL_MECHANICAL;
 	self->pain = turret_pain;
 	self->die = turret_die;
@@ -1137,7 +1137,10 @@ void SP_monster_turret(edict_t* self)
 	{
 		gi.soundindex("infantry/infatck1.wav");
 		gi.soundindex("weapons/chngnu1a.wav");
-		self->s.skinnum = 1;
+		gi.soundindex("weapons/rockfly.wav");
+		gi.modelindex("models/objects/rocket/tris.md2");
+		gi.soundindex("chick/chkatck2.wav");
+		self->s.skinnum = 2;
 
 		self->spawnflags &= ~SPAWNFLAG_TURRET_WEAPONCHOICE;
 		self->spawnflags |= SPAWNFLAG_TURRET_MACHINEGUN;
