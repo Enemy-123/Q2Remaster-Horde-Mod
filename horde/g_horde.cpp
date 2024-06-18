@@ -1183,6 +1183,8 @@ void ResetGame() {
     gi.cvar_set("g_autohaste", "0");
     gi.cvar_set("dm_monsters", "0");
     gi.cvar_set("timelimit", "40");
+    gi.cvar_set("bot_pause", "0");
+    gi.cvar_set("set cheats 0 s", "");
 
     // Reset cooldowns
     MONSTER_COOLDOWN = 2.5_sec;

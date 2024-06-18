@@ -1149,10 +1149,20 @@ void CTFSetIDView(edict_t* ent) {
 
 		health_stream << "H: " << best->health; // Agregar la salud
 		if (best->client) {
-			health_stream << " A: " << GetArmorInfo(best); // Agregar la armadura
+			int armor_value = GetArmorInfo(best); // Asumimos que GetArmorInfo devuelve un int
+			if (armor_value > 0) {
+				health_stream << " A: " << std::to_string(armor_value); // Convertir a string
+			}
 		}
 		else if (best->svflags & SVF_MONSTER) {
-			health_stream << " PA: " << best->monsterinfo.power_armor_power; // Agregar el power armor para los monstruos
+			bool has_armor = false;
+			if (best->monsterinfo.armor_power > 0) {
+				health_stream << " A: " << best->monsterinfo.armor_power; // Agregar la armadura si es mayor a 0
+				has_armor = true;
+			}
+			if (best->monsterinfo.power_armor_power > 0) {
+				health_stream << (has_armor ? " " : "") << " PA: " << best->monsterinfo.power_armor_power; // Agregar el power armor si es mayor a 0
+			}
 		}
 		ent->client->target_health_str = health_stream.str();
 
@@ -1190,7 +1200,6 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {
