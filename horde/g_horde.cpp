@@ -590,6 +590,8 @@ int WAVE_TO_ALLOW_FLYING = 0; // Permitir monstruos voladores a partir de esta o
 const char* flying_monster_classnames[] = {
     "monster_boss2_64",
     "monster_carrier2",
+    "monster_floater",
+    "monster_floater2",
     "monster_flyer",
     "monster_fixbot",
     "monster_hover",

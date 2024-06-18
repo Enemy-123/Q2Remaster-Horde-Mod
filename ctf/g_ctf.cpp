@@ -3318,7 +3318,7 @@ void CTFObserver(edict_t* ent)
 	ent->client->resp.ctf_team = CTF_NOTEAM;
 	ent->client->ps.gunindex = 0;
 	ent->client->ps.gunskin = 0;
-	ent->client->resp.score = 0;
+//	ent->client->resp.score = 0;
 	PutClientInServer(ent);
 }
 

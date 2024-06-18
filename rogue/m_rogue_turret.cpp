@@ -715,7 +715,11 @@ DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 
 THINK(turret_timeout) (edict_t* self) -> void
 {
-	turret_die(self, self, self, 0, vec3_origin, MOD_UNKNOWN);
+	self->health -= 3;
+	self->monsterinfo.power_armor_power -= 5;
+
+	if (self->monsterinfo.power_armor_power <= 10)
+		self->health -= 10;
 }
 
 // **********************
@@ -1022,6 +1026,10 @@ void SP_monster_turret(edict_t* self)
 	self->maxs = { 9, 9, 9 };
 	self->movetype = MOVETYPE_NONE;
 
+
+	//self->think = G_FreeEdict;
+	//self->nextthink = level.time + 2_sec;
+
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
@@ -1031,7 +1039,7 @@ void SP_monster_turret(edict_t* self)
 	self->gib_health = -100;
 	self->mass = 250;
 	self->yaw_speed = 13 * skill->integer;
-	self->clipmask = MASK_SHOT | ~CONTENTS_MONSTER | ~CONTENTS_PLAYER;
+	self->clipmask = MASK_PROJECTILE | CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 	self->solid = SOLID_BBOX;
 	self->svflags |= SVF_MONSTER;
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;

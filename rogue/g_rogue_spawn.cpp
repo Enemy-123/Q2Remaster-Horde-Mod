@@ -28,9 +28,11 @@
 //
 // CreateMonster
 //
-edict_t *CreateMonster(const vec3_t &origin, const vec3_t &angles, const char *classname)
+#define MAX_SPAWN_ATTEMPTS 5
+
+edict_t* CreateMonster(const vec3_t& origin, const vec3_t& angles, const char* classname)
 {
-	edict_t *newEnt;
+	edict_t* newEnt;
 
 	newEnt = G_Spawn();
 
@@ -46,57 +48,70 @@ edict_t *CreateMonster(const vec3_t &origin, const vec3_t &angles, const char *c
 	return newEnt;
 }
 
-edict_t *CreateFlyMonster(const vec3_t &origin, const vec3_t &angles, const vec3_t &mins, const vec3_t &maxs, const char *classname)
+edict_t* CreateFlyMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& mins, const vec3_t& maxs, const char* classname)
 {
-	if (!CheckSpawnPoint(origin, mins, maxs))
-		return nullptr;
-
-	return (CreateMonster(origin, angles, classname));
+	for (int i = 0; i < MAX_SPAWN_ATTEMPTS; ++i)
+	{
+		if (CheckSpawnPoint(origin, mins, maxs))
+			return CreateMonster(origin, angles, classname);
+	}
+	return nullptr;
 }
 
 // This is just a wrapper for CreateMonster that looks down height # of CMUs and sees if there
 // are bad things down there or not
 
-edict_t *CreateGroundMonster(const vec3_t &origin, const vec3_t &angles, const vec3_t &entMins, const vec3_t &entMaxs, const char *classname, float height)
+edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& entMins, const vec3_t& entMaxs, const char* classname, float height)
 {
-	edict_t *newEnt;
+	edict_t* newEnt;
 
-	// check the ground to make sure it's there, it's relatively flat, and it's not toxic
-	if (!CheckGroundSpawnPoint(origin, entMins, entMaxs, height, -1.f))
-		return nullptr;
-
-	newEnt = CreateMonster(origin, angles, classname);
-	if (!newEnt)
-		return nullptr;
-
-	return newEnt;
+	// Try multiple times to find a suitable spawn point
+	for (int i = 0; i < MAX_SPAWN_ATTEMPTS; ++i)
+	{
+		// check the ground to make sure it's there, it's relatively flat, and it's not toxic
+		if (CheckGroundSpawnPoint(origin, entMins, entMaxs, height, -1.f))
+		{
+			newEnt = CreateMonster(origin, angles, classname);
+			if (newEnt)
+				return newEnt;
+		}
+	}
+	return nullptr;
 }
 
 // FindSpawnPoint
 // PMM - this is used by the medic commander (possibly by the carrier) to find a good spawn point
 // if the startpoint is bad, try above the startpoint for a bit
 
-bool FindSpawnPoint(const vec3_t &startpoint, const vec3_t &mins, const vec3_t &maxs, vec3_t &spawnpoint, float maxMoveUp, bool drop)
+bool FindSpawnPoint(const vec3_t& startpoint, const vec3_t& mins, const vec3_t& maxs, vec3_t& spawnpoint, float maxMoveUp, bool drop)
 {
 	spawnpoint = startpoint;
 
-	// drop first
-	if (!drop || !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
+	// Try multiple times to find a suitable spawn point
+	for (int i = 0; i < MAX_SPAWN_ATTEMPTS; ++i)
 	{
-		spawnpoint = startpoint;
+		// drop first
+		if (!drop || !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
+		{
+			spawnpoint = startpoint;
 
-		// fix stuck if we couldn't drop initially
-		if (G_FixStuckObject_Generic(spawnpoint, mins, maxs, [] (const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end) {
+			// fix stuck if we couldn't drop initially
+			if (G_FixStuckObject_Generic(spawnpoint, mins, maxs, [](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
 				return gi.trace(start, mins, maxs, end, nullptr, MASK_MONSTERSOLID);
-			}) == stuck_result_t::NO_GOOD_POSITION)
-			return false;
+				}) == stuck_result_t::NO_GOOD_POSITION)
+				return false;
 
-		// fixed, so drop again
-		if (drop && !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
-			return false; // ???
+			// fixed, so drop again
+			if (drop && !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
+				return false; // ???
+		}
+
+		// If a suitable spawn point is found, return true
+		if (CheckSpawnPoint(spawnpoint, mins, maxs))
+			return true;
 	}
 
-	return true;
+	return false;
 }
 
 // FIXME - all of this needs to be tweaked to handle the new gravity rules
@@ -109,7 +124,7 @@ bool FindSpawnPoint(const vec3_t &startpoint, const vec3_t &mins, const vec3_t &
 //
 // This is all fliers should need
 
-bool CheckSpawnPoint(const vec3_t &origin, const vec3_t &mins, const vec3_t &maxs)
+bool CheckSpawnPoint(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs)
 {
 	trace_t tr;
 
@@ -131,12 +146,12 @@ bool CheckSpawnPoint(const vec3_t &origin, const vec3_t &mins, const vec3_t &max
 //
 // PMM - used for walking monsters
 //  checks:
-//		1)	is there a ground within the specified height of the origin?
-//		2)	is the ground non-water?
-//		3)	is the ground flat enough to walk on?
+//      1)  is there a ground within the specified height of the origin?
+//      2)  is the ground non-water?
+//      3)  is the ground flat enough to walk on?
 //
 
-bool CheckGroundSpawnPoint(const vec3_t &origin, const vec3_t &entMins, const vec3_t &entMaxs, float height, float gravity)
+bool CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const vec3_t& entMaxs, float height, float gravity)
 {
 	if (!CheckSpawnPoint(origin, entMins, entMaxs))
 		return false;
@@ -149,6 +164,7 @@ bool CheckGroundSpawnPoint(const vec3_t &origin, const vec3_t &entMins, const ve
 
 	return false;
 }
+
 
 // ****************************
 // SPAWNGROW stuff
