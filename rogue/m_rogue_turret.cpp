@@ -523,7 +523,7 @@ void TurretFire(edict_t* self)
 					self->monsterinfo.last_rocket_fire_time = currentTime;
 
 					if (dist * trace.fraction > 72)
-						monster_fire_rocket(self, start, dir, 100, 1080, MZ2_TURRET_ROCKET);
+						monster_fire_rocket(self, start, dir, 100, 1220, MZ2_TURRET_ROCKET);
 				}
 			}
 
@@ -543,7 +543,7 @@ void TurretFire(edict_t* self)
 					if (self->monsterinfo.next_duck_time < level.time &&
 						self->monsterinfo.melee_debounce_time <= level.time)
 					{
-						monster_fire_bullet(self, start, dir, TURRET_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD / 3, DEFAULT_BULLET_VSPREAD / 3, MZ2_TURRET_MACHINEGUN);
+						monster_fire_bullet(self, start, dir, TURRET_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
 						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 					}
 

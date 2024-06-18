@@ -1814,13 +1814,12 @@ void weapon_railgun_fire(edict_t* ent)
 {
 	int damage, kick;
 
-	// normal damage too extreme for DM
 	if (G_IsDeathmatch())
 	{
-		damage = 150;
+		damage = 225;
 		kick = 285;
 	}
-	else
+	else if (!G_IsDeathmatch())
 	{
 		damage = 150;
 		kick = 285;
