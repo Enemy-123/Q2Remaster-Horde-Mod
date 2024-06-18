@@ -3475,6 +3475,7 @@ void CheckClientsInactivity() {
 		}
 	}
 }
+extern void VerifyAndAdjustBots();
 /*
 ==============
 ClientThink
@@ -3502,6 +3503,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	client->latched_buttons |= client->buttons & ~client->oldbuttons;
 	client->cmd = *ucmd;
 
+	if (g_horde->integer) {
+		VerifyAndAdjustBots();
+	}
 	// check for inactivity timer
 	if (!ClientInactivityTimer(ent))
 		return;

@@ -811,17 +811,22 @@ int GetNumHumanPlayers() {
     return numHumanPlayers;
 }
 
-// Función para verificar y ajustar el número de bots
 void VerifyAndAdjustBots() {
     auto mapSize = GetMapSize(level.mapname);
-    int activePlayers = GetNumActivePlayers();
     int humanPlayers = GetNumHumanPlayers();
     int spectPlayers = GetNumSpectPlayers();
-    int requiredBots = (mapSize.isBigMap ? 6 : 4) - humanPlayers + spectPlayers;
+    int baseBots = mapSize.isBigMap ? 6 : 4;
 
-    requiredBots = std::max(requiredBots, mapSize.isBigMap ? 6 : 4);
+    // Calcular el número requerido de bots
+    int requiredBots = baseBots + spectPlayers;
+
+    // Asegurar que el número de bots no sea menor que el valor base
+    requiredBots = std::max(requiredBots, baseBots);
+
+    // Establecer el número de bots mínimos necesarios
     gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
+
 
 void Horde_Init() {
     VerifyAndAdjustBots();
@@ -1152,15 +1157,20 @@ void ResetSpawnAttempts() {
 // Resetting game every end of level
 void ResetGame() {
 
+    // Reset spawn attempts and cooldowns
     ResetSpawnAttempts();
-
-    ResetBenefits();
     ResetCooldowns();
+    ResetBenefits();
     current_wave_number = 2;
+
+    // Reset global and local horde states
+    g_horde_local.level = 0;  // Reiniciar el número de la ola actual
     g_horde_local.state = horde_state_t::warmup;
     next_wave_message_sent = false;
     boss_spawned_for_wave = false;
     allowWaveAdvance = false;
+
+    // Reset global configuration variables
     gi.cvar_set("g_chaotic", "0");
     gi.cvar_set("g_insane", "0");
     gi.cvar_set("g_vampire", "0");
@@ -1174,9 +1184,11 @@ void ResetGame() {
     gi.cvar_set("dm_monsters", "0");
     gi.cvar_set("timelimit", "40");
 
-    // reset cooldowns
+    // Reset cooldowns
     MONSTER_COOLDOWN = 2.5_sec;
     SPAWN_POINT_COOLDOWN = 3.5_sec;
+
+    // Reset the number of monsters to spawn
     g_horde_local.num_to_spawn = 0;
     remainingMonsters = 0;
 }
@@ -1196,14 +1208,14 @@ int GetNumActivePlayers() {
     int numActivePlayers = 0;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
         edict_t* ent = &g_edicts[player];
-        if (ent->inuse && ent->client && ent->solid) {
+        if (ent->client->resp.ctf_team == CTF_TEAM1) {
             numActivePlayers++;
         }
     }
     return numActivePlayers;
 }
 
-// Función para obtener el número de jugadores espectadores
+
 int GetNumSpectPlayers() {
     int numSpectPlayers = 0;
     for (uint32_t player = 1; player <= game.maxclients; ++player) {
@@ -1216,20 +1228,19 @@ int GetNumSpectPlayers() {
     return numSpectPlayers;
 }
 
-
 // Calcular los parámetros de la condición en función del mapa y el número de jugadores
-ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers) {
+ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) {
     ConditionParams params = { 0, 0 };
 
-    if (numActivePlayers >= 6) {
+    if (numHumanPlayers >= 3) {
         if (mapSize.isSmallMap) {
             params = { 7, 4 };
         }
         else if (mapSize.isBigMap) {
-            params = { 24, 19 };
+            params = { 24, 16 };
         }
         else {
-            params = { 12, 8 };
+            params = { 12, 7 };
         }
     }
     else {
@@ -1243,7 +1254,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numActivePlayers)
             params = { current_wave_number <= 4 ? 3 : 8, current_wave_number <= 4 ? 7 : 15 };
         }
 
-        if ((g_chaotic->integer && numActivePlayers <= 5) || (g_insane->integer && numActivePlayers <= 5)) {
+        if ((g_chaotic->integer && numHumanPlayers <= 5) || (g_insane->integer && numHumanPlayers <= 5)) {
             params.timeThreshold += 4;
         }
     }
@@ -1262,8 +1273,9 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
         return true;
     }
 
-    int numActivePlayers = GetNumActivePlayers();
-    ConditionParams params = GetConditionParams(mapSize, numActivePlayers);
+    // Obtener el número de jugadores humanos en lugar de jugadores activos
+    int numHumanPlayers = GetNumHumanPlayers();
+    ConditionParams params = GetConditionParams(mapSize, numHumanPlayers);
 
     // Utiliza la función CalculateRemainingMonsters para excluir los monster_turret
     int remainingMonsters = CalculateRemainingMonsters();
@@ -1286,6 +1298,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     previous_remainingMonsters = remainingMonsters;
     return false;
 }
+
 
 
 // Función para decidir si se usa el spawn más lejano basado en el nivel actual
