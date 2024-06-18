@@ -142,8 +142,8 @@ THINK(Prox_Explode) (edict_t* ent) -> void
 			fire_grenade(owner, origin, forward, 60, 600, 2_sec, 120, 0.0, 0.0, true);
 		}
 	}
-		G_FreeEdict(ent);
-	
+	G_FreeEdict(ent);
+
 }
 //===============
 //===============
@@ -178,7 +178,6 @@ TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool o
 	// teammate avoidance
 	if (CheckTeamDamage(prox->teammaster, other))
 		return;
-
 	if (G_IsDeathmatch() && g_horde->integer && other->client) // no self damage using traps on DM/Horde
 		return;
 
@@ -348,7 +347,7 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 		// Note that plane can be nullptr
 
 		// PMM - code stolen from g_phys (ClipVelocity)
-		vec3_t out{};
+		vec3_t out;
 		float  backoff, change;
 		int	   i;
 
@@ -835,7 +834,7 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 // TESLA
 // *************************
 
-constexpr gtime_t TESLA_TIME_TO_LIVE = 38_sec;
+constexpr gtime_t TESLA_TIME_TO_LIVE = 30_sec;
 constexpr float	  TESLA_DAMAGE_RADIUS = 128;
 constexpr int32_t TESLA_DAMAGE = 4;
 constexpr int32_t TESLA_KNOCKBACK = 8;
@@ -876,13 +875,8 @@ void tesla_remove(edict_t* self)
 
 DIE(tesla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	// Añadir comprobación para rechazar el daño si el atacante es un jugador
-	if (attacker->client) {
-		return;  // No permitir daño de jugadores
-	}
 	tesla_remove(self);
 }
-
 
 void tesla_blow(edict_t* self)
 {
@@ -891,14 +885,14 @@ void tesla_blow(edict_t* self)
 	tesla_remove(self);
 }
 
-TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
-{
-	// Ignorar el contacto si el otro es un jugador
-	if (other->client) {
-		return;
-	}
+	TOUCH(tesla_zap) (edict_t * self, edict_t * other, const trace_t & tr, bool other_touching_self) -> void
+	{
+		// Ignorar el contacto si el otro es un jugador
+		if (other->client) {
+			return;
+		}
 
-	// Código existente para manejar el contacto aquí
+		// Código existente para manejar el contacto aquí
 }
 
 static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
@@ -975,7 +969,6 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		}
 		if (!(hit->svflags & SVF_MONSTER) && !(hit->flags & FL_DAMAGEABLE) && !hit->client)
 			continue;
-
 		// Don't hit monster_turret
 		if (hit->classname && strcmp(hit->classname, "monster_turret") == 0)
 			continue;
@@ -1132,7 +1125,8 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
 	edict_t* tesla;
-	vec3_t dir, forward, right, up;
+	vec3_t	 dir;
+	vec3_t	 forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -1142,38 +1136,45 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->velocity = aimdir * speed;
 
 	float gravityAdjustment = level.gravity / 800.f;
+
 	tesla->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
 	tesla->velocity += right * (crandom() * 10.0f);
 
 	tesla->s.angles = {};
 	tesla->movetype = MOVETYPE_BOUNCE;
-	tesla->solid = SOLID_TRIGGER;
+	tesla->solid = SOLID_BBOX;
 	tesla->s.effects |= EF_GRENADE;
 	tesla->s.renderfx |= RF_IR_VISIBLE;
 	tesla->mins = { -12, -12, 0 };
 	tesla->maxs = { 12, 12, 20 };
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
 
-	//tesla->owner = self;
+	tesla->owner = self; // PGM - we don't want it owned by self YET.
 	tesla->teammaster = self;
 
 	tesla->wait = (level.time + TESLA_TIME_TO_LIVE).seconds();
 	tesla->think = tesla_think;
 	tesla->nextthink = level.time + TESLA_ACTIVATE_TIME;
 
-
+	// blow up on contact with lava & slime code
+	tesla->touch = tesla_lava;
 
 	if (G_IsDeathmatch())
+		// PMM - lowered from 50 - 7/29/1998
 		tesla->health = 50;
 	else
-		tesla->health = 50;
+		tesla->health = 50; // FIXME - change depending on skill?
 
 	tesla->takedamage = true;
 	tesla->die = tesla_die;
 	tesla->dmg = TESLA_DAMAGE * tesla_damage_multiplier;
 	tesla->classname = "tesla_mine";
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
-	tesla->clipmask = MASK_SHOT | CONTENTS_MONSTER;  // Ajustado para colisionar sólo con monstruos
+	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
+
+	// [Paril-KEX]
+	if (self->client && !G_ShouldPlayersCollide(true))
+		tesla->clipmask &= ~CONTENTS_PLAYER;
 
 	tesla->flags |= FL_MECHANICAL;
 
