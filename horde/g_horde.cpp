@@ -1445,6 +1445,14 @@ void SpawnMonsters() {
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
         monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+
+        if (g_horde_local.level >= 22) {
+            if (!st.was_key_specified("power_armor_power"))
+                monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+            if (!st.was_key_specified("power_armor_type"))
+                monster->monsterinfo.armor_power = 175;
+        }
+
     // Decidir si el monstruo dropeará un ítem
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
