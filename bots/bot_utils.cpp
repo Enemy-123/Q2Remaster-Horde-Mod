@@ -124,13 +124,7 @@ void Player_UpdateState(edict_t* player) {
 	player->sv.armor_value = persistant.inventory[armorType];
 
 	player->sv.health = (player->deadflag != true) ? player->health : -1;
-	// Additional check to ensure persistant.weapon is not nullptr
-	if (persistant.weapon != nullptr) {
-		player->sv.weapon = persistant.weapon->id;
-	}
-	else {
-		player->sv.weapon = IT_NULL;
-	}
+	player->sv.weapon = (persistant.weapon != nullptr) ? persistant.weapon->id : IT_NULL;
 
 
 	player->sv.last_attackertime = static_cast<int32_t>(player->client->last_attacker_time.milliseconds());

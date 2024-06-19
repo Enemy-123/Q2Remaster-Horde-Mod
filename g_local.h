@@ -3083,6 +3083,7 @@ struct gclient_t
 
 	vec3_t old_origin; // Agregar para almacenar la posición anterior del jugador
 	vec3_t old_angles; // Agregar para almacenar los ángulos anteriores del jugador
+	bool techItemsRemoved;
 };
 
 

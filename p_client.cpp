@@ -3384,36 +3384,31 @@ extern void RemoveAllTechItems(edict_t* ent);
 extern bool ClientIsSpectating(gclient_t* cl);
 extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
-	gtime_t inactivity_duration = 35_sec; // 20 segundos para prueba
+	gtime_t inactivity_duration = 15_sec;
 
-	// Retorna inmediatamente si ent no tiene un cliente o si es un bot
 	if (!ent->client || (ent->svflags & SVF_BOT)) {
 		return true;
 	}
 
-	// Asegurar que el tiempo de inactividad sea al menos 15 segundos
 	if (inactivity_duration < 15_sec) {
 		inactivity_duration = 15_sec;
 	}
 
-	// Configurar el tiempo de inactividad si no está establecido
 	if (!ent->client->resp.inactivity_time) {
 		ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
 		ent->client->resp.inactive = false;
+		ent->client->techItemsRemoved = false; // Reiniciar la bandera aquí
 		return true;
 	}
 
-	// Verificar si el jugador está en un estado donde no se debe aplicar inactividad
 	if (!g_horde->integer || ClientIsSpectating(ent->client)) {
-		ent->client->resp.inactivity_time = (level.time) + 1_min; // 1 minuto
+		ent->client->resp.inactivity_time = (level.time) + 1_min;
 		ent->client->resp.inactivity_warning = false;
 		ent->client->resp.inactive = false;
 		return true;
 	}
-
 	else {
-		// Verificar si el jugador est� activo
 		bool is_active = (ent->client->latched_buttons & BUTTON_ANY) ||
 			ent->client->old_origin[0] != ent->s.origin[0] ||
 			ent->client->old_origin[1] != ent->s.origin[1] ||
@@ -3423,25 +3418,20 @@ static bool ClientInactivityTimer(edict_t* ent) {
 			ent->client->old_angles[2] != ent->client->v_angle[2];
 
 		if (is_active) {
-			// Si el jugador est� activo, restablecer el temporizador de inactividad
 			ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
 			ent->client->resp.inactivity_warning = false;
 			ent->client->resp.inactive = false;
 		}
 		else {
-			// Obtener el tiempo actual
 			gtime_t current_time = (level.time);
 
-			// Verificar si el tiempo de inactividad ha expirado
 			if (current_time > ent->client->resp.inactivity_time) {
 				gi.LocClient_Print(ent, PRINT_CENTER, "\n\n\n\n\nYou have deserted the war against stroggs!\n UNACCEPTABLE\n");
-				CTFJoinTeam(ent, CTF_NOTEAM); // Mueve al jugador al equipo espectador
-				RemoveAllTechItems(ent);
+				CTFObserver(ent);
 				ent->client->resp.inactive = true;
 				return false;
 			}
 
-			// Dar una advertencia si est� cerca del tiempo de inactividad
 			if (current_time > ent->client->resp.inactivity_time - 5_sec && !ent->client->resp.inactivity_warning) {
 				ent->client->resp.inactivity_warning = true;
 				gi.LocClient_Print(ent, PRINT_CENTER, "5 seconds to go AFK!\n");
@@ -3449,21 +3439,17 @@ static bool ClientInactivityTimer(edict_t* ent) {
 			}
 		}
 
-		// Reset warning if the player is active again
 		if (ent->client->resp.inactivity_warning && is_active) {
 			ent->client->resp.inactivity_warning = false;
 		}
 	}
 
 	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
-	// Actualizar old_origin y old_angles despu�s de procesar la entrada del jugador
 	VectorCopy(ent->s.origin, ent->client->old_origin);
 	VectorCopy(ent->client->v_angle, ent->client->old_angles);
 
 	return true;
 }
-
-
 
 cvar_t* maxclients;
 // Definir CheckClientsInactivity
@@ -3503,9 +3489,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	client->latched_buttons |= client->buttons & ~client->oldbuttons;
 	client->cmd = *ucmd;
 
-	if (g_horde->integer) {
-		VerifyAndAdjustBots();
-	}
 	// check for inactivity timer
 	if (!ClientInactivityTimer(ent))
 		return;
