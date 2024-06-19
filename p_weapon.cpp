@@ -1814,12 +1814,12 @@ void weapon_railgun_fire(edict_t* ent)
 {
 	int damage, kick;
 
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && g_horde->integer)
 	{
 		damage = 225;
 		kick = 285;
 	}
-	else if (!G_IsDeathmatch())
+	else
 	{
 		damage = 150;
 		kick = 285;
