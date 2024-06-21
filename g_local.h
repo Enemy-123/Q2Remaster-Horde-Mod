@@ -3604,7 +3604,7 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 	for (auto& gib : gibs)
 	{
 
-		for (size_t j = 0; j < 2; j++) // triplicar,duplicar cause of overflow crashes
+		for (size_t j = 0; j < 1; j++) // 
 		{
 			for (size_t i = 0; i < gib.count; i++)
 			{
