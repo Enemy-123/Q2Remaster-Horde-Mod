@@ -1424,6 +1424,7 @@ static edict_t* SelectSingleSpawnPoint(edict_t* ent)
 	return spot;
 }
 
+
 // [Paril-KEX]
 static edict_t* G_UnsafeSpawnPosition(vec3_t spot, bool check_players)
 {
@@ -3917,13 +3918,12 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 // [Paril-KEX] check each player to find a good
 // respawn target & position
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
-
-#include <sstream> // Asegúrate de incluir esta cabecera
 
 	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max()); // Inicializa con el mayor valor posible
 
@@ -3970,7 +3970,49 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 		if (player->groundentity != world)
 		{
 			player->client->coop_respawn_state = COOP_RESPAWN_BAD_AREA;
+
+			// Incrementa el temporizador si está en una bad area
+			player->client->time_in_bad_area += FRAME_TIME_MS;
+
+			// Calcula el tiempo restante en bad area
+			gtime_t time_left_in_bad_area = gtime_t::from_sec(5.0f) - player->client->time_in_bad_area;
+
+			// Formatea el mensaje con el tiempo en bad area hasta la décima de segundo
+			float time_in_bad_area_float = time_left_in_bad_area.seconds<float>();
+			std::ostringstream message_stream_bad_area;
+			message_stream_bad_area << "In Bad Area! Forcing Respawn in: " << time_in_bad_area_float;
+
+			// Redondea a una décima de segundo
+			std::string message_str_bad_area = message_stream_bad_area.str();
+			size_t pos_bad_area = message_str_bad_area.find('.');
+			if (pos_bad_area != std::string::npos && pos_bad_area + 2 < message_str_bad_area.size()) {
+				message_str_bad_area = message_str_bad_area.substr(0, pos_bad_area + 2); // Incluye solo una cifra decimal
+			}
+
+			// Añade "(s)" al final del mensaje
+			message_str_bad_area += "(s)";
+
+			// Actualiza la configstring con el mensaje de bad area
+			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str_bad_area.c_str());
+
+			// Si lleva más de 5 segundos en una bad area, forzar respawn en info_player_start
+			if (player->client->time_in_bad_area >= gtime_t::from_sec(5.0f))
+			{
+				vec3_t start_spot;
+				edict_t* spawn_point = SelectSingleSpawnPoint(player); // Ajustado para no pasar argumentos adicionales
+				if (spawn_point)
+				{
+					VectorCopy(spawn_point->s.origin, start_spot);
+					return { player, start_spot };
+				}
+			}
+
 			continue;
+		}
+		else
+		{
+			// Resetea el temporizador si no está en una bad area
+			player->client->time_in_bad_area = gtime_t::from_sec(0.0f);
 		}
 
 		// can't be in liquid
@@ -4016,7 +4058,6 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget()
 	// no good player
 	return { nullptr, {} };
 }
-
 enum respawn_state_t
 {
 	RESPAWN_NONE,     // invalid state
@@ -4031,8 +4072,8 @@ enum respawn_state_t
 static bool G_CoopRespawn(edict_t* ent)
 {
 	// don't do this in non-coop
-	//	if (!G_IsCooperative())
-	//		return false;
+	//  if (!G_IsCooperative())
+	//      return false;
 	// if we don't have squad or lives, it doesn't matter
 	if (!g_coop_squad_respawn->integer && !g_coop_enable_lives->integer)
 		return false;
@@ -4074,7 +4115,8 @@ static bool G_CoopRespawn(edict_t* ent)
 			{
 				auto [good_player, good_spot] = G_FindSquadRespawnTarget();
 
-				if (good_player) {
+				if (good_player)
+				{
 					state = RESPAWN_SQUAD;
 
 					squad_respawn_position = good_spot;
@@ -4083,7 +4125,8 @@ static bool G_CoopRespawn(edict_t* ent)
 
 					use_squad_respawn = true;
 				}
-				else {
+				else
+				{
 					state = RESPAWN_SPECTATE;
 				}
 			}
@@ -4131,6 +4174,9 @@ static bool G_CoopRespawn(edict_t* ent)
 
 	return true;
 }
+
+
+
 
 /*
 ==============

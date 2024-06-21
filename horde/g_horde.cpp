@@ -31,8 +31,8 @@ int CalculateRemainingMonsters() {
 int GetNumActivePlayers();
 int GetNumSpectPlayers();
 constexpr int MAX_MONSTERS_BIG_MAP = 28;
-constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
-constexpr int MAX_MONSTERS_SMALL_MAP = 15;
+constexpr int MAX_MONSTERS_MEDIUM_MAP = 17;
+constexpr int MAX_MONSTERS_SMALL_MAP = 14;
 bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
@@ -40,8 +40,8 @@ int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause
 int current_wave_number = 1;
 int last_wave_number = 0;
 
-gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.2); // Cooldown en segundos para los monstruos 2.5
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(2.8); // Cooldown en segundos para los puntos de spawn 3.5
+gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.5
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.0); // Cooldown en segundos para los puntos de spawn 3.5
 
 cvar_t* g_horde;
 
@@ -1053,34 +1053,34 @@ void SpawnBossAutomatically() {
 
             // Directamente decidir qué mensaje mostrar basado en el classname
             if (strcmp(desired_boss, "monster_boss2") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****\n");
             }
             if (strcmp(desired_boss, "monster_boss2kl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****\n");
             }
             else if (strcmp(desired_boss, "monster_carrier2") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****\n");
             }
             else if (strcmp(desired_boss, "monster_carrier") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****\n");
             }
             else if (strcmp(desired_boss, "monster_tank_64") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The ground shakes as the Tank Commander arrives! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The ground shakes as the Tank Commander arrives! *****\n");
             }
             else if (strcmp(desired_boss, "monster_shamblerkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Shambler emerges from the darkness! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Shambler emerges from the darkness! *****\n");
             }
             else if (strcmp(desired_boss, "monster_guncmdrkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Gunner Commmander is ready for battle! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Gunner Commmander is ready for battle! *****\n");
             }
             else if (strcmp(desired_boss, "monster_makronkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** Makron descends upon the battlefield! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** Makron descends upon the battlefield! *****\n");
             }
             else if (strcmp(desired_boss, "monster_guardian") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Guardian has arrived, imminent destruction! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Guardian has arrived, imminent destruction! *****\n");
             }
             else {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A  Strogg Boss has spawned! *****");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n");
             }
 
             int random_flag = 1 << (std::rand() % 6); // Include all defined flags
