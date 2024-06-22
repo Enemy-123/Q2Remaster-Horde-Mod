@@ -17,8 +17,8 @@ enum match_t
 enum elect_t
 {
 	ELECT_NONE,
-	ELECT_MATCH,
-	ELECT_ADMIN,
+//	ELECT_MATCH,
+//	ELECT_ADMIN,
 	ELECT_MAP
 };
 
@@ -2482,7 +2482,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0066\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0067\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
@@ -2732,26 +2732,26 @@ void CTFWinElection()
 	edict_t* CreateTargetChangeLevel(const char* map);
 	switch (ctfgame.election)
 	{
-	case ELECT_MATCH:
-		// reset into match mode
-		if (competition->integer < 3)
-			gi.cvar_set("competition", "2");
-		ctfgame.match = MATCH_SETUP;
-		CTFResetAllPlayers();
-		break;
+	//case ELECT_MATCH:
+	//	// reset into match mode
+	//	if (competition->integer < 3)
+	//		gi.cvar_set("competition", "2");
+	//	ctfgame.match = MATCH_SETUP;
+	//	CTFResetAllPlayers();
+	//	break;
 
-	case ELECT_ADMIN:
-		ctfgame.etarget->client->resp.admin = true;
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} has become an admin.\n", ctfgame.etarget->client->pers.netname);
-		gi.LocClient_Print(ctfgame.etarget, PRINT_HIGH, "Type 'admin' to access the administration menu.\n");
-		break;
+	//case ELECT_ADMIN:
+	//	ctfgame.etarget->client->resp.admin = true;
+	//	gi.LocBroadcast_Print(PRINT_HIGH, "{} has become an admin.\n", ctfgame.etarget->client->pers.netname);
+	//	gi.LocClient_Print(ctfgame.etarget, PRINT_HIGH, "Type 'admin' to access the administration menu.\n");
+	//	break;
 	case ELECT_MAP:
 		gi.LocBroadcast_Print(PRINT_HIGH, "{}'s vote succeeded! Changing level to {}.\n",
 			ctfgame.etarget->client->pers.netname, ctfgame.elevel);
 		if (g_horde->integer)
 		{
 			HandleResetEvent();
-			for (int i = 0; i < game.maxclients; i++)
+			for (unsigned int i = 0; i < game.maxclients; i++)
 			{
 				edict_t* ent = g_edicts + 1 + i;
 				if (ent->inuse && ent->client)
@@ -3108,10 +3108,10 @@ void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p)
 
 void CTFRequestMatch(edict_t* ent, pmenuhnd_t* p)
 {
-	PMenu_Close(ent);
+	//PMenu_Close(ent);
 
-	CTFBeginElection(ent, ELECT_MATCH, G_Fmt("{} has requested to switch to competition mode.\n",
-		ent->client->pers.netname).data());
+	//CTFBeginElection(ent, ELECT_MATCH, G_Fmt("{} has requested to switch to competition mode.\n",
+	//	ent->client->pers.netname).data());
 }
 
 void DeathmatchScoreboard(edict_t* ent);
@@ -3966,31 +3966,31 @@ void CTFOpenAdminMenu(edict_t* ent)
 
 void CTFAdmin(edict_t* ent)
 {
-	if (!allow_admin->integer)
+//	if (!allow_admin->integer)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Administration is disabled\n");
 		return;
 	}
 
-	if (gi.argc() > 1 && admin_password->string && *admin_password->string &&
-		!ent->client->resp.admin && strcmp(admin_password->string, gi.argv(1)) == 0)
-	{
-		ent->client->resp.admin = true;
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} has become an admin.\n", ent->client->pers.netname);
-		gi.LocClient_Print(ent, PRINT_HIGH, "Type 'admin' to access the adminstration menu.\n");
-	}
+	//if (gi.argc() > 1 && admin_password->string && *admin_password->string &&
+	//	!ent->client->resp.admin && strcmp(admin_password->string, gi.argv(1)) == 0)
+	//{
+	//	ent->client->resp.admin = true;
+	//	gi.LocBroadcast_Print(PRINT_HIGH, "{} has become an admin.\n", ent->client->pers.netname);
+	//	gi.LocClient_Print(ent, PRINT_HIGH, "Type 'admin' to access the adminstration menu.\n");
+	//}
 
-	if (!ent->client->resp.admin)
-	{
-		CTFBeginElection(ent, ELECT_ADMIN, G_Fmt("{} has requested admin rights.\n",
-			ent->client->pers.netname).data());
-		return;
-	}
+	//if (!ent->client->resp.admin)
+	//{
+	//	CTFBeginElection(ent, ELECT_ADMIN, G_Fmt("{} has requested admin rights.\n",
+	//		ent->client->pers.netname).data());
+	//	return;
+	//}
 
-	if (ent->client->menu)
-		PMenu_Close(ent);
+	//if (ent->client->menu)
+	//	PMenu_Close(ent);
 
-	CTFOpenAdminMenu(ent);
+	//CTFOpenAdminMenu(ent);
 }
 
 /*----------------------------------------------------------------*/
