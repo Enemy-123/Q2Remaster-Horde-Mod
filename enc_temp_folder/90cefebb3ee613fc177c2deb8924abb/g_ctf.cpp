@@ -2765,7 +2765,7 @@ void CTFWinElection()
 		}
 		ctfgame.election = ELECT_NONE;
 	}
-}
+	}
 
 void CTFVoteYes(edict_t* ent)
 {
