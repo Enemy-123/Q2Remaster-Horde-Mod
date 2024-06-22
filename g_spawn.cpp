@@ -569,7 +569,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_stalker", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick_heat"}, 1},
-		{"monster_medic", {"monster_spider"}, 1},
+		{"monster_medic", {"monster_medic", "monster_spider"}, 2},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus"}, 2},
 		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2", "monster_floater"}, 4},
@@ -607,14 +607,14 @@ void ED_CallSpawn(edict_t* ent) {
 
 	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
 	if (g_chaotic->integer == 2) {
-		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.015f);
+		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.008f);
 	}
 	else if (g_chaotic->integer == 3) {
 		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
 	}
 
 	if (g_insane->integer == 1) {
-		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.001f);
+		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.0012f);
 	}
 	else if (g_insane->integer == 2) {
 		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.33f);

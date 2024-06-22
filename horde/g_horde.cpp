@@ -218,7 +218,7 @@ void AdjustMonsterSpawnRate() {
 
         // Asegurarse de que los cooldowns no sean menores a un límite mínimo
         if (MONSTER_COOLDOWN < 1.2_sec) MONSTER_COOLDOWN = 1.2_sec;
-        if (SPAWN_POINT_COOLDOWN < 2.1_sec) SPAWN_POINT_COOLDOWN = 2.1_sec;
+        if (SPAWN_POINT_COOLDOWN < 1.8_sec) SPAWN_POINT_COOLDOWN = 1.8_sec;
     }
 }
 
@@ -1421,13 +1421,13 @@ void SpawnMonsters() {
     // Determinar la cantidad de monstruos por spawn basado en el tamaño del mapa y el nivel actual
     int monsters_per_spawn;
     if (mapSize.isSmallMap) {
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 1;
     }
     else if (mapSize.isBigMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
     }
     else { // Para mapas medianos
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 1;
     }
 
     int spawned = 0;
