@@ -1362,10 +1362,10 @@ void PlayWaveStartSound() {
 // Función para mostrar el mensaje de la ola
 void DisplayWaveMessage() {
     if (brandom()) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n???\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nAdded *vote* cmd !\n");
     }
     else {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n?????\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nNew *vote* cmd for you q2ctf4 lovers!\n");
     }
 }
 

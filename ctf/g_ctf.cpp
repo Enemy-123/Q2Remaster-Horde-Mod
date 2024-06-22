@@ -2517,17 +2517,22 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 		return false;
 	}
 
+	if (ent->client->resp.ctf_team == CTF_NOTEAM)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "You have to be in the game to start a vote.\n");
+		return false;
+	}
+
 	// clear votes
 	count = 0;
 	ctfgame.evotes = 0; // Initialize vote count to 0
 	for (uint32_t i = 1; i <= game.maxclients; i++)
 	{
 		e = g_edicts + i;
-		e->client->resp.voted = false;
-		if (e->inuse)
+		if (e->inuse && e->client)
 		{
-			// Exclude bots from the count of needed players
-			if (!(e->svflags & SVF_BOT))
+			e->client->resp.voted = false;
+			if (!(e->svflags & SVF_BOT) && e->client->resp.ctf_team == CTF_TEAM1)
 			{
 				count++;
 			}
@@ -2550,7 +2555,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 	if (count == 1)
 	{
 		ctfgame.evotes = ctfgame.needvotes;
-		gi.Broadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other human players.\n");
+		gi.Broadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other (human) players logged.\n");
 		CTFWinElection(); // Procesa el resultado de la elección inmediatamente
 	}
 
