@@ -2550,7 +2550,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 	if (count == 1)
 	{
 		ctfgame.evotes = ctfgame.needvotes;
-		gi.Broadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other players.\n");
+		gi.Broadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other human players.\n");
 		CTFWinElection(); // Procesa el resultado de la elección inmediatamente
 	}
 
