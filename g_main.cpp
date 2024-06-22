@@ -565,7 +565,6 @@ inline std::vector<std::string> str_split(const std::string_view& str, char by)
 
 	return out;
 }
-
 /*
 =================
 EndDMLevel
@@ -676,6 +675,7 @@ void EndDMLevel()
 	BeginIntermission(ent);
 }
 
+
 /*
 =================
 CheckNeedPass
@@ -739,7 +739,7 @@ void CheckDMRules()
 						HandleResetEvent();
 
 					}
-				InitClientPt(ent, ent->client);
+					InitClientPt(ent, ent->client);
 				}
 				level.intermission_fade = true;
 			}
@@ -763,15 +763,13 @@ void CheckDMRules()
 		return; // no checking in match mode
 	// ZOID
 
-//=======
-// ROGUE
+	//======= ROGUE
 	if (gamerules->integer && DMGame.CheckDMRules)
 	{
 		if (DMGame.CheckDMRules())
 			return;
 	}
-	// ROGUE
-	//=======
+	// ROGUE =======
 
 	if (timelimit->value)
 	{

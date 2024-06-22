@@ -2499,12 +2499,10 @@ static void SetLevelName(pmenu_t* p)
 }
 
 /*-----------------------------------------------------------------------*/
-
-/* ELECTIONS */
-
+void CTFWinElection();
 bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 {
-	int		 count;
+	int count;
 	edict_t* e;
 
 	if (electpercentage->value == 0)
@@ -2521,23 +2519,23 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 
 	// clear votes
 	count = 0;
+	ctfgame.evotes = 0; // Initialize vote count to 0
 	for (uint32_t i = 1; i <= game.maxclients; i++)
 	{
 		e = g_edicts + i;
 		e->client->resp.voted = false;
 		if (e->inuse)
-			count++;
-	}
-
-	if (count < 2)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Not enough players for election.\n");
-		return false;
+		{
+			// Exclude bots from the count of needed players
+			if (!(e->svflags & SVF_BOT))
+			{
+				count++;
+			}
+		}
 	}
 
 	ctfgame.etarget = ent;
 	ctfgame.election = type;
-	ctfgame.evotes = 0;
 	ctfgame.needvotes = (int)((count * electpercentage->value) / 100);
 	ctfgame.electtime = level.time + 20_sec; // twenty seconds for election
 	Q_strlcpy(ctfgame.emsg, msg, sizeof(ctfgame.emsg));
@@ -2548,8 +2546,17 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 	gi.LocBroadcast_Print(PRINT_HIGH, "Votes: {}  Needed: {}  Time left: {}s\n", ctfgame.evotes, ctfgame.needvotes,
 		(ctfgame.electtime - level.time).seconds<int>());
 
+	// Si solo hay un jugador, aprueba la elección automáticamente
+	if (count == 1)
+	{
+		ctfgame.evotes = ctfgame.needvotes;
+		gi.Broadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other players.\n");
+		CTFWinElection(); // Procesa el resultado de la elección inmediatamente
+	}
+
 	return true;
 }
+
 
 void DoRespawn(edict_t* ent);
 
@@ -2717,6 +2724,7 @@ bool CTFNextMap()
 
 void CTFWinElection()
 {
+	edict_t* CreateTargetChangeLevel(const char* map);
 	switch (ctfgame.election)
 	{
 	case ELECT_MATCH:
@@ -2730,14 +2738,19 @@ void CTFWinElection()
 	case ELECT_ADMIN:
 		ctfgame.etarget->client->resp.admin = true;
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} has become an admin.\n", ctfgame.etarget->client->pers.netname);
-		gi.LocClient_Print(ctfgame.etarget, PRINT_HIGH, "Type 'admin' to access the adminstration menu.\n");
+		gi.LocClient_Print(ctfgame.etarget, PRINT_HIGH, "Type 'admin' to access the administration menu.\n");
 		break;
 
 	case ELECT_MAP:
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} is warping to level {}.\n",
+		gi.LocBroadcast_Print(PRINT_HIGH, "{}'s vote succeeded! Changing level to {}.\n",
 			ctfgame.etarget->client->pers.netname, ctfgame.elevel);
-		Q_strlcpy(level.forcemap, ctfgame.elevel, sizeof(level.forcemap));
-		EndDMLevel();
+		if (g_horde->integer)
+		{
+			HandleResetEvent();
+		}
+		BeginIntermission(CreateTargetChangeLevel(ctfgame.elevel));
+		// Limpiar el nivel después de usarlo
+		ctfgame.elevel[0] = '\0';
 		break;
 
 	default:
@@ -2745,6 +2758,7 @@ void CTFWinElection()
 	}
 	ctfgame.election = ELECT_NONE;
 }
+
 
 void CTFVoteYes(edict_t* ent)
 {
@@ -4089,7 +4103,7 @@ void CTFWarp(edict_t* ent)
 
 	if (gi.argc() < 2)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Where do you want to warp to?\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to\n");
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", warp_list->string);
 		return;
 	}
@@ -4109,19 +4123,26 @@ void CTFWarp(edict_t* ent)
 		return;
 	}
 
-	if (ent->client->resp.admin)
-	{
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} is warping to level {}.\n",
-			ent->client->pers.netname, gi.argv(1));
-		Q_strlcpy(level.forcemap, gi.argv(1), sizeof(level.forcemap));
-		HandleResetEvent();
-		EndDMLevel();
-		return;
-	}
+	//if (ent->client->resp.admin)
+	//{
+	//	gi.LocBroadcast_Print(PRINT_HIGH, "{} is warping to level {}.\n",
+	//		ent->client->pers.netname, gi.argv(1));
+	//	Q_strlcpy(level.forcemap, gi.argv(1), sizeof(level.forcemap));
+	//	if (g_horde->integer)
+	//	{
+	//		HandleResetEvent();
+	//	}
+	//	BeginIntermission(CreateTargetChangeLevel(level.forcemap));
+	//	return;
+	//}
 
-	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested warping to level {}.\n",
+	// Establecer ctfgame.elevel antes de llamar a CTFBeginElection
+	Q_strlcpy(ctfgame.elevel, gi.argv(1), sizeof(ctfgame.elevel));
+	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\n",
 		ent->client->pers.netname, gi.argv(1)).data()))
-		Q_strlcpy(ctfgame.elevel, gi.argv(1), sizeof(ctfgame.elevel));
+	{
+		// ctfgame.elevel ya se ha establecido
+	}
 }
 
 void CTFBoot(edict_t* ent)
