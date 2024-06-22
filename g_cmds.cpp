@@ -1711,6 +1711,10 @@ void ClientCommand(edict_t* ent)
 		CTFVoteYes(ent);
 	else if (Q_strcasecmp(cmd, "no") == 0)
 		CTFVoteNo(ent);
+	else if (Q_strcasecmp(cmd, "vote yes") == 0)
+		CTFVoteYes(ent);
+	else if (Q_strcasecmp(cmd, "vote no") == 0)
+		CTFVoteNo(ent);
 	else if (Q_strcasecmp(cmd, "ready") == 0)
 		CTFReady(ent);
 	else if (Q_strcasecmp(cmd, "notready") == 0)
@@ -1722,6 +1726,8 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "stats") == 0)
 		CTFStats(ent);
 	else if (Q_strcasecmp(cmd, "warp") == 0)
+		CTFWarp(ent);
+	else if (Q_strcasecmp(cmd, "vote") == 0)
 		CTFWarp(ent);
 	else if (Q_strcasecmp(cmd, "boot") == 0)
 		CTFBoot(ent);

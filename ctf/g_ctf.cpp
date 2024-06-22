@@ -4096,7 +4096,6 @@ void CTFPlayerList(edict_t* ent)
 
 	gi.Client_Print(ent, PRINT_HIGH, text.data());
 }
-
 void CTFWarp(edict_t* ent)
 {
 	char* token;
@@ -4104,11 +4103,11 @@ void CTFWarp(edict_t* ent)
 	if (gi.argc() < 2)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to\n");
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", warp_list->string);
+		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", g_map_list->string);
 		return;
 	}
 
-	const char* mlist = warp_list->string;
+	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
 
 	while (*(token = COM_Parse(&mlist)))
 	{
@@ -4119,7 +4118,7 @@ void CTFWarp(edict_t* ent)
 	if (!*token)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown CTF level.\n");
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", warp_list->string);
+		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", g_map_list->string);
 		return;
 	}
 
@@ -4144,6 +4143,7 @@ void CTFWarp(edict_t* ent)
 		// ctfgame.elevel ya se ha establecido
 	}
 }
+
 
 void CTFBoot(edict_t* ent)
 {
