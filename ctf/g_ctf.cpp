@@ -4117,7 +4117,7 @@ void CTFWarp(edict_t* ent)
 
 	if (!*token)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown CTF level.\n");
+		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", g_map_list->string);
 		return;
 	}
