@@ -501,31 +501,29 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
 	if (G_IsCooperative())
 	{
-		// monsters are never on our team atm
 		if (!ent1->client || !ent2->client)
 		{
 			return false;
 		}
-		// we're never on our own team
 		else if (ent1 == ent2)
+		{
 			return false;
-
-		// [Paril-KEX] coop 'team' support
+		}
 		if (G_IsCooperative())
+		{
 			return ent1->client && ent2->client;
-		// ZOID
+		}
 		else if (G_TeamplayEnabled() && ent1->client && ent2->client)
 		{
 			if (ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
+			{
 				return true;
+			}
 		}
-		// ZOID
-
 		return false;
 	}
 	else if (g_horde->integer)
 	{
-		// Si ambos son clientes, verifica el equipo
 		if (ent1->client && ent2->client)
 		{
 			if (G_IsCooperative() || G_TeamplayEnabled())
@@ -533,31 +531,33 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 				return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
 			}
 		}
-
-		// Si ambos son monstruos, verifica el equipo
 		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER))
 		{
-			// Asignar equipo a los monstruos si no tienen
 			AssignMonsterTeam(ent1);
 			AssignMonsterTeam(ent2);
-
 			return ent1->monsterinfo.team == ent2->monsterinfo.team;
 		}
-
-		// Si uno es cliente y otro es monstruo, verifica el equipo
 		if (ent1->client && (ent2->svflags & SVF_MONSTER))
 		{
 			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
 		}
-
 		if (ent2->client && (ent1->svflags & SVF_MONSTER))
 		{
 			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
 		}
 
+		// Verifica si uno de los entes es una tesla mine
+		if (ent1->classname && !strcmp(ent1->classname, "tesla_mine"))
+		{
+			return !strcmp(ent1->team, ent2->client ? (ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : ent2->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+		}
+		if (ent2->classname && !strcmp(ent2->classname, "tesla_mine"))
+		{
+			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+		}
+
 		return false;
 	}
-
 	return false;
 }
 

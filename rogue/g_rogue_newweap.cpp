@@ -1125,8 +1125,8 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
 	edict_t* tesla;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
+	vec3_t   dir;
+	vec3_t   forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -1149,21 +1149,29 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->maxs = { 12, 12, 20 };
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
 
-	tesla->owner = self; // PGM - we don't want it owned by self YET.
+	tesla->owner = self;
 	tesla->teammaster = self;
+	// Asigna el equipo como una cadena de caracteres
+	if (self->client->resp.ctf_team == CTF_TEAM1) {
+		tesla->team = TEAM1;
+	}
+	else if (self->client->resp.ctf_team == CTF_TEAM2) {
+		tesla->team = TEAM2;
+	}
+	else {
+		tesla->team = "neutral"; // O cualquier valor por defecto que quieras
+	}
 
 	tesla->wait = (level.time + TESLA_TIME_TO_LIVE).seconds();
 	tesla->think = tesla_think;
 	tesla->nextthink = level.time + TESLA_ACTIVATE_TIME;
 
-	// blow up on contact with lava & slime code
 	tesla->touch = tesla_lava;
 
 	if (G_IsDeathmatch())
-		// PMM - lowered from 50 - 7/29/1998
 		tesla->health = 50;
 	else
-		tesla->health = 50; // FIXME - change depending on skill?
+		tesla->health = 50;
 
 	tesla->takedamage = true;
 	tesla->die = tesla_die;
@@ -1172,7 +1180,6 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
 
-	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		tesla->clipmask &= ~CONTENTS_PLAYER;
 

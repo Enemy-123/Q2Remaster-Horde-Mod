@@ -464,7 +464,8 @@ constexpr boss_t BOSS_SMALL[] = {
     {"monster_tank_64", -1, -1, 0.05f},
     {"monster_shamblerkl", -1, -1, 0.05f},
     {"monster_guncmdrkl", -1, -1, 0.05f},
-    {"monster_makronkl", 24, -1, 0.05f},
+    {"monster_makronkl", 18, -1, 0.45f},
+    {"monster_redmutant", 18, -1, 0.45f},
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {
@@ -473,7 +474,8 @@ constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_tank_64", -1, -1, 0.1f},
     {"monster_guardian", -1, -1, 0.1f},
     {"monster_shamblerkl", -1, -1, 0.1f},
-    {"monster_makronkl", 24, -1, 0.1f},
+    {"monster_makronkl", 18, -1, 0.41f},
+    {"monster_redmutant", -1, -1, 0.41f},
 };
 
 constexpr boss_t BOSS_LARGE[] = {
@@ -485,7 +487,7 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_shamblerkl", -1, -1, 0.15f},
     {"monster_boss5", -1, -1, 0.15f},
     {"monster_makronkl", 16, -1, 0.15f},
-    {"monster_jorg", 14, -1, 0.15f},
+    {"monster_jorg", 18, -1, 0.15f},
 };
 
 // Función para obtener la lista de jefes basada en el tamaño del mapa
