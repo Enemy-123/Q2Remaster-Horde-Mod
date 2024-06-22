@@ -944,16 +944,15 @@ static void Horde_CleanBodies() {
     for (size_t i = 0; i < globals.max_edicts; i++) {
         if (!g_edicts[i].inuse) continue;
         if (g_edicts[i].svflags & SVF_DEADMONSTER) {
-
-            // Condición corregida para múltiplo de 3
-            if (g_horde_local.level % 3 == 0) {
-                if (g_edicts[i].s.effects & EF_GIB) continue; // No limpiar cuerpos gibbeados
-            }
-
             if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && !g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                 boss_die(&g_edicts[i]);
             }
             G_FreeEdict(&g_edicts[i]);
+        }
+        else if (g_edicts[i].svflags & SVF_MONSTER) {
+            if (g_edicts[i].health <= 0) {
+                G_FreeEdict(&g_edicts[i]);
+            }
         }
     }
 }
@@ -1038,30 +1037,25 @@ void SpawnBossAutomatically() {
             if (!desired_boss) return;
             boss->classname = desired_boss;
 
-            // earthquake effect
+            // Crear el efecto de terremoto
             edict_t* earthquake = G_Spawn();
             earthquake->classname = "target_earthquake";
-            earthquake->spawnflags = SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Using one-shot flag to trigger it once
-            earthquake->speed = 200; // Severity of the quake
-            earthquake->count = 5; // Duration of the quake in seconds
+            earthquake->spawnflags = SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
+            earthquake->speed = 200; // Severidad del terremoto
+            earthquake->count = 5; // Duración del terremoto en segundos
             SP_target_earthquake(earthquake);
-            earthquake->use(earthquake, boss, boss); // Trigger the earthquake
+            earthquake->use(earthquake, boss, boss); // Activar el terremoto
 
+            // Establecer la posición del jefe
             boss->s.origin[0] = it->second[0];
             boss->s.origin[1] = it->second[1];
             boss->s.origin[2] = it->second[2];
 
-            // Directamente decidir qué mensaje mostrar basado en el classname
-            if (strcmp(desired_boss, "monster_boss2") == 0) {
+            // Decidir directamente qué mensaje mostrar basado en el classname
+            if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_boss2kl") == 0) {
                 gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****\n");
             }
-            if (strcmp(desired_boss, "monster_boss2kl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_carrier2") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_carrier") == 0) {
+            else if (strcmp(desired_boss, "monster_carrier2") == 0 || strcmp(desired_boss, "monster_carrier") == 0) {
                 gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****\n");
             }
             else if (strcmp(desired_boss, "monster_tank_64") == 0) {
@@ -1071,7 +1065,7 @@ void SpawnBossAutomatically() {
                 gi.LocBroadcast_Print(PRINT_CHAT, "***** The Shambler emerges from the darkness! *****\n");
             }
             else if (strcmp(desired_boss, "monster_guncmdrkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Gunner Commmander is ready for battle! *****\n");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Gunner Commander is ready for battle! *****\n");
             }
             else if (strcmp(desired_boss, "monster_makronkl") == 0) {
                 gi.LocBroadcast_Print(PRINT_CHAT, "***** Makron descends upon the battlefield! *****\n");
@@ -1083,12 +1077,13 @@ void SpawnBossAutomatically() {
                 gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n");
             }
 
-            int random_flag = 1 << (std::rand() % 6); // Include all defined flags
+            // Asignar flags y configurar el jefe
+            int random_flag = 1 << (std::rand() % 6); // Incluir todas las flags definidas
             boss->monsterinfo.bonus_flags |= random_flag;
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
-            boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la bandera de super paso
+            boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la flag de super paso
 
-            // Apply bonus flags and ensure health multiplier is applied correctly if wave 10 or more
+            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente si la ola es 10 o más
             ApplyMonsterBonusFlags(boss);
 
             boss->monsterinfo.attack_state = AS_BLIND;
@@ -1123,17 +1118,19 @@ void SpawnBossAutomatically() {
 
             AttachHealthBar(boss);
 
+            // Activar el modo de monstruos voladores si corresponde
             if (strcmp(boss->classname, "monster_boss2") == 0 ||
                 strcmp(boss->classname, "monster_carrier") == 0 ||
                 strcmp(boss->classname, "monster_carrier2") == 0 ||
                 strcmp(boss->classname, "monster_boss2kl") == 0) {
-
                 flying_monsters_mode = true;  // Activar el modo de monstruos voladores
-
             }
+
+            boss_spawned_for_wave = true;  // Marcar que el jefe ha sido spawneado para esta ola
         }
     }
 }
+
 
 // reset cooldowns, fixed no monster spawning on next map
 void ResetCooldowns() {
@@ -1362,10 +1359,10 @@ void PlayWaveStartSound() {
 // Función para mostrar el mensaje de la ola
 void DisplayWaveMessage() {
     if (brandom()) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nAdded *vote* cmd !\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nAdded vote cmd !\n");
     }
     else {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nNew *vote* cmd for you q2ctf4 lovers!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nNew vote cmd ! |\n");
     }
 }
 
