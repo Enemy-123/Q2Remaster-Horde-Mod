@@ -1083,7 +1083,7 @@ void CTFSetIDView(edict_t* ent) {
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 2048; // Aumentar la distancia del rayo
-	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SOLID);
+	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SHOT); // Usar MASK_SHOT para detectar sólidos y monstruos
 	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
@@ -1096,36 +1096,38 @@ void CTFSetIDView(edict_t* ent) {
 			}
 		}
 	}
+	else {
+		// No hay objetivo directamente en línea de visión, buscar alrededor
+		AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+		for (uint32_t i = 1; i < globals.num_edicts; i++) {
+			who = g_edicts + i;
+			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER)) || (who->svflags & SVF_DEADMONSTER)))
+				continue;
 
-	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	for (uint32_t i = 1; i < globals.num_edicts; i++) {
-		who = g_edicts + i;
-		if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER)) || (who->svflags & SVF_DEADMONSTER)))
-			continue;
-
-		if (who->svflags & SVF_MONSTER) {
-			vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
-			for (const auto& point : points) {
-				vec3_t dir = point - ent->s.origin;
+			if (who->svflags & SVF_MONSTER) {
+				vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
+				for (const auto& point : points) {
+					vec3_t dir = point - ent->s.origin;
+					dir.normalize();
+					d = forward.dot(dir);
+					float dist = (point - ent->s.origin).length();
+					if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
+						bd = d;
+						closest_dist = dist;
+						best = who;
+					}
+				}
+			}
+			else {
+				vec3_t dir = who->s.origin - ent->s.origin;
 				dir.normalize();
 				d = forward.dot(dir);
-				float dist = (point - ent->s.origin).length();
+				float dist = (who->s.origin - ent->s.origin).length();
 				if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
 					bd = d;
 					closest_dist = dist;
 					best = who;
 				}
-			}
-		}
-		else {
-			vec3_t dir = who->s.origin - ent->s.origin;
-			dir.normalize();
-			d = forward.dot(dir);
-			float dist = (who->s.origin - ent->s.origin).length();
-			if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
-				bd = d;
-				closest_dist = dist;
-				best = who;
 			}
 		}
 	}
@@ -1200,6 +1202,7 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
