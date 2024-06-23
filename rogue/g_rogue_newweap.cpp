@@ -834,7 +834,7 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 // TESLA
 // *************************
 
-constexpr gtime_t TESLA_TIME_TO_LIVE = 53_sec;
+constexpr gtime_t TESLA_TIME_TO_LIVE = 60_sec;
 constexpr float	  TESLA_DAMAGE_RADIUS = 162;
 constexpr int32_t TESLA_DAMAGE = 4;
 constexpr int32_t TESLA_KNOCKBACK = 8;
@@ -1165,6 +1165,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->wait = (level.time + TESLA_TIME_TO_LIVE).seconds();
 	tesla->think = tesla_think;
 	tesla->nextthink = level.time + TESLA_ACTIVATE_TIME;
+	tesla->timestamp = level.time;
 
 	tesla->touch = tesla_lava;
 

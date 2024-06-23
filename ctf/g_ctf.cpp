@@ -1047,6 +1047,7 @@ std::string FormatClassname(const std::string& classname) {
 }
 #define MAX_MONSTER_CONFIGSTRINGS 80
 #define MAX_PLAYER_CONFIGSTRINGS 32
+constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
 
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
@@ -1084,11 +1085,11 @@ void CTFSetIDView(edict_t* ent) {
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 2048; // Aumentar la distancia del rayo
 	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SHOT); // Usar MASK_SHOT para detectar sólidos y monstruos
-	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER)) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
+	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER) || !strcmp(tr.ent->classname, "tesla_mine")) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-		if (d > min_dot) { // El objetivo debe estar cerca del centro de la mira
+		if ((!strcmp(tr.ent->classname, "tesla_mine") && d > 0.999f) || (d > min_dot)) { // El objetivo debe estar 100% centrado para la mina Tesla y cerca del centro para los demás
 			float dist = (tr.ent->s.origin - ent->s.origin).length();
 			if (dist < closest_dist) {
 				closest_dist = dist;
@@ -1101,17 +1102,18 @@ void CTFSetIDView(edict_t* ent) {
 		AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 		for (uint32_t i = 1; i < globals.num_edicts; i++) {
 			who = g_edicts + i;
-			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER)) || (who->svflags & SVF_DEADMONSTER)))
+			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine")) || (who->svflags & SVF_DEADMONSTER)))
 				continue;
 
-			if (who->svflags & SVF_MONSTER) {
+			if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine")) {
 				vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
 				for (const auto& point : points) {
 					vec3_t dir = point - ent->s.origin;
 					dir.normalize();
 					d = forward.dot(dir);
 					float dist = (point - ent->s.origin).length();
-					if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
+					if ((!strcmp(who->classname, "tesla_mine") && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
+						(d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
 						bd = d;
 						closest_dist = dist;
 						best = who;
@@ -1142,48 +1144,56 @@ void CTFSetIDView(edict_t* ent) {
 			// Obtener el nombre del monstruo con el título
 			name = title + FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
-			health_stream << name << "\n"; // Agregar el nombre del monstruo con salto de línea
+			health_stream << name << "\nH: " << best->health << " "; // Agregar el nombre del monstruo, salud y espacio en blanco
+			if (best->monsterinfo.armor_power > 0) {
+				health_stream << "A: " << best->monsterinfo.armor_power << " ";
+			}
+			if (best->monsterinfo.power_armor_power > 0) {
+				health_stream << "PA: " << best->monsterinfo.power_armor_power << " ";
+			}
+		}
+		else if (!strcmp(best->classname, "tesla_mine")) {
+			// Mostrar información específica para la mina Tesla
+			name = "Tesla Mine";
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para la mina Tesla
+			health_stream << name << " H: " << best->health << " "; // Agregar el nombre y la salud de la mina Tesla
+
+			// Calcular y mostrar el tiempo restante
+			gtime_t time_active = level.time - best->timestamp;
+			gtime_t time_remaining = TESLA_TIME_TO_LIVE - time_active;
+			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
+			health_stream << "T: " << remaining_time << "s";
 		}
 		else {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-			health_stream << "\n"; // Agregar un salto de línea extra para los jugadores
+			health_stream << "\nH: " << best->health << " "; // Agregar un salto de línea y la salud para los jugadores
 		}
 
-		health_stream << "H: " << best->health; // Agregar la salud
 		if (best->client) {
 			int armor_value = GetArmorInfo(best); // Asumimos que GetArmorInfo devuelve un int
 			if (armor_value > 0) {
-				health_stream << " A: " << std::to_string(armor_value); // Convertir a string
+				health_stream << "A: " << std::to_string(armor_value) << " "; // Convertir a string
 			}
 		}
 		else if (best->svflags & SVF_MONSTER) {
-			bool has_armor = false;
-// if (best->monsterinfo.armor_power > 0) {
-//     health_stream << " A: " << best->monsterinfo.armor_power; // Agregar la armadura si es mayor a 0
-//     has_armor = true;
-// }
-
-			if (best->monsterinfo.power_armor_power > 0) {
-				health_stream << (has_armor ? " " : "") << " PA: " << best->monsterinfo.power_armor_power; // Agregar el power armor si es mayor a 0
-			}
 			// Mostrar el tiempo restante de los power-ups
 			if (best->monsterinfo.quad_time > level.time) {
 				int remaining_quad_time = static_cast<int>((best->monsterinfo.quad_time - level.time).seconds<float>());
-				health_stream << "\nQuad:" << remaining_quad_time << "(s)";
+				health_stream << "\nQuad: " << remaining_quad_time << "s";
 			}
 			if (best->monsterinfo.double_time > level.time) {
 				int remaining_double_time = static_cast<int>((best->monsterinfo.double_time - level.time).seconds<float>());
-				health_stream << "\nDouble:" << remaining_double_time << "(s)";
+				health_stream << "\nDouble: " << remaining_double_time << "s";
 			}
 			if (best->monsterinfo.invincible_time > level.time) {
-				int remaining_double_time = static_cast<int>((best->monsterinfo.invincible_time - level.time).seconds<float>());
-				health_stream << "\nInvuln:" << remaining_double_time << "(s)";
+				int remaining_invincible_time = static_cast<int>((best->monsterinfo.invincible_time - level.time).seconds<float>());
+				health_stream << "\nInvuln: " << remaining_invincible_time << "s";
 			}
 		}
 		ent->client->target_health_str = health_stream.str();
 
-		if (best->svflags & SVF_MONSTER) {
-			// Mantener el configstring del monstruo si ya existe
+		if (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine")) {
+			// Mantener el configstring del monstruo o mina Tesla si ya existe
 			auto it = monster_configstrings.find(best - g_edicts);
 			if (it == monster_configstrings.end()) {
 				if (!available_monster_configstrings.empty()) {
@@ -1216,6 +1226,7 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 }
+
 
 
 void SetCTFStats(edict_t* ent)
