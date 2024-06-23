@@ -457,35 +457,35 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS_SMALL[] = {
-    {"monster_carrier2", 14, -1, 0.05f},
-    {"monster_boss2kl", 14, -1, 0.05f},
+    {"monster_carrier2", 24, -1, 0.05f},
+    {"monster_boss2kl", 24, -1, 0.05f},
     {"monster_tank_64", -1, -1, 0.05f},
     {"monster_shamblerkl", -1, -1, 0.05f},
-    {"monster_guncmdrkl", -1, -1, 0.05f},
-    {"monster_makronkl", 18, -1, 0.45f},
-    {"monster_redmutant", 18, -1, 0.45f},
+    {"monster_guncmdrkl", -1, 19, 0.05f},
+    {"monster_makronkl", 36, -1, 0.05f},
+    {"monster_redmutant", -1, 24, 0.05f},
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {
-    {"monster_carrier", 19, -1, 0.1f},
-    {"monster_boss2", 9, -1, 0.1f},
-    {"monster_tank_64", -1, -1, 0.1f},
-    {"monster_guardian", -1, -1, 0.1f},
-    {"monster_shamblerkl", -1, -1, 0.1f},
-    {"monster_makronkl", 18, -1, 0.41f},
-    {"monster_redmutant", -1, -1, 0.41f},
+    {"monster_carrier", 24, -1, 0.1f},
+    {"monster_boss2", 24, -1, 0.1f},
+    {"monster_tank_64", -1, 24, 0.1f},
+    {"monster_guardian", -1, 24, 0.1f},
+    {"monster_shamblerkl", -1, 24, 0.1f},
+    {"monster_guncmdrkl", -1, 24, 0.1f},
+    {"monster_makronkl", 36, -1, 0.1f},
 };
 
 constexpr boss_t BOSS_LARGE[] = {
-    {"monster_carrier", -1, -1, 0.15f},
+    {"monster_carrier", 24, -1, 0.15f},
+    {"monster_boss2", 24, -1, 0.15f},
     {"monster_boss5", -1, -1, 0.15f},
-    {"monster_boss2", -1, -1, 0.15f},
-    {"monster_tank_64", -1, -1, 0.15f},
-    {"monster_guardian", -1, -1, 0.15f},
-    {"monster_shamblerkl", -1, -1, 0.15f},
-    {"monster_boss5", -1, -1, 0.15f},
-    {"monster_makronkl", 16, -1, 0.15f},
-    {"monster_jorg", 18, -1, 0.15f},
+    {"monster_tank_64", -1, 24, 0.15f},
+    {"monster_guardian", -1, 24, 0.15f},
+    {"monster_shamblerkl", -1, 24, 0.15f},
+    {"monster_boss5", -1, 24, 0.15f},
+    {"monster_makronkl", 36, -1, 0.15f},
+    {"monster_jorg", 36, -1, 0.15f},
 };
 
 // Función para obtener la lista de jefes basada en el tamaño del mapa
@@ -524,13 +524,17 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
     if (!boss_list) return nullptr;
 
     std::vector<const boss_t*> eligible_bosses;
+    int boss_list_size = mapSize.isSmallMap ? sizeof(BOSS_SMALL) / sizeof(boss_t) :
+        mapSize.isMediumMap ? sizeof(BOSS_MEDIUM) / sizeof(boss_t) :
+        sizeof(BOSS_LARGE) / sizeof(boss_t);
+
     // Filtrar jefes que cumplen con la restricción de la ola y que no se han usado recientemente
-    for (int i = 0; i < 5; ++i) {
-        if ((waveNumber >= 21 && (strcmp(boss_list[i].classname, "monster_boss2") == 0 || strcmp(boss_list[i].classname, "monster_carrier") == 0 || strcmp(boss_list[i].classname, "monster_carrier2") == 0 || strcmp(boss_list[i].classname, "monster_boss2kl") == 0)) ||
-            (waveNumber < 21 && strcmp(boss_list[i].classname, "monster_boss2") != 0 && strcmp(boss_list[i].classname, "monster_carrier") != 0 && strcmp(boss_list[i].classname, "monster_carrier2") != 0 && strcmp(boss_list[i].classname, "monster_boss2kl") != 0)) {
-            if (recent_bosses.find(boss_list[i].classname) == recent_bosses.end()) {
-                eligible_bosses.push_back(&boss_list[i]);
-            }
+    for (int i = 0; i < boss_list_size; ++i) {
+        const boss_t& boss = boss_list[i];
+        if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
+            (waveNumber <= boss.max_level || boss.max_level == -1) &&
+            recent_bosses.find(boss.classname) == recent_bosses.end()) {
+            eligible_bosses.push_back(&boss);
         }
     }
 
