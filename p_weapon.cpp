@@ -465,19 +465,20 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 
 	if (ent->client->ps.gunframe != 0 && (!(ent->client->pers.weapon->flags & IF_NO_HASTE) || ent->client->weaponstate != WEAPON_FIRING))
 	{
-		bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
-		bool using_shotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
-		bool using_sshotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
-		bool using_glauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
-		bool using_proxlauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_PROXLAUNCHER;
-		bool using_etfrifle = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_ETF_RIFLE;
-		bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
-		bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
-		bool using_hyperblaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-		bool using_ripper = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
-		bool using_rail = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RAILGUN;
-		bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
-		bool using_trap = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TRAP;
+		const bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
+		const bool using_shotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+		const bool using_sshotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+		const bool using_glauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
+		const bool using_proxlauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_PROXLAUNCHER;
+		const bool using_etfrifle = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_ETF_RIFLE;
+		const bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
+		const bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
+		const bool using_hyperblaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
+		const bool using_ripper = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+		const bool using_rail = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RAILGUN;
+		const bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+		const bool using_trap = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TRAP;
+
 
 
 		if (is_quadfire)
