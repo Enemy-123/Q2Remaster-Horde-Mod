@@ -1354,7 +1354,6 @@ void SP_monster_widow(edict_t* self) {
  */
 void SP_monster_widow1(edict_t* self) {
 	if (!strcmp(self->classname, "monster_widow1")) {
-		constexpr int WIDOW_RAIL_DAMAGE = 70;
 		if (!M_AllowSpawn(self)) {
 			G_FreeEdict(self);
 			return;

@@ -589,7 +589,7 @@ gitem_t* G_HordePickItem() {
 }
 int WAVE_TO_ALLOW_FLYING = 0; // Permitir monstruos voladores a partir de esta oleada
 
-const char* flying_monster_classnames[] = {
+constexpr const char* flying_monster_classnames[] = {
     "monster_boss2_64",
     "monster_carrier2",
     "monster_floater",
@@ -601,6 +601,7 @@ const char* flying_monster_classnames[] = {
     "monster_daedalus",
     "monster_daedalus2"
 };
+
 
 // Contar puntos de spawn con style == 1
 int countFlyingSpawns() {
