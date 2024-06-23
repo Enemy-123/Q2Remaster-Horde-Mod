@@ -1048,8 +1048,6 @@ std::string FormatClassname(const std::string& classname) {
 #define MAX_MONSTER_CONFIGSTRINGS 80
 #define MAX_PLAYER_CONFIGSTRINGS 32
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
-constexpr gtime_t FOOD_CUBE_TRAP_TIME_TO_LIVE = 0_sec;
-
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -1169,7 +1167,7 @@ void CTFSetIDView(edict_t* ent) {
 			else if (!strcmp(best->classname, "food_cube_trap")) {
 				// Calcular y mostrar el tiempo restante para Food Cube Trap
 				gtime_t time_active = level.time - best->timestamp;
-				gtime_t time_remaining = FOOD_CUBE_TRAP_TIME_TO_LIVE - time_active;
+				gtime_t time_remaining = - time_active;
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 				health_stream << "T: " << remaining_time << "s";
 			}
