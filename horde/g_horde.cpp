@@ -16,13 +16,11 @@
 int CalculateRemainingMonsters() {
     int remaining = 0;
     for (size_t i = 0; i < globals.max_edicts; i++) {
-        if (!g_edicts[i].inuse) continue;
-        if (g_edicts[i].svflags & SVF_MONSTER) {
-            if (!g_edicts[i].deadflag && g_edicts[i].health > 0) {
-                if (!(g_edicts[i].monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-                    remaining++;
-                }
-            }
+        edict_t* entity = &g_edicts[i];
+        if (entity->inuse && (entity->svflags & SVF_MONSTER) &&
+            !entity->deadflag && entity->health > 0 &&
+            !(entity->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+            remaining++;
         }
     }
     return remaining;
