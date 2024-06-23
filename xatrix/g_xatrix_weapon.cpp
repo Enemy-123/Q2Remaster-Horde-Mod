@@ -375,7 +375,6 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	if (!ent->groundentity)
 		return;
 
-	// Realiza efectos de sangre si es necesario
 	if (ent->s.frame > 4)
 	{
 		if (ent->s.frame == 5)
@@ -522,12 +521,15 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			}
 			else
 			{
+				// Antes de explotar, hacer daño
+				T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100,DAMAGE_ENERGY, MOD_TRAP);
 				BecomeExplosion1(ent);
 				return;
 			}
 		}
 	}
 }
+
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
 	edict_t* trap;
