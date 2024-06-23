@@ -1048,6 +1048,7 @@ std::string FormatClassname(const std::string& classname) {
 #define MAX_MONSTER_CONFIGSTRINGS 80
 #define MAX_PLAYER_CONFIGSTRINGS 32
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
+constexpr gtime_t FOOD_CUBE_TRAP_TIME_TO_LIVE = 0_sec;
 
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
@@ -1085,11 +1086,11 @@ void CTFSetIDView(edict_t* ent) {
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 2048; // Aumentar la distancia del rayo
 	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SHOT); // Usar MASK_SHOT para detectar sólidos y monstruos
-	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER) || !strcmp(tr.ent->classname, "tesla_mine")) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
+	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER) || !strcmp(tr.ent->classname, "tesla_mine") || !strcmp(tr.ent->classname, "food_cube_trap")) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-		if ((!strcmp(tr.ent->classname, "tesla_mine") && d > 0.999f) || (d > min_dot)) { // El objetivo debe estar 100% centrado para la mina Tesla y cerca del centro para los demás
+		if ((!strcmp(tr.ent->classname, "tesla_mine") && d > 0.999f) || (!strcmp(tr.ent->classname, "food_cube_trap") && d > 0.999f) || (d > min_dot)) { // El objetivo debe estar 100% centrado para la mina Tesla y cerca del centro para los demás
 			float dist = (tr.ent->s.origin - ent->s.origin).length();
 			if (dist < closest_dist) {
 				closest_dist = dist;
@@ -1102,17 +1103,17 @@ void CTFSetIDView(edict_t* ent) {
 		AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 		for (uint32_t i = 1; i < globals.num_edicts; i++) {
 			who = g_edicts + i;
-			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine")) || (who->svflags & SVF_DEADMONSTER)))
+			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
 				continue;
 
-			if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine")) {
+			if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) {
 				vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
 				for (const auto& point : points) {
 					vec3_t dir = point - ent->s.origin;
 					dir.normalize();
 					d = forward.dot(dir);
 					float dist = (point - ent->s.origin).length();
-					if ((!strcmp(who->classname, "tesla_mine") && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
+					if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
 						(d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
 						bd = d;
 						closest_dist = dist;
@@ -1152,17 +1153,26 @@ void CTFSetIDView(edict_t* ent) {
 				health_stream << "PA: " << best->monsterinfo.power_armor_power << " ";
 			}
 		}
-		else if (!strcmp(best->classname, "tesla_mine")) {
-			// Mostrar información específica para la mina Tesla
-			name = "Tesla Mine";
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para la mina Tesla
-			health_stream << name << " H: " << best->health << " "; // Agregar el nombre y la salud de la mina Tesla
+		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
+			// Mostrar información específica para la mina Tesla y food_cube_trap
+			name = !strcmp(best->classname, "tesla_mine") ? "Tesla Mine" : "Food Cube Trap";
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para la mina Tesla y food_cube_trap
+			health_stream << name << " H: " << best->health << " "; // Agregar el nombre y la salud de la mina Tesla o food_cube_trap
 
-			// Calcular y mostrar el tiempo restante
-			gtime_t time_active = level.time - best->timestamp;
-			gtime_t time_remaining = TESLA_TIME_TO_LIVE - time_active;
-			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-			health_stream << "T: " << remaining_time << "s";
+			if (!strcmp(best->classname, "tesla_mine")) {
+				// Calcular y mostrar el tiempo restante para Tesla Mine
+				gtime_t time_active = level.time - best->timestamp;
+				gtime_t time_remaining = TESLA_TIME_TO_LIVE - time_active;
+				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
+				health_stream << "T: " << remaining_time << "s";
+			}
+			else if (!strcmp(best->classname, "food_cube_trap")) {
+				// Calcular y mostrar el tiempo restante para Food Cube Trap
+				gtime_t time_active = level.time - best->timestamp;
+				gtime_t time_remaining = FOOD_CUBE_TRAP_TIME_TO_LIVE - time_active;
+				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
+				health_stream << "T: " << remaining_time << "s";
+			}
 		}
 		else {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
@@ -1192,7 +1202,7 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		ent->client->target_health_str = health_stream.str();
 
-		if (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine")) {
+		if (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
 			// Mantener el configstring del monstruo o mina Tesla si ya existe
 			auto it = monster_configstrings.find(best - g_edicts);
 			if (it == monster_configstrings.end()) {

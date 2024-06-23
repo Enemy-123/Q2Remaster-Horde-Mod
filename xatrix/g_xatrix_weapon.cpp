@@ -311,6 +311,7 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	gi.linkentity(plasma);
 }
 
+
 THINK(Trap_Gib_Think) (edict_t* ent) -> void
 {
 	if (ent->owner->s.frame != 5)
