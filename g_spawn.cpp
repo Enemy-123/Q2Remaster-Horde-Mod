@@ -205,6 +205,7 @@ void SP_info_teleport_destination(edict_t* self);
 void SP_trigger_teleport(edict_t* self);
 void SP_trigger_disguise(edict_t* self);
 void SP_monster_stalker(edict_t* self);
+void SP_monster_sentrygun(edict_t* self);
 void SP_monster_turret(edict_t* self);
 void SP_monster_turretkl(edict_t* self);
 void SP_target_steam(edict_t* self);
@@ -440,6 +441,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "info_teleport_destination", SP_info_teleport_destination },
 	{ "info_player_coop_lava", SP_info_player_coop_lava },
 	{ "monster_stalker", SP_monster_stalker },
+	{ "monster_sentrygun", SP_monster_sentrygun },
 	{ "monster_turret", SP_monster_turret },
 	{ "monster_turretkl", SP_monster_turretkl },
 	{ "target_steam", SP_target_steam },

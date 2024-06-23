@@ -745,7 +745,7 @@ MMOVE_T(widow_move_death) = { FRAME_death01, FRAME_death31, widow_frames_death, 
 
 void widow_attack_kick(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	// Verificar si self->enemy está correctamente inicializado

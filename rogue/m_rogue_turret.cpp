@@ -11,7 +11,6 @@ TURRET
 #include "../g_local.h"
 #include "m_rogue_turret.h"
 #include "../shared.h"
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
 constexpr spawnflags_t SPAWNFLAG_TURRET_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_MACHINEGUN = 0x0010_spawnflag;
@@ -21,68 +20,11 @@ constexpr spawnflags_t SPAWNFLAG_TURRET_WEAPONCHOICE = SPAWNFLAG_TURRET_HEATBEAM
 constexpr spawnflags_t SPAWNFLAG_TURRET_WALL_UNIT = 0x0080_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET_NO_LASERSIGHT = 18_spawnflag_bit;
 
+bool FindTarget(edict_t* self);
 
-bool FindMTarget(edict_t* self)
-{
-	edict_t* ent = nullptr;
-	float range = 800.0f; // Rango de búsqueda
-	vec3_t dir{};
-	float bestDist = range + 1.0f; // Inicializa con un valor mayor al rango
-	edict_t* bestTarget = nullptr;
-
-	for (unsigned int i = 0; i < globals.num_edicts; i++)
-	{
-		ent = &g_edicts[i];
-		for (auto player : active_players())
-
-		if (player)
-				continue;
-		if (!ent->inuse)
-			continue;
-
-		if (!ent->solid)
-			continue;
-
-		if (ent == self)
-			continue;
-
-		if (ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
-			continue;
-
-		// Solo busca enemigos en el equipo contrario
-		if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
-		{
-			VectorSubtract(ent->s.origin, self->s.origin, dir);
-			float dist = VectorLength(dir);
-			if (dist < range)
-			{
-				// Verifica si el enemigo es visible antes de asignarlo
-				if (visible(self, ent))
-				{
-					if (dist < bestDist)
-					{
-						bestDist = dist;
-						bestTarget = ent;
-					}
-				}
-			}
-		}
-	}
-
-	if (bestTarget)
-	{
-		self->enemy = bestTarget;
-		return true;
-	}
-
-		return self->enemy != nullptr; // Devuelve true si se mantiene el enemigo actual
-	}
-
-
-
-void TurretAim(edict_t *self);
-void turret_ready_gun(edict_t *self);
-void turret_run(edict_t *self);
+void TurretAim(edict_t* self);
+void turret_ready_gun(edict_t* self);
+void turret_run(edict_t* self);
 
 extern const mmove_t turret_move_fire;
 extern const mmove_t turret_move_fire_blind;
@@ -96,22 +38,11 @@ void TurretAim(edict_t* self)
 	float  move, idealPitch, idealYaw, current, speed;
 	int	   orientation;
 
-	// Verifica el estado del enemigo
-	bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
-
-	// Si el enemigo no es válido, busca un nuevo objetivo
-	if (!enemy_valid)
+	if (!self->enemy || self->enemy == world)
 	{
-		if (!FindMTarget(self))
+		if (!FindTarget(self))
 			return;
 	}
-
-	// Actualiza el enemigo válido después de intentar encontrar un nuevo objetivo
-	enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
-	if (!enemy_valid)
-		return;
-
-
 
 	// if turret is still in inactive mode, ready the gun, but don't aim
 	if (self->s.frame < FRAME_active01)
@@ -149,7 +80,7 @@ void TurretAim(edict_t* self)
 	idealPitch = ang[PITCH];
 	idealYaw = ang[YAW];
 
-	orientation = (int) self->offset[1];
+	orientation = (int)self->offset[1];
 	switch (orientation)
 	{
 	case -1: // up		pitch: 0 to 90
@@ -322,10 +253,8 @@ void TurretAim(edict_t* self)
 		self->target_ent->s.modelindex = MODELINDEX_WORLD;
 		self->target_ent->s.renderfx = RF_BEAM;
 		self->target_ent->s.frame = 1;
-	//	self->target_ent->s.skinnum = 0xf0f0f0f0;
-		self->target_ent->s.skinnum = 0xd0d1d2d3;
+		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->classname = "turret_lasersight";
-		self->target_ent->s.effects = EF_BOB;
 		self->target_ent->s.origin = self->s.origin;
 	}
 
@@ -353,11 +282,11 @@ void TurretAim(edict_t* self)
 	gi.linkentity(self->target_ent);
 }
 
-MONSTERINFO_SIGHT(turret_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(turret_sight) (edict_t* self, edict_t* other) -> void
 {
 }
 
-MONSTERINFO_SEARCH(turret_search) (edict_t *self) -> void
+MONSTERINFO_SEARCH(turret_search) (edict_t* self) -> void
 {
 }
 
@@ -367,7 +296,7 @@ mframe_t turret_frames_stand[] = {
 };
 MMOVE_T(turret_move_stand) = { FRAME_stand01, FRAME_stand02, turret_frames_stand, nullptr };
 
-MONSTERINFO_STAND(turret_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(turret_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &turret_move_stand);
 	if (self->target_ent)
@@ -390,7 +319,7 @@ mframe_t turret_frames_ready_gun[] = {
 };
 MMOVE_T(turret_move_ready_gun) = { FRAME_active01, FRAME_run01, turret_frames_ready_gun, turret_run };
 
-void turret_ready_gun(edict_t *self)
+void turret_ready_gun(edict_t* self)
 {
 	if (self->monsterinfo.active_move != &turret_move_ready_gun)
 	{
@@ -405,7 +334,7 @@ mframe_t turret_frames_seek[] = {
 };
 MMOVE_T(turret_move_seek) = { FRAME_run01, FRAME_run02, turret_frames_seek, nullptr };
 
-MONSTERINFO_WALK(turret_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(turret_walk) (edict_t* self) -> void
 {
 	if (self->s.frame < FRAME_run01)
 		turret_ready_gun(self);
@@ -419,7 +348,7 @@ mframe_t turret_frames_run[] = {
 };
 MMOVE_T(turret_move_run) = { FRAME_run01, FRAME_run02, turret_frames_run, turret_run };
 
-MONSTERINFO_RUN(turret_run) (edict_t *self) -> void
+MONSTERINFO_RUN(turret_run) (edict_t* self) -> void
 {
 	if (self->s.frame < FRAME_run01)
 		turret_ready_gun(self);
@@ -431,7 +360,7 @@ MONSTERINFO_RUN(turret_run) (edict_t *self) -> void
 		if (self->monsterinfo.weapon_sound)
 		{
 			self->monsterinfo.weapon_sound = 0;
-			gi.sound(self, CHAN_WEAPON, sound_moved, 1.0f, ATTN_STATIC, 0.f);
+			gi.sound(self, CHAN_WEAPON, sound_moved, 1.0f, ATTN_NORM, 0.f);
 		}
 	}
 }
@@ -441,57 +370,54 @@ MONSTERINFO_RUN(turret_run) (edict_t *self) -> void
 // **********************
 
 constexpr int32_t TURRET_BLASTER_DAMAGE = 8;
-constexpr int32_t TURRET_BULLET_DAMAGE = 6;
+constexpr int32_t TURRET_BULLET_DAMAGE = 2;
 // unused
 // constexpr int32_t TURRET_HEAT_DAMAGE	= 4;
-constexpr float ROCKET_FIRE_INTERVAL = 2.0f; // 2.3 segundos
 
 void TurretFire(edict_t* self)
 {
-	vec3_t forward;
-	vec3_t start, end, dir;
-	float dist, chance;
+	vec3_t	forward;
+	vec3_t	start, end, dir;
+	float	dist, chance;
 	trace_t trace;
-	int rocketSpeed = 0;
+	int		rocketSpeed;
 
 	TurretAim(self);
 
-	if (!self->enemy || !self->enemy->inuse || OnSameTeam(self, self->enemy) || self->enemy->deadflag)
-	{
-		if (!FindMTarget(self))
-			return;
-	}
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
 	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
 		end = self->monsterinfo.blind_fire_target;
 	else
 		end = self->enemy->s.origin;
-
 	dir = end - self->s.origin;
 	dir.normalize();
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	chance = dir.dot(forward);
-
 	if (chance < 0.98f)
 		return;
 
 	chance = frandom();
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET))
-		rocketSpeed = 1650;
+		rocketSpeed = 650;
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET_BLASTER))
-		rocketSpeed = 1800;
+		rocketSpeed = 800;
+	else
+		rocketSpeed = 0;
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN) || visible(self, self->enemy))
 	{
 		start = self->s.origin;
+
 		// aim for the head.
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
 			if ((self->enemy) && (self->enemy->client))
 				end[2] += self->enemy->viewheight;
 			else
-				end[2] += 10;
+				end[2] += 22;
 		}
 
 		dir = end - start;
@@ -504,8 +430,8 @@ void TurretFire(edict_t* self)
 			// on harder difficulties, randomly fire directly at enemy
 			// more often; makes them more unpredictable
 			if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
-				PredictAim(self, self->enemy, start, 0, true, 0.0f, &dir, nullptr);
-			else if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET) || frandom() < skill->integer / 5.f)
+				PredictAim(self, self->enemy, start, 0, true, 0.3f, &dir, nullptr);
+			else if (frandom() < skill->integer / 5.f)
 				PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 		}
 
@@ -513,20 +439,6 @@ void TurretFire(edict_t* self)
 		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
-			// Disparo de cohetes cada 3 segundos
-			if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
-			{
-				gtime_t currentTime = level.time;
-				gtime_t rocketFireInterval = gtime_t::from_sec(ROCKET_FIRE_INTERVAL); // Conversion del intervalo a gtime_t
-				if (currentTime > self->monsterinfo.last_rocket_fire_time + rocketFireInterval)
-				{
-					self->monsterinfo.last_rocket_fire_time = currentTime;
-
-					if (dist * trace.fraction > 72)
-						monster_fire_rocket(self, start, dir, 100, 1220, MZ2_TURRET_ROCKET);
-				}
-			}
-
 			if (self->spawnflags.has(SPAWNFLAG_TURRET_BLASTER))
 				monster_fire_blaster(self, start, dir, TURRET_BLASTER_DAMAGE, rocketSpeed, MZ2_TURRET_BLASTER, EF_BLASTER);
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
@@ -534,8 +446,8 @@ void TurretFire(edict_t* self)
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-					self->monsterinfo.duck_wait_time = level.time + 5_sec + gtime_t::from_sec(frandom(skill->value)); // Reduce el tiempo inicial de espera
-					self->monsterinfo.next_duck_time = level.time + gtime_t::from_sec(0.1f); // Reduce el tiempo inicial de espera
+					self->monsterinfo.duck_wait_time = level.time + 2_sec + gtime_t::from_sec(frandom(skill->value));
+					self->monsterinfo.next_duck_time = level.time + 1_sec;
 					gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
 				}
 				else
@@ -543,26 +455,25 @@ void TurretFire(edict_t* self)
 					if (self->monsterinfo.next_duck_time < level.time &&
 						self->monsterinfo.melee_debounce_time <= level.time)
 					{
-						monster_fire_bullet(self, start, dir, TURRET_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
-						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
+						monster_fire_bullet(self, start, dir, TURRET_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
+						self->monsterinfo.melee_debounce_time = level.time + 10_hz;
 					}
 
 					if (self->monsterinfo.duck_wait_time < level.time)
 						self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 				}
 			}
-
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET))
 			{
 				if (dist * trace.fraction > 72)
-					monster_fire_rocket(self, start, dir, 70, rocketSpeed, MZ2_TURRET_ROCKET);
+					monster_fire_rocket(self, start, dir, 40, rocketSpeed, MZ2_TURRET_ROCKET);
 			}
 		}
 	}
 }
 
 // PMM
-void TurretFireBlind(edict_t *self)
+void TurretFireBlind(edict_t* self)
 {
 	vec3_t forward;
 	vec3_t start, end, dir;
@@ -609,9 +520,9 @@ void TurretFireBlind(edict_t *self)
 
 mframe_t turret_frames_fire[] = {
 	{ ai_run, 0, TurretFire },
-	{ ai_run, 0, TurretFire },
-	{ ai_run, 0, TurretFire },
-	{ ai_run, 0, TurretFire },
+	{ ai_run, 0, TurretAim },
+	{ ai_run, 0, TurretAim },
+	{ ai_run, 0, TurretAim }
 };
 MMOVE_T(turret_move_fire) = { FRAME_pow01, FRAME_pow04, turret_frames_fire, turret_run };
 
@@ -619,34 +530,49 @@ MMOVE_T(turret_move_fire) = { FRAME_pow01, FRAME_pow04, turret_frames_fire, turr
 
 // the blind frames need to aim first
 mframe_t turret_frames_fire_blind[] = {
-	{ ai_run, 0, TurretFireBlind },
-	{ ai_run, 0, TurretFireBlind },
-	{ ai_run, 0, TurretFireBlind },
+	{ ai_run, 0, TurretAim },
+	{ ai_run, 0, TurretAim },
+	{ ai_run, 0, TurretAim },
 	{ ai_run, 0, TurretFireBlind }
-
 };
 MMOVE_T(turret_move_fire_blind) = { FRAME_pow01, FRAME_pow04, turret_frames_fire_blind, turret_run };
 // pmm
 
 MONSTERINFO_ATTACK(turret_attack) (edict_t* self) -> void
 {
+	float r, chance;
+
 	if (self->s.frame < FRAME_run01)
-	{
 		turret_ready_gun(self);
-	}
+	// PMM
 	else if (self->monsterinfo.attack_state != AS_BLIND)
 	{
 		M_SetAnimation(self, &turret_move_fire);
 	}
 	else
 	{
-		// No delays or probabilities, directly set the blind fire animation
+		// setup shot probabilities
+		if (self->monsterinfo.blind_fire_delay < 1_sec)
+			chance = 1.0;
+		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+			chance = 0.4f;
+		else
+			chance = 0.1f;
+
+		r = frandom();
+
+		// minimum of 3 seconds, plus 0-4, after the shots are done - total time should be max less than 7.5
+		self->monsterinfo.blind_fire_delay += random_time(3.4_sec, 7.4_sec);
+		// don't shoot at the origin
 		if (!self->monsterinfo.blind_fire_target)
+			return;
+
+		// don't shoot if the dice say not to
+		if (r > chance)
 			return;
 
 		M_SetAnimation(self, &turret_move_fire_blind);
 	}
-
 	// pmm
 }
 
@@ -654,7 +580,7 @@ MONSTERINFO_ATTACK(turret_attack) (edict_t* self) -> void
 //  PAIN
 // **********************
 
-PAIN(turret_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(turret_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 }
 
@@ -662,14 +588,17 @@ PAIN(turret_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 //  DEATH
 // **********************
 
-DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(turret_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	vec3_t	 forward;
-	edict_t *base;
+	edict_t* base;
 
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin += (forward * 1);
 
+	ThrowGibs(self, 2, {
+		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
+		});
 	ThrowGibs(self, 1, {
 		{ 2, "models/objects/debris1/tris.md2", GIB_METALLIC | GIB_DEBRIS }
 		});
@@ -713,29 +642,20 @@ DIE(turret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 	gib->s.frame = 14;
 }
 
-THINK(turret_timeout) (edict_t* self) -> void
-{
-	self->health -= 3;
-	self->monsterinfo.power_armor_power -= 5;
-
-	if (self->monsterinfo.power_armor_power <= 10)
-		self->health -= 10;
-}
-
 // **********************
 //  WALL SPAWN
 // **********************
 
-void turret_wall_spawn(edict_t *turret)
+void turret_wall_spawn(edict_t* turret)
 {
-	edict_t *ent;
+	edict_t* ent;
 	int		 angle;
 
 	ent = G_Spawn();
 	ent->s.origin = turret->s.origin;
 	ent->s.angles = turret->s.angles;
 
-	angle = (int) ent->s.angles[1];
+	angle = (int)ent->s.angles[1];
 	if (ent->s.angles[0] == 90)
 		angle = -1;
 	else if (ent->s.angles[0] == 270)
@@ -784,7 +704,7 @@ void turret_wall_spawn(edict_t *turret)
 	gi.linkentity(ent);
 }
 
-MOVEINFO_ENDFUNC(turret_wake) (edict_t *ent) -> void
+MOVEINFO_ENDFUNC(turret_wake) (edict_t* ent) -> void
 {
 	// the wall section will call this when it stops moving.
 	// just return without doing anything. easiest way to have a null function.
@@ -825,11 +745,11 @@ MOVEINFO_ENDFUNC(turret_wake) (edict_t *ent) -> void
 	ent->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
 }
 
-USE(turret_activate) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(turret_activate) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	vec3_t	 endpos;
 	vec3_t	 forward = { 0, 0, 0 };
-	edict_t *base;
+	edict_t* base;
 
 	self->movetype = MOVETYPE_PUSH;
 	if (!self->speed)
@@ -941,11 +861,10 @@ MONSTERINFO_CHECKATTACK(turret_checkattack) (edict_t* self) -> bool
 				// pmm
 				return false;
 			}
-			return true;
 		}
 	}
 
-if (level.time < self->monsterinfo.attack_finished)
+	if (level.time < self->monsterinfo.attack_finished)
 		return false;
 
 	gtime_t nexttime;
@@ -953,7 +872,7 @@ if (level.time < self->monsterinfo.attack_finished)
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET))
 	{
 		chance = 0.10f;
-		nexttime = (1.2_sec - (0.2_sec * skill->integer));
+		nexttime = (1.8_sec - (0.2_sec * skill->integer));
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET_BLASTER))
 	{
@@ -998,59 +917,41 @@ When activated, wall units move 32 units in the direction they're facing.
 */
 void SP_monster_turret(edict_t* self)
 {
-	self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
 	int angle;
-	if (g_horde->integer)
-	{
-		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-		self->monsterinfo.team = CTF_TEAM1;
-		self->s.effects = EF_BOB | EF_GRENADE;
-		self->monsterinfo.attack_state = AS_BLIND;
 
-		ApplyMonsterBonusFlags(self);
-	}
-
-	if (!M_AllowSpawn(self))
-	{
+	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
 
 	// pre-caches
-	sound_moved.assign("gunner/gunidle1.wav");
+	sound_moved.assign("turret/moved.wav");
 	sound_moving.assign("turret/moving.wav");
 	gi.modelindex("models/objects/debris1/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	self->mins = { -9, -9, -9 };
-	self->maxs = { 9, 9, 9 };
+
+	self->mins = { -12, -12, -12 };
+	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
-
-
-	//self->think = G_FreeEdict;
-	//self->nextthink = level.time + 2_sec;
-
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 100;
-
-	self->health = 75;
-	self->gib_health = -100;
-	self->mass = 100;
-	self->yaw_speed = 12;
-	self->clipmask = MASK_PROJECTILE | CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 	self->solid = SOLID_BBOX;
-	self->svflags |= SVF_MONSTER;
-	//self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-	//self->monsterinfo.armor_power = 150;
+
+	self->health = 50 * st.health_multiplier;
+	self->gib_health = -100;
+	self->mass = 250;
+	self->yaw_speed = 10 * skill->integer;
+
+	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+	self->monsterinfo.armor_power = 50;
+
 	self->flags |= FL_MECHANICAL;
+
 	self->pain = turret_pain;
 	self->die = turret_die;
 
 	// map designer didn't specify weapon type. set it now.
 	if (!self->spawnflags.has(SPAWNFLAG_TURRET_WEAPONCHOICE))
-		self->spawnflags |= SPAWNFLAG_TURRET_MACHINEGUN;
+		self->spawnflags |= SPAWNFLAG_TURRET_BLASTER;
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_HEATBEAM))
 	{
@@ -1137,10 +1038,7 @@ void SP_monster_turret(edict_t* self)
 	{
 		gi.soundindex("infantry/infatck1.wav");
 		gi.soundindex("weapons/chngnu1a.wav");
-		gi.soundindex("weapons/rockfly.wav");
-		gi.modelindex("models/objects/rocket/tris.md2");
-		gi.soundindex("chick/chkatck2.wav");
-		self->s.skinnum = 2;
+		self->s.skinnum = 1;
 
 		self->spawnflags &= ~SPAWNFLAG_TURRET_WEAPONCHOICE;
 		self->spawnflags |= SPAWNFLAG_TURRET_MACHINEGUN;
@@ -1165,27 +1063,30 @@ void SP_monster_turret(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_TURRET_BLASTER;
 	}
 
+	// PMM  - turrets don't get mad at monsters, and visa versa
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-
+	// PMM - blindfire
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_ROCKET | SPAWNFLAG_TURRET_BLASTER))
 		self->monsterinfo.blindfire = true;
 
+	ApplyMonsterBonusFlags(self);
 }
 
 //HORDE BOSS
 constexpr spawnflags_t SPAWNFLAG_TURRETKL = 8_spawnflag;
 void SP_monster_turretkl(edict_t* self)
 {
-	self->spawnflags |= SPAWNFLAG_TURRET_ROCKET;
-	SP_monster_turret(self);
-	self->s.skinnum = 2;
-	self->health = 350 * current_wave_number;
-	if (self->health >= 1400) {
-		self->health = 1400;
-	}
-	self->gib_health = -130;
-	self->s.renderfx = RF_TRANSLUCENT;
-	self->s.effects = EF_FLAG1 | EF_QUAD;
+		self->spawnflags |= SPAWNFLAG_TURRET_ROCKET;
+		SP_monster_turret(self);
+		self->s.skinnum = 2;
+		self->health = 350 * current_wave_number;
+		if (self->health >= 1400) {
+			self->health = 1400;
+		}
+		self->gib_health = -130;
+		self->s.renderfx = RF_TRANSLUCENT;
+		self->s.effects = EF_FLAG1 | EF_QUAD;
 
-	ApplyMonsterBonusFlags(self);
+		ApplyMonsterBonusFlags(self);
 }
+

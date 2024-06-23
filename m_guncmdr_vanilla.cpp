@@ -1109,7 +1109,7 @@ static void guncmdr2_kick_finished(edict_t* self)
 
 static void guncmdr2_kick(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	// Verificar si self->enemy está correctamente inicializado

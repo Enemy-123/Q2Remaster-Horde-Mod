@@ -240,7 +240,7 @@ void arachnid_melee_charge(edict_t* self)
 
 void arachnid_melee_hit(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	// Verificar si self->enemy está correctamente inicializado

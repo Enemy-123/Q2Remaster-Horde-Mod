@@ -22,9 +22,9 @@ bool fire_hit(edict_t * self, vec3_t aim, int damage, int kick)
 	if (!self->enemy) {
 		return false; // Manejar el error apropiadamente
 	}
-	// Verificación de null para attacker si es "monster_turret"
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
-		//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_turret\n");
+	// Verificación de null para attacker si es "monster_sentrygun"
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
+		//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_sentrygun\n");
 		//gi.Com_Print(buffer);
 		return false; // Manejar el error apropiadamente
 	}

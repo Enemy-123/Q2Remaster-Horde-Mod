@@ -445,7 +445,7 @@ MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_att
 
 void flyer_slash_left(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
@@ -469,7 +469,7 @@ void flyer_slash_left(edict_t* self)
 
 void flyer_slash_right(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };

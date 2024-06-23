@@ -198,7 +198,7 @@ void ai_stand(edict_t* self, float dist)
     // HORDESTAND: Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
     if (g_horde->integer && !self->enemy) {
 
-        if (strcmp(self->classname, "monster_turret")) {
+        if (strcmp(self->classname, "monster_sentrygun")) {
             edict_t* player = nullptr;
             for (unsigned int i = 1; i <= game.maxclients; ++i) {
                 edict_t* client = &g_edicts[i];
@@ -786,7 +786,7 @@ bool FindTarget(edict_t* self)
 
     if (!client)
     {
-        if (g_horde->integer && strcmp(self->classname, "monster_turret")) { // this avoid turrets go crazy maybe
+        if (g_horde->integer && strcmp(self->classname, "monster_sentrygun")) { // this avoid turrets go crazy maybe
             // Busca enemigos en el equipo contrario
             edict_t* ent = nullptr;
             float range = 1000.0f; // Rango de búsqueda

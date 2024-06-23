@@ -359,7 +359,7 @@ MMOVE_T(guardian_move_atk2_in) = { FRAME_atk2_in1, FRAME_atk2_in12, guardian_fra
 
 void guardian_kick(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	// Verificar si self->enemy está correctamente inicializado

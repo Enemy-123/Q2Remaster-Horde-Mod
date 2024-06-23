@@ -279,7 +279,7 @@ void brain_swing_right(edict_t* self)
 
 void brain_hit_right(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	// Verificar si self->enemy está correctamente inicializado
@@ -307,7 +307,7 @@ void brain_swing_left(edict_t* self)
 
 void brain_hit_left(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	// Verificar si self->enemy está correctamente inicializado
@@ -360,7 +360,7 @@ void brain_chest_open(edict_t* self)
 
 void brain_tentacle_attack(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	if (self->enemy) {
@@ -454,9 +454,9 @@ void brain_tounge_attack(edict_t* self)
 
 	// Verificar que self->enemy no sea nulo antes de acceder a sus miembros
 
-	// Verificación de null para attacker si es "monster_turret"
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
-		//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_turret\n");
+	// Verificación de null para attacker si es "monster_sentrygun"
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
+		//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_sentrygun\n");
 		//gi.Com_Print(buffer);
 		return; // Manejar el error apropiadamente
 	}

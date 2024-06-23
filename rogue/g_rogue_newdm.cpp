@@ -221,7 +221,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 
 	// Create and configure the turret
 	turret = G_Spawn();
-	turret->classname = "monster_turret";
+	turret->classname = "monster_sentrygun";
 	VectorCopy(new_start, turret->s.origin);
 	VectorCopy(dir, turret->s.angles);
 	turret->movetype = MOVETYPE_BOUNCE;

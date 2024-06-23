@@ -215,6 +215,7 @@
     <ClCompile Include="m_mutant.cpp" />
     <ClCompile Include="m_parasite.cpp" />
     <ClCompile Include="m_redmutant.cpp" />
+    <ClCompile Include="rogue/m_rogue_turret.cpp" />
     <ClCompile Include="m_shambler.cpp" />
     <ClCompile Include="m_soldier.cpp" />
     <ClCompile Include="m_supertank.cpp" />
@@ -244,7 +245,7 @@
     <ClCompile Include="rogue\g_rogue_utils.cpp" />
     <ClCompile Include="rogue\m_rogue_carrier.cpp" />
     <ClCompile Include="rogue\m_rogue_stalker.cpp" />
-    <ClCompile Include="rogue\m_rogue_turret.cpp" />
+    <ClCompile Include="rogue\m_sentrygun.cpp" />
     <ClCompile Include="rogue\m_rogue_widow.cpp" />
     <ClCompile Include="rogue\m_rogue_widow2.cpp" />
     <ClCompile Include="rogue\p_rogue_weapon.cpp" />

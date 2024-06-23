@@ -509,7 +509,7 @@ MONSTERINFO_WALK(floater_walk) (edict_t* self) -> void
 
 void floater_wham(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_turret")) {
+	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 		return;
 	}
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };

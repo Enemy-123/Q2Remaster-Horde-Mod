@@ -81,6 +81,7 @@
     <ClInclude Include="horde\g_horde.h">
       <Filter>horde</Filter>
     </ClInclude>
+    <ClInclude Include="m_redmutant.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -206,9 +207,6 @@
     <ClCompile Include="rogue\m_rogue_stalker.cpp">
       <Filter>rogue</Filter>
     </ClCompile>
-    <ClCompile Include="rogue\m_rogue_turret.cpp">
-      <Filter>rogue</Filter>
-    </ClCompile>
     <ClCompile Include="rogue\m_rogue_widow.cpp">
       <Filter>rogue</Filter>
     </ClCompile>
@@ -254,13 +252,20 @@
     <ClCompile Include="hook.cpp" />
     <ClCompile Include="m_infantry2.cpp" />
     <ClCompile Include="m_hover2.cpp" />
-    <ClCompile Include="m_float2.cpp" />
-    <ClCompile Include="m_gunner2.cpp" />
-    <ClCompile Include="m_guncmdr2.cpp" />
-    <ClCompile Include="m_tank2.cpp" />
     <ClCompile Include="shared.cpp" />
     <ClCompile Include="horde\g_horde.cpp">
       <Filter>horde</Filter>
+    </ClCompile>
+    <ClCompile Include="m_guncmdr_vanilla.cpp" />
+    <ClCompile Include="m_gunner_vanilla.cpp" />
+    <ClCompile Include="m_float_vanilla.cpp" />
+    <ClCompile Include="m_redmutant.cpp" />
+    <ClCompile Include="m_tank_vanilla.cpp" />
+    <ClCompile Include="m_rogue_turret.cpp">
+      <Filter>rogue</Filter>
+    </ClCompile>
+    <ClCompile Include="rogue\m_sentrygun.cpp">
+      <Filter>rogue</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

@@ -921,8 +921,8 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 		g_horde->integer && check->classname && (check->flags & FL_TRAP))
 		return BoxEdictsResult_t::Skip;
 
-	// Don't hit monster_turret
-	if (check->classname && strcmp(check->classname, "monster_turret") == 0)
+	// Don't hit monster_sentrygun
+	if (check->classname && strcmp(check->classname, "monster_sentrygun") == 0)
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;
@@ -969,8 +969,8 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		}
 		if (!(hit->svflags & SVF_MONSTER) && !(hit->flags & FL_DAMAGEABLE) && !hit->client)
 			continue;
-		// Don't hit monster_turret
-		if (hit->classname && strcmp(hit->classname, "monster_turret") == 0)
+		// Don't hit monster_sentrygun
+		if (hit->classname && strcmp(hit->classname, "monster_sentrygun") == 0)
 			continue;
 
 		tr = gi.traceline(start, hit->s.origin, self, MASK_PROJECTILE);
