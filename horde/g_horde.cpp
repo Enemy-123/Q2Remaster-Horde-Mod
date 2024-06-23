@@ -342,7 +342,7 @@ constexpr struct weighted_item_t {
     { "item_armor_shard", -1, 7, 0.09f, adjust_weight_armor },
     { "item_armor_jacket", -1, 12, 0.12f, adjust_weight_armor },
     { "item_armor_combat", 13, -1, 0.06f, adjust_weight_armor },
-    { "item_armor_body", 23, -1, 0.03f, adjust_weight_armor },
+    { "item_armor_body", 23, -1, 0.015f, adjust_weight_armor },
     { "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
     { "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
 
@@ -855,7 +855,7 @@ inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
 
 // Manejador de muerte de jefe
 void BossDeathHandler(edict_t* boss) {
-    if (boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
         boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
 
         std::vector<const char*> itemsToDrop = {
