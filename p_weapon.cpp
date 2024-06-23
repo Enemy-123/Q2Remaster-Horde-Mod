@@ -477,6 +477,7 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		bool using_ripper = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
 		bool using_rail = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RAILGUN;
 		bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+		bool using_trap = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TRAP;
 
 
 		if (is_quadfire)
@@ -489,7 +490,7 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 			}
 
 
-			if (using_shotgun) {
+			if (using_shotgun || using_trap)  {
 				ent->client->ps.gunrate *= 1.5;
 			}
 	
