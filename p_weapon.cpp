@@ -1549,11 +1549,11 @@ void Machinegun_Fire(edict_t* ent)
 	// Lógica para disparar trazadores
 	if (ent->lasthbshot <= level.time)
 	{
-		//	if (g_impbullets->integer)
+			if (g_tracedbullets->integer)
 		{
 			int tracer_damage = 30;
 			// Disparo del blaster desde la misma posición y dirección que el bullet
-			fire_blaster(ent, start, forward, tracer_damage, 2000, EF_BLUEHYPERBLASTER, MOD_HYPERBLASTER);
+			monster_fire_blaster2(ent, start, forward, tracer_damage, 3150, MZ2_MEDIC_HYPERBLASTER1_5, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.5_sec;
 	}
@@ -1582,16 +1582,16 @@ void Weapon_Machinegun(edict_t* ent)
 
 void Chaingun_Fire(edict_t* ent)
 {
-	int	  i;
-	int	  shots;
-	float r, u;
-	int	  damage;
-	int	  kick = 2;
+	int i;
+	int shots;
+	int damage;
+	int kick = 2;
 
 	if (G_IsDeathmatch())
 		damage = irandom(5, 9);
 	else
 		damage = irandom(5, 9);
+
 	if (ent->client->ps.gunframe > 31)
 	{
 		ent->client->ps.gunframe = 5;
@@ -1671,25 +1671,27 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	vec3_t start, dir;
-	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir);
+	vec3_t start, forward, right, up, offset;
+	AngleVectors(ent->client->v_angle, forward, right, up);
 
-	G_LagCompensate(ent, start, dir);
+	// Ajustar los valores de offset
+	offset[0] = 0;
+	offset[1] = 8; // Ajuste horizontal
+	offset[2] = ent->viewheight - 32; // Ajuste vertical
+
+	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
+
+	G_LagCompensate(ent, start, forward);
 	for (i = 0; i < shots; i++)
 	{
-		// get start / end positions
-		// Paril: kill sideways angle on hitscan
-		r = crandom() * 4;
-		u = crandom() * 4;
-		P_ProjectSource(ent, ent->client->v_angle, { 0, r, u + -8 }, start, dir);
-
-		fire_bullet(ent, start, dir, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
+		// Mantener el start y forward constantes
+		fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
 	}
 	G_UnLagCompensate();
 
 	Weapon_PowerupSound(ent);
 
-	// send muzzle flash
+	// enviar muzzle flash
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
 	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
@@ -1698,7 +1700,20 @@ void Chaingun_Fire(edict_t* ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	G_RemoveAmmo(ent, shots);
+
+	// Lógica para disparar trazadores
+	if (ent->lasthbshot <= level.time)
+	{
+		if (g_tracedbullets->integer)
+		{
+			int tracer_damage = 30;
+			// Disparo del blaster desde la misma posición y dirección que el bullet
+			monster_fire_blaster2(ent, start, forward, tracer_damage, 3150, MZ2_MEDIC_HYPERBLASTER1_5, EF_NONE);
+		}
+		ent->lasthbshot = level.time + 0.5_sec;
+	}
 }
+
 
 void Weapon_Chaingun(edict_t* ent)
 {

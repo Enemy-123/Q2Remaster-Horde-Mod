@@ -92,7 +92,8 @@ const std::vector<std::pair<int, std::string>> benefits = {
     {15, "auto haste"},
     {20, "vampire upgraded"},
     {25, "Cluster Prox Grenades" },
-    {30, "start armor" }
+    {30, "start armor" },
+    {35, "Traced-Piercing Bullets" }
 };
 
 static std::random_device rd;
@@ -169,6 +170,10 @@ void ApplyBenefit(const std::string& benefit) {
     else if (benefit == "Cluster Prox Grenades") {
         gi.cvar_set("g_upgradeproxs", "1");
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nProx Launcher\nUPGRADED!\n");
+    } 
+    else if (benefit == "Traced-Piercing Bullets") {
+        gi.cvar_set("g_tracedbullets", "1");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nMachinegun/Chaingun \nUPGRADED!\n");
     }
     obtained_benefits.insert(benefit);
 }
@@ -792,6 +797,7 @@ void Horde_PreInit() {
         gi.cvar_set("g_startarmor", "0");
         gi.cvar_set("g_vampire", "0");
         gi.cvar_set("g_ammoregen", "0");
+        gi.cvar_set("g_tracedbullets", "0");
         gi.cvar_set("g_autohaste", "0");
         gi.cvar_set("g_chaotic", "0");
         gi.cvar_set("g_insane", "0");
@@ -1185,18 +1191,21 @@ void ResetGame() {
     // Reset global configuration variables
     gi.cvar_set("g_chaotic", "0");
     gi.cvar_set("g_insane", "0");
-    gi.cvar_set("g_vampire", "0");
-    gi.cvar_set("g_startarmor", "0");
-    gi.cvar_set("ai_damage_scale", "1");
-    gi.cvar_set("g_damage_scale", "1");
-    gi.cvar_set("g_ammoregen", "0");
-    gi.cvar_set("g_upgradeproxs", "0");
     gi.cvar_set("g_hardcoop", "0");
-    gi.cvar_set("g_autohaste", "0");
     gi.cvar_set("dm_monsters", "0");
     gi.cvar_set("timelimit", "40");
     gi.cvar_set("bot_pause", "0");
     gi.cvar_set("set cheats 0 s", "");
+    gi.cvar_set("ai_damage_scale", "1");
+    gi.cvar_set("g_damage_scale", "1");
+
+    //bonus reset
+    gi.cvar_set("g_vampire", "0");
+    gi.cvar_set("g_startarmor", "0");
+    gi.cvar_set("g_ammoregen", "0");
+    gi.cvar_set("g_upgradeproxs", "0");
+    gi.cvar_set("g_tracedbullets", "0");
+    gi.cvar_set("g_autohaste", "0");
 
     // Reset cooldowns
     MONSTER_COOLDOWN = 2.5_sec;

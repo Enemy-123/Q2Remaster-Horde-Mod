@@ -10,6 +10,7 @@ void monster_fire_blaster2(edict_t *self, const vec3_t &start, const vec3_t &dir
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 
 	fire_blaster2(self, start, dir, damage, speed, effect, false);
+	if (self && self->svflags & SVF_MONSTER)
 	monster_muzzleflash(self, start, flashtype);
 }
 

@@ -1437,6 +1437,10 @@ void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int da
 	bolt->s.modelindex = gi.modelindex("models/objects/laser/tris.md2");
 	bolt->s.skinnum = 2;
 	bolt->s.scale = 2.5f;
+	if (self->client && (self->client->pers.weapon->id == IT_WEAPON_MACHINEGUN || self->client->pers.weapon->id == IT_WEAPON_CHAINGUN))
+	{
+		bolt->s.scale = 1.0f;
+	}
 	bolt->touch = blaster2_touch;
 
 	bolt->owner = self;
@@ -1453,7 +1457,6 @@ void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int da
 		bolt->touch(bolt, tr.ent, tr, false);
 	}
 }
-
 // *************************
 // tracker
 // *************************

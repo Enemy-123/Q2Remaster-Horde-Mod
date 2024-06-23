@@ -1883,6 +1883,9 @@ std::string GetActiveBonusesString() {
 	if (obtained_benefits.find("Cluster Prox Grenades") != obtained_benefits.end()) {
 		activeBonuses += "* Upgraded Prox Launcher!\n";
 	}
+	if (obtained_benefits.find("Traced-Piercing Bullets") != obtained_benefits.end()) {
+		activeBonuses += "* Traced-Piercing Bullets!\n";
+	}
 
 	return activeBonuses;
 }
