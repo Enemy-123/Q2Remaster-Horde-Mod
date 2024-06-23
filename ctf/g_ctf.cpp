@@ -1158,12 +1158,26 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		else if (best->svflags & SVF_MONSTER) {
 			bool has_armor = false;
-			// if (best->monsterinfo.armor_power > 0) {
-			//     health_stream << " A: " << best->monsterinfo.armor_power; // Agregar la armadura si es mayor a 0
-			//     has_armor = true;
-			// }
+// if (best->monsterinfo.armor_power > 0) {
+//     health_stream << " A: " << best->monsterinfo.armor_power; // Agregar la armadura si es mayor a 0
+//     has_armor = true;
+// }
+
 			if (best->monsterinfo.power_armor_power > 0) {
 				health_stream << (has_armor ? " " : "") << " PA: " << best->monsterinfo.power_armor_power; // Agregar el power armor si es mayor a 0
+			}
+			// Mostrar el tiempo restante de los power-ups
+			if (best->monsterinfo.quad_time > level.time) {
+				int remaining_quad_time = static_cast<int>((best->monsterinfo.quad_time - level.time).seconds<float>());
+				health_stream << "\nQuad:" << remaining_quad_time << "(s)";
+			}
+			if (best->monsterinfo.double_time > level.time) {
+				int remaining_double_time = static_cast<int>((best->monsterinfo.double_time - level.time).seconds<float>());
+				health_stream << "\nDouble:" << remaining_double_time << "(s)";
+			}
+			if (best->monsterinfo.invincible_time > level.time) {
+				int remaining_double_time = static_cast<int>((best->monsterinfo.invincible_time - level.time).seconds<float>());
+				health_stream << "\nInvuln:" << remaining_double_time << "(s)";
 			}
 		}
 		ent->client->target_health_str = health_stream.str();
