@@ -1149,6 +1149,7 @@ void ThrowWidowGibReal(edict_t* self, const char* gibname, int damage, gib_type_
 	else
 	{
 		origin = (self->absmin + self->absmax) * 0.5f;
+		size = self->size * 0.5f;
 		gib->s.origin[0] = origin[0] + crandom() * size[0];
 		gib->s.origin[1] = origin[1] + crandom() * size[1];
 		gib->s.origin[2] = origin[2] + crandom() * size[2];
