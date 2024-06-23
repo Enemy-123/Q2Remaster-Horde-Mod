@@ -373,13 +373,13 @@ constexpr struct weighted_item_t {
     { "weapon_bfg", 27, -1, 0.15f, adjust_weight_weapon },           
 
 
-    { "ammo_trap", 4, -1, 0.14f, adjust_weight_ammo },
+    { "ammo_trap", 2, -1, 0.14f, adjust_weight_ammo },
     { "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
     { "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
     { "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },    
     { "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
     { "ammo_prox", 12, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_tesla", 2, -1, 0.15f, adjust_weight_ammo },
+    { "ammo_tesla", 2, -1, 0.13f, adjust_weight_ammo },
     { "ammo_cells", 9, -1, 0.30f, adjust_weight_ammo },
     { "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },      
     { "ammo_slugs", 9, -1, 0.25f, adjust_weight_ammo },
@@ -1016,6 +1016,8 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64/comm", {1464 - 88 - 432}},
     {"q64/command", {0, -208, 56}},
     {"q64\\command", {0, -208, 56}},
+    {"q64\\dm1", {-192, - 320, 80}},
+    {"q64/dm1", {-192, - 320, 80}},
     {"q64\\dm7", {64, 224, 120}},
     {"q64\\dm9", {160, 56, 40}},
     {"q64/dm9", {160, 56, 40}},
@@ -1110,15 +1112,21 @@ void SpawnBossAutomatically() {
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
             boss->gib_health = -2000000;
 
-            vec3_t effectPosition = boss->s.origin;
-            effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
-            effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
-            effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
+            // spawngro effect
+            vec3_t spawngrow_pos = boss->s.origin;
+            float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.105f;
+            float end_size = start_size;
+            SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
-            gi.WriteByte(svc_temp_entity);
-            gi.WriteByte(TE_BOSSTPORT);
-            gi.WritePosition(effectPosition);
-            gi.multicast(effectPosition, MULTICAST_PHS, false);
+            //vec3_t effectPosition = boss->s.origin;
+            //effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
+            //effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
+            //effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
+
+            //gi.WriteByte(svc_temp_entity);
+            //gi.WriteByte(TE_BOSSTPORT);
+            //gi.WritePosition(effectPosition);
+            //gi.multicast(effectPosition, MULTICAST_PHS, false);
             ED_CallSpawn(boss);
 
             AttachHealthBar(boss);

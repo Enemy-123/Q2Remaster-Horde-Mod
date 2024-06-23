@@ -2886,7 +2886,6 @@ struct gclient_t
 
 
 
-
 	bool showscores;	// set layout stat
 	bool showeou;       // end of unit screen
 	bool showinventory; // set layout stat
@@ -3322,6 +3321,7 @@ struct edict_t
 	edict_t* laser;
 	gtime_t hook_time;
 	// Kyper
+	gtime_t lasthbshot;
 };
 #define TEAM1 "team1"
 #define TEAM2 "team2"

@@ -382,6 +382,7 @@ bool Pickup_Bandolier(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 63);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 250);
 	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 16);
+	G_AdjustAmmoCap(other, AMMO_TESLA, 7);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
@@ -414,7 +415,7 @@ bool Pickup_Pack(edict_t* ent, edict_t* other)
 	G_AdjustAmmoCap(other, AMMO_MAGSLUG, 125);
 	G_AdjustAmmoCap(other, AMMO_FLECHETTES, 400);
 	G_AdjustAmmoCap(other, AMMO_DISRUPTOR, 30);
-	G_AdjustAmmoCap(other, AMMO_TESLA, 12);
+	G_AdjustAmmoCap(other, AMMO_TESLA, 10);
 
 	G_AddAmmoAndCapQuantity(other, AMMO_BULLETS);
 	G_AddAmmoAndCapQuantity(other, AMMO_SHELLS);
@@ -2147,7 +2148,7 @@ always owned, never in the world
 			/* use_name */  "Tesla",
 			/* pickup_name */  "$item_tesla",
 			/* pickup_name_definite */ "$item_tesla_def",
-			/* quantity */ 3,
+			/* quantity */ 2,
 			/* ammo */ IT_AMMO_TESLA,
 			/* chain */ IT_AMMO_GRENADES,
 			/* flags */ IF_AMMO | IF_WEAPON | IF_NO_INFINITE_AMMO,

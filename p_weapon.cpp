@@ -1522,25 +1522,18 @@ void Machinegun_Fire(edict_t* ent)
 		kick_origin[i] = crandom() * 0.35f;
 		kick_angles[i] = crandom() * 0.7f;
 	}
-	//kick_angles[0] = ent->client->machinegun_shots * -1.5f;
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// raise the gun as it is firing
-	// [Paril-KEX] disabled as this is a bit hard to do with high
-	// tickrate, but it also just sucks in general.
-	/*if (!deathmatch->integer)
-	{
-		ent->client->machinegun_shots++;
-		if (ent->client->machinegun_shots > 9)
-			ent->client->machinegun_shots = 9;
-	}*/
+	vec3_t start, forward, right, up, offset;
+	AngleVectors(ent->client->v_angle, forward, right, up);
+	// Similar offset calculation to HyperBlaster
+	offset[0] = 0;
+	offset[1] = 9; // Slight horizontal adjustment
+	offset[2] = ent->viewheight - 28;
+	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
-	// get start / end positions
-	vec3_t start, dir;
-	// Paril: kill sideways angle on hitscan
-	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir);
-	G_LagCompensate(ent, start, dir);
-	fire_bullet(ent, start, dir, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
+	G_LagCompensate(ent, start, forward);
+	fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
 	G_UnLagCompensate();
 	Weapon_PowerupSound(ent);
 
@@ -1552,6 +1545,18 @@ void Machinegun_Fire(edict_t* ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	G_RemoveAmmo(ent);
+
+	// Lógica para disparar trazadores
+	if (ent->lasthbshot <= level.time)
+	{
+		//	if (g_impbullets->integer)
+		{
+			int tracer_damage = 30;
+			// Disparo del blaster desde la misma posición y dirección que el bullet
+			fire_blaster(ent, start, forward, tracer_damage, 2000, EF_BLUEHYPERBLASTER, MOD_HYPERBLASTER);
+		}
+		ent->lasthbshot = level.time + 0.5_sec;
+	}
 
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1566,6 +1571,7 @@ void Machinegun_Fire(edict_t* ent)
 	}
 	ent->client->anim_time = 0_ms;
 }
+
 
 void Weapon_Machinegun(edict_t* ent)
 {
