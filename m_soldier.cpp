@@ -2015,7 +2015,7 @@ void SP_monster_soldier_light(edict_t *self)
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
 	self->health = self->max_health = 38 * st.health_multiplier;
-	self->gib_health = -80;
+	self->gib_health = -20;
 
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
@@ -2141,7 +2141,7 @@ void SP_monster_soldier_hypergun(edict_t *self)
 	self->s.skinnum = 8;
 	self->count = self->s.skinnum - 6;
 	self->health = self->max_health = 40 * st.health_multiplier;
-	self->gib_health = -30;
+	self->gib_health = -20;
 
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
