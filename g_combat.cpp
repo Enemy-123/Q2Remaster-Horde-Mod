@@ -495,8 +495,6 @@ void AssignMonsterTeam(edict_t* ent) {
 		ent->monsterinfo.team = CTF_TEAM2;
 	}
 }
-
-// check if the two given entities are on the same team
 bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
 	if (G_IsCooperative())
@@ -556,10 +554,21 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
 		}
 
+		// Verifica si uno de los entes es una trampa
+		if (ent1->classname && !strcmp(ent1->classname, "food_cube_trap"))
+		{
+			return !strcmp(ent1->team, ent2->client ? (ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : ent2->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+		}
+		if (ent2->classname && !strcmp(ent2->classname, "food_cube_trap"))
+		{
+			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+		}
+
 		return false;
 	}
 	return false;
 }
+
 
 
 // check if the two entities are on a team and that

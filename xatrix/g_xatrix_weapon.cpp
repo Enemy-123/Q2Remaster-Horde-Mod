@@ -359,15 +359,13 @@ THINK(Trap_Think) (edict_t* ent) -> void
 {
 	edict_t* target = nullptr;
 	edict_t* best = nullptr;
-	vec3_t	 vec;
-	float	 len;
-	float	 oldlen = 8000;
+	vec3_t   vec;
+	float    len;
+	float    oldlen = 8000;
 
 	if (ent->timestamp < level.time)
 	{
 		BecomeExplosion1(ent);
-		// note to self
-		// cause explosion damage???
 		return;
 	}
 
@@ -376,7 +374,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	if (!ent->groundentity)
 		return;
 
-	// ok lets do the blood effect
+	// Realiza efectos de sangre si es necesario
 	if (ent->s.frame > 4)
 	{
 		if (ent->s.frame == 5)
@@ -426,10 +424,6 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	if (ent->s.frame >= 4)
 	{
 		ent->s.effects |= EF_TRAP;
-		// clear the owner if in deathmatch
-		if (G_IsDeathmatch())
-
-
 		ent->owner = nullptr;
 	}
 
@@ -444,28 +438,9 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		if (target == ent)
 			continue;
 
-		// [Paril-KEX] don't allow traps to be placed near flags or teleporters
-		// if it's a monster or player with health > 0
-		// or it's a player start point
-		// and we can see it
-		// blow up
-		if (target->classname && ((G_IsDeathmatch() &&
-			((!strncmp(target->classname, "info_player_", 12)) ||
-				(!strcmp(target->classname, "misc_teleporter_dest")) ||
-				(!strncmp(target->classname, "item_flag_", 10))))) &&
-			(visible(target, ent)))
-		{
-			BecomeExplosion1(ent);
-			return;
-		}
-
-
-		if (!(target->svflags & SVF_MONSTER) && !target->client)
+		if (!(target->svflags & SVF_MONSTER))
 			continue;
 		if (target != ent->teammaster && CheckTeamDamage(target, ent->teammaster))
-			continue;
-		// [Paril-KEX]
-		if (!G_IsDeathmatch() && target->client)
 			continue;
 		if (target->health <= 0)
 			continue;
@@ -486,7 +461,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		}
 	}
 
-	// pull the enemy in
+	// Atrae al enemigo
 	if (best)
 	{
 		if (best->groundentity)
@@ -497,7 +472,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		vec = ent->s.origin - best->s.origin;
 		len = vec.normalize();
 
-		float max_speed = best->client ? 290.f : 150.f;
+		float max_speed = 150.f;
 
 		best->velocity += (vec * clamp(max_speed - len, 64.f, max_speed));
 
@@ -521,14 +496,11 @@ THINK(Trap_Think) (edict_t* ent) -> void
 				ent->s.old_origin = ent->s.origin;
 				ent->timestamp = level.time + 30_sec;
 				ent->accel = best->mass;
-				if (G_IsDeathmatch())
-					ent->mass = best->mass / 10;
-				else
-					ent->mass = best->mass / 10;
-				// ok spawn the food cube
+				ent->mass = best->mass / 10;
+
 				ent->s.frame = 5;
 
-				// link up any gibs that this monster may have spawned
+				// Vincula cualquier gib que este monstruo haya generado
 				for (uint32_t i = 0; i < globals.num_edicts; i++)
 				{
 					edict_t* e = &g_edicts[i];
@@ -550,20 +522,16 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			else
 			{
 				BecomeExplosion1(ent);
-				// note to self
-				// cause explosion damage???
 				return;
 			}
 		}
 	}
 }
-
-// RAFAEL
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
 	edict_t* trap;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
+	vec3_t   dir;
+	vec3_t   forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -588,9 +556,25 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	trap->health = 20;
 	trap->s.modelindex = gi.modelindex("models/weapons/z_trap/tris.md2");
 	trap->owner = trap->teammaster = self;
+
+	// Asigna el equipo como una cadena de caracteres
+	const char* trap_team;
+	if (self->client->resp.ctf_team == CTF_TEAM1) {
+		trap_team = TEAM1;
+	}
+	else if (self->client->resp.ctf_team == CTF_TEAM2) {
+		trap_team = TEAM2;
+	}
+	else {
+		trap_team = "neutral"; // O cualquier valor por defecto que quieras
+	}
+	trap->team = trap_team;
+	trap->teammaster->team = trap_team;
+
 	trap->nextthink = level.time + 1_sec;
 	trap->think = Trap_Think;
 	trap->classname = "food_cube_trap";
+
 	// RAFAEL 16-APR-98
 	trap->s.sound = gi.soundindex("weapons/traploop.wav");
 	// END 16-APR-98
@@ -598,9 +582,11 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
 
-	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true))
+	// Verifica si la trampa y el jugador son del mismo equipo y ajusta la máscara de colisión
+	if (self->client && strcmp(trap->team, trap_team) == 0)
+	{
 		trap->clipmask &= ~CONTENTS_PLAYER;
+	}
 
 	gi.linkentity(trap);
 
