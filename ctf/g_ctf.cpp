@@ -1050,6 +1050,17 @@ std::string FormatClassname(const std::string& classname) {
 #define MAX_MONSTER_CONFIGSTRINGS 80
 #define MAX_PLAYER_CONFIGSTRINGS 32
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
+
+bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
+	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT || other->health < 1)
+		return false;
+	if (other == ent) // Excluir al propio jugador
+		return false;
+	if (vis && ent && !visible(ent, other))
+		return false;
+	return true;
+}
+
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -1072,11 +1083,11 @@ void CTFSetIDView(edict_t* ent) {
 	trace_t tr;
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
-	float closest_dist = 2048; // Aumentar la distancia máxima inicial
-	float min_dot = 1.0f; // Ajustar ligeramente el umbral para hacer el campo de visión más estricto
+	float closest_dist = 1024; // Reducir la distancia máxima inicial para mayor precisión
+	float min_dot = 0.90f; // Ajustar el umbral para hacer el campo de visión más permisivo
 
 	// Reduce the update interval
-	if (level.time - ent->client->resp.lastidtime < 85_ms)
+	if (level.time - ent->client->resp.lastidtime < 250_ms)
 		return;
 
 	ent->client->resp.lastidtime = level.time;
@@ -1084,13 +1095,15 @@ void CTFSetIDView(edict_t* ent) {
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	forward *= 2048; // Aumentar la distancia del rayo
-	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_BLOCK_SIGHT);
-	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER) || !strcmp(tr.ent->classname, "tesla_mine") || !strcmp(tr.ent->classname, "food_cube_trap")) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
+	vec3_t end = ent->s.origin + forward * 1024; // Ajustar la distancia del rayo
+	tr = gi.traceline(ent->s.origin, end, ent, MASK_SOLID);
+
+	// Verificación directa con min_dot
+	if (tr.fraction < 1 && IsValidTarget(ent, tr.ent, true)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-		if ((!strcmp(tr.ent->classname, "tesla_mine") && d > 0.999f) || (!strcmp(tr.ent->classname, "food_cube_trap") && d > 0.999f) || (d > min_dot)) { // El objetivo debe estar 100% centrado para la mina Tesla y cerca del centro para los demás
+		if (d > min_dot) { // Asegurar que el objetivo esté dentro del campo de visión
 			float dist = (tr.ent->s.origin - ent->s.origin).length();
 			if (dist < closest_dist) {
 				closest_dist = dist;
@@ -1098,44 +1111,30 @@ void CTFSetIDView(edict_t* ent) {
 			}
 		}
 	}
-	else {
-		// No hay objetivo directamente en línea de visión, buscar alrededor
-		AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-		for (uint32_t i = 1; i < globals.num_edicts; i++) {
-			who = g_edicts + i;
-			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
-				continue;
 
-			if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) {
-				vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
-				for (const auto& point : points) {
-					vec3_t dir = point - ent->s.origin;
-					dir.normalize();
-					d = forward.dot(dir);
-					float dist = (point - ent->s.origin).length();
-					if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
-						(d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
-						bd = d;
-						closest_dist = dist;
-						best = who;
-					}
-				}
-			}
-			else {
-				vec3_t dir = who->s.origin - ent->s.origin;
-				dir.normalize();
-				d = forward.dot(dir);
-				float dist = (who->s.origin - ent->s.origin).length();
-				if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
-					bd = d;
-					closest_dist = dist;
-					best = who;
-				}
-			}
+	// Búsqueda alrededor
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
+		who = g_edicts + i;
+		if (!IsValidTarget(ent, who, false))
+			continue;
+
+		vec3_t dir = who->s.origin - ent->s.origin;
+		dir.normalize();
+		d = forward.dot(dir);
+		float dist = (who->s.origin - ent->s.origin).length();
+		if (d > min_dot && loc_CanSee(ent, who) && dist < closest_dist) { // Asegurar que el objetivo esté dentro del campo de visión
+			closest_dist = dist;
+			best = who;
 		}
 	}
 
+	// Si no encontramos un nuevo objetivo, intentamos usar el objetivo anterior si es válido
+	if (!best && IsValidTarget(ent, ent->client->idtarget, true)) {
+		best = ent->client->idtarget;
+	}
+
 	if (best) {
+		ent->client->idtarget = best; // Guardar el objetivo actual
 		std::ostringstream health_stream;
 		std::string name;
 
@@ -1234,6 +1233,9 @@ void CTFSetIDView(edict_t* ent) {
 			}
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstrings[best - g_edicts];
 		}
+	}
+	else {
+		ent->client->idtarget = nullptr; // Si no hay objetivo, limpiar el objetivo anterior
 	}
 }
 
