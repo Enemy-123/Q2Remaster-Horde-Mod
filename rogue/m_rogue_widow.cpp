@@ -159,10 +159,19 @@ constexpr float VARIANCE = 15.0f;
 
 void WidowBlaster(edict_t* self)
 {
-	vec3_t					 forward, right, target, vec, targ_angles;
-	vec3_t					 start;
+	vec3_t forward, right, up, target, vec, targ_angles;
+	vec3_t start;
 	monster_muzzleflash_id_t flashnum;
-	effects_t				 effect;
+	effects_t effect;
+
+	// Add offset for scaled-down widow
+	vec3_t offset = { 0.0f, 0.0f, 0.0f }; // No offset by default
+
+	// Check if the monster is the scaled-down widow
+	if (strcmp(self->classname, "monster_widow1") == 0)
+	{
+		offset[2] = -45.0f; // Adjust Z-axis offset for the scaled-down widow
+	}
 
 	if (!self->enemy)
 		return;
@@ -173,12 +182,12 @@ void WidowBlaster(edict_t* self)
 	else
 		effect = EF_NONE;
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
+	AngleVectors(self->s.angles, forward, right, up);
 	if ((self->s.frame >= FRAME_spawn05) && (self->s.frame <= FRAME_spawn13))
 	{
 		// sweep
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW_BLASTER_SWEEP1 + self->s.frame - FRAME_spawn05);
-		start = G_ProjectSource(self->s.origin, monster_flash_offset[flashnum], forward, right);
+		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
 		target = self->enemy->s.origin - start;
 		targ_angles = vectoangles(target);
 
@@ -193,8 +202,8 @@ void WidowBlaster(edict_t* self)
 	else if ((self->s.frame >= FRAME_fired02a) && (self->s.frame <= FRAME_fired20))
 	{
 		vec3_t angles;
-		float  aim_angle, target_angle;
-		float  error;
+		float aim_angle, target_angle;
+		float error;
 
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
 
@@ -208,7 +217,7 @@ void WidowBlaster(edict_t* self)
 		else
 			flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW_BLASTER_100 + self->s.frame - FRAME_fired03);
 
-		start = G_ProjectSource(self->s.origin, monster_flash_offset[flashnum], forward, right);
+		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
 
 		PredictAim(self, self->enemy, start, 1000, true, crandom() * 0.1f, &forward, nullptr);
 
@@ -242,7 +251,7 @@ void WidowBlaster(edict_t* self)
 	else if ((self->s.frame >= FRAME_run01) && (self->s.frame <= FRAME_run08))
 	{
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW_RUN_1 + self->s.frame - FRAME_run01);
-		start = G_ProjectSource(self->s.origin, monster_flash_offset[flashnum], forward, right);
+		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
 
 		target = self->enemy->s.origin - start;
 		target[2] += self->enemy->viewheight;
@@ -251,7 +260,6 @@ void WidowBlaster(edict_t* self)
 		monster_fire_blaster2(self, start, target, BLASTER2_DAMAGE * widow_damage_multiplier, 1000, flashnum, effect);
 	}
 }
-
 void WidowSpawn(edict_t* self)
 {
 	vec3_t	 f, r, u, offset, startpoint, spawnpoint;

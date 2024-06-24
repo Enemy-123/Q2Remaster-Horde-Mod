@@ -526,6 +526,12 @@ constexpr float STOP_EPSILON = 0.1f;
 	return point + (forward * distance[0]) + (right * distance[1]) + (up * distance[2]);
 }
 
+[[nodiscard]] constexpr vec3_t G_ProjectSourceWithOffset(const vec3_t& point, const vec3_t& distance, const vec3_t& forward, const vec3_t& right, const vec3_t& up, const vec3_t& offset)
+{
+	return point + (forward * distance[0]) + (right * distance[1]) + (up * distance[2]) + offset;
+}
+
+
 [[nodiscard]] inline vec3_t slerp(const vec3_t &from, const vec3_t &to, float t)
 {
     float dot = from.dot(to);
