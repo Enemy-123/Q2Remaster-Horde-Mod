@@ -308,9 +308,9 @@ void defender_shoot(edict_t *self, edict_t *enemy)
 
 	start = self->s.origin;
 	start[2] += 2;
-	fire_blaster2(self->owner, start, dir, 9, 1400, EF_BLASTER, 0);
+	fire_blaster2(self->owner, start, dir, 9, 1900, EF_BLUEHYPERBLASTER, 1);
 
-	self->monsterinfo.attack_finished = level.time + 315_ms;
+	self->monsterinfo.attack_finished = level.time + 215_ms;
 }
 
 // *************************
@@ -455,30 +455,26 @@ PAIN(vengeance_pain) (edict_t *self, edict_t *other, float kick, int damage, con
 
 // ===================
 // ===================
-THINK(defender_think) (edict_t *self) -> void
-{
-	if (!self->owner)
-	{
+extern 	bool FindMTarget(edict_t* self);
+THINK(defender_think) (edict_t* self) -> void {
+	if (!self->owner) {
 		G_FreeEdict(self);
 		return;
 	}
 
 	// if we've exited the level, just remove ourselves.
-	if (level.intermissiontime)
-	{
+	if (level.intermissiontime) {
 		sphere_think_explode(self);
 		return;
 	}
 
 	// if we are spectator, FreeEdict.
-	if (self->owner->movetype == MOVETYPE_NOCLIP)
-	{
+	if (self->owner->movetype == MOVETYPE_NOCLIP) {
 		G_FreeEdict(self);
 		return;
 	}
 
-	if (self->owner->health <= 0)
-	{
+	if (self->owner->health <= 0) {
 		sphere_think_explode(self);
 		return;
 	}
@@ -487,8 +483,12 @@ THINK(defender_think) (edict_t *self) -> void
 	if (self->s.frame > 19)
 		self->s.frame = 0;
 
-	if (self->enemy)
-	{
+	// Buscar activamente enemigos si no hay uno actualmente
+	if (!self->enemy) {
+		FindMTarget(self);
+	}
+
+	if (self->enemy) {
 		if (self->enemy->health > 0)
 			defender_shoot(self, self->enemy);
 		else
@@ -500,6 +500,7 @@ THINK(defender_think) (edict_t *self) -> void
 	if (self->inuse)
 		self->nextthink = level.time + 10_hz;
 }
+
 
 // =================
 // =================
@@ -633,6 +634,7 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 	sphere->classname = "sphere";
 	sphere->yaw_speed = 40;
 	sphere->monsterinfo.attack_finished = 0_ms;
+	sphere->monsterinfo.team == CTF_TEAM1;
 	sphere->spawnflags = spawnflags; // need this for the HUD to recognize sphere
 	// PMM
 	sphere->takedamage = false;
