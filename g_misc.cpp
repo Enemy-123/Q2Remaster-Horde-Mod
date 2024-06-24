@@ -669,10 +669,8 @@ void SP_dynamic_light(edict_t* self)
 
 void SP_light(edict_t* self)
 {
-	// no targeted lights in deathmatch, because they cause global messages mgu4trial crash?
-if ((!self->targetname && st.sl.data.radius == 0)) // [Sam-KEX]
-
-//	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
+	// no targeted lights in deathmatch, because they cause global messages
+	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
 	{
 		G_FreeEdict(self);
 		return;
@@ -1382,8 +1380,7 @@ void SP_misc_easterchick2(edict_t* ent)
 	gi.linkentity(ent);
 }
 
-/*QUAKED monster_
-(1 .5 0) (-32 -32 0) (32 32 48)
+/*QUAKED monster_commander_body (1 .5 0) (-32 -32 0) (32 32 48)
 Not really a monster, this is the Tank Commander's decapitated body.
 There should be a item_commander_head that has this as it's target.
 */

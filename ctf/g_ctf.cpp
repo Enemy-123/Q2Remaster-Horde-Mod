@@ -1084,7 +1084,7 @@ void CTFSetIDView(edict_t* ent) {
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
 	float closest_dist = 1024; // Reducir la distancia máxima inicial para mayor precisión
-	float min_dot = 0.90f; // Ajustar el umbral para hacer el campo de visión más permisivo
+	float min_dot = 0.98f; // Hacer el umbral más estricto
 
 	// Reduce the update interval
 	if (level.time - ent->client->resp.lastidtime < 97_ms)

@@ -1105,7 +1105,7 @@ void InitClientResp(gclient_t* client)
 {
 	// ZOID
 	ctfteam_t ctf_team = client->resp.ctf_team;
-	bool id_state = client->resp.id_state;
+	bool id_state = client->resp.id_state = true;
 	// ZOID
 
 	memset(&client->resp, 0, sizeof(client->resp));
