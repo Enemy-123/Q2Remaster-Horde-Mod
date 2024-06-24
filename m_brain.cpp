@@ -324,25 +324,25 @@ void brain_hit_left(edict_t* self)
 		//gi.Com_Print(buffer);
 
 		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec; // Ajustar según sea necesario
 	}
 }
 
 
 mframe_t brain_frames_attack1[] = {
-	{ ai_charge, 8 },
-	{ ai_charge, 3 },
-	{ ai_charge, 5 },
 	{ ai_charge, 0, monster_footstep },
 	{ ai_charge, -3, brain_swing_right },
+	{ ai_charge, -3, brain_swing_right },
+	{ ai_charge, 8 },
+	{ ai_charge, 5 },
 	{ ai_charge },
-	{ ai_charge, -5 },
+	{ ai_charge, -7, brain_hit_right },
 	{ ai_charge, -7, brain_hit_right },
 	{ ai_charge },
 	{ ai_charge, 6, brain_swing_left },
 	{ ai_charge, 1 },
 	{ ai_charge, 2, brain_hit_left },
-	{ ai_charge, -3 },
+	{ ai_charge, 2, brain_hit_left },
 	{ ai_charge, 6 },
 	{ ai_charge, -1 },
 	{ ai_charge, -3 },
@@ -377,7 +377,7 @@ void brain_tentacle_attack(edict_t* self)
 		//gi.Com_Print(buffer);
 
 		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 0.3_sec; // Ajustar según sea necesario
 	}
 }
 
@@ -394,14 +394,15 @@ void brain_chest_closed(edict_t* self)
 
 mframe_t brain_frames_attack2[] = {
 	{ ai_charge, 5 },
-	{ ai_charge, -4 },
-	{ ai_charge, -4 },
-	{ ai_charge, -3 },
 	{ ai_charge, 0, brain_chest_open },
+	{ ai_charge, -4 },
+	{ ai_charge, -4, brain_tentacle_attack },
+	{ ai_charge, -3 },
 	{ ai_charge },
 	{ ai_charge, 13, brain_tentacle_attack },
 	{ ai_charge },
-	{ ai_charge, 2 },
+	{ ai_charge, -4, brain_tentacle_attack },
+
 	{ ai_charge },
 	{ ai_charge, -9, brain_chest_closed },
 	{ ai_charge },
@@ -482,7 +483,7 @@ void brain_tounge_attack(edict_t* self)
 		if (tr.ent != self->enemy)
 			return;
 
-		damage = 18;
+		damage = 5;
 		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
 
 		gi.WriteByte(svc_temp_entity);
@@ -497,9 +498,9 @@ void brain_tounge_attack(edict_t* self)
 
 		// pull the enemy in
 		vec3_t forward;
-		self->s.origin[2] += 1;
+		self->s.origin[2] += 2;
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-		self->enemy->velocity = forward * -1200;
+		self->enemy->velocity = forward * -700;
 
 		//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
 		//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
@@ -597,23 +598,23 @@ void brain_laserbeam_reattack(edict_t* self)
 }
 
 mframe_t brain_frames_attack3[] = {
-	{ ai_charge, 5 },
-	{ ai_charge, -4 },
-	{ ai_charge, -4 },
-	{ ai_charge, -3 },
 	{ ai_charge, 0, brain_chest_open },
 	{ ai_charge, 0, brain_tounge_attack },
-	{ ai_charge, 13 },
+	{ ai_charge, 0, brain_chest_open },
+	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, 0, brain_tentacle_attack },
-	{ ai_charge, 2 },
+	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, -9, brain_chest_closed },
-	{ ai_charge },
-	{ ai_charge, 4 },
-	{ ai_charge, 3 },
-	{ ai_charge, 2 },
-	{ ai_charge, -3 },
-	{ ai_charge, -6 }
+	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 0, brain_chest_open },
+	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 0, brain_tentacle_attack },
+	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, -9, brain_chest_closed },
 };
 MMOVE_T(brain_move_attack3) = { FRAME_attak201, FRAME_attak217, brain_frames_attack3, brain_run };
 
