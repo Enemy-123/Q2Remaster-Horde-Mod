@@ -90,24 +90,32 @@ MONSTERINFO_SEARCH(widow2_search) (edict_t* self) -> void
 	if (frandom() < 0.5f)
 		gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 }
-
 void Widow2Beam(edict_t* self)
 {
-	vec3_t					 forward, right, target;
-	vec3_t					 start, targ_angles, vec;
+	vec3_t forward, right, up, target;
+	vec3_t start, targ_angles, vec;
 	monster_muzzleflash_id_t flashnum;
 
 	if ((!self->enemy) || (!self->enemy->inuse))
 		return;
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
+	// Add offset for scaled-down widow2
+	vec3_t offset = { 0.0f, 0.0f, 0.0f }; // No offset by default
+
+	// Check if the monster is the scaled-down widow2
+	if (strcmp(self->classname, "monster_widow2") == 0)
+	{
+		offset[2] = -20.0f; // Adjust Z-axis offset for the scaled-down widow2
+	}
+
+	AngleVectors(self->s.angles, forward, right, up);
 
 	if ((self->s.frame >= FRAME_fireb05) && (self->s.frame <= FRAME_fireb09))
 	{
 		// regular beam attack
 		Widow2SaveBeamTarget(self);
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW2_BEAMER_1 + self->s.frame - FRAME_fireb05);
-		start = G_ProjectSource(self->s.origin, monster_flash_offset[flashnum], forward, right);
+		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
 		target = self->pos2;
 		target[2] += self->enemy->viewheight - 10;
 		forward = target - start;
@@ -118,7 +126,7 @@ void Widow2Beam(edict_t* self)
 	{
 		// sweep
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW2_BEAM_SWEEP_1 + self->s.frame - FRAME_spawn04);
-		start = G_ProjectSource(self->s.origin, monster_flash_offset[flashnum], forward, right);
+		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
 		target = self->enemy->s.origin - start;
 		targ_angles = vectoangles(target);
 
@@ -133,7 +141,7 @@ void Widow2Beam(edict_t* self)
 	else
 	{
 		Widow2SaveBeamTarget(self);
-		start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_WIDOW2_BEAMER_1], forward, right);
+		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[MZ2_WIDOW2_BEAMER_1], forward, right, up, offset);
 
 		target = self->pos2;
 		target[2] += self->enemy->viewheight - 10;
@@ -144,6 +152,7 @@ void Widow2Beam(edict_t* self)
 		monster_fire_heatbeam(self, start, forward, vec3_origin, 10, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
 	}
 }
+
 
 void Widow2Spawn(edict_t* self)
 {
