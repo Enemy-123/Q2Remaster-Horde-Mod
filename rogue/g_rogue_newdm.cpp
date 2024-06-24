@@ -180,8 +180,7 @@ THINK(doppleganger_timeout)(edict_t* self) -> void
 	// Timeout logic isn't needed for the turret, so this can be simplified or removed.
 	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
 }
-
-void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
+bool fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	edict_t* turret;
 	vec3_t forward, right, up, end{}, new_start;
@@ -203,7 +202,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	if (tr.fraction == 1)
 	{
 		gi.Client_Print(ent, PRINT_HIGH, "Too far from wall.\n");
-		return;
+		return false;
 	}
 
 	VectorCopy(tr.endpos, new_start);
@@ -216,7 +215,7 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	if (tr.startsolid || tr.allsolid)
 	{
 		gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
-		return;
+		return false;
 	}
 
 	// Create and configure the turret
@@ -251,15 +250,10 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	// Initialize and link the turret in the game
 	ED_CallSpawn(turret);
 	gi.linkentity(turret);
+
+	return true;
 }
 
-
-edict_t* SpawnTurret(edict_t* owner)
-{
-	// You can define this function to initialize or configure the turret if needed.
-	// For now, it can just return a null pointer or perform any necessary setup.
-	return nullptr;
-}
 
 void Tag_GameInit();
 void Tag_PostInitSetup();

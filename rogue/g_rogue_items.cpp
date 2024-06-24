@@ -60,7 +60,9 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	start = ent->s.origin;
 	speed = 100;
 	fire_nuke(ent, start, forward, speed);
-}void Use_Doppleganger(edict_t* ent, gitem_t* item)
+}
+
+void Use_Doppleganger(edict_t* ent, gitem_t* item)
 {
 	vec3_t forward, right;
 	vec3_t createPt, spawnPt;
@@ -89,12 +91,14 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 		return;
 	}
 
-	// Reducir la cantidad de ítems en el inventario
-	ent->client->pers.inventory[item->id]--;
-
-	// Spawnear la torreta con cinco parámetros
-	fire_doppleganger(ent, spawnPt, forward, 128.f, 76.f);
+	// Intentar spawnear la torreta y verificar si tuvo éxito
+	if (fire_doppleganger(ent, spawnPt, forward, 128.f, 76.f))
+	{
+		// Reducir la cantidad de ítems en el inventario solo si se pudo spawnear la torreta
+		ent->client->pers.inventory[item->id]--;
+	}
 }
+
 
 bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
 {

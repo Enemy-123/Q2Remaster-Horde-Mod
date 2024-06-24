@@ -2669,7 +2669,7 @@ item_id_t DoRandomRespawn(edict_t* ent);
 void	 PrecacheForRandomRespawn();
 bool	 Tag_PickupToken(edict_t* ent, edict_t* other);
 void	 Tag_DropToken(edict_t* ent, gitem_t* item);
-void	 fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
+bool fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 
 //
 // p_client.c
