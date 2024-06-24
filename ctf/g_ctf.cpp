@@ -1087,7 +1087,7 @@ void CTFSetIDView(edict_t* ent) {
 	float min_dot = 0.90f; // Ajustar el umbral para hacer el campo de visión más permisivo
 
 	// Reduce the update interval
-	if (level.time - ent->client->resp.lastidtime < 250_ms)
+	if (level.time - ent->client->resp.lastidtime < 97_ms)
 		return;
 
 	ent->client->resp.lastidtime = level.time;
