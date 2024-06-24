@@ -954,7 +954,6 @@ void CTFID_f(edict_t* ent)
 void AngleVectors(int angle, vec3_t forward, void* a, void* b) {}
 trace_t gi_traceline(vec3_t start, vec3_t end, edict_t* ent, int mask) { return trace_t(); }
 
-
 // Clase para manejar configstrings de monstruos
 class MonsterHandler {
 private:
@@ -1130,7 +1129,16 @@ std::string GetDisplayName(const std::string& classname) {
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
+void UpdateIDInformation(edict_t* ent, edict_t* target, MonsterHandler& monsterHandler, PlayerHandler& playerHandler);
+void ClearIDInformation(edict_t* ent);
+
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
+constexpr gtime_t id_persist_time = gtime_t::from_sec(1); // Tiempo en segundos que el ID debe persistir
+
+// Variables globales o miembros de la clase
+edict_t* last_valid_target = nullptr;
+gtime_t last_update_time;
+
 
 // Función principal para establecer la vista de ID de CTF
 void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& playerHandler) {
@@ -1140,13 +1148,14 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 	float bd = 0, d;
 	float closest_dist = 2048;
 	float min_dot = 0.975f;
-	constexpr gtime_t id_persist_time = gtime_t::from_sec(1); // Tiempo en segundos que el ID debe persistir
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 2048;
 	tr = gi_traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SHOT);
 
-	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER) || !strcmp(tr.ent->classname, "tesla_mine") || !strcmp(tr.ent->classname, "food_cube_trap")) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
+	bool found_target = false;
+
+	if (tr.fraction < 1 && tr.ent && tr.ent != ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER) || !strcmp(tr.ent->classname, "tesla_mine") || !strcmp(tr.ent->classname, "food_cube_trap")) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
@@ -1155,115 +1164,115 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 			if (dist < closest_dist) {
 				closest_dist = dist;
 				best = tr.ent;
+				found_target = true;
 			}
 		}
 	}
-	else {
+
+	if (!found_target) {
 		AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 		for (uint32_t i = 1; i < globals.num_edicts; i++) {
 			who = g_edicts + i;
-			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
+			if (!who->inuse || who == ent || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
 				continue;
 
-			if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) {
-				vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
-				for (const auto& point : points) {
-					vec3_t dir = point - ent->s.origin;
-					dir.normalize();
-					d = forward.dot(dir);
-					float dist = (point - ent->s.origin).length();
-					if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
-						(d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
-						bd = d;
-						closest_dist = dist;
-						best = who;
-					}
-				}
-			}
-			else {
-				vec3_t dir = who->s.origin - ent->s.origin;
+			vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
+			for (const auto& point : points) {
+				vec3_t dir = point - ent->s.origin;
 				dir.normalize();
 				d = forward.dot(dir);
-				float dist = (who->s.origin - ent->s.origin).length();
-				if (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128)) {
+				float dist = (point - ent->s.origin).length();
+				if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
+					(d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
 					bd = d;
 					closest_dist = dist;
 					best = who;
+					found_target = true;
 				}
 			}
 		}
 	}
 
-	if (best) {
-		ent->client->resp.lastidtime = level.time; // Actualizar la última vez que se estableció un ID válido
-		std::ostringstream health_stream;
-		std::string name;
-
-		if (best->svflags & SVF_MONSTER) {
-			std::string title = GetTitleFromFlags(best->monsterinfo.bonus_flags);
-			name = title + FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-			health_stream << name << "\nH: " << best->health << " ";
-			if (best->monsterinfo.armor_power > 0) {
-				health_stream << "A: " << best->monsterinfo.armor_power << " ";
-			}
-			if (best->monsterinfo.power_armor_power > 0) {
-				health_stream << "PA: " << best->monsterinfo.power_armor_power << " ";
-			}
-		}
-		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
-			name = !strcmp(best->classname, "tesla_mine") ? "Tesla Mine" : "Food Cube Trap";
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-			health_stream << name << " H: " << best->health << " ";
-			gtime_t time_active = level.time - best->timestamp;
-			gtime_t time_remaining = TESLA_TIME_TO_LIVE - time_active;
-			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-			health_stream << "T: " << remaining_time << "s";
-		}
-		else {
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-			health_stream << "\nH: " << best->health << " ";
-		}
-
-		if (best->client) {
-			int armor_value = GetArmorInfo(best);
-			if (armor_value > 0) {
-				health_stream << "A: " << std::to_string(armor_value) << " ";
-			}
-		}
-		else if (best->svflags & SVF_MONSTER) {
-			if (best->monsterinfo.quad_time > level.time) {
-				int remaining_quad_time = static_cast<int>((best->monsterinfo.quad_time - level.time).seconds<float>());
-				health_stream << "\nQuad: " << remaining_quad_time << "s";
-			}
-			if (best->monsterinfo.double_time > level.time) {
-				int remaining_double_time = static_cast<int>((best->monsterinfo.double_time - level.time).seconds<float>());
-				health_stream << "\nDouble: " << remaining_double_time << "s";
-			}
-			if (best->monsterinfo.invincible_time > level.time) {
-				int remaining_invincible_time = static_cast<int>((best->monsterinfo.invincible_time - level.time).seconds<float>());
-				health_stream << "\nInvuln: " << remaining_invincible_time << "s";
-			}
-		}
-		ent->client->target_health_str = health_stream.str();
-
-		if (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
-			monsterHandler.updateMonsterConfigstring(best, ent->client->target_health_str);
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monsterHandler.getMonsterConfigstringIndex(best);
-		}
-		else {
-			playerHandler.updatePlayerConfigstring(best, ent->client->target_health_str);
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = playerHandler.getPlayerConfigstringIndex(best);
-		}
+	if (found_target) {
+		last_valid_target = best;
+		last_update_time = level.time;
+		UpdateIDInformation(ent, best, monsterHandler, playerHandler);
 	}
-	else if (level.time - ent->client->resp.lastidtime >= id_persist_time) {
-		// Borrar el ID después del tiempo de persistencia si no hay un nuevo objetivo
-		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+	else if (last_valid_target && level.time - last_update_time < id_persist_time && loc_CanSee(ent, last_valid_target)) {
+		UpdateIDInformation(ent, last_valid_target, monsterHandler, playerHandler);
+	}
+	else if (level.time - last_update_time >= id_persist_time) {
+		ClearIDInformation(ent);
+		last_valid_target = nullptr;  // Reset last target after clearing
 	}
 }
 
+void UpdateIDInformation(edict_t* ent, edict_t* target, MonsterHandler& monsterHandler, PlayerHandler& playerHandler) {
+	std::ostringstream health_stream;
+	std::string name;
 
+	if (target->svflags & SVF_MONSTER) {
+		std::string title = GetTitleFromFlags(target->monsterinfo.bonus_flags);
+		name = title + FormatClassname(GetDisplayName(target->classname ? target->classname : "Unknown Monster"));
+		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+		health_stream << name << "\nH: " << target->health << " ";
+		if (target->monsterinfo.armor_power > 0) {
+			health_stream << "A: " << target->monsterinfo.armor_power << " ";
+		}
+		if (target->monsterinfo.power_armor_power > 0) {
+			health_stream << "PA: " << target->monsterinfo.power_armor_power << " ";
+		}
+	}
+	else if (!strcmp(target->classname, "tesla_mine") || !strcmp(target->classname, "food_cube_trap")) {
+		name = !strcmp(target->classname, "tesla_mine") ? "Tesla Mine" : "Food Cube Trap";
+		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+		health_stream << name << " H: " << target->health << " ";
+		gtime_t time_active = level.time - target->timestamp;
+		gtime_t time_remaining = TESLA_TIME_TO_LIVE - time_active;
+		int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
+		health_stream << "T: " << remaining_time << "s";
+	}
+	else {
+		ent->client->ps.stats[STAT_CTF_ID_VIEW] = (target - g_edicts);
+		health_stream << "\nH: " << target->health << " ";
+	}
+
+	if (target->client) {
+		int armor_value = GetArmorInfo(target);
+		if (armor_value > 0) {
+			health_stream << "A: " << std::to_string(armor_value) << " ";
+		}
+	}
+	else if (target->svflags & SVF_MONSTER) {
+		if (target->monsterinfo.quad_time > level.time) {
+			int remaining_quad_time = static_cast<int>((target->monsterinfo.quad_time - level.time).seconds<float>());
+			health_stream << "\nQuad: " << remaining_quad_time << "s";
+		}
+		if (target->monsterinfo.double_time > level.time) {
+			int remaining_double_time = static_cast<int>((target->monsterinfo.double_time - level.time).seconds<float>());
+			health_stream << "\nDouble: " << remaining_double_time << "s";
+		}
+		if (target->monsterinfo.invincible_time > level.time) {
+			int remaining_invincible_time = static_cast<int>((target->monsterinfo.invincible_time - level.time).seconds<float>());
+			health_stream << "\nInvuln: " << remaining_invincible_time << "s";
+		}
+	}
+	ent->client->target_health_str = health_stream.str();
+
+	if (target->svflags & SVF_MONSTER || !strcmp(target->classname, "tesla_mine") || !strcmp(target->classname, "food_cube_trap")) {
+		monsterHandler.updateMonsterConfigstring(target, ent->client->target_health_str);
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monsterHandler.getMonsterConfigstringIndex(target);
+	}
+	else {
+		playerHandler.updatePlayerConfigstring(target, ent->client->target_health_str);
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = playerHandler.getPlayerConfigstringIndex(target);
+	}
+}
+
+void ClearIDInformation(edict_t* ent) {
+	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+}
 
 void SetCTFStats(edict_t* ent)
 {
@@ -3427,10 +3436,10 @@ bool CTFInMatch()
 
 bool CTFCheckRules()
 {
-	int		 t;
-	uint32_t i, j;
-	char	 text[64];
-	edict_t* ent;
+	//int		 t;
+	//uint32_t i, j;
+	//char	 text[64];
+	//edict_t* ent;
 
 	if (ctfgame.election != ELECT_NONE && ctfgame.electtime <= level.time)
 	{
