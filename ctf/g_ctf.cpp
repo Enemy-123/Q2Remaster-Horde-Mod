@@ -1022,9 +1022,11 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_supertank", "Super-Tank" },
 		{ "monster_supertankkl", "Super-Tank" },
 		{ "monster_boss5", "Super-Tank" },
-		{ "monster_turret", "Friendly Sentry-Gun" },
+		{ "monster_sentrygun", "Friendly Sentry-Gun" },
+		{ "monster_turret", "TurretGun" },
 		{ "monster_turretkl", "TurretGun" },
-		{ "monster_boss2", "Hornet" }
+		{ "monster_boss2", "Hornet" },
+		{ "misc_insane", "Insane Grunt" }
 		// Add other replacements as needed
 	};
 
@@ -1083,7 +1085,7 @@ void CTFSetIDView(edict_t* ent) {
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 2048; // Aumentar la distancia del rayo
-	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_SHOT); // Usar MASK_SHOT para detectar sólidos y monstruos
+	tr = gi.traceline(ent->s.origin, ent->s.origin + forward, ent, MASK_BLOCK_SIGHT);
 	if (tr.fraction < 1 && tr.ent && (tr.ent->client || (tr.ent->svflags & SVF_MONSTER) || !strcmp(tr.ent->classname, "tesla_mine") || !strcmp(tr.ent->classname, "food_cube_trap")) && !(tr.ent->svflags & SVF_DEADMONSTER)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
@@ -1096,30 +1098,30 @@ void CTFSetIDView(edict_t* ent) {
 			}
 		}
 	}
-	else {
-		// No hay objetivo directamente en línea de visión, buscar alrededor
-		AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-		for (uint32_t i = 1; i < globals.num_edicts; i++) {
-			who = g_edicts + i;
-			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
-				continue;
+    else {
+        // No hay objetivo directamente en línea de visión, buscar alrededor
+        AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+        for (uint32_t i = 1; i < globals.num_edicts; i++) {
+            who = g_edicts + i;
+            if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
+                continue;
 
-			if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) {
-				vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
-				for (const auto& point : points) {
-					vec3_t dir = point - ent->s.origin;
-					dir.normalize();
-					d = forward.dot(dir);
-					float dist = (point - ent->s.origin).length();
-					if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
-						(d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
-						bd = d;
-						closest_dist = dist;
-						best = who;
-					}
-				}
-			}
-			else {
+            if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) {
+                vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
+                for (const auto& point : points) {
+                    vec3_t dir = point - ent->s.origin;
+                    dir.normalize();
+                    d = forward.dot(dir);
+                    float dist = (point - ent->s.origin).length();
+                    if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
+                        (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
+                        bd = d;
+                        closest_dist = dist;
+                        best = who;
+                    }
+                }
+            }
+            else {
 				vec3_t dir = who->s.origin - ent->s.origin;
 				dir.normalize();
 				d = forward.dot(dir);
