@@ -1130,8 +1130,8 @@ std::string GetDisplayName(const std::string& classname) {
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
-
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
+
 // Función principal para establecer la vista de ID de CTF
 void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& playerHandler) {
 	vec3_t forward;
@@ -1140,13 +1140,7 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 	float bd = 0, d;
 	float closest_dist = 2048;
 	float min_dot = 0.975f;
-
-	if (level.time - ent->client->resp.lastidtime < 85_ms)
-		return;
-
-	ent->client->resp.lastidtime = level.time;
-	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+	constexpr gtime_t id_persist_time = gtime_t::from_sec(1); // Tiempo en segundos que el ID debe persistir
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	forward *= 2048;
@@ -1201,6 +1195,7 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 	}
 
 	if (best) {
+		ent->client->resp.lastidtime = level.time; // Actualizar la última vez que se estableció un ID válido
 		std::ostringstream health_stream;
 		std::string name;
 
@@ -1260,6 +1255,11 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 			playerHandler.updatePlayerConfigstring(best, ent->client->target_health_str);
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = playerHandler.getPlayerConfigstringIndex(best);
 		}
+	}
+	else if (level.time - ent->client->resp.lastidtime >= id_persist_time) {
+		// Borrar el ID después del tiempo de persistencia si no hay un nuevo objetivo
+		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 }
 
@@ -3427,16 +3427,16 @@ bool CTFInMatch()
 
 bool CTFCheckRules()
 {
-	//int		 t;
-	//uint32_t i, j;
-	//char	 text[64];
-	//edict_t* ent;
+	int		 t;
+	uint32_t i, j;
+	char	 text[64];
+	edict_t* ent;
 
-	//if (ctfgame.election != ELECT_NONE && ctfgame.electtime <= level.time)
-	//{
-	//	gi.LocBroadcast_Print(PRINT_CHAT, "Election timed out and has been cancelled.\n");
-	//	ctfgame.election = ELECT_NONE;
-	//}
+	if (ctfgame.election != ELECT_NONE && ctfgame.electtime <= level.time)
+	{
+		gi.LocBroadcast_Print(PRINT_CHAT, "Election timed out and has been cancelled.\n");
+		ctfgame.election = ELECT_NONE;
+	}
 
 	//if (ctfgame.match != MATCH_NONE)
 	//{
@@ -3585,7 +3585,7 @@ bool CTFCheckRules()
 	//{
 	//	gi.LocBroadcast_Print(PRINT_HIGH, "$g_capturelimit_hit");
 	//	return true;
-	//}
+	
 	return false;
 }
 
