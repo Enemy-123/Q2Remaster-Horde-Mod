@@ -1073,7 +1073,7 @@ void CTFSetIDView(edict_t* ent) {
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
 	float closest_dist = 2048; // Aumentar la distancia máxima inicial
-	float min_dot = 0.975f; // Relajar el umbral para permitir la selección de objetivos cercanos al centro
+	float min_dot = 1.0f; // Ajustar ligeramente el umbral para hacer el campo de visión más estricto
 
 	// Reduce the update interval
 	if (level.time - ent->client->resp.lastidtime < 85_ms)
@@ -1098,30 +1098,30 @@ void CTFSetIDView(edict_t* ent) {
 			}
 		}
 	}
-    else {
-        // No hay objetivo directamente en línea de visión, buscar alrededor
-        AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-        for (uint32_t i = 1; i < globals.num_edicts; i++) {
-            who = g_edicts + i;
-            if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
-                continue;
+	else {
+		// No hay objetivo directamente en línea de visión, buscar alrededor
+		AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+		for (uint32_t i = 1; i < globals.num_edicts; i++) {
+			who = g_edicts + i;
+			if (!who->inuse || who->solid == SOLID_NOT || (!(who->client || (who->svflags & SVF_MONSTER) || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) || (who->svflags & SVF_DEADMONSTER)))
+				continue;
 
-            if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) {
-                vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
-                for (const auto& point : points) {
-                    vec3_t dir = point - ent->s.origin;
-                    dir.normalize();
-                    d = forward.dot(dir);
-                    float dist = (point - ent->s.origin).length();
-                    if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
-                        (d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
-                        bd = d;
-                        closest_dist = dist;
-                        best = who;
-                    }
-                }
-            }
-            else {
+			if (who->svflags & SVF_MONSTER || !strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) {
+				vec3_t points[] = { who->s.origin, who->s.origin + who->mins, who->s.origin + who->maxs };
+				for (const auto& point : points) {
+					vec3_t dir = point - ent->s.origin;
+					dir.normalize();
+					d = forward.dot(dir);
+					float dist = (point - ent->s.origin).length();
+					if (((!strcmp(who->classname, "tesla_mine") || !strcmp(who->classname, "food_cube_trap")) && d > 0.999f && loc_CanSee(ent, who) && dist < closest_dist) ||
+						(d > bd && loc_CanSee(ent, who) && dist < closest_dist && (d > min_dot || dist < 128))) {
+						bd = d;
+						closest_dist = dist;
+						best = who;
+					}
+				}
+			}
+			else {
 				vec3_t dir = who->s.origin - ent->s.origin;
 				dir.normalize();
 				d = forward.dot(dir);
@@ -1236,7 +1236,6 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 }
-
 
 
 void SetCTFStats(edict_t* ent)
