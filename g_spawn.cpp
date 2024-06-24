@@ -600,7 +600,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_flipper", {"monster_gekk", "monster_flipper"}, 2},
 		{"monster_medic", {"monster_medic", "monster_spider"}, 2},
 		{"monster_brain", {"monster_brain", "monster_berserk", "monster_tank2"}, 3},
-		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_tank2"}, 3},
+		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant"}, 3},
 		{"monster_floater", {"monster_floater", "monster_floater2", "monster_daedalus2"}, 3},
 		{"monster_commander_body", {"monster_tank_64"}, 1},
 		{"item_quad", {"item_double"}, 1},
