@@ -1680,8 +1680,8 @@ DIE(soldier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 		return;
 	}
 
-	//if (self->deadflag)
-	//	return;
+	if (self->deadflag)
+		return;
 
 	// regular death
 	self->deadflag = true;

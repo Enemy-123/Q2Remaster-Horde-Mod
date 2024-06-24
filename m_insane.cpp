@@ -649,7 +649,7 @@ void SP_misc_insane(edict_t *self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = 100 * st.health_multiplier;
+	self->health = 65;
 	self->gib_health = -50;
 	self->mass = 300;
 
@@ -680,10 +680,10 @@ void SP_misc_insane(edict_t *self)
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 30;
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+	//if (!st.was_key_specified("power_armor_power"))
+	//	self->monsterinfo.power_armor_power = 30;
+	//if (!st.was_key_specified("power_armor_type"))
+	//	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
 	if (self->spawnflags.has(SPAWNFLAG_INSANE_CRUCIFIED)) // Crucified ?
 	{
