@@ -4,6 +4,7 @@
 #include "../m_player.h"
 
 #include <assert.h>
+#include "../shared.h"
 
 enum match_t
 {
@@ -1123,12 +1124,12 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_turret", "Turret" },
 		{ "monster_turretkl", "TurretGun" },
 		{ "monster_boss2", "Hornet" }
-		// Add other replacements as needed
 	};
 
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
+
 void UpdateIDInformation(edict_t* ent, edict_t* target, MonsterHandler& monsterHandler, PlayerHandler& playerHandler);
 void ClearIDInformation(edict_t* ent);
 
@@ -1139,8 +1140,6 @@ constexpr gtime_t id_persist_time = gtime_t::from_sec(1); // Tiempo en segundos 
 edict_t* last_valid_target = nullptr;
 gtime_t last_update_time;
 
-
-// Función principal para establecer la vista de ID de CTF
 void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& playerHandler) {
 	vec3_t forward;
 	trace_t tr;
@@ -1201,7 +1200,7 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 	else if (last_valid_target && level.time - last_update_time < id_persist_time && loc_CanSee(ent, last_valid_target)) {
 		UpdateIDInformation(ent, last_valid_target, monsterHandler, playerHandler);
 	}
-	else if (level.time - last_update_time >= id_persist_time) {
+	else {
 		ClearIDInformation(ent);
 		last_valid_target = nullptr;  // Reset last target after clearing
 	}
