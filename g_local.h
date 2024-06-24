@@ -2848,6 +2848,7 @@ struct client_respawn_t
 	bool inactivity_warning;
 	gtime_t inactivity_time;
 	bool inactive;
+	gtime_t id_persist_time;
 	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 };
 

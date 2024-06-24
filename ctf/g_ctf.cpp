@@ -1195,9 +1195,10 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 	if (found_target) {
 		last_valid_target = best;
 		last_update_time = level.time;
+		ent->client->resp.id_persist_time = level.time;  // Actualiza el tiempo de persistencia
 		UpdateIDInformation(ent, best, monsterHandler, playerHandler);
 	}
-	else if (last_valid_target && level.time - last_update_time < id_persist_time && loc_CanSee(ent, last_valid_target)) {
+	else if (last_valid_target && level.time - ent->client->resp.id_persist_time < id_persist_time && loc_CanSee(ent, last_valid_target)) {
 		UpdateIDInformation(ent, last_valid_target, monsterHandler, playerHandler);
 	}
 	else {
@@ -1205,6 +1206,7 @@ void CTFSetIDView(edict_t* ent, MonsterHandler& monsterHandler, PlayerHandler& p
 		last_valid_target = nullptr;  // Reset last target after clearing
 	}
 }
+
 
 void UpdateIDInformation(edict_t* ent, edict_t* target, MonsterHandler& monsterHandler, PlayerHandler& playerHandler) {
 	std::ostringstream health_stream;
