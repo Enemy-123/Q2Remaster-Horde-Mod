@@ -1887,7 +1887,7 @@ template<typename T>
 {
 	return irandom(2) == 0;
 }
-
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 extern cvar_t* deathmatch;
 extern cvar_t* coop;
 extern cvar_t* skill;
