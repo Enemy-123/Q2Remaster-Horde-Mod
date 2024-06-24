@@ -499,15 +499,23 @@ MMOVE_T(widow_move_attack_post_blaster_l) = { FRAME_transb01, FRAME_transb05, wi
 extern const mmove_t widow_move_attack_rail;
 extern const mmove_t widow_move_attack_rail_l;
 extern const mmove_t widow_move_attack_rail_r;
-
 void WidowRail(edict_t* self)
 {
-	vec3_t					 start;
-	vec3_t					 dir;
-	vec3_t					 forward, right;
+	vec3_t start;
+	vec3_t dir;
+	vec3_t forward, right, up;
 	monster_muzzleflash_id_t flash;
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
+	// Add offset for scaled-down widow
+	vec3_t offset = { 0.0f, 0.0f, 0.0f }; // No offset by default
+
+	// Check if the monster is the scaled-down widow
+	if (strcmp(self->classname, "monster_widow1") == 0)
+	{
+		offset[2] = -45.0f; // Adjust Z-axis offset for the scaled-down widow
+	}
+
+	AngleVectors(self->s.angles, forward, right, up);
 
 	if (self->monsterinfo.active_move == &widow_move_attack_rail_l)
 	{
@@ -518,11 +526,13 @@ void WidowRail(edict_t* self)
 		flash = MZ2_WIDOW_RAIL_RIGHT;
 	}
 	else
+	{
 		flash = MZ2_WIDOW_RAIL;
+	}
 
-	start = G_ProjectSource(self->s.origin, monster_flash_offset[flash], forward, right);
+	start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flash], forward, right, up, offset);
 
-	// calc direction to where we targeted
+	// Calculate direction to where we targeted
 	dir = self->pos1 - start;
 	dir.normalize();
 
