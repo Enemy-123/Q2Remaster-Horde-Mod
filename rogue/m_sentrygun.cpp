@@ -22,62 +22,39 @@
 	constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 
 
-	bool FindMTarget(edict_t* self)
-	{
+	bool FindMTarget(edict_t* self) {
 		edict_t* ent = nullptr;
 		float range = 800.0f; // Rango de búsqueda
 		vec3_t dir{};
 		float bestDist = range + 1.0f; // Inicializa con un valor mayor al rango
 		edict_t* bestTarget = nullptr;
 
-		for (unsigned int i = 0; i < globals.num_edicts; i++)
-		{
+		for (unsigned int i = 0; i < globals.num_edicts; i++) {
 			ent = &g_edicts[i];
-			for (auto player : active_players())
-
-				if (player)
-					continue;
-			if (!ent->inuse)
+			if (!ent->inuse || !ent->solid || ent == self || ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
 				continue;
 
-			if (!ent->solid)
+			// Asegúrate de que no es un jugador
+			if (ent->svflags & SVF_PLAYER)
 				continue;
 
-			if (ent == self)
-				continue;
-
-			if (ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
-				continue;
-
-			// Solo busca enemigos en el equipo contrario
-			if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
-			{
+			// Solo busca enemigos en el equipo contrario y que sean monstruos
+			if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER)) {
 				VectorSubtract(ent->s.origin, self->s.origin, dir);
 				float dist = VectorLength(dir);
-				if (dist < range)
-				{
-					// Verifica si el enemigo es visible antes de asignarlo
-					if (visible(self, ent))
-					{
-						if (dist < bestDist)
-						{
-							bestDist = dist;
-							bestTarget = ent;
-						}
-					}
+				if (dist < range && visible(self, ent) && dist < bestDist) {
+					bestDist = dist;
+					bestTarget = ent;
 				}
 			}
 		}
 
-		if (bestTarget)
-		{
+		if (bestTarget) {
 			self->enemy = bestTarget;
 			return true;
 		}
-
-		return self->enemy != nullptr; // Devuelve true si se mantiene el enemigo actual
+		return false; // No se encontró objetivo válido
 	}
-
 
 
 	void turret2Aim(edict_t* self);
@@ -456,11 +433,14 @@
 
 		turret2Aim(self);
 
-		if (!self->enemy || !self->enemy->inuse || OnSameTeam(self, self->enemy) || self->enemy->deadflag)
-		{
+		if (!self->enemy || !self->enemy->inuse || OnSameTeam(self, self->enemy) || self->enemy->deadflag) {
 			if (!FindMTarget(self))
 				return;
 		}
+
+		// Reducir retrasos o hacer que el comportamiento de disparo sea más agresivo
+		self->monsterinfo.attack_finished = level.time;  // Reducir o eliminar el tiempo de espera
+
 
 		if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
 			end = self->monsterinfo.blind_fire_target;
@@ -884,13 +864,12 @@
 			base->s.loop_attenuation = ATTN_NORM;
 		}
 	}
-
 	// PMM
 	// checkattack .. ignore range, just attack if available
 	MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	{
-		vec3_t	spot1, spot2;
-		float	chance;
+		vec3_t spot1, spot2;
+		float chance;
 		trace_t tr;
 
 		if (self->enemy->health > 0)
@@ -910,7 +889,7 @@
 				if (self->enemy->solid != SOLID_NOT || tr.fraction < 1.0f) // PGM
 				{
 					// PMM - if we can't see our target, and we're not blocked by a monster, go into blind fire if available
-					if ((!(tr.ent->svflags & SVF_MONSTER)) && (!visible(self, self->enemy)))
+					if ((!visible(self, self->enemy)))
 					{
 						if ((self->monsterinfo.blindfire) && (self->monsterinfo.blind_fire_delay <= 10_sec))
 						{
@@ -933,7 +912,7 @@
 								}
 
 								self->monsterinfo.attack_state = AS_BLIND;
-								self->monsterinfo.attack_finished = level.time + random_time(500_ms, 2.5_sec);
+								self->monsterinfo.attack_finished = level.time + random_time(500_ms,0.3_sec); // Reduce el tiempo de espera
 								return true;
 							}
 						}
@@ -953,17 +932,17 @@
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
 		{
 			chance = 0.10f;
-			nexttime = (1.2_sec - (0.2_sec * skill->integer));
+			nexttime = (1.0_sec - (0.2_sec * skill->integer)); // Reduce el tiempo de espera
 		}
 		else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 		{
 			chance = 0.35f;
-			nexttime = (1.2_sec - (0.2_sec * skill->integer));
+			nexttime = (1.0_sec - (0.2_sec * skill->integer)); // Reduce el tiempo de espera
 		}
 		else
 		{
 			chance = 0.50f;
-			nexttime = (0.8_sec - (0.1_sec * skill->integer));
+			nexttime = (0.6_sec - (0.1_sec * skill->integer)); // Reduce el tiempo de espera
 		}
 
 		if (skill->integer == 0)
@@ -984,6 +963,7 @@
 
 		return false;
 	}
+
 
 	// **********************
 	//  SPAWN
@@ -1038,12 +1018,10 @@
 		self->health = 75;
 		self->gib_health = -100;
 		self->mass = 100;
-		self->yaw_speed = 12;
+		self->yaw_speed = 14;
 		self->clipmask = MASK_PROJECTILE | CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 		self->solid = SOLID_BBOX;
 		self->svflags |= SVF_MONSTER;
-		//self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-		//self->monsterinfo.armor_power = 150;
 		self->flags |= FL_MECHANICAL;
 		self->pain = turret2_pain;
 		self->die = turret2_die;

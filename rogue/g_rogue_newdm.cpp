@@ -237,6 +237,16 @@ void fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	turret->die = doppleganger_die;
 	turret->takedamage = true;
 	turret->owner = ent;  // Set the owner
+	// Asigna el equipo como una cadena de caracteres
+	if (ent->client->resp.ctf_team == CTF_TEAM1) {
+		turret->team = TEAM1;
+	}
+	else if (ent->client->resp.ctf_team == CTF_TEAM2) {
+		turret->team = TEAM2;
+	}
+	else {
+		turret->team = "neutral"; // O cualquier valor por defecto que quieras
+	}
 
 	// Initialize and link the turret in the game
 	ED_CallSpawn(turret);
