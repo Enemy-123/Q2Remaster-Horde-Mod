@@ -718,7 +718,6 @@ void CheckDMRules()
 	// Paril
 	if (g_horde->integer)
 	{
-		//check if HandleResetEvent();  needed?
 		Horde_RunFrame();
 	}
 	if (timelimit->value)
@@ -734,13 +733,13 @@ void CheckDMRules()
 					{
 						gi.LocCenter_Print(ent, "Horde Mode is being reset.");
 						gi.cvar_set("timelimit", "40");
+						if (g_horde->integer)
+						{
+							HandleResetEvent();
+						}
 					}
 					EndDMLevel();
 					if (g_horde->integer)
-					{
-						HandleResetEvent();
-
-					}
 					InitClientPt(ent, ent->client);
 				}
 				level.intermission_fade = true;
