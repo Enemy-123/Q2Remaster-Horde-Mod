@@ -944,6 +944,7 @@ void CTFID_f(edict_t* ent)
 		ent->client->resp.id_state = true;
 	}
 }
+
 #include <unordered_map>
 #include <string>
 #include <sstream>
@@ -1092,6 +1093,17 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 		return false;
 	return true;
 }
+void InitializeCTFIDViewConfigStrings() {
+	for (int i = 0; i < MAX_CTF_ID_VIEW_CONFIGSTRINGS; i++) {
+		gi.configstring(CS_CTF_ID_VIEW_BASE + i, "");
+	}
+}
+
+void UpdateCTFIDViewConfigString(int entityIndex, const char* info) {
+	int configIndex = CS_CTF_ID_VIEW_BASE + (entityIndex % MAX_CTF_ID_VIEW_CONFIGSTRINGS);
+	gi.configstring(configIndex, info);
+}
+
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -1114,10 +1126,9 @@ void CTFSetIDView(edict_t* ent) {
 	trace_t tr;
 	edict_t* who, * best = nullptr;
 	float bd = 0, d;
-	float closest_dist = 1024; // Reducir la distancia máxima inicial para mayor precisión
-	float min_dot = 0.98f; // Hacer el umbral más estricto
+	float closest_dist = 1024;
+	float min_dot = 0.98f;
 
-	// Reduce the update interval
 	if (level.time - ent->client->resp.lastidtime < 97_ms)
 		return;
 
@@ -1126,15 +1137,14 @@ void CTFSetIDView(edict_t* ent) {
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	vec3_t end = ent->s.origin + forward * 1024; // Ajustar la distancia del rayo
+	vec3_t end = ent->s.origin + forward * 1024;
 	tr = gi.traceline(ent->s.origin, end, ent, MASK_SOLID);
 
-	// Verificación directa con min_dot
 	if (tr.fraction < 1 && IsValidTarget(ent, tr.ent, true)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
 		d = forward.dot(dir);
-		if (d > min_dot) { // Asegurar que el objetivo esté dentro del campo de visión
+		if (d > min_dot) {
 			float dist = (tr.ent->s.origin - ent->s.origin).length();
 			if (dist < closest_dist) {
 				closest_dist = dist;
@@ -1143,7 +1153,6 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 
-	// Búsqueda alrededor
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		who = g_edicts + i;
 		if (!IsValidTarget(ent, who, false))
@@ -1153,29 +1162,26 @@ void CTFSetIDView(edict_t* ent) {
 		dir.normalize();
 		d = forward.dot(dir);
 		float dist = (who->s.origin - ent->s.origin).length();
-		if (d > min_dot && loc_CanSee(ent, who) && dist < closest_dist) { // Asegurar que el objetivo esté dentro del campo de visión
+		if (d > min_dot && loc_CanSee(ent, who) && dist < closest_dist) {
 			closest_dist = dist;
 			best = who;
 		}
 	}
 
-	// Si no encontramos un nuevo objetivo, intentamos usar el objetivo anterior si es válido
 	if (!best && IsValidTarget(ent, ent->client->idtarget, true)) {
 		best = ent->client->idtarget;
 	}
 
 	if (best) {
-		ent->client->idtarget = best; // Guardar el objetivo actual
+		ent->client->idtarget = best;
 		std::ostringstream health_stream;
 		std::string name;
 
 		if (best->svflags & SVF_MONSTER) {
-			// Obtener el título basado en los flags de bonus
 			std::string title = GetTitleFromFlags(best->monsterinfo.bonus_flags);
-			// Obtener el nombre del monstruo con el título
 			name = title + FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para monstruos
-			health_stream << name << "\nH: " << best->health << " "; // Agregar el nombre del monstruo, salud y espacio en blanco
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+			health_stream << name << "\nH: " << best->health << " ";
 			if (best->monsterinfo.armor_power > 0) {
 				health_stream << "A: " << best->monsterinfo.armor_power << " ";
 			}
@@ -1183,21 +1189,18 @@ void CTFSetIDView(edict_t* ent) {
 				health_stream << "PA: " << best->monsterinfo.power_armor_power << " ";
 			}
 		}
-		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine")) {
-			// Mostrar información específica para la mina Tesla y food_cube_trap
-			name = GetDisplayName(best->classname);	
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para la mina Tesla y food_cube_trap
-			health_stream << name << " H: " << best->health << " "; // Agregar el nombre y la salud de la mina Tesla o food_cube_trap
+		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
+			name = GetDisplayName(best->classname);
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+			health_stream << name << " H: " << best->health << " ";
 
 			if (!strcmp(best->classname, "tesla_mine")) {
-				// Calcular y mostrar el tiempo restante para Tesla Mine
 				gtime_t time_active = level.time - best->timestamp;
 				gtime_t time_remaining = TESLA_TIME_TO_LIVE - time_active;
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 				health_stream << "T: " << remaining_time << "s";
 			}
 			else if (!strcmp(best->classname, "prox_mine") || !strcmp(best->classname, "food_cube_trap")) {
-				// Calcular y mostrar el tiempo restante para prox_mine y food_cube_trap
 				gtime_t time_active = level.time - best->timestamp;
 				gtime_t time_remaining = -time_active;
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
@@ -1206,17 +1209,16 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		else {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-			health_stream << "\nH: " << best->health << " "; // Agregar un salto de línea y la salud para los jugadores
+			health_stream << "\nH: " << best->health << " ";
 		}
 
 		if (best->client) {
-			int armor_value = GetArmorInfo(best); // Asumimos que GetArmorInfo devuelve un int
+			int armor_value = GetArmorInfo(best);
 			if (armor_value > 0) {
-				health_stream << "A: " << std::to_string(armor_value) << " "; // Convertir a string
+				health_stream << "A: " << std::to_string(armor_value) << " ";
 			}
 		}
 		else if (best->svflags & SVF_MONSTER) {
-			// Mostrar el tiempo restante de los power-ups
 			if (best->monsterinfo.quad_time > level.time) {
 				int remaining_quad_time = static_cast<int>((best->monsterinfo.quad_time - level.time).seconds<float>());
 				health_stream << "\nQuad: " << remaining_quad_time << "s";
@@ -1233,56 +1235,53 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->target_health_str = health_stream.str();
 
 		if (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
-			// Mantener el configstring del monstruo o mina Tesla si ya existe
 			auto it = monster_configstrings.find(best - g_edicts);
 			if (it == monster_configstrings.end()) {
 				if (!available_monster_configstrings.empty()) {
 					int cs_index = available_monster_configstrings.back();
 					available_monster_configstrings.pop_back();
 
-					// Verificar rango del índice de configstring
 					if (cs_index >= CONFIG_MONSTER_HEALTH_BASE && cs_index <= CONFIG_MONSTER_HEALTH_END) {
 						monster_configstrings[best - g_edicts] = cs_index;
-						UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+						UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
 					}
 				}
 			}
 			else {
 				int cs_index = it->second;
 				if (cs_index >= CONFIG_MONSTER_HEALTH_BASE && cs_index <= CONFIG_MONSTER_HEALTH_END) {
-					UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+					UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
 				}
 			}
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
 		}
 		else {
-			// Mantener el configstring del jugador si ya existe
 			auto it = player_configstrings.find(best - g_edicts);
 			if (it == player_configstrings.end()) {
 				if (!available_player_configstrings.empty()) {
 					int cs_index = available_player_configstrings.back();
 					available_player_configstrings.pop_back();
 
-					// Verificar rango del índice de configstring
 					if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
 						player_configstrings[best - g_edicts] = cs_index;
-						UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+						UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
 					}
 				}
 			}
 			else {
 				int cs_index = it->second;
 				if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
-					UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+					UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
 				}
 			}
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstrings[best - g_edicts];
 		}
 	}
 	else {
-		ent->client->idtarget = nullptr; // Si no hay objetivo, limpiar el objetivo anterior
+		ent->client->idtarget = nullptr;
 	}
 }
+
 
 
 void SetCTFStats(edict_t* ent)
