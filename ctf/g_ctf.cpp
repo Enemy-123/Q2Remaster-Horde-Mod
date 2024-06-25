@@ -948,6 +948,17 @@ void CTFID_f(edict_t* ent)
 #include <string>
 #include <sstream>
 
+
+void UpdateConfigStringIfChanged(int cs_index, const std::string& new_value) {
+	static std::unordered_map<int, std::string> last_configstring_values;
+
+	auto it = last_configstring_values.find(cs_index);
+	if (it == last_configstring_values.end() || it->second != new_value) {
+		last_configstring_values[cs_index] = new_value;
+		gi.configstring(cs_index, new_value.c_str());
+	}
+}
+
 // Se asume que CS_MAX_STRING_LENGTH y MAX_CONFIGSTRINGS ya están definidos en game.h
 
 int GetArmorInfo(edict_t* ent) {
@@ -1078,7 +1089,6 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 		return false;
 	return true;
 }
-
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -1226,12 +1236,19 @@ void CTFSetIDView(edict_t* ent) {
 				if (!available_monster_configstrings.empty()) {
 					int cs_index = available_monster_configstrings.back();
 					available_monster_configstrings.pop_back();
-					monster_configstrings[best - g_edicts] = cs_index;
-					gi.configstring(cs_index, ent->client->target_health_str.c_str());
+
+					// Verificar rango del índice de configstring
+					if (cs_index >= CONFIG_MONSTER_HEALTH_BASE && cs_index <= CONFIG_MONSTER_HEALTH_END) {
+						monster_configstrings[best - g_edicts] = cs_index;
+						UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+					}
 				}
 			}
 			else {
-				gi.configstring(it->second, ent->client->target_health_str.c_str());
+				int cs_index = it->second;
+				if (cs_index >= CONFIG_MONSTER_HEALTH_BASE && cs_index <= CONFIG_MONSTER_HEALTH_END) {
+					UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+				}
 			}
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
 		}
@@ -1242,12 +1259,19 @@ void CTFSetIDView(edict_t* ent) {
 				if (!available_player_configstrings.empty()) {
 					int cs_index = available_player_configstrings.back();
 					available_player_configstrings.pop_back();
-					player_configstrings[best - g_edicts] = cs_index;
-					gi.configstring(cs_index, ent->client->target_health_str.c_str());
+
+					// Verificar rango del índice de configstring
+					if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
+						player_configstrings[best - g_edicts] = cs_index;
+						UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+					}
 				}
 			}
 			else {
-				gi.configstring(it->second, ent->client->target_health_str.c_str());
+				int cs_index = it->second;
+				if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
+					UpdateConfigStringIfChanged(cs_index, ent->client->target_health_str);
+				}
 			}
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstrings[best - g_edicts];
 		}
