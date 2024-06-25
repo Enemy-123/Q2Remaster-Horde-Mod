@@ -1051,12 +1051,30 @@ std::string FormatClassname(const std::string& classname) {
 #define MAX_PLAYER_CONFIGSTRINGS 32
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
 
+bool IsValidClassname(const char* classname) {
+	if (!classname) return false;
+
+	// Permitir solo ciertos prefijos de classname
+	const char* allowed_prefixes[] = {
+		"monster_", "misc_insane", nullptr // Lista terminada en nullptr
+	};
+
+	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
+		if (strncmp(classname, *prefix, strlen(*prefix)) == 0) {
+			return true;
+		}
+	}
+	return false;
+}
+
 bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT || other->health < 1)
 		return false;
 	if (other == ent) // Excluir al propio jugador
 		return false;
 	if (vis && ent && !visible(ent, other))
+		return false;
+	if (!IsValidClassname(other->classname) && (!(other->client))) // Verificar si el classname es válido
 		return false;
 	return true;
 }

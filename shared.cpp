@@ -167,7 +167,8 @@ void ApplyMonsterBonusFlags(edict_t* monster) {
         monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 120_sec;
     }
     if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
-        monster->s.effects |= EF_BARREL_EXPLODING;
+        monster->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+
         monster->s.renderfx |= RF_TRANSLUCENT;
         monster->health *= 1.7f;
         monster->monsterinfo.power_armor_power *= 1.7f;
