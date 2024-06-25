@@ -86,14 +86,23 @@ MapSize GetMapSize(const std::string& mapname) {
     return mapSize;
 }
 
-const std::vector<std::pair<int, std::string>> benefits = {
-    {5, "vampire"},
-    {10, "ammo regen"},
-    {15, "auto haste"},
-    {20, "vampire upgraded"},
-    {25, "Cluster Prox Grenades" },
-    {30, "start armor" },
-    {35, "Traced-Piercing Bullets" }
+// Definición de la estructura weighted_benefit_t
+struct weighted_benefit_t {
+    const char* benefit_name;
+    int min_level;
+    int max_level;
+    float weight;
+};
+
+// Lista de beneficios ponderados
+constexpr weighted_benefit_t benefits[] = {
+    { "vampire", 4, -1, 0.2f },
+    { "ammo regen", 8, -1, 0.15f },
+    { "auto haste", 9, -1, 0.15f },
+    { "vampire upgraded", 24, -1, 0.1f },
+    { "Cluster Prox Grenades", 28, -1, 0.1f },
+    { "start armor", 9, -1, 0.1f },
+    { "Traced-Piercing Bullets", 9, -1, 0.2f }
 };
 
 static std::random_device rd;
@@ -103,7 +112,7 @@ static std::mt19937 gen(rd());
 void ShuffleBenefits() {
     shuffled_benefits.clear();
     for (const auto& benefit : benefits) {
-        shuffled_benefits.push_back(benefit.second);
+        shuffled_benefits.push_back(benefit.benefit_name);
     }
     std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), gen);
 
@@ -115,27 +124,37 @@ void ShuffleBenefits() {
     }
 }
 
+// Estructura para almacenar los beneficios seleccionados
+struct picked_benefit_t {
+    const weighted_benefit_t* benefit;
+    float weight;
+};
 
-// Function to select a random benefit based on the current wave
+// Función para seleccionar un beneficio aleatorio basado en la ola actual
 std::string SelectRandomBenefit(int wave) {
-    std::vector<std::string> possible_benefits;
+    std::vector<picked_benefit_t> picked_benefits;
+    float total_weight = 0;
 
-    for (const auto& benefit : shuffled_benefits) {
-        if (obtained_benefits.find(benefit) == obtained_benefits.end() &&
-            benefit != "vampire" && benefit != "ammo regen" &&
-            (benefit != "vampire upgraded" || (benefit == "vampire upgraded" && vampire_level == 1 && wave >= 24)) &&
-            (benefit != "Cluster Prox Grenades" || wave >= 28)) {
-            possible_benefits.push_back(benefit);
+    for (const auto& benefit : benefits) {
+        if ((wave >= benefit.min_level) &&
+            (benefit.max_level == -1 || wave <= benefit.max_level) &&
+            obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
+            float weight = benefit.weight;
+            total_weight += weight;
+            picked_benefits.push_back({ &benefit, total_weight });
         }
     }
 
-    if (!possible_benefits.empty()) {
-        std::uniform_int_distribution<> dis(0, possible_benefits.size() - 1);
-        return possible_benefits[dis(gen)];
+    if (total_weight == 0) return "";
+
+    float random_weight = frandom() * total_weight;
+    for (const auto& picked_benefit : picked_benefits) {
+        if (random_weight < picked_benefit.weight) {
+            return picked_benefit.benefit->benefit_name;
+        }
     }
     return "";
 }
-
 
 // Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
@@ -169,7 +188,7 @@ void ApplyBenefit(const std::string& benefit) {
     else if (benefit == "Cluster Prox Grenades") {
         gi.cvar_set("g_upgradeproxs", "1");
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nIMPROVED PROX GRENADES\n");
-    } 
+    }
     else if (benefit == "Traced-Piercing Bullets") {
         gi.cvar_set("g_tracedbullets", "1");
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nBULLETS\nUPGRADED!\n");
@@ -184,28 +203,9 @@ void CheckAndApplyBenefit(int wave) {
             ShuffleBenefits();
         }
 
-        // Aplicar "vampire" si no ha sido obtenido y la ola es mayor o igual a 5
-        if (vampire_level == 0 && wave >= 4) {
-            ApplyBenefit("vampire");
-        }
-        // Aplicar "ammo regen" si "vampire" ha sido obtenido y la ola es mayor o igual a 10
-        else if (vampire_level == 1 && wave >= 8 && obtained_benefits.find("ammo regen") == obtained_benefits.end()) {
-            ApplyBenefit("ammo regen");
-        }
-
-        // Aplicar "Traced-Piercing Bullets" si "vampire" está activo y la ola es mayor o igual a 20
-        else if (wave >= 12 && obtained_benefits.find("Traced-Piercing Bullets") == obtained_benefits.end()) {
-            ApplyBenefit("Traced-Piercing Bullets");
-        }
-        // Aplicar "vampire upgraded" si "vampire" está activo y la ola es mayor o igual a 20
-        else if (vampire_level == 1 && wave >= 24 && obtained_benefits.find("vampire upgraded") == obtained_benefits.end()) {
-            ApplyBenefit("vampire upgraded");
-        }
-        else {
-            std::string benefit = SelectRandomBenefit(wave);
-            if (!benefit.empty()) {
-                ApplyBenefit(benefit);
-            }
+        std::string benefit = SelectRandomBenefit(wave);
+        if (!benefit.empty()) {
+            ApplyBenefit(benefit);
         }
     }
 }
@@ -290,7 +290,6 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) {
     }
 }
 
-
 // Función para inicializar el nivel de la horda
 void Horde_InitLevel(int32_t lvl) {
     current_wave_number++;
@@ -308,7 +307,7 @@ void Horde_InitLevel(int32_t lvl) {
     }
     else if (g_horde_local.level == 27) {
         gi.cvar_set("g_damage_scale", "2.5");
-    }  
+    }
     else if (g_horde_local.level == 37) {
         gi.cvar_set("g_damage_scale", "3.7");
     }
@@ -367,31 +366,31 @@ constexpr struct weighted_item_t {
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
-    { "weapon_supershotgun", 5, -1, 0.18f, adjust_weight_weapon }, 
+    { "weapon_supershotgun", 5, -1, 0.18f, adjust_weight_weapon },
     { "weapon_machinegun", -1, -1, 0.29f, adjust_weight_weapon },
-    { "weapon_etf_rifle", 4, -1, 0.19f, adjust_weight_weapon },   
-    { "weapon_chaingun", 9, -1, 0.19f, adjust_weight_weapon },      
+    { "weapon_etf_rifle", 4, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_chaingun", 9, -1, 0.19f, adjust_weight_weapon },
     { "weapon_grenadelauncher", 10, -1, 0.19f, adjust_weight_weapon },
     { "weapon_proxlauncher", 4, -1, 0.1f, adjust_weight_weapon },
     { "weapon_boomer", 13, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_hyperblaster", 12, -1, 0.22f, adjust_weight_weapon },  
-    { "weapon_phalanx", 15, -1, 0.19f, adjust_weight_weapon },       
+    { "weapon_hyperblaster", 12, -1, 0.22f, adjust_weight_weapon },
+    { "weapon_phalanx", 15, -1, 0.19f, adjust_weight_weapon },
     { "weapon_rocketlauncher", 14, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_railgun", 22, -1, 0.19f, adjust_weight_weapon },       
-    { "weapon_plasmabeam", 17, -1, 0.29f, adjust_weight_weapon },   
-    { "weapon_disintegrator", 24, -1, 0.15f, adjust_weight_weapon }, 
-    { "weapon_bfg", 25, -1, 0.15f, adjust_weight_weapon },           
+    { "weapon_railgun", 22, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_plasmabeam", 17, -1, 0.29f, adjust_weight_weapon },
+    { "weapon_disintegrator", 24, -1, 0.15f, adjust_weight_weapon },
+    { "weapon_bfg", 25, -1, 0.15f, adjust_weight_weapon },
 
 
     { "ammo_trap", 2, -1, 0.14f, adjust_weight_ammo },
     { "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
     { "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
-    { "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },    
+    { "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },
     { "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
     { "ammo_prox", 12, -1, 0.25f, adjust_weight_ammo },
     { "ammo_tesla", 2, -1, 0.13f, adjust_weight_ammo },
     { "ammo_cells", 9, -1, 0.30f, adjust_weight_ammo },
-    { "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },      
+    { "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },
     { "ammo_slugs", 9, -1, 0.25f, adjust_weight_ammo },
     { "ammo_disruptor", 14, -1, 0.24f, adjust_weight_ammo },
     { "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
@@ -925,8 +924,8 @@ void BossDeathHandler(edict_t* boss) {
 
         // Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
         if (strcmp(boss->classname, "monster_boss2") == 0 ||
-            strcmp(boss->classname, "monster_carrier") == 0 || 
-            strcmp(boss->classname, "monster_carrier2") == 0 || 
+            strcmp(boss->classname, "monster_carrier") == 0 ||
+            strcmp(boss->classname, "monster_carrier2") == 0 ||
             strcmp(boss->classname, "monster_boss2kl") == 0) {
             flying_monsters_mode = false;
         }
@@ -1028,8 +1027,8 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64/comm", {1464 - 88 - 432}},
     {"q64/command", {0, -208, 56}},
     {"q64\\command", {0, -208, 56}},
-    {"q64\\dm1", {-192, - 320, 80}},
-    {"q64/dm1", {-192, - 320, 80}},
+    {"q64\\dm1", {-192, -320, 80}},
+    {"q64/dm1", {-192, -320, 80}},
     {"q64\\dm7", {64, 224, 120}},
     {"q64\\dm9", {160, 56, 40}},
     {"q64/dm9", {160, 56, 40}},
@@ -1285,8 +1284,8 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
     else {
         if (mapSize.isSmallMap) {
             if (current_wave_number <= 4) {
-                params.maxMonsters = 3;
-                params.timeThreshold = 7;
+                params.maxMonsters = 4;
+                params.timeThreshold = 6;
             }
             else {
                 params.maxMonsters = 6;
@@ -1449,13 +1448,13 @@ void SpawnMonsters() {
     // Determinar la cantidad de monstruos por spawn basado en el tamaño del mapa y el nivel actual
     int monsters_per_spawn;
     if (mapSize.isSmallMap) {
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 1;
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
     }
     else if (mapSize.isBigMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
     }
     else { // Para mapas medianos
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 1;
+        monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
     }
 
     int spawned = 0;
@@ -1482,7 +1481,7 @@ void SpawnMonsters() {
                 monster->monsterinfo.armor_power = 175;
         }
 
-    // Decidir si el monstruo dropeará un ítem
+        // Decidir si el monstruo dropeará un ítem
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
         }
@@ -1506,11 +1505,11 @@ void SpawnMonsters() {
 
     // Ajusta el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
     if (mapSize.isSmallMap) {
-        g_horde_local.monster_spawn_time = level.time + 1.5_sec; // are these needed, considering cooldowns?
-        g_horde_local.monster_spawn_time = level.time + 2.5_sec; 
+
+        g_horde_local.monster_spawn_time = level.time + 2.0_sec;
     }
     else {
-        g_horde_local.monster_spawn_time = level.time + 1.5_sec; 
+        g_horde_local.monster_spawn_time = level.time + 1.5_sec;
     }
 }
 void Horde_RunFrame() {
