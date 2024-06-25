@@ -1062,8 +1062,7 @@ std::string FormatClassname(const std::string& classname) {
 	}
 	return formatted_name;
 }
-#define MAX_MONSTER_CONFIGSTRINGS 80
-#define MAX_PLAYER_CONFIGSTRINGS 32
+
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
 
 bool IsValidClassname(const char* classname) {
@@ -1082,6 +1081,28 @@ bool IsValidClassname(const char* classname) {
 	return false;
 }
 
+
+//bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
+//	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT || other->health < 1)
+//		return false;
+//	if (other == ent) // Excluir al propio jugador
+//		return false;
+//	if (vis && ent && !visible(ent, other))
+//		return false;
+//	if (!IsValidClassname(other->classname) && (!(other->client))) // Verificar si el classname es válido
+//		return false;
+//	return true;
+//}
+void InitializeCTFIDViewConfigStrings() {
+	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+		gi.configstring(i, "");
+	}
+	for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
+		gi.configstring(i, "");
+	}
+}
+
+
 bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT || other->health < 1)
 		return false;
@@ -1093,15 +1114,10 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 		return false;
 	return true;
 }
-void InitializeCTFIDViewConfigStrings() {
-	for (int i = 0; i < MAX_CTF_ID_VIEW_CONFIGSTRINGS; i++) {
-		gi.configstring(CS_CTF_ID_VIEW_BASE + i, "");
-	}
-}
 
-void UpdateCTFIDViewConfigString(int entityIndex, const char* info) {
-	int configIndex = CS_CTF_ID_VIEW_BASE + (entityIndex % MAX_CTF_ID_VIEW_CONFIGSTRINGS);
-	gi.configstring(configIndex, info);
+
+void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
+	gi.configstring(cs_index, value.c_str());
 }
 
 void CTFSetIDView(edict_t* ent) {
@@ -1281,9 +1297,6 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->idtarget = nullptr;
 	}
 }
-
-
-
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;

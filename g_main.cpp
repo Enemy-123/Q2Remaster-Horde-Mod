@@ -182,7 +182,7 @@ void G_PrepFrame();
 void InitSave();
 
 #include <chrono>
-
+extern void InitializeCTFIDViewConfigStrings();
 /*
 ============
 PreInitGame
@@ -205,6 +205,7 @@ void PreInitGame()
 
 	// Paril
 	Horde_PreInit();
+	InitializeCTFIDViewConfigStrings();
 	// ZOID
 	// This gamemode only supports deathmatch
 	if (ctf->integer)
