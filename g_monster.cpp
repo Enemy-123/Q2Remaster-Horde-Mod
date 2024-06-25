@@ -648,6 +648,11 @@ void G_MonsterKilled(edict_t* self)
 					gtime_t extra_time = gtime_t::from_sec(1.05); // Ajusta este valor según sea necesario
 					self->enemy->client->quadfire_time += extra_time;
 				}
+				 if (self->enemy->client->quad_time > level.time)
+				{
+					gtime_t extra_time = gtime_t::from_sec(0.55); // Ajusta este valor según sea necesario
+					self->enemy->client->quad_time += extra_time;
+				}
 			}
 		}
 	}
@@ -664,15 +669,18 @@ void G_MonsterKilled(edict_t* self)
 			{
 				if (self->enemy->owner->client->quadfire_time > level.time)
 				{
-					gtime_t extra_time = gtime_t::from_sec(0.6); // Ajusta este valor según sea necesario
+					gtime_t extra_time = gtime_t::from_sec(1.05); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->quadfire_time += extra_time;
+				}
+
+				 if (self->enemy->owner->client->quad_time > level.time)
+				{
+					gtime_t extra_time = gtime_t::from_sec(0.55); // Ajusta este valor según sea necesario
+					self->enemy->owner->client->quad_time += extra_time;
 				}
 			}
 		}
 	}
-
-
-
 
 	if (g_debug_monster_kills->integer)
 	{

@@ -1050,7 +1050,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
 				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
 				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
-				//client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 
 			}
 			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 13)
@@ -1063,9 +1063,17 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
 				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
-				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
+				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+
+				if (g_upgradeproxs->integer && g_horde->integer && current_wave_number >= 20) {
+					client->pers.inventory[IT_AMMO_PROX] += 3;
+				}
+				if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX]) {
+					client->pers.inventory[IT_AMMO_PROX] = client->pers.max_ammo[AMMO_PROX];
+				}
 			}
+
 			// ZOID
 			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
 				(ctf->integer ? !level.no_grapple : 0) :
@@ -3385,7 +3393,7 @@ extern void RemoveAllTechItems(edict_t* ent);
 extern bool ClientIsSpectating(gclient_t* cl);
 extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
-	gtime_t inactivity_duration = 15_sec;
+	gtime_t inactivity_duration = 45_sec;
 
 	if (!ent->client || (ent->svflags & SVF_BOT)) {
 		return true;

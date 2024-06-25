@@ -303,10 +303,10 @@ void Horde_InitLevel(int32_t lvl) {
         gi.cvar_set("g_damage_scale", "1.7");
     }
     else if (g_horde_local.level == 27) {
-        gi.cvar_set("g_damage_scale", "3");
+        gi.cvar_set("g_damage_scale", "2.5");
     }  
     else if (g_horde_local.level == 37) {
-        gi.cvar_set("g_damage_scale", "4");
+        gi.cvar_set("g_damage_scale", "3.7");
     }
 
     // Configuración de la cantidad de monstruos a spawnear
@@ -358,7 +358,8 @@ constexpr struct weighted_item_t {
     { "item_sphere_defender", 2, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.07f, adjust_weight_powerup },
-    { "item_doppleganger", 3, -1, 0.058f, adjust_weight_powerup },
+    { "item_doppleganger", 3, 14, 0.028f, adjust_weight_powerup },
+    { "item_doppleganger", 15, -1, 0.062f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -367,15 +368,15 @@ constexpr struct weighted_item_t {
     { "weapon_etf_rifle", 4, -1, 0.19f, adjust_weight_weapon },   
     { "weapon_chaingun", 9, -1, 0.19f, adjust_weight_weapon },      
     { "weapon_grenadelauncher", 10, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_proxlauncher", 13, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_proxlauncher", 4, -1, 0.1f, adjust_weight_weapon },
     { "weapon_boomer", 13, -1, 0.19f, adjust_weight_weapon },
-    { "weapon_hyperblaster", 12, -1, 0.19f, adjust_weight_weapon },  
+    { "weapon_hyperblaster", 12, -1, 0.22f, adjust_weight_weapon },  
     { "weapon_phalanx", 15, -1, 0.19f, adjust_weight_weapon },       
     { "weapon_rocketlauncher", 14, -1, 0.19f, adjust_weight_weapon },
     { "weapon_railgun", 22, -1, 0.19f, adjust_weight_weapon },       
-    { "weapon_plasmabeam", 17, -1, 0.19f, adjust_weight_weapon },   
+    { "weapon_plasmabeam", 17, -1, 0.29f, adjust_weight_weapon },   
     { "weapon_disintegrator", 24, -1, 0.15f, adjust_weight_weapon }, 
-    { "weapon_bfg", 27, -1, 0.15f, adjust_weight_weapon },           
+    { "weapon_bfg", 25, -1, 0.15f, adjust_weight_weapon },           
 
 
     { "ammo_trap", 2, -1, 0.14f, adjust_weight_ammo },
