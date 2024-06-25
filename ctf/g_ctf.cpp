@@ -936,7 +936,7 @@ void CTFID_f(edict_t* ent)
 	if (ent->client->resp.id_state)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Disabling player identication display.\n");
-		ent->client->resp.id_state = false;
+		ent->client->resp.id_state = true;
 	}
 	else
 	{
@@ -1037,7 +1037,10 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_turret", "TurretGun" },
 		{ "monster_turretkl", "TurretGun" },
 		{ "monster_boss2", "Hornet" },
-		{ "misc_insane", "Insane Grunt" }
+		{ "misc_insane", "Insane Grunt" },
+		{ "food_cube_trap", "Stroggonoff Maker\n" },
+		{ "tesla_mine", " Tesla Mine\n" },
+		{ "prox_mine", " Prox'Nade\n" }
 		// Add other replacements as needed
 	};
 
@@ -1067,7 +1070,7 @@ bool IsValidClassname(const char* classname) {
 
 	// Permitir solo ciertos prefijos de classname
 	const char* allowed_prefixes[] = {
-		"monster_", "misc_insane", nullptr // Lista terminada en nullptr
+		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "prox_mine",  nullptr // Lista terminada en nullptr
 	};
 
 	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
@@ -1180,9 +1183,9 @@ void CTFSetIDView(edict_t* ent) {
 				health_stream << "PA: " << best->monsterinfo.power_armor_power << " ";
 			}
 		}
-		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
+		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine")) {
 			// Mostrar información específica para la mina Tesla y food_cube_trap
-			name = !strcmp(best->classname, "tesla_mine") ? "Tesla Mine" : "Food Cube Trap";
+			name = GetDisplayName(best->classname);	
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0; // Deshabilitar ID view para la mina Tesla y food_cube_trap
 			health_stream << name << " H: " << best->health << " "; // Agregar el nombre y la salud de la mina Tesla o food_cube_trap
 
@@ -1193,8 +1196,8 @@ void CTFSetIDView(edict_t* ent) {
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 				health_stream << "T: " << remaining_time << "s";
 			}
-			else if (!strcmp(best->classname, "food_cube_trap")) {
-				// Calcular y mostrar el tiempo restante para Food Cube Trap
+			else if (!strcmp(best->classname, "prox_mine") || !strcmp(best->classname, "food_cube_trap")) {
+				// Calcular y mostrar el tiempo restante para prox_mine y food_cube_trap
 				gtime_t time_active = level.time - best->timestamp;
 				gtime_t time_remaining = -time_active;
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));

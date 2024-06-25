@@ -464,6 +464,7 @@ struct boss_t {
 constexpr boss_t BOSS_SMALL[] = {
     {"monster_carrier2", 24, -1, 0.05f},
     {"monster_boss2kl", 24, -1, 0.05f},
+    {"monster_widow2", 14, -1, 0.05f},
     {"monster_tank_64", -1, -1, 0.05f},
     {"monster_shamblerkl", -1, -1, 0.05f},
     {"monster_guncmdrkl", -1, 19, 0.05f},
