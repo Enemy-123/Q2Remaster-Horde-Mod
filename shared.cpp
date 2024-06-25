@@ -125,7 +125,10 @@ std::string GetDisplayName(edict_t* ent) {
         { "monster_turret", "TurretGun" },
         { "monster_turretkl", "TurretGun" },
         { "monster_boss2", "Hornet" },
-        { "misc_insane", "Insane Grunt" }
+        { "misc_insane", "Insa9ne Grunt" },
+        { "food_cube_trap", "Stroggonoff Maker\n" },
+        { "tesla_mine", " Tesla Mine\n" },
+        { "prox_mine", " Prox'Nade\n" }
     };
 
     auto it = name_replacements.find(ent->classname);
