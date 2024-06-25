@@ -115,18 +115,16 @@ void ShuffleBenefits() {
     }
 }
 
-// Función para seleccionar un beneficio aleatorio basado en la ola actual
+
+// Function to select a random benefit based on the current wave
 std::string SelectRandomBenefit(int wave) {
     std::vector<std::string> possible_benefits;
 
     for (const auto& benefit : shuffled_benefits) {
         if (obtained_benefits.find(benefit) == obtained_benefits.end() &&
             benefit != "vampire" && benefit != "ammo regen" &&
-            (benefit != "vampire upgraded" || (benefit == "vampire upgraded" && vampire_level == 1 && wave >= 20))) {
-            // Asegurarse de que "Cluster Prox Grenades" solo esté disponible después de la ola 25
-            if (benefit == "Cluster Prox Grenades" && wave < 25) {
-                continue;
-            }
+            (benefit != "vampire upgraded" || (benefit == "vampire upgraded" && vampire_level == 1 && wave >= 24)) &&
+            (benefit != "Cluster Prox Grenades" || wave >= 28)) {
             possible_benefits.push_back(benefit);
         }
     }
@@ -138,18 +136,19 @@ std::string SelectRandomBenefit(int wave) {
     return "";
 }
 
+
 // Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
     if (benefit == "start armor") {
         gi.cvar_set("g_startarmor", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nStarting Armor\nENABLED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "STARTING WITH 50 ARMOR!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nSTARTING ARMOR\nENABLED!\n");
+        gi.LocBroadcast_Print(PRINT_CHAT, "STARTING WITH 50 BODY-ARMOR!\n");
     }
     else if (benefit == "vampire") {
         vampire_level = 1;
         gi.cvar_set("g_vampire", "1");
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING A PERCENTAGE OF DAMAGE DONE!\n");
+        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n");
     }
     else if (benefit == "ammo regen") {
         gi.cvar_set("g_ammoregen", "1");
@@ -158,43 +157,48 @@ void ApplyBenefit(const std::string& benefit) {
     }
     else if (benefit == "auto haste") {
         gi.cvar_set("g_autohaste", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n TIME ACCEL IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE ACCEL\nWILL EXTEND TIME!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n");
         gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
     }
     else if (benefit == "vampire upgraded") {
         vampire_level = 2;
         gi.cvar_set("g_vampire", "2");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nVampire Ability\nUPGRADED!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nIMPROVED VAMPIRE ABILITY\n");
         gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
     }
     else if (benefit == "Cluster Prox Grenades") {
         gi.cvar_set("g_upgradeproxs", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nProx Launcher\nUPGRADED!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nIMPROVED PROX GRENADES\n");
     } 
     else if (benefit == "Traced-Piercing Bullets") {
         gi.cvar_set("g_tracedbullets", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nMachinegun/Chaingun \nUPGRADED!\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nBULLETS\nUPGRADED!\n");
     }
     obtained_benefits.insert(benefit);
 }
 
 // Función para verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(int wave) {
-    if (wave % 5 == 0) {
+    if (wave % 4 == 0) {
         if (shuffled_benefits.empty()) {
             ShuffleBenefits();
         }
 
         // Aplicar "vampire" si no ha sido obtenido y la ola es mayor o igual a 5
-        if (vampire_level == 0 && wave >= 5) {
+        if (vampire_level == 0 && wave >= 4) {
             ApplyBenefit("vampire");
         }
         // Aplicar "ammo regen" si "vampire" ha sido obtenido y la ola es mayor o igual a 10
-        else if (vampire_level == 1 && wave >= 10 && obtained_benefits.find("ammo regen") == obtained_benefits.end()) {
+        else if (vampire_level == 1 && wave >= 8 && obtained_benefits.find("ammo regen") == obtained_benefits.end()) {
             ApplyBenefit("ammo regen");
         }
+
+        // Aplicar "Traced-Piercing Bullets" si "vampire" está activo y la ola es mayor o igual a 20
+        else if (wave >= 12 && obtained_benefits.find("Traced-Piercing Bullets") == obtained_benefits.end()) {
+            ApplyBenefit("Traced-Piercing Bullets");
+        }
         // Aplicar "vampire upgraded" si "vampire" está activo y la ola es mayor o igual a 20
-        else if (vampire_level == 1 && wave >= 20 && obtained_benefits.find("vampire upgraded") == obtained_benefits.end()) {
+        else if (vampire_level == 1 && wave >= 24 && obtained_benefits.find("vampire upgraded") == obtained_benefits.end()) {
             ApplyBenefit("vampire upgraded");
         }
         else {
