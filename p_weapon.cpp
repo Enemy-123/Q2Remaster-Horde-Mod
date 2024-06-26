@@ -1559,7 +1559,7 @@ void Machinegun_Fire(edict_t* ent)
 	{
 		if (g_tracedbullets->integer)
 		{
-			int tracer_damage = 30;
+			int tracer_damage = 40;
 			vec3_t tracer_start, tracer_forward, tracer_offset;
 			VectorCopy(start, tracer_start);
 			VectorCopy(forward, tracer_forward);
@@ -1726,7 +1726,7 @@ void Chaingun_Fire(edict_t* ent)
 	{
 		if (g_tracedbullets->integer)
 		{
-			int tracer_damage = 30;
+			int tracer_damage = 40;
 			vec3_t tracer_start, tracer_forward, tracer_offset;
 			VectorCopy(start, tracer_start);
 			VectorCopy(forward, tracer_forward);
