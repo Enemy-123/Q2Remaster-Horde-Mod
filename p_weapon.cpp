@@ -1599,7 +1599,6 @@ void Weapon_Machinegun(edict_t* ent)
 
 	Weapon_Repeating(ent, 3, 5, 45, 49, pause_frames, Machinegun_Fire);
 }
-
 void Chaingun_Fire(edict_t* ent)
 {
 	int i;
@@ -1691,21 +1690,22 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	vec3_t start, forward, right, up, offset;
+	vec3_t start, forward, right, up, offset, dir;
 	AngleVectors(ent->client->v_angle, forward, right, up);
 
 	// Ajustar los valores de offset
-	offset[0] = 0;
-	offset[1] = 8; // Ajuste horizontal
-	offset[2] = ent->viewheight - 32; // Ajuste vertical
+	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f); // Ajuste vertical similar a la ametralladora
 
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
-	G_LagCompensate(ent, start, forward);
+	// Ajustar la dirección de disparo para evitar problemas al mirar hacia arriba
+	VectorCopy(forward, dir);
+
+	G_LagCompensate(ent, start, dir);
 	for (i = 0; i < shots; i++)
 	{
-		// Mantener el start y forward constantes
-		fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
+		// Mantener el start y dir constantes
+		fire_bullet(ent, start, dir, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
 	}
 	G_UnLagCompensate();
 
@@ -1727,13 +1727,25 @@ void Chaingun_Fire(edict_t* ent)
 		if (g_tracedbullets->integer)
 		{
 			int tracer_damage = 30;
-			// Disparo del blaster desde la misma posición y dirección que el bullet
-			monster_fire_blaster2(ent, start, forward, tracer_damage, 3150, MZ2_MEDIC_HYPERBLASTER1_5, EF_NONE);
+			vec3_t tracer_start, tracer_forward, tracer_offset;
+			VectorCopy(start, tracer_start);
+			VectorCopy(forward, tracer_forward);
+
+			// Ajustar el desplazamiento para que coincida con el lado del arma
+			VectorSet(tracer_offset, 0.0f, 8.0f, -24.0f);  // Ajuste base para posición de pie
+			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+			{
+				// Ajustar el desplazamiento cuando el jugador está agachado
+				tracer_offset[2] = 0.0f;  // Alinea la posición del blaster cuando está agachado
+			}
+			VectorAdd(tracer_start, tracer_offset, tracer_start);
+
+			// Disparo del blaster desde la posición ajustada y dirección correcta
+			fire_blaster2(ent, tracer_start, tracer_forward, tracer_damage, 3150, EF_NONE, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.5_sec;
 	}
 }
-
 
 void Weapon_Chaingun(edict_t* ent)
 {
