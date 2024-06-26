@@ -1119,15 +1119,21 @@ void SP_monster_tank(edict_t* self)
 	// [Paril-KEX] N64 tank commander is a chonky boy
 	if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN) || !strcmp(self->classname, "monster_tank_64"))
 	{
-		if (!self->s.scale)
-			self->s.scale = 1.3f;
-		self->health = 1750 + (1.005 * current_wave_number);
-		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-			self->gib_health -99999;
-			self->health *= 2.3;
+		if (g_horde->integer) {
+			if (!self->s.scale)
+				self->s.scale = 1.3f;
+			self->health = 1750 + (1.005 * current_wave_number);
+			if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+				self->gib_health -99999;
+				self->health *= 2.3;
+			}
+		}
+		if (G_IsCooperative()) {
+			self->s.scale = 1.1f;
+			self->health = 1000;
 		}
 
-		self->accel = 1.75f;
+			self->accel = 1.75f;
 		self->gib_health = -250;
 	}
 

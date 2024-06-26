@@ -997,6 +997,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
 				client->pers.max_ammo[AMMO_TESLA] = 12;
 				client->pers.max_ammo[AMMO_PROX] = 125;
+				client->pers.max_ammo[AMMO_TRAP] = 8;
 			}
 			else {
 				client->pers.max_ammo.fill(50);
@@ -1007,6 +1008,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.max_ammo[AMMO_FLECHETTES] = 250;
 				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
 				client->pers.max_ammo[AMMO_TESLA] = 5;
+				client->pers.max_ammo[AMMO_TRAP] = 5;
 			}
 
 			if (G_IsDeathmatch())
