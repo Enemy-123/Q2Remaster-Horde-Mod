@@ -1187,7 +1187,7 @@ void CTFSetIDView(edict_t* ent) {
 				health_stream << "PA: " << best->monsterinfo.power_armor_power << " ";
 			}
 		}
-		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
+		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine")) {
 			name = GetDisplayName(best->classname);
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 			health_stream << name << " H: " << best->health << " ";
