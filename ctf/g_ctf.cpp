@@ -936,7 +936,7 @@ void CTFID_f(edict_t* ent)
 	if (ent->client->resp.id_state)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Disabling player identication display.\n");
-		ent->client->resp.id_state = true;
+		ent->client->resp.id_state = false;
 	}
 	else
 	{
@@ -949,6 +949,16 @@ void CTFID_f(edict_t* ent)
 #include <string>
 #include <sstream>
 
+#include "../shared.h"
+
+void InitializeCTFIDViewConfigStrings() {
+	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+		gi.configstring(i, "");
+	}
+	for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
+		gi.configstring(i, "");
+	}
+}
 
 void UpdateConfigStringIfChanged(int cs_index, const std::string& new_value) {
 	static std::unordered_map<int, std::string> last_configstring_values;
@@ -959,9 +969,6 @@ void UpdateConfigStringIfChanged(int cs_index, const std::string& new_value) {
 		gi.configstring(cs_index, new_value.c_str());
 	}
 }
-
-// Se asume que CS_MAX_STRING_LENGTH y MAX_CONFIGSTRINGS ya están definidos en game.h
-
 int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
@@ -970,9 +977,9 @@ int GetArmorInfo(edict_t* ent) {
 	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
 
-// Sobrecargar GetDisplayName para aceptar un string
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
+		// Add other replacements as needed
 		{ "monster_soldier_light", "Light Soldier" },
 		{ "monster_soldier_ss", "SS Soldier" },
 		{ "monster_soldier", "Soldier" },
@@ -1048,8 +1055,7 @@ std::string GetDisplayName(const std::string& classname) {
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
-#include "../shared.h"
-// Función para formatear el nombre de la clase
+
 std::string FormatClassname(const std::string& classname) {
 	std::stringstream ss(classname);
 	std::string segment, formatted_name;
@@ -1068,9 +1074,8 @@ constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiemp
 bool IsValidClassname(const char* classname) {
 	if (!classname) return false;
 
-	// Permitir solo ciertos prefijos de classname
 	const char* allowed_prefixes[] = {
-		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "prox_mine",  nullptr // Lista terminada en nullptr
+		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "prox_mine",  nullptr
 	};
 
 	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
@@ -1081,32 +1086,10 @@ bool IsValidClassname(const char* classname) {
 	return false;
 }
 
-
-//bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
-//	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT || other->health < 1)
-//		return false;
-//	if (other == ent) // Excluir al propio jugador
-//		return false;
-//	if (vis && ent && !visible(ent, other))
-//		return false;
-//	if (!IsValidClassname(other->classname) && (!(other->client))) // Verificar si el classname es válido
-//		return false;
-//	return true;
-//}
-void InitializeCTFIDViewConfigStrings() {
-	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
-		gi.configstring(i, "");
-	}
-	for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
-		gi.configstring(i, "");
-	}
-}
-
-
 bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
-	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT || other->health < 1)
+	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT)
 		return false;
-	if (other == ent) // Excluir al propio jugador
+	if (other == ent || other->deadflag) // Excluir al propio jugador
 		return false;
 	if (vis && ent && !visible(ent, other))
 		return false;
@@ -1114,7 +1097,6 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 		return false;
 	return true;
 }
-
 
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
