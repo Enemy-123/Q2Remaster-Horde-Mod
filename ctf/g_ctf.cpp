@@ -1089,7 +1089,7 @@ bool IsValidClassname(const char* classname) {
 bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT)
 		return false;
-	if (other == ent || other->deadflag) // Excluir al propio jugador
+	if (other == ent || other->svflags & SVF_DEADMONSTER) // Excluir al propio jugador
 		return false;
 	if (vis && ent && !visible(ent, other))
 		return false;
