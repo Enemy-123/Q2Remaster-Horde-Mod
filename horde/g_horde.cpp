@@ -61,6 +61,7 @@ struct HordeState {
 bool next_wave_message_sent = false;
 int vampire_level = 0;
 std::vector<std::string> shuffled_benefits;
+std::unordered_set<edict_t*> auto_spawned_bosses;
 std::unordered_set<std::string> obtained_benefits;
 std::unordered_map<const char*, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
@@ -933,10 +934,11 @@ void BossDeathHandler(edict_t* boss) {
 }
 
 void boss_die(edict_t* boss) {
-    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true && auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
         BossDeathHandler(boss);
     }
 }
+
 static bool Horde_AllMonstersDead() {
     for (size_t i = 0; i < globals.max_edicts; i++) {
         if (!g_edicts[i].inuse) continue;
@@ -946,7 +948,7 @@ static bool Horde_AllMonstersDead() {
                 return false;
             }
             if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && g_edicts[i].health <= 0) {
-                if (!g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+                if (auto_spawned_bosses.find(&g_edicts[i]) != auto_spawned_bosses.end() && !g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                     boss_die(&g_edicts[i]);
                     g_edicts[i].spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
                 }
@@ -1041,8 +1043,6 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 };
 extern void SP_target_earthquake(edict_t* self);
 extern constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
-
-// Spawning boss code
 void SpawnBossAutomatically() {
     auto mapSize = GetMapSize(level.mapname);
     if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0) {
@@ -1129,15 +1129,6 @@ void SpawnBossAutomatically() {
             float end_size = start_size;
             SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
-            //vec3_t effectPosition = boss->s.origin;
-            //effectPosition[0] += (boss->s.origin[0] - effectPosition[0]) * (boss->s.scale - 3);
-            //effectPosition[1] += (boss->s.origin[1] - effectPosition[1]) * (boss->s.scale - 3);
-            //effectPosition[2] += (boss->s.origin[2] - effectPosition[2]) * (boss->s.scale - 3);
-
-            //gi.WriteByte(svc_temp_entity);
-            //gi.WriteByte(TE_BOSSTPORT);
-            //gi.WritePosition(effectPosition);
-            //gi.multicast(effectPosition, MULTICAST_PHS, false);
             ED_CallSpawn(boss);
 
             AttachHealthBar(boss);
@@ -1151,6 +1142,9 @@ void SpawnBossAutomatically() {
             }
 
             boss_spawned_for_wave = true;  // Marcar que el jefe ha sido spawneado para esta ola
+
+            // Agregar el jefe a la lista de jefes generados automáticamente
+            auto_spawned_bosses.insert(boss);
         }
     }
 }
@@ -1177,13 +1171,18 @@ void ResetSpawnAttempts() {
         cooldown.second = SPAWN_POINT_COOLDOWN.seconds<float>();
     }
 }
-// Resetting game every end of level
+
+void ResetAutoSpawnedBosses() {
+    auto_spawned_bosses.clear();
+}
+
 void ResetGame() {
 
     // Reset spawn attempts and cooldowns
     ResetSpawnAttempts();
     ResetCooldowns();
     ResetBenefits();
+    ResetAutoSpawnedBosses(); 
     current_wave_number = 2;
 
     // Reset global and local horde states
@@ -1204,7 +1203,7 @@ void ResetGame() {
     gi.cvar_set("ai_damage_scale", "1");
     gi.cvar_set("g_damage_scale", "1");
 
-    //bonus reset
+    // Bonus reset
     gi.cvar_set("g_vampire", "0");
     gi.cvar_set("g_startarmor", "0");
     gi.cvar_set("g_ammoregen", "0");
@@ -1220,6 +1219,7 @@ void ResetGame() {
     g_horde_local.num_to_spawn = 0;
     remainingMonsters = 0;
 }
+
 
 // Variables globales para el estado de la condición
 std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
