@@ -12,15 +12,14 @@
 #include <deque>
 #include <map>
 
-// Función para calcular la cantidad de monstruos restantes excluyendo aquellos con la bandera AI_DO_NOT_COUNT
 int CalculateRemainingMonsters() {
     int remaining = 0;
-    for (size_t i = 0; i < globals.max_edicts; i++) {
-        edict_t* entity = &g_edicts[i];
+    edict_t* entity = g_edicts;
+    for (size_t i = 0; i < globals.max_edicts; ++i, ++entity) {
         if (entity->inuse && (entity->svflags & SVF_MONSTER) &&
             !entity->deadflag && entity->health > 0 &&
             !(entity->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-            remaining++;
+            ++remaining;
         }
     }
     return remaining;
@@ -131,22 +130,20 @@ struct picked_benefit_t {
     float weight;
 };
 
-// Función para seleccionar un beneficio aleatorio basado en la ola actual
 std::string SelectRandomBenefit(int wave) {
     std::vector<picked_benefit_t> picked_benefits;
-    float total_weight = 0;
+    float total_weight = 0.0f;
 
     for (const auto& benefit : benefits) {
         if ((wave >= benefit.min_level) &&
             (benefit.max_level == -1 || wave <= benefit.max_level) &&
             obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
-            float weight = benefit.weight;
-            total_weight += weight;
+            total_weight += benefit.weight;
             picked_benefits.push_back({ &benefit, total_weight });
         }
     }
 
-    if (total_weight == 0) return "";
+    if (total_weight == 0.0f) return "";
 
     float random_weight = frandom() * total_weight;
     for (const auto& picked_benefit : picked_benefits) {
@@ -156,6 +153,7 @@ std::string SelectRandomBenefit(int wave) {
     }
     return "";
 }
+
 
 // Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
@@ -285,7 +283,6 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) {
         g_horde_local.num_to_spawn = custom_monster_count;
     }
     else {
-        // Si dm_monsters no está configurado, utiliza la lógica estándar
         CalculateStandardSpawnCount(mapSize, lvl);
         IncludeDifficultyAdjustments(mapSize, lvl);
     }
@@ -1319,17 +1316,14 @@ void AllowNextWaveAdvance() {
     allowWaveAdvance = true;
 }
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
-    // Si allowWaveAdvance es verdadero, resetea el permiso y establece remainingMonsters a 0
     if (allowWaveAdvance) {
-        allowWaveAdvance = false; // Resetea el permiso de avance de ola
+        allowWaveAdvance = false;
         return true;
     }
 
-    // Obtener el número de jugadores humanos en lugar de jugadores activos
     int numHumanPlayers = GetNumHumanPlayers();
     ConditionParams params = GetConditionParams(mapSize, numHumanPlayers);
 
-    // Utiliza la función CalculateRemainingMonsters para excluir los monster_turret
     int remainingMonsters = CalculateRemainingMonsters();
 
     if (remainingMonsters <= params.maxMonsters) {
@@ -1343,14 +1337,13 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
             return true;
         }
     }
-    else if (remainingMonsters > previous_remainingMonsters) {
+    else {
         condition_start_time = std::chrono::steady_clock::time_point::min();
     }
 
     previous_remainingMonsters = remainingMonsters;
     return false;
 }
-
 
 
 // Función para decidir si se usa el spawn más lejano basado en el nivel actual
