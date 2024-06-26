@@ -1696,22 +1696,18 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	vec3_t start, forward, right, up, offset, dir;
+	vec3_t start, forward, right, up, offset;
 	AngleVectors(ent->client->v_angle, forward, right, up);
 
-	// Ajustar los valores de offset
-	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f); // Ajuste vertical similar a la ametralladora
-
+	// Ajustar los valores de offset para fire_bullet
+	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
-	// Ajustar la dirección de disparo para evitar problemas al mirar hacia arriba
-	VectorCopy(forward, dir);
-
-	G_LagCompensate(ent, start, dir);
+	G_LagCompensate(ent, start, forward);
 	for (i = 0; i < shots; i++)
 	{
-		// Mantener el start y dir constantes
-		fire_bullet(ent, start, dir, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
+		// Mantener el start y forward constantes
+		fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
 	}
 	G_UnLagCompensate();
 
@@ -1732,24 +1728,30 @@ void Chaingun_Fire(edict_t* ent)
 	{
 		if (g_tracedbullets->integer)
 		{
-			int tracer_damage = 40;
+			int tracer_damage = 20;
 			vec3_t tracer_start, tracer_forward, tracer_offset;
 			VectorCopy(start, tracer_start);
 			VectorCopy(forward, tracer_forward);
 
 			// Ajustar el desplazamiento para que coincida con el lado del arma
-			VectorSet(tracer_offset, 0.0f, 8.0f, -24.0f);  // Ajuste base para posición de pie
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				// Ajustar el desplazamiento cuando el jugador está agachado
-				tracer_offset[2] = 0.0f;  // Alinea la posición del blaster cuando está agachado
+				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posición del blaster cuando está agachado
+			}
+			else
+			{
+				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posición del blaster cuando está de pie
 			}
 			VectorAdd(tracer_start, tracer_offset, tracer_start);
 
+			// Ajuste de dirección para fire_blaster2
+			vec3_t dir;
+			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
+
 			// Disparo del blaster desde la posición ajustada y dirección correcta
-			fire_blaster2(ent, tracer_start, tracer_forward, tracer_damage, 3150, EF_NONE, EF_NONE);
+			fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, EF_NONE);
 		}
-		ent->lasthbshot = level.time + 0.5_sec;
+		ent->lasthbshot = level.time + 0.25_sec;
 	}
 }
 
