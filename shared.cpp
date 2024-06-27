@@ -1,6 +1,34 @@
 #include "shared.h"
 #include <unordered_map>
 
+void RemovePlayerOwnedEntities(edict_t* player)
+{
+    edict_t* ent;  // Declarar la variable ent antes del bucle
+
+    for (int i = 0; i < globals.num_edicts; i++)
+    {
+        ent = &g_edicts[i];
+
+        if (!ent->inuse)
+            continue;
+
+        if (ent->owner == player)
+        {
+            if (!strcmp(ent->classname, "tesla_mine") ||
+                !strcmp(ent->classname, "food_cube_trap") ||
+             //   !strcmp(ent->classname, "prox_mine") ||
+                !strcmp(ent->classname, "monster_sentrygun") ||
+                !strcmp(ent->classname, "turret2_lasersight"))
+            {
+                // Use freeEdict to remove the entity
+             //   G_FreeEdict(ent);
+                // Or use the function to create an explosion if appropriate
+                BecomeExplosion1(ent);
+            }
+        }
+    }
+}
+
 
 // Función para obtener el multiplicador de daño para monstruos
 float M_DamageModifier(edict_t* monster) {

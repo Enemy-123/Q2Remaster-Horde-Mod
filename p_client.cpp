@@ -807,6 +807,9 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->deadflag = true;
 
 	gi.linkentity(self);
+	extern void RemovePlayerOwnedEntities(edict_t* player);
+	// Remove all entities owned by the player
+	RemovePlayerOwnedEntities(self);
 }
 
 //=======================================================================
@@ -3146,6 +3149,10 @@ void ClientDisconnect(edict_t* ent)
 {
 	if (!ent->client)
 		return;
+
+	extern void RemovePlayerOwnedEntities(edict_t * player);
+	// Remove all entities owned by the player
+	RemovePlayerOwnedEntities(ent);
 
 	// ZOID
 	CTFDeadDropFlag(ent);

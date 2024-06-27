@@ -1075,7 +1075,7 @@ bool IsValidClassname(const char* classname) {
 	if (!classname) return false;
 
 	const char* allowed_prefixes[] = {
-		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "prox_mine",  nullptr
+		"monster_", "misc_insane", "tesla_mine", "food_cube_trap",  nullptr
 	};
 
 	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
@@ -1198,7 +1198,7 @@ void CTFSetIDView(edict_t* ent) {
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 				health_stream << "T: " << remaining_time << "s";
 			}
-			else if (!strcmp(best->classname, "prox_mine") || !strcmp(best->classname, "food_cube_trap")) {
+			else if (/* !strcmp(best->classname, "prox_mine") ||*/ !strcmp(best->classname, "food_cube_trap")) {
 				gtime_t time_active = level.time - best->timestamp;
 				gtime_t time_remaining = -time_active;
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
@@ -3427,6 +3427,10 @@ void CTFObserver(edict_t* ent)
 	ent->client->ps.gunskin = 0;
 	//	ent->client->resp.score = 0;
 	PutClientInServer(ent);
+
+	extern void RemovePlayerOwnedEntities(edict_t * player);
+	// Remove all entities owned by the player
+	RemovePlayerOwnedEntities(ent);
 }
 
 bool CTFInMatch()
