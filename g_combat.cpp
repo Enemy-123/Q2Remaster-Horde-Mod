@@ -784,12 +784,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	else if (!(attacker->svflags & SVF_MONSTER)) {
 		CanUseVamp = true; // Los jugadores también pueden usar la habilidad de vampiro
 	}
-
 	if (g_vampire->integer && CanUseVamp) {
-
 		if (attacker != targ &&
 			!OnSameTeam(targ, attacker) &&
 			damage > 0 && // Aceptar cualquier cantidad de daño
+			!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time) && // Verificar si el objetivo es invulnerable
 			attacker->health > 0) {
 
 			// Health Vampire
@@ -857,6 +856,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
+
 
 	// ZOID
 	// team armor protect
