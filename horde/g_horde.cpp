@@ -28,7 +28,7 @@ int CalculateRemainingMonsters() {
 int GetNumActivePlayers();
 int GetNumSpectPlayers();
 constexpr int MAX_MONSTERS_BIG_MAP = 28;
-constexpr int MAX_MONSTERS_MEDIUM_MAP = 14;
+constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 14;
 bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
@@ -386,15 +386,15 @@ constexpr struct weighted_item_t {
     { "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },
     { "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
     { "ammo_prox", 12, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_tesla", 2, -1, 0.13f, adjust_weight_ammo },
+    { "ammo_tesla", 2, -1, 0.1f, adjust_weight_ammo },
     { "ammo_cells", 9, -1, 0.30f, adjust_weight_ammo },
     { "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },
     { "ammo_slugs", 9, -1, 0.25f, adjust_weight_ammo },
     { "ammo_disruptor", 14, -1, 0.24f, adjust_weight_ammo },
     { "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
 
-    { "item_bandolier", 4, -1, 0.3f, adjust_weight_ammo },
-    { "item_pack", 15, -1, 0.34f, adjust_weight_ammo },
+    { "item_bandolier", 4, -1, 0.28f, adjust_weight_ammo },
+    { "item_pack", 15, -1, 0.32f, adjust_weight_ammo },
 };
 
 // Definición de monstruos ponderados
