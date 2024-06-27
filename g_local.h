@@ -1079,7 +1079,8 @@ enum mod_id_t : uint8_t
 	MOD_GRAPPLE,
 	MOD_BLUEBLASTER,
 	// Kyper - Lithium port
-	MOD_HOOK
+	MOD_HOOK,
+	MOD_TURRET
 	// Kyper
 };
 

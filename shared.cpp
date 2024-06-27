@@ -1,29 +1,56 @@
 #include "shared.h"
 #include <unordered_map>
-
 void RemovePlayerOwnedEntities(edict_t* player)
 {
-    edict_t* ent;  // Declarar la variable ent antes del bucle
+    edict_t* ent;
+    extern void turret_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
+    extern void prox_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
+    extern void tesla_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
+    extern void trap_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
 
-    for (int i = 0; i < globals.num_edicts; i++)
+    for (unsigned int i = 0; i < globals.num_edicts; i++)
     {
         ent = &g_edicts[i];
 
         if (!ent->inuse)
             continue;
 
-        if (ent->owner == player)
+        // Check if the owner is the player or the turret owned by the player
+        if (ent->owner == player || (ent->owner && ent->owner->owner == player))
         {
             if (!strcmp(ent->classname, "tesla_mine") ||
                 !strcmp(ent->classname, "food_cube_trap") ||
-             //   !strcmp(ent->classname, "prox_mine") ||
-                !strcmp(ent->classname, "monster_sentrygun") ||
-                !strcmp(ent->classname, "turret2_lasersight"))
+                !strcmp(ent->classname, "prox_mine") ||
+                !strcmp(ent->classname, "monster_sentrygun"))
             {
-                // Use freeEdict to remove the entity
-             //   G_FreeEdict(ent);
-                // Or use the function to create an explosion if appropriate
-                BecomeExplosion1(ent);
+                // Call appropriate die function
+                if (!strcmp(ent->classname, "monster_sentrygun"))
+                {
+                    if (ent->health > 0)
+                    {
+                        ent->health = -1;
+                        turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+                    }
+                }
+                else if (!strcmp(ent->classname, "tesla_mine"))
+                {
+                    tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+                }
+                else if (!strcmp(ent->classname, "prox_mine"))
+                {
+                    prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+                }
+                else if (!strcmp(ent->classname, "food_cube_trap"))
+                {
+                    trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+                }
+                else
+                {
+                    // Use freeEdict to remove the entity
+                    // G_FreeEdict(ent);
+                    // Or use the function to create an explosion if appropriate
+                    BecomeExplosion1(ent);
+                }
             }
         }
     }

@@ -474,7 +474,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 
 		float max_speed = 150.f;
 
-		best->velocity += (vec * clamp(max_speed - len, 64.f, max_speed));
+		best->velocity += (vec * clamp(max_speed - len, 92.f, max_speed));
 
 		ent->s.sound = gi.soundindex("weapons/trapsuck.wav");
 

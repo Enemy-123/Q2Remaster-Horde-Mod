@@ -70,8 +70,8 @@
 	{
 		vec3_t end, dir;
 		vec3_t ang;
-		float  move, idealPitch, idealYaw, current, speed;
-		int	   orientation;
+		float move, idealPitch, idealYaw, current, speed;
+		int orientation;
 
 		// Verifica el estado del enemigo
 		bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
@@ -87,8 +87,6 @@
 		enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
 		if (!enemy_valid)
 			return;
-
-
 
 		// if turret2 is still in inactive mode, ready the gun, but don't aim
 		if (self->s.frame < FRAME_active01)
@@ -299,11 +297,11 @@
 			self->target_ent->s.modelindex = MODELINDEX_WORLD;
 			self->target_ent->s.renderfx = RF_BEAM;
 			self->target_ent->s.frame = 1;
-			//	self->target_ent->s.skinnum = 0xf0f0f0f0;
 			self->target_ent->s.skinnum = 0xd0d1d2d3;
 			self->target_ent->classname = "turret2_lasersight";
 			self->target_ent->s.effects = EF_BOB;
 			self->target_ent->s.origin = self->s.origin;
+			self->target_ent->owner = self;  // Establecer el propietario del lasersight
 		}
 
 		vec3_t forward;
@@ -433,14 +431,14 @@
 
 		turret2Aim(self);
 
-		if (!self->enemy || !self->enemy->inuse || OnSameTeam(self, self->enemy) || self->enemy->deadflag) {
+		if (!self->enemy || !self->enemy->inuse || OnSameTeam(self, self->enemy) || self->enemy->deadflag)
+		{
 			if (!FindMTarget(self))
 				return;
 		}
 
 		// Reducir retrasos o hacer que el comportamiento de disparo sea más agresivo
 		self->monsterinfo.attack_finished = level.time;  // Reducir o eliminar el tiempo de espera
-
 
 		if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
 			end = self->monsterinfo.blind_fire_target;
@@ -503,12 +501,16 @@
 						self->monsterinfo.last_rocket_fire_time = currentTime;
 
 						if (dist * trace.fraction > 72)
-							monster_fire_rocket(self, start, dir, 100, 1220, MZ2_TURRET_ROCKET);
+							fire_rocket(self, start, dir, 100, 1220, MZ2_TURRET_ROCKET, MOD_TURRET); // Pasa el mod_t a monster_fire_rocket
 					}
 				}
 
 				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+				{
+					// Aplica el daño con el mod_t configurado
+					T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_NO_ARMOR, MOD_TURRET);
 					monster_fire_blaster(self, start, dir, TURRET2_BLASTER_DAMAGE, rocketSpeed, MZ2_TURRET_BLASTER, EF_BLASTER);
+				}
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 				{
 					if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
@@ -523,6 +525,8 @@
 						if (self->monsterinfo.next_duck_time < level.time &&
 							self->monsterinfo.melee_debounce_time <= level.time)
 						{
+							// Aplica el daño con el mod_t configurado
+							T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 0, DAMAGE_NO_ARMOR, MOD_TURRET);
 							monster_fire_bullet(self, start, dir, TURRET2_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
 							self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 						}
@@ -531,15 +535,20 @@
 							self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 					}
 				}
-
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
 				{
 					if (dist * trace.fraction > 72)
-						monster_fire_rocket(self, start, dir, 70, rocketSpeed, MZ2_TURRET_ROCKET);
+					{
+						// Aplica el daño con el mod_t configurado
+						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, 70, 0, DAMAGE_NO_ARMOR, MOD_TURRET);
+						fire_rocket(self, start, dir, 70, rocketSpeed, MZ2_TURRET_ROCKET, MOD_TURRET); // Pasa el mod_t a monster_fire_rocket
+					}
 				}
 			}
 		}
 	}
+
+
 
 	// PMM
 	void turret2FireBlind(edict_t* self)
@@ -644,7 +653,7 @@
 
 	DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 	{
-		vec3_t	 forward;
+		vec3_t forward;
 		edict_t* base;
 
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
@@ -655,7 +664,7 @@
 			});
 
 		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_PLAIN_EXPLOSION);
+		gi.WriteByte(TE_BFG_BIGEXPLOSION);
 		gi.WritePosition(self->s.origin);
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 
@@ -691,7 +700,15 @@
 
 		edict_t* gib = ThrowGib(self, "models/monsters/turret/tris.md2", damage, GIB_SKINNED | GIB_METALLIC | GIB_HEAD | GIB_DEBRIS, self->s.scale);
 		gib->s.frame = 14;
+
+		// Si la torreta murió porque su propietario desapareció
+		if (!self->owner || !self->owner->inuse)
+		{
+			self->think = G_FreeEdict;
+			self->nextthink = level.time + 0_sec;
+		}
 	}
+
 
 	THINK(turret2_timeout) (edict_t* self) -> void
 	{

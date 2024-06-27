@@ -28,7 +28,7 @@ int CalculateRemainingMonsters() {
 int GetNumActivePlayers();
 int GetNumSpectPlayers();
 constexpr int MAX_MONSTERS_BIG_MAP = 28;
-constexpr int MAX_MONSTERS_MEDIUM_MAP = 17;
+constexpr int MAX_MONSTERS_MEDIUM_MAP = 14;
 constexpr int MAX_MONSTERS_SMALL_MAP = 14;
 bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
@@ -359,8 +359,8 @@ constexpr struct weighted_item_t {
     { "item_sphere_defender", 2, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.07f, adjust_weight_powerup },
-    { "item_doppleganger", 3, 14, 0.028f, adjust_weight_powerup },
-    { "item_doppleganger", 15, -1, 0.062f, adjust_weight_powerup },
+    { "item_doppleganger", -1, 8, 0.028f, adjust_weight_powerup },
+    { "item_doppleganger", 9, -1, 0.062f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -808,6 +808,7 @@ void Horde_PreInit() {
         gi.cvar_set("capturelimit", "0");
         gi.cvar_set("g_dm_spawns", "0");
         gi.cvar_set("g_damage_scale", "1");
+        gi.cvar_set("ai_allow_dm_spawn", "1");
         gi.cvar_set("ai_damage_scale", "1");
         gi.cvar_set("g_loadent", "1");
         gi.cvar_set("bot_chat_enable", "0");
@@ -1198,6 +1199,7 @@ void ResetGame() {
     gi.cvar_set("bot_pause", "0");
     gi.cvar_set("set cheats 0 s", "");
     gi.cvar_set("ai_damage_scale", "1");
+    gi.cvar_set("ai_allow_dm_spawn", "1");
     gi.cvar_set("g_damage_scale", "1");
 
     // Bonus reset

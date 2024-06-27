@@ -161,8 +161,8 @@ THINK(Prox_Explode) (edict_t* ent) -> void {
 //===============
 DIE(prox_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	// if set off by another prox, delay a little (chained explosions)
-	if (strcmp(inflictor->classname, "prox_mine"))
+	// Check if inflictor is not nullptr and if set off by another prox, delay a little (chained explosions)
+	if (inflictor && strcmp(inflictor->classname, "prox_mine") == 0)
 	{
 		self->takedamage = false;
 		Prox_Explode(self);
