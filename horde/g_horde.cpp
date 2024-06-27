@@ -466,7 +466,7 @@ struct boss_t {
 constexpr boss_t BOSS_SMALL[] = {
     {"monster_carrier2", 24, -1, 0.05f},
     {"monster_boss2kl", 24, -1, 0.05f},
-    {"monster_widow2", -1, -1, 1.00f},
+    {"monster_widow2", -1, -1, 0.05f},
     {"monster_tank_64", -1, -1, 0.05f},
     {"monster_shamblerkl", -1, -1, 0.05f},
     {"monster_guncmdrkl", -1, 19, 0.05f},
@@ -476,7 +476,7 @@ constexpr boss_t BOSS_SMALL[] = {
 
 constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_carrier", 24, -1, 0.1f},
-    {"monster_boss2", 24, -1, 0.1f},
+    {"monster_boss2",19, -1, 0.1f},
     {"monster_tank_64", -1, 24, 0.1f},
     {"monster_guardian", -1, 24, 0.1f},
     {"monster_shamblerkl", -1, 24, 0.1f},
@@ -486,7 +486,7 @@ constexpr boss_t BOSS_MEDIUM[] = {
 
 constexpr boss_t BOSS_LARGE[] = {
     {"monster_carrier", 24, -1, 0.15f},
-    {"monster_boss2", 24, -1, 0.15f},
+    {"monster_boss2", 19, -1, 0.15f},
     {"monster_boss5", -1, -1, 0.15f},
     {"monster_tank_64", -1, 24, 0.15f},
     {"monster_guardian", -1, 24, 0.15f},

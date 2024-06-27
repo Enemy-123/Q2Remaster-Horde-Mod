@@ -1157,8 +1157,8 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->solid = SOLID_BBOX;
 	tesla->s.effects |= EF_GRENADE;
 	tesla->s.renderfx |= RF_IR_VISIBLE;
-	tesla->mins = { -12, -12, 0 };
-	tesla->maxs = { 12, 12, 20 };
+	tesla->mins = { -4, -4, 0 };
+	tesla->maxs = { 4, 4, 8 };
 	tesla->s.modelindex = gi.modelindex("models/weapons/g_tesla/tris.md2");
 
 	tesla->owner = self;
