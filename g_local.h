@@ -2997,6 +2997,9 @@ struct gclient_t
 	gtime_t tracker_pain_time;
 
 	edict_t* owned_sphere; // this points to the player's sphere
+
+	int num_teslas; // max teslas per client
+	int num_sentry; //Sentry Guns per client
 	// ROGUE
 //=======
 
@@ -3326,7 +3329,7 @@ struct edict_t
 	edict_t* laser;
 	gtime_t hook_time;
 	// Kyper
-	gtime_t lasthbshot;
+	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 };
 #define TEAM1 "team1"
 #define TEAM2 "team2"

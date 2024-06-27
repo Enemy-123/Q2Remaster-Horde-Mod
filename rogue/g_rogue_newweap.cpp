@@ -841,7 +841,6 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
 	gi.linkentity(nuke);
 }
-
 // *************************
 // TESLA
 // *************************
@@ -855,6 +854,8 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
+
+constexpr int MAX_TESLAS = 10; // Define el máximo de teslas permitidas por jugador
 
 void tesla_remove(edict_t* self)
 {
@@ -873,6 +874,11 @@ void tesla_remove(edict_t* self)
 	}
 	else if (self->air_finished)
 		gi.Com_Print("tesla_mine without a field!\n");
+
+	if (self->owner && self->owner->client)
+	{
+		self->owner->client->num_teslas--; // Decrementar el contador de teslas del jugador
+	}
 
 	self->owner = self->teammaster; // Going away, set the owner correctly.
 	// PGM - grenade explode does damage to self->enemy
@@ -897,14 +903,14 @@ void tesla_blow(edict_t* self)
 	tesla_remove(self);
 }
 
-	TOUCH(tesla_zap) (edict_t * self, edict_t * other, const trace_t & tr, bool other_touching_self) -> void
-	{
-		// Ignorar el contacto si el otro es un jugador
-		if (other->client) {
-			return;
-		}
+TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	// Ignorar el contacto si el otro es un jugador
+	if (other->client) {
+		return;
+	}
 
-		// Código existente para manejar el contacto aquí
+	// Código existente para manejar el contacto aquí
 }
 
 static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
@@ -1134,8 +1140,43 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	}
 }
 
+// Función para contar y manejar el número de teslas de un jugador
+void check_player_tesla_limit(edict_t* self)
+{
+	if (!self->client)
+		return;
+
+	if (self->client->num_teslas >= MAX_TESLAS)
+	{
+		edict_t* oldest_tesla = nullptr;
+		gtime_t oldest_timestamp = level.time;
+
+		for (int i = 0; i < globals.num_edicts; i++)
+		{
+			edict_t* e = &g_edicts[i];
+			if (e->inuse && e->classname && strcmp(e->classname, "tesla_mine") == 0 && e->owner == self)
+			{
+				if (e->timestamp < oldest_timestamp)
+				{
+					oldest_timestamp = e->timestamp;
+					oldest_tesla = e;
+				}
+			}
+		}
+
+		if (oldest_tesla)
+		{
+			G_FreeEdict(oldest_tesla);
+			self->client->num_teslas--; // Decrementar el contador al eliminar la más antigua
+		}
+	}
+}
+
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
+	// Verificar y manejar el límite de teslas por jugador
+	check_player_tesla_limit(self);
+
 	edict_t* tesla;
 	vec3_t   dir;
 	vec3_t   forward, right, up;
@@ -1199,6 +1240,11 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->flags |= FL_MECHANICAL;
 
 	gi.linkentity(tesla);
+
+	if (self->client)
+	{
+		self->client->num_teslas++; // Incrementar el contador de teslas del jugador
+	}
 }
 
 // *************************

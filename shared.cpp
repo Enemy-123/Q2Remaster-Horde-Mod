@@ -18,6 +18,10 @@ void RemovePlayerOwnedEntities(edict_t* player)
         // Check if the owner is the player or the turret owned by the player
         if (ent->owner == player || (ent->owner && ent->owner->owner == player))
         {
+
+       //     if (ent->owner->s.effects & EF_QUAD || ent->owner && ent->owner->owner->s.effects & EF_QUAD)
+
+ 
             if (!strcmp(ent->classname, "tesla_mine") ||
                 !strcmp(ent->classname, "food_cube_trap") ||
                 !strcmp(ent->classname, "prox_mine") ||
