@@ -1097,7 +1097,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	bfg_spawn_laser(self);
 
 	ent = nullptr;
-	while ((ent = findradius(ent, self->s.origin, 256)) != nullptr)
+	while ((ent = findradius(ent, self->s.origin, 1536)) != nullptr)
 	{
 		if (ent == self)
 			continue;
