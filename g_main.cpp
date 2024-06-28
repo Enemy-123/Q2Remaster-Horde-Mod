@@ -1114,8 +1114,8 @@ void InitializeStatusbar()
 
 void G_RunFrame(bool main_loop)
 {
-	if (main_loop && !G_AnyPlayerSpawned())
-		return;
+	//if (main_loop && !G_AnyPlayerSpawned())
+	//	return;
 
 	static bool statusbar_initialized = false;
 	if (!statusbar_initialized) {
