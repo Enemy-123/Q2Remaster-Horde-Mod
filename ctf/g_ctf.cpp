@@ -1101,7 +1101,6 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
 }
-
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -1135,8 +1134,9 @@ void CTFSetIDView(edict_t* ent) {
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
+	vec3_t start = ent->s.origin - forward * 64; // Ajuste para comenzar el trace 16 unidades detrás del jugador
 	vec3_t end = ent->s.origin + forward * 1024;
-	tr = gi.traceline(ent->s.origin, end, ent, MASK_SOLID);
+	tr = gi.traceline(start, end, ent, MASK_SOLID);
 
 	if (tr.fraction < 1 && IsValidTarget(ent, tr.ent, true)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
@@ -1279,6 +1279,7 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->idtarget = nullptr;
 	}
 }
+
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;
