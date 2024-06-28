@@ -52,10 +52,8 @@ enum coop_respawn_t
 	COOP_RESPAWN_TOTAL
 };
 
-#pragma once
-
-constexpr int MAX_MONSTER_CONFIGSTRINGS = 32;
-constexpr int MAX_PLAYER_CONFIGSTRINGS = 32;
+constexpr int MAX_PLAYER_CONFIGSTRINGS = 16;
+constexpr int MAX_MONSTER_CONFIGSTRINGS = 84; // 35 monstruos + 50 trampas = 85 en total
 constexpr int MAX_CTF_ID_VIEW_CONFIGSTRINGS = 100;
 
 enum {

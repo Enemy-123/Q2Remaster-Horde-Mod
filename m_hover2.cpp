@@ -393,7 +393,7 @@ void hover2_fire_blaster(edict_t* self)
 		vec3_t dir{};
 		vec3_t aim{};
 		float spread = 0.0f;
-		float pitch = 0.0f;
+		float pitch = -3.0f;
 		monster_muzzleflash_id_t flash_number;
 
 		if (!self->enemy || !self->enemy->inuse)

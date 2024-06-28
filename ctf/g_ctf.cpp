@@ -1098,6 +1098,8 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 	return true;
 }
 
+extern void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
+
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
 }
@@ -1134,9 +1136,11 @@ void CTFSetIDView(edict_t* ent) {
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
-	vec3_t start = ent->s.origin - forward * 64; // Ajuste para comenzar el trace 16 unidades detrás del jugador
-	vec3_t end = ent->s.origin + forward * 1024;
-	tr = gi.traceline(start, end, ent, MASK_SOLID);
+	vec3_t mins, maxs;
+	VectorAdd(ent->s.origin, ent->mins, mins);  // Calcular la posición mínima
+	VectorAdd(ent->s.origin, ent->maxs, maxs);  // Calcular la posición máxima
+
+	tr = gi.traceline(mins, maxs, ent, MASK_SOLID);
 
 	if (tr.fraction < 1 && IsValidTarget(ent, tr.ent, true)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
