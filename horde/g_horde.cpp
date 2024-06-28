@@ -27,7 +27,7 @@ int CalculateRemainingMonsters() {
 
 int GetNumActivePlayers();
 int GetNumSpectPlayers();
-constexpr int MAX_MONSTERS_BIG_MAP = 28;
+constexpr int MAX_MONSTERS_BIG_MAP = 27;
 constexpr int MAX_MONSTERS_MEDIUM_MAP = 18;
 constexpr int MAX_MONSTERS_SMALL_MAP = 14;
 bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
@@ -37,8 +37,8 @@ int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause
 int current_wave_number = 1;
 int last_wave_number = 0;
 
-gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.5
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.0); // Cooldown en segundos para los puntos de spawn 3.5
+gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.3); // Cooldown en segundos para los monstruos 2.3
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.0); // Cooldown en segundos para los puntos de spawn 3.0
 
 cvar_t* g_horde;
 
@@ -219,12 +219,12 @@ void AdjustMonsterSpawnRate() {
         }
 
         // Reducir los cooldowns de monstruos y puntos de spawn
-        MONSTER_COOLDOWN -= 0.2_sec;
-        SPAWN_POINT_COOLDOWN -= 0.1_sec;
+        MONSTER_COOLDOWN -= 0.3_sec;
+        SPAWN_POINT_COOLDOWN -= 0.3_sec;
 
         // Asegurarse de que los cooldowns no sean menores a un límite mínimo
         if (MONSTER_COOLDOWN < 1.2_sec) MONSTER_COOLDOWN = 1.2_sec;
-        if (SPAWN_POINT_COOLDOWN < 1.8_sec) SPAWN_POINT_COOLDOWN = 1.8_sec;
+        if (SPAWN_POINT_COOLDOWN < 2.3_sec) SPAWN_POINT_COOLDOWN = 2.3_sec;
     }
 }
 
@@ -360,7 +360,8 @@ constexpr struct weighted_item_t {
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.07f, adjust_weight_powerup },
     { "item_doppleganger", -1, 8, 0.028f, adjust_weight_powerup },
-    { "item_doppleganger", 9, -1, 0.062f, adjust_weight_powerup },
+    { "item_doppleganger", 9, 19, 0.062f, adjust_weight_powerup },
+    { "item_doppleganger", 20, -1, 0.1f, adjust_weight_powerup },
 
     { "weapon_chainfist", -1, 3, 0.12f, adjust_weight_weapon },
     { "weapon_shotgun", -1, -1, 0.27f, adjust_weight_weapon },
@@ -1262,7 +1263,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
     // Caso 1: Mapas grandes (BigMap)
     // Para mapas grandes, siempre tratar como si hubiera más de 4 jugadores humanos
     if (mapSize.isBigMap) {
-        params.maxMonsters = 24;
+        params.maxMonsters = 20;
         params.timeThreshold = 16;
         return params;
     }
@@ -1283,7 +1284,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
     else {
         if (mapSize.isSmallMap) {
             if (current_wave_number <= 4) {
-                params.maxMonsters = 4;
+                params.maxMonsters = 5;
                 params.timeThreshold = 6;
             }
             else {
@@ -1294,7 +1295,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
         else {
             // Asumimos que cualquier otro mapa en este punto es de tamaño medio (MediumMap)
             if (current_wave_number <= 4) {
-                params.maxMonsters = 3;
+                params.maxMonsters = 4;
                 params.timeThreshold = 8;
             }
             else {
@@ -1504,7 +1505,7 @@ void SpawnMonsters() {
         g_horde_local.monster_spawn_time = level.time + 2.0_sec;
     }
     else {
-        g_horde_local.monster_spawn_time = level.time + 1.5_sec;
+        g_horde_local.monster_spawn_time = level.time + 1.3_sec;
     }
 }
 void Horde_RunFrame() {
