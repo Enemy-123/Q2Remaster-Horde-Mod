@@ -530,7 +530,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	}
 }
 
-constexpr int MAX_TRAPS = 9;
+constexpr int MAX_TRAPS = 14;
 gtime_t G_MAX_TIME = level.time + 999999999_sec; // Ajusta este valor según sea necesario
 
 void RemoveOldestTrap(edict_t* owner) {
