@@ -522,7 +522,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			else
 			{
 				// Antes de explotar, hacer daño
-				T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100,DAMAGE_ENERGY, MOD_TRAP);
+				T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
 				BecomeExplosion1(ent);
 				return;
 			}
@@ -530,37 +530,11 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	}
 }
 
-constexpr int MAX_TRAPS = 14;
-gtime_t G_MAX_TIME = level.time + 999999999_sec; // Ajusta este valor según sea necesario
-
-void RemoveOldestTrap(edict_t* owner) {
-	edict_t* oldest_trap = nullptr;
-	gtime_t oldest_time = G_MAX_TIME; // Valor máximo posible para gtime_t
-
-	for (unsigned int i = 0; i < globals.num_edicts; i++) {
-		edict_t* e = &g_edicts[i];
-		if (e->inuse && e->owner == owner && strcmp(e->classname, "food_cube_trap") == 0) {
-			if (e->timestamp < oldest_time) {
-				oldest_trap = e;
-				oldest_time = e->timestamp;
-			}
-		}
-	}
-
-	if (oldest_trap) {
-		G_FreeEdict(oldest_trap);
-	}
-}
-
-void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed) {
-	if (self->client->num_traps >= MAX_TRAPS) {
-		RemoveOldestTrap(self);
-		self->client->num_traps--;
-	}
-
+void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
+{
 	edict_t* trap;
-	vec3_t dir;
-	vec3_t forward, right, up;
+	vec3_t   dir;
+	vec3_t   forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -586,6 +560,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	trap->s.modelindex = gi.modelindex("models/weapons/z_trap/tris.md2");
 	trap->owner = trap->teammaster = self;
 
+	// Asigna el equipo como una cadena de caracteres
 	const char* trap_team;
 	if (self->client->resp.ctf_team == CTF_TEAM1) {
 		trap_team = TEAM1;
@@ -594,7 +569,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 		trap_team = TEAM2;
 	}
 	else {
-		trap_team = "neutral";
+		trap_team = "neutral"; // O cualquier valor por defecto que quieras
 	}
 	trap->team = trap_team;
 	trap->teammaster->team = trap_team;
@@ -603,20 +578,20 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	trap->think = Trap_Think;
 	trap->classname = "food_cube_trap";
 
+	// RAFAEL 16-APR-98
 	trap->s.sound = gi.soundindex("weapons/traploop.wav");
+	// END 16-APR-98
 
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
 
-	if (self->client && strcmp(trap->team, trap_team) == 0) {
+	// Verifica si la trampa y el jugador son del mismo equipo y ajusta la máscara de colisión
+	if (self->client && strcmp(trap->team, trap_team) == 0)
+	{
 		trap->clipmask &= ~CONTENTS_PLAYER;
 	}
 
 	gi.linkentity(trap);
 
 	trap->timestamp = level.time + 30_sec;
-
-	if (self->client) {
-		self->client->num_traps++;
-	}
 }
