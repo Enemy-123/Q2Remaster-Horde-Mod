@@ -805,14 +805,14 @@ MONSTERINFO_SIDESTEP(chick_sidestep) (edict_t* self) -> bool
 void SP_monster_chick(edict_t* self)
 {
 
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-			else
-				NULL;
-		}
+	if (g_horde->integer)
+	{
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
+		if (randomsearch < 0.24f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+		else
+			NULL;
 	}
 
 	if (!M_AllowSpawn(self)) {

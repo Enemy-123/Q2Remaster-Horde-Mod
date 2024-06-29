@@ -796,13 +796,16 @@ MONSTERINFO_DUCK(berserk_duck) (edict_t* self, gtime_t eta) -> bool
  */
 void SP_monster_berserk(edict_t* self)
 {
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);
-			else
-				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-		}
+	if (g_horde->integer)
+	{
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+		if (randomsearch < 0.12f)
+			gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);
+		else if (randomsearch < 0.24f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+		else
+			NULL;
 	}
 
 	if (!M_AllowSpawn(self)) {

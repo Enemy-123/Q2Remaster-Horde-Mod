@@ -646,9 +646,9 @@ void SP_monster_hover2(edict_t* self)
 		{
 			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
-			if (randomsearch < 0.23f)
+			if (randomsearch < 0.12f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-			else if (randomsearch < 0.56f)
+			else if (randomsearch < 0.24f)
 				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
 			else
 				NULL;
@@ -659,9 +659,9 @@ void SP_monster_hover2(edict_t* self)
 			{
 				float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
-				if (randomsearch < 0.23f)
+				if (randomsearch < 0.12f)
 					gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);
-				else if (randomsearch < 0.56f)
+				else if (randomsearch < 0.24f)
 					gi.sound(self, CHAN_VOICE, daed_sound_search2, 1, ATTN_NORM, 0);
 				else
 					NULL;

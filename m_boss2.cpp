@@ -628,23 +628,24 @@ MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
  */
 void SP_monster_boss2(edict_t* self)
 {
-	if (g_horde->integer && strcmp(self->classname, "monster_boss2_64")) {
+	if (g_horde->integer && strcmp(self->classname, "monster_boss2")) {
 		{
 
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
+			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
 	}
-		if (g_horde->integer && !strcmp(self->classname, "monster_boss2_64")) {
-		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
-			if (randomsearch < 0.5f)
+	if (g_horde->integer && !strcmp(self->classname, "monster_boss2_64") ||
+		g_horde->integer && strcmp(self->classname, "monster_boss2_64"))
+	{
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-			else 
-				NULL;
-		}
+		if (randomsearch < 0.12f)
+			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
+		else
+			NULL;
 	}
+
 
 
 	if (!M_AllowSpawn(self)) {
