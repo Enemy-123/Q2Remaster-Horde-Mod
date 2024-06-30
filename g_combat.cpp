@@ -795,12 +795,14 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			if (attacker->health <= attacker->max_health) {
 				int health_stolen = damage / 4; // Robar 25% del daño como vida
 
-				bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
-				bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
-				bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-				bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
-				bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
-				bool using_rocketl = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+				const bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+				const bool using_machinegun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
+				const bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+				const bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
+				const bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+				const bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
+				const bool using_rocketl = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+				const bool using_plasmag = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_PHALANX;
 
 				if (using_shotgun) {
 					health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT);
@@ -817,7 +819,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 				else if (using_ripper) {
 					health_stolen = max(1, health_stolen / 3);
 				}
+				else if (using_plasmag) {
+					health_stolen = max(1, health_stolen / 2);
+				}
 				else if (using_rail) {
+					health_stolen = max(1, health_stolen / 2);
+				}
+				else if (using_machinegun && g_tracedbullets->integer) {
 					health_stolen = max(1, health_stolen / 2);
 				}
 				else {
