@@ -596,6 +596,10 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (!targ->takedamage)
 		return;
 
+	if (attacker->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(attacker);
+	}
+
 	if (g_instagib->integer && !g_horde->integer && attacker->client && targ->client) {
 
 		// [Kex] always kill no matter what on instagib
