@@ -1117,23 +1117,6 @@ void G_RunFrame(bool main_loop)
 	//if (main_loop && !G_AnyPlayerSpawned())
 	//	return;
 
-	static bool statusbar_initialized = false;
-	if (!statusbar_initialized) {
-		InitializeStatusbar();
-		statusbar_initialized = true;
-	}
-
-	for (int i = 1; i <= maxclients->value; i++) {
-		edict_t* ent = &g_edicts[i];
-		if (ent->inuse && ent->client) {
-			statusbar_t sb = initial_statusbar; // Copia el HUD inicial
-			// Solo actualizar la configstring si ha cambiado
-			if (sb.sb.str() != ent->client->last_statusbar) {
-				gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
-				ent->client->last_statusbar = sb.sb.str();
-			}
-		}
-	}
 	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
 		G_RunFrame_(main_loop);
 
