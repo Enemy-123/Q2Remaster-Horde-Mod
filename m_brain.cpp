@@ -654,17 +654,17 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 //
 
 mframe_t brain_frames_run[] = {
-	{ ai_run, 9 },
-	{ ai_run, 2 },
-	{ ai_run, 3 },
-	{ ai_run, 3 },
-	{ ai_run, 1 },
-	{ ai_run },
-	{ ai_run },
-	{ ai_run, 10 },
+	{ ai_run, 12 },
+	{ ai_run, 5 },
+	{ ai_run, 6 },
+	{ ai_run, 6 },
+	{ ai_run, 4 },
+	{ ai_run,  1},
+	{ ai_run,  1},
+	{ ai_run, 13 },
 	{ ai_run, -4 },
 	{ ai_run, -1 },
-	{ ai_run, 2 }
+	{ ai_run, 4 }
 };
 MMOVE_T(brain_move_run) = { FRAME_walk101, FRAME_walk111, brain_frames_run, nullptr };
 
