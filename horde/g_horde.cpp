@@ -1375,17 +1375,17 @@ void PlayWaveStartSound() {
         gi.sound(world, CHAN_VOICE, gi.soundindex("world/incoming.wav"), 1, ATTN_NONE, 0);
     }
     else {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("world/yelforce"), 1, ATTN_NONE, 0);
+        gi.sound(world, CHAN_VOICE, gi.soundindex("world/yelforce.wav"), 1, ATTN_NONE, 0);
     }
 }
 
 // Función para mostrar el mensaje de la ola
 void DisplayWaveMessage() {
     if (brandom()) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nAdded vote cmd !\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nKILL THEM ALL !\n");
     }
     else {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nNew vote cmd ! |\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nWelcome to hell.\n");
     }
 }
 
