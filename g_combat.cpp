@@ -878,7 +878,12 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		edict_t* player = attacker;
 
 		// Calcular el daño real realizado, considerando la salud actual del objetivo
-		real_damage = (initial_health < damage) ? initial_health : damage;
+		if (initial_health <= 0 + targ->gib_health ) {
+			real_damage = 0; // Si el objetivo ya está muerto, no se añade más daño
+		}
+		else {
+			real_damage = (initial_health < damage) ? initial_health : damage;
+		}
 
 		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
 		if (level.time - player->lastdmg <= 0.2_sec && player->dmg_counter <= 32767)

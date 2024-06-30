@@ -1662,7 +1662,7 @@ void G_InitStatusbar(statusbar_t& sb)
 		//	sb.xr(-53).yt(68).num(3, STAT_SPREE).xr(-45).yt(53).string2("Spree");
 
 
-		// sb.xv(136).yv(150).num(5, STAT_ID_DAMAGE).xv(130).yv(159).string2("DMG-ID");
+	//	sb.xv(136).yv(150).num(5, STAT_ID_DAMAGE).xv(130).yv(159).string2("DMG-ID");
 
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
