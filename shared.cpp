@@ -60,9 +60,22 @@ void RemovePlayerOwnedEntities(edict_t* player)
     }
 }
 
+void UpdatePowerUpTimes(edict_t* monster) {
+    if (monster->monsterinfo.quad_time <= level.time) {
+        monster->monsterinfo.damage_modifier_applied = false;
+    }
 
-// Función para obtener el multiplicador de daño para monstruos
+    if (monster->monsterinfo.double_time <= level.time) {
+        monster->monsterinfo.damage_modifier_applied = false;
+    }
+}
+
 float M_DamageModifier(edict_t* monster) {
+    // Verificar si el modificador ya se ha aplicado
+    if (monster->monsterinfo.damage_modifier_applied) {
+        return 1.0f; // No aplicar modificador adicional
+    }
+
     float damageModifier = 1.0f; // Inicializa el multiplicador a 1.0
 
     // Comprueba si el monstruo tiene activado el efecto de quad
@@ -88,6 +101,9 @@ float M_DamageModifier(edict_t* monster) {
     else if (damageModifier > 2.0f && monster->monsterinfo.quad_time <= level.time) {
         damageModifier = 2.0f;
     }
+
+    // Establecer la bandera indicando que el modificador ha sido aplicado
+    monster->monsterinfo.damage_modifier_applied = true;
 
     return damageModifier;
 }

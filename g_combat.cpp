@@ -5,6 +5,7 @@
 #include "g_local.h"
 #include "shared.h"
 
+
 /*
 ============
 CanDamage
@@ -597,6 +598,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		return;
 
 	if (attacker->svflags & SVF_MONSTER) {
+		UpdatePowerUpTimes(attacker);
 		damage *= M_DamageModifier(attacker);
 	}
 

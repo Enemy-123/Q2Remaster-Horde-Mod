@@ -1738,7 +1738,7 @@ struct monsterinfo_t
 
 	gtime_t jump_time;
 	float noise_cooldown_time;
-//	gtime_t tracker_pain_time;
+	bool damage_modifier_applied;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
