@@ -993,6 +993,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_hover2", "Blaster Icarus" },
 		{ "monster_fixbot", "Fixbot" },
 		{ "monster_gekk", "Gekk" },
+		{ "monster_flipper", "Flipper" },
 		{ "monster_gunner2", "Gunner" },
 		{ "monster_gunner", "Heavy Gunner" },
 		{ "monster_medic", "Medic" },
