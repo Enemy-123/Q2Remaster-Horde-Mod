@@ -181,11 +181,12 @@ void berserk_swing(edict_t* self)
 }
 
 mframe_t berserk_frames_attack_spike[] = {
-	{ ai_charge },
-	{ ai_charge },
+	
 	{ ai_charge, 0, berserk_swing },
 	{ ai_charge, 0, berserk_attack_spike },
 	{ ai_charge, 0, berserk_attack_spike },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge }
@@ -214,14 +215,14 @@ void berserk_attack_club(edict_t* self)
 
 
 mframe_t berserk_frames_attack_club[] = {
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, monster_footstep },
 	{ ai_charge },
 	{ ai_charge, 0, berserk_swing },
 	{ ai_charge },
 	{ ai_charge, 0, berserk_attack_club },
 	{ ai_charge, 0, berserk_attack_club },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -447,24 +448,24 @@ static void berserk_run_swing(edict_t* self)
 }
 
 mframe_t berserk_frames_run_attack1[] = {
-	{ ai_run, 21, berserk_run_attack_speed },
-	{ ai_run, 11, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
-	{ ai_run, 21, berserk_run_attack_speed },
-	{ ai_run, 25, [](edict_t* self) { berserk_run_attack_speed(self); monster_done_dodge(self); } },
-	{ ai_run, 18, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
-	{ ai_run, 19, berserk_run_attack_speed },
-	{ ai_run, 21 },
-	{ ai_run, 11, monster_footstep },
-	{ ai_run, 21 },
-	{ ai_run, 25 },
-	{ ai_run, 18, monster_footstep },
-	{ ai_run, 19 },
-	{ ai_run, 21, berserk_run_swing },
-	{ ai_run, 11, monster_footstep },
-	{ ai_run, 21 },
-	{ ai_run, 25 },
-	{ ai_run, 18, monster_footstep },
-	{ ai_run, 19, berserk_attack_club }
+	{ ai_run, 23, berserk_run_attack_speed },
+	{ ai_run, 14, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
+	{ ai_run, 23, berserk_run_attack_speed },
+	{ ai_run, 28, [](edict_t* self) { berserk_run_attack_speed(self); monster_done_dodge(self); } },
+	{ ai_run, 21, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
+	{ ai_run, 22, berserk_run_attack_speed },
+	{ ai_run, 24 },
+	{ ai_run, 14, monster_footstep },
+	{ ai_run, 24 },
+	{ ai_run, 28 },
+	{ ai_run, 22, monster_footstep },
+	{ ai_run, 23 },
+	{ ai_run, 24, berserk_run_swing },
+	{ ai_run, 14, monster_footstep },
+	{ ai_run, 24 },
+	{ ai_run, 28 },
+	{ ai_run, 14, monster_footstep },
+	{ ai_run, 21, berserk_attack_club }
 };
 MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frames_run_attack1, berserk_run };
 

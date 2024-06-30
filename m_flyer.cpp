@@ -259,7 +259,7 @@ void flyer_kamikaze_check(edict_t* self)
 	if (!self->inuse)
 		return;
 
-	if ((!self->enemy) || (!self->enemy->inuse))
+	if ((!self->enemy) || (!self->enemy->inuse) || !visible)
 	{
 		flyer_kamikaze_explode(self);
 		return;
