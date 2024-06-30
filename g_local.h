@@ -3331,6 +3331,8 @@ struct edict_t
 	gtime_t hook_time;
 	// Kyper
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
+	gtime_t lastdmg; // ID DMG
+	float dmg_counter; // ID DMG
 };
 #define TEAM1 "team1"
 #define TEAM2 "team2"

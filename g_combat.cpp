@@ -631,7 +631,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	{
 		// if we're not a nuke & self damage is disabled, just kill the damage
 				//if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_TRAP) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
-	if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
+		if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
 			damage = 0;
 	}
 
@@ -865,6 +865,31 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		}
 	}
 
+	int real_damage = damage;
+
+	if (!targ || !attacker)
+		return;
+
+	// Save initial health to calculate the real damage done
+	int initial_health = targ->health;
+
+	// Añadir contador de daño para armas de disparo rápido
+	if (damage > 0 && attacker->client) {
+		edict_t* player = attacker;
+
+		// Calcular el daño real realizado, considerando la salud actual del objetivo
+		real_damage = (initial_health < damage) ? initial_health : damage;
+
+		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
+		if (level.time - player->lastdmg <= 0.2_sec && player->dmg_counter <= 32767)
+			player->dmg_counter += real_damage;
+		else
+			player->dmg_counter = real_damage;
+
+		player->client->ps.stats[STAT_ID_DAMAGE] = player->dmg_counter;
+
+		player->lastdmg = level.time;
+	}
 
 	// ZOID
 	// team armor protect
