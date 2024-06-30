@@ -1509,15 +1509,17 @@ void SpawnMonsters() {
     }
 }
 void Horde_RunFrame() {
-    // Verificar y ajustar el número de bots en cada frame
     VerifyAndAdjustBots();
-
     auto mapSize = GetMapSize(level.mapname);
 
-    // Verificar y actualizar el valor de dm_monsters en cada frame
     if (dm_monsters->integer > 0) {
         g_horde_local.num_to_spawn = dm_monsters->integer;
     }
+
+    int activeMonsters = level.total_monsters - level.killed_monsters;
+    const int maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+        mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP :
+        MAX_MONSTERS_BIG_MAP;
 
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
@@ -1542,16 +1544,11 @@ void Horde_RunFrame() {
                 boss_spawned_for_wave = true;
             }
 
-            int activeMonsters = level.total_monsters - level.killed_monsters;
-            int maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-                mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP :
-                MAX_MONSTERS_BIG_MAP;
-
             if (activeMonsters < maxMonsters) {
                 SpawnMonsters();
             }
 
-            if (!g_horde_local.num_to_spawn) {
+            if (g_horde_local.num_to_spawn == 0) {
                 std::ostringstream message_stream;
                 message_stream << "New Wave Is Here.\nWave Level: " << g_horde_local.level << "\n";
                 gi.LocBroadcast_Print(PRINT_TYPEWRITER, message_stream.str().c_str());
