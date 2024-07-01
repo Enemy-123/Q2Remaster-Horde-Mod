@@ -1812,7 +1812,7 @@ void SP_worldspawn(edict_t* ent)
 
 	if (level.is_n64 && !G_IsDeathmatch())
 	{
-		gi.configstring(CONFIG_N64_PHYSICS, "1");
+//		gi.configstring(CONFIG_N64_PHYSICS, "1");
 		pm_config.n64_physics = false;
 	}
 

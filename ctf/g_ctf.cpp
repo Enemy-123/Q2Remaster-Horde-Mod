@@ -944,7 +944,6 @@ void CTFID_f(edict_t* ent)
 		ent->client->resp.id_state = true;
 	}
 }
-
 #include <unordered_map>
 #include <string>
 #include <sstream>
@@ -969,6 +968,7 @@ void UpdateConfigStringIfChanged(int cs_index, const std::string& new_value) {
 		gi.configstring(cs_index, new_value.c_str());
 	}
 }
+
 int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
@@ -1104,6 +1104,7 @@ extern void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
 }
+
 void CTFSetIDView(edict_t* ent) {
 	static std::unordered_map<int, int> monster_configstrings;
 	static std::unordered_map<int, int> player_configstrings;
@@ -3525,12 +3526,12 @@ bool CTFCheckRules()
 			else
 				G_FmtTo(text, "SETUP: {} not ready", j);
 
-			gi.configstring(CONFIG_CTF_MATCH, text);
+	//		gi.configstring(CONFIG_CTF_MATCH, text);
 			break;
 
 		case MATCH_PREGAME:
 			G_FmtTo(text, "{:02}:{:02} UNTIL START", t / 60, t % 60);
-			gi.configstring(CONFIG_CTF_MATCH, text);
+	//		gi.configstring(CONFIG_CTF_MATCH, text);
 
 			if (t <= 10 && !ctfgame.countdown)
 			{
@@ -3541,7 +3542,7 @@ bool CTFCheckRules()
 
 		case MATCH_GAME:
 			G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
-			gi.configstring(CONFIG_CTF_MATCH, text);
+	//		gi.configstring(CONFIG_CTF_MATCH, text);
 			if (t <= 10 && !ctfgame.countdown)
 			{
 				ctfgame.countdown = true;
@@ -3582,7 +3583,7 @@ bool CTFCheckRules()
 				if (ctfgame.warnactive != CTF_TEAM1)
 				{
 					ctfgame.warnactive = CTF_TEAM1;
-					gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Red has too many players");
+		//			gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Red has too many players");
 				}
 			}
 			else if (team2 - team1 >= 2 && team1 >= 2)
@@ -3590,7 +3591,7 @@ bool CTFCheckRules()
 				if (ctfgame.warnactive != CTF_TEAM2)
 				{
 					ctfgame.warnactive = CTF_TEAM2;
-					gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Blue has too many players");
+		//			gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Blue has too many players");
 				}
 			}
 			else
