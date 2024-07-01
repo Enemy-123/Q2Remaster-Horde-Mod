@@ -366,6 +366,8 @@ fire_blaster
 Fires a single blaster bolt.  Used by the blaster and hyper blaster.
 =================
 */
+
+constexpr int max_bounces = 7;
 TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other == self->owner)
@@ -383,18 +385,26 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	if (other->takedamage)
 	{
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
+		G_FreeEdict(self);
 	}
 	else
 	{
-		return;
+		// Decrementar el contador de rebotes
+		if (tr.ent && tr.ent->solid == SOLID_BSP) // Verificar si está rebotando contra una pared o superficie sólida
+		{
+			self->bounce_count--;
+			if (self->bounce_count <= 0)
+			{
+				G_FreeEdict(self);
+				return;
+			}
+		}
 	}
-
-	G_FreeEdict(self);
 }
 
-void fire_blaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, effects_t effect, mod_t mod)
+void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod)
 {
-	edict_t *bolt;
+	edict_t* bolt;
 	trace_t	 tr;
 
 	bolt = G_Spawn();
@@ -419,6 +429,7 @@ void fire_blaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 	bolt->nextthink = level.time + 1.5_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
+	bolt->bounce_count = 3; // Inicializar el contador de rebotes a 3
 	gi.linkentity(bolt);
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
@@ -428,6 +439,7 @@ void fire_blaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int dam
 		bolt->touch(bolt, tr.ent, tr, false);
 	}
 }
+
 
 constexpr spawnflags_t SPAWNFLAG_GRENADE_HAND = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_GRENADE_HELD = 2_spawnflag;
