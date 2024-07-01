@@ -306,7 +306,7 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
         boss->s.scale = 1.2f;
         boss->mins *= 1.2f;
         boss->maxs *= 1.2f;
-        boss->s.effects |= EF_TRACKER | EF_FLAG1;
+        boss->s.effects |= EF_FIREBALL | EF_FLAG1;
         health_multiplier *= 1.6f;
         power_armor_multiplier *= 1.6f;
     }
