@@ -2220,7 +2220,7 @@ void PutClientInServer(edict_t* ent)
 			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 			ClientUserinfoChanged(ent, userinfo);
 
-			client->respawn_timeout = level.time + 0_ms;
+			client->respawn_timeout = level.time + 0_sec;
 		}
 
 		// Inicializar target_health_str y last_statusbar
@@ -2232,7 +2232,6 @@ void PutClientInServer(edict_t* ent)
 		G_InitStatusbar(sb);
 		//UpdateHUD(sb, ent);
 		gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
-
 		// find a spot to place us
 		if (!level.respawn_intermission)
 		{
@@ -2298,7 +2297,6 @@ void PutClientInServer(edict_t* ent)
 		client->resp.inactivity_time = 0_sec; // Inicializa a 0 o a un valor apropiado
 		client->resp.inactivity_warning = false;
 		client->resp.inactive = false;
-
 		client->pers.health = 0;
 		resp = client->resp;
 	}
@@ -2326,8 +2324,6 @@ void PutClientInServer(edict_t* ent)
 					client->pers.weapon = client->pers.lastweapon;
 			}
 		}
-#include "g_statusbar.h"
-#include "g_local.h"
 
 		// Inicializar y actualizar el HUD inmediatamente despu�s de que el jugador entre al juego
 		statusbar_t sb;
