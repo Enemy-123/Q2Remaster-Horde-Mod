@@ -1484,7 +1484,7 @@ void SetCTFStats(edict_t* ent)
 	else if (ent->client->resp.ctf_team == CTF_TEAM2)
 		ent->client->ps.stats[STAT_CTF_JOINED_TEAM2_PIC] = imageindex_i_ctfj;
 
-	if (ent->client->resp.id_state)
+	if (ent->client->resp.id_state  && (ent->svflags & ~SVF_BOT))
 		CTFSetIDView(ent);
 	else
 	{

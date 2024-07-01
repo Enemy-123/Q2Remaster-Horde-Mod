@@ -28,8 +28,6 @@
 //
 // CreateMonster
 //
-#define MAX_SPAWN_ATTEMPTS 5
-
 edict_t* CreateMonster(const vec3_t& origin, const vec3_t& angles, const char* classname)
 {
 	edict_t* newEnt;
@@ -50,12 +48,10 @@ edict_t* CreateMonster(const vec3_t& origin, const vec3_t& angles, const char* c
 
 edict_t* CreateFlyMonster(const vec3_t& origin, const vec3_t& angles, const vec3_t& mins, const vec3_t& maxs, const char* classname)
 {
-	for (int i = 0; i < MAX_SPAWN_ATTEMPTS; ++i)
-	{
-		if (CheckSpawnPoint(origin, mins, maxs))
-			return CreateMonster(origin, angles, classname);
-	}
-	return nullptr;
+	if (!CheckSpawnPoint(origin, mins, maxs))
+		return nullptr;
+
+	return (CreateMonster(origin, angles, classname));
 }
 
 // This is just a wrapper for CreateMonster that looks down height # of CMUs and sees if there
@@ -65,18 +61,15 @@ edict_t* CreateGroundMonster(const vec3_t& origin, const vec3_t& angles, const v
 {
 	edict_t* newEnt;
 
-	// Try multiple times to find a suitable spawn point
-	for (int i = 0; i < MAX_SPAWN_ATTEMPTS; ++i)
-	{
-		// check the ground to make sure it's there, it's relatively flat, and it's not toxic
-		if (CheckGroundSpawnPoint(origin, entMins, entMaxs, height, -1.f))
-		{
-			newEnt = CreateMonster(origin, angles, classname);
-			if (newEnt)
-				return newEnt;
-		}
-	}
-	return nullptr;
+	// check the ground to make sure it's there, it's relatively flat, and it's not toxic
+	if (!CheckGroundSpawnPoint(origin, entMins, entMaxs, height, -1.f))
+		return nullptr;
+
+	newEnt = CreateMonster(origin, angles, classname);
+	if (!newEnt)
+		return nullptr;
+
+	return newEnt;
 }
 
 // FindSpawnPoint
@@ -87,31 +80,23 @@ bool FindSpawnPoint(const vec3_t& startpoint, const vec3_t& mins, const vec3_t& 
 {
 	spawnpoint = startpoint;
 
-	// Try multiple times to find a suitable spawn point
-	for (int i = 0; i < MAX_SPAWN_ATTEMPTS; ++i)
+	// drop first
+	if (!drop || !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
 	{
-		// drop first
-		if (!drop || !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
-		{
-			spawnpoint = startpoint;
+		spawnpoint = startpoint;
 
-			// fix stuck if we couldn't drop initially
-			if (G_FixStuckObject_Generic(spawnpoint, mins, maxs, [](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
-				return gi.trace(start, mins, maxs, end, nullptr, MASK_MONSTERSOLID);
-				}) == stuck_result_t::NO_GOOD_POSITION)
-				return false;
+		// fix stuck if we couldn't drop initially
+		if (G_FixStuckObject_Generic(spawnpoint, mins, maxs, [](const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end) {
+			return gi.trace(start, mins, maxs, end, nullptr, MASK_MONSTERSOLID);
+			}) == stuck_result_t::NO_GOOD_POSITION)
+			return false;
 
-			// fixed, so drop again
-			if (drop && !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
-				return false; // ???
-		}
-
-		// If a suitable spawn point is found, return true
-		if (CheckSpawnPoint(spawnpoint, mins, maxs))
-			return true;
+		// fixed, so drop again
+		if (drop && !M_droptofloor_generic(spawnpoint, mins, maxs, false, nullptr, MASK_MONSTERSOLID, false))
+			return false; // ???
 	}
 
-	return false;
+	return true;
 }
 
 // FIXME - all of this needs to be tweaked to handle the new gravity rules
@@ -146,9 +131,9 @@ bool CheckSpawnPoint(const vec3_t& origin, const vec3_t& mins, const vec3_t& max
 //
 // PMM - used for walking monsters
 //  checks:
-//      1)  is there a ground within the specified height of the origin?
-//      2)  is the ground non-water?
-//      3)  is the ground flat enough to walk on?
+//		1)	is there a ground within the specified height of the origin?
+//		2)	is the ground non-water?
+//		3)	is the ground flat enough to walk on?
 //
 
 bool CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const vec3_t& entMaxs, float height, float gravity)
@@ -165,14 +150,13 @@ bool CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const ve
 	return false;
 }
 
-
 // ****************************
 // SPAWNGROW stuff
 // ****************************
 
 constexpr gtime_t SPAWNGROW_LIFESPAN = 1000_ms;
 
-THINK(spawngrow_think) (edict_t *self) -> void
+THINK(spawngrow_think) (edict_t* self) -> void
 {
 	if (level.time >= self->timestamp)
 	{
@@ -191,13 +175,13 @@ THINK(spawngrow_think) (edict_t *self) -> void
 	self->nextthink += FRAME_TIME_MS;
 }
 
-static vec3_t SpawnGro_laser_pos(edict_t *ent)
+static vec3_t SpawnGro_laser_pos(edict_t* ent)
 {
 	// pick random direction
 	float theta = frandom(2 * PIf);
 	float phi = acos(crandom());
 
-	vec3_t d {
+	vec3_t d{
 		sin(phi) * cos(theta),
 		sin(phi) * sin(theta),
 		cos(phi)
@@ -206,23 +190,23 @@ static vec3_t SpawnGro_laser_pos(edict_t *ent)
 	return ent->s.origin + (d * ent->owner->s.scale * 9.f);
 }
 
-THINK(SpawnGro_laser_think) (edict_t *self) -> void
+THINK(SpawnGro_laser_think) (edict_t* self) -> void
 {
 	self->s.old_origin = SpawnGro_laser_pos(self);
 	gi.linkentity(self);
 	self->nextthink = level.time + 1_ms;
 }
 
-void SpawnGrow_Spawn(const vec3_t &startpos, float start_size, float end_size)
+void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	ent = G_Spawn();
 	ent->s.origin = startpos;
 
-	ent->s.angles[0] = (float) irandom(360);
-	ent->s.angles[1] = (float) irandom(360);
-	ent->s.angles[2] = (float) irandom(360);
+	ent->s.angles[0] = (float)irandom(360);
+	ent->s.angles[1] = (float)irandom(360);
+	ent->s.angles[2] = (float)irandom(360);
 
 	ent->avelocity[0] = frandom(280.f, 360.f) * 2.f;
 	ent->avelocity[1] = frandom(280.f, 360.f) * 2.f;
@@ -251,12 +235,8 @@ void SpawnGrow_Spawn(const vec3_t &startpos, float start_size, float end_size)
 	gi.linkentity(ent);
 
 	// [Paril-KEX]
-	edict_t *beam = ent->target_ent = G_Spawn();
+	edict_t* beam = ent->target_ent = G_Spawn();
 	beam->s.modelindex = MODELINDEX_WORLD;
-
-	if (g_horde->integer) { beam->s.renderfx = RF_NO_ORIGIN_LERP; }
-	else
-
 	beam->s.renderfx = RF_BEAM_LIGHTNING | RF_NO_ORIGIN_LERP;
 	beam->s.frame = 1;
 	beam->s.skinnum = 0x30303030;
@@ -277,12 +257,12 @@ void SpawnGrow_Spawn(const vec3_t &startpos, float start_size, float end_size)
 constexpr int32_t MAX_LEGSFRAME = 23;
 constexpr gtime_t LEG_WAIT_TIME = 1_sec;
 
-void ThrowMoreStuff(edict_t *self, const vec3_t &point);
-void ThrowSmallStuff(edict_t *self, const vec3_t &point);
-void ThrowWidowGibLoc(edict_t *self, const char *gibname, int damage, gib_type_t type, const vec3_t *startpos, bool fade);
-void ThrowWidowGibSized(edict_t *self, const char *gibname, int damage, gib_type_t type, const vec3_t *startpos, int hitsound, bool fade);
+void ThrowMoreStuff(edict_t* self, const vec3_t& point);
+void ThrowSmallStuff(edict_t* self, const vec3_t& point);
+void ThrowWidowGibLoc(edict_t* self, const char* gibname, int damage, gib_type_t type, const vec3_t* startpos, bool fade);
+void ThrowWidowGibSized(edict_t* self, const char* gibname, int damage, gib_type_t type, const vec3_t* startpos, int hitsound, bool fade);
 
-THINK(widowlegs_think) (edict_t *self) -> void
+THINK(widowlegs_think) (edict_t* self) -> void
 {
 	vec3_t offset;
 	vec3_t point;
@@ -322,8 +302,8 @@ THINK(widowlegs_think) (edict_t *self) -> void
 		gi.multicast(point, MULTICAST_ALL, false);
 		ThrowSmallStuff(self, point);
 
-		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib1/tris.md2", 80 + (int) frandom(20.0f), GIB_METALLIC, &point, 0, true);
-		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib2/tris.md2", 80 + (int) frandom(20.0f), GIB_METALLIC, &point, 0, true);
+		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib1/tris.md2", 80 + (int)frandom(20.0f), GIB_METALLIC, &point, 0, true);
+		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib2/tris.md2", 80 + (int)frandom(20.0f), GIB_METALLIC, &point, 0, true);
 
 		offset = { -1.04f, -51.18f, 7.04f };
 		point = G_ProjectSource2(self->s.origin, offset, f, r, u);
@@ -333,9 +313,9 @@ THINK(widowlegs_think) (edict_t *self) -> void
 		gi.multicast(point, MULTICAST_ALL, false);
 		ThrowSmallStuff(self, point);
 
-		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib1/tris.md2", 80 + (int) frandom(20.0f), GIB_METALLIC, &point, 0, true);
-		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib2/tris.md2", 80 + (int) frandom(20.0f), GIB_METALLIC, &point, 0, true);
-		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib3/tris.md2", 80 + (int) frandom(20.0f), GIB_METALLIC, &point, 0, true);
+		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib1/tris.md2", 80 + (int)frandom(20.0f), GIB_METALLIC, &point, 0, true);
+		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib2/tris.md2", 80 + (int)frandom(20.0f), GIB_METALLIC, &point, 0, true);
+		ThrowWidowGibSized(self, "models/monsters/blackwidow/gib3/tris.md2", 80 + (int)frandom(20.0f), GIB_METALLIC, &point, 0, true);
 
 		G_FreeEdict(self);
 		return;
@@ -367,9 +347,9 @@ THINK(widowlegs_think) (edict_t *self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-void Widowlegs_Spawn(const vec3_t &startpos, const vec3_t &angles)
+void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles)
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	ent = G_Spawn();
 	ent->s.origin = startpos;
