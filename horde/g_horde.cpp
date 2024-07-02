@@ -1,5 +1,6 @@
 // Includes y definiciones relevantes
 #include "../g_local.h"
+#include "g_horde.h"
 #include "../shared.h"
 #include <sstream>
 #include <set>
@@ -951,40 +952,36 @@ void boss_die(edict_t* boss) {
 }
 
 static bool Horde_AllMonstersDead() {
-    for (size_t i = 0; i < globals.max_edicts; i++) {
-        if (!g_edicts[i].inuse) continue;
-        if (g_edicts[i].svflags & SVF_MONSTER) {
-            if (g_edicts[i].monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Excluir monstruos con AI_DO_NOT_COUNT
-            if (!g_edicts[i].deadflag && g_edicts[i].health > 0) {
-                return false;
-            }
-            if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && g_edicts[i].health <= 0) {
-                if (auto_spawned_bosses.find(&g_edicts[i]) != auto_spawned_bosses.end() && !g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-                    boss_die(&g_edicts[i]);
-                    g_edicts[i].spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
-                }
+    for (auto ent : active_monsters()) {
+        if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Excluir monstruos con AI_DO_NOT_COUNT
+        if (!ent->deadflag && ent->health > 0) {
+            return false;
+        }
+        if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && ent->health <= 0) {
+            if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+                boss_die(ent);
+                ent->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
             }
         }
     }
     return true;
 }
 
+
 static void Horde_CleanBodies() {
-    for (size_t i = 0; i < globals.max_edicts; i++) {
-        if (!g_edicts[i].inuse) continue;
-        if (g_edicts[i].svflags & SVF_DEADMONSTER) {
-            if (g_edicts[i].spawnflags.has(SPAWNFLAG_IS_BOSS) && !g_edicts[i].spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-                boss_die(&g_edicts[i]);
+    for (auto ent : active_monsters()) {
+        if (ent->svflags & SVF_DEADMONSTER) {
+            if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+                boss_die(ent);
             }
-            G_FreeEdict(&g_edicts[i]);
+            G_FreeEdict(ent);
         }
-        else if (g_edicts[i].svflags & SVF_MONSTER) {
-            if (g_edicts[i].health <= 0) {
-                G_FreeEdict(&g_edicts[i]);
-            }
+        else if (ent->health <= 0) {
+            G_FreeEdict(ent);
         }
     }
 }
+
 
 
 // attaching healthbar
@@ -1013,7 +1010,7 @@ void AttachHealthBar(edict_t* boss) {
 }
 
 // spawning boss origin
-const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
+std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm1", {1184, 568, 704}},
     {"rdm4", {-336, 2456, -288}},
     {"rdm14", {1248, 664, 896}},
@@ -1036,22 +1033,17 @@ const std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"fact3", {0, -64, 192}},
     {"mgu6m3", {0, 592, 1600}},
     {"q64/dm7", {64, 224, 120}},
-    {"q64/comm", {1464 - 88 - 432}},
-    {"q64/comm", {1464 - 88 - 432}},
+    {"q64/comm", {1464, -88, -432}},
     {"q64/command", {0, -208, 56}},
-    {"q64\\command", {0, -208, 56}},
-    {"q64\\dm1", {-192, -320, 80}},
     {"q64/dm1", {-192, -320, 80}},
-    {"q64\\dm7", {64, 224, 120}},
-    {"q64\\dm9", {160, 56, 40}},
     {"q64/dm9", {160, 56, 40}},
-    {"q64\\dm2", {840, 80, 96}},
+    {"q64/dm2", {840, 80, 96}},
     {"q64/dm7", {840, 80, 960}},
     {"q64/dm10", {-304, 512, -92}},
-    {"q64\\dm10", {-304, 512, -92}},
     {"q64/dm3", {488, 392, 64}},
-    {"q64\\dm3", {488, 392, 64}}
+    {"mgu4trial", {-960, -528, -328}}
 };
+
 extern void SP_target_earthquake(edict_t* self);
 extern constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 void SpawnBossAutomatically() {
