@@ -1124,7 +1124,7 @@ void SpawnBossAutomatically() {
 
             // spawngro effect
             vec3_t spawngrow_pos = boss->s.origin;
-            float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.105f;
+            float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.45f;
             float end_size = start_size;
             SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
