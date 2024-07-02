@@ -13,6 +13,20 @@
 #include <deque>
 #include <map>
 
+// active monsters and dead monsters
+struct active_or_dead_monsters_filter_t
+{
+    inline bool operator()(edict_t* ent) const
+    {
+        return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0) || (ent->svflags & SVF_DEADMONSTER);
+    }
+};
+
+inline entity_iterable_t<active_or_dead_monsters_filter_t> active_or_dead_monsters()
+{
+    return entity_iterable_t<active_or_dead_monsters_filter_t> { game.maxclients + (uint32_t)BODY_QUEUE_SIZE + 1U };
+}
+
 // active monsters
 struct active_monsters_filter_t
 {
@@ -952,7 +966,7 @@ void boss_die(edict_t* boss) {
 }
 
 static bool Horde_AllMonstersDead() {
-    for (auto ent : active_monsters()) {
+    for (auto ent : active_or_dead_monsters()) {
         if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Excluir monstruos con AI_DO_NOT_COUNT
         if (!ent->deadflag && ent->health > 0) {
             return false;
@@ -967,9 +981,8 @@ static bool Horde_AllMonstersDead() {
     return true;
 }
 
-
 static void Horde_CleanBodies() {
-    for (auto ent : active_monsters()) {
+    for (auto ent : active_or_dead_monsters()) {
         if (ent->svflags & SVF_DEADMONSTER) {
             if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                 boss_die(ent);
@@ -981,7 +994,6 @@ static void Horde_CleanBodies() {
         }
     }
 }
-
 
 
 // attaching healthbar
