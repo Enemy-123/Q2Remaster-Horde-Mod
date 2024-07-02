@@ -1102,15 +1102,6 @@ inline bool G_AnyPlayerSpawned()
 
 	return false;
 }
-#include "g_local.h"
-
-static statusbar_t initial_statusbar;
-
-void InitializeStatusbar()
-{
-	G_InitStatusbar(initial_statusbar);
-	gi.configstring(CS_STATUSBAR, initial_statusbar.sb.str().c_str());
-}
 
 void G_RunFrame(bool main_loop)
 {

@@ -307,7 +307,7 @@ void Horde_InitLevel(int32_t lvl) {
         gi.cvar_set("g_damage_scale", "2.5");
     }
     else if (g_horde_local.level == 37) {
-        gi.cvar_set("g_damage_scale", "3.7");
+        gi.cvar_set("g_damage_scale", "3.2");
     }
 
     // Configuración de la cantidad de monstruos a spawnear
