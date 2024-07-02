@@ -1360,24 +1360,26 @@ bool UseFarthestSpawn() {
 // Función para reproducir el sonido de inicio de ola
 void PlayWaveStartSound() {
     std::srand(static_cast<unsigned int>(std::time(nullptr)));
-    float r = frandom();
 
-    if (r < 0.2f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("misc/r_tele3.wav"), 1, ATTN_NONE, 0);
-    }
-    else if (r < 0.4f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("world/klaxon2.wav"), 1, ATTN_NONE, 0);
-    }
-    else if (r < 0.6f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("misc/tele_up.wav"), 1, ATTN_NONE, 0);
-    }
-    else if (r < 0.8f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("world/incoming.wav"), 1, ATTN_NONE, 0);
-    }
-    else {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("world/yelforce.wav"), 1, ATTN_NONE, 0);
+    // Vector para almacenar los sonidos
+    std::vector<std::string> sounds = {
+        "misc/r_tele3.wav",
+        "world/klaxon2.wav",
+        "misc/tele_up.wav",
+        "world/incoming.wav",
+        "world/yelforce.wav"
+    };
+
+    // Generar un número aleatorio
+    float r = frandom();
+    size_t sound_index = static_cast<size_t>(r * sounds.size());
+
+    // Asegurarse de que el índice esté dentro del rango del vector
+    if (sound_index < sounds.size()) {
+        gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
 }
+
 
 // Función para mostrar el mensaje de la ola
 void DisplayWaveMessage() {
@@ -1418,26 +1420,25 @@ void HandleWaveRestMessage() {
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
     }
 
+    // Vector para almacenar los sonidos
+    std::vector<std::string> sounds = {
+        "nav_editor/action_fail.wav",
+        "makron/roar1.wav",
+        "zortemp/ack.wav",
+        "misc/spawn1.wav",
+        "makron/voice3.wav",
+        "world/v_fac3.wav"
+    };
+
     float r = frandom();
-    if (r < 0.167f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("nav_editor/action_fail.wav"), 1, ATTN_NONE, 0);
-    }
-    else if (r < 0.333f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("makron/roar1.wav"), 1, ATTN_NONE, 0);
-    }
-    else if (r < 0.5f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("zortemp/ack.wav"), 1, ATTN_NONE, 0);
-    }
-    else if (r < 0.667f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("misc/spawn1.wav"), 1, ATTN_NONE, 0);
-    }
-    else if (r < 0.833f) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("makron/voice3.wav"), 1, ATTN_NONE, 0);
-    }
-    else {
-        gi.sound(world, CHAN_VOICE, gi.soundindex("world/v_fac3.wav"), 1, ATTN_NONE, 0);
+    size_t sound_index = static_cast<size_t>(r * sounds.size());
+
+    // Asegurarse de que el índice esté dentro del rango del vector
+    if (sound_index < sounds.size()) {
+        gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
 }
+
 void SpawnMonsters() {
     auto mapSize = GetMapSize(level.mapname);
 
