@@ -1442,7 +1442,7 @@ void HandleWaveRestMessage() {
 
 void SpawnMonsters() {
     auto mapSize = GetMapSize(level.mapname);
-    //how many monsters according to mapsize and wave level
+    // Calcular la cantidad de monstruos por spawn según el tamaño del mapa y el nivel de la horda
     int monsters_per_spawn;
     if (mapSize.isSmallMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
@@ -1450,8 +1450,13 @@ void SpawnMonsters() {
     else if (mapSize.isBigMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
     }
-    else { //medium maps (default)
+    else { // Mapas medianos (por defecto)
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
+    }
+
+    // Verificar que monsters_per_spawn no exceda un valor razonable (por ejemplo, 10)
+    if (monsters_per_spawn > 4) {
+        monsters_per_spawn = 4;
     }
 
     int spawned = 0;
@@ -1496,9 +1501,8 @@ void SpawnMonsters() {
         ++spawned;
     }
 
-    // Ajusta el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
+    // Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
     if (mapSize.isSmallMap) {
-
         g_horde_local.monster_spawn_time = level.time + 2.0_sec;
     }
     else {
