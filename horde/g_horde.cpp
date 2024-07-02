@@ -834,9 +834,8 @@ void Horde_PreInit() {
 // Función para obtener el número de jugadores humanos activos (excluyendo bots)
 int GetNumHumanPlayers() {
     int numHumanPlayers = 0;
-    for (uint32_t player = 1; player <= game.maxclients; ++player) {
-        edict_t* ent = &g_edicts[player];
-        if (ent->client && ent->client->resp.ctf_team == CTF_TEAM1 && !(ent->svflags & SVF_BOT)) {
+    for (auto player : active_players()) {
+        if (player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT)) {
             numHumanPlayers++;
         }
     }
@@ -1236,12 +1235,11 @@ struct ConditionParams {
     int timeThreshold;
 };
 
-// Función para obtener el número de jugadores activos (excluyendo bots)
+// Función para obtener el número de jugadores activos (incluyendo bots)
 int GetNumActivePlayers() {
     int numActivePlayers = 0;
-    for (uint32_t player = 1; player <= game.maxclients; ++player) {
-        edict_t* ent = &g_edicts[player];
-        if (ent->client->resp.ctf_team == CTF_TEAM1) {
+    for (auto player : active_players()) {
+        if (player->client->resp.ctf_team == CTF_TEAM1) {
             numActivePlayers++;
         }
     }
@@ -1249,18 +1247,16 @@ int GetNumActivePlayers() {
 }
 
 
+// Función para obtener el número de jugadores en espectador
 int GetNumSpectPlayers() {
     int numSpectPlayers = 0;
-    for (uint32_t player = 1; player <= game.maxclients; ++player) {
-        edict_t* ent = &g_edicts[player];
-        if (ent->inuse && ent->client &&
-            (ent->client->resp.ctf_team != CTF_TEAM1)) {
+    for (auto player : active_players()) {
+        if (player->client->resp.ctf_team != CTF_TEAM1) {
             numSpectPlayers++;
         }
     }
     return numSpectPlayers;
 }
-
 // Calcular los parámetros de la condición en función del tamaño del mapa y el número de jugadores
 ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) {
     ConditionParams params = { 0, 0 }; // Inicializar parámetros con valores por defecto

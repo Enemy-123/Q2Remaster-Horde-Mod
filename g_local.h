@@ -3523,8 +3523,8 @@ public:
 	inline entity_iterator_t<TFilter> end() const { return end_index; }
 };
 
-// inuse players that are connected; may not be spawned yet, however
-struct active_players_filter_t
+// inuse players that are connected; and not be spawned yet
+struct active_players_filter_no_spect_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
@@ -3532,10 +3532,25 @@ struct active_players_filter_t
 	}
 };
 
+// inuse players that are connected; may not be spawned yet, however
+struct active_players_filter_t
+{
+	inline bool operator()(edict_t* ent) const
+	{
+		return (ent->inuse && ent->client && ent->client->pers.connected);
+	}
+};
+
+inline entity_iterable_t<active_players_filter_no_spect_t> active_players_no_spect()
+{
+	return entity_iterable_t<active_players_filter_no_spect_t> { 1u, game.maxclients };
+}
+
 inline entity_iterable_t<active_players_filter_t> active_players()
 {
 	return entity_iterable_t<active_players_filter_t> { 1u, game.maxclients };
 }
+
 
 struct gib_def_t
 {
