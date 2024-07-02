@@ -12,18 +12,30 @@
 #include <deque>
 #include <map>
 
+// active monsters
+struct active_monsters_filter_t
+{
+    inline bool operator()(edict_t* ent) const
+    {
+        return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0);
+    }
+};
+
+inline entity_iterable_t<active_monsters_filter_t> active_monsters()
+{
+    return entity_iterable_t<active_monsters_filter_t> { game.maxclients + (uint32_t)BODY_QUEUE_SIZE + 1U };
+}
+
 int CalculateRemainingMonsters() {
     int remaining = 0;
-    edict_t* entity = g_edicts;
-    for (size_t i = 0; i < globals.max_edicts; ++i, ++entity) {
-        if (entity->inuse && (entity->svflags & SVF_MONSTER) &&
-            !entity->deadflag && entity->health > 0 &&
-            !(entity->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+    for (auto ent : active_monsters()) {
+        if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
             ++remaining;
         }
     }
     return remaining;
 }
+
 
 int GetNumActivePlayers();
 int GetNumSpectPlayers();
@@ -1441,8 +1453,7 @@ void HandleWaveRestMessage() {
 
 void SpawnMonsters() {
     auto mapSize = GetMapSize(level.mapname);
-
-    // Determinar la cantidad de monstruos por spawn basado en el tamaño del mapa y el nivel actual
+    //how many monsters according to mapsize and wave level
     int monsters_per_spawn;
     if (mapSize.isSmallMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
@@ -1450,17 +1461,15 @@ void SpawnMonsters() {
     else if (mapSize.isBigMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
     }
-    else { // Para mapas medianos
+    else { //medium maps (default)
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
     }
 
     int spawned = 0;
-
-    // Define la probabilidad de que un monstruo dropee un ítem (por ejemplo, 70%)
     const float drop_probability = 0.7f;
 
     for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
-        edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot; // Seleccionar punto de spawn
+        edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
         if (!spawn_point) continue;
 
         const char* monster_classname = G_HordePickMonster(spawn_point);
@@ -1478,7 +1487,6 @@ void SpawnMonsters() {
                 monster->monsterinfo.armor_power = 175;
         }
 
-        // Decidir si el monstruo dropeará un ítem
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
         }
@@ -1490,7 +1498,6 @@ void SpawnMonsters() {
         VectorCopy(spawn_point->s.angles, monster->s.angles);
         ED_CallSpawn(monster);
 
-        // spawngro effect
         vec3_t spawngrow_pos = monster->s.origin;
         float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.035f;
         float end_size = start_size;
@@ -1509,6 +1516,7 @@ void SpawnMonsters() {
         g_horde_local.monster_spawn_time = level.time + 1.3_sec;
     }
 }
+
 void Horde_RunFrame() {
     VerifyAndAdjustBots();
     auto mapSize = GetMapSize(level.mapname);
