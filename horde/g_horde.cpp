@@ -124,6 +124,7 @@ static std::mt19937 gen(rd());
 // Función para mezclar los beneficios
 void ShuffleBenefits() {
     shuffled_benefits.clear();
+    shuffled_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
     for (const auto& benefit : benefits) {
         shuffled_benefits.push_back(benefit.benefit_name);
     }
@@ -145,6 +146,7 @@ struct picked_benefit_t {
 
 std::string SelectRandomBenefit(int wave) {
     std::vector<picked_benefit_t> picked_benefits;
+    picked_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
     float total_weight = 0.0f;
 
     for (const auto& benefit : benefits) {
@@ -166,7 +168,6 @@ std::string SelectRandomBenefit(int wave) {
     }
     return "";
 }
-
 
 // Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
