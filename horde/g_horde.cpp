@@ -322,14 +322,14 @@ void Horde_InitLevel(int32_t lvl) noexcept {
 	auto mapSize = GetMapSize(level.mapname);
 	CheckAndApplyBenefit(g_horde_local.level);
 
-	if (g_horde_local.level == 18) {
+	if (g_horde_local.level == 17) {
 		gi.cvar_set("g_damage_scale", "1.7");
 	}
 	else if (g_horde_local.level == 27) {
-		gi.cvar_set("g_damage_scale", "2.5");
+		gi.cvar_set("g_damage_scale", "2.7");
 	}
 	else if (g_horde_local.level == 37) {
-		gi.cvar_set("g_damage_scale", "3.2");
+		gi.cvar_set("g_damage_scale", "3.7");
 	}
 
 	// Configuración de la cantidad de monstruos a spawnear
