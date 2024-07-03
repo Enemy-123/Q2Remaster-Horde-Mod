@@ -3455,7 +3455,6 @@ void CheckClientsInactivity() {
 		}
 	}
 }
-extern void VerifyAndAdjustBots();
 /*
 ==============
 ClientThink
@@ -3466,8 +3465,6 @@ usually be a couple times for each server frame.
 */
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
-
-
 	gclient_t* client;
 	edict_t* other;
 	uint32_t   i;

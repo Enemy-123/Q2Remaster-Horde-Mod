@@ -1237,8 +1237,8 @@ void ResetGame() noexcept {
 	gi.cvar_set("g_autohaste", "0");
 
 	// Reset cooldowns
-	MONSTER_COOLDOWN = 2.5_sec;
-	SPAWN_POINT_COOLDOWN = 3.5_sec;
+	MONSTER_COOLDOWN = 2.3_sec;
+	SPAWN_POINT_COOLDOWN = 3.0_sec;
 
 	// Reset the number of monsters to spawn
 	g_horde_local.num_to_spawn = 0;
