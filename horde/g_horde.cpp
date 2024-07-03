@@ -41,13 +41,10 @@ inline entity_iterable_t<active_monsters_filter_t> active_monsters()
 	return entity_iterable_t<active_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
 }
 
-int CalculateRemainingMonsters() noexcept
-{
+int CalculateRemainingMonsters() noexcept {
 	int remaining = 0;
-	for (auto ent : active_monsters())
-	{
-		if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-		{
+	for (auto ent : active_monsters()) {
+		if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 			++remaining;
 		}
 	}
@@ -68,6 +65,7 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
+static int cachedRemainingMonsters = -1;
 
 gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.3); // Cooldown en segundos para los monstruos 2.3
 gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.0); // Cooldown en segundos para los puntos de spawn 3.0
@@ -1237,9 +1235,6 @@ void ResetGame() noexcept {
 	remainingMonsters = 0;
 }
 
-// Variables globales para el estado de la condición
-std::chrono::steady_clock::time_point condition_start_time = std::chrono::steady_clock::time_point::min();
-int previous_remainingMonsters = 0;
 
 // Estructura para los parámetros de condición
 struct ConditionParams {
@@ -1270,30 +1265,30 @@ int GetNumSpectPlayers() noexcept {
 }
 
 // Calcular los parámetros de la condición en función del tamaño del mapa y el número de jugadores
-ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) noexcept {
-	ConditionParams params = { 0, 0 }; // Inicializar parámetros con valores por defecto
+// Variables globales para el estado de la condición usando gtime_t
+gtime_t condition_start_time = gtime_t::from_sec(0);
+int previous_remainingMonsters = 0;
 
-	// Caso 1: Mapas grandes (BigMap)
-	// Para mapas grandes, siempre tratar como si hubiera más de 4 jugadores humanos
+// Función para decidir los parámetros de la condición en función del tamaño del mapa y el número de jugadores
+ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) noexcept {
+	ConditionParams params = { 0, 0 };
+
 	if (mapSize.isBigMap) {
 		params.maxMonsters = 20;
 		params.timeThreshold = 16;
 		return params;
 	}
 
-	// Caso 2: Tres o más jugadores humanos
 	if (numHumanPlayers >= 3) {
 		if (mapSize.isSmallMap) {
 			params.maxMonsters = 7;
 			params.timeThreshold = 4;
 		}
 		else {
-			// Asumimos que cualquier otro mapa en este punto es de tamaño medio (MediumMap)
 			params.maxMonsters = 12;
 			params.timeThreshold = 7;
 		}
 	}
-	// Caso 3: Menos de tres jugadores humanos
 	else {
 		if (mapSize.isSmallMap) {
 			if (current_wave_number <= 4) {
@@ -1306,7 +1301,6 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
 			}
 		}
 		else {
-			// Asumimos que cualquier otro mapa en este punto es de tamaño medio (MediumMap)
 			if (current_wave_number <= 4) {
 				params.maxMonsters = 4;
 				params.timeThreshold = 8;
@@ -1317,7 +1311,6 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
 			}
 		}
 
-		// Ajuste adicional si las condiciones de caos o locura están activas
 		if ((g_chaotic->integer && numHumanPlayers <= 5) || (g_insane->integer && numHumanPlayers <= 5)) {
 			params.timeThreshold += 4;
 		}
@@ -1325,12 +1318,11 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
 
 	return params;
 }
-
 void AllowNextWaveAdvance() noexcept {
 	allowWaveAdvance = true;
 }
 
-// Función para verificar la condición de monstruos restantes
+// Función para permitir el avance de ola
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 	if (allowWaveAdvance) {
 		allowWaveAdvance = false;
@@ -1340,26 +1332,28 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 	const int numHumanPlayers = GetNumHumanPlayers();
 	const ConditionParams params = GetConditionParams(mapSize, numHumanPlayers);
 
-	const int remainingMonsters = CalculateRemainingMonsters();
+	if (cachedRemainingMonsters == -1) {
+		cachedRemainingMonsters = CalculateRemainingMonsters();
+	}
 
-	if (remainingMonsters <= params.maxMonsters) {
-		if (condition_start_time == std::chrono::steady_clock::time_point::min()) {
-			condition_start_time = std::chrono::steady_clock::now();
+	if (cachedRemainingMonsters <= params.maxMonsters) {
+		if (!condition_start_time) {
+			condition_start_time = level.time;
 		}
 
-		const auto duration = std::chrono::steady_clock::now() - condition_start_time;
-		if (std::chrono::duration_cast<std::chrono::seconds>(duration).count() >= params.timeThreshold) {
-			condition_start_time = std::chrono::steady_clock::time_point::min();
+		if ((level.time - condition_start_time).seconds() >= params.timeThreshold) {
+			condition_start_time = gtime_t::from_sec(0);
+			cachedRemainingMonsters = -1; // Reset cache after condition met
 			return true;
 		}
 	}
 	else {
-		condition_start_time = std::chrono::steady_clock::time_point::min();
+		condition_start_time = gtime_t::from_sec(0);
 	}
 
-	previous_remainingMonsters = remainingMonsters;
 	return false;
 }
+
 
 // Función para decidir si se usa el spawn más lejano basado en el nivel actual
 bool UseFarthestSpawn() noexcept {
@@ -1536,7 +1530,7 @@ void Horde_RunFrame() noexcept {
 	switch (g_horde_local.state) {
 	case horde_state_t::warmup:
 		if (g_horde_local.warm_time < level.time + 0.4_sec) {
-			remainingMonsters = CalculateRemainingMonsters();
+			cachedRemainingMonsters = CalculateRemainingMonsters();
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 			current_wave_number = 2;
@@ -1579,7 +1573,7 @@ void Horde_RunFrame() noexcept {
 			if (Horde_AllMonstersDead()) {
 				g_horde_local.warm_time = level.time + random_time(2.2_sec, 5_sec);
 				g_horde_local.state = horde_state_t::rest;
-				remainingMonsters = CalculateRemainingMonsters();
+				cachedRemainingMonsters = CalculateRemainingMonsters();
 
 				if (g_chaotic->integer || g_insane->integer) {
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nHarder Wave Controlled, GG\n");
@@ -1599,7 +1593,7 @@ void Horde_RunFrame() noexcept {
 				}
 			}
 			else {
-				remainingMonsters = CalculateRemainingMonsters();
+				cachedRemainingMonsters = CalculateRemainingMonsters();
 				g_horde_local.monster_spawn_time = level.time + 3_sec;
 			}
 		}
