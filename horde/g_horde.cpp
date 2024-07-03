@@ -41,8 +41,6 @@ inline entity_iterable_t<active_monsters_filter_t> active_monsters()
 	return entity_iterable_t<active_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
 }
 
-
-
 int GetNumActivePlayers() noexcept;
 int GetNumSpectPlayers() noexcept;
 
@@ -84,10 +82,10 @@ int vampire_level = 0;
 std::vector<std::string> shuffled_benefits;
 std::unordered_set<edict_t*> auto_spawned_bosses;
 std::unordered_set<std::string> obtained_benefits;
-std::unordered_map<const char*, gtime_t> lastMonsterSpawnTime;
+std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
-std::map<edict_t*, int> spawnAttempts;
-std::map<edict_t*, float> spawnPointCooldowns;
+std::unordered_map<edict_t*, int> spawnAttempts;
+std::unordered_map<edict_t*, float> spawnPointCooldowns;
 
 const std::unordered_set<std::string> smallMaps = {
 	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "q64\\dm10",
@@ -491,7 +489,7 @@ struct boss_t {
 constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier2", 24, -1, 0.05f},
 	{"monster_boss2kl", 24, -1, 0.05f},
-	{"monster_widow2", 19 -1, 0.05f},
+	{"monster_widow2", 19, -1, 0.05f},
 	{"monster_tank_64", -1, -1, 0.05f},
 	{"monster_shamblerkl", -1, -1, 0.05f},
 	{"monster_guncmdrkl", -1, 19, 0.05f},
@@ -848,7 +846,6 @@ int GetNumHumanPlayers() noexcept {
 	}
 	return numHumanPlayers;
 }
-
 
 // Variable global para rastrear el tiempo de la última actualización
 gtime_t lastBotAdjustmentTime = gtime_t::from_sec(0); // Inicia en 0
