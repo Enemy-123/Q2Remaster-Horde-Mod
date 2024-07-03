@@ -195,23 +195,31 @@ void ai_stand(edict_t* self, float dist)
         }
     }
 
-    // HORDESTAND: Verifica si el enemigo es nullptr y selecciona un jugador aleatorio vivo para enojarse
+    // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
     if (g_horde->integer && !self->enemy) {
+        edict_t* closestPlayer = nullptr;
+        float closestDistance = 1000.0f; // Rango de búsqueda
+        vec3_t dir{};
 
-        if (strcmp(self->classname, "monster_sentrygun")) {
-            edict_t* player = nullptr;
-            for (unsigned int i = 1; i <= game.maxclients; ++i) {
-                edict_t* client = &g_edicts[i];
-                if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
-                    continue;
-                }
-                player = client;
+        for (unsigned int i = 1; i <= game.maxclients; ++i) {
+            edict_t* client = &g_edicts[i];
+            if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time || client->client->invincible_time > level.time) {
+                continue;
             }
-            if (player) {
-                self->enemy = player;
-                self->monsterinfo.run(self);
-                return;
+
+            VectorSubtract(client->s.origin, self->s.origin, dir);
+            float distance = VectorLength(dir);
+
+            if (distance < closestDistance) {
+                closestPlayer = client;
+                closestDistance = distance;
             }
+        }
+
+        if (closestPlayer != nullptr) {
+            self->enemy = closestPlayer;
+            self->monsterinfo.run(self);
+            return;
         }
     }
 }
@@ -786,15 +794,14 @@ bool FindTarget(edict_t* self)
 
     if (!client)
     {
-        if (g_horde->integer && strcmp(self->classname, "monster_sentrygun")) { // this avoid turrets go crazy maybe
+        if (g_horde->integer && strcmp(self->classname, "monster_sentrygun") != 0) { // this avoid turrets go crazy maybe
             // Busca enemigos en el equipo contrario
-            edict_t* ent = nullptr;
-            float range = 1000.0f; // Rango de búsqueda
-            vec3_t dir;
+            edict_t* closestEnemy = nullptr;
+            float closestDistance = 1000.0f; // Rango de búsqueda
+            vec3_t dir{};
 
-            for (unsigned int i = 0; i < globals.num_edicts; i++)
-            {
-                ent = &g_edicts[i];
+            for (unsigned int i = 0; i < globals.num_edicts; i++) {
+                edict_t* ent = &g_edicts[i];
 
                 if (!ent->inuse)
                     continue;
@@ -803,20 +810,25 @@ bool FindTarget(edict_t* self)
                     continue;
 
                 // Solo busca enemigos en el equipo contrario
-                if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER))
-                {
-                    dir = ent->s.origin - self->s.origin;
-                    if (VectorLength(dir) < range)
-                    {
-                        self->enemy = ent;
-                        return true;
+                if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER)) {
+                    VectorSubtract(ent->s.origin, self->s.origin, dir);
+                    float distance = VectorLength(dir);
+
+                    if (distance < closestDistance) {
+                        closestEnemy = ent;
+                        closestDistance = distance;
                     }
                 }
             }
+
+            if (closestEnemy != nullptr) {
+                self->enemy = closestEnemy;
+                return true;
+            }
         }
+
         return false; // no clients to get mad at
     }
-
     // if the entity went away, forget it
     if (!client->inuse)
         return false;
