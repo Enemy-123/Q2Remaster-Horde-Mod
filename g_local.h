@@ -3642,7 +3642,7 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 	}
 }
 
-inline bool M_CheckGib(edict_t* self, const mod_t& mod)
+inline bool M_CheckGib(edict_t* self, const mod_t& mod) 
 {
 	if (self->deadflag)
 	{
