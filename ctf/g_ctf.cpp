@@ -944,12 +944,8 @@ void CTFID_f(edict_t* ent)
 		ent->client->resp.id_state = true;
 	}
 }
-#include <unordered_map>
-#include <string>
-#include <sstream>
 
 #include "../shared.h"
-
 void InitializeCTFIDViewConfigStrings() {
 	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
 		gi.configstring(i, "");
@@ -979,7 +975,6 @@ int GetArmorInfo(edict_t* ent) {
 
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
-		// Add other replacements as needed
 		{ "monster_soldier_light", "Light Soldier" },
 		{ "monster_soldier_ss", "SS Soldier" },
 		{ "monster_soldier", "Soldier" },
@@ -1053,6 +1048,7 @@ std::string GetDisplayName(const std::string& classname) {
 		// Add other replacements as needed
 	};
 
+
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
@@ -1072,11 +1068,11 @@ std::string FormatClassname(const std::string& classname) {
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60); // Define el tiempo de vida de la mina Tesla
 
-bool IsValidClassname(const char* classname) {
+inline bool IsValidClassname(const char* classname) {
 	if (!classname) return false;
 
 	const char* allowed_prefixes[] = {
-		"monster_", "misc_insane", "tesla_mine", "food_cube_trap",  nullptr
+		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", nullptr
 	};
 
 	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
@@ -1087,7 +1083,7 @@ bool IsValidClassname(const char* classname) {
 	return false;
 }
 
-bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
+inline bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT)
 		return false;
 	if (other == ent || other->svflags & SVF_DEADMONSTER) // Excluir al propio jugador
@@ -1099,15 +1095,13 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 	return true;
 }
 
-extern void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
-
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
 }
 
 void CTFSetIDView(edict_t* ent) {
-	static std::unordered_map<int, int> monster_configstrings;
-	static std::unordered_map<int, int> player_configstrings;
+	static int monster_configstrings[MAX_EDICTS];
+	static int player_configstrings[MAX_EDICTS];
 	static std::vector<int> available_monster_configstrings;
 	static std::vector<int> available_player_configstrings;
 
@@ -1126,7 +1120,6 @@ void CTFSetIDView(edict_t* ent) {
 	vec3_t forward;
 	trace_t tr;
 	edict_t* who, * best = nullptr;
-	float bd = 0, d;
 	float closest_dist = 1024;
 	float min_dot = 0.98f;
 
@@ -1137,17 +1130,19 @@ void CTFSetIDView(edict_t* ent) {
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
+	extern void VectorAdd(const vec3_t & a, const vec3_t & b, vec3_t & c);
+
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	vec3_t mins, maxs;
-	VectorAdd(ent->s.origin, ent->mins, mins);  // Calcular la posición mínima
-	VectorAdd(ent->s.origin, ent->maxs, maxs);  // Calcular la posición máxima
+	VectorAdd(ent->s.origin, ent->mins, mins);
+	VectorAdd(ent->s.origin, ent->maxs, maxs);
 
 	tr = gi.traceline(mins, maxs, ent, MASK_SOLID);
 
 	if (tr.fraction < 1 && IsValidTarget(ent, tr.ent, true)) {
 		vec3_t dir = tr.ent->s.origin - ent->s.origin;
 		dir.normalize();
-		d = forward.dot(dir);
+		float d = forward.dot(dir);
 		if (d > min_dot) {
 			float dist = (tr.ent->s.origin - ent->s.origin).length();
 			if (dist < closest_dist) {
@@ -1164,7 +1159,7 @@ void CTFSetIDView(edict_t* ent) {
 
 		vec3_t dir = who->s.origin - ent->s.origin;
 		dir.normalize();
-		d = forward.dot(dir);
+		float d = forward.dot(dir);
 		float dist = (who->s.origin - ent->s.origin).length();
 		if (d > min_dot && loc_CanSee(ent, who) && dist < closest_dist) {
 			closest_dist = dist;
@@ -1238,53 +1233,26 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		ent->client->target_health_str = health_stream.str();
 
-		if (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
-			auto it = monster_configstrings.find(best - g_edicts);
-			if (it == monster_configstrings.end()) {
-				if (!available_monster_configstrings.empty()) {
-					int cs_index = available_monster_configstrings.back();
-					available_monster_configstrings.pop_back();
+		auto& available_configstrings = (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap"))
+			? available_monster_configstrings : available_player_configstrings;
+		auto& configstrings = (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap"))
+			? monster_configstrings : player_configstrings;
 
-					if (cs_index >= CONFIG_MONSTER_HEALTH_BASE && cs_index <= CONFIG_MONSTER_HEALTH_END) {
-						monster_configstrings[best - g_edicts] = cs_index;
-						UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
-					}
-				}
+		if (configstrings[best - g_edicts] == 0) {
+			if (!available_configstrings.empty()) {
+				int cs_index = available_configstrings.back();
+				available_configstrings.pop_back();
+				configstrings[best - g_edicts] = cs_index;
 			}
-			else {
-				int cs_index = it->second;
-				if (cs_index >= CONFIG_MONSTER_HEALTH_BASE && cs_index <= CONFIG_MONSTER_HEALTH_END) {
-					UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
-				}
-			}
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = monster_configstrings[best - g_edicts];
 		}
-		else {
-			auto it = player_configstrings.find(best - g_edicts);
-			if (it == player_configstrings.end()) {
-				if (!available_player_configstrings.empty()) {
-					int cs_index = available_player_configstrings.back();
-					available_player_configstrings.pop_back();
-
-					if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
-						player_configstrings[best - g_edicts] = cs_index;
-						UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
-					}
-				}
-			}
-			else {
-				int cs_index = it->second;
-				if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
-					UpdateCTFIDViewConfigString(cs_index, ent->client->target_health_str.c_str());
-				}
-			}
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = player_configstrings[best - g_edicts];
-		}
+		UpdateCTFIDViewConfigString(configstrings[best - g_edicts], ent->client->target_health_str);
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configstrings[best - g_edicts];
 	}
 	else {
 		ent->client->idtarget = nullptr;
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
