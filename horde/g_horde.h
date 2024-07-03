@@ -10,10 +10,7 @@ bool G_IsCooperative() noexcept;
 
 void ResetGame() noexcept;
 void HandleResetEvent() noexcept;
-extern int current_wave_number;
 extern int last_wave_number;
-extern int CalculateRemainingMonsters() noexcept;
-
 
 //hook.cpp
 void Hook_InitGame(void);

@@ -13,7 +13,3 @@ extern cgame_export_t cglobals;
 #define SERVER_TICK_RATE cgi.tick_rate // in hz
 #define FRAME_TIME_S cgi.frame_time_s
 #define FRAME_TIME_MS cgi.frame_time_ms
-
-//HORDE WAVE COUNT
-extern int current_wave_number;
-extern int CalculateRemainingMonsters() noexcept;

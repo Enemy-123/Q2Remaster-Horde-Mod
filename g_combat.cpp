@@ -892,12 +892,12 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		}
 
 		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
-		if (level.time - player->lastdmg <= 0.2_sec && player->dmg_counter <= 32767)
-			player->dmg_counter += real_damage;
+		if (level.time - player->lastdmg <= 0.2_sec && player->client->dmg_counter <= 32767)
+			player->client->dmg_counter += real_damage;
 		else
-			player->dmg_counter = real_damage;
+			player->client->dmg_counter = real_damage;
 
-		player->client->ps.stats[STAT_ID_DAMAGE] = player->dmg_counter;
+		player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
 
 		player->lastdmg = level.time;
 	}

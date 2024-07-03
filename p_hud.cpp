@@ -1086,7 +1086,7 @@ void G_SetStats(edict_t* ent)
 		 ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
 	 }
 	 else {
-		 ent->client->ps.stats[STAT_ID_DAMAGE] = ent->dmg_counter;
+		 ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
 	 }
 
 	//

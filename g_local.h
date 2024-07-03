@@ -3093,6 +3093,7 @@ struct gclient_t
 	bool techItemsRemoved;
 	gtime_t time_in_bad_area;
 	edict_t* idtarget;
+	float dmg_counter; // ID DMG
 };
 
 
@@ -3332,7 +3333,6 @@ struct edict_t
 	// Kyper
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 	gtime_t lastdmg; // ID DMG
-	float dmg_counter; // ID DMG
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 };
 #define TEAM1 "team1"
