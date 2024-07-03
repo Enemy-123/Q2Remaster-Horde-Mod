@@ -854,7 +854,7 @@ int GetNumHumanPlayers() noexcept {
 gtime_t lastBotAdjustmentTime = gtime_t::from_sec(0); // Inicia en 0
 
 // Intervalo de tiempo en segundos para la actualización (por ejemplo, cada 30 segundos)
-constexpr gtime_t BOT_ADJUSTMENT_INTERVAL = gtime_t::from_sec(5);
+constexpr gtime_t BOT_ADJUSTMENT_INTERVAL = gtime_t::from_sec(2);
 
 void VerifyAndAdjustBots() noexcept {
 	// Verifica si ha pasado el intervalo de tiempo desde la última actualización
@@ -1394,12 +1394,9 @@ bool UseFarthestSpawn() noexcept {
 	return false;
 }
 
-// Función para reproducir el sonido de inicio de ola
 void PlayWaveStartSound() noexcept {
-	std::srand(static_cast<unsigned int>(std::time(nullptr)));
-
-	// Vector para almacenar los sonidos
-	std::vector<std::string> sounds = {
+	// Vector para almacenar los sonidos, definido como estático para que solo se inicialice una vez
+	static const std::vector<std::string> sounds = {
 		"misc/r_tele3.wav",
 		"world/klaxon2.wav",
 		"misc/tele_up.wav",
@@ -1407,12 +1404,11 @@ void PlayWaveStartSound() noexcept {
 		"world/yelforce.wav"
 	};
 
-	// Generar un número aleatorio
-	float r = frandom();
-	size_t sound_index = static_cast<size_t>(r * sounds.size());
+	// Generar un índice aleatorio para seleccionar un sonido
+	int sound_index = static_cast<int>(frandom() * sounds.size());
 
 	// Asegurarse de que el índice esté dentro del rango del vector
-	if (sound_index < sounds.size()) {
+	if (sound_index >= 0 && sound_index < sounds.size()) {
 		gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
 	}
 }
@@ -1456,8 +1452,8 @@ void HandleWaveRestMessage() noexcept {
 		gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
 	}
 
-	// Vector para almacenar los sonidos
-	std::vector<std::string> sounds = {
+	// Vector para almacenar los sonidos, definido como estático para que solo se inicialice una vez
+	static const std::vector<std::string> sounds = {
 		"nav_editor/action_fail.wav",
 		"makron/roar1.wav",
 		"zortemp/ack.wav",
@@ -1648,7 +1644,6 @@ void Horde_RunFrame() noexcept {
 		break;
 	}
 }
-
 // Función para manejar el evento de reinicio
 void HandleResetEvent() noexcept {
 	ResetGame();
