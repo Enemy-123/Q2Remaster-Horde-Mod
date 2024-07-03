@@ -3445,9 +3445,9 @@ static bool ClientInactivityTimer(edict_t* ent) {
 	return true;
 }
 
-cvar_t* maxclients;
 // Definir CheckClientsInactivity
 void CheckClientsInactivity() {
+	cvar_t* maxclients;
 	for (int i = 0; i < maxclients->value; i++) {
 		edict_t* ent = &g_edicts[i + 1];
 		if (ent->inuse && ent->client) {
