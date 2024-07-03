@@ -1520,7 +1520,7 @@ edict_t *PickCoopTarget(edict_t *self)
 	edict_t* ent;
 
 	// if we're not in coop, this is a noop
-	if (!G_IsDeathmatch())
+	if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
 		return nullptr;
 
 	targets = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
