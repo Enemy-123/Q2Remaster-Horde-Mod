@@ -1541,6 +1541,7 @@ void SP_monster_guncmdrkl(edict_t* self)
 			self->s.skinnum &= ~1;
 	
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		self->mass *= 3.0f;
 		self->gib_health -99999;
 	}	
 
