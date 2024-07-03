@@ -1787,10 +1787,10 @@ void SP_worldspawn(edict_t* ent)
 	}
 
 	// [Paril-KEX]
-	if (G_IsDeathmatch() && g_horde->integer || !G_IsDeathmatch())
+	if (!G_IsDeathmatch())
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_PVE).data());
-	//	else if (teamplay->integer || ctf->integer)
-	//		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
+	else if (teamplay->integer || ctf->integer)
+		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
 	else
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_FFA).data());
 
