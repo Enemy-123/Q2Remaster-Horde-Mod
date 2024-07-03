@@ -12,7 +12,7 @@ void ResetGame() noexcept;
 void HandleResetEvent() noexcept;
 extern int current_wave_number;
 extern int last_wave_number;
-extern int remainingMonsters;
+extern int CalculateRemainingMonsters() noexcept;
 
 
 //hook.cpp

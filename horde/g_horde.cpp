@@ -41,15 +41,7 @@ inline entity_iterable_t<active_monsters_filter_t> active_monsters()
 	return entity_iterable_t<active_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
 }
 
-int CalculateRemainingMonsters() noexcept {
-	int remaining = 0;
-	for (auto ent : active_monsters()) {
-		if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-			++remaining;
-		}
-	}
-	return remaining;
-}
+
 
 int GetNumActivePlayers() noexcept;
 int GetNumSpectPlayers() noexcept;
@@ -62,7 +54,6 @@ bool allowWaveAdvance = false; // Variable global para controlar el avance de la
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
 
-int remainingMonsters = CalculateRemainingMonsters(); // needed, else will cause error
 int current_wave_number = 1;
 int last_wave_number = 0;
 static int cachedRemainingMonsters = -1;
@@ -1232,7 +1223,6 @@ void ResetGame() noexcept {
 
 	// Reset the number of monsters to spawn
 	g_horde_local.num_to_spawn = 0;
-	remainingMonsters = 0;
 }
 
 
@@ -1322,6 +1312,17 @@ void AllowNextWaveAdvance() noexcept {
 	allowWaveAdvance = true;
 }
 
+int CalculateRemainingMonsters() noexcept {
+	int remaining = 0;
+	for (auto ent : active_monsters()) {
+		if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+			++remaining;
+		}
+	}
+	return remaining;
+}
+
+
 // Función para permitir el avance de ola
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 	if (allowWaveAdvance) {
@@ -1354,6 +1355,17 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 	return false;
 }
 
+void MonsterDied(edict_t* monster) {
+	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+		cachedRemainingMonsters--;
+	}
+}
+
+void MonsterSpawned(edict_t* monster) {
+	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+		cachedRemainingMonsters++;
+	}
+}
 
 // Función para decidir si se usa el spawn más lejano basado en el nivel actual
 bool UseFarthestSpawn() noexcept {
@@ -1560,6 +1572,7 @@ void Horde_RunFrame() noexcept {
 				gi.LocBroadcast_Print(PRINT_TYPEWRITER, message_stream.str().c_str());
 				g_horde_local.state = horde_state_t::cleanup;
 				g_horde_local.monster_spawn_time = level.time + 1_sec;
+				cachedRemainingMonsters = CalculateRemainingMonsters(); // Reset after spawning
 			}
 		}
 		break;
@@ -1567,6 +1580,7 @@ void Horde_RunFrame() noexcept {
 	case horde_state_t::cleanup:
 		if (CheckRemainingMonstersCondition(mapSize)) {
 			HandleWaveCleanupMessage(mapSize);
+			cachedRemainingMonsters = CalculateRemainingMonsters(); // Reset after cleanup
 		}
 
 		if (g_horde_local.monster_spawn_time < level.time) {

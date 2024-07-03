@@ -16,4 +16,4 @@ extern cgame_export_t cglobals;
 
 //HORDE WAVE COUNT
 extern int current_wave_number;
-extern int remainingMonsters;
+extern int CalculateRemainingMonsters() noexcept;
