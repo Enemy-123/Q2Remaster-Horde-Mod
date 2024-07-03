@@ -491,7 +491,7 @@ struct boss_t {
 constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier2", 24, -1, 0.05f},
 	{"monster_boss2kl", 24, -1, 0.05f},
-	{"monster_widow2", 19 - 1, 0.05f},
+	{"monster_widow2", 19 -1, 0.05f},
 	{"monster_tank_64", -1, -1, 0.05f},
 	{"monster_shamblerkl", -1, -1, 0.05f},
 	{"monster_guncmdrkl", -1, 19, 0.05f},
@@ -775,7 +775,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 }
 
 void Horde_PreInit() noexcept {
-	wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
+	//wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 
@@ -1147,7 +1147,6 @@ void SpawnBossAutomatically() noexcept {
 
 			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
 			boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
-			boss->gib_health = -2000000;
 
 			// spawngro effect
 			vec3_t spawngrow_pos = boss->s.origin;
