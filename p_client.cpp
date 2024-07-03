@@ -3438,7 +3438,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		}
 	}
 
-	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
+	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest) noexcept;
 	VectorCopy(ent->s.origin, ent->client->old_origin);
 	VectorCopy(ent->client->v_angle, ent->client->old_angles);
 
@@ -3911,7 +3911,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 // [Paril-KEX] check each player to find a good
 // respawn target & position
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {

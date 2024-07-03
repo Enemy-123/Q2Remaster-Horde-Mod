@@ -378,7 +378,7 @@ void hover2_reattack(edict_t* self)
 			}
 	M_SetAnimation(self, &hover2_move_end_attack);
 }
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 constexpr float MORTAR_SPEED = 1850.f;
 constexpr float GRENADE_SPEED = 1600.f;
 

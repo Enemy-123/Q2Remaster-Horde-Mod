@@ -1,15 +1,15 @@
 
 extern cvar_t* g_horde;
 
-void Horde_PreInit();
-void Horde_Init();
-void Horde_RunFrame();
-gitem_t* G_HordePickItem();
-bool G_IsDeathmatch();
-bool G_IsCooperative();
+void Horde_PreInit() noexcept;
+void Horde_Init() noexcept;
+void Horde_RunFrame() noexcept;
+gitem_t* G_HordePickItem() noexcept;
+bool G_IsDeathmatch() noexcept;
+bool G_IsCooperative() noexcept;
 
-void ResetGame();
-void HandleResetEvent();
+void ResetGame() noexcept;
+void HandleResetEvent() noexcept;
 extern int current_wave_number;
 extern int last_wave_number;
 extern int remainingMonsters;

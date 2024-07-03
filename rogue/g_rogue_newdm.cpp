@@ -155,7 +155,7 @@ void PrecacheForRandomRespawn()
 		PrecacheItem(it);
 	}
 }
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 
 // ***************************
 //  SPAWN TURRET LOGIC

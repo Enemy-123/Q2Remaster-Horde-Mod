@@ -39,5 +39,5 @@ struct MapSize {
     bool isBigMap = false;
 };
 
-MapSize GetMapSize(const std::string& mapname);
+MapSize GetMapSize(const std::string& mapname) noexcept;
 #endif // SHARED_H

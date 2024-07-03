@@ -2154,7 +2154,7 @@ static edict_t* FindTechSpawn()
 			vec3_t start, end;
 			vec3_t mins = { 0, 0, 0 }; // Declarar mins y maxs como vectores vacíos
 			vec3_t maxs = { 0, 0, 0 };
-			extern inline void VectorCopy(const vec3_t & src, vec3_t & dest);
+			extern inline void VectorCopy(const vec3_t & src, vec3_t & dest) noexcept;
 			VectorCopy(spot->s.origin, start);
 			VectorCopy(spot->s.origin, end);
 			end[2] -= 128; // Comprobar 128 unidades hacia abajo para asegurarse de que no está flotando

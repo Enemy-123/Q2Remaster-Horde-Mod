@@ -419,7 +419,7 @@ float range_to(edict_t* self, edict_t* other) {
 }
 
 #include <stdio.h> // For printf or gi.Com_Printf
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 /*
 =============
 visible
