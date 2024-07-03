@@ -99,7 +99,7 @@ void sphere_chase(edict_t *self, int stupidChase)
 		sphere_think_explode(self);
 		return;
 	}
-
+	if (self && self->enemy)
 	dest = self->enemy->s.origin;
 	if (self->enemy->client)
 		dest[2] += self->enemy->viewheight;
@@ -634,7 +634,7 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 	sphere->classname = "sphere";
 	sphere->yaw_speed = 40;
 	sphere->monsterinfo.attack_finished = 0_ms;
-	sphere->monsterinfo.team == CTF_TEAM1;
+	sphere->monsterinfo.team = CTF_TEAM1;
 	sphere->spawnflags = spawnflags; // need this for the HUD to recognize sphere
 	// PMM
 	sphere->takedamage = false;

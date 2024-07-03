@@ -1151,9 +1151,8 @@ void check_player_tesla_limit(edict_t* self)
 		edict_t* oldest_tesla = nullptr;
 		gtime_t oldest_timestamp = level.time;
 
-		for (int i = 0; i < globals.num_edicts; i++)
+		for (edict_t* e = g_edicts; e < g_edicts + globals.num_edicts; ++e)
 		{
-			edict_t* e = &g_edicts[i];
 			if (e->inuse && e->classname && strcmp(e->classname, "tesla_mine") == 0 && e->owner == self)
 			{
 				if (e->timestamp < oldest_timestamp)
@@ -1171,6 +1170,7 @@ void check_player_tesla_limit(edict_t* self)
 		}
 	}
 }
+
 
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {

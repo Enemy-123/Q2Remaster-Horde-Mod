@@ -324,7 +324,7 @@ bool FindTarget(edict_t* self);
 
 THINK(turret_driver_think) (edict_t* self) -> void
 {
-	vec3_t target;
+	vec3_t target{};
 	vec3_t dir;
 
 	self->nextthink = level.time + FRAME_TIME_S;
