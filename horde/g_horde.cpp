@@ -849,20 +849,39 @@ int GetNumHumanPlayers() noexcept {
 	return numHumanPlayers;
 }
 
+
+// Variable global para rastrear el tiempo de la última actualización
+gtime_t lastBotAdjustmentTime = gtime_t::from_sec(0); // Inicia en 0
+
+// Intervalo de tiempo en segundos para la actualización (por ejemplo, cada 30 segundos)
+constexpr gtime_t BOT_ADJUSTMENT_INTERVAL = gtime_t::from_sec(5);
+
 void VerifyAndAdjustBots() noexcept {
-	const auto mapSize = GetMapSize(level.mapname);
-	const int humanPlayers = GetNumHumanPlayers();
-	const int spectPlayers = GetNumSpectPlayers();
-	const int baseBots = mapSize.isBigMap ? 6 : 4;
+	// Verifica si ha pasado el intervalo de tiempo desde la última actualización
+	if (level.time - lastBotAdjustmentTime < BOT_ADJUSTMENT_INTERVAL) {
+		return; // Si no ha pasado el intervalo, sale de la función
+	}
 
-	// Calcular el número requerido de bots
-	int requiredBots = baseBots + spectPlayers;
+	const auto mapSize = GetMapSize(level.mapname);  // Obtiene el tamaño del mapa actual
+	const int humanPlayers = GetNumHumanPlayers();   // Cuenta los jugadores humanos activos
+	const int spectPlayers = GetNumSpectPlayers();   // Cuenta los espectadores
 
-	// Asegurar que el número de bots no sea menor que el valor base
-	requiredBots = std::max(requiredBots, baseBots);
+	int baseBots;   // Número base de bots según el tamaño del mapa
+	if (mapSize.isBigMap) {
+		baseBots = 6;  // Mapas grandes tienen un base mayor
+	}
+	else {
+		baseBots = 4;  // Mapas pequeños y medianos tienen la misma base de bots
+	}
 
-	// Establecer el número de bots mínimos necesarios
+	int requiredBots = baseBots + spectPlayers;  // Calcula el número requerido de bots basado en espectadores
+	requiredBots = std::max(requiredBots, baseBots);  // Asegura que siempre hay al menos el número base de bots
+
+	// Establece el número mínimo necesario de bots usando la variable de consola
 	gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+
+	// Actualiza el tiempo de la última actualización
+	lastBotAdjustmentTime = level.time;
 }
 
 void Horde_Init() noexcept {
