@@ -3178,8 +3178,8 @@ void ClientDisconnect(edict_t* ent)
 	// ROGUE
 	//============
 
-	// send effect
-	if (!(ent->svflags & SVF_NOCLIENT || SVF_BOT))
+// send effect
+	if (!(ent->svflags & (SVF_NOCLIENT | SVF_BOT)))
 	{
 		gi.WriteByte(svc_muzzleflash);
 		gi.WriteEntity(ent);

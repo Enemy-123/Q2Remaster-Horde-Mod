@@ -1247,14 +1247,6 @@ void ResetGame() noexcept {
 	cachedRemainingMonsters = -1;
 }
 
-
-
-// Estructura para los parámetros de condición
-struct ConditionParams {
-	int maxMonsters;
-	int timeThreshold;
-};
-
 // Función para obtener el número de jugadores activos (incluyendo bots)
 int GetNumActivePlayers() noexcept {
 	int numActivePlayers = 0;
@@ -1276,6 +1268,13 @@ int GetNumSpectPlayers() noexcept {
 	}
 	return numSpectPlayers;
 }
+
+// Estructura para los parámetros de condición
+struct ConditionParams {
+	int maxMonsters;
+	int timeThreshold;
+};
+
 
 // Calcular los parámetros de la condición en función del tamaño del mapa y el número de jugadores
 // Variables globales para el estado de la condición usando gtime_t
@@ -1378,13 +1377,13 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 	return false;
 }
 
-void MonsterDied(edict_t* monster) {
+static void MonsterDied(edict_t* monster) {
 	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 		cachedRemainingMonsters--;
 	}
 }
 
-void MonsterSpawned(edict_t* monster) {
+static void MonsterSpawned(edict_t* monster) {
 	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 		cachedRemainingMonsters++;
 	}
