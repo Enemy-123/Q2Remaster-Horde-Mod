@@ -729,6 +729,7 @@ void SP_monster_redmutant(edict_t* self)
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 		self->health *= 3.6f;
+		self->gib_health - 99999;
 	}
 
 	self->pain = redmutant_pain;

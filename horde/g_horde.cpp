@@ -90,7 +90,7 @@ std::map<edict_t*, int> spawnAttempts;
 std::map<edict_t*, float> spawnPointCooldowns;
 
 const std::unordered_set<std::string> smallMaps = {
-	"q2dm3", "q2dm7", "q2dm2", "q2ctf4", "q64/dm10", "q64\\dm10",
+	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "q64\\dm10",
 	"q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2",
 	"q64\\dm2", "q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command", "q64\\command",
 	"mgu3m4", "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0"
@@ -1242,7 +1242,11 @@ void ResetGame() noexcept {
 
 	// Reset the number of monsters to spawn
 	g_horde_local.num_to_spawn = 0;
+
+	// Reset cached remaining monsters
+	cachedRemainingMonsters = -1;
 }
+
 
 
 // Estructura para los parámetros de condición
