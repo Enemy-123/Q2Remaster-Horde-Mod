@@ -567,7 +567,6 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 		mapSize.isMediumMap ? sizeof(BOSS_MEDIUM) / sizeof(boss_t) :
 		sizeof(BOSS_LARGE) / sizeof(boss_t);
 
-	// Filtrar jefes que cumplen con la restricción de la ola y que no se han usado recientemente
 	for (int i = 0; i < boss_list_size; ++i) {
 		const boss_t& boss = boss_list[i];
 		if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
@@ -577,16 +576,21 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 		}
 	}
 
-	// Si no hay jefes elegibles no repetidos, resetear el conjunto y volver a intentar sin el último jefe seleccionado
-	if (eligible_bosses.empty() && !recent_bosses.empty()) {
+	if (eligible_bosses.empty()) {
 		recent_bosses.clear();
-		return G_HordePickBOSS(mapSize, mapname, waveNumber);  // Recursivamente intente seleccionar un jefe otra vez
+		for (int i = 0; i < boss_list_size; ++i) {
+			const boss_t& boss = boss_list[i];
+			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
+				(waveNumber <= boss.max_level || boss.max_level == -1)) {
+				eligible_bosses.push_back(&boss);
+			}
+		}
 	}
 
 	if (!eligible_bosses.empty()) {
 		std::uniform_int_distribution<> dis(0, eligible_bosses.size() - 1);
 		const boss_t* chosen_boss = eligible_bosses[dis(gen)];
-		recent_bosses.insert(chosen_boss->classname);  // Agregar al conjunto de usados
+		recent_bosses.insert(chosen_boss->classname);
 		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
 			recent_bosses.erase(recent_bosses.begin());
 		}
