@@ -313,6 +313,10 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
 
 // Función para inicializar el nivel de la horda
 void Horde_InitLevel(int32_t lvl) noexcept {
+
+	// Inicializar cachedRemainingMonsters
+	cachedRemainingMonsters = -1;
+
 	current_wave_number++;
 	last_wave_number++;
 	g_horde_local.level = lvl;
@@ -1384,8 +1388,6 @@ int CalculateRemainingMonsters() noexcept {
 	return remaining;
 }
 
-
-// Función para permitir el avance de ola
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 	if (allowWaveAdvance) {
 		allowWaveAdvance = false;
