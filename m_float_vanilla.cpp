@@ -669,14 +669,14 @@ constexpr spawnflags_t SPAWNFLAG_FLOATER_DISGUISE = 8_spawnflag;
  */
 void SP_monster_floater(edict_t* self)
 {
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-			else
-				NULL;
-		}
+	if (g_horde->integer)
+	{
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
+		if (randomsearch < 0.12f)
+			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
+		else 
+			nullptr;
 	}
 
 	if (!M_AllowSpawn(self)) {

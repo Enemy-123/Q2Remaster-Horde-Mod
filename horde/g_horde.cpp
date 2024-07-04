@@ -770,6 +770,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 	IncreaseSpawnAttempts(spawn_point);
 	return nullptr;
 }
+
 void Horde_PreInit() noexcept {
 	//wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
@@ -882,10 +883,54 @@ void VerifyAndAdjustBots() noexcept {
 void Horde_Init() noexcept {
 	VerifyAndAdjustBots();
 
+	// Precache all items
 	for (auto& item : itemlist) PrecacheItem(&item);
 
+	// Precache monsters
 	for (const auto& monster : monsters) {
 		edict_t* e = G_Spawn();
+		if (!e) {
+			gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
+			continue;
+		}
+
+		// Precache items (weapons, powerups, etc.)
+		for (const auto& item : items) {
+			if (item.classname) {
+				PrecacheItem(FindItemByClassname(item.classname));
+			}
+			else {
+				gi.Com_Print("Error: Invalid item classname for precaching.\n");
+			}
+
+			// Precache bosses
+			for (const auto& boss : BOSS_SMALL) {
+				if (boss.classname) {
+					PrecacheItem(FindItemByClassname(boss.classname));
+				}
+				else {
+					gi.Com_Print("Error: Invalid boss classname for precaching.\n");
+				}
+			}
+			for (const auto& boss : BOSS_MEDIUM) {
+				if (boss.classname) {
+					PrecacheItem(FindItemByClassname(boss.classname));
+				}
+				else {
+					gi.Com_Print("Error: Invalid boss classname for precaching.\n");
+				}
+			}
+			for (const auto& boss : BOSS_LARGE) {
+				if (boss.classname) {
+					PrecacheItem(FindItemByClassname(boss.classname));
+				}
+				else {
+					gi.Com_Print("Error: Invalid boss classname for precaching.\n");
+				}
+			}
+		}
+	
+
 		e->classname = monster.classname;
 		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 		ED_CallSpawn(e);
@@ -894,6 +939,7 @@ void Horde_Init() noexcept {
 
 	g_horde_local.warm_time = level.time + 4_sec;
 }
+
 
 inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept {
 	dest[0] = src[0];
@@ -1478,7 +1524,7 @@ void SpawnMonsters() noexcept {
 	monsters_per_spawn = std::min(monsters_per_spawn, 4);
 
 	int spawned = 0;
-	constexpr float drop_probability = 0.7f;
+	constexpr float drop_probability = 0.6f;
 
 	while (spawned < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && monsters_spawned_this_frame < MAX_MONSTERS_PER_FRAME) {
 		edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;

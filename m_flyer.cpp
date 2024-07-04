@@ -730,14 +730,14 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
  */
 void SP_monster_flyer(edict_t* self)
 {
-		if (g_horde->integer && strcmp(self->classname, "monster_flyer")) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-			else
-				NULL;
-		}
+	if (g_horde->integer)
+	{
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
+		if (randomsearch < 0.32f)
+			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
+		else
+			nullptr;
 	}
 
 	if (!M_AllowSpawn(self)) {

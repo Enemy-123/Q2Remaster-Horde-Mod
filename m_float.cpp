@@ -680,7 +680,7 @@ void SP_monster_floater2(edict_t* self)
 		if (randomsearch < 0.12f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
 		else
-			NULL;
+			nullptr;
 	}
 
 	if (!M_AllowSpawn(self)) {

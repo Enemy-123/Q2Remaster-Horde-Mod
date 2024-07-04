@@ -791,7 +791,7 @@ void SP_monster_brain(edict_t* self)
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 	}
 

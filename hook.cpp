@@ -66,7 +66,7 @@ void Hook_Reset(edict_t* rhook)
 		// client's hook is no longer out
 		rhook->owner->client->hook_out = false;
 		rhook->owner->client->hook_on = false;
-		rhook->owner->client->hook = NULL;
+		rhook->owner->client->hook = nullptr;
 		rhook->owner->client->hook_toggle = false;
 		rhook->owner->client->hook_release_time = level.time.seconds();
 		//	   rhook->owner->client->ps.pmove.pm_flags &= ~PMF_NO_PREDICTION;

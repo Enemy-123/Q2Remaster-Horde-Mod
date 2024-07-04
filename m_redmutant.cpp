@@ -678,15 +678,14 @@ model="models/monsters/redmutant/tris.md2"
 */
 void SP_monster_redmutant(edict_t* self)
 {
+	if (g_horde->integer)
+	{
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
-	if (g_horde->integer) {
-		{
-			if (brandom())
-				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-			else
-				NULL;
-		}
-
+		if (randomsearch < 0.32f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+		else
+			nullptr;
 	}
 
 	if (!M_AllowSpawn(self)) {
@@ -729,7 +728,7 @@ void SP_monster_redmutant(edict_t* self)
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->health *= 3.6f;
-		self->gib_health - 99999;
+		self->gib_health = -99999;
 		self->mass *= 3.0f;
 	}
 

@@ -806,7 +806,7 @@ void SP_monster_berserk(edict_t* self)
 		else if (randomsearch < 0.24f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 		else
-			NULL;
+			nullptr;
 	}
 
 	if (!M_AllowSpawn(self)) {

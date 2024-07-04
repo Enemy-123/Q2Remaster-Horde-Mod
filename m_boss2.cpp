@@ -643,7 +643,7 @@ void SP_monster_boss2(edict_t* self)
 		if (randomsearch < 0.12f)
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
 		else
-			NULL;
+			nullptr;
 	}
 
 

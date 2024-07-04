@@ -586,10 +586,10 @@ void SP_monster_hover(edict_t* self)
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-			else if (randomsearch < 0.56f)
+			else if (randomsearch < 0.46f)
 				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 
 		else if (!strcmp(self->classname, "monster_daedalus")) {
@@ -598,10 +598,10 @@ void SP_monster_hover(edict_t* self)
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);
-			else if (randomsearch < 0.56f)
+			else if (randomsearch < 0.46f)
 				gi.sound(self, CHAN_VOICE, daed_sound_search2, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 	}
 	
