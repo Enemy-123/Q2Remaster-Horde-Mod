@@ -136,7 +136,7 @@ void ShuffleBenefits() {
 	for (const auto& benefit : benefits) {
 		shuffled_benefits.push_back(benefit.benefit_name);
 	}
-	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), gen);
+	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), std::default_random_engine());
 
 	// Asegurar que 'vampire' viene antes que 'vampire upgraded'
 	auto vampire_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire");
@@ -145,13 +145,14 @@ void ShuffleBenefits() {
 		std::iter_swap(vampire_it, upgraded_it);
 	}
 }
-
 // Estructura para almacenar los beneficios seleccionados
 struct picked_benefit_t {
 	const weighted_benefit_t* benefit;
 	float weight;
 };
 
+
+// Función para seleccionar un beneficio aleatorio
 std::string SelectRandomBenefit(int wave) {
 	std::vector<picked_benefit_t> picked_benefits;
 	picked_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
@@ -549,6 +550,7 @@ constexpr int MAX_RECENT_BOSSES = 3;
 std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
 
 // Función para seleccionar un jefe basado en el tamaño del mapa y el nombre del mapa
+// Función para seleccionar un jefe basado en el tamaño del mapa y el nombre del mapa
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int waveNumber) noexcept {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
 	if (!boss_list) return nullptr;
@@ -579,8 +581,7 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 	}
 
 	if (!eligible_bosses.empty()) {
-		std::uniform_int_distribution<> dis(0, eligible_bosses.size() - 1);
-		const boss_t* chosen_boss = eligible_bosses[dis(gen)];
+		const boss_t* chosen_boss = eligible_bosses[static_cast<int>(frandom() * eligible_bosses.size())];
 		recent_bosses.insert(chosen_boss->classname);
 		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
 			recent_bosses.erase(recent_bosses.begin());
@@ -590,6 +591,7 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 
 	return nullptr;
 }
+
 
 struct picked_item_t {
 	const weighted_item_t* item;
@@ -710,6 +712,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
 	}
 }
 
+// Función para seleccionar un monstruo basado en el punto de spawn
 const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 	float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
 	if (spawnPointCooldowns.find(spawn_point) != spawnPointCooldowns.end()) {
@@ -729,18 +732,14 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 	for (const auto& item : monsters) {
 		bool isFlyingMonster = IsFlyingMonster(item.classname);
 
-		// Si flying_monsters_mode está activo, solo considerar monstruos voladores
 		if (flying_monsters_mode && !isFlyingMonster) {
 			continue;
 		}
 
-		// Si el punto de spawn tiene style 1, solo considerar monstruos voladores
 		if (spawn_point->style == 1 && !isFlyingMonster) {
 			continue;
 		}
 
-		// Si flying_monsters_mode no está activo, considerar todos los monstruos
-		// incluyendo los voladores, pero respetando los puntos de spawn voladores
 		if (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) {
 			continue;
 		}
@@ -749,7 +748,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 			continue;
 		}
 
-		float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+		float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
 		if (weight > 0) {
 			picked_monsters.push_back({ &item, total_weight += weight });
 		}
@@ -771,7 +770,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 	IncreaseSpawnAttempts(spawn_point);
 	return nullptr;
 }
-
 void Horde_PreInit() noexcept {
 	//wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
@@ -1469,30 +1467,20 @@ void HandleWaveRestMessage() noexcept {
 		gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
 	}
 }
+int monsters_spawned_this_frame = 0; // Variable global o miembro de clase
+constexpr int MAX_MONSTERS_PER_FRAME = 2; // Limitar la cantidad de monstruos por frame
 
 void SpawnMonsters() noexcept {
 	const auto mapSize = GetMapSize(level.mapname);
-	// Calcular la cantidad de monstruos por spawn según el tamaño del mapa y el nivel de la horda
-	int monsters_per_spawn{};
-	if (mapSize.isSmallMap) {
-		monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
-	}
-	else if (mapSize.isBigMap) {
-		monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
-	}
-	else { // Mapas medianos (por defecto)
-		monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
-	}
-
-	// Verificar que monsters_per_spawn no exceda un valor razonable (por ejemplo, 10)
-	if (monsters_per_spawn > 4) {
-		monsters_per_spawn = 4;
-	}
+	int monsters_per_spawn = (mapSize.isSmallMap) ? ((g_horde_local.level >= 5) ? 3 : 2) :
+		(mapSize.isBigMap) ? ((g_horde_local.level >= 5) ? 4 : 3) :
+		((g_horde_local.level >= 5) ? 4 : 2);
+	monsters_per_spawn = std::min(monsters_per_spawn, 4);
 
 	int spawned = 0;
 	constexpr float drop_probability = 0.7f;
 
-	for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
+	while (spawned < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && monsters_spawned_this_frame < MAX_MONSTERS_PER_FRAME) {
 		edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
 		if (!spawn_point) continue;
 
@@ -1529,14 +1517,19 @@ void SpawnMonsters() noexcept {
 
 		--g_horde_local.num_to_spawn;
 		++spawned;
+		++monsters_spawned_this_frame;
 	}
 
-	// Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
 	if (mapSize.isSmallMap) {
 		g_horde_local.monster_spawn_time = level.time + 2.0_sec;
 	}
 	else {
 		g_horde_local.monster_spawn_time = level.time + 1.3_sec;
+	}
+
+	// Reset the counter if it exceeds the limit
+	if (monsters_spawned_this_frame >= MAX_MONSTERS_PER_FRAME) {
+		monsters_spawned_this_frame = 0;
 	}
 }
 
