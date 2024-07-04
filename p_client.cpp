@@ -3146,8 +3146,11 @@ void ClientDisconnect(edict_t* ent)
 	if (!ent->client)
 		return;
 
+
+	extern void VerifyAndAdjustBots() noexcept;
+	VerifyAndAdjustBots();
+
 	extern void RemovePlayerOwnedEntities(edict_t * player);
-	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(ent);
 
 	// ZOID
