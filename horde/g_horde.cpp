@@ -313,16 +313,15 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
 
 // Función para inicializar el nivel de la horda
 void Horde_InitLevel(int32_t lvl) noexcept {
-
-	// Inicializar cachedRemainingMonsters
-	cachedRemainingMonsters = -1;
-
 	current_wave_number++;
 	last_wave_number++;
 	g_horde_local.level = lvl;
 	g_horde_local.monster_spawn_time = level.time;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
+
+	// Inicializar cachedRemainingMonsters
+	cachedRemainingMonsters = -1;
 
 	auto mapSize = GetMapSize(level.mapname);
 	CheckAndApplyBenefit(g_horde_local.level);
@@ -553,7 +552,6 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) no
 constexpr int MAX_RECENT_BOSSES = 3;
 std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
 
-// Función para seleccionar un jefe basado en el tamaño del mapa y el nombre del mapa
 // Función para seleccionar un jefe basado en el tamaño del mapa y el nombre del mapa
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int waveNumber) noexcept {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
@@ -933,7 +931,7 @@ void Horde_Init() noexcept {
 				}
 			}
 		}
-	
+
 
 		e->classname = monster.classname;
 		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
