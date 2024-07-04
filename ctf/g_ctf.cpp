@@ -3392,10 +3392,6 @@ void CTFObserver(edict_t* ent)
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
 		return;
 
-
-	extern void VerifyAndAdjustBots() noexcept;
-	VerifyAndAdjustBots();
-
 	// start as 'observer'
 	if (ent->movetype == MOVETYPE_NOCLIP)
 		CTFPlayerResetGrapple(ent);

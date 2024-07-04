@@ -3551,6 +3551,33 @@ inline entity_iterable_t<active_players_filter_t> active_players()
 	return entity_iterable_t<active_players_filter_t> { 1u, game.maxclients };
 }
 
+// active monsters and dead monsters
+struct active_or_dead_monsters_filter_t
+{
+	inline bool operator()(edict_t* ent) const noexcept
+	{
+		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0) || (ent->svflags & SVF_DEADMONSTER);
+	}
+};
+
+inline entity_iterable_t<active_or_dead_monsters_filter_t> active_or_dead_monsters()
+{
+	return entity_iterable_t<active_or_dead_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
+}
+
+// active monsters
+struct active_monsters_filter_t
+{
+	inline bool operator()(edict_t* ent) const noexcept
+	{
+		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0);
+	}
+};
+
+inline entity_iterable_t<active_monsters_filter_t> active_monsters()
+{
+	return entity_iterable_t<active_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
+}
 
 struct gib_def_t
 {

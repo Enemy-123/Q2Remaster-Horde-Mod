@@ -542,7 +542,13 @@ void Use_Invisibility(edict_t* ent, gitem_t* item)
 void Use_Silencer(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
-	ent->client->silencer_shots += 30;
+	if (g_horde->integer) {
+		ent->client->silencer_shots += 300;
+	}
+	else
+	{
+		ent->client->silencer_shots += 30;
+	}
 
 	//	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage.wav"), 1, ATTN_NORM, 0);
 }

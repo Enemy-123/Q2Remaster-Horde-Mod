@@ -3146,10 +3146,6 @@ void ClientDisconnect(edict_t* ent)
 	if (!ent->client)
 		return;
 
-
-	extern void VerifyAndAdjustBots() noexcept;
-	VerifyAndAdjustBots();
-
 	extern void RemovePlayerOwnedEntities(edict_t * player);
 	RemovePlayerOwnedEntities(ent);
 
@@ -3776,20 +3772,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if (other->inuse && other->client->chase_target == ent)
 			UpdateChaseCam(other);
 	}
-}
-
-// active monsters
-struct active_monsters_filter_t
-{
-	inline bool operator()(edict_t* ent) const
-	{
-		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0);
-	}
-};
-
-inline entity_iterable_t<active_monsters_filter_t> active_monsters()
-{
-	return entity_iterable_t<active_monsters_filter_t> { game.maxclients + (uint32_t)BODY_QUEUE_SIZE + 1U };
 }
 
 inline bool G_MonstersSearchingFor(edict_t* player)

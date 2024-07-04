@@ -2,45 +2,7 @@
 #include "../g_local.h"
 #include "g_horde.h"
 #include "../shared.h"
-#include <sstream>
 #include <set>
-#include <unordered_map>
-#include <unordered_set>
-#include <array>
-#include <chrono>
-#include <random>
-#include <algorithm>
-#include <deque>
-#include <map>
-
-// active monsters and dead monsters
-struct active_or_dead_monsters_filter_t
-{
-	inline bool operator()(edict_t* ent) const noexcept
-	{
-		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0) || (ent->svflags & SVF_DEADMONSTER);
-	}
-};
-
-inline entity_iterable_t<active_or_dead_monsters_filter_t> active_or_dead_monsters()
-{
-	return entity_iterable_t<active_or_dead_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
-}
-
-// active monsters
-struct active_monsters_filter_t
-{
-	inline bool operator()(edict_t* ent) const noexcept
-	{
-		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0);
-	}
-};
-
-inline entity_iterable_t<active_monsters_filter_t> active_monsters()
-{
-	return entity_iterable_t<active_monsters_filter_t> { game.maxclients + static_cast<uint32_t>(BODY_QUEUE_SIZE) + 1U };
-}
-
 int GetNumActivePlayers() noexcept;
 int GetNumSpectPlayers() noexcept;
 
@@ -422,6 +384,7 @@ constexpr struct weighted_item_t {
 
 	{ "item_bandolier", 4, -1, 0.28f, adjust_weight_ammo },
 	{ "item_pack", 15, -1, 0.32f, adjust_weight_ammo },
+	{ "item_silencer", 15, -1, 0.12f, adjust_weight_ammo },
 };
 
 // Definición de monstruos ponderados
@@ -848,38 +811,20 @@ int GetNumHumanPlayers() noexcept {
 	return numHumanPlayers;
 }
 
-// Variable global para rastrear el tiempo de la última actualización
-gtime_t lastBotAdjustmentTime = gtime_t::from_sec(0); // Inicia en 0
-
-// Intervalo de tiempo en segundos para la actualización (por ejemplo, cada 30 segundos)
-constexpr gtime_t BOT_ADJUSTMENT_INTERVAL = gtime_t::from_sec(2);
-
 void VerifyAndAdjustBots() noexcept {
-	// Verifica si ha pasado el intervalo de tiempo desde la última actualización
-	if (level.time - lastBotAdjustmentTime < BOT_ADJUSTMENT_INTERVAL) {
-		return; // Si no ha pasado el intervalo, sale de la función
-	}
+	const auto mapSize = GetMapSize(level.mapname);
+	const int humanPlayers = GetNumHumanPlayers();
+	const int spectPlayers = GetNumSpectPlayers();
+	const int baseBots = mapSize.isBigMap ? 6 : 4;
 
-	const auto mapSize = GetMapSize(level.mapname);  // Obtiene el tamaño del mapa actual
-	const int humanPlayers = GetNumHumanPlayers();   // Cuenta los jugadores humanos activos
-	const int spectPlayers = GetNumSpectPlayers();   // Cuenta los espectadores
+	// Calcular el número requerido de bots
+	int requiredBots = baseBots + spectPlayers;
 
-	int baseBots;   // Número base de bots según el tamaño del mapa
-	if (mapSize.isBigMap) {
-		baseBots = 6;  // Mapas grandes tienen un base mayor
-	}
-	else {
-		baseBots = 4;  // Mapas pequeños y medianos tienen la misma base de bots
-	}
+	// Asegurar que el número de bots no sea menor que el valor base
+	requiredBots = std::max(requiredBots, baseBots);
 
-	int requiredBots = baseBots + spectPlayers;  // Calcula el número requerido de bots basado en espectadores
-	requiredBots = std::max(requiredBots, baseBots);  // Asegura que siempre hay al menos el número base de bots
-
-	// Establece el número mínimo necesario de bots usando la variable de consola
+	// Establecer el número de bots mínimos necesarios
 	gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
-
-	// Actualiza el tiempo de la última actualización
-	lastBotAdjustmentTime = level.time;
 }
 
 void Horde_Init() noexcept {
@@ -1513,20 +1458,30 @@ void HandleWaveRestMessage() noexcept {
 		gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
 	}
 }
-int monsters_spawned_this_frame = 0; // Variable global o miembro de clase
-constexpr int MAX_MONSTERS_PER_FRAME = 2; // Limitar la cantidad de monstruos por frame
 
 void SpawnMonsters() noexcept {
 	const auto mapSize = GetMapSize(level.mapname);
-	int monsters_per_spawn = (mapSize.isSmallMap) ? ((g_horde_local.level >= 5) ? 3 : 2) :
-		(mapSize.isBigMap) ? ((g_horde_local.level >= 5) ? 4 : 3) :
-		((g_horde_local.level >= 5) ? 4 : 2);
-	monsters_per_spawn = std::min(monsters_per_spawn, 4);
+	// Calcular la cantidad de monstruos por spawn según el tamaño del mapa y el nivel de la horda
+	int monsters_per_spawn{};
+	if (mapSize.isSmallMap) {
+		monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
+	}
+	else if (mapSize.isBigMap) {
+		monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
+	}
+	else { // Mapas medianos (por defecto)
+		monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
+	}
+
+	// Verificar que monsters_per_spawn no exceda un valor razonable (por ejemplo, 10)
+	if (monsters_per_spawn > 4) {
+		monsters_per_spawn = 4;
+	}
 
 	int spawned = 0;
-	constexpr float drop_probability = 0.6f;
+	constexpr float drop_probability = 0.7f;
 
-	while (spawned < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && monsters_spawned_this_frame < MAX_MONSTERS_PER_FRAME) {
+	for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
 		edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
 		if (!spawn_point) continue;
 
@@ -1563,19 +1518,14 @@ void SpawnMonsters() noexcept {
 
 		--g_horde_local.num_to_spawn;
 		++spawned;
-		++monsters_spawned_this_frame;
 	}
 
+	// Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
 	if (mapSize.isSmallMap) {
 		g_horde_local.monster_spawn_time = level.time + 2.0_sec;
 	}
 	else {
 		g_horde_local.monster_spawn_time = level.time + 1.3_sec;
-	}
-
-	// Reset the counter if it exceeds the limit
-	if (monsters_spawned_this_frame >= MAX_MONSTERS_PER_FRAME) {
-		monsters_spawned_this_frame = 0;
 	}
 }
 
@@ -1625,7 +1575,6 @@ void Horde_RunFrame() noexcept {
 				gi.LocBroadcast_Print(PRINT_TYPEWRITER, message_stream.str().c_str());
 				g_horde_local.state = horde_state_t::cleanup;
 				g_horde_local.monster_spawn_time = level.time + 1_sec;
-				cachedRemainingMonsters = CalculateRemainingMonsters(); // Reset after spawning
 			}
 		}
 		break;
@@ -1633,7 +1582,6 @@ void Horde_RunFrame() noexcept {
 	case horde_state_t::cleanup:
 		if (CheckRemainingMonstersCondition(mapSize)) {
 			HandleWaveCleanupMessage(mapSize);
-			cachedRemainingMonsters = CalculateRemainingMonsters(); // Reset after cleanup
 		}
 
 		if (g_horde_local.monster_spawn_time < level.time) {
