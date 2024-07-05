@@ -510,8 +510,7 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	// Determine attenuation based on the monster type and spawnflags
 	float attenuation;
-	if (strcmp(self->classname, "monster_boss2_64") == 0 &&
-		!(g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))) {
+	if (!(g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))) {
 		attenuation = ATTN_NORM;
 	}
 	else {
@@ -607,7 +606,7 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	else
 	{
 		// Check if the monster is boss2_64 to use ATTN_NORM
-		if (g_horde->integer && strcmp(self->classname, "monster_boss2_64") == 0) {
+		if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
 		}
 		else {

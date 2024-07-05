@@ -1006,8 +1006,14 @@ void carrier_dead(edict_t *self)
 
 DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	// Determine attenuation based on the monster type
-	float attenuation = (strcmp(self->classname, "monster_carrier2") == 0) ? ATTN_NORM : ATTN_NONE;
+	// Determine attenuation based on the monster type and spawnflags
+	float attenuation;
+	if (!(g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))) {
+		attenuation = ATTN_NORM;
+	}
+	else {
+		attenuation = ATTN_NONE;
+	}
 
 	gi.sound(self, CHAN_VOICE, sound_death, 1, attenuation, 0);
 	self->deadflag = true;
@@ -1018,6 +1024,7 @@ DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	self->gravityVector.z *= 0.01f;
 	self->monsterinfo.weapon_sound = 0;
 }
+
 
 MONSTERINFO_CHECKATTACK(Carrier_CheckAttack) (edict_t *self) -> bool
 {

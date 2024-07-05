@@ -147,9 +147,11 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		base = "$g_mod_generic_hurt";
 		break;
 		// RAFAEL
-	case MOD_GEKK:
 	case MOD_BRAINTENTACLE:
-		base = "$g_mod_generic_gekk";
+		base = "{0} was killed by a {1}'s tentacles. Eww!\n";
+		break;
+	case MOD_GEKK:
+		base = "{0} was spitted to death by a {1}. Gross!\n";
 		break;
 		// RAFAEL
 	default:
@@ -396,12 +398,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			break;
 		case MOD_HELD_GRENADE:
 			base = "{0} was blown up by a {1}\n";
-			break;
-		case MOD_BRAINTENTACLE:
-			base = "{0} was killed by a {1}. Eww!\n";
-			break;
-		case MOD_GEKK:
-			base = "{0} was spitted to death by a {1}. Gross!\n";
 			break;
 		case MOD_TARGET_LASER:
 			base = "{0} was laser-cooked by a {1}\n";
