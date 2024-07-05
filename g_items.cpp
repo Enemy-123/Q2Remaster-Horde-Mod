@@ -543,7 +543,7 @@ void Use_Silencer(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
 	if (g_horde->integer) {
-		ent->client->silencer_shots += 300;
+		ent->client->silencer_shots += 99;
 	}
 	else
 	{

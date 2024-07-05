@@ -3451,6 +3451,11 @@ static bool ClientInactivityTimer(edict_t* ent) {
 
 // Definir CheckClientsInactivity
 void CheckClientsInactivity() {
+
+	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
+		return;
+
+
 	cvar_t* maxclients;
 	for (int i = 0; i < maxclients->value; i++) {
 		edict_t* ent = &g_edicts[i + 1];

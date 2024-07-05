@@ -198,7 +198,7 @@ void ai_stand(edict_t* self, float dist)
 	// HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
 	if (g_horde->integer && !self->enemy) {
 		edict_t* closestPlayer = nullptr;
-		float closestDistance = 1500.0f; // Rango de búsqueda
+		float closestDistance = 1000.0f; // Rango de búsqueda
 		vec3_t dir{};
 
 		for (unsigned int i = 1; i <= game.maxclients; ++i) {
