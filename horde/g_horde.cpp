@@ -18,8 +18,8 @@ int current_wave_number = 1;
 int last_wave_number = 0;
 static int cachedRemainingMonsters = -1;
 
-gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.3); // Cooldown en segundos para los monstruos 2.3
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.0); // Cooldown en segundos para los puntos de spawn 3.0
+gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.3
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.3); // Cooldown en segundos para los puntos de spawn 3.0
 
 cvar_t* g_horde;
 
@@ -1220,6 +1220,9 @@ void ResetSpawnAttempts() noexcept {
 
 void ResetAutoSpawnedBosses() noexcept {
 	auto_spawned_bosses.clear();
+
+	// Reset recent bosses
+	recent_bosses.clear();
 }
 void ResetGame() noexcept {
 	// Reset core gameplay elements
@@ -1229,12 +1232,15 @@ void ResetGame() noexcept {
 	ResetAutoSpawnedBosses();
 
 	// Reset wave information
-	current_wave_number = 2;
+	current_wave_number = 1; 
 	g_horde_local.level = 0;  // Reset current wave level
 	g_horde_local.state = horde_state_t::warmup;  // Set game state to warmup
+	g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
+	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	next_wave_message_sent = false;
 	boss_spawned_for_wave = false;
 	allowWaveAdvance = false;
+	cachedRemainingMonsters = -1;
 
 	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
@@ -1257,8 +1263,8 @@ void ResetGame() noexcept {
 	gi.cvar_set("g_autohaste", "0");
 
 	// Reset spawn cooldowns
-	MONSTER_COOLDOWN = 2.3_sec;
-	SPAWN_POINT_COOLDOWN = 3.0_sec;
+	MONSTER_COOLDOWN = 2.6_sec;
+	SPAWN_POINT_COOLDOWN = 3.3_sec;
 
 	// Reset the number of monsters to be spawned
 	g_horde_local.num_to_spawn = 0;
