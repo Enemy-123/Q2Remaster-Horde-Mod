@@ -494,8 +494,7 @@ void brain_tounge_attack(edict_t* self)
 		gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
 		dir = start - end;
-		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_UNKNOWN); // MOD_BRAINTENTACLE);
-
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
 		// pull the enemy in
 		vec3_t forward;
 		self->s.origin[2] += 2;

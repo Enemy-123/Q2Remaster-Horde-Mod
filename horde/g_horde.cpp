@@ -826,7 +826,6 @@ void VerifyAndAdjustBots() noexcept {
 	// Establecer el número de bots mínimos necesarios
 	gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
-
 void Horde_Init() noexcept {
 	VerifyAndAdjustBots();
 
@@ -849,34 +848,33 @@ void Horde_Init() noexcept {
 			else {
 				gi.Com_Print("Error: Invalid item classname for precaching.\n");
 			}
-
-			// Precache bosses
-			for (const auto& boss : BOSS_SMALL) {
-				if (boss.classname) {
-					PrecacheItem(FindItemByClassname(boss.classname));
-				}
-				else {
-					gi.Com_Print("Error: Invalid boss classname for precaching.\n");
-				}
-			}
-			for (const auto& boss : BOSS_MEDIUM) {
-				if (boss.classname) {
-					PrecacheItem(FindItemByClassname(boss.classname));
-				}
-				else {
-					gi.Com_Print("Error: Invalid boss classname for precaching.\n");
-				}
-			}
-			for (const auto& boss : BOSS_LARGE) {
-				if (boss.classname) {
-					PrecacheItem(FindItemByClassname(boss.classname));
-				}
-				else {
-					gi.Com_Print("Error: Invalid boss classname for precaching.\n");
-				}
-			}
 		}
 
+		// Precache bosses
+		for (const auto& boss : BOSS_SMALL) {
+			if (boss.classname) {
+				PrecacheItem(FindItemByClassname(boss.classname));
+			}
+			else {
+				gi.Com_Print("Error: Invalid boss classname for precaching.\n");
+			}
+		}
+		for (const auto& boss : BOSS_MEDIUM) {
+			if (boss.classname) {
+				PrecacheItem(FindItemByClassname(boss.classname));
+			}
+			else {
+				gi.Com_Print("Error: Invalid boss classname for precaching.\n");
+			}
+		}
+		for (const auto& boss : BOSS_LARGE) {
+			if (boss.classname) {
+				PrecacheItem(FindItemByClassname(boss.classname));
+			}
+			else {
+				gi.Com_Print("Error: Invalid boss classname for precaching.\n");
+			}
+		}
 
 		e->classname = monster.classname;
 		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
@@ -884,8 +882,41 @@ void Horde_Init() noexcept {
 		G_FreeEdict(e);
 	}
 
+	// Precache wave start sounds
+	static const std::vector<std::string> wave_start_sounds = {
+		"misc/r_tele3.wav",
+		"world/klaxon2.wav",
+		"misc/tele_up.wav",
+		"world/incoming.wav",
+		"world/yelforce.wav",
+		"insane/insane9.wav"
+	};
+
+	for (const auto& sound : wave_start_sounds) {
+		gi.soundindex(sound.c_str());
+	}
+
+	// Precache other sounds
+	static const std::vector<std::string> other_sounds = {
+		"nav_editor/action_fail.wav",
+		"makron/roar1.wav",
+		"zortemp/ack.wav",
+		"misc/spawn1.wav",
+		"makron/voice3.wav",
+		"world/v_fac3.wav",
+		"world/v_fac2.wav",
+		"insane/insane5.wav",
+		"insane/insane2.wav",
+		"world/won.wav"
+	};
+
+	for (const auto& sound : other_sounds) {
+		gi.soundindex(sound.c_str());
+	}
+
 	g_horde_local.warm_time = level.time + 4_sec;
 }
+
 
 
 inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept {
@@ -1187,23 +1218,22 @@ void ResetSpawnAttempts() noexcept {
 void ResetAutoSpawnedBosses() noexcept {
 	auto_spawned_bosses.clear();
 }
-
 void ResetGame() noexcept {
-	// Reset spawn attempts and cooldowns
+	// Reset core gameplay elements
 	ResetSpawnAttempts();
 	ResetCooldowns();
 	ResetBenefits();
 	ResetAutoSpawnedBosses();
-	current_wave_number = 2;
 
-	// Reset global and local horde states
-	g_horde_local.level = 0;  // Reiniciar el número de la ola actual
-	g_horde_local.state = horde_state_t::warmup;
+	// Reset wave information
+	current_wave_number = 2;
+	g_horde_local.level = 0;  // Reset current wave level
+	g_horde_local.state = horde_state_t::warmup;  // Set game state to warmup
 	next_wave_message_sent = false;
 	boss_spawned_for_wave = false;
 	allowWaveAdvance = false;
 
-	// Reset global configuration variables
+	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
 	gi.cvar_set("g_insane", "0");
 	gi.cvar_set("g_hardcoop", "0");
@@ -1215,7 +1245,7 @@ void ResetGame() noexcept {
 	gi.cvar_set("ai_allow_dm_spawn", "1");
 	gi.cvar_set("g_damage_scale", "1");
 
-	// Bonus reset
+	// Reset bonuses
 	gi.cvar_set("g_vampire", "0");
 	gi.cvar_set("g_startarmor", "0");
 	gi.cvar_set("g_ammoregen", "0");
@@ -1223,21 +1253,21 @@ void ResetGame() noexcept {
 	gi.cvar_set("g_tracedbullets", "0");
 	gi.cvar_set("g_autohaste", "0");
 
-	// Reset cooldowns
+	// Reset spawn cooldowns
 	MONSTER_COOLDOWN = 2.3_sec;
 	SPAWN_POINT_COOLDOWN = 3.0_sec;
 
-	// Reset the number of monsters to spawn
+	// Reset the number of monsters to be spawned
 	g_horde_local.num_to_spawn = 0;
 
-	// Reset cached remaining monsters
+	// Reset the count of remaining monsters
 	cachedRemainingMonsters = -1;
 }
 
 // Función para obtener el número de jugadores activos (incluyendo bots)
 int GetNumActivePlayers() noexcept {
 	int numActivePlayers = 0;
-	for (auto player : active_players()) {
+	for (const auto player : active_players()) {
 		if (player->client->resp.ctf_team == CTF_TEAM1) {
 			numActivePlayers++;
 		}
@@ -1248,7 +1278,7 @@ int GetNumActivePlayers() noexcept {
 // Función para obtener el número de jugadores en espectador
 int GetNumSpectPlayers() noexcept {
 	int numSpectPlayers = 0;
-	for (auto player : active_players()) {
+	for (const auto player : active_players()) {
 		if (player->client->resp.ctf_team != CTF_TEAM1) {
 			numSpectPlayers++;
 		}
@@ -1259,7 +1289,7 @@ int GetNumSpectPlayers() noexcept {
 // Estructura para los parámetros de condición
 struct ConditionParams {
 	int maxMonsters;
-	int timeThreshold;
+	gtime_t timeThreshold;
 };
 
 
@@ -1270,48 +1300,48 @@ int previous_remainingMonsters = 0;
 
 // Función para decidir los parámetros de la condición en función del tamaño del mapa y el número de jugadores
 ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) noexcept {
-	ConditionParams params = { 0, 0 };
+	ConditionParams params = { 0, 0_sec };
 
 	if (mapSize.isBigMap) {
 		params.maxMonsters = 20;
-		params.timeThreshold = 16;
+		params.timeThreshold = 16_sec;
 		return params;
 	}
 
 	if (numHumanPlayers >= 3) {
 		if (mapSize.isSmallMap) {
 			params.maxMonsters = 7;
-			params.timeThreshold = 4;
+			params.timeThreshold = 4_sec;
 		}
 		else {
 			params.maxMonsters = 12;
-			params.timeThreshold = 7;
+			params.timeThreshold = 7_sec;
 		}
 	}
 	else {
 		if (mapSize.isSmallMap) {
 			if (current_wave_number <= 4) {
 				params.maxMonsters = 5;
-				params.timeThreshold = 6;
+				params.timeThreshold = 6_sec;
 			}
 			else {
 				params.maxMonsters = 6;
-				params.timeThreshold = 13;
+				params.timeThreshold = 13_sec;
 			}
 		}
 		else {
 			if (current_wave_number <= 4) {
 				params.maxMonsters = 4;
-				params.timeThreshold = 8;
+				params.timeThreshold = 8_sec;
 			}
 			else {
 				params.maxMonsters = 8;
-				params.timeThreshold = 15;
+				params.timeThreshold = 15_sec;
 			}
 		}
 
 		if ((g_chaotic->integer && numHumanPlayers <= 5) || (g_insane->integer && numHumanPlayers <= 5)) {
-			params.timeThreshold += 4;
+			params.timeThreshold += 4_sec;
 		}
 	}
 
@@ -1336,7 +1366,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 		allowWaveAdvance = false;
 		return true;
 	}
-
 	const int numHumanPlayers = GetNumHumanPlayers();
 	const ConditionParams params = GetConditionParams(mapSize, numHumanPlayers);
 
@@ -1349,7 +1378,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
 			condition_start_time = level.time;
 		}
 
-		if ((level.time - condition_start_time).seconds() >= params.timeThreshold) {
+		if ((level.time - condition_start_time) >= params.timeThreshold) {
 			condition_start_time = gtime_t::from_sec(0);
 			cachedRemainingMonsters = -1; // Reset cache after condition met
 			return true;
@@ -1389,7 +1418,8 @@ void PlayWaveStartSound() noexcept {
 		"world/klaxon2.wav",
 		"misc/tele_up.wav",
 		"world/incoming.wav",
-		"world/yelforce.wav"
+		"world/yelforce.wav",
+		"insane/insane9.wav",
 	};
 
 	// Generar un índice aleatorio para seleccionar un sonido
@@ -1447,7 +1477,11 @@ void HandleWaveRestMessage() noexcept {
 		"zortemp/ack.wav",
 		"misc/spawn1.wav",
 		"makron/voice3.wav",
-		"world/v_fac3.wav"
+		"world/v_fac3.wav",
+		"world/v_fac2.wav",
+		"insane/insane5.wav",
+		"insane/insane2.wav",
+		"world/won.wav"
 	};
 
 	float r = frandom();
@@ -1479,7 +1513,7 @@ void SpawnMonsters() noexcept {
 	}
 
 	int spawned = 0;
-	constexpr float drop_probability = 0.7f;
+	constexpr float drop_probability = 0.6f;
 
 	for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
 		edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
@@ -1530,8 +1564,13 @@ void SpawnMonsters() noexcept {
 }
 
 void Horde_RunFrame() noexcept {
-	VerifyAndAdjustBots();
 	const auto mapSize = GetMapSize(level.mapname);
+
+	// Comprobar si es necesario ajustar los bots solo en los estados pertinentes
+	if (g_horde_local.state == horde_state_t::warmup ||
+		g_horde_local.state == horde_state_t::rest) {
+		VerifyAndAdjustBots();
+	}
 
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
@@ -1630,6 +1669,7 @@ void Horde_RunFrame() noexcept {
 		break;
 	}
 }
+
 // Función para manejar el evento de reinicio
 void HandleResetEvent() noexcept {
 	ResetGame();

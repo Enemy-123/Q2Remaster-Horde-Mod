@@ -508,8 +508,15 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	self->pain_debounce_time = level.time + 3_sec;
 
-	// Determine attenuation based on the monster type
-	float attenuation = (strcmp(self->classname, "monster_boss2_64") == 0) ? ATTN_NORM : ATTN_NONE;
+	// Determine attenuation based on the monster type and spawnflags
+	float attenuation;
+	if (strcmp(self->classname, "monster_boss2_64") == 0 &&
+		!(g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))) {
+		attenuation = ATTN_NORM;
+	}
+	else {
+		attenuation = ATTN_NONE;
+	}
 
 	if (damage < 10)
 		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);
@@ -628,22 +635,11 @@ MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
  */
 void SP_monster_boss2(edict_t* self)
 {
-	if (g_horde->integer && strcmp(self->classname, "monster_boss2")) {
+	if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		{
 
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
-	}
-
-	if (g_horde->integer && !strcmp(self->classname, "monster_boss2_64") ||
-		g_horde->integer && strcmp(self->classname, "monster_boss2_64"))
-	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-		if (randomsearch < 0.12f)
-			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-		else
-			nullptr;
 	}
 
 

@@ -659,13 +659,13 @@ void SP_monster_supertank(edict_t* self)
 			{
 				float randomsearch = frandom(); // Generate Search sounds
 
-				if (randomsearch < 0.33f)
+				if (randomsearch < 0.2f)
 
 					gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
-				else  if (randomsearch < 0.66f)
+				else  if (randomsearch < 0.4f)
 					gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
 				else
-					NULL;
+					nullptr;
 			}
 		}
 	}

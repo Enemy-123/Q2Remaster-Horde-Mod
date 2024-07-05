@@ -365,7 +365,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was gibbed by a {1}\n";
 			break;
 		case MOD_G_SPLASH:
-			base = "{0} was splattered by a {1}\n";
+			base = "{0} was splattered all over by a {1}'s grenade explosion\n";
 			break;
 		case MOD_ROCKET:
 			base = "{0} ate the rocket of a {1}\n";
@@ -386,7 +386,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was disintegrated by a {1}\n";
 			break;
 		case MOD_BFG_EFFECT:
-			base = "{0} couldn't hide from the BFG of a {1}\n";
+			base = "{0} couldn't escape the apocalyptic fury of a {1}'s BFG\n";
 			break;
 		case MOD_HANDGRENADE:
 			base = "{0} was blown up by a {1}\n";
@@ -396,6 +396,15 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			break;
 		case MOD_HELD_GRENADE:
 			base = "{0} was blown up by a {1}\n";
+			break;
+		case MOD_BRAINTENTACLE:
+			base = "{0} was killed by a {1}. Eww!\n";
+			break;
+		case MOD_GEKK:
+			base = "{0} was spitted to death by a {1}. Gross!\n";
+			break;
+		case MOD_TARGET_LASER:
+			base = "{0} was laser-cooked by a {1}\n";
 			break;
 		case MOD_TELEFRAG:
 		case MOD_TELEFRAG_SPAWN:

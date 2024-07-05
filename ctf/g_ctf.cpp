@@ -3332,11 +3332,6 @@ bool CTFStartClient(edict_t* ent)
 
 	if ((!(ent->svflags & SVF_BOT) && !g_teamplay_force_join->integer) || ctfgame.match >= MATCH_SETUP)
 	{
-
-		extern void VerifyAndAdjustBots() noexcept;
-		VerifyAndAdjustBots();
-
-
 		// start as 'observer'
 		ent->movetype = MOVETYPE_NOCLIP;
 		ent->solid = SOLID_NOT;
