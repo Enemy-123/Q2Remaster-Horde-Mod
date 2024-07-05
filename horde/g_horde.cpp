@@ -129,16 +129,16 @@ std::string SelectRandomBenefit(int wave) {
 		}
 	}
 
-	if (total_weight == 0.0f) return "";
+	if (picked_benefits.empty()) return "";  // Verificar si está vacío antes de proceder
 
 	float random_weight = frandom() * total_weight;
-	for (const auto& picked_benefit : picked_benefits) {
-		if (random_weight < picked_benefit.weight) {
-			return picked_benefit.benefit->benefit_name;
-		}
-	}
-	return "";
+	auto it = std::find_if(picked_benefits.begin(), picked_benefits.end(),
+		[random_weight](const picked_benefit_t& picked_benefit) {
+			return random_weight < picked_benefit.weight;
+		});
+	return (it != picked_benefits.end()) ? it->benefit->benefit_name : "";
 }
+
 
 // Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
@@ -488,13 +488,12 @@ constexpr boss_t BOSS_LARGE[] = {
 
 // Función para obtener la lista de jefes basada en el tamaño del mapa
 const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) noexcept {
-	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64\\comm" || mapname == "q64/comm") return BOSS_SMALL;
-	if (mapSize.isMediumMap) {
-		if (mapname == "q64/dm3" ||
-			mapname == "q64\\dm3" ||
-			mapname == "mgu6m3") {
+	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm") {
+		return (std::size(BOSS_SMALL) > 0) ? BOSS_SMALL : nullptr;
+	}
 
-			// Crear una copia de BOSS_MEDIUM sin "monster_guardian"
+	if (mapSize.isMediumMap) {
+		if (mapname == "q64/dm3" || mapname == "mgu6m3") {
 			static std::vector<boss_t> filteredBossList;
 			if (filteredBossList.empty()) {
 				for (const auto& boss : BOSS_MEDIUM) {
@@ -503,14 +502,18 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) no
 					}
 				}
 			}
-			return filteredBossList.data();
+			return filteredBossList.empty() ? nullptr : filteredBossList.data();
 		}
-		return BOSS_MEDIUM;
+		return (std::size(BOSS_MEDIUM) > 0) ? BOSS_MEDIUM : nullptr;
 	}
 
-	if (mapSize.isBigMap) return BOSS_LARGE;
+	if (mapSize.isBigMap) {
+		return (std::size(BOSS_LARGE) > 0) ? BOSS_LARGE : nullptr;
+	}
+
 	return nullptr;
 }
+
 
 constexpr int MAX_RECENT_BOSSES = 3;
 std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
@@ -1326,16 +1329,16 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int numHumanPlayers) 
 			}
 			else {
 				params.maxMonsters = 6;
-				params.timeThreshold = 13_sec;
+				params.timeThreshold = 9_sec;
 			}
 		}
 		else {
 			if (current_wave_number <= 4) {
-				params.maxMonsters = 4;
-				params.timeThreshold = 8_sec;
+				params.maxMonsters = 6;
+				params.timeThreshold = 9_sec;
 			}
 			else {
-				params.maxMonsters = 8;
+				params.maxMonsters = 10;
 				params.timeThreshold = 15_sec;
 			}
 		}
@@ -1501,10 +1504,10 @@ void SpawnMonsters() noexcept {
 		monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
 	}
 	else if (mapSize.isBigMap) {
-		monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
+		monsters_per_spawn = (g_horde_local.level >= 5) ? 5 : 3;
 	}
 	else { // Mapas medianos (por defecto)
-		monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 2;
+		monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
 	}
 
 	// Verificar que monsters_per_spawn no exceda un valor razonable (por ejemplo, 10)
@@ -1513,7 +1516,7 @@ void SpawnMonsters() noexcept {
 	}
 
 	int spawned = 0;
-	constexpr float drop_probability = 0.6f;
+	constexpr float drop_probability = 0.55f;
 
 	for (int i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
 		edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
@@ -1556,10 +1559,13 @@ void SpawnMonsters() noexcept {
 
 	// Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
 	if (mapSize.isSmallMap) {
-		g_horde_local.monster_spawn_time = level.time + 2.0_sec;
+		g_horde_local.monster_spawn_time = level.time + 1.7_sec;
+	}
+	if (mapSize.isBigMap) {
+		g_horde_local.monster_spawn_time = level.time + 1.1_sec;
 	}
 	else {
-		g_horde_local.monster_spawn_time = level.time + 1.3_sec;
+	g_horde_local.monster_spawn_time = level.time + 1.4_sec;
 	}
 }
 
