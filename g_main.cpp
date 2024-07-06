@@ -723,33 +723,30 @@ void CheckDMRules()
 	}
 	if (timelimit->value)
 	{
+		if (level.time >= gtime_t::from_min(timelimit->value))
 		{
-			if (level.time >= gtime_t::from_min(timelimit->value))
+			gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
+			for (int i = 0; i < maxclients->integer; i++)
 			{
-				gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
-				for (int i = 0; i < maxclients->integer; i++)
+				edict_t* ent = g_edicts + 1 + i;
+				if (ent->inuse && ent->client)
 				{
-					edict_t* ent = g_edicts + 1 + i;
-					if (ent->inuse && ent->client)
-					{
-						gi.LocCenter_Print(ent, "Horde Mode is being reset.");
-						gi.cvar_set("timelimit", "40");
-						if (g_horde->integer)
-						{
-							HandleResetEvent();
-						}
-					}
-					EndDMLevel();
+					gi.LocCenter_Print(ent, "Horde Mode is being reset.");
+					gi.cvar_set("timelimit", "40");
 					if (g_horde->integer)
+					{
+						HandleResetEvent();
+					}
+				}
+				EndDMLevel();
+				if (g_horde->integer)
+				{
 					InitClientPt(ent, ent->client);
 				}
 			}
 			return;
-
 		}
-
 	}
-
 
 	if (!deathmatch->integer)
 		return;
@@ -763,6 +760,12 @@ void CheckDMRules()
 	if (CTFInMatch())
 		return; // no checking in match mode
 	// ZOID
+
+	// Añadir verificación de reglas de elección
+	if (CTFCheckRules())
+	{
+		return;
+	}
 
 	//======= ROGUE
 	if (gamerules->integer && DMGame.CheckDMRules)

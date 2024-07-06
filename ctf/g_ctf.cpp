@@ -3422,20 +3422,30 @@ bool CTFInMatch()
 		return true;
 	return false;
 }
-
 bool CTFCheckRules()
 {
-	int		 t;
+	int t;
 	uint32_t i, j;
-	char	 text[64];
+	char text[64];
 	edict_t* ent;
 
 	if (ctfgame.election != ELECT_NONE && ctfgame.electtime <= level.time)
 	{
 		gi.LocBroadcast_Print(PRINT_CHAT, "Election timed out and has been cancelled.\n");
 		ctfgame.election = ELECT_NONE;
+
+		// Resetear el estado de votación de todos los jugadores
+		for (uint32_t i = 1; i <= game.maxclients; i++)
+		{
+			edict_t* ent = g_edicts + i;
+			if (ent->inuse && ent->client)
+			{
+				ent->client->resp.voted = false;
+			}
+		}
 	}
 
+	// Resto de la función sigue igual...
 	if (ctfgame.match != MATCH_NONE)
 	{
 		t = (ctfgame.matchtime - level.time).seconds<int>();
@@ -3502,12 +3512,12 @@ bool CTFCheckRules()
 			else
 				G_FmtTo(text, "SETUP: {} not ready", j);
 
-	//		gi.configstring(CONFIG_CTF_MATCH, text);
+			//		gi.configstring(CONFIG_CTF_MATCH, text);
 			break;
 
 		case MATCH_PREGAME:
 			G_FmtTo(text, "{:02}:{:02} UNTIL START", t / 60, t % 60);
-	//		gi.configstring(CONFIG_CTF_MATCH, text);
+			//		gi.configstring(CONFIG_CTF_MATCH, text);
 
 			if (t <= 10 && !ctfgame.countdown)
 			{
@@ -3518,7 +3528,7 @@ bool CTFCheckRules()
 
 		case MATCH_GAME:
 			G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
-	//		gi.configstring(CONFIG_CTF_MATCH, text);
+			//		gi.configstring(CONFIG_CTF_MATCH, text);
 			if (t <= 10 && !ctfgame.countdown)
 			{
 				ctfgame.countdown = true;
@@ -3559,7 +3569,7 @@ bool CTFCheckRules()
 				if (ctfgame.warnactive != CTF_TEAM1)
 				{
 					ctfgame.warnactive = CTF_TEAM1;
-		//			gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Red has too many players");
+					//			gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Red has too many players");
 				}
 			}
 			else if (team2 - team1 >= 2 && team1 >= 2)
@@ -3567,7 +3577,7 @@ bool CTFCheckRules()
 				if (ctfgame.warnactive != CTF_TEAM2)
 				{
 					ctfgame.warnactive = CTF_TEAM2;
-		//			gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Blue has too many players");
+					//			gi.configstring(CONFIG_CTF_TEAMINFO, "WARNING: Blue has too many players");
 				}
 			}
 			else
@@ -3586,6 +3596,7 @@ bool CTFCheckRules()
 	}
 	return false;
 }
+
 
 /*--------------------------------------------------------------------------
  * just here to help old map conversions
