@@ -1455,20 +1455,12 @@ void monster_start_go(edict_t* self)
 		{
 			// Paril: try nudging them out. this fixes monsters stuck
 			// in very shallow slopes.
-			
-			//constexpr const int32_t adjust[] = { 0, -4, 4, -8, 8, -16, 16 };
-			//bool walked = false;
+			constexpr const int32_t adjust[] = { 0, -4, 4, -8, 8, -16, 16 };
+			bool walked = false;
 
-			//for (int32_t y = 0; !walked && y < 7; y++)
-			//	for (int32_t x = 0; !walked && x < 7; x++)
-			//		for (int32_t z = 0; !walked && z < 7; z++)
-
-			constexpr const int32_t adjust[] = { 0, -1, 1, -2, 2, -4, 4, -8, 8 };
-			bool					walked = false;
-
-			for (int32_t y = 0; !walked && y < 3; y++)
-				for (int32_t x = 0; !walked && x < 3; x++)
-					for (int32_t z = 0; !walked && z < 3; z++)
+			for (int32_t y = 0; !walked && y < 7; y++)
+				for (int32_t x = 0; !walked && x < 7; x++)
+					for (int32_t z = 0; !walked && z < 7; z++)
 					{
 						self->s.origin[0] = check[0] + adjust[x];
 						self->s.origin[1] = check[1] + adjust[y];
@@ -1492,6 +1484,7 @@ void monster_start_go(edict_t* self)
 		if (is_stuck)
 			gi.Com_PrintFmt("WARNING: {} stuck in solid\n", *self);
 	}
+
 
 	vec3_t v;
 
