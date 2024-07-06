@@ -743,7 +743,6 @@ void CheckDMRules()
 					if (g_horde->integer)
 					InitClientPt(ent, ent->client);
 				}
-				level.intermission_fade = true;
 			}
 			return;
 
