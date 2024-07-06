@@ -4176,6 +4176,8 @@ void CTFPlayerList(edict_t* ent)
 
 	gi.Client_Print(ent, PRINT_HIGH, text.data());
 }
+#include <cstring>
+
 void CTFWarp(edict_t* ent)
 {
 	char* token;
@@ -4183,13 +4185,32 @@ void CTFWarp(edict_t* ent)
 	if (gi.argc() < 2)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to\n");
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", g_map_list->string);
+
+		// Crear una cadena temporal para la lista de mapas
+		const char* mlist = g_map_list->string;
+		char formatted_map_list[8192] = "-";
+
+		// Procesar cada mapa individualmente
+		while (*(token = COM_Parse(&mlist)) != '\0')
+		{
+			strncat(formatted_map_list, token, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+			strncat(formatted_map_list, "\n-", sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+		}
+
+		// Quitar el último guion si existe
+		size_t len = strlen(formatted_map_list);
+		if (len > 0 && formatted_map_list[len - 1] == '-')
+		{
+			formatted_map_list[len - 1] = '\0';
+		}
+
+		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
 		return;
 	}
 
 	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
 
-	while (*(token = COM_Parse(&mlist)))
+	while (*(token = COM_Parse(&mlist)) != '\0')
 	{
 		if (Q_strcasecmp(token, gi.argv(1)) == 0)
 			break;
@@ -4198,21 +4219,40 @@ void CTFWarp(edict_t* ent)
 	if (!*token)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are: {}\n", g_map_list->string);
+
+		// Crear una cadena temporal para la lista de mapas
+		mlist = g_map_list->string;
+		char formatted_map_list[8192] = "-";
+
+		// Procesar cada mapa individualmente
+		while (*(token = COM_Parse(&mlist)) != '\0')
+		{
+			strncat(formatted_map_list, token, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+			strncat(formatted_map_list, "\n-", sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+		}
+
+		// Quitar el último guion si existe
+		size_t len = strlen(formatted_map_list);
+		if (len > 0 && formatted_map_list[len - 1] == '-')
+		{
+			formatted_map_list[len - 1] = '\0';
+		}
+
+		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
 		return;
 	}
 
 	//if (ent->client->resp.admin)
 	//{
-	//	gi.LocBroadcast_Print(PRINT_HIGH, "{} is warping to level {}.\n",
-	//		ent->client->pers.netname, gi.argv(1));
-	//	Q_strlcpy(level.forcemap, gi.argv(1), sizeof(level.forcemap));
-	//	if (g_horde->integer)
-	//	{
-	//		HandleResetEvent();
-	//	}
-	//	BeginIntermission(CreateTargetChangeLevel(level.forcemap));
-	//	return;
+	//    gi.LocBroadcast_Print(PRINT_HIGH, "{} is warping to level {}.\n",
+	//        ent->client->pers.netname, gi.argv(1));
+	//    Q_strlcpy(level.forcemap, gi.argv(1), sizeof(level.forcemap));
+	//    if (g_horde->integer)
+	//    {
+	//        HandleResetEvent();
+	//    }
+	//    BeginIntermission(CreateTargetChangeLevel(level.forcemap));
+	//    return;
 	//}
 
 	// Establecer ctfgame.elevel antes de llamar a CTFBeginElection
