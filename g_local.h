@@ -2647,8 +2647,8 @@ bool Pickup_Nuke(edict_t* ent, edict_t* other);
 void Use_IR(edict_t* ent, gitem_t* item);
 void Use_Double(edict_t* ent, gitem_t* item);
 void Use_Nuke(edict_t* ent, gitem_t* item);
-void Use_Doppleganger(edict_t* ent, gitem_t* item);
-bool Pickup_Doppleganger(edict_t* ent, edict_t* other);
+void Use_sentrygun(edict_t* ent, gitem_t* item);
+bool Pickup_sentrygun(edict_t* ent, edict_t* other);
 bool Pickup_Sphere(edict_t* ent, edict_t* other);
 void Use_Defender(edict_t* ent, gitem_t* item);
 void Use_Hunter(edict_t* ent, gitem_t* item);
@@ -2671,7 +2671,7 @@ item_id_t DoRandomRespawn(edict_t* ent);
 void	 PrecacheForRandomRespawn();
 bool	 Tag_PickupToken(edict_t* ent, edict_t* other);
 void	 Tag_DropToken(edict_t* ent, gitem_t* item);
-bool fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
+bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 
 //
 // p_client.c

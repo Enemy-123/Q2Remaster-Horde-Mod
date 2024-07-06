@@ -1367,7 +1367,7 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	if (g_instagib->value)
 	{
 		if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
-			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_Doppleganger /*||
+			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_sentrygun /*||
 			(item->flags & IF_HEALTH)*/
 			|| (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
 			item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
@@ -1400,7 +1400,7 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 				G_FreeEdict(ent);
 				return;
 			}
-			if (item->pickup == Pickup_Doppleganger)
+			if (item->pickup == Pickup_sentrygun)
 			{
 				G_FreeEdict(ent);
 				return;
@@ -1465,7 +1465,7 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	// DM only items
 	if (!G_IsDeathmatch())
 	{
-		if (item->pickup == Pickup_Doppleganger || item->pickup == Pickup_Nuke)
+		if (item->pickup == Pickup_sentrygun || item->pickup == Pickup_Nuke)
 		{
 			gi.Com_PrintFmt("{} spawned in non-DM; freeing...\n", *ent);
 			G_FreeEdict(ent);
@@ -3224,8 +3224,8 @@ always owned, never in the world
 		{
 			/* id */ IT_ITEM_DOPPELGANGER,
 			/* classname */ "item_doppleganger",
-			/* pickup */ Pickup_Doppleganger,
-			/* use */ Use_Doppleganger,
+			/* pickup */ Pickup_sentrygun,
+			/* use */ Use_sentrygun,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
@@ -3233,7 +3233,7 @@ always owned, never in the world
 			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
 			/* icon */ "p_doppleganger",
-			/* use_name */  "Doppelganger",
+			/* use_name */  "Sentry Gun",
 			/* pickup_name */  "Sentry Gun\n",
 			/* pickup_name_definite */ "$item_doppleganger_def",
 			/* quantity */ 90,

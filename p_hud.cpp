@@ -313,7 +313,7 @@ void BeginIntermission(edict_t* targ)
 
 	if (strstr(level.changemap, "*"))
 	{
-		if (G_IsCooperative())
+		if (G_IsCooperative() )
 		{
 			for (uint32_t i = 0; i < game.maxclients; i++)
 			{
@@ -694,7 +694,6 @@ void Cmd_Help_f(edict_t* ent)
 // even if we're spectating
 void G_SetCoopStats(edict_t* ent) {
 
-
 	if (G_IsDeathmatch() && g_coop_enable_lives->integer)
 		ent->client->ps.stats[STAT_LIVES] = ent->client->pers.lives + 1;
 	else
@@ -702,7 +701,7 @@ void G_SetCoopStats(edict_t* ent) {
 
 	if (G_IsDeathmatch() && !level.intermissiontime) {
 
-		ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = current_wave_number - 1;
+		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_number - 1;
 	}
 	ent->client->ps.stats[STAT_CTF_MATCH] = level.total_monsters - level.killed_monsters;
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
@@ -710,14 +709,10 @@ void G_SetCoopStats(edict_t* ent) {
 
 if (G_IsDeathmatch() && level.intermissiontime) {
 
-			ent->client->ps.stats[STAT_CTF_TEAM1_CAPS] = last_wave_number;
+ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
 }
 
-
-
-
-
-	ent->client->ps.stats[STAT_CTF_TEAM2_CAPS] = level.total_monsters - level.killed_monsters;
+ent->client->ps.stats[STAT_REMAINING_MONSTERS] = level.total_monsters - level.killed_monsters;
 
 
 	// stat for text on what we're doing for respawn

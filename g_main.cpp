@@ -361,7 +361,7 @@ void InitGame()
 	ai_allow_dm_spawn = gi.cvar("ai_allow_dm_spawn", "1", CVAR_NOFLAGS);
 	ai_movement_disabled = gi.cvar("ai_movement_disabled", "0", CVAR_NOFLAGS);
 
-	g_frames_per_frame = gi.cvar("g_frames_per_frame", "1", CVAR_NOFLAGS);
+	g_frames_per_frame = gi.cvar("g_frames_per_frame", "0", CVAR_NOFLAGS);
 
 	g_coop_health_scaling = gi.cvar("g_coop_health_scaling", "0", CVAR_LATCH);
 	g_weapon_respawn_time = gi.cvar("g_weapon_respawn_time", "30", CVAR_NOFLAGS);

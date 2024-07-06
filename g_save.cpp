@@ -2589,6 +2589,10 @@ void ReadLevelJson(const char* jsonString)
 // [Paril-KEX]
 bool G_CanSave()
 {
+	if (G_IsDeathmatch())
+		return false;
+
+
 	if (game.maxclients == 1 && g_edicts[1].health <= 0)
 	{
 		gi.LocClient_Print(&g_edicts[1], PRINT_CENTER, "$g_no_save_dead");

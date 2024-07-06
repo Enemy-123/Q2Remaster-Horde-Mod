@@ -62,7 +62,7 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	fire_nuke(ent, start, forward, speed);
 }
 
-void Use_Doppleganger(edict_t* ent, gitem_t* item)
+void Use_sentrygun(edict_t* ent, gitem_t* item)
 {
 	vec3_t forward, right;
 	vec3_t createPt, spawnPt;
@@ -92,7 +92,7 @@ void Use_Doppleganger(edict_t* ent, gitem_t* item)
 	}
 
 	// Intentar spawnear la torreta y verificar si tuvo éxito
-	if (fire_doppleganger(ent, spawnPt, forward, 128.f, 76.f))
+	if (fire_sentrygun(ent, spawnPt, forward, 128.f, 76.f))
 	{
 		// Reducir la cantidad de ítems en el inventario solo si se pudo spawnear la torreta
 		ent->client->pers.inventory[item->id]--;
@@ -100,14 +100,14 @@ void Use_Doppleganger(edict_t* ent, gitem_t* item)
 }
 
 
-bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
+bool Pickup_sentrygun(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
 	if (!G_IsDeathmatch()) // item is DM only
 		return false;
 	quantity = other->client->pers.inventory[ent->item->id];
-	if (quantity >= 2) // FIXME - apply max to dopplegangers
+	if (quantity >= 2) // FIXME - apply max to sentryguns
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;

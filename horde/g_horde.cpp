@@ -14,7 +14,7 @@ bool allowWaveAdvance = false; // Variable global para controlar el avance de la
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
 
-int current_wave_number = 1;
+
 int last_wave_number = 0;
 static int cachedRemainingMonsters = -1;
 
@@ -31,13 +31,14 @@ enum class horde_state_t {
 };
 
 struct HordeState {
-	gtime_t         warm_time = 5_sec;
+	gtime_t         warm_time = 4_sec;
 	horde_state_t   state = horde_state_t::warmup;
 	gtime_t         monster_spawn_time;
 	int32_t         num_to_spawn = 0;
 	int32_t         level = 0;
 } g_horde_local;
 
+int current_wave_number = g_horde_local.level;
 bool next_wave_message_sent = false;
 int vampire_level = 0;
 
@@ -305,11 +306,11 @@ void Horde_InitLevel(int32_t lvl) noexcept {
 }
 
 bool G_IsDeathmatch() noexcept {
-	return deathmatch->integer && g_horde->integer;
+	return deathmatch->integer;
 }
 
 bool G_IsCooperative() noexcept {
-	return coop->integer && !g_horde->integer;
+	return coop->integer;
 }
 
 struct weighted_item_t;

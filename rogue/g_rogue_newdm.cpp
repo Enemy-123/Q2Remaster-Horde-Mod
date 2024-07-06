@@ -163,24 +163,24 @@ extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 
 edict_t* SpawnTurret(edict_t* owner, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 
-DIE(doppleganger_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(sentrygun_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	// The turret doesn't need to spawn spheres or explode, so we can simplify this function.
 	self->takedamage = DAMAGE_NONE;
 	BecomeExplosion1(self);
 }
 
-PAIN(doppleganger_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+PAIN(sentrygun_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	// Turret doesn't need to track an enemy like a doppleganger, so this can be simplified or removed.
+	// Turret doesn't need to track an enemy like a sentrygun, so this can be simplified or removed.
 }
 
-THINK(doppleganger_timeout)(edict_t* self) -> void
+THINK(sentrygun_timeout)(edict_t* self) -> void
 {
 	// Timeout logic isn't needed for the turret, so this can be simplified or removed.
-	doppleganger_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
+	sentrygun_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
 }
-bool fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
+bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	edict_t* turret;
 	vec3_t forward, right, up, end{}, new_start;
@@ -233,7 +233,7 @@ bool fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, 
 	turret->maxs[1] = 16;
 	turret->maxs[2] = 32;
 	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	turret->die = doppleganger_die;
+	turret->die = sentrygun_die;
 	turret->takedamage = true;
 	turret->owner = ent;  // Set the owner
 	// Asigna el equipo como una cadena de caracteres
