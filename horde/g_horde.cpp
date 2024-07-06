@@ -17,7 +17,7 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int32_t last_wave_number = 0;
 static int32_t cachedRemainingMonsters = -1;
 
-gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.3
+//gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.3
 gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.3); // Cooldown en segundos para los puntos de spawn 3.0
 
 cvar_t* g_horde;
@@ -204,11 +204,11 @@ void AdjustMonsterSpawnRate() {
         }
 
         // Reducir los cooldowns de monstruos y puntos de spawn
-        MONSTER_COOLDOWN -= 0.3_sec;
+  //      MONSTER_COOLDOWN -= 0.3_sec;
         SPAWN_POINT_COOLDOWN -= 0.3_sec;
 
         // Asegurarse de que los cooldowns no sean menores a un límite mínimo
-        if (MONSTER_COOLDOWN < 1.2_sec) MONSTER_COOLDOWN = 1.2_sec;
+    //    if (MONSTER_COOLDOWN < 1.2_sec) MONSTER_COOLDOWN = 1.2_sec;
         if (SPAWN_POINT_COOLDOWN < 2.3_sec) SPAWN_POINT_COOLDOWN = 2.3_sec;
     }
 }
@@ -1263,7 +1263,7 @@ void ResetGame() noexcept {
     gi.cvar_set("g_autohaste", "0");
 
     // Reset spawn cooldowns
-    MONSTER_COOLDOWN = 2.6_sec;
+ //   MONSTER_COOLDOWN = 2.6_sec;
     SPAWN_POINT_COOLDOWN = 3.3_sec;
 
     // Reset the number of monsters to be spawned
