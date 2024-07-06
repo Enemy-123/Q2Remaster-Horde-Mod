@@ -3229,7 +3229,8 @@ always owned, never in the world
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
-			/* world_model */ "models/items/dopple/tris.md2",
+			/* world_model */ "models/monsters/turret/tris.md2",
+		//	/* world_model */ "models/items/dopple/tris.md2",
 			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
 			/* icon */ "p_doppleganger",
@@ -3243,7 +3244,7 @@ always owned, never in the world
 			/* vwep_model */ nullptr,
 			/* armor_info */ nullptr,
 			/* tag */ POWERUP_DOPPELGANGER,
-			/* precaches */ "models/objects/dopplebase/tris.md2 models/items/spawngro3/tris.md2 medic_commander/monsterspawn1.wav models/items/hunter/tris.md2 models/items/vengnce/tris.md2",
+			/* precaches */ "models/monsters/turret/tris.md2 models/objects/dopplebase/tris.md2 models/items/spawngro3/tris.md2 medic_commander/monsterspawn1.wav models/items/hunter/tris.md2 models/items/vengnce/tris.md2",
 		},
 
 		{

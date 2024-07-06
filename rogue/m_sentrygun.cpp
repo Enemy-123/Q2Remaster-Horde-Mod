@@ -287,7 +287,7 @@
 			self->s.angles[YAW] = anglemod(current + move);
 		}
 
-		if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
+		if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT) || self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			return;
 
 		// Paril: improved turrets; draw lasersight
@@ -508,8 +508,8 @@
 				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 				{
 					// Aplica el daño con el mod_t configurado
-					T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_NO_ARMOR, MOD_TURRET);
-					monster_fire_blaster(self, start, dir, TURRET2_BLASTER_DAMAGE, rocketSpeed, MZ2_TURRET_BLASTER, EF_BLASTER);
+					T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
+					monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
 				}
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 				{
@@ -997,15 +997,13 @@
 	{
 		self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
 		int angle;
-		if (g_horde->integer)
-		{
+
 			self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 			self->monsterinfo.team = CTF_TEAM1;
 			self->s.effects = EF_BOB | EF_GRENADE;
 			self->monsterinfo.attack_state = AS_BLIND;
 
 			ApplyMonsterBonusFlags(self);
-		}
 
 		if (!M_AllowSpawn(self))
 		{
@@ -1044,8 +1042,16 @@
 		self->die = turret2_die;
 
 		// map designer didn't specify weapon type. set it now.
-		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE))
+		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 15)
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+			
+		// map designer didn't specify weapon type. set it now.
+		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 16)
+			if (brandom())
+			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
+		else
+			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+
 
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_HEATBEAM))
 		{
@@ -1161,8 +1167,9 @@
 		}
 
 		self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-
-		if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_BLASTER))
+		if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+			self->yaw_speed /= 2;
+		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER))
 			self->monsterinfo.blindfire = true;
 
 	}
