@@ -136,7 +136,8 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		base = "$g_mod_generic_exit";
 		break;
 	case MOD_TARGET_LASER:
-		base = "{0} saw the light!\n";
+		if (attacker->svflags & ~SVF_MONSTER)
+			base = "{0} saw the light!\n";
 		break;
 	case MOD_TARGET_BLASTER:
 		base = "$g_mod_generic_blaster";
@@ -146,14 +147,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	case MOD_TRIGGER_HURT:
 		base = "$g_mod_generic_hurt";
 		break;
-		// RAFAEL
-	case MOD_BRAINTENTACLE:
-		base = "{0} was killed by a {1}'s tentacles. Eww!\n";
-		break;
-	case MOD_GEKK:
-		base = "{0} was spitted to death by a {1}. Gross!\n";
-		break;
-		// RAFAEL
 	default:
 		base = nullptr;
 		break;
@@ -176,16 +169,12 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_BFG_BLAST:
 			base = "$g_mod_self_bfg_blast";
 			break;
-			// RAFAEL 03-MAY-98
 		case MOD_TRAP:
 			base = "$g_mod_self_trap";
 			break;
-			// RAFAEL
-			// ROGUE
 		case MOD_DOPPLE_EXPLODE:
 			base = "$g_mod_self_dopple_explode";
 			break;
-			// ROGUE
 		default:
 			base = "{0} becomes bored with life\n";
 			break;
@@ -268,7 +257,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_TELEFRAG_SPAWN:
 			base = "$g_mod_kill_telefrag";
 			break;
-			// RAFAEL 14-APR-98
 		case MOD_RIPPER:
 			base = "$g_mod_kill_ripper";
 			break;
@@ -278,9 +266,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_TRAP:
 			base = "$g_mod_kill_trap";
 			break;
-			// RAFAEL
-			//===============
-			// ROGUE
 		case MOD_CHAINFIST:
 			base = "$g_mod_kill_chainfist";
 			break;
@@ -323,16 +308,12 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_DOPPLE_HUNTER:
 			base = "$g_mod_kill_dopple_hunter";
 			break;
-			// ROGUE
-			//===============
-			// ZOID
 		case MOD_GRAPPLE:
 			base = "$g_mod_kill_grapple";
 			break;
 		case MOD_HOOK:     // Kyper - Lithium port
 			base = "{0} was disemboweled by {1}'s hook.\n";
 			break;
-			// ZOID
 		default:
 			base = "$g_mod_kill_generic";
 			break;
@@ -406,6 +387,12 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_TELEFRAG_SPAWN:
 			base = "{0} was telefragged by a {1}\n";
 			break;
+		case MOD_BRAINTENTACLE:
+			base = "{0} got a slimy end from a {1}'s tentacles. Gross!\n";
+			break;
+		case MOD_GEKK:
+			base = "{0} was spat to death by a {1}. Yuck!\n";
+			break;
 		default:
 			base = "{0} was killed by a {1}\n";
 			break;
@@ -429,6 +416,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	}
 
 	gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
+
 
 	// Q2ETweaks frag message centerprints on attacker and victim
 	if (sv_centerprint_frags->integer)
