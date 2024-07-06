@@ -3402,12 +3402,14 @@ void CTFObserver(edict_t* ent)
 	ent->movetype = MOVETYPE_NOCLIP;
 	ent->solid = SOLID_NOT;
 	ent->svflags |= SVF_NOCLIENT;
-	CTFJoinTeam(ent, CTF_NOTEAM);
+	PutClientInServer(ent);
 	ent->client->resp.ctf_team = CTF_NOTEAM;
+	CTFJoinTeam(ent, CTF_NOTEAM);
+
 	ent->client->ps.gunindex = 0;
 	ent->client->ps.gunskin = 0;
 	//	ent->client->resp.score = 0;
-	PutClientInServer(ent);
+
 
 	extern void RemovePlayerOwnedEntities(edict_t * player);
 	// Remove all entities owned by the player

@@ -10,6 +10,28 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	extern void tesla_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
 	extern void trap_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
 
+	bool hasEntities = false;
+
+	// Check if there are any entities owned by the player
+	for (unsigned int i = 0; i < globals.num_edicts; i++)
+	{
+		ent = &g_edicts[i];
+
+		if (!ent->inuse)
+			continue;
+
+		if (ent->owner == player || (ent->owner && ent->owner->owner == player))
+		{
+			hasEntities = true;
+			break;
+		}
+	}
+
+	// If no entities are found, return early
+	if (!hasEntities)
+		return;
+
+	// Iterate again to remove entities
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		ent = &g_edicts[i];
