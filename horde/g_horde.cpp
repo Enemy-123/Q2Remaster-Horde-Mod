@@ -1090,7 +1090,10 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 };
 
 extern void SP_target_earthquake(edict_t* self);
-extern constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
+constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
+[[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
+constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
 void SpawnBossAutomatically() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
@@ -1104,19 +1107,40 @@ void SpawnBossAutomatically() noexcept {
             if (!desired_boss) return;
             boss->classname = desired_boss;
 
-            // Crear el efecto de terremoto
-            edict_t* earthquake = G_Spawn();
-            earthquake->classname = "target_earthquake";
-            earthquake->spawnflags = SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
-            earthquake->speed = 200; // Severidad del terremoto
-            earthquake->count = 5; // Duración del terremoto en segundos
-            SP_target_earthquake(earthquake);
-            earthquake->use(earthquake, boss, boss); // Activar el terremoto
-
             // Establecer la posición del jefe
             boss->s.origin[0] = it->second[0];
             boss->s.origin[1] = it->second[1];
             boss->s.origin[2] = it->second[2];
+
+            // Establecer los valores para la traza
+            vec3_t start, end, mins, maxs;
+            VectorCopy(boss->s.origin, start);
+            VectorCopy(boss->s.origin, end);
+            VectorCopy(boss->mins, mins);
+            VectorCopy(boss->maxs, maxs);
+
+            // Realizar la traza para verificar colisiones
+            trace_t tr = gi.trace(start, mins, maxs, end, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
+
+            if (tr.startsolid) {
+                // Realizar telefrag si hay colisión
+                edict_t* hit = tr.ent;
+                if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
+                    vec3_t dir = { 0, 0, 1 };
+                    vec3_t point = { hit->s.origin[0], hit->s.origin[1], hit->s.origin[2] };
+                    T_Damage(hit, boss, boss, dir, point, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
+                    gi.Com_PrintFmt("Telefrag performed on {}\n", hit->classname);
+                }
+            }
+
+            // Crear el efecto de terremoto
+            edict_t* earthquake = G_Spawn();
+            earthquake->classname = "target_earthquake";
+            earthquake->spawnflags = SPAWNFLAGS_EARTHQUAKE_SILENT; // Usar flag de un solo uso para activarlo una vez
+            earthquake->speed = 500; // Severidad del terremoto
+            earthquake->count = 3; // Duración del terremoto en segundos
+            SP_target_earthquake(earthquake);
+            earthquake->use(earthquake, boss, boss); // Activar el terremoto
 
             // Decidir directamente qué mensaje mostrar basado en el classname
             if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_boss2kl") == 0) {
@@ -1173,9 +1197,23 @@ void SpawnBossAutomatically() noexcept {
 
             // spawngro effect
             vec3_t spawngrow_pos = boss->s.origin;
-            const float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.45f;
+            const float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.65f;
             const float end_size = start_size;
+
+            // Realizar el efecto de crecimiento y aplicar telefrag si es necesario
             SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+
+            // Realizar telefrag en la posición del efecto de spawn
+            trace_t tr_spawn = gi.trace(spawngrow_pos, mins, maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
+            if (tr_spawn.startsolid) {
+                edict_t* hit = tr_spawn.ent;
+                if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
+                    vec3_t dir = { 0, 0, 1 };
+                    vec3_t point = { hit->s.origin[0], hit->s.origin[1], hit->s.origin[2] };
+                    T_Damage(hit, boss, boss, dir, point, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
+                    gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", hit->classname);
+                }
+            }
 
             ED_CallSpawn(boss);
 

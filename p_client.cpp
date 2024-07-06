@@ -417,7 +417,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 
 	gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
 
-
 	// Q2ETweaks frag message centerprints on attacker and victim
 	if (sv_centerprint_frags->integer)
 	{
