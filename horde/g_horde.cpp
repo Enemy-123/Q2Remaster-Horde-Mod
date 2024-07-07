@@ -5,6 +5,7 @@
 #include <set>
 int GetNumActivePlayers() noexcept;
 int GetNumSpectPlayers() noexcept;
+int GetNumHumanPlayers() noexcept;
 
 constexpr int32_t MAX_MONSTERS_BIG_MAP = 27;
 constexpr int32_t MAX_MONSTERS_MEDIUM_MAP = 18;
@@ -210,21 +211,20 @@ void CheckAndApplyBenefit(int32_t wave) {
 }
 
 // Función para ajustar la tasa de aparición de monstruos
-void AdjustMonsterSpawnRate() {
-    if (g_horde_local.level % 5 == 0) {  // Cada 5 olas, incrementa la dificultad
-        g_horde_local.num_to_spawn++;
-        g_horde_local.monster_spawn_time -= 0.8_sec;  // Reducir el tiempo de enfriamiento entre spawns
+void AdjustMonsterSpawnRate() noexcept {
+    int32_t humanPlayers = GetNumHumanPlayers();
+    float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
+
+    if (g_horde_local.level % 5 == 0) {
+        g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
+        g_horde_local.monster_spawn_time -= 0.5_sec * difficultyMultiplier;
         if (g_horde_local.monster_spawn_time < 0.7_sec) {
-            g_horde_local.monster_spawn_time = 0.7_sec;  // No menos de 0.7 segundos
+            g_horde_local.monster_spawn_time = 0.7_sec;
         }
-
-        // Reducir los cooldowns de monstruos y puntos de spawn
-  //      MONSTER_COOLDOWN -= 0.3_sec;
-        SPAWN_POINT_COOLDOWN -= 0.3_sec;
-
-        // Asegurarse de que los cooldowns no sean menores a un límite mínimo
-    //    if (MONSTER_COOLDOWN < 1.2_sec) MONSTER_COOLDOWN = 1.2_sec;
-        if (SPAWN_POINT_COOLDOWN < 2.3_sec) SPAWN_POINT_COOLDOWN = 2.3_sec;
+        SPAWN_POINT_COOLDOWN -= 0.2_sec * difficultyMultiplier;
+        if (SPAWN_POINT_COOLDOWN < 2.0_sec) {
+            SPAWN_POINT_COOLDOWN = 2.0_sec;
+        }
     }
 }
 
@@ -1519,7 +1519,21 @@ void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
     g_horde_local.state = horde_state_t::rest;
 }
 
-// Función para manejar el mensaje de descanso de ola
+// Vector para almacenar los sonidos, definido como estático para que solo se inicialice una vez
+static const std::vector<std::string> sounds = {
+    "nav_editor/action_fail.wav",
+    "makron/roar1.wav",
+    "zortemp/ack.wav",
+    "misc/spawn1.wav",
+    "makron/voice3.wav",
+    "world/v_fac3.wav",
+    "world/v_fac2.wav",
+    "insane/insane5.wav",
+    "insane/insane2.wav",
+    "world/won.wav"
+};
+
+
 void HandleWaveRestMessage() noexcept {
     if (!g_insane->integer) {
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n STROGGS STARTING TO PUSH !\n\n\n ");
@@ -1528,22 +1542,9 @@ void HandleWaveRestMessage() noexcept {
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
     }
 
-    // Vector para almacenar los sonidos, definido como estático para que solo se inicialice una vez
-    static const std::vector<std::string> sounds = {
-        "nav_editor/action_fail.wav",
-        "makron/roar1.wav",
-        "zortemp/ack.wav",
-        "misc/spawn1.wav",
-        "makron/voice3.wav",
-        "world/v_fac3.wav",
-        "world/v_fac2.wav",
-        "insane/insane5.wav",
-        "insane/insane2.wav",
-        "world/won.wav"
-    };
-
-    float r = frandom();
-    size_t sound_index = static_cast<size_t>(r * sounds.size());
+    // Generar un índice aleatorio para seleccionar un sonido
+    std::uniform_int_distribution<size_t> dist(0, sounds.size() - 1);
+    size_t const sound_index = dist(gen);
 
     // Asegurarse de que el índice esté dentro del rango del vector
     if (sound_index < sounds.size()) {
@@ -1554,7 +1555,7 @@ void HandleWaveRestMessage() noexcept {
 void SpawnMonsters() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
     // Calcular la cantidad de monstruos por spawn según el tamaño del mapa y el nivel de la horda
-    int32_t monsters_per_spawn{};
+    int32_t monsters_per_spawn;
     if (mapSize.isSmallMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
     }
@@ -1565,12 +1566,11 @@ void SpawnMonsters() noexcept {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
     }
 
-    // Verificar que monsters_per_spawn no exceda un valor razonable (por ejemplo, 10)
+    // Verificar que monsters_per_spawn no exceda un valor razonable (por ejemplo, 4)
     if (monsters_per_spawn > 4) {
         monsters_per_spawn = 4;
     }
 
-    int32_t spawned = 0;
     constexpr float drop_probability = 0.55f;
 
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
@@ -1604,19 +1604,17 @@ void SpawnMonsters() noexcept {
         ED_CallSpawn(monster);
 
         vec3_t spawngrow_pos = monster->s.origin;
-        const float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.035f;
-        const float end_size = start_size;
-        SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+        const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.035f;
+        SpawnGrow_Spawn(spawngrow_pos, size, size);
 
         --g_horde_local.num_to_spawn;
-        ++spawned;
     }
 
     // Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
     if (mapSize.isSmallMap) {
         g_horde_local.monster_spawn_time = level.time + 1.7_sec;
     }
-    if (mapSize.isBigMap) {
+    else if (mapSize.isBigMap) {
         g_horde_local.monster_spawn_time = level.time + 1.1_sec;
     }
     else {
