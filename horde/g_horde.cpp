@@ -51,7 +51,7 @@ std::unordered_map<edict_t*, float> spawnPointCooldowns;
 
 const std::unordered_set<std::string> smallMaps = {
     "q2dm3", "q2dm7", "q2dm2", "q64/dm10", "q64\\dm10", "test/mals_barrier_test",
-    "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2",
+    "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
     "q64\\dm2", "q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command", "q64\\command",
     "mgu3m4", "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0"
 };
@@ -1086,7 +1086,8 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64/dm10", {-304, 512, -92}},
     {"q64/dm3", {488, 392, 64}},
     {"mgu4trial", {-960, -528, -328}},
-    {"test/mals_barrier_test", {24, 136, 224}}
+    {"test/mals_barrier_test", {24, 136, 224}},
+    {"test/spbox", {112, 192, 168}}
 };
 
 extern void SP_target_earthquake(edict_t* self);
