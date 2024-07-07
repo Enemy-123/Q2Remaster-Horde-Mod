@@ -671,12 +671,14 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
 
 const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
-    if (spawnPointCooldowns.find(spawn_point) != spawnPointCooldowns.end()) {
-        currentCooldown = spawnPointCooldowns[spawn_point];
+    auto it_spawnCooldown = spawnPointCooldowns.find(spawn_point);
+    if (it_spawnCooldown != spawnPointCooldowns.end()) {
+        currentCooldown = it_spawnCooldown->second;
     }
 
-    if (lastSpawnPointTime.find(spawn_point) != lastSpawnPointTime.end() &&
-        (level.time - lastSpawnPointTime[spawn_point]).seconds<float>() < currentCooldown) {
+    auto it_lastSpawnTime = lastSpawnPointTime.find(spawn_point);
+    if (it_lastSpawnTime != lastSpawnPointTime.end() &&
+        (level.time - it_lastSpawnTime->second).seconds<float>() < currentCooldown) {
         return nullptr;
     }
 
@@ -688,14 +690,12 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
     for (const auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
 
-        if ((flying_monsters_mode && !isFlyingMonster) ||
-            (spawn_point->style == 1 && !isFlyingMonster) ||
-            (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
-            !IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-            continue;
-        }
+        if (flying_monsters_mode && !isFlyingMonster) continue;
+        if (spawn_point->style == 1 && !isFlyingMonster) continue;
+        if (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) continue;
+        if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) continue;
 
-        float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+        float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
         if (weight > 0) {
             picked_monsters.push_back({ &item, total_weight += weight });
         }
@@ -708,13 +708,19 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
     float r = frandom() * total_weight;
     for (const auto& monster : picked_monsters) {
         if (r < monster.weight) {
-            UpdateCooldowns(spawn_point, monster.item->classname);
-            ResetSpawnAttempts(spawn_point);
+            lastSpawnPointTime[spawn_point] = level.time;
+            lastMonsterSpawnTime[monster.item->classname] = level.time;
+            spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
+            spawnAttempts[spawn_point] = 0;
             return monster.item->classname;
         }
     }
 
-    IncreaseSpawnAttempts(spawn_point);
+    spawnAttempts[spawn_point]++;
+    if (spawnAttempts[spawn_point] % 3 == 0) {
+        spawnPointCooldowns[spawn_point] *= 0.9f;
+    }
+
     return nullptr;
 }
 
