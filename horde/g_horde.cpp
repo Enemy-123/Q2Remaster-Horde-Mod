@@ -142,43 +142,58 @@ std::string SelectRandomBenefit(int32_t wave) {
 
 // Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
-    if (benefit == "start armor") {
-        gi.cvar_set("g_startarmor", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nSTARTING ARMOR\nENABLED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "STARTING WITH 50 BODY-ARMOR!\n");
+    static const std::unordered_map<std::string, std::pair<const char*, const char*>> benefitMessages = {
+        {"start armor", {"\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 50 BODY-ARMOR!\n"}},
+        {"vampire", {"\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n", "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n"}},
+        {"ammo regen", {"AMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n"}},
+        {"auto haste", {"\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED !\n"}},
+        {"vampire upgraded", {"\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR NOW!\n"}},
+        {"Cluster Prox Grenades", {"\n\n\n\nIMPROVED PROX GRENADES\n", ""}},
+        {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", ""}}
+    };
+
+    auto it = benefitMessages.find(benefit);
+    if (it != benefitMessages.end()) {
+        // Aplicar el beneficio
+        if (benefit == "start armor") {
+            gi.cvar_set("g_startarmor", "1");
+        }
+        else if (benefit == "vampire") {
+            vampire_level = 1;
+            gi.cvar_set("g_vampire", "1");
+        }
+        else if (benefit == "vampire upgraded") {
+            vampire_level = 2;
+            gi.cvar_set("g_vampire", "2");
+        }
+        else if (benefit == "ammo regen") {
+            gi.cvar_set("g_ammoregen", "1");
+        }
+        else if (benefit == "auto haste") {
+            gi.cvar_set("g_autohaste", "1");
+        }
+        else if (benefit == "Cluster Prox Grenades") {
+            gi.cvar_set("g_upgradeproxs", "1");
+        }
+        else if (benefit == "Traced-Piercing Bullets") {
+            gi.cvar_set("g_tracedbullets", "1");
+        }
+
+        // Enviar los mensajes de beneficio
+        gi.LocBroadcast_Print(PRINT_CENTER, it->second.first);
+        if (!std::string(it->second.second).empty()) {
+            gi.LocBroadcast_Print(PRINT_CHAT, it->second.second);
+        }
+
+        // Marcar el beneficio como obtenido
+        obtained_benefits.insert(benefit);
     }
-    else if (benefit == "vampire") {
-        vampire_level = 1;
-        gi.cvar_set("g_vampire", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n");
+    else {
+        // Mensaje de depuración en caso de que el beneficio no sea encontrado
+        gi.Com_PrintFmt("Benefit not found: {}\n", benefit.c_str());
     }
-    else if (benefit == "ammo regen") {
-        gi.cvar_set("g_ammoregen", "1");
-        gi.LocBroadcast_Print(PRINT_TYPEWRITER, "AMMO REGEN\n\nENABLED!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "AMMO REGEN IS NOW ENABLED!\n");
-    }
-    else if (benefit == "auto haste") {
-        gi.cvar_set("g_autohaste", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "AUTO-HASTE ENABLED !\n");
-    }
-    else if (benefit == "vampire upgraded") {
-        vampire_level = 2;
-        gi.cvar_set("g_vampire", "2");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nIMPROVED VAMPIRE ABILITY\n");
-        gi.LocBroadcast_Print(PRINT_CHAT, "RECOVERING HEALTH & ARMOR NOW!\n");
-    }
-    else if (benefit == "Cluster Prox Grenades") {
-        gi.cvar_set("g_upgradeproxs", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nIMPROVED PROX GRENADES\n");
-    }
-    else if (benefit == "Traced-Piercing Bullets") {
-        gi.cvar_set("g_tracedbullets", "1");
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nBULLETS\nUPGRADED!\n");
-    }
-    obtained_benefits.insert(benefit);
 }
+
 
 // Función para verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(int32_t wave) {
