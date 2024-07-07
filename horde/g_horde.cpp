@@ -1160,27 +1160,23 @@ void SpawnBossAutomatically() noexcept {
             SP_target_earthquake(earthquake);
             earthquake->use(earthquake, boss, boss); // Activar el terremoto
 
-            // Decidir directamente qué mensaje mostrar basado en el classname
-            if (strcmp(desired_boss, "monster_boss2") == 0 || strcmp(desired_boss, "monster_boss2kl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Hornet arrives, leading a swarming wave! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_carrier2") == 0 || strcmp(desired_boss, "monster_carrier") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Menacing Carrier, leading a swarming wave! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_tank_64") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The ground shakes as the Tank Commander arrives! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_shamblerkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Shambler emerges from the darkness! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_guncmdrkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Gunner Commander is ready for battle! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_makronkl") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** Makron descends upon the battlefield! *****\n");
-            }
-            else if (strcmp(desired_boss, "monster_guardian") == 0) {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** The Guardian has arrived, imminent destruction! *****\n");
+            static const std::unordered_map<std::string, std::string> bossMessages = {
+                {"monster_boss2", "***** A Hornet descends, heralding a massacre! *****\n"},
+                {"monster_boss2kl", "***** A Hornet descends, heralding a massacre! *****\n"},
+                {"monster_carrier2", "***** A Carrier arrives, bringing death from above! *****\n"},
+                {"monster_carrier", "***** A Carrier arrives, bringing death from above! *****\n"},
+                {"monster_tank_64", "***** The ground trembles as the Tank Commander storms in! *****\n"},
+                {"monster_shamblerkl", "***** The Shambler steps out of the void, thirsting for blood! *****\n"},
+                {"monster_guncmdrkl", "***** The Gunner Commander advances, with lethal intent! *****\n"},
+                {"monster_makronkl", "***** Makron descends, craving absolute annihilation! *****\n"},
+                {"monster_guardian", "***** The Guardian has arrived, bringing relentless destruction! *****\n"},
+                {"monster_super_tank", "***** A Super-Tank rumbles in, ready to obliterate! *****\n"},
+                {"monster_widow2", "***** The Widow emerges, ready to ensnare and execute! *****\n"}
+            };
+
+            auto it = bossMessages.find(desired_boss);
+            if (it != bossMessages.end()) {
+                gi.LocBroadcast_Print(PRINT_CHAT, it->second.c_str());
             }
             else {
                 gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n");
