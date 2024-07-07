@@ -800,6 +800,8 @@ void Horde_PreInit() noexcept {
         gi.cvar_set("bot_chat_enable", "0");
         gi.cvar_set("bot_skill", "5");
         gi.cvar_set("g_coop_squad_respawn", "1");
+
+        HandleResetEvent();
     }
 }
 
