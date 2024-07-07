@@ -803,6 +803,16 @@ int32_t GetNumHumanPlayers() noexcept {
 }
 
 void VerifyAndAdjustBots() noexcept {
+    static gtime_t last_verification_time = 0_sec;
+    gtime_t current_time = level.time;
+
+    // Verificar cada 2 segundos para evitar sobrecargar el sistema
+    if (current_time - last_verification_time < 2_sec) {
+        return;
+    }
+
+    last_verification_time = current_time;
+
     const auto mapSize = GetMapSize(level.mapname);
     const int32_t humanPlayers = GetNumHumanPlayers();
     const int32_t spectPlayers = GetNumSpectPlayers();
@@ -817,6 +827,8 @@ void VerifyAndAdjustBots() noexcept {
     // Establecer el número de bots mínimos necesarios
     gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
+
+
 void Horde_Init() noexcept {
     VerifyAndAdjustBots();
 
@@ -1595,6 +1607,32 @@ void SpawnMonsters() noexcept {
     }
 }
 
+void VerifyAndAdjustBots() noexcept {
+    static gtime_t last_verification_time = 0_sec;
+    gtime_t current_time = level.time;
+
+    // Verificar cada 2 segundos para evitar sobrecargar el sistema
+    if (current_time - last_verification_time < 2_sec) {
+        return;
+    }
+
+    last_verification_time = current_time;
+
+    const auto mapSize = GetMapSize(level.mapname);
+    const int32_t humanPlayers = GetNumHumanPlayers();
+    const int32_t spectPlayers = GetNumSpectPlayers();
+    const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+
+    // Calcular el número requerido de bots
+    int32_t requiredBots = baseBots + spectPlayers;
+
+    // Asegurar que el número de bots no sea menor que el valor base
+    requiredBots = std::max(requiredBots, baseBots);
+
+    // Establecer el número de bots mínimos necesarios
+    gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+}
+
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
 
@@ -1701,6 +1739,7 @@ void Horde_RunFrame() noexcept {
         break;
     }
 }
+
 
 // Función para manejar el evento de reinicio
 void HandleResetEvent() noexcept {

@@ -326,7 +326,7 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 	if (isSmallMap)
 	{
 		boss->health *= 0.8f;
-		boss->monsterinfo.power_armor_power *= 0.8f;
+		boss->monsterinfo.power_armor_power *= 0.9f;
 	}
 	else if (isBigMap)
 	{
