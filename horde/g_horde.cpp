@@ -319,11 +319,11 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     AdjustMonsterSpawnRate();
 }
 
-bool G_IsDeathmatch() noexcept {
+ bool G_IsDeathmatch() noexcept {
     return deathmatch->integer && g_horde->integer;
 }
 
-bool G_IsCooperative() noexcept {
+ bool G_IsCooperative() noexcept {
     return coop->integer && !g_horde->integer;
 }
 
@@ -625,7 +625,8 @@ constexpr std::array<const char*, 10> flying_monster_classnames = {
 int32_t countFlyingSpawns() noexcept {
     int32_t count = 0;
     for (size_t i = 0; i < globals.num_edicts; i++) {
-        if (g_edicts[i].inuse && strcmp(g_edicts[i].classname, "info_player_deathmatch") == 0 && g_edicts[i].style == 1) {
+        const edict_t& ent = g_edicts[i];
+        if (ent.inuse && strcmp(ent.classname, "info_player_deathmatch") == 0 && ent.style == 1) {
             count++;
         }
     }
