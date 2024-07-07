@@ -1113,6 +1113,23 @@ constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
 [[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
+// Incluye otras cabeceras y definiciones necesarias
+
+static const std::unordered_map<std::string, std::string> bossMessagesMap = {
+    {"monster_boss2", "***** A Hornet descends, heralding a massacre! *****\n"},
+    {"monster_boss2kl", "***** A Hornet descends, heralding a massacre! *****\n"},
+    {"monster_carrier2", "***** A Carrier arrives, bringing death from above! *****\n"},
+    {"monster_carrier", "***** A Carrier arrives, bringing death from above! *****\n"},
+    {"monster_tank_64", "***** The ground trembles as the Tank Commander storms in! *****\n"},
+    {"monster_shamblerkl", "***** The Shambler steps out of the void, thirsting for blood! *****\n"},
+    {"monster_guncmdrkl", "***** The Gunner Commander advances, with lethal intent! *****\n"},
+    {"monster_makronkl", "***** Makron descends, craving absolute annihilation! *****\n"},
+    {"monster_guardian", "***** The Guardian has arrived, bringing relentless destruction! *****\n"},
+    {"monster_supertank", "***** A Super-Tank rumbles in, ready to obliterate! *****\n"},
+    {"monster_boss5", "***** A Super-Tank rumbles in, ready to obliterate! *****\n"},
+    {"monster_widow2", "***** The Widow emerges, ready to ensnare and execute! *****\n"}
+};
+
 void SpawnBossAutomatically() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
     if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0) {
@@ -1125,28 +1142,21 @@ void SpawnBossAutomatically() noexcept {
             if (!desired_boss) return;
             boss->classname = desired_boss;
 
-            // Establecer la posición del jefe
-            boss->s.origin[0] = it->second[0];
-            boss->s.origin[1] = it->second[1];
-            boss->s.origin[2] = it->second[2];
-
-            // Establecer los valores para la traza
-            vec3_t start, end, mins, maxs;
-            VectorCopy(boss->s.origin, start);
-            VectorCopy(boss->s.origin, end);
-            VectorCopy(boss->mins, mins);
-            VectorCopy(boss->maxs, maxs);
+            // Convertir std::array a vec3_t
+            vec3_t origin;
+            origin[0] = it->second[0];
+            origin[1] = it->second[1];
+            origin[2] = it->second[2];
+            VectorCopy(origin, boss->s.origin);
 
             // Realizar la traza para verificar colisiones
-            trace_t tr = gi.trace(start, mins, maxs, end, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
+            trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
 
             if (tr.startsolid) {
                 // Realizar telefrag si hay colisión
                 edict_t* hit = tr.ent;
                 if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
-                    vec3_t dir = { 0, 0, 1 };
-                    vec3_t point = { hit->s.origin[0], hit->s.origin[1], hit->s.origin[2] };
-                    T_Damage(hit, boss, boss, dir, point, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
+                    T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
                     gi.Com_PrintFmt("Telefrag performed on {}\n", hit->classname);
                 }
             }
@@ -1160,23 +1170,9 @@ void SpawnBossAutomatically() noexcept {
             SP_target_earthquake(earthquake);
             earthquake->use(earthquake, boss, boss); // Activar el terremoto
 
-            static const std::unordered_map<std::string, std::string> bossMessages = {
-                {"monster_boss2", "***** A Hornet descends, heralding a massacre! *****\n"},
-                {"monster_boss2kl", "***** A Hornet descends, heralding a massacre! *****\n"},
-                {"monster_carrier2", "***** A Carrier arrives, bringing death from above! *****\n"},
-                {"monster_carrier", "***** A Carrier arrives, bringing death from above! *****\n"},
-                {"monster_tank_64", "***** The ground trembles as the Tank Commander storms in! *****\n"},
-                {"monster_shamblerkl", "***** The Shambler steps out of the void, thirsting for blood! *****\n"},
-                {"monster_guncmdrkl", "***** The Gunner Commander advances, with lethal intent! *****\n"},
-                {"monster_makronkl", "***** Makron descends, craving absolute annihilation! *****\n"},
-                {"monster_guardian", "***** The Guardian has arrived, bringing relentless destruction! *****\n"},
-                {"monster_super_tank", "***** A Super-Tank rumbles in, ready to obliterate! *****\n"},
-                {"monster_widow2", "***** The Widow emerges, ready to ensnare and execute! *****\n"}
-            };
-
-            auto it = bossMessages.find(desired_boss);
-            if (it != bossMessages.end()) {
-                gi.LocBroadcast_Print(PRINT_CHAT, it->second.c_str());
+            auto it_msg = bossMessagesMap.find(desired_boss);
+            if (it_msg != bossMessagesMap.end()) {
+                gi.LocBroadcast_Print(PRINT_CHAT, it_msg->second.c_str());
             }
             else {
                 gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n");
@@ -1218,13 +1214,11 @@ void SpawnBossAutomatically() noexcept {
             SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
             // Realizar telefrag en la posición del efecto de spawn
-            trace_t tr_spawn = gi.trace(spawngrow_pos, mins, maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
+            trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
             if (tr_spawn.startsolid) {
                 edict_t* hit = tr_spawn.ent;
                 if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
-                    vec3_t dir = { 0, 0, 1 };
-                    vec3_t point = { hit->s.origin[0], hit->s.origin[1], hit->s.origin[2] };
-                    T_Damage(hit, boss, boss, dir, point, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
+                    T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
                     gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", hit->classname);
                 }
             }
@@ -1234,10 +1228,10 @@ void SpawnBossAutomatically() noexcept {
             AttachHealthBar(boss);
 
             // Activar el modo de monstruos voladores si corresponde
-            if (strcmp(boss->classname, "monster_boss2") == 0 ||
-                strcmp(boss->classname, "monster_carrier") == 0 ||
-                strcmp(boss->classname, "monster_carrier2") == 0 ||
-                strcmp(boss->classname, "monster_boss2kl") == 0) {
+            if (std::strcmp(boss->classname, "monster_boss2") == 0 ||
+                std::strcmp(boss->classname, "monster_carrier") == 0 ||
+                std::strcmp(boss->classname, "monster_carrier2") == 0 ||
+                std::strcmp(boss->classname, "monster_boss2kl") == 0) {
                 flying_monsters_mode = true;  // Activar el modo de monstruos voladores
             }
 
@@ -1248,6 +1242,8 @@ void SpawnBossAutomatically() noexcept {
         }
     }
 }
+
+
 
 // reset cooldowns, fixed no monster spawning on next map
 void ResetCooldowns() noexcept {
