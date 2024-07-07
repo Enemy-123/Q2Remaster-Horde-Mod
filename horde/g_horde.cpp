@@ -1492,7 +1492,7 @@ void PlayWaveStartSound() noexcept {
 // Función para mostrar el mensaje de la ola
 void DisplayWaveMessage() noexcept {
     if (brandom()) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nKILL THEM ALL !\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nVote cmd improved!\nNOW KILL THEM ALL !\n");
     }
     else {
         gi.LocBroadcast_Print(PRINT_CENTER, "\nWelcome to hell.\n");
@@ -1509,11 +1509,13 @@ void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
         gi.cvar_set("g_insane", "2");
         gi.cvar_set("g_chaotic", "0");
     }
-    else if (!mapSize.isSmallMap && current_wave_number <= 14) {
-        gi.cvar_set("g_chaotic", "1");
-    }
-    else if (mapSize.isSmallMap && current_wave_number <= 14) {
-        gi.cvar_set("g_chaotic", "2");
+    else if (current_wave_number <= 14) {
+        if (mapSize.isSmallMap) {
+            gi.cvar_set("g_chaotic", "2");
+        }
+        else {
+            gi.cvar_set("g_chaotic", "1");
+        }
     }
 
     g_horde_local.state = horde_state_t::rest;
