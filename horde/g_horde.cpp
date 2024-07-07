@@ -609,7 +609,7 @@ gitem_t* G_HordePickItem() noexcept {
 
 int32_t WAVE_TO_ALLOW_FLYING = 0; // Permitir monstruos voladores a partir de esta oleada
 
-constexpr const char* flying_monster_classnames[] = {
+constexpr std::array<const char*, 10> flying_monster_classnames = {
     "monster_boss2_64",
     "monster_carrier2",
     "monster_floater",
@@ -622,7 +622,6 @@ constexpr const char* flying_monster_classnames[] = {
     "monster_daedalus2"
 };
 
-// Contar puntos de spawn con style == 1
 int32_t countFlyingSpawns() noexcept {
     int32_t count = 0;
     for (size_t i = 0; i < globals.num_edicts; i++) {
@@ -634,60 +633,35 @@ int32_t countFlyingSpawns() noexcept {
 }
 
 bool IsFlyingMonster(const char* classname) noexcept {
-    for (const char* flying_classname : flying_monster_classnames) {
-        if (strcmp(classname, flying_classname) == 0) {
-            return true;
-        }
-    }
-    return false;
+    static const std::unordered_set<std::string> flying_monsters(flying_monster_classnames.begin(), flying_monster_classnames.end());
+    return flying_monsters.find(classname) != flying_monsters.end();
 }
 
-// Ajustar probabilidad de spawn de monstruos voladores
 float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
-    // Si hay puntos de spawn voladores, reducir la probabilidad en los normales
     return (flyingSpawns > 0) ? 0.5f : 1.0f;
 }
 
-// Verificar elegibilidad del monstruo para aparecer
 bool IsMonsterEligible(edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
-    // Verificar si el monstruo es volador y si el punto de spawn lo permite
-    // Permitir monstruos voladores en puntos de spawn normales si no hay puntos de spawn voladores
-    if (spawn_point->style == 1 && !isFlyingMonster) {
-        return false;
-    }
-
-    // Verificar si el monstruo es elegible para la ola actual
-    if (item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) {
-        return false;
-    }
-
-    // Verificar si el monstruo es volador y si la ola actual permite voladores
-    if (isFlyingMonster && currentWave < WAVE_TO_ALLOW_FLYING) {
-        return false;
-    }
-
-    return true;
+    return !(spawn_point->style == 1 && !isFlyingMonster) &&
+        !(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) &&
+        !(isFlyingMonster && currentWave < WAVE_TO_ALLOW_FLYING);
 }
 
-// Calcular el peso de un monstruo para aparecer
 float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
     return item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
 }
 
-// Reiniciar intentos de spawn
 void ResetSpawnAttempts(edict_t* spawn_point) noexcept {
     spawnAttempts[spawn_point] = 0;
     spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
 }
 
-// Actualizar tiempos de cooldown
 void UpdateCooldowns(edict_t* spawn_point, const char* classname) noexcept {
     lastSpawnPointTime[spawn_point] = level.time;
     lastMonsterSpawnTime[classname] = level.time;
     spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
 }
 
-// Incrementar intentos de spawn
 void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
     spawnAttempts[spawn_point]++;
     if (spawnAttempts[spawn_point] % 3 == 0) {
@@ -695,7 +669,6 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
     }
 }
 
-// Función para seleccionar un monstruo basado en el punto de spawn
 const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     if (spawnPointCooldowns.find(spawn_point) != spawnPointCooldowns.end()) {
@@ -715,23 +688,14 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
     for (const auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
 
-        if (flying_monsters_mode && !isFlyingMonster) {
+        if ((flying_monsters_mode && !isFlyingMonster) ||
+            (spawn_point->style == 1 && !isFlyingMonster) ||
+            (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
+            !IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
             continue;
         }
 
-        if (spawn_point->style == 1 && !isFlyingMonster) {
-            continue;
-        }
-
-        if (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) {
-            continue;
-        }
-
-        if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-            continue;
-        }
-
-        float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
+        float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
         if (weight > 0) {
             picked_monsters.push_back({ &item, total_weight += weight });
         }
