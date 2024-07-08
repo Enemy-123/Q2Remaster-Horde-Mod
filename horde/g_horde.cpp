@@ -292,9 +292,10 @@ void VerifyAndAdjustBots() noexcept;
 void ResetCooldowns() noexcept;
 
 void Horde_InitLevel(int32_t lvl) noexcept {
-    current_wave_number++;
+
     last_wave_number++;
     g_horde_local.level = lvl;
+    current_wave_number = lvl;
     g_horde_local.monster_spawn_time = level.time;
     flying_monsters_mode = false;
     boss_spawned_for_wave = false;
@@ -1134,7 +1135,7 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
 
 void SpawnBossAutomatically() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0) {
+    if (g_horde_local.level >= 10 && g_horde_local.level % 5 == 0) {
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
             edict_t* boss = G_Spawn();
@@ -1661,7 +1662,7 @@ void Horde_RunFrame() noexcept {
         }
 
         if (g_horde_local.monster_spawn_time <= level.time) {
-            if (g_horde_local.level >= 9 && g_horde_local.level % 5 == 0 && !boss_spawned_for_wave) {
+            if (g_horde_local.level >= 10 && g_horde_local.level % 5 == 0 && !boss_spawned_for_wave) {
                 SpawnBossAutomatically();
                 boss_spawned_for_wave = true;
             }
@@ -1671,9 +1672,7 @@ void Horde_RunFrame() noexcept {
             }
 
             if (g_horde_local.num_to_spawn == 0) {
-                std::ostringstream message_stream;
-                message_stream << "New Wave Is Here.\nWave Level: " << g_horde_local.level << "\n";
-                gi.LocBroadcast_Print(PRINT_TYPEWRITER, message_stream.str().c_str());
+                gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nNew Wave Is Here.\nWave Level: {}\n", g_horde_local.level);
                 g_horde_local.state = horde_state_t::cleanup;
                 g_horde_local.monster_spawn_time = level.time + 1_sec;
             }
@@ -1705,7 +1704,8 @@ void Horde_RunFrame() noexcept {
                     gi.cvar_set("g_insane", "1");
                 }
                 else {
-                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Defeated, GG !\n");
+                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Level {} Defeated, GG !\n", g_horde_local.level);
+
                 }
             }
             else {

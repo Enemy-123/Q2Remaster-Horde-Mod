@@ -1028,9 +1028,9 @@
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 100;
+			self->monsterinfo.power_armor_power = 125;
 
-		self->health = 75;
+		self->health = 90;
 		self->gib_health = -100;
 		self->mass = 100;
 		self->yaw_speed = 14;
@@ -1042,11 +1042,11 @@
 		self->die = turret2_die;
 
 		// map designer didn't specify weapon type. set it now.
-		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 11)
+		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 7)
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 			
 		// map designer didn't specify weapon type. set it now.
-		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 12)
+		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 8)
 			if (brandom())
 			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
 		else
