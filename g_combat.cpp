@@ -609,6 +609,10 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		damage = 9999;
 	}
 
+	if (damage > 0 && attacker && attacker->client) {
+		attacker->client->total_damage += damage;
+	}
+
 	sphere_notified = false; // PGM
 
 	// friendly fire avoidance

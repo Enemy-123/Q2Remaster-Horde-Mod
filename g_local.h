@@ -3094,6 +3094,7 @@ struct gclient_t
 	gtime_t time_in_bad_area;
 	edict_t* idtarget;
 	float dmg_counter; // ID DMG
+	int total_damage; // Total damage dealt by this player
 };
 
 
