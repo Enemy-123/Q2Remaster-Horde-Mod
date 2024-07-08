@@ -319,6 +319,8 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     // Configuración de la cantidad de monstruos a spawnear
     auto mapSize = GetMapSize(level.mapname);
     DetermineMonsterSpawnCount(mapSize, lvl);
+    //check if adding bonus
+    CheckAndApplyBenefit(g_horde_local.level);
 
     // Ajustar tasa de aparición de monstruos
     AdjustMonsterSpawnRate();
