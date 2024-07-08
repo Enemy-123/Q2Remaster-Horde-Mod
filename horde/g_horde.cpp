@@ -35,7 +35,7 @@ struct HordeState {
     horde_state_t   state = horde_state_t::warmup;
     gtime_t         monster_spawn_time;
     int32_t         num_to_spawn = 0;
-    int32_t         level = 0;
+    int32_t         level = 1;
 } g_horde_local;
 
 int32_t current_wave_number = g_horde_local.level;
@@ -287,8 +287,10 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
         IncludeDifficultyAdjustments(mapSize, lvl);
     }
 }
+void ResetSpawnAttempts() noexcept;
+void VerifyAndAdjustBots() noexcept;
+void ResetCooldowns() noexcept;
 
-// Función para inicializar el nivel de la horda
 void Horde_InitLevel(int32_t lvl) noexcept {
     current_wave_number++;
     last_wave_number++;
@@ -300,9 +302,10 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     // Inicializar cachedRemainingMonsters
     cachedRemainingMonsters = -1;
 
-    auto mapSize = GetMapSize(level.mapname);
-    CheckAndApplyBenefit(g_horde_local.level);
+    // Verificar y ajustar bots
+    VerifyAndAdjustBots();
 
+    // Configurar la escala de daño según el nivel
     if (g_horde_local.level == 17) {
         gi.cvar_set("g_damage_scale", "1.7");
     }
@@ -314,9 +317,27 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     }
 
     // Configuración de la cantidad de monstruos a spawnear
+    auto mapSize = GetMapSize(level.mapname);
     DetermineMonsterSpawnCount(mapSize, lvl);
 
+    // Ajustar tasa de aparición de monstruos
     AdjustMonsterSpawnRate();
+
+    // Reiniciar cooldowns y contadores de intentos de spawn
+    ResetSpawnAttempts();
+    ResetCooldowns();
+
+    // Resetear cualquier otro estado necesario
+    next_wave_message_sent = false;
+    allowWaveAdvance = false;
+    boss_spawned_for_wave = false;
+
+    // Otras configuraciones iniciales que sean necesarias
+    g_horde_local.state = horde_state_t::warmup;
+    g_horde_local.warm_time = level.time + 4_sec;
+
+    // Imprimir mensaje de inicio del nivel
+    gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }
 
  bool G_IsDeathmatch() noexcept {
