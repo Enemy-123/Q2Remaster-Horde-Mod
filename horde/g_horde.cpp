@@ -1648,7 +1648,7 @@ void Horde_RunFrame() noexcept {
             cachedRemainingMonsters = CalculateRemainingMonsters();
             g_horde_local.state = horde_state_t::spawning;
             Horde_InitLevel(1);
-            current_wave_number = 2;
+            current_wave_number = 1;
             PlayWaveStartSound();
             DisplayWaveMessage();
         }
