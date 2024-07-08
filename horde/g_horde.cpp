@@ -215,13 +215,13 @@ void AdjustMonsterSpawnRate() noexcept {
     int32_t humanPlayers = GetNumHumanPlayers();
     float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
 
-    if (g_horde_local.level % 5 == 0) {
+    if (g_horde_local.level % 4 == 0) {
         g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
-        g_horde_local.monster_spawn_time -= 0.5_sec * difficultyMultiplier;
+        g_horde_local.monster_spawn_time -= 0.4_sec * difficultyMultiplier;
         if (g_horde_local.monster_spawn_time < 0.7_sec) {
             g_horde_local.monster_spawn_time = 0.7_sec;
         }
-        SPAWN_POINT_COOLDOWN -= 0.2_sec * difficultyMultiplier;
+        SPAWN_POINT_COOLDOWN -= 0.3_sec * difficultyMultiplier;
         if (SPAWN_POINT_COOLDOWN < 2.0_sec) {
             SPAWN_POINT_COOLDOWN = 2.0_sec;
         }
