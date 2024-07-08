@@ -1042,11 +1042,11 @@
 		self->die = turret2_die;
 
 		// map designer didn't specify weapon type. set it now.
-		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 15)
+		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 11)
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 			
 		// map designer didn't specify weapon type. set it now.
-		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 16)
+		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 12)
 			if (brandom())
 			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
 		else
@@ -1168,7 +1168,7 @@
 
 		self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-			self->yaw_speed /= 2;
+			self->yaw_speed = 9;
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER))
 			self->monsterinfo.blindfire = true;
 
