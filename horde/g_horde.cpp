@@ -1314,8 +1314,7 @@ void ResetGame() noexcept {
     gi.cvar_set("g_autohaste", "0");
 
     // Reset spawn cooldowns
- //   MONSTER_COOLDOWN = 2.6_sec;
-    SPAWN_POINT_COOLDOWN = 3.3_sec;
+    SPAWN_POINT_COOLDOWN = 3.8_sec;
 
     // Reset the number of monsters to be spawned
     g_horde_local.num_to_spawn = 0;
@@ -1616,13 +1615,13 @@ void SpawnMonsters() noexcept {
 
     // Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
     if (mapSize.isSmallMap) {
-        g_horde_local.monster_spawn_time = level.time + 1.7_sec;
+        g_horde_local.monster_spawn_time = level.time + 1.8_sec;
     }
     else if (mapSize.isBigMap) {
         g_horde_local.monster_spawn_time = level.time + 1.1_sec;
     }
     else {
-        g_horde_local.monster_spawn_time = level.time + 1.4_sec;
+        g_horde_local.monster_spawn_time = level.time + 1.6_sec;
     }
 }
 
