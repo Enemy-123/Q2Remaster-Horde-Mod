@@ -153,7 +153,7 @@ void ApplyBenefit(const std::string& benefit) {
         {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", ""}}
     };
 
-    auto it = benefitMessages.find(benefit);
+    auto const it = benefitMessages.find(benefit);
     if (it != benefitMessages.end()) {
         // Aplicar el beneficio
         if (benefit == "start armor") {
