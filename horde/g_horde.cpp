@@ -332,10 +332,6 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     allowWaveAdvance = false;
     boss_spawned_for_wave = false;
 
-    // Otras configuraciones iniciales que sean necesarias
-    g_horde_local.state = horde_state_t::warmup;
-    g_horde_local.warm_time = level.time + 4_sec;
-
     // Imprimir mensaje de inicio del nivel
     gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }
@@ -938,7 +934,7 @@ void Horde_Init() noexcept {
         gi.soundindex(sound.c_str());
     }
 
-    g_horde_local.warm_time = level.time + 4_sec;
+    ResetGame();
 }
 
 
@@ -1286,7 +1282,7 @@ void ResetGame() noexcept {
 
     // Reset wave information
     current_wave_number = 1;
-    g_horde_local.level = 0;  // Reset current wave level
+    g_horde_local.level = 1;  // Reset current wave level
     g_horde_local.state = horde_state_t::warmup;  // Set game state to warmup
     g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
     g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
