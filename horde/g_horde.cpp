@@ -215,13 +215,13 @@ void AdjustMonsterSpawnRate() noexcept {
     int32_t humanPlayers = GetNumHumanPlayers();
     float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
 
-    if (g_horde_local.level % 4 == 0) {
+    if (g_horde_local.level % 3 == 0) {
         g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
         g_horde_local.monster_spawn_time -= 0.4_sec * difficultyMultiplier;
         if (g_horde_local.monster_spawn_time < 0.7_sec) {
             g_horde_local.monster_spawn_time = 0.7_sec;
         }
-        SPAWN_POINT_COOLDOWN -= 0.3_sec * difficultyMultiplier;
+        SPAWN_POINT_COOLDOWN -= 0.4_sec * difficultyMultiplier;
         if (SPAWN_POINT_COOLDOWN < 2.0_sec) {
             SPAWN_POINT_COOLDOWN = 2.0_sec;
         }
@@ -1615,13 +1615,13 @@ void SpawnMonsters() noexcept {
 
     // Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
     if (mapSize.isSmallMap) {
-        g_horde_local.monster_spawn_time = level.time + 1.8_sec;
+        g_horde_local.monster_spawn_time = level.time + 1.5_sec;
     }
     else if (mapSize.isBigMap) {
         g_horde_local.monster_spawn_time = level.time + 1.1_sec;
     }
     else {
-        g_horde_local.monster_spawn_time = level.time + 1.6_sec;
+        g_horde_local.monster_spawn_time = level.time + 1.7_sec;
     }
 }
 
