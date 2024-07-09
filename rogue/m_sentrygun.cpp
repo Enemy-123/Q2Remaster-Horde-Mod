@@ -88,17 +88,17 @@
 		if (!enemy_valid)
 			return;
 
-		// if turret2 is still in inactive mode, ready the gun, but don't aim
+		// Si la torreta está en modo inactivo, prepara el arma, pero no apuntes
 		if (self->s.frame < FRAME_active01)
 		{
 			turret2_ready_gun(self);
 			return;
 		}
-		// if turret2 is still readying, don't aim.
+		// Si la torreta aún se está preparando, no apuntes.
 		if (self->s.frame < FRAME_run01)
 			return;
 
-		// PMM - blindfire aiming here
+		// PMM - Apuntado de fuego ciego aquí
 		if (self->monsterinfo.active_move == &turret2_move_fire_blind)
 		{
 			end = self->monsterinfo.blind_fire_target;
@@ -112,28 +112,27 @@
 			end = self->enemy->s.origin;
 			if (self->enemy->client)
 				end[2] += self->enemy->viewheight;
+			else
+				end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) / 2; // Ajusta para enemigos pequeños
 		}
 
 		dir = end - self->s.origin;
 		ang = vectoangles(dir);
 
-		//
-		// Clamp first
-		//
-
+		// Ajuste de pitch y yaw
 		idealPitch = ang[PITCH];
 		idealYaw = ang[YAW];
 
 		orientation = (int)self->offset[1];
 		switch (orientation)
 		{
-		case -1: // up		pitch: 0 to 90
+		case -1: // up, pitch: 0 to 90
 			if (idealPitch < -90)
 				idealPitch += 360;
 			if (idealPitch > -5)
 				idealPitch = -5;
 			break;
-		case -2: // down		pitch: -180 to -360
+		case -2: // down, pitch: -180 to -360
 			if (idealPitch > -90)
 				idealPitch -= 360;
 			if (idealPitch < -355)
@@ -141,7 +140,7 @@
 			else if (idealPitch > -185)
 				idealPitch = -185;
 			break;
-		case 0: // +X		pitch: 0 to -90, -270 to -360 (or 0 to 90)
+		case 0: // +X, pitch: 0 to -90, -270 to -360 (or 0 to 90)
 			if (idealPitch < -180)
 				idealPitch += 360;
 
@@ -150,8 +149,6 @@
 			else if (idealPitch < -85)
 				idealPitch = -85;
 
-			//			yaw: 270 to 360, 0 to 90
-			//			yaw: -90 to 90 (270-360 == -90-0)
 			if (idealYaw > 180)
 				idealYaw -= 360;
 			if (idealYaw > 85)
@@ -159,7 +156,7 @@
 			else if (idealYaw < -85)
 				idealYaw = -85;
 			break;
-		case 90: // +Y	pitch: 0 to 90, -270 to -360 (or 0 to 90)
+		case 90: // +Y, pitch: 0 to 90, -270 to -360 (or 0 to 90)
 			if (idealPitch < -180)
 				idealPitch += 360;
 
@@ -168,16 +165,14 @@
 			else if (idealPitch < -85)
 				idealPitch = -85;
 
-			//			yaw: 0 to 180
 			if (idealYaw > 270)
 				idealYaw -= 360;
 			if (idealYaw > 175)
 				idealYaw = 175;
 			else if (idealYaw < 5)
 				idealYaw = 5;
-
 			break;
-		case 180: // -X	pitch: 0 to 90, -270 to -360 (or 0 to 90)
+		case 180: // -X, pitch: 0 to 90, -270 to -360 (or 0 to 90)
 			if (idealPitch < -180)
 				idealPitch += 360;
 
@@ -186,14 +181,12 @@
 			else if (idealPitch < -85)
 				idealPitch = -85;
 
-			//			yaw: 90 to 270
 			if (idealYaw > 265)
 				idealYaw = 265;
 			else if (idealYaw < 95)
 				idealYaw = 95;
-
 			break;
-		case 270: // -Y	pitch: 0 to 90, -270 to -360 (or 0 to 90)
+		case 270: // -Y, pitch: 0 to 90, -270 to -360 (or 0 to 90)
 			if (idealPitch < -180)
 				idealPitch += 360;
 
@@ -202,7 +195,6 @@
 			else if (idealPitch < -85)
 				idealPitch = -85;
 
-			//			yaw: 180 to 360
 			if (idealYaw < 90)
 				idealYaw += 360;
 			if (idealYaw > 355)
@@ -212,9 +204,7 @@
 			break;
 		}
 
-		//
-		// adjust pitch
-		//
+		// Ajuste de pitch
 		current = self->s.angles[PITCH];
 		speed = self->yaw_speed / (gi.tick_rate / 10);
 
@@ -250,24 +240,18 @@
 			self->s.angles[PITCH] = anglemod(current + move);
 		}
 
-		//
-		// adjust yaw
-		//
+		// Ajuste de yaw
 		current = self->s.angles[YAW];
 
 		if (idealYaw != current)
 		{
 			move = idealYaw - current;
 
-			//		while(move >= 360)
-			//			move -= 360;
 			if (move >= 180)
 			{
 				move = move - 360;
 			}
 
-			//		while(move <= -360)
-			//			move += 360;
 			if (move <= -180)
 			{
 				move = move + 360;
@@ -327,6 +311,7 @@
 		self->target_ent->s.old_origin = tr.endpos;
 		gi.linkentity(self->target_ent);
 	}
+
 
 	MONSTERINFO_SIGHT(turret2_sight) (edict_t* self, edict_t* other) -> void
 	{
@@ -415,11 +400,11 @@
 	//  ATTACK
 	// **********************
 
-	constexpr int32_t TURRET2_BLASTER_DAMAGE = 8;
+	constexpr int32_t TURRET2_BLASTER_DAMAGE = 5;
 	constexpr int32_t TURRET2_BULLET_DAMAGE = 6;
 	// unused
 	// constexpr int32_t turret2_HEAT_DAMAGE	= 4;
-	constexpr float ROCKET_FIRE_INTERVAL = 2.0f; // 2.3 segundos
+	constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.0_sec; // 2.3 segundos
 
 	void turret2Fire(edict_t* self)
 	{
@@ -428,6 +413,7 @@
 		float dist, chance;
 		trace_t trace;
 		int rocketSpeed = 0;
+		bool damageApplied = false;  // Nueva bandera para prevenir daño duplicado
 
 		turret2Aim(self);
 
@@ -463,7 +449,7 @@
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) || visible(self, self->enemy))
 		{
 			start = self->s.origin;
-			// aim for the head.
+			// Aim for the head.
 			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 			{
 				if ((self->enemy) && (self->enemy->client))
@@ -475,11 +461,11 @@
 			dir = end - start;
 			dist = dir.length();
 
-			// check for predictive fire
+			// Check for predictive fire
 			// Paril: adjusted to be a bit more fair
 			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 			{
-				// on harder difficulties, randomly fire directly at enemy
+				// On harder difficulties, randomly fire directly at enemy
 				// more often; makes them more unpredictable
 				if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 					PredictAim(self, self->enemy, start, 0, true, 0.0f, &dir, nullptr);
@@ -495,21 +481,25 @@
 				if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 				{
 					gtime_t currentTime = level.time;
-					gtime_t rocketFireInterval = gtime_t::from_sec(ROCKET_FIRE_INTERVAL); // Conversion del intervalo a gtime_t
+					gtime_t rocketFireInterval = ROCKET_FIRE_INTERVAL;
 					if (currentTime > self->monsterinfo.last_rocket_fire_time + rocketFireInterval)
 					{
 						self->monsterinfo.last_rocket_fire_time = currentTime;
 
-						if (dist * trace.fraction > 72)
+						if (dist * trace.fraction > 72 && !damageApplied)
+						{
 							fire_rocket(self, start, dir, 100, 1220, MZ2_TURRET_ROCKET, MOD_TURRET); // Pasa el mod_t a monster_fire_rocket
+							damageApplied = true;
+						}
 					}
 				}
 
-				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) && !damageApplied)
 				{
 					// Aplica el daño con el mod_t configurado
 					T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
 					monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
+					damageApplied = true;
 				}
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 				{
@@ -523,12 +513,13 @@
 					else
 					{
 						if (self->monsterinfo.next_duck_time < level.time &&
-							self->monsterinfo.melee_debounce_time <= level.time)
+							self->monsterinfo.melee_debounce_time <= level.time && !damageApplied)
 						{
 							// Aplica el daño con el mod_t configurado
 							T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 0, DAMAGE_DESTROY_ARMOR, MOD_TURRET);
 							monster_fire_bullet(self, start, dir, TURRET2_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
 							self->monsterinfo.melee_debounce_time = level.time + 15_hz;
+							damageApplied = true;
 						}
 
 						if (self->monsterinfo.duck_wait_time < level.time)
@@ -537,16 +528,18 @@
 				}
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
 				{
-					if (dist * trace.fraction > 72)
+					if (dist * trace.fraction > 72 && !damageApplied)
 					{
 						// Aplica el daño con el mod_t configurado
-						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, 70, 0, DAMAGE_NO_ARMOR, MOD_TURRET);
+						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, 70, 0, DAMAGE_DESTROY_ARMOR, MOD_TURRET);
 						fire_rocket(self, start, dir, 70, rocketSpeed, MZ2_TURRET_ROCKET, MOD_TURRET); // Pasa el mod_t a monster_fire_rocket
+						damageApplied = true;
 					}
 				}
 			}
 		}
 	}
+
 
 
 
@@ -885,7 +878,6 @@
 		}
 	}
 	// PMM
-	// checkattack .. ignore range, just attack if available
 	MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	{
 		vec3_t spot1, spot2;
@@ -894,24 +886,24 @@
 
 		if (self->enemy->health > 0)
 		{
-			// see if any entities are in the way of the shot
+			// Verificar si alguna entidad está en el camino del disparo
 			spot1 = self->s.origin;
 			spot1[2] += self->viewheight;
 			spot2 = self->enemy->s.origin;
 			spot2[2] += self->enemy->viewheight;
 
-			tr = gi.traceline(spot1, spot2, self, CONTENTS_SOLID | CONTENTS_PLAYER | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
+			tr = gi.traceline(spot1, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
-			// do we have a clear shot?
-			if (tr.ent != self->enemy && !(tr.ent->svflags & SVF_PLAYER) && !OnSameTeam(self, tr.ent))
+			// ¿Tenemos una línea de tiro clara?
+			if (tr.ent != self->enemy && !OnSameTeam(self, tr.ent))
 			{
-				// PGM - we want them to go ahead and shoot at info_notnulls if they can.
+				// PGM - Queremos que disparen a info_notnulls si pueden.
 				if (self->enemy->solid != SOLID_NOT || tr.fraction < 1.0f) // PGM
 				{
-					// PMM - if we can't see our target, and we're not blocked by a monster, go into blind fire if available
+					// PMM - si no podemos ver nuestro objetivo, y no estamos bloqueados por un monstruo, ir a fuego ciego si está disponible
 					if ((!visible(self, self->enemy)))
 					{
-						if ((self->monsterinfo.blindfire) && (self->monsterinfo.blind_fire_delay <= 10_sec))
+						if ((self->monsterinfo.blindfire) && (self->monsterinfo.blind_fire_delay <= 7.5_sec))
 						{
 							if (level.time < self->monsterinfo.attack_finished)
 							{
@@ -919,20 +911,20 @@
 							}
 							if (level.time < (self->monsterinfo.trail_time + self->monsterinfo.blind_fire_delay))
 							{
-								// wait for our time
+								// esperar nuestro tiempo
 								return false;
 							}
 							else
 							{
-								// make sure we're not going to shoot something we don't want to shoot
-								tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, CONTENTS_MONSTER | CONTENTS_PLAYER);
-								if (tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy && !(tr.ent->svflags & SVF_PLAYER)) && !OnSameTeam(self, tr.ent)))
+								// asegurarse de que no vamos a disparar algo que no queremos disparar
+								tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, CONTENTS_MONSTER);
+								if (tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent)))
 								{
 									return false;
 								}
 
 								self->monsterinfo.attack_state = AS_BLIND;
-								self->monsterinfo.attack_finished = level.time + random_time(500_ms, 0.3_sec); // Reduce el tiempo de espera
+								self->monsterinfo.attack_finished = level.time + random_time(400_ms, 0.2_sec); // Reduce el tiempo de espera
 								return true;
 							}
 						}
@@ -970,8 +962,8 @@
 		else if (skill->integer > 1)
 			chance *= 2;
 
-		// PGM - go ahead and shoot every time if it's a info_notnull
-		// PMM - added visibility check
+		// PGM - disparar siempre si es un info_notnull
+		// PMM - agregó verificación de visibilidad
 		if (((frandom() < chance) && (visible(self, self->enemy))) || (self->enemy->solid == SOLID_NOT))
 		{
 			self->monsterinfo.attack_state = AS_MISSILE;
@@ -983,6 +975,7 @@
 
 		return false;
 	}
+
 
 	// **********************
 	//  SPAWN

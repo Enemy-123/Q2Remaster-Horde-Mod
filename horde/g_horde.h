@@ -1,18 +1,20 @@
-
+// Horde mode game initialization and management functions
 extern cvar_t* g_horde;
-
 void Horde_PreInit() noexcept;
 void Horde_Init() noexcept;
 void Horde_RunFrame() noexcept;
+void ResetGame() noexcept;
+void HandleResetEvent() noexcept;
+extern int last_wave_number;  // Tracks the last completed wave number, used for intermission
+
+// Item selection in Horde mode
 gitem_t* G_HordePickItem() noexcept;
+
+// Game mode checks
 bool G_IsDeathmatch() noexcept;
 bool G_IsCooperative() noexcept;
 
-void ResetGame() noexcept;
-void HandleResetEvent() noexcept;
-extern int last_wave_number;
-
-//hook.cpp
+// Hook functionality for player interactions
 void Hook_InitGame(void);
 void Hook_PlayerDie(edict_t* attacker, edict_t* self);
 void Hook_Think(edict_t* self);
