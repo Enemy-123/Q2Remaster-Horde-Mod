@@ -1019,24 +1019,22 @@
 		gi.modelindex("models/objects/debris1/tris.md2");
 
 		self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-		self->mins = { -9, -9, -9 };
-		self->maxs = { 9, 9, 9 };
+		self->mins = { -7, -7, -7 };
+		self->maxs = { 7, 7, 7 };
 		self->movetype = MOVETYPE_NONE;
 
 
 		//self->think = G_FreeEdict;
 		//self->nextthink = level.time + 2_sec;
 
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-			self->monsterinfo.power_armor_type = IT_ARMOR_BODY;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 80;
+
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+		self->monsterinfo.power_armor_power = 125;
 
 		self->health = 90;
 		self->gib_health = -100;
 		self->mass = 100;
-		self->yaw_speed = 14;
+		self->yaw_speed = 15;
 		self->clipmask = MASK_PROJECTILE | CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 		self->solid = SOLID_BBOX;
 		self->svflags |= SVF_MONSTER;
