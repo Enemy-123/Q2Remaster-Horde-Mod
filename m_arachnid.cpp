@@ -193,7 +193,7 @@ void arachnid_rail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 35, 100, id);
+	monster_fire_railgun(self, start, dir, 45, 100, id);
 }
 
 mframe_t arachnid_frames_attack1[] = {
@@ -250,9 +250,6 @@ void arachnid_melee_hit(edict_t* self)
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 	}
 	else {
-		//char buffer[256];
-		//std::snprintf(buffer, sizeof(buffer), "arachnid_melee_hit: Error: enemy not properly initialized\n");
-		//gi.Com_Print(buffer);
 
 		// Manejar el caso donde self->enemy no está inicializado
 		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Puedes ajustar esto según sea necesario
@@ -385,9 +382,6 @@ void SP_monster_arachnid(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 1000 * st.health_multiplier;
-	self->gib_health = -200;
-
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	self->mass = 450;
@@ -407,6 +401,15 @@ void SP_monster_arachnid(edict_t* self)
 	walkmonster_start(self);
 
 	ApplyMonsterBonusFlags(self);
+
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		self->health = 2500 * st.health_multiplier;
+		self->gib_health = -999000;
+		ApplyMonsterBonusFlags(self);
+	}
+	else
+		self->health = 1000 * st.health_multiplier;
+		self->gib_health = -200;
 }
 
 void SP_monster_spider(edict_t* self)

@@ -784,17 +784,23 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	}
 
 	bool CanUseVamp = false;
+	bool isSentrygun = false;
 
 	// Verificar si el atacante puede usar la habilidad de vampiro
 	if ((attacker->svflags & SVF_MONSTER) &&
 		((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
-			(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
+			(attacker->monsterinfo.bonus_flags & BF_POSSESSED) ||
+			(strcmp(attacker->classname, "monster_sentrygun") == 0)) &&
 		!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
 		CanUseVamp = true;
+		if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
+			isSentrygun = true;
+		}
 	}
 	else if (!(attacker->svflags & SVF_MONSTER)) {
 		CanUseVamp = true; // Los jugadores también pueden usar la habilidad de vampiro
 	}
+
 	if (g_vampire->integer && CanUseVamp) {
 		if (attacker != targ &&
 			!OnSameTeam(targ, attacker) &&
@@ -806,52 +812,57 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			if (attacker->health <= attacker->max_health) {
 				int health_stolen = damage / 4; // Robar 25% del daño como vida
 
-				const bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
-				const bool using_machinegun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
-				const bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
-				const bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-				const bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
-				const bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
-				const bool using_rocketl = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
-				const bool using_plasmag = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_PHALANX;
-
-				if (using_shotgun) {
-					health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT);
-				}
-				else if (using_sshotgun) {
-					health_stolen = max(1, health_stolen / 2);
-				}
-				else if (using_rocketl) {
-					health_stolen = max(1, health_stolen / 2);
-				}
-				else if (using_hyperblaster) {
-					health_stolen = max(1, health_stolen / 2);
-				}
-				else if (using_ripper) {
-					health_stolen = max(1, health_stolen / 3);
-				}
-				else if (using_plasmag) {
-					health_stolen = max(1, health_stolen / 2);
-				}
-				else if (using_rail) {
-					health_stolen = max(1, health_stolen / 2);
-				}
-				else if (using_machinegun && g_tracedbullets->integer) {
-					health_stolen = max(1, health_stolen / 2);
+				if (isSentrygun) {
+					health_stolen = 1; // Si es sentrygun, solo puede robar 1 de vida
 				}
 				else {
-					health_stolen = max(1, health_stolen);
-				}
+					const bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
+					const bool using_machinegun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
+					const bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+					const bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
+					const bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+					const bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
+					const bool using_rocketl = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+					const bool using_plasmag = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_PHALANX;
 
-				if (attacker->client) {
-					if (attacker->client->quad_time > level.time) {
-						health_stolen = max(1, static_cast<int>(health_stolen / 2.4));
+					if (using_shotgun) {
+						health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT);
 					}
-					if (attacker->client->double_time > level.time) {
-						health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+					else if (using_sshotgun) {
+						health_stolen = max(1, health_stolen / 2);
 					}
-					if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
-						health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+					else if (using_rocketl) {
+						health_stolen = max(1, health_stolen / 2);
+					}
+					else if (using_hyperblaster) {
+						health_stolen = max(1, health_stolen / 2);
+					}
+					else if (using_ripper) {
+						health_stolen = max(1, health_stolen / 3);
+					}
+					else if (using_plasmag) {
+						health_stolen = max(1, health_stolen / 2);
+					}
+					else if (using_rail) {
+						health_stolen = max(1, health_stolen / 2);
+					}
+					else if (using_machinegun && g_tracedbullets->integer) {
+						health_stolen = max(1, health_stolen / 2);
+					}
+					else {
+						health_stolen = max(1, health_stolen);
+					}
+
+					if (attacker->client) {
+						if (attacker->client->quad_time > level.time) {
+							health_stolen = max(1, static_cast<int>(health_stolen / 2.4));
+						}
+						if (attacker->client->double_time > level.time) {
+							health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+						}
+						if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
+							health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
+						}
 					}
 				}
 
@@ -875,6 +886,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
+
 
 	int real_damage = damage;
 

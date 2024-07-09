@@ -526,7 +526,7 @@
 							self->monsterinfo.melee_debounce_time <= level.time)
 						{
 							// Aplica el daño con el mod_t configurado
-							T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 0, DAMAGE_NO_ARMOR, MOD_TURRET);
+							T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 0, DAMAGE_DESTROY_ARMOR, MOD_TURRET);
 							monster_fire_bullet(self, start, dir, TURRET2_BULLET_DAMAGE, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
 							self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 						}
@@ -581,7 +581,7 @@
 		end = self->monsterinfo.blind_fire_target;
 
 		if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
-			end[2] += self->enemy->viewheight + 10;
+			end[2] += self->enemy->mins[2] - 10;
 		else
 			end[2] += self->enemy->mins[2] - 10;
 
@@ -590,7 +590,10 @@
 		dir.normalize();
 
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-			monster_fire_blaster(self, start, dir, TURRET2_BLASTER_DAMAGE, rocketSpeed, MZ2_TURRET_BLASTER, EF_BLASTER);
+		{
+			// Aplica el daño con el mod_t configurado
+			monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
+		}
 		else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
 			monster_fire_rocket(self, start, dir, 40, rocketSpeed, MZ2_TURRET_ROCKET);
 	}
@@ -900,7 +903,7 @@
 			tr = gi.traceline(spot1, spot2, self, CONTENTS_SOLID | CONTENTS_PLAYER | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
 			// do we have a clear shot?
-			if (tr.ent != self->enemy && !(tr.ent->svflags & SVF_PLAYER))
+			if (tr.ent != self->enemy && !(tr.ent->svflags & SVF_PLAYER) && !OnSameTeam(self, tr.ent))
 			{
 				// PGM - we want them to go ahead and shoot at info_notnulls if they can.
 				if (self->enemy->solid != SOLID_NOT || tr.fraction < 1.0f) // PGM
@@ -923,13 +926,13 @@
 							{
 								// make sure we're not going to shoot something we don't want to shoot
 								tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, CONTENTS_MONSTER | CONTENTS_PLAYER);
-								if (tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy && !(tr.ent->svflags & SVF_PLAYER))))
+								if (tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy && !(tr.ent->svflags & SVF_PLAYER)) && !OnSameTeam(self, tr.ent)))
 								{
 									return false;
 								}
 
 								self->monsterinfo.attack_state = AS_BLIND;
-								self->monsterinfo.attack_finished = level.time + random_time(500_ms,0.3_sec); // Reduce el tiempo de espera
+								self->monsterinfo.attack_finished = level.time + random_time(500_ms, 0.3_sec); // Reduce el tiempo de espera
 								return true;
 							}
 						}
@@ -953,12 +956,12 @@
 		}
 		else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 		{
-			chance = 0.35f;
+			chance = 0.5f;
 			nexttime = (1.0_sec - (0.2_sec * skill->integer)); // Reduce el tiempo de espera
 		}
 		else
 		{
-			chance = 0.50f;
+			chance = 0.20f;
 			nexttime = (0.6_sec - (0.1_sec * skill->integer)); // Reduce el tiempo de espera
 		}
 
@@ -980,7 +983,6 @@
 
 		return false;
 	}
-
 
 	// **********************
 	//  SPAWN
@@ -1027,8 +1029,9 @@
 
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+			self->monsterinfo.power_armor_type = IT_ARMOR_BODY;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 125;
+			self->monsterinfo.power_armor_power = 80;
 
 		self->health = 90;
 		self->gib_health = -100;
@@ -1042,11 +1045,11 @@
 		self->die = turret2_die;
 
 		// map designer didn't specify weapon type. set it now.
-		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 7)
+		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 5)
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 			
 		// map designer didn't specify weapon type. set it now.
-		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 8)
+		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 6)
 			if (brandom())
 			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
 		else
@@ -1168,7 +1171,7 @@
 
 		self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-			self->yaw_speed = 9;
+			self->yaw_speed = 12;
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER))
 			self->monsterinfo.blindfire = true;
 

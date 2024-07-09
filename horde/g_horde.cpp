@@ -19,7 +19,7 @@ int32_t last_wave_number = 0;
 static int32_t cachedRemainingMonsters = -1;
 
 //gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.3
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.3); // Cooldown en segundos para los puntos de spawn 3.0
+gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.9); // Cooldown en segundos para los puntos de spawn 3.0
 
 cvar_t* g_horde;
 
@@ -377,7 +377,7 @@ constexpr struct weighted_item_t {
 
     { "item_quad", 6, -1, 0.054f, adjust_weight_powerup },
     { "item_double", 5, -1, 0.07f, adjust_weight_powerup },
-    { "item_quadfire", 3, -1, 0.06f, adjust_weight_powerup },
+    { "item_quadfire", 2, -1, 0.06f, adjust_weight_powerup },
     { "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
     { "item_sphere_defender", 2, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
@@ -394,9 +394,9 @@ constexpr struct weighted_item_t {
     { "weapon_chaingun", 9, -1, 0.19f, adjust_weight_weapon },
     { "weapon_grenadelauncher", 10, -1, 0.19f, adjust_weight_weapon },
     { "weapon_proxlauncher", 4, -1, 0.1f, adjust_weight_weapon },
-    { "weapon_boomer", 13, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_boomer", 14, -1, 0.19f, adjust_weight_weapon },
     { "weapon_hyperblaster", 12, -1, 0.22f, adjust_weight_weapon },
-    { "weapon_phalanx", 15, -1, 0.19f, adjust_weight_weapon },
+    { "weapon_phalanx", 16, -1, 0.19f, adjust_weight_weapon },
     { "weapon_rocketlauncher", 14, -1, 0.19f, adjust_weight_weapon },
     { "weapon_railgun", 22, -1, 0.19f, adjust_weight_weapon },
     { "weapon_plasmabeam", 17, -1, 0.29f, adjust_weight_weapon },
@@ -404,20 +404,19 @@ constexpr struct weighted_item_t {
     { "weapon_bfg", 25, -1, 0.15f, adjust_weight_weapon },
 
 
-    { "ammo_trap", 2, -1, 0.14f, adjust_weight_ammo },
-    { "ammo_shells", -1, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_bullets", -1, -1, 0.30f, adjust_weight_ammo },
+    { "ammo_trap", 4 -1, -1, 0.18f, adjust_weight_ammo },
+    { "ammo_bullets", -1, -1, 0.25f, adjust_weight_ammo },
     { "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_grenades", -1, -1, 0.35f, adjust_weight_ammo },
-    { "ammo_prox", 12, -1, 0.25f, adjust_weight_ammo },
+    { "ammo_grenades", -1, -1, 0.25f, adjust_weight_ammo },
+    { "ammo_prox", 5, -1, 0.25f, adjust_weight_ammo },
     { "ammo_tesla", 2, -1, 0.1f, adjust_weight_ammo },
-    { "ammo_cells", 9, -1, 0.30f, adjust_weight_ammo },
+    { "ammo_cells", 13, -1, 0.25f, adjust_weight_ammo },
     { "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_slugs", 9, -1, 0.25f, adjust_weight_ammo },
-    { "ammo_disruptor", 14, -1, 0.24f, adjust_weight_ammo },
-    { "ammo_rockets", 7, -1, 0.25f, adjust_weight_ammo },
+    { "ammo_slugs", 22, -1, 0.25f, adjust_weight_ammo },
+    { "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
+    { "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
 
-    { "item_bandolier", 4, -1, 0.28f, adjust_weight_ammo },
+    { "item_bandolier", 5, -1, 0.18f, adjust_weight_ammo },
     { "item_pack", 15, -1, 0.32f, adjust_weight_ammo },
     { "item_silencer", 15, -1, 0.12f, adjust_weight_ammo },
 };
@@ -427,55 +426,56 @@ constexpr weighted_item_t monsters[] = {
     { "monster_soldier_light", -1, 19, 0.35f },
     { "monster_soldier_ss", -1, 20, 0.45f },
     { "monster_soldier", -1, 2, 0.45f },
-    { "monster_soldier", 3, 7, 0.19f },
+    { "monster_soldier", 3, 9, 0.35f },
     { "monster_soldier_hypergun", 3, -1, 0.35f },
     { "monster_soldier_lasergun", 5, -1, 0.45f },
     { "monster_soldier_ripper", 2, 7, 0.45f },
     { "monster_infantry2", 2, -1, 0.36f },
-    { "monster_infantry", 9, -1, 0.36f },
-    { "monster_flyer", -1, 2, 0.1f },
-    { "monster_flyer", 3, -1, 0.18f },
-    { "monster_hover2", 8, 19, 0.24f },
-    { "monster_fixbot", 4, 21, 0.11f },
+    { "monster_infantry", 13, -1, 0.36f },
+    { "monster_flyer", -1, 2, 0.07f },
+    { "monster_flyer", 3, -1, 0.1f },
+    { "monster_hover2", 6, 19, 0.24f },
+    { "monster_fixbot", 8, 21, 0.11f },
     { "monster_gekk", -1, 3, 0.1f },
     { "monster_gekk", 4, 17, 0.17f },
-    { "monster_gunner2", 3, -1, 0.35f },
-    { "monster_gunner", 9, -1, 0.34f },
-    { "monster_brain", 5, 22, 0.2f },
+    { "monster_gunner2", 4, -1, 0.35f },
+    { "monster_gunner", 14, -1, 0.34f },
+    { "monster_brain", 7, 22, 0.2f },
     { "monster_brain", 23, -1, 0.35f },
     { "monster_stalker", 2, 3, 0.05f },
     { "monster_stalker", 4, 13, 0.19f },
     { "monster_parasite", 4, 17, 0.23f },
-    { "monster_tank", 10, -1, 0.3f },
+    { "monster_tank", 11, -1, 0.3f },
     { "monster_tank2", 6, 15, 0.3f },
-    { "monster_guncmdr2", 7, 10, 0.18f },
+    { "monster_guncmdr2", 9, 10, 0.18f },
     { "monster_mutant", 4, -1, 0.35f },
     { "monster_redmutant", 6, 12, 0.06f },
     { "monster_redmutant", 13, -1, 0.35f },
-    { "monster_chick", 6, 18, 0.3f },
+    { "monster_chick", 5, 26, 0.3f },
     { "monster_chick_heat", 10, -1, 0.34f },
-    { "monster_berserk", 6, -1, 0.35f },
-    { "monster_floater", 6, -1, 0.26f },
+    { "monster_berserk", 5, -1, 0.35f },
+    { "monster_floater", 8, -1, 0.26f },
     { "monster_hover", 15, -1, 0.18f },
     { "monster_daedalus", 13, -1, 0.13f },
-    { "monster_daedalus2", 16, -1, 0.11f },
+    { "monster_daedalus2", 19, -1, 0.14f },
     { "monster_medic", 5, -1, 0.1f },
     { "monster_medic_commander", 16, -1, 0.06f },
     { "monster_tank_commander", 11, -1, 0.15f },
-    { "monster_spider", 13, -1, 0.27f },
+    { "monster_spider", 13, 19, 0.27f },
+    { "monster_arachnid", 20, -1, 0.27f },
     { "monster_guncmdr", 11, -1, 0.28f },
     { "monster_gladc", 7, -1, 0.3f },
     { "monster_gladiator", 9, -1, 0.3f },
     { "monster_shambler", 14, 28, 0.03f },
     { "monster_shambler", 29, -1, 0.33f },
     { "monster_floater2", 19, -1, 0.35f },
-    { "monster_tank_64", 22, -1, 0.14f },
+    { "monster_tank_64", 24, -1, 0.14f },
     { "monster_janitor", 16, -1, 0.14f },
-    { "monster_janitor2", 19, -1, 0.12f },
-    { "monster_makron", 18, 19, 0.04f },
+    { "monster_janitor2", 26, -1, 0.12f },
+    { "monster_makron", 17, 22, 0.02f },
     { "monster_gladb", 16, -1, 0.45f },
-    { "monster_boss2_64", 16, -1, 0.09f },
-    { "monster_carrier2", 19, -1, 0.09f },
+    { "monster_boss2_64", 16, -1, 0.05f },
+    { "monster_carrier2", 20, -1, 0.07f },
     { "monster_perrokl", 21, -1, 0.33f },
     { "monster_widow1", 23, -1, 0.08f }
 };
@@ -496,7 +496,8 @@ constexpr boss_t BOSS_SMALL[] = {
     {"monster_shamblerkl", -1, -1, 0.05f},
     {"monster_guncmdrkl", -1, 19, 0.05f},
     {"monster_makronkl", 36, -1, 0.05f},
-    {"monster_redmutant", -1, 24, 0.05f},
+    {"monster_arachnid", -1, 19, 0.05f},
+    {"monster_redmutant", -1, 24, 0.05f}
 };
 
 constexpr boss_t BOSS_MEDIUM[] = {
@@ -506,7 +507,8 @@ constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_guardian", -1, 24, 0.1f},
     {"monster_shamblerkl", -1, 24, 0.1f},
     {"monster_guncmdrkl", -1, 24, 0.1f},
-    {"monster_makronkl", 36, -1, 0.1f},
+    {"monster_arachnid", -1, 24, 0.1f},
+    {"monster_makronkl", 26, -1, 0.1f}
 };
 
 constexpr boss_t BOSS_LARGE[] = {
@@ -517,8 +519,7 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_guardian", -1, 24, 0.15f},
     {"monster_shamblerkl", -1, 24, 0.15f},
     {"monster_boss5", -1, 24, 0.15f},
-    {"monster_makronkl", 36, -1, 0.15f},
-    {"monster_jorg", 36, -1, 0.15f},
+    {"monster_jorg", 30, -1, 0.15f}
 };
 
 // Función para obtener la lista de jefes basada en el tamaño del mapa
