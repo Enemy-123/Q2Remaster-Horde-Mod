@@ -381,7 +381,7 @@ constexpr struct weighted_item_t {
     { "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
     { "item_sphere_defender", 2, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
-    { "item_invisibility", 4, -1, 0.07f, adjust_weight_powerup },
+    { "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
     { "item_doppleganger", -1, 8, 0.028f, adjust_weight_powerup },
     { "item_doppleganger", 9, 19, 0.062f, adjust_weight_powerup },
     { "item_doppleganger", 20, -1, 0.1f, adjust_weight_powerup },
@@ -1554,6 +1554,13 @@ void HandleWaveRestMessage() noexcept {
     if (sound_index < sounds.size()) {
         gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
+
+    // Reiniciar el daño total para todos los jugadores ya que es una nueva ola
+    for (const auto player : active_players()) {
+        if (player->client) {
+            player->client->total_damage = 0;
+        }
+    }
 }
 
 void SpawnMonsters() noexcept {
@@ -1626,6 +1633,41 @@ void SpawnMonsters() noexcept {
     }
 }
 
+void DisplayTopDamagerMessage(edict_t*& max_damage_player, int& max_damage, float& percentage) {
+    max_damage_player = NULL;
+    max_damage = 0;
+    int total_damage = 0;
+
+    // Iterar sobre todos los jugadores activos para encontrar el que hizo más daño
+    for (const auto player : active_players()) {
+        if (!player->client) {
+            continue;
+        }
+        total_damage += player->client->total_damage;
+        if (player->client->total_damage > max_damage) {
+            max_damage = player->client->total_damage;
+            max_damage_player = player;
+        }
+    }
+
+    if (max_damage_player && total_damage > 0) {
+        percentage = (float)max_damage / total_damage * 100.0f;
+    }
+    else {
+        percentage = 0.0f;
+    }
+
+    // Redondear el porcentaje a dos decimales
+    percentage = roundf(percentage * 100) / 100;
+
+    // Reiniciar el daño total para todos los jugadores
+    for (const auto player : active_players()) {
+        if (player->client) {
+            player->client->total_damage = 0;
+        }
+    }
+}
+
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
 
@@ -1690,22 +1732,36 @@ void Horde_RunFrame() noexcept {
                 g_horde_local.state = horde_state_t::rest;
                 cachedRemainingMonsters = CalculateRemainingMonsters();
 
+                edict_t* max_damage_player = nullptr;
+                int max_damage = 0;
+                float percentage = 0.0f;
+                DisplayTopDamagerMessage(max_damage_player, max_damage, percentage);
+
                 if (g_chaotic->integer || g_insane->integer) {
-                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nHarder Wave Controlled, GG\n");
+                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nHarder Wave Controlled, GG\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
+                        max_damage_player ? max_damage_player->client->pers.netname : "N/A",
+                        max_damage,
+                        percentage);
                     gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
                     gi.cvar_set("g_chaotic", "0");
                     gi.cvar_set("g_insane", "0");
                 }
 
                 if (g_insane->integer == 2) {
-                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nInsane Wave Controlled, GG!\n");
+                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nInsane Wave Controlled, GG!\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
+                        max_damage_player ? max_damage_player->client->pers.netname : "N/A",
+                        max_damage,
+                        percentage);
                     gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
                     gi.cvar_set("g_chaotic", "0");
                     gi.cvar_set("g_insane", "1");
                 }
                 else {
-                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Level {} Defeated, GG !\n", g_horde_local.level);
-
+                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Level {} Defeated, GG !\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
+                        g_horde_local.level,
+                        max_damage_player ? max_damage_player->client->pers.netname : "N/A",
+                        max_damage,
+                        percentage);
                 }
             }
             else {
