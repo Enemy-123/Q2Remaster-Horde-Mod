@@ -18,7 +18,6 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int32_t last_wave_number = 0;
 static int32_t cachedRemainingMonsters = -1;
 
-//gtime_t MONSTER_COOLDOWN = gtime_t::from_sec(2.6); // Cooldown en segundos para los monstruos 2.3
 gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.9); // Cooldown en segundos para los puntos de spawn 3.0
 
 cvar_t* g_horde;
@@ -153,7 +152,7 @@ void ApplyBenefit(const std::string& benefit) {
         {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", ""}}
     };
 
-    auto const it = benefitMessages.find(benefit);
+    auto it = benefitMessages.find(benefit);
     if (it != benefitMessages.end()) {
         // Aplicar el beneficio
         if (benefit == "start armor") {
@@ -212,7 +211,7 @@ void CheckAndApplyBenefit(int32_t wave) {
 
 // Función para ajustar la tasa de aparición de monstruos
 void AdjustMonsterSpawnRate() noexcept {
-    int32_t humanPlayers = GetNumHumanPlayers();
+    auto humanPlayers = GetNumHumanPlayers();
     float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
 
     if (g_horde_local.level % 3 == 0) {
@@ -287,6 +286,7 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
         IncludeDifficultyAdjustments(mapSize, lvl);
     }
 }
+
 void ResetSpawnAttempts() noexcept;
 void VerifyAndAdjustBots() noexcept;
 void ResetCooldowns() noexcept;
@@ -339,11 +339,11 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }
 
- bool G_IsDeathmatch() noexcept {
+bool G_IsDeathmatch() noexcept {
     return deathmatch->integer && g_horde->integer;
 }
 
- bool G_IsCooperative() noexcept {
+bool G_IsCooperative() noexcept {
     return coop->integer && !g_horde->integer;
 }
 
@@ -550,7 +550,6 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) no
     return nullptr;
 }
 
-
 constexpr int32_t MAX_RECENT_BOSSES = 3;
 std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
 
@@ -560,7 +559,7 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
     if (!boss_list) return nullptr;
 
     std::vector<const boss_t*> eligible_bosses;
-    int32_t boss_list_size = mapSize.isSmallMap ? std::size(BOSS_SMALL) :
+    auto boss_list_size = mapSize.isSmallMap ? std::size(BOSS_SMALL) :
         mapSize.isMediumMap ? std::size(BOSS_MEDIUM) :
         std::size(BOSS_LARGE);
 
@@ -595,7 +594,6 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 
     return nullptr;
 }
-
 
 struct picked_item_t {
     const weighted_item_t* item;
@@ -646,7 +644,7 @@ constexpr std::array<const char*, 10> flying_monster_classnames = {
 int32_t countFlyingSpawns() noexcept {
     int32_t count = 0;
     for (size_t i = 0; i < globals.num_edicts; i++) {
-        const edict_t& ent = g_edicts[i];
+        const auto& ent = g_edicts[i];
         if (ent.inuse && strcmp(ent.classname, "info_player_deathmatch") == 0 && ent.style == 1) {
             count++;
         }
@@ -692,7 +690,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
 }
 
 const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
-    float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
+    auto currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     auto it_spawnCooldown = spawnPointCooldowns.find(spawn_point);
     if (it_spawnCooldown != spawnPointCooldowns.end()) {
         currentCooldown = it_spawnCooldown->second;
@@ -706,7 +704,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 
     std::vector<picked_item_t> picked_monsters;
     float total_weight = 0.0f;
-    int32_t flyingSpawns = countFlyingSpawns();
+    auto flyingSpawns = countFlyingSpawns();
     float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
     for (const auto& item : monsters) {
@@ -747,7 +745,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
 }
 
 void Horde_PreInit() noexcept {
-    //wavenext = gi.cvar("wavenext", "0", CVAR_SERVERINFO);
     dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
     g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 
@@ -825,7 +822,7 @@ int32_t GetNumHumanPlayers() noexcept {
 
 void VerifyAndAdjustBots() noexcept {
     static gtime_t last_verification_time = 0_sec;
-    gtime_t current_time = level.time;
+    auto current_time = level.time;
 
     // Verificar cada 2 segundos para evitar sobrecargar el sistema
     if (current_time - last_verification_time < 2_sec) {
@@ -858,7 +855,7 @@ void Horde_Init() noexcept {
 
     // Precache monsters
     for (const auto& monster : monsters) {
-        edict_t* e = G_Spawn();
+        auto e = G_Spawn();
         if (!e) {
             gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
             continue;
@@ -1051,7 +1048,7 @@ static void Horde_CleanBodies() noexcept {
 
 // attaching healthbar
 void AttachHealthBar(edict_t* boss) noexcept {
-    edict_t* healthbar = G_Spawn();
+    auto healthbar = G_Spawn();
     if (!healthbar) return;
 
     healthbar->classname = "target_healthbar";
@@ -1139,7 +1136,7 @@ void SpawnBossAutomatically() noexcept {
     if (g_horde_local.level >= 10 && g_horde_local.level % 5 == 0) {
         const auto it = mapOrigins.find(level.mapname);
         if (it != mapOrigins.end()) {
-            edict_t* boss = G_Spawn();
+            auto boss = G_Spawn();
             if (!boss) return;
 
             const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
@@ -1158,7 +1155,7 @@ void SpawnBossAutomatically() noexcept {
 
             if (tr.startsolid) {
                 // Realizar telefrag si hay colisión
-                edict_t* hit = tr.ent;
+                auto hit = tr.ent;
                 if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
                     T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
                     gi.Com_PrintFmt("Telefrag performed on {}\n", hit->classname);
@@ -1166,7 +1163,7 @@ void SpawnBossAutomatically() noexcept {
             }
 
             // Crear el efecto de terremoto
-            edict_t* earthquake = G_Spawn();
+            auto earthquake = G_Spawn();
             earthquake->classname = "target_earthquake";
             earthquake->spawnflags = SPAWNFLAGS_EARTHQUAKE_SILENT; // Usar flag de un solo uso para activarlo una vez
             earthquake->speed = 500; // Severidad del terremoto
@@ -1220,7 +1217,7 @@ void SpawnBossAutomatically() noexcept {
             // Realizar telefrag en la posición del efecto de spawn
             trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
             if (tr_spawn.startsolid) {
-                edict_t* hit = tr_spawn.ent;
+                auto hit = tr_spawn.ent;
                 if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
                     T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
                     gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", hit->classname);
@@ -1580,13 +1577,13 @@ void SpawnMonsters() noexcept {
     constexpr float drop_probability = 0.55f;
 
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
-        edict_t* spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
+        auto spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
         if (!spawn_point) continue;
 
         const char* monster_classname = G_HordePickMonster(spawn_point);
         if (!monster_classname) continue;
 
-        edict_t* monster = G_Spawn();
+        auto monster = G_Spawn();
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
         monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
@@ -1661,7 +1658,7 @@ void SendCleanupMessage(const std::unordered_map<std::string, std::string>& mess
         gi.LocBroadcast_Print(PRINT_CENTER, message->second.c_str(), topDamager.total_damage, percentage);
     }
     else {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nWave Level {} Defeated, GG !\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nWave Level {} Defeated, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n",
             g_horde_local.level,
             topDamager.player ? topDamager.player->client->pers.netname : "N/A",
             topDamager.total_damage,
@@ -1669,13 +1666,13 @@ void SendCleanupMessage(const std::unordered_map<std::string, std::string>& mess
     }
 }
 
-
 // Mensajes de limpieza
 const std::unordered_map<std::string, std::string> cleanupMessages = {
-    {"standard", "\n\n\n\nWave Level {} Defeated, GG !\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
-    {"chaotic", "\n\n\nHarder Wave Controlled, GG\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
-    {"insane", "\n\n\nInsane Wave Controlled, GG!\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n"}
+    {"standard", "\n\n\n\nWave Level {} Defeated, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
+    {"chaotic", "\n\n\nHarder Wave Controlled, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
+    {"insane", "\n\n\nInsane Wave Controlled, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n"}
 };
+
 
 // Manejo del estado de la horda por cada frame
 void Horde_RunFrame() noexcept {
@@ -1768,7 +1765,6 @@ void Horde_RunFrame() noexcept {
         break;
     }
 }
-
 
 // Función para manejar el evento de reinicio
 void HandleResetEvent() noexcept {

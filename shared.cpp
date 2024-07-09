@@ -233,7 +233,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->health *= 2.0f;
 		monster->monsterinfo.power_armor_power *= 1.5f;
 		monster->initial_max_health = monster->health;
-		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 125_sec;
+		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 175_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
 	{
@@ -253,7 +253,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.5f;
 		monster->initial_max_health = monster->health; // Incrementar initial_max_health
-		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 120_sec;
+		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 175_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
 		monster->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
@@ -305,7 +305,7 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 		power_armor_multiplier *= 1.5f;
 	}
 	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
-		boss->s.effects |= EF_BARREL_EXPLODING;
+		boss->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
 		boss->s.renderfx |= RF_TRANSLUCENT;
 		health_multiplier *= 1.7f;
 		power_armor_multiplier *= 1.7f;
