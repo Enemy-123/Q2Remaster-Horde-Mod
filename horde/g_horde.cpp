@@ -1512,17 +1512,11 @@ void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
         gi.cvar_set("g_chaotic", "0");
     }
     else if (current_wave_number <= 14) {
-        if (mapSize.isSmallMap) {
-            gi.cvar_set("g_chaotic", "2");
-        }
-        else {
-            gi.cvar_set("g_chaotic", "1");
-        }
+        gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
     }
 
     g_horde_local.state = horde_state_t::rest;
 }
-
 // Vector para almacenar los sonidos, definido como estático para que solo se inicialice una vez
 static const std::vector<std::string> sounds = {
     "nav_editor/action_fail.wav",
@@ -1633,47 +1627,60 @@ void SpawnMonsters() noexcept {
     }
 }
 
-void DisplayTopDamagerMessage(edict_t*& max_damage_player, int& max_damage, float& percentage) {
-    max_damage_player = NULL;
-    max_damage = 0;
+// Función para calcular el jugador con más daño
+void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     int total_damage = 0;
+    topDamager.total_damage = 0;
 
-    // Iterar sobre todos los jugadores activos para encontrar el que hizo más daño
-    for (const auto player : active_players()) {
-        if (!player->client) {
-            continue;
-        }
-        total_damage += player->client->total_damage;
-        if (player->client->total_damage > max_damage) {
-            max_damage = player->client->total_damage;
-            max_damage_player = player;
+    for (const auto& player : active_players()) {
+        if (!player->client) continue;
+        int player_damage = player->client->total_damage;
+        total_damage += player_damage;
+        if (player_damage > topDamager.total_damage) {
+            topDamager.total_damage = player_damage;
+            topDamager.player = player;
         }
     }
 
-    if (max_damage_player && total_damage > 0) {
-        percentage = (float)max_damage / total_damage * 100.0f;
+    if (total_damage > 0) {
+        percentage = (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f;
     }
     else {
         percentage = 0.0f;
     }
 
     // Redondear el porcentaje a dos decimales
-    percentage = roundf(percentage * 100) / 100;
+    percentage = std::round(percentage * 100) / 100;
+}
 
-    // Reiniciar el daño total para todos los jugadores
-    for (const auto player : active_players()) {
-        if (player->client) {
-            player->client->total_damage = 0;
-        }
+// Función para enviar el mensaje de limpieza
+void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage) noexcept {
+    auto message = messages.find(topDamager.player ? topDamager.player->client->pers.netname : "N/A");
+    if (message != messages.end()) {
+        gi.LocBroadcast_Print(PRINT_CENTER, message->second.c_str(), topDamager.total_damage, percentage);
+    }
+    else {
+        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nWave Level {} Defeated, GG !\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
+            g_horde_local.level,
+            topDamager.player ? topDamager.player->client->pers.netname : "N/A",
+            topDamager.total_damage,
+            percentage);
     }
 }
 
+
+// Mensajes de limpieza
+const std::unordered_map<std::string, std::string> cleanupMessages = {
+    {"standard", "\n\n\n\nWave Level {} Defeated, GG !\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
+    {"chaotic", "\n\n\nHarder Wave Controlled, GG\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
+    {"insane", "\n\n\nInsane Wave Controlled, GG!\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n"}
+};
+
+// Manejo del estado de la horda por cada frame
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
 
-    // Comprobar si es necesario ajustar los bots solo en los estados pertinentes
-    if (g_horde_local.state == horde_state_t::warmup ||
-        g_horde_local.state == horde_state_t::rest) {
+    if (g_horde_local.state == horde_state_t::warmup || g_horde_local.state == horde_state_t::rest) {
         VerifyAndAdjustBots();
     }
 
@@ -1682,9 +1689,7 @@ void Horde_RunFrame() noexcept {
     }
 
     const int32_t activeMonsters = level.total_monsters - level.killed_monsters;
-    const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-        mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP :
-        MAX_MONSTERS_BIG_MAP;
+    const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP : (mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
@@ -1732,37 +1737,12 @@ void Horde_RunFrame() noexcept {
                 g_horde_local.state = horde_state_t::rest;
                 cachedRemainingMonsters = CalculateRemainingMonsters();
 
-                edict_t* max_damage_player = nullptr;
-                int max_damage = 0;
+                PlayerStats topDamager;
                 float percentage = 0.0f;
-                DisplayTopDamagerMessage(max_damage_player, max_damage, percentage);
+                CalculateTopDamager(topDamager, percentage);
 
-                if (g_chaotic->integer || g_insane->integer) {
-                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nHarder Wave Controlled, GG\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
-                        max_damage_player ? max_damage_player->client->pers.netname : "N/A",
-                        max_damage,
-                        percentage);
-                    gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
-                    gi.cvar_set("g_chaotic", "0");
-                    gi.cvar_set("g_insane", "0");
-                }
-
-                if (g_insane->integer == 2) {
-                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nInsane Wave Controlled, GG!\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
-                        max_damage_player ? max_damage_player->client->pers.netname : "N/A",
-                        max_damage,
-                        percentage);
-                    gi.sound(world, CHAN_VOICE, gi.soundindex("world/x_light.wav"), 1, ATTN_NONE, 0);
-                    gi.cvar_set("g_chaotic", "0");
-                    gi.cvar_set("g_insane", "1");
-                }
-                else {
-                    gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n\nWave Level {} Defeated, GG !\n\n\n\n\ {} \ndealt the most damage this wave with {} damage\n ({}%)\n",
-                        g_horde_local.level,
-                        max_damage_player ? max_damage_player->client->pers.netname : "N/A",
-                        max_damage,
-                        percentage);
-                }
+                std::string messageType = g_insane->integer == 2 ? "insane" : (g_chaotic->integer || g_insane->integer ? "chaotic" : "standard");
+                SendCleanupMessage(cleanupMessages, topDamager, percentage);
             }
             else {
                 cachedRemainingMonsters = CalculateRemainingMonsters();

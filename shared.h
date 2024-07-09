@@ -40,4 +40,14 @@ struct MapSize {
 };
 
 MapSize GetMapSize(const std::string& mapname) noexcept;
+
+
+// Estructura para almacenar las estadísticas de los jugadores
+struct PlayerStats {
+    edict_t* player;
+    int total_damage;
+};
+
+
 #endif // SHARED_H
+
