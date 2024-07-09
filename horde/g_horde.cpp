@@ -825,7 +825,7 @@ void VerifyAndAdjustBots() noexcept {
     auto current_time = level.time;
 
     // Verificar cada 2 segundos para evitar sobrecargar el sistema
-    if (current_time - last_verification_time < 2_sec) {
+    if (current_time - last_verification_time < 7_sec) {
         return;
     }
 
@@ -1587,14 +1587,18 @@ void SpawnMonsters() noexcept {
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
         monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-
-        if (g_horde_local.level >= 22) {
+        if (g_horde_local.level >= 17) {
             if (!st.was_key_specified("power_armor_power"))
                 monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-            if (!st.was_key_specified("power_armor_type"))
-                monster->monsterinfo.armor_power = 175;
-        }
 
+            if (!st.was_key_specified("power_armor_type")) {
+                // Calcular la armadura en función de la salud máxima del monstruo
+                float health_factor = monster->max_health / 100.0f; // Ajusta el denominador según la escala deseada
+                int base_armor = 150;
+                int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
+                monster->monsterinfo.armor_power = base_armor + additional_armor;
+            }
+        }
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
         }
@@ -1677,10 +1681,7 @@ const std::unordered_map<std::string, std::string> cleanupMessages = {
 // Manejo del estado de la horda por cada frame
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
-
-    if (g_horde_local.state == horde_state_t::warmup || g_horde_local.state == horde_state_t::rest) {
-        VerifyAndAdjustBots();
-    }
+        VerifyAndAdjustBots();  
 
     if (dm_monsters->integer > 0) {
         g_horde_local.num_to_spawn = dm_monsters->integer;
