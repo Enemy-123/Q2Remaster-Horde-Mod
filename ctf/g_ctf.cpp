@@ -4387,19 +4387,42 @@ void CTFWarp(edict_t* ent, const char* map_name)
 
 	if (!map_name || !*map_name)
 	{
-		// Abrir el menú de votación si no se proporciona un argumento
-		OpenVoteMenu(ent);
+		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
+
+		// Crear una cadena temporal para la lista de mapas
+		const char* mlist = g_map_list->string;
+		char formatted_map_list[8192] = "-";
+		int map_index = 1;  // Contador para la numeración de mapas
+
+		// Procesar cada mapa individualmente
+		while (*(token = COM_Parse(&mlist)) != '\0')
+		{
+			char map_entry[128];
+			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
+			strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+			map_index++;
+		}
+
+		// Quitar el último guion si existe
+		size_t len = strlen(formatted_map_list);
+		if (len > 0 && formatted_map_list[len - 1] == '-')
+		{
+			formatted_map_list[len - 1] = '\0';
+		}
+
+		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
 		return;
 	}
 
 	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
+	int vote_index = atoi(map_name);  // Obtener el índice del mapa desde el argumento
+
 	int current_index = 1;  // Contador para la búsqueda del mapa
 	bool found_map = false;
-
 	while (*(token = COM_Parse(&mlist)) != '\0')
 	{
 		// Comparar tanto el número del mapa como el nombre del mapa
-		if (Q_strcasecmp(token, map_name) == 0)
+		if (current_index == vote_index || Q_strcasecmp(token, map_name) == 0)
 		{
 			found_map = true;
 			break;
@@ -4410,19 +4433,44 @@ void CTFWarp(edict_t* ent, const char* map_name)
 	if (!found_map)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
-		// Abrir el menú de votación si no se encuentra el mapa
-		OpenVoteMenu(ent);
+
+		// Crear una cadena temporal para la lista de mapas
+		mlist = g_map_list->string;
+		char formatted_map_list[8192] = "-";
+		int map_index = 1;  // Contador para la numeración de mapas
+
+		// Procesar cada mapa individualmente
+		while (*(token = COM_Parse(&mlist)) != '\0')
+		{
+			char map_entry[128];
+			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
+			strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+			map_index++;
+		}
+
+		// Quitar el último guion si existe
+		size_t len = strlen(formatted_map_list);
+		if (len > 0 && formatted_map_list[len - 1] == '-')
+		{
+			formatted_map_list[len - 1] = '\0';
+		}
+
+		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
 		return;
 	}
 
+	// Extraer el nombre del jugador desde userinfo
+	char playerName[32];
+	gi.Info_ValueForKey(ent->client->pers.userinfo, "name", playerName, sizeof(playerName));
+
 	// Establecer ctfgame.elevel antes de llamar a CTFBeginElection
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
-	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\n",
-		ent->client->pers.netname, token).data()))
+	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\n", playerName, token).data()))
 	{
 		// ctfgame.elevel ya se ha establecido
 	}
 }
+
 
 void CTFBoot(edict_t* ent)
 {
