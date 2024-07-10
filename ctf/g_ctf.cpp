@@ -3055,7 +3055,7 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 
 //vote menu
 
-#define MAX_MAPS_PER_PAGE 6
+#define MAX_MAPS_PER_PAGE 11
 
 struct map_list_t {
 	char maps[64][128]; // Asumiendo que hay un máximo de 64 mapas y cada nombre de mapa tiene hasta 128 caracteres
@@ -3068,18 +3068,25 @@ static int current_page = 0;
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
 // Definir el número correcto de elementos en el array `vote_menu`
-static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 4] = {
+static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 5 + 1] = { // +5 para la línea en blanco adicional y las opciones del menú
 	{ "*Voting Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco debajo de "Voting Menu"
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea vacía entre los mapas y las opciones de menú
 	{ "Next", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "Previous", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "Close", PMENU_ALIGN_LEFT, VoteMenuHandler }
 };
-
 
 //vote menu stuff
 
@@ -3093,13 +3100,12 @@ void LoadMapList() {
 		map_list.num_maps++;
 	}
 }
-
 void UpdateVoteMenu() {
 	int start = current_page * MAX_MAPS_PER_PAGE;
 	int end = start + MAX_MAPS_PER_PAGE;
 	if (end > map_list.num_maps) end = map_list.num_maps;
 
-	for (int i = 1; i <= MAX_MAPS_PER_PAGE; i++) {
+	for (int i = 2; i < 2 + MAX_MAPS_PER_PAGE; i++) { // Empezar en 2 para saltar la línea en blanco
 		if (start < end) {
 			Q_strlcpy(vote_menu[i].text, map_list.maps[start], sizeof(vote_menu[i].text));
 			vote_menu[i].SelectFunc = VoteMenuHandler;
@@ -3111,29 +3117,32 @@ void UpdateVoteMenu() {
 		}
 	}
 
+	// Línea vacía entre los mapas y las opciones de menú
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 2].text, "", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 2].text));
+	vote_menu[MAX_MAPS_PER_PAGE + 2].SelectFunc = nullptr;
+
 	// Asegúrate de que las opciones de navegación están disponibles
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 1].text, "Next", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 1].text));
-	vote_menu[MAX_MAPS_PER_PAGE + 1].SelectFunc = VoteMenuHandler;
-
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 2].text, "Previous", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 2].text));
-	vote_menu[MAX_MAPS_PER_PAGE + 2].SelectFunc = VoteMenuHandler;
-
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Close", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Next", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
 	vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = VoteMenuHandler;
-}
 
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 4].text, "Previous", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 4].text));
+	vote_menu[MAX_MAPS_PER_PAGE + 4].SelectFunc = VoteMenuHandler;
+
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 5].text, "Close", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 5].text));
+	vote_menu[MAX_MAPS_PER_PAGE + 5].SelectFunc = VoteMenuHandler;
+}
 
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	int option = p->cur;
 
-	if (option >= 1 && option <= MAX_MAPS_PER_PAGE) {
+	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) { // Empezar en 2 para saltar la línea en blanco
 		// Construir el comando vote con el nombre del mapa seleccionado
 		char command[256];
 		snprintf(command, sizeof(command), "vote %s\n", vote_menu[option].text);
 		gi.AddCommandString(command);
 		PMenu_Close(ent);
 	}
-	else if (option == MAX_MAPS_PER_PAGE + 1) {
+	else if (option == MAX_MAPS_PER_PAGE + 3) { // Ajustar índices
 		// Next
 		if ((current_page + 1) * MAX_MAPS_PER_PAGE < map_list.num_maps) {
 			current_page++;
@@ -3142,7 +3151,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
 		}
 	}
-	else if (option == MAX_MAPS_PER_PAGE + 2) {
+	else if (option == MAX_MAPS_PER_PAGE + 4) { // Ajustar índices
 		// Previous
 		if (current_page > 0) {
 			current_page--;
@@ -3151,7 +3160,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
 		}
 	}
-	else if (option == MAX_MAPS_PER_PAGE + 3) {
+	else if (option == MAX_MAPS_PER_PAGE + 5) { // Ajustar índices
 		// Close
 		PMenu_Close(ent);
 	}
