@@ -3178,31 +3178,42 @@ void SpectatorMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	int option = p->cur;
 
 	switch (option) {
-	case 1: // Show Inventory
+	case 2: // Show Inventory
 		ShowInventory(ent);
 		PMenu_Close(ent);
 		break;
-	case 2: // Join as spectator
+	case 3: // Join as spectator
 		CTFObserver(ent);
 		PMenu_Close(ent);
 		break;
-	case 3: // Vote Map
+	case 4: // Vote Map
 		PMenu_Close(ent); // Cerrar el menú actual
 		OpenVoteMenu(ent); // Abrir el menú de votación de mapas
 		break;
-	case 4: // Close menu
+	case 6: // Vote Yes
+		gi.AddCommandString("yes\n");
+		PMenu_Close(ent);
+		break;
+	case 7: // Vote No
+		gi.AddCommandString("no\n");
+		PMenu_Close(ent);
+		break;
+	case 8: // Close menu
 		PMenu_Close(ent);
 		break;
 	}
 }
 
 
-
 static const pmenu_t spectator_menu[] = {
 	{ "*Spectator Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
 	{ "Show Inventory", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
 	{ "Go spectator", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
 	{ "Vote Map", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Vote Yes", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
+	{ "Vote No", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
 	{ "Close", PMENU_ALIGN_LEFT, SpectatorMenuHandler }
 };
 
