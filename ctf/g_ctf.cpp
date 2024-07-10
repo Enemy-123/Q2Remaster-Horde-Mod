@@ -4383,41 +4383,9 @@ void CTFWarp(edict_t* ent)
 {
 	char* token;
 
-	//oldvote//
-	//if (gi.argc() < 2)
-	//{
-	//	gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
-
-	//	// Crear una cadena temporal para la lista de mapas
-	//	const char* mlist = g_map_list->string;
-	//	char formatted_map_list[8192] = "-";
-	//	int map_index = 1;  // Contador para la numeración de mapas
-
-	//	// Procesar cada mapa individualmente
-	//	while (*(token = COM_Parse(&mlist)) != '\0')
-	//	{
-	//		char map_entry[128];
-	//		snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-	//		strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
-	//		map_index++;
-	//	}
-
-	//	// Quitar el último guion si existe
-	//	size_t len = strlen(formatted_map_list);
-	//	if (len > 0 && formatted_map_list[len - 1] == '-')
-	//	{
-	//		formatted_map_list[len - 1] = '\0';
-	//	}
-
-	//	gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
-	//	return;
-	//}
-
 	if (gi.argc() < 2)
 	{
-//		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
-
-		// Abrir el menú de votación
+		// Abrir el menú de votación si no se proporciona un argumento
 		OpenVoteMenu(ent);
 		return;
 	}
@@ -4437,42 +4405,12 @@ void CTFWarp(edict_t* ent)
 		}
 		current_index++;
 	}
-	//oldfoundmap//
-
-	//if (!found_map)
-	//{
-	//	gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
-
-	//	// Crear una cadena temporal para la lista de mapas
-	//	mlist = g_map_list->string;
-	//	char formatted_map_list[8192] = "-";
-	//	int map_index = 1;  // Contador para la numeración de mapas
-
-	//	// Procesar cada mapa individualmente
-	//	while (*(token = COM_Parse(&mlist)) != '\0')
-	//	{
-	//		char map_entry[128];
-	//		snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-	//		strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
-	//		map_index++;
-	//	}
-
-	//	// Quitar el último guion si existe
-	//	size_t len = strlen(formatted_map_list);
-	//	if (len > 0 && formatted_map_list[len - 1] == '-')
-	//	{
-	//		formatted_map_list[len - 1] = '\0';
-	//	}
-
-	//	gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
-	//	return;
-	//}
 
 	if (!found_map)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
 
-		// Abrir el menú de votación
+		// Abrir el menú de votación si no se encuentra el mapa
 		OpenVoteMenu(ent);
 		return;
 	}
@@ -4485,7 +4423,6 @@ void CTFWarp(edict_t* ent)
 		// ctfgame.elevel ya se ha establecido
 	}
 }
-
 
 
 void CTFBoot(edict_t* ent)
