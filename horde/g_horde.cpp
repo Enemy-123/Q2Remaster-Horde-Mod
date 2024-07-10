@@ -821,16 +821,6 @@ int32_t GetNumHumanPlayers() noexcept {
 }
 
 void VerifyAndAdjustBots() noexcept {
-    static gtime_t last_verification_time = 0_sec;
-    auto current_time = level.time;
-
-    // Verificar cada 2 segundos para evitar sobrecargar el sistema
-    if (current_time - last_verification_time < 7_sec) {
-        return;
-    }
-
-    last_verification_time = current_time;
-
     const auto mapSize = GetMapSize(level.mapname);
     const int32_t humanPlayers = GetNumHumanPlayers();
     const int32_t spectPlayers = GetNumSpectPlayers();
@@ -1312,8 +1302,6 @@ void ResetGame() noexcept {
     gi.cvar_set("g_tracedbullets", "0");
     gi.cvar_set("g_autohaste", "0");
 
-    //Bots back to default
-    gi.cvar_set("bot_minClients", "4");
 
     // Reset spawn cooldowns
     SPAWN_POINT_COOLDOWN = 3.8_sec;
