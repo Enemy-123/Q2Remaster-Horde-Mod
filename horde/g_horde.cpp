@@ -1495,7 +1495,7 @@ void PlayWaveStartSound() noexcept {
 // Función para mostrar el mensaje de la ola
 void DisplayWaveMessage() noexcept {
     if (brandom()) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nVote cmd improved!\nNOW KILL THEM ALL !\n");
+        gi.LocBroadcast_Print(PRINT_CENTER, "\nNew Horde Menu! Open Inventory after join \nNOW KILL THEM ALL !\n");
     }
     else {
         gi.LocBroadcast_Print(PRINT_CENTER, "\nWelcome to hell.\n");
