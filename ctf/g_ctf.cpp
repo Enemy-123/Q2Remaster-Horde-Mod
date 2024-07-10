@@ -3100,6 +3100,7 @@ void LoadMapList() {
 		map_list.num_maps++;
 	}
 }
+
 void UpdateVoteMenu() {
 	int start = current_page * MAX_MAPS_PER_PAGE;
 	int end = start + MAX_MAPS_PER_PAGE;
@@ -3138,7 +3139,8 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) { // Empezar en 2 para saltar la línea en blanco
 		// Construir el comando vote con el nombre del mapa seleccionado
 		char command[256];
-		snprintf(command, sizeof(command), "vote %s\n", vote_menu[option].text);
+		snprintf(command, sizeof(command), "vote %s", vote_menu[option].text);
+		gi.LocCenter_Print(ent, "You voted for Map: {}\n", vote_menu[option].text);
 		gi.AddCommandString(command);
 		PMenu_Close(ent);
 	}
@@ -3172,6 +3174,7 @@ void OpenVoteMenu(edict_t* ent) {
 	UpdateVoteMenu();
 	PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
 }
+
 //TEST
 
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
@@ -3191,11 +3194,13 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		OpenVoteMenu(ent); // Abrir el menú de votación de mapas
 		break;
 	case 6: // Vote Yes
-		CTFVoteYes(ent);
+		gi.LocCenter_Print(ent, "You voted YES.\n");
+		gi.AddCommandString("yes");
 		PMenu_Close(ent);
 		break;
 	case 7: // Vote No
-		CTFVoteNo(ent);
+		gi.LocCenter_Print(ent, "You voted NO.\n");
+		gi.AddCommandString("no");
 		PMenu_Close(ent);
 		break;
 	case 11: // Close menu
@@ -3219,11 +3224,9 @@ static const pmenu_t horde_menu[] = {
 	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
 };
 
-
 void OpenSpectatorMenu(edict_t* ent) {
 	PMenu_Open(ent, horde_menu, -1, sizeof(horde_menu) / sizeof(pmenu_t), nullptr, nullptr);
 }
-
 
 //TEAMS MENU & STUFF
 
