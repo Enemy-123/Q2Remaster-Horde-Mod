@@ -3517,6 +3517,12 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 	else
 	{
+		// Handle menu movement if the menu is open
+		if (ent->client->menu && HandleMenuMovement(ent, ucmd))
+		{
+			// Return early if menu movement is handled
+			return;
+		}
 
 		// set up for pmove
 		memset(&pm, 0, sizeof(pm));
@@ -3624,7 +3630,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		ent->maxs = pm.maxs;
 
 		if (!ent->client->menu)
-		client->resp.cmd_angles = ucmd->angles;
+			client->resp.cmd_angles = ucmd->angles;
 
 		if (pm.jump_sound && !(pm.s.pm_flags & PMF_ON_LADDER))
 		{
@@ -3734,7 +3740,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->menu) && g_horde->integer)
+	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
 	{
 		if (!HandleMenuMovement(ent, ucmd))
 		{
@@ -3762,7 +3768,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			UpdateChaseCam(other);
 	}
 }
-
 
 inline bool G_MonstersSearchingFor(edict_t* player)
 {
