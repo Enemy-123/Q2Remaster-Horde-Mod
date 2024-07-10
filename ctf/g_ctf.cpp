@@ -3138,10 +3138,11 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) { // Empezar en 2 para saltar la línea en blanco
 		// Construir el comando vote con el nombre del mapa seleccionado
-		char command[256];
-		snprintf(command, sizeof(command), "vote %s", vote_menu[option].text);
-		gi.LocCenter_Print(ent, "You voted for Map: {}\n", vote_menu[option].text);
-		gi.AddCommandString(command);
+		const char* voted_map = vote_menu[option].text;
+		gi.LocCenter_Print(ent, "You voted for Map: {}\n", voted_map);
+		// Guardar el nombre del mapa votado en el cliente
+		Q_strlcpy(ent->client->voted_map, voted_map, sizeof(ent->client->voted_map));
+		CTFWarp(ent, voted_map);
 		PMenu_Close(ent);
 	}
 	else if (option == MAX_MAPS_PER_PAGE + 3) { // Ajustar índices
@@ -4380,11 +4381,11 @@ void CTFPlayerList(edict_t* ent)
 	gi.Client_Print(ent, PRINT_HIGH, text.data());
 }
 
-void CTFWarp(edict_t* ent)
+void CTFWarp(edict_t* ent, const char* map_name)
 {
 	char* token;
 
-	if (gi.argc() < 2)
+	if (!map_name || !*map_name)
 	{
 		// Abrir el menú de votación si no se proporciona un argumento
 		OpenVoteMenu(ent);
@@ -4392,14 +4393,13 @@ void CTFWarp(edict_t* ent)
 	}
 
 	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
-	int vote_index = atoi(gi.argv(1));  // Obtener el índice del mapa desde el argumento
-
 	int current_index = 1;  // Contador para la búsqueda del mapa
 	bool found_map = false;
+
 	while (*(token = COM_Parse(&mlist)) != '\0')
 	{
 		// Comparar tanto el número del mapa como el nombre del mapa
-		if (current_index == vote_index || Q_strcasecmp(token, gi.argv(1)) == 0)
+		if (Q_strcasecmp(token, map_name) == 0)
 		{
 			found_map = true;
 			break;
@@ -4410,7 +4410,6 @@ void CTFWarp(edict_t* ent)
 	if (!found_map)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
-
 		// Abrir el menú de votación si no se encuentra el mapa
 		OpenVoteMenu(ent);
 		return;
@@ -4424,7 +4423,6 @@ void CTFWarp(edict_t* ent)
 		// ctfgame.elevel ya se ha establecido
 	}
 }
-
 
 void CTFBoot(edict_t* ent)
 {

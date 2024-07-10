@@ -1728,9 +1728,9 @@ void ClientCommand(edict_t* ent)
 	else if (Q_strcasecmp(cmd, "stats") == 0)
 		CTFStats(ent);
 	else if (Q_strcasecmp(cmd, "warp") == 0)
-		CTFWarp(ent);
+		CTFWarp(ent, gi.argv(1));
 	else if (Q_strcasecmp(cmd, "vote") == 0)
-		CTFWarp(ent);
+		CTFWarp(ent, gi.argv(1));
 	else if (Q_strcasecmp(cmd, "boot") == 0)
 		CTFBoot(ent);
 	else if (Q_strcasecmp(cmd, "playerlist") == 0)

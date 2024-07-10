@@ -3001,6 +3001,8 @@ struct gclient_t
 	int num_teslas; // max teslas per client
 	int num_traps; //foodcube trap per client
 	//int num_sentry; //Sentry Guns per client
+	// 
+	char voted_map[128];
 	// ROGUE
 //=======
 

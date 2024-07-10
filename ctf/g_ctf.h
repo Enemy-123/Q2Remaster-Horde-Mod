@@ -141,7 +141,7 @@ void CTFGhost(edict_t* ent);
 void CTFAdmin(edict_t* ent);
 bool CTFInMatch();
 void CTFStats(edict_t* ent);
-void CTFWarp(edict_t* ent);
+void CTFWarp(edict_t* ent, const char* map_name);
 void CTFBoot(edict_t* ent);
 void CTFPlayerList(edict_t* ent);
 
