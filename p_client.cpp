@@ -3456,7 +3456,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	gclient_t* client;
 	edict_t* other;
 	uint32_t   i;
-	pmove_t	   pm;
+	pmove_t    pm;
 
 	level.current_entity = ent;
 	client = ent->client;
@@ -3624,7 +3624,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		ent->maxs = pm.maxs;
 
 		if (!ent->client->menu)
-			client->resp.cmd_angles = ucmd->angles;
+		client->resp.cmd_angles = ucmd->angles;
 
 		if (pm.jump_sound && !(pm.s.pm_flags & PMF_ON_LADDER))
 		{
@@ -3734,7 +3734,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	if (client->resp.spectator)
+	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->menu) && g_horde->integer)
 	{
 		if (!HandleMenuMovement(ent, ucmd))
 		{
@@ -3762,6 +3762,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			UpdateChaseCam(other);
 	}
 }
+
 
 inline bool G_MonstersSearchingFor(edict_t* player)
 {

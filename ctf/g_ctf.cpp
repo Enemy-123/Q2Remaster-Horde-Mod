@@ -3069,7 +3069,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
 // Definir el número correcto de elementos en el array `vote_menu`
 static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 5 + 1] = { // +5 para la línea en blanco adicional y las opciones del menú
-	{ "*Voting Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "*Map Voting Menu", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco debajo de "Voting Menu"
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
@@ -3174,7 +3174,7 @@ void OpenVoteMenu(edict_t* ent) {
 }
 //TEST
 
-void SpectatorMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	int option = p->cur;
 
 	switch (option) {
@@ -3191,34 +3191,37 @@ void SpectatorMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		OpenVoteMenu(ent); // Abrir el menú de votación de mapas
 		break;
 	case 6: // Vote Yes
-		gi.AddCommandString("yes\n");
+		CTFVoteYes(ent);
 		PMenu_Close(ent);
 		break;
 	case 7: // Vote No
-		gi.AddCommandString("no\n");
+		CTFVoteNo(ent);
 		PMenu_Close(ent);
 		break;
-	case 8: // Close menu
+	case 11: // Close menu
 		PMenu_Close(ent);
 		break;
 	}
 }
 
-
-static const pmenu_t spectator_menu[] = {
-	{ "*Spectator Menu", PMENU_ALIGN_CENTER, nullptr },
+static const pmenu_t horde_menu[] = {
+	{ "*Horde Menu", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Show Inventory", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
-	{ "Go spectator", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
-	{ "Vote Map", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
+	{ "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler },
+	{ "Go Spectator", PMENU_ALIGN_LEFT, HordeMenuHandler },
+	{ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Vote Yes", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
-	{ "Vote No", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
-	{ "Close", PMENU_ALIGN_LEFT, SpectatorMenuHandler }
+	{ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler },
+	{ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
 };
 
+
 void OpenSpectatorMenu(edict_t* ent) {
-	PMenu_Open(ent, spectator_menu, -1, sizeof(spectator_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	PMenu_Open(ent, horde_menu, -1, sizeof(horde_menu) / sizeof(pmenu_t), nullptr, nullptr);
 }
 
 
@@ -4380,32 +4383,42 @@ void CTFWarp(edict_t* ent)
 {
 	char* token;
 
+	//oldvote//
+	//if (gi.argc() < 2)
+	//{
+	//	gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
+
+	//	// Crear una cadena temporal para la lista de mapas
+	//	const char* mlist = g_map_list->string;
+	//	char formatted_map_list[8192] = "-";
+	//	int map_index = 1;  // Contador para la numeración de mapas
+
+	//	// Procesar cada mapa individualmente
+	//	while (*(token = COM_Parse(&mlist)) != '\0')
+	//	{
+	//		char map_entry[128];
+	//		snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
+	//		strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+	//		map_index++;
+	//	}
+
+	//	// Quitar el último guion si existe
+	//	size_t len = strlen(formatted_map_list);
+	//	if (len > 0 && formatted_map_list[len - 1] == '-')
+	//	{
+	//		formatted_map_list[len - 1] = '\0';
+	//	}
+
+	//	gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
+	//	return;
+	//}
+
 	if (gi.argc() < 2)
 	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
+//		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
 
-		// Crear una cadena temporal para la lista de mapas
-		const char* mlist = g_map_list->string;
-		char formatted_map_list[8192] = "-";
-		int map_index = 1;  // Contador para la numeración de mapas
-
-		// Procesar cada mapa individualmente
-		while (*(token = COM_Parse(&mlist)) != '\0')
-		{
-			char map_entry[128];
-			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-			strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
-			map_index++;
-		}
-
-		// Quitar el último guion si existe
-		size_t len = strlen(formatted_map_list);
-		if (len > 0 && formatted_map_list[len - 1] == '-')
-		{
-			formatted_map_list[len - 1] = '\0';
-		}
-
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
+		// Abrir el menú de votación
+		OpenVoteMenu(ent);
 		return;
 	}
 
@@ -4424,33 +4437,43 @@ void CTFWarp(edict_t* ent)
 		}
 		current_index++;
 	}
+	//oldfoundmap//
+
+	//if (!found_map)
+	//{
+	//	gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
+
+	//	// Crear una cadena temporal para la lista de mapas
+	//	mlist = g_map_list->string;
+	//	char formatted_map_list[8192] = "-";
+	//	int map_index = 1;  // Contador para la numeración de mapas
+
+	//	// Procesar cada mapa individualmente
+	//	while (*(token = COM_Parse(&mlist)) != '\0')
+	//	{
+	//		char map_entry[128];
+	//		snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
+	//		strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+	//		map_index++;
+	//	}
+
+	//	// Quitar el último guion si existe
+	//	size_t len = strlen(formatted_map_list);
+	//	if (len > 0 && formatted_map_list[len - 1] == '-')
+	//	{
+	//		formatted_map_list[len - 1] = '\0';
+	//	}
+
+	//	gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
+	//	return;
+	//}
 
 	if (!found_map)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
 
-		// Crear una cadena temporal para la lista de mapas
-		mlist = g_map_list->string;
-		char formatted_map_list[8192] = "-";
-		int map_index = 1;  // Contador para la numeración de mapas
-
-		// Procesar cada mapa individualmente
-		while (*(token = COM_Parse(&mlist)) != '\0')
-		{
-			char map_entry[128];
-			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-			strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
-			map_index++;
-		}
-
-		// Quitar el último guion si existe
-		size_t len = strlen(formatted_map_list);
-		if (len > 0 && formatted_map_list[len - 1] == '-')
-		{
-			formatted_map_list[len - 1] = '\0';
-		}
-
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
+		// Abrir el menú de votación
+		OpenVoteMenu(ent);
 		return;
 	}
 
