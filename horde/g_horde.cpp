@@ -838,7 +838,6 @@ void VerifyAndAdjustBots() noexcept {
 
 
 void Horde_Init() noexcept {
-    VerifyAndAdjustBots();
 
     // Precache all items
     for (auto& item : itemlist) PrecacheItem(&item);
@@ -1672,7 +1671,7 @@ const std::unordered_map<std::string, std::string> cleanupMessages = {
 // Manejo del estado de la horda por cada frame
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
-        VerifyAndAdjustBots();  
+
 
     if (dm_monsters->integer > 0) {
         g_horde_local.num_to_spawn = dm_monsters->integer;
@@ -1709,6 +1708,7 @@ void Horde_RunFrame() noexcept {
             }
 
             if (g_horde_local.num_to_spawn == 0) {
+                VerifyAndAdjustBots();
                 gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nNew Wave Is Here.\nWave Level: {}\n", g_horde_local.level);
                 g_horde_local.state = horde_state_t::cleanup;
                 g_horde_local.monster_spawn_time = level.time + 1_sec;

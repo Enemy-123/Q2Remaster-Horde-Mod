@@ -3046,7 +3046,7 @@ void ShowInventory(edict_t* ent) {
 	}
 	gi.unicast(ent, true);
 }
-
+void OpenSpectatorMenu(edict_t* ent);
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p);
 void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
@@ -3123,11 +3123,23 @@ void UpdateVoteMenu() {
 	vote_menu[MAX_MAPS_PER_PAGE + 2].SelectFunc = nullptr;
 
 	// Asegúrate de que las opciones de navegación están disponibles
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Next", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
-	vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = VoteMenuHandler;
+	if ((current_page + 1) * MAX_MAPS_PER_PAGE < map_list.num_maps) {
+		Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Next", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
+		vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = VoteMenuHandler;
+	}
+	else {
+		vote_menu[MAX_MAPS_PER_PAGE + 3].text[0] = '\0';
+		vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = nullptr;
+	}
 
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 4].text, "Previous", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 4].text));
-	vote_menu[MAX_MAPS_PER_PAGE + 4].SelectFunc = VoteMenuHandler;
+	if (current_page > 0) {
+		Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 4].text, "Previous", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 4].text));
+		vote_menu[MAX_MAPS_PER_PAGE + 4].SelectFunc = VoteMenuHandler;
+	}
+	else {
+		Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 4].text, "Back to Horde Menu", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 4].text));
+		vote_menu[MAX_MAPS_PER_PAGE + 4].SelectFunc = VoteMenuHandler;
+	}
 
 	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 5].text, "Close", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 5].text));
 	vote_menu[MAX_MAPS_PER_PAGE + 5].SelectFunc = VoteMenuHandler;
@@ -3139,7 +3151,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) { // Empezar en 2 para saltar la línea en blanco
 		// Construir el comando vote con el nombre del mapa seleccionado
 		const char* voted_map = vote_menu[option].text;
-		gi.LocCenter_Print(ent, "You voted for Map: {}\n", voted_map);
+		gi.LocCenter_Print(ent, "You voted for Map: %s\n", voted_map);
 		// Guardar el nombre del mapa votado en el cliente
 		Q_strlcpy(ent->client->voted_map, voted_map, sizeof(ent->client->voted_map));
 		CTFWarp(ent, voted_map);
@@ -3155,12 +3167,16 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		}
 	}
 	else if (option == MAX_MAPS_PER_PAGE + 4) { // Ajustar índices
-		// Previous
+		// Previous o Back to Horde Menu
 		if (current_page > 0) {
 			current_page--;
 			UpdateVoteMenu();
 			PMenu_Close(ent); // Cerrar el menú actual antes de abrir uno nuevo
 			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
+		}
+		else {
+			PMenu_Close(ent); // Cerrar el menú de votación de mapas
+			OpenSpectatorMenu(ent); // Abrir el menú de horda
 		}
 	}
 	else if (option == MAX_MAPS_PER_PAGE + 5) { // Ajustar índices
@@ -3579,10 +3595,6 @@ void CTFObserver(edict_t* ent)
 {
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
 		return;
-
-	extern void VerifyAndAdjustBots() noexcept;
-	VerifyAndAdjustBots();
-
 
 	// start as 'observer'
 	if (ent->movetype == MOVETYPE_NOCLIP)
