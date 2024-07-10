@@ -727,9 +727,7 @@ void OpenSpectatorMenu(edict_t* ent);
 void Cmd_Inven_f(edict_t* ent)
 {
 	int i;
-	gclient_t* cl;
-
-	cl = ent->client;
+	gclient_t* cl = ent->client;
 
 	cl->showscores = false;
 	cl->showhelp = false;
@@ -774,6 +772,7 @@ void Cmd_Inven_f(edict_t* ent)
 		gi.WriteShort(0);
 	gi.unicast(ent, true);
 }
+
 
 /*
 =================

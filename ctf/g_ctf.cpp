@@ -3047,12 +3047,122 @@ void ShowInventory(edict_t* ent) {
 	gi.unicast(ent, true);
 }
 
-
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p);
 void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
 void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
+
+//vote menu
+
+#define MAX_MAPS_PER_PAGE 6
+
+struct map_list_t {
+	char maps[64][128]; // Asumiendo que hay un máximo de 64 mapas y cada nombre de mapa tiene hasta 128 caracteres
+	int num_maps;
+};
+
+static map_list_t map_list;
+static int current_page = 0;
+
+void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p);
+
+// Definir el número correcto de elementos en el array `vote_menu`
+static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 4] = {
+	{ "*Voting Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "Next", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "Previous", PMENU_ALIGN_LEFT, VoteMenuHandler },
+	{ "Close", PMENU_ALIGN_LEFT, VoteMenuHandler }
+};
+
+
+//vote menu stuff
+
+void LoadMapList() {
+	const char* mlist = g_map_list->string;
+	char* token;
+
+	map_list.num_maps = 0;
+	while (*(token = COM_Parse(&mlist)) != '\0' && map_list.num_maps < 64) {
+		Q_strlcpy(map_list.maps[map_list.num_maps], token, sizeof(map_list.maps[map_list.num_maps]));
+		map_list.num_maps++;
+	}
+}
+
+void UpdateVoteMenu() {
+	int start = current_page * MAX_MAPS_PER_PAGE;
+	int end = start + MAX_MAPS_PER_PAGE;
+	if (end > map_list.num_maps) end = map_list.num_maps;
+
+	for (int i = 1; i <= MAX_MAPS_PER_PAGE; i++) {
+		if (start < end) {
+			Q_strlcpy(vote_menu[i].text, map_list.maps[start], sizeof(vote_menu[i].text));
+			vote_menu[i].SelectFunc = VoteMenuHandler;
+			start++;
+		}
+		else {
+			vote_menu[i].text[0] = '\0';
+			vote_menu[i].SelectFunc = nullptr;
+		}
+	}
+
+	// Asegúrate de que las opciones de navegación están disponibles
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 1].text, "Next", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 1].text));
+	vote_menu[MAX_MAPS_PER_PAGE + 1].SelectFunc = VoteMenuHandler;
+
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 2].text, "Previous", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 2].text));
+	vote_menu[MAX_MAPS_PER_PAGE + 2].SelectFunc = VoteMenuHandler;
+
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Close", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
+	vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = VoteMenuHandler;
+}
+
+
+void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	int option = p->cur;
+
+	if (option >= 1 && option <= MAX_MAPS_PER_PAGE) {
+		// Construir el comando vote con el nombre del mapa seleccionado
+		char command[256];
+		snprintf(command, sizeof(command), "vote %s\n", vote_menu[option].text);
+		gi.AddCommandString(command);
+		PMenu_Close(ent);
+	}
+	else if (option == MAX_MAPS_PER_PAGE + 1) {
+		// Next
+		if ((current_page + 1) * MAX_MAPS_PER_PAGE < map_list.num_maps) {
+			current_page++;
+			UpdateVoteMenu();
+			PMenu_Close(ent); // Cerrar el menú actual antes de abrir uno nuevo
+			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
+		}
+	}
+	else if (option == MAX_MAPS_PER_PAGE + 2) {
+		// Previous
+		if (current_page > 0) {
+			current_page--;
+			UpdateVoteMenu();
+			PMenu_Close(ent); // Cerrar el menú actual antes de abrir uno nuevo
+			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
+		}
+	}
+	else if (option == MAX_MAPS_PER_PAGE + 3) {
+		// Close
+		PMenu_Close(ent);
+	}
+}
+
+void OpenVoteMenu(edict_t* ent) {
+	current_page = 0;
+	LoadMapList();
+	UpdateVoteMenu();
+	PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
+}
 //TEST
 
 void SpectatorMenuHandler(edict_t* ent, pmenuhnd_t* p) {
@@ -3067,16 +3177,23 @@ void SpectatorMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		CTFObserver(ent);
 		PMenu_Close(ent);
 		break;
-	case 3: // Close menu
+	case 3: // Vote Map
+		PMenu_Close(ent); // Cerrar el menú actual
+		OpenVoteMenu(ent); // Abrir el menú de votación de mapas
+		break;
+	case 4: // Close menu
 		PMenu_Close(ent);
 		break;
 	}
 }
 
+
+
 static const pmenu_t spectator_menu[] = {
-	{ "*Horde Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "*Spectator Menu", PMENU_ALIGN_CENTER, nullptr },
 	{ "Show Inventory", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
 	{ "Go spectator", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
+	{ "Vote Map", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
 	{ "Close", PMENU_ALIGN_LEFT, SpectatorMenuHandler }
 };
 
@@ -4325,6 +4442,7 @@ void CTFWarp(edict_t* ent)
 		// ctfgame.elevel ya se ha establecido
 	}
 }
+
 
 
 void CTFBoot(edict_t* ent)
