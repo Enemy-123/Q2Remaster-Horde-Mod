@@ -609,10 +609,10 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		damage = 9999;
 	}
 
+	// Registra el tipo de daño solo si no es MOD_TRAP
 	if (damage > 0 && attacker && attacker->client && mod.id != MOD_TRAP) {
 		attacker->client->total_damage += damage;
 	}
-
 	sphere_notified = false; // PGM
 
 	// friendly fire avoidance
