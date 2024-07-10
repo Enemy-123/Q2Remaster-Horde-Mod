@@ -3208,7 +3208,7 @@ static const pmenu_t horde_menu[] = {
 	{ "*Horde Menu", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
 	{ "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "Go Spectator", PMENU_ALIGN_LEFT, HordeMenuHandler },
+	{ "Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
 	{ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler },
