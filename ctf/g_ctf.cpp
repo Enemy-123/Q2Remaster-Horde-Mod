@@ -3194,13 +3194,11 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		OpenVoteMenu(ent); // Abrir el menú de votación de mapas
 		break;
 	case 6: // Vote Yes
-		gi.LocCenter_Print(ent, "You voted YES.\n");
-		gi.AddCommandString("yes");
+		CTFVoteYes(ent);
 		PMenu_Close(ent);
 		break;
 	case 7: // Vote No
-		gi.LocCenter_Print(ent, "You voted NO.\n");
-		gi.AddCommandString("no");
+		CTFVoteNo(ent);
 		PMenu_Close(ent);
 		break;
 	case 11: // Close menu
