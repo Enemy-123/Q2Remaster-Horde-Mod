@@ -1312,6 +1312,9 @@ void ResetGame() noexcept {
     gi.cvar_set("g_tracedbullets", "0");
     gi.cvar_set("g_autohaste", "0");
 
+    //Bots back to default
+    gi.cvar_set("bot_minClients", "4");
+
     // Reset spawn cooldowns
     SPAWN_POINT_COOLDOWN = 3.8_sec;
 
