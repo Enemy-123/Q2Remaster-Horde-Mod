@@ -887,7 +887,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		}
 	}
 
-
 	int real_damage = damage;
 
 	if (!targ || !attacker)
@@ -901,7 +900,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		edict_t* player = attacker;
 
 		// Calcular el daño real realizado, considerando la salud actual del objetivo
-		if (initial_health <= 0 + targ->gib_health ) {
+		if (initial_health <= 0 + targ->gib_health) {
 			real_damage = 0; // Si el objetivo ya está muerto, no se añade más daño
 		}
 		else {
@@ -909,15 +908,20 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		}
 
 		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
-		if (level.time - player->lastdmg <= 0.2_sec && player->client->dmg_counter <= 32767)
-			player->client->dmg_counter += real_damage;
-		else
-			player->client->dmg_counter = real_damage;
+		if (g_iddmg->integer) { // Verificar si g_iddmg->integer está habilitado
+			if (level.time - player->lastdmg <= 0.2_sec && player->client->dmg_counter <= 32767) {
+				player->client->dmg_counter += real_damage;
+			}
+			else {
+				player->client->dmg_counter = real_damage;
+			}
 
-		player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
+			player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
+		}
 
 		player->lastdmg = level.time;
 	}
+
 
 	// ZOID
 	// team armor protect

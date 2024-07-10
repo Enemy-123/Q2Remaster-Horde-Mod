@@ -1071,10 +1071,8 @@ void G_SetStats(edict_t* ent)
 	//
 	// frags
 	//
-	 ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree; // unused test
+	// ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree; //Spree
 
-	 // Inicializar STAT_ID_DAMAGE a 0
-	 ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
 
 	 //DMG ID
 	 if (level.time > ent->lastdmg + 2_sec) {

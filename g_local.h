@@ -1954,6 +1954,7 @@ extern cvar_t* g_ammoregen;
 extern cvar_t* g_tracedbullets;
 extern cvar_t* g_startarmor;
 extern cvar_t* g_vampire;
+extern cvar_t* g_iddmg;
 extern cvar_t* g_autohaste;
 extern cvar_t* wavenext;
 extern cvar_t* dm_monsters;
@@ -3095,7 +3096,7 @@ struct gclient_t
 	bool techItemsRemoved;
 	gtime_t time_in_bad_area;
 	edict_t* idtarget;
-	float dmg_counter; // ID DMG
+	int dmg_counter; // ID DMG
 	int total_damage; // Total damage dealt by this player
 };
 
