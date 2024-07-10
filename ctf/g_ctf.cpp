@@ -3031,10 +3031,61 @@ bool CTFMatchOn()
 
 /*-----------------------------------------------------------------------*/
 
+void ShowInventory(edict_t* ent) {
+	int i;
+	gclient_t* cl = ent->client;
+
+	cl->showinventory = true;
+
+	gi.WriteByte(svc_inventory);
+	for (i = 0; i < IT_TOTAL; i++) {
+		gi.WriteShort(cl->pers.inventory[i]);
+	}
+	for (; i < MAX_ITEMS; i++) {
+		gi.WriteShort(0);
+	}
+	gi.unicast(ent, true);
+}
+
+
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p);
 void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
 void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
+void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
+//TEST
+
+void SpectatorMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	int option = p->cur;
+
+	switch (option) {
+	case 1: // Show Inventory
+		ShowInventory(ent);
+		PMenu_Close(ent);
+		break;
+	case 2: // Join as spectator
+		CTFObserver(ent);
+		PMenu_Close(ent);
+		break;
+	case 3: // Close menu
+		PMenu_Close(ent);
+		break;
+	}
+}
+
+static const pmenu_t spectator_menu[] = {
+	{ "*Horde Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "Show Inventory", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
+	{ "Go spectator", PMENU_ALIGN_LEFT, SpectatorMenuHandler },
+	{ "Close", PMENU_ALIGN_LEFT, SpectatorMenuHandler }
+};
+
+void OpenSpectatorMenu(edict_t* ent) {
+	PMenu_Open(ent, spectator_menu, -1, sizeof(spectator_menu) / sizeof(pmenu_t), nullptr, nullptr);
+}
+
+
+//TEAMS MENU & STUFF
 
 static const int jmenu_level = 1;
 static const int jmenu_match = 2;

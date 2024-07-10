@@ -722,14 +722,11 @@ void Cmd_Drop_f(edict_t* ent)
 	ValidateSelectedItem(ent);
 }
 
-/*
-=================
-Cmd_Inven_f
-=================
-*/
+// Al principio del archivo
+void OpenSpectatorMenu(edict_t* ent);
 void Cmd_Inven_f(edict_t* ent)
 {
-	int		   i;
+	int i;
 	gclient_t* cl;
 
 	cl = ent->client;
@@ -755,6 +752,12 @@ void Cmd_Inven_f(edict_t* ent)
 	}
 
 	// ZOID
+	if (G_TeamplayEnabled() && cl->resp.ctf_team == CTF_TEAM1)
+	{
+		OpenSpectatorMenu(ent);
+		return;
+	}
+
 	if (G_TeamplayEnabled() && cl->resp.ctf_team == CTF_NOTEAM)
 	{
 		CTFOpenJoinMenu(ent);
