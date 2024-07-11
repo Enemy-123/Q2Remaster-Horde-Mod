@@ -3257,7 +3257,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) { // Empezar en 2 para saltar la línea en blanco
 		// Construir el comando vote con el nombre del mapa seleccionado
 		const char* voted_map = vote_menu[option].text;
-		gi.LocCenter_Print(ent, "You voted for Map: %s\n", voted_map);
+		gi.LocCenter_Print(ent, "You voted for Map: {}\n", voted_map);
 		// Guardar el nombre del mapa votado en el cliente
 		Q_strlcpy(ent->client->voted_map, voted_map, sizeof(ent->client->voted_map));
 		CTFWarp(ent, voted_map);
