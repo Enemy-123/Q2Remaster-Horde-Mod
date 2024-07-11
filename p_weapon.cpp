@@ -1384,7 +1384,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 void Weapon_Blaster_Fire(edict_t* ent)
 {
 	// give the blaster 15 across the board instead of just in dm
-	int damage = 15;
+	int damage = irandom(14, 22);
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
