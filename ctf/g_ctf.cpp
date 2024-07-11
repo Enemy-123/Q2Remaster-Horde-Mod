@@ -2093,9 +2093,9 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 void CTFHasTech(edict_t* who)
 {
-	if (level.time - who->client->ctf_lasttechmsg > 5_sec && current_wave_number <= 4)
+	if (level.time - who->client->ctf_lasttechmsg > 5_sec && current_wave_number <= 5)
 	{
-		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
+		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Get it on Horde Menu -> Open Inventory\n");
 		//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
 		//	gi.LocBroadcast_Print(PRINT_CHAT, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn: Menu > Options > Input > Customize Bindings\n");
 		who->client->ctf_lasttechmsg = (level.time);
@@ -2539,7 +2539,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0069\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0070\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
