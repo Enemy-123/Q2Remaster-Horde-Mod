@@ -424,6 +424,8 @@ constexpr struct weighted_item_t {
 // Definición de monstruos ponderados
 constexpr weighted_item_t monsters[] = {
     { "monster_soldier_light", -1, 19, 0.35f },
+    { "monster_shocker", -1, 19, 0.35f },
+    { "monster_gnorta", -1, 19, 0.35f },
     { "monster_soldier_ss", -1, 20, 0.45f },
     { "monster_soldier", -1, 2, 0.45f },
     { "monster_soldier", 3, 9, 0.35f },
@@ -477,7 +479,8 @@ constexpr weighted_item_t monsters[] = {
     { "monster_boss2_64", 16, -1, 0.05f },
     { "monster_carrier2", 20, -1, 0.07f },
     { "monster_perrokl", 21, -1, 0.33f },
-    { "monster_widow1", 23, -1, 0.08f }
+    { "monster_widow1", 23, -1, 0.08f },
+    { "monster_protector", 28, -1, 0.33f }
 };
 
 // Definición de jefes por tamaño de mapa
@@ -496,6 +499,7 @@ constexpr boss_t BOSS_SMALL[] = {
     {"monster_shamblerkl", -1, -1, 0.05f},
     {"monster_guncmdrkl", -1, 19, 0.05f},
     {"monster_makronkl", 36, -1, 0.05f},
+    {"monster_protector", -1, 19, 0.05f},
     {"monster_arachnid", -1, 19, 0.05f},
     {"monster_redmutant", -1, 24, 0.05f}
 };
@@ -507,6 +511,7 @@ constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_guardian", -1, 24, 0.1f},
     {"monster_shamblerkl", -1, 24, 0.1f},
     {"monster_guncmdrkl", -1, 24, 0.1f},
+    {"monster_protector", -1, 24, 0.1f},
     {"monster_arachnid", -1, 24, 0.1f},
     {"monster_makronkl", 26, -1, 0.1f}
 };

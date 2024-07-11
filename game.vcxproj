@@ -131,6 +131,7 @@
     <ClInclude Include="m_float.h" />
     <ClInclude Include="m_flyer.h" />
     <ClInclude Include="m_gladiator.h" />
+    <ClInclude Include="m_gnorta.h" />
     <ClInclude Include="m_guardian.h" />
     <ClInclude Include="m_gunner.h" />
     <ClInclude Include="m_hover.h" />
@@ -142,6 +143,7 @@
     <ClInclude Include="m_player.h" />
     <ClInclude Include="m_rider.h" />
     <ClInclude Include="m_shambler.h" />
+    <ClInclude Include="m_shocker.h" />
     <ClInclude Include="m_soldier.h" />
     <ClInclude Include="m_supertank.h" />
     <ClInclude Include="m_tank.h" />
@@ -166,6 +168,8 @@
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
+    <ClCompile Include="m_arachnid2.cpp" />
+    <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_guncmdr_vanilla.cpp" />
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="g_ai.cpp" />
@@ -215,6 +219,7 @@
     <ClCompile Include="m_mutant.cpp" />
     <ClCompile Include="m_parasite.cpp" />
     <ClCompile Include="m_redmutant.cpp" />
+    <ClCompile Include="m_shocker.cpp" />
     <ClCompile Include="rogue/m_rogue_turret.cpp" />
     <ClCompile Include="m_shambler.cpp" />
     <ClCompile Include="m_soldier.cpp" />

@@ -165,6 +165,10 @@ void SP_monster_spider(edict_t* self);
 void SP_monster_guncmdr(edict_t* self);
 void SP_monster_guncmdr2(edict_t* self);
 void SP_monster_guncmdrkl(edict_t* self);
+void SP_monster_shocker(edict_t* self);
+void SP_monster_gnorta(edict_t* self);
+void SP_monster_arachnid2(edict_t* self);
+void SP_monster_protector(edict_t* self);
 
 void SP_monster_commander_body(edict_t* self);
 
@@ -402,6 +406,10 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_guncmdr", SP_monster_guncmdr },
 	{ "monster_guncmdr2", SP_monster_guncmdr2 },
 	{ "monster_guncmdrkl", SP_monster_guncmdrkl },
+	{ "monster_shocker", SP_monster_shocker },
+	{ "monster_gnorta", SP_monster_gnorta },
+	{ "monster_arachnid2", SP_monster_arachnid2 },
+	{ "monster_protector", SP_monster_protector },
 
 	{ "monster_commander_body", SP_monster_commander_body },
 
