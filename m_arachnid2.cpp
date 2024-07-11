@@ -497,16 +497,18 @@ MMOVE_T(arachnid2_move_death) = { FRAME_death1, FRAME_death20, arachnid2_frames_
 DIE(arachnid2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	// check for gib
-	/* KONIG - replaced generic head for gunner head, added gunner chest, added generic gear gib*/
 	if (M_CheckGib(self, mod))
 	{
 		gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+
 		ThrowGibs(self, damage, {
 			{ 2, "models/objects/gibs/bone/tris.md2" },
-			{ 4, "models/objects/gibs/sm_meat/tris.md2" },
-			{ 1, "models/objects/gibs/gear/tris.md2" },
-			{ "models/monsters/gunner/gibs/chest.md2", GIB_SKINNED },
-			{ "models/monsters/gunner/gibs/head.md2", GIB_SKINNED | GIB_HEAD }
+			{ 2, "models/objects/gibs/sm_meat/tris.md2" },
+			{ "models/monsters/gunner/gibs/chest.md2", GIB_METALLIC },
+			{ "models/monsters/gunner/gibs/garm.md2", GIB_METALLIC | GIB_UPRIGHT },
+			{ "models/monsters/gladiatr/gibs/rarm.md2", GIB_METALLIC | GIB_UPRIGHT },
+			{ "models/monsters/gunner/gibs/foot.md2", GIB_METALLIC },
+			{ "models/monsters/gunner/gibs/head.md2", GIB_METALLIC | GIB_HEAD }
 			});
 		self->deadflag = true;
 		return;
@@ -592,14 +594,22 @@ void SP_monster_protector(edict_t* self)
 	self->monsterinfo.armor_power = 100;
 	self->style = 1;
 	self->s.skinnum = 2;
-	ApplyMonsterBonusFlags(self);
+
+
+	if (!self->s.scale && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+		self->s.scale = 0.85f;
+	self->health = 650 * st.health_multiplier;
+
+	self->mins = { -41, -41, -17 };
+	self->maxs = { 41, 41, 41 };
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health = 2500 * st.health_multiplier;
+		self->health = 3200 * st.health_multiplier;
 		self->gib_health = -999000;
 		ApplyMonsterBonusFlags(self);
 	}
 	else
 		self->health = 1000 * st.health_multiplier;
 	self->gib_health = -200;
+	ApplyMonsterBonusFlags(self);
 }

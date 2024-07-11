@@ -424,8 +424,6 @@ constexpr struct weighted_item_t {
 // Definición de monstruos ponderados
 constexpr weighted_item_t monsters[] = {
     { "monster_soldier_light", -1, 19, 0.35f },
-    { "monster_shocker", -1, 19, 0.35f },
-    { "monster_gnorta", -1, 19, 0.35f },
     { "monster_soldier_ss", -1, 20, 0.45f },
     { "monster_soldier", -1, 2, 0.45f },
     { "monster_soldier", 3, 9, 0.35f },
@@ -464,6 +462,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_medic_commander", 16, -1, 0.06f },
     { "monster_tank_commander", 11, -1, 0.15f },
     { "monster_spider", 13, 19, 0.27f },
+    { "monster_protector", 28, -1, 0.33f },
     { "monster_arachnid", 20, -1, 0.27f },
     { "monster_guncmdr", 11, -1, 0.28f },
     { "monster_gladc", 7, -1, 0.3f },
@@ -479,8 +478,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_boss2_64", 16, -1, 0.05f },
     { "monster_carrier2", 20, -1, 0.07f },
     { "monster_perrokl", 21, -1, 0.33f },
-    { "monster_widow1", 23, -1, 0.08f },
-    { "monster_protector", 28, -1, 0.33f }
+    { "monster_widow1", 23, -1, 0.08f }
 };
 
 // Definición de jefes por tamaño de mapa
