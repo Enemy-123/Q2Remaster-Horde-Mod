@@ -900,11 +900,18 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		edict_t* player = attacker;
 
 		// Calcular el daño real realizado, considerando la salud actual del objetivo
-		if (initial_health <= 0 + targ->gib_health) {
+		if (initial_health <= 0) {
 			real_damage = 0; // Si el objetivo ya está muerto, no se añade más daño
 		}
 		else {
-			real_damage = (initial_health < damage) ? initial_health : damage;
+			// Considerar la salud máxima del objetivo y la gib_health en positivo
+			int max_possible_health = targ->max_health + abs(targ->gib_health);
+			if (initial_health <= max_possible_health) {
+				real_damage = (initial_health < damage) ? initial_health : damage;
+			}
+			else {
+				real_damage = damage;
+			}
 		}
 
 		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
@@ -921,6 +928,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 		player->lastdmg = level.time;
 	}
+
 
 
 	// ZOID
