@@ -614,12 +614,12 @@ void ED_CallSpawn(edict_t* ent) {
 	if (g_chaotic->integer == 2) {
 		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.008f);
 	}
-	else if (g_chaotic->integer == 3) {
+	else if (g_chaotic->integer == 1 && current_wave_number >= 7) {
 		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
 	}
 
-	if (g_insane->integer == 1) {
-		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.0012f);
+	if (g_insane->integer == 1 && current_wave_number >= 19) {
+		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.04f);
 	}
 	else if (g_insane->integer == 2) {
 		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.33f);

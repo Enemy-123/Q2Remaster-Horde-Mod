@@ -3029,7 +3029,36 @@ bool CTFMatchOn()
 	return false;
 }
 
+
 /*-----------------------------------------------------------------------*/
+
+void RemoveTech(edict_t* ent) {
+	// Recorrer los TECHS específicos
+	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
+		int tech_index = tech_ids[i];
+		if (ent->client->pers.inventory[tech_index] > 0) {
+			// Eliminar el TECH item del inventario del jugador
+			ent->client->pers.inventory[tech_index] = 0;
+
+			// Reiniciar el estado de todos los TECH items del mismo tipo
+			for (unsigned int j = 0; j < game.maxentities; j++) {
+				edict_t* tech = &g_edicts[j];
+				if (tech->inuse && tech->item && tech->item->id == tech_index) {
+					tech->svflags &= ~SVF_NOCLIENT;
+					tech->solid = SOLID_TRIGGER;
+					tech->movetype = MOVETYPE_TOSS;
+					tech->touch = Touch_Item;
+					tech->nextthink = level.time + CTF_TECH_TIMEOUT;
+					tech->think = TechThink;
+					// Reiniciar el registro de quién ha recogido el item
+					tech->item_picked_up_by.reset();
+					gi.linkentity(tech);
+				}
+			}
+		}
+	}
+}
+
 
 void ShowInventory(edict_t* ent) {
 	int i;
@@ -3053,7 +3082,79 @@ void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
 void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 
-//vote menu
+//Tech Menu
+void OpenTechMenu(edict_t* ent);
+void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
+
+// Definir los TECHS disponibles
+static const char* tech_names[] = {
+	"Haste",
+	"Strength",
+	"Regeneration",
+	"Resistance"
+};
+
+static pmenu_t tech_menu[6] = {
+	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler }
+};
+
+void OpenTechMenu(edict_t* ent) {
+	PMenu_Open(ent, tech_menu, -1, sizeof(tech_menu) / sizeof(pmenu_t), nullptr, nullptr);
+}
+
+void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	int option = p->cur - 2; // Restar 2 para ajustar el índice al array de TECHS
+
+	if (option >= 0 && option < sizeof(tech_names) / sizeof(tech_names[0])) {
+		// Eliminar TECHS anteriores
+		RemoveTech(ent);
+
+		// Mapear el índice de la opción al índice correcto en tech_ids
+		int tech_index = -1;
+		if (strcmp(tech_names[option], "Haste") == 0) {
+			tech_index = IT_TECH_HASTE;
+		}
+		else if (strcmp(tech_names[option], "Strength") == 0) {
+			tech_index = IT_TECH_STRENGTH;
+		}
+		else if (strcmp(tech_names[option], "Regeneration") == 0) {
+			tech_index = IT_TECH_REGENERATION;
+		}
+		else if (strcmp(tech_names[option], "Resistance") == 0) {
+			tech_index = IT_TECH_RESISTANCE;
+		}
+
+		// Añadir el nuevo TECH seleccionado
+		if (tech_index != -1) {
+			ent->client->pers.inventory[tech_index] = 1;
+			gi.LocCenter_Print(ent, "Selected Tech: {}\n", tech_names[option]);
+
+			// Ejecutar el sonido correspondiente al TECH seleccionado
+			switch (tech_index) {
+			case IT_TECH_HASTE:
+				CTFApplyHasteSound(ent);
+				break;
+			case IT_TECH_STRENGTH:
+				CTFApplyStrengthSound(ent);
+				break;
+			case IT_TECH_REGENERATION:
+				CTFApplyRegeneration(ent);
+				break;
+			case IT_TECH_RESISTANCE:
+				CTFApplyResistance(ent, 0); // 0 damage just to play the sound
+				break;
+			}
+		}
+	}
+
+	PMenu_Close(ent); // Cerrar el menú de TECHS
+}
+
 
 #define MAX_MAPS_PER_PAGE 11
 
@@ -3087,6 +3188,7 @@ static pmenu_t vote_menu[MAX_MAPS_PER_PAGE + 5 + 1] = { // +5 para la línea en 
 	{ "Previous", PMENU_ALIGN_LEFT, VoteMenuHandler },
 	{ "Close", PMENU_ALIGN_LEFT, VoteMenuHandler }
 };
+
 
 //vote menu stuff
 
@@ -3202,11 +3304,11 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		ShowInventory(ent);
 		PMenu_Close(ent);
 		break;
-	case 3: // Join as spectator
+	case 3: // Go Spectator/AFK
 		CTFObserver(ent);
 		PMenu_Close(ent);
 		break;
-	case 4: // Vote Map
+	case 5: // Vote Map
 		PMenu_Close(ent); // Cerrar el menú actual
 		OpenVoteMenu(ent); // Abrir el menú de votación de mapas
 		break;
@@ -3217,6 +3319,10 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	case 7: // Vote No
 		CTFVoteNo(ent);
 		PMenu_Close(ent);
+		break;
+	case 9: // Change Tech
+		PMenu_Close(ent); // Cerrar el menú actual
+		OpenTechMenu(ent); // Abrir el menú de TECHS
 		break;
 	case 11: // Close menu
 		PMenu_Close(ent);
@@ -3229,12 +3335,12 @@ static const pmenu_t horde_menu[] = {
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
 	{ "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
 	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
 };
