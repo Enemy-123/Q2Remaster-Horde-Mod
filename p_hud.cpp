@@ -1075,7 +1075,7 @@ void G_SetStats(edict_t* ent)
 
 
 	 //DMG ID
-	 if (level.time > ent->lastdmg + 2_sec) {
+	 if (level.time > ent->lastdmg + 2_sec || !g_iddmg->integer) {
 		 ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
 	 }
 	 else {
