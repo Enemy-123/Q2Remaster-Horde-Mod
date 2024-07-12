@@ -245,7 +245,7 @@ void protector_rockets(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
 
-	rocketSpeed = 500;
+	rocketSpeed = 800;
 
 	if (blindfire)
 		target = self->monsterinfo.blind_fire_target;
@@ -364,11 +364,11 @@ mframe_t protector_frames_attack1[] = {
 	{ ai_charge },
 	{ ai_charge, 0, protector_rockets },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, protector_rockets },
 	{ ai_charge },
 	{ ai_charge, 0, protector_rockets },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, protector_rockets },
 	{ ai_charge }
 };
 MMOVE_T(protector_attack1) = { FRAME_rails1, FRAME_rails11, protector_frames_attack1, arachnid2_run };
@@ -377,7 +377,7 @@ mframe_t protector_frames_attack_up1[] = {
 	{ ai_charge, 0, protector_blind_check },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, protector_rockets },
 	{ ai_charge },
 	{ ai_charge, 0, protector_rockets },
 	{ ai_charge },
@@ -385,7 +385,7 @@ mframe_t protector_frames_attack_up1[] = {
 	{ ai_charge },
 	{ ai_charge, 0, protector_rockets },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, protector_rockets },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
