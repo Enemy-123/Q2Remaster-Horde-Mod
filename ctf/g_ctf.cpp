@@ -2099,7 +2099,7 @@ void CTFHasTech(edict_t* who)
 {
 	if (level.time - who->client->ctf_lasttechmsg > 5_sec && current_wave_number <= 5)
 	{
-		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Get it on Horde Menu -> Open Inventory\n");
+		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Equip it on Horde Menu with *TAB* key\n");
 		//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
 		//	gi.LocBroadcast_Print(PRINT_CHAT, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn: Menu > Options > Input > Customize Bindings\n");
 		who->client->ctf_lasttechmsg = (level.time);

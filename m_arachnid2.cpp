@@ -523,8 +523,12 @@ DIE(arachnid2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 	self->takedamage = true;
 
 	M_SetAnimation(self, &arachnid2_move_death);
-}
 
+	extern void BossDeathHandler(edict_t * boss);
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		BossDeathHandler(self);
+	}
+}
 //
 // monster_arachnid2
 //
@@ -551,12 +555,16 @@ void SP_monster_arachnid2(edict_t* self)
 	self->maxs = { 48, 48, 48 };
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
-
-	self->health = 1000 * st.health_multiplier;
-	self->gib_health = -200;
-
 	self->monsterinfo.scale = MODEL_SCALE;
 
+
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		self->health = 2500 * st.health_multiplier;
+		self->gib_health = -999000;
+	}
+	else
+		self->health = 1000 * st.health_multiplier;
+	self->gib_health = -200;
 	self->mass = 450;
 
 	self->pain = arachnid2_pain;
@@ -574,15 +582,6 @@ void SP_monster_arachnid2(edict_t* self)
 
 	walkmonster_start(self);
 	ApplyMonsterBonusFlags(self);
-
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health = 2500 * st.health_multiplier;
-		self->gib_health = -999000;
-		ApplyMonsterBonusFlags(self);
-	}
-	else
-		self->health = 1000 * st.health_multiplier;
-	self->gib_health = -200;
 }
 
 /*KONIG - Stream Protector from Q4 as Arachnid Beta*/
