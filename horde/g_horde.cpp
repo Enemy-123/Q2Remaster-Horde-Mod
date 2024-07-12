@@ -945,7 +945,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
 
         std::vector<const char*> itemsToDrop = {
             "item_adrenaline",
-            "item_health_large",
+            "item_pack",
             "item_health_mega",
             "item_armor_body"
         };
@@ -987,7 +987,8 @@ void BossDeathHandler(edict_t* boss) noexcept {
 
         // Asegurar que el ítem especial tenga una velocidad instantánea
         specialItem->movetype = MOVETYPE_TOSS;
-        specialItem->s.effects |= EF_BLASTER;
+        specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL;
+        specialItem->s.renderfx |= RF_SHELL_LITE_GREEN;
 
         // Marcar al boss como no atacable para evitar doble manejo
         boss->takedamage = false;
