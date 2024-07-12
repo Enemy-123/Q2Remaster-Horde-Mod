@@ -1601,6 +1601,17 @@ void Compass_Update(edict_t* ent, bool first)
 
 static void Use_Compass(edict_t* ent, gitem_t* inv)
 {
+	if (g_horde->integer) {
+
+		if (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_TEAM1)
+		{
+			extern void OpenSpectatorMenu(edict_t * ent);
+			OpenSpectatorMenu(ent);
+			return;
+		}
+	}
+	else
+
 	if (!level.valid_poi)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "$no_valid_poi");
@@ -1679,6 +1690,10 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 	}
 }
 
+
+const char* GetUseName() { // Compass name on horde, because it opens Menu
+	return (g_horde->integer) ? "Horde Menu" : "Compass";
+}
 //======================================================================
 
 // clang-format off
@@ -3941,7 +3956,7 @@ always owned, never in the world
 			/* world_model */ nullptr,
 			/* world_model_flags */ EF_NONE,
 			/* view_model */ nullptr,
-			/* icon */ "p_compass",
+			/* icon */ "turtle",
 			/* use_name */  "Compass",
 			/* pickup_name */  "$item_compass",
 			/* pickup_name_definite */ "$item_compass_def",
