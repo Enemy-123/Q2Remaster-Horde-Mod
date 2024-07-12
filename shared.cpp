@@ -19,67 +19,67 @@ void RemovePlayerOwnedEntities(edict_t* player)
 
 		if (!ent->inuse)
 			continue;
-
 		if (ent->owner == player || (ent->owner && ent->owner->owner == player))
-		{
-			hasEntities = true;
-			break;
+				{
+					hasEntities = true;
+					break;
+				}
 		}
-	}
 
-	// If no entities are found, return early
-	if (!hasEntities)
-		return;
+		// If no entities are found, return early
+		if (!hasEntities)
+			return;
 
-	// Iterate again to remove entities
-	for (unsigned int i = 0; i < globals.num_edicts; i++)
-	{
-		ent = &g_edicts[i];
-
-		if (!ent->inuse)
-			continue;
-
-		// Check if the owner is the player or the turret owned by the player
-		if (ent->owner == player || (ent->owner && ent->owner->owner == player))
+		// Iterate again to remove entities
+		for (unsigned int i = 0; i < globals.num_edicts; i++)
 		{
-			if (!strcmp(ent->classname, "tesla_mine") ||
-				!strcmp(ent->classname, "food_cube_trap") ||
-				!strcmp(ent->classname, "prox_mine") ||
-				!strcmp(ent->classname, "monster_sentrygun"))
+			ent = &g_edicts[i];
+
+			if (!ent->inuse)
+				continue;
+
+			// Check if the owner is the player or the turret owned by the player
+			if (ent->owner == player || (ent->owner && ent->owner->owner == player))
 			{
-				// Call appropriate die function
-				if (!strcmp(ent->classname, "monster_sentrygun"))
+				if (!strcmp(ent->classname, "tesla_mine") ||
+					!strcmp(ent->classname, "food_cube_trap") ||
+					!strcmp(ent->classname, "prox_mine") ||
+					!strcmp(ent->classname, "monster_sentrygun"))
 				{
-					if (ent->health > 0)
+					// Call appropriate die function
+					if (!strcmp(ent->classname, "monster_sentrygun"))
 					{
-						ent->health = -1;
-						turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+						if (ent->health > 0)
+						{
+							ent->health = -1;
+							turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+						}
 					}
-				}
-				else if (!strcmp(ent->classname, "tesla_mine"))
-				{
-					tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-				}
-				else if (!strcmp(ent->classname, "prox_mine"))
-				{
-					prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-				}
-				else if (!strcmp(ent->classname, "food_cube_trap"))
-				{
-					trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-				}
-				else
-				{
-					// Use freeEdict to remove the entity or create an explosion if appropriate
-					BecomeExplosion1(ent);
+					else if (!strcmp(ent->classname, "tesla_mine"))
+					{
+						tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+					}
+					else if (!strcmp(ent->classname, "prox_mine"))
+					{
+						prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+					}
+					else if (!strcmp(ent->classname, "food_cube_trap"))
+					{
+						trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+					}
+					else
+					{
+						// Use freeEdict to remove the entity or create an explosion if appropriate
+						BecomeExplosion1(ent);
+					}
 				}
 			}
 		}
 	}
 }
 
-void UpdatePowerUpTimes(edict_t* monster)
-{
+	void UpdatePowerUpTimes(edict_t * monster)
+	{
 	if (monster->monsterinfo.quad_time <= level.time)
 	{
 		monster->monsterinfo.damage_modifier_applied = false;
@@ -194,6 +194,7 @@ std::string GetDisplayName(edict_t* ent)
 		{ "monster_gladb", "DarkMatter Gladiator" },
 		{ "monster_boss2_64", "N64 Hornet" },
 		{ "monster_boss2kl", "N64 Hornet" },
+		{ "monster_boss2", "Hornet" },
 		{ "monster_perrokl", "Infected Parasite" },
 		{ "monster_guncmdrkl", "Gunner Grenadier" },
 		{ "monster_shambler", "Shambler" },
@@ -249,7 +250,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
 		monster->s.renderfx |= RF_TRANSLUCENT;
 		monster->monsterinfo.power_armor_power *= 4.0f;
-		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 15_sec;
+		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 12_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
 		monster->s.effects |= EF_GIB | EF_FLAG2;
@@ -257,10 +258,11 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.power_armor_power *= 1.5f;
 		monster->initial_max_health = monster->health; // Incrementar initial_max_health
 		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 175_sec;
+		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
 		monster->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-		monster->s.renderfx |= RF_TRANSLUCENT;
+		monster->s.alpha = 0.5f;
 		monster->health *= 1.7f;
 		monster->monsterinfo.power_armor_power *= 1.7f;
 		monster->initial_max_health = monster->health; // Incrementar initial_max_health
@@ -309,7 +311,7 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 	}
 	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
 		boss->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-		boss->s.renderfx |= RF_TRANSLUCENT;
+		boss->s.alpha = 0.5f;
 		health_multiplier *= 1.7f;
 		power_armor_multiplier *= 1.7f;
 	}
