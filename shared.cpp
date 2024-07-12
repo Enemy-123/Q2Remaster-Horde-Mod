@@ -19,13 +19,18 @@ void RemovePlayerOwnedEntities(edict_t* player)
 
 		if (!ent->inuse)
 			continue;
+
+
+		//if (ent->owner == player ||
+		//	(ent->owner && ent->owner->owner == player) ||
+		//	ent->teammaster == player || ent->teammaster && ent->teammaster->teammaster == player) {
+
 		if (ent->owner == player || (ent->owner && ent->owner->owner == player))
 				{
 					hasEntities = true;
 					break;
 				}
 		}
-
 		// If no entities are found, return early
 		if (!hasEntities)
 			return;
@@ -76,7 +81,6 @@ void RemovePlayerOwnedEntities(edict_t* player)
 			}
 		}
 	}
-}
 
 	void UpdatePowerUpTimes(edict_t * monster)
 	{
