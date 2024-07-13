@@ -570,9 +570,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 	return false;
 }
 
-
-
-
 // check if the two entities are on a team and that
 // they wouldn't damage each other
 bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
