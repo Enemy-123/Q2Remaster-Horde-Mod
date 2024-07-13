@@ -402,9 +402,6 @@ MMOVE_T(chick_move_duck) = { FRAME_duck01, FRAME_duck07, chick_frames_duck, chic
 
 void ChickSlash(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
-		return;
-	}
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 10 };
 
 	// Verificar si self->enemy está correctamente inicializado

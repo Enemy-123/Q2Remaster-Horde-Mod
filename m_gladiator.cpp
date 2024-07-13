@@ -109,9 +109,6 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 
 void GladiatorMelee(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
-		return;
-	}
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
 	// Verificar si self->enemy está correctamente inicializado

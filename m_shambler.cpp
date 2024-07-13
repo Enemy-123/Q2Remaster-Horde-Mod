@@ -366,9 +366,6 @@ void sham_swingr9(edict_t* self);
 
 void sham_smash10(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
-		return;
-	}
 	if (!self->enemy)
 	{
 		// char buffer[256];

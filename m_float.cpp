@@ -513,9 +513,6 @@ MONSTERINFO_WALK(floater2_walk) (edict_t* self) -> void
 
 void floater2_wham(edict_t* self)
 {
-	if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
-		return;
-	}
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 
