@@ -2608,7 +2608,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 
 	// tell everyone
 	gi.Broadcast_Print(PRINT_CHAT, ctfgame.emsg);
-	gi.LocBroadcast_Print(PRINT_HIGH, "Type YES or NO to vote on this request.\n");
+	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass to vote, Optionally Type YES or NO to vote on this request.\n");
 	gi.LocBroadcast_Print(PRINT_HIGH, "Votes: {}  Needed: {}  Time left: {}s\n", ctfgame.evotes, ctfgame.needvotes,
 		(ctfgame.electtime - level.time).seconds<int>());
 
