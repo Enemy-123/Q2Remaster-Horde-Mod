@@ -154,7 +154,7 @@ bool CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const ve
 // SPAWNGROW stuff
 // ****************************
 
-constexpr gtime_t SPAWNGROW_LIFESPAN = 1000_ms;
+constexpr gtime_t SPAWNGROW_LIFESPAN = 1200_ms;
 
 THINK(spawngrow_think) (edict_t* self) -> void
 {

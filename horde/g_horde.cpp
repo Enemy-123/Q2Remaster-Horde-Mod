@@ -1202,8 +1202,8 @@ void SpawnBossAutomatically() noexcept {
 
             // spawngro effect
             vec3_t spawngrow_pos = boss->s.origin;
-            const float start_size = (sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2])) * 0.65f;
-            const float end_size = start_size;
+            const float start_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.65f;
+            const float end_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.025f;
 
             // Realizar el efecto de crecimiento y aplicar telefrag si es necesario
             SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
@@ -1606,8 +1606,9 @@ void SpawnMonsters() noexcept {
         ED_CallSpawn(monster);
 
         vec3_t spawngrow_pos = monster->s.origin;
-        const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.035f;
-        SpawnGrow_Spawn(spawngrow_pos, size, size);
+        const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.055f;
+        const float endsize = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.025f;
+        SpawnGrow_Spawn(spawngrow_pos, size, endsize);
 
         --g_horde_local.num_to_spawn;
     }
