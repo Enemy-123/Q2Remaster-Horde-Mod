@@ -348,7 +348,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was gibbed by a {1}\n";
 			break;
 		case MOD_G_SPLASH:
-			base = "{0} was splattered all over by a {1}'s grenade explosion\n";
+			base = "{0} was splattered all over by a {1}\n";
 			break;
 		case MOD_ROCKET:
 			base = "{0} ate the rocket of a {1}\n";
@@ -363,7 +363,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was railed by a {1}\n";
 			break;
 		case MOD_BFG_LASER:
-			base = "{0} was blasted by a {1}\n";
+			base = "{0} ate the lights of a {1}'s BFG Lasers\n";
 			break;
 		case MOD_BFG_BLAST:
 			base = "{0} was disintegrated by a {1}\n";
