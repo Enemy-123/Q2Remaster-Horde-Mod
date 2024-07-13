@@ -322,10 +322,10 @@ PAIN(gnorta_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 
 MONSTERINFO_SETSKIN(gnorta_setskin) (edict_t* self) -> void
 {
-	if (self->health < (self->max_health / 2))
-		self->s.skinnum = 1;
-	else
-		self->s.skinnum = 0;
+	//if (self->health < (self->max_health / 2))
+	//	self->s.skinnum = 1;
+	//else
+	//	self->s.skinnum = 0;
 }
 
 // ******************
@@ -842,6 +842,9 @@ void SP_monster_gnorta(edict_t* self)
 
 	M_SetAnimation(self, &gnorta_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
+
+	self->s.renderfx |= RF_CUSTOMSKIN;
+	self->s.skinnum = gi.imageindex("models/vault/monsters/infantry/camo.pcx");
 
 	if (self->spawnflags.has(SPAWNFLAG_gnorta_ONROOF))
 	{

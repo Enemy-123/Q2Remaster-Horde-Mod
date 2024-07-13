@@ -249,10 +249,10 @@ PAIN(shocker_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 
 MONSTERINFO_SETSKIN(shocker_setskin) (edict_t* self) -> void
 {
-	if (self->health < (self->max_health / 2))
-		self->s.skinnum = 1;
-	else
-		self->s.skinnum = 0;
+	//if (self->health < (self->max_health / 2))
+	//	self->s.skinnum = 1;
+	//else
+	//	self->s.skinnum = 0;
 }
 
 constexpr vec3_t aimangles[] = {
@@ -935,6 +935,9 @@ void SP_monster_shocker(edict_t* self)
 
 	walkmonster_start(self);
 	ApplyMonsterBonusFlags(self);
+
+self->s.renderfx |= RF_CUSTOMSKIN;
+self->s.skinnum = gi.imageindex("models/vault/monsters/infantry/camo.pcx");
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->health = 2500 * st.health_multiplier;
