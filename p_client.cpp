@@ -853,7 +853,7 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
 	if (g_horde->integer) {
-		if (!(ent->svflags & SVF_BOT) && ent->client->resp.score <= 5) { // this is for those afk players, they will get to observer on the next map if score is below 15
+		if (!(ent->svflags & SVF_BOT) && ent->client->resp.score <= 5) { // this is for those afk players, they will get to observer on the next map if score is below 5
 			client->resp.ctf_team = CTF_NOTEAM;
 		}
 	}

@@ -31,11 +31,9 @@ edict_t* AI_GetSightClient(edict_t* self)
     if (level.intermissiontime)
         return nullptr;
 
-    edict_t** visible_players = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
-    if (!visible_players)
-        return nullptr; // Aseguramos que la memoria se asignó correctamente
-
-    size_t num_visible = 0;
+    edict_t* closestPlayer = nullptr;
+    float closestDistance = 1500.0f; // Rango de búsqueda inicial
+    vec3_t dir{};
 
     for (auto player : active_players())
     {
@@ -44,20 +42,27 @@ edict_t* AI_GetSightClient(edict_t* self)
         else if (player->flags & (FL_NOTARGET | FL_DISGUISED))
             continue;
 
-        // if we're touching them, allow to pass through
+        // Si estamos tocando al jugador, permitimos pasar a través
         if (!boxes_intersect(self->absmin, self->absmax, player->absmin, player->absmax))
         {
             if ((!(self->monsterinfo.aiflags & AI_THIRD_EYE) && !infront(self, player)) || !visible(self, player))
                 continue;
         }
 
-        visible_players[num_visible++] = player; // got one
+        // Calcula la distancia entre el jugador y el monstruo
+        VectorSubtract(player->s.origin, self->s.origin, dir);
+        float distance = VectorLength(dir);
+
+        // Si la distancia es menor a la distancia más cercana conocida, actualiza el jugador más cercano
+        if (distance < closestDistance)
+        {
+            closestPlayer = player;
+            closestDistance = distance;
+        }
     }
 
-    if (!num_visible)
-        return nullptr;
-
-    return visible_players[irandom(num_visible)];
+    // Retorna el jugador más cercano si hay uno visible
+    return closestPlayer;
 }
 
 //============================================================================
@@ -192,40 +197,43 @@ void ai_stand(edict_t* self, float dist)
         else
         {
             self->monsterinfo.idle_time = level.time + random_time(15_sec);
-		}
-	}
+        }
+    }
 
-	// HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
-	if (g_horde->integer && !self->enemy) {
-		edict_t* closestPlayer = nullptr;
-		float closestDistance = 1500.0f; // Rango de búsqueda
-		vec3_t dir{};
+    // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
+    if (g_horde->integer) {
+        edict_t* closestPlayer = nullptr;
+        float closestDistance = 1500.0f; // Rango de búsqueda
+        vec3_t dir{};
 
-		for (unsigned int i = 1; i <= game.maxclients; ++i) {
-			edict_t* client = &g_edicts[i];
-			if (!client->inuse || !client->solid || client->health <= 0) {
-				continue;
-			}
+        for (unsigned int i = 1; i <= game.maxclients; ++i) {
+            edict_t* client = &g_edicts[i];
 
-			VectorSubtract(client->s.origin, self->s.origin, dir);
-			float distance = VectorLength(dir);
+            // Verifica si el cliente está activo, es sólido y tiene salud mayor a 0
+            if (!client->inuse || !client->solid || client->health <= 0) {
+                continue;
+            }
 
-			if (distance < closestDistance) {
-				closestPlayer = client;
-				closestDistance = distance;
-			}
-		}
+            // Calcula la distancia entre el jugador y el monstruo
+            VectorSubtract(client->s.origin, self->s.origin, dir);
+            float distance = VectorLength(dir);
 
-		if (closestPlayer != nullptr) {
-			self->enemy = closestPlayer;
-			self->monsterinfo.run(self);
-			return;
-		}
-	}
+            // Si la distancia es menor a la distancia más cercana conocida, actualiza el jugador más cercano
+            if (distance < closestDistance) {
+                closestPlayer = client;
+                closestDistance = distance;
+            }
+        }
+
+        // Si se encuentra un jugador válido, lo asigna como enemigo y ejecuta la lógica de persecución
+        if (closestPlayer != nullptr) {
+            self->enemy = closestPlayer;
+            self->monsterinfo.run(self);
+            return;
+        }
+    }
+
 }
-
-
-
 /*
 =============
 ai_walk

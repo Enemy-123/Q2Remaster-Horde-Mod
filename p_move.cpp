@@ -251,7 +251,7 @@ trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, co
 		if (pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION)
 			mask &= ~CONTENTS_PLAYER;
 
-		if (g_horde->integer) {
+		if (g_horde->integer) { //fix to squad revive inside a playerclip
 			mask &= ~CONTENTS_PLAYERCLIP;
 		}
 	}
