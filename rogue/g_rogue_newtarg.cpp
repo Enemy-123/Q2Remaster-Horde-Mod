@@ -284,10 +284,10 @@ void SP_target_blacklight(edict_t *ent)
 
 
 
-	{ // auto-remove for deathmatch
-		G_FreeEdict(ent);
-		return;
-	}
+	//{ // auto-remove for deathmatch
+	//	G_FreeEdict(ent);
+	//	return;
+	//}
 
 	ent->mins = {};
 	ent->maxs = {};
@@ -309,10 +309,10 @@ void SP_target_orb(edict_t *ent)
 	
 
 
-	{ // auto-remove for deathmatch
-		G_FreeEdict(ent);
-		return;
-	}
+	//{ // auto-remove for deathmatch
+	//	G_FreeEdict(ent);
+	//	return;
+	//}
 
 	ent->mins = {};
 	ent->maxs = {};

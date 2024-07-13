@@ -594,7 +594,7 @@
 	// pmm
 
 	mframe_t turret2_frames_fire[] = {
-		{ ai_run, 0, turret2Fire },
+		{ ai_run, 0, turret2Aim },
 		{ ai_run, 0, turret2Fire },
 		{ ai_run, 0, turret2Fire },
 		{ ai_run, 0, turret2Fire },
@@ -605,7 +605,7 @@
 
 	// the blind frames need to aim first
 	mframe_t turret2_frames_fire_blind[] = {
-		{ ai_run, 0, turret2FireBlind },
+		{ ai_run, 0, turret2Aim },
 		{ ai_run, 0, turret2FireBlind },
 		{ ai_run, 0, turret2FireBlind },
 		{ ai_run, 0, turret2FireBlind }
