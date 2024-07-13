@@ -2363,7 +2363,7 @@ void PutClientInServer(edict_t* ent)
 	ent->solid = SOLID_BBOX;
 	ent->deadflag = false;
 	ent->air_finished = level.time + 12_sec;
-	ent->clipmask = MASK_PLAYERSOLID;
+	ent->clipmask = (g_horde->integer) ? MASK_HORDEPLAYER : MASK_PLAYERSOLID; // fix to stuck players
 	ent->model = "players/male/tris.md2";
 	ent->die = player_die;
 	ent->waterlevel = WATER_NONE;

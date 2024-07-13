@@ -226,6 +226,9 @@ trace_t PM_Clip(const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, con
 
 trace_t PM_Trace(const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, const vec3_t &end, contents_t mask = CONTENTS_NONE)
 {
+	extern cvar_t* g_horde;
+
+
 	if (pm->s.pm_type == PM_SPECTATOR)
 		return PM_Clip(start, mins, maxs, end, MASK_SOLID);
 
@@ -236,7 +239,8 @@ trace_t PM_Trace(const vec3_t &start, const vec3_t &mins, const vec3_t &maxs, co
 		else if (pm->s.pm_type == PM_SPECTATOR)
 			mask = MASK_SOLID;
 		else
-			mask = MASK_PLAYERSOLID;
+	mask = (g_horde->integer) ? MASK_HORDEPLAYER : MASK_PLAYERSOLID; // fix to stuck players
+
 
 		if (pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION)
 			mask &= ~CONTENTS_PLAYER;
