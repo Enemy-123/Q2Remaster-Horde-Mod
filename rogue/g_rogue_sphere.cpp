@@ -639,6 +639,11 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 	// PMM
 	sphere->takedamage = false;
 
+	if (!G_ShouldPlayersCollide(true)) {
+		sphere->clipmask &= ~CONTENTS_PLAYER;
+	}
+
+	sphere->svflags = SVF_PLAYER;
 	switch ((spawnflags & SPHERE_TYPE).value)
 	{
 	case SPHERE_DEFENDER.value:
@@ -688,6 +693,7 @@ void Own_Sphere(edict_t *self, edict_t *sphere)
 {
 	if (!sphere)
 		return;
+
 	// ownership only for players
 	if (self->client)
 	{
@@ -696,8 +702,6 @@ void Own_Sphere(edict_t *self, edict_t *sphere)
 		{
 
 			self->client->owned_sphere = sphere;
-			sphere->solid = SOLID_NOT;
-
 		}
 		// they already have one, take care of the old one
 		else

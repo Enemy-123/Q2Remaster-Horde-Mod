@@ -21,7 +21,6 @@
 	constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
 	constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 
-
 	bool FindMTarget(edict_t* self) {
 		edict_t* ent = nullptr;
 		float range = 800.0f; // Rango de búsqueda
@@ -405,7 +404,7 @@
 	//  ATTACK
 	// **********************
 
-	constexpr int32_t TURRET2_BLASTER_DAMAGE = 5;
+	constexpr int32_t TURRET2_BLASTER_DAMAGE = 12;
 	constexpr int32_t TURRET2_BULLET_DAMAGE = 6;
 	// unused
 	// constexpr int32_t turret2_HEAT_DAMAGE	= 4;
@@ -460,7 +459,7 @@
 				if ((self->enemy) && (self->enemy->client))
 					end[2] += self->enemy->viewheight;
 				else
-					end[2] += 10;
+					end[2] += 7;
 			}
 
 			dir = end - start;
@@ -472,10 +471,8 @@
 			{
 				// On harder difficulties, randomly fire directly at enemy
 				// more often; makes them more unpredictable
-				if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
+
 					PredictAim(self, self->enemy, start, 0, true, 0.0f, &dir, nullptr);
-				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET) || frandom() < skill->integer / 5.f)
-					PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 			}
 
 			dir.normalize();
@@ -493,6 +490,7 @@
 
 						if (dist * trace.fraction > 72 && !damageApplied)
 						{
+							PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 							fire_rocket(self->owner, start, dir, 100, 1220, 100, 75); // Pasa el mod_t a monster_fire_rocket
 							damageApplied = true;
 						}
@@ -502,7 +500,8 @@
 				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) && !damageApplied)
 				{
 					// Aplica el daño con el mod_t configurado
-					monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
+					T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
+					monster_fire_heatbeam(self, start, forward, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
 					damageApplied = true;
 				}
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
@@ -520,8 +519,10 @@
 							self->monsterinfo.melee_debounce_time <= level.time && !damageApplied)
 						{
 							// Aplica el daño con el mod_t configurado
-							fire_bullet(self->owner, start, dir, TURRET2_BULLET_DAMAGE, 6, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MOD_TURRET);
-							self->monsterinfo.melee_debounce_time = level.time + 15_hz;
+
+							T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 0, DAMAGE_NONE, MOD_TURRET);
+							monster_fire_bullet(self, start, dir, 0, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
+							self->monsterinfo.melee_debounce_time = level.time + 15_hz;	
 							damageApplied = true;
 						}
 
@@ -973,17 +974,20 @@
 
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 		self->monsterinfo.power_armor_power = 125;
-
 		self->health = 90;
 		self->gib_health = -100;
 		self->mass = 100;
 		self->yaw_speed = 15;
-		self->clipmask =  CONTENTS_MONSTER | ~CONTENTS_PLAYER;
 		self->solid = SOLID_BBOX;
-		self->svflags |= SVF_PLAYER;
+		self->svflags = SVF_PLAYER;
 		self->flags |= FL_MECHANICAL;
 		self->pain = turret2_pain;
 		self->die = turret2_die;
+
+		// [Paril-KEX]
+		if (!G_ShouldPlayersCollide(true)) {
+			self->clipmask &= ~CONTENTS_PLAYER;
+		}
 
 		// map designer didn't specify weapon type. set it now.
 		if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 5)

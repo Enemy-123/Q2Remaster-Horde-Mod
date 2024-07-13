@@ -236,6 +236,11 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	turret->die = sentrygun_die;
 	turret->takedamage = true;
 	turret->owner = ent;  // Set the owner
+
+	// [Paril-KEX]
+	if (!G_ShouldPlayersCollide(true)) {
+		turret->clipmask &= ~CONTENTS_PLAYER;
+	}
 	// Asigna el equipo como una cadena de caracteres
 	if (ent->client->resp.ctf_team == CTF_TEAM1) {
 		turret->team = TEAM1;

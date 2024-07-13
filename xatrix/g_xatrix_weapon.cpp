@@ -581,7 +581,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	// RAFAEL 16-APR-98
 	trap->s.sound = gi.soundindex("weapons/traploop.wav");
 	// END 16-APR-98
-
+	trap->svflags = SVF_PLAYER;
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
 
