@@ -963,8 +963,8 @@
 		gi.modelindex("models/objects/debris1/tris.md2");
 
 		self->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-		self->mins = { -7, -7, -7 };
-		self->maxs = { 7, 7, 7 };
+		self->mins = { -12, -12, -12 };
+		self->maxs = { 12, 12, 12 };
 		self->movetype = MOVETYPE_NONE;
 
 
