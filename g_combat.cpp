@@ -885,7 +885,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	}
 
 
-// Save initial health to calculate the real damage done
+	// Save initial health to calculate the real damage done
 	int initial_health = targ->health;
 
 	// Calcular el daño real realizado, considerando la salud actual del objetivo
@@ -915,14 +915,17 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
 		if (g_iddmg->integer) { // Verificar si g_iddmg->integer está habilitado
-			if (level.time - player->lastdmg <= 2.0_sec && player->client->dmg_counter <= 32767) {
-				player->client->dmg_counter += real_damage;
-			}
-			else {
-				player->client->dmg_counter = real_damage;
-			}
+			// Verificar si el objetivo es invulnerable
+			if (!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
+				if (level.time - player->lastdmg <= 2.0_sec && player->client->dmg_counter <= 32767) {
+					player->client->dmg_counter += real_damage;
+				}
+				else {
+					player->client->dmg_counter = real_damage;
+				}
 
-			player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
+				player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
+			}
 		}
 
 		player->lastdmg = level.time;
