@@ -237,6 +237,9 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	turret->takedamage = true;
 	turret->owner = ent;  // Set the owner
 
+	if (ent->dmg > 14)
+		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
+
 	// [Paril-KEX]
 	if (!G_ShouldPlayersCollide(true)) {
 		turret->clipmask &= ~CONTENTS_PLAYER;

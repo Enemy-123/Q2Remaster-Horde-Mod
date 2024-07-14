@@ -416,18 +416,15 @@ DIE(shocker_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 
 			self->s.skinnum /= 2;
 
-		ThrowGibs(self, damage, {
-			{ "models/objects/gibs/bone/tris.md2" },
-			{ 3, "models/objects/gibs/sm_meat/tris.md2" },
-			{ "models/objects/gibs/chest/tris.md2" },
-			{ "models/objects/gibs/head2/tris.md2" },
-			{ "models/objects/gibs/gear/tris.md2" },
-			//		{ "models/monsters/shocker/gibs/chest.md2", GIB_SKINNED },
-			//		{ "models/monsters/shocker/gibs/gun.md2", GIB_SKINNED | GIB_UPRIGHT },
-			//		{ 2, "models/monsters/shocker/gibs/foot.md2", GIB_SKINNED },
-			//		{ 2, "models/monsters/shocker/gibs/arm.md2", GIB_SKINNED },
-					{ head_gib, GIB_HEAD | GIB_SKINNED }
-			});
+			ThrowGibs(self, damage, {
+				{ "models/objects/gibs/bone/tris.md2" },
+				{ 3, "models/objects/gibs/sm_meat/tris.md2" },
+				{ "models/monsters/infantry/gibs/chest.md2", GIB_SKINNED },
+				{ "models/monsters/infantry/gibs/gun.md2", GIB_SKINNED | GIB_UPRIGHT },
+				{ 2, "models/monsters/infantry/gibs/foot.md2", GIB_SKINNED },
+				{ 2, "models/monsters/infantry/gibs/arm.md2", GIB_SKINNED },
+				{ head_gib, GIB_HEAD | GIB_SKINNED }
+				});
 		self->deadflag = true;
 		return;
 	}
