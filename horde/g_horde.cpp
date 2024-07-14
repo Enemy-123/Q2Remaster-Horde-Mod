@@ -462,7 +462,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_medic_commander", 16, -1, 0.06f },
     { "monster_tank_commander", 11, -1, 0.15f },
     { "monster_spider", 13, 19, 0.27f },
-    { "monster_protector", 28, -1, 0.33f },
+    { "monster_gm_arachnid", 22, -1, 0.34f },
     { "monster_arachnid", 20, -1, 0.27f },
     { "monster_guncmdr", 11, -1, 0.28f },
     { "monster_gladc", 7, -1, 0.3f },
@@ -497,7 +497,7 @@ constexpr boss_t BOSS_SMALL[] = {
     {"monster_shamblerkl", -1, -1, 0.05f},
     {"monster_guncmdrkl", -1, 19, 0.05f},
     {"monster_makronkl", 36, -1, 0.05f},
-    {"monster_protector", -1, 19, 0.05f},
+    {"monster_gm_arachnid", -1, 19, 0.05f},
     {"monster_arachnid", -1, 19, 0.05f},
     {"monster_redmutant", -1, 24, 0.05f}
 };
@@ -509,7 +509,7 @@ constexpr boss_t BOSS_MEDIUM[] = {
     {"monster_guardian", -1, 24, 0.1f},
     {"monster_shamblerkl", -1, 24, 0.1f},
     {"monster_guncmdrkl", -1, 24, 0.1f},
-    {"monster_protector", -1, 24, 0.1f},
+    {"monster_gm_arachnid", -1, 24, 0.1f},
     {"monster_arachnid", -1, 24, 0.1f},
     {"monster_makronkl", 26, -1, 0.1f}
 };

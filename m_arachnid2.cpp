@@ -200,12 +200,10 @@ void arachnid2_rail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	/* KONIG - Increased damage to 50 to match PSX */
 	monster_fire_railgun(self, start, dir, 50, 100, id);
 }
-/*KONIG - Beta attacks; NOTE: 3 rockets, 4-6 blaster shots;
-Q4 Stream Protectors also have flamethrower and flak nail volley, consider adding?*/
-static void protector_blind_check(edict_t* self)
+
+static void gm_arachnid_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
@@ -214,7 +212,7 @@ static void protector_blind_check(edict_t* self)
 	}
 }
 
-void protector_rockets(edict_t* self)
+void gm_arachnid_rockets(edict_t* self)
 {
 	vec3_t						start;
 	vec3_t						dir;
@@ -358,40 +356,40 @@ mframe_t arachnid2_frames_attack_up1[] = {
 };
 MMOVE_T(arachnid2_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, arachnid2_frames_attack_up1, arachnid2_run };
 /*KONIG - Beta attack animations*/
-mframe_t protector_frames_attack1[] = {
-	{ ai_charge, 0, protector_blind_check },
+mframe_t gm_arachnid_frames_attack1[] = {
+	{ ai_charge, 0, gm_arachnid_blind_check },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge }
 };
-MMOVE_T(protector_attack1) = { FRAME_rails1, FRAME_rails11, protector_frames_attack1, arachnid2_run };
+MMOVE_T(gm_arachnid_attack1) = { FRAME_rails1, FRAME_rails11, gm_arachnid_frames_attack1, arachnid2_run };
 
-mframe_t protector_frames_attack_up1[] = {
-	{ ai_charge, 0, protector_blind_check },
+mframe_t gm_arachnid_frames_attack_up1[] = {
+	{ ai_charge, 0, gm_arachnid_blind_check },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
-	{ ai_charge, 0, protector_rockets },
+	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 };
-MMOVE_T(protector_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, protector_frames_attack_up1, arachnid2_run };
+MMOVE_T(gm_arachnid_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, gm_arachnid_frames_attack_up1, arachnid2_run };
 static cached_soundindex sound_melee, sound_melee_hit;
 
 void arachnid2_melee_charge(edict_t* self)
@@ -442,9 +440,9 @@ MONSTERINFO_ATTACK(arachnid2_attack) (edict_t* self) -> void
 		if (self->style == 1)
 		{
 			if ((self->enemy->s.origin[2] - self->s.origin[2]) > 150.f)
-				M_SetAnimation(self, &protector_attack_up1);
+				M_SetAnimation(self, &gm_arachnid_attack_up1);
 			else
-				M_SetAnimation(self, &protector_attack1);
+				M_SetAnimation(self, &gm_arachnid_attack1);
 		}
 		else
 		{
@@ -584,8 +582,7 @@ void SP_monster_arachnid2(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-/*KONIG - Stream Protector from Q4 as Arachnid Beta*/
-void SP_monster_protector(edict_t* self)
+void SP_monster_gm_arachnid(edict_t* self)
 {
 	SP_monster_arachnid2(self);
 

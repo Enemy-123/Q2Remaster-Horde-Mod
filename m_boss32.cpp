@@ -12,7 +12,7 @@ Makron -- Final Boss
 #include "m_boss32.h"
 #include "m_flash.h"
 #include "shared.h"
-
+void SP_monster_makronkl(edict_t* self);
 void MakronRailgun(edict_t *self);
 void MakronSaveloc(edict_t *self);
 void MakronHyperblaster(edict_t *self);
@@ -840,12 +840,12 @@ MakronSpawn
 
 =================
 */
-THINK(MakronSpawn) (edict_t *self) -> void
+THINK(MakronSpawn) (edict_t* self) -> void
 {
 	vec3_t	 vec;
-	edict_t *player;
+	edict_t* player;
 
-	SP_monster_makron(self);
+	SP_monster_makronkl(self);
 	self->think(self);
 
 	// jump at player
@@ -867,6 +867,7 @@ THINK(MakronSpawn) (edict_t *self) -> void
 	FoundTarget(self);
 	self->monsterinfo.sight(self, self->enemy);
 	self->s.frame = self->monsterinfo.nextframe = FRAME_active01; // FIXME: why????
+	self->spawnflags.has(SPAWNFLAG_IS_BOSS);
 }
 
 /*
@@ -879,7 +880,7 @@ Jorg is just about dead, so set up to launch Makron out
 void MakronToss(edict_t *self)
 {
 	edict_t *ent = G_Spawn();
-	ent->classname = "monster_makron";
+	ent->classname = "monster_makronkl";
 	ent->target = self->target;
 	ent->s.origin = self->s.origin;
 	ent->enemy = self->enemy;
@@ -900,15 +901,13 @@ void SP_monster_makronkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_MAKRONKL;
 	SP_monster_makron(self);
 	self->s.skinnum = 2;
-	self->health = 585 * current_wave_number;
-	self->s.renderfx = RF_TRANSLUCENT;
+	self->health = 2600 + (600 * current_wave_number);
+	self->s.alpha = 0.4f;
 	self->s.effects = EF_FLAG1;
 
 	if (!strcmp(self->classname, "monster_makronkl")) {
 		if (self->health > 9000) {
 			self->health = 9000;
-
-
 			ApplyMonsterBonusFlags(self);
 		}
 	}

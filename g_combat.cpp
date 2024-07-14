@@ -884,33 +884,37 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		}
 	}
 
-
-	// Save initial health to calculate the real damage done
+	// Guardar la salud inicial para calcular el daño real realizado
 	int initial_health = targ->health;
 
 	// Calcular el daño real realizado, considerando la salud actual del objetivo
-	int real_damage = damage;
-	if (targ->health <= 0 && targ->svflags & SVF_DEADMONSTER) {
-		real_damage = 0; // Si el objetivo ya está muerto, no se añade más daño
-	}
-	else {
+	int real_damage = take;
+
+	if (!(targ->health <= 0 && targ->svflags & SVF_DEADMONSTER)) { // Si el objetivo no está muerto
 		// Considerar la salud máxima del objetivo y la gib_health en positivo
-		int max_possible_health = targ->max_health + abs(targ->gib_health);
+		int const max_possible_health = targ->max_health + abs(targ->gib_health);
+
+		// Asegurarse de que el daño no exceda la salud inicial ni la salud máxima posible
 		if (initial_health <= max_possible_health) {
-			real_damage = (initial_health < damage) ? initial_health : damage;
+			real_damage = (initial_health < take) ? initial_health : take;
 		}
 		else {
-			real_damage = damage;
+			real_damage = take;
 		}
-	}
 
-	// Ajuste para mostrar daño en caso de gib
-	if (targ->health <= targ->gib_health) {
-		real_damage = abs(targ->gib_health); // Mostrar la salud restante del objetivo como el daño
+		// Ajuste para mostrar daño en caso de gib
+		if (targ->health <= 0) {
+			real_damage += abs(targ->gib_health); // Añadir gib_health al daño real
+		}
+
+		// Verificar nuevamente para asegurarse de que el daño no exceda max_possible_health
+		if (real_damage > max_possible_health) {
+			real_damage = max_possible_health;
+		}
 	}
 
 	// Añadir contador de daño para armas de disparo rápido
-	if (damage > 0 && attacker->client) {
+	if (take > 0 && attacker->client) {
 		edict_t* player = attacker;
 
 		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
@@ -933,7 +937,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		// Sumar real_damage a total_damage en gclient_t
 		player->client->total_damage += real_damage;
 	}
-
 
 	// ZOID
 	// team armor protect

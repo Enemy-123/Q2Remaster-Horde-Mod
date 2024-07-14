@@ -168,7 +168,7 @@ void SP_monster_guncmdrkl(edict_t* self);
 void SP_monster_shocker(edict_t* self);
 void SP_monster_gnorta(edict_t* self);
 void SP_monster_arachnid2(edict_t* self);
-void SP_monster_protector(edict_t* self);
+void SP_monster_gm_arachnid(edict_t* self);
 
 void SP_monster_commander_body(edict_t* self);
 
@@ -409,7 +409,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_shocker", SP_monster_shocker },
 	{ "monster_gnorta", SP_monster_gnorta },
 	{ "monster_arachnid2", SP_monster_arachnid2 },
-	{ "monster_protector", SP_monster_protector },
+	{ "monster_gm_arachnid", SP_monster_gm_arachnid },
 
 	{ "monster_commander_body", SP_monster_commander_body },
 
@@ -580,7 +580,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_stalker", {"monster_perrokl", "monster_parasite", "monster_stalker", "monster_floater"}, 4},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick_heat", "monster_chick"}, 2},
-		{"monster_medic", {"monster_medic", "monster_spider"}, 2},
+		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}, 3},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus", "monster_redmutant"}, 3},
 		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2", "monster_floater", "monster_flyer"}, 5},
@@ -606,7 +606,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}, 3},
 		{"monster_boss2", {"monster_boss2", "monster_carrier", "monster_boss2_64"}, 3},
 		{"monster_flipper", {"monster_gekk", "monster_flipper"}, 2},
-		{"monster_medic", {"monster_medic", "monster_spider"}, 2},
+		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
 		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner2", "monster_tank"}, 5 },
 		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant", "monster_tank"}, 4},
 		{"monster_floater", {"monster_floater", "monster_floater2", "monster_daedalus2"}, 3},

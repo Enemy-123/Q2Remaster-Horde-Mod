@@ -216,8 +216,8 @@ std::string GetDisplayName(edict_t* ent)
 		{ "monster_gnorta", "Gnorta" },
 		{ "monster_shocker", "Shocker" },
 		{ "monster_arachnid2", "Arachnid" },
-		{ "monster_protector", "Guided-Missile Arachnid" },
-		{ "misc_insane", "Insa9ne Grunt" },
+		{ "monster_gm_arachnid", "Guided-Missile Arachnid" },
+		{ "misc_insane", "Insane Grunt" },
 		{ "food_cube_trap", "Stroggonoff Maker\n" },
 		{ "tesla_mine", " Tesla Mine\n" },
 		{ "prox_mine", " Prox'Nade\n" }

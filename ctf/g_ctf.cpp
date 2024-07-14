@@ -1044,7 +1044,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_gnorta", "Gnorta" },
 		{ "monster_shocker", "Shocker" },
 		{ "monster_arachnid2", "Arachnid" },
-		{ "monster_protector", "Guided-Missile Arachnid" },
+		{ "monster_gm_arachnid", "Guided-Missile Arachnid" },
 		{ "misc_insane", "Insane Grunt" },
 		{ "food_cube_trap", "Stroggonoff Maker\n" },
 		{ "tesla_mine", " Tesla Mine\n" },

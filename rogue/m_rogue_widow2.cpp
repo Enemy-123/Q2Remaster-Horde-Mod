@@ -967,6 +967,15 @@ DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->monsterinfo.double_time = 0_ms;
 	self->monsterinfo.invincible_time = 0_ms;
 	M_SetAnimation(self, &widow2_move_death);
+
+
+	extern void BossDeathHandler(edict_t * boss) noexcept;
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
+		!self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+	{
+		BossDeathHandler(self);
+	}
+
 }
 
 MONSTERINFO_CHECKATTACK(Widow2_CheckAttack) (edict_t* self) -> bool
