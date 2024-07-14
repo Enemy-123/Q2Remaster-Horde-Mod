@@ -3098,6 +3098,7 @@ struct gclient_t
 	edict_t* idtarget;
 	int dmg_counter; // ID DMG
 	int total_damage; // Total damage dealt by this player
+	bool menu_selected;
 };
 
 

@@ -3351,14 +3351,23 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	if (ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP))
+	// Handle menu selection with BUTTON_ATTACK or BUTTON_JUMP
+	if ((ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
 	{
 		PMenu_Select(ent);
+		ent->client->menu_selected = true; // Mark as selected
 		return true;
+	}
+
+	// Reset menu_selected when button is not pressed
+	if (!(ent->client->latched_buttons & BUTTON_ATTACK))
+	{
+		ent->client->menu_selected = false;
 	}
 
 	return false;
 }
+
 extern void RemoveAllTechItems(edict_t* ent);
 extern bool ClientIsSpectating(gclient_t* cl);
 extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
