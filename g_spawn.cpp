@@ -1691,10 +1691,7 @@ void G_InitStatusbar(statusbar_t& sb)
 			.endifstat();
 
 		// MONSTERS COUNT
-		sb.ifstat(STAT_REMAINING_MONSTERS)
-			.xv(420).yb(-23).num(3, STAT_REMAINING_MONSTERS)
-			.xv(360).yb(-23).string2(" Stroggs \n To  Kill!")
-			.endifstat();
+		sb.xv(420).yb(-23).num(3, STAT_REMAINING_MONSTERS).xv(360).yb(-23).string2(" Stroggs \n To  Kill!");
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
