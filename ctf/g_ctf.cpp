@@ -2103,12 +2103,13 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 void CTFHasTech(edict_t* who)
 {
-	if (level.time - who->client->ctf_lasttechmsg > 5_sec && current_wave_number <= 5)
+	// Check if the message has been shown less than twice and the current wave number is less or equal to 5
+	if (who->client->ctf_lasttechmsg_count < 2)
 	{
 		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Equip it on Horde Menu! Use *Compass* to open menu\n");
-		//	gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn:\n Menu > Options > Input > Customize Bindings\n");
-		//	gi.LocBroadcast_Print(PRINT_CHAT, "Techs Are Now Being Saved After Death.\nYou Can Set Your *Drop Tech* Key \nOn: Menu > Options > Input > Customize Bindings\n");
-		who->client->ctf_lasttechmsg = (level.time);
+
+		// Increment the message count
+		who->client->ctf_lasttechmsg_count++;
 	}
 }
 

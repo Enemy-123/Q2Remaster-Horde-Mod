@@ -3020,7 +3020,7 @@ struct gclient_t
 	gtime_t		ctf_grapplereleasetime; // time of grapple release
 	gtime_t		ctf_regentime;			// regen tech
 	gtime_t		ctf_techsndtime;
-	gtime_t		ctf_lasttechmsg;
+	int ctf_lasttechmsg_count;
 	// ZOID
 
 	gtime_t		ammoregentime;
