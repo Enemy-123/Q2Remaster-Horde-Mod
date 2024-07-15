@@ -34,7 +34,7 @@ struct HordeState {
     horde_state_t   state = horde_state_t::warmup;
     gtime_t         monster_spawn_time;
     int32_t         num_to_spawn = 0;
-    int32_t         level = 1;
+    int32_t         level = 0;
 } g_horde_local;
 
 int32_t current_wave_number = g_horde_local.level;
@@ -1284,8 +1284,8 @@ void ResetGame() noexcept {
     ResetAutoSpawnedBosses();
 
     // Reset wave information
-    current_wave_number = 1;
-    g_horde_local.level = 1;  // Reset current wave level
+    current_wave_number = 0;
+    g_horde_local.level = 0;  // Reset current wave level
     g_horde_local.state = horde_state_t::warmup;  // Set game state to warmup
     g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
     g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
