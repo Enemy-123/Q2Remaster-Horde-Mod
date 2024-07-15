@@ -50,10 +50,11 @@ std::unordered_map<edict_t*, int32_t> spawnAttempts;
 std::unordered_map<edict_t*, float> spawnPointCooldowns;
 
 const std::unordered_set<std::string> smallMaps = {
-    "q2dm3", "q2dm7", "q2dm2", "q64/dm10", "q64\\dm10", "test/mals_barrier_test",
-    "q64/dm9", "q64\\dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
-    "q64\\dm2", "q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command", "q64\\command",
-    "mgu3m4", "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0"
+    "q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
+    "q64/dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
+    "q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","mgu3m4",
+    "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0", "q64/dm6",
+    "q64/dm8"
 };
 
 const std::unordered_set<std::string> bigMaps = {
@@ -1070,7 +1071,6 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm1", {1184, 568, 704}},
     {"rdm4", {-336, 2456, -288}},
     {"rdm14", {1248, 664, 896}},
-    {"ec/base_ec", {-112, 704, 128}},
     {"q2dm2", {128, -960, 704}},
     {"q2dm3", {192, -136, 72}},
     {"q2dm4", {504, 876, 292}},
@@ -1080,24 +1080,27 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"ndctf0", {-608, -304, 184}},
     {"q2ctf4", {-2390, 1112, 218}},
     {"q2ctf5", {2432, -960, 168}},
-    {"old/kmdm3", {-480, -572, 144}},
     {"xdm2", {-232, 472, 424}},
     {"xdm6", {-1088, -128, 528}},
     {"mgu3m4", {3312, 3344, 864}},
     {"mgdm1", {176, 64, 288}},
     {"mgu6trial", {-848, 176, 96}},
     {"fact3", {0, -64, 192}},
+    {"mgu4trial", {-960, -528, -328}},
     {"mgu6m3", {0, 592, 1600}},
-    {"q64/dm7", {64, 224, 120}},
     {"q64/comm", {1464, -88, -432}},
     {"q64/command", {0, -208, 56}},
+    {"q64/dm7", {64, 224, 120}},
     {"q64/dm1", {-192, -320, 80}},
-    {"q64/dm9", {160, 56, 40}},
     {"q64/dm2", {840, 80, 96}},
-    {"q64/dm7", {840, 80, 960}},
-    {"q64/dm10", {-304, 512, -92}},
     {"q64/dm3", {488, 392, 64}},
-    {"mgu4trial", {-960, -528, -328}},
+    {"q64/dm6", {-1568, 1680, 144}},
+    {"q64/dm7", {840, 80, 960}},
+    {"q64/dm8", {-800, 448, 56}},
+    {"q64/dm9", {160, 56, 40}},
+    {"q64/dm10", {-304, 512, -92}},
+    {"ec/base_ec", {-112, 704, 128}},
+    {"old/kmdm3", {-480, -572, 144}},
     {"test/mals_barrier_test", {24, 136, 224}},
     {"test/spbox", {112, 192, 168}}
 };
