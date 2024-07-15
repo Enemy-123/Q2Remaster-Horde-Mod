@@ -1353,12 +1353,6 @@ struct ConditionParams {
     gtime_t timeThreshold;
 };
 
-
-// Calcular los parámetros de la condición en función del tamaño del mapa y el número de jugadores
-// Variables globales para el estado de la condición usando gtime_t
-gtime_t condition_start_time = gtime_t::from_sec(0);
-int32_t previous_remainingMonsters = 0;
-
 // Función para decidir los parámetros de la condición en función del tamaño del mapa y el número de jugadores
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers) noexcept {
     ConditionParams params = { 0, 0_sec };
@@ -1421,6 +1415,11 @@ int32_t CalculateRemainingMonsters() noexcept {
     }
     return remaining;
 }
+
+// Calcular los parámetros de la condición en función del tamaño del mapa y el número de jugadores
+// Variables globales para el estado de la condición usando gtime_t
+gtime_t condition_start_time = gtime_t::from_sec(0);
+int32_t previous_remainingMonsters = 0;
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
     if (allowWaveAdvance) {
