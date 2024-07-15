@@ -54,7 +54,7 @@ const std::unordered_set<std::string> smallMaps = {
     "q64/dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
     "q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","mgu3m4",
     "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0", "q64/dm6",
-    "q64/dm8"
+    "q64/dm8", "q64/dm4"
 };
 
 const std::unordered_set<std::string> bigMaps = {
@@ -1094,6 +1094,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q64/dm1", {-192, -320, 80}},
     {"q64/dm2", {840, 80, 96}},
     {"q64/dm3", {488, 392, 64}},
+    {"q64/dm4", {176,272, -24}},
     {"q64/dm6", {-1568, 1680, 144}},
     {"q64/dm7", {840, 80, 960}},
     {"q64/dm8", {-800, 448, 56}},
