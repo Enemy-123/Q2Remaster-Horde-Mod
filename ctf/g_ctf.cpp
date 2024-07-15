@@ -2087,8 +2087,12 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 	}
-	else
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -48 cstring2 \"{}\" "), "Use Compass or Inventory <KEY> to toggle Horde Menu.");
+	else {
+		if (ent->client->resp.ctf_team != CTF_TEAM1)
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -48 cstring2 \"{}\" "), "Use Inventory <KEY> to toggle Horde Menu.");
+		else
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -48 cstring2 \"{}\" "), "Use Compass or Inventory <KEY> to toggle Horde Menu.");
+	}
 	gi.WriteByte(svc_layout);
 	gi.WriteString(string.c_str());
 }
