@@ -1684,11 +1684,17 @@ void G_InitStatusbar(statusbar_t& sb)
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 		// HORDE WAVE
-		sb.xv(-155).yb(-23).string2("Horde MODE ").xv(-70).yb(-23).num(2, STAT_WAVE_NUMBER);
-		sb.xv(-155).yb(-23).string(" \nWave Level:");
+		sb.xv(-155).yb(-23).string2("Horde MOD! ");
+		sb.ifstat(STAT_WAVE_NUMBER)
+			.xv(-70).yb(-23).num(2, STAT_WAVE_NUMBER)
+			.xv(-155).yb(-23).string(" \nWave Level:")
+			.endifstat();
 
 		// MONSTERS COUNT
-		sb.xv(420).yb(-23).num(3, STAT_REMAINING_MONSTERS).xv(360).yb(-23).string2(" Stroggs \n To  Kill!");
+		sb.ifstat(STAT_REMAINING_MONSTERS)
+			.xv(420).yb(-23).num(3, STAT_REMAINING_MONSTERS)
+			.xv(360).yb(-23).string2(" Stroggs \n To  Kill!")
+			.endifstat();
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
