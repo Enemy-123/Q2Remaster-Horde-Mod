@@ -2084,9 +2084,11 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -3 yv -25 {} loc_string 1 $g_ctf_and_more {} "),
 			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
 
-	if (level.intermissiontime)
+	if (level.intermissiontime) {
 		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
-
+	}
+	else
+		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -48 cstring2 \"{}\" "), "Use Compass/inventory <KEY> to toggle Horde Menu.");
 	gi.WriteByte(svc_layout);
 	gi.WriteString(string.c_str());
 }
