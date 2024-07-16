@@ -816,6 +816,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 					const bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
 					const bool using_machinegun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
 					const bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+					const bool using_glauncher = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
 					const bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
 					const bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
 					const bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
@@ -845,6 +846,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 					}
 					else if (using_machinegun && g_tracedbullets->integer) {
 						health_stolen = max(1, health_stolen / 2);
+					}
+					else if (using_glauncher && g_bouncygl->integer) {
+						health_stolen = max(1, health_stolen / 4);
 					}
 					else {
 						health_stolen = max(1, health_stolen);
