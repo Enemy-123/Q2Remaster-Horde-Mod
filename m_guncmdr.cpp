@@ -1479,7 +1479,7 @@ void SP_monster_guncmdr(edict_t* self)
 	self->mass = 255;
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->gib_health - 99999;
+		self->gib_health = -999777;
 	}
 
 	self->pain = guncmdr_pain;
@@ -1538,7 +1538,7 @@ void SP_monster_guncmdrkl(edict_t* self)
 	
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->mass *= 3.0f;
-		self->gib_health -99999;
+		self->gib_health = -999777;
 	}	
 
 	self->s.renderfx = RF_TRANSLUCENT;

@@ -1000,7 +1000,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
 
         // Marcar al boss como no atacable para evitar doble manejo
         boss->takedamage = false;
-        boss->gib_health = -999999;
+        boss->gib_health += -99999;
 
         // Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
         if (strcmp(boss->classname, "monster_boss2") == 0 ||

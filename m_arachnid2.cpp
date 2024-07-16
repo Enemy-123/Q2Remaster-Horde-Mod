@@ -558,7 +558,7 @@ void SP_monster_arachnid2(edict_t* self)
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->health = 2500 * st.health_multiplier;
-		self->gib_health = -999000;
+		self->gib_health = -999777;
 	}
 	else
 		self->health = 1000 * st.health_multiplier;
@@ -601,7 +601,7 @@ void SP_monster_gm_arachnid(edict_t* self)
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->health = 3200 * st.health_multiplier;
-		self->gib_health = -999000;
+		self->gib_health = -999777;
 		ApplyMonsterBonusFlags(self);
 	}
 	else

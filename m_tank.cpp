@@ -1124,7 +1124,7 @@ void SP_monster_tank(edict_t* self)
 				self->s.scale = 1.3f;
 			self->health = 1750 + (1.005 * current_wave_number);
 			if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-				self->gib_health -99999;
+				self->gib_health = -999777;
 				self->health *= 2.3;
 			}
 		}
