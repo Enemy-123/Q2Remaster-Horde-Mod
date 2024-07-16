@@ -3574,13 +3574,24 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		else
 			client->ps.pmove.pm_type = PM_NORMAL;
 
+		// Asumimos que other_ent es otra entidad relevante en este contexto
+		edict_t* other_ent = nullptr; // Debes inicializar esta variable adecuadamente en tu código
+
 		// [Paril-KEX]
 		if (!G_ShouldPlayersCollide(false) ||
-			(G_IsDeathmatch() && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER)) // if player collision is on and we're temporarily ghostly...
+			(G_IsDeathmatch() && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER)) ||
+			OnSameTeam(ent, other_ent) // ahora pasamos both entidades a OnSameTeam
 			)
+		{
 			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
+			client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
+		}
 		else
+		{
 			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
+			client->ps.pmove.pm_flags &= ~PMF_NO_POSITIONAL_PREDICTION;
+		}
+
 
 		// PGM	trigger_gravity support
 		client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
