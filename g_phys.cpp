@@ -55,6 +55,7 @@ contents_t G_GetClipMask(edict_t* ent)
         strcmp(ent->classname, "monster_carrier") &&
         strcmp(ent->classname, "monster_boss2") &&
         strcmp(ent->classname, "monster_carrier2") &&
+        strcmp(ent->classname, "monster_sentrygun") &&
         strcmp(ent->classname, "monster_boss2kl")) {
         mask &= ~CONTENTS_MONSTER;
     }
@@ -249,7 +250,7 @@ void SV_Physics_NewToss(edict_t* ent)
     contents_t original_mask = ent->clipmask;
 
     // Adjust the clipmask for horde mode to allow monsters to pass through each other
-    if (g_horde->integer && (ent->svflags & SVF_MONSTER)) {
+    if (g_horde->integer && (ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "monster_sentrygun")) {
         ent->clipmask &= ~CONTENTS_MONSTER;
     }
 

@@ -457,7 +457,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	// from shooting his fliers, who spawn in below him
 	float minheight;
 
-	if (!strcmp(ent->classname, "monster_carrier"))
+	if (!strcmp(ent->classname, "monster_carrier") || !strcmp(ent->classname, "monster_carrier2") || !strcmp(ent->classname, "monster_boss2") || !strcmp(ent->classname, "monster_boss2_64"))
 		minheight = 104;
 	else
 		minheight = 40;
@@ -668,7 +668,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// Paril: horde
-	if (g_horde->integer)
+	if (g_horde->integer && strcmp(ent->classname, "monster_sentrygun"))
 		mask &= ~CONTENTS_MONSTER;
 
 	vec3_t start_up = oldorg + ent->gravityVector * (-1 * stepsize);
