@@ -1706,6 +1706,9 @@ void Chaingun_Fire(edict_t* ent)
 	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
+	// Ajustar posición inicial para evitar colisiones con el techo
+	start[2] -= 5.0f;  // Baja la posición inicial un poco más abajo
+
 	G_LagCompensate(ent, start, forward);
 	for (i = 0; i < shots; i++)
 	{
