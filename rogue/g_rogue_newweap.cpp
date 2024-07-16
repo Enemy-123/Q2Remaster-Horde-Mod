@@ -92,7 +92,7 @@ constexpr int32_t PROX_DAMAGE = 90;
 
 #include <stdlib.h> // Para rand()
 #define VectorSet(v, x, y, z) ((v)[0]=(x), (v)[1]=(y), (v)[2]=(z))
-THINK(Prox_Explode) (edict_t* ent) -> void {
+THINK(Prox_Explode)(edict_t* ent) -> void {
 	vec3_t origin;
 	vec3_t forward, right, up;
 	vec3_t grenade_angs;
@@ -100,8 +100,6 @@ THINK(Prox_Explode) (edict_t* ent) -> void {
 	int n;
 
 	// free the trigger field
-
-	// PMM - changed teammaster to "mover" .. owner of the field is the prox
 	if (ent->teamchain && ent->teamchain->owner == ent)
 		G_FreeEdict(ent->teamchain);
 
@@ -137,7 +135,7 @@ THINK(Prox_Explode) (edict_t* ent) -> void {
 				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
 				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
-				fire_grenade(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, 0.0, 0.0, true);
+				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, true);
 			}
 			else {
 				// Las demás granadas siguen la fragmentación normal
@@ -149,7 +147,7 @@ THINK(Prox_Explode) (edict_t* ent) -> void {
 				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
 				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
-				fire_grenade(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, 0.0, 0.0, true);
+				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, true);
 			}
 		}
 	}

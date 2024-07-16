@@ -567,7 +567,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 
 		// Crear un efecto de explosión
 		vec3_t origin;
-		origin = ent->s.origin + (ent->velocity * -0.02f);
+		origin = ent->s.origin + (ent->velocity * +0.02f);
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_GRENADE_EXPLOSION);
 		gi.WritePosition(origin);
@@ -613,7 +613,7 @@ THINK(BouncyGrenade_OnGroundThink)(edict_t* ent) -> void
 	if (ent->groundentity || !ent->velocity[2])
 	{
 		BouncyGrenade_Explode(ent);
-		ent->nextthink = level.time + 3_sec;
+		ent->nextthink = level.time + 1_sec;
 	}
 	else
 	{
@@ -683,6 +683,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->s.effects |= EF_GRENADE | EF_QUAD; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
 		grenade->count = 4;  // Número de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
+		grenade->speed = speed * 1.5f;
 	}
 	else if (monster)
 	{
@@ -694,6 +695,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->think = Grenade4_Think;
 		grenade->s.renderfx |= RF_MINLIGHT;
 		grenade->touch = Grenade_Touch;
+		grenade->speed = speed;
 	}
 	else
 	{
@@ -704,6 +706,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->think = Grenade4_Think;
 		grenade->s.renderfx |= RF_MINLIGHT;
 		grenade->touch = Grenade_Touch;
+		grenade->speed = speed;
 	}
 
 	grenade->owner = self;
