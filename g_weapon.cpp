@@ -577,6 +577,11 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 		v = ent->s.origin - v;
 		points = ent->dmg - 0.5f * v.length();
 		dir = ent->enemy->s.origin - ent->s.origin;
+
+		// Asegúrate de que el daño no sea negativo
+		if (points < 0)
+			points = 0;
+
 		T_Damage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
 	}
 
@@ -584,7 +589,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 	T_RadiusDamage(ent, ent->owner, ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
 
 	// Crear un efecto de explosión
-	origin = ent->s.origin + (ent->velocity * +0.02f);
+	origin = ent->s.origin + (ent->velocity * -0.02f);
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)
 	{
@@ -636,7 +641,6 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 		G_FreeEdict(ent);
 	}
 }
-
 void BouncyGrenade_OnGroundThink(edict_t* ent);
 THINK(BouncyGrenade_Think)(edict_t* ent) -> void
 {
