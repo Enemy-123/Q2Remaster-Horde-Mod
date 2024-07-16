@@ -618,7 +618,14 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 
 		// Reducir el daño en un 1/5, pero no menos del 25% del daño original
 		float min_dmg = ent->original_dmg * 0.25f;
-		ent->dmg = fmax(ent->dmg * 0.8f, min_dmg);
+		if (ent->dmg > min_dmg)
+		{
+			ent->dmg *= 0.8f;
+			if (ent->dmg < min_dmg)
+			{
+				ent->dmg = min_dmg;
+			}
+		}
 
 		ent->count--;  // Reducir la cuenta de rebotes
 		ent->nextthink = level.time + 1.0_sec;  // Ajusta el tiempo entre explosiones
@@ -629,7 +636,6 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 		G_FreeEdict(ent);
 	}
 }
-
 
 void BouncyGrenade_OnGroundThink(edict_t* ent);
 THINK(BouncyGrenade_Think)(edict_t* ent) -> void
@@ -674,7 +680,6 @@ TOUCH(BouncyGrenade_Touch)(edict_t* ent, edict_t* other, const trace_t& tr, bool
 
 	BouncyGrenade_Explode(ent);
 }
-
 
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, float right_adjust, float up_adjust, bool monster)
 {
@@ -721,7 +726,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->count = 4;  // Número de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;
-		grenade->original_dmg = damage / 1.4; // Establecer el daño original
+		grenade->original_dmg = damage; // Establecer el daño original
 	}
 	else if (monster)
 	{
