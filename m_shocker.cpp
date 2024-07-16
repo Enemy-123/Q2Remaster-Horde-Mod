@@ -883,16 +883,6 @@ void SP_monster_shocker(edict_t* self)
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/vault/monsters/shocker/tris.md2");
 
-	gi.modelindex("models/objects/gibs/head2.md2");
-	gi.modelindex("models/objects/gibs/chest.md2");
-	gi.modelindex("models/objects/gibs/gear.md2");
-	gi.modelindex("models/objects/gibs/bone.md2");
-	gi.modelindex("models/objects/gibs/sm_meat.md2");
-	//gi.modelindex("models/monsters/shocker/gibs/head.md2");
-	//gi.modelindex("models/monsters/shocker/gibs/chest.md2");
-	//gi.modelindex("models/monsters/shocker/gibs/gun.md2");
-	//gi.modelindex("models/monsters/shocker/gibs/arm.md2");
-	//gi.modelindex("models/monsters/shocker/gibs/foot.md2");
 
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
