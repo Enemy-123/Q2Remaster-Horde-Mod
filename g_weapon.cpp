@@ -648,7 +648,7 @@ THINK(BouncyGrenade_Think)(edict_t* ent) -> void
 	if (ent->groundentity || !ent->velocity[2])
 	{
 		ent->think = BouncyGrenade_OnGroundThink;
-		ent->nextthink = level.time + 3_sec;
+		ent->nextthink = level.time + FRAME_TIME_S;
 	}
 	else
 		ent->nextthink = level.time + FRAME_TIME_S;
@@ -660,7 +660,7 @@ THINK(BouncyGrenade_OnGroundThink)(edict_t* ent) -> void
 	if (ent->groundentity || !ent->velocity[2])
 	{
 		BouncyGrenade_Explode(ent);
-		ent->nextthink = level.time + 1_sec;
+		ent->nextthink = level.time + FRAME_TIME_S;
 	}
 	else
 	{
