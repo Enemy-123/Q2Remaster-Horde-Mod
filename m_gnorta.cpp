@@ -753,14 +753,6 @@ DIE(gnorta_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		self->s.skinnum /= 2;
 
 		ThrowGibs(self, damage, {
-			{ 2, "models/objects/gibs/sm_meat/tris.md2" },
-			{ 2, "models/objects/gibs/sm_metal/tris.md2", GIB_METALLIC },
-			{ "models/monsters/gnorta/gibs/bodya.md2", GIB_SKINNED },
-			{ "models/monsters/gnorta/gibs/bodyb.md2", GIB_SKINNED },
-			{ 2, "models/monsters/gnorta/gibs/claw.md2", GIB_SKINNED | GIB_UPRIGHT },
-			{ 2, "models/monsters/gnorta/gibs/leg.md2", GIB_SKINNED | GIB_UPRIGHT },
-			{ 2, "models/monsters/gnorta/gibs/foot.md2", GIB_SKINNED },
-			{ "models/monsters/gnorta/gibs/head.md2", GIB_SKINNED | GIB_HEAD }
 			});
 		self->deadflag = true;
 		return;
@@ -807,13 +799,6 @@ void SP_monster_gnorta(edict_t* self)
 	gi.modelindex("models/objects/laser/tris.md2");
 
 	self->s.modelindex = gi.modelindex("models/vault/monsters/gnorta/tris.md2");
-
-	gi.modelindex("models/objects/gibs/sm_meat.md2");
-	gi.modelindex("models/objects/gibs/chest.md2");
-	/*KONIG - TODO*/
-	//gi.modelindex("models/monsters/gnorta/gibs/shell.md2");
-	//gi.modelindex("models/monsters/gnorta/gibs/claw.md2");
-	//gi.modelindex("models/monsters/gnorta/gibs/head.md2");
 
 	self->mins = { -28, -28, -18 };
 	self->maxs = { 28, 28, 18 };
