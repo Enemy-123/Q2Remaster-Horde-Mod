@@ -557,23 +557,55 @@ THINK(Grenade4_Think) (edict_t *self) -> void
 
 	self->nextthink = level.time + FRAME_TIME_S;
 }
-
 THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 {
+	vec3_t origin;
+	mod_t mod = MOD_GRENADE;
+
+	if (ent->owner->client)
+		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
+
+	// Si la granada golpea a un enemigo, aplicar daño directo
+	if (ent->enemy)
+	{
+		float points;
+		vec3_t v;
+		vec3_t dir;
+
+		v = ent->enemy->mins + ent->enemy->maxs;
+		v = ent->enemy->s.origin + (v * 0.5f);
+		v = ent->s.origin - v;
+		points = ent->dmg - 0.5f * v.length();
+		dir = ent->enemy->s.origin - ent->s.origin;
+		T_Damage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
+	}
+
+	// Infligir daño en la explosión
+	T_RadiusDamage(ent, ent->owner, ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
+
+	// Crear un efecto de explosión
+	origin = ent->s.origin + (ent->velocity * +0.02f);
+	gi.WriteByte(svc_temp_entity);
+	if (ent->waterlevel)
+	{
+		if (ent->groundentity)
+			gi.WriteByte(TE_GRENADE_EXPLOSION_WATER);
+		else
+			gi.WriteByte(TE_ROCKET_EXPLOSION_WATER);
+	}
+	else
+	{
+		if (ent->groundentity)
+			gi.WriteByte(TE_GRENADE_EXPLOSION);
+		else
+			gi.WriteByte(TE_ROCKET_EXPLOSION);
+	}
+	gi.WritePosition(origin);
+	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+	// Ajustar el comportamiento de rebote
 	if (ent->count > 0)
 	{
-		// Infligir daño en la explosión
-		T_RadiusDamage(ent, ent->owner, ent->dmg, nullptr, ent->dmg_radius, DAMAGE_NONE, MOD_GRENADE);
-
-		// Crear un efecto de explosión
-		vec3_t origin;
-		origin = ent->s.origin + (ent->velocity * +0.02f);
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_GRENADE_EXPLOSION);
-		gi.WritePosition(origin);
-		gi.multicast(ent->s.origin, MULTICAST_PHS, false);
-
-		// Ajustar el comportamiento de rebote
 		if (ent->groundentity)
 		{
 			vec3_t dir;
@@ -594,9 +626,10 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 	else
 	{
 		// La granada realiza una última explosión y se elimina
-		Grenade_Explode(ent);
+		G_FreeEdict(ent);
 	}
 }
+
 
 void BouncyGrenade_OnGroundThink(edict_t* ent);
 THINK(BouncyGrenade_Think)(edict_t* ent) -> void
