@@ -530,8 +530,54 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	}
 }
 
+constexpr int MAX_TRAPS = 10;
+void check_player_trap_limit(edict_t* self)
+{
+	if (!self->client)
+		return;
+
+	if (self->client->num_traps >= MAX_TRAPS)
+	{
+		edict_t* oldest_trap = nullptr;
+		gtime_t oldest_timestamp = level.time;
+
+		// Primer bucle: encontrar la trampa más antigua
+		for (unsigned int i = 0; i < globals.num_edicts; i++)
+		{
+			edict_t* ent = &g_edicts[i];
+
+			if (!ent->inuse)
+				continue;
+
+			if ((ent->s.effects & EF_TRAP) &&
+				(ent->owner == self || ent->teammaster == self ||
+					(ent->owner && ent->owner->owner == self) ||
+					(ent->teammaster && ent->teammaster->teammaster == self)))
+			{
+				gtime_t time_active = level.time - ent->timestamp;
+				if (time_active < oldest_timestamp)
+				{
+					oldest_timestamp = time_active;
+					oldest_trap = ent;
+				}
+			}
+		}
+
+		// Eliminar la trampa más antigua
+		if (oldest_trap)
+		{
+			G_FreeEdict(oldest_trap); // Eliminar la trampa más antigua
+			self->client->num_traps--; // Decrementar el contador al eliminar la más antigua
+		}
+	}
+}
+
+
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
+	// Verificar y manejar el límite de trampas por jugador
+	check_player_trap_limit(self);
+
 	edict_t* trap;
 	vec3_t   dir;
 	vec3_t   forward, right, up;
@@ -581,7 +627,6 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	// RAFAEL 16-APR-98
 	trap->s.sound = gi.soundindex("weapons/traploop.wav");
 	// END 16-APR-98
-//	trap->svflags = SVF_PLAYER;
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
 
@@ -594,4 +639,10 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	gi.linkentity(trap);
 
 	trap->timestamp = level.time + 30_sec;
+
+	if (self->client)
+	{
+		self->client->num_traps++; // Incrementar el contador de trampas del jugador
+	}
 }
+
