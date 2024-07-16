@@ -1540,6 +1540,9 @@ void Machinegun_Fire(edict_t* ent)
 	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
+	// Ajustar posición inicial para evitar colisiones con el techo
+	start[2] -= 5.0f;  // Baja la posición inicial un poco más abajo
+
 	G_LagCompensate(ent, start, forward);
 	fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
 	G_UnLagCompensate();
