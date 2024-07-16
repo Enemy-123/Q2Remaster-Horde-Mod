@@ -1397,8 +1397,6 @@ void SP_monster_widow1(edict_t* self) {
 				self->monsterinfo.power_armor_power = 500;
 		}
 		self->s.scale = 0.6f; // Ajusta la escala si es necesario
-		self->mins *= 0.6f;
-		self->maxs *= 0.6f;
 		self->yaw_speed = 40; // Diferente velocidad de giro
 
 		self->flags |= FL_IMMUNE_LASER;
