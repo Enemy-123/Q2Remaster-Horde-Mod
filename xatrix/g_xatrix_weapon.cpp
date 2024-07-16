@@ -629,7 +629,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	// END 16-APR-98
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
-
+	trap->svflags = SVF_PLAYER;
 	// Verifica si la trampa y el jugador son del mismo equipo y ajusta la máscara de colisión
 	if (self->client && strcmp(trap->team, trap_team) == 0)
 	{

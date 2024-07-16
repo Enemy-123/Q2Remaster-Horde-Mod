@@ -3582,7 +3582,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// [Paril-KEX]
 		if (!G_ShouldPlayersCollide(false) ||
-			(G_IsDeathmatch() && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER)) ||
 			OnSameTeam(ent, other_ent) // ahora pasamos both entidades a OnSameTeam
 			)
 		{
