@@ -621,8 +621,8 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 			VectorScale(ent->velocity, 1.2f, ent->velocity); // Aumentar la velocidad tras cada rebote
 		}
 
-		// Reducir el daño en un 1/5, pero no menos del 25% del daño original
-		float min_dmg = ent->original_dmg * 0.25f;
+		// Reducir el daño en un 1/5, pero no menos del 20% del daño original
+		float min_dmg = ent->original_dmg * 0.20f;
 		if (ent->dmg > min_dmg)
 		{
 			ent->dmg *= 0.8f;
@@ -726,7 +726,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->timestamp = level.time + timer;
 		grenade->think = BouncyGrenade_Think;  // Función de pensamiento específica para el comportamiento de rebote
 		grenade->s.renderfx |= RF_MINLIGHT;
-		grenade->s.effects |= EF_GRENADE | EF_QUAD; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
+		grenade->s.effects |= EF_GRENADE | EF_SPINNINGLIGHTS; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
 		grenade->count = 4;  // Número de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;

@@ -135,7 +135,7 @@ THINK(Prox_Explode)(edict_t* ent) -> void {
 				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
 				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
-				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, true);
+				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
 			}
 			else {
 				// Las demás granadas siguen la fragmentación normal
@@ -147,7 +147,7 @@ THINK(Prox_Explode)(edict_t* ent) -> void {
 				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
 				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
-				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, true);
+				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
 			}
 		}
 	}
