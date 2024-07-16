@@ -558,11 +558,92 @@ THINK(Grenade4_Think) (edict_t *self) -> void
 	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-void fire_grenade(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int speed, gtime_t timer, float damage_radius, float right_adjust, float up_adjust, bool monster)
+THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 {
-	edict_t *grenade;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
+	if (ent->count > 0)
+	{
+		// Infligir daño en la explosión
+		T_RadiusDamage(ent, ent->owner, ent->dmg, nullptr, ent->dmg_radius, DAMAGE_NONE, MOD_GRENADE);
+
+		// Crear un efecto de explosión
+		vec3_t origin;
+		origin = ent->s.origin + (ent->velocity * -0.02f);
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_GRENADE_EXPLOSION);
+		gi.WritePosition(origin);
+		gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+		// Ajustar el comportamiento de rebote
+		if (ent->groundentity)
+		{
+			vec3_t dir;
+			dir[0] = crandom() * 360;
+			dir[1] = crandom() * 360;
+			dir[2] = crandom() * 360;
+			AngleVectors(dir, ent->velocity, nullptr, nullptr);
+			VectorScale(ent->velocity, 1.2f, ent->velocity); // Aumentar la velocidad tras cada rebote
+		}
+
+		ent->count--;  // Reducir la cuenta de rebotes
+		ent->nextthink = level.time + 1.0_sec;  // Ajusta el tiempo entre explosiones
+	}
+	else
+	{
+		// La granada realiza una última explosión y se elimina
+		Grenade_Explode(ent);
+	}
+}
+
+void BouncyGrenade_OnGroundThink(edict_t* ent);
+THINK(BouncyGrenade_Think)(edict_t* ent) -> void
+{
+	// Check if onground. If so, prepare to explode
+	if (ent->groundentity || !ent->velocity[2])
+	{
+		ent->think = BouncyGrenade_OnGroundThink;
+		ent->nextthink = level.time + 3_sec;
+	}
+	else
+		ent->nextthink = level.time + FRAME_TIME_S;
+}
+
+THINK(BouncyGrenade_OnGroundThink)(edict_t* ent) -> void
+{
+	// Check if onground. If so, explode
+	if (ent->groundentity || !ent->velocity[2])
+	{
+		BouncyGrenade_Explode(ent);
+		ent->nextthink = level.time + 3_sec;
+	}
+	else
+	{
+		ent->think = BouncyGrenade_Think;
+		ent->nextthink = level.time + FRAME_TIME_S;
+	}
+}
+
+TOUCH(BouncyGrenade_Touch)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	if (other == ent->owner)
+		return;
+
+	if (tr.surface && (tr.surface->flags & SURF_SKY))
+	{
+		G_FreeEdict(ent);
+		return;
+	}
+	if (other->takedamage)
+		ent->enemy = other;
+
+	BouncyGrenade_Explode(ent);
+}
+
+
+void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, float right_adjust, float up_adjust, bool monster)
+{
+	edict_t* grenade;
+	vec3_t dir;
+	vec3_t forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -582,39 +663,57 @@ void fire_grenade(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int 
 
 	grenade->movetype = MOVETYPE_BOUNCE;
 	grenade->clipmask = MASK_PROJECTILE;
-	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		grenade->clipmask &= ~CONTENTS_PLAYER;
 	grenade->solid = SOLID_BBOX;
 	grenade->svflags |= SVF_PROJECTILE;
-	grenade->flags |= ( FL_DODGE | FL_TRAP );
+	grenade->flags |= (FL_DODGE | FL_TRAP);
 	grenade->s.effects |= EF_GRENADE;
 	grenade->speed = speed;
-	if (monster)
+
+	if (g_bouncygl->integer && self->svflags & ~SVF_MONSTER)
+	{
+		// Comportamiento de rebote y explosión
+		grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
+		grenade->s.angles = vectoangles(grenade->velocity);
+		grenade->nextthink = level.time + FRAME_TIME_S;
+		grenade->timestamp = level.time + timer;
+		grenade->think = BouncyGrenade_Think;  // Función de pensamiento específica para el comportamiento de rebote
+		grenade->s.renderfx |= RF_MINLIGHT;
+		grenade->s.effects |= EF_GRENADE | EF_QUAD; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
+		grenade->count = 4;  // Número de rebotes/explosiones
+		grenade->touch = BouncyGrenade_Touch;
+	}
+	else if (monster)
 	{
 		grenade->avelocity = { crandom() * 360, crandom() * 360, crandom() * 360 };
 		grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 		grenade->nextthink = level.time + timer;
 		grenade->think = Grenade_Explode;
 		grenade->s.effects |= EF_GRENADE_LIGHT;
+		grenade->think = Grenade4_Think;
+		grenade->s.renderfx |= RF_MINLIGHT;
+		grenade->touch = Grenade_Touch;
 	}
 	else
 	{
-		grenade->s.modelindex = gi.modelindex("models/objects/grenade4/tris.md2");
+		grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 		grenade->s.angles = vectoangles(grenade->velocity);
 		grenade->nextthink = level.time + FRAME_TIME_S;
 		grenade->timestamp = level.time + timer;
 		grenade->think = Grenade4_Think;
 		grenade->s.renderfx |= RF_MINLIGHT;
+		grenade->touch = Grenade_Touch;
 	}
+
 	grenade->owner = self;
-	grenade->touch = Grenade_Touch;
 	grenade->dmg = damage;
 	grenade->dmg_radius = damage_radius;
 	grenade->classname = "grenade";
 
 	gi.linkentity(grenade);
 }
+
 
 void fire_grenade2(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held)
 {

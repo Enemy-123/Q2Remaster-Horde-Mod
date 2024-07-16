@@ -1889,6 +1889,15 @@ template<typename T>
 {
 	return irandom(2) == 0;
 }
+
+inline void VectorScale(const vec3_t& in, float scale, vec3_t& out)
+{
+	out[0] = in[0] * scale;
+	out[1] = in[1] * scale;
+	out[2] = in[2] * scale;
+}
+
+
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 extern cvar_t* deathmatch;
 extern cvar_t* coop;
@@ -1952,6 +1961,7 @@ extern cvar_t* g_insane;
 extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
 extern cvar_t* g_tracedbullets;
+extern cvar_t* g_bouncygl;
 extern cvar_t* g_startarmor;
 extern cvar_t* g_vampire;
 extern cvar_t* g_iddmg;

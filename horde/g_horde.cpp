@@ -81,12 +81,13 @@ struct weighted_benefit_t {
 // Lista de beneficios ponderados
 constexpr weighted_benefit_t benefits[] = {
     { "vampire", 4, -1, 0.2f },
+    { "vampire upgraded", 24, -1, 0.1f },
     { "ammo regen", 8, -1, 0.15f },
     { "auto haste", 9, -1, 0.15f },
-    { "vampire upgraded", 24, -1, 0.1f },
-    { "Cluster Prox Grenades", 28, -1, 0.1f },
     { "start armor", 9, -1, 0.1f },
-    { "Traced-Piercing Bullets", 9, -1, 0.2f }
+    { "Traced-Piercing Bullets", 9, -1, 0.2f },
+    { "Cluster Prox Grenades", 28, -1, 0.2f },
+    { "Bouncy Grenade Launcher", 28, -1, 0.2f }
 };
 
 static std::random_device rd;
@@ -149,8 +150,9 @@ void ApplyBenefit(const std::string& benefit) {
         {"ammo regen", {"AMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n"}},
         {"auto haste", {"\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED !\n"}},
         {"vampire upgraded", {"\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR NOW!\n"}},
-        {"Cluster Prox Grenades", {"\n\n\n\nIMPROVED PROX GRENADES\n", ""}},
-        {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", ""}}
+        {"Cluster Prox Grenades", {"\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled"}},
+        {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing PA Bullets!"}},
+        {"Bouncy Grenade Launcher", {"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Bouncy Grenade Launcher Enabled"}},
     };
 
     auto it = benefitMessages.find(benefit);
@@ -178,6 +180,9 @@ void ApplyBenefit(const std::string& benefit) {
         }
         else if (benefit == "Traced-Piercing Bullets") {
             gi.cvar_set("g_tracedbullets", "1");
+        } 
+        else if (benefit == "Bouncy Grenade Launcher") {
+            gi.cvar_set("g_bouncygl", "1");
         }
 
         // Enviar los mensajes de beneficio
@@ -795,6 +800,7 @@ void Horde_PreInit() noexcept {
         gi.cvar_set("g_vampire", "0");
         gi.cvar_set("g_ammoregen", "0");
         gi.cvar_set("g_tracedbullets", "0");
+        gi.cvar_set("g_bouncygl", "0");
         gi.cvar_set("g_autohaste", "0");
         gi.cvar_set("g_chaotic", "0");
         gi.cvar_set("g_insane", "0");
@@ -1313,6 +1319,7 @@ void ResetGame() noexcept {
     gi.cvar_set("g_ammoregen", "0");
     gi.cvar_set("g_upgradeproxs", "0");
     gi.cvar_set("g_tracedbullets", "0");
+    gi.cvar_set("g_bouncygl", "0");
     gi.cvar_set("g_autohaste", "0");
 
 

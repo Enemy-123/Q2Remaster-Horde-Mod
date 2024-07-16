@@ -1908,6 +1908,9 @@ std::string GetActiveBonusesString() {
 	if (obtained_benefits.find("Traced-Piercing Bullets") != obtained_benefits.end()) {
 		activeBonuses += "* Traced-Piercing Bullets!\n";
 	}
+	if (obtained_benefits.find("Bouncy Grenade Launcher") != obtained_benefits.end()) {
+		activeBonuses += "* Bouncy Grenade Launcher!\n";
+	}
 
 	return activeBonuses;
 }
@@ -2710,48 +2713,50 @@ void CTFAssignGhost(edict_t* ent)
 // start a match
 void CTFStartMatch()
 {
-	//edict_t* ent;
+	edict_t* ent;
 
-	//ctfgame.match = MATCH_GAME;
-	//ctfgame.matchtime = level.time + gtime_t::from_min(matchtime->value);
-	//ctfgame.countdown = false;
+	ctfgame.match = MATCH_GAME;
+	ctfgame.matchtime = level.time + gtime_t::from_min(matchtime->value);
+	ctfgame.countdown = false;
 
-	//ctfgame.team1 = ctfgame.team2 = 0;
+	ctfgame.team1 = ctfgame.team2 = 0;
 
-	//memset(ctfgame.ghosts, 0, sizeof(ctfgame.ghosts));
+	memset(ctfgame.ghosts, 0, sizeof(ctfgame.ghosts));
 
-	//for (uint32_t i = 1; i <= game.maxclients; i++)
-	//{
-	//	ent = g_edicts + i;
-	//	if (!ent->inuse)
-	//		continue;
+	for (uint32_t i = 1; i <= game.maxclients; i++)
+	{
+		ent = g_edicts + i;
+		if (!ent->inuse)
+			continue;
+		if (ent->svflags & SVF_BOT)
+			continue;
 
-	//	ent->client->resp.score = 0;
-	//	ent->client->resp.ctf_state = 0;
-	//	ent->client->resp.ghost = nullptr;
+		ent->client->resp.score = 0;
+		ent->client->resp.ctf_state = 0;
+		ent->client->resp.ghost = nullptr;
 
-	//	gi.LocCenter_Print(ent, "******************\n\nMATCH HAS STARTED!\n\n******************");
+		gi.LocCenter_Print(ent, "******************\n\nMATCH HAS STARTED!\n\n******************");
 
-	//	if (ent->client->resp.ctf_team != CTF_NOTEAM)
-	//	{
-	//		// make up a ghost code
-	//		CTFAssignGhost(ent);
-	//		CTFPlayerResetGrapple(ent);
-	//		ent->svflags = SVF_NOCLIENT;
-	//		ent->flags &= ~FL_GODMODE;
+		if (ent->client->resp.ctf_team != CTF_NOTEAM)
+		{
+			// make up a ghost code
+			CTFAssignGhost(ent);
+			CTFPlayerResetGrapple(ent);
+			ent->svflags = SVF_NOCLIENT;
+			ent->flags &= ~FL_GODMODE;
 
-	//		ent->client->respawn_time = level.time + random_time(1_sec, 4_sec);
-	//		ent->client->ps.pmove.pm_type = PM_DEAD;
-	//		ent->client->anim_priority = ANIM_DEATH;
-	//		ent->s.frame = FRAME_death308 - 1;
-	//		ent->client->anim_end = FRAME_death308;
-	//		ent->deadflag = true;
-	//		ent->movetype = MOVETYPE_NOCLIP;
-	//		ent->client->ps.gunindex = 0;
-	//		ent->client->ps.gunskin = 0;
-	//		gi.linkentity(ent);
-	//	}
-	//}
+			ent->client->respawn_time = level.time + random_time(1_sec, 4_sec);
+			ent->client->ps.pmove.pm_type = PM_DEAD;
+			ent->client->anim_priority = ANIM_DEATH;
+			ent->s.frame = FRAME_death308 - 1;
+			ent->client->anim_end = FRAME_death308;
+			ent->deadflag = true;
+			ent->movetype = MOVETYPE_NOCLIP;
+			ent->client->ps.gunindex = 0;
+			ent->client->ps.gunskin = 0;
+			gi.linkentity(ent);
+		}
+	}
 }
 
 void CTFEndMatch()
@@ -3818,24 +3823,24 @@ bool CTFCheckRules()
 
 		switch (ctfgame.match)
 		{
-		case MATCH_SETUP:
-			for (j = 0, i = 1; i <= game.maxclients; i++)
-			{
-				ent = g_edicts + i;
-				if (!ent->inuse)
-					continue;
-				if (ent->client->resp.ctf_team != CTF_NOTEAM &&
-					!ent->client->resp.ready)
-					j++;
-			}
+		//case MATCH_SETUP:
+		//	for (j = 0, i = 1; i <= game.maxclients; i++)
+		//	{
+		//		ent = g_edicts + i;
+		//		if (!ent->inuse)
+		//			continue;
+		//		if (ent->client->resp.ctf_team != CTF_NOTEAM &&
+		//			!ent->client->resp.ready)
+		//			j++;
+		//	}
 
-			if (competition->integer < 3)
-				G_FmtTo(text, "{:02}:{:02} SETUP: {} not ready", t / 60, t % 60, j);
-			else
-				G_FmtTo(text, "SETUP: {} not ready", j);
+		//	if (competition->integer < 3)
+		//		G_FmtTo(text, "{:02}:{:02} SETUP: {} not ready", t / 60, t % 60, j);
+		//	else
+		//		G_FmtTo(text, "SETUP: {} not ready", j);
 
-			//		gi.configstring(CONFIG_CTF_MATCH, text);
-			break;
+		//	//		gi.configstring(CONFIG_CTF_MATCH, text);
+		//	break;
 
 		case MATCH_PREGAME:
 			G_FmtTo(text, "{:02}:{:02} UNTIL START", t / 60, t % 60);
@@ -3848,15 +3853,15 @@ bool CTFCheckRules()
 			}
 			break;
 
-		case MATCH_GAME:
-			G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
-			//		gi.configstring(CONFIG_CTF_MATCH, text);
-			if (t <= 10 && !ctfgame.countdown)
-			{
-				ctfgame.countdown = true;
-				gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
-			}
-			break;
+		//case MATCH_GAME:
+		//	G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
+		//	//		gi.configstring(CONFIG_CTF_MATCH, text);
+		//	if (t <= 10 && !ctfgame.countdown)
+		//	{
+		//		ctfgame.countdown = true;
+		//		gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
+		//	}
+		//	break;
 
 		default:
 			break;
