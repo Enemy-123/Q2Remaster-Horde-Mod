@@ -20,67 +20,66 @@ void RemovePlayerOwnedEntities(edict_t* player)
 		if (!ent->inuse)
 			continue;
 
-
-		//if (ent->owner == player ||
-		//	(ent->owner && ent->owner->owner == player) ||
-		//	ent->teammaster == player || ent->teammaster && ent->teammaster->teammaster == player) {
-
-		if (ent->owner == player || (ent->owner && ent->owner->owner == player))
-				{
-					hasEntities = true;
-					break;
-				}
-		}
-		// If no entities are found, return early
-		if (!hasEntities)
-			return;
-
-		// Iterate again to remove entities
-		for (unsigned int i = 0; i < globals.num_edicts; i++)
+		if (ent->owner == player || (ent->owner && ent->owner->owner == player) ||
+			ent->teammaster == player || (ent->teammaster && ent->teammaster->teammaster == player))
 		{
-			ent = &g_edicts[i];
+			hasEntities = true;
+			break;
+		}
+	}
 
-			if (!ent->inuse)
-				continue;
+	// If no entities are found, return early
+	if (!hasEntities)
+		return;
 
-			// Check if the owner is the player or the turret owned by the player
-			if (ent->owner == player || (ent->owner && ent->owner->owner == player))
+	// Iterate again to remove entities
+	for (unsigned int i = 0; i < globals.num_edicts; i++)
+	{
+		ent = &g_edicts[i];
+
+		if (!ent->inuse)
+			continue;
+
+		// Check if the owner is the player or the turret owned by the player
+		if (ent->owner == player || (ent->owner && ent->owner->owner == player) ||
+			ent->teammaster == player || (ent->teammaster && ent->teammaster->teammaster == player))
+		{
+			if (!strcmp(ent->classname, "tesla_mine") ||
+				!strcmp(ent->classname, "food_cube_trap") ||
+				!strcmp(ent->classname, "prox_mine") ||
+				!strcmp(ent->classname, "monster_sentrygun"))
 			{
-				if (!strcmp(ent->classname, "tesla_mine") ||
-					!strcmp(ent->classname, "food_cube_trap") ||
-					!strcmp(ent->classname, "prox_mine") ||
-					!strcmp(ent->classname, "monster_sentrygun"))
+				// Call appropriate die function
+				if (!strcmp(ent->classname, "monster_sentrygun"))
 				{
-					// Call appropriate die function
-					if (!strcmp(ent->classname, "monster_sentrygun"))
+					if (ent->health > 0)
 					{
-						if (ent->health > 0)
-						{
-							ent->health = -1;
-							turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-						}
+						ent->health = -1;
+						turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 					}
-					else if (!strcmp(ent->classname, "tesla_mine"))
-					{
-						tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-					}
-					else if (!strcmp(ent->classname, "prox_mine"))
-					{
-						prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-					}
-					else if (!strcmp(ent->classname, "food_cube_trap"))
-					{
-						trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-					}
-					else
-					{
-						// Use freeEdict to remove the entity or create an explosion if appropriate
-						BecomeExplosion1(ent);
-					}
+				}
+				else if (!strcmp(ent->classname, "tesla_mine"))
+				{
+					tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+				}
+				else if (!strcmp(ent->classname, "prox_mine"))
+				{
+					prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+				}
+				else if (!strcmp(ent->classname, "food_cube_trap"))
+				{
+					trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+				}
+				else
+				{
+					// Use freeEdict to remove the entity or create an explosion if appropriate
+					BecomeExplosion1(ent);
 				}
 			}
 		}
 	}
+}
+
 
 	void UpdatePowerUpTimes(edict_t * monster)
 	{
