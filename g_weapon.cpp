@@ -584,6 +584,10 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 			VectorScale(ent->velocity, 1.2f, ent->velocity); // Aumentar la velocidad tras cada rebote
 		}
 
+		// Reducir el daño en un 1/5, pero no menos del 25% del daño original
+		float min_dmg = ent->original_dmg * 0.25f;
+		ent->dmg = fmax(ent->dmg * 0.8f, min_dmg);
+
 		ent->count--;  // Reducir la cuenta de rebotes
 		ent->nextthink = level.time + 1.0_sec;  // Ajusta el tiempo entre explosiones
 	}
@@ -684,6 +688,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->count = 4;  // Número de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;
+		grenade->original_dmg = damage; // Establecer el daño original
 	}
 	else if (monster)
 	{
@@ -692,8 +697,6 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->nextthink = level.time + timer;
 		grenade->think = Grenade_Explode;
 		grenade->s.effects |= EF_GRENADE_LIGHT;
-		grenade->think = Grenade4_Think;
-		grenade->s.renderfx |= RF_MINLIGHT;
 		grenade->touch = Grenade_Touch;
 		grenade->speed = speed;
 	}
@@ -718,9 +721,9 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 }
 
 
-void fire_grenade2(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held)
+void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, bool held)
 {
-	edict_t *grenade;
+	edict_t* grenade;
 	vec3_t	 dir;
 	vec3_t	 forward, right, up;
 
@@ -744,7 +747,7 @@ void fire_grenade2(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int
 		grenade->clipmask &= ~CONTENTS_PLAYER;
 	grenade->solid = SOLID_BBOX;
 	grenade->svflags |= SVF_PROJECTILE;
-	grenade->flags |= ( FL_DODGE | FL_TRAP );
+	grenade->flags |= (FL_DODGE | FL_TRAP);
 	grenade->s.effects |= EF_GRENADE;
 
 	grenade->s.modelindex = gi.modelindex("models/objects/grenade3/tris.md2");
@@ -768,7 +771,6 @@ void fire_grenade2(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int
 		gi.linkentity(grenade);
 	}
 }
-
 /*
 =================
 fire_rocket
