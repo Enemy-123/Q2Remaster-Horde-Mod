@@ -497,13 +497,34 @@
 					}
 				}
 
-				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) && !damageApplied)
+				constexpr gtime_t PLASMA_FIRE_INTERVAL = 4.0_sec; // Por ejemplo, cada 4 segundos
+				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 				{
-					// Aplica el daño con el mod_t configurado
-					T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
-					monster_fire_heatbeam(self, start, forward, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
-					damageApplied = true;
+					start = self->s.origin;
+					dir = end - start;
+					dir.normalize();
+					trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+					if (trace.ent == self->enemy || trace.ent == world)
+					{
+						if (!damageApplied)
+						{
+							// Sigue disparando heatbeam
+							T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
+							monster_fire_heatbeam(self, start, forward, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
+							damageApplied = true;
+						}
+
+						// Disparo de plasma en intervalos
+						gtime_t currentTime = level.time;
+						if (currentTime > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
+						{
+							self->monsterinfo.last_plasma_fire_time = currentTime;
+							fire_plasma(self->owner, start, dir, 100, 1220, 100, 75); // Ajusta los parámetros según sea necesario
+						}
+					}
 				}
+			
+
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 				{
 					if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
