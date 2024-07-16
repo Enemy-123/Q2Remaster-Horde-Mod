@@ -1285,6 +1285,9 @@ void weapon_grenadelauncher_fire(edict_t* ent)
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
 	G_RemoveAmmo(ent);
+
+	if (g_bouncygl->integer)
+		G_RemoveAmmo(ent);
 }
 
 void Weapon_GrenadeLauncher(edict_t* ent)

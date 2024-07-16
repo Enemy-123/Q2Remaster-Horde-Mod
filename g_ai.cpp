@@ -1177,9 +1177,9 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
             float strafe_chance;
 
             if (!(strcmp(self->classname, "monster_daedalus")) || !(strcmp(self->classname, "monster_daedalus2"))) 
-                strafe_chance = 0.8f;
+                strafe_chance = 0.92f;
             else
-                strafe_chance = 0.6f;
+                strafe_chance = 0.75f;
 
             // if enemy is tesla, never strafe
             if ((self->enemy) && (self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))

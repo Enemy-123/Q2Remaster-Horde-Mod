@@ -688,7 +688,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->count = 4;  // Número de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;
-		grenade->original_dmg = damage; // Establecer el daño original
+		grenade->original_dmg = damage / 1.4; // Establecer el daño original
 	}
 	else if (monster)
 	{
