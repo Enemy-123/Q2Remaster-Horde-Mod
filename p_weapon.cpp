@@ -1261,7 +1261,7 @@ GRENADE LAUNCHER
 
 void weapon_grenadelauncher_fire(edict_t* ent)
 {
-	int	  damage = g_bouncygl->integer ? 80 : 115;
+	int	  damage = g_bouncygl->integer ? 95 : 115;
 	float radius;
 
 	radius = (float)(damage + 40);
