@@ -954,10 +954,19 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.selected_item = client->pers.lastweapon->id;
 	}
 	else {
-		gitem_t* item = FindItem("Blaster");
-		client->pers.selected_item = item->id;
-		client->pers.inventory[item->id] = 1;
-		client->pers.weapon = item;
+		// Si no hay un arma válida previa, usa NoAmmoWeaponChange
+		NoAmmoWeaponChange(ent, false);
+		if (client->newweapon) {
+			client->pers.weapon = client->newweapon;
+			client->pers.selected_item = client->newweapon->id;
+		}
+		else {
+			// Si no hay un arma válida después de NoAmmoWeaponChange, usa Blaster
+			gitem_t* item = FindItem("Blaster");
+			client->pers.selected_item = item->id;
+			client->pers.inventory[item->id] = 1;
+			client->pers.weapon = item;
+		}
 	}
 
 	// Lógica específica para modos Coop & Horde
@@ -1054,17 +1063,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		// ZOID
 	}
 
-	if (client->pers.weapon && client->pers.inventory[client->pers.weapon->id] > 0) {
-		client->newweapon = client->pers.weapon;
-	//	client->pers.selected_item = client->pers.weapon->id;
-	}
-	else {
-		NoAmmoWeaponChange(ent, false);
-		client->pers.weapon = client->newweapon;
-		client->pers.selected_item = client->newweapon ? client->newweapon->id : FindItem("Blaster")->id;
-	}
-
-	client->newweapon = nullptr;
+	// Actualiza las variables de armas
+	client->newweapon = client->pers.weapon;
 	client->pers.lastweapon = client->pers.weapon;
 
 	if (G_IsCooperative() && g_coop_enable_lives->integer)
@@ -1080,6 +1080,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.inventory[IT_ARMOR_BODY] = 50;
 	}
 }
+
 
 void InitClientResp(gclient_t* client)
 {
