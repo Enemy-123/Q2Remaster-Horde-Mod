@@ -845,7 +845,36 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	vec3_t	 vec;
 	edict_t* player;
 
-	SP_monster_makronkl(self);
+
+	if (current_wave_number <= 20) {
+
+		SP_monster_makron(self);
+		self->think(self);
+
+		// jump at player
+		if (self->enemy && self->enemy->inuse && self->enemy->health > 0)
+			player = self->enemy;
+		else
+			player = AI_GetSightClient(self);
+
+		if (!player)
+			return;
+
+		vec = player->s.origin - self->s.origin;
+		self->s.angles[YAW] = vectoyaw(vec);
+		vec.normalize();
+		self->velocity = vec * 400;
+		self->velocity[2] = 200;
+		self->groundentity = nullptr;
+		self->enemy = player;
+		FoundTarget(self);
+		self->monsterinfo.sight(self, self->enemy);
+		self->s.frame = self->monsterinfo.nextframe = FRAME_active01; // FIXME: why????
+		self->spawnflags.has(SPAWNFLAG_IS_BOSS);
+	}
+	else 
+
+	SP_monster_makron(self);
 	self->think(self);
 
 	// jump at player
@@ -877,20 +906,41 @@ MakronToss
 Jorg is just about dead, so set up to launch Makron out
 =================
 */
-void MakronToss(edict_t *self)
+void MakronToss(edict_t* self)
 {
-	edict_t *ent = G_Spawn();
-	ent->classname = "monster_makronkl";
-	ent->target = self->target;
-	ent->s.origin = self->s.origin;
-	ent->enemy = self->enemy;
+	if (current_wave_number <= 20) {
+		edict_t* ent = G_Spawn();
+		ent->classname = "monster_makronkl";
+		ent->target = self->target;
+		ent->s.origin = self->s.origin;
+		ent->enemy = self->enemy;
 
-	MakronSpawn(ent);
+		MakronSpawn(ent);
 
-	// [Paril-KEX] set health bar over to Makron when we throw him out
-	for (size_t i = 0; i < 2; i++)
-		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == self)
-			level.health_bar_entities[i]->enemy = ent;
+
+
+		// [Paril-KEX] set health bar over to Makron when we throw him out
+		for (size_t i = 0; i < 2; i++)
+			if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == self)
+				level.health_bar_entities[i]->enemy = ent;
+	}
+	else
+	{
+		edict_t* ent = G_Spawn();
+		ent->classname = "monster_makron";
+		ent->target = self->target;
+		ent->s.origin = self->s.origin;
+		ent->enemy = self->enemy;
+
+		MakronSpawn(ent);
+
+
+
+		// [Paril-KEX] set health bar over to Makron when we throw him out
+		for (size_t i = 0; i < 2; i++)
+			if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == self)
+				level.health_bar_entities[i]->enemy = ent;
+	}
 }
 
 //HORDE BOSS
