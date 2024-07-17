@@ -707,6 +707,9 @@ void G_SetCoopStats(edict_t* ent) {
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
 
+	extern void UpdateVoteHUD();
+	UpdateVoteHUD();
+
 if (G_IsDeathmatch() && level.intermissiontime) {
 
 ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
@@ -778,6 +781,15 @@ void G_SetStats(edict_t* ent)
 	else {
 		ent->client->target_health_str.clear();
 	}
+
+	// Mostrar la información de la votación
+	if (ent->client->voted_map[0]) {
+		ent->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
+	}
+	else {
+		ent->client->ps.stats[STAT_VOTESTRING] = 0;
+	}
+
 
 	//
 	// weapons

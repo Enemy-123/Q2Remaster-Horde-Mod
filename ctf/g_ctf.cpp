@@ -2571,25 +2571,21 @@ static void SetLevelName(pmenu_t* p)
 
 /*-----------------------------------------------------------------------*/
 void CTFWinElection();
-bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
-{
+bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	int count;
 	edict_t* e;
 
-	if (electpercentage->value == 0)
-	{
+	if (electpercentage->value == 0) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Elections are disabled, only an admin can process this action.\n");
 		return false;
 	}
 
-	if (ctfgame.election != ELECT_NONE)
-	{
+	if (ctfgame.election != ELECT_NONE) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Election already in progress.\n");
 		return false;
 	}
 
-	if (ent->client->resp.ctf_team == CTF_NOTEAM)
-	{
+	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "You have to be in the game to start a vote.\n");
 		return false;
 	}
@@ -2597,14 +2593,11 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 	// clear votes
 	count = 0;
 	ctfgame.evotes = 0; // Initialize vote count to 0
-	for (uint32_t i = 1; i <= game.maxclients; i++)
-	{
+	for (uint32_t i = 1; i <= game.maxclients; i++) {
 		e = g_edicts + i;
-		if (e->inuse && e->client)
-		{
+		if (e->inuse && e->client) {
 			e->client->resp.voted = false;
-			if (!(e->svflags & SVF_BOT) && e->client->resp.ctf_team == CTF_TEAM1)
-			{
+			if (!(e->svflags & SVF_BOT) && e->client->resp.ctf_team == CTF_TEAM1) {
 				count++;
 			}
 		}
@@ -2622,9 +2615,22 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 	gi.LocBroadcast_Print(PRINT_HIGH, "Votes: {}  Needed: {}  Time left: {}s\n", ctfgame.evotes, ctfgame.needvotes,
 		(ctfgame.electtime - level.time).seconds<int>());
 
+	// Actualizar el configstring con la información de la votación
+	std::ostringstream vote_info_stream;
+	vote_info_stream << "Vote started by " << ent->client->pers.netname << ": " << msg
+		<< " Time left: " << (ctfgame.electtime - level.time).seconds<int>() << "s";
+	gi.configstring(CONFIG_VOTE_INFO, vote_info_stream.str().c_str());
+
+	// Guardar el mensaje en el voted_map de cada cliente
+	for (uint32_t i = 1; i <= game.maxclients; i++) {
+		edict_t* player = &g_edicts[i];
+		if (player->inuse && player->client) {
+			Q_strlcpy(player->client->voted_map, vote_info_stream.str().c_str(), sizeof(player->client->voted_map));
+		}
+	}
+
 	// Si solo hay un jugador, aprueba la elección automáticamente
-	if (count == 1)
-	{
+	if (count == 1) {
 		ctfgame.evotes = ctfgame.needvotes;
 		gi.Broadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other (human) players logged.\n");
 		CTFWinElection(); // Procesa el resultado de la elección inmediatamente
@@ -2633,6 +2639,33 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg)
 	return true;
 }
 
+void UpdateVoteHUD() {
+	if (ctfgame.election != ELECT_NONE) {
+		std::ostringstream vote_info_stream;
+		vote_info_stream << """ " << ctfgame.emsg
+			<< " Time left: " << (ctfgame.electtime - level.time).seconds<int>() << "s";
+		gi.configstring(CONFIG_VOTE_INFO, vote_info_stream.str().c_str());
+
+		// Actualizar el voted_map de cada jugador
+		for (auto player : active_players()) {
+			if (player->inuse && player->client) {
+				Q_strlcpy(player->client->voted_map, vote_info_stream.str().c_str(), sizeof(player->client->voted_map));
+				player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
+			}
+		}
+	}
+	else {
+		gi.configstring(CONFIG_VOTE_INFO, "");
+
+		// Limpiar el voted_map para cada jugador
+		for (auto player : active_players()) {
+			if (player->inuse && player->client) {
+				player->client->voted_map[0] = '\0';
+				player->client->ps.stats[STAT_VOTESTRING] = 0;
+			}
+		}
+	}
+}
 
 void DoRespawn(edict_t* ent);
 

@@ -1676,6 +1676,10 @@ void G_InitStatusbar(statusbar_t& sb)
 		//	sb.xr(-53).yt(68).num(3, STAT_SPREE).xr(-45).yt(53).string2("Spree");
 
 		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
+
+		sb.ifstat(STAT_VOTESTRING).xv(0).yt(240).loc_stat_cstring2(STAT_VOTESTRING).endifstat();
+
+
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 
 		// HORDE MODE specific HUD elements
