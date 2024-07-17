@@ -2626,7 +2626,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	ctfgame.etarget = ent;
 	ctfgame.election = type;
 	ctfgame.needvotes = (int)((count * electpercentage->value) / 100);
-	ctfgame.electtime = level.time + 20_sec; // twenty seconds for election
+	ctfgame.electtime = level.time + 25_sec; // 25 seconds for election
 	Q_strlcpy(ctfgame.emsg, msg, sizeof(ctfgame.emsg));
 
 	// tell everyone
