@@ -803,7 +803,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->deadflag = true;
 
 	gi.linkentity(self);
-	extern void RemovePlayerOwnedEntities(edict_t* player);
+	extern void RemovePlayerOwnedEntities(edict_t * player);
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(self);
 }
@@ -881,7 +881,7 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 void SaveClientWeaponBeforeDeath(gclient_t* client)
 {
 	client->resp.weapon = client->pers.weapon;
-	client->pers.lastweapon = client->pers.weapon; 
+	client->pers.lastweapon = client->pers.weapon;
 }
 /*
 ==============
@@ -1433,10 +1433,10 @@ static edict_t* G_UnsafeSpawnPosition(vec3_t spot, bool check_players)
 			}) == stuck_result_t::NO_GOOD_POSITION)
 			return tr.ent; // what do we do here...?
 
-			trace_t tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, nullptr, mask);
+		trace_t tr = gi.trace(spot, PLAYER_MINS, PLAYER_MAXS, spot, nullptr, mask);
 
-			if (tr.startsolid && !tr.ent->client)
-				return tr.ent; // what do we do here...?
+		if (tr.startsolid && !tr.ent->client)
+			return tr.ent; // what do we do here...?
 	}
 
 	if (tr.fraction == 1.f)
@@ -1803,6 +1803,9 @@ void respawn(edict_t* self)
 {
 	if (G_IsDeathmatch() || G_IsCooperative())
 	{
+		// Guardar el arma y la salud m�xima antes de la muerte
+		SaveClientWeaponBeforeDeath(self->client);
+
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
 			CopyToBodyQue(self);
@@ -2209,6 +2212,15 @@ void PutClientInServer(edict_t* ent)
 			client->respawn_timeout = level.time + 0_sec;
 		}
 
+		// Inicializar target_health_str y last_statusbar
+		//ent->client->target_health_str.clear();
+		//ent->client->last_statusbar.clear();
+
+		//// Inicializar y actualizar el HUD inmediatamente despu�s de que el jugador entre al juego
+		//statusbar_t sb;
+		//G_InitStatusbar(sb);
+		////UpdateHUD(sb, ent);
+		//gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 		// find a spot to place us
 		if (!level.respawn_intermission)
 		{
@@ -2372,9 +2384,7 @@ void PutClientInServer(edict_t* ent)
 	ent->client->ps.pmove.viewheight = ent->viewheight;
 	ent->client->ps.team_id = ent->client->resp.ctf_team;
 
-	edict_t* other_ent = nullptr;
-	// [Paril-KEX]
-if (!G_ShouldPlayersCollide(false))
+	if (!G_ShouldPlayersCollide(false))
 		ent->clipmask &= ~CONTENTS_PLAYER;
 
 	// PGM
@@ -3564,10 +3574,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		else
 			client->ps.pmove.pm_type = PM_NORMAL;
 
-	edict_t* other_ent = nullptr;
-	// [Paril-KEX]
-if (!G_ShouldPlayersCollide(false))
-		ent->clipmask &= ~CONTENTS_PLAYER;
+		// [Paril-KEX]
+		if (!G_ShouldPlayersCollide(false) ||
+			(G_IsDeathmatch() && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER)) // if player collision is on and we're temporarily ghostly...
+			)
+			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
+		else
+			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
 
 		// PGM	trigger_gravity support
 		client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
@@ -3898,8 +3911,8 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 	return false;
 }
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
-#include <fmt/format.h>
-
+// [Paril-KEX] check each player to find a good
+// respawn target & position
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
 	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max()); // Inicializa con el mayor valor posible
