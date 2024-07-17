@@ -2374,7 +2374,7 @@ void PutClientInServer(edict_t* ent)
 
 	edict_t* other_ent = nullptr;
 	// [Paril-KEX]
-if (!g_horde->integer && !G_ShouldPlayersCollide(false))
+if (!G_ShouldPlayersCollide(false))
 		ent->clipmask &= ~CONTENTS_PLAYER;
 
 	// PGM
