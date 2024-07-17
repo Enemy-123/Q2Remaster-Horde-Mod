@@ -571,6 +571,10 @@ player_die
 */
 DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+
+	// Guardar el arma y la salud m�xima antes de la muerte
+	SaveClientWeaponBeforeDeath(self->client);
+
 	PlayerTrail_Destroy(self);
 
 	self->avelocity = {};
@@ -877,7 +881,7 @@ void InitClientPt(edict_t* ent, gclient_t* client)
 void SaveClientWeaponBeforeDeath(gclient_t* client)
 {
 	client->resp.weapon = client->pers.weapon;
-	client->resp.max_health = client->pers.max_health; // Guardar la salud máxima
+	client->pers.lastweapon = client->pers.weapon; 
 }
 /*
 ==============
@@ -939,137 +943,129 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.inventory[IT_ARMOR_COMBAT] = 0;
 	client->pers.inventory[IT_ARMOR_JACKET] = 0;
 	client->pers.inventory[IT_ARMOR_SHARD] = 0;
-	// don't give us weapons if we shouldn't have any
-	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-		(!G_TeamplayEnabled() && !client->resp.spectator))
-	{
-		// Restaurar el arma que el jugador estaba usando antes de morir
-		if (client->resp.weapon) {
-			client->pers.weapon = client->resp.weapon;
-			client->pers.selected_item = client->resp.weapon->id;
-			client->pers.inventory[client->pers.selected_item] = 1; // Asegurarse de que el arma esté en el inventario
+
+	// Restaurar el arma que el jugador estaba usando antes de morir
+	if (client->resp.weapon && client->pers.inventory[client->resp.weapon->id] > 0) {
+		client->pers.weapon = client->resp.weapon;
+		client->pers.selected_item = client->resp.weapon->id;
+	}
+	else if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
+		client->pers.weapon = client->pers.lastweapon;
+		client->pers.selected_item = client->pers.lastweapon->id;
+	}
+	else {
+		gitem_t* item = FindItem("Blaster");
+		client->pers.selected_item = item->id;
+		client->pers.inventory[item->id] = 1;
+		client->pers.weapon = item;
+	}
+
+	// Lógica específica para modos Coop & Horde
+	bool taken_loadout = false;
+	if (G_IsCooperative()) {
+		for (auto player : active_players()) {
+			if (player == ent || !player->client->pers.spawned || player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
+				continue;
+			client->pers.inventory = player->client->pers.inventory;
+			client->pers.max_ammo = player->client->pers.max_ammo;
+			client->pers.power_cubes = player->client->pers.power_cubes;
+			taken_loadout = true;
+			break;
+		}
+	}
+
+	if (!taken_loadout) {
+		// Lógica para el modo Horde
+		if (g_horde->integer && current_wave_number >= 15) {
+			client->pers.max_ammo.fill(50);
+			client->pers.max_ammo[AMMO_BULLETS] = 400;
+			client->pers.max_ammo[AMMO_SHELLS] = 175;
+			client->pers.max_ammo[AMMO_CELLS] = 400;
+			client->pers.max_ammo[AMMO_FLECHETTES] = 400;
+			client->pers.max_ammo[AMMO_GRENADES] = 125;
+			client->pers.max_ammo[AMMO_ROCKETS] = 100;
+			client->pers.max_ammo[AMMO_SLUGS] = 75;
+			client->pers.max_ammo[AMMO_MAGSLUG] = 125;
+			client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
+			client->pers.max_ammo[AMMO_TESLA] = 12;
+			client->pers.max_ammo[AMMO_PROX] = 125;
+			client->pers.max_ammo[AMMO_TRAP] = 8;
 		}
 		else {
-			gitem_t* item = FindItem("Blaster");
-			client->pers.selected_item = item->id;
-			client->pers.inventory[item->id] = 1;
-			client->pers.weapon = item;
+			client->pers.max_ammo.fill(50);
+			client->pers.max_ammo[AMMO_BULLETS] = 250;
+			client->pers.max_ammo[AMMO_SHELLS] = 100;
+			client->pers.max_ammo[AMMO_CELLS] = 250;
+			client->pers.max_ammo[AMMO_TRAP] = 5;
+			client->pers.max_ammo[AMMO_FLECHETTES] = 250;
+			client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+			client->pers.max_ammo[AMMO_TESLA] = 5;
+			client->pers.max_ammo[AMMO_TRAP] = 5;
 		}
+
+		if (G_IsDeathmatch())
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+
+		if (*g_start_items->string)
+			Player_GiveStartItems(ent, g_start_items->string);
+
+		if (level.start_items && *level.start_items)
+			Player_GiveStartItems(ent, level.start_items);
+
+		if (!G_IsDeathmatch() || g_horde->integer)
+			client->pers.inventory[IT_ITEM_COMPASS] = 1;
+
+		client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+
+		// Starting items for horde mode
+		if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number <= 12) {
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
+			client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
+			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+		}
+		else if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 13) {
+			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
+			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
+			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
+			client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
+			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
+			client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
+			client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
+			client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
+			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+
+			if (g_upgradeproxs->integer && g_horde->integer && current_wave_number >= 20) {
+				client->pers.inventory[IT_AMMO_PROX] += 3;
+			}
+			if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX]) {
+				client->pers.inventory[IT_AMMO_PROX] = client->pers.max_ammo[AMMO_PROX];
+			}
+		}
+
+		// ZOID
+		bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ? (ctf->integer ? !level.no_grapple : 0) : g_allow_grapple->integer;
+		if (give_grapple)
+			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
+		// ZOID
 	}
 
-	// don't give us weapons if we shouldn't have any
-	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-		(!G_TeamplayEnabled() && !client->resp.spectator))
-	{
-		// Coop & Horde specific logic
-		bool taken_loadout = false;
-
-		if (G_IsCooperative()) {
-			for (auto player : active_players()) {
-				if (player == ent || !player->client->pers.spawned ||
-					player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
-					continue;
-				client->pers.inventory = player->client->pers.inventory;
-				client->pers.max_ammo = player->client->pers.max_ammo;
-				client->pers.power_cubes = player->client->pers.power_cubes;
-				taken_loadout = true;
-				break;
-			}
-		}
-
-		if (!taken_loadout) {
-			// Logic for Horde mode
-			if (g_horde->integer && current_wave_number >= 15) {
-				client->pers.max_ammo.fill(50);
-				client->pers.max_ammo[AMMO_BULLETS] = 400;
-				client->pers.max_ammo[AMMO_SHELLS] = 175;
-				client->pers.max_ammo[AMMO_CELLS] = 400;
-				client->pers.max_ammo[AMMO_FLECHETTES] = 400;
-				client->pers.max_ammo[AMMO_GRENADES] = 125;
-				client->pers.max_ammo[AMMO_ROCKETS] = 100;
-				client->pers.max_ammo[AMMO_SLUGS] = 75;
-				client->pers.max_ammo[AMMO_MAGSLUG] = 125;
-				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
-				client->pers.max_ammo[AMMO_TESLA] = 12;
-				client->pers.max_ammo[AMMO_PROX] = 125;
-				client->pers.max_ammo[AMMO_TRAP] = 8;
-			}
-			else {
-				client->pers.max_ammo.fill(50);
-				client->pers.max_ammo[AMMO_BULLETS] = 250;
-				client->pers.max_ammo[AMMO_SHELLS] = 100;
-				client->pers.max_ammo[AMMO_CELLS] = 250;
-				client->pers.max_ammo[AMMO_TRAP] = 5;
-				client->pers.max_ammo[AMMO_FLECHETTES] = 250;
-				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-				client->pers.max_ammo[AMMO_TESLA] = 5;
-				client->pers.max_ammo[AMMO_TRAP] = 5;
-			}
-
-			if (G_IsDeathmatch())
-				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-
-			if (*g_start_items->string)
-				Player_GiveStartItems(ent, g_start_items->string);
-
-			if (level.start_items && *level.start_items)
-				Player_GiveStartItems(ent, level.start_items);
-
-			if (!G_IsDeathmatch() || g_horde->integer)
-				client->pers.inventory[IT_ITEM_COMPASS] = 1;
-
-			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
-
-			// starting items for horde mod
-			if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number <= 12) {
-				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
-				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
-			}
-			else if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 13) {
-				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-				client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-				client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-				client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-				client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
-				client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
-				client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
-				client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
-				client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
-
-				if (g_upgradeproxs->integer && g_horde->integer && current_wave_number >= 20) {
-					client->pers.inventory[IT_AMMO_PROX] += 3;
-				}
-				if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX]) {
-					client->pers.inventory[IT_AMMO_PROX] = client->pers.max_ammo[AMMO_PROX];
-				}
-			}
-
-			// ZOID
-			bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
-				(ctf->integer ? !level.no_grapple : 0) :
-				g_allow_grapple->integer;
-
-			if (give_grapple)
-				client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
-			// ZOID
-		}
-
+	if (client->pers.weapon && client->pers.inventory[client->pers.weapon->id] > 0) {
+		client->newweapon = client->pers.weapon;
+	//	client->pers.selected_item = client->pers.weapon->id;
+	}
+	else {
 		NoAmmoWeaponChange(ent, false);
-
 		client->pers.weapon = client->newweapon;
-		if (client->newweapon)
-			client->pers.selected_item = client->newweapon->id;
-		client->newweapon = nullptr;
-		// ZOID
-		client->pers.lastweapon = client->pers.weapon;
-		// ZOID
+		client->pers.selected_item = client->newweapon ? client->newweapon->id : FindItem("Blaster")->id;
 	}
+
+	client->newweapon = nullptr;
+	client->pers.lastweapon = client->pers.weapon;
 
 	if (G_IsCooperative() && g_coop_enable_lives->integer)
 		client->pers.lives = g_coop_num_lives->integer + 1;
@@ -1806,9 +1802,6 @@ void respawn(edict_t* self)
 {
 	if (G_IsDeathmatch() || G_IsCooperative())
 	{
-		// Guardar el arma y la salud m�xima antes de la muerte
-		SaveClientWeaponBeforeDeath(self->client);
-
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
 			CopyToBodyQue(self);

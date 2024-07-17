@@ -3807,6 +3807,9 @@ void CTFObserver(edict_t* ent)
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
 		return;
 
+	// Guardar el arma y la salud m�xima antes de la muerte
+	SaveClientWeaponBeforeDeath(ent->client);
+
 	// start as 'observer'
 	if (ent->movetype == MOVETYPE_NOCLIP)
 		CTFPlayerResetGrapple(ent);
