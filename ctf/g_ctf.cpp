@@ -944,7 +944,7 @@ void CTFID_f(edict_t* ent)
 		ent->client->resp.id_state = true;
 	}
 }
-
+extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 #include "../shared.h"
 void InitializeCTFIDViewConfigStrings() {
 	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
@@ -1134,8 +1134,6 @@ void CTFSetIDView(edict_t* ent) {
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
-	extern void VectorAdd(const vec3_t & a, const vec3_t & b, vec3_t & c);
-
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 	vec3_t mins, maxs;
 	VectorAdd(ent->s.origin, ent->mins, mins);
@@ -1177,65 +1175,86 @@ void CTFSetIDView(edict_t* ent) {
 
 	if (best) {
 		ent->client->idtarget = best;
-		std::ostringstream health_stream;
+		std::string health_string;
 		std::string name;
 
 		if (best->svflags & SVF_MONSTER) {
 			std::string title = GetTitleFromFlags(best->monsterinfo.bonus_flags);
 			name = title + FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-			health_stream << name << "\nH: " << best->health << " ";
-			if (best->monsterinfo.armor_power > 0) {
-				health_stream << "A: " << best->monsterinfo.armor_power << " ";
+
+			if (best->monsterinfo.armor_power > 0 || best->monsterinfo.power_armor_power > 0) {
+				health_string = fmt::format("{}\nH: {} A: {} PA: {}",
+					name,
+					best->health,
+					best->monsterinfo.armor_power,
+					best->monsterinfo.power_armor_power);
 			}
-			if (best->monsterinfo.power_armor_power > 0) {
-				health_stream << "PA: " << best->monsterinfo.power_armor_power << " ";
+			else {
+				health_string = fmt::format("{}\nH: {}",
+					name,
+					best->health);
 			}
 		}
 		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine")) {
 			name = GetDisplayName(best->classname);
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-			health_stream << name << " H: " << best->health << " ";
+			health_string = fmt::format("{} H: {}",
+				name,
+				best->health);
 
 			if (!strcmp(best->classname, "tesla_mine")) {
 				gtime_t time_active = level.time - best->timestamp;
 				gtime_t time_remaining = TESLA_TIME_TO_LIVE - time_active;
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-				health_stream << "T: " << remaining_time << "s";
+				health_string = fmt::format("{} T: {}s",
+					health_string,
+					remaining_time);
 			}
-			else if (/* !strcmp(best->classname, "prox_mine") ||*/ !strcmp(best->classname, "food_cube_trap")) {
+			else if (!strcmp(best->classname, "food_cube_trap")) {
 				gtime_t time_active = level.time - best->timestamp;
 				gtime_t time_remaining = -time_active;
 				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-				health_stream << "T: " << remaining_time << "s";
+				health_string = fmt::format("{} T: {}s",
+					health_string,
+					remaining_time);
 			}
 		}
 		else {
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-			health_stream << "\nH: " << best->health << " ";
+			health_string = fmt::format("\nH: {}",
+				best->health);
 		}
 
 		if (best->client) {
 			int armor_value = GetArmorInfo(best);
 			if (armor_value > 0) {
-				health_stream << "A: " << std::to_string(armor_value) << " ";
+				health_string = fmt::format("{} A: {}",
+					health_string,
+					armor_value);
 			}
 		}
 		else if (best->svflags & SVF_MONSTER) {
 			if (best->monsterinfo.quad_time > level.time) {
 				int remaining_quad_time = static_cast<int>((best->monsterinfo.quad_time - level.time).seconds<float>());
-				health_stream << "\nQuad: " << remaining_quad_time << "s";
+				health_string = fmt::format("{}\nQuad: {}s",
+					health_string,
+					remaining_quad_time);
 			}
 			if (best->monsterinfo.double_time > level.time) {
 				int remaining_double_time = static_cast<int>((best->monsterinfo.double_time - level.time).seconds<float>());
-				health_stream << "\nDouble: " << remaining_double_time << "s";
+				health_string = fmt::format("{}\nDouble: {}s",
+					health_string,
+					remaining_double_time);
 			}
 			if (best->monsterinfo.invincible_time > level.time) {
 				int remaining_invincible_time = static_cast<int>((best->monsterinfo.invincible_time - level.time).seconds<float>());
-				health_stream << "\nInvuln: " << remaining_invincible_time << "s";
+				health_string = fmt::format("{}\nInvuln: {}s",
+					health_string,
+					remaining_invincible_time);
 			}
 		}
-		ent->client->target_health_str = health_stream.str();
+		ent->client->target_health_str = health_string;
 
 		auto& available_configstrings = (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap"))
 			? available_monster_configstrings : available_player_configstrings;
@@ -1256,6 +1275,7 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->idtarget = nullptr;
 	}
 }
+
 
 
 void SetCTFStats(edict_t* ent)
@@ -2616,16 +2636,15 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 		(ctfgame.electtime - level.time).seconds<int>());
 
 	// Actualizar el configstring con la información de la votación
-	std::ostringstream vote_info_stream;
-	vote_info_stream << "Vote started by " << ent->client->pers.netname << ": " << msg
-		<< " Time left: " << (ctfgame.electtime - level.time).seconds<int>() << "s";
-	gi.configstring(CONFIG_VOTE_INFO, vote_info_stream.str().c_str());
+	std::string vote_info_str = fmt::format("Vote started by {}: {} Time left: {}s",
+		ent->client->pers.netname, msg, (ctfgame.electtime - level.time).seconds<int>());
+	gi.configstring(CONFIG_VOTE_INFO, vote_info_str.c_str());
 
 	// Guardar el mensaje en el voted_map de cada cliente
 	for (uint32_t i = 1; i <= game.maxclients; i++) {
 		edict_t* player = &g_edicts[i];
 		if (player->inuse && player->client) {
-			Q_strlcpy(player->client->voted_map, vote_info_stream.str().c_str(), sizeof(player->client->voted_map));
+			Q_strlcpy(player->client->voted_map, vote_info_str.c_str(), sizeof(player->client->voted_map));
 		}
 	}
 
@@ -2641,19 +2660,19 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 void UpdateVoteHUD() {
 	if (ctfgame.election != ELECT_NONE) {
-		std::ostringstream vote_info_stream;
-		vote_info_stream << """ " << ctfgame.emsg
-			<< " Time left: " << (ctfgame.electtime - level.time).seconds<int>() << "s";
-		gi.configstring(CONFIG_VOTE_INFO, vote_info_stream.str().c_str());
+		std::string vote_info_str = fmt::format(""" {} Time left: {}s",
+			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
+		gi.configstring(CONFIG_VOTE_INFO, vote_info_str.c_str());
 
 		// Actualizar el voted_map de cada jugador
 		for (auto player : active_players()) {
 			if (player->inuse && player->client) {
-				Q_strlcpy(player->client->voted_map, vote_info_stream.str().c_str(), sizeof(player->client->voted_map));
+				Q_strlcpy(player->client->voted_map, vote_info_str.c_str(), sizeof(player->client->voted_map));
 				player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
 			}
 		}
 	}
+
 	else {
 		gi.configstring(CONFIG_VOTE_INFO, "");
 

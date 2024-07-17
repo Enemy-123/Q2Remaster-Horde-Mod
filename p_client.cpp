@@ -2209,15 +2209,6 @@ void PutClientInServer(edict_t* ent)
 			client->respawn_timeout = level.time + 0_sec;
 		}
 
-		// Inicializar target_health_str y last_statusbar
-		//ent->client->target_health_str.clear();
-		//ent->client->last_statusbar.clear();
-
-		//// Inicializar y actualizar el HUD inmediatamente despu�s de que el jugador entre al juego
-		//statusbar_t sb;
-		//G_InitStatusbar(sb);
-		////UpdateHUD(sb, ent);
-		//gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 		// find a spot to place us
 		if (!level.respawn_intermission)
 		{
@@ -3918,8 +3909,8 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 	return false;
 }
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
-// [Paril-KEX] check each player to find a good
-// respawn target & position
+#include <fmt/format.h>
+
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
 	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max()); // Inicializa con el mayor valor posible
@@ -3970,18 +3961,8 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 			gtime_t time_left_in_bad_area = max_time_in_bad_area - player->client->time_in_bad_area;
 
 			// Formatea el mensaje con el tiempo en bad area hasta la décima de segundo
-			std::ostringstream message_stream_bad_area;
-			message_stream_bad_area << "In Bad Area! Forcing Respawn in: " << time_left_in_bad_area.seconds<float>();
-
-			// Redondea a una décima de segundo
-			std::string message_str_bad_area = message_stream_bad_area.str();
-			size_t pos_bad_area = message_str_bad_area.find('.');
-			if (pos_bad_area != std::string::npos && pos_bad_area + 2 < message_str_bad_area.size()) {
-				message_str_bad_area = message_str_bad_area.substr(0, pos_bad_area + 2); // Incluye solo una cifra decimal
-			}
-
-			// Añade "(s)" al final del mensaje
-			message_str_bad_area += "(s)";
+			std::string message_str_bad_area = fmt::format("In Bad Area! Forcing Respawn in: {:.1f}(s)",
+				time_left_in_bad_area.seconds<float>());
 
 			// Actualiza la configstring con el mensaje de bad area
 			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str_bad_area.c_str());
@@ -4022,18 +4003,8 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	}
 
 	// Convierte min_time_left a segundos
-	std::ostringstream message_stream;
-	message_stream << "In Combat! Reviving in: " << min_time_left.seconds<float>();
-
-	// Redondea a una décima de segundo
-	std::string message_str = message_stream.str();
-	size_t pos = message_str.find('.');
-	if (pos != std::string::npos && pos + 2 < message_str.size()) {
-		message_str = message_str.substr(0, pos + 2); // Incluye solo una cifra decimal
-	}
-
-	// Añade "(s)" al final del mensaje
-	message_str += "(s)";
+	std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)",
+		min_time_left.seconds<float>());
 
 	// Actualiza la configstring con el mensaje
 	gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
@@ -4041,6 +4012,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	// no good player
 	return { nullptr, {} };
 }
+
 
 enum respawn_state_t
 {

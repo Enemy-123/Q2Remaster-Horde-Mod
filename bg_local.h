@@ -53,8 +53,8 @@ enum coop_respawn_t
 };
 
 constexpr int MAX_PLAYER_CONFIGSTRINGS = 16;
-constexpr int MAX_MONSTER_CONFIGSTRINGS = 55;
-constexpr int MAX_CTF_ID_VIEW_CONFIGSTRINGS = 80;
+constexpr int MAX_MONSTER_CONFIGSTRINGS = 57;
+constexpr int MAX_CTF_ID_VIEW_CONFIGSTRINGS = 84;
 
 enum {
 	CONFIG_CTF_MATCH = CS_GENERAL,
@@ -76,7 +76,7 @@ enum {
 	CONFIG_LAST
 };
 
-static_assert(CONFIG_LAST <= CS_GENERAL + MAX_GENERAL);
+static_assert(CONFIG_LAST <= CS_GENERAL + MAX_GENERAL + MAX_CTF_ID_VIEW_CONFIGSTRINGS, "configstrings too big");
 
 // ammo IDs
 enum ammo_t : uint8_t
