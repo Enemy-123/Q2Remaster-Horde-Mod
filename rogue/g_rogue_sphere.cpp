@@ -639,6 +639,8 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 	// PMM
 	sphere->takedamage = false;
 
+	sphere->svflags = SVF_PLAYER;
+
 	if (!G_ShouldPlayersCollide(true)) {
 		sphere->clipmask &= ~CONTENTS_PLAYER;
 	}
