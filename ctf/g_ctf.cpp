@@ -3311,38 +3311,51 @@ void OpenVoteMenu(edict_t* ent) {
 }
 
 //TEST
-
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	int option = p->cur;
 
-	switch (option) {
-	case 2: // Show Inventory
-		ShowInventory(ent);
-		PMenu_Close(ent);
-		break;
-	case 3: // Go Spectator/AFK
-		CTFObserver(ent);
-		PMenu_Close(ent);
-		break;
-	case 5: // Vote Map
-		PMenu_Close(ent); // Cerrar el menú actual
-		OpenVoteMenu(ent); // Abrir el menú de votación de mapas
-		break;
-	case 6: // Vote Yes
-		CTFVoteYes(ent);
-		PMenu_Close(ent);
-		break;
-	case 7: // Vote No
-		CTFVoteNo(ent);
-		PMenu_Close(ent);
-		break;
-	case 9: // Change Tech
-		PMenu_Close(ent); // Cerrar el menú actual
-		OpenTechMenu(ent); // Abrir el menú de TECHS
-		break;
-	case 11: // Close menu
-		PMenu_Close(ent);
-		break;
+	PMenu_Close(ent); // Cerrar el menú antes de realizar la acción
+
+	if (ctfgame.election == ELECT_NONE) {
+		// Opciones cuando no hay votación en progreso
+		switch (option) {
+		case 2: // Show Inventory
+			ShowInventory(ent);
+			break;
+		case 3: // Go Spectator/AFK
+			CTFObserver(ent);
+			break;
+		case 5: // Vote Map
+			OpenVoteMenu(ent);
+			break;
+		case 7: // Change Tech
+			OpenTechMenu(ent);
+			break;
+		case 9: // Close menu
+			break;
+		}
+	}
+	else {
+		// Opciones cuando hay votación en progreso
+		switch (option) {
+		case 2: // Show Inventory
+			ShowInventory(ent);
+			break;
+		case 3: // Go Spectator/AFK
+			CTFObserver(ent);
+			break;
+		case 5: // Vote Yes
+			CTFVoteYes(ent);
+			break;
+		case 6: // Vote No
+			CTFVoteNo(ent);
+			break;
+		case 8: // Change Tech
+			OpenTechMenu(ent);
+			break;
+		case 10: // Close menu
+			break;
+		}
 	}
 }
 
@@ -3361,9 +3374,52 @@ static const pmenu_t horde_menu[] = {
 	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
 };
 
+//vote in progress menu
+
+static const pmenu_t vote_in_progress_menu[] = {
+	{ "*Vote In Progress", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler },
+	{ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
+};
+
+// normal menu
+
 void OpenSpectatorMenu(edict_t* ent) {
-	PMenu_Open(ent, horde_menu, -1, sizeof(horde_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	std::vector<pmenu_t> dynamic_horde_menu;
+
+	// Crear las opciones del menú dinámicamente
+	dynamic_horde_menu.push_back({ "*Horde Menu", PMENU_ALIGN_CENTER, nullptr });
+	dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
+	dynamic_horde_menu.push_back({ "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler });
+	dynamic_horde_menu.push_back({ "Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler });
+
+	if (ctfgame.election == ELECT_NONE) {
+		// Opciones cuando no hay votación en progreso
+		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
+		dynamic_horde_menu.push_back({ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler });
+		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
+		dynamic_horde_menu.push_back({ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler });
+		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
+		dynamic_horde_menu.push_back({ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler });
+	}
+	else {
+		// Opciones cuando hay votación en progreso
+		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
+		dynamic_horde_menu.push_back({ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler });
+		dynamic_horde_menu.push_back({ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler });
+		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
+		dynamic_horde_menu.push_back({ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler });
+		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
+		dynamic_horde_menu.push_back({ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler });
+	}
+
+	// Convertir el vector a un array
+	PMenu_Open(ent, dynamic_horde_menu.data(), -1, dynamic_horde_menu.size(), nullptr, nullptr);
 }
+
 
 //TEAMS MENU & STUFF
 
