@@ -2374,21 +2374,7 @@ void PutClientInServer(edict_t* ent)
 
 	edict_t* other_ent = nullptr;
 	// [Paril-KEX]
-	if (g_horde->integer) {
-
-		if (!G_ShouldPlayersCollide(false) ||
-			g_horde->integer && OnSameTeam(ent, other_ent) // ahora pasamos both entidades a OnSameTeam
-			)
-		{
-			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
-			client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
-		}
-		else
-		{
-			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
-		}
-	}
-	else 	if (!g_horde->integer && !G_ShouldPlayersCollide(false))
+if (!g_horde->integer && !G_ShouldPlayersCollide(false))
 		ent->clipmask &= ~CONTENTS_PLAYER;
 
 	// PGM
@@ -3580,21 +3566,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	edict_t* other_ent = nullptr;
 	// [Paril-KEX]
-	if (g_horde->integer) {
-
-		if (!G_ShouldPlayersCollide(false) ||
-			g_horde->integer && OnSameTeam(ent, other_ent) // ahora pasamos both entidades a OnSameTeam
-			)
-		{
-			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
-			client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
-		}
-		else
-		{
-			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
-		}
-	}
-	else 	if (!g_horde->integer && !G_ShouldPlayersCollide(false))
+if (!G_ShouldPlayersCollide(false))
 		ent->clipmask &= ~CONTENTS_PLAYER;
 
 		// PGM	trigger_gravity support
