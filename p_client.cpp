@@ -1048,7 +1048,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
 			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 
-			if (g_upgradeproxs->integer && g_horde->integer && current_wave_number >= 20) {
+			if (g_upgradeproxs->integer && g_horde->integer) {
 				client->pers.inventory[IT_AMMO_PROX] += 3;
 			}
 			if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX]) {
@@ -2372,7 +2372,23 @@ void PutClientInServer(edict_t* ent)
 	ent->client->ps.pmove.viewheight = ent->viewheight;
 	ent->client->ps.team_id = ent->client->resp.ctf_team;
 
-	if (!G_ShouldPlayersCollide(false))
+	edict_t* other_ent = nullptr;
+	// [Paril-KEX]
+	if (g_horde->integer) {
+
+		if (!G_ShouldPlayersCollide(false) ||
+			g_horde->integer && OnSameTeam(ent, other_ent) // ahora pasamos both entidades a OnSameTeam
+			)
+		{
+			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
+			client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
+		}
+		else
+		{
+			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
+		}
+	}
+	else 	if (!g_horde->integer && !G_ShouldPlayersCollide(false))
 		ent->clipmask &= ~CONTENTS_PLAYER;
 
 	// PGM
@@ -3562,12 +3578,12 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		else
 			client->ps.pmove.pm_type = PM_NORMAL;
 
-		// Asumimos que other_ent es otra entidad relevante en este contexto
-		edict_t* other_ent = nullptr; // Debes inicializar esta variable adecuadamente en tu código
+	edict_t* other_ent = nullptr;
+	// [Paril-KEX]
+	if (g_horde->integer) {
 
-		// [Paril-KEX]
 		if (!G_ShouldPlayersCollide(false) ||
-			OnSameTeam(ent, other_ent) // ahora pasamos both entidades a OnSameTeam
+			g_horde->integer && OnSameTeam(ent, other_ent) // ahora pasamos both entidades a OnSameTeam
 			)
 		{
 			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
@@ -3576,9 +3592,10 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		else
 		{
 			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
-			client->ps.pmove.pm_flags &= ~PMF_NO_POSITIONAL_PREDICTION;
 		}
-
+	}
+	else 	if (!g_horde->integer && !G_ShouldPlayersCollide(false))
+		ent->clipmask &= ~CONTENTS_PLAYER;
 
 		// PGM	trigger_gravity support
 		client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
