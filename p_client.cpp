@@ -3717,7 +3717,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 
 	// fire weapon from final position if needed
-	if (client->latched_buttons & BUTTON_ATTACK)
+	if (client->latched_buttons & BUTTON_ATTACK && !ent->client->menu)
 	{
 		if (client->resp.spectator)
 		{
