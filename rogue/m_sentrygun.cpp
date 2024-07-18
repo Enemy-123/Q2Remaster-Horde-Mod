@@ -674,6 +674,10 @@
 		vec3_t forward;
 		edict_t* base;
 
+		if (self->owner && self->owner->client) {
+			self->owner->client->num_sentries--;
+		}
+
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
 		self->s.origin += (forward * 1);
 
