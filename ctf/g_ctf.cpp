@@ -2112,9 +2112,9 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	}
 	else {
 		if (ent->client->resp.ctf_team != CTF_TEAM1)
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -48 cstring2 \"{}\" "), "Use Inventory <KEY> to toggle Horde Menu.");
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -55 cstring2 \"{}\" "), "Use Inventory <KEY> to toggle Horde Menu.");
 		else
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -48 cstring2 \"{}\" "), "Use Compass or Inventory <KEY> to toggle Horde Menu.");
+			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -55 cstring2 \"{}\" "), "Use Compass or Inventory <KEY> to toggle Horde Menu.");
 	}
 	gi.WriteByte(svc_layout);
 	gi.WriteString(string.c_str());
