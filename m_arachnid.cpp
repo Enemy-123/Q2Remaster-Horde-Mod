@@ -403,19 +403,18 @@ void SP_monster_arachnid(edict_t* self)
 
 	ApplyMonsterBonusFlags(self);
 
-	if (!self->s.scale && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	if (!self->s.scale || !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		self->s.scale = 0.85f;
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->health = 2800 * st.health_multiplier;
 		self->gib_health = -999777;
-		ApplyMonsterBonusFlags(self);
+
 	}
 	else
 		self->health = 1000 * st.health_multiplier;
 		self->gib_health = -200;
 }
-
 void SP_monster_spider(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_SPIDER;

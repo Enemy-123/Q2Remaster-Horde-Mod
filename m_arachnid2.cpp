@@ -148,7 +148,7 @@ PAIN(arachnid2_pain) (edict_t* self, edict_t* other, float kick, int damage, con
 	else
 		M_SetAnimation(self, &arachnid2_move_pain2);
 }
-/*KONIG - set pain skin*/
+
 MONSTERINFO_SETSKIN(arachnid2_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
@@ -355,7 +355,7 @@ mframe_t arachnid2_frames_attack_up1[] = {
 	{ ai_charge },
 };
 MMOVE_T(arachnid2_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, arachnid2_frames_attack_up1, arachnid2_run };
-/*KONIG - Beta attack animations*/
+
 mframe_t gm_arachnid_frames_attack1[] = {
 	{ ai_charge, 0, gm_arachnid_blind_check },
 	{ ai_charge },
@@ -399,7 +399,6 @@ void arachnid2_melee_charge(edict_t* self)
 
 void arachnid2_melee_hit(edict_t* self)
 {
-	/* KONIG - update damage to 20 to match PSX;Beta does 30 meleedamage*/
 	if (self->style == 1)
 	{
 		if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 30, 50))
@@ -432,7 +431,6 @@ MONSTERINFO_ATTACK(arachnid2_attack) (edict_t* self) -> void
 {
 	if (!self->enemy || !self->enemy->inuse)
 		return;
-	/*KONIG - Adding beta attacks*/
 	if (self->monsterinfo.melee_debounce_time < level.time && range_to(self, self->enemy) < MELEE_DISTANCE)
 		M_SetAnimation(self, &arachnid2_melee);
 	else
@@ -592,7 +590,7 @@ void SP_monster_gm_arachnid(edict_t* self)
 	self->s.skinnum = 2;
 
 
-	if (!self->s.scale && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	if (!self->s.scale || !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		self->s.scale = 0.85f;
 	self->health = 650 * st.health_multiplier;
 
