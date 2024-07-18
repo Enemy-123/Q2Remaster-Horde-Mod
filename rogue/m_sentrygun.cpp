@@ -404,7 +404,7 @@
 	//  ATTACK
 	// **********************
 
-	constexpr int32_t TURRET2_BLASTER_DAMAGE = 12;
+	constexpr int32_t TURRET2_BLASTER_DAMAGE = 10;
 	constexpr int32_t TURRET2_BULLET_DAMAGE = 6;
 	// unused
 	// constexpr int32_t turret2_HEAT_DAMAGE	= 4;
@@ -450,7 +450,7 @@
 		else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			rocketSpeed = 1800;
 
-		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) || visible(self, self->enemy))
+		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 		{
 			start = self->s.origin;
 			// Aim for the head.
@@ -490,14 +490,14 @@
 
 						if (dist * trace.fraction > 72 && !damageApplied)
 						{
-							PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
+							PredictAim(self, self->enemy, start, (float)rocketSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 							fire_rocket(self->owner, start, dir, 100, 1220, 100, 75); // Pasa el mod_t a monster_fire_rocket
 							damageApplied = true;
 						}
 					}
 				}
 
-				constexpr gtime_t PLASMA_FIRE_INTERVAL = 4.0_sec; // Por ejemplo, cada 4 segundos
+				gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 4_sec); // Por ejemplo, cada 4 segundos
 				if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 				{
 					start = self->s.origin;
@@ -519,7 +519,7 @@
 						if (currentTime > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
 						{
 							self->monsterinfo.last_plasma_fire_time = currentTime;
-							fire_plasma(self->owner, start, dir, 100, 1220, 100, 75); // Ajusta los parámetros según sea necesario
+							fire_plasma(self->owner, start, dir, 90, 950, 100, 75); // Ajusta los parámetros según sea necesario
 						}
 					}
 				}
@@ -596,7 +596,7 @@
 		end = self->monsterinfo.blind_fire_target;
 
 		if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
-			end[2] += self->enemy->mins[2] - 10;
+			end[2] += self->enemy->mins[2];
 		else
 			end[2] += self->enemy->mins[2] - 10;
 

@@ -110,7 +110,7 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 	}
 	else {
 		if (ent->client->num_sentries >= 3) {
-			gi.Client_Print(ent, PRINT_HIGH, "You have reached the turret limit.\n");
+			gi.Client_Print(ent, PRINT_HIGH, "You have reached the sentrygun limit.\n");
 			return;
 		}
 	}
