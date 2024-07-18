@@ -78,7 +78,7 @@
 		int orientation;
 
 		// Verifica el estado del enemigo
-		bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
+		bool enemy_valid = (self->enemy && self->enemy->inuse && !OnSameTeam(self, self->enemy));
 
 		// Si el enemigo no es válido, busca un nuevo objetivo
 		if (!enemy_valid)
@@ -88,7 +88,7 @@
 		}
 
 		// Actualiza el enemigo válido después de intentar encontrar un nuevo objetivo
-		enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
+		enemy_valid = (self->enemy && self->enemy->inuse && !OnSameTeam(self, self->enemy));
 		if (!enemy_valid)
 			return;
 
@@ -107,14 +107,17 @@
 		{
 			end = self->monsterinfo.blind_fire_target;
 			if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
-				end[2] += self->enemy->viewheight + 10;
-			else
-				end[2] += self->enemy->mins[2] - 10;
+			//	end[2] += self->enemy->viewheight + 10;
+			//else
+				end[2] += self->enemy->mins[2] * self->enemy->s.scale - 10;
 		}
 		else
 		{
 			end = self->enemy->s.origin;
-			end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) / 2; // Ajusta para enemigos pequeños
+			//if (self->enemy->client)
+			//	end[2] += self->enemy->viewheight;
+			//else
+				end[2] += (self->enemy->mins[2] * self->enemy->s.scale + self->enemy->maxs[2] * self->enemy->s.scale) / 2; // Ajusta para enemigos pequeños
 		}
 
 		dir = end - self->s.origin;
@@ -406,7 +409,6 @@
 	// unused
 	// constexpr int32_t turret2_HEAT_DAMAGE	= 4;
 	constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.0_sec; // 2.3 segundos
-
 	void turret2Fire(edict_t* self)
 	{
 		vec3_t forward;
@@ -554,7 +556,6 @@
 			}
 		}
 	}
-
 	// PMM
 	void turret2FireBlind(edict_t* self)
 	{
@@ -903,9 +904,9 @@
 		{
 			// Verificar si alguna entidad está en el camino del disparo
 			spot1 = self->s.origin;
-			spot1[2] += self->viewheight;
+			spot1[2] += self->viewheight * self->s.scale;  // Ajustar según la escala de la torreta
 			spot2 = self->enemy->s.origin;
-			spot2[2] += self->enemy->viewheight;
+			spot2[2] += self->enemy->viewheight * self->enemy->s.scale;  // Ajustar según la escala del enemigo
 
 			tr = gi.traceline(spot1, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 			// Si el tr.ent no es el enemigo y no está en el mismo equipo
@@ -940,6 +941,7 @@
 		self->monsterinfo.attack_finished = level.time + nexttime;
 		return true;
 	}
+
 
 
 	// **********************
