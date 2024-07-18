@@ -1372,18 +1372,18 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
     if (mapSize.isBigMap) {
         params.maxMonsters = 20;
-        params.timeThreshold = 16_sec;
+        params.timeThreshold = random_time(15_sec, 21_sec);
         return params;
     }
 
     if (numHumanPlayers >= 3) {
         if (mapSize.isSmallMap) {
-            params.maxMonsters = 7;
-            params.timeThreshold = 4_sec;
+            params.maxMonsters = 6;
+            params.timeThreshold = random_time(4_sec, 4.5_sec);
         }
         else {
             params.maxMonsters = 12;
-            params.timeThreshold = 7_sec;
+            params.timeThreshold = 9_sec;
         }
     }
     else {
@@ -1394,7 +1394,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
             }
             else {
                 params.maxMonsters = 6;
-                params.timeThreshold = 9_sec;
+                params.timeThreshold = 6_sec;
             }
         }
         else {
@@ -1409,7 +1409,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
         }
 
         if ((g_chaotic->integer && numHumanPlayers <= 5) || (g_insane->integer && numHumanPlayers <= 5)) {
-            params.timeThreshold += 4_sec;
+            params.timeThreshold += random_time(4_sec, 6_sec);
         }
     }
 
@@ -1638,10 +1638,10 @@ void SpawnMonsters() noexcept {
         g_horde_local.monster_spawn_time = level.time + 1.5_sec;
     }
     else if (mapSize.isBigMap) {
-        g_horde_local.monster_spawn_time = level.time + 1.1_sec;
+        g_horde_local.monster_spawn_time = level.time + random_time(0.9_sec, 1.1_sec);
     }
     else {
-        g_horde_local.monster_spawn_time = level.time + 1.7_sec;
+        g_horde_local.monster_spawn_time = level.time + random_time(1.7_sec, 2_sec);
     }
 }
 
