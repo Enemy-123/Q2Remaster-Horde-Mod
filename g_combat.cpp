@@ -441,7 +441,8 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		// it's the same base (walk/swim/fly) type and both don't ignore shots,
 		// get mad at them
 		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
-			(strcmp(targ->classname, attacker->classname) != 0) && !(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) &&
+			(strcmp(targ->classname, attacker->classname) != 0) &&
+			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) || !strcmp(attacker->classname, "monster_sentrygun")) &&
 			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
 	{
 		if (targ->enemy != attacker)

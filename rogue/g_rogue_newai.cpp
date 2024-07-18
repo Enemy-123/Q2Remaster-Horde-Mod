@@ -434,7 +434,7 @@ bool monsterlost_checkhint(edict_t *self)
 	if (self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_PATHING))
 		return false;
 
-	if (!strcmp(self->classname, "monster_turret"))
+	if (!strcmp(self->classname, "monster_turret") || !strcmp(self->classname, "monster_sentrygun"))
 		return false;
 
 	monster_pathchain = nullptr;
