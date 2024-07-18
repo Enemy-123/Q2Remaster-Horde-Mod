@@ -114,10 +114,7 @@
 		else
 		{
 			end = self->enemy->s.origin;
-			if (self->enemy->client)
-				end[2] += self->enemy->viewheight;
-			else
-				end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) / 2; // Ajusta para enemigos pequeños
+			end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) / 2; // Ajusta para enemigos pequeños
 		}
 
 		dir = end - self->s.origin;
@@ -453,14 +450,7 @@
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 		{
 			start = self->s.origin;
-			// Aim for the head.
-			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
-			{
-				if ((self->enemy) && (self->enemy->client))
-					end[2] += self->enemy->viewheight;
-				else
-					end[2] += 7;
-			}
+			end[2] += 7; // Ajustar altura del enemigo
 
 			dir = end - start;
 			dist = dir.length();
@@ -472,7 +462,7 @@
 				// On harder difficulties, randomly fire directly at enemy
 				// more often; makes them more unpredictable
 
-					PredictAim(self, self->enemy, start, 0, true, 0.0f, &dir, nullptr);
+				PredictAim(self, self->enemy, start, 0, true, 0.0f, &dir, nullptr);
 			}
 
 			dir.normalize();
@@ -523,7 +513,7 @@
 						}
 					}
 				}
-			
+
 
 				else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 				{
@@ -543,7 +533,7 @@
 
 							T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 0, DAMAGE_NONE, MOD_TURRET);
 							monster_fire_bullet(self, start, dir, 0, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
-							self->monsterinfo.melee_debounce_time = level.time + 15_hz;	
+							self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 							damageApplied = true;
 						}
 
