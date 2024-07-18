@@ -214,7 +214,7 @@ void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
 
 	ent->solid = SOLID_NOT;
 	ent->s.renderfx |= RF_IR_VISIBLE;
-	ent->movetype = MOVETYPE_NONE;
+	ent->movetype = MOVETYPE_FLYMISSILE;
 	ent->classname = "spawngro";
 
 	ent->s.modelindex = gi.modelindex("models/items/spawngro3/tris.md2");

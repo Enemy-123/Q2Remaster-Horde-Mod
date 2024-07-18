@@ -954,8 +954,11 @@ void BossDeathHandler(edict_t* boss) noexcept {
         std::vector<const char*> itemsToDrop = {
             "item_adrenaline",
             "item_pack",
+            "item_bandolier",
             "item_health_mega",
-            "item_armor_combat"
+            "item_doppleganger",
+            "item_sphere_defender",
+            "item_armor_body"
         };
 
         // Soltar ítem especial (quad o quadfire)
@@ -989,13 +992,15 @@ void BossDeathHandler(edict_t* boss) noexcept {
             VectorCopy(velocity, droppedItem->velocity);
 
             // Asegurar que el ítem tenga una velocidad instantánea
-            droppedItem->movetype = MOVETYPE_TOSS;
-            droppedItem->s.effects |= EF_BLASTER;
+            droppedItem->spawnflags & ~SPAWNFLAG_ITEM_DROPPED;
+            droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+            droppedItem->movetype = MOVETYPE_BOUNCE;
+            droppedItem->s.effects |= EF_GIB;
         }
 
         // Asegurar que el ítem especial tenga una velocidad instantánea
-        specialItem->movetype = MOVETYPE_TOSS;
-        specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL;
+        specialItem->movetype = MOVETYPE_BOUNCE;
+        specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL | EF_BLUEHYPERBLASTER;
         specialItem->s.renderfx |= RF_SHELL_LITE_GREEN;
 
         // Marcar al boss como no atacable para evitar doble manejo
@@ -1217,11 +1222,11 @@ void SpawnBossAutomatically() noexcept {
 
             // spawngro effect
             vec3_t spawngrow_pos = boss->s.origin;
-            const float start_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.65f;
-            const float end_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.025f;
+            const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.35f;
+            const float end_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.005f;
 
             // Realizar el efecto de crecimiento y aplicar telefrag si es necesario
-            SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+            SpawnGrow_Spawn(spawngrow_pos, size, end_size);
 
             // Realizar telefrag en la posición del efecto de spawn
             trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
@@ -1622,7 +1627,7 @@ void SpawnMonsters() noexcept {
 
         vec3_t spawngrow_pos = monster->s.origin;
         const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.055f;
-        const float endsize = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.025f;
+        const float endsize = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.005f;
         SpawnGrow_Spawn(spawngrow_pos, size, endsize);
 
         --g_horde_local.num_to_spawn;
