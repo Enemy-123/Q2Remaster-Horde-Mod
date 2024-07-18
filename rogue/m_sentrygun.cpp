@@ -1019,7 +1019,9 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		// map designer didn't specify weapon type. set it now.
 		else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 6)
 			if (brandom())
-			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
+			//self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
+				self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+
 		else
 			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 
