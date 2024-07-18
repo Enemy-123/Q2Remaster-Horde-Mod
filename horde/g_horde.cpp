@@ -909,8 +909,8 @@ void Horde_Init() noexcept {
         "world/klaxon2.wav",
         "misc/tele_up.wav",
         "world/incoming.wav",
-        "world/yelforce.wav",
-        "insane/insane9.wav"
+        "world/yelforce.wav"
+        //"insane/insane9.wav"
     };
 
     for (const auto& sound : wave_start_sounds) {
@@ -924,11 +924,11 @@ void Horde_Init() noexcept {
         "zortemp/ack.wav",
         "misc/spawn1.wav",
         "makron/voice3.wav",
-        "world/v_fac3.wav",
-        "world/v_fac2.wav",
-        "insane/insane5.wav",
-        "insane/insane2.wav",
-        "world/won.wav"
+        "world/v_fac3.wav"
+    //    "world/v_fac2.wav",
+    //    "insane/insane5.wav",
+    //    "insane/insane2.wav",
+    //    "world/won.wav"
     };
 
     for (const auto& sound : other_sounds) {
@@ -1486,8 +1486,8 @@ void PlayWaveStartSound() noexcept {
         "world/klaxon2.wav",
         "misc/tele_up.wav",
         "world/incoming.wav",
-        "world/yelforce.wav",
-        "insane/insane9.wav",
+        "world/yelforce.wav"
+        //"insane/insane9.wav"
     };
 
     // Generar un índice aleatorio para seleccionar un sonido
@@ -1532,11 +1532,11 @@ static const std::vector<std::string> sounds = {
     "zortemp/ack.wav",
     "misc/spawn1.wav",
     "makron/voice3.wav",
-    "world/v_fac3.wav",
-    "world/v_fac2.wav",
-    "insane/insane5.wav",
-    "insane/insane2.wav",
-    "world/won.wav"
+    "world/v_fac3.wav"
+    //"world/v_fac2.wav",
+    //"insane/insane5.wav",
+    //"insane/insane2.wav",
+    //"world/won.wav"
 };
 
 
