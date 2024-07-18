@@ -3129,6 +3129,10 @@ void RemoveTech(edict_t* ent) {
 
 
 void ShowInventory(edict_t* ent) {
+
+	if (ent->svflags & SVF_BOT)
+		return;
+
 	int i;
 	gclient_t* cl = ent->client;
 
