@@ -3717,13 +3717,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 
 	// fire weapon from final position if needed
-	if (client->latched_buttons & BUTTON_ATTACK && !ent->client->menu)
+	if (client->latched_buttons & BUTTON_ATTACK)
 	{
 		if (client->resp.spectator)
 		{
 			client->latched_buttons = BUTTON_NONE;
 
-			if (client->chase_target)
+			if (client->chase_target && !ent->client->menu)
 			{
 				// Q2Eaks add eyecam to freecam<->chasecam cycle
 				if (!client->use_eyecam)
