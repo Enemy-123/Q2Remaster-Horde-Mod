@@ -3963,8 +3963,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 			gtime_t time_left_in_bad_area = max_time_in_bad_area - player->client->time_in_bad_area;
 
 			// Formatea el mensaje con el tiempo en bad area hasta la décima de segundo
-			std::string message_str_bad_area = fmt::format("In Bad Area! Forcing Respawn in: {:.1f}(s)",
-				time_left_in_bad_area.seconds<float>());
+			std::string message_str_bad_area = fmt::format("In Bad Area! Forcing Respawn in: {:.1f}(s)", time_left_in_bad_area.seconds<float>());
 
 			// Actualiza la configstring con el mensaje de bad area
 			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str_bad_area.c_str());
@@ -4005,8 +4004,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	}
 
 	// Convierte min_time_left a segundos
-	std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)",
-		min_time_left.seconds<float>());
+	std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)", min_time_left.seconds<float>());
 
 	// Actualiza la configstring con el mensaje
 	gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
@@ -4014,7 +4012,6 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	// no good player
 	return { nullptr, {} };
 }
-
 
 enum respawn_state_t
 {
