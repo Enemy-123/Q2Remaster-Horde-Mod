@@ -3723,7 +3723,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			client->latched_buttons = BUTTON_NONE;
 
-			if (client->chase_target && !ent->client->menu)
+			if (client->chase_target)
 			{
 				// Q2Eaks add eyecam to freecam<->chasecam cycle
 				if (!client->use_eyecam)
