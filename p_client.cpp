@@ -3326,7 +3326,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 
 bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 {
-	if (!ent->client->menu)
+	if (!ent->client->menu || ent->svflags & SVF_BOT)
 		return false;
 
 	// [Paril-KEX] handle menu movement
