@@ -375,20 +375,20 @@ constexpr struct weighted_item_t {
     { "item_adrenaline", -1, -1, 0.07f, adjust_weight_health },
 
     { "item_armor_shard", -1, 7, 0.09f, adjust_weight_armor },
-    { "item_armor_jacket", -1, 12, 0.12f, adjust_weight_armor },
+    { "item_armor_jacket", -1, 12, 0.1f, adjust_weight_armor },
     { "item_armor_combat", 13, -1, 0.06f, adjust_weight_armor },
-    { "item_armor_body", 23, -1, 0.015f, adjust_weight_armor },
+    { "item_armor_body", 27, -1, 0.015f, adjust_weight_armor },
     { "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
     { "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
 
     { "item_quad", 6, -1, 0.054f, adjust_weight_powerup },
-    { "item_double", 5, -1, 0.07f, adjust_weight_powerup },
+    { "item_double", 4, -1, 0.07f, adjust_weight_powerup },
     { "item_quadfire", 2, -1, 0.06f, adjust_weight_powerup },
     { "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
     { "item_sphere_defender", 2, -1, 0.06f, adjust_weight_powerup },
     { "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
     { "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
-    { "item_doppleganger", -1, 8, 0.028f, adjust_weight_powerup },
+    { "item_doppleganger", 2, 8, 0.028f, adjust_weight_powerup },
     { "item_doppleganger", 9, 19, 0.062f, adjust_weight_powerup },
     { "item_doppleganger", 20, -1, 0.1f, adjust_weight_powerup },
 
@@ -444,7 +444,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_fixbot", 8, 21, 0.11f },
     { "monster_gekk", -1, 3, 0.1f },
     { "monster_gekk", 4, 17, 0.17f },
-    { "monster_gunner2", 4, -1, 0.35f },
+    { "monster_gunner2", 5, -1, 0.35f },
     { "monster_gunner", 14, -1, 0.34f },
     { "monster_brain", 7, 22, 0.2f },
     { "monster_brain", 23, -1, 0.35f },
@@ -459,7 +459,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_redmutant", 13, -1, 0.35f },
     { "monster_chick", 5, 26, 0.3f },
     { "monster_chick_heat", 10, -1, 0.34f },
-    { "monster_berserk", 5, -1, 0.35f },
+    { "monster_berserk", 4, -1, 0.35f },
     { "monster_floater", 8, -1, 0.26f },
     { "monster_hover", 15, -1, 0.18f },
     { "monster_daedalus", 13, -1, 0.13f },
@@ -1584,7 +1584,7 @@ void SpawnMonsters() noexcept {
         monsters_per_spawn = 4;
     }
 
-    constexpr float drop_probability = 0.55f;
+    float drop_probability = (current_wave_number <= 2) ? 0.8f : 0.5f;
 
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
         auto spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
