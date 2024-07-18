@@ -895,53 +895,59 @@
 		}
 	}
 	// PMM
-	MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
-	{
-		vec3_t spot1, spot2;
-		trace_t tr;
+MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
+{
+    vec3_t spot1, spot2, spot2_scaled;
+    trace_t tr, tr_scaled;
 
-		if (self->enemy->health > 0)
-		{
-			// Verificar si alguna entidad está en el camino del disparo
-			spot1 = self->s.origin;
-			spot1[2] += self->viewheight * self->s.scale;  // Ajustar según la escala de la torreta
-			spot2 = self->enemy->s.origin;
-			spot2[2] += self->enemy->viewheight * self->enemy->s.scale;  // Ajustar según la escala del enemigo
+    if (self->enemy->health > 0)
+    {
+        // Verificar si alguna entidad está en el camino del disparo con la vista original
+        spot1 = self->s.origin;
+        spot1[2] += self->viewheight;
+        spot2 = self->enemy->s.origin;
+        spot2[2] += self->enemy->viewheight;
 
-			tr = gi.traceline(spot1, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
-			// Si el tr.ent no es el enemigo y no está en el mismo equipo
-			if (tr.ent != self->enemy && !OnSameTeam(self, tr.ent))
-			{
-				// PMM - si no podemos ver nuestro objetivo, y no estamos bloqueados por un monstruo, ir a fuego ciego si está disponible
-				if ((!visible(self, self->enemy)))
-				{
-					if ((self->monsterinfo.blindfire) && (self->monsterinfo.blind_fire_delay <= 1.0_sec))
-					{
-						tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, CONTENTS_MONSTER);
-						if (!(tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))))
-						{
-							self->monsterinfo.attack_state = AS_BLIND;
-							self->monsterinfo.attack_finished = level.time + random_time(400_ms, 0.2_sec); // Reduce el tiempo de espera
-							return true;
-						}
-					}
-				}
-				return false;
-			}
-		}
+        tr = gi.traceline(spot1, spot2, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
+        
+        // Verificar si alguna entidad está en el camino del disparo con la vista ajustada por la escala
+        spot2_scaled = self->enemy->s.origin;
+        spot2_scaled[2] += self->enemy->viewheight * self->enemy->s.scale;
 
-		if (level.time < self->monsterinfo.attack_finished)
-			return false;
+        tr_scaled = gi.traceline(spot1, spot2_scaled, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
-		gtime_t nexttime = (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET)) ? (1.0_sec - (0.2_sec * skill->integer)) :
-			(self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) ? (1.0_sec - (0.2_sec * skill->integer)) :
-			(0.6_sec - (0.1_sec * skill->integer)); // Reduce el tiempo de espera
+        // Si alguna de las trazas no está bloqueada y no está en el mismo equipo
+        if ((tr.ent != self->enemy && !OnSameTeam(self, tr.ent)) && (tr_scaled.ent != self->enemy && !OnSameTeam(self, tr_scaled.ent)))
+        {
+            // PMM - si no podemos ver nuestro objetivo, y no estamos bloqueados por un monstruo, ir a fuego ciego si está disponible
+            if ((!visible(self, self->enemy)))
+            {
+                if ((self->monsterinfo.blindfire) && (self->monsterinfo.blind_fire_delay <= 1.0_sec))
+                {
+                    tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, CONTENTS_MONSTER);
+                    if (!(tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))))
+                    {
+                        self->monsterinfo.attack_state = AS_BLIND;
+                        self->monsterinfo.attack_finished = level.time + random_time(400_ms, 0.2_sec); // Reduce el tiempo de espera
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    }
 
-		self->monsterinfo.attack_state = AS_MISSILE;
-		self->monsterinfo.attack_finished = level.time + nexttime;
-		return true;
-	}
+    if (level.time < self->monsterinfo.attack_finished)
+        return false;
 
+    gtime_t nexttime = (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET)) ? (1.0_sec - (0.2_sec * skill->integer)) :
+        (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) ? (1.0_sec - (0.2_sec * skill->integer)) :
+        (0.6_sec - (0.1_sec * skill->integer)); // Reduce el tiempo de espera
+
+    self->monsterinfo.attack_state = AS_MISSILE;
+    self->monsterinfo.attack_finished = level.time + nexttime;
+    return true;
+}
 
 
 	// **********************
