@@ -1179,7 +1179,7 @@ void SpawnBossAutomatically() noexcept {
             // Crear el efecto de terremoto
             auto earthquake = G_Spawn();
             earthquake->classname = "target_earthquake";
-            earthquake->spawnflags = SPAWNFLAGS_EARTHQUAKE_SILENT; // Usar flag de un solo uso para activarlo una vez
+            earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_SILENT : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
             earthquake->speed = 500; // Severidad del terremoto
             earthquake->count = 3; // Duración del terremoto en segundos
             SP_target_earthquake(earthquake);

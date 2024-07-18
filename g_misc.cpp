@@ -670,6 +670,7 @@ void SP_dynamic_light(edict_t* self)
 void SP_light(edict_t* self)
 {
 	// no targeted lights in deathmatch, because they cause global messages
+	//if (!self->targetname && st.sl.data.radius == 0) // [Sam-KEX]
 	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
 	{
 		G_FreeEdict(self);
