@@ -1105,6 +1105,9 @@ void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 }
 
 void CTFSetIDView(edict_t* ent) {
+
+	if (level.intermissiontime)
+		return;
 	static int monster_configstrings[MAX_EDICTS];
 	static int player_configstrings[MAX_EDICTS];
 	static std::vector<int> available_monster_configstrings;
