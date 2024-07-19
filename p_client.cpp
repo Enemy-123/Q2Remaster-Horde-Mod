@@ -3326,10 +3326,11 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 
 bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 {
+	// Verificar si el menú está abierto y si el jugador no es un bot
 	if (!ent->client->menu || ent->svflags & SVF_BOT)
 		return false;
 
-	// [Paril-KEX] handle menu movement
+	// Manejar el movimiento del menú según la entrada de forwardmove
 	int32_t menu_sign = ucmd->forwardmove > 0 ? 1 : ucmd->forwardmove < 0 ? -1 : 0;
 
 	if (ent->client->menu_sign != menu_sign)
@@ -3338,32 +3339,33 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 
 		if (menu_sign > 0)
 		{
-			PMenu_Prev(ent);
+			PMenu_Prev(ent); // Moverse al elemento anterior del menú
 			return true;
 		}
 		else if (menu_sign < 0)
 		{
-			PMenu_Next(ent);
+			PMenu_Next(ent); // Moverse al siguiente elemento del menú
 			return true;
 		}
 	}
 
-	// Handle menu selection with BUTTON_ATTACK or BUTTON_JUMP
+	// Manejar la selección del menú con los botones de ataque o salto
 	if ((ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
 	{
-		PMenu_Select(ent);
-		ent->client->menu_selected = true; // Mark as selected
+		PMenu_Select(ent); // Seleccionar el elemento del menú
+		ent->client->menu_selected = true; // Marcar como seleccionado
 		return true;
 	}
 
-	// Reset menu_selected when button is not pressed
-	if (!(ent->client->latched_buttons & BUTTON_ATTACK))
+	// Reiniciar menu_selected cuando no se presionan los botones de ataque o salto
+	if (!(ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
 	{
 		ent->client->menu_selected = false;
 	}
 
 	return false;
 }
+
 
 extern void RemoveAllTechItems(edict_t* ent);
 extern bool ClientIsSpectating(gclient_t* cl);
