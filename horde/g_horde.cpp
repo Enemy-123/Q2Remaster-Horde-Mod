@@ -969,11 +969,12 @@ void BossDeathHandler(edict_t* boss) noexcept {
         if (brandom()) {
             itemsToDrop = {
                 "item_adrenaline",
+                "item_pack",
                 "item_doppleganger",
                 "item_sphere_defender",
-                "item_armor_combat"
+                "item_armor_combat",
                 "item_bandolier",
-                "item_bandolier"
+
             };
         }
         else {
@@ -982,7 +983,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
                 "item_doppleganger",
                 "item_sphere_defender",
                 "item_pack",
-                "item_pack",
+                "item_bandolier"
                 "item_armor_body"
             };
         }
