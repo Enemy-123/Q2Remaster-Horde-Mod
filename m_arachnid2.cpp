@@ -554,9 +554,11 @@ void SP_monster_arachnid2(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 
-	if (!strcmp(self->classname, "monster_arachnid2"))
-	{
+	 if (!strcmp(self->classname, "monster_arachnid2") && !self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		self->s.scale = 0.85f;
 		self->health = 1000 * st.health_multiplier;
+		self->mins = { -41, -41, -17 };
+		self->maxs = { 41, 41, 41 };
 		self->gib_health = -200;
 	}
 	self->mass = 450;
@@ -592,12 +594,10 @@ void SP_monster_gm_arachnid(edict_t* self)
 
 	if (!strcmp(self->classname, "monster_gm_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->health = 2800 + (1.08 * current_wave_number);
-		self->gib_health = -999777;
-	}
-	else if (!strcmp(self->classname, "monster_arachnid2") &&!self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		self->s.scale = 0.85f;
 		self->mins = { -41, -41, -17 };
 		self->maxs = { 41, 41, 41 };
-		self->gib_health = -200;
+		self->gib_health = -999777;
 	}
 	ApplyMonsterBonusFlags(self);
 }
