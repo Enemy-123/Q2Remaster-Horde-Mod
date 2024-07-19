@@ -1240,7 +1240,7 @@ void CTFSetIDView(edict_t* ent) {
 			else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine")) {
 				name = GetDisplayName(best->classname);
 				ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-				health_string = fmt::format("{} H: {}",
+				health_string = fmt::format("{}H: {}",
 					name,
 					best->health);
 
