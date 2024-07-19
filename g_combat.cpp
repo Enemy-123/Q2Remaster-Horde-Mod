@@ -848,6 +848,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 					else if (using_machinegun && g_tracedbullets->integer) {
 						health_stolen = max(1, health_stolen / 2);
 					}
+					else if (using_glauncher) {
+						health_stolen = max(1, health_stolen / 2);
+					}
 					else if (using_glauncher && g_bouncygl->integer) {
 						health_stolen = max(1, health_stolen / 4);
 					}
