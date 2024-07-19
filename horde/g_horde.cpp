@@ -151,7 +151,7 @@ void ApplyBenefit(const std::string& benefit) {
         {"auto haste", {"\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED !\n"}},
         {"vampire upgraded", {"\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR NOW!\n"}},
         {"Cluster Prox Grenades", {"\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled"}},
-        {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing PA Bullets!"}},
+        {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!"}},
         {"Napalm-Grenade Launcher", {"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled"}},
     };
 
@@ -1316,12 +1316,15 @@ void ResetAutoSpawnedBosses() noexcept {
     // Reset recent bosses
     recent_bosses.clear();
 }
+extern void InitializeCTFIDViewConfigStrings(bool forceReset = false);
+
 void ResetGame() noexcept {
     // Reset core gameplay elements
     ResetSpawnAttempts();
     ResetCooldowns();
     ResetBenefits();
     ResetAutoSpawnedBosses();
+    InitializeCTFIDViewConfigStrings(true); //resets CTF ID
 
     // Reset wave information
     current_wave_number = 0;
@@ -1333,6 +1336,7 @@ void ResetGame() noexcept {
     boss_spawned_for_wave = false;
     allowWaveAdvance = false;
     cachedRemainingMonsters = -1;
+
 
     // Reset gameplay configuration variables
     gi.cvar_set("g_chaotic", "0");
