@@ -973,18 +973,17 @@ void BossDeathHandler(edict_t* boss) noexcept {
                 "item_doppleganger",
                 "item_sphere_defender",
                 "item_armor_combat",
-                "item_bandolier",
-
+                "item_bandolier"
             };
         }
         else {
             itemsToDrop = {
-                "item_health_mega",
+                "item_adrenaline",
                 "item_doppleganger",
                 "item_sphere_defender",
                 "item_pack",
-                "item_bandolier"
-                "item_armor_body"
+                "item_bandolier",
+                "item_armor_combat"
             };
         }
 

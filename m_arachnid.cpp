@@ -401,32 +401,31 @@ void SP_monster_arachnid(edict_t* self)
 
 	walkmonster_start(self);
 
-	ApplyMonsterBonusFlags(self);
 
-	if (!self->s.scale || !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
-		self->s.scale = 0.85f;
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health = 2800 * st.health_multiplier;
-		self->gib_health = -999777;
-
+	if (!strcmp(self->classname, "monster_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		self->health = 3500 + (1.08 * current_wave_number);
+		self->gib_health = -99999;
 	}
-	else
+	else if (!strcmp(self->classname, "monster_arachnid") && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	{
 		self->health = 1000 * st.health_multiplier;
 		self->gib_health = -200;
+	}
+	ApplyMonsterBonusFlags(self);
 }
 void SP_monster_spider(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_SPIDER;
 	SP_monster_arachnid(self);
+
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 1;
-	if (!self->s.scale)
-		self->s.scale = 0.85f;
-	self->health = 650 * st.health_multiplier;
+		if (!strcmp(self->classname, "monster_spider")) {
+			self->s.scale = 0.85f;
+			self->health = 650 * st.health_multiplier;
 
-	self->mins = { -41, -41, -17 };
-	self->maxs = { 41, 41, 41 };
-
-	ApplyMonsterBonusFlags(self);
+			self->mins = { -41, -41, -17 };
+			self->maxs = { 41, 41, 41 };
+		}
 }
