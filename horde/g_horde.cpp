@@ -308,8 +308,9 @@ void ResetSpawnAttempts() noexcept;
 void VerifyAndAdjustBots() noexcept;
 void ResetCooldowns() noexcept;
 
-void Horde_InitLevel(int32_t lvl) noexcept {
+extern void InitializeCTFIDViewConfigStrings(bool forceReset = false);
 
+void Horde_InitLevel(int32_t lvl) noexcept {
     last_wave_number++;
     g_horde_local.level = lvl;
     current_wave_number = lvl;
@@ -323,7 +324,7 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     // Verificar y ajustar bots
     VerifyAndAdjustBots();
 
-    // Configurar la escala de da�o seg�n el nivel
+    // Configurar la escala de daño según el nivel
     if (g_horde_local.level == 17) {
         gi.cvar_set("g_damage_scale", "1.7");
     }
@@ -334,27 +335,27 @@ void Horde_InitLevel(int32_t lvl) noexcept {
         gi.cvar_set("g_damage_scale", "3.7");
     }
 
-    // Configuraci�n de la cantidad de monstruos a spawnear
+    // Configuración de la cantidad de monstruos a spawnear
     auto mapSize = GetMapSize(level.mapname);
     DetermineMonsterSpawnCount(mapSize, lvl);
-    //check if adding bonus
+
+    // Revisar y aplicar beneficios basados en la ola
     CheckAndApplyBenefit(g_horde_local.level);
 
-    // Ajustar tasa de aparici�n de monstruos
+    // Ajustar tasa de aparición de monstruos
     AdjustMonsterSpawnRate();
 
     // Reiniciar cooldowns y contadores de intentos de spawn
     ResetSpawnAttempts();
     ResetCooldowns();
 
-    // Resetear cualquier otro estado necesario
-    next_wave_message_sent = false;
-    allowWaveAdvance = false;
-    boss_spawned_for_wave = false;
+    // Reinicializar los configstrings para la gestión de la información en el HUD
+    InitializeCTFIDViewConfigStrings(true);  // Agregado el reseteo aquí para cada nueva ola
 
     // Imprimir mensaje de inicio del nivel
     gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }
+
 
 bool G_IsDeathmatch() noexcept {
     return deathmatch->integer && g_horde->integer;
