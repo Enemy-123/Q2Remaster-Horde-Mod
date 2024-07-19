@@ -1126,6 +1126,7 @@ void SP_monster_tank(edict_t* self)
 			if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				self->gib_health = -999777;
 				self->health *= 2.3;
+				self->accel = 1.75f;
 			}
 		}
 		if (G_IsCooperative()) {
@@ -1133,7 +1134,7 @@ void SP_monster_tank(edict_t* self)
 			self->health = 1000;
 		}
 
-			self->accel = 1.75f;
+		self->accel = 0.85f;
 		self->gib_health = -250;
 	}
 
