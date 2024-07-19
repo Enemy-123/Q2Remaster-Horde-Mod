@@ -308,7 +308,7 @@ void ResetSpawnAttempts() noexcept;
 void VerifyAndAdjustBots() noexcept;
 void ResetCooldowns() noexcept;
 
-extern void InitializeCTFIDViewConfigStrings(bool forceReset = false);
+extern void ClearConfigStrings();
 
 void Horde_InitLevel(int32_t lvl) noexcept {
     last_wave_number++;
@@ -350,8 +350,7 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     ResetCooldowns();
 
     // Reinicializar los configstrings para la gestión de la información en el HUD
-    InitializeCTFIDViewConfigStrings(true);  // Agregado el reseteo aquí para cada nueva ola
-
+    ClearConfigStrings();
     // Imprimir mensaje de inicio del nivel
     gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }

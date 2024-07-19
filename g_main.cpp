@@ -194,6 +194,7 @@ only happens when a new game is started or a save game
 is loaded.
 ============
 */
+extern void ClearConfigStrings();
 void PreInitGame()
 {
 	maxclients = gi.cvar("maxclients", G_Fmt("{}", MAX_SPLIT_PLAYERS).data(), CVAR_SERVERINFO | CVAR_LATCH);
@@ -207,7 +208,7 @@ void PreInitGame()
 
 	// Paril
 	Horde_PreInit();
-	InitializeCTFIDViewConfigStrings(true);
+	ClearConfigStrings();
 	// ZOID
 	// This gamemode only supports deathmatch
 	if (ctf->integer)
