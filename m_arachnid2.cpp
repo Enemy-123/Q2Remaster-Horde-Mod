@@ -585,25 +585,22 @@ void SP_monster_gm_arachnid(edict_t* self)
 	SP_monster_arachnid2(self);
 
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-	self->monsterinfo.armor_power = 100;
+	self->monsterinfo.armor_power = 500;
 	self->style = 1;
-	self->s.skinnum = 2;
+	self->health = 1000 * st.health_multiplier;
 
+	self->mins = { -48, -48, -20 };
+	self->maxs = { 48, 48, 48 };
 
-	if (!self->s.scale || !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
-		self->s.scale = 0.85f;
-	self->health = 650 * st.health_multiplier;
-
-	self->mins = { -41, -41, -17 };
-	self->maxs = { 41, 41, 41 };
-
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health = 3200 * st.health_multiplier;
+	if (!strcmp(self->classname, "monster_gm_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 		self->gib_health = -999777;
 		ApplyMonsterBonusFlags(self);
 	}
-	else
-		self->health = 1000 * st.health_multiplier;
-	self->gib_health = -200;
-	ApplyMonsterBonusFlags(self);
+	else if (!self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		self->s.scale = 0.85f;
+		self->mins = { -41, -41, -17 };
+		self->maxs = { 41, 41, 41 };
+		self->gib_health = -200;
+		ApplyMonsterBonusFlags(self);
+	}
 }

@@ -2105,7 +2105,7 @@ void SP_monster_soldier_ripper(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 36;
+		self->monsterinfo.power_armor_power = ((g_horde->integer && current_wave_number <= 2) ? 35 : (g_hardcoop->integer ? 25 : 0));
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
@@ -2151,10 +2151,10 @@ void SP_monster_soldier_hypergun(edict_t *self)
 
 /*QUAKED monster_soldier_lasergun (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_soldier_lasergun(edict_t *self)
+void SP_monster_soldier_lasergun(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -2166,7 +2166,7 @@ void SP_monster_soldier_lasergun(edict_t *self)
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 40 * st.health_multiplier;
+	self->health = self->max_health = ((g_horde->integer && current_wave_number <= 15) ? 75 : (g_hardcoop->integer ? 50 : 40)) * st.health_multiplier;
 	self->gib_health = -30;
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 68;

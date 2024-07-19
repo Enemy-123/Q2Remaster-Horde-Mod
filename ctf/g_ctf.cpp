@@ -1928,8 +1928,8 @@ std::string GetActiveBonusesString() {
 	if (obtained_benefits.find("Traced-Piercing Bullets") != obtained_benefits.end()) {
 		activeBonuses += "* Traced-Piercing Bullets!\n";
 	}
-	if (obtained_benefits.find("Bouncy Grenade Launcher") != obtained_benefits.end()) {
-		activeBonuses += "* Bouncy Grenade Launcher!\n";
+	if (obtained_benefits.find("Napalm-Grenade Launcher") != obtained_benefits.end()) {
+		activeBonuses += "* Napalm-Grenade Launcher!\n";
 	}
 
 	return activeBonuses;

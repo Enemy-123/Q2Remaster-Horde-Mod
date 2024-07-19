@@ -87,7 +87,7 @@ constexpr weighted_benefit_t benefits[] = {
     { "start armor", 9, -1, 0.1f },
     { "Traced-Piercing Bullets", 9, -1, 0.2f },
     { "Cluster Prox Grenades", 28, -1, 0.2f },
-    { "Bouncy Grenade Launcher", 28, -1, 0.2f }
+    { "Napalm-Grenade Launcher", 25, -1, 0.2f }
 };
 
 static std::random_device rd;
@@ -152,7 +152,7 @@ void ApplyBenefit(const std::string& benefit) {
         {"vampire upgraded", {"\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR NOW!\n"}},
         {"Cluster Prox Grenades", {"\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled"}},
         {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing PA Bullets!"}},
-        {"Bouncy Grenade Launcher", {"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Bouncy Grenade Launcher Enabled"}},
+        {"Napalm-Grenade Launcher", {"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled"}},
     };
 
     auto it = benefitMessages.find(benefit);
@@ -181,7 +181,7 @@ void ApplyBenefit(const std::string& benefit) {
         else if (benefit == "Traced-Piercing Bullets") {
             gi.cvar_set("g_tracedbullets", "1");
         } 
-        else if (benefit == "Bouncy Grenade Launcher") {
+        else if (benefit == "Napalm-Grenade Launcher") {
             gi.cvar_set("g_bouncygl", "1");
         }
 
@@ -222,13 +222,13 @@ void AdjustMonsterSpawnRate() noexcept {
 
     if (g_horde_local.level % 3 == 0) {
         g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
-        g_horde_local.monster_spawn_time -= 0.4_sec * difficultyMultiplier;
-        if (g_horde_local.monster_spawn_time < 0.7_sec) {
-            g_horde_local.monster_spawn_time = 0.7_sec;
+        g_horde_local.monster_spawn_time -= ((!g_chaotic->integer || !g_insane->integer) ? 0.5_sec : 0.4_sec) *difficultyMultiplier;
+        if (g_horde_local.monster_spawn_time < 0.5_sec) {
+            g_horde_local.monster_spawn_time = 0.5_sec;
         }
-        SPAWN_POINT_COOLDOWN -= 0.4_sec * difficultyMultiplier;
-        if (SPAWN_POINT_COOLDOWN < 2.0_sec) {
-            SPAWN_POINT_COOLDOWN = 2.0_sec;
+        SPAWN_POINT_COOLDOWN -= ((!g_chaotic->integer || !g_insane->integer) ? 0.6_sec : 0.4_sec) * difficultyMultiplier;
+        if (SPAWN_POINT_COOLDOWN < 1.7_sec) {
+            SPAWN_POINT_COOLDOWN = 1.7_sec;
         }
     }
 }
@@ -236,45 +236,58 @@ void AdjustMonsterSpawnRate() noexcept {
 // Función para calcular la cantidad de monstruos estándar a spawnear
 void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
     if (mapSize.isSmallMap) {
-        g_horde_local.num_to_spawn = std::min(9 + lvl, MAX_MONSTERS_SMALL_MAP);
+        g_horde_local.num_to_spawn = std::min((current_wave_number <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
     }
     else if (mapSize.isBigMap) {
-        g_horde_local.num_to_spawn = std::min(27 + static_cast<int32_t>(lvl * 1.5), MAX_MONSTERS_BIG_MAP);
+        g_horde_local.num_to_spawn = std::min((current_wave_number <= 4) ? 20 : 25 + (lvl), MAX_MONSTERS_BIG_MAP);
     }
     else {
-        g_horde_local.num_to_spawn = std::min(8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
+        g_horde_local.num_to_spawn = std::min((current_wave_number <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
     }
 }
 
 // Función para calcular el bono de locura y caos
 int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
-    if (g_chaotic->integer == 2 && current_wave_number >= 7) {
-        return g_insane->integer ? 6 : 5;
+    (g_chaotic->integer) ? 3 : 5; 
+
+    if (g_insane->integer) {
+        if (g_insane->integer == 2) {
+            return 16;
+        }
+
+        if (g_insane->integer == 1) {
+            return 8;
+        }
+
+        if (g_chaotic->integer && current_wave_number <= 3) {
+            return 6;
+        }
+
+        return 8;
     }
-    else if (g_insane->integer) {
-        return g_insane->integer == 2 ? 16 : 8;
-    }
+
     return 0;
 }
+
 
 // Función para incluir ajustes de dificultad
 void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
     int32_t additionalSpawn = 0;
     if (mapSize.isSmallMap) {
-        additionalSpawn = 6;
+        additionalSpawn = (current_wave_number >= 9) ? 7 : 6;
     }
     else if (mapSize.isBigMap) {
-        additionalSpawn = 9;
+        additionalSpawn = (current_wave_number >= 9) ? 12 : 8;
     }
     else {
-        additionalSpawn = 6;
+        additionalSpawn = (current_wave_number >= 9) ? 7 : 6;
     }
 
-    if (current_wave_number > 27) {
+    if (current_wave_number > 25) {
         additionalSpawn *= 1.6;
     }
 
-    if (g_chaotic->integer || g_insane->integer) {
+    if (current_wave_number >= 3 && (g_chaotic->integer || g_insane->integer)) {
         additionalSpawn += CalculateChaosInsanityBonus(lvl);
     }
 
@@ -452,7 +465,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_stalker", 4, 13, 0.19f },
     { "monster_parasite", 4, 17, 0.23f },
     { "monster_tank", 11, -1, 0.3f },
-    { "monster_tank2", 6, 15, 0.3f },
+    { "monster_tank2", 7, 15, 0.24f },
     { "monster_guncmdr2", 9, 10, 0.18f },
     { "monster_mutant", 4, -1, 0.35f },
     { "monster_redmutant", 6, 12, 0.06f },
@@ -667,7 +680,7 @@ bool IsFlyingMonster(const char* classname) noexcept {
 }
 
 float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
-    return (flyingSpawns > 0) ? 0.5f : 1.0f;
+    return (flyingSpawns > 0) ? 0.25f : 1.0f;
 }
 
 bool IsMonsterEligible(edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
@@ -951,15 +964,28 @@ void BossDeathHandler(edict_t* boss) noexcept {
     if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
         boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
 
-        std::vector<const char*> itemsToDrop = {
-            "item_adrenaline",
-            "item_pack",
-            "item_bandolier",
-            "item_health_mega",
-            "item_doppleganger",
-            "item_sphere_defender",
-            "item_armor_body"
-        };
+        std::vector<const char*> itemsToDrop;
+
+        if (brandom()) {
+            itemsToDrop = {
+                "item_adrenaline",
+                "item_doppleganger",
+                "item_sphere_defender",
+                "item_armor_combat"
+                "item_bandolier",
+                "item_bandolier"
+            };
+        }
+        else {
+            itemsToDrop = {
+                "item_health_mega",
+                "item_doppleganger",
+                "item_sphere_defender",
+                "item_pack",
+                "item_pack",
+                "item_armor_body"
+            };
+        }
 
         // Soltar ítem especial (quad o quadfire)
         edict_t* specialItem{};
@@ -975,7 +1001,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
         vec3_t velocity;
         velocity[0] = (rand() % 400) - 200;
         velocity[1] = (rand() % 400) - 200;
-        velocity[2] = 300 + (rand() % 200);
+        velocity[2] = irandom(300, 400) + (rand() % 200);
         VectorCopy(velocity, specialItem->velocity);
 
         // Soltar los demás ítems y hacer que cada uno salga volando en diferentes direcciones
@@ -988,7 +1014,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
             // Aplicar velocidad al ítem
             velocity[0] = (rand() % 400) - 200;
             velocity[1] = (rand() % 400) - 200;
-            velocity[2] = 700 + (rand() % 200);
+            velocity[2] = irandom(650, 800) + (rand() % 200);
             VectorCopy(velocity, droppedItem->velocity);
 
             // Asegurar que el ítem tenga una velocidad instantánea
@@ -996,12 +1022,14 @@ void BossDeathHandler(edict_t* boss) noexcept {
             droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
             droppedItem->movetype = MOVETYPE_BOUNCE;
             droppedItem->s.effects |= EF_GIB;
+            droppedItem->flags &= ~FL_RESPAWN;
         }
 
         // Asegurar que el ítem especial tenga una velocidad instantánea
         specialItem->movetype = MOVETYPE_BOUNCE;
         specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL | EF_BLUEHYPERBLASTER;
         specialItem->s.renderfx |= RF_SHELL_LITE_GREEN;
+        specialItem->flags &= ~FL_RESPAWN;
 
         // Marcar al boss como no atacable para evitar doble manejo
         boss->takedamage = false;
@@ -1061,7 +1089,7 @@ void AttachHealthBar(edict_t* boss) noexcept {
     healthbar->classname = "target_healthbar";
     VectorCopy(boss->s.origin, healthbar->s.origin);
     healthbar->s.origin[2] += 20;
-    healthbar->delay = 4.0f;
+    healthbar->delay = 2.5f;
     healthbar->timestamp = 0_ms;
     healthbar->target = boss->targetname;
     SP_target_healthbar(healthbar);
@@ -1179,9 +1207,9 @@ void SpawnBossAutomatically() noexcept {
             // Crear el efecto de terremoto
             auto earthquake = G_Spawn();
             earthquake->classname = "target_earthquake";
-            earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_SILENT : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
-            earthquake->speed = 500; // Severidad del terremoto
-            earthquake->count = 3; // Duración del terremoto en segundos
+            earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_TOGGLE : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
+            earthquake->speed = (brandom()) ? 300 : 900; // Severidad del terremoto
+            earthquake->count = 5; // Duración del terremoto en segundos
             SP_target_earthquake(earthquake);
             earthquake->use(earthquake, boss, boss); // Activar el terremoto
 
@@ -1371,7 +1399,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
     ConditionParams params = { 0, 0_sec };
 
     if (mapSize.isBigMap) {
-        params.maxMonsters = 20;
+        params.maxMonsters = 19;
         params.timeThreshold = random_time(15_sec, 21_sec);
         return params;
     }
@@ -1379,7 +1407,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
     if (numHumanPlayers >= 3) {
         if (mapSize.isSmallMap) {
             params.maxMonsters = 6;
-            params.timeThreshold = random_time(4_sec, 4.5_sec);
+            params.timeThreshold = random_time(4_sec, 5.5_sec);
         }
         else {
             params.maxMonsters = 12;
@@ -1408,7 +1436,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
             }
         }
 
-        if ((g_chaotic->integer && numHumanPlayers <= 5) || (g_insane->integer && numHumanPlayers <= 5)) {
+        if ((g_chaotic->integer && numHumanPlayers <= 3) || (g_insane->integer && numHumanPlayers <= 3)) {
             params.timeThreshold += random_time(4_sec, 6_sec);
         }
     }
@@ -1544,7 +1572,6 @@ static const std::vector<std::string> sounds = {
     //"world/won.wav"
 };
 
-
 void HandleWaveRestMessage() noexcept {
     if (!g_insane->integer) {
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n STROGGS STARTING TO PUSH !\n\n\n ");
@@ -1589,7 +1616,7 @@ void SpawnMonsters() noexcept {
         monsters_per_spawn = 4;
     }
 
-    float drop_probability = (current_wave_number <= 2) ? 0.8f : 0.5f;
+    float drop_probability = (current_wave_number <= 2) ? 0.8f : (current_wave_number >=3 && current_wave_number <=7) ? 0.5f : 0.3f;
 
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
         auto spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
