@@ -1,4 +1,4 @@
-// Includes y definiciones relevantes
+ï»¿// Includes y definiciones relevantes
 #include "../g_local.h"
 #include "g_horde.h"
 #include "../shared.h"
@@ -61,7 +61,7 @@ const std::unordered_set<std::string> bigMaps = {
     "q2ctf5", "old/kmdm3", "xdm2", "xdm6"
 };
 
-// Función para obtener el tamaño del mapa
+// Funciï¿½n para obtener el tamaï¿½o del mapa
 MapSize GetMapSize(const std::string& mapname) noexcept {
     MapSize mapSize;
     mapSize.isSmallMap = smallMaps.count(mapname) > 0;
@@ -70,7 +70,7 @@ MapSize GetMapSize(const std::string& mapname) noexcept {
     return mapSize;
 }
 
-// Definición de la estructura weighted_benefit_t
+// Definiciï¿½n de la estructura weighted_benefit_t
 struct weighted_benefit_t {
     const char* benefit_name;
     int32_t min_level;
@@ -93,7 +93,7 @@ constexpr weighted_benefit_t benefits[] = {
 static std::random_device rd;
 static std::mt19937 gen(rd());
 
-// Función para mezclar los beneficios
+// Funciï¿½n para mezclar los beneficios
 void ShuffleBenefits() {
     shuffled_benefits.clear();
     shuffled_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
@@ -116,7 +116,7 @@ struct picked_benefit_t {
 };
 
 
-// Función para seleccionar un beneficio aleatorio
+// Funciï¿½n para seleccionar un beneficio aleatorio
 std::string SelectRandomBenefit(int32_t wave) {
     std::vector<picked_benefit_t> picked_benefits;
     picked_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
@@ -131,7 +131,7 @@ std::string SelectRandomBenefit(int32_t wave) {
         }
     }
 
-    if (picked_benefits.empty()) return "";  // Verificar si está vacío antes de proceder
+    if (picked_benefits.empty()) return "";  // Verificar si estï¿½ vacï¿½o antes de proceder
 
     float random_weight = frandom() * total_weight;
     auto it = std::find_if(picked_benefits.begin(), picked_benefits.end(),
@@ -142,7 +142,7 @@ std::string SelectRandomBenefit(int32_t wave) {
 }
 
 
-// Función para aplicar un beneficio específico
+// Funciï¿½n para aplicar un beneficio especï¿½fico
 void ApplyBenefit(const std::string& benefit) {
     static const std::unordered_map<std::string, std::pair<const char*, const char*>> benefitMessages = {
         {"start armor", {"\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 50 BODY-ARMOR!\n"}},
@@ -180,7 +180,7 @@ void ApplyBenefit(const std::string& benefit) {
         }
         else if (benefit == "Traced-Piercing Bullets") {
             gi.cvar_set("g_tracedbullets", "1");
-        } 
+        }
         else if (benefit == "Napalm-Grenade Launcher") {
             gi.cvar_set("g_bouncygl", "1");
         }
@@ -195,13 +195,13 @@ void ApplyBenefit(const std::string& benefit) {
         obtained_benefits.insert(benefit);
     }
     else {
-        // Mensaje de depuración en caso de que el beneficio no sea encontrado
+        // Mensaje de depuraciï¿½n en caso de que el beneficio no sea encontrado
         gi.Com_PrintFmt("Benefit not found: {}\n", benefit.c_str());
     }
 }
 
 
-// Función para verificar y aplicar beneficios basados en la ola
+// Funciï¿½n para verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(int32_t wave) {
     if (wave % 4 == 0) {
         if (shuffled_benefits.empty()) {
@@ -215,40 +215,39 @@ void CheckAndApplyBenefit(int32_t wave) {
     }
 }
 
-// Función para ajustar la tasa de aparición de monstruos
+// Funciï¿½n para ajustar la tasa de apariciï¿½n de monstruos
 void AdjustMonsterSpawnRate() noexcept {
     auto humanPlayers = GetNumHumanPlayers();
     float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
 
     if (g_horde_local.level % 3 == 0) {
         g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
-        g_horde_local.monster_spawn_time -= ((!g_chaotic->integer || !g_insane->integer) ? 0.5_sec : 0.4_sec) *difficultyMultiplier;
-        if (g_horde_local.monster_spawn_time < 0.5_sec) {
-            g_horde_local.monster_spawn_time = 0.5_sec;
+        g_horde_local.monster_spawn_time -= ((!g_chaotic->integer || !g_insane->integer) ? 0.5_sec : 0.4_sec) * difficultyMultiplier;
+        if (g_horde_local.monster_spawn_time < 0.7_sec) {
+            g_horde_local.monster_spawn_time = 0.7_sec;
         }
         SPAWN_POINT_COOLDOWN -= ((!g_chaotic->integer || !g_insane->integer) ? 0.6_sec : 0.4_sec) * difficultyMultiplier;
-        if (SPAWN_POINT_COOLDOWN < 2.1_sec) {
-            SPAWN_POINT_COOLDOWN = 2.1_sec;
+        if (SPAWN_POINT_COOLDOWN < 2.0_sec) {
+            SPAWN_POINT_COOLDOWN = 2.0_sec;
         }
     }
 }
 
-// Función para calcular la cantidad de monstruos estándar a spawnear
+// Funciï¿½n para calcular la cantidad de monstruos estï¿½ndar a spawnear
 void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
     if (mapSize.isSmallMap) {
         g_horde_local.num_to_spawn = std::min((current_wave_number <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
     }
     else if (mapSize.isBigMap) {
-        g_horde_local.num_to_spawn = std::min((current_wave_number <= 4) ? 20 : 25 + (lvl), MAX_MONSTERS_BIG_MAP);
+        g_horde_local.num_to_spawn = std::min((current_wave_number <= 4) ? 24 : 27 + (lvl), MAX_MONSTERS_BIG_MAP);
     }
     else {
         g_horde_local.num_to_spawn = std::min((current_wave_number <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
     }
 }
-
-// Función para calcular el bono de locura y caos
+// Funciï¿½n para calcular el bono de locura y caos
 int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
-    (g_chaotic->integer) ? 3 : 5; 
+    (g_chaotic->integer) ? 3 : 5;
 
     if (g_insane->integer) {
         if (g_insane->integer == 2) {
@@ -269,8 +268,7 @@ int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
     return 0;
 }
 
-
-// Función para incluir ajustes de dificultad
+// Funciï¿½n para incluir ajustes de dificultad
 void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
     int32_t additionalSpawn = 0;
     if (mapSize.isSmallMap) {
@@ -294,7 +292,7 @@ void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept 
     g_horde_local.num_to_spawn += additionalSpawn;
 }
 
-// Función para determinar la cantidad de monstruos a spawnear
+// Funciï¿½n para determinar la cantidad de monstruos a spawnear
 void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
     int32_t custom_monster_count = dm_monsters->integer;
     if (custom_monster_count > 0) {
@@ -325,7 +323,7 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     // Verificar y ajustar bots
     VerifyAndAdjustBots();
 
-    // Configurar la escala de daño según el nivel
+    // Configurar la escala de daï¿½o segï¿½n el nivel
     if (g_horde_local.level == 17) {
         gi.cvar_set("g_damage_scale", "1.7");
     }
@@ -336,13 +334,13 @@ void Horde_InitLevel(int32_t lvl) noexcept {
         gi.cvar_set("g_damage_scale", "3.7");
     }
 
-    // Configuración de la cantidad de monstruos a spawnear
+    // Configuraciï¿½n de la cantidad de monstruos a spawnear
     auto mapSize = GetMapSize(level.mapname);
     DetermineMonsterSpawnCount(mapSize, lvl);
     //check if adding bonus
     CheckAndApplyBenefit(g_horde_local.level);
 
-    // Ajustar tasa de aparición de monstruos
+    // Ajustar tasa de apariciï¿½n de monstruos
     AdjustMonsterSpawnRate();
 
     // Reiniciar cooldowns y contadores de intentos de spawn
@@ -423,7 +421,7 @@ constexpr struct weighted_item_t {
     { "weapon_bfg", 25, -1, 0.15f, adjust_weight_weapon },
 
 
-    { "ammo_trap", 4 -1, -1, 0.18f, adjust_weight_ammo },
+    { "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },
     { "ammo_bullets", -1, -1, 0.25f, adjust_weight_ammo },
     { "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },
     { "ammo_grenades", -1, -1, 0.25f, adjust_weight_ammo },
@@ -440,7 +438,7 @@ constexpr struct weighted_item_t {
     { "item_silencer", 15, -1, 0.12f, adjust_weight_ammo },
 };
 
-// Definición de monstruos ponderados
+// Definiciï¿½n de monstruos ponderados
 constexpr weighted_item_t monsters[] = {
     { "monster_soldier_light", -1, 19, 0.35f },
     { "monster_soldier_ss", -1, 20, 0.45f },
@@ -500,7 +498,7 @@ constexpr weighted_item_t monsters[] = {
     { "monster_widow1", 23, -1, 0.08f }
 };
 
-// Definición de jefes por tamaño de mapa
+// Definiciï¿½n de jefes por tamaï¿½o de mapa
 struct boss_t {
     const char* classname;
     int32_t min_level;
@@ -544,7 +542,7 @@ constexpr boss_t BOSS_LARGE[] = {
     {"monster_jorg", 30, -1, 0.15f}
 };
 
-// Función para obtener la lista de jefes basada en el tamaño del mapa
+// Funciï¿½n para obtener la lista de jefes basada en el tamaï¿½o del mapa
 const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) noexcept {
     if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm") {
         return BOSS_SMALL;
@@ -573,9 +571,9 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) no
 }
 
 constexpr int32_t MAX_RECENT_BOSSES = 3;
-std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rápidamente.
+std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas rï¿½pidamente.
 
-// Función para seleccionar un jefe basado en el tamaño del mapa y el nombre del mapa
+// Funciï¿½n para seleccionar un jefe basado en el tamaï¿½o del mapa y el nombre del mapa
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) noexcept {
     const boss_t* boss_list = GetBossList(mapSize, mapname);
     if (!boss_list) return nullptr;
@@ -833,7 +831,7 @@ void Horde_PreInit() noexcept {
     }
 }
 
-// Función para obtener el número de jugadores humanos activos (excluyendo bots)
+// Funciï¿½n para obtener el nï¿½mero de jugadores humanos activos (excluyendo bots)
 int32_t GetNumHumanPlayers() noexcept {
     int32_t numHumanPlayers = 0;
     for (auto player : active_players()) {
@@ -850,13 +848,13 @@ void VerifyAndAdjustBots() noexcept {
     const int32_t spectPlayers = GetNumSpectPlayers();
     const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 
-    // Calcular el número requerido de bots
+    // Calcular el nï¿½mero requerido de bots
     int32_t requiredBots = baseBots + spectPlayers;
 
-    // Asegurar que el número de bots no sea menor que el valor base
+    // Asegurar que el nï¿½mero de bots no sea menor que el valor base
     requiredBots = std::max(requiredBots, baseBots);
 
-    // Establecer el número de bots mínimos necesarios
+    // Establecer el nï¿½mero de bots mï¿½nimos necesarios
     gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
 
@@ -938,10 +936,10 @@ void Horde_Init() noexcept {
         "misc/spawn1.wav",
         "makron/voice3.wav",
         "world/v_fac3.wav"
-    //    "world/v_fac2.wav",
-    //    "insane/insane5.wav",
-    //    "insane/insane2.wav",
-    //    "world/won.wav"
+        //    "world/v_fac2.wav",
+        //    "insane/insane5.wav",
+        //    "insane/insane2.wav",
+        //    "world/won.wav"
     };
 
     for (const auto& sound : other_sounds) {
@@ -987,7 +985,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
             };
         }
 
-        // Soltar ítem especial (quad o quadfire)
+        // Soltar Ã­tem especial (quad o quadfire)
         edict_t* specialItem{};
         if (rand() % 2 == 0) {
             specialItem = Drop_Item(boss, FindItemByClassname("item_quad"));
@@ -996,7 +994,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
             specialItem = Drop_Item(boss, FindItemByClassname("item_quadfire"));
         }
 
-        // Establecer posición del ítem especial y hacer que salga volando
+        // Establecer posiciÃ³n del Ã­tem especial y hacer que salga volando
         VectorCopy(boss->s.origin, specialItem->s.origin);
         vec3_t velocity;
         velocity[0] = (rand() % 400) - 200;
@@ -1004,20 +1002,20 @@ void BossDeathHandler(edict_t* boss) noexcept {
         velocity[2] = irandom(300, 400) + (rand() % 200);
         VectorCopy(velocity, specialItem->velocity);
 
-        // Soltar los demás ítems y hacer que cada uno salga volando en diferentes direcciones
+        // Soltar los demÃ¡s Ã­tems y hacer que cada uno salga volando en diferentes direcciones
         for (const auto& itemClassname : itemsToDrop) {
             edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
 
-            // Establecer posición del ítem
+            // Establecer posiciÃ³n del Ã­tem
             VectorCopy(boss->s.origin, droppedItem->s.origin);
 
-            // Aplicar velocidad al ítem
+            // Aplicar velocidad al Ã­tem
             velocity[0] = (rand() % 400) - 200;
             velocity[1] = (rand() % 400) - 200;
             velocity[2] = irandom(650, 800) + (rand() % 200);
             VectorCopy(velocity, droppedItem->velocity);
 
-            // Asegurar que el ítem tenga una velocidad instantánea
+            // Asegurar que el Ã­tem tenga una velocidad instantÃ¡nea
             droppedItem->spawnflags & ~SPAWNFLAG_ITEM_DROPPED;
             droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
             droppedItem->movetype = MOVETYPE_BOUNCE;
@@ -1025,7 +1023,7 @@ void BossDeathHandler(edict_t* boss) noexcept {
             droppedItem->flags &= ~FL_RESPAWN;
         }
 
-        // Asegurar que el ítem especial tenga una velocidad instantánea
+        // Asegurar que el Ã­tem especial tenga una velocidad instantÃ¡nea
         specialItem->movetype = MOVETYPE_BOUNCE;
         specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL | EF_BLUEHYPERBLASTER;
         specialItem->s.renderfx |= RF_SHELL_LITE_GREEN;
@@ -1033,9 +1031,9 @@ void BossDeathHandler(edict_t* boss) noexcept {
 
         // Marcar al boss como no atacable para evitar doble manejo
         boss->takedamage = false;
-    //    boss->gib_health += -99999;
+        //    boss->gib_health += -99999;
 
-        // Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
+            // Resetear el modo de monstruos voladores si el jefe corresponde a los tipos especÃ­ficos
         if (strcmp(boss->classname, "monster_boss2") == 0 ||
             strcmp(boss->classname, "monster_carrier") == 0 ||
             strcmp(boss->classname, "monster_carrier2") == 0 ||
@@ -1089,7 +1087,7 @@ void AttachHealthBar(edict_t* boss) noexcept {
     healthbar->classname = "target_healthbar";
     VectorCopy(boss->s.origin, healthbar->s.origin);
     healthbar->s.origin[2] += 20;
-    healthbar->delay = 2.5f;
+    healthbar->delay = 2.0f;
     healthbar->timestamp = 0_ms;
     healthbar->target = boss->targetname;
     SP_target_healthbar(healthbar);
@@ -1196,7 +1194,7 @@ void SpawnBossAutomatically() noexcept {
             trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
 
             if (tr.startsolid) {
-                // Realizar telefrag si hay colisión
+                // Realizar telefrag si hay colisiï¿½n
                 auto hit = tr.ent;
                 if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
                     T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
@@ -1209,7 +1207,7 @@ void SpawnBossAutomatically() noexcept {
             earthquake->classname = "target_earthquake";
             earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_TOGGLE : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
             earthquake->speed = (brandom()) ? 300 : 900; // Severidad del terremoto
-            earthquake->count = 5; // Duración del terremoto en segundos
+            earthquake->count = 5; // DuraciÃ³n del terremoto en segundos
             SP_target_earthquake(earthquake);
             earthquake->use(earthquake, boss, boss); // Activar el terremoto
 
@@ -1227,7 +1225,7 @@ void SpawnBossAutomatically() noexcept {
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
             boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la flag de super paso
 
-            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente si la ola es 10 o más
+            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente si la ola es 10 o mï¿½s
             ApplyMonsterBonusFlags(boss);
 
             boss->monsterinfo.attack_state = AS_BLIND;
@@ -1256,7 +1254,7 @@ void SpawnBossAutomatically() noexcept {
             // Realizar el efecto de crecimiento y aplicar telefrag si es necesario
             SpawnGrow_Spawn(spawngrow_pos, size, end_size);
 
-            // Realizar telefrag en la posición del efecto de spawn
+            // Realizar telefrag en la posiciï¿½n del efecto de spawn
             trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
             if (tr_spawn.startsolid) {
                 auto hit = tr_spawn.ent;
@@ -1280,7 +1278,7 @@ void SpawnBossAutomatically() noexcept {
 
             boss_spawned_for_wave = true;  // Marcar que el jefe ha sido spawneado para esta ola
 
-            // Agregar el jefe a la lista de jefes generados automáticamente
+            // Agregar el jefe a la lista de jefes generados automï¿½ticamente
             auto_spawned_bosses.insert(boss);
         }
     }
@@ -1316,15 +1314,12 @@ void ResetAutoSpawnedBosses() noexcept {
     // Reset recent bosses
     recent_bosses.clear();
 }
-extern void InitializeCTFIDViewConfigStrings(bool forceReset = false);
-
 void ResetGame() noexcept {
     // Reset core gameplay elements
     ResetSpawnAttempts();
     ResetCooldowns();
     ResetBenefits();
     ResetAutoSpawnedBosses();
-    InitializeCTFIDViewConfigStrings(true); //resets CTF ID
 
     // Reset wave information
     current_wave_number = 0;
@@ -1336,7 +1331,6 @@ void ResetGame() noexcept {
     boss_spawned_for_wave = false;
     allowWaveAdvance = false;
     cachedRemainingMonsters = -1;
-
 
     // Reset gameplay configuration variables
     gi.cvar_set("g_chaotic", "0");
@@ -1370,7 +1364,7 @@ void ResetGame() noexcept {
     cachedRemainingMonsters = -1;
 }
 
-// Función para obtener el número de jugadores activos (incluyendo bots)
+// Funciï¿½n para obtener el nï¿½mero de jugadores activos (incluyendo bots)
 int32_t GetNumActivePlayers() noexcept {
     int32_t numActivePlayers = 0;
     for (const auto player : active_players()) {
@@ -1381,7 +1375,7 @@ int32_t GetNumActivePlayers() noexcept {
     return numActivePlayers;
 }
 
-// Función para obtener el número de jugadores en espectador
+// Funciï¿½n para obtener el nï¿½mero de jugadores en espectador
 int32_t GetNumSpectPlayers() noexcept {
     int32_t numSpectPlayers = 0;
     for (const auto player : active_players()) {
@@ -1392,13 +1386,13 @@ int32_t GetNumSpectPlayers() noexcept {
     return numSpectPlayers;
 }
 
-// Estructura para los parámetros de condición
+// Estructura para los parï¿½metros de condiciï¿½n
 struct ConditionParams {
     int32_t maxMonsters;
     gtime_t timeThreshold;
 };
 
-// Función para decidir los parámetros de la condición en función del tamaño del mapa y el número de jugadores
+// Funciï¿½n para decidir los parï¿½metros de la condiciï¿½n en funciï¿½n del tamaï¿½o del mapa y el nï¿½mero de jugadores
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers) noexcept {
     ConditionParams params = { 0, 0_sec };
 
@@ -1461,8 +1455,8 @@ int32_t CalculateRemainingMonsters() noexcept {
     return remaining;
 }
 
-// Calcular los parámetros de la condición en función del tamaño del mapa y el número de jugadores
-// Variables globales para el estado de la condición usando gtime_t
+// Calcular los parï¿½metros de la condiciï¿½n en funciï¿½n del tamaï¿½o del mapa y el nï¿½mero de jugadores
+// Variables globales para el estado de la condiciï¿½n usando gtime_t
 gtime_t condition_start_time = gtime_t::from_sec(0);
 int32_t previous_remainingMonsters = 0;
 
@@ -1508,7 +1502,7 @@ static void MonsterSpawned(edict_t* monster) {
     }
 }
 
-// Función para decidir si se usa el spawn más lejano basado en el nivel actual
+// Funciï¿½n para decidir si se usa el spawn mï¿½s lejano basado en el nivel actual
 bool UseFarthestSpawn() noexcept {
     if (g_horde_local.level >= 15) {
         return (rand() % 4 == 0);  // 25% de probabilidad a partir del nivel 15
@@ -1517,7 +1511,7 @@ bool UseFarthestSpawn() noexcept {
 }
 
 void PlayWaveStartSound() noexcept {
-    // Vector para almacenar los sonidos, definido como estático para que solo se inicialice una vez
+    // Vector para almacenar los sonidos, definido como estï¿½tico para que solo se inicialice una vez
     static const std::vector<std::string> sounds = {
         "misc/r_tele3.wav",
         "world/klaxon2.wav",
@@ -1527,16 +1521,16 @@ void PlayWaveStartSound() noexcept {
         //"insane/insane9.wav"
     };
 
-    // Generar un índice aleatorio para seleccionar un sonido
+    // Generar un ï¿½ndice aleatorio para seleccionar un sonido
     int32_t sound_index = static_cast<int32_t>(frandom() * sounds.size());
 
-    // Asegurarse de que el índice esté dentro del rango del vector
+    // Asegurarse de que el ï¿½ndice estï¿½ dentro del rango del vector
     if (sound_index >= 0 && sound_index < sounds.size()) {
         gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
 }
 
-// Función para mostrar el mensaje de la ola
+// Funciï¿½n para mostrar el mensaje de la ola
 void DisplayWaveMessage() noexcept {
     if (brandom()) {
         gi.LocBroadcast_Print(PRINT_CENTER, "\nNew Horde Menu! Use Compass to open menu \nNOW KILL THEM ALL !\n");
@@ -1546,7 +1540,7 @@ void DisplayWaveMessage() noexcept {
     }
 }
 
-// Función para manejar el mensaje de limpieza de ola
+// Funciï¿½n para manejar el mensaje de limpieza de ola
 void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
     if (current_wave_number >= 15 && current_wave_number <= 28) {
         gi.cvar_set("g_insane", "1");
@@ -1562,7 +1556,7 @@ void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
 
     g_horde_local.state = horde_state_t::rest;
 }
-// Vector para almacenar los sonidos, definido como estático para que solo se inicialice una vez
+// Vector para almacenar los sonidos, definido como estï¿½tico para que solo se inicialice una vez
 static const std::vector<std::string> sounds = {
     "nav_editor/action_fail.wav",
     "makron/roar1.wav",
@@ -1584,16 +1578,16 @@ void HandleWaveRestMessage() noexcept {
         gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
     }
 
-    // Generar un índice aleatorio para seleccionar un sonido
+    // Generar un ï¿½ndice aleatorio para seleccionar un sonido
     std::uniform_int_distribution<size_t> dist(0, sounds.size() - 1);
     size_t const sound_index = dist(gen);
 
-    // Asegurarse de que el índice esté dentro del rango del vector
+    // Asegurarse de que el ï¿½ndice estï¿½ dentro del rango del vector
     if (sound_index < sounds.size()) {
         gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
 
-    // Reiniciar el daño total para todos los jugadores ya que es una nueva ola
+    // Reiniciar el daï¿½o total para todos los jugadores ya que es una nueva ola
     for (const auto player : active_players()) {
         if (player->client) {
             player->client->total_damage = 0;
@@ -1603,7 +1597,7 @@ void HandleWaveRestMessage() noexcept {
 
 void SpawnMonsters() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
-    // Calcular la cantidad de monstruos por spawn según el tamaño del mapa y el nivel de la horda
+    // Calcular la cantidad de monstruos por spawn segï¿½n el tamaï¿½o del mapa y el nivel de la horda
     int32_t monsters_per_spawn;
     if (mapSize.isSmallMap) {
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
@@ -1620,7 +1614,7 @@ void SpawnMonsters() noexcept {
         monsters_per_spawn = 4;
     }
 
-    float drop_probability = (current_wave_number <= 2) ? 0.8f : (current_wave_number >=3 && current_wave_number <=7) ? 0.5f : 0.3f;
+    float drop_probability = (current_wave_number <= 2) ? 0.8f : (current_wave_number >= 3 && current_wave_number <= 7) ? 0.5f : 0.3f;
 
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
         auto spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
@@ -1638,8 +1632,8 @@ void SpawnMonsters() noexcept {
                 monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 
             if (!st.was_key_specified("power_armor_type")) {
-                // Calcular la armadura en función de la salud máxima del monstruo
-                float health_factor = monster->max_health / 100.0f; // Ajusta el denominador según la escala deseada
+                // Calcular la armadura en funciï¿½n de la salud mï¿½xima del monstruo
+                float health_factor = monster->max_health / 100.0f; // Ajusta el denominador segï¿½n la escala deseada
                 int base_armor = 150;
                 int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
                 monster->monsterinfo.armor_power = base_armor + additional_armor;
@@ -1664,7 +1658,7 @@ void SpawnMonsters() noexcept {
         --g_horde_local.num_to_spawn;
     }
 
-    // Ajustar el tiempo de spawn para evitar spawns rápidos basado en el tamaño del mapa
+    // Ajustar el tiempo de spawn para evitar spawns rï¿½pidos basado en el tamaï¿½o del mapa
     if (mapSize.isSmallMap) {
         g_horde_local.monster_spawn_time = level.time + 1.5_sec;
     }
@@ -1676,7 +1670,7 @@ void SpawnMonsters() noexcept {
     }
 }
 
-// Función para calcular el jugador con más daño
+// Funciï¿½n para calcular el jugador con mï¿½s daï¿½o
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     int total_damage = 0;
     topDamager.total_damage = 0;
@@ -1702,7 +1696,7 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     percentage = std::round(percentage * 100) / 100;
 }
 
-// Función para enviar el mensaje de limpieza
+// Funciï¿½n para enviar el mensaje de limpieza
 void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage) noexcept {
     auto message = messages.find(topDamager.player ? topDamager.player->client->pers.netname : "N/A");
     if (message != messages.end()) {
@@ -1815,7 +1809,7 @@ void Horde_RunFrame() noexcept {
     }
 }
 
-// Función para manejar el evento de reinicio
+// Funciï¿½n para manejar el evento de reinicio
 void HandleResetEvent() noexcept {
     ResetGame();
 }

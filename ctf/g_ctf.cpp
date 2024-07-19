@@ -947,61 +947,12 @@ void CTFID_f(edict_t* ent)
 extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 #include "../shared.h"
 // Estructura para gestionar la disponibilidad de configstrings
-struct ConfigStringManager {
-	std::vector<int> availableMonsterConfigStrings;
-	std::vector<int> availablePlayerConfigStrings;
-	std::unordered_map<int, bool> isActive;
-
-	ConfigStringManager() {
-		// Inicializar rangos para monstruos y jugadores con el nuevo límite
-		for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
-			availableMonsterConfigStrings.push_back(i);
-			isActive[i] = false;
-		}
-		for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
-			availablePlayerConfigStrings.push_back(i);
-			isActive[i] = false;
-		}
+void InitializeCTFIDViewConfigStrings() {
+	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+		gi.configstring(i, "");
 	}
-
-	// Marcar un configstring como libre
-	void freeConfigString(int cs_index) {
-		isActive[cs_index] = false;
-		if (cs_index >= CONFIG_MONSTER_HEALTH_BASE && cs_index <= CONFIG_MONSTER_HEALTH_END) {
-			availableMonsterConfigStrings.push_back(cs_index);
-		}
-		else if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
-			availablePlayerConfigStrings.push_back(cs_index);
-		}
-	}
-
-	// Obtener un configstring libre si está disponible
-	int getConfigString(bool isMonster) {
-		std::vector<int>& pool = isMonster ? availableMonsterConfigStrings : availablePlayerConfigStrings;
-		if (!pool.empty()) {
-			int cs_index = pool.back();
-			pool.pop_back();
-			isActive[cs_index] = true;
-			return cs_index;
-		}
-		return -1;  // Retornar -1 si no hay configstrings disponibles
-	}
-};
-
-ConfigStringManager configStringManager;
-
-void InitializeCTFIDViewConfigStrings(bool forceReset = false) {
-	// Revisar si realmente necesitamos reinicializar
-	if (!forceReset && !configStringManager.isActive.empty()) {
-		return;  // No reiniciar si ya están inicializados y no se fuerza el reset
-	}
-
-	// Reinicialización de los configstrings si es necesario
-	for (auto& cs : configStringManager.isActive) {
-		if (cs.second) {  // Solo reiniciar los que están activos o forzados
-			gi.configstring(cs.first, "");
-			cs.second = false;  // Marcar como no activo
-		}
+	for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
+		gi.configstring(i, "");
 	}
 }
 
@@ -1025,7 +976,6 @@ int GetArmorInfo(edict_t* ent) {
 
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
-		// Lista de reemplazos de nombre
 		{ "monster_soldier_light", "Light Soldier" },
 		{ "monster_soldier_ss", "SS Soldier" },
 		{ "monster_soldier", "Soldier" },
@@ -1098,10 +1048,11 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_gm_arachnid", "Guided-Missile Arachnid" },
 		{ "misc_insane", "Insane Grunt" },
 		{ "food_cube_trap", "Stroggonoff Maker\n" },
-		{ "tesla_mine", "Tesla Mine\n" },
-		{ "prox_mine", "Prox'Nade\n" }
+		{ "tesla_mine", " Tesla Mine\n" },
+		{ "prox_mine", " Prox'Nade\n" }
 		// Add other replacements as needed
 	};
+
 
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
@@ -1150,21 +1101,26 @@ inline bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 }
 
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
-	if (value.size() >= CS_SIZE(cs_index)) {
-		gi.configstring(cs_index, value.substr(0, CS_SIZE(cs_index) - 1).c_str());
-	}
-	else {
-		gi.configstring(cs_index, value.c_str());
-	}
+	gi.configstring(cs_index, value.c_str());
 }
 
 void CTFSetIDView(edict_t* ent) {
-
-	if (level.intermissiontime)
-		return;
-
 	static int monster_configstrings[MAX_EDICTS];
 	static int player_configstrings[MAX_EDICTS];
+	static std::vector<int> available_monster_configstrings;
+	static std::vector<int> available_player_configstrings;
+
+	if (available_monster_configstrings.empty()) {
+		for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+			available_monster_configstrings.push_back(i);
+		}
+	}
+
+	if (available_player_configstrings.empty()) {
+		for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
+			available_player_configstrings.push_back(i);
+		}
+	}
 
 	vec3_t forward;
 	trace_t tr;
@@ -1301,16 +1257,18 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		ent->client->target_health_str = health_string;
 
-		bool isMonster = best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap");
-		auto& configstrings = isMonster ? monster_configstrings : player_configstrings;
+		auto& available_configstrings = (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap"))
+			? available_monster_configstrings : available_player_configstrings;
+		auto& configstrings = (best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap"))
+			? monster_configstrings : player_configstrings;
 
 		if (configstrings[best - g_edicts] == 0) {
-			int cs_index = configStringManager.getConfigString(isMonster);
-			if (cs_index != -1) {
+			if (!available_configstrings.empty()) {
+				int cs_index = available_configstrings.back();
+				available_configstrings.pop_back();
 				configstrings[best - g_edicts] = cs_index;
 			}
 		}
-
 		UpdateCTFIDViewConfigString(configstrings[best - g_edicts], ent->client->target_health_str);
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configstrings[best - g_edicts];
 	}
