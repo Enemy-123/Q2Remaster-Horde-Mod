@@ -227,8 +227,8 @@ void AdjustMonsterSpawnRate() noexcept {
             g_horde_local.monster_spawn_time = 0.5_sec;
         }
         SPAWN_POINT_COOLDOWN -= ((!g_chaotic->integer || !g_insane->integer) ? 0.6_sec : 0.4_sec) * difficultyMultiplier;
-        if (SPAWN_POINT_COOLDOWN < 1.7_sec) {
-            SPAWN_POINT_COOLDOWN = 1.7_sec;
+        if (SPAWN_POINT_COOLDOWN < 2.1_sec) {
+            SPAWN_POINT_COOLDOWN = 2.1_sec;
         }
     }
 }
