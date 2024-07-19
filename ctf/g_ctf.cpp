@@ -2591,6 +2591,9 @@ static void SetLevelName(pmenu_t* p)
 
 /*-----------------------------------------------------------------------*/
 void CTFWinElection();
+#include <fmt/core.h>
+#include <string>
+
 bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	int count;
 	edict_t* e;
@@ -2625,19 +2628,19 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 	ctfgame.etarget = ent;
 	ctfgame.election = type;
-	ctfgame.needvotes = (int)((count * electpercentage->value) / 100);
+	ctfgame.needvotes = static_cast<int>((count * electpercentage->value) / 100);
 	ctfgame.electtime = level.time + 25_sec; // 25 seconds for election
 	Q_strlcpy(ctfgame.emsg, msg, sizeof(ctfgame.emsg));
 
 	// tell everyone
-	gi.Broadcast_Print(PRINT_CHAT, ctfgame.emsg);
+	gi.LocBroadcast_Print(PRINT_CHAT, ctfgame.emsg);
 	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass to vote, Optionally Type YES or NO to vote on this request.\n");
-	gi.LocBroadcast_Print(PRINT_HIGH, "Votes: {}  Needed: {}  Time left: {}s\n", ctfgame.evotes, ctfgame.needvotes,
-		(ctfgame.electtime - level.time).seconds<int>());
+
+	int time_left = (ctfgame.electtime - level.time).seconds<int>();
+	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}  Time left: {}s\n", ctfgame.evotes, ctfgame.needvotes, time_left).c_str());
 
 	// Actualizar el configstring con la información de la votación
-	std::string vote_info_str = fmt::format("Vote started by {}: {} Time left: {}s",
-		ent->client->pers.netname, msg, (ctfgame.electtime - level.time).seconds<int>());
+	std::string vote_info_str = fmt::format("Vote started by {}: {} Time left: {}s", ent->client->pers.netname, msg, time_left);
 	gi.configstring(CONFIG_VOTE_INFO, vote_info_str.c_str());
 
 	// Guardar el mensaje en el voted_map de cada cliente
@@ -2651,12 +2654,13 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	// Si solo hay un jugador, aprueba la elección automáticamente
 	if (count == 1) {
 		ctfgame.evotes = ctfgame.needvotes;
-		gi.Broadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other (human) players logged.\n");
+		gi.LocBroadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other (human) players logged.\n");
 		CTFWinElection(); // Procesa el resultado de la elección inmediatamente
 	}
 
 	return true;
 }
+
 
 void UpdateVoteHUD() {
 	if (ctfgame.election != ELECT_NONE) {
