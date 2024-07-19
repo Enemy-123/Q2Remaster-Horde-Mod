@@ -3526,30 +3526,29 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	else
 	{
 		// Handle menu movement if the menu is open
-		if (ent->client->menu && HandleMenuMovement(ent, ucmd))
+		if (ent->client->menu)
 		{
-			// Return early if menu movement is handled
-			return;
+			if (ent->movetype == MOVETYPE_NOCLIP)
+			{
+				if (HandleMenuMovement(ent, ucmd))
+				{
+					// Return early if menu movement is handled
+					return;
+				}
+			}
+			else if (ent->movetype == MOVETYPE_WALK)
+			{
+				// Custom handling for MOVETYPE_WALK if needed
+				if (HandleMenuMovement(ent, ucmd))
+				{
+					// Return early if menu movement is handled
+					return;
+				}
+			}
 		}
 
 		// set up for pmove
 		memset(&pm, 0, sizeof(pm));
-
-		//if (ent->client->resp.ctf_team == CTF_TEAM1)
-		//{
-		//	if (ent->client->menu)
-		//	{
-		//		ent->client->pers.weapon = nullptr;
-		//		client->ps.pmove.pm_type = PM_NORMAL;
-
-		//		// [Paril-KEX] handle menu movement
-		//		HandleMenuMovement(ent, ucmd);
-		//		if (ent->client->menu)
-		//			ent->client->pers.weapon = ent->client->pers.lastweapon;
-		//	}
-
-		//}
-		//else	if (ent->movetype == MOVETYPE_NOCLIP)
 
 		if (ent->movetype == MOVETYPE_NOCLIP)
 		{
