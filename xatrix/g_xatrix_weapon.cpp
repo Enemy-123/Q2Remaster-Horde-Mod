@@ -369,6 +369,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	if (ent->timestamp < level.time)
 	{
 		BecomeExplosion1(ent);
+		ent->teammaster->client->num_traps--; // Decrementar el contador al eliminar la más antigua
 		return;
 	}
 
