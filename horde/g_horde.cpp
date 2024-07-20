@@ -1578,9 +1578,10 @@ static const std::vector<std::string> sounds = {
 void HandleWaveRestMessage(gtime_t duration = 5_sec) noexcept {
     if (!g_insane->integer) {
         if (brandom())
-        UpdateHordeMessage("STROGGS STARTING TO PUSH !\n\n\n ", duration);
+        UpdateHordeMessage("STROGGS STARTING TO PUSH!\n\n", duration);
         else
-         UpdateHordeMessage("THE STROGGS ARE NOT HERE TO PLAY TODAY!\n\n\n", duration);
+        UpdateHordeMessage("STROGGS ARE NOT SUFFERING ENOUGH!\n\nTHEY'VE CALLED FOR REINFORCEMENTS!\n", duration);
+
     }
     else if (g_insane->integer == 1) {
         if (brandom()) 
