@@ -3,6 +3,7 @@
 // g_misc.c
 
 #include "g_local.h"
+#include "shared.h"
 
 /*QUAKED func_group (0 0 0) ?
 Used to group brushes together just for editor convenience.
@@ -1656,15 +1657,13 @@ USE(misc_strogg_ship_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 	train_use(self, other, activator);
 }
 
-void SP_misc_strogg_ship(edict_t* ent)
-{
+void SP_misc_strogg_ship(edict_t* ent) {
 	if (!ent->target)
 	{
 		gi.Com_PrintFmt("{} without a target\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
-
 	if (!ent->speed)
 		ent->speed = 300;
 
@@ -1680,8 +1679,49 @@ void SP_misc_strogg_ship(edict_t* ent)
 	ent->svflags |= SVF_NOCLIENT;
 	ent->moveinfo.accel = ent->moveinfo.decel = ent->moveinfo.speed = ent->speed;
 
+	//// Crear un path_corner en la superficie con SURF_SKY
+	//edict_t* reference = nullptr;
+	//float best_distance = 9999999.0f;
+
+	//// Encontrar el jugador más cercano para usarlo como referencia
+	//for (uint32_t n = 1; n <= game.maxclients; n++) {
+	//	edict_t* player = &g_edicts[n];
+
+	//	if (!player->inuse || !player->solid || player->health <= 0)
+	//		continue;
+
+	//	float distance = PlayersRangeFromSpot(player);
+	//	if (distance < best_distance) {
+	//		best_distance = distance;
+	//		reference = player;
+	//	}
+	//}
+
+	//if (reference) {
+	//	gi.Com_PrintFmt("Reference player found at: {} {} {}\n", reference->s.origin[0], reference->s.origin[1], reference->s.origin[2]);
+
+	//	edict_t* path_corner_sky = CreatePathCornerOnSkySurface(reference);
+	//	edict_t* path_corner_player = CreatePathCornerAbovePlayer(reference);
+	//	if (path_corner_sky && path_corner_player) {
+	//		path_corner_sky->target = path_corner_player->targetname; // Conectar los dos path_corners
+	//		ent->target = path_corner_sky->targetname;
+	//		gi.Com_PrintFmt("Path corners created successfully\n");
+	//	}
+	//	else {
+	//		gi.Com_PrintFmt("Failed to create path_corners\n");
+	//		G_FreeEdict(ent);
+	//		return;
+	//	}
+	//}
+	//else {
+	//	gi.Com_PrintFmt("No reference player found\n");
+	//	G_FreeEdict(ent);
+	//	return;
+	//}
+
 	gi.linkentity(ent);
 }
+
 
 /*QUAKED misc_satellite_dish (1 .5 0) (-64 -64 0) (64 64 128)
 model="models/objects/satellite/tris.md2"

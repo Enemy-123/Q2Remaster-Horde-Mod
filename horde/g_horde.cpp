@@ -359,7 +359,18 @@ void Horde_InitLevel(int32_t lvl) noexcept {
 
     // Imprimir mensaje de inicio del nivel
     gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
+
+//    // Spawnear naves Strogg en la fase de inicialización del nivel
+//    if (lvl % 2 == 0) { // Ajusta la condición según la frecuencia que desees
+//        void SP_misc_strogg_ship(edict_t * ent);
+//        edict_t* strogg_ship = G_Spawn();
+//        if (strogg_ship) {
+//            gi.Com_PrintFmt("Strogg Ship passing by");
+//            SP_misc_strogg_ship(strogg_ship);
+//        }
+//    }
 }
+
 
 
 

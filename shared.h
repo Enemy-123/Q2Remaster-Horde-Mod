@@ -18,19 +18,25 @@
 constexpr spawnflags_t SPAWNFLAG_IS_BOSS = spawnflags_t(0x00000025); // Is monster a boss?
 constexpr spawnflags_t SPAWNFLAG_BOSS_DEATH_HANDLED = spawnflags_t(0x80000000); // is dead?
 
-// Declarar funciones globales
+// Declarar funciones globales name strings
 std::string GetDisplayName(edict_t* ent);
 std::string GetTitleFromFlags(int bonus_flags);
+//DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);
 void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isBigMap, float& health_multiplier, float& power_armor_multiplier);
-
+extern float M_DamageModifier(edict_t* monster);
+extern std::string GetPlayerName(edict_t* player);
 // Declarar funciones externas para el healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
 extern void check_target_healthbar(edict_t* self);
 extern void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number);
 extern void UpdatePowerUpTimes(edict_t* monster);
-extern float M_DamageModifier(edict_t* monster);
+
+//strogg ship
+//extern edict_t* CreatePathCornerOnSkySurface(edict_t* reference);
+//extern edict_t* CreatePathCornerAbovePlayer(edict_t* player);
+//extern float PlayersRangeFromSpot(edict_t* spot);
 //extern void MoveMonsterToPlayer(edict_t* monster);
 
 struct MapSize {
@@ -47,6 +53,8 @@ struct PlayerStats {
     edict_t* player;
     int total_damage;
 };
-extern std::string GetPlayerName(edict_t* player);
+
+
+
 
 #endif // SHARED_H
