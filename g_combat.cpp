@@ -207,16 +207,16 @@ static int CheckPowerArmor(edict_t* ent, const vec3_t& point, const vec3_t& norm
 		if (dot <= 0.3f)
 			return 0;
 
-		damagePerCell = 1;
+		damagePerCell = 2;
 		pa_te_type = TE_SCREEN_SPARKS;
 		damage = damage / 3;
 	}
 	else
 	{
 		if (ctf->integer)
-			damagePerCell = 2; // power armor is weaker in CTF
+			damagePerCell = 3; // power armor is weaker in CTF
 		else
-			damagePerCell = 2;
+			damagePerCell = 3;
 		pa_te_type = TE_SCREEN_SPARKS;
 		damage = (2 * damage) / 3;
 	}
