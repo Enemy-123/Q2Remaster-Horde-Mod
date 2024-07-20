@@ -1169,7 +1169,12 @@ void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 void OnEntityDeath(edict_t* ent) {
 	if (ent->configstringIndex > 0) {
 		configStringManager.freeConfigString(ent->configstringIndex);
+		gi.configstring(ent->configstringIndex, "");  // Resetear el valor del configstring
 		ent->configstringIndex = 0;  // Resetear el índice para seguridad
+	}
+
+	if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");  // Resetear el valor del health bar
 	}
 }
 
