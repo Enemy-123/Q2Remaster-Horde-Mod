@@ -1641,7 +1641,7 @@ void G_InitStatusbar(statusbar_t& sb)
 
 		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer)
 		{
-			sb.xv(-155).yb(-23).string2("\nINSANE COOP");
+			sb.xl(2).yb(-23).string2("\nINSANE COOP");
 		}
 		if (G_IsCooperative())
 		{
@@ -1649,7 +1649,7 @@ void G_InitStatusbar(statusbar_t& sb)
 			sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 			sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
-			sb.xv(420).yb(-23).num(3, STAT_REMAINING_MONSTERS).xv(360).yb(-23).string2(" Stroggs \n To  Kill!");
+			sb.xr(-52).yb(-23).num(3, STAT_REMAINING_MONSTERS).xr(-134).yb(-23).string2(" Stroggs \nLeft to Kill:");
 			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
 			sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
 		}
@@ -1690,14 +1690,14 @@ void G_InitStatusbar(statusbar_t& sb)
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 		// HORDE WAVE
-		sb.xv(-155).yb(-23).string2("Horde MODE");
+		sb.xl(2).yb(-23).string2("Horde MODE");
 		sb.ifstat(STAT_WAVE_NUMBER)
-			.xv(-70).yb(-23).num(2, STAT_WAVE_NUMBER)
-			.xv(-155).yb(-23).string(" \nWave Level:")
+			.xl(82).yb(-23).num(2, STAT_WAVE_NUMBER)
+			.xl(2).yb(-23).string(" \nWave Level:")
 			.endifstat();
 
 		// MONSTERS COUNT
-		sb.xv(420).yb(-23).num(3, STAT_REMAINING_MONSTERS).xv(360).yb(-23).string2(" Stroggs \n To  Kill!");
+		sb.xr(-52).yb(-23).num(3, STAT_REMAINING_MONSTERS).xr(-134).yb(-23).string2(" Stroggs \nLeft to Kill:");
 
 		// tech
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
