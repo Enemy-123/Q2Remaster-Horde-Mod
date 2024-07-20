@@ -3011,7 +3011,7 @@ struct gclient_t
 	edict_t* owned_sphere; // this points to the player's sphere
 
 	int num_teslas; // max teslas per client
-	int num_traps; //foodcube trap per client
+	//int num_traps; //foodcube trap per client
 	int num_sentries; //Sentry Guns per client
 	// 
 	char voted_map[128];

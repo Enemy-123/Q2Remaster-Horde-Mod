@@ -531,53 +531,53 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	}
 }
 
-constexpr int MAX_TRAPS = 10;
-void check_player_trap_limit(edict_t* self)
-{
-	if (!self->client)
-		return;
+//constexpr int MAX_TRAPS = 10;
+//void check_player_trap_limit(edict_t* self)
+//{
+	//if (!self->client)
+	//	return;
 
-	if (self->client->num_traps >= MAX_TRAPS)
-	{
-		edict_t* oldest_trap = nullptr;
-		gtime_t oldest_timestamp = level.time;
+	//if (self->client->num_traps >= MAX_TRAPS)
+	//{
+	//	edict_t* oldest_trap = nullptr;
+	//	gtime_t oldest_timestamp = level.time;
 
-		// Primer bucle: encontrar la trampa más antigua
-		for (unsigned int i = 0; i < globals.num_edicts; i++)
-		{
-			edict_t* ent = &g_edicts[i];
+	//	// Primer bucle: encontrar la trampa más antigua
+	//	for (unsigned int i = 0; i < globals.num_edicts; i++)
+	//	{
+	//		edict_t* ent = &g_edicts[i];
 
-			if (!ent->inuse)
-				continue;
+	//		if (!ent->inuse)
+	//			continue;
 
-			if ((ent->s.effects & EF_TRAP) &&
-				(ent->owner == self || ent->teammaster == self ||
-					(ent->owner && ent->owner->owner == self) ||
-					(ent->teammaster && ent->teammaster->teammaster == self)))
-			{
-				gtime_t time_active = level.time - ent->timestamp;
-				if (time_active < oldest_timestamp)
-				{
-					oldest_timestamp = time_active;
-					oldest_trap = ent;
-				}
-			}
-		}
+	//		if ((ent->s.effects & EF_TRAP) &&
+	//			(ent->owner == self || ent->teammaster == self ||
+	//				(ent->owner && ent->owner->owner == self) ||
+	//				(ent->teammaster && ent->teammaster->teammaster == self)))
+	//		{
+	//			gtime_t time_active = level.time - ent->timestamp;
+	//			if (time_active < oldest_timestamp)
+	//			{
+	//				oldest_timestamp = time_active;
+	//				oldest_trap = ent;
+	//			}
+	//		}
+	//	}
 
-		// Eliminar la trampa más antigua
-		if (oldest_trap)
-		{
-			G_FreeEdict(oldest_trap); // Eliminar la trampa más antigua
-			self->client->num_traps--; // Decrementar el contador al eliminar la más antigua
-		}
-	}
-}
+	//	// Eliminar la trampa más antigua
+	//	if (oldest_trap)
+	//	{
+	//		G_FreeEdict(oldest_trap); // Eliminar la trampa más antigua
+	//		self->client->num_traps--; // Decrementar el contador al eliminar la más antigua
+	//	}
+	//}
+//}
 
 
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
 	// Verificar y manejar el límite de trampas por jugador
-	check_player_trap_limit(self);
+	//check_player_trap_limit(self);
 
 	edict_t* trap;
 	vec3_t   dir;
@@ -641,9 +641,9 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 
 	trap->timestamp = level.time + 30_sec;
 
-	if (self->client)
-	{
-		self->client->num_traps++; // Incrementar el contador de trampas del jugador
-	}
+	//if (self->client)
+	//{
+	////	self->client->num_traps++; // Incrementar el contador de trampas del jugador
+	//}
 }
 
