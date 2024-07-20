@@ -836,6 +836,7 @@ MMOVE_T(parasite_move_death) = { FRAME_death101, FRAME_death107, parasite_frames
 
 DIE(parasite_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	if (self->proboscus && self->proboscus->style != 2)
 		proboscis_reset(self->proboscus);
 

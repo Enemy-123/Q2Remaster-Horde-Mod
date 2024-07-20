@@ -891,6 +891,7 @@ void tesla_remove(edict_t* self)
 
 DIE(tesla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	tesla_remove(self);
 }
 

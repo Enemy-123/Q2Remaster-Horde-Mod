@@ -676,6 +676,7 @@ MMOVE_T(guncmdr_move_death5) = { FRAME_c_death501, FRAME_c_death528, guncmdr_fra
 
 DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{

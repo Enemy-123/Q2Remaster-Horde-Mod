@@ -310,6 +310,8 @@ DIE(turret_driver_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, in
 		self->movetype = MOVETYPE_STEP;
 
 		self->think = monster_think;
+
+		OnEntityDeath(self);
 	}
 
 	infantry_die(self, inflictor, attacker, damage, point, mod);

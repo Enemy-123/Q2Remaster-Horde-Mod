@@ -1650,6 +1650,7 @@ MMOVE_T(soldier_move_death6) = { FRAME_death601, FRAME_death610, soldier_frames_
 
 DIE(soldier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
 {
+	OnEntityDeath(self);
 	int n;
 
 	soldierh_hyper_laser_sound_end(self);

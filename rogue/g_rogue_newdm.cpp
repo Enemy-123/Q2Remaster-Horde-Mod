@@ -165,6 +165,7 @@ edict_t* SpawnTurret(edict_t* owner, const vec3_t& start, const vec3_t& aimdir, 
 
 DIE(sentrygun_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	// The turret doesn't need to spawn spheres or explode, so we can simplify this function.
 	self->takedamage = DAMAGE_NONE;
 	BecomeExplosion1(self);

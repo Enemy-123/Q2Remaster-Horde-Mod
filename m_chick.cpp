@@ -343,6 +343,7 @@ MMOVE_T(chick_move_death1) = { FRAME_death101, FRAME_death112, chick_frames_deat
 
 DIE(chick_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	int n;
 
 	// check for gib

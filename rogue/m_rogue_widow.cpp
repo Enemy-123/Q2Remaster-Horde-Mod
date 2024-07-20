@@ -1029,6 +1029,7 @@ void widow_dead(edict_t* self)
 
 DIE(widow_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
 		self->deadflag = true;
 		self->takedamage = false;

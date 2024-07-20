@@ -416,6 +416,7 @@ MMOVE_T(gladiator_move_death) = { FRAME_death2, FRAME_death22, gladiator_frames_
 
 DIE(gladiator_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{

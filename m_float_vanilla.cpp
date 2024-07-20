@@ -631,6 +631,7 @@ void floater_dead(edict_t* self)
 
 DIE(floater_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	gi.sound(self, CHAN_VOICE, sound_death1, 1, ATTN_NORM, 0);
 
 	gi.WriteByte(svc_temp_entity);

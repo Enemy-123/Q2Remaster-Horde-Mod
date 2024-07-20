@@ -740,6 +740,7 @@ MMOVE_T(gnorta_move_death) = { FRAME_death01, FRAME_death09, gnorta_frames_death
 
 DIE(gnorta_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	// dude bit it, make him fall!
 	self->movetype = MOVETYPE_TOSS;
 	self->s.angles[2] = 0;

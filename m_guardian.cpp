@@ -478,6 +478,7 @@ MMOVE_T(guardian_move_death) = { FRAME_death1, FRAME_death26, guardian_frames_de
 
 DIE(guardian_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	// regular death
 	//gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	self->monsterinfo.weapon_sound = 0;

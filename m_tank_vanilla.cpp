@@ -949,6 +949,7 @@ MMOVE_T(tank2_move_death) = { FRAME_death101, FRAME_death132, tank2_frames_death
 
 DIE(tank2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{
