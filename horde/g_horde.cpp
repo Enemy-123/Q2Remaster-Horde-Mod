@@ -1725,7 +1725,7 @@ void SendCleanupMessage(const std::unordered_map<std::string, std::string>& mess
     }
 
     // Update the Horde message with the correct duration
-    UpdateHordeMessage(fmt::format("Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}.\n {}%\n",
+    UpdateHordeMessage(fmt::format("Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n",
         g_horde_local.level,
         playerName.c_str(),
         topDamager.total_damage,

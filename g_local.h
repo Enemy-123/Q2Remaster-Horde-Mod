@@ -2853,6 +2853,7 @@ struct client_respawn_t
 	gtime_t	 ctf_flagsince;
 	gtime_t	 ctf_lastfraggedcarrier;
 	bool	 id_state;
+	bool	 iddmg_state;
 	gtime_t	 lastidtime;
 	bool	 voted; // for elections
 	bool	 ready;

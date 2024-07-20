@@ -235,18 +235,35 @@ void CTFPrecache()
 	imageindex_ctfsb2 = gi.imageindex("tag5");
 	imageindex_strogg = gi.imageindex("ach/ACH_eou7_on");
 
-	//imageindex_human = frandom() < 0.2 ? gi.imageindex("ach/ACH_eou7_on") :
-	//	frandom() < 0.4 ? gi.imageindex("ach/ACH_eou5_on") :
-	//	frandom() < 0.6 ? gi.imageindex("ach/ACH_xatrix_on") :
-	//	frandom() < 0.8 ? gi.imageindex("ach/ACH_rogue_on") :
-	//	gi.imageindex("ach/ACH_eou3_on");
+	// Precache all possible images
+	int precache_ach_eou7_on = gi.imageindex("ach/ACH_eou7_on");
+	int precache_ach_eou5_on = gi.imageindex("ach/ACH_eou5_on");
+	int precache_ach_xatrix_on = gi.imageindex("ach/ACH_xatrix_on");
+	int precache_ach_rogue_on = gi.imageindex("ach/ACH_rogue_on");
+	int precache_ach_eou3_on = gi.imageindex("ach/ACH_eou3_on");
 
-	imageindex_human = gi.imageindex("ach/ACH_eou5_on");
-
-
-
-
-
+	// Assign a random image to imageindex_human
+	float randomValue = frandom();
+	if (randomValue < 0.2)
+	{
+		imageindex_human = precache_ach_eou7_on;
+	}
+	else if (randomValue < 0.4)
+	{
+		imageindex_human = precache_ach_eou5_on;
+	}
+	else if (randomValue < 0.6)
+	{
+		imageindex_human = precache_ach_xatrix_on;
+	}
+	else if (randomValue < 0.8)
+	{
+		imageindex_human = precache_ach_rogue_on;
+	}
+	else
+	{
+		imageindex_human = precache_ach_eou3_on;
+	}
 
 	PrecacheItem(GetItemByIndex(IT_WEAPON_GRAPPLE));
 }
@@ -944,6 +961,23 @@ void CTFID_f(edict_t* ent)
 		ent->client->resp.id_state = true;
 	}
 }
+
+void DMGID_f(edict_t* ent)
+{
+	if (ent->client->resp.iddmg_state)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Disabling damage identication display.\n");
+		ent->client->resp.iddmg_state = false;
+	}
+	else
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Activating damage identication display.\n");
+		ent->client->resp.iddmg_state = true;
+	}
+
+
+
+}
 extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 #include "../shared.h"
 // Estructura para gestionar la disponibilidad de configstrings
@@ -1553,6 +1587,17 @@ void SetCTFStats(edict_t* ent)
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
+
+
+	// DMG ID
+	if (level.time > ent->lastdmg + 1.75_sec || !g_iddmg->integer) {
+		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
+	}
+	else if (ent->client->resp.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
+		ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
+	}
+
+
 }
 
 /*------------------------------------------------------------------------*/
@@ -2176,7 +2221,10 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
 
 	if (level.intermissiontime) {
+		if (brandom())
 		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+		else
+		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nTHEY WILL REGRET THIS !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 	}
 	else {
 		if (ent->client->resp.ctf_team != CTF_TEAM1)
@@ -3249,16 +3297,16 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 		// Mapear el índice de la opción al índice correcto en tech_ids
 		int tech_index = -1;
-		if (strcmp(tech_names[option], "Haste") == 0) {
+		if (strcmp(tech_names[option], "Haste TECH") == 0) {
 			tech_index = IT_TECH_HASTE;
 		}
-		else if (strcmp(tech_names[option], "Strength") == 0) {
+		else if (strcmp(tech_names[option], "Strength TECH") == 0) {
 			tech_index = IT_TECH_STRENGTH;
 		}
-		else if (strcmp(tech_names[option], "Regeneration") == 0) {
+		else if (strcmp(tech_names[option], "Regeneration TECH") == 0) {
 			tech_index = IT_TECH_REGENERATION;
 		}
-		else if (strcmp(tech_names[option], "Resistance") == 0) {
+		else if (strcmp(tech_names[option], "Resistance TECH") == 0) {
 			tech_index = IT_TECH_RESISTANCE;
 		}
 

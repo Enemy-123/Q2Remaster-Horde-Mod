@@ -97,6 +97,7 @@ void		CTFDeadDropFlag(edict_t* self);
 void		CTFScoreboardMessage(edict_t* ent, edict_t* killer);
 void		CTFTeam_f(edict_t* ent);
 void		CTFID_f(edict_t* ent);
+void		DMGID_f(edict_t* ent);
 #ifndef KEX_Q2_GAME
 void		CTFSay_Team(edict_t* who, const char* msg);
 #endif

@@ -752,6 +752,16 @@ void Cmd_Inven_f(edict_t* ent)
 	// ZOID
 	if (G_TeamplayEnabled() && cl->resp.ctf_team == CTF_TEAM1)
 	{
+		if (ent->svflags & SVF_BOT || ent->deadflag)
+			return;
+
+		if (ent->deadflag && cl->showinventory)
+		{
+			cl->showinventory = false;
+			return;
+		}
+
+
 		OpenSpectatorMenu(ent);
 		return;
 	}
@@ -1709,6 +1719,8 @@ void ClientCommand(edict_t* ent)
 		CTFTeam_f(ent);
 	else if (Q_strcasecmp(cmd, "id") == 0)
 		CTFID_f(ent);
+	else if (Q_strcasecmp(cmd, "iddmg") == 0)
+		DMGID_f(ent);
 	else if (Q_strcasecmp(cmd, "yes") == 0)
 		CTFVoteYes(ent);
 	else if (Q_strcasecmp(cmd, "no") == 0)

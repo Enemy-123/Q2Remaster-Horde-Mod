@@ -1087,6 +1087,7 @@ void InitClientResp(gclient_t* client)
 	// ZOID
 	ctfteam_t ctf_team = client->resp.ctf_team;
 	bool id_state = client->resp.id_state = true;
+	bool iddmg_state = client->resp.iddmg_state = true;
 	// ZOID
 
 	memset(&client->resp, 0, sizeof(client->resp));
@@ -1094,6 +1095,7 @@ void InitClientResp(gclient_t* client)
 	// ZOID
 	client->resp.ctf_team = ctf_team;
 	client->resp.id_state = id_state;
+	client->resp.iddmg_state = iddmg_state;
 	// ZOID
 
 	client->resp.entertime = level.time;
@@ -3088,6 +3090,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		// ZOID -- force team join
 		ent->client->resp.ctf_team = CTF_NOTEAM;
 		ent->client->resp.id_state = true;
+		ent->client->resp.iddmg_state = true;
 		// ZOID
 		InitClientResp(ent->client);
 		if (!game.autosaved || !ent->client->pers.weapon)

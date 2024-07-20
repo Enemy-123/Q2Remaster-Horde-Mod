@@ -1094,13 +1094,6 @@ void G_SetStats(edict_t* ent)
 	// ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree; //Spree
 
 
-	 //DMG ID
-	 if (level.time > ent->lastdmg + 1.75_sec || !g_iddmg->integer) {
-		 ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
-	 }
-	 else {
-		 ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
-	 }
 
 	//
 	// help icon / current weapon if not shown

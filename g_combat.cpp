@@ -582,6 +582,54 @@ bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
 	return OnSameTeam(targ, attacker);
 }
 
+void CalculateRealDamage(edict_t* targ, int take, int* real_damage)
+{
+	int initial_health = targ->health;
+	int max_possible_health = targ->max_health + abs(targ->gib_health);
+
+	*real_damage = take;
+
+	if (!(targ->health <= 0 && targ->svflags & SVF_DEADMONSTER)) { // Si el objetivo no está muerto
+		if (initial_health <= max_possible_health) {
+			*real_damage = (initial_health < take) ? initial_health : take;
+		}
+		else {
+			*real_damage = take;
+		}
+
+		if (targ->health <= 0) {
+			*real_damage += abs(targ->gib_health); // Añadir gib_health al daño real
+		}
+
+		if (*real_damage > max_possible_health) {
+			*real_damage = max_possible_health;
+		}
+	}
+}
+
+void AddDamageCounter(edict_t* attacker, int real_damage, edict_t* targ)
+{
+	if (real_damage > 0 && attacker->client) {
+		edict_t* player = attacker;
+
+		if (g_iddmg->integer && player->client->resp.iddmg_state) { // Verificar si g_iddmg está habilitado
+			if (!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
+				if (level.time - player->lastdmg <= 1.75_sec && player->client->dmg_counter <= 32767) {
+					player->client->dmg_counter += real_damage;
+				}
+				else {
+					player->client->dmg_counter = real_damage;
+				}
+
+				player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
+			}
+		}
+
+		player->lastdmg = level.time;
+		player->client->total_damage += real_damage;
+	}
+}
+
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
 	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
 {
@@ -596,13 +644,16 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (!targ->takedamage)
 		return;
 
+	int real_damage;
+	CalculateRealDamage(targ, damage, &real_damage);
+	AddDamageCounter(attacker, real_damage, targ);
+
 	if (attacker->svflags & SVF_MONSTER) {
 		UpdatePowerUpTimes(attacker);
 		damage *= M_DamageModifier(attacker);
 	}
 
 	if (g_instagib->integer && !g_horde->integer && attacker->client && targ->client) {
-
 		// [Kex] always kill no matter what on instagib
 		damage = 9999;
 	}
@@ -633,13 +684,15 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			}
 		}
 	}
+
 	// Q2ETweaks self damage avoidance
 	// if enabled you can't hurt yourself
 	// knockback still occurs
 	if ((targ == attacker) && !(dflags & DAMAGE_NO_PROTECTION))
 	{
 		// if we're not a nuke & self damage is disabled, just kill the damage
-				//if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_TRAP) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
+		//if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_TRAP) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
+
 		if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
 			damage = 0;
 	}
@@ -751,6 +804,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 				kvel = normalized * (500.0f * knockback / mass);
 
 			targ->velocity += kvel;
+			if (targ->svflags & SVF_MONSTER)
+				targ->groundentity = nullptr; // force a change, just in case
 		}
 	}
 
@@ -888,62 +943,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 					attacker->client->pers.inventory[index] += armor_stolen;
 				}
+				take = real_damage; // Usar real_damage en lugar de damage para las siguientes operaciones
+				save = 0;
+
 			}
 		}
-	}
-
-	// Guardar la salud inicial para calcular el daño real realizado
-	int initial_health = targ->health;
-
-	// Calcular el daño real realizado, considerando la salud actual del objetivo
-	int real_damage = take;
-
-	if (!(targ->health <= 0 && targ->svflags & SVF_DEADMONSTER)) { // Si el objetivo no está muerto
-		// Considerar la salud máxima del objetivo y la gib_health en positivo
-		int const max_possible_health = targ->max_health + abs(targ->gib_health);
-
-		// Asegurarse de que el daño no exceda la salud inicial ni la salud máxima posible
-		if (initial_health <= max_possible_health) {
-			real_damage = (initial_health < take) ? initial_health : take;
-		}
-		else {
-			real_damage = take;
-		}
-
-		// Ajuste para mostrar daño en caso de gib
-		if (targ->health <= 0) {
-			real_damage += abs(targ->gib_health); // Añadir gib_health al daño real
-		}
-
-		// Verificar nuevamente para asegurarse de que el daño no exceda max_possible_health
-		if (real_damage > max_possible_health) {
-			real_damage = max_possible_health;
-		}
-	}
-
-	// Añadir contador de daño para armas de disparo rápido
-	if (take > 0 && attacker->client) {
-		edict_t* player = attacker;
-
-		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
-		if (g_iddmg->integer) { // Verificar si g_iddmg->integer está habilitado
-			// Verificar si el objetivo es invulnerable
-			if (!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
-				if (level.time - player->lastdmg <= 2.0_sec && player->client->dmg_counter <= 32767) {
-					player->client->dmg_counter += real_damage;
-				}
-				else {
-					player->client->dmg_counter = real_damage;
-				}
-
-				player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
-			}
-		}
-
-		player->lastdmg = level.time;
-
-		// Sumar real_damage a total_damage en gclient_t
-		player->client->total_damage += real_damage;
 	}
 
 	// ZOID
