@@ -632,8 +632,10 @@ void G_LoadShadowLights()
 
 static void setup_dynamic_light(edict_t* self)
 {
+	if (level.intermissiontime)
+		return;
 	// [Sam-KEX] Shadow stuff
-	if (st.sl.data.radius > 0)
+	if (st.sl.data.radius > 0 && !level.intermissiontime)
 	{
 		self->s.renderfx = RF_CASTSHADOW;
 		self->itemtarget = st.sl.lightstyletarget;
@@ -669,9 +671,11 @@ void SP_dynamic_light(edict_t* self)
 
 void SP_light(edict_t* self)
 {
+	if (level.intermissiontime)
+		return;
 	// no targeted lights in deathmatch, because they cause global messages
-	//if (!self->targetname && st.sl.data.radius == 0) // [Sam-KEX]
-	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
+	if (!self->targetname && st.sl.data.radius == 0 && !level.intermissiontime) // [Sam-KEX]
+//	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
 	{
 		G_FreeEdict(self);
 		return;
