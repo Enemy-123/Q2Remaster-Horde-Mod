@@ -782,13 +782,21 @@ void G_SetStats(edict_t* ent)
 		ent->client->target_health_str.clear();
 	}
 
-	// Mostrar la información de la votación
 	if (ent->client->voted_map[0]) {
 		ent->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
 	}
 	else {
 		ent->client->ps.stats[STAT_VOTESTRING] = 0;
 	}
+
+	// Horde Status
+	if (g_horde->integer && !(ent->client->voted_map[0])) {
+		ent->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+	}
+	else {
+		ent->client->ps.stats[STAT_HORDEMSG] = 0;
+	}
+
 
 
 	//

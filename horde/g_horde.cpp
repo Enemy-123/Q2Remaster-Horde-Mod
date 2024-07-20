@@ -18,6 +18,7 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int32_t last_wave_number = 0;
 static int32_t cachedRemainingMonsters = -1;
 
+gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.9); // Cooldown en segundos para los puntos de spawn 3.0
 
 cvar_t* g_horde;
@@ -1520,32 +1521,27 @@ bool UseFarthestSpawn() noexcept {
 }
 
 void PlayWaveStartSound() noexcept {
-    // Vector para almacenar los sonidos, definido como est�tico para que solo se inicialice una vez
     static const std::vector<std::string> sounds = {
         "misc/r_tele3.wav",
         "world/klaxon2.wav",
         "misc/tele_up.wav",
         "world/incoming.wav",
         "world/yelforce.wav"
-        //"insane/insane9.wav"
     };
 
-    // Generar un �ndice aleatorio para seleccionar un sonido
     int32_t sound_index = static_cast<int32_t>(frandom() * sounds.size());
-
-    // Asegurarse de que el �ndice est� dentro del rango del vector
     if (sound_index >= 0 && sound_index < sounds.size()) {
         gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
 }
 
 // Funci�n para mostrar el mensaje de la ola
-void DisplayWaveMessage() noexcept {
+void DisplayWaveMessage(gtime_t duration = 5_sec) noexcept {
     if (brandom()) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nNew Horde Menu! Use Compass to open menu \nNOW KILL THEM ALL !\n");
+        UpdateHordeMessage("\nUse Inven <KEY> or Use Compass to open Horde Menu \nKILL THEM ALL !\n", duration);
     }
     else {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\nWelcome to hell.\n");
+        UpdateHordeMessage("\nWelcome to hell.\n", duration);
     }
 }
 
@@ -1579,24 +1575,21 @@ static const std::vector<std::string> sounds = {
     //"world/won.wav"
 };
 
-void HandleWaveRestMessage() noexcept {
+void HandleWaveRestMessage(gtime_t duration = 5_sec) noexcept {
     if (!g_insane->integer) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n\n STROGGS STARTING TO PUSH !\n\n\n ");
+        UpdateHordeMessage("STROGGS STARTING TO PUSH !\n\n\n ", duration);
     }
     else if (g_insane->integer) {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\n**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************");
+        UpdateHordeMessage("**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************", duration);
     }
 
-    // Generar un �ndice aleatorio para seleccionar un sonido
     std::uniform_int_distribution<size_t> dist(0, sounds.size() - 1);
     size_t const sound_index = dist(gen);
 
-    // Asegurarse de que el �ndice est� dentro del rango del vector
     if (sound_index < sounds.size()) {
         gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
 
-    // Reiniciar el da�o total para todos los jugadores ya que es una nueva ola
     for (const auto player : active_players()) {
         if (player->client) {
             player->client->total_damage = 0;
@@ -1706,29 +1699,31 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
 }
 
 // Funci�n para enviar el mensaje de limpieza
-void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage) noexcept {
-    auto message = messages.find(topDamager.player ? topDamager.player->client->pers.netname : "N/A");
+void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage, gtime_t duration = 4_sec) noexcept {
+    std::string playerName = GetPlayerName(topDamager.player);
+    auto message = messages.find(playerName);
+
     if (message != messages.end()) {
         gi.LocBroadcast_Print(PRINT_CENTER, message->second.c_str(), topDamager.total_damage, percentage);
     }
-    else {
-        gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nWave Level {} Defeated, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n",
-            g_horde_local.level,
-            topDamager.player ? topDamager.player->client->pers.netname : "N/A",
-            topDamager.total_damage,
-            percentage);
-    }
+
+    // Update the Horde message with the correct duration
+    UpdateHordeMessage(fmt::format("Wave Level {} Defeated, GG!\n\n{} \ IS TOP DMG this wave with {}.\n {}%\n",
+        g_horde_local.level,
+        playerName.c_str(),
+        topDamager.total_damage,
+        percentage), duration);
 }
+
 
 // Mensajes de limpieza
 const std::unordered_map<std::string, std::string> cleanupMessages = {
-    {"standard", "\n\n\n\nWave Level {} Defeated, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
-    {"chaotic", "\n\n\nHarder Wave Controlled, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n"},
-    {"insane", "\n\n\nInsane Wave Controlled, GG!\n\n\n\n{} \ndealt the most damage this wave with {} damage\n ({}%)\n"}
+    {"standard", "Wave Level {} Defeated, GG!\n\n{} \{} \nIS TOP DMG this wave with {}. {}%\n"},
+    {"chaotic", "Harder Wave Controlled, GG!\n\n{} \n{} \nIS TOP DMG this wave with {}. {}%\n"},
+    {"insane", "Insane Wave Controlled, GG!\n\n{} \n{} \nIS TOP DMG this wave with {}. {}%\n"}
 };
 
 
-// Manejo del estado de la horda por cada frame
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
 
@@ -1791,7 +1786,7 @@ void Horde_RunFrame() noexcept {
                 CalculateTopDamager(topDamager, percentage);
 
                 std::string messageType = g_insane->integer == 2 ? "insane" : (g_chaotic->integer || g_insane->integer ? "chaotic" : "standard");
-                SendCleanupMessage(cleanupMessages, topDamager, percentage);
+                SendCleanupMessage(cleanupMessages, topDamager, percentage, 4_sec); // Passing the duration here
             }
             else {
                 cachedRemainingMonsters = CalculateRemainingMonsters();
@@ -1803,7 +1798,7 @@ void Horde_RunFrame() noexcept {
     case horde_state_t::rest:
         if (g_horde_local.warm_time < level.time) {
             if (g_chaotic->integer || g_insane->integer) {
-                HandleWaveRestMessage();
+                HandleWaveRestMessage(4_sec);  // Provide duration argument
             }
             else {
                 gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
@@ -1815,7 +1810,16 @@ void Horde_RunFrame() noexcept {
         }
         break;
     }
+
+    // Clear the Horde message if the duration has passed
+    if (horde_message_end_time && level.time >= horde_message_end_time) {
+        ClearHordeMessage();
+    }
+
+    // Update the Horde HUD
+    UpdateHordeHUD();
 }
+
 // Funci�n para manejar el evento de reinicio
 void HandleResetEvent() noexcept {
     ResetGame();

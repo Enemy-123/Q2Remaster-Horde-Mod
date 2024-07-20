@@ -28,3 +28,8 @@ void Hook_Fire(edict_t* owner, vec3_t start, vec3_t forward);
 void Weapon_Hook_Fire(edict_t* ent);
 void Weapon_Hook(edict_t* ent);
 
+// HORDE CS
+extern gtime_t horde_message_end_time;  // Add this line
+extern void ClearHordeMessage();
+extern void UpdateHordeMessage(const std::string& message, gtime_t duration);
+extern void UpdateHordeHUD();

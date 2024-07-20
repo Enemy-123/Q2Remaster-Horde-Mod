@@ -386,3 +386,43 @@ void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number
 	monster->health = std::max(monster->health, health_min);
 	monster->initial_max_health = monster->health;
 }
+
+//getting real name
+
+std::string GetPlayerName(edict_t* player) {
+	if (player && player->client) {
+		char playerName[MAX_INFO_VALUE] = { 0 };
+		gi.Info_ValueForKey(player->client->pers.userinfo, "name", playerName, sizeof(playerName));
+		return std::string(playerName);
+	}
+	return "N/A";
+}
+
+
+
+
+//CS HORDE
+
+void UpdateHordeHUD() {
+	for (auto player : active_players()) {
+		if (player->inuse && player->client) {
+			if (!player->client->voted_map[0]) {
+				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+			}
+			else {
+				player->client->ps.stats[STAT_HORDEMSG] = 0;
+			}
+		}
+	}
+}
+
+void UpdateHordeMessage(const std::string& message, gtime_t duration = 5_sec) {
+	gi.configstring(CONFIG_HORDEMSG, message.c_str());
+	horde_message_end_time = level.time + duration;
+}
+
+void ClearHordeMessage() {
+	gi.configstring(CONFIG_HORDEMSG, "");
+	horde_message_end_time = 0_sec;
+}
+
