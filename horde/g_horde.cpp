@@ -1164,21 +1164,21 @@ constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 // Incluye otras cabeceras y definiciones necesarias
 
 static const std::unordered_map<std::string, std::string> bossMessagesMap = {
-    {"monster_boss2", "***** A Hornet descends, ready to add to the body count! *****\n"},
-    {"monster_boss2kl", "***** A Hornet descends, ready to add to the body count! *****\n"},
-    {"monster_carrier2", "***** A Carrier arrives, dropping death like it's hot! *****\n"},
-    {"monster_carrier", "***** A Carrier arrives, dropping death like it's hot! *****\n"},
-    {"monster_tank_64", "***** The ground shakes as the Tank Commander rolls in, ready for some human gibs! *****\n"},
-    {"monster_shamblerkl", "***** The Shambler steps out, eager to paint the town red! *****\n"},
-    {"monster_guncmdrkl", "***** The Gunner Commander marches in, and he's not here to chat! *****\n"},
-    {"monster_makronkl", "***** Makron drops by, craving some fresh carnage! *****\n"},
-    {"monster_guardian", "***** The Guardian shows up, time to meet your maker! *****\n"},
-    {"monster_supertank", "***** A Super-Tank rumbles in, ready to obliterate anything in its path! *****\n"},
-    {"monster_boss5", "***** A Super-Tank rumbles in, ready to obliterate anything in its path! *****\n"},
-    {"monster_widow2", "***** The Widow sneaks in, weaving disruptor shots! *****\n"},
-    {"monster_arachnid", "***** The Arachnid skitters in, itching to fry some flesh! *****\n"},
-    {"monster_gm_arachnid", "***** The Arachnid with missiles emerges, looking to blast you to bits! *****\n"},
-    {"monster_jorg", "***** Jorg enters the fray, prepare for the showdown! *****\n"}
+    {"monster_boss2", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
+    {"monster_boss2kl", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
+    {"monster_carrier2", "***** A Strogg Boss has spawned! *****\n***** A Carrier arrives, dropping death like it's hot! *****\n"},
+    {"monster_carrier", "***** A Strogg Boss has spawned! *****\n***** A Carrier arrives, dropping death like it's hot! *****\n"},
+    {"monster_tank_64", "***** A Strogg Boss has spawned! *****\n***** The ground shakes as the Tank Commander rolls in, ready for some human gibs! *****\n"},
+    {"monster_shamblerkl", "***** A Strogg Boss has spawned! *****\n***** The Shambler steps out, eager to paint the town red! *****\n"},
+    {"monster_guncmdrkl", "***** A Strogg Boss has spawned! *****\n***** The Gunner Commander marches in, and he's not here to chat! *****\n"},
+    {"monster_makronkl", "***** A Strogg Boss has spawned! *****\n***** Makron drops by, craving some fresh carnage! *****\n"},
+    {"monster_guardian", "***** A Strogg Boss has spawned! *****\n***** The Guardian shows up, time to meet your maker! *****\n"},
+    {"monster_supertank", "***** A Strogg Boss has spawned! *****\n***** A Super-Tank rumbles in, ready to obliterate anything in its path! *****\n"},
+    {"monster_boss5", "***** A Strogg Boss has spawned! *****\n***** A Super-Tank rumbles in, ready to obliterate anything in its path! *****\n"},
+    {"monster_widow2", "***** A Strogg Boss has spawned! *****\n***** The Widow sneaks in, weaving disruptor shots! *****\n"},
+    {"monster_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid skitters in, itching to fry some flesh! *****\n"},
+    {"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid with missiles emerges, looking to blast you to bits! *****\n"},
+    {"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg enters the fray, prepare for the showdown! *****\n"}
 };
 
 void SpawnBossAutomatically() noexcept {
@@ -1226,7 +1226,7 @@ void SpawnBossAutomatically() noexcept {
                 gi.LocBroadcast_Print(PRINT_CHAT, it_msg->second.c_str());
             }
             else {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n");
+                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n***** A Strogg Boss has spawned! *****\n");
             }
 
             // Asignar flags y configurar el jefe
