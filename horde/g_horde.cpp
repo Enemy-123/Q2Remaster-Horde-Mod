@@ -1538,10 +1538,10 @@ void PlayWaveStartSound() noexcept {
 // Funci�n para mostrar el mensaje de la ola
 void DisplayWaveMessage(gtime_t duration = 5_sec) noexcept {
     if (brandom()) {
-        UpdateHordeMessage("\nUse Inven <KEY> or Use Compass to open Horde Menu \nKILL THEM ALL !\n", duration);
+        UpdateHordeMessage("\nUse Inventory <KEY> or Use Compass To Open Horde Menu.\n\nMake THEM PAY!\n", duration);
     }
     else {
-        UpdateHordeMessage("\nWelcome to hell.\n", duration);
+        UpdateHordeMessage("\nWelcome to Hell.\n", duration);
     }
 }
 
@@ -1580,7 +1580,7 @@ void HandleWaveRestMessage(gtime_t duration = 5_sec) noexcept {
         UpdateHordeMessage("STROGGS STARTING TO PUSH !\n\n\n ", duration);
     }
     else if (g_insane->integer) {
-        UpdateHordeMessage("--STRONGER WAVE INCOMING--\n\n", duration);
+        UpdateHordeMessage("--STRONGER WAVE INCOMING--\n\nStroggs aren't playing!\n", duration);
     }
 
     std::uniform_int_distribution<size_t> dist(0, sounds.size() - 1);

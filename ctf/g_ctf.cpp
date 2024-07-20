@@ -2197,7 +2197,7 @@ void CTFHasTech(edict_t* who)
 	// Check if the message has been shown less than twice and the current wave number is less or equal to 5
 	if (who->client->ctf_lasttechmsg_count < 2)
 	{
-		gi.LocCenter_Print(who, "Techs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Equip it on Horde Menu! Use *Compass* to open menu\n");
+		gi.LocCenter_Print(who, "\n\nTechs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Equip it on Horde Menu! Use *Compass* to open menu\n");
 
 		// Increment the message count
 		who->client->ctf_lasttechmsg_count++;
