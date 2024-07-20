@@ -2702,7 +2702,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 	// tell everyone
 	gi.LocBroadcast_Print(PRINT_CHAT, ctfgame.emsg);
-	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass to vote, Optionally Type YES or NO to vote on this request.\n");
+	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass/Inventory to vote, Optionally Type YES or NO to vote on this request.\n");
 
 	int time_left = (ctfgame.electtime - level.time).seconds<int>();
 	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}  Time left: {}s\n", ctfgame.evotes, ctfgame.needvotes, time_left).c_str());
@@ -2924,49 +2924,36 @@ bool CTFNextMap()
 	return false;
 }
 
-void CTFWinElection()
-{
+void CTFWinElection() {
 	edict_t* CreateTargetChangeLevel(const char* map);
-	switch (ctfgame.election)
-	{
-		//case ELECT_MATCH:
-		//	// reset into match mode
-		//	if (competition->integer < 3)
-		//		gi.cvar_set("competition", "2");
-		//	ctfgame.match = MATCH_SETUP;
-		//	CTFResetAllPlayers();
-		//	break;
-
-		//case ELECT_ADMIN:
-		//	ctfgame.etarget->client->resp.admin = true;
-		//	gi.LocBroadcast_Print(PRINT_HIGH, "{} has become an admin.\n", ctfgame.etarget->client->pers.netname);
-		//	gi.LocClient_Print(ctfgame.etarget, PRINT_HIGH, "Type 'admin' to access the administration menu.\n");
-		//	break;
+	switch (ctfgame.election) {
 	case ELECT_MAP:
 		gi.LocBroadcast_Print(PRINT_HIGH, "{}'s vote succeeded! Changing level to {}.\n",
 			ctfgame.etarget->client->pers.netname, ctfgame.elevel);
-		if (g_horde->integer)
-		{
+		if (g_horde->integer) {
 			HandleResetEvent();
-			for (unsigned int i = 0; i < game.maxclients; i++)
-			{
+			for (unsigned int i = 0; i < game.maxclients; i++) {
 				edict_t* ent = g_edicts + 1 + i;
-				if (ent->inuse && ent->client)
-				{
+				if (ent->inuse && ent->client) {
 					InitClientPt(ent, ent->client);
-
 				}
 			}
 			BeginIntermission(CreateTargetChangeLevel(ctfgame.elevel));
 			// Limpiar el nivel después de usarlo
 			ctfgame.elevel[0] = '\0';
-			break;
+		}
+		break;
 
 	default:
 		break;
-		}
-		ctfgame.election = ELECT_NONE;
 	}
+
+	// Resetear el estado de la elección
+	ctfgame.election = ELECT_NONE;
+	ctfgame.electtime = 0_sec;
+
+	// Llamar a UpdateVoteHUD para limpiar el configstring y el voted_map de los jugadores
+	UpdateVoteHUD();
 }
 
 void CTFVoteYes(edict_t* ent)

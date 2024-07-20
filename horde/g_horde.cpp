@@ -966,7 +966,8 @@ inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept {
 // Manejador de muerte de jefe
 void BossDeathHandler(edict_t* boss) noexcept {
     if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-        boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
+        OnEntityDeath(boss);  // Llamar a OnEntityDeath para manejar configstrings y health bar
+        boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;  // Marcar como manejado
 
         std::vector<const char*> itemsToDrop;
 
