@@ -147,7 +147,7 @@ std::string SelectRandomBenefit(int32_t wave) {
 void ApplyBenefit(const std::string& benefit) {
     static const std::unordered_map<std::string, std::pair<const char*, const char*>> benefitMessages = {
         {"start armor", {"\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 50 BODY-ARMOR!\n"}},
-        {"vampire", {"\n\n\nYou're covered in blood!\n\n\nVampire Ability\nENABLED!\n", "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n"}},
+        {"vampire", {"\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n"}},
         {"ammo regen", {"AMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n"}},
         {"auto haste", {"\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED !\n"}},
         {"vampire upgraded", {"\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR NOW!\n"}},
@@ -1575,7 +1575,7 @@ static const std::vector<std::string> sounds = {
     //"world/won.wav"
 };
 
-void HandleWaveRestMessage(gtime_t duration = 5_sec) noexcept {
+void HandleWaveRestMessage(gtime_t duration = 4_sec) noexcept {
     if (!g_insane->integer) {
         if (brandom())
         UpdateHordeMessage("STROGGS STARTING TO PUSH!\n\n", duration);
@@ -1714,7 +1714,7 @@ void SendCleanupMessage(const std::unordered_map<std::string, std::string>& mess
     auto message = messages.find(playerName);
 
     if (message != messages.end()) {
-        gi.LocBroadcast_Print(PRINT_CENTER, message->second.c_str(), topDamager.total_damage, percentage);
+        gi.LocBroadcast_Print(PRINT_TYPEWRITER, message->second.c_str(), topDamager.total_damage, percentage);
     }
 
     // Update the Horde message with the correct duration
