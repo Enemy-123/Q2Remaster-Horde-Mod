@@ -1580,7 +1580,7 @@ void HandleWaveRestMessage(gtime_t duration = 5_sec) noexcept {
         UpdateHordeMessage("STROGGS STARTING TO PUSH !\n\n\n ", duration);
     }
     else if (g_insane->integer) {
-        UpdateHordeMessage("**************\n\n\n--STRONGER WAVE COMING--\n\n\n STROGGS STARTING TO PUSH !\n\n\n **************", duration);
+        UpdateHordeMessage("--STRONGER WAVE INCOMING--\n\n", duration);
     }
 
     std::uniform_int_distribution<size_t> dist(0, sounds.size() - 1);
