@@ -303,12 +303,12 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
         IncludeDifficultyAdjustments(mapSize, lvl);
     }
 }
-
+static void Horde_CleanBodies() noexcept;
 void ResetSpawnAttempts() noexcept;
 void VerifyAndAdjustBots() noexcept;
 void ResetCooldowns() noexcept;
 
-extern void ClearConfigStrings();
+extern void UpdateCTFIDViewConfigString(int cs_index, const std::string& value);
 
 void Horde_InitLevel(int32_t lvl) noexcept {
     last_wave_number++;
@@ -349,11 +349,17 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     ResetSpawnAttempts();
     ResetCooldowns();
 
-    // Reinicializar los configstrings para la gestión de la información en el HUD
-    ClearConfigStrings();
+    for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+        UpdateCTFIDViewConfigString(i, ""); // Limpiar o establecer valores iniciales
+    }
+
+    // Limpiar cuerpos de olas anteriores
+    Horde_CleanBodies();
+
     // Imprimir mensaje de inicio del nivel
     gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }
+
 
 
 bool G_IsDeathmatch() noexcept {
@@ -1064,20 +1070,22 @@ static bool Horde_AllMonstersDead() noexcept {
     }
     return true;
 }
-
+extern void OnEntityDeath(edict_t* ent);
 static void Horde_CleanBodies() noexcept {
     for (auto ent : active_or_dead_monsters()) {
-        if (ent->svflags & SVF_DEADMONSTER) {
+        if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
+            // Llamar a OnEntityDeath antes de liberar la entidad
+            OnEntityDeath(ent);
             if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                 boss_die(ent);
             }
-            G_FreeEdict(ent);
-        }
-        else if (ent->health <= 0) {
-            G_FreeEdict(ent);
+            G_FreeEdict(ent); // Libera la entidad
         }
     }
 }
+
+
+
 
 // attaching healthbar
 void AttachHealthBar(edict_t* boss) noexcept {
@@ -1723,7 +1731,6 @@ const std::unordered_map<std::string, std::string> cleanupMessages = {
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
 
-
     if (dm_monsters->integer > 0) {
         g_horde_local.num_to_spawn = dm_monsters->integer;
     }
@@ -1808,7 +1815,6 @@ void Horde_RunFrame() noexcept {
         break;
     }
 }
-
 // Funci�n para manejar el evento de reinicio
 void HandleResetEvent() noexcept {
     ResetGame();

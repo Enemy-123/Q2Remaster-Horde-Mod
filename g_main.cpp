@@ -184,7 +184,6 @@ void G_PrepFrame();
 void InitSave();
 
 #include <chrono>
-extern void InitializeCTFIDViewConfigStrings(bool forceReset = false);
 /*
 ============
 PreInitGame
@@ -194,7 +193,7 @@ only happens when a new game is started or a save game
 is loaded.
 ============
 */
-extern void ClearConfigStrings();
+extern void UpdateCTFIDViewConfigString(int cs_index, const std::string& value);
 void PreInitGame()
 {
 	maxclients = gi.cvar("maxclients", G_Fmt("{}", MAX_SPLIT_PLAYERS).data(), CVAR_SERVERINFO | CVAR_LATCH);
@@ -208,7 +207,9 @@ void PreInitGame()
 
 	// Paril
 	Horde_PreInit();
-	ClearConfigStrings();
+	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+		UpdateCTFIDViewConfigString(i, ""); // Limpiar o establecer valores iniciales
+	}
 	// ZOID
 	// This gamemode only supports deathmatch
 	if (ctf->integer)
