@@ -398,9 +398,6 @@ std::string GetPlayerName(edict_t* player) {
 	return "N/A";
 }
 
-
-
-
 //CS HORDE
 
 void UpdateHordeHUD() {
@@ -425,4 +422,3 @@ void ClearHordeMessage() {
 	gi.configstring(CONFIG_HORDEMSG, "");
 	horde_message_end_time = 0_sec;
 }
-

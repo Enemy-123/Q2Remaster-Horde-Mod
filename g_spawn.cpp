@@ -1679,7 +1679,7 @@ void G_InitStatusbar(statusbar_t& sb)
 
 		sb.ifstat(STAT_VOTESTRING).xv(0).yt(240).loc_stat_cstring2(STAT_VOTESTRING).endifstat();
 
-		sb.ifstat(STAT_HORDEMSG).xv(0).yt(140).loc_stat_cstring2(STAT_HORDEMSG).endifstat();
+		sb.ifstat(STAT_HORDEMSG).xv(0).yt(132).loc_stat_cstring2(STAT_HORDEMSG).endifstat();
 
 
 		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();

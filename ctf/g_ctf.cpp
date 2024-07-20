@@ -2732,11 +2732,12 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 void UpdateVoteHUD() {
 	if (ctfgame.election != ELECT_NONE) {
-		std::string vote_info_str = fmt::format(""" {} Time left: {}s",
+		std::string vote_info_str = fmt::format("{} Time left: {}s",
 			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
 		gi.configstring(CONFIG_VOTE_INFO, vote_info_str.c_str());
+		ClearHordeMessage(); // Clear hordemsg when vote message is active
 
-		// Actualizar el voted_map de cada jugador
+		// Update the voted_map for each player
 		for (auto player : active_players()) {
 			if (player->inuse && player->client) {
 				Q_strlcpy(player->client->voted_map, vote_info_str.c_str(), sizeof(player->client->voted_map));
@@ -2744,11 +2745,10 @@ void UpdateVoteHUD() {
 			}
 		}
 	}
-
 	else {
 		gi.configstring(CONFIG_VOTE_INFO, "");
 
-		// Limpiar el voted_map para cada jugador
+		// Clear the voted_map for each player
 		for (auto player : active_players()) {
 			if (player->inuse && player->client) {
 				player->client->voted_map[0] = '\0';
@@ -2757,6 +2757,8 @@ void UpdateVoteHUD() {
 		}
 	}
 }
+
+
 
 void DoRespawn(edict_t* ent);
 

@@ -47,8 +47,6 @@ struct PlayerStats {
     edict_t* player;
     int total_damage;
 };
-
 extern std::string GetPlayerName(edict_t* player);
 
 #endif // SHARED_H
-

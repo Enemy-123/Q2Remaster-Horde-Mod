@@ -1699,7 +1699,7 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
 }
 
 // Funci�n para enviar el mensaje de limpieza
-void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage, gtime_t duration = 4_sec) noexcept {
+void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage, gtime_t duration = 5_sec) noexcept {
     std::string playerName = GetPlayerName(topDamager.player);
     auto message = messages.find(playerName);
 
@@ -1708,7 +1708,7 @@ void SendCleanupMessage(const std::unordered_map<std::string, std::string>& mess
     }
 
     // Update the Horde message with the correct duration
-    UpdateHordeMessage(fmt::format("Wave Level {} Defeated, GG!\n\n{} \ IS TOP DMG this wave with {}.\n {}%\n",
+    UpdateHordeMessage(fmt::format("Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}.\n {}%\n",
         g_horde_local.level,
         playerName.c_str(),
         topDamager.total_damage,
@@ -1718,9 +1718,9 @@ void SendCleanupMessage(const std::unordered_map<std::string, std::string>& mess
 
 // Mensajes de limpieza
 const std::unordered_map<std::string, std::string> cleanupMessages = {
-    {"standard", "Wave Level {} Defeated, GG!\n\n{} \{} \nIS TOP DMG this wave with {}. {}%\n"},
-    {"chaotic", "Harder Wave Controlled, GG!\n\n{} \n{} \nIS TOP DMG this wave with {}. {}%\n"},
-    {"insane", "Insane Wave Controlled, GG!\n\n{} \n{} \nIS TOP DMG this wave with {}. {}%\n"}
+    {"standard", "Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
+    {"chaotic", "Harder Wave Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
+    {"insane", "Insane Wave Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"}
 };
 
 
@@ -1777,7 +1777,7 @@ void Horde_RunFrame() noexcept {
 
         if (g_horde_local.monster_spawn_time < level.time) {
             if (Horde_AllMonstersDead()) {
-                g_horde_local.warm_time = level.time + random_time(2.2_sec, 5_sec);
+                g_horde_local.warm_time = level.time + random_time(2.2_sec, 4.5_sec);
                 g_horde_local.state = horde_state_t::rest;
                 cachedRemainingMonsters = CalculateRemainingMonsters();
 
@@ -1786,7 +1786,7 @@ void Horde_RunFrame() noexcept {
                 CalculateTopDamager(topDamager, percentage);
 
                 std::string messageType = g_insane->integer == 2 ? "insane" : (g_chaotic->integer || g_insane->integer ? "chaotic" : "standard");
-                SendCleanupMessage(cleanupMessages, topDamager, percentage, 4_sec); // Passing the duration here
+                SendCleanupMessage(cleanupMessages, topDamager, percentage, 5_sec); // Passing the duration here
             }
             else {
                 cachedRemainingMonsters = CalculateRemainingMonsters();
