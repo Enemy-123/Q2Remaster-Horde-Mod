@@ -334,11 +334,11 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	// logic for tesla - if you are hit by a tesla, and can't see who you should be mad at (attacker)
 	// attack the tesla
 	// also, target the tesla if it's a "new" tesla
-	if ((inflictor) && (!strcmp(inflictor->classname, "tesla_mine")))
+	if ((inflictor) && (!strcmp(inflictor->classname, "tesla_mine") || !strcmp(inflictor->classname, "monster_sentrygun")))
 	{
 		new_tesla = MarkTeslaArea(targ, inflictor);
-		if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "tesla_mine")))
-			TargetTesla(targ, inflictor);
+		if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "tesla_mine") || strcmp(targ->enemy->classname, "monster_sentrygun")))
+			TargetInflictor(targ, inflictor);
 		return;
 	}
 	// ROGUE

@@ -778,36 +778,37 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	ent->s.origin = trace.endpos;
 
 	// PGM
-	//  PMM - don't bother with bad areas if we're dead
+	// PMM - don't bother with bad areas if we're dead
 	if (ent->health > 0)
 	{
-		// use AI_BLOCKED to tell the calling layer that we're now mad at a tesla
+		// use AI_BLOCKED to tell the calling layer that we're now mad at a tesla or sentrygun
 		new_bad = CheckForBadArea(ent);
 		if (!current_bad && new_bad)
 		{
 			if (new_bad->owner)
 			{
-				if (!strcmp(new_bad->owner->classname, "tesla_mine"))
+				if (!strcmp(new_bad->owner->classname, "tesla_mine") || !strcmp(new_bad->owner->classname, "monster_sentrygun"))
 				{
 					if ((!(ent->enemy)) || (!(ent->enemy->inuse)))
 					{
-						TargetTesla(ent, new_bad->owner);
+						TargetInflictor(ent, new_bad->owner);
 						ent->monsterinfo.aiflags |= AI_BLOCKED;
 					}
-					else if (!strcmp(ent->enemy->classname, "tesla_mine"))
+					else if (!strcmp(ent->enemy->classname, "tesla_mine") || !strcmp(ent->enemy->classname, "monster_sentrygun"))
 					{
+						// already targeting a tesla or sentrygun, do nothing
 					}
 					else if ((ent->enemy) && (ent->enemy->client))
 					{
 						if (!visible(ent, ent->enemy))
 						{
-							TargetTesla(ent, new_bad->owner);
+							TargetInflictor(ent, new_bad->owner);
 							ent->monsterinfo.aiflags |= AI_BLOCKED;
 						}
 					}
 					else
 					{
-						TargetTesla(ent, new_bad->owner);
+						TargetInflictor(ent, new_bad->owner);
 						ent->monsterinfo.aiflags |= AI_BLOCKED;
 					}
 				}
@@ -817,6 +818,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 			return false;
 		}
 	}
+
 	// PGM
 
 	if (!M_CheckBottom(ent))

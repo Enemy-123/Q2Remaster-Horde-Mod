@@ -2629,7 +2629,7 @@ void monster_duck_down(edict_t* self);
 void monster_duck_hold(edict_t* self);
 void monster_duck_up(edict_t* self);
 bool has_valid_enemy(edict_t* self);
-void TargetTesla(edict_t* self, edict_t* tesla);
+void TargetInflictor(edict_t* self, edict_t* inflictor);
 void hintpath_stop(edict_t* self);
 edict_t* PickCoopTarget(edict_t* self);
 int		 CountPlayers();

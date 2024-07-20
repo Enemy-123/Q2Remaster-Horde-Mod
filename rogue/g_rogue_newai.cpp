@@ -1477,9 +1477,9 @@ bool has_valid_enemy(edict_t *self)
 	return true;
 }
 
-void TargetTesla(edict_t *self, edict_t *tesla)
+void TargetInflictor(edict_t* self, edict_t* inflictor)
 {
-	if ((!self) || (!tesla))
+	if ((!self) || (!inflictor))
 		return;
 
 	// PMM - medic bails on healing things
@@ -1494,10 +1494,10 @@ void TargetTesla(edict_t *self, edict_t *tesla)
 	if (self->enemy && self->enemy->client)
 		self->monsterinfo.last_player_enemy = self->enemy;
 
-	if (self->enemy != tesla)
+	if (self->enemy != inflictor)
 	{
 		self->oldenemy = self->enemy;
-		self->enemy = tesla;
+		self->enemy = inflictor;
 		if (self->monsterinfo.attack)
 		{
 			if (self->health <= 0)
