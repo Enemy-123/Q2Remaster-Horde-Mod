@@ -3263,7 +3263,7 @@ void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
 void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 
-//Tech Menu
+//Tech Menus
 void OpenTechMenu(edict_t* ent);
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
@@ -3297,16 +3297,16 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 		// Mapear el índice de la opción al índice correcto en tech_ids
 		int tech_index = -1;
-		if (strcmp(tech_names[option], "Haste TECH") == 0) {
+		if (strcmp(tech_names[option], "Haste") == 0) {
 			tech_index = IT_TECH_HASTE;
 		}
-		else if (strcmp(tech_names[option], "Strength TECH") == 0) {
+		else if (strcmp(tech_names[option], "Strength") == 0) {
 			tech_index = IT_TECH_STRENGTH;
 		}
-		else if (strcmp(tech_names[option], "Regeneration TECH") == 0) {
+		else if (strcmp(tech_names[option], "Regeneration") == 0) {
 			tech_index = IT_TECH_REGENERATION;
 		}
-		else if (strcmp(tech_names[option], "Resistance TECH") == 0) {
+		else if (strcmp(tech_names[option], "Resistance") == 0) {
 			tech_index = IT_TECH_RESISTANCE;
 		}
 
@@ -3336,7 +3336,43 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	PMenu_Close(ent); // Cerrar el menú de TECHS
 }
 
+//HUD MENU
 
+
+void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	int option = p->cur;
+
+	switch (option) {
+	case 2: // Disable ID-DMG
+		CTFID_f(ent);
+		break;
+	case 3: // Disable ID-DMG
+		DMGID_f(ent);
+		break;
+	case 5: // Back to Horde Menu
+		OpenSpectatorMenu(ent);
+		return; // Volver al menú principal sin cerrar
+	case 6: // Close
+		break;  // Aquí simplemente se cierra, así que no hay acción adicional
+	}
+
+	PMenu_Close(ent); // Cerrar el menú después de realizar la acción
+}
+
+static const pmenu_t hud_menu[] = {
+	{ "*HUD Options", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Enable/Disable ID", PMENU_ALIGN_LEFT, HUDMenuHandler },
+	{ "Enable/Disable ID-DMG", PMENU_ALIGN_LEFT, HUDMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, HUDMenuHandler },
+	{ "Close", PMENU_ALIGN_LEFT, HUDMenuHandler }
+};
+
+void OpenHUDMenu(edict_t* ent) {
+	PMenu_Open(ent, hud_menu, -1, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
+}
+//maplist menu
 #define MAX_MAPS_PER_PAGE 11
 
 struct map_list_t {
@@ -3475,11 +3511,11 @@ void OpenVoteMenu(edict_t* ent) {
 	PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
 }
 
-//TEST
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	int option = p->cur;
 
-	PMenu_Close(ent); // Cerrar el menú antes de realizar la acción
+	// Cierra el menú sólo si es necesario al final de la ejecución del caso
+	bool shouldCloseMenu = true;
 
 	if (ctfgame.election == ELECT_NONE) {
 		// Opciones cuando no hay votación en progreso
@@ -3492,11 +3528,17 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			break;
 		case 5: // Vote Map
 			OpenVoteMenu(ent);
+			shouldCloseMenu = false; // El menú se volverá a abrir en OpenVoteMenu
 			break;
 		case 7: // Change Tech
 			OpenTechMenu(ent);
+			shouldCloseMenu = false; // El menú se volverá a abrir en OpenTechMenu
 			break;
-		case 9: // Close menu
+		case 8: // HUD Options
+			OpenHUDMenu(ent);
+			shouldCloseMenu = false; // El menú se volverá a abrir en OpenHUDMenu
+			break;
+		case 11: // Close menu
 			break;
 		}
 	}
@@ -3517,27 +3559,22 @@ void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			break;
 		case 8: // Change Tech
 			OpenTechMenu(ent);
+			shouldCloseMenu = false; // El menú se volverá a abrir en OpenTechMenu
+			break;
+		case 9: // HUD Options
+			OpenHUDMenu(ent);
+			shouldCloseMenu = false; // El menú se volverá a abrir en OpenHUDMenu
 			break;
 		case 10: // Close menu
 			break;
 		}
 	}
+
+	if (shouldCloseMenu) {
+		PMenu_Close(ent);
+	}
 }
 
-static const pmenu_t horde_menu[] = {
-	{ "*Horde Menu", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
-};
 
 //vote in progress menu
 
@@ -3567,6 +3604,7 @@ void OpenSpectatorMenu(edict_t* ent) {
 		dynamic_horde_menu.push_back({ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler });
 		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
 		dynamic_horde_menu.push_back({ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler });
+		dynamic_horde_menu.push_back({ "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler });
 		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
 		dynamic_horde_menu.push_back({ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler });
 	}
@@ -3577,6 +3615,7 @@ void OpenSpectatorMenu(edict_t* ent) {
 		dynamic_horde_menu.push_back({ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler });
 		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
 		dynamic_horde_menu.push_back({ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler });
+		dynamic_horde_menu.push_back({ "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler });
 		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
 		dynamic_horde_menu.push_back({ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler });
 	}
