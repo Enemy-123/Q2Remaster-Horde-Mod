@@ -3828,4 +3828,3 @@ extern float VectorLength(const vec3_t v);
 extern void VectorNormalize(vec3_t v);
 extern void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out);
 extern void VectorClear(vec3_t v);
-//#define  STAT_TARGET_HEALTH_STRING = 43, // Asegúrate de que no choque con otros STAT

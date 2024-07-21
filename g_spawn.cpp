@@ -1807,11 +1807,11 @@ void SP_worldspawn(edict_t* ent)
 	}
 
 	// [Paril-KEX]
-	if (!G_IsDeathmatch())
+	if (G_IsDeathmatch() || G_IsCooperative())
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_PVE).data());
-	else if (teamplay->integer || ctf->integer)
+	else if (ctf->integer || (teamplay->integer && !g_horde->integer))
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
-	else
+	else 
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_FFA).data());
 
 	// [Paril-KEX]

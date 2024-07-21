@@ -984,6 +984,7 @@ extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 struct ConfigStringManager {
 	std::vector<int> availableMonsterConfigStrings;
 	std::vector<int> availablePlayerConfigStrings;
+	std::vector<int> availableMiscConfigStrings;  // Nuevo vector para misceláneos
 	std::unordered_map<int, bool> isActive;
 
 	ConfigStringManager() {
@@ -994,6 +995,11 @@ struct ConfigStringManager {
 		}
 		for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
 			availablePlayerConfigStrings.push_back(i);
+			isActive[i] = false;
+		}
+		// Inicializar rango para misceláneos
+		for (int i = CONFIG_MISC_BASE; i <= CONFIG_MISC_END; ++i) {
+			availableMiscConfigStrings.push_back(i);
 			isActive[i] = false;
 		}
 	}
@@ -1008,12 +1014,15 @@ struct ConfigStringManager {
 			else if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
 				availablePlayerConfigStrings.push_back(cs_index);
 			}
+			else if (cs_index >= CONFIG_MISC_BASE && cs_index <= CONFIG_MISC_END) {
+				availableMiscConfigStrings.push_back(cs_index);  // Liberar configstring de misceláneos
+			}
 		}
 	}
 
-	// Obtener un config string libre si está disponible
-	int getConfigString(bool isMonster) {
-		std::vector<int>& pool = isMonster ? availableMonsterConfigStrings : availablePlayerConfigStrings;
+	// Obtener un config string libre, añadir parámetro para misceláneos
+	int getConfigString(bool isMonster, bool isMisc = false) {
+		std::vector<int>& pool = isMisc ? availableMiscConfigStrings : (isMonster ? availableMonsterConfigStrings : availablePlayerConfigStrings);
 		if (!pool.empty()) {
 			int cs_index = pool.back();
 			pool.pop_back();
@@ -1021,7 +1030,7 @@ struct ConfigStringManager {
 			return cs_index;
 		}
 		else {
-			gi.Com_PrintFmt("No configstrings available for {}\n", isMonster ? "monsters" : "players");
+			gi.Com_PrintFmt("No configstrings available for {}\n", isMisc ? "misc" : (isMonster ? "monsters" : "players"));
 			return -1;  // Retornar -1 si no hay config strings disponibles
 		}
 	}
@@ -1036,6 +1045,10 @@ void InitializeCTFIDViewConfigStrings() {
 	for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
 		gi.configstring(i, "");
 	}
+	// Inicializar configstrings para misceláneos
+	for (int i = CONFIG_MISC_BASE; i <= CONFIG_MISC_END; ++i) {
+		gi.configstring(i, "");
+	}
 }
 
 void FreeConfigString(int index) {
@@ -1043,6 +1056,9 @@ void FreeConfigString(int index) {
 		configStringManager.freeConfigString(index);
 	}
 	else if (index >= CONFIG_PLAYER_HEALTH_BASE && index <= CONFIG_PLAYER_HEALTH_END) {
+		configStringManager.freeConfigString(index);
+	}
+	else if (index >= CONFIG_MISC_BASE && index <= CONFIG_MISC_END) {
 		configStringManager.freeConfigString(index);
 	}
 	gi.configstring(index, "");  // Reset the configstring
@@ -1200,6 +1216,7 @@ void OnEntityRemoved(edict_t* ent) {
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
 }
+
 void OnEntityDeath(edict_t* ent) {
 	if (ent->configstringIndex > 0) {
 		configStringManager.freeConfigString(ent->configstringIndex);
@@ -1212,7 +1229,6 @@ void OnEntityDeath(edict_t* ent) {
 	}
 }
 
-
 void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime) {
 		return;
@@ -1220,6 +1236,7 @@ void CTFSetIDView(edict_t* ent) {
 
 	static int monster_configstrings[MAX_EDICTS] = { 0 };
 	static int player_configstrings[MAX_EDICTS] = { 0 };
+	static int misc_configstrings[MAX_EDICTS] = { 0 }; // Nuevo array para misceláneos
 
 	vec3_t forward;
 	trace_t tr;
@@ -1356,11 +1373,12 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		ent->client->target_health_str = health_string;
 
-		bool isMonster = best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap");
-		auto& configstrings = isMonster ? monster_configstrings : player_configstrings;
+		bool isMonster = best->svflags & SVF_MONSTER;
+		bool isMisc = !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine");
+		auto& configstrings = isMisc ? misc_configstrings : (isMonster ? monster_configstrings : player_configstrings);
 
 		if (configstrings[best - g_edicts] == 0) {
-			int cs_index = configStringManager.getConfigString(isMonster);
+			int cs_index = configStringManager.getConfigString(isMonster, isMisc);
 			if (cs_index != -1) {
 				configstrings[best - g_edicts] = cs_index;
 				best->configstringIndex = cs_index; // Asignar el índice del configstring a la entidad
@@ -1378,7 +1396,6 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->idtarget = nullptr;
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {
