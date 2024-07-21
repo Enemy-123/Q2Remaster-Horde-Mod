@@ -259,7 +259,9 @@ void flyer_kamikaze_check(edict_t* self)
 	if (!self->inuse)
 		return;
 
-	if ((!self->enemy) || (!self->enemy->inuse) || !visible)
+	edict_t* ent2 = self->enemy; // Inicializar ent2
+
+	if ((!self->enemy) || (!self->enemy->inuse) || !visible(self, ent2))
 	{
 		flyer_kamikaze_explode(self);
 		return;
@@ -274,6 +276,7 @@ void flyer_kamikaze_check(edict_t* self)
 	if (dist < 90)
 		flyer_kamikaze_explode(self);
 }
+
 
 #if 0
 mframe_t flyer_frames_rollright[] = {
