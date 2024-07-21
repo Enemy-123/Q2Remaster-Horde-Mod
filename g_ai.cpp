@@ -201,7 +201,7 @@ void ai_stand(edict_t* self, float dist)
     }
 
     // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
-    if (g_horde->integer) {
+    if (g_horde->integer && strcmp(self->classname, "monster_sentrygun")) {
         // Verifica si el monstruo no tiene un enemigo
         if (!self->enemy)
         {
