@@ -476,7 +476,7 @@ bool visible(edict_t* self, edict_t* other, bool through_glass) {
 
             // Otherwise, throw in some randomness
             if (frandom() > other->s.alpha) {
- //               gi.Com_PrintFmt("visible: Other entity is invisible due to alpha\n");
+                //               gi.Com_PrintFmt("visible: Other entity is invisible due to alpha\n");
                 return false;
             }
         }
@@ -500,11 +500,11 @@ bool visible(edict_t* self, edict_t* other, bool through_glass) {
     trace = gi.traceline(spot1, spot2, self, mask);
 
     if (trace.fraction == 1.0f || trace.ent == other) {
-//        gi.Com_PrintFmt("visible: Other entity is visible\n");
+        //        gi.Com_PrintFmt("visible: Other entity is visible\n");
         return true;
     }
     else {
-//        gi.Com_PrintFmt("visible: Other entity is not visible\n");
+        //        gi.Com_PrintFmt("visible: Other entity is not visible\n");
         return false;
     }
 }
@@ -950,22 +950,13 @@ bool FindTarget(edict_t* self)
         if (!gi.inPHS(self->s.origin, client->s.origin, true))
             return false;
 
-
         if (g_horde->integer)
         {
-
-            gtime_t current_time = level.time; // Asume que tienes una variable global `level.time` que representa el tiempo actual
-
-            // Verifica si han pasado 1.5 segundos desde la última escucha
-            if (current_time - self->last_sound_check < 7.5_sec)
+            // Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde HORDEHEAR
+            if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
+            {
                 return false;
-
-            self->last_sound_check = current_time; // Actualiza el tiempo de la última escucha
-            //// Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde
-            //if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
-            //{
-            //    return false;
-            //}
+            }
         }
 
         temp = client->s.origin - self->s.origin;
@@ -989,25 +980,26 @@ bool FindTarget(edict_t* self)
         // Caza el sonido por un tiempo; con suerte encuentra al jugador real
         self->monsterinfo.aiflags |= AI_SOUND_TARGET;
         self->enemy = client;
-
-        // 
-        // got one
-        //
-        // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
-        if (self->monsterinfo.aiflags & AI_HINT_PATH)
-            hintpath_stop(self);  // this calls foundtarget for us
-        else
-            FoundTarget(self);
-
-        // ROGUE
-        if (!(self->monsterinfo.aiflags & AI_SOUND_TARGET) && (self->monsterinfo.sight) &&
-            // Paril: adjust to prevent monsters getting stuck in sight loops
-            !ignore_sight_sound)
-            self->monsterinfo.sight(self, self->enemy);
-
-        return true;
     }
+
+    // 
+    // got one
+    //
+    // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
+    if (self->monsterinfo.aiflags & AI_HINT_PATH)
+        hintpath_stop(self);  // this calls foundtarget for us
+    else
+        FoundTarget(self);
+
+    // ROGUE
+    if (!(self->monsterinfo.aiflags & AI_SOUND_TARGET) && (self->monsterinfo.sight) &&
+        // Paril: adjust to prevent monsters getting stuck in sight loops
+        !ignore_sight_sound)
+        self->monsterinfo.sight(self, self->enemy);
+
+    return true;
 }
+
 //=============================================================================
 
 /*
@@ -1185,7 +1177,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
             // originally, just 0.3
             float strafe_chance;
 
-            if (!(strcmp(self->classname, "monster_daedalus")) || !(strcmp(self->classname, "monster_daedalus2"))) 
+            if (!(strcmp(self->classname, "monster_daedalus")) || !(strcmp(self->classname, "monster_daedalus2")))
                 strafe_chance = 0.92f;
             else
                 strafe_chance = 0.75f;
@@ -1558,7 +1550,7 @@ void ai_run(edict_t* self, float dist)
     bool     gotcha = false;
     edict_t* realEnemy;
     // ROGUE
-     
+
 
     // if we're going to a combat point, just proceed
     if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
