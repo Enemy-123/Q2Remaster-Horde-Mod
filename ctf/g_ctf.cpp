@@ -984,6 +984,8 @@ extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 struct ConfigStringManager {
 	std::vector<int> availableMonsterConfigStrings;
 	std::vector<int> availablePlayerConfigStrings;
+	std::vector<int> reserveMonsterConfigStrings;
+	std::vector<int> reservePlayerConfigStrings;
 	std::unordered_map<int, bool> isActive;
 
 	ConfigStringManager() {
@@ -994,6 +996,15 @@ struct ConfigStringManager {
 		}
 		for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
 			availablePlayerConfigStrings.push_back(i);
+			isActive[i] = false;
+		}
+		// Inicializar la reserva con algunos valores extra
+		for (int i = CONFIG_MONSTER_HEALTH_END + 1; i <= CONFIG_MONSTER_HEALTH_END + 20; ++i) {
+			reserveMonsterConfigStrings.push_back(i);
+			isActive[i] = false;
+		}
+		for (int i = CONFIG_PLAYER_HEALTH_END + 1; i <= CONFIG_PLAYER_HEALTH_END + 5; ++i) {
+			reservePlayerConfigStrings.push_back(i);
 			isActive[i] = false;
 		}
 	}
@@ -1008,6 +1019,12 @@ struct ConfigStringManager {
 			else if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
 				availablePlayerConfigStrings.push_back(cs_index);
 			}
+			else if (cs_index > CONFIG_MONSTER_HEALTH_END && cs_index <= CONFIG_MONSTER_HEALTH_END + 20) {
+				reserveMonsterConfigStrings.push_back(cs_index);
+			}
+			else if (cs_index > CONFIG_PLAYER_HEALTH_END && cs_index <= CONFIG_PLAYER_HEALTH_END + 5) {
+				reservePlayerConfigStrings.push_back(cs_index);
+			}
 		}
 	}
 
@@ -1021,8 +1038,18 @@ struct ConfigStringManager {
 			return cs_index;
 		}
 		else {
-			gi.Com_PrintFmt("No configstrings available for {}\n", isMonster ? "monsters" : "players");
-			return -1;  // Retornar -1 si no hay config strings disponibles
+			// Intentar usar la reserva si el pool principal está vacío
+			std::vector<int>& reservePool = isMonster ? reserveMonsterConfigStrings : reservePlayerConfigStrings;
+			if (!reservePool.empty()) {
+				int cs_index = reservePool.back();
+				reservePool.pop_back();
+				isActive[cs_index] = true;
+				return cs_index;
+			}
+			else {
+				gi.Com_PrintFmt("No configstrings available for {}\n", isMonster ? "monsters" : "players");
+				return -1;  // Retornar -1 si no hay config strings disponibles
+			}
 		}
 	}
 };
@@ -1036,6 +1063,13 @@ void InitializeCTFIDViewConfigStrings() {
 	for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
 		gi.configstring(i, "");
 	}
+	// Inicializar configstrings de reserva
+	for (int i = CONFIG_MONSTER_HEALTH_END + 1; i <= CONFIG_MONSTER_HEALTH_END + 20; ++i) {
+		gi.configstring(i, "");
+	}
+	for (int i = CONFIG_PLAYER_HEALTH_END + 1; i <= CONFIG_PLAYER_HEALTH_END + 5; ++i) {
+		gi.configstring(i, "");
+	}
 }
 
 void FreeConfigString(int index) {
@@ -1043,6 +1077,12 @@ void FreeConfigString(int index) {
 		configStringManager.freeConfigString(index);
 	}
 	else if (index >= CONFIG_PLAYER_HEALTH_BASE && index <= CONFIG_PLAYER_HEALTH_END) {
+		configStringManager.freeConfigString(index);
+	}
+	else if (index > CONFIG_MONSTER_HEALTH_END && index <= CONFIG_MONSTER_HEALTH_END + 20) {
+		configStringManager.freeConfigString(index);
+	}
+	else if (index > CONFIG_PLAYER_HEALTH_END && index <= CONFIG_PLAYER_HEALTH_END + 5) {
 		configStringManager.freeConfigString(index);
 	}
 	gi.configstring(index, "");  // Reset the configstring
@@ -1200,6 +1240,7 @@ void OnEntityRemoved(edict_t* ent) {
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
 }
+
 void OnEntityDeath(edict_t* ent) {
 	if (ent->configstringIndex > 0) {
 		configStringManager.freeConfigString(ent->configstringIndex);
@@ -1211,7 +1252,6 @@ void OnEntityDeath(edict_t* ent) {
 		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");  // Resetear el valor del health bar
 	}
 }
-
 
 void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime) {
@@ -1378,7 +1418,6 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->idtarget = nullptr;
 	}
 }
-
 
 void SetCTFStats(edict_t* ent)
 {
