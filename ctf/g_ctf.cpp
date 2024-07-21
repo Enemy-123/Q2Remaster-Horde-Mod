@@ -1248,9 +1248,9 @@ void OnEntityDeath(edict_t* ent) {
 		ent->configstringIndex = 0;  // Resetear el índice para seguridad
 	}
 
-	if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");  // Resetear el valor del health bar
-	}
+	//if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+	//	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");  // Resetear el valor del health bar
+	//}
 }
 
 void CTFSetIDView(edict_t* ent) {
