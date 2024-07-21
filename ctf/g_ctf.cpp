@@ -3408,7 +3408,7 @@ void CheckAndUpdateMenus() {
 }
 
 void UpdateHUDMenuLayout(edict_t* ent) {
-	char layout[1024];
+	char layout[256];
 
 	snprintf(layout, sizeof(layout),
 		"xv 32 yv 8 picn \"inventory\" "
