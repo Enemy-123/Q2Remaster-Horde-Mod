@@ -1165,7 +1165,7 @@ void SP_monster_sentrygun(edict_t* self)
 
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-		self->yaw_speed = 12;
+		self->yaw_speed = 14;
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER))
 		self->monsterinfo.blindfire = true;
 
