@@ -656,13 +656,26 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 
 	// pmm
 }
+float entdist(const edict_t* ent1, const edict_t* ent2)
+{
+	vec3_t	vec{};
 
+	VectorSubtract(ent1->s.origin, ent2->s.origin, vec);
+	return VectorLength(vec);
+}
 // **********************
 //  PAIN
 // **********************
 
 PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
+			self->enemy = other;
+
+		if (level.time < self->pain_debounce_time)
+			return;
+
+		self->pain_debounce_time = level.time + 2_sec;
+		gi.sound(self, CHAN_VOICE, gi.soundindex("tank/tnkpain2.wav"), 1, ATTN_NORM, 0);
 }
 
 // **********************
