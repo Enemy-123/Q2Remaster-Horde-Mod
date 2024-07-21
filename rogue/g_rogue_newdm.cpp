@@ -199,13 +199,6 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	// Perform a trace to check for wall collision and other entities
 	tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// Check if the trace didn't find a valid placement
-	if (tr.fraction == 1)
-	{
-		gi.Client_Print(ent, PRINT_HIGH, "Too far from wall.\n");
-		return false;
-	}
-
 	VectorCopy(tr.endpos, new_start);
 
 	// Add height to the new origin
