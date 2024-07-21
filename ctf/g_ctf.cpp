@@ -3412,7 +3412,7 @@ void UpdateHUDMenuLayout(edict_t* ent) {
 
 	snprintf(layout, sizeof(layout),
 		"xv 32 yv 8 picn \"inventory\" "
-		"xv 64 yv 32 string2 \"HUD Options\" "
+		"xv 64 yv 32 string2 \"*HUD Options\" "
 		"xv 64 yv 40 string \"Enable/Disable ID [%s]\" "
 		"xv 64 yv 48 string \"Enable/Disable ID-DMG [%s]\" "
 		"xv 64 yv 64 string \"Back to Horde Menu\" "
