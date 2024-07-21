@@ -202,37 +202,32 @@ void ai_stand(edict_t* self, float dist)
 
     // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
     if (g_horde->integer) {
-        edict_t* closestPlayer = nullptr;
-        float closestDistance = 1500.0f; // Rango de búsqueda
-        vec3_t dir{};
+        // Verifica si el monstruo no tiene un enemigo
+        if (!self->enemy)
+        {
+            int count = 0;
+            edict_t* player = nullptr;
 
-        for (unsigned int i = 1; i <= game.maxclients; ++i) {
-            edict_t* client = &g_edicts[i];
-
-            // Verifica si el cliente está activo, es sólido y tiene salud mayor a 0
-            if (!client->inuse || !client->solid || client->health <= 0) {
-                continue;
+            // Encuentra un jugador vivo aleatoriamente
+            for (auto client  : active_players_no_spect())
+            {
+                if (client->inuse && client->health > 0)
+                {
+                    if (!count || (rand() % (count + 1)) == 0)
+                    {
+                        player = client;  // selección aleatoria
+                    }
+                    count++;
+                }
             }
 
-            // Calcula la distancia entre el jugador y el monstruo
-            VectorSubtract(client->s.origin, self->s.origin, dir);
-            float distance = VectorLength(dir);
-
-            // Si la distancia es menor a la distancia más cercana conocida, actualiza el jugador más cercano
-            if (distance < closestDistance) {
-                closestPlayer = client;
-                closestDistance = distance;
+            if (player)
+            {
+                self->enemy = player; // Establece el nuevo enemigo
+                self->monsterinfo.run(self); // Cambia a modo persecución
             }
-        }
-
-        // Si se encuentra un jugador válido, lo asigna como enemigo y ejecuta la lógica de persecución
-        if (closestPlayer != nullptr) {
-            self->enemy = closestPlayer;
-            self->monsterinfo.run(self);
-            return;
         }
     }
-
 }
 /*
 =============
@@ -949,13 +944,22 @@ bool FindTarget(edict_t* self)
         if (!gi.inPHS(self->s.origin, client->s.origin, true))
             return false;
 
+
         if (g_horde->integer)
         {
-            // Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde
-            if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
-            {
+
+            gtime_t current_time = level.time; // Asume que tienes una variable global `level.time` que representa el tiempo actual
+
+            // Verifica si han pasado 1.5 segundos desde la última escucha
+            if (current_time - self->last_sound_check < 7.5_sec)
                 return false;
-            }
+
+            self->last_sound_check = current_time; // Actualiza el tiempo de la última escucha
+            //// Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde
+            //if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
+            //{
+            //    return false;
+            //}
         }
 
         temp = client->s.origin - self->s.origin;
@@ -979,26 +983,25 @@ bool FindTarget(edict_t* self)
         // Caza el sonido por un tiempo; con suerte encuentra al jugador real
         self->monsterinfo.aiflags |= AI_SOUND_TARGET;
         self->enemy = client;
+
+        // 
+        // got one
+        //
+        // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
+        if (self->monsterinfo.aiflags & AI_HINT_PATH)
+            hintpath_stop(self);  // this calls foundtarget for us
+        else
+            FoundTarget(self);
+
+        // ROGUE
+        if (!(self->monsterinfo.aiflags & AI_SOUND_TARGET) && (self->monsterinfo.sight) &&
+            // Paril: adjust to prevent monsters getting stuck in sight loops
+            !ignore_sight_sound)
+            self->monsterinfo.sight(self, self->enemy);
+
+        return true;
     }
-
-    // 
-    // got one
-    //
-    // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
-    if (self->monsterinfo.aiflags & AI_HINT_PATH)
-        hintpath_stop(self);  // this calls foundtarget for us
-    else
-        FoundTarget(self);
-
-    // ROGUE
-    if (!(self->monsterinfo.aiflags & AI_SOUND_TARGET) && (self->monsterinfo.sight) &&
-        // Paril: adjust to prevent monsters getting stuck in sight loops
-        !ignore_sight_sound)
-        self->monsterinfo.sight(self, self->enemy);
-
-    return true;
 }
-
 //=============================================================================
 
 /*
@@ -1481,9 +1484,9 @@ bool ai_checkattack(edict_t* self, float dist)
     // stuff .. this allows for, among other things, circle strafing and attacking while in ai_run
     retval = false;
 
-    if (self->monsterinfo.checkattack_time <= level.time)
-    {
-        self->monsterinfo.checkattack_time = level.time + 0.1_sec;
+    // Reducir la frecuencia de chequeo de ataques
+    if (self->monsterinfo.checkattack_time <= level.time) {
+        self->monsterinfo.checkattack_time = level.time + 0.05_sec;  // Reducido de 0.1 a 0.05
         retval = self->monsterinfo.checkattack(self);
     }
 
@@ -1509,8 +1512,14 @@ bool ai_checkattack(edict_t* self, float dist)
         // pmm
 
         // if enemy is not currently visible, we will never attack
-        if (!enemy_vis)
-            return false;
+// Cambiar la comprobación de visibilidad para que sea menos restrictiva
+        if (!enemy_vis) {
+            // Intentar un ataque ciego si el enemigo fue visible recientemente
+            if (self->monsterinfo.search_time > level.time) {
+                enemy_vis = true;
+            }
+        }
+
         // PMM
     }
 
