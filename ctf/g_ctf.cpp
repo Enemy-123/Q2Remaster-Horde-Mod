@@ -3337,41 +3337,96 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 }
 
 //HUD MENU
+void UpdateHUDMenuLayout(edict_t* ent);
+void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
-
-void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur;
-
-	switch (option) {
-	case 2: // Disable ID-DMG
-		CTFID_f(ent);
-		break;
-	case 3: // Disable ID-DMG
-		DMGID_f(ent);
-		break;
-	case 5: // Back to Horde Menu
-		OpenSpectatorMenu(ent);
-		return; // Volver al menú principal sin cerrar
-	case 6: // Close
-		break;  // Aquí simplemente se cierra, así que no hay acción adicional
-	}
-
-	PMenu_Close(ent); // Cerrar el menú después de realizar la acción
-}
-
-static const pmenu_t hud_menu[] = {
+static pmenu_t hud_menu[] = {
 	{ "*HUD Options", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Enable/Disable ID", PMENU_ALIGN_LEFT, HUDMenuHandler },
-	{ "Enable/Disable ID-DMG", PMENU_ALIGN_LEFT, HUDMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },
+	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
 	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, HUDMenuHandler },
 	{ "Close", PMENU_ALIGN_LEFT, HUDMenuHandler }
 };
 
+void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	int option = p->cur;
+
+	switch (option) {
+	case 2: // Toggle ID
+		ent->client->resp.id_state = !ent->client->resp.id_state;
+		gi.LocCenter_Print(ent,"\n\n\nID state toggled to {}\n", ent->client->resp.id_state ? "ON" : "OFF");
+		break;
+	case 3: // Toggle ID-DMG
+		ent->client->resp.iddmg_state = !ent->client->resp.iddmg_state;
+		gi.LocCenter_Print(ent,"\n\n\nID - DMG state toggled to {}\n", ent->client->resp.iddmg_state ? "ON" : "OFF");
+		break;
+	case 5: // Back to Horde Menu
+		OpenSpectatorMenu(ent);
+		return; // Volver al menú principal sin cerrar
+	case 6: // Close
+		PMenu_Close(ent);
+		return;
+	}
+
+	// Actualizar el texto del menú aquí mismo
+	snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]", ent->client->resp.id_state ? "ON" : "OFF");
+	snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]", ent->client->resp.iddmg_state ? "ON" : "OFF");
+
+	// Reabrir el menú para reflejar los cambios
+	PMenu_Open(ent, hud_menu, option, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
+}
+
+
+
+
+
 void OpenHUDMenu(edict_t* ent) {
+	// Actualizar dinámicamente los textos del menú basado en el estado actual
+	snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]", ent->client->resp.id_state ? "ON" : "OFF");
+	snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]", ent->client->resp.iddmg_state ? "ON" : "OFF");
+
+	// Abrir el menú con las opciones actualizadas
 	PMenu_Open(ent, hud_menu, -1, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
 }
+
+void CheckAndUpdateMenus() {
+	for (auto player : active_players()) {
+		if (player->client->menudirty) {
+			if (player->client->menu) {
+				// Actualizar dinámicamente los textos del menú basado en el estado actual
+				snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]", player->client->resp.id_state ? "ON" : "OFF");
+				snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]", player->client->resp.iddmg_state ? "ON" : "OFF");
+
+				PMenu_Do_Update(player);
+				gi.unicast(player, true);
+			}
+			player->client->menudirty = false; // Resetear el flag
+		}
+	}
+}
+
+void UpdateHUDMenuLayout(edict_t* ent) {
+	char layout[1024];
+
+	snprintf(layout, sizeof(layout),
+		"xv 32 yv 8 picn \"inventory\" "
+		"xv 64 yv 32 string2 \"*HUD Options\" "
+		"xv 64 yv 40 string \"Enable/Disable ID [%s]\" "
+		"xv 64 yv 48 string \"Enable/Disable ID-DMG [%s]\" "
+		"xv 64 yv 64 string \"Back to Horde Menu\" "
+		"xv 64 yv 72 string \"Close\" ",
+		ent->client->resp.id_state ? "ON" : "OFF",
+		ent->client->resp.iddmg_state ? "ON" : "OFF"
+	);
+
+	gi.WriteByte(svc_layout);
+	gi.WriteString(layout);
+	gi.unicast(ent, true);
+}
+
+
 //maplist menu
 #define MAX_MAPS_PER_PAGE 11
 

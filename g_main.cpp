@@ -922,8 +922,15 @@ G_RunFrame
 Advances the world by 0.1 seconds
 ================
 */
+
 inline void G_RunFrame_(bool main_loop)
 {
+
+	void CheckAndUpdateMenus();
+
+	CheckAndUpdateMenus();
+
+
 	level.in_frame = true;
 
 	G_CheckCvars();
