@@ -984,7 +984,6 @@ extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 struct ConfigStringManager {
 	std::vector<int> availableMonsterConfigStrings;
 	std::vector<int> availablePlayerConfigStrings;
-	std::vector<int> availableMiscConfigStrings;  // Nuevo vector para misceláneos
 	std::unordered_map<int, bool> isActive;
 
 	ConfigStringManager() {
@@ -995,11 +994,6 @@ struct ConfigStringManager {
 		}
 		for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
 			availablePlayerConfigStrings.push_back(i);
-			isActive[i] = false;
-		}
-		// Inicializar rango para misceláneos
-		for (int i = CONFIG_MISC_BASE; i <= CONFIG_MISC_END; ++i) {
-			availableMiscConfigStrings.push_back(i);
 			isActive[i] = false;
 		}
 	}
@@ -1014,15 +1008,12 @@ struct ConfigStringManager {
 			else if (cs_index >= CONFIG_PLAYER_HEALTH_BASE && cs_index <= CONFIG_PLAYER_HEALTH_END) {
 				availablePlayerConfigStrings.push_back(cs_index);
 			}
-			else if (cs_index >= CONFIG_MISC_BASE && cs_index <= CONFIG_MISC_END) {
-				availableMiscConfigStrings.push_back(cs_index);  // Liberar configstring de misceláneos
-			}
 		}
 	}
 
-	// Obtener un config string libre, añadir parámetro para misceláneos
-	int getConfigString(bool isMonster, bool isMisc = false) {
-		std::vector<int>& pool = isMisc ? availableMiscConfigStrings : (isMonster ? availableMonsterConfigStrings : availablePlayerConfigStrings);
+	// Obtener un config string libre si está disponible
+	int getConfigString(bool isMonster) {
+		std::vector<int>& pool = isMonster ? availableMonsterConfigStrings : availablePlayerConfigStrings;
 		if (!pool.empty()) {
 			int cs_index = pool.back();
 			pool.pop_back();
@@ -1030,7 +1021,7 @@ struct ConfigStringManager {
 			return cs_index;
 		}
 		else {
-			gi.Com_PrintFmt("No configstrings available for {}\n", isMisc ? "misc" : (isMonster ? "monsters" : "players"));
+			gi.Com_PrintFmt("No configstrings available for {}\n", isMonster ? "monsters" : "players");
 			return -1;  // Retornar -1 si no hay config strings disponibles
 		}
 	}
@@ -1045,10 +1036,6 @@ void InitializeCTFIDViewConfigStrings() {
 	for (int i = CONFIG_PLAYER_HEALTH_BASE; i <= CONFIG_PLAYER_HEALTH_END; ++i) {
 		gi.configstring(i, "");
 	}
-	// Inicializar configstrings para misceláneos
-	for (int i = CONFIG_MISC_BASE; i <= CONFIG_MISC_END; ++i) {
-		gi.configstring(i, "");
-	}
 }
 
 void FreeConfigString(int index) {
@@ -1056,9 +1043,6 @@ void FreeConfigString(int index) {
 		configStringManager.freeConfigString(index);
 	}
 	else if (index >= CONFIG_PLAYER_HEALTH_BASE && index <= CONFIG_PLAYER_HEALTH_END) {
-		configStringManager.freeConfigString(index);
-	}
-	else if (index >= CONFIG_MISC_BASE && index <= CONFIG_MISC_END) {
 		configStringManager.freeConfigString(index);
 	}
 	gi.configstring(index, "");  // Reset the configstring
@@ -1216,7 +1200,6 @@ void OnEntityRemoved(edict_t* ent) {
 void UpdateCTFIDViewConfigString(int cs_index, const std::string& value) {
 	gi.configstring(cs_index, value.c_str());
 }
-
 void OnEntityDeath(edict_t* ent) {
 	if (ent->configstringIndex > 0) {
 		configStringManager.freeConfigString(ent->configstringIndex);
@@ -1229,6 +1212,7 @@ void OnEntityDeath(edict_t* ent) {
 	}
 }
 
+
 void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime) {
 		return;
@@ -1236,7 +1220,6 @@ void CTFSetIDView(edict_t* ent) {
 
 	static int monster_configstrings[MAX_EDICTS] = { 0 };
 	static int player_configstrings[MAX_EDICTS] = { 0 };
-	static int misc_configstrings[MAX_EDICTS] = { 0 }; // Nuevo array para misceláneos
 
 	vec3_t forward;
 	trace_t tr;
@@ -1373,12 +1356,11 @@ void CTFSetIDView(edict_t* ent) {
 		}
 		ent->client->target_health_str = health_string;
 
-		bool isMonster = best->svflags & SVF_MONSTER;
-		bool isMisc = !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine");
-		auto& configstrings = isMisc ? misc_configstrings : (isMonster ? monster_configstrings : player_configstrings);
+		bool isMonster = best->svflags & SVF_MONSTER || !strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap");
+		auto& configstrings = isMonster ? monster_configstrings : player_configstrings;
 
 		if (configstrings[best - g_edicts] == 0) {
-			int cs_index = configStringManager.getConfigString(isMonster, isMisc);
+			int cs_index = configStringManager.getConfigString(isMonster);
 			if (cs_index != -1) {
 				configstrings[best - g_edicts] = cs_index;
 				best->configstringIndex = cs_index; // Asignar el índice del configstring a la entidad
@@ -1396,6 +1378,7 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->idtarget = nullptr;
 	}
 }
+
 
 void SetCTFStats(edict_t* ent)
 {
@@ -2239,9 +2222,9 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	if (level.intermissiontime) {
 		if (brandom())
-		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+			fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 		else
-		fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nTHEY WILL REGRET THIS !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
+			fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nTHEY WILL REGRET THIS !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 	}
 	else {
 		if (ent->client->resp.ctf_team != CTF_TEAM1)
@@ -3373,11 +3356,11 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	switch (option) {
 	case 2: // Toggle ID
 		ent->client->resp.id_state = !ent->client->resp.id_state;
-		gi.LocCenter_Print(ent,"\n\n\nID state toggled to {}\n", ent->client->resp.id_state ? "ON" : "OFF");
+		gi.LocCenter_Print(ent, "\n\n\nID state toggled to {}\n", ent->client->resp.id_state ? "ON" : "OFF");
 		break;
 	case 3: // Toggle ID-DMG
 		ent->client->resp.iddmg_state = !ent->client->resp.iddmg_state;
-		gi.LocCenter_Print(ent,"\n\n\nID - DMG state toggled to {}\n", ent->client->resp.iddmg_state ? "ON" : "OFF");
+		gi.LocCenter_Print(ent, "\n\n\nID - DMG state toggled to {}\n", ent->client->resp.iddmg_state ? "ON" : "OFF");
 		break;
 	case 5: // Back to Horde Menu
 		OpenSpectatorMenu(ent);
@@ -4156,24 +4139,24 @@ bool CTFCheckRules()
 
 		switch (ctfgame.match)
 		{
-		//case MATCH_SETUP:
-		//	for (j = 0, i = 1; i <= game.maxclients; i++)
-		//	{
-		//		ent = g_edicts + i;
-		//		if (!ent->inuse)
-		//			continue;
-		//		if (ent->client->resp.ctf_team != CTF_NOTEAM &&
-		//			!ent->client->resp.ready)
-		//			j++;
-		//	}
+			//case MATCH_SETUP:
+			//	for (j = 0, i = 1; i <= game.maxclients; i++)
+			//	{
+			//		ent = g_edicts + i;
+			//		if (!ent->inuse)
+			//			continue;
+			//		if (ent->client->resp.ctf_team != CTF_NOTEAM &&
+			//			!ent->client->resp.ready)
+			//			j++;
+			//	}
 
-		//	if (competition->integer < 3)
-		//		G_FmtTo(text, "{:02}:{:02} SETUP: {} not ready", t / 60, t % 60, j);
-		//	else
-		//		G_FmtTo(text, "SETUP: {} not ready", j);
+			//	if (competition->integer < 3)
+			//		G_FmtTo(text, "{:02}:{:02} SETUP: {} not ready", t / 60, t % 60, j);
+			//	else
+			//		G_FmtTo(text, "SETUP: {} not ready", j);
 
-		//	//		gi.configstring(CONFIG_CTF_MATCH, text);
-		//	break;
+			//	//		gi.configstring(CONFIG_CTF_MATCH, text);
+			//	break;
 
 		case MATCH_PREGAME:
 			G_FmtTo(text, "{:02}:{:02} UNTIL START", t / 60, t % 60);
@@ -4186,15 +4169,15 @@ bool CTFCheckRules()
 			}
 			break;
 
-		//case MATCH_GAME:
-		//	G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
-		//	//		gi.configstring(CONFIG_CTF_MATCH, text);
-		//	if (t <= 10 && !ctfgame.countdown)
-		//	{
-		//		ctfgame.countdown = true;
-		//		gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
-		//	}
-		//	break;
+			//case MATCH_GAME:
+			//	G_FmtTo(text, "{:02}:{:02} MATCH", t / 60, t % 60);
+			//	//		gi.configstring(CONFIG_CTF_MATCH, text);
+			//	if (t <= 10 && !ctfgame.countdown)
+			//	{
+			//		ctfgame.countdown = true;
+			//		gi.positioned_sound(world->s.origin, world, CHAN_AUTO | CHAN_RELIABLE, gi.soundindex("world/10_0.wav"), 1, ATTN_NONE, 0);
+			//	}
+			//	break;
 
 		default:
 			break;
