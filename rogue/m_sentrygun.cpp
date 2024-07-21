@@ -510,7 +510,7 @@ void turret2Fire(edict_t* self)
 					{
 						// Sigue disparando heatbeam
 						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
-						monster_fire_heatbeam(self, start, forward, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
+						monster_fire_heatbeam(self, start, dir, vec3_origin, 10, 50, MZ2_TURRET_BLASTER);
 						damageApplied = true;
 					}
 
@@ -523,7 +523,6 @@ void turret2Fire(edict_t* self)
 					}
 				}
 			}
-
 
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 			{
@@ -564,6 +563,7 @@ void turret2Fire(edict_t* self)
 		}
 	}
 }
+
 
 // PMM
 void turret2FireBlind(edict_t* self)

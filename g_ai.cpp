@@ -200,16 +200,22 @@ void ai_stand(edict_t* self, float dist)
         }
     }
 
+    bool FindMTarget(edict_t* self);
     // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
-    if (g_horde->integer && strcmp(self->classname, "monster_sentrygun")) {
+    if (g_horde->integer) {
         // Verifica si el monstruo no tiene un enemigo
         if (!self->enemy)
         {
+            // Solo la sentrygun utilizará FindMTarget para buscar un objetivo
+            if (!strcmp(self->classname, "monster_sentrygun")) {
+                FindMTarget(self);
+            }
+
             int count = 0;
             edict_t* player = nullptr;
 
             // Encuentra un jugador vivo aleatoriamente
-            for (auto client  : active_players_no_spect())
+            for (auto client : active_players_no_spect())
             {
                 if (client->inuse && client->health > 0)
                 {
