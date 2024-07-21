@@ -73,7 +73,7 @@ void Boss2Rocket(edict_t* self)
 	vec3_t dir;
 	vec3_t vec;
 
-	if (self->enemy)
+	if (self && self->enemy)
 	{
 		if (self->enemy->client && frandom() < 0.9f)
 		{
@@ -140,7 +140,7 @@ void Boss2Rocket64(edict_t* self)
 	start -= right * 2.f * scale;
 	start -= right * ((self->count++ % 4) * 8.f * scale);
 
-	if (self->enemy && self->enemy->client && frandom() < 0.9f)
+	if (self && self->enemy && self->enemy->client && frandom() < 0.9f)
 	{
 		// 1
 		dir = self->enemy->s.origin - start;

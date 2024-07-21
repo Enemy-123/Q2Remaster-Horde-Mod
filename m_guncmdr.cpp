@@ -783,7 +783,7 @@ void GunnerCmdrFire(edict_t* self)
 	vec3_t					 aim;
 	monster_muzzleflash_id_t flash_number;
 
-	if (self->enemy || self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
+	if (self && self->enemy || self && self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
 		return;								 // PGM
 
 	if (self->s.frame >= FRAME_c_attack401 && self->s.frame <= FRAME_c_attack505)

@@ -4080,9 +4080,7 @@ bool CTFCheckRules()
 		ctfgame.election = ELECT_NONE;
 
 		// Resetear el estado de votación de todos los jugadores
-		for (uint32_t i = 1; i <= game.maxclients; i++)
-		{
-			edict_t* ent = g_edicts + i;
+		for (auto ent : active_players()) {
 			if (ent->inuse && ent->client)
 			{
 				ent->client->resp.voted = false;
@@ -4843,7 +4841,8 @@ void CTFWarp(edict_t* ent, const char* map_name)
 
 		// Crear una cadena temporal para la lista de mapas
 		const char* mlist = g_map_list->string;
-		char formatted_map_list[8192] = "-";
+		char* formatted_map_list = new char[8192];
+		formatted_map_list[0] = '-';
 		int map_index = 1;  // Contador para la numeración de mapas
 
 		// Procesar cada mapa individualmente
@@ -4851,7 +4850,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		{
 			char map_entry[128];
 			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-			strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+			strncat(formatted_map_list, map_entry, 8192 - strlen(formatted_map_list) - 1);
 			map_index++;
 		}
 
@@ -4863,6 +4862,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		}
 
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
+		delete[] formatted_map_list; // Liberar la memoria
 		return;
 	}
 
@@ -4888,7 +4888,8 @@ void CTFWarp(edict_t* ent, const char* map_name)
 
 		// Crear una cadena temporal para la lista de mapas
 		mlist = g_map_list->string;
-		char formatted_map_list[8192] = "-";
+		char* formatted_map_list = new char[8192];
+		formatted_map_list[0] = '-';
 		int map_index = 1;  // Contador para la numeración de mapas
 
 		// Procesar cada mapa individualmente
@@ -4896,7 +4897,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		{
 			char map_entry[128];
 			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-			strncat(formatted_map_list, map_entry, sizeof(formatted_map_list) - strlen(formatted_map_list) - 1);
+			strncat(formatted_map_list, map_entry, 8192 - strlen(formatted_map_list) - 1);
 			map_index++;
 		}
 
@@ -4908,6 +4909,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		}
 
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
+		delete[] formatted_map_list; // Liberar la memoria
 		return;
 	}
 
