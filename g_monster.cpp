@@ -852,6 +852,7 @@ THINK(monster_dead_think) (edict_t* self) -> void
 extern void boss_die(edict_t* boss);
 void monster_dead(edict_t* self)
 {
+	OnEntityDeath(self);
 	self->think = monster_dead_think;
 	self->nextthink = level.time + 10_hz;
 	self->movetype = MOVETYPE_TOSS;
