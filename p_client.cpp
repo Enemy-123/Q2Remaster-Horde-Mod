@@ -1021,11 +1021,21 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		if (level.start_items && *level.start_items)
 			Player_GiveStartItems(ent, level.start_items);
 
-		if (!G_IsDeathmatch() || g_horde->integer)
-			client->pers.inventory[IT_ITEM_COMPASS] = 1;
-
+		if (!G_IsDeathmatch() || g_horde->integer) {
+		client->pers.inventory[IT_ITEM_COMPASS] = 1;
 		client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
+		for (int i = 0; i < MAX_ITEMS; i++) 
+			{
+				gitem_t* item = &itemlist[i];
+				if (item->flags& IF_TECH&& ent->client->pers.inventory[i] == 0 && ent->client->resp.ctf_team != CTF_NOTEAM)
+					client->pers.inventory[IT_TECH_STRENGTH] = 1;
+				else if (ent->client->resp.ctf_team == CTF_NOTEAM && item->flags & IF_TECH && ent->client->pers.inventory[i] > 1)
+					client->pers.inventory[IT_TECH_STRENGTH] = 0;
+				//should add rest of techs? 
+
+			}
+		}
 		// Starting items for horde mode
 		if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number <= 12) {
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;

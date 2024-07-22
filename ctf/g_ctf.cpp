@@ -2772,13 +2772,13 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 	// tell everyone
 	gi.LocBroadcast_Print(PRINT_CHAT, ctfgame.emsg);
-	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass/Inventory to vote, Optionally Type YES or NO to vote on this request.\n");
+	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass/Inventory to vote, Optionally Type YES or NO on console to vote on this request.\n");
 
 	int time_left = (ctfgame.electtime - level.time).seconds<int>();
 	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}  Time left: {}s\n", ctfgame.evotes, ctfgame.needvotes, time_left).c_str());
 
 	// Actualizar el configstring con la información de la votación
-	std::string vote_info_str = fmt::format("Vote started by {}: {} Time left: {}s", ent->client->pers.netname, msg, time_left);
+	std::string vote_info_str = fmt::format("Vote started by {}: {} Time left: {}s\nUse Compass / Inventory <KEY> to vote on this request.\n", ent->client->pers.netname, msg, time_left);
 	gi.configstring(CONFIG_VOTE_INFO, vote_info_str.c_str());
 
 	// Guardar el mensaje en el voted_map de cada cliente
@@ -4941,7 +4941,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 
 	// Establecer ctfgame.elevel antes de llamar a CTFBeginElection
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
-	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\n", playerName, token).data()))
+	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n", playerName, token).data()))
 	{
 		// ctfgame.elevel ya se ha establecido
 	}
