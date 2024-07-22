@@ -1639,20 +1639,25 @@ void G_InitStatusbar(statusbar_t& sb)
 		// help / weapon icon
 		sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
 
-		if (G_IsCooperative() && g_hardcoop->integer && !g_horde->integer)
-		{
-			sb.xl(2).yb(-23).string2("\nINSANE COOP");
-		}
-		if (G_IsCooperative())
-		{
-			sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
-			sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
-			sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
-			sb.xr(-52).yb(-23).num(3, STAT_REMAINING_MONSTERS).xr(-117).yb(-23).string2(" Stroggs \n To  Kill!");
-			sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
-			sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
-		}
+		sb.xl(2).yb(-23).string2("\nINSANE COOP");
+		
+
+		sb.ifstat(STAT_ID_DAMAGE)
+			.xv(136).yv(150).num(5, STAT_ID_DAMAGE)
+			.xv(130).yv(159).string2("DMG-ID")
+			.endifstat();
+
+
+
+		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
+
+		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
+		sb.xr(-52).yb(-23).num(3, STAT_REMAINING_MONSTERS).xr(-117).yb(-23).string2(" Stroggs \n To  Kill!");
+		sb.ifstat(STAT_COOP_RESPAWN).xv(0).yt(210).loc_stat_cstring2(STAT_COOP_RESPAWN).endifstat();
+		sb.ifstat(STAT_LIVES).xr(-26).yt(49).lives_num(STAT_LIVES).xr(-8).yt(28).loc_rstring("$g_lives").endifstat();
+
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		sb.ifstat(STAT_CTF_TECH).yb(-137).xr(-26).pic(STAT_CTF_TECH).endifstat();
 	}

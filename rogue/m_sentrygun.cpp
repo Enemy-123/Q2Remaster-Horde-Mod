@@ -746,15 +746,6 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 }
 
 
-THINK(turret2_timeout) (edict_t* self) -> void
-{
-	self->health -= 3;
-	self->monsterinfo.power_armor_power -= 5;
-
-	if (self->monsterinfo.power_armor_power <= 10)
-		self->health -= 10;
-}
-
 // **********************
 //  WALL SPAWN
 // **********************
@@ -975,6 +966,20 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	return true;
 }
 
+//THINK(turret2_regen) (edict_t* self) -> void
+//{
+//	gi.Com_PrintFmt("THINK TURRET2_REGEN LOAD: {}\n", self->classname);
+//
+//	if (self->health <= 125) {
+//		if (self->regentime > level.time)
+//			self->regentime = level.time;
+//		self->health += 5;
+//		self->monsterinfo.power_armor_power += 5;
+//		self->regentime += 500_ms;
+//		gi.Com_PrintFmt("Regenerating turret health. Current health: %d\n", self->health);
+//
+//	}
+//}
 
 // **********************
 //  SPAWN
@@ -1016,9 +1021,9 @@ void SP_monster_sentrygun(edict_t* self)
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
 
+	//self->nextthink = level.time + FRAME_TIME_MS;
+	//self->think = turret2_regen;
 
-	//self->think = G_FreeEdict;
-	//self->nextthink = level.time + 2_sec;
 
 
 	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;

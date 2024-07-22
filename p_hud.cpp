@@ -1165,6 +1165,27 @@ void G_SetStats(edict_t* ent)
 			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}
 	}
+	void CTFSetIDView(edict_t* ent);
+	//ID DMG and CTFIDVIEW
+
+	if (ent->client->resp.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
+		CTFSetIDView(ent);
+
+	else
+	{
+		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+	}
+
+
+	// DMG ID
+	if (level.time > ent->lastdmg + 1.75_sec || !g_iddmg->integer) {
+		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
+	}
+	else if (ent->client->resp.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
+		ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
+	}
+
 
 	// ZOID
 	SetCTFStats(ent);

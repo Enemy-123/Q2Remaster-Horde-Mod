@@ -3353,7 +3353,7 @@ struct edict_t
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	float original_dmg; // original dmg on bouncy gl, so it will reduce over bounces
 	int configstringIndex; // cs
-	gtime_t last_sound_check;
+	gtime_t	regentime = 0.25_sec;
 };
 #define TEAM1 "team1"
 #define TEAM2 "team2"
