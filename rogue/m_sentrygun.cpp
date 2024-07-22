@@ -404,7 +404,7 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 //  ATTACK
 // **********************
 
-constexpr int32_t TURRET2_BLASTER_DAMAGE = 9;
+constexpr int32_t TURRET2_BLASTER_DAMAGE = 12;
 constexpr int32_t TURRET2_BULLET_DAMAGE = 6;
 // unused
 // constexpr int32_t turret2_HEAT_DAMAGE	= 4;
@@ -482,8 +482,8 @@ void turret2Fire(edict_t* self)
 			// Disparo de cohetes cada 3 segundos
 			if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 			{
-				gtime_t currentTime = level.time;
-				gtime_t rocketFireInterval = ROCKET_FIRE_INTERVAL;
+				 gtime_t currentTime = level.time;
+				 gtime_t rocketFireInterval = ROCKET_FIRE_INTERVAL;
 				if (currentTime > self->monsterinfo.last_rocket_fire_time + rocketFireInterval)
 				{
 					self->monsterinfo.last_rocket_fire_time = currentTime;
@@ -497,7 +497,7 @@ void turret2Fire(edict_t* self)
 				}
 			}
 
-			gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 4_sec); // Por ejemplo, cada 4 segundos
+			 gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 3_sec); // Por ejemplo, cada 4 segundos
 			if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
 				start = self->s.origin;
@@ -510,7 +510,7 @@ void turret2Fire(edict_t* self)
 					{
 						// Sigue disparando heatbeam
 						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
-						monster_fire_heatbeam(self, start, dir, vec3_origin, 10, 50, MZ2_TURRET_BLASTER);
+						monster_fire_heatbeam(self, start, dir, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
 						damageApplied = true;
 					}
 
@@ -540,7 +540,7 @@ void turret2Fire(edict_t* self)
 					{
 						// Aplica el daño con el mod_t configurado
 
-						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 0, DAMAGE_NONE, MOD_TURRET);
+						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
 						monster_fire_bullet(self, start, dir, 0, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
 						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 						damageApplied = true;
@@ -555,7 +555,7 @@ void turret2Fire(edict_t* self)
 				if (dist * trace.fraction > 72 && !damageApplied)
 				{
 					// Aplica el daño con el mod_t configurado
-					T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, 70, 0, DAMAGE_DESTROY_ARMOR, MOD_TURRET);
+				//	T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, 70, 0, DAMAGE_DESTROY_ARMOR, MOD_TURRET);
 					fire_rocket(self, start, dir, 70, rocketSpeed, MZ2_TURRET_ROCKET, MOD_TURRET); // Pasa el mod_t a monster_fire_rocket
 					damageApplied = true;
 				}

@@ -3386,7 +3386,7 @@ extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
 	gtime_t inactivity_duration = 45_sec;
 
-	if (!ent->client || (ent->svflags & SVF_BOT)) {
+	if (level.intermissiontime  || !ent->client || (ent->svflags & SVF_BOT)) {
 		return true;
 	}
 
