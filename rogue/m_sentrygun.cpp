@@ -855,7 +855,7 @@ USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 	vec3_t	 forward = { 0, 0, 0 };
 	edict_t* base;
 
-	self->movetype = MOVETYPE_PUSH;
+	self->movetype = MOVETYPE_NONE;
 	if (!self->speed)
 		self->speed = 15;
 	self->moveinfo.speed = self->speed;
@@ -1039,7 +1039,7 @@ void SP_monster_sentrygun(edict_t* self)
 	self->die = turret2_die;
 
 	// [Paril-KEX]
-	if (!G_ShouldPlayersCollide(true)) {
+	if (self->owner->client && !G_ShouldPlayersCollide(true)) {
 		self->clipmask &= ~CONTENTS_PLAYER;
 	}
 

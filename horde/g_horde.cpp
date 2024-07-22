@@ -1213,7 +1213,7 @@ void SpawnBossAutomatically() noexcept {
 
             // Realizar la traza para verificar colisiones
             trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
-
+           // if (tr.startsolid || tr.allsolid)
             if (tr.startsolid) {
                 // Realizar telefrag si hay colisi�n
                 auto hit = tr.ent;
