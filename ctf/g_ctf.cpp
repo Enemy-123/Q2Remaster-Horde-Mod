@@ -1323,17 +1323,17 @@ void CTFSetIDView(edict_t* ent) {
 			name = title + FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
 			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 
-			if (best->monsterinfo.armor_power > 0 || best->monsterinfo.power_armor_power > 0) {
-				health_string = fmt::format("{}\nH: {} A: {} PA: {}",
-					name,
-					best->health,
-					best->monsterinfo.armor_power,
-					best->monsterinfo.power_armor_power);
+			// Inicializa la cadena de salud siempre mostrando la salud
+			health_string = fmt::format("{}\nH: {}", name, best->health);
+
+			// Añade la armadura solo si es 1 o mayor
+			if (best->monsterinfo.armor_power >= 1) {
+				health_string += fmt::format(" A: {}", best->monsterinfo.armor_power);
 			}
-			else {
-				health_string = fmt::format("{}\nH: {}",
-					name,
-					best->health);
+
+			// Añade la armadura de poder solo si es 1 o mayor
+			if (best->monsterinfo.power_armor_power >= 1) {
+				health_string += fmt::format(" PA: {}", best->monsterinfo.power_armor_power);
 			}
 		}
 		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine")) {
