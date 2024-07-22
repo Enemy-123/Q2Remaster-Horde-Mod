@@ -1265,7 +1265,7 @@ void CTFSetIDView(edict_t* ent) {
 	trace_t tr;
 	edict_t* who, * best = nullptr;
 	float closest_dist = 1024;
-	float min_dot = 0.98f;
+	const float min_dot = 0.98f;
 
 	if (level.time - ent->client->resp.lastidtime < 97_ms)
 		return;
