@@ -159,6 +159,11 @@ constexpr float VARIANCE = 15.0f;
 
 void WidowBlaster(edict_t* self)
 {
+	edict_t* ent2 = self->enemy;
+	if (!ent2 || !visible(self, ent2))
+		return;
+
+
 	vec3_t forward, right, up, target, vec, targ_angles;
 	vec3_t start;
 	monster_muzzleflash_id_t flashnum;

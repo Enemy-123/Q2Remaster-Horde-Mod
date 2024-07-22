@@ -96,8 +96,10 @@ void Widow2Beam(edict_t* self)
 	vec3_t start, targ_angles, vec;
 	monster_muzzleflash_id_t flashnum;
 
-	if ((!self->enemy) || (!self->enemy->inuse))
+	edict_t* ent2 = self->enemy;
+	if (!ent2 || !visible(self, ent2))
 		return;
+
 
 	// Add offset for scaled-down widow2
 	vec3_t offset = { 0.0f, 0.0f, 0.0f }; // No offset by default
