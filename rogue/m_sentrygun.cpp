@@ -36,7 +36,7 @@ bool FindMTarget(edict_t* self) {
 			continue;
 
 		// Asegúrate de que no es un jugador
-		if (ent->svflags & SVF_PLAYER)
+		if (ent->svflags & SVF_PLAYER || ent->monsterinfo.invincible_time > level.time)
 			continue;
 
 		// Solo busca enemigos en el equipo contrario y que sean monstruos

@@ -200,7 +200,7 @@ void ai_stand(edict_t* self, float dist)
         }
     }
 
-    bool FindMTarget(edict_t* self);
+    bool FindMTarget(edict_t * self);
     // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
     if (g_horde->integer) {
         // Verifica si el monstruo no tiene un enemigo
