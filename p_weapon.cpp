@@ -234,17 +234,6 @@ inline bool G_WeaponShouldStay()
 {
 	if (G_IsDeathmatch())
 		return !P_UseCoopInstancedItems(); // somehow works for horde, probably
-	// return g_dm_weapons_stay->integer;
-	else if (G_IsCooperative())
-		return !P_UseCoopInstancedItems();
-
-	return false;
-}
-
-inline bool G_WeaponShouldStay()
-{
-	if (G_IsDeathmatch())
-		return !P_UseCoopInstancedItems(); // somehow works for horde, probably
 		//return g_dm_weapons_stay->integer;
 	else if (G_IsCooperative())
 		return !P_UseCoopInstancedItems();
