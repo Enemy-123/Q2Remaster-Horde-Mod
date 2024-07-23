@@ -1028,7 +1028,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		for (int i = 0; i < MAX_ITEMS; i++) 
 			{
 				gitem_t* item = &itemlist[i];
-				if (item->flags& IF_TECH&& ent->client->pers.inventory[i] == 0 && ent->client->resp.ctf_team != CTF_NOTEAM)
+				if (item->flags& IF_TECH&& ent->client->pers.inventory[i] == 0 && ent->client->resp.ctf_team != CTF_NOTEAM && ent->svflags & SVF_BOT)
 					client->pers.inventory[IT_TECH_STRENGTH] = 1;
 				else if (ent->client->resp.ctf_team == CTF_NOTEAM && item->flags & IF_TECH && ent->client->pers.inventory[i] > 1)
 					client->pers.inventory[IT_TECH_STRENGTH] = 0;

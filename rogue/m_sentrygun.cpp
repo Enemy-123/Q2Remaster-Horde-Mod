@@ -1026,9 +1026,9 @@ void SP_monster_sentrygun(edict_t* self)
 
 
 
-	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	self->monsterinfo.power_armor_power = 125;
-	self->health = 90;
+	self->health = 100;
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 15;
