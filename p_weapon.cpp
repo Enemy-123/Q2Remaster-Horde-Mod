@@ -150,6 +150,10 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 {
 	edict_t* noise;
 
+	// Check if who->client is null
+	if (!who->client)
+		return;
+
 	if (type == PNOISE_WEAPON)
 	{
 		if (who->client->silencer_shots)
@@ -164,8 +168,8 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 		}
 	}
 
-//	if (G_IsDeathmatch())  // hordenoise hordehearing  MONSTERS PLAYERS HEARING HERE,disabled to give hearing to monsters!
-//	return;
+	// if (G_IsDeathmatch())  // hordenoise hordehearing  MONSTERS PLAYERS HEARING HERE,disabled to give hearing to monsters!
+	// return;
 
 	if (who->flags & FL_NOTARGET)
 		return;
@@ -224,6 +228,17 @@ void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type)
 	noise->absmax = where + noise->maxs;
 	noise->teleport_time = level.time;
 	gi.linkentity(noise);
+}
+
+inline bool G_WeaponShouldStay()
+{
+	if (G_IsDeathmatch())
+		return !P_UseCoopInstancedItems(); // somehow works for horde, probably
+	// return g_dm_weapons_stay->integer;
+	else if (G_IsCooperative())
+		return !P_UseCoopInstancedItems();
+
+	return false;
 }
 
 inline bool G_WeaponShouldStay()
