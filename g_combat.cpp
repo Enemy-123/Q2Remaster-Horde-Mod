@@ -780,20 +780,20 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		take = 0;
 		save = damage;
 	}
-
 	bool CanUseVamp = false;
 	bool isSentrygun = false;
 
 	// Verificar si el atacante puede usar la habilidad de vampiro
 	if ((attacker->svflags & SVF_MONSTER) &&
 		((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
-			(attacker->monsterinfo.bonus_flags & BF_POSSESSED) ||
-			(strcmp(attacker->classname, "monster_sentrygun") == 0)) &&
+			(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
 		!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
 		CanUseVamp = true;
-		if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
-			isSentrygun = true;
-		}
+	}
+
+	if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
+		isSentrygun = true;
+		CanUseVamp = true;
 	}
 	else if (!(attacker->svflags & SVF_MONSTER)) {
 		CanUseVamp = true; // Los jugadores también pueden usar la habilidad de vampiro
@@ -807,9 +807,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 			attacker->health > 0) {
 
 			// Health Vampire
+			int health_stolen = damage / 4; // Robar 25% del daño como vida
 			if (attacker->health <= attacker->max_health) {
-				int health_stolen = damage / 4; // Robar 25% del daño como vida
-
 				if (isSentrygun) {
 					health_stolen = 1; // Si es sentrygun, solo puede robar 1 de vida
 				}
@@ -874,6 +873,28 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 				attacker->health += health_stolen;
 				if (attacker->health > attacker->max_health) {
 					attacker->health = attacker->max_health;
+				}
+			}
+
+			// Curar entidades propiedad del atacante
+			if (attacker->svflags & SVF_PLAYER && current_wave_number >= 10) {
+				for (unsigned int i = 0; i < globals.num_edicts; i++) {
+					edict_t* ent = &g_edicts[i];
+
+					if (!ent->inuse)
+						continue;
+
+					if (strcmp(ent->classname, "monster_sentrygun"))
+						continue;
+
+					if (ent->owner == attacker) {
+						if (ent->health > 0) {
+							ent->health += health_stolen;
+							if (ent->health > ent->max_health) {
+								ent->health = ent->max_health;
+							}
+						}
+					}
 				}
 			}
 
