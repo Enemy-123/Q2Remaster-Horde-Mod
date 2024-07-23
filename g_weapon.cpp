@@ -326,7 +326,7 @@ static void fire_lead(edict_t *self, const vec3_t &start, const vec3_t &aimdir, 
 		gi.multicast(pos, MULTICAST_PVS, false);
 	}
 }
-extern float M_DamageModifier(edict_t* monster);
+
 /*
 =================
 fire_bullet

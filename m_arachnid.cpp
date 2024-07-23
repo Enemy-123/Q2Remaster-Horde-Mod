@@ -354,7 +354,6 @@ DIE(arachnid_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 
 	M_SetAnimation(self, &arachnid_move_death);
 
-	extern void BossDeathHandler(edict_t * boss);
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		BossDeathHandler(self);
 	}

@@ -1605,7 +1605,6 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 
 		if (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_TEAM1)
 		{
-			extern void OpenSpectatorMenu(edict_t * ent);
 			OpenSpectatorMenu(ent);
 			return;
 		}

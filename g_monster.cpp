@@ -851,7 +851,7 @@ THINK(monster_dead_think) (edict_t* self) -> void
 
 	self->nextthink = level.time + 10_hz;
 }
-extern void boss_die(edict_t* boss);
+
 void monster_dead(edict_t* self)
 {
 	OnEntityDeath(self);

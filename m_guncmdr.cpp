@@ -764,7 +764,6 @@ DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 			M_SetAnimation(self, &guncmdr_move_pain5);
 	}
 
-	extern void BossDeathHandler(edict_t * boss);
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		BossDeathHandler(self);
 

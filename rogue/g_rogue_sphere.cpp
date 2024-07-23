@@ -455,7 +455,6 @@ PAIN(vengeance_pain) (edict_t *self, edict_t *other, float kick, int damage, con
 
 // ===================
 // ===================
-extern 	bool FindMTarget(edict_t* self);
 THINK(defender_think) (edict_t* self) -> void {
 	if (!self->owner) {
 		G_FreeEdict(self);

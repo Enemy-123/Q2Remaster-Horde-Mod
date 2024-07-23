@@ -1,4 +1,4 @@
-// Copyright (c) ZeniMax Media Inc.
+ï»¿// Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 
 // g_local.h -- local definitions for game module
@@ -1007,7 +1007,7 @@ struct gitem_t
 	int32_t ammo_wheel_index = -1;
 	int32_t weapon_wheel_index = -1;
 	int32_t powerup_wheel_index = -1;
-	float* time_ptr;  // Añadir un puntero a tiempo si es necesario
+	float* time_ptr;  // AÃ±adir un puntero a tiempo si es necesario
 };
 
 // means of death
@@ -2841,7 +2841,7 @@ struct client_respawn_t
 	gtime_t				entertime;	  // level.time the client entered the game
 	int32_t				score;		  // frags, etc
 	vec3_t				cmd_angles;	  // angles sent over in the last command
-	int max_health; // Agrega este miembro si no está presente
+	int max_health; // Agrega este miembro si no estÃ¡ presente
 	gitem_t* weapon; // Agrega este miembro para almacenar el arma
 	bool spectator; // client is a spectator
 
@@ -2864,7 +2864,7 @@ struct client_respawn_t
 	gtime_t inactivity_time;
 	bool inactive;
 	gtime_t id_persist_time;
-	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
+	int32_t spree = 0;                   // contador de muertes realizadas mientras estÃ¡ vivo
 };
 
 // [Paril-KEX] seconds until we are fully invisible after
@@ -3101,10 +3101,10 @@ struct gclient_t
 	int			hook_damage;
 	// Kyper
 	std::string target_health_str;  // Cadena para mostrar la salud del objetivo
-	std::string last_statusbar;  // último statusbar para comparar cambios
+	std::string last_statusbar;  // Ãºltimo statusbar para comparar cambios
 
-	vec3_t old_origin; // Agregar para almacenar la posición anterior del jugador
-	vec3_t old_angles; // Agregar para almacenar los ángulos anteriores del jugador
+	vec3_t old_origin; // Agregar para almacenar la posiciÃ³n anterior del jugador
+	vec3_t old_angles; // Agregar para almacenar los Ã¡ngulos anteriores del jugador
 	bool techItemsRemoved;
 	gtime_t time_in_bad_area;
 	edict_t* idtarget;
@@ -3823,8 +3823,34 @@ extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
 
 
+extern void UpdateCTFIDViewConfigString(int cs_index, const std::string& value);
+extern void OnEntityDeath(edict_t* ent);
+
+extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
+extern void VectorSet(vec3_t& v, float x, float y, float z);
 extern void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out);
 extern float VectorLength(const vec3_t v);
 extern void VectorNormalize(vec3_t v);
 extern void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out);
 extern void VectorClear(vec3_t v);
+
+
+extern void RemovePlayerOwnedEntities(edict_t* player);
+extern void RemoveAllTechItems(edict_t* ent);
+extern bool ClientIsSpectating(gclient_t* cl);
+
+extern 	bool FindMTarget(edict_t* self);
+
+extern void boss_die(edict_t* boss) noexcept;
+extern void BossDeathHandler(edict_t* boss) noexcept;
+
+extern void AllowNextWaveAdvance() noexcept;
+extern void OpenSpectatorMenu(edict_t* ent);
+extern void UpdateVoteHUD();
+
+
+// Declarar la funciï¿½n GetDisplayName y GetTitleFromFlags
+extern std::string GetDisplayName(edict_t* ent);
+extern std::string GetTitleFromFlags(int bonus_flags);
+extern float M_DamageModifier(edict_t* monster);

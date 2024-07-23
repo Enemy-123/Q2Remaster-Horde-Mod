@@ -11,8 +11,6 @@ TURRET
 #include "../g_local.h"
 #include "m_rogue_turret.h"
 #include "../shared.h"
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
-
 constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = 0x0010_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = 0x0020_spawnflag;

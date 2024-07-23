@@ -972,7 +972,6 @@ DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	M_SetAnimation(self, &widow2_move_death);
 
 
-	extern void BossDeathHandler(edict_t * boss) noexcept;
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
 		!self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
 	{

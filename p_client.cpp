@@ -97,10 +97,6 @@ bool P_UseCoopInstancedItems()
 
 //=======================================================================
 
-// Declarar la funci�n GetDisplayName y GetTitleFromFlags
-extern std::string GetDisplayName(edict_t* ent);
-extern std::string GetTitleFromFlags(int bonus_flags);
-
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
 	const char* base = nullptr;
@@ -803,7 +799,6 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	self->deadflag = true;
 
 	gi.linkentity(self);
-	extern void RemovePlayerOwnedEntities(edict_t * player);
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(self);
 }
@@ -3142,7 +3137,6 @@ void ClientDisconnect(edict_t* ent)
 	if (!ent->client)
 		return;
 
-	extern void RemovePlayerOwnedEntities(edict_t * player);
 	RemovePlayerOwnedEntities(ent);
 
 	// ZOID
@@ -3379,9 +3373,6 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 	return false;
 }
 
-
-extern void RemoveAllTechItems(edict_t* ent);
-extern bool ClientIsSpectating(gclient_t* cl);
 extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
 	gtime_t inactivity_duration = 45_sec;
@@ -3444,7 +3435,6 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		}
 	}
 
-	extern inline void VectorCopy(const vec3_t & src, vec3_t & dest) noexcept;
 	VectorCopy(ent->s.origin, ent->client->old_origin);
 	VectorCopy(ent->client->v_angle, ent->client->old_angles);
 
@@ -3924,7 +3914,6 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 // [Paril-KEX] check each player to find a good
 // respawn target & position
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {

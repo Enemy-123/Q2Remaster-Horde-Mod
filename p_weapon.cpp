@@ -1478,6 +1478,7 @@ void Weapon_HyperBlaster(edict_t* ent)
 
 	Weapon_Repeating(ent, 5, 20, 49, 53, pause_frames, Weapon_HyperBlaster_Fire);
 }
+
 void VectorSet(vec3_t& v, float x, float y, float z) {
 	v[0] = x;
 	v[1] = y;

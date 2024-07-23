@@ -1015,7 +1015,6 @@ void Cmd_Kill_f(edict_t* ent)
 	// [Paril-KEX] don't allow kill to take points away in TDM
 	player_die(ent, ent, ent, 100000, vec3_origin, { MOD_SUICIDE, !!teamplay->integer });
 }
-extern void AllowNextWaveAdvance() noexcept;
 extern bool allowWaveAdvance;
 /*
 =================

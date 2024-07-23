@@ -309,8 +309,6 @@ void ResetSpawnAttempts() noexcept;
 void VerifyAndAdjustBots() noexcept;
 void ResetCooldowns() noexcept;
 
-extern void UpdateCTFIDViewConfigString(int cs_index, const std::string& value);
-
 void Horde_InitLevel(int32_t lvl) noexcept {
     last_wave_number++;
     g_horde_local.level = lvl;
@@ -1083,7 +1081,7 @@ static bool Horde_AllMonstersDead() noexcept {
     }
     return true;
 }
-extern void OnEntityDeath(edict_t* ent);
+
 static void Horde_CleanBodies() noexcept {
     for (auto ent : active_or_dead_monsters()) {
         if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
