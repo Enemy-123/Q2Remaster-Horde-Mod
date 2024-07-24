@@ -3985,8 +3985,14 @@ void CTFOpenJoinMenu(edict_t* ent)
 		team = CTF_TEAM2;
 	team = brandom() ? CTF_TEAM1 : CTF_TEAM2;
 
+	// Cerrar cualquier menú abierto antes de abrir uno nuevo
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
+
 	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, CTFUpdateJoinMenu);
 }
+
 
 bool CTFStartClient(edict_t* ent)
 {
@@ -3996,9 +4002,13 @@ bool CTFStartClient(edict_t* ent)
 	if (ent->client->resp.ctf_team != CTF_NOTEAM)
 		return false;
 
-
 	if ((!(ent->svflags & SVF_BOT) && !g_teamplay_force_join->integer) || ctfgame.match >= MATCH_SETUP)
 	{
+		// Cerrar cualquier menú abierto antes de hacer cambios en el estado del jugador
+		if (ent->client->menu) {
+			PMenu_Close(ent);
+		}
+
 		// start as 'observer'
 		ent->movetype = MOVETYPE_NOCLIP;
 		ent->solid = SOLID_NOT;
@@ -4014,6 +4024,7 @@ bool CTFStartClient(edict_t* ent)
 	}
 	return false;
 }
+
 
 void RemoveAllTechItems(edict_t* ent)
 {
@@ -4054,7 +4065,7 @@ void CTFObserver(edict_t* ent)
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
 		return;
 
-	// Guardar el arma y la salud m�xima antes de la muerte
+	// Guardar el arma y la salud máxima antes de la muerte
 	SaveClientWeaponBeforeDeath(ent->client);
 
 	// start as 'observer'
@@ -4074,12 +4085,14 @@ void CTFObserver(edict_t* ent)
 
 	ent->client->ps.gunindex = 0;
 	ent->client->ps.gunskin = 0;
-	//	ent->client->resp.score = 0;
-
-
 
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(ent);
+
+	// Cerrar el menú si está abierto
+	if (ent->client->menu) {
+		PMenu_Close(ent);
+	}
 }
 
 bool CTFInMatch()
@@ -4942,7 +4955,10 @@ void CTFWarp(edict_t* ent, const char* map_name)
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
 	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n", playerName, token).data()))
 	{
-		// ctfgame.elevel ya se ha establecido
+		// Cerrar el menú antes de cambiar el mapa
+		if (ent->client->menu) {
+			PMenu_Close(ent);
+		}
 	}
 }
 

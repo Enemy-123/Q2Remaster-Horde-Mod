@@ -3454,26 +3454,17 @@ void CheckClientsInactivity() {
 	}
 }
 
-/*
-==============
-ClientThink
-
-This will be called once for each client frame, which will
-usually be a couple times for each server frame.
-==============
-*/
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
 	edict_t* other;
-	uint32_t   i;
-	pmove_t    pm;
+	uint32_t i;
+	pmove_t pm;
 
 	level.current_entity = ent;
 	client = ent->client;
 
-	// [Paril-KEX] pass buttons through even if we are in intermission or
-	// chasing.
+	// [Paril-KEX] pass buttons through even if we are in intermission or chasing.
 	client->oldbuttons = client->buttons;
 	client->buttons = ucmd->buttons;
 	client->latched_buttons |= client->buttons & ~client->oldbuttons;
@@ -3483,19 +3474,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	if (!ClientInactivityTimer(ent))
 		return;
 
-	if ((ucmd->buttons & BUTTON_CROUCH) && pm_config.n64_physics)
-	{
-		if (client->pers.n64_crouch_warn_times < 12 &&
-			client->pers.n64_crouch_warning < level.time &&
-			(++client->pers.n64_crouch_warn_times % 3) == 0)
-		{
-			client->pers.n64_crouch_warning = level.time + 10_sec;
-			gi.LocClient_Print(ent, PRINT_CENTER, "$g_n64_crouching");
-		}
-	}
-	if (client->hook_on && ent->client->hook)
-		Hook_Service(client->hook);
-
+	// Check for intermission or awaiting respawn
 	if (level.intermissiontime || ent->client->awaiting_respawn)
 	{
 		client->ps.pmove.pm_type = PM_FREEZE;
@@ -3506,9 +3485,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		{
 			n64_sp = !G_IsDeathmatch() && level.is_n64;
 
-			// can exit intermission after five seconds
-			// Paril: except in N64. the camera handles it.
-			// Paril again: except on unit exits, we can leave immediately after camera finishes
+			// Can exit intermission after five seconds, except in N64 or unit exits
 			if (level.changemap && (!n64_sp || level.level_intermission_set) && level.time > level.intermissiontime + 5_sec && (ucmd->buttons & BUTTON_ANY))
 				level.exitintermission = true;
 		}
@@ -3518,6 +3495,12 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		else
 			client->ps.pmove.viewheight = ent->viewheight = 0;
 		ent->movetype = MOVETYPE_NOCLIP;
+
+		// Close any open menu during intermission or respawn wait
+		if (ent->client->menu) {
+			PMenu_Close(ent);
+		}
+
 		return;
 	}
 
@@ -3531,26 +3514,14 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// Handle menu movement if the menu is open
 		if (ent->client->menu)
 		{
-			if (ent->movetype == MOVETYPE_NOCLIP)
+			if (HandleMenuMovement(ent, ucmd))
 			{
-				if (HandleMenuMovement(ent, ucmd))
-				{
-					// Return early if menu movement is handled
-					return;
-				}
-			}
-			else if (ent->movetype == MOVETYPE_WALK)
-			{
-				// Custom handling for MOVETYPE_WALK if needed
-				if (HandleMenuMovement(ent, ucmd))
-				{
-					// Return early if menu movement is handled
-					return;
-				}
+				// Return early if menu movement is handled
+				return;
 			}
 		}
 
-		// set up for pmove
+		// Set up for pmove
 		memset(&pm, 0, sizeof(pm));
 
 		if (ent->movetype == MOVETYPE_NOCLIP)
@@ -3603,7 +3574,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		pm.pointcontents = gi.pointcontents;
 		pm.viewoffset = ent->client->ps.viewoffset;
 
-		// perform a pmove
+		// Perform a pmove
 		Pmove(&pm);
 
 		if (pm.groundentity && ent->groundentity)
@@ -3631,16 +3602,14 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		ent->s.origin = pm.s.origin;
 		ent->velocity = pm.s.velocity;
 
-		// [Paril-KEX] if we stepped onto/off of a ladder, reset the
-		// last ladder pos
+		// [Paril-KEX] if we stepped onto/off of a ladder, reset the last ladder pos
 		if ((pm.s.pm_flags & PMF_ON_LADDER) != (client->ps.pmove.pm_flags & PMF_ON_LADDER))
 		{
 			client->last_ladder_pos = ent->s.origin;
 
 			if (pm.s.pm_flags & PMF_ON_LADDER)
 			{
-				if (!G_IsDeathmatch() &&
-					client->last_ladder_sound < level.time)
+				if (!G_IsDeathmatch() && client->last_ladder_sound < level.time)
 				{
 					ent->s.event = EV_LADDER_STEP;
 					client->last_ladder_sound = level.time + LADDER_SOUND_TIME;
@@ -3648,7 +3617,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			}
 		}
 
-		// save results of pmove
+		// Save results of pmove
 		client->ps.pmove = pm.s;
 		client->old_pmove = pm.s;
 
@@ -3661,8 +3630,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if (pm.jump_sound && !(pm.s.pm_flags & PMF_ON_LADDER))
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
-			// Paril: removed to make ambushes more effective and to
-			// not have monsters around corners come to jumps
+			// Paril: removed to make ambushes more effective and to not have monsters around corners come to jumps
 			// PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
 		}
 
@@ -3671,7 +3639,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			ent->viewheight = 8;
 		else
 			ent->viewheight = (int)pm.s.viewheight;
-		// ROGUE
 
 		ent->waterlevel = pm.waterlevel;
 		ent->watertype = pm.watertype;
@@ -3701,7 +3668,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// PGM trigger_gravity support
 		ent->gravity = 1.0;
-		// PGM
 
 		if (ent->movetype != MOVETYPE_NOCLIP)
 		{
@@ -3709,7 +3675,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			G_TouchProjectiles(ent, old_origin);
 		}
 
-		// touch other objects
+		// Touch other objects
 		for (i = 0; i < pm.touch.num; i++)
 		{
 			trace_t& tr = pm.touch.traces[i];
@@ -3720,7 +3686,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	// fire weapon from final position if needed
+	// Fire weapon from final position if needed
 	if (client->latched_buttons & BUTTON_ATTACK)
 	{
 		if (client->resp.spectator)
@@ -3751,8 +3717,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 		else if (!ent->client->weapon_thunk)
 		{
-			// we can only do this during a ready state and
-			// if enough time has passed from last fire
+			// We can only do this during a ready state and if enough time has passed from last fire
 			if (ent->client->weaponstate == WEAPON_READY)
 			{
 				ent->client->weapon_fire_buffered = true;
@@ -3786,7 +3751,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	// update chase cam if being followed
+	// Update chase cam if being followed
 	for (i = 1; i <= game.maxclients; i++)
 	{
 		other = g_edicts + i;

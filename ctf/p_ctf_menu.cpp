@@ -85,12 +85,12 @@ void PMenu_Close(edict_t* ent)
 {
 	pmenuhnd_t* hnd;
 
-	// Verificar si estamos en tiempo de intermisión
-	if (level.intermissiontime)
-	{
-		gi.Com_PrintFmt("Skipping PMenu_Close during intermission\n");
-		return;
-	}
+	//// Verificar si estamos en tiempo de intermisión
+	//if (level.intermissiontime)
+	//{
+	//	gi.Com_PrintFmt("Skipping PMenu_Close during intermission\n");
+	//	return;
+	//}
 
 	if (!ent->client->menu)
 		return;
@@ -100,21 +100,22 @@ void PMenu_Close(edict_t* ent)
 	// Verificar y liberar memoria de manera segura
 	if (hnd->entries)
 	{
-	//	gi.Com_PrintFmt("Freeing hnd->entries: %p\n", static_cast<void*>(hnd->entries)); // Cast to void*
+//		gi.Com_PrintFmt("Freeing hnd->entries: {}\n", static_cast<void*>(hnd->entries)); // Cast to void*
 		gi.TagFree(hnd->entries);
 		hnd->entries = nullptr;
 	}
 	if (hnd->arg)
 	{
-	//	gi.Com_PrintFmt("Freeing hnd->arg: %p\n", static_cast<void*>(hnd->arg)); // Cast to void*
+//		gi.Com_PrintFmt("Freeing hnd->arg: {}\n", static_cast<void*>(hnd->arg)); // Cast to void*
 		gi.TagFree(hnd->arg);
 		hnd->arg = nullptr;
 	}
-//	gi.Com_PrintFmt("Freeing hnd: %p\n", static_cast<void*>(hnd)); // Cast to void*
+//	gi.Com_PrintFmt("Freeing hnd: {}\n", static_cast<void*>(hnd)); // Cast to void*
 	gi.TagFree(hnd);
 	ent->client->menu = nullptr;
 	ent->client->showscores = false;
 }
+
 
 // only use on pmenu's that have been called with PMenu_Open
 void PMenu_UpdateEntry(pmenu_t* entry, const char* text, int align, SelectFunc_t SelectFunc)
