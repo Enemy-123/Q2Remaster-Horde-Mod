@@ -55,11 +55,11 @@ const std::unordered_set<std::string> smallMaps = {
     "q64/dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
     "q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","mgu3m4",
     "mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0", "q64/dm6",
-    "q64/dm8", "q64/dm4"
+    "q64/dm8", "q64/dm4", "industry"
 };
 
 const std::unordered_set<std::string> bigMaps = {
-    "q2ctf5", "old/kmdm3", "xdm2", "xdm6"
+    "q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6"
 };
 
 // Funci�n para obtener el tama�o del mapa
@@ -1141,6 +1141,8 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2ctf5", {2432, -960, 168}},
     {"xdm2", {-232, 472, 424}},
     {"xdm6", {-1088, -128, 528}},
+    {"rdm6", {712, 1328, 48}},
+    {"industry", {-1009, -545, 79}},
     {"mgu3m4", {3312, 3344, 864}},
     {"mgdm1", {176, 64, 288}},
     {"mgu6trial", {-848, 176, 96}},
