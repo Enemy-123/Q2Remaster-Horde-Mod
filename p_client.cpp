@@ -3348,18 +3348,25 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 	}
 
 	// Manejar la selección del menú con los botones de ataque o salto
-	if ((ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
+	if ((ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
 	{
 		PMenu_Select(ent); // Seleccionar el elemento del menú
 		ent->client->menu_selected = true; // Marcar como seleccionado
+
+		// Limpiar los botones para evitar disparos o saltos
+		ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
 		return true;
 	}
 
 	// Reiniciar menu_selected cuando no se presionan los botones de ataque o salto
-	if (!(ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
+	if (!(ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
 	{
 		ent->client->menu_selected = false;
 	}
+
+	// Anular los movimientos físicos después de manejar el menú
+	ucmd->forwardmove = 0;
+	ucmd->sidemove = 0;
 
 	return false;
 }
@@ -3444,7 +3451,6 @@ void CheckClientsInactivity() {
 		}
 	}
 }
-
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
@@ -3452,8 +3458,19 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	uint32_t i;
 	pmove_t pm;
 
-	level.current_entity = ent;
 	client = ent->client;
+
+	//// Inicializar prev_pm_type si es la primera vez que se usa
+	//if (client->prev_pm_type == PM_UNINITIALIZED) {
+	//	client->prev_pm_type = client->ps.pmove.pm_type;
+	//}
+
+	//// Guardar el estado original solo si aún no está guardado y el menú está por abrirse
+	//if (!client->menu && ent->client->menu && client->ps.pmove.pm_type != PM_FREEZE) {
+	//	client->prev_pm_type = client->ps.pmove.pm_type;
+	//}
+
+	level.current_entity = ent;
 
 	// [Paril-KEX] pass buttons through even if we are in intermission or chasing.
 	client->oldbuttons = client->buttons;
@@ -3467,7 +3484,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	if (client->hook_on && ent->client->hook)
 		Hook_Service(client->hook);
-
 
 	// Check for intermission or awaiting respawn
 	if (level.intermissiontime || ent->client->awaiting_respawn)
@@ -3509,12 +3525,21 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// Handle menu movement if the menu is open
 		if (ent->client->menu)
 		{
+			// Detener completamente el movimiento físico
+			VectorClear(ent->velocity);
+
+			// Procesar movimientos de menú
 			if (HandleMenuMovement(ent, ucmd))
 			{
-				// Return early if menu movement is handled
+				// Evitar procesar más lógica de movimiento o ataque este turno
 				return;
 			}
 		}
+		//else if (client->prev_pm_type != PM_UNINITIALIZED) {
+		//	// Restaurar el tipo de movimiento anterior al cerrar el menú
+		//	client->ps.pmove.pm_type = client->prev_pm_type;
+		//	client->prev_pm_type = PM_UNINITIALIZED; // Restablecer para evitar usos futuros incorrectos
+		//}
 
 		// Set up for pmove
 		memset(&pm, 0, sizeof(pm));
