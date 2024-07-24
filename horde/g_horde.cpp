@@ -565,7 +565,7 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) no
     }
 
     if (mapSize.isMediumMap) {
-        if (mapname == "q64/dm3" || mapname == "mgu6m3") {
+        if (mapname == "q64/dm3" || mapname == "mgu6m3" || mapname == "rboss") {
             static std::vector<boss_t> filteredBossList;
             if (filteredBossList.empty()) {
                 for (const auto& boss : BOSS_MEDIUM) {
@@ -1135,6 +1135,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm6", {496, 1392, -88}},
     {"q2dm7", {816, 832, 56}},
     {"q2dm8", {112, 1216, 88}},
+    {"rboss", {856, -2080, 32}},
     {"ndctf0", {-608, -304, 184}},
     {"q2ctf4", {-2390, 1112, 218}},
     {"q2ctf5", {2432, -960, 168}},
