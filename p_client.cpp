@@ -1017,13 +1017,13 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			Player_GiveStartItems(ent, level.start_items);
 
 		if (!G_IsDeathmatch() || g_horde->integer) {
-		client->pers.inventory[IT_ITEM_COMPASS] = 1;
-		client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			client->pers.inventory[IT_ITEM_COMPASS] = 1;
+			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
-		for (int i = 0; i < MAX_ITEMS; i++) 
+			for (int i = 0; i < MAX_ITEMS; i++)
 			{
 				gitem_t* item = &itemlist[i];
-				if (item->flags& IF_TECH&& ent->client->pers.inventory[i] == 0 && ent->client->resp.ctf_team != CTF_NOTEAM && ent->svflags & SVF_BOT)
+				if (item->flags & IF_TECH && ent->client->pers.inventory[i] == 0 && ent->client->resp.ctf_team != CTF_NOTEAM && ent->svflags & SVF_BOT)
 					client->pers.inventory[IT_TECH_STRENGTH] = 1;
 				else if (ent->client->resp.ctf_team == CTF_NOTEAM && item->flags & IF_TECH && ent->client->pers.inventory[i] > 1)
 					client->pers.inventory[IT_TECH_STRENGTH] = 0;
@@ -3370,12 +3370,11 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 
 	return false;
 }
-
 extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 static bool ClientInactivityTimer(edict_t* ent) {
 	gtime_t inactivity_duration = 45_sec;
 
-	if (level.intermissiontime  || !ent->client || (ent->svflags & SVF_BOT)) {
+	if (level.intermissiontime || !ent->client || (ent->svflags & SVF_BOT)) {
 		return true;
 	}
 
@@ -3460,16 +3459,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	client = ent->client;
 
-	//// Inicializar prev_pm_type si es la primera vez que se usa
-	//if (client->prev_pm_type == PM_UNINITIALIZED) {
-	//	client->prev_pm_type = client->ps.pmove.pm_type;
-	//}
-
-	//// Guardar el estado original solo si aún no está guardado y el menú está por abrirse
-	//if (!client->menu && ent->client->menu && client->ps.pmove.pm_type != PM_FREEZE) {
-	//	client->prev_pm_type = client->ps.pmove.pm_type;
-	//}
-
 	level.current_entity = ent;
 
 	// [Paril-KEX] pass buttons through even if we are in intermission or chasing.
@@ -3535,18 +3524,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 				return;
 			}
 		}
-		//else if (client->prev_pm_type != PM_UNINITIALIZED) {
-		//	// Restaurar el tipo de movimiento anterior al cerrar el menú
-		//	client->ps.pmove.pm_type = client->prev_pm_type;
-		//	client->prev_pm_type = PM_UNINITIALIZED; // Restablecer para evitar usos futuros incorrectos
-		//}
 
 		// Set up for pmove
 		memset(&pm, 0, sizeof(pm));
 
 		if (ent->movetype == MOVETYPE_NOCLIP)
 		{
-			if (ent->client->menu)
+			if (ent->client->menu && ent->client->resp.ctf_team == CTF_NOTEAM) //test
 			{
 				client->ps.pmove.pm_type = PM_FREEZE;
 
@@ -3751,7 +3735,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
+	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM)) // test
 	{
 		if (!HandleMenuMovement(ent, ucmd))
 		{
