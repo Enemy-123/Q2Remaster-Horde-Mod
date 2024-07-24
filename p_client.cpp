@@ -2219,15 +2219,6 @@ void PutClientInServer(edict_t* ent)
 			client->respawn_timeout = level.time + 0_sec;
 		}
 
-		// Inicializar target_health_str y last_statusbar
-		//ent->client->target_health_str.clear();
-		//ent->client->last_statusbar.clear();
-
-		//// Inicializar y actualizar el HUD inmediatamente despu�s de que el jugador entre al juego
-		//statusbar_t sb;
-		//G_InitStatusbar(sb);
-		////UpdateHUD(sb, ent);
-		//gi.configstring(CS_STATUSBAR, sb.sb.str().c_str());
 		// find a spot to place us
 		if (!level.respawn_intermission)
 		{
@@ -3473,6 +3464,10 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	// check for inactivity timer
 	if (!ClientInactivityTimer(ent))
 		return;
+
+	if (client->hook_on && ent->client->hook)
+		Hook_Service(client->hook);
+
 
 	// Check for intermission or awaiting respawn
 	if (level.intermissiontime || ent->client->awaiting_respawn)
