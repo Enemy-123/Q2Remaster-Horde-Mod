@@ -1172,7 +1172,6 @@ constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
 // Incluye otras cabeceras y definiciones necesarias
-
 static const std::unordered_map<std::string, std::string> bossMessagesMap = {
     {"monster_boss2", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
     {"monster_boss2kl", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
@@ -1212,9 +1211,9 @@ void SpawnBossAutomatically() noexcept {
 
             // Realizar la traza para verificar colisiones
             trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
-           // if (tr.startsolid || tr.allsolid)
+            // if (tr.startsolid || tr.allsolid)
             if (tr.startsolid) {
-                // Realizar telefrag si hay colisi�n
+                // Realizar telefrag si hay colisión
                 auto hit = tr.ent;
                 if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
                     T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
@@ -1245,7 +1244,7 @@ void SpawnBossAutomatically() noexcept {
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
             boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la flag de super paso
 
-            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente si la ola es 10 o m�s
+            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente si la ola es 10 o más
             ApplyMonsterBonusFlags(boss);
 
             boss->monsterinfo.attack_state = AS_BLIND;
@@ -1274,7 +1273,7 @@ void SpawnBossAutomatically() noexcept {
             // Realizar el efecto de crecimiento y aplicar telefrag si es necesario
             SpawnGrow_Spawn(spawngrow_pos, size, end_size);
 
-            // Realizar telefrag en la posici�n del efecto de spawn
+            // Realizar telefrag en la posición del efecto de spawn
             trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
             if (tr_spawn.startsolid) {
                 auto hit = tr_spawn.ent;
@@ -1298,12 +1297,11 @@ void SpawnBossAutomatically() noexcept {
 
             boss_spawned_for_wave = true;  // Marcar que el jefe ha sido spawneado para esta ola
 
-            // Agregar el jefe a la lista de jefes generados autom�ticamente
+            // Agregar el jefe a la lista de jefes generados automáticamente
             auto_spawned_bosses.insert(boss);
         }
     }
 }
-
 
 
 // reset cooldowns, fixed no monster spawning on next map
