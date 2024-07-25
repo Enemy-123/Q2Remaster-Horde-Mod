@@ -3883,106 +3883,92 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
-// [Paril-KEX] check each player to find a good
-// respawn target & position
+#include <limits>
+#include <algorithm>
+#include <string>
+#include <fmt/format.h>
+
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
-	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max()); // Inicializa con el mayor valor posible
-	constexpr gtime_t max_time_in_bad_area = gtime_t::from_sec(5.0f); // Define el tiempo máximo permitido en una bad area
+	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
+	constexpr gtime_t max_time_in_bad_area = 5_sec;
+
+	edict_t* best_player = nullptr;
+	vec3_t best_spot = {};
 
 	for (auto player : active_players_no_spect()) {
-		// no dead players
-		if (player->deadflag)
-			continue;
+		if (player->deadflag) continue;
 
-		// check combat state; we can't have taken damage recently
+		// Check combat state
 		if (player->client->last_damage_time >= level.time) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
-
-			// Calcula el tiempo restante para salir de combate
 			gtime_t time_left = player->client->last_damage_time - level.time;
-
-			// Actualiza el tiempo mínimo si el actual es menor
 			if (time_left < min_time_left) {
 				min_time_left = time_left;
 			}
-
 			continue;
 		}
 
-		// check if any monsters are currently targeting us
-		// or searching for us
-		if (G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative()) { // Ignoring if monsters are searching for us
+		// Check if monsters are searching for player
+		if (G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative()) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
 		}
 
-		// check firing state; if any enemies are mad at any players,
-		// don't respawn until everybody has cooled down
-		if (monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()) {  // Ignore if monsters are mad at us
+		// Check firing state
+		if (monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			continue;
 		}
 
-		// check positioning; we must be on world ground
-		if (player->groundentity != world) {
+		// Check positioning
+		if (player->groundentity != world || player->waterlevel >= WATER_UNDER) {
 			player->client->coop_respawn_state = COOP_RESPAWN_BAD_AREA;
-
-			// Incrementa el temporizador si está en una bad area
 			player->client->time_in_bad_area += FRAME_TIME_MS;
-
-			// Calcula el tiempo restante en bad area
 			gtime_t time_left_in_bad_area = max_time_in_bad_area - player->client->time_in_bad_area;
+
+			if (time_left_in_bad_area < min_time_left) {
+				min_time_left = time_left_in_bad_area;
+			}
 
 			// Formatea el mensaje con el tiempo en bad area hasta la décima de segundo
 			std::string message_str_bad_area = fmt::format("In Bad Area! Forcing Respawn in: {:.1f}(s)", time_left_in_bad_area.seconds<float>());
-
 			// Actualiza la configstring con el mensaje de bad area
 			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str_bad_area.c_str());
 
-			// Si lleva más de 5 segundos en una bad area, forzar respawn en info_player_start
 			if (player->client->time_in_bad_area >= max_time_in_bad_area) {
-				vec3_t start_spot;
-				edict_t* spawn_point = SelectSingleSpawnPoint(player); // Ajustado para no pasar argumentos adicionales
+				edict_t* spawn_point = SelectSingleSpawnPoint(player);
 				if (spawn_point) {
-					VectorCopy(spawn_point->s.origin, start_spot);
-					return { player, start_spot };
+					return { player, spawn_point->s.origin };
 				}
 			}
-
 			continue;
 		}
 		else {
-			// Resetea el temporizador si no está en una bad area
-			player->client->time_in_bad_area = gtime_t::from_sec(0.0f);
+			player->client->time_in_bad_area = 0_ms;
 		}
 
-		// can't be in liquid
-		if (player->waterlevel >= WATER_UNDER) {
-			player->client->coop_respawn_state = COOP_RESPAWN_BAD_AREA;
-			continue;
-		}
-
-		// good player; pick a spot
+		// Find respawn spot
 		vec3_t spot;
-
 		if (!G_FindRespawnSpot(player, spot)) {
 			player->client->coop_respawn_state = COOP_RESPAWN_BLOCKED;
 			continue;
 		}
 
-		// good player most likely
-		return { player, spot };
+		best_player = player;
+		best_spot = spot;
+		break;
 	}
 
-	// Convierte min_time_left a segundos
-	std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)", min_time_left.seconds<float>());
+	// Update config string for combat state
+	if (min_time_left < gtime_t::from_ms(std::numeric_limits<int64_t>::max())) {
+		// Formatea el mensaje con el tiempo en combate hasta la décima de segundo
+		std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)", min_time_left.seconds<float>());
+		// Actualiza la configstring con el mensaje
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
+	}
 
-	// Actualiza la configstring con el mensaje
-	gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
-
-	// no good player
-	return { nullptr, {} };
+	return { best_player, best_spot };
 }
 
 enum respawn_state_t
