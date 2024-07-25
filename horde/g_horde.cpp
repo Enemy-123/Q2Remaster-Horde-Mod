@@ -887,190 +887,147 @@ void VerifyAndAdjustBots() noexcept {
 }
 
 
+#include <array>
+#include <string_view>
+void InitializeWaveSystem();
 void Horde_Init() noexcept {
-
     // Precache all items
-    for (auto& item : itemlist) PrecacheItem(&item);
+    for (auto& item : itemlist) {
+        PrecacheItem(&item);
+    }
 
     // Precache monsters
     for (const auto& monster : monsters) {
-        auto e = G_Spawn();
+        edict_t* e = G_Spawn();
         if (!e) {
             gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
             continue;
         }
-
-        // Precache items (weapons, powerups, etc.)
-        for (const auto& item : items) {
-            if (item.classname) {
-                PrecacheItem(FindItemByClassname(item.classname));
-            }
-            else {
-                gi.Com_Print("Error: Invalid item classname for precaching.\n");
-            }
-        }
-
-        // Precache bosses
-        for (const auto& boss : BOSS_SMALL) {
-            if (boss.classname) {
-                PrecacheItem(FindItemByClassname(boss.classname));
-            }
-            else {
-                gi.Com_Print("Error: Invalid boss classname for precaching.\n");
-            }
-        }
-        for (const auto& boss : BOSS_MEDIUM) {
-            if (boss.classname) {
-                PrecacheItem(FindItemByClassname(boss.classname));
-            }
-            else {
-                gi.Com_Print("Error: Invalid boss classname for precaching.\n");
-            }
-        }
-        for (const auto& boss : BOSS_LARGE) {
-            if (boss.classname) {
-                PrecacheItem(FindItemByClassname(boss.classname));
-            }
-            else {
-                gi.Com_Print("Error: Invalid boss classname for precaching.\n");
-            }
-        }
-
         e->classname = monster.classname;
         e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
         ED_CallSpawn(e);
         G_FreeEdict(e);
     }
 
-    // Precache wave start sounds
-    static const std::vector<std::string> wave_start_sounds = {
+    // Initialize wave system (includes precaching of wave sounds)
+    InitializeWaveSystem();
+
+    // Precache items and bosses
+    const auto precacheEntity = [](const auto& entity) {
+        if (entity.classname) {
+            PrecacheItem(FindItemByClassname(entity.classname));
+        }
+        else {
+            gi.Com_Print("Error: Invalid entity classname for precaching.\n");
+        }
+        };
+
+    for (const auto& item : items) precacheEntity(item);
+    for (const auto& boss : BOSS_SMALL) precacheEntity(boss);
+    for (const auto& boss : BOSS_MEDIUM) precacheEntity(boss);
+    for (const auto& boss : BOSS_LARGE) precacheEntity(boss);
+
+    // Precache additional sounds
+    constexpr std::array<std::string_view, 5> additional_sounds = {
         "misc/r_tele3.wav",
         "world/klaxon2.wav",
         "misc/tele_up.wav",
         "world/incoming.wav",
         "world/yelforce.wav"
-        //"insane/insane9.wav"
     };
 
-    for (const auto& sound : wave_start_sounds) {
-        gi.soundindex(sound.c_str());
-    }
-
-    // Precache other sounds
-    static const std::vector<std::string> other_sounds = {
-        "nav_editor/action_fail.wav",
-        "makron/roar1.wav",
-        "zortemp/ack.wav",
-        "misc/spawn1.wav",
-        "makron/voice3.wav",
-        "world/v_fac3.wav"
-        //    "world/v_fac2.wav",
-        //    "insane/insane5.wav",
-        //    "insane/insane2.wav",
-        //    "world/won.wav"
-    };
-
-    for (const auto& sound : other_sounds) {
-        gi.soundindex(sound.c_str());
+    for (const auto& sound : additional_sounds) {
+        gi.soundindex(sound.data());
     }
 
     ResetGame();
 }
-
-
-
 inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept {
     dest[0] = src[0];
     dest[1] = src[1];
     dest[2] = src[2];
 }
 
-// Manejador de muerte de jefe
+// Constantes para mejorar la legibilidad y mantenibilidad
+constexpr int MIN_VELOCITY = -200;
+constexpr int MAX_VELOCITY = 200;
+constexpr int MIN_VERTICAL_VELOCITY = 650;
+constexpr int MAX_VERTICAL_VELOCITY = 800;
+constexpr int VERTICAL_VELOCITY_RANDOM_RANGE = 200;
+
+// Función auxiliar para generar velocidad aleatoria
+vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVertical, int maxVertical) {
+    static std::random_device rd;
+    static std::mt19937 gen(rd());
+    std::uniform_int_distribution<> horizontalDis(minHorizontal, maxHorizontal);
+    std::uniform_int_distribution<> verticalDis(minVertical, maxVertical);
+
+    return {
+        static_cast<float>(horizontalDis(gen)),
+        static_cast<float>(horizontalDis(gen)),
+        static_cast<float>(verticalDis(gen) + std::uniform_int_distribution<>(0, VERTICAL_VELOCITY_RANDOM_RANGE)(gen))
+    };
+}
+
+// Función auxiliar para configurar un ítem soltado
+void SetupDroppedItem(edict_t* item, const vec3_t& origin, const vec3_t& velocity, bool applyFlags) {
+    VectorCopy(origin, item->s.origin);
+    VectorCopy(velocity, item->velocity);
+    if (applyFlags) {
+        item->spawnflags &= ~SPAWNFLAG_ITEM_DROPPED;
+        item->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+    }
+    item->movetype = MOVETYPE_BOUNCE;
+    item->s.effects |= EF_GIB;
+    item->flags &= ~FL_RESPAWN;
+}
+
 void BossDeathHandler(edict_t* boss) noexcept {
-    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-        OnEntityDeath(boss);  // Llamar a OnEntityDeath para manejar configstrings y health bar
-        boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;  // Marcar como manejado
+    if (!g_horde->integer || !boss->spawnflags.has(SPAWNFLAG_IS_BOSS) || boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+        return;
+    }
 
-        std::vector<const char*> itemsToDrop;
+    OnEntityDeath(boss);
+    boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
 
-        if (brandom()) {
-            itemsToDrop = {
-                "item_adrenaline",
-                "item_pack",
-                "item_doppleganger",
-                "item_sphere_defender",
-                "item_armor_combat",
-                "item_bandolier"
-            };
-        }
-        else {
-            itemsToDrop = {
-                "item_adrenaline",
-                "item_doppleganger",
-                "item_sphere_defender",
-                "item_pack",
-                "item_bandolier",
-                "item_armor_combat"
-            };
-        }
+    const std::array<const char*, 6> itemsToDrop = {
+        "item_adrenaline", "item_pack", "item_doppleganger",
+        "item_sphere_defender", "item_armor_combat", "item_bandolier"
+    };
 
-        // Soltar ítem especial (quad o quadfire)
-        edict_t* specialItem{};
-        if (rand() % 2 == 0) {
-            specialItem = Drop_Item(boss, FindItemByClassname("item_quad"));
-        }
-        else {
-            specialItem = Drop_Item(boss, FindItemByClassname("item_quadfire"));
-        }
+    // Soltar ítem especial (quad o quadfire)
+    const char* specialItemName = (rand() % 2 == 0) ? "item_quad" : "item_quadfire";
+    edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName));
 
-        // Establecer posición del ítem especial y hacer que salga volando
-        VectorCopy(boss->s.origin, specialItem->s.origin);
-        vec3_t velocity;
-        velocity[0] = (rand() % 400) - 200;
-        velocity[1] = (rand() % 400) - 200;
-        velocity[2] = irandom(300, 400) + (rand() % 200);
-        VectorCopy(velocity, specialItem->velocity);
+    vec3_t specialVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, 300, 400);
+    SetupDroppedItem(specialItem, boss->s.origin, specialVelocity, false);
 
-        // Soltar los demás ítems y hacer que cada uno salga volando en diferentes direcciones
-        for (const auto& itemClassname : itemsToDrop) {
-            edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
+    // Configuración adicional para el ítem especial
+    specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL | EF_BLUEHYPERBLASTER;
+    specialItem->s.renderfx |= RF_SHELL_LITE_GREEN;
 
-            // Establecer posición del ítem
-            VectorCopy(boss->s.origin, droppedItem->s.origin);
+    // Soltar los demás ítems
+    std::vector<const char*> shuffledItems(itemsToDrop.begin(), itemsToDrop.end());
+    std::shuffle(shuffledItems.begin(), shuffledItems.end(), std::mt19937(std::random_device()()));
 
-            // Aplicar velocidad al ítem
-            velocity[0] = (rand() % 400) - 200;
-            velocity[1] = (rand() % 400) - 200;
-            velocity[2] = irandom(650, 800) + (rand() % 200);
-            VectorCopy(velocity, droppedItem->velocity);
+    for (const auto& itemClassname : shuffledItems) {
+        edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
+        vec3_t itemVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
+        SetupDroppedItem(droppedItem, boss->s.origin, itemVelocity, true);
+    }
 
-            // Asegurar que el ítem tenga una velocidad instantánea
-            droppedItem->spawnflags & ~SPAWNFLAG_ITEM_DROPPED;
-            droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
-            droppedItem->movetype = MOVETYPE_BOUNCE;
-            droppedItem->s.effects |= EF_GIB;
-            droppedItem->flags &= ~FL_RESPAWN;
-        }
+    // Marcar al boss como no atacable para evitar doble manejo
+    boss->takedamage = false;
 
-        // Asegurar que el ítem especial tenga una velocidad instantánea
-        specialItem->movetype = MOVETYPE_BOUNCE;
-        specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL | EF_BLUEHYPERBLASTER;
-        specialItem->s.renderfx |= RF_SHELL_LITE_GREEN;
-        specialItem->flags &= ~FL_RESPAWN;
-
-        // Marcar al boss como no atacable para evitar doble manejo
-        boss->takedamage = false;
-        //    boss->gib_health += -99999;
-
-            // Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
-        if (strcmp(boss->classname, "monster_boss2") == 0 ||
-            strcmp(boss->classname, "monster_carrier") == 0 ||
-            strcmp(boss->classname, "monster_carrier2") == 0 ||
-            strcmp(boss->classname, "monster_boss2kl") == 0) {
-            flying_monsters_mode = false;
-        }
+    // Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
+    const std::array<const char*, 4> flyingBosses = {
+        "monster_boss2", "monster_carrier", "monster_carrier2", "monster_boss2kl"
+    };
+    if (std::find(flyingBosses.begin(), flyingBosses.end(), boss->classname) != flyingBosses.end()) {
+        flying_monsters_mode = false;
     }
 }
+
 
 void boss_die(edict_t* boss) noexcept {
     if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true && auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
@@ -1106,9 +1063,6 @@ static void Horde_CleanBodies() noexcept {
         }
     }
 }
-
-
-
 
 // attaching healthbar
 void AttachHealthBar(edict_t* boss) noexcept {
@@ -1262,7 +1216,7 @@ void SpawnBossAutomatically() noexcept {
             ApplyMonsterBonusFlags(boss);
 
             boss->monsterinfo.attack_state = AS_BLIND;
-            boss->accel *= 2;
+        //    boss->accel *= 2;
             boss->maxs *= boss->s.scale;
             boss->mins *= boss->s.scale;
 
@@ -1584,40 +1538,54 @@ void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
     g_horde_local.state = horde_state_t::rest;
 }
 // Vector para almacenar los sonidos, definido como est�tico para que solo se inicialice una vez
-static const std::vector<std::string> sounds = {
+#include <array>
+#include <random>
+
+// Array de sonidos constante
+constexpr std::array<const char*, 6> WAVE_SOUNDS = {
     "nav_editor/action_fail.wav",
     "makron/roar1.wav",
     "zortemp/ack.wav",
     "misc/spawn1.wav",
     "makron/voice3.wav",
     "world/v_fac3.wav"
-    //"world/v_fac2.wav",
-    //"insane/insane5.wav",
-    //"insane/insane2.wav",
-    //"world/won.wav"
 };
 
+
+// Función para precarga de sonidos
+void PrecacheWaveSounds() {
+    for (const auto& sound : WAVE_SOUNDS) {
+        gi.soundindex(sound);
+    }
+}
+
+// Función para obtener un sonido aleatorio
+const char* GetRandomWaveSound() {
+    std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
+    return WAVE_SOUNDS[dist(gen)];
+}
+
 void HandleWaveRestMessage(gtime_t duration = 4_sec) noexcept {
+    const char* message;
+
     if (!g_insane->integer) {
-        UpdateHordeMessage("STROGGS STARTING TO PUSH!\n\n", duration);
+        message = "STROGGS STARTING TO PUSH!\n\n";
     }
     else if (g_insane->integer == 1) {
-        if (brandom()) 
-        UpdateHordeMessage("--STRONGER WAVE INCOMING--\n\n\n", duration);
-        else
-        UpdateHordeMessage("--STRONGER WAVE INCOMING--\n\nSHOW NO MERCY!\n", duration);
+        message = brandom() ?
+            "--STRONGER WAVE INCOMING--\n\n\n" :
+            "--STRONGER WAVE INCOMING--\n\nSHOW NO MERCY!\n";
     }
-    else if (g_insane->integer == 2) {
-        UpdateHordeMessage("***CHAOTIC WAVE INCOMING***\n\nNO RETREAT!\n", duration);
-    }
-
-    std::uniform_int_distribution<size_t> dist(0, sounds.size() - 1);
-    size_t const sound_index = dist(gen);
-
-    if (sound_index < sounds.size()) {
-        gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
+    else {
+        message = "***CHAOTIC WAVE INCOMING***\n\nNO RETREAT!\n";
     }
 
+    UpdateHordeMessage(message, duration);
+
+    // Reproducir un sonido aleatorio
+    gi.sound(world, CHAN_VOICE, gi.soundindex(GetRandomWaveSound()), 1, ATTN_NONE, 0);
+
+    // Resetear el daño total para todos los jugadores activos
     for (const auto player : active_players()) {
         if (player->client) {
             player->client->total_damage = 0;
@@ -1625,50 +1593,75 @@ void HandleWaveRestMessage(gtime_t duration = 4_sec) noexcept {
     }
 }
 
+// Llamar a esta función durante la inicialización del juego
+void InitializeWaveSystem() {
+    PrecacheWaveSounds();
+}
+// Función principal para generar monstruos en el juego
 void SpawnMonsters() noexcept {
+    // Obtener información sobre el tamaño del mapa actual
     const auto mapSize = GetMapSize(level.mapname);
-    // Calcular la cantidad de monstruos por spawn seg�n el tama�o del mapa y el nivel de la horda
+
+    // Determinar la cantidad de monstruos a generar por spawn
     int32_t monsters_per_spawn;
     if (mapSize.isSmallMap) {
+        // Mapas pequeños: 2 monstruos, o 3 si el nivel de horda es 5 o mayor
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
     }
     else if (mapSize.isBigMap) {
+        // Mapas grandes: 3 monstruos, o 5 si el nivel de horda es 5 o mayor
         monsters_per_spawn = (g_horde_local.level >= 5) ? 5 : 3;
     }
-    else { // Mapas medianos (por defecto)
+    else {
+        // Mapas medianos (por defecto): 3 monstruos, o 4 si el nivel de horda es 5 o mayor
         monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
     }
 
-    // Verificar que monsters_per_spawn no exceda un valor razonable (por ejemplo, 4)
-    if (monsters_per_spawn > 4) {
-        monsters_per_spawn = 4;
+    // Limitar el número de monstruos por spawn a un máximo de 4
+    monsters_per_spawn = std::min(monsters_per_spawn, 4);
+
+    // Calcular la probabilidad de que un monstruo suelte un ítem
+    float drop_probability;
+    if (current_wave_number <= 2) {
+        drop_probability = 0.8f;  // 80% de probabilidad en las primeras 2 olas
+    }
+    else if (current_wave_number <= 7) {
+        drop_probability = 0.5f;  // 50% de probabilidad entre las olas 3 y 7
+    }
+    else {
+        drop_probability = 0.3f;  // 30% de probabilidad después de la ola 7
     }
 
-    float drop_probability = (current_wave_number <= 2) ? 0.8f : (current_wave_number >= 3 && current_wave_number <= 7) ? 0.5f : 0.3f;
-
+    // Generar monstruos
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
+        // Seleccionar un punto de spawn
         auto spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
-        if (!spawn_point) continue;
+        if (!spawn_point) continue;  // Si no hay punto de spawn, pasar al siguiente
 
+        // Seleccionar el tipo de monstruo a generar
         const char* monster_classname = G_HordePickMonster(spawn_point);
-        if (!monster_classname) continue;
+        if (!monster_classname) continue;  // Si no se pudo seleccionar un monstruo, pasar al siguiente
 
+        // Crear el monstruo
         auto monster = G_Spawn();
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
         monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+
+        // Configurar armadura para monstruos en niveles avanzados
         if (g_horde_local.level >= 17) {
             if (!st.was_key_specified("power_armor_power"))
                 monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-
             if (!st.was_key_specified("power_armor_type")) {
-                // Calcular la armadura en funci�n de la salud m�xima del monstruo
-                float health_factor = monster->max_health / 100.0f; // Ajusta el denominador seg�n la escala deseada
+                // Calcular la armadura basada en la salud del monstruo y el número de ola
+                float health_factor = monster->max_health / 100.0f;
                 int base_armor = 150;
                 int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
                 monster->monsterinfo.armor_power = base_armor + additional_armor;
             }
         }
+
+        // Determinar si el monstruo soltará un ítem
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
         }
@@ -1676,30 +1669,40 @@ void SpawnMonsters() noexcept {
             monster->item = nullptr;
         }
 
+        // Establecer la posición y orientación del monstruo
         VectorCopy(spawn_point->s.origin, monster->s.origin);
         VectorCopy(spawn_point->s.angles, monster->s.angles);
+
+        // Invocar el monstruo en el juego
         ED_CallSpawn(monster);
 
+        // Crear un efecto visual de crecimiento para el spawn del monstruo
         vec3_t spawngrow_pos = monster->s.origin;
-        const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.055f;
-        const float endsize = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.005f;
-        SpawnGrow_Spawn(spawngrow_pos, size, endsize);
+        float magnitude = std::sqrt(spawngrow_pos[0] * spawngrow_pos[0] +
+            spawngrow_pos[1] * spawngrow_pos[1] +
+            spawngrow_pos[2] * spawngrow_pos[2]);
+        float start_size = magnitude * 0.055f;
+        float end_size = magnitude * 0.005f;
+        SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
+        // Reducir el contador de monstruos por generar
         --g_horde_local.num_to_spawn;
     }
 
-    // Ajustar el tiempo de spawn para evitar spawns r�pidos basado en el tama�o del mapa
+    // Establecer el tiempo para el próximo spawn de monstruos
     if (mapSize.isSmallMap) {
+        // Mapas pequeños: spawn cada 1.5 segundos
         g_horde_local.monster_spawn_time = level.time + 1.5_sec;
     }
     else if (mapSize.isBigMap) {
+        // Mapas grandes: spawn entre 0.9 y 1.1 segundos
         g_horde_local.monster_spawn_time = level.time + random_time(0.9_sec, 1.1_sec);
     }
     else {
+        // Mapas medianos: spawn entre 1.7 y 2 segundos
         g_horde_local.monster_spawn_time = level.time + random_time(1.7_sec, 2_sec);
     }
 }
-
 // Funci�n para calcular el jugador con m�s da�o
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     int total_damage = 0;
