@@ -435,79 +435,96 @@ float range_to(edict_t* self, edict_t* other) {
     return distance_between_boxes(self->absmin, self->absmax, other->absmin, other->absmax);
 }
 
+bool IsInvisible(edict_t* ent);
+bool IsValidTarget(edict_t* self, edict_t* ent);
 #include <stdio.h> // For printf or gi.Com_Printf
-/*
-=============
-visible
+// Estructura para almacenar entidades cercanas
+struct NearbyEntity {
+    edict_t* entity;
+    float distance;
+};
 
-returns 1 if the entity is visible to self, even if not infront ()
-=============
-*/
-bool visible(edict_t* self, edict_t* other, bool through_glass) {
-    if (!self || !other) {
-        //     gi.Com_PrintFmt("visible: Invalid self or other pointer\n");
-        return false; // Handle invalid pointers gracefully
+// Función auxiliar para calcular la distancia al cuadrado (más eficiente que VectorLength)
+float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
+    vec3_t diff{};
+    VectorSubtract(v1, v2, diff);
+    return diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2];
+}
+
+bool FindMTarget(edict_t* self) {
+    const float MAX_RANGE = 800.0f;
+    const float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+    std::vector<NearbyEntity> nearbyEntities;
+
+    // Primera pasada: recolectar entidades cercanas
+    for (unsigned int i = 0; i < globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+        if (!IsValidTarget(self, ent)) continue;
+
+        float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
+        if (distSquared <= MAX_RANGE_SQUARED) {
+            nearbyEntities.push_back({ ent, distSquared });
+        }
     }
 
-    if (other->flags & FL_NOVISIBLE) {
-        //       gi.Com_PrintFmt("visible: Other entity has FL_NOVISIBLE flag\n");
+    // Ordenar entidades por distancia
+    std::sort(nearbyEntities.begin(), nearbyEntities.end(),
+        [](const NearbyEntity& a, const NearbyEntity& b) {
+            return a.distance < b.distance;
+        });
+
+    // Segunda pasada: encontrar el objetivo más cercano visible
+    for (const auto& nearbyEnt : nearbyEntities) {
+        if (visible(self, nearbyEnt.entity)) {
+            self->enemy = nearbyEnt.entity;
+            return true;
+        }
+    }
+
+    return false;
+}
+
+bool IsValidTarget(edict_t* self, edict_t* ent) {
+    return ent->inuse && ent->solid && ent != self && ent->health > 0 &&
+        !ent->deadflag && ent->solid != SOLID_NOT &&
+        !(ent->svflags & SVF_PLAYER) &&
+        ent->monsterinfo.invincible_time <= level.time &&
+        !OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER);
+}
+
+bool visible(edict_t* self, edict_t* other, bool through_glass) {
+    if (!self || !other || (other->flags & FL_NOVISIBLE)) {
         return false;
     }
 
     if (other->client) {
-        // Always visible in rtest
-        if (self->hackflags & HACKFLAG_ATTACK_PLAYER) {
-            return self->inuse;
-        }
-
-        // Fix intermission
-        if (!other->solid) {
-            //         gi.Com_PrintFmt("visible: Other entity is not solid\n");
-            return false;
-        }
-
-        if (other->client->invisible_time > level.time) {
-            // Can't see us at all after this time
-            if (other->client->invisibility_fade_time <= level.time) {
-                //             gi.Com_PrintFmt("visible: Other entity is invisible due to fade time\n");
-                return false;
-            }
-
-            // Otherwise, throw in some randomness
-            if (frandom() > other->s.alpha) {
-                //               gi.Com_PrintFmt("visible: Other entity is invisible due to alpha\n");
-                return false;
-            }
-        }
+        if (self->hackflags & HACKFLAG_ATTACK_PLAYER) return self->inuse;
+        if (!other->solid) return false;
+        if (IsInvisible(other)) return false;
     }
 
-    vec3_t spot1;
-    vec3_t spot2;
-    trace_t trace;
-
+    vec3_t spot1, spot2;
     VectorCopy(self->s.origin, spot1);
     spot1[2] += self->viewheight;
     VectorCopy(other->s.origin, spot2);
     spot2[2] += other->viewheight;
 
     contents_t mask = MASK_OPAQUE;
+    if (!through_glass) mask |= CONTENTS_WINDOW;
 
-    if (!through_glass) {
-        mask |= CONTENTS_WINDOW;
-    }
-
-    trace = gi.traceline(spot1, spot2, self, mask);
-
-    if (trace.fraction == 1.0f || trace.ent == other) {
-        //        gi.Com_PrintFmt("visible: Other entity is visible\n");
-        return true;
-    }
-    else {
-        //        gi.Com_PrintFmt("visible: Other entity is not visible\n");
-        return false;
-    }
+    trace_t trace = gi.traceline(spot1, spot2, self, mask);
+    return trace.fraction == 1.0f || trace.ent == other;
 }
 
+bool IsInvisible(edict_t* ent) {
+    if (ent->client->invisible_time > level.time) {
+        if (ent->client->invisibility_fade_time <= level.time) {
+            return true;
+        }
+        return frandom() > ent->s.alpha;
+    }
+    return false;
+}
 /*
 =============
 infront
