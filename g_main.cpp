@@ -206,9 +206,7 @@ void PreInitGame()
 
 	// Paril
 	Horde_PreInit();
-	for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
-		UpdateCTFIDViewConfigString(i, ""); // Limpiar o establecer valores iniciales
-	}
+	UpdateAllClients();
 	// ZOID
 	// This gamemode only supports deathmatch
 	if (ctf->integer)

@@ -348,9 +348,7 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     ResetSpawnAttempts();
     ResetCooldowns();
 
-    for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
-        UpdateCTFIDViewConfigString(i, ""); // Limpiar o establecer valores iniciales
-    }
+    UpdateAllClients();
 
     // Limpiar cuerpos de olas anteriores
     Horde_CleanBodies();
