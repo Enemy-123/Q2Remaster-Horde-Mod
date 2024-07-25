@@ -1247,7 +1247,7 @@ void CTFSetIDView(edict_t* ent) {
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
 	edict_t* best = nullptr;
-	float closest_dist = 1024;
+	float closest_dist = 2048;
 	const float min_dot = 0.98f;
 
 	// Find the best target within the player's view cone
