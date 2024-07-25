@@ -323,7 +323,7 @@ MMOVE_T(arachnid_move_death) = { FRAME_death1, FRAME_death20, arachnid_frames_de
 
 DIE(arachnid_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{
@@ -351,6 +351,7 @@ DIE(arachnid_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
 	self->deadflag = true;
 	self->takedamage = true;
+	OnEntityDeath(self);
 
 	M_SetAnimation(self, &arachnid_move_death);
 
