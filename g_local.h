@@ -1740,6 +1740,7 @@ struct monsterinfo_t
 	gtime_t jump_time;
 	float noise_cooldown_time;
 	bool damage_modifier_applied;
+	gtime_t last_sentrygun_target_time;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };

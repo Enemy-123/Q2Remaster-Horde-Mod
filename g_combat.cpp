@@ -325,6 +325,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 {
 	// pmm
 	bool new_tesla;
+	static constexpr gtime_t sentrygun_target_cooldown = 1.5_sec;
 
 	if (!(attacker->client) && !(attacker->svflags & SVF_MONSTER))
 		return;
@@ -337,8 +338,23 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	if ((inflictor) && (!strcmp(inflictor->classname, "tesla_mine") || !strcmp(inflictor->classname, "monster_sentrygun")))
 	{
 		new_tesla = MarkTeslaArea(targ, inflictor);
-		if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "tesla_mine") || strcmp(targ->enemy->classname, "monster_sentrygun")))
-			TargetInflictor(targ, inflictor);
+		if (!strcmp(inflictor->classname, "monster_sentrygun"))
+		{
+			// Check if enough time has passed since last sentrygun targeting
+			if (level.time - targ->monsterinfo.last_sentrygun_target_time > sentrygun_target_cooldown)
+			{
+				if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "monster_sentrygun")))
+				{
+					TargetInflictor(targ, inflictor);
+					targ->monsterinfo.last_sentrygun_target_time = level.time;
+				}
+			}
+		}
+		else if (!strcmp(inflictor->classname, "tesla_mine"))
+		{
+			if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "tesla_mine")))
+				TargetInflictor(targ, inflictor);
+		}
 		return;
 	}
 	// ROGUE
