@@ -1250,7 +1250,7 @@ void CTFSetIDView(edict_t* ent) {
 	float closest_dist = 1024;
 	const float min_dot = 0.98f;
 
-	// Buscar el mejor objetivo
+	// Find the best target within the player's view cone
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* who = g_edicts + i;
 		if (!IsValidTarget(ent, who, false))
@@ -1264,6 +1264,11 @@ void CTFSetIDView(edict_t* ent) {
 			closest_dist = dist;
 			best = who;
 		}
+	}
+
+	// If no target found within the view cone, check if the last ID target is still valid and visible
+	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
+		best = ent->client->idtarget;
 	}
 
 	if (best) {
@@ -1345,7 +1350,6 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->idtarget = nullptr;
 	}
 }
-
 
 // Nueva función para actualizar todos los clientes periódicamente
 void UpdateAllClients() {
