@@ -585,41 +585,46 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) no
 }
 
 constexpr int32_t MAX_RECENT_BOSSES = 3;
-std::set<const char*> recent_bosses;  // Conjunto de jefes recientes para evitar selecciones repetidas r�pidamente.
+std::vector<const char*> recent_bosses;  // Cambiado de std::deque a std::vector
 
-// Funci�n para seleccionar un jefe basado en el tama�o del mapa y el nombre del mapa
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) noexcept {
     const boss_t* boss_list = GetBossList(mapSize, mapname);
     if (!boss_list) return nullptr;
 
-    std::vector<const boss_t*> eligible_bosses;
-    auto boss_list_size = mapSize.isSmallMap ? std::size(BOSS_SMALL) :
+    size_t boss_list_size = mapSize.isSmallMap ? std::size(BOSS_SMALL) :
         mapSize.isMediumMap ? std::size(BOSS_MEDIUM) :
         std::size(BOSS_LARGE);
 
-    for (int32_t i = 0; i < boss_list_size; ++i) {
-        const boss_t& boss = boss_list[i];
-        if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
-            (waveNumber <= boss.max_level || boss.max_level == -1) &&
-            recent_bosses.find(boss.classname) == recent_bosses.end()) {
-            eligible_bosses.push_back(&boss);
+    std::vector<const boss_t*> eligible_bosses;
+    eligible_bosses.reserve(boss_list_size);
+
+    auto is_boss_eligible = [waveNumber](const boss_t& boss) {
+        return (waveNumber >= boss.min_level || boss.min_level == -1) &&
+            (waveNumber <= boss.max_level || boss.max_level == -1);
+        };
+
+    auto is_boss_recent = [&](const char* classname) {
+        return std::find(recent_bosses.begin(), recent_bosses.end(), classname) != recent_bosses.end();
+        };
+
+    for (size_t i = 0; i < boss_list_size; ++i) {
+        if (is_boss_eligible(boss_list[i]) && !is_boss_recent(boss_list[i].classname)) {
+            eligible_bosses.push_back(&boss_list[i]);
         }
     }
 
     if (eligible_bosses.empty()) {
         recent_bosses.clear();
-        for (int32_t i = 0; i < boss_list_size; ++i) {
-            const boss_t& boss = boss_list[i];
-            if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
-                (waveNumber <= boss.max_level || boss.max_level == -1)) {
-                eligible_bosses.push_back(&boss);
+        for (size_t i = 0; i < boss_list_size; ++i) {
+            if (is_boss_eligible(boss_list[i])) {
+                eligible_bosses.push_back(&boss_list[i]);
             }
         }
     }
 
     if (!eligible_bosses.empty()) {
-        const boss_t* chosen_boss = eligible_bosses[static_cast<int32_t>(frandom() * eligible_bosses.size())];
-        recent_bosses.insert(chosen_boss->classname);
+        const boss_t* chosen_boss = eligible_bosses[static_cast<size_t>(frandom() * eligible_bosses.size())];
+        recent_bosses.push_back(chosen_boss->classname);
         if (recent_bosses.size() > MAX_RECENT_BOSSES) {
             recent_bosses.erase(recent_bosses.begin());
         }
@@ -652,17 +657,14 @@ gitem_t* G_HordePickItem() noexcept {
         picked_items.push_back({ &item, total_weight });
     }
 
-    if (total_weight == 0) return nullptr;
+    if (picked_items.empty()) return nullptr;
 
     const float random_weight = frandom() * total_weight;
-    auto it = std::find_if(picked_items.begin(), picked_items.end(),
-        [random_weight](const picked_item_t& item) { return random_weight < item.weight; });
-    return it != picked_items.end() ? FindItemByClassname(it->item->classname) : nullptr;
+    auto it = std::lower_bound(picked_items.begin(), picked_items.end(), random_weight,
+        [](const picked_item_t& item, float value) { return item.weight < value; });
+
+    return (it != picked_items.end()) ? FindItemByClassname(it->item->classname) : nullptr;
 }
-#include <array>
-#include <unordered_set>
-#include <vector>
-#include <algorithm>
 
  int32_t WAVE_TO_ALLOW_FLYING;
 extern bool flying_monsters_mode;
