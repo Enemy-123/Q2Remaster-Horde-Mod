@@ -1136,6 +1136,9 @@ void SP_monster_tank(edict_t* self)
 
 		self->accel = 0.85f;
 		self->gib_health = -250;
+
+		if (self->monsterinfo.bonus_flags & BF_BERSERKING)
+			self->accel = 0.55;
 	}
 
 
