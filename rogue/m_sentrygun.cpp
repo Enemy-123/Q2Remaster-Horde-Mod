@@ -909,44 +909,44 @@ USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 // PMM
 MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 {
-	vec3_t spot1, spot2, spot2_scaled;
-	trace_t tr, tr_scaled;
-
 	if (!self->enemy || self->enemy->health <= 0) {
-		// No hay enemigo válido, terminar el ataque.
 		return false;
 	}
 
-	// Verificar si la torreta puede ver al enemigo a través de otros monstruos
-	spot1 = self->s.origin;
+	vec3_t spot1, spot2, spot2_scaled;
+	trace_t tr, tr_scaled;
+
+	// Ajustar los puntos de origen y destino
+	VectorCopy(self->s.origin, spot1);
 	spot1[2] += self->viewheight;
-	spot2 = self->enemy->s.origin;
+	VectorCopy(self->enemy->s.origin, spot2);
 	spot2[2] += self->enemy->viewheight;
 
-	// Traza principal sin incluir CONTENTS_MONSTER
-	tr = gi.traceline(spot1, spot2, self, CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
-
-	// Traza ajustada por escala sin incluir CONTENTS_MONSTER
-	spot2_scaled = self->enemy->s.origin;
+	// Calcular punto escalado
+	VectorCopy(self->enemy->s.origin, spot2_scaled);
 	spot2_scaled[2] += self->enemy->viewheight * self->enemy->s.scale;
-	tr_scaled = gi.traceline(spot1, spot2_scaled, self, CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
-	// Si el rayo no está bloqueado por un obstáculo sólido y no hay otro objetivo en el camino
-	if ((tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))) ||
-		(tr_scaled.allsolid || tr_scaled.startsolid || ((tr_scaled.fraction < 1.0f) && (tr_scaled.ent != self->enemy) && !OnSameTeam(self, tr_scaled.ent))))
+	// Máscara de contenido ajustada para ignorar otros monstruos
+	contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
+
+	// Trazas principales
+	tr = gi.traceline(spot1, spot2, self, mask);
+	tr_scaled = gi.traceline(spot1, spot2_scaled, self, mask);
+
+	bool can_see = !(tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))) &&
+		!(tr_scaled.allsolid || tr_scaled.startsolid || ((tr_scaled.fraction < 1.0f) && (tr_scaled.ent != self->enemy) && !OnSameTeam(self, tr_scaled.ent)));
+
+	if (!can_see)
 	{
-		// PMM - si no podemos ver nuestro objetivo, y no estamos bloqueados por un monstruo, ir a fuego ciego si está disponible
-		if ((!visible(self, self->enemy)))
+		// Lógica de fuego ciego
+		if ((!visible(self, self->enemy)) && self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 1.0_sec))
 		{
-			if ((self->monsterinfo.blindfire) && (self->monsterinfo.blind_fire_delay <= 1.0_sec))
+			tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, mask);
+			if (!(tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))))
 			{
-				tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
-				if (!(tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))))
-				{
-					self->monsterinfo.attack_state = AS_BLIND;
-					self->monsterinfo.attack_finished = level.time + random_time(400_ms, 0.2_sec); // Reduce el tiempo de espera
-					return true;
-				}
+				self->monsterinfo.attack_state = AS_BLIND;
+				self->monsterinfo.attack_finished = level.time + random_time(400_ms, 0.2_sec);
+				return true;
 			}
 		}
 		return false;
@@ -955,12 +955,16 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	if (level.time < self->monsterinfo.attack_finished)
 		return false;
 
-	gtime_t nexttime = (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET)) ? (1.0_sec - (0.2_sec * skill->integer)) :
-		(self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER)) ? (1.0_sec - (0.2_sec * skill->integer)) :
-		(0.6_sec - (0.1_sec * skill->integer)); // Reduce el tiempo de espera
+	// Ajustar tiempos de ataque basados en el tipo de arma y la dificultad
+	gtime_t nexttime;
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+		nexttime = 0.1_sec; // Tiempo más corto para el heatbeam, ya que es constante
+	else // SPAWNFLAG_TURRET2_MACHINEGUN (bullets y rockets)
+		nexttime = 0.6_sec - (0.1_sec * skill->integer);
 
 	self->monsterinfo.attack_state = AS_MISSILE;
 	self->monsterinfo.attack_finished = level.time + nexttime;
+
 	return true;
 }
 
