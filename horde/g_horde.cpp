@@ -1211,6 +1211,7 @@ void SpawnBossAutomatically() noexcept {
             boss->monsterinfo.bonus_flags |= random_flag;
             boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
             boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la flag de super paso
+            boss->monsterinfo.last_sentrygun_target_time = 0_sec;
 
             // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente si la ola es 10 o más
             ApplyMonsterBonusFlags(boss);
@@ -1647,6 +1648,7 @@ void SpawnMonsters() noexcept {
         monster->classname = monster_classname;
         monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
         monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+        monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 
         // Configurar armadura para monstruos en niveles avanzados
         if (g_horde_local.level >= 17) {
