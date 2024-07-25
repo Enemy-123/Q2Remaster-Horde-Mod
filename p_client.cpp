@@ -3370,82 +3370,112 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 
 	return false;
 }
-extern void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
+// Declaración de VectorCompare
+bool VectorCompare(const vec3_t v1, const vec3_t v2) {
+	return (v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2]);
+}
+
+// Constantes
+const gtime_t MIN_INACTIVITY_DURATION = 15_sec;
+const gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
+const gtime_t WARNING_TIME = 5_sec;
+
+// Enumeración para estados de actividad
+enum class ActivityState {
+	Active,
+	Warning,
+	Inactive
+};
+
+// Funciones auxiliares
+static void WarnInactivePlayer(edict_t* ent) {
+	gi.LocClient_Print(ent, PRINT_CENTER, "5 seconds to go AFK!\n");
+	gi.local_sound(ent, CHAN_AUTO, gi.soundindex("world/brick_wall_break1.wav"), 1, ATTN_NONE, 0);
+}
+
+static void HandleInactivePlayer(edict_t* ent) {
+	gi.LocClient_Print(ent, PRINT_CENTER, "\n\n\n\n\nYou have deserted the war against stroggs!\n UNACCEPTABLE\n");
+	CTFObserver(ent);
+	ent->client->resp.inactive = true;
+}
+
+static bool IsPlayerActive(edict_t* ent) {
+	return (ent->client->latched_buttons & BUTTON_ANY) ||
+		!VectorCompare(ent->client->old_origin, ent->s.origin) ||
+		!VectorCompare(ent->client->old_angles, ent->client->v_angle);
+}
+
 static bool ClientInactivityTimer(edict_t* ent) {
-	gtime_t inactivity_duration = 45_sec;
+	// Verificación de precondiciones
+	if (!ent || !ent->client) {
+		gi.Com_PrintFmt("Error: Invalid entity or client in ClientInactivityTimer\n");
+		return false;
+	}
 
-	if (level.intermissiontime || !ent->client || (ent->svflags & SVF_BOT)) {
+	// Casos especiales donde no se aplica la inactividad
+	if (level.intermissiontime || (ent->svflags & SVF_BOT) ||
+		ClientIsSpectating(ent->client) || ent->client->resp.ctf_team == CTF_NOTEAM) {
 		return true;
 	}
 
-	if (inactivity_duration < 15_sec) {
-		inactivity_duration = 15_sec;
-	}
+	gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
 
+	// Inicialización del temporizador de inactividad
 	if (!ent->client->resp.inactivity_time) {
-		ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
+		ent->client->resp.inactivity_time = level.time + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
 		ent->client->resp.inactive = false;
-		ent->client->techItemsRemoved = false; // Reiniciar la bandera aquí
+		ent->client->techItemsRemoved = false;
 		return true;
 	}
 
-	if (!g_horde->integer || ClientIsSpectating(ent->client)) {
-		ent->client->resp.inactivity_time = (level.time) + 1_min;
+	// Comprobación de actividad del jugador
+	if (IsPlayerActive(ent)) {
+		ent->client->resp.inactivity_time = level.time + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
 		ent->client->resp.inactive = false;
-		return true;
 	}
 	else {
-		bool is_active = (ent->client->latched_buttons & BUTTON_ANY) ||
-			ent->client->old_origin[0] != ent->s.origin[0] ||
-			ent->client->old_origin[1] != ent->s.origin[1] ||
-			ent->client->old_origin[2] != ent->s.origin[2] ||
-			ent->client->old_angles[0] != ent->client->v_angle[0] ||
-			ent->client->old_angles[1] != ent->client->v_angle[1] ||
-			ent->client->old_angles[2] != ent->client->v_angle[2];
+		gtime_t current_time = level.time;
 
-		if (is_active) {
-			ent->client->resp.inactivity_time = (level.time) + inactivity_duration;
-			ent->client->resp.inactivity_warning = false;
-			ent->client->resp.inactive = false;
-		}
-		else {
-			gtime_t current_time = (level.time);
-
-			if (current_time > ent->client->resp.inactivity_time) {
-				gi.LocClient_Print(ent, PRINT_CENTER, "\n\n\n\n\nYou have deserted the war against stroggs!\n UNACCEPTABLE\n");
-				CTFObserver(ent);
-				ent->client->resp.inactive = true;
-				return false;
-			}
-
-			if (current_time > ent->client->resp.inactivity_time - 5_sec && !ent->client->resp.inactivity_warning) {
-				ent->client->resp.inactivity_warning = true;
-				gi.LocClient_Print(ent, PRINT_CENTER, "5 seconds to go AFK!\n");
-				gi.local_sound(ent, CHAN_AUTO, gi.soundindex("world/brick_wall_break1.wav"), 1, ATTN_NONE, 0);
-			}
+		// Manejo de jugador inactivo
+		if (current_time > ent->client->resp.inactivity_time) {
+			HandleInactivePlayer(ent);
+			return false;
 		}
 
-		if (ent->client->resp.inactivity_warning && is_active) {
-			ent->client->resp.inactivity_warning = false;
+		// Advertencia de inactividad
+		if (current_time > ent->client->resp.inactivity_time - WARNING_TIME && !ent->client->resp.inactivity_warning) {
+			ent->client->resp.inactivity_warning = true;
+			WarnInactivePlayer(ent);
 		}
 	}
 
+	// Reseteo de advertencia si el jugador se vuelve activo
+	if (ent->client->resp.inactivity_warning && IsPlayerActive(ent)) {
+		ent->client->resp.inactivity_warning = false;
+	}
+
+	// Actualización de la posición y ángulos antiguos
 	VectorCopy(ent->s.origin, ent->client->old_origin);
 	VectorCopy(ent->client->v_angle, ent->client->old_angles);
 
 	return true;
 }
 
-// Definir CheckClientsInactivity
 void CheckClientsInactivity() {
-
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
 		return;
 
+	auto should_check_inactivity = [](edict_t* player) {
+		return player->inuse && player->client &&
+			player->client->resp.ctf_team != CTF_NOTEAM &&
+			!ClientIsSpectating(player->client) &&
+			!(player->svflags & SVF_BOT);
+		};
+
 	for (auto player : active_players()) {
-		if (player->inuse && player->client && player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT)) {
+		if (should_check_inactivity(player)) {
 			ClientInactivityTimer(player);
 		}
 	}
