@@ -4020,6 +4020,7 @@ void CTFObserver(edict_t* ent)
 	ent->client->resp.ctf_team = CTF_NOTEAM;
 	CTFJoinTeam(ent, CTF_NOTEAM);
 
+	ent->client->resp.spree = 0;
 	ent->client->ps.gunindex = 0;
 	ent->client->ps.gunskin = 0;
 
