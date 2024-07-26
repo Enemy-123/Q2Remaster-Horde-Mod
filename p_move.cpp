@@ -224,23 +224,13 @@ trace_t PM_Clip(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, con
 	return pm->clip(start, &mins, &maxs, end, mask);
 }
 
-trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, contents_t mask = CONTENTS_NONE)
-{
+static trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, contents_t mask = CONTENTS_NONE) {
 	extern cvar_t* g_horde;
-
-	// Asegúrate de que g_horde no sea nulo antes de usarlo
-	if (!g_horde)
-	{
-		// Maneja el error apropiadamente, por ejemplo, lanzar una excepción o establecer un valor predeterminado
-		// Aquí solo devolvemos un trazo por defecto para fines de ejemplo
-		return pm->trace(start, &mins, &maxs, end, pm->player, mask);
-	}
 
 	if (pm->s.pm_type == PM_SPECTATOR)
 		return PM_Clip(start, mins, maxs, end, MASK_SOLID);
 
-	if (mask == CONTENTS_NONE)
-	{
+	if (mask == CONTENTS_NONE) {
 		if (pm->s.pm_type == PM_DEAD || pm->s.pm_type == PM_GIB)
 			mask = MASK_DEADSOLID;
 		else if (pm->s.pm_type == PM_SPECTATOR)
@@ -251,7 +241,8 @@ trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, co
 		if (pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION)
 			mask &= ~CONTENTS_PLAYER;
 
-		if (g_horde->integer) { //fix to squad revive inside a playerclip
+		// Modificación para el modo horde
+		if (g_horde && g_horde->integer) {
 			mask &= ~CONTENTS_PLAYERCLIP;
 		}
 	}

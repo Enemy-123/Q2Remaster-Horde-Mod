@@ -3322,13 +3322,14 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 		PlayerNoise(ent, pm.s.origin, PNOISE_SELF);
 }
 
+
 // Función para manejar el movimiento del menú
-bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
+bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 {
 	if (!ent->client->menu || ent->svflags & SVF_BOT)
 		return false;
 
-	int32_t menu_sign = ucmd->forwardmove > 0 ? 1 : ucmd->forwardmove < 0 ? -1 : 0;
+	int32_t menu_sign = menu_ucmd->forwardmove > 0 ? 1 : menu_ucmd->forwardmove < 0 ? -1 : 0;
 	if (ent->client->menu_sign != menu_sign)
 	{
 		ent->client->menu_sign = menu_sign;
@@ -3344,14 +3345,16 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	if ((ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
+	if ((menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
 	{
 		PMenu_Select(ent);
 		ent->client->menu_selected = true;
+		// Limpiar los botones para evitar acciones no deseadas
+		menu_ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
 		return true;
 	}
 
-	if (!(ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
+	if (!(menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
 	{
 		ent->client->menu_selected = false;
 	}
@@ -3468,6 +3471,7 @@ void CheckClientsInactivity() {
 		}
 	}
 }
+
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
@@ -3532,9 +3536,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// Handle menu movement if the menu is open
 		if (ent->client->menu)
 		{
-			if (HandleMenuMovement(ent, ucmd))
+			// Crear una copia local de ucmd para el procesamiento del menú
+			usercmd_t menu_ucmd = *ucmd;
+
+			if (HandleMenuMovement(ent, &menu_ucmd))
 			{
-				// Si se procesó un movimiento de menú, salir
+				// Si se procesó un movimiento de menú, actualizar ucmd y salir
+				*ucmd = menu_ucmd;
 				return;
 			}
 		}
@@ -3646,7 +3654,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if (ent->flags & FL_SAM_RAIMI)
 			ent->viewheight = 8;
 		else
-		ent->viewheight = (int)pm.s.viewheight;
+			ent->viewheight = (int)pm.s.viewheight;
 
 		ent->waterlevel = pm.waterlevel;
 		ent->watertype = pm.watertype;
@@ -3739,9 +3747,12 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
 	{
-		if (!HandleMenuMovement(ent, ucmd))
+		// Crear una copia local de ucmd para el procesamiento del menú de espectadores
+		usercmd_t spec_menu_ucmd = *ucmd;
+
+		if (!HandleMenuMovement(ent, &spec_menu_ucmd))
 		{
-			if (ucmd->buttons & BUTTON_JUMP)
+			if (spec_menu_ucmd.buttons & BUTTON_JUMP)
 			{
 				if (!(client->ps.pmove.pm_flags & PMF_JUMP_HELD))
 				{
@@ -3755,6 +3766,8 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			else
 				client->ps.pmove.pm_flags &= ~PMF_JUMP_HELD;
 		}
+		// Actualizar ucmd con los cambios del menú de espectadores
+		*ucmd = spec_menu_ucmd;
 	}
 
 	// Update chase cam if being followed
