@@ -623,10 +623,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		damage = 9999;
 	}
 
-	// Registra el tipo de daño solo si no es MOD_TRAP
-	if (damage > 0 && attacker && attacker->client && mod.id != MOD_TRAP) {
-		attacker->client->total_damage += damage;
-	}
 	sphere_notified = false; // PGM
 
 	// friendly fire avoidance
@@ -935,35 +931,33 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// Calcular el daño real realizado, considerando la salud actual del objetivo
 	int real_damage = take;
 
-	if (!(targ->health <= 0 && targ->svflags & SVF_DEADMONSTER)) { // Si el objetivo no está muerto
-		// Considerar la salud máxima del objetivo y la gib_health en positivo
-		int const max_possible_health = targ->max_health + abs(targ->gib_health);
+	if (!(targ->svflags & SVF_DEADMONSTER)) {
+		// Si el objetivo no está muerto
+		if (initial_health > 0) {
+			// Limitar el daño real a la salud actual del objetivo
+			real_damage = std::min(take, initial_health);
 
-		// Asegurarse de que el daño no exceda la salud inicial ni la salud máxima posible
-		if (initial_health <= max_possible_health) {
-			real_damage = (initial_health < take) ? initial_health : take;
+			// Ajuste para mostrar daño en caso de gib, solo si el ataque actual causó la muerte
+			if (targ->health <= 0) {
+				real_damage += std::min(abs(targ->gib_health), initial_health);
+			}
 		}
 		else {
-			real_damage = take;
+			// Si el objetivo ya estaba en 0 o menos salud, contar un pequeño daño adicional
+			real_damage = std::min(take, 10);  // Limitar a 10 de daño por golpe en cuerpos "muertos"
 		}
-
-		// Ajuste para mostrar daño en caso de gib
-		if (targ->health <= 0) {
-			real_damage += abs(targ->gib_health); // Añadir gib_health al daño real
-		}
-
-		// Verificar nuevamente para asegurarse de que el daño no exceda max_possible_health
-		if (real_damage > max_possible_health) {
-			real_damage = max_possible_health;
-		}
+	}
+	else {
+		// Si el objetivo ya estaba muerto, contar un pequeño daño adicional
+		real_damage = std::min(take, 5);  // Limitar a 5 de daño por golpe en cuerpos ya muertos
 	}
 
 	// Añadir contador de daño para armas de disparo rápido
-	if (take > 0 && attacker->client) {
+	if (real_damage > 0 && attacker->client) {
 		edict_t* player = attacker;
 
 		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
-		if (g_iddmg->integer && player->client->resp.iddmg_state) { // Verificar si g_iddmg->integer está habilitado
+		if (g_iddmg->integer && player->client->resp.iddmg_state) {
 			// Verificar si el objetivo es invulnerable
 			if (!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
 				if (level.time - player->lastdmg <= 1.75_sec && player->client->dmg_counter <= 32767) {
@@ -972,11 +966,9 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 				else {
 					player->client->dmg_counter = real_damage;
 				}
-
 				player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
 			}
 		}
-
 		player->lastdmg = level.time;
 
 		// Sumar real_damage a total_damage en gclient_t

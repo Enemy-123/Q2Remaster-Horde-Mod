@@ -1705,14 +1705,42 @@ void SpawnMonsters() noexcept {
         g_horde_local.monster_spawn_time = level.time + random_time(1.7_sec, 2_sec);
     }
 }
-// Funci�n para calcular el jugador con m�s da�o
+// Función para calcular el jugador con más daño
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     int total_damage = 0;
     topDamager.total_damage = 0;
 
     for (const auto& player : active_players()) {
         if (!player->client) continue;
+
+        // Usar el daño ya calculado en iddmg si está disponible
         int player_damage = player->client->total_damage;
+
+        // Si quieres un cálculo más detallado, puedes usar esto:
+        /*
+        for (int i = 0; i < globals.num_edicts; i++) {
+            edict_t* target = &g_edicts[i];
+            if (!target->inuse || target->client == player->client) continue;
+
+            int target_initial_health = target->max_health;
+            int damage_to_target = player->client->total_damage; // Usar total_damage en lugar de damage_dealt_to
+
+            if (!(target->svflags & SVF_DEADMONSTER)) {
+                if (target_initial_health > 0) {
+                    int real_damage = (damage_to_target < target_initial_health) ? damage_to_target : target_initial_health;
+                    if (target->health <= 0) {
+                        real_damage += (abs(target->gib_health) < target_initial_health) ? abs(target->gib_health) : target_initial_health;
+                    }
+                    player_damage += real_damage;
+                } else {
+                    player_damage += (damage_to_target < 10) ? damage_to_target : 10;
+                }
+            } else {
+                player_damage += (damage_to_target < 5) ? damage_to_target : 5;
+            }
+        }
+        */
+
         total_damage += player_damage;
         if (player_damage > topDamager.total_damage) {
             topDamager.total_damage = player_damage;
@@ -1730,7 +1758,6 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     // Redondear el porcentaje a dos decimales
     percentage = std::round(percentage * 100) / 100;
 }
-
 // Funci�n para enviar el mensaje de limpieza
 void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage, gtime_t duration = 5_sec) noexcept {
     std::string playerName = GetPlayerName(topDamager.player);
