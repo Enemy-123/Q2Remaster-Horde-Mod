@@ -1211,7 +1211,7 @@ void SP_monster_carrier(edict_t* self)
 		self->mass = 1000;
 
 		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-					self->health *= 2.8f;
+					self->health *= 3.4f;
 		}
 
 		ApplyMonsterBonusFlags(self);
