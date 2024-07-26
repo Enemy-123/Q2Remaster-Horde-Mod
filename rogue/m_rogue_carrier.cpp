@@ -1139,7 +1139,8 @@ void SP_monster_carrier(edict_t* self)
 	self->health = max(2000, 2000 + 700 * (skill->integer - 1)) * st.health_multiplier;
 	// add health in coop (500 * skill)
 
-
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !strcmp(self->classname, "monster_carrier"))
+		self->health *= 2.9f;
 
 	self->gib_health = -200;
 	self->mass = 1000;
@@ -1197,12 +1198,13 @@ void SP_monster_carrier(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-	void SP_monster_carrier2(edict_t * self)
-	{
+void SP_monster_carrier2(edict_t* self)
+{
+	if (!strcmp(self->classname, "monster_carrier2")) {
 		self->spawnflags |= SPAWNFLAG_CARRIER2;
 		SP_monster_carrier(self);
 
-	
+
 		self->s.scale = 0.6f;
 		self->mins *= 0.6f;
 		self->maxs *= 0.6f;
@@ -1211,10 +1213,11 @@ void SP_monster_carrier(edict_t* self)
 		self->mass = 1000;
 
 		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-					self->health *= 3.4f;
+			self->health *= 3.6f;
 		}
 
 		ApplyMonsterBonusFlags(self);
 	}
+}
 
 
