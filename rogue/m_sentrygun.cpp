@@ -916,20 +916,20 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	vec3_t spot1, spot2, spot2_scaled;
 	trace_t tr, tr_scaled;
 
-	// Ajustar los puntos de origen y destino
+	// Adjust origin and destination points
 	VectorCopy(self->s.origin, spot1);
 	spot1[2] += self->viewheight;
 	VectorCopy(self->enemy->s.origin, spot2);
 	spot2[2] += self->enemy->viewheight;
 
-	// Calcular punto escalado
+	// Calculate scaled point
 	VectorCopy(self->enemy->s.origin, spot2_scaled);
 	spot2_scaled[2] += self->enemy->viewheight * self->enemy->s.scale;
 
-	// Máscara de contenido ajustada para ignorar otros monstruos
+	// Adjusted content mask to ignore other monsters
 	contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
-	// Trazas principales
+	// Main traces
 	tr = gi.traceline(spot1, spot2, self, mask);
 	tr_scaled = gi.traceline(spot1, spot2_scaled, self, mask);
 
@@ -938,7 +938,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 
 	if (!can_see)
 	{
-		// Lógica de fuego ciego
+		// Blind fire logic
 		if ((!visible(self, self->enemy)) && self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 1.0_sec))
 		{
 			tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, mask);
@@ -955,11 +955,11 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	if (level.time < self->monsterinfo.attack_finished)
 		return false;
 
-	// Ajustar tiempos de ataque basados en el tipo de arma y la dificultad
+	// Adjust attack times based on weapon type and difficulty
 	gtime_t nexttime;
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-		nexttime = 0.1_sec; // Tiempo más corto para el heatbeam, ya que es constante
-	else // SPAWNFLAG_TURRET2_MACHINEGUN (bullets y rockets)
+		nexttime = 0.1_sec; // Shorter time for heatbeam, as it's constant
+	else // SPAWNFLAG_TURRET2_MACHINEGUN (bullets and rockets)
 		nexttime = 0.6_sec - (0.1_sec * skill->integer);
 
 	self->monsterinfo.attack_state = AS_MISSILE;
@@ -967,7 +967,6 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 
 	return true;
 }
-
 //THINK(turret2_regen) (edict_t* self) -> void
 //{
 //	gi.Com_PrintFmt("THINK TURRET2_REGEN LOAD: {}\n", self->classname);
