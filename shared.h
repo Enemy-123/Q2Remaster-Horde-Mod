@@ -17,7 +17,7 @@
 // boss stuff
 constexpr spawnflags_t SPAWNFLAG_IS_BOSS = spawnflags_t(0x00000025); // Is monster a boss?
 constexpr spawnflags_t SPAWNFLAG_BOSS_DEATH_HANDLED = spawnflags_t(0x80000000); // is dead?
-
+void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
 // Declarar funciones globales name strings
 std::string GetDisplayName(edict_t* ent);
 std::string GetTitleFromFlags(int bonus_flags);

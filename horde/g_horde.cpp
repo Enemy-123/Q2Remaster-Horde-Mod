@@ -1133,11 +1133,6 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"test/spbox", {112, 192, 168}}
 };
 
-extern void SP_target_earthquake(edict_t* self);
-constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
-constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
-[[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
-constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
 // Incluye otras cabeceras y definiciones necesarias
 static const std::unordered_map<std::string, std::string> bossMessagesMap = {
@@ -1189,15 +1184,6 @@ void SpawnBossAutomatically() noexcept {
                 }
             }
 
-            // Crear el efecto de terremoto
-            auto earthquake = G_Spawn();
-            earthquake->classname = "target_earthquake";
-            earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_TOGGLE : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
-            earthquake->speed = (brandom()) ? 300 : 900; // Severidad del terremoto
-            earthquake->count = 5; // Duración del terremoto en segundos
-            SP_target_earthquake(earthquake);
-            earthquake->use(earthquake, boss, boss); // Activar el terremoto
-
             auto it_msg = bossMessagesMap.find(desired_boss);
             if (it_msg != bossMessagesMap.end()) {
                 gi.LocBroadcast_Print(PRINT_CHAT, it_msg->second.c_str());
@@ -1238,6 +1224,7 @@ void SpawnBossAutomatically() noexcept {
             vec3_t spawngrow_pos = boss->s.origin;
             const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.35f;
             const float end_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.005f;
+            ImprovedSpawnGrow(spawngrow_pos, size, end_size, boss);
 
             // Realizar el efecto de crecimiento y aplicar telefrag si es necesario
             SpawnGrow_Spawn(spawngrow_pos, size, end_size);
@@ -1685,7 +1672,7 @@ void SpawnMonsters() noexcept {
             spawngrow_pos[2] * spawngrow_pos[2]);
         float start_size = magnitude * 0.055f;
         float end_size = magnitude * 0.005f;
-        SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+        ImprovedSpawnGrow(spawngrow_pos, start_size, end_size, monster);
 
         // Reducir el contador de monstruos por generar
         --g_horde_local.num_to_spawn;

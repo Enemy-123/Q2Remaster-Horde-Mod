@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "../g_local.h"
+#include "../shared.h"
 
 //
 // ROGUE
@@ -250,7 +251,7 @@ void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
 	gi.linkentity(beam);
 }
 
-// ****************************
+//***************************
 // WidowLeg stuff
 // ****************************
 
