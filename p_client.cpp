@@ -3322,51 +3322,39 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 		PlayerNoise(ent, pm.s.origin, PNOISE_SELF);
 }
 
+// Función para manejar el movimiento del menú
 bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 {
-	// Verificar si el menú está abierto y si el jugador no es un bot
 	if (!ent->client->menu || ent->svflags & SVF_BOT)
 		return false;
 
-	// Manejar el movimiento del menú según la entrada de forwardmove
 	int32_t menu_sign = ucmd->forwardmove > 0 ? 1 : ucmd->forwardmove < 0 ? -1 : 0;
-
 	if (ent->client->menu_sign != menu_sign)
 	{
 		ent->client->menu_sign = menu_sign;
-
 		if (menu_sign > 0)
 		{
-			PMenu_Prev(ent); // Moverse al elemento anterior del menú
+			PMenu_Prev(ent);
 			return true;
 		}
 		else if (menu_sign < 0)
 		{
-			PMenu_Next(ent); // Moverse al siguiente elemento del menú
+			PMenu_Next(ent);
 			return true;
 		}
 	}
 
-	// Manejar la selección del menú con los botones de ataque o salto
 	if ((ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
 	{
-		PMenu_Select(ent); // Seleccionar el elemento del menú
-		ent->client->menu_selected = true; // Marcar como seleccionado
-
-		// Limpiar los botones para evitar disparos o saltos
-		ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
+		PMenu_Select(ent);
+		ent->client->menu_selected = true;
 		return true;
 	}
 
-	// Reiniciar menu_selected cuando no se presionan los botones de ataque o salto
 	if (!(ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
 	{
 		ent->client->menu_selected = false;
 	}
-
-	// Anular los movimientos físicos después de manejar el menú
-	ucmd->forwardmove = 0;
-	ucmd->sidemove = 0;
 
 	return false;
 }
@@ -3544,13 +3532,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// Handle menu movement if the menu is open
 		if (ent->client->menu)
 		{
-			// Detener completamente el movimiento físico
-			VectorClear(ent->velocity);
-
-			// Procesar movimientos de menú
 			if (HandleMenuMovement(ent, ucmd))
 			{
-				// Evitar procesar más lógica de movimiento o ataque este turno
+				// Si se procesó un movimiento de menú, salir
 				return;
 			}
 		}
@@ -3560,14 +3544,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		if (ent->movetype == MOVETYPE_NOCLIP)
 		{
-			if (ent->client->menu && ent->client->resp.ctf_team == CTF_NOTEAM) //test
-			{
-				client->ps.pmove.pm_type = PM_FREEZE;
-
-				// [Paril-KEX] handle menu movement
-				HandleMenuMovement(ent, ucmd);
-			}
-			else if (ent->client->awaiting_respawn)
+			if (ent->client->awaiting_respawn)
 				client->ps.pmove.pm_type = PM_FREEZE;
 			else if (ent->client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
 				client->ps.pmove.pm_type = PM_SPECTATOR;
@@ -3585,8 +3562,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// [Paril-KEX]
 		if (!G_ShouldPlayersCollide(false) ||
-			(G_IsDeathmatch() && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER)) // if player collision is on and we're temporarily ghostly...
-			)
+			(G_IsDeathmatch() && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER))) // if player collision is on and we're temporarily ghostly...
 			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
 		else
 			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
@@ -3664,15 +3640,13 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		if (pm.jump_sound && !(pm.s.pm_flags & PMF_ON_LADDER))
 		{
 			gi.sound(ent, CHAN_VOICE, gi.soundindex("*jump1.wav"), 1, ATTN_NORM, 0);
-			// Paril: removed to make ambushes more effective and to not have monsters around corners come to jumps
-			// PlayerNoise(ent, ent->s.origin, PNOISE_SELF);
 		}
 
 		// ROGUE sam raimi cam support
 		if (ent->flags & FL_SAM_RAIMI)
 			ent->viewheight = 8;
 		else
-			ent->viewheight = (int)pm.s.viewheight;
+		ent->viewheight = (int)pm.s.viewheight;
 
 		ent->waterlevel = pm.waterlevel;
 		ent->watertype = pm.watertype;
@@ -3700,7 +3674,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		gi.linkentity(ent);
 
-		// PGM trigger_gravity support
 		ent->gravity = 1.0;
 
 		if (ent->movetype != MOVETYPE_NOCLIP)
@@ -3751,7 +3724,6 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 		else if (!ent->client->weapon_thunk)
 		{
-			// We can only do this during a ready state and if enough time has passed from last fire
 			if (ent->client->weaponstate == WEAPON_READY)
 			{
 				ent->client->weapon_fire_buffered = true;
@@ -3765,7 +3737,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM)) // test
+	if (client->resp.spectator || (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM))
 	{
 		if (!HandleMenuMovement(ent, ucmd))
 		{
