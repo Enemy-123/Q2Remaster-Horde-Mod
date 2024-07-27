@@ -1442,96 +1442,80 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	InitBodyQue();
 
 	////////////ENT LOAD///////////////
+	bool ent_file_exists = false;
+	bool ent_valid = true;
 
-		//bool ent_file_loaded = false;
-	bool	ent_file_exists = false;
-	bool	ent_valid = true;
-
-	// load up ent override
+	// Cargar archivo de entidades
 	const char* name = G_Fmt("baseq2/maps/{}.ent", mapname).data();
 	FILE* f = fopen(name, "rb");
 	if (f != NULL) {
-		char* buffer = nullptr;
+		std::vector<char> buffer;
 		size_t length;
-		size_t read_length;
 
 		fseek(f, 0, SEEK_END);
 		length = ftell(f);
 		fseek(f, 0, SEEK_SET);
 
 		if (length > 0x40000) {
-			//gi.Com_PrintFmt("{}: Entities override file length exceeds maximum: \"{}\"\n", __FUNCTION__, name);
+			gi.Com_PrintFmt("Entities override file length exceeds maximum: \"{}\"\n", name);
 			ent_valid = false;
 		}
-		if (ent_valid) {
-			buffer = (char*)gi.TagMalloc(length + 1, '\0');
-			if (length) {
-				read_length = fread(buffer, 1, length, f);
 
+		if (ent_valid) {
+			buffer.resize(length + 1);
+			if (length) {
+				size_t read_length = fread(buffer.data(), 1, length, f);
 				if (length != read_length) {
-					//gi.Com_PrintFmt("{}: Entities override file read error: \"{}\"\n", __FUNCTION__, name);
+					gi.Com_PrintFmt("Entities override file read error: \"{}\"\n", name);
 					ent_valid = false;
+				}
+				else {
+					buffer[length] = '\0';
 				}
 			}
 		}
+
 		ent_file_exists = true;
 		fclose(f);
 
-		cvar_t* g_loadent;
-
-
-		g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
-
-		if (ent_valid) {
-			if (g_loadent->integer) {
-
-				if (VerifyEntityString((const char*)buffer)) {
-					entities = (const char*)buffer;
-					gi.Com_PrintFmt("{}: Entities override file verified and loaded: \"{}\"\n", __FUNCTION__, name);
-				}
+		cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+		if (ent_valid && g_loadent->integer) {
+			if (VerifyEntityString(buffer.data())) {
+				entities = buffer.data();
+				gi.Com_PrintFmt("Entities override file verified and loaded: \"{}\"\n", name);
 			}
 		}
-		else {
-			gi.Com_PrintFmt("{}: Entities override file load error for \"{}\", discarding.\n", __FUNCTION__, name);
+		else if (!ent_valid) {
+			gi.Com_PrintFmt("Entities override file load error for \"{}\", discarding.\n", name);
 		}
 	}
 
-
 	//////////////////////////////////
-
-
-
-	// parse ents
-	while (1)
-	{
-		// parse the opening brace
+	// Parsear entidades
+	while (1) {
+		// Parsear la llave de apertura
 		com_token = COM_Parse(&entities);
 		if (!entities)
 			break;
 		if (com_token[0] != '{')
 			gi.Com_ErrorFmt("ED_LoadFromFile: found \"{}\" when expecting {{", com_token);
 
-		if (!ent)
-			ent = g_edicts;
-		else
-			ent = G_Spawn();
+		ent = (ent) ? G_Spawn() : g_edicts;
 		entities = ED_ParseEdict(entities, ent);
 
 		// remove things (except the world) from different skill levels or deathmatch
-		if (ent != g_edicts)
-		{
-			if (G_InhibitEntity(ent))
-			{
+		if (ent != g_edicts) {
+			if (G_InhibitEntity(ent)) {
 				G_FreeEdict(ent);
 				inhibit++;
 				continue;
 			}
-
 			ent->spawnflags &= ~SPAWNFLAG_EDITOR_MASK;
 		}
 
 		if (!ent)
 			gi.Com_Error("invalid/empty entity string!");
+
 
 		// PGM - do this before calling the spawn function so it can be overridden.
 		ent->gravityVector[0] = 0.0;
