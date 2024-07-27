@@ -3348,10 +3348,16 @@ void UpdateVoteMenu() {
 
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	int option = p->cur;
-
-	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) { // Empezar en 2 para saltar la línea en blanco
-		// Construir el comando vote con el nombre del mapa seleccionado
+	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
 		const char* voted_map = vote_menu[option].text;
+
+		// Verificar si el mapa seleccionado es el mismo que el mapa actual
+		if (Q_strcasecmp(voted_map, level.mapname) == 0)
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "This map is already in progress. Please choose a different one.\n");
+			// No cerramos el menú aquí para permitir al jugador elegir otro mapa
+			return;
+		}
 		gi.LocCenter_Print(ent, "You voted for Map: {}\n", voted_map);
 		// Guardar el nombre del mapa votado en el cliente
 		Q_strlcpy(ent->client->voted_map, voted_map, sizeof(ent->client->voted_map));
@@ -4671,21 +4677,17 @@ void CTFPlayerList(edict_t* ent)
 
 	gi.Client_Print(ent, PRINT_HIGH, text.data());
 }
-
 void CTFWarp(edict_t* ent, const char* map_name)
 {
 	char* token;
-
 	if (!map_name || !*map_name)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
-
 		// Crear una cadena temporal para la lista de mapas
 		const char* mlist = g_map_list->string;
 		char* formatted_map_list = new char[8192];
 		formatted_map_list[0] = '-';
 		int map_index = 1;  // Contador para la numeración de mapas
-
 		// Procesar cada mapa individualmente
 		while (*(token = COM_Parse(&mlist)) != '\0')
 		{
@@ -4694,22 +4696,18 @@ void CTFWarp(edict_t* ent, const char* map_name)
 			strncat(formatted_map_list, map_entry, 8192 - strlen(formatted_map_list) - 1);
 			map_index++;
 		}
-
 		// Quitar el último guion si existe
 		size_t len = strlen(formatted_map_list);
 		if (len > 0 && formatted_map_list[len - 1] == '-')
 		{
 			formatted_map_list[len - 1] = '\0';
 		}
-
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
 		delete[] formatted_map_list; // Liberar la memoria
 		return;
 	}
-
 	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
 	int vote_index = atoi(map_name);  // Obtener el índice del mapa desde el argumento
-
 	int current_index = 1;  // Contador para la búsqueda del mapa
 	bool found_map = false;
 	while (*(token = COM_Parse(&mlist)) != '\0')
@@ -4722,17 +4720,14 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		}
 		current_index++;
 	}
-
 	if (!found_map)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
-
 		// Crear una cadena temporal para la lista de mapas
 		mlist = g_map_list->string;
 		char* formatted_map_list = new char[8192];
 		formatted_map_list[0] = '-';
 		int map_index = 1;  // Contador para la numeración de mapas
-
 		// Procesar cada mapa individualmente
 		while (*(token = COM_Parse(&mlist)) != '\0')
 		{
@@ -4741,23 +4736,27 @@ void CTFWarp(edict_t* ent, const char* map_name)
 			strncat(formatted_map_list, map_entry, 8192 - strlen(formatted_map_list) - 1);
 			map_index++;
 		}
-
 		// Quitar el último guion si existe
 		size_t len = strlen(formatted_map_list);
 		if (len > 0 && formatted_map_list[len - 1] == '-')
 		{
 			formatted_map_list[len - 1] = '\0';
 		}
-
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
 		delete[] formatted_map_list; // Liberar la memoria
+		return;
+	}
+
+	// Verificar si el mapa seleccionado es el mismo que el mapa actual
+	if (Q_strcasecmp(token, level.mapname) == 0)
+	{
+		gi.LocClient_Print(ent, PRINT_HIGH, "Cannot vote for the current map.\n");
 		return;
 	}
 
 	// Extraer el nombre del jugador desde userinfo
 	char playerName[32];
 	gi.Info_ValueForKey(ent->client->pers.userinfo, "name", playerName, sizeof(playerName));
-
 	// Establecer ctfgame.elevel antes de llamar a CTFBeginElection
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
 	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n", playerName, token).data()))
@@ -4768,8 +4767,6 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		}
 	}
 }
-
-
 void CTFBoot(edict_t* ent)
 {
 	edict_t* targ;
