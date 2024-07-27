@@ -482,11 +482,9 @@ void ClearHordeMessage() {
 //
 //
 
-// Improved SpawnGrow function
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity) {
 	// Create the main SpawnGrow effect
 	SpawnGrow_Spawn(position, start_size, end_size);
-
 	// Create additional effects for boss spawns
 	if (spawned_entity && (spawned_entity->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
 		// Add more dramatic effects for boss spawns
@@ -497,15 +495,12 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 			}
 			SpawnGrow_Spawn(offset, start_size * 0.5f, end_size * 0.5f);
 		}
-		
-		
-		extern void SP_target_earthquake(edict_t* self);
+
+		extern void SP_target_earthquake(edict_t * self);
 		constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
 		constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
 		[[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
 		constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
-
-
 		// Add a ground shake effect
 		auto earthquake = G_Spawn();
 		earthquake->classname = "target_earthquake";
@@ -513,12 +508,11 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 		SP_target_earthquake(earthquake);
 		earthquake->use(earthquake, spawned_entity, spawned_entity);
 	}
-
 	// Perform telefrag check
 	trace_t tr = gi.trace(position, spawned_entity->mins, spawned_entity->maxs, position, spawned_entity, CONTENTS_MONSTER | CONTENTS_PLAYER);
 	if (tr.startsolid) {
 		auto hit = tr.ent;
-		if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
+		if (hit && ((hit->client) || (hit->svflags & SVF_MONSTER) == 0)) {
 			T_Damage(hit, spawned_entity, spawned_entity, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
 			gi.Com_PrintFmt("Telefrag performed on {} during spawn\n", hit->classname);
 		}
