@@ -752,8 +752,6 @@ void G_SetStats(edict_t* ent)
 	item_id_t power_armor_type;
 	unsigned int invIndex;
 
-	// ... Código existente ...
-
 	//
 	// health
 	//
@@ -912,61 +910,83 @@ void G_SetStats(edict_t* ent)
 	ent->client->ps.stats[STAT_TIMER_ICON] = 0;
 	ent->client->ps.stats[STAT_TIMER] = 0;
 
+	// Estructura para manejar la información de las esferas
+	struct sphere_info_t {
+		spawnflags_t spawnflags;
+		const char* icon;
+		float* wait_ptr;
+	};
+
+	// Array de información de esferas
+	sphere_info_t sphere_table[] = {
+		{ SPHERE_DEFENDER, "p_defender", nullptr },
+		{ SPHERE_HUNTER, "p_hunter", nullptr },
+		{ SPHERE_VENGEANCE, "p_vengeance", nullptr },
+	};
+
 	//
 	// timers
 	//
+	std::vector<powerup_info_t*> active_powerups;
+	sphere_info_t* active_sphere = nullptr;
+
+	// Verificar esferas activas
 	if (ent->client->owned_sphere)
 	{
-		if (ent->client->owned_sphere->spawnflags == SPHERE_DEFENDER) // defender
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_defender");
-		else if (ent->client->owned_sphere->spawnflags == SPHERE_HUNTER) // hunter
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_hunter");
-		else if (ent->client->owned_sphere->spawnflags == SPHERE_VENGEANCE) // vengeance
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_vengeance");
-		else // error case
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("i_fixme");
-
-		ent->client->ps.stats[STAT_TIMER] = ceil(ent->client->owned_sphere->wait - level.time.seconds());
-	}
-	else
-	{
-		std::vector<powerup_info_t*> active_powerups;
-
-		for (auto& powerup : powerup_table)
+		for (auto& sphere : sphere_table)
 		{
-			auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
-			auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
-
-			if (powerup_time && *powerup_time <= level.time)
-				continue;
-			else if (powerup_count && !*powerup_count)
-				continue;
-
-			active_powerups.push_back(&powerup);
+			if (ent->client->owned_sphere->spawnflags == sphere.spawnflags)
+			{
+				active_sphere = &sphere;
+				break;
+			}
 		}
+	}
 
-		if (!active_powerups.empty())
+	// Recopilar power-ups activos
+	for (auto& powerup : powerup_table)
+	{
+		auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
+		auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
+		if (powerup_time && *powerup_time <= level.time)
+			continue;
+		else if (powerup_count && !*powerup_count)
+			continue;
+		active_powerups.push_back(&powerup);
+	}
+
+	if (!active_powerups.empty() || active_sphere)
+	{
+		// Función de comparación para ordenar
+		auto compare_powerups = [&ent](powerup_info_t* a, powerup_info_t* b) {
+			if (a->time_ptr && b->time_ptr)
+				return (ent->client->*a->time_ptr) < (ent->client->*b->time_ptr);
+			else if (a->time_ptr)
+				return true;
+			else if (b->time_ptr)
+				return false;
+			return false;
+			};
+
+		// Ordenar power-ups por tiempo restante
+		std::sort(active_powerups.begin(), active_powerups.end(), compare_powerups);
+
+		powerup_info_t* best_powerup = !active_powerups.empty() ? active_powerups.front() : nullptr;
+		powerup_info_t* next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
+
+		int16_t value = 0;
+		const char* icon = nullptr;
+		int16_t timer_value = 0;
+
+		// Determinar el mejor power-up (incluyendo la esfera si está activa)
+		if (active_sphere)
 		{
-			// Sort powerups by remaining time
-			std::sort(active_powerups.begin(), active_powerups.end(), [&ent](powerup_info_t* a, powerup_info_t* b)
-				{
-					if (a->time_ptr && b->time_ptr)
-						return (ent->client->*a->time_ptr) < (ent->client->*b->time_ptr);
-					else if (a->time_ptr)
-						return true;
-					else if (b->time_ptr)
-						return false;
-					return false;
-				});
-
-			// Alternate between the two powerups with the least remaining time
-			powerup_info_t* best_powerup = active_powerups.front();
-			powerup_info_t* next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
-
-			int16_t value;
-			const char* icon;
-			int16_t timer_value;
-
+			value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
+			icon = active_sphere->icon;
+			timer_value = value;
+		}
+		else if (best_powerup)
+		{
 			if (best_powerup->count_ptr)
 			{
 				value = (ent->client->*best_powerup->count_ptr);
@@ -977,27 +997,43 @@ void G_SetStats(edict_t* ent)
 				value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
 				timer_value = value;
 			}
+			icon = GetItemByIndex(best_powerup->item)->icon;
+		}
 
-			// Implement blinking logic
-			if (next_best_powerup && ((level.time.milliseconds() % 3000) < 1500))
+		// Implementar lógica de parpadeo
+		if ((next_best_powerup || (active_sphere && best_powerup)) && ((level.time.milliseconds() % 3000) < 1500))
+		{
+			if (active_sphere && best_powerup)
 			{
+				// Alternar entre la esfera y el mejor power-up
+				if (icon == active_sphere->icon)
+				{
+					icon = GetItemByIndex(best_powerup->item)->icon;
+					if (best_powerup->count_ptr)
+						timer_value = (ent->client->*best_powerup->count_ptr);
+					else
+						timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
+				}
+			}
+			else if (next_best_powerup)
+			{
+				// Alternar entre los dos mejores power-ups
 				icon = GetItemByIndex(next_best_powerup->item)->icon;
 				if (next_best_powerup->count_ptr)
 					timer_value = (ent->client->*next_best_powerup->count_ptr);
 				else
 					timer_value = ceil((ent->client->*next_best_powerup->time_ptr - level.time).seconds());
 			}
-			else
-			{
-				icon = GetItemByIndex(best_powerup->item)->icon;
-				timer_value = value;
-			}
-
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(icon);
-			ent->client->ps.stats[STAT_TIMER] = timer_value;
 		}
-	}
 
+		ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(icon);
+		ent->client->ps.stats[STAT_TIMER] = timer_value;
+	}
+	else
+	{
+		ent->client->ps.stats[STAT_TIMER_ICON] = 0;
+		ent->client->ps.stats[STAT_TIMER] = 0;
+	}
 	// PGM
 
 	//
