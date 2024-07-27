@@ -100,10 +100,21 @@ bool P_UseCoopInstancedItems()
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
 	const char* base = nullptr;
+	std::string monster_display_name;
 
-	if (G_IsCooperative() && attacker->client || G_IsDeathmatch() && g_horde->integer)
+	// Check for friendly fire in cooperative or horde mode
+	if ((G_IsCooperative() && attacker->client) || (G_IsDeathmatch() && g_horde->integer))
 		mod.friendly_fire = true;
 
+	// Handle case where attacker died before projectile hit
+	if (attacker && !attacker->inuse)
+	{
+		// Store the attacker's info before it becomes invalid
+		monster_display_name = GetDisplayName(attacker);
+		attacker = nullptr;
+	}
+
+	// Generic deaths (suicide, environment, etc.)
 	switch (mod.id)
 	{
 	case MOD_SUICIDE:
@@ -132,7 +143,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		base = "$g_mod_generic_exit";
 		break;
 	case MOD_TARGET_LASER:
-		if (attacker->svflags & ~SVF_MONSTER)
+		if (attacker && (attacker->svflags & ~SVF_MONSTER))
 			base = "{0} saw the light!\n";
 		break;
 	case MOD_TARGET_BLASTER:
@@ -148,6 +159,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		break;
 	}
 
+	// Self-inflicted deaths
 	if (attacker == self)
 	{
 		switch (mod.id)
@@ -177,14 +189,13 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 	}
 
-	// send generic/self
+	// Send generic/self death message
 	if (base)
 	{
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
 		if (G_IsDeathmatch() && !mod.no_point_loss)
 		{
 			self->client->resp.score--;
-
 			if (teamplay->integer)
 				G_AdjustTeamScore(self->client->resp.ctf_team, -1);
 		}
@@ -192,8 +203,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		return;
 	}
 
-	// has a killer
-	self->enemy = attacker;
+	// Deaths caused by other players
 	if (attacker && attacker->client)
 	{
 		switch (mod.id)
@@ -307,22 +317,23 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_GRAPPLE:
 			base = "$g_mod_kill_grapple";
 			break;
-		case MOD_HOOK:     // Kyper - Lithium port
+		case MOD_HOOK:
 			base = "{0} was disemboweled by {1}'s hook.\n";
 			break;
 		default:
 			base = "$g_mod_kill_generic";
 			break;
 		}
-
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
 		return;
 	}
 
-	// Si el atacante es un monstruo
+	// Deaths caused by monsters
 	if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
-		std::string monster_display_name = GetDisplayName(attacker);
+		if (monster_display_name.empty())
+			monster_display_name = GetDisplayName(attacker);
+
 		switch (mod.id)
 		{
 		case MOD_BLASTER:
@@ -397,7 +408,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		return;
 	}
 
-	// Otros casos de muerte (como MOD_LAVA, MOD_SLIME, etc.)
+	// Other deaths (environmental, etc.)
 	switch (mod.id)
 	{
 	case MOD_FALLING:
