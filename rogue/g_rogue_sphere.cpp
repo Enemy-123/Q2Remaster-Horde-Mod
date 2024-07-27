@@ -611,25 +611,24 @@ THINK(vengeance_think) (edict_t *self) -> void
 // monsterinfo_t
 // =================
 // =================
-edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
+edict_t* Sphere_Spawn(edict_t* owner, spawnflags_t spawnflags)
 {
-	edict_t *sphere;
-
+	edict_t* sphere;
 	sphere = G_Spawn();
 	sphere->s.origin = owner->s.origin;
 	sphere->s.origin[2] = owner->absmax[2];
 	sphere->s.angles[YAW] = owner->s.angles[YAW];
-	sphere->solid = SOLID_BBOX;
+
+	// Cambiar esta línea
+	sphere->solid = (spawnflags & SPHERE_TYPE).value == SPHERE_DEFENDER.value ? SOLID_NOT : SOLID_BBOX;
 
 	sphere->clipmask = MASK_PROJECTILE;
 	sphere->s.renderfx = RF_FULLBRIGHT | RF_IR_VISIBLE;
 	sphere->movetype = MOVETYPE_FLYMISSILE;
-
 	if (spawnflags.has(SPHERE_DOPPLEGANGER))
 		sphere->teammaster = owner->teammaster;
 	else
 		sphere->owner = owner;
-
 	sphere->classname = "sphere";
 	sphere->yaw_speed = 40;
 	sphere->monsterinfo.attack_finished = 0_ms;
@@ -637,9 +636,7 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 	sphere->spawnflags = spawnflags; // need this for the HUD to recognize sphere
 	// PMM
 	sphere->takedamage = false;
-
-//	sphere->svflags = SVF_PLAYER;
-
+	//  sphere->svflags = SVF_PLAYER;
 	if (!G_ShouldPlayersCollide(true)) {
 		sphere->clipmask &= ~CONTENTS_PLAYER;
 	}
@@ -676,11 +673,8 @@ edict_t *Sphere_Spawn(edict_t *owner, spawnflags_t spawnflags)
 		G_FreeEdict(sphere);
 		return nullptr;
 	}
-
 	sphere->nextthink = level.time + 10_hz;
-
 	gi.linkentity(sphere);
-
 	return sphere;
 }
 
