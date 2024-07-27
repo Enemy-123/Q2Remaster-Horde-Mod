@@ -1187,14 +1187,10 @@ void OnEntityRemoved(edict_t* ent) {
 	configStringManager.freeConfigString(ent - g_edicts);
 }
 
-void OnEntityDeath(edict_t* self) {
+void OnEntityDeath(edict_t* self)
+{
 	configStringManager.freeConfigString(self - g_edicts);
 
-	if (!self->deadflag) {
-		self->deadflag = true;
-		self->takedamage = true;
-		self->svflags |= SVF_DEADMONSTER;
-	}
 }
 
 int GetArmorInfo(edict_t* ent) {
