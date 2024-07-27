@@ -512,7 +512,9 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 	trace_t tr = gi.trace(position, spawned_entity->mins, spawned_entity->maxs, position, spawned_entity, CONTENTS_MONSTER | CONTENTS_PLAYER);
 	if (tr.startsolid) {
 		auto hit = tr.ent;
-		if (hit && ((hit->client) || (hit->svflags & SVF_MONSTER) == 0)) {
+		if (hit && (hit->client ||
+			(hit->svflags & SVF_MONSTER) == 0 ||
+			strcmp(hit->classname, "monster_sentrygun") == 0)) {
 			T_Damage(hit, spawned_entity, spawned_entity, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
 			gi.Com_PrintFmt("Telefrag performed on {} during spawn\n", hit->classname);
 		}
