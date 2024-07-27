@@ -1219,11 +1219,20 @@ void OnEntityRemoved(edict_t* ent) {
 	}
 }
 
-void OnEntityDeath(edict_t* ent) {
-	if (ent->configstringIndex > 0) {
-		configStringManager.freeConfigString(ent->configstringIndex);
-		gi.configstring(ent->configstringIndex, "");
-		ent->configstringIndex = 0;
+// Función mejorada OnEntityDeath
+void OnEntityDeath(edict_t* self) {
+	// Liberar el configstring solo si aún no se ha liberado
+	if (self->configstringIndex > 0) {
+		configStringManager.freeConfigString(self->configstringIndex);
+		gi.configstring(self->configstringIndex, "");
+		self->configstringIndex = 0;
+	}
+
+	// Configurar flags de muerte si aún no están configurados
+	if (!self->deadflag) {
+		self->deadflag = true;
+		self->takedamage = true;  // Mantener DAMAGE_YES para permitir gibbing
+		self->svflags |= SVF_DEADMONSTER;
 	}
 }
 
