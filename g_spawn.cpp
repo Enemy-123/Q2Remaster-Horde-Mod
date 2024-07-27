@@ -1379,15 +1379,39 @@ static void G_PrecacheStartItems()
 		PrecacheItem(item);
 	}
 }
+const size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
-/*
-==============
-SpawnEntities
+bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
+	std::string filename = std::string("baseq2/maps/") + mapname + ".ent";
+	FILE* f = fopen(filename.c_str(), "rb");
+	if (!f) {
+		gi.Com_PrintFmt("Failed to open entity file: {}\n", filename);
+		return false;
+	}
 
-Creates a server's entity / program execution context by
-parsing textual entity definitions out of an ent file.
-==============
-*/
+	fseek(f, 0, SEEK_END);
+	long length = ftell(f);
+	fseek(f, 0, SEEK_SET);
+
+	if (length > MAX_ENTITY_FILE_SIZE) {
+		gi.Com_PrintFmt("Entities override file length exceeds maximum: \"{}\"\n", filename);
+		fclose(f);
+		return false;
+	}
+
+	buffer.resize(length + 1);
+	size_t read_length = fread(buffer.data(), 1, length, f);
+	fclose(f);
+
+	if (length != read_length) {
+		gi.Com_PrintFmt("Entities override file read error: \"{}\"\n", filename);
+		return false;
+	}
+
+	buffer[length] = '\0';
+	return true;
+}
+
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
 	// clear cached indices
@@ -1396,7 +1420,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	cached_imageindex::clear_all();
 
 	edict_t* ent;
-	int		 inhibit;
+	int inhibit = 0;
 	const char* com_token;
 
 	int skill_level = clamp(skill->integer, 0, 3);
@@ -1410,13 +1434,9 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	memset(&level, 0, sizeof(level));
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
 
-	// all other flags are not important atm
 	globals.server_flags &= SERVER_FLAG_LOADING;
 
 	Q_strlcpy(level.mapname, mapname, sizeof(level.mapname));
-	// Paril: fixes a bug where autosaves will start you at
-	// the wrong spawnpoint if they happen to be non-empty
-	// (mine2 -> mine3)
 	if (!game.autosaved)
 		Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
 
@@ -1426,74 +1446,30 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	level.coop_health_scaling = clamp(g_coop_health_scaling->value, 0.f, 1.f);
 
 	// set client fields on player ents
-	for (uint32_t i = 0; i < game.maxclients; i++)
-	{
+	for (uint32_t i = 0; i < game.maxclients; i++) {
 		g_edicts[i + 1].client = game.clients + i;
-
-		// "disconnect" all players since the level is switching
 		game.clients[i].pers.connected = false;
 		game.clients[i].pers.spawned = false;
 	}
 
 	ent = nullptr;
-	inhibit = 0;
 
-	// reserve some spots for dead player bodies for coop / deathmatch
 	InitBodyQue();
 
-	////////////ENT LOAD///////////////
-	bool ent_file_exists = false;
-	bool ent_valid = true;
+	// Load entity file
+	std::vector<char> entity_buffer;
+	bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer);
 
-	// Cargar archivo de entidades
-	const char* name = G_Fmt("baseq2/maps/{}.ent", mapname).data();
-	FILE* f = fopen(name, "rb");
-	if (f != NULL) {
-		std::vector<char> buffer;
-		size_t length;
-
-		fseek(f, 0, SEEK_END);
-		length = ftell(f);
-		fseek(f, 0, SEEK_SET);
-
-		if (length > 0x40000) {
-			gi.Com_PrintFmt("Entities override file length exceeds maximum: \"{}\"\n", name);
-			ent_valid = false;
-		}
-
-		if (ent_valid) {
-			buffer.resize(length + 1);
-			if (length) {
-				size_t read_length = fread(buffer.data(), 1, length, f);
-				if (length != read_length) {
-					gi.Com_PrintFmt("Entities override file read error: \"{}\"\n", name);
-					ent_valid = false;
-				}
-				else {
-					buffer[length] = '\0';
-				}
-			}
-		}
-
-		ent_file_exists = true;
-		fclose(f);
-
+	if (ent_file_loaded) {
 		cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
-		if (ent_valid && g_loadent->integer) {
-			if (VerifyEntityString(buffer.data())) {
-				entities = buffer.data();
-				gi.Com_PrintFmt("Entities override file verified and loaded: \"{}\"\n", name);
-			}
-		}
-		else if (!ent_valid) {
-			gi.Com_PrintFmt("Entities override file load error for \"{}\", discarding.\n", name);
+		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
+			entities = entity_buffer.data();
+			gi.Com_PrintFmt("Entities override file verified and loaded: \"baseq2/maps/{}.ent\"\n", mapname);
 		}
 	}
 
-	//////////////////////////////////
-	// Parsear entidades
+	// Parse entities
 	while (1) {
-		// Parsear la llave de apertura
 		com_token = COM_Parse(&entities);
 		if (!entities)
 			break;
@@ -1503,7 +1479,6 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		ent = (ent) ? G_Spawn() : g_edicts;
 		entities = ED_ParseEdict(entities, ent);
 
-		// remove things (except the world) from different skill levels or deathmatch
 		if (ent != g_edicts) {
 			if (G_InhibitEntity(ent)) {
 				G_FreeEdict(ent);
@@ -1513,53 +1488,35 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 			ent->spawnflags &= ~SPAWNFLAG_EDITOR_MASK;
 		}
 
-		if (!ent)
-			gi.Com_Error("invalid/empty entity string!");
-
-
-		// PGM - do this before calling the spawn function so it can be overridden.
 		ent->gravityVector[0] = 0.0;
 		ent->gravityVector[1] = 0.0;
 		ent->gravityVector[2] = -1.0;
-		// PGM
+
 		ED_CallSpawn(ent);
 
-		ent->s.renderfx |= RF_IR_VISIBLE; // PGM
+		ent->s.renderfx |= RF_IR_VISIBLE;
 	}
 
 	gi.Com_PrintFmt("{} entities inhibited\n", inhibit);
 
-	// precache start_items
 	G_PrecacheStartItems();
-
-	// precache player inventory items
 	G_PrecacheInventoryItems();
-
 	G_FindTeams();
 
-	// ZOID
 	CTFSpawn();
-	// ZOID
 
-	// ROGUE
-	if (G_IsDeathmatch())
-	{
+	if (G_IsDeathmatch()) {
 		if (g_dm_random_items->integer)
 			PrecacheForRandomRespawn();
 	}
-	else
-	{
-		InitHintPaths(); // if there aren't hintpaths on this map, enable quick aborts
+	else {
+		InitHintPaths();
 	}
-	// ROGUE
 
-	// ROGUE	-- allow dm games to do init stuff right before game starts.
-	if (G_IsDeathmatch() && gamerules->integer)
-	{
+	if (G_IsDeathmatch() && gamerules->integer) {
 		if (DMGame.PostInitSetup)
 			DMGame.PostInitSetup();
 	}
-	// ROGUE
 
 	setup_shadow_lights();
 }
