@@ -3132,6 +3132,7 @@ MAKE_ENUM_BITFLAGS(plat2flags_t);
 
 #include <bitset>
 void OnEntityDeath(edict_t* ent);
+void OnEntityRemoved(edict_t* ent);
 struct edict_t
 {
 	edict_t() = delete;

@@ -986,8 +986,8 @@ void BossDeathHandler(edict_t* boss) noexcept {
     if (!g_horde->integer || !boss->spawnflags.has(SPAWNFLAG_IS_BOSS) || boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
         return;
     }
-
     OnEntityDeath(boss);
+    OnEntityRemoved(boss); // Añadido para liberar el configstring
     boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
 
     const std::array<const char*, 6> itemsToDrop = {
@@ -1028,13 +1028,12 @@ void BossDeathHandler(edict_t* boss) noexcept {
     }
 }
 
-
 void boss_die(edict_t* boss) noexcept {
-    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true && auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true &&
+        auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
         BossDeathHandler(boss);
     }
 }
-
 static bool Horde_AllMonstersDead() noexcept {
     for (auto ent : active_or_dead_monsters()) {
         if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Excluir monstruos con AI_DO_NOT_COUNT
@@ -1044,7 +1043,7 @@ static bool Horde_AllMonstersDead() noexcept {
         if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && ent->health <= 0) {
             if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                 boss_die(ent);
-                ent->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED; // Marcar como manejado
+                // No es necesario llamar a OnEntityRemoved aquí, ya que BossDeathHandler ya lo hace
             }
         }
     }
@@ -1054,10 +1053,12 @@ static bool Horde_AllMonstersDead() noexcept {
 static void Horde_CleanBodies() noexcept {
     for (auto ent : active_or_dead_monsters()) {
         if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
-            // Llamar a OnEntityDeath antes de liberar la entidad
-            OnEntityDeath(ent);
             if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
                 boss_die(ent);
+            }
+            else {
+                OnEntityDeath(ent);
+                OnEntityRemoved(ent); // Añadido para liberar el configstring
             }
             G_FreeEdict(ent); // Libera la entidad
         }

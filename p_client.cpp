@@ -2772,13 +2772,6 @@ std::string G_EncodedPlayerName(edict_t* player)
 	return std::string("##P") + std::to_string(playernum);
 }
 
-/*
-===========
-ClientUserInfoChanged
-
-called whenever the player updates a userinfo variable.
-============
-*/
 void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 {
 	// set name
@@ -2788,7 +2781,6 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	// set spectator
 	char val[MAX_INFO_VALUE] = { 0 };
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
-
 	// spectators are only supported in deathmatch
 	if (G_IsDeathmatch() && !G_TeamplayEnabled() && *val && strcmp(val, "0"))
 		ent->client->pers.spectator = true;
@@ -2801,8 +2793,13 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 
 	int playernum = ent - g_edicts - 1;
 
+	// Verificar que playernum está dentro del rango válido
+	if (playernum < 0 || playernum >= MAX_CLIENTS) {
+		gi.Com_PrintFmt("Error: Invalid player number {} (max {})\n", playernum, MAX_CLIENTS - 1);
+		return;
+	}
+
 	// combine name and skin into a configstring
-	// ZOID
 	if (G_TeamplayEnabled())
 		CTFAssignSkin(ent, val);
 	else
@@ -2811,14 +2808,23 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 		char dogtag[MAX_INFO_VALUE] = { 0 };
 		gi.Info_ValueForKey(userinfo, "dogtag", dogtag, sizeof(dogtag));
 
-		// ZOID
-		gi.configstring(CS_PLAYERSKINS + playernum, G_Fmt("{}\\{}\\{}", ent->client->pers.netname, val, dogtag).data());
+		// Verificar que CS_PLAYERSKINS + playernum es un índice válido
+		if (CS_PLAYERSKINS + playernum < MAX_CONFIGSTRINGS) {
+			gi.configstring(CS_PLAYERSKINS + playernum, G_Fmt("{}\\{}\\{}", ent->client->pers.netname, val, dogtag).data());
+		}
+		else {
+			gi.Com_PrintFmt("Warning: Skipping player skin configstring for player {} due to limit\n", playernum);
+		}
 	}
 
-	// ZOID
-	//  set player name field (used in id_state view)
-	gi.configstring(CONFIG_CTF_PLAYER_NAME + playernum, ent->client->pers.netname);
-	// ZOID
+	// set player name field (used in id_state view)
+	// Verificar que CONFIG_CTF_PLAYER_NAME + playernum es un índice válido
+	if (CONFIG_CTF_PLAYER_NAME + playernum < MAX_CONFIGSTRINGS) {
+		gi.configstring(CONFIG_CTF_PLAYER_NAME + playernum, ent->client->pers.netname);
+	}
+	else {
+		gi.Com_PrintFmt("Warning: Skipping player name configstring for player {} due to limit\n", playernum);
+	}
 
 	// [Kex] netname is used for a couple of other things, so we update this after those.
 	if ((ent->svflags & SVF_BOT) == 0) {
@@ -2871,7 +2877,6 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	// save off the userinfo in case we want to check something later
 	Q_strlcpy(ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo));
 }
-
 inline bool IsSlotIgnored(edict_t* slot, edict_t** ignore, size_t num_ignore)
 {
 	for (size_t i = 0; i < num_ignore; i++)
