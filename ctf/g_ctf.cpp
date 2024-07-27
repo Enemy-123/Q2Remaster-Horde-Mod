@@ -1970,231 +1970,147 @@ void CTFTeam_f(edict_t* ent)
 	gi.LocBroadcast_Print(PRINT_HIGH, "$g_changed_team",
 		ent->client->pers.netname, CTFTeamName(desired_team));
 }
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <fmt/format.h>
+
 constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
-
 extern std::unordered_set<std::string> obtained_benefits;
+
 std::string GetActiveBonusesString() {
-	std::string activeBonuses;
+	std::vector<std::string> bonuses;
 
-	// Check for upgraded vampirism first because it supersedes basic health vampirism
-	if (obtained_benefits.find("vampire upgraded") != obtained_benefits.end()) {
-		activeBonuses += "* Health & Armor Vampirism Enabled!\n";
-	}
-	// Only check for basic vampirism if upgraded vampirism is not active
-	else if (obtained_benefits.find("vampire") != obtained_benefits.end()) {
-		activeBonuses += "* Health Vampirism Enabled!\n";
-	}
-	// Check and add other benefits
-	if (obtained_benefits.find("ammo regen") != obtained_benefits.end()) {
-		activeBonuses += "* Ammo Regen Enabled!\n";
-	}
-	if (obtained_benefits.find("start armor") != obtained_benefits.end()) {
-		activeBonuses += "* Starting Armor Enabled!\n";
-	}
-	if (obtained_benefits.find("auto haste") != obtained_benefits.end()) {
-		activeBonuses += "* Auto-Haste Enabled!\n";
-	}
-	if (obtained_benefits.find("Cluster Prox Grenades") != obtained_benefits.end()) {
-		activeBonuses += "* Upgraded Prox Launcher!\n";
-	}
-	if (obtained_benefits.find("Traced-Piercing Bullets") != obtained_benefits.end()) {
-		activeBonuses += "* Traced-Piercing Bullets!\n";
-	}
-	if (obtained_benefits.find("Napalm-Grenade Launcher") != obtained_benefits.end()) {
-		activeBonuses += "* Napalm-Grenade Launcher!\n";
+	if (obtained_benefits.count("vampire upgraded"))
+		bonuses.push_back("Health & Armor Vampirism");
+	else if (obtained_benefits.count("vampire"))
+		bonuses.push_back("Health Vampirism");
+	if (obtained_benefits.count("ammo regen"))
+		bonuses.push_back("Ammo Regen");
+	if (obtained_benefits.count("start armor"))
+		bonuses.push_back("Starting Armor");
+	if (obtained_benefits.count("auto haste"))
+		bonuses.push_back("Auto-Haste");
+	if (obtained_benefits.count("Cluster Prox Grenades"))
+		bonuses.push_back("Upgraded Prox Launcher");
+	if (obtained_benefits.count("Traced-Piercing Bullets"))
+		bonuses.push_back("Traced-Piercing Bullets");
+	if (obtained_benefits.count("Napalm-Grenade Launcher"))
+		bonuses.push_back("Napalm-Grenade Launcher");
+
+	if (bonuses.empty()) {
+		return ""; // Return an empty string if there are no active bonuses
 	}
 
-	return activeBonuses;
+	return fmt::format("* {}", fmt::join(bonuses, "\n* "));
 }
 
-void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
-	uint32_t   i, j, k, n;
-	uint32_t   sorted[2][MAX_CLIENTS];
-	int32_t    sortedscores[2][MAX_CLIENTS];
-	int		   score;
-	uint32_t   total[2];
-	int        totalscore[2];
-	uint32_t   last[2];
-	gclient_t* cl;
-	edict_t* cl_ent;
-	int		   team;
+struct PlayerScore {
+	int index;
+	int score;
+	int ping;
+	bool has_flag;
+};
 
-	// sort the clients by team and score
-	total[0] = total[1] = 0;
-	last[0] = last[1] = 0;
-	totalscore[0] = totalscore[1] = 0;
-	for (i = 0; i < game.maxclients; i++) {
-		cl_ent = g_edicts + 1 + i;
+void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
+	std::vector<PlayerScore> team_players;
+	std::vector<PlayerScore> spectators;
+	int total_score = 0;
+
+	// Sort players
+	for ( int i = 0; i < game.maxclients; i++) {
+		edict_t* cl_ent = g_edicts + 1 + i;
 		if (!cl_ent->inuse)
 			continue;
-		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
-			team = 0;
-		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
-			team = 0;
-		else
-			continue; // unknown team?
 
-		score = game.clients[i].resp.score;
-		for (j = 0; j < total[team]; j++) {
-			if (score > sortedscores[team][j])
-				break;
+		gclient_t* cl = &game.clients[i];
+		PlayerScore player = {
+			i,
+			cl->resp.score,
+			std::min(cl->ping, 999),
+			cl_ent->client->pers.inventory[IT_FLAG2] != 0
+		};
+
+		if (cl->resp.ctf_team == CTF_TEAM1) {
+			team_players.push_back(player);
+			total_score += player.score;
 		}
-		for (k = total[team]; k > j; k--) {
-			sorted[team][k] = sorted[team][k - 1];
-			sortedscores[team][k] = sortedscores[team][k - 1];
+		else if (cl->resp.ctf_team == CTF_NOTEAM) {
+			spectators.push_back(player);
 		}
-		sorted[team][j] = i;
-		sortedscores[team][j] = score;
-		totalscore[team] += score;
-		total[team]++;
 	}
 
-	// print level name and exit rules
-	// add the clients in sorted order
-	static std::string string;
-	string.clear();
+	std::sort(team_players.begin(), team_players.end(),
+		[](const PlayerScore& a, const PlayerScore& b) { return a.score > b.score; });
 
-	if (g_horde->integer && level.intermissiontime) {
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -20 yv -10 loc_string2 1 \"Wave Number:          Stroggs Remaining:\""), g_horde->integer);
+	std::string layout;
+
+	// Header
+	if (g_horde->integer) {
+		layout += fmt::format("xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" \n",
+			last_wave_number, level.total_monsters - level.killed_monsters);
 	}
 
 	if (timelimit->value) {
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv 340 yv -33   time_limit {} "), gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
+		layout += fmt::format("xv 340 yv -33 time_limit {} \n",
+			gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
 
+	// Team score
 	if (!level.intermissiontime) {
-		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -85 yv 10 dogtag endif "),
-			totalscore[0], total[0],
-			totalscore[1], total[1]);
+		layout += fmt::format("if 25 xv -90 yv 10 dogtag endif \n", total_score, team_players.size());
 
-		// Obtener la cadena de beneficios activos
 		std::string activeBonuses = GetActiveBonusesString();
 		if (!activeBonuses.empty()) {
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 208 yv 8 string \"{}\" "), activeBonuses); // now vamp health & armor  barely fit, but fits, leaving it like this to test spectators hud
+			layout += fmt::format("xv 208 yv 8 string \"{}\" \n", activeBonuses);
 		}
-	}
-	else if (level.intermissiontime) {
-		fmt::format_to(std::back_inserter(string),
-			FMT_STRING("if 25 xv -95 yv 10 dogtag endif"
-				"if 25 xv 205 yv 8 pic 25 endif "
-				"xv 70 yv -20 num 2 19 "
-				"xv 302 yv -20 num 2 21 "),
-			totalscore[0], total[0],
-			totalscore[1], total[1]);
-	}
-	gi.WriteByte(svc_layout);
-	gi.WriteString(string.c_str());
-	gi.unicast(ent, true);
-	for (i = 0; i < 16; i++)
-	{
-		if (i >= total[0] && i >= total[1])
-			break; // we're done
-
-		// left side
-		if (i < total[0])
-		{
-			cl = &game.clients[sorted[0][i]];
-			cl_ent = g_edicts + 1 + sorted[0][i];
-
-			std::string_view entry = G_Fmt("ctf -90 {} {} {} {} {} ",  // -70, and lower, names will go to left on scoreboard ctf/horde
-				42 + i * 8,
-				sorted[0][i],
-				cl->resp.score,
-				cl->ping > 999 ? 999 : cl->ping,
-				cl_ent->client->pers.inventory[IT_FLAG2] ? "sbfctf2" : "\"\"");
-
-			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
-			{
-				string += entry;
-				last[0] = i;
-			}
-		}
-
-		// right side
-		if (i < total[1])
-		{
-			cl = &game.clients[sorted[1][i]];
-			cl_ent = g_edicts + 1 + sorted[1][i];
-
-			std::string_view entry = G_Fmt("ctf 200 {} {} {} {} {} ",
-				42 + i * 8,
-				sorted[1][i],
-				cl->resp.score,
-				cl->ping > 999 ? 999 : cl->ping,
-				cl_ent->client->pers.inventory[IT_FLAG1] ? "sbfctf1" : "\"\"");
-
-			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
-			{
-				string += entry;
-				last[1] = i;
-			}
-		}
-	}
-
-	// put in spectators if we have enough room
-	if (last[0] > last[1])
-		j = last[0];
-	else
-		j = last[1];
-	j = (j + 2) * 8 + 42;
-
-	k = n = 0;
-	if (string.size() < MAX_CTF_STAT_LENGTH - 50)
-	{
-		for (i = 0; i < game.maxclients; i++)
-		{
-			cl_ent = g_edicts + 1 + i;
-			cl = &game.clients[i];
-			if (!cl_ent->inuse ||
-				cl_ent->solid != SOLID_NOT ||
-				cl_ent->client->resp.ctf_team != CTF_NOTEAM)
-				continue;
-
-			if (!k)
-			{
-				k = 1;
-				fmt::format_to(std::back_inserter(string), FMT_STRING("xv -90 yv {} loc_string2 0 \"Spectators & AFK\" "), j);
-				j += 8;
-			}
-			std::string_view entry = G_Fmt("ctf {} {} {} {} {} \"\" ",
-				-90,
-				j,                  // y
-				i,                  // playernum
-				cl->resp.score,
-				cl->ping > 999 ? 999 : cl->ping);
-
-			if (string.size() + entry.size() < MAX_CTF_STAT_LENGTH)
-				string += entry;
-
-			j += 8;  // Incrementa Y después de cada espectador
-		}
-	}
-
-
-	if (total[0] - last[0] > 1) // couldn't fit everyone
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -32 yv {} loc_string 1 $g_ctf_and_more {} "),
-			42 + (last[0] + 1) * 8, total[0] - last[0] - 1);
-	if (total[1] - last[1] > 1) // couldn't fit everyone
-		fmt::format_to(std::back_inserter(string), FMT_STRING("xv -3 yv -25 {} loc_string 1 $g_ctf_and_more {} "),
-			42 + (last[1] + 1) * 8, total[1] - last[1] - 1);
-
-	if (level.intermissiontime) {
-		if (brandom())
-			fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nMAKE THEM PAY !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
-		else
-			fmt::format_to(std::back_inserter(string), FMT_STRING("ifgef {} yb -48 xv 0 loc_cstring2 0 \"\n\n\nTHEY WILL REGRET THIS !!!\" endif "), (level.intermission_server_frame + (5_sec).frames()));
 	}
 	else {
-		if (ent->client->resp.ctf_team != CTF_TEAM1)
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -55 cstring2 \"{}\" "), "Use Inventory <KEY> to toggle Horde Menu.");
-		else
-			fmt::format_to(std::back_inserter(string), FMT_STRING("xv 0 yb -55 cstring2 \"{}\" "), "Use Compass or Inventory <KEY> to toggle Horde Menu.");
+		layout += fmt::format("if 25 xv -90 yv 10 dogtag endif "
+			"if 25 xv 205 yv 8 pic 25 endif "
+			"xv 70 yv -20 num 2 19 \n",
+			total_score, team_players.size());
 	}
-	gi.WriteByte(svc_layout);
-	gi.WriteString(string.c_str());
-}
 
+	// Player list
+	for (size_t i = 0; i < team_players.size() && i < 16; ++i) {
+		const auto& player = team_players[i];
+		layout += fmt::format("ctf -90 {} {} {} {} {} \n",
+			42 + i * 8, player.index, player.score, player.ping,
+			player.has_flag ? "sbfctf2" : "\"\"");
+	}
+
+	// Spectators
+	if (layout.size() < MAX_CTF_STAT_LENGTH - 50 && !spectators.empty()) {
+		int y = 42 + (std::min<size_t>(team_players.size(), 16) + 2) * 8;
+		layout += fmt::format("xv -90 yv {} loc_string2 0 \"Spectators & AFK\" \n", y);
+		y += 8;
+
+		for (const auto& spec : spectators) {
+			layout += fmt::format("ctf -90 {} {} {} {} \"\" \n",
+				y, spec.index, spec.score, spec.ping);
+			y += 8;
+		}
+	}
+
+	// Footer
+	if (!level.intermissiontime) {
+		layout += fmt::format("xv 0 yb -55 cstring2 \"{}\" \n",
+			ent->client->resp.ctf_team != CTF_TEAM1
+			? "Use Inventory <KEY> to toggle Horde Menu."
+			: "Use Compass or Inventory <KEY> to toggle Horde Menu.");
+	}
+	else {
+		// Mostrar el mensaje después de 5 segundos de intermisión
+		layout += fmt::format("ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
+			level.intermission_server_frame + (5_sec).frames(),
+			brandom() ? "MAKE THEM PAY !!!" : "THEY WILL REGRET THIS !!!");
+	}
+
+	gi.WriteByte(svc_layout);
+	gi.WriteString(layout.c_str());
+	gi.unicast(ent, true);
+}
 /*------------------------------------------------------------------------*/
 /* TECH																	  */
 /*------------------------------------------------------------------------*/

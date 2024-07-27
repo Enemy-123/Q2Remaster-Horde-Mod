@@ -703,7 +703,6 @@ void G_SetCoopStats(edict_t* ent) {
 
 		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_number;
 	}
-	ent->client->ps.stats[STAT_CTF_MATCH] = level.total_monsters - level.killed_monsters;
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
 	UpdateVoteHUD();
