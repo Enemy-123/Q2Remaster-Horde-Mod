@@ -53,8 +53,8 @@ enum coop_respawn_t
 };
 
 constexpr int MAX_PLAYER_CONFIGSTRINGS = 16;
-constexpr int MAX_MONSTER_CONFIGSTRINGS = 63; // Incrementado de 75 a 100
-constexpr int MAX_CTF_ID_VIEW_CONFIGSTRINGS = 87;
+constexpr int MAX_MONSTER_CONFIGSTRINGS = 50; // Incrementado de 75 a 100
+constexpr int MAX_CTF_ID_VIEW_CONFIGSTRINGS = 75;
 
 enum {
 	CONFIG_CTF_MATCH = CS_GENERAL,
