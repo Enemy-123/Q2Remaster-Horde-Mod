@@ -830,7 +830,7 @@ void ExitLevel()
 
 	ClientEndServerFrames();
 
-	level.exitintermission = 1;
+	level.exitintermission = 0;
 	level.intermissiontime = 0_ms;
 
 	// [Paril-KEX] support for intermission completely wiping players
@@ -1122,7 +1122,6 @@ void G_RunFrame(bool main_loop)
 
 	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
 		G_RunFrame_(main_loop);
-
 	// Manejar la intermisión
 	if (level.intermissiontime)
 	{
@@ -1141,7 +1140,7 @@ void G_RunFrame(bool main_loop)
 		{
 			// Es hora de salir de la intermisión
 			gi.Com_PrintFmt("Auto-exiting intermission after 30 seconds.\n");
-			ExitLevel();
+			level.exitintermission = true;
 		}
 		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 1000 == 0)
 		{
@@ -1150,11 +1149,13 @@ void G_RunFrame(bool main_loop)
 		}
 	}
 
+
 	// match details.. only bother if there's at least 1 player in-game
 	// and not already end of game
 	if (G_AnyPlayerSpawned() && !level.intermissiontime)
 	{
 		constexpr gtime_t MATCH_REPORT_TIME = 45_sec;
+
 		if (level.time - level.next_match_report > MATCH_REPORT_TIME)
 		{
 			level.next_match_report = level.time + MATCH_REPORT_TIME;
@@ -1162,6 +1163,7 @@ void G_RunFrame(bool main_loop)
 		}
 	}
 }
+
 /*
 ================
 G_PrepFrame
