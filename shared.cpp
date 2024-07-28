@@ -485,8 +485,9 @@ void ClearHordeMessage() {
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity) {
 	// Create the main SpawnGrow effect
 	SpawnGrow_Spawn(position, start_size, end_size);
+
 	// Create additional effects for boss spawns
-	if (spawned_entity && (spawned_entity->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
+	if (spawned_entity && spawned_entity->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 		// Add more dramatic effects for boss spawns
 		for (int i = 0; i < 5; i++) {
 			vec3_t offset;
@@ -503,20 +504,25 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 		constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 		// Add a ground shake effect
 		auto earthquake = G_Spawn();
-		earthquake->classname = "target_earthquake";
-		earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_TOGGLE : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT;
-		SP_target_earthquake(earthquake);
-		earthquake->use(earthquake, spawned_entity, spawned_entity);
+		if (earthquake) {
+			earthquake->classname = "target_earthquake";
+			earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_TOGGLE : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT;
+			SP_target_earthquake(earthquake);
+			earthquake->use(earthquake, spawned_entity, spawned_entity);
+		}
 	}
+
 	// Perform telefrag check
-	trace_t tr = gi.trace(position, spawned_entity->mins, spawned_entity->maxs, position, spawned_entity, CONTENTS_MONSTER | CONTENTS_PLAYER);
-	if (tr.startsolid) {
-		auto hit = tr.ent;
-		if (hit && (hit->client ||
-			(hit->svflags & SVF_MONSTER) == 0 ||
-			strcmp(hit->classname, "monster_sentrygun") == 0)) {
-			T_Damage(hit, spawned_entity, spawned_entity, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-			gi.Com_PrintFmt("Telefrag performed on {} during spawn\n", hit->classname);
+	if (spawned_entity) {
+		trace_t tr = gi.trace(position, spawned_entity->mins, spawned_entity->maxs, position, spawned_entity, CONTENTS_MONSTER | CONTENTS_PLAYER);
+		if (tr.startsolid) {
+			auto hit = tr.ent;
+			if (hit && (hit->client ||
+				(hit->svflags & SVF_MONSTER) == 0 ||
+				(hit->classname && strcmp(hit->classname, "monster_sentrygun") == 0))) {
+				T_Damage(hit, spawned_entity, spawned_entity, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
+				gi.Com_PrintFmt("Telefrag performed on {} during spawn\n", hit->classname ? hit->classname : "unknown");
+			}
 		}
 	}
 }
