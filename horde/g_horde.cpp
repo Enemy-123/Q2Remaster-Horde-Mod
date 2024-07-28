@@ -1065,31 +1065,6 @@ static void Horde_CleanBodies() noexcept {
     }
 }
 
-// attaching healthbar
-void AttachHealthBar(edict_t* boss) noexcept {
-    auto healthbar = G_Spawn();
-    if (!healthbar) return;
-
-    healthbar->classname = "target_healthbar";
-    VectorCopy(boss->s.origin, healthbar->s.origin);
-    healthbar->s.origin[2] += 20;
-    healthbar->delay = 2.0f;
-    healthbar->timestamp = 0_ms;
-    healthbar->target = boss->targetname;
-    SP_target_healthbar(healthbar);
-    healthbar->enemy = boss;
-
-    for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
-        if (!level.health_bar_entities[i]) {
-            level.health_bar_entities[i] = healthbar;
-            break;
-        }
-    }
-
-    healthbar->think = check_target_healthbar;
-    healthbar->nextthink = level.time + 20_sec;
-}
-
 // spawning boss origin
 std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm1", {1184, 568, 704}},
@@ -1153,6 +1128,31 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
     {"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid with missiles emerges, looking to blast you to bits! *****\n"},
     {"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg enters the fray, prepare for the showdown! *****\n"}
 };
+
+// attaching healthbar
+void AttachHealthBar(edict_t* boss) noexcept {
+    auto healthbar = G_Spawn();
+    if (!healthbar) return;
+
+    healthbar->classname = "target_healthbar";
+    VectorCopy(boss->s.origin, healthbar->s.origin);
+    healthbar->s.origin[2] += 20;
+    healthbar->delay = 2.0f;
+    healthbar->timestamp = 0_ms;
+    healthbar->target = boss->targetname;
+    SP_target_healthbar(healthbar);
+    healthbar->enemy = boss;
+
+    for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
+        if (!level.health_bar_entities[i]) {
+            level.health_bar_entities[i] = healthbar;
+            break;
+        }
+    }
+
+    healthbar->think = check_target_healthbar;
+    healthbar->nextthink = level.time + 20_sec;
+}
 
 void SpawnBossAutomatically() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
