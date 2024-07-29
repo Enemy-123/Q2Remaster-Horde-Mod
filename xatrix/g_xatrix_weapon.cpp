@@ -311,7 +311,6 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	gi.linkentity(plasma);
 }
 
-
 THINK(Trap_Gib_Think) (edict_t* ent) -> void
 {
 	if (ent->owner->s.frame != 5)
@@ -365,7 +364,8 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	float    len;
 	float    oldlen = 8000;
 
-	if (ent->timestamp < level.time)
+	// Add a new timer to limit the trap's lifetime
+	if (ent->timestamp < level.time || ent->wait > 6.0f)  // 6 seconds max attraction time
 	{
 		BecomeExplosion1(ent);
 		return;
@@ -462,7 +462,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		}
 	}
 
-	// Atrae al enemigo
+	// Attract the enemy
 	if (best)
 	{
 		if (best->groundentity)
@@ -501,7 +501,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 
 				ent->s.frame = 5;
 
-				// Vincula cualquier gib que este monstruo haya generado
+				// Link any gibs this monster may have generated
 				for (uint32_t i = 0; i < globals.num_edicts; i++)
 				{
 					edict_t* e = &g_edicts[i];
@@ -522,57 +522,17 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			}
 			else
 			{
-				// Antes de explotar, hacer daño
+				// Before exploding, deal damage
 				T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
 				BecomeExplosion1(ent);
 				return;
 			}
 		}
 	}
+
+	// Increment the wait time to track how long we've been trying to attract
+	ent->wait += gi.frame_time_s;
 }
-
-//constexpr int MAX_TRAPS = 10;
-//void check_player_trap_limit(edict_t* self)
-//{
-	//if (!self->client)
-	//	return;
-
-	//if (self->client->num_traps >= MAX_TRAPS)
-	//{
-	//	edict_t* oldest_trap = nullptr;
-	//	gtime_t oldest_timestamp = level.time;
-
-	//	// Primer bucle: encontrar la trampa más antigua
-	//	for (unsigned int i = 0; i < globals.num_edicts; i++)
-	//	{
-	//		edict_t* ent = &g_edicts[i];
-
-	//		if (!ent->inuse)
-	//			continue;
-
-	//		if ((ent->s.effects & EF_TRAP) &&
-	//			(ent->owner == self || ent->teammaster == self ||
-	//				(ent->owner && ent->owner->owner == self) ||
-	//				(ent->teammaster && ent->teammaster->teammaster == self)))
-	//		{
-	//			gtime_t time_active = level.time - ent->timestamp;
-	//			if (time_active < oldest_timestamp)
-	//			{
-	//				oldest_timestamp = time_active;
-	//				oldest_trap = ent;
-	//			}
-	//		}
-	//	}
-
-	//	// Eliminar la trampa más antigua
-	//	if (oldest_trap)
-	//	{
-	//		G_FreeEdict(oldest_trap); // Eliminar la trampa más antigua
-	//		self->client->num_traps--; // Decrementar el contador al eliminar la más antigua
-	//	}
-	//}
-//}
-
 
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
@@ -640,10 +600,4 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	gi.linkentity(trap);
 
 	trap->timestamp = level.time + 30_sec;
-
-	//if (self->client)
-	//{
-	////	self->client->num_traps++; // Incrementar el contador de trampas del jugador
-	//}
 }
-
