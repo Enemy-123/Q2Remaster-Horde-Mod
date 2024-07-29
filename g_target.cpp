@@ -1827,12 +1827,7 @@ void SP_target_music(edict_t* self)
 	self->use = use_target_music;
 }
 
-/*QUAKED target_healthbar (0 1 0) (-8 -8 -8) (8 8 8) PVS_ONLY
-*
-* Hook up health bars to monsters.
-* "delay" is how long to show the health bar for after death.
-* "message" is their name
-*/
+
 /*QUAKED target_healthbar (0 1 0) (-8 -8 -8) (8 8 8) PVS_ONLY
 *
 * Hook up health bars to monsters.
