@@ -100,21 +100,10 @@ bool P_UseCoopInstancedItems()
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
 	const char* base = nullptr;
-	std::string monster_display_name;
 
-	// Check for friendly fire in cooperative or horde mode
-	if ((G_IsCooperative() && attacker->client) || (G_IsDeathmatch() && g_horde->integer))
+	if (G_IsCooperative() && attacker->client || G_IsDeathmatch() && g_horde->integer)
 		mod.friendly_fire = true;
 
-	// Handle case where attacker died before projectile hit
-	if (attacker && !attacker->inuse)
-	{
-		// Store the attacker's info before it becomes invalid
-		monster_display_name = GetDisplayName(attacker);
-		attacker = nullptr;
-	}
-
-	// Generic deaths (suicide, environment, etc.)
 	switch (mod.id)
 	{
 	case MOD_SUICIDE:
@@ -143,7 +132,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		base = "$g_mod_generic_exit";
 		break;
 	case MOD_TARGET_LASER:
-		if (attacker && (attacker->svflags & ~SVF_MONSTER))
+		if (attacker->svflags & ~SVF_MONSTER)
 			base = "{0} saw the light!\n";
 		break;
 	case MOD_TARGET_BLASTER:
@@ -159,7 +148,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		break;
 	}
 
-	// Self-inflicted deaths
 	if (attacker == self)
 	{
 		switch (mod.id)
@@ -189,13 +177,14 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 	}
 
-	// Send generic/self death message
+	// send generic/self
 	if (base)
 	{
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
 		if (G_IsDeathmatch() && !mod.no_point_loss)
 		{
 			self->client->resp.score--;
+
 			if (teamplay->integer)
 				G_AdjustTeamScore(self->client->resp.ctf_team, -1);
 		}
@@ -203,7 +192,8 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		return;
 	}
 
-	// Deaths caused by other players
+	// has a killer
+	self->enemy = attacker;
 	if (attacker && attacker->client)
 	{
 		switch (mod.id)
@@ -317,23 +307,22 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_GRAPPLE:
 			base = "$g_mod_kill_grapple";
 			break;
-		case MOD_HOOK:
+		case MOD_HOOK:     // Kyper - Lithium port
 			base = "{0} was disemboweled by {1}'s hook.\n";
 			break;
 		default:
 			base = "$g_mod_kill_generic";
 			break;
 		}
+
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, attacker->client->pers.netname);
 		return;
 	}
 
-	// Deaths caused by monsters
+	// Si el atacante es un monstruo
 	if (attacker && (attacker->svflags & SVF_MONSTER))
 	{
-		if (monster_display_name.empty())
-			monster_display_name = GetDisplayName(attacker);
-
+		std::string monster_display_name = GetDisplayName(attacker);
 		switch (mod.id)
 		{
 		case MOD_BLASTER:
@@ -408,7 +397,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		return;
 	}
 
-	// Other deaths (environmental, etc.)
+	// Otros casos de muerte (como MOD_LAVA, MOD_SLIME, etc.)
 	switch (mod.id)
 	{
 	case MOD_FALLING:
@@ -2775,6 +2764,13 @@ std::string G_EncodedPlayerName(edict_t* player)
 	return std::string("##P") + std::to_string(playernum);
 }
 
+/*
+===========
+ClientUserInfoChanged
+
+called whenever the player updates a userinfo variable.
+============
+*/
 void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 {
 	// set name
@@ -2784,6 +2780,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	// set spectator
 	char val[MAX_INFO_VALUE] = { 0 };
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
+
 	// spectators are only supported in deathmatch
 	if (G_IsDeathmatch() && !G_TeamplayEnabled() && *val && strcmp(val, "0"))
 		ent->client->pers.spectator = true;
@@ -2796,13 +2793,8 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 
 	int playernum = ent - g_edicts - 1;
 
-	// Verificar que playernum está dentro del rango válido
-	if (playernum < 0 || playernum >= MAX_CLIENTS) {
-		gi.Com_PrintFmt("Error: Invalid player number {} (max {})\n", playernum, MAX_CLIENTS - 1);
-		return;
-	}
-
 	// combine name and skin into a configstring
+	// ZOID
 	if (G_TeamplayEnabled())
 		CTFAssignSkin(ent, val);
 	else
@@ -2811,23 +2803,14 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 		char dogtag[MAX_INFO_VALUE] = { 0 };
 		gi.Info_ValueForKey(userinfo, "dogtag", dogtag, sizeof(dogtag));
 
-		// Verificar que CS_PLAYERSKINS + playernum es un índice válido
-		if (CS_PLAYERSKINS + playernum < MAX_CONFIGSTRINGS) {
-			gi.configstring(CS_PLAYERSKINS + playernum, G_Fmt("{}\\{}\\{}", ent->client->pers.netname, val, dogtag).data());
-		}
-		else {
-			gi.Com_PrintFmt("Warning: Skipping player skin configstring for player {} due to limit\n", playernum);
-		}
+		// ZOID
+		gi.configstring(CS_PLAYERSKINS + playernum, G_Fmt("{}\\{}\\{}", ent->client->pers.netname, val, dogtag).data());
 	}
 
-	// set player name field (used in id_state view)
-	// Verificar que CONFIG_CTF_PLAYER_NAME + playernum es un índice válido
-	if (CONFIG_CTF_PLAYER_NAME + playernum < MAX_CONFIGSTRINGS) {
-		gi.configstring(CONFIG_CTF_PLAYER_NAME + playernum, ent->client->pers.netname);
-	}
-	else {
-		gi.Com_PrintFmt("Warning: Skipping player name configstring for player {} due to limit\n", playernum);
-	}
+	// ZOID
+	//  set player name field (used in id_state view)
+	gi.configstring(CONFIG_CTF_PLAYER_NAME + playernum, ent->client->pers.netname);
+	// ZOID
 
 	// [Kex] netname is used for a couple of other things, so we update this after those.
 	if ((ent->svflags & SVF_BOT) == 0) {
@@ -2880,6 +2863,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	// save off the userinfo in case we want to check something later
 	Q_strlcpy(ent->client->pers.userinfo, userinfo, sizeof(ent->client->pers.userinfo));
 }
+
 inline bool IsSlotIgnored(edict_t* slot, edict_t** ignore, size_t num_ignore)
 {
 	for (size_t i = 0; i < num_ignore; i++)
