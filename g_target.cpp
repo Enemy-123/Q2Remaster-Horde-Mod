@@ -1833,30 +1833,45 @@ void SP_target_music(edict_t* self)
 * "delay" is how long to show the health bar for after death.
 * "message" is their name
 */
-
+/*QUAKED target_healthbar (0 1 0) (-8 -8 -8) (8 8 8) PVS_ONLY
+*
+* Hook up health bars to monsters.
+* "delay" is how long to show the health bar for after death.
+* "message" is their name
+*/
 USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
-	edict_t* target = G_PickTarget(ent->target);
-
-	//if (!target || ent->health != target->spawn_count)
-	//{
-	//	if (target)
-	//		gi.Com_PrintFmt("{}: target {} changed from what it used to be\n", *ent, *target);
-	//	else
-	//		gi.Com_PrintFmt("{}: no target\n", *ent);
-	//	G_FreeEdict(ent);
-	//	return;
-	//}
+	// Check if the enemy (boss) is set
+	if (!ent->enemy)
+	{
+		gi.Com_PrintFmt("{}: no enemy set for health bar\n", *ent);
+		G_FreeEdict(ent);
+		return;
+	}
 
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
 	{
-		if (level.health_bar_entities[i])
-			continue;
+		if (level.health_bar_entities[i] == ent)
+		{
+			// Update existing health bar
+			ent->health = ent->enemy->health;
+			gi.configstring(CONFIG_HEALTH_BAR_NAME, ent->message);
+			gi.unicast(nullptr, true); // Ensure all clients receive the update
+			return;
+		}
+	}
 
-		ent->enemy = target;
-		level.health_bar_entities[i] = ent;
-		gi.configstring(CONFIG_HEALTH_BAR_NAME, ent->message);
-		return;
+	// Add new health bar
+	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
+	{
+		if (!level.health_bar_entities[i])
+		{
+			level.health_bar_entities[i] = ent;
+			ent->health = ent->enemy->health;
+			gi.configstring(CONFIG_HEALTH_BAR_NAME, ent->message);
+			gi.unicast(nullptr, true); // Ensure all clients receive the update
+			return;
+		}
 	}
 
 	gi.Com_PrintFmt("{}: too many health bars\n", *ent);
@@ -1865,19 +1880,26 @@ USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> 
 
 THINK(check_target_healthbar) (edict_t* ent) -> void
 {
-	edict_t* target = G_PickTarget(ent->target);
-	if (!target || !(target->svflags & SVF_MONSTER))
+	if (!ent->enemy || !(ent->enemy->svflags & SVF_MONSTER) || ent->enemy->health <= 0)
 	{
-		if (target != nullptr) {
-			gi.Com_PrintFmt("{}: target {} does not appear to be a monster\n", *ent, *target);
-		}
+		// Boss is dead or invalid
+		ent->timestamp = level.time + gtime_t::from_sec(ent->delay);
+		ent->nextthink = level.time + 100_ms;
 		return;
 	}
 
-	// just for sanity check
-	ent->health = target->spawn_count;
-}
+	// Update health bar
+	ent->health = ent->enemy->health;
 
+	// Update configstring
+	char healthbar_info[256];
+	snprintf(healthbar_info, sizeof(healthbar_info), "%s H: %d PA: %d",
+		ent->message,
+		ent->enemy->health,
+		ent->enemy->monsterinfo.power_armor_power);
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, healthbar_info);
+	gi.unicast(nullptr, true); // Ensure all clients receive the update
+}
 void SP_target_healthbar(edict_t* self)
 {
 	if (G_IsDeathmatch() && !g_horde->integer)
@@ -1889,7 +1911,7 @@ void SP_target_healthbar(edict_t* self)
 
 	if (!self->message)
 	{
-//		gi.Com_PrintFmt("{}: missing message\n", *self);
+		//		gi.Com_PrintFmt("{}: missing message\n", *self);
 		return;
 	}
 
