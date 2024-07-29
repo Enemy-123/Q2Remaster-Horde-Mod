@@ -398,30 +398,7 @@ std::string GetPlayerName(edict_t* player) {
 	return "N/A";
 }
 
-//CS HORDE
 
-void UpdateHordeHUD() {
-	for (auto player : active_players()) {
-		if (player->inuse && player->client) {
-			if (!player->client->voted_map[0]) {
-				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-			}
-			else {
-				player->client->ps.stats[STAT_HORDEMSG] = 0;
-			}
-		}
-	}
-}
-
-void UpdateHordeMessage(const std::string& message, gtime_t duration = 5_sec) {
-	gi.configstring(CONFIG_HORDEMSG, message.c_str());
-	horde_message_end_time = level.time + duration;
-}
-
-void ClearHordeMessage() {
-	gi.configstring(CONFIG_HORDEMSG, "");
-	horde_message_end_time = 0_sec;
-}
 //
 ////spawn ship
 //edict_t* CreatePathCornerOnSkySurface(edict_t* reference) {

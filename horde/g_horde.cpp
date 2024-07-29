@@ -1140,96 +1140,69 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
     {"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid with missiles emerges, looking to blast you to bits! *****\n"},
     {"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg enters the fray, prepare for the showdown! *****\n"}
 };
-void UpdateHealthBar(edict_t* healthbar, edict_t* boss);
+//void UpdateHealthBar(edict_t* healthbar, edict_t* boss);
 // attaching healthbar
 void AttachHealthBar(edict_t* boss) noexcept {
-    // Verificar si ya existe una barra de salud para este jefe
-    for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
-        if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == boss) {
-            // Ya existe una barra de salud, actualizar en lugar de crear una nueva
-            UpdateHealthBar(level.health_bar_entities[i], boss);
-            return;
-        }
-    }
-
     auto healthbar = G_Spawn();
     if (!healthbar) return;
 
-    healthbar->classname = "target_healthbar";;
-    healthbar->delay = 1.0f;
+    healthbar->classname = "target_healthbar";
+    VectorCopy(boss->s.origin, healthbar->s.origin);
+    healthbar->s.origin[2] += 20;
+    healthbar->delay = 2.0f;
     healthbar->timestamp = 0_ms;
+    healthbar->target = boss->targetname;
+    SP_target_healthbar(healthbar);
     healthbar->enemy = boss;
 
-    // Set the message to the boss's display name
-    std::string full_display_name = GetDisplayName(boss);
-
-    // Remove any numeric suffixes from the display name
-    size_t semicolon_pos = full_display_name.find(';');
-    if (semicolon_pos != std::string::npos) {
-        full_display_name = full_display_name.substr(0, semicolon_pos);
+    for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
+        if (!level.health_bar_entities[i]) {
+            level.health_bar_entities[i] = healthbar;
+            break;
+        }
     }
 
-    // Allocate memory for the message and copy the string safely
-    char* new_message = static_cast<char*>(gi.TagMalloc(full_display_name.length() + 1, TAG_LEVEL));
-    if (new_message) {
-        Q_strlcpy(new_message, full_display_name.c_str(), full_display_name.length() + 1);
-        healthbar->message = new_message;
-    }
-    else {
-        healthbar->message = nullptr;
-    }
-
-    // Set up the health bar entity
-    healthbar->use = use_target_healthbar;
     healthbar->think = check_target_healthbar;
-    healthbar->nextthink = level.time + 25_ms;
-
-    // Call the use function to set up the health bar immediately
-    use_target_healthbar(healthbar, boss, boss);
-
-    // Set the config string for all clients
-    gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
-
-    // Ensure all clients receive the updated configstring
-    gi.unicast(nullptr, true);
+    healthbar->nextthink = level.time + 20_sec;
 }
-void UpdateHealthBar(edict_t* healthbar, edict_t* boss) {
-    if (!healthbar || !boss) return;
 
-    std::string full_display_name = GetDisplayName(boss);
-
-    // Remove any numeric suffixes from the display name
-    size_t semicolon_pos = full_display_name.find(';');
-    if (semicolon_pos != std::string::npos) {
-        full_display_name = full_display_name.substr(0, semicolon_pos);
-    }
-
-    // Si ya hay un mensaje, liberamos la memoria
-    if (healthbar->message) {
-        gi.TagFree(const_cast<char*>(healthbar->message));
-    }
-
-    // Asignamos nueva memoria para el mensaje
-    char* new_message = static_cast<char*>(gi.TagMalloc(full_display_name.length() + 1, TAG_LEVEL));
-
-    if (new_message) {
-        // Usamos Q_strlcpy para copiar el string de forma segura
-        Q_strlcpy(new_message, full_display_name.c_str(), full_display_name.length() + 1);
-        healthbar->message = new_message;
-    }
-    else {
-        healthbar->message = nullptr;
-    }
-
-    healthbar->enemy = boss;
-    healthbar->health = boss->health;
-
-    // Actualizar el configstring
-    gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
-
-    // Usar multicast para enviar la actualización a todos los clientes
-    gi.multicast(boss->s.origin, MULTICAST_ALL, true);
-}
+//void UpdateHealthBar(edict_t* healthbar, edict_t* boss) {
+//    if (!healthbar || !boss) return;
+//
+//    std::string full_display_name = GetDisplayName(boss);
+//
+//    // Remove any numeric suffixes from the display name
+//    size_t semicolon_pos = full_display_name.find(';');
+//    if (semicolon_pos != std::string::npos) {
+//        full_display_name = full_display_name.substr(0, semicolon_pos);
+//    }
+//
+//    // Si ya hay un mensaje, liberamos la memoria
+//    if (healthbar->message) {
+//        gi.TagFree(const_cast<char*>(healthbar->message));
+//    }
+//
+//    // Asignamos nueva memoria para el mensaje
+//    char* new_message = static_cast<char*>(gi.TagMalloc(full_display_name.length() + 1, TAG_LEVEL));
+//
+//    if (new_message) {
+//        // Usamos Q_strlcpy para copiar el string de forma segura
+//        Q_strlcpy(new_message, full_display_name.c_str(), full_display_name.length() + 1);
+//        healthbar->message = new_message;
+//    }
+//    else {
+//        healthbar->message = nullptr;
+//    }
+//
+//    healthbar->enemy = boss;
+//    healthbar->health = boss->health;
+//
+//    // Actualizar el configstring
+//    gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
+//
+//    // Usar multicast para enviar la actualización a todos los clientes
+//    gi.multicast(boss->s.origin, MULTICAST_ALL, true);
+//}
 
 void SpawnBossAutomatically() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
@@ -1343,6 +1316,51 @@ void SpawnBossAutomatically() noexcept {
     }
 }
 
+//CS HORDE
+
+void UpdateHordeHUD() {
+    for (auto player : active_players()) {
+        if (player->inuse && player->client) {
+            if (!player->client->voted_map[0]) {
+                player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+            }
+            else {
+                player->client->ps.stats[STAT_HORDEMSG] = 0;
+            }
+        }
+    }
+}
+
+void UpdateHordeMessage(const std::string& message, gtime_t duration = 5_sec) {
+    // Truncar el mensaje si es más largo que el límite
+    std::string truncated_message = message.substr(0, CS_MAX_STRING_LENGTH - 1);
+
+    // Si el mensaje fue truncado, añadir un indicador
+    if (truncated_message.length() < message.length()) {
+        size_t last_space = truncated_message.find_last_of(' ');
+        if (last_space != std::string::npos && last_space > truncated_message.length() - 4) {
+            truncated_message = truncated_message.substr(0, last_space) + "...";
+        }
+        else {
+            truncated_message = truncated_message.substr(0, truncated_message.length() - 3) + "...";
+        }
+    }
+
+    gi.configstring(CONFIG_HORDEMSG, truncated_message.c_str());
+    horde_message_end_time = level.time + duration;
+
+    // Log si el mensaje fue truncado
+    if (truncated_message.length() < message.length()) {
+        gi.Com_PrintFmt("Warning: Horde message truncated. Original: '{}', Truncated: '{}'\n",
+            message, truncated_message);
+    }
+}
+
+
+void ClearHordeMessage() {
+    gi.configstring(CONFIG_HORDEMSG, "");
+    horde_message_end_time = 0_sec;
+}
 
 // reset cooldowns, fixed no monster spawning on next map
 void ResetCooldowns() noexcept {
