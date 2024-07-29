@@ -1184,12 +1184,12 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 }
 
 void OnEntityRemoved(edict_t* ent) {
-//	configStringManager.freeConfigString(ent - g_edicts);
+	configStringManager.freeConfigString(ent - g_edicts);
 }
 
 void OnEntityDeath(edict_t* self)
 {
-//	configStringManager.freeConfigString(self - g_edicts);
+	configStringManager.freeConfigString(self - g_edicts);
 
 }
 
@@ -1971,7 +1971,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	int total_score = 0;
 
 	// Sort players
-	for (unsigned int i = 0; i < game.maxclients; i++) {
+	for (int i = 0; i < game.maxclients; i++) {
 		edict_t* cl_ent = g_edicts + 1 + i;
 		if (!cl_ent->inuse)
 			continue;
@@ -2011,7 +2011,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	// Team score
 	if (!level.intermissiontime) {
-		layout += fmt::format("if 25 xv -90 yv 10 dogtag endif \n", total_score, team_players.size());
+		layout += fmt::format("if 25 xv -90 yv 10 dogtag endif \n");
 
 		std::string activeBonuses = GetActiveBonusesString();
 		if (!activeBonuses.empty()) {
@@ -2062,7 +2062,6 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	gi.WriteByte(svc_layout);
 	gi.WriteString(layout.c_str());
-	gi.unicast(ent, true);
 }
 /*------------------------------------------------------------------------*/
 /* TECH																	  */
