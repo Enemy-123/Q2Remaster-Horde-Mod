@@ -1184,12 +1184,12 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 }
 
 void OnEntityRemoved(edict_t* ent) {
-	configStringManager.freeConfigString(ent - g_edicts);
+//	configStringManager.freeConfigString(ent - g_edicts);
 }
 
 void OnEntityDeath(edict_t* self)
 {
-	configStringManager.freeConfigString(self - g_edicts);
+//	configStringManager.freeConfigString(self - g_edicts);
 
 }
 
@@ -1971,7 +1971,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	int total_score = 0;
 
 	// Sort players
-	for ( int i = 0; i < game.maxclients; i++) {
+	for (unsigned int i = 0; i < game.maxclients; i++) {
 		edict_t* cl_ent = g_edicts + 1 + i;
 		if (!cl_ent->inuse)
 			continue;

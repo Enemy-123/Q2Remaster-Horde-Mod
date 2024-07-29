@@ -1155,10 +1155,8 @@ void AttachHealthBar(edict_t* boss) noexcept {
     auto healthbar = G_Spawn();
     if (!healthbar) return;
 
-    healthbar->classname = "target_healthbar";
-    VectorCopy(boss->s.origin, healthbar->s.origin);
-    healthbar->s.origin[2] += 20;
-    healthbar->delay = 2.0f;
+    healthbar->classname = "target_healthbar";;
+    healthbar->delay = 1.0f;
     healthbar->timestamp = 0_ms;
     healthbar->enemy = boss;
 
