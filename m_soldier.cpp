@@ -1362,15 +1362,92 @@ mframe_t soldier_frames_trip[] = {
 };
 MMOVE_T(soldier_move_trip) = { FRAME_runt01, FRAME_runt19, soldier_frames_trip, soldier_run };
 
+
+void soldier_jump_now(edict_t* self)
+{
+	gi.Com_PrintFmt("soldier_jump_now called\n");
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 100);
+	self->velocity += (up * 300);
+}
+
+void soldier_jump2_now(edict_t* self)
+{
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 150);
+	self->velocity += (up * 400);
+}
+
+void soldier_jump_wait_land(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+}
+
+mframe_t soldier_frames_jump[] = {
+	{ ai_move, 0, monster_duck_down },
+	{ ai_move, 0, soldier_jump_now },
+	{ ai_move },
+	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move, 0, monster_duck_up }
+};
+MMOVE_T(soldier_move_jump) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump, soldier_run };
+
+mframe_t soldier_frames_jump2[] = {
+	{ ai_move, 0, monster_duck_down },
+	{ ai_move, 0, soldier_jump2_now },
+	{ ai_move },
+	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move, 0, monster_duck_up }
+};
+MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_run };
+
+void soldier_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	monster_done_dodge(self);
+
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+	{
+		M_SetAnimation(self, &soldier_move_jump2);
+		gi.sound(self, CHAN_VOICE, sound_sight1, 1, ATTN_NORM, 0);  // Añade un sonido para el salto
+	}
+	else
+	{
+		M_SetAnimation(self, &soldier_move_jump);
+		gi.sound(self, CHAN_VOICE, sound_sight2, 1, ATTN_NORM, 0);  // Añade un sonido para el salto
+	}
+}
 // pmm - blocking code
 
-MONSTERINFO_BLOCKED(soldier_blocked) (edict_t *self, float dist) -> bool
+MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool
 {
-	// don't do anything if you're dodging
-	if ((self->monsterinfo.aiflags & AI_DODGING) || (self->monsterinfo.aiflags & AI_DUCKED))
-		return false;
+	if (self->monsterinfo.can_jump)
+	{
+		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		{
+			soldier_jump(self, result);
+			return true;
+		}
+	}
 
-	return blocked_checkplat(self, dist);
+	if (blocked_checkplat(self, dist))
+		return true;
+
+	return false;
 }
 
 //
@@ -1982,12 +2059,17 @@ void SP_monster_soldier_x(edict_t *self)
 	self->monsterinfo.stand(self);
 
 	walkmonster_start(self);
-
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
 
 void SP_monster_soldier_vanilla(edict_t *self)
 {
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	SP_monster_soldier_x(self);
 }
 
@@ -2021,6 +2103,9 @@ void SP_monster_soldier_light(edict_t *self)
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
 
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2049,6 +2134,9 @@ void SP_monster_soldier(edict_t *self)
 	self->health = self->max_health = 35 * st.health_multiplier;
 	self->gib_health = -30;
 
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2072,6 +2160,9 @@ void SP_monster_soldier_ss(edict_t *self)
 	self->health = self->max_health = 40 * st.health_multiplier;
 	self->gib_health = -30;
 
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2084,6 +2175,9 @@ void SP_monster_soldier_h(edict_t *self)
 	SP_monster_soldier_x(self);
 	self->style = 1;
 
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2118,6 +2212,9 @@ void SP_monster_soldier_ripper(edict_t *self)
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
 
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2147,6 +2244,10 @@ void SP_monster_soldier_hypergun(edict_t *self)
 	// PMM - blindfire
 	self->monsterinfo.blindfire = true;
 
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
+
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -2171,6 +2272,8 @@ void SP_monster_soldier_lasergun(edict_t* self)
 	self->gib_health = -30;
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 68;
+
+	self->monsterinfo.can_jump = true;
 
 	ApplyMonsterBonusFlags(self);
 }
