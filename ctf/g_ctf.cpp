@@ -2521,8 +2521,7 @@ void CTFWinElection();
 #include <fmt/core.h>
 #include <string>
 
-constexpr size_t MAX_CONFIGSTRING_LENGTH = 64;
-constexpr size_t MAX_VOTE_INFO_LENGTH = 256;  // Asumiendo que este es el tamaño de client->voted_map
+constexpr size_t MAX_VOTE_INFO_LENGTH = 75;  // Asumiendo que este es el tamaño de client->voted_map
 
 std::string TruncateMessage(const std::string& message, size_t max_length) {
 	if (message.length() <= max_length) {
@@ -2584,7 +2583,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 		truncated_msg, ent->client->pers.netname, time_left);
 
 	// Truncar si es necesario para el configstring
-	std::string truncated_vote_info = TruncateMessage(vote_info, MAX_CONFIGSTRING_LENGTH);
+	std::string truncated_vote_info = TruncateMessage(vote_info, CS_MAX_STRING_LENGTH);
 
 	// Actualizar el configstring
 	gi.configstring(CONFIG_VOTE_INFO, truncated_vote_info.c_str());
@@ -2620,7 +2619,7 @@ void UpdateVoteHUD() {
 			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
 
 		// Truncar para el configstring
-		std::string truncated_vote_info = TruncateMessage(vote_info, MAX_CONFIGSTRING_LENGTH);
+		std::string truncated_vote_info = TruncateMessage(vote_info, CS_MAX_STRING_LENGTH);
 		gi.configstring(CONFIG_VOTE_INFO, truncated_vote_info.c_str());
 
 		ClearHordeMessage(); // Clear hordemsg when vote message is active
