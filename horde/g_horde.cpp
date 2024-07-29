@@ -1224,10 +1224,11 @@ void UpdateHealthBar(edict_t* healthbar, edict_t* boss) {
     healthbar->enemy = boss;
     healthbar->health = boss->health;
 
+    // Actualizar el configstring
     gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
 
-    // Ensure all clients receive the updated configstring
-    gi.unicast(nullptr, true);
+    // Usar multicast para enviar la actualización a todos los clientes
+    gi.multicast(boss->s.origin, MULTICAST_ALL, true);
 }
 
 void SpawnBossAutomatically() noexcept {
@@ -1289,7 +1290,13 @@ void SpawnBossAutomatically() noexcept {
             ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
 
             std::string full_display_name = GetDisplayName(boss);
+
+            // Actualizar el configstring
             gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
+
+            // Usar multicast para enviar la actualización a todos los clientes
+            gi.multicast(boss->s.origin, MULTICAST_ALL, true);
+
 
             int32_t base_health = static_cast<int32_t>(boss->health * health_multiplier);
             SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
