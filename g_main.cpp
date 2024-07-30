@@ -911,7 +911,6 @@ static bool G_AnyDeadPlayersWithoutLives()
 }
 
 
-
 /*
 ================
 G_RunFrame
@@ -935,6 +934,33 @@ inline void G_RunFrame_(bool main_loop)
 	Bot_UpdateDebug();
 
 	level.time += FRAME_TIME_MS;
+
+	// Manejar la intermisión
+	if (level.intermissiontime)
+	{
+		constexpr gtime_t INTERMISSION_DURATION = 30_sec;
+
+		if (level.intermissiontime == level.time)
+		{
+			// Primera vez que entramos en intermisión
+			gi.Com_PrintFmt("Intermission started. Auto-exit scheduled in 30 seconds.\n");
+		}
+
+		gtime_t time_elapsed = level.time - level.intermissiontime;
+		gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
+
+		if (time_remaining <= 0_ms)
+		{
+			// Es hora de salir de la intermisión
+			gi.Com_PrintFmt("Auto-exiting intermission after 30 seconds.\n");
+			level.exitintermission = true;
+		}
+		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 1000 == 0)
+		{
+			// Imprimir tiempo restante cada segundo en los últimos 30 segundos
+			gi.Com_PrintFmt("Intermission time remaining: {:.0f} seconds\n", time_remaining.seconds());
+		}
+	}
 
 	if (level.intermission_fading)
 	{
@@ -1122,33 +1148,6 @@ void G_RunFrame(bool main_loop)
 
 	for (int32_t i = 0; i < g_frames_per_frame->integer; i++)
 		G_RunFrame_(main_loop);
-	// Manejar la intermisión
-	if (level.intermissiontime)
-	{
-		constexpr gtime_t INTERMISSION_DURATION = 30_sec;
-
-		if (level.intermissiontime == level.time)
-		{
-			// Primera vez que entramos en intermisión
-			gi.Com_PrintFmt("Intermission started. Auto-exit scheduled in 30 seconds.\n");
-		}
-
-		gtime_t time_elapsed = level.time - level.intermissiontime;
-		gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
-
-		if (time_remaining <= 0_ms)
-		{
-			// Es hora de salir de la intermisión
-			gi.Com_PrintFmt("Auto-exiting intermission after 30 seconds.\n");
-			level.exitintermission = true;
-		}
-		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 1000 == 0)
-		{
-			// Imprimir tiempo restante cada segundo en los últimos 30 segundos
-			gi.Com_PrintFmt("Intermission time remaining: {:.0f} seconds\n", time_remaining.seconds());
-		}
-	}
-
 
 	// match details.. only bother if there's at least 1 player in-game
 	// and not already end of game
