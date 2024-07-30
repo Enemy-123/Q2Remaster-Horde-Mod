@@ -1461,23 +1461,29 @@ int32_t GetNumSpectPlayers() noexcept {
     }
     return numSpectPlayers;
 }
-
-// Estructura para los par�metros de condici�n
+// Estructura para los parámetros de condición
 struct ConditionParams {
     int32_t maxMonsters;
     gtime_t timeThreshold;
+    gtime_t independentTimeThreshold;
 };
 
-// Funci�n para decidir los par�metros de la condici�n en funci�n del tama�o del mapa y el n�mero de jugadores
-ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers) noexcept {
-    ConditionParams params = { 0, 0_sec };
+// Variables globales
+gtime_t condition_start_time;
+gtime_t independent_timer_start;
+int32_t previous_remainingMonsters = 0;
 
+// Declaraciones de funciones
+int32_t GetNumHumanPlayers() noexcept;
+
+// Función para decidir los parámetros de la condición
+ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers) noexcept {
+    ConditionParams params = { 0, gtime_t::from_sec(0), gtime_t::from_sec(75) };
     if (mapSize.isBigMap) {
         params.maxMonsters = 19;
         params.timeThreshold = random_time(15_sec, 21_sec);
         return params;
     }
-
     if (numHumanPlayers >= 3) {
         if (mapSize.isSmallMap) {
             params.maxMonsters = 6;
@@ -1509,14 +1515,13 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
                 params.timeThreshold = 15_sec;
             }
         }
-
         if ((g_chaotic->integer && numHumanPlayers <= 3) || (g_insane->integer && numHumanPlayers <= 3)) {
             params.timeThreshold += random_time(4_sec, 6_sec);
         }
     }
-
     return params;
 }
+
 void AllowNextWaveAdvance() noexcept {
     allowWaveAdvance = true;
 }
@@ -1531,16 +1536,19 @@ int32_t CalculateRemainingMonsters() noexcept {
     return remaining;
 }
 
-// Calcular los par�metros de la condici�n en funci�n del tama�o del mapa y el n�mero de jugadores
-// Variables globales para el estado de la condici�n usando gtime_t
-gtime_t condition_start_time = gtime_t::from_sec(0);
-int32_t previous_remainingMonsters = 0;
+// Nueva función para reiniciar ambos temporizadores
+void ResetTimers() noexcept {
+    condition_start_time = gtime_t();
+    independent_timer_start = gtime_t();
+}
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
     if (allowWaveAdvance) {
         allowWaveAdvance = false;
+        ResetTimers();
         return true;
     }
+
     const int32_t numHumanPlayers = GetNumHumanPlayers();
     const ConditionParams params = GetConditionParams(mapSize, numHumanPlayers);
 
@@ -1548,19 +1556,29 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
         cachedRemainingMonsters = CalculateRemainingMonsters();
     }
 
+    // Verificar el temporizador independiente
+    if (!independent_timer_start) {
+        independent_timer_start = level.time;
+    }
+    if ((level.time - independent_timer_start) >= params.independentTimeThreshold) {
+        ResetTimers();
+        cachedRemainingMonsters = -1;
+        return true;
+    }
+
+    // Lógica existente para maxMonsters y timeThreshold
     if (cachedRemainingMonsters <= params.maxMonsters) {
         if (!condition_start_time) {
             condition_start_time = level.time;
         }
-
         if ((level.time - condition_start_time) >= params.timeThreshold) {
-            condition_start_time = gtime_t::from_sec(0);
-            cachedRemainingMonsters = -1; // Reset cache after condition met
+            ResetTimers();
+            cachedRemainingMonsters = -1;
             return true;
         }
     }
     else {
-        condition_start_time = gtime_t::from_sec(0);
+        condition_start_time = gtime_t();
     }
 
     return false;
@@ -1577,7 +1595,6 @@ static void MonsterSpawned(edict_t* monster) {
         cachedRemainingMonsters++;
     }
 }
-
 // Funci�n para decidir si se usa el spawn m�s lejano basado en el nivel actual
 bool UseFarthestSpawn() noexcept {
     if (g_horde_local.level >= 15) {
@@ -1794,6 +1811,14 @@ void SpawnMonsters() noexcept {
         g_horde_local.monster_spawn_time = level.time + random_time(1.7_sec, 2_sec);
     }
 }
+
+// Usar enum class para mejorar la seguridad de tipos
+enum class MessageType {
+    Standard,
+    Chaotic,
+    Insane
+};
+
 // Función para calcular el jugador con más daño
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     int total_damage = 0;
@@ -1802,33 +1827,7 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     for (const auto& player : active_players()) {
         if (!player->client) continue;
 
-        // Usar el daño ya calculado en iddmg si está disponible
         int player_damage = player->client->total_damage;
-
-        // Si quieres un cálculo más detallado, puedes usar esto:
-        /*
-        for (int i = 0; i < globals.num_edicts; i++) {
-            edict_t* target = &g_edicts[i];
-            if (!target->inuse || target->client == player->client) continue;
-
-            int target_initial_health = target->max_health;
-            int damage_to_target = player->client->total_damage; // Usar total_damage en lugar de damage_dealt_to
-
-            if (!(target->svflags & SVF_DEADMONSTER)) {
-                if (target_initial_health > 0) {
-                    int real_damage = (damage_to_target < target_initial_health) ? damage_to_target : target_initial_health;
-                    if (target->health <= 0) {
-                        real_damage += (abs(target->gib_health) < target_initial_health) ? abs(target->gib_health) : target_initial_health;
-                    }
-                    player_damage += real_damage;
-                } else {
-                    player_damage += (damage_to_target < 10) ? damage_to_target : 10;
-                }
-            } else {
-                player_damage += (damage_to_target < 5) ? damage_to_target : 5;
-            }
-        }
-        */
 
         total_damage += player_damage;
         if (player_damage > topDamager.total_damage) {
@@ -1837,41 +1836,46 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
         }
     }
 
-    if (total_damage > 0) {
-        percentage = (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f;
-    }
-    else {
-        percentage = 0.0f;
-    }
+    percentage = (total_damage > 0) ?
+        (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
 
     // Redondear el porcentaje a dos decimales
     percentage = std::round(percentage * 100) / 100;
 }
-// Funci�n para enviar el mensaje de limpieza
-void SendCleanupMessage(const std::unordered_map<std::string, std::string>& messages, const PlayerStats& topDamager, float percentage, gtime_t duration = 5_sec) noexcept {
-    std::string playerName = GetPlayerName(topDamager.player);
-    auto message = messages.find(playerName);
 
+// Función para enviar el mensaje de limpieza
+void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>& messages,
+    const PlayerStats& topDamager, float percentage,
+    gtime_t duration = 5_sec) {
+    std::string_view playerName = GetPlayerName(topDamager.player);
+    MessageType messageType = g_insane->integer == 2 ? MessageType::Insane :
+        (g_chaotic->integer || g_insane->integer ? MessageType::Chaotic : MessageType::Standard);
+
+    auto message = messages.find(messageType);
     if (message != messages.end()) {
-        gi.LocBroadcast_Print(PRINT_TYPEWRITER, message->second.c_str(), topDamager.total_damage, percentage);
-    }
+        // Asegurarse de que el porcentaje no incluya el signo %
+        std::string percentageStr = fmt::format("{:.2f}", percentage);
+        gi.LocBroadcast_Print(PRINT_TYPEWRITER, message->second.data(),
+            g_horde_local.level, playerName.data(),
+            topDamager.total_damage, percentageStr.c_str());
 
-    // Update the Horde message with the correct duration
-    UpdateHordeMessage(fmt::format("Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n",
-        g_horde_local.level,
-        playerName.c_str(),
-        topDamager.total_damage,
-        percentage), duration);
+        // Update the Horde message with the correct duration
+        UpdateHordeMessage(fmt::format(message->second.data(),
+            g_horde_local.level, playerName.data(),
+            topDamager.total_damage, percentageStr),
+            duration);
+    }
+    else {
+        gi.Com_PrintFmt("Warning: Unknown message type '{}'\n", static_cast<int>(messageType));
+    }
 }
 
-
 // Mensajes de limpieza
-const std::unordered_map<std::string, std::string> cleanupMessages = {
-    {"standard", "Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
-    {"chaotic", "Harder Wave Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
-    {"insane", "Insane Wave Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"}
+const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
+    {MessageType::Standard, "Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
+    {MessageType::Chaotic, "Harder Wave Level {} Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
+    {MessageType::Insane, "Insane Wave Level {} Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"}
 };
-
 
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
@@ -1881,7 +1885,8 @@ void Horde_RunFrame() noexcept {
     }
 
     const int32_t activeMonsters = level.total_monsters - level.killed_monsters;
-    const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP : (mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+    const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+        (mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
@@ -1934,8 +1939,7 @@ void Horde_RunFrame() noexcept {
                 float percentage = 0.0f;
                 CalculateTopDamager(topDamager, percentage);
 
-                std::string messageType = g_insane->integer == 2 ? "insane" : (g_chaotic->integer || g_insane->integer ? "chaotic" : "standard");
-                SendCleanupMessage(cleanupMessages, topDamager, percentage, 5_sec); // Passing the duration here
+                SendCleanupMessage(cleanupMessages, topDamager, percentage, 5_sec);
             }
             else {
                 cachedRemainingMonsters = CalculateRemainingMonsters();
@@ -1947,7 +1951,7 @@ void Horde_RunFrame() noexcept {
     case horde_state_t::rest:
         if (g_horde_local.warm_time < level.time) {
             if (g_chaotic->integer || g_insane->integer) {
-                HandleWaveRestMessage(4_sec);  // Provide duration argument
+                HandleWaveRestMessage(4_sec);
             }
             else {
                 gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
@@ -1969,7 +1973,7 @@ void Horde_RunFrame() noexcept {
     UpdateHordeHUD();
 }
 
-// Funci�n para manejar el evento de reinicio
+// Función para manejar el evento de reinicio
 void HandleResetEvent() noexcept {
     ResetGame();
 }
