@@ -1036,14 +1036,16 @@ struct ConfigStringManager {
 
 	void updateConfigString(int entity_index, const std::string& value, bool force = false) {
 		int cs_index = getConfigString(entity_index);
-		if (cs_index == -1) return;
+		if (cs_index == -1 || cs_index > CONFIG_MONSTER_HEALTH_END) return;
+
+		std::string truncated_value = value.substr(0, CS_MAX_STRING_LENGTH);
 
 		auto now = std::time(nullptr);
-		if (force || cachedConfigStrings[cs_index] != value ||
+		if (force || cachedConfigStrings[cs_index] != truncated_value ||
 			(now - lastUpdateTime[cs_index] > 5)) {
-			cachedConfigStrings[cs_index] = value;
+			cachedConfigStrings[cs_index] = truncated_value;
 			lastUpdateTime[cs_index] = now;
-			gi.configstring(cs_index, value.c_str());
+			gi.configstring(cs_index, truncated_value.c_str());
 		}
 	}
 
@@ -1059,7 +1061,6 @@ struct ConfigStringManager {
 };
 
 ConfigStringManager configStringManager;
-
 // Funciones auxiliares
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
@@ -1158,11 +1159,9 @@ std::string FormatClassname(const std::string& classname) {
 
 bool IsValidClassname(const char* classname) {
 	if (!classname) return false;
-
 	const char* allowed_prefixes[] = {
 		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", nullptr
 	};
-
 	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
 		if (strncmp(classname, *prefix, strlen(*prefix)) == 0) {
 			return true;
@@ -1187,10 +1186,8 @@ void OnEntityRemoved(edict_t* ent) {
 	configStringManager.freeConfigString(ent - g_edicts);
 }
 
-void OnEntityDeath(edict_t* self)
-{
+void OnEntityDeath(edict_t* self) {
 	configStringManager.freeConfigString(self - g_edicts);
-
 }
 
 int GetArmorInfo(edict_t* ent) {
@@ -1220,8 +1217,6 @@ void CTFSetIDView(edict_t* ent) {
 	float closest_dist = 2048;
 	const float min_dot = 0.98f;
 
-	// Find the best target within the player's view cone
-
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* who = g_edicts + i;
 		if (!IsValidTarget(ent, who, false))
@@ -1238,7 +1233,6 @@ void CTFSetIDView(edict_t* ent) {
 	}
 
 	// If no target found within the view cone, check if the last ID target is still valid and visible
-
 	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
 		best = ent->client->idtarget;
 	}
@@ -1309,7 +1303,9 @@ void CTFSetIDView(edict_t* ent) {
 
 void UpdateAllClients() {
 	configStringManager.batchUpdate();
-}void SetCTFStats(edict_t* ent)
+}
+
+void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;
 	int		 p1, p2;

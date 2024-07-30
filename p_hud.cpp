@@ -914,14 +914,13 @@ void G_SetStats(edict_t* ent)
 	struct sphere_info_t {
 		spawnflags_t spawnflags;
 		const char* icon;
-		float* wait_ptr;
 	};
 
 	// Array de información de esferas
 	sphere_info_t sphere_table[] = {
-		{ SPHERE_DEFENDER, "p_defender", nullptr },
-		{ SPHERE_HUNTER, "p_hunter", nullptr },
-		{ SPHERE_VENGEANCE, "p_vengeance", nullptr },
+		{ SPHERE_DEFENDER, "p_defender" },
+		{ SPHERE_HUNTER, "p_hunter" },
+		{ SPHERE_VENGEANCE, "p_vengeance" },
 	};
 
 	//
@@ -974,29 +973,21 @@ void G_SetStats(edict_t* ent)
 		powerup_info_t* best_powerup = !active_powerups.empty() ? active_powerups.front() : nullptr;
 		powerup_info_t* next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
 
-		int16_t value = 0;
-		const char* icon = nullptr;
 		int16_t timer_value = 0;
+		const char* icon = nullptr;
 
 		// Determinar el mejor power-up (incluyendo la esfera si está activa)
 		if (active_sphere)
 		{
-			value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
+			timer_value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
 			icon = active_sphere->icon;
-			timer_value = value;
 		}
 		else if (best_powerup)
 		{
 			if (best_powerup->count_ptr)
-			{
-				value = (ent->client->*best_powerup->count_ptr);
-				timer_value = value;
-			}
+				timer_value = (ent->client->*best_powerup->count_ptr);
 			else
-			{
-				value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
-				timer_value = value;
-			}
+				timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
 			icon = GetItemByIndex(best_powerup->item)->icon;
 		}
 
