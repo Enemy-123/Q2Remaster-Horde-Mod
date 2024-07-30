@@ -1118,7 +1118,7 @@ void G_SetStats(edict_t* ent)
 	// ent->client->ps.stats[STAT_SPREE] = ent->client->resp.spree; //Spree
 
 
-
+	void SetHealthBarName(edict_t * boss);
 	//
 	// help icon / current weapon if not shown
 	//
@@ -1134,12 +1134,10 @@ void G_SetStats(edict_t* ent)
 	// set & run the health bar stuff
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++) {
 		byte* health_byte = reinterpret_cast<byte*>(&ent->client->ps.stats[STAT_HEALTH_BARS]) + i;
-
 		if (ent->deadflag) {
 			*health_byte = 0;
 			continue;
 		}
-
 		if (!level.health_bar_entities[i]) {
 			*health_byte = 0;
 		}
@@ -1149,7 +1147,6 @@ void G_SetStats(edict_t* ent)
 				*health_byte = 0;
 				continue;
 			}
-
 			*health_byte = 0b10000000;
 		}
 		else {
@@ -1176,19 +1173,23 @@ void G_SetStats(edict_t* ent)
 				*health_byte = 0;
 				continue;
 			}
+			else {
+				// Asegurarse de que el nombre de la barra de salud esté actualizado
+				SetHealthBarName(level.health_bar_entities[i]->enemy);
 
-			float health_remaining = 0.0f;
-			if (level.health_bar_entities[i]->enemy) {
+				float health_remaining = 0.0f;
 				if (level.health_bar_entities[i]->enemy->initial_max_health > 0) {
 					health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->initial_max_health;
 				}
 				else {
 					health_remaining = 0.0f; // Manejar el caso donde initial_max_health no esté configurado
 				}
+
+				*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 			}
-			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}
 	}
+
 	void CTFSetIDView(edict_t* ent);
 	//ID DMG and CTFIDVIEW
 

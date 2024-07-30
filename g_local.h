@@ -2130,14 +2130,7 @@ char* G_CopyString(const char* in, size_t len, int32_t tag);
 // ROGUE
 edict_t* findradius2(edict_t* from, const vec3_t& org, float rad);
 // ROGUE
-#ifndef G_LOCAL_H
-#define G_LOCAL_H
 
-#include "g_statusbar.h"
-
-void G_InitStatusbar(statusbar_t& sb);
-
-#endif // G_LOCAL_H
 
 void G_PlayerNotifyGoal(edict_t* player);
 

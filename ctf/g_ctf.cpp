@@ -1143,7 +1143,8 @@ std::string GetDisplayName(const std::string& classname) {
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
-
+#include <sstream>
+#include <cctype>
 std::string FormatClassname(const std::string& classname) {
 	std::stringstream ss(classname);
 	std::string segment, formatted_name;

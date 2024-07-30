@@ -1521,11 +1521,11 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	setup_shadow_lights();
 }
 //===================================================================
-#include "g_local.h"
 #include "g_statusbar.h"
 
-void G_InitStatusbar(statusbar_t& sb)
+static void G_InitStatusbar()
 {
+	statusbar_t sb;
 	// ---- shared stuff that every gamemode uses ----
 	// spectator
 	sb.ifstat(STAT_SPECTATOR).xv(-110).yb(-68).string2("SPECTATOR MODE").endifstat();
@@ -1782,8 +1782,8 @@ void SP_worldspawn(edict_t* ent)
 		pm_config.n64_physics = false;
 	}
 
-	statusbar_t sb;
-	G_InitStatusbar(sb);  // Cambia esto para pasar el parámetro 'sb'
+	// statusbar prog
+	G_InitStatusbar();
 
 
 	// [Paril-KEX] air accel handled by game DLL now, and allow

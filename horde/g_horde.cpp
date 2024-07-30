@@ -1140,7 +1140,9 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
     {"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid with missiles emerges, looking to blast you to bits! *****\n"},
     {"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg enters the fray, prepare for the showdown! *****\n"}
 };
-//void UpdateHealthBar(edict_t* healthbar, edict_t* boss);
+
+void SetHealthBarName(edict_t* boss);
+
 // attaching healthbar
 void AttachHealthBar(edict_t* boss) noexcept {
     auto healthbar = G_Spawn();
@@ -1152,8 +1154,16 @@ void AttachHealthBar(edict_t* boss) noexcept {
     healthbar->delay = 2.0f;
     healthbar->timestamp = 0_ms;
     healthbar->target = boss->targetname;
+
+    // Copiar el nombre del jefe correctamente
+    std::string boss_name = GetDisplayName(boss);
+    healthbar->message = G_CopyString(boss_name.c_str(), TAG_LEVEL);
+
     SP_target_healthbar(healthbar);
     healthbar->enemy = boss;
+
+    // Llamar a SetHealthBarName después de configurar el mensaje
+    SetHealthBarName(boss);
 
     for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
         if (!level.health_bar_entities[i]) {
@@ -1166,43 +1176,7 @@ void AttachHealthBar(edict_t* boss) noexcept {
     healthbar->nextthink = level.time + 20_sec;
 }
 
-//void UpdateHealthBar(edict_t* healthbar, edict_t* boss) {
-//    if (!healthbar || !boss) return;
-//
-//    std::string full_display_name = GetDisplayName(boss);
-//
-//    // Remove any numeric suffixes from the display name
-//    size_t semicolon_pos = full_display_name.find(';');
-//    if (semicolon_pos != std::string::npos) {
-//        full_display_name = full_display_name.substr(0, semicolon_pos);
-//    }
-//
-//    // Si ya hay un mensaje, liberamos la memoria
-//    if (healthbar->message) {
-//        gi.TagFree(const_cast<char*>(healthbar->message));
-//    }
-//
-//    // Asignamos nueva memoria para el mensaje
-//    char* new_message = static_cast<char*>(gi.TagMalloc(full_display_name.length() + 1, TAG_LEVEL));
-//
-//    if (new_message) {
-//        // Usamos Q_strlcpy para copiar el string de forma segura
-//        Q_strlcpy(new_message, full_display_name.c_str(), full_display_name.length() + 1);
-//        healthbar->message = new_message;
-//    }
-//    else {
-//        healthbar->message = nullptr;
-//    }
-//
-//    healthbar->enemy = boss;
-//    healthbar->health = boss->health;
-//
-//    // Actualizar el configstring
-//    gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
-//
-//    // Usar multicast para enviar la actualización a todos los clientes
-//    gi.multicast(boss->s.origin, MULTICAST_ALL, true);
-//}
+static int boss_counter = 0; // Declaramos boss_counter como variable estática
 
 void SpawnBossAutomatically() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
@@ -1225,7 +1199,6 @@ void SpawnBossAutomatically() noexcept {
 
             // Realizar la traza para verificar colisiones
             trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
-            // if (tr.startsolid || tr.allsolid)
             if (tr.startsolid) {
                 // Realizar telefrag si hay colisión
                 auto hit = tr.ent;
@@ -1244,17 +1217,21 @@ void SpawnBossAutomatically() noexcept {
             }
 
             // Asignar flags y configurar el jefe
-            const int32_t random_flag = 1 << (std::rand() % 6); // Incluir todas las flags definidas
+            const int32_t random_flag = 1 << (std::rand() % 6);
             boss->monsterinfo.bonus_flags |= random_flag;
-            boss->spawnflags |= SPAWNFLAG_IS_BOSS; // Marcar como jefe
-            boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP; // Establecer la flag de super paso
+            boss->spawnflags |= SPAWNFLAG_IS_BOSS;
+            boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
             boss->monsterinfo.last_sentrygun_target_time = 0_sec;
 
-            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente si la ola es 10 o más
+            // Asignar un targetname único al jefe
+            static int boss_counter = 0;
+            std::string boss_name = fmt::format("boss_{}", boss_counter++);
+            boss->targetname = G_CopyString(boss_name.c_str(), TAG_LEVEL);
+
+            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente
             ApplyMonsterBonusFlags(boss);
 
             boss->monsterinfo.attack_state = AS_BLIND;
-        //    boss->accel *= 2;
             boss->maxs *= boss->s.scale;
             boss->mins *= boss->s.scale;
 
@@ -1262,22 +1239,21 @@ void SpawnBossAutomatically() noexcept {
             float power_armor_multiplier = 1.0f;
             ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
 
+            ED_CallSpawn(boss);
+
+            // Obtener el nombre del jefe después de ED_CallSpawn
             std::string full_display_name = GetDisplayName(boss);
 
-            // Actualizar el configstring
-            gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
-
-            // Usar multicast para enviar la actualización a todos los clientes
-            gi.multicast(boss->s.origin, MULTICAST_ALL, true);
-
+            // Actualizar el configstring y llamar a SetHealthBarName
+            SetHealthBarName(boss);
 
             int32_t base_health = static_cast<int32_t>(boss->health * health_multiplier);
-            SetMonsterHealth(boss, base_health, current_wave_number); // Pasar current_wave_number
+            SetMonsterHealth(boss, base_health, current_wave_number);
 
             boss->monsterinfo.power_armor_power = static_cast<int32_t>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
             boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
 
-            // spawngro effect
+            // Spawn grow effect
             vec3_t spawngrow_pos = boss->s.origin;
             const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.35f;
             const float end_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.005f;
@@ -1296,8 +1272,6 @@ void SpawnBossAutomatically() noexcept {
                 }
             }
 
-            ED_CallSpawn(boss);
-
             AttachHealthBar(boss);
 
             // Activar el modo de monstruos voladores si corresponde
@@ -1305,10 +1279,10 @@ void SpawnBossAutomatically() noexcept {
                 std::strcmp(boss->classname, "monster_carrier") == 0 ||
                 std::strcmp(boss->classname, "monster_carrier2") == 0 ||
                 std::strcmp(boss->classname, "monster_boss2kl") == 0) {
-                flying_monsters_mode = true;  // Activar el modo de monstruos voladores
+                flying_monsters_mode = true;
             }
 
-            boss_spawned_for_wave = true;  // Marcar que el jefe ha sido spawneado para esta ola
+            boss_spawned_for_wave = true;
 
             // Agregar el jefe a la lista de jefes generados automáticamente
             auto_spawned_bosses.insert(boss);
@@ -1331,6 +1305,23 @@ void UpdateHordeHUD() {
     }
 }
 
+// En SetHealthBarName
+void SetHealthBarName(edict_t* boss)
+{
+    std::string full_display_name = GetDisplayName(boss);
+    gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
+
+    // Log para depuración
+ //   gi.Com_PrintFmt("Setting health bar name: {}\n", full_display_name);
+
+    // Preparar el mensaje para multicast
+    gi.WriteByte(svc_configstring);
+    gi.WriteShort(CONFIG_HEALTH_BAR_NAME);
+    gi.WriteString(full_display_name.c_str());
+
+    // Usar multicast para enviar la actualización a todos los clientes de manera confiable
+    gi.multicast(vec3_origin, MULTICAST_ALL, true);
+}
 
 constexpr size_t MAX_MESSAGE_LENGTH = CS_MAX_STRING_LENGTH - 1;
 constexpr std::string_view TRUNCATION_INDICATOR = "...";
@@ -1839,21 +1830,31 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
     percentage = std::round(percentage * 100) / 100;
 }
 
-// Función para enviar el mensaje de limpieza
-void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>&messages,
-    const PlayerStats & topDamager, float percentage,
+// Definición de los mensajes de limpieza con placeholders nombrados y sin porcentaje extra
+const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
+    {MessageType::Standard, "Wave Level {level} Defeated, GG!\n\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
+    {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
+    {MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"}
+};
+
+// Función para enviar el mensaje de limpieza actualizada
+void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>& messages,
+    const PlayerStats& topDamager, float percentage,
     gtime_t duration = 5_sec) {
     std::string_view playerName = GetPlayerName(topDamager.player);
     MessageType messageType = g_insane->integer ? MessageType::Insane :
         (g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
-
     auto messageIt = messages.find(messageType);
     if (messageIt != messages.end()) {
-        std::string percentageStr = fmt::format("{:.2f}", percentage);
-        std::string formattedMessage = fmt::format(messageIt->second,
-            g_horde_local.level, playerName,
-            topDamager.total_damage, percentageStr);
+        // Asegurarse de que el porcentaje esté en el rango correcto (0-100)
+        float clampedPercentage = std::min(std::max(percentage, 0.0f), 100.0f);
+        std::string percentageStr = fmt::format("{:.2f}", clampedPercentage);
 
+        std::string formattedMessage = fmt::format(messageIt->second,
+            fmt::arg("level", g_horde_local.level),
+            fmt::arg("player", playerName),
+            fmt::arg("damage", topDamager.total_damage),
+            fmt::arg("percentage", percentageStr));
         // Actualizar el mensaje de Horde con la duración correcta
         UpdateHordeMessage(formattedMessage, duration);
     }
@@ -1861,13 +1862,6 @@ void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>&
         gi.Com_PrintFmt("Warning: Unknown message type '{}'\n", static_cast<int>(messageType));
     }
 }
-// Mensajes de limpieza
-const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
-    {MessageType::Standard, "Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
-    {MessageType::Chaotic, "Harder Wave Level {} Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
-    {MessageType::Insane, "Insane Wave Level {} Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"}
-};
-
 
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
@@ -1920,21 +1914,17 @@ void Horde_RunFrame() noexcept {
         if (CheckRemainingMonstersCondition(mapSize)) {
             HandleWaveCleanupMessage(mapSize);
         }
-
         if (g_horde_local.monster_spawn_time < level.time) {
             if (Horde_AllMonstersDead()) {
                 constexpr auto MIN_WARM_TIME = 2.2_sec;
                 constexpr auto MAX_WARM_TIME = 3.0_sec;
                 constexpr auto CLEANUP_MESSAGE_DURATION = 5_sec;
-
                 g_horde_local.warm_time = level.time + random_time(MIN_WARM_TIME, MAX_WARM_TIME);
                 g_horde_local.state = horde_state_t::rest;
                 cachedRemainingMonsters = CalculateRemainingMonsters();
-
                 PlayerStats topDamager;
                 float percentage = 0.0f;
                 CalculateTopDamager(topDamager, percentage);
-
                 SendCleanupMessage(cleanupMessages, topDamager, percentage, CLEANUP_MESSAGE_DURATION);
             }
             else {
@@ -1944,7 +1934,6 @@ void Horde_RunFrame() noexcept {
             }
         }
         break;
-
     case horde_state_t::rest:
         if (g_horde_local.warm_time < level.time) {
             if (g_chaotic->integer || g_insane->integer) {
