@@ -1616,7 +1616,7 @@ void DisplayWaveMessage(gtime_t duration = 5_sec) noexcept {
 }
 
 // Funci�n para manejar el mensaje de limpieza de ola
-void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
+void HandleWaveCleanupMessage(const MapSize& mapSize) {
     if (current_wave_number >= 15 && current_wave_number <= 28) {
         gi.cvar_set("g_insane", "1");
         gi.cvar_set("g_chaotic", "0");
@@ -1807,7 +1807,7 @@ enum class MessageType {
 };
 
 // Función para calcular el jugador con más daño
-void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
+void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
     int total_damage = 0;
     topDamager.total_damage = 0;
 
