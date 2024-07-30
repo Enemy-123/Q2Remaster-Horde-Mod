@@ -1331,37 +1331,42 @@ void UpdateHordeHUD() {
     }
 }
 
-void UpdateHordeMessage(const std::string& message, gtime_t duration = 5_sec) {
-    // Truncar el mensaje si es más largo que el límite
-    std::string truncated_message = message.substr(0, CS_MAX_STRING_LENGTH - 1);
 
-    // Si el mensaje fue truncado, añadir un indicador
+constexpr size_t MAX_MESSAGE_LENGTH = CS_MAX_STRING_LENGTH - 1;
+constexpr std::string_view TRUNCATION_INDICATOR = "...";
+
+
+// Declaración de UpdateHordeMessage
+void UpdateHordeMessage(std::string_view message, gtime_t duration);
+
+// Implementación de UpdateHordeMessage
+void UpdateHordeMessage(std::string_view message, gtime_t duration) {
+    std::string truncated_message(message.substr(0, MAX_MESSAGE_LENGTH));
+
     if (truncated_message.length() < message.length()) {
-        size_t last_space = truncated_message.find_last_of(' ');
-        if (last_space != std::string::npos && last_space > truncated_message.length() - 4) {
-            truncated_message = truncated_message.substr(0, last_space) + "...";
+        const size_t indicator_length = TRUNCATION_INDICATOR.length();
+        const size_t last_space = truncated_message.find_last_of(' ');
+
+        if (last_space != std::string::npos && last_space > truncated_message.length() - indicator_length - 1) {
+            truncated_message.replace(last_space, truncated_message.length() - last_space, TRUNCATION_INDICATOR);
         }
         else {
-            truncated_message = truncated_message.substr(0, truncated_message.length() - 3) + "...";
+            truncated_message.replace(truncated_message.length() - indicator_length, indicator_length, TRUNCATION_INDICATOR);
         }
-    }
 
-    gi.configstring(CONFIG_HORDEMSG, truncated_message.c_str());
-    horde_message_end_time = level.time + duration;
-
-    // Log si el mensaje fue truncado
-    if (truncated_message.length() < message.length()) {
         gi.Com_PrintFmt("Warning: Horde message truncated. Original: '{}', Truncated: '{}'\n",
             message, truncated_message);
     }
+
+    gi.configstring(CONFIG_HORDEMSG, truncated_message.c_str());
+    horde_message_end_time = level.time + std::max(duration, 0_sec);
 }
 
-
+// Implementación de ClearHordeMessage
 void ClearHordeMessage() {
     gi.configstring(CONFIG_HORDEMSG, "");
     horde_message_end_time = 0_sec;
 }
-
 // reset cooldowns, fixed no monster spawning on next map
 void ResetCooldowns() noexcept {
     lastSpawnPointTime.clear();
@@ -1618,13 +1623,13 @@ void PlayWaveStartSound() noexcept {
     }
 }
 
-// Funci�n para mostrar el mensaje de la ola
+// Implementación de DisplayWaveMessage
 void DisplayWaveMessage(gtime_t duration = 5_sec) noexcept {
     if (brandom()) {
-        UpdateHordeMessage("\nUse Inventory <KEY> or Use Compass To Open Horde Menu.\n\nMAKE THEM PAY!\n", duration);
+        UpdateHordeMessage("Use Inventory <KEY> or Use Compass To Open Horde Menu.\n\nMAKE THEM PAY!\n", duration);
     }
     else {
-        UpdateHordeMessage("\nWelcome to Hell.\n", duration);
+        UpdateHordeMessage("Welcome to Hell.\n", duration);
     }
 }
 
@@ -1848,22 +1853,18 @@ void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>&
     const PlayerStats& topDamager, float percentage,
     gtime_t duration = 5_sec) {
     std::string_view playerName = GetPlayerName(topDamager.player);
-    MessageType messageType = g_insane->integer == 2 ? MessageType::Insane :
-        (g_chaotic->integer || g_insane->integer ? MessageType::Chaotic : MessageType::Standard);
+    MessageType messageType = g_insane->integer ? MessageType::Insane :
+        (g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
 
-    auto message = messages.find(messageType);
-    if (message != messages.end()) {
-        // Asegurarse de que el porcentaje no incluya el signo %
+    auto messageIt = messages.find(messageType);
+    if (messageIt != messages.end()) {
         std::string percentageStr = fmt::format("{:.2f}", percentage);
-        gi.LocBroadcast_Print(PRINT_TYPEWRITER, message->second.data(),
-            g_horde_local.level, playerName.data(),
-            topDamager.total_damage, percentageStr.c_str());
+        std::string formattedMessage = fmt::format(messageIt->second,
+            g_horde_local.level, playerName,
+            topDamager.total_damage, percentageStr);
 
-        // Update the Horde message with the correct duration
-        UpdateHordeMessage(fmt::format(message->second.data(),
-            g_horde_local.level, playerName.data(),
-            topDamager.total_damage, percentageStr),
-            duration);
+        // Actualizar el mensaje de Horde con la duración correcta
+        UpdateHordeMessage(formattedMessage, duration);
     }
     else {
         gi.Com_PrintFmt("Warning: Unknown message type '{}'\n", static_cast<int>(messageType));
@@ -1876,6 +1877,7 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
     {MessageType::Chaotic, "Harder Wave Level {} Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
     {MessageType::Insane, "Insane Wave Level {} Controlled, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"}
 };
+
 
 void Horde_RunFrame() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
@@ -1931,7 +1933,11 @@ void Horde_RunFrame() noexcept {
 
         if (g_horde_local.monster_spawn_time < level.time) {
             if (Horde_AllMonstersDead()) {
-                g_horde_local.warm_time = level.time + random_time(2.2_sec, 4.5_sec);
+                constexpr auto MIN_WARM_TIME = 2.2_sec;
+                constexpr auto MAX_WARM_TIME = 3.0_sec;
+                constexpr auto CLEANUP_MESSAGE_DURATION = 5_sec;
+
+                g_horde_local.warm_time = level.time + random_time(MIN_WARM_TIME, MAX_WARM_TIME);
                 g_horde_local.state = horde_state_t::rest;
                 cachedRemainingMonsters = CalculateRemainingMonsters();
 
@@ -1939,11 +1945,12 @@ void Horde_RunFrame() noexcept {
                 float percentage = 0.0f;
                 CalculateTopDamager(topDamager, percentage);
 
-                SendCleanupMessage(cleanupMessages, topDamager, percentage, 5_sec);
+                SendCleanupMessage(cleanupMessages, topDamager, percentage, CLEANUP_MESSAGE_DURATION);
             }
             else {
                 cachedRemainingMonsters = CalculateRemainingMonsters();
-                g_horde_local.monster_spawn_time = level.time + 3_sec;
+                constexpr auto MONSTER_RESPAWN_DELAY = 3_sec;
+                g_horde_local.monster_spawn_time = level.time + MONSTER_RESPAWN_DELAY;
             }
         }
         break;

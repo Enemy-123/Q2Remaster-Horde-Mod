@@ -31,5 +31,5 @@ void Weapon_Hook(edict_t* ent);
 // HORDE CS
 extern gtime_t horde_message_end_time;  // Add this line
 extern void ClearHordeMessage();
-extern void UpdateHordeMessage(const std::string& message, gtime_t duration);
+extern void UpdateHordeMessage(std::string_view message, gtime_t duration);
 extern void UpdateHordeHUD();
