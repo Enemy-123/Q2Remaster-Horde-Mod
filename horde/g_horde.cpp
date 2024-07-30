@@ -1340,28 +1340,19 @@ constexpr std::string_view TRUNCATION_INDICATOR = "...";
 void UpdateHordeMessage(std::string_view message, gtime_t duration);
 
 // Implementación de UpdateHordeMessage
-void UpdateHordeMessage(std::string_view message, gtime_t duration) {
-    std::string truncated_message(message.substr(0, MAX_MESSAGE_LENGTH));
+void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
+    // Ya no truncamos el mensaje
+    std::string fullMessage(message);
 
-    if (truncated_message.length() < message.length()) {
-        const size_t indicator_length = TRUNCATION_INDICATOR.length();
-        const size_t last_space = truncated_message.find_last_of(' ');
-
-        if (last_space != std::string::npos && last_space > truncated_message.length() - indicator_length - 1) {
-            truncated_message.replace(last_space, truncated_message.length() - last_space, TRUNCATION_INDICATOR);
-        }
-        else {
-            truncated_message.replace(truncated_message.length() - indicator_length, indicator_length, TRUNCATION_INDICATOR);
-        }
-
-        gi.Com_PrintFmt("Warning: Horde message truncated. Original: '{}', Truncated: '{}'\n",
-            message, truncated_message);
+    // Registramos una advertencia si el mensaje es muy largo
+    if (fullMessage.length() > MAX_MESSAGE_LENGTH) {
+        gi.Com_PrintFmt("Warning: Horde message is unusually long ({} characters): '{}'\n",
+            fullMessage.length(), fullMessage);
     }
 
-    gi.configstring(CONFIG_HORDEMSG, truncated_message.c_str());
+    gi.configstring(CONFIG_HORDEMSG, fullMessage.c_str());
     horde_message_end_time = level.time + std::max(duration, 0_sec);
 }
-
 // Implementación de ClearHordeMessage
 void ClearHordeMessage() {
     gi.configstring(CONFIG_HORDEMSG, "");
@@ -1849,8 +1840,8 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) noexcept {
 }
 
 // Función para enviar el mensaje de limpieza
-void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>& messages,
-    const PlayerStats& topDamager, float percentage,
+void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>&messages,
+    const PlayerStats & topDamager, float percentage,
     gtime_t duration = 5_sec) {
     std::string_view playerName = GetPlayerName(topDamager.player);
     MessageType messageType = g_insane->integer ? MessageType::Insane :
@@ -1870,7 +1861,6 @@ void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>&
         gi.Com_PrintFmt("Warning: Unknown message type '{}'\n", static_cast<int>(messageType));
     }
 }
-
 // Mensajes de limpieza
 const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
     {MessageType::Standard, "Wave Level {} Defeated, GG!\n\n\n{} got the higher DMG this wave with {}. {}%\n"},
