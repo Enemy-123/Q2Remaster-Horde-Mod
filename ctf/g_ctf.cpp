@@ -1955,7 +1955,7 @@ std::string GetActiveBonusesString() {
 }
 
 struct PlayerScore {
-	int index;
+	unsigned int index;
 	int score;
 	int ping;
 	bool has_flag;
@@ -1966,7 +1966,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	std::vector<PlayerScore> spectators;
 	int total_score = 0;
 	// Sort players
-	for (int i = 0; i < game.maxclients; i++) {
+	for (unsigned int i = 0; i < game.maxclients; i++) {
 		edict_t* cl_ent = g_edicts + 1 + i;
 		if (!cl_ent->inuse)
 			continue;

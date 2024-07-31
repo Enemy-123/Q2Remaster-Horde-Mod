@@ -1070,7 +1070,7 @@ static void Horde_CleanBodies() noexcept {
             }
             else {
                 OnEntityDeath(ent);
-                OnEntityRemoved(ent); // Añadido para liberar el configstring
+          //      OnEntityRemoved(ent); // Añadido para liberar el configstring
             }
             G_FreeEdict(ent); // Libera la entidad
         }
