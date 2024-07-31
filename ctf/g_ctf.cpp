@@ -2686,8 +2686,6 @@ void UpdateVoteHUD() {
 	}
 }
 
-
-
 void DoRespawn(edict_t* ent);
 
 void CTFResetAllPlayers()

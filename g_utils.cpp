@@ -402,6 +402,8 @@ THINK(G_FreeEdict) (edict_t* ed) -> void
 	ed->inuse = false;
 	ed->spawn_count = id;
 	ed->sv.init = false;
+
+	OnEntityRemoved(ed);  // Limpieza final
 }
 
 BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)
