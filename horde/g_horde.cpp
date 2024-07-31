@@ -1290,20 +1290,7 @@ void SpawnBossAutomatically() noexcept {
     }
 }
 
-//CS HORDE
 
-void UpdateHordeHUD() {
-    for (auto player : active_players()) {
-        if (player->inuse && player->client) {
-            if (!player->client->voted_map[0]) {
-                player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-            }
-            else {
-                player->client->ps.stats[STAT_HORDEMSG] = 0;
-            }
-        }
-    }
-}
 
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
@@ -1326,6 +1313,20 @@ void SetHealthBarName(edict_t* boss)
 constexpr size_t MAX_MESSAGE_LENGTH = CS_MAX_STRING_LENGTH - 1;
 constexpr std::string_view TRUNCATION_INDICATOR = "...";
 
+//CS HORDE
+
+void UpdateHordeHUD() {
+    for (auto player : active_players()) {
+        if (player->inuse && player->client) {
+            if (!player->client->voted_map[0]) {
+                player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+            }
+            else {
+                player->client->ps.stats[STAT_HORDEMSG] = 0;
+            }
+        }
+    }
+}
 
 // Declaración de UpdateHordeMessage
 void UpdateHordeMessage(std::string_view message, gtime_t duration);
