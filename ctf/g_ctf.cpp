@@ -986,101 +986,55 @@ void DMGID_f(edict_t* ent)
 #include <ctime>
 #include <algorithm>
 
-constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
+#include <queue>
+#include <unordered_map>
+#include <string>
+#include <ctime>
+#include <algorithm>
 
-struct ConfigStringRange {
-	int start;
-	int end;
-	bool isUsed(int index) const { return index >= start && index <= end; }
-};
+constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
+constexpr int CONFIG_ENTITY_INFO_START = CS_GENERAL + 1;
+constexpr int CONFIG_ENTITY_INFO_END = CONFIG_ENTITY_INFO_START + 100; // Ajustar según sea necesario
 
 struct ConfigStringManager {
-	std::vector<int> availableConfigStrings;
-	std::unordered_map<int, bool> isActive;
-	std::unordered_map<int, std::string> cachedConfigStrings;
-	std::unordered_map<int, std::time_t> lastUpdateTime;
 	std::unordered_map<int, int> entityToConfigString;
+	std::queue<int> availableConfigStrings;
 
-	ConfigStringRange monsterHealthRange;
-	ConfigStringRange playerHealthRange;
-	ConfigStringRange ctfIdViewRange;
-
-	ConfigStringManager() :
-		monsterHealthRange{ CONFIG_MONSTER_HEALTH_BASE, CONFIG_MONSTER_HEALTH_END },
-		playerHealthRange{ CONFIG_PLAYER_HEALTH_BASE, CONFIG_PLAYER_HEALTH_END },
-		ctfIdViewRange{ CONFIG_CTF_ID_VIEW_START, CONFIG_CTF_ID_VIEW_END } {
-		for (int i = monsterHealthRange.start; i <= monsterHealthRange.end; ++i) {
-			availableConfigStrings.push_back(i);
-			isActive[i] = false;
-		}
-	}
-
-	void freeConfigString(int entity_index) {
-		auto it = entityToConfigString.find(entity_index);
-		if (it != entityToConfigString.end()) {
-			int cs_index = it->second;
-			isActive[cs_index] = false;
-			availableConfigStrings.push_back(cs_index);
-			cachedConfigStrings.erase(cs_index);
-			lastUpdateTime.erase(cs_index);
-			entityToConfigString.erase(it);
-
-			// Liberar la memoria del string
-			gi.configstring(cs_index, "");
+	ConfigStringManager() {
+		for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
+			availableConfigStrings.push(i);
 		}
 	}
 
 	int getConfigString(int entity_index) {
-		if (entity_index < 0 || entity_index >= MAX_EDICTS) {
-			return -1;
-		}
-
 		auto it = entityToConfigString.find(entity_index);
 		if (it != entityToConfigString.end()) {
 			return it->second;
 		}
 
 		if (!availableConfigStrings.empty()) {
-			int cs_index = availableConfigStrings.back();
-			availableConfigStrings.pop_back();
-			isActive[cs_index] = true;
+			int cs_index = availableConfigStrings.front();
+			availableConfigStrings.pop();
 			entityToConfigString[entity_index] = cs_index;
 			return cs_index;
 		}
 
-		for (auto& pair : isActive) {
-			if (!pair.second) {
-				pair.second = true;
-				entityToConfigString[entity_index] = pair.first;
-				return pair.first;
-			}
-		}
-
-		return -1;
+		return -1; // No hay ConfigStrings disponibles
 	}
 
-	void updateConfigString(int entity_index, const std::string& value, bool force = false) {
+	void freeConfigString(int entity_index) {
+		auto it = entityToConfigString.find(entity_index);
+		if (it != entityToConfigString.end()) {
+			availableConfigStrings.push(it->second);
+			gi.configstring(it->second, "");
+			entityToConfigString.erase(it);
+		}
+	}
+
+	void updateConfigString(int entity_index, const std::string& value) {
 		int cs_index = getConfigString(entity_index);
-		if (cs_index == -1 || !monsterHealthRange.isUsed(cs_index)) return;
-
-		std::string truncated_value = value.substr(0, CS_MAX_STRING_LENGTH);
-
-		auto now = std::time(nullptr);
-		if (force || cachedConfigStrings[cs_index] != truncated_value ||
-			(now - lastUpdateTime[cs_index] > 5)) {
-			cachedConfigStrings[cs_index] = truncated_value;
-			lastUpdateTime[cs_index] = now;
-			gi.configstring(cs_index, truncated_value.c_str());
-		}
-	}
-
-	void batchUpdate() {
-		auto now = std::time(nullptr);
-		for (const auto& pair : cachedConfigStrings) {
-			if (now - lastUpdateTime[pair.first] > 5) {
-				gi.configstring(pair.first, pair.second.c_str());
-				lastUpdateTime[pair.first] = now;
-			}
+		if (cs_index != -1) {
+			gi.configstring(cs_index, value.c_str());
 		}
 	}
 };
@@ -1171,6 +1125,7 @@ std::string GetDisplayName(const std::string& classname) {
 }
 #include <sstream>
 #include <cctype>
+
 std::string FormatClassname(const std::string& classname) {
 	std::stringstream ss(classname);
 	std::string segment, formatted_name;
@@ -1208,37 +1163,7 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 		return false;
 	return true;
 }
-#include <cstdint> // Para usar uint32_t
 
-void OnEntityRemoved(edict_t* ent) {
-    if (ent && ent->inuse) {
-        uint32_t entity_index = static_cast<uint32_t>(ent - g_edicts);
-        if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
-            configStringManager.freeConfigString(static_cast<int>(entity_index));
-        }
-    }
-}
-
-void OnEntityDeath(edict_t* self) {
-    if (self && self->inuse) {
-        uint32_t entity_index = static_cast<uint32_t>(self - g_edicts);
-        if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
-            if (configStringManager.entityToConfigString.count(static_cast<int>(entity_index)) > 0) {
-                configStringManager.freeConfigString(static_cast<int>(entity_index));
-            }
-        }
-    }
-}
-
-void CleanupInvalidEntities() {
-    for (uint32_t i = 0; i < static_cast<uint32_t>(globals.num_edicts); i++) {
-        edict_t* ent = &g_edicts[i];
-        if (ent->inuse && !IsValidTarget(nullptr, ent, false)) {
-            G_FreeEdict(ent);
-        }
-    }
-}
-// ID STUFF
 int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
@@ -1247,13 +1172,62 @@ int GetArmorInfo(edict_t* ent) {
 	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
 
-void CTFSetIDView(edict_t* ent) {
-	if (level.intermissiontime) {
-		return;
+std::string GetTitleFromFlags(int bonus_flags);
+std::string FormatEntityInfo(edict_t* ent) {
+	std::string info;
+
+	if (ent->svflags & SVF_MONSTER) {
+		std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
+		std::string name = title + FormatClassname(GetDisplayName(ent->classname ? ent->classname : "Unknown Monster"));
+		info = fmt::format("{}\nH: {}", name, ent->health);
+
+		if (ent->monsterinfo.armor_power >= 1) {
+			info += fmt::format(" A: {}", ent->monsterinfo.armor_power);
+		}
+		if (ent->monsterinfo.power_armor_power >= 1) {
+			info += fmt::format(" PA: {}", ent->monsterinfo.power_armor_power);
+		}
+
+		// Añadir información de powerups
+		if (ent->monsterinfo.quad_time > level.time) {
+			int remaining_quad_time = static_cast<int>((ent->monsterinfo.quad_time - level.time).seconds<float>());
+			info += fmt::format("\nQuad: {}s", remaining_quad_time);
+		}
+		if (ent->monsterinfo.double_time > level.time) {
+			int remaining_double_time = static_cast<int>((ent->monsterinfo.double_time - level.time).seconds<float>());
+			info += fmt::format("\nDouble: {}s", remaining_double_time);
+		}
+		if (ent->monsterinfo.invincible_time > level.time) {
+			int remaining_invincible_time = static_cast<int>((ent->monsterinfo.invincible_time - level.time).seconds<float>());
+			info += fmt::format("\nInvuln: {}s", remaining_invincible_time);
+		}
+	}
+	else if (ent->client) {
+		info = fmt::format("{}\nH: {}", ent->client->pers.netname, ent->health);
+		int armor_value = GetArmorInfo(ent);
+		if (armor_value > 0) {
+			info += fmt::format(" A: {}", armor_value);
+		}
+	}
+	else if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap") || !strcmp(ent->classname, "prox_mine")) {
+		std::string name = GetDisplayName(ent->classname);
+		info = fmt::format("{}H: {}", name, ent->health);
+
+		if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap")) {
+			gtime_t time_active = level.time - ent->timestamp;
+			gtime_t time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
+			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
+			info += fmt::format(" T: {}s", remaining_time);
+		}
 	}
 
-	if (level.time - ent->client->resp.lastidtime < 97_ms)
+	return info;
+}
+
+void CTFSetIDView(edict_t* ent) {
+	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
+	}
 
 	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
@@ -1268,8 +1242,7 @@ void CTFSetIDView(edict_t* ent) {
 
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* who = g_edicts + i;
-		if (!IsValidTarget(ent, who, false))
-			continue;
+		if (!IsValidTarget(ent, who, false)) continue;
 
 		vec3_t dir = who->s.origin - ent->s.origin;
 		dir.normalize();
@@ -1281,66 +1254,12 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 
-	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
-		best = ent->client->idtarget;
-	}
-
 	if (best) {
 		ent->client->idtarget = best;
-		std::string health_string;
-
-		if (best->svflags & SVF_MONSTER) {
-			std::string title = GetTitleFromFlags(best->monsterinfo.bonus_flags);
-			std::string name = title + FormatClassname(GetDisplayName(best->classname ? best->classname : "Unknown Monster"));
-			health_string = fmt::format("{}\nH: {}", name, best->health);
-
-			if (best->monsterinfo.armor_power >= 1) {
-				health_string += fmt::format(" A: {}", best->monsterinfo.armor_power);
-			}
-			if (best->monsterinfo.power_armor_power >= 1) {
-				health_string += fmt::format(" PA: {}", best->monsterinfo.power_armor_power);
-			}
-		}
-		else if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap") || !strcmp(best->classname, "prox_mine")) {
-			std::string name = GetDisplayName(best->classname);
-			health_string = fmt::format("{}H: {}", name, best->health);
-
-			if (!strcmp(best->classname, "tesla_mine") || !strcmp(best->classname, "food_cube_trap")) {
-				gtime_t time_active = level.time - best->timestamp;
-				gtime_t time_remaining = (!strcmp(best->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
-				int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-				health_string += fmt::format(" T: {}s", remaining_time);
-			}
-		}
-		else {
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = (best - g_edicts);
-			health_string = fmt::format("\nH: {}", best->health);
-
-			if (best->client) {
-				int armor_value = GetArmorInfo(best);
-				if (armor_value > 0) {
-					health_string += fmt::format(" A: {}", armor_value);
-				}
-			}
-		}
-
-		if (best->svflags & SVF_MONSTER) {
-			if (best->monsterinfo.quad_time > level.time) {
-				int remaining_quad_time = static_cast<int>((best->monsterinfo.quad_time - level.time).seconds<float>());
-				health_string += fmt::format("\nQuad: {}s", remaining_quad_time);
-			}
-			if (best->monsterinfo.double_time > level.time) {
-				int remaining_double_time = static_cast<int>((best->monsterinfo.double_time - level.time).seconds<float>());
-				health_string += fmt::format("\nDouble: {}s", remaining_double_time);
-			}
-			if (best->monsterinfo.invincible_time > level.time) {
-				int remaining_invincible_time = static_cast<int>((best->monsterinfo.invincible_time - level.time).seconds<float>());
-				health_string += fmt::format("\nInvuln: {}s", remaining_invincible_time);
-			}
-		}
+		std::string info_string = FormatEntityInfo(best);
 
 		int entity_index = best - g_edicts;
-		configStringManager.updateConfigString(entity_index, health_string);
+		configStringManager.updateConfigString(entity_index, info_string);
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringManager.getConfigString(entity_index);
 	}
 	else {
@@ -1348,8 +1267,33 @@ void CTFSetIDView(edict_t* ent) {
 	}
 }
 
-void UpdateAllClients() {
-	configStringManager.batchUpdate();
+void OnEntityRemoved(edict_t* ent) {
+	if (ent && ent->inuse) {
+		uint32_t entity_index = static_cast<uint32_t>(ent - g_edicts);
+		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
+			configStringManager.freeConfigString(static_cast<int>(entity_index));
+		}
+	}
+}
+
+void OnEntityDeath(edict_t* self) {
+	if (self && self->inuse) {
+		uint32_t entity_index = static_cast<uint32_t>(self - g_edicts);
+		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
+			if (configStringManager.entityToConfigString.count(static_cast<int>(entity_index)) > 0) {
+				configStringManager.freeConfigString(static_cast<int>(entity_index));
+			}
+		}
+	}
+}
+
+void CleanupInvalidEntities() {
+	for (uint32_t i = 0; i < static_cast<uint32_t>(globals.num_edicts); i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent->inuse && !IsValidTarget(nullptr, ent, false)) {
+			G_FreeEdict(ent);
+		}
+	}
 }
 void SetCTFStats(edict_t* ent)
 {

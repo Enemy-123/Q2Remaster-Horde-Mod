@@ -206,7 +206,7 @@ void PreInitGame()
 
 	// Paril
 	Horde_PreInit();
-	UpdateAllClients();
+	//UpdateAllClients();
 	// ZOID
 	// This gamemode only supports deathmatch
 	if (ctf->integer)

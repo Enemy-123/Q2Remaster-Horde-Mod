@@ -348,7 +348,7 @@ void Horde_InitLevel(int32_t lvl) noexcept {
     ResetSpawnAttempts();
     ResetCooldowns();
 
-    UpdateAllClients();
+    //UpdateAllClients();
 
     // Limpiar cuerpos de olas anteriores
     Horde_CleanBodies();

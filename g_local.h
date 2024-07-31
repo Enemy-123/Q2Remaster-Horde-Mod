@@ -3851,4 +3851,4 @@ extern std::string GetDisplayName(edict_t* ent);
 extern std::string GetTitleFromFlags(int bonus_flags);
 extern float M_DamageModifier(edict_t* monster);
 
-extern void UpdateAllClients();
+//extern void UpdateAllClients();
