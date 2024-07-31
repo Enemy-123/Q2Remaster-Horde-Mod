@@ -55,6 +55,7 @@ constexpr int MAX_PLAYER_CONFIGSTRINGS = 16;
 constexpr int MAX_MONSTER_CONFIGSTRINGS = 50;
 constexpr int MAX_CTF_ID_VIEW_CONFIGSTRINGS = 75;
 
+// reserved general CS ranges
 enum {
 	CONFIG_CTF_MATCH = CS_GENERAL,
 	CONFIG_CTF_PLAYER_NAME,
@@ -74,6 +75,9 @@ enum {
 	CONFIG_VOTE_INFO,
 	CONFIG_LAST
 };
+
+static_assert(CONFIG_LAST <= CS_GENERAL + MAX_GENERAL);
+
 // ammo IDs
 enum ammo_t : uint8_t
 {
