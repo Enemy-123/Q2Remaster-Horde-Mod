@@ -980,8 +980,19 @@ void DMGID_f(edict_t* ent)
 }
 
 #include "../shared.h"
+#include <vector>
+#include <unordered_map>
+#include <string>
+#include <ctime>
+#include <algorithm>
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
+
+struct ConfigStringRange {
+	int start;
+	int end;
+	bool isUsed(int index) const { return index >= start && index <= end; }
+};
 
 struct ConfigStringManager {
 	std::vector<int> availableConfigStrings;
@@ -990,8 +1001,15 @@ struct ConfigStringManager {
 	std::unordered_map<int, std::time_t> lastUpdateTime;
 	std::unordered_map<int, int> entityToConfigString;
 
-	ConfigStringManager() {
-		for (int i = CONFIG_MONSTER_HEALTH_BASE; i <= CONFIG_MONSTER_HEALTH_END; ++i) {
+	ConfigStringRange monsterHealthRange;
+	ConfigStringRange playerHealthRange;
+	ConfigStringRange ctfIdViewRange;
+
+	ConfigStringManager() :
+		monsterHealthRange{ CONFIG_MONSTER_HEALTH_BASE, CONFIG_MONSTER_HEALTH_END },
+		playerHealthRange{ CONFIG_PLAYER_HEALTH_BASE, CONFIG_PLAYER_HEALTH_END },
+		ctfIdViewRange{ CONFIG_CTF_ID_VIEW_START, CONFIG_CTF_ID_VIEW_END } {
+		for (int i = monsterHealthRange.start; i <= monsterHealthRange.end; ++i) {
 			availableConfigStrings.push_back(i);
 			isActive[i] = false;
 		}
@@ -1006,10 +1024,17 @@ struct ConfigStringManager {
 			cachedConfigStrings.erase(cs_index);
 			lastUpdateTime.erase(cs_index);
 			entityToConfigString.erase(it);
+
+			// Liberar la memoria del string
+			gi.configstring(cs_index, "");
 		}
 	}
 
 	int getConfigString(int entity_index) {
+		if (entity_index < 0 || entity_index >= MAX_EDICTS) {
+			return -1;
+		}
+
 		auto it = entityToConfigString.find(entity_index);
 		if (it != entityToConfigString.end()) {
 			return it->second;
@@ -1036,7 +1061,7 @@ struct ConfigStringManager {
 
 	void updateConfigString(int entity_index, const std::string& value, bool force = false) {
 		int cs_index = getConfigString(entity_index);
-		if (cs_index == -1 || cs_index > CONFIG_MONSTER_HEALTH_END) return;
+		if (cs_index == -1 || !monsterHealthRange.isUsed(cs_index)) return;
 
 		std::string truncated_value = value.substr(0, CS_MAX_STRING_LENGTH);
 
@@ -1061,6 +1086,7 @@ struct ConfigStringManager {
 };
 
 ConfigStringManager configStringManager;
+
 // Funciones auxiliares
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
@@ -1182,15 +1208,37 @@ bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
 		return false;
 	return true;
 }
+#include <cstdint> // Para usar uint32_t
 
 void OnEntityRemoved(edict_t* ent) {
-	configStringManager.freeConfigString(ent - g_edicts);
+    if (ent && ent->inuse) {
+        uint32_t entity_index = static_cast<uint32_t>(ent - g_edicts);
+        if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
+            configStringManager.freeConfigString(static_cast<int>(entity_index));
+        }
+    }
 }
 
 void OnEntityDeath(edict_t* self) {
-	configStringManager.freeConfigString(self - g_edicts);
+    if (self && self->inuse) {
+        uint32_t entity_index = static_cast<uint32_t>(self - g_edicts);
+        if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
+            if (configStringManager.entityToConfigString.count(static_cast<int>(entity_index)) > 0) {
+                configStringManager.freeConfigString(static_cast<int>(entity_index));
+            }
+        }
+    }
 }
 
+void CleanupInvalidEntities() {
+    for (uint32_t i = 0; i < static_cast<uint32_t>(globals.num_edicts); i++) {
+        edict_t* ent = &g_edicts[i];
+        if (ent->inuse && !IsValidTarget(nullptr, ent, false)) {
+            G_FreeEdict(ent);
+        }
+    }
+}
+// ID STUFF
 int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
@@ -1233,7 +1281,6 @@ void CTFSetIDView(edict_t* ent) {
 		}
 	}
 
-	// If no target found within the view cone, check if the last ID target is still valid and visible
 	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
 		best = ent->client->idtarget;
 	}
@@ -1277,7 +1324,6 @@ void CTFSetIDView(edict_t* ent) {
 			}
 		}
 
-		//powerup info
 		if (best->svflags & SVF_MONSTER) {
 			if (best->monsterinfo.quad_time > level.time) {
 				int remaining_quad_time = static_cast<int>((best->monsterinfo.quad_time - level.time).seconds<float>());
@@ -1305,7 +1351,6 @@ void CTFSetIDView(edict_t* ent) {
 void UpdateAllClients() {
 	configStringManager.batchUpdate();
 }
-
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;
