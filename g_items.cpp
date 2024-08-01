@@ -3258,7 +3258,7 @@ always owned, never in the world
 			/* vwep_model */ nullptr,
 			/* armor_info */ nullptr,
 			/* tag */ POWERUP_DOPPELGANGER,
-			/* precaches */ "models/monsters/turret/tris.md2 models/objects/dopplebase/tris.md2 models/items/spawngro3/tris.md2 medic_commander/monsterspawn1.wav models/items/hunter/tris.md2 models/items/vengnce/tris.md2",
+			/* precaches */ "models/monsters/turret/tris.md2 gunner/gunidle1.wav turret/moving.wav",
 		},
 
 		{
