@@ -598,6 +598,70 @@ bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
 	return OnSameTeam(targ, attacker);
 }
 
+
+int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
+	if (!attacker->client || !attacker->client->pers.weapon) {
+		return base_health_stolen;
+	}
+
+	const int weapon_id = attacker->client->pers.weapon->id;
+	float multiplier = 1.0f;
+
+	switch (weapon_id) {
+	case IT_WEAPON_SHOTGUN:
+		multiplier = 1.0f / DEFAULT_SHOTGUN_COUNT;
+		break;
+	case IT_WEAPON_SSHOTGUN:
+	case IT_WEAPON_RLAUNCHER:
+	case IT_WEAPON_HYPERBLASTER:
+	case IT_WEAPON_PHALANX:
+	case IT_WEAPON_RAILGUN:
+		multiplier = 0.5f;
+		break;
+	case IT_WEAPON_IONRIPPER:
+		multiplier = 1.0f / 3.0f;
+		break;
+	case IT_WEAPON_MACHINEGUN:
+		if (g_tracedbullets->integer) multiplier = 0.5f;
+		break;
+	case IT_WEAPON_GLAUNCHER:
+		multiplier = g_bouncygl->integer ? 0.25f : 0.5f;
+		break;
+	}
+
+	int health_stolen = std::max(1, static_cast<int>(base_health_stolen * multiplier));
+
+	// Aplicar modificadores adicionales
+	if (attacker->client->quad_time > level.time) health_stolen = std::max(1, static_cast<int>(health_stolen / 2.4f));
+	if (attacker->client->double_time > level.time) health_stolen = std::max(1, static_cast<int>(health_stolen / 1.5f));
+	if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) health_stolen = std::max(1, static_cast<int>(health_stolen / 1.5f));
+
+	return health_stolen;
+}
+
+void heal_attacker_sentries(edict_t* attacker, int health_stolen) {
+	for (unsigned int i = 0; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+
+		if (!ent->inuse || strcmp(ent->classname, "monster_sentrygun") != 0 || ent->owner != attacker)
+			continue;
+
+		if (ent->health > 0) {
+			ent->health = std::min(ent->health + health_stolen, ent->max_health);
+		}
+	}
+}
+
+void apply_armor_vampire(edict_t* attacker, int damage) {
+	int index = ArmorIndex(attacker);
+	if (index && attacker->client && attacker->client->pers.inventory[index] > 0) {
+		int armor_stolen = std::max(1, static_cast<int>(0.7f * (damage / 4))); // Robar 70% del robo de vida como armadura
+		int max_armor = 200;
+		armor_stolen = std::min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
+		attacker->client->pers.inventory[index] += armor_stolen;
+	}
+}
+
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
 	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
 {
@@ -796,130 +860,49 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	bool isSentrygun = false;
 
 	// Verificar si el atacante puede usar la habilidad de vampiro
-	if ((attacker->svflags & SVF_MONSTER) &&
-		((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
-			(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
-		!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
-		CanUseVamp = true;
-	}
+	if (attacker && attacker->health > 0 && !attacker->deadflag) {
+		if ((attacker->svflags & SVF_MONSTER) &&
+			((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
+				(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
+			!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
+			CanUseVamp = true;
+		}
 
-	if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
-		isSentrygun = true;
-		CanUseVamp = true;
-	}
-	else if (!(attacker->svflags & SVF_MONSTER)) {
-		CanUseVamp = true; // Los jugadores también pueden usar la habilidad de vampiro
-	}
+		if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
+			isSentrygun = true;
+			CanUseVamp = true;
+		}
+		else if (!(attacker->svflags & SVF_MONSTER)) {
+			CanUseVamp = true; // Los jugadores también pueden usar la habilidad de vampiro
+		}
 
-	if (g_vampire->integer && CanUseVamp) {
-		if (attacker != targ &&
-			!OnSameTeam(targ, attacker) &&
-			damage > 0 && // Aceptar cualquier cantidad de daño
-			!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time) && // Verificar si el objetivo es invulnerable
-			attacker->health > 0) {
+		if (g_vampire->integer && CanUseVamp) {
+			if (attacker != targ &&
+				!OnSameTeam(targ, attacker) &&
+				damage > 0 && // Aceptar cualquier cantidad de daño
+				!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) { // Verificar si el objetivo es invulnerable
 
-			// Health Vampire
-			int health_stolen = damage / 4; // Robar 25% del daño como vida
-			if (attacker->health <= attacker->max_health) {
-				if (isSentrygun) {
-					health_stolen = 1; // Si es sentrygun, solo puede robar 1 de vida
-				}
-				else {
-					const bool using_shotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
-					const bool using_machinegun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
-					const bool using_sshotgun = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
-					const bool using_glauncher = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
-					const bool using_hyperblaster = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-					const bool using_ripper = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
-					const bool using_rail = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RAILGUN;
-					const bool using_rocketl = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
-					const bool using_plasmag = attacker->client && attacker->client->pers.weapon && attacker->client->pers.weapon->id == IT_WEAPON_PHALANX;
-
-					if (using_shotgun) {
-						health_stolen = max(1, health_stolen / DEFAULT_SHOTGUN_COUNT);
-					}
-					else if (using_sshotgun) {
-						health_stolen = max(1, health_stolen / 2);
-					}
-					else if (using_rocketl) {
-						health_stolen = max(1, health_stolen / 2);
-					}
-					else if (using_hyperblaster) {
-						health_stolen = max(1, health_stolen / 2);
-					}
-					else if (using_ripper) {
-						health_stolen = max(1, health_stolen / 3);
-					}
-					else if (using_plasmag) {
-						health_stolen = max(1, health_stolen / 2);
-					}
-					else if (using_rail) {
-						health_stolen = max(1, health_stolen / 2);
-					}
-					else if (using_machinegun && g_tracedbullets->integer) {
-						health_stolen = max(1, health_stolen / 2);
-					}
-					else if (using_glauncher) {
-						health_stolen = max(1, health_stolen / 2);
-					}
-					else if (using_glauncher && g_bouncygl->integer) {
-						health_stolen = max(1, health_stolen / 4);
+				// Health Vampire
+				int health_stolen = damage / 4; // Robar 25% del daño como vida
+				if (attacker->health < attacker->max_health) {
+					if (isSentrygun) {
+						health_stolen = 1; // Si es sentrygun, solo puede robar 1 de vida
 					}
 					else {
-						health_stolen = max(1, health_stolen);
+						health_stolen = calculate_health_stolen(attacker, health_stolen);
 					}
 
-					if (attacker->client) {
-						if (attacker->client->quad_time > level.time) {
-							health_stolen = max(1, static_cast<int>(health_stolen / 2.4));
-						}
-						if (attacker->client->double_time > level.time) {
-							health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
-						}
-						if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) {
-							health_stolen = max(1, static_cast<int>(health_stolen / 1.5));
-						}
-					}
+					attacker->health = std::min(attacker->health + health_stolen, attacker->max_health);
 				}
 
-				attacker->health += health_stolen;
-				if (attacker->health > attacker->max_health) {
-					attacker->health = attacker->max_health;
+				// Curar entidades propiedad del atacante
+				if ((attacker->svflags & SVF_PLAYER) && current_wave_number >= 10) {
+					heal_attacker_sentries(attacker, health_stolen);
 				}
-			}
 
-			// Curar entidades propiedad del atacante
-			if (attacker->svflags & SVF_PLAYER && current_wave_number >= 10) {
-				for (unsigned int i = 0; i < globals.num_edicts; i++) {
-					edict_t* ent = &g_edicts[i];
-
-					if (!ent->inuse)
-						continue;
-
-					if (strcmp(ent->classname, "monster_sentrygun"))
-						continue;
-
-					if (ent->owner == attacker) {
-						if (ent->health > 0) {
-							ent->health += health_stolen;
-							if (ent->health > ent->max_health) {
-								ent->health = ent->max_health;
-							}
-						}
-					}
-				}
-			}
-
-			// Armor Vampire
-			if (g_vampire->integer == 2) {
-				int index = ArmorIndex(attacker);
-				if (index && attacker->client && attacker->client->pers.inventory[index] > 0) {
-					int armor_stolen = max(1, (int)(0.7 * (damage / 4))); // Robar 70% del robo de vida como armadura
-
-					int max_armor = 200;
-					armor_stolen = min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
-
-					attacker->client->pers.inventory[index] += armor_stolen;
+				// Armor Vampire
+				if (g_vampire->integer == 2) {
+					apply_armor_vampire(attacker, damage);
 				}
 			}
 		}

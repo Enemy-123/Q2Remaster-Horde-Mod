@@ -1815,19 +1815,19 @@ void respawn(edict_t* self)
 	{
 		// Guardar el arma y la salud m�xima antes de la muerte
 		SaveClientWeaponBeforeDeath(self->client);
-
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
 			CopyToBodyQue(self);
 		self->svflags &= ~SVF_NOCLIENT;
 		PutClientInServer(self);
-		self->client->resp.spree = 0;
 
 		G_PostRespawn(self);
+		self->client->resp.spree = 0;
 		return;
 	}
 
-	// L�gica adicional para otros modos...
+	// restart the entire server
+	gi.AddCommandString("menu_loadgame\n");
 }
 
 /*
@@ -3807,6 +3807,54 @@ inline bool G_MonstersSearchingFor(edict_t* player)
 
 // [Paril-KEX] from the given player, find a good spot to
 // spawn a player
+#include <limits>
+#include <algorithm>
+#include <string>
+#include <fmt/format.h>
+
+// Spawnflags for trigger_hurt
+constexpr spawnflags_t SPAWNFLAG_HURT_START_OFF = 1_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_HURT_TOGGLE = 2_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_HURT_SILENT = 4_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_HURT_NO_PROTECTION = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_HURT_SLOW = 16_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_HURT_NO_PLAYERS = 32_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_HURT_NO_MONSTERS = 64_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_HURT_CLIPPED = 128_spawnflag;
+
+// Function to check if a point is inside a trigger_hurt
+bool IsInsideTriggerHurt(const vec3_t& point) {
+	for (size_t i = 1; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+		if (!ent->inuse || ent->classname != "trigger_hurt")
+			continue;
+
+		// Skip if the trigger_hurt is not solid (START_OFF flag is set)
+		if (ent->spawnflags.has(SPAWNFLAG_HURT_START_OFF) && ent->solid == SOLID_NOT)
+			continue;
+
+		// Skip if it's set to not affect players
+		if (ent->spawnflags.has(SPAWNFLAG_HURT_NO_PLAYERS))
+			continue;
+
+		if (ent->absmin[0] <= point[0] && point[0] <= ent->absmax[0] &&
+			ent->absmin[1] <= point[1] && point[1] <= ent->absmax[1] &&
+			ent->absmin[2] <= point[2] && point[2] <= ent->absmax[2]) {
+
+			if (ent->spawnflags.has(SPAWNFLAG_HURT_CLIPPED)) {
+				trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, NULL, MASK_SOLID);
+				if (tr.fraction < 1.0f && tr.ent == ent)
+					return true;
+			}
+			else {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
+// [Paril-KEX] from the given player, find a good spot to spawn a player
 inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 {
 	// sanity check; make sure there's enough room for ourselves.
@@ -3873,6 +3921,10 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 		if (tr.plane.normal.z < 0.7f)
 			continue;
 
+		// Check if the spot is inside a trigger_hurt
+		if (IsInsideTriggerHurt(tr.endpos))
+			continue;
+
 		spot = tr.endpos;
 
 		float z_diff = fabsf(player->s.origin[2] - tr.endpos[2]);
@@ -3901,15 +3953,12 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
-#include <limits>
-#include <algorithm>
-#include <string>
-#include <fmt/format.h>
 
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
 	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 	constexpr gtime_t max_time_in_bad_area = 5_sec;
+	constexpr gtime_t safe_time_threshold = 3_sec;  // Tiempo seguro sin recibir daño
 
 	edict_t* best_player = nullptr;
 	vec3_t best_spot = {};
@@ -3949,9 +3998,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 				min_time_left = time_left_in_bad_area;
 			}
 
-			// Formatea el mensaje con el tiempo en bad area hasta la décima de segundo
 			std::string message_str_bad_area = fmt::format("In Bad Area! Forcing Respawn in: {:.1f}(s)", time_left_in_bad_area.seconds<float>());
-			// Actualiza la configstring con el mensaje de bad area
 			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str_bad_area.c_str());
 
 			if (player->client->time_in_bad_area >= max_time_in_bad_area) {
@@ -3980,9 +4027,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 
 	// Update config string for combat state
 	if (min_time_left < gtime_t::from_ms(std::numeric_limits<int64_t>::max())) {
-		// Formatea el mensaje con el tiempo en combate hasta la décima de segundo
-		std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)", min_time_left.seconds<float>());
-		// Actualiza la configstring con el mensaje
+		std::string message_str = fmt::format("in Combat! Reviving in: {:.1f}(s)", min_time_left.seconds<float>());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
 	}
 
