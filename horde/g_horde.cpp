@@ -1833,9 +1833,9 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 
 // Definición de los mensajes de limpieza con placeholders nombrados y sin porcentaje extra
 const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
-    {MessageType::Standard, "Wave Level {level} Defeated, GG!\n\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
-    {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
-    {MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"}
+    {MessageType::Standard, "Wave Level {level} Defeated, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
+    {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
+    {MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"}
 };
 
 // Función para enviar el mensaje de limpieza actualizada
