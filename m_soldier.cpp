@@ -1421,15 +1421,9 @@ void soldier_jump(edict_t* self, blocked_jump_result_t result)
 	monster_done_dodge(self);
 
 	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
-	{
 		M_SetAnimation(self, &soldier_move_jump2);
-		gi.sound(self, CHAN_VOICE, sound_sight1, 1, ATTN_NORM, 0);  // Añade un sonido para el salto
-	}
 	else
-	{
 		M_SetAnimation(self, &soldier_move_jump);
-		gi.sound(self, CHAN_VOICE, sound_sight2, 1, ATTN_NORM, 0);  // Añade un sonido para el salto
-	}
 }
 // pmm - blocking code
 
