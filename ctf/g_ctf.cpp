@@ -980,17 +980,13 @@ void DMGID_f(edict_t* ent)
 }
 
 #include "../shared.h"
-#include <vector>
-#include <unordered_map>
-#include <string>
-#include <ctime>
-#include <algorithm>
-
 #include <queue>
 #include <unordered_map>
 #include <string>
-#include <ctime>
+#include <sstream>
+#include <cctype>
 #include <algorithm>
+
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 constexpr int CONFIG_ENTITY_INFO_START = CS_GENERAL + 1;
@@ -1041,7 +1037,6 @@ struct ConfigStringManager {
 
 ConfigStringManager configStringManager;
 
-// Funciones auxiliares
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
 		// Lista de reemplazos de nombre
@@ -1123,8 +1118,6 @@ std::string GetDisplayName(const std::string& classname) {
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
-#include <sstream>
-#include <cctype>
 
 std::string FormatClassname(const std::string& classname) {
 	std::stringstream ss(classname);
@@ -1172,7 +1165,9 @@ int GetArmorInfo(edict_t* ent) {
 	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
 
+std::string GetPlayerName(edict_t* player);
 std::string GetTitleFromFlags(int bonus_flags);
+
 std::string FormatEntityInfo(edict_t* ent) {
 	std::string info;
 
@@ -1203,7 +1198,8 @@ std::string FormatEntityInfo(edict_t* ent) {
 		}
 	}
 	else if (ent->client) {
-		info = fmt::format("{}\nH: {}", ent->client->pers.netname, ent->health);
+		std::string playerName = GetPlayerName(ent);
+		info = fmt::format("{}\nH: {}", playerName, ent->health);
 		int armor_value = GetArmorInfo(ent);
 		if (armor_value > 0) {
 			info += fmt::format(" A: {}", armor_value);
@@ -1252,6 +1248,10 @@ void CTFSetIDView(edict_t* ent) {
 			closest_dist = dist;
 			best = who;
 		}
+	}
+
+	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
+		best = ent->client->idtarget;
 	}
 
 	if (best) {
