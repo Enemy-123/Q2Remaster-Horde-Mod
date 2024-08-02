@@ -905,7 +905,7 @@ void SP_monster_runnertank(edict_t* self)
 		return;
 	}
 
-	self->s.modelindex = gi.modelindex("models/monsters/runnertank/tris.md2");
+	self->s.modelindex = gi.modelindex("models/vault/monsters/tank/tris.md2");
 	self->mins = { -32, -32, -16 };
 	self->maxs = { 32, 32, 64 };
 	self->movetype = MOVETYPE_STEP;
@@ -1015,7 +1015,7 @@ void SP_monster_runnertank_stand(edict_t* self)
 
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
-	self->model = "models/vault/monsters/runnertank/tris.md2";
+	self->model = "models/vault/monsters/tank/tris.md2";
 	self->s.modelindex = gi.modelindex(self->model);
 	self->s.frame = FRAME_stand01;
 	self->s.skinnum = 2;
