@@ -662,7 +662,7 @@ gitem_t* item;
 
 	if (!ent->classname)
 	{
-		gi.Com_Print("ED_CallSpawn: nullptr classname\n");
+	//	gi.Com_Print("ED_CallSpawn: nullptr classname\n");
 		G_FreeEdict(ent);
 		return;
 	}
