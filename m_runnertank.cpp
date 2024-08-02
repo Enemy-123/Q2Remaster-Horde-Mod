@@ -30,6 +30,9 @@ static cached_soundindex sound_strike;
 constexpr spawnflags_t SPAWNFLAG_runnertank_COMMANDER_GUARDIAN = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING = 16_spawnflag;
 
+
+
+
 //
 // misc
 //
@@ -118,25 +121,20 @@ mframe_t runnertank_frames_start_walk[] = {
 MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
 #endif
 
+// Animación de caminata corregida
 mframe_t runnertank_frames_walk[] = {
-	{ ai_walk, 4 },
-	{ ai_walk, 5 },
-	{ ai_walk, 3 },
-	{ ai_walk, 2 },
-	{ ai_walk, 5 },
-	{ ai_walk, 5 },
-	{ ai_walk, 4 },
-	{ ai_walk, 4, runnertank_footstep },
-	{ ai_walk, 3 },
-	{ ai_walk, 5 },
-	{ ai_walk, 4 },
-	{ ai_walk, 5 },
-	{ ai_walk, 7 },
-	{ ai_walk, 7 },
-	{ ai_walk, 6 },
-	{ ai_walk, 6, runnertank_footstep }
+	{ ai_walk, 4 }, { ai_walk, 5 }, { ai_walk, 3 }, { ai_walk, 2 },
+	{ ai_walk, 5 }, { ai_walk, 5 }, { ai_walk, 4 }, { ai_walk, 4, runnertank_footstep },
+	{ ai_walk, 3 }, { ai_walk, 5 }, { ai_walk, 4 }, { ai_walk, 5 },
+	{ ai_walk, 7 }, { ai_walk, 7 }, { ai_walk, 6 }, { ai_walk, 6, runnertank_footstep },
+	{ ai_walk, 4 }, { ai_walk, 5 }, { ai_walk, 3 }, { ai_walk, 2 },
+	{ ai_walk, 5 }, { ai_walk, 5 }, { ai_walk, 4 }, { ai_walk, 4, runnertank_footstep },
+	{ ai_walk, 3 }, { ai_walk, 5 }, { ai_walk, 4 }, { ai_walk, 5 },
+	{ ai_walk, 7 }, { ai_walk, 7 }, { ai_walk, 6 }, { ai_walk, 6, runnertank_footstep },
+	{ ai_walk, 4 }, { ai_walk, 5 }, { ai_walk, 3 }, { ai_walk, 2 },
+	{ ai_walk, 4 }, { ai_walk, 5 }
 };
-MMOVE_T(runnertank_move_walk) = { FRAME_walk05, FRAME_walk20, runnertank_frames_walk, nullptr };
+MMOVE_T(runnertank_move_walk) = { FRAME_walk01, FRAME_walk38, runnertank_frames_walk, runnertank_walk };
 
 #if 0
 mframe_t runnertank_frames_stop_walk[] = {
@@ -148,45 +146,68 @@ mframe_t runnertank_frames_stop_walk[] = {
 };
 MMOVE_T(runnertank_move_stop_walk) = { FRAME_walk21, FRAME_walk25, runnertank_frames_stop_walk, runnertank_stand };
 #endif
+void runnertank_run(edict_t* self);
 
+// Nuevas animaciones para inicio y fin de caminata/carrera
+mframe_t runnertank_frames_start_walk[] = {
+	{ ai_walk, 0 }, { ai_walk, 3 }, { ai_walk, 3 }, { ai_walk, 3 }
+};
+MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
+
+mframe_t runnertank_frames_stop_walk[] = {
+	{ ai_walk, 3 }, { ai_walk, 3 }, { ai_walk, 2 }, { ai_walk, 2 },
+	{ ai_walk, 0, runnertank_footstep }
+};
+MMOVE_T(runnertank_move_stop_walk) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_walk, runnertank_stand };
+
+// Asegurarse de que la transición de caminata a carrera funcione correctamente
+mframe_t runnertank_frames_start_run[] = {
+	{ ai_run, 8 }, { ai_run, 8 }, { ai_run, 8 }, { ai_run, 8, runnertank_footstep }
+};
+MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
+
+
+mframe_t runnertank_frames_stop_run[] = {
+	{ ai_run, 3 }, { ai_run, 3 }, { ai_run, 2 }, { ai_run, 2 },
+	{ ai_run, 0, runnertank_footstep }
+};
+MMOVE_T(runnertank_move_stop_run) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_run, runnertank_walk };
+
+
+// Ajustar la función de caminata para una transición más suave
 MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 {
-	M_SetAnimation(self, &runnertank_move_walk);
+	if (self->monsterinfo.active_move != &runnertank_move_walk)
+	{
+		M_SetAnimation(self, &runnertank_move_start_walk);
+	}
+	else
+	{
+		M_SetAnimation(self, &runnertank_move_walk);
+	}
 }
 
 //
 // run
 //
 
-void runnertank_run(edict_t* self);
 
-mframe_t runnertank_frames_start_run[] = {
-	{ ai_run },
-	{ ai_run, 6 },
-	{ ai_run, 6 },
-	{ ai_run, 11, runnertank_footstep }
-};
-MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
 
+//mframe_t runnertank_frames_start_run[] = {
+//	{ ai_run },
+//	{ ai_run, 6 },
+//	{ ai_run, 6 },
+//	{ ai_run, 11, runnertank_footstep }
+//};
+//MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
+//
+// Actualizar la animación de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_run, 4 },
-	{ ai_run, 5 },
-	{ ai_run, 3 },
-	{ ai_run, 2 },
-	{ ai_run, 5 },
-	{ ai_run, 5 },
-	{ ai_run, 4 },
-	{ ai_run, 4, runnertank_footstep },
-	{ ai_run, 3 },
-	{ ai_run, 5 },
-	{ ai_run, 4 },
-	{ ai_run, 5 },
-	{ ai_run, 7 },
-	{ ai_run, 7 },
-	{ ai_run, 6 },
-	{ ai_run, 6, runnertank_footstep }
+	{ ai_charge, 18, runnertank_footstep }, { ai_charge, 18 }, { ai_charge, 18 }, { ai_charge, 18 },
+	{ ai_charge, 18 }, { ai_charge, 18 }, { ai_charge, 18, runnertank_footstep }, { ai_charge, 18 },
+	{ ai_charge, 18 }, { ai_charge, 18 }
 };
-MMOVE_T(runnertank_move_run) = { FRAME_walk05, FRAME_walk20, runnertank_frames_run, nullptr };
+MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 
 #if 0
 mframe_t runnertank_frames_stop_run[] = {
@@ -198,6 +219,12 @@ mframe_t runnertank_frames_stop_run[] = {
 };
 MMOVE_T(runnertank_move_stop_run) = { FRAME_walk21, FRAME_walk25, runnertank_frames_stop_run, runnertank_walk };
 #endif
+
+bool runnertank_enemy_visible(edict_t* self)
+{
+	return self->enemy && visible(self, self->enemy);
+}
+
 
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
@@ -212,16 +239,47 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		return;
 	}
 
-	if (self->monsterinfo.active_move == &runnertank_move_walk ||
-		self->monsterinfo.active_move == &runnertank_move_start_run)
+	if (runnertank_enemy_visible(self))
 	{
-		M_SetAnimation(self, &runnertank_move_run);
+		// Si el enemigo es visible, detener la carrera y posiblemente atacar
+		if (self->monsterinfo.active_move == &runnertank_move_run)
+		{
+			M_SetAnimation(self, &runnertank_move_stop_run);
+		}
+		else if (self->monsterinfo.active_move == &runnertank_move_stop_run)
+		{
+			// Si ya estamos detenidos, intentar atacar
+			if (frandom() < 0.8) // 80% de probabilidad de atacar
+			{
+				self->monsterinfo.attack(self);
+			}
+			else
+			{
+				// Si no atacamos, mantener la posición por un momento
+				self->monsterinfo.pausetime = level.time + 0.5_sec;
+			}
+		}
+		else
+		{
+			// Si no estamos corriendo ni deteniéndonos, intentar atacar
+			self->monsterinfo.attack(self);
+		}
 	}
 	else
 	{
-		M_SetAnimation(self, &runnertank_move_start_run);
+		// Si el enemigo no es visible, continuar o iniciar la carrera
+		if (self->monsterinfo.active_move == &runnertank_move_walk ||
+			self->monsterinfo.active_move == &runnertank_move_start_walk)
+		{
+			M_SetAnimation(self, &runnertank_move_start_run);
+		}
+		else if (self->monsterinfo.active_move != &runnertank_move_run)
+		{
+			M_SetAnimation(self, &runnertank_move_run);
+		}
 	}
 }
+
 
 //
 // pain
@@ -725,6 +783,8 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_finished = level.time + random_time(3_sec, 5_sec);
 		self->pain_debounce_time = level.time + 5_sec; // no pain for a while
 		return;
+
+
 	}
 	// pmm
 
@@ -766,6 +826,7 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 	}
+	self->monsterinfo.pausetime = level.time + 1_sec;
 }
 
 //
@@ -835,14 +896,14 @@ DIE(runnertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int d
 			{ "models/objects/gibs/sm_meat/tris.md2" },
 			{ 3, "models/objects/gibs/sm_metal/tris.md2", GIB_METALLIC },
 			{ "models/objects/gibs/gear/tris.md2", GIB_METALLIC },
-			{ 2, "models/monsters/runnertank/gibs/foot.md2", GIB_SKINNED | GIB_METALLIC },
-			{ 2, "models/monsters/runnertank/gibs/thigh.md2", GIB_SKINNED | GIB_METALLIC },
-			{ "models/monsters/runnertank/gibs/chest.md2", GIB_SKINNED },
-			{ "models/monsters/runnertank/gibs/head.md2", GIB_HEAD | GIB_SKINNED }
+			{ 2, "models/monsters/tank/gibs/foot.md2", GIB_SKINNED | GIB_METALLIC },
+			{ 2, "models/monsters/tank/gibs/thigh.md2", GIB_SKINNED | GIB_METALLIC },
+			{ "models/monsters/tank/gibs/chest.md2", GIB_SKINNED },
+			{ "models/monsters/tank/gibs/head.md2", GIB_HEAD | GIB_SKINNED }
 			});
 
 		if (!self->style)
-			ThrowGib(self, "models/monsters/runnertank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
+			ThrowGib(self, "models/monsters/tank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
 
 		self->deadflag = true;
 		return;
@@ -858,7 +919,7 @@ DIE(runnertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int d
 
 		auto [fwd, rgt, up] = AngleVectors(self->s.angles);
 
-		edict_t* arm_gib = ThrowGib(self, "models/monsters/runnertank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
+		edict_t* arm_gib = ThrowGib(self, "models/monsters/tank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
 		arm_gib->s.origin = self->s.origin + (rgt * -16.f) + (up * 23.f);
 		arm_gib->s.old_origin = arm_gib->s.origin;
 		arm_gib->avelocity = { crandom() * 15.f, crandom() * 15.f, 180.f };
@@ -911,40 +972,40 @@ void SP_monster_runnertank(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	gi.modelindex("models/monsters/runnertank/gibs/barm.md2");
-	gi.modelindex("models/monsters/runnertank/gibs/head.md2");
-	gi.modelindex("models/monsters/runnertank/gibs/chest.md2");
-	gi.modelindex("models/monsters/runnertank/gibs/foot.md2");
-	gi.modelindex("models/monsters/runnertank/gibs/thigh.md2");
+	gi.modelindex("models/monsters/tank/gibs/barm.md2");
+	gi.modelindex("models/monsters/tank/gibs/head.md2");
+	gi.modelindex("models/monsters/tank/gibs/chest.md2");
+	gi.modelindex("models/monsters/tank/gibs/foot.md2");
+	gi.modelindex("models/monsters/tank/gibs/thigh.md2");
 
-	sound_thud.assign("runnertank/tnkdeth2.wav");
-	sound_idle.assign("runnertank/tnkidle1.wav");
-	sound_die.assign("runnertank/death.wav");
-	sound_step.assign("runnertank/step.wav");
-	sound_windup.assign("runnertank/tnkatck4.wav");
-	sound_strike.assign("runnertank/tnkatck5.wav");
-	sound_sight.assign("runnertank/sight1.wav");
+	sound_thud.assign("tank/tnkdeth2.wav");
+	sound_idle.assign("tank/tnkidle1.wav");
+	sound_die.assign("tank/death.wav");
+	sound_step.assign("tank/step.wav");
+	sound_windup.assign("tank/tnkatck4.wav");
+	sound_strike.assign("tank/tnkatck5.wav");
+	sound_sight.assign("tank/sight1.wav");
 
-	gi.soundindex("runnertank/tnkatck1.wav");
-	gi.soundindex("runnertank/tnkatk2a.wav");
-	gi.soundindex("runnertank/tnkatk2b.wav");
-	gi.soundindex("runnertank/tnkatk2c.wav");
-	gi.soundindex("runnertank/tnkatk2d.wav");
-	gi.soundindex("runnertank/tnkatk2e.wav");
-	gi.soundindex("runnertank/tnkatck3.wav");
+	gi.soundindex("tank/tnkatck1.wav");
+	gi.soundindex("tank/tnkatk2a.wav");
+	gi.soundindex("tank/tnkatk2b.wav");
+	gi.soundindex("tank/tnkatk2c.wav");
+	gi.soundindex("tank/tnkatk2d.wav");
+	gi.soundindex("tank/tnkatk2e.wav");
+	gi.soundindex("tank/tnkatck3.wav");
 
 	if (strcmp(self->classname, "monster_runnertank_commander") == 0)
 	{
 		self->health = 1000 * st.health_multiplier;
 		self->gib_health = -225;
 		self->count = 1;
-		sound_pain2.assign("runnertank/pain.wav");
+		sound_pain2.assign("tank/pain.wav");
 	}
 	else
 	{
 		self->health = 750 * st.health_multiplier;
 		self->gib_health = -200;
-		sound_pain.assign("runnertank/tnkpain2.wav");
+		sound_pain.assign("tank/tnkpain2.wav");
 	}
 
 	self->monsterinfo.scale = MODEL_SCALE;
