@@ -985,7 +985,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// ZOID
 
 	// ZOID
-	CTFCheckHurtCarrier(targ, attacker);
+	//CTFCheckHurtCarrier(targ, attacker);
 	// ZOID
 
 	// ROGUE - this option will do damage both to the armor and person. originally for DPU rounds
@@ -1077,8 +1077,10 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 	if (targ->client) {
 		targ->client->last_attacker_time = level.time;
-		// Update last_damage only if damage is greater than 0
-		if (take > 0 || psave > 0 || asave > 0) {
+		// Update last_damage only if damage is greater than 0 and not invincible/immune
+		if ((take > 0 || psave > 0 || asave > 0) &&
+			!(targ->client->invincible_time > level.time) &&
+			!(dflags & DAMAGE_NO_PROTECTION)) {
 			targ->client->last_damage_time = level.time + COOP_DAMAGE_RESPAWN_TIME;
 		}
 	}
