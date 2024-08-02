@@ -1,4 +1,5 @@
 #include "shared.h"
+#include "horde/g_horde.h"
 #include <unordered_map>
 #include <algorithm>  // For std::max
 
@@ -501,5 +502,72 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 				gi.Com_PrintFmt("Telefrag performed on {} during spawn\n", hit->classname ? hit->classname : "unknown");
 			}
 		}
+	}
+}
+
+
+
+void Boss_SpawnMonster(edict_t* self)
+{
+	if (!self || self->health <= 0 || self->deadflag)
+		return;
+
+	// Número de monstruos a spawnear
+	int num_monsters = 2 + (rand() % 2);  // 2 o 3 monstruos
+
+	for (int i = 0; i < num_monsters; i++)
+	{
+		// Seleccionar un punto de spawn cercano al jefe
+		vec3_t spawn_origin;
+		vec3_t mins = { -16, -16, -24 };  // Valores predeterminados, ajusta según sea necesario
+		vec3_t maxs = { 16, 16, 32 };     // Valores predeterminados, ajusta según sea necesario
+
+		// Intentar encontrar un punto de spawn válido
+		bool found_spot = false;
+		float spawn_angle = 0;
+		for (int attempts = 0; attempts < 10; attempts++)
+		{
+			VectorCopy(self->s.origin, spawn_origin);
+
+			// Añadir un offset aleatorio en el plano XY
+			spawn_angle = frandom() * 2 * PI;
+			float radius = 100.0f + frandom() * 50.0f;  // Radio entre 100 y 150 unidades
+			spawn_origin[0] += cos(spawn_angle) * radius;
+			spawn_origin[1] += sin(spawn_angle) * radius;
+			spawn_origin[2] += 8;  // Elevar un poco para evitar problemas de colisión
+
+			// Verificar si el punto de spawn es válido
+			if (CheckSpawnPoint(spawn_origin, mins, maxs))
+			{
+				found_spot = true;
+				break;
+			}
+		}
+
+		if (!found_spot)
+			continue;  // Si no se encontró un punto válido, pasar al siguiente monstruo
+
+		// Calcular los ángulos para el monstruo
+		vec3_t spawn_angles = self->s.angles;
+		spawn_angles[YAW] = spawn_angle * (180 / PI);  // Convertir de radianes a grados
+
+		// Crear el monstruo
+		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, G_HordePickMonster(self), 64);
+		if (!monster)
+			continue;
+
+		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
+
+		// Crear un efecto visual de crecimiento para el spawn del monstruo
+		vec3_t spawngrow_pos = monster->s.origin;
+		float magnitude = VectorLength(spawngrow_pos);
+		float start_size = magnitude * 0.055f;
+		float end_size = magnitude * 0.005f;
+		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+
+		// Establecer al jefe como el "dueño" del monstruo spawneado
+		monster->owner = self;
 	}
 }

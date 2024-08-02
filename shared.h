@@ -32,7 +32,7 @@ extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activat
 extern void check_target_healthbar(edict_t* self);
 extern void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number);
 extern void UpdatePowerUpTimes(edict_t* monster);
-
+void Boss_SpawnMonster(edict_t* self);
 //strogg ship
 //extern edict_t* CreatePathCornerOnSkySurface(edict_t* reference);
 //extern edict_t* CreatePathCornerAbovePlayer(edict_t* player);

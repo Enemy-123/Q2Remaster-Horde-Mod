@@ -518,12 +518,27 @@ const char* get_random_replacement(const MonsterReplacement* replacement) {
 		return replacement->replacements[index];
 	}
 }
+#define MAX_CLASSNAME_LENGTH 64  // Ajusta este valor según sea necesario
 
-// Función que realiza los reemplazos y aplica los bonus flags
 void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
+	if (!ent || !ent->classname) {
+		return;  // Salir si la entidad o su classname son nulos
+	}
+
 	for (int i = 0; i < replacement_count; i++) {
-		if (!strcmp(ent->classname, replacements[i].original)) {
-			ent->classname = get_random_replacement(&replacements[i]);
+		if (replacements[i].original && strcmp(ent->classname, replacements[i].original) == 0) {
+			const char* new_classname = get_random_replacement(&replacements[i]);
+			if (new_classname) {
+				// Usar Q_strlcpy para copiar el nuevo classname
+				char temp_classname[MAX_CLASSNAME_LENGTH];
+				Q_strlcpy(temp_classname, new_classname, sizeof(temp_classname));
+
+				// Asignar el nuevo classname
+				ent->classname = G_CopyString(temp_classname, TAG_LEVEL);  // Asumiendo que TAG_LEVEL es el tag correcto
+
+				// Logging para debug
+			//	gi.Com_PrintFmt("Replacing monster: original={}, new={}\n", replacements[i].original, temp_classname);
+			}
 
 			// Asignar una única flag de bonus según la probabilidad dada
 			if ((rand() / (float)RAND_MAX) < bonus_prob) {
@@ -544,7 +559,6 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 		}
 	}
 }
-
 void ED_CallSpawn(edict_t* ent) {
 
 	// Inicializa el multiplicador de daño para el monstruo

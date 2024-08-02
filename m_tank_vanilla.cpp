@@ -799,6 +799,14 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
+	void tank_spawn(edict_t * self);
+
+	if (frandom() < 0.5f) // 10% de probabilidad
+	{
+		tank_spawn(self);
+		return;
+	}
+
 	if (self->enemy->health <= 0)
 	{
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
@@ -1144,6 +1152,30 @@ THINK(Think_tank2Stand) (edict_t* ent) -> void
 		ent->s.frame++;
 	ent->nextthink = level.time + 10_hz;
 }
+
+
+mframe_t tank_frames_spawn[] =
+{
+	{ai_charge, 2, nullptr},  // FRAME_attak220
+	{ai_charge, 1, nullptr},
+	{ai_move, 0, nullptr},
+	{ai_move, 0, nullptr},
+	{ai_move, 0, nullptr},
+	{ai_move, 0, tank2_footstep},  // FRAME_attak225 - Añadir footstep aquí
+	{ai_move, 0, Boss_SpawnMonster},  // FRAME_attak226 - Engendrar monstruo aquí
+	{ai_move, 0, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr}   // FRAME_attak229
+};
+MMOVE_T(tank_move_spawn) = { FRAME_attak220, FRAME_attak229, tank_frames_spawn, tank2_run };
+
+
+void tank_spawn(edict_t* self)
+{
+	M_SetAnimation(self, &tank_move_spawn);
+}
+
+
 
 /*QUAKED monster_tank2_stand (1 .5 0) (-32 -32 0) (32 32 90)
 

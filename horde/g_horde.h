@@ -9,6 +9,7 @@ extern int last_wave_number;  // Tracks the last completed wave number, used for
 
 // Item selection in Horde mode
 gitem_t* G_HordePickItem() noexcept;
+const char* G_HordePickMonster(edict_t* spawn_point) noexcept;
 
 // Game mode checks
 bool G_IsDeathmatch() noexcept;
