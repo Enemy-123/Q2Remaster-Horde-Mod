@@ -142,6 +142,7 @@
     <ClInclude Include="m_parasite.h" />
     <ClInclude Include="m_player.h" />
     <ClInclude Include="m_rider.h" />
+    <ClInclude Include="m_runnertank.h" />
     <ClInclude Include="m_shambler.h" />
     <ClInclude Include="m_shocker.h" />
     <ClInclude Include="m_soldier.h" />
@@ -256,6 +257,7 @@
     <ClCompile Include="rogue\p_rogue_weapon.cpp" />
     <ClCompile Include="rogue\rogue_dm_ball.cpp" />
     <ClCompile Include="rogue\rogue_dm_tag.cpp" />
+    <ClCompile Include="m_runnertank.cpp" />
     <ClCompile Include="shared.cpp" />
     <ClCompile Include="xatrix\g_xatrix_func.cpp" />
     <ClCompile Include="xatrix\g_xatrix_items.cpp" />
