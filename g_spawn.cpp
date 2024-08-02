@@ -134,6 +134,7 @@ void SP_monster_soldier(edict_t* self);
 void SP_monster_soldier_ss(edict_t* self);
 void SP_monster_tank(edict_t* self);
 void SP_monster_tank2(edict_t* self);
+void SP_monster_runnertank(edict_t* self);
 void SP_monster_tank_64(edict_t* self);
 void SP_monster_medic(edict_t* self);
 void SP_monster_flipper(edict_t* self);
@@ -372,6 +373,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_soldier_ss", SP_monster_soldier_ss },
 	{ "monster_tank", SP_monster_tank },
 	{ "monster_tank2", SP_monster_tank2 },
+	{ "monster_runnertank", SP_monster_runnertank },
 	{ "monster_tank_64", SP_monster_tank_64 },
 	{ "monster_tank_commander", SP_monster_tank },
 	{ "monster_medic", SP_monster_medic },

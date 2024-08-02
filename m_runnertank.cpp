@@ -305,41 +305,7 @@ MONSTERINFO_SETSKIN(runnertank_setskin) (edict_t* self) -> void
 }
 
 // [Paril-KEX]
-bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir)
-{
-	trace_t trace = gi.traceline(start, target, self, MASK_PROJECTILE);
-
-	// blindfire has different fail criteria for the trace
-	if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
-	{
-		out_dir = target - start;
-		out_dir.normalize();
-		return true;
-	}
-
-	// try shifting the target to the left a little (to help counter large offset)
-	vec3_t left_target = target + (right * -20);
-	trace = gi.traceline(start, left_target, self, MASK_PROJECTILE);
-
-	if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
-	{
-		out_dir = left_target - start;
-		out_dir.normalize();
-		return true;
-	}
-
-	// ok, that failed.  try to the right
-	vec3_t right_target = target + (right * 20);
-	trace = gi.traceline(start, right_target, self, MASK_PROJECTILE);
-	if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
-	{
-		out_dir = right_target - start;
-		out_dir.normalize();
-		return true;
-	}
-
-	return false;
-}
+bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir);
 
 //
 // attacks
@@ -596,6 +562,7 @@ void runnertank_reattack_blaster(edict_t* self)
 			}
 	M_SetAnimation(self, &runnertank_move_attack_post_blast);
 }
+void runnertank_doattack_rocket(edict_t* self);
 
 void runnertank_poststrike(edict_t* self)
 {
@@ -637,34 +604,20 @@ mframe_t runnertank_frames_attack_fire_rocket[] = {
 };
 MMOVE_T(runnertank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak335, runnertank_frames_attack_fire_rocket, runnertank_refire_rocket };
 
-//mframe_t runnertank_frames_attack_post_rocket[] = {
-//	{ ai_charge }, // 31
-//	{ ai_charge, -1 },
-//	{ ai_charge, -1 },
-//	{ ai_charge },
-//	{ ai_charge, 2 },
-//	{ ai_charge, 3 },
-//	{ ai_charge, 4 },
-//	{ ai_charge, 2 },
-//	{ ai_charge },
-//	{ ai_charge }, // 40
-//
-//	{ ai_charge },
-//	{ ai_charge, -9 },
-//	{ ai_charge, -8 },
-//	{ ai_charge, -7 },
-//	{ ai_charge, -1 },
-//	{ ai_charge, -1, runnertank_footstep },
-//	{ ai_charge },
-//	{ ai_charge },
-//	{ ai_charge },
-//	{ ai_charge }, // 50
-//
-//	{ ai_charge },
-//	{ ai_charge },
-//	{ ai_charge }
-//};
-//MMOVE_T(runnertank_move_attack_post_rocket) = { FRAME_attak331, FRAME_attak353, runnertank_frames_attack_post_rocket, runnertank_run };
+mframe_t runnertank_frames_attack_post_rocket[] = {
+
+	{ ai_charge, -9 },
+	{ ai_charge, -8 },
+	{ ai_charge, -7 },
+	{ ai_charge, -1 },
+	{ ai_charge, -1, runnertank_footstep },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }, // 50
+	{ ai_charge },
+	{ ai_charge }
+};
+MMOVE_T(runnertank_move_attack_post_rocket) = { FRAME_attak326, FRAME_attak335, runnertank_frames_attack_post_rocket, runnertank_run };
 
 mframe_t runnertank_frames_attack_chain[] = {
 	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
@@ -688,7 +641,7 @@ void runnertank_refire_rocket(edict_t* self)
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
 		self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
-//		M_SetAnimation(self, &runnertank_move_attack_post_rocket);
+		M_SetAnimation(self, &runnertank_move_attack_post_rocket);
 		return;
 	}
 	// pmm
@@ -700,7 +653,7 @@ void runnertank_refire_rocket(edict_t* self)
 				M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
 				return;
 			}
-	//M_SetAnimation(self, &runnertank_move_attack_post_rocket);
+	M_SetAnimation(self, &runnertank_move_attack_post_rocket);
 }
 
 void runnertank_doattack_rocket(edict_t* self)
