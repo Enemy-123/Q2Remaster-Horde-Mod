@@ -662,10 +662,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	// defender should always die
 	if (self->client->owned_sphere)
 	{
-		edict_t* sphere = nullptr;
-
-		if (!self || !self->client || !sphere)
-			return;
+		edict_t* sphere;
 
 		sphere = self->client->owned_sphere;
 		sphere->die(sphere, self, self, 0, vec3_origin, mod);
