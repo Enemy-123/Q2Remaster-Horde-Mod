@@ -50,82 +50,102 @@ void Weapon_Ionripper(edict_t* ent)
 	Weapon_Generic(ent, 5, 7, 36, 39, pause_frames, fire_frames, weapon_ionripper_fire);
 }
 
-//
-//	Phalanx
-//
-
 void weapon_phalanx_fire(edict_t* ent)
 {
-	vec3_t v;
-	int	   damage;
-	float  damage_radius;
-	int	   radius_damage;
+    vec3_t v;
+    int    damage;
+    float  damage_radius;
+    int    radius_damage;
+    damage = irandom(70, 100);
+    radius_damage = 120;
+    damage_radius = 120;
+    if (is_quad)
+    {
+        damage *= damage_multiplier;
+        radius_damage *= damage_multiplier;
+    }
+    vec3_t dir;
+    vec3_t start;
 
-	damage = irandom(70, 100);
-	radius_damage = 120;
-	damage_radius = 120;
+    // 20% de probabilidad de activar el modo de 4 disparos
+    bool quad_shot_mode = frandom() < 0.20f;
 
-	if (is_quad)
-	{
-		damage *= damage_multiplier;
-		radius_damage *= damage_multiplier;
-	}
+    if (quad_shot_mode)
+    {
+        // Configuración para cada disparo en modo cuádruple
+        struct PhalanxShot {
+            float yaw_offset;
+            float pitch_offset;
+            int speed;
+            int muzzle_effect;
+        };
 
-	vec3_t dir;
+        const PhalanxShot shots[] = {
+            { -1.5f, 0.0f, 1075, MZ_PHALANX },
+            { 1.5f, 0.0f, 985, MZ_PHALANX2 },
+            { 0.0f, 1.0f, 1150, MZ_PHALANX3 },
+            { 0.0f, -1.0f, 920, MZ_PHALANX4 }
+        };
 
-	if (ent->client->ps.gunframe == 8)
-	{
-		v[PITCH] = ent->client->v_angle[PITCH];
-		v[YAW] = ent->client->v_angle[YAW] - 1.5f;
-		v[ROLL] = ent->client->v_angle[ROLL];
+        for (int i = 0; i < 4; i++)
+        {
+            const PhalanxShot& current_shot = shots[i];
+            v[PITCH] = ent->client->v_angle[PITCH] + current_shot.pitch_offset;
+            v[YAW] = ent->client->v_angle[YAW] + current_shot.yaw_offset;
+            v[ROLL] = ent->client->v_angle[ROLL];
+            P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
 
-		vec3_t start;
-		P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
+            fire_plasma(ent, start, dir, damage, current_shot.speed, damage_radius, radius_damage);
 
-		radius_damage = 30;
-		damage_radius = 120;
+            gi.WriteByte(svc_muzzleflash);
+            gi.WriteEntity(ent);
+            gi.WriteByte(current_shot.muzzle_effect | is_silenced);
+            gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+        }
+        G_RemoveAmmo(ent);
+    }
+    else
+    {
+        // Comportamiento original
+        if (ent->client->ps.gunframe == 8)
+        {
+            v[PITCH] = ent->client->v_angle[PITCH];
+            v[YAW] = ent->client->v_angle[YAW] - 1.5f;
+            v[ROLL] = ent->client->v_angle[ROLL];
+            P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
+            radius_damage = 30;
+            damage_radius = 120;
+            fire_plasma(ent, start, dir, damage, 1075, damage_radius, radius_damage);
+            gi.WriteByte(svc_muzzleflash);
+            gi.WriteEntity(ent);
+            gi.WriteByte(MZ_PHALANX2 | is_silenced);
+            gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+            G_RemoveAmmo(ent);
+        }
+        else
+        {
+            v[PITCH] = ent->client->v_angle[PITCH];
+            v[YAW] = ent->client->v_angle[YAW] + 1.5f;
+            v[ROLL] = ent->client->v_angle[ROLL];
+            P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
+            fire_plasma(ent, start, dir, damage, 985, damage_radius, radius_damage);
+            gi.WriteByte(svc_muzzleflash);
+            gi.WriteEntity(ent);
+            gi.WriteByte(MZ_PHALANX | is_silenced);
+            gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+            PlayerNoise(ent, start, PNOISE_WEAPON);
+        }
+    }
 
-		fire_plasma(ent, start, dir, damage, 1075, damage_radius, radius_damage);
-
-		// send muzzle flash
-		gi.WriteByte(svc_muzzleflash);
-		gi.WriteEntity(ent);
-		gi.WriteByte(MZ_PHALANX2 | is_silenced);
-		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-
-		G_RemoveAmmo(ent);
-	}
-	else
-	{
-		v[PITCH] = ent->client->v_angle[PITCH];
-		v[YAW] = ent->client->v_angle[YAW] + 1.5f;
-		v[ROLL] = ent->client->v_angle[ROLL];
-
-		vec3_t start;
-		P_ProjectSource(ent, v, { 0, 8, -8 }, start, dir);
-
-		fire_plasma(ent, start, dir, damage, 985, damage_radius, radius_damage);
-
-		// send muzzle flash
-		gi.WriteByte(svc_muzzleflash);
-		gi.WriteEntity(ent);
-		gi.WriteByte(MZ_PHALANX | is_silenced);
-		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-
-		PlayerNoise(ent, start, PNOISE_WEAPON);
-	}
-
-	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });
+    P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });
 }
 
 void Weapon_Phalanx(edict_t* ent)
 {
-	constexpr int pause_frames[] = { 29, 42, 55, 0 };
-	constexpr int fire_frames[] = { 7, 8, 0 };
-
-	Weapon_Generic(ent, 5, 20, 58, 63, pause_frames, fire_frames, weapon_phalanx_fire);
+    constexpr int pause_frames[] = { 29, 42, 55, 0 };
+    constexpr int fire_frames[] = { 7, 8, 0 };
+    Weapon_Generic(ent, 5, 20, 58, 63, pause_frames, fire_frames, weapon_phalanx_fire);
 }
-
 /*
 ======================================================================
 
