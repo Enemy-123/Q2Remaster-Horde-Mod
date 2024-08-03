@@ -232,7 +232,6 @@ bool runnertank_enemy_visible(edict_t* self)
 {
 	return self->enemy && visible(self, self->enemy);
 }
-
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
 	if (self->enemy && self->enemy->client)
@@ -246,44 +245,44 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		return;
 	}
 
-	if (runnertank_enemy_visible(self))
+	if (self->monsterinfo.active_move == &runnertank_move_walk ||
+		self->monsterinfo.active_move == &runnertank_move_start_run)
 	{
-		// Si el enemigo es visible, detener la carrera y posiblemente atacar
-		if (self->monsterinfo.active_move == &runnertank_move_run)
-		{
-			M_SetAnimation(self, &runnertank_move_stop_run);
-		}
-		else if (self->monsterinfo.active_move == &runnertank_move_stop_run)
-		{
-			if (frandom() < 0.4)
-			{
-				// Si no atacamos, mantener la posición por un momento
-				self->monsterinfo.pausetime = level.time + 0.5_sec;
-			}
-		}
-		else
-		{
-			// Si no estamos corriendo ni deteniéndonos, intentar atacar
-			self->monsterinfo.attack(self);
-		}
+		M_SetAnimation(self, &runnertank_move_run);
 	}
 	else
 	{
-		// Si el enemigo no es visible, continuar o iniciar la carrera
-		if (self->monsterinfo.active_move == &runnertank_move_walk ||
-			self->monsterinfo.active_move == &runnertank_move_start_walk)
+		M_SetAnimation(self, &runnertank_move_run);
+	}
+
+	// Siempre intentar moverse hacia el enemigo
+	if (self->enemy)
+	{
+		vec3_t vec{};
+		float distance;
+
+		VectorSubtract(self->enemy->s.origin, self->s.origin, vec);
+		distance = VectorLength(vec);
+
+		// Si el enemigo está cerca, considerar atacar
+		if (distance < RANGE_NEAR && visible(self, self->enemy))
 		{
-			M_SetAnimation(self, &runnertank_move_start_run);
-		}
-		else if (self->monsterinfo.active_move != &runnertank_move_run)
-		{
-			M_SetAnimation(self, &runnertank_move_run);
+			if (frandom() < 0.1)  // 10% de probabilidad de atacar
+			{
+				self->monsterinfo.attack(self);
+				return;
+			}
 		}
 
-		// Nuevo: Verificar si estamos bloqueados por una pared
-		runnertank_check_wall(self, 32);  // 32 es una distancia de verificación arbitraria
+		// Actualizar la dirección hacia el enemigo
+		self->ideal_yaw = vectoyaw(vec);
+		M_ChangeYaw(self);
+
+		// Comprobar si hay obstáculos y ajustar si es necesario
+		runnertank_check_wall(self, 32);
 	}
 }
+
 //
 // pain
 //

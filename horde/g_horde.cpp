@@ -1809,34 +1809,37 @@ enum class MessageType {
 };
 
 // Función para calcular el jugador con más daño
-void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
-    int total_damage = 0;
-    topDamager.total_damage = 0;
-
-    for (const auto& player : active_players()) {
-        if (!player->client) continue;
-
-        int player_damage = player->client->total_damage;
-
-        total_damage += player_damage;
-        if (player_damage > topDamager.total_damage) {
-            topDamager.total_damage = player_damage;
-            topDamager.player = player;
-        }
-    }
-
-    percentage = (total_damage > 0) ?
-        (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
-
-    // Redondear el porcentaje a dos decimales
-    percentage = std::round(percentage * 100) / 100;
-}
+//void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
+//    int total_damage = 0;
+//    topDamager.total_damage = 0;
+//
+//    for (const auto& player : active_players()) {
+//        if (!player->client) continue;
+//
+//        int player_damage = player->client->total_damage;
+//
+//        total_damage += player_damage;
+//        if (player_damage > topDamager.total_damage) {
+//            topDamager.total_damage = player_damage;
+//            topDamager.player = player;
+//        }
+//    }
+//
+//    percentage = (total_damage > 0) ?
+//        (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
+//
+//    // Redondear el porcentaje a dos decimales
+//    percentage = std::round(percentage * 100) / 100;
+//}
 
 // Definición de los mensajes de limpieza con placeholders nombrados y sin porcentaje extra
 const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
-    {MessageType::Standard, "Wave Level {level} Defeated, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
-    {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
-    {MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"}
+    {MessageType::Standard, "Wave Level {level} Defeated, GG!\n"},
+    //{MessageType::Standard, "Wave Level {level} Defeated, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
+    {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n"},
+   // {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
+    {MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n"}
+    //{MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"}
 };
 
 // Función para enviar el mensaje de limpieza actualizada
@@ -1926,7 +1929,7 @@ void Horde_RunFrame() noexcept {
                 cachedRemainingMonsters = CalculateRemainingMonsters();
                 PlayerStats topDamager;
                 float percentage = 0.0f;
-                CalculateTopDamager(topDamager, percentage);
+            //    CalculateTopDamager(topDamager, percentage);
                 SendCleanupMessage(cleanupMessages, topDamager, percentage, CLEANUP_MESSAGE_DURATION);
             }
             else {

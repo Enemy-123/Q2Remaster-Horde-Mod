@@ -2504,9 +2504,10 @@ static void SetLevelName(pmenu_t* p)
 }
 
 /*-----------------------------------------------------------------------*/
-void CTFWinElection();
 #include <fmt/core.h>
 #include <string>
+
+void CTFWinElection();
 
 constexpr size_t MAX_VOTE_INFO_LENGTH = 75;  // Asumiendo que este es el tamaño de client->voted_map
 
@@ -2559,26 +2560,22 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	ctfgame.needvotes = static_cast<int>((count * electpercentage->value) / 100);
 	ctfgame.electtime = level.time + 25_sec; // 25 seconds for election
 
-	// Truncar el mensaje original si es necesario
-	std::string truncated_msg = TruncateMessage(msg, sizeof(ctfgame.emsg) - 1);
-	Q_strlcpy(ctfgame.emsg, truncated_msg.c_str(), sizeof(ctfgame.emsg));
+	// No truncation for ctfgame.emsg
+	Q_strlcpy(ctfgame.emsg, msg, sizeof(ctfgame.emsg));
 
 	int time_left = (ctfgame.electtime - level.time).seconds<int>();
 
-	// Crear un mensaje más corto para el HUD
+	// Create full message for vote info
 	std::string vote_info = fmt::format("Vote: {} by {}. Time: {}s",
-		truncated_msg, ent->client->pers.netname, time_left);
+		msg, ent->client->pers.netname, time_left);
 
-	// Truncar si es necesario para el configstring
-	std::string truncated_vote_info = TruncateMessage(vote_info, CS_MAX_STRING_LENGTH);
+	// No truncation for configstring
+	gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
 
-	// Actualizar el configstring
-	gi.configstring(CONFIG_VOTE_INFO, truncated_vote_info.c_str());
-
-	// Mensaje completo para voted_map (puede incluir instrucciones adicionales)
+	// Full message for voted_map (including additional instructions)
 	std::string full_vote_info = vote_info + "\nUse Compass/Inventory to vote.";
 
-	// Guardar en voted_map de cada cliente
+	// Save in voted_map of each client without truncation
 	for (uint32_t i = 1; i <= game.maxclients; i++) {
 		edict_t* player = &g_edicts[i];
 		if (player->inuse && player->client) {
@@ -2586,32 +2583,32 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 		}
 	}
 
-	// Mostrar mensajes separados
-	gi.LocBroadcast_Print(PRINT_CHAT, truncated_vote_info.c_str());
+	// Show separate messages
+	gi.LocBroadcast_Print(PRINT_CHAT, vote_info.c_str());
 	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass/Inventory to vote, or type YES/NO in console.\n");
 	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
 
-	// Si solo hay un jugador, aprueba la elección automáticamente
+	// If there's only one player, approve the election automatically
 	if (count == 1) {
 		ctfgame.evotes = ctfgame.needvotes;
 		gi.LocBroadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other (human) players logged.\n");
-		CTFWinElection(); // Procesa el resultado de la elección inmediatamente
+		CTFWinElection(); // Process the election result immediately
 	}
 
 	return true;
 }
+
 void UpdateVoteHUD() {
 	if (ctfgame.election != ELECT_NONE) {
 		std::string vote_info = fmt::format("{} Time left: {}s",
 			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
 
-		// Truncar para el configstring
-		std::string truncated_vote_info = TruncateMessage(vote_info, CS_MAX_STRING_LENGTH);
-		gi.configstring(CONFIG_VOTE_INFO, truncated_vote_info.c_str());
+		// No truncation for configstring
+		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
 
 		ClearHordeMessage(); // Clear hordemsg when vote message is active
 
-		// Update the voted_map for each player with the full (non-truncated) info
+		// Update the voted_map for each player with the full info
 		for (auto player : active_players()) {
 			if (player->inuse && player->client) {
 				Q_strlcpy(player->client->voted_map, vote_info.c_str(), sizeof(player->client->voted_map));
