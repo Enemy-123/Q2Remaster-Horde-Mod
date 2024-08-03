@@ -1001,13 +1001,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 
 
-	// Handle autohaste
+	// Handle Horde Bonus Stuff
 	if (attacker && attacker->client) {
 		HandleAutoHaste(attacker, targ, damage);
-		// Handle vampire effect
 		HandleVampireEffect(attacker, targ, damage);
 		HandleIDDamage(attacker, targ, real_damage);
-
 		ProcessDamage(targ, attacker, take);
 	}
 
