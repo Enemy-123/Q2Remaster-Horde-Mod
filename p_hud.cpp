@@ -313,7 +313,7 @@ void BeginIntermission(edict_t* targ)
 
 	if (strstr(level.changemap, "*"))
 	{
-		if (G_IsCooperative() )
+		if (G_IsCooperative())
 		{
 			for (uint32_t i = 0; i < game.maxclients; i++)
 			{
@@ -707,12 +707,12 @@ void G_SetCoopStats(edict_t* ent) {
 
 	UpdateVoteHUD();
 
-if (G_IsDeathmatch() && level.intermissiontime) {
+	if (G_IsDeathmatch() && level.intermissiontime) {
 
-ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
-}
+		ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
+	}
 
-ent->client->ps.stats[STAT_REMAINING_MONSTERS] = level.total_monsters - level.killed_monsters;
+	ent->client->ps.stats[STAT_REMAINING_MONSTERS] = level.total_monsters - level.killed_monsters;
 
 
 	// stat for text on what we're doing for respawn
@@ -720,6 +720,11 @@ ent->client->ps.stats[STAT_REMAINING_MONSTERS] = level.total_monsters - level.ki
 		ent->client->ps.stats[STAT_COOP_RESPAWN] = CONFIG_COOP_RESPAWN_STRING + (ent->client->coop_respawn_state - COOP_RESPAWN_IN_COMBAT);
 	else
 		ent->client->ps.stats[STAT_COOP_RESPAWN] = 0;
+}
+
+// Función de utilidad para convertir spawnflags_t a int de forma segura
+inline int SafeConvertSpawnflags(const spawnflags_t& flags) {
+	return static_cast<int>(static_cast<uint32_t>(flags));
 }
 
 struct powerup_info_t
@@ -873,6 +878,7 @@ void G_SetStats(edict_t* ent)
 		ent->client->ps.stats[STAT_PICKUP_ICON] = 0;
 		ent->client->ps.stats[STAT_PICKUP_STRING] = 0;
 	}
+
 	// owned powerups
 	memset(&ent->client->ps.stats[STAT_POWERUP_INFO_START], 0, sizeof(uint16_t) * NUM_POWERUP_STATS);
 	for (unsigned int powerupIndex = POWERUP_SCREEN; powerupIndex < POWERUP_MAX; ++powerupIndex)
@@ -937,7 +943,8 @@ void G_SetStats(edict_t* ent)
 			}
 		}
 		if (!active_sphere) {
-			gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n", ent->client->owned_sphere->spawnflags);
+			gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n",
+				SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
 		}
 	}
 
@@ -1189,7 +1196,7 @@ void G_SetStats(edict_t* ent)
 		}
 	}
 
-	void CTFSetIDView(edict_t* ent);
+	void CTFSetIDView(edict_t * ent);
 	//ID DMG and CTFIDVIEW
 
 	if (ent->client->resp.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
