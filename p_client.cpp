@@ -3988,9 +3988,13 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 			continue;
 		}
 
-		// Check positioning
-		if (player->groundentity != world || player->waterlevel >= WATER_UNDER) {
-			player->client->coop_respawn_state = COOP_RESPAWN_BAD_AREA;
+		// Check positioning and blocked state
+		bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
+		vec3_t spot;
+		bool is_blocked = !G_FindRespawnSpot(player, spot);
+
+		if (is_bad_area || is_blocked) {
+			player->client->coop_respawn_state = is_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
 			player->client->time_in_bad_area += FRAME_TIME_MS;
 			gtime_t time_left_in_bad_area = max_time_in_bad_area - player->client->time_in_bad_area;
 
@@ -3998,8 +4002,9 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 				min_time_left = time_left_in_bad_area;
 			}
 
-			std::string message_str_bad_area = fmt::format("In Bad Area! Forcing Respawn in: {:.1f}(s)", time_left_in_bad_area.seconds<float>());
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str_bad_area.c_str());
+			std::string message_str = fmt::format("{} Area! Forcing Respawn in: {:.1f}(s)",
+				is_bad_area ? "Bad" : "Blocked", time_left_in_bad_area.seconds<float>());
+			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str.c_str());
 
 			if (player->client->time_in_bad_area >= max_time_in_bad_area) {
 				edict_t* spawn_point = SelectSingleSpawnPoint(player);
@@ -4011,13 +4016,6 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		}
 		else {
 			player->client->time_in_bad_area = 0_ms;
-		}
-
-		// Find respawn spot
-		vec3_t spot;
-		if (!G_FindRespawnSpot(player, spot)) {
-			player->client->coop_respawn_state = COOP_RESPAWN_BLOCKED;
-			continue;
 		}
 
 		best_player = player;
