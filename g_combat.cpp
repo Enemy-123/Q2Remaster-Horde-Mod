@@ -598,9 +598,163 @@ bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
 	return OnSameTeam(targ, attacker);
 }
 
+// Calculate DMG
+int CalculateRealDamage(edict_t* targ, int take, int initial_health) {
+	if (!targ) {
+		return take; // If targ is null, we simply return the original damage
+	}
+	int real_damage = take;
+	if (!(targ->svflags & SVF_DEADMONSTER)) {
+		if (initial_health > 0) {
+			real_damage = std::min(take, initial_health);
+			if (targ->health <= 0) {
+				real_damage += std::min(abs(targ->gib_health), initial_health);
+			}
+		}
+		else {
+			real_damage = std::min(take, 10);
+		}
+	}
+	else {
+		real_damage = std::min(take, 5);
+	}
+	return real_damage;
+}
+
+// IDDMG
+void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
+	if (!attacker || !attacker->client || !g_iddmg || !targ) {
+		return;
+	}
+	if (g_iddmg->integer && attacker->client->resp.iddmg_state) {
+		if (!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
+			if (level.time - attacker->lastdmg <= 1.75_sec && attacker->client->dmg_counter <= 32767) {
+				attacker->client->dmg_counter += real_damage;
+			}
+			else {
+				attacker->client->dmg_counter = real_damage;
+			}
+			attacker->client->ps.stats[STAT_ID_DAMAGE] = attacker->client->dmg_counter;
+		}
+	}
+	attacker->lastdmg = level.time;
+	attacker->client->total_damage += real_damage;
+}
+
+// This function should be called in T_Damage
+void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
+	int initial_health = targ->health;
+	int real_damage = CalculateRealDamage(targ, take, initial_health);
+
+	if (real_damage > 0 && attacker && attacker->client) {
+		HandleIDDamage(attacker, targ, real_damage);
+	}
+}
+
+// AUTO HASTE
+void HandleAutoHaste(edict_t* attacker, edict_t* targ, int damage) {
+	if (!g_autohaste || !attacker || !attacker->client || !targ) {
+		return;
+	}
+
+	if (g_autohaste->integer && attacker->client->quadfire_time < level.time) {
+		if (damage > 0 && (!(attacker->health < 1 && targ->health < 1))) {
+			float probability = damage / 1150.0f;
+			float randomChance = frandom();
+
+			if (randomChance <= probability) {
+				attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
+			}
+		}
+	}
+}
+int calculate_health_stolen(edict_t* attacker, int base_health_stolen);
+void heal_attacker_sentries(edict_t* attacker, int health_stolen);
+void apply_armor_vampire(edict_t* attacker, int damage);
+// VAMPIRE
+bool CanUseVampireEffect(edict_t* attacker) {
+	if (!attacker || attacker->health <= 0 || attacker->deadflag) {
+		return false;
+	}
+
+	if ((attacker->svflags & SVF_MONSTER) &&
+		((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
+			(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
+		!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
+		return true;
+	}
+
+	if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
+		return true;
+	}
+
+	if (!(attacker->svflags & SVF_MONSTER)) {
+		return true; // Players can also use the vampire ability
+	}
+
+	return false;
+}
+
+void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
+	if (!g_vampire || !g_vampire->integer || !attacker || !targ) {
+		return;
+	}
+
+	bool CanUseVamp = false;
+	bool isSentrygun = false;
+
+	// Check if the attacker can use the vampire ability
+	if (attacker->health > 0 && !attacker->deadflag) {
+		if ((attacker->svflags & SVF_MONSTER) &&
+			((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
+				(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
+			!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
+			CanUseVamp = true;
+		}
+
+		if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
+			isSentrygun = true;
+			CanUseVamp = true;
+		}
+		else if (!(attacker->svflags & SVF_MONSTER)) {
+			CanUseVamp = true; // Players can also use the vampire ability
+		}
+
+		if (CanUseVamp) {
+			if (attacker != targ &&
+				!OnSameTeam(targ, attacker) &&
+				damage > 0 && // Accept any amount of damage
+				!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) { // Check if the target is invulnerable
+
+				// Health Vampire
+				int health_stolen = damage / 4; // Steal 25% of damage as health
+				if (attacker->health < attacker->max_health) {
+					if (isSentrygun) {
+						health_stolen = 1; // If it's a sentrygun, it can only steal 1 health
+					}
+					else {
+						health_stolen = calculate_health_stolen(attacker, health_stolen);
+					}
+					attacker->health = std::min(attacker->health + health_stolen, attacker->max_health);
+				}
+
+				// Heal entities owned by the attacker
+				if ((attacker->svflags & SVF_PLAYER) && current_wave_number >= 10) {
+					heal_attacker_sentries(attacker, health_stolen);
+				}
+
+				// Armor Vampire
+				if (g_vampire->integer == 2) {
+					apply_armor_vampire(attacker, damage);
+				}
+			}
+		}
+	}
+}
+
 
 int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
-	if (!attacker->client || !attacker->client->pers.weapon) {
+	if (!attacker || !attacker->client || !attacker->client->pers.weapon) {
 		return base_health_stolen;
 	}
 
@@ -640,6 +794,10 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 }
 
 void heal_attacker_sentries(edict_t* attacker, int health_stolen) {
+	if (!attacker) {
+		return;
+	}
+
 	for (unsigned int i = 0; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 
@@ -653,28 +811,37 @@ void heal_attacker_sentries(edict_t* attacker, int health_stolen) {
 }
 
 void apply_armor_vampire(edict_t* attacker, int damage) {
+	if (!attacker || !attacker->client) {
+		return;
+	}
+
 	int index = ArmorIndex(attacker);
-	if (index && attacker->client && attacker->client->pers.inventory[index] > 0) {
-		int armor_stolen = std::max(1, static_cast<int>(0.7f * (damage / 4))); // Robar 70% del robo de vida como armadura
+	if (index && attacker->client->pers.inventory[index] > 0) {
+		int armor_stolen = std::max(1, static_cast<int>(0.7f * (damage / 4)));
 		int max_armor = 200;
 		armor_stolen = std::min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
 		attacker->client->pers.inventory[index] += armor_stolen;
 	}
 }
 
+//t_damage
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
 	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
 {
 	gclient_t* client;
-	int		   take;
+	int		   take = 0;
 	int		   save;
 	int		   asave;
 	int		   psave;
 	int		   te_sparks;
 	bool	   sphere_notified; // PGM
+	int initial_health = targ->health;
+	int real_damage = CalculateRealDamage(targ, take, initial_health);
 
 	if (!targ->takedamage)
 		return;
+
+
 
 	if (attacker->svflags & SVF_MONSTER) {
 		UpdatePowerUpTimes(attacker);
@@ -731,32 +898,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 		if (!damage)
 			return;
-	}
-
-	// HORDE HASTE or AUTO QUAD (probably only for damage amplifier users... someday)
-	if (g_autohaste->integer) {
-		if (attacker != nullptr && attacker->client != nullptr) {
-			// Verificar si el atacante no tiene quadfire activo y darle 5 segundos de quadfire
-			if (attacker->client->quadfire_time < level.time) {
-				if (damage > 0 && (!(attacker->health < 1 && targ->health < 1))) {
-					// Calcular probabilidad en función del daño realizado
-					float probabilidad = damage / 1150.0f; // Ajusta este valor según lo que consideres adecuado
-
-					// Probabilidad de activación
-					float randomChance = frandom();
-
-					if (randomChance <= probabilidad) {
-						attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
-					}
-				}
-			}
-
-			// Verificar si el atacante tiene quadfire activo y ha matado a alguien
-			if (attacker->client->quadfire_time > level.time && targ != nullptr) {
-				// No es necesario verificar el aumento de spree aquí,
-				// ya que se maneja en G_MonsterKilled
-			}
-		}
 	}
 
 	// easy mode takes half damage
@@ -856,107 +997,21 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		take = 0;
 		save = damage;
 	}
-	bool CanUseVamp = false;
-	bool isSentrygun = false;
 
-	// Verificar si el atacante puede usar la habilidad de vampiro
-	if (attacker && attacker->health > 0 && !attacker->deadflag) {
-		if ((attacker->svflags & SVF_MONSTER) &&
-			((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
-				(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
-			!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
-			CanUseVamp = true;
-		}
 
-		if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
-			isSentrygun = true;
-			CanUseVamp = true;
-		}
-		else if (!(attacker->svflags & SVF_MONSTER)) {
-			CanUseVamp = true; // Los jugadores también pueden usar la habilidad de vampiro
-		}
 
-		if (g_vampire->integer && CanUseVamp) {
-			if (attacker != targ &&
-				!OnSameTeam(targ, attacker) &&
-				damage > 0 && // Aceptar cualquier cantidad de daño
-				!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) { // Verificar si el objetivo es invulnerable
 
-				// Health Vampire
-				int health_stolen = damage / 4; // Robar 25% del daño como vida
-				if (attacker->health < attacker->max_health) {
-					if (isSentrygun) {
-						health_stolen = 1; // Si es sentrygun, solo puede robar 1 de vida
-					}
-					else {
-						health_stolen = calculate_health_stolen(attacker, health_stolen);
-					}
+	// Handle autohaste
+	if (attacker && attacker->client) {
+		HandleAutoHaste(attacker, targ, damage);
+		// Handle vampire effect
+		HandleVampireEffect(attacker, targ, damage);
+		HandleIDDamage(attacker, targ, real_damage);
 
-					attacker->health = std::min(attacker->health + health_stolen, attacker->max_health);
-				}
-
-				// Curar entidades propiedad del atacante
-				if ((attacker->svflags & SVF_PLAYER) && current_wave_number >= 10) {
-					heal_attacker_sentries(attacker, health_stolen);
-				}
-
-				// Armor Vampire
-				if (g_vampire->integer == 2) {
-					apply_armor_vampire(attacker, damage);
-				}
-			}
-		}
+		ProcessDamage(targ, attacker, take);
 	}
 
-	// Guardar la salud inicial para calcular el daño real realizado
-	int initial_health = targ->health;
 
-	// Calcular el daño real realizado, considerando la salud actual del objetivo
-	int real_damage = take;
-
-	if (!(targ->svflags & SVF_DEADMONSTER)) {
-		// Si el objetivo no está muerto
-		if (initial_health > 0) {
-			// Limitar el daño real a la salud actual del objetivo
-			real_damage = std::min(take, initial_health);
-
-			// Ajuste para mostrar daño en caso de gib, solo si el ataque actual causó la muerte
-			if (targ->health <= 0) {
-				real_damage += std::min(abs(targ->gib_health), initial_health);
-			}
-		}
-		else {
-			// Si el objetivo ya estaba en 0 o menos salud, contar un pequeño daño adicional
-			real_damage = std::min(take, 10);  // Limitar a 10 de daño por golpe en cuerpos "muertos"
-		}
-	}
-	else {
-		// Si el objetivo ya estaba muerto, contar un pequeño daño adicional
-		real_damage = std::min(take, 5);  // Limitar a 5 de daño por golpe en cuerpos ya muertos
-	}
-
-	// Añadir contador de daño para armas de disparo rápido
-	if (real_damage > 0 && attacker->client) {
-		edict_t* player = attacker;
-
-		// Mantener un contador para armas de disparo rápido para una lectura más precisa del daño en el tiempo
-		if (g_iddmg->integer && player->client->resp.iddmg_state) {
-			// Verificar si el objetivo es invulnerable
-			if (!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
-				if (level.time - player->lastdmg <= 1.75_sec && player->client->dmg_counter <= 32767) {
-					player->client->dmg_counter += real_damage;
-				}
-				else {
-					player->client->dmg_counter = real_damage;
-				}
-				player->client->ps.stats[STAT_ID_DAMAGE] = player->client->dmg_counter;
-			}
-		}
-		player->lastdmg = level.time;
-
-		// Sumar real_damage a total_damage en gclient_t
-		player->client->total_damage += real_damage;
-	}
 
 	// ZOID
 	// team armor protect
@@ -1075,7 +1130,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	}
 	// PGM
 
-	if (targ->client) {
+	if (targ && targ->client) {
 		targ->client->last_attacker_time = level.time;
 		// Update last_damage only if damage is greater than 0 and not invincible/immune
 		if ((take > 0 || psave > 0 || asave > 0) &&
