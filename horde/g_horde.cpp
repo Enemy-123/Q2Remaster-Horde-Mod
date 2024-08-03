@@ -1800,6 +1800,9 @@ void SpawnMonsters() noexcept {
         g_horde_local.monster_spawn_time = level.time + random_time(1.7_sec, 2_sec);
     }
 }
+#include <unordered_map>
+#include <string_view>
+#include <fmt/core.h>
 
 // Usar enum class para mejorar la seguridad de tipos
 enum class MessageType {
@@ -1808,58 +1811,24 @@ enum class MessageType {
     Insane
 };
 
-// Función para calcular el jugador con más daño
-//void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
-//    int total_damage = 0;
-//    topDamager.total_damage = 0;
-//
-//    for (const auto& player : active_players()) {
-//        if (!player->client) continue;
-//
-//        int player_damage = player->client->total_damage;
-//
-//        total_damage += player_damage;
-//        if (player_damage > topDamager.total_damage) {
-//            topDamager.total_damage = player_damage;
-//            topDamager.player = player;
-//        }
-//    }
-//
-//    percentage = (total_damage > 0) ?
-//        (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
-//
-//    // Redondear el porcentaje a dos decimales
-//    percentage = std::round(percentage * 100) / 100;
-//}
-
-// Definición de los mensajes de limpieza con placeholders nombrados y sin porcentaje extra
+// Definición de los mensajes de limpieza con placeholders nombrados
 const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
     {MessageType::Standard, "Wave Level {level} Defeated, GG!\n"},
-    //{MessageType::Standard, "Wave Level {level} Defeated, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
     {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n"},
-   // {MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"},
     {MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n"}
-    //{MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n\n{player} got the higher DMG this wave with {damage} ({percentage}% of total)\n"}
 };
 
 // Función para enviar el mensaje de limpieza actualizada
 void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>& messages,
-    const PlayerStats& topDamager, float percentage,
     gtime_t duration = 5_sec) {
-    std::string_view playerName = GetPlayerName(topDamager.player);
     MessageType messageType = g_insane->integer ? MessageType::Insane :
         (g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
+
     auto messageIt = messages.find(messageType);
     if (messageIt != messages.end()) {
-        // Asegurarse de que el porcentaje esté en el rango correcto (0-100)
-        float clampedPercentage = std::min(std::max(percentage, 0.0f), 100.0f);
-        std::string percentageStr = fmt::format("{:.2f}", clampedPercentage);
-
         std::string formattedMessage = fmt::format(messageIt->second,
-            fmt::arg("level", g_horde_local.level),
-            fmt::arg("player", playerName),
-            fmt::arg("damage", topDamager.total_damage),
-            fmt::arg("percentage", percentageStr));
+            fmt::arg("level", g_horde_local.level));
+
         // Actualizar el mensaje de Horde con la duración correcta
         UpdateHordeMessage(formattedMessage, duration);
     }
@@ -1927,10 +1896,7 @@ void Horde_RunFrame() noexcept {
                 g_horde_local.warm_time = level.time + random_time(MIN_WARM_TIME, MAX_WARM_TIME);
                 g_horde_local.state = horde_state_t::rest;
                 cachedRemainingMonsters = CalculateRemainingMonsters();
-                PlayerStats topDamager;
-                float percentage = 0.0f;
-            //    CalculateTopDamager(topDamager, percentage);
-                SendCleanupMessage(cleanupMessages, topDamager, percentage, CLEANUP_MESSAGE_DURATION);
+                SendCleanupMessage(cleanupMessages, CLEANUP_MESSAGE_DURATION);
             }
             else {
                 cachedRemainingMonsters = CalculateRemainingMonsters();
