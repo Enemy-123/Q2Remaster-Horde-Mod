@@ -225,7 +225,6 @@ bool runnertank_enemy_visible(edict_t* self)
 	return self->enemy && visible(self, self->enemy);
 }
 
-
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
 	if (self->enemy && self->enemy->client)
@@ -279,8 +278,6 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		}
 	}
 }
-
-
 //
 // pain
 //
@@ -718,75 +715,14 @@ void runnertank_doattack_rocket(edict_t* self)
 {
 	M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
 }
-
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
 	vec3_t vec;
 	float  range;
 	float  r;
-	// PMM
-	float chance;
 
-	// PMM
 	if (!self->enemy || !self->enemy->inuse)
 		return;
-
-	//if (self->enemy->health <= 0)
-	//{
-	//	M_SetAnimation(self, &runnertank_move_attack_strike);
-	//	self->monsterinfo.aiflags &= ~AI_BRUTAL;
-	//	return;
-	//}
-
-	// PMM
-	if (self->monsterinfo.attack_state == AS_BLIND)
-	{
-		// setup shot probabilities
-		if (self->monsterinfo.blind_fire_delay < 1_sec)
-			chance = 1.0f;
-		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
-			chance = 0.4f;
-		else
-			chance = 0.1f;
-
-		r = frandom();
-
-		self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
-
-		// don't shoot at the origin
-		if (!self->monsterinfo.blind_fire_target)
-			return;
-
-		// don't shoot if the dice say not to
-		if (r > chance)
-			return;
-
-		bool rocket_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
-		bool blaster_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
-
-		if (!rocket_visible && !blaster_visible)
-			return;
-
-		bool use_rocket = (rocket_visible && blaster_visible) ? brandom() : rocket_visible;
-
-		// turn on manual steering to signal both manual steering and blindfire
-		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
-
-		if (use_rocket)
-			M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
-		else
-		{
-			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.nextframe = FRAME_attak108;
-		}
-
-		self->monsterinfo.attack_finished = level.time + random_time(3_sec, 5_sec);
-		self->pain_debounce_time = level.time + 5_sec; // no pain for a while
-		return;
-
-
-	}
-	// pmm
 
 	vec = self->enemy->s.origin - self->s.origin;
 	range = vec.length();
@@ -826,9 +762,9 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 	}
+	self->monsterinfo.attack_finished = level.time + 2_sec;
 	self->monsterinfo.pausetime = level.time + 1_sec;
 }
-
 //
 // death
 //
