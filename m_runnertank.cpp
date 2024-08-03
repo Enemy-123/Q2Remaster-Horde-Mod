@@ -18,6 +18,7 @@ runnertank
 void runnertank_refire_rocket(edict_t* self);
 void runnetank_doattack_rocket(edict_t* self);
 void runnertank_reattack_blaster(edict_t* self);
+bool runnertank_check_wall(edict_t* self, float dist);
 
 static cached_soundindex sound_thud;
 static cached_soundindex sound_pain, sound_pain2;
@@ -204,9 +205,16 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 //
 // Actualizar la animación de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_charge, 18, runnertank_footstep }, { ai_charge, 18 }, { ai_run, 18 }, { ai_charge, 18 },
-	{ ai_charge, 18 }, { ai_charge, 18 }, { ai_charge, 18, runnertank_footstep }, { ai_charge, 18 },
-	{ ai_charge, 18 }, { ai_run, 18 }
+	{ ai_run, 18, runnertank_footstep },
+	{ ai_run, 18, nullptr },
+	{ ai_run, 18, nullptr },
+	{ ai_run, 18, nullptr },
+	{ ai_run, 18, nullptr },
+	{ ai_run, 18, nullptr },
+	{ ai_run, 18, runnertank_footstep },
+	{ ai_run, 18, nullptr },
+	{ ai_run, 18, nullptr },
+	{ ai_run, 18, [](edict_t* self) { runnertank_check_wall(self, 32); } }
 };
 MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 
@@ -220,7 +228,6 @@ mframe_t runnertank_frames_stop_run[] = {
 };
 MMOVE_T(runnertank_move_stop_run) = { FRAME_walk21, FRAME_walk25, runnertank_frames_stop_run, runnertank_walk };
 #endif
-
 bool runnertank_enemy_visible(edict_t* self)
 {
 	return self->enemy && visible(self, self->enemy);
@@ -272,6 +279,9 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		{
 			M_SetAnimation(self, &runnertank_move_run);
 		}
+
+		// Nuevo: Verificar si estamos bloqueados por una pared
+		runnertank_check_wall(self, 32);  // 32 es una distancia de verificación arbitraria
 	}
 }
 //
@@ -956,6 +966,54 @@ void runnertank_jump(edict_t* self, blocked_jump_result_t result)
 }
 //===========
 // PGM
+bool runnertank_check_wall(edict_t* self, float dist)
+{
+	vec3_t forward, right, up;
+	vec3_t check_point{}, wall_normal;
+	trace_t tr;
+
+	// Obtener los vectores de dirección
+	AngleVectors(self->s.angles, forward, right, up);
+
+	// Punto de verificación delante del monstruo
+	VectorMA(self->s.origin, dist + 10, forward, check_point);
+
+	// Realizar un trace hacia adelante
+	tr = gi.trace(self->s.origin, self->mins, self->maxs, check_point, self, MASK_MONSTERSOLID);
+
+	if (tr.fraction < 1.0) {
+		// Hemos golpeado algo, probablemente una pared
+		VectorCopy(tr.plane.normal, wall_normal);
+
+		// Calcular el producto punto manualmente
+		float dot = forward[0] * wall_normal[0] + forward[1] * wall_normal[1] + forward[2] * wall_normal[2];
+
+		// Calcular un nuevo ángulo de movimiento
+		float turn_factor = fabs(dot);  // Qué tan de frente está la pared
+		float max_turn = 45.0f;  // Máximo giro en grados
+		float turn_angle = max_turn * turn_factor;
+
+		if (dot < 0) {
+			// La pared está en frente, girar hacia la derecha
+			self->ideal_yaw = anglemod(self->s.angles[YAW] + turn_angle);
+		}
+		else {
+			// La pared está detrás, girar hacia la izquierda
+			self->ideal_yaw = anglemod(self->s.angles[YAW] - turn_angle);
+		}
+
+		// No aumentamos la velocidad de giro
+		M_ChangeYaw(self);
+
+		// Reducir la velocidad del monstruo temporalmente
+		VectorScale(self->velocity, 0.5, self->velocity);
+
+		return true;
+	}
+
+	return false;
+}
+
 MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {
 	if (self->monsterinfo.can_jump)
@@ -968,6 +1026,10 @@ MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 	}
 
 	if (blocked_checkplat(self, dist))
+		return true;
+
+	// Nuevo: Intenta cambiar de dirección si está bloqueado por una pared
+	if (runnertank_check_wall(self, dist))
 		return true;
 
 	return false;
