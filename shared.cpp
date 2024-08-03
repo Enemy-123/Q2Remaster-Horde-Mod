@@ -168,6 +168,7 @@ std::string GetDisplayName(edict_t* ent)
 		{ "monster_parasite", "Parasite" },
 		{ "monster_tank", "Tank" },
 		{ "monster_tank2", "Vanilla Tank" },
+		{ "monster_runnertank", "BETA Runner Tank" },
 		{ "monster_guncmdr2", "Gunner Commander" },
 		{ "monster_mutant", "Mutant" },
 		{ "monster_redmutant", "Raged Mutant" },
