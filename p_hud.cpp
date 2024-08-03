@@ -878,26 +878,22 @@ void G_SetStats(edict_t* ent)
 	for (unsigned int powerupIndex = POWERUP_SCREEN; powerupIndex < POWERUP_MAX; ++powerupIndex)
 	{
 		gitem_t* powerup = GetItemByPowerup((powerup_t)powerupIndex);
-		uint16_t val;
+		if (!powerup) {
+			gi.Com_PrintFmt("Warning: Invalid powerup index {}\n", powerupIndex);
+			continue;
+		}
 
+		uint16_t val;
 		switch (powerup->id)
 		{
 		case IT_ITEM_POWER_SCREEN:
 		case IT_ITEM_POWER_SHIELD:
-			if (!ent->client->pers.inventory[powerup->id])
-				val = 0;
-			else if (ent->flags & FL_POWER_ARMOR)
-				val = 2;
-			else
-				val = 1;
+			val = (!ent->client->pers.inventory[powerup->id]) ? 0 :
+				((ent->flags & FL_POWER_ARMOR) ? 2 : 1);
 			break;
 		case IT_ITEM_FLASHLIGHT:
-			if (!ent->client->pers.inventory[powerup->id])
-				val = 0;
-			else if (ent->flags & FL_FLASHLIGHT)
-				val = 2;
-			else
-				val = 1;
+			val = (!ent->client->pers.inventory[powerup->id]) ? 0 :
+				((ent->flags & FL_FLASHLIGHT) ? 2 : 1);
 			break;
 		default:
 			val = clamp(ent->client->pers.inventory[powerup->id], 0, 3);
@@ -917,7 +913,7 @@ void G_SetStats(edict_t* ent)
 	};
 
 	// Array de información de esferas
-	sphere_info_t sphere_table[] = {
+	const sphere_info_t sphere_table[] = {
 		{ SPHERE_DEFENDER, "p_defender" },
 		{ SPHERE_HUNTER, "p_hunter" },
 		{ SPHERE_VENGEANCE, "p_vengeance" },
@@ -927,18 +923,21 @@ void G_SetStats(edict_t* ent)
 	// timers
 	//
 	std::vector<powerup_info_t*> active_powerups;
-	sphere_info_t* active_sphere = nullptr;
+	const sphere_info_t* active_sphere = nullptr;
 
 	// Verificar esferas activas
-	if (ent->client->owned_sphere)
+	if (ent->client && ent->client->owned_sphere)
 	{
-		for (auto& sphere : sphere_table)
+		for (const auto& sphere : sphere_table)
 		{
 			if (ent->client->owned_sphere->spawnflags == sphere.spawnflags)
 			{
 				active_sphere = &sphere;
 				break;
 			}
+		}
+		if (!active_sphere) {
+			gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n", ent->client->owned_sphere->spawnflags);
 		}
 	}
 
@@ -947,11 +946,10 @@ void G_SetStats(edict_t* ent)
 	{
 		auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
 		auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
-		if (powerup_time && *powerup_time <= level.time)
-			continue;
-		else if (powerup_count && !*powerup_count)
-			continue;
-		active_powerups.push_back(&powerup);
+		if ((powerup_time && *powerup_time > level.time) || (powerup_count && *powerup_count > 0))
+		{
+			active_powerups.push_back(&powerup);
+		}
 	}
 
 	if (!active_powerups.empty() || active_sphere)
@@ -960,11 +958,7 @@ void G_SetStats(edict_t* ent)
 		auto compare_powerups = [&ent](powerup_info_t* a, powerup_info_t* b) {
 			if (a->time_ptr && b->time_ptr)
 				return (ent->client->*a->time_ptr) < (ent->client->*b->time_ptr);
-			else if (a->time_ptr)
-				return true;
-			else if (b->time_ptr)
-				return false;
-			return false;
+			return a->time_ptr != nullptr;
 			};
 
 		// Ordenar power-ups por tiempo restante
@@ -977,7 +971,7 @@ void G_SetStats(edict_t* ent)
 		const char* icon = nullptr;
 
 		// Determinar el mejor power-up (incluyendo la esfera si está activa)
-		if (active_sphere)
+		if (active_sphere && ent->client->owned_sphere)
 		{
 			timer_value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
 			icon = active_sphere->icon;
@@ -986,38 +980,43 @@ void G_SetStats(edict_t* ent)
 		{
 			if (best_powerup->count_ptr)
 				timer_value = (ent->client->*best_powerup->count_ptr);
-			else
+			else if (best_powerup->time_ptr)
 				timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
-			icon = GetItemByIndex(best_powerup->item)->icon;
+
+			gitem_t* item = GetItemByIndex(best_powerup->item);
+			if (item)
+				icon = item->icon;
 		}
 
 		// Implementar lógica de parpadeo
 		if ((next_best_powerup || (active_sphere && best_powerup)) && ((level.time.milliseconds() % 3000) < 1500))
 		{
-			if (active_sphere && best_powerup)
+			if (active_sphere && best_powerup && icon == active_sphere->icon)
 			{
 				// Alternar entre la esfera y el mejor power-up
-				if (icon == active_sphere->icon)
-				{
-					icon = GetItemByIndex(best_powerup->item)->icon;
-					if (best_powerup->count_ptr)
-						timer_value = (ent->client->*best_powerup->count_ptr);
-					else
-						timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
-				}
+				gitem_t* item = GetItemByIndex(best_powerup->item);
+				if (item)
+					icon = item->icon;
+				if (best_powerup->count_ptr)
+					timer_value = (ent->client->*best_powerup->count_ptr);
+				else if (best_powerup->time_ptr)
+					timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
 			}
 			else if (next_best_powerup)
 			{
 				// Alternar entre los dos mejores power-ups
-				icon = GetItemByIndex(next_best_powerup->item)->icon;
+				gitem_t* item = GetItemByIndex(next_best_powerup->item);
+				if (item)
+					icon = item->icon;
 				if (next_best_powerup->count_ptr)
 					timer_value = (ent->client->*next_best_powerup->count_ptr);
-				else
+				else if (next_best_powerup->time_ptr)
 					timer_value = ceil((ent->client->*next_best_powerup->time_ptr - level.time).seconds());
 			}
 		}
 
-		ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(icon);
+		if (icon)
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(icon);
 		ent->client->ps.stats[STAT_TIMER] = timer_value;
 	}
 	else
