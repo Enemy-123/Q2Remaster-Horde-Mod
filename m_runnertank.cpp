@@ -166,12 +166,12 @@ mframe_t runnertank_frames_start_run[] = {
 };
 MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
 
-
+void runnertank_attack(edict_t* self);
 mframe_t runnertank_frames_stop_run[] = {
 	{ ai_run, 3 }, { ai_run, 3 }, { ai_run, 2 }, { ai_run, 2 },
 	{ ai_run, 0, runnertank_footstep }
 };
-MMOVE_T(runnertank_move_stop_run) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_run, runnertank_walk };
+MMOVE_T(runnertank_move_stop_run) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_run, runnertank_attack };
 
 
 // Ajustar la función de caminata para una transición más suave
@@ -203,9 +203,9 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 //
 // Actualizar la animación de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_charge, 18, runnertank_footstep }, { ai_charge, 18 }, { ai_charge, 18 }, { ai_charge, 18 },
+	{ ai_charge, 18, runnertank_footstep }, { ai_charge, 18 }, { ai_run, 18 }, { ai_charge, 18 },
 	{ ai_charge, 18 }, { ai_charge, 18 }, { ai_charge, 18, runnertank_footstep }, { ai_charge, 18 },
-	{ ai_charge, 18 }, { ai_charge, 18 }
+	{ ai_charge, 18 }, { ai_run, 18 }
 };
 MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 
@@ -247,12 +247,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		}
 		else if (self->monsterinfo.active_move == &runnertank_move_stop_run)
 		{
-			// Si ya estamos detenidos, intentar atacar
-			if (frandom() < 0.8) // 80% de probabilidad de atacar
-			{
-				self->monsterinfo.attack(self);
-			}
-			else
+			if (frandom() < 0.4)
 			{
 				// Si no atacamos, mantener la posición por un momento
 				self->monsterinfo.pausetime = level.time + 0.5_sec;
