@@ -360,19 +360,19 @@ bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& t
 //
 // attacks
 //
-
-void runnertankBlaster(edict_t* self)
+void runnertankRail(edict_t* self)
 {
-	vec3_t					 forward, right;
-	vec3_t					 start;
-	vec3_t					 dir;
+	vec3_t forward, right;
+	vec3_t start;
+	vec3_t dir;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
+	if (!self->enemy || !self->enemy->inuse || !infront(self, self->enemy))
+		return;
 
-	bool   blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+	bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
+	// Mantenemos los mismos flash numbers
 	if (self->s.frame == FRAME_attak110)
 		flash_number = MZ2_TANK_BLASTER_1;
 	else if (self->s.frame == FRAME_attak113)
@@ -383,24 +383,22 @@ void runnertankBlaster(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// pmm - blindfire support
 	vec3_t target;
-
-	// PMM
 	if (blindfire)
 	{
 		target = self->monsterinfo.blind_fire_target;
-
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
 	else
-		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
-	// pmm
+	{
+		// Usamos PredictAim para seguir la trayectoria del enemigo
+		PredictAim(self, self->enemy, start, 0, false, 0.2f, &dir, nullptr);
+	}
 
-	monster_fire_blaster(self, start, dir, 30, 800, flash_number, EF_BLASTER);
+	// Cambiamos monster_fire_blaster por monster_fire_railgun
+	monster_fire_railgun(self, start, dir, 45, 100, flash_number);
 }
-
 void runnertankStrike(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
@@ -560,9 +558,9 @@ static void runnertank_blind_check(edict_t* self)
 mframe_t runnertank_frames_attack_blast[] = {
     { ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
     { ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
-    { ai_charge }, { ai_charge, 0, runnertankBlaster },
-    { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankBlaster },
-    { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankBlaster },
+    { ai_charge }, { ai_charge, 0, runnertankRail },
+    { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRail },
+    { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRail },
     { ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
     { ai_charge }, { ai_charge }
 };
@@ -570,17 +568,17 @@ MMOVE_T(runnertank_move_attack_blast) = { FRAME_attak101, FRAME_attak122, runner
 
 mframe_t runnertank_frames_reattack_blast[] = {
 	{ ai_charge },
-	{ ai_charge, 0, runnertankBlaster },
+	{ ai_charge, 0, runnertankRail },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, runnertankBlaster },
+	{ ai_charge, 0, runnertankRail },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, runnertankBlaster } // 16
+	{ ai_charge, 0, runnertankRail } // 16
 };
 MMOVE_T(runnertank_move_reattack_blast) = { FRAME_attak111, FRAME_attak122, runnertank_frames_reattack_blast, runnertank_reattack_blaster };
 
@@ -639,9 +637,9 @@ MMOVE_T(runnertank_move_attack_strike) = { FRAME_attak201, FRAME_attak238, runne
 mframe_t runnertank_frames_attack_pre_rocket[] = {
 	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
 	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
+	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket }, { ai_charge },
+	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
+	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
 	{ ai_charge }
 };
 MMOVE_T(runnertank_move_attack_pre_rocket) = { FRAME_attak301, FRAME_attak321, runnertank_frames_attack_pre_rocket, runnertank_doattack_rocket };
