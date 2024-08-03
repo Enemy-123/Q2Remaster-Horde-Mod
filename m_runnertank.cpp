@@ -13,6 +13,7 @@ runnertank
 #include "m_runnertank.h"
 
 #include "m_flash.h"
+#include "shared.h"
 
 void runnertank_refire_rocket(edict_t* self);
 void runnetank_doattack_rocket(edict_t* self);
@@ -888,11 +889,84 @@ DIE(runnertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int d
 
 	M_SetAnimation(self, &runnertank_move_death);
 }
+void runnertank_jump_now(edict_t* self)
+{
+	vec3_t forward, up;
 
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 130);
+	self->velocity += (up * 300);
+}
+
+void runnertank_jump2_now(edict_t* self)
+{
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 250);
+	self->velocity += (up * 400);
+}
+
+void runnertank_jump_wait_land(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+}
+
+mframe_t runnertank_frames_jump[] = {
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, runnertank_jump_now },
+	{ ai_move },
+	{ ai_move, 0, runnertank_jump_wait_land },
+	{ ai_move }
+};
+MMOVE_T(runnertank_move_jump) = { FRAME_run01, FRAME_run07, runnertank_frames_jump, runnertank_run };
+
+mframe_t runnertank_frames_jump2[] = {
+	{ ai_move, -6 },
+	{ ai_move, -4 },
+	{ ai_move, -5 },
+	{ ai_move, 0, runnertank_jump2_now },
+	{ ai_move },
+	{ ai_move, 0, runnertank_jump_wait_land },
+	{ ai_move }
+};
+MMOVE_T(runnertank_move_jump2) = { FRAME_run01, FRAME_run07, runnertank_frames_jump2, runnertank_run };
+
+void runnertank_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	monster_done_dodge(self);
+
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+		M_SetAnimation(self, &runnertank_move_jump2);
+	else
+		M_SetAnimation(self, &runnertank_move_jump);
+}
 //===========
 // PGM
 MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {
+	if (self->monsterinfo.can_jump)
+	{
+		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		{
+			runnertank_jump(self, result);
+			return true;
+		}
+	}
+
 	if (blocked_checkplat(self, dist))
 		return true;
 
@@ -987,7 +1061,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.idle = runnertank_idle;
 	self->monsterinfo.blocked = runnertank_blocked; // PGM
 	self->monsterinfo.setskin = runnertank_setskin;
-
+	self->yaw_speed *= 2;
 	gi.linkentity(self);
 
 	M_SetAnimation(self, &runnertank_move_stand);
@@ -1000,6 +1074,11 @@ void SP_monster_runnertank(edict_t* self)
 	// pmm
 	if (strcmp(self->classname, "monster_runnertank_commander") == 0)
 		self->s.skinnum = 2;
+
+	self->monsterinfo.can_jump = true;
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	ApplyMonsterBonusFlags(self);
 }
 
 void Use_Boss3(edict_t* ent, edict_t* other, edict_t* activator);
