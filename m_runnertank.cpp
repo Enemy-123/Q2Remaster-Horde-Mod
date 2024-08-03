@@ -708,55 +708,77 @@ void runnertank_doattack_rocket(edict_t* self)
 {
 	M_SetAnimation(self, &runnertank_move_attack_fire_rocket);
 }
+
+
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
 	vec3_t vec;
 	float  range;
-	float  r;
+	float  chance;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
+	// Use M_CheckAttack_Base instead of M_CheckAttack
+	if (!M_CheckAttack_Base(self, 0.0f, 0.0f, 0.8f, 0.8f, 0.5f, 1.0f))
+	{
+		// If we can't attack, return to avoid the loop
+		return;
+	}
+
 	vec = self->enemy->s.origin - self->s.origin;
 	range = vec.length();
 
-	r = frandom();
+	// Adjust attack frequency
+	if (level.time < self->monsterinfo.attack_finished)
+		return;
 
-	if (range <= 125)
+	if (range <= RANGE_MELEE)
 	{
-		bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
-
-		if (can_machinegun && r < 0.5f)
+		if (self->monsterinfo.melee)
+		{
 			M_SetAnimation(self, &runnertank_move_attack_chain);
-		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 1_sec;
+		}
 	}
-	else if (range <= 250)
+	else if (range <= RANGE_NEAR)
 	{
-		bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
-
-		if (can_machinegun && r < 0.25f)
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			M_SetAnimation(self, &runnertank_move_attack_blast);
+		chance = 0.8f;
+	}
+	else if (range <= RANGE_MID)
+	{
+		chance = 0.6f;
 	}
 	else
 	{
-		bool can_machinegun = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		chance = 0.4f;
+	}
+
+	if (range > RANGE_MELEE && frandom() < chance)
+	{
+		bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
 		bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 
-		if (can_machinegun && r < 0.33f)
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-		else if (can_rocket && r < 0.66f)
+		if (can_rail && (frandom() < 0.7f || !can_rocket))
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+		}
+		else if (can_rocket)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-			self->pain_debounce_time = level.time + 5_sec; // no pain for a while
+			self->pain_debounce_time = level.time + 3_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
-		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			M_SetAnimation(self, &runnertank_move_attack_blast);
+		else
+		{
+			// If we can't attack, move towards the enemy
+			M_SetAnimation(self, &runnertank_move_run);
+		}
 	}
-	self->monsterinfo.attack_finished = level.time + 2_sec;
-	self->monsterinfo.pausetime = level.time + 1_sec;
+
+	// Add a pause between attack decisions
+	self->monsterinfo.pausetime = level.time + 0.5_sec;
 }
 //
 // death
