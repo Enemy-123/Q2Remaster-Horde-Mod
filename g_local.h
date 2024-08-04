@@ -3111,8 +3111,9 @@ struct gclient_t
 
 	//LOAD SERVER CLIENT, CS
 	bool isLoading;
-	int entityLoadState;
+//	int entityLoadState;
 	gtime_t nextLoadTime;
+	int configStringLoadState;  // Nuevo miembro para la carga progresiva
 };
 
 

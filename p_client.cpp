@@ -2660,14 +2660,19 @@ called when a client has finished connecting, and is ready
 to be placed into the game.  This will happen every level load.
 ============
 */
+
+void InitializeProgressiveLoading(edict_t* ent);
+
 void ClientBegin(edict_t* ent)
 {
 	ent->client = game.clients + (ent - g_edicts - 1);
 	ent->client->awaiting_respawn = false;
 	ent->client->respawn_timeout = 0_ms;
-
 	// [Paril-KEX] we're always connected by this point...
 	ent->client->pers.connected = true;
+
+	// Inicializar la carga progresiva
+	InitializeProgressiveLoading(ent);
 
 	if (G_IsDeathmatch())
 	{
@@ -3009,28 +3014,53 @@ edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBo
 	return ClientChooseSlot_Any(ignore, num_ignore);
 }
 
+//
 // OPTIMIZING LOAD SERVER FOR CLIENT, because too many CS!
+//
+
+void SendConfigStringToClient(edict_t* ent, int configStringIndex)
+{
+	const char* configString = gi.get_configstring(configStringIndex);
+
+	if (configString && *configString)
+	{
+		gi.WriteByte(svc_configstring);
+		gi.WriteShort(configStringIndex);
+		gi.WriteString(configString);
+		gi.unicast(ent, true);
+	}
+}
 
 void ContinueProgressiveLoading(edict_t* ent)
 {
-	int entitiesToLoadPerFrame = 5;  // Ajusta según sea necesario
-	for (unsigned int i = 0; i < entitiesToLoadPerFrame; i++)
+	int configStringsToLoadPerFrame = 10;  // Aumentado a 10 para una carga más rápida
+
+	for (int i = 0; i < configStringsToLoadPerFrame; i++)
 	{
-		if (ent->client->entityLoadState >= globals.num_edicts)
+		if (ent->client->configStringLoadState >= CONFIG_LAST)
 		{
-			// Carga completa
 			ent->client->isLoading = false;
-			gi.LocClient_Print(ent, PRINT_HIGH, "Carga completa. ¡Bienvenido al juego!");
+			gi.LocClient_Print(ent, PRINT_HIGH, "Welcome to Horde Mod!");
 			return;
 		}
 
-		// Cargar la siguiente entidad
-		SendEntityInfoToClient(ent, &g_edicts[ent->client->entityLoadState]);
-		ent->client->entityLoadState++;
+		// Solo enviar ConfigStrings que realmente tengan contenido
+		const char* configString = gi.get_configstring(ent->client->configStringLoadState);
+		if (configString && *configString)
+		{
+			SendConfigStringToClient(ent, ent->client->configStringLoadState);
+		}
+		ent->client->configStringLoadState++;
 	}
 
-	// Programar la próxima carga
-	ent->client->nextLoadTime = level.time + 100_ms;
+	ent->client->nextLoadTime = level.time + 50_ms;  // Reducido a 50ms para una carga más rápida
+}
+
+void InitializeProgressiveLoading(edict_t* ent)
+{
+	ent->client->isLoading = true;
+	ent->client->configStringLoadState = CONFIG_CTF_MATCH;  // Empezamos desde el primer ConfigString relevante
+	ent->client->nextLoadTime = level.time;
 }
 
 void SendEntityInfoToClient(edict_t* ent, edict_t* target)
@@ -3148,7 +3178,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 
 	// Inicializar el estado de carga
 	ent->client->isLoading = true;
-	ent->client->entityLoadState = 0;
+	ent->client->configStringLoadState = 0;
 	ent->client->nextLoadTime = level.time;
 
 	// if there is already a body waiting for us (a loadgame), just
@@ -3548,6 +3578,15 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	pmove_t pm;
 
 	client = ent->client;
+
+	if (client->isLoading)
+	{
+		if (client->nextLoadTime <= level.time)
+		{
+			ContinueProgressiveLoading(ent);
+		}
+		return;  // No procesar otras acciones mientras se está cargando
+	}
 
 	level.current_entity = ent;
 
