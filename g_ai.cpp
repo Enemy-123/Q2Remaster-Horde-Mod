@@ -437,12 +437,6 @@ float range_to(edict_t* self, edict_t* other) {
 
 bool IsInvisible(edict_t* ent);
 bool IsValidTarget(edict_t* self, edict_t* ent);
-#include <stdio.h> // For printf or gi.Com_Printf
-// Estructura para almacenar entidades cercanas
-struct NearbyEntity {
-    edict_t* entity;
-    float distance;
-};
 
 // Función auxiliar para calcular la distancia al cuadrado (más eficiente que VectorLength)
 float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
@@ -451,32 +445,40 @@ float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
     return diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2];
 }
 
+constexpr size_t MAX_ENTITIES = 34;  // Ajustado al máximo esperado
+
+struct NearbyEntity {
+    edict_t* entity;
+    float distanceSquared;
+};
+
 bool FindMTarget(edict_t* self) {
     const float MAX_RANGE = 800.0f;
     const float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
-    std::vector<NearbyEntity> nearbyEntities;
 
-    // Primera pasada: recolectar entidades cercanas
-    for (unsigned int i = 0; i < globals.num_edicts; i++) {
-        edict_t* ent = &g_edicts[i];
+    std::array<NearbyEntity, MAX_ENTITIES> nearbyEntities;
+    size_t entityCount = 0;
+
+    // Iterar solo sobre monstruos activos
+    for (auto ent : active_monsters()) {
+        if (entityCount >= MAX_ENTITIES) break;
         if (!IsValidTarget(self, ent)) continue;
-
         float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
         if (distSquared <= MAX_RANGE_SQUARED) {
-            nearbyEntities.push_back({ ent, distSquared });
+            nearbyEntities[entityCount++] = { ent, distSquared };
         }
     }
 
     // Ordenar entidades por distancia
-    std::sort(nearbyEntities.begin(), nearbyEntities.end(),
+    std::sort(nearbyEntities.begin(), nearbyEntities.begin() + entityCount,
         [](const NearbyEntity& a, const NearbyEntity& b) {
-            return a.distance < b.distance;
+            return a.distanceSquared < b.distanceSquared;
         });
 
-    // Segunda pasada: encontrar el objetivo más cercano visible
-    for (const auto& nearbyEnt : nearbyEntities) {
-        if (visible(self, nearbyEnt.entity)) {
-            self->enemy = nearbyEnt.entity;
+    // Encontrar el objetivo más cercano visible
+    for (size_t i = 0; i < entityCount; i++) {
+        if (visible(self, nearbyEntities[i].entity, false)) {
+            self->enemy = nearbyEntities[i].entity;
             return true;
         }
     }
@@ -496,22 +498,18 @@ bool visible(edict_t* self, edict_t* other, bool through_glass) {
     if (!self || !other || (other->flags & FL_NOVISIBLE)) {
         return false;
     }
-
     if (other->client) {
         if (self->hackflags & HACKFLAG_ATTACK_PLAYER) return self->inuse;
         if (!other->solid) return false;
         if (IsInvisible(other)) return false;
     }
-
     vec3_t spot1, spot2;
     VectorCopy(self->s.origin, spot1);
     spot1[2] += self->viewheight;
     VectorCopy(other->s.origin, spot2);
     spot2[2] += other->viewheight;
-
     contents_t mask = MASK_OPAQUE;
     if (!through_glass) mask |= CONTENTS_WINDOW;
-
     trace_t trace = gi.traceline(spot1, spot2, self, mask);
     return trace.fraction == 1.0f || trace.ent == other;
 }
