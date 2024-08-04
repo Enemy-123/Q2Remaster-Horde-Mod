@@ -1221,7 +1221,7 @@ std::string FormatEntityInfo(edict_t* ent) {
 			gtime_t time_active = level.time - ent->owner->timestamp;
 			gtime_t time_remaining = ent->timestamp - time_active;
 			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-			info += fmt::format("T: {}s", remaining_time);
+			info += fmt::format(" T: {}s", remaining_time);
 		}
 	}
 	return info;
