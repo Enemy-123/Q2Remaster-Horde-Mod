@@ -218,7 +218,7 @@ void create_laser(edict_t* ent)
     // get end position
     end = start + forward * 64;
 
-    tr = gi.traceline(start, end, ent, MASK_SHOT);
+    tr = gi.traceline(start, end, ent, MASK_SOLID);
 
     if (tr.fraction == 1.0f)
     {
