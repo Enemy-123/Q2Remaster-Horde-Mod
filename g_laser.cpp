@@ -104,30 +104,34 @@ THINK(laser_beam_think)(edict_t* self) -> void
         // Verificar si el objetivo es válido (monstruo, jugador, o entidad dañable)
         if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage)
         {
-            hit_valid_target = true;
-
-            if (tr.ent->client)
+            // Verificar si el objetivo está en el mismo equipo
+            if (!OnSameTeam(self->teammaster, tr.ent))
             {
-                if (tr.ent->client->respawn_time - 1.5_sec > level.time)
+                hit_valid_target = true;
+
+                if (tr.ent->client)
                 {
-                    gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser touched respawning player, so it was removed. ({}/{} remain)\n",
-                        self->teammaster->client->num_lasers, MAX_LASERS);
-                    laser_remove(self->owner);
-                    return;
+                    if (tr.ent->client->respawn_time - 1.5_sec > level.time)
+                    {
+                        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser touched respawning player, so it was removed. ({}/{} remain)\n",
+                            self->teammaster->client->num_lasers, MAX_LASERS);
+                        laser_remove(self->owner);
+                        return;
+                    }
                 }
-            }
 
-            // Aplicar daño
-            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+                // Aplicar daño solo si no están en el mismo equipo
+                T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
-            // Reducir la salud del láser solo si golpeó un objetivo válido
-            if (tr.ent->svflags & SVF_MONSTER)
-            {
-                self->health -= damage * 0.4f;  // Menor desgaste contra monstruos
-            }
-            else
-            {
-                self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
+                // Reducir la salud del láser solo si golpeó un objetivo válido
+                if (tr.ent->svflags & SVF_MONSTER)
+                {
+                    self->health -= damage * 0.4f;  // Menor desgaste contra monstruos
+                }
+                else
+                {
+                    self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
+                }
             }
         }
     }
@@ -197,6 +201,11 @@ void create_laser(edict_t* ent)
     edict_t* grenade;
     edict_t* laser;
 
+    if (ent->movetype != MOVETYPE_WALK) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect.\n");
+        return;
+    }
+
     if (ent->client->num_lasers >= MAX_LASERS)
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
@@ -251,7 +260,7 @@ void create_laser(edict_t* ent)
     laser->takedamage = false;
     laser->die = laser_die;
     laser->pain = laser_pain;
-    laser->monsterinfo.team = CTF_TEAM1;
+    laser->team = TEAM1;
     laser->flags |= FL_NO_KNOCKBACK;
 
     if (laser->health >= 1500)
@@ -279,7 +288,7 @@ void create_laser(edict_t* ent)
     grenade->think = emitter_think;
     grenade->die = laser_die;
     grenade->svflags = SVF_BOT;
-    grenade->monsterinfo.team = CTF_TEAM1;
+    grenade->team = TEAM1;
     grenade->pain = laser_pain;
     grenade->timestamp = level.time + LASER_TIMEOUT_DELAY;
     laser->flags |= FL_NO_KNOCKBACK;
