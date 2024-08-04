@@ -3,6 +3,10 @@
 #include <unordered_map>
 #include <algorithm>  // For std::max
 
+#include "g_local.h"
+
+// ... (otras funciones y constantes permanecen igual)
+
 void RemovePlayerOwnedEntities(edict_t* player)
 {
 	edict_t* ent;
@@ -10,17 +14,15 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	void prox_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
 	void tesla_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
 	void trap_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
-
+	void laser_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
 	bool hasEntities = false;
 
 	// Check if there are any entities owned by the player
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		ent = &g_edicts[i];
-
 		if (!ent->inuse)
 			continue;
-
 		if (ent->owner == player || (ent->owner && ent->owner->owner == player) ||
 			ent->teammaster == player || (ent->teammaster && ent->teammaster->teammaster == player))
 		{
@@ -37,7 +39,6 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		ent = &g_edicts[i];
-
 		if (!ent->inuse)
 			continue;
 
@@ -48,7 +49,9 @@ void RemovePlayerOwnedEntities(edict_t* player)
 			if (!strcmp(ent->classname, "tesla_mine") ||
 				!strcmp(ent->classname, "food_cube_trap") ||
 				!strcmp(ent->classname, "prox_mine") ||
-				!strcmp(ent->classname, "monster_sentrygun"))
+				!strcmp(ent->classname, "monster_sentrygun") ||
+				!strcmp(ent->classname, "emitter") ||  // Añadido para los láseres
+				!strcmp(ent->classname, "laser"))      // Añadido para los láseres
 			{
 				// Call appropriate die function
 				if (!strcmp(ent->classname, "monster_sentrygun"))
@@ -71,6 +74,10 @@ void RemovePlayerOwnedEntities(edict_t* player)
 				{
 					trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 				}
+				else if (!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"))
+				{
+					laser_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+				}
 				else
 				{
 					// Use freeEdict to remove the entity or create an explosion if appropriate
@@ -79,7 +86,15 @@ void RemovePlayerOwnedEntities(edict_t* player)
 			}
 		}
 	}
+
+	// Reset the player's laser counter
+	if (player->client)
+	{
+		player->client->num_lasers = 0;
+	}
 }
+
+// ... (resto del código permanece igual)
 
 
 	void UpdatePowerUpTimes(edict_t * monster)
