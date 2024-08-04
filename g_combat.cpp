@@ -520,7 +520,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 	if (!ent1 || !ent2) {
 		return false;
 	}
-
 	if (G_IsCooperative())
 	{
 		if (!ent1->client || !ent2->client)
@@ -563,7 +562,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		{
 			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
 		}
-
 		// Verifica si uno de los entes es una tesla mine
 		if (ent1->classname && !strcmp(ent1->classname, "tesla_mine"))
 		{
@@ -573,7 +571,6 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		{
 			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2));
 		}
-
 		// Verifica si uno de los entes es una trampa
 		if (ent1->classname && !strcmp(ent1->classname, "food_cube_trap"))
 		{
@@ -583,7 +580,15 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		{
 			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2));
 		}
-
+		// Verifica si uno de los entes es un emisor de láser o un láser
+		if (ent1->classname && (!strcmp(ent1->classname, "emitter") || !strcmp(ent1->classname, "laser")))
+		{
+			return !strcmp(ent1->team, ent2->client ? (ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent2->team ? ent2->team : "neutral"));
+		}
+		if (ent2->classname && (!strcmp(ent2->classname, "emitter") || !strcmp(ent2->classname, "laser")))
+		{
+			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent1->team ? ent1->team : "neutral"));
+		}
 		return false;
 	}
 	return false;

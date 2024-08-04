@@ -260,8 +260,18 @@ void create_laser(edict_t* ent)
     laser->takedamage = false;
     laser->die = laser_die;
     laser->pain = laser_pain;
-    laser->team = TEAM1;
     laser->flags |= FL_NO_KNOCKBACK;
+
+    // Asignar el equipo al láser
+    if (ent->client->resp.ctf_team == CTF_TEAM1) {
+        laser->team = TEAM1;
+    }
+    else if (ent->client->resp.ctf_team == CTF_TEAM2) {
+        laser->team = TEAM2;
+    }
+    else {
+        laser->team = "neutral"; // O cualquier valor por defecto que prefieras
+    }
 
     if (laser->health >= 1500)
         laser->health = 1500;
@@ -288,10 +298,11 @@ void create_laser(edict_t* ent)
     grenade->think = emitter_think;
     grenade->die = laser_die;
     grenade->svflags = SVF_BOT;
-    grenade->team = TEAM1;
     grenade->pain = laser_pain;
     grenade->timestamp = level.time + LASER_TIMEOUT_DELAY;
     laser->flags |= FL_NO_KNOCKBACK;
+
+    grenade->team = laser->team;
 
     gi.linkentity(grenade);
 
