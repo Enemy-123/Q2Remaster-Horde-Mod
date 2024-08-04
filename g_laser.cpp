@@ -120,7 +120,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
             }
 
             // Aplicar daño
-            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_TARGET_LASER);
+            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
             // Reducir la salud del láser solo si golpeó un objetivo válido
             if (tr.ent->svflags & SVF_MONSTER)
@@ -151,7 +151,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
     if (self->health <= 0)
     {
         gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser emitter burned out and exploded.\n");
-        laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_TARGET_LASER);
+        laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_PLAYER_LASER);
         return;
     }
 
