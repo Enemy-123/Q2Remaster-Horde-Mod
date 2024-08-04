@@ -335,15 +335,16 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 	// logic for tesla - if you are hit by a tesla, and can't see who you should be mad at (attacker)
 	// attack the tesla
 	// also, target the tesla if it's a "new" tesla
-	if ((inflictor) && (!strcmp(inflictor->classname, "tesla_mine") || !strcmp(inflictor->classname, "monster_sentrygun")))
+	if ((inflictor) && (!strcmp(inflictor->classname, "tesla_mine") || !strcmp(inflictor->classname, "monster_sentrygun") || !strcmp(inflictor->classname, "emitter")))
 	{
 		new_tesla = MarkTeslaArea(targ, inflictor);
-		if (!strcmp(inflictor->classname, "monster_sentrygun"))
+		if (!strcmp(inflictor->classname, "monster_sentrygun") || !strcmp(inflictor->classname, "emitter"))
 		{
-			// Check if enough time has passed since last sentrygun targeting
+			// Check if enough time has passed since last sentrygun/emitter targeting
 			if (level.time - targ->monsterinfo.last_sentrygun_target_time > sentrygun_target_cooldown)
 			{
-				if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "monster_sentrygun")))
+				if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname ||
+					(strcmp(targ->enemy->classname, "monster_sentrygun") && strcmp(targ->enemy->classname, "emitter"))))
 				{
 					TargetInflictor(targ, inflictor);
 					targ->monsterinfo.last_sentrygun_target_time = level.time;
@@ -458,7 +459,9 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		// get mad at them
 		|| (((targ->flags & (FL_FLY | FL_SWIM)) == (attacker->flags & (FL_FLY | FL_SWIM))) &&
 			(strcmp(targ->classname, attacker->classname) != 0) &&
-			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) || !strcmp(attacker->classname, "monster_sentrygun")) &&
+			(!(attacker->monsterinfo.aiflags & AI_IGNORE_SHOTS) ||
+				!strcmp(attacker->classname, "monster_sentrygun") ||
+				!strcmp(attacker->classname, "emitter")) &&
 			!(targ->monsterinfo.aiflags & AI_IGNORE_SHOTS)))
 	{
 		if (targ->enemy != attacker)
@@ -507,7 +510,6 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		}
 	}
 }
-
 void AssignMonsterTeam(edict_t* ent) {
 	if ((ent->svflags & SVF_MONSTER) && ent->monsterinfo.team != CTF_TEAM1) {
 		ent->monsterinfo.team = CTF_TEAM2;

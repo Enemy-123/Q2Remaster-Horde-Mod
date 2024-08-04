@@ -1,11 +1,11 @@
 #include "g_local.h"
 
 constexpr int32_t MAX_LASERS = 6;
-constexpr int32_t LASER_COST = 50;
+constexpr int32_t LASER_COST = 25;
 constexpr int32_t LASER_INITIAL_DAMAGE = 100;
 constexpr int32_t LASER_ADDON_DAMAGE = 40;
-constexpr int32_t LASER_INITIAL_HEALTH = 1000;  // Aumentado para mayor durabilidad
-constexpr int32_t LASER_ADDON_HEALTH = 500;     // Aumentado para mayor durabilidad
+constexpr int32_t LASER_INITIAL_HEALTH = 350;  // DMG before explode
+constexpr int32_t LASER_ADDON_HEALTH = 150;     // DMG addon before explode
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 120_sec;
 constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
@@ -31,8 +31,6 @@ void laser_remove(edict_t* self)
             self->teammaster->client->num_lasers, MAX_LASERS);
     }
 }
-
-
 
 DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
@@ -231,7 +229,7 @@ void create_laser(edict_t* ent)
 
     // create the laser beam
     laser->dmg = LASER_INITIAL_DAMAGE + LASER_ADDON_DAMAGE;
-    laser->health = LASER_INITIAL_HEALTH + LASER_ADDON_HEALTH;
+    laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * current_wave_number);
     laser->max_health = laser->health;
     laser->gib_health = -100;
     laser->mass = 50;
@@ -255,6 +253,10 @@ void create_laser(edict_t* ent)
     laser->pain = laser_pain;
     laser->monsterinfo.team = CTF_TEAM1;
     laser->flags |= FL_NO_KNOCKBACK;
+
+    if (laser->health >= 1500)
+        laser->health = 1500;
+
     gi.linkentity(laser);
 
     // create the laser emitter (grenade)
