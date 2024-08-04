@@ -1294,10 +1294,22 @@ void OnEntityDeath(edict_t* self) {
 }
 
 void CleanupInvalidEntities() {
-	for (uint32_t i = 0; i < static_cast<uint32_t>(globals.num_edicts); i++) {
+	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
 		edict_t* ent = &g_edicts[i];
-		if (ent->inuse && !IsValidTarget(nullptr, ent, false)) {
-			G_FreeEdict(ent);
+		if (ent->inuse && ent->svflags & SVF_MONSTER) {
+			// Verifica si la entidad está en un estado inválido
+			if (ent->solid == SOLID_NOT && ent->health > 0 && ent->takedamage == false) {
+				// Esta entidad parece estar en un estado bugueado
+				gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
+
+				// Forzar la muerte de la entidad
+				ent->health = -1;
+				
+
+				// Asegurarse de que la entidad se libere
+				OnEntityDeath(ent);
+				G_FreeEdict(ent);
+			}
 		}
 	}
 }

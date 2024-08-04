@@ -1061,7 +1061,7 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 		}
 
 		// Dañar severamente al AI
-		if (!edict->deadflag && !(edict->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+		if (!edict->deadflag && !(edict->monsterinfo.team != CTF_TEAM1))
 			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
 	}
 
@@ -1611,7 +1611,6 @@ void ClientCommand(edict_t* ent)
 
 	if (Q_strcasecmp(cmd, "unhook") == 0)
 	{
-		//if (use_hook->value && !(ent->lithium_flags & LITHIUM_OBSERVER))
 		if (g_use_hook->integer && !ent->client->resp.spectator)
 			Hook_Reset(ent->client->hook);
 		return;

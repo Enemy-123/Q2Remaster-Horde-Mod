@@ -34,3 +34,5 @@ extern gtime_t horde_message_end_time;  // Add this line
 extern void ClearHordeMessage();
 extern void UpdateHordeMessage(std::string_view message, gtime_t duration);
 extern void UpdateHordeHUD();
+
+extern void CleanupInvalidEntities();
