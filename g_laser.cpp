@@ -1,9 +1,9 @@
 #include "g_local.h"
 
 constexpr int32_t MAX_LASERS = 6;
-constexpr int32_t LASER_COST = 50;
-constexpr int32_t LASER_INITIAL_DAMAGE = 100;
-constexpr int32_t LASER_ADDON_DAMAGE = 40;
+constexpr int32_t LASER_COST = 25;
+constexpr int32_t LASER_INITIAL_DAMAGE = 150;
+constexpr int32_t LASER_ADDON_DAMAGE = 20;
 constexpr int32_t LASER_INITIAL_HEALTH = 500;
 constexpr int32_t LASER_ADDON_HEALTH = 250;
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
@@ -29,6 +29,49 @@ void laser_remove(edict_t* self)
         self->teammaster->client->num_lasers--;
         gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
             self->teammaster->client->num_lasers, MAX_LASERS);
+    }
+}
+
+
+
+DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+{
+    // Decrement laser counter for the owner
+    if (self->teammaster && self->teammaster->client)
+    {
+        self->teammaster->client->num_lasers--;
+        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
+            self->teammaster->client->num_lasers, MAX_LASERS);
+    }
+
+    // Remove both the emitter and the beam
+    if (self->classname && strcmp(self->classname, "emitter") == 0)
+    {
+        if (self->owner)
+            G_FreeEdict(self->owner);  // Free the laser beam
+        BecomeExplosion1(self);  // Explode the emitter
+    }
+    else
+    {
+        if (self->owner)
+            BecomeExplosion1(self->owner);  // Explode the emitter
+        G_FreeEdict(self);  // Free the laser beam
+    }
+}
+
+PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+{
+    // Implementación básica de dolor
+    if (self->health < self->max_health / 2)
+    {
+        // Cambiar el color a amarillo cuando está dañado
+        self->s.skinnum = 0xd0d1d2d3;  // amarillo
+    }
+
+    // Llamar a laser_die si la salud llega a cero o menos
+    if (self->health <= 0)
+    {
+        laser_die(self, other, other, damage, self->s.origin, mod);
     }
 }
 
@@ -81,7 +124,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
             nonclient = true; // target is a non-client
 
         // deal damage to anything in the beam's path
-        T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_TARGET_LASER);
+        T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
     }
     else
         damage = 0; // emitter is either burned out or hit nothing valid
@@ -108,28 +151,30 @@ THINK(laser_beam_think)(edict_t* self) -> void
     self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+
 THINK(emitter_think)(edict_t* self) -> void
 {
-	// flash green when we are about to expire
-	if (self->owner->health < (0.1f * self->owner->max_health))
-	{
-		if (self->s.frame & 8)
-		{
-			self->s.renderfx |= RF_SHELL_LITE_GREEN;
-			self->s.effects |= EF_COLOR_SHELL;
-		}
-		else
-		{
-			self->s.renderfx &= ~RF_SHELL_LITE_GREEN;
-			self->s.effects &= ~EF_COLOR_SHELL;
-		}
-	}
-	else
-		self->s.renderfx &= ~RF_SHELL_LITE_GREEN;
-	self->s.effects &= ~EF_COLOR_SHELL;
+    // flash green when we are about to expire
+    if (self->owner->health < (0.1f * self->owner->max_health))
+    {
+        if (self->s.frame & 8)
+        {
+            self->s.renderfx |= RF_SHELL_LITE_GREEN;
+            self->s.effects |= EF_COLOR_SHELL;
+        }
+        else
+        {
+            self->s.renderfx &= ~RF_SHELL_LITE_GREEN;
+            self->s.effects &= ~EF_COLOR_SHELL;
+        }
+    }
+    else
+        self->s.renderfx &= ~RF_SHELL_LITE_GREEN;
+    self->s.effects &= ~EF_COLOR_SHELL;
 
-	self->nextthink = level.time + FRAME_TIME_MS;
+    self->nextthink = level.time + FRAME_TIME_MS;
 }
+
 
 void create_laser(edict_t* ent)
 {
@@ -172,7 +217,8 @@ void create_laser(edict_t* ent)
     laser->dmg = LASER_INITIAL_DAMAGE + LASER_ADDON_DAMAGE;
     laser->health = LASER_INITIAL_HEALTH + LASER_ADDON_HEALTH;
     laser->max_health = laser->health;
-
+    laser->gib_health = -100;
+    laser->mass = 50;
     laser->movetype = MOVETYPE_NONE;
     laser->solid = SOLID_NOT;
     laser->s.renderfx = RF_BEAM | RF_TRANSLUCENT;
@@ -188,6 +234,11 @@ void create_laser(edict_t* ent)
     laser->s.old_origin = tr.endpos;
     laser->pos1 = tr.endpos; // beam origin
     laser->s.angles = vectoangles(tr.plane.normal);
+    laser->takedamage = false;
+    laser->die = laser_die;
+    laser->pain = laser_pain;
+    laser->monsterinfo.team = CTF_TEAM1;
+    laser->flags |= FL_NO_KNOCKBACK;
     gi.linkentity(laser);
 
     // create the laser emitter (grenade)
@@ -200,12 +251,20 @@ void create_laser(edict_t* ent)
     VectorSet(grenade->maxs, 3, 3, 6);
     grenade->takedamage = true;
     grenade->health = 100;
+    grenade->gib_health = -50;
+    grenade->mass = 25;
     grenade->s.modelindex = gi.modelindex("models/objects/grenade2/tris.md2");
     grenade->teammaster = ent; // link to player
     grenade->owner = laser; // link to laser
     grenade->classname = "emitter";
     grenade->nextthink = level.time + FRAME_TIME_MS;
     grenade->think = emitter_think;
+    grenade->die = laser_die;
+    grenade->svflags = SVF_BOT;
+    grenade->monsterinfo.team = CTF_TEAM1;
+    grenade->pain = laser_pain;
+    laser->flags |= FL_NO_KNOCKBACK;
+
     gi.linkentity(grenade);
 
     ent->client->num_lasers++;
@@ -221,18 +280,11 @@ void remove_lasers(edict_t* ent)
     {
         if (e && (e->teammaster == ent))
         {
-            // remove the laser beam
-            if (e->owner)
-            {
-                e->owner->think = G_FreeEdict;
-                e->owner->nextthink = level.time + FRAME_TIME_MS;
-            }
-            // remove the emitter
-            e->think = BecomeExplosion1;
-            e->nextthink = level.time + FRAME_TIME_MS;
+            laser_die(e, nullptr, ent, 9999, vec3_origin, MOD_UNKNOWN);
         }
     }
 
     // reset laser counter
     ent->client->num_lasers = 0;
 }
+

@@ -1080,7 +1080,8 @@ enum mod_id_t : uint8_t
 	MOD_BLUEBLASTER,
 	// Kyper - Lithium port
 	MOD_HOOK,
-	MOD_TURRET
+	MOD_TURRET,
+	MOD_PLAYER_LASER
 	// Kyper
 };
 
