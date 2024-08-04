@@ -236,22 +236,3 @@ void remove_lasers(edict_t* ent)
     // reset laser counter
     ent->client->num_lasers = 0;
 }
-
-//void Cmd_Laser_f(edict_t* ent)
-//{
-//    const char* cmd = gi.argv(1);
-//
-//    if (Q_strcasecmp(cmd, "create") == 0)
-//    {
-//        create_laser(ent);
-//    }
-//    else if (Q_strcasecmp(cmd, "remove") == 0)
-//    {
-//        remove_lasers(ent);
-//        gi.LocClient_Print(ent, PRINT_HIGH, "All lasers removed.\n");
-//    }
-//    else
-//    {
-//        gi.LocClient_Print(ent, PRINT_HIGH, "Usage: laser <create|remove>\n");
-//    }
-//}
