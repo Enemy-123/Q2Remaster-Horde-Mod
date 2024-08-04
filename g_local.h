@@ -3108,6 +3108,11 @@ struct gclient_t
 	bool menu_selected;
 	pmtype_t prev_pm_type;
 	int num_lasers;
+
+	//LOAD SERVER CLIENT, CS
+	bool isLoading;
+	int entityLoadState;
+	gtime_t nextLoadTime;
 };
 
 
@@ -3852,5 +3857,15 @@ extern void UpdateVoteHUD();
 extern std::string GetDisplayName(edict_t* ent);
 extern std::string GetTitleFromFlags(int bonus_flags);
 extern float M_DamageModifier(edict_t* monster);
+
+
+extern void ContinueProgressiveLoading(edict_t* ent);
+extern void SendBasicEntityInfo(edict_t* ent, edict_t* target);
+extern void SendEntityInfoToClient(edict_t* ent, edict_t* target);
+extern void SendCriticalEntityInfo(edict_t* ent, edict_t* target);
+extern bool IsImportantEntity(edict_t* target);
+
+
+
 
 //extern void UpdateAllClients();

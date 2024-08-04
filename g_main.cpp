@@ -167,6 +167,7 @@ cvar_t* g_vampire;
 
 static cvar_t* g_frames_per_frame;
 
+
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint);
 void ClientThink(edict_t* ent, usercmd_t* cmd);
 edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBot, edict_t** ignore, size_t num_ignore, bool cinematic);

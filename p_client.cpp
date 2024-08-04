@@ -3009,6 +3009,79 @@ edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBo
 	return ClientChooseSlot_Any(ignore, num_ignore);
 }
 
+// OPTIMIZING LOAD SERVER FOR CLIENT, because too many CS!
+
+void ContinueProgressiveLoading(edict_t* ent)
+{
+	int entitiesToLoadPerFrame = 5;  // Ajusta según sea necesario
+	for (unsigned int i = 0; i < entitiesToLoadPerFrame; i++)
+	{
+		if (ent->client->entityLoadState >= globals.num_edicts)
+		{
+			// Carga completa
+			ent->client->isLoading = false;
+			gi.LocClient_Print(ent, PRINT_HIGH, "Carga completa. ¡Bienvenido al juego!");
+			return;
+		}
+
+		// Cargar la siguiente entidad
+		SendEntityInfoToClient(ent, &g_edicts[ent->client->entityLoadState]);
+		ent->client->entityLoadState++;
+	}
+
+	// Programar la próxima carga
+	ent->client->nextLoadTime = level.time + 100_ms;
+}
+
+void SendEntityInfoToClient(edict_t* ent, edict_t* target)
+{
+	// Implementa la lógica para enviar la información de la entidad al cliente
+	// Esto podría incluir configstrings, estado de la entidad, etc.
+	// Asegúrate de no enviar más información de la que el cliente puede manejar de una vez
+
+	// Ejemplo:
+	if (target->client || (target->svflags & SVF_MONSTER) || IsImportantEntity(target))
+	{
+		// Enviar información crítica inmediatamente
+		SendCriticalEntityInfo(ent, target);
+	}
+	else
+	{
+		// Para entidades menos importantes, posiblemente solo envía información básica
+		SendBasicEntityInfo(ent, target);
+	}
+}
+
+bool IsImportantEntity(edict_t* target)
+{
+	return target->client || (target->svflags & SVF_MONSTER) || target->classname == "func_button" || target->classname == "trigger_multiple";
+}
+
+void SendCriticalEntityInfo(edict_t* ent, edict_t* target)
+{
+	// Enviar información completa de la entidad
+	// Esto podría incluir posición, salud, armadura, etc.
+	// Ejemplo:
+	gi.WriteByte(svc_configstring);
+	gi.WriteShort(CS_GENERAL + target - g_edicts);
+	gi.WriteString(G_Fmt("{}\n{} {} {}", target->classname,
+		static_cast<int>(target->s.origin[0]),
+		static_cast<int>(target->s.origin[1]),
+		static_cast<int>(target->s.origin[2])).data());
+	gi.unicast(ent, true);
+}
+
+void SendBasicEntityInfo(edict_t* ent, edict_t* target)
+{
+	// Enviar información básica de la entidad
+	// Esto podría ser solo el classname y la posición
+	gi.WriteByte(svc_configstring);
+	gi.WriteShort(CS_GENERAL + target - g_edicts);
+	gi.WriteString(G_Fmt("{}", target->classname).data());
+	gi.unicast(ent, true);
+}
+
+
 /*
 ===========
 ClientConnect
@@ -3032,15 +3105,12 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		return false;
 	}
 #endif
-
 	// check for a spectator
 	char value[MAX_INFO_VALUE] = { 0 };
 	gi.Info_ValueForKey(userinfo, "spectator", value, sizeof(value));
-
 	if (G_IsDeathmatch() && *value && strcmp(value, "0"))
 	{
 		uint32_t i, numspec;
-
 		if (*spectator_password->string &&
 			strcmp(spectator_password->string, "none") &&
 			strcmp(spectator_password->string, value))
@@ -3048,12 +3118,10 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 			gi.Info_SetValueForKey(userinfo, "rejmsg", "Spectator password required or incorrect.");
 			return false;
 		}
-
 		// count spectators
 		for (i = numspec = 0; i < game.maxclients; i++)
 			if (g_edicts[i + 1].inuse && g_edicts[i + 1].client->pers.spectator)
 				numspec++;
-
 		if (numspec >= (uint32_t)maxspectators->integer)
 		{
 			gi.Info_SetValueForKey(userinfo, "rejmsg", "Server spectator limit is full.");
@@ -3078,6 +3146,11 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	// set up userinfo early
 	ClientUserinfoChanged(ent, userinfo);
 
+	// Inicializar el estado de carga
+	ent->client->isLoading = true;
+	ent->client->entityLoadState = 0;
+	ent->client->nextLoadTime = level.time;
+
 	// if there is already a body waiting for us (a loadgame), just
 	// take it, otherwise spawn one from scratch
 	if (ent->inuse == false)
@@ -3098,23 +3171,19 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 	if (isBot) {
 		ent->svflags |= SVF_BOT;
 	}
-
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(ent->client->pers.social_id));
-
 	if (game.maxclients > 1)
 	{
 		// [Paril-KEX] fetch name because now netname is kinda unsuitable
 		gi.Info_ValueForKey(userinfo, "name", value, sizeof(value));
 		gi.LocClient_Print(nullptr, PRINT_HIGH, "$g_player_connected", value);
 	}
-
 	ent->client->pers.connected = true;
-
 	// [Paril-KEX] force a state update
 	ent->sv.init = false;
+
 	return true;
 }
-
 /*
 ===========
 ClientDisconnect
@@ -3471,7 +3540,6 @@ void CheckClientsInactivity() {
 		}
 	}
 }
-
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
@@ -3495,6 +3563,16 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	if (client->hook_on && ent->client->hook)
 		Hook_Service(client->hook);
+
+	// Manejar la carga progresiva de entidades
+	if (client->isLoading)
+	{
+		if (client->nextLoadTime <= level.time)
+		{
+			ContinueProgressiveLoading(ent);
+			return;
+		}
+	}
 
 	// Check for intermission or awaiting respawn
 	if (level.intermissiontime || ent->client->awaiting_respawn)
@@ -3575,7 +3653,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		else
 			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
 
-		// PGM	trigger_gravity support
+		// PGM trigger_gravity support
 		client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
 		pm.s = client->ps.pmove;
 
@@ -3778,6 +3856,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			UpdateChaseCam(other);
 	}
 }
+
 
 inline bool G_MonstersSearchingFor(edict_t* player)
 {
