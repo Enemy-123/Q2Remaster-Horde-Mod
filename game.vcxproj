@@ -118,6 +118,7 @@
     <ClInclude Include="g_local.h" />
     <ClInclude Include="g_statusbar.h" />
     <ClInclude Include="horde\g_horde.h" />
+    <ClInclude Include="laser.h" />
     <ClInclude Include="m_actor.h" />
     <ClInclude Include="m_arachnid.h" />
     <ClInclude Include="m_berserk.h" />
@@ -169,6 +170,7 @@
     <ClCompile Include="cg_screen.cpp" />
     <ClCompile Include="ctf\g_ctf.cpp" />
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
+    <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="m_arachnid2.cpp" />
     <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_guncmdr_vanilla.cpp" />

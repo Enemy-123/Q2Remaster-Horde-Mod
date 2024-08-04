@@ -467,6 +467,26 @@ void Cmd_Spawn_f(edict_t* ent)
 	ent->solid = backup;
 	gi.linkentity(ent);
 }
+
+#include "laser.h"
+
+void Cmd_Laser_f(edict_t* ent)
+{
+
+
+		create_laser(ent);
+	
+
+}
+
+void Cmd_RemoveLaser_f(edict_t* ent)
+{
+
+		remove_lasers(ent);
+		gi.LocClient_Print(ent, PRINT_HIGH, "All lasers removed.\n");
+	
+}
+
 /*
 Teleport
 
@@ -1643,6 +1663,15 @@ void ClientCommand(edict_t* ent)
 
 	if (level.intermissiontime)
 		return;
+
+	if (Q_strcasecmp(cmd, "laser") == 0) {
+		Cmd_Laser_f(ent);
+		return;
+	}
+	if (Q_strcasecmp(cmd, "removelaser") == 0) {
+		Cmd_RemoveLaser_f(ent);
+		return;
+	}
 
 	if (Q_strcasecmp(cmd, "target") == 0)
 		Cmd_Target_f(ent);

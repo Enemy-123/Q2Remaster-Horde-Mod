@@ -3106,6 +3106,7 @@ struct gclient_t
 	int total_damage; // Total damage dealt by this player
 	bool menu_selected;
 	pmtype_t prev_pm_type;
+	int num_lasers;
 };
 
 
