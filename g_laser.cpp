@@ -160,23 +160,33 @@ THINK(laser_beam_think)(edict_t* self) -> void
 
 THINK(emitter_think)(edict_t* self) -> void
 {
-    // flash green when we are about to expire
-    if (self->owner->health < (0.1f * self->owner->max_health))
+    // Check if the laser has timed out
+    if (level.time >= self->timestamp)
     {
-        if (self->s.frame & 8)
+        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
+        laser_die(self, nullptr, self->teammaster, 9999, self->s.origin, MOD_UNKNOWN);
+        return;
+    }
+
+    // flash green when we are about to expire (last 10 seconds)
+    if (level.time >= self->timestamp - 10_sec)
+    {
+        if (level.time.milliseconds() / 500 % 2 == 0)  // Blink every 0.5 seconds
         {
-            self->s.renderfx |= RF_SHELL_LITE_GREEN;
+            self->s.renderfx |= RF_SHELL_GREEN;
             self->s.effects |= EF_COLOR_SHELL;
         }
         else
         {
-            self->s.renderfx &= ~RF_SHELL_LITE_GREEN;
+            self->s.renderfx &= ~RF_SHELL_GREEN;
             self->s.effects &= ~EF_COLOR_SHELL;
         }
     }
     else
-        self->s.renderfx &= ~RF_SHELL_LITE_GREEN;
-    self->s.effects &= ~EF_COLOR_SHELL;
+    {
+        self->s.renderfx &= ~RF_SHELL_GREEN;
+        self->s.effects &= ~EF_COLOR_SHELL;
+    }
 
     self->nextthink = level.time + FRAME_TIME_MS;
 }
@@ -269,6 +279,7 @@ void create_laser(edict_t* ent)
     grenade->svflags = SVF_BOT;
     grenade->monsterinfo.team = CTF_TEAM1;
     grenade->pain = laser_pain;
+    grenade->timestamp = level.time + LASER_TIMEOUT_DELAY;
     laser->flags |= FL_NO_KNOCKBACK;
 
     gi.linkentity(grenade);

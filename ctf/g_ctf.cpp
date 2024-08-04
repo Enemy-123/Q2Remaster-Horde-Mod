@@ -1217,10 +1217,9 @@ std::string FormatEntityInfo(edict_t* ent) {
 		// Agregar información sobre el láser
 		if (ent->owner && ent->owner->inuse) {
 			info += fmt::format(" DMG: {}", ent->owner->health);
-			constexpr gtime_t LASER_TIMEOUT_DELAY = 120_sec;
 			// Calcular tiempo restante
 			gtime_t time_active = level.time - ent->owner->timestamp;
-			gtime_t time_remaining = LASER_TIMEOUT_DELAY - time_active;
+			gtime_t time_remaining = ent->timestamp - time_active;
 			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 			info += fmt::format("\nT: {}s", remaining_time);
 		}
