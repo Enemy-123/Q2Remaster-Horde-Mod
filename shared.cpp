@@ -236,7 +236,7 @@ std::string GetDisplayName(edict_t* ent)
 		{ "misc_insane", "Insane Grunt" },
 		{ "food_cube_trap", "Stroggonoff Maker\n" },
 		{ "tesla_mine", " Tesla Mine\n" },
-		{ "prox_mine", " Prox'Nade\n" }
+		{ "emitter", "Laser Emitter\n" }
 	};
 
 	auto it = name_replacements.find(ent->classname);

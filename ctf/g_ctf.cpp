@@ -1114,7 +1114,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "misc_insane", "Insane Grunt" },
 		{ "food_cube_trap", "Stroggonoff Maker\n" },
 		{ "tesla_mine", "Tesla Mine\n" },
-		{ "prox_mine", "Prox'Nade\n" }
+		{ "emitter", "Laser Emitter\n" }
 	};
 	auto it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
@@ -1136,7 +1136,7 @@ std::string FormatClassname(const std::string& classname) {
 bool IsValidClassname(const char* classname) {
 	if (!classname) return false;
 	const char* allowed_prefixes[] = {
-		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", nullptr
+		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "emitter", nullptr
 	};
 	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
 		if (strncmp(classname, *prefix, strlen(*prefix)) == 0) {
@@ -1209,18 +1209,24 @@ std::string FormatEntityInfo(edict_t* ent) {
 	else if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap") || !strcmp(ent->classname, "prox_mine")) {
 		std::string name = GetDisplayName(ent->classname);
 		info = fmt::format("{}H: {}", name, ent->health);
+	}
+	else if (!strcmp(ent->classname, "emitter")) {
+		std::string name = "Laser Emitter";
+		info = fmt::format("{}\nH: {}", name, ent->health);
 
-		if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap")) {
-			gtime_t time_active = level.time - ent->timestamp;
-			gtime_t time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
+		// Agregar información sobre el láser
+		if (ent->owner && ent->owner->inuse) {
+			info += fmt::format(" DMG: {}", ent->owner->health);
+			constexpr gtime_t LASER_TIMEOUT_DELAY = 120_sec;
+			// Calcular tiempo restante
+			gtime_t time_active = level.time - ent->owner->timestamp;
+			gtime_t time_remaining = LASER_TIMEOUT_DELAY - time_active;
 			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-			info += fmt::format(" T: {}s", remaining_time);
+			info += fmt::format("\nT: {}s", remaining_time);
 		}
 	}
-
 	return info;
-}
-
+	}
 void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
