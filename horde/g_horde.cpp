@@ -442,6 +442,7 @@ constexpr struct weighted_item_t {
     { "ammo_prox", 5, -1, 0.25f, adjust_weight_ammo },
     { "ammo_tesla", 2, -1, 0.1f, adjust_weight_ammo },
     { "ammo_cells", 13, -1, 0.25f, adjust_weight_ammo },
+    { "ammo_cells", 2, 12, 0.08f, adjust_weight_ammo },
     { "ammo_magslug", 15, -1, 0.25f, adjust_weight_ammo },
     { "ammo_slugs", 22, -1, 0.25f, adjust_weight_ammo },
     { "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
