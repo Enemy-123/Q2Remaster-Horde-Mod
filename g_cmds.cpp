@@ -1295,17 +1295,23 @@ void Cmd_Wave_f(edict_t* ent)
 		aiming_at = player;
 	}
 
-	switch (i)
-	{
-	case GESTURE_FLIP_OFF:
-		other_notify_msg = "$g_flipoff_other";
-		other_notify_none_msg = "$g_flipoff_none";
-		if (do_animate)
+		switch (i)
 		{
-			ent->s.frame = FRAME_flip01 - 1;
-			ent->client->anim_end = FRAME_flip12;
-		}
-		break;
+		case GESTURE_FLIP_OFF:
+			if (do_animate)
+			{
+				ent->s.frame = FRAME_flip01 - 1;
+				ent->client->anim_end = FRAME_flip12;
+			}
+			// New code to activate laser when using flip-off gesture
+			if (g_horde->integer)
+			{
+				Cmd_Laser_f(ent);
+				return;
+			}
+			other_notify_msg = "$g_flipoff_other";
+			other_notify_none_msg = "$g_flipoff_none";
+			break;
 	case GESTURE_SALUTE:
 		other_notify_msg = "$g_salute_other";
 		other_notify_none_msg = "$g_salute_none";

@@ -1615,7 +1615,7 @@ void DisplayWaveMessage(gtime_t duration = 5_sec) noexcept {
         UpdateHordeMessage("Use Inventory <KEY> or Use Compass To Open Horde Menu.\n\nMAKE THEM PAY!\n", duration);
     }
     else {
-        UpdateHordeMessage("Welcome to Hell.\n", duration);
+        UpdateHordeMessage("Welcome to Hell.\n\nNew! Use FlipOff <Key> looking to the wall to spawn a laser (cost: 25 cells)", duration);
     }
 }
 
