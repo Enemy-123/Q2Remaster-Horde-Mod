@@ -3033,33 +3033,35 @@ void SendConfigStringToClient(edict_t* ent, int configStringIndex)
 
 void ContinueProgressiveLoading(edict_t* ent)
 {
-	int configStringsToLoadPerFrame = 10;  // Aumentado a 10 para una carga más rápida
+	int configStringsToLoadPerFrame = 10;
 
 	for (int i = 0; i < configStringsToLoadPerFrame; i++)
 	{
-		if (ent->client->configStringLoadState >= CONFIG_LAST)
+		if (ent->client->configStringLoadState >= CS_GENERAL + MAX_GENERAL)
 		{
 			ent->client->isLoading = false;
 			gi.LocClient_Print(ent, PRINT_HIGH, "Welcome to Horde Mod!");
 			return;
 		}
 
-		// Solo enviar ConfigStrings que realmente tengan contenido
 		const char* configString = gi.get_configstring(ent->client->configStringLoadState);
 		if (configString && *configString)
 		{
-			SendConfigStringToClient(ent, ent->client->configStringLoadState);
+			gi.WriteByte(svc_configstring);
+			gi.WriteShort(ent->client->configStringLoadState);
+			gi.WriteString(configString);
+			gi.unicast(ent, true);
 		}
 		ent->client->configStringLoadState++;
 	}
 
-	ent->client->nextLoadTime = level.time + 50_ms;  // Reducido a 50ms para una carga más rápida
+	ent->client->nextLoadTime = level.time + 50_ms;
 }
 
 void InitializeProgressiveLoading(edict_t* ent)
 {
 	ent->client->isLoading = true;
-	ent->client->configStringLoadState = CONFIG_CTF_MATCH;  // Empezamos desde el primer ConfigString relevante
+	ent->client->configStringLoadState = CS_NAME;  // Empezamos desde el primer ConfigString
 	ent->client->nextLoadTime = level.time;
 }
 

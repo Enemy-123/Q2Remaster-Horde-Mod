@@ -997,7 +997,7 @@ struct ConfigStringManager {
 	std::queue<int> availableConfigStrings;
 
 	ConfigStringManager() {
-		for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
+		for (int i = CS_GENERAL; i < CS_GENERAL + MAX_GENERAL; ++i) {
 			availableConfigStrings.push(i);
 		}
 	}
@@ -1265,8 +1265,11 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 
 		int entity_index = best - g_edicts;
-		configStringManager.updateConfigString(entity_index, info_string);
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringManager.getConfigString(entity_index);
+		int cs_index = configStringManager.getConfigString(entity_index);
+		if (cs_index != -1) {
+			gi.configstring(cs_index, info_string.c_str());
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = cs_index;
+		}
 	}
 	else {
 		ent->client->idtarget = nullptr;
