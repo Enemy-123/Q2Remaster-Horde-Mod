@@ -88,7 +88,16 @@ THINK(laser_beam_think)(edict_t* self) -> void
 
     int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
     self->s.frame = size;
-    self->s.skinnum = 0xf2f2f0f0; // red color
+
+    // Cambiar color basado en la salud del láser
+    if (self->health > self->max_health * 0.20f)
+    {
+        self->s.skinnum = 0xf2f2f0f0; // rojo
+    }
+    else
+    {
+        self->s.skinnum = 0xd0f0d0f0; // verde
+    }
 
     AngleVectors(self->s.angles, forward, nullptr, nullptr);
     vec3_t start = self->pos1;
@@ -141,12 +150,6 @@ THINK(laser_beam_think)(edict_t* self) -> void
     {
         // Opcionalmente, puedes agregar un desgaste mínimo aquí si lo deseas
         // self->health -= 0.1f;  // Desgaste mínimo cuando no golpea nada
-    }
-
-    // Cambiar color cuando está dañado
-    if (self->health < self->max_health * 0.5f)
-    {
-        self->s.skinnum = 0xd0d1d2d3;  // amarillo
     }
 
     // Si la salud llega a cero, explotar
