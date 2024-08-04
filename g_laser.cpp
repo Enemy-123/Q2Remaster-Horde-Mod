@@ -1,14 +1,14 @@
 #include "g_local.h"
 
 constexpr int32_t MAX_LASERS = 6;
-constexpr int32_t LASER_COST = 25;
-constexpr int32_t LASER_INITIAL_DAMAGE = 150;
-constexpr int32_t LASER_ADDON_DAMAGE = 20;
-constexpr int32_t LASER_INITIAL_HEALTH = 500;
-constexpr int32_t LASER_ADDON_HEALTH = 250;
+constexpr int32_t LASER_COST = 50;
+constexpr int32_t LASER_INITIAL_DAMAGE = 100;
+constexpr int32_t LASER_ADDON_DAMAGE = 40;
+constexpr int32_t LASER_INITIAL_HEALTH = 1000;  // Aumentado para mayor durabilidad
+constexpr int32_t LASER_ADDON_HEALTH = 500;     // Aumentado para mayor durabilidad
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 120_sec;
-constexpr float LASER_NONCLIENT_MOD = 0.5f;
+constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
 
 void laser_remove(edict_t* self)
 {
@@ -75,27 +75,23 @@ PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
     }
 }
 
+
 THINK(laser_beam_think)(edict_t* self) -> void
 {
     vec3_t forward;
     trace_t tr;
-    bool nonclient = false;
+    bool hit_valid_target = false;
 
-    // can't have a laser beam without an emitter!
     if (!self->owner)
     {
         G_FreeEdict(self);
         return;
     }
 
-    // set beam diameter
     int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
     self->s.frame = size;
-
-    // set beam color
     self->s.skinnum = 0xf2f2f0f0; // red color
 
-    // trace from beam emitter out as far as we can go
     AngleVectors(self->s.angles, forward, nullptr, nullptr);
     vec3_t start = self->pos1;
     vec3_t end = start + forward * 8192;
@@ -103,54 +99,64 @@ THINK(laser_beam_think)(edict_t* self) -> void
     self->s.origin = tr.endpos;
     self->s.old_origin = self->pos1;
 
-    // set maximum damage output
     int damage = (size) ? std::min(self->dmg, self->health) : 0;
 
-    // what is in laser's path?
     if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster)
     {
-        if (tr.ent->client)
+        // Verificar si el objetivo es válido (monstruo, jugador, o entidad dañable)
+        if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage)
         {
-            // remove lasers near spawn positions
-            if (tr.ent->client->respawn_time - 1.5_sec > level.time)
+            hit_valid_target = true;
+
+            if (tr.ent->client)
             {
-                gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser touched respawning player, so it was removed. ({}/{} remain)\n",
-                    self->teammaster->client->num_lasers, MAX_LASERS);
-                laser_remove(self->owner);
-                return;
+                if (tr.ent->client->respawn_time - 1.5_sec > level.time)
+                {
+                    gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser touched respawning player, so it was removed. ({}/{} remain)\n",
+                        self->teammaster->client->num_lasers, MAX_LASERS);
+                    laser_remove(self->owner);
+                    return;
+                }
+            }
+
+            // Aplicar daño
+            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_TARGET_LASER);
+
+            // Reducir la salud del láser solo si golpeó un objetivo válido
+            if (tr.ent->svflags & SVF_MONSTER)
+            {
+                self->health -= damage * 0.4f;  // Menor desgaste contra monstruos
+            }
+            else
+            {
+                self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
             }
         }
-        else
-            nonclient = true; // target is a non-client
-
-        // deal damage to anything in the beam's path
-        T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
-    }
-    else
-        damage = 0; // emitter is either burned out or hit nothing valid
-
-    // emitter burns out slowly even when idle
-    if (size && !damage && !(self->s.frame % 10))
-    {
-        damage = std::max(1, static_cast<int>(0.008333f * self->max_health));
     }
 
-    // reduce maximum damage counter
-    if (nonclient)
-        self->health -= static_cast<int>(LASER_NONCLIENT_MOD * damage);
-    else
-        self->health -= damage;
-
-    // if the counter reaches 0, then shut-down
-    if (damage && self->health < 1)
+    // Si no golpeó un objetivo válido, no reducir la salud
+    if (!hit_valid_target)
     {
-        self->health = 0;
-        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser emitter burned out.\n");
+        // Opcionalmente, puedes agregar un desgaste mínimo aquí si lo deseas
+        // self->health -= 0.1f;  // Desgaste mínimo cuando no golpea nada
+    }
+
+    // Cambiar color cuando está dañado
+    if (self->health < self->max_health * 0.5f)
+    {
+        self->s.skinnum = 0xd0d1d2d3;  // amarillo
+    }
+
+    // Si la salud llega a cero, explotar
+    if (self->health <= 0)
+    {
+        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser emitter burned out and exploded.\n");
+        laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_TARGET_LASER);
+        return;
     }
 
     self->nextthink = level.time + FRAME_TIME_MS;
 }
-
 
 THINK(emitter_think)(edict_t* self) -> void
 {
