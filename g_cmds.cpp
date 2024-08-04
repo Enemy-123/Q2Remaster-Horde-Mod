@@ -472,19 +472,13 @@ void Cmd_Spawn_f(edict_t* ent)
 
 void Cmd_Laser_f(edict_t* ent)
 {
-
-
-		create_laser(ent);
-	
-
+	create_laser(ent);
 }
 
 void Cmd_RemoveLaser_f(edict_t* ent)
 {
-
-		remove_lasers(ent);
-		gi.LocClient_Print(ent, PRINT_HIGH, "All lasers removed.\n");
-	
+	remove_lasers(ent);
+	gi.LocClient_Print(ent, PRINT_HIGH, "All lasers removed.\n");
 }
 
 /*
