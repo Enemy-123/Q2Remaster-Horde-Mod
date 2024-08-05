@@ -1734,6 +1734,7 @@ struct monsterinfo_t
 
 	gtime_t jump_time;
 
+	//Horde Stuff
 
 	int bonus_flags; //Powerups or Special Flags for horde
 	int team; // Setting a team, test
@@ -3230,8 +3231,6 @@ struct edict_t
 	int32_t		gib_health;
 	gtime_t		show_hostile;
 
-	int initial_max_health; // healthbar max health fix
-
 	gtime_t powerarmor_time;
 
 	const char* map; // target_changelevel
@@ -3348,6 +3347,10 @@ struct edict_t
 	uint32_t crosslevel_flags;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
+
+
+	//Horde stuff
+	int initial_max_health; // healthbar max health fix
 	gtime_t safety_time;
 	edict_t* laser;
 	gtime_t hook_time;
@@ -3357,8 +3360,9 @@ struct edict_t
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	float original_dmg; // original dmg on bouncy gl, so it will reduce over bounces
 	int configstringIndex; // cs
-	gtime_t	regentime = 0.25_sec;
+//	gtime_t	regentime = 0.25_sec;
 };
+
 #define TEAM1 "team1"
 #define TEAM2 "team2"
 
