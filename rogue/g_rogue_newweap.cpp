@@ -944,14 +944,16 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 
 	return BoxEdictsResult_t::Keep;
 }
-
 THINK(tesla_think_active) (edict_t* self) -> void
 {
-	int		 i, num;
+	if (!self)
+		return;
+
+	int      i, num;
 	static edict_t* touch[MAX_EDICTS];
 	edict_t* hit;
-	vec3_t	 dir, start;
-	trace_t	 tr;
+	vec3_t   dir, start;
+	trace_t  tr;
 
 	if (level.time > self->air_finished)
 	{
@@ -962,31 +964,39 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	start = self->s.origin;
 	start[2] += 16;
 
+	if (!self->teamchain)
+	{
+		gi.Com_Print("Warning: tesla_think_active called with null teamchain\n");
+		return;
+	}
+
 	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch, MAX_EDICTS, AREA_SOLID, tesla_think_active_BoxFilter, self);
 	for (i = 0; i < num; i++)
 	{
-		// if the tesla died while zapping things, stop zapping.
 		if (!(self->inuse))
 			break;
 
 		hit = touch[i];
-		if (!hit->inuse)
+		if (!hit || !hit->inuse)
 			continue;
 		if (hit == self)
 			continue;
 		if (hit->health < 1)
 			continue;
-		// don't hit teammates
 		if (hit->client)
 		{
 			if (!G_IsDeathmatch())
 				continue;
-			else if (CheckTeamDamage(hit, self->teamchain->owner))
+			if (!self->teamchain || !self->teamchain->owner)
+			{
+				gi.Com_PrintFmt("Warning: tesla_think_active encountered null teamchain or owner\n");
+				continue;
+			}
+			if (CheckTeamDamage(hit, self->teamchain->owner))
 				continue;
 		}
 		if (!(hit->svflags & SVF_MONSTER) && !(hit->flags & FL_DAMAGEABLE) && !hit->client)
 			continue;
-		// Don't hit monster_sentrygun
 		if (hit->classname && strcmp(hit->classname, "monster_sentrygun") == 0)
 			continue;
 
@@ -995,11 +1005,9 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		{
 			dir = hit->s.origin - start;
 
-			// PMM - play quad sound if it's above the "normal" damage
 			if (self->dmg > TESLA_DAMAGE)
 				gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
-			// PGM - don't do knockback to walking monsters
 			if ((hit->svflags & SVF_MONSTER) && !(hit->flags & (FL_FLY | FL_SWIM)))
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 					self->dmg, 0, DAMAGE_NONE, MOD_TESLA);
@@ -1009,8 +1017,8 @@ THINK(tesla_think_active) (edict_t* self) -> void
 
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LIGHTNING);
-			gi.WriteEntity(self);	// source entity
-			gi.WriteEntity(hit); // destination entity
+			gi.WriteEntity(self);
+			gi.WriteEntity(hit);
 			gi.WritePosition(start);
 			gi.WritePosition(tr.endpos);
 			gi.multicast(start, MULTICAST_PVS, false);
