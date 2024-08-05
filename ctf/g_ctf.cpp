@@ -989,8 +989,6 @@ void DMGID_f(edict_t* ent)
 
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
-constexpr int CONFIG_ENTITY_INFO_START = CS_GENERAL + 1;
-constexpr int CONFIG_ENTITY_INFO_END = CONFIG_ENTITY_INFO_START + 75; // Ajustar según sea necesario
 
 struct ConfigStringManager {
 	std::unordered_map<int, int> entityToConfigString;
