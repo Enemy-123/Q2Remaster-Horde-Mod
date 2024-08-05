@@ -255,26 +255,31 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		M_SetAnimation(self, &runnertank_move_run);
 	}
 
-	// Siempre intentar moverse hacia el enemigo
+	// Comprobar la distancia al enemigo
 	if (self->enemy)
 	{
 		vec3_t vec{};
 		float distance;
-
 		VectorSubtract(self->enemy->s.origin, self->s.origin, vec);
 		distance = VectorLength(vec);
 
-		// Si el enemigo está cerca, considerar atacar
-		if (distance < RANGE_NEAR && visible(self, self->enemy))
+		// Si el enemigo está en rango melee, atacar en lugar de correr
+		if (distance <= RANGE_MELEE && visible(self, self->enemy))
 		{
-			if (frandom() < 0.1)  // 10% de probabilidad de atacar
+			self->monsterinfo.attack(self);
+			return;
+		}
+		// Si el enemigo está cerca, considerar atacar con una probabilidad
+		else if (distance < RANGE_NEAR && visible(self, self->enemy))
+		{
+			if (frandom() < 0.4)  // 40% de probabilidad de atacar
 			{
 				self->monsterinfo.attack(self);
 				return;
 			}
 		}
 
-		// Actualizar la dirección hacia el enemigo
+		// Si no está en rango melee, continuar corriendo hacia el enemigo
 		self->ideal_yaw = vectoyaw(vec);
 		M_ChangeYaw(self);
 
@@ -377,7 +382,7 @@ void runnertankRail(edict_t* self)
 	vec3_t dir;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse || !infront(self, self->enemy))
+	if (!self->enemy || !self->enemy->inuse || !infront(self, self->enemy) || !visible(self, self->enemy))
 		return;
 
 	bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
@@ -645,19 +650,19 @@ mframe_t runnertank_frames_attack_strike[] = {
 MMOVE_T(runnertank_move_attack_strike) = { FRAME_attak201, FRAME_attak238, runnertank_frames_attack_strike, runnertank_poststrike };
 
 mframe_t runnertank_frames_attack_pre_rocket[] = {
+	{ ai_charge },	{ ai_charge },
 	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
+	{ ai_charge, 0, runnertankRocket }, { ai_charge }, { ai_charge, 0, runnertankRocket }, { ai_charge },
+	{ ai_charge, 0, runnertankRocket }, { ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
+	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket }, { ai_charge, 0, runnertankRocket },
 	{ ai_charge }
 };
-MMOVE_T(runnertank_move_attack_pre_rocket) = { FRAME_attak301, FRAME_attak321, runnertank_frames_attack_pre_rocket, runnertank_doattack_rocket };
+MMOVE_T(runnertank_move_attack_pre_rocket) = { FRAME_attak303, FRAME_attak321, runnertank_frames_attack_pre_rocket, runnertank_doattack_rocket };
 
 mframe_t runnertank_frames_attack_fire_rocket[] = {
 	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
 	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
-	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
+	{ ai_charge }, { ai_charge }, { ai_charge },
 	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge }, { ai_charge }
 };
 MMOVE_T(runnertank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak335, runnertank_frames_attack_fire_rocket, runnertank_refire_rocket };
@@ -722,73 +727,57 @@ void runnertank_doattack_rocket(edict_t* self)
 
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
-	vec3_t vec;
-	float  range;
-	float  chance;
+    vec3_t vec;
+    float  range;
 
-	if (!self->enemy || !self->enemy->inuse)
-		return;
+    if (!self->enemy || !self->enemy->inuse)
+        return;
 
-	// Use M_CheckAttack_Base instead of M_CheckAttack
-	if (!M_CheckAttack_Base(self, 0.0f, 0.0f, 0.8f, 0.8f, 0.5f, 1.0f))
-	{
-		// If we can't attack, return to avoid the loop
-		return;
-	}
+    // Use M_CheckAttack_Base instead of M_CheckAttack
+    if (!M_CheckAttack_Base(self, 0.0f, 0.0f, 0.8f, 0.8f, 0.5f, 1.0f))
+    {
+        // If we can't attack, return to avoid the loop
+        return;
+    }
 
-	vec = self->enemy->s.origin - self->s.origin;
-	range = vec.length();
+    vec = self->enemy->s.origin - self->s.origin;
+    range = vec.length();
 
-	// Adjust attack frequency
-	if (level.time < self->monsterinfo.attack_finished)
-		return;
+    // Adjust attack frequency
+    if (level.time < self->monsterinfo.attack_finished)
+        return;
 
-	if (range <= RANGE_MELEE)
-	{
-		if (self->monsterinfo.melee)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 1_sec;
-		}
-	}
-	else if (range <= RANGE_NEAR)
-	{
-		chance = 0.8f;
-	}
-	else if (range <= RANGE_MID)
-	{
-		chance = 0.6f;
-	}
-	else
-	{
-		chance = 0.4f;
-	}
-
-	if (range > RANGE_MELEE && frandom() < chance)
-	{
-		bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
-		bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
-
-		if (can_rail && (frandom() < 0.7f || !can_rocket))
-		{
-			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.attack_finished = level.time + 2_sec;
-		}
-		else if (can_rocket)
-		{
+    if (range <= RANGE_MELEE)
+    {
+        // En rango melee, siempre usa cohetes
+        M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+        self->pain_debounce_time = level.time + 3_sec;
+        self->monsterinfo.attack_finished = level.time + 4_sec;
+    }
+    else if (range <= RANGE_MID)
+    {
+        // En rango cercano o medio, decide aleatoriamente entre correr o usar rail gun
+        bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
+        if (can_rail && brandom())
+        {
+            M_SetAnimation(self, &runnertank_move_attack_blast);
+            self->monsterinfo.attack_finished = level.time + 2_sec;
+        }
+        else
+        {
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
 			self->pain_debounce_time = level.time + 3_sec;
 			self->monsterinfo.attack_finished = level.time + 4_sec;
-		}
-		else
-		{
-			// If we can't attack, move towards the enemy
-			M_SetAnimation(self, &runnertank_move_run);
-		}
-	}
+        }
+    }
+    else
+    {
+        // En rango lejano, no hace nada (o puedes agregar un comportamiento específico aquí)
+        M_SetAnimation(self, &runnertank_move_run);
+    }
 
-	// Add a pause between attack decisions
-	self->monsterinfo.pausetime = level.time + 0.5_sec;
+    // Add a pause between attack decisions
+    self->monsterinfo.pausetime = level.time + 0.5_sec;
 }
 //
 // death
