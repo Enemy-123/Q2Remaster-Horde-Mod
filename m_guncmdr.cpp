@@ -1013,10 +1013,10 @@ void GunnerCmdrGrenade(edict_t* self)
 }
 
 mframe_t guncmdr_frames_attack_mortar[] = {
-	{ ai_charge, 0, GunnerCmdrGrenade },
-	{ ai_charge, 0, GunnerCmdrGrenade },
-	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
 	{ ai_charge },
@@ -1026,14 +1026,15 @@ mframe_t guncmdr_frames_attack_mortar[] = {
 
 	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge, 0, GunnerCmdrGrenade },
-	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge, 0, monster_duck_up },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, GunnerCmdrGrenade },
+
 	{ ai_charge }
 };
 MMOVE_T(guncmdr_move_attack_mortar) = { FRAME_c_attack201, FRAME_c_attack221, guncmdr_frames_attack_mortar, guncmdr_run };
