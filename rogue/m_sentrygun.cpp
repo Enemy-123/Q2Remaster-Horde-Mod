@@ -402,6 +402,25 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 //  ATTACK
 // **********************
 
+void turret_fire_update(edict_t* laser)
+{
+	edict_t* self = laser->owner;
+	vec3_t forward, right, target;
+	vec3_t start;
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	// Ajusta esto según la posición de disparo de tu torreta
+	start = self->s.origin;
+	target = self->enemy->s.origin + self->enemy->mins;
+	for (int i = 0; i < 3; i++)
+		target[i] += frandom() * self->enemy->size[i];
+	forward = target - start;
+	forward.normalize();
+	laser->s.origin = start;
+	laser->movedir = forward;
+	gi.linkentity(laser);
+	dabeam_update(laser, false);
+}
+
 constexpr int32_t TURRET2_BLASTER_DAMAGE = 12;
 constexpr int32_t TURRET2_BULLET_DAMAGE = 6;
 // unused
@@ -464,38 +483,34 @@ void turret2Fire(edict_t* self)
 		dist = dir.length();
 
 		// Check for predictive fire
-		// Paril: adjusted to be a bit more fair
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
-			// On harder difficulties, randomly fire directly at enemy
-			// more often; makes them more unpredictable
-
-			PredictAim(self, self->enemy, start, 0, true, 0.0f, &dir, nullptr);
+			PredictAim(self, self->enemy, start, rocketSpeed, true, 0.0f, &dir, nullptr);
 		}
 
 		dir.normalize();
 		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
-			// Disparo de cohetes cada 3 segundos
-			if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
+			// Disparo de cohetes cada 2.3 segundos
+			if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
 			{
-				 gtime_t currentTime = level.time;
-				 gtime_t rocketFireInterval = ROCKET_FIRE_INTERVAL;
+				gtime_t currentTime = level.time;
+				gtime_t rocketFireInterval = 2.3_sec;
 				if (currentTime > self->monsterinfo.last_rocket_fire_time + rocketFireInterval)
 				{
 					self->monsterinfo.last_rocket_fire_time = currentTime;
 
 					if (dist * trace.fraction > 72 && !damageApplied)
 					{
-						PredictAim(self, self->enemy, start, (float)rocketSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
-						fire_rocket(self->owner, start, dir, 100, 1220, 100, 75); // Pasa el mod_t a monster_fire_rocket
+						PredictAim(self, self->enemy, start, rocketSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
+						fire_rocket(self->owner, start, dir, 100, 1220, 100, 75);
 						damageApplied = true;
 					}
 				}
 			}
 
-			 gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 3_sec); // Por ejemplo, cada 4 segundos
+			gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 3_sec);
 			if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
 				start = self->s.origin;
@@ -506,18 +521,18 @@ void turret2Fire(edict_t* self)
 				{
 					if (!damageApplied)
 					{
-						// Sigue disparando heatbeam
+						// Dispara el heatbeam
 						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
 						monster_fire_heatbeam(self, start, dir, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
 						damageApplied = true;
 					}
 
-					// Disparo de plasma en intervalos
+					// Disparo de plasma en intervalos (sin cambios)
 					gtime_t currentTime = level.time;
 					if (currentTime > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
 					{
 						self->monsterinfo.last_plasma_fire_time = currentTime;
-						fire_plasma(self->owner, start, dir, 90, 950, 100, 75); // Ajusta los parámetros según sea necesario
+						fire_plasma(self->owner, start, dir, 90, 950, 100, 75);
 					}
 				}
 			}
@@ -527,8 +542,8 @@ void turret2Fire(edict_t* self)
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-					self->monsterinfo.duck_wait_time = level.time + 5_sec + gtime_t::from_sec(frandom(skill->value)); // Reduce el tiempo inicial de espera
-					self->monsterinfo.next_duck_time = level.time + gtime_t::from_sec(0.1f); // Reduce el tiempo inicial de espera
+					self->monsterinfo.duck_wait_time = level.time + 5_sec + gtime_t::from_sec(frandom(skill->value));
+					self->monsterinfo.next_duck_time = level.time + gtime_t::from_sec(0.1f);
 					gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
 				}
 				else
@@ -536,10 +551,8 @@ void turret2Fire(edict_t* self)
 					if (self->monsterinfo.next_duck_time < level.time &&
 						self->monsterinfo.melee_debounce_time <= level.time && !damageApplied)
 					{
-						// Aplica el daño con el mod_t configurado
-
 						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
-						monster_fire_bullet(self, start, dir, 0, 0, DEFAULT_BULLET_HSPREAD / 1.8, DEFAULT_BULLET_VSPREAD / 2, MZ2_TURRET_MACHINEGUN);
+						monster_fire_bullet(self, start, dir, 0, 0, DEFAULT_BULLET_HSPREAD / 1.2, DEFAULT_BULLET_VSPREAD / 1.4, MZ2_TURRET_MACHINEGUN);
 						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 						damageApplied = true;
 					}
@@ -548,20 +561,9 @@ void turret2Fire(edict_t* self)
 						self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 				}
 			}
-			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
-			{
-				if (dist * trace.fraction > 72 && !damageApplied)
-				{
-					// Aplica el daño con el mod_t configurado
-				//	T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, 70, 0, DAMAGE_DESTROY_ARMOR, MOD_TURRET);
-					fire_rocket(self, start, dir, 70, rocketSpeed, MZ2_TURRET_ROCKET, MOD_TURRET); // Pasa el mod_t a monster_fire_rocket
-					damageApplied = true;
-				}
-			}
 		}
 	}
 }
-
 
 // PMM
 void turret2FireBlind(edict_t* self)
@@ -913,75 +915,62 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		return false;
 	}
 
-	vec3_t spot1, spot2, spot2_scaled;
-	trace_t tr, tr_scaled;
+	vec3_t spot1, spot2;
+	trace_t tr;
 
-	// Adjust origin and destination points
 	VectorCopy(self->s.origin, spot1);
 	spot1[2] += self->viewheight;
 	VectorCopy(self->enemy->s.origin, spot2);
 	spot2[2] += self->enemy->viewheight;
 
-	// Calculate scaled point
-	VectorCopy(self->enemy->s.origin, spot2_scaled);
-	spot2_scaled[2] += self->enemy->viewheight * self->enemy->s.scale;
-
-	// Adjusted content mask to ignore other monsters
+	// Ajusta la máscara de contenido para ignorar otros monstruos
 	contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
-	// Main traces
 	tr = gi.traceline(spot1, spot2, self, mask);
-	tr_scaled = gi.traceline(spot1, spot2_scaled, self, mask);
 
-	bool can_see = !(tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))) &&
-		!(tr_scaled.allsolid || tr_scaled.startsolid || ((tr_scaled.fraction < 1.0f) && (tr_scaled.ent != self->enemy) && !OnSameTeam(self, tr_scaled.ent)));
-
-	if (!can_see)
+	// Comprueba si hay línea de visión directa
+	if (tr.fraction == 1.0 || tr.ent == self->enemy)
 	{
-		// Blind fire logic
-		if ((!visible(self, self->enemy)) && self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 1.0_sec))
-		{
-			tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self, mask);
-			if (!(tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy) && !OnSameTeam(self, tr.ent))))
-			{
-				self->monsterinfo.attack_state = AS_BLIND;
-				self->monsterinfo.attack_finished = level.time + random_time(400_ms, 0.2_sec);
-				return true;
-			}
-		}
-		return false;
+		if (level.time < self->monsterinfo.attack_finished)
+			return false;
+
+		float chance = 0.0f;
+		if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+			chance = 0.9f;
+		else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
+			chance = 0.8f;
+		else // SPAWNFLAG_TURRET2_ROCKET
+			chance = 0.7f;
+
+		if (frandom() > chance)
+			return false;
+
+		self->monsterinfo.attack_state = AS_MISSILE;
+		self->monsterinfo.attack_finished = level.time + 2_sec;
+		return true;
 	}
 
-	if (level.time < self->monsterinfo.attack_finished)
-		return false;
+	// Si no hay línea de visión directa, intenta fuego ciego
+	if (self->monsterinfo.blindfire && level.time > self->monsterinfo.blind_fire_delay)
+	{
+		vec3_t aim_point;
+		VectorCopy(self->enemy->s.origin, aim_point);
 
-	// Adjust attack times based on weapon type and difficulty
-	gtime_t nexttime;
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-		nexttime = 0.1_sec; // Shorter time for heatbeam, as it's constant
-	else // SPAWNFLAG_TURRET2_MACHINEGUN (bullets and rockets)
-		nexttime = 0.6_sec - (0.1_sec * skill->integer);
+		// Ajusta el punto de apuntado para el fuego ciego
+		for (int i = 0; i < 3; i++)
+			aim_point[i] += crandom() * 200;
 
-	self->monsterinfo.attack_state = AS_MISSILE;
-	self->monsterinfo.attack_finished = level.time + nexttime;
+		tr = gi.traceline(spot1, aim_point, self, mask);
+		if (tr.fraction < 1.0 && tr.ent != self->enemy)
+			return false;
 
-	return true;
+		self->monsterinfo.attack_state = AS_BLIND;
+		self->monsterinfo.blind_fire_delay = level.time + 5_sec;
+		return true;
+	}
+
+	return false;
 }
-//THINK(turret2_regen) (edict_t* self) -> void
-//{
-//	gi.Com_PrintFmt("THINK TURRET2_REGEN LOAD: {}\n", self->classname);
-//
-//	if (self->health <= 125) {
-//		if (self->regentime > level.time)
-//			self->regentime = level.time;
-//		self->health += 5;
-//		self->monsterinfo.power_armor_power += 5;
-//		self->regentime += 500_ms;
-//		gi.Com_PrintFmt("Regenerating turret health. Current health: %d\n", self->health);
-//
-//	}
-//}
-
 // **********************
 //  SPAWN
 // **********************
