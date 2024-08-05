@@ -1061,7 +1061,7 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 		}
 
 		// Dañar severamente al AI
-		if (!edict->deadflag && !(edict->monsterinfo.team != CTF_TEAM1))
+		if (!edict->deadflag && (!(edict->monsterinfo.team == CTF_TEAM1)))
 			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
 	}
 
@@ -1070,6 +1070,8 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 	// Permitir avanzar a la siguiente ola
 	AllowNextWaveAdvance();
 }
+
+
 
 
 
