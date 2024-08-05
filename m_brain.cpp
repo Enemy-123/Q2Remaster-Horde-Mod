@@ -385,11 +385,11 @@ void brain_chest_closed(edict_t* self)
 
 mframe_t brain_frames_attack2[] = {
 	{ ai_charge, 5 },
-	{ ai_charge, 0, brain_chest_open },
 	{ ai_charge, -4 },
-	{ ai_charge, -4, brain_tentacle_attack },
-	{ ai_charge, -3 },
-	{ ai_charge },
+	{ ai_charge, -4 },
+	{ ai_charge, 0, brain_chest_open },
+	{ ai_charge, 13, brain_tentacle_attack },
+	{ ai_charge, 13, brain_tentacle_attack },
 	{ ai_charge, 13, brain_tentacle_attack },
 	{ ai_charge },
 	{ ai_charge, -4, brain_tentacle_attack },
@@ -481,7 +481,7 @@ void brain_tounge_attack(edict_t* self)
 		vec3_t forward;
 		self->s.origin[2] += 2;
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-		self->enemy->velocity = forward * -700;
+		self->enemy->velocity = forward * -900;
 
 		//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
 		//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
@@ -579,16 +579,10 @@ void brain_laserbeam_reattack(edict_t* self)
 }
 
 mframe_t brain_frames_attack3[] = {
-	{ ai_charge, 0, brain_chest_open },
-	{ ai_charge, 0, brain_tounge_attack },
-	{ ai_charge, 0, brain_chest_open },
-	{ ai_charge, 0, brain_tounge_attack },
-	{ ai_charge, 0, brain_tounge_attack },
-	{ ai_charge, 0, brain_tentacle_attack },
-	{ ai_charge, 0, brain_tounge_attack },
-	{ ai_charge, 0, brain_tounge_attack },
-	{ ai_charge, -9, brain_chest_closed },
-	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 5 },
+	{ ai_charge, -4 },
+	{ ai_charge, -4 },
+	{ ai_charge, -3 },
 	{ ai_charge, 0, brain_chest_open },
 	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, 0, brain_tounge_attack },
@@ -596,6 +590,12 @@ mframe_t brain_frames_attack3[] = {
 	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, -9, brain_chest_closed },
+	{ ai_charge },
+	{ ai_charge, 4 },
+	{ ai_charge, 3 },
+	{ ai_charge, 2 },
+	{ ai_charge, -3 },
+	{ ai_charge, -6 }
 };
 MMOVE_T(brain_move_attack3) = { FRAME_attak201, FRAME_attak217, brain_frames_attack3, brain_run };
 
