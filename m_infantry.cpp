@@ -655,6 +655,72 @@ mframe_t infantry_frames_attack2[] = {
 };
 MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_frames_attack2, infantry_run };
 
+constexpr float MORTAR_SPEED = 1250;
+constexpr float GRENADE_SPEED = 900;
+void infantry_grenade(edict_t* self)
+{
+	vec3_t start;
+	vec3_t forward, right, up;
+	vec3_t aim;
+	monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
+	float speed = GRENADE_SPEED;
+
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	AngleVectors(self->s.angles, forward, right, up);
+	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	vec3_t target = self->enemy->s.origin;
+	aim = target - start;
+	float dist = aim.length();
+
+	// Adjust aim based on distance
+	if (dist > 200)
+	{
+		// Add some vertical adjustment for longer distances
+		float vertical_adjust = (dist - 200) * 0.0015f;
+		aim[2] += vertical_adjust;
+	}
+
+	// Add a small random spread
+	aim[0] += crandom_open() * 0.05f;
+	aim[1] += crandom_open() * 0.05f;
+	aim[2] += crandom_open() * 0.05f;
+
+	aim.normalize();
+
+	// Adjust the pitch slightly downward to counteract the upward trajectory
+	float pitch_adjust = -0.1f - (dist * 0.0001f);
+	aim += up * pitch_adjust;
+	aim.normalize();
+
+	// Calculate the best pitch, but allow for some error
+	if (M_CalculatePitchToFire(self, target, start, aim, speed, 1.5f, false))
+	{
+		// Add a small random adjustment to the calculated pitch
+		aim[2] += crandom_open() * 0.02f;
+		aim.normalize();
+	}
+
+	// Fire the grenade
+	fire_grenade2(self, start, aim, 50, speed, 2.5_sec, 150.0f, false);
+
+	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/grenade_launcher.wav"), 1, ATTN_NORM, 0);
+}
+
+mframe_t infantry_frames_grenade[] = {
+	{ ai_charge, 3 },
+	{ ai_charge, 6 },
+	{ ai_charge, 0, infantry_swing },
+	{ ai_charge, 8, infantry_grenade },
+	{ ai_charge, 8, monster_footstep },
+	{ ai_charge, 5 },
+	{ ai_charge, 8 },
+	{ ai_charge, 3 }
+};
+MMOVE_T(infantry_move_grenade) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade, infantry_run };
+
 // [Paril-KEX] run-attack, inspired by q2test
 void infantry_attack4_refire(edict_t *self)
 {
@@ -691,15 +757,22 @@ mframe_t infantry_frames_attack4[] = {
 };
 MMOVE_T(infantry_move_attack4) = { FRAME_run201, FRAME_run208, infantry_frames_attack4, infantry_run, 0.5f };
 
-MONSTERINFO_ATTACK(infantry_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
 	float r = range_to(self, self->enemy);
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
+	{
 		M_SetAnimation(self, &infantry_move_attack2);
-	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_INFANTRY_MACHINEGUN_1]))
+	}
+	else if (r > RANGE_MELEE && frandom() <= 0.3f)
+	{
+		// 30% chance to throw a grenade when enemy is beyond melee range
+		M_SetAnimation(self, &infantry_move_grenade);
+	}
+	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_MEDIC_BLASTER_2]))
 	{
 		if (self->count)
 			M_SetAnimation(self, &infantry_move_attack1);
