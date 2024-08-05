@@ -1205,7 +1205,7 @@ std::string FormatEntityInfo(edict_t* ent) {
 	}
 	else if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap") || !strcmp(ent->classname, "prox_mine")) {
 		std::string name = GetDisplayName(ent->classname);
-		info = fmt::format("{}\nH: {}", name, ent->health);
+		info = fmt::format("{}H: {}", name, ent->health);
 		if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap")) {
 			gtime_t time_active = level.time - ent->timestamp;
 			gtime_t time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
