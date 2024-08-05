@@ -1071,8 +1071,7 @@ static void Horde_CleanBodies() noexcept {
                 boss_die(ent);
             }
             else {
-                OnEntityDeath(ent);
-                CleanupInvalidEntities();
+                OnEntityDeath(ent);              
           //      OnEntityRemoved(ent); // Añadido para liberar el configstring
             }
             G_FreeEdict(ent); // Libera la entidad
@@ -1849,6 +1848,8 @@ void Horde_RunFrame() noexcept {
     const int32_t activeMonsters = level.total_monsters - level.killed_monsters;
     const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
         (mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+
+    CleanupInvalidEntities(); // remove bugged monsters!!!
 
     switch (g_horde_local.state) {
     case horde_state_t::warmup:

@@ -1171,19 +1171,16 @@ std::string GetTitleFromFlags(int bonus_flags);
 
 std::string FormatEntityInfo(edict_t* ent) {
 	std::string info;
-
 	if (ent->svflags & SVF_MONSTER) {
 		std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
 		std::string name = title + FormatClassname(GetDisplayName(ent->classname ? ent->classname : "Unknown Monster"));
 		info = fmt::format("{}\nH: {}", name, ent->health);
-
 		if (ent->monsterinfo.armor_power >= 1) {
 			info += fmt::format(" A: {}", ent->monsterinfo.armor_power);
 		}
 		if (ent->monsterinfo.power_armor_power >= 1) {
 			info += fmt::format(" PA: {}", ent->monsterinfo.power_armor_power);
 		}
-
 		// Añadir información de powerups
 		if (ent->monsterinfo.quad_time > level.time) {
 			int remaining_quad_time = static_cast<int>((ent->monsterinfo.quad_time - level.time).seconds<float>());
@@ -1208,12 +1205,17 @@ std::string FormatEntityInfo(edict_t* ent) {
 	}
 	else if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap") || !strcmp(ent->classname, "prox_mine")) {
 		std::string name = GetDisplayName(ent->classname);
-		info = fmt::format("{}H: {}", name, ent->health);
+		info = fmt::format("{}\nH: {}", name, ent->health);
+		if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap")) {
+			gtime_t time_active = level.time - ent->timestamp;
+			gtime_t time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
+			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
+			info += fmt::format(" T: {}s", remaining_time);
+		}
 	}
 	else if (!strcmp(ent->classname, "emitter")) {
 		std::string name = "Laser Emitter";
 		info = fmt::format("{}\nH: {}", name, ent->health);
-
 		// Agregar información sobre el láser
 		if (ent->owner && ent->owner->inuse) {
 			info += fmt::format(" DMG: {}", ent->owner->health);
@@ -1225,7 +1227,8 @@ std::string FormatEntityInfo(edict_t* ent) {
 		}
 	}
 	return info;
-	}
+}
+
 void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
@@ -1297,25 +1300,45 @@ void OnEntityDeath(edict_t* self) {
 }
 
 void CleanupInvalidEntities() {
-	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
-		edict_t* ent = &g_edicts[i];
-		if (ent->inuse && ent->svflags & SVF_MONSTER) {
-			// Verifica si la entidad está en un estado inválido
-			if (ent->solid == SOLID_NOT && ent->health > 0 && ent->takedamage == false) {
-				// Esta entidad parece estar en un estado bugueado
-				gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
+	static int check_frequency = 10; // Check every 10 frames, adjustable
+	static int current_frame = 0;
 
-				// Forzar la muerte de la entidad
-				ent->health = -1;
-				
+	current_frame++;
+	if (current_frame % check_frequency != 0) {
+		return; // Only proceed every 'check_frequency' frames
+	}
 
-				// Asegurarse de que la entidad se libere
-				OnEntityDeath(ent);
-				G_FreeEdict(ent);
-			}
+	for (auto ent : active_monsters())
+	{
+		if (ent->solid == SOLID_NOT && ent->health > 0 && !ent->takedamage) {
+			gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
+			ent->health = -1;
+			OnEntityDeath(ent);
+			G_FreeEdict(ent);
 		}
 	}
 }
+
+//void CleanupInvalidEntities() {
+//	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
+//		edict_t* ent = &g_edicts[i];
+//		if (ent->inuse && ent->svflags & SVF_MONSTER) {
+//			// Verifica si la entidad está en un estado inválido
+//			if (ent->solid == SOLID_NOT && ent->health > 0 && ent->takedamage == false) {
+//				// Esta entidad parece estar en un estado bugueado
+//				gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
+//
+//				// Forzar la muerte de la entidad
+//				ent->health = -1;
+//				
+//
+//				// Asegurarse de que la entidad se libere
+//				OnEntityDeath(ent);
+//				G_FreeEdict(ent);
+//			}
+//		}
+//	}
+//}
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;

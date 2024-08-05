@@ -1,4 +1,5 @@
 #include "g_local.h"
+#include "shared.h"
 
 constexpr int32_t MAX_LASERS = 6;
 constexpr int32_t LASER_COST = 25;
@@ -116,51 +117,47 @@ THINK(laser_beam_think)(edict_t* self) -> void
             // Verificar si el objetivo está en el mismo equipo
             if (!OnSameTeam(self->teammaster, tr.ent))
             {
-                hit_valid_target = true;
-
-                if (tr.ent->client)
+                // Check if the entity is not already dying
+                if (!tr.ent->deadflag)
                 {
-                    if (tr.ent->client->respawn_time - 1.5_sec > level.time)
+                    hit_valid_target = true;
+
+                    if (tr.ent->client)
                     {
-                        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser touched respawning player, so it was removed. ({}/{} remain)\n",
-                            self->teammaster->client->num_lasers, MAX_LASERS);
-                        laser_remove(self->owner);
-                        return;
+                        if (tr.ent->client->respawn_time - 1.5_sec > level.time)
+                        {
+                            gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser touched respawning player, so it was removed. ({}/{} remain)\n",
+                                self->teammaster->client->num_lasers, MAX_LASERS);
+                            laser_remove(self->owner);
+                            return;
+                        }
                     }
-                }
 
-                // Aplicar daño solo si no están en el mismo equipo
-                T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+                    // Aplicar daño solo si no están en el mismo equipo y no están muriendo
+                    T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
-                // Reducir la salud del láser solo si golpeó un objetivo válido
-                if (tr.ent->svflags & SVF_MONSTER)
-                {
-                    self->health -= damage * 0.4f;  // Menor desgaste contra monstruos
+                    // Reducir la salud del láser solo si golpeó un objetivo válido
+                    if (tr.ent->svflags & SVF_MONSTER)
+                    {
+                        self->health -= damage * 0.4f;  // Menor desgaste contra monstruos
+                    }
+                    else if (tr.ent->svflags & SVF_MONSTER && tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+                    {
+                        self->health -= damage * 0.6f; // ligeramente mayor desgaste contra boss
+                    }
+                    else
+                    {
+                        self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
+                    }
                 }
                 else
                 {
-                    self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
+                    // The entity is already dying, so we don't apply damage or reduce laser health
+                   // gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser hit a dying entity. No damage applied.\n");
                 }
             }
         }
     }
-
-    // Si no golpeó un objetivo válido, no reducir la salud
-    if (!hit_valid_target)
-    {
-        // Opcionalmente, puedes agregar un desgaste mínimo aquí si lo deseas
-        // self->health -= 0.1f;  // Desgaste mínimo cuando no golpea nada
-    }
-
-    // Si la salud llega a cero, explotar
-    if (self->health <= 0)
-    {
-        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser emitter burned out and exploded.\n");
-        laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_PLAYER_LASER);
-        return;
-    }
-
-    self->nextthink = level.time + FRAME_TIME_MS;
 }
 
 THINK(emitter_think)(edict_t* self) -> void
