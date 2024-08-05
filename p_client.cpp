@@ -3017,6 +3017,9 @@ edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBo
 //
 // OPTIMIZING LOAD SERVER FOR CLIENT, because too many CS!
 //
+constexpr size_t MAX_CONFIG_STRING_LENGTH = CS_MAX_STRING_LENGTH;
+constexpr int FIRST_CS_TO_LOAD = CS_NAME;
+constexpr int LAST_CS_TO_LOAD = CS_GAME_STYLE;
 
 void SendConfigStringToClient(edict_t* ent, int configStringIndex)
 {
@@ -3034,34 +3037,50 @@ void SendConfigStringToClient(edict_t* ent, int configStringIndex)
 void ContinueProgressiveLoading(edict_t* ent)
 {
 	int configStringsToLoadPerFrame = 10;
+	size_t totalBytesThisFrame = 0;
+	constexpr size_t MAX_BYTES_PER_FRAME = 1024;
 
-	for (int i = 0; i < configStringsToLoadPerFrame; i++)
+
+
+	while (ent->client->configStringLoadState <= LAST_CS_TO_LOAD && totalBytesThisFrame < MAX_BYTES_PER_FRAME)
 	{
-		if (ent->client->configStringLoadState >= CS_GENERAL + MAX_GENERAL)
-		{
-			ent->client->isLoading = false;
-			gi.LocClient_Print(ent, PRINT_HIGH, "Welcome to Horde Mod!");
-			return;
-		}
-
 		const char* configString = gi.get_configstring(ent->client->configStringLoadState);
 		if (configString && *configString)
 		{
+			size_t length = strlen(configString);
+			if (length > CS_SIZE(ent->client->configStringLoadState))
+			{
+				gi.Com_PrintFmt("Warning: ConfigString {} exceeds maximum length\n", ent->client->configStringLoadState);
+				length = CS_SIZE(ent->client->configStringLoadState);
+			}
+
+			if (totalBytesThisFrame + length > MAX_BYTES_PER_FRAME)
+				break;
+
 			gi.WriteByte(svc_configstring);
 			gi.WriteShort(ent->client->configStringLoadState);
-			gi.WriteString(configString);
+			gi.WriteString(std::string(configString, length).c_str());
 			gi.unicast(ent, true);
+
+			totalBytesThisFrame += length;
 		}
 		ent->client->configStringLoadState++;
 	}
 
-	ent->client->nextLoadTime = level.time + 50_ms;
+	if (ent->client->configStringLoadState > LAST_CS_TO_LOAD)
+	{
+		ent->client->isLoading = false;
+		gi.LocClient_Print(ent, PRINT_HIGH, "Welcome to Horde Mod!");
+	}
+	else
+	{
+		ent->client->nextLoadTime = level.time + 50_ms;
+	}
 }
-
 void InitializeProgressiveLoading(edict_t* ent)
 {
 	ent->client->isLoading = true;
-	ent->client->configStringLoadState = CS_NAME;  // Empezamos desde el primer ConfigString
+	ent->client->configStringLoadState = FIRST_CS_TO_LOAD;
 	ent->client->nextLoadTime = level.time;
 }
 
@@ -3583,11 +3602,20 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 	if (client->isLoading)
 	{
-		if (client->nextLoadTime <= level.time)
+		if (ent->client->nextLoadTime <= level.time)
 		{
-			ContinueProgressiveLoading(ent);
+			try
+			{
+				ContinueProgressiveLoading(ent);
+			}
+			catch (const std::exception& e)
+			{
+				gi.Com_PrintFmt("Error in ContinueProgressiveLoading: {}\n", e.what());
+				// Considerar desconectar al cliente o manejar el error de otra manera
+				ent->client->isLoading = false;
+			}
 		}
-		return;  // No procesar otras acciones mientras se está cargando
+		return;
 	}
 
 	level.current_entity = ent;

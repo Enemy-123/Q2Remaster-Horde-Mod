@@ -997,7 +997,7 @@ struct ConfigStringManager {
 	std::queue<int> availableConfigStrings;
 
 	ConfigStringManager() {
-		for (int i = CS_GENERAL; i < CS_GENERAL + MAX_GENERAL; ++i) {
+		for (int i = CS_GENERAL; i < CS_WHEEL_WEAPONS; ++i) {
 			availableConfigStrings.push(i);
 		}
 	}
