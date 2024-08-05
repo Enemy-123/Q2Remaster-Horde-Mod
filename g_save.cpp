@@ -1238,7 +1238,15 @@ FIELD_AUTO(monsterinfo.react_to_damage_time),
 FIELD_AUTO(monsterinfo.jump_time),
 
 FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),
+FIELD_AUTO(monsterinfo.damage_modifier_applied),
 FIELD_AUTO(monsterinfo.chosen_reinforcements),
+FIELD_AUTO(monsterinfo.last_rocket_fire_time),
+FIELD_AUTO(monsterinfo.last_plasma_fire_time),
+FIELD_AUTO(monsterinfo.last_sentrygun_target_time),
+FIELD_AUTO(monsterinfo.damage_quad),
+FIELD_AUTO(monsterinfo.bonus_flags),
+FIELD_AUTO(monsterinfo.team),
+
 
 // back to edict_t
 FIELD_AUTO(plat2flags),

@@ -1608,6 +1608,7 @@ constexpr size_t MAX_REINFORCEMENTS = 5; // max number of spawns we can do at on
 
 constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 
+
 struct monsterinfo_t
 {
 	// [Paril-KEX] allow some moves to be done instantaneously, but
@@ -1615,8 +1616,6 @@ struct monsterinfo_t
 	// NB: always use `M_SetAnimation` as it handles edge cases.
 	save_mmove_t	   active_move, next_move;
 	monster_ai_flags_t aiflags; // PGM - unsigned, since we're close to the max
-	int bonus_flags; //Powerups or Special Flags for horde
-	int team; // Setting a team, test
 	int32_t			   nextframe; // if next_move is set, this is ignored until a frame is ran
 	float			   scale;
 
@@ -1637,8 +1636,6 @@ struct monsterinfo_t
 	gtime_t attack_finished;
 	gtime_t fire_wait;
 
-	gtime_t last_rocket_fire_time;
-	gtime_t last_plasma_fire_time;
 	vec3_t				   saved_goal;
 	gtime_t				   search_time;
 	gtime_t				   trail_time;
@@ -1686,10 +1683,8 @@ struct monsterinfo_t
 	gtime_t quad_time;
 	gtime_t invincible_time;
 	gtime_t double_time;
-
-	float damage_quad; // trying to multiply dmg based on powerup
 	// ROGUE
-	// 
+
 	// Paril
 	gtime_t	  surprise_time;
 	item_id_t armor_type;
@@ -1734,18 +1729,23 @@ struct monsterinfo_t
 	gtime_t move_block_change_time;
 	gtime_t react_to_damage_time;
 
-
 	reinforcement_list_t					reinforcements;
 	std::array<uint8_t, MAX_REINFORCEMENTS>	chosen_reinforcements; // readied for spawn; 255 is value for none
 
 	gtime_t jump_time;
+
+
+	int bonus_flags; //Powerups or Special Flags for horde
+	int team; // Setting a team, test
+	gtime_t last_rocket_fire_time;
+	gtime_t last_plasma_fire_time;
+	float damage_quad; // trying to multiply dmg based on powerup
 	float noise_cooldown_time;
 	bool damage_modifier_applied;
 	gtime_t last_sentrygun_target_time;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
-
 // non-monsterinfo save stuff
 using save_prethink_t = save_data_t<void(*)(edict_t* self), SAVE_FUNC_PRETHINK>;
 #define PRETHINK(n) \
@@ -3106,7 +3106,7 @@ struct gclient_t
 	int dmg_counter; // ID DMG
 	int total_damage; // Total damage dealt by this player
 	bool menu_selected;
-	pmtype_t prev_pm_type;
+//	pmtype_t prev_pm_type;
 	int num_lasers;
 
 //	LOAD SERVER CLIENT, CS
@@ -3838,7 +3838,7 @@ extern float VectorLength(const vec3_t v);
 extern void VectorNormalize(vec3_t v);
 extern void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out);
 extern void VectorClear(vec3_t v);
-
+extern void VectorLerp(const vec3_t start, const vec3_t end, float t, vec3_t result);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
