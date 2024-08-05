@@ -990,14 +990,14 @@ void DMGID_f(edict_t* ent)
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 constexpr int CONFIG_ENTITY_INFO_START = CS_GENERAL + 1;
-constexpr int CONFIG_ENTITY_INFO_END = CONFIG_ENTITY_INFO_START + 100; // Ajustar según sea necesario
+constexpr int CONFIG_ENTITY_INFO_END = CONFIG_ENTITY_INFO_START + 75; // Ajustar según sea necesario
 
 struct ConfigStringManager {
 	std::unordered_map<int, int> entityToConfigString;
 	std::queue<int> availableConfigStrings;
 
 	ConfigStringManager() {
-		for (int i = CS_GENERAL; i < CS_WHEEL_WEAPONS; ++i) {
+		for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
 			availableConfigStrings.push(i);
 		}
 	}
@@ -1171,16 +1171,19 @@ std::string GetTitleFromFlags(int bonus_flags);
 
 std::string FormatEntityInfo(edict_t* ent) {
 	std::string info;
+
 	if (ent->svflags & SVF_MONSTER) {
 		std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
 		std::string name = title + FormatClassname(GetDisplayName(ent->classname ? ent->classname : "Unknown Monster"));
 		info = fmt::format("{}\nH: {}", name, ent->health);
+
 		if (ent->monsterinfo.armor_power >= 1) {
 			info += fmt::format(" A: {}", ent->monsterinfo.armor_power);
 		}
 		if (ent->monsterinfo.power_armor_power >= 1) {
 			info += fmt::format(" PA: {}", ent->monsterinfo.power_armor_power);
 		}
+
 		// Añadir información de powerups
 		if (ent->monsterinfo.quad_time > level.time) {
 			int remaining_quad_time = static_cast<int>((ent->monsterinfo.quad_time - level.time).seconds<float>());
@@ -1268,11 +1271,8 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 
 		int entity_index = best - g_edicts;
-		int cs_index = configStringManager.getConfigString(entity_index);
-		if (cs_index != -1) {
-			gi.configstring(cs_index, info_string.c_str());
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = cs_index;
-		}
+		configStringManager.updateConfigString(entity_index, info_string);
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringManager.getConfigString(entity_index);
 	}
 	else {
 		ent->client->idtarget = nullptr;
@@ -1300,45 +1300,25 @@ void OnEntityDeath(edict_t* self) {
 }
 
 void CleanupInvalidEntities() {
-	static int check_frequency = 10; // Check every 10 frames, adjustable
-	static int current_frame = 0;
+	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent->inuse && ent->svflags & SVF_MONSTER) {
+			// Verifica si la entidad está en un estado inválido
+			if (ent->solid == SOLID_NOT && ent->health > 0 && ent->takedamage == false) {
+				// Esta entidad parece estar en un estado bugueado
+				gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
 
-	current_frame++;
-	if (current_frame % check_frequency != 0) {
-		return; // Only proceed every 'check_frequency' frames
-	}
+				// Forzar la muerte de la entidad
+				ent->health = -1;
 
-	for (auto ent : active_monsters())
-	{
-		if (ent->solid == SOLID_NOT && ent->health > 0 && !ent->takedamage) {
-			gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
-			ent->health = -1;
-			OnEntityDeath(ent);
-			G_FreeEdict(ent);
+
+				// Asegurarse de que la entidad se libere
+				OnEntityDeath(ent);
+				G_FreeEdict(ent);
+			}
 		}
 	}
 }
-
-//void CleanupInvalidEntities() {
-//	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
-//		edict_t* ent = &g_edicts[i];
-//		if (ent->inuse && ent->svflags & SVF_MONSTER) {
-//			// Verifica si la entidad está en un estado inválido
-//			if (ent->solid == SOLID_NOT && ent->health > 0 && ent->takedamage == false) {
-//				// Esta entidad parece estar en un estado bugueado
-//				gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
-//
-//				// Forzar la muerte de la entidad
-//				ent->health = -1;
-//				
-//
-//				// Asegurarse de que la entidad se libere
-//				OnEntityDeath(ent);
-//				G_FreeEdict(ent);
-//			}
-//		}
-//	}
-//}
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;
