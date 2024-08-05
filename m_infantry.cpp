@@ -655,7 +655,6 @@ mframe_t infantry_frames_attack2[] = {
 };
 MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_frames_attack2, infantry_run };
 
-constexpr float MORTAR_SPEED = 1250;
 constexpr float GRENADE_SPEED = 900;
 void infantry_grenade(edict_t* self)
 {
