@@ -1156,18 +1156,14 @@ THINK(Think_tank2Stand) (edict_t* ent) -> void
 
 mframe_t tank_frames_spawn[] =
 {
-	{ai_charge, 2, nullptr},  // FRAME_attak220
-	{ai_charge, 1, nullptr},
-	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, tank2Strike},  // FRAME_attak225 - Añadir footstep aquí
 	{ai_charge, 0, Boss_SpawnMonster},  // FRAME_attak226 - Engendrar monstruo aquí
-	{ai_charge, 0, nullptr},
 	{ai_charge, -1, nullptr},
 	{ai_charge, -2, nullptr}   // FRAME_attak229
 };
-MMOVE_T(tank_move_spawn) = { FRAME_attak220, FRAME_attak229, tank_frames_spawn, tank2_run };
+MMOVE_T(tank_move_spawn) = { FRAME_attak224, FRAME_attak229, tank_frames_spawn, tank2_run };
 
 
 void tank_spawn(edict_t* self)
