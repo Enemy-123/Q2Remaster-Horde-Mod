@@ -3839,7 +3839,7 @@ bool IsInsideTriggerHurt(const vec3_t& point) {
 			ent->absmin[2] <= point[2] && point[2] <= ent->absmax[2]) {
 
 			if (ent->spawnflags.has(SPAWNFLAG_HURT_CLIPPED)) {
-				trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, NULL, MASK_SOLID);
+				trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, nullptr, MASK_SOLID);
 				if (tr.fraction < 1.0f && tr.ent == ent)
 					return true;
 			}
