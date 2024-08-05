@@ -114,26 +114,30 @@ THINK(laser_beam_think)(edict_t* self) -> void
         // Verificar si el objetivo es válido (monstruo, jugador, o entidad dañable)
         if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage)
         {
-            // Verificar si el objetivo está en el mismo equipo y tiene salud arriba de 0
-            if (!OnSameTeam(self->teammaster, tr.ent) && tr.ent->health >= 0)
+            // Verificar si el objetivo está en el mismo equipo
+            if (!OnSameTeam(self->teammaster, tr.ent))
             {
-                hit_valid_target = true;
-
-                // Aplicar daño solo si no están en el mismo equipo
+                // Aplicar daño incluso si la salud es <= 0, pero no contar como hit_valid_target
                 T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
-                // Reducir la salud del láser solo si golpeó un objetivo válido
-                if (tr.ent->svflags & SVF_MONSTER && (!(tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))))
+                // Solo contar como hit_valid_target si la salud es > 0
+                if (tr.ent->health > 0)
                 {
-                    self->health -= damage * 0.4f;  // desgaste aligerado contra monsters
-                }
-                else if (tr.ent->svflags & SVF_MONSTER && tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
-                {
-                    self->health -= damage * 0.6f; // ligeramente mayor desgaste contra boss
-                }
-                else
-                {
-                    self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
+                    hit_valid_target = true;
+
+                    // Reducir la salud del láser solo si golpeó un objetivo válido con salud > 0
+                    if (tr.ent->svflags & SVF_MONSTER && (!(tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))))
+                    {
+                        self->health -= damage * 0.4f;  // desgaste aligerado contra monsters
+                    }
+                    else if (tr.ent->svflags & SVF_MONSTER && tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+                    {
+                        self->health -= damage * 0.6f; // ligeramente mayor desgaste contra boss
+                    }
+                    else
+                    {
+                        self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
+                    }
                 }
             }
         }
@@ -156,7 +160,6 @@ THINK(laser_beam_think)(edict_t* self) -> void
 
     self->nextthink = level.time + FRAME_TIME_MS;
 }
-
 THINK(emitter_think)(edict_t* self) -> void
 {
     // Check if the laser has timed out
