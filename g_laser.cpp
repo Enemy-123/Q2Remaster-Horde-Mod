@@ -114,29 +114,18 @@ THINK(laser_beam_think)(edict_t* self) -> void
         // Verificar si el objetivo es válido (monstruo, jugador, o entidad dañable)
         if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage)
         {
-            // Verificar si el objetivo está en el mismo equipo
-            if (!OnSameTeam(self->teammaster, tr.ent))
+            // Verificar si el objetivo está en el mismo equipo y tiene salud arriba de 0
+            if (!OnSameTeam(self->teammaster, tr.ent) && tr.ent->health >= 0)
             {
                 hit_valid_target = true;
-
-                if (tr.ent->client)
-                {
-                    if (tr.ent->client->respawn_time - 1.5_sec > level.time)
-                    {
-                        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser touched respawning player, so it was removed. ({}/{} remain)\n",
-                            self->teammaster->client->num_lasers, MAX_LASERS);
-                        laser_remove(self->owner);
-                        return;
-                    }
-                }
 
                 // Aplicar daño solo si no están en el mismo equipo
                 T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
                 // Reducir la salud del láser solo si golpeó un objetivo válido
-                if (tr.ent->svflags & SVF_MONSTER)
+                if (tr.ent->svflags & SVF_MONSTER && (!(tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))))
                 {
-                    self->health -= damage * 0.4f;  // Menor desgaste contra monstruos
+                    self->health -= damage * 0.4f;  // desgaste aligerado contra monsters
                 }
                 else if (tr.ent->svflags & SVF_MONSTER && tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
                 {
@@ -210,7 +199,7 @@ void create_laser(edict_t* ent)
     edict_t* laser;
 
     if (ent->movetype != MOVETYPE_WALK) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect.\n");
+        gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect to create laser.\n");
         return;
     }
 
