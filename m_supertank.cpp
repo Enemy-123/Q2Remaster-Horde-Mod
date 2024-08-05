@@ -286,7 +286,7 @@ static void supertankGrenade(edict_t* self)
 	vec3_t aim_point;
 	PredictAim(self, self->enemy, start, 0, false, crandom_open() * 0.1f, &forward, &aim_point);
 
-	for (float speed = 800.f; speed < 1000.f; speed += 100.f)
+	for (float speed = 500.f; speed < 1000.f; speed += 100.f)
 	{
 		if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
 			continue;
@@ -295,6 +295,7 @@ static void supertankGrenade(edict_t* self)
 		break;
 	}
 }
+
 
 mframe_t supertank_frames_death1[] = {
 	{ ai_move, 0, BossExplode },
