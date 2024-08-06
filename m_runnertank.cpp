@@ -264,7 +264,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		distance = VectorLength(vec);
 
 		// Si el enemigo está en rango melee, atacar en lugar de correr
-		if (distance <= RANGE_MELEE && visible(self, self->enemy))
+		if (distance <= RANGE_MELEE * 2 && visible(self, self->enemy))
 		{
 			self->monsterinfo.attack(self);
 			return;
@@ -577,7 +577,7 @@ void runnertankPlasmaGun(edict_t* self)
 	}
 
 	// Disparar el plasma con la velocidad correcta
-	fire_plasma(self, start, dir, 35, 700, 80, 60);
+	fire_plasma(self, start, dir, 35, 700, 40, 40);
 
 	// Guardar la posición del objetivo para el próximo disparo
 	VectorCopy(self->enemy->s.origin, self->pos1);
