@@ -286,7 +286,7 @@ void Drop_General(edict_t* ent, gitem_t* item)
 
 void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
-const int health_increase = (G_IsCooperative() && !g_horde->integer) ? 5 : 10;
+	int health_increase = (G_IsCooperative() && !g_horde->integer) ? 5 : 10;
 
 	ent->max_health += health_increase;
 	if (ent->health < ent->max_health)
@@ -317,7 +317,7 @@ bool Pickup_LegacyHead(edict_t* ent, edict_t* other)
 
 void G_CheckPowerArmor(edict_t* ent)
 {
-	bool has_enough_cells{};
+	bool has_enough_cells;
 
 	if (!ent->client->pers.inventory[IT_AMMO_CELLS])
 		has_enough_cells = false;
@@ -1566,7 +1566,7 @@ void Compass_Update(edict_t* ent, bool first)
 		return;
 
 	// don't draw too many points
-	const float distance = (points[ent->client->help_draw_index] - ent->s.origin).length();
+	float distance = (points[ent->client->help_draw_index] - ent->s.origin).length();
 	if (distance > 4096 ||
 		!gi.inPHS(ent->s.origin, points[ent->client->help_draw_index], false))
 	{
@@ -1652,7 +1652,7 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 		// remove points too close to the player so they don't have to backtrack
 		for (int i = 1; i < 1 + ent->client->help_draw_count; i++)
 		{
-		const float distance = (points[i] - ent->s.origin).length();
+			float distance = (points[i] - ent->s.origin).length();
 			if (distance > 192)
 			{
 				break;
@@ -1662,11 +1662,11 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 		}
 
 		// create an extra point in front of us if we're facing away from the first real point
-	const float d = ((*(points + ent->client->help_draw_index)) - ent->s.origin).normalized().dot(ent->client->v_forward);
+		float d = ((*(points + ent->client->help_draw_index)) - ent->s.origin).normalized().dot(ent->client->v_forward);
 
 		if (d < 0.3f)
 		{
-		const	vec3_t p = ent->s.origin + (ent->client->v_forward * 64.f);
+			vec3_t p = ent->s.origin + (ent->client->v_forward * 64.f);
 
 			trace_t tr = gi.traceline(ent->s.origin + vec3_t{ 0.f, 0.f, (float)ent->viewheight }, p, nullptr, MASK_SOLID);
 
@@ -1690,7 +1690,7 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 }
 
 
-static const char* GetUseName() { // Compass name on horde, because it opens Menu
+const char* GetUseName() { // Compass name on horde, because it opens Menu
 	return (g_horde->integer) ? "Horde Menu" : "Compass";
 }
 //======================================================================

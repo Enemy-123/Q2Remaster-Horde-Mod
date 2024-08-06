@@ -469,10 +469,10 @@ MONSTERINFO_SETSKIN(jorg_setskin) (edict_t* self) -> void
 
 void jorgBFG(edict_t* self)
 {
-	vec3_t forward{}, right{};
-	vec3_t start{};
-	vec3_t dir{};
-	vec3_t vec{};
+	vec3_t forward, right;
+	vec3_t start;
+	vec3_t dir;
+	vec3_t vec;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_BFG_1], forward, right);
@@ -503,9 +503,9 @@ void jorg_firebullet_right(edict_t* self)
 	//	PredictAim(self, self->enemy, start, 0, false, 0.2f, &forward, nullptr);
 	//	monster_fire_bfg(self, start, dir, 50, 300, 100, 200, MZ2_JORG_BFG_1);
 
-	vec3_t start{};
-	vec3_t dir{};
-	vec3_t forward{}, right{};
+	vec3_t start;
+	vec3_t dir;
+	vec3_t forward, right;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_R1], forward, right);
@@ -527,9 +527,9 @@ void jorg_firebullet_right(edict_t* self)
 
 void jorg_firebullet_left(edict_t* self)
 {
-	vec3_t start{};
-	vec3_t dir{};
-	vec3_t forward{}, right{};
+	vec3_t start;
+	vec3_t dir;
+	vec3_t forward, right;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_JORG_MACHINEGUN_L1], forward, right);
@@ -538,8 +538,8 @@ void jorg_firebullet_left(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	const	int damage = 35;
-	const	int radius_damage = 45;
+	int damage = 35;
+	int radius_damage = 45;
 
 	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
 

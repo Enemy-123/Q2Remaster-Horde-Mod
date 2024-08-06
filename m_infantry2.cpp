@@ -200,7 +200,7 @@ extern const mmove_t infantry2_move_jump2;
 
 PAIN(infantry2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	int n{};
+	int n;
 
 	// allow turret to pain
 	if ((self->monsterinfo.active_move == &infantry2_move_jump ||
@@ -273,15 +273,15 @@ constexpr vec3_t aimangles[] = {
 
 void infantry2MachineGun(edict_t* self)
 {
-	vec3_t					 start{};
-	vec3_t					 forward{}, right{};
-	vec3_t					 vec{};
-	monster_muzzleflash_id_t flash_number{};
+	vec3_t					 start;
+	vec3_t					 forward, right;
+	vec3_t					 vec;
+	monster_muzzleflash_id_t flash_number;
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
-	const	bool is_run_attack = (self->s.frame >= FRAME_run201 && self->s.frame <= FRAME_run208);
+	bool is_run_attack = (self->s.frame >= FRAME_run201 && self->s.frame <= FRAME_run208);
 
 	if (self->s.frame == FRAME_attak103 || self->s.frame == FRAME_attak311 || is_run_attack || self->s.frame == FRAME_attak416)
 	{
@@ -407,7 +407,7 @@ MMOVE_T(infantry2_move_death3) = { FRAME_death301, FRAME_death309, infantry2_fra
 DIE(infantry2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
-	int n{};
+	int n;
 
 	// check for gib
 	if (M_CheckGib(self, mod))
@@ -465,7 +465,7 @@ DIE(infantry2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 		{
 			head->s.angles = self->s.angles;
 			head->s.origin = self->s.origin + vec3_t{ 0, 0, 32.f };
-			const			vec3_t headDir = (self->s.origin - inflictor->s.origin);
+			vec3_t headDir = (self->s.origin - inflictor->s.origin);
 			head->velocity = headDir / headDir.length() * 100.0f;
 			head->velocity[2] = 200.0f;
 			head->avelocity *= 0.15f;
@@ -631,7 +631,7 @@ void infantry2_swing(edict_t* self)
 
 void infantry2_smack(edict_t* self)
 {
-	const	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
+	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		// Llamar a fire_hit solo si self->enemy está inicializado
@@ -773,7 +773,7 @@ MONSTERINFO_ATTACK(infantry2_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
-	const	float r = range_to(self, self->enemy);
+	float r = range_to(self, self->enemy);
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
 	{

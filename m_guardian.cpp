@@ -226,9 +226,9 @@ void guardian_atk1_charge(edict_t* self)
 
 void guardian_fire_blaster(edict_t* self)
 {
-	vec3_t forward{}, right{}, target{};
-	vec3_t start{};
-	const	monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
+	vec3_t forward, right, target;
+	vec3_t start;
+	monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
@@ -305,8 +305,8 @@ PRETHINK(guardian_fire_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
 
-	vec3_t forward{}, right{}, target{};
-	vec3_t start{};
+	vec3_t forward, right, target;
+	vec3_t start;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, laser_positions[1 - (self->s.frame & 1)], forward, right);

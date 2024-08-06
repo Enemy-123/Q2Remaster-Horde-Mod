@@ -42,7 +42,7 @@ bool M_CheckBottom_Fast_Generic(const vec3_t& absmins, const vec3_t& absmaxs, bo
 
 bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs, edict_t* ignore, contents_t mask, bool ceiling, bool allow_any_step_height)
 {
-	vec3_t start{};
+	vec3_t start;
 
 	//
 	// check it for real...
@@ -50,10 +50,10 @@ bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const 
 	vec3_t step_quadrant_size = (maxs - mins) * 0.5f;
 	step_quadrant_size.z = 0;
 
-	const	vec3_t half_step_quadrant = step_quadrant_size * 0.5f;
-	const	vec3_t half_step_quadrant_mins = -half_step_quadrant;
+	vec3_t half_step_quadrant = step_quadrant_size * 0.5f;
+	vec3_t half_step_quadrant_mins = -half_step_quadrant;
 
-	vec3_t stop{};
+	vec3_t stop;
 
 	start[0] = stop[0] = origin.x;
 	start[1] = stop[1] = origin.y;
@@ -87,7 +87,7 @@ bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const 
 	start[0] = stop[0] = origin.x + ((mins.x + maxs.x) * 0.5f);
 	start[1] = stop[1] = origin.y + ((mins.y + maxs.y) * 0.5f);
 
-	const	float mid = trace.endpos[2];
+	float mid = trace.endpos[2];
 
 	// the corners must be within 16 of the midpoint
 	for (int32_t x = 0; x <= 1; x++)
@@ -136,7 +136,7 @@ bool M_CheckBottom(edict_t* ent)
 	if (M_CheckBottom_Fast_Generic(ent->s.origin + ent->mins, ent->s.origin + ent->maxs, ent->gravityVector[2] > 0))
 		return true; // we got out easy
 
-	const	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 	return M_CheckBottom_Slow_Generic(ent->s.origin, ent->mins, ent->maxs, ent, mask, ent->gravityVector[2] > 0, ent->spawnflags.has(SPAWNFLAG_MONSTER_SUPER_STEP));
 }
 
@@ -144,10 +144,10 @@ bool M_CheckBottom(edict_t* ent)
 // ROGUE
 bool IsBadAhead(edict_t* self, edict_t* bad, const vec3_t& move)
 {
-	vec3_t dir{};
-	vec3_t forward{};
-	float  dp_bad{}, dp_move{};
-	vec3_t move_copy{};
+	vec3_t dir;
+	vec3_t forward;
+	float  dp_bad, dp_move;
+	vec3_t move_copy;
 
 	move_copy = move;
 
@@ -174,7 +174,7 @@ static vec3_t G_IdealHoverPosition(edict_t* ent)
 		return { 0, 0, 0 }; // go right for the center
 
 	// pick random direction
-	const	float theta = frandom(2 * PIf);
+	float theta = frandom(2 * PIf);
 	float phi;
 
 	// buzzards pick half sphere
@@ -186,7 +186,7 @@ static vec3_t G_IdealHoverPosition(edict_t* ent)
 	else
 		phi = acos(crandom() * 0.06f);
 
-	const	vec3_t d{
+	vec3_t d{
 		sin(phi) * cos(theta),
 		sin(phi) * sin(theta),
 		cos(phi)
@@ -264,7 +264,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		return true;
 	}
 
-	vec3_t wanted_pos{};
+	vec3_t wanted_pos;
 
 	if (ent->monsterinfo.fly_pinned)
 		wanted_pos = ent->monsterinfo.fly_ideal_position;
@@ -279,7 +279,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	if (!tr.allsolid)
 		wanted_pos = tr.endpos;
 
-	float dist_to_wanted{};
+	float dist_to_wanted;
 	vec3_t dest_diff = (wanted_pos - ent->s.origin);
 
 	if (dest_diff.z > ent->mins.z && dest_diff.z < ent->maxs.z)
@@ -293,23 +293,23 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// check if we're blocked from moving this way from where we are
 	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
-	vec3_t aim_fwd{}, aim_rgt{}, aim_up{};
-	const	vec3_t yaw_angles = { 0, ent->s.angles.y, 0 };
+	vec3_t aim_fwd, aim_rgt, aim_up;
+	vec3_t yaw_angles = { 0, ent->s.angles.y, 0 };
 
 	AngleVectors(yaw_angles, aim_fwd, aim_rgt, aim_up);
 
 	// it's a fairly close block, so we may want to shift more dramatically
 	if (tr.fraction < 0.25f)
 	{
-		const		bool bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
+		bool bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
 			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->mins.z - ent->monsterinfo.fly_acceleration }, ent);
-		const		bool top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
+		bool top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
 			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->maxs.z + ent->monsterinfo.fly_acceleration }, ent);
 
 		// top & bottom are same, so we need to try right/left
 		if (bottom_visible == top_visible)
 		{
-			const			bool left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+			bool left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
 			bool right_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) + aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
 
 			if (left_visible != right_visible)
@@ -384,7 +384,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 
 	// the closer we are to the wanted position, we want to slow
 	// down so we don't fly past it.
-	float speed_factor{};
+	float speed_factor;
 
 	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)))
 		speed_factor = 1.f;
@@ -449,13 +449,13 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	}
 
 	// try the move
-	const	vec3_t oldorg = ent->s.origin;
+	vec3_t oldorg = ent->s.origin;
 	vec3_t neworg = ent->s.origin + move;
 
 	// fixme: move to monsterinfo
 	// we want the carrier to stay a certain distance off the ground, to help prevent him
 	// from shooting his fliers, who spawn in below him
-	float minheight{};
+	float minheight;
 
 	if (!strcmp(ent->classname, "monster_carrier") || !strcmp(ent->classname, "monster_carrier2") || !strcmp(ent->classname, "monster_boss2") || !strcmp(ent->classname, "monster_boss2_64"))
 		minheight = 104;
@@ -474,7 +474,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 
 			vec3_t& goal_position = (ent->monsterinfo.aiflags & AI_PATHING) ? ent->monsterinfo.nav_path.firstMovePoint : ent->goalentity->s.origin;
 
-			const			float dz = ent->s.origin[2] - goal_position[2];
+			float dz = ent->s.origin[2] - goal_position[2];
 			float dist = move.length();
 
 			if (ent->goalentity->client)
@@ -547,8 +547,8 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 		{
 			if (!ent->waterlevel)
 			{
-				const				vec3_t test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
-				const				contents_t contents = gi.pointcontents(test);
+				vec3_t test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
+				contents_t contents = gi.pointcontents(test);
 				if (contents & MASK_WATER)
 					return false;
 			}
@@ -560,7 +560,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 			if (ent->waterlevel < WATER_WAIST)
 			{
 				vec3_t test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
-				const				contents_t contents = gi.pointcontents(test);
+				contents_t contents = gi.pointcontents(test);
 				if (!(contents & MASK_WATER))
 					return false;
 			}
@@ -651,7 +651,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		return SV_flystep(ent, move, relink, current_bad);
 
 	// try the move
-	const	vec3_t oldorg = ent->s.origin;
+	vec3_t oldorg = ent->s.origin;
 
 	float stepsize;
 
@@ -675,7 +675,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 
 	start_up = gi.trace(oldorg, ent->mins, ent->maxs, start_up, ent, mask).endpos;
 
-	const	vec3_t end_up = start_up + move;
+	vec3_t end_up = start_up + move;
 
 	trace_t up_trace = gi.trace(start_up, ent->mins, ent->maxs, end_up, ent, mask);
 
@@ -685,8 +685,8 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		up_trace = gi.trace(start_up, ent->mins, ent->maxs, end_up, ent, mask);
 	}
 
-	const	vec3_t start_fwd = oldorg;
-	const	vec3_t end_fwd = start_fwd + move;
+	vec3_t start_fwd = oldorg;
+	vec3_t end_fwd = start_fwd + move;
 
 	trace_t fwd_trace = gi.trace(start_fwd, ent->mins, ent->maxs, end_fwd, ent, mask);
 

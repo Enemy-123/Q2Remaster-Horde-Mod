@@ -1735,7 +1735,7 @@ void SpawnMonsters() noexcept {
     const auto mapSize = GetMapSize(level.mapname);
 
     // Determinar la cantidad de monstruos a generar por spawn
-    int32_t monsters_per_spawn{};
+    int32_t monsters_per_spawn;
     if (mapSize.isSmallMap) {
         // Mapas pequeños: 2 monstruos, o 3 si el nivel de horda es 5 o mayor
         monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
@@ -1753,7 +1753,7 @@ void SpawnMonsters() noexcept {
     monsters_per_spawn = std::min(monsters_per_spawn, 4);
 
     // Calcular la probabilidad de que un monstruo suelte un ítem
-    float drop_probability{};
+    float drop_probability;
     if (current_wave_number <= 2) {
         drop_probability = 0.8f;  // 80% de probabilidad en las primeras 2 olas
     }
@@ -1787,9 +1787,9 @@ void SpawnMonsters() noexcept {
                 monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
             if (!st.was_key_specified("power_armor_type")) {
                 // Calcular la armadura basada en la salud del monstruo y el número de ola
-           const     float health_factor = monster->max_health / 100.0f;
-           const    int base_armor = 150;
-           const    int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
+                float health_factor = monster->max_health / 100.0f;
+                int base_armor = 150;
+                int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
                 monster->monsterinfo.armor_power = base_armor + additional_armor;
             }
         }
@@ -1811,11 +1811,11 @@ void SpawnMonsters() noexcept {
 
         // Crear un efecto visual de crecimiento para el spawn del monstruo
         vec3_t spawngrow_pos = monster->s.origin;
-        const        float magnitude = std::sqrt(spawngrow_pos[0] * spawngrow_pos[0] +
+        float magnitude = std::sqrt(spawngrow_pos[0] * spawngrow_pos[0] +
             spawngrow_pos[1] * spawngrow_pos[1] +
             spawngrow_pos[2] * spawngrow_pos[2]);
-        const        float start_size = magnitude * 0.055f;
-        const        float end_size = magnitude * 0.005f;
+        float start_size = magnitude * 0.055f;
+        float end_size = magnitude * 0.005f;
         ImprovedSpawnGrow(spawngrow_pos, start_size, end_size, monster);
 
         // Reducir el contador de monstruos por generar
@@ -1857,10 +1857,10 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 // Función para enviar el mensaje de limpieza actualizada
 void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>& messages,
     gtime_t duration = 5_sec) {
-    const    MessageType messageType = g_insane->integer ? MessageType::Insane :
+    MessageType messageType = g_insane->integer ? MessageType::Insane :
         (g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
 
-    const    auto messageIt = messages.find(messageType);
+    auto messageIt = messages.find(messageType);
     if (messageIt != messages.end()) {
         std::string formattedMessage = fmt::format(messageIt->second,
             fmt::arg("level", g_horde_local.level));

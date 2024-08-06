@@ -101,7 +101,7 @@ void sphere_chase(edict_t *self, int stupidChase)
 	}
 	if (self && self->enemy)
 	dest = self->enemy->s.origin;
-	if (self && self->enemy->client)
+	if (self->enemy->client)
 		dest[2] += self->enemy->viewheight;
 
 	if (visible(self, self->enemy) || stupidChase)

@@ -281,7 +281,7 @@ void brain_hit_right(edict_t* self)
 {
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		const		vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
+		vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 		if (fire_hit(self, aim, irandom(15, 20), 40))
 			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
 		else
@@ -306,7 +306,7 @@ void brain_hit_left(edict_t* self)
 {
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		const		vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
+		vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
 		if (fire_hit(self, aim, irandom(15, 20), 40))
 			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
 		else
@@ -355,7 +355,7 @@ void brain_chest_open(edict_t* self)
 void brain_tentacle_attack(edict_t* self)
 {
 	if (self->enemy) {
-		const		vec3_t aim = { MELEE_DISTANCE, 0, 8 };
+		vec3_t aim = { MELEE_DISTANCE, 0, 8 };
 		if (fire_hit(self, aim, irandom(10, 15), -600))
 			self->count = 1;
 		else
@@ -416,7 +416,7 @@ MONSTERINFO_MELEE(brain_melee) (edict_t* self) -> void
 // RAFAEL
 static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 {
-	vec3_t dir{}, angles{};
+	vec3_t dir, angles;
 
 	// check for max distance
 	dir = start - end;
@@ -435,69 +435,58 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 
 void brain_tounge_attack(edict_t* self)
 {
-	// Verificación inicial de punteros nulos
-	if (!self)
-	{
-		gi.Com_PrintFmt("Error: brain_tounge_attack llamada con self nulo\n");
-		return;
-	}
-
-	if (!self->enemy)
-	{
-		gi.Com_PrintFmt("Advertencia: brain_tounge_attack: No se encontró enemigo para el cerebro\n");
-		return;
-	}
-
-	vec3_t offset{}, start{}, f{}, r{}, end{}, dir{};
-	trace_t tr{};
-	int damage{};
+	vec3_t offset, start, f, r, end, dir;
+	trace_t tr;
+	int damage;
 
 	AngleVectors(self->s.angles, f, r, nullptr);
+	// offset = { 24, 0, 6 };
 	offset = { 24, 0, 16 };
 	start = M_ProjectFlashSource(self, offset, f, r);
 
-	end = self->enemy->s.origin;
-	if (!brain_tounge_attack_ok(start, end))
+	if (self && self->enemy)
 	{
-		end[2] = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
+		end = self->enemy->s.origin;
 		if (!brain_tounge_attack_ok(start, end))
 		{
-			end[2] = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
+			end[2] = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
 			if (!brain_tounge_attack_ok(start, end))
 			{
-				gi.Com_PrintFmt("Advertencia: brain_tounge_attack: No se pudo encontrar un punto de ataque válido\n");
-				return;
+				end[2] = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
+				if (!brain_tounge_attack_ok(start, end))
+					return;
 			}
 		}
 	}
+	if (self && self->enemy)
+		end = self->enemy->s.origin;
 
-	tr = gi.traceline(start, end, self, MASK_PROJECTILE);
-	if (tr.ent != self->enemy)
-	{
-		gi.Com_PrintFmt("Advertencia: brain_tounge_attack: El rastro no llegó al enemigo\n");
-		return;
+		tr = gi.traceline(start, end, self, MASK_PROJECTILE);
+		if (tr.ent != self->enemy)
+			return;
+
+		damage = 5;
+		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_PARASITE_ATTACK);
+		gi.WriteEntity(self);
+		gi.WritePosition(start);
+		gi.WritePosition(end);
+		gi.multicast(self->s.origin, MULTICAST_PVS, false);
+
+		dir = start - end;
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK,MOD_BRAINTENTACLE); // MOD_UNKNOWN);
+		// pull the enemy in
+		vec3_t forward;
+		self->s.origin[2] += 2;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		self->enemy->velocity = forward * -900;
+
+		//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
+		//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
 	}
 
-	damage = 5;
-	gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
-
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_PARASITE_ATTACK);
-	gi.WriteEntity(self);
-	gi.WritePosition(start);
-	gi.WritePosition(end);
-	gi.multicast(self->s.origin, MULTICAST_PVS, false);
-
-	dir = start - end;
-	T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin,
-		damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
-
-	// pull the enemy in
-	vec3_t forward;
-	self->s.origin[2] += 2;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	self->enemy->velocity = forward * -900;
-}
 
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {

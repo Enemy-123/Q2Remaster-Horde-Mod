@@ -491,7 +491,7 @@ PAIN(guncmdr_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 	// small pain
 	if (damage < 35)
 	{
-		const	int r = irandom(0, 4);
+		int r = irandom(0, 4);
 
 		if (r == 0)
 			M_SetAnimation(self, &guncmdr_move_pain3);
@@ -674,7 +674,7 @@ mframe_t guncmdr_frames_death5[] = {
 };
 MMOVE_T(guncmdr_move_death5) = { FRAME_c_death501, FRAME_c_death528, guncmdr_frames_death5, guncmdr_dead };
 
-DIE(guncmdr_die) (edict_t* self, edict_t* const inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
 	// check for gib
@@ -735,7 +735,7 @@ DIE(guncmdr_die) (edict_t* self, edict_t* const inflictor, edict_t* attacker, in
 		{
 			head->s.angles = self->s.angles;
 			head->s.origin = self->s.origin + vec3_t{ 0, 0, 24.f };
-			const	vec3_t headDir = (self->s.origin - inflictor->s.origin);
+			vec3_t headDir = (self->s.origin - inflictor->s.origin);
 			head->velocity = headDir / headDir.length() * 100.0f;
 			head->velocity[2] = 200.0f;
 			head->avelocity *= 0.15f;
@@ -745,7 +745,7 @@ DIE(guncmdr_die) (edict_t* self, edict_t* const inflictor, edict_t* attacker, in
 	// damage came from behind; use backwards death
 	else if (dif.dot(forward) < -0.40f)
 	{
-		const		int r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain6 ? 2 : 3);
+		int r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain6 ? 2 : 3);
 
 		if (r == 0)
 			M_SetAnimation(self, &guncmdr_move_death3);
@@ -756,7 +756,7 @@ DIE(guncmdr_die) (edict_t* self, edict_t* const inflictor, edict_t* attacker, in
 	}
 	else
 	{
-		const		int r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain5 ? 1 : 2);
+		int r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain5 ? 1 : 2);
 
 		if (r == 0)
 			M_SetAnimation(self, &guncmdr_move_death4);
@@ -777,42 +777,24 @@ void guncmdr_opengun(edict_t* self)
 
 void GunnerCmdrFire(edict_t* self)
 {
-	// Verificación inicial de punteros nulos
-	if (!self)
-	{
-		gi.Com_PrintFmt("Error: GunnerCmdrFire llamada con self nulo\n");
-		return;
-	}
+	vec3_t					 start;
+	vec3_t					 forward, right;
+	vec3_t					 aim;
+	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse)
-	{
-		gi.Com_PrintFmt("Advertencia: GunnerCmdrFire: No se encontró enemigo válido para el Gunner Commander\n");
-		return;
-	}
+	if (self && self->enemy || self && self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
+		return;								 // PGM
 
-	vec3_t start{};
-	vec3_t forward{}, right{};
-	vec3_t aim{};
-	monster_muzzleflash_id_t flash_number{};
-
-	// Determinar el número de flash basado en el frame actual
 	if (self->s.frame >= FRAME_c_attack401 && self->s.frame <= FRAME_c_attack505)
 		flash_number = MZ2_GUNCMDR_CHAINGUN_2;
 	else
 		flash_number = MZ2_GUNCMDR_CHAINGUN_1;
 
-	// Calcular los vectores de dirección y el punto de inicio
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-
-	// Predecir la trayectoria del disparo
 	PredictAim(self, self->enemy, start, 800, false, frandom() * 0.3f, &aim, nullptr);
-
-	// Añadir un poco de dispersión al disparo
 	for (int i = 0; i < 3; i++)
 		aim[i] += crandom_open() * 0.025f;
-
-	// Disparar la flechette
 	monster_fire_flechette(self, start, aim, 4, 1200, flash_number);
 }
 
@@ -880,14 +862,14 @@ constexpr float GRENADE_SPEED = 1600.f;
 
 void GunnerCmdrGrenade(edict_t* self)
 {
-	vec3_t					 start{};
-	vec3_t					 forward{}, right{}, up{};
-	vec3_t					 aim{};
+	vec3_t					 start;
+	vec3_t					 forward, right, up;
+	vec3_t					 aim;
 	monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
 	float					 spread = 0.f;
 	float					 pitch = 0;
 	// PMM
-	vec3_t target{};
+	vec3_t target;
 	bool   blindfire = false;
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
@@ -963,7 +945,7 @@ void GunnerCmdrGrenade(edict_t* self)
 	// PGM
 	if (self->enemy && !(flash_number >= MZ2_GUNCMDR_GRENADE_CROUCH_1 && flash_number <= MZ2_GUNCMDR_GRENADE_CROUCH_3))
 	{
-		float dist{};
+		float dist;
 
 		aim = target - self->s.origin;
 		dist = aim.length();
@@ -1014,7 +996,7 @@ void GunnerCmdrGrenade(edict_t* self)
 	else
 	{
 		// mortar fires farther
-		float speed{};
+		float speed;
 
 		if (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)
 			speed = MORTAR_SPEED;
@@ -1186,9 +1168,9 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
 	std::cerr << "In guncmdr_attack, self->enemy: " << self->enemy << ", self->enemy->absmin: [" << self->enemy->absmin[0] << ", " << self->enemy->absmin[1] << ", " << self->enemy->absmin[2] << "]" << std::endl;
 	std::cerr << "In guncmdr_attack, self->enemy->absmax: [" << self->enemy->absmax[0] << ", " << self->enemy->absmax[1] << ", " << self->enemy->absmax[2] << "]" << std::endl;
 
-const	float d = range_to(self, self->enemy);
+	float d = range_to(self, self->enemy);
 
-vec3_t forward{}, right{}, aim{};
+	vec3_t forward, right, aim;
 	AngleVectors(self->s.angles, forward, right, nullptr); // PGM
 
 	// always use chaingun on tesla
@@ -1328,10 +1310,10 @@ static void GunnerCmdrCounter(edict_t* self)
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_BERSERK_SLAM);
-	vec3_t f{}, r{}, start{};
+	vec3_t f, r, start;
 	AngleVectors(self->s.angles, f, r, nullptr);
 	start = M_ProjectFlashSource(self, { 20.f, 0.f, 14.f }, f, r);
-	const	trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+	trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir(f);
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);

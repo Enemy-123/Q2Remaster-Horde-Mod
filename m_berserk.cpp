@@ -195,7 +195,7 @@ MMOVE_T(berserk_move_attack_spike) = { FRAME_att_c1, FRAME_att_c8, berserk_frame
 
 void berserk_attack_club(edict_t* self)
 {
-	const	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
+	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -238,10 +238,10 @@ T_RadiusDamage
 */
 void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, float damage, float kick, edict_t* ignore, float radius, mod_t mod)
 {
-	float	 points{};
+	float	 points;
 	edict_t* ent = nullptr;
-	vec3_t	 v{};
-	vec3_t	 dir{};
+	vec3_t	 v;
+	vec3_t	 dir;
 
 	while ((ent = findradius(ent, inflictor->s.origin, radius * 2.f)) != nullptr)
 	{
@@ -287,7 +287,7 @@ static void berserk_attack_slam(edict_t* self)
 	gi.sound(self, CHAN_AUTO, sound_explod, 0.75f, ATTN_NORM, 0);
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_BERSERK_SLAM);
-	vec3_t f{}, r{}, start{};
+	vec3_t f, r, start;
 	AngleVectors(self->s.angles, f, r, nullptr);
 	start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
 	trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
@@ -330,14 +330,14 @@ static void berserk_high_gravity(edict_t* self)
 
 void berserk_jump_takeoff(edict_t* self)
 {
-	vec3_t forward{};
+	vec3_t forward;
 
 	if (!self->enemy)
 		return;
 
 	// immediately turn to where we need to go
-	const	float length = (self->s.origin - self->enemy->s.origin).length();
-	const	float fwd_speed = length * 1.95f;
+	float length = (self->s.origin - self->enemy->s.origin).length();
+	float fwd_speed = length * 1.95f;
 	vec3_t dir;
 	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &dir, nullptr);
 	self->s.angles[1] = vectoyaw(dir);
@@ -798,9 +798,9 @@ MONSTERINFO_DUCK(berserk_duck) (edict_t* self, gtime_t eta) -> bool
  */
 void SP_monster_berserk(edict_t* self)
 {
-	if (g_horde->integer && current_wave_number <= 18)
+	if (g_horde->integer)
 	{
-		const		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.12f)
 			gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);

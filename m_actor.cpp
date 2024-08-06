@@ -232,8 +232,8 @@ MONSTERINFO_SETSKIN(actor_setskin) (edict_t *self) -> void
 
 void actorMachineGun(edict_t *self)
 {
-	vec3_t start{}, target{};
-	vec3_t forward{}, right{};
+	vec3_t start, target;
+	vec3_t forward, right;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_ACTOR_MACHINEGUN_1], forward, right);
@@ -353,7 +353,7 @@ MONSTERINFO_ATTACK(actor_attack) (edict_t *self) -> void
 
 USE(actor_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 {
-	vec3_t v{};
+	vec3_t v;
 
 	self->goalentity = self->movetarget = G_PickTarget(self->target);
 	if ((!self->movetarget) || (strcmp(self->movetarget->classname, "target_actor") != 0))
@@ -452,7 +452,7 @@ constexpr spawnflags_t SPAWNFLAG_TARGET_ACTOR_BRUTAL = 32_spawnflag;
 
 TOUCH(target_actor_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
 {
-	vec3_t v{};
+	vec3_t v;
 
 	if (other->movetarget != self)
 		return;
@@ -464,7 +464,7 @@ TOUCH(target_actor_touch) (edict_t *self, edict_t *other, const trace_t &tr, boo
 
 	if (self->message)
 	{
-		edict_t* ent{};
+		edict_t *ent;
 
 		for (uint32_t n = 1; n <= game.maxclients; n++)
 		{

@@ -231,7 +231,7 @@ MONSTERINFO_STAND(flyer_stand) (edict_t* self) -> void
 
 void flyer_kamikaze_explode(edict_t* self)
 {
-	vec3_t dir{};
+	vec3_t dir;
 
 	if (self->monsterinfo.commander && self->monsterinfo.commander->inuse &&
 		!strcmp(self->monsterinfo.commander->classname, "monster_carrier"))
@@ -253,7 +253,7 @@ void flyer_kamikaze(edict_t* self)
 
 void flyer_kamikaze_check(edict_t* self)
 {
-	float dist{};
+	float dist;
 
 	// PMM - this needed because we could have gone away before we get here (blocked code)
 	if (!self->inuse)
@@ -371,10 +371,10 @@ MMOVE_T(flyer_move_bankleft) = { FRAME_bankl01, FRAME_bankl07, flyer_frames_bank
 
 void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 {
-	vec3_t	  start{};
-	vec3_t	  forward{}, right{};
-	vec3_t	  end{};
-	vec3_t	  dir{};
+	vec3_t	  start;
+	vec3_t	  forward, right;
+	vec3_t	  end;
+	vec3_t	  dir;
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
@@ -448,7 +448,7 @@ MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_att
 
 void flyer_slash_left(edict_t* self)
 {
-	const	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
+	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -469,7 +469,7 @@ void flyer_slash_left(edict_t* self)
 
 void flyer_slash_right(edict_t* self)
 {
-	const	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
+	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -556,7 +556,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 		return;
 	}
 
-	const	float range = range_to(self, self->enemy);
+	float range = range_to(self, self->enemy);
 
 	if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
 	{
@@ -615,7 +615,7 @@ void flyer_check_melee(edict_t* self)
 
 PAIN(flyer_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	int n{};
+	int n;
 
 	//	pmm	 - kamikaze's don't feel pain
 	if (self->mass != 50)
@@ -711,7 +711,7 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
 		ent->monsterinfo.duck_wait_time = level.time + 1_sec;
 		ent->monsterinfo.fly_thrusters = false;
 
-		const		vec3_t dir = (ent->s.origin - other->s.origin).normalized();
+		vec3_t dir = (ent->s.origin - other->s.origin).normalized();
 		ent->velocity = dir * 500.f;
 
 		gi.WriteByte(svc_temp_entity);
@@ -728,9 +728,9 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
  */
 void SP_monster_flyer(edict_t* self)
 {
-	if (g_horde->integer && current_wave_number <= 18)
+	if (g_horde->integer)
 	{
-		const		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.32f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);

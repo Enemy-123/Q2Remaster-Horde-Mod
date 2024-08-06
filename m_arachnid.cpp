@@ -142,7 +142,7 @@ PAIN(arachnid_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
-	const	float r = frandom();
+	float r = frandom();
 
 	if (r < 0.5f)
 		M_SetAnimation(self, &arachnid_move_pain1);
@@ -164,10 +164,10 @@ void arachnid_charge_rail(edict_t* self)
 
 void arachnid_rail(edict_t* self)
 {
-	vec3_t start{};
-	vec3_t dir{};
-	vec3_t forward{}, right{};
-	monster_muzzleflash_id_t id{};
+	vec3_t start;
+	vec3_t dir;
+	vec3_t forward, right;
+	monster_muzzleflash_id_t id;
 
 	switch (self->s.frame)
 	{
