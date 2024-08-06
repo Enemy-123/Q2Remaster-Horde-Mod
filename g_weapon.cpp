@@ -367,9 +367,12 @@ Fires a single blaster bolt.  Used by the blaster and hyper blaster.
 =================
 */
 
-
 TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
+	if (!self || !self->owner) {
+		return;
+	}
+
 	if (other == self->owner)
 		return;
 
@@ -401,7 +404,6 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 		}
 	}
 }
-
 void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod)
 {
 	edict_t* bolt;
