@@ -171,19 +171,35 @@ void arachnid_rail(edict_t* self)
 
 	switch (self->s.frame)
 	{
-	case FRAME_rails4:
+	case FRAME_rails3:
 	default:
 		id = MZ2_ARACHNID_RAIL1;
 		break;
-	case FRAME_rails8:
+	case FRAME_rails7:
 		id = MZ2_ARACHNID_RAIL2;
 		break;
-	case FRAME_rails_up7:
+	//case FRAME_rails9:
+	//	id = MZ2_ARACHNID_RAIL1;
+	//	break;
+	//case FRAME_rails11:
+	//	id = MZ2_ARACHNID_RAIL2;
+	//	break;
+		//up
+	case FRAME_rails_up2:
+		id = MZ2_ARACHNID_RAIL_UP1;
+		break;
+	case FRAME_rails_up5:
+		id = MZ2_ARACHNID_RAIL_UP2;
+		break;
+	case FRAME_rails_up9:
 		id = MZ2_ARACHNID_RAIL_UP1;
 		break;
 	case FRAME_rails_up11:
 		id = MZ2_ARACHNID_RAIL_UP2;
 		break;
+	//case FRAME_rails_up13:
+	//	id = MZ2_ARACHNID_RAIL_UP2;
+	//	break;
 	}
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
@@ -193,27 +209,26 @@ void arachnid_rail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 45, 100, id);
+	monster_fire_railgun(self, start, dir, 40, 100, id);
 }
 
 mframe_t arachnid_frames_attack1[] = {
+
 	{ ai_charge, 0, arachnid_charge_rail },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, arachnid_charge_rail },
-	{ ai_charge },
 	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge },
-	{ ai_charge, 0, arachnid_rail },
+	{ ai_charge },	{ ai_charge, 0, arachnid_charge_rail },
 	{ ai_charge }
 };
-MMOVE_T(arachnid_attack1) = { FRAME_rails1, FRAME_rails11, arachnid_frames_attack1, arachnid_run };
+MMOVE_T(arachnid_attack1) = { FRAME_rails2, FRAME_rails11, arachnid_frames_attack1, arachnid_run };
 
 mframe_t arachnid_frames_attack_up1[] = {
 	{ ai_charge, 0, arachnid_charge_rail },
-	{ ai_charge, 0, arachnid_rail },
+	{ ai_charge, 0, arachnid_rail }, 
 	{ ai_charge },
 	{ ai_charge, 0, arachnid_charge_rail },
 	{ ai_charge, 0, arachnid_rail },
@@ -222,14 +237,14 @@ mframe_t arachnid_frames_attack_up1[] = {
 	{ ai_charge, 0, arachnid_charge_rail },
 	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge, 0, arachnid_charge_rail },
-	{ ai_charge, 0, arachnid_rail },
-	{ ai_charge },
-	{ ai_charge, 0, arachnid_charge_rail },
-	{ ai_charge, 0, arachnid_rail },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge }
+	//{ ai_charge },
+	//{ ai_charge },
+	//{ ai_charge }
 };
-MMOVE_T(arachnid_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, arachnid_frames_attack_up1, arachnid_run };
+MMOVE_T(arachnid_attack_up1) = { FRAME_rails_up1, FRAME_rails_up13, arachnid_frames_attack_up1, arachnid_run };
 
 static cached_soundindex sound_melee, sound_melee_hit;
 

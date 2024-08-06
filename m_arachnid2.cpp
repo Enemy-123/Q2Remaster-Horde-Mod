@@ -178,11 +178,11 @@ void arachnid2_rail(edict_t* self)
 
 	switch (self->s.frame)
 	{
-	case FRAME_rails4:
+	case FRAME_rails6:
 	default:
 		id = MZ2_ARACHNID_RAIL1;
 		break;
-	case FRAME_rails8:
+	case FRAME_rails10:
 		id = MZ2_ARACHNID_RAIL2;
 		break;
 	case FRAME_rails_up7:
