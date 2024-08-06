@@ -766,7 +766,7 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 	{
 		M_SetAnimation(self, &infantry_move_attack2);
 	}
-	else if (r > RANGE_MELEE && frandom() <= 0.3f)
+	else if (r > RANGE_MELEE && frandom() <= 0.5f)
 	{
 		// 30% chance to throw a grenade when enemy is beyond melee range
 		M_SetAnimation(self, &infantry_move_grenade);
