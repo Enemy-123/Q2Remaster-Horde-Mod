@@ -346,24 +346,29 @@ angles and bad trails.
 */
 edict_t* G_Spawn()
 {
+	static uint32_t last_checked_index = game.maxclients + 1;
 	uint32_t i;
 	edict_t* e;
 
-	e = &g_edicts[game.maxclients + 1];
-	for (i = game.maxclients + 1; i < globals.num_edicts; i++, e++)
-	{
-		// the first couple seconds of server time can involve a lot of
-		// freeing and allocating, so relax the replacement policy
-		if (!e->inuse && (e->freetime < 2_sec || level.time - e->freetime > 500_ms))
-		{
+	// Start searching from the last checked index
+	for (i = 0; i < globals.num_edicts - game.maxclients - 1; i++) {
+		last_checked_index++;
+		if (last_checked_index >= globals.num_edicts)
+			last_checked_index = game.maxclients + 1;
+
+		e = &g_edicts[last_checked_index];
+
+		if (!e->inuse && (e->freetime < 2_sec || level.time - e->freetime > 500_ms)) {
 			G_InitEdict(e);
 			return e;
 		}
 	}
 
-	if (i == game.maxentities)
+	// If we haven't found a free edict, allocate a new one
+	if (globals.num_edicts >= game.maxentities)
 		gi.Com_Error("ED_Alloc: no free edicts");
 
+	e = &g_edicts[globals.num_edicts];
 	globals.num_edicts++;
 	G_InitEdict(e);
 	return e;
