@@ -879,7 +879,7 @@ void GunnerCmdrGrenade(edict_t* self)
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 		blindfire = true;
 
-	if (self->s.frame == FRAME_c_attack205)
+	if (self->s.frame == FRAME_c_attack206)
 	{
 		spread = -0.1f;
 		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
@@ -889,37 +889,86 @@ void GunnerCmdrGrenade(edict_t* self)
 		spread = 0.f;
 		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
 	}
-	else if (self->s.frame == FRAME_c_attack211)
+	else if (self->s.frame == FRAME_c_attack210)
 	{
 		spread = 0.1f;
 		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
 	}
+	else if (self->s.frame == FRAME_c_attack211)
+	{
+		spread = 0.f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+	}
+	else if (self->s.frame == FRAME_c_attack212)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
+	}
+	else if (self->s.frame == FRAME_c_attack213)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
+	}
+
+	//mortar ready
+
+
 	else if (self->s.frame == FRAME_c_attack304)
 	{
 		spread = -0.1f;
 		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
 	}
-	else if (self->s.frame == FRAME_c_attack307)
+	else if (self->s.frame == FRAME_c_attack306)
 	{
 		spread = 0.f;
 		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_2;
 	}
-	else if (self->s.frame == FRAME_c_attack310)
+	else if (self->s.frame == FRAME_c_attack307)
 	{
 		spread = 0.1f;
 		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_3;
 	}
-	else if (self->s.frame == FRAME_c_attack911)
+	else if (self->s.frame == FRAME_c_attack308)
 	{
-		spread = 0.25f;
-		flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_1;
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
 	}
-	else if (self->s.frame == FRAME_c_attack912)
+	else if (self->s.frame == FRAME_c_attack310)
 	{
-		spread = 0.f;
-		flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_2;
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_2;
 	}
-	else if (self->s.frame == FRAME_c_attack913)
+	else if (self->s.frame == FRAME_c_attack311)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_3;
+	}
+	else if (self->s.frame == FRAME_c_attack312)
+	{
+		spread = 0.1f;
+		flash_number = MZ2_GUNCMDR_GRENADE_FRONT_1;
+	}
+
+	// front
+
+
+	//else if (self->s.frame == FRAME_c_attack911)
+	//{
+	//	spread = 0.25f;
+	//	flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_1;
+	//}
+	//else if (self->s.frame == FRAME_c_attack912)
+	//{
+	//	spread = 0.f;
+	//	flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_2;
+	//}
+	//else if (self->s.frame == FRAME_c_attack913)
+	//{
+	//	spread = -0.25f;
+	//	flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_3;
+	//}
+
+	else if (self->s.frame == FRAME_c_attack917)
 	{
 		spread = -0.25f;
 		flash_number = MZ2_GUNCMDR_GRENADE_CROUCH_3;
@@ -1016,9 +1065,9 @@ mframe_t guncmdr_frames_attack_mortar[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, GunnerCmdrGrenade },
-	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
 	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
@@ -1031,10 +1080,9 @@ mframe_t guncmdr_frames_attack_mortar[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, GunnerCmdrGrenade },
 	{ ai_charge },
 	{ ai_charge },
-
+	{ ai_charge },
 	{ ai_charge }
 };
 MMOVE_T(guncmdr_move_attack_mortar) = { FRAME_c_attack201, FRAME_c_attack221, guncmdr_frames_attack_mortar, guncmdr_run };
@@ -1061,19 +1109,18 @@ mframe_t guncmdr_frames_attack_back[] = {
 	{ ai_charge, -2.f },
 	{ ai_charge, -1.5f },
 	{ ai_charge, -0.5f, GunnerCmdrGrenade },
+	{ ai_charge, -1.5f },
 	{ ai_charge, -1.1f, GunnerCmdrGrenade },
-	{ ai_charge, -4.f },
 	{ ai_charge, -2.5f, GunnerCmdrGrenade },
 	{ ai_charge, -1.1f, GunnerCmdrGrenade },
 	{ ai_charge, -3.5f },
 	{ ai_charge, -1.1f, GunnerCmdrGrenade },
-
-	{ ai_charge, -4.6f },
+	{ ai_charge, -4.6f, GunnerCmdrGrenade},
 	{ ai_charge, -0.5f, GunnerCmdrGrenade },
 	{ ai_charge, 1.0f },
 	{ ai_charge, -4.5f },
-	{ ai_charge, -1.1f, GunnerCmdrGrenade },
-	{ ai_charge, 4.4f, GunnerCmdrGrenade },
+	{ ai_charge, -1.1f },
+	{ ai_charge, 4.4f, },
 	{ ai_charge, -6.5f },
 	{ ai_charge },
 	{ ai_charge, 3.0f },
@@ -1136,11 +1183,11 @@ static void guncmdr_kick(edict_t* self)
 
 mframe_t guncmdr_frames_attack_kick[] = {
 	{ ai_charge, -7.7f },
-	{ ai_charge, 12.6f, guncmdr_kick },
 	{ ai_charge, -4.9f },
+	{ ai_charge, 12.6f, guncmdr_kick },
 	{ ai_charge },
 	{ ai_charge, -3.0f },
-	{ ai_charge, 0, GunnerCmdrGrenade },
+	{ ai_charge },
 	{ ai_charge, -4.1f },
 	{ ai_charge, 8.6f },
 	//{ ai_charge, -3.5f }
@@ -1339,13 +1386,13 @@ mframe_t guncmdr_frames_duck_attack[] = {
 	//{ ai_charge, 9.5f, GunnerCmdrGrenade },
 	//{ ai_charge, -1.5f, GunnerCmdrGrenade },
 
-	{ ai_charge, 0 },
-	{ ai_charge, 9.5f, GunnerCmdrCounter },
 	{ ai_charge, -1.5f },
 	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 9.5f, GunnerCmdrCounter },
 	{ ai_charge, 0, monster_duck_up },
 	{ ai_charge },
-	{ ai_charge, 11.f },
+	{ ai_charge, 11.f, GunnerCmdrGrenade },
 	{ ai_charge, 2.0f },
 	{ ai_charge, 5.6f }
 };
