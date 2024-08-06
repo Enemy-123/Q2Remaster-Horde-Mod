@@ -668,7 +668,7 @@ gitem_t* G_HordePickItem() noexcept {
     return (it != picked_items.end()) ? FindItemByClassname(it->item->classname) : nullptr;
 }
 
- int32_t WAVE_TO_ALLOW_FLYING;
+int32_t WAVE_TO_ALLOW_FLYING;
 extern bool flying_monsters_mode;
 extern gtime_t SPAWN_POINT_COOLDOWN;
 
@@ -736,9 +736,9 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
         spawnPointCooldowns[spawn_point] *= 0.9f;
     }
 }
-
 const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
-    auto currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
+    // Check cooldown
+    float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     auto it_spawnCooldown = spawnPointCooldowns.find(spawn_point);
     if (it_spawnCooldown != spawnPointCooldowns.end()) {
         currentCooldown = it_spawnCooldown->second;
@@ -750,28 +750,30 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
         return nullptr;
     }
 
-    struct WeightedMonster {
-        const weighted_item_t* monster;
-        float cumulativeWeight;
-    };
+    // Calculate flying spawn adjustment
+    int32_t flyingSpawns = countFlyingSpawns();
+    float adjustmentFactor = (flyingSpawns > 0) ? 0.25f : 1.0f;
 
-    std::vector<WeightedMonster> eligible_monsters;
+    // Select eligible monsters and calculate total weight
     float total_weight = 0.0f;
-    auto flyingSpawns = countFlyingSpawns();
-    float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
+    std::vector<const weighted_item_t*> eligible_monsters;
+    eligible_monsters.reserve(std::size(monsters)); // Pre-allocate to avoid resizing
 
     for (const auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
 
-        if (flying_monsters_mode && !isFlyingMonster) continue;
-        if (spawn_point->style == 1 && !isFlyingMonster) continue;
-        if (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) continue;
-        if (!IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) continue;
+        if ((flying_monsters_mode && !isFlyingMonster) ||
+            (spawn_point->style == 1 && !isFlyingMonster) ||
+            (!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
+            (item.min_level > g_horde_local.level || (item.max_level != -1 && item.max_level < g_horde_local.level)) ||
+            (isFlyingMonster && g_horde_local.level < WAVE_TO_ALLOW_FLYING)) {
+            continue;
+        }
 
-        float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+        float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
         if (weight > 0) {
             total_weight += weight;
-            eligible_monsters.push_back({ &item, total_weight });
+            eligible_monsters.push_back(&item);
         }
     }
 
@@ -780,20 +782,30 @@ const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
         return nullptr;
     }
 
+    // Select a monster based on weight
     float r = frandom() * total_weight;
-    auto it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), r,
-        [](const WeightedMonster& wm, float value) { return wm.cumulativeWeight < value; });
+    float cumulative_weight = 0.0f;
+    const weighted_item_t* chosen_monster = nullptr;
 
-    if (it != eligible_monsters.end()) {
-        const char* chosen_monster = it->monster->classname;
-        UpdateCooldowns(spawn_point, chosen_monster);
+    for (const auto* monster : eligible_monsters) {
+        float weight = monster->weight * (IsFlyingMonster(monster->classname) ? adjustmentFactor : 1.0f);
+        cumulative_weight += weight;
+        if (r <= cumulative_weight) {
+            chosen_monster = monster;
+            break;
+        }
+    }
+
+    if (chosen_monster) {
+        UpdateCooldowns(spawn_point, chosen_monster->classname);
         ResetSpawnAttempts(spawn_point);
-        return chosen_monster;
+        return chosen_monster->classname;
     }
 
     IncreaseSpawnAttempts(spawn_point);
     return nullptr;
 }
+
 void Horde_PreInit() noexcept {
     dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
     g_horde = gi.cvar("horde", "0", CVAR_LATCH);
