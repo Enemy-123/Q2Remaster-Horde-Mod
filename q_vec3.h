@@ -91,8 +91,7 @@ struct vec3_t
 		return { static_cast<float>(x / v), static_cast<float>(y / v), static_cast<float>(z / v) };
 	}
 	template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
-	[[nodiscard]] constexpr vec3_t operator*(const T &v) const
-	{
+	[[nodiscard]] constexpr vec3_t operator*(const T& v) const {
 		return { static_cast<float>(x * v), static_cast<float>(y * v), static_cast<float>(z * v) };
 	}
 	[[nodiscard]] constexpr vec3_t operator-() const

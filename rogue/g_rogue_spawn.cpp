@@ -176,26 +176,33 @@ THINK(spawngrow_think) (edict_t* self) -> void
 	self->nextthink += FRAME_TIME_MS;
 }
 
-static vec3_t SpawnGro_laser_pos(edict_t* ent)
+vec3_t SpawnGro_laser_pos(edict_t* ent)
 {
+	if (!ent || !ent->owner) {
+		// Handle error case, maybe return a default position or log an error
+		return vec3_t{ 0, 0, 0 };
+	}
+
 	// pick random direction
 	float theta = frandom(2 * PIf);
 	float phi = acos(crandom());
-
 	vec3_t d{
 		sin(phi) * cos(theta),
 		sin(phi) * sin(theta),
 		cos(phi)
 	};
 
-	return ent->s.origin + (d * ent->owner->s.scale * 9.f);
+	float scale = std::max(ent->owner->s.scale, 0.001f); // Prevent division by zero
+	return ent->s.origin + (d * scale * 9.f);
 }
 
 THINK(SpawnGro_laser_think) (edict_t* self) -> void
 {
-	self->s.old_origin = SpawnGro_laser_pos(self);
-	gi.linkentity(self);
-	self->nextthink = level.time + 1_ms;
+	if (self) {
+		self->s.old_origin = SpawnGro_laser_pos(self);
+		gi.linkentity(self);
+		self->nextthink = level.time + 1_ms;
+	}
 }
 
 void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
