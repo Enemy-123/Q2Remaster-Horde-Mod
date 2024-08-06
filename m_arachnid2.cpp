@@ -232,10 +232,16 @@ void gm_arachnid_rockets(edict_t* self)
 	case FRAME_rails8:
 		id = MZ2_ARACHNID_RAIL2;
 		break;
-	case FRAME_rails_up7:
+	case FRAME_rails_up4:
 		id = MZ2_ARACHNID_RAIL_UP1;
 		break;
-	case FRAME_rails_up11:
+	case FRAME_rails_up6:
+		id = MZ2_ARACHNID_RAIL_UP2;
+		break;
+	case FRAME_rails_up10:
+		id = MZ2_ARACHNID_RAIL_UP1;
+		break;
+	case FRAME_rails_up12:
 		id = MZ2_ARACHNID_RAIL_UP2;
 		break;
 	}
@@ -331,10 +337,10 @@ mframe_t arachnid2_frames_attack1[] = {
 	{ ai_charge },
 	{ ai_charge, 0, arachnid2_rail },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge }
+	//{ ai_charge },
+	//{ ai_charge }
 };
-MMOVE_T(arachnid2_attack1) = { FRAME_rails1, FRAME_rails11, arachnid2_frames_attack1, arachnid2_run };
+MMOVE_T(arachnid2_attack1) = { FRAME_rails3, FRAME_rails11, arachnid2_frames_attack1, arachnid2_run };
 
 mframe_t arachnid2_frames_attack_up1[] = {
 	{ ai_charge },
@@ -357,24 +363,26 @@ mframe_t arachnid2_frames_attack_up1[] = {
 MMOVE_T(arachnid2_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, arachnid2_frames_attack_up1, arachnid2_run };
 
 mframe_t gm_arachnid_frames_attack1[] = {
+
+	//{ ai_charge },
+	//{ ai_charge },
 	{ ai_charge, 0, gm_arachnid_blind_check },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
 	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
 	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
-	{ ai_charge, 0, gm_arachnid_rockets },
-	{ ai_charge }
+	//{ ai_charge, 0, gm_arachnid_rockets },
+	//{ ai_charge }
 };
-MMOVE_T(gm_arachnid_attack1) = { FRAME_rails1, FRAME_rails11, gm_arachnid_frames_attack1, arachnid2_run };
+MMOVE_T(gm_arachnid_attack1) = { FRAME_rails5, FRAME_rails11, gm_arachnid_frames_attack1, arachnid2_run };
 
 mframe_t gm_arachnid_frames_attack_up1[] = {
+
+	//{ ai_charge },
+	//{ ai_charge },
 	{ ai_charge, 0, gm_arachnid_blind_check },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, gm_arachnid_rockets },
 	{ ai_charge },
 	{ ai_charge, 0, gm_arachnid_rockets },
@@ -389,7 +397,7 @@ mframe_t gm_arachnid_frames_attack_up1[] = {
 	{ ai_charge },
 	{ ai_charge },
 };
-MMOVE_T(gm_arachnid_attack_up1) = { FRAME_rails_up1, FRAME_rails_up16, gm_arachnid_frames_attack_up1, arachnid2_run };
+MMOVE_T(gm_arachnid_attack_up1) = { FRAME_rails_up3, FRAME_rails_up16, gm_arachnid_frames_attack_up1, arachnid2_run };
 static cached_soundindex sound_melee, sound_melee_hit;
 
 void arachnid2_melee_charge(edict_t* self)
@@ -588,13 +596,12 @@ void SP_monster_gm_arachnid(edict_t* self)
 	self->monsterinfo.armor_power = 500;
 	self->style = 1;
 	self->health = 1000 * st.health_multiplier;
-
+	self->s.scale = 0.85f;
 	self->mins = { -48, -48, -20 };
 	self->maxs = { 48, 48, 48 };
 
 	if (!strcmp(self->classname, "monster_gm_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->health = 2800 + (1.08 * current_wave_number);
-		self->s.scale = 0.85f;
 		self->mins = { -41, -41, -17 };
 		self->maxs = { 41, 41, 41 };
 		self->gib_health = -999777;

@@ -566,10 +566,10 @@ void gunner2_blind_check(edict_t* self)
 }
 
 mframe_t gunner2_frames_attack_grenade[] = {
+	//{ ai_charge },
+	//{ ai_charge },
+	//{ ai_charge },
 	{ ai_charge, 0, gunner2_blind_check },
-	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge, 0, gunner2Grenade },
 	{ ai_charge },
 	{ ai_charge },
@@ -580,15 +580,15 @@ mframe_t gunner2_frames_attack_grenade[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, gunner2Grenade },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge }
+	//{ ai_charge },
+	//{ ai_charge }
 };
-MMOVE_T(gunner2_move_attack_grenade) = { FRAME_attak101, FRAME_attak121, gunner2_frames_attack_grenade, gunner2_run };
+MMOVE_T(gunner2_move_attack_grenade) = { FRAME_attak104, FRAME_attak119, gunner2_frames_attack_grenade, gunner2_run };
 
 mframe_t gunner2_frames_attack_grenade2[] = {
 	//{ ai_charge },
@@ -613,11 +613,11 @@ mframe_t gunner2_frames_attack_grenade2[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge },
 	{ ai_charge }
+	//{ ai_charge },
+	//{ ai_charge }
 };
-MMOVE_T(gunner2_move_attack_grenade2) = { FRAME_attak305, FRAME_attak324, gunner2_frames_attack_grenade2, gunner2_run };
+MMOVE_T(gunner2_move_attack_grenade2) = { FRAME_attak305, FRAME_attak322, gunner2_frames_attack_grenade2, gunner2_run };
 
 MONSTERINFO_ATTACK(gunner2_attack) (edict_t* self) -> void
 {
