@@ -68,7 +68,7 @@ constexpr std::array<vec3_t, MAX_REINFORCEMENTS> reinforcement_position = {
 };
 
 // filter out the reinforcement indices we can pick given the space we have left
-static void M_PickValidReinforcements(edict_t* self, int32_t space, std::vector<uint8_t>& output)
+static void M_PickValidReinforcements(edict_t* const self, int32_t space, std::vector<uint8_t>& output)
 {
 	output.clear();
 
@@ -850,10 +850,10 @@ constexpr vec3_t medic_cable_offsets[] = {
 
 void medic_cable_attack(edict_t* self)
 {
-	vec3_t	offset, start, end, f, r;
-	trace_t tr;
-	vec3_t	dir;
-	float	distance;
+	vec3_t	offset{}, start{}, end{}, f{}, r{};
+	trace_t tr{};
+	vec3_t	dir{};
+	float	distance{};
 
 	if ((!self->enemy) || (!self->enemy->inuse) || (self->enemy->s.effects & EF_GIB))
 	{
@@ -952,15 +952,15 @@ void medic_cable_attack(edict_t* self)
 			self->enemy->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 			// backup & restore health stuff, because of multipliers
-			int32_t old_max_health = self->enemy->max_health;
-			item_id_t old_power_armor_type = self->enemy->monsterinfo.initial_power_armor_type;
-			int32_t old_power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
-			int32_t old_base_health = self->enemy->monsterinfo.base_health;
-			int32_t old_health_scaling = self->enemy->monsterinfo.health_scaling;
+			const			int32_t old_max_health = self->enemy->max_health;
+			const			item_id_t old_power_armor_type = self->enemy->monsterinfo.initial_power_armor_type;
+			const			int32_t old_power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
+			const			int32_t old_base_health = self->enemy->monsterinfo.base_health;
+			const			int32_t old_health_scaling = self->enemy->monsterinfo.health_scaling;
 			auto reinforcements = self->enemy->monsterinfo.reinforcements;
-			int32_t monster_slots = self->enemy->monsterinfo.monster_slots;
-			int32_t monster_used = self->enemy->monsterinfo.monster_used;
-			int32_t old_gib_health = self->enemy->gib_health;
+			const			int32_t monster_slots = self->enemy->monsterinfo.monster_slots;
+			const			int32_t monster_used = self->enemy->monsterinfo.monster_used;
+			const			int32_t old_gib_health = self->enemy->gib_health;
 
 			st = {};
 			st.keys_specified.emplace("reinforcements");
@@ -1112,13 +1112,13 @@ void medic_start_spawn(edict_t* self)
 
 void medic_determine_spawn(edict_t* self)
 {
-	vec3_t f, r, offset, startpoint, spawnpoint;
-	int	   count;
+	vec3_t f{}, r{}, offset{}, startpoint{}, spawnpoint{};
+	int	   count{};
 	int	   num_success = 0;
 
 	AngleVectors(self->s.angles, f, r, nullptr);
 
-	int num_summoned;
+	int num_summoned{};
 	self->monsterinfo.chosen_reinforcements = M_PickReinforcements(self, num_summoned);
 
 	for (count = 0; count < num_summoned; count++)
@@ -1132,7 +1132,7 @@ void medic_determine_spawn(edict_t* self)
 		// a little off the ground
 		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+		const		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
 
 		if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
 		{
@@ -1162,7 +1162,7 @@ void medic_determine_spawn(edict_t* self)
 			// a little off the ground
 			startpoint[2] += 10;
 
-			auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+			const			auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
 
 			if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
 			{
@@ -1190,11 +1190,11 @@ void medic_determine_spawn(edict_t* self)
 
 void medic_spawngrows(edict_t* self)
 {
-	vec3_t f, r, offset, startpoint, spawnpoint;
-	int	   count;
-	int	   num_summoned; // should be 1, 3, or 5
+	vec3_t f{}, r{}, offset{}, startpoint{}, spawnpoint{};
+	int	   count{};
+	int	   num_summoned{}; // should be 1, 3, or 5
 	int	   num_success = 0;
-	float  current_yaw;
+	float  current_yaw{};
 
 	// if we've been directed to turn around
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
@@ -1228,14 +1228,14 @@ void medic_spawngrows(edict_t* self)
 		// a little off the ground
 		startpoint[2] += 10 * (self->s.scale ? self->s.scale : 1.0f);
 
-		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+		const		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
 
 		if (FindSpawnPoint(startpoint, reinforcement.mins, reinforcement.maxs, spawnpoint, 32))
 		{
 			if (CheckGroundSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs, 256, -1))
 			{
 				num_success++;
-				float radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
+				const				float radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
 				SpawnGrow_Spawn(spawnpoint + (reinforcement.mins + reinforcement.maxs), radius, radius * 2.f);
 			}
 		}
@@ -1247,11 +1247,11 @@ void medic_spawngrows(edict_t* self)
 
 void medic_finish_spawn(edict_t* self)
 {
-	edict_t* ent;
-	vec3_t	 f, r, offset, startpoint, spawnpoint;
-	int		 count;
-	int		 num_summoned; // should be 1, 3, or 5
-	edict_t* designated_enemy;
+	edict_t* ent{};
+	vec3_t	 f{}, r{}, offset{}, startpoint{}, spawnpoint{};
+	int		 count{};
+	int		 num_summoned{}; // should be 1, 3, or 5
+	edict_t* designated_enemy{};
 
 	AngleVectors(self->s.angles, f, r, nullptr);
 
@@ -1263,7 +1263,7 @@ void medic_finish_spawn(edict_t* self)
 
 	for (count = 0; count < num_summoned; count++)
 	{
-		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
+		const		auto& reinforcement = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.chosen_reinforcements[count]];
 		offset = reinforcement_position[count];
 
 		startpoint = M_ProjectFlashSource(self, offset, f, r);
@@ -1359,7 +1359,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
-	float enemy_range = range_to(self, self->enemy);
+	const	float enemy_range = range_to(self, self->enemy);
 
 	// signal from checkattack to spawn
 	if (self->monsterinfo.aiflags & AI_BLOCKED)

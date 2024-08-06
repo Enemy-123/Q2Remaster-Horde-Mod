@@ -1764,7 +1764,7 @@ void CTFGrappleFire(edict_t* ent, const vec3_t& g_offset, int damage, effects_t 
 	if (ent->client->ctf_grapplestate > CTF_GRAPPLE_STATE_FLY)
 		return; // it's already out
 
-	vec3_t start, dir;
+	vec3_t start{}, dir{};
 	P_ProjectSource(ent, ent->client->v_angle, vec3_t{ 24, 8, -8 + 2 } + g_offset, start, dir);
 
 	if (ent->client->silencer_shots)
@@ -2545,8 +2545,8 @@ std::string TruncateMessage(const std::string& message, size_t max_length) {
 }
 
 bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
-	int count;
-	edict_t* e;
+	int count{};
+	edict_t* e{};
 
 	if (electpercentage->value == 0) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Elections are disabled, only an admin can process this action.\n");
@@ -3249,7 +3249,7 @@ void CheckAndUpdateMenus() {
 }
 
 void UpdateHUDMenuLayout(edict_t* ent) {
-	char layout[256];
+	char layout[256]{};
 
 	snprintf(layout, sizeof(layout),
 		"xv 32 yv 8 picn \"inventory\" "

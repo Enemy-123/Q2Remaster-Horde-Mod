@@ -1513,36 +1513,40 @@ void TargetInflictor(edict_t* self, edict_t* inflictor)
 // this returns a randomly selected coop player who is visible to self
 // returns nullptr if bad
 
-edict_t *PickCoopTarget(edict_t *self)
+edict_t* PickCoopTarget(edict_t* self)
 {
-	edict_t** targets;
-	int		 num_targets = 0, targetID;
-	edict_t* ent;
-
 	// if we're not in coop, this is a noop
 	if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
 		return nullptr;
 
-	targets = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
+	edict_t** targets = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
+	if (!targets) {
+		// Manejar el error de asignación de memoria
+		gi.Com_Error("Memory allocation failed in PickCoopTarget");
+		return nullptr;
+	}
 
+	int num_targets = 0;
 	for (uint32_t player = 1; player <= game.maxclients; player++)
 	{
-		ent = &g_edicts[player];
-		if (!ent->inuse)
-			continue;
-		if (!ent->client)
+		edict_t* ent = &g_edicts[player];
+		if (!ent->inuse || !ent->client)
 			continue;
 		if (visible(self, ent))
 			targets[num_targets++] = ent;
 	}
 
-	if (!num_targets)
+	if (num_targets == 0) {
+		_freea(targets);
 		return nullptr;
+	}
 
 	// get a number from 0 to (num_targets-1)
-	targetID = irandom(num_targets);
+	int targetID = irandom(num_targets);
+	edict_t* result = targets[targetID];
 
-	return targets[targetID];
+	_freea(targets);
+	return result;
 }
 
 // only meant to be used in coop

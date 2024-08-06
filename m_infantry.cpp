@@ -200,7 +200,7 @@ extern const mmove_t infantry_move_jump2;
 
 PAIN(infantry_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
 {
-	int n;
+	int n{};
 
 	// allow turret to pain
 	if ((self->monsterinfo.active_move == &infantry_move_jump ||
@@ -273,10 +273,10 @@ constexpr vec3_t aimangles[] = {
 
 void InfantryMachineGun(edict_t *self)
 {
-	vec3_t	offset, start, f, r, dir;
-	vec3_t	end;
-	float	dist;
-	trace_t trace;
+	vec3_t	offset{}, start{}, f{}, r{}, dir{};
+	vec3_t	end{};
+	float	dist{};
+	trace_t trace{};
 
 	if (!has_valid_enemy(self))
 		return;
@@ -399,7 +399,7 @@ MMOVE_T(infantry_move_death3) = { FRAME_death301, FRAME_death309, infantry_frame
 DIE(infantry_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
 {
 	OnEntityDeath(self);
-	int n;
+	int n{};
 	
 	// check for gib
 	if (M_CheckGib(self, mod))
@@ -457,7 +457,7 @@ DIE(infantry_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
 		{
 			head->s.angles = self->s.angles;
 			head->s.origin = self->s.origin + vec3_t{0, 0, 32.f};
-			vec3_t headDir = (self->s.origin - inflictor->s.origin);
+			const			vec3_t headDir = (self->s.origin - inflictor->s.origin);
 			head->velocity = headDir / headDir.length() * 100.0f;
 			head->velocity[2] = 200.0f;
 			head->avelocity *= 0.15f;
@@ -623,7 +623,7 @@ void infantry_swing(edict_t *self)
 
 void infantry_smack(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
+	const	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		// Llamar a fire_hit solo si self->enemy está inicializado
@@ -658,11 +658,11 @@ MMOVE_T(infantry_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_fram
 constexpr float GRENADE_SPEED = 900;
 void infantry_grenade(edict_t* self)
 {
-	vec3_t start;
-	vec3_t forward, right, up;
-	vec3_t aim;
-	monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
-	float speed = GRENADE_SPEED;
+	vec3_t start{};
+	vec3_t forward{}, right{}, up{};
+	vec3_t aim{};
+	const	monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
+	const	float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
@@ -670,9 +670,9 @@ void infantry_grenade(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	vec3_t target = self->enemy->s.origin;
+	const	vec3_t target = self->enemy->s.origin;
 	aim = target - start;
-	float dist = aim.length();
+	const	float dist = aim.length();
 
 	// Adjust aim based on distance
 	if (dist > 200)
@@ -690,7 +690,7 @@ void infantry_grenade(edict_t* self)
 	aim.normalize();
 
 	// Adjust the pitch slightly downward to counteract the upward trajectory
-	float pitch_adjust = -0.1f - (dist * 0.0001f);
+	const	float pitch_adjust = -0.1f - (dist * 0.0001f);
 	aim += up * pitch_adjust;
 	aim.normalize();
 
@@ -760,7 +760,7 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
-	float r = range_to(self, self->enemy);
+	const	float r = range_to(self, self->enemy);
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
 	{

@@ -1199,7 +1199,7 @@ void G_SetStats(edict_t* ent)
 	void CTFSetIDView(edict_t * ent);
 	//ID DMG and CTFIDVIEW
 
-	if (ent->client->resp.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
+	if (ent && ent->client && ent->client->resp.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
 		CTFSetIDView(ent);
 
 	else

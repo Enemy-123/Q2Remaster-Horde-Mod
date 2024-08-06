@@ -83,7 +83,7 @@ pmenuhnd_t* PMenu_Open(edict_t* ent, const pmenu_t* entries, int cur, int num, v
 
 void PMenu_Close(edict_t* ent)
 {
-	pmenuhnd_t* hnd;
+	pmenuhnd_t* hnd{};
 
 	//// Verificar si estamos en tiempo de intermisión
 	//if (level.intermissiontime)
@@ -129,11 +129,11 @@ void PMenu_UpdateEntry(pmenu_t* entry, const char* text, int align, SelectFunc_t
 
 void PMenu_Do_Update(edict_t* ent)
 {
-	int			i;
-	pmenu_t* p;
-	int			x;
-	pmenuhnd_t* hnd;
-	const char* t;
+	int			i{};
+	pmenu_t* p{};
+	int			x{};
+	pmenuhnd_t* hnd{};
+	const char* t{};
 	bool		alt = false;
 
 	if (!ent->client->menu)

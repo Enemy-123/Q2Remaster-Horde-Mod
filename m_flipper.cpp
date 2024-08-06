@@ -161,7 +161,7 @@ void flipper_bite(edict_t* self)
 		return;
 	}
 
-	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
+	const	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	fire_hit(self, aim, 5, 0);
 }
 
@@ -201,7 +201,7 @@ MONSTERINFO_MELEE(flipper_melee) (edict_t *self) -> void
 
 PAIN(flipper_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
 {
-	int n;
+	int n{};
 
 	if (level.time < self->pain_debounce_time)
 		return;

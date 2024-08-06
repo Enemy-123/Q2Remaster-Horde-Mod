@@ -442,10 +442,10 @@ MMOVE_T(makron_move_sight) = { FRAME_active01, FRAME_active13, makron_frames_sig
 
 void makronBFG(edict_t *self)
 {
-	vec3_t forward, right;
-	vec3_t start;
-	vec3_t dir;
-	vec3_t vec;
+	vec3_t forward{}, right{};
+	vec3_t start{};
+	vec3_t dir{};
+	vec3_t vec{};
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_MAKRON_BFG], forward, right);
@@ -549,10 +549,10 @@ void MakronRailgun(edict_t *self)
 
 void MakronHyperblaster(edict_t *self)
 {
-	vec3_t dir;
-	vec3_t vec;
-	vec3_t start;
-	vec3_t forward, right;
+	vec3_t dir{};
+	vec3_t vec{};
+	vec3_t start{};
+	vec3_t forward{}, right{};
 
 	monster_muzzleflash_id_t flash_number = (monster_muzzleflash_id_t) (MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405));
 
@@ -770,7 +770,7 @@ void SP_monster_makron(edict_t* self)
 	if (g_horde->integer) {
 		if (!strcmp(self->classname, "monster_makronkl"))
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			const			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, sound_taunt1, 1, ATTN_NONE, 0);
@@ -842,8 +842,8 @@ MakronSpawn
 */
 THINK(MakronSpawn) (edict_t* self) -> void
 {
-	vec3_t	 vec;
-	edict_t* player;
+	vec3_t	 vec{};
+	edict_t* player{};
 
 
 	if (g_horde->integer && current_wave_number <= 20 || !g_horde->integer) {

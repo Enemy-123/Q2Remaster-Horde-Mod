@@ -109,7 +109,7 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 
 void GladiatorMelee(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
+	const	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -158,9 +158,9 @@ MONSTERINFO_MELEE(gladiator_melee) (edict_t* self) -> void
 
 void GladiatorGun(edict_t* self)
 {
-	vec3_t start;
-	vec3_t dir;
-	vec3_t forward, right;
+	vec3_t start{};
+	vec3_t dir{};
+	vec3_t forward{}, right{};
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_GLADIATOR_RAILGUN_1], forward, right);
@@ -236,9 +236,9 @@ MMOVE_T(gladb_move_attack_gun) = { FRAME_attack1, FRAME_attack9, gladb_frames_at
 // RAFAEL
 void gladcGun(edict_t* self)
 {
-	vec3_t start;
-	vec3_t dir;
-	vec3_t forward, right;
+	vec3_t start{};
+	vec3_t dir{};
+	vec3_t forward{}, right{};
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_GLADIATOR_RAILGUN_1], forward, right);
@@ -255,7 +255,7 @@ void gladcGun(edict_t* self)
 		damage /= 2;
 		radius_damage /= 2;
 	}
-	float r = frandom();
+	const	float r = frandom();
 	fire_plasma(self, start, dir, damage, 925, radius_damage, radius_damage);
 	if (r < 0.5f && current_wave_number >= 18) {
 		fire_plasma(self, start, dir, damage, 1225, radius_damage, radius_damage);
@@ -469,8 +469,8 @@ MONSTERINFO_BLOCKED(gladiator_blocked) (edict_t* self, float dist) -> bool
 void SP_monster_gladiator(edict_t* self)
 {
 
-	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+	if (g_horde->integer && current_wave_number <= 18) {
+		const		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

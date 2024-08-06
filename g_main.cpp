@@ -581,7 +581,7 @@ The timelimit or fraglimit has been exceeded
 */
 void EndDMLevel()
 {
-	edict_t* ent;
+	edict_t* ent{};
 
 	// stay on same level flag
 	if (g_dm_same_level->integer)
@@ -601,7 +601,7 @@ void EndDMLevel()
 	{
 		const char* str = g_map_list->string;
 		char first_map[MAX_QPATH]{ 0 };
-		char* map;
+		char* map{};
 
 		while (1)
 		{
@@ -690,7 +690,7 @@ CheckNeedPass
 */
 void CheckNeedPass()
 {
-	int need;
+	int need{};
 	static int32_t password_modified, spectator_password_modified;
 
 	// if password or spectator_password has changed, update needpass

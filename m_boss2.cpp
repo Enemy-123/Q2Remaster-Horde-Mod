@@ -39,9 +39,9 @@ constexpr int32_t BOSS2_ROCKET_SPEED = 1150;
 
 void Boss2PredictiveRocket(edict_t* self)
 {
-	vec3_t forward, right;
-	vec3_t start;
-	vec3_t dir;
+	vec3_t forward{}, right{};
+	vec3_t start{};
+	vec3_t dir{};
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
@@ -68,23 +68,34 @@ void Boss2PredictiveRocket(edict_t* self)
 
 void Boss2Rocket(edict_t* self)
 {
+	// Verificación inicial de punteros nulos
+	if (!self)
+	{
+		gi.Com_PrintFmt("Error: Boss2Rocket llamada con self nulo\n");
+		return;
+	}
+
+	if (!self->enemy)
+	{
+		gi.Com_PrintFmt("Advertencia: Boss2Rocket: No se encontró enemigo para el jefe\n");
+		return;
+	}
+
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
 	vec3_t vec;
 
-	if (self && self->enemy)
+	// Lógica para el cohete predictivo
+	if (self->enemy->client && frandom() < 0.9f)
 	{
-		if (self->enemy->client && frandom() < 0.9f)
-		{
-			Boss2PredictiveRocket(self);
-			return;
-		}
+		Boss2PredictiveRocket(self);
+		return;
 	}
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 
-	// 1
+	// Cohete 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right);
 	vec = self->enemy->s.origin;
 	vec[2] -= 15;
@@ -94,7 +105,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	monster_fire_rocket(self, start, dir, 50, 800, MZ2_BOSS2_ROCKET_1);
 
-	// 2
+	// Cohete 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
 	vec = self->enemy->s.origin;
 	dir = vec - start;
@@ -103,7 +114,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	monster_fire_rocket(self, start, dir, 50, 750, MZ2_BOSS2_ROCKET_2);
 
-	// 3
+	// Cohete 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
 	vec = self->enemy->s.origin;
 	dir = vec - start;
@@ -112,7 +123,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	monster_fire_rocket(self, start, dir, 50, 650, MZ2_BOSS2_ROCKET_3);
 
-	// 4
+	// Cohete 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
 	vec = self->enemy->s.origin;
 	vec[2] -= 15;
@@ -285,9 +296,9 @@ MMOVE_T(boss2_move_attack_mg) = { FRAME_attack10, FRAME_attack15, boss2_frames_a
 // [Paril-KEX]
 void Boss2HyperBlaster(edict_t* self)
 {
-	vec3_t forward, right, target;
-	vec3_t start;
-	monster_muzzleflash_id_t id = (self->s.frame & 1) ? MZ2_BOSS2_MACHINEGUN_L2 : MZ2_BOSS2_MACHINEGUN_R2;
+	vec3_t forward{}, right{}, target{};
+	vec3_t start{};
+const	monster_muzzleflash_id_t id = (self->s.frame & 1) ? MZ2_BOSS2_MACHINEGUN_L2 : MZ2_BOSS2_MACHINEGUN_R2;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
@@ -476,8 +487,8 @@ MONSTERINFO_WALK(boss2_walk) (edict_t* self) -> void
 
 MONSTERINFO_ATTACK(boss2_attack) (edict_t* self) -> void
 {
-	vec3_t vec;
-	float  range;
+	vec3_t vec{};
+	float  range{};
 
 	vec = self->enemy->s.origin - self->s.origin;
 	range = vec.length();
@@ -509,7 +520,7 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 	self->pain_debounce_time = level.time + 3_sec;
 
 	// Determine attenuation based on the monster type and spawnflags
-	float attenuation;
+	float attenuation{};
 	if (!(g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))) {
 		attenuation = ATTN_NORM;
 	}

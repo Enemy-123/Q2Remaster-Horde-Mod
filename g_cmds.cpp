@@ -1167,10 +1167,10 @@ Cmd_Players_f
 */
 void Cmd_Players_f(edict_t* ent)
 {
-	size_t	i;
-	size_t	count;
-	static std::string	small, large;
-	int		index[MAX_CLIENTS];
+	size_t	i{};
+	size_t	count{};
+	static std::string	small{}, large{};
+	int		index[MAX_CLIENTS]{};
 
 	small.clear();
 	large.clear();
@@ -1591,7 +1591,7 @@ ClientCommand
 */
 void ClientCommand(edict_t* ent)
 {
-	const char* cmd;
+	const char* cmd{};
 
 	if (!ent->client)
 		return; // not fully in game yet

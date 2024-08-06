@@ -377,10 +377,10 @@ void gunner_opengun(edict_t* self)
 
 void GunnerFire(edict_t* self)
 {
-	vec3_t					 start;
-	vec3_t					 forward, right;
-	vec3_t					 aim;
-	monster_muzzleflash_id_t flash_number;
+	vec3_t					 start{};
+	vec3_t					 forward{}, right{};
+	vec3_t					 aim{};
+	monster_muzzleflash_id_t flash_number{};
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
@@ -404,7 +404,7 @@ void GunnerFire(edict_t* self)
 
 bool gunner_grenade_check(edict_t* self)
 {
-	vec3_t	dir;
+	vec3_t	dir{};
 
 	if (!self->enemy)
 		return false;
@@ -414,7 +414,7 @@ bool gunner_grenade_check(edict_t* self)
 	if (!M_CheckClearShot(self, monster_flash_offset[MZ2_GUNNER_GRENADE_1], start))
 		return false;
 
-	vec3_t target;
+	vec3_t target{};
 
 	// check for flag telling us that we're blindfiring
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
@@ -436,14 +436,14 @@ bool gunner_grenade_check(edict_t* self)
 
 void GunnerGrenade(edict_t* self)
 {
-	vec3_t					 start;
-	vec3_t					 forward, right, up;
-	vec3_t					 aim;
-	monster_muzzleflash_id_t flash_number;
-	float					 spread;
+	vec3_t					 start{};
+	vec3_t					 forward{}, right{}, up{};
+	vec3_t					 aim{};
+	monster_muzzleflash_id_t flash_number{};
+	float					 spread{};
 	float					 pitch = 0;
 	// PMM
-	vec3_t target;
+	vec3_t target{};
 	bool   blindfire = false;
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
@@ -498,7 +498,7 @@ void GunnerGrenade(edict_t* self)
 	// PGM
 	if (self->enemy)
 	{
-		float dist;
+		float dist{};
 
 		aim = target - self->s.origin;
 		dist = aim.length();
@@ -565,7 +565,7 @@ MMOVE_T(gunner_move_endfire_chain) = { FRAME_attak224, FRAME_attak230, gunner_fr
 
 void gunner_blind_check(edict_t* self)
 {
-	vec3_t aim;
+	vec3_t aim{};
 
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
@@ -630,7 +630,7 @@ MMOVE_T(gunner_move_attack_grenade2) = { FRAME_attak305, FRAME_attak322, gunner_
 
 MONSTERINFO_ATTACK(gunner_attack) (edict_t* self) -> void
 {
-	float chance, r;
+	float chance{}, r{};
 
 	monster_done_dodge(self);
 
@@ -877,7 +877,7 @@ void SP_monster_gunner(edict_t* self)
 {
 
 	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		const		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

@@ -479,7 +479,7 @@ MONSTERINFO_RUN(insane_run) (edict_t *self) -> void
 
 PAIN(insane_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
 {
-	int l, r;
+	int l{}, r{};
 
 	if (level.time < self->pain_debounce_time)
 		return;

@@ -381,17 +381,17 @@ void hover_reattack(edict_t *self)
 
 void hover_fire_blaster(edict_t *self)
 {
-	vec3_t	  start;
-	vec3_t	  forward, right;
-	vec3_t	  end;
-	vec3_t	  dir;
-	int		rocketSpeed;
+	vec3_t	  start{};
+	vec3_t	  forward{}, right{};
+	vec3_t	  end{};
+	vec3_t	  dir{};
+	int		rocketSpeed{};
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
+	const	vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
 	start = M_ProjectFlashSource(self, o, forward, right);
 
 	end = self->enemy->s.origin;
@@ -580,10 +580,10 @@ This is the improved icarus monster.
 */
 void SP_monster_hover(edict_t* self)
 {
-	if (g_horde->integer) {
+	if (g_horde->integer && current_wave_number <= 18) {
 		if (strcmp(self->classname, "monster_daedalus"))
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			const			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
@@ -595,7 +595,7 @@ void SP_monster_hover(edict_t* self)
 
 		else if (!strcmp(self->classname, "monster_daedalus")) {
 
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			const			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);

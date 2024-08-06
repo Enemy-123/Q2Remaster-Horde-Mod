@@ -38,10 +38,10 @@ void floater_zap(edict_t* self);
 
 void floater_fire_blaster(edict_t* self)
 {
-	vec3_t	  start;
-	vec3_t	  forward, right;
-	vec3_t	  end;
-	vec3_t	  dir;
+	vec3_t	  start{};
+	vec3_t	  forward{}, right{};
+	vec3_t	  end{};
+	vec3_t	  dir{};
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
@@ -530,10 +530,10 @@ void floater_wham(edict_t* self)
 
 void floater_zap(edict_t* self)
 {
-	vec3_t forward, right;
-	vec3_t origin;
-	vec3_t dir;
-	vec3_t offset;
+	vec3_t forward{}, right{};
+	vec3_t origin{};
+	vec3_t dir{};
+	vec3_t offset{};
 
 	dir = self->enemy->s.origin - self->s.origin;
 
@@ -558,7 +558,7 @@ void floater_zap(edict_t* self)
 
 MONSTERINFO_ATTACK(floater_attack) (edict_t* self) -> void
 {
-	float chance = 0.5f;
+	const	float chance = 0.5f;
 
 	if (frandom() > chance)
 	{
@@ -667,9 +667,9 @@ constexpr spawnflags_t SPAWNFLAG_FLOATER_DISGUISE = 8_spawnflag;
  */
 void SP_monster_floater(edict_t* self)
 {
-	if (g_horde->integer)
+	if (g_horde->integer && current_wave_number <= 18)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		const		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.12f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);

@@ -386,9 +386,9 @@ void hover2_fire_blaster(edict_t* self)
 {
 
 	if (strcmp(self->classname, "monster_daedalus2") == 0) {
-		vec3_t start;
-		vec3_t forward, right, up;
-		vec3_t end;
+		vec3_t start{};
+		vec3_t forward{}, right{}, up{};
+		vec3_t end{};
 		vec3_t dir{};
 		vec3_t aim{};
 		float spread = 0.0f;
@@ -427,10 +427,10 @@ void hover2_fire_blaster(edict_t* self)
 
 	else
 	{
-		vec3_t	  start;
-		vec3_t	  forward, right;
-		vec3_t	  end;
-		vec3_t	  dir;
+		vec3_t	  start{};
+		vec3_t	  forward{}, right{};
+		vec3_t	  end{};
+		vec3_t	  dir{};
 
 		if (!self->enemy || !self->enemy->inuse) // PGM
 			return;								 // PGM
@@ -641,30 +641,30 @@ static void hover2_set_fly_parameters(edict_t* self) {
  */
 void SP_monster_hover2(edict_t* self)
 {
-	if (g_horde->integer) {
+	if (g_horde->integer && current_wave_number <= 18) {
 		if (strcmp(self->classname, "monster_daedalus2"))
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			const			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 			if (randomsearch < 0.12f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
 			else if (randomsearch < 0.24f)
 				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 		else
 		{
 			if (!strcmp(self->classname, "monster_daedalus2"))
 			{
-				float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+				const				float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 				if (randomsearch < 0.12f)
 					gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);
 				else if (randomsearch < 0.24f)
 					gi.sound(self, CHAN_VOICE, daed_sound_search2, 1, ATTN_NORM, 0);
 				else
-					NULL;
+					nullptr;
 			}
 		}
 	}

@@ -241,7 +241,7 @@ MMOVE_T(chick_move_pain3) = { FRAME_pain301, FRAME_pain321, chick_frames_pain3, 
 
 PAIN(chick_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	float r;
+	float r{};
 
 	monster_done_dodge(self);
 
@@ -344,7 +344,7 @@ MMOVE_T(chick_move_death1) = { FRAME_death101, FRAME_death112, chick_frames_deat
 DIE(chick_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
-	int n;
+	int n{};
 
 	// check for gib
 	if (M_CheckGib(self, mod))
@@ -403,7 +403,7 @@ MMOVE_T(chick_move_duck) = { FRAME_duck01, FRAME_duck07, chick_frames_duck, chic
 
 void ChickSlash(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 10 };
+const	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 10 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -421,14 +421,14 @@ void ChickSlash(edict_t* self)
 
 void ChickRocket(edict_t* self)
 {
-	vec3_t	forward, right;
-	vec3_t	start;
-	vec3_t	dir;
-	vec3_t	vec;
-	trace_t trace; // PMM - check target
-	int		rocketSpeed;
+	vec3_t	forward{}, right{};
+	vec3_t	start{};
+	vec3_t	dir{};
+	vec3_t	vec{};
+	trace_t trace{}; // PMM - check target
+	int		rocketSpeed{};
 	// pmm - blindfire
-	vec3_t target;
+	vec3_t target{};
 	bool   blindfire = false;
 
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
@@ -560,7 +560,7 @@ void Chick_PreAttack1(edict_t* self)
 
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		const		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
@@ -711,7 +711,7 @@ MONSTERINFO_ATTACK(chick_attack) (edict_t* self) -> void
 	if (!M_CheckClearShot(self, monster_flash_offset[MZ2_CHICK_ROCKET_1]))
 		return;
 
-	float r, chance;
+	float r{}, chance{};
 
 	monster_done_dodge(self);
 
@@ -805,7 +805,7 @@ void SP_monster_chick(edict_t* self)
 
 	if (g_horde->integer)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		const		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.24f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

@@ -367,8 +367,8 @@ change the speed for the next frame
 */
 void plat_CalcAcceleratedMove(moveinfo_t *moveinfo)
 {
-	float accel_dist;
-	float decel_dist;
+	float accel_dist{};
+	float decel_dist{};
 
 	if (moveinfo->remaining_distance < moveinfo->accel)
 	{
@@ -439,11 +439,11 @@ void plat_Accelerate(moveinfo_t *moveinfo)
 	// are we accelerating?
 	if (moveinfo->current_speed < moveinfo->speed)
 	{
-		float old_speed;
-		float p1_distance;
-		float p1_speed;
-		float p2_distance;
-		float distance;
+		float old_speed{};
+		float p1_distance{};
+		float p1_speed{};
+		float p2_distance{};
+		float distance{};
 
 		old_speed = moveinfo->current_speed;
 
@@ -2780,10 +2780,10 @@ DIE(door_secret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int 
 
 void SP_func_door_secret(edict_t *ent)
 {
-	vec3_t forward, right, up;
-	float  side;
-	float  width;
-	float  length;
+	vec3_t forward{}, right{}, up{};
+	float  side{};
+	float  width{};
+	float  length{};
 
 	G_SetMoveinfoSounds(ent, "doors/dr1_strt.wav", "doors/dr1_mid.wav", "doors/dr1_end.wav");
 
