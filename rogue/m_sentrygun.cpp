@@ -408,14 +408,13 @@ constexpr int32_t TURRET2_BULLET_DAMAGE = 6;
 // unused
 // constexpr int32_t turret2_HEAT_DAMAGE	= 4;
 constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.0_sec; // 2.3 segundos
-
 void turret2Fire(edict_t* self)
 {
 	vec3_t forward;
 	vec3_t start, end, dir;
 	float dist, chance;
 	trace_t trace;
-	int rocketSpeed = 1650;  // Velocidad del cohete para la ametralladora/cohete
+	int projectileSpeed;
 	bool damageApplied = false;  // Bandera para prevenir daño duplicado
 
 	turret2Aim(self);
@@ -445,9 +444,11 @@ void turret2Fire(edict_t* self)
 	chance = frandom();
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-		rocketSpeed = 1800;
+		projectileSpeed = 1800;
+	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
+		projectileSpeed = 1650;  // Velocidad del cohete para la ametralladora/cohete
 
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) || visible(self, self->enemy))
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) || self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) || visible(self, self->enemy))
 	{
 		start = self->s.origin;
 		// Apuntar a la cabeza
@@ -465,7 +466,7 @@ void turret2Fire(edict_t* self)
 		// Fuego predictivo
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
-			PredictAim(self, self->enemy, start, rocketSpeed, true, 0.0f, &dir, nullptr);
+			PredictAim(self, self->enemy, start, projectileSpeed, true, 0.0f, &dir, nullptr);
 		}
 
 		dir.normalize();
@@ -477,14 +478,13 @@ void turret2Fire(edict_t* self)
 			{
 				// Disparo de cohetes cada 2.3 segundos
 				gtime_t currentTime = level.time;
-				gtime_t rocketFireInterval = 2.3_sec;
-				if (currentTime > self->monsterinfo.last_rocket_fire_time + rocketFireInterval)
+				if (currentTime > self->monsterinfo.last_rocket_fire_time + ROCKET_FIRE_INTERVAL)
 				{
 					self->monsterinfo.last_rocket_fire_time = currentTime;
 
 					if (dist * trace.fraction > 72 && !damageApplied)
 					{
-						PredictAim(self, self->enemy, start, rocketSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
+						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 						fire_rocket(self->owner, start, dir, 100, 1220, 100, 75);
 						damageApplied = true;
 					}
@@ -530,19 +530,23 @@ void turret2Fire(edict_t* self)
 						damageApplied = true;
 					}
 
-					// Disparo de plasma en intervalos
+					// Disparo de plasma en intervalos con mira predictiva
 					gtime_t currentTime = level.time;
 					if (currentTime > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
 					{
 						self->monsterinfo.last_plasma_fire_time = currentTime;
-						fire_plasma(self->owner, start, dir, 90, 950, 100, 75);
+
+						// Mira predictiva para el plasma
+						vec3_t predictedDir;
+						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &predictedDir, nullptr);
+
+						fire_plasma(self->owner, start, predictedDir, 90, 950, 100, 75);
 					}
 				}
 			}
 		}
 	}
 }
-
 // PMM
 void turret2FireBlind(edict_t* self)
 {
