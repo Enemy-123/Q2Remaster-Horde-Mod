@@ -643,7 +643,7 @@ void SP_monster_supertank(edict_t* self)
 		return;
 	}
 
-	if (g_horde->integer) {
+	if (g_horde->integer && current_wave_number <= 18) {
 
 		if (strcmp(self->classname, "monster_janitor")) {
 			{

@@ -468,8 +468,8 @@ MONSTERINFO_BLOCKED(gladiator_blocked) (edict_t* self, float dist) -> bool
  */
 void SP_monster_gladiator(edict_t* self)
 {
-
-	if (g_horde->integer) {
+	if (g_horde->integer && current_wave_number <= 18)
+	{
 		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
