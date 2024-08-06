@@ -1529,13 +1529,21 @@ void AllowNextWaveAdvance() noexcept {
 }
 
 int32_t CalculateRemainingMonsters() noexcept {
-    int32_t remaining = 0;
-    for (auto ent : active_monsters()) {
-        if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-            ++remaining;
+    static int32_t lastCalculatedRemaining = -1;
+    static gtime_t lastCalculationTime;
+
+    // Recalcular solo si han pasado al menos 0.5 segundos desde el último cálculo
+    if (lastCalculatedRemaining == -1 || (level.time - lastCalculationTime) >= 0.5_sec) {
+        int32_t remaining = 0;
+        for (auto ent : active_monsters()) {
+            if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+                ++remaining;
+            }
         }
+        lastCalculatedRemaining = remaining;
+        lastCalculationTime = level.time;
     }
-    return remaining;
+    return lastCalculatedRemaining;
 }
 
 // Nueva función para reiniciar ambos temporizadores
@@ -1545,6 +1553,10 @@ void ResetTimers() noexcept {
 }
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
+    static ConditionParams lastParams;
+    static int32_t lastWaveNumber = -1;
+    static int32_t lastNumHumanPlayers = -1;
+
     if (allowWaveAdvance) {
         allowWaveAdvance = false;
         ResetTimers();
@@ -1552,29 +1564,40 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) noexcept {
     }
 
     const int32_t numHumanPlayers = GetNumHumanPlayers();
-    const ConditionParams params = GetConditionParams(mapSize, numHumanPlayers);
+
+    // Solo recalcular los parámetros si algo ha cambiado
+    if (current_wave_number != lastWaveNumber || numHumanPlayers != lastNumHumanPlayers) {
+        lastParams = GetConditionParams(mapSize, numHumanPlayers);
+        lastWaveNumber = current_wave_number;
+        lastNumHumanPlayers = numHumanPlayers;
+    }
+
+    // Usar una variable estática para el temporizador independiente
+    static gtime_t independentTimerStart;
 
     if (cachedRemainingMonsters == -1) {
         cachedRemainingMonsters = CalculateRemainingMonsters();
     }
 
     // Verificar el temporizador independiente
-    if (!independent_timer_start) {
-        independent_timer_start = level.time;
+    if (!independentTimerStart) {
+        independentTimerStart = level.time;
     }
-    if ((level.time - independent_timer_start) >= params.independentTimeThreshold) {
+    if ((level.time - independentTimerStart) >= lastParams.independentTimeThreshold) {
         ResetTimers();
+        independentTimerStart = gtime_t();
         cachedRemainingMonsters = -1;
         return true;
     }
 
     // Lógica existente para maxMonsters y timeThreshold
-    if (cachedRemainingMonsters <= params.maxMonsters) {
+    if (cachedRemainingMonsters <= lastParams.maxMonsters) {
         if (!condition_start_time) {
             condition_start_time = level.time;
         }
-        if ((level.time - condition_start_time) >= params.timeThreshold) {
+        if ((level.time - condition_start_time) >= lastParams.timeThreshold) {
             ResetTimers();
+            independentTimerStart = gtime_t();
             cachedRemainingMonsters = -1;
             return true;
         }
