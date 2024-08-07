@@ -83,8 +83,7 @@ void Hook_Reset(edict_t* rhook)
 // resets the hook if it needs to be
 bool Hook_Check(edict_t* self)
 {
-	if (!self->enemy || !self->owner)
-	{
+	if (!self || !self->owner || !self->owner->client) {
 		Hook_Reset(self);
 		return true;
 	}
@@ -266,10 +265,22 @@ THINK(Hook_Think) (edict_t* self) -> void
 	vec3_t forward, right, offset, start;
 	vec3_t dir;   // Kyper - Lithium port - remove forward and right?
 
-	// stupid check for NULL pointers ...
-	if (!(self && self->owner && self->owner->owner && self->owner->owner->client))
-	{
-		gi.Com_Print("Hook_Think: error\n");
+	if (!self) {
+		gi.Com_Print("Hook_Think: self is null\n");
+		return;
+	}
+	if (!self->owner) {
+		gi.Com_Print("Hook_Think: self->owner is null\n");
+		G_FreeEdict(self);
+		return;
+	}
+	if (!self->owner->owner) {
+		gi.Com_Print("Hook_Think: self->owner->owner is null\n");
+		G_FreeEdict(self);
+		return;
+	}
+	if (!self->owner->owner->client) {
+		gi.Com_Print("Hook_Think: self->owner->owner->client is null\n");
 		G_FreeEdict(self);
 		return;
 	}
