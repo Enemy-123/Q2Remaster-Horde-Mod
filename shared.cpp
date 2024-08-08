@@ -247,52 +247,51 @@ std::string GetDisplayName(edict_t* ent)
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
 	monster->initial_max_health = monster->health;
-	if (!monster->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-		if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
-		{
-			monster->s.effects |= EF_ROCKET | EF_FIREBALL;
-			monster->s.renderfx |= RF_SHELL_RED;
-			monster->health *= 2.0f;
-			monster->monsterinfo.power_armor_power *= 1.25f;
-			monster->initial_max_health = monster->health;
-			monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 175_sec;
-		}
-		if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
-		{
-			monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-			monster->health *= 1.5f;
-			monster->monsterinfo.power_armor_power *= 1.4f;
-			monster->initial_max_health = monster->health;
-		}
-		if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
-			monster->s.effects |= EF_BLUEHYPERBLASTER;
-			monster->s.renderfx |= RF_TRANSLUCENT;
-			monster->monsterinfo.power_armor_power *= 4.0f;
-			monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 12_sec;
-		}
-		if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
-			monster->s.effects |= EF_GIB | EF_FLAG2;
-			monster->health *= 1.5f;
-			monster->monsterinfo.power_armor_power *= 1.4f;
-			monster->initial_max_health = monster->health; // Incrementar initial_max_health
-			monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 175_sec;
-			monster->monsterinfo.attack_state = AS_BLIND;
-		}
-		if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
-			monster->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-			monster->s.alpha = 0.5f;
-			monster->health *= 1.7f;
-			monster->monsterinfo.power_armor_power *= 1.7f;
-			monster->initial_max_health = monster->health; // Incrementar initial_max_health
-			monster->monsterinfo.attack_state = AS_BLIND;
-		}
-		if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
-			monster->s.effects |= EF_TRACKER | EF_FLAG1;
-			monster->health *= 1.5f;
-			monster->monsterinfo.power_armor_power *= 1.1f;
-			monster->initial_max_health = monster->health; // Incrementar initial_max_health
-			monster->monsterinfo.attack_state = AS_BLIND;
-		}
+
+	if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
+	{
+		monster->s.effects |= EF_ROCKET | EF_FIREBALL;
+		monster->s.renderfx |= RF_SHELL_RED;
+		monster->health *= 2.0f;
+		monster->monsterinfo.power_armor_power *= 1.25f;
+		monster->initial_max_health = monster->health;
+		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 175_sec;
+	}
+	if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
+	{
+		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
+		monster->health *= 1.5f;
+		monster->monsterinfo.power_armor_power *= 1.4f;
+		monster->initial_max_health = monster->health;
+	}
+	if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
+		monster->s.effects |= EF_BLUEHYPERBLASTER;
+		monster->s.renderfx |= RF_TRANSLUCENT;
+		monster->monsterinfo.power_armor_power *= 4.0f;
+		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 12_sec;
+	}
+	if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
+		monster->s.effects |= EF_GIB | EF_FLAG2;
+		monster->health *= 1.5f;
+		monster->monsterinfo.power_armor_power *= 1.3f;
+		monster->initial_max_health = monster->health; // Incrementar initial_max_health
+		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 175_sec;
+		monster->monsterinfo.attack_state = AS_BLIND;
+	}
+	if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
+		monster->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+		monster->s.alpha = 0.5f;
+		monster->health *= 1.7f;
+		monster->monsterinfo.power_armor_power *= 1.7f;
+		monster->initial_max_health = monster->health; // Incrementar initial_max_health
+		monster->monsterinfo.attack_state = AS_BLIND;
+	}
+	if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
+		monster->s.effects |= EF_TRACKER | EF_FLAG1;
+		monster->health *= 1.5f;
+		monster->monsterinfo.power_armor_power *= 1.1f;
+		monster->initial_max_health = monster->health; // Incrementar initial_max_health
+		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 }
 
@@ -300,63 +299,62 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 {
 	health_multiplier = 1.0f;
 	power_armor_multiplier = 1.0f;
-	if (boss->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-		if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
-			boss->s.scale = 1.3f;
-			boss->mins *= 1.3f;
-			boss->maxs *= 1.3f;
-			boss->s.effects |= EF_ROCKET;
-			boss->s.renderfx |= RF_SHELL_RED;
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.25f;
-		}
-		if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
-			boss->s.scale = 1.5f;
-			boss->mins *= 1.5f;
-			boss->maxs *= 1.5f;
-			boss->s.effects |= EF_FLIES;
-			health_multiplier *= 1.4f;
-			power_armor_multiplier *= 1.4f;
-		}
-		if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
-			boss->s.effects |= EF_BLUEHYPERBLASTER;
-			boss->s.renderfx |= RF_TRANSLUCENT;
-			power_armor_multiplier *= 1.4f;
-		}
-		if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
-			boss->s.effects |= EF_GIB | EF_FLAG2;
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.5f;
-		}
-		if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
-			boss->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-			boss->s.alpha = 0.5f;
-			health_multiplier *= 1.4f;
-			power_armor_multiplier *= 1.4f;
-		}
-		if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
-			boss->s.scale = 1.2f;
-			boss->mins *= 1.2f;
-			boss->maxs *= 1.2f;
-			boss->s.effects |= EF_FIREBALL | EF_FLAG1;
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.1f;
-		}
 
-		// Ajustar la salud y armadura de acuerdo a los multiplicadores
-		boss->health *= health_multiplier;
-		boss->monsterinfo.power_armor_power *= power_armor_multiplier;
+	if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
+		boss->s.scale = 1.3f;
+		boss->mins *= 1.3f;
+		boss->maxs *= 1.3f;
+		boss->s.effects |= EF_ROCKET;
+		boss->s.renderfx |= RF_SHELL_RED;
+		health_multiplier *= 1.5f;
+		power_armor_multiplier *= 1.25f;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
+		boss->s.scale = 1.5f;
+		boss->mins *= 1.5f;
+		boss->maxs *= 1.5f;
+		boss->s.effects |= EF_FLIES;
+		health_multiplier *= 1.4f;
+		power_armor_multiplier *= 1.4f;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
+		boss->s.effects |= EF_BLUEHYPERBLASTER;
+		boss->s.renderfx |= RF_TRANSLUCENT;
+		power_armor_multiplier *= 1.4f;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
+		boss->s.effects |= EF_GIB | EF_FLAG2;
+		health_multiplier *= 1.5f;
+		power_armor_multiplier *= 1.5f;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
+		boss->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+		boss->s.alpha = 0.5f;
+		health_multiplier *= 1.4f;
+		power_armor_multiplier *= 1.4f;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
+		boss->s.scale = 1.2f;
+		boss->mins *= 1.2f;
+		boss->maxs *= 1.2f;
+		boss->s.effects |= EF_FIREBALL | EF_FLAG1;
+		health_multiplier *= 1.5f;
+		power_armor_multiplier *= 1.1f;
+	}
 
-		if (isSmallMap)
-		{
-			boss->health *= 0.8f;
-			boss->monsterinfo.power_armor_power *= 0.9f;
-		}
-		else if (isBigMap)
-		{
-			boss->health *= 1.2f;
-			boss->monsterinfo.power_armor_power *= 1.2f;
-		}
+	// Ajustar la salud y armadura de acuerdo a los multiplicadores
+	boss->health *= health_multiplier;
+	boss->monsterinfo.power_armor_power *= power_armor_multiplier;
+
+	if (isSmallMap)
+	{
+		boss->health *= 0.8f;
+		boss->monsterinfo.power_armor_power *= 0.9f;
+	}
+	else if (isBigMap)
+	{
+		boss->health *= 1.2f;
+		boss->monsterinfo.power_armor_power *= 1.2f;
 	}
 }
 
@@ -366,27 +364,27 @@ void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number
 
 	if (current_wave_number >= 25 && current_wave_number <= 200)
 	{
-		health_min = 14000;
+		health_min = 18000;
 	}
 	else if (current_wave_number >= 20 && current_wave_number <= 24)
 	{
-		health_min = 12000;
+		health_min = 15000;
 	}
 	else if (current_wave_number >= 15 && current_wave_number <= 19)
 	{
-		health_min = 10000;
+		health_min = 12000;
 	}
 	else if (current_wave_number >= 10 && current_wave_number <= 14)
 	{
-		health_min = 8000;
+		health_min = 10000;
 	}
 	else if (current_wave_number >= 5 && current_wave_number <= 9)
 	{
-		health_min = 6500;
+		health_min = 8000;
 	}
 	else if (current_wave_number >= 1 && current_wave_number <= 4)
 	{
-		health_min = 4000;
+		health_min = 5000;
 	}
 
 	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))

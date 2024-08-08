@@ -1457,7 +1457,7 @@ TOUCH(blaster2_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool ot
 		else
 		{
 			if (self->dmg >= 5)
-				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+		//		T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 		}
 	}
