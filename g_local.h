@@ -3574,11 +3574,6 @@ struct active_players_filter_t
 	}
 };
 
-inline entity_iterable_t<active_players_filter_no_spect_t> active_players_no_spect()
-{
-	return entity_iterable_t<active_players_filter_no_spect_t> { 1u, game.maxclients };
-}
-
 inline entity_iterable_t<active_players_filter_t> active_players()
 {
 	return entity_iterable_t<active_players_filter_t> { 1u, game.maxclients };

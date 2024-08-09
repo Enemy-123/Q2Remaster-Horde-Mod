@@ -766,7 +766,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			}
 
 			bool allPlayersDead = true;
-			for (auto player : active_players_no_spect())
+			for (auto player : active_players())
 				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
 				{
 					allPlayersDead = false;
@@ -777,14 +777,14 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			{
 				level.coop_level_restart_time = level.time + 5_sec;
 
-				for (auto player : active_players_no_spect())
+				for (auto player : active_players())
 					gi.LocCenter_Print(player, "$g_coop_lose");
 			}
 
 			// TIMELIMIT BEAUTIFUL FIX FOR HORDE MODE 
 			if (g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
 			{
-				for (auto player : active_players_no_spect())
+				for (auto player : active_players())
 					gi.LocCenter_Print(player, "$g_coop_lose");
 				gi.cvar_set("timelimit", "0.01");
 
@@ -3960,7 +3960,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	edict_t* best_player = nullptr;
 	vec3_t best_spot = {};
 
-	for (auto player : active_players_no_spect()) {
+	for (auto player : active_players()) {
 		if (player->deadflag) continue;
 
 		// Check combat state
