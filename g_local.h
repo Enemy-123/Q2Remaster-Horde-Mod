@@ -1901,8 +1901,13 @@ inline void VectorScale(const vec3_t& in, float scale, vec3_t& out)
 	out[2] = in[2] * scale;
 }
 
+inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept {
+	dest[0] = src[0];
+	dest[1] = src[1];
+	dest[2] = src[2];
+}
 
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
+
 extern cvar_t* deathmatch;
 extern cvar_t* coop;
 extern cvar_t* skill;
@@ -3830,19 +3835,17 @@ template<> cached_imageindex* cached_imageindex::head;
 extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
 
-
-extern void UpdateCTFIDViewConfigString(int cs_index, const std::string& value);
 extern void OnEntityDeath(edict_t* ent);
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 
 extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
 extern void VectorSet(vec3_t& v, float x, float y, float z);
 extern void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out);
 extern float VectorLength(const vec3_t v);
 extern void VectorNormalize(vec3_t v);
 extern void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out);
 extern void VectorClear(vec3_t v);
-extern void VectorLerp(const vec3_t start, const vec3_t end, float t, vec3_t result);
+//extern void VectorLerp(const vec3_t start, const vec3_t end, float t, vec3_t result);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);

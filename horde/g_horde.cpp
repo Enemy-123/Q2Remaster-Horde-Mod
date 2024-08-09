@@ -956,11 +956,6 @@ void Horde_Init() noexcept {
 
     ResetGame();
 }
-inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept {
-    dest[0] = src[0];
-    dest[1] = src[1];
-    dest[2] = src[2];
-}
 
 // Constantes para mejorar la legibilidad y mantenibilidad
 constexpr int MIN_VELOCITY = -200;
