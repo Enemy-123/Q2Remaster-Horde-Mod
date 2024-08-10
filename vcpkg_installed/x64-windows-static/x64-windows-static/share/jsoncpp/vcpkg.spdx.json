@@ -3,13 +3,13 @@
   "spdxVersion": "SPDX-2.2",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-windows-static-1.9.4-7cafdab1-dc28-43b4-9829-b2c9604d0f0f",
-  "name": "jsoncpp:x64-windows-static@1.9.4 3eb98638ddc4663de4ac47b5ee6ebc08e4e8d7073f87be98a76998066016d28e",
+  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-windows-static-1.9.5#4-877071a9-85df-4b6c-b08f-301fb9ee536f",
+  "name": "jsoncpp:x64-windows-static@1.9.5#4 9d4fb82b5f2facbfa5dc5e86fd709c6df2e145a4bbbe51ee84208a95c655df5c",
   "creationInfo": {
     "creators": [
-      "Tool: vcpkg-1c9ec1978a6b0c2b39c9e9554a96e3e275f7556e"
+      "Tool: vcpkg-7d353e869753e5609a1f1a057df3db8fd356e49d"
     ],
-    "created": "2024-03-04T05:51:23Z"
+    "created": "2024-08-09T22:29:40Z"
   },
   "relationships": [
     {
@@ -47,21 +47,21 @@
     {
       "name": "jsoncpp",
       "SPDXID": "SPDXRef-port",
-      "versionInfo": "1.9.4",
-      "downloadLocation": "git+https://github.com/microsoft/vcpkg@cb9fceddf47584c7fda24180c7fd87f5e83728a5",
+      "versionInfo": "1.9.5#4",
+      "downloadLocation": "git+https://github.com/microsoft/vcpkg@4f722023370407388c3014d52fee17dbe8d65cc3",
       "homepage": "https://github.com/open-source-parsers/jsoncpp",
-      "licenseConcluded": "NOASSERTION",
+      "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
       "copyrightText": "NOASSERTION",
-      "description": "jsoncpp is an implementation of a JSON reader and writer in C++. JSON (JavaScript Object Notation) is a lightweight data-interchange format that it is easy to parse and redeable for human.",
+      "description": "JsonCpp is a C++ library that allows manipulating JSON values, including serialization and deserialization to and from strings. It can also preserve existing comment in unserialization/serialization steps, making it a convenient format to store user input files.",
       "comment": "This is the port (recipe) consumed by vcpkg."
     },
     {
       "name": "jsoncpp:x64-windows-static",
       "SPDXID": "SPDXRef-binary",
-      "versionInfo": "3eb98638ddc4663de4ac47b5ee6ebc08e4e8d7073f87be98a76998066016d28e",
+      "versionInfo": "9d4fb82b5f2facbfa5dc5e86fd709c6df2e145a4bbbe51ee84208a95c655df5c",
       "downloadLocation": "NONE",
-      "licenseConcluded": "NOASSERTION",
+      "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
       "copyrightText": "NOASSERTION",
       "comment": "This is a binary package built by vcpkg."
@@ -69,38 +69,38 @@
     {
       "SPDXID": "SPDXRef-resource-1",
       "name": "open-source-parsers/jsoncpp",
-      "downloadLocation": "git+https://github.com/open-source-parsers/jsoncpp@9059f5cad030ba11d37818847443a53918c327b1",
+      "downloadLocation": "git+https://github.com/open-source-parsers/jsoncpp@1.9.5",
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "NOASSERTION",
       "copyrightText": "NOASSERTION",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "8062c83cad9dc453f1eb4886e63e054570e0f29dcd6594330d3b3628ba994915e26e08690cd28118805a766be200ac99ad4fbc131db3af895122a8d1bd87ef31"
+          "checksumValue": "1d06e044759b1e1a4cc4960189dd7e001a0a4389d7239a6d59295af995a553518e4e0337b4b4b817e70da5d9731a4c98655af90791b6287870b5ff8d73ad8873"
         }
       ]
     }
   ],
   "files": [
     {
-      "fileName": "./C:/Users/Admn/AppData/Local/vcpkg/registries/git-trees/cb9fceddf47584c7fda24180c7fd87f5e83728a5/CONTROL",
+      "fileName": "./C:/Users/pipev/AppData/Local/vcpkg/registries/git-trees/4f722023370407388c3014d52fee17dbe8d65cc3/portfile.cmake",
       "SPDXID": "SPDXRef-file-0",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "2f0c13dd82cf78d83305faa36487063b3a3d3dfcf5484136ddec7523af48371d"
+          "checksumValue": "14818af3f1c8c16805bfa7dad73d8638b654711f13606c5e2b9e730261caf0b9"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./C:/Users/Admn/AppData/Local/vcpkg/registries/git-trees/cb9fceddf47584c7fda24180c7fd87f5e83728a5/portfile.cmake",
+      "fileName": "./C:/Users/pipev/AppData/Local/vcpkg/registries/git-trees/4f722023370407388c3014d52fee17dbe8d65cc3/vcpkg.json",
       "SPDXID": "SPDXRef-file-1",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "32256fa3e82c0da26c1386583c2bcd4ef8228f75d626f9137d6aaaf196080241"
+          "checksumValue": "6cbcf1175609b04fae21638a2a9635e7f7d5c2413e0e3de757641080dca59fb1"
         }
       ],
       "licenseConcluded": "NOASSERTION",
