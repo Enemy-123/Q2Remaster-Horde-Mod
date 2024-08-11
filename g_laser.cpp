@@ -160,12 +160,20 @@ THINK(laser_beam_think)(edict_t* self) -> void
 
     self->nextthink = level.time + FRAME_TIME_MS;
 }
+
 THINK(emitter_think)(edict_t* self) -> void
 {
     // Check if the laser has timed out
     if (level.time >= self->timestamp)
     {
         gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
+
+        // Decrement the laser counter before removing
+        if (self->teammaster && self->teammaster->client)
+        {
+            self->teammaster->client->num_lasers--;
+        }
+
         laser_die(self, nullptr, self->teammaster, 9999, self->s.origin, MOD_UNKNOWN);
         return;
     }
@@ -192,7 +200,6 @@ THINK(emitter_think)(edict_t* self) -> void
 
     self->nextthink = level.time + FRAME_TIME_MS;
 }
-
 
 void create_laser(edict_t* ent)
 {
