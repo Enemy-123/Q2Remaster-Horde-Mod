@@ -853,8 +853,6 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
 
-constexpr int MAX_TESLAS = 10; // Define el máximo de teslas permitidas por jugador
-
 void tesla_remove(edict_t* self)
 {
 	edict_t* cur, * next;
@@ -875,7 +873,7 @@ void tesla_remove(edict_t* self)
 
 	if (self->owner && self->owner->client)
 	{
-		self->owner->client->num_teslas--; // Decrementar el contador de teslas del jugador
+		self->client->increment_num_teslas();
 	}
 
 	self->owner = self->teammaster; // Going away, set the owner correctly.
@@ -946,8 +944,12 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 }
 THINK(tesla_think_active) (edict_t* self) -> void
 {
-	if (!self)
+
+	if (!self->teamchain || !self->teamchain->owner)
+	{
+		gi.Com_PrintFmt("Warning: tesla_think_active encountered null teamchain or owner\n");
 		return;
+	}
 
 	int      i, num;
 	static edict_t* touch[MAX_EDICTS];
@@ -1153,7 +1155,7 @@ void check_player_tesla_limit(edict_t* self)
 	if (!self->client)
 		return;
 
-	if (self->client->num_teslas >= MAX_TESLAS)
+	if (self->client->has_reached_tesla_limit())
 	{
 		edict_t* oldest_tesla = nullptr;
 		gtime_t oldest_timestamp = level.time;
@@ -1173,7 +1175,7 @@ void check_player_tesla_limit(edict_t* self)
 		if (oldest_tesla)
 		{
 			G_FreeEdict(oldest_tesla);
-			self->client->num_teslas--; // Decrementar el contador al eliminar la más antigua
+			self->client->decrement_num_teslas();
 		}
 	}
 }
@@ -1238,7 +1240,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 
 	tesla->takedamage = true;
 	tesla->die = tesla_die;
-	tesla->dmg = TESLA_DAMAGE * tesla_damage_multiplier;
+	tesla->dmg = std::clamp(TESLA_DAMAGE * tesla_damage_multiplier, 0, std::numeric_limits<int32_t>::max());
 	tesla->classname = "tesla_mine";
 	tesla->flags |= (FL_DAMAGEABLE | FL_TRAP);
 	tesla->clipmask = (MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA) & ~CONTENTS_DEADMONSTER;
@@ -1252,7 +1254,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 
 	if (self->client)
 	{
-		self->client->num_teslas++; // Incrementar el contador de teslas del jugador
+		self->client->increment_num_teslas();
 	}
 }
 
