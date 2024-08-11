@@ -768,11 +768,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			bool allPlayersDead = true;
 			for (auto player : active_players())
 			{
-				// Añadir chequeo para jugadores espectadores (NOTEAM)
-				if (player->client->resp.ctf_team == CTF_NOTEAM)
-					continue;
 
-				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+				if (player->health > 0 && player->client->resp.ctf_team != CTF_NOTEAM || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0 && player->client->resp.ctf_team != CTF_NOTEAM))
 				{
 					allPlayersDead = false;
 					break;
@@ -3961,13 +3958,11 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
 	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 	constexpr gtime_t max_time_in_bad_area = 5_sec;
-	constexpr gtime_t safe_time_threshold = 3_sec;  // Tiempo seguro sin recibir daño
 
 	edict_t* best_player = nullptr;
 	vec3_t best_spot = {};
 
 	for (auto player : active_players()) {
-		if (player->client->resp.ctf_team == CTF_NOTEAM) continue;
 		if (player->deadflag) continue;
 
 		// Check combat state
@@ -3993,9 +3988,9 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		}
 
 		// Check positioning and blocked state
-		bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
+		bool is_bad_area = (player->groundentity != world && player->client->resp.ctf_team != CTF_NOTEAM  || player->waterlevel >= WATER_UNDER && player->client->resp.ctf_team != CTF_NOTEAM);
 		vec3_t spot;
-		bool is_blocked = !G_FindRespawnSpot(player, spot);
+		bool is_blocked = !G_FindRespawnSpot(player, spot) && player->client->resp.ctf_team != CTF_NOTEAM;
 
 		if (is_bad_area || is_blocked) {
 			player->client->coop_respawn_state = is_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
