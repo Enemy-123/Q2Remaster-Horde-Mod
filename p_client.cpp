@@ -3962,6 +3962,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 
 	for (auto player : active_players()) {
 		if (player->deadflag) continue;
+		if (player->client->resp.ctf_team == CTF_NOTEAM) continue;
 
 		// Check combat state
 		if (player->client->last_damage_time >= level.time) {
