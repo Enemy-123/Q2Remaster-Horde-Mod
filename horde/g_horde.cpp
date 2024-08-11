@@ -738,23 +738,42 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
 }
 
 
+// Estructura para pasar datos adicionales a la función de filtro
+struct FilterData {
+    const edict_t* ignore_ent;
+    int count;
+};
+
+// Función de filtro optimizada
 static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
-    // Filtrar solo jugadores y bots, ignorando monstruos
+    FilterData* filter_data = static_cast<FilterData*>(data);
+
+    // Ignorar la entidad especificada (si existe)
+    if (ent == filter_data->ignore_ent) {
+        return BoxEdictsResult_t::Skip;
+    }
+
+    // Filtrar solo jugadores y bots
     if ((ent->svflags & SVF_PLAYER) || (ent->svflags & SVF_BOT)) {
-        return BoxEdictsResult_t::Keep;
+        filter_data->count++;
+        // Si encontramos al menos una entidad, podemos detener la búsqueda
+        return BoxEdictsResult_t::End;
     }
     return BoxEdictsResult_t::Skip;
 }
 
-// Función de utilidad para verificar si un punto de spawn está ocupado
-bool IsSpawnPointOccupied(edict_t* spawn_point) {
+// Función optimizada para verificar si un punto de spawn está ocupado
+bool IsSpawnPointOccupied(edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
     vec3_t mins, maxs;
     VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
     VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
 
+    FilterData filter_data = { ignore_ent, 0 };
+
     // Usar BoxEdicts para verificar si hay entidades relevantes en el área
-    size_t count = gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, nullptr);
-    return count > 0;
+    gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+
+    return filter_data.count > 0;
 }
 
 const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
