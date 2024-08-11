@@ -86,12 +86,6 @@ void RemovePlayerOwnedEntities(edict_t* player)
 			}
 		}
 	}
-
-	// Reset the player's laser counter
-	if (player->client)
-	{
-		player->client->num_lasers = 0;
-	}
 }
 
 
