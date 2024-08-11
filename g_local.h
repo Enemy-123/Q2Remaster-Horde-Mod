@@ -7,7 +7,6 @@
 #include "bg_local.h"
 
 #define MAX_TESLAS 8  // Ajusta este número según sea necesario
-#define MAX_LASERS 6  // Ajusta este número según sea necesario
 
 // the "gameversion" client command will print this plus compile date
 constexpr const char* GAMEVERSION = "baseq2";
@@ -3017,55 +3016,38 @@ struct gclient_t
 
 
 private:
-	std::atomic<int> num_teslas{ 0 };
-	std::atomic<int> num_lasers{ 0 };
+	std::atomic<int> num_teslas{ 0 };  // Inicializado a 0
 
 public:
-	// Métodos para Teslas
+	// Obtener el número actual de teslas
 	int get_num_teslas() const {
 		return num_teslas.load(std::memory_order_relaxed);
 	}
 
+	// Incrementar el número de teslas
 	void increment_num_teslas() {
 		num_teslas.fetch_add(1, std::memory_order_relaxed);
 	}
 
+	// Decrementar el número de teslas
 	void decrement_num_teslas() {
 		num_teslas.fetch_sub(1, std::memory_order_relaxed);
 	}
 
+	// Establecer el número de teslas a un valor específico
 	void set_num_teslas(int value) {
 		num_teslas.store(value, std::memory_order_relaxed);
 	}
 
+	// Método adicional para verificar si se ha alcanzado el límite de teslas
 	bool has_reached_tesla_limit() const {
 		return get_num_teslas() >= MAX_TESLAS;
-	}
-
-	// Métodos para Láseres
-	int get_num_lasers() const {
-		return num_lasers.load(std::memory_order_relaxed);
-	}
-
-	void increment_num_lasers() {
-		num_lasers.fetch_add(1, std::memory_order_relaxed);
-	}
-
-	void decrement_num_lasers() {
-		num_lasers.fetch_sub(1, std::memory_order_relaxed);
-	}
-
-	void set_num_lasers(int value) {
-		num_lasers.store(value, std::memory_order_relaxed);
-	}
-
-	bool has_reached_laser_limit() const {
-		return get_num_lasers() >= MAX_LASERS;
 	}
 
 
 	//int num_traps; //foodcube trap per client
 	std::atomic<int> num_sentries{ 0 }; //Sentry Guns per client
+	int num_lasers{ 0 };
 	// 
 
 

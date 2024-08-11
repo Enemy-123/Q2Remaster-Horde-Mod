@@ -1,6 +1,7 @@
 #include "g_local.h"
 #include "shared.h"
 
+constexpr int32_t MAX_LASERS = 6;
 constexpr int32_t LASER_COST = 25;
 constexpr int32_t LASER_INITIAL_DAMAGE = 50;
 constexpr int32_t LASER_ADDON_DAMAGE = 50;
@@ -26,19 +27,20 @@ void laser_remove(edict_t* self)
     // decrement laser counter
     if (self->teammaster && self->teammaster->inuse && self->teammaster->client)
     {
-        self->teammaster->client->decrement_num_lasers();
+        self->teammaster->client->num_lasers--;
         gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
-            self->teammaster->client->get_num_lasers(), MAX_LASERS);
+            self->teammaster->client->num_lasers, MAX_LASERS);
     }
 }
 
 DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+    // Decrement laser counter for the owner
     if (self->teammaster && self->teammaster->client)
     {
-        self->teammaster->client->decrement_num_lasers();
+        self->teammaster->client->num_lasers--;
         gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
-            self->teammaster->client->get_num_lasers(), MAX_LASERS);
+            self->teammaster->client->num_lasers, MAX_LASERS);
     }
 
     // Remove both the emitter and the beam
@@ -204,7 +206,7 @@ void create_laser(edict_t* ent)
         return;
     }
 
-    if (ent->client->has_reached_laser_limit())
+    if (ent->client->num_lasers >= MAX_LASERS)
     {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
         return;
@@ -304,11 +306,10 @@ void create_laser(edict_t* ent)
 
     gi.linkentity(grenade);
 
-    ent->client->increment_num_lasers();
+    ent->client->num_lasers++;
     ent->client->pers.inventory[IT_AMMO_CELLS] -= LASER_COST;
 
-    gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n",
-        ent->client->get_num_lasers(), MAX_LASERS);
+    gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->num_lasers, MAX_LASERS);
 }
 
 void remove_lasers(edict_t* ent)
@@ -323,6 +324,6 @@ void remove_lasers(edict_t* ent)
     }
 
     // reset laser counter
-    ent->client->set_num_lasers(0);
+    ent->client->num_lasers = 0;
 }
 
