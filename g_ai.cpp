@@ -215,7 +215,7 @@ void ai_stand(edict_t* self, float dist)
             edict_t* player = nullptr;
 
             // Encuentra un jugador vivo aleatoriamente
-            for (auto client : active_players_no_spect())
+            for (auto client : active_players())
             {
                 if (client->inuse && client->health > 0)
                 {

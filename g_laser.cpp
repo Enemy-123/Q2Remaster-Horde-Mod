@@ -304,7 +304,7 @@ void create_laser(edict_t* ent)
     grenade->nextthink = level.time + FRAME_TIME_MS;
     grenade->think = emitter_think;
     grenade->die = laser_die;
-    grenade->svflags = SVF_BOT;
+    grenade->svflags = SVF_MONSTER;
     grenade->pain = laser_pain;
     grenade->timestamp = level.time + LASER_TIMEOUT_DELAY;
     laser->flags |= FL_NO_KNOCKBACK;

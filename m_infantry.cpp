@@ -683,9 +683,9 @@ void infantry_grenade(edict_t* self)
 	}
 
 	// Add a small random spread
-	aim[0] += crandom_open() * 0.05f;
-	aim[1] += crandom_open() * 0.05f;
-	aim[2] += crandom_open() * 0.05f;
+	aim[0] += crandom_open() * 0.03f;
+	aim[1] += crandom_open() * 0.03f;
+	aim[2] += crandom_open() * 0.03f;
 
 	aim.normalize();
 
