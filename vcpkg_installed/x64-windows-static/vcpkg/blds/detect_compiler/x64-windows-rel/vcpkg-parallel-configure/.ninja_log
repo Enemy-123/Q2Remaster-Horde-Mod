@@ -1,2 +1,6 @@
 # ninja log v5
+<<<<<<< HEAD
 4	639	7450424673634661	../CMakeCache.txt	d47b52e330ca7966
+=======
+8	2509	7449457350114756	../CMakeCache.txt	d47b52e330ca7966
+>>>>>>> f5e9f5a8fa47f491ea28c26821016350b2ec90bc
