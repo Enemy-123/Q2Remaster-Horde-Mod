@@ -769,8 +769,8 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			for (auto player : active_players())
 			{
 				// Añadir chequeo para jugadores espectadores (NOTEAM)
-				if (player->client->resp.ctf_team == CTF_NOTEAM)
-					continue;
+				//if (player->client->resp.ctf_team == CTF_NOTEAM)
+				//	continue;
 
 				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
 				{
@@ -3967,7 +3967,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	vec3_t best_spot = {};
 
 	for (auto player : active_players()) {
-		if (player->client->resp.ctf_team == CTF_NOTEAM) continue;
+		//if (player->client->resp.ctf_team == CTF_NOTEAM) continue;
 		if (player->deadflag) continue;
 
 		// Check combat state
