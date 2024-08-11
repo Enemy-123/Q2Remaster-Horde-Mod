@@ -645,7 +645,7 @@ void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
 		}
 	}
 	attacker->lastdmg = level.time;
-	attacker->client->total_damage += real_damage;
+//	attacker->client->total_damage += real_damage;
 }
 
 // This function should be called in T_Damage

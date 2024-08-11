@@ -1756,12 +1756,12 @@ void HandleWaveRestMessage(gtime_t duration = 4_sec) noexcept {
     // Reproducir un sonido aleatorio
     gi.sound(world, CHAN_VOICE, gi.soundindex(GetRandomWaveSound()), 1, ATTN_NONE, 0);
 
-    // Resetear el daño total para todos los jugadores activos
-    for (const auto player : active_players()) {
-        if (player->client) {
-            player->client->total_damage = 0;
-        }
-    }
+    //// Resetear el daño total para todos los jugadores activos
+    //for (const auto player : active_players()) {
+    //    if (player->client) {
+    //        player->client->total_damage = 0;
+    //    }
+    //}
 }
 
 // Llamar a esta función durante la inicialización del juego
