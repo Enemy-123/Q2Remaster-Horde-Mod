@@ -6,7 +6,7 @@ constexpr int32_t LASER_COST = 25;
 constexpr int32_t LASER_INITIAL_DAMAGE = 50;
 constexpr int32_t LASER_ADDON_DAMAGE = 50;
 constexpr int32_t LASER_INITIAL_HEALTH = 275;  // DMG before explode
-constexpr int32_t LASER_ADDON_HEALTH = 100;     // DMG addon before explode
+constexpr int32_t LASER_ADDON_HEALTH = 75;     // DMG addon before explode
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
 constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
@@ -304,7 +304,7 @@ void create_laser(edict_t* ent)
     grenade->nextthink = level.time + FRAME_TIME_MS;
     grenade->think = emitter_think;
     grenade->die = laser_die;
-    grenade->svflags = SVF_MONSTER;
+    grenade->svflags = SVF_BOT;
     grenade->pain = laser_pain;
     grenade->timestamp = level.time + LASER_TIMEOUT_DELAY;
     laser->flags |= FL_NO_KNOCKBACK;
