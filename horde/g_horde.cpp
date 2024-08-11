@@ -736,8 +736,33 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) noexcept {
         spawnPointCooldowns[spawn_point] *= 0.9f;
     }
 }
+
+
+static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
+    // Filtrar solo jugadores y bots, ignorando monstruos
+    if ((ent->svflags & SVF_PLAYER) || (ent->svflags & SVF_BOT)) {
+        return BoxEdictsResult_t::Keep;
+    }
+    return BoxEdictsResult_t::Skip;
+}
+
+// Función de utilidad para verificar si un punto de spawn está ocupado
+bool IsSpawnPointOccupied(edict_t* spawn_point) {
+    vec3_t mins, maxs;
+    VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
+    VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
+
+    // Usar BoxEdicts para verificar si hay entidades relevantes en el área
+    size_t count = gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, nullptr);
+    return count > 0;
+}
+
 const char* G_HordePickMonster(edict_t* spawn_point) noexcept {
     // Check cooldown
+    if (IsSpawnPointOccupied(spawn_point)) {
+        return nullptr; // Punto ocupado, no seleccionar monstruo
+    }
+
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     auto it_spawnCooldown = spawnPointCooldowns.find(spawn_point);
     if (it_spawnCooldown != spawnPointCooldowns.end()) {
@@ -1761,13 +1786,11 @@ void SpawnMonsters() noexcept {
 
     // Generar monstruos
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
-        // Seleccionar un punto de spawn
         auto spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
-        if (!spawn_point) continue;  // Si no hay punto de spawn, pasar al siguiente
+        if (!spawn_point || IsSpawnPointOccupied(spawn_point)) continue;
 
-        // Seleccionar el tipo de monstruo a generar
         const char* monster_classname = G_HordePickMonster(spawn_point);
-        if (!monster_classname) continue;  // Si no se pudo seleccionar un monstruo, pasar al siguiente
+        if (!monster_classname) continue;
 
         // Crear el monstruo
         auto monster = G_Spawn();
