@@ -414,7 +414,7 @@ void turret2Fire(edict_t* self)
 	vec3_t start, end, dir;
 	float dist, chance;
 	trace_t trace;
-	int projectileSpeed;
+	int projectileSpeed{};
 	bool damageApplied = false;  // Bandera para prevenir daño duplicado
 
 	turret2Aim(self);
