@@ -162,6 +162,8 @@ THINK(laser_beam_think)(edict_t* self) -> void
     self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+void remove_laser(edict_t* self, edict_t* attacker, bool is_timeout);
+
 THINK(emitter_think)(edict_t* self) -> void
 {
     // Check if the laser has timed out
