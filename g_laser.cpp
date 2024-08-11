@@ -10,6 +10,8 @@ constexpr int32_t LASER_ADDON_HEALTH = 75;     // DMG addon before explode
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
 constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
+static bool g_laser_timeout_in_progress = false;
+
 
 void laser_remove(edict_t* self)
 {
@@ -35,8 +37,8 @@ void laser_remove(edict_t* self)
 
 DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-    // Decrement laser counter for the owner
-    if (self->teammaster && self->teammaster->client)
+    // Only decrement the counter if it's not a timeout
+    if (!g_laser_timeout_in_progress && self->teammaster && self->teammaster->client)
     {
         self->teammaster->client->num_lasers--;
         gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
@@ -57,7 +59,6 @@ DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
         G_FreeEdict(self);  // Free the laser beam
     }
 }
-
 PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
     // Implementación básica de dolor
@@ -167,14 +168,7 @@ THINK(emitter_think)(edict_t* self) -> void
     if (level.time >= self->timestamp)
     {
         gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
-
-        // Decrement the laser counter before removing
-        if (self->teammaster && self->teammaster->client)
-        {
-            self->teammaster->client->num_lasers--;
-        }
-
-        laser_die(self, nullptr, self->teammaster, 9999, self->s.origin, MOD_UNKNOWN);
+        remove_laser(self, self->teammaster, true);
         return;
     }
 
@@ -319,18 +313,25 @@ void create_laser(edict_t* ent)
     gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->num_lasers, MAX_LASERS);
 }
 
-void remove_lasers(edict_t* ent)
+void remove_laser(edict_t* self, edict_t* attacker, bool is_timeout)
 {
-    edict_t* e = nullptr;
-    while ((e = G_Find(e, [](edict_t* e) { return strcmp(e->classname, "emitter") == 0; })) != nullptr)
+    if (is_timeout)
     {
-        if (e && (e->teammaster == ent))
-        {
-            laser_die(e, nullptr, ent, 9999, vec3_origin, MOD_UNKNOWN);
-        }
+        g_laser_timeout_in_progress = true;
     }
 
-    // reset laser counter
-    ent->client->num_lasers = 0;
+    if (self->teammaster && self->teammaster->client)
+    {
+        self->teammaster->client->num_lasers--;
+        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser removed. {}/{} remaining.\n",
+            self->teammaster->client->num_lasers, MAX_LASERS);
+    }
+
+    laser_die(self, nullptr, attacker, 9999, self->s.origin, MOD_UNKNOWN);
+
+    if (is_timeout)
+    {
+        g_laser_timeout_in_progress = false;
+    }
 }
 
