@@ -2508,7 +2508,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0077\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0078\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
