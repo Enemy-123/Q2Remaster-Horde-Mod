@@ -708,8 +708,8 @@ void infantry2_grenade(edict_t* self)
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
-	const	monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
-	const	float speed = GRENADE_SPEED;
+	const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
+	const float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
@@ -717,52 +717,58 @@ void infantry2_grenade(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	const	vec3_t target = self->enemy->s.origin;
-	aim = target - start;
-	const	float dist = aim.length();
+	// Predict target position
+	float time_to_target = (self->enemy->s.origin - start).length() / speed;
+	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+
+	aim = predicted_pos - start;
+	const float dist = aim.length();
 
 	// Adjust aim based on distance
 	if (dist > 200)
 	{
-		// Add some vertical adjustment for longer distances
-		float vertical_adjust = (dist - 200) * 0.0015f;
+		// Reduced vertical adjustment for longer distances
+		float vertical_adjust = (dist - 200) * 0.0010f;
 		aim[2] += vertical_adjust;
 	}
 
-	// Add a small random spread
-	aim[0] += crandom_open() * 0.05f;
-	aim[1] += crandom_open() * 0.05f;
-	aim[2] += crandom_open() * 0.05f;
-
+	// Reduced random spread
+	aim[0] += crandom_open() * 0.03f;
+	aim[1] += crandom_open() * 0.03f;
+	aim[2] += crandom_open() * 0.03f;
 	aim.normalize();
 
 	// Adjust the pitch slightly downward to counteract the upward trajectory
-	const	float pitch_adjust = -0.1f - (dist * 0.0001f);
+	// Increased downward adjustment
+	const float pitch_adjust = -0.15f - (dist * 0.00015f);
 	aim += up * pitch_adjust;
 	aim.normalize();
 
 	// Calculate the best pitch, but allow for some error
-	if (M_CalculatePitchToFire(self, target, start, aim, speed, 1.5f, false))
+	if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.5f, false))
 	{
-		// Add a small random adjustment to the calculated pitch
-		aim[2] += crandom_open() * 0.02f;
+		// Reduced random adjustment to the calculated pitch
+		aim[2] += crandom_open() * 0.01f;
 		aim.normalize();
 	}
 
-	// Fire the grenade
-	fire_grenade2(self, start, aim, 50, speed, 2.5_sec, 150.0f, false);
+	// Compensate for the upward velocity in fire_grenade2
+	float gravityAdjustment = level.gravity / 800.f;
+	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
+	aim[2] += downwardAdjustment;
+	aim.normalize();
 
+	// Fire the grenade
+	fire_grenade2(self, start, aim, 55, speed, 2.5_sec, 95, false);
 	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/grenade_launcher.wav"), 1, ATTN_NORM, 0);
 }
-
-
 mframe_t infantry2_frames_grenade[] = {
 	{ ai_charge, 3 },
 	{ ai_charge, 6 },
 	{ ai_charge, 0, infantry2_swing },
+	{ ai_charge, 5 },
 	{ ai_charge, 8, infantry2_grenade },
 	{ ai_charge, 8, monster_footstep },
-	{ ai_charge, 5 },
 	{ ai_charge, 8 },
 	{ ai_charge, 3 }
 };
@@ -779,7 +785,7 @@ MONSTERINFO_ATTACK(infantry2_attack) (edict_t* self) -> void
 	{
 		M_SetAnimation(self, &infantry2_move_attack2);
 	}
-	else if (r > RANGE_MELEE && frandom() <= 0.2f)
+	else if (r > RANGE_MELEE && frandom() <= 0.4f)
 	{
 		// 30% chance to throw a grenade when enemy is beyond melee range
 		M_SetAnimation(self, &infantry2_move_grenade);

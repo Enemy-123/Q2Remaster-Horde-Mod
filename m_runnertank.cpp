@@ -528,7 +528,7 @@ void runnertankPlasmaGun(edict_t* self)
 	vec3_t forward, right, up;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse)
+	if (!self->enemy || !self->enemy->inuse || self->enemy && !visible(self, self->enemy))
 		return;
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
@@ -786,17 +786,17 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
 		float random_choice = frandom();
 
-		if (can_rail && random_choice < 0.33f)
+		if (can_rail && random_choice < 0.33f && visible(self, self->enemy))
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
-		else if (random_choice < 0.66f)
+		else if (random_choice < 0.66f && visible(self, self->enemy))
 		{
 			M_SetAnimation(self, &runnertank_move_attack_chain);
 			self->monsterinfo.attack_finished = level.time + 3_sec; // Ajusta este tiempo según sea necesario
 		}
-		else
+		else if (!visible(self,self->enemy))
 		{
 			// Si no puede usar rail o decide correr, muévete hacia el enemigo
 			M_SetAnimation(self, &runnertank_move_run);

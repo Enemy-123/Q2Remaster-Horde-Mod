@@ -449,9 +449,9 @@ void TankRocket(edict_t* self)
 	if (self->speed)
 		rocketSpeed = self->speed;
 	else if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN))
-		rocketSpeed = 700;
+		rocketSpeed = 600;
 	else
-		rocketSpeed = 800;
+		rocketSpeed = 480;
 
 	// PMM
 	if (blindfire)
@@ -710,7 +710,7 @@ mframe_t tank_frames_attack_fire_rocket[] = {
 	{ ai_charge },
 	{ ai_charge, 0, TankRocket }, // 24
 	{ ai_charge, 0, TankRocket },
-	{ ai_charge, 0, TankRocket },
+	{ ai_charge },
 	{ ai_charge, 0, TankRocket },
 	{ ai_charge },
 	{ ai_charge },
@@ -1117,16 +1117,17 @@ void SP_monster_tank(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	// [Paril-KEX] N64 tank commander is a chonky boy
-	if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_GUARDIAN) || !strcmp(self->classname, "monster_tank_64"))
+	if (!strcmp(self->classname, "monster_tank_64"))
 	{
 		if (g_horde->integer) {
 			if (!self->s.scale)
-				self->s.scale = 1.3f;
+				self->s.scale = 1.25f;
+			self->accel = 0.25f;
 			self->health = 1750 + (1.005 * current_wave_number);
 			if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				self->gib_health = -999777;
 				self->health *= 2.3;
-				self->accel = 1.75f;
+
 			}
 		}
 		if (G_IsCooperative()) {
@@ -1134,17 +1135,12 @@ void SP_monster_tank(edict_t* self)
 			self->health = 1000;
 		}
 
-		self->accel = 0.85f;
 		self->gib_health = -250;
 
 		if (self->monsterinfo.bonus_flags & BF_BERSERKING)
-			self->accel = 0.55f;
+			self->accel = 0.1f;
 	}
 
-
-	// heat seekingness
-	if (!self->accel)
-		self->accel = 0.095f;
 
 	self->mass = 500;
 
@@ -1226,7 +1222,8 @@ void SP_monster_tank_stand(edict_t* self)
 
 void SP_monster_tank_64(edict_t* self)
 {
-	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN;
+	brandom() ?
+	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN :
 	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING;
 	SP_monster_tank(self);
 	self->s.skinnum = 2;

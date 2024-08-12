@@ -755,63 +755,57 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		}
 	}
 
+	// Death logic
 	if (!self->deadflag)
 	{
-		if (G_IsCooperative() || g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer))
+		if (G_IsCooperative() || (g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer)))
 		{
-			if (g_coop_enable_lives->integer && self->client->pers.lives)
+			if (g_coop_enable_lives->integer && self->client->pers.lives > 0)
 			{
 				self->client->pers.lives--;
 				self->client->resp.coop_respawn.lives--;
 			}
 
 			bool allPlayersDead = true;
-			for (auto player : active_players())
+			for (auto player : active_players_no_spect())
 			{
-				if (player->client->resp.ctf_team == CTF_TEAM1) {
-					// Añadir chequeo para jugadores espectadores (NOTEAM)
-					//if (player->client->resp.ctf_team == CTF_NOTEAM)
-					//	continue;
-
-					if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
-					{
-						allPlayersDead = false;
-						break;
-					}
+				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+				{
+					allPlayersDead = false;
+					break;
 				}
 			}
 
-			if (!g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
+			if (allPlayersDead)
 			{
-				level.coop_level_restart_time = level.time + 5_sec;
-
-				for (auto player : active_players())
-					gi.LocCenter_Print(player, "$g_coop_lose");
-			}
-
-			// TIMELIMIT BEAUTIFUL FIX FOR HORDE MODE 
-			if (g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
-			{
-				for (auto player : active_players())
-					if (player->client->resp.ctf_team == CTF_TEAM1) {
+				if (!g_horde->integer)
+				{
+					// Cooperative mode
+					level.coop_level_restart_time = level.time + 5_sec;
+					for (auto player : active_players_no_spect())
 						gi.LocCenter_Print(player, "$g_coop_lose");
-						gi.cvar_set("timelimit", "0.01");
-					}
+				}
+				else
+				{
+					// Horde mode
+					for (auto player : active_players_no_spect())
+						gi.LocCenter_Print(player, "$g_coop_lose");
+					gi.cvar_set("timelimit", "0.01");
+				}
 			}
-			// in 3 seconds, attempt a respawn or put us into
-			// spectator mode
+
+			// Set respawn time if level restart is not scheduled
 			if (!level.coop_level_restart_time)
 				self->client->respawn_time = level.time + 2_sec;
 		}
 	}
 
 	self->deadflag = true;
-
 	gi.linkentity(self);
+
 	// Remove all entities owned by the player
 	RemovePlayerOwnedEntities(self);
 }
-
 //=======================================================================
 
 #include <string>
@@ -3959,66 +3953,62 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
-
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
-	gtime_t min_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
-	constexpr gtime_t max_time_in_bad_area = 5_sec;
+	gtime_t min_combat_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
+	gtime_t min_bad_area_time_left = 3_sec;  // Always start from 3 seconds
 	constexpr gtime_t safe_time_threshold = 3_sec;  // Tiempo seguro sin recibir daño
-
 	edict_t* best_player = nullptr;
 	vec3_t best_spot = {};
+	bool combat_state_exists = false;
+	bool bad_area_state_exists = false;
 
-	for (auto player : active_players()) {
-		//if (player->client->resp.ctf_team == CTF_NOTEAM) continue;
+	for (auto player : active_players_no_spect()) {
 		if (player->deadflag) continue;
+
+		bool in_combat = false;
+		gtime_t combat_time_left = 0_sec;
 
 		// Check combat state
 		if (player->client->last_damage_time >= level.time) {
-			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
-			gtime_t time_left = player->client->last_damage_time - level.time;
-			if (time_left < min_time_left) {
-				min_time_left = time_left;
-			}
-			continue;
+			in_combat = true;
+			combat_time_left = player->client->last_damage_time - level.time;
 		}
 
 		// Check if monsters are searching for player
-		if (G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative()) {
-			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
-			continue;
+		if (!in_combat && G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative()) {
+			in_combat = true;
+			combat_time_left = safe_time_threshold;
 		}
 
 		// Check firing state
-		if (monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()) {
+		if (!in_combat && monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()) {
+			in_combat = true;
+			combat_time_left = safe_time_threshold;
+		}
+
+		if (in_combat) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
+			combat_state_exists = true;
+			if (combat_time_left < min_combat_time_left) {
+				min_combat_time_left = combat_time_left;
+			}
+			player->client->time_in_bad_area = 0_ms;  // Reset bad area time when in combat
 			continue;
 		}
 
-		// Check positioning and blocked state
+		// Check positioning and blocked state only if not in combat
 		bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
 		vec3_t spot;
 		bool is_blocked = !G_FindRespawnSpot(player, spot);
-
 		if (is_bad_area || is_blocked) {
 			player->client->coop_respawn_state = is_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
 			player->client->time_in_bad_area += FRAME_TIME_MS;
-			gtime_t time_left_in_bad_area = max_time_in_bad_area - player->client->time_in_bad_area;
-
-			if (time_left_in_bad_area < min_time_left) {
-				min_time_left = time_left_in_bad_area;
+			gtime_t time_left_in_bad_area = std::max(0_ms, 3_sec - player->client->time_in_bad_area);
+			if (time_left_in_bad_area < min_bad_area_time_left) {
+				min_bad_area_time_left = time_left_in_bad_area;
 			}
-
-			std::string message_str = fmt::format("{} Area! Forcing Respawn in: {:.1f}(s)",
-				is_bad_area ? "Bad" : "Blocked", time_left_in_bad_area.seconds<float>());
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str.c_str());
-
-			if (player->client->time_in_bad_area >= max_time_in_bad_area) {
-				edict_t* spawn_point = SelectSingleSpawnPoint(player);
-				if (spawn_point) {
-					return { player, spawn_point->s.origin };
-				}
-			}
+			bad_area_state_exists = true;
 			continue;
 		}
 		else {
@@ -4030,15 +4020,41 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		break;
 	}
 
-	// Update config string for combat state
-	if (min_time_left < gtime_t::from_ms(std::numeric_limits<int64_t>::max())) {
-		std::string message_str = fmt::format("in Combat! Reviving in: {:.1f}(s)", min_time_left.seconds<float>());
+	// Update config string for all players
+	if (combat_state_exists) {
+		std::string message_str = fmt::format("in Combat! Reviving in: {:.1f}(s)", min_combat_time_left.seconds<float>());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");  // Clear the other message
+	}
+	else if (bad_area_state_exists) {
+		std::string message_str = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)", min_bad_area_time_left.seconds<float>());
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");  // Clear the combat message
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str.c_str());
+	}
+	else {
+		// Clear both messages if there's no combat or bad area state
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
+	}
+
+	// Return based on priority, considering only non-spectator players for respawn
+	if (combat_state_exists) {
+		return { nullptr, vec3_t{} };  // No respawn during combat
+	}
+	else if (bad_area_state_exists && min_bad_area_time_left <= 0_sec) {
+		// Force respawn at a single spawn point if bad area time has expired
+		for (auto player : active_players_no_spect()) {
+			if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA || player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) {
+				edict_t* spawn_point = SelectSingleSpawnPoint(player);
+				if (spawn_point) {
+					return { player, spawn_point->s.origin };
+				}
+			}
+		}
 	}
 
 	return { best_player, best_spot };
 }
-
 enum respawn_state_t
 {
 	RESPAWN_NONE,     // invalid state
