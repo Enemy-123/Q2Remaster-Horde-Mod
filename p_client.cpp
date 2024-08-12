@@ -768,14 +768,16 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			bool allPlayersDead = true;
 			for (auto player : active_players())
 			{
-				// Añadir chequeo para jugadores espectadores (NOTEAM)
-				//if (player->client->resp.ctf_team == CTF_NOTEAM)
-				//	continue;
+				if (player->client->resp.ctf_team == CTF_TEAM1) {
+					// Añadir chequeo para jugadores espectadores (NOTEAM)
+					//if (player->client->resp.ctf_team == CTF_NOTEAM)
+					//	continue;
 
-				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
-				{
-					allPlayersDead = false;
-					break;
+					if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+					{
+						allPlayersDead = false;
+						break;
+					}
 				}
 			}
 
@@ -791,9 +793,10 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			if (g_horde->integer && allPlayersDead) // allow respawns for telefrags and weird shit
 			{
 				for (auto player : active_players())
-					gi.LocCenter_Print(player, "$g_coop_lose");
-				gi.cvar_set("timelimit", "0.01");
-
+					if (player->client->resp.ctf_team == CTF_TEAM1) {
+						gi.LocCenter_Print(player, "$g_coop_lose");
+						gi.cvar_set("timelimit", "0.01");
+					}
 			}
 			// in 3 seconds, attempt a respawn or put us into
 			// spectator mode
