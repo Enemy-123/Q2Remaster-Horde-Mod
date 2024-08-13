@@ -1,19 +1,19 @@
 // Horde mode game initialization and management functions
 extern cvar_t* g_horde;
-void Horde_PreInit() noexcept;
-void Horde_Init() noexcept;
-void Horde_RunFrame() noexcept;
-void ResetGame() noexcept;
-void HandleResetEvent() noexcept;
+void Horde_PreInit()  ;
+void Horde_Init()  ;
+void Horde_RunFrame()  ;
+void ResetGame()  ;
+void HandleResetEvent()  ;
 extern int last_wave_number;  // Tracks the last completed wave number, used for intermission
 
 // Item selection in Horde mode
-gitem_t* G_HordePickItem() noexcept;
-const char* G_HordePickMonster(edict_t* spawn_point) noexcept;
+gitem_t* G_HordePickItem()  ;
+const char* G_HordePickMonster(edict_t* spawn_point)  ;
 
 // Game mode checks
-bool G_IsDeathmatch() noexcept;
-bool G_IsCooperative() noexcept;
+bool G_IsDeathmatch()  ;
+bool G_IsCooperative()  ;
 
 // Hook functionality for player interactions
 void Hook_InitGame(void);

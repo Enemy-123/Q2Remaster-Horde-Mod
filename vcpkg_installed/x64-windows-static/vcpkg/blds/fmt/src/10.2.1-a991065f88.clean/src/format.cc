@@ -10,9 +10,9 @@
 FMT_BEGIN_NAMESPACE
 namespace detail {
 
-template FMT_API auto dragonbox::to_decimal(float x) noexcept
+template FMT_API auto dragonbox::to_decimal(float x)  
     -> dragonbox::decimal_fp<float>;
-template FMT_API auto dragonbox::to_decimal(double x) noexcept
+template FMT_API auto dragonbox::to_decimal(double x)  
     -> dragonbox::decimal_fp<double>;
 
 #ifndef FMT_STATIC_THOUSANDS_SEPARATOR

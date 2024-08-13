@@ -40,7 +40,7 @@ OutputRedirect::OutputRedirect(FILE* f) : file_(f) {
   write_end.dup2(fd);
 }
 
-OutputRedirect::~OutputRedirect() FMT_NOEXCEPT {
+OutputRedirect::~OutputRedirect() FMT_  {
   try {
     restore();
   } catch (const std::exception& e) {

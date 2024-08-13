@@ -821,6 +821,8 @@ void M_ProcessPain(edict_t* e)
 //
 THINK(monster_dead_think) (edict_t* self) -> void
 {
+	OnEntityDeath(self);
+//	UpdateEntityConfigString(self);
 	// flies
 	if ((self->monsterinfo.aiflags & AI_STINKY) && !(self->monsterinfo.aiflags & AI_STUNK))
 	{
@@ -854,7 +856,6 @@ THINK(monster_dead_think) (edict_t* self) -> void
 
 void monster_dead(edict_t* self)
 {
-//	OnEntityDeath(self);
 	self->think = monster_dead_think;
 	self->nextthink = level.time + 10_hz;
 	self->movetype = MOVETYPE_TOSS;

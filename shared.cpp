@@ -42,6 +42,8 @@ void RemovePlayerOwnedEntities(edict_t* player)
 		if (!ent->inuse)
 			continue;
 
+		OnEntityDeath(ent);
+
 		// Check if the owner is the player or the turret owned by the player
 		if (ent->owner == player || (ent->owner && ent->owner->owner == player) ||
 			ent->teammaster == player || (ent->teammaster && ent->teammaster->teammaster == player))
@@ -95,10 +97,9 @@ void RemovePlayerOwnedEntities(edict_t* player)
 }
 
 
-	void UpdatePowerUpTimes(edict_t * monster)
-	{
-	if (monster->monsterinfo.quad_time <= level.time)
-	{
+void UpdatePowerUpTimes(edict_t* monster) {
+
+	if (monster->monsterinfo.quad_time <= level.time) {
 		monster->monsterinfo.damage_modifier_applied = false;
 	}
 

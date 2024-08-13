@@ -35,6 +35,7 @@ void laser_remove(edict_t* self)
 
 DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+    OnEntityDeath(self);
     // Decrement laser counter for the owner
     if (self->teammaster && self->teammaster->client)
     {

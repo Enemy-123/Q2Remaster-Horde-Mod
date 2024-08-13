@@ -67,8 +67,8 @@ namespace Json {
 class JSON_API Exception : public std::exception {
 public:
   Exception(String msg);
-  ~Exception() noexcept override;
-  char const* what() const noexcept override;
+  ~Exception()   override;
+  char const* what() const   override;
 
 protected:
   String msg_;

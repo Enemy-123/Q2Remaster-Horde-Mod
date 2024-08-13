@@ -1489,14 +1489,14 @@ namespace fake_qt {
 class QString {
  public:
   QString(const wchar_t* s) : s_(std::make_shared<std::wstring>(s)) {}
-  const wchar_t* utf16() const FMT_NOEXCEPT { return s_->data(); }
-  int size() const FMT_NOEXCEPT { return static_cast<int>(s_->size()); }
+  const wchar_t* utf16() const FMT_  { return s_->data(); }
+  int size() const FMT_  { return static_cast<int>(s_->size()); }
 
  private:
   std::shared_ptr<std::wstring> s_;
 };
 
-fmt::basic_string_view<wchar_t> to_string_view(const QString& s) FMT_NOEXCEPT {
+fmt::basic_string_view<wchar_t> to_string_view(const QString& s) FMT_  {
   return {s.utf16(), static_cast<size_t>(s.size())};
 }
 }  // namespace fake_qt

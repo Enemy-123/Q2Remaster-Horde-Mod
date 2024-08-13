@@ -83,7 +83,7 @@ list(APPEND REQUIRED_FEATURES
         cxx_lambdas # Lambda functions, as defined in N2927.
         #MSVC 1900 cxx_local_type_template_args # Local and unnamed types as template arguments, as defined in N2657.
         cxx_long_long_type # long long type, as defined in N1811.
-        #MSVC 1900 cxx_noexcept # Exception specifications, as defined in N3050.
+        #MSVC 1900 cxx_  # Exception specifications, as defined in N3050.
         #MSVC 1900 cxx_nonstatic_member_init # Non-static data member initialization, as defined in N2756.
         cxx_nullptr # Null pointer, as defined in N2431.
         cxx_override # Override control override keyword, as defined in N2928, N3206 and N3272.

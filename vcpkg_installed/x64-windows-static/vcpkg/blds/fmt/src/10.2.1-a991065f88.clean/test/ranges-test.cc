@@ -180,17 +180,17 @@ struct tuple_like {
   std::string str;
 
   template <size_t N>
-  auto get() const noexcept -> fmt::enable_if_t<N == 0, int> {
+  auto get() const   -> fmt::enable_if_t<N == 0, int> {
     return i;
   }
   template <size_t N>
-  auto get() const noexcept -> fmt::enable_if_t<N == 1, fmt::string_view> {
+  auto get() const   -> fmt::enable_if_t<N == 1, fmt::string_view> {
     return str;
   }
 };
 
 template <size_t N>
-auto get(const tuple_like& t) noexcept -> decltype(t.get<N>()) {
+auto get(const tuple_like& t)   -> decltype(t.get<N>()) {
   return t.get<N>();
 }
 

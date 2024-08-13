@@ -159,11 +159,11 @@ if (FMT_PEDANTIC)
     check_cxx_compiler_flag(-fno-exceptions HAVE_FNO_EXCEPTIONS_FLAG)
   endif ()
   if (HAVE_FNO_EXCEPTIONS_FLAG)
-    add_library(noexception-test ../src/format.cc noexception-test.cc)
+    add_library( ion-test ../src/format.cc  ion-test.cc)
     target_include_directories(
-      noexception-test PRIVATE ${PROJECT_SOURCE_DIR}/include)
-    target_compile_options(noexception-test PRIVATE -fno-exceptions)
-    target_compile_options(noexception-test PRIVATE ${PEDANTIC_COMPILE_FLAGS})
+       ion-test PRIVATE ${PROJECT_SOURCE_DIR}/include)
+    target_compile_options( ion-test PRIVATE -fno-exceptions)
+    target_compile_options( ion-test PRIVATE ${PEDANTIC_COMPILE_FLAGS})
   endif ()
 
   # Test that the library compiles without locale.

@@ -145,12 +145,12 @@ namespace std {
 
   public:
     explicit constexpr basic_format_parse_context(basic_string_view<charT> fmt,
-                                                  size_t num_args = 0) noexcept;
+                                                  size_t num_args = 0)  ;
     basic_format_parse_context(const basic_format_parse_context&) = delete;
     basic_format_parse_context& operator=(const basic_format_parse_context&) = delete;
 
-    constexpr const_iterator begin() const noexcept;
-    constexpr const_iterator end() const noexcept;
+    constexpr const_iterator begin() const  ;
+    constexpr const_iterator end() const  ;
     constexpr void advance_to(const_iterator it);
 
     constexpr size_t next_arg_id();
@@ -167,14 +167,14 @@ namespace std {
 template<class charT>
 /* explicit */ constexpr basic_format_parse_context<charT>::
                    basic_format_parse_context(basic_string_view<charT> fmt,
-                                              size_t num_args) noexcept
+                                              size_t num_args)  
 : begin_(fmt.begin()), end_(fmt.end()), indexing_(unknown), next_arg_id_(0), num_args_(num_args) {}
 
 template<class charT>
-constexpr typename basic_format_parse_context<charT>::const_iterator basic_format_parse_context<charT>::begin() const noexcept { return begin_; }
+constexpr typename basic_format_parse_context<charT>::const_iterator basic_format_parse_context<charT>::begin() const   { return begin_; }
 
 template<class charT>
-constexpr typename basic_format_parse_context<charT>::const_iterator basic_format_parse_context<charT>::end() const noexcept { return end_; }
+constexpr typename basic_format_parse_context<charT>::const_iterator basic_format_parse_context<charT>::end() const   { return end_; }
 
 template<class charT>
 constexpr void basic_format_parse_context<charT>::advance_to(typename basic_format_parse_context<charT>::iterator it) { begin_ = it; }
@@ -286,24 +286,24 @@ namespace std {
         detail::is_standard_integer_v<T> ||
         detail::is_standard_unsigned_integer_v<T> ||
         sizeof(typename Context::template formatter_type<T>().format(declval<const T&>(), declval<Context&>())) != 0
-    >> explicit basic_format_arg(const T& v) noexcept; // exposition only
-    explicit basic_format_arg(float n) noexcept;                         // exposition only
-    explicit basic_format_arg(double n) noexcept;                        // exposition only
-    explicit basic_format_arg(long double n) noexcept;                   // exposition only
+    >> explicit basic_format_arg(const T& v)  ; // exposition only
+    explicit basic_format_arg(float n)  ;                         // exposition only
+    explicit basic_format_arg(double n)  ;                        // exposition only
+    explicit basic_format_arg(long double n)  ;                   // exposition only
     explicit basic_format_arg(const char_type* s);                       // exposition only
 
     template<class traits>
       explicit basic_format_arg(
-        basic_string_view<char_type, traits> s) noexcept;                // exposition only
+        basic_string_view<char_type, traits> s)  ;                // exposition only
 
     template<class traits, class Allocator>
       explicit basic_format_arg(
-        const basic_string<char_type, traits, Allocator>& s) noexcept;   // exposition only
+        const basic_string<char_type, traits, Allocator>& s)  ;   // exposition only
 
-    explicit basic_format_arg(nullptr_t) noexcept;                       // exposition only
+    explicit basic_format_arg(nullptr_t)  ;                       // exposition only
 
     template<class T, typename = enable_if_t<is_void_v<T>>>
-      explicit basic_format_arg(const T* p) noexcept;                    // exposition only
+      explicit basic_format_arg(const T* p)  ;                    // exposition only
 
     // Fails due to a bug in clang
     //template<class Visitor, class Ctx>
@@ -321,18 +321,18 @@ namespace std {
         make_format_args(const Args&... args);                           // exposition only
 
   public:
-    basic_format_arg() noexcept;
+    basic_format_arg()  ;
 
-    explicit operator bool() const noexcept;
+    explicit operator bool() const  ;
   };
 }
 
 namespace std {
 template<class Context>
-basic_format_arg<Context>::basic_format_arg() noexcept {}
+basic_format_arg<Context>::basic_format_arg()   {}
 
 template<class Context>
-template<class T, typename> /* explicit */ basic_format_arg<Context>::basic_format_arg(const T& v) noexcept {
+template<class T, typename> /* explicit */ basic_format_arg<Context>::basic_format_arg(const T& v)   {
   if constexpr (std::is_same_v<T, bool> || std::is_same_v<T, char_type>)
     value = v;
   else if constexpr (std::is_same_v<T, char> && std::is_same_v<char_type, wchar_t>)
@@ -350,15 +350,15 @@ template<class T, typename> /* explicit */ basic_format_arg<Context>::basic_form
 }
 
 template<class Context>
-/* explicit */ basic_format_arg<Context>::basic_format_arg(float n) noexcept
+/* explicit */ basic_format_arg<Context>::basic_format_arg(float n)  
   : value(static_cast<double>(n)) {}
 
 template<class Context>
-/* explicit */ basic_format_arg<Context>::basic_format_arg(double n) noexcept
+/* explicit */ basic_format_arg<Context>::basic_format_arg(double n)  
   : value(n) {}
 
 template<class Context>
-/* explicit */ basic_format_arg<Context>::basic_format_arg(long double n) noexcept
+/* explicit */ basic_format_arg<Context>::basic_format_arg(long double n)  
   : value(n) {}
 
 template<class Context>
@@ -369,26 +369,26 @@ template<class Context>
 
 template<class Context>
 template<class traits>
-/* explicit */ basic_format_arg<Context>::basic_format_arg(basic_string_view<char_type, traits> s) noexcept
+/* explicit */ basic_format_arg<Context>::basic_format_arg(basic_string_view<char_type, traits> s)  
   : value(s) {}
 
 template<class Context>
 template<class traits, class Allocator>
 /* explicit */ basic_format_arg<Context>::basic_format_arg(
-    const basic_string<char_type, traits, Allocator>& s) noexcept
+    const basic_string<char_type, traits, Allocator>& s)  
   : value(basic_string_view<char_type>(s.data(), s.size())) {}
 
 
 template<class Context>
-/* explicit */ basic_format_arg<Context>::basic_format_arg(nullptr_t) noexcept
+/* explicit */ basic_format_arg<Context>::basic_format_arg(nullptr_t)  
   : value(static_cast<const void*>(nullptr)) {}
 
 template<class Context>
-template<class T, typename> /* explicit */ basic_format_arg<Context>::basic_format_arg(const T* p) noexcept
+template<class T, typename> /* explicit */ basic_format_arg<Context>::basic_format_arg(const T* p)  
   : value(p) {}
 
 template<class Context>
-/* explicit */ basic_format_arg<Context>::operator bool() const noexcept {
+/* explicit */ basic_format_arg<Context>::operator bool() const   {
     return !holds_alternative<monostate>(value);
 }
 }
@@ -400,7 +400,7 @@ namespace std {
     void (*format_)(basic_format_parse_context<char_type>&,
                     Context&, const void*);                   // exposition only
 
-    template<class T> explicit handle(const T& val) noexcept; // exposition only
+    template<class T> explicit handle(const T& val)  ; // exposition only
 
     friend class basic_format_arg<Context>;                   // exposition only
 
@@ -411,7 +411,7 @@ namespace std {
 
 namespace std {
 template<class Context>
-template<class T> /* explicit */ basic_format_arg<Context>::handle::handle(const T& val) noexcept
+template<class T> /* explicit */ basic_format_arg<Context>::handle::handle(const T& val)  
   : ptr_(&val), format_([](basic_format_parse_context<char_type>& parse_ctx, Context& format_ctx, const void* ptr) {
     typename Context::template formatter_type<T> f;
     parse_ctx.advance_to(f.parse(parse_ctx));
@@ -446,27 +446,27 @@ namespace std {
     const basic_format_arg<Context>* data_; // exposition only
 
   public:
-    basic_format_args() noexcept;
+    basic_format_args()  ;
 
     template<class... Args>
-      basic_format_args(const format_arg_store<Context, Args...>& store) noexcept;
+      basic_format_args(const format_arg_store<Context, Args...>& store)  ;
 
-    basic_format_arg<Context> get(size_t i) const noexcept;
+    basic_format_arg<Context> get(size_t i) const  ;
   };
 }
 
 namespace std {
 
 template<class Context>
-basic_format_args<Context>::basic_format_args() noexcept : size_(0) {}
+basic_format_args<Context>::basic_format_args()   : size_(0) {}
 
 template<class Context>
 template<class... Args>
-  basic_format_args<Context>::basic_format_args(const format_arg_store<Context, Args...>& store) noexcept
+  basic_format_args<Context>::basic_format_args(const format_arg_store<Context, Args...>& store)  
   : size_(sizeof...(Args)), data_(store.args.data()) {}
 
 template<class Context>
-basic_format_arg<Context> basic_format_args<Context>::get(size_t i) const noexcept {
+basic_format_arg<Context> basic_format_args<Context>::get(size_t i) const   {
   return i < size_ ? data_[i] : basic_format_arg<Context>();
 }
 }

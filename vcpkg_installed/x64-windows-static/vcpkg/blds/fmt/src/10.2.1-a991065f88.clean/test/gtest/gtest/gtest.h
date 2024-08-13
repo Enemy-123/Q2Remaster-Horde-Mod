@@ -950,13 +950,13 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 // A macro to disallow move operator=
 // This should be used in the private: declarations for a class.
 #define GTEST_DISALLOW_MOVE_ASSIGN_(type) \
-  type& operator=(type &&) noexcept = delete
+  type& operator=(type &&)   = delete
 
 // A macro to disallow move constructor and operator=
 // This should be used in the private: declarations for a class.
 #define GTEST_DISALLOW_MOVE_AND_ASSIGN_(type) \
-  type(type&&) noexcept = delete;             \
-  type& operator=(type&&) noexcept = delete
+  type(type&&)   = delete;             \
+  type& operator=(type&&)   = delete
 
 // Tell the compiler to warn about unused return values for functions declared
 // with this macro.  The macro should be used on function declarations
@@ -4750,7 +4750,7 @@ namespace internal {
 
 class NeverThrown {
  public:
-  const char* what() const noexcept {
+  const char* what() const   {
     return "this exception should never be thrown";
   }
 };
@@ -12216,7 +12216,7 @@ class GTEST_API_ ScopedTrace {
 //
 // to cause a compiler error.
 template <typename T1, typename T2>
-constexpr bool StaticAssertTypeEq() noexcept {
+constexpr bool StaticAssertTypeEq()   {
   static_assert(std::is_same<T1, T2>::value, "T1 and T2 are not the same type");
   return true;
 }

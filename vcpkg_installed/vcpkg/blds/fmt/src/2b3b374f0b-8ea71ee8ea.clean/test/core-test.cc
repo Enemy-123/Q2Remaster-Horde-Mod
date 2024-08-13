@@ -655,14 +655,14 @@ template <typename Char> class my_string {
 
  public:
   my_string(const Char* s) : s_(s) {}
-  const Char* data() const FMT_NOEXCEPT { return s_.data(); }
-  size_t length() const FMT_NOEXCEPT { return s_.size(); }
+  const Char* data() const FMT_  { return s_.data(); }
+  size_t length() const FMT_  { return s_.size(); }
   operator const Char*() const { return s_.c_str(); }
 };
 
 template <typename Char>
 inline fmt::basic_string_view<Char> to_string_view(const my_string<Char>& s)
-    FMT_NOEXCEPT {
+    FMT_  {
   return {s.data(), s.length()};
 }
 

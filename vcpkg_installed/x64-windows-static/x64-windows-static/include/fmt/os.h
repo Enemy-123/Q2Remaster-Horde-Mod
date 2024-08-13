@@ -124,11 +124,11 @@ using cstring_view = basic_cstring_view<char>;
 using wcstring_view = basic_cstring_view<wchar_t>;
 
 #ifdef _WIN32
-FMT_API const std::error_category& system_category() noexcept;
+FMT_API const std::error_category& system_category()  ;
 
 namespace detail {
 FMT_API void format_windows_error(buffer<char>& out, int error_code,
-                                  const char* message) noexcept;
+                                  const char* message)  ;
 }
 
 FMT_API std::system_error vwindows_error(int error_code, string_view format_str,
@@ -170,9 +170,9 @@ std::system_error windows_error(int error_code, string_view message,
 
 // Reports a Windows error without throwing an exception.
 // Can be used to report errors from destructors.
-FMT_API void report_windows_error(int error_code, const char* message) noexcept;
+FMT_API void report_windows_error(int error_code, const char* message)  ;
 #else
-inline auto system_category() noexcept -> const std::error_category& {
+inline auto system_category()   -> const std::error_category& {
   return std::system_category();
 }
 #endif  // _WIN32
@@ -199,13 +199,13 @@ class buffered_file {
   void operator=(const buffered_file&) = delete;
 
   // Constructs a buffered_file object which doesn't represent any file.
-  buffered_file() noexcept : file_(nullptr) {}
+  buffered_file()   : file_(nullptr) {}
 
   // Destroys the object closing the file it represents if any.
-  FMT_API ~buffered_file() noexcept;
+  FMT_API ~buffered_file()  ;
 
  public:
-  buffered_file(buffered_file&& other) noexcept : file_(other.file_) {
+  buffered_file(buffered_file&& other)   : file_(other.file_) {
     other.file_ = nullptr;
   }
 
@@ -223,7 +223,7 @@ class buffered_file {
   FMT_API void close();
 
   // Returns the pointer to a FILE object representing this file.
-  auto get() const noexcept -> FILE* { return file_; }
+  auto get() const   -> FILE* { return file_; }
 
   FMT_API auto descriptor() const -> int;
 
@@ -239,7 +239,7 @@ class buffered_file {
 
 #if FMT_USE_FCNTL
 // A file. Closed file is represented by a file object with descriptor -1.
-// Methods that are not declared with noexcept may throw
+// Methods that are not declared with   may throw
 // fmt::system_error in case of failure. Note that some errors such as
 // closing the file multiple times will cause a crash on Windows rather
 // than an exception. You can get standard behavior by overriding the
@@ -263,7 +263,7 @@ class FMT_API file {
   };
 
   // Constructs a file object which doesn't represent any file.
-  file() noexcept : fd_(-1) {}
+  file()   : fd_(-1) {}
 
   // Opens a file and constructs a file object representing this file.
   file(cstring_view path, int oflag);
@@ -272,9 +272,9 @@ class FMT_API file {
   file(const file&) = delete;
   void operator=(const file&) = delete;
 
-  file(file&& other) noexcept : fd_(other.fd_) { other.fd_ = -1; }
+  file(file&& other)   : fd_(other.fd_) { other.fd_ = -1; }
 
-  // Move assignment is not noexcept because close may throw.
+  // Move assignment is not   because close may throw.
   auto operator=(file&& other) -> file& {
     close();
     fd_ = other.fd_;
@@ -283,10 +283,10 @@ class FMT_API file {
   }
 
   // Destroys the object closing the file it represents if any.
-  ~file() noexcept;
+  ~file()  ;
 
   // Returns the file descriptor.
-  auto descriptor() const noexcept -> int { return fd_; }
+  auto descriptor() const   -> int { return fd_; }
 
   // Closes the file.
   void close();
@@ -311,7 +311,7 @@ class FMT_API file {
 
   // Makes fd be the copy of this file descriptor, closing fd first if
   // necessary.
-  void dup2(int fd, std::error_code& ec) noexcept;
+  void dup2(int fd, std::error_code& ec)  ;
 
   // Creates a pipe setting up read_end and write_end file objects for reading
   // and writing respectively.

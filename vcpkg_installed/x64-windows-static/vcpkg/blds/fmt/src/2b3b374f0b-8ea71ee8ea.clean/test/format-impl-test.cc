@@ -5,7 +5,7 @@
 //
 // For the license information refer to format.h.
 
-#define FMT_NOEXCEPT
+#define FMT_ 
 #undef FMT_SHARED
 #include "test-assert.h"
 

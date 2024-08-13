@@ -704,14 +704,14 @@ class basic_memory_buffer final : public detail::buffer<T> {
     of the other object to it.
     \endrst
    */
-  basic_memory_buffer(basic_memory_buffer&& other) FMT_NOEXCEPT { move(other); }
+  basic_memory_buffer(basic_memory_buffer&& other) FMT_  { move(other); }
 
   /**
     \rst
     Moves the content of the other ``basic_memory_buffer`` object to this one.
     \endrst
    */
-  basic_memory_buffer& operator=(basic_memory_buffer&& other) FMT_NOEXCEPT {
+  basic_memory_buffer& operator=(basic_memory_buffer&& other) FMT_  {
     FMT_ASSERT(this != &other, "");
     deallocate();
     move(other);
@@ -777,7 +777,7 @@ class FMT_API format_error : public std::runtime_error {
   format_error& operator=(const format_error&) = default;
   format_error(format_error&&) = default;
   format_error& operator=(format_error&&) = default;
-  ~format_error() FMT_NOEXCEPT FMT_OVERRIDE;
+  ~format_error() FMT_  FMT_OVERRIDE;
 };
 
 namespace detail {
@@ -820,16 +820,16 @@ struct FMT_EXTERN_TEMPLATE_API uint128_wrapper {
 #if FMT_USE_INT128
   uint128_t internal_;
 
-  uint128_wrapper(uint64_t high, uint64_t low) FMT_NOEXCEPT
+  uint128_wrapper(uint64_t high, uint64_t low) FMT_ 
       : internal_{static_cast<uint128_t>(low) |
                   (static_cast<uint128_t>(high) << 64)} {}
 
   uint128_wrapper(uint128_t u) : internal_{u} {}
 
-  uint64_t high() const FMT_NOEXCEPT { return uint64_t(internal_ >> 64); }
-  uint64_t low() const FMT_NOEXCEPT { return uint64_t(internal_); }
+  uint64_t high() const FMT_  { return uint64_t(internal_ >> 64); }
+  uint64_t low() const FMT_  { return uint64_t(internal_); }
 
-  uint128_wrapper& operator+=(uint64_t n) FMT_NOEXCEPT {
+  uint128_wrapper& operator+=(uint64_t n) FMT_  {
     internal_ += n;
     return *this;
   }
@@ -837,13 +837,13 @@ struct FMT_EXTERN_TEMPLATE_API uint128_wrapper {
   uint64_t high_;
   uint64_t low_;
 
-  uint128_wrapper(uint64_t high, uint64_t low) FMT_NOEXCEPT : high_{high},
+  uint128_wrapper(uint64_t high, uint64_t low) FMT_  : high_{high},
                                                               low_{low} {}
 
-  uint64_t high() const FMT_NOEXCEPT { return high_; }
-  uint64_t low() const FMT_NOEXCEPT { return low_; }
+  uint64_t high() const FMT_  { return high_; }
+  uint64_t low() const FMT_  { return low_; }
 
-  uint128_wrapper& operator+=(uint64_t n) FMT_NOEXCEPT {
+  uint128_wrapper& operator+=(uint64_t n) FMT_  {
 #  if defined(_MSC_VER) && defined(_M_X64)
     unsigned char carry = _addcarry_u64(0, low_, n, &low_);
     _addcarry_u64(carry, high_, 0, &high_);
@@ -993,11 +993,11 @@ inline int count_digits(uint32_t n) {
 }
 #endif
 
-template <typename Int> constexpr int digits10() FMT_NOEXCEPT {
+template <typename Int> constexpr int digits10() FMT_  {
   return std::numeric_limits<Int>::digits10;
 }
-template <> constexpr int digits10<int128_t>() FMT_NOEXCEPT { return 38; }
-template <> constexpr int digits10<uint128_t>() FMT_NOEXCEPT { return 38; }
+template <> constexpr int digits10<int128_t>() FMT_  { return 38; }
+template <> constexpr int digits10<uint128_t>() FMT_  { return 38; }
 
 template <typename Char> FMT_API std::string grouping_impl(locale_ref loc);
 template <typename Char> inline std::string grouping(locale_ref loc) {
@@ -1267,7 +1267,7 @@ template <typename T> struct decimal_fp {
   int exponent;
 };
 
-template <typename T> FMT_API decimal_fp<T> to_decimal(T x) FMT_NOEXCEPT;
+template <typename T> FMT_API decimal_fp<T> to_decimal(T x) FMT_ ;
 }  // namespace dragonbox
 
 template <typename T>
@@ -3250,10 +3250,10 @@ void handle_dynamic_spec(int& value, arg_ref<typename Context::char_type> ref,
 using format_func = void (*)(detail::buffer<char>&, int, string_view);
 
 FMT_API void format_error_code(buffer<char>& out, int error_code,
-                               string_view message) FMT_NOEXCEPT;
+                               string_view message) FMT_ ;
 
 FMT_API void report_error(format_func func, int error_code,
-                          string_view message) FMT_NOEXCEPT;
+                          string_view message) FMT_ ;
 }  // namespace detail
 
 template <typename OutputIt, typename Char>
@@ -3302,7 +3302,7 @@ class FMT_API system_error : public std::runtime_error {
   system_error& operator=(const system_error&) = default;
   system_error(system_error&&) = default;
   system_error& operator=(system_error&&) = default;
-  ~system_error() FMT_NOEXCEPT FMT_OVERRIDE;
+  ~system_error() FMT_  FMT_OVERRIDE;
 
   int error_code() const { return error_code_; }
 };
@@ -3324,12 +3324,12 @@ class FMT_API system_error : public std::runtime_error {
   \endrst
  */
 FMT_API void format_system_error(detail::buffer<char>& out, int error_code,
-                                 string_view message) FMT_NOEXCEPT;
+                                 string_view message) FMT_ ;
 
 // Reports a system error without throwing an exception.
 // Can be used to report errors from destructors.
 FMT_API void report_system_error(int error_code,
-                                 string_view message) FMT_NOEXCEPT;
+                                 string_view message) FMT_ ;
 
 /** Fast integer formatter. */
 class format_int {

@@ -227,9 +227,9 @@ struct my_exception : public std::exception {
 
  public:
   my_exception(const std::string& s) : msg(s) {}
-  const char* what() const noexcept override;
+  const char* what() const   override;
 };
-const char* my_exception::what() const noexcept { return msg.c_str(); }
+const char* my_exception::what() const   { return msg.c_str(); }
 }  // namespace my_ns2
 }  // namespace my_ns1
 

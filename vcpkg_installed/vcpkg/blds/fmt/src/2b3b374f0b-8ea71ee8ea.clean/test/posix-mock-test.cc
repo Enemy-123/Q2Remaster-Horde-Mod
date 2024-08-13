@@ -356,7 +356,7 @@ TEST(FileTest, Dup2Retry) {
                            f1.descriptor(), f2.descriptor()));
 }
 
-TEST(FileTest, Dup2NoExceptRetry) {
+TEST(FileTest, Dup2 Retry) {
   int stdout_fd = FMT_POSIX(fileno(stdout));
   file f1 = file::dup(stdout_fd), f2 = file::dup(stdout_fd);
   error_code ec;

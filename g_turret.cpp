@@ -288,6 +288,10 @@ DIE(turret_driver_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, in
 {
 	if (!self->deadflag)
 	{
+
+		// Llamar a OnEntityDeath primero
+		OnEntityDeath(self);
+
 		edict_t* ent;
 
 		// level the gun
@@ -311,7 +315,6 @@ DIE(turret_driver_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, in
 
 		self->think = monster_think;
 
-		OnEntityDeath(self);
 	}
 
 	infantry_die(self, inflictor, attacker, damage, point, mod);

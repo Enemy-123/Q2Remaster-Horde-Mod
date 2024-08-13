@@ -297,34 +297,32 @@ mframe_t actor_frames_death2[] = {
 };
 MMOVE_T(actor_move_death2) = { FRAME_death201, FRAME_death213, actor_frames_death2, actor_dead };
 
-DIE(actor_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(actor_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	if (self->deadflag)
+		return;
+
 	OnEntityDeath(self);
+	self->deadflag = true;
+
 	// check for gib
 	if (self->health <= -80)
 	{
-		//		gi.sound (self, CHAN_VOICE, actor.sound_gib, 1, ATTN_NORM, 0);
 		ThrowGibs(self, damage, {
 			{ 2, "models/objects/gibs/bone/tris.md2" },
 			{ 4, "models/objects/gibs/sm_meat/tris.md2" },
 			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
-		});
-		self->deadflag = true;
-		return;
+			});
 	}
-
-	if (self->deadflag)
-		return;
-
-	// regular death
-	//	gi.sound (self, CHAN_VOICE, actor.sound_die, 1, ATTN_NORM, 0);
-	self->deadflag = true;
-	self->takedamage = true;
-
-	if (brandom())
-		M_SetAnimation(self, &actor_move_death1);
 	else
-		M_SetAnimation(self, &actor_move_death2);
+	{
+		// regular death
+		self->takedamage = true;
+		if (brandom())
+			M_SetAnimation(self, &actor_move_death1);
+		else
+			M_SetAnimation(self, &actor_move_death2);
+	}
 }
 
 void actor_fire(edict_t *self)

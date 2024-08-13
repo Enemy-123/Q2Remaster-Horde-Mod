@@ -293,7 +293,7 @@ TEST(compile_test, compile_format_string_literal) {
       (FMT_MSC_VERSION >= 1928 && FMT_MSC_VERSION < 1930))) &&  \
     defined(__cpp_lib_is_constant_evaluated)
 template <size_t max_string_length, typename Char = char> struct test_string {
-  template <typename T> constexpr bool operator==(const T& rhs) const noexcept {
+  template <typename T> constexpr bool operator==(const T& rhs) const   {
     return fmt::basic_string_view<Char>(rhs).compare(buffer) == 0;
   }
   Char buffer[max_string_length]{};

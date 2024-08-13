@@ -78,7 +78,7 @@ class output_redirect {
 
  public:
   explicit output_redirect(FILE* file, bool flush = true);
-  ~output_redirect() noexcept;
+  ~output_redirect()  ;
 
   output_redirect(const output_redirect&) = delete;
   void operator=(const output_redirect&) = delete;

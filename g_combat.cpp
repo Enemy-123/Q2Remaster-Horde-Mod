@@ -850,7 +850,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 
 
-	if (attacker->svflags & SVF_MONSTER) {
+	if (attacker && (attacker->svflags & SVF_MONSTER)) {
 		UpdatePowerUpTimes(attacker);
 		damage *= M_DamageModifier(attacker);
 	}
@@ -1227,6 +1227,12 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 	else
 		inflictor_center = inflictor->s.origin;
 
+	float damage_modifier = 1.0f;
+	if (attacker && (attacker->svflags & SVF_MONSTER)) {
+		UpdatePowerUpTimes(attacker);
+		damage_modifier = M_DamageModifier(attacker);
+	}
+
 	while ((ent = findradius(ent, inflictor_center, radius)) != nullptr)
 	{
 		if (ent == ignore)
@@ -1250,10 +1256,10 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 			if (CanDamage(ent, inflictor))
 			{
 				dir = (ent->s.origin - inflictor_center).normalized();
-				// [Paril-KEX] use closest point on bbox to explosion position
-				// to spawn damage effect
-
-				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir, (int)points, (int)points,
+				// Aplicar el modificador de daño aquí
+				float modified_points = points * damage_modifier;
+				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir,
+					(int)modified_points, (int)modified_points,
 					dflags | DAMAGE_RADIUS, mod);
 			}
 		}

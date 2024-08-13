@@ -488,7 +488,7 @@ TEST(FileTest, Dup2Error) {
       fmt::format("cannot duplicate file descriptor {} to -1", f.descriptor()));
 }
 
-TEST(FileTest, Dup2NoExcept) {
+TEST(FileTest, Dup2 ) {
   file f = open_file();
   file copy = open_file();
   error_code ec;
@@ -498,7 +498,7 @@ TEST(FileTest, Dup2NoExcept) {
   EXPECT_READ(copy, FILE_CONTENT);
 }
 
-TEST(FileTest, Dup2NoExceptError) {
+TEST(FileTest, Dup2 Error) {
   file f = open_file();
   error_code ec;
   SUPPRESS_ASSERT(f.dup2(-1, ec));

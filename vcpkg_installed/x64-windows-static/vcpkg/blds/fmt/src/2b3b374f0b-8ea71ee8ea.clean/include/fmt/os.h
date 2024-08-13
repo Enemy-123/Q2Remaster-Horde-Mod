@@ -128,9 +128,9 @@ class error_code {
   int value_;
 
  public:
-  explicit error_code(int value = 0) FMT_NOEXCEPT : value_(value) {}
+  explicit error_code(int value = 0) FMT_  : value_(value) {}
 
-  int get() const FMT_NOEXCEPT { return value_; }
+  int get() const FMT_  { return value_; }
 };
 
 #ifdef _WIN32
@@ -156,7 +156,7 @@ class utf16_to_utf8 {
 };
 
 FMT_API void format_windows_error(buffer<char>& out, int error_code,
-                                  string_view message) FMT_NOEXCEPT;
+                                  string_view message) FMT_ ;
 }  // namespace detail
 
 /** A Windows error. */
@@ -202,7 +202,7 @@ class windows_error : public system_error {
 // Reports a Windows error without throwing an exception.
 // Can be used to report errors from destructors.
 FMT_API void report_windows_error(int error_code,
-                                  string_view message) FMT_NOEXCEPT;
+                                  string_view message) FMT_ ;
 #endif  // _WIN32
 
 // A buffered file.
@@ -219,13 +219,13 @@ class buffered_file {
   void operator=(const buffered_file&) = delete;
 
   // Constructs a buffered_file object which doesn't represent any file.
-  buffered_file() FMT_NOEXCEPT : file_(nullptr) {}
+  buffered_file() FMT_  : file_(nullptr) {}
 
   // Destroys the object closing the file it represents if any.
-  FMT_API ~buffered_file() FMT_NOEXCEPT;
+  FMT_API ~buffered_file() FMT_ ;
 
  public:
-  buffered_file(buffered_file&& other) FMT_NOEXCEPT : file_(other.file_) {
+  buffered_file(buffered_file&& other) FMT_  : file_(other.file_) {
     other.file_ = nullptr;
   }
 
@@ -243,7 +243,7 @@ class buffered_file {
   FMT_API void close();
 
   // Returns the pointer to a FILE object representing this file.
-  FILE* get() const FMT_NOEXCEPT { return file_; }
+  FILE* get() const FMT_  { return file_; }
 
   // We place parentheses around fileno to workaround a bug in some versions
   // of MinGW that define fileno as a macro.
@@ -261,7 +261,7 @@ class buffered_file {
 
 #if FMT_USE_FCNTL
 // A file. Closed file is represented by a file object with descriptor -1.
-// Methods that are not declared with FMT_NOEXCEPT may throw
+// Methods that are not declared with FMT_  may throw
 // fmt::system_error in case of failure. Note that some errors such as
 // closing the file multiple times will cause a crash on Windows rather
 // than an exception. You can get standard behavior by overriding the
@@ -284,7 +284,7 @@ class file {
   };
 
   // Constructs a file object which doesn't represent any file.
-  file() FMT_NOEXCEPT : fd_(-1) {}
+  file() FMT_  : fd_(-1) {}
 
   // Opens a file and constructs a file object representing this file.
   FMT_API file(cstring_view path, int oflag);
@@ -293,9 +293,9 @@ class file {
   file(const file&) = delete;
   void operator=(const file&) = delete;
 
-  file(file&& other) FMT_NOEXCEPT : fd_(other.fd_) { other.fd_ = -1; }
+  file(file&& other) FMT_  : fd_(other.fd_) { other.fd_ = -1; }
 
-  file& operator=(file&& other) FMT_NOEXCEPT {
+  file& operator=(file&& other) FMT_  {
     close();
     fd_ = other.fd_;
     other.fd_ = -1;
@@ -303,10 +303,10 @@ class file {
   }
 
   // Destroys the object closing the file it represents if any.
-  FMT_API ~file() FMT_NOEXCEPT;
+  FMT_API ~file() FMT_ ;
 
   // Returns the file descriptor.
-  int descriptor() const FMT_NOEXCEPT { return fd_; }
+  int descriptor() const FMT_  { return fd_; }
 
   // Closes the file.
   FMT_API void close();
@@ -331,7 +331,7 @@ class file {
 
   // Makes fd be the copy of this file descriptor, closing fd first if
   // necessary.
-  FMT_API void dup2(int fd, error_code& ec) FMT_NOEXCEPT;
+  FMT_API void dup2(int fd, error_code& ec) FMT_ ;
 
   // Creates a pipe setting up read_end and write_end file objects for reading
   // and writing respectively.

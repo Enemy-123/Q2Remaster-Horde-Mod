@@ -1408,10 +1408,6 @@ void fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& aimdir, con
 		fire_beams(self, start, aimdir, offset, damage, kick, TE_HEATBEAM, TE_HEATBEAM_SPARKS, MOD_HEATBEAM);
 }
 
-// *************************
-//	BLASTER 2
-// *************************
-
 /*
 =================
 fire_blaster2
@@ -1457,7 +1453,7 @@ TOUCH(blaster2_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool ot
 		else
 		{
 			if (self->dmg >= 5)
-		//		T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
 			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, mod);
 		}
 	}
@@ -1524,6 +1520,7 @@ void fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int da
 		bolt->touch(bolt, tr.ent, tr, false);
 	}
 }
+
 // *************************
 // tracker
 // *************************

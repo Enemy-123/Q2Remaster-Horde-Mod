@@ -4030,7 +4030,7 @@
     nano by making locale dependency optional
     (https://github.com/fmtlib/fmt/pull/839). Thanks @teajay-fr.
 
--   Keep `noexcept` specifier when exceptions are disabled
+-   Keep ` ` specifier when exceptions are disabled
     (https://github.com/fmtlib/fmt/issues/801,
     https://github.com/fmtlib/fmt/pull/810). Thanks @qis.
 
@@ -5017,7 +5017,7 @@
     https://github.com/fmtlib/fmt/issues/198,
     https://github.com/fmtlib/fmt/issues/200). Thanks @maddinat0r.
 
--   `noexcept` is now used when compiling with MSVC2015
+-   ` ` is now used when compiling with MSVC2015
     (https://github.com/fmtlib/fmt/pull/215). Thanks @dmkrepo.
 
 -   Added an option to disable use of `windows.h` when

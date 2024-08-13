@@ -418,7 +418,7 @@ template <typename Allocator, size_t MaxSize>
 class max_size_allocator : public Allocator {
  public:
   using typename Allocator::value_type;
-  size_t max_size() const noexcept { return MaxSize; }
+  size_t max_size() const   { return MaxSize; }
   value_type* allocate(size_t n) {
     if (n > max_size()) {
       throw std::length_error("size > max_size");

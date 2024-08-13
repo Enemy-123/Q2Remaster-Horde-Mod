@@ -1901,7 +1901,7 @@ inline void VectorScale(const vec3_t& in, float scale, vec3_t& out)
 	out[2] = in[2] * scale;
 }
 
-inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept {
+inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
 	dest[0] = src[0];
 	dest[1] = src[1];
 	dest[2] = src[2];

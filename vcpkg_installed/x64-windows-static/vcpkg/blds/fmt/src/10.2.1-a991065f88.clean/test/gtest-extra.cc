@@ -23,7 +23,7 @@ output_redirect::output_redirect(FILE* f, bool flush) : file_(f) {
   write_end.dup2(fd);
 }
 
-output_redirect::~output_redirect() noexcept {
+output_redirect::~output_redirect()   {
   try {
     restore();
   } catch (const std::exception& e) {

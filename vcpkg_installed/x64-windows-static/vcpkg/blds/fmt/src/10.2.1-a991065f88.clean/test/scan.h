@@ -357,7 +357,7 @@ template <typename Context> class basic_scan_arg {
     custom_.scan = scan_custom_arg<T>;
   }
 
-  constexpr explicit operator bool() const noexcept {
+  constexpr explicit operator bool() const   {
     return type_ != scan_type::none_type;
   }
 

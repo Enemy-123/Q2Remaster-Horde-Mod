@@ -1993,7 +1993,7 @@
   (`#839 <https://github.com/fmtlib/fmt/pull/839>`_).
   Thanks `@teajay-fr (Thomas Benard) <https://github.com/teajay-fr>`_.
 
-* Keep ``noexcept`` specifier when exceptions are disabled
+* Keep `` `` specifier when exceptions are disabled
   (`#801 <https://github.com/fmtlib/fmt/issues/801>`_,
   `#810 <https://github.com/fmtlib/fmt/pull/810>`_).
   Thanks `@qis (Alexej Harm) <https://github.com/qis>`_.
@@ -3102,7 +3102,7 @@ General
   `#200 <https://github.com/fmtlib/fmt/issues/200>`_).
   Thanks to `@maddinat0r (Alex Martin) <https://github.com/maddinat0r>`_.
 
-* ``noexcept`` is now used when compiling with MSVC2015
+* `` `` is now used when compiling with MSVC2015
   (`#215 <https://github.com/fmtlib/fmt/pull/215>`_).
   Thanks to `@dmkrepo (Dmitriy) <https://github.com/dmkrepo>`_.
 

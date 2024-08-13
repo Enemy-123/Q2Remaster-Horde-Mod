@@ -201,8 +201,8 @@ namespace Json {
 
 #if JSON_USE_EXCEPTION
 Exception::Exception(String msg) : msg_(std::move(msg)) {}
-Exception::~Exception() noexcept = default;
-char const* Exception::what() const noexcept { return msg_.c_str(); }
+Exception::~Exception()   = default;
+char const* Exception::what() const   { return msg_.c_str(); }
 RuntimeError::RuntimeError(String const& msg) : Exception(msg) {}
 LogicError::LogicError(String const& msg) : Exception(msg) {}
 JSONCPP_NORETURN void throwRuntimeError(String const& msg) {
@@ -259,7 +259,7 @@ Value::CZString::CZString(const CZString& other) {
   storage_.length_ = other.storage_.length_;
 }
 
-Value::CZString::CZString(CZString&& other) noexcept
+Value::CZString::CZString(CZString&& other)  
     : cstr_(other.cstr_), index_(other.index_) {
   other.cstr_ = nullptr;
 }
@@ -285,7 +285,7 @@ Value::CZString& Value::CZString::operator=(const CZString& other) {
   return *this;
 }
 
-Value::CZString& Value::CZString::operator=(CZString&& other) noexcept {
+Value::CZString& Value::CZString::operator=(CZString&& other)   {
   cstr_ = other.cstr_;
   index_ = other.index_;
   other.cstr_ = nullptr;
@@ -433,7 +433,7 @@ Value::Value(const Value& other) {
   dupMeta(other);
 }
 
-Value::Value(Value&& other) noexcept {
+Value::Value(Value&& other)   {
   initBasic(nullValue);
   swap(other);
 }
@@ -448,7 +448,7 @@ Value& Value::operator=(const Value& other) {
   return *this;
 }
 
-Value& Value::operator=(Value&& other) noexcept {
+Value& Value::operator=(Value&& other)   {
   other.swap(*this);
   return *this;
 }
@@ -1374,7 +1374,7 @@ bool Value::isObject() const { return type() == objectValue; }
 Value::Comments::Comments(const Comments& that)
     : ptr_{cloneUnique(that.ptr_)} {}
 
-Value::Comments::Comments(Comments&& that) noexcept
+Value::Comments::Comments(Comments&& that)  
     : ptr_{std::move(that.ptr_)} {}
 
 Value::Comments& Value::Comments::operator=(const Comments& that) {
@@ -1382,7 +1382,7 @@ Value::Comments& Value::Comments::operator=(const Comments& that) {
   return *this;
 }
 
-Value::Comments& Value::Comments::operator=(Comments&& that) noexcept {
+Value::Comments& Value::Comments::operator=(Comments&& that)   {
   ptr_ = std::move(that.ptr_);
   return *this;
 }

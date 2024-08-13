@@ -118,25 +118,25 @@
 #  endif
 #endif
 
-// Define FMT_USE_NOEXCEPT to make fmt use noexcept (C++11 feature).
-#ifndef FMT_USE_NOEXCEPT
-#  define FMT_USE_NOEXCEPT 0
+// Define FMT_USE_  to make fmt use   (C++11 feature).
+#ifndef FMT_USE_ 
+#  define FMT_USE_  0
 #endif
 
-#if FMT_USE_NOEXCEPT || FMT_HAS_FEATURE(cxx_noexcept) || \
+#if FMT_USE_  || FMT_HAS_FEATURE(cxx_ ) || \
     (FMT_GCC_VERSION >= 408 && FMT_HAS_GXX_CXX11) || FMT_MSC_VER >= 1900
-#  define FMT_DETECTED_NOEXCEPT noexcept
-#  define FMT_HAS_CXX11_NOEXCEPT 1
+#  define FMT_DETECTED_   
+#  define FMT_HAS_CXX11_  1
 #else
-#  define FMT_DETECTED_NOEXCEPT throw()
-#  define FMT_HAS_CXX11_NOEXCEPT 0
+#  define FMT_DETECTED_  throw()
+#  define FMT_HAS_CXX11_  0
 #endif
 
-#ifndef FMT_NOEXCEPT
-#  if FMT_EXCEPTIONS || FMT_HAS_CXX11_NOEXCEPT
-#    define FMT_NOEXCEPT FMT_DETECTED_NOEXCEPT
+#ifndef FMT_ 
+#  if FMT_EXCEPTIONS || FMT_HAS_CXX11_ 
+#    define FMT_  FMT_DETECTED_ 
 #  else
-#    define FMT_NOEXCEPT
+#    define FMT_ 
 #  endif
 #endif
 
@@ -361,10 +361,10 @@ template <typename Char> class basic_string_view {
   using value_type = Char;
   using iterator = const Char*;
 
-  constexpr basic_string_view() FMT_NOEXCEPT : data_(nullptr), size_(0) {}
+  constexpr basic_string_view() FMT_  : data_(nullptr), size_(0) {}
 
   /** Constructs a string reference object from a C string and a size. */
-  constexpr basic_string_view(const Char* s, size_t count) FMT_NOEXCEPT
+  constexpr basic_string_view(const Char* s, size_t count) FMT_ 
       : data_(s),
         size_(count) {}
 
@@ -383,13 +383,13 @@ template <typename Char> class basic_string_view {
   /** Constructs a string reference from a ``std::basic_string`` object. */
   template <typename Traits, typename Alloc>
   FMT_CONSTEXPR basic_string_view(
-      const std::basic_string<Char, Traits, Alloc>& s) FMT_NOEXCEPT
+      const std::basic_string<Char, Traits, Alloc>& s) FMT_ 
       : data_(s.data()),
         size_(s.size()) {}
 
   template <typename S, FMT_ENABLE_IF(std::is_same<
                                       S, detail::std_string_view<Char>>::value)>
-  FMT_CONSTEXPR basic_string_view(S s) FMT_NOEXCEPT : data_(s.data()),
+  FMT_CONSTEXPR basic_string_view(S s) FMT_  : data_(s.data()),
                                                       size_(s.size()) {}
 
   /** Returns a pointer to the string data. */
@@ -574,12 +574,12 @@ class basic_format_parse_context : private ErrorHandler {
     Returns an iterator to the beginning of the format string range being
     parsed.
    */
-  constexpr iterator begin() const FMT_NOEXCEPT { return format_str_.begin(); }
+  constexpr iterator begin() const FMT_  { return format_str_.begin(); }
 
   /**
     Returns an iterator past the end of the format string range being parsed.
    */
-  constexpr iterator end() const FMT_NOEXCEPT { return format_str_.end(); }
+  constexpr iterator end() const FMT_  { return format_str_.end(); }
 
   /** Advances the begin iterator to ``it``. */
   FMT_CONSTEXPR void advance_to(iterator it) {
@@ -671,9 +671,9 @@ template <typename T> class buffer {
  protected:
   // Don't initialize ptr_ since it is not accessed to save a few cycles.
   FMT_SUPPRESS_MSC_WARNING(26495)
-  buffer(size_t sz) FMT_NOEXCEPT : size_(sz), capacity_(sz) {}
+  buffer(size_t sz) FMT_  : size_(sz), capacity_(sz) {}
 
-  buffer(T* p = nullptr, size_t sz = 0, size_t cap = 0) FMT_NOEXCEPT
+  buffer(T* p = nullptr, size_t sz = 0, size_t cap = 0) FMT_ 
       : ptr_(p),
         size_(sz),
         capacity_(cap) {}
@@ -681,7 +681,7 @@ template <typename T> class buffer {
   ~buffer() = default;
 
   /** Sets the buffer data and capacity. */
-  void set(T* buf_data, size_t buf_capacity) FMT_NOEXCEPT {
+  void set(T* buf_data, size_t buf_capacity) FMT_  {
     ptr_ = buf_data;
     capacity_ = buf_capacity;
   }
@@ -696,23 +696,23 @@ template <typename T> class buffer {
   buffer(const buffer&) = delete;
   void operator=(const buffer&) = delete;
 
-  T* begin() FMT_NOEXCEPT { return ptr_; }
-  T* end() FMT_NOEXCEPT { return ptr_ + size_; }
+  T* begin() FMT_  { return ptr_; }
+  T* end() FMT_  { return ptr_ + size_; }
 
-  const T* begin() const FMT_NOEXCEPT { return ptr_; }
-  const T* end() const FMT_NOEXCEPT { return ptr_ + size_; }
+  const T* begin() const FMT_  { return ptr_; }
+  const T* end() const FMT_  { return ptr_ + size_; }
 
   /** Returns the size of this buffer. */
-  size_t size() const FMT_NOEXCEPT { return size_; }
+  size_t size() const FMT_  { return size_; }
 
   /** Returns the capacity of this buffer. */
-  size_t capacity() const FMT_NOEXCEPT { return capacity_; }
+  size_t capacity() const FMT_  { return capacity_; }
 
   /** Returns a pointer to the buffer data. */
-  T* data() FMT_NOEXCEPT { return ptr_; }
+  T* data() FMT_  { return ptr_; }
 
   /** Returns a pointer to the buffer data. */
-  const T* data() const FMT_NOEXCEPT { return ptr_; }
+  const T* data() const FMT_  { return ptr_; }
 
   /** Clears this buffer. */
   void clear() { size_ = 0; }
@@ -1289,7 +1289,7 @@ template <typename Context> class basic_format_arg {
 
   constexpr basic_format_arg() : type_(detail::type::none_type) {}
 
-  constexpr explicit operator bool() const FMT_NOEXCEPT {
+  constexpr explicit operator bool() const FMT_  {
     return type_ != detail::type::none_type;
   }
 
@@ -1397,7 +1397,7 @@ class locale_ref {
   locale_ref() : locale_(nullptr) {}
   template <typename Locale> explicit locale_ref(const Locale& loc);
 
-  explicit operator bool() const FMT_NOEXCEPT { return locale_ != nullptr; }
+  explicit operator bool() const FMT_  { return locale_ != nullptr; }
 
   template <typename Locale> Locale get() const;
 };

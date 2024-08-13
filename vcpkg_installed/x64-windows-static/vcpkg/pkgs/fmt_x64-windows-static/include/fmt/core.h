@@ -319,7 +319,7 @@ namespace detail {
 template <typename... T> FMT_CONSTEXPR void ignore_unused(const T&...) {}
 
 constexpr FMT_INLINE auto is_constant_evaluated(
-    bool default_value = false) noexcept -> bool {
+    bool default_value = false)   -> bool {
 // Workaround for incompatibility between libstdc++ consteval-based
 // std::is_constant_evaluated() implementation and clang-14.
 // https://github.com/fmtlib/fmt/issues/3247
@@ -421,10 +421,10 @@ template <typename Char> class basic_string_view {
   using value_type = Char;
   using iterator = const Char*;
 
-  constexpr basic_string_view() noexcept : data_(nullptr), size_(0) {}
+  constexpr basic_string_view()   : data_(nullptr), size_(0) {}
 
   /** Constructs a string reference object from a C string and a size. */
-  constexpr basic_string_view(const Char* s, size_t count) noexcept
+  constexpr basic_string_view(const Char* s, size_t count)  
       : data_(s), size_(count) {}
 
   /**
@@ -445,38 +445,38 @@ template <typename Char> class basic_string_view {
   /** Constructs a string reference from a ``std::basic_string`` object. */
   template <typename Traits, typename Alloc>
   FMT_CONSTEXPR basic_string_view(
-      const std::basic_string<Char, Traits, Alloc>& s) noexcept
+      const std::basic_string<Char, Traits, Alloc>& s)  
       : data_(s.data()), size_(s.size()) {}
 
   template <typename S, FMT_ENABLE_IF(std::is_same<
                                       S, detail::std_string_view<Char>>::value)>
-  FMT_CONSTEXPR basic_string_view(S s) noexcept
+  FMT_CONSTEXPR basic_string_view(S s)  
       : data_(s.data()), size_(s.size()) {}
 
   /** Returns a pointer to the string data. */
-  constexpr auto data() const noexcept -> const Char* { return data_; }
+  constexpr auto data() const   -> const Char* { return data_; }
 
   /** Returns the string size. */
-  constexpr auto size() const noexcept -> size_t { return size_; }
+  constexpr auto size() const   -> size_t { return size_; }
 
-  constexpr auto begin() const noexcept -> iterator { return data_; }
-  constexpr auto end() const noexcept -> iterator { return data_ + size_; }
+  constexpr auto begin() const   -> iterator { return data_; }
+  constexpr auto end() const   -> iterator { return data_ + size_; }
 
-  constexpr auto operator[](size_t pos) const noexcept -> const Char& {
+  constexpr auto operator[](size_t pos) const   -> const Char& {
     return data_[pos];
   }
 
-  FMT_CONSTEXPR void remove_prefix(size_t n) noexcept {
+  FMT_CONSTEXPR void remove_prefix(size_t n)   {
     data_ += n;
     size_ -= n;
   }
 
   FMT_CONSTEXPR_CHAR_TRAITS auto starts_with(
-      basic_string_view<Char> sv) const noexcept -> bool {
+      basic_string_view<Char> sv) const   -> bool {
     return size_ >= sv.size_ &&
            std::char_traits<Char>::compare(data_, sv.data_, sv.size_) == 0;
   }
-  FMT_CONSTEXPR_CHAR_TRAITS auto starts_with(Char c) const noexcept -> bool {
+  FMT_CONSTEXPR_CHAR_TRAITS auto starts_with(Char c) const   -> bool {
     return size_ >= 1 && std::char_traits<Char>::eq(*data_, c);
   }
   FMT_CONSTEXPR_CHAR_TRAITS auto starts_with(const Char* s) const -> bool {
@@ -690,14 +690,14 @@ template <typename Char> class basic_format_parse_context {
     Returns an iterator to the beginning of the format string range being
     parsed.
    */
-  constexpr auto begin() const noexcept -> iterator {
+  constexpr auto begin() const   -> iterator {
     return format_str_.begin();
   }
 
   /**
     Returns an iterator past the end of the format string range being parsed.
    */
-  constexpr auto end() const noexcept -> iterator { return format_str_.end(); }
+  constexpr auto end() const   -> iterator { return format_str_.end(); }
 
   /** Advances the begin iterator to ``it``. */
   FMT_CONSTEXPR void advance_to(iterator it) {
@@ -822,16 +822,16 @@ template <typename T> class buffer {
  protected:
   // Don't initialize ptr_ since it is not accessed to save a few cycles.
   FMT_MSC_WARNING(suppress : 26495)
-  FMT_CONSTEXPR buffer(size_t sz) noexcept : size_(sz), capacity_(sz) {}
+  FMT_CONSTEXPR buffer(size_t sz)   : size_(sz), capacity_(sz) {}
 
-  FMT_CONSTEXPR20 buffer(T* p = nullptr, size_t sz = 0, size_t cap = 0) noexcept
+  FMT_CONSTEXPR20 buffer(T* p = nullptr, size_t sz = 0, size_t cap = 0)  
       : ptr_(p), size_(sz), capacity_(cap) {}
 
   FMT_CONSTEXPR20 ~buffer() = default;
   buffer(buffer&&) = default;
 
   /** Sets the buffer data and capacity. */
-  FMT_CONSTEXPR void set(T* buf_data, size_t buf_capacity) noexcept {
+  FMT_CONSTEXPR void set(T* buf_data, size_t buf_capacity)   {
     ptr_ = buf_data;
     capacity_ = buf_capacity;
   }
@@ -847,21 +847,21 @@ template <typename T> class buffer {
   buffer(const buffer&) = delete;
   void operator=(const buffer&) = delete;
 
-  FMT_INLINE auto begin() noexcept -> T* { return ptr_; }
-  FMT_INLINE auto end() noexcept -> T* { return ptr_ + size_; }
+  FMT_INLINE auto begin()   -> T* { return ptr_; }
+  FMT_INLINE auto end()   -> T* { return ptr_ + size_; }
 
-  FMT_INLINE auto begin() const noexcept -> const T* { return ptr_; }
-  FMT_INLINE auto end() const noexcept -> const T* { return ptr_ + size_; }
+  FMT_INLINE auto begin() const   -> const T* { return ptr_; }
+  FMT_INLINE auto end() const   -> const T* { return ptr_ + size_; }
 
   /** Returns the size of this buffer. */
-  constexpr auto size() const noexcept -> size_t { return size_; }
+  constexpr auto size() const   -> size_t { return size_; }
 
   /** Returns the capacity of this buffer. */
-  constexpr auto capacity() const noexcept -> size_t { return capacity_; }
+  constexpr auto capacity() const   -> size_t { return capacity_; }
 
   /** Returns a pointer to the buffer data (not null-terminated). */
-  FMT_CONSTEXPR auto data() noexcept -> T* { return ptr_; }
-  FMT_CONSTEXPR auto data() const noexcept -> const T* { return ptr_; }
+  FMT_CONSTEXPR auto data()   -> T* { return ptr_; }
+  FMT_CONSTEXPR auto data() const   -> const T* { return ptr_; }
 
   /** Clears this buffer. */
   void clear() { size_ = 0; }
@@ -1102,11 +1102,11 @@ class appender : public std::back_insert_iterator<detail::buffer<char>> {
 
  public:
   using std::back_insert_iterator<detail::buffer<char>>::back_insert_iterator;
-  appender(base it) noexcept : base(it) {}
+  appender(base it)   : base(it) {}
   FMT_UNCHECKED_ITERATOR(appender);
 
-  auto operator++() noexcept -> appender& { return *this; }
-  auto operator++(int) noexcept -> appender { return *this; }
+  auto operator++()   -> appender& { return *this; }
+  auto operator++(int)   -> appender { return *this; }
 };
 
 namespace detail {
@@ -1558,7 +1558,7 @@ class locale_ref {
   constexpr FMT_INLINE locale_ref() : locale_(nullptr) {}
   template <typename Locale> explicit locale_ref(const Locale& loc);
 
-  explicit operator bool() const noexcept { return locale_ != nullptr; }
+  explicit operator bool() const   { return locale_ != nullptr; }
 
   template <typename Locale> auto get() const -> Locale;
 };
@@ -1665,7 +1665,7 @@ template <typename Context> class basic_format_arg {
 
   constexpr basic_format_arg() : type_(detail::type::none_type) {}
 
-  constexpr explicit operator bool() const noexcept {
+  constexpr explicit operator bool() const   {
     return type_ != detail::type::none_type;
   }
 
@@ -2170,7 +2170,7 @@ inline auto find<false, char>(const char* first, const char* last, char value,
 // that the range is non-empty and the first character is a digit.
 template <typename Char>
 FMT_CONSTEXPR auto parse_nonnegative_int(const Char*& begin, const Char* end,
-                                         int error_value) noexcept -> int {
+                                         int error_value)   -> int {
   FMT_ASSERT(begin != end && '0' <= *begin && *begin <= '9', "");
   unsigned value = 0, prev = 0;
   auto p = begin;

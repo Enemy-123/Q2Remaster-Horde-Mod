@@ -113,7 +113,7 @@ if (CMAKE_CXX_COMPILER_ID MATCHES "GNU")
       -Wconversion -Wswitch-enum -Wundef
       -Wno-ctor-dtor-privacy -Wno-format-nonliteral)
   if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 4.6)
-      set(PEDANTIC_COMPILE_FLAGS ${PEDANTIC_COMPILE_FLAGS} -Wnoexcept
+      set(PEDANTIC_COMPILE_FLAGS ${PEDANTIC_COMPILE_FLAGS} -W 
          -Wno-dangling-else -Wno-unused-local-typedefs)
   endif ()
   if (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 5.0)

@@ -67,7 +67,7 @@ inline int fmt_snprintf(char* buffer, size_t size, const char* format, ...) {
 //   other  - failure
 // Buffer should be at least of size 1.
 inline int safe_strerror(int error_code, char*& buffer,
-                         size_t buffer_size) FMT_NOEXCEPT {
+                         size_t buffer_size) FMT_  {
   FMT_ASSERT(buffer != nullptr && buffer_size != 0, "invalid buffer");
 
   class dispatcher {
@@ -128,7 +128,7 @@ inline int safe_strerror(int error_code, char*& buffer,
 }
 
 FMT_FUNC void format_error_code(detail::buffer<char>& out, int error_code,
-                                string_view message) FMT_NOEXCEPT {
+                                string_view message) FMT_  {
   // Report error code making sure that the output fits into
   // inline_buffer_size to avoid dynamic memory allocation and potential
   // bad_alloc.
@@ -151,7 +151,7 @@ FMT_FUNC void format_error_code(detail::buffer<char>& out, int error_code,
 }
 
 FMT_FUNC void report_error(format_func func, int error_code,
-                           string_view message) FMT_NOEXCEPT {
+                           string_view message) FMT_  {
   memory_buffer full_message;
   func(full_message, error_code, message);
   // Don't use fwrite_fully because the latter may throw.
@@ -205,8 +205,8 @@ template <typename Char> FMT_FUNC Char detail::decimal_point_impl(locale_ref) {
 }
 #endif
 
-FMT_API FMT_FUNC format_error::~format_error() FMT_NOEXCEPT = default;
-FMT_API FMT_FUNC system_error::~system_error() FMT_NOEXCEPT = default;
+FMT_API FMT_FUNC format_error::~format_error() FMT_  = default;
+FMT_API FMT_FUNC system_error::~system_error() FMT_  = default;
 
 FMT_FUNC void system_error::init(int err_code, string_view format_str,
                                  format_args args) {
@@ -1647,7 +1647,7 @@ struct fixed_handler {
 namespace dragonbox {
 // Computes 128-bit result of multiplication of two 64-bit unsigned integers.
 FMT_SAFEBUFFERS inline uint128_wrapper umul128(uint64_t x,
-                                               uint64_t y) FMT_NOEXCEPT {
+                                               uint64_t y) FMT_  {
 #if FMT_USE_INT128
   return static_cast<uint128_t>(x) * static_cast<uint128_t>(y);
 #elif defined(_MSC_VER) && defined(_M_X64)
@@ -1676,7 +1676,7 @@ FMT_SAFEBUFFERS inline uint128_wrapper umul128(uint64_t x,
 
 // Computes upper 64 bits of multiplication of two 64-bit unsigned integers.
 FMT_SAFEBUFFERS inline uint64_t umul128_upper64(uint64_t x,
-                                                uint64_t y) FMT_NOEXCEPT {
+                                                uint64_t y) FMT_  {
 #if FMT_USE_INT128
   auto p = static_cast<uint128_t>(x) * static_cast<uint128_t>(y);
   return static_cast<uint64_t>(p >> 64);
@@ -1690,7 +1690,7 @@ FMT_SAFEBUFFERS inline uint64_t umul128_upper64(uint64_t x,
 // Computes upper 64 bits of multiplication of a 64-bit unsigned integer and a
 // 128-bit unsigned integer.
 FMT_SAFEBUFFERS inline uint64_t umul192_upper64(uint64_t x, uint128_wrapper y)
-    FMT_NOEXCEPT {
+    FMT_  {
   uint128_wrapper g0 = umul128(x, y.high());
   g0 += umul128_upper64(x, y.low());
   return g0.high();
@@ -1698,14 +1698,14 @@ FMT_SAFEBUFFERS inline uint64_t umul192_upper64(uint64_t x, uint128_wrapper y)
 
 // Computes upper 32 bits of multiplication of a 32-bit unsigned integer and a
 // 64-bit unsigned integer.
-inline uint32_t umul96_upper32(uint32_t x, uint64_t y) FMT_NOEXCEPT {
+inline uint32_t umul96_upper32(uint32_t x, uint64_t y) FMT_  {
   return static_cast<uint32_t>(umul128_upper64(x, y));
 }
 
 // Computes middle 64 bits of multiplication of a 64-bit unsigned integer and a
 // 128-bit unsigned integer.
 FMT_SAFEBUFFERS inline uint64_t umul192_middle64(uint64_t x, uint128_wrapper y)
-    FMT_NOEXCEPT {
+    FMT_  {
   uint64_t g01 = x * y.high();
   uint64_t g10 = umul128_upper64(x, y.low());
   return g01 + g10;
@@ -1713,13 +1713,13 @@ FMT_SAFEBUFFERS inline uint64_t umul192_middle64(uint64_t x, uint128_wrapper y)
 
 // Computes lower 64 bits of multiplication of a 32-bit unsigned integer and a
 // 64-bit unsigned integer.
-inline uint64_t umul96_lower64(uint32_t x, uint64_t y) FMT_NOEXCEPT {
+inline uint64_t umul96_lower64(uint32_t x, uint64_t y) FMT_  {
   return x * y;
 }
 
 // Computes floor(log10(pow(2, e))) for e in [-1700, 1700] using the method from
 // https://fmt.dev/papers/Grisu-Exact.pdf#page=5, section 3.4.
-inline int floor_log10_pow2(int e) FMT_NOEXCEPT {
+inline int floor_log10_pow2(int e) FMT_  {
   FMT_ASSERT(e <= 1700 && e >= -1700, "too large exponent");
   const int shift = 22;
   return (e * static_cast<int>(data::log10_2_significand >> (64 - shift))) >>
@@ -1727,7 +1727,7 @@ inline int floor_log10_pow2(int e) FMT_NOEXCEPT {
 }
 
 // Various fast log computations.
-inline int floor_log2_pow10(int e) FMT_NOEXCEPT {
+inline int floor_log2_pow10(int e) FMT_  {
   FMT_ASSERT(e <= 1233 && e >= -1233, "too large exponent");
   const uint64_t log2_10_integer_part = 3;
   const uint64_t log2_10_fractional_digits = 0x5269e12f346e2bf9;
@@ -1737,7 +1737,7 @@ inline int floor_log2_pow10(int e) FMT_NOEXCEPT {
                   (log2_10_fractional_digits >> (64 - shift_amount)))) >>
          shift_amount;
 }
-inline int floor_log10_pow2_minus_log10_4_over_3(int e) FMT_NOEXCEPT {
+inline int floor_log10_pow2_minus_log10_4_over_3(int e) FMT_  {
   FMT_ASSERT(e <= 1700 && e >= -1700, "too large exponent");
   const uint64_t log10_4_over_3_fractional_digits = 0x1ffbfc2bbc780375;
   const int shift_amount = 22;
@@ -1749,7 +1749,7 @@ inline int floor_log10_pow2_minus_log10_4_over_3(int e) FMT_NOEXCEPT {
 }
 
 // Returns true iff x is divisible by pow(2, exp).
-inline bool divisible_by_power_of_2(uint32_t x, int exp) FMT_NOEXCEPT {
+inline bool divisible_by_power_of_2(uint32_t x, int exp) FMT_  {
   FMT_ASSERT(exp >= 1, "");
   FMT_ASSERT(x != 0, "");
 #ifdef FMT_BUILTIN_CTZ
@@ -1758,7 +1758,7 @@ inline bool divisible_by_power_of_2(uint32_t x, int exp) FMT_NOEXCEPT {
   return exp < num_bits<uint32_t>() && x == ((x >> exp) << exp);
 #endif
 }
-inline bool divisible_by_power_of_2(uint64_t x, int exp) FMT_NOEXCEPT {
+inline bool divisible_by_power_of_2(uint64_t x, int exp) FMT_  {
   FMT_ASSERT(exp >= 1, "");
   FMT_ASSERT(x != 0, "");
 #ifdef FMT_BUILTIN_CTZLL
@@ -1769,12 +1769,12 @@ inline bool divisible_by_power_of_2(uint64_t x, int exp) FMT_NOEXCEPT {
 }
 
 // Returns true iff x is divisible by pow(5, exp).
-inline bool divisible_by_power_of_5(uint32_t x, int exp) FMT_NOEXCEPT {
+inline bool divisible_by_power_of_5(uint32_t x, int exp) FMT_  {
   FMT_ASSERT(exp <= 10, "too large exponent");
   return x * data::divtest_table_for_pow5_32[exp].mod_inv <=
          data::divtest_table_for_pow5_32[exp].max_quotient;
 }
-inline bool divisible_by_power_of_5(uint64_t x, int exp) FMT_NOEXCEPT {
+inline bool divisible_by_power_of_5(uint64_t x, int exp) FMT_  {
   FMT_ASSERT(exp <= 23, "too large exponent");
   return x * data::divtest_table_for_pow5_64[exp].mod_inv <=
          data::divtest_table_for_pow5_64[exp].max_quotient;
@@ -1784,7 +1784,7 @@ inline bool divisible_by_power_of_5(uint64_t x, int exp) FMT_NOEXCEPT {
 // divisible by pow(5, N).
 // Precondition: n <= 2 * pow(5, N + 1).
 template <int N>
-bool check_divisibility_and_divide_by_pow5(uint32_t& n) FMT_NOEXCEPT {
+bool check_divisibility_and_divide_by_pow5(uint32_t& n) FMT_  {
   static constexpr struct {
     uint32_t magic_number;
     int bits_for_comparison;
@@ -1801,7 +1801,7 @@ bool check_divisibility_and_divide_by_pow5(uint32_t& n) FMT_NOEXCEPT {
 
 // Computes floor(n / pow(10, N)) for small n and N.
 // Precondition: n <= pow(10, N + 1).
-template <int N> uint32_t small_division_by_pow10(uint32_t n) FMT_NOEXCEPT {
+template <int N> uint32_t small_division_by_pow10(uint32_t n) FMT_  {
   static constexpr struct {
     uint32_t magic_number;
     int shift_amount;
@@ -1813,11 +1813,11 @@ template <int N> uint32_t small_division_by_pow10(uint32_t n) FMT_NOEXCEPT {
 }
 
 // Computes floor(n / 10^(kappa + 1)) (float)
-inline uint32_t divide_by_10_to_kappa_plus_1(uint32_t n) FMT_NOEXCEPT {
+inline uint32_t divide_by_10_to_kappa_plus_1(uint32_t n) FMT_  {
   return n / float_info<float>::big_divisor;
 }
 // Computes floor(n / 10^(kappa + 1)) (double)
-inline uint64_t divide_by_10_to_kappa_plus_1(uint64_t n) FMT_NOEXCEPT {
+inline uint64_t divide_by_10_to_kappa_plus_1(uint64_t n) FMT_  {
   return umul128_upper64(n, 0x83126e978d4fdf3c) >> 9;
 }
 
@@ -1828,25 +1828,25 @@ template <> struct cache_accessor<float> {
   using carrier_uint = float_info<float>::carrier_uint;
   using cache_entry_type = uint64_t;
 
-  static uint64_t get_cached_power(int k) FMT_NOEXCEPT {
+  static uint64_t get_cached_power(int k) FMT_  {
     FMT_ASSERT(k >= float_info<float>::min_k && k <= float_info<float>::max_k,
                "k is out of range");
     return data::dragonbox_pow10_significands_64[k - float_info<float>::min_k];
   }
 
   static carrier_uint compute_mul(carrier_uint u,
-                                  const cache_entry_type& cache) FMT_NOEXCEPT {
+                                  const cache_entry_type& cache) FMT_  {
     return umul96_upper32(u, cache);
   }
 
   static uint32_t compute_delta(const cache_entry_type& cache,
-                                int beta_minus_1) FMT_NOEXCEPT {
+                                int beta_minus_1) FMT_  {
     return static_cast<uint32_t>(cache >> (64 - 1 - beta_minus_1));
   }
 
   static bool compute_mul_parity(carrier_uint two_f,
                                  const cache_entry_type& cache,
-                                 int beta_minus_1) FMT_NOEXCEPT {
+                                 int beta_minus_1) FMT_  {
     FMT_ASSERT(beta_minus_1 >= 1, "");
     FMT_ASSERT(beta_minus_1 < 64, "");
 
@@ -1854,21 +1854,21 @@ template <> struct cache_accessor<float> {
   }
 
   static carrier_uint compute_left_endpoint_for_shorter_interval_case(
-      const cache_entry_type& cache, int beta_minus_1) FMT_NOEXCEPT {
+      const cache_entry_type& cache, int beta_minus_1) FMT_  {
     return static_cast<carrier_uint>(
         (cache - (cache >> (float_info<float>::significand_bits + 2))) >>
         (64 - float_info<float>::significand_bits - 1 - beta_minus_1));
   }
 
   static carrier_uint compute_right_endpoint_for_shorter_interval_case(
-      const cache_entry_type& cache, int beta_minus_1) FMT_NOEXCEPT {
+      const cache_entry_type& cache, int beta_minus_1) FMT_  {
     return static_cast<carrier_uint>(
         (cache + (cache >> (float_info<float>::significand_bits + 1))) >>
         (64 - float_info<float>::significand_bits - 1 - beta_minus_1));
   }
 
   static carrier_uint compute_round_up_for_shorter_interval_case(
-      const cache_entry_type& cache, int beta_minus_1) FMT_NOEXCEPT {
+      const cache_entry_type& cache, int beta_minus_1) FMT_  {
     return (static_cast<carrier_uint>(
                 cache >>
                 (64 - float_info<float>::significand_bits - 2 - beta_minus_1)) +
@@ -1881,7 +1881,7 @@ template <> struct cache_accessor<double> {
   using carrier_uint = float_info<double>::carrier_uint;
   using cache_entry_type = uint128_wrapper;
 
-  static uint128_wrapper get_cached_power(int k) FMT_NOEXCEPT {
+  static uint128_wrapper get_cached_power(int k) FMT_  {
     FMT_ASSERT(k >= float_info<double>::min_k && k <= float_info<double>::max_k,
                "k is out of range");
 
@@ -1935,18 +1935,18 @@ template <> struct cache_accessor<double> {
   }
 
   static carrier_uint compute_mul(carrier_uint u,
-                                  const cache_entry_type& cache) FMT_NOEXCEPT {
+                                  const cache_entry_type& cache) FMT_  {
     return umul192_upper64(u, cache);
   }
 
   static uint32_t compute_delta(cache_entry_type const& cache,
-                                int beta_minus_1) FMT_NOEXCEPT {
+                                int beta_minus_1) FMT_  {
     return static_cast<uint32_t>(cache.high() >> (64 - 1 - beta_minus_1));
   }
 
   static bool compute_mul_parity(carrier_uint two_f,
                                  const cache_entry_type& cache,
-                                 int beta_minus_1) FMT_NOEXCEPT {
+                                 int beta_minus_1) FMT_  {
     FMT_ASSERT(beta_minus_1 >= 1, "");
     FMT_ASSERT(beta_minus_1 < 64, "");
 
@@ -1954,21 +1954,21 @@ template <> struct cache_accessor<double> {
   }
 
   static carrier_uint compute_left_endpoint_for_shorter_interval_case(
-      const cache_entry_type& cache, int beta_minus_1) FMT_NOEXCEPT {
+      const cache_entry_type& cache, int beta_minus_1) FMT_  {
     return (cache.high() -
             (cache.high() >> (float_info<double>::significand_bits + 2))) >>
            (64 - float_info<double>::significand_bits - 1 - beta_minus_1);
   }
 
   static carrier_uint compute_right_endpoint_for_shorter_interval_case(
-      const cache_entry_type& cache, int beta_minus_1) FMT_NOEXCEPT {
+      const cache_entry_type& cache, int beta_minus_1) FMT_  {
     return (cache.high() +
             (cache.high() >> (float_info<double>::significand_bits + 1))) >>
            (64 - float_info<double>::significand_bits - 1 - beta_minus_1);
   }
 
   static carrier_uint compute_round_up_for_shorter_interval_case(
-      const cache_entry_type& cache, int beta_minus_1) FMT_NOEXCEPT {
+      const cache_entry_type& cache, int beta_minus_1) FMT_  {
     return ((cache.high() >>
              (64 - float_info<double>::significand_bits - 2 - beta_minus_1)) +
             1) /
@@ -1978,7 +1978,7 @@ template <> struct cache_accessor<double> {
 
 // Various integer checks
 template <class T>
-bool is_left_endpoint_integer_shorter_interval(int exponent) FMT_NOEXCEPT {
+bool is_left_endpoint_integer_shorter_interval(int exponent) FMT_  {
   return exponent >=
              float_info<
                  T>::case_shorter_interval_left_endpoint_lower_threshold &&
@@ -1987,7 +1987,7 @@ bool is_left_endpoint_integer_shorter_interval(int exponent) FMT_NOEXCEPT {
 }
 template <class T>
 bool is_endpoint_integer(typename float_info<T>::carrier_uint two_f,
-                         int exponent, int minus_k) FMT_NOEXCEPT {
+                         int exponent, int minus_k) FMT_  {
   if (exponent < float_info<T>::case_fc_pm_half_lower_threshold) return false;
   // For k >= 0.
   if (exponent <= float_info<T>::case_fc_pm_half_upper_threshold) return true;
@@ -1998,7 +1998,7 @@ bool is_endpoint_integer(typename float_info<T>::carrier_uint two_f,
 
 template <class T>
 bool is_center_integer(typename float_info<T>::carrier_uint two_f, int exponent,
-                       int minus_k) FMT_NOEXCEPT {
+                       int minus_k) FMT_  {
   // Exponent for 5 is negative.
   if (exponent > float_info<T>::divisibility_check_by_5_threshold) return false;
   if (exponent > float_info<T>::case_fc_upper_threshold)
@@ -2010,7 +2010,7 @@ bool is_center_integer(typename float_info<T>::carrier_uint two_f, int exponent,
 }
 
 // Remove trailing zeros from n and return the number of zeros removed (float)
-FMT_ALWAYS_INLINE int remove_trailing_zeros(uint32_t& n) FMT_NOEXCEPT {
+FMT_ALWAYS_INLINE int remove_trailing_zeros(uint32_t& n) FMT_  {
 #ifdef FMT_BUILTIN_CTZ
   int t = FMT_BUILTIN_CTZ(n);
 #else
@@ -2038,7 +2038,7 @@ FMT_ALWAYS_INLINE int remove_trailing_zeros(uint32_t& n) FMT_NOEXCEPT {
 }
 
 // Removes trailing zeros and returns the number of zeros removed (double)
-FMT_ALWAYS_INLINE int remove_trailing_zeros(uint64_t& n) FMT_NOEXCEPT {
+FMT_ALWAYS_INLINE int remove_trailing_zeros(uint64_t& n) FMT_  {
 #ifdef FMT_BUILTIN_CTZLL
   int t = FMT_BUILTIN_CTZLL(n);
 #else
@@ -2125,7 +2125,7 @@ FMT_ALWAYS_INLINE int remove_trailing_zeros(uint64_t& n) FMT_NOEXCEPT {
 // The main algorithm for shorter interval case
 template <class T>
 FMT_ALWAYS_INLINE FMT_SAFEBUFFERS decimal_fp<T> shorter_interval_case(
-    int exponent) FMT_NOEXCEPT {
+    int exponent) FMT_  {
   decimal_fp<T> ret_value;
   // Compute k and beta
   const int minus_k = floor_log10_pow2_minus_log10_4_over_3(exponent);
@@ -2172,7 +2172,7 @@ FMT_ALWAYS_INLINE FMT_SAFEBUFFERS decimal_fp<T> shorter_interval_case(
 }
 
 template <typename T>
-FMT_SAFEBUFFERS decimal_fp<T> to_decimal(T x) FMT_NOEXCEPT {
+FMT_SAFEBUFFERS decimal_fp<T> to_decimal(T x) FMT_  {
   // Step 1: integer promotion & Schubfach multiplier calculation.
 
   using carrier_uint = typename float_info<T>::carrier_uint;
@@ -2711,7 +2711,7 @@ FMT_FUNC detail::utf8_to_utf16::utf8_to_utf16(string_view s) {
 }
 
 FMT_FUNC void format_system_error(detail::buffer<char>& out, int error_code,
-                                  string_view message) FMT_NOEXCEPT {
+                                  string_view message) FMT_  {
   FMT_TRY {
     memory_buffer buf;
     buf.resize(inline_buffer_size);
@@ -2738,7 +2738,7 @@ FMT_FUNC void detail::error_handler::on_error(const char* message) {
 }
 
 FMT_FUNC void report_system_error(int error_code,
-                                  fmt::string_view message) FMT_NOEXCEPT {
+                                  fmt::string_view message) FMT_  {
   report_error(format_system_error, error_code, message);
 }
 

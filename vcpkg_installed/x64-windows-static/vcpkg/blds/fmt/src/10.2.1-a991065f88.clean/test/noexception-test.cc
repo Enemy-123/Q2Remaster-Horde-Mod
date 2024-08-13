@@ -1,4 +1,4 @@
-// Formatting library for C++ - Noexception tests
+// Formatting library for C++ -  ion tests
 //
 // Copyright (c) 2012 - present, Victor Zverovich
 // All rights reserved.

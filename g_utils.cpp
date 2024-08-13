@@ -383,11 +383,14 @@ Marks the edict as free
 */
 THINK(G_FreeEdict) (edict_t* ed) -> void
 {
-	// already freed
-	if (!ed->inuse)    // debugger crash
+	// Ya liberado
+	if (!ed->inuse)
 		return;
 
-	gi.unlinkentity(ed); // unlink from world
+	// Llamar a OnEntityRemoved antes de limpiar la entidad
+	OnEntityRemoved(ed);
+
+	gi.unlinkentity(ed); // Desenlazar del mundo
 
 	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE))
 	{
@@ -407,8 +410,6 @@ THINK(G_FreeEdict) (edict_t* ed) -> void
 	ed->inuse = false;
 	ed->spawn_count = id;
 	ed->sv.init = false;
-
-	OnEntityRemoved(ed);  // Limpieza final
 }
 
 BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)

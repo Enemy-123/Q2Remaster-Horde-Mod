@@ -1230,6 +1230,106 @@ std::string FormatEntityInfo(edict_t* ent) {
 	return info;
 }
 
+extern std::string FormatEntityInfo(edict_t* ent);
+// En g_local.h o donde tengas definidas tus estructuras globales
+class OptimizedEntityInfoManager {
+private:
+	static constexpr size_t MAX_ENTITY_INFOS = 80; // Ajusta según sea necesario
+	std::array<std::string, MAX_ENTITY_INFOS> activeConfigStrings;
+	std::unordered_map<int, int> entityToConfigStringIndex;
+	std::queue<int> availableIndices;
+	std::vector<int> recentlyUsedIndices;
+
+public:
+	OptimizedEntityInfoManager() {
+		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
+			availableIndices.push(i);
+		}
+	}
+
+	void updateEntityInfo(int entityIndex, const std::string& info) {
+		int configStringIndex;
+		auto it = entityToConfigStringIndex.find(entityIndex);
+
+		if (it == entityToConfigStringIndex.end()) {
+			if (availableIndices.empty()) {
+				configStringIndex = findLeastRecentlyUsedIndex();
+			}
+			else {
+				configStringIndex = availableIndices.front();
+				availableIndices.pop();
+			}
+			entityToConfigStringIndex[entityIndex] = configStringIndex;
+		}
+		else {
+			configStringIndex = it->second;
+		}
+
+		activeConfigStrings[configStringIndex] = info;
+		gi.configstring(CONFIG_ENTITY_INFO_START + configStringIndex, info.c_str());
+
+		updateRecentlyUsed(configStringIndex);
+	}
+
+	void removeEntityInfo(int entityIndex) {
+		auto it = entityToConfigStringIndex.find(entityIndex);
+		if (it != entityToConfigStringIndex.end()) {
+			int configStringIndex = it->second;
+			gi.configstring(CONFIG_ENTITY_INFO_START + configStringIndex, "");
+			activeConfigStrings[configStringIndex] = "";
+			entityToConfigStringIndex.erase(it);
+			availableIndices.push(configStringIndex);
+			removeFromRecentlyUsed(configStringIndex);
+		}
+	}
+
+	int getConfigStringIndex(int entityIndex) {
+		auto it = entityToConfigStringIndex.find(entityIndex);
+		if (it != entityToConfigStringIndex.end()) {
+			return CONFIG_ENTITY_INFO_START + it->second;
+		}
+		return -1;
+	}
+
+private:
+	int findLeastRecentlyUsedIndex() {
+		if (!recentlyUsedIndices.empty()) {
+			int leastRecentIndex = recentlyUsedIndices.front();
+			recentlyUsedIndices.erase(recentlyUsedIndices.begin());
+			return leastRecentIndex;
+		}
+		return 0; // Fallback, no debería ocurrir
+	}
+
+	void updateRecentlyUsed(int index) {
+		removeFromRecentlyUsed(index);
+		recentlyUsedIndices.push_back(index);
+		if (recentlyUsedIndices.size() > MAX_ENTITY_INFOS) {
+			recentlyUsedIndices.erase(recentlyUsedIndices.begin());
+		}
+	}
+
+	void removeFromRecentlyUsed(int index) {
+		auto it = std::find(recentlyUsedIndices.begin(), recentlyUsedIndices.end(), index);
+		if (it != recentlyUsedIndices.end()) {
+			recentlyUsedIndices.erase(it);
+		}
+	}
+};
+
+
+//// Función auxiliar para actualizar el configstring de una entidad
+//inline void UpdateEntityConfigString(edict_t* self) {
+//	unsigned int entity_index = self - g_edicts;
+//	if (entity_index >= 0 && entity_index < globals.num_edicts) {
+//		std::string info_string = FormatEntityInfo(self);
+//		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+//	}
+//}
+OptimizedEntityInfoManager g_entityInfoManager;
+
+
+// En el archivo donde tienes la función CTFSetIDView
 void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
@@ -1269,30 +1369,39 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 
 		int entity_index = best - g_edicts;
-		configStringManager.updateConfigString(entity_index, info_string);
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringManager.getConfigString(entity_index);
+		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+
+		int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
+		if (configStringIndex != -1) {
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
+		}
+		else {
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+		}
 	}
 	else {
 		ent->client->idtarget = nullptr;
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 }
 
+
+
+// En el archivo donde manejas la muerte de entidades
+// En el archivo donde manejas la muerte de entidades
+void OnEntityDeath(edict_t* self) {
+	if (self && self->inuse) {
+		int entity_index = self - g_edicts;
+		g_entityInfoManager.removeEntityInfo(entity_index);
+	}
+}
+
+// Asegúrate de llamar a esto cuando una entidad es removida del juego
 void OnEntityRemoved(edict_t* ent) {
 	if (ent && ent->inuse) {
 		uint32_t entity_index = static_cast<uint32_t>(ent - g_edicts);
 		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
-			configStringManager.freeConfigString(static_cast<int>(entity_index));
-		}
-	}
-}
-
-void OnEntityDeath(edict_t* self) {
-	if (self && self->inuse) {
-		uint32_t entity_index = static_cast<uint32_t>(self - g_edicts);
-		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
-			if (configStringManager.entityToConfigString.count(static_cast<int>(entity_index)) > 0) {
-				configStringManager.freeConfigString(static_cast<int>(entity_index));
-			}
+			g_entityInfoManager.removeEntityInfo(static_cast<int>(entity_index));
 		}
 	}
 }

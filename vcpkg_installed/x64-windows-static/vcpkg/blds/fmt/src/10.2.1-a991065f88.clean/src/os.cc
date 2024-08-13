@@ -85,7 +85,7 @@ class system_message {
   unsigned long result_;
   wchar_t* message_;
 
-  static bool is_whitespace(wchar_t c) noexcept {
+  static bool is_whitespace(wchar_t c)   {
     return c == L' ' || c == L'\n' || c == L'\r' || c == L'\t' || c == L'\0';
   }
 
@@ -104,15 +104,15 @@ class system_message {
     }
   }
   ~system_message() { LocalFree(message_); }
-  explicit operator bool() const noexcept { return result_ != 0; }
-  operator basic_string_view<wchar_t>() const noexcept {
+  explicit operator bool() const   { return result_ != 0; }
+  operator basic_string_view<wchar_t>() const   {
     return basic_string_view<wchar_t>(message_, result_);
   }
 };
 
 class utf8_system_category final : public std::error_category {
  public:
-  const char* name() const noexcept override { return "system"; }
+  const char* name() const   override { return "system"; }
   std::string message(int error_code) const override {
     auto&& msg = system_message(error_code);
     if (msg) {
@@ -127,7 +127,7 @@ class utf8_system_category final : public std::error_category {
 
 }  // namespace detail
 
-FMT_API const std::error_category& system_category() noexcept {
+FMT_API const std::error_category& system_category()   {
   static const detail::utf8_system_category category;
   return category;
 }
@@ -139,7 +139,7 @@ std::system_error vwindows_error(int err_code, string_view format_str,
 }
 
 void detail::format_windows_error(detail::buffer<char>& out, int error_code,
-                                  const char* message) noexcept {
+                                  const char* message)   {
   FMT_TRY {
     auto&& msg = system_message(error_code);
     if (msg) {
@@ -155,12 +155,12 @@ void detail::format_windows_error(detail::buffer<char>& out, int error_code,
   format_error_code(out, error_code, message);
 }
 
-void report_windows_error(int error_code, const char* message) noexcept {
+void report_windows_error(int error_code, const char* message)   {
   report_error(detail::format_windows_error, error_code, message);
 }
 #endif  // _WIN32
 
-buffered_file::~buffered_file() noexcept {
+buffered_file::~buffered_file()   {
   if (file_ && FMT_SYSTEM(fclose(file_)) != 0)
     report_system_error(errno, "cannot close file");
 }
@@ -216,7 +216,7 @@ file::file(cstring_view path, int oflag) {
 #  endif
 }
 
-file::~file() noexcept {
+file::~file()   {
   // Don't retry close in case of EINTR!
   // See http://linux.derkeiler.com/Mailing-Lists/Kernel/2005-09/3000.html
   if (fd_ != -1 && FMT_POSIX_CALL(close(fd_)) != 0)
@@ -295,7 +295,7 @@ void file::dup2(int fd) {
   }
 }
 
-void file::dup2(int fd, std::error_code& ec) noexcept {
+void file::dup2(int fd, std::error_code& ec)   {
   int result = 0;
   FMT_RETRY(result, FMT_POSIX_CALL(dup2(fd_, fd)));
   if (result == -1) ec = std::error_code(errno, std::generic_category());

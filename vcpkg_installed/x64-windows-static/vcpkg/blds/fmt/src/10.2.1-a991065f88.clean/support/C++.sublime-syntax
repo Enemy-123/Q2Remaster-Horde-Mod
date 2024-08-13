@@ -25,7 +25,7 @@ variables:
   path_lookahead: '(?:::\s*)?(?:{{identifier}}\s*::\s*)*(?:template\s+)?{{identifier}}'
   operator_method_name: '\boperator\s*(?:[-+*/%^&|~!=<>]|[-+*/%^&|=!<>]=|<<=?|>>=?|&&|\|\||\+\+|--|,|->\*?|\(\)|\[\]|""\s*{{identifier}})'
   casts: 'const_cast|dynamic_cast|reinterpret_cast|static_cast'
-  operator_keywords: 'and|and_eq|bitand|bitor|compl|not|not_eq|or|or_eq|xor|xor_eq|noexcept'
+  operator_keywords: 'and|and_eq|bitand|bitor|compl|not|not_eq|or|or_eq|xor|xor_eq| '
   control_keywords: 'break|case|catch|continue|default|do|else|for|goto|if|_Pragma|return|switch|throw|try|while'
   memory_operators: 'new|delete'
   basic_types: 'asm|__asm__|auto|bool|_Bool|char|_Complex|double|float|_Imaginary|int|long|short|signed|unsigned|void'
@@ -187,7 +187,7 @@ contexts:
         1: punctuation.accessor.c++
 
   function-specifiers:
-    - match: \b(const|final|noexcept|override)\b
+    - match: \b(const|final| |override)\b
       scope: storage.modifier.c++
 
   #############################################################################
