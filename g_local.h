@@ -3561,9 +3561,16 @@ struct active_players_filter_no_spect_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
-		return (ent->inuse && ent->client && ent->client->pers.connected && (!(ent->client->pers.spectator || ent->client->resp.spectator))); // FIX SQUAD TRYING TO REVIVE WHEN A PLAYER IS SPECTATOR AFK = 1 
+		return (ent->inuse && ent->client && ent->client->pers.connected &&
+			!ent->client->pers.spectator && !ent->client->resp.spectator &&
+			(ent->client->resp.ctf_team == CTF_TEAM1 || ent->client->resp.ctf_team == CTF_TEAM2));
 	}
 };
+
+inline entity_iterable_t<active_players_filter_no_spect_t> active_players_no_spect()
+{
+	return entity_iterable_t<active_players_filter_no_spect_t> { 1u, game.maxclients };
+}
 
 // inuse players that are connected; may not be spawned yet, however
 struct active_players_filter_t
@@ -3582,7 +3589,7 @@ inline entity_iterable_t<active_players_filter_t> active_players()
 // active monsters and dead monsters
 struct active_or_dead_monsters_filter_t
 {
-	inline bool operator()(edict_t* ent) const noexcept
+	inline bool operator()(edict_t* ent) const
 	{
 		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0) || (ent->svflags & SVF_DEADMONSTER);
 	}
@@ -3596,7 +3603,7 @@ inline entity_iterable_t<active_or_dead_monsters_filter_t> active_or_dead_monste
 // active monsters
 struct active_monsters_filter_t
 {
-	inline bool operator()(edict_t* ent) const noexcept
+	inline bool operator()(edict_t* ent) const
 	{
 		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0);
 	}
@@ -3755,7 +3762,8 @@ inline bool pierce_args_t::mark(edict_t* ent)
 }
 
 extern int current_wave_number;
-extern int CalculateRemainingMonsters() noexcept;
+
+extern int CalculateRemainingMonsters();
 
 // implementation of pierce stuff
 inline void pierce_args_t::restore()
@@ -3831,7 +3839,7 @@ extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
 
 extern void OnEntityDeath(edict_t* ent);
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest) noexcept;
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest)  ;
 
 extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 extern void VectorSet(vec3_t& v, float x, float y, float z);
@@ -3848,10 +3856,10 @@ extern bool ClientIsSpectating(gclient_t* cl);
 
 extern 	bool FindMTarget(edict_t* self);
 
-extern void boss_die(edict_t* boss) noexcept;
-extern void BossDeathHandler(edict_t* boss) noexcept;
+extern void boss_die(edict_t* boss);
+extern void BossDeathHandler(edict_t* boss);
 
-extern void AllowNextWaveAdvance() noexcept;
+extern void AllowNextWaveAdvance();
 extern void OpenSpectatorMenu(edict_t* ent);
 extern void UpdateVoteHUD();
 

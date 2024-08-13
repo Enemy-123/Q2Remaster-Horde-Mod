@@ -1108,14 +1108,14 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             {
                 index = atoi(token);
                 if (index < 0 || index >= MAX_STATS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index e1");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index e2");
                 if (!scr_usekfont->integer)
                     CG_DrawString (x, y, scale, cgi.get_configstring(index));
                 else
@@ -1222,14 +1222,14 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             {
                 index = atoi(token);
                 if (index < 0 || index >= MAX_STATS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index a1");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index a2");
                 if (!scr_usekfont->integer)
                     CG_DrawString (x, y, scale, cgi.Localize(cgi.get_configstring(index), nullptr, 0));
                 else
@@ -1246,14 +1246,14 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             {
                 index = atoi(token);
                 if (index < 0 || index >= MAX_STATS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index b1");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index b2");
                 const char *s = cgi.Localize(cgi.get_configstring(index), nullptr, 0);
                 if (!scr_usekfont->integer)
                     CG_DrawString (x - (strlen(s) * CONCHAR_WIDTH * scale), y, scale, s);
@@ -1274,14 +1274,14 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             {
                 index = atoi(token);
                 if (index < 0 || index >= MAX_STATS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index c1");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index c2");
                 CG_DrawHUDString (cgi.Localize(cgi.get_configstring(index), nullptr, 0), x, y, hx*2*scale, 0, scale);
             }
             continue;
@@ -1295,14 +1295,14 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             {
                 index = atoi(token);
                 if (index < 0 || index >= MAX_STATS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index d1");
                 index = ps->stats[index];
 
                 if (cgi.CL_ServerProtocol() <= PROTOCOL_VERSION_3XX)
                     index = CS_REMAP(index).start / CS_MAX_STRING_LENGTH;
 
                 if (index < 0 || index >= MAX_CONFIGSTRINGS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index d2");
                 CG_DrawHUDString (cgi.Localize(cgi.get_configstring(index), nullptr, 0), x, y, hx*2*scale, 0x80, scale);
             }
             continue;
@@ -1582,7 +1582,7 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
             {
                 index = atoi(token);
                 if (index < 0 || index >= MAX_STATS)
-                    cgi.Com_Error("Bad stat_string index");
+                    cgi.Com_Error("Bad stat_string index f1");
                 index = ps->stats[index] - 1;
 
                 if (!scr_usekfont->integer)

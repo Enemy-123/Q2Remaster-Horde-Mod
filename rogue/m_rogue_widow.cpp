@@ -866,8 +866,8 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void
 
 	WidowCalcSlots(self);
 
-	// if we can't see the target, spawn stuff regardless of frame
-	if ((self->monsterinfo.attack_state == AS_BLIND) && (M_SlotsLeft(self) >= 2))
+	// if we see the target, spawn stuff regardless of frame
+	if ((self->monsterinfo.attack_state == AS_BLIND) && (M_SlotsLeft(self) >= 2) && visible(self, self->enemy))
 	{
 		M_SetAnimation(self, &widow_move_spawn);
 		return;

@@ -1848,11 +1848,11 @@ USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> 
 		level.health_bar_entities[i] = ent;
 
 		// Update the boss name configstring
-		gi.configstring(CONFIG_BOSS_NAME, ent->message);
+		gi.configstring( CONFIG_HEALTH_BAR_NAME, ent->message);
 
 		// Broadcast the update to all clients
 		gi.WriteByte(svc_configstring);
-		gi.WriteShort(CONFIG_BOSS_NAME);
+		gi.WriteShort( CONFIG_HEALTH_BAR_NAME);
 		gi.WriteString(ent->message);
 		gi.multicast(vec3_origin, MULTICAST_ALL, true);
 
@@ -1893,7 +1893,7 @@ void SP_target_healthbar(edict_t* self)
 	self->nextthink = level.time + 25_ms;
 
 	// Set the boss name configstring
-	gi.configstring(CONFIG_BOSS_NAME, self->message);
+	gi.configstring( CONFIG_HEALTH_BAR_NAME, self->message);
 }
 
 

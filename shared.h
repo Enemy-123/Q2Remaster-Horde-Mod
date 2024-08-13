@@ -45,7 +45,7 @@ struct MapSize {
     bool isBigMap = false;
 };
 
-MapSize GetMapSize(const std::string& mapname) noexcept;
+MapSize GetMapSize(const std::string& mapname)  ;
 
 
 // Estructura para almacenar las estadísticas de los jugadores
