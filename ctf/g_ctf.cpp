@@ -2422,10 +2422,17 @@ int CTFApplyResistance(edict_t* ent, int dmg)
 	return dmg;
 }
 
-int CTFApplyStrength(edict_t* ent, int dmg)
-{
-	if (dmg && ent->client && ent->client->pers.inventory[IT_TECH_STRENGTH])
-	{
+int CTFApplyStrength(edict_t* ent, int dmg) {
+	if (ent == nullptr) {
+		gi.Com_PrintFmt("Error: ent is null\n");
+		return dmg;
+	}
+	if (ent->client == nullptr) {
+		gi.Com_PrintFmt("Error: ent->client is null\n");
+		return dmg;
+	}
+
+	if (dmg && ent->client->pers.inventory[IT_TECH_STRENGTH]) {
 		return dmg * 2;
 	}
 	return dmg;
