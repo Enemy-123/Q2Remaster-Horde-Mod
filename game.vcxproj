@@ -92,6 +92,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnablePREfast>true</EnablePREfast>
       <Optimization>Disabled</Optimization>
+      <AdditionalOptions>/wd6285 %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
     <Link>
       <SubSystem>NotSet</SubSystem>

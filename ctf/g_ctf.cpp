@@ -2424,20 +2424,17 @@ int CTFApplyResistance(edict_t* ent, int dmg)
 
 int CTFApplyStrength(edict_t* ent, int dmg) {
 	if (ent == nullptr) {
-		gi.Com_PrintFmt("Error: ent is null\n");
-		return dmg;
-	}
-	if (ent->client == nullptr) {
-		gi.Com_PrintFmt("Error: ent->client is null\n");
+		// Este error sí debería ser raro y vale la pena registrarlo
+		gi.Com_PrintFmt("CTFApplyStrength: Error - ent is null\n");
 		return dmg;
 	}
 
-	if (dmg && ent->client->pers.inventory[IT_TECH_STRENGTH]) {
+	if (ent->client && dmg && ent->client->pers.inventory[IT_TECH_STRENGTH]) {
 		return dmg * 2;
 	}
+
 	return dmg;
 }
-
 bool CTFApplyStrengthSound(edict_t* ent)
 {
 	float volume = 1.0;
