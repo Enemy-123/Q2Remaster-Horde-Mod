@@ -651,7 +651,7 @@ float entdist(const edict_t* ent1, const edict_t* ent2)
 
 PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-			self->enemy = other;
+		self->enemy = other;
 
 		if (level.time < self->pain_debounce_time)
 			return;
@@ -671,6 +671,7 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	edict_t* base;
 
 	if (self->owner && self->owner->client) {
+		gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
 		self->owner->client->num_sentries--;
 	}
 

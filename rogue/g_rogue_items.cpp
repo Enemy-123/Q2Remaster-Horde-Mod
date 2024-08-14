@@ -100,6 +100,8 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 //	}
 //}
 
+constexpr int MAX_SENTRIES = 3;
+
 void Use_sentrygun(edict_t* ent, gitem_t* item)
 {
 	// Comprueba si el jugador puede colocar una nueva torreta
@@ -109,8 +111,8 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 		}
 	}
 	else {
-		if (ent->client->num_sentries >= 3) {
-			gi.Client_Print(ent, PRINT_HIGH, "You have reached the sentrygun limit.\n");
+		if (ent->client->num_sentries >= MAX_SENTRIES) {
+			gi.Client_Print(ent, PRINT_HIGH, "You have reached the sentry gun limit.\n");
 			return;
 		}
 	}
@@ -151,6 +153,10 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 		ent->client->pers.inventory[item->id]--;
 		// Incrementa el número de torretas del jugador
 		ent->client->num_sentries++;
+
+		// Nuevo mensaje después de construir la torreta
+		gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun spawned. You have {}/{} sentry guns.\n",
+			ent->client->num_sentries, MAX_SENTRIES);
 	}
 }
 

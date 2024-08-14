@@ -1118,19 +1118,18 @@ static bool Horde_AllMonstersDead()  {
     return true;
 }
 
-static void Horde_CleanBodies()  {
-    for (auto ent : active_or_dead_monsters()) {
-        if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
-            if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-                boss_die(ent);
-            }
-            else {
-                OnEntityDeath(ent);              
-          //      OnEntityRemoved(ent); // Añadido para liberar el configstring
-            }
-            G_FreeEdict(ent); // Libera la entidad
-        }
-    }
+static void Horde_CleanBodies() {
+	for (auto ent : active_or_dead_monsters()) {
+		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
+			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+				boss_die(ent);
+			}
+			else {
+				OnEntityDeath(ent);
+			}
+			G_FreeEdict(ent); // Libera la entidad
+		}
+	}
 }
 
 // spawning boss origin
@@ -1435,7 +1434,39 @@ void ResetAutoSpawnedBosses()  {
     // Reset recent bosses
     recent_bosses.clear();
 }
-void ResetGame()  {
+
+void ResetGame() {
+    // Reiniciar estructuras de datos globales
+    lastSpawnPointTime.clear();
+    spawnPointCooldowns.clear();
+    lastMonsterSpawnTime.clear();
+    spawnAttempts.clear();
+
+    // Reiniciar variables de estado global
+    g_horde_local = HordeState();  // Asume que HordeState tiene un constructor por defecto adecuado
+    current_wave_number = 0;
+    flying_monsters_mode = false;
+    boss_spawned_for_wave = false;
+    next_wave_message_sent = false;
+    allowWaveAdvance = false;
+
+    // Reiniciar otras variables relevantes
+    WAVE_TO_ALLOW_FLYING = 0;
+    SPAWN_POINT_COOLDOWN = 3.8_sec;
+
+    // this fixes monsters travelling to the next map for now lol
+    for (int i = 1; i < globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+        if (ent->inuse && (ent->svflags & SVF_MONSTER)) {
+            G_FreeEdict(ent);
+        }
+    }
+
+    //// Reiniciar contadores de monstruos
+    //level.total_monsters = 0;
+    //level.killed_monsters = 0;
+    cachedRemainingMonsters = 0;
+
     // Reset core gameplay elements
     ResetSpawnAttempts();
     ResetCooldowns();
@@ -1443,15 +1474,11 @@ void ResetGame()  {
     ResetAutoSpawnedBosses();
 
     // Reset wave information
-    current_wave_number = 0;
     g_horde_local.level = 0;  // Reset current wave level
     g_horde_local.state = horde_state_t::warmup;  // Set game state to warmup
     g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
     g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
-    next_wave_message_sent = false;
-    boss_spawned_for_wave = false;
-    allowWaveAdvance = false;
-    cachedRemainingMonsters = -1;
+    g_horde_local.num_to_spawn = 0;
 
     // Reset gameplay configuration variables
     gi.cvar_set("g_chaotic", "0");
@@ -1474,21 +1501,17 @@ void ResetGame()  {
     gi.cvar_set("g_bouncygl", "0");
     gi.cvar_set("g_autohaste", "0");
 
+    // Reiniciar semilla aleatoria
+    srand(static_cast<unsigned int>(time(nullptr)));
 
-    // Reset spawn cooldowns
-    SPAWN_POINT_COOLDOWN = 3.8_sec;
-
-    // Reset the number of monsters to be spawned
-    g_horde_local.num_to_spawn = 0;
-
-    // Reset the count of remaining monsters
-    cachedRemainingMonsters = -1;
+    // Registrar el reinicio
+    gi.Com_PrintFmt("Horde game state reset complete.\n");
 }
 
 // Funci�n para obtener el n�mero de jugadores activos (incluyendo bots)
 int32_t GetNumActivePlayers()  {
     int32_t numActivePlayers = 0;
-    for (const auto player : active_players()) {
+    for ( auto const player : active_players()) {
         if (player->client->resp.ctf_team == CTF_TEAM1) {
             numActivePlayers++;
         }
@@ -1499,7 +1522,7 @@ int32_t GetNumActivePlayers()  {
 // Funci�n para obtener el n�mero de jugadores en espectador
 int32_t GetNumSpectPlayers()  {
     int32_t numSpectPlayers = 0;
-    for (const auto player : active_players()) {
+    for ( auto const player : active_players()) {
         if (player->client->resp.ctf_team != CTF_TEAM1) {
             numSpectPlayers++;
         }

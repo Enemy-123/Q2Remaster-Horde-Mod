@@ -13,14 +13,14 @@ dm_game_rt DMGame;
 //=================
 constexpr item_flags_t IF_TYPE_MASK = (IF_WEAPON | IF_AMMO | IF_POWERUP | IF_ARMOR | IF_KEY);
 
-void ED_CallSpawn(edict_t *ent);
-bool Pickup_Health(edict_t *ent, edict_t *other);
-bool Pickup_Armor(edict_t *ent, edict_t *other);
-bool Pickup_PowerArmor(edict_t *ent, edict_t *other);
+void ED_CallSpawn(edict_t* ent);
+bool Pickup_Health(edict_t* ent, edict_t* other);
+bool Pickup_Armor(edict_t* ent, edict_t* other);
+bool Pickup_PowerArmor(edict_t* ent, edict_t* other);
 
 inline item_flags_t GetSubstituteItemFlags(item_id_t id)
 {
-	const gitem_t *item = GetItemByIndex(id);
+	const gitem_t* item = GetItemByIndex(id);
 
 	// we want to stay within the item class
 	item_flags_t flags = item->flags & IF_TYPE_MASK;
@@ -34,7 +34,7 @@ inline item_flags_t GetSubstituteItemFlags(item_id_t id)
 	return flags;
 }
 
-inline item_id_t FindSubstituteItem(edict_t *ent)
+inline item_id_t FindSubstituteItem(edict_t* ent)
 {
 	// never replace flags
 	if (ent->item->id == IT_FLAG1 || ent->item->id == IT_FLAG2 || ent->item->id == IT_ITEM_TAG_TOKEN)
@@ -58,10 +58,10 @@ inline item_id_t FindSubstituteItem(edict_t *ent)
 	}
 	// armor is also special case
 	else if (ent->item->id == IT_ARMOR_JACKET ||
-			 ent->item->id == IT_ARMOR_COMBAT ||
-			 ent->item->id == IT_ARMOR_BODY ||
-			 ent->item->id == IT_ITEM_POWER_SCREEN ||
-			 ent->item->id == IT_ITEM_POWER_SHIELD)
+		ent->item->id == IT_ARMOR_COMBAT ||
+		ent->item->id == IT_ARMOR_BODY ||
+		ent->item->id == IT_ITEM_POWER_SCREEN ||
+		ent->item->id == IT_ITEM_POWER_SHIELD)
 	{
 		float rnd = frandom();
 
@@ -85,7 +85,7 @@ inline item_id_t FindSubstituteItem(edict_t *ent)
 	// gather matching items
 	for (item_id_t i = static_cast<item_id_t>(IT_NULL + 1); i < IT_TOTAL; i = static_cast<item_id_t>(static_cast<int32_t>(i) + 1))
 	{
-		const gitem_t *it = GetItemByIndex(i);
+		const gitem_t* it = GetItemByIndex(i);
 		item_flags_t itflags = it->flags;
 
 		if (!itflags || (itflags & (IF_NOT_GIVEABLE | IF_TECH | IF_NOT_RANDOM)) || !it->pickup || !it->world_model)
@@ -123,13 +123,13 @@ inline item_id_t FindSubstituteItem(edict_t *ent)
 
 //=================
 //=================
-item_id_t DoRandomRespawn(edict_t *ent)
+item_id_t DoRandomRespawn(edict_t* ent)
 {
 	if (!ent->item)
 		return IT_NULL; // why
 
 	item_id_t id = FindSubstituteItem(ent);
-	
+
 	if (id == IT_NULL)
 		return IT_NULL;
 
@@ -140,7 +140,7 @@ item_id_t DoRandomRespawn(edict_t *ent)
 //=================
 void PrecacheForRandomRespawn()
 {
-	gitem_t *it;
+	gitem_t* it;
 	int		 i;
 	int		 itflags;
 
@@ -165,11 +165,9 @@ edict_t* SpawnTurret(edict_t* owner, const vec3_t& start, const vec3_t& aimdir, 
 DIE(sentrygun_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
-	// The turret doesn't need to spawn spheres or explode, so we can simplify this function.
 	self->takedamage = DAMAGE_NONE;
 	BecomeExplosion1(self);
 }
-
 PAIN(sentrygun_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	// Turret doesn't need to track an enemy like a sentrygun, so this can be simplified or removed.
@@ -255,18 +253,18 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 
 void Tag_GameInit();
 void Tag_PostInitSetup();
-void Tag_PlayerDeath(edict_t *targ, edict_t *inflictor, edict_t *attacker);
-void Tag_Score(edict_t *attacker, edict_t *victim, int scoreChange, const mod_t &mod);
-void Tag_PlayerEffects(edict_t *ent);
-void Tag_DogTag(edict_t *ent, edict_t *killer, const char **pic);
-void Tag_PlayerDisconnect(edict_t *ent);
-int	 Tag_ChangeDamage(edict_t *targ, edict_t *attacker, int damage, mod_t mod);
+void Tag_PlayerDeath(edict_t* targ, edict_t* inflictor, edict_t* attacker);
+void Tag_Score(edict_t* attacker, edict_t* victim, int scoreChange, const mod_t& mod);
+void Tag_PlayerEffects(edict_t* ent);
+void Tag_DogTag(edict_t* ent, edict_t* killer, const char** pic);
+void Tag_PlayerDisconnect(edict_t* ent);
+int	 Tag_ChangeDamage(edict_t* targ, edict_t* attacker, int damage, mod_t mod);
 
 void DBall_GameInit();
-void DBall_ClientBegin(edict_t *ent);
-bool DBall_SelectSpawnPoint(edict_t *ent, vec3_t &origin, vec3_t &angles, bool force_spawn);
-int	 DBall_ChangeKnockback(edict_t *targ, edict_t *attacker, int knockback, mod_t mod);
-int	 DBall_ChangeDamage(edict_t *targ, edict_t *attacker, int damage, mod_t mod);
+void DBall_ClientBegin(edict_t* ent);
+bool DBall_SelectSpawnPoint(edict_t* ent, vec3_t& origin, vec3_t& angles, bool force_spawn);
+int	 DBall_ChangeKnockback(edict_t* targ, edict_t* attacker, int knockback, mod_t mod);
+int	 DBall_ChangeDamage(edict_t* targ, edict_t* attacker, int damage, mod_t mod);
 void DBall_PostInitSetup();
 int	 DBall_CheckDMRules();
 
@@ -302,7 +300,7 @@ void InitGameRules()
 			DMGame.PostInitSetup = DBall_PostInitSetup;
 			DMGame.CheckDMRules = DBall_CheckDMRules;
 			break;
-		// reset gamerules if it's not a valid number
+			// reset gamerules if it's not a valid number
 		default:
 			gi.cvar_forceset("gamerules", "0");
 			break;

@@ -466,104 +466,111 @@ vec3_t parasite_get_proboscis_start(edict_t* self)
 
 THINK(proboscis_think) (edict_t* self) -> void
 {
-	self->nextthink = level.time + FRAME_TIME_S; // start doing stuff on next frame
+    if (!self) {
+        gi.Com_PrintFmt("Warning: Null self pointer in proboscis_think\n");
+        return;
+    }
 
-	// retracting; keep pulling until we hit the parasite
-	if (self->style == 2)
-	{
-		vec3_t start = parasite_get_proboscis_start(self->owner);
-		vec3_t dir = (self->s.origin - start);
-		float dist = dir.normalize();
+    self->nextthink = level.time + FRAME_TIME_S; // start doing stuff on next frame
 
-		if (dist <= (self->speed * 2) * gi.frame_time_s)
-		{
-			// reached target; free self on next frame, let parasite know
-			self->style = 3;
-			self->think = proboscis_reset;
-			self->s.origin = start;
-			gi.linkentity(self);
-			return;
-		}
+    // retracting; keep pulling until we hit the parasite
+    if (self->style == 2)
+    {
+        if (!self->owner) {
+            gi.Com_PrintFmt("Warning: Null owner in proboscis_think during retraction\n");
+            proboscis_retract(self);
+            return;
+        }
 
-		// pull us in
-		self->s.origin -= dir * (self->speed * gi.frame_time_s);
-		gi.linkentity(self);
-	}
-	// stuck on target; do damage, suck health
-	// and check if target goes away
-	else if (self->style == 1)
-	{
-		if (!self->enemy)
-		{
-			// Enemy not valid, retract early
-			proboscis_retract(self);
-		}
-		else if (!self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
-		{
-			// target gone, retract early
-			proboscis_retract(self);
-		}
-		else
-		{
-			// update our position
-			self->s.origin = self->enemy->s.origin + self->move_origin;
+        vec3_t start = parasite_get_proboscis_start(self->owner);
+        vec3_t dir = (self->s.origin - start);
+        float dist = dir.normalize();
+        if (dist <= (self->speed * 2) * gi.frame_time_s)
+        {
+            // reached target; free self on next frame, let parasite know
+            self->style = 3;
+            self->think = proboscis_reset;
+            self->s.origin = start;
+            gi.linkentity(self);
+            return;
+        }
+        // pull us in
+        self->s.origin -= dir * (self->speed * gi.frame_time_s);
+        gi.linkentity(self);
+    }
+    // stuck on target; do damage, suck health
+    // and check if target goes away
+    else if (self->style == 1)
+    {
+        if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
+        {
+            // Enemy not valid or target gone, retract early
+            proboscis_retract(self);
+            return;
+        }
 
-			vec3_t start = parasite_get_proboscis_start(self->owner);
+        if (!self->owner) {
+            gi.Com_PrintFmt("Warning: Null owner in proboscis_think during stuck phase\n");
+            proboscis_retract(self);
+            return;
+        }
 
-			self->s.angles = vectoangles((self->s.origin - start).normalized());
-
-			// see if we got cut by the world
-			trace_t tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
-			if (tr.fraction != 1.0f)
-			{
-				// blocked, so retract
-				proboscis_retract(self);
-				self->s.origin = self->s.old_origin;
-			}
-			else
-			{
-				// succ & drain
-				if (self->timestamp <= level.time)
-				{
-					T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, 2 * M_DamageModifier(self), 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
-					self->owner->health = min(self->owner->max_health, self->owner->health + 2);
-					self->owner->monsterinfo.setskin(self->owner);
-					self->timestamp = level.time + 10_hz;
-				}
-			}
-
-			gi.linkentity(self);
-		}
-	}
-	// flying
-	else if (self->style == 0)
-	{
-		// owner gone away?
-		if (!self->owner || !self->owner->enemy || !self->owner->enemy->inuse || self->owner->enemy->health <= 0)
-		{
-			proboscis_retract(self);
-			return
-				proboscis_retract(self);
-			return;
-		}
-
-		// if we're well behind our target and missed by 2x velocity,
-		// be smart enough to pull in automatically
-		vec3_t to_target = (self->s.origin - self->owner->enemy->s.origin);
-		float dist_to_target = to_target.normalize();
-
-		if (dist_to_target > (self->speed * 2) / 15.f)
-		{
-			vec3_t from_owner = (self->s.origin - self->owner->s.origin).normalized();
-			float dot = to_target.dot(from_owner);
-
-			if (dot > 0.f)
-			{
-				proboscis_retract(self);
-				return;
-			}
-		}
-	}
+        // update our position
+        self->s.origin = self->enemy->s.origin + self->move_origin;
+        vec3_t start = parasite_get_proboscis_start(self->owner);
+        self->s.angles = vectoangles((self->s.origin - start).normalized());
+        
+        // see if we got cut by the world
+        trace_t tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
+        if (tr.fraction != 1.0f)
+        {
+            // blocked, so retract
+            proboscis_retract(self);
+            self->s.origin = self->s.old_origin;
+        }
+        else
+        {
+            // succ & drain
+            if (self->timestamp <= level.time)
+            {
+                int damage = 2;
+                if (M_DamageModifier) {
+                    damage *= M_DamageModifier(self);
+                }
+                T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
+                self->owner->health = min(self->owner->max_health, self->owner->health + 2);
+                if (self->owner->monsterinfo.setskin) {
+                    self->owner->monsterinfo.setskin(self->owner);
+                }
+                self->timestamp = level.time + 10_hz;
+            }
+        }
+        gi.linkentity(self);
+    }
+    // flying
+    else if (self->style == 0)
+    {
+        // owner gone away?
+        if (!self->owner || !self->owner->enemy || !self->owner->enemy->inuse || self->owner->enemy->health <= 0)
+        {
+            proboscis_retract(self);
+            return;
+        }
+        // if we're well behind our target and missed by 2x velocity,
+        // be smart enough to pull in automatically
+        vec3_t to_target = (self->s.origin - self->owner->enemy->s.origin);
+        float dist_to_target = to_target.normalize();
+        if (dist_to_target > (self->speed * 2) / 15.f)
+        {
+            vec3_t from_owner = (self->s.origin - self->owner->s.origin).normalized();
+            float dot = to_target.dot(from_owner);
+            if (dot > 0.f)
+            {
+                proboscis_retract(self);
+                return;
+            }
+        }
+    }
 }
 
 PRETHINK(proboscis_segment_draw) (edict_t* self) -> void
