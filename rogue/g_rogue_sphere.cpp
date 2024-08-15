@@ -88,21 +88,66 @@ void sphere_fly(edict_t *self)
 
 // =================
 // =================
-void sphere_chase(edict_t *self, int stupidChase)
+void sphere_chase(edict_t* self, int stupidChase)
 {
 	vec3_t dest;
 	vec3_t dir;
 	float  dist;
 
-	if (level.time >= gtime_t::from_sec(self->wait) || (self->enemy && self->enemy->health < 1))
+	// Verificar si el tiempo de vida ha expirado
+	if (level.time >= gtime_t::from_sec(self->wait))
 	{
 		sphere_think_explode(self);
 		return;
 	}
-	if (self && self->enemy)
-	dest = self->enemy->s.origin;
-	if (self->enemy->client)
-		dest[2] += self->enemy->viewheight;
+
+	// Verificar si el enemigo actual ya no es válido
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
+	{
+		// Buscar un nuevo enemigo
+		self->enemy = nullptr;
+		edict_t* newEnemy = nullptr;
+		float bestDistance = 1000000;
+
+		for (auto player : active_players())
+		{
+			if (player == self->owner || player->health <= 0)
+				continue;
+
+			float distance = (player->s.origin - self->s.origin).length();
+			if (distance < bestDistance && visible(self, player))
+			{
+				newEnemy = player;
+				bestDistance = distance;
+			}
+		}
+
+		if (newEnemy)
+		{
+			self->enemy = newEnemy;
+		}
+		else
+		{
+			// No se encontró un nuevo enemigo, volver al dueño o explotar
+			if (self->owner && self->owner->inuse && self->owner->health > 0)
+			{
+				self->enemy = nullptr;
+				dest = self->owner->s.origin;
+			}
+			else
+			{
+				sphere_think_explode(self);
+				return;
+			}
+		}
+	}
+
+	if (self->enemy)
+	{
+		dest = self->enemy->s.origin;
+		if (self->enemy->client)
+			dest[2] += self->enemy->viewheight;
+	}
 
 	if (visible(self, self->enemy) || stupidChase)
 	{
@@ -121,7 +166,6 @@ void sphere_chase(edict_t *self, int stupidChase)
 		dir = self->enemy->s.origin - self->s.origin;
 		dist = dir.normalize();
 		self->s.angles = vectoangles(dir);
-
 		// if lurking, hunter sphere uses lurking sound
 		self->s.sound = gi.soundindex("spheres/h_lurk.wav");
 		self->velocity = {};
@@ -160,7 +204,6 @@ void sphere_chase(edict_t *self, int stupidChase)
 		}
 	}
 }
-
 // *************************
 // Attack related stuff
 // *************************
@@ -613,7 +656,16 @@ THINK(vengeance_think) (edict_t *self) -> void
 // =================
 edict_t* Sphere_Spawn(edict_t* owner, spawnflags_t spawnflags)
 {
-	edict_t* sphere;
+
+
+	edict_t* sphere{};
+
+	if (!(spawnflags & SPHERE_TYPE).any()) {
+		gi.Com_Print("Tried to create a sphere with invalid spawnflags\n");
+		G_FreeEdict(sphere);
+		return nullptr;
+	}
+
 	sphere = G_Spawn();
 	sphere->s.origin = owner->s.origin;
 	sphere->s.origin[2] = owner->absmax[2];

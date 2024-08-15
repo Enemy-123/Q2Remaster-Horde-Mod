@@ -660,14 +660,15 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	// if there's a sphere around, let it know the player died.
 	// vengeance and hunter will die if they're not attacking,
 	// defender should always die
-	if (self->client->owned_sphere)
-	{
-		edict_t* sphere;
-
-		sphere = self->client->owned_sphere;
-		sphere->die(sphere, self, self, 0, vec3_origin, mod);
+	if (self->client && self->client->owned_sphere) {
+		if (self->client->owned_sphere->die) {
+			self->client->owned_sphere->die(self->client->owned_sphere, self, self, 0, vec3_origin, mod);
+		}
+		else {
+			G_FreeEdict(self->client->owned_sphere);
+		}
+		self->client->owned_sphere = nullptr;
 	}
-
 	// if we've been killed by the tracker, GIB!
 	if (mod.id == MOD_TRACKER)
 	{

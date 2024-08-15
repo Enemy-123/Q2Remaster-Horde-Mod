@@ -936,7 +936,7 @@ void G_SetStats(edict_t* ent)
 	{
 		for (const auto& sphere : sphere_table)
 		{
-			if (ent->client->owned_sphere->spawnflags == sphere.spawnflags)
+			if (ent->client->owned_sphere->spawnflags.has(sphere.spawnflags))
 			{
 				active_sphere = &sphere;
 				break;

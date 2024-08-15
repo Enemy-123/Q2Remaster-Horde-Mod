@@ -848,7 +848,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (!targ->takedamage)
 		return;
 
+	// Si el atacante es nulo, usamos el inflictor como atacante
+	if (!attacker)
+		attacker = inflictor;
 
+	// Si aún así el atacante es nulo, usamos el mundo como atacante
+	if (!attacker)
+		attacker = world;
 
 	if (attacker && (attacker->svflags & SVF_MONSTER)) {
 		UpdatePowerUpTimes(attacker);
@@ -1060,8 +1066,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	// ROGUE
 
 	// [Paril-KEX] player hit markers
-	if (targ != attacker && attacker->client && targ->health > 0 && !((targ && targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) && mod.id != MOD_TARGET_LASER && !((attacker && attacker->movetype == MOVETYPE_NOCLIP)))
+	if (targ != attacker && attacker && attacker->client && targ->health > 0 &&
+		!((targ && targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) &&
+		mod.id != MOD_TARGET_LASER &&
+		!(attacker && attacker->movetype == MOVETYPE_NOCLIP))
+	{
 		attacker->client->ps.stats[STAT_HIT_MARKER] += take + psave + asave;
+	}
 
 	// do the damage
 	if (take)
@@ -1221,6 +1232,12 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 	vec3_t	 v;
 	vec3_t	 dir;
 	vec3_t   inflictor_center;
+
+	if (!inflictor)
+		return;
+
+	if (!attacker)
+		attacker = inflictor;
 
 	if (inflictor->linked)
 		inflictor_center = (inflictor->absmax + inflictor->absmin) * 0.5f;
