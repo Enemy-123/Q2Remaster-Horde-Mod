@@ -30,11 +30,9 @@ edict_t* AI_GetSightClient(edict_t* self)
 {
     if (level.intermissiontime)
         return nullptr;
-
     edict_t* closestPlayer = nullptr;
     float closestDistance = 1500.0f; // Rango de búsqueda inicial
     vec3_t dir{};
-
     for (auto player : active_players())
     {
         if (player->health <= 0 || player->deadflag || !player->solid)
@@ -42,17 +40,23 @@ edict_t* AI_GetSightClient(edict_t* self)
         else if (player->flags & (FL_NOTARGET | FL_DISGUISED))
             continue;
 
+        if (EntIsSpectating(player))
+            continue;
+
         // Si estamos tocando al jugador, permitimos pasar a través
-        if (!boxes_intersect(self->absmin, self->absmax, player->absmin, player->absmax))
+        bool canSee = boxes_intersect(self->absmin, self->absmax, player->absmin, player->absmax);
+
+        if (!canSee)
         {
-            if ((!(self->monsterinfo.aiflags & AI_THIRD_EYE) && !infront(self, player)) || !visible(self, player))
+            if (!(self->monsterinfo.aiflags & AI_THIRD_EYE) && !infront(self, player))
+                continue;
+            if (!visible(self, player))
                 continue;
         }
 
         // Calcula la distancia entre el jugador y el monstruo
         VectorSubtract(player->s.origin, self->s.origin, dir);
         float distance = VectorLength(dir);
-
         // Si la distancia es menor a la distancia más cercana conocida, actualiza el jugador más cercano
         if (distance < closestDistance)
         {
@@ -60,11 +64,9 @@ edict_t* AI_GetSightClient(edict_t* self)
             closestDistance = distance;
         }
     }
-
     // Retorna el jugador más cercano si hay uno visible
     return closestPlayer;
 }
-
 //============================================================================
 
 /*
@@ -210,14 +212,12 @@ void ai_stand(edict_t* self, float dist)
             if (!strcmp(self->classname, "monster_sentrygun")) {
                 FindMTarget(self);
             }
-
             int count = 0;
             edict_t* player = nullptr;
-
-            // Encuentra un jugador vivo aleatoriamente
+            // Encuentra un jugador vivo y no espectador aleatoriamente
             for (auto client : active_players())
             {
-                if (client->inuse && client->health > 0)
+                if (client->inuse && client->health > 0 && !EntIsSpectating(client))
                 {
                     if (!count || (rand() % (count + 1)) == 0)
                     {
@@ -226,7 +226,6 @@ void ai_stand(edict_t* self, float dist)
                     count++;
                 }
             }
-
             if (player)
             {
                 self->enemy = player; // Establece el nuevo enemigo
@@ -282,6 +281,14 @@ void ai_walk(edict_t* self, float dist)
     }
 }
 
+// Función para verificar si el enemigo es un tipo estático
+bool IsStaticEnemy(edict_t* enemy) //test sentry , monsters wont strafe
+{
+    if (!enemy || !enemy->classname)
+        return false;
+
+    return (!strcmp(enemy->classname, "tesla_mine"))/* || !strcmp(enemy->classname, "monster_sentrygun"))*/;
+}
 /*
 =============
 ai_charge
@@ -330,9 +337,9 @@ void ai_charge(edict_t* self, float dist)
         // circle strafe support
         if (self->monsterinfo.attack_state == AS_SLIDING)
         {
-            // if we're fighting a tesla, NEVER circle strafe
-            if ((self->enemy) && (self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))
-                ofs = 0;
+            // if we're fighting a static enemy (tesla or sentrygun), NEVER circle strafe
+            if (self->enemy && IsStaticEnemy(self->enemy))           
+                ofs = 0;       
             else if (self->monsterinfo.lefty)
                 ofs = 90;
             else
@@ -502,7 +509,9 @@ bool visible(edict_t* self, edict_t* other, bool through_glass) {
         if (self->hackflags & HACKFLAG_ATTACK_PLAYER) return self->inuse;
         if (!other->solid) return false;
         if (IsInvisible(other)) return false;
+        if (EntIsSpectating(other)) return false;
     }
+
     vec3_t spot1, spot2;
     VectorCopy(self->s.origin, spot1);
     spot1[2] += self->viewheight;
@@ -699,20 +708,76 @@ static edict_t* AI_GetSoundClient(edict_t* self, bool direct)
 
 bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
 {
+    // Primero, verificamos si client o client->client son nulos
+    if (!client || !client->client)
+    {
+        return false;
+    }
+
+    // Verificamos si el jugador es espectador o no tiene equipo en modo CTF
+    if (EntIsSpectating(client))
+    {
+        return false;
+    }
+
     // this is where we would check invisibility
     float r = range_to(self, client);
-
     if (r > RANGE_MID)
         return false;
-
     // Paril: revised so that monsters can be woken up
     // by players 'seen' and attacked at by other monsters
     // if they are close enough. they don't have to be visible.
     bool is_visible =
         ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
             (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
-
     return is_visible;
+}
+
+bool FindEnhancedTarget(edict_t* self) {
+    // Si es una torreta, usar FindMTarget directamente
+    if (strcmp(self->classname, "monster_sentrygun") == 0) {
+        return FindMTarget(self);
+    }
+
+    const float MAX_RANGE = 1000.0f;
+    const float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+    std::vector<std::pair<edict_t*, float>> nearbyEntities;
+
+    // Función lambda para verificar si una entidad es un objetivo válido
+    auto isValidTarget = [self](edict_t* ent) {
+        if (ent == self || !ent->inuse) return false;
+
+        // Para monstruos, considerar jugadores y otras entidades enemigas
+        return !OnSameTeam(self, ent) &&
+            (ent->client || (ent->svflags & SVF_MONSTER) ||
+                strcmp(ent->classname, "monster_sentrygun") == 0);
+        };
+
+    // Iterar sobre todas las entidades activas
+    for (unsigned int i = 0; i < globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+        if (!isValidTarget(ent)) continue;
+        float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
+        if (distSquared <= MAX_RANGE_SQUARED) {
+            nearbyEntities.push_back({ ent, distSquared });
+        }
+    }
+
+    // Ordenar entidades por distancia
+    std::sort(nearbyEntities.begin(), nearbyEntities.end(),
+        [](const auto& a, const auto& b) {
+            return a.second < b.second;
+        });
+
+    // Encontrar el objetivo más cercano visible
+    for (const auto& [ent, _] : nearbyEntities) {
+        if (visible(self, ent, false)) {
+            self->enemy = ent;
+            return true;
+        }
+    }
+
+    return false;
 }
 
 /*
@@ -817,43 +882,17 @@ bool FindTarget(edict_t* self)
 
     if (!client)
     {
-        if (g_horde->integer && strcmp(self->classname, "monster_sentrygun") != 0) { // this avoid turrets go crazy maybe
-            // Busca enemigos en el equipo contrario
-            edict_t* closestEnemy = nullptr;
-            float closestDistance = 1000.0f; // Rango de búsqueda
-            vec3_t dir{};
-
-            for (unsigned int i = 0; i < globals.num_edicts; i++) {
-                edict_t* ent = &g_edicts[i];
-
-                if (!ent->inuse)
-                    continue;
-
-                if (ent == self)
-                    continue;
-
-                // Solo busca enemigos en el equipo contrario
-                if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER)) {
-                    VectorSubtract(ent->s.origin, self->s.origin, dir);
-                    float distance = VectorLength(dir);
-
-                    if (distance < closestDistance) {
-                        closestEnemy = ent;
-                        closestDistance = distance;
-                    }
-                }
-            }
-
-            if (closestEnemy != nullptr) {
-                self->enemy = closestEnemy;
-                return true;
-            }
+        if (g_horde->integer)
+        {
+            // Usar la misma lógica mejorada para todos, incluyendo sentrygun
+            return FindEnhancedTarget(self);
         }
-
-        return false; // no clients to get mad at
+        return false; // No se encontraron objetivos
     }
+
+
     // if the entity went away, forget it
-    if (!client->inuse)
+    if (!client->inuse || EntIsSpectating(client))
         return false;
 
     if (client == self->enemy)
@@ -1663,12 +1702,20 @@ void ai_run(edict_t* self, float dist)
     // Si no hay enemigo, buscar un nuevo jugador válido
     if (!self->enemy) {
         edict_t* player = nullptr;
-        for (unsigned int i = 1; i <= game.maxclients; ++i) {
-            edict_t* client = &g_edicts[i];
-            if (!client->inuse || !client->solid || client->health <= 0 || client->client->invisible_time > level.time) {
+        for (auto client : active_players())
+        {
+            if (!client->inuse || !client->client) {
+                continue;
+            }
+            // Verificar si el jugador es válido
+            if (client->health <= 0 ||
+                client->client->invisible_time > level.time ||
+                EntIsSpectating(client))
+            {
                 continue;
             }
             player = client;
+            break;
         }
         if (player) {
             self->enemy = player;

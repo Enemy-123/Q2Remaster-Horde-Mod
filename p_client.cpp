@@ -3198,6 +3198,23 @@ bool ClientIsSpectating(gclient_t* cl) {
 	return cl->resp.ctf_team == CTF_NOTEAM;
 }
 
+/*
+=================
+EntIsSpectating
+=================
+*/
+bool EntIsSpectating(edict_t* ent)
+{
+	if (!ent || !ent->client)
+		return true;  
+
+
+
+	return (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_NOTEAM) ||
+		ent->client->resp.spectator ||
+		ent->client->pers.spectator ||
+		ent->movetype == MOVETYPE_NOCLIP;
+}
 
 //==============================================================
 

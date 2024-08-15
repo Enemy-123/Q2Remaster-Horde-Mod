@@ -3853,6 +3853,7 @@ extern void VectorClear(vec3_t v);
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
 extern bool ClientIsSpectating(gclient_t* cl);
+extern bool EntIsSpectating(edict_t* ent);
 
 extern 	bool FindMTarget(edict_t* self);
 
