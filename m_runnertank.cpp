@@ -903,6 +903,11 @@ DIE(runnertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int d
 		auto [fwd, rgt, up] = AngleVectors(self->s.angles);
 
 		edict_t* arm_gib = ThrowGib(self, "models/monsters/tank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
+
+		if (!arm_gib) {
+			return;
+		}
+
 		arm_gib->s.origin = self->s.origin + (rgt * -16.f) + (up * 23.f);
 		arm_gib->s.old_origin = arm_gib->s.origin;
 		arm_gib->avelocity = { crandom() * 15.f, crandom() * 15.f, 180.f };

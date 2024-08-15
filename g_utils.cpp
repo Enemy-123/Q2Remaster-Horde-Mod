@@ -432,6 +432,9 @@ void G_TouchTriggers(edict_t* ent)
 	static edict_t* touch[MAX_EDICTS];
 	edict_t* hit;
 
+	if (!ent) // Comprobación de nulidad
+		return;
+
 	// dead things don't activate triggers!
 	if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
 		return;
@@ -440,15 +443,15 @@ void G_TouchTriggers(edict_t* ent)
 
 	// be careful, it is possible to have an entity in this
 	// list removed before we get to it (killtriggered)
-	for (i = 0; i < num; i++)
-	{
-		hit = touch[i];
-		if (!hit->inuse)
-			continue;
-		if (!hit->touch)
-			continue;
-		hit->touch(hit, ent, null_trace, true);
-	}
+    for (i = 0; i < num; i++)
+    {
+        hit = touch[i];
+        if (!hit || !hit->inuse)
+            continue;
+        if (!hit->touch)
+            continue;
+        hit->touch(hit, ent, null_trace, true);
+    }
 }
 
 // [Paril-KEX] scan for projectiles between our movement positions
@@ -463,13 +466,17 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 	// a bit ugly, but we'll store projectiles we are ignoring here.
 	static std::vector<skipped_projectile> skipped;
 
+	if (!ent) // Comprobación de nulidad
+		return;
+
 	while (true)
 	{
 		trace_t tr = gi.trace(previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ent->clipmask | CONTENTS_PROJECTILE);
-
 		if (tr.fraction == 1.0f)
 			break;
-		else if (!(tr.ent->svflags & SVF_PROJECTILE))
+		if (!tr.ent) // Comprobación de nulidad
+			break;
+		if (!(tr.ent->svflags & SVF_PROJECTILE))
 			break;
 
 		// always skip this projectile since certain conditions may cause the projectile

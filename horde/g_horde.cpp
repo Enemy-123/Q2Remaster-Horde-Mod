@@ -1234,119 +1234,113 @@ void AttachHealthBar(edict_t* boss)  {
 
 static int boss_counter = 0; // Declaramos boss_counter como variable estática
 
-void SpawnBossAutomatically()  {
+void SpawnBossAutomatically() {
     const auto mapSize = GetMapSize(level.mapname);
-    if (g_horde_local.level >= 10 && g_horde_local.level % 5 == 0) {
-        const auto it = mapOrigins.find(level.mapname);
-        if (it != mapOrigins.end()) {
-            auto boss = G_Spawn();
-            if (!boss) return;
+    if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
+        return;
+    }
 
-            const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
-            if (!desired_boss) return;
-            boss->classname = desired_boss;
+    const auto it = mapOrigins.find(level.mapname);
+    if (it == mapOrigins.end()) {
+        gi.Com_PrintFmt("Error: No spawn origin found for map {}\n", level.mapname);
+        return;
+    }
 
-            // Convertir std::array a vec3_t
-            vec3_t origin;
-            origin[0] = it->second[0];
-            origin[1] = it->second[1];
-            origin[2] = it->second[2];
-            VectorCopy(origin, boss->s.origin);
+    auto boss = G_Spawn();
+    if (!boss) {
+        gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
+        return;
+    }
 
-            // Realizar la traza para verificar colisiones
-            trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
-            if (tr.startsolid) {
-                // Realizar telefrag si hay colisión
-                auto hit = tr.ent;
-                if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
-                    T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-                    gi.Com_PrintFmt("Telefrag performed on {}\n", hit->classname);
-                }
-            }
+    const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
+    if (!desired_boss) {
+        G_FreeEdict(boss);
+        gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
+        return;
+    }
 
-            auto it_msg = bossMessagesMap.find(desired_boss);
-            if (it_msg != bossMessagesMap.end()) {
-                gi.LocBroadcast_Print(PRINT_CHAT, it_msg->second.c_str());
-            }
-            else {
-                gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n***** A Strogg Boss has spawned! *****\n");
-            }
+    boss->classname = desired_boss;
 
-            // Asignar flags y configurar el jefe
-            const int32_t random_flag = 1 << (std::rand() % 6);
-            boss->monsterinfo.bonus_flags |= random_flag;
-            boss->spawnflags |= SPAWNFLAG_IS_BOSS;
-            boss->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-            boss->monsterinfo.last_sentrygun_target_time = 0_sec;
+    // Set boss origin
+    VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
+                      static_cast<float>(it->second[1]),
+                      static_cast<float>(it->second[2]) },
+        boss->s.origin);
 
-            // Asignar un targetname único al jefe
-            static int boss_counter = 0;
-            std::string boss_name = fmt::format("boss_{}", boss_counter++);
-            boss->targetname = G_CopyString(boss_name.c_str(), TAG_LEVEL);
-
-            // Aplicar flags de bonus y asegurar que el multiplicador de salud se aplica correctamente
-            ApplyMonsterBonusFlags(boss);
-
-            boss->monsterinfo.attack_state = AS_BLIND;
-            boss->maxs *= boss->s.scale;
-            boss->mins *= boss->s.scale;
-
-            float health_multiplier = 1.0f;
-            float power_armor_multiplier = 1.0f;
-            ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
-
-            ED_CallSpawn(boss);
-
-            // Obtener el nombre del jefe después de ED_CallSpawn
-            std::string full_display_name = GetDisplayName(boss);
-
-            // Actualizar el configstring y llamar a SetHealthBarName
-            SetHealthBarName(boss);
-
-            int32_t base_health = static_cast<int32_t>(boss->health * health_multiplier);
-            SetMonsterHealth(boss, base_health, current_wave_number);
-
-            boss->monsterinfo.power_armor_power = static_cast<int32_t>(boss->monsterinfo.power_armor_power * power_armor_multiplier);
-            boss->monsterinfo.power_armor_power *= g_horde_local.level * 1.45;
-
-            // Spawn grow effect
-            vec3_t spawngrow_pos = boss->s.origin;
-            const float size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.35f;
-            const float end_size = sqrt(spawngrow_pos[0] * spawngrow_pos[0] + spawngrow_pos[1] * spawngrow_pos[1] + spawngrow_pos[2] * spawngrow_pos[2]) * 0.005f;
-            ImprovedSpawnGrow(spawngrow_pos, size, end_size, boss);
-
-            // Realizar el efecto de crecimiento y aplicar telefrag si es necesario
-            SpawnGrow_Spawn(spawngrow_pos, size, end_size);
-
-            // Realizar telefrag en la posición del efecto de spawn
-            trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
-            if (tr_spawn.startsolid) {
-                auto hit = tr_spawn.ent;
-                if (hit && (hit->svflags & SVF_MONSTER || hit->client)) {
-                    T_Damage(hit, boss, boss, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-                    gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", hit->classname);
-                }
-            }
-
-            AttachHealthBar(boss);
-
-            // Activar el modo de monstruos voladores si corresponde
-            if (std::strcmp(boss->classname, "monster_boss2") == 0 ||
-                std::strcmp(boss->classname, "monster_carrier") == 0 ||
-                std::strcmp(boss->classname, "monster_carrier2") == 0 ||
-                std::strcmp(boss->classname, "monster_boss2kl") == 0) {
-                flying_monsters_mode = true;
-            }
-
-            boss_spawned_for_wave = true;
-
-            // Agregar el jefe a la lista de jefes generados automáticamente
-            auto_spawned_bosses.insert(boss);
+    // Collision check and telefrag
+    trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
+    if (tr.startsolid && tr.ent) {
+        if (tr.ent->svflags & SVF_MONSTER || tr.ent->client) {
+            T_Damage(tr.ent, boss, boss, vec3_origin, tr.ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
+            gi.Com_PrintFmt("Telefrag performed on {}\n", tr.ent->classname);
         }
     }
+
+    // Boss spawn message
+    auto it_msg = bossMessagesMap.find(desired_boss);
+    if (it_msg != bossMessagesMap.end()) {
+        gi.LocBroadcast_Print(PRINT_CHAT, it_msg->second.c_str());
+    }
+    else {
+        gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n***** A Strogg Boss has spawned! *****\n");
+    }
+
+    // Configure boss
+    const int32_t random_flag = 1 << (std::rand() % 6);
+    boss->monsterinfo.bonus_flags |= random_flag;
+    boss->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
+    boss->monsterinfo.last_sentrygun_target_time = 0_sec;
+
+    // Assign unique targetname
+    std::string boss_name = fmt::format("boss_{}", boss_counter++);
+    boss->targetname = G_CopyString(boss_name.c_str(), TAG_LEVEL);
+
+    // Apply bonus flags and effects
+    ApplyMonsterBonusFlags(boss);
+    boss->monsterinfo.attack_state = AS_BLIND;
+    boss->maxs *= boss->s.scale;
+    boss->mins *= boss->s.scale;
+
+    float health_multiplier = 1.0f;
+    float power_armor_multiplier = 1.0f;
+    ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
+
+    ED_CallSpawn(boss);
+
+    // Set boss health and armor
+    SetMonsterHealth(boss, static_cast<int32_t>(boss->health * health_multiplier), current_wave_number);
+    boss->monsterinfo.power_armor_power = static_cast<int32_t>(boss->monsterinfo.power_armor_power * power_armor_multiplier * g_horde_local.level * 1.45);
+
+    // Spawn grow effect
+    vec3_t spawngrow_pos = boss->s.origin;
+    const float size = VectorLength(spawngrow_pos) * 0.35f;
+    const float end_size = size * 0.005f;
+    ImprovedSpawnGrow(spawngrow_pos, size, end_size, boss);
+    SpawnGrow_Spawn(spawngrow_pos, size, end_size);
+
+    // Additional telefrag check for spawn grow effect
+    trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
+    if (tr_spawn.startsolid && tr_spawn.ent) {
+        if (tr_spawn.ent->svflags & SVF_MONSTER || tr_spawn.ent->client) {
+            T_Damage(tr_spawn.ent, boss, boss, vec3_origin, tr_spawn.ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
+            gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", tr_spawn.ent->classname);
+        }
+    }
+
+    AttachHealthBar(boss);
+    SetHealthBarName(boss);
+
+    // Set flying monsters mode if applicable
+    if (strcmp(boss->classname, "monster_boss2") == 0 ||
+        strcmp(boss->classname, "monster_carrier") == 0 ||
+        strcmp(boss->classname, "monster_carrier2") == 0 ||
+        strcmp(boss->classname, "monster_boss2kl") == 0) {
+        flying_monsters_mode = true;
+    }
+
+    boss_spawned_for_wave = true;
+    auto_spawned_bosses.insert(boss);
 }
-
-
 
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
@@ -1366,8 +1360,8 @@ void SetHealthBarName(edict_t* boss)
     gi.multicast(vec3_origin, MULTICAST_ALL, true);
 }
 
-constexpr size_t MAX_MESSAGE_LENGTH = CS_MAX_STRING_LENGTH - 1;
-constexpr std::string_view TRUNCATION_INDICATOR = "...";
+//constexpr size_t MAX_MESSAGE_LENGTH = CS_MAX_STRING_LENGTH - 1;
+//constexpr std::string_view TRUNCATION_INDICATOR = "...";
 
 //CS HORDE
 
@@ -1392,11 +1386,11 @@ void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
     // Ya no truncamos el mensaje
     std::string fullMessage(message);
 
-    // Registramos una advertencia si el mensaje es muy largo
-    if (fullMessage.length() > MAX_MESSAGE_LENGTH) {
-        gi.Com_PrintFmt("Warning: Horde message is unusually long ({} characters): '{}'\n",
-            fullMessage.length(), fullMessage);
-    }
+    //// Registramos una advertencia si el mensaje es muy largo
+    //if (fullMessage.length() > MAX_MESSAGE_LENGTH) {
+    //    gi.Com_PrintFmt("Warning: Horde message is unusually long ({} characters): '{}'\n",
+    //        fullMessage.length(), fullMessage);
+    //}
 
     gi.configstring(CONFIG_HORDEMSG, fullMessage.c_str());
     horde_message_end_time = level.time + std::max(duration, 0_sec);
@@ -1455,7 +1449,7 @@ void ResetGame() {
     SPAWN_POINT_COOLDOWN = 3.8_sec;
 
     // this fixes monsters travelling to the next map for now lol
-    for (int i = 1; i < globals.num_edicts; i++) {
+    for (unsigned int i = 1; i < globals.num_edicts; i++) {
         edict_t* ent = &g_edicts[i];
         if (ent->inuse && (ent->svflags & SVF_MONSTER)) {
             G_FreeEdict(ent);
@@ -1919,7 +1913,7 @@ void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>&
     }
 }
 
-void Horde_RunFrame()  {
+void Horde_RunFrame() {
     const auto mapSize = GetMapSize(level.mapname);
 
     if (dm_monsters->integer > 0) {
@@ -1930,7 +1924,7 @@ void Horde_RunFrame()  {
     const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
         (mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-    CleanupInvalidEntities(); // remove bugged monsters!!!
+    CleanupInvalidEntities();
 
     switch (g_horde_local.state) {
     case horde_state_t::warmup:
@@ -1952,7 +1946,6 @@ void Horde_RunFrame()  {
         if (g_horde_local.monster_spawn_time <= level.time) {
             if (g_horde_local.level >= 10 && g_horde_local.level % 5 == 0 && !boss_spawned_for_wave) {
                 SpawnBossAutomatically();
-                boss_spawned_for_wave = true;
             }
 
             if (activeMonsters < maxMonsters) {
@@ -1974,21 +1967,18 @@ void Horde_RunFrame()  {
         }
         if (g_horde_local.monster_spawn_time < level.time) {
             if (Horde_AllMonstersDead()) {
-                constexpr auto MIN_WARM_TIME = 2.2_sec;
-                constexpr auto MAX_WARM_TIME = 3.0_sec;
-                constexpr auto CLEANUP_MESSAGE_DURATION = 5_sec;
-                g_horde_local.warm_time = level.time + random_time(MIN_WARM_TIME, MAX_WARM_TIME);
+                g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
                 g_horde_local.state = horde_state_t::rest;
                 cachedRemainingMonsters = CalculateRemainingMonsters();
-                SendCleanupMessage(cleanupMessages, CLEANUP_MESSAGE_DURATION);
+                SendCleanupMessage(cleanupMessages, 5_sec);
             }
             else {
                 cachedRemainingMonsters = CalculateRemainingMonsters();
-                constexpr auto MONSTER_RESPAWN_DELAY = 3_sec;
-                g_horde_local.monster_spawn_time = level.time + MONSTER_RESPAWN_DELAY;
+                g_horde_local.monster_spawn_time = level.time + 3_sec;
             }
         }
         break;
+
     case horde_state_t::rest:
         if (g_horde_local.warm_time < level.time) {
             if (g_chaotic->integer || g_insane->integer) {
@@ -2005,12 +1995,10 @@ void Horde_RunFrame()  {
         break;
     }
 
-    // Clear the Horde message if the duration has passed
     if (horde_message_end_time && level.time >= horde_message_end_time) {
         ClearHordeMessage();
     }
 
-    // Update the Horde HUD
     UpdateHordeHUD();
 }
 
