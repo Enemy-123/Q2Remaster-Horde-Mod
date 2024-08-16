@@ -1086,7 +1086,7 @@ inline void G_RunFrame_(bool main_loop)
 	CheckDMRules();
 
 	// see if needpass needs updated
-	CheckNeedPass();
+//	CheckNeedPass();
 
 	if (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer) || G_IsDeathmatch() && g_horde->integer && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
 	{

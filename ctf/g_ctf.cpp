@@ -2253,12 +2253,24 @@ static edict_t* FindTechSpawn()
 
 THINK(TechThink) (edict_t* tech) -> void
 {
-	edict_t* spot;
-
-	if ((spot = FindTechSpawn()) != nullptr)
+	if (tech == nullptr)
 	{
-		SpawnTech(tech->item, spot);
-		G_FreeEdict(tech);
+		gi.Com_PrintFmt("TechThink: Invalid tech entity\n");
+		return;
+	}
+
+	edict_t* spot = FindTechSpawn();
+	if (spot != nullptr)
+	{
+		if (tech->item != nullptr)
+		{
+			SpawnTech(tech->item, spot);
+			G_FreeEdict(tech);
+		}
+		else
+		{
+			gi.Com_PrintFmt("TechThink: Tech entity has no item\n");
+		}
 	}
 	else
 	{
@@ -2266,6 +2278,7 @@ THINK(TechThink) (edict_t* tech) -> void
 		tech->think = TechThink;
 	}
 }
+
 static THINK(Tech_Make_Touchable) (edict_t* tech) -> void {
 	tech->touch = Touch_Item;
 	tech->nextthink = level.time + CTF_TECH_TIMEOUT;
@@ -2312,11 +2325,18 @@ void CTFDeadDropTech(edict_t* ent)
 
 static void SpawnTech(gitem_t* item, edict_t* spot)
 {
-	edict_t* ent;
-	vec3_t forward, right;
-	vec3_t angles;
+	if (item == nullptr || spot == nullptr)
+	{
+		gi.Com_PrintFmt("SpawnTech: Invalid item or spot\n");
+		return;
+	}
 
-	ent = G_Spawn();
+	edict_t* ent = G_Spawn();
+	if (ent == nullptr)
+	{
+		gi.Com_PrintFmt("SpawnTech: Failed to spawn entity\n");
+		return;
+	}
 
 	ent->classname = item->classname;
 	ent->item = item;
@@ -2325,17 +2345,25 @@ static void SpawnTech(gitem_t* item, edict_t* spot)
 	ent->s.renderfx = RF_GLOW | RF_NO_LOD;
 	ent->mins = { -15, -15, -15 };
 	ent->maxs = { 15, 15, 15 };
-	gi.setmodel(ent, ent->item->world_model);
+
+	if (ent->item->world_model)
+	{
+		gi.setmodel(ent, ent->item->world_model);
+	}
+	else
+	{
+		gi.Com_PrintFmt("SpawnTech: Item has no world model\n");
+	}
+
 	ent->solid = SOLID_TRIGGER;
 	ent->movetype = MOVETYPE_TOSS;
 	ent->touch = Touch_Item;
 	ent->owner = ent;
 
-	angles[0] = 0;
-	angles[1] = (float)irandom(360);
-	angles[2] = 0;
-
+	vec3_t angles = { 0, (float)irandom(360), 0 };
+	vec3_t forward, right;
 	AngleVectors(angles, forward, right, nullptr);
+
 	ent->s.origin = spot->s.origin;
 	ent->s.origin[2] += 16;
 	ent->velocity = forward * 100;

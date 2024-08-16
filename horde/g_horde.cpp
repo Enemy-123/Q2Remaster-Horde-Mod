@@ -1263,8 +1263,8 @@ void SpawnBossAutomatically() {
 
     // Set boss origin
     VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
-                      static_cast<float>(it->second[1]),
-                      static_cast<float>(it->second[2]) },
+                       static_cast<float>(it->second[1]),
+                       static_cast<float>(it->second[2]) },
         boss->s.origin);
 
     // Collision check and telefrag
@@ -1277,23 +1277,21 @@ void SpawnBossAutomatically() {
     }
 
     // Boss spawn message
+    const char* boss_message = "***** A Strogg Boss has spawned! *****\n***** Prepare for battle! *****\n";
     auto it_msg = bossMessagesMap.find(desired_boss);
     if (it_msg != bossMessagesMap.end()) {
-        gi.LocBroadcast_Print(PRINT_CHAT, it_msg->second.c_str());
+        boss_message = it_msg->second.c_str();
     }
     else {
-        gi.LocBroadcast_Print(PRINT_CHAT, "***** A Strogg Boss has spawned! *****\n***** A Strogg Boss has spawned! *****\n");
+        gi.Com_PrintFmt("Warning: No specific message found for boss type '{}'. Using default message.\n", desired_boss);
     }
+    gi.LocBroadcast_Print(PRINT_CHAT, boss_message);
 
     // Configure boss
     const int32_t random_flag = 1 << (std::rand() % 6);
     boss->monsterinfo.bonus_flags |= random_flag;
     boss->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
     boss->monsterinfo.last_sentrygun_target_time = 0_sec;
-
-    // Assign unique targetname
-    std::string boss_name = fmt::format("boss_{}", boss_counter++);
-    boss->targetname = G_CopyString(boss_name.c_str(), TAG_LEVEL);
 
     // Apply bonus flags and effects
     ApplyMonsterBonusFlags(boss);
@@ -1340,8 +1338,9 @@ void SpawnBossAutomatically() {
 
     boss_spawned_for_wave = true;
     auto_spawned_bosses.insert(boss);
-}
 
+    gi.Com_PrintFmt("Boss of type {} spawned successfully\n", desired_boss);
+}
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
 {
