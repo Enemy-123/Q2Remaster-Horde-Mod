@@ -304,18 +304,24 @@ constexpr vec3_t laser_positions[] = {
 PRETHINK(guardian_fire_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
-
 	vec3_t forward, right, target;
 	vec3_t start;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, laser_positions[1 - (self->s.frame & 1)], forward, right);
-	target = self->enemy->s.origin + self->enemy->mins;
-	for (int i = 0; i < 3; i++)
-		target[i] += frandom() * self->enemy->size[i];
+
+	if (self->enemy) {
+		target = self->enemy->s.origin + self->enemy->mins;
+		for (int i = 0; i < 3; i++)
+			target[i] += frandom() * self->enemy->size[i];
+	}
+	else {
+		// Default target if there's no enemy
+		target = start + forward * 100; // Adjust the distance as needed
+	}
+
 	forward = target - start;
 	forward.normalize();
-
 	laser->s.origin = start;
 	laser->movedir = forward;
 	gi.linkentity(laser);
