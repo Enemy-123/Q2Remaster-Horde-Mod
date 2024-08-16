@@ -687,7 +687,7 @@ TOUCH(loogie_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool othe
 		return;
 	}
 
-	if (self->owner->client)
+	if (self->owner && self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage)
