@@ -2455,7 +2455,7 @@ void respawn(edict_t* ent);
 void BeginIntermission(edict_t* targ);
 void PutClientInServer(edict_t* ent);
 void InitClientPersistant(edict_t* ent, gclient_t* client);
-void InitClientPt(edict_t* ent, gclient_t* client);
+void InitClientPt(const edict_t* ent, gclient_t* client);
 void InitClientResp(gclient_t* client);
 void InitBodyQue();
 void ClientBeginServerFrame(edict_t* ent);
