@@ -780,11 +780,12 @@ bool IsSpawnPointOccupied(edict_t* spawn_point, const edict_t* ignore_ent = null
 }
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
-    // Check cooldown
+    // Check if the spawn point is occupied
     if (IsSpawnPointOccupied(spawn_point)) {
         return nullptr; // Punto ocupado, no seleccionar monstruo
     }
 
+    // Check cooldowns
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
     auto it_spawnCooldown = spawnPointCooldowns.find(spawn_point);
     if (it_spawnCooldown != spawnPointCooldowns.end()) {
@@ -801,11 +802,16 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     int32_t flyingSpawns = countFlyingSpawns();
     float adjustmentFactor = (flyingSpawns > 0) ? 0.25f : 1.0f;
 
-    // Select eligible monsters and calculate total weight
+    struct WeightedMonster {
+        const weighted_item_t* monster;
+        float cumulativeWeight;
+    };
+
+    std::vector<WeightedMonster> eligible_monsters;
     float total_weight = 0.0f;
-    std::vector<const weighted_item_t*> eligible_monsters;
     eligible_monsters.reserve(std::size(monsters)); // Pre-allocate to avoid resizing
 
+    // Select eligible monsters and calculate total weight
     for (const auto& item : monsters) {
         bool isFlyingMonster = IsFlyingMonster(item.classname);
 
@@ -820,7 +826,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
         float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
         if (weight > 0) {
             total_weight += weight;
-            eligible_monsters.push_back(&item);
+            eligible_monsters.push_back({ &item, total_weight });
         }
     }
 
@@ -831,27 +837,20 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     // Select a monster based on weight
     float r = frandom() * total_weight;
-    float cumulative_weight = 0.0f;
-    const weighted_item_t* chosen_monster = nullptr;
+    auto it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), r,
+        [](const WeightedMonster& wm, float value) { return wm.cumulativeWeight < value; });
 
-    for (const auto* monster : eligible_monsters) {
-        float weight = monster->weight * (IsFlyingMonster(monster->classname) ? adjustmentFactor : 1.0f);
-        cumulative_weight += weight;
-        if (r <= cumulative_weight) {
-            chosen_monster = monster;
-            break;
-        }
-    }
-
-    if (chosen_monster) {
-        UpdateCooldowns(spawn_point, chosen_monster->classname);
+    if (it != eligible_monsters.end()) {
+        const char* chosen_monster = it->monster->classname;
+        UpdateCooldowns(spawn_point, chosen_monster);
         ResetSpawnAttempts(spawn_point);
-        return chosen_monster->classname;
+        return chosen_monster;
     }
 
     IncreaseSpawnAttempts(spawn_point);
     return nullptr;
 }
+
 
 void Horde_PreInit()  {
     dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
