@@ -1465,6 +1465,9 @@ void ResetGame() {
     ResetBenefits();
     ResetAutoSpawnedBosses();
 
+    // Reinicia la lista de bosses recientes
+    recent_bosses.clear();
+
     // Reset wave information
     g_horde_local.level = 0;  // Reset current wave level
     g_horde_local.state = horde_state_t::warmup;  // Set game state to warmup
