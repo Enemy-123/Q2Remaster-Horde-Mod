@@ -134,7 +134,7 @@ std::string SelectRandomBenefit(int32_t wave) {
 
     if (picked_benefits.empty()) return "";  // Verificar si est� vac�o antes de proceder
 
-    float random_weight = frandom() * total_weight;
+   const float random_weight = frandom() * total_weight;
     auto it = std::find_if(picked_benefits.begin(), picked_benefits.end(),
         [random_weight](const picked_benefit_t& picked_benefit) {
             return random_weight < picked_benefit.weight;
@@ -156,7 +156,7 @@ void ApplyBenefit(const std::string& benefit) {
         {"Napalm-Grenade Launcher", {"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled\n"}},
     };
 
-    auto it = benefitMessages.find(benefit);
+    const auto it = benefitMessages.find(benefit);
     if (it != benefitMessages.end()) {
         // Aplicar el beneficio
         if (benefit == "start armor") {
@@ -218,8 +218,8 @@ void CheckAndApplyBenefit(int32_t wave) {
 
 // Funci�n para ajustar la tasa de aparici�n de monstruos
 void AdjustMonsterSpawnRate()  {
-    auto humanPlayers = GetNumHumanPlayers();
-    float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
+ const auto humanPlayers = GetNumHumanPlayers();
+ const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
 
     if (g_horde_local.level % 3 == 0) {
         g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
@@ -295,7 +295,7 @@ void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl)  {
 
 // Funci�n para determinar la cantidad de monstruos a spawnear
 void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl)  {
-    int32_t custom_monster_count = dm_monsters->integer;
+  const int32_t custom_monster_count = dm_monsters->integer;
     if (custom_monster_count > 0) {
         g_horde_local.num_to_spawn = custom_monster_count;
     }
@@ -335,7 +335,7 @@ void Horde_InitLevel(int32_t lvl)  {
     }
 
     // Configuración de la cantidad de monstruos a spawnear
-    auto mapSize = GetMapSize(level.mapname);
+   const auto mapSize = GetMapSize(level.mapname);
     DetermineMonsterSpawnCount(mapSize, lvl);
 
     // Revisar y aplicar beneficios basados en la ola
@@ -596,7 +596,7 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
     const boss_t* boss_list = GetBossList(mapSize, mapname);
     if (!boss_list) return nullptr;
 
-    size_t boss_list_size = mapSize.isSmallMap ? std::size(BOSS_SMALL) :
+   const size_t boss_list_size = mapSize.isSmallMap ? std::size(BOSS_SMALL) :
         mapSize.isMediumMap ? std::size(BOSS_MEDIUM) :
         std::size(BOSS_LARGE);
 
@@ -708,11 +708,11 @@ bool IsFlyingMonster(const char* classname) {
     return flying_monsters_set.find(classname) != flying_monsters_set.end();
 }
 
-float adjustFlyingSpawnProbability(int32_t flyingSpawns)  {
+constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns)  {
     return (flyingSpawns > 0) ? 0.25f : 1.0f;
 }
 
-bool IsMonsterEligible(edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) {
+bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) {
     return !(spawn_point->style == 1 && !isFlyingMonster) &&
         !(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) &&
         !(isFlyingMonster && currentWave < WAVE_TO_ALLOW_FLYING);
@@ -787,20 +787,20 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     // Check cooldowns
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
-    auto it_spawnCooldown = spawnPointCooldowns.find(spawn_point);
+  const auto it_spawnCooldown = spawnPointCooldowns.find(spawn_point);
     if (it_spawnCooldown != spawnPointCooldowns.end()) {
         currentCooldown = it_spawnCooldown->second;
     }
 
-    auto it_lastSpawnTime = lastSpawnPointTime.find(spawn_point);
+    const auto it_lastSpawnTime = lastSpawnPointTime.find(spawn_point);
     if (it_lastSpawnTime != lastSpawnPointTime.end() &&
         (level.time - it_lastSpawnTime->second).seconds<float>() < currentCooldown) {
         return nullptr;
     }
 
     // Calculate flying spawn adjustment
-    int32_t flyingSpawns = countFlyingSpawns();
-    float adjustmentFactor = (flyingSpawns > 0) ? 0.25f : 1.0f;
+   const int32_t flyingSpawns = countFlyingSpawns();
+    const float adjustmentFactor = (flyingSpawns > 0) ? 0.25f : 1.0f;
 
     struct WeightedMonster {
         const weighted_item_t* monster;
@@ -813,7 +813,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     // Select eligible monsters and calculate total weight
     for (const auto& item : monsters) {
-        bool isFlyingMonster = IsFlyingMonster(item.classname);
+     const bool isFlyingMonster = IsFlyingMonster(item.classname);
 
         if ((flying_monsters_mode && !isFlyingMonster) ||
             (spawn_point->style == 1 && !isFlyingMonster) ||
@@ -823,7 +823,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
             continue;
         }
 
-        float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
+       const float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
         if (weight > 0) {
             total_weight += weight;
             eligible_monsters.push_back({ &item, total_weight });
@@ -836,7 +836,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
     }
 
     // Select a monster based on weight
-    float r = frandom() * total_weight;
+  const float r = frandom() * total_weight;
     auto it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), r,
         [](const WeightedMonster& wm, float value) { return wm.cumulativeWeight < value; });
 
@@ -922,7 +922,7 @@ void Horde_PreInit()  {
 // Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
 int32_t GetNumHumanPlayers()  {
     int32_t numHumanPlayers = 0;
-    for (auto player : active_players()) {
+    for (const auto player : active_players()) {
         if (player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT)) {
             numHumanPlayers++;
         }
@@ -937,7 +937,7 @@ void VerifyAndAdjustBots()  {
     const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 
     // Calcular el n�mero requerido de bots
-    int32_t requiredBots = baseBots + spectPlayers;
+     int32_t requiredBots = baseBots + spectPlayers;
 
     // Asegurar que el n�mero de bots no sea menor que el valor base
     requiredBots = std::max(requiredBots, baseBots);
@@ -1054,7 +1054,7 @@ void BossDeathHandler(edict_t* boss)  {
     const char* specialItemName = (rand() % 2 == 0) ? "item_quad" : "item_quadfire";
     edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName));
 
-    vec3_t specialVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, 300, 400);
+    const vec3_t specialVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, 300, 400);
     SetupDroppedItem(specialItem, boss->s.origin, specialVelocity, false);
 
     // Configuración adicional para el ítem especial
@@ -1067,7 +1067,7 @@ void BossDeathHandler(edict_t* boss)  {
 
     for (const auto& itemClassname : shuffledItems) {
         edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
-        vec3_t itemVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
+       const vec3_t itemVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
         SetupDroppedItem(droppedItem, boss->s.origin, itemVelocity, true);
     }
 
@@ -1277,7 +1277,7 @@ void SpawnBossAutomatically() {
 
     // Boss spawn message
     const char* boss_message = "***** A Strogg Boss has spawned! *****\n***** Prepare for battle! *****\n";
-    auto it_msg = bossMessagesMap.find(desired_boss);
+   const auto it_msg = bossMessagesMap.find(desired_boss);
     if (it_msg != bossMessagesMap.end()) {
         boss_message = it_msg->second.c_str();
     }
@@ -1596,7 +1596,7 @@ int32_t CalculateRemainingMonsters()  {
     // Recalcular solo si han pasado al menos 0.5 segundos desde el último cálculo
     if (lastCalculatedRemaining == -1 || (level.time - lastCalculationTime) >= 0.5_sec) {
         int32_t remaining = 0;
-        for (auto ent : active_monsters()) {
+        for (const auto ent : active_monsters()) {
             if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
                 ++remaining;
             }
@@ -1670,13 +1670,13 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     return false;
 }
 
-static void MonsterDied(edict_t* monster) {
+static void MonsterDied(const edict_t* monster) {
     if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
         cachedRemainingMonsters--;
     }
 }
 
-static void MonsterSpawned(edict_t* monster) {
+static void MonsterSpawned(const edict_t* monster) {
     if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
         cachedRemainingMonsters++;
     }
@@ -1698,7 +1698,7 @@ void PlayWaveStartSound()  {
         "world/yelforce.wav"
     };
 
-    int32_t sound_index = static_cast<int32_t>(frandom() * sounds.size());
+  const int32_t sound_index = static_cast<int32_t>(frandom() * sounds.size());
     if (sound_index >= 0 && sound_index < sounds.size()) {
         gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
     }
@@ -1807,7 +1807,7 @@ void SpawnMonsters() {
     monsters_per_spawn = std::min(monsters_per_spawn, 4);
 
     // Calcular la probabilidad de que un monstruo suelte un ítem
-    float drop_probability = (current_wave_number <= 2) ? 0.8f :
+    const float drop_probability = (current_wave_number <= 2) ? 0.8f :
         (current_wave_number <= 7) ? 0.6f : 0.45f;
 
     // Generar monstruos
@@ -1825,15 +1825,15 @@ void SpawnMonsters() {
         monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 
         if (g_horde_local.level >= 17) {
-            if (!st.was_key_specified("power_armor_power"))
-                monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-            if (!st.was_key_specified("power_armor_type")) {
-                float health_factor = monster->max_health / 100.0f;
-                int base_armor = 150;
-                int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
-                monster->monsterinfo.armor_power = base_armor + additional_armor;
-            }
-        }
+			if (!st.was_key_specified("power_armor_power"))
+				monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+			if (!st.was_key_specified("power_armor_type")) {
+				const float health_factor = monster->max_health / 100.0f;
+				const int base_armor = 150;
+				const int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
+				monster->monsterinfo.armor_power = base_armor + additional_armor;
+			}
+		}
 
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
@@ -1855,11 +1855,11 @@ void SpawnMonsters() {
         //}
 
         vec3_t spawngrow_pos = monster->s.origin;
-        float magnitude = std::sqrt(spawngrow_pos[0] * spawngrow_pos[0] +
+       const float magnitude = std::sqrt(spawngrow_pos[0] * spawngrow_pos[0] +
             spawngrow_pos[1] * spawngrow_pos[1] +
             spawngrow_pos[2] * spawngrow_pos[2]);
-        float start_size = magnitude * 0.055f;
-        float end_size = magnitude * 0.005f;
+        const float start_size = magnitude * 0.055f;
+       const float end_size = magnitude * 0.005f;
         ImprovedSpawnGrow(spawngrow_pos, start_size, end_size, monster);
 
         --g_horde_local.num_to_spawn;
@@ -1898,10 +1898,10 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 // Función para enviar el mensaje de limpieza actualizada
 void SendCleanupMessage(const std::unordered_map<MessageType, std::string_view>& messages,
     gtime_t duration = 5_sec) {
-    MessageType messageType = g_insane->integer ? MessageType::Insane :
+  const MessageType messageType = g_insane->integer ? MessageType::Insane :
         (g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
 
-    auto messageIt = messages.find(messageType);
+    const auto messageIt = messages.find(messageType);
     if (messageIt != messages.end()) {
         std::string formattedMessage = fmt::format(messageIt->second,
             fmt::arg("level", g_horde_local.level));
