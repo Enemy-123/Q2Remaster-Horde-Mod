@@ -189,6 +189,27 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 	}
 }
 
+
+void runnertank_unstuck(edict_t* self)
+{
+	static int stuck_count = 0;
+	if (VectorLength(self->velocity) < 10)
+	{
+		stuck_count++;
+		if (stuck_count > 5)
+		{
+			// Intenta moverse en una dirección aleatoria
+			self->ideal_yaw = frandom() * 360;
+			M_ChangeYaw(self);
+			stuck_count = 0;
+		}
+	}
+	else
+	{
+		stuck_count = 0;
+	}
+}
+
 //
 // run
 //
@@ -208,7 +229,7 @@ mframe_t runnertank_frames_run[] = {
 	{ ai_run, 18, runnertank_footstep },
 	{ ai_run, 18, nullptr },
 	{ ai_run, 18, nullptr },
-	{ ai_run, 18, nullptr },
+	{ ai_run, 18, [](edict_t* self) { runnertank_check_wall(self, 32); } },
 	{ ai_run, 18, nullptr },
 	{ ai_run, 18, nullptr },
 	{ ai_run, 18, runnertank_footstep },
@@ -263,28 +284,46 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		VectorSubtract(self->enemy->s.origin, self->s.origin, vec);
 		distance = VectorLength(vec);
 
-		// Si el enemigo está en rango melee, atacar en lugar de correr
-		if (distance <= RANGE_MELEE * 2 && visible(self, self->enemy))
+		// Si el enemigo está en rango cercano, considerar atacar con una alta probabilidad
+		if (distance <= RANGE_NEAR && visible(self, self->enemy))
 		{
-			self->monsterinfo.attack(self);
-			return;
+			if (frandom() < 0.8)  // 80% de probabilidad de atacar
+			{
+				self->monsterinfo.attack(self);
+				return;
+			}
 		}
-		// Si el enemigo está cerca, considerar atacar con una probabilidad
-		else if (distance < RANGE_NEAR && visible(self, self->enemy))
+		// Si el enemigo está en rango medio, considerar atacar con una probabilidad moderada
+		else if (distance <= RANGE_MID && visible(self, self->enemy))
 		{
-			if (frandom() < 0.7)  // 70% de probabilidad de atacar
+			if (frandom() < 0.5)  // 50% de probabilidad de atacar
+			{
+				self->monsterinfo.attack(self);
+				return;
+			}
+		}
+		else if (distance <= (RANGE_MELEE * 2) && visible(self, self->enemy))
+		{
+			if (frandom() < 1.0)  // 100% de probabilidad de atacar
 			{
 				self->monsterinfo.attack(self);
 				return;
 			}
 		}
 
-		// Si no está en rango melee, continuar corriendo hacia el enemigo
+		// Comprobar obstáculos más frecuentemente
+		if (runnertank_check_wall(self, 64))
+		{
+			// Si hay un obstáculo, intenta encontrar una nueva dirección
+			self->ideal_yaw = self->ideal_yaw + 45 + (frandom() * 90);
+		}
+
+		// Si no está en rango de ataque, continuar corriendo hacia el enemigo
 		self->ideal_yaw = vectoyaw(vec);
 		M_ChangeYaw(self);
 
-		// Comprobar si hay obstáculos y ajustar si es necesario
-		runnertank_check_wall(self, 32);
+		// Intentar desatascar si es necesario
+		runnertank_unstuck(self);
 	}
 }
 
@@ -751,13 +790,6 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	// Use M_CheckAttack_Base instead of M_CheckAttack
-	if (!M_CheckAttack_Base(self, 0.0f, 0.0f, 0.8f, 0.8f, 0.5f, 1.0f))
-	{
-		// If we can't attack, return to avoid the loop
-		return;
-	}
-
 	vec = self->enemy->s.origin - self->s.origin;
 	range = vec.length();
 
@@ -777,29 +809,45 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		else
 		{
 			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 3_sec; // Ajusta este tiempo según sea necesario
+			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
 	}
-	else if (range <= RANGE_MID)
+	else if (range <= RANGE_NEAR)
 	{
-		// En rango cercano o medio, decide aleatoriamente entre correr, usar rail gun o cadena
-		bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
+		// En rango cercano, decide entre rail gun, cadena o cohetes
 		float random_choice = frandom();
+		bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
 
-		if (can_rail && random_choice < 0.33f && visible(self, self->enemy))
+		if (can_rail && random_choice < 0.4)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
-		else if (random_choice < 0.66f && visible(self, self->enemy))
+		else if (random_choice < 0.7)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 3_sec; // Ajusta este tiempo según sea necesario
+			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
-		else if (!visible(self,self->enemy))
+		else
 		{
-			// Si no puede usar rail o decide correr, muévete hacia el enemigo
-			M_SetAnimation(self, &runnertank_move_run);
+			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+			self->pain_debounce_time = level.time + 3_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
+		}
+	}
+	else if (range <= RANGE_MID)
+	{
+		// En rango medio, prefiere rail gun o cohetes
+		if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]) && frandom() < 0.6)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+		}
+		else
+		{
+			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+			self->pain_debounce_time = level.time + 3_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
 	}
 	else
@@ -811,7 +859,6 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	// Add a pause between attack decisions
 	self->monsterinfo.pausetime = level.time + 0.5_sec;
 }
-
 //
 // death
 //
@@ -998,41 +1045,33 @@ bool runnertank_check_wall(edict_t* self, float dist)
 	vec3_t check_point{}, wall_normal;
 	trace_t tr;
 
-	// Obtener los vectores de dirección
 	AngleVectors(self->s.angles, forward, right, up);
-
-	// Punto de verificación delante del monstruo
 	VectorMA(self->s.origin, dist + 10, forward, check_point);
 
-	// Realizar un trace hacia adelante
 	tr = gi.trace(self->s.origin, self->mins, self->maxs, check_point, self, MASK_MONSTERSOLID);
 
 	if (tr.fraction < 1.0) {
-		// Hemos golpeado algo, probablemente una pared
 		VectorCopy(tr.plane.normal, wall_normal);
 
 		// Calcular el producto punto manualmente
 		float dot = forward[0] * wall_normal[0] + forward[1] * wall_normal[1] + forward[2] * wall_normal[2];
 
-		// Calcular un nuevo ángulo de movimiento
-		float turn_factor = fabs(dot);  // Qué tan de frente está la pared
-		float max_turn = 45.0f;  // Máximo giro en grados
+		float turn_factor = fabs(dot);
+		float max_turn = 90.0f; // Aumentado de 45.0f a 90.0f
 		float turn_angle = max_turn * turn_factor;
 
 		if (dot < 0) {
-			// La pared está en frente, girar hacia la derecha
 			self->ideal_yaw = anglemod(self->s.angles[YAW] + turn_angle);
 		}
 		else {
-			// La pared está detrás, girar hacia la izquierda
 			self->ideal_yaw = anglemod(self->s.angles[YAW] - turn_angle);
 		}
 
-		// No aumentamos la velocidad de giro
+		// Usar M_ChangeYaw en lugar de ai_turn para un giro más suave
 		M_ChangeYaw(self);
 
-		// Reducir la velocidad del monstruo temporalmente
-		VectorScale(self->velocity, 0.5, self->velocity);
+		// Reducir la velocidad del monstruo de manera más gradual
+		VectorScale(self->velocity, 0.8, self->velocity);
 
 		return true;
 	}
@@ -1042,23 +1081,27 @@ bool runnertank_check_wall(edict_t* self, float dist)
 
 MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {
-	if (self->monsterinfo.can_jump)
-	{
-		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
-		{
-			runnertank_jump(self, result);
-			return true;
-		}
-	}
+    if (self->monsterinfo.can_jump)
+    {
+        if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+        {
+            runnertank_jump(self, result);
+            return true;
+        }
+    }
 
-	if (blocked_checkplat(self, dist))
-		return true;
+    if (blocked_checkplat(self, dist))
+        return true;
 
-	// Nuevo: Intenta cambiar de dirección si está bloqueado por una pared
-	if (runnertank_check_wall(self, dist))
-		return true;
+    // Intenta cambiar de dirección si está bloqueado por una pared
+    if (runnertank_check_wall(self, dist))
+    {
+        // Añadir un giro adicional usando ai_turn
+        ai_turn(self, 0);
+        return true;
+    }
 
-	return false;
+    return false;
 }
 // PGM
 //===========

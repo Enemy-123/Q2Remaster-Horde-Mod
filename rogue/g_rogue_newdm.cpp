@@ -202,7 +202,7 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	new_start[2] += height;
 
 	// Ensure the position is valid and does not intersect with other entities
-	tr = gi.trace(new_start, mins, maxs, new_start, NULL, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+	tr = gi.trace(new_start, mins, maxs, new_start, nullptr, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 	if (tr.startsolid || tr.allsolid)
 	{
 		gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
@@ -224,6 +224,7 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	turret->maxs[1] = 16;
 	turret->maxs[2] = 32;
 	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
+	turret->die = sentrygun_die;
 	turret->die = sentrygun_die;
 	turret->takedamage = true;
 	turret->owner = ent;  // Set the owner

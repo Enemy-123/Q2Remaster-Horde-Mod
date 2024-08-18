@@ -1,4 +1,4 @@
-// Copyright (c) ZeniMax Media Inc.
+Ôªø// Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 
 #pragma once
@@ -373,10 +373,10 @@ R_ConcatRotations
 
 [[nodiscard]] constexpr vec3_t closest_point_to_box(const vec3_t& from, const vec3_t& absmins, const vec3_t& absmaxs)
 {
-	// Verificar que todos los valores dentro de los vectores sean v·lidos
+	// Verificar que todos los valores dentro de los vectores sean v√°lidos
 	for (size_t i = 0; i < 3; i++) {
 		if (std::isnan(from[i]) || std::isnan(absmins[i]) || std::isnan(absmaxs[i])) {
-			return vec3_t{ 0, 0, 0 }; // Manejar caso de valores no v·lidos
+			return vec3_t{ 0, 0, 0 }; // Manejar caso de valores no v√°lidos
 		}
 	}
 
@@ -386,9 +386,9 @@ R_ConcatRotations
 		(from[2] < absmins[2]) ? absmins[2] : (from[2] > absmaxs[2]) ? absmaxs[2] : from[2]
 	};
 }
-#include <iostream> // Para la depuraciÛn
+#include <iostream> // Para la depuraci√≥n
 [[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa, const vec3_t& absminsb, const vec3_t& absmaxsb) {
-	// Verificar que todos los valores dentro de los vectores sean v·lidos
+	// Verificar que todos los valores dentro de los vectores sean v√°lidos
 	for (size_t i = 0; i < 3; i++) {
 		if (std::isnan(absminsa[i]) || std::isnan(absmaxsa[i]) || std::isnan(absminsb[i]) || std::isnan(absmaxsb[i])) {
 			std::cerr << "Invalid value detected in distance_between_boxes: "
@@ -396,7 +396,7 @@ R_ConcatRotations
 				<< "absmaxsa[" << i << "]=" << absmaxsa[i] << ", "
 				<< "absminsb[" << i << "]=" << absminsb[i] << ", "
 				<< "absmaxsb[" << i << "]=" << absmaxsb[i] << std::endl;
-			return 0.0f; // Manejar caso de valores no v·lidos
+			return 0.0f; // Manejar caso de valores no v√°lidos
 		}
 	}
 

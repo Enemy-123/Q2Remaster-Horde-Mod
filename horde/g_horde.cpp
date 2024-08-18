@@ -235,7 +235,7 @@ void AdjustMonsterSpawnRate()  {
 }
 
 // Funci�n para calcular la cantidad de monstruos est�ndar a spawnear
-void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl)  {
+static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl)  {
     if (mapSize.isSmallMap) {
         g_horde_local.num_to_spawn = std::min((current_wave_number <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
     }
@@ -247,7 +247,7 @@ void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl)  {
     }
 }
 // Funci�n para calcular el bono de locura y caos
-int32_t CalculateChaosInsanityBonus(int32_t lvl) {
+static int32_t CalculateChaosInsanityBonus(int32_t lvl) {
     (g_chaotic->integer) ? 3 : 5;
 
     if (g_insane->integer) {
@@ -1309,7 +1309,7 @@ void SpawnBossAutomatically() {
     boss->monsterinfo.power_armor_power = static_cast<int32_t>(boss->monsterinfo.power_armor_power * power_armor_multiplier * g_horde_local.level * 1.45);
 
     // Spawn grow effect
-    vec3_t spawngrow_pos = boss->s.origin;
+    vec3_t const spawngrow_pos = boss->s.origin;
     const float size = VectorLength(spawngrow_pos) * 0.35f;
     const float end_size = size * 0.005f;
     ImprovedSpawnGrow(spawngrow_pos, size, end_size, boss);
@@ -1526,9 +1526,9 @@ int32_t GetNumSpectPlayers()  {
 }
 // Estructura para los parámetros de condición
 struct ConditionParams {
-    int32_t maxMonsters;
-    gtime_t timeThreshold;
-    gtime_t independentTimeThreshold;
+    int32_t maxMonsters{};
+    gtime_t timeThreshold{};
+    gtime_t independentTimeThreshold = 75_sec;
 };
 
 // Variables globales
@@ -1646,8 +1646,8 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     }
 
     // Calcular el tiempo transcurrido para ambos temporizadores
-    gtime_t conditionElapsed = level.time - condition_start_time;
-    gtime_t independentElapsed = level.time - independent_timer_start;
+   const gtime_t conditionElapsed = level.time - condition_start_time;
+   const gtime_t independentElapsed = level.time - independent_timer_start;
 
     // Verificar si se cumple alguna de las condiciones
    const bool conditionMet = (cachedRemainingMonsters <= lastParams.maxMonsters && conditionElapsed >= lastParams.timeThreshold);
