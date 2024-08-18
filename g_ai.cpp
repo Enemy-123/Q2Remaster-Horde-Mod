@@ -16,6 +16,12 @@ constexpr float MAX_SIDESTEP = 8.0f;
 // ROGUE
 
 //============================================================================
+// Función auxiliar para calcular la distancia al cuadrado (más eficiente que VectorLength)
+float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
+    vec3_t diff{};
+    VectorSubtract(v1, v2, diff);
+    return diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2];
+}
 
 /*
 =================
@@ -52,9 +58,14 @@ edict_t* AI_GetSightClient(edict_t* self)
     }
 
     if (!num_visible)
+    {
+        _freea(visible_players);
         return nullptr;
+    }
 
-    return visible_players[irandom(num_visible)];
+    edict_t* chosen_player = visible_players[irandom(num_visible)];
+    _freea(visible_players);
+    return chosen_player;
 }
 
 //============================================================================
@@ -191,37 +202,42 @@ void ai_stand(edict_t* self, float dist)
             self->monsterinfo.idle_time = level.time + random_time(15_sec);
         }
     }
-    // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
-    if (g_horde->integer) {
-        // Verifica si el monstruo no tiene un enemigo
-        if (!self->enemy)
+
+        // HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
+        if (g_horde->integer && !self->enemy)
         {
             // Solo la sentrygun utilizará FindMTarget para buscar un objetivo
             if (!strcmp(self->classname, "monster_sentrygun")) {
                 FindMTarget(self);
             }
-            int count = 0;
-            edict_t* player = nullptr;
-            // Encuentra un jugador vivo y no espectador aleatoriamente
-            for (auto client : active_players())
+            else
             {
-                if (client->inuse && client->health > 0 && !EntIsSpectating(client))
+                edict_t* nearest_player = nullptr;
+                float nearest_distance_sq = FLT_MAX;
+
+                // Encuentra el jugador más cercano que esté vivo y no sea espectador
+                for (const auto client : active_players_no_spect())
                 {
-                    if (!count || (rand() % (count + 1)) == 0)
+                    if (client->inuse && client->health > 0)
                     {
-                        player = client;  // selección aleatoria
+                        float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
+                        if (dist_squared < nearest_distance_sq)
+                        {
+                            nearest_player = client;
+                            nearest_distance_sq = dist_squared;
+                        }
                     }
-                    count++;
                 }
-            }
-            if (player)
-            {
-                self->enemy = player; // Establece el nuevo enemigo
-                self->monsterinfo.run(self); // Cambia a modo persecución
+
+                if (nearest_player)
+                {
+                    self->enemy = nearest_player;
+                    FoundTarget(self);
+                    return;
+                }
             }
         }
     }
-}
 /*
 =============
 ai_walk
@@ -425,12 +441,6 @@ float range_to(edict_t* self, edict_t* other) {
 bool IsInvisible(edict_t* ent);
 bool IsValidTarget(edict_t* self, edict_t* ent);
 
-// Función auxiliar para calcular la distancia al cuadrado (más eficiente que VectorLength)
-float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
-    vec3_t diff{};
-    VectorSubtract(v1, v2, diff);
-    return diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2];
-}
 
 constexpr size_t MAX_ENTITIES = 34;  // Ajustado al máximo esperado
 
@@ -807,11 +817,11 @@ bool FindTarget(edict_t* self)
         return false;
 
     // if the first spawnflag bit is set, the monster will only wake up on
-    // really seeing the player, not another monster getting angry or hearing
-    // something
+// really seeing the player, not another monster getting angry or hearing
+// something
 
-    // revised behavior so they will wake up if they "see" a player make a noise
-    // but not weapon impact/explosion noises
+// revised behavior so they will wake up if they "see" a player make a noise
+// but not weapon impact/explosion noises
     heardit = false;
 
     // Paril: revised so that monsters will first try to consider
@@ -832,8 +842,8 @@ bool FindTarget(edict_t* self)
         if (!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) && (client = AI_GetMonsterAlertedByPlayers(self)))
         {
             // KEX_FIXME: when does this happen? 
-            // [Paril-KEX] adjusted to clear the client
-            // so we can try other things
+// [Paril-KEX] adjusted to clear the client
+// so we can try other things
             if (client->enemy == self->enemy ||
                 !G_MonsterSourceVisible(self, client))
                 client = nullptr;
@@ -859,6 +869,16 @@ bool FindTarget(edict_t* self)
         }
     }
 
+    // Apply cooldown logic only for horde mode
+    if (g_horde->integer && heardit)
+    {
+        if (self->monsterinfo.lastnoisecooldown > level.time)
+        {
+            return false;
+        }
+        self->monsterinfo.lastnoisecooldown = level.time + 1_sec;
+    }
+
     if (!client)
     {
         if (g_horde->integer)
@@ -868,7 +888,6 @@ bool FindTarget(edict_t* self)
         }
         return false; // No se encontraron objetivos
     }
-
 
     // if the entity went away, forget it
     if (!client->inuse)
@@ -931,8 +950,8 @@ bool FindTarget(edict_t* self)
             return false;
 
         // Paril: revised so that monsters can be woken up
-        // by players 'seen' and attacked at by other monsters
-        // if they are close enough. they don't have to be visible.
+// by players 'seen' and attacked at by other monsters
+// if they are close enough. they don't have to be visible.
         bool is_visible =
             ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
                 (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
@@ -1007,7 +1026,7 @@ bool FindTarget(edict_t* self)
     //
     // got one
     //
-    // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
+        // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
     if (self->monsterinfo.aiflags & AI_HINT_PATH)
         hintpath_stop(self);  // this calls foundtarget for us
     else
@@ -1021,7 +1040,6 @@ bool FindTarget(edict_t* self)
 
     return true;
 }
-
 //=============================================================================
 
 /*

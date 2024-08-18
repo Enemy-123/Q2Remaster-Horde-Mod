@@ -1741,9 +1741,9 @@ struct monsterinfo_t
 	gtime_t last_rocket_fire_time;
 	gtime_t last_plasma_fire_time;
 	float damage_quad; // trying to multiply dmg based on powerup
-	float noise_cooldown_time;
 	bool damage_modifier_applied;
 	gtime_t last_sentrygun_target_time;
+	gtime_t lastnoisecooldown;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
