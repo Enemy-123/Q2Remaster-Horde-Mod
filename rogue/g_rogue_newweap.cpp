@@ -173,39 +173,62 @@ DIE(prox_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	}
 }
 
-//===============
-//===============
 TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	edict_t* prox{};
+	if (!ent || !other) {
+		// Log error or handle null ent or other
+		return;
+	}
 
-	if (!(other->svflags & SVF_MONSTER)/* && !other->client*/) // explode only if it's a monster
+	edict_t* prox = nullptr;
+
+	if (!(other->svflags & SVF_MONSTER)) {
+		// explode only if it's a monster
+		return;
+	}
 
 	// trigger the prox mine if it's still there, and still mine.
-	prox = ent->owner;
+	if (ent->owner) {
+		prox = ent->owner;
+	}
+	else {
+		// Log error or handle null owner
+		return;
+	}
 
 	// teammate avoidance
-	if (CheckTeamDamage(prox->teammaster, other))
+	if (prox->teammaster && CheckTeamDamage(prox->teammaster, other)) {
 		return;
-	if (G_IsDeathmatch() && g_horde->integer && other->client) // no self damage using traps on DM/Horde
-		return;
+	}
 
-	if (other == prox) // don't set self off
+	if (G_IsDeathmatch() && g_horde && g_horde->integer && other->client) {
+		// no self damage using traps on DM/Horde
 		return;
+	}
 
-	if (prox->think == Prox_Explode) // we're set to blow!
+	if (other == prox) {
+		// don't set self off
 		return;
+	}
 
-	if (prox->teamchain == ent)
-	{
-		gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
+	if (prox->think == Prox_Explode) {
+		// we're set to blow!
+		return;
+	}
+
+	if (prox->teamchain == ent) {
+		if (gi.soundindex && gi.sound) {
+			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
+		}
 		prox->think = Prox_Explode;
 		prox->nextthink = level.time + PROX_TIME_DELAY;
 		return;
 	}
 
-	ent->solid = SOLID_NOT;
-	G_FreeEdict(ent);
+	if (ent) {
+		ent->solid = SOLID_NOT;
+		G_FreeEdict(ent);
+	}
 }
 
 //===============
