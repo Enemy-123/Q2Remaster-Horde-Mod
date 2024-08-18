@@ -758,9 +758,20 @@ bool FindEnhancedTarget(edict_t* self) {
             return a.second < b.second;
         });
 
-    // Encontrar el objetivo más cercano visible
+    // Encontrar el objetivo más cercano visible y vivo
     for (const auto& [ent, _] : nearbyEntities) {
-        if (visible(self, ent, false)) {
+        if (ent->health > 0 && !ent->deadflag && visible(self, ent, false)) {
+            // Verificación adicional para jugadores
+            if (ent->client) {
+                if (ent->client->invisible_time > level.time &&
+                    ent->client->invisibility_fade_time <= level.time) {
+                    continue; // Saltar jugadores completamente invisibles
+                }
+                if (EntIsSpectating(ent)) {
+                    continue; // Saltar espectadores
+                }
+            }
+
             self->enemy = ent;
             return true;
         }
