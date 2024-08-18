@@ -177,7 +177,7 @@ DIE(prox_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 //===============
 TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	edict_t* prox;
+	edict_t* prox{};
 
 	if (!(other->svflags & SVF_MONSTER)/* && !other->client*/) // explode only if it's a monster
 
