@@ -30,9 +30,10 @@ edict_t* AI_GetSightClient(edict_t* self)
 {
     if (level.intermissiontime)
         return nullptr;
-    edict_t* closestPlayer = nullptr;
-    float closestDistance = 1500.0f; // Rango de búsqueda inicial
-    vec3_t dir{};
+
+    edict_t** visible_players = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
+    size_t num_visible = 0;
+
     for (auto player : active_players())
     {
         if (player->health <= 0 || player->deadflag || !player->solid)
@@ -40,33 +41,22 @@ edict_t* AI_GetSightClient(edict_t* self)
         else if (player->flags & (FL_NOTARGET | FL_DISGUISED))
             continue;
 
-        if (EntIsSpectating(player))
-            continue;
-
-        // Si estamos tocando al jugador, permitimos pasar a través
-        bool canSee = boxes_intersect(self->absmin, self->absmax, player->absmin, player->absmax);
-
-        if (!canSee)
+        // if we're touching them, allow to pass through
+        if (!boxes_intersect(self->absmin, self->absmax, player->absmin, player->absmax))
         {
-            if (!(self->monsterinfo.aiflags & AI_THIRD_EYE) && !infront(self, player))
-                continue;
-            if (!visible(self, player))
+            if ((!(self->monsterinfo.aiflags & AI_THIRD_EYE) && !infront(self, player)) || !visible(self, player))
                 continue;
         }
 
-        // Calcula la distancia entre el jugador y el monstruo
-        VectorSubtract(player->s.origin, self->s.origin, dir);
-        float distance = VectorLength(dir);
-        // Si la distancia es menor a la distancia más cercana conocida, actualiza el jugador más cercano
-        if (distance < closestDistance)
-        {
-            closestPlayer = player;
-            closestDistance = distance;
-        }
+        visible_players[num_visible++] = player; // got one
     }
-    // Retorna el jugador más cercano si hay uno visible
-    return closestPlayer;
+
+    if (!num_visible)
+        return nullptr;
+
+    return visible_players[irandom(num_visible)];
 }
+
 //============================================================================
 
 /*
@@ -201,8 +191,6 @@ void ai_stand(edict_t* self, float dist)
             self->monsterinfo.idle_time = level.time + random_time(15_sec);
         }
     }
-
-    bool FindMTarget(edict_t * self);
     // HORDESTAND: Verifica si el enemigo es nullptr y selecciona el jugador más cercano para enojarse
     if (g_horde->integer) {
         // Verifica si el monstruo no tiene un enemigo
@@ -281,14 +269,6 @@ void ai_walk(edict_t* self, float dist)
     }
 }
 
-// Función para verificar si el enemigo es un tipo estático
-bool IsStaticEnemy(edict_t* enemy) //test sentry , monsters wont strafe
-{
-    if (!enemy || !enemy->classname)
-        return false;
-
-    return (!strcmp(enemy->classname, "tesla_mine"))/* || !strcmp(enemy->classname, "monster_sentrygun"))*/;
-}
 /*
 =============
 ai_charge
@@ -337,9 +317,9 @@ void ai_charge(edict_t* self, float dist)
         // circle strafe support
         if (self->monsterinfo.attack_state == AS_SLIDING)
         {
-            // if we're fighting a static enemy (tesla or sentrygun), NEVER circle strafe
-            if (self->enemy && IsStaticEnemy(self->enemy))           
-                ofs = 0;       
+            // if we're fighting a tesla, NEVER circle strafe
+            if ((self->enemy) && (self->enemy->classname) && (!strcmp(self->enemy->classname, "tesla_mine")))
+                ofs = 0;
             else if (self->monsterinfo.lefty)
                 ofs = 90;
             else
@@ -532,6 +512,7 @@ bool IsInvisible(edict_t* ent) {
     }
     return false;
 }
+
 /*
 =============
 infront
@@ -595,7 +576,7 @@ void FoundTarget(edict_t* self)
     // [Paril-KEX] the first time we spot something, give us a bit of a grace
     // period on firing
     if (!self->monsterinfo.trail_time)
-        self->monsterinfo.attack_finished = level.time + 325_ms;
+        self->monsterinfo.attack_finished = level.time + 600_ms;
 
     // give easy/medium a little more reaction time
     self->monsterinfo.attack_finished += skill->integer == 0 ? 400_ms : skill->integer == 1 ? 200_ms : 0_ms;
@@ -732,7 +713,6 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
             (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
     return is_visible;
 }
-
 bool FindEnhancedTarget(edict_t* self) {
     // Si es una torreta, usar FindMTarget directamente
     if (strcmp(self->classname, "monster_sentrygun") == 0) {
@@ -779,7 +759,6 @@ bool FindEnhancedTarget(edict_t* self) {
 
     return false;
 }
-
 /*
 ===========
 FindTarget
@@ -892,7 +871,7 @@ bool FindTarget(edict_t* self)
 
 
     // if the entity went away, forget it
-    if (!client->inuse || EntIsSpectating(client))
+    if (!client->inuse)
         return false;
 
     if (client == self->enemy)
@@ -998,31 +977,21 @@ bool FindTarget(edict_t* self)
             if (!visible(self, client))
                 return false;
         }
-
-        // Verificación de PHS se aplica en ambos modos
-        if (!gi.inPHS(self->s.origin, client->s.origin, true))
-            return false;
-
-        if (g_horde->integer)
+        else
         {
-            // Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde HORDEHEAR
-            if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
-            {
+            if (!gi.inPHS(self->s.origin, client->s.origin, true))
                 return false;
-            }
         }
 
         temp = client->s.origin - self->s.origin;
 
-        if (VectorLength(temp) > 1000) // demasiado lejos para oír
+        if (temp.length() > 1000) // too far to hear
             return false;
 
-        // Verificar portales de área - si son diferentes y no están conectados, no podemos oírlo
+        // check area portals - if they are different and not connected then we can't hear it
         if (client->areanum != self->areanum)
-        {
             if (!gi.AreasConnected(self->areanum, client->areanum))
                 return false;
-        }
 
         self->ideal_yaw = vectoyaw(temp);
         // ROGUE
@@ -1030,12 +999,12 @@ bool FindTarget(edict_t* self)
             // ROGUE
             M_ChangeYaw(self);
 
-        // Caza el sonido por un tiempo; con suerte encuentra al jugador real
+        // hunt the sound for a bit; hopefully find the real player
         self->monsterinfo.aiflags |= AI_SOUND_TARGET;
         self->enemy = client;
     }
 
-    // 
+    //
     // got one
     //
     // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
@@ -1097,7 +1066,6 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 
         spot1 = self->s.origin;
         spot1[2] += self->viewheight;
-
         // see if any entities are in the way of the shot
         if (!self->enemy->client || self->enemy->solid)
         {
@@ -1105,13 +1073,13 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
             spot2[2] += self->enemy->viewheight;
 
             tr = gi.traceline(spot1, spot2, self,
-                MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_WATER | CONTENTS_SLIME | CONTENTS_LAVA
-                | CONTENTS_PROJECTILECLIP // Paril: horde
-            );
+                MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA
+            | CONTENTS_PROJECTILECLIP // Paril: horde
+                );
 
-            // Paril: horde
-            if (tr.startsolid)
-                return false;
+                // Paril: horde
+                if (tr.startsolid)
+                    return false;
         }
         else
         {
@@ -1129,7 +1097,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
                 // Paril - *and* we have at least seen them once
                 if (!(tr.ent->svflags & SVF_MONSTER) && !visible(self, self->enemy) && self->monsterinfo.had_visibility)
                 {
-                    if (self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 5_sec))
+                    if (self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 8_sec))
                     {
                         if (level.time < self->monsterinfo.attack_finished)
                         {
@@ -1535,9 +1503,9 @@ bool ai_checkattack(edict_t* self, float dist)
     // stuff .. this allows for, among other things, circle strafing and attacking while in ai_run
     retval = false;
 
-    // Reducir la frecuencia de chequeo de ataques
-    if (self->monsterinfo.checkattack_time <= level.time) {
-        self->monsterinfo.checkattack_time = level.time + 0.05_sec;  // Reducido de 0.1 a 0.05
+    if (self->monsterinfo.checkattack_time <= level.time)
+    {
+        self->monsterinfo.checkattack_time = level.time + 0.05_sec;
         retval = self->monsterinfo.checkattack(self);
     }
 
@@ -1563,14 +1531,8 @@ bool ai_checkattack(edict_t* self, float dist)
         // pmm
 
         // if enemy is not currently visible, we will never attack
-// Cambiar la comprobación de visibilidad para que sea menos restrictiva
-        if (!enemy_vis) {
-            // Intentar un ataque ciego si el enemigo fue visible recientemente
-            if (self->monsterinfo.search_time > level.time) {
-                enemy_vis = true;
-            }
-        }
-
+        if (!enemy_vis)
+            return false;
         // PMM
     }
 
@@ -1603,7 +1565,6 @@ void ai_run(edict_t* self, float dist)
     bool     gotcha = false;
     edict_t* realEnemy;
     // ROGUE
-
 
     // if we're going to a combat point, just proceed
     if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
@@ -1921,7 +1882,7 @@ void ai_run(edict_t* self, float dist)
         else if (self->monsterinfo.aiflags & AI_PURSUIT_LAST_SEEN)
         {
             self->monsterinfo.aiflags &= ~AI_PURSUIT_LAST_SEEN;
-            marker = PlayerTrail_Pick(self, false); // crash debugger
+            marker = PlayerTrail_Pick(self, false);
         }
         else
         {

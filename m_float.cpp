@@ -719,7 +719,7 @@ void SP_monster_floater2(edict_t* self)
 	self->s.effects = EF_BARREL_EXPLODING;
 	self->gib_health = -80;
 	self->mass = 300;
-	self->s.scale = 1.2f;
+	//self->s.scale = 1.2f;
 	self->pain = floater2_pain;
 	self->die = floater2_die;
 

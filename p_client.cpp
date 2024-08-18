@@ -3992,10 +3992,8 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 }
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	const bool is_horde_mode = g_horde->integer != 0;
-	const bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
 	gtime_t min_combat_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 	gtime_t min_bad_area_time_left = 3_sec;  // Always start from 3 seconds
-	constexpr gtime_t safe_time_threshold = 3_sec;  // Tiempo seguro sin recibir daño
 	edict_t* best_player = nullptr;
 	vec3_t best_spot = {};
 	bool combat_state_exists = false;
@@ -4013,17 +4011,11 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 			combat_time_left = player->client->last_damage_time - level.time;
 		}
 
-		// Check if monsters are searching for player
-		if (!in_combat && G_MonstersSearchingFor(player)) {
-			in_combat = true;
-			combat_time_left = safe_time_threshold;
-		}
-
-		// Check firing state
-		if (!in_combat && monsters_searching_for_anybody && player->client->last_firing_time >= level.time) {
-			in_combat = true;
-			combat_time_left = safe_time_threshold;
-		}
+		//// Check firing state
+		//if (!in_combat && player->client->last_firing_time >= level.time) {
+		//	in_combat = true;
+		//	combat_time_left = player->client->last_firing_time - level.time;
+		//}
 
 		if (in_combat) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
@@ -4118,6 +4110,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 
 	return { best_player, best_spot };
 }
+
 enum respawn_state_t
 {
 	RESPAWN_NONE,     // invalid state
