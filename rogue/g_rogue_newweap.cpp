@@ -133,7 +133,7 @@ THINK(Prox_Explode)(edict_t* ent) -> void {
 				VectorSet(forward, 0, 0, -1);
 
 				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
-				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
+				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
 				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
 			}
@@ -145,7 +145,7 @@ THINK(Prox_Explode)(edict_t* ent) -> void {
 				AngleVectors(grenade_angs, forward, right, up);
 
 				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
-				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
+				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
 				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
 			}
@@ -179,8 +179,7 @@ TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool o
 {
 	edict_t* prox;
 
-	if (!(other->svflags & SVF_MONSTER) && !other->client)
-		return;
+	if (!(other->svflags & SVF_MONSTER)/* && !other->client*/) // explode only if it's a monster
 
 	// trigger the prox mine if it's still there, and still mine.
 	prox = ent->owner;
