@@ -1506,7 +1506,7 @@ void ResetGame() {
 // Funci�n para obtener el n�mero de jugadores activos (incluyendo bots)
 int32_t GetNumActivePlayers()  {
     int32_t numActivePlayers = 0;
-    for ( auto const player : active_players()) {
+    for (const auto player : active_players()) {
         if (player->client->resp.ctf_team == CTF_TEAM1) {
             numActivePlayers++;
         }
@@ -1517,7 +1517,7 @@ int32_t GetNumActivePlayers()  {
 // Funci�n para obtener el n�mero de jugadores en espectador
 int32_t GetNumSpectPlayers()  {
     int32_t numSpectPlayers = 0;
-    for ( auto const player : active_players()) {
+    for (const auto player : active_players()) {
         if (player->client->resp.ctf_team != CTF_TEAM1) {
             numSpectPlayers++;
         }
@@ -1607,8 +1607,8 @@ int32_t CalculateRemainingMonsters()  {
     return lastCalculatedRemaining;
 }
 
-// Nueva función para reiniciar ambos temporizadores
-void ResetTimers()  {
+// Función auxiliar para reiniciar los temporizadores
+void ResetTimers() {
     condition_start_time = gtime_t();
     independent_timer_start = gtime_t();
 }
@@ -1626,45 +1626,42 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 
     const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-    // Solo recalcular los parámetros si algo ha cambiado
+    // Recalcular los parámetros si algo ha cambiado
     if (current_wave_number != lastWaveNumber || numHumanPlayers != lastNumHumanPlayers) {
         lastParams = GetConditionParams(mapSize, numHumanPlayers);
         lastWaveNumber = current_wave_number;
         lastNumHumanPlayers = numHumanPlayers;
     }
 
-    // Usar una variable estática para el temporizador independiente
-    static gtime_t independentTimerStart;
-
     if (cachedRemainingMonsters == -1) {
         cachedRemainingMonsters = CalculateRemainingMonsters();
     }
 
-    // Verificar el temporizador independiente
-    if (!independentTimerStart) {
-        independentTimerStart = level.time;
+    // Iniciar ambos temporizadores si no están activos
+    if (condition_start_time == gtime_t()) {
+        condition_start_time = level.time;
     }
-    if ((level.time - independentTimerStart) >= lastParams.independentTimeThreshold) {
+    if (independent_timer_start == gtime_t()) {
+        independent_timer_start = level.time;
+    }
+
+    // Calcular el tiempo transcurrido para ambos temporizadores
+    gtime_t conditionElapsed = level.time - condition_start_time;
+    gtime_t independentElapsed = level.time - independent_timer_start;
+
+    // Verificar si se cumple alguna de las condiciones
+   const bool conditionMet = (cachedRemainingMonsters <= lastParams.maxMonsters && conditionElapsed >= lastParams.timeThreshold);
+   const bool independentMet = (independentElapsed >= lastParams.independentTimeThreshold);
+
+    if (conditionMet || independentMet) {
         ResetTimers();
-        independentTimerStart = gtime_t();
         cachedRemainingMonsters = -1;
         return true;
     }
 
-    // Lógica existente para maxMonsters y timeThreshold
-    if (cachedRemainingMonsters <= lastParams.maxMonsters) {
-        if (!condition_start_time) {
-            condition_start_time = level.time;
-        }
-        if ((level.time - condition_start_time) >= lastParams.timeThreshold) {
-            ResetTimers();
-            independentTimerStart = gtime_t();
-            cachedRemainingMonsters = -1;
-            return true;
-        }
-    }
-    else {
-        condition_start_time = gtime_t();
+    // Reiniciar el temporizador de condición si ya no se cumple
+    if (cachedRemainingMonsters > lastParams.maxMonsters) {
+        condition_start_time = level.time;
     }
 
     return false;
