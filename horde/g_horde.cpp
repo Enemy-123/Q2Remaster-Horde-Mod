@@ -1646,22 +1646,27 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
         condition_start_time = level.time;
     }
 
-    // Calcular el tiempo transcurrido para ambos temporizadores
+    // Calcular el tiempo transcurrido para el temporizador de condición
     const gtime_t conditionElapsed = maxMonstersReached ? (level.time - condition_start_time) : gtime_t();
-    const gtime_t independentElapsed = level.time - independent_timer_start;
 
-    // Verificar si se cumple alguna de las condiciones
-    const bool conditionMet = maxMonstersReached && (conditionElapsed >= lastParams.timeThreshold);
-    const bool independentMet = (independentElapsed >= lastParams.independentTimeThreshold);
-
-    if (conditionMet || independentMet) {
+    // Verificar si se cumple la condición principal
+    if (maxMonstersReached && (conditionElapsed >= lastParams.timeThreshold)) {
         ResetTimers();
         maxMonstersReached = false;
         cachedRemainingMonsters = -1;
         return true;
     }
 
-    // No reiniciamos el temporizador de condición aquí, solo se reinicia cuando se alcanza maxMonsters
+    // Solo verificar el independentTimeThreshold si maxMonsters no se ha alcanzado
+    if (!maxMonstersReached) {
+        const gtime_t independentElapsed = level.time - independent_timer_start;
+        if (independentElapsed >= lastParams.independentTimeThreshold) {
+            ResetTimers();
+            maxMonstersReached = false;
+            cachedRemainingMonsters = -1;
+            return true;
+        }
+    }
 
     return false;
 }
