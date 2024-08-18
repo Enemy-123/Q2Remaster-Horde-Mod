@@ -402,49 +402,38 @@ Changes level to "map" when fired
 */
 USE(use_target_changelevel) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	if (g_horde->integer && !G_IsCooperative())
-	{
-		HandleResetEvent();
-	}
 	if (level.intermissiontime)
 		return; // already activated
 
-	if (!G_IsDeathmatch() || !G_IsCooperative())
+	if (!deathmatch->integer && !coop->integer)
 	{
 		if (g_edicts[1].health <= 0)
 			return;
 	}
 
 	// if noexit, do a ton of damage to other
-	if (G_IsDeathmatch() && !g_horde->integer && !g_dm_allow_exit->integer && other != world)
+	if (deathmatch->integer && !g_dm_allow_exit->integer && other != world)
 	{
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 10 * other->max_health, 1000, DAMAGE_NONE, MOD_EXIT);
 		return;
 	}
 
 	// if multiplayer, let everyone know who hit the exit
-	if (G_IsCooperative() || !G_IsCooperative())
-		if (g_horde->integer)
-		{
-			HandleResetEvent();
-		}
+	if (deathmatch->integer)
 	{
 		if (level.time < 10_sec)
 			return;
 
 		if (activator && activator->client)
 			gi.LocBroadcast_Print(PRINT_HIGH, "$g_exited_level", activator->client->pers.netname);
-		if (g_horde->integer)
-		{
-			HandleResetEvent();
-		}
 	}
+
 	// if going to a new unit, clear cross triggers
 	if (strstr(self->map, "*"))
 		game.cross_level_flags &= ~(SFL_CROSS_TRIGGER_MASK);
 
 	// if map has a landmark, store position instead of using spawn next map
-	if (activator && activator->client && !G_IsDeathmatch())
+	if (activator && activator->client && !deathmatch->integer)
 	{
 		activator->client->landmark_name = nullptr;
 		activator->client->landmark_rel_pos = vec3_origin;
@@ -486,6 +475,7 @@ void SP_target_changelevel(edict_t* ent)
 	ent->use = use_target_changelevel;
 	ent->svflags = SVF_NOCLIENT;
 }
+
 
 //==========================================================
 
