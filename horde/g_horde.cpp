@@ -1607,20 +1607,21 @@ int32_t CalculateRemainingMonsters()  {
     return lastCalculatedRemaining;
 }
 
-// Función auxiliar para reiniciar los temporizadores
 void ResetTimers() {
     condition_start_time = gtime_t();
-    independent_timer_start = gtime_t();
+    independent_timer_start = level.time;  // Iniciar el temporizador independiente inmediatamente
 }
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     static ConditionParams lastParams;
     static int32_t lastWaveNumber = -1;
     static int32_t lastNumHumanPlayers = -1;
+    static bool maxMonstersReached = false;
 
     if (allowWaveAdvance) {
         allowWaveAdvance = false;
         ResetTimers();
+        maxMonstersReached = false;
         return true;
     }
 
@@ -1631,38 +1632,36 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
         lastParams = GetConditionParams(mapSize, numHumanPlayers);
         lastWaveNumber = current_wave_number;
         lastNumHumanPlayers = numHumanPlayers;
+        maxMonstersReached = false;
+        ResetTimers();
     }
 
     if (cachedRemainingMonsters == -1) {
         cachedRemainingMonsters = CalculateRemainingMonsters();
     }
 
-    // Iniciar ambos temporizadores si no están activos
-    if (condition_start_time == gtime_t()) {
+    // Verificar si se ha alcanzado maxMonsters
+    if (!maxMonstersReached && cachedRemainingMonsters <= lastParams.maxMonsters) {
+        maxMonstersReached = true;
         condition_start_time = level.time;
-    }
-    if (independent_timer_start == gtime_t()) {
-        independent_timer_start = level.time;
     }
 
     // Calcular el tiempo transcurrido para ambos temporizadores
-   const gtime_t conditionElapsed = level.time - condition_start_time;
-   const gtime_t independentElapsed = level.time - independent_timer_start;
+    const gtime_t conditionElapsed = maxMonstersReached ? (level.time - condition_start_time) : gtime_t();
+    const gtime_t independentElapsed = level.time - independent_timer_start;
 
     // Verificar si se cumple alguna de las condiciones
-   const bool conditionMet = (cachedRemainingMonsters <= lastParams.maxMonsters && conditionElapsed >= lastParams.timeThreshold);
-   const bool independentMet = (independentElapsed >= lastParams.independentTimeThreshold);
+    const bool conditionMet = maxMonstersReached && (conditionElapsed >= lastParams.timeThreshold);
+    const bool independentMet = (independentElapsed >= lastParams.independentTimeThreshold);
 
     if (conditionMet || independentMet) {
         ResetTimers();
+        maxMonstersReached = false;
         cachedRemainingMonsters = -1;
         return true;
     }
 
-    // Reiniciar el temporizador de condición si ya no se cumple
-    if (cachedRemainingMonsters > lastParams.maxMonsters) {
-        condition_start_time = level.time;
-    }
+    // No reiniciamos el temporizador de condición aquí, solo se reinicia cuando se alcanza maxMonsters
 
     return false;
 }
