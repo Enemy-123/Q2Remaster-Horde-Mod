@@ -37,37 +37,36 @@ edict_t* AI_GetSightClient(edict_t* self)
     if (level.intermissiontime)
         return nullptr;
 
-    edict_t** visible_players = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
-    size_t num_visible = 0;
+    edict_t** visible_players = (edict_t**)malloc(sizeof(edict_t*) * game.maxclients);
+    if (!visible_players) {
+        // Handle allocation failure
+        return nullptr;
+    }
 
+    size_t num_visible = 0;
     for (auto player : active_players())
     {
         if (player->health <= 0 || player->deadflag || !player->solid)
             continue;
-        else if (player->flags & (FL_NOTARGET | FL_DISGUISED))
+        if (player->flags & (FL_NOTARGET | FL_DISGUISED))
             continue;
-
         // if we're touching them, allow to pass through
         if (!boxes_intersect(self->absmin, self->absmax, player->absmin, player->absmax))
         {
             if ((!(self->monsterinfo.aiflags & AI_THIRD_EYE) && !infront(self, player)) || !visible(self, player))
                 continue;
         }
-
         visible_players[num_visible++] = player; // got one
     }
 
-    if (!num_visible)
-    {
-        _freea(visible_players);
-        return nullptr;
+    edict_t* chosen_player = nullptr;
+    if (num_visible > 0) {
+        chosen_player = visible_players[irandom(num_visible)];
     }
 
-    edict_t* chosen_player = visible_players[irandom(num_visible)];
-    _freea(visible_players);
+    free(visible_players);
     return chosen_player;
 }
-
 //============================================================================
 
 /*
@@ -203,41 +202,41 @@ void ai_stand(edict_t* self, float dist)
         }
     }
 
-        // HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
-        if (g_horde->integer && !self->enemy)
-        {
-            // Solo la sentrygun utilizará FindMTarget para buscar un objetivo
-            if (!strcmp(self->classname, "monster_sentrygun")) {
-                FindMTarget(self);
-            }
-            else
-            {
-                edict_t* nearest_player = nullptr;
-                float nearest_distance_sq = FLT_MAX;
+	// HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
+	if (g_horde->integer && !self->enemy)
+	{
+		// Solo la sentrygun utilizará FindMTarget para buscar un objetivo
+		if (!strcmp(self->classname, "monster_sentrygun")) {
+			FindMTarget(self);
+		}
+		else
+		{
+			edict_t* nearest_player = nullptr;
+			float nearest_distance_sq = FLT_MAX;
 
-                // Encuentra el jugador más cercano que esté vivo y no sea espectador
-                for (const auto client : active_players_no_spect())
-                {
-                    if (client->inuse && client->health > 0)
-                    {
-                        float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
-                        if (dist_squared < nearest_distance_sq)
-                        {
-                            nearest_player = client;
-                            nearest_distance_sq = dist_squared;
-                        }
-                    }
-                }
+			// Encuentra el jugador más cercano que esté vivo y no sea espectador
+			for (const auto client : active_players_no_spect())
+			{
+				if (client->inuse && client->health > 0)
+				{
+					const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
+					if (dist_squared < nearest_distance_sq)
+					{
+						nearest_player = client;
+						nearest_distance_sq = dist_squared;
+					}
+				}
+			}
 
-                if (nearest_player)
-                {
-                    self->enemy = nearest_player;
-                    FoundTarget(self);
-                    return;
-                }
-            }
-        }
-    }
+			if (nearest_player)
+			{
+				self->enemy = nearest_player;
+				FoundTarget(self);
+				return;
+			}
+		}
+	}
+}
 /*
 =============
 ai_walk
@@ -712,13 +711,13 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
     }
 
     // this is where we would check invisibility
-    float r = range_to(self, client);
+    const float r = range_to(self, client);
     if (r > RANGE_MID)
         return false;
     // Paril: revised so that monsters can be woken up
     // by players 'seen' and attacked at by other monsters
     // if they are close enough. they don't have to be visible.
-    bool is_visible =
+    const bool is_visible =
         ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
             (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
     return is_visible;
@@ -902,7 +901,7 @@ bool FindTarget(edict_t* self)
         // us with the "same" enemy even though it's a different noise.
         if (heardit && (self->monsterinfo.aiflags & AI_SOUND_TARGET))
         {
-            vec3_t temp = client->s.origin - self->s.origin;
+           const vec3_t temp = client->s.origin - self->s.origin;
             self->ideal_yaw = vectoyaw(temp);
 
             if (!FacingIdeal(self))
@@ -944,7 +943,7 @@ bool FindTarget(edict_t* self)
     if (!heardit)
     {
         // this is where we would check invisibility
-        float r = range_to(self, client);
+        const float r = range_to(self, client);
 
         if (r > RANGE_MID)
             return false;
@@ -952,7 +951,7 @@ bool FindTarget(edict_t* self)
         // Paril: revised so that monsters can be woken up
 // by players 'seen' and attacked at by other monsters
 // if they are close enough. they don't have to be visible.
-        bool is_visible =
+       const bool is_visible =
             ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
                 (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
 
@@ -1002,6 +1001,14 @@ bool FindTarget(edict_t* self)
                 return false;
         }
 
+        //if (g_horde->integer) { //hordehear only for flying or standing monsters
+        //    // Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde HORDEHEAR
+        //    if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
+        //    {
+        //        return false;
+        //    }
+        //}
+
         temp = client->s.origin - self->s.origin;
 
         if (temp.length() > 1000) // too far to hear
@@ -1050,7 +1057,7 @@ FacingIdeal
 */
 bool FacingIdeal(edict_t* self)
 {
-    float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
+    const float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
 
     if (self->monsterinfo.aiflags & AI_PATHING)
         return !(delta > 5 && delta < 355);
@@ -1150,7 +1157,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
     }
     // ROGUE
 
-    float enemy_range = range_to(self, self->enemy);
+   const float enemy_range = range_to(self, self->enemy);
 
     // melee attack
     if (enemy_range <= RANGE_MELEE)
@@ -1593,7 +1600,7 @@ void ai_run(edict_t* self, float dist)
         if (self->movetarget)
         {
             // nb: this is done from the centroid and not viewheight on purpose;
-            trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f, { -2.f, -2.f, -2.f }, { 2.f, 2.f, 2.f }, self->movetarget->s.origin, self, CONTENTS_SOLID);
+           const trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f, { -2.f, -2.f, -2.f }, { 2.f, 2.f, 2.f }, self->movetarget->s.origin, self, CONTENTS_SOLID);
 
             // [Paril-KEX] special case: if we're stand ground & knocked way too far away
             // from our path_corner, or we can't see it any more, assume all
