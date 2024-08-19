@@ -1248,74 +1248,60 @@ THINK(bfg_think) (edict_t* self) -> void
 	vec3_t   end;
 	int      dmg;
 	trace_t  tr;
-	float    pull_strength = 900.0f; // Adjust this value to control the strength of the pull
-
+	float    push_strength = 600.0f; // Adjust this value to control the strength of the push
 	if (G_IsDeathmatch())
 		dmg = 10;
 	else
 		dmg = 10;
-
 	bfg_spawn_laser(self);
-
 	ent = nullptr;
 	while ((ent = findradius(ent, self->s.origin, 1536)) != nullptr)
 	{
 		if (ent == self || ent == self->owner || !ent->takedamage)
 			continue;
-
 		// ROGUE - make tesla hurt by bfg
 		if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
 			continue;
-
 		// ZOID - don't target players in CTF
 		if (CheckTeamDamage(ent, self->owner))
 			continue;
-
 		point = (ent->absmin + ent->absmax) * 0.5f;
-
 		dir = self->s.origin - point;
 		float distance = dir.length();
 		dir.normalize();
-
 		start = self->s.origin;
 		end = start + (dir * -2048.0f); // Reverse direction to go towards the monster
-
 		// [Paril-KEX] don't fire a laser if we're blocked by the world
 		tr = gi.traceline(start, point, nullptr, MASK_SOLID);
-
 		if (tr.fraction < 1.0f)
 			continue;
-
 		bfg_laser_pierce_t args{
 			self,
 			dir,
 			dmg
 		};
-
 		// Check if the laser hits the entity
 		trace_t laser_tr = gi.traceline(start, end, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
-
 		if (laser_tr.ent == ent)
 		{
-			// Apply strong pull force to entity's velocity
-			if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
+			if (g_bfgpull->integer)
 			{
-				ent->velocity = dir * -pull_strength;
+				// Apply strong push force to entity's velocity
+				if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
+				{
+					ent->velocity = dir * push_strength; // Changed from -pull_strength to push_strength
+				}
 			}
-
 			// Damage the entity
 			T_Damage(ent, self, self->owner, dir, laser_tr.endpos, vec3_origin, dmg, 0, DAMAGE_ENERGY, MOD_BFG_LASER);
 		}
-
 		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
-
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BFG_LASER);
 		gi.WritePosition(self->s.origin);
 		gi.WritePosition(laser_tr.endpos);
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 	}
-
 	self->nextthink = level.time + 10_hz;
 }
 

@@ -1975,7 +1975,7 @@ void weapon_bfg_fire(edict_t* ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-	fire_bfg(ent, start, dir, damage, 900, damage_radius);
+	fire_bfg(ent, start, dir, damage, 600, damage_radius);
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -20.f, 0, crandom() * 8 });
 	ent->client->kick.total = DAMAGE_TIME();

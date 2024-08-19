@@ -1971,6 +1971,7 @@ extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
 extern cvar_t* g_tracedbullets;
 extern cvar_t* g_bouncygl;
+extern cvar_t* g_bfgpull;
 extern cvar_t* g_startarmor;
 extern cvar_t* g_vampire;
 extern cvar_t* g_iddmg;
