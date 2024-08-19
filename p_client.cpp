@@ -567,9 +567,10 @@ player_die
 */
 DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-
-	// Guardar el arma y la salud m�xima antes de la muerte
-	SaveClientWeaponBeforeDeath(self->client);
+	if (g_horde->integer) {
+		// Guardar el arma y la salud m�xima antes de la muerte
+		SaveClientWeaponBeforeDeath(self->client);
+	}
 
 	PlayerTrail_Destroy(self);
 
@@ -1833,8 +1834,9 @@ void respawn(edict_t* self)
 	if (G_IsDeathmatch() || G_IsCooperative())
 	{
 		// Guardar el arma y la salud m�xima antes de la muerte
-		if (g_horde->integer)
-		SaveClientWeaponBeforeDeath(self->client);
+		if (g_horde->integer) {
+			SaveClientWeaponBeforeDeath(self->client);
+		}
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
 			CopyToBodyQue(self);

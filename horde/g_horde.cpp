@@ -59,7 +59,7 @@ const std::unordered_set<std::string> smallMaps = {
 };
 
 const std::unordered_set<std::string> bigMaps = {
-    "q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6"
+    "q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8"
 };
 
 // Funci�n para obtener el tama�o del mapa
@@ -568,7 +568,7 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
     }
 
     if (mapSize.isMediumMap) {
-        if (mapname == "q64/dm3" || mapname == "mgu6m3" || mapname == "rboss") {
+        if (mapname == "q64/dm3" || mapname == "mgu6m3" || mapname == "rboss" || mapname == "rdm8") {
             static std::vector<boss_t> filteredBossList;
             if (filteredBossList.empty()) {
                 for (const auto& boss : BOSS_MEDIUM) {
@@ -1135,6 +1135,7 @@ static void Horde_CleanBodies() {
 std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"q2dm1", {1184, 568, 704}},
     {"rdm4", {-336, 2456, -288}},
+    {"rdm8", {-1516, 976, -156}},
     {"rdm14", {1248, 664, 896}},
     {"q2dm2", {128, -960, 704}},
     {"q2dm3", {192, -136, 72}},
