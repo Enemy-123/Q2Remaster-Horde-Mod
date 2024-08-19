@@ -236,14 +236,14 @@ void CTFPrecache()
 	imageindex_strogg = gi.imageindex("ach/ACH_eou7_on");
 
 	// Precache all possible images
-	int precache_ach_eou7_on = gi.imageindex("ach/ACH_eou7_on");
-	int precache_ach_eou5_on = gi.imageindex("ach/ACH_eou5_on");
-	int precache_ach_xatrix_on = gi.imageindex("ach/ACH_xatrix_on");
-	int precache_ach_rogue_on = gi.imageindex("ach/ACH_rogue_on");
-	int precache_ach_eou3_on = gi.imageindex("ach/ACH_eou3_on");
+	int const precache_ach_eou7_on = gi.imageindex("ach/ACH_eou7_on");
+	int const precache_ach_eou5_on = gi.imageindex("ach/ACH_eou5_on");
+	int const precache_ach_xatrix_on = gi.imageindex("ach/ACH_xatrix_on");
+	int const precache_ach_rogue_on = gi.imageindex("ach/ACH_rogue_on");
+	int const precache_ach_eou3_on = gi.imageindex("ach/ACH_eou3_on");
 
 	// Assign a random image to imageindex_human
-	float randomValue = frandom();
+	float const randomValue = frandom();
 	if (randomValue < 0.2)
 	{
 		imageindex_human = precache_ach_eou7_on;
@@ -314,10 +314,10 @@ float PlayersRangeFromSpot(edict_t* spot);
 bool  SpawnPointClear(edict_t* spot);
 void CTFAssignSkin(edict_t* ent, const char* s)
 {
-	int	  playernum = ent - g_edicts - 1;
+	int	  const playernum = ent - g_edicts - 1;
 	std::string_view t(s);
 
-	if (size_t i = t.find_first_of('/'); i != std::string_view::npos)
+	if (size_t const i = t.find_first_of('/'); i != std::string_view::npos)
 		t = t.substr(0, i + 1);
 	else
 		t = "male/";
@@ -934,7 +934,7 @@ void CTFCalcRankings(std::array<uint32_t, MAX_CLIENTS>& player_ranks)
 
 	ctfteam_t winning_team = (ctfgame.total1 > ctfgame.total2) ? CTF_TEAM1 : CTF_TEAM2;
 
-	for (auto player : active_players())
+	for (auto const player : active_players())
 		if (player->client->pers.spawned && player->client->resp.ctf_team != CTF_NOTEAM)
 			player_ranks[player->s.number - 1] = player->client->resp.ctf_team == winning_team ? 1 : 2;
 }
@@ -1001,7 +1001,7 @@ struct ConfigStringManager {
 	}
 
 	int getConfigString(int entity_index) {
-		auto it = entityToConfigString.find(entity_index);
+		auto const it = entityToConfigString.find(entity_index);
 		if (it != entityToConfigString.end()) {
 			return it->second;
 		}
@@ -1017,7 +1017,7 @@ struct ConfigStringManager {
 	}
 
 	void freeConfigString(int entity_index) {
-		auto it = entityToConfigString.find(entity_index);
+		auto const it = entityToConfigString.find(entity_index);
 		if (it != entityToConfigString.end()) {
 			availableConfigStrings.push(it->second);
 			gi.configstring(it->second, "");
@@ -1026,7 +1026,7 @@ struct ConfigStringManager {
 	}
 
 	void updateConfigString(int entity_index, const std::string& value) {
-		int cs_index = getConfigString(entity_index);
+		int const cs_index = getConfigString(entity_index);
 		if (cs_index != -1) {
 			gi.configstring(cs_index, value.c_str());
 		}
@@ -1114,7 +1114,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "tesla_mine", "Tesla Mine\n" },
 		{ "emitter", "Laser Emitter\n" }
 	};
-	auto it = name_replacements.find(classname);
+	auto const it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
 
@@ -1160,7 +1160,7 @@ int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
 	}
-	int index = ArmorIndex(ent);
+	int const index = ArmorIndex(ent);
 	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
 
@@ -1208,8 +1208,8 @@ std::string FormatEntityInfo(edict_t* ent) {
 		std::string name = GetDisplayName(ent->classname);
 		info = fmt::format("{}H: {}", name, ent->health);
 		if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap")) {
-			gtime_t time_active = level.time - ent->timestamp;
-			gtime_t time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
+			gtime_t const time_active = level.time - ent->timestamp;
+			gtime_t const time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
 			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 			info += fmt::format(" T: {}s", remaining_time);
 		}
@@ -1221,8 +1221,8 @@ std::string FormatEntityInfo(edict_t* ent) {
 		if (ent->owner && ent->owner->inuse) {
 			info += fmt::format(" DMG: {}", ent->owner->health);
 			// Calcular tiempo restante
-			gtime_t time_active = level.time - ent->owner->timestamp;
-			gtime_t time_remaining = ent->timestamp - time_active;
+			gtime_t const time_active = level.time - ent->owner->timestamp;
+			gtime_t const time_remaining = ent->timestamp - time_active;
 			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 			info += fmt::format(" T: {}s", remaining_time);
 		}
@@ -1249,7 +1249,7 @@ public:
 
 	void updateEntityInfo(int entityIndex, const std::string& info) {
 		int configStringIndex;
-		auto it = entityToConfigStringIndex.find(entityIndex);
+		auto const it = entityToConfigStringIndex.find(entityIndex);
 
 		if (it == entityToConfigStringIndex.end()) {
 			if (availableIndices.empty()) {
@@ -1272,9 +1272,9 @@ public:
 	}
 
 	void removeEntityInfo(int entityIndex) {
-		auto it = entityToConfigStringIndex.find(entityIndex);
+		auto const it = entityToConfigStringIndex.find(entityIndex);
 		if (it != entityToConfigStringIndex.end()) {
-			int configStringIndex = it->second;
+			int const configStringIndex = it->second;
 			gi.configstring(CONFIG_ENTITY_INFO_START + configStringIndex, "");
 			activeConfigStrings[configStringIndex] = "";
 			entityToConfigStringIndex.erase(it);
@@ -1284,7 +1284,7 @@ public:
 	}
 
 	int getConfigStringIndex(int entityIndex) {
-		auto it = entityToConfigStringIndex.find(entityIndex);
+		auto const it = entityToConfigStringIndex.find(entityIndex);
 		if (it != entityToConfigStringIndex.end()) {
 			return CONFIG_ENTITY_INFO_START + it->second;
 		}
@@ -1294,7 +1294,7 @@ public:
 private:
 	int findLeastRecentlyUsedIndex() {
 		if (!recentlyUsedIndices.empty()) {
-			int leastRecentIndex = recentlyUsedIndices.front();
+			int const leastRecentIndex = recentlyUsedIndices.front();
 			recentlyUsedIndices.erase(recentlyUsedIndices.begin());
 			return leastRecentIndex;
 		}
@@ -1343,17 +1343,17 @@ void CTFSetIDView(edict_t* ent) {
 
 	edict_t* best = nullptr;
 	float closest_dist = 2048;
-	const float min_dot = 0.98f;
-	const float very_close_distance = 100.0f; // Ajusta este valor según sea necesario
-	const float close_min_dot = 0.5f; // Menos restrictivo para entidades cercanas
+	constexpr float min_dot = 0.98f;
+	constexpr float very_close_distance = 100.0f; // Ajusta este valor según sea necesario
+	constexpr float close_min_dot = 0.5f; // Menos restrictivo para entidades cercanas
 
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* who = g_edicts + i;
 		if (!IsValidTarget(ent, who, false)) continue;
 
 		vec3_t dir = who->s.origin - ent->s.origin;
-		float dist = dir.normalize();
-		float d = forward.dot(dir);
+		float const dist = dir.normalize();
+		float const d = forward.dot(dir);
 
 		bool is_valid_target = false;
 
@@ -1367,9 +1367,9 @@ void CTFSetIDView(edict_t* ent) {
 		}
 
 		if (is_valid_target && dist < closest_dist) {
-			vec3_t start = ent->s.origin;
-			vec3_t end = who->s.origin;
-			trace_t tr = gi.traceline(start, end, ent, MASK_SOLID);
+			vec3_t const start = ent->s.origin;
+			vec3_t const end = who->s.origin;
+			trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
 
 			if (tr.fraction == 1.0 || tr.ent == who) {
 				closest_dist = dist;
@@ -1385,7 +1385,7 @@ void CTFSetIDView(edict_t* ent) {
 	if (best) {
 		ent->client->idtarget = best;
 		std::string info_string = FormatEntityInfo(best);
-		int entity_index = best - g_edicts;
+		int const entity_index = best - g_edicts;
 		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
 		int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
 		if (configStringIndex != -1) {
@@ -1405,7 +1405,7 @@ void CTFSetIDView(edict_t* ent) {
 // En el archivo donde manejas la muerte de entidades
 void OnEntityDeath(edict_t* self) {
 	if (self && self->inuse) {
-		int entity_index = self - g_edicts;
+		int const entity_index = self - g_edicts;
 		g_entityInfoManager.removeEntityInfo(entity_index);
 	}
 }
@@ -1413,7 +1413,7 @@ void OnEntityDeath(edict_t* self) {
 // Asegúrate de llamar a esto cuando una entidad es removida del juego
 void OnEntityRemoved(edict_t* ent) {
 	if (ent && ent->inuse) {
-		uint32_t entity_index = static_cast<uint32_t>(ent - g_edicts);
+		uint32_t const entity_index = static_cast<uint32_t>(ent - g_edicts);
 		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
 			g_entityInfoManager.removeEntityInfo(static_cast<int>(entity_index));
 		}
