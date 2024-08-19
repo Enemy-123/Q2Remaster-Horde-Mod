@@ -59,7 +59,7 @@ const std::unordered_set<std::string> smallMaps = {
 };
 
 const std::unordered_set<std::string> bigMaps = {
-    "q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8"
+    "q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1"
 };
 
 // Funci�n para obtener el tama�o del mapa
@@ -567,8 +567,8 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
         return BOSS_SMALL;
     }
 
-    if (mapSize.isMediumMap) {
-        if (mapname == "q64/dm3" || mapname == "mgu6m3" || mapname == "rboss" || mapname == "rdm8") {
+    if (mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1") {
+        if (mapname == "q64/dm3" || mapname == "mgu6m3" || mapname == "rboss") {
             static std::vector<boss_t> filteredBossList;
             if (filteredBossList.empty()) {
                 for (const auto& boss : BOSS_MEDIUM) {
@@ -1148,6 +1148,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
     {"ndctf0", {-608, -304, 184}},
     {"q2ctf4", {-2390, 1112, 218}},
     {"q2ctf5", {2432, -960, 168}},
+    {"xdm1", {-312, 600, 144}},
     {"xdm2", {-232, 472, 424}},
     {"xdm6", {-1088, -128, 528}},
     {"rdm6", {712, 1328, 48}},
