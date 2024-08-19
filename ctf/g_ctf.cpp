@@ -1334,7 +1334,6 @@ void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
 	}
-
 	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
@@ -1345,18 +1344,37 @@ void CTFSetIDView(edict_t* ent) {
 	edict_t* best = nullptr;
 	float closest_dist = 2048;
 	const float min_dot = 0.98f;
+	const float very_close_distance = 100.0f; // Ajusta este valor según sea necesario
+	const float close_min_dot = 0.5f; // Menos restrictivo para entidades cercanas
 
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* who = g_edicts + i;
 		if (!IsValidTarget(ent, who, false)) continue;
 
 		vec3_t dir = who->s.origin - ent->s.origin;
-		dir.normalize();
+		float dist = dir.normalize();
 		float d = forward.dot(dir);
-		float dist = (who->s.origin - ent->s.origin).length();
-		if (d > min_dot && loc_CanSee(ent, who) && dist < closest_dist) {
-			closest_dist = dist;
-			best = who;
+
+		bool is_valid_target = false;
+
+		if (dist < very_close_distance) {
+			// Para entidades muy cercanas, usamos un criterio menos estricto
+			is_valid_target = (d > close_min_dot);
+		}
+		else {
+			// Para entidades más lejanas, mantenemos el criterio original
+			is_valid_target = (d > min_dot);
+		}
+
+		if (is_valid_target && dist < closest_dist) {
+			vec3_t start = ent->s.origin;
+			vec3_t end = who->s.origin;
+			trace_t tr = gi.traceline(start, end, ent, MASK_SOLID);
+
+			if (tr.fraction == 1.0 || tr.ent == who) {
+				closest_dist = dist;
+				best = who;
+			}
 		}
 	}
 
@@ -1367,10 +1385,8 @@ void CTFSetIDView(edict_t* ent) {
 	if (best) {
 		ent->client->idtarget = best;
 		std::string info_string = FormatEntityInfo(best);
-
 		int entity_index = best - g_edicts;
 		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-
 		int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
 		if (configStringIndex != -1) {
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
@@ -1384,8 +1400,6 @@ void CTFSetIDView(edict_t* ent) {
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 }
-
-
 
 // En el archivo donde manejas la muerte de entidades
 // En el archivo donde manejas la muerte de entidades
