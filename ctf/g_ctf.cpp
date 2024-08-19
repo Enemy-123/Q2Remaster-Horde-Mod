@@ -2071,8 +2071,10 @@ std::string GetActiveBonusesString() {
 		{"auto haste", "Auto-Haste"},
 		{"Cluster Prox Grenades", "Upgraded Prox Launcher"},
 		{"Traced-Piercing Bullets", "Traced-Piercing Bullets"},
-		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"}
+		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
+		{"BFG Anti-Gravity Lasers", "BFG Anti-Gravity Lasers"}
 	};
+
 
 	std::vector<std::string> active_bonuses;
 	for (const auto& [benefit, bonus_text] : bonus_mappings) {

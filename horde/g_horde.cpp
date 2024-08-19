@@ -87,8 +87,9 @@ constexpr weighted_benefit_t benefits[] = {
     { "auto haste", 9, -1, 0.15f },
     { "start armor", 9, -1, 0.1f },
     { "Traced-Piercing Bullets", 9, -1, 0.2f },
-    { "Cluster Prox Grenades", 28, -1, 0.2f },
-    { "Napalm-Grenade Launcher", 25, -1, 0.2f }
+    { "Cluster Prox Grenades", 25, -1, 0.2f },
+    { "Napalm-Grenade Launcher", 25, -1, 0.2f },
+    { "BFG Anti-Gravity Lasers", 33, -1, 0.2f }
 };
 
 static std::random_device rd;
@@ -154,6 +155,7 @@ void ApplyBenefit(const std::string& benefit) {
         {"Cluster Prox Grenades", {"\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n"}},
         {"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n"}},
         {"Napalm-Grenade Launcher", {"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n", "Napalm-Grenade Launcher Enabled\n"}},
+        {"BFG Anti-Gravity Lasers", {"\n\n\n\nBFG LASERS UPGRADED!\n", "BFG Anti-Gravity Lasers Enabled\n"}}
     };
 
     const auto it = benefitMessages.find(benefit);
@@ -184,6 +186,9 @@ void ApplyBenefit(const std::string& benefit) {
         }
         else if (benefit == "Napalm-Grenade Launcher") {
             gi.cvar_set("g_bouncygl", "1");
+        } 
+        else if (benefit == "BFG Anti-Gravity Lasers") {
+            gi.cvar_set("g_bfgpull", "1");
         }
 
         // Enviar los mensajes de beneficio
@@ -900,6 +905,7 @@ void Horde_PreInit()  {
         gi.cvar_set("g_ammoregen", "0");
         gi.cvar_set("g_tracedbullets", "0");
         gi.cvar_set("g_bouncygl", "0");
+        gi.cvar_set("g_bfgpull", "0");
         gi.cvar_set("g_autohaste", "0");
         gi.cvar_set("g_chaotic", "0");
         gi.cvar_set("g_insane", "0");
@@ -1496,6 +1502,7 @@ void ResetGame() {
     gi.cvar_set("g_upgradeproxs", "0");
     gi.cvar_set("g_tracedbullets", "0");
     gi.cvar_set("g_bouncygl", "0");
+    gi.cvar_set("g_bfgpull", "0");
     gi.cvar_set("g_autohaste", "0");
 
     // Reiniciar semilla aleatoria

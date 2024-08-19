@@ -1248,7 +1248,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	vec3_t   end;
 	int      dmg;
 	trace_t  tr;
-	float    push_strength = 600.0f; // Adjust this value to control the strength of the push
+	float const push_strength = 600.0f; // Adjust this value to control the strength of the push
 	if (G_IsDeathmatch())
 		dmg = 10;
 	else
@@ -1267,7 +1267,7 @@ THINK(bfg_think) (edict_t* self) -> void
 			continue;
 		point = (ent->absmin + ent->absmax) * 0.5f;
 		dir = self->s.origin - point;
-		float distance = dir.length();
+		float const distance = dir.length();
 		dir.normalize();
 		start = self->s.origin;
 		end = start + (dir * -2048.0f); // Reverse direction to go towards the monster
@@ -1281,7 +1281,7 @@ THINK(bfg_think) (edict_t* self) -> void
 			dmg
 		};
 		// Check if the laser hits the entity
-		trace_t laser_tr = gi.traceline(start, end, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
+		trace_t const laser_tr = gi.traceline(start, end, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
 		if (laser_tr.ent == ent)
 		{
 			if (g_bfgpull->integer)
