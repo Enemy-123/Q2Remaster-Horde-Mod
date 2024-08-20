@@ -642,7 +642,7 @@ void SP_monster_shamblerkl(edict_t* self)
 		self->gib_health = -190;
 	}
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->gib_health = -99777;
+		self->gib_health = -3500;
 		}
 		self->yaw_speed = 65;
 		//	self->s.renderfx = RF_TRANSLUCENT;
