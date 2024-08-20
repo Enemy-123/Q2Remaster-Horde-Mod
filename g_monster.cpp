@@ -245,7 +245,7 @@ bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 		return false;
 
 	if (g_horde->integer) {
-		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET) || current_wave_number <= 10;
+		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET) || current_wave_number <= 10 || self->spawnflags.has(SPAWNFLAG_IS_BOSS);
 	}
 	else {
 		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;

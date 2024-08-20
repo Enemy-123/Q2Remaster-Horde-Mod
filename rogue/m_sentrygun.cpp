@@ -403,8 +403,8 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 // **********************
 
 
-constexpr int32_t TURRET2_BLASTER_DAMAGE = 12;
-constexpr int32_t TURRET2_BULLET_DAMAGE = 6;
+constexpr int32_t TURRET2_BLASTER_DAMAGE = 5;
+constexpr int32_t TURRET2_BULLET_DAMAGE = 7;
 // unused
 // constexpr int32_t turret2_HEAT_DAMAGE	= 4;
 constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.0_sec; // 2.3 segundos
@@ -463,7 +463,7 @@ void turret2Fire(edict_t* self)
 		dir = end - start;
 		dist = dir.length();
 
-		// Fuego predictivo
+		// Fuego predictivo mejorado
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
 			PredictAim(self, self->enemy, start, projectileSpeed, true, 0.0f, &dir, nullptr);
@@ -477,7 +477,7 @@ void turret2Fire(edict_t* self)
 			if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 			{
 				// Disparo de cohetes cada 2.3 segundos
-				gtime_t currentTime = level.time;
+				const gtime_t currentTime = level.time;
 				if (currentTime > self->monsterinfo.last_rocket_fire_time + ROCKET_FIRE_INTERVAL)
 				{
 					self->monsterinfo.last_rocket_fire_time = currentTime;
@@ -515,18 +515,22 @@ void turret2Fire(edict_t* self)
 			}
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
-				gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 3_sec);
+				const gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 3_sec);
 				start = self->s.origin;
-				dir = end - start;
-				dir.normalize();
-				trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+
+				// Mejora en la predicción para el heatbeam
+				vec3_t predictedDir;
+				PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
+
+				trace = gi.traceline(start, start + predictedDir * 8192, self, MASK_PROJECTILE);
+
 				if (trace.ent == self->enemy || trace.ent == world)
 				{
 					if (!damageApplied)
 					{
-						// Dispara el heatbeam
-						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
-						monster_fire_heatbeam(self, start, dir, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
+						// Dispara el heatbeam con la dirección predicha
+						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
+						monster_fire_heatbeam(self, start, predictedDir, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
 						damageApplied = true;
 					}
 
@@ -537,7 +541,6 @@ void turret2Fire(edict_t* self)
 						self->monsterinfo.last_plasma_fire_time = currentTime;
 
 						// Mira predictiva para el plasma
-						vec3_t predictedDir;
 						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &predictedDir, nullptr);
 
 						fire_plasma(self->owner, start, predictedDir, 90, 950, 100, 75);
@@ -1016,12 +1019,12 @@ void SP_monster_sentrygun(edict_t* self)
 		self->clipmask &= ~CONTENTS_PLAYER;
 	}
 
-	// map designer didn't specify weapon type. set it now.
-	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 5)
-		self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+	//// map designer didn't specify weapon type. set it now.
+	//if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 5)
+	//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 
 	// map designer didn't specify weapon type. set it now.
-	else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number >= 6)
+	else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE))
 		if (brandom())
 			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
 		else
