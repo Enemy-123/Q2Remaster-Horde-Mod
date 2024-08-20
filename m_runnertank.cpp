@@ -253,6 +253,7 @@ bool runnertank_enemy_visible(edict_t* self)
 {
 	return self->enemy && visible(self, self->enemy);
 }
+
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
 	if (self->enemy && self->enemy->client)
@@ -276,54 +277,60 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		M_SetAnimation(self, &runnertank_move_run);
 	}
 
-	// Comprobar la distancia al enemigo
-	if (self->enemy)
+	// Implementar strafing mejorado
+	if (self->enemy && visible(self, self->enemy))
 	{
 		vec3_t vec{};
 		float distance;
 		VectorSubtract(self->enemy->s.origin, self->s.origin, vec);
 		distance = VectorLength(vec);
 
-		// Si el enemigo está en rango cercano, considerar atacar con una alta probabilidad
-		if (distance <= RANGE_NEAR && visible(self, self->enemy))
+		// Aumentar el rango en el que el strafing puede ocurrir
+		if (distance <= RANGE_MID)
 		{
-			if (frandom() < 0.8)  // 80% de probabilidad de atacar
+			float strafe_chance = 0.5f;  // 50% de probabilidad base de hacer strafe
+
+			// Aumentar la probabilidad de strafing si el enemigo está disparando
+			if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+				strafe_chance += 0.2f;
+
+			// Aumentar la probabilidad de strafing si el runnertank tiene poca salud
+			if (self->health < self->max_health * 0.5f)
+				strafe_chance += 0.2f;
+
+			if (frandom() < strafe_chance)
 			{
-				self->monsterinfo.attack(self);
-				return;
+				// Decidir aleatoriamente si strafear a la izquierda o derecha
+				if (frandom() < 0.5)
+					self->monsterinfo.lefty = 0;  // Strafe derecha
+				else
+					self->monsterinfo.lefty = 1;  // Strafe izquierda
+
+				// Aplicar el movimiento de strafe
+				vec3_t right, strafe_vel;
+				AngleVectors(self->s.angles, nullptr, right, nullptr);
+
+				// Aumentar significativamente la velocidad de strafe
+				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
+				if (self->monsterinfo.lefty)
+					VectorScale(right, -strafe_speed, strafe_vel);  // Strafe izquierda
+				else
+					VectorScale(right, strafe_speed, strafe_vel);   // Strafe derecha
+
+				// Combinar el movimiento de avance con el strafe
+				VectorAdd(self->velocity, strafe_vel, self->velocity);
+
+				// Ajustar la duración del strafe
+				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
 			}
 		}
-		// Si el enemigo está en rango medio, considerar atacar con una probabilidad moderada
-		else if (distance <= RANGE_MID && visible(self, self->enemy))
-		{
-			if (frandom() < 0.5)  // 50% de probabilidad de atacar
-			{
-				self->monsterinfo.attack(self);
-				return;
-			}
-		}
-		else if (distance <= (RANGE_MELEE * 2) && visible(self, self->enemy))
-		{
-			if (frandom() < 1.0)  // 100% de probabilidad de atacar
-			{
-				self->monsterinfo.attack(self);
-				return;
-			}
-		}
+	}
 
-		// Comprobar obstáculos más frecuentemente
-		if (runnertank_check_wall(self, 64))
-		{
-			// Si hay un obstáculo, intenta encontrar una nueva dirección
-			self->ideal_yaw = self->ideal_yaw + 45 + (frandom() * 90);
-		}
-
-		// Si no está en rango de ataque, continuar corriendo hacia el enemigo
-		self->ideal_yaw = vectoyaw(vec);
-		M_ChangeYaw(self);
-
-		// Intentar desatascar si es necesario
-		runnertank_unstuck(self);
+	// Volver a la dirección original después del strafe
+	if (level.time > self->monsterinfo.pausetime)
+	{
+		self->monsterinfo.lefty = 0;
+		VectorSet(self->velocity, 0, 0, self->velocity[2]);  // Mantener solo la velocidad vertical
 	}
 }
 
@@ -1071,7 +1078,7 @@ bool runnertank_check_wall(edict_t* self, float dist)
 		M_ChangeYaw(self);
 
 		// Reducir la velocidad del monstruo de manera más gradual
-		VectorScale(self->velocity, 0.8, self->velocity);
+		VectorScale(self->velocity, 0.8f, self->velocity);
 
 		return true;
 	}
@@ -1083,7 +1090,7 @@ MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {
     if (self->monsterinfo.can_jump)
     {
-        if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+        if (const auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
         {
             runnertank_jump(self, result);
             return true;
@@ -1104,11 +1111,46 @@ MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
     return false;
 }
 // PGM
+// 
 //===========
 
 //
 // monster_runnertank
 //
+
+MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
+{
+	// No hacer sidestep si estamos en medio de un ataque
+	if ((self->monsterinfo.active_move == &runnertank_move_attack_blast) ||
+		(self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket) ||
+		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket))
+	{
+		return false;
+	}
+
+	// Si no estamos corriendo, cambiar a la animación de carrera
+	if (self->monsterinfo.active_move != &runnertank_move_run)
+		M_SetAnimation(self, &runnertank_move_run);
+
+	// Iniciar un nuevo movimiento de strafe
+	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
+
+	// Aplicar un impulso lateral más fuerte
+	vec3_t right, strafe_vel;
+	AngleVectors(self->s.angles, nullptr, right, nullptr);
+	float strafe_speed = 300 + (frandom() * 200);  // Consistente con runnertank_run
+
+	if (self->monsterinfo.lefty)
+		VectorScale(right, -strafe_speed, strafe_vel);
+	else
+		VectorScale(right, strafe_speed, strafe_vel);
+
+	VectorAdd(self->velocity, strafe_vel, self->velocity);
+
+	self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
+
+	return true;
+}
 
 /*QUAKED monster_runnertank (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
 model="models/monsters/runnertank/tris.md2"
@@ -1185,6 +1227,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.stand = runnertank_stand;
 	self->monsterinfo.walk = runnertank_walk;
 	self->monsterinfo.run = runnertank_run;
+	self->monsterinfo.sidestep = runnertank_sidestep;
 	self->monsterinfo.dodge = nullptr;
 	self->monsterinfo.attack = runnertank_attack;
 	self->monsterinfo.melee = nullptr;
