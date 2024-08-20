@@ -403,8 +403,8 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 // **********************
 
 
-constexpr int32_t TURRET2_BLASTER_DAMAGE = 5;
-constexpr int32_t TURRET2_BULLET_DAMAGE = 7;
+constexpr int32_t TURRET2_BLASTER_DAMAGE = 4;
+constexpr int32_t TURRET2_BULLET_DAMAGE = 4;
 // unused
 // constexpr int32_t turret2_HEAT_DAMAGE	= 4;
 constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.0_sec; // 2.3 segundos
@@ -490,7 +490,7 @@ void turret2Fire(edict_t* self)
 					}
 				}
 
-				// Lógica original de la ametralladora
+				// Lógica mejorada de la ametralladora
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
@@ -503,8 +503,18 @@ void turret2Fire(edict_t* self)
 					if (self->monsterinfo.next_duck_time < level.time &&
 						self->monsterinfo.melee_debounce_time <= level.time && !damageApplied)
 					{
-						T_Damage(trace.ent, self, self->owner, dir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
-						monster_fire_bullet(self, start, dir, 0, 0, DEFAULT_BULLET_HSPREAD / 1.2, DEFAULT_BULLET_VSPREAD / 1.4, MZ2_TURRET_MACHINEGUN);
+						// Predicción mejorada para fire_bullet
+						vec3_t predictedDir;
+						PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
+
+						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
+
+						// Usar la dirección predicha para fire_bullet
+						fire_bullet(self, start, predictedDir, TURRET2_BULLET_DAMAGE, 5, DEFAULT_BULLET_HSPREAD / 2, DEFAULT_BULLET_VSPREAD / 2, MOD_TURRET);
+
+						// Efecto visual del disparo
+						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD / 2, DEFAULT_BULLET_VSPREAD / 1.4, MZ2_TURRET_MACHINEGUN);
+
 						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 						damageApplied = true;
 					}
@@ -530,12 +540,12 @@ void turret2Fire(edict_t* self)
 					{
 						// Dispara el heatbeam con la dirección predicha
 						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
-						monster_fire_heatbeam(self, start, predictedDir, vec3_origin, 0, 50, MZ2_TURRET_BLASTER);
+						monster_fire_heatbeam(self, start, predictedDir, vec3_origin, 0, 30, MZ2_TURRET_BLASTER);
 						damageApplied = true;
 					}
 
 					// Disparo de plasma en intervalos con mira predictiva
-					gtime_t currentTime = level.time;
+					const gtime_t currentTime = level.time;
 					if (currentTime > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
 					{
 						self->monsterinfo.last_plasma_fire_time = currentTime;
@@ -1024,11 +1034,8 @@ void SP_monster_sentrygun(edict_t* self)
 	//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 
 	// map designer didn't specify weapon type. set it now.
-	else if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE))
-		if (brandom())
-			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
-		else
-			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+	 if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE))
+			 self->spawnflags |= brandom() ? SPAWNFLAG_TURRET2_HEATBEAM : SPAWNFLAG_TURRET2_MACHINEGUN;
 
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_HEATBEAM))

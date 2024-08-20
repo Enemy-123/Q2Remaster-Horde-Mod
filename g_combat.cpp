@@ -811,7 +811,7 @@ void heal_attacker_sentries(edict_t* attacker, int health_stolen) {
 		if (!ent->inuse || strcmp(ent->classname, "monster_sentrygun") != 0 || ent->owner != attacker)
 			continue;
 
-		if (ent->health > 0) {
+		if (ent->health > 0 && current_wave_number >= 17) {
 			ent->health = std::min(ent->health + health_stolen, ent->max_health);
 		}
 	}
