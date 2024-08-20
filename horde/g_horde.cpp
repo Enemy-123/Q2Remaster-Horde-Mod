@@ -1798,32 +1798,43 @@ void InitializeWaveSystem() {
     PrecacheWaveSounds();
 }
 void SpawnMonsters() {
-    const auto mapSize = GetMapSize(level.mapname);
+    static const auto mapSize = GetMapSize(level.mapname);
+    static std::vector<edict_t*> available_spawns;
+    available_spawns.clear();
 
     // Determinar la cantidad de monstruos a generar por spawn
-    int32_t monsters_per_spawn;
-    if (mapSize.isSmallMap) {
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 3 : 2;
-    }
-    else if (mapSize.isBigMap) {
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 5 : 3;
-    }
-    else {
-        monsters_per_spawn = (g_horde_local.level >= 5) ? 4 : 3;
-    }
-    monsters_per_spawn = std::min(monsters_per_spawn, 4);
+    const int32_t monsters_per_spawn = std::min(
+        mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 3 : 2) :
+        mapSize.isBigMap ? (g_horde_local.level >= 5 ? 5 : 3) :
+        (g_horde_local.level >= 5 ? 4 : 3),
+        4
+    );
 
     // Calcular la probabilidad de que un monstruo suelte un ítem
     const float drop_probability = (current_wave_number <= 2) ? 0.8f :
         (current_wave_number <= 7) ? 0.6f : 0.45f;
 
+    // Pre-seleccionar puntos de spawn disponibles
+    edict_t* spot = nullptr;
+    while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
+        if (!IsSpawnPointOccupied(spot)) {
+            available_spawns.push_back(spot);
+        }
+    }
+
+    if (available_spawns.empty()) return;
+
     // Generar monstruos
-    for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0; ++i) {
-        auto spawn_point = SelectDeathmatchSpawnPoint(UseFarthestSpawn(), true, false).spot;
-        if (!spawn_point || IsSpawnPointOccupied(spawn_point)) continue;
+    for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++i) {
+        // Seleccionar un punto de spawn aleatoriamente
+        size_t spawn_index = static_cast<size_t>(frandom() * available_spawns.size());
+        auto spawn_point = available_spawns[spawn_index];
 
         const char* monster_classname = G_HordePickMonster(spawn_point);
-        if (!monster_classname) continue;
+        if (!monster_classname) {
+            available_spawns.erase(available_spawns.begin() + spawn_index);
+            continue;
+        }
 
         auto monster = G_Spawn();
         monster->classname = monster_classname;
@@ -1832,21 +1843,18 @@ void SpawnMonsters() {
         monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 
         if (g_horde_local.level >= 17) {
-			if (!st.was_key_specified("power_armor_power"))
-				monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-			if (!st.was_key_specified("power_armor_type")) {
-				const float health_factor = monster->max_health / 100.0f;
-				const int base_armor = 150;
-				const int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
-				monster->monsterinfo.armor_power = base_armor + additional_armor;
-			}
-		}
+            if (!st.was_key_specified("power_armor_power"))
+                monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+            if (!st.was_key_specified("power_armor_type")) {
+                const float health_factor = monster->max_health / 100.0f;
+                const int base_armor = 150;
+                const int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
+                monster->monsterinfo.armor_power = base_armor + additional_armor;
+            }
+        }
 
         if (frandom() <= drop_probability) {
             monster->item = G_HordePickItem();
-        }
-        else {
-            monster->item = nullptr;
         }
 
         VectorCopy(spawn_point->s.origin, monster->s.origin);
@@ -1854,36 +1862,26 @@ void SpawnMonsters() {
 
         ED_CallSpawn(monster);
 
-        //// Actualizar el configstring después de que el monstruo haya sido creado
-        //int entity_index = monster - g_edicts;
-        //if (entity_index >= 0 && entity_index < globals.num_edicts) {
-        //    std::string info_string = FormatEntityInfo(monster);
-        //    g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-        //}
-
-        vec3_t spawngrow_pos = monster->s.origin;
-       const float magnitude = std::sqrt(spawngrow_pos[0] * spawngrow_pos[0] +
-            spawngrow_pos[1] * spawngrow_pos[1] +
-            spawngrow_pos[2] * spawngrow_pos[2]);
+        const vec3_t spawngrow_pos = monster->s.origin;
+        const float magnitude = VectorLength(spawngrow_pos);
         const float start_size = magnitude * 0.055f;
-       const float end_size = magnitude * 0.005f;
+        const float end_size = magnitude * 0.005f;
         ImprovedSpawnGrow(spawngrow_pos, start_size, end_size, monster);
 
         --g_horde_local.num_to_spawn;
-        MonsterSpawned(monster); // Actualizar el contador de monstruos spawneados
+        MonsterSpawned(monster);
+
+        // Remover el punto de spawn usado
+        available_spawns.erase(available_spawns.begin() + spawn_index);
     }
 
     // Establecer el tiempo para el próximo spawn de monstruos
-    if (mapSize.isSmallMap) {
-        g_horde_local.monster_spawn_time = level.time + 1.5_sec;
-    }
-    else if (mapSize.isBigMap) {
-        g_horde_local.monster_spawn_time = level.time + random_time(0.9_sec, 1.1_sec);
-    }
-    else {
-        g_horde_local.monster_spawn_time = level.time + random_time(1.7_sec, 2_sec);
-    }
+    g_horde_local.monster_spawn_time = level.time +
+        (mapSize.isSmallMap ? 1.5_sec :
+            mapSize.isBigMap ? random_time(0.9_sec, 1.1_sec) :
+            random_time(1.7_sec, 2_sec));
 }
+
 #include <unordered_map>
 #include <string_view>
 #include <fmt/core.h>
