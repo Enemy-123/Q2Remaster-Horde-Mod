@@ -735,8 +735,8 @@ void SP_monster_boss2_64(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (g_horde->integer)	{
-		self->mins = { -24, -24, 0 };
-		self->maxs = { 24, 24, 48 };
+		//self->mins = { -24, -24, 0 };
+		//self->maxs = { 24, 24, 48 };
 		self->s.scale = 0.6f;
 	}
 	self->health = 1100 * st.health_multiplier;
@@ -755,8 +755,8 @@ void SP_monster_boss2kl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (g_horde->integer) {
-		self->mins = { -24, -24, 0 };
-		self->maxs = { 24, 24, 48 };
+		//self->mins = { -24, -24, 0 };
+		//self->maxs = { 24, 24, 48 };
 		self->s.scale = 0.6f;
 	}
 	self->s.skinnum = 2;

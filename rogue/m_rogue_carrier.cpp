@@ -1206,8 +1206,8 @@ void SP_monster_carrier2(edict_t* self)
 
 
 		self->s.scale = 0.6f;
-		self->mins *= 0.6f;
-		self->maxs *= 0.6f;
+		//self->mins *= 0.6f;
+		//self->maxs *= 0.6f;
 
 		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;

@@ -653,7 +653,7 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 }
 float entdist(const edict_t* ent1, const edict_t* ent2)
 {
-	vec3_t	vec{};
+	const vec3_t vec{};
 
 	VectorSubtract(ent1->s.origin, ent2->s.origin, vec);
 	return VectorLength(vec);
@@ -920,7 +920,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	spot2[2] += self->enemy->viewheight;
 
 	// Ajusta la máscara de contenido para ignorar otros monstruos
-	contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
+	const contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
 	tr = gi.traceline(spot1, spot2, self, mask);
 
@@ -942,7 +942,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 			return false;
 
 		self->monsterinfo.attack_state = AS_MISSILE;
-		self->monsterinfo.attack_finished = level.time + 2_sec;
+		self->monsterinfo.attack_finished = level.time + 1_sec;
 		return true;
 	}
 
@@ -961,7 +961,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 			return false;
 
 		self->monsterinfo.attack_state = AS_BLIND;
-		self->monsterinfo.blind_fire_delay = level.time + 5_sec;
+		self->monsterinfo.blind_fire_delay = level.time + 1.5_sec;
 		return true;
 	}
 
@@ -1012,9 +1012,9 @@ void SP_monster_sentrygun(edict_t* self)
 
 
 
-	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-	self->monsterinfo.power_armor_power = 125;
-	self->health = 100;
+	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	self->monsterinfo.power_armor_power = 100;
+	self->health = 80;
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 15;
@@ -1034,8 +1034,18 @@ void SP_monster_sentrygun(edict_t* self)
 	//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 
 	// map designer didn't specify weapon type. set it now.
-	 if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE))
-			 self->spawnflags |= brandom() ? SPAWNFLAG_TURRET2_HEATBEAM : SPAWNFLAG_TURRET2_MACHINEGUN;
+	float randomValue = frandom();
+
+	// Si el valor aleatorio es menor que 0.3, selecciona HEATBEAM; de lo contrario, MACHINEGUN
+	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE)) {
+		if (randomValue < 0.3f) {
+			self->spawnflags |= SPAWNFLAG_TURRET2_HEATBEAM;
+		}
+		else {
+			self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
+		}
+	}
+
 
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_HEATBEAM))
