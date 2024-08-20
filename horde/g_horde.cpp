@@ -1090,7 +1090,7 @@ void BossDeathHandler(edict_t* boss)  {
 }
 
 void boss_die(edict_t* boss)  {
-    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->deadflag == true &&
+    if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->health <= 0 &&
         auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
         BossDeathHandler(boss);
 

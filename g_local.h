@@ -2654,8 +2654,7 @@ bool	 CheckSpawnPoint(const vec3_t& origin, const vec3_t& mins, const vec3_t& ma
 bool	 CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const vec3_t& entMaxs, float height,
 	float gravity);
 void	 SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size);
-void	 Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles);
-
+void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* monster);
 // g_rogue_items
 bool Pickup_Nuke(edict_t* ent, edict_t* other);
 void Use_IR(edict_t* ent, gitem_t* item);

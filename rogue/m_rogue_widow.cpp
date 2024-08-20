@@ -701,24 +701,20 @@ void spawn_out_start(edict_t* self)
 
 	gi.sound(self, CHAN_VOICE, gi.soundindex("misc/bwidowbeamout.wav"), 1, ATTN_NORM, 0);
 }
-
 void spawn_out_do(edict_t* self)
 {
 	vec3_t startpoint, f, r, u;
-
 	AngleVectors(self->s.angles, f, r, u);
 	startpoint = G_ProjectSource2(self->s.origin, beameffects[0], f, r, u);
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WIDOWSPLASH);
 	gi.WritePosition(startpoint);
 	gi.multicast(startpoint, MULTICAST_ALL, false);
-
 	startpoint = G_ProjectSource2(self->s.origin, beameffects[1], f, r, u);
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WIDOWSPLASH);
 	gi.WritePosition(startpoint);
 	gi.multicast(startpoint, MULTICAST_ALL, false);
-
 	startpoint = self->s.origin;
 	startpoint[2] += 36;
 	gi.WriteByte(svc_temp_entity);
@@ -726,7 +722,8 @@ void spawn_out_do(edict_t* self)
 	gi.WritePosition(startpoint);
 	gi.multicast(startpoint, MULTICAST_PHS, false);
 
-	Widowlegs_Spawn(self->s.origin, self->s.angles);
+	// Pasamos self a Widowlegs_Spawn
+	Widowlegs_Spawn(self->s.origin, self->s.angles, self);
 
 	G_FreeEdict(self);
 }
@@ -765,6 +762,17 @@ mframe_t widow_frames_death[] = {
 	{ ai_move, 0, spawn_out_do }
 };
 MMOVE_T(widow_move_death) = { FRAME_death01, FRAME_death31, widow_frames_death, nullptr };
+
+mframe_t widow1_frames_death[] = {
+	{ ai_move, 0, spawn_out_start }, // 25
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }, // 30
+	{ ai_move, 0, spawn_out_do }
+};
+MMOVE_T(widow1_move_death) = { FRAME_death25, FRAME_death31, widow1_frames_death, nullptr };
 
 void widow_attack_kick(edict_t* self)
 {
@@ -1051,7 +1059,7 @@ DIE(widow_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 		self->monsterinfo.quad_time = 0_ms;
 		self->monsterinfo.double_time = 0_ms;
 		self->monsterinfo.invincible_time = 0_ms;
-		BecomeExplosion1(self);
+		M_SetAnimation(self, &widow1_move_death);
 	}
 }
 

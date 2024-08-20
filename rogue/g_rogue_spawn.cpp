@@ -355,21 +355,25 @@ THINK(widowlegs_think) (edict_t* self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles)
+void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* monster)
 {
-	edict_t* ent;
-
-	ent = G_Spawn();
+	edict_t* ent = G_Spawn();
 	ent->s.origin = startpos;
 	ent->s.angles = angles;
 	ent->solid = SOLID_NOT;
 	ent->s.renderfx = RF_IR_VISIBLE;
 	ent->movetype = MOVETYPE_NONE;
 	ent->classname = "widowlegs";
-
 	ent->s.modelindex = gi.modelindex("models/monsters/legs/tris.md2");
 	ent->think = widowlegs_think;
-
 	ent->nextthink = level.time + 10_hz;
+
+	if (strcmp(monster->classname, "monster_widow1") == 0) {
+		ent->s.scale = 0.6f;
+	}
+	else {
+		ent->s.scale = 1.0f;  // Escala predeterminada para otros tipos
+	}
+
 	gi.linkentity(ent);
 }

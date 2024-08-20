@@ -528,6 +528,9 @@ MMOVE_T(shambler_move_death) = { FRAME_death01, FRAME_death11, shambler_frames_d
 
 DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+		boss_die(self);
+
 	OnEntityDeath(self);
 	if (self->beam)
 	{
@@ -639,7 +642,7 @@ void SP_monster_shamblerkl(edict_t* self)
 		self->gib_health = -190;
 	}
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->gib_health = -999777;
+		self->gib_health = -99777;
 		}
 		self->yaw_speed = 65;
 		//	self->s.renderfx = RF_TRANSLUCENT;
