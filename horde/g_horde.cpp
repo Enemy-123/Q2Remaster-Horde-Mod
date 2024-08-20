@@ -1253,7 +1253,7 @@ void SpawnBossAutomatically() {
         return;
     }
 
-    auto boss = G_Spawn();
+    edict_t* boss = G_Spawn();
     if (!boss) {
         gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
         return;
@@ -1269,6 +1269,11 @@ void SpawnBossAutomatically() {
     boss->classname = desired_boss;
 
     // Set boss origin
+    if (it->second.size() < 3) {
+        G_FreeEdict(boss);
+        gi.Com_PrintFmt("Error: Invalid spawn origin for map {}\n", level.mapname);
+        return;
+    }
     VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
                        static_cast<float>(it->second[1]),
                        static_cast<float>(it->second[2]) },
@@ -1279,14 +1284,14 @@ void SpawnBossAutomatically() {
     if (tr.startsolid && tr.ent) {
         if (tr.ent->svflags & SVF_MONSTER || tr.ent->svflags & SVF_PLAYER) {
             T_Damage(tr.ent, boss, boss, vec3_origin, tr.ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-            gi.Com_PrintFmt("Telefrag performed on {}\n", tr.ent->classname);
+            gi.Com_PrintFmt("Telefrag performed on {}\n", tr.ent->classname ? tr.ent->classname : "unknown entity");
         }
     }
 
     // Boss spawn message
     const char* boss_message = "***** A Strogg Boss has spawned! *****\n***** Prepare for battle! *****\n";
-   const auto it_msg = bossMessagesMap.find(desired_boss);
-    if (it_msg != bossMessagesMap.end()) {
+    const auto it_msg = bossMessagesMap.find(desired_boss);
+    if (it_msg != bossMessagesMap.end() && it_msg->second.c_str()) {
         boss_message = it_msg->second.c_str();
     }
     else {
@@ -1295,7 +1300,7 @@ void SpawnBossAutomatically() {
     gi.LocBroadcast_Print(PRINT_CHAT, boss_message);
 
     // Configure boss
-    const int32_t random_flag = 1 << (std::rand() % 6);
+    const int32_t random_flag = 1 << (rand() % 6);
     boss->monsterinfo.bonus_flags |= random_flag;
     boss->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
     boss->monsterinfo.last_sentrygun_target_time = 0_sec;
@@ -1309,7 +1314,6 @@ void SpawnBossAutomatically() {
     float health_multiplier = 1.0f;
     float power_armor_multiplier = 1.0f;
     ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
-
     ED_CallSpawn(boss);
 
     // Set boss health and armor
@@ -1328,7 +1332,7 @@ void SpawnBossAutomatically() {
     if (tr_spawn.startsolid && tr_spawn.ent) {
         if (tr_spawn.ent->svflags & SVF_MONSTER || tr_spawn.ent->svflags & SVF_PLAYER) {
             T_Damage(tr_spawn.ent, boss, boss, vec3_origin, tr_spawn.ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-            gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", tr_spawn.ent->classname);
+            gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", tr_spawn.ent->classname ? tr_spawn.ent->classname : "unknown entity");
         }
     }
 
@@ -1336,10 +1340,11 @@ void SpawnBossAutomatically() {
     SetHealthBarName(boss);
 
     // Set flying monsters mode if applicable
-    if (strcmp(boss->classname, "monster_boss2") == 0 ||
+    if (boss->classname && (
+        strcmp(boss->classname, "monster_boss2") == 0 ||
         strcmp(boss->classname, "monster_carrier") == 0 ||
         strcmp(boss->classname, "monster_carrier2") == 0 ||
-        strcmp(boss->classname, "monster_boss2kl") == 0) {
+        strcmp(boss->classname, "monster_boss2kl") == 0)) {
         flying_monsters_mode = true;
     }
 
