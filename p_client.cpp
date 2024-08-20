@@ -2473,7 +2473,7 @@ void PutClientInServer(edict_t* ent)
 	// intersecting spawns, so we'll do a sanity check here...
 	if (spawn_from_begin)
 	{
-		if (G_IsCooperative())
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 		{
 			edict_t* collision = G_UnsafeSpawnPosition(ent->s.origin, true);
 

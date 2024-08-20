@@ -1261,6 +1261,11 @@ void monster_death_use(edict_t* self)
 // many active players we have
 void G_Monster_ScaleCoopHealth(edict_t* self)
 {
+
+	// No escalar si es un jefe
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+		return;;
+
 	// already scaled
 	if (self->monsterinfo.health_scaling >= level.coop_scale_players)
 		return;
@@ -1270,12 +1275,10 @@ void G_Monster_ScaleCoopHealth(edict_t* self)
 	if (!self->monsterinfo.base_health)
 		self->monsterinfo.base_health = self->max_health;
 
-	int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
-	int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
-
+	const int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
+	const int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
 	self->health = max(1, self->health + additional_health);
 	self->max_health += additional_health;
-
 	self->monsterinfo.health_scaling = level.coop_scale_players;
 }
 
@@ -1291,7 +1294,14 @@ struct monster_filter_t
 void G_Monster_CheckCoopHealthScaling()
 {
 	for (auto monster : entity_iterable_t<monster_filter_t>())
+	{
+		// No escalar si es un jefe
+		if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
+			continue;
+
+		// Aplicar el escalado
 		G_Monster_ScaleCoopHealth(monster);
+	}
 }
 
 //============================================================================

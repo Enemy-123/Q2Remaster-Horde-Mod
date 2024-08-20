@@ -1474,10 +1474,10 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	// Load entity file
 	std::vector<char> entity_buffer;
-	bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer);
+	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer);
 
 	if (ent_file_loaded) {
-		cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
 		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
 			entities = entity_buffer.data();
 			gi.Com_PrintFmt("Entities override file verified and loaded: \"baseq2/maps/{}.ent\"\n", mapname);

@@ -1931,6 +1931,9 @@ void Horde_RunFrame() {
         g_horde_local.num_to_spawn = dm_monsters->integer;
     }
 
+    level.coop_scale_players = 1 + GetNumHumanPlayers();
+    G_Monster_CheckCoopHealthScaling();
+
     const int32_t activeMonsters = level.total_monsters - level.killed_monsters;
     const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
         (mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
