@@ -301,7 +301,7 @@ void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl)  {
 static void Horde_CleanBodies() ;
 void ResetSpawnAttempts() ;
 void VerifyAndAdjustBots() ;
-void ResetCooldowns() ;
+void ResetCooldowns() noexcept ;
 
 void Horde_InitLevel(int32_t lvl)  {
     last_wave_number++;
@@ -364,22 +364,22 @@ void Horde_InitLevel(int32_t lvl)  {
 
 
 
-bool G_IsDeathmatch()  {
+bool G_IsDeathmatch() noexcept {
     return deathmatch->integer && g_horde->integer;
 }
 
-bool G_IsCooperative()  {
+bool G_IsCooperative() noexcept {
     return coop->integer && !g_horde->integer;
 }
 
 struct weighted_item_t;
 using weight_adjust_func_t = void(*)(const weighted_item_t& item, float& weight);
 
-void adjust_weight_health(const weighted_item_t& item, float& weight)  {}
-void adjust_weight_weapon(const weighted_item_t& item, float& weight)  {}
-void adjust_weight_ammo(const weighted_item_t& item, float& weight)  {}
-void adjust_weight_armor(const weighted_item_t& item, float& weight)  {}
-void adjust_weight_powerup(const weighted_item_t& item, float& weight)  {}
+static void adjust_weight_health(const weighted_item_t& item, float& weight) noexcept {}
+static void adjust_weight_weapon(const weighted_item_t& item, float& weight) noexcept {}
+static void adjust_weight_ammo(const weighted_item_t& item, float& weight) noexcept {}
+static void adjust_weight_armor(const weighted_item_t& item, float& weight) noexcept {}
+static void adjust_weight_powerup(const weighted_item_t& item, float& weight) noexcept {}
 
 constexpr struct weighted_item_t {
     const char* classname;
@@ -687,7 +687,7 @@ constexpr std::array<const char*, 10> flying_monster_classnames = {
 static const std::unordered_set<std::string> flying_monsters_set(
     flying_monster_classnames.begin(), flying_monster_classnames.end());
 
-int32_t countFlyingSpawns()  {
+static int32_t countFlyingSpawns() noexcept {
     int32_t count = 0;
     for (size_t i = 0; i < globals.num_edicts; i++) {
         const auto& ent = g_edicts[i];
@@ -780,11 +780,11 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
     // Check cooldowns
     float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
-    if (auto it = spawnPointCooldowns.find(spawn_point); it != spawnPointCooldowns.end()) {
+    if (const auto it = spawnPointCooldowns.find(spawn_point); it != spawnPointCooldowns.end()) {
         currentCooldown = it->second;
     }
 
-    if (auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
+    if (const auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
         if ((level.time - it->second).seconds<float>() < currentCooldown) {
             return nullptr;
         }
@@ -909,7 +909,7 @@ void Horde_PreInit()  {
 // Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
 inline int32_t GetNumHumanPlayers()  {
     int32_t numHumanPlayers = 0;
-    for (const auto player : active_players()) {
+    for (auto const player : active_players()) {
         if (player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT)) {
             numHumanPlayers++;
         }
@@ -999,8 +999,6 @@ constexpr int VERTICAL_VELOCITY_RANDOM_RANGE = 200;
 
 // Función auxiliar para generar velocidad aleatoria
 vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVertical, int maxVertical) {
-    static std::random_device rd;
-    static std::mt19937 gen(rd());
     std::uniform_int_distribution<> horizontalDis(minHorizontal, maxHorizontal);
     std::uniform_int_distribution<> verticalDis(minVertical, maxVertical);
 
@@ -1393,13 +1391,13 @@ void ClearHordeMessage() {
     horde_message_end_time = 0_sec;
 }
 // reset cooldowns, fixed no monster spawning on next map
-void ResetCooldowns()  {
+void ResetCooldowns() noexcept {
     lastSpawnPointTime.clear();
     lastMonsterSpawnTime.clear();
 }
 
 // For resetting bonus 
-void ResetBenefits()  {
+static void ResetBenefits() noexcept {
     shuffled_benefits.clear();
     obtained_benefits.clear();
     vampire_level = 0;
@@ -1414,7 +1412,7 @@ void ResetSpawnAttempts()  {
     }
 }
 
-void ResetAutoSpawnedBosses()  {
+static void ResetAutoSpawnedBosses() noexcept {
     auto_spawned_bosses.clear();
 
     // Reset recent bosses
@@ -1501,7 +1499,7 @@ void ResetGame() {
 // Funci�n para obtener el n�mero de jugadores activos (incluyendo bots)
 inline int32_t GetNumActivePlayers()  {
     int32_t numActivePlayers = 0;
-    for (const auto player : active_players()) {
+    for (auto player : active_players()) {
         if (player->client->resp.ctf_team == CTF_TEAM1) {
             numActivePlayers++;
         }
@@ -1512,7 +1510,7 @@ inline int32_t GetNumActivePlayers()  {
 // Funci�n para obtener el n�mero de jugadores en espectador
 inline int32_t GetNumSpectPlayers()  {
     int32_t numSpectPlayers = 0;
-    for (const auto player : active_players()) {
+    for (auto player : active_players()) {
         if (player->client->resp.ctf_team != CTF_TEAM1) {
             numSpectPlayers++;
         }
@@ -1531,8 +1529,6 @@ gtime_t condition_start_time;
 gtime_t independent_timer_start;
 int32_t previous_remainingMonsters = 0;
 
-// Declaraciones de funciones
-int32_t GetNumHumanPlayers() ;
 
 // Función para decidir los parámetros de la condición
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers) {
@@ -1580,7 +1576,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
     return params;
 }
 
-void AllowNextWaveAdvance()  {
+void AllowNextWaveAdvance() noexcept {
     allowWaveAdvance = true;
 }
 
@@ -1591,7 +1587,7 @@ static int32_t CalculateRemainingMonsters() {
     // Recalcular solo si han pasado al menos 0.5 segundos desde el último cálculo
     if (lastCalculatedRemaining == -1 || (level.time - lastCalculationTime) >= 0.5_sec) {
         int32_t remaining = 0;
-        for (const auto ent : active_monsters()) {
+        for (auto const ent : active_monsters()) {
             if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
                 ++remaining;
             }
@@ -1602,12 +1598,12 @@ static int32_t CalculateRemainingMonsters() {
     return lastCalculatedRemaining;
 }
 
-void ResetTimers() {
+static void ResetTimers() noexcept {
     condition_start_time = gtime_t();
     independent_timer_start = level.time;  // Iniciar el temporizador independiente inmediatamente
 }
 
-bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
+static bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
     static ConditionParams lastParams;
     static int32_t lastWaveNumber = -1;
     static int32_t lastNumHumanPlayers = -1;
@@ -1678,14 +1674,14 @@ static void MonsterSpawned(const edict_t* monster) {
     }
 }
 // Funci�n para decidir si se usa el spawn m�s lejano basado en el nivel actual
-bool UseFarthestSpawn()  {
+static bool UseFarthestSpawn() noexcept {
     if (g_horde_local.level >= 15) {
         return (rand() % 4 == 0);  // 25% de probabilidad a partir del nivel 15
     }
     return false;
 }
 
-void PlayWaveStartSound()  {
+static void PlayWaveStartSound()  {
     static const std::vector<std::string> sounds = {
         "misc/r_tele3.wav",
         "world/klaxon2.wav",
@@ -1701,7 +1697,7 @@ void PlayWaveStartSound()  {
 }
 
 // Implementación de DisplayWaveMessage
-void DisplayWaveMessage(gtime_t duration = 5_sec)  {
+static void DisplayWaveMessage(gtime_t duration = 5_sec)  {
     if (brandom()) {
         UpdateHordeMessage("Use Inventory <KEY> or Use Compass To Open Horde Menu.\n\nMAKE THEM PAY!\n", duration);
     }
@@ -1711,7 +1707,7 @@ void DisplayWaveMessage(gtime_t duration = 5_sec)  {
 }
 
 // Funci�n para manejar el mensaje de limpieza de ola
-void HandleWaveCleanupMessage(const MapSize& mapSize) {
+static void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
     if (current_wave_number >= 15 && current_wave_number <= 28) {
         gi.cvar_set("g_insane", "1");
         gi.cvar_set("g_chaotic", "0");
@@ -1726,9 +1722,6 @@ void HandleWaveCleanupMessage(const MapSize& mapSize) {
 
     g_horde_local.state = horde_state_t::rest;
 }
-// Vector para almacenar los sonidos, definido como est�tico para que solo se inicialice una vez
-#include <array>
-#include <random>
 
 // Array de sonidos constante
 constexpr std::array<const char*, 6> WAVE_SOUNDS = {
@@ -1742,19 +1735,19 @@ constexpr std::array<const char*, 6> WAVE_SOUNDS = {
 
 
 // Función para precarga de sonidos
-void PrecacheWaveSounds() {
+static void PrecacheWaveSounds() noexcept {
     for (const auto& sound : WAVE_SOUNDS) {
         gi.soundindex(sound);
     }
 }
 
 // Función para obtener un sonido aleatorio
-const char* GetRandomWaveSound() {
+static const char* GetRandomWaveSound() {
     std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
     return WAVE_SOUNDS[dist(gen)];
 }
 
-void HandleWaveRestMessage(gtime_t duration = 4_sec)  {
+static void HandleWaveRestMessage(gtime_t duration = 4_sec)  {
     const char* message;
 
     if (!g_insane->integer) {
@@ -1786,7 +1779,7 @@ void HandleWaveRestMessage(gtime_t duration = 4_sec)  {
 void InitializeWaveSystem() {
     PrecacheWaveSounds();
 }
-void SpawnMonsters() {
+static void SpawnMonsters() {
     static const auto mapSize = GetMapSize(level.mapname);
     static std::vector<edict_t*> available_spawns;
     available_spawns.clear();
@@ -1816,7 +1809,7 @@ void SpawnMonsters() {
     // Generar monstruos
     for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++i) {
         // Seleccionar un punto de spawn aleatoriamente
-        size_t spawn_index = static_cast<size_t>(frandom() * available_spawns.size());
+        const size_t spawn_index = static_cast<size_t>(frandom() * available_spawns.size());
         auto spawn_point = available_spawns[spawn_index];
 
         const char* monster_classname = G_HordePickMonster(spawn_point);
@@ -1836,7 +1829,7 @@ void SpawnMonsters() {
                 monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
             if (!st.was_key_specified("power_armor_type")) {
                 const float health_factor = monster->max_health / 100.0f;
-                const int base_armor = 150;
+                constexpr int base_armor = 150;
                 const int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
                 monster->monsterinfo.armor_power = base_armor + additional_armor;
             }
@@ -1872,7 +1865,6 @@ void SpawnMonsters() {
 }
 
 #include <unordered_map>
-#include <string_view>
 #include <fmt/core.h>
 
 // Usar enum class para mejorar la seguridad de tipos
