@@ -3763,8 +3763,6 @@ inline bool pierce_args_t::mark(edict_t* ent)
 
 extern int current_wave_number;
 
-extern int CalculateRemainingMonsters();
-
 // implementation of pierce stuff
 inline void pierce_args_t::restore()
 {

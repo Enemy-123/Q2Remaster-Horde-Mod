@@ -252,25 +252,14 @@ static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl)  {
     }
 }
 // Funci�n para calcular el bono de locura y caos
-static int32_t CalculateChaosInsanityBonus(int32_t lvl) {
-    (g_chaotic->integer) ? 3 : 5;
-
+inline int32_t CalculateChaosInsanityBonus(int32_t lvl) {
+    if (g_chaotic->integer) return 3;
     if (g_insane->integer) {
-        if (g_insane->integer == 2) {
-            return 16;
-        }
-
-        if (g_insane->integer == 1) {
-            return 8;
-        }
-
-        if (g_chaotic->integer && current_wave_number <= 3) {
-            return 6;
-        }
-
+        if (g_insane->integer == 2) return 16;
+        if (g_insane->integer == 1) return 8;
+        if (g_chaotic->integer && current_wave_number <= 3) return 6;
         return 8;
     }
-
     return 0;
 }
 
@@ -709,7 +698,7 @@ int32_t countFlyingSpawns()  {
     return count;
 }
 
-bool IsFlyingMonster(const char* classname) {
+inline bool IsFlyingMonster(const char* classname) {
     return flying_monsters_set.find(classname) != flying_monsters_set.end();
 }
 
@@ -918,7 +907,7 @@ void Horde_PreInit()  {
 }
 
 // Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
-int32_t GetNumHumanPlayers()  {
+inline int32_t GetNumHumanPlayers()  {
     int32_t numHumanPlayers = 0;
     for (const auto player : active_players()) {
         if (player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT)) {
@@ -986,16 +975,16 @@ void Horde_Init()  {
     for (const auto& boss : BOSS_LARGE) precacheEntity(boss);
 
     // Precache additional sounds
-    constexpr std::array<std::string_view, 5> additional_sounds = {
-        "misc/r_tele3.wav",
-        "world/klaxon2.wav",
-        "misc/tele_up.wav",
-        "world/incoming.wav",
-        "world/yelforce.wav"
+    constexpr std::array<const char*, 5> additional_sounds = {
+         "misc/r_tele3.wav",
+         "world/klaxon2.wav",
+         "misc/tele_up.wav",
+         "world/incoming.wav",
+         "world/yelforce.wav"
     };
 
     for (const auto& sound : additional_sounds) {
-        gi.soundindex(sound.data());
+        gi.soundindex(sound);
     }
 
     ResetGame();
@@ -1510,7 +1499,7 @@ void ResetGame() {
 }
 
 // Funci�n para obtener el n�mero de jugadores activos (incluyendo bots)
-int32_t GetNumActivePlayers()  {
+inline int32_t GetNumActivePlayers()  {
     int32_t numActivePlayers = 0;
     for (const auto player : active_players()) {
         if (player->client->resp.ctf_team == CTF_TEAM1) {
@@ -1521,7 +1510,7 @@ int32_t GetNumActivePlayers()  {
 }
 
 // Funci�n para obtener el n�mero de jugadores en espectador
-int32_t GetNumSpectPlayers()  {
+inline int32_t GetNumSpectPlayers()  {
     int32_t numSpectPlayers = 0;
     for (const auto player : active_players()) {
         if (player->client->resp.ctf_team != CTF_TEAM1) {
@@ -1595,7 +1584,7 @@ void AllowNextWaveAdvance()  {
     allowWaveAdvance = true;
 }
 
-int32_t CalculateRemainingMonsters()  {
+static int32_t CalculateRemainingMonsters() {
     static int32_t lastCalculatedRemaining = -1;
     static gtime_t lastCalculationTime;
 
