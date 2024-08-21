@@ -240,7 +240,7 @@ void AdjustMonsterSpawnRate()  {
 }
 
 // Funci�n para calcular la cantidad de monstruos est�ndar a spawnear
-static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl)  {
+static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
     if (mapSize.isSmallMap) {
         g_horde_local.num_to_spawn = std::min((current_wave_number <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
     }
@@ -252,7 +252,7 @@ static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl)  {
     }
 }
 // Funci�n para calcular el bono de locura y caos
-inline int32_t CalculateChaosInsanityBonus(int32_t lvl) {
+static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
     if (g_chaotic->integer) return 3;
     if (g_insane->integer) {
         if (g_insane->integer == 2) return 16;
@@ -760,7 +760,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 // Función optimizada para verificar si un punto de spawn está ocupado
-bool IsSpawnPointOccupied(edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
+static bool IsSpawnPointOccupied(edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
     vec3_t mins, maxs;
     VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
     VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
