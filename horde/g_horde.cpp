@@ -264,7 +264,7 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 }
 
 // Funci�n para incluir ajustes de dificultad
-void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl)  {
+static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
     int32_t additionalSpawn = 0;
     if (mapSize.isSmallMap) {
         additionalSpawn = (current_wave_number >= 9) ? 7 : 6;
@@ -288,7 +288,7 @@ void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl)  {
 }
 
 // Funci�n para determinar la cantidad de monstruos a spawnear
-void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl)  {
+static void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
   const int32_t custom_monster_count = dm_monsters->integer;
     if (custom_monster_count > 0) {
         g_horde_local.num_to_spawn = custom_monster_count;
@@ -706,13 +706,13 @@ constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns)  {
     return (flyingSpawns > 0) ? 0.25f : 1.0f;
 }
 
-bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) {
+bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
     return !(spawn_point->style == 1 && !isFlyingMonster) &&
         !(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) &&
         !(isFlyingMonster && currentWave < WAVE_TO_ALLOW_FLYING);
 }
 
-float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor)  {
+float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
     return item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
 }
 
@@ -936,7 +936,7 @@ void VerifyAndAdjustBots()  {
 
 #include <array>
 #include <string_view>
-void InitializeWaveSystem();
+void InitializeWaveSystem() noexcept;
 void Horde_Init()  {
     // Precache all items
     for (auto& item : itemlist) {
@@ -1776,7 +1776,7 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec)  {
 }
 
 // Llamar a esta función durante la inicialización del juego
-void InitializeWaveSystem() {
+void InitializeWaveSystem() noexcept {
     PrecacheWaveSounds();
 }
 static void SpawnMonsters() {
