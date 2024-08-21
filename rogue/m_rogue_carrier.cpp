@@ -1204,10 +1204,11 @@ void SP_monster_carrier2(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_CARRIER2;
 		SP_monster_carrier(self);
 
-
 		self->s.scale = 0.6f;
-		//self->mins *= 0.6f;
-		//self->maxs *= 0.6f;
+
+		// Aplicar la escala a mins y maxs
+		self->mins = { -56 * 0.6f, -56 * 0.6f, (-44 + 20) * 0.6f };
+		self->maxs = { 56 * 0.6f, 56 * 0.6f, (44 + 20) * 0.6f };    
 
 		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;
@@ -1219,5 +1220,6 @@ void SP_monster_carrier2(edict_t* self)
 		ApplyMonsterBonusFlags(self);
 	}
 }
+
 
 

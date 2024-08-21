@@ -718,27 +718,19 @@ void SP_monster_boss2(edict_t* self)
 
 	ApplyMonsterBonusFlags(self);
 }
-//void SP_monster_boss2_64(edict_t* self)
-//{
-	//if (!M_AllowSpawn(self)) {
-		//G_FreeEdict(self);
-		//return;
-	//}
-
-/*QUAKED monster_boss2 (1 .5 0) (-64 -64 0) (64 64 72) Ambush Trigger_Spawn Sight
- */
-
-
 
 void SP_monster_boss2_64(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
-	if (g_horde->integer)	{
-		//self->mins = { -24, -24, 0 };
-		//self->maxs = { 24, 24, 48 };
+	if (g_horde->integer) {
 		self->s.scale = 0.6f;
+
+		// Ajustar la caja de colisión con un Z más elevado
+		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
+		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
+
 	self->health = 1100 * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
@@ -746,6 +738,7 @@ void SP_monster_boss2_64(edict_t* self)
 
 	ApplyMonsterBonusFlags(self);
 }
+
 
 //HORDE BOSS
 constexpr spawnflags_t SPAWNFLAG_BOSS2KL = 8_spawnflag;
@@ -755,9 +748,11 @@ void SP_monster_boss2kl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (g_horde->integer) {
-		//self->mins = { -24, -24, 0 };
-		//self->maxs = { 24, 24, 48 };
 		self->s.scale = 0.6f;
+
+		// Ajustar la caja de colisión con un Z más elevado
+		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
+		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
 	self->s.skinnum = 2;
 	self->gib_health = -130;
