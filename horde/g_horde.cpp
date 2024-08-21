@@ -89,7 +89,7 @@ constexpr weighted_benefit_t benefits[] = {
     { "Traced-Piercing Bullets", 9, -1, 0.2f },
     { "Cluster Prox Grenades", 25, -1, 0.2f },
     { "Napalm-Grenade Launcher", 25, -1, 0.2f },
-    { "BFG Grav-Pull Lasers", 33, -1, 0.2f }
+    { "BFG Grav-Pull Lasers", 35, -1, 0.2f }
 };
 
 static std::random_device rd;
@@ -1218,6 +1218,9 @@ void AttachHealthBar(edict_t* boss)  {
     healthbar->nextthink = level.time + 20_sec;
 }
 
+// Definir una clave de mensaje constexpr para la localización
+constexpr const char* BOSS_SPAWN_MESSAGE_KEY = "BOSS_SPAWN_MESSAGE";
+
 static int boss_counter = 0; // Declaramos boss_counter como variable estática
 
 void SpawnBossAutomatically() {
@@ -1268,15 +1271,14 @@ void SpawnBossAutomatically() {
     }
 
     // Boss spawn message
-    const char* boss_message = "***** A Strogg Boss has spawned! *****\n***** Prepare for battle! *****\n";
     const auto it_msg = bossMessagesMap.find(desired_boss);
-    if (it_msg != bossMessagesMap.end() && it_msg->second.c_str()) {
-        boss_message = it_msg->second.c_str();
+    if (it_msg != bossMessagesMap.end()) {
+        gi.LocBroadcast_Print(PRINT_CHAT, BOSS_SPAWN_MESSAGE_KEY, it_msg->second.c_str());
     }
     else {
         gi.Com_PrintFmt("Warning: No specific message found for boss type '{}'. Using default message.\n", desired_boss);
+        gi.LocBroadcast_Print(PRINT_CHAT, BOSS_SPAWN_MESSAGE_KEY, "A Strogg Boss has spawned! Prepare for battle!");
     }
-    gi.LocBroadcast_Print(PRINT_CHAT, boss_message);
 
     // Configure boss
     const int32_t random_flag = 1 << (rand() % 6);
@@ -1332,6 +1334,7 @@ void SpawnBossAutomatically() {
 
     gi.Com_PrintFmt("Boss of type {} spawned successfully\n", desired_boss);
 }
+
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
 {
