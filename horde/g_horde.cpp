@@ -1793,14 +1793,20 @@ static void SpawnMonsters() {
 		(current_wave_number <= 7) ? 0.6f : 0.45f;
 
 	// Pre-seleccionar puntos de spawn disponibles
-	edict_t* spot = nullptr;
-	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
-		if (!IsSpawnPointOccupied(spot)) {
-			available_spawns.push_back(spot);
+	for (int32_t i = 0; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+		if (!ent->inuse) continue;
+		if (ent->classname && !strcmp(ent->classname, "info_player_deathmatch")) {
+			if (!IsSpawnPointOccupied(ent)) {
+				available_spawns.push_back(ent);
+			}
 		}
 	}
 
-	if (available_spawns.empty()) return;
+	if (available_spawns.empty()) {
+		gi.Com_PrintFmt("Warning: No available spawn points found\n");
+		return;
+	}
 
 	// Generar monstruos
 	for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++i) {
@@ -1859,7 +1865,6 @@ static void SpawnMonsters() {
 			mapSize.isBigMap ? random_time(0.9_sec, 1.1_sec) :
 			random_time(1.7_sec, 2_sec));
 }
-
 #include <unordered_map>
 #include <fmt/core.h>
 
