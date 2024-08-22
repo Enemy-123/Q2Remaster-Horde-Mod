@@ -482,7 +482,7 @@ void jorgBFG(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, 50, 800, 100, 200, MZ2_JORG_BFG_1);
+	monster_fire_bfg(self, start, dir, 40, 600, 100, 175, MZ2_JORG_BFG_1);
 }
 
 void jorg_firebullet_right(edict_t* self)

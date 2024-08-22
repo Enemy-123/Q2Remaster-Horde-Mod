@@ -507,24 +507,53 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 		}
 	}
 }
-
+//constexpr spawnflags_t SPAWNFLAG_LAVABALL_NO_EXPLODE = 1_spawnflag;
+void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
+
+	//gi.WriteByte(svc_temp_entity);
+	//gi.WriteByte(TE_BOSSTPORT);
+	//gi.WritePosition(center);
+	//gi.multicast(center, MULTICAST_PHS, false);
+
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float size = push_radius * (1.0f - static_cast<float>(wave) / num_waves);
 		const float end_size = size * 0.1f;
 
-		// Use ImprovedSpawnGrow for the first wave, but without the earthquake effect
+		// Use ImprovedSpawnGrow and add fireballs for the first wave
 		if (wave == 0) {
 			// Create the main SpawnGrow effect
 			SpawnGrow_Spawn(center, size, end_size);
 
-			// Add more dramatic effects for the first wave
+			// Add more dramatic effects and fireballs for the first wave
 			for (int i = 0; i < 5; i++) {
 				vec3_t offset;
 				for (int j = 0; j < 3; j++) {
 					offset[j] = center[j] + crandom() * 75;  // Random offset within 75 units
 				}
 				SpawnGrow_Spawn(offset, size * 0.5f, end_size * 0.5f);
+
+				// Spawn a fireball
+				edict_t* fireball = G_Spawn();
+				if (fireball) {
+					fireball->s.effects = EF_FIREBALL;
+					fireball->s.renderfx = RF_MINLIGHT;
+					fireball->solid = SOLID_BBOX;
+					fireball->movetype = MOVETYPE_TOSS;
+					fireball->clipmask = MASK_SHOT;
+					fireball->velocity[0] = crandom() * 200; // Doubled horizontal speed
+					fireball->velocity[1] = crandom() * 200; // Doubled horizontal speed
+					fireball->velocity[2] = (200 + (frandom() * 200)); // Kept the same
+					fireball->avelocity = { crandom() * 180, crandom() * 180, crandom() * 180 }; // Halved rotation speed
+					fireball->classname = "fireball";
+					gi.setmodel(fireball, "models/objects/gibs/sm_meat/tris.md2");
+					VectorCopy(offset, fireball->s.origin);
+					fireball->nextthink = level.time + 15000_ms;
+					fireball->think = G_FreeEdict;
+					fireball->touch = fire_touch;
+					//fireball->spawnflags = SPAWNFLAG_LAVABALL_NO_EXPLODE;
+					gi.linkentity(fireball);
+				}
 			}
 		}
 		else {
