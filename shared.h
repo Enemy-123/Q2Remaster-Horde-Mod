@@ -32,7 +32,7 @@ extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activat
 extern void check_target_healthbar(edict_t* self);
 extern void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number);
 extern void UpdatePowerUpTimes(edict_t* monster);
-void Boss_SpawnMonster(edict_t* self);
+void Monster_MoveSpawn(edict_t* self); 
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 //strogg ship
 //extern edict_t* CreatePathCornerOnSkySurface(edict_t* reference);

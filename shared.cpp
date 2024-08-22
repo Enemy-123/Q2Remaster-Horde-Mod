@@ -632,7 +632,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 }
 
 
-void Boss_SpawnMonster(edict_t* self)
+void Monster_MoveSpawn(edict_t* self)
 {
 	if (!self || self->health <= 0 || self->deadflag)
 		return;

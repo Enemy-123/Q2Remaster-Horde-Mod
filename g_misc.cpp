@@ -2261,9 +2261,15 @@ TOUCH(fire_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 		G_FreeEdict(self);
 		return;
 	}
+	if (g_horde->integer) {
+		if (other->takedamage && (!(other->svflags & SVF_MONSTER)))
+			T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, 20, 0, DAMAGE_NONE, MOD_EXPLOSIVE);
+	}
 
-	if (other->takedamage)
-		T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, 20, 0, DAMAGE_NONE, MOD_EXPLOSIVE);
+	if (!g_horde->integer) {
+		if (other->takedamage)
+			T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, 20, 0, DAMAGE_NONE, MOD_EXPLOSIVE);
+	}
 
 	if (gi.pointcontents(self->s.origin) & CONTENTS_LAVA)
 		G_FreeEdict(self);
