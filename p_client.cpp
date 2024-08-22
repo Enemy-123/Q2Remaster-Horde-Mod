@@ -380,7 +380,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was blown up by a {1}\n";
 			break;
 		case MOD_RIPPER:
-			base = "{0} met a bouncing, cutting end thanks to a {1} ";
+			base = "{0} met a bouncing, cutting end thanks to a {1}\n";
 			break;
 		case MOD_TARGET_LASER:
 			base = "{0} was laser-cooked by a {1}\n";
