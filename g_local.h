@@ -3696,7 +3696,10 @@ extern bool string_equals(const char* str1, const std::string_view& str2);
 const std::unordered_map<std::string_view, int> gib_multipliers = {
 	{"models/objects/gibs/sm_metal/tris.md2", 3},
 	{"models/objects/gibs/sm_meat/tris.md2", 3},
-	{"models/objects/gibs/chest/tris.md2", 3}
+	{"models/objects/gibs/chest/tris.md2", 3},
+	{"models/objects/gibs/bone/tris.md2", 3},
+	{"models/objects/gibs/bone2/tris.md2", 2},
+	{"models/objects/gear/bone2/tris.md2", 2}
 };
 
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
