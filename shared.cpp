@@ -698,3 +698,8 @@ void Monster_MoveSpawn(edict_t* self)
 		monster->owner = self;
 	}
 }
+
+bool string_equals(const char* str1, const std::string_view& str2) {
+	return str1 && str2.length() == strlen(str1) &&
+		!Q_strncasecmp(str1, str2.data(), str2.length());
+}

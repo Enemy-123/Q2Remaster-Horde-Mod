@@ -372,16 +372,13 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	if (!self || !self->owner) {
 		return;
 	}
-
 	if (other == self->owner)
 		return;
-
 	if (tr.surface && (tr.surface->flags & SURF_SKY))
 	{
 		G_FreeEdict(self);
 		return;
 	}
-
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
@@ -392,12 +389,19 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	}
 	else
 	{
-		// Decrementar el contador de rebotes
-		if (tr.ent && tr.ent->solid == SOLID_BSP) // Verificar si está rebotando contra una pared o superficie sólida
+		// Bounce logic
+		if (tr.ent && tr.ent->solid == SOLID_BSP) // check if bouncing against walls 
 		{
 			self->bounce_count--;
 			if (self->bounce_count <= 0)
 			{
+				// vanilla effect for last bounce
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
+				gi.WritePosition(self->s.origin);
+				gi.WriteDir(tr.plane.normal);
+				gi.multicast(self->s.origin, MULTICAST_PHS, false);
+
 				G_FreeEdict(self);
 				return;
 			}

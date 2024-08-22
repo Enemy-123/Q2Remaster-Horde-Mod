@@ -3686,15 +3686,32 @@ struct gib_def_t
 	}
 };
 
+extern bool string_equals(const char* str1, const std::string_view& str2);
 // convenience function to throw different gib types
 // NOTE: always throw the head gib *last* since self's size is used
 // to position the gibs!
+#include <unordered_map>
+
+// Definición de los modelos que queremos multiplicar
+const std::unordered_map<std::string_view, int> gib_multipliers = {
+	{"models/objects/gibs/sm_metal/tris.md2", 3},
+	{"models/objects/gibs/sm_meat/tris.md2", 3},
+	{"models/objects/gibs/chest/tris.md2", 3}
+};
+
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
 {
 	for (auto& gib : gibs)
 	{
+		int multiplier = 1;
 
-		for (size_t j = 0; j < 2; j++) // 
+		// Buscar si este gib debe ser multiplicado
+		auto it = gib_multipliers.find(gib.gibname);
+		if (it != gib_multipliers.end()) {
+			multiplier = it->second;
+		}
+
+		for (int j = 0; j < multiplier; j++)
 		{
 			for (size_t i = 0; i < gib.count; i++)
 			{
@@ -3703,7 +3720,6 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 		}
 	}
 }
-
 inline bool M_CheckGib(edict_t* self, const mod_t& mod) 
 {
 	if (self->deadflag)
