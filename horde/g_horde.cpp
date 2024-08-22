@@ -1259,7 +1259,7 @@ void SpawnBossAutomatically() {
         boss->s.origin);
 
     // Collision check and telefrag
-    trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
+    trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_MONSTERCLIP);
     if (tr.startsolid && tr.ent) {
         if (tr.ent->svflags & SVF_MONSTER || tr.ent->svflags & SVF_PLAYER) {
             T_Damage(tr.ent, boss, boss, vec3_origin, tr.ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
@@ -1307,15 +1307,6 @@ void SpawnBossAutomatically() {
     const float end_size = size * 0.005f;
     ImprovedSpawnGrow(spawngrow_pos, size, end_size, boss);
     SpawnGrow_Spawn(spawngrow_pos, size, end_size);
-
-    // Additional telefrag check for spawn grow effect
-    trace_t tr_spawn = gi.trace(spawngrow_pos, boss->mins, boss->maxs, spawngrow_pos, boss, CONTENTS_MONSTER | CONTENTS_PLAYER);
-    if (tr_spawn.startsolid && tr_spawn.ent) {
-        if (tr_spawn.ent->svflags & SVF_MONSTER || tr_spawn.ent->svflags & SVF_PLAYER) {
-            T_Damage(tr_spawn.ent, boss, boss, vec3_origin, tr_spawn.ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-            gi.Com_PrintFmt("Telefrag performed on {} during spawn grow\n", tr_spawn.ent->classname ? tr_spawn.ent->classname : "unknown entity");
-        }
-    }
 
     AttachHealthBar(boss);
     SetHealthBarName(boss);

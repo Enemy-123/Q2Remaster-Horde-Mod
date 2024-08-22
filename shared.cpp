@@ -475,26 +475,28 @@ std::string GetPlayerName(edict_t* player) {
 //
 //
 
+extern void SP_target_earthquake(edict_t* self);
+constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
+constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
+[[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
+constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
+
+
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity) {
 	// Create the main SpawnGrow effect
 	SpawnGrow_Spawn(position, start_size, end_size);
 
-	// Create additional effects for boss spawns
+	// Create additional effects only for boss spawns
 	if (spawned_entity && spawned_entity->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 		// Add more dramatic effects for boss spawns
 		for (int i = 0; i < 5; i++) {
 			vec3_t offset;
 			for (int j = 0; j < 3; j++) {
-				offset[j] = position[j] + crandom() * 50;  // Random offset within 50 units
+				offset[j] = position[j] + crandom() * 75;  // Random offset within 50 units
 			}
 			SpawnGrow_Spawn(offset, start_size * 0.5f, end_size * 0.5f);
 		}
 
-		extern void SP_target_earthquake(edict_t * self);
-		constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
-		constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
-		[[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
-		constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 		// Add a ground shake effect
 		auto earthquake = G_Spawn();
 		if (earthquake) {
@@ -504,21 +506,8 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 			earthquake->use(earthquake, spawned_entity, spawned_entity);
 		}
 	}
-
-	// Perform telefrag check
-	if (spawned_entity) {
-		trace_t tr = gi.trace(position, spawned_entity->mins, spawned_entity->maxs, position, spawned_entity, CONTENTS_MONSTER | CONTENTS_PLAYER);
-		if (tr.startsolid) {
-			auto hit = tr.ent;
-			if (hit && (hit->client ||
-				(hit->svflags & SVF_MONSTER) == 0 ||
-				(hit->classname && strcmp(hit->classname, "monster_sentrygun") == 0))) {
-				T_Damage(hit, spawned_entity, spawned_entity, vec3_origin, hit->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-				gi.Com_PrintFmt("Telefrag performed on {} during spawn\n", hit->classname ? hit->classname : "unknown");
-			}
-		}
-	}
 }
+
 
 void Boss_SpawnMonster(edict_t* self)
 {
@@ -532,13 +521,13 @@ void Boss_SpawnMonster(edict_t* self)
 	const int MAX_SPAWN_ATTEMPTS = 10;
 	const float SPAWN_HEIGHT_OFFSET = 8.0f;
 
-	int num_monsters = NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1));
+	const int num_monsters = NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1));
 
 	for (int i = 0; i < num_monsters; i++)
 	{
 		vec3_t spawn_origin;
-		vec3_t mins = { -16, -16, -24 };
-		vec3_t maxs = { 16, 16, 32 };
+		const	vec3_t mins = { -16, -16, -24 };
+		const	vec3_t maxs = { 16, 16, 32 };
 
 		bool found_spot = false;
 		float spawn_angle = 0;
@@ -575,11 +564,11 @@ void Boss_SpawnMonster(edict_t* self)
 		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 
-		vec3_t spawngrow_pos = monster->s.origin;
-		float magnitude = VectorLength(spawngrow_pos);
+		const vec3_t spawngrow_pos = monster->s.origin;
+		const float magnitude = VectorLength(spawngrow_pos);
 		if (magnitude > 0) {
-			float start_size = magnitude * 0.055f;
-			float end_size = magnitude * 0.005f;
+			const	float start_size = magnitude * 0.055f;
+			const	float end_size = magnitude * 0.005f;
 			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 		}
 
