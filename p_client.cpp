@@ -326,7 +326,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		switch (mod.id)
 		{
 		case MOD_BLASTER:
-			base = "{0} was humilliated by a {1}\n";
+			base = "{0} was humiliated by a {1}\n";
 			break;
 		case MOD_SHOTGUN:
 			base = "{0}'s face was impacted by a {1}\n";
