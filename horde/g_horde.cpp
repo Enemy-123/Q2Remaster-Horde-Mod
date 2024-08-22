@@ -1220,6 +1220,9 @@ void AttachHealthBar(edict_t* boss)  {
 
 static int boss_counter = 0; // Declaramos boss_counter como variable estática
 
+// Forward declaration of the think function
+void BossSpawnThink(edict_t* self);
+
 void SpawnBossAutomatically() {
     const auto mapSize = GetMapSize(level.mapname);
     if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
@@ -1245,6 +1248,7 @@ void SpawnBossAutomatically() {
         return;
     }
 
+    boss_spawned_for_wave = true;
     boss->classname = desired_boss;
 
     // Set boss origin
@@ -1258,74 +1262,140 @@ void SpawnBossAutomatically() {
                        static_cast<float>(it->second[2]) },
         boss->s.origin);
 
-    // Collision check and telefrag
-    trace_t tr = gi.trace(boss->s.origin, boss->mins, boss->maxs, boss->s.origin, boss, CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_MONSTERCLIP);
-    if (tr.startsolid && tr.ent) {
-        if (tr.ent->svflags & SVF_MONSTER || tr.ent->svflags & SVF_PLAYER) {
-            T_Damage(tr.ent, boss, boss, vec3_origin, tr.ent->s.origin, vec3_origin, 100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG_SPAWN);
-            gi.Com_PrintFmt("Telefrag performed on {}\n", tr.ent->classname ? tr.ent->classname : "unknown entity");
+    gi.Com_PrintFmt("Preparing to spawn boss at position: {}\n", boss->s.origin);
+
+    // Push entities away
+    constexpr int NUM_WAVES = 2;
+    constexpr gtime_t WAVE_INTERVAL = 500_ms; // 1 seconds between each wave
+    constexpr float PUSH_RADIUS = 300.0f;
+    constexpr float PUSH_STRENGTH = 750.0f;
+
+    for (int wave = 0; wave < NUM_WAVES; wave++) {
+       const float size = PUSH_RADIUS * (1.0f - static_cast<float>(wave) / NUM_WAVES);
+       const float end_size = size * 0.1f;
+        SpawnGrow_Spawn(boss->s.origin, size, end_size);
+
+        // Find and push entities
+        edict_t* ent = nullptr;
+        while ((ent = findradius(ent, boss->s.origin, size)) != nullptr) {
+            if (ent == boss || !ent->inuse || !ent->takedamage)
+                continue;
+
+            const  vec3_t push_dir{};
+            VectorSubtract(ent->s.origin, boss->s.origin, push_dir);
+            const float distance = VectorLength(push_dir);
+
+            if (distance > 0.1f) {
+                VectorNormalize(push_dir);
+            }
+
+            // Calculate push strength with a sine wave for smoother effect
+            float push_strength = PUSH_STRENGTH * (1.0f - distance / size);
+            push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+            // Calculate new position
+            const vec3_t new_pos{};
+            VectorMA(ent->s.origin, push_strength / 700, push_dir, new_pos);
+
+            // Trace to ensure we're not pushing through walls
+            const trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
+
+            if (tr.fraction < 1.0) {
+                // If we hit something, adjust the push
+                VectorScale(push_dir, tr.fraction * push_strength, ent->velocity);
+            }
+            else {
+                VectorScale(push_dir, push_strength, ent->velocity);
+            }
+
+            ent->groundentity = nullptr;
+
+            if (ent->client) {
+                VectorCopy(ent->velocity, ent->client->oldvelocity);
+                ent->client->oldgroundentity = ent->groundentity;
+                //ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+                //ent->client->ps.pmove.pm_time = 100;
+            }
+
+            // Add an upward component to the velocity
+            ent->velocity[1] += 1000.0f * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+            ent->velocity[2] += 500.0f * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+            gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n", wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
+        }
+
+        // Wait before the next wave
+        if (wave < NUM_WAVES - 1) {
+            boss->nextthink = level.time + WAVE_INTERVAL;
+            boss->think = G_FreeEdict; // Placeholder think function, replace with appropriate function if needed
         }
     }
 
+    // Delay boss spawn
+    boss->nextthink = level.time + 800_ms; // 1 seconds delay
+    boss->think = BossSpawnThink;
+
+    gi.Com_PrintFmt("Boss spawn preparation complete. Boss will appear in 4 seconds.\n");
+}
+
+THINK(BossSpawnThink) (edict_t* self) -> void
+{
     // Boss spawn message
-    const auto it_msg = bossMessagesMap.find(desired_boss);
+    const auto it_msg = bossMessagesMap.find(self->classname);
     if (it_msg != bossMessagesMap.end()) {
-        // Usamos un puntero a char constante para el mensaje
         const char* message = it_msg->second.c_str();
         gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", message);
     }
     else {
-        gi.Com_PrintFmt("Warning: No specific message found for boss type '{}'. Using default message.\n", desired_boss);
-        // Mensaje predeterminado como una cadena literal
+        gi.Com_PrintFmt("Warning: No specific message found for boss type '{}'. Using default message.\n", self->classname);
         gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
     }
 
     // Configure boss
     const int32_t random_flag = 1 << (rand() % 6);
-    boss->monsterinfo.bonus_flags |= random_flag;
-    boss->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
-    boss->monsterinfo.last_sentrygun_target_time = 0_sec;
+    self->monsterinfo.bonus_flags |= random_flag;
+    self->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
+    self->monsterinfo.last_sentrygun_target_time = 0_ms;
 
     // Apply bonus flags and effects
-    ApplyMonsterBonusFlags(boss);
-    boss->monsterinfo.attack_state = AS_BLIND;
-    boss->maxs *= boss->s.scale;
-    boss->mins *= boss->s.scale;
+    ApplyMonsterBonusFlags(self);
+    self->monsterinfo.attack_state = AS_BLIND;
+    self->maxs *= self->s.scale;
+    self->mins *= self->s.scale;
 
     float health_multiplier = 1.0f;
     float power_armor_multiplier = 1.0f;
-    ApplyBossEffects(boss, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
-    ED_CallSpawn(boss);
+    const auto mapSize = GetMapSize(level.mapname);
+    ApplyBossEffects(self, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
+    ED_CallSpawn(self);
 
     // Set boss health and armor
-    SetMonsterHealth(boss, static_cast<int32_t>(boss->health * health_multiplier), current_wave_number);
-    boss->monsterinfo.power_armor_power = static_cast<int32_t>(boss->monsterinfo.power_armor_power * power_armor_multiplier * g_horde_local.level * 1.45);
+    SetMonsterHealth(self, static_cast<int32_t>(self->health * health_multiplier), current_wave_number);
+    self->monsterinfo.power_armor_power = static_cast<int32_t>(self->monsterinfo.power_armor_power * power_armor_multiplier * g_horde_local.level * 1.45);
 
     // Spawn grow effect
-    vec3_t const spawngrow_pos = boss->s.origin;
+    vec3_t const spawngrow_pos = self->s.origin;
     const float size = VectorLength(spawngrow_pos) * 0.35f;
     const float end_size = size * 0.005f;
-    ImprovedSpawnGrow(spawngrow_pos, size, end_size, boss);
+    ImprovedSpawnGrow(spawngrow_pos, size, end_size, self);
     SpawnGrow_Spawn(spawngrow_pos, size, end_size);
 
-    AttachHealthBar(boss);
-    SetHealthBarName(boss);
+    AttachHealthBar(self);
+    SetHealthBarName(self);
 
     // Set flying monsters mode if applicable
-    if (boss->classname && (
-        strcmp(boss->classname, "monster_boss2") == 0 ||
-        strcmp(boss->classname, "monster_carrier") == 0 ||
-        strcmp(boss->classname, "monster_carrier2") == 0 ||
-        strcmp(boss->classname, "monster_boss2kl") == 0)) {
+    if (self->classname && (
+        strcmp(self->classname, "monster_boss2") == 0 ||
+        strcmp(self->classname, "monster_carrier") == 0 ||
+        strcmp(self->classname, "monster_carrier2") == 0 ||
+        strcmp(self->classname, "monster_boss2kl") == 0)) {
         flying_monsters_mode = true;
     }
 
-    boss_spawned_for_wave = true;
-    auto_spawned_bosses.insert(boss);
+    auto_spawned_bosses.insert(self);
 
-    gi.Com_PrintFmt("Boss of type {} spawned successfully\n", desired_boss);
+    gi.Com_PrintFmt("Boss of type {} spawned successfully\n", self->classname);
 }
-
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
 {
@@ -1432,13 +1502,13 @@ void ResetGame() {
     WAVE_TO_ALLOW_FLYING = 0;
     SPAWN_POINT_COOLDOWN = 3.8_sec;
 
-    // this fixes monsters travelling to the next map for now lol
-    for (unsigned int i = 1; i < globals.num_edicts; i++) {
-        edict_t* ent = &g_edicts[i];
-        if (ent->inuse && (ent->svflags & SVF_MONSTER)) {
-            G_FreeEdict(ent);
-        }
-    }
+    //// this fixes monsters travelling to the next map for now lol
+    //for (unsigned int i = 1; i < globals.num_edicts; i++) {
+    //    edict_t* ent = &g_edicts[i];
+    //    if (ent->inuse && (ent->svflags & SVF_MONSTER)) {
+    //        G_FreeEdict(ent);
+    //    }
+    //}
 
     //// Reiniciar contadores de monstruos
     //level.total_monsters = 0;
