@@ -647,7 +647,7 @@ void SP_monster_supertank(edict_t* self)
 
 		if (strcmp(self->classname, "monster_janitor")) {
 			{
-				float randomsearch = frandom(); // Generate search sounds
+				const float randomsearch = frandom(); // Generate search sounds
 
 				if (randomsearch < 0.5f)
 
@@ -659,7 +659,7 @@ void SP_monster_supertank(edict_t* self)
 		}
 		if (!strcmp(self->classname, "monster_janitor")) {
 			{
-				float randomsearch = frandom(); // Generate Search sounds
+				const float randomsearch = frandom(); // Generate Search sounds
 
 				if (randomsearch < 0.2f)
 
@@ -805,7 +805,7 @@ void SP_monster_supertankkl(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 
-			self->health = 5500;
+		self->health = 5500;
 	
 	
 

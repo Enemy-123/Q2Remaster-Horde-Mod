@@ -1194,7 +1194,6 @@ void AttachHealthBar(edict_t* boss) {
 	VectorCopy(boss->s.origin, healthbar->s.origin);
 	healthbar->s.origin[2] += 20;
 	healthbar->delay = 2.0f;
-	healthbar->timestamp = 0_ms;
 	healthbar->target = boss->targetname;
 
 	// Copiar el nombre del jefe correctamente
@@ -1222,8 +1221,6 @@ static int boss_counter = 0; // Declaramos boss_counter como variable estática
 
 // Forward declaration of the think function
 void BossSpawnThink(edict_t* self);
-
-
 
 void SpawnBossAutomatically() {
 	const auto mapSize = GetMapSize(level.mapname);
@@ -1301,15 +1298,23 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	self->maxs *= self->s.scale;
 	self->mins *= self->s.scale;
 
+	// Set boss health and armor first
+	SetBossHealth(self, self->health, current_wave_number);
+
 	float health_multiplier = 1.0f;
 	float power_armor_multiplier = 1.0f;
 	const auto mapSize = GetMapSize(level.mapname);
+
+	// Apply bonus flags and effects
 	ApplyBossEffects(self, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
+
 	ED_CallSpawn(self);
 
-	// Set boss health and armor
-	SetMonsterHealth(self, static_cast<int32_t>(self->health * health_multiplier), current_wave_number);
-	self->monsterinfo.power_armor_power = static_cast<int32_t>(self->monsterinfo.power_armor_power * power_armor_multiplier * g_horde_local.level * 1.45);
+	// Adjust final power armor
+	if (self->monsterinfo.power_armor_power > 0)
+	{
+		self->monsterinfo.power_armor_power = static_cast<int32_t>(self->monsterinfo.power_armor_power);
+	}
 
 	// Spawn grow effect
 	vec3_t const spawngrow_pos = self->s.origin;
@@ -1318,6 +1323,7 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	ImprovedSpawnGrow(spawngrow_pos, size, end_size, self);
 	SpawnGrow_Spawn(spawngrow_pos, size, end_size);
 
+	// Attach health bar and set its name after all health adjustments
 	AttachHealthBar(self);
 	SetHealthBarName(self);
 
@@ -1331,17 +1337,14 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	}
 
 	auto_spawned_bosses.insert(self);
-
-	gi.Com_PrintFmt("Boss of type {} spawned successfully\n", self->classname);
+	gi.Com_PrintFmt("Boss of type {} spawned successfully with {} health and {} power armor\n",
+		self->classname, self->health, self->monsterinfo.power_armor_power);
 }
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
 {
 	std::string full_display_name = GetDisplayName(boss);
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
-
-	// Log para depuración
- //   gi.Com_PrintFmt("Setting health bar name: {}\n", full_display_name);
 
 	// Preparar el mensaje para multicast
 	gi.WriteByte(svc_configstring);
@@ -1351,9 +1354,6 @@ void SetHealthBarName(edict_t* boss)
 	// Usar multicast para enviar la actualización a todos los clientes de manera confiable
 	gi.multicast(vec3_origin, MULTICAST_ALL, true);
 }
-
-//constexpr size_t MAX_MESSAGE_LENGTH = CS_MAX_STRING_LENGTH - 1;
-//constexpr std::string_view TRUNCATION_INDICATOR = "...";
 
 //CS HORDE
 
@@ -1375,14 +1375,8 @@ void UpdateHordeMessage(std::string_view message, gtime_t duration);
 
 // Implementación de UpdateHordeMessage
 void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
-	// Ya no truncamos el mensaje
 	std::string fullMessage(message);
 
-	//// Registramos una advertencia si el mensaje es muy largo
-	//if (fullMessage.length() > MAX_MESSAGE_LENGTH) {
-	//    gi.Com_PrintFmt("Warning: Horde message is unusually long ({} characters): '{}'\n",
-	//        fullMessage.length(), fullMessage);
-	//}
 
 	gi.configstring(CONFIG_HORDEMSG, fullMessage.c_str());
 	horde_message_end_time = level.time + std::max(duration, 0_sec);

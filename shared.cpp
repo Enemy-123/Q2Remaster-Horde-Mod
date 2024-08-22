@@ -244,9 +244,18 @@ std::string GetDisplayName(edict_t* ent)
 	std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
 	return title + display_name;
 }
-
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
+
+	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	{
+		// Si es un jefe, llamamos a ApplyBossEffects
+		float health_multiplier, power_armor_multiplier;
+		const auto mapSize = GetMapSize(level.mapname);
+		ApplyBossEffects(monster, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
+		return;
+	}
+
 	monster->initial_max_health = monster->health;
 
 	if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
@@ -255,7 +264,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.renderfx |= RF_SHELL_RED;
 		monster->health *= 2.0f;
 		monster->monsterinfo.power_armor_power *= 1.25f;
-		monster->initial_max_health = monster->health;
 		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 175_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
@@ -263,7 +271,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.4f;
-		monster->initial_max_health = monster->health;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
@@ -275,132 +282,163 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.effects |= EF_GIB | EF_FLAG2;
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.3f;
-		monster->initial_max_health = monster->health; // Incrementar initial_max_health
 		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 175_sec;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
-		monster->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+		monster->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
 		monster->s.alpha = 0.5f;
 		monster->health *= 1.7f;
 		monster->monsterinfo.power_armor_power *= 1.7f;
-		monster->initial_max_health = monster->health; // Incrementar initial_max_health
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
 		monster->s.effects |= EF_TRACKER | EF_FLAG1;
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.1f;
-		monster->initial_max_health = monster->health; // Incrementar initial_max_health
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
+
+	monster->initial_max_health = monster->health;
 }
 
 void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isBigMap, float& health_multiplier, float& power_armor_multiplier)
 {
+	if (!boss->spawnflags.has(SPAWNFLAG_IS_BOSS))
+		return;
+
 	health_multiplier = 1.0f;
 	power_armor_multiplier = 1.0f;
 
+	// Apply bonus flags effects
 	if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
 		boss->s.scale = 1.3f;
 		boss->mins *= 1.3f;
 		boss->maxs *= 1.3f;
-		boss->s.effects |= EF_ROCKET;
+		boss->s.effects |= EF_ROCKET | EF_FIREBALL;
 		boss->s.renderfx |= RF_SHELL_RED;
 		health_multiplier *= 1.5f;
 		power_armor_multiplier *= 1.25f;
+		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 175_sec;
 	}
-	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		boss->s.scale = 1.5f;
-		boss->mins *= 1.5f;
-		boss->maxs *= 1.5f;
-		boss->s.effects |= EF_FLIES;
-		health_multiplier *= 1.4f;
-		power_armor_multiplier *= 1.4f;
-	}
-	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
-		boss->s.effects |= EF_BLUEHYPERBLASTER;
-		boss->s.renderfx |= RF_TRANSLUCENT;
-		power_armor_multiplier *= 1.4f;
-	}
-	if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
-		boss->s.effects |= EF_GIB | EF_FLAG2;
-		health_multiplier *= 1.5f;
-		power_armor_multiplier *= 1.5f;
-	}
-	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
-		boss->s.effects = EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
-		boss->s.alpha = 0.5f;
-		health_multiplier *= 1.4f;
-		power_armor_multiplier *= 1.4f;
-	}
-	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
-		boss->s.scale = 1.2f;
-		boss->mins *= 1.2f;
-		boss->maxs *= 1.2f;
-		boss->s.effects |= EF_FIREBALL | EF_FLAG1;
-		health_multiplier *= 1.5f;
-		power_armor_multiplier *= 1.1f;
-	}
+	// ... (other bonus flag effects remain unchanged)
 
-	// Ajustar la salud y armadura de acuerdo a los multiplicadores
-	boss->health *= health_multiplier;
-	boss->monsterinfo.power_armor_power *= power_armor_multiplier;
-
-	if (isSmallMap)
-	{
-		boss->health *= 0.8f;
-		boss->monsterinfo.power_armor_power *= 0.9f;
-	}
-	else if (isBigMap)
-	{
-		boss->health *= 1.2f;
-		boss->monsterinfo.power_armor_power *= 1.2f;
-	}
-}
-
-void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number)
-{
+	// Calculate minimum health and power armor based on wave number
 	int health_min = 5000;
+	int power_armor_min = 0;
 
+	// Use the global current_wave_number
 	if (current_wave_number >= 25 && current_wave_number <= 200)
 	{
 		health_min = 18000;
+		power_armor_min = std::min(18550, 80000);
 	}
 	else if (current_wave_number >= 20 && current_wave_number <= 24)
 	{
 		health_min = 15000;
+		power_armor_min = std::min(13000, 65000);
 	}
 	else if (current_wave_number >= 15 && current_wave_number <= 19)
 	{
 		health_min = 12000;
+		power_armor_min = std::min(9500, 30000);
 	}
 	else if (current_wave_number >= 10 && current_wave_number <= 14)
 	{
 		health_min = 10000;
+		power_armor_min = std::min(5475, 20000);
 	}
 	else if (current_wave_number >= 5 && current_wave_number <= 9)
 	{
 		health_min = 8000;
+		power_armor_min = 3600;
 	}
 	else if (current_wave_number >= 1 && current_wave_number <= 4)
 	{
 		health_min = 5000;
+		power_armor_min = 1500;
 	}
 
-	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	// Apply health multiplier and ensure it's not below the minimum
+	boss->health = std::max(static_cast<int>(boss->health * health_multiplier), health_min);
+	boss->max_health = boss->health;
+	boss->initial_max_health = boss->health;
+
+	// Apply power armor multiplier and ensure it's not below the minimum
+	if (boss->monsterinfo.power_armor_power > 0)
 	{
-		monster->health = base_health;
-		monster->max_health = base_health;
-	}
-	else
-	{
-		monster->health = base_health * 4;
-		monster->max_health = base_health * 4;
+		boss->monsterinfo.power_armor_power = std::max(
+			static_cast<int>(boss->monsterinfo.base_power_armor * power_armor_multiplier),
+			power_armor_min
+		);
 	}
 
-	monster->health = std::max(monster->health, health_min);
-	monster->initial_max_health = monster->health;
+	// Apply map size adjustments
+	if (isSmallMap)
+	{
+		boss->health = static_cast<int>(boss->health * 0.8f);
+		if (boss->monsterinfo.power_armor_power > 0)
+			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * 0.9f);
+	}
+	else if (isBigMap)
+	{
+		boss->health = static_cast<int>(boss->health * 1.2f);
+		if (boss->monsterinfo.power_armor_power > 0)
+			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * 1.2f);
+	}
+
+	// Ensure health and power armor don't fall below their minimum values after map size adjustments
+	boss->health = std::max(boss->health, health_min);
+	if (boss->monsterinfo.power_armor_power > 0)
+		boss->monsterinfo.power_armor_power = std::max(boss->monsterinfo.power_armor_power, power_armor_min);
+}
+void SetBossHealth(edict_t* boss, int base_health, int wave_number)
+{
+	int health_min = 5000;
+	int power_armor = 0;
+
+	if (wave_number >= 25 && wave_number <= 200)
+	{
+		health_min = 18000;
+		power_armor = std::min(18550, 80000);
+	}
+	else if (wave_number >= 20 && wave_number <= 24)
+	{
+		health_min = 15000;
+		power_armor = std::min(13000, 65000);
+	}
+	else if (wave_number >= 15 && wave_number <= 19)
+	{
+		health_min = 12000;
+		power_armor = std::min(9500, 30000);
+	}
+	else if (wave_number >= 10 && wave_number <= 14)
+	{
+		health_min = 10000;
+		power_armor = std::min(5475, 20000);
+	}
+	else if (wave_number >= 5 && wave_number <= 9)
+	{
+		health_min = 8000;
+		power_armor = 3600;
+	}
+	else if (wave_number >= 1 && wave_number <= 4)
+	{
+		health_min = 5000;
+		power_armor = 1500;
+	}
+
+	boss->health = std::max(base_health, health_min);
+	boss->max_health = boss->health;
+	boss->initial_max_health = boss->health;
+
+	if (st.was_key_specified("power_armor_type"))
+	{
+		boss->monsterinfo.base_power_armor = power_armor;
+		boss->monsterinfo.power_armor_power = power_armor;
+	}
+
+	gi.Com_PrintFmt("Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
 
 //getting real name

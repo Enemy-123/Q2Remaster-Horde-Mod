@@ -1761,7 +1761,7 @@ void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 	}
 	else
 	{
-		bolt->nextthink = level.time + 10_sec;
+		bolt->nextthink = level.time + 7_sec; //reduce?
 		bolt->think = G_FreeEdict;
 	}
 

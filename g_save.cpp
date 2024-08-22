@@ -1167,6 +1167,7 @@ FIELD_AUTO(monsterinfo.linkcount),
 
 FIELD_AUTO(monsterinfo.power_armor_type),
 FIELD_AUTO(monsterinfo.power_armor_power),
+FIELD_AUTO(monsterinfo.base_power_armor),
 FIELD_AUTO(monsterinfo.initial_power_armor_type),
 FIELD_AUTO(monsterinfo.max_power_armor_power),
 FIELD_AUTO(monsterinfo.weapon_sound),

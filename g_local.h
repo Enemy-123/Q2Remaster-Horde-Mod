@@ -1648,6 +1648,7 @@ struct monsterinfo_t
 
 	item_id_t power_armor_type;
 	int32_t	  power_armor_power;
+	int32_t base_power_armor;
 
 	// for monster revive
 	item_id_t initial_power_armor_type;
