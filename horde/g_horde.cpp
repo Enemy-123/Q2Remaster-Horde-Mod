@@ -1264,65 +1264,79 @@ void SpawnBossAutomatically() {
 
     gi.Com_PrintFmt("Preparing to spawn boss at position: {}\n", boss->s.origin);
 
-    // Push entities away
-    constexpr int NUM_WAVES = 2;
-    constexpr gtime_t WAVE_INTERVAL = 500_ms; // 1 seconds between each wave
-    constexpr float PUSH_RADIUS = 300.0f;
-    constexpr float PUSH_STRENGTH = 750.0f;
+        // Push entities away
+        constexpr int NUM_WAVES = 2;
+        constexpr gtime_t WAVE_INTERVAL = 500_ms; // 0.5 seconds between each wave
+        constexpr float PUSH_RADIUS = 300.0f;
+        constexpr float PUSH_STRENGTH = 750.0f;
+        constexpr float HORIZONTAL_PUSH_STRENGTH = 1000.0f;
+        constexpr float VERTICAL_PUSH_STRENGTH = 500.0f;
 
-    for (int wave = 0; wave < NUM_WAVES; wave++) {
-       const float size = PUSH_RADIUS * (1.0f - static_cast<float>(wave) / NUM_WAVES);
-       const float end_size = size * 0.1f;
-        SpawnGrow_Spawn(boss->s.origin, size, end_size);
+        for (int wave = 0; wave < NUM_WAVES; wave++) {
+            const float size = PUSH_RADIUS * (1.0f - static_cast<float>(wave) / NUM_WAVES);
+            const float end_size = size * 0.1f;
+            SpawnGrow_Spawn(boss->s.origin, size, end_size);
 
-        // Find and push entities
-        edict_t* ent = nullptr;
-        while ((ent = findradius(ent, boss->s.origin, size)) != nullptr) {
-            if (ent == boss || !ent->inuse || !ent->takedamage)
-                continue;
+            // Find and push entities
+            edict_t* ent = nullptr;
+            while ((ent = findradius(ent, boss->s.origin, size)) != nullptr) {
+                if (ent == boss || !ent->inuse || !ent->takedamage)
+                    continue;
 
-            const  vec3_t push_dir{};
-            VectorSubtract(ent->s.origin, boss->s.origin, push_dir);
-            const float distance = VectorLength(push_dir);
+                vec3_t push_dir{};
+                VectorSubtract(ent->s.origin, boss->s.origin, push_dir);
+                const float distance = VectorLength(push_dir);
 
-            if (distance > 0.1f) {
-                VectorNormalize(push_dir);
+                if (distance > 0.1f) {
+                    VectorNormalize(push_dir);
+                }
+                else {
+                    // If the entity is too close to the center, give it a random direction
+                    push_dir[0] = crandom();
+                    push_dir[1] = crandom();
+                    push_dir[2] = 0;
+                    VectorNormalize(push_dir);
+                }
+
+                // Calculate push strength with a sine wave for smoother effect
+                float push_strength = PUSH_STRENGTH * (1.0f - distance / size);
+                push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+                // Calculate new position
+                vec3_t new_pos{};
+                VectorMA(ent->s.origin, push_strength / 700, push_dir, new_pos);
+
+                // Trace to ensure we're not pushing through walls
+                trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
+
+                vec3_t final_velocity;
+                if (tr.fraction < 1.0) {
+                    // If we hit something, adjust the push
+                    VectorScale(push_dir, tr.fraction * push_strength, final_velocity);
+                }
+                else {
+                    VectorScale(push_dir, push_strength, final_velocity);
+                }
+
+                // Add strong horizontal component
+                float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+                final_velocity[0] += push_dir[0] * HORIZONTAL_PUSH_STRENGTH * horizontal_factor;
+                final_velocity[1] += push_dir[1] * HORIZONTAL_PUSH_STRENGTH * horizontal_factor;
+
+                // Add vertical component
+                final_velocity[2] += VERTICAL_PUSH_STRENGTH * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+                VectorCopy(final_velocity, ent->velocity);
+
+                ent->groundentity = nullptr;
+
+                if (ent->client) {
+                    VectorCopy(ent->velocity, ent->client->oldvelocity);
+                    ent->client->oldgroundentity = ent->groundentity;
+                }
+
+                gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n", wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
             }
-
-            // Calculate push strength with a sine wave for smoother effect
-            float push_strength = PUSH_STRENGTH * (1.0f - distance / size);
-            push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-
-            // Calculate new position
-            const vec3_t new_pos{};
-            VectorMA(ent->s.origin, push_strength / 700, push_dir, new_pos);
-
-            // Trace to ensure we're not pushing through walls
-            const trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
-
-            if (tr.fraction < 1.0) {
-                // If we hit something, adjust the push
-                VectorScale(push_dir, tr.fraction * push_strength, ent->velocity);
-            }
-            else {
-                VectorScale(push_dir, push_strength, ent->velocity);
-            }
-
-            ent->groundentity = nullptr;
-
-            if (ent->client) {
-                VectorCopy(ent->velocity, ent->client->oldvelocity);
-                ent->client->oldgroundentity = ent->groundentity;
-                //ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-                //ent->client->ps.pmove.pm_time = 100;
-            }
-
-            // Add an upward component to the velocity
-            ent->velocity[1] += 1000.0f * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-            ent->velocity[2] += 500.0f * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-
-            gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n", wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
-        }
 
         // Wait before the next wave
         if (wave < NUM_WAVES - 1) {
