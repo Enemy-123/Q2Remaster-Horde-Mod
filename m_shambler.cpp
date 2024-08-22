@@ -48,8 +48,76 @@ constexpr vec3_t lightning_right_hand[] = {
 	{ 27, -11, 83 }
 };
 
-void shambler_windup(edict_t* self);
+void shambler_windupFire(edict_t* self);
 
+static void shambler_fireball_update(edict_t* self)
+{
+	edict_t* fireball_effect = self->beam;
+	if (!fireball_effect) {
+		// Create new fireball effect
+		fireball_effect = G_Spawn();
+		self->beam = fireball_effect;
+		fireball_effect->s.effects = EF_FIREBALL;
+		fireball_effect->s.renderfx = RF_FULLBRIGHT | RF_TRANSLUCENT;
+		fireball_effect->movetype = MOVETYPE_NONE;
+		fireball_effect->solid = SOLID_NOT;
+		gi.setmodel(fireball_effect, "models/objects/gibs/sm_meat/tris.md2");
+	}
+
+	if (self->s.frame >= FRAME_magic01 + q_countof(lightning_left_hand))
+	{
+		G_FreeEdict(fireball_effect);
+		self->beam = nullptr;
+		return;
+	}
+
+	vec3_t f, r;
+	AngleVectors(self->s.angles, f, r, nullptr);
+
+	// Calculate positions for both hands
+	const vec3_t left_pos = M_ProjectFlashSource(self, lightning_left_hand[self->s.frame - FRAME_magic01], f, r);
+	const vec3_t right_pos = M_ProjectFlashSource(self, lightning_right_hand[self->s.frame - FRAME_magic01], f, r);
+
+	// Calculate the midpoint between hands for the fireball effect
+	vec3_t midpoint;
+	VectorAdd(left_pos, right_pos, midpoint);
+	VectorScale(midpoint, 0.5f, midpoint);
+
+	// Update fireball effect position
+	VectorCopy(midpoint, fireball_effect->s.origin);
+
+	// Calculate size based on frame
+	const float size_factor = static_cast<float>(self->s.frame - FRAME_magic01) / static_cast<float>(q_countof(lightning_left_hand));
+	const float max_size = 1.5f; // Maximum size multiplier
+	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
+
+	// Update size
+	fireball_effect->s.scale = current_size;
+
+	// Add pulsating effect using gtime_t
+	const gtime_t current_time = level.time;
+	const float pulse = sinf(current_time.seconds<float>() * 0.01f * PIf) * 0.2f + 0.8f;
+
+	// Apply pulse to scale
+	fireball_effect->s.scale *= pulse;
+
+	// Add SpawnGrow-like effect
+	if (frandom() < 0.3f) { // 30% chance each frame to spawn a particle
+		SpawnGrow_Spawn(midpoint, 10.0f, 1.0f);
+	}
+
+	gi.linkentity(fireball_effect);
+}
+
+void shambler_windupFire(edict_t* self)
+{
+	gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
+	// We don't need to spawn a beam entity here anymore
+	// The fireball effect will be created in shambler_lightning_update
+	self->beam = nullptr;
+	shambler_fireball_update(self); // Initial update
+}
+//
 static void shambler_lightning_update(edict_t* self)
 {
 	edict_t* lightning = self->beam;
@@ -306,10 +374,12 @@ void ShamblerCastLightning(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// calc direction to where we targted
-	if (g_hardcoop->integer == 2 || current_wave_number >=22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
-	{		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr); }
+	if (g_hardcoop->integer || current_wave_number >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	{
+		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
+	}
 	else
-	PredictAim(self, self->enemy, start, 0, false, self->spawnflags.has(SPAWNFLAG_SHAMBLER_PRECISE) ? 0.f : 0.1f, &dir, nullptr);
+		PredictAim(self, self->enemy, start, 0, false, self->spawnflags.has(SPAWNFLAG_SHAMBLER_PRECISE) ? 0.f : 0.1f, &dir, nullptr);
 
 	vec3_t end = start + (dir * 8192);
 	trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
@@ -324,6 +394,8 @@ void ShamblerCastLightning(edict_t* self)
 
 	fire_bullet(self, start, dir, irandom(8, 12), 15 * M_DamageModifier(self), 0, 0, MOD_TESLA);
 }
+
+
 
 mframe_t shambler_frames_magic[] = {
 	{ ai_charge, 0, shambler_windup },
@@ -342,9 +414,84 @@ mframe_t shambler_frames_magic[] = {
 
 MMOVE_T(shambler_attack_magic) = { FRAME_magic01, FRAME_magic12, shambler_frames_magic, shambler_run };
 
+void ShamblerCastFireballs(edict_t* self)
+{
+	if (!self->enemy)
+		return;
+
+	vec3_t start, dir, forward, right;
+	vec3_t offset = FindShamblerOffset(self);
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, offset, forward, right);
+
+
+	void fire_touch(edict_t * self, edict_t * other, const trace_t & tr, bool other_touching_self);
+
+	// Number of fireballs to launch
+	int num_fireballs = 5;
+
+	for (int i = 0; i < num_fireballs; i++)
+	{
+		// Calculate spread
+		float spread = 0.1f;
+		if (g_hardcoop->integer || current_wave_number >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+			spread = 0.05f;
+
+		// Calculate direction with some spread
+		PredictAim(self, self->enemy, start, 0, false, spread, &dir, nullptr);
+
+		// Create and launch fireball
+		edict_t* fireball = G_Spawn();
+		if (fireball)
+		{
+			fireball->s.effects = EF_FIREBALL;
+			fireball->s.renderfx = RF_MINLIGHT;
+			fireball->solid = SOLID_BBOX;
+			fireball->movetype = MOVETYPE_TOSS;
+			fireball->clipmask = MASK_SHOT;
+			fireball->velocity[0] = dir[0] * 600 + crandom() * 50;
+			fireball->velocity[1] = dir[1] * 600 + crandom() * 50;
+			fireball->velocity[2] = dir[2] * 600 + crandom() * 50;
+			fireball->avelocity = { crandom() * 90, crandom() * 90, crandom() * 90 };
+			fireball->classname = "fireball";
+			fireball->owner = self;
+			gi.setmodel(fireball, "models/objects/gibs/sm_meat/tris.md2");
+			VectorCopy(start, fireball->s.origin);
+			fireball->nextthink = level.time + 5000_ms;
+			fireball->think = G_FreeEdict;
+			fireball->touch = fire_touch;
+			fireball->dmg = irandom(8, 12) * M_DamageModifier(self);
+			fireball->radius_dmg = 15 * M_DamageModifier(self);
+			fireball->dmg_radius = 100;
+			gi.linkentity(fireball);
+		}
+	}
+
+	// Play sound effect
+	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/rocklx1a.wav"), 1, ATTN_NORM, 0);
+}
+
+mframe_t shambler_frames_fireball[] = {
+	{ ai_charge, 0, shambler_windupFire },
+	{ ai_charge, 0, shambler_fireball_update },
+	{ ai_charge, 0, shambler_fireball_update },
+	{ ai_move, 0, shambler_fireball_update },
+	{ ai_move, 0, shambler_fireball_update },
+	{ ai_move, 0, ShamblerSaveLoc},
+	{ ai_move },
+	{ ai_charge },
+	{ ai_move, 0, ShamblerCastFireballs },
+	{ ai_move, 0, ShamblerCastFireballs },
+	{ ai_move, 0, ShamblerCastFireballs },
+	{ ai_move },
+};
+
+MMOVE_T(shambler_attack_fireball) = { FRAME_magic01, FRAME_magic12, shambler_frames_fireball, shambler_run };
+
+
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
-	M_SetAnimation(self, &shambler_attack_magic);
+	M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? &shambler_attack_magic : &shambler_attack_fireball);
 }
 
 //
