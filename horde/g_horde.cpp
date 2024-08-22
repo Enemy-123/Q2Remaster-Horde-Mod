@@ -1793,7 +1793,7 @@ static void SpawnMonsters() {
 		(current_wave_number <= 7) ? 0.6f : 0.45f;
 
 	// Pre-seleccionar puntos de spawn disponibles
-	for (int32_t i = 0; i < globals.num_edicts; i++) {
+	for (size_t i = 0; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 		if (!ent->inuse) continue;
 		if (ent->classname && !strcmp(ent->classname, "info_player_deathmatch")) {
@@ -1808,11 +1808,13 @@ static void SpawnMonsters() {
 		return;
 	}
 
+	edict_t* spawn_point = nullptr; // Declarar fuera del loop para usar después si es necesario
+
 	// Generar monstruos
 	for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++i) {
 		// Seleccionar un punto de spawn aleatoriamente
 		const size_t spawn_index = static_cast<size_t>(frandom() * available_spawns.size());
-		auto spawn_point = available_spawns[spawn_index];
+		spawn_point = available_spawns[spawn_index];
 
 		const char* monster_classname = G_HordePickMonster(spawn_point);
 		if (!monster_classname) {
