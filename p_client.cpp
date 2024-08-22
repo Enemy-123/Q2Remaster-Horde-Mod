@@ -4004,7 +4004,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	const bool is_horde_mode = g_horde->integer != 0;
 	gtime_t min_combat_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
-	gtime_t min_bad_area_time_left = 3_sec;  // Always start from 3 seconds
+	gtime_t min_bad_area_time_left = 0_ms;  // Always start from 3 seconds
 	edict_t* best_player = nullptr;
 	vec3_t best_spot = {};
 	bool combat_state_exists = false;
@@ -4022,11 +4022,6 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 			combat_time_left = player->client->last_damage_time - level.time;
 		}
 
-		//// Check firing state
-		//if (!in_combat && player->client->last_firing_time >= level.time) {
-		//	in_combat = true;
-		//	combat_time_left = player->client->last_firing_time - level.time;
-		//}
 
 		if (in_combat) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
@@ -4039,9 +4034,9 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		}
 
 		// Check positioning and blocked state only if not in combat
-		bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
+		const bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
 		vec3_t spot;
-		bool is_blocked = !G_FindRespawnSpot(player, spot);
+		const bool is_blocked = !G_FindRespawnSpot(player, spot);
 
 		if (is_bad_area || is_blocked) {
 			player->client->coop_respawn_state = is_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;

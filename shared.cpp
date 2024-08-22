@@ -321,7 +321,43 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 		power_armor_multiplier *= 1.25f;
 		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 175_sec;
 	}
-	// ... (other bonus flag effects remain unchanged)
+	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
+		boss->s.scale = 1.5f;
+		boss->mins *= 1.5f;
+		boss->maxs *= 1.5f;
+		boss->s.effects |= EF_PLASMA | EF_TAGTRAIL;
+		health_multiplier *= 1.4f;
+		power_armor_multiplier *= 1.4f;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
+		boss->s.effects |= EF_BLUEHYPERBLASTER;
+		boss->s.renderfx |= RF_TRANSLUCENT;
+		power_armor_multiplier *= 1.4f;
+		boss->monsterinfo.invincible_time = max(level.time, boss->monsterinfo.invincible_time) + 12_sec;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
+		boss->s.effects |= EF_GIB | EF_FLAG2;
+		health_multiplier *= 1.5f;
+		power_armor_multiplier *= 1.5f;
+		boss->monsterinfo.quad_time = max(level.time, boss->monsterinfo.quad_time) + 175_sec;
+		boss->monsterinfo.attack_state = AS_BLIND;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
+		boss->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
+		boss->s.alpha = 0.5f;
+		health_multiplier *= 1.4f;
+		power_armor_multiplier *= 1.4f;
+		boss->monsterinfo.attack_state = AS_BLIND;
+	}
+	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
+		boss->s.scale = 1.2f;
+		boss->mins *= 1.2f;
+		boss->maxs *= 1.2f;
+		boss->s.effects |= EF_TRACKER | EF_FLAG1;
+		health_multiplier *= 1.5f;
+		power_armor_multiplier *= 1.1f;
+		boss->monsterinfo.attack_state = AS_BLIND;
+	}
 
 	// Calculate minimum health and power armor based on wave number
 	int health_min = 5000;
@@ -391,6 +427,9 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 	boss->health = std::max(boss->health, health_min);
 	if (boss->monsterinfo.power_armor_power > 0)
 		boss->monsterinfo.power_armor_power = std::max(boss->monsterinfo.power_armor_power, power_armor_min);
+
+	boss->max_health = boss->health;
+	boss->initial_max_health = boss->health;
 }
 void SetBossHealth(edict_t* boss, int base_health, int wave_number)
 {
@@ -429,8 +468,6 @@ void SetBossHealth(edict_t* boss, int base_health, int wave_number)
 	}
 
 	boss->health = std::max(base_health, health_min);
-	boss->max_health = boss->health;
-	boss->initial_max_health = boss->health;
 
 	if (st.was_key_specified("power_armor_type"))
 	{
