@@ -393,7 +393,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was telefragged by a {1}\n";
 			break;
 		case MOD_BRAINTENTACLE:
-			base = brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a\n";
+			base = brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a {1}\n";
 			break;
 		case MOD_GEKK:
 			base = "{0} was spat to death by a {1}. Yuck!\n";
