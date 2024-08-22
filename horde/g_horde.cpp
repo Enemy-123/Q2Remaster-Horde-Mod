@@ -1218,9 +1218,6 @@ void AttachHealthBar(edict_t* boss)  {
     healthbar->nextthink = level.time + 20_sec;
 }
 
-// Definir una clave de mensaje constexpr para la localización
-constexpr const char* BOSS_SPAWN_MESSAGE_KEY = "BOSS_SPAWN_MESSAGE";
-
 static int boss_counter = 0; // Declaramos boss_counter como variable estática
 
 void SpawnBossAutomatically() {
@@ -1273,11 +1270,14 @@ void SpawnBossAutomatically() {
     // Boss spawn message
     const auto it_msg = bossMessagesMap.find(desired_boss);
     if (it_msg != bossMessagesMap.end()) {
-        gi.LocBroadcast_Print(PRINT_CHAT, BOSS_SPAWN_MESSAGE_KEY, it_msg->second.c_str());
+        // Usamos un puntero a char constante para el mensaje
+        const char* message = it_msg->second.c_str();
+        gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", message);
     }
     else {
         gi.Com_PrintFmt("Warning: No specific message found for boss type '{}'. Using default message.\n", desired_boss);
-        gi.LocBroadcast_Print(PRINT_CHAT, BOSS_SPAWN_MESSAGE_KEY, "A Strogg Boss has spawned! Prepare for battle!");
+        // Mensaje predeterminado como una cadena literal
+        gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
     }
 
     // Configure boss
