@@ -425,7 +425,7 @@ void ShamblerCastFireballs(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// Number of fireballs to launch
-	const int num_fireballs = 1;
+	constexpr int num_fireballs = 1;
 	const int speed = irandom(550, 999);
 
 	for (int i = 0; i < num_fireballs; i++)
@@ -456,7 +456,7 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->s.renderfx = RF_MINLIGHT;
 			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
-			fireball->touch = rocket_touch; // Use rocket touch function
+			fireball->touch = fireball_touch; // Use rocket touch function
 			fireball->nextthink = level.time + gtime_t::from_sec(8.0f);
 			fireball->think = G_FreeEdict;
 			fireball->dmg = irandom(22, 24) * M_DamageModifier(self);

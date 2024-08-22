@@ -326,7 +326,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		switch (mod.id)
 		{
 		case MOD_BLASTER:
-			base = "{0} was blasted by a {1}\n";
+			base = "{0} was humilliated by a {1}\n";
 			break;
 		case MOD_SHOTGUN:
 			base = "{0}'s face was impacted by a {1}\n";
@@ -341,13 +341,16 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0}'s torso was removed by a {1}\n";
 			break;
 		case MOD_GRENADE:
-			base = "{0} was gibbed by a {1}\n";
+			base = "{0} was gibbed by a {1}'s grenade\n";
 			break;
 		case MOD_G_SPLASH:
 			base = "{0} was splattered all over by a {1}\n";
 			break;
 		case MOD_ROCKET:
 			base = "{0} ate the rocket of a {1}\n";
+			break;
+		case MOD_FIREBALL:
+			base = "{0} was reduced to ashes by a {1}'s fireball, dang!\n";
 			break;
 		case MOD_R_SPLASH:
 			base = "{0} was blown up by a {1}\n";
@@ -379,6 +382,9 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_TARGET_LASER:
 			base = "{0} was laser-cooked by a {1}\n";
 			break;
+		case MOD_TESLA:
+			base = "{0} got a shocking end thanks to a {1}\n";
+			break;
 		case MOD_TELEFRAG:
 		case MOD_TELEFRAG_SPAWN:
 			base = "{0} was telefragged by a {1}\n";
@@ -390,7 +396,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0} was spat to death by a {1}. Yuck!\n";
 			break;
 		default:
-			base = "{0} was killed by a {1}\n";
+			base = "{0} was killed insanely by a {1}\n";
 			break;
 		}
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name.c_str());

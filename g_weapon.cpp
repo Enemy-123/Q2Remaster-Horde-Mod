@@ -819,6 +819,59 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 		gi.linkentity(grenade);
 	}
 }
+
+
+//FIREBALL
+
+TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	vec3_t origin;
+
+	if (other == ent->owner)
+		return;
+
+	if (tr.surface && (tr.surface->flags & SURF_SKY))
+	{
+		G_FreeEdict(ent);
+		return;
+	}
+
+	if (ent->owner->client)
+		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
+
+	// calculate position for the explosion entity
+	origin = ent->s.origin + tr.plane.normal;
+
+	if (other->takedamage)
+	{
+		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, 0, DAMAGE_NONE, MOD_FIREBALL);
+	}
+	else
+	{
+		// don't throw any debris in net games  // check horde later
+		if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
+		{
+			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
+			{
+				/*ThrowGibs(ent, 2, {
+					{ (size_t)irandom(5), "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
+					});*/
+			}
+		}
+	}
+
+	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+
+	gi.WriteByte(svc_temp_entity);
+	if (ent->waterlevel)
+		gi.WriteByte(TE_ROCKET_EXPLOSION_WATER);
+	else
+		gi.WriteByte(TE_ROCKET_EXPLOSION);
+	gi.WritePosition(origin);
+	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+	G_FreeEdict(ent);
+}
 /*
 =================
 fire_rocket

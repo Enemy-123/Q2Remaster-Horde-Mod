@@ -1022,6 +1022,7 @@ enum mod_id_t : uint8_t
 	MOD_GRENADE,
 	MOD_G_SPLASH,
 	MOD_ROCKET,
+	MOD_FIREBALL,
 	MOD_R_SPLASH,
 	MOD_HYPERBLASTER,
 	MOD_RAILGUN,
@@ -2385,6 +2386,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
 	float damage_radius, bool held);
 void rocket_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
+void fireball_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius,
 	int radius_damage);
 void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick);
