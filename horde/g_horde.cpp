@@ -792,7 +792,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	// Calculate flying spawn adjustment
 	const int32_t flyingSpawns = countFlyingSpawns();
-	const float adjustmentFactor = (flyingSpawns > 0) ? 0.25f : 1.0f;
+	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
 	// Use a static vector to avoid repeated allocations
 	static std::vector<std::pair<const weighted_item_t*, float>> eligible_monsters;
@@ -802,18 +802,12 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	for (const auto& item : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(item.classname);
 
-		if ((flying_monsters_mode && !isFlyingMonster) ||
-			(spawn_point->style == 1 && !isFlyingMonster) ||
-			(!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
-			(item.min_level > g_horde_local.level || (item.max_level != -1 && item.max_level < g_horde_local.level)) ||
-			(isFlyingMonster && g_horde_local.level < WAVE_TO_ALLOW_FLYING)) {
-			continue;
-		}
-
-		const float weight = item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
-		if (weight > 0) {
-			total_weight += weight;
-			eligible_monsters.emplace_back(&item, total_weight);
+		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
+			const float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+			if (weight > 0) {
+				total_weight += weight;
+				eligible_monsters.emplace_back(&item, weight);  // Store individual weights, not cumulative
+			}
 		}
 	}
 
@@ -822,20 +816,21 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 		return nullptr;
 	}
 
-	// Select a monster based on weight
-	const float r = frandom() * total_weight;
-	auto it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), r,
-		[](const auto& pair, float value) { return pair.second < value; });
-
-	if (it != eligible_monsters.end()) {
-		const char* chosen_monster = it->first->classname;
-		UpdateCooldowns(spawn_point, chosen_monster);
-		ResetSpawnAttempts(spawn_point);
-		return chosen_monster;
+	// Create a vector of weights for std::discrete_distribution
+	std::vector<float> weights;
+	weights.reserve(eligible_monsters.size());
+	for (const auto& monster : eligible_monsters) {
+		weights.push_back(monster.second);
 	}
 
-	IncreaseSpawnAttempts(spawn_point);
-	return nullptr;
+	// Create and use the discrete distribution
+	std::discrete_distribution<> dist(weights.begin(), weights.end());
+	size_t chosen_index = dist(gen);
+
+	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
+	UpdateCooldowns(spawn_point, chosen_monster);
+	ResetSpawnAttempts(spawn_point);
+	return chosen_monster;
 }
 
 void Horde_PreInit() {
@@ -1517,7 +1512,7 @@ inline int32_t GetNumSpectPlayers() {
 struct ConditionParams {
 	int32_t maxMonsters{};
 	gtime_t timeThreshold{};
-	gtime_t independentTimeThreshold = 75_sec;
+	gtime_t independentTimeThreshold = 60_sec;
 };
 
 // Variables globales
