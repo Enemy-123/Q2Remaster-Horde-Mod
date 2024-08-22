@@ -454,7 +454,7 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->solid = SOLID_BBOX;
 			fireball->s.effects = EF_FIREBALL; // fireball effects
 			fireball->s.renderfx = RF_MINLIGHT;
-			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->s.modelindex = brandom() ? gi.modelindex("models/objects/fire/tris.md2") : gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
 			fireball->touch = fireball_touch; // Use rocket touch function
 			fireball->nextthink = level.time + gtime_t::from_sec(8.0f);
