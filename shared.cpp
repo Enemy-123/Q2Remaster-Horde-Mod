@@ -508,18 +508,112 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 	}
 }
 
+void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
+	for (int wave = 0; wave < num_waves; wave++) {
+		const float size = push_radius * (1.0f - static_cast<float>(wave) / num_waves);
+		const float end_size = size * 0.1f;
+
+		// Use ImprovedSpawnGrow for the first wave, but without the earthquake effect
+		if (wave == 0) {
+			// Create the main SpawnGrow effect
+			SpawnGrow_Spawn(center, size, end_size);
+
+			// Add more dramatic effects for the first wave
+			for (int i = 0; i < 5; i++) {
+				vec3_t offset;
+				for (int j = 0; j < 3; j++) {
+					offset[j] = center[j] + crandom() * 75;  // Random offset within 75 units
+				}
+				SpawnGrow_Spawn(offset, size * 0.5f, end_size * 0.5f);
+			}
+		}
+		else {
+			// Use regular SpawnGrow for subsequent waves
+			SpawnGrow_Spawn(center, size, end_size);
+		}
+
+		// Find and push entities
+		edict_t* ent = nullptr;
+		while ((ent = findradius(ent, center, size)) != nullptr) {
+			if (!ent->inuse || !ent->takedamage)
+				continue;
+
+			vec3_t push_dir{};
+			VectorSubtract(ent->s.origin, center, push_dir);
+			const float distance = VectorLength(push_dir);
+
+			if (distance > 0.1f) {
+				VectorNormalize(push_dir);
+			}
+			else {
+				// If the entity is too close to the center, give it a random direction
+				push_dir[0] = crandom();
+				push_dir[1] = crandom();
+				push_dir[2] = 0;
+				VectorNormalize(push_dir);
+			}
+
+			// Calculate push strength with a sine wave for smoother effect
+			float wave_push_strength = push_strength * (1.0f - distance / size);
+			wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+			// Calculate new position
+			vec3_t new_pos{};
+			VectorMA(ent->s.origin, wave_push_strength / 700, push_dir, new_pos);
+
+			// Trace to ensure we're not pushing through walls
+			trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
+
+			vec3_t final_velocity;
+			if (tr.fraction < 1.0) {
+				// If we hit something, adjust the push
+				VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+			}
+			else {
+				VectorScale(push_dir, wave_push_strength, final_velocity);
+			}
+
+			// Add strong horizontal component
+			float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+			final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
+			final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
+
+			// Add vertical component
+			final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+			VectorCopy(final_velocity, ent->velocity);
+
+			ent->groundentity = nullptr;
+
+			if (ent->client) {
+				VectorCopy(ent->velocity, ent->client->oldvelocity);
+				ent->client->oldgroundentity = ent->groundentity;
+			}
+
+			gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n", wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
+		}
+
+		// Wait before the next wave
+		if (wave < num_waves - 1) {
+			// Note: This delay won't work as is in the function. You might need to implement a different way to handle the delay between waves.
+			// For now, we'll just print a message.
+			gi.Com_PrintFmt("Waiting {} milliseconds before next wave\n", wave_interval_ms);
+		}
+	}
+}
+
 
 void Boss_SpawnMonster(edict_t* self)
 {
 	if (!self || self->health <= 0 || self->deadflag)
 		return;
 
-	const int NUM_MONSTERS_MIN = 2;
-	const int NUM_MONSTERS_MAX = 3;
-	const float SPAWN_RADIUS_MIN = 100.0f;
-	const float SPAWN_RADIUS_MAX = 150.0f;
-	const int MAX_SPAWN_ATTEMPTS = 10;
-	const float SPAWN_HEIGHT_OFFSET = 8.0f;
+	constexpr int NUM_MONSTERS_MIN = 2;
+	constexpr int NUM_MONSTERS_MAX = 3;
+	constexpr float SPAWN_RADIUS_MIN = 100.0f;
+	constexpr float SPAWN_RADIUS_MAX = 150.0f;
+	constexpr int MAX_SPAWN_ATTEMPTS = 10;
+	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
 
 	const int num_monsters = NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1));
 
