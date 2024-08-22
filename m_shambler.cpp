@@ -57,8 +57,8 @@ static void shambler_fireball_update(edict_t* self)
 		// Create new fireball effect
 		fireball_effect = G_Spawn();
 		self->beam = fireball_effect;
-		fireball_effect->s.effects = EF_FIREBALL;
-		fireball_effect->s.renderfx = RF_FULLBRIGHT | RF_TRANSLUCENT;
+		fireball_effect->s.effects = EF_FIREBALL | EF_BARREL_EXPLODING;
+		fireball_effect->s.renderfx = RF_GLOW;
 		fireball_effect->movetype = MOVETYPE_NONE;
 		fireball_effect->solid = SOLID_NOT;
 		gi.setmodel(fireball_effect, "models/objects/gibs/sm_meat/tris.md2");
@@ -420,49 +420,50 @@ void ShamblerCastFireballs(edict_t* self)
 		return;
 
 	vec3_t start, dir, forward, right;
-	vec3_t offset = FindShamblerOffset(self);
+	const vec3_t offset = FindShamblerOffset(self);
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
-
-	void fire_touch(edict_t * self, edict_t * other, const trace_t & tr, bool other_touching_self);
-
 	// Number of fireballs to launch
-	int num_fireballs = 5;
+	const int num_fireballs = 1;
+	const int speed = irandom(550, 999);
 
 	for (int i = 0; i < num_fireballs; i++)
 	{
 		// Calculate spread
-		float spread = 0.1f;
+		float spread = 0.6f;
 		if (g_hardcoop->integer || current_wave_number >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
-			spread = 0.05f;
+			spread = 0.3f;
 
 		// Calculate direction with some spread
-		PredictAim(self, self->enemy, start, 0, false, spread, &dir, nullptr);
+		PredictAim(self, self->enemy, start, speed, false, spread, &dir, nullptr);
 
-		// Create and launch fireball
+		// Create and launch fireball-rocket
 		edict_t* fireball = G_Spawn();
 		if (fireball)
 		{
-			fireball->s.effects = EF_FIREBALL;
-			fireball->s.renderfx = RF_MINLIGHT;
+			fireball->s.origin = start;
+			fireball->s.angles = vectoangles(dir);
+			fireball->velocity = dir * speed;
+			fireball->movetype = MOVETYPE_FLYMISSILE;
+			fireball->svflags |= SVF_PROJECTILE;
+			fireball->flags |= FL_DODGE;
+			fireball->clipmask = MASK_PROJECTILE;
+			//if (self->client && !G_ShouldPlayersCollide(true))
+			//	fireball->clipmask &= ~CONTENTS_PLAYER;
 			fireball->solid = SOLID_BBOX;
-			fireball->movetype = MOVETYPE_TOSS;
-			fireball->clipmask = MASK_SHOT;
-			fireball->velocity[0] = dir[0] * 600 + crandom() * 50;
-			fireball->velocity[1] = dir[1] * 600 + crandom() * 50;
-			fireball->velocity[2] = dir[2] * 600 + crandom() * 50;
-			fireball->avelocity = { crandom() * 90, crandom() * 90, crandom() * 90 };
-			fireball->classname = "fireball";
+			fireball->s.effects = EF_FIREBALL; // fireball effects
+			fireball->s.renderfx = RF_MINLIGHT;
+			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
-			gi.setmodel(fireball, "models/objects/gibs/sm_meat/tris.md2");
-			VectorCopy(start, fireball->s.origin);
-			fireball->nextthink = level.time + 5000_ms;
+			fireball->touch = rocket_touch; // Use rocket touch function
+			fireball->nextthink = level.time + gtime_t::from_sec(8.0f);
 			fireball->think = G_FreeEdict;
-			fireball->touch = fire_touch;
-			fireball->dmg = irandom(8, 12) * M_DamageModifier(self);
-			fireball->radius_dmg = 15 * M_DamageModifier(self);
+			fireball->dmg = irandom(22, 24) * M_DamageModifier(self);
+			fireball->radius_dmg = 35 * M_DamageModifier(self);
 			fireball->dmg_radius = 100;
+			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
+			fireball->classname = "shambler_fireball";
 			gi.linkentity(fireball);
 		}
 	}
@@ -491,7 +492,7 @@ MMOVE_T(shambler_attack_fireball) = { FRAME_magic01, FRAME_magic12, shambler_fra
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
-	M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? &shambler_attack_magic : &shambler_attack_fireball);
+	M_SetAnimation(self, frandom() <= 0.7f ? &shambler_attack_magic : &shambler_attack_fireball);
 }
 
 //
