@@ -19,7 +19,7 @@ int32_t last_wave_number = 0;
 static int32_t cachedRemainingMonsters = -1;
 
 gtime_t horde_message_end_time = 0_sec;
-gtime_t SPAWN_POINT_COOLDOWN = gtime_t::from_sec(3.9); // Cooldown en segundos para los puntos de spawn 3.0
+gtime_t SPAWN_POINT_COOLDOWN = 3.9_sec; // Cooldown en segundos para los puntos de spawn 3.0
 
 cvar_t* g_horde;
 
@@ -48,7 +48,7 @@ std::unordered_set<std::string> obtained_benefits;
 std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
 std::unordered_map<edict_t*, int32_t> spawnAttempts;
-std::unordered_map<edict_t*, float> spawnPointCooldowns;
+std::unordered_map<edict_t*, gtime_t> spawnPointCooldowns;
 
 const std::unordered_set<std::string> smallMaps = {
 	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
@@ -689,13 +689,13 @@ float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float a
 
 void ResetSpawnAttempts(edict_t* spawn_point) {
 	spawnAttempts[spawn_point] = 0;
-	spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
+	spawnPointCooldowns[spawn_point] = level.time;
 }
 
 void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
 	lastSpawnPointTime[spawn_point] = level.time;
 	lastMonsterSpawnTime[classname] = level.time;
-	spawnPointCooldowns[spawn_point] = SPAWN_POINT_COOLDOWN.seconds<float>();
+	spawnPointCooldowns[spawn_point] = level.time;
 }
 
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
@@ -722,13 +722,14 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	}
 
 	// Filtrar solo jugadores y bots
-	if ((ent->svflags & SVF_PLAYER) || (ent->svflags & SVF_BOT)) {
-		filter_data->count++;
+	for (auto const* player : active_players_no_spect()) {
+		if (player) filter_data->count++;
 		// Si encontramos al menos una entidad, podemos detener la búsqueda
 		return BoxEdictsResult_t::End;
 	}
 	return BoxEdictsResult_t::Skip;
 }
+
 // is spawn occupied?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
 	vec3_t mins, maxs;
@@ -749,14 +750,14 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Check cooldowns
-	float currentCooldown = SPAWN_POINT_COOLDOWN.seconds<float>();
+	gtime_t currentCooldown = SPAWN_POINT_COOLDOWN;
 	if (const auto it = spawnPointCooldowns.find(spawn_point); it != spawnPointCooldowns.end()) {
 		currentCooldown = it->second;
 	}
 
 	if (const auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
-		if ((level.time - it->second).seconds<float>() < currentCooldown) {
-			return nullptr;
+		if (level.time < it->second + SPAWN_POINT_COOLDOWN) {
+			return nullptr;  // aún en cooldown, no permitir spawn
 		}
 	}
 
@@ -1375,7 +1376,7 @@ void ResetSpawnAttempts() {
 		attempt.second = 0;
 	}
 	for (auto& cooldown : spawnPointCooldowns) {
-		cooldown.second = SPAWN_POINT_COOLDOWN.seconds<float>();
+		cooldown.second = SPAWN_POINT_COOLDOWN;
 	}
 }
 

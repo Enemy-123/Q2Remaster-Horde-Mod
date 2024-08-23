@@ -215,7 +215,7 @@ void ai_stand(edict_t* self, float dist)
 			float nearest_distance_sq = FLT_MAX;
 
 			// Encuentra el jugador más cercano que esté vivo y no sea espectador
-			for (const auto client : active_players_no_spect())
+			for (auto client : active_players_no_spect())
 			{
 				if (client->inuse && client->health > 0)
 				{
