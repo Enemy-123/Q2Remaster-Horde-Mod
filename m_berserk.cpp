@@ -798,7 +798,7 @@ MONSTERINFO_DUCK(berserk_duck) (edict_t* self, gtime_t eta) -> bool
  */
 void SP_monster_berserk(edict_t* self)
 {
-	if (g_horde->integer && current_wave_number <= 18) {
+	if (g_horde->integer && current_wave_level <= 18) {
 		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.12f)

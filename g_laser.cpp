@@ -239,7 +239,7 @@ void create_laser(edict_t* ent)
 
 	// create the laser beam
 	laser->dmg = LASER_INITIAL_DAMAGE + LASER_ADDON_DAMAGE;
-	laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * current_wave_number);
+	laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * current_wave_level);
 	laser->max_health = laser->health;
 	laser->gib_health = -100;
 	laser->mass = 50;

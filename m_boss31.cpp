@@ -700,7 +700,7 @@ void SP_monster_jorg(edict_t* self)
 	self->mins = { -80, -80, 0 };
 	self->maxs = { 80, 80, 140 };
 
-	self->health = 6500 + (1.08 * current_wave_number);
+	self->health = 6500 + (1.08 * current_wave_level);
 	self->gib_health = -2000;
 	self->mass = 1000;
 

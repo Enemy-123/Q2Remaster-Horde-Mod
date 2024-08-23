@@ -1009,7 +1009,7 @@ void SP_monster_perrokl(edict_t* self)
 		if (G_IsCooperative())
 		self->health = 375 * st.health_multiplier;
 		if (g_horde->integer) {
-			self->health = 775 * current_wave_number;
+			self->health = 775 * current_wave_level;
 			self->s.scale = 1.2f;
 			self->mins *= 1.2f;
 			self->maxs *= 1.2f;

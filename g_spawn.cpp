@@ -510,17 +510,28 @@ typedef struct {
 	int replacement_count;
 } MonsterReplacement;
 
+// Función para generar un número aleatorio en un rango específico
+int mt_rand_range(int min, int max) {
+	std::uniform_int_distribution<int> dist(min, max);
+	return dist(mt_rand);
+}
+
+// Función para generar un número aleatorio flotante entre 0 y 1
+float mt_rand_float() {
+	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	return dist(mt_rand);
+}
+
 // Función auxiliar para seleccionar un reemplazo aleatorio
 const char* get_random_replacement(const MonsterReplacement* replacement) {
 	if (replacement->replacement_count == 1) {
 		return replacement->replacements[0];
 	}
 	else {
-		int index = rand() % replacement->replacement_count;
+		const int index = mt_rand_range(0, replacement->replacement_count - 1);
 		return replacement->replacements[index];
 	}
 }
-#define MAX_CLASSNAME_LENGTH 64  // Ajusta este valor según sea necesario
 
 void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
 	if (!ent || !ent->classname) {
@@ -531,20 +542,13 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 		if (replacements[i].original && strcmp(ent->classname, replacements[i].original) == 0) {
 			const char* new_classname = get_random_replacement(&replacements[i]);
 			if (new_classname) {
-				// Usar Q_strlcpy para copiar el nuevo classname
-				char temp_classname[MAX_CLASSNAME_LENGTH];
-				Q_strlcpy(temp_classname, new_classname, sizeof(temp_classname));
-
 				// Asignar el nuevo classname
-				ent->classname = G_CopyString(temp_classname, TAG_LEVEL);  // Asumiendo que TAG_LEVEL es el tag correcto
-
-				// Logging para debug
-			//	gi.Com_PrintFmt("Replacing monster: original={}, new={}\n", replacements[i].original, temp_classname);
+				ent->classname = G_CopyString(new_classname, TAG_LEVEL);
 			}
 
 			// Asignar una única flag de bonus según la probabilidad dada
-			if ((rand() / (float)RAND_MAX) < bonus_prob) {
-				float rand_val = rand() / (float)RAND_MAX;
+			if (mt_rand_float() < bonus_prob) {
+				float rand_val = mt_rand_float();
 				int flag = 0;
 
 				if (rand_val < 0.2f) flag = BF_CHAMPION;
@@ -632,31 +636,41 @@ void ED_CallSpawn(edict_t* ent) {
 		{"item_power_shield", {"item_power_screen"}, 1},
 		{"item_silencer", {"item_bandolier"}, 1},
 	};
-	int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
+	const int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
 
 	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
-	if (g_chaotic->integer == 2) {
+	switch (g_chaotic->integer) {
+	case 2:
 		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.008f);
-	}
-	else if (g_chaotic->integer == 1 && current_wave_number >= 7) {
-		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
+		break;
+	case 1:
+		if (current_wave_level >= 7) {
+			perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
+		}
+		break;
 	}
 
-	if (g_insane->integer == 1 && current_wave_number >= 19) {
-		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.04f);
-	}
-	else if (g_insane->integer == 2) {
+	switch (g_insane->integer) {
+	case 1:
+		if (current_wave_level >= 19) {
+			perform_replacement(ent, insane_replacements, insane_replacement_count, 0.04f);
+		}
+		break;
+	case 2:
 		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.33f);
+		break;
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
-		if (g_hardcoop->integer == 3) {
+		switch (g_hardcoop->integer) {
+		case 3:
 			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.50f);
-		}
-		else {
+			break;
+		default:
 			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.0f);
+			break;
+		}
 	}
-}
 
 
 gitem_t* item;
@@ -1395,7 +1409,7 @@ static void G_PrecacheStartItems()
 		PrecacheItem(item);
 	}
 }
-const size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
+constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
 bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
 	std::string filename = std::string("baseq2/maps/") + mapname + ".ent";
@@ -1406,7 +1420,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
 	}
 
 	fseek(f, 0, SEEK_END);
-	long length = ftell(f);
+	const long length = ftell(f);
 	fseek(f, 0, SEEK_SET);
 
 	if (length > MAX_ENTITY_FILE_SIZE) {

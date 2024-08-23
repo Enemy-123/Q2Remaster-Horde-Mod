@@ -1080,7 +1080,7 @@ void SP_monster_turretkl(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_TURRET_ROCKET;
 		SP_monster_turret(self);
 		self->s.skinnum = 2;
-		self->health = 350 * current_wave_number;
+		self->health = 350 * current_wave_level;
 		if (self->health >= 1400) {
 			self->health = 1400;
 		}

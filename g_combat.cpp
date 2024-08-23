@@ -746,7 +746,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 				}
 
 				// Heal entities owned by the attacker
-				if ((attacker->svflags & SVF_PLAYER) && current_wave_number >= 10) {
+				if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
 					heal_attacker_sentries(attacker, health_stolen);
 				}
 
@@ -811,7 +811,7 @@ void heal_attacker_sentries(edict_t* attacker, int health_stolen) {
 		if (!ent->inuse || strcmp(ent->classname, "monster_sentrygun") != 0 || ent->owner != attacker)
 			continue;
 
-		if (ent->health > 0 && current_wave_number >= 17) {
+		if (ent->health > 0 && current_wave_level >= 17) {
 			ent->health = std::min(ent->health + health_stolen, ent->max_health);
 		}
 	}

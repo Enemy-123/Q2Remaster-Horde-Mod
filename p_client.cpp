@@ -934,22 +934,22 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	if (g_horde->integer) {
 		// Ajustar health y max_health basado en el número de oleadas actuales
-		if (current_wave_number >= 25 && current_wave_number <= 200) {
+		if (current_wave_level >= 25 && current_wave_level <= 200) {
 			client->pers.max_health = max(200, client->pers.max_health);
 		}
-		else if (current_wave_number >= 20 && current_wave_number <= 24) {
+		else if (current_wave_level >= 20 && current_wave_level <= 24) {
 			client->pers.max_health = max(180, client->pers.max_health);
 		}
-		else if (current_wave_number >= 15 && current_wave_number <= 19) {
+		else if (current_wave_level >= 15 && current_wave_level <= 19) {
 			client->pers.max_health = max(160, client->pers.max_health);
 		}
-		else if (current_wave_number >= 10 && current_wave_number <= 14) {
+		else if (current_wave_level >= 10 && current_wave_level <= 14) {
 			client->pers.max_health = max(140, client->pers.max_health);
 		}
-		else if (current_wave_number >= 5 && current_wave_number <= 9) {
+		else if (current_wave_level >= 5 && current_wave_level <= 9) {
 			client->pers.max_health = max(120, client->pers.max_health);
 		}
-		else if (current_wave_number >= 1 && current_wave_number <= 4) {
+		else if (current_wave_level >= 1 && current_wave_level <= 4) {
 			client->pers.max_health = max(100, client->pers.max_health);
 		}
 		else {
@@ -1012,7 +1012,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	if (!taken_loadout) {
 		// Lógica para el modo Horde
-		if (g_horde->integer && current_wave_number >= 15) {
+		if (g_horde->integer && current_wave_level >= 15) {
 			client->pers.max_ammo.fill(50);
 			client->pers.max_ammo[AMMO_BULLETS] = 400;
 			client->pers.max_ammo[AMMO_SHELLS] = 175;
@@ -1064,7 +1064,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			}
 		}
 		// Starting items for horde mode
-		if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number <= 12) {
+		if (G_IsDeathmatch() && g_horde->integer && current_wave_level >= 5 && current_wave_level <= 12) {
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
@@ -1073,7 +1073,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 		}
-		else if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 13) {
+		else if (G_IsDeathmatch() && g_horde->integer && current_wave_level >= 13) {
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;

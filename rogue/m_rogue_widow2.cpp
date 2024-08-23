@@ -1066,7 +1066,7 @@ void SP_monster_widow2(edict_t* self)
 	self->maxs = { 70, 70, 144 };
 	self->s.scale = 0.8f;
 
-	self->health = 6800 + (1.08 * current_wave_number);
+	self->health = 6800 + (1.08 * current_wave_level);
 	if (G_IsCooperative())
 		self->health += 500 * skill->integer;
 	if (g_horde->integer) { self->health = 5500; }
