@@ -381,17 +381,34 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	if (ent->client->resp.ctf_state)
 	{
 		select_spawn_result_t result = SelectDeathmatchSpawnPoint(g_dm_spawn_farthest->integer, force_spawn, false);
-
 		if (result.any_valid)
 			return result.spot;
 	}
 
 	const char* cname;
+	bool use_ground_spawns = false;
+
+	auto count_ground_spawns = []() -> int32_t {
+		int32_t count = 0;
+		for (size_t i = 0; i < globals.num_edicts; i++) {
+			const auto& e = g_edicts[i];
+			if (e.inuse && strcmp(e.classname, "info_player_deathmatch") == 0 && e.style != 1) {
+				count++;
+			}
+		}
+		return count;
+		};
 
 	switch (ent->client->resp.ctf_team)
 	{
 	case CTF_TEAM1:
-		cname = "info_player_start";
+		if (current_wave_level == 0 && count_ground_spawns() > 0) {
+			cname = "info_player_deathmatch";
+			use_ground_spawns = true;
+		}
+		else {
+			cname = "info_player_start";
+		}
 		break;
 	case CTF_TEAM2:
 		cname = "info_player_team2";
@@ -399,10 +416,8 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	default:
 	{
 		select_spawn_result_t result = SelectDeathmatchSpawnPoint(g_dm_spawn_farthest->integer, force_spawn, true);
-
 		if (result.any_valid)
 			return result.spot;
-
 		gi.Com_Error("can't find suitable spectator spawn point");
 		return nullptr;
 	}
@@ -410,24 +425,24 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 
 	static std::vector<edict_t*> spawn_points;
 	edict_t* spot = nullptr;
-
 	spawn_points.clear();
 
 	while ((spot = G_FindByString<&edict_t::classname>(spot, cname)) != nullptr)
-		spawn_points.push_back(spot);
+	{
+		if (!use_ground_spawns || (use_ground_spawns && spot->style != 1)) {
+			spawn_points.push_back(spot);
+		}
+	}
 
-	if (!spawn_points.size())
+	if (spawn_points.empty())
 	{
 		select_spawn_result_t result = SelectDeathmatchSpawnPoint(g_dm_spawn_farthest->integer, force_spawn, true);
-
 		if (!result.any_valid)
 			gi.Com_Error("can't find suitable CTF spawn point");
-
 		return result.spot;
 	}
 
 	std::shuffle(spawn_points.begin(), spawn_points.end(), mt_rand);
-
 	for (auto& point : spawn_points)
 		if (SpawnPointClear(point))
 			return point;
