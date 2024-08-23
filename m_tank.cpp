@@ -339,7 +339,7 @@ bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& t
 	}
 
 	// ok, that failed.  try to the right
-	vec3_t right_target = target + (right * 20);
+	const vec3_t right_target = target + (right * 20);
 	trace = gi.traceline(start, right_target, self, MASK_PROJECTILE);
 	if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
 	{
@@ -848,13 +848,13 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 		if (r > chance)
 			return;
 
-		bool rocket_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
-		bool blaster_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
+		const bool rocket_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
+		const bool blaster_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
 
 		if (!rocket_visible && !blaster_visible)
 			return;
 
-		bool use_rocket = (rocket_visible && blaster_visible) ? brandom() : rocket_visible;
+		const bool use_rocket = (rocket_visible && blaster_visible) ? brandom() : rocket_visible;
 
 		// turn on manual steering to signal both manual steering and blindfire
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;

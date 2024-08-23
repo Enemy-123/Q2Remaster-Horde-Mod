@@ -1029,9 +1029,9 @@ DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 
 MONSTERINFO_CHECKATTACK(Carrier_CheckAttack) (edict_t *self) -> bool
 {
-	bool enemy_infront = infront(self, self->enemy);
-	bool enemy_inback = inback(self, self->enemy);
-	bool enemy_below = below(self, self->enemy);
+	const bool enemy_infront = infront(self, self->enemy);
+	const bool enemy_inback = inback(self, self->enemy);
+	const bool enemy_below = below(self, self->enemy);
 
 	// PMM - shoot out the back if appropriate
 	if ((enemy_inback) || (!enemy_infront && enemy_below))
@@ -1052,7 +1052,7 @@ MONSTERINFO_CHECKATTACK(Carrier_CheckAttack) (edict_t *self) -> bool
 	return M_CheckAttack_Base(self, 0.4f, 0.8f, 0.8f, 0.8f, 0.5f, 0.f);
 }
 
-void CarrierPrecache()
+void CarrierPrecache() noexcept
 {
 	gi.soundindex("flyer/flysght1.wav");
 	gi.soundindex("flyer/flysrch1.wav");

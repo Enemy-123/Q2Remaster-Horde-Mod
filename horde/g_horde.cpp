@@ -1512,7 +1512,7 @@ inline int32_t GetNumSpectPlayers() {
 struct ConditionParams {
 	int32_t maxMonsters{};
 	gtime_t timeThreshold{};
-	gtime_t independentTimeThreshold = 60_sec;
+	gtime_t independentTimeThreshold = random_time(60_sec, 75_sec);
 };
 
 // Variables globales

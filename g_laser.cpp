@@ -88,7 +88,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
 		return;
 	}
 
-	int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
+	const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
 	self->s.frame = size;
 
 	// Cambiar color basado en la salud del láser
@@ -98,17 +98,17 @@ THINK(laser_beam_think)(edict_t* self) -> void
 	}
 	else
 	{
-		self->s.skinnum = 0xd0d1d2d3; // amarillo
+		self->s.skinnum = 0xd0d1d2d3; // verde
 	}
 
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	vec3_t start = self->pos1;
-	vec3_t end = start + forward * 8192;
+	const vec3_t start = self->pos1;
+	const vec3_t end = start + forward * 8192;
 	tr = gi.traceline(start, end, self->owner, MASK_SHOT);
 	self->s.origin = tr.endpos;
 	self->s.old_origin = self->pos1;
 
-	int damage = (size) ? std::min(self->dmg, self->health) : 0;
+	const int damage = (size) ? std::min(self->dmg, self->health) : 0;
 
 	if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster)
 	{
@@ -129,11 +129,11 @@ THINK(laser_beam_think)(edict_t* self) -> void
 					// Reducir la salud del láser solo si golpeó un objetivo válido con salud > 0
 					if (tr.ent->svflags & SVF_MONSTER && (!(tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))))
 					{
-						self->health -= damage * 0.4f;  // desgaste aligerado contra monsters
+						self->health -= damage * 0.6f;  // desgaste aligerado contra monsters
 					}
 					else if (tr.ent->svflags & SVF_MONSTER && tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
 					{
-						self->health -= damage * 0.6f; // ligeramente mayor desgaste contra boss
+						self->health -= damage * 0.8f; // ligeramente mayor desgaste contra boss
 					}
 					else
 					{

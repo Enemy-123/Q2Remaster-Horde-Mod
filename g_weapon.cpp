@@ -553,9 +553,9 @@ THINK(Grenade4_Think) (edict_t *self) -> void
 	
 	if (self->velocity)
 	{
-		float p = self->s.angles.x;
-		float z = self->s.angles.z;
-		float speed_frac = clamp(self->velocity.lengthSquared() / (self->speed * self->speed), 0.f, 1.f);
+		const float p = self->s.angles.x;
+		const float z = self->s.angles.z;
+		const float speed_frac = clamp(self->velocity.lengthSquared() / (self->speed * self->speed), 0.f, 1.f);
 		self->s.angles = vectoangles(self->velocity);
 		self->s.angles.x = LerpAngle(p, self->s.angles.x, speed_frac);
 		self->s.angles.z = z + (gi.frame_time_s * 360 * speed_frac);
@@ -628,7 +628,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 		}
 
 		// Reducir el daño en un 1/5, pero no menos del 20% del daño original
-		float min_dmg = ent->original_dmg * 0.20f;
+		const float min_dmg = ent->original_dmg * 0.20f;
 		if (ent->dmg > min_dmg)
 		{
 			ent->dmg *= 0.8f;
@@ -1305,7 +1305,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	vec3_t   end;
 	int      dmg;
 	trace_t  tr;
-	float const push_strength = 600.0f; // Adjust this value to control the strength of the push
+	constexpr float push_strength = 600.0f; // Adjust this value to control the strength of the push
 	if (G_IsDeathmatch())
 		dmg = 10;
 	else

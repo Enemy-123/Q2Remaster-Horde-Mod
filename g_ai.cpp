@@ -449,8 +449,8 @@ struct NearbyEntity {
 };
 
 bool FindMTarget(edict_t* self) {
-    const float MAX_RANGE = 800.0f;
-    const float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+    constexpr float MAX_RANGE = 800.0f;
+    constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
 
     std::array<NearbyEntity, MAX_ENTITIES> nearbyEntities;
     size_t entityCount = 0;
@@ -728,8 +728,8 @@ bool FindEnhancedTarget(edict_t* self) {
         return FindMTarget(self);
     }
 
-    const float MAX_RANGE = 1000.0f;
-    const float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+    constexpr float MAX_RANGE = 1000.0f;
+    constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
     std::vector<std::pair<edict_t*, float>> nearbyEntities;
 
     // Función lambda para verificar si una entidad es un objetivo válido

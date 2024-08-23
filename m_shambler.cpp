@@ -88,7 +88,7 @@ static void shambler_fireball_update(edict_t* self)
 
 	// Calculate size based on frame
 	const float size_factor = static_cast<float>(self->s.frame - FRAME_magic01) / static_cast<float>(q_countof(lightning_left_hand));
-	const float max_size = 1.5f; // Maximum size multiplier
+	constexpr float max_size = 1.5f; // Maximum size multiplier
 	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
 
 	// Update size
@@ -426,7 +426,7 @@ void ShamblerCastFireballs(edict_t* self)
 
 	// Number of fireballs to launch
 	constexpr int num_fireballs = 1;
-	const int speed = irandom(550, 999);
+	const int speed = irandom(720, 1080);
 
 	for (int i = 0; i < num_fireballs; i++)
 	{
@@ -454,7 +454,7 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->solid = SOLID_BBOX;
 			fireball->s.effects = EF_FIREBALL; // fireball effects
 			fireball->s.renderfx = RF_MINLIGHT;
-			fireball->s.modelindex = frandom() < 0.3f ? gi.modelindex("models/objects/fire/tris.md2") : gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->s.modelindex = frandom() < 0.15f ? gi.modelindex("models/objects/fire/tris.md2") : gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
 			fireball->touch = fireball_touch; // Use rocket touch function
 			fireball->nextthink = level.time + 7_sec;
