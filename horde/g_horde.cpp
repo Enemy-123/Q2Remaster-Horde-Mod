@@ -729,8 +729,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	}
 	return BoxEdictsResult_t::Skip;
 }
-
-// Función optimizada para verificar si un punto de spawn está ocupado
+// is spawn occupied?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
 	vec3_t mins, maxs;
 	VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
@@ -1748,10 +1747,83 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 void InitializeWaveSystem() noexcept {
 	PrecacheWaveSounds();
 }
+
+static void SetMonsterArmor(edict_t* monster);
+static void SetNextMonsterSpawnTime(const MapSize& mapSize);
+
+static void PushEntitiesAway(const vec3_t& center, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
+	vec3_t mins, maxs;
+	VectorSet(mins, center[0] - push_radius, center[1] - push_radius, center[2] - push_radius);
+	VectorSet(maxs, center[0] + push_radius, center[1] + push_radius, center[2] + push_radius);
+
+	std::vector<edict_t*> entity_list;
+	entity_list.reserve(MAX_EDICTS);
+	const int num_entities = gi.BoxEdicts(mins, maxs, entity_list.data(), entity_list.capacity(), AREA_SOLID, nullptr, nullptr);
+
+	for (int i = 0; i < num_entities; i++) {
+		edict_t* ent = entity_list[i];
+		if (!ent->inuse || !ent->takedamage)
+			continue;
+
+		vec3_t push_dir{};
+		VectorSubtract(ent->s.origin, center, push_dir);
+		float distance = VectorLength(push_dir);
+
+		if (distance > 0.1f) {
+			VectorNormalize(push_dir);
+		}
+		else {
+			// If the entity is too close to the center, give it a random direction
+			push_dir[0] = crandom();
+			push_dir[1] = crandom();
+			push_dir[2] = 0;
+			VectorNormalize(push_dir);
+		}
+
+		// Calculate push strength with a sine wave for smoother effect
+		float wave_push_strength = push_strength * (1.0f - distance / push_radius);
+		wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / push_radius)));
+
+		// Calculate new position
+		const vec3_t new_pos{};
+		VectorMA(ent->s.origin, wave_push_strength / 700, push_dir, new_pos);
+
+		// Trace to ensure we're not pushing through walls
+		const trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
+
+		vec3_t final_velocity;
+		if (tr.fraction < 1.0) {
+			// If we hit something, adjust the push
+			VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+		}
+		else {
+			VectorScale(push_dir, wave_push_strength, final_velocity);
+		}
+
+		// Add strong horizontal component
+		float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / push_radius)));
+		final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
+		final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
+
+		// Add vertical component
+		final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / push_radius)));
+
+		VectorCopy(final_velocity, ent->velocity);
+
+		ent->groundentity = nullptr;
+
+		if (ent->client) {
+			VectorCopy(ent->velocity, ent->client->oldvelocity);
+			ent->client->oldgroundentity = ent->groundentity;
+		}
+	}
+}
+
 static void SpawnMonsters() {
 	static const auto mapSize = GetMapSize(level.mapname);
 	static std::vector<edict_t*> available_spawns;
 	available_spawns.clear();
+	available_spawns.reserve(MAX_EDICTS); // Reservar espacio para evitar reallocaciones
 
 	// Determinar la cantidad de monstruos a generar por spawn
 	const int32_t monsters_per_spawn = std::min(
@@ -1768,20 +1840,20 @@ static void SpawnMonsters() {
 	// Pre-seleccionar puntos de spawn disponibles
 	for (size_t i = 0; i < globals.num_edicts && i < MAX_EDICTS; i++) {
 		edict_t* ent = &g_edicts[i];
-		if (!ent || !ent->inuse) continue;
-		if (ent->classname && ent->classname[0] && !strcmp(ent->classname, "info_player_deathmatch")) {
-			if (!IsSpawnPointOccupied(ent)) {
-				available_spawns.push_back(ent);
-			}
-		}
+		if (!ent || !ent->inuse || !ent->classname || strcmp(ent->classname, "info_player_deathmatch") != 0)
+			continue;
+		available_spawns.push_back(ent);
 	}
 
 	if (available_spawns.empty()) {
-		gi.Com_PrintFmt("Warning: No available spawn points found\n");
+		gi.Com_PrintFmt("Warning: No spawn points found\n");
 		return;
 	}
-
 	edict_t* spawn_point = nullptr; // Declarar fuera del loop para usar después si es necesario
+
+	// Usar un vector dinámico para la lista de entidades
+	std::vector<edict_t*> entity_list;
+	entity_list.reserve(MAX_EDICTS);
 
 	// Generar monstruos
 	for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++i) {
@@ -1801,28 +1873,18 @@ static void SpawnMonsters() {
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 
-		if (g_horde_local.level >= 17) {
-			if (!st.was_key_specified("power_armor_power"))
-				monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-			if (!st.was_key_specified("power_armor_type")) {
-				const float health_factor = sqrt(monster->max_health / 100.0f);
-				const int base_armor = (current_wave_level <= 25) ?
-					irandom(75, 225) + health_factor * irandom(1, 3) :
-					irandom(150, 320) + health_factor * irandom(2, 5);
+		VectorCopy(spawn_point->s.origin, monster->s.origin);
+		VectorCopy(spawn_point->s.angles, monster->s.angles);
 
-				const int additional_armor = static_cast<int>((current_wave_level - 20) * 10 * health_factor);
-				monster->monsterinfo.armor_power = base_armor + additional_armor;
-			}
+		ED_CallSpawn(monster);
+
+		if (g_horde_local.level >= 17) {
+			SetMonsterArmor(monster);
 		}
 
 		if (frandom() <= drop_probability) {
 			monster->item = G_HordePickItem();
 		}
-
-		VectorCopy(spawn_point->s.origin, monster->s.origin);
-		VectorCopy(spawn_point->s.angles, monster->s.angles);
-
-		ED_CallSpawn(monster);
 
 		const vec3_t spawngrow_pos = monster->s.origin;
 		const float magnitude = VectorLength(spawngrow_pos);
@@ -1833,11 +1895,28 @@ static void SpawnMonsters() {
 		--g_horde_local.num_to_spawn;
 		MonsterSpawned(monster);
 
-		// Remover el punto de spawn usado
 		available_spawns.erase(available_spawns.begin() + spawn_index);
 	}
 
-	// Establecer el tiempo para el próximo spawn de monstruos
+	SetNextMonsterSpawnTime(mapSize);
+}
+
+// Funciones auxiliares para reducir el tamaño de SpawnMonsters
+static void SetMonsterArmor(edict_t* monster) {
+	if (!st.was_key_specified("power_armor_power"))
+		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+	if (!st.was_key_specified("power_armor_type")) {
+		const float health_factor = sqrt(monster->max_health / 100.0f);
+		const int base_armor = (current_wave_level <= 25) ?
+			irandom(75, 225) + health_factor * irandom(1, 3) :
+			irandom(150, 320) + health_factor * irandom(2, 5);
+
+		const int additional_armor = static_cast<int>((current_wave_level - 20) * 10 * health_factor);
+		monster->monsterinfo.armor_power = base_armor + additional_armor;
+	}
+}
+
+static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 	g_horde_local.monster_spawn_time = level.time +
 		(mapSize.isSmallMap ? 1.5_sec :
 			mapSize.isBigMap ? random_time(0.9_sec, 1.1_sec) :

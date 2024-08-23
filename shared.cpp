@@ -8,87 +8,85 @@
 bool IsRemovableEntity(edict_t* ent);
 void RemoveEntity(edict_t* ent);
 
-	void turret_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
-	void prox_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
-	void tesla_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
-	void trap_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
-	void laser_die(edict_t * self, edict_t * inflictor, edict_t * attacker, int damage, const vec3_t & point, const mod_t & mod);
-	bool hasEntities = false;
+void turret_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void prox_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void tesla_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+bool hasEntities = false;
 
-	void RemovePlayerOwnedEntities(edict_t * player)
+void RemovePlayerOwnedEntities(edict_t* player)
+{
+	if (!player)
+		return;
+
+	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
-		if (!player)
-			return;
+		edict_t* ent = &g_edicts[i];
+		if (!ent->inuse)
+			continue;
 
-		for (unsigned int i = 0; i < globals.num_edicts; i++)
+		bool shouldRemove = (ent->owner == player ||
+			(ent->owner && ent->owner->owner == player) ||
+			ent->teammaster == player ||
+			(ent->teammaster && ent->teammaster->teammaster == player));
+
+		if (shouldRemove)
 		{
-			edict_t* ent = &g_edicts[i];
-			if (!ent->inuse)
-				continue;
+			OnEntityDeath(ent);
 
-			bool shouldRemove = (ent->owner == player ||
-				(ent->owner && ent->owner->owner == player) ||
-				ent->teammaster == player ||
-				(ent->teammaster && ent->teammaster->teammaster == player));
-
-			if (shouldRemove)
+			if (IsRemovableEntity(ent))
 			{
-				OnEntityDeath(ent);
-
-				if (IsRemovableEntity(ent))
-				{
-					RemoveEntity(ent);
-				}
+				RemoveEntity(ent);
 			}
 		}
-
-		// Reset the player's laser counter
-		if (player->client)
-		{
-			player->client->num_lasers = 0;
-		}
 	}
 
-	bool IsRemovableEntity(edict_t * ent)
+	// Reset the player's laser counter
+	if (player->client)
 	{
-		static const std::unordered_set<std::string> removableEntities = {
-			"tesla_mine", "food_cube_trap", "prox_mine", "monster_sentrygun",
-			"emitter", "laser"
-		};
-
-		return removableEntities.find(ent->classname) != removableEntities.end();
+		player->client->num_lasers = 0;
 	}
+}
 
-	void RemoveEntity(edict_t * ent)
+bool IsRemovableEntity(edict_t* ent)
+{
+	static const std::unordered_set<std::string> removableEntities = {
+		"tesla_mine", "food_cube_trap", "prox_mine", "monster_sentrygun",
+		"emitter", "laser"
+	};
+
+	return removableEntities.find(ent->classname) != removableEntities.end();
+}
+
+void RemoveEntity(edict_t* ent)
+{
+	if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
 	{
-		if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
-		{
-			ent->health = -1;
-			turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-		}
-		else if (!strcmp(ent->classname, "tesla_mine"))
-		{
-			tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-		}
-		else if (!strcmp(ent->classname, "prox_mine"))
-		{
-			prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-		}
-		else if (!strcmp(ent->classname, "food_cube_trap"))
-		{
-			trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-		}
-		else if (!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"))
-		{
-			laser_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-		}
-		else
-		{
-			BecomeExplosion1(ent);
-		}
+		ent->health = -1;
+		turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-
-
+	else if (!strcmp(ent->classname, "tesla_mine"))
+	{
+		tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else if (!strcmp(ent->classname, "prox_mine"))
+	{
+		prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else if (!strcmp(ent->classname, "food_cube_trap"))
+	{
+		trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else if (!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"))
+	{
+		laser_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else
+	{
+		BecomeExplosion1(ent);
+	}
+}
 void UpdatePowerUpTimes(edict_t* monster) {
 
 	if (monster->monsterinfo.quad_time <= level.time) {
@@ -355,7 +353,7 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 	int health_min = 5000;
 	int power_armor_min = 0;
 
-	// Use the global current_wave_level
+// Use the global current_wave_level
 	if (current_wave_level >= 25 && current_wave_level <= 200)
 	{
 		health_min = 18000;
@@ -460,6 +458,8 @@ void SetBossHealth(edict_t* boss, int base_health, int wave_number)
 	}
 
 	boss->health = std::max(base_health, health_min);
+	boss->max_health = boss->health;
+	boss->initial_max_health = boss->health;
 
 	if (st.was_key_specified("power_armor_type"))
 	{
@@ -697,7 +697,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		}
 	}
 }
-
 
 void Monster_MoveSpawn(edict_t* self)
 {
