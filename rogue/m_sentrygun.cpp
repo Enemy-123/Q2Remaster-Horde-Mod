@@ -1030,7 +1030,7 @@ void SP_monster_sentrygun(edict_t* self)
 	}
 
 	//// map designer didn't specify weapon type. set it now.
-	//if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_number <= 5)
+	//if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_level <= 5)
 	//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 
 	// map designer didn't specify weapon type. set it now.

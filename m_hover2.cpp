@@ -641,7 +641,7 @@ static void hover2_set_fly_parameters(edict_t* self) {
  */
 void SP_monster_hover2(edict_t* self)
 {
-	if (g_horde->integer && current_wave_number <= 18)
+	if (g_horde->integer && current_wave_level <= 18)
 	{
 		if (strcmp(self->classname, "monster_daedalus2"))
 		{

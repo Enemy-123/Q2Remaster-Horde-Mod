@@ -643,7 +643,7 @@ void SP_monster_supertank(edict_t* self)
 		return;
 	}
 
-	if (g_horde->integer && current_wave_number <= 18) {
+	if (g_horde->integer && current_wave_level <= 18) {
 
 		if (strcmp(self->classname, "monster_janitor")) {
 			{
@@ -766,7 +766,7 @@ void SP_monster_boss5(edict_t* self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
-	self->health = 5600 + (1.08 * current_wave_number);
+	self->health = 5600 + (1.08 * current_wave_level);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -801,7 +801,7 @@ void SP_monster_supertankkl(edict_t* self)
 		SP_monster_supertank(self);
 		gi.soundindex("weapons/railgr1a.wav");
 
-		self->health = 675 * current_wave_number;
+		self->health = 675 * current_wave_level;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 

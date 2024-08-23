@@ -392,7 +392,7 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	if (current_wave_number >= 25 || g_hardcoop->integer || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+	if (current_wave_level >= 25 || g_hardcoop->integer || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 
 		PredictAim(self, self->enemy, start, 0, false, 0.075f, &dir, nullptr);
 
@@ -1123,7 +1123,7 @@ void SP_monster_tank(edict_t* self)
 			if (!self->s.scale)
 				self->s.scale = 1.25f;
 			self->accel = 0.25f;
-			self->health = 1750 + (1.005 * current_wave_number);
+			self->health = 1750 + (1.005 * current_wave_level);
 			if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				self->gib_health = -999777;
 				self->health *= 2.3;

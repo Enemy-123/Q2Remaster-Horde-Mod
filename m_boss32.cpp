@@ -846,12 +846,12 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	edict_t* player;
 
 
-	if (g_horde->integer && current_wave_number <= 20 || !g_horde->integer) {
+	if (g_horde->integer && current_wave_level <= 20 || !g_horde->integer) {
 
 		SP_monster_makron(self);
 
 	}
-	else if (g_horde->integer && current_wave_number >= 21) {
+	else if (g_horde->integer && current_wave_level >= 21) {
 
 		SP_monster_makronkl(self);
 	}
@@ -891,14 +891,14 @@ void MakronToss(edict_t* self)
 
 {
 	edict_t* ent = G_Spawn();
-	if (g_horde->integer && current_wave_number <= 20 || g_horde->integer) {
+	if (g_horde->integer && current_wave_level <= 20 || g_horde->integer) {
 
 		ent->classname = "monster_makron";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	else if (g_horde->integer && current_wave_number >= 21)
+	else if (g_horde->integer && current_wave_level >= 21)
 	{
 		ent->classname = "monster_makronkl";
 		ent->target = self->target;
@@ -920,7 +920,7 @@ void SP_monster_makronkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_MAKRONKL;
 	SP_monster_makron(self);
 	self->s.skinnum = 2;
-	self->health = 2600 + (600 * current_wave_number);
+	self->health = 2600 + (600 * current_wave_level);
 	self->s.alpha = 0.4f;
 	self->s.effects = EF_FLAG1;
 

@@ -701,7 +701,7 @@ void G_SetCoopStats(edict_t* ent) {
 
 	if (G_IsDeathmatch() && !level.intermissiontime) {
 
-		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_number;
+		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_level;
 	}
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 

@@ -38,7 +38,7 @@ struct HordeState {
 	int32_t         level = 0;
 } g_horde_local;
 
-int32_t current_wave_number = g_horde_local.level;
+int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 int32_t vampire_level = 0;
 
@@ -241,13 +241,13 @@ void AdjustMonsterSpawnRate() {
 // Funci�n para calcular la cantidad de monstruos est�ndar a spawnear
 static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
 	if (mapSize.isSmallMap) {
-		g_horde_local.num_to_spawn = std::min((current_wave_number <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
+		g_horde_local.num_to_spawn = std::min((current_wave_level <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
 	}
 	else if (mapSize.isBigMap) {
-		g_horde_local.num_to_spawn = std::min((current_wave_number <= 4) ? 24 : 27 + (lvl), MAX_MONSTERS_BIG_MAP);
+		g_horde_local.num_to_spawn = std::min((current_wave_level <= 4) ? 24 : 27 + (lvl), MAX_MONSTERS_BIG_MAP);
 	}
 	else {
-		g_horde_local.num_to_spawn = std::min((current_wave_number <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
+		g_horde_local.num_to_spawn = std::min((current_wave_level <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
 	}
 }
 // Funci�n para calcular el bono de locura y caos
@@ -256,7 +256,7 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	if (g_insane->integer) {
 		if (g_insane->integer == 2) return 16;
 		if (g_insane->integer == 1) return 8;
-		if (g_chaotic->integer && current_wave_number <= 3) return 6;
+		if (g_chaotic->integer && current_wave_level <= 3) return 6;
 		return 8;
 	}
 	return 0;
@@ -266,20 +266,20 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
 	int32_t additionalSpawn = 0;
 	if (mapSize.isSmallMap) {
-		additionalSpawn = (current_wave_number >= 9) ? 7 : 6;
+		additionalSpawn = (current_wave_level >= 9) ? 7 : 6;
 	}
 	else if (mapSize.isBigMap) {
-		additionalSpawn = (current_wave_number >= 9) ? 12 : 8;
+		additionalSpawn = (current_wave_level >= 9) ? 12 : 8;
 	}
 	else {
-		additionalSpawn = (current_wave_number >= 9) ? 7 : 6;
+		additionalSpawn = (current_wave_level >= 9) ? 7 : 6;
 	}
 
-	if (current_wave_number > 25) {
+	if (current_wave_level > 25) {
 		additionalSpawn *= 1.6;
 	}
 
-	if (current_wave_number >= 3 && (g_chaotic->integer || g_insane->integer)) {
+	if (current_wave_level >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
 	}
 
@@ -305,7 +305,7 @@ void ResetCooldowns() noexcept;
 void Horde_InitLevel(const int32_t lvl) {
 	last_wave_number++;
 	g_horde_local.level = lvl;
-	current_wave_number = lvl;
+	current_wave_level = lvl;
 	g_horde_local.monster_spawn_time = level.time;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
@@ -1271,7 +1271,7 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	self->mins *= self->s.scale;
 
 	// Set boss health and armor first
-	SetBossHealth(self, self->health, current_wave_number);
+	SetBossHealth(self, self->health, current_wave_level);
 
 	float health_multiplier = 1.0f;
 	float power_armor_multiplier = 1.0f;
@@ -1396,7 +1396,7 @@ void ResetGame() {
 
 	// Reiniciar variables de estado global
 	g_horde_local = HordeState();  // Asume que HordeState tiene un constructor por defecto adecuado
-	current_wave_number = 0;
+	current_wave_level = 0;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
@@ -1519,7 +1519,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	}
 	else {
 		if (mapSize.isSmallMap) {
-			if (current_wave_number <= 4) {
+			if (current_wave_level <= 4) {
 				params.maxMonsters = 5;
 				params.timeThreshold = 6_sec;
 			}
@@ -1529,7 +1529,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 			}
 		}
 		else {
-			if (current_wave_number <= 4) {
+			if (current_wave_level <= 4) {
 				params.maxMonsters = 6;
 				params.timeThreshold = 9_sec;
 			}
@@ -1588,9 +1588,9 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
 	// Recalcular los parámetros si algo ha cambiado
-	if (current_wave_number != lastWaveNumber || numHumanPlayers != lastNumHumanPlayers) {
+	if (current_wave_level != lastWaveNumber || numHumanPlayers != lastNumHumanPlayers) {
 		lastParams = GetConditionParams(mapSize, numHumanPlayers);
-		lastWaveNumber = current_wave_number;
+		lastWaveNumber = current_wave_level;
 		lastNumHumanPlayers = numHumanPlayers;
 		maxMonstersReached = false;
 		ResetTimers();
@@ -1677,15 +1677,15 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 
 // Funci�n para manejar el mensaje de limpieza de ola
 static void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
-	if (current_wave_number >= 15 && current_wave_number <= 28) {
+	if (current_wave_level >= 15 && current_wave_level <= 28) {
 		gi.cvar_set("g_insane", "1");
 		gi.cvar_set("g_chaotic", "0");
 	}
-	else if (current_wave_number >= 31) {
+	else if (current_wave_level >= 31) {
 		gi.cvar_set("g_insane", "2");
 		gi.cvar_set("g_chaotic", "0");
 	}
-	else if (current_wave_number <= 14) {
+	else if (current_wave_level <= 14) {
 		gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 	}
 
@@ -1762,8 +1762,8 @@ static void SpawnMonsters() {
 	);
 
 	// Calcular la probabilidad de que un monstruo suelte un ítem
-	const float drop_probability = (current_wave_number <= 2) ? 0.8f :
-		(current_wave_number <= 7) ? 0.6f : 0.45f;
+	const float drop_probability = (current_wave_level <= 2) ? 0.8f :
+		(current_wave_level <= 7) ? 0.6f : 0.45f;
 
 	// Pre-seleccionar puntos de spawn disponibles
 	for (size_t i = 0; i < globals.num_edicts; i++) {
@@ -1805,9 +1805,12 @@ static void SpawnMonsters() {
 			if (!st.was_key_specified("power_armor_power"))
 				monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 			if (!st.was_key_specified("power_armor_type")) {
-				const float health_factor = monster->max_health / 100.0f;
-				constexpr int base_armor = 150;
-				const int additional_armor = static_cast<int>((current_wave_number - 20) * 10 * health_factor);
+				const float health_factor = sqrt(monster->max_health / 100.0f);
+				const int base_armor = (current_wave_level <= 25) ?
+					irandom(75, 225) + health_factor * irandom(1, 3) :
+					irandom(150, 320) + health_factor * irandom(2, 5);
+
+				const int additional_armor = static_cast<int>((current_wave_level - 20) * 10 * health_factor);
 				monster->monsterinfo.armor_power = base_armor + additional_armor;
 			}
 		}
@@ -1898,7 +1901,7 @@ void Horde_RunFrame() {
 			cachedRemainingMonsters = CalculateRemainingMonsters();
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
-			current_wave_number = 1;
+			current_wave_level = 1;
 			PlayWaveStartSound();
 			DisplayWaveMessage();
 		}

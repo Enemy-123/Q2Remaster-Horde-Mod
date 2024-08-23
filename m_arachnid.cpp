@@ -422,7 +422,7 @@ void SP_monster_arachnid(edict_t* self)
 
 
 	if (!strcmp(self->classname, "monster_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health = 3500 + (1.08 * current_wave_number);
+		self->health = 3500 + (1.08 * current_wave_level);
 		self->gib_health = -99999;
 	}
 	else if (!strcmp(self->classname, "monster_arachnid") && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
