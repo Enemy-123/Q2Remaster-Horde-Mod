@@ -731,7 +731,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 // Función optimizada para verificar si un punto de spawn está ocupado
-static bool IsSpawnPointOccupied(edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
+static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
 	vec3_t mins, maxs;
 	VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
 	VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
@@ -1766,10 +1766,10 @@ static void SpawnMonsters() {
 		(current_wave_level <= 7) ? 0.6f : 0.45f;
 
 	// Pre-seleccionar puntos de spawn disponibles
-	for (size_t i = 0; i < globals.num_edicts; i++) {
+	for (size_t i = 0; i < globals.num_edicts && i < MAX_EDICTS; i++) {
 		edict_t* ent = &g_edicts[i];
-		if (!ent->inuse) continue;
-		if (ent->classname && !strcmp(ent->classname, "info_player_deathmatch")) {
+		if (!ent || !ent->inuse) continue;
+		if (ent->classname && ent->classname[0] && !strcmp(ent->classname, "info_player_deathmatch")) {
 			if (!IsSpawnPointOccupied(ent)) {
 				available_spawns.push_back(ent);
 			}
