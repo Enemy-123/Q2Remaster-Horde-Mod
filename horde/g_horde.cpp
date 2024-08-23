@@ -92,8 +92,7 @@ constexpr weighted_benefit_t benefits[] = {
 	{ "BFG Grav-Pull Lasers", 35, -1, 0.2f }
 };
 
-static std::random_device rd;
-static std::mt19937 gen(rd());
+
 
 // Funci�n para mezclar los beneficios
 void ShuffleBenefits() {
@@ -797,7 +796,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	// Create and use the discrete distribution
 	std::discrete_distribution<> dist(weights.begin(), weights.end());
-	size_t chosen_index = dist(gen);
+const size_t chosen_index = dist(mt_rand);
 
 	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
 	UpdateCooldowns(spawn_point, chosen_monster);
@@ -876,7 +875,7 @@ void Horde_PreInit() {
 // Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
 inline int32_t GetNumHumanPlayers() {
 	int32_t numHumanPlayers = 0;
-	for (auto const player : active_players()) {
+	for (auto const* player : active_players()) {
 		if (player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT)) {
 			numHumanPlayers++;
 		}
@@ -971,9 +970,9 @@ vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVerti
 	std::uniform_int_distribution<> verticalDis(minVertical, maxVertical);
 
 	return {
-		static_cast<float>(horizontalDis(gen)),
-		static_cast<float>(horizontalDis(gen)),
-		static_cast<float>(verticalDis(gen) + std::uniform_int_distribution<>(0, VERTICAL_VELOCITY_RANDOM_RANGE)(gen))
+		static_cast<float>(horizontalDis(mt_rand)),
+		static_cast<float>(horizontalDis(mt_rand)),
+		static_cast<float>(verticalDis(mt_rand) + std::uniform_int_distribution<>(0, VERTICAL_VELOCITY_RANDOM_RANGE)(mt_rand))
 	};
 }
 
@@ -1469,7 +1468,7 @@ void ResetGame() {
 // Funci�n para obtener el n�mero de jugadores activos (incluyendo bots)
 inline int32_t GetNumActivePlayers() {
 	int32_t numActivePlayers = 0;
-	for (auto player : active_players()) {
+	for (auto const* player : active_players()) {
 		if (player->client->resp.ctf_team == CTF_TEAM1) {
 			numActivePlayers++;
 		}
@@ -1480,7 +1479,7 @@ inline int32_t GetNumActivePlayers() {
 // Funci�n para obtener el n�mero de jugadores en espectador
 inline int32_t GetNumSpectPlayers() {
 	int32_t numSpectPlayers = 0;
-	for (auto player : active_players()) {
+	for (auto const* player : active_players()) {
 		if (player->client->resp.ctf_team != CTF_TEAM1) {
 			numSpectPlayers++;
 		}
@@ -1557,7 +1556,7 @@ static int32_t CalculateRemainingMonsters() {
 	// Recalcular solo si han pasado al menos 0.5 segundos desde el último cálculo
 	if (lastCalculatedRemaining == -1 || (level.time - lastCalculationTime) >= 0.5_sec) {
 		int32_t remaining = 0;
-		for (auto const ent : active_monsters()) {
+		for (auto const* ent : active_monsters()) {
 			if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 				++remaining;
 			}
@@ -1714,7 +1713,7 @@ static void PrecacheWaveSounds() noexcept {
 // Función para obtener un sonido aleatorio
 static const char* GetRandomWaveSound() {
 	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
-	return WAVE_SOUNDS[dist(gen)];
+	return WAVE_SOUNDS[dist(mt_rand)];
 }
 
 static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
