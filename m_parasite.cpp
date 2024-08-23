@@ -534,7 +534,7 @@ THINK(proboscis_think) (edict_t* self) -> void
             if (self->timestamp <= level.time)
             {
                 int damage = 2;
-                if (M_DamageModifier) {
+                if (M_DamageModifier(self)) {
                     damage *= M_DamageModifier(self);
                 }
                 T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);

@@ -238,7 +238,7 @@ std::string GetDisplayName(edict_t* ent)
 		{ "emitter", "Laser Emitter\n" }
 	};
 
-	auto it = name_replacements.find(ent->classname);
+	const auto it = name_replacements.find(ent->classname);
 	std::string display_name = (it != name_replacements.end()) ? it->second : ent->classname;
 
 	std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
