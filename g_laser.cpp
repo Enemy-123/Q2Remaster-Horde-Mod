@@ -6,7 +6,7 @@ constexpr int32_t LASER_COST = 25;
 constexpr int32_t LASER_INITIAL_DAMAGE = 3;
 constexpr int32_t LASER_ADDON_DAMAGE = 8;
 constexpr int32_t LASER_INITIAL_HEALTH = 175;  // DMG before explode
-constexpr int32_t LASER_ADDON_HEALTH = 55;     // DMG addon before explode
+constexpr int32_t LASER_ADDON_HEALTH = 65;     // DMG addon before explode
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
 constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
@@ -75,7 +75,6 @@ PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 	}
 }
 
-
 THINK(laser_beam_think)(edict_t* self) -> void
 {
 	vec3_t forward;
@@ -92,14 +91,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
 	self->s.frame = size;
 
 	// Cambiar color basado en la salud del láser
-	if (self->health > self->max_health * 0.20f)
-	{
-		self->s.skinnum = 0xf2f2f0f0; // rojo
-	}
-	else
-	{
-		self->s.skinnum = 0xd0d1d2d3; // verde
-	}
+	self->s.skinnum = (self->health > self->max_health * 0.20f) ? 0xf2f2f0f0 : 0xd0d1d2d3;
 
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	const vec3_t start = self->pos1;
@@ -125,20 +117,26 @@ THINK(laser_beam_think)(edict_t* self) -> void
 				if (tr.ent->health > 0)
 				{
 					hit_valid_target = true;
-
 					// Reducir la salud del láser solo si golpeó un objetivo válido con salud > 0
-					if (tr.ent->svflags & SVF_MONSTER && (!(tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))))
+					float damage_multiplier = 0.25f; // Valor por defecto para otros objetivos válidos
+
+					if (tr.ent->svflags & SVF_MONSTER)
 					{
-						self->health -= damage * 0.85f;  // desgaste normal contra monsters
+						if (tr.ent->monsterinfo.invincible_time > level.time)
+						{
+							damage_multiplier = 0.0f; // No desgaste contra objetivos invulnerables
+						}
+						else if (tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+						{
+							damage_multiplier = 0.8f; // Ligeramente mayor desgaste contra boss
+						}
+						else
+						{
+							damage_multiplier = 0.65f; // Desgaste normal contra monsters
+						}
 					}
-					else if (tr.ent->svflags & SVF_MONSTER && tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
-					{
-						self->health -= damage * 1.2f; // ligeramente mayor desgaste contra boss
-					}
-					else
-					{
-						self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
-					}
+
+					self->health -= damage * damage_multiplier;
 				}
 			}
 		}
@@ -161,6 +159,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
 
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
+
 THINK(emitter_think)(edict_t* self) -> void
 {
 	// Check if the laser has timed out
