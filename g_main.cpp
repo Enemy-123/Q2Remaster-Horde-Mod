@@ -767,7 +767,7 @@ void CheckDMRules()
 		return; // no checking in match mode
 	// ZOID
 
-	// A馻dir verificaci髇 de reglas de elecci髇
+	// A帽adir verificaci贸n de reglas de elecci贸n
 	if (CTFCheckRules())
 	{
 		return;
@@ -938,14 +938,14 @@ inline void G_RunFrame_(bool main_loop)
 
 	level.time += FRAME_TIME_MS;
 
-	// Manejar la intermisi髇
+	// Manejar la intermisi贸n
 	if (level.intermissiontime)
 	{
 		constexpr gtime_t INTERMISSION_DURATION = 30_sec;
 
 		if (level.intermissiontime == level.time)
 		{
-			// Primera vez que entramos en intermisi髇
+			// Primera vez que entramos en intermisi贸n
 			gi.Com_PrintFmt("Intermission started. Auto-exit scheduled in 30 seconds.\n");
 		}
 
@@ -954,13 +954,13 @@ inline void G_RunFrame_(bool main_loop)
 
 		if (time_remaining <= 0_ms)
 		{
-			// Es hora de salir de la intermisi髇
+			// Es hora de salir de la intermisi贸n
 			gi.Com_PrintFmt("Auto-exiting intermission after 30 seconds.\n");
 			level.exitintermission = true;
 		}
 		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 1000 == 0)
 		{
-			// Imprimir tiempo restante cada segundo en los 鷏timos 30 segundos
+			// Imprimir tiempo restante cada segundo en los 煤ltimos 30 segundos
 			gi.Com_PrintFmt("Intermission time remaining: {:.0f} seconds\n", time_remaining.seconds());
 		}
 	}

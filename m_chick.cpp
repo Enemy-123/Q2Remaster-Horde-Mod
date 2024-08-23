@@ -405,7 +405,7 @@ void ChickSlash(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 10 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		gi.sound(self, CHAN_WEAPON, sound_melee_swing, 1, ATTN_NORM, 0);
 		fire_hit(self, aim, irandom(10, 16), 100);
@@ -415,7 +415,7 @@ void ChickSlash(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "ChickSlash: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Puedes manejar la situación aquí si es necesario
+		// Puedes manejar la situaciÃ³n aquÃ­ si es necesario
 	}
 }
 
@@ -805,7 +805,7 @@ void SP_monster_chick(edict_t* self)
 
 	if (g_horde->integer)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.24f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

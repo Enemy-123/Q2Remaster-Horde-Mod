@@ -132,19 +132,19 @@ THINK(Prox_Explode)(edict_t* ent) -> void {
 				// Las primeras 3 granadas caen directamente hacia abajo
 				VectorSet(forward, 0, 0, -1);
 
-				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
+				// Generar un tiempo de explosiÃ³n aleatorio entre 1 y 3 segundos
 				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
 				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
 			}
 			else {
-				// Las demás granadas siguen la fragmentación normal
+				// Las demÃ¡s granadas siguen la fragmentaciÃ³n normal
 				grenade_angs[0] = -45;
-				grenade_angs[1] = (n - 3) * 30.0f; // Ajuste del ángulo para evitar interferencia
+				grenade_angs[1] = (n - 3) * 30.0f; // Ajuste del Ã¡ngulo para evitar interferencia
 				grenade_angs[2] = 0;
 				AngleVectors(grenade_angs, forward, right, up);
 
-				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
+				// Generar un tiempo de explosiÃ³n aleatorio entre 1 y 3 segundos
 				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
 				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
@@ -875,7 +875,7 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
 
-constexpr int MAX_TESLAS = 10; // Define el máximo de teslas permitidas por jugador
+constexpr int MAX_TESLAS = 10; // Define el mÃ¡ximo de teslas permitidas por jugador
 
 void tesla_remove(edict_t* self)
 {
@@ -931,7 +931,7 @@ TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 		return;
 	}
 
-	// Código existente para manejar el contacto aquí
+	// CÃ³digo existente para manejar el contacto aquÃ­
 }
 
 static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
@@ -1169,7 +1169,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	}
 }
 
-// Función para contar y manejar el número de teslas de un jugador
+// FunciÃ³n para contar y manejar el nÃºmero de teslas de un jugador
 void check_player_tesla_limit(edict_t* self)
 {
 	if (!self->client)
@@ -1195,7 +1195,7 @@ void check_player_tesla_limit(edict_t* self)
 		if (oldest_tesla)
 		{
 			G_FreeEdict(oldest_tesla);
-			self->client->num_teslas--; // Decrementar el contador al eliminar la más antigua
+			self->client->num_teslas--; // Decrementar el contador al eliminar la mÃ¡s antigua
 		}
 	}
 }
@@ -1203,7 +1203,7 @@ void check_player_tesla_limit(edict_t* self)
 
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
-	// Verificar y manejar el límite de teslas por jugador
+	// Verificar y manejar el lÃ­mite de teslas por jugador
 	check_player_tesla_limit(self);
 
 	edict_t* tesla;

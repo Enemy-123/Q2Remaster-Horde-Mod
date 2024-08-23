@@ -635,7 +635,7 @@ void SP_monster_jorg(edict_t* self)
 	if (g_horde->integer) {
 		if (!strcmp(self->classname, "monster_jorg"))
 		{
-			float randomsearch = frandom(); // Generar un n�mero aleatorio entre 0 y 1
+			float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
 			if (randomsearch < 0.13f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);

@@ -1480,7 +1480,7 @@ static void CG_ExecuteLayoutString (const char *s, vrect_t hud_vrect, vrect_t hu
         //        if (value >= MAX_CLIENTS || value < 0)
         //            cgi.Com_Error("client >= MAX_CLIENTS");
 
-        //        token = COM_Parse(&s); // Extraer el siguiente token que ser� el nombre del dogtag
+        //        token = COM_Parse(&s); // Extraer el siguiente token que serÃ¡ el nombre del dogtag
         //        const std::string_view dogtagName = token;
 
         //        const std::string_view path = G_Fmt("/tags/{}", dogtagName);

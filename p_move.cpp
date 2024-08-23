@@ -241,7 +241,7 @@ static trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& m
 		if (pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION)
 			mask &= ~CONTENTS_PLAYER;
 
-		// Modificaci�n para el modo horde
+		// ModificaciÃ³n para el modo horde
 		if (g_horde && g_horde->integer) {
 			mask &= ~CONTENTS_PLAYERCLIP;
 		}

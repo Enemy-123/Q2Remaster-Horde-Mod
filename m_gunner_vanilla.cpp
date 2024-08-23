@@ -868,7 +868,7 @@ void SP_monster_gunner2(edict_t* self)
 {
 
 	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un n�mero aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

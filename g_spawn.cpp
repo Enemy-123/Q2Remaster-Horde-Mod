@@ -510,7 +510,7 @@ typedef struct {
 	int replacement_count;
 } MonsterReplacement;
 
-// Función auxiliar para seleccionar un reemplazo aleatorio
+// FunciÃ³n auxiliar para seleccionar un reemplazo aleatorio
 const char* get_random_replacement(const MonsterReplacement* replacement) {
 	if (replacement->replacement_count == 1) {
 		return replacement->replacements[0];
@@ -520,7 +520,7 @@ const char* get_random_replacement(const MonsterReplacement* replacement) {
 		return replacement->replacements[index];
 	}
 }
-#define MAX_CLASSNAME_LENGTH 64  // Ajusta este valor según sea necesario
+#define MAX_CLASSNAME_LENGTH 64  // Ajusta este valor segÃºn sea necesario
 
 void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
 	if (!ent || !ent->classname) {
@@ -542,7 +542,7 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 			//	gi.Com_PrintFmt("Replacing monster: original={}, new={}\n", replacements[i].original, temp_classname);
 			}
 
-			// Asignar una única flag de bonus según la probabilidad dada
+			// Asignar una Ãºnica flag de bonus segÃºn la probabilidad dada
 			if ((rand() / (float)RAND_MAX) < bonus_prob) {
 				float rand_val = rand() / (float)RAND_MAX;
 				int flag = 0;
@@ -563,7 +563,7 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 }
 void ED_CallSpawn(edict_t* ent) {
 
-	// Inicializa el multiplicador de daño para el monstruo
+	// Inicializa el multiplicador de daÃ±o para el monstruo
 	if (ent->svflags & SVF_MONSTER) {
 		ent->monsterinfo.damage_quad = 1.0f;
 	}
@@ -634,7 +634,7 @@ void ED_CallSpawn(edict_t* ent) {
 	};
 	int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
 
-	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
+	// Realizar los reemplazos segÃºn el modo de juego y aplicar bonus flags segÃºn la probabilidad
 	if (g_chaotic->integer == 2) {
 		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.008f);
 	}

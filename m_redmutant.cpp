@@ -202,7 +202,7 @@ void redmutant_hit_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (fire_hit(self, aim, irandom(10, 20) * M_DamageModifier(self), 100))
 			gi.sound(self, CHAN_WEAPON, sound_hit, 1, ATTN_NORM, 0);
@@ -217,9 +217,9 @@ void redmutant_hit_left(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "redmutant_hit_left: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -228,7 +228,7 @@ void redmutant_hit_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (fire_hit(self, aim, irandom(10, 20) * M_DamageModifier(self), 100))
 			gi.sound(self, CHAN_WEAPON, sound_hit2, 1, ATTN_NORM, 0);
@@ -243,9 +243,9 @@ void redmutant_hit_right(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "redmutant_hit_right: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -681,7 +681,7 @@ void SP_monster_redmutant(edict_t* self)
 {
 	if (g_horde->integer)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.32f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

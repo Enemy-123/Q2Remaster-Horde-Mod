@@ -152,7 +152,7 @@ MMOVE_T(flipper_move_pain1) = { FRAME_flppn201, FRAME_flppn205, flipper_frames_p
 
 void flipper_bite(edict_t* self)
 {
-	// Verificar si self->enemy est� correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (!self->enemy)
 	{
 		// char buffer[256];

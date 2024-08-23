@@ -1164,7 +1164,7 @@ static void guncmdr_kick_finished(edict_t* self)
 
 static void guncmdr_kick(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self && self->enemy) {
 		if (fire_hit(self, vec3_t{ MELEE_DISTANCE, 0.f, -32.f }, 15.f, 400.f)) {
 			if (self->enemy && self->enemy->client && self->enemy->velocity.z < 270.f)
@@ -1176,7 +1176,7 @@ static void guncmdr_kick(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "guncmdr_kick: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado, si es necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado, si es necesario
 	}
 }
 
@@ -1209,7 +1209,7 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
 
 	monster_done_dodge(self);
 
-	// Depuración adicional antes de la llamada a range_to
+	// DepuraciÃ³n adicional antes de la llamada a range_to
 	std::cerr << "In guncmdr_attack, self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
 	std::cerr << "In guncmdr_attack, self->absmax: [" << self->absmax[0] << ", " << self->absmax[1] << ", " << self->absmax[2] << "]" << std::endl;
 	std::cerr << "In guncmdr_attack, self->enemy: " << self->enemy << ", self->enemy->absmin: [" << self->enemy->absmin[0] << ", " << self->enemy->absmin[1] << ", " << self->enemy->absmin[2] << "]" << std::endl;
@@ -1483,7 +1483,7 @@ void SP_monster_guncmdr(edict_t* self)
 {
 
 	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

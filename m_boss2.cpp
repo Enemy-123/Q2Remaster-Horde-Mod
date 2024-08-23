@@ -726,7 +726,7 @@ void SP_monster_boss2_64(edict_t* self)
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
 
-		// Ajustar la caja de colisión con un Z más elevado
+		// Ajustar la caja de colisiì¹©n con un Z mì¹˜s elevado
 		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
 		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
@@ -750,7 +750,7 @@ void SP_monster_boss2kl(edict_t* self)
 	if (g_horde->integer) {
 		self->s.scale = 0.6f;
 
-		// Ajustar la caja de colisión con un Z más elevado
+		// Ajustar la caja de colisiì¹©n con un Z mì¹˜s elevado
 		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
 		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}

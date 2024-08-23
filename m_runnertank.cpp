@@ -123,7 +123,7 @@ mframe_t runnertank_frames_start_walk[] = {
 MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
 #endif
 
-// Animación de caminata corregida
+// AnimaciÃ³n de caminata corregida
 mframe_t runnertank_frames_walk[] = {
 	{ ai_walk, 4 }, { ai_walk, 5 }, { ai_walk, 3 }, { ai_walk, 2 },
 	{ ai_walk, 5 }, { ai_walk, 5 }, { ai_walk, 4 }, { ai_walk, 4, runnertank_footstep },
@@ -162,7 +162,7 @@ mframe_t runnertank_frames_stop_walk[] = {
 };
 MMOVE_T(runnertank_move_stop_walk) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_walk, runnertank_stand };
 
-// Asegurarse de que la transición de caminata a carrera funcione correctamente
+// Asegurarse de que la transiciÃ³n de caminata a carrera funcione correctamente
 mframe_t runnertank_frames_start_run[] = {
 	{ ai_run, 8 }, { ai_run, 8 }, { ai_run, 8 }, { ai_run, 8, runnertank_footstep }
 };
@@ -176,7 +176,7 @@ mframe_t runnertank_frames_stop_run[] = {
 MMOVE_T(runnertank_move_stop_run) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_run, runnertank_attack };
 
 
-// Ajustar la función de caminata para una transición más suave
+// Ajustar la funciÃ³n de caminata para una transiciÃ³n mÃ¡s suave
 MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 {
 	if (self->monsterinfo.active_move != &runnertank_move_walk)
@@ -198,7 +198,7 @@ void runnertank_unstuck(edict_t* self)
 		stuck_count++;
 		if (stuck_count > 5)
 		{
-			// Intenta moverse en una dirección aleatoria
+			// Intenta moverse en una direcciÃ³n aleatoria
 			self->ideal_yaw = frandom() * 360;
 			M_ChangeYaw(self);
 			stuck_count = 0;
@@ -224,7 +224,7 @@ void runnertank_unstuck(edict_t* self)
 //};
 //MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
 //
-// Actualizar la animación de carrera
+// Actualizar la animaciÃ³n de carrera
 mframe_t runnertank_frames_run[] = {
 	{ ai_run, 18, runnertank_footstep },
 	{ ai_run, 18, nullptr },
@@ -290,7 +290,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		{
 			float strafe_chance = 0.5f;  // 50% de probabilidad base de hacer strafe
 
-			// Aumentar la probabilidad de strafing si el enemigo está disparando
+			// Aumentar la probabilidad de strafing si el enemigo estÃ¡ disparando
 			if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
 				strafe_chance += 0.2f;
 
@@ -320,13 +320,13 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 				// Combinar el movimiento de avance con el strafe
 				VectorAdd(self->velocity, strafe_vel, self->velocity);
 
-				// Ajustar la duración del strafe
+				// Ajustar la duraciÃ³n del strafe
 				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
 			}
 		}
 	}
 
-	// Volver a la dirección original después del strafe
+	// Volver a la direcciÃ³n original despuÃ©s del strafe
 	if (level.time > self->monsterinfo.pausetime)
 	{
 		self->monsterinfo.lefty = 0;
@@ -581,20 +581,20 @@ void runnertankPlasmaGun(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Calcular la dirección base hacia el enemigo
+	// Calcular la direcciÃ³n base hacia el enemigo
 	vec3_t target = self->enemy->s.origin;
 	target[2] += self->enemy->viewheight;
 	VectorSubtract(target, start, dir);
 	VectorNormalize(dir);
 
-	// Calcular el ángulo de dispersión basado en la animación del tanque
+	// Calcular el Ã¡ngulo de dispersiÃ³n basado en la animaciÃ³n del tanque
 	float fanAngle;
 	if (self->s.frame <= FRAME_attak415)
 		fanAngle = -20 + (self->s.frame - FRAME_attak406) * 4; // Abanico de -20 a 20 grados
 	else
 		fanAngle = 20 - (self->s.frame - FRAME_attak416) * 4; // Abanico de 20 a -20 grados
 
-	// Rotar el vector de dirección para crear el efecto de abanico
+	// Rotar el vector de direcciÃ³n para crear el efecto de abanico
 	float sinAngle = sin(DEG2RAD(fanAngle));
 	float cosAngle = cos(DEG2RAD(fanAngle));
 	float newX = forward[0] * cosAngle - right[0] * sinAngle;
@@ -603,7 +603,7 @@ void runnertankPlasmaGun(edict_t* self)
 	VectorSet(dir, newX, newY, newZ);
 	VectorNormalize(dir);
 
-	// Añadir una pequeña dispersión aleatoria
+	// AÃ±adir una pequeÃ±a dispersiÃ³n aleatoria
 	float spread = 0.02f;
 	dir[0] += crandom() * spread;
 	dir[1] += crandom() * spread;
@@ -625,7 +625,7 @@ void runnertankPlasmaGun(edict_t* self)
 	// Disparar el plasma con la velocidad correcta
 	fire_plasma(self, start, dir, 35, 700, 40, 40);
 
-	// Guardar la posición del objetivo para el próximo disparo
+	// Guardar la posiciÃ³n del objetivo para el prÃ³ximo disparo
 	VectorCopy(self->enemy->s.origin, self->pos1);
 	self->pos1[2] += self->enemy->viewheight;
 }
@@ -1074,10 +1074,10 @@ bool runnertank_check_wall(edict_t* self, float dist)
 			self->ideal_yaw = anglemod(self->s.angles[YAW] - turn_angle);
 		}
 
-		// Usar M_ChangeYaw en lugar de ai_turn para un giro más suave
+		// Usar M_ChangeYaw en lugar de ai_turn para un giro mÃ¡s suave
 		M_ChangeYaw(self);
 
-		// Reducir la velocidad del monstruo de manera más gradual
+		// Reducir la velocidad del monstruo de manera mÃ¡s gradual
 		VectorScale(self->velocity, 0.8f, self->velocity);
 
 		return true;
@@ -1100,10 +1100,10 @@ MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
     if (blocked_checkplat(self, dist))
         return true;
 
-    // Intenta cambiar de dirección si está bloqueado por una pared
+    // Intenta cambiar de direcciÃ³n si estÃ¡ bloqueado por una pared
     if (runnertank_check_wall(self, dist))
     {
-        // Añadir un giro adicional usando ai_turn
+        // AÃ±adir un giro adicional usando ai_turn
         ai_turn(self, 0);
         return true;
     }
@@ -1128,14 +1128,14 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 		return false;
 	}
 
-	// Si no estamos corriendo, cambiar a la animación de carrera
+	// Si no estamos corriendo, cambiar a la animaciÃ³n de carrera
 	if (self->monsterinfo.active_move != &runnertank_move_run)
 		M_SetAnimation(self, &runnertank_move_run);
 
 	// Iniciar un nuevo movimiento de strafe
 	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
 
-	// Aplicar un impulso lateral más fuerte
+	// Aplicar un impulso lateral mÃ¡s fuerte
 	vec3_t right, strafe_vel;
 	AngleVectors(self->s.angles, nullptr, right, nullptr);
 	float strafe_speed = 300 + (frandom() * 200);  // Consistente con runnertank_run

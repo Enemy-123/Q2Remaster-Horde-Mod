@@ -16,7 +16,7 @@ constexpr float MAX_SIDESTEP = 8.0f;
 // ROGUE
 
 //============================================================================
-// Función auxiliar para calcular la distancia al cuadrado (más eficiente que VectorLength)
+// FunciÃ³n auxiliar para calcular la distancia al cuadrado (mÃ¡s eficiente que VectorLength)
 float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
     vec3_t diff{};
     VectorSubtract(v1, v2, diff);
@@ -205,7 +205,7 @@ void ai_stand(edict_t* self, float dist)
 	// HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
 	if (g_horde->integer && !self->enemy)
 	{
-		// Solo la sentrygun utilizará FindMTarget para buscar un objetivo
+		// Solo la sentrygun utilizarÃ¡ FindMTarget para buscar un objetivo
 		if (!strcmp(self->classname, "monster_sentrygun")) {
 			FindMTarget(self);
 		}
@@ -214,7 +214,7 @@ void ai_stand(edict_t* self, float dist)
 			edict_t* nearest_player = nullptr;
 			float nearest_distance_sq = FLT_MAX;
 
-			// Encuentra el jugador más cercano que esté vivo y no sea espectador
+			// Encuentra el jugador mÃ¡s cercano que estÃ© vivo y no sea espectador
 			for (const auto client : active_players_no_spect())
 			{
 				if (client->inuse && client->health > 0)
@@ -421,8 +421,8 @@ mid	    infront and show hostile
 > mid	only triggered by damage
 =============
 */
-#include <cassert> // Agrega esta línea al inicio del archivo
-#include <cmath> // Asegúrate de que también tienes la cabecera para std::isnan
+#include <cassert> // Agrega esta lÃ­nea al inicio del archivo
+#include <cmath> // AsegÃºrate de que tambiÃ©n tienes la cabecera para std::isnan
 float range_to(edict_t* self, edict_t* other) {
     assert(self != nullptr && other != nullptr);
     std::cerr << "self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
@@ -441,7 +441,7 @@ bool IsInvisible(edict_t* ent);
 bool IsValidTarget(edict_t* self, edict_t* ent);
 
 
-constexpr size_t MAX_ENTITIES = 34;  // Ajustado al máximo esperado
+constexpr size_t MAX_ENTITIES = 34;  // Ajustado al mÃ¡ximo esperado
 
 struct NearbyEntity {
     edict_t* entity;
@@ -471,7 +471,7 @@ bool FindMTarget(edict_t* self) {
             return a.distanceSquared < b.distanceSquared;
         });
 
-    // Encontrar el objetivo más cercano visible
+    // Encontrar el objetivo mÃ¡s cercano visible
     for (size_t i = 0; i < entityCount; i++) {
         if (visible(self, nearbyEntities[i].entity, false)) {
             self->enemy = nearbyEntities[i].entity;
@@ -732,7 +732,7 @@ bool FindEnhancedTarget(edict_t* self) {
     constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
     std::vector<std::pair<edict_t*, float>> nearbyEntities;
 
-    // Función lambda para verificar si una entidad es un objetivo válido
+    // FunciÃ³n lambda para verificar si una entidad es un objetivo vÃ¡lido
     auto isValidTarget = [self](edict_t* ent) {
         if (ent == self || !ent->inuse) return false;
 
@@ -758,10 +758,10 @@ bool FindEnhancedTarget(edict_t* self) {
             return a.second < b.second;
         });
 
-    // Encontrar el objetivo más cercano visible y vivo
+    // Encontrar el objetivo mÃ¡s cercano visible y vivo
     for (const auto& [ent, _] : nearbyEntities) {
         if (ent->health > 0 && !ent->deadflag && visible(self, ent, false)) {
-            // Verificación adicional para jugadores
+            // VerificaciÃ³n adicional para jugadores
             if (ent->client) {
                 if (ent->client->invisible_time > level.time &&
                     ent->client->invisibility_fade_time <= level.time) {
@@ -893,7 +893,7 @@ bool FindTarget(edict_t* self)
     {
         if (g_horde->integer)
         {
-            // Usar la misma lógica mejorada para todos, incluyendo sentrygun
+            // Usar la misma lÃ³gica mejorada para todos, incluyendo sentrygun
             return FindEnhancedTarget(self);
         }
         return false; // No se encontraron objetivos
@@ -1696,7 +1696,7 @@ void ai_run(edict_t* self, float dist)
         return;
     }
 
-    // Si no hay enemigo, buscar un nuevo jugador válido
+    // Si no hay enemigo, buscar un nuevo jugador vÃ¡lido
     if (!self->enemy) {
         edict_t* player = nullptr;
         for (auto client : active_players())
@@ -1704,7 +1704,7 @@ void ai_run(edict_t* self, float dist)
             if (!client->inuse || !client->client) {
                 continue;
             }
-            // Verificar si el jugador es válido
+            // Verificar si el jugador es vÃ¡lido
             if (client->health <= 0 ||
                 client->client->invisible_time > level.time ||
                 EntIsSpectating(client))
@@ -1716,7 +1716,7 @@ void ai_run(edict_t* self, float dist)
         }
         if (player) {
             self->enemy = player;
-            self->monsterinfo.run(self); // Pone al monstruo en modo de persecución
+            self->monsterinfo.run(self); // Pone al monstruo en modo de persecuciÃ³n
             return;
         }
     }

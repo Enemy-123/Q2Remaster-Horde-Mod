@@ -1683,7 +1683,7 @@ void SP_misc_strogg_ship(edict_t* ent) {
 	//edict_t* reference = nullptr;
 	//float best_distance = 9999999.0f;
 
-	//// Encontrar el jugador m�s cercano para usarlo como referencia
+	//// Encontrar el jugador m√°s cercano para usarlo como referencia
 	//for (uint32_t n = 1; n <= game.maxclients; n++) {
 	//	edict_t* player = &g_edicts[n];
 

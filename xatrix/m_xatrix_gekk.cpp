@@ -619,7 +619,7 @@ MMOVE_T(gekk_move_run_start) = { FRAME_stand_01, FRAME_stand_02, gekk_frames_run
 
 void gekk_hit_left(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (!self->enemy)
 	{
 		// char buffer[256];
@@ -641,7 +641,7 @@ void gekk_hit_left(edict_t* self)
 
 void gekk_hit_right(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (!self->enemy)
 	{
 		// char buffer[256];
@@ -869,7 +869,7 @@ MMOVE_T(gekk_move_leapatk2) = { FRAME_leapatk_01, FRAME_leapatk_19, gekk_frames_
 
 void gekk_bite(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (!self->enemy)
 	{
 		// char buffer[256];

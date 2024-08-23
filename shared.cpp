@@ -52,8 +52,8 @@ void RemovePlayerOwnedEntities(edict_t* player)
 				!strcmp(ent->classname, "food_cube_trap") ||
 				!strcmp(ent->classname, "prox_mine") ||
 				!strcmp(ent->classname, "monster_sentrygun") ||
-				!strcmp(ent->classname, "emitter") ||  // AÒadido para los l·seres
-				!strcmp(ent->classname, "laser"))      // AÒadido para los l·seres
+				!strcmp(ent->classname, "emitter") ||  // A√±adido para los l√°seres
+				!strcmp(ent->classname, "laser"))      // A√±adido para los l√°seres
 			{
 				// Call appropriate die function
 				if (!strcmp(ent->classname, "monster_sentrygun"))
@@ -496,23 +496,23 @@ std::string GetPlayerName(edict_t* player) {
 //	trace_t tr;
 //	vec3_t start, end;
 //
-//	// Definir el punto de inicio (m·s arriba del jugador de referencia) y el punto final (m·s abajo)
+//	// Definir el punto de inicio (m√°s arriba del jugador de referencia) y el punto final (m√°s abajo)
 //	start = reference->s.origin + vec3_t{ 0, 0, 2048 }; // Increase the height
 //	end = reference->s.origin - vec3_t{ 0, 0, 4096 };   // Increase the depth
 //
 //	// Hacer un trazo para encontrar una superficie con SURF_SKY
 //	tr = gi.trace(start, vec3_origin, vec3_origin, end, reference, MASK_SOLID);
 //
-//	// Mensajes de depuraciÛn
+//	// Mensajes de depuraci√≥n
 //	gi.Com_PrintFmt("Trace start: {} {} {}\n", start[0], start[1], start[2]);
 //	gi.Com_PrintFmt("Trace end: {} {} {}\n", end[0], end[1], end[2]);
 //	gi.Com_PrintFmt("Trace endpos: {} {} {}\n", tr.endpos[0], tr.endpos[1], tr.endpos[2]);
 //
 //	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
-//		vec3_t mins = { -4096, -4096, -4096 }; // Definir lÌmites mÌnimos del mapa
-//		vec3_t maxs = { 4096, 4096, 4096 };   // Definir lÌmites m·ximos del mapa
+//		vec3_t mins = { -4096, -4096, -4096 }; // Definir l√≠mites m√≠nimos del mapa
+//		vec3_t maxs = { 4096, 4096, 4096 };   // Definir l√≠mites m√°ximos del mapa
 //
-//		// Verificar que la posiciÛn no estÈ fuera del mapa
+//		// Verificar que la posici√≥n no est√© fuera del mapa
 //		for (int i = 0; i < 3; i++) {
 //			if (tr.endpos[i] < mins[i]) tr.endpos[i] = mins[i];
 //			if (tr.endpos[i] > maxs[i]) tr.endpos[i] = maxs[i];

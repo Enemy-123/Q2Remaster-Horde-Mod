@@ -101,7 +101,7 @@ edict_t* fixbot_FindDeadMonster(edict_t* self)
 	return best;
 }
 static void fixbot_set_attack_fly_parameters(edict_t* self) {
-	self->monsterinfo.fly_min_distance = 50.f;  // Acercarse más para el ataque
+	self->monsterinfo.fly_min_distance = 50.f;  // Acercarse mÃ¡s para el ataque
 	self->monsterinfo.fly_max_distance = 140.f; // Pero mantener alguna distancia
 	self->monsterinfo.fly_speed = 180.f;        // Velocidad aumentada para el combate
 }
@@ -159,7 +159,7 @@ int fixbot_search(edict_t* self)
 			return 1;  // Enemigo encontrado y ataque iniciado
 		}
 	}
-	return 0;  // No se encontró enemigo o ya había un enemigo
+	return 0;  // No se encontrÃ³ enemigo o ya habÃ­a un enemigo
 }
 
 void landing_goal(edict_t* self)

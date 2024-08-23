@@ -18,11 +18,11 @@ bool fire_hit(edict_t * self, vec3_t aim, int damage, int kick)
 	vec3_t	dir;
 //	char buffer[256];
 
-	// Verificaci髇 inicial de null para enemy
+	// Verificaci贸n inicial de null para enemy
 	if (!self->enemy) {
 		return false; // Manejar el error apropiadamente
 	}
-	//// Verificaci髇 de null para attacker si es "monster_sentrygun"
+	//// Verificaci贸n de null para attacker si es "monster_sentrygun"
 	//if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 	//	//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_sentrygun\n");
 	//	//gi.Com_Print(buffer);
@@ -571,7 +571,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
-	// Si la granada golpea a un enemigo, aplicar da駉 directo
+	// Si la granada golpea a un enemigo, aplicar da帽o directo
 	if (ent->enemy)
 	{
 		float points;
@@ -584,17 +584,17 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 		points = ent->dmg - 0.5f * v.length();
 		dir = ent->enemy->s.origin - ent->s.origin;
 
-		// Aseg鷕ate de que el da駉 no sea negativo
+		// Aseg煤rate de que el da帽o no sea negativo
 		if (points < 0)
 			points = 0;
 
 		T_Damage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
 	}
 
-	// Infligir da駉 en la explosi髇
+	// Infligir da帽o en la explosi贸n
 	T_RadiusDamage(ent, ent->owner, ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
 
-	// Crear un efecto de explosi髇
+	// Crear un efecto de explosi贸n
 	origin = ent->s.origin + (ent->velocity * -0.02f);
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)
@@ -627,7 +627,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 			VectorScale(ent->velocity, 1.2f, ent->velocity); // Aumentar la velocidad tras cada rebote
 		}
 
-		// Reducir el da駉 en un 1/5, pero no menos del 20% del da駉 original
+		// Reducir el da帽o en un 1/5, pero no menos del 20% del da帽o original
 		const float min_dmg = ent->original_dmg * 0.20f;
 		if (ent->dmg > min_dmg)
 		{
@@ -643,7 +643,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 	}
 	else
 	{
-		// La granada realiza una 鷏tima explosi髇 y se elimina
+		// La granada realiza una 煤ltima explosi贸n y se elimina
 		G_FreeEdict(ent);
 	}
 }
@@ -725,18 +725,18 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 
 	if (g_bouncygl->integer && self->svflags & ~SVF_MONSTER)
 	{
-		// Comportamiento de rebote y explosi髇
+		// Comportamiento de rebote y explosi贸n
 		grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 		grenade->s.angles = vectoangles(grenade->velocity);
 		grenade->nextthink = level.time + FRAME_TIME_S;
 		grenade->timestamp = level.time + timer;
-		grenade->think = BouncyGrenade_Think;  // Funci髇 de pensamiento espec韋ica para el comportamiento de rebote
+		grenade->think = BouncyGrenade_Think;  // Funci贸n de pensamiento espec铆fica para el comportamiento de rebote
 		grenade->s.renderfx |= RF_MINLIGHT;
 		grenade->s.effects |= EF_GRENADE | EF_SPINNINGLIGHTS; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
-		grenade->count = 4;  // N鷐ero de rebotes/explosiones
+		grenade->count = 4;  // N煤mero de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;
-		grenade->original_dmg = damage; // Establecer el da駉 original
+		grenade->original_dmg = damage; // Establecer el da帽o original
 	}
 	else if (monster)
 	{

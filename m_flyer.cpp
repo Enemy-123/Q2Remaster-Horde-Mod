@@ -450,7 +450,7 @@ void flyer_slash_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, aim, 3, 0))
 			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
@@ -461,8 +461,8 @@ void flyer_slash_left(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "flyer_slash_left: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -471,7 +471,7 @@ void flyer_slash_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, aim, 3, 0))
 			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
@@ -482,8 +482,8 @@ void flyer_slash_right(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "flyer_slash_right: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -729,7 +729,7 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
 void SP_monster_flyer(edict_t* self)
 {
 	if (g_horde->integer && current_wave_number <= 18) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.32f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);

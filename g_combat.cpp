@@ -580,7 +580,7 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		{
 			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2));
 		}
-		// Verifica si uno de los entes es un emisor de láser o un láser
+		// Verifica si uno de los entes es un emisor de lÃ¡ser o un lÃ¡ser
 		if (ent1->classname && (!strcmp(ent1->classname, "emitter") || !strcmp(ent1->classname, "laser")))
 		{
 			return !strcmp(ent1->team, ent2->client ? (ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent2->team ? ent2->team : "neutral"));
@@ -852,7 +852,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (!attacker)
 		attacker = inflictor;
 
-	// Si aún así el atacante es nulo, usamos el mundo como atacante
+	// Si aÃºn asÃ­ el atacante es nulo, usamos el mundo como atacante
 	if (!attacker)
 		attacker = world;
 
@@ -1273,7 +1273,7 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 			if (CanDamage(ent, inflictor))
 			{
 				dir = (ent->s.origin - inflictor_center).normalized();
-				// Aplicar el modificador de daño aquí
+				// Aplicar el modificador de daÃ±o aquÃ­
 				float modified_points = points * damage_modifier;
 				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir,
 					(int)modified_points, (int)modified_points,

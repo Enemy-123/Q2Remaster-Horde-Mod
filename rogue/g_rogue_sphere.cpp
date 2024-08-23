@@ -101,7 +101,7 @@ void sphere_chase(edict_t* self, int stupidChase)
 		return;
 	}
 
-	// Verificar si el enemigo actual ya no es válido
+	// Verificar si el enemigo actual ya no es vÃ¡lido
 	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0)
 	{
 		// Buscar un nuevo enemigo
@@ -128,7 +128,7 @@ void sphere_chase(edict_t* self, int stupidChase)
 		}
 		else
 		{
-			// No se encontró un nuevo enemigo, volver al dueño o explotar
+			// No se encontrÃ³ un nuevo enemigo, volver al dueÃ±o o explotar
 			if (self->owner && self->owner->inuse && self->owner->health > 0)
 			{
 				self->enemy = nullptr;
@@ -671,7 +671,7 @@ edict_t* Sphere_Spawn(edict_t* owner, spawnflags_t spawnflags)
 	sphere->s.origin[2] = owner->absmax[2];
 	sphere->s.angles[YAW] = owner->s.angles[YAW];
 
-	// Cambiar esta línea
+	// Cambiar esta lÃ­nea
 	sphere->solid = (spawnflags & SPHERE_TYPE).value == SPHERE_DEFENDER.value ? SOLID_NOT : SOLID_BBOX;
 
 	sphere->clipmask = MASK_PROJECTILE;

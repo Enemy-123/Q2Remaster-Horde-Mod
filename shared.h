@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #ifndef SHARED_H
 #define SHARED_H
@@ -49,7 +49,7 @@ struct MapSize {
 MapSize GetMapSize(const std::string& mapname)  ;
 
 
-// Estructura para almacenar las estadísticas de los jugadores
+// Estructura para almacenar las estad√≠sticas de los jugadores
 struct PlayerStats {
     edict_t* player;
     int total_damage;

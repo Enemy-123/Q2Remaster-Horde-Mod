@@ -1543,7 +1543,7 @@ USE(door_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 
 TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	if (!self || !other) // Comprobación de nulidad
+	if (!self || !other) // ComprobaciÃ³n de nulidad
 		return;
 
 	if (other->health <= 0)
@@ -1551,7 +1551,7 @@ TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 		return;
 
-	// Comprobación de nulidad para self->owner
+	// ComprobaciÃ³n de nulidad para self->owner
 	if (!self->owner)
 		return;
 

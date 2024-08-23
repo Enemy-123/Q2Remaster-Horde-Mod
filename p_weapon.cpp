@@ -1548,8 +1548,8 @@ void Machinegun_Fire(edict_t* ent)
 	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
-	// Ajustar posiciÛn inicial para evitar colisiones con el techo
-	start[2] -= 5.0f;  // Baja la posiciÛn inicial un poco m·s abajo
+	// Ajustar posici√≥n inicial para evitar colisiones con el techo
+	start[2] -= 5.0f;  // Baja la posici√≥n inicial un poco m√°s abajo
 
 	G_LagCompensate(ent, start, forward);
 	fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
@@ -1565,7 +1565,7 @@ void Machinegun_Fire(edict_t* ent)
 
 	G_RemoveAmmo(ent);
 
-	// LÛgica para disparar trazadores
+	// L√≥gica para disparar trazadores
 	if (ent->lasthbshot <= level.time)
 	{
 		if (g_tracedbullets->integer)
@@ -1578,19 +1578,19 @@ void Machinegun_Fire(edict_t* ent)
 			// Ajustar el desplazamiento para que coincida con el lado del arma
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posiciÛn del blaster cuando est· agachado
+				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posici√≥n del blaster cuando est√° agachado
 			}
 			else
 			{
-				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posiciÛn del blaster cuando est· de pie
+				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posici√≥n del blaster cuando est√° de pie
 			}
 			VectorAdd(tracer_start, tracer_offset, tracer_start);
 
-			// Ajuste de direcciÛn para fire_blaster2
+			// Ajuste de direcci√≥n para fire_blaster2
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
 
-			// Disparo del blaster desde la posiciÛn ajustada y direcciÛn correcta
+			// Disparo del blaster desde la posici√≥n ajustada y direcci√≥n correcta
 			fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.5_sec;
@@ -1714,8 +1714,8 @@ void Chaingun_Fire(edict_t* ent)
 	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
-	// Ajustar posiciÛn inicial para evitar colisiones con el techo
-	start[2] -= 5.0f;  // Baja la posiciÛn inicial un poco m·s abajo
+	// Ajustar posici√≥n inicial para evitar colisiones con el techo
+	start[2] -= 5.0f;  // Baja la posici√≥n inicial un poco m√°s abajo
 
 	G_LagCompensate(ent, start, forward);
 	for (i = 0; i < shots; i++)
@@ -1737,7 +1737,7 @@ void Chaingun_Fire(edict_t* ent)
 
 	G_RemoveAmmo(ent, shots);
 
-	// LÛgica para disparar trazadores
+	// L√≥gica para disparar trazadores
 	if (ent->lasthbshot <= level.time)
 	{
 		if (g_tracedbullets->integer)
@@ -1750,19 +1750,19 @@ void Chaingun_Fire(edict_t* ent)
 			// Ajustar el desplazamiento para que coincida con el lado del arma
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posiciÛn del blaster cuando est· agachado
+				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posici√≥n del blaster cuando est√° agachado
 			}
 			else
 			{
-				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posiciÛn del blaster cuando est· de pie
+				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posici√≥n del blaster cuando est√° de pie
 			}
 			VectorAdd(tracer_start, tracer_offset, tracer_start);
 
-			// Ajuste de direcciÛn para fire_blaster2
+			// Ajuste de direcci√≥n para fire_blaster2
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
 
-			// Disparo del blaster desde la posiciÛn ajustada y direcciÛn correcta
+			// Disparo del blaster desde la posici√≥n ajustada y direcci√≥n correcta
 			fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.25_sec;

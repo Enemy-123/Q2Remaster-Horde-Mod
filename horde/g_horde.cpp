@@ -1,4 +1,4 @@
-﻿// Includes y definiciones relevantes
+// Includes y definiciones relevantes
 #include "../g_local.h"
 #include "g_horde.h"
 #include "../shared.h"

@@ -550,7 +550,7 @@ MONSTERINFO_ATTACK(stalker_attack_ranged) (edict_t* self) -> void
 void stalker_swing_attack(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
-	// Verificar si self->enemy est· correctamente inicializado
+	// Verificar si self->enemy est√° correctamente inicializado
 	if (self->enemy) {
 		if (fire_hit(self, aim, irandom(5, 10), 50)) {
 			if (self->s.frame < FRAME_attack08)
@@ -567,8 +567,8 @@ void stalker_swing_attack(edict_t* self)
 		// std::snprintf(buffer, sizeof(buffer), "stalker_swing_attack: Error: enemy not properly initialized\n");
 		// gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no est· inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 0.8_sec; // Ajustar seg˙n sea necesario
+		// Manejar el caso donde self->enemy no est√° inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 0.8_sec; // Ajustar seg√∫n sea necesario
 	}
 }
 

@@ -21,7 +21,7 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 
 //bool FindMTarget(edict_t* self) {
 //	edict_t* ent = nullptr;
-//	float range = 800.0f; // Rango de b˙squeda
+//	float range = 800.0f; // Rango de b√∫squeda
 //	vec3_t dir{};
 //	float bestDist = range + 1.0f; // Inicializa con un valor mayor al rango
 //	edict_t* bestTarget = nullptr;
@@ -29,11 +29,11 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 //	for (unsigned int i = 0; i < globals.num_edicts; i++) {
 //		ent = &g_edicts[i];
 //
-//		// Verifica si la entidad est· en uso, es sÛlida, no es la misma entidad, tiene salud mayor a 0 y no est· muerta
+//		// Verifica si la entidad est√° en uso, es s√≥lida, no es la misma entidad, tiene salud mayor a 0 y no est√° muerta
 //		if (!ent->inuse || !ent->solid || ent == self || ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
 //			continue;
 //
-//		// Aseg˙rate de que no es un jugador
+//		// Aseg√∫rate de que no es un jugador
 //		if (ent->svflags & SVF_PLAYER || ent->monsterinfo.invincible_time > level.time)
 //			continue;
 //
@@ -42,7 +42,7 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 //			VectorSubtract(ent->s.origin, self->s.origin, dir);
 //			float dist = VectorLength(dir);
 //
-//			// Verifica si la entidad est· dentro del rango, es visible y es la m·s cercana encontrada hasta ahora
+//			// Verifica si la entidad est√° dentro del rango, es visible y es la m√°s cercana encontrada hasta ahora
 //			if (dist < range && visible(self, ent) && dist < bestDist) {
 //				bestDist = dist;
 //				bestTarget = ent;
@@ -50,13 +50,13 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 //		}
 //	}
 //
-//	// Si se encontrÛ un objetivo v·lido, se asigna como enemigo
+//	// Si se encontr√≥ un objetivo v√°lido, se asigna como enemigo
 //	if (bestTarget) {
 //		self->enemy = bestTarget;
 //		return true;
 //	}
 //
-//	return false; // No se encontrÛ objetivo v·lido
+//	return false; // No se encontr√≥ objetivo v√°lido
 //}
 
 void turret2Aim(edict_t* self);
@@ -78,29 +78,29 @@ void turret2Aim(edict_t* self)
 	// Verifica el estado del enemigo
 	bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
 
-	// Si el enemigo no es v·lido, busca un nuevo objetivo
+	// Si el enemigo no es v√°lido, busca un nuevo objetivo
 	if (!enemy_valid)
 	{
 		if (!FindMTarget(self))
 			return;
 	}
 
-	// Actualiza el enemigo v·lido despuÈs de intentar encontrar un nuevo objetivo
+	// Actualiza el enemigo v√°lido despu√©s de intentar encontrar un nuevo objetivo
 	enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
 	if (!enemy_valid)
 		return;
 
-	// Si la torreta est· en modo inactivo, prepara el arma, pero no apuntes
+	// Si la torreta est√° en modo inactivo, prepara el arma, pero no apuntes
 	if (self->s.frame < FRAME_active01)
 	{
 		turret2_ready_gun(self);
 		return;
 	}
-	// Si la torreta a˙n se est· preparando, no apuntes.
+	// Si la torreta a√∫n se est√° preparando, no apuntes.
 	if (self->s.frame < FRAME_run01)
 		return;
 
-	// PMM - Apuntado de fuego ciego aquÌ
+	// PMM - Apuntado de fuego ciego aqu√≠
 	if (self->monsterinfo.active_move == &turret2_move_fire_blind)
 	{
 		end = self->monsterinfo.blind_fire_target;
@@ -115,7 +115,7 @@ void turret2Aim(edict_t* self)
 		if (self->enemy->client)
 			end[2] += self->enemy->viewheight;
 		else
-			end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) / 2; // Ajusta para enemigos pequeÒos
+			end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) / 2; // Ajusta para enemigos peque√±os
 	}
 
 	dir = end - self->s.origin;
@@ -415,7 +415,7 @@ void turret2Fire(edict_t* self)
 	float dist, chance;
 	trace_t trace;
 	int projectileSpeed{};
-	bool damageApplied = false;  // Bandera para prevenir daÒo duplicado
+	bool damageApplied = false;  // Bandera para prevenir da√±o duplicado
 
 	turret2Aim(self);
 
@@ -425,7 +425,7 @@ void turret2Fire(edict_t* self)
 			return;
 	}
 
-	// Comportamiento de disparo m·s agresivo
+	// Comportamiento de disparo m√°s agresivo
 	self->monsterinfo.attack_finished = level.time;
 
 	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
@@ -473,7 +473,7 @@ void turret2Fire(edict_t* self)
 		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
-			// LÛgica combinada de ametralladora y cohetes
+			// L√≥gica combinada de ametralladora y cohetes
 			if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 			{
 				// Disparo de cohetes cada 2.3 segundos
@@ -490,7 +490,7 @@ void turret2Fire(edict_t* self)
 					}
 				}
 
-				// LÛgica mejorada de la ametralladora
+				// L√≥gica mejorada de la ametralladora
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
@@ -503,13 +503,13 @@ void turret2Fire(edict_t* self)
 					if (self->monsterinfo.next_duck_time < level.time &&
 						self->monsterinfo.melee_debounce_time <= level.time && !damageApplied)
 					{
-						// PredicciÛn mejorada para fire_bullet
+						// Predicci√≥n mejorada para fire_bullet
 						vec3_t predictedDir;
 						PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
 
 						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
 
-						// Usar la direcciÛn predicha para fire_bullet
+						// Usar la direcci√≥n predicha para fire_bullet
 						fire_bullet(self, start, predictedDir, TURRET2_BULLET_DAMAGE, 5, DEFAULT_BULLET_HSPREAD / 2, DEFAULT_BULLET_VSPREAD / 2, MOD_TURRET);
 
 						// Efecto visual del disparo
@@ -528,7 +528,7 @@ void turret2Fire(edict_t* self)
 				const gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 3_sec);
 				start = self->s.origin;
 
-				// Mejora en la predicciÛn para el heatbeam
+				// Mejora en la predicci√≥n para el heatbeam
 				vec3_t predictedDir;
 				PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
 
@@ -538,7 +538,7 @@ void turret2Fire(edict_t* self)
 				{
 					if (!damageApplied)
 					{
-						// Dispara el heatbeam con la direcciÛn predicha
+						// Dispara el heatbeam con la direcci√≥n predicha
 						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
 						monster_fire_heatbeam(self, start, predictedDir, vec3_origin, 0, 30, MZ2_TURRET_BLASTER);
 						damageApplied = true;
@@ -601,7 +601,7 @@ void turret2FireBlind(edict_t* self)
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 	{
-		// Aplica el daÒo con el mod_t configurado
+		// Aplica el da√±o con el mod_t configurado
 		monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
 	}
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
@@ -733,7 +733,7 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	edict_t* gib = ThrowGib(self, "models/monsters/turret/tris.md2", damage, GIB_SKINNED | GIB_METALLIC | GIB_HEAD | GIB_DEBRIS, self->s.scale);
 	gib->s.frame = 14;
 
-	// Si la torreta muriÛ porque su propietario desapareciÛ
+	// Si la torreta muri√≥ porque su propietario desapareci√≥
 	if (!self->owner || !self->owner->inuse)
 	{
 		self->think = G_FreeEdict;
@@ -919,12 +919,12 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	VectorCopy(self->enemy->s.origin, spot2);
 	spot2[2] += self->enemy->viewheight;
 
-	// Ajusta la m·scara de contenido para ignorar otros monstruos
+	// Ajusta la m√°scara de contenido para ignorar otros monstruos
 	const contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
 
 	tr = gi.traceline(spot1, spot2, self, mask);
 
-	// Comprueba si hay lÌnea de visiÛn directa
+	// Comprueba si hay l√≠nea de visi√≥n directa
 	if (tr.fraction == 1.0 || tr.ent == self->enemy)
 	{
 		if (level.time < self->monsterinfo.attack_finished)
@@ -946,7 +946,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		return true;
 	}
 
-	// Si no hay lÌnea de visiÛn directa, intenta fuego ciego
+	// Si no hay l√≠nea de visi√≥n directa, intenta fuego ciego
 	if (self->monsterinfo.blindfire && level.time > self->monsterinfo.blind_fire_delay)
 	{
 		vec3_t aim_point;
@@ -981,7 +981,7 @@ When activated, wall units move 32 units in the direction they're facing.
 void SP_monster_sentrygun(edict_t* self)
 {
 #define playeref self->owner->s.effects;
-	self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de ˙ltimo disparo de cohete
+	self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de √∫ltimo disparo de cohete
 	int angle;
 
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;

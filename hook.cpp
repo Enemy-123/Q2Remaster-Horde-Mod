@@ -100,7 +100,7 @@ bool Hook_Check(edict_t* self)
 	// drop the hook if player lets go of button
 	// and has the hook as current weapon
 	if (((self->owner->client->latched_buttons & BUTTON_ATTACK)
-		&& self->owner->client->pers.weapon && // Agregar esta verificaci�n
+		&& self->owner->client->pers.weapon && // Agregar esta verificaciÃ³n
 		(strcmp(self->owner->client->pers.weapon->pickup_name, "Hook") == 0))) // DEBUGGER POINTED THIS LINE!
 	{
 		Hook_Reset(self);

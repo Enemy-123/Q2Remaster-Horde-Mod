@@ -255,16 +255,16 @@ void arachnid_melee_charge(edict_t* self)
 
 void arachnid_melee_hit(edict_t* self)
 {
-	// Verificar si self->enemy est· correctamente inicializado
+	// Verificar si self->enemy est√° correctamente inicializado
 	if (self->enemy) {
-		// Llamar a fire_hit solo si self->enemy est· inicializado
+		// Llamar a fire_hit solo si self->enemy est√° inicializado
 		if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 	}
 	else {
 
-		// Manejar el caso donde self->enemy no est· inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Puedes ajustar esto seg˙n sea necesario
+		// Manejar el caso donde self->enemy no est√° inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Puedes ajustar esto seg√∫n sea necesario
 	}
 }
 

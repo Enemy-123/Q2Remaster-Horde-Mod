@@ -512,7 +512,7 @@ void floater_wham(edict_t* self)
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, aim, irandom(5, 11), -50))
 			self->monsterinfo.melee_debounce_time = level.time + 3_sec;
@@ -522,8 +522,8 @@ void floater_wham(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "floater_wham: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -669,7 +669,7 @@ void SP_monster_floater(edict_t* self)
 {
 	if (g_horde->integer && current_wave_number <= 18)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.12f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);

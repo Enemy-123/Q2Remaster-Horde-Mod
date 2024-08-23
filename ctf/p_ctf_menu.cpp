@@ -85,7 +85,7 @@ void PMenu_Close(edict_t* ent)
 {
 	pmenuhnd_t* hnd;
 
-	//// Verificar si estamos en tiempo de intermisi�n
+	//// Verificar si estamos en tiempo de intermisiÃ³n
 	//if (level.intermissiontime)
 	//{
 	//	gi.Com_PrintFmt("Skipping PMenu_Close during intermission\n");

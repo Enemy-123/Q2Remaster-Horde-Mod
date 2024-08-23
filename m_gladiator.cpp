@@ -111,7 +111,7 @@ void GladiatorMelee(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (fire_hit(self, aim, irandom(30, 35), 300))
 			gi.sound(self, CHAN_AUTO, sound_cleaver_hit, 1, ATTN_NORM, 0);
@@ -126,9 +126,9 @@ void GladiatorMelee(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "GladiatorMelee: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
 		gi.sound(self, CHAN_AUTO, sound_cleaver_miss, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -470,7 +470,7 @@ void SP_monster_gladiator(edict_t* self)
 {
 	if (g_horde->integer && current_wave_number <= 18)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

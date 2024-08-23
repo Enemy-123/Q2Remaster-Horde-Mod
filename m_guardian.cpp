@@ -365,7 +365,7 @@ MMOVE_T(guardian_move_atk2_in) = { FRAME_atk2_in1, FRAME_atk2_in12, guardian_fra
 
 void guardian_kick(edict_t* self)
 {
-	// Verificar si self->enemy est· correctamente inicializado
+	// Verificar si self->enemy est√° correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, 85, 700))
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
@@ -375,8 +375,8 @@ void guardian_kick(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "guardian_kick: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no est· inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Ajustar seg˙n sea necesario
+		// Manejar el caso donde self->enemy no est√° inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Ajustar seg√∫n sea necesario
 	}
 }
 

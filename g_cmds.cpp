@@ -1060,7 +1060,7 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 			continue;
 		}
 
-		// Dañar severamente al AI
+		// DaÃ±ar severamente al AI
 		if (!edict->deadflag && (!(edict->monsterinfo.team == CTF_TEAM1)))
 			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
 	}
@@ -1541,7 +1541,7 @@ void Cmd_Switchteam_f(edict_t* ent)
 	if (!G_TeamplayEnabled())
 		return;
 
-	// Si la configuración del mod solo permite un equipo, podemos reducir la función significativamente.
+	// Si la configuraciÃ³n del mod solo permite un equipo, podemos reducir la funciÃ³n significativamente.
 	if (g_teamplay_force_join->integer)
 	{
 		// Solo un equipo posible, cualquier solicitud de cambio de equipo es redundante.
@@ -1549,12 +1549,12 @@ void Cmd_Switchteam_f(edict_t* ent)
 			ent->client->pers.netname);
 
 		// Puede ser un buen lugar para manejar el comportamiento si intentan cambiar de equipo de todos modos.
-		// Por ejemplo, puedes mandar al jugador al menú de equipo o ignorar el comando.
+		// Por ejemplo, puedes mandar al jugador al menÃº de equipo o ignorar el comando.
 		CTFOpenJoinMenu(ent);
 		return;
 	}
 
-	// Si el jugador no tiene equipo, abrir el menú de equipo.
+	// Si el jugador no tiene equipo, abrir el menÃº de equipo.
 	if (ent->client->resp.ctf_team == CTF_NOTEAM)
 	{
 		CTFOpenJoinMenu(ent);

@@ -69,33 +69,33 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 //	vec3_t createPt, spawnPt;
 //	vec3_t ang;
 //
-//	// Establecer el ángulo de spawn basado en la dirección del jugador
+//	// Establecer el Ã¡ngulo de spawn basado en la direcciÃ³n del jugador
 //	ang[PITCH] = 0;
 //	ang[YAW] = ent->client->v_angle[YAW];
 //	ang[ROLL] = 0;
 //	AngleVectors(ang, forward, right, nullptr);
 //
-//	// Calcular el punto inicial de creación
+//	// Calcular el punto inicial de creaciÃ³n
 //	createPt = ent->s.origin + (forward * 48);
 //
-//	// Encontrar un punto de spawn válido
+//	// Encontrar un punto de spawn vÃ¡lido
 //	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, 32))
 //	{
 //		gi.Client_Print(ent, PRINT_HIGH, "No suitable spawn point found.\n");
 //		return;
 //	}
 //
-//	// Verificar si el punto de spawn está en el suelo
+//	// Verificar si el punto de spawn estÃ¡ en el suelo
 //	if (!CheckGroundSpawnPoint(spawnPt, ent->mins, ent->maxs, 64, -1))
 //	{
 //		gi.Client_Print(ent, PRINT_HIGH, "Cannot spawn turret here.\n");
 //		return;
 //	}
 //
-//	// Intentar spawnear la torreta y verificar si tuvo éxito
+//	// Intentar spawnear la torreta y verificar si tuvo Ã©xito
 //	if (fire_sentrygun(ent, spawnPt, forward, 128.f, 76.f))
 //	{
-//		// Reducir la cantidad de ítems en el inventario solo si se pudo spawnear la torreta
+//		// Reducir la cantidad de Ã­tems en el inventario solo si se pudo spawnear la torreta
 //		ent->client->pers.inventory[item->id]--;
 //	}
 //}
@@ -121,7 +121,7 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 	vec3_t createPt, spawnPt;
 	vec3_t ang;
 
-	// Establecer el ángulo de spawn basado en la dirección del jugador
+	// Establecer el Ã¡ngulo de spawn basado en la direcciÃ³n del jugador
 	ang[PITCH] = ent->client->v_angle[PITCH];
 	ang[YAW] = ent->client->v_angle[YAW];
 	ang[ROLL] = 0;
@@ -132,10 +132,10 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 	if (forwardturret < 22.f) {
 		forwardturret = 22.f;
 	}
-	// Calcular el punto inicial de creación
+	// Calcular el punto inicial de creaciÃ³n
 	createPt = ent->s.origin + (forward * forwardturret);
 
-	// Encontrar un punto de spawn válido
+	// Encontrar un punto de spawn vÃ¡lido
 	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, true)) {
 		gi.Client_Print(ent, PRINT_HIGH, "No suitable spawn point found.\n");
 		return;
@@ -147,14 +147,14 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 		height = 50.f;
 	}
 
-	// Intentar spawnear la torreta y verificar si tuvo éxito
+	// Intentar spawnear la torreta y verificar si tuvo Ã©xito
 	if (fire_sentrygun(ent, spawnPt, forward, forwardturret, height)) {
-		// Reducir la cantidad de ítems en el inventario solo si se pudo spawnear la torreta
+		// Reducir la cantidad de Ã­tems en el inventario solo si se pudo spawnear la torreta
 		ent->client->pers.inventory[item->id]--;
-		// Incrementa el número de torretas del jugador
+		// Incrementa el nÃºmero de torretas del jugador
 		ent->client->num_sentries++;
 
-		// Nuevo mensaje después de construir la torreta
+		// Nuevo mensaje despuÃ©s de construir la torreta
 		gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun spawned. You have {}/{} sentry guns.\n",
 			ent->client->num_sentries, MAX_SENTRIES);
 	}

@@ -61,10 +61,10 @@ DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 
 PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	// Implementación básica de dolor
+	// ImplementaciÃ³n bÃ¡sica de dolor
 	if (self->health < self->max_health / 2)
 	{
-		// Cambiar el color a amarillo cuando está dañado
+		// Cambiar el color a amarillo cuando estÃ¡ daÃ±ado
 		self->s.skinnum = 0xd0d1d2d3;  // amarillo
 	}
 
@@ -91,7 +91,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
 	const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
 	self->s.frame = size;
 
-	// Cambiar color basado en la salud del láser
+	// Cambiar color basado en la salud del lÃ¡ser
 	if (self->health > self->max_health * 0.20f)
 	{
 		self->s.skinnum = 0xf2f2f0f0; // rojo
@@ -112,13 +112,13 @@ THINK(laser_beam_think)(edict_t* self) -> void
 
 	if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster)
 	{
-		// Verificar si el objetivo es válido (monstruo, jugador, o entidad dañable)
+		// Verificar si el objetivo es vÃ¡lido (monstruo, jugador, o entidad daÃ±able)
 		if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage)
 		{
-			// Verificar si el objetivo está en el mismo equipo
+			// Verificar si el objetivo estÃ¡ en el mismo equipo
 			if (!OnSameTeam(self->teammaster, tr.ent))
 			{
-				// Aplicar daño incluso si la salud es <= 0, pero no contar como hit_valid_target
+				// Aplicar daÃ±o incluso si la salud es <= 0, pero no contar como hit_valid_target
 				T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
 				// Solo contar como hit_valid_target si la salud es > 0
@@ -126,7 +126,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
 				{
 					hit_valid_target = true;
 
-					// Reducir la salud del láser solo si golpeó un objetivo válido con salud > 0
+					// Reducir la salud del lÃ¡ser solo si golpeÃ³ un objetivo vÃ¡lido con salud > 0
 					if (tr.ent->svflags & SVF_MONSTER && (!(tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))))
 					{
 						self->health -= damage * 0.6f;  // desgaste aligerado contra monsters
@@ -137,18 +137,18 @@ THINK(laser_beam_think)(edict_t* self) -> void
 					}
 					else
 					{
-						self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
+						self->health -= damage * 0.25f;  // Desgaste aÃºn menor contra otros objetivos vÃ¡lidos
 					}
 				}
 			}
 		}
 	}
 
-	// Si no golpeó un objetivo válido, no reducir la salud
+	// Si no golpeÃ³ un objetivo vÃ¡lido, no reducir la salud
 	if (!hit_valid_target)
 	{
-		// Opcionalmente, puedes agregar un desgaste mínimo aquí si lo deseas
-		// self->health -= 0.1f;  // Desgaste mínimo cuando no golpea nada
+		// Opcionalmente, puedes agregar un desgaste mÃ­nimo aquÃ­ si lo deseas
+		// self->health -= 0.1f;  // Desgaste mÃ­nimo cuando no golpea nada
 	}
 
 	// Si la salud llega a cero, explotar
@@ -263,7 +263,7 @@ void create_laser(edict_t* ent)
 	laser->pain = laser_pain;
 	laser->flags |= FL_NO_KNOCKBACK;
 
-	// Asignar el equipo al láser
+	// Asignar el equipo al lÃ¡ser
 	if (ent->client->resp.ctf_team == CTF_TEAM1) {
 		laser->team = TEAM1;
 	}

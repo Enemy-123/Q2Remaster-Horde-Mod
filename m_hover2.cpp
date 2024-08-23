@@ -398,7 +398,7 @@ void hover2_fire_blaster(edict_t* self)
 		if (!self->enemy || !self->enemy->inuse)
 			return;
 
-		AngleVectors(self->s.angles, forward, right, up); // Asegúrate de declarar up aquí
+		AngleVectors(self->s.angles, forward, right, up); // AsegÃºrate de declarar up aquÃ­
 		vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
 		start = M_ProjectFlashSource(self, o, forward, right);
 
@@ -413,7 +413,7 @@ void hover2_fire_blaster(edict_t* self)
 		}
 		else
 		{
-			// Ajusta la lógica de lanzamiento de granadas para alternar brazos
+			// Ajusta la lÃ³gica de lanzamiento de granadas para alternar brazos
 			flash_number = (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1;
 
 			VectorCopy(forward, aim);
@@ -645,7 +645,7 @@ void SP_monster_hover2(edict_t* self)
 	{
 		if (strcmp(self->classname, "monster_daedalus2"))
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 			if (randomsearch < 0.12f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
@@ -658,7 +658,7 @@ void SP_monster_hover2(edict_t* self)
 		{
 			if (!strcmp(self->classname, "monster_daedalus2"))
 			{
-				float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+				float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 				if (randomsearch < 0.12f)
 					gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);

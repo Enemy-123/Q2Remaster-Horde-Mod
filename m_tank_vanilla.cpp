@@ -1158,8 +1158,8 @@ mframe_t tank_frames_spawn[] =
 {
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
-	{ai_charge, 0, tank2Strike},  // FRAME_attak225 - Añadir footstep aquí
-	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquí
+	{ai_charge, 0, tank2Strike},  // FRAME_attak225 - AÃ±adir footstep aquÃ­
+	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquÃ­
 	{ai_charge, -1, nullptr},
 	{ai_charge, -2, nullptr}   // FRAME_attak229
 };

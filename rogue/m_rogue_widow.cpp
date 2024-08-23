@@ -776,7 +776,7 @@ MMOVE_T(widow1_move_death) = { FRAME_death25, FRAME_death31, widow1_frames_death
 
 void widow_attack_kick(edict_t* self)
 {
-	// Verificar si self->enemy est· correctamente inicializado
+	// Verificar si self->enemy est√° correctamente inicializado
 	if (self->enemy) {
 		vec3_t aim = { 100, 0, 4 };
 
@@ -790,8 +790,8 @@ void widow_attack_kick(edict_t* self)
 		// std::snprintf(buffer, sizeof(buffer), "widow_attack_kick: Error: enemy not properly initialized\n");
 		// gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no est· inicializado
-		// Puedes agregar cualquier lÛgica adicional aquÌ si es necesario
+		// Manejar el caso donde self->enemy no est√° inicializado
+		// Puedes agregar cualquier l√≥gica adicional aqu√≠ si es necesario
 	}
 }
 
