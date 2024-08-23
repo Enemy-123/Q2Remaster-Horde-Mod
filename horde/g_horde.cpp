@@ -303,66 +303,38 @@ void ResetSpawnAttempts();
 void VerifyAndAdjustBots();
 void ResetCooldowns() noexcept;
 
-void Horde_InitLevel(int32_t lvl) {
+void Horde_InitLevel(const int32_t lvl) {
 	last_wave_number++;
 	g_horde_local.level = lvl;
 	current_wave_number = lvl;
 	g_horde_local.monster_spawn_time = level.time;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
-
-	// Inicializar cachedRemainingMonsters
 	cachedRemainingMonsters = -1;
 
-	// Verificar y ajustar bots
 	VerifyAndAdjustBots();
 
-	// Configurar la escala de daño según el nivel
-	if (g_horde_local.level == 17) {
-		gi.cvar_set("g_damage_scale", "1.7");
-	}
-	else if (g_horde_local.level == 27) {
-		gi.cvar_set("g_damage_scale", "2.7");
-	}
-	else if (g_horde_local.level == 37) {
-		gi.cvar_set("g_damage_scale", "3.7");
+	// Usar un switch para la escala de daño es eficiente y claro
+	switch (g_horde_local.level) {
+	case 17: gi.cvar_set("g_damage_scale", "1.7"); break;
+	case 27: gi.cvar_set("g_damage_scale", "2.7"); break;
+	case 37: gi.cvar_set("g_damage_scale", "3.7"); break;
+	default: break; // Mantener el valor actual si no coincide
 	}
 
-	// Configuración de la cantidad de monstruos a spawnear
 	const auto mapSize = GetMapSize(level.mapname);
 	DetermineMonsterSpawnCount(mapSize, lvl);
 
-	// Revisar y aplicar beneficios basados en la ola
 	CheckAndApplyBenefit(g_horde_local.level);
-
-	// Ajustar tasa de aparición de monstruos
 	AdjustMonsterSpawnRate();
 
-	// Reiniciar cooldowns y contadores de intentos de spawn
 	ResetSpawnAttempts();
 	ResetCooldowns();
 
-	//UpdateAllClients();
-
-	// Limpiar cuerpos de olas anteriores
 	Horde_CleanBodies();
 
-	// Imprimir mensaje de inicio del nivel
 	gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
-
-	//    // Spawnear naves Strogg en la fase de inicialización del nivel
-	//    if (lvl % 2 == 0) { // Ajusta la condición según la frecuencia que desees
-	//        void SP_misc_strogg_ship(edict_t * ent);
-	//        edict_t* strogg_ship = G_Spawn();
-	//        if (strogg_ship) {
-	//            gi.Com_PrintFmt("Strogg Ship passing by");
-	//            SP_misc_strogg_ship(strogg_ship);
-	//        }
-	//    }
 }
-
-
-
 
 bool G_IsDeathmatch() noexcept {
 	return deathmatch->integer && g_horde->integer;
@@ -931,6 +903,7 @@ void VerifyAndAdjustBots() {
 
 #include <array>
 #include <string_view>
+#include <chrono>
 void InitializeWaveSystem() noexcept;
 void Horde_Init() {
 	// Precache all items
@@ -1098,6 +1071,7 @@ static bool Horde_AllMonstersDead() {
 }
 
 static void Horde_CleanBodies() {
+	int32_t cleaned_count = 0;
 	for (auto ent : active_or_dead_monsters()) {
 		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
 			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
@@ -1106,8 +1080,12 @@ static void Horde_CleanBodies() {
 			else {
 				OnEntityDeath(ent);
 			}
-			G_FreeEdict(ent); // Libera la entidad
+			G_FreeEdict(ent);
+			cleaned_count++;
 		}
+	}
+	if (cleaned_count > 0) {
+		gi.Com_PrintFmt("Cleaned {} monster bodies\n", cleaned_count);
 	}
 }
 
@@ -1481,7 +1459,8 @@ void ResetGame() {
 	gi.cvar_set("g_autohaste", "0");
 
 	// Reiniciar semilla aleatoria
-	srand(static_cast<unsigned int>(time(nullptr)));
+	srand(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
+
 
 	// Registrar el reinicio
 	gi.Com_PrintFmt("Horde game state reset complete.\n");
