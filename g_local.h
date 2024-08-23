@@ -3141,8 +3141,8 @@ enum plat2flags_t
 MAKE_ENUM_BITFLAGS(plat2flags_t);
 
 #include <bitset>
-void OnEntityDeath(edict_t* ent);
-void OnEntityRemoved(edict_t* ent);
+void OnEntityDeath(const edict_t* ent);
+void OnEntityRemoved(const edict_t* ent);
 struct edict_t
 {
 	edict_t() = delete;
@@ -3858,7 +3858,7 @@ template<> cached_imageindex* cached_imageindex::head;
 extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
 
-extern void OnEntityDeath(edict_t* ent);
+extern void OnEntityDeath(const edict_t* ent);
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest)  ;
 
 extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);

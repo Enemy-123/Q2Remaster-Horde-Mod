@@ -994,7 +994,7 @@ struct ConfigStringManager {
 	std::unordered_map<int, int> entityToConfigString;
 	std::queue<int> availableConfigStrings;
 
-	ConfigStringManager() {
+	ConfigStringManager() noexcept {
 		for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
 			availableConfigStrings.push(i);
 		}
@@ -1241,7 +1241,7 @@ private:
 	std::vector<int> recentlyUsedIndices;
 
 public:
-	OptimizedEntityInfoManager() {
+	OptimizedEntityInfoManager() noexcept {
 		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
 			availableIndices.push(i);
 		}
@@ -1403,7 +1403,7 @@ void CTFSetIDView(edict_t* ent) {
 
 // En el archivo donde manejas la muerte de entidades
 // En el archivo donde manejas la muerte de entidades
-void OnEntityDeath(edict_t* self) {
+void OnEntityDeath(const edict_t* self) {
 	if (self && self->inuse) {
 		int const entity_index = self - g_edicts;
 		g_entityInfoManager.removeEntityInfo(entity_index);
@@ -1411,7 +1411,7 @@ void OnEntityDeath(edict_t* self) {
 }
 
 // Asegúrate de llamar a esto cuando una entidad es removida del juego
-void OnEntityRemoved(edict_t* ent) {
+void OnEntityRemoved(const edict_t* ent) {
 	if (ent && ent->inuse) {
 		uint32_t const entity_index = static_cast<uint32_t>(ent - g_edicts);
 		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
@@ -3518,7 +3518,7 @@ void UpdateVoteMenu() {
 }
 
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur;
+	const int option = p->cur;
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
 		const char* voted_map = vote_menu[option].text;
 
@@ -3571,7 +3571,7 @@ void OpenVoteMenu(edict_t* ent) {
 }
 
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur;
+	const int option = p->cur;
 
 	// Cierra el menú sólo si es necesario al final de la ejecución del caso
 	bool shouldCloseMenu = true;
