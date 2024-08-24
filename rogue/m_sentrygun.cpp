@@ -19,46 +19,6 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBE
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 
-//bool FindMTarget(edict_t* self) {
-//	edict_t* ent = nullptr;
-//	float range = 800.0f; // Rango de búsqueda
-//	vec3_t dir{};
-//	float bestDist = range + 1.0f; // Inicializa con un valor mayor al rango
-//	edict_t* bestTarget = nullptr;
-//
-//	for (unsigned int i = 0; i < globals.num_edicts; i++) {
-//		ent = &g_edicts[i];
-//
-//		// Verifica si la entidad está en uso, es sólida, no es la misma entidad, tiene salud mayor a 0 y no está muerta
-//		if (!ent->inuse || !ent->solid || ent == self || ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
-//			continue;
-//
-//		// Asegúrate de que no es un jugador
-//		if (ent->svflags & SVF_PLAYER || ent->monsterinfo.invincible_time > level.time)
-//			continue;
-//
-//		// Solo busca enemigos en el equipo contrario y que sean monstruos
-//		if (!OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER)) {
-//			VectorSubtract(ent->s.origin, self->s.origin, dir);
-//			float dist = VectorLength(dir);
-//
-//			// Verifica si la entidad está dentro del rango, es visible y es la más cercana encontrada hasta ahora
-//			if (dist < range && visible(self, ent) && dist < bestDist) {
-//				bestDist = dist;
-//				bestTarget = ent;
-//			}
-//		}
-//	}
-//
-//	// Si se encontró un objetivo válido, se asigna como enemigo
-//	if (bestTarget) {
-//		self->enemy = bestTarget;
-//		return true;
-//	}
-//
-//	return false; // No se encontró objetivo válido
-//}
-
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
 void turret2_run(edict_t* self);
