@@ -2225,7 +2225,7 @@ void PutClientInServer(edict_t* ent)
 	// do it before setting health back up, so farthest
 	// ranging doesn't count this client
 	bool valid_spawn = false;
-	bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
+	const bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
 	bool is_landmark = false;
 
 	if (use_squad_respawn)
@@ -3223,7 +3223,7 @@ void ClientDisconnect(edict_t* ent)
 ClientIsSpectating
 =================
 */
-bool ClientIsSpectating(gclient_t* cl) {
+bool ClientIsSpectating(const gclient_t* cl) noexcept {
 	if (!cl) return false;
 
 	return cl->resp.ctf_team == CTF_NOTEAM;
@@ -3234,7 +3234,7 @@ bool ClientIsSpectating(gclient_t* cl) {
 EntIsSpectating
 =================
 */
-bool EntIsSpectating(edict_t* ent)
+bool EntIsSpectating(const edict_t* ent) noexcept
 {
 	if (!ent || !ent->client)
 		return true;
@@ -3309,9 +3309,6 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 	if (ent->client && (ent->client->hook_out || ent->client->hook_release_time + 1.0 >= level.time.seconds())) {
 		return;
 	}
-
-
-
 
 	// ZOID
 
@@ -3413,14 +3410,14 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 	return false;
 }
 // Declaración de VectorCompare
-bool VectorCompare(const vec3_t v1, const vec3_t v2) {
+static constexpr bool VectorCompare(const vec3_t v1, const vec3_t v2) {
 	return (v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2]);
 }
 
 // Constantes
-const gtime_t MIN_INACTIVITY_DURATION = 15_sec;
-const gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
-const gtime_t WARNING_TIME = 5_sec;
+constexpr gtime_t MIN_INACTIVITY_DURATION = 15_sec;
+constexpr gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
+constexpr gtime_t WARNING_TIME = 5_sec;
 
 // Enumeración para estados de actividad
 enum class ActivityState {
@@ -3441,7 +3438,7 @@ static void HandleInactivePlayer(edict_t* ent) {
 	ent->client->resp.inactive = true;
 }
 
-static bool IsPlayerActive(edict_t* ent) {
+static bool IsPlayerActive(const edict_t*  ent) {
 	return (ent->client->latched_buttons & BUTTON_ANY) ||
 		!VectorCompare(ent->client->old_origin, ent->s.origin) ||
 		!VectorCompare(ent->client->old_angles, ent->client->v_angle);
@@ -3460,7 +3457,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		return true;
 	}
 
-	gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
+	const gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
 
 	// Inicialización del temporizador de inactividad
 	if (!ent->client->resp.inactivity_time) {
@@ -3478,7 +3475,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		ent->client->resp.inactive = false;
 	}
 	else {
-		gtime_t current_time = level.time;
+		const gtime_t current_time = level.time;
 
 		// Manejo de jugador inactivo
 		if (current_time > ent->client->resp.inactivity_time) {
@@ -3830,9 +3827,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 }
 
-inline bool G_MonstersSearchingFor(edict_t* player)
+static inline bool G_MonstersSearchingFor(const edict_t* player)
 {
-	for (const auto ent : active_monsters())
+	for (auto const* ent : active_monsters())
 	{
 		// check for *any* player target
 		if (player == nullptr && ent->enemy && !ent->enemy->client)
@@ -3890,7 +3887,7 @@ bool IsInsideTriggerHurt(const vec3_t& point) {
 			ent->absmin[2] <= point[2] && point[2] <= ent->absmax[2]) {
 
 			if (ent->spawnflags.has(SPAWNFLAG_HURT_CLIPPED)) {
-				trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, nullptr, MASK_SOLID);
+				const trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, nullptr, MASK_SOLID);
 				if (tr.fraction < 1.0f && tr.ent == ent)
 					return true;
 			}
@@ -3975,7 +3972,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 		spot = tr.endpos;
 
-		float z_diff = fabsf(player->s.origin[2] - tr.endpos[2]);
+		const float z_diff = fabsf(player->s.origin[2] - tr.endpos[2]);
 
 		// 5 steps is way too many steps
 		if (z_diff > STEPSIZE * 4.f)
@@ -4013,7 +4010,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	auto process_player = [&](edict_t* player) {
 		if (player->deadflag) return;
 
-		bool in_combat = player->client->last_damage_time >= level.time;
+		const bool in_combat = player->client->last_damage_time >= level.time;
 
 		if (in_combat) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
@@ -4079,7 +4076,7 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 
 	// Select a player for squad respawn
 	if (!squad_respawn_candidates.empty()) {
-		size_t index = rand() % squad_respawn_candidates.size();
+		const size_t index = rand() % squad_respawn_candidates.size();
 		auto [selected_player, selected_spot] = squad_respawn_candidates[index];
 		// We don't change the coop_respawn_state here, as it's already set to COOP_RESPAWN_NONE
 		return { selected_player, selected_spot };
@@ -4162,7 +4159,7 @@ static bool G_CoopRespawn(edict_t* ent)
 		{
 			bool allDead = true;
 
-			for (auto player : active_players())
+			for (auto const* player : active_players())
 			{
 				if (player->health > 0)
 				{

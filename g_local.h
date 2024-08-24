@@ -3873,8 +3873,8 @@ extern float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
-extern bool ClientIsSpectating(gclient_t* cl);
-extern bool EntIsSpectating(edict_t* ent);
+extern bool ClientIsSpectating(const gclient_t* cl) noexcept;
+extern bool EntIsSpectating(const edict_t* ent) noexcept;
 
 extern 	bool FindMTarget(edict_t* self);
 
