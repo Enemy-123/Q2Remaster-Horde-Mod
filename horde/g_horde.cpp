@@ -143,7 +143,17 @@ std::string SelectRandomBenefit(int32_t wave) {
 }
 
 
-// Funci�n para aplicar un beneficio espec�fico
+#include <string_view>
+
+// Función hash simple para strings en tiempo de compilación
+constexpr uint32_t hash(std::string_view str) {
+	uint32_t hash = 5381;
+	for (char c : str)
+		hash = ((hash << 5) + hash) + c;
+	return hash;
+}
+
+// Función para aplicar un beneficio específico
 void ApplyBenefit(const std::string& benefit) {
 	static const std::unordered_map<std::string, std::pair<const char*, const char*>> benefitMessages = {
 		{"start armor", {"\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 50 BODY-ARMOR!\n"}},
@@ -160,34 +170,39 @@ void ApplyBenefit(const std::string& benefit) {
 	const auto it = benefitMessages.find(benefit);
 	if (it != benefitMessages.end()) {
 		// Aplicar el beneficio
-		if (benefit == "start armor") {
+		switch (hash(benefit)) {
+		case hash("start armor"):
 			gi.cvar_set("g_startarmor", "1");
-		}
-		else if (benefit == "vampire") {
+			break;
+		case hash("vampire"):
 			vampire_level = 1;
 			gi.cvar_set("g_vampire", "1");
-		}
-		else if (benefit == "vampire upgraded") {
+			break;
+		case hash("vampire upgraded"):
 			vampire_level = 2;
 			gi.cvar_set("g_vampire", "2");
-		}
-		else if (benefit == "ammo regen") {
+			break;
+		case hash("ammo regen"):
 			gi.cvar_set("g_ammoregen", "1");
-		}
-		else if (benefit == "auto haste") {
+			break;
+		case hash("auto haste"):
 			gi.cvar_set("g_autohaste", "1");
-		}
-		else if (benefit == "Cluster Prox Grenades") {
+			break;
+		case hash("Cluster Prox Grenades"):
 			gi.cvar_set("g_upgradeproxs", "1");
-		}
-		else if (benefit == "Traced-Piercing Bullets") {
+			break;
+		case hash("Traced-Piercing Bullets"):
 			gi.cvar_set("g_tracedbullets", "1");
-		}
-		else if (benefit == "Napalm-Grenade Launcher") {
+			break;
+		case hash("Napalm-Grenade Launcher"):
 			gi.cvar_set("g_bouncygl", "1");
-		}
-		else if (benefit == "BFG Grav-Pull Lasers") {
+			break;
+		case hash("BFG Grav-Pull Lasers"):
 			gi.cvar_set("g_bfgpull", "1");
+			break;
+		default:
+			gi.Com_PrintFmt("Unknown benefit: {}\n", benefit.c_str());
+			return;
 		}
 
 		// Enviar los mensajes de beneficio
@@ -200,11 +215,10 @@ void ApplyBenefit(const std::string& benefit) {
 		obtained_benefits.insert(benefit);
 	}
 	else {
-		// Mensaje de depuraci�n en caso de que el beneficio no sea encontrado
+		// Mensaje de depuración en caso de que el beneficio no sea encontrado
 		gi.Com_PrintFmt("Benefit not found: {}\n", benefit.c_str());
 	}
 }
-
 
 // Funci�n para verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(int32_t wave) {
@@ -223,18 +237,20 @@ void CheckAndApplyBenefit(int32_t wave) {
 // Funci�n para ajustar la tasa de aparici�n de monstruos
 void AdjustMonsterSpawnRate() {
 	const auto humanPlayers = GetNumHumanPlayers();
-	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f; // Increase difficulty per player
+	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f;
 
 	if (g_horde_local.level % 3 == 0) {
 		g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
-		g_horde_local.monster_spawn_time -= ((!g_chaotic->integer || !g_insane->integer) ? 0.5_sec : 0.4_sec) * difficultyMultiplier;
-		if (g_horde_local.monster_spawn_time < 0.7_sec) {
-			g_horde_local.monster_spawn_time = 0.7_sec;
-		}
-		SPAWN_POINT_COOLDOWN -= ((!g_chaotic->integer || !g_insane->integer) ? 0.6_sec : 0.4_sec) * difficultyMultiplier;
-		if (SPAWN_POINT_COOLDOWN < 2.0_sec) {
-			SPAWN_POINT_COOLDOWN = 2.0_sec;
-		}
+
+		const bool isChaoticOrInsane = g_chaotic->integer || g_insane->integer;
+		const gtime_t spawnTimeReduction = isChaoticOrInsane ? 0.4_sec : 0.5_sec;
+		const gtime_t cooldownReduction = isChaoticOrInsane ? 0.4_sec : 0.6_sec;
+
+		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
+		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 0.7_sec);
+
+		SPAWN_POINT_COOLDOWN -= cooldownReduction * difficultyMultiplier;
+		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 2.0_sec);
 	}
 }
 
@@ -244,39 +260,41 @@ static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noe
 		g_horde_local.num_to_spawn = std::min((current_wave_level <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
 	}
 	else if (mapSize.isBigMap) {
-		g_horde_local.num_to_spawn = std::min((current_wave_level <= 4) ? 24 : 27 + (lvl), MAX_MONSTERS_BIG_MAP);
+		g_horde_local.num_to_spawn = std::min((current_wave_level <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP);
 	}
-	else {
+	else { // Medium map
 		g_horde_local.num_to_spawn = std::min((current_wave_level <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
 	}
 }
 // Funci�n para calcular el bono de locura y caos
 static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	if (g_chaotic->integer) return 3;
-	if (g_insane->integer) {
-		if (g_insane->integer == 2) return 16;
-		if (g_insane->integer == 1) return 8;
+
+	switch (g_insane->integer) {
+	case 2: return 16;
+	case 1: return 8;
+	default:
 		if (g_chaotic->integer && current_wave_level <= 3) return 6;
-		return 8;
+		return g_insane->integer ? 8 : 0;
 	}
-	return 0;
 }
 
 // Funci�n para incluir ajustes de dificultad
 static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
-	int32_t additionalSpawn = 0;
+	int32_t additionalSpawn;
+
 	if (mapSize.isSmallMap) {
 		additionalSpawn = (current_wave_level >= 9) ? 7 : 6;
 	}
 	else if (mapSize.isBigMap) {
 		additionalSpawn = (current_wave_level >= 9) ? 12 : 8;
 	}
-	else {
+	else { // Medium map
 		additionalSpawn = (current_wave_level >= 9) ? 7 : 6;
 	}
 
 	if (current_wave_level > 25) {
-		additionalSpawn *= 1.6;
+		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6);
 	}
 
 	if (current_wave_level >= 3 && (g_chaotic->integer || g_insane->integer)) {
@@ -554,8 +572,14 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 	return nullptr;
 }
 
-constexpr int32_t MAX_RECENT_BOSSES = 3;
-std::vector<const char*> recent_bosses;  // Cambiado de std::deque a std::vector
+#include <array>
+#include <unordered_set>
+#include <random>
+
+constexpr size_t MAX_RECENT_BOSSES = 3;
+std::array<const char*, MAX_RECENT_BOSSES> recent_bosses{};
+size_t recent_bosses_count = 0;
+std::unordered_set<const char*> recent_bosses_set;
 
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
@@ -573,18 +597,15 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 			(waveNumber <= boss.max_level || boss.max_level == -1);
 		};
 
-	auto is_boss_recent = [&](const char* classname) {
-		return std::find(recent_bosses.begin(), recent_bosses.end(), classname) != recent_bosses.end();
-		};
-
 	for (size_t i = 0; i < boss_list_size; ++i) {
-		if (is_boss_eligible(boss_list[i]) && !is_boss_recent(boss_list[i].classname)) {
+		if (is_boss_eligible(boss_list[i]) && recent_bosses_set.find(boss_list[i].classname) == recent_bosses_set.end()) {
 			eligible_bosses.push_back(&boss_list[i]);
 		}
 	}
 
 	if (eligible_bosses.empty()) {
-		recent_bosses.clear();
+		recent_bosses_set.clear();
+		recent_bosses_count = 0;
 		for (size_t i = 0; i < boss_list_size; ++i) {
 			if (is_boss_eligible(boss_list[i])) {
 				eligible_bosses.push_back(&boss_list[i]);
@@ -593,17 +614,23 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 	}
 
 	if (!eligible_bosses.empty()) {
-		const boss_t* chosen_boss = eligible_bosses[static_cast<size_t>(frandom() * eligible_bosses.size())];
-		recent_bosses.push_back(chosen_boss->classname);
-		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
-			recent_bosses.erase(recent_bosses.begin());
+		std::uniform_int_distribution<size_t> distribution(0, eligible_bosses.size() - 1);
+		const boss_t* chosen_boss = eligible_bosses[distribution(mt_rand)];
+
+		if (recent_bosses_count == MAX_RECENT_BOSSES) {
+			recent_bosses_set.erase(recent_bosses[0]);
+			std::rotate(recent_bosses.begin(), recent_bosses.begin() + 1, recent_bosses.end());
+			recent_bosses_count--;
 		}
+
+		recent_bosses[recent_bosses_count++] = chosen_boss->classname;
+		recent_bosses_set.insert(chosen_boss->classname);
+
 		return chosen_boss->classname;
 	}
 
 	return nullptr;
 }
-
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -796,7 +823,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	// Create and use the discrete distribution
 	std::discrete_distribution<> dist(weights.begin(), weights.end());
-const size_t chosen_index = dist(mt_rand);
+	const size_t chosen_index = dist(mt_rand);
 
 	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
 	UpdateCooldowns(spawn_point, chosen_monster);
@@ -1378,12 +1405,11 @@ void ResetAllSpawnAttempts() noexcept {
 	}
 }
 
-static void ResetAutoSpawnedBosses() noexcept {
-	auto_spawned_bosses.clear();
-
-	// Reset recent bosses
-	recent_bosses.clear();
-}
+static void ResetRecentBosses() noexcept {
+		recent_bosses.fill(nullptr);  // Llena el array con nullptr
+		recent_bosses_count = 0;      // Resetea el contador
+		recent_bosses_set.clear();    // Limpia el set
+	}
 
 void ResetGame() {
 	// Reiniciar estructuras de datos globales
@@ -1421,10 +1447,8 @@ void ResetGame() {
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
 	ResetBenefits();
-	ResetAutoSpawnedBosses();
+	ResetRecentBosses();
 
-	// Reinicia la lista de bosses recientes
-	recent_bosses.clear();
 
 	// Reset wave information
 	g_horde_local.level = 0;  // Reset current wave level

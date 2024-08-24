@@ -1146,7 +1146,7 @@ std::string FormatClassname(const std::string& classname) {
 	return formatted_name;
 }
 
-bool IsValidClassname(const char* classname) {
+static bool IsValidClassname(const char* classname) noexcept {
 	if (!classname) return false;
 	const char* allowed_prefixes[] = {
 		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "emitter", nullptr
