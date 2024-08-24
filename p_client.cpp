@@ -4001,38 +4001,31 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
+
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 	const bool is_horde_mode = g_horde->integer != 0;
 	gtime_t min_combat_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
-	gtime_t min_bad_area_time_left = 3_sec;  // Always start from 3 seconds
-	edict_t* best_player = nullptr;
-	vec3_t best_spot = {};
+	gtime_t min_bad_area_time_left = 3_sec;
+	std::vector<std::tuple<edict_t*, vec3_t>> squad_respawn_candidates;
 	bool combat_state_exists = false;
 	bool bad_area_state_exists = false;
 
-	auto process_player = [&](edict_t* player) -> bool {
-		if (player->deadflag) return false;
+	auto process_player = [&](edict_t* player) {
+		if (player->deadflag) return;
 
-		bool in_combat = false;
-		gtime_t combat_time_left = 0_sec;
-
-		// Check combat state
-		if (player->client->last_damage_time >= level.time) {
-			in_combat = true;
-			combat_time_left = player->client->last_damage_time - level.time;
-		}
+		bool in_combat = player->client->last_damage_time >= level.time;
 
 		if (in_combat) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			combat_state_exists = true;
+			gtime_t combat_time_left = player->client->last_damage_time - level.time;
 			if (combat_time_left < min_combat_time_left) {
 				min_combat_time_left = combat_time_left;
 			}
-			player->client->time_in_bad_area = 0_ms;  // Reset bad area time when in combat
-			return false;
+			player->client->time_in_bad_area = 0_ms;
+			return;
 		}
 
-		// Check positioning and blocked state only if not in combat
 		const bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
 		vec3_t spot;
 		const bool is_blocked = !G_FindRespawnSpot(player, spot);
@@ -4045,80 +4038,87 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 				min_bad_area_time_left = time_left_in_bad_area;
 			}
 			bad_area_state_exists = true;
-			return false;
-		}
-		else {
-			player->client->time_in_bad_area = 0_ms;
+			return;
 		}
 
-		// Si encontramos un jugador que está listo para revivir
-		best_player = player;
-		best_spot = spot;
-		return true;  // Indica que encontramos un jugador listo para revivir
+		player->client->time_in_bad_area = 0_ms;
+		player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+		squad_respawn_candidates.emplace_back(player, spot);
 		};
 
 	if (is_horde_mode) {
 		for (auto player : active_players_no_spect()) {
-			if (process_player(player)) {
-				return { best_player, best_spot };  // Retornar inmediatamente cuando se encuentra un jugador listo
-			}
+			process_player(player);
 		}
 	}
 	else {
 		for (auto player : active_players()) {
-			if (process_player(player)) {
-				return { best_player, best_spot };  // Retornar inmediatamente cuando se encuentra un jugador listo
-			}
+			process_player(player);
 		}
 	}
 
-	// Update config string for all players
+	// Update config strings
 	if (combat_state_exists) {
 		std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)", min_combat_time_left.seconds<float>());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");  // Clear the other message
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 	else if (bad_area_state_exists) {
 		std::string message_str = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)", min_bad_area_time_left.seconds<float>());
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");  // Clear the combat message
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str.c_str());
 
-		// Si el temporizador llega a 0, limpiamos el mensaje después de forzar el respawn
 		if (min_bad_area_time_left <= 0_ms) {
-			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");  // Limpiar mensaje de bad area
+			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 		}
 	}
 	else {
-		// Clear both messages if there's no combat or bad area state
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 
-	// Forzar el respawn si el temporizador de "bad area" ha llegado a 0 segundos
+	// Select a player for squad respawn
+	if (!squad_respawn_candidates.empty()) {
+		size_t index = rand() % squad_respawn_candidates.size();
+		auto [selected_player, selected_spot] = squad_respawn_candidates[index];
+		// We don't change the coop_respawn_state here, as it's already set to COOP_RESPAWN_NONE
+		return { selected_player, selected_spot };
+	}
+
+	// Set waiting state for players who can't respawn yet
+	for (auto player : active_players()) {
+		if (player->client->coop_respawn_state == COOP_RESPAWN_NONE) {
+			player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
+		}
+	}
+
+	// Force respawn if the "bad area" timer has reached 0 seconds
 	if (bad_area_state_exists && min_bad_area_time_left <= 0_ms) {
+		auto force_respawn = [](auto player) -> std::tuple<edict_t*, vec3_t> {
+			if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA || player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) {
+				edict_t* spawn_point = SelectSingleSpawnPoint(player);
+				if (spawn_point) {
+					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+					return { player, spawn_point->s.origin };
+				}
+			}
+			return { nullptr, vec3_t{} };
+			};
+
 		if (is_horde_mode) {
 			for (auto player : active_players_no_spect()) {
-				if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA || player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) {
-					edict_t* spawn_point = SelectSingleSpawnPoint(player);
-					if (spawn_point) {
-						return { player, spawn_point->s.origin };  // Forzar respawn en un punto de spawn específico
-					}
-				}
+				auto [forced_player, forced_spot] = force_respawn(player);
+				if (forced_player) return { forced_player, forced_spot };
 			}
 		}
 		else {
 			for (auto player : active_players()) {
-				if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA || player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) {
-					edict_t* spawn_point = SelectSingleSpawnPoint(player);
-					if (spawn_point) {
-						return { player, spawn_point->s.origin };  // Forzar respawn en un punto de spawn específico
-					}
-				}
+				auto [forced_player, forced_spot] = force_respawn(player);
+				if (forced_player) return { forced_player, forced_spot };
 			}
 		}
 	}
 
-	// Si no encontramos ningún jugador listo para revivir
 	return { nullptr, vec3_t{} };
 }
 
