@@ -72,11 +72,8 @@ mframe_t redmutant_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand }, // 10
-
-
-	{ ai_stand }, // 50
-
+	{ ai_stand }, 
+	{ ai_stand }, 
 	{ ai_stand }
 };
 MMOVE_T(redmutant_move_stand) = { FRAME_stand101, FRAME_stand112, redmutant_frames_stand, nullptr };
@@ -97,13 +94,12 @@ void redmutant_idle_loop(edict_t* self)
 }
 
 mframe_t redmutant_frames_idle[] = {
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand }, // scratch loop start
-	{ ai_stand },
-	{ ai_stand },
 	{ ai_stand, 0, redmutant_idle_loop }, // scratch loop end
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand }, 
+	{ ai_stand },
+	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -126,7 +122,7 @@ mframe_t redmutant_frames_idle[] = {
 	{ ai_stand },
 	{ ai_stand }
 };
-MMOVE_T(redmutant_move_idle) = { FRAME_stand201, FRAME_stand228, redmutant_frames_idle, redmutant_stand };
+MMOVE_T(redmutant_move_idle) = { FRAME_stand202, FRAME_stand228, redmutant_frames_idle, redmutant_stand };
 
 MONSTERINFO_IDLE(redmutant_idle) (edict_t* self) -> void
 {
