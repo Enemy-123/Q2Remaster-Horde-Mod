@@ -668,7 +668,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// Paril: horde
-	if (g_horde->integer && strcmp(ent->classname, "monster_sentrygun"))
+	if (g_horde->integer && strcmp(ent->classname, "monster_sentrygun") || ent->svflags & SVF_PLAYER && EntIsSpectating(ent))
 		mask &= ~CONTENTS_MONSTER;
 
 	vec3_t start_up = oldorg + ent->gravityVector * (-1 * stepsize);
