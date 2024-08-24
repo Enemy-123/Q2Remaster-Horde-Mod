@@ -3237,7 +3237,7 @@ EntIsSpectating
 bool EntIsSpectating(edict_t* ent)
 {
 	if (!ent || !ent->client)
-		return true;  
+		return true;
 
 
 

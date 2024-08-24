@@ -91,11 +91,10 @@ void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, co
 	// [Paril-KEX]
 	if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.aiflags & AI_MEDIC)
 	{
-		if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so
+		if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so		
 		{
 			cleanupHealTarget(targ->enemy);
 		}
-
 		// clean up self
 		targ->monsterinfo.aiflags &= ~AI_MEDIC;
 	}
@@ -520,26 +519,26 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 	if (!ent1 || !ent2) {
 		return false;
 	}
-	if (G_IsCooperative())
-	{
-		if (!ent1->client || !ent2->client)
-		{
-			return false;
-		}
-		else if (ent1 == ent2)
-		{
-			return false;
-		}
-		if (G_TeamplayEnabled() && ent1->client && ent2->client)
-		{
-			if (ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
-			{
-				return true;
-			}
-		}
-		return false;
-	}
-	else if (g_horde->integer)
+	//if (G_IsCooperative())
+	//{
+	//	if (!ent1->client || !ent2->client)
+	//	{
+	//		return false;
+	//	}
+	//	else if (ent1 == ent2)
+	//	{
+	//		return false;
+	//	}
+	//	if (G_TeamplayEnabled() && ent1->client && ent2->client)
+	//	{
+	//		if (ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
+	//		{
+	//			return true;
+	//		}
+	//	}
+	//	return false;
+	//}
+	//else if (g_horde->integer)
 	{
 		if (ent1->client && ent2->client)
 		{
@@ -606,7 +605,7 @@ bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
 }
 
 // Calculate DMG
-int CalculateRealDamage(edict_t* targ, int take, int initial_health) {
+static int CalculateRealDamage(edict_t* targ, int take, int initial_health) {
 	if (!targ) {
 		return take; // If targ is null, we simply return the original damage
 	}
@@ -629,7 +628,7 @@ int CalculateRealDamage(edict_t* targ, int take, int initial_health) {
 }
 
 // IDDMG
-void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
+static void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
 	if (!attacker || !attacker->client || !g_iddmg || !targ) {
 		return;
 	}
@@ -645,13 +644,13 @@ void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
 		}
 	}
 	attacker->lastdmg = level.time;
-//	attacker->client->total_damage += real_damage;
+	//	attacker->client->total_damage += real_damage;
 }
 
 // This function should be called in T_Damage
 void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
-	int initial_health = targ->health;
-	int real_damage = CalculateRealDamage(targ, take, initial_health);
+	const int initial_health = targ->health;
+	const int real_damage = CalculateRealDamage(targ, take, initial_health);
 
 	if (real_damage > 0 && attacker && attacker->client) {
 		HandleIDDamage(attacker, targ, real_damage);
@@ -659,15 +658,15 @@ void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
 }
 
 // AUTO HASTE
-void HandleAutoHaste(edict_t* attacker, edict_t* targ, int damage) {
+static void HandleAutoHaste(edict_t* attacker, edict_t* targ, int damage) {
 	if (!g_autohaste || !attacker || !attacker->client || !targ) {
 		return;
 	}
 
 	if (g_autohaste->integer && attacker->client->quadfire_time < level.time) {
 		if (damage > 0 && (!(attacker->health < 1 && targ->health < 1))) {
-			float probability = damage / 1150.0f;
-			float randomChance = frandom();
+			const	float probability = damage / 1150.0f;
+			const	float randomChance = frandom();
 
 			if (randomChance <= probability) {
 				attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
@@ -676,10 +675,10 @@ void HandleAutoHaste(edict_t* attacker, edict_t* targ, int damage) {
 	}
 }
 int calculate_health_stolen(edict_t* attacker, int base_health_stolen);
-void heal_attacker_sentries(edict_t* attacker, int health_stolen);
+void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept;
 void apply_armor_vampire(edict_t* attacker, int damage);
 // VAMPIRE
-bool CanUseVampireEffect(edict_t* attacker) {
+static bool CanUseVampireEffect(edict_t* attacker) {
 	if (!attacker || attacker->health <= 0 || attacker->deadflag) {
 		return false;
 	}
@@ -800,7 +799,7 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	return health_stolen;
 }
 
-void heal_attacker_sentries(edict_t* attacker, int health_stolen) {
+void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept {
 	if (!attacker) {
 		return;
 	}
@@ -822,10 +821,10 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 		return;
 	}
 
-	int index = ArmorIndex(attacker);
+	const int index = ArmorIndex(attacker);
 	if (index && attacker->client->pers.inventory[index] > 0) {
 		int armor_stolen = std::max(1, static_cast<int>(0.7f * (damage / 4)));
-		int max_armor = 200;
+		const int max_armor = 200;
 		armor_stolen = std::min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
 		attacker->client->pers.inventory[index] += armor_stolen;
 	}
@@ -842,8 +841,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	int		   psave;
 	int		   te_sparks;
 	bool	   sphere_notified; // PGM
-	int initial_health = targ->health;
-	int real_damage = CalculateRealDamage(targ, take, initial_health);
+	const int initial_health = targ->health;
+	const int real_damage = CalculateRealDamage(targ, take, initial_health);
 
 	if (!targ->takedamage)
 		return;
@@ -1274,7 +1273,7 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 			{
 				dir = (ent->s.origin - inflictor_center).normalized();
 				// Aplicar el modificador de daño aquí
-				float modified_points = points * damage_modifier;
+				const float modified_points = points * damage_modifier;
 				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir,
 					(int)modified_points, (int)modified_points,
 					dflags | DAMAGE_RADIUS, mod);

@@ -3115,14 +3115,14 @@ struct gclient_t
 	int dmg_counter; // ID DMG
 	// int total_damage; // Total damage dealt by this player
 	bool menu_selected;
-//	pmtype_t prev_pm_type;
+	//	pmtype_t prev_pm_type;
 	int num_lasers;
 
-//	LOAD SERVER CLIENT, CS
-//	bool isLoading;
-////	int entityLoadState;
-//	gtime_t nextLoadTime;
-//	int configStringLoadState;  // Nuevo miembro para la carga progresiva
+	//	LOAD SERVER CLIENT, CS
+	//	bool isLoading;
+	////	int entityLoadState;
+	//	gtime_t nextLoadTime;
+	//	int configStringLoadState;  // Nuevo miembro para la carga progresiva
 };
 
 
@@ -3368,7 +3368,7 @@ struct edict_t
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	float original_dmg; // original dmg on bouncy gl, so it will reduce over bounces
 	int configstringIndex; // cs
-//	gtime_t	regentime = 0.25_sec;
+	//	gtime_t	regentime = 0.25_sec;
 };
 
 #define TEAM1 "team1"
@@ -3726,7 +3726,7 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 		}
 	}
 }
-inline bool M_CheckGib(edict_t* self, const mod_t& mod) 
+inline bool M_CheckGib(edict_t* self, const mod_t& mod)
 {
 	if (self->deadflag)
 	{
@@ -3859,7 +3859,7 @@ extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
 
 extern void OnEntityDeath(const edict_t* ent);
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest)  ;
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
 extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 extern void VectorSet(vec3_t& v, float x, float y, float z);
