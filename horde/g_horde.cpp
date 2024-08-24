@@ -1819,12 +1819,11 @@ static void PushEntitiesAway(const vec3_t& center, float push_radius, float push
 		}
 	}
 }
-
-static void SpawnMonsters() {
+static edict_t* SpawnMonsters() {
 	static const auto mapSize = GetMapSize(level.mapname);
 	static std::vector<edict_t*> available_spawns;
 	available_spawns.clear();
-	available_spawns.reserve(MAX_EDICTS); // Reservar espacio para evitar reallocaciones
+	available_spawns.reserve(MAX_EDICTS);
 
 	// Determinar la cantidad de monstruos a generar por spawn
 	const int32_t monsters_per_spawn = std::min(
@@ -1848,13 +1847,11 @@ static void SpawnMonsters() {
 
 	if (available_spawns.empty()) {
 		gi.Com_PrintFmt("Warning: No spawn points found\n");
-		return;
+		return nullptr;
 	}
-	edict_t* spawn_point = nullptr; // Declarar fuera del loop para usar después si es necesario
 
-	// Usar un vector dinámico para la lista de entidades
-	std::vector<edict_t*> entity_list;
-	entity_list.reserve(MAX_EDICTS);
+	edict_t* spawn_point = nullptr;
+	edict_t* last_spawned_monster = nullptr;
 
 	// Generar monstruos
 	for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++i) {
@@ -1869,15 +1866,25 @@ static void SpawnMonsters() {
 		}
 
 		auto monster = G_Spawn();
+		if (!monster) {
+			gi.Com_PrintFmt("G_Spawn Warning: Failed to spawn monster\n");
+			continue;
+		}
+
 		monster->classname = monster_classname;
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
-
 		VectorCopy(spawn_point->s.origin, monster->s.origin);
 		VectorCopy(spawn_point->s.angles, monster->s.angles);
 
 		ED_CallSpawn(monster);
+
+		// Verificar si el monstruo sigue siendo válido después de ED_CallSpawn
+		if (!monster->inuse) {
+			gi.Com_PrintFmt("ED_CallSpawn Warning: Monster spawn failed\n");
+			continue;
+		}
 
 		if (g_horde_local.level >= 17) {
 			SetMonsterArmor(monster);
@@ -1895,13 +1902,14 @@ static void SpawnMonsters() {
 
 		--g_horde_local.num_to_spawn;
 		MonsterSpawned(monster);
-
 		available_spawns.erase(available_spawns.begin() + spawn_index);
+
+		last_spawned_monster = monster;
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
+	return last_spawned_monster;
 }
-
 // Funciones auxiliares para reducir el tamaño de SpawnMonsters
 static void SetMonsterArmor(edict_t* monster) {
 	if (!st.was_key_specified("power_armor_power"))
