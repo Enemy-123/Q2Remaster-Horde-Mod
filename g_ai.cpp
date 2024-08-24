@@ -434,7 +434,7 @@ bool FindMTarget(edict_t* self) {
     for (auto ent : active_monsters()) {
         if (entityCount >= MAX_ENTITIES) break;
         if (!IsValidTarget(self, ent)) continue;
-        float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
+       const float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
         if (distSquared <= MAX_RANGE_SQUARED) {
             nearbyEntities[entityCount++] = { ent, distSquared };
         }
@@ -483,7 +483,7 @@ bool visible(edict_t* self, edict_t* other, bool through_glass) {
     spot2[2] += other->viewheight;
     contents_t mask = MASK_OPAQUE;
     if (!through_glass) mask |= CONTENTS_WINDOW;
-    trace_t trace = gi.traceline(spot1, spot2, self, mask);
+    const trace_t trace = gi.traceline(spot1, spot2, self, mask);
     return trace.fraction == 1.0f || trace.ent == other;
 }
 
