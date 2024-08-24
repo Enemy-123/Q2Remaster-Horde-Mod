@@ -1266,19 +1266,17 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 
 	// Apply bonus flags and effects
 	ApplyMonsterBonusFlags(self);
-	self->monsterinfo.attack_state = AS_BLIND;
-	self->maxs *= self->s.scale;
-	self->mins *= self->s.scale;
 
-	// Set boss health and armor first
-	SetBossHealth(self, self->health, current_wave_level);
+
 
 	float health_multiplier = 1.0f;
 	float power_armor_multiplier = 1.0f;
 	const auto mapSize = GetMapSize(level.mapname);
 
 	// Apply bonus flags and effects
-	ApplyBossEffects(self, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap, health_multiplier, power_armor_multiplier);
+	ApplyBossEffects(self, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap);
+
+	self->monsterinfo.attack_state = AS_BLIND;
 
 	ED_CallSpawn(self);
 

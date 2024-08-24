@@ -548,7 +548,7 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 
 			// Asignar una única flag de bonus según la probabilidad dada
 			if (mt_rand_float() < bonus_prob) {
-				float rand_val = mt_rand_float();
+				const float rand_val = mt_rand_float();
 				int flag = 0;
 
 				if (rand_val < 0.2f) flag = BF_CHAMPION;
