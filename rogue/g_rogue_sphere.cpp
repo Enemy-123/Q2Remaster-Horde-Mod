@@ -90,6 +90,12 @@ void sphere_fly(edict_t *self)
 // =================
 void sphere_chase(edict_t* self, int stupidChase)
 {
+	if (!self)
+	{
+		gi.Com_PrintFmt("Error: self es nulo en sphere_chase\n");
+		return;
+	}
+
 	vec3_t dest;
 	vec3_t dir;
 	float  dist;
@@ -108,12 +114,10 @@ void sphere_chase(edict_t* self, int stupidChase)
 		self->enemy = nullptr;
 		edict_t* newEnemy = nullptr;
 		float bestDistance = 1000000;
-
 		for (auto player : active_players())
 		{
-			if (player == self->owner || player->health <= 0)
+			if (!player || player == self->owner || player->health <= 0)
 				continue;
-
 			float distance = (player->s.origin - self->s.origin).length();
 			if (distance < bestDistance && visible(self, player))
 			{
@@ -121,7 +125,6 @@ void sphere_chase(edict_t* self, int stupidChase)
 				bestDistance = distance;
 			}
 		}
-
 		if (newEnemy)
 		{
 			self->enemy = newEnemy;
@@ -148,13 +151,17 @@ void sphere_chase(edict_t* self, int stupidChase)
 		if (self->enemy->client)
 			dest[2] += self->enemy->viewheight;
 	}
+	else
+	{
+		gi.Com_PrintFmt("Advertencia: self->enemy es nulo en sphere_chase\n");
+		return;
+	}
 
 	if (visible(self, self->enemy) || stupidChase)
 	{
 		// if moving, hunter sphere uses active sound
 		if (!stupidChase)
 			self->s.sound = gi.soundindex("spheres/h_active.wav");
-
 		dir = dest - self->s.origin;
 		dir.normalize();
 		self->s.angles = vectoangles(dir);
@@ -163,6 +170,11 @@ void sphere_chase(edict_t* self, int stupidChase)
 	}
 	else if (!self->monsterinfo.saved_goal)
 	{
+		if (!self->enemy)
+		{
+			gi.Com_PrintFmt("Error: self->enemy es nulo en sphere_chase\n");
+			return;
+		}
 		dir = self->enemy->s.origin - self->s.origin;
 		dist = dir.normalize();
 		self->s.angles = vectoangles(dir);
@@ -174,32 +186,32 @@ void sphere_chase(edict_t* self, int stupidChase)
 	{
 		dir = self->monsterinfo.saved_goal - self->s.origin;
 		dist = dir.normalize();
-
 		if (dist > 1)
 		{
 			self->s.angles = vectoangles(dir);
-
 			if (dist > 500)
 				self->velocity = dir * 500;
 			else if (dist < 20)
 				self->velocity = dir * (dist / gi.frame_time_s);
 			else
 				self->velocity = dir * dist;
-
 			// if moving, hunter sphere uses active sound
 			if (!stupidChase)
 				self->s.sound = gi.soundindex("spheres/h_active.wav");
 		}
 		else
 		{
+			if (!self->enemy)
+			{
+				gi.Com_PrintFmt("Error: self->enemy es nulo en sphere_chase\n");
+				return;
+			}
 			dir = self->enemy->s.origin - self->s.origin;
 			dist = dir.normalize();
 			self->s.angles = vectoangles(dir);
-
 			// if not moving, hunter sphere uses lurk sound
 			if (!stupidChase)
 				self->s.sound = gi.soundindex("spheres/h_lurk.wav");
-
 			self->velocity = {};
 		}
 	}
