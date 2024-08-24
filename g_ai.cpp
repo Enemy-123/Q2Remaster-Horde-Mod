@@ -201,41 +201,16 @@ void ai_stand(edict_t* self, float dist)
             self->monsterinfo.idle_time = level.time + random_time(15_sec);
         }
     }
-
-	// HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
-	if (g_horde->integer && !self->enemy)
-	{
-		// Solo la sentrygun utilizará FindMTarget para buscar un objetivo
-		if (!strcmp(self->classname, "monster_sentrygun")) {
-			FindMTarget(self);
-		}
-		else
-		{
-			edict_t* nearest_player = nullptr;
-			float nearest_distance_sq = FLT_MAX;
-
-			// Encuentra el jugador más cercano que esté vivo y no sea espectador
-			for (auto client : active_players_no_spect())
-			{
-				if (client->inuse && client->health > 0)
-				{
-					const float dist_squared = DistanceSquared(self->s.origin, client->s.origin);
-					if (dist_squared < nearest_distance_sq)
-					{
-						nearest_player = client;
-						nearest_distance_sq = dist_squared;
-					}
-				}
-			}
-
-			if (nearest_player)
-			{
-				self->enemy = nearest_player;
-				FoundTarget(self);
-				return;
-			}
-		}
-	}
+    bool FindEnhancedTarget(edict_t * self);
+    // HORDESTAND: Verifica si estamos en modo horda y el monstruo no tiene un enemigo
+    if (g_horde->integer && !self->enemy)
+    {
+        if (FindEnhancedTarget(self))
+        {
+            FoundTarget(self);
+            return;
+        }
+    }
 }
 /*
 =============
