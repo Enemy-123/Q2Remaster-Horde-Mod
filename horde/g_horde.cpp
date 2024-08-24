@@ -298,7 +298,7 @@ static void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noex
 	}
 }
 static void Horde_CleanBodies();
-void ResetSpawnAttempts();
+void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
 void ResetCooldowns() noexcept;
 
@@ -327,7 +327,7 @@ void Horde_InitLevel(const int32_t lvl) {
 	CheckAndApplyBenefit(g_horde_local.level);
 	AdjustMonsterSpawnRate();
 
-	ResetSpawnAttempts();
+	ResetAllSpawnAttempts();
 	ResetCooldowns();
 
 	Horde_CleanBodies();
@@ -687,7 +687,7 @@ float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float a
 	return item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
 }
 
-void ResetSpawnAttempts(edict_t* spawn_point) {
+void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 	spawnAttempts[spawn_point] = 0;
 	spawnPointCooldowns[spawn_point] = level.time;
 }
@@ -701,7 +701,7 @@ void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	spawnAttempts[spawn_point]++;
 	if (spawnAttempts[spawn_point] % 3 == 0) {
-		spawnPointCooldowns[spawn_point] *= 0.9f;
+		spawnPointCooldowns[spawn_point] = gtime_t::from_sec(spawnPointCooldowns[spawn_point].seconds() * 0.9f);
 	}
 }
 
@@ -800,7 +800,7 @@ const size_t chosen_index = dist(mt_rand);
 
 	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
 	UpdateCooldowns(spawn_point, chosen_monster);
-	ResetSpawnAttempts(spawn_point);
+	ResetSingleSpawnPointAttempts(spawn_point);
 	return chosen_monster;
 }
 
@@ -1369,7 +1369,7 @@ static void ResetBenefits() noexcept {
 	vampire_level = 0;
 }
 
-void ResetSpawnAttempts() {
+void ResetAllSpawnAttempts() noexcept {
 	for (auto& attempt : spawnAttempts) {
 		attempt.second = 0;
 	}
@@ -1418,7 +1418,7 @@ void ResetGame() {
 	cachedRemainingMonsters = 0;
 
 	// Reset core gameplay elements
-	ResetSpawnAttempts();
+	ResetAllSpawnAttempts();
 	ResetCooldowns();
 	ResetBenefits();
 	ResetAutoSpawnedBosses();
