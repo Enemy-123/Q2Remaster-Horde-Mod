@@ -1503,18 +1503,18 @@ inline int32_t GetNumSpectPlayers() {
 struct ConditionParams {
 	int32_t maxMonsters{};
 	gtime_t timeThreshold{};
-	gtime_t independentTimeThreshold = random_time(60_sec, 75_sec);
+	//gtime_t independentTimeThreshold = random_time(60_sec, 75_sec);
 };
 
 // Variables globales
 gtime_t condition_start_time;
-gtime_t independent_timer_start;
+//gtime_t independent_timer_start;
 int32_t previous_remainingMonsters = 0;
 
 
 // Función para decidir los parámetros de la condición
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers) {
-	ConditionParams params = { 0, gtime_t::from_sec(0), gtime_t::from_sec(75) };
+	ConditionParams params = { 0, gtime_t::from_sec(0),};
 	if (mapSize.isBigMap) {
 		params.maxMonsters = 19;
 		params.timeThreshold = random_time(15_sec, 21_sec);
@@ -1522,7 +1522,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	}
 	if (numHumanPlayers >= 3) {
 		if (mapSize.isSmallMap) {
-			params.maxMonsters = 6;
+			params.maxMonsters = 9;
 			params.timeThreshold = random_time(4_sec, 5.5_sec);
 		}
 		else {
@@ -1533,21 +1533,21 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	else {
 		if (mapSize.isSmallMap) {
 			if (current_wave_level <= 4) {
-				params.maxMonsters = 5;
-				params.timeThreshold = 6_sec;
+				params.maxMonsters = 6;
+				params.timeThreshold = 5_sec;
 			}
 			else {
-				params.maxMonsters = 6;
-				params.timeThreshold = 6_sec;
+				params.maxMonsters = 7;
+				params.timeThreshold = 4_sec;
 			}
 		}
 		else {
 			if (current_wave_level <= 4) {
-				params.maxMonsters = 6;
+				params.maxMonsters = 8;
 				params.timeThreshold = 9_sec;
 			}
 			else {
-				params.maxMonsters = 10;
+				params.maxMonsters = 14;
 				params.timeThreshold = 15_sec;
 			}
 		}
@@ -1582,7 +1582,7 @@ static int32_t CalculateRemainingMonsters() {
 
 static void ResetTimers() noexcept {
 	condition_start_time = gtime_t();
-	independent_timer_start = level.time;  // Iniciar el temporizador independiente inmediatamente
+	//independent_timer_start = level.time;  // Iniciar el temporizador independiente inmediatamente
 }
 
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
@@ -1630,16 +1630,16 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 		return true;
 	}
 
-	// Solo verificar el independentTimeThreshold si maxMonsters no se ha alcanzado
-	if (!maxMonstersReached) {
-		const gtime_t independentElapsed = level.time - independent_timer_start;
-		if (independentElapsed >= lastParams.independentTimeThreshold) {
-			ResetTimers();
-			maxMonstersReached = false;
-			cachedRemainingMonsters = -1;
-			return true;
-		}
-	}
+	//// Solo verificar el independentTimeThreshold si maxMonsters no se ha alcanzado
+	//if (!maxMonstersReached) {
+	////	const gtime_t independentElapsed = level.time - independent_timer_start;
+	//	if (independentElapsed >= lastParams.independentTimeThreshold) {
+	//		ResetTimers();
+	//		maxMonstersReached = false;
+	//		cachedRemainingMonsters = -1;
+	//		return true;
+	//	}
+	//}
 
 	return false;
 }

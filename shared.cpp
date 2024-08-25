@@ -654,8 +654,8 @@ void Monster_MoveSpawn(edict_t* self)
 	constexpr int MAX_SPAWN_ATTEMPTS = 10;
 	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
 
-	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
-	int num_monsters = std::min(NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots);
+	const int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+	const int num_monsters = std::min(NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots);
 
 	for (int i = 0; i < num_monsters; i++)
 	{

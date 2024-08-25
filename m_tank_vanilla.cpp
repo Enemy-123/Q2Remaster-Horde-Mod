@@ -405,7 +405,7 @@ void tank2Strike(edict_t* self)
 	vec3_t f, r, start;
 	AngleVectors(self->s.angles, f, r, nullptr);
 	start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
-	trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+	const trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
 
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir({ 0.f, 0.f, 1.f });
@@ -413,6 +413,10 @@ void tank2Strike(edict_t* self)
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
 	T_SlamRadiusDamage(tr.endpos, self, self, 25, 450.f, self, 165, MOD_UNKNOWN);
+
+	// Check if we have slots left to spawn monsters
+	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots)
+		return;
 
 	// Efecto de crecimiento
 	const vec3_t spawngrow_pos = self->s.origin;
@@ -814,10 +818,22 @@ void tank2_doattack_rocket(edict_t* self)
 	M_SetAnimation(self, &tank2_move_attack_fire_rocket);
 }
 
+mframe_t tank_frames_spawn[] =
+{
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, tank2Strike},  // FRAME_attak225 - Añadir footstep aquí
+	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquí
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr}   // FRAME_attak229
+};
+MMOVE_T(tank_move_spawn) = { FRAME_attak224, FRAME_attak229, tank_frames_spawn, tank2_run };
+
+
 MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 {
 	vec3_t vec;
-	float  range;
+	float  range{};
 	float  r;
 	// PMM
 	float chance;
@@ -826,20 +842,17 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	void tank_spawn(edict_t * self);
-
-	if (frandom() < 0.5f) // 10% de probabilidad
+	if (self->monsterinfo.monster_used <= self->monsterinfo.monster_slots && range_to(self, self->enemy) <= RANGE_MELEE * 2 || range_to(self, self->enemy) <= RANGE_MELEE * 3 && frandom() <= 0.3f && visible(self, self->enemy) && infront(self, self->enemy)) // 10% de probabilidad
 	{
-		tank_spawn(self);
+		M_SetAnimation(self, &tank_move_spawn);
+		self->monsterinfo.attack_finished = level.time + 0.2_sec;
 		return;
 	}
-
 	if (self->enemy->health <= 0)
 	{
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
 		return;
 	}
-
 	// PMM
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
@@ -863,13 +876,13 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 		if (r > chance)
 			return;
 
-		bool rocket_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
-		bool blaster_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
+		const bool rocket_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
+		const bool blaster_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
 
 		if (!rocket_visible && !blaster_visible)
 			return;
 
-		bool use_rocket = (rocket_visible && blaster_visible) ? brandom() : rocket_visible;
+		const bool use_rocket = (rocket_visible && blaster_visible) ? brandom() : rocket_visible;
 
 		// turn on manual steering to signal both manual steering and blindfire
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
@@ -895,7 +908,7 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 
 	if (range <= 125)
 	{
-		bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.5f)
 			M_SetAnimation(self, &tank2_move_attack_chain);
@@ -904,7 +917,7 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 	}
 	else if (range <= 250)
 	{
-		bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.25f)
 			M_SetAnimation(self, &tank2_move_attack_chain);
@@ -913,8 +926,8 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 	}
 	else
 	{
-		bool can_machinegun = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
-		bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
+		const bool can_machinegun = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 
 		if (can_machinegun && r < 0.33f)
 			M_SetAnimation(self, &tank2_move_attack_chain);
@@ -1179,25 +1192,6 @@ THINK(Think_tank2Stand) (edict_t* ent) -> void
 		ent->s.frame++;
 	ent->nextthink = level.time + 10_hz;
 }
-
-
-mframe_t tank_frames_spawn[] =
-{
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, tank2Strike},  // FRAME_attak225 - Añadir footstep aquí
-	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquí
-	{ai_charge, -1, nullptr},
-	{ai_charge, -2, nullptr}   // FRAME_attak229
-};
-MMOVE_T(tank_move_spawn) = { FRAME_attak224, FRAME_attak229, tank_frames_spawn, tank2_run };
-
-
-void tank_spawn(edict_t* self)
-{
-	M_SetAnimation(self, &tank_move_spawn);
-}
-
 
 
 /*QUAKED monster_tank2_stand (1 .5 0) (-32 -32 0) (32 32 90)

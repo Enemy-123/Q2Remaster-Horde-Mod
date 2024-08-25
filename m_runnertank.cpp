@@ -842,11 +842,16 @@ void runnertank_doattack_rocket(edict_t* self)
 
 mframe_t runnertank_frames_attack_chain[] = {
 	{ ai_charge },
-	{ ai_charge }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
+	{ ai_charge }, 
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
 	{ ai_charge }
 };
 MMOVE_T(runnertank_move_attack_chain) = { FRAME_attak404, FRAME_attak415, runnertank_frames_attack_chain, runnertank_run };
@@ -869,7 +874,7 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	float range = range_to(self, self->enemy);
+	const float range = range_to(self, self->enemy);
 
 	// Ajustar la frecuencia de ataque
 	if (level.time < self->monsterinfo.attack_finished)
@@ -879,9 +884,10 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	{
 		// Ataque melee (punch)
 		M_SetAnimation(self, &tank_move_punch);
-		self->monsterinfo.attack_finished = level.time + 0.3_sec;
+		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		return;
 	}
-	else if (range <= RANGE_NEAR && range >= MELEE_DISTANCE * 2.01)
+	else if (range <= RANGE_NEAR && range >= MELEE_DISTANCE * 2.00 && infront(self, self->enemy))
 	{
 		// En rango melee, decide aleatoriamente entre cohetes y cadena
 		if (brandom())
@@ -899,12 +905,12 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	else if (range <= RANGE_NEAR)
 	{
 		// En rango cercano, decide entre rail gun, cadena o cohetes
-		float random_choice = frandom();
-		bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
+		const float random_choice = frandom();
+		const bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
 		if (can_rail && random_choice < 0.4)
 		{
-			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.attack_finished = level.time + 2_sec;
+			M_SetAnimation(self, &runnertank_move_run);
+			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
 		else if (random_choice < 0.7)
 		{
@@ -935,13 +941,16 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	}
 	else
 	{
-		// En rango lejano, corre hacia el enemigo
-		M_SetAnimation(self, &runnertank_move_run);
-		self->monsterinfo.aiflags |= AI_CHARGING;
+		// En rango lejano, prefiere rail gun o cohetes
+		if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]) && frandom() < 0.6)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+		}
 	}
 
 	// Añadir una pausa entre decisiones de ataque
-	self->monsterinfo.pausetime = level.time + 0.5_sec;
+	self->monsterinfo.pausetime = level.time + 1.5_sec;
 }
 //
 // death
