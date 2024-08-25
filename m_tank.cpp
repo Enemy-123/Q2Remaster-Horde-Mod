@@ -415,8 +415,44 @@ void TankBlaster(edict_t* self)
 
 void TankStrike(edict_t* self)
 {
-	gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
+		gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
+
+		{
+			gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
+
+
+			// Efecto visual similar al berserker
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_BERSERK_SLAM);
+
+			vec3_t f, r, start;
+			AngleVectors(self->s.angles, f, r, nullptr);
+			start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
+			trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+
+			gi.WritePosition(tr.endpos);
+			gi.WriteDir({ 0.f, 0.f, 1.f });
+			gi.multicast(tr.endpos, MULTICAST_PHS, false);
+			void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
+			// Daño radial
+			T_SlamRadiusDamage(tr.endpos, self, self, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 150 : 75, 450.f, self, 165, MOD_UNKNOWN);
+
+		}
 }
+
+
+mframe_t tank_frames_punch[] =
+{
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, TankStrike},  // FRAME_attak225 - Añadir footstep aquí
+	{ai_charge, -1, nullptr}, 
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr}   // FRAME_attak229
+};
+MMOVE_T(tank_move_punch) = { FRAME_attak224, FRAME_attak229, tank_frames_punch, tank_run };
+
+
 
 void TankRocket(edict_t* self)
 {
@@ -809,7 +845,7 @@ void tank_doattack_rocket(edict_t* self)
 MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 {
 	vec3_t vec;
-	float  range;
+	float  range{};
 	float  r;
 	// PMM
 	float chance;
@@ -825,6 +861,14 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	//	return;
 	//}
 
+
+	if (range_to(self, self->enemy) <= RANGE_MELEE * 2)
+	{
+		// Ataque melee (punch)
+		M_SetAnimation(self, &tank_move_punch);
+		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		return;
+	}
 	// PMM
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{

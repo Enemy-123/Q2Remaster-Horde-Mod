@@ -513,7 +513,7 @@ void runnertankStrike(edict_t* self)
 	}
 }
 
-mframe_t tank_frames_punch[] =
+mframe_t tank_frames_punch_attack[] =
 {
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
@@ -524,7 +524,7 @@ mframe_t tank_frames_punch[] =
 	{ai_charge, -1, nullptr},
 	{ai_charge, -2, nullptr}   // FRAME_attak229
 };
-MMOVE_T(tank_move_punch) = { FRAME_attak222, FRAME_attak229, tank_frames_punch, runnertank_run };
+MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak229, tank_frames_punch_attack, runnertank_run };
 
 
 void runnertankRocket(edict_t* self)
@@ -883,7 +883,7 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 	if (range <= MELEE_DISTANCE * 2)
 	{
 		// Ataque melee (punch)
-		M_SetAnimation(self, &tank_move_punch);
+		M_SetAnimation(self, &tank_move_punch_attack);
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;
 		return;
 	}
