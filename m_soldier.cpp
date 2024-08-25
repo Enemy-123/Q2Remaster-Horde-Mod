@@ -14,13 +14,7 @@ SOLDIER
 #include "m_flash.h"
 #include "shared.h"
 
-// Función auxiliar para verificar el nivel de dificultad
-static constexpr bool is_easy_difficulty() noexcept
-{
-	return g_horde->integer && current_wave_level <= 4;
-}
 
-void do_nothing(edict_t* self) {}
 
 static cached_soundindex sound_idle;
 static cached_soundindex sound_sight1;
@@ -825,7 +819,7 @@ mframe_t soldier_frames_attack1[] = {
 	{ ai_charge, 0, soldier_fire1 },
 	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_fire1},
 	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_fire1},
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_attack1_refire1},
+	{ ai_charge, 0, soldier_attack1_refire1},
 	{ ai_charge },
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge, 0, soldier_attack1_refire2 },
@@ -971,11 +965,11 @@ mframe_t soldierh_frames_attack2[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge, 0, soldierh_hyper_laser_sound_start },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_fire2 },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldierh_hyperripper2 },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldierh_hyperripper2 },
+	{ ai_charge, 0, soldier_fire2 },
+	{ ai_charge, 0, soldierh_hyperripper2 },
+	{ ai_charge, 0, soldierh_hyperripper2 },
 	{ ai_charge, 0, soldier_attack2_refire1 },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldierh_hyper_refire2 },
+	{ ai_charge, 0, soldierh_hyper_refire2 },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },

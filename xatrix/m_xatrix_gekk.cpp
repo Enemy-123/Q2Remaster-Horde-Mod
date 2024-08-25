@@ -773,10 +773,10 @@ void reloogie(edict_t* self)
 }
 
 mframe_t gekk_frames_spit[] = {
-	{ ai_charge, 0, loogie },
-	{ ai_charge, 0, loogie },
+	{ ai_charge, 0, is_easy_difficulty() ? nullptr : loogie },
+	{ ai_charge, 0, is_easy_difficulty() ? nullptr : loogie },
 	{ ai_charge },
-	{ ai_charge, 0, loogie },
+	{ ai_charge, 0, is_easy_difficulty() ? nullptr : loogie },
 	{ ai_charge },
 	{ ai_charge, 0, loogie },
 	{ ai_charge, 0, reloogie }

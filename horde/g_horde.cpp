@@ -441,10 +441,10 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, 19, 0.35f },
 	{ "monster_soldier_ss", -1, 20, 0.45f },
 	{ "monster_soldier", -1, 2, 0.45f },
-	{ "monster_soldier", 3, 9, 0.35f },
-	{ "monster_soldier_hypergun", 3, -1, 0.35f },
+	{ "monster_soldier", 2, 9, 0.35f },
+	{ "monster_soldier_hypergun", 2, -1, 0.35f },
 	{ "monster_soldier_lasergun", 5, -1, 0.45f },
-	{ "monster_soldier_ripper", 3, 7, 0.45f },
+	{ "monster_soldier_ripper", 2, 12, 0.45f },
 	{ "monster_infantry2", -1, 1, 0.1f },
 	{ "monster_infantry2", 2, -1, 0.36f },
 	{ "monster_infantry", 9, -1, 0.36f },
@@ -806,7 +806,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
 			float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
 			if (forceFlying) {
-				weight *= (isFlyingMonster ? 10.0f : 0.1f);
+				weight *= (isFlyingMonster ? 10.0f : 0.0f);
 			}
 			if (weight > 0) {
 				total_weight += weight;

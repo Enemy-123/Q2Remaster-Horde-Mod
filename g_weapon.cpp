@@ -374,6 +374,7 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	}
 	if (other == self->owner)
 		return;
+
 	if (tr.surface && (tr.surface->flags & SURF_SKY))
 	{
 		G_FreeEdict(self);
@@ -381,7 +382,6 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	}
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
-
 	if (other->takedamage)
 	{
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
@@ -389,6 +389,22 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	}
 	else
 	{
+
+		//if someday this is a rpg mod, this will be useful!
+		// Check if the owner is a monster and if it's on easy difficulty
+		//if ((self->owner->svflags & SVF_MONSTER) && is_easy_difficulty())
+		if (!strcmp(self->owner->classname, "monster_flyer"))
+		{
+			// No bounce, destroy the bolt
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
+			gi.WritePosition(self->s.origin);
+			gi.WriteDir(tr.plane.normal);
+			gi.multicast(self->s.origin, MULTICAST_PHS, false);
+			G_FreeEdict(self);
+			return;
+		}
+
 		// Bounce logic
 		if (tr.ent && tr.ent->solid == SOLID_BSP) // check if bouncing against walls 
 		{
@@ -401,7 +417,6 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 				gi.WritePosition(self->s.origin);
 				gi.WriteDir(tr.plane.normal);
 				gi.multicast(self->s.origin, MULTICAST_PHS, false);
-
 				G_FreeEdict(self);
 				return;
 			}
@@ -435,8 +450,12 @@ void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 	bolt->nextthink = level.time + 1.5_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
-	bolt->bounce_count = 4; // 4 bounces
+	bolt->bounce_count = 5; // 5 bounces
 	gi.linkentity(bolt);
+
+	if (self->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(self);
+	}
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
 	if (tr.fraction < 1.0f)

@@ -387,6 +387,8 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	dir = end - start;
 	dir.normalize();
 
+	is_easy_difficulty() ?
+	monster_fire_blaster(self, start, dir, 1, 1000, flash_number, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER):
 	monster_fire_blaster2(self, start, dir, 2, 1000, flash_number, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 }
 
