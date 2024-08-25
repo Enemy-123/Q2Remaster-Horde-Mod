@@ -697,7 +697,7 @@ void Monster_MoveSpawn(edict_t* self)
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180 / PI);
 
-		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, g_horde->integer ? G_HordePickMonster(self) : brandom() ? "monster_gunner" : "monster_chick", 64);
+		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, "monster_soldier_ss", 64);
 		if (!monster)
 			continue;
 

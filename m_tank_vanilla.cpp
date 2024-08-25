@@ -396,6 +396,33 @@ void tank2Blaster(edict_t* self)
 void tank2Strike(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
+
+
+	// Efecto visual similar al berserker
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_BERSERK_SLAM);
+
+	vec3_t f, r, start;
+	AngleVectors(self->s.angles, f, r, nullptr);
+	start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
+	trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+
+	gi.WritePosition(tr.endpos);
+	gi.WriteDir({ 0.f, 0.f, 1.f });
+	gi.multicast(tr.endpos, MULTICAST_PHS, false);
+	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
+	// Daño radial
+	T_SlamRadiusDamage(tr.endpos, self, self, 25, 450.f, self, 165, MOD_UNKNOWN);
+
+	// Efecto de crecimiento
+	const vec3_t spawngrow_pos = self->s.origin;
+	const float magnitude = VectorLength(spawngrow_pos);
+	if (magnitude > 0) {
+		const float start_size = magnitude * 0.055f;
+		const float end_size = magnitude * 0.005f;
+		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+
+	}
 }
 
 void tank2Rocket(edict_t* self)
