@@ -546,33 +546,80 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
 
 			if (!tr.allsolid && !tr.startsolid) {
-				vec3_t final_velocity;
-				if (tr.fraction < 1.0) {
-					// If we hit something, adjust the push
-					VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+				// Verificamos si la entidad es una torreta estacionaria o tiene MOVETYPE_NONE
+				if (strcmp(ent->classname, "monster_sentrygun") == 0 ||
+					(ent->flags & FL_STATIONARY) ||
+					ent->movetype == MOVETYPE_NONE) {
+
+					gi.Com_PrintFmt("Attempting to remove stationary entity {} at position: {}\n",
+						ent->classname ? ent->classname : "unknown", ent->s.origin);
+
+					// Primero, intentamos dañar a jugadores cercanos
+					edict_t* player = nullptr;
+					while ((player = findradius(player, ent->s.origin, 100)) != nullptr) {
+						if (!player->client)
+							continue;
+
+						T_Damage(player, ent, ent, vec3_origin, ent->s.origin, vec3_origin,
+							100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+						gi.Com_PrintFmt("Player {} telefragged at position: {}\n",
+							player->client->pers.netname, player->s.origin);
+					}
+
+					RemoveEntity(ent);
+					gi.Com_PrintFmt("Stationary entity removed\n");
 				}
 				else {
-					VectorScale(push_dir, wave_push_strength, final_velocity);
+					// Código para empujar otras entidades
+					vec3_t final_velocity;
+					if (tr.fraction < 1.0) {
+						// If we hit something, adjust the push
+						VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+					}
+					else {
+						VectorScale(push_dir, wave_push_strength, final_velocity);
+					}
+
+					// Add strong horizontal component
+					float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+					final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
+					final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
+
+					// Add vertical component
+					final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+					VectorCopy(final_velocity, ent->velocity);
+
+					ent->groundentity = nullptr;
+
+					if (ent->client && ent->client->oldvelocity) {
+						VectorCopy(ent->velocity, ent->client->oldvelocity);
+						ent->client->oldgroundentity = ent->groundentity;
+					}
+
+					gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n",
+						wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
+				}
+			}
+			else {
+				// La entidad no se pudo mover, la removemos
+				gi.Com_PrintFmt("Entity {} at {} could not be moved. Attempting to remove.\n",
+					ent->classname ? ent->classname : "unknown", ent->s.origin);
+
+				// Primero, intentamos dañar a jugadores cercanos
+				edict_t* player = nullptr;
+				while ((player = findradius(player, ent->s.origin, 100)) != nullptr) {
+					if (!player->client)
+						continue;
+
+					T_Damage(player, ent, ent, vec3_origin, ent->s.origin, vec3_origin,
+						100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
+					gi.Com_PrintFmt("Player {} telefragged at position: {}\n",
+						player->client->pers.netname, player->s.origin);
 				}
 
-				// Add strong horizontal component
-				float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-				final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
-				final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
-
-				// Add vertical component
-				final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-
-				VectorCopy(final_velocity, ent->velocity);
-
-				ent->groundentity = nullptr;
-
-				if (ent->client && ent->client->oldvelocity) {
-					VectorCopy(ent->velocity, ent->client->oldvelocity);
-					ent->client->oldgroundentity = ent->groundentity;
-				}
-
-				gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n", wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
+				RemoveEntity(ent);
+				gi.Com_PrintFmt("Entity removed\n");
 			}
 		}
 
@@ -584,10 +631,20 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 
 	gi.Com_PrintFmt("Finished PushEntitiesAway\n");
 }
+// Define a higher slot limit for this monster type
+constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
 
 void Monster_MoveSpawn(edict_t* self)
 {
 	if (!self || self->health <= 0 || self->deadflag)
+		return;
+
+	// Initialize monster slots if not set
+	if (self->monsterinfo.monster_slots == 0)
+		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
+
+	// Check if we have slots left to spawn monsters
+	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots)
 		return;
 
 	constexpr int NUM_MONSTERS_MIN = 2;
@@ -597,14 +654,14 @@ void Monster_MoveSpawn(edict_t* self)
 	constexpr int MAX_SPAWN_ATTEMPTS = 10;
 	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
 
-	const int num_monsters = NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1));
+	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+	int num_monsters = std::min(NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots);
 
 	for (int i = 0; i < num_monsters; i++)
 	{
 		vec3_t spawn_origin;
-		const	vec3_t mins = { -16, -16, -24 };
-		const	vec3_t maxs = { 16, 16, 32 };
-
+		const vec3_t mins = { -16, -16, -24 };
+		const vec3_t maxs = { 16, 16, 32 };
 		bool found_spot = false;
 		float spawn_angle = 0;
 
@@ -613,7 +670,6 @@ void Monster_MoveSpawn(edict_t* self)
 			VectorCopy(self->s.origin, spawn_origin);
 			spawn_angle = frandom() * 2 * PI;
 			float radius = SPAWN_RADIUS_MIN + frandom() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
-
 			spawn_origin[0] += cos(spawn_angle) * radius;
 			spawn_origin[1] += sin(spawn_angle) * radius;
 			spawn_origin[2] += SPAWN_HEIGHT_OFFSET;
@@ -636,15 +692,19 @@ void Monster_MoveSpawn(edict_t* self)
 			continue;
 
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_MEDIC_C;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
+		monster->monsterinfo.commander = self;
+
+		// Assign monster slots (assuming each monster takes 1 slot)
+		monster->monsterinfo.monster_slots = 1;
+		self->monsterinfo.monster_used++;
 
 		const vec3_t spawngrow_pos = monster->s.origin;
 		const float magnitude = VectorLength(spawngrow_pos);
 		if (magnitude > 0) {
-			const	float start_size = magnitude * 0.055f;
-			const	float end_size = magnitude * 0.005f;
+			const float start_size = magnitude * 0.055f;
+			const float end_size = magnitude * 0.005f;
 			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 		}
 

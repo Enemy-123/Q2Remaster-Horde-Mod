@@ -1775,7 +1775,7 @@ static edict_t* SpawnMonsters() {
 
 	// Determinar la cantidad de monstruos a generar por spawn
 	const int32_t monsters_per_spawn = std::min(
-		mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 3 : 2) :
+		mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 4 : 3) :
 		mapSize.isBigMap ? (g_horde_local.level >= 5 ? 5 : 3) :
 		(g_horde_local.level >= 5 ? 4 : 3),
 		4
@@ -1786,13 +1786,13 @@ static edict_t* SpawnMonsters() {
 		(current_wave_level <= 7) ? 0.6f : 0.45f;
 
 	// Pre-seleccionar puntos de spawn disponibles
-	for (size_t i = 0; i < globals.num_edicts && i < MAX_EDICTS; i++) {
-		edict_t* ent = &g_edicts[i];
-		if (!ent || !ent->inuse || !ent->classname || (strcmp(ent->classname, "info_player_deathmatch") != 0))
+	edict_t* e;
+	unsigned int i;
+	for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++) {
+		if (!e->inuse || !e->classname || strcmp(e->classname, "info_player_deathmatch") != 0)
 			continue;
-		available_spawns.push_back(ent);
+		available_spawns.push_back(e);
 	}
-
 	if (available_spawns.empty()) {
 		gi.Com_PrintFmt("Warning: No spawn points found\n");
 		return nullptr;
