@@ -3786,7 +3786,7 @@ extern int current_wave_level;
 // Función auxiliar para verificar el nivel de dificultad
 constexpr bool is_easy_difficulty() noexcept
 {
-		return current_wave_level <= 2;
+		return current_wave_level == 1;
 }
 extern constexpr bool is_easy_difficulty() noexcept;
 // implementation of pierce stuff

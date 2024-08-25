@@ -780,39 +780,34 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Check cooldowns
+	gtime_t currentCooldown = SPAWN_POINT_COOLDOWN;
+	if (const auto it = spawnPointCooldowns.find(spawn_point); it != spawnPointCooldowns.end()) {
+		currentCooldown = it->second;
+	}
+
 	if (const auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
 		if (level.time < it->second + SPAWN_POINT_COOLDOWN) {
-			return nullptr;  // Still on cooldown, don't allow spawn
+			return nullptr;  // aún en cooldown, no permitir spawn
 		}
 	}
 
 	// Calculate flying spawn adjustment
-	static const int32_t flyingSpawns = countFlyingSpawns();
-	static const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
-	static const bool forceFlying = (flying_monsters_mode && g_horde_local.level >= WAVE_TO_ALLOW_FLYING);
+	const int32_t flyingSpawns = countFlyingSpawns();
+	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
+	// Use a static vector to avoid repeated allocations
 	static std::vector<std::pair<const weighted_item_t*, float>> eligible_monsters;
 	eligible_monsters.clear();
-	eligible_monsters.reserve(std::size(monsters));
-
-	static float total_weight = 0.0f;
-	static int flyingEligible = 0, nonFlyingEligible = 0;
-	total_weight = 0.0f;
-	flyingEligible = 0;
-	nonFlyingEligible = 0;
+	float total_weight = 0.0f;
 
 	for (const auto& item : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(item.classname);
+
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-			float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
-			if (forceFlying) {
-				weight *= (isFlyingMonster ? 10.0f : 0.0f);
-			}
+			const float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
 			if (weight > 0) {
 				total_weight += weight;
-				eligible_monsters.emplace_back(&item, weight);
-				if (isFlyingMonster) flyingEligible++;
-				else nonFlyingEligible++;
+				eligible_monsters.emplace_back(&item, weight);  // Store individual weights, not cumulative
 			}
 		}
 	}
@@ -823,27 +818,22 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Create a vector of weights for std::discrete_distribution
-	static std::vector<float> weights;
-	weights.clear();
+	std::vector<float> weights;
 	weights.reserve(eligible_monsters.size());
 	for (const auto& monster : eligible_monsters) {
 		weights.push_back(monster.second);
 	}
 
-	// Use discrete distribution for weighted selection
-	static std::discrete_distribution<> dist(weights.begin(), weights.end());
+	// Create and use the discrete distribution
+	std::discrete_distribution<> dist(weights.begin(), weights.end());
 	const size_t chosen_index = dist(mt_rand);
-	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
 
+	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
 	UpdateCooldowns(spawn_point, chosen_monster);
 	ResetSingleSpawnPointAttempts(spawn_point);
-
-	//// Logging for debugging
-	//gi.Com_PrintFmt("Spawning monster: {}. Flying: {}, Total eligible: {}, Flying eligible: {}, Non-flying eligible: {}\n",
-	//	std::string_view(chosen_monster), IsFlyingMonster(chosen_monster), eligible_monsters.size(), flyingEligible, nonFlyingEligible);
-
 	return chosen_monster;
 }
+
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
