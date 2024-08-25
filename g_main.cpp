@@ -103,6 +103,7 @@ cvar_t* g_coop_health_scaling;
 cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
+cvar_t* g_easymonsters;
 cvar_t* g_iddmg;
 cvar_t* g_autohaste;
 cvar_t* wavenext;
@@ -412,6 +413,7 @@ void InitGame()
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 	g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
 	g_autohaste = gi.cvar("g_autohaste", "0", CVAR_NOFLAGS);
+	g_easymonsters = gi.cvar("g_easymonsters", "0", CVAR_NOFLAGS);
 	g_iddmg = gi.cvar("g_iddmg", "0", CVAR_NOFLAGS);
 
 	g_speedstuff = gi.cvar("g_speedstuff", "1.0f", CVAR_NOFLAGS);
@@ -1192,5 +1194,15 @@ void G_PrepFrame()
 
 	if (level.intermissiontime) {
 		globals.server_flags |= SERVER_FLAG_INTERMISSION;
+	}
+}
+
+bool is_easy_difficulty() noexcept
+{
+	{
+		if (g_easymonsters && g_easymonsters->integer) { //null check? must!
+			return true;
+		}
+		return false;
 	}
 }

@@ -331,8 +331,10 @@ void Horde_InitLevel(const int32_t lvl) {
 
 	VerifyAndAdjustBots();
 
-	// Usar un switch para la escala de daño es eficiente y claro
+	// Usar un switch para la escala de daño y easymonsters es eficiente y claro
 	switch (g_horde_local.level) {
+	case 1: gi.cvar_set("g_easymonsters", "1"); break;
+	case 3: gi.cvar_set("g_easymonsters", "0"); break;
 	case 17: gi.cvar_set("g_damage_scale", "1.7"); break;
 	case 27: gi.cvar_set("g_damage_scale", "2.7"); break;
 	case 37: gi.cvar_set("g_damage_scale", "3.7"); break;

@@ -435,66 +435,6 @@ std::string GetPlayerName(edict_t* player) {
 }
 
 
-//
-////spawn ship
-//edict_t* CreatePathCornerOnSkySurface(edict_t* reference) {
-//	trace_t tr;
-//	vec3_t start, end;
-//
-//	// Definir el punto de inicio (más arriba del jugador de referencia) y el punto final (más abajo)
-//	start = reference->s.origin + vec3_t{ 0, 0, 2048 }; // Increase the height
-//	end = reference->s.origin - vec3_t{ 0, 0, 4096 };   // Increase the depth
-//
-//	// Hacer un trazo para encontrar una superficie con SURF_SKY
-//	tr = gi.trace(start, vec3_origin, vec3_origin, end, reference, MASK_SOLID);
-//
-//	// Mensajes de depuración
-//	gi.Com_PrintFmt("Trace start: {} {} {}\n", start[0], start[1], start[2]);
-//	gi.Com_PrintFmt("Trace end: {} {} {}\n", end[0], end[1], end[2]);
-//	gi.Com_PrintFmt("Trace endpos: {} {} {}\n", tr.endpos[0], tr.endpos[1], tr.endpos[2]);
-//
-//	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
-//		vec3_t mins = { -4096, -4096, -4096 }; // Definir límites mínimos del mapa
-//		vec3_t maxs = { 4096, 4096, 4096 };   // Definir límites máximos del mapa
-//
-//		// Verificar que la posición no esté fuera del mapa
-//		for (int i = 0; i < 3; i++) {
-//			if (tr.endpos[i] < mins[i]) tr.endpos[i] = mins[i];
-//			if (tr.endpos[i] > maxs[i]) tr.endpos[i] = maxs[i];
-//		}
-//
-//		gi.Com_PrintFmt("Creating path_corner at: {} {} {}\n", tr.endpos[0], tr.endpos[1], tr.endpos[2]);
-//
-//		edict_t* path_corner_sky = G_Spawn();
-//		path_corner_sky->classname = "path_corner";
-//		VectorCopy(tr.endpos, path_corner_sky->s.origin);
-//		path_corner_sky->targetname = "path_corner_sky";
-//		gi.linkentity(path_corner_sky);
-//		return path_corner_sky;
-//	}
-//	else {
-//		gi.Com_PrintFmt("No SKY surface found\n");
-//	}
-//
-//	return nullptr;
-//}
-//
-//
-//
-//edict_t* CreatePathCornerAbovePlayer(edict_t* player) {
-//	edict_t* path_corner_player = G_Spawn();
-//	path_corner_player->classname = "path_corner";
-//	VectorCopy(player->s.origin, path_corner_player->s.origin);
-//	path_corner_player->s.origin[2] += 512; // Elevarlo 512 unidades sobre el jugador
-//	path_corner_player->targetname = "path_corner_player";
-//	gi.linkentity(path_corner_player);
-//	return path_corner_player;
-//}
-//
-//
-//
-//
-
 extern void SP_target_earthquake(edict_t* self);
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
@@ -722,3 +662,4 @@ bool string_equals(const char* str1, const std::string_view& str2) {
 	return str1 && str2.length() == strlen(str1) &&
 		!Q_strncasecmp(str1, str2.data(), str2.length());
 }
+

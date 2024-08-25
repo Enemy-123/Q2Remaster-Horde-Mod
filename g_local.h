@@ -1967,6 +1967,7 @@ extern cvar_t* g_strict_saves;
 extern cvar_t* g_coop_health_scaling;
 extern cvar_t* g_weapon_respawn_time;
 
+extern cvar_t* g_easymonsters;
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
 extern cvar_t* g_hardcoop;
@@ -2538,6 +2539,7 @@ constexpr float GRENADE_MAXSPEED = 800.f;
 extern bool is_quad;
 // RAFAEL
 extern bool is_quadfire;
+extern bool is_easy_difficulty() noexcept;
 // RAFAEL
 extern player_muzzle_t is_silenced;
 // ROGUE
@@ -3783,12 +3785,7 @@ inline bool pierce_args_t::mark(edict_t* ent)
 	return true;
 }
 extern int current_wave_level;
-// Función auxiliar para verificar el nivel de dificultad
-constexpr bool is_easy_difficulty() noexcept
-{
-		return current_wave_level == 1;
-}
-extern constexpr bool is_easy_difficulty() noexcept;
+
 // implementation of pierce stuff
 inline void pierce_args_t::restore()
 {

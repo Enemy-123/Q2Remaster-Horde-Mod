@@ -33,11 +33,6 @@ extern void check_target_healthbar(edict_t* self);
 extern void UpdatePowerUpTimes(edict_t* monster);
 void Monster_MoveSpawn(edict_t* self); 
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
-//strogg ship
-//extern edict_t* CreatePathCornerOnSkySurface(edict_t* reference);
-//extern edict_t* CreatePathCornerAbovePlayer(edict_t* player);
-//extern float PlayersRangeFromSpot(edict_t* spot);
-//extern void MoveMonsterToPlayer(edict_t* monster);
 
 struct MapSize {
     bool isSmallMap = false;

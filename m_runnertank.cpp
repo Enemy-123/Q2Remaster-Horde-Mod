@@ -277,7 +277,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		return;
 	}
 
-	float range = self->enemy ? range_to(self, self->enemy) : 0;
+	const float range = self->enemy ? range_to(self, self->enemy) : 0;
 
 	// Decidir si debe detenerse y atacar
 	if (range <= RANGE_NEAR && self->monsterinfo.aiflags & AI_CHARGING)
@@ -319,7 +319,6 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 	// Implementar strafing mejorado
 	if (self->enemy && visible(self, self->enemy))
 	{
-		float range = range_to(self, self->enemy);
 		if (range <= RANGE_MID)
 		{
 			float strafe_chance = 0.5f;  // 50% de probabilidad base de hacer strafe
