@@ -2539,7 +2539,6 @@ constexpr float GRENADE_MAXSPEED = 800.f;
 extern bool is_quad;
 // RAFAEL
 extern bool is_quadfire;
-extern bool is_easy_difficulty() noexcept;
 // RAFAEL
 extern player_muzzle_t is_silenced;
 // ROGUE
@@ -3784,7 +3783,7 @@ inline bool pierce_args_t::mark(edict_t* ent)
 
 	return true;
 }
-extern int current_wave_level;
+extern int32_t current_wave_level;
 
 // implementation of pierce stuff
 inline void pierce_args_t::restore()

@@ -5,7 +5,7 @@
 
 #include "g_local.h"
 #include <string>
-
+#define first3waves current_wave_level <= 3
 // Define los flags de bonus
 #define BF_CHAMPION   0x00000001
 #define BF_CORRUPTED  0x00000002

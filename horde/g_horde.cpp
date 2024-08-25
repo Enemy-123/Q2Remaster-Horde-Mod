@@ -36,7 +36,7 @@ struct HordeState {
 	gtime_t         monster_spawn_time;
 	int32_t         num_to_spawn = 0;
 	int32_t         level = 0;
-} g_horde_local;
+}g_horde_local;
 
 int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
@@ -333,8 +333,6 @@ void Horde_InitLevel(const int32_t lvl) {
 
 	// Usar un switch para la escala de daño y easymonsters es eficiente y claro
 	switch (g_horde_local.level) {
-	case 1: gi.cvar_set("g_easymonsters", "1"); break;
-	case 3: gi.cvar_set("g_easymonsters", "0"); break;
 	case 17: gi.cvar_set("g_damage_scale", "1.7"); break;
 	case 27: gi.cvar_set("g_damage_scale", "2.7"); break;
 	case 37: gi.cvar_set("g_damage_scale", "3.7"); break;

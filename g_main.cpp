@@ -1196,13 +1196,3 @@ void G_PrepFrame()
 		globals.server_flags |= SERVER_FLAG_INTERMISSION;
 	}
 }
-
-bool is_easy_difficulty() noexcept
-{
-	{
-		if (g_easymonsters && g_easymonsters->integer) { //null check? must!
-			return true;
-		}
-		return false;
-	}
-}

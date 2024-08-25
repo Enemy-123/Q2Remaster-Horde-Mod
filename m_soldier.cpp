@@ -563,7 +563,7 @@ void soldier_fire_vanilla(edict_t* self, int flash_number, bool angle_limited)
 
 	if (self->count <= 1)
 	{
-		monster_fire_blaster(self, start, aim, is_easy_difficulty() ? 5 : 8, is_easy_difficulty() ? 600 : 1200, flash_index, EF_BLASTER);
+		monster_fire_blaster(self, start, aim, first3waves ? 5 : 8, first3waves ? 600 : 1200, flash_index, EF_BLASTER);
 	}
 	else if (self->count <= 3)
 	{
@@ -614,7 +614,7 @@ PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 void soldierh_laserbeam(edict_t* self, int flash_index)
 {
 	self->radius_dmg = flash_index;
-	monster_fire_dabeam(self, is_easy_difficulty() ? 1 : 2, false, soldierh_laser_update);
+	monster_fire_dabeam(self, first3waves ? 1 : 2, false, soldierh_laser_update);
 }
 
 constexpr monster_muzzleflash_id_t ripper_flash[] = { MZ2_SOLDIER_RIPPER_1, MZ2_SOLDIER_RIPPER_2, MZ2_SOLDIER_RIPPER_3, MZ2_SOLDIER_RIPPER_4, MZ2_SOLDIER_RIPPER_5, MZ2_SOLDIER_RIPPER_6, MZ2_SOLDIER_RIPPER_7, MZ2_SOLDIER_RIPPER_8, MZ2_SOLDIER_RIPPER_9 };
@@ -706,11 +706,11 @@ void soldier_fire_xatrix(edict_t* self, int flash_number, bool angle_limited)
 	{
 		// RAFAEL 24-APR-98
 		// droped the damage from 15 to 5
-		monster_fire_ionripper(self, start, aim, is_easy_difficulty() ? 3 : 5, is_easy_difficulty() ? 600 : 850, flash_index, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, first3waves ? 3 : 5, first3waves ? 600 : 850, flash_index, EF_IONRIPPER);
 	}
 	else if (self->count <= 3)
 	{
-		is_easy_difficulty() ?
+		first3waves ?
 			monster_fire_blueblaster(self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER) :
 			monster_fire_blaster2(self, start, aim, 3, 975, flash_index, EF_BLUEHYPERBLASTER);
 	}
@@ -817,17 +817,34 @@ mframe_t soldier_frames_attack1[] = {
 	{ ai_charge, 0, soldier_blind_check },
 	{ ai_charge, 0, soldier_attack1_shotgun_check },
 	{ ai_charge, 0, soldier_fire1 },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_fire1},
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_fire1},
+	{ ai_charge, 0, },
+	{ ai_charge, 0, },
 	{ ai_charge, 0, soldier_attack1_refire1},
 	{ ai_charge },
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge, 0, soldier_attack1_refire2 },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_attack1_refire2 },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_attack1_refire2},
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : soldier_attack1_refire2}
+	{ ai_charge, 0, },
+	{ ai_charge, 0, },
+	{ ai_charge, 0, }
 };
 MMOVE_T(soldier_move_attack1) = { FRAME_attak101, FRAME_attak112, soldier_frames_attack1, soldier_run };
+
+
+mframe_t soldier_frames_attack1hard[] = {
+	{ ai_charge, 0, soldier_blind_check },
+	{ ai_charge, 0, soldier_attack1_shotgun_check },
+	{ ai_charge, 0, soldier_fire1 },
+	{ ai_charge, 0, soldier_fire1},
+	{ ai_charge, 0, soldier_fire1},
+	{ ai_charge, 0, soldier_attack1_refire1},
+	{ ai_charge },
+	{ ai_charge, 0, soldier_cock },
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldier_attack1_refire2},
+	{ ai_charge, 0, soldier_attack1_refire2}
+};
+MMOVE_T(soldier_move_attack1hard) = { FRAME_attak101, FRAME_attak112, soldier_frames_attack1hard, soldier_run };
 // ATTACK1 (blaster/shotgun)
 void soldierh_hyper_refire1(edict_t* self)
 {
@@ -858,10 +875,27 @@ mframe_t soldierh_frames_attack1[] = {
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge, 0, soldier_attack1_refire2 },
 	{ ai_charge, 0, soldierh_hyper_laser_sound_end },
-	{ ai_charge , 0, is_easy_difficulty() ? nullptr : soldier_fire1 },
-	{ ai_charge , 0, is_easy_difficulty() ? nullptr : soldier_fire1 },
+	{ ai_charge , 0,},
+	{ ai_charge , 0,},
 };
 MMOVE_T(soldierh_move_attack1) = { FRAME_attak101, FRAME_attak112, soldierh_frames_attack1, soldier_run };
+
+
+mframe_t soldierh_frames_attack1hard[] = {
+	{ ai_charge, 0, soldier_blind_check },
+	{ ai_charge, 0, soldierh_hyper_laser_sound_start },
+	{ ai_charge, 0, soldier_fire1 },
+	{ ai_charge, 0, soldierh_hyperripper1 },
+	{ ai_charge, 0, soldierh_hyperripper1 },
+	{ ai_charge, 0, soldier_attack1_refire1 },
+	{ ai_charge, 0, soldierh_hyper_refire1 },
+	{ ai_charge, 0, soldier_cock },
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldierh_hyper_laser_sound_end },
+	{ ai_charge , 0, soldier_fire1 },
+	{ ai_charge , 0, soldier_fire1 },
+};
+MMOVE_T(soldierh_move_attack1hard) = { FRAME_attak101, FRAME_attak112, soldierh_frames_attack1hard, soldier_run };
 
 // ATTACK2 (blaster/shotgun)
 
@@ -1159,10 +1193,12 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 
 		// RAFAEL
 		if (self->style == 1)
-			M_SetAnimation(self, &soldierh_move_attack1);
+			brandom() ? M_SetAnimation(self, &soldierh_move_attack1) :
+			M_SetAnimation(self, &soldierh_move_attack1hard);
 		else
 			// RAFAEL
-			M_SetAnimation(self, &soldier_move_attack1);
+			brandom() ? M_SetAnimation(self, &soldier_move_attack1) :
+			M_SetAnimation(self, &soldier_move_attack1hard);
 		self->monsterinfo.attack_finished = level.time + random_time(1.5_sec, 2.5_sec);
 		return;
 	}
@@ -2103,7 +2139,7 @@ void SP_monster_soldier_ripper(edict_t* self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = ((is_easy_difficulty()) ? 35 : (g_hardcoop->integer ? 25 : 0));
+		self->monsterinfo.power_armor_power = ((first3waves) ? 35 : (g_hardcoop->integer ? 25 : 0));
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 

@@ -772,11 +772,23 @@ void reloogie(edict_t* self)
 			M_SetAnimation(self, &gekk_move_spit);
 }
 
-mframe_t gekk_frames_spit[] = {
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : loogie },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : loogie },
+mframe_t gekk_frames_spitharder[] = {
+	{ ai_charge, 0, loogie },
+	{ ai_charge, 0, loogie },
 	{ ai_charge },
-	{ ai_charge, 0, is_easy_difficulty() ? nullptr : loogie },
+	{ ai_charge, 0, loogie },
+	{ ai_charge },
+	{ ai_charge, 0, loogie },
+	{ ai_charge, 0, reloogie }
+};
+MMOVE_T(gekk_move_spitharder) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spitharder, gekk_run_start };
+
+
+mframe_t gekk_frames_spit[] = {
+	{ ai_charge, 0, },
+	{ ai_charge, 0, },
+	{ ai_charge },
+	{ ai_charge, 0 },
 	{ ai_charge },
 	{ ai_charge, 0, loogie },
 	{ ai_charge, 0, reloogie }
@@ -1083,7 +1095,7 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 	{
 		if (r >= RANGE_MID) {
 			if (frandom() > 0.5f) {
-				M_SetAnimation(self, &gekk_move_spit);
+				brandom() ? M_SetAnimation(self, &gekk_move_spit) : M_SetAnimation(self, &gekk_move_spitharder);
 			}
 			else {
 				M_SetAnimation(self, &gekk_move_run_start);
@@ -1091,7 +1103,7 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 			}
 		}
 		else if (frandom() > 0.7f) {
-			M_SetAnimation(self, &gekk_move_spit);
+			brandom() ? M_SetAnimation(self, &gekk_move_spit) : M_SetAnimation(self, &gekk_move_spitharder);
 		}
 		else {
 			if (self->spawnflags.has(SPAWNFLAG_GEKK_NOJUMPING) || frandom() > 0.7f) {
