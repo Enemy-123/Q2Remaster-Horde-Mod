@@ -20,7 +20,7 @@ struct pm_config_t
 	int32_t		airaccel = 0;
 	bool		n64_physics = false;
 };
-
+extern bool PM_IsQ64Map();
 extern pm_config_t pm_config;
 
 void Pmove(pmove_t* pmove);

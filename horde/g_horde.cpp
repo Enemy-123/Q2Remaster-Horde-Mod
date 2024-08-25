@@ -59,7 +59,7 @@ const std::unordered_set<std::string> smallMaps = {
 };
 
 const std::unordered_set<std::string> bigMaps = {
-	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1"
+	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2"
 };
 
 // Funci�n para obtener el tama�o del mapa
@@ -770,6 +770,9 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 
 	return filter_data.count > 0;
 }
+
+#include <vector>
+
 const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Check if the spawn point is occupied
 	if (IsSpawnPointOccupied(spawn_point)) {
@@ -777,34 +780,39 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Check cooldowns
-	gtime_t currentCooldown = SPAWN_POINT_COOLDOWN;
-	if (const auto it = spawnPointCooldowns.find(spawn_point); it != spawnPointCooldowns.end()) {
-		currentCooldown = it->second;
-	}
-
 	if (const auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
 		if (level.time < it->second + SPAWN_POINT_COOLDOWN) {
-			return nullptr;  // aún en cooldown, no permitir spawn
+			return nullptr;  // Still on cooldown, don't allow spawn
 		}
 	}
 
 	// Calculate flying spawn adjustment
-	const int32_t flyingSpawns = countFlyingSpawns();
-	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
+	static const int32_t flyingSpawns = countFlyingSpawns();
+	static const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
+	static const bool forceFlying = (flying_monsters_mode && g_horde_local.level >= WAVE_TO_ALLOW_FLYING);
 
-	// Use a static vector to avoid repeated allocations
 	static std::vector<std::pair<const weighted_item_t*, float>> eligible_monsters;
 	eligible_monsters.clear();
-	float total_weight = 0.0f;
+	eligible_monsters.reserve(std::size(monsters));
+
+	static float total_weight = 0.0f;
+	static int flyingEligible = 0, nonFlyingEligible = 0;
+	total_weight = 0.0f;
+	flyingEligible = 0;
+	nonFlyingEligible = 0;
 
 	for (const auto& item : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(item.classname);
-
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-			const float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+			float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+			if (forceFlying) {
+				weight *= (isFlyingMonster ? 10.0f : 0.1f);
+			}
 			if (weight > 0) {
 				total_weight += weight;
-				eligible_monsters.emplace_back(&item, weight);  // Store individual weights, not cumulative
+				eligible_monsters.emplace_back(&item, weight);
+				if (isFlyingMonster) flyingEligible++;
+				else nonFlyingEligible++;
 			}
 		}
 	}
@@ -815,22 +823,27 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Create a vector of weights for std::discrete_distribution
-	std::vector<float> weights;
+	static std::vector<float> weights;
+	weights.clear();
 	weights.reserve(eligible_monsters.size());
 	for (const auto& monster : eligible_monsters) {
 		weights.push_back(monster.second);
 	}
 
-	// Create and use the discrete distribution
-	std::discrete_distribution<> dist(weights.begin(), weights.end());
+	// Use discrete distribution for weighted selection
+	static std::discrete_distribution<> dist(weights.begin(), weights.end());
 	const size_t chosen_index = dist(mt_rand);
-
 	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
+
 	UpdateCooldowns(spawn_point, chosen_monster);
 	ResetSingleSpawnPointAttempts(spawn_point);
+
+	//// Logging for debugging
+	//gi.Com_PrintFmt("Spawning monster: {}. Flying: {}, Total eligible: {}, Flying eligible: {}, Non-flying eligible: {}\n",
+	//	std::string_view(chosen_monster), IsFlyingMonster(chosen_monster), eligible_monsters.size(), flyingEligible, nonFlyingEligible);
+
 	return chosen_monster;
 }
-
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
@@ -1143,6 +1156,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"fact3", {0, -64, 192}},
 	{"mgu4trial", {-960, -528, -328}},
 	{"mgu6m3", {0, 592, 1600}},
+	{"waste2", {-1152, -288, -40}},
 	{"q64/comm", {1464, -88, -432}},
 	{"q64/command", {0, -208, 56}},
 	{"q64/dm7", {64, 224, 120}},
@@ -1233,16 +1247,15 @@ void SpawnBossAutomatically() {
 		return;
 	}
 
-	edict_t* boss = G_Spawn();
-	if (!boss) {
-		gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
+	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
+	if (!desired_boss) {
+		gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
 		return;
 	}
 
-	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
-	if (!desired_boss) {
-		G_FreeEdict(boss);
-		gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
+	edict_t* boss = G_Spawn();
+	if (!boss) {
+		gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
 		return;
 	}
 
@@ -1260,16 +1273,22 @@ void SpawnBossAutomatically() {
 					   static_cast<float>(it->second[2]) },
 		boss->s.origin);
 
-	gi.Com_PrintFmt("Preparing to spawn boss at position: {}\n", boss->s.origin);
+	gi.Com_PrintFmt("Preparing to spawn boss {} at position: {}\n", desired_boss, boss->s.origin);
+
+	// Set flying monsters mode if applicable
+	flying_monsters_mode = (strcmp(desired_boss, "monster_boss2") == 0 ||
+		strcmp(desired_boss, "monster_carrier") == 0 ||
+		strcmp(desired_boss, "monster_carrier2") == 0 ||
+		strcmp(desired_boss, "monster_boss2kl") == 0);
 
 	// Push entities away
 	PushEntitiesAway(boss->s.origin, 2, 500, 300.0f, 750.0f, 1000.0f, 500.0f);
 
 	// Delay boss spawn
-	boss->nextthink = level.time + 800_ms; // 1 seconds delay
+	boss->nextthink = level.time + 800_ms; // 1 second delay
 	boss->think = BossSpawnThink;
 
-	gi.Com_PrintFmt("Boss spawn preparation complete. Boss will appear in 1 second.\n");
+	gi.Com_PrintFmt("Boss spawn preparation complete. Boss will appear in 1 second. Flying mode: {}\n", flying_monsters_mode);
 }
 
 THINK(BossSpawnThink) (edict_t* self) -> void
@@ -1294,10 +1313,8 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	// Apply bonus flags and effects
 	ApplyMonsterBonusFlags(self);
 
-
-
-	float health_multiplier = 1.0f;
-	float power_armor_multiplier = 1.0f;
+	const float health_multiplier = 1.0f;
+	const float power_armor_multiplier = 1.0f;
 	const auto mapSize = GetMapSize(level.mapname);
 
 	// Apply bonus flags and effects
