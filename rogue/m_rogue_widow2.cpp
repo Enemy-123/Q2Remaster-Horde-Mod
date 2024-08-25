@@ -1040,7 +1040,7 @@ void SP_monster_widow2(edict_t* self)
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 
 	}
@@ -1058,7 +1058,7 @@ void SP_monster_widow2(edict_t* self)
 	sound_tentacles_retract.assign("brain/brnatck3.wav");
 
 	//	self->s.sound = gi.soundindex ("bosshovr/bhvengn1.wav");
-
+	self->s.scale = 0.8f;
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/blackwidow2/tris.md2");

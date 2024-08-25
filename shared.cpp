@@ -5,7 +5,7 @@
 
 #include "g_local.h"
 
-bool IsRemovableEntity(edict_t* ent);
+bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
 
 void turret_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
@@ -49,7 +49,7 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	}
 }
 
-bool IsRemovableEntity(edict_t* ent)
+bool IsRemovableEntity(const edict_t* ent)
 {
 	static const std::unordered_set<std::string> removableEntities = {
 		"tesla_mine", "food_cube_trap", "prox_mine", "monster_sentrygun",
@@ -238,14 +238,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 {
 
 	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
-	{
-		// Si es un jefe, llamamos a ApplyBossEffects
-		const auto mapSize = GetMapSize(level.mapname);
-		ApplyBossEffects(monster, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap);
 		return;
-	}
-
-	monster->initial_max_health = monster->health;
 
 	if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
 	{
@@ -330,14 +323,17 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 	if (!boss->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		return;
 
+	const int32_t random_flag = 1 << (rand() % 6);
+	boss->monsterinfo.bonus_flags = random_flag;
+
 	float health_multiplier = 1.0f;
 	float power_armor_multiplier = 1.0f;
 
 	// Aplicar efectos de bonus flags
 	if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
-		boss->s.scale = 1.3f;
-		//boss->mins = 1.3f;
-		//boss->maxs = 1.3f;
+		boss->s.scale *= 1.3f;
+		boss->mins *= 1.3f;
+		boss->maxs *= 1.3f;
 		boss->s.effects |= EF_ROCKET | EF_FIREBALL;
 		boss->s.renderfx |= RF_SHELL_RED;
 		health_multiplier *= 1.5f;
@@ -345,9 +341,9 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 175_sec;
 	}
 	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		boss->s.scale = 1.5f;
-		//boss->mins *= 1.5f;
-		//boss->maxs *= 1.5f;
+		boss->s.scale *= 1.5f;
+		boss->mins *= 1.5f;
+		boss->maxs *= 1.5f;
 		boss->s.effects |= EF_PLASMA | EF_TAGTRAIL;
 		health_multiplier *= 1.4f;
 		power_armor_multiplier *= 1.4f;
@@ -373,9 +369,9 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
-		boss->s.scale = 1.2f;
-		//boss->mins *= 1.2f;
-		//boss->maxs *= 1.2f;
+		boss->s.scale *= 1.2f;
+		boss->mins *= 1.2f;
+		boss->maxs *= 1.2f;
 		boss->s.effects |= EF_TRACKER | EF_FLAG1;
 		health_multiplier *= 1.5f;
 		power_armor_multiplier *= 1.1f;
@@ -470,14 +466,10 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 //constexpr spawnflags_t SPAWNFLAG_LAVABALL_NO_EXPLODE = 1_spawnflag;
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
-
-	//gi.WriteByte(svc_temp_entity);
-	//gi.WriteByte(TE_BOSSTPORT);
-	//gi.WritePosition(center);
-	//gi.multicast(center, MULTICAST_PHS, false);
+	gi.Com_PrintFmt("Starting PushEntitiesAway at position: {}\n", center);
 
 	for (int wave = 0; wave < num_waves; wave++) {
-		const float size = push_radius * (1.0f - static_cast<float>(wave) / num_waves);
+		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.001f);
 		const float end_size = size * 0.1f;
 
 		// Use ImprovedSpawnGrow and add fireballs for the first wave
@@ -501,17 +493,16 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 					fireball->solid = SOLID_BBOX;
 					fireball->movetype = MOVETYPE_TOSS;
 					fireball->clipmask = MASK_SHOT;
-					fireball->velocity[0] = crandom() * 200; // Doubled horizontal speed
-					fireball->velocity[1] = crandom() * 200; // Doubled horizontal speed
-					fireball->velocity[2] = (200 + (frandom() * 200)); // Kept the same
-					fireball->avelocity = { crandom() * 180, crandom() * 180, crandom() * 180 }; // Halved rotation speed
+					fireball->velocity[0] = crandom() * 200;
+					fireball->velocity[1] = crandom() * 200;
+					fireball->velocity[2] = (200 + (frandom() * 200));
+					fireball->avelocity = { crandom() * 180, crandom() * 180, crandom() * 180 };
 					fireball->classname = "fireball";
 					gi.setmodel(fireball, "models/objects/gibs/sm_meat/tris.md2");
 					VectorCopy(offset, fireball->s.origin);
 					fireball->nextthink = level.time + 15000_ms;
 					fireball->think = G_FreeEdict;
 					fireball->touch = fire_touch;
-					//fireball->spawnflags = SPAWNFLAG_LAVABALL_NO_EXPLODE;
 					gi.linkentity(fireball);
 				}
 			}
@@ -524,7 +515,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		// Find and push entities
 		edict_t* ent = nullptr;
 		while ((ent = findradius(ent, center, size)) != nullptr) {
-			if (!ent->inuse || !ent->takedamage)
+			if (!ent || !ent->inuse || !ent->takedamage || !ent->s.origin)
 				continue;
 
 			vec3_t push_dir{};
@@ -545,6 +536,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			// Calculate push strength with a sine wave for smoother effect
 			float wave_push_strength = push_strength * (1.0f - distance / size);
 			wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+			wave_push_strength = std::min(wave_push_strength, 1000.0f);  // Limit maximum push strength
 
 			// Calculate new position
 			vec3_t new_pos{};
@@ -553,42 +545,44 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			// Trace to ensure we're not pushing through walls
 			trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
 
-			vec3_t final_velocity;
-			if (tr.fraction < 1.0) {
-				// If we hit something, adjust the push
-				VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+			if (!tr.allsolid && !tr.startsolid) {
+				vec3_t final_velocity;
+				if (tr.fraction < 1.0) {
+					// If we hit something, adjust the push
+					VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+				}
+				else {
+					VectorScale(push_dir, wave_push_strength, final_velocity);
+				}
+
+				// Add strong horizontal component
+				float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+				final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
+				final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
+
+				// Add vertical component
+				final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+				VectorCopy(final_velocity, ent->velocity);
+
+				ent->groundentity = nullptr;
+
+				if (ent->client && ent->client->oldvelocity) {
+					VectorCopy(ent->velocity, ent->client->oldvelocity);
+					ent->client->oldgroundentity = ent->groundentity;
+				}
+
+				gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n", wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
 			}
-			else {
-				VectorScale(push_dir, wave_push_strength, final_velocity);
-			}
-
-			// Add strong horizontal component
-			float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-			final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
-			final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
-
-			// Add vertical component
-			final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-
-			VectorCopy(final_velocity, ent->velocity);
-
-			ent->groundentity = nullptr;
-
-			if (ent->client) {
-				VectorCopy(ent->velocity, ent->client->oldvelocity);
-				ent->client->oldgroundentity = ent->groundentity;
-			}
-
-			gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n", wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
 		}
 
 		// Wait before the next wave
 		if (wave < num_waves - 1) {
-			// Note: This delay won't work as is in the function. You might need to implement a different way to handle the delay between waves.
-			// For now, we'll just print a message.
 			gi.Com_PrintFmt("Waiting {} milliseconds before next wave\n", wave_interval_ms);
 		}
 	}
+
+	gi.Com_PrintFmt("Finished PushEntitiesAway\n");
 }
 
 void Monster_MoveSpawn(edict_t* self)

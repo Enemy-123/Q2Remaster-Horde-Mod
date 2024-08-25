@@ -1285,26 +1285,20 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	}
 
 	// Configure boss
-	const int32_t random_flag = 1 << (rand() % 6);
-	self->monsterinfo.bonus_flags |= random_flag;
 	self->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_sentrygun_target_time = 0_ms;
 
-	// Apply bonus flags and effects
-	ApplyMonsterBonusFlags(self);
-
-
+	ED_CallSpawn(self);
 
 	const float health_multiplier = 1.0f;
 	const float power_armor_multiplier = 1.0f;
 	const auto mapSize = GetMapSize(level.mapname);
 
+
 	// Apply bonus flags and effects
 	ApplyBossEffects(self, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap);
 
 	self->monsterinfo.attack_state = AS_BLIND;
-
-	ED_CallSpawn(self);
 
 	// Adjust final power armor
 	if (self->monsterinfo.power_armor_power > 0)
@@ -1773,73 +1767,6 @@ void InitializeWaveSystem() noexcept {
 static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
-static void PushEntitiesAway(const vec3_t& center, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
-	vec3_t mins, maxs;
-	VectorSet(mins, center[0] - push_radius, center[1] - push_radius, center[2] - push_radius);
-	VectorSet(maxs, center[0] + push_radius, center[1] + push_radius, center[2] + push_radius);
-
-	std::vector<edict_t*> entity_list;
-	entity_list.reserve(MAX_EDICTS);
-	const int num_entities = gi.BoxEdicts(mins, maxs, entity_list.data(), entity_list.capacity(), AREA_SOLID, nullptr, nullptr);
-
-	for (int i = 0; i < num_entities; i++) {
-		edict_t* ent = entity_list[i];
-		if (!ent->inuse || !ent->takedamage)
-			continue;
-
-		vec3_t push_dir{};
-		VectorSubtract(ent->s.origin, center, push_dir);
-		float distance = VectorLength(push_dir);
-
-		if (distance > 0.1f) {
-			VectorNormalize(push_dir);
-		}
-		else {
-			// If the entity is too close to the center, give it a random direction
-			push_dir[0] = crandom();
-			push_dir[1] = crandom();
-			push_dir[2] = 0;
-			VectorNormalize(push_dir);
-		}
-
-		// Calculate push strength with a sine wave for smoother effect
-		float wave_push_strength = push_strength * (1.0f - distance / push_radius);
-		wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / push_radius)));
-
-		// Calculate new position
-		const vec3_t new_pos{};
-		VectorMA(ent->s.origin, wave_push_strength / 700, push_dir, new_pos);
-
-		// Trace to ensure we're not pushing through walls
-		const trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
-
-		vec3_t final_velocity;
-		if (tr.fraction < 1.0) {
-			// If we hit something, adjust the push
-			VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
-		}
-		else {
-			VectorScale(push_dir, wave_push_strength, final_velocity);
-		}
-
-		// Add strong horizontal component
-		float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / push_radius)));
-		final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
-		final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
-
-		// Add vertical component
-		final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / push_radius)));
-
-		VectorCopy(final_velocity, ent->velocity);
-
-		ent->groundentity = nullptr;
-
-		if (ent->client) {
-			VectorCopy(ent->velocity, ent->client->oldvelocity);
-			ent->client->oldgroundentity = ent->groundentity;
-		}
-	}
-}
 static edict_t* SpawnMonsters() {
 	static const auto mapSize = GetMapSize(level.mapname);
 	static std::vector<edict_t*> available_spawns;
@@ -1861,7 +1788,7 @@ static edict_t* SpawnMonsters() {
 	// Pre-seleccionar puntos de spawn disponibles
 	for (size_t i = 0; i < globals.num_edicts && i < MAX_EDICTS; i++) {
 		edict_t* ent = &g_edicts[i];
-		if (!ent || !ent->inuse || !ent->classname || strcmp(ent->classname, "info_player_deathmatch") != 0)
+		if (!ent || !ent->inuse || !ent->classname || (strcmp(ent->classname, "info_player_deathmatch") != 0))
 			continue;
 		available_spawns.push_back(ent);
 	}

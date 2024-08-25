@@ -533,7 +533,7 @@ const char* get_random_replacement(const MonsterReplacement* replacement) {
 	}
 }
 
-void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
+static void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
 	if (!ent || !ent->classname) {
 		return;  // Salir si la entidad o su classname son nulos
 	}
@@ -559,6 +559,16 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 				else if (rand_val < 1.0f) flag = BF_STYGIAN;
 
 				ent->monsterinfo.bonus_flags = flag;
+
+				if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+				{
+					// Si es un jefe, llamamos a ApplyBossEffects
+					const auto mapSize = GetMapSize(level.mapname);
+					ApplyBossEffects(ent, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap);
+					break;
+				}
+				else
+
 				ApplyMonsterBonusFlags(ent);
 			}
 			break;
