@@ -576,10 +576,8 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 #include <unordered_set>
 #include <random>
 
-constexpr size_t MAX_RECENT_BOSSES = 3;
-std::array<const char*, MAX_RECENT_BOSSES> recent_bosses{};
-size_t recent_bosses_count = 0;
-std::unordered_set<const char*> recent_bosses_set;
+constexpr int32_t MAX_RECENT_BOSSES = 3;
+std::vector<const char*> recent_bosses;  // Cambiado de std::deque a std::vector
 
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
@@ -597,15 +595,18 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 			(waveNumber <= boss.max_level || boss.max_level == -1);
 		};
 
+	auto is_boss_recent = [&](const char* classname) {
+		return std::find(recent_bosses.begin(), recent_bosses.end(), classname) != recent_bosses.end();
+		};
+
 	for (size_t i = 0; i < boss_list_size; ++i) {
-		if (is_boss_eligible(boss_list[i]) && recent_bosses_set.find(boss_list[i].classname) == recent_bosses_set.end()) {
+		if (is_boss_eligible(boss_list[i]) && !is_boss_recent(boss_list[i].classname)) {
 			eligible_bosses.push_back(&boss_list[i]);
 		}
 	}
 
 	if (eligible_bosses.empty()) {
-		recent_bosses_set.clear();
-		recent_bosses_count = 0;
+		recent_bosses.clear();
 		for (size_t i = 0; i < boss_list_size; ++i) {
 			if (is_boss_eligible(boss_list[i])) {
 				eligible_bosses.push_back(&boss_list[i]);
@@ -614,23 +615,17 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 	}
 
 	if (!eligible_bosses.empty()) {
-		std::uniform_int_distribution<size_t> distribution(0, eligible_bosses.size() - 1);
-		const boss_t* chosen_boss = eligible_bosses[distribution(mt_rand)];
-
-		if (recent_bosses_count == MAX_RECENT_BOSSES) {
-			recent_bosses_set.erase(recent_bosses[0]);
-			std::rotate(recent_bosses.begin(), recent_bosses.begin() + 1, recent_bosses.end());
-			recent_bosses_count--;
+		const boss_t* chosen_boss = eligible_bosses[static_cast<size_t>(frandom() * eligible_bosses.size())];
+		recent_bosses.push_back(chosen_boss->classname);
+		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
+			recent_bosses.erase(recent_bosses.begin());
 		}
-
-		recent_bosses[recent_bosses_count++] = chosen_boss->classname;
-		recent_bosses_set.insert(chosen_boss->classname);
-
 		return chosen_boss->classname;
 	}
 
 	return nullptr;
 }
+
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -1221,9 +1216,7 @@ void AttachHealthBar(edict_t* boss) {
 }
 
 static int boss_counter = 0; // Declaramos boss_counter como variable estática
-
-// Forward declaration of the think function
-void BossSpawnThink(edict_t* self);
+void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 
 void SpawnBossAutomatically() {
 	const auto mapSize = GetMapSize(level.mapname);
@@ -1237,15 +1230,16 @@ void SpawnBossAutomatically() {
 		return;
 	}
 
-	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
-	if (!desired_boss) {
-		gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
-		return;
-	}
-
 	edict_t* boss = G_Spawn();
 	if (!boss) {
 		gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
+		return;
+	}
+
+	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
+	if (!desired_boss) {
+		G_FreeEdict(boss);
+		gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
 		return;
 	}
 
@@ -1263,22 +1257,16 @@ void SpawnBossAutomatically() {
 					   static_cast<float>(it->second[2]) },
 		boss->s.origin);
 
-	gi.Com_PrintFmt("Preparing to spawn boss {} at position: {}\n", desired_boss, boss->s.origin);
-
-	// Set flying monsters mode if applicable
-	flying_monsters_mode = (strcmp(desired_boss, "monster_boss2") == 0 ||
-		strcmp(desired_boss, "monster_carrier") == 0 ||
-		strcmp(desired_boss, "monster_carrier2") == 0 ||
-		strcmp(desired_boss, "monster_boss2kl") == 0);
+	gi.Com_PrintFmt("Preparing to spawn boss at position: {}\n", boss->s.origin);
 
 	// Push entities away
 	PushEntitiesAway(boss->s.origin, 2, 500, 300.0f, 750.0f, 1000.0f, 500.0f);
 
 	// Delay boss spawn
-	boss->nextthink = level.time + 800_ms; // 1 second delay
+	boss->nextthink = level.time + 800_ms; // 0.8 seconds delay
 	boss->think = BossSpawnThink;
 
-	gi.Com_PrintFmt("Boss spawn preparation complete. Boss will appear in 1 second. Flying mode: {}\n", flying_monsters_mode);
+	gi.Com_PrintFmt("Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
 
 THINK(BossSpawnThink) (edict_t* self) -> void
@@ -1302,6 +1290,8 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 
 	// Apply bonus flags and effects
 	ApplyMonsterBonusFlags(self);
+
+
 
 	const float health_multiplier = 1.0f;
 	const float power_armor_multiplier = 1.0f;
@@ -1344,6 +1334,7 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	gi.Com_PrintFmt("Boss of type {} spawned successfully with {} health and {} power armor\n",
 		self->classname, self->health, self->monsterinfo.power_armor_power);
 }
+
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
 {
@@ -1413,9 +1404,8 @@ void ResetAllSpawnAttempts() noexcept {
 }
 
 static void ResetRecentBosses() noexcept {
-		recent_bosses.fill(nullptr);  // Llena el array con nullptr
-		recent_bosses_count = 0;      // Resetea el contador
-		recent_bosses_set.clear();    // Limpia el set
+	// Reinicia la lista de bosses recientes
+	recent_bosses.clear();
 	}
 
 void ResetGame() {

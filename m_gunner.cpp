@@ -389,15 +389,16 @@ void GunnerFire(edict_t* self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-	PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
+
 
 
 	if (current_wave_level <= 12) {
+		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 		monster_fire_bullet(self, start, aim, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
 	if (current_wave_level >= 13 || g_hardcoop->integer <= 3) {
-
-		monster_fire_ionripper(self, start, aim, 6, 1300, flash_number, EF_IONRIPPER);
+		PredictAim(self, self->enemy, start, 900, true, 0.1f, &aim, nullptr);
+		monster_fire_ionripper(self, start, aim, 6, 900, flash_number, EF_IONRIPPER);
 	}
 }
 
