@@ -425,6 +425,34 @@ mframe_t boss2_frames_death[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
+	{ ai_move, 0, boss2_shrink },
+	{ ai_move },
+	{ ai_move }
+};
+MMOVE_T(boss2_move_death) = { FRAME_death2, FRAME_death25, boss2_frames_death, boss2_dead };
+
+mframe_t boss2_frames_deathboss[] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
@@ -454,7 +482,7 @@ mframe_t boss2_frames_death[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(boss2_move_death) = { FRAME_death2, FRAME_death50, boss2_frames_death, boss2_dead };
+MMOVE_T(boss2_move_deathboss) = { FRAME_death2, FRAME_death50, boss2_frames_deathboss, boss2_dead };
 
 MONSTERINFO_STAND(boss2_stand) (edict_t* self) -> void
 {
@@ -620,7 +648,9 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 		self->gravityVector.z *= 0.30f;
 	}
 	OnEntityDeath(self);
-	M_SetAnimation(self, &boss2_move_death);
+	self->spawnflags.has(SPAWNFLAG_IS_BOSS) ?
+		M_SetAnimation(self, &boss2_move_deathboss) :
+		M_SetAnimation(self, &boss2_move_death);
 }
 
 

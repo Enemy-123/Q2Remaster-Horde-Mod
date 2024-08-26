@@ -693,7 +693,7 @@ mframe_t carrier_frames_pain_light[] = {
 };
 MMOVE_T(carrier_move_pain_light) = { FRAME_spawn01, FRAME_spawn04, carrier_frames_pain_light, carrier_run };
 
-mframe_t carrier_frames_death[] = {
+mframe_t carrier_frames_deathboss[] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
@@ -711,7 +711,22 @@ mframe_t carrier_frames_death[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(carrier_move_death) = { FRAME_death01, FRAME_death16, carrier_frames_death, carrier_dead };
+MMOVE_T(carrier_move_deathboss) = { FRAME_death01, FRAME_death16, carrier_frames_deathboss, carrier_dead };
+
+mframe_t carrier_frames_death[] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+
+};
+MMOVE_T(carrier_move_death) = { FRAME_death01, FRAME_death10, carrier_frames_death, carrier_dead };
 
 MONSTERINFO_STAND(carrier_stand) (edict_t *self) -> void
 {
@@ -927,7 +942,7 @@ PAIN(carrier_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 	self->pain_debounce_time = level.time + 5_sec;
 
 	// Determine attenuation based on the monster type
-	float attenuation = (g_horde->integer && strcmp(self->classname, "monster_carrier2") == 0) ? ATTN_NORM : ATTN_NONE;
+	const float attenuation = (g_horde->integer && strcmp(self->classname, "monster_carrier2") == 0) ? ATTN_NORM : ATTN_NONE;
 
 	if (damage < 10)
 		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);
@@ -1020,7 +1035,9 @@ DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	self->deadflag = true;
 	self->takedamage = false;
 	self->count = 0;
-	M_SetAnimation(self, &carrier_move_death);
+	self->spawnflags.has(SPAWNFLAG_IS_BOSS) ?
+		M_SetAnimation(self, &carrier_move_deathboss) :
+		M_SetAnimation(self, &carrier_move_death);
 	self->velocity = {};
 	self->gravityVector.z *= 0.01f;
 	self->monsterinfo.weapon_sound = 0;
