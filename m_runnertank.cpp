@@ -264,8 +264,11 @@ bool runnertank_enemy_visible(edict_t* self)
 {
 	return self->enemy && visible(self, self->enemy);
 }
+
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
+	void runnertank_attack(edict_t * self);
+
 	if (self->enemy && self->enemy->client)
 		self->monsterinfo.aiflags |= AI_BRUTAL;
 	else
@@ -280,7 +283,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 	const float range = self->enemy ? range_to(self, self->enemy) : 0;
 
 	// Decidir si debe detenerse y atacar
-	if (range <= RANGE_NEAR && self->monsterinfo.aiflags & AI_CHARGING)
+	if (range <= RANGE_NEAR)
 	{
 		// Probabilidad de detenerse aumenta a medida que se acerca al enemigo
 		const float stop_chance = 1.0f - (range / RANGE_NEAR);
@@ -288,20 +291,9 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		{
 			M_SetAnimation(self, &runnertank_move_stop_run);
 			self->monsterinfo.aiflags &= ~AI_CHARGING;
+			runnertank_attack(self);  // Intentar atacar inmediatamente
 			return;
 		}
-	}
-
-	// Implementar carrera y strafing
-	if (self->monsterinfo.aiflags & AI_CHARGING)
-	{
-		M_SetAnimation(self, &runnertank_move_run);
-		// Aumentar la velocidad durante la carga
-		VectorScale(self->velocity, 1.5f, self->velocity);
-	}
-	else
-	{
-		M_SetAnimation(self, &runnertank_move_run);
 	}
 
 	// Implementar carrera y strafing
@@ -328,24 +320,22 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 			// Aumentar la probabilidad de strafing si el runnertank tiene poca salud
 			if (self->health < self->max_health * 0.5f)
 				strafe_chance += 0.2f;
+
 			if (frandom() < strafe_chance)
 			{
 				// Decidir aleatoriamente si strafear a la izquierda o derecha
-				if (frandom() < 0.5)
-					self->monsterinfo.lefty = 0;  // Strafe derecha
-				else
-					self->monsterinfo.lefty = 1;  // Strafe izquierda
+				self->monsterinfo.lefty = frandom() < 0.5;
+
 				// Aplicar el movimiento de strafe
 				vec3_t right, strafe_vel;
 				AngleVectors(self->s.angles, nullptr, right, nullptr);
 				// Aumentar significativamente la velocidad de strafe
 				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
-				if (self->monsterinfo.lefty)
-					VectorScale(right, -strafe_speed, strafe_vel);  // Strafe izquierda
-				else
-					VectorScale(right, strafe_speed, strafe_vel);   // Strafe derecha
+				VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
+
 				// Combinar el movimiento de avance con el strafe
 				VectorAdd(self->velocity, strafe_vel, self->velocity);
+
 				// Ajustar la duración del strafe
 				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
 			}
@@ -868,13 +858,18 @@ void runnertank_stop_run_to_attack(edict_t* self)
 		M_SetAnimation(self, &runnertank_move_run);
 	}
 }
-
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
-	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy))
+	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	const float range = self->enemy ? range_to(self, self->enemy) : 0;
+	const float range = range_to(self, self->enemy);
+	const float r = frandom();
+
+	// Check if we can shoot
+	const bool can_blast = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
+	const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
+	const bool can_chain = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_1]);
 
 	// Ajustar la frecuencia de ataque
 	if (level.time < self->monsterinfo.attack_finished)
@@ -887,65 +882,51 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;
 		return;
 	}
-	else if (range <= RANGE_MID && range >= MELEE_DISTANCE * 2.00 && infront(self, self->enemy))
+	else if (range <= RANGE_NEAR)
 	{
-		// En rango melee, decide aleatoriamente entre cohetes y cadena
-		if (brandom())
+		if (can_chain && r < 0.4)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_chain);
+			self->monsterinfo.attack_finished = level.time + 3_sec;
+		}
+		else if (can_rocket && r < 0.7)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
 			self->pain_debounce_time = level.time + 3_sec;
 			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
-		else
+		else if (can_blast)
 		{
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 3_sec;
-		}
-	}
-	else if (range <= RANGE_NEAR && range >= MELEE_DISTANCE * 2.00)
-	{
-		// En rango cercano, decide entre rail gun, cadena o cohetes
-		const float random_choice = frandom();
-		const bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
-		if (can_rail && random_choice < 0.4)
-		{
-			M_SetAnimation(self, &runnertank_move_run);
-			self->monsterinfo.attack_finished = level.time + 4_sec;
-		}
-		else if (random_choice < 0.7)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 3_sec;
-		}
-		else
-		{
-			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-			self->pain_debounce_time = level.time + 3_sec;
-			self->monsterinfo.attack_finished = level.time + 4_sec;
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
 	}
 	else if (range <= RANGE_MID)
 	{
-		// En rango medio, prefiere rail gun o cohetes
-		if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]) && frandom() < 0.6)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.attack_finished = level.time + 2_sec;
-		}
-		else
+		if (can_rocket && r < 0.5)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
 			self->pain_debounce_time = level.time + 3_sec;
 			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
-	}
-	else
-	{
-		// En rango lejano, prefiere rail gun o cohetes
-		if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]) && frandom() < 0.6)
+		else if (can_blast)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
+		}
+	}
+	else
+	{
+		if (can_blast && r < 0.6)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+		}
+		else if (can_rocket)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+			self->pain_debounce_time = level.time + 3_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
 	}
 
