@@ -3,10 +3,10 @@
 
 constexpr int32_t MAX_LASERS = 6;
 constexpr int32_t LASER_COST = 25;
-constexpr int32_t LASER_INITIAL_DAMAGE = 3;
-constexpr int32_t LASER_ADDON_DAMAGE = 8;
-constexpr int32_t LASER_INITIAL_HEALTH = 175;  // DMG before explode
-constexpr int32_t LASER_ADDON_HEALTH = 65;     // DMG addon before explode
+constexpr int32_t LASER_INITIAL_DAMAGE = 1;
+constexpr int32_t LASER_ADDON_DAMAGE = 4;
+constexpr int32_t LASER_INITIAL_HEALTH = 100;  // DMG before explode
+constexpr int32_t LASER_ADDON_HEALTH = 100;     // DMG addon before explode
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
 constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
@@ -128,11 +128,11 @@ THINK(laser_beam_think)(edict_t* self) -> void
 						}
 						else if (tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
 						{
-							damage_multiplier = 0.8f; // Ligeramente mayor desgaste contra boss
+							damage_multiplier = 1.25f; // Ligeramente mayor desgaste contra boss
 						}
 						else
 						{
-							damage_multiplier = 0.65f; // Desgaste normal contra monsters
+							damage_multiplier = 1.0f; // Desgaste normal contra monsters
 						}
 					}
 
@@ -237,8 +237,8 @@ void create_laser(edict_t* ent)
 	grenade = G_Spawn();
 
 	// create the laser beam
-	laser->dmg = LASER_INITIAL_DAMAGE + (LASER_ADDON_DAMAGE * current_wave_level);
-	laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * current_wave_level);
+	laser->dmg = LASER_INITIAL_DAMAGE + (LASER_ADDON_DAMAGE * (current_wave_level - 1));
+	laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * (current_wave_level - 1));
 	laser->max_health = laser->health;
 	laser->gib_health = -100;
 	laser->mass = 50;
