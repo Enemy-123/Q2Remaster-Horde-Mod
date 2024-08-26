@@ -842,7 +842,8 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	if (self->monsterinfo.monster_used <= self->monsterinfo.monster_slots && range_to(self, self->enemy) <= RANGE_MELEE * 2 || range_to(self, self->enemy) <= RANGE_MELEE * 3 && frandom() <= 0.3f && visible(self, self->enemy) && infront(self, self->enemy)) // 10% de probabilidad
+	if (self->monsterinfo.monster_used <= self->monsterinfo.monster_slots && range_to(self, self->enemy) <= RANGE_MELEE * 3 && visible(self, self->enemy) && infront(self, self->enemy) ||
+		range_to(self, self->enemy) <= RANGE_MELEE * 2 && visible(self, self->enemy) && infront(self, self->enemy))
 	{
 		M_SetAnimation(self, &tank_move_spawn);
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;

@@ -469,7 +469,7 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	if (current_wave_level >= 25 || g_hardcoop->integer || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+	if (!strcmp(self->classname, "monster_tank_64") || g_hardcoop->integer || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 
 		PredictAim(self, self->enemy, start, 0, false, 0.075f, &dir, nullptr);
 
@@ -1029,7 +1029,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &tank_move_attack_fire_rocket);
 		else
 		{
-			self->s.skinnum == 2 ?
+			self->s.skinnum == 2 && strcmp(self->enemy->classname, "monster_tank_64") ?
 				M_SetAnimation(self, &tank_move_attack_grenade):
 				M_SetAnimation(self, &tank_move_attack_blast);
 			self->monsterinfo.nextframe = FRAME_attak108;
@@ -1048,30 +1048,30 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 
 	if (range <= 125)
 	{
-		bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.5f)
 			M_SetAnimation(self, &tank_move_attack_chain);
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			self->s.skinnum == 2 ?
+			self->s.skinnum == 2 && strcmp(self->classname, "monster_tank_64") ?
 			M_SetAnimation(self, &tank_move_attack_grenade) :
 			M_SetAnimation(self, &tank_move_attack_blast);
 	}
 	else if (range <= 250)
 	{
-		bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
 		if (can_machinegun && r < 0.25f)
 			M_SetAnimation(self, &tank_move_attack_chain);
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			self->s.skinnum == 2 ?
+			self->s.skinnum == 2 && strcmp(self->classname, "monster_tank_64") ?
 			M_SetAnimation(self, &tank_move_attack_grenade) :
 			M_SetAnimation(self, &tank_move_attack_blast);
 	}
 	else
 	{
-		bool can_machinegun = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
-		bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
+		const bool can_machinegun = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+		const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 
 		if (can_machinegun && r < 0.33f)
 			M_SetAnimation(self, &tank_move_attack_chain);
@@ -1081,7 +1081,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 			self->pain_debounce_time = level.time + 5_sec; // no pain for a while
 		}
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			self->s.skinnum == 2 ?
+			self->s.skinnum == 2 && strcmp(self->classname, "monster_tank_64") ?
 			M_SetAnimation(self, &tank_move_attack_grenade) :
 			M_SetAnimation(self, &tank_move_attack_blast);
 	}

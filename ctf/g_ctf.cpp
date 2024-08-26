@@ -4893,7 +4893,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		return;
 	}
 	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
-	int vote_index = atoi(map_name);  // Obtener el índice del mapa desde el argumento
+	const int vote_index = atoi(map_name);  // Obtener el índice del mapa desde el argumento
 	int current_index = 1;  // Contador para la búsqueda del mapa
 	bool found_map = false;
 	while (*(token = COM_Parse(&mlist)) != '\0')
