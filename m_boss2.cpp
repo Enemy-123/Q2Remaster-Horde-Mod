@@ -411,25 +411,10 @@ mframe_t boss2_frames_death[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
 	{ ai_move, 0, boss2_shrink },
 	{ ai_move },
-	{ ai_move }
 };
-MMOVE_T(boss2_move_death) = { FRAME_death2, FRAME_death25, boss2_frames_death, boss2_dead };
+MMOVE_T(boss2_move_death) = { FRAME_death2, FRAME_death10, boss2_frames_death, boss2_dead };
 
 mframe_t boss2_frames_deathboss[] = {
 	{ ai_move, 0, BossExplode },
@@ -538,11 +523,11 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	// Determine attenuation based on the monster type and spawnflags
 	float attenuation;
-	if (!(g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))) {
-		attenuation = ATTN_NORM;
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		attenuation = ATTN_NONE;
 	}
 	else {
-		attenuation = ATTN_NONE;
+		attenuation = ATTN_NORM;
 	}
 
 	if (damage < 10)
@@ -634,11 +619,11 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	else
 	{
 		// Check if the monster is boss2_64 to use ATTN_NORM
-		if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
+		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
 		}
 		else {
-			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
 		}
 
 		self->deadflag = true;
@@ -664,9 +649,8 @@ MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
  */
 void SP_monster_boss2(edict_t* self)
 {
-	if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 		{
-
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
 	}
