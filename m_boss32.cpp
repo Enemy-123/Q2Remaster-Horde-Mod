@@ -455,10 +455,10 @@ void makronBFG(edict_t *self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_VOICE, sound_attack_bfg, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
+	monster_fire_bfg(self, start, dir, !strcmp(self->classname, "monster_makronkl") ? 40 : 15, 300, 100, 300, MZ2_MAKRON_BFG);
 }
 
-mframe_t makron_frames_attack3[] = {
+mframe_t makron_frames_attack3boss[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -468,7 +468,20 @@ mframe_t makron_frames_attack3[] = {
 	{ ai_charge, 0, makronBFG },
 	{ ai_move }
 };
+MMOVE_T(makron_move_attack3boss) = { FRAME_attak301, FRAME_attak308, makron_frames_attack3boss, makron_run };
+
+mframe_t makron_frames_attack3[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, makronBFG },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
 MMOVE_T(makron_move_attack3) = { FRAME_attak301, FRAME_attak308, makron_frames_attack3, makron_run };
+
 
 mframe_t makron_frames_attack4[] = {
 	{ ai_charge },
@@ -554,7 +567,7 @@ void MakronHyperblaster(edict_t *self)
 	vec3_t start;
 	vec3_t forward, right;
 
-	monster_muzzleflash_id_t flash_number = (monster_muzzleflash_id_t) (MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405));
+	const monster_muzzleflash_id_t flash_number = (monster_muzzleflash_id_t) (MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405));
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
@@ -579,7 +592,8 @@ void MakronHyperblaster(edict_t *self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	monster_fire_blaster2(self, start, forward, 35, 2300, flash_number, EF_BLASTER);
+	!strcmp(self->classname, "monster_makron") ?  monster_fire_blaster2(self, start, forward, 35, 2300, flash_number, EF_BLASTER) :
+	monster_fire_heatbeam(self, start, forward, vec3_origin, 18, 60, flash_number);
 }
 
 PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
@@ -656,6 +670,7 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 	r = frandom();
 
 	if (r <= 0.3f)
+		!strcmp(self->classname, "monster_makronkl") ? M_SetAnimation(self, &makron_move_attack3boss) :
 		M_SetAnimation(self, &makron_move_attack3);
 	else if (r <= 0.6f)
 		M_SetAnimation(self, &makron_move_attack4);
@@ -770,7 +785,7 @@ void SP_monster_makron(edict_t* self)
 	if (g_horde->integer) {
 		if (!strcmp(self->classname, "monster_makronkl"))
 		{
-			float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
+			const float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, sound_taunt1, 1, ATTN_NONE, 0);
