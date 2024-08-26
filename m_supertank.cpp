@@ -296,8 +296,7 @@ static void supertankGrenade(edict_t* self)
 	}
 }
 
-
-mframe_t supertank_frames_death1[] = {
+mframe_t supertank_frames_death1boss[] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
@@ -323,7 +322,22 @@ mframe_t supertank_frames_death1[] = {
 	{ ai_move },
 	{ ai_move, 0, BossLoop }
 };
-MMOVE_T(supertank_move_death) = { FRAME_death_1, FRAME_death_24, supertank_frames_death1, supertank_dead };
+MMOVE_T(supertank_move_deathboss) = { FRAME_death_1, FRAME_death_24, supertank_frames_death1boss, supertank_dead };
+
+
+mframe_t supertank_frames_death1[] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
+MMOVE_T(supertank_move_death) = { FRAME_death_1, FRAME_death_10, supertank_frames_death1, supertank_dead };
 
 mframe_t supertank_frames_attack4[] = {
 	{ ai_move, 0, supertankGrenade },
@@ -612,8 +626,9 @@ DIE(supertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 		self->deadflag = true;
 		self->takedamage = false;
 	}
-
-	M_SetAnimation(self, &supertank_move_death);
+	g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) ?
+		M_SetAnimation(self, &supertank_move_deathboss) :
+		M_SetAnimation(self, &supertank_move_death);
 }
 
 //===========
