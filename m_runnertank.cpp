@@ -221,16 +221,16 @@ void runnertank_unstuck(edict_t* self)
 //
 // Actualizar la animación de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_run, 18, runnertank_footstep },
+	{ ai_run, 16, runnertank_footstep },
 	{ ai_run, 18, nullptr },
+	{ ai_run, 15, nullptr },
+	{ ai_run, 14, [](edict_t* self) { runnertank_check_wall(self, 32); } },
+	{ ai_run, 15, nullptr },
+	{ ai_run, 15, nullptr },
+	{ ai_run, 13, runnertank_footstep },
+	{ ai_run, 19, nullptr },
 	{ ai_run, 18, nullptr },
-	{ ai_run, 18, [](edict_t* self) { runnertank_check_wall(self, 32); } },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, runnertank_footstep },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, [](edict_t* self) { runnertank_check_wall(self, 32); } }
+	{ ai_run, 17, [](edict_t* self) { runnertank_check_wall(self, 32); } }
 };
 MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 
@@ -283,7 +283,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 	if (range <= RANGE_NEAR && self->monsterinfo.aiflags & AI_CHARGING)
 	{
 		// Probabilidad de detenerse aumenta a medida que se acerca al enemigo
-		float stop_chance = 1.0f - (range / RANGE_NEAR);
+		const float stop_chance = 1.0f - (range / RANGE_NEAR);
 		if (frandom() < stop_chance)
 		{
 			M_SetAnimation(self, &runnertank_move_stop_run);
@@ -871,10 +871,10 @@ void runnertank_stop_run_to_attack(edict_t* self)
 
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
-	if (!self->enemy || !self->enemy->inuse)
+	if (!self->enemy || !self->enemy->inuse || !visible(self, self->enemy))
 		return;
 
-	const float range = range_to(self, self->enemy);
+	const float range = self->enemy ? range_to(self, self->enemy) : 0;
 
 	// Ajustar la frecuencia de ataque
 	if (level.time < self->monsterinfo.attack_finished)
@@ -887,7 +887,7 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;
 		return;
 	}
-	else if (range <= RANGE_NEAR && range >= MELEE_DISTANCE * 2.00 && infront(self, self->enemy))
+	else if (range <= RANGE_MID && range >= MELEE_DISTANCE * 2.00 && infront(self, self->enemy))
 	{
 		// En rango melee, decide aleatoriamente entre cohetes y cadena
 		if (brandom())
@@ -902,7 +902,7 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
 	}
-	else if (range <= RANGE_NEAR)
+	else if (range <= RANGE_NEAR && range >= MELEE_DISTANCE * 2.00)
 	{
 		// En rango cercano, decide entre rail gun, cadena o cohetes
 		const float random_choice = frandom();
@@ -1147,11 +1147,11 @@ bool runnertank_check_wall(edict_t* self, float dist)
 		VectorCopy(tr.plane.normal, wall_normal);
 
 		// Calcular el producto punto manualmente
-		float dot = forward[0] * wall_normal[0] + forward[1] * wall_normal[1] + forward[2] * wall_normal[2];
+		const float dot = forward[0] * wall_normal[0] + forward[1] * wall_normal[1] + forward[2] * wall_normal[2];
 
-		float turn_factor = fabs(dot);
-		float max_turn = 90.0f; // Aumentado de 45.0f a 90.0f
-		float turn_angle = max_turn * turn_factor;
+		const float turn_factor = fabs(dot);
+		const float max_turn = 90.0f; // Aumentado de 45.0f a 90.0f
+		const float turn_angle = max_turn * turn_factor;
 
 		if (dot < 0) {
 			self->ideal_yaw = anglemod(self->s.angles[YAW] + turn_angle);
@@ -1224,7 +1224,7 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 	// Aplicar un impulso lateral más fuerte
 	vec3_t right, strafe_vel;
 	AngleVectors(self->s.angles, nullptr, right, nullptr);
-	float strafe_speed = 300 + (frandom() * 200);  // Consistente con runnertank_run
+	const float strafe_speed = 300 + (frandom() * 200);  // Consistente con runnertank_run
 
 	if (self->monsterinfo.lefty)
 		VectorScale(right, -strafe_speed, strafe_vel);

@@ -329,7 +329,7 @@ bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& t
 	}
 
 	// try shifting the target to the left a little (to help counter large offset)
-	vec3_t left_target = target + (right * -20);
+	const vec3_t left_target = target + (right * -20);
 	trace = gi.traceline(start, left_target, self, MASK_PROJECTILE);
 
 	if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
@@ -365,7 +365,7 @@ void TankGrenades(edict_t* self)
 	vec3_t start;
 	vec3_t aim;
 	monster_muzzleflash_id_t flash_number;
-	float spread = 0.f;
+	const float spread = 0.f;
 	float pitch = 0;
 	vec3_t target;
 	bool blindfire = false;
@@ -421,8 +421,8 @@ void TankGrenades(edict_t* self)
 	aim.normalize();
 
 	// Determine if it's a mortar or normal grenade shot
-	bool is_mortar = (self->s.frame == FRAME_attak110); // Adjust this condition as needed
-	float speed = is_mortar ? MORTAR_SPEED : GRENADE_SPEED;
+	const bool is_mortar = (self->s.frame == FRAME_attak110); // Adjust this condition as needed
+	const float speed = is_mortar ? MORTAR_SPEED : GRENADE_SPEED;
 
 	// Try search for best pitch
 	if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, is_mortar))
@@ -983,14 +983,6 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	// PMM
 	if (!self->enemy || !self->enemy->inuse)
 		return;
-
-	//if (self->enemy->health <= 0)
-	//{
-	//	M_SetAnimation(self, &tank_move_attack_strike);
-	//	self->monsterinfo.aiflags &= ~AI_BRUTAL;
-	//	return;
-	//}
-
 
 	if (range_to(self, self->enemy) <= RANGE_MELEE * 2)
 	{
