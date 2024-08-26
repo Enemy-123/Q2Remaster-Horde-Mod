@@ -1193,11 +1193,11 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 
 		// RAFAEL
 		if (self->style == 1)
-			brandom() ? M_SetAnimation(self, &soldierh_move_attack1) :
+			first3waves ? M_SetAnimation(self, &soldierh_move_attack1) :
 			M_SetAnimation(self, &soldierh_move_attack1hard);
 		else
 			// RAFAEL
-			brandom() ? M_SetAnimation(self, &soldier_move_attack1) :
+			first3waves ? M_SetAnimation(self, &soldier_move_attack1) :
 			M_SetAnimation(self, &soldier_move_attack1hard);
 		self->monsterinfo.attack_finished = level.time + random_time(1.5_sec, 2.5_sec);
 		return;
@@ -1229,7 +1229,7 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 			else
 				attack1_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_1]);
 
-			bool attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
+			const bool attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
 
 			if (attack1_possible && (!attack2_possible || frandom() < 0.5f))
 			{

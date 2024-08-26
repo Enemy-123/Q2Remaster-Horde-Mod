@@ -1079,7 +1079,7 @@ void gekk_check_landing(edict_t* self)
 
 MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 {
-	float r = range_to(self, self->enemy);
+	const float r = range_to(self, self->enemy);
 
 	if (self->flags & FL_SWIM)
 	{
@@ -1094,8 +1094,10 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 	else
 	{
 		if (r >= RANGE_MID) {
-			if (frandom() > 0.5f) {
-				brandom() ? M_SetAnimation(self, &gekk_move_spit) : M_SetAnimation(self, &gekk_move_spitharder);
+			if (frandom() > 0.4f) {
+				first3waves ? 
+					M_SetAnimation(self, &gekk_move_spit) :
+					M_SetAnimation(self, &gekk_move_spitharder);
 			}
 			else {
 				M_SetAnimation(self, &gekk_move_run_start);
@@ -1103,7 +1105,9 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 			}
 		}
 		else if (frandom() > 0.7f) {
-			brandom() ? M_SetAnimation(self, &gekk_move_spit) : M_SetAnimation(self, &gekk_move_spitharder);
+			first3waves ? 
+				M_SetAnimation(self, &gekk_move_spit) : 
+				M_SetAnimation(self, &gekk_move_spitharder);
 		}
 		else {
 			if (self->spawnflags.has(SPAWNFLAG_GEKK_NOJUMPING) || frandom() > 0.7f) {
