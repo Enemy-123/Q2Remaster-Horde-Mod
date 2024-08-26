@@ -903,6 +903,7 @@ void MakronToss(edict_t* self)
 		gi.linkentity(self);
 		monster_dead(self);
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
+		self->monsterinfo.aiflags &= ~AI_DOUBLE_TROUBLE;
 		return;
 	}
 	if (g_horde->integer && current_wave_level <= 20 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS) || !g_horde->integer) {
@@ -920,7 +921,8 @@ void MakronToss(edict_t* self)
 		ent->enemy = self->enemy;
 	}
 	if (!g_horde->integer|| g_horde->integer && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
-	MakronSpawn(ent);
+	MakronSpawn(ent); 
+
 
 	// [Paril-KEX] set health bar over to Makron when we throw him out
 	for (size_t i = 0; i < 2; i++)

@@ -228,7 +228,7 @@ void guardian_fire_blaster(edict_t* self)
 {
 	vec3_t forward, right, target;
 	vec3_t start;
-	monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
+	const monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
@@ -452,7 +452,7 @@ void guardian_dead(edict_t* self)
 		});
 }
 
-mframe_t guardian_frames_death1[FRAME_death26 - FRAME_death1 + 1] = {
+mframe_t guardian_frames_death1boss[FRAME_death26 - FRAME_death1 + 1] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
@@ -480,7 +480,22 @@ mframe_t guardian_frames_death1[FRAME_death26 - FRAME_death1 + 1] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(guardian_move_death) = { FRAME_death1, FRAME_death26, guardian_frames_death1, guardian_dead };
+MMOVE_T(guardian_move_deathboss) = { FRAME_death1, FRAME_death26, guardian_frames_death1boss, guardian_dead };
+
+mframe_t guardian_frames_death1[FRAME_death11 - FRAME_death1 + 1] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
+MMOVE_T(guardian_move_death) = { FRAME_death1, FRAME_death11, guardian_frames_death1, guardian_dead };
 
 DIE(guardian_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
@@ -489,9 +504,14 @@ DIE(guardian_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	//gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	self->monsterinfo.weapon_sound = 0;
 	self->deadflag = true;
-	self->takedamage = true;
+	self->takedamage = false;
 
-	M_SetAnimation(self, &guardian_move_death);
+	if (!strcmp(self->classname, "monster_guardian") || strcmp(self->classname, "monster_janitor2")) {
+		M_SetAnimation(self, &guardian_move_deathboss);
+	}
+	else {
+		M_SetAnimation(self, &guardian_move_death);
+	}
 }
 
 //
@@ -556,7 +576,7 @@ void SP_monster_janitor2(edict_t* self)
 	self->s.skinnum = 2;
 	if (!self->s.scale)
 		self->s.scale = 0.4f;
-	self->health = 800 * st.health_multiplier;
+	self->health = 700 * st.health_multiplier;
 
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
