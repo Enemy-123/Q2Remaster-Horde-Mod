@@ -435,7 +435,7 @@ void TankStrike(edict_t* self)
 			gi.multicast(tr.endpos, MULTICAST_PHS, false);
 			void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 			// Daño radial
-			T_SlamRadiusDamage(tr.endpos, self, self, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 150 : 75, 450.f, self, 165, MOD_TANK_PUNCH);
+			T_SlamRadiusDamage(tr.endpos, self, self, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 150 : 75, 450.f, self, 165, MOD_UNKNOWN);
 
 		}
 }

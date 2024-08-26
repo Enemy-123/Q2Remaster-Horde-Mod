@@ -1082,8 +1082,7 @@ enum mod_id_t : uint8_t
 	// Kyper - Lithium port
 	MOD_HOOK,
 	MOD_TURRET,
-	MOD_PLAYER_LASER,
-	MOD_TANK_PUNCH
+	MOD_PLAYER_LASER
 	// Kyper
 };
 

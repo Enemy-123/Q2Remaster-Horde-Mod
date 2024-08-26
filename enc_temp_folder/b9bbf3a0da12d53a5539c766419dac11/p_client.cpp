@@ -398,9 +398,6 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_GEKK:
 			base = "{0} was spat to death by a {1}. Yuck!\n";
 			break;
-		case MOD_TANK_PUNCH:
-			base = "{0} was pulverized by a {1}\n";
-			break;
 		default:
 			base = brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n";
 			break;
