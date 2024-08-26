@@ -891,21 +891,37 @@ void MakronToss(edict_t* self)
 
 {
 	edict_t* ent = G_Spawn();
-	if (g_horde->integer && current_wave_level <= 20 || g_horde->integer) {
+
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BOSSTPORT);
+		gi.WritePosition(self->s.origin);
+		gi.multicast(self->s.origin, MULTICAST_PHS, false);
+		// just hide, don't kill ent so we can trigger it again
+		self->svflags |= SVF_NOCLIENT | SVF_DEADMONSTER;
+		self->solid = SOLID_NOT;
+		gi.linkentity(self);
+		monster_dead(self);
+		self->monsterinfo.aiflags &= ~AI_BRUTAL;
+		return;
+	}
+	if (g_horde->integer && current_wave_level <= 20 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS) || !g_horde->integer) {
 
 		ent->classname = "monster_makron";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	else if (g_horde->integer && current_wave_level >= 21)
+	else if (g_horde->integer && current_wave_level >= 21 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	{
 		ent->classname = "monster_makronkl";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
+	if (!g_horde->integer|| g_horde->integer && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	MakronSpawn(ent);
+
 	// [Paril-KEX] set health bar over to Makron when we throw him out
 	for (size_t i = 0; i < 2; i++)
 		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == self)
