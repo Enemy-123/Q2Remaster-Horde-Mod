@@ -402,6 +402,52 @@ void flyer_fireright(edict_t* self)
 	flyer_fire(self, MZ2_FLYER_BLASTER_2);
 }
 
+
+mframe_t flyer_frames_attack2normal[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
+};
+MMOVE_T(flyer_move_attack2normal) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack2normal, flyer_run };
+
+// PMM
+// circle strafe frames
+
+mframe_t flyer_frames_attack3normal[] = {
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 }
+};
+MMOVE_T(flyer_move_attack3normal) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack3normal, flyer_run };
+
 mframe_t flyer_frames_attack2[] = {
 	{ ai_charge, -10, flyer_fireleft },	 // left gun
 	{ ai_charge, -10, flyer_fireright }, // right gun
@@ -570,6 +616,8 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	else
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
+		first3waves ? 
+		M_SetAnimation(self, &flyer_move_attack2normal) :
 		M_SetAnimation(self, &flyer_move_attack2);
 	}
 

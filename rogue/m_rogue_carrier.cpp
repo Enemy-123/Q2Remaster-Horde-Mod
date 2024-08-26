@@ -48,7 +48,7 @@ float orig_yaw_speed;
 void M_SetupReinforcements(const char *reinforcements, reinforcement_list_t &list);
 std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t *self, int32_t &num_chosen, int32_t max_slots);
 
-extern const mmove_t flyer_move_attack2, flyer_move_attack3, flyer_move_kamikaze;
+extern const mmove_t flyer_move_attack2, flyer_move_attack3, flyer_move_attack3normal, flyer_move_kamikaze;
 
 void carrier_run(edict_t *self);
 void carrier_dead(edict_t *self);
@@ -392,13 +392,17 @@ void CarrierSpawn(edict_t *self)
 				{
 					ent->monsterinfo.lefty = false;
 					ent->monsterinfo.attack_state = AS_SLIDING;
+					first3waves ? 
+					M_SetAnimation(ent, &flyer_move_attack3normal) :
 					M_SetAnimation(ent, &flyer_move_attack3);
 				}
 				else
 				{
 					ent->monsterinfo.lefty = true;
 					ent->monsterinfo.attack_state = AS_SLIDING;
-					M_SetAnimation(ent, &flyer_move_attack3);
+					first3waves ?
+						M_SetAnimation(ent, &flyer_move_attack3normal) :
+						M_SetAnimation(ent, &flyer_move_attack3);
 				}
 			}
 		}
