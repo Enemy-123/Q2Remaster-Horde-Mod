@@ -426,7 +426,7 @@ void ShamblerCastFireballs(edict_t* self)
 
 	// Number of fireballs to launch
 	constexpr int num_fireballs = 1;
-	const int speed = irandom(720, 1080);
+	const int speed = irandom(1120, 1280);
 
 	for (int i = 0; i < num_fireballs; i++)
 	{
@@ -454,7 +454,7 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->solid = SOLID_BBOX;
 			fireball->s.effects = EF_FIREBALL; // fireball effects
 			fireball->s.renderfx = RF_MINLIGHT;
-			fireball->s.modelindex = frandom() < 0.15f ? gi.modelindex("models/objects/fire/tris.md2") : gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->s.modelindex = frandom() < 0.1f ? gi.modelindex("models/objects/fire/tris.md2") : gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
 			fireball->touch = fireball_touch; // Use rocket touch function
 			fireball->nextthink = level.time + 7_sec;
@@ -484,7 +484,7 @@ mframe_t shambler_frames_fireball[] = {
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
-	{ ai_move },
+	{ ai_move, 0, ShamblerCastFireballs },
 };
 
 MMOVE_T(shambler_attack_fireball) = { FRAME_magic01, FRAME_magic12, shambler_frames_fireball, shambler_run };
