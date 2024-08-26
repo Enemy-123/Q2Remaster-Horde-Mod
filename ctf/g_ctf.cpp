@@ -2504,7 +2504,7 @@ bool CTFApplyStrengthSound(edict_t* ent)
 	if (ent->client &&
 		ent->client->pers.inventory[IT_TECH_STRENGTH])
 	{
-		if (ent->client->ctf_techsndtime < level.time)
+		if (ent->client->ctf_techsndtime < level.time && (!(ent->svflags & SVF_BOT)))
 		{
 			ent->client->ctf_techsndtime = level.time + 1_sec;
 			if (ent->client->quad_time > level.time)
