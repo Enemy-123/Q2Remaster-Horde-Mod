@@ -333,7 +333,7 @@ void Horde_InitLevel(const int32_t lvl) {
 	boss_spawned_for_wave = false;
 	cachedRemainingMonsters = -1;
 	VerifyAndAdjustBots();
-	// Usar un switch para la escala de daño y easymonsters es eficiente y claro
+	// scaling damage switch
 	switch (g_horde_local.level) {
 	case 17: gi.cvar_set("g_damage_scale", "1.7"); break;
 	case 27: gi.cvar_set("g_damage_scale", "2.7"); break;
@@ -1843,9 +1843,9 @@ static void SetMonsterArmor(edict_t* monster) {
 
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 	g_horde_local.monster_spawn_time = level.time +
-		(mapSize.isSmallMap ? 1.5_sec :
+		(mapSize.isSmallMap ? (1.2_sec, 1.5_sec) :
 			mapSize.isBigMap ? random_time(0.9_sec, 1.1_sec) :
-			random_time(1.7_sec, 2_sec));
+			random_time(1.7_sec, 1.8_sec));
 }
 #include <unordered_map>
 #include <fmt/core.h>
