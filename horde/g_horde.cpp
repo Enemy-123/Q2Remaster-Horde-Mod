@@ -7,9 +7,9 @@ int GetNumActivePlayers();
 int GetNumSpectPlayers();
 int GetNumHumanPlayers();
 
-constexpr int32_t MAX_MONSTERS_BIG_MAP = 27;
+constexpr int32_t MAX_MONSTERS_BIG_MAP = 32;
 constexpr int32_t MAX_MONSTERS_MEDIUM_MAP = 18;
-constexpr int32_t MAX_MONSTERS_SMALL_MAP = 14;
+constexpr int32_t MAX_MONSTERS_SMALL_MAP = 16;
 
 bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
@@ -234,7 +234,54 @@ void CheckAndApplyBenefit(int32_t wave) {
 	}
 }
 
-// Funci�n para ajustar la tasa de aparici�n de monstruos
+// Función para calcular la cantidad de monstruos estándar a spawnear
+static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
+	if (mapSize.isSmallMap) {
+		g_horde_local.num_to_spawn = std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
+	}
+	else if (mapSize.isBigMap) {
+		g_horde_local.num_to_spawn = std::min((lvl <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP);
+	}
+	else { // Medium map
+		g_horde_local.num_to_spawn = std::min((lvl <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
+	}
+}
+
+// Función para calcular el bono de locura y caos
+static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
+	if (g_chaotic->integer) return (lvl <= 3) ? 6 : 3;
+	switch (g_insane->integer) {
+	case 2: return 16;
+	case 1: return 8;
+	default: return 0;
+	}
+}
+
+// Función para incluir ajustes de dificultad
+static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
+	int32_t additionalSpawn;
+	if (mapSize.isSmallMap) {
+		additionalSpawn = (lvl >= 8) ? 8 : 6;
+	}
+	else if (mapSize.isBigMap) {
+		additionalSpawn = (lvl >= 8) ? 12 : 8;
+	}
+	else { // Medium map
+		additionalSpawn = (lvl >= 8) ? 7 : 6;
+	}
+
+	if (lvl > 25) {
+		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6);
+	}
+
+	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
+		additionalSpawn += CalculateChaosInsanityBonus(lvl);
+	}
+
+	g_horde_local.num_to_spawn += additionalSpawn;
+}
+
+// Función para ajustar la tasa de aparición de monstruos
 void AdjustMonsterSpawnRate() {
 	const auto humanPlayers = GetNumHumanPlayers();
 	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f;
@@ -243,8 +290,8 @@ void AdjustMonsterSpawnRate() {
 		g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
 
 		const bool isChaoticOrInsane = g_chaotic->integer || g_insane->integer;
-		const gtime_t spawnTimeReduction = isChaoticOrInsane ? 0.4_sec : 0.5_sec;
-		const gtime_t cooldownReduction = isChaoticOrInsane ? 0.4_sec : 0.6_sec;
+		const gtime_t spawnTimeReduction = isChaoticOrInsane ? 0.5_sec : 0.3_sec;
+		const gtime_t cooldownReduction = isChaoticOrInsane ? 0.7_sec : 0.4_sec;
 
 		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
 		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 0.7_sec);
@@ -252,59 +299,15 @@ void AdjustMonsterSpawnRate() {
 		SPAWN_POINT_COOLDOWN -= cooldownReduction * difficultyMultiplier;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 2.0_sec);
 	}
+
+	const auto mapSize = GetMapSize(level.mapname);
+	// Asegurar que el número de spawn no exceda el máximo permitido para el tamaño del mapa
+	int32_t maxSpawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+	g_horde_local.num_to_spawn = std::min(g_horde_local.num_to_spawn, maxSpawn);
 }
 
-// Funci�n para calcular la cantidad de monstruos est�ndar a spawnear
-static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
-	if (mapSize.isSmallMap) {
-		g_horde_local.num_to_spawn = std::min((current_wave_level <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
-	}
-	else if (mapSize.isBigMap) {
-		g_horde_local.num_to_spawn = std::min((current_wave_level <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP);
-	}
-	else { // Medium map
-		g_horde_local.num_to_spawn = std::min((current_wave_level <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
-	}
-}
-// Funci�n para calcular el bono de locura y caos
-static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
-	if (g_chaotic->integer) return 3;
-
-	switch (g_insane->integer) {
-	case 2: return 16;
-	case 1: return 8;
-	default:
-		if (g_chaotic->integer && current_wave_level <= 3) return 6;
-		return g_insane->integer ? 8 : 0;
-	}
-}
-
-// Funci�n para incluir ajustes de dificultad
-static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
-	int32_t additionalSpawn;
-
-	if (mapSize.isSmallMap) {
-		additionalSpawn = (current_wave_level >= 9) ? 7 : 6;
-	}
-	else if (mapSize.isBigMap) {
-		additionalSpawn = (current_wave_level >= 9) ? 12 : 8;
-	}
-	else { // Medium map
-		additionalSpawn = (current_wave_level >= 9) ? 7 : 6;
-	}
-
-	if (current_wave_level > 25) {
-		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6);
-	}
-
-	if (current_wave_level >= 3 && (g_chaotic->integer || g_insane->integer)) {
-		additionalSpawn += CalculateChaosInsanityBonus(lvl);
-	}
-
-	g_horde_local.num_to_spawn += additionalSpawn;
-}
-
-// Funci�n para determinar la cantidad de monstruos a spawnear
+// Función principal para determinar y ajustar el número de monstruos a spawnear
 static void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
 	const int32_t custom_monster_count = dm_monsters->integer;
 	if (custom_monster_count > 0) {
@@ -315,6 +318,7 @@ static void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noex
 		IncludeDifficultyAdjustments(mapSize, lvl);
 	}
 }
+
 static void Horde_CleanBodies();
 void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
@@ -328,9 +332,7 @@ void Horde_InitLevel(const int32_t lvl) {
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
 	cachedRemainingMonsters = -1;
-
 	VerifyAndAdjustBots();
-
 	// Usar un switch para la escala de daño y easymonsters es eficiente y claro
 	switch (g_horde_local.level) {
 	case 17: gi.cvar_set("g_damage_scale", "1.7"); break;
@@ -338,21 +340,15 @@ void Horde_InitLevel(const int32_t lvl) {
 	case 37: gi.cvar_set("g_damage_scale", "3.7"); break;
 	default: break; // Mantener el valor actual si no coincide
 	}
-
 	const auto mapSize = GetMapSize(level.mapname);
 	DetermineMonsterSpawnCount(mapSize, lvl);
-
 	CheckAndApplyBenefit(g_horde_local.level);
 	AdjustMonsterSpawnRate();
-
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
-
 	Horde_CleanBodies();
-
 	gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }
-
 bool G_IsDeathmatch() noexcept {
 	return deathmatch->integer && g_horde->integer;
 }
@@ -1499,74 +1495,60 @@ inline int32_t GetNumSpectPlayers() {
 	}
 	return numSpectPlayers;
 }
+
+void AllowNextWaveAdvance() noexcept;
+static void ResetTimers() noexcept;
+
 // Estructura para los parámetros de condición
 struct ConditionParams {
 	int32_t maxMonsters{};
 	gtime_t timeThreshold{};
-	gtime_t independentTimeThreshold = random_time(60_sec, 75_sec);
+	gtime_t independentTimeThreshold = random_time(75_sec, 90_sec);
 };
 
 // Variables globales
-gtime_t condition_start_time;
-gtime_t independent_timer_start;
-int32_t previous_remainingMonsters = 0;
-
+static gtime_t g_condition_start_time;
+static gtime_t g_independent_timer_start;
+static bool g_allowWaveAdvance = false;
+static ConditionParams g_lastParams;
+static int32_t g_lastWaveNumber = -1;
+static int32_t g_lastNumHumanPlayers = -1;
+static bool g_maxMonstersReached = false;
 
 // Función para decidir los parámetros de la condición
-ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers) {
-	ConditionParams params = { 0, gtime_t::from_sec(0),};
-	if (mapSize.isBigMap) {
-		params.maxMonsters = 19;
-		params.timeThreshold = random_time(15_sec, 21_sec);
-		return params;
-	}
-	if (numHumanPlayers >= 3) {
-		if (mapSize.isSmallMap) {
-			params.maxMonsters = 9;
-			params.timeThreshold = random_time(4_sec, 5.5_sec);
-		}
-		else {
-			params.maxMonsters = 12;
-			params.timeThreshold = 9_sec;
-		}
-	}
-	else {
-		if (mapSize.isSmallMap) {
-			if (current_wave_level <= 4) {
-				params.maxMonsters = 6;
-				params.timeThreshold = 5_sec;
-			}
-			else {
-				params.maxMonsters = 7;
-				params.timeThreshold = 4_sec;
-			}
-		}
-		else {
-			if (current_wave_level <= 4) {
-				params.maxMonsters = 8;
-				params.timeThreshold = 9_sec;
-			}
-			else {
-				params.maxMonsters = 14;
-				params.timeThreshold = 15_sec;
-			}
-		}
-		if ((g_chaotic->integer && numHumanPlayers <= 3) || (g_insane->integer && numHumanPlayers <= 3)) {
-			params.timeThreshold += random_time(4_sec, 6_sec);
-		}
-	}
-	return params;
-}
+ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
+	ConditionParams params;
 
-void AllowNextWaveAdvance() noexcept {
-	allowWaveAdvance = true;
+	if (mapSize.isBigMap) {
+		params.maxMonsters = 24;
+		params.timeThreshold = random_time(20_sec, 25_sec);
+	}
+	else if (mapSize.isSmallMap) {
+		params.maxMonsters = numHumanPlayers >= 3 ? 10 : 8;
+		params.timeThreshold = random_time(5_sec, 7_sec);
+	}
+	else { // Medium map
+		params.maxMonsters = numHumanPlayers >= 3 ? 16 : 14;
+		params.timeThreshold = random_time(10_sec, 15_sec);
+	}
+
+	// Ajustar basado en el nivel de ola
+	if (lvl > 10) {
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f);
+		params.timeThreshold += 3_sec;
+	}
+
+	if ((g_chaotic->integer || g_insane->integer) && numHumanPlayers <= 3) {
+		params.timeThreshold += random_time(5_sec, 8_sec);
+	}
+
+	return params;
 }
 
 static int32_t CalculateRemainingMonsters() {
 	static int32_t lastCalculatedRemaining = -1;
 	static gtime_t lastCalculationTime;
 
-	// Recalcular solo si han pasado al menos 0.5 segundos desde el último cálculo
 	if (lastCalculatedRemaining == -1 || (level.time - lastCalculationTime) >= 0.5_sec) {
 		int32_t remaining = 0;
 		for (auto const* ent : active_monsters()) {
@@ -1580,68 +1562,56 @@ static int32_t CalculateRemainingMonsters() {
 	return lastCalculatedRemaining;
 }
 
-static void ResetTimers() noexcept {
-	condition_start_time = gtime_t();
-	independent_timer_start = level.time;  // Iniciar el temporizador independiente inmediatamente
+void ResetWaveAdvanceState() {
+	g_independent_timer_start = level.time;
+	g_maxMonstersReached = false;
+	g_allowWaveAdvance = false;
 }
 
-static bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
-	static ConditionParams lastParams;
-	static int32_t lastWaveNumber = -1;
-	static int32_t lastNumHumanPlayers = -1;
-	static bool maxMonstersReached = false;
-
-	if (allowWaveAdvance) {
-		allowWaveAdvance = false;
-		ResetTimers();
-		maxMonstersReached = false;
+bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
+	if (g_allowWaveAdvance) {
+		ResetWaveAdvanceState();
 		return true;
 	}
 
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Recalcular los parámetros si algo ha cambiado
-	if (current_wave_level != lastWaveNumber || numHumanPlayers != lastNumHumanPlayers) {
-		lastParams = GetConditionParams(mapSize, numHumanPlayers);
-		lastWaveNumber = current_wave_level;
-		lastNumHumanPlayers = numHumanPlayers;
-		maxMonstersReached = false;
-		ResetTimers();
+	if (current_wave_level != g_lastWaveNumber || numHumanPlayers != g_lastNumHumanPlayers) {
+		g_lastParams = GetConditionParams(mapSize, numHumanPlayers, current_wave_level);
+		g_lastWaveNumber = current_wave_level;
+		g_lastNumHumanPlayers = numHumanPlayers;
+		ResetWaveAdvanceState();
 	}
 
 	if (cachedRemainingMonsters == -1) {
 		cachedRemainingMonsters = CalculateRemainingMonsters();
 	}
 
-	// Verificar si se ha alcanzado maxMonsters
-	if (!maxMonstersReached && cachedRemainingMonsters <= lastParams.maxMonsters) {
-		maxMonstersReached = true;
-		condition_start_time = level.time;
+	if (!g_maxMonstersReached && cachedRemainingMonsters <= g_lastParams.maxMonsters) {
+		g_maxMonstersReached = true;
+		g_condition_start_time = level.time;
 	}
 
-	// Calcular el tiempo transcurrido para el temporizador de condición
-	const gtime_t conditionElapsed = maxMonstersReached ? (level.time - condition_start_time) : gtime_t();
+	const gtime_t conditionElapsed = g_maxMonstersReached ? (level.time - g_condition_start_time) : gtime_t();
 
-	// Verificar si se cumple la condición principal
-	if (maxMonstersReached && (conditionElapsed >= lastParams.timeThreshold)) {
-		ResetTimers();
-		maxMonstersReached = false;
+	if (g_maxMonstersReached && (conditionElapsed >= g_lastParams.timeThreshold)) {
+		ResetWaveAdvanceState();
 		cachedRemainingMonsters = -1;
 		return true;
 	}
 
-	// Solo verificar el independentTimeThreshold si maxMonsters no se ha alcanzado
-	if (!maxMonstersReached) {
-		const gtime_t independentElapsed = level.time - independent_timer_start;
-		if (independentElapsed >= lastParams.independentTimeThreshold) {
-			ResetTimers();
-			maxMonstersReached = false;
-			cachedRemainingMonsters = -1;
-			return true;
-		}
+	const gtime_t independentElapsed = level.time - g_independent_timer_start;
+	if (independentElapsed >= g_lastParams.independentTimeThreshold) {
+		ResetWaveAdvanceState();
+		cachedRemainingMonsters = -1;
+		return true;
 	}
 
 	return false;
+}
+
+void AllowNextWaveAdvance() noexcept {
+	g_allowWaveAdvance = true;
 }
 
 static void MonsterDied(const edict_t* monster) {
@@ -1774,10 +1744,11 @@ static edict_t* SpawnMonsters() {
 	// Determinar la cantidad de monstruos a generar por spawn
 	const int32_t monsters_per_spawn = std::min(
 		mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 4 : 3) :
-		mapSize.isBigMap ? (g_horde_local.level >= 5 ? 5 : 3) :
-		(g_horde_local.level >= 5 ? 4 : 3),
-		4
+		mapSize.isBigMap ? (g_horde_local.level >= 5 ? 6 : 5) :
+		(g_horde_local.level >= 5 ? 5 : 4),
+		6
 	);
+
 
 	// Calcular la probabilidad de que un monstruo suelte un ítem
 	const float drop_probability = (current_wave_level <= 2) ? 0.8f :

@@ -3282,8 +3282,8 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
 // Definir los TECHS disponibles
 static const char* tech_names[] = {
-	"Haste",
 	"Strength",
+	"Haste",
 	"Regeneration",
 	"Resistance"
 };
@@ -3291,8 +3291,8 @@ static const char* tech_names[] = {
 static pmenu_t tech_menu[6] = {
 	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler }
 };
@@ -3302,8 +3302,8 @@ static pmenu_t tech_menustart[18] = {
 	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
@@ -3342,11 +3342,11 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 		// Mapear el índice de la opción al índice correcto en tech_ids
 		int tech_index = -1;
-		if (strcmp(tech_names[option], "Haste") == 0) {
-			tech_index = IT_TECH_HASTE;
-		}
-		else if (strcmp(tech_names[option], "Strength") == 0) {
+		if (strcmp(tech_names[option], "Strength") == 0) {
 			tech_index = IT_TECH_STRENGTH;
+		}
+		else if (strcmp(tech_names[option], "Haste") == 0) {
+			tech_index = IT_TECH_HASTE;
 		}
 		else if (strcmp(tech_names[option], "Regeneration") == 0) {
 			tech_index = IT_TECH_REGENERATION;
