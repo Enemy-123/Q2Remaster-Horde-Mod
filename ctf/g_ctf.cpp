@@ -3297,7 +3297,7 @@ static pmenu_t tech_menu[6] = {
 	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler }
 };
 
-static pmenu_t tech_menustart[13] = {
+static pmenu_t tech_menustart[18] = {
 	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },
@@ -3307,10 +3307,13 @@ static pmenu_t tech_menustart[13] = {
 	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "", PMENU_ALIGN_CENTER, nullptr },
-	{ "You can change it", PMENU_ALIGN_CENTER, nullptr },
-	{ "from Horde Menu or", PMENU_ALIGN_CENTER, nullptr },
-	{ "by picking a new TECH ", PMENU_ALIGN_CENTER, nullptr },
-	{ "after dropping current one", PMENU_ALIGN_CENTER, nullptr }
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "You can change it later", PMENU_ALIGN_LEFT, nullptr },
+	{ "On Horde Menu", PMENU_ALIGN_CENTER, nullptr },
 };
 
 void OpenTechMenu(edict_t* ent) {
