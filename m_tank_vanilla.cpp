@@ -1112,9 +1112,6 @@ void SP_monster_tank2(edict_t* self)
 	gi.soundindex("tank/tnkatk2e.wav");
 	gi.soundindex("tank/tnkatck3.wav");
 
-	if (!st.was_key_specified("monster_slots"))
-		self->monsterinfo.monster_slots = 3;
-
 	if (strcmp(self->classname, "monster_tank2_commander") == 0)
 	{
 		self->health = 1000 * st.health_multiplier;

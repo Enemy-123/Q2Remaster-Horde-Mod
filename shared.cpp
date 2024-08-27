@@ -640,7 +640,7 @@ void Monster_MoveSpawn(edict_t* self)
 		return;
 
 	// Initialize monster slots if not set
-	if (self->monsterinfo.monster_slots == 0)
+	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
 
 	// Check if we have slots left to spawn monsters
