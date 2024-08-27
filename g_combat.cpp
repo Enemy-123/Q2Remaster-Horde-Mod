@@ -1068,7 +1068,8 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (targ != attacker && attacker && attacker->client && targ->health > 0 &&
 		!((targ && targ->svflags & SVF_DEADMONSTER) || (targ->flags & FL_NO_DAMAGE_EFFECTS)) &&
 		mod.id != MOD_TARGET_LASER &&
-		!(attacker && attacker->movetype == MOVETYPE_NOCLIP))
+		!(attacker && attacker->movetype == MOVETYPE_NOCLIP) &&
+		targ->monsterinfo.invincible_time <= level.time)
 	{
 		attacker->client->ps.stats[STAT_HIT_MARKER] += take + psave + asave;
 	}
