@@ -104,6 +104,11 @@ constexpr int MAX_SENTRIES = 3;
 
 void Use_sentrygun(edict_t* ent, gitem_t* item)
 {
+
+	if (ClientIsSpectating(ent->client)) {
+		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to spawn a Sentry-Gun\n");
+		return;
+	}
 	// Comprueba si el jugador puede colocar una nueva torreta
 	if (ent->svflags & SVF_BOT) {
 		if (ent->client->num_sentries >= 1) {

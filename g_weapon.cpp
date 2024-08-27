@@ -1101,14 +1101,14 @@ void fire_rail(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int dam
 
 	pierce_trace(start, end, self, args, mask);
 
-	uint32_t unicast_key = GetUnicastKey();
+	const uint32_t unicast_key = GetUnicastKey();
 
 	// send gun puff / flash
 	// [Paril-KEX] this often makes double noise, so trying
 	// a slightly different approach...
 	for (auto player : active_players())
 	{
-		vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
+		const vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
 
 		if (binary_positional_search(org, start, args.tr.endpos, gi.inPHS, 3))
 		{
@@ -1126,8 +1126,8 @@ void fire_rail(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int dam
 
 static vec3_t bfg_laser_pos(vec3_t p, float dist)
 {
-	float theta = frandom(2 * PIf);
-	float phi = acos(crandom());
+	const float theta = frandom(2 * PIf);
+	const float phi = acos(crandom());
 
 	vec3_t d{
 		sin(phi) * cos(theta),
@@ -1153,8 +1153,8 @@ THINK(bfg_laser_update) (edict_t* self) -> void
 
 static void bfg_spawn_laser(edict_t* self)
 {
-	vec3_t end = bfg_laser_pos(self->s.origin, 256);
-	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE);
+const	vec3_t end = bfg_laser_pos(self->s.origin, 256);
+const	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE);
 
 	if (tr.fraction == 1.0f)
 		return;
@@ -1214,7 +1214,7 @@ THINK(bfg_explode) (edict_t* self) -> void
 
 			v = ent->mins + ent->maxs;
 			v = ent->s.origin + (v * 0.5f);
-			vec3_t centroid = v;
+			const vec3_t centroid = v;
 			v = self->s.origin - centroid;
 			dist = v.length();
 			points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
@@ -1327,14 +1327,21 @@ THINK(bfg_think) (edict_t* self) -> void
 	vec3_t   end;
 	int      dmg;
 	trace_t  tr;
-	constexpr float push_strength = 600.0f; // Adjust this value to control the strength of the push
+	constexpr float pull_strength = 600.0f; // Adjust this value to control the strength of the push
 	if (G_IsDeathmatch())
 		dmg = 10;
 	else
 		dmg = 10;
 	bfg_spawn_laser(self);
 	ent = nullptr;
-	while ((ent = findradius(ent, self->s.origin, 1536)) != nullptr)
+
+	// Define bfgrange for lasers range
+	const int bfgrange =
+		self->owner->svflags & SVF_MONSTER ? 256 :
+		g_bfgpull->integer && self->owner->client ? 1536 : 800;
+
+
+	while ((ent = findradius(ent, self->s.origin, bfgrange)) != nullptr)
 	{
 		if (ent == self || ent == self->owner || !ent->takedamage)
 			continue;
@@ -1355,25 +1362,28 @@ THINK(bfg_think) (edict_t* self) -> void
 		if (tr.fraction < 1.0f)
 			continue;
 		bfg_laser_pierce_t args{
-			self,
-			dir,
-			dmg
+			 self,
+			 dir,
+			 dmg
 		};
-		// Check if the laser hits the entity
+
+		// Verifica si el láser golpea la entidad
 		trace_t const laser_tr = gi.traceline(start, end, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
 		if (laser_tr.ent == ent)
 		{
-			if (g_bfgpull->integer)
+			// Aplica la fuerza de empuje solo si g_bfgpull->integer es verdadero
+			if (g_bfgpull->integer && self->owner->client)
 			{
-				// Apply strong push force to entity's velocity
 				if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
 				{
-					ent->velocity = dir * push_strength; // Changed from -pull_strength to push_strength
+					ent->velocity = dir * pull_strength;
 				}
 			}
-			// Damage the entity
+
+			// Daña a la entidad
 			T_Damage(ent, self, self->owner, dir, laser_tr.endpos, vec3_origin, dmg, 0, DAMAGE_ENERGY, MOD_BFG_LASER);
 		}
+
 		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BFG_LASER);
@@ -1381,9 +1391,9 @@ THINK(bfg_think) (edict_t* self) -> void
 		gi.WritePosition(laser_tr.endpos);
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 	}
+
 	self->nextthink = level.time + 10_hz;
 }
-
 void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius)
 {
 	edict_t* bfg;
