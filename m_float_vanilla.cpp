@@ -54,7 +54,7 @@ void floater_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster(self, start, dir, 4, 1150, MZ2_FLOAT_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+	monster_fire_blaster(self, start, dir, 4, 1150, MZ2_FLOAT_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 }
 
 mframe_t floater_frames_stand1[] = {

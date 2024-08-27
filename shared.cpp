@@ -647,8 +647,8 @@ void Monster_MoveSpawn(edict_t* self)
 	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots)
 		return;
 
-	constexpr int NUM_MONSTERS_MIN = 2;
-	constexpr int NUM_MONSTERS_MAX = 3;
+	constexpr int NUM_MONSTERS_MIN = 4;
+	constexpr int NUM_MONSTERS_MAX = 5;
 	constexpr float SPAWN_RADIUS_MIN = 100.0f;
 	constexpr float SPAWN_RADIUS_MAX = 150.0f;
 	constexpr int MAX_SPAWN_ATTEMPTS = 10;

@@ -363,7 +363,7 @@ void tank2Blaster(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
-	bool   blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+	const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
 	if (self->s.frame == FRAME_attak110)
 		flash_number = MZ2_TANK_BLASTER_1;
@@ -415,18 +415,9 @@ void tank2Strike(edict_t* self)
 	T_SlamRadiusDamage(tr.endpos, self, self, 60, 450.f, self, 165, MOD_TANK_PUNCH);
 
 	// Check if we have slots left to spawn monsters
-	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots)
+	if (self->monsterinfo.monster_used <= 1)
 		return;
 
-	// Efecto de crecimiento
-	const vec3_t spawngrow_pos = self->s.origin;
-	const float magnitude = VectorLength(spawngrow_pos);
-	if (magnitude > 0) {
-		const float start_size = magnitude * 0.055f;
-		const float end_size = magnitude * 0.005f;
-		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
-
-	}
 }
 
 void tank2Rocket(edict_t* self)
@@ -842,7 +833,7 @@ MONSTERINFO_ATTACK(tank2_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	if (self->monsterinfo.monster_used <= self->monsterinfo.monster_slots && range_to(self, self->enemy) <= RANGE_MELEE * 3 && visible(self, self->enemy) && infront(self, self->enemy) ||
+	if (self->monsterinfo.monster_used <= 1 && visible(self, self->enemy) && infront(self, self->enemy) ||
 		range_to(self, self->enemy) <= RANGE_MELEE * 2 && visible(self, self->enemy) && infront(self, self->enemy))
 	{
 		M_SetAnimation(self, &tank_move_spawn);
@@ -1120,6 +1111,9 @@ void SP_monster_tank2(edict_t* self)
 	gi.soundindex("tank/tnkatk2d.wav");
 	gi.soundindex("tank/tnkatk2e.wav");
 	gi.soundindex("tank/tnkatck3.wav");
+
+	if (!st.was_key_specified("monster_slots"))
+		self->monsterinfo.monster_slots = 3;
 
 	if (strcmp(self->classname, "monster_tank2_commander") == 0)
 	{
