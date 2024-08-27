@@ -1503,12 +1503,12 @@ inline int32_t GetNumSpectPlayers() {
 struct ConditionParams {
 	int32_t maxMonsters{};
 	gtime_t timeThreshold{};
-	//gtime_t independentTimeThreshold = random_time(60_sec, 75_sec);
+	gtime_t independentTimeThreshold = random_time(60_sec, 75_sec);
 };
 
 // Variables globales
 gtime_t condition_start_time;
-//gtime_t independent_timer_start;
+gtime_t independent_timer_start;
 int32_t previous_remainingMonsters = 0;
 
 
@@ -1582,7 +1582,7 @@ static int32_t CalculateRemainingMonsters() {
 
 static void ResetTimers() noexcept {
 	condition_start_time = gtime_t();
-	//independent_timer_start = level.time;  // Iniciar el temporizador independiente inmediatamente
+	independent_timer_start = level.time;  // Iniciar el temporizador independiente inmediatamente
 }
 
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
@@ -1630,16 +1630,16 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 		return true;
 	}
 
-	//// Solo verificar el independentTimeThreshold si maxMonsters no se ha alcanzado
-	//if (!maxMonstersReached) {
-	////	const gtime_t independentElapsed = level.time - independent_timer_start;
-	//	if (independentElapsed >= lastParams.independentTimeThreshold) {
-	//		ResetTimers();
-	//		maxMonstersReached = false;
-	//		cachedRemainingMonsters = -1;
-	//		return true;
-	//	}
-	//}
+	// Solo verificar el independentTimeThreshold si maxMonsters no se ha alcanzado
+	if (!maxMonstersReached) {
+		const gtime_t independentElapsed = level.time - independent_timer_start;
+		if (independentElapsed >= lastParams.independentTimeThreshold) {
+			ResetTimers();
+			maxMonstersReached = false;
+			cachedRemainingMonsters = -1;
+			return true;
+		}
+	}
 
 	return false;
 }

@@ -3290,19 +3290,48 @@ static const char* tech_names[] = {
 
 static pmenu_t tech_menu[6] = {
 	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler }
 };
 
+static pmenu_t tech_menustart[13] = {
+	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "You can change it", PMENU_ALIGN_CENTER, nullptr },
+	{ "from Horde Menu or", PMENU_ALIGN_CENTER, nullptr },
+	{ "by picking a new TECH ", PMENU_ALIGN_CENTER, nullptr },
+	{ "after dropping current one", PMENU_ALIGN_CENTER, nullptr }
+};
+
 void OpenTechMenu(edict_t* ent) {
-	PMenu_Open(ent, tech_menu, -1, sizeof(tech_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
+		PMenu_Open(ent, tech_menustart, -1, sizeof(tech_menustart) / sizeof(pmenu_t), nullptr, nullptr);
+	}
+	else {
+		PMenu_Open(ent, tech_menu, -1, sizeof(tech_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	}
 }
 
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur - 2; // Restar 2 para ajustar el índice al array de TECHS
+	int option;
+
+	// Determinar si estamos usando el menú para CTF_NOTEAM o el menú regular
+	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
+		option = p->cur - 4; // Ajustar para el menú CTF_NOTEAM (2 líneas extra al principio)
+	}
+	else {
+		option = p->cur - 2; // Ajuste original para el menú regular
+	}
 
 	if (option >= 0 && option < sizeof(tech_names) / sizeof(tech_names[0])) {
 		// Eliminar TECHS anteriores
@@ -3331,16 +3360,16 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			// Ejecutar el sonido correspondiente al TECH seleccionado
 			switch (tech_index) {
 			case IT_TECH_HASTE:
-				CTFApplyHasteSound(ent);
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyHasteSound(ent) : CTFApplyHasteSound(ent);
 				break;
 			case IT_TECH_STRENGTH:
-				CTFApplyStrengthSound(ent);
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyStrengthSound(ent) : CTFApplyStrengthSound(ent);
 				break;
 			case IT_TECH_REGENERATION:
-				CTFApplyRegeneration(ent);
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyRegeneration(ent) : CTFApplyRegeneration(ent);
 				break;
 			case IT_TECH_RESISTANCE:
-				CTFApplyResistance(ent, 0); // 0 damage just to play the sound
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyResistance(ent, 0) : CTFApplyResistance(ent, 0);
 				break;
 			}
 		}
@@ -3348,7 +3377,6 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	PMenu_Close(ent); // Cerrar el menú de TECHS
 }
-
 //HUD MENU
 void UpdateHUDMenuLayout(edict_t* ent);
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
@@ -3772,7 +3800,8 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p)
 {
-	CTFJoinTeam(ent, CTF_TEAM1);
+	//CTFJoinTeam(ent, CTF_TEAM1);
+	OpenTechMenu(ent);
 
 }
 
