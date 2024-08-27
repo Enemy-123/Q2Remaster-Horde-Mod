@@ -1582,7 +1582,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize) {
 		g_lastNumHumanPlayers = numHumanPlayers;
 		ResetWaveAdvanceState();
 	}
-
+	
 	if (cachedRemainingMonsters == -1) {
 		cachedRemainingMonsters = CalculateRemainingMonsters();
 	}
@@ -1749,19 +1749,18 @@ static edict_t* SpawnMonsters() {
 		6
 	);
 
-
 	// Calcular la probabilidad de que un monstruo suelte un ítem
 	const float drop_probability = (current_wave_level <= 2) ? 0.8f :
 		(current_wave_level <= 7) ? 0.6f : 0.45f;
 
 	// Pre-seleccionar puntos de spawn disponibles
-	edict_t* e;
-	unsigned int i;
-	for (i = 1, e = g_edicts + i; i < globals.num_edicts; i++, e++) {
+	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts; edictIndex++) {
+		edict_t* e = g_edicts + edictIndex;
 		if (!e->inuse || !e->classname || strcmp(e->classname, "info_player_deathmatch") != 0)
 			continue;
 		available_spawns.push_back(e);
 	}
+
 	if (available_spawns.empty()) {
 		gi.Com_PrintFmt("Warning: No spawn points found\n");
 		return nullptr;
@@ -1771,7 +1770,7 @@ static edict_t* SpawnMonsters() {
 	edict_t* last_spawned_monster = nullptr;
 
 	// Generar monstruos
-	for (int32_t i = 0; i < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++i) {
+	for (int32_t spawnCount = 0; spawnCount < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++spawnCount) {
 		// Seleccionar un punto de spawn aleatoriamente
 		const size_t spawn_index = static_cast<size_t>(frandom() * available_spawns.size());
 		spawn_point = available_spawns[spawn_index];
@@ -1820,13 +1819,13 @@ static edict_t* SpawnMonsters() {
 		--g_horde_local.num_to_spawn;
 		MonsterSpawned(monster);
 		available_spawns.erase(available_spawns.begin() + spawn_index);
-
 		last_spawned_monster = monster;
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned_monster;
 }
+
 // Funciones auxiliares para reducir el tamaño de SpawnMonsters
 static void SetMonsterArmor(edict_t* monster) {
 	if (!st.was_key_specified("power_armor_power"))
