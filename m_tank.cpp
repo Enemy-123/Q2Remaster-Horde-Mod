@@ -361,13 +361,10 @@ constexpr float GRENADE_SPEED = 1600.f;
 
 void TankGrenades(edict_t* self)
 {
-	vec3_t forward, right, up;
-	vec3_t start;
-	vec3_t aim;
+	vec3_t start, aim, aimpoint;
 	monster_muzzleflash_id_t flash_number;
-	const float spread = 0.f;
+	const float spread = 0.05f; // Ligera desviación hacia la derecha
 	float pitch = 0;
-	vec3_t target;
 	bool blindfire = false;
 
 	if (!self->enemy || !self->enemy->inuse)
@@ -376,6 +373,7 @@ void TankGrenades(edict_t* self)
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 		blindfire = true;
 
+	// Determinar el número de flash basado en el frame
 	if (self->s.frame == FRAME_attak110)
 		flash_number = MZ2_TANK_BLASTER_1;
 	else if (self->s.frame == FRAME_attak113)
@@ -383,52 +381,33 @@ void TankGrenades(edict_t* self)
 	else // (self->s.frame == FRAME_attak116)
 		flash_number = MZ2_TANK_BLASTER_3;
 
-	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+	// Calcular la posición de inicio del disparo
+	AngleVectors(self->s.angles, nullptr, nullptr, nullptr);
+	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], AngleVectors(self->s.angles).forward, AngleVectors(self->s.angles).right);
 
-	if ((blindfire) && (!visible(self, self->enemy)))
-	{
-		if (!self->monsterinfo.blind_fire_target)
-			return;
-
-		target = self->monsterinfo.blind_fire_target;
-	}
-	else
-		target = self->enemy->s.origin;
-
-	if (self->enemy)
-	{
-		float dist;
-
-		aim = target - self->s.origin;
-		dist = aim.length();
-
-		if ((dist > 512) && (aim[2] < 64) && (aim[2] > -64))
-		{
-			aim[2] += (dist - 512);
-		}
-
-		aim.normalize();
-		pitch = aim[2];
-		if (pitch > 0.4f)
-			pitch = 0.4f;
-		else if (pitch < -0.5f)
-			pitch = -0.5f;
-	}
-
-	aim = forward + (right * spread);
-	aim += (up * pitch);
-	aim.normalize();
-
-	// Determine if it's a mortar or normal grenade shot
-	const bool is_mortar = (self->s.frame == FRAME_attak110); // Adjust this condition as needed
+	// Determinar si es un disparo de mortero o una granada normal
+	const bool is_mortar = (self->s.frame == FRAME_attak110);
 	const float speed = is_mortar ? MORTAR_SPEED : GRENADE_SPEED;
 
-	// Try search for best pitch
-	if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, is_mortar))
+	// Usar PredictAim para calcular la dirección del disparo
+	PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
+
+	// Añadir una ligera desviación hacia la derecha
+	aim += AngleVectors(self->s.angles).right * spread;
+	aim.normalize();
+
+	// Calcular el pitch basado en la dirección de aim
+	pitch = asinf(aim.z);
+	if (pitch > 0.4f)
+		pitch = 0.4f;
+	else if (pitch < -0.5f)
+		pitch = -0.5f;
+
+	// Intentar encontrar el mejor pitch para el disparo
+	if (M_CalculatePitchToFire(self, aimpoint, start, aim, speed, 2.5f, is_mortar))
 		monster_fire_grenade(self, start, aim, 50, speed, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
 	else
-		// normal shot
+		// Disparo normal si no se encuentra un pitch óptimo
 		monster_fire_grenade(self, start, aim, 50, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
