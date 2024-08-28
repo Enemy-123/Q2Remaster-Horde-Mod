@@ -106,11 +106,11 @@ bool monster_jump_finished(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 
-	vec3_t forward_velocity = self->velocity.scaled(forward);
+	const vec3_t forward_velocity = self->velocity.scaled(forward);
 
 	if (forward_velocity.length() < 150.f)
 	{
-		float z_velocity = self->velocity.z;
+		const float z_velocity = self->velocity.z;
 		self->velocity = forward * 150.f;
 		self->velocity.z = z_velocity;
 	}
