@@ -669,7 +669,7 @@ void Monster_MoveSpawn(edict_t* self)
 			spawn_origin[2] += SPAWN_HEIGHT_OFFSET;
 			
 			// Perform traceline check
-			trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
+			const trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
 			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, mins, maxs))
 			{
 				found_spot = true;
@@ -684,11 +684,11 @@ void Monster_MoveSpawn(edict_t* self)
 		if (!monster)
 			continue;
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_MEDIC_C;
+		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_TANK;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
-		// Assign monster slots (assuming each monster takes 1 slot)
-		monster->monsterinfo.monster_slots = 1;
+		self->monsterinfo.monster_slots += 1;
+
 		self->monsterinfo.monster_used++;
 		const vec3_t spawngrow_pos = monster->s.origin;
 		const float magnitude = VectorLength(spawngrow_pos);

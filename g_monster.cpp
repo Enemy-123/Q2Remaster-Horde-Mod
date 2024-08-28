@@ -743,6 +743,13 @@ void M_ProcessPain(edict_t* e)
 		{
 			e->enemy = e->monsterinfo.damage_attacker;
 
+			if (e->monsterinfo.aiflags & AI_SPAWNED_TANK)
+			{
+				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
+					!strcmp(e->monsterinfo.commander->classname, "monster_tank_vanilla"))
+					e->monsterinfo.commander->monsterinfo.monster_slots++;
+				e->monsterinfo.commander = nullptr;
+			}
 			// ROGUE
 			// ROGUE - free up slot for spawned monster if it's spawned
 			if (e->monsterinfo.aiflags & AI_SPAWNED_CARRIER)

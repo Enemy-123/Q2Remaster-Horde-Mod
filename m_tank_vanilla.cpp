@@ -415,7 +415,7 @@ void tank_vanillaStrike(edict_t* self)
 	T_SlamRadiusDamage(tr.endpos, self, self, 60, 450.f, self, 165, MOD_TANK_PUNCH);
 
 	// Check if we have slots left to spawn monsters
-	if (self->monsterinfo.monster_used <= 1)
+	if (self->monsterinfo.monster_used <= 3)
 		return;
 
 }
@@ -820,7 +820,6 @@ mframe_t tank_frames_spawn[] =
 };
 MMOVE_T(tank_move_spawn) = { FRAME_attak224, FRAME_attak229, tank_frames_spawn, tank_vanilla_run };
 
-
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 {
 	vec3_t vec;
@@ -833,7 +832,7 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	if (self->monsterinfo.monster_used <= 1 && visible(self, self->enemy) && infront(self, self->enemy) ||
+	if (self->monsterinfo.monster_used <= 3 && visible(self, self->enemy) && infront(self, self->enemy) ||
 		range_to(self, self->enemy) <= RANGE_MELEE * 2 && visible(self, self->enemy) && infront(self, self->enemy))
 	{
 		M_SetAnimation(self, &tank_move_spawn);

@@ -680,6 +680,7 @@ enum monster_ai_flags_t : uint64_t
 	AI_DO_NOT_COUNT = bit_v<21>,	 // set for healed monsters
 	AI_SPAWNED_CARRIER = bit_v<22>, // both do_not_count and spawned are set for spawned monsters
 	AI_SPAWNED_MEDIC_C = bit_v<23>, // both do_not_count and spawned are set for spawned monsters
+	AI_SPAWNED_TANK = bit_v<23>, // both do_not_count and spawned are set for spawned monsters
 	AI_SPAWNED_WIDOW = bit_v<24>,	 // both do_not_count and spawned are set for spawned monsters
 	AI_BLOCKED = bit_v<25>, // used by blocked_checkattack: set to say I'm attacking while blocked
 	// (prevents run-attacks)
