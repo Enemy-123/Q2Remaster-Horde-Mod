@@ -638,25 +638,20 @@ void Monster_MoveSpawn(edict_t* self)
 {
 	if (!self || self->health <= 0 || self->deadflag)
 		return;
-
 	// Initialize monster slots if not set
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
-
 	// Check if we have slots left to spawn monsters
 	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots)
 		return;
-
 	constexpr int NUM_MONSTERS_MIN = 4;
 	constexpr int NUM_MONSTERS_MAX = 5;
 	constexpr float SPAWN_RADIUS_MIN = 100.0f;
 	constexpr float SPAWN_RADIUS_MAX = 150.0f;
 	constexpr int MAX_SPAWN_ATTEMPTS = 10;
 	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
-
 	const int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 	const int num_monsters = std::min(NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots);
-
 	for (int i = 0; i < num_monsters; i++)
 	{
 		vec3_t spawn_origin;
@@ -664,7 +659,6 @@ void Monster_MoveSpawn(edict_t* self)
 		const vec3_t maxs = { 16, 16, 32 };
 		bool found_spot = false;
 		float spawn_angle = 0;
-
 		for (int attempts = 0; attempts < MAX_SPAWN_ATTEMPTS; attempts++)
 		{
 			VectorCopy(self->s.origin, spawn_origin);
@@ -673,33 +667,29 @@ void Monster_MoveSpawn(edict_t* self)
 			spawn_origin[0] += cos(spawn_angle) * radius;
 			spawn_origin[1] += sin(spawn_angle) * radius;
 			spawn_origin[2] += SPAWN_HEIGHT_OFFSET;
-
-			if (CheckSpawnPoint(spawn_origin, mins, maxs))
+			
+			// Perform traceline check
+			trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
+			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, mins, maxs))
 			{
 				found_spot = true;
 				break;
 			}
 		}
-
 		if (!found_spot)
 			continue;
-
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180 / PI);
-
 		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, "monster_soldier_ss", 64);
 		if (!monster)
 			continue;
-
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_MEDIC_C;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
-
 		// Assign monster slots (assuming each monster takes 1 slot)
 		monster->monsterinfo.monster_slots = 1;
 		self->monsterinfo.monster_used++;
-
 		const vec3_t spawngrow_pos = monster->s.origin;
 		const float magnitude = VectorLength(spawngrow_pos);
 		if (magnitude > 0) {
@@ -707,7 +697,6 @@ void Monster_MoveSpawn(edict_t* self)
 			const float end_size = magnitude * 0.005f;
 			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 		}
-
 		monster->owner = self;
 	}
 }
