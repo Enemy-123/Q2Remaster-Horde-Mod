@@ -521,7 +521,7 @@ mframe_t brain_frames_continue[] = {
 MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_continue, brain_tounge_attack };
 
 
-void brain_tounge_attack_continue(edict_t* self)
+THINK(brain_tounge_attack_continue)(edict_t* self) -> void
 {
 	// Check if enemy is still valid
 	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
@@ -556,7 +556,7 @@ void brain_tounge_attack_continue(edict_t* self)
 			}
 
 			// Apply damage and drain health
-			if (dist < MELEE_DISTANCE) {
+			if (dist < 64) {
 				T_Damage(self->enemy, self, self, forward, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_BRAINTENTACLE);
 				self->health = std::min(self->health + damage, self->max_health);
 			}
@@ -566,19 +566,19 @@ void brain_tounge_attack_continue(edict_t* self)
 			}
 
 			// Set next attack time
-			self->monsterinfo.attack_finished = level.time + 1_ms;
+			self->monsterinfo.attack_finished = level.time + 1_hz;
 		}
 
 		// Pull the enemy in
 
 		if (self->s.frame = FRAME_attak206)
-		self->enemy->velocity = forward * -580;	
+		self->enemy->velocity = forward * -510;	
 		if (self->s.frame = FRAME_attak207)
-		self->enemy->velocity = forward * -630;	
+		self->enemy->velocity = forward * -530;	
 		if (self->s.frame = FRAME_attak208)
-		self->enemy->velocity = forward * -730;	
+		self->enemy->velocity = forward * -650;	
 		if (self->s.frame = FRAME_attak209)
-		self->enemy->velocity = forward * -780;
+		self->enemy->velocity = forward * -720;
 		else //if (self->s.frame = FRAME_attak206)
 			self->enemy->velocity = forward * -680;
 
@@ -723,13 +723,32 @@ mframe_t brain_frames_attack4[] = {
 };
 MMOVE_T(brain_move_attack4) = { FRAME_walk101, FRAME_walk111, brain_frames_attack4, brain_run };
 
+void brain_jump2_now(edict_t* self);
+void brain_jump_wait_land(edict_t* self);
+void brain_jump_attack(edict_t* self);
+
+mframe_t brain_frames_jumpattack[] = {
+	{ ai_move },
+	{ ai_move, 0, brain_jump_attack },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, brain_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
+MMOVE_T(brain_move_jumpattack) = { FRAME_duck01, FRAME_duck08, brain_frames_jumpattack, brain_run };
+
 // RAFAEL
 MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 {
-	float r = range_to(self, self->enemy);
+	const float r = range_to(self, self->enemy);
+
 	if (r <= RANGE_NEAR)
 	{
-		if (frandom() < 0.5f)
+		if (frandom() < 0.7f || r <= 156)
+			brandom() ? 
+			M_SetAnimation(self, &brain_move_jumpattack) :
 			M_SetAnimation(self, &brain_move_attack3);
 		else if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 			M_SetAnimation(self, &brain_move_attack4);
@@ -885,8 +904,10 @@ void brain_jump_attack(edict_t* self)
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 150);
-	self->velocity += (up * 400);
+	self->velocity += (forward * 1350);
+	self->velocity += (up * 200);
+
+	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
 void brain_jump_wait_land(edict_t* self)
@@ -927,19 +948,6 @@ mframe_t brain_frames_jump2[] = {
 
 };
 MMOVE_T(brain_move_jump2) = { FRAME_duck01, FRAME_duck08, brain_frames_jump2, brain_run };
-
-
-//mframe_t brain_frames_jumpattack[] = {
-//	{ ai_move },
-//	{ ai_move, 0, brain_jump_attack },
-//	{ ai_move },
-//	{ ai_move },
-//	{ ai_move, 0, brain_jump_wait_land },
-//	{ ai_move },
-//	{ ai_move },
-//	{ ai_move }
-//};
-//MMOVE_T(brain_move_jumpattack) = { FRAME_duck01, FRAME_duck08, brain_frames_jump2, brain_run };
 //===========
 // PGM
 void brain_jump(edict_t* self, blocked_jump_result_t result)
@@ -1029,6 +1037,7 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.stand = brain_stand;
 	self->monsterinfo.walk = brain_walk;
 	self->monsterinfo.run = brain_run;
+
 	// PMM
 	self->monsterinfo.dodge = M_MonsterDodge;
 	self->monsterinfo.duck = brain_duck;
@@ -1058,7 +1067,8 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.jump_height = 68;
 	self->monsterinfo.can_jump = true;
 
-	self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS);
+	self->think = brain_tounge_attack_continue;
+	self->nextthink = level.time + FRAME_TIME_MS;
 
 	walkmonster_start(self);
 
