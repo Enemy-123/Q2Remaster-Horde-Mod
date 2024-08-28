@@ -536,7 +536,7 @@ THINK(brain_tounge_attack_continue)(edict_t* self) -> void
 		M_SetAnimation(self, &brain_move_continue);
 		return;
 	}
-
+	self->monsterinfo.power_armor_type = IT_NULL;
 	// Calculate start and end positions
 	vec3_t start{}, forward, end;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
@@ -592,6 +592,7 @@ THINK(brain_tounge_attack_continue)(edict_t* self) -> void
 	{
 		// If we can't reach the enemy, switch to run animation
 		M_SetAnimation(self, &brain_move_run);
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	}
 }
 
@@ -952,8 +953,9 @@ void brain_jump_wait_land_attack(edict_t* self)
 	if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
 		M_SetAnimation(self, &brain_move_attack4);
 
-	else if (self->enemy && visible(self, self->enemy))
+	else if (self->enemy && visible(self, self->enemy)) {
 		M_SetAnimation(self, &brain_move_attack3);
+	}
 }
 
 void brain_jump_wait_land(edict_t* self)
