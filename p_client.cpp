@@ -879,7 +879,8 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 		G_FreeEdict(dummy);
 	}
 }
-
+constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
+bool IsTechItem(int item_id);
 void InitClientPt(const edict_t* ent, gclient_t* client)
 {
 	// backup & restore userinfo
@@ -887,27 +888,40 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
 	if (g_horde->integer) {
-		if (!(ent->svflags & SVF_BOT) && ent->client->resp.score <= 5) { // this is for those afk players, they will get to observer on the next map if score is below 5
+		if (!(ent->svflags & SVF_BOT) && client->resp.score <= 5) {
+			// Cambiar a CTF_NOTEAM solo si el score es <= 5
 			client->resp.ctf_team = CTF_NOTEAM;
 		}
 	}
-	// Limpiar el inventario
-	int i;
-	for (i = 0; i < MAX_ITEMS; i++) {
-		if (i != IT_WEAPON_BLASTER) {
+
+	// Limpiar el inventario para todos los jugadores, conservando solo el blaster y los TECH items
+	for (int i = 0; i < MAX_ITEMS; i++) {
+		if (i != IT_WEAPON_BLASTER && !IsTechItem(i)) {
 			client->pers.inventory[i] = 0;
 		}
 	}
 
-	// Establecer el blaster de arma
+	// Asegurarse de que el jugador tenga un blaster
 	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
-
+	// Restablecer la salud
 	client->pers.health = 100;
 	client->pers.max_health = 100;
-
 }
 
+// Función auxiliar para verificar si un ítem es un TECH
+bool IsTechItem(int item_id)
+{
+	static constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
+
+
+	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
+		if (item_id == tech_ids[i]) {
+			return true;
+		}
+	}
+	return false;
+}
 void SaveClientWeaponBeforeDeath(gclient_t* client)
 {
 	client->resp.weapon = client->pers.weapon;
