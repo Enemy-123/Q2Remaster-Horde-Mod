@@ -465,6 +465,7 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 }
 //constexpr spawnflags_t SPAWNFLAG_LAVABALL_NO_EXPLODE = 1_spawnflag;
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
+
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
 	gi.Com_PrintFmt("Starting PushEntitiesAway at position: {}\n", center);
 
@@ -518,6 +519,27 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			if (!ent || !ent->inuse || !ent->takedamage || !ent->s.origin)
 				continue;
 
+			// Check if the entity is a special case that should be removed
+			bool should_remove = false;
+			if (strcmp(ent->classname, "monster_sentrygun") == 0 ||
+				strcmp(ent->classname, "tesla_mine") == 0 ||
+				strcmp(ent->classname, "emitter") == 0 ||
+				strcmp(ent->classname, "laser") == 0 ||
+				strcmp(ent->classname, "food_cube_trap") == 0 ||
+				strcmp(ent->classname, "prox_mine") == 0 ||
+				(ent->flags & FL_STATIONARY) ||
+				ent->movetype == MOVETYPE_NONE) {
+				should_remove = true;
+			}
+
+			if (should_remove) {
+				gi.Com_PrintFmt("Removing special entity {} at position: {}\n",
+					ent->classname ? ent->classname : "unknown", ent->s.origin);
+				RemoveEntity(ent);
+				gi.Com_PrintFmt("Special entity removed\n");
+				continue;  // Move to the next entity
+			}
+
 			vec3_t push_dir{};
 			VectorSubtract(ent->s.origin, center, push_dir);
 			const float distance = VectorLength(push_dir);
@@ -546,90 +568,55 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
 
 			if (!tr.allsolid && !tr.startsolid) {
-				// Verificamos si la entidad es una torreta estacionaria o tiene MOVETYPE_NONE
-				if (strcmp(ent->classname, "monster_sentrygun") == 0 ||
-					(ent->flags & FL_STATIONARY) ||
-					ent->movetype == MOVETYPE_NONE) {
-
-					gi.Com_PrintFmt("Attempting to remove stationary entity {} at position: {}\n",
-						ent->classname ? ent->classname : "unknown", ent->s.origin);
-
-					// Primero, intentamos dañar a jugadores cercanos
-					edict_t* player = nullptr;
-					while ((player = findradius(player, ent->s.origin, 100)) != nullptr) {
-						if (!player->client)
-							continue;
-
-						T_Damage(player, ent, ent, vec3_origin, ent->s.origin, vec3_origin,
-							100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
-						gi.Com_PrintFmt("Player {} telefragged at position: {}\n",
-							player->client->pers.netname, player->s.origin);
-					}
-
-					RemoveEntity(ent);
-					gi.Com_PrintFmt("Stationary entity removed\n");
+				// Code to push entities
+				vec3_t final_velocity;
+				if (tr.fraction < 1.0) {
+					// If we hit something, adjust the push
+					VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
 				}
 				else {
-					// Código para empujar otras entidades
-					vec3_t final_velocity;
-					if (tr.fraction < 1.0) {
-						// If we hit something, adjust the push
-						VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
-					}
-					else {
-						VectorScale(push_dir, wave_push_strength, final_velocity);
-					}
-
-					// Add strong horizontal component
-					float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-					final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
-					final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
-
-					// Add vertical component
-					final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-
-					VectorCopy(final_velocity, ent->velocity);
-
-					ent->groundentity = nullptr;
-
-					if (ent->client && ent->client->oldvelocity) {
-						VectorCopy(ent->velocity, ent->client->oldvelocity);
-						ent->client->oldgroundentity = ent->groundentity;
-					}
-
-					gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n",
-						wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
+					VectorScale(push_dir, wave_push_strength, final_velocity);
 				}
+
+				// Add strong horizontal component
+				float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+				final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
+				final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
+
+				// Add vertical component
+				final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+				VectorCopy(final_velocity, ent->velocity);
+
+				ent->groundentity = nullptr;
+
+				if (ent->client && ent->client->oldvelocity) {
+					VectorCopy(ent->velocity, ent->client->oldvelocity);
+					ent->client->oldgroundentity = ent->groundentity;
+				}
+
+				gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n",
+					wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
 			}
 			else {
-				// La entidad no se pudo mover, la removemos
+				// The entity couldn't be moved, we remove it
 				gi.Com_PrintFmt("Entity {} at {} could not be moved. Attempting to remove.\n",
 					ent->classname ? ent->classname : "unknown", ent->s.origin);
-
-				// Primero, intentamos dañar a jugadores cercanos
-				edict_t* player = nullptr;
-				while ((player = findradius(player, ent->s.origin, 100)) != nullptr) {
-					if (!player->client)
-						continue;
-
-					T_Damage(player, ent, ent, vec3_origin, ent->s.origin, vec3_origin,
-						100000, 0, DAMAGE_NO_PROTECTION, MOD_TELEFRAG);
-					gi.Com_PrintFmt("Player {} telefragged at position: {}\n",
-						player->client->pers.netname, player->s.origin);
-				}
-
 				RemoveEntity(ent);
 				gi.Com_PrintFmt("Entity removed\n");
 			}
 		}
 
-		// Wait before the next wave
+		// Wait for the specified interval before the next wave
 		if (wave < num_waves - 1) {
 			gi.Com_PrintFmt("Waiting {} milliseconds before next wave\n", wave_interval_ms);
+			// Here you would typically use a timer or delay mechanism
+			// The exact implementation depends on your game engine
+			// For example: wait_for_milliseconds(wave_interval_ms);
 		}
 	}
 
-	gi.Com_PrintFmt("Finished PushEntitiesAway\n");
+	gi.Com_PrintFmt("PushEntitiesAway completed\n");
 }
 // Define a higher slot limit for this monster type
 constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
