@@ -1000,6 +1000,8 @@ void brain_jump(edict_t* self, blocked_jump_result_t result)
 
 	if (result == blocked_jump_result_t::JUMP_JUMP_UP && !visible(self, self->enemy))
 		M_SetAnimation(self, &brain_move_jump2);
+	else if (!visible(self, self->enemy))
+		M_SetAnimation(self, &brain_move_jump);
 	else
 		M_SetAnimation(self, &brain_move_jumpattack);
 }
