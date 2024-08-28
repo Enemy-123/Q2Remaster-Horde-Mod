@@ -451,11 +451,11 @@ void runnertankRail(edict_t* self)
 
 	// Mantenemos los mismos flash numbers
 	if (self->s.frame == FRAME_attak110)
-		flash_number = MZ2_TANK_BLASTER_1;
+		flash_number = MZ2_ARACHNID_RAIL2;
 	else if (self->s.frame == FRAME_attak113)
-		flash_number = MZ2_TANK_BLASTER_2;
+		flash_number = MZ2_ARACHNID_RAIL2;
 	else // (self->s.frame == FRAME_attak116)
-		flash_number = MZ2_TANK_BLASTER_3;
+		flash_number = MZ2_ARACHNID_RAIL2;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
@@ -618,9 +618,10 @@ void runnertankRocket(edict_t* self)
 		}
 	}
 }
+
 void runnertankPlasmaGun(edict_t* self)
 {
-	bool blindfire = false;
+	const bool blindfire = false;
 	vec3_t start;
 	vec3_t dir{};
 	vec3_t forward, right, up;
@@ -630,30 +631,23 @@ void runnertankPlasmaGun(edict_t* self)
 		return;
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
-	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Calcular la dirección base hacia el enemigo
+	// Calcular la dirección hacia el enemigo
 	vec3_t target = self->enemy->s.origin;
 	target[2] += self->enemy->viewheight;
-	VectorSubtract(target, start, dir);
-	VectorNormalize(dir);
+	VectorSubtract(target, self->s.origin, dir);
 
-	// Calcular el ángulo de dispersión basado en la animación del tanque
-	float fanAngle;
-	if (self->s.frame <= FRAME_attak415)
-		fanAngle = -20 + (self->s.frame - FRAME_attak406) * 4; // Abanico de -20 a 20 grados
-	else
-		fanAngle = 20 - (self->s.frame - FRAME_attak416) * 4; // Abanico de 20 a -20 grados
+	// Calcular el ángulo ideal hacia el enemigo
+	vec3_t angles = vectoangles(dir);
+	self->ideal_yaw = angles[YAW];
 
-	// Rotar el vector de dirección para crear el efecto de abanico
-	float sinAngle = sin(DEG2RAD(fanAngle));
-	float cosAngle = cos(DEG2RAD(fanAngle));
-	float newX = forward[0] * cosAngle - right[0] * sinAngle;
-	float newY = forward[1] * cosAngle - right[1] * sinAngle;
-	float newZ = forward[2] * cosAngle - right[2] * sinAngle;
-	VectorSet(dir, newX, newY, newZ);
-	VectorNormalize(dir);
+	// Recalcular los vectores forward, right y up con la nueva orientación
+	AngleVectors(self->s.angles, forward, right, up);
+
+	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	// Usar la dirección forward como dirección de disparo
+	VectorCopy(forward, dir);
 
 	// Añadir una pequeña dispersión aleatoria
 	float spread = 0.02f;
@@ -668,14 +662,18 @@ void runnertankPlasmaGun(edict_t* self)
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
-	else
-	{
-		// Usamos PredictAim para seguir la trayectoria del enemigo
-		PredictAim(self, self->enemy, start, 700, false, 0.2f, &dir, nullptr);
-	}
 
-	// Disparar el plasma con la velocidad correcta
-	fire_plasma(self, start, dir, 35, 700, 40, 40);
+	// Calcular el ángulo entre la dirección de mirada y la dirección al enemigo
+	const float dot = forward[0] * dir[0] + forward[1] * dir[1] + forward[2] * dir[2];
+	const float angle_diff = acosf(dot) * (180.0f / PI);
+
+	// Disparar solo si el enemigo está dentro de un cono de visión y a una distancia razonable
+	const float max_distance_squared = 1000.0f * 1000.0f; // Ajusta este valor según sea necesario
+	if (angle_diff <= 45.0f && DistanceSquared(self->s.origin, self->enemy->s.origin) <= max_distance_squared)
+	{
+		// Disparar el plasma con la velocidad correcta
+		fire_plasma(self, start, dir, 35, 700, 40, 40);
+	}
 
 	// Guardar la posición del objetivo para el próximo disparo
 	VectorCopy(self->enemy->s.origin, self->pos1);
@@ -685,7 +683,7 @@ static void runnertank_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		const vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
