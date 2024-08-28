@@ -747,7 +747,7 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 
 	if (r <= RANGE_NEAR)
 	{
-		if (frandom() < 0.7f)
+		if (frandom() < 0.6f)
 			M_SetAnimation(self, &brain_move_jumpattack);
 		else if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 			M_SetAnimation(self, &brain_move_attack4);
@@ -756,6 +756,8 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 	{
 		M_SetAnimation(self, &brain_move_attack3);
 	}
+
+
 }
 // RAFAEL
 
@@ -903,11 +905,33 @@ void brain_jump2_now(edict_t* self)
 void brain_jump_attack(edict_t* self)
 {
 	vec3_t forward, up;
+	if (!self->enemy)
+		return;
 
+	// Calculate direction and distance to enemy
+	const vec3_t dir = self->enemy->s.origin - self->s.origin;
+	const float length = VectorLength(dir);
+
+	// Calculate forward speed based on distance
+	const float fwd_speed = length * 2.0f;
+
+	// Predict aim
+	vec3_t aim_dir;
+	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &aim_dir, nullptr);
+
+	// Set angles based on aim direction
+	self->s.angles[YAW] = vectoyaw(aim_dir);
+
+	// Calculate velocity
 	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 800);
-	self->velocity += (up * 125);
+	self->velocity = forward * fwd_speed + up * 125;
 
+	// Set other properties
+	self->groundentity = nullptr;
+	self->monsterinfo.aiflags |= AI_DUCKED;
+	self->monsterinfo.attack_finished = level.time + 2.0_sec;
+
+	// Play jump sound
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
@@ -974,10 +998,10 @@ void brain_jump(edict_t* self, blocked_jump_result_t result)
 
 	monster_done_dodge(self);
 
-	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP && !visible(self, self->enemy))
 		M_SetAnimation(self, &brain_move_jump2);
 	else
-		M_SetAnimation(self, &brain_move_jump);
+		M_SetAnimation(self, &brain_move_jumpattack);
 }
 
 MONSTERINFO_BLOCKED(brain_blocked) (edict_t* self, float dist) -> bool

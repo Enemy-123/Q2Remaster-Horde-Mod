@@ -325,7 +325,7 @@ static void berserk_high_gravity(edict_t* self)
 	if (self->velocity[2] < 0)
 		self->gravity = 2.25f * (800.f / level.gravity);
 	else
-		self->gravity = 5.25f * (800.f / level.gravity);
+		self->gravity = 7.25f * (800.f / level.gravity);
 }
 
 void berserk_jump_takeoff(edict_t* self)
@@ -336,15 +336,15 @@ void berserk_jump_takeoff(edict_t* self)
 		return;
 
 	// immediately turn to where we need to go
-	float length = (self->s.origin - self->enemy->s.origin).length();
-	float fwd_speed = length * 1.95f;
+	const float length = (self->s.origin - self->enemy->s.origin).length();
+	const float fwd_speed = length * 1.95f;
 	vec3_t dir;
 	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &dir, nullptr);
 	self->s.angles[1] = vectoyaw(dir);
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin[2] += 1;
 	self->velocity = forward * fwd_speed;
-	self->velocity[2] = 450;
+	self->velocity[2] = 280;
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 2.5_sec;
