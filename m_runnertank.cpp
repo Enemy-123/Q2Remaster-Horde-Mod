@@ -451,11 +451,11 @@ void runnertankRail(edict_t* self)
 
 	// Mantenemos los mismos flash numbers
 	if (self->s.frame == FRAME_attak110)
-		flash_number = MZ2_ARACHNID_RAIL2;
+		flash_number = MZ2_TANK_BLASTER_1;
 	else if (self->s.frame == FRAME_attak113)
-		flash_number = MZ2_ARACHNID_RAIL2;
+		flash_number = MZ2_TANK_BLASTER_2;
 	else // (self->s.frame == FRAME_attak116)
-		flash_number = MZ2_ARACHNID_RAIL2;
+		flash_number = MZ2_TANK_BLASTER_3;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
@@ -621,7 +621,7 @@ void runnertankRocket(edict_t* self)
 
 void runnertankPlasmaGun(edict_t* self)
 {
-	const bool blindfire = false;
+	bool blindfire = false;
 	vec3_t start;
 	vec3_t dir{};
 	vec3_t forward, right, up;
@@ -631,26 +631,33 @@ void runnertankPlasmaGun(edict_t* self)
 		return;
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
-
-	// Calcular la dirección hacia el enemigo
-	vec3_t target = self->enemy->s.origin;
-	target[2] += self->enemy->viewheight;
-	VectorSubtract(target, self->s.origin, dir);
-
-	// Calcular el ángulo ideal hacia el enemigo
-	vec3_t angles = vectoangles(dir);
-	self->ideal_yaw = angles[YAW];
-
-	// Recalcular los vectores forward, right y up con la nueva orientación
 	AngleVectors(self->s.angles, forward, right, up);
-
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Usar la dirección forward como dirección de disparo
-	VectorCopy(forward, dir);
+	// Calcular la dirección base hacia el enemigo
+	vec3_t target = self->enemy->s.origin;
+	target[2] += self->enemy->viewheight;
+	VectorSubtract(target, start, dir);
+	VectorNormalize(dir);
+
+	// Calcular el ángulo de dispersión basado en la animación del tanque
+	float fanAngle;
+	if (self->s.frame <= FRAME_attak415)
+		fanAngle = -20 + (self->s.frame - FRAME_attak406) * 4; // Abanico de -20 a 20 grados
+	else
+		fanAngle = 20 - (self->s.frame - FRAME_attak416) * 4; // Abanico de 20 a -20 grados
+
+	//// Rotar el vector de dirección para crear el efecto de abanico
+	//float sinAngle = sin(DEG2RAD(fanAngle));
+	//float cosAngle = cos(DEG2RAD(fanAngle));
+	//float newX = forward[0] * cosAngle - right[0] * sinAngle;
+	//float newY = forward[1] * cosAngle - right[1] * sinAngle;
+	//float newZ = forward[2] * cosAngle - right[2] * sinAngle;
+	//VectorSet(dir, newX, newY, newZ);
+	VectorNormalize(dir);
 
 	// Añadir una pequeña dispersión aleatoria
-	float spread = 0.02f;
+	float spread = 0.08f;
 	dir[0] += crandom() * spread;
 	dir[1] += crandom() * spread;
 	dir[2] += crandom() * spread;
@@ -662,23 +669,20 @@ void runnertankPlasmaGun(edict_t* self)
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
-
-	// Calcular el ángulo entre la dirección de mirada y la dirección al enemigo
-	const float dot = forward[0] * dir[0] + forward[1] * dir[1] + forward[2] * dir[2];
-	const float angle_diff = acosf(dot) * (180.0f / PI);
-
-	// Disparar solo si el enemigo está dentro de un cono de visión y a una distancia razonable
-	const float max_distance_squared = 1000.0f * 1000.0f; // Ajusta este valor según sea necesario
-	if (angle_diff <= 45.0f && DistanceSquared(self->s.origin, self->enemy->s.origin) <= max_distance_squared)
+	else
 	{
-		// Disparar el plasma con la velocidad correcta
-		fire_plasma(self, start, dir, 35, 700, 40, 40);
+		// Usamos PredictAim para seguir la trayectoria del enemigo
+		PredictAim(self, self->enemy, start, 700, false, 0.2f, &dir, nullptr);
 	}
+
+	// Disparar el plasma con la velocidad correcta
+	fire_plasma(self, start, dir, 35, 700, 40, 40);
 
 	// Guardar la posición del objetivo para el próximo disparo
 	VectorCopy(self->enemy->s.origin, self->pos1);
 	self->pos1[2] += self->enemy->viewheight;
 }
+
 static void runnertank_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
@@ -778,12 +782,12 @@ mframe_t runnertank_frames_attack_pre_rocket[] = {
 MMOVE_T(runnertank_move_attack_pre_rocket) = { FRAME_attak303, FRAME_attak321, runnertank_frames_attack_pre_rocket, runnertank_doattack_rocket };
 
 mframe_t runnertank_frames_attack_fire_rocket[] = {
-	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
-	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
-	{ ai_charge }, { ai_charge }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge }, { ai_charge }
+	{ ai_charge }, { ai_charge },
+	{ ai_charge, 0, runnertankRocket },
+	 { ai_charge, 0, runnertankRocket },
+
 };
-MMOVE_T(runnertank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak335, runnertank_frames_attack_fire_rocket, runnertank_refire_rocket };
+MMOVE_T(runnertank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak325, runnertank_frames_attack_fire_rocket, runnertank_refire_rocket };
 
 mframe_t runnertank_frames_attack_post_rocket[] = {
 

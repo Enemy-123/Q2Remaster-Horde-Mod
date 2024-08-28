@@ -755,15 +755,88 @@ MONSTERINFO_SIGHT(chick_sight) (edict_t* self, edict_t* other) -> void
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
+void chick_jump_now(edict_t* self)
+{
+	//	gi.Com_PrintFmt("chick_jump_now called\n");
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 100);
+	self->velocity += (up * 300);
+}
+
+void chick_jump2_now(edict_t* self)
+{
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 150);
+	self->velocity += (up * 400);
+}
+
+void chick_jump_wait_land(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+}
+
+mframe_t chick_frames_jump[] = {
+	{ ai_move },
+	{ ai_move, 0, chick_jump_now },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, chick_jump_wait_land },
+};
+MMOVE_T(chick_move_jump) = { FRAME_duck01, FRAME_duck05, chick_frames_jump, chick_run };
+
+mframe_t chick_frames_jump2[] = {
+	{ ai_move },
+	{ ai_move, 0, chick_jump2_now },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, chick_jump_wait_land },
+};
+MMOVE_T(chick_move_jump2) = { FRAME_duck01, FRAME_duck05, chick_frames_jump2, chick_run };
 //===========
 // PGM
+void chick_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	monster_done_dodge(self);
+
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+		M_SetAnimation(self, &chick_move_jump2);
+	else
+		M_SetAnimation(self, &chick_move_jump);
+}
+// pmm - blocking code
+
 MONSTERINFO_BLOCKED(chick_blocked) (edict_t* self, float dist) -> bool
 {
+	if (self->monsterinfo.can_jump)
+	{
+		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		{
+			chick_jump(self, result);
+			return true;
+		}
+	}
+
 	if (blocked_checkplat(self, dist))
 		return true;
 
 	return false;
 }
+
 // PGM
 //===========
 
@@ -880,6 +953,10 @@ void SP_monster_chick(edict_t* self)
 
 	// PMM
 	self->monsterinfo.blindfire = true;
+
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
 	// pmm
 	walkmonster_start(self);
 	ApplyMonsterBonusFlags(self);
@@ -892,6 +969,10 @@ void SP_monster_chick_heat(edict_t* self)
 {
 	SP_monster_chick(self);
 	self->s.skinnum = 2;
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
+
 	gi.soundindex("weapons/railgr1a.wav");
 	ApplyMonsterBonusFlags(self);
 }

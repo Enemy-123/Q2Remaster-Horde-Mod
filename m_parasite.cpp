@@ -538,7 +538,7 @@ THINK(proboscis_think) (edict_t* self) -> void
                     damage *= M_DamageModifier(self);
                 }
                 T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
-                self->owner->health = min(self->owner->max_health, self->owner->health + 2);
+                self->owner->health = min(self->owner->max_health, self->owner->health + 4);
                 if (self->owner->monsterinfo.setskin) {
                     self->owner->monsterinfo.setskin(self->owner);
                 }

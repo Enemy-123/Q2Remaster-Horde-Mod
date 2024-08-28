@@ -893,7 +893,7 @@ bool FindTarget(edict_t* self)
         {
             return false;
         }
-        self->monsterinfo.lastnoisecooldown = level.time + 1_sec;
+        self->monsterinfo.lastnoisecooldown = level.time + 3.5_sec; //hordehear cooldown
     }
 
     if (!client)

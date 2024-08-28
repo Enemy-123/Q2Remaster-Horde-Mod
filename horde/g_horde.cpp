@@ -294,7 +294,7 @@ void AdjustMonsterSpawnRate() {
 		const gtime_t cooldownReduction = isChaoticOrInsane ? 0.7_sec : 0.4_sec;
 
 		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
-		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 0.7_sec);
+		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 0.9_sec);
 
 		SPAWN_POINT_COOLDOWN -= cooldownReduction * difficultyMultiplier;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 2.0_sec);
@@ -302,7 +302,7 @@ void AdjustMonsterSpawnRate() {
 
 	const auto mapSize = GetMapSize(level.mapname);
 	// Asegurar que el número de spawn no exceda el máximo permitido para el tamaño del mapa
-	int32_t maxSpawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+	const int32_t maxSpawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
 	g_horde_local.num_to_spawn = std::min(g_horde_local.num_to_spawn, maxSpawn);
 }
@@ -328,7 +328,7 @@ void Horde_InitLevel(const int32_t lvl) {
 	last_wave_number++;
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
-	g_horde_local.monster_spawn_time = level.time;
+	//g_horde_local.monster_spawn_time = level.time;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
 	cachedRemainingMonsters = -1;
