@@ -571,15 +571,15 @@ THINK(brain_tounge_attack_continue)(edict_t* self) -> void
 
 		// Pull the enemy in
 
-		if (self->s.frame = FRAME_attak206)
-		self->enemy->velocity = forward * -510;	
-		if (self->s.frame = FRAME_attak207)
-		self->enemy->velocity = forward * -530;	
-		if (self->s.frame = FRAME_attak208)
-		self->enemy->velocity = forward * -650;	
-		if (self->s.frame = FRAME_attak209)
-		self->enemy->velocity = forward * -720;
-		else //if (self->s.frame = FRAME_attak206)
+		//if (self->s.frame = FRAME_attak206)
+		//self->enemy->velocity = forward * -510;	
+		//if (self->s.frame = FRAME_attak207)
+		//self->enemy->velocity = forward * -530;	
+		//if (self->s.frame = FRAME_attak208)
+		//self->enemy->velocity = forward * -650;	
+		//if (self->s.frame = FRAME_attak209)
+		//self->enemy->velocity = forward * -720;
+		//else //if (self->s.frame = FRAME_attak206)
 			self->enemy->velocity = forward * -680;
 
 		// Set the next frame to continue the attack animation
@@ -726,15 +726,16 @@ MMOVE_T(brain_move_attack4) = { FRAME_walk101, FRAME_walk111, brain_frames_attac
 void brain_jump2_now(edict_t* self);
 void brain_jump_wait_land(edict_t* self);
 void brain_jump_attack(edict_t* self);
+void brain_jump_wait_land_attack(edict_t* self);
 
 mframe_t brain_frames_jumpattack[] = {
 	{ ai_move },
 	{ ai_move, 0, brain_jump_attack },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move, 0, brain_jump_wait_land },
 	{ ai_move },
 	{ ai_move },
+	{ ai_move, 0, brain_jump_wait_land_attack },
 	{ ai_move }
 };
 MMOVE_T(brain_move_jumpattack) = { FRAME_duck01, FRAME_duck08, brain_frames_jumpattack, brain_run };
@@ -746,15 +747,15 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 
 	if (r <= RANGE_NEAR)
 	{
-		if (frandom() < 0.7f || r <= 156)
-			brandom() ? 
-			M_SetAnimation(self, &brain_move_jumpattack) :
-			M_SetAnimation(self, &brain_move_attack3);
+		if (frandom() < 0.7f)
+			M_SetAnimation(self, &brain_move_jumpattack);
 		else if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 			M_SetAnimation(self, &brain_move_attack4);
 	}
-	else if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
-		M_SetAnimation(self, &brain_move_attack4);
+	else if (r <= RANGE_MELEE * 6)
+	{
+		M_SetAnimation(self, &brain_move_attack3);
+	}
 }
 // RAFAEL
 
@@ -904,10 +905,26 @@ void brain_jump_attack(edict_t* self)
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 1350);
-	self->velocity += (up * 200);
+	self->velocity += (forward * 800);
+	self->velocity += (up * 125);
 
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+}
+
+void brain_jump_wait_land_attack(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+
+	if (self->enemy && visible(self, self->enemy))
+		M_SetAnimation(self, &brain_move_attack3);
 }
 
 void brain_jump_wait_land(edict_t* self)
