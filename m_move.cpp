@@ -457,7 +457,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	// from shooting his fliers, who spawn in below him
 	float minheight;
 
-	if (!strcmp(ent->classname, "monster_carrier") || !strcmp(ent->classname, "monster_carrier2"))
+	if (!strcmp(ent->classname, "monster_carrier") || !strcmp(ent->classname, "monster_carrier_mini"))
 		minheight = 104;
 	else
 		minheight = 40;

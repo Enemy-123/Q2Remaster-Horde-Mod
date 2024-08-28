@@ -126,14 +126,14 @@ void SP_misc_lavaball(edict_t* ent);
 void SP_monster_berserk(edict_t* self);
 void SP_monster_gladiator(edict_t* self);
 void SP_monster_gunner(edict_t* self);
-void SP_monster_gunner2(edict_t* self);
+void SP_monster_gunner_vanilla(edict_t* self);
 void SP_monster_infantry(edict_t* self);
-void SP_monster_infantry2(edict_t* self);
+void SP_monster_infantry_vanilla(edict_t* self);
 void SP_monster_soldier_light(edict_t* self);
 void SP_monster_soldier(edict_t* self);
 void SP_monster_soldier_ss(edict_t* self);
 void SP_monster_tank(edict_t* self);
-void SP_monster_tank2(edict_t* self);
+void SP_monster_tank_vanilla(edict_t* self);
 void SP_monster_runnertank(edict_t* self);
 void SP_monster_tank_64(edict_t* self);
 void SP_monster_medic(edict_t* self);
@@ -144,9 +144,9 @@ void SP_monster_perrokl(edict_t* self);
 void SP_monster_flyer(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_floater(edict_t* self);
-void SP_monster_floater2(edict_t* self);
+void SP_monster_floater_tracker(edict_t* self);
 void SP_monster_hover(edict_t* self);
-void SP_monster_hover2(edict_t* self);
+void SP_monster_hover_vanilla(edict_t* self);
 void SP_monster_mutant(edict_t* self);
 void SP_monster_redmutant(edict_t* self);
 void SP_monster_supertank(edict_t* self);
@@ -222,7 +222,7 @@ void SP_target_orb(edict_t* self);
 // pmm
 void SP_hint_path(edict_t* self);
 void SP_monster_carrier(edict_t* self);
-void SP_monster_carrier2(edict_t* self);
+void SP_monster_carrier_mini(edict_t* self);
 void SP_monster_widow(edict_t* self);
 void SP_monster_widow1(edict_t* self);
 void SP_monster_widow2(edict_t* self);
@@ -365,14 +365,14 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_berserk", SP_monster_berserk },
 	{ "monster_gladiator", SP_monster_gladiator },
 	{ "monster_gunner", SP_monster_gunner },
-	{ "monster_gunner2", SP_monster_gunner2 },
+	{ "monster_gunner_vanilla", SP_monster_gunner_vanilla },
 	{ "monster_infantry", SP_monster_infantry },
-	{ "monster_infantry2", SP_monster_infantry2 },
+	{ "monster_infantry_vanilla", SP_monster_infantry_vanilla },
 	{ "monster_soldier_light", SP_monster_soldier_light },
 	{ "monster_soldier", SP_monster_soldier },
 	{ "monster_soldier_ss", SP_monster_soldier_ss },
 	{ "monster_tank", SP_monster_tank },
-	{ "monster_tank2", SP_monster_tank2 },
+	{ "monster_tank_vanilla", SP_monster_tank_vanilla },
 	{ "monster_runnertank", SP_monster_runnertank },
 	{ "monster_tank_64", SP_monster_tank_64 },
 	{ "monster_tank_commander", SP_monster_tank },
@@ -384,9 +384,9 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_flyer", SP_monster_flyer },
 	{ "monster_brain", SP_monster_brain },
 	{ "monster_floater", SP_monster_floater },
-	{ "monster_floater2", SP_monster_floater2 },
+	{ "monster_floater_tracker", SP_monster_floater_tracker },
 	{ "monster_hover", SP_monster_hover },
-	{ "monster_hover2", SP_monster_hover2 },
+	{ "monster_hover_vanilla", SP_monster_hover_vanilla },
 	{ "monster_mutant", SP_monster_mutant },
 	{ "monster_redmutant", SP_monster_redmutant },
 	{ "monster_supertank", SP_monster_supertank },
@@ -462,10 +462,10 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "target_orb", SP_target_orb },
 	// pmm
 	{ "monster_daedalus", SP_monster_hover },
-	{ "monster_daedalus2", SP_monster_hover2 },
+	{ "monster_daedalus_bomber", SP_monster_hover_vanilla },
 	{ "hint_path", SP_hint_path },
 	{ "monster_carrier", SP_monster_carrier },
-	{ "monster_carrier2", SP_monster_carrier2 },
+	{ "monster_carrier_mini", SP_monster_carrier_mini },
 	{ "monster_widow", SP_monster_widow },
 	{ "monster_widow1", SP_monster_widow1 },
 	{ "monster_widow2", SP_monster_widow2 },
@@ -584,8 +584,8 @@ void ED_CallSpawn(edict_t* ent) {
 
 	// Diccionarios de reemplazos para diferentes modos
 	MonsterReplacement chaotic_replacements[] = {
-		{"monster_soldier_ss", {"monster_infantry2"}, 1},
-		{"monster_infantry2", {"monster_gunner2", "monster_gunner"}, 2},
+		{"monster_soldier_ss", {"monster_infantry_vanilla"}, 1},
+		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_gunner"}, 2},
 		{"monster_stalker", {"monster_parasite", "monster_stalker"}, 2},
 		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
 		{"monster_tank", {"monster_tank_commander"}, 1},
@@ -599,11 +599,11 @@ void ED_CallSpawn(edict_t* ent) {
 	MonsterReplacement insane_replacements[] = {
 		{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}, 2},
 		{"monster_soldier", {"monster_soldier_hypergun", "monster_soldier_lasergun"}, 2},
-		{"monster_soldier_ss", {"monster_infantry", "monster_gunner2"}, 2},
-		{"monster_infantry2", {"monster_gunner", "monster_brain"}, 2},
-		{"monster_gunner2", {"monster_gunner", "monster_guncmdr"}, 2},
-		{"monster_brain", {"monster_brain", "monster_guncmdr", "monster_tank"}, 3},
-		{"monster_flyer", {"monster_daedalus", "monster_daedalus2", "monster_floater"}, 3},
+		{"monster_soldier_ss", {"monster_infantry", "monster_gunner_vanilla"}, 2},
+		{"monster_infantry_vanilla", {"monster_gunner", "monster_brain"}, 2},
+		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr"}, 2},
+		{"monster_brain", {"monster_brain", "monster_brain", "monster_tank"}, 3},
+		{"monster_flyer", {"monster_daedalus", "monster_daedalus_bomber", "monster_floater"}, 3},
 		{"monster_shambler", {"monster_tank_64", "monster_shambler"}, 2},
 		{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
 		{"monster_tank_commander", {"monster_tank_64", "monster_shambler"}, 2},
@@ -613,7 +613,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}, 3},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus", "monster_redmutant"}, 3},
-		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2", "monster_floater", "monster_flyer"}, 5},
+		{"monster_floater", {"monster_floater_tracker", "monster_hover", "monster_daedalus_bomber", "monster_floater", "monster_flyer"}, 5},
 		{"item_armor_body", {"item_armor_combat"}, 1},
 		{"item_health_mega", {"item_adrenaline", "item_health_mega"}, 2},
 	};
@@ -622,24 +622,24 @@ void ED_CallSpawn(edict_t* ent) {
 	MonsterReplacement hardcoop_replacements[] = {
 		{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}, 5},
 		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}, 6},
-		{"monster_soldier_ss", {"monster_infantry", "monster_infantry2"}, 2},
-		{"monster_infantry", {"monster_gunner", "monster_gunner2"}, 2},
+		{"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}, 2},
+		{"monster_infantry", {"monster_gunner", "monster_gunner_vanilla"}, 2},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
 		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr2"}, 2},
-		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover2"}, 4},
-		{"monster_hover", {"monster_hover", "monster_hover2", "monster_daedalus2", "monster_daedalus"}, 4},
+		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover_vanilla"}, 4},
+		{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_daedalus_bomber", "monster_daedalus"}, 4},
 		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
 		{"monster_tank", {"monster_shambler", "monster_tank_64", "monster_runnertank"}, 3},
-		{"monster_tank_commander", {"monster_runnertank", "monster_tank2"}, 2},
+		{"monster_tank_commander", {"monster_runnertank", "monster_tank_vanilla"}, 2},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
 		{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}, 3},
 		{"monster_boss2", {"monster_boss2", "monster_carrier", "monster_boss2_64"}, 3},
 		{"monster_flipper", {"monster_gekk", "monster_flipper"}, 2},
 		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
-		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner2", "monster_tank"}, 5 },
+		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner_vanilla", "monster_tank"}, 5 },
 		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant", "monster_tank"}, 4},
-		{"monster_floater", {"monster_floater", "monster_floater2", "monster_daedalus2"}, 3},
+		{"monster_floater", {"monster_floater", "monster_floater_tracker", "monster_daedalus_bomber"}, 3},
 		{"monster_commander_body", {"monster_tank_64"}, 1},
 		{"item_quad", {"item_double"}, 1},
 		{"item_invulnerability", {"item_quadfire"}, 1},

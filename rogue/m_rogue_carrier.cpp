@@ -18,9 +18,9 @@ carrier
 #include "../shared.h"
 
 // nb: specifying flyer multiple times so it has a higher chance
-constexpr const char *default_reinforcements = "monster_daedalus2 2;monster_floater 2;monster_floater2 3;monster_kamikaze 1;monster_hover2 4;monster_daedalus 2";
+constexpr const char *default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2";
 constexpr int32_t default_monster_slots_base = 3;
-constexpr spawnflags_t SPAWNFLAG_CARRIER2 = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_carrier_mini = 8_spawnflag;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 2_sec; // number of seconds between rocket shots
 constexpr int32_t CARRIER_ROCKET_SPEED = 950;
@@ -946,7 +946,7 @@ PAIN(carrier_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 	self->pain_debounce_time = level.time + 5_sec;
 
 	// Determine attenuation based on the monster type
-	const float attenuation = (g_horde->integer && strcmp(self->classname, "monster_carrier2") == 0) ? ATTN_NORM : ATTN_NONE;
+	const float attenuation = (g_horde->integer && strcmp(self->classname, "monster_carrier_mini") == 0) ? ATTN_NORM : ATTN_NONE;
 
 	if (damage < 10)
 		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);
@@ -1219,10 +1219,10 @@ void SP_monster_carrier(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-void SP_monster_carrier2(edict_t* self)
+void SP_monster_carrier_mini(edict_t* self)
 {
-	if (!strcmp(self->classname, "monster_carrier2")) {
-		self->spawnflags |= SPAWNFLAG_CARRIER2;
+	if (!strcmp(self->classname, "monster_carrier_mini")) {
+		self->spawnflags |= SPAWNFLAG_carrier_mini;
 		SP_monster_carrier(self);
 
 		self->s.scale = 0.6f;

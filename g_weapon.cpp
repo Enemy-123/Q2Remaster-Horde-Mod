@@ -394,7 +394,7 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 		// Check if the owner is a monster and if it's on easy difficulty
 		//if ((self->owner->svflags & SVF_MONSTER) && first3waves)
 		if (!strcmp(self->owner->classname, "monster_flyer") ||  //no bounce for these!
-		   (!strcmp(self->owner->classname, "monster_hover2") ||  //no bounce for these!
+		   (!strcmp(self->owner->classname, "monster_hover_vanilla") ||  //no bounce for these!
 			!strcmp(self->owner->classname, "monster_medic")))
 		{
 			// No bounce, destroy the bolt

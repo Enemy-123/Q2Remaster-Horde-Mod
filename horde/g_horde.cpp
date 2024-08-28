@@ -441,25 +441,25 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_hypergun", -1, -1, 0.35f },
 	{ "monster_soldier_lasergun", 5, -1, 0.45f },
 	{ "monster_soldier_ripper", 2, 12, 0.45f },
-	{ "monster_infantry2", -1, 1, 0.1f },
-	{ "monster_infantry2", 2, -1, 0.39f },
+	{ "monster_infantry_vanilla", -1, 1, 0.1f },
+	{ "monster_infantry_vanilla", 2, -1, 0.39f },
 	{ "monster_infantry", 9, -1, 0.36f },
 	{ "monster_flyer", -1, 2, 0.07f },
 	{ "monster_flyer", 3, -1, 0.1f },
-	{ "monster_hover2", 6, 19, 0.24f },
+	{ "monster_hover_vanilla", 6, 19, 0.24f },
 	{ "monster_fixbot", 8, 21, 0.11f },
 	{ "monster_gekk", -1, 3, 0.1f },
 	{ "monster_gekk", 4, 17, 0.17f },
-	{ "monster_gunner2", 5, -1, 0.35f },
+	{ "monster_gunner_vanilla", 5, -1, 0.35f },
 	{ "monster_gunner", 14, -1, 0.34f },
-	{ "monster_brain", 6, 22, 0.27f },
+	{ "monster_brain", 5, 22, 0.27f },
 	{ "monster_brain", 17, -1, 0.39f },
 	{ "monster_stalker", 2, 3, 0.1f },
 	{ "monster_stalker", 4, 13, 0.19f },
 	{ "monster_parasite", 4, 17, 0.23f },
 	{ "monster_tank", 12, -1, 0.3f },
-	{ "monster_tank2", 5, 6, 0.15f },
-	{ "monster_tank2", 7, 15, 0.24f },
+	{ "monster_tank_vanilla", 5, 6, 0.15f },
+	{ "monster_tank_vanilla", 7, 15, 0.24f },
 	{ "monster_runnertank", 10, -1, 0.24f },
 	{ "monster_guncmdr2", 9, 10, 0.18f },
 	{ "monster_mutant", 4, -1, 0.35f },
@@ -471,7 +471,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_floater", 8, -1, 0.26f },
 	{ "monster_hover", 15, -1, 0.18f },
 	{ "monster_daedalus", 13, -1, 0.13f },
-	{ "monster_daedalus2", 19, -1, 0.14f },
+	{ "monster_daedalus_bomber", 19, -1, 0.14f },
 	{ "monster_medic", 5, -1, 0.1f },
 	{ "monster_medic_commander", 16, -1, 0.06f },
 	{ "monster_tank_commander", 11, -1, 0.15f },
@@ -483,14 +483,14 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gladiator", 12, -1, 0.3f },
 	{ "monster_shambler", 14, 28, 0.03f },
 	{ "monster_shambler", 29, -1, 0.33f },
-	{ "monster_floater2", 19, -1, 0.35f },
+	{ "monster_floater_tracker", 19, -1, 0.35f },
 	{ "monster_tank_64", 24, -1, 0.14f },
 	{ "monster_janitor", 16, -1, 0.14f },
 	{ "monster_janitor2", 26, -1, 0.12f },
 	{ "monster_makron", 17, 22, 0.02f },
 	{ "monster_gladb", 18, -1, 0.45f },
 	{ "monster_boss2_64", 16, -1, 0.1f },
-	{ "monster_carrier2", 20, -1, 0.07f },
+	{ "monster_carrier_mini", 20, -1, 0.07f },
 	{ "monster_perrokl", 21, -1, 0.33f },
 	{ "monster_widow1", 23, -1, 0.08f }
 };
@@ -504,7 +504,7 @@ struct boss_t {
 };
 
 constexpr boss_t BOSS_SMALL[] = {
-	{"monster_carrier2", 24, -1, 0.1f},
+	{"monster_carrier_mini", 24, -1, 0.1f},
 	{"monster_boss2kl", 24, -1, 0.1f},
 	{"monster_widow2", 19, -1, 0.1f},
 	{"monster_tank_64", -1, -1, 0.1f},
@@ -661,15 +661,15 @@ extern gtime_t SPAWN_POINT_COOLDOWN;
 // Keep the existing array
 constexpr std::array<const char*, 10> flying_monster_classnames = {
 	"monster_boss2_64",
-	"monster_carrier2",
+	"monster_carrier_mini",
 	"monster_floater",
-	"monster_floater2",
+	"monster_floater_tracker",
 	"monster_flyer",
 	"monster_fixbot",
 	"monster_hover",
-	"monster_hover2",
+	"monster_hover_vanilla",
 	"monster_daedalus",
-	"monster_daedalus2"
+	"monster_daedalus_bomber"
 };
 
 // Create a static set for faster lookup
@@ -1049,7 +1049,7 @@ void BossDeathHandler(edict_t* boss) {
 
 	// Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
 	const std::array<const char*, 4> flyingBosses = {
-		"monster_boss2", "monster_carrier", "monster_carrier2", "monster_boss2kl"
+		"monster_boss2", "monster_carrier", "monster_carrier_mini", "monster_boss2kl"
 	};
 	if (std::find(flyingBosses.begin(), flyingBosses.end(), boss->classname) != flyingBosses.end()) {
 		flying_monsters_mode = false;
@@ -1162,7 +1162,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 static const std::unordered_map<std::string, std::string> bossMessagesMap = {
 	{"monster_boss2", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
 	{"monster_boss2kl", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
-	{"monster_carrier2", "***** A Strogg Boss has spawned! *****\n***** A Carrier arrives, dropping death like it's hot! *****\n"},
+	{"monster_carrier_mini", "***** A Strogg Boss has spawned! *****\n***** A Carrier arrives, dropping death like it's hot! *****\n"},
 	{"monster_carrier", "***** A Strogg Boss has spawned! *****\n***** A Carrier arrives, dropping death like it's hot! *****\n"},
 	{"monster_tank_64", "***** A Strogg Boss has spawned! *****\n***** The ground shakes as the Tank Commander rolls in, ready for some human gibs! *****\n"},
 	{"monster_shamblerkl", "***** A Strogg Boss has spawned! *****\n***** The Shambler steps out, eager to paint the town red! *****\n"},
@@ -1315,7 +1315,7 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	if (self->classname && (
 		strcmp(self->classname, "monster_boss2") == 0 ||
 		strcmp(self->classname, "monster_carrier") == 0 ||
-		strcmp(self->classname, "monster_carrier2") == 0 ||
+		strcmp(self->classname, "monster_carrier_mini") == 0 ||
 		strcmp(self->classname, "monster_boss2kl") == 0)) {
 		flying_monsters_mode = true;
 	}

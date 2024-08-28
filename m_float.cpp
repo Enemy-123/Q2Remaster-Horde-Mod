@@ -3,7 +3,7 @@
 /*
 ==============================================================================
 
-floater2
+floater_tracker
 
 ==============================================================================
 */
@@ -21,22 +21,22 @@ static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
 static cached_soundindex sound_sight;
 
-MONSTERINFO_SIGHT(floater2_sight) (edict_t* self, edict_t* other) -> void
+MONSTERINFO_SIGHT(floater_tracker_sight) (edict_t* self, edict_t* other) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 }
 
-MONSTERINFO_IDLE(floater2_idle) (edict_t* self) -> void
+MONSTERINFO_IDLE(floater_tracker_idle) (edict_t* self) -> void
 {
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
-void floater2_dead(edict_t* self);
-void floater2_run(edict_t* self);
-void floater2_wham(edict_t* self);
-void floater2_zap(edict_t* self);
+void floater_tracker_dead(edict_t* self);
+void floater_tracker_run(edict_t* self);
+void floater_tracker_wham(edict_t* self);
+void floater_tracker_zap(edict_t* self);
 
-void floater2_fire_blaster(edict_t* self)
+void floater_tracker_fire_blaster(edict_t* self)
 {
 	vec3_t start;
 	vec3_t dir;
@@ -61,7 +61,7 @@ void floater2_fire_blaster(edict_t* self)
 	}
 }
 
-mframe_t floater2_frames_stand1[] = {
+mframe_t floater_tracker_frames_stand1[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -115,9 +115,9 @@ mframe_t floater2_frames_stand1[] = {
 	{ ai_stand },
 	{ ai_stand }
 };
-MMOVE_T(floater2_move_stand1) = { FRAME_stand101, FRAME_stand152, floater2_frames_stand1, nullptr };
+MMOVE_T(floater_tracker_move_stand1) = { FRAME_stand101, FRAME_stand152, floater_tracker_frames_stand1, nullptr };
 
-mframe_t floater2_frames_stand2[] = {
+mframe_t floater_tracker_frames_stand2[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -171,9 +171,9 @@ mframe_t floater2_frames_stand2[] = {
 	{ ai_stand },
 	{ ai_stand }
 };
-MMOVE_T(floater2_move_stand2) = { FRAME_stand201, FRAME_stand252, floater2_frames_stand2, nullptr };
+MMOVE_T(floater_tracker_move_stand2) = { FRAME_stand201, FRAME_stand252, floater_tracker_frames_stand2, nullptr };
 
-mframe_t floater2_frames_pop[] = {
+mframe_t floater_tracker_frames_pop[] = {
 	{},
 	{},
 	{},
@@ -202,62 +202,62 @@ mframe_t floater2_frames_pop[] = {
 	{},
 	{}
 };
-MMOVE_T(floater2_move_pop) = { FRAME_actvat05, FRAME_actvat31, floater2_frames_pop, floater2_run };
+MMOVE_T(floater_tracker_move_pop) = { FRAME_actvat05, FRAME_actvat31, floater_tracker_frames_pop, floater_tracker_run };
 
-mframe_t floater2_frames_disguise[] = {
+mframe_t floater_tracker_frames_disguise[] = {
 	{ ai_stand }
 };
-MMOVE_T(floater2_move_disguise) = { FRAME_actvat01, FRAME_actvat01, floater2_frames_disguise, nullptr };
+MMOVE_T(floater_tracker_move_disguise) = { FRAME_actvat01, FRAME_actvat01, floater_tracker_frames_disguise, nullptr };
 
-MONSTERINFO_STAND(floater2_stand) (edict_t* self) -> void
+MONSTERINFO_STAND(floater_tracker_stand) (edict_t* self) -> void
 {
-	if (self->monsterinfo.active_move == &floater2_move_disguise)
-		M_SetAnimation(self, &floater2_move_disguise);
+	if (self->monsterinfo.active_move == &floater_tracker_move_disguise)
+		M_SetAnimation(self, &floater_tracker_move_disguise);
 	else if (frandom() <= 0.5f)
-		M_SetAnimation(self, &floater2_move_stand1);
+		M_SetAnimation(self, &floater_tracker_move_stand1);
 	else
-		M_SetAnimation(self, &floater2_move_stand2);
+		M_SetAnimation(self, &floater_tracker_move_stand2);
 }
 
-mframe_t floater2_frames_attack1[] = {
+mframe_t floater_tracker_frames_attack1[] = {
 	{ ai_charge }, // Blaster attack
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, floater2_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
-	{ ai_charge, 0, floater2_fire_blaster },
-	{ ai_charge, 0, floater2_fire_blaster },
-	{ ai_charge, 0, floater2_fire_blaster },
-	{ ai_charge, 0, floater2_fire_blaster },
-	{ ai_charge, 0, floater2_fire_blaster },
-	{ ai_charge, 0, floater2_fire_blaster },
+	{ ai_charge, 0, floater_tracker_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
+	{ ai_charge, 0, floater_tracker_fire_blaster },
+	{ ai_charge, 0, floater_tracker_fire_blaster },
+	{ ai_charge, 0, floater_tracker_fire_blaster },
+	{ ai_charge, 0, floater_tracker_fire_blaster },
+	{ ai_charge, 0, floater_tracker_fire_blaster },
+	{ ai_charge, 0, floater_tracker_fire_blaster },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge } //							-- LOOP Ends
 };
-MMOVE_T(floater2_move_attack1) = { FRAME_attak101, FRAME_attak114, floater2_frames_attack1, floater2_run };
+MMOVE_T(floater_tracker_move_attack1) = { FRAME_attak101, FRAME_attak114, floater_tracker_frames_attack1, floater_tracker_run };
 
 // PMM - circle strafe frames
-mframe_t floater2_frames_attack1a[] = {
+mframe_t floater_tracker_frames_attack1a[] = {
 	{ ai_charge, 10 }, // Blaster attack
 	{ ai_charge, 10 },
 	{ ai_charge, 10 },
-	{ ai_charge, 10, floater2_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
-	{ ai_charge, 10, floater2_fire_blaster },
-	{ ai_charge, 10, floater2_fire_blaster },
-	{ ai_charge, 10, floater2_fire_blaster },
-	{ ai_charge, 10, floater2_fire_blaster },
-	{ ai_charge, 10, floater2_fire_blaster },
-	{ ai_charge, 10, floater2_fire_blaster },
+	{ ai_charge, 10, floater_tracker_fire_blaster }, // BOOM (0, -25.8, 32.5)	-- LOOP Starts
+	{ ai_charge, 10, floater_tracker_fire_blaster },
+	{ ai_charge, 10, floater_tracker_fire_blaster },
+	{ ai_charge, 10, floater_tracker_fire_blaster },
+	{ ai_charge, 10, floater_tracker_fire_blaster },
+	{ ai_charge, 10, floater_tracker_fire_blaster },
+	{ ai_charge, 10, floater_tracker_fire_blaster },
 	{ ai_charge, 10 },
 	{ ai_charge, 10 },
 	{ ai_charge, 10 },
 	{ ai_charge, 10 } //							-- LOOP Ends
 };
-MMOVE_T(floater2_move_attack1a) = { FRAME_attak101, FRAME_attak114, floater2_frames_attack1a, floater2_run };
+MMOVE_T(floater_tracker_move_attack1a) = { FRAME_attak101, FRAME_attak114, floater_tracker_frames_attack1a, floater_tracker_run };
 // pmm
 
-mframe_t floater2_frames_attack2[] = {
+mframe_t floater_tracker_frames_attack2[] = {
 	{ ai_charge }, // Claws
 	{ ai_charge },
 	{ ai_charge },
@@ -269,7 +269,7 @@ mframe_t floater2_frames_attack2[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, floater2_wham }, // WHAM (0, -45, 29.6)		-- LOOP Starts
+	{ ai_charge, 0, floater_tracker_wham }, // WHAM (0, -45, 29.6)		-- LOOP Starts
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -284,9 +284,9 @@ mframe_t floater2_frames_attack2[] = {
 	{ ai_charge },
 	{ ai_charge }
 };
-MMOVE_T(floater2_move_attack2) = { FRAME_attak201, FRAME_attak225, floater2_frames_attack2, floater2_run };
+MMOVE_T(floater_tracker_move_attack2) = { FRAME_attak201, FRAME_attak225, floater_tracker_frames_attack2, floater_tracker_run };
 
-mframe_t floater2_frames_attack3[] = {
+mframe_t floater_tracker_frames_attack3[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -295,7 +295,7 @@ mframe_t floater2_frames_attack3[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, floater2_zap }, //								-- LOOP Starts
+	{ ai_charge, 0, floater_tracker_zap }, //								-- LOOP Starts
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -322,10 +322,10 @@ mframe_t floater2_frames_attack3[] = {
 	{ ai_charge },
 	{ ai_charge }
 };
-MMOVE_T(floater2_move_attack3) = { FRAME_attak301, FRAME_attak334, floater2_frames_attack3, floater2_run };
+MMOVE_T(floater_tracker_move_attack3) = { FRAME_attak301, FRAME_attak334, floater_tracker_frames_attack3, floater_tracker_run };
 
 #if 0
-mframe_t floater2_frames_death[] = {
+mframe_t floater_tracker_frames_death[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
@@ -340,10 +340,10 @@ mframe_t floater2_frames_death[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(floater2_move_death) = { FRAME_death01, FRAME_death13, floater2_frames_death, floater2_dead };
+MMOVE_T(floater_tracker_move_death) = { FRAME_death01, FRAME_death13, floater_tracker_frames_death, floater_tracker_dead };
 #endif
 
-mframe_t floater2_frames_pain1[] = {
+mframe_t floater_tracker_frames_pain1[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
@@ -352,9 +352,9 @@ mframe_t floater2_frames_pain1[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(floater2_move_pain1) = { FRAME_pain101, FRAME_pain107, floater2_frames_pain1, floater2_run };
+MMOVE_T(floater_tracker_move_pain1) = { FRAME_pain101, FRAME_pain107, floater_tracker_frames_pain1, floater_tracker_run };
 
-mframe_t floater2_frames_pain2[] = {
+mframe_t floater_tracker_frames_pain2[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
@@ -364,10 +364,10 @@ mframe_t floater2_frames_pain2[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(floater2_move_pain2) = { FRAME_pain201, FRAME_pain208, floater2_frames_pain2, floater2_run };
+MMOVE_T(floater_tracker_move_pain2) = { FRAME_pain201, FRAME_pain208, floater_tracker_frames_pain2, floater_tracker_run };
 
 #if 0
-mframe_t floater2_frames_pain3[] = {
+mframe_t floater_tracker_frames_pain3[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
@@ -381,10 +381,10 @@ mframe_t floater2_frames_pain3[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(floater2_move_pain3) = { FRAME_pain301, FRAME_pain312, floater2_frames_pain3, floater2_run };
+MMOVE_T(floater_tracker_move_pain3) = { FRAME_pain301, FRAME_pain312, floater_tracker_frames_pain3, floater_tracker_run };
 #endif
 
-mframe_t floater2_frames_walk[] = {
+mframe_t floater_tracker_frames_walk[] = {
 	{ ai_walk, 5 },
 	{ ai_walk, 5 },
 	{ ai_walk, 5 },
@@ -438,9 +438,9 @@ mframe_t floater2_frames_walk[] = {
 	{ ai_walk, 5 },
 	{ ai_walk, 5 }
 };
-MMOVE_T(floater2_move_walk) = { FRAME_stand101, FRAME_stand152, floater2_frames_walk, nullptr };
+MMOVE_T(floater_tracker_move_walk) = { FRAME_stand101, FRAME_stand152, floater_tracker_frames_walk, nullptr };
 
-mframe_t floater2_frames_run[] = {
+mframe_t floater_tracker_frames_run[] = {
 	{ ai_run, 13 },
 	{ ai_run, 13 },
 	{ ai_run, 13 },
@@ -494,24 +494,24 @@ mframe_t floater2_frames_run[] = {
 	{ ai_run, 13 },
 	{ ai_run, 13 }
 };
-MMOVE_T(floater2_move_run) = { FRAME_stand101, FRAME_stand152, floater2_frames_run, nullptr };
+MMOVE_T(floater_tracker_move_run) = { FRAME_stand101, FRAME_stand152, floater_tracker_frames_run, nullptr };
 
-MONSTERINFO_RUN(floater2_run) (edict_t* self) -> void
+MONSTERINFO_RUN(floater_tracker_run) (edict_t* self) -> void
 {
-	if (self->monsterinfo.active_move == &floater2_move_disguise)
-		M_SetAnimation(self, &floater2_move_pop);
+	if (self->monsterinfo.active_move == &floater_tracker_move_disguise)
+		M_SetAnimation(self, &floater_tracker_move_pop);
 	else if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-		M_SetAnimation(self, &floater2_move_stand1);
+		M_SetAnimation(self, &floater_tracker_move_stand1);
 	else
-		M_SetAnimation(self, &floater2_move_run);
+		M_SetAnimation(self, &floater_tracker_move_run);
 }
 
-MONSTERINFO_WALK(floater2_walk) (edict_t* self) -> void
+MONSTERINFO_WALK(floater_tracker_walk) (edict_t* self) -> void
 {
-	M_SetAnimation(self, &floater2_move_walk);
+	M_SetAnimation(self, &floater_tracker_move_walk);
 }
 
-void floater2_wham(edict_t* self)
+void floater_tracker_wham(edict_t* self)
 {
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	gi.sound(self, CHAN_WEAPON, sound_attack3, 1, ATTN_NORM, 0);
@@ -532,7 +532,7 @@ void floater2_wham(edict_t* self)
 }
 
 
-void floater2_zap(edict_t* self)
+void floater_tracker_zap(edict_t* self)
 {
 	vec3_t forward, right;
 	vec3_t origin;
@@ -560,33 +560,33 @@ void floater2_zap(edict_t* self)
 	T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, irandom(5, 11), -10, DAMAGE_ENERGY, MOD_UNKNOWN);
 }
 
-MONSTERINFO_ATTACK(floater2_attack) (edict_t* self) -> void
+MONSTERINFO_ATTACK(floater_tracker_attack) (edict_t* self) -> void
 {
 	float chance = 0.5f;
 
 	if (frandom() > chance)
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
-		M_SetAnimation(self, &floater2_move_attack1);
+		M_SetAnimation(self, &floater_tracker_move_attack1);
 	}
 	else // circle strafe
 	{
 		if (frandom() <= 0.5f) // switch directions
 			self->monsterinfo.lefty = !self->monsterinfo.lefty;
 		self->monsterinfo.attack_state = AS_SLIDING;
-		M_SetAnimation(self, &floater2_move_attack1a);
+		M_SetAnimation(self, &floater_tracker_move_attack1a);
 	}
 }
 
-MONSTERINFO_MELEE(floater2_melee) (edict_t* self) -> void
+MONSTERINFO_MELEE(floater_tracker_melee) (edict_t* self) -> void
 {
 	if (frandom() < 0.5f)
-		M_SetAnimation(self, &floater2_move_attack3);
+		M_SetAnimation(self, &floater_tracker_move_attack3);
 	else
-		M_SetAnimation(self, &floater2_move_attack2);
+		M_SetAnimation(self, &floater_tracker_move_attack2);
 }
 
-PAIN(floater2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+PAIN(floater_tracker_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	int n;
 
@@ -594,8 +594,8 @@ PAIN(floater2_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 		return;
 
 	// no pain anims if poppin'
-	if (self->monsterinfo.active_move == &floater2_move_disguise ||
-		self->monsterinfo.active_move == &floater2_move_pop)
+	if (self->monsterinfo.active_move == &floater_tracker_move_disguise ||
+		self->monsterinfo.active_move == &floater_tracker_move_pop)
 		return;
 
 	n = irandom(3);
@@ -610,12 +610,12 @@ PAIN(floater2_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 		return; // no pain anims in nightmare
 
 	if (n == 0)
-		M_SetAnimation(self, &floater2_move_pain1);
+		M_SetAnimation(self, &floater_tracker_move_pain1);
 	else
-		M_SetAnimation(self, &floater2_move_pain2);
+		M_SetAnimation(self, &floater_tracker_move_pain2);
 }
 
-MONSTERINFO_SETSKIN(floater2_setskin) (edict_t* self) -> void
+MONSTERINFO_SETSKIN(floater_tracker_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -623,7 +623,7 @@ MONSTERINFO_SETSKIN(floater2_setskin) (edict_t* self) -> void
 		self->s.skinnum = 0;
 }
 
-void floater2_dead(edict_t* self)
+void floater_tracker_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
@@ -633,7 +633,7 @@ void floater2_dead(edict_t* self)
 	gi.linkentity(self);
 }
 
-DIE(floater2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(floater_tracker_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
 	gi.sound(self, CHAN_VOICE, sound_death1, 1, ATTN_NORM, 0);
@@ -665,11 +665,11 @@ static void float_set_fly_parameters(edict_t* self)
 	self->monsterinfo.fly_max_distance = 280.f;
 }
 
-constexpr spawnflags_t SPAWNFLAG_FLOATER2_DISGUISE = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_floater_tracker_DISGUISE = 8_spawnflag;
 
-/*QUAKED monster_floater2 (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight Disguise
+/*QUAKED monster_floater_tracker (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight Disguise
  */
-void SP_monster_floater2(edict_t* self)
+void SP_monster_floater_tracker(edict_t* self)
 {
 	if (g_horde->integer && current_wave_level <= 18)
 	{
@@ -720,26 +720,26 @@ void SP_monster_floater2(edict_t* self)
 	self->gib_health = -80;
 	self->mass = 300;
 	//self->s.scale = 1.2f;
-	self->pain = floater2_pain;
-	self->die = floater2_die;
+	self->pain = floater_tracker_pain;
+	self->die = floater_tracker_die;
 
-	self->monsterinfo.stand = floater2_stand;
-	self->monsterinfo.walk = floater2_walk;
-	self->monsterinfo.run = floater2_run;
-	self->monsterinfo.attack = floater2_attack;
-	self->monsterinfo.melee = floater2_melee;
-	self->monsterinfo.sight = floater2_sight;
-	self->monsterinfo.idle = floater2_idle;
-	self->monsterinfo.setskin = floater2_setskin;
+	self->monsterinfo.stand = floater_tracker_stand;
+	self->monsterinfo.walk = floater_tracker_walk;
+	self->monsterinfo.run = floater_tracker_run;
+	self->monsterinfo.attack = floater_tracker_attack;
+	self->monsterinfo.melee = floater_tracker_melee;
+	self->monsterinfo.sight = floater_tracker_sight;
+	self->monsterinfo.idle = floater_tracker_idle;
+	self->monsterinfo.setskin = floater_tracker_setskin;
 
 	gi.linkentity(self);
 
-	if (self->spawnflags.has(SPAWNFLAG_FLOATER2_DISGUISE))
-		M_SetAnimation(self, &floater2_move_disguise);
+	if (self->spawnflags.has(SPAWNFLAG_floater_tracker_DISGUISE))
+		M_SetAnimation(self, &floater_tracker_move_disguise);
 	else if (frandom() <= 0.5f)
-		M_SetAnimation(self, &floater2_move_stand1);
+		M_SetAnimation(self, &floater_tracker_move_stand1);
 	else
-		M_SetAnimation(self, &floater2_move_stand2);
+		M_SetAnimation(self, &floater_tracker_move_stand2);
 
 	self->monsterinfo.scale = MODEL_SCALE;
 

@@ -31,7 +31,7 @@ static cached_soundindex sound_idle;
 // range at which we'll try to initiate a run-attack to close distance
 constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.75f;
 
-mframe_t infantry2_frames_stand[] = {
+mframe_t infantry_vanilla_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -55,14 +55,14 @@ mframe_t infantry2_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand }
 };
-MMOVE_T(infantry2_move_stand) = { FRAME_stand50, FRAME_stand71, infantry2_frames_stand, nullptr };
+MMOVE_T(infantry_vanilla_move_stand) = { FRAME_stand50, FRAME_stand71, infantry_vanilla_frames_stand, nullptr };
 
-MONSTERINFO_STAND(infantry2_stand) (edict_t* self) -> void
+MONSTERINFO_STAND(infantry_vanilla_stand) (edict_t* self) -> void
 {
-	M_SetAnimation(self, &infantry2_move_stand);
+	M_SetAnimation(self, &infantry_vanilla_move_stand);
 }
 
-mframe_t infantry2_frames_fidget[] = {
+mframe_t infantry_vanilla_frames_fidget[] = {
 	{ ai_stand, 1 },
 	{ ai_stand },
 	{ ai_stand, 1 },
@@ -113,18 +113,18 @@ mframe_t infantry2_frames_fidget[] = {
 	{ ai_stand, -3, monster_footstep },
 	{ ai_stand, -2 }
 };
-MMOVE_T(infantry2_move_fidget) = { FRAME_stand01, FRAME_stand49, infantry2_frames_fidget, infantry2_stand };
+MMOVE_T(infantry_vanilla_move_fidget) = { FRAME_stand01, FRAME_stand49, infantry_vanilla_frames_fidget, infantry_vanilla_stand };
 
-MONSTERINFO_IDLE(infantry2_fidget) (edict_t* self) -> void
+MONSTERINFO_IDLE(infantry_vanilla_fidget) (edict_t* self) -> void
 {
 	if (self->enemy)
 		return;
 
-	M_SetAnimation(self, &infantry2_move_fidget);
+	M_SetAnimation(self, &infantry_vanilla_move_fidget);
 	gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
-mframe_t infantry2_frames_walk[] = {
+mframe_t infantry_vanilla_frames_walk[] = {
 	{ ai_walk, 5, monster_footstep },
 	{ ai_walk, 4 },
 	{ ai_walk, 4 },
@@ -138,14 +138,14 @@ mframe_t infantry2_frames_walk[] = {
 	{ ai_walk, 4 },
 	{ ai_walk, 5 }
 };
-MMOVE_T(infantry2_move_walk) = { FRAME_walk03, FRAME_walk14, infantry2_frames_walk, nullptr };
+MMOVE_T(infantry_vanilla_move_walk) = { FRAME_walk03, FRAME_walk14, infantry_vanilla_frames_walk, nullptr };
 
-MONSTERINFO_WALK(infantry2_walk) (edict_t* self) -> void
+MONSTERINFO_WALK(infantry_vanilla_walk) (edict_t* self) -> void
 {
-	M_SetAnimation(self, &infantry2_move_walk);
+	M_SetAnimation(self, &infantry_vanilla_move_walk);
 }
 
-mframe_t infantry2_frames_run[] = {
+mframe_t infantry_vanilla_frames_run[] = {
 	{ ai_run, 10 },
 	{ ai_run, 15, monster_footstep },
 	{ ai_run, 5 },
@@ -155,19 +155,19 @@ mframe_t infantry2_frames_run[] = {
 	{ ai_run, 2 },
 	{ ai_run, 6 }
 };
-MMOVE_T(infantry2_move_run) = { FRAME_run01, FRAME_run08, infantry2_frames_run, nullptr };
+MMOVE_T(infantry_vanilla_move_run) = { FRAME_run01, FRAME_run08, infantry_vanilla_frames_run, nullptr };
 
-MONSTERINFO_RUN(infantry2_run) (edict_t* self) -> void
+MONSTERINFO_RUN(infantry_vanilla_run) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-		M_SetAnimation(self, &infantry2_move_stand);
+		M_SetAnimation(self, &infantry_vanilla_move_stand);
 	else
-		M_SetAnimation(self, &infantry2_move_run);
+		M_SetAnimation(self, &infantry_vanilla_move_run);
 }
 
-mframe_t infantry2_frames_pain1[] = {
+mframe_t infantry_vanilla_frames_pain1[] = {
 	{ ai_move, -3 },
 	{ ai_move, -2 },
 	{ ai_move, -1 },
@@ -179,9 +179,9 @@ mframe_t infantry2_frames_pain1[] = {
 	{ ai_move, 6 },
 	{ ai_move, 2, monster_footstep }
 };
-MMOVE_T(infantry2_move_pain1) = { FRAME_pain101, FRAME_pain110, infantry2_frames_pain1, infantry2_run };
+MMOVE_T(infantry_vanilla_move_pain1) = { FRAME_pain101, FRAME_pain110, infantry_vanilla_frames_pain1, infantry_vanilla_run };
 
-mframe_t infantry2_frames_pain2[] = {
+mframe_t infantry_vanilla_frames_pain2[] = {
 	{ ai_move, -3 },
 	{ ai_move, -3 },
 	{ ai_move },
@@ -193,18 +193,18 @@ mframe_t infantry2_frames_pain2[] = {
 	{ ai_move, 5 },
 	{ ai_move, 2, monster_footstep }
 };
-MMOVE_T(infantry2_move_pain2) = { FRAME_pain201, FRAME_pain210, infantry2_frames_pain2, infantry2_run };
+MMOVE_T(infantry_vanilla_move_pain2) = { FRAME_pain201, FRAME_pain210, infantry_vanilla_frames_pain2, infantry_vanilla_run };
 
-extern const mmove_t infantry2_move_jump;
-extern const mmove_t infantry2_move_jump2;
+extern const mmove_t infantry_vanilla_move_jump;
+extern const mmove_t infantry_vanilla_move_jump2;
 
-PAIN(infantry2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
+PAIN(infantry_vanilla_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	int n;
 
 	// allow turret to pain
-	if ((self->monsterinfo.active_move == &infantry2_move_jump ||
-		self->monsterinfo.active_move == &infantry2_move_jump2) && self->think == monster_think)
+	if ((self->monsterinfo.active_move == &infantry_vanilla_move_jump ||
+		self->monsterinfo.active_move == &infantry_vanilla_move_jump2) && self->think == monster_think)
 		return;
 
 	monster_done_dodge(self);
@@ -238,16 +238,16 @@ PAIN(infantry2_pain) (edict_t* self, edict_t* other, float kick, int damage, con
 	}
 
 	if (n == 0)
-		M_SetAnimation(self, &infantry2_move_pain1);
+		M_SetAnimation(self, &infantry_vanilla_move_pain1);
 	else
-		M_SetAnimation(self, &infantry2_move_pain2);
+		M_SetAnimation(self, &infantry_vanilla_move_pain2);
 
 	// PMM - clear duck flag
 	if (self->monsterinfo.aiflags & AI_DUCKED)
 		monster_duck_up(self);
 }
 
-MONSTERINFO_SETSKIN(infantry2_setskin) (edict_t* self) -> void
+MONSTERINFO_SETSKIN(infantry_vanilla_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum = 1;
@@ -271,7 +271,7 @@ constexpr vec3_t aimangles[] = {
 };
 
 
-void infantry2MachineGun(edict_t* self)
+void infantry_vanillaMachineGun(edict_t* self)
 {
 	vec3_t					 start;
 	vec3_t					 forward, right;
@@ -315,7 +315,7 @@ void infantry2MachineGun(edict_t* self)
 	monster_fire_bullet(self, start, forward, 3, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 }
 
-MONSTERINFO_SIGHT(infantry2_sight) (edict_t* self, edict_t* other) -> void
+MONSTERINFO_SIGHT(infantry_vanilla_sight) (edict_t* self, edict_t* other) -> void
 {
 	if (brandom())
 		gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
@@ -323,21 +323,21 @@ MONSTERINFO_SIGHT(infantry2_sight) (edict_t* self, edict_t* other) -> void
 		gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
 }
 
-void infantry2_dead(edict_t* self)
+void infantry_vanilla_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
 	monster_dead(self);
 }
 
-static void infantry2_shrink(edict_t* self)
+static void infantry_vanilla_shrink(edict_t* self)
 {
 	self->maxs[2] = 0;
 	self->svflags |= SVF_DEADMONSTER;
 	gi.linkentity(self);
 }
 
-mframe_t infantry2_frames_death1[] = {
+mframe_t infantry_vanilla_frames_death1[] = {
 	{ ai_move, -4, nullptr, FRAME_death102 },
 	{ ai_move },
 	{ ai_move },
@@ -353,16 +353,16 @@ mframe_t infantry2_frames_death1[] = {
 	{ ai_move, -2 },
 	{ ai_move, 2 },
 	{ ai_move, 2 },
-	{ ai_move, 9, [](edict_t* self) { infantry2_shrink(self); monster_footstep(self); } },
+	{ ai_move, 9, [](edict_t* self) { infantry_vanilla_shrink(self); monster_footstep(self); } },
 	{ ai_move, 9 },
 	{ ai_move, 5, monster_footstep },
 	{ ai_move, -3 },
 	{ ai_move, -3 }
 };
-MMOVE_T(infantry2_move_death1) = { FRAME_death101, FRAME_death120, infantry2_frames_death1, infantry2_dead };
+MMOVE_T(infantry_vanilla_move_death1) = { FRAME_death101, FRAME_death120, infantry_vanilla_frames_death1, infantry_vanilla_dead };
 
 // Off with his head
-mframe_t infantry2_frames_death2[] = {
+mframe_t infantry_vanilla_frames_death2[] = {
 	{ ai_move, 0, nullptr, FRAME_death202 },
 	{ ai_move, 1 },
 	{ ai_move, 5 },
@@ -373,28 +373,28 @@ mframe_t infantry2_frames_death2[] = {
 	{ ai_move, 4 },
 	{ ai_move, 3 },
 	{ ai_move },
-	{ ai_move, -2, infantry2MachineGun },
-	{ ai_move, -2, infantry2MachineGun },
-	{ ai_move, -3, infantry2MachineGun },
-	{ ai_move, -1, infantry2MachineGun },
-	{ ai_move, -2, infantry2MachineGun },
-	{ ai_move, 0, infantry2MachineGun },
-	{ ai_move, 2, infantry2MachineGun },
-	{ ai_move, 2, infantry2MachineGun },
-	{ ai_move, 3, infantry2MachineGun },
-	{ ai_move, -10, infantry2MachineGun },
-	{ ai_move, -7, infantry2MachineGun },
-	{ ai_move, -8, infantry2MachineGun },
-	{ ai_move, -6, [](edict_t* self) { infantry2_shrink(self); monster_footstep(self); } },
+	{ ai_move, -2, infantry_vanillaMachineGun },
+	{ ai_move, -2, infantry_vanillaMachineGun },
+	{ ai_move, -3, infantry_vanillaMachineGun },
+	{ ai_move, -1, infantry_vanillaMachineGun },
+	{ ai_move, -2, infantry_vanillaMachineGun },
+	{ ai_move, 0, infantry_vanillaMachineGun },
+	{ ai_move, 2, infantry_vanillaMachineGun },
+	{ ai_move, 2, infantry_vanillaMachineGun },
+	{ ai_move, 3, infantry_vanillaMachineGun },
+	{ ai_move, -10, infantry_vanillaMachineGun },
+	{ ai_move, -7, infantry_vanillaMachineGun },
+	{ ai_move, -8, infantry_vanillaMachineGun },
+	{ ai_move, -6, [](edict_t* self) { infantry_vanilla_shrink(self); monster_footstep(self); } },
 	{ ai_move, 4 },
 	{ ai_move }
 };
-MMOVE_T(infantry2_move_death2) = { FRAME_death201, FRAME_death225, infantry2_frames_death2, infantry2_dead };
+MMOVE_T(infantry_vanilla_move_death2) = { FRAME_death201, FRAME_death225, infantry_vanilla_frames_death2, infantry_vanilla_dead };
 
-mframe_t infantry2_frames_death3[] = {
+mframe_t infantry_vanilla_frames_death3[] = {
 	{ ai_move, 0 },
 	{ ai_move },
-	{ ai_move, 0, [](edict_t* self) { infantry2_shrink(self); monster_footstep(self); } },
+	{ ai_move, 0, [](edict_t* self) { infantry_vanilla_shrink(self); monster_footstep(self); } },
 	{ ai_move, -6 },
 	{ ai_move, -11, [](edict_t* self) { self->monsterinfo.nextframe = FRAME_death307; } },
 	{ ai_move, -3 },
@@ -402,9 +402,9 @@ mframe_t infantry2_frames_death3[] = {
 	{ ai_move, 0, monster_footstep },
 	{ ai_move }
 };
-MMOVE_T(infantry2_move_death3) = { FRAME_death301, FRAME_death309, infantry2_frames_death3, infantry2_dead };
+MMOVE_T(infantry_vanilla_move_death3) = { FRAME_death301, FRAME_death309, infantry_vanilla_frames_death3, infantry_vanilla_dead };
 
-DIE(infantry2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
+DIE(infantry_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
 	int n;
@@ -414,7 +414,7 @@ DIE(infantry2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 	{
 		gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
 
-		const char* head_gib = (self->monsterinfo.active_move != &infantry2_move_death3) ? "models/objects/gibs/sm_meat/tris.md2" : "models/monsters/infantry/gibs/head.md2";
+		const char* head_gib = (self->monsterinfo.active_move != &infantry_vanilla_move_death3) ? "models/objects/gibs/sm_meat/tris.md2" : "models/monsters/infantry/gibs/head.md2";
 
 		self->s.skinnum /= 2;
 
@@ -442,17 +442,17 @@ DIE(infantry2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 
 	if (n == 0)
 	{
-		M_SetAnimation(self, &infantry2_move_death1);
+		M_SetAnimation(self, &infantry_vanilla_move_death1);
 		gi.sound(self, CHAN_VOICE, sound_die2, 1, ATTN_NORM, 0);
 	}
 	else if (n == 1)
 	{
-		M_SetAnimation(self, &infantry2_move_death2);
+		M_SetAnimation(self, &infantry_vanilla_move_death2);
 		gi.sound(self, CHAN_VOICE, sound_die1, 1, ATTN_NORM, 0);
 	}
 	else
 	{
-		M_SetAnimation(self, &infantry2_move_death3);
+		M_SetAnimation(self, &infantry_vanilla_move_death3);
 		gi.sound(self, CHAN_VOICE, sound_die2, 1, ATTN_NORM, 0);
 	}
 
@@ -475,28 +475,28 @@ DIE(infantry2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 	}
 }
 
-mframe_t infantry2_frames_duck[] = {
+mframe_t infantry_vanilla_frames_duck[] = {
 	{ ai_move, -2, monster_duck_down },
 	{ ai_move, -5, monster_duck_hold },
 	{ ai_move, 3 },
 	{ ai_move, 4, monster_duck_up },
 	{ ai_move }
 };
-MMOVE_T(infantry2_move_duck) = { FRAME_duck01, FRAME_duck05, infantry2_frames_duck, infantry2_run };
+MMOVE_T(infantry_vanilla_move_duck) = { FRAME_duck01, FRAME_duck05, infantry_vanilla_frames_duck, infantry_vanilla_run };
 
 // PMM - dodge code moved below so I can see the attack frames
 
-extern const mmove_t infantry2_move_attack4;
+extern const mmove_t infantry_vanilla_move_attack4;
 
-void infantry2_set_firetime(edict_t* self)
+void infantry_vanilla_set_firetime(edict_t* self)
 {
 	self->monsterinfo.fire_wait = level.time + random_time(0.7_sec, 2_sec);
 
 	if (!(self->monsterinfo.aiflags & AI_STAND_GROUND) && self->enemy && range_to(self, self->enemy) >= RANGE_RUN_ATTACK && ai_check_move(self, 8.0f))
-		M_SetAnimation(self, &infantry2_move_attack4, false);
+		M_SetAnimation(self, &infantry_vanilla_move_attack4, false);
 }
 
-void infantry2_cock_gun(edict_t* self)
+void infantry_vanilla_cock_gun(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_weapon_cock, 1, ATTN_NORM, 0);
 
@@ -504,20 +504,20 @@ void infantry2_cock_gun(edict_t* self)
 	self->count = 1;
 }
 
-void infantry2_fire(edict_t* self);
+void infantry_vanilla_fire(edict_t* self);
 
 // cock-less attack, used if he has already cocked his gun
-mframe_t infantry2_frames_attack1[] = {
+mframe_t infantry_vanilla_frames_attack1[] = {
 	{ ai_charge },
-	{ ai_charge, 6, [](edict_t* self) { infantry2_set_firetime(self); monster_footstep(self); } },
-	{ ai_charge, 0, infantry2_fire },
+	{ ai_charge, 6, [](edict_t* self) { infantry_vanilla_set_firetime(self); monster_footstep(self); } },
+	{ ai_charge, 0, infantry_vanilla_fire },
 	{ ai_charge },
 	{ ai_charge, 1 },
 	{ ai_charge, -7 },
 	{ ai_charge, -6, [](edict_t* self) { self->monsterinfo.nextframe = FRAME_attak114; monster_footstep(self); } },
 	// dead frames start
 	{ ai_charge, -1 },
-	{ ai_charge, 0, infantry2_cock_gun },
+	{ ai_charge, 0, infantry_vanilla_cock_gun },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -526,30 +526,30 @@ mframe_t infantry2_frames_attack1[] = {
 	{ ai_charge, -1 },
 	{ ai_charge, -1 }
 };
-MMOVE_T(infantry2_move_attack1) = { FRAME_attak101, FRAME_attak115, infantry2_frames_attack1, infantry2_run };
+MMOVE_T(infantry_vanilla_move_attack1) = { FRAME_attak101, FRAME_attak115, infantry_vanilla_frames_attack1, infantry_vanilla_run };
 
 // old animation, full cock + shoot
-mframe_t infantry2_frames_attack3[] = {
+mframe_t infantry_vanilla_frames_attack3[] = {
 	{ ai_charge, 4,  NULL },
 	{ ai_charge, -1, NULL },
 	{ ai_charge, -1, NULL },
-	{ ai_charge, 0,  infantry2_cock_gun },
+	{ ai_charge, 0,  infantry_vanilla_cock_gun },
 	{ ai_charge, -1, NULL },
 	{ ai_charge, 1,  NULL },
 	{ ai_charge, 1,  NULL },
 	{ ai_charge, 2,  NULL },
 	{ ai_charge, -2, NULL },
-	{ ai_charge, -3, [](edict_t* self) { infantry2_set_firetime(self); monster_footstep(self); }  },
-	{ ai_charge, 1,  infantry2_fire },
+	{ ai_charge, -3, [](edict_t* self) { infantry_vanilla_set_firetime(self); monster_footstep(self); }  },
+	{ ai_charge, 1,  infantry_vanilla_fire },
 	{ ai_charge, 5,  NULL },
 	{ ai_charge, -1, NULL },
 	{ ai_charge, -2, NULL },
 	{ ai_charge, -3, NULL },
 };
-MMOVE_T(infantry2_move_attack3) = { FRAME_attak301, FRAME_attak315, infantry2_frames_attack3, infantry2_run };
+MMOVE_T(infantry_vanilla_move_attack3) = { FRAME_attak301, FRAME_attak315, infantry_vanilla_frames_attack3, infantry_vanilla_run };
 
 // even older animation, full cock + shoot
-mframe_t infantry2_frames_attack5[] = {
+mframe_t infantry_vanilla_frames_attack5[] = {
 	// skipped frames
 	{ ai_charge, 0, NULL },
 	{ ai_charge, 0, NULL },
@@ -559,15 +559,15 @@ mframe_t infantry2_frames_attack5[] = {
 	{ ai_charge, 0, NULL },
 	{ ai_charge, 0, nullptr },
 	{ ai_charge, 0, monster_footstep },
-	{ ai_charge, 0, infantry2_cock_gun },
+	{ ai_charge, 0, infantry_vanilla_cock_gun },
 	{ ai_charge, 0, NULL },
 	{ ai_charge, 0, NULL },
 	{ ai_charge, 0, [](edict_t* self) { self->monsterinfo.nextframe = self->s.frame + 1; } },
 	{ ai_charge, 0, NULL }, // skipped frame
 	{ ai_charge, 0, NULL },
 	{ ai_charge, 0, nullptr },
-	{ ai_charge, 0, infantry2_set_firetime },
-	{ ai_charge, 0, infantry2_fire },
+	{ ai_charge, 0, infantry_vanilla_set_firetime },
+	{ ai_charge, 0, infantry_vanilla_fire },
 
 	// skipped frames
 	{ ai_charge, 0, NULL },
@@ -579,30 +579,30 @@ mframe_t infantry2_frames_attack5[] = {
 	{ ai_charge, 0, NULL },
 	{ ai_charge, 0, monster_footstep }
 };
-MMOVE_T(infantry2_move_attack5) = { FRAME_attak401, FRAME_attak423, infantry2_frames_attack5, infantry2_run };
+MMOVE_T(infantry_vanilla_move_attack5) = { FRAME_attak401, FRAME_attak423, infantry_vanilla_frames_attack5, infantry_vanilla_run };
 
-extern const mmove_t infantry2_move_attack4;
+extern const mmove_t infantry_vanilla_move_attack4;
 
-void infantry2_fire(edict_t* self)
+void infantry_vanilla_fire(edict_t* self)
 {
-	infantry2MachineGun(self);
+	infantry_vanillaMachineGun(self);
 
 	// we fired, so we must cock again before firing
 	self->count = 0;
 
 	// check if we ran out of firing time
-	if (self->monsterinfo.active_move == &infantry2_move_attack4)
+	if (self->monsterinfo.active_move == &infantry_vanilla_move_attack4)
 	{
 		if (level.time >= self->monsterinfo.fire_wait)
 		{
 			monster_done_dodge(self);
-			M_SetAnimation(self, &infantry2_move_attack1, false);
+			M_SetAnimation(self, &infantry_vanilla_move_attack1, false);
 			self->monsterinfo.nextframe = FRAME_attak114;
 		}
 		// got close to an edge
 		else if (!ai_check_move(self, 8.0f))
 		{
-			M_SetAnimation(self, &infantry2_move_attack1, false);
+			M_SetAnimation(self, &infantry_vanilla_move_attack1, false);
 			self->monsterinfo.nextframe = FRAME_attak103;
 			monster_done_dodge(self);
 			self->monsterinfo.attack_state = AS_STRAIGHT;
@@ -624,12 +624,12 @@ void infantry2_fire(edict_t* self)
 	}
 }
 
-void infantry2_swing(edict_t* self)
+void infantry_vanilla_swing(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_punch_swing, 1, ATTN_NORM, 0);
 }
 
-void infantry2_smack(edict_t* self)
+void infantry_vanilla_smack(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
 	// Verificar si self->enemy está correctamente inicializado
@@ -651,32 +651,32 @@ void infantry2_smack(edict_t* self)
 }
 
 
-mframe_t infantry2_frames_attack2[] = {
+mframe_t infantry_vanilla_frames_attack2[] = {
 	{ ai_charge, 3 },
 	{ ai_charge, 6 },
-	{ ai_charge, 0, infantry2_swing },
+	{ ai_charge, 0, infantry_vanilla_swing },
 	{ ai_charge, 8, monster_footstep },
 	{ ai_charge, 5 },
-	{ ai_charge, 8, infantry2_smack },
+	{ ai_charge, 8, infantry_vanilla_smack },
 	{ ai_charge, 6 },
 	{ ai_charge, 3 }
 };
-MMOVE_T(infantry2_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry2_frames_attack2, infantry2_run };
+MMOVE_T(infantry_vanilla_move_attack2) = { FRAME_attak201, FRAME_attak208, infantry_vanilla_frames_attack2, infantry_vanilla_run };
 
 // [Paril-KEX] run-attack, inspired by q2test
-void infantry2_attack4_refire(edict_t* self)
+void infantry_vanilla_attack4_refire(edict_t* self)
 {
 	// ran out of firing time
 	if (level.time >= self->monsterinfo.fire_wait)
 	{
 		monster_done_dodge(self);
-		M_SetAnimation(self, &infantry2_move_attack1, false);
+		M_SetAnimation(self, &infantry_vanilla_move_attack1, false);
 		self->monsterinfo.nextframe = FRAME_attak114;
 	}
 	// we got too close, or we can't move forward, switch us back to regular attack
 	else if ((self->monsterinfo.aiflags & AI_STAND_GROUND) || (self->enemy && (range_to(self, self->enemy) < RANGE_RUN_ATTACK || !ai_check_move(self, 8.0f))))
 	{
-		M_SetAnimation(self, &infantry2_move_attack1, false);
+		M_SetAnimation(self, &infantry_vanilla_move_attack1, false);
 		self->monsterinfo.nextframe = FRAME_attak103;
 		monster_done_dodge(self);
 		self->monsterinfo.attack_state = AS_STRAIGHT;
@@ -684,26 +684,26 @@ void infantry2_attack4_refire(edict_t* self)
 	else
 		self->monsterinfo.nextframe = FRAME_run201;
 
-	infantry2_fire(self);
+	infantry_vanilla_fire(self);
 }
 
-mframe_t infantry2_frames_attack4[] = {
-	{ ai_charge, 16, infantry2_fire },
-	{ ai_charge, 16, [](edict_t* self) { monster_footstep(self); infantry2_fire(self); } },
-	{ ai_charge, 13, infantry2_fire },
-	{ ai_charge, 10, infantry2_fire },
-	{ ai_charge, 16, infantry2_fire },
-	{ ai_charge, 16, [](edict_t* self) { monster_footstep(self); infantry2_fire(self); } },
-	{ ai_charge, 16, infantry2_fire },
-	{ ai_charge, 16, infantry2_attack4_refire }
+mframe_t infantry_vanilla_frames_attack4[] = {
+	{ ai_charge, 16, infantry_vanilla_fire },
+	{ ai_charge, 16, [](edict_t* self) { monster_footstep(self); infantry_vanilla_fire(self); } },
+	{ ai_charge, 13, infantry_vanilla_fire },
+	{ ai_charge, 10, infantry_vanilla_fire },
+	{ ai_charge, 16, infantry_vanilla_fire },
+	{ ai_charge, 16, [](edict_t* self) { monster_footstep(self); infantry_vanilla_fire(self); } },
+	{ ai_charge, 16, infantry_vanilla_fire },
+	{ ai_charge, 16, infantry_vanilla_attack4_refire }
 };
-MMOVE_T(infantry2_move_attack4) = { FRAME_run201, FRAME_run208, infantry2_frames_attack4, infantry2_run, 0.5f };
+MMOVE_T(infantry_vanilla_move_attack4) = { FRAME_run201, FRAME_run208, infantry_vanilla_frames_attack4, infantry_vanilla_run, 0.5f };
 
 
 
 
 constexpr float GRENADE_SPEED = 900;
-void infantry2_grenade(edict_t* self)
+void infantry_vanilla_grenade(edict_t* self)
 {
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
@@ -762,20 +762,20 @@ void infantry2_grenade(edict_t* self)
 	fire_grenade2(self, start, aim, 55, speed, 2.5_sec, 95, false);
 	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/grenade_launcher.wav"), 1, ATTN_NORM, 0);
 }
-mframe_t infantry2_frames_grenade[] = {
+mframe_t infantry_vanilla_frames_grenade[] = {
 	{ ai_charge, 3 },
 	{ ai_charge, 6 },
-	{ ai_charge, 0, infantry2_swing },
+	{ ai_charge, 0, infantry_vanilla_swing },
 	{ ai_charge, 5 },
-	{ ai_charge, 8, infantry2_grenade },
+	{ ai_charge, 8, infantry_vanilla_grenade },
 	{ ai_charge, 8, monster_footstep },
 	{ ai_charge, 8 },
 	{ ai_charge, 3 }
 };
-MMOVE_T(infantry2_move_grenade) = { FRAME_attak201, FRAME_attak208, infantry2_frames_grenade, infantry2_run };
+MMOVE_T(infantry_vanilla_move_grenade) = { FRAME_attak201, FRAME_attak208, infantry_vanilla_frames_grenade, infantry_vanilla_run };
 
 
-MONSTERINFO_ATTACK(infantry2_attack) (edict_t* self) -> void
+MONSTERINFO_ATTACK(infantry_vanilla_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
@@ -783,20 +783,20 @@ MONSTERINFO_ATTACK(infantry2_attack) (edict_t* self) -> void
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
 	{
-		M_SetAnimation(self, &infantry2_move_attack2);
+		M_SetAnimation(self, &infantry_vanilla_move_attack2);
 	}
 	else if (r > RANGE_MELEE && frandom() <= 0.4f)
 	{
 		// 30% chance to throw a grenade when enemy is beyond melee range
-		M_SetAnimation(self, &infantry2_move_grenade);
+		M_SetAnimation(self, &infantry_vanilla_move_grenade);
 	}
 	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_MEDIC_BLASTER_2]))
 	{
 		if (self->count)
-			M_SetAnimation(self, &infantry2_move_attack1);
+			M_SetAnimation(self, &infantry_vanilla_move_attack1);
 		else
 		{
-			M_SetAnimation(self, frandom() <= 0.1f ? &infantry2_move_attack5 : &infantry2_move_attack3);
+			M_SetAnimation(self, frandom() <= 0.1f ? &infantry_vanilla_move_attack5 : &infantry_vanilla_move_attack3);
 			self->monsterinfo.nextframe = FRAME_attak405;
 		}
 	}
@@ -805,7 +805,7 @@ MONSTERINFO_ATTACK(infantry2_attack) (edict_t* self) -> void
 
 //===========
 // PGM
-void infantry2_jump_now(edict_t* self)
+void infantry_vanilla_jump_now(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -814,7 +814,7 @@ void infantry2_jump_now(edict_t* self)
 	self->velocity += (up * 300);
 }
 
-void infantry2_jump2_now(edict_t* self)
+void infantry_vanilla_jump2_now(edict_t* self)
 {
 	vec3_t forward, up;
 
@@ -823,7 +823,7 @@ void infantry2_jump2_now(edict_t* self)
 	self->velocity += (up * 400);
 }
 
-void infantry2_jump_wait_land(edict_t* self)
+void infantry_vanilla_jump_wait_land(edict_t* self)
 {
 	if (self->groundentity == nullptr)
 	{
@@ -836,35 +836,35 @@ void infantry2_jump_wait_land(edict_t* self)
 		self->monsterinfo.nextframe = self->s.frame + 1;
 }
 
-mframe_t infantry2_frames_jump[] = {
+mframe_t infantry_vanilla_frames_jump[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move, 0, infantry2_jump_now },
+	{ ai_move, 0, infantry_vanilla_jump_now },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move, 0, infantry2_jump_wait_land },
+	{ ai_move, 0, infantry_vanilla_jump_wait_land },
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(infantry2_move_jump) = { FRAME_jump01, FRAME_jump10, infantry2_frames_jump, infantry2_run };
+MMOVE_T(infantry_vanilla_move_jump) = { FRAME_jump01, FRAME_jump10, infantry_vanilla_frames_jump, infantry_vanilla_run };
 
-mframe_t infantry2_frames_jump2[] = {
+mframe_t infantry_vanilla_frames_jump2[] = {
 	{ ai_move, -8 },
 	{ ai_move, -4 },
 	{ ai_move, -4 },
-	{ ai_move, 0, infantry2_jump2_now },
+	{ ai_move, 0, infantry_vanilla_jump2_now },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move, 0, infantry2_jump_wait_land },
+	{ ai_move, 0, infantry_vanilla_jump_wait_land },
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(infantry2_move_jump2) = { FRAME_jump01, FRAME_jump10, infantry2_frames_jump2, infantry2_run };
+MMOVE_T(infantry_vanilla_move_jump2) = { FRAME_jump01, FRAME_jump10, infantry_vanilla_frames_jump2, infantry_vanilla_run };
 
-void infantry2_jump(edict_t* self, blocked_jump_result_t result)
+void infantry_vanilla_jump(edict_t* self, blocked_jump_result_t result)
 {
 	if (!self->enemy)
 		return;
@@ -872,17 +872,17 @@ void infantry2_jump(edict_t* self, blocked_jump_result_t result)
 	monster_done_dodge(self);
 
 	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
-		M_SetAnimation(self, &infantry2_move_jump2);
+		M_SetAnimation(self, &infantry_vanilla_move_jump2);
 	else
-		M_SetAnimation(self, &infantry2_move_jump);
+		M_SetAnimation(self, &infantry_vanilla_move_jump);
 }
 
-MONSTERINFO_BLOCKED(infantry2_blocked) (edict_t* self, float dist) -> bool
+MONSTERINFO_BLOCKED(infantry_vanilla_blocked) (edict_t* self, float dist) -> bool
 {
 	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
-			infantry2_jump(self, result);
+			infantry_vanilla_jump(self, result);
 		return true;
 	}
 
@@ -892,11 +892,11 @@ MONSTERINFO_BLOCKED(infantry2_blocked) (edict_t* self, float dist) -> bool
 	return false;
 }
 
-MONSTERINFO_DUCK(infantry2_duck) (edict_t* self, gtime_t eta) -> bool
+MONSTERINFO_DUCK(infantry_vanilla_duck) (edict_t* self, gtime_t eta) -> bool
 {
 	// if we're jumping, don't dodge
-	if ((self->monsterinfo.active_move == &infantry2_move_jump) ||
-		(self->monsterinfo.active_move == &infantry2_move_jump2))
+	if ((self->monsterinfo.active_move == &infantry_vanilla_move_jump) ||
+		(self->monsterinfo.active_move == &infantry_vanilla_move_jump2))
 	{
 		return false;
 	}
@@ -904,33 +904,33 @@ MONSTERINFO_DUCK(infantry2_duck) (edict_t* self, gtime_t eta) -> bool
 	// don't duck during our firing or melee frames
 	if (self->s.frame == FRAME_attak103 ||
 		self->s.frame == FRAME_attak315 ||
-		(self->monsterinfo.active_move == &infantry2_move_attack2))
+		(self->monsterinfo.active_move == &infantry_vanilla_move_attack2))
 	{
 		self->monsterinfo.unduck(self);
 		return false;
 	}
 
-	M_SetAnimation(self, &infantry2_move_duck);
+	M_SetAnimation(self, &infantry_vanilla_move_duck);
 
 	return true;
 }
 
-MONSTERINFO_SIDESTEP(infantry2_sidestep) (edict_t* self) -> bool
+MONSTERINFO_SIDESTEP(infantry_vanilla_sidestep) (edict_t* self) -> bool
 {
 	// if we're jumping, don't dodge
-	if ((self->monsterinfo.active_move == &infantry2_move_jump) ||
-		(self->monsterinfo.active_move == &infantry2_move_jump2))
+	if ((self->monsterinfo.active_move == &infantry_vanilla_move_jump) ||
+		(self->monsterinfo.active_move == &infantry_vanilla_move_jump2))
 	{
 		return false;
 	}
 
-	if (self->monsterinfo.active_move == &infantry2_move_run)
+	if (self->monsterinfo.active_move == &infantry_vanilla_move_run)
 		return true;
 
 	// Don't sidestep if we're already sidestepping, and def not unless we're actually shooting
 	// or if we already cocked
-	if (self->monsterinfo.active_move != &infantry2_move_attack4 &&
-		self->monsterinfo.next_move != &infantry2_move_attack4 &&
+	if (self->monsterinfo.active_move != &infantry_vanilla_move_attack4 &&
+		self->monsterinfo.next_move != &infantry_vanilla_move_attack4 &&
 		((self->s.frame == FRAME_attak103 ||
 			self->s.frame == FRAME_attak311 ||
 			self->s.frame == FRAME_attak416) &&
@@ -939,13 +939,13 @@ MONSTERINFO_SIDESTEP(infantry2_sidestep) (edict_t* self) -> bool
 		// give us a fire time boost so we don't end up firing for 1 frame
 		self->monsterinfo.fire_wait += random_time(300_ms, 600_ms);
 
-		M_SetAnimation(self, &infantry2_move_attack4, false);
+		M_SetAnimation(self, &infantry_vanilla_move_attack4, false);
 	}
 
 	return true;
 }
 
-void infantry2Precache()
+void infantry_vanillaPrecache()
 {
 	sound_pain1.assign("infantry/infpain1.wav");
 	sound_pain2.assign("infantry/infpain2.wav");
@@ -966,14 +966,14 @@ constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;
 
 /*QUAKED monster_infantry (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight NoJumping
  */
-void SP_monster_infantry2(edict_t* self)
+void SP_monster_infantry_vanilla(edict_t* self)
 {
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
 
-	infantry2Precache();
+	infantry_vanillaPrecache();
 
 	self->monsterinfo.aiflags |= AI_STINKY;
 
@@ -994,30 +994,30 @@ void SP_monster_infantry2(edict_t* self)
 	self->gib_health = -65;
 	self->mass = 200;
 
-	self->pain = infantry2_pain;
-	self->die = infantry2_die;
+	self->pain = infantry_vanilla_pain;
+	self->die = infantry_vanilla_die;
 
 	self->monsterinfo.combat_style = COMBAT_MIXED;
 
-	self->monsterinfo.stand = infantry2_stand;
-	self->monsterinfo.walk = infantry2_walk;
-	self->monsterinfo.run = infantry2_run;
+	self->monsterinfo.stand = infantry_vanilla_stand;
+	self->monsterinfo.walk = infantry_vanilla_walk;
+	self->monsterinfo.run = infantry_vanilla_run;
 	// pmm
 	self->monsterinfo.dodge = M_MonsterDodge;
-	self->monsterinfo.duck = infantry2_duck;
+	self->monsterinfo.duck = infantry_vanilla_duck;
 	self->monsterinfo.unduck = monster_duck_up;
-	self->monsterinfo.sidestep = infantry2_sidestep;
-	self->monsterinfo.blocked = infantry2_blocked;
+	self->monsterinfo.sidestep = infantry_vanilla_sidestep;
+	self->monsterinfo.blocked = infantry_vanilla_blocked;
 	// pmm
-	self->monsterinfo.attack = infantry2_attack;
+	self->monsterinfo.attack = infantry_vanilla_attack;
 	self->monsterinfo.melee = nullptr;
-	self->monsterinfo.sight = infantry2_sight;
-	self->monsterinfo.idle = infantry2_fidget;
-	self->monsterinfo.setskin = infantry2_setskin;
+	self->monsterinfo.sight = infantry_vanilla_sight;
+	self->monsterinfo.idle = infantry_vanilla_fidget;
+	self->monsterinfo.setskin = infantry_vanilla_setskin;
 
 	gi.linkentity(self);
 
-	M_SetAnimation(self, &infantry2_move_stand);
+	M_SetAnimation(self, &infantry_vanilla_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
 	self->monsterinfo.can_jump = !self->spawnflags.has(SPAWNFLAG_INFANTRY_NOJUMPING);
 	self->monsterinfo.drop_height = 192;
