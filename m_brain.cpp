@@ -757,6 +757,8 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 		M_SetAnimation(self, &brain_move_attack3);
 	}
 
+	else if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
+		M_SetAnimation(self, &brain_move_attack4);
 
 }
 // RAFAEL
@@ -947,7 +949,10 @@ void brain_jump_wait_land_attack(edict_t* self)
 	else
 		self->monsterinfo.nextframe = self->s.frame + 1;
 
-	if (self->enemy && visible(self, self->enemy))
+	if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
+		M_SetAnimation(self, &brain_move_attack4);
+
+	else if (self->enemy && visible(self, self->enemy))
 		M_SetAnimation(self, &brain_move_attack3);
 }
 
