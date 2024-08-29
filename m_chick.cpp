@@ -791,19 +791,23 @@ mframe_t chick_frames_jump[] = {
 	{ ai_move },
 	{ ai_move, 0, chick_jump_now },
 	{ ai_move },
-	{ ai_move },
 	{ ai_move, 0, chick_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 };
-MMOVE_T(chick_move_jump) = { FRAME_duck01, FRAME_duck05, chick_frames_jump, chick_run };
+MMOVE_T(chick_move_jump) = { FRAME_duck01, FRAME_duck07, chick_frames_jump, chick_run };
 
 mframe_t chick_frames_jump2[] = {
 	{ ai_move },
-	{ ai_move, 0, chick_jump2_now },
-	{ ai_move },
+	{ ai_move, 0, chick_jump_now },
 	{ ai_move },
 	{ ai_move, 0, chick_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 };
-MMOVE_T(chick_move_jump2) = { FRAME_duck01, FRAME_duck05, chick_frames_jump2, chick_run };
+MMOVE_T(chick_move_jump2) = { FRAME_duck01, FRAME_duck07, chick_frames_jump2, chick_run };
 //===========
 // PGM
 void chick_jump(edict_t* self, blocked_jump_result_t result)

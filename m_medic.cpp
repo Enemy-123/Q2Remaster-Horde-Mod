@@ -1534,35 +1534,39 @@ mframe_t medic_frames_jump[] = {
 	{ ai_move },
 	{ ai_move, 0, medic_jump2_now },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
 	{ ai_move, 0, medic_jump_wait_land },
-	//{ ai_move },
-	//{ ai_move },
-	//{ ai_move },
-	//{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 };
-MMOVE_T(medic_move_jump) = { FRAME_duck2, FRAME_duck10, medic_frames_jump, medic_run };
+MMOVE_T(medic_move_jump) = { FRAME_duck2, FRAME_duck16, medic_frames_jump, medic_run };
 
 mframe_t medic_frames_jump2[] = {
 	{ ai_move },
 	{ ai_move, 0, medic_jump2_now },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
 	{ ai_move, 0, medic_jump_wait_land },
-	//{ ai_move },
-	//{ ai_move },
-	//{ ai_move },
-	//{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 };
-MMOVE_T(medic_move_jump2) = { FRAME_duck2, FRAME_duck10, medic_frames_jump2, medic_run };
+MMOVE_T(medic_move_jump2) = { FRAME_duck2, FRAME_duck16, medic_frames_jump2, medic_run };
 //===========
 // PGM
 void medic_jump(edict_t* self, blocked_jump_result_t result)

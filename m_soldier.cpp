@@ -1432,22 +1432,35 @@ void soldier_jump_wait_land(edict_t* self)
 }
 
 mframe_t soldier_frames_jump[] = {
-	{ ai_move },
-	{ ai_move, 0, soldier_jump_now },
-	{ ai_move },
+	{ ai_move, 0, soldier_jump2_now },
 	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move }
 };
 MMOVE_T(soldier_move_jump) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump, soldier_run };
 
 mframe_t soldier_frames_jump2[] = {
-	{ ai_move },
 	{ ai_move, 0, soldier_jump2_now },
-	{ ai_move },
 	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move }
 };
 MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_run };
+
+//mframe_t soldier_frames_jumpattack[] = { //should extend soldier_frames_attack5 some day
+//	{ ai_move },
+//	{ ai_move, 0, soldier_jump_attack },
+//	{ ai_move },
+//	{ ai_move },
+//	{ ai_move },
+//	{ ai_move },
+//	{ ai_move, 0, soldier_jump_wait_land_attack },
+//	{ ai_move }
+//};
+//MMOVE_T(soldier_move_jumpattack) = { FRAME_duck01, FRAME_duck08, soldier_frames_attack5, soldier_run };
+
 
 void soldier_jump(edict_t* self, blocked_jump_result_t result)
 {
@@ -1461,6 +1474,25 @@ void soldier_jump(edict_t* self, blocked_jump_result_t result)
 	else
 		M_SetAnimation(self, &soldier_move_jump);
 }
+
+//void soldier_jump(edict_t* self, blocked_jump_result_t result)
+//{
+//
+//	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+//
+//	if (!self->enemy)
+//		return;
+//
+//	monster_done_dodge(self);
+//
+//	if (result == blocked_jump_result_t::JUMP_JUMP_UP && !visible(self, self->enemy))
+//		M_SetAnimation(self, &soldier_move_jump2);
+//	else if (!visible(self, self->enemy))
+//		M_SetAnimation(self, &soldier_move_jump);
+//	else
+//		M_SetAnimation(self, &soldier_move_jumpattack);
+//
+//}
 // pmm - blocking code
 
 MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool

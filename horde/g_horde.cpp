@@ -337,7 +337,8 @@ void Horde_InitLevel(const int32_t lvl) {
 	switch (g_horde_local.level) {
 	case 17: gi.cvar_set("g_damage_scale", "1.7"); break;
 	case 27: gi.cvar_set("g_damage_scale", "2.7"); break;
-	case 37: gi.cvar_set("g_damage_scale", "3.7"); break;
+	case 37: gi.cvar_set("g_damage_scale", "3.8"); break;
+	case 47: gi.cvar_set("g_damage_scale", "4.3"); break;
 	default: break; // Mantener el valor actual si no coincide
 	}
 	const auto mapSize = GetMapSize(level.mapname);
@@ -494,7 +495,6 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_perrokl", 21, -1, 0.33f },
 	{ "monster_widow1", 23, -1, 0.08f }
 };
-
 // Definici�n de jefes por tama�o de mapa
 struct boss_t {
 	const char* classname;

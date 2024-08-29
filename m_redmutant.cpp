@@ -718,13 +718,13 @@ void SP_monster_redmutant(edict_t* self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 640 * st.health_multiplier;
+	self->health = 520 * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 450;
 	self->s.scale = 1.1f;
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health *= 3.6f;
+		self->health *= 3.8f;
 		self->gib_health = -999777;
 		self->mass *= 3.0f;
 	}

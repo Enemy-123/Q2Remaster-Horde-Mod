@@ -435,7 +435,7 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 
 void brain_tounge_attack(edict_t* self)
 {
-	vec3_t offset, start, f, r, end, dir;
+	vec3_t offset, start, f, r, end, dir{};
 	trace_t tr;
 	int damage = 5;
 
@@ -444,7 +444,6 @@ void brain_tounge_attack(edict_t* self)
 
 	// If the enemy is within close range, use the same logic as brain_tounge_attack_continue
 	if (dist <= 64) {
-		vec3_t dir{};
 		VectorSubtract(self->enemy->s.origin, self->s.origin, dir);
 		VectorNormalize(dir);
 
@@ -1072,7 +1071,7 @@ void SP_monster_brain(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = 125 * st.health_multiplier;
+	self->health = 225 * st.health_multiplier;
 	self->gib_health = -90;
 	self->mass = 400;
 
@@ -1101,7 +1100,7 @@ void SP_monster_brain(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 100;
+		self->monsterinfo.power_armor_power = 150;
 
 	gi.linkentity(self);
 
