@@ -148,7 +148,7 @@ std::string SelectRandomBenefit(int32_t wave) {
 // Función hash simple para strings en tiempo de compilación
 constexpr uint32_t hash(std::string_view str) {
 	uint32_t hash = 5381;
-	for (char c : str)
+	for (const char c : str)
 		hash = ((hash << 5) + hash) + c;
 	return hash;
 }

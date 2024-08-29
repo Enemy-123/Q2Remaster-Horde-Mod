@@ -437,10 +437,37 @@ void brain_tounge_attack(edict_t* self)
 {
 	vec3_t offset, start, f, r, end, dir;
 	trace_t tr;
-	int damage;
+	int damage = 5;
 
+	// Check distance to enemy
+	const float dist = range_to(self, self->enemy);
+
+	// If the enemy is within close range, use the same logic as brain_tounge_attack_continue
+	if (dist <= 64) {
+		vec3_t dir{};
+		VectorSubtract(self->enemy->s.origin, self->s.origin, dir);
+		VectorNormalize(dir);
+
+		if (M_DamageModifier(self)) {
+			damage *= M_DamageModifier(self);
+		}
+
+		// Apply damage directly, without knockback
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+
+		// Heal the brain
+		self->health = std::min(self->health + damage, self->max_health);
+
+		// Pull the enemy in
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		self->enemy->velocity = forward * -800;
+
+		return;
+	}
+
+	// Original brain_tounge_attack logic for longer distances
 	AngleVectors(self->s.angles, f, r, nullptr);
-	// offset = { 24, 0, 6 };
 	offset = { 24, 0, 16 };
 	start = M_ProjectFlashSource(self, offset, f, r);
 
@@ -458,34 +485,18 @@ void brain_tounge_attack(edict_t* self)
 			}
 		}
 	}
-	if (self && self->enemy)
-		end = self->enemy->s.origin;
 
 	tr = gi.traceline(start, end, self, MASK_PROJECTILE);
 	if (tr.ent != self->enemy)
 		return;
 
-	damage = 5;
-	//	gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
-
-		//gi.WriteByte(svc_temp_entity);
-		//gi.WriteByte(TE_PARASITE_ATTACK);
-		//gi.WriteEntity(self);
-		//gi.WritePosition(start);
-		//gi.WritePosition(end);
-		//gi.multicast(self->s.origin, MULTICAST_PVS, false);
-
 	dir = start - end;
-	const float dist = range_to(self, self->enemy);
-	if (dist < MELEE_DISTANCE)
-	T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE); // MOD_UNKNOWN);
-	// pull the enemy in
+	T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+
+	// Pull the enemy in
 	vec3_t forward;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->enemy->velocity = forward * -800;
-
-	//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
-	//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
 }
 
 mframe_t brain_frames_run[] = {
@@ -509,9 +520,9 @@ bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, 
 }
 void brain_tounge_attack_continue(edict_t* self);
 mframe_t brain_frames_continue[] = {
-	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, 0, brain_tounge_attack_continue },
-	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 0, brain_tounge_attack_continue },
+	{ ai_charge, 0, brain_tounge_attack_continue },
 	{ ai_charge, 0, brain_tounge_attack_continue },
 	{ ai_charge, 0, brain_tounge_attack_continue },
 	//{ ai_charge, 0, brain_tounge_attack },
@@ -520,8 +531,7 @@ mframe_t brain_frames_continue[] = {
 };
 MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_continue, brain_tounge_attack };
 
-
-THINK(brain_tounge_attack_continue)(edict_t* self) -> void
+void brain_tounge_attack_continue(edict_t* self)
 {
 	// Check if enemy is still valid
 	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
@@ -532,61 +542,37 @@ THINK(brain_tounge_attack_continue)(edict_t* self) -> void
 
 	// Check distance to enemy
 	const float dist = range_to(self, self->enemy);
-	if (dist < MELEE_DISTANCE * 4) {
-		M_SetAnimation(self, &brain_move_continue);
-		return;
-	}
-	self->monsterinfo.power_armor_type = IT_NULL;
-	// Calculate start and end positions
-	vec3_t start{}, forward, end;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	VectorMA(self->s.origin, self->maxs[1] + 8, forward, start);
-	end = self->enemy->s.origin;
 
-	// Check if path is clear
-	const trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE);
-	if (tr.fraction == 1.0f && tr.ent == self->enemy)
-	{
-		// Continue the attack
-		if (self->timestamp <= level.time)
-		{
-			int damage = 2;
-			if (M_DamageModifier(self)) {
-				damage *= M_DamageModifier(self);
-			}
+	// Calculate direction vector
+	vec3_t dir{};
+	VectorSubtract(self->enemy->s.origin, self->s.origin, dir);
+	VectorNormalize(dir);
 
-			// Apply damage and drain health
-			if (dist < 64) {
-				T_Damage(self->enemy, self, self, forward, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_BRAINTENTACLE);
-				self->health = std::min(self->health + damage, self->max_health);
-			}
-			// Update the brain's skin if it has a setskin function
-			if (self->monsterinfo.setskin) {
-				self->monsterinfo.setskin(self);
-			}
+	// Always apply damage if within range, regardless of how close
+	if (dist <= 64) {
+		int damage = 5; // Increased damage to match brain_tounge_attack
+		if (M_DamageModifier(self)) {
+			damage *= M_DamageModifier(self);
+		}
 
-			// Set next attack time
-			self->monsterinfo.attack_finished = level.time + 1_hz;
+		// Apply damage directly, without knockback
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+
+		// Heal the brain
+		self->health = std::min(self->health + damage, self->max_health);
+
+		// Update the brain's skin if it has a setskin function
+		if (self->monsterinfo.setskin) {
+			self->monsterinfo.setskin(self);
 		}
 
 		// Pull the enemy in
-
-		//if (self->s.frame = FRAME_attak206)
-		//self->enemy->velocity = forward * -510;	
-		//if (self->s.frame = FRAME_attak207)
-		//self->enemy->velocity = forward * -530;	
-		//if (self->s.frame = FRAME_attak208)
-		//self->enemy->velocity = forward * -650;	
-		//if (self->s.frame = FRAME_attak209)
-		//self->enemy->velocity = forward * -720;
-		//else //if (self->s.frame = FRAME_attak206)
-			self->enemy->velocity = forward * -680;
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		self->enemy->velocity = forward * -800;
 
 		// Set the next frame to continue the attack animation
 		self->monsterinfo.nextframe = FRAME_attak206;
-
-		// Set next think time
-		self->nextthink = level.time + FRAME_TIME_MS;
 	}
 	else
 	{
@@ -594,7 +580,14 @@ THINK(brain_tounge_attack_continue)(edict_t* self) -> void
 		M_SetAnimation(self, &brain_move_run);
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	}
+
+	// Set next attack time (increased frequency for constant damage)
+	self->monsterinfo.attack_finished = level.time + 1_hz; // Attack twice per second
+
+	// Set next think time
+	self->nextthink = level.time + FRAME_TIME_MS;
 }
+
 
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {
@@ -746,6 +739,9 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 {
 	const float r = range_to(self, self->enemy);
 
+	if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
+		M_SetAnimation(self, &brain_move_attack4);
+
 	if (r <= RANGE_NEAR)
 	{
 		if (frandom() < 0.6f)
@@ -758,8 +754,7 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 		M_SetAnimation(self, &brain_move_attack3);
 	}
 
-	else if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
-		M_SetAnimation(self, &brain_move_attack4);
+
 
 }
 // RAFAEL
@@ -1077,8 +1072,8 @@ void SP_monster_brain(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = 300 * st.health_multiplier;
-	self->gib_health = -150;
+	self->health = 125 * st.health_multiplier;
+	self->gib_health = -90;
 	self->mass = 400;
 
 	self->pain = brain_pain;
@@ -1117,8 +1112,8 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.jump_height = 68;
 	self->monsterinfo.can_jump = true;
 
-	self->think = brain_tounge_attack_continue;
-	self->nextthink = level.time + FRAME_TIME_MS;
+	//self->think = brain_tounge_attack_continue;
+	//self->nextthink = level.time + FRAME_TIME_MS;
 
 	walkmonster_start(self);
 

@@ -583,7 +583,7 @@ void ED_CallSpawn(edict_t* ent) {
 	}
 
 	// Diccionarios de reemplazos para diferentes modos
-	MonsterReplacement chaotic_replacements[] = {
+	constexpr  MonsterReplacement chaotic_replacements[] = {
 		{"monster_soldier_ss", {"monster_infantry_vanilla"}, 1},
 		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_gunner"}, 2},
 		{"monster_stalker", {"monster_parasite", "monster_stalker"}, 2},
@@ -594,9 +594,9 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
 		{"item_armor_body", {"item_armor_combat"}, 1},
 	};
-	int chaotic_replacement_count = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
+	constexpr int chaotic_replacement_count = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
 
-	MonsterReplacement insane_replacements[] = {
+	constexpr MonsterReplacement insane_replacements[] = {
 		{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}, 2},
 		{"monster_soldier", {"monster_soldier_hypergun", "monster_soldier_lasergun"}, 2},
 		{"monster_soldier_ss", {"monster_infantry", "monster_gunner_vanilla"}, 2},
@@ -617,9 +617,9 @@ void ED_CallSpawn(edict_t* ent) {
 		{"item_armor_body", {"item_armor_combat"}, 1},
 		{"item_health_mega", {"item_adrenaline", "item_health_mega"}, 2},
 	};
-	int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
+	constexpr int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 
-	MonsterReplacement hardcoop_replacements[] = {
+	constexpr MonsterReplacement hardcoop_replacements[] = {
 		{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}, 5},
 		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}, 6},
 		{"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}, 2},
@@ -646,7 +646,7 @@ void ED_CallSpawn(edict_t* ent) {
 		{"item_power_shield", {"item_power_screen"}, 1},
 		{"item_silencer", {"item_bandolier"}, 1},
 	};
-	const int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
+	constexpr int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
 
 	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
 	switch (g_chaotic->integer) {
