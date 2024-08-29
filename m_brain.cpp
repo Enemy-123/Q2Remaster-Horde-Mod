@@ -491,7 +491,7 @@ void brain_tounge_attack(edict_t* self)
 		return;
 
 	dir = start - end;
-	T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+	//T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
 
 	// Pull the enemy in
 	vec3_t forward;
