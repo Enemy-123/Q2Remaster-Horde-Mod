@@ -1357,32 +1357,38 @@ MMOVE_T(medic_move_callReinforcements) = { FRAME_attack33, FRAME_attack55, medic
 
 MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 {
+
+	// Verificar visibilidad y camino libre
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+
+
 	monster_done_dodge(self);
 
-	float enemy_range = range_to(self, self->enemy);
+	const float enemy_range = range_to(self, self->enemy);
 
-	// signal from checkattack to spawn
-	if (self->monsterinfo.aiflags & AI_BLOCKED)
-	{
-		M_SetAnimation(self, &medic_move_callReinforcements);
-		self->monsterinfo.aiflags &= ~AI_BLOCKED;
-	}
+	//// signal from checkattack to spawn
+	//if (self->monsterinfo.aiflags & AI_BLOCKED && visible(self, self->enemy))
+	//{
+	//	M_SetAnimation(self, &medic_move_callReinforcements);
+	//	self->monsterinfo.aiflags &= ~AI_BLOCKED;
+	//}
 
-	float r = frandom();
+	const float r = frandom();
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
-		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
+		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self) && has_clear_path)
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
 			M_SetAnimation(self, &medic_move_attackCable);
 	}
 	else
 	{
-		if (self->monsterinfo.attack_state == AS_BLIND)
+		if (self->monsterinfo.attack_state == AS_BLIND && has_clear_path)
 		{
 			M_SetAnimation(self, &medic_move_callReinforcements);
 			return;
 		}
+		if (has_clear_path)
 		if ((self->mass > 400) && (r > 0.2f) && (enemy_range > RANGE_MELEE) && M_SlotsLeft(self))
 			M_SetAnimation(self, &medic_move_callReinforcements);
 		else
@@ -1491,10 +1497,102 @@ MONSTERINFO_SIDESTEP(medic_sidestep) (edict_t* self) -> bool
 	return true;
 }
 
+
+void medic_jump_now(edict_t* self)
+{
+	//	gi.Com_PrintFmt("medic_jump_now called\n");
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 100);
+	self->velocity += (up * 300);
+}
+
+void medic_jump2_now(edict_t* self)
+{
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 150);
+	self->velocity += (up * 400);
+}
+
+void medic_jump_wait_land(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+}
+
+mframe_t medic_frames_jump[] = {
+	{ ai_move },
+	{ ai_move, 0, medic_jump2_now },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, medic_jump_wait_land },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+};
+MMOVE_T(medic_move_jump) = { FRAME_duck2, FRAME_duck10, medic_frames_jump, medic_run };
+
+mframe_t medic_frames_jump2[] = {
+	{ ai_move },
+	{ ai_move, 0, medic_jump2_now },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, medic_jump_wait_land },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+};
+MMOVE_T(medic_move_jump2) = { FRAME_duck2, FRAME_duck10, medic_frames_jump2, medic_run };
+//===========
+// PGM
+void medic_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	monster_done_dodge(self);
+
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
+		M_SetAnimation(self, &medic_move_jump2);
+	else
+		M_SetAnimation(self, &medic_move_jump);
+}
+// pmm - blocking code
+
+
 //===========
 // PGM
 MONSTERINFO_BLOCKED(medic_blocked) (edict_t* self, float dist) -> bool
 {
+	if (self->monsterinfo.can_jump)
+	{
+		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		{
+			medic_jump(self, result);
+			return true;
+		}
+	}
+
 	if (blocked_checkplat(self, dist))
 		return true;
 
@@ -1570,6 +1668,12 @@ void SP_monster_medic(edict_t* self)
 	self->monsterinfo.search = medic_search;
 	self->monsterinfo.checkattack = medic_checkattack;
 	self->monsterinfo.setskin = medic_setskin;
+
+
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 52;
+	self->monsterinfo.can_jump = true;
+
 
 	gi.linkentity(self);
 
