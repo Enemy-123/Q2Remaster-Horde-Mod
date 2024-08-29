@@ -934,22 +934,27 @@ void brain_jump_attack(edict_t* self)
 
 void brain_jump_wait_land_attack(edict_t* self)
 {
-	if (self->groundentity == nullptr)
-	{
-		self->monsterinfo.nextframe = self->s.frame;
+    if (self->groundentity == nullptr)
+    {
+        self->monsterinfo.nextframe = self->s.frame;
+        if (monster_jump_finished(self))
+            self->monsterinfo.nextframe = self->s.frame + 1;
+    }
+    else
+        self->monsterinfo.nextframe = self->s.frame + 1;
 
-		if (monster_jump_finished(self))
-			self->monsterinfo.nextframe = self->s.frame + 1;
-	}
-	else
-		self->monsterinfo.nextframe = self->s.frame + 1;
-
-	if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
-		M_SetAnimation(self, &brain_move_attack4);
-
-	else if (self->enemy && visible(self, self->enemy)) {
-		M_SetAnimation(self, &brain_move_attack3);
-	}
+    // Check if self->enemy is not null before accessing it
+    if (self->enemy)
+    {
+        if (!strcmp(self->enemy->classname, "tesla_mine") || !strcmp(self->enemy->classname, "monster_sentrygun"))
+            M_SetAnimation(self, &brain_move_attack4);
+        else if (visible(self, self->enemy))
+            M_SetAnimation(self, &brain_move_attack3);
+    }
+    else
+    {
+        M_SetAnimation(self, &brain_move_run);
+    }
 }
 
 void brain_jump_wait_land(edict_t* self)
