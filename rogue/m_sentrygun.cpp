@@ -470,7 +470,7 @@ void turret2Fire(edict_t* self)
 						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
 
 						// Usar la dirección predicha para fire_bullet
-						fire_bullet(self, start, predictedDir, TURRET2_BULLET_DAMAGE, 5, DEFAULT_BULLET_HSPREAD / 2, DEFAULT_BULLET_VSPREAD / 2, MOD_TURRET);
+						fire_bullet(self, start, predictedDir, TURRET2_BULLET_DAMAGE, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_TURRET);
 
 						// Efecto visual del disparo
 						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD / 2, DEFAULT_BULLET_VSPREAD / 1.4, MZ2_TURRET_MACHINEGUN);
