@@ -221,6 +221,8 @@ static cached_soundindex sound_spin_loop;
 void guardian_atk1_charge(edict_t* self)
 {
 	self->monsterinfo.weapon_sound = sound_spin_loop;
+
+	if (!strcmp(self->classname, "monster_guardian"))
 	gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
 }
 
@@ -239,7 +241,10 @@ void guardian_fire_blaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
+	if (!strcmp(self->classname, "monster_guardian"))
 	monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+	if (strcmp(self->classname, "monster_guardian"))
+		monster_fire_blueblaster(self, start, forward, 8, 1000, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
 
 	if (self->enemy && self->enemy->health > 0 &&
 		self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
@@ -331,7 +336,7 @@ PRETHINK(guardian_fire_update) (edict_t* laser) -> void
 void guardian_laser_fire(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1.f, ATTN_NORM, 0.f);
-	monster_fire_dabeam(self, 25, self->s.frame & 1, guardian_fire_update);
+	monster_fire_dabeam(self, self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 25 : 5, self->s.frame & 1, guardian_fire_update);
 }
 
 mframe_t guardian_frames_atk2_fire[] = {
@@ -402,11 +407,11 @@ MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	float r = range_to(self, self->enemy);
+	const float r = range_to(self, self->enemy);
 
-	if (r > RANGE_NEAR)
+	if (r > RANGE_NEAR && !strcmp(self->classname, "monster_guardian"))
 		M_SetAnimation(self, &guardian_move_atk2_in);
-	else if (self->monsterinfo.melee_debounce_time < level.time && r < 120.f)
+	else if (self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_guardian") || self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_janitor2") && r <= RANGE_MELEE)
 		M_SetAnimation(self, &guardian_move_kick);
 	else
 		M_SetAnimation(self, &guardian_move_atk1_in);
@@ -547,7 +552,7 @@ void SP_monster_guardian(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 550;
+		self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 550 : 225;
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
@@ -576,7 +581,7 @@ void SP_monster_janitor2(edict_t* self)
 	self->s.skinnum = 2;
 	if (!self->s.scale)
 		self->s.scale = 0.4f;
-	self->health = 700 * st.health_multiplier;
+	self->health = 400 * st.health_multiplier;
 
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
