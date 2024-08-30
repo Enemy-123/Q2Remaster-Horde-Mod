@@ -363,11 +363,11 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 // **********************
 
 
-constexpr int32_t TURRET2_BLASTER_DAMAGE = 4;
-constexpr int32_t TURRET2_BULLET_DAMAGE = 4;
+constexpr int32_t TURRET2_BLASTER_DAMAGE = 3;
+constexpr int32_t TURRET2_BULLET_DAMAGE = 2;
 // unused
 // constexpr int32_t turret2_HEAT_DAMAGE	= 4;
-constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.0_sec; // 2.3 segundos
+constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.2_sec; // 2.3 segundos
 void turret2Fire(edict_t* self)
 {
 	vec3_t forward;
@@ -470,10 +470,10 @@ void turret2Fire(edict_t* self)
 						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
 
 						// Usar la dirección predicha para fire_bullet
-						fire_bullet(self, start, predictedDir, TURRET2_BULLET_DAMAGE, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_TURRET);
+					//	fire_bullet(self, start, predictedDir, TURRET2_BULLET_DAMAGE, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_TURRET);
 
 						// Efecto visual del disparo
-						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD / 2, DEFAULT_BULLET_VSPREAD / 1.4, MZ2_TURRET_MACHINEGUN);
+						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
 
 						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 						damageApplied = true;

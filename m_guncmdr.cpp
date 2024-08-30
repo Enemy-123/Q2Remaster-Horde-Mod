@@ -857,8 +857,8 @@ mframe_t guncmdr_frames_endfire_chain[] = {
 };
 MMOVE_T(guncmdr_move_endfire_chain) = { FRAME_c_attack118, FRAME_c_attack124, guncmdr_frames_endfire_chain, guncmdr_run };
 
-constexpr float MORTAR_SPEED = 1850.f;
-constexpr float GRENADE_SPEED = 1600.f;
+constexpr float MORTAR_SPEED = 1650.f;
+constexpr float GRENADE_SPEED = 1400.f;
 
 void GunnerCmdrGrenade(edict_t* self)
 {
@@ -1054,10 +1054,10 @@ void GunnerCmdrGrenade(edict_t* self)
 
 		// try search for best pitch
 		if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)))
-			monster_fire_grenade(self, start, aim, 50, speed, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+			monster_fire_grenade(self, start, aim, !strcmp(self->classname, "monster_guncmdrkl") ? 50 : 35, speed, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
 		else
 			// normal shot
-			monster_fire_grenade(self, start, aim, 50, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+			monster_fire_grenade(self, start, aim, !strcmp(self->classname, "monster_guncmdrkl") ? 50 : 35, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 	}
 }
 
@@ -1483,7 +1483,7 @@ void SP_monster_guncmdr(edict_t* self)
 {
 
 	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
