@@ -3372,6 +3372,8 @@ struct edict_t
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	float original_dmg; // original dmg on bouncy gl, so it will reduce over bounces
 	int configstringIndex; // cs
+	gtime_t expire_time;
+	gtime_t spawn_time;
 	//	gtime_t	regentime = 0.25_sec;
 };
 
