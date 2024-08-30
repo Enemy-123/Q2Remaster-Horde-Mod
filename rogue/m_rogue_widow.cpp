@@ -16,10 +16,6 @@ black widow
 #include "../m_flash.h"
 #include "../shared.h"
 
-constexpr gtime_t RAIL_TIME = 1.5_sec;
-constexpr gtime_t BLASTER_TIME = 1_sec;
-constexpr int	BLASTER2_DAMAGE = 20;
-constexpr int	WIDOW_RAIL_DAMAGE = 90;
 
 bool infront(edict_t* self, edict_t* other);
 
@@ -65,6 +61,11 @@ void widow_start_run_10(edict_t* self);
 void widow_start_run_12(edict_t* self);
 
 void WidowCalcSlots(edict_t* self);
+
+constexpr gtime_t RAIL_TIME = 1.5_sec;
+constexpr gtime_t BLASTER_TIME = 1_sec;
+constexpr int	BLASTER2_DAMAGE = 20;
+constexpr int	WIDOW_RAIL_DAMAGE = 90;
 
 MONSTERINFO_SEARCH(widow_search) (edict_t* self) -> void
 {
@@ -202,7 +203,7 @@ void WidowBlaster(edict_t* self)
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW_BLASTER_SWEEP1];
 
 		AngleVectors(vec, forward, nullptr, nullptr);
-		monster_fire_blaster2(self, start, forward, BLASTER2_DAMAGE * widow_damage_multiplier, 1000, flashnum, effect);
+		monster_fire_blaster2(self, start, forward, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
 	}
 	else if ((self->s.frame >= FRAME_fired02a) && (self->s.frame <= FRAME_fired20))
 	{
@@ -251,7 +252,7 @@ void WidowBlaster(edict_t* self)
 			AngleVectors(angles, forward, nullptr, nullptr);
 		}
 
-		monster_fire_blaster2(self, start, forward, BLASTER2_DAMAGE * widow_damage_multiplier, 1000, flashnum, effect);
+		monster_fire_blaster2(self, start, forward, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
 	}
 	else if ((self->s.frame >= FRAME_run01) && (self->s.frame <= FRAME_run08))
 	{
@@ -262,7 +263,7 @@ void WidowBlaster(edict_t* self)
 		target[2] += self->enemy->viewheight;
 		target.normalize();
 
-		monster_fire_blaster2(self, start, target, BLASTER2_DAMAGE * widow_damage_multiplier, 1000, flashnum, effect);
+		monster_fire_blaster2(self, start, target, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
 	}
 }
 void WidowSpawn(edict_t* self)
@@ -541,7 +542,7 @@ void WidowRail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, WIDOW_RAIL_DAMAGE * widow_damage_multiplier, 100, flash);
+	monster_fire_railgun(self, start, dir, !strcmp(self->classname, "monster_widow1") ? 60 : 90 * widow_damage_multiplier, 100, flash);
 	self->timestamp = level.time + RAIL_TIME;
 }
 
