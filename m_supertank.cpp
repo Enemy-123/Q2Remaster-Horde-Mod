@@ -487,7 +487,7 @@ void supertankRocket(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	if (self->spawnflags.has(SPAWNFLAG_SUPERTANK_POWERSHIELD))
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	{
 		vec = self->enemy->s.origin;
 		vec[2] += self->enemy->viewheight;
@@ -535,9 +535,9 @@ MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 	// Attack 1 == Chaingun
 	// Attack 2 == Rocket Launcher
 	// Attack 3 == Grenade Launcher
-	bool chaingun_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_MACHINEGUN_1]);
-	bool rocket_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_ROCKET_1]);
-	bool grenade_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_GRENADE_1]);
+	const bool chaingun_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_MACHINEGUN_1]);
+	const bool rocket_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_ROCKET_1]);
+	const bool grenade_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_GRENADE_1]);
 
 	// fire rockets more often at distance
 	if (chaingun_good && (!rocket_good || range <= 540 || frandom() < 0.3f))
@@ -660,7 +660,7 @@ void SP_monster_supertank(edict_t* self)
 
 	if (g_horde->integer && current_wave_level <= 18) {
 
-		if (strcmp(self->classname, "monster_janitor")) {
+		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 			{
 				const float randomsearch = frandom(); // Generate search sounds
 
@@ -672,7 +672,8 @@ void SP_monster_supertank(edict_t* self)
 			}
 			self->health = 3300 * st.health_multiplier;
 		}
-		if (!strcmp(self->classname, "monster_janitor")) {
+		else
+		{
 			{
 				const float randomsearch = frandom(); // Generate Search sounds
 
@@ -748,7 +749,7 @@ void SP_monster_supertank(edict_t* self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 3800;
+			self->monsterinfo.power_armor_power = 3300;
 	}
 	// RAFAEL
 
@@ -830,7 +831,7 @@ void SP_monster_supertankkl(edict_t* self)
 			self->monsterinfo.power_armor_power = 1800;
 
 		self->mass = 1200;
-		self->s.renderfx = RF_TRANSLUCENT;
+		self->s.alpha = 0.3f;
 		self->s.effects = EF_FLAG1 | EF_QUAD;
 	}
 	ApplyMonsterBonusFlags(self);
