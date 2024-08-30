@@ -771,7 +771,8 @@ enum movetype_t {
 	MOVETYPE_WALLBOUNCE,
 	// RAFAEL
 	// ROGUE
-	MOVETYPE_NEWTOSS // PGM - for deathball
+	MOVETYPE_NEWTOSS, // PGM - for deathball
+	MOVETYPE_SLIDE // bfg
 					 // ROGUE
 };
 
