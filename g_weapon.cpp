@@ -1174,7 +1174,6 @@ const	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE);
 	laser->owner = self;
 	gi.linkentity(laser);
 }
-
 /*
 =================
 fire_bfg
@@ -1214,7 +1213,7 @@ THINK(bfg_explode) (edict_t* self) -> void
 
 			v = ent->mins + ent->maxs;
 			v = ent->s.origin + (v * 0.5f);
-			const vec3_t centroid = v;
+			vec3_t centroid = v;
 			v = self->s.origin - centroid;
 			dist = v.length();
 			points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
@@ -1317,83 +1316,76 @@ struct bfg_laser_pierce_t : pierce_args_t
 	}
 };
 
-
 THINK(bfg_think) (edict_t* self) -> void
 {
 	edict_t* ent;
-	vec3_t   point;
-	vec3_t   dir;
-	vec3_t   start;
-	vec3_t   end;
-	int      dmg;
-	trace_t  tr;
-	constexpr float pull_strength = 600.0f; // Adjust this value to control the strength of the push
-	if (G_IsDeathmatch())
-		dmg = 10;
+	vec3_t	 point;
+	vec3_t	 dir;
+	vec3_t	 start;
+	vec3_t	 end;
+	int		 dmg;
+	trace_t	 tr;
+
+	if (deathmatch->integer)
+		dmg = 5;
 	else
 		dmg = 10;
+
 	bfg_spawn_laser(self);
+
 	ent = nullptr;
-
-	// Define bfgrange for lasers range
-	const int bfgrange =
-		self->owner->svflags & SVF_MONSTER ? 256 :
-		g_bfgpull->integer && self->owner->client ? 1536 : 800;
-
-
-	while ((ent = findradius(ent, self->s.origin, bfgrange)) != nullptr)
+	while ((ent = findradius(ent, self->s.origin, 256)) != nullptr)
 	{
-		if (ent == self || ent == self->owner || !ent->takedamage)
+		if (ent == self)
 			continue;
+
+		if (ent == self->owner)
+			continue;
+
+		if (!ent->takedamage)
+			continue;
+
 		// ROGUE - make tesla hurt by bfg
 		if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
 			continue;
-		// ZOID - don't target players in CTF
+		// ZOID
+		// don't target players in CTF
 		if (CheckTeamDamage(ent, self->owner))
 			continue;
+		// ZOID
+
 		point = (ent->absmin + ent->absmax) * 0.5f;
-		dir = self->s.origin - point;
-		float const distance = dir.length();
+
+		dir = point - self->s.origin;
 		dir.normalize();
+
 		start = self->s.origin;
-		end = start + (dir * -2048.0f); // Reverse direction to go towards the monster
+		end = start + (dir * 2048);
+
 		// [Paril-KEX] don't fire a laser if we're blocked by the world
 		tr = gi.traceline(start, point, nullptr, MASK_SOLID);
+
 		if (tr.fraction < 1.0f)
 			continue;
+
 		bfg_laser_pierce_t args{
-			 self,
-			 dir,
-			 dmg
+			self,
+			dir,
+			dmg
 		};
 
-		// Verifica si el láser golpea la entidad
-		trace_t const laser_tr = gi.traceline(start, end, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
-		if (laser_tr.ent == ent)
-		{
-			// Aplica la fuerza de empuje solo si g_bfgpull->integer es verdadero
-			if (g_bfgpull->integer && self->owner->client)
-			{
-				if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
-				{
-					ent->velocity = dir * pull_strength;
-				}
-			}
-
-			// Daña a la entidad
-			T_Damage(ent, self, self->owner, dir, laser_tr.endpos, vec3_origin, dmg, 0, DAMAGE_ENERGY, MOD_BFG_LASER);
-		}
-
 		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
+
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BFG_LASER);
 		gi.WritePosition(self->s.origin);
-		gi.WritePosition(laser_tr.endpos);
+		gi.WritePosition(tr.endpos);
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 	}
 
 	self->nextthink = level.time + 10_hz;
 }
+
 void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius)
 {
 	edict_t* bfg;
@@ -1427,7 +1419,6 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 
 	gi.linkentity(bfg);
 }
-
 TOUCH(disintegrator_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	gi.WriteByte(svc_temp_entity);
