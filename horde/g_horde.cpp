@@ -435,8 +435,8 @@ constexpr struct weighted_item_t {
 
 // Definici�n de monstruos ponderados
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, 19, 0.25f },
-	{ "monster_soldier_ss", -1, 20, 0.25f },
+	{ "monster_soldier_light", -1, -1, 0.27f },
+	{ "monster_soldier_ss", -1, 22, 0.25f },
 	{ "monster_soldier", -1, 8, 0.2f },
 	{ "monster_soldier_hypergun", -1, -1, 0.2f },
 	{ "monster_soldier_lasergun", 5, -1, 0.35f },
