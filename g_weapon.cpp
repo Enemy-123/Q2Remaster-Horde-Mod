@@ -452,7 +452,7 @@ void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 	bolt->nextthink = level.time + 1.5_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
-	bolt->bounce_count = 5; // 5 bounces
+	bolt->bounce_count = self->svflags & SVF_MONSTER ? 2 : 5; // 5 bounces
 	gi.linkentity(bolt);
 
 	if (self->svflags & SVF_MONSTER) {
