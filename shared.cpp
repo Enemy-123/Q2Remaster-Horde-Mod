@@ -470,8 +470,8 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	gi.Com_PrintFmt("Starting PushEntitiesAway at position: {}\n", center);
 
 	for (int wave = 0; wave < num_waves; wave++) {
-		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.001f);
-		const float end_size = size * 0.1f;
+		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.030f);
+		const float end_size = size * 0.3f;
 
 		// Use ImprovedSpawnGrow and add fireballs for the first wave
 		if (wave == 0) {
@@ -482,7 +482,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			for (int i = 0; i < 5; i++) {
 				vec3_t offset;
 				for (int j = 0; j < 3; j++) {
-					offset[j] = center[j] + crandom() * 75;  // Random offset within 75 units
+					offset[j] = center[j] + crandom() * 125;  // Random offset within 75 units
 				}
 				SpawnGrow_Spawn(offset, size * 0.5f, end_size * 0.5f);
 
@@ -515,6 +515,8 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 
 		// Find and push entities
 		edict_t* ent = nullptr;
+		edict_t* ent2 = nullptr;
+
 		while ((ent = findradius(ent, center, size)) != nullptr) {
 			if (!ent || !ent->inuse || !ent->takedamage || !ent->s.origin)
 				continue;
@@ -533,11 +535,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			}
 
 			if (should_remove) {
-				gi.Com_PrintFmt("Removing special entity {} at position: {}\n",
-					ent->classname ? ent->classname : "unknown", ent->s.origin);
-				RemoveEntity(ent);
-				gi.Com_PrintFmt("Special entity removed\n");
-				continue;  // Move to the next entity
+				T_Damage(ent, ent2, ent2, vec3_origin, ent->s.origin, vec3_origin, 9999, 100, DAMAGE_NONE, MOD_UNKNOWN);
 			}
 
 			vec3_t push_dir{};
@@ -561,11 +559,11 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			wave_push_strength = std::min(wave_push_strength, 1000.0f);  // Limit maximum push strength
 
 			// Calculate new position
-			vec3_t new_pos{};
+			const vec3_t new_pos{};
 			VectorMA(ent->s.origin, wave_push_strength / 700, push_dir, new_pos);
 
 			// Trace to ensure we're not pushing through walls
-			trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
+		const trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
 
 			if (!tr.allsolid && !tr.startsolid) {
 				// Code to push entities
