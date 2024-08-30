@@ -243,8 +243,8 @@ void guardian_fire_blaster(edict_t* self)
 
 	if (!strcmp(self->classname, "monster_guardian"))
 	monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
-	if (strcmp(self->classname, "monster_guardian"))
-		monster_fire_blueblaster(self, start, forward, 8, 1000, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+	if (!strcmp(self->classname, "monster_janitor2"))
+		monster_fire_blueblaster(self, start, forward, 3, 850, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
 
 	if (self->enemy && self->enemy->health > 0 &&
 		self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
@@ -372,7 +372,7 @@ void guardian_kick(edict_t* self)
 {
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, 85, 700))
+		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, !strcmp(self->classname, "monster_guardian") ? 85 : 30, 700))
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 	}
 	else {
