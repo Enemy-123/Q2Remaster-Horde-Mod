@@ -209,7 +209,7 @@ void arachnid_rail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 40, 100, id);
+	monster_fire_railgun(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 40 : 25, 100, id);
 }
 
 mframe_t arachnid_frames_attack1[] = {

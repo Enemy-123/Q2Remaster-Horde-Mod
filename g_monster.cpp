@@ -747,7 +747,7 @@ void M_ProcessPain(edict_t* e)
 			{
 				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
 					!strcmp(e->monsterinfo.commander->classname, "monster_tank_vanilla"))
-					e->monsterinfo.commander->monsterinfo.monster_slots++;
+					e->monsterinfo.commander->monsterinfo.monster_used -= e->monsterinfo.monster_slots;
 				e->monsterinfo.commander = nullptr;
 			}
 			// ROGUE

@@ -809,16 +809,89 @@ void tank_vanilla_doattack_rocket(edict_t* self)
 	M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
 }
 
+constexpr int32_t default_monster_slots_base = 3;
+// Define a higher slot limit for this monster type
+constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
+void Monster_MoveSpawn(edict_t* self)
+{
+
+	if (!self || self->health <= 0 || self->deadflag)
+		return;
+	// Initialize monster slots if not set
+	if (!st.was_key_specified("monster_slots"))
+		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
+	// Check if we have slots left to spawn monsters
+	if (!M_SlotsLeft(self))
+		return;
+	constexpr int NUM_MONSTERS_MIN = 4;
+	constexpr int NUM_MONSTERS_MAX = 5;
+	constexpr float SPAWN_RADIUS_MIN = 100.0f;
+	constexpr float SPAWN_RADIUS_MAX = 150.0f;
+	constexpr int MAX_SPAWN_ATTEMPTS = 10;
+	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
+	const int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+	const int num_monsters = std::min(NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots);
+	for (int i = 0; i < num_monsters; i++)
+	{
+		vec3_t spawn_origin;
+		const vec3_t mins = { -16, -16, -24 };
+		const vec3_t maxs = { 16, 16, 32 };
+		bool found_spot = false;
+		float spawn_angle = 0;
+		for (int attempts = 0; attempts < MAX_SPAWN_ATTEMPTS; attempts++)
+		{
+			VectorCopy(self->s.origin, spawn_origin);
+			spawn_angle = frandom() * 2 * PI;
+			float radius = SPAWN_RADIUS_MIN + frandom() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
+			spawn_origin[0] += cos(spawn_angle) * radius;
+			spawn_origin[1] += sin(spawn_angle) * radius;
+			spawn_origin[2] += SPAWN_HEIGHT_OFFSET;
+
+			// Perform traceline check
+			const trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
+			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, mins, maxs))
+			{
+				found_spot = true;
+				break;
+			}
+		}
+		if (!found_spot)
+			continue;
+		vec3_t spawn_angles = self->s.angles;
+		spawn_angles[YAW] = spawn_angle * (180 / PI);
+		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, "monster_soldier_ss", 64);
+		if (!monster)
+			continue;
+		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_TANK;
+		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
+		monster->monsterinfo.commander = self;
+
+		self->monsterinfo.monster_used += 1;
+		const vec3_t spawngrow_pos = monster->s.origin;
+		const float magnitude = VectorLength(spawngrow_pos);
+		if (magnitude > 0) {
+			const float start_size = magnitude * 0.055f;
+			const float end_size = magnitude * 0.005f;
+			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+		}
+		monster->owner = self;
+	}
+}
+
 mframe_t tank_frames_spawn[] =
 {
+	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, tank_vanillaStrike},  // FRAME_attak225 - Añadir footstep aquí
 	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquí
 	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr}, // FRAME_attak229
+	{ai_charge, -2, nullptr},  // FRAME_attak229
 	{ai_charge, -2, nullptr}   // FRAME_attak229
 };
-MMOVE_T(tank_move_spawn) = { FRAME_attak224, FRAME_attak229, tank_frames_spawn, tank_vanilla_run };
+MMOVE_T(tank_move_spawn) = { FRAME_attak223, FRAME_attak231, tank_frames_spawn, tank_vanilla_run };
 
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 {
@@ -832,7 +905,7 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	if (self->monsterinfo.monster_used <= 3 && visible(self, self->enemy) && infront(self, self->enemy) ||
+	if (!M_SlotsLeft(self) && visible(self, self->enemy) && infront(self, self->enemy) ||
 		range_to(self, self->enemy) <= RANGE_MELEE * 2 && visible(self, self->enemy) && infront(self, self->enemy))
 	{
 		M_SetAnimation(self, &tank_move_spawn);

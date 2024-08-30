@@ -54,7 +54,8 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_widow1 4;monster_jorg 4;monster_carrier_mini 4;";
+constexpr const char* hard_reinforcements = "monster_widow1 4;monster_jorg 4;monster_carrier_mini 4;";
+constexpr const char* default_reinforcements = "monster_widow1 4;monster_janitor2 4;monster_chick 4;";
 constexpr int32_t default_monster_slots_base = 3;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
@@ -1365,7 +1366,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 	monster_done_dodge(self);
 
 	const float enemy_range = range_to(self, self->enemy);
-
+	
 	//// signal from checkattack to spawn
 	//if (self->monsterinfo.aiflags & AI_BLOCKED && visible(self, self->enemy))
 	//{
@@ -1427,20 +1428,21 @@ MONSTERINFO_CHECKATTACK(medic_checkattack) (edict_t* self) -> bool
 		}
 	}
 
-	if (self->enemy->client && !visible(self, self->enemy) && M_SlotsLeft(self))
-	{
-		self->monsterinfo.attack_state = AS_BLIND;
-		return true;
-	}
+	//if (self->enemy->client && !visible(self, self->enemy) && M_SlotsLeft(self))
+	//{
+	//	self->monsterinfo.attack_state = AS_BLIND;
+	//	return true;
+	//}
 
 	// give a LARGE bias to spawning things when we have room
 	// use AI_BLOCKED as a signal to attack to spawn
-	if (self->monsterinfo.monster_slots && (frandom() < 0.8f) && (M_SlotsLeft(self) > self->monsterinfo.monster_slots * 0.8f) && (realrange(self, self->enemy) > 150))
-	{
-		self->monsterinfo.aiflags |= AI_BLOCKED;
-		self->monsterinfo.attack_state = AS_MISSILE;
-		return true;
-	}
+	
+	//if (self->monsterinfo.monster_slots && (frandom() < 0.8f) && (M_SlotsLeft(self) > self->monsterinfo.monster_slots * 0.8f) && (realrange(self, self->enemy) > 150))
+	//{
+	//	self->monsterinfo.aiflags |= AI_BLOCKED;
+	//	self->monsterinfo.attack_state = AS_MISSILE;
+	//	return true;
+	//}
 
 	// ROGUE
 	// since his idle animation looks kinda bad in combat, always attack
@@ -1505,7 +1507,7 @@ void medic_jump_now(edict_t* self)
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
 	self->velocity += (forward * 100);
-	self->velocity += (up * 300);
+	self->velocity += (up * 200);
 }
 
 void medic_jump2_now(edict_t* self)
@@ -1514,7 +1516,7 @@ void medic_jump2_now(edict_t* self)
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
 	self->velocity += (forward * 150);
-	self->velocity += (up * 400);
+	self->velocity += (up * 200);
 }
 
 void medic_jump_wait_land(edict_t* self)
@@ -1542,12 +1544,12 @@ mframe_t medic_frames_jump[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
 };
-MMOVE_T(medic_move_jump) = { FRAME_duck2, FRAME_duck16, medic_frames_jump, medic_run };
+MMOVE_T(medic_move_jump) = { FRAME_duck2, FRAME_duck12, medic_frames_jump, medic_run };
 
 mframe_t medic_frames_jump2[] = {
 	{ ai_move },
@@ -1561,12 +1563,12 @@ mframe_t medic_frames_jump2[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
+	//{ ai_move },
 };
-MMOVE_T(medic_move_jump2) = { FRAME_duck2, FRAME_duck16, medic_frames_jump2, medic_run };
+MMOVE_T(medic_move_jump2) = { FRAME_duck2, FRAME_duck12, medic_frames_jump2, medic_run };
 //===========
 // PGM
 void medic_jump(edict_t* self, blocked_jump_result_t result)
@@ -1633,7 +1635,7 @@ void SP_monster_medic(edict_t* self)
 	// PMM
 	if (strcmp(self->classname, "monster_medic_commander") == 0)
 	{
-		self->health = 270 * st.health_multiplier;
+		self->health = 290 * st.health_multiplier;
 		self->gib_health = -130;
 		self->mass = 600;
 		self->yaw_speed = 40; // default is 20
@@ -1708,11 +1710,14 @@ void SP_monster_medic(edict_t* self)
 		gi.soundindex("tank/tnkatck3.wav");
 
 		const char* reinforcements = default_reinforcements;
+		const char* hardReinforcements = hard_reinforcements;
 
 		if (!st.was_key_specified("monster_slots"))
 			self->monsterinfo.monster_slots = default_monster_slots_base;
 		if (st.was_key_specified("reinforcements"))
-			reinforcements = st.reinforcements;
+			frandom() > 0.2 ?
+			reinforcements = st.reinforcements :
+			hardReinforcements = st.reinforcements;
 
 		if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
 		{

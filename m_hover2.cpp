@@ -378,8 +378,8 @@ void hover_vanilla_reattack(edict_t* self)
 			}
 	M_SetAnimation(self, &hover_vanilla_move_end_attack);
 }
-constexpr float MORTAR_SPEED = 1850.f;
-constexpr float GRENADE_SPEED = 1600.f;
+constexpr float MORTAR_SPEED = 1050.f;
+constexpr float GRENADE_SPEED = 760.f;
 
 
 void hover_vanilla_fire_blaster(edict_t* self)
@@ -391,15 +391,15 @@ void hover_vanilla_fire_blaster(edict_t* self)
 		vec3_t end;
 		vec3_t dir{};
 		vec3_t aim{};
-		float spread = 0.0f;
-		float pitch = -3.0f;
+		const float spread = 0.4f;
+		const float pitch = -3.0f;
 		monster_muzzleflash_id_t flash_number;
 
 		if (!self->enemy || !self->enemy->inuse)
 			return;
 
 		AngleVectors(self->s.angles, forward, right, up); // Asegúrate de declarar up aquí
-		vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
+		const vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
 		start = M_ProjectFlashSource(self, o, forward, right);
 
 		VectorCopy(self->enemy->s.origin, end);
@@ -421,7 +421,7 @@ void hover_vanilla_fire_blaster(edict_t* self)
 			VectorMA(aim, pitch, up, aim);
 			VectorNormalize(aim);
 
-			monster_fire_grenade(self, start, aim, 45, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 7.0f);
+			monster_fire_grenade(self, start, aim, 30, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 7.0f);
 		}
 	}
 
@@ -436,7 +436,7 @@ void hover_vanilla_fire_blaster(edict_t* self)
 			return;								 // PGM
 
 		AngleVectors(self->s.angles, forward, right, nullptr);
-		vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
+		const vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
 		start = M_ProjectFlashSource(self, o, forward, right);
 
 		end = self->enemy->s.origin;

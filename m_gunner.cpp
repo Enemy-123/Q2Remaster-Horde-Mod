@@ -397,8 +397,8 @@ void GunnerFire(edict_t* self)
 		monster_fire_bullet(self, start, aim, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
 	if (current_wave_level >= 13 || g_hardcoop->integer <= 3) {
-		PredictAim(self, self->enemy, start, 900, true, 0.1f, &aim, nullptr);
-		monster_fire_ionripper(self, start, aim, 6, 900, flash_number, EF_IONRIPPER);
+		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+		monster_fire_ionripper(self, start, aim, 4, 800, flash_number, EF_IONRIPPER);
 	}
 }
 
@@ -523,11 +523,11 @@ void GunnerGrenade(edict_t* self)
 	aim += (up * pitch);
 
 	// try search for best pitch
-	if (M_CalculatePitchToFire(self, target, start, aim, 760, 2.5f, false))
-		monster_fire_grenade(self, start, aim, 70, 720, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+	if (M_CalculatePitchToFire(self, target, start, aim, 690, 2.5f, false))
+		monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
 	else
 		// normal shot
-		monster_fire_grenade(self, start, aim, 70, 720, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+		monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 mframe_t gunner_frames_attack_chain[] = {
