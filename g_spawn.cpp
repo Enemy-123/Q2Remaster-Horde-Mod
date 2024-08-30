@@ -564,7 +564,7 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 				{
 					// Si es un jefe, llamamos a ApplyBossEffects
 					const auto mapSize = GetMapSize(level.mapname);
-					ApplyBossEffects(ent, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap);
+					ApplyBossEffects(ent);
 					break;
 				}
 				else

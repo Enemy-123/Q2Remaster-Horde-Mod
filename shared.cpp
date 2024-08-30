@@ -318,10 +318,13 @@ static void CalculateBossMinimums(int wave_number, int& health_min, int& power_a
 		power_armor_min = 1500;
 	}
 }
-void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isBigMap)
+void ApplyBossEffects(edict_t* boss)
 {
+
 	if (!boss->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		return;
+
+	const auto mapSize = GetMapSize(level.mapname);
 
 	const int32_t random_flag = 1 << (rand() % 6);
 	boss->monsterinfo.bonus_flags = random_flag;
@@ -331,9 +334,11 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 
 	// Aplicar efectos de bonus flags
 	if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
-		boss->s.scale *= 1.3f;
-		boss->mins *= 1.3f;
-		boss->maxs *= 1.3f;
+		if (!(mapSize.isSmallMap)) {
+			boss->s.scale *= 1.3f;
+			boss->mins *= 1.3f;
+			boss->maxs *= 1.3f;
+		}
 		boss->s.effects |= EF_ROCKET | EF_FIREBALL;
 		boss->s.renderfx |= RF_SHELL_RED;
 		health_multiplier *= 1.5f;
@@ -341,9 +346,11 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 175_sec;
 	}
 	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		boss->s.scale *= 1.5f;
-		boss->mins *= 1.5f;
-		boss->maxs *= 1.5f;
+		if (!(mapSize.isSmallMap)) {
+			boss->s.scale *= 1.5f;
+			boss->mins *= 1.5f;
+			boss->maxs *= 1.5f;
+		}
 		boss->s.effects |= EF_PLASMA | EF_TAGTRAIL;
 		health_multiplier *= 1.4f;
 		power_armor_multiplier *= 1.4f;
@@ -369,9 +376,12 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
-		boss->s.scale *= 1.2f;
-		boss->mins *= 1.2f;
-		boss->maxs *= 1.2f;
+
+		if (!(mapSize.isSmallMap)) {
+			boss->s.scale *= 1.2f;
+			boss->mins *= 1.2f;
+			boss->maxs *= 1.2f;
+		}
 		boss->s.effects |= EF_TRACKER | EF_FLAG1;
 		health_multiplier *= 1.5f;
 		power_armor_multiplier *= 1.1f;
@@ -396,13 +406,13 @@ void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isB
 	}
 
 	// Aplicar ajustes de tamaño de mapa
-	if (isSmallMap)
+	if (mapSize.isSmallMap)
 	{
 		boss->health = static_cast<int>(boss->health * 0.8f);
 		if (boss->monsterinfo.power_armor_power > 0)
 			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * 0.9f);
 	}
-	else if (isBigMap)
+	else if (mapSize.isBigMap)
 	{
 		boss->health = static_cast<int>(boss->health * 1.2f);
 		if (boss->monsterinfo.power_armor_power > 0)

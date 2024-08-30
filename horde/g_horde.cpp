@@ -7,9 +7,9 @@ int GetNumActivePlayers();
 int GetNumSpectPlayers();
 int GetNumHumanPlayers();
 
-constexpr int32_t MAX_MONSTERS_BIG_MAP = 32;
-constexpr int32_t MAX_MONSTERS_MEDIUM_MAP = 18;
-constexpr int32_t MAX_MONSTERS_SMALL_MAP = 16;
+constexpr int32_t MAX_MONSTERS_BIG_MAP = 27;
+constexpr int32_t MAX_MONSTERS_MEDIUM_MAP = 16;
+constexpr int32_t MAX_MONSTERS_SMALL_MAP = 14;
 
 bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
@@ -55,7 +55,7 @@ const std::unordered_set<std::string> smallMaps = {
 	"q64/dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
 	"q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","mgu3m4",
 	"mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0", "q64/dm6",
-	"q64/dm8", "q64/dm4", "industry"
+	"q64/dm8", "q64/dm4", "q64/dm3", "industry"
 };
 
 const std::unordered_set<std::string> bigMaps = {
@@ -290,14 +290,14 @@ void AdjustMonsterSpawnRate() {
 		g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
 
 		const bool isChaoticOrInsane = g_chaotic->integer || g_insane->integer;
-		const gtime_t spawnTimeReduction = isChaoticOrInsane ? 0.5_sec : 0.3_sec;
-		const gtime_t cooldownReduction = isChaoticOrInsane ? 0.7_sec : 0.4_sec;
+		const gtime_t spawnTimeReduction = isChaoticOrInsane ? 0.3_sec : 0.1_sec;
+		const gtime_t cooldownReduction = isChaoticOrInsane ? 0.3_sec : 0.1_sec;
 
 		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
-		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 0.9_sec);
+		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 1.3_sec);
 
 		SPAWN_POINT_COOLDOWN -= cooldownReduction * difficultyMultiplier;
-		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 2.0_sec);
+		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 2.2_sec);
 	}
 
 	const auto mapSize = GetMapSize(level.mapname);
@@ -547,7 +547,7 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 	}
 
 	if (mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1") {
-		if (mapname == "q64/dm3" || mapname == "mgu6m3" || mapname == "rboss") {
+		if (mapname == "mgu6m3" || mapname == "rboss") {
 			static std::vector<boss_t> filteredBossList;
 			if (filteredBossList.empty()) {
 				for (const auto& boss : BOSS_MEDIUM) {
@@ -1286,11 +1286,11 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 
 	const float health_multiplier = 1.0f;
 	const float power_armor_multiplier = 1.0f;
+
+	//get map size
 	const auto mapSize = GetMapSize(level.mapname);
-
-
 	// Apply bonus flags and effects
-	ApplyBossEffects(self, mapSize.isSmallMap, mapSize.isMediumMap, mapSize.isBigMap);
+	ApplyBossEffects(self);
 
 	self->monsterinfo.attack_state = AS_BLIND;
 
@@ -1756,7 +1756,7 @@ static edict_t* SpawnMonsters() {
 	// Pre-seleccionar puntos de spawn disponibles
 	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts; edictIndex++) {
 		edict_t* e = g_edicts + edictIndex;
-		if (!e->inuse || !e->classname || strcmp(e->classname, "info_player_deathmatch") != 0)
+		if (!e->inuse || !e->classname || strcmp(e->classname, "info_player_deathmatch") != 0 || e->spawnflags.has(SPAWNFLAG_IS_BOSS))
 			continue;
 		available_spawns.push_back(e);
 	}
