@@ -528,23 +528,31 @@ mframe_t redmutant_frames_death1[] = {
 	{ ai_move_slide_right, 7, redmutant_shrink },
 	{ ai_move_slide_right, 6 },
 	{ ai_move_slide_right, 2 },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
 	{ ai_move_slide_right }
 };
-MMOVE_T(redmutant_move_death1) = { FRAME_death101, FRAME_death109, redmutant_frames_death1, monster_dead };
+MMOVE_T(redmutant_move_death1) = { FRAME_death101, FRAME_death120, redmutant_frames_death1, monster_dead };
 
 mframe_t redmutant_frames_death2[] = {
 	{ ai_move_slide_left },
-	{ ai_move_slide_left },
-	{ ai_move_slide_left },
 	{ ai_move_slide_left, 1 },
-	{ ai_move_slide_left, 3, redmutant_shrink },
 	{ ai_move_slide_left, 6 },
 	{ ai_move_slide_left, 8 },
-	{ ai_move_slide_left, 5 },
+	{ ai_move_slide_left, 3, redmutant_shrink },
 	{ ai_move_slide_left, 2 },
 	{ ai_move_slide_left }
 };
-MMOVE_T(redmutant_move_death2) = { FRAME_death101, FRAME_death110, redmutant_frames_death2, monster_dead };
+MMOVE_T(redmutant_move_death2) = { FRAME_death201, FRAME_death207, redmutant_frames_death2, monster_dead };
 
 DIE(redmutant_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
