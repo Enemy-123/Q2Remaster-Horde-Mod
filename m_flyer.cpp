@@ -277,20 +277,115 @@ void flyer_kamikaze_check(edict_t* self)
 		flyer_kamikaze_explode(self);
 }
 
+void flyer_checkstrafe(edict_t* self)
+{	// Implementar strafing mejorado
+	const float range = self->enemy ? range_to(self, self->enemy) : 0;
+	if (self->enemy && visible(self, self->enemy))
+	{
+		if (range <= RANGE_MID)
+		{
+			float strafe_chance = 1.0f;  // 50% de probabilidad base de hacer strafe
+			// Aumentar la probabilidad de strafing si el enemigo está disparando
+			if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+				strafe_chance += 0.2f;
+			// Aumentar la probabilidad de strafing si el flyer tiene poca salud
+			if (self->health < self->max_health * 0.5f)
+				strafe_chance += 0.4f;
 
-#if 0
+			if (frandom() < strafe_chance)
+			{
+				// Decidir aleatoriamente si strafear a la izquierda o derecha
+				self->monsterinfo.lefty = frandom() < 0.5;
+
+				// Aplicar el movimiento de strafe
+				vec3_t right, strafe_vel;
+				AngleVectors(self->s.angles, nullptr, right, nullptr);
+				// Aumentar significativamente la velocidad de strafe
+				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
+				VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
+
+				// Combinar el movimiento de avance con el strafe
+				VectorAdd(self->velocity, strafe_vel, self->velocity);
+
+				// Ajustar la duración del strafe
+				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
+			}
+		}
+	}
+}
+
+
+void flyer_rocket(edict_t* self)
+{
+		vec3_t	forward;
+		vec3_t	start, end, dir;
+		float	dist, chance;
+		trace_t trace;
+		const int rocketSpeed = 650;
+
+		if (!self->enemy || !self->enemy->inuse)
+			return;
+
+		if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
+			end = self->monsterinfo.blind_fire_target;
+		else
+			end = self->enemy->s.origin;
+		dir = end - self->s.origin;
+		dir.normalize();
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		chance = dir.dot(forward);
+		if (chance < 0.98f)
+			return;
+
+		chance = frandom();
+
+		if (visible(self, self->enemy))
+		{
+			start = self->s.origin;
+
+			// aim for the head.
+			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
+			{
+				if ((self->enemy) && (self->enemy->client))
+					end[2] += self->enemy->viewheight;
+				else
+					end[2] += 22;
+			}
+
+			dir = end - start;
+			dist = dir.length();
+
+			// check for predictive fire
+			// Paril: adjusted to be a bit more fair
+			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
+			{
+
+					PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
+			}
+
+			dir.normalize();
+			trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+			if (trace.ent == self->enemy || trace.ent == world)
+			{
+					if (dist * trace.fraction > 72)
+						monster_fire_rocket(self, start, dir, 40, rocketSpeed, MZ2_TURRET_ROCKET);
+				}
+			}
+}
+
+
 mframe_t flyer_frames_rollright[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
+	{ ai_charge, 3,flyer_checkstrafe },
+	{ ai_charge, 3,flyer_checkstrafe },
+	{ ai_charge, 3,flyer_checkstrafe },
+	{ ai_charge, 0, flyer_rocket },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
 };
-MMOVE_T(flyer_move_rollright) = { FRAME_rollr01, FRAME_rollr09, flyer_frames_rollright, nullptr };
+MMOVE_T(flyer_move_rollright) = { FRAME_rollr01, FRAME_rollr09, flyer_frames_rollright, flyer_run };
 
 mframe_t flyer_frames_rollleft[] = {
 	{ ai_move },
@@ -303,8 +398,8 @@ mframe_t flyer_frames_rollleft[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(flyer_move_rollleft) = { FRAME_rollf01, FRAME_rollf09, flyer_frames_rollleft, nullptr };
-#endif
+MMOVE_T(flyer_move_rollleft) = { FRAME_rollf01, FRAME_rollf09, flyer_frames_rollleft, flyer_run };
+
 
 mframe_t flyer_frames_pain3[] = {
 	{ ai_move },
@@ -616,9 +711,10 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	else
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
-		first3waves ? 
-		M_SetAnimation(self, &flyer_move_attack2normal) :
-		M_SetAnimation(self, &flyer_move_attack2);
+		first3waves ?
+			M_SetAnimation(self, &flyer_move_attack2normal) :
+			frandom() > 0.2f ? M_SetAnimation(self, &flyer_move_attack2) :
+			M_SetAnimation(self, &flyer_move_rollright);
 	}
 
 	// [Paril-KEX] for alternate fly mode, sometimes we'll pin us
