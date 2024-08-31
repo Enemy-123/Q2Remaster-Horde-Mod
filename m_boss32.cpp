@@ -42,11 +42,11 @@ void makron_taunt(edict_t *self)
 
 	r = frandom();
 	if (r <= 0.3f)
-		gi.sound(self, CHAN_AUTO, sound_taunt1, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_AUTO, sound_taunt1, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else if (r <= 0.6f)
-		gi.sound(self, CHAN_AUTO, sound_taunt2, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_AUTO, sound_taunt2, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else
-		gi.sound(self, CHAN_AUTO, sound_taunt3, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_AUTO, sound_taunt3, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 }
 
 //
@@ -138,7 +138,7 @@ MMOVE_T(makron_move_run) = { FRAME_walk204, FRAME_walk213, makron_frames_run, nu
 
 void makron_hit(edict_t *self)
 {
-	gi.sound(self, CHAN_AUTO, sound_hit, 1, ATTN_NONE, 0);
+	gi.sound(self, CHAN_AUTO, sound_hit, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 }
 
 void makron_popup(edict_t *self)
@@ -614,9 +614,9 @@ PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 	bool do_pain6 = false;
 
 	if (damage <= 40)
-		gi.sound(self, CHAN_VOICE, sound_pain4, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain4, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else if (damage <= 110)
-		gi.sound(self, CHAN_VOICE, sound_pain5, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain5, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else
 	{
 		if (damage <= 150)
@@ -624,7 +624,7 @@ PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 			if (frandom() <= 0.45f)
 			{
 				do_pain6 = true;
-				gi.sound(self, CHAN_VOICE, sound_pain6, 1, ATTN_NONE, 0);
+				gi.sound(self, CHAN_VOICE, sound_pain6, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 			}
 		}
 		else
@@ -632,7 +632,7 @@ PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 			if (frandom() <= 0.35f)
 			{
 				do_pain6 = true;
-				gi.sound(self, CHAN_VOICE, sound_pain6, 1, ATTN_NONE, 0);
+				gi.sound(self, CHAN_VOICE, sound_pain6, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 			}
 		}
 	}
@@ -716,7 +716,7 @@ DIE(makron_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		return;
 
 	// regular death
-	gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+	gi.sound(self, CHAN_VOICE, sound_death, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	self->deadflag = true;
 	self->takedamage = true;
 	self->svflags |= SVF_DEADMONSTER;

@@ -862,11 +862,11 @@ PAIN(widow2_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 	self->pain_debounce_time = level.time + 5_sec;
 
 	if (damage < 15)
-		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain1, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else if (damage < 75)
-		gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain2, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else
-		gi.sound(self, CHAN_VOICE, sound_pain3, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain3, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare

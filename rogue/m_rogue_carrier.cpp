@@ -363,7 +363,7 @@ void CarrierSpawn(edict_t *self)
 		if (!ent)
 			return;
 
-		gi.sound(self, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_BODY, sound_spawn, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 
 		ent->nextthink = level.time;
 		ent->think(ent);
@@ -946,7 +946,7 @@ PAIN(carrier_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 	self->pain_debounce_time = level.time + 5_sec;
 
 	// Determine attenuation based on the monster type
-	const float attenuation = (g_horde->integer && strcmp(self->classname, "monster_carrier_mini") == 0) ? ATTN_NORM : ATTN_NONE;
+	const float attenuation = self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM;
 
 	if (damage < 10)
 		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);
