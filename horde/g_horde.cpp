@@ -654,7 +654,6 @@ gitem_t* G_HordePickItem() {
 }
 
 int32_t WAVE_TO_ALLOW_FLYING;
-extern bool flying_monsters_mode;
 extern gtime_t SPAWN_POINT_COOLDOWN;
 
 // Keep the existing array
@@ -785,13 +784,24 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
+
 	// Use a static vector to avoid repeated allocations
 	static std::vector<std::pair<const weighted_item_t*, float>> eligible_monsters;
 	eligible_monsters.clear();
 	float total_weight = 0.0f;
 
+
+
 	for (const auto& item : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(item.classname);
+
+			if ((flying_monsters_mode && !isFlyingMonster) ||
+				(spawn_point->style == 1 && !isFlyingMonster) ||
+				(!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
+				(item.min_level > g_horde_local.level || (item.max_level != -1 && item.max_level < g_horde_local.level)) ||
+				(isFlyingMonster && g_horde_local.level < WAVE_TO_ALLOW_FLYING)) {
+				continue;
+			}
 
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
 			const float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
@@ -1214,6 +1224,7 @@ static int boss_counter = 0; // Declaramos boss_counter como variable estática
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 
 void SpawnBossAutomatically() {
+
 	const auto mapSize = GetMapSize(level.mapname);
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
 		return;
@@ -1240,6 +1251,15 @@ void SpawnBossAutomatically() {
 
 	boss_spawned_for_wave = true;
 	boss->classname = desired_boss;
+
+	// Set flying monsters mode if applicable
+	if (boss->classname && (
+		strcmp(boss->classname, "monster_boss2") == 0 ||
+		strcmp(boss->classname, "monster_carrier") == 0 ||
+		strcmp(boss->classname, "monster_carrier_mini") == 0 ||
+		strcmp(boss->classname, "monster_boss2kl") == 0)) {
+		flying_monsters_mode = true;
+	}
 
 	// Set boss origin
 	if (it->second.size() < 3) {
@@ -1309,15 +1329,6 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	// Attach health bar and set its name after all health adjustments
 	AttachHealthBar(self);
 	SetHealthBarName(self);
-
-	// Set flying monsters mode if applicable
-	if (self->classname && (
-		strcmp(self->classname, "monster_boss2") == 0 ||
-		strcmp(self->classname, "monster_carrier") == 0 ||
-		strcmp(self->classname, "monster_carrier_mini") == 0 ||
-		strcmp(self->classname, "monster_boss2kl") == 0)) {
-		flying_monsters_mode = true;
-	}
 
 	auto_spawned_bosses.insert(self);
 	gi.Com_PrintFmt("Boss of type {} spawned successfully with {} health and {} power armor\n",

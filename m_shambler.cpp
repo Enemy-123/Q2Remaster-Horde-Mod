@@ -492,7 +492,10 @@ MMOVE_T(shambler_attack_fireball) = { FRAME_magic01, FRAME_magic12, shambler_fra
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
-	M_SetAnimation(self, frandom() <= 0.7f ? &shambler_attack_magic : &shambler_attack_fireball);
+	M_SetAnimation(self, 
+		brandom() ?
+		&shambler_attack_magic :
+		&shambler_attack_fireball);
 }
 
 //
