@@ -368,7 +368,7 @@ void flyer_rocket(edict_t* self)
 			if (trace.ent == self->enemy || trace.ent == world)
 			{
 					if (dist * trace.fraction > 72)
-						monster_fire_rocket(self, start, dir, 40, rocketSpeed, MZ2_TURRET_ROCKET);
+						monster_fire_rocket(self, start, dir, 35, rocketSpeed, MZ2_TURRET_ROCKET);
 				}
 			}
 }
