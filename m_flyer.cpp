@@ -321,7 +321,7 @@ void flyer_rocket(edict_t* self)
 		vec3_t	start, end, dir;
 		float	dist, chance;
 		trace_t trace;
-		const int rocketSpeed = 650;
+		constexpr int rocketSpeed = 850;
 
 		if (!self->enemy || !self->enemy->inuse)
 			return;
@@ -699,7 +699,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 		return;
 	}
 
-	float range = range_to(self, self->enemy);
+	const float range = range_to(self, self->enemy);
 
 	if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
 	{
@@ -711,11 +711,26 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	else
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
-		first3waves ?
-			M_SetAnimation(self, &flyer_move_attack2normal) :
-			frandom() > 0.2f ? M_SetAnimation(self, &flyer_move_attack2) :
-			M_SetAnimation(self, &flyer_move_rollright);
+
+		if (first3waves)
+		{
+			frandom() > 0.2f ? 
+				M_SetAnimation(self, &flyer_move_attack2normal) :
+				M_SetAnimation(self, &flyer_move_rollright);
+		}
+		else
+		{
+			if (frandom() > 0.4f)
+			{
+				M_SetAnimation(self, &flyer_move_attack2);
+			}
+			else
+			{
+				M_SetAnimation(self, &flyer_move_rollright);
+			}
+		}
 	}
+
 
 	// [Paril-KEX] for alternate fly mode, sometimes we'll pin us
 	// down, kind of like a pseudo-stand ground

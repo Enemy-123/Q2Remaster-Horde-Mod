@@ -531,7 +531,7 @@ void sham_smash10(edict_t* self)
 		return;
 
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	bool hit = fire_hit(self, aim, irandom(110, 120), 120); // Slower attack
+	const bool hit = fire_hit(self, aim, irandom(110, 120), 120); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
@@ -555,8 +555,8 @@ void ShamClaw(edict_t* self)
 	if (!CanDamage(self->enemy, self))
 		return;
 
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	bool hit = fire_hit(self, aim, irandom(70, 80), 80); // Slower attack
+	const vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
+	const bool hit = fire_hit(self, aim, irandom(70, 80), 80); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
@@ -752,8 +752,6 @@ void SP_monster_shambler(edict_t* self)
 		self->health = 650 * st.health_multiplier;
 		self->gib_health = -190;
 	}
-
-
 
 	self->mass = 500;
 
