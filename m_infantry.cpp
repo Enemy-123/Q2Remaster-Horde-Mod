@@ -638,7 +638,7 @@ void infantry_smack(edict_t* self)
 		//gi.Com_Print(buffer);
 
 		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Puedes ajustar esto según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Puedes ajustar esto según sea necesario//
 	}
 }
 
