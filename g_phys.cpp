@@ -46,6 +46,7 @@ contents_t G_GetClipMask(edict_t* ent)
 
     if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
         strcmp(ent->classname, "monster_flyer") &&
+        strcmp(ent->classname, "monster_brain") &&
      //   strcmp(ent->classname, "monster_berserk") &&
       //  strcmp(ent->classname, "monster_mutant") &&
         strcmp(ent->classname, "monster_makron") &&
@@ -54,7 +55,8 @@ contents_t G_GetClipMask(edict_t* ent)
         strcmp(ent->classname, "monster_widow2") &&
         strcmp(ent->classname, "monster_carrier") &&
         strcmp(ent->classname, "monster_boss2") &&
-        strcmp(ent->classname, "monster_carrier2") &&
+        //strcmp(ent->classname, "monster_runnertank") &&
+       // strcmp(ent->classname, "monster_carrier_mini") &&
         strcmp(ent->classname, "monster_sentrygun") &&
         strcmp(ent->classname, "monster_boss2kl")) {
         mask &= ~CONTENTS_MONSTER;
@@ -190,6 +192,9 @@ SV_AddGravity
 */
 void SV_AddGravity(edict_t* ent)
 {
+    if (ent->movetype == MOVETYPE_SLIDE)
+        ent->velocity += ent->gravityVector * (ent->gravity * level.gravity * gi.frame_time_s) / 2;
+    else
     ent->velocity += ent->gravityVector * (ent->gravity * level.gravity * gi.frame_time_s);
 }
 
@@ -549,59 +554,41 @@ void SV_Physics_Noclip(edict_t* ent)
 
     gi.linkentity(ent);
 }
-
-/*
-==============================================================================
-
-TOSS / BOUNCE
-
-==============================================================================
-*/
-
-/*
-=============
-SV_Physics_Toss
-
-Toss, bounce, and fly movement.  When onground, do nothing.
-=============
-*/
 void SV_Physics_Toss(edict_t* ent)
 {
-    trace_t  trace;
-    vec3_t   move;
-    float    backoff;
+    trace_t trace;
+    vec3_t move;
+    float backoff;
     edict_t* slave;
-    bool     wasinwater;
-    bool     isinwater;
-    vec3_t   old_origin;
+    bool wasinwater;
+    bool isinwater;
+    vec3_t old_origin;
 
-    // regular thinking
+    // Regular thinking
     SV_RunThink(ent);
 
     if (!ent->inuse)
         return;
 
-    // if not a team captain, so movement will be handled elsewhere
+    // If not a team captain, movement will be handled elsewhere
     if (ent->flags & FL_TEAMSLAVE)
         return;
 
     if (ent->velocity[2] > 0)
         ent->groundentity = nullptr;
 
-    // check for the groundentity going away
-    if (ent->groundentity)
-        if (!ent->groundentity->inuse)
-            ent->groundentity = nullptr;
+    // Check for the groundentity going away
+    if (ent->groundentity && !ent->groundentity->inuse)
+        ent->groundentity = nullptr;
 
-    // if onground, return without moving
-    if (ent->groundentity && ent->gravity > 0.0f) // PGM - gravity hack
+    // If onground, return without moving
+    if (ent->groundentity && ent->gravity > 0.0f)
     {
         if (ent->svflags & SVF_MONSTER)
         {
             M_CatagorizePosition(ent, ent->s.origin, ent->waterlevel, ent->watertype);
             M_WorldEffects(ent);
         }
-
         return;
     }
 
@@ -609,24 +596,22 @@ void SV_Physics_Toss(edict_t* ent)
 
     SV_CheckVelocity(ent);
 
-    // add gravity
+    // Add gravity
     if (ent->movetype != MOVETYPE_FLY &&
         ent->movetype != MOVETYPE_FLYMISSILE &&
-        ent->movetype != MOVETYPE_WALLBOUNCE)
+        ent->movetype != MOVETYPE_WALLBOUNCE &&
+        ent->movetype != MOVETYPE_SLIDE)
         SV_AddGravity(ent);
 
-    // move angles
+    // Move angles
     ent->s.angles += (ent->avelocity * gi.frame_time_s);
 
-    // move origin
+    // Move origin
     int num_tries = 5;
     float time_left = gi.frame_time_s;
 
-    while (time_left)
+    while (time_left > 0 && num_tries > 0)
     {
-        if (num_tries == 0)
-            break;
-
         num_tries--;
         move = ent->velocity * time_left;
         trace = SV_PushEntity(ent, move);
@@ -636,7 +621,10 @@ void SV_Physics_Toss(edict_t* ent)
 
         if (trace.fraction == 1.f)
             break;
-        else if (trace.allsolid)
+
+        time_left -= time_left * trace.fraction;
+
+        if (trace.allsolid)
         {
             ent->groundentity = trace.ent;
             ent->groundentity_linkcount = trace.ent->linkcount;
@@ -645,52 +633,37 @@ void SV_Physics_Toss(edict_t* ent)
             break;
         }
 
-        time_left -= time_left * trace.fraction;
-
-        if (ent->movetype == MOVETYPE_TOSS)
-            ent->velocity = SlideClipVelocity(ent->velocity, trace.plane.normal, 0.5f);
-        else
+        if (ent->movetype == MOVETYPE_BOUNCE || ent->movetype == MOVETYPE_WALLBOUNCE)
         {
-            if (ent->movetype == MOVETYPE_WALLBOUNCE)
-                backoff = 2.0f;
-            else
-                backoff = 1.6f;
-
+            backoff = (ent->movetype == MOVETYPE_WALLBOUNCE) ? 2.0f : 1.5f;
             ent->velocity = ClipVelocity(ent->velocity, trace.plane.normal, backoff);
+
+            if (ent->movetype == MOVETYPE_WALLBOUNCE)
+                ent->s.angles = vectoangles(ent->velocity);
+        }
+        else if (ent->movetype == MOVETYPE_SLIDE)
+        {
+            ent->velocity = SlideClipVelocity(ent->velocity, trace.plane.normal, 1.0f);
+        }
+        else // MOVETYPE_TOSS
+        {
+            ent->velocity = SlideClipVelocity(ent->velocity, trace.plane.normal, 0.5f);
         }
 
-        if (ent->movetype == MOVETYPE_WALLBOUNCE)
-            ent->s.angles = vectoangles(ent->velocity);
-        else
+        if (trace.plane.normal[2] > 0.7f && ent->movetype != MOVETYPE_WALLBOUNCE && ent->movetype != MOVETYPE_SLIDE)
         {
-            if (trace.plane.normal[2] > 0.7f)
+            if (ent->velocity.length() < 60.f || (ent->movetype != MOVETYPE_BOUNCE && ent->velocity.scaled(trace.plane.normal).length() < 60.f))
             {
-                if ((ent->movetype == MOVETYPE_TOSS && ent->velocity.length() < 60.f) ||
-                    (ent->movetype != MOVETYPE_TOSS && ent->velocity.scaled(trace.plane.normal).length() < 60.f))
-                {
-                    if (!(ent->flags & FL_NO_STANDING) || trace.ent->solid == SOLID_BSP)
-                    {
-                        ent->groundentity = trace.ent;
-                        ent->groundentity_linkcount = trace.ent->linkcount;
-                    }
-                    ent->velocity = {};
-                    ent->avelocity = {};
-                    break;
-                }
-
-                if (ent->movetype == MOVETYPE_TOSS)
-                {
-                    ent->velocity *= 0.75f;
-                    ent->avelocity *= 0.75f;
-                }
+                ent->groundentity = trace.ent;
+                ent->groundentity_linkcount = trace.ent->linkcount;
+                ent->velocity = {};
+                ent->avelocity = {};
+                break;
             }
         }
-
-        if (ent->movetype != MOVETYPE_TOSS)
-            break;
     }
 
-    // check for water transition
+    // Check for water transition
     wasinwater = (ent->watertype & MASK_WATER);
     ent->watertype = gi.pointcontents(ent->s.origin);
     isinwater = ent->watertype & MASK_WATER;
@@ -713,17 +686,13 @@ void SV_Physics_Toss(edict_t* ent)
             gi.positioned_sound(ent->s.origin, g_edicts, CHAN_AUTO, gi.soundindex("misc/h2ohit1.wav"), 1, 1, 0);
     }
 
-    if (isinwater && ent->watertype & (CONTENTS_SLIME | CONTENTS_LAVA) && ent->item &&
-        (ent->item->flags & IF_KEY) && ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED))
-        ent->velocity = { crandom_open() * 300, crandom_open() * 300, 300.f + (crandom_open() * 300.f) };
-
+    // Move teamslaves
     for (slave = ent->teamchain; slave; slave = slave->teamchain)
     {
         slave->s.origin = ent->s.origin;
         gi.linkentity(slave);
     }
 }
-
 /*
 ===============================================================================
 
@@ -1068,6 +1037,7 @@ void G_RunEntity(edict_t* ent)
 	case MOVETYPE_BOUNCE:
 	case MOVETYPE_FLY:
 	case MOVETYPE_FLYMISSILE:
+	case MOVETYPE_SLIDE:
 		// RAFAEL
 	case MOVETYPE_WALLBOUNCE:
 		// RAFAEL

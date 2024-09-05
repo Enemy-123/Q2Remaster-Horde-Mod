@@ -72,11 +72,8 @@ mframe_t redmutant_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
-	{ ai_stand }, // 10
-
-
-	{ ai_stand }, // 50
-
+	{ ai_stand }, 
+	{ ai_stand }, 
 	{ ai_stand }
 };
 MMOVE_T(redmutant_move_stand) = { FRAME_stand101, FRAME_stand112, redmutant_frames_stand, nullptr };
@@ -97,13 +94,12 @@ void redmutant_idle_loop(edict_t* self)
 }
 
 mframe_t redmutant_frames_idle[] = {
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand },
-	{ ai_stand }, // scratch loop start
-	{ ai_stand },
-	{ ai_stand },
 	{ ai_stand, 0, redmutant_idle_loop }, // scratch loop end
+	{ ai_stand },
+	{ ai_stand },
+	{ ai_stand }, 
+	{ ai_stand },
+	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
 	{ ai_stand },
@@ -126,7 +122,7 @@ mframe_t redmutant_frames_idle[] = {
 	{ ai_stand },
 	{ ai_stand }
 };
-MMOVE_T(redmutant_move_idle) = { FRAME_stand201, FRAME_stand228, redmutant_frames_idle, redmutant_stand };
+MMOVE_T(redmutant_move_idle) = { FRAME_stand202, FRAME_stand228, redmutant_frames_idle, redmutant_stand };
 
 MONSTERINFO_IDLE(redmutant_idle) (edict_t* self) -> void
 {
@@ -202,7 +198,7 @@ void redmutant_hit_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (fire_hit(self, aim, irandom(10, 20) * M_DamageModifier(self), 100))
 			gi.sound(self, CHAN_WEAPON, sound_hit, 1, ATTN_NORM, 0);
@@ -217,9 +213,9 @@ void redmutant_hit_left(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "redmutant_hit_left: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -228,7 +224,7 @@ void redmutant_hit_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (fire_hit(self, aim, irandom(10, 20) * M_DamageModifier(self), 100))
 			gi.sound(self, CHAN_WEAPON, sound_hit2, 1, ATTN_NORM, 0);
@@ -243,9 +239,9 @@ void redmutant_hit_right(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "redmutant_hit_right: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
 		gi.sound(self, CHAN_WEAPON, sound_swing, 1, ATTN_NORM, 0);
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -532,23 +528,31 @@ mframe_t redmutant_frames_death1[] = {
 	{ ai_move_slide_right, 7, redmutant_shrink },
 	{ ai_move_slide_right, 6 },
 	{ ai_move_slide_right, 2 },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
+	{ ai_move_slide_right },
 	{ ai_move_slide_right }
 };
-MMOVE_T(redmutant_move_death1) = { FRAME_death101, FRAME_death109, redmutant_frames_death1, monster_dead };
+MMOVE_T(redmutant_move_death1) = { FRAME_death101, FRAME_death120, redmutant_frames_death1, monster_dead };
 
 mframe_t redmutant_frames_death2[] = {
 	{ ai_move_slide_left },
-	{ ai_move_slide_left },
-	{ ai_move_slide_left },
 	{ ai_move_slide_left, 1 },
-	{ ai_move_slide_left, 3, redmutant_shrink },
 	{ ai_move_slide_left, 6 },
 	{ ai_move_slide_left, 8 },
-	{ ai_move_slide_left, 5 },
+	{ ai_move_slide_left, 3, redmutant_shrink },
 	{ ai_move_slide_left, 2 },
 	{ ai_move_slide_left }
 };
-MMOVE_T(redmutant_move_death2) = { FRAME_death101, FRAME_death110, redmutant_frames_death2, monster_dead };
+MMOVE_T(redmutant_move_death2) = { FRAME_death201, FRAME_death207, redmutant_frames_death2, monster_dead };
 
 DIE(redmutant_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
@@ -681,7 +685,7 @@ void SP_monster_redmutant(edict_t* self)
 {
 	if (g_horde->integer)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.32f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
@@ -722,13 +726,13 @@ void SP_monster_redmutant(edict_t* self)
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };
 
-	self->health = 640 * st.health_multiplier;
+	self->health = 520 * st.health_multiplier;
 	self->gib_health = -120;
 	self->mass = 450;
 	self->s.scale = 1.1f;
 
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health *= 3.6f;
+		self->health *= 3.8f;
 		self->gib_health = -999777;
 		self->mass *= 3.0f;
 	}

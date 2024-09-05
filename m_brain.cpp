@@ -279,7 +279,7 @@ void brain_swing_right(edict_t* self)
 
 void brain_hit_right(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 		if (fire_hit(self, aim, irandom(15, 20), 40))
@@ -292,8 +292,8 @@ void brain_hit_right(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "brain_hit_right: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 3_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -304,7 +304,7 @@ void brain_swing_left(edict_t* self)
 
 void brain_hit_left(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
 		if (fire_hit(self, aim, irandom(15, 20), 40))
@@ -317,8 +317,8 @@ void brain_hit_left(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "brain_hit_left: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 0.2_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -367,8 +367,8 @@ void brain_tentacle_attack(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "brain_tentacle_attack: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 0.3_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 0.3_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -435,12 +435,38 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 
 void brain_tounge_attack(edict_t* self)
 {
-	vec3_t offset, start, f, r, end, dir;
+	vec3_t offset, start, f, r, end, dir{};
 	trace_t tr;
-	int damage;
+	int damage = 5;
 
+	// Check distance to enemy
+	const float dist = range_to(self, self->enemy);
+
+	// If the enemy is within close range, use the same logic as brain_tounge_attack_continue
+	if (dist <= 64) {
+		VectorSubtract(self->enemy->s.origin, self->s.origin, dir);
+		VectorNormalize(dir);
+
+		if (M_DamageModifier(self)) {
+			damage *= M_DamageModifier(self);
+		}
+
+		// Apply damage directly, without knockback
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+
+		// Heal the brain
+		self->health = std::min(self->health + damage, self->max_health);
+
+		// Pull the enemy in
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		self->enemy->velocity = forward * -800;
+
+		return;
+	}
+
+	// Original brain_tounge_attack logic for longer distances
 	AngleVectors(self->s.angles, f, r, nullptr);
-	// offset = { 24, 0, 6 };
 	offset = { 24, 0, 16 };
 	start = M_ProjectFlashSource(self, offset, f, r);
 
@@ -458,34 +484,108 @@ void brain_tounge_attack(edict_t* self)
 			}
 		}
 	}
-	if (self && self->enemy)
-		end = self->enemy->s.origin;
 
-		tr = gi.traceline(start, end, self, MASK_PROJECTILE);
-		if (tr.ent != self->enemy)
-			return;
+	tr = gi.traceline(start, end, self, MASK_PROJECTILE);
+	if (tr.ent != self->enemy)
+		return;
 
-		damage = 5;
-		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
+	dir = start - end;
+	//T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
 
-		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_PARASITE_ATTACK);
-		gi.WriteEntity(self);
-		gi.WritePosition(start);
-		gi.WritePosition(end);
-		gi.multicast(self->s.origin, MULTICAST_PVS, false);
+	// Pull the enemy in
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	self->enemy->velocity = forward * -800;
+}
 
-		dir = start - end;
-		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK,MOD_BRAINTENTACLE); // MOD_UNKNOWN);
-		// pull the enemy in
-		vec3_t forward;
-		self->s.origin[2] += 2;
-		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-		self->enemy->velocity = forward * -900;
+mframe_t brain_frames_run[] = {
+	{ ai_run, 12 },
+	{ ai_run, 5 },
+	{ ai_run, 6 },
+	{ ai_run, 6 },
+	{ ai_run, 4 },
+	{ ai_run,  1},
+	{ ai_run,  1},
+	{ ai_run, 13 },
+	{ ai_run, -4 },
+	{ ai_run, -1 },
+	{ ai_run, 4 }
+};
+MMOVE_T(brain_move_run) = { FRAME_walk101, FRAME_walk111, brain_frames_run, nullptr };
 
-		//PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &dir, nullptr);
-		//monster_fire_heatbeam(self, start, forward, vec3_origin, 4, 50, MZ2_WIDOW2_BEAM_SWEEP_1);
+bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2) {
+	const trace_t tr = gi.traceline(spot1, spot2, ignore, mask);
+	return (tr.fraction == 1.0f);
+}
+void brain_tounge_attack_continue(edict_t* self);
+mframe_t brain_frames_continue[] = {
+	{ ai_charge, 0, brain_tounge_attack_continue },
+	{ ai_charge, 0, brain_tounge_attack_continue },
+	{ ai_charge, 0, brain_tounge_attack_continue },
+	{ ai_charge, 0, brain_tounge_attack_continue },
+	{ ai_charge, 0, brain_tounge_attack_continue },
+	//{ ai_charge, 0, brain_tounge_attack },
+	//{ ai_charge, 0, brain_tounge_attack },
+	//{ ai_charge, -9, brain_chest_closed },
+};
+MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_continue, brain_tounge_attack };
+
+void brain_tounge_attack_continue(edict_t* self)
+{
+	// Check if enemy is still valid
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
+	{
+		M_SetAnimation(self, &brain_move_run);
+		return;
 	}
+
+	// Check distance to enemy
+	const float dist = range_to(self, self->enemy);
+
+	// Calculate direction vector
+	vec3_t dir{};
+	VectorSubtract(self->enemy->s.origin, self->s.origin, dir);
+	VectorNormalize(dir);
+
+	// Always apply damage if within range, regardless of how close
+	if (dist <= 64) {
+		int damage = 5; // Increased damage to match brain_tounge_attack
+		if (M_DamageModifier(self)) {
+			damage *= M_DamageModifier(self);
+		}
+
+		// Apply damage directly, without knockback
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+
+		// Heal the brain
+		self->health = std::min(self->health + damage, self->max_health);
+
+		// Update the brain's skin if it has a setskin function
+		if (self->monsterinfo.setskin) {
+			self->monsterinfo.setskin(self);
+		}
+
+		// Pull the enemy in
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		self->enemy->velocity = forward * -800;
+
+		// Set the next frame to continue the attack animation
+		self->monsterinfo.nextframe = FRAME_attak206;
+	}
+	else
+	{
+		// If we can't reach the enemy, switch to run animation
+		M_SetAnimation(self, &brain_move_run);
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	}
+
+	// Set next attack time (increased frequency for constant damage)
+	self->monsterinfo.attack_finished = level.time + 1_hz; // Attack twice per second
+
+	// Set next think time
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
 
 
 // Brian right eye center
@@ -586,18 +686,20 @@ mframe_t brain_frames_attack3[] = {
 	{ ai_charge, 0, brain_chest_open },
 	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, 0, brain_tounge_attack },
-	{ ai_charge, 0, brain_tentacle_attack },
 	{ ai_charge, 0, brain_tounge_attack },
 	{ ai_charge, 0, brain_tounge_attack },
+	{ ai_charge, 0, brain_tounge_attack_continue },
 	{ ai_charge, -9, brain_chest_closed },
-	{ ai_charge },
-	{ ai_charge, 4 },
-	{ ai_charge, 3 },
-	{ ai_charge, 2 },
-	{ ai_charge, -3 },
-	{ ai_charge, -6 }
+	//{ ai_charge },
+	//{ ai_charge },
+	//{ ai_charge, 4 },
+	//{ ai_charge, 3 },
+	//{ ai_charge, 2 },
+	//{ ai_charge, -3 },
+	//{ ai_charge, -6 }
 };
-MMOVE_T(brain_move_attack3) = { FRAME_attak201, FRAME_attak217, brain_frames_attack3, brain_run };
+MMOVE_T(brain_move_attack3) = { FRAME_attak201, FRAME_attak211, brain_frames_attack3, brain_tounge_attack };
+
 
 mframe_t brain_frames_attack4[] = {
 	{ ai_charge, 9, brain_laserbeam },
@@ -614,19 +716,45 @@ mframe_t brain_frames_attack4[] = {
 };
 MMOVE_T(brain_move_attack4) = { FRAME_walk101, FRAME_walk111, brain_frames_attack4, brain_run };
 
+void brain_jump2_now(edict_t* self);
+void brain_jump_wait_land(edict_t* self);
+void brain_jump_attack(edict_t* self);
+void brain_jump_wait_land_attack(edict_t* self);
+
+mframe_t brain_frames_jumpattack[] = {
+	{ ai_move },
+	{ ai_move, 0, brain_jump_attack },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, brain_jump_wait_land_attack },
+	{ ai_move }
+};
+MMOVE_T(brain_move_jumpattack) = { FRAME_duck01, FRAME_duck08, brain_frames_jumpattack, brain_run };
+
 // RAFAEL
 MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 {
-	float r = range_to(self, self->enemy);
+	const float r = range_to(self, self->enemy);
+
+	if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
+		M_SetAnimation(self, &brain_move_attack4);
+
 	if (r <= RANGE_NEAR)
 	{
-		if (frandom() < 0.5f)
-			M_SetAnimation(self, &brain_move_attack3);
+		if (frandom() < 0.6f)
+			M_SetAnimation(self, &brain_move_jumpattack);
 		else if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 			M_SetAnimation(self, &brain_move_attack4);
 	}
-	else if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
-		M_SetAnimation(self, &brain_move_attack4);
+	else if (r <= RANGE_MELEE * 6)
+	{
+		M_SetAnimation(self, &brain_move_attack3);
+	}
+
+
+
 }
 // RAFAEL
 
@@ -634,20 +762,6 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 // RUN
 //
 
-mframe_t brain_frames_run[] = {
-	{ ai_run, 12 },
-	{ ai_run, 5 },
-	{ ai_run, 6 },
-	{ ai_run, 6 },
-	{ ai_run, 4 },
-	{ ai_run,  1},
-	{ ai_run,  1},
-	{ ai_run, 13 },
-	{ ai_run, -4 },
-	{ ai_run, -1 },
-	{ ai_run, 4 }
-};
-MMOVE_T(brain_move_run) = { FRAME_walk101, FRAME_walk111, brain_frames_run, nullptr };
 
 MONSTERINFO_RUN(brain_run) (edict_t* self) -> void
 {
@@ -764,6 +878,157 @@ MONSTERINFO_DUCK(brain_duck) (edict_t* self, gtime_t eta) -> bool
 	return true;
 }
 
+
+
+void brain_jump_now(edict_t* self)
+{
+	//	gi.Com_PrintFmt("brain_jump_now called\n");
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 100);
+	self->velocity += (up * 300);
+}
+
+void brain_jump2_now(edict_t* self)
+{
+	vec3_t forward, up;
+
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity += (forward * 150);
+	self->velocity += (up * 400);
+}
+
+void brain_jump_attack(edict_t* self)
+{
+	vec3_t forward, up;
+	if (!self->enemy)
+		return;
+
+	// Calculate direction and distance to enemy
+	const vec3_t dir = self->enemy->s.origin - self->s.origin;
+	const float length = VectorLength(dir);
+
+	// Calculate forward speed based on distance
+	const float fwd_speed = length * 2.0f;
+
+	// Predict aim
+	vec3_t aim_dir;
+	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &aim_dir, nullptr);
+
+	// Set angles based on aim direction
+	self->s.angles[YAW] = vectoyaw(aim_dir);
+
+	// Calculate velocity
+	AngleVectors(self->s.angles, forward, nullptr, up);
+	self->velocity = forward * fwd_speed + up * 125;
+
+	// Set other properties
+	self->groundentity = nullptr;
+	self->monsterinfo.aiflags |= AI_DUCKED;
+	self->monsterinfo.attack_finished = level.time + 2.0_sec;
+
+	// Play jump sound
+	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+}
+
+void brain_jump_wait_land_attack(edict_t* self)
+{
+    if (self->groundentity == nullptr)
+    {
+        self->monsterinfo.nextframe = self->s.frame;
+        if (monster_jump_finished(self))
+            self->monsterinfo.nextframe = self->s.frame + 1;
+    }
+    else
+        self->monsterinfo.nextframe = self->s.frame + 1;
+
+    // Check if self->enemy is not null before accessing it
+    if (self->enemy)
+    {
+        if (!strcmp(self->enemy->classname, "tesla_mine") || !strcmp(self->enemy->classname, "monster_sentrygun"))
+            M_SetAnimation(self, &brain_move_attack4);
+        else if (visible(self, self->enemy))
+            M_SetAnimation(self, &brain_move_attack3);
+    }
+    else
+    {
+        M_SetAnimation(self, &brain_move_run);
+    }
+}
+
+void brain_jump_wait_land(edict_t* self)
+{
+	if (self->groundentity == nullptr)
+	{
+		self->monsterinfo.nextframe = self->s.frame;
+
+		if (monster_jump_finished(self))
+			self->monsterinfo.nextframe = self->s.frame + 1;
+	}
+	else
+		self->monsterinfo.nextframe = self->s.frame + 1;
+}
+
+mframe_t brain_frames_jump[] = {
+	{ ai_move },
+	{ ai_move, 0, brain_jump_now },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, brain_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+
+};
+MMOVE_T(brain_move_jump) = { FRAME_duck01, FRAME_duck08, brain_frames_jump, brain_run };
+
+mframe_t brain_frames_jump2[] = {
+	{ ai_move },
+	{ ai_move, 0, brain_jump2_now },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move, 0, brain_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+
+};
+MMOVE_T(brain_move_jump2) = { FRAME_duck01, FRAME_duck08, brain_frames_jump2, brain_run };
+//===========
+// PGM
+void brain_jump(edict_t* self, blocked_jump_result_t result)
+{
+	if (!self->enemy)
+		return;
+
+	monster_done_dodge(self);
+
+	if (result == blocked_jump_result_t::JUMP_JUMP_UP && !visible(self, self->enemy))
+		M_SetAnimation(self, &brain_move_jump2);
+	else if (!visible(self, self->enemy))
+		M_SetAnimation(self, &brain_move_jump);
+	else
+		M_SetAnimation(self, &brain_move_jumpattack);
+}
+
+MONSTERINFO_BLOCKED(brain_blocked) (edict_t* self, float dist) -> bool
+{
+	if (self->monsterinfo.can_jump)
+	{
+		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		{
+			brain_jump(self, result);
+			return true;
+		}
+	}
+
+	if (blocked_checkplat(self, dist))
+		return true;
+
+	return false;
+}
+
 /*QUAKED monster_brain (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
 void SP_monster_brain(edict_t* self)
@@ -811,8 +1076,8 @@ void SP_monster_brain(edict_t* self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
-	self->health = 300 * st.health_multiplier;
-	self->gib_health = -150;
+	self->health = 225 * st.health_multiplier;
+	self->gib_health = -90;
 	self->mass = 400;
 
 	self->pain = brain_pain;
@@ -821,6 +1086,7 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.stand = brain_stand;
 	self->monsterinfo.walk = brain_walk;
 	self->monsterinfo.run = brain_run;
+
 	// PMM
 	self->monsterinfo.dodge = M_MonsterDodge;
 	self->monsterinfo.duck = brain_duck;
@@ -834,16 +1100,24 @@ void SP_monster_brain(edict_t* self)
 	self->monsterinfo.search = brain_search;
 	self->monsterinfo.idle = brain_idle;
 	self->monsterinfo.setskin = brain_setskin;
+	self->monsterinfo.blocked = brain_blocked; // PGM
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 100;
+		self->monsterinfo.power_armor_power = 150;
 
 	gi.linkentity(self);
 
 	M_SetAnimation(self, &brain_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
+
+	self->monsterinfo.drop_height = 256;
+	self->monsterinfo.jump_height = 68;
+	self->monsterinfo.can_jump = true;
+
+	//self->think = brain_tounge_attack_continue;
+	//self->nextthink = level.time + FRAME_TIME_MS;
 
 	walkmonster_start(self);
 

@@ -72,7 +72,7 @@ void weapon_phalanx_fire(edict_t* ent)
 
     if (quad_shot_mode)
     {
-        // ConfiguraciÛn para cada disparo en modo cu·druple
+        // Configuraci√≥n para cada disparo en modo cu√°druple
         struct PhalanxShot {
             float yaw_offset;
             float pitch_offset;

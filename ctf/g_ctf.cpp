@@ -1,4 +1,4 @@
-﻿// Copyright (c) ZeniMax Media Inc.
+// Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "../g_local.h"
 #include "../m_player.h"
@@ -236,14 +236,14 @@ void CTFPrecache()
 	imageindex_strogg = gi.imageindex("ach/ACH_eou7_on");
 
 	// Precache all possible images
-	int precache_ach_eou7_on = gi.imageindex("ach/ACH_eou7_on");
-	int precache_ach_eou5_on = gi.imageindex("ach/ACH_eou5_on");
-	int precache_ach_xatrix_on = gi.imageindex("ach/ACH_xatrix_on");
-	int precache_ach_rogue_on = gi.imageindex("ach/ACH_rogue_on");
-	int precache_ach_eou3_on = gi.imageindex("ach/ACH_eou3_on");
+	int const precache_ach_eou7_on = gi.imageindex("ach/ACH_eou7_on");
+	int const precache_ach_eou5_on = gi.imageindex("ach/ACH_eou5_on");
+	int const precache_ach_xatrix_on = gi.imageindex("ach/ACH_xatrix_on");
+	int const precache_ach_rogue_on = gi.imageindex("ach/ACH_rogue_on");
+	int const precache_ach_eou3_on = gi.imageindex("ach/ACH_eou3_on");
 
 	// Assign a random image to imageindex_human
-	float randomValue = frandom();
+	float const randomValue = frandom();
 	if (randomValue < 0.2)
 	{
 		imageindex_human = precache_ach_eou7_on;
@@ -314,10 +314,10 @@ float PlayersRangeFromSpot(edict_t* spot);
 bool  SpawnPointClear(edict_t* spot);
 void CTFAssignSkin(edict_t* ent, const char* s)
 {
-	int	  playernum = ent - g_edicts - 1;
+	int	  const playernum = ent - g_edicts - 1;
 	std::string_view t(s);
 
-	if (size_t i = t.find_first_of('/'); i != std::string_view::npos)
+	if (size_t const i = t.find_first_of('/'); i != std::string_view::npos)
 		t = t.substr(0, i + 1);
 	else
 		t = "male/";
@@ -381,17 +381,34 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	if (ent->client->resp.ctf_state)
 	{
 		select_spawn_result_t result = SelectDeathmatchSpawnPoint(g_dm_spawn_farthest->integer, force_spawn, false);
-
 		if (result.any_valid)
 			return result.spot;
 	}
 
 	const char* cname;
+	bool use_ground_spawns = false;
+
+	auto count_ground_spawns = []() -> int32_t {
+		int32_t count = 0;
+		for (size_t i = 0; i < globals.num_edicts; i++) {
+			const auto& e = g_edicts[i];
+			if (e.inuse && strcmp(e.classname, "info_player_deathmatch") == 0 && e.style != 1) {
+				count++;
+			}
+		}
+		return count;
+		};
 
 	switch (ent->client->resp.ctf_team)
 	{
 	case CTF_TEAM1:
-		cname = "info_player_start";
+		if (current_wave_level == 0 && count_ground_spawns() > 0) {
+			cname = "info_player_deathmatch";
+			use_ground_spawns = true;
+		}
+		else {
+			cname = "info_player_start";
+		}
 		break;
 	case CTF_TEAM2:
 		cname = "info_player_team2";
@@ -399,10 +416,8 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	default:
 	{
 		select_spawn_result_t result = SelectDeathmatchSpawnPoint(g_dm_spawn_farthest->integer, force_spawn, true);
-
 		if (result.any_valid)
 			return result.spot;
-
 		gi.Com_Error("can't find suitable spectator spawn point");
 		return nullptr;
 	}
@@ -410,24 +425,24 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 
 	static std::vector<edict_t*> spawn_points;
 	edict_t* spot = nullptr;
-
 	spawn_points.clear();
 
 	while ((spot = G_FindByString<&edict_t::classname>(spot, cname)) != nullptr)
-		spawn_points.push_back(spot);
+	{
+		if (!use_ground_spawns || (use_ground_spawns && spot->style != 1)) {
+			spawn_points.push_back(spot);
+		}
+	}
 
-	if (!spawn_points.size())
+	if (spawn_points.empty())
 	{
 		select_spawn_result_t result = SelectDeathmatchSpawnPoint(g_dm_spawn_farthest->integer, force_spawn, true);
-
 		if (!result.any_valid)
 			gi.Com_Error("can't find suitable CTF spawn point");
-
 		return result.spot;
 	}
 
 	std::shuffle(spawn_points.begin(), spawn_points.end(), mt_rand);
-
 	for (auto& point : spawn_points)
 		if (SpawnPointClear(point))
 			return point;
@@ -934,7 +949,7 @@ void CTFCalcRankings(std::array<uint32_t, MAX_CLIENTS>& player_ranks)
 
 	ctfteam_t winning_team = (ctfgame.total1 > ctfgame.total2) ? CTF_TEAM1 : CTF_TEAM2;
 
-	for (auto player : active_players())
+	for (auto const player : active_players())
 		if (player->client->pers.spawned && player->client->resp.ctf_team != CTF_NOTEAM)
 			player_ranks[player->s.number - 1] = player->client->resp.ctf_team == winning_team ? 1 : 2;
 }
@@ -994,14 +1009,14 @@ struct ConfigStringManager {
 	std::unordered_map<int, int> entityToConfigString;
 	std::queue<int> availableConfigStrings;
 
-	ConfigStringManager() {
+	ConfigStringManager() noexcept {
 		for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
 			availableConfigStrings.push(i);
 		}
 	}
 
 	int getConfigString(int entity_index) {
-		auto it = entityToConfigString.find(entity_index);
+		auto const it = entityToConfigString.find(entity_index);
 		if (it != entityToConfigString.end()) {
 			return it->second;
 		}
@@ -1017,7 +1032,7 @@ struct ConfigStringManager {
 	}
 
 	void freeConfigString(int entity_index) {
-		auto it = entityToConfigString.find(entity_index);
+		auto const it = entityToConfigString.find(entity_index);
 		if (it != entityToConfigString.end()) {
 			availableConfigStrings.push(it->second);
 			gi.configstring(it->second, "");
@@ -1026,7 +1041,7 @@ struct ConfigStringManager {
 	}
 
 	void updateConfigString(int entity_index, const std::string& value) {
-		int cs_index = getConfigString(entity_index);
+		int const cs_index = getConfigString(entity_index);
 		if (cs_index != -1) {
 			gi.configstring(cs_index, value.c_str());
 		}
@@ -1044,22 +1059,22 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_soldier_hypergun", "Hyper Soldier" },
 		{ "monster_soldier_lasergun", "Laser Soldier" },
 		{ "monster_soldier_ripper", "Ripper Soldier" },
-		{ "monster_infantry2", "Infantry" },
+		{ "monster_infantry_vanilla", "Infantry" },
 		{ "monster_infantry", "Enforcer" },
 		{ "monster_flyer", "Flyer" },
 		{ "monster_kamikaze", "Kamikaze" },
-		{ "monster_hover2", "Blaster Icarus" },
+		{ "monster_hover_vanilla", "Blaster Icarus" },
 		{ "monster_fixbot", "Fixbot" },
 		{ "monster_gekk", "Gekk" },
 		{ "monster_flipper", "Flipper" },
-		{ "monster_gunner2", "Gunner" },
+		{ "monster_gunner_vanilla", "Gunner" },
 		{ "monster_gunner", "Heavy Gunner" },
 		{ "monster_medic", "Medic" },
 		{ "monster_brain", "Brain" },
 		{ "monster_stalker", "Stalker" },
 		{ "monster_parasite", "Parasite" },
 		{ "monster_tank", "Tank" },
-		{ "monster_tank2", "Vanilla Tank" },
+		{ "monster_tank_vanilla", "Vanilla Tank" },
 		{ "monster_runnertank", "BETA Runner Tank" },
 		{ "monster_guncmdr2", "Gunner Commander" },
 		{ "monster_mutant", "Mutant" },
@@ -1070,7 +1085,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_floater", "Technician" },
 		{ "monster_hover", "Rocket Icarus" },
 		{ "monster_daedalus", "Daedalus" },
-		{ "monster_daedalus2", "Bombardier Hover" },
+		{ "monster_daedalus_bomber", "Bombardier Hover" },
 		{ "monster_medic_commander", "Medic Commander" },
 		{ "monster_tank_commander", "Tank Commander" },
 		{ "monster_spider", "Arachnid" },
@@ -1079,8 +1094,8 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_gladc", "Plasma Gladiator" },
 		{ "monster_gladiator", "Gladiator" },
 		{ "monster_shambler", "Shambler" },
-		{ "monster_floater2", "DarkMatter Technician" },
-		{ "monster_carrier2", "Mini Carrier" },
+		{ "monster_floater_tracker", "DarkMatter Technician" },
+		{ "monster_carrier_mini", "Mini Carrier" },
 		{ "monster_carrier", "Carrier" },
 		{ "monster_tank_64", "N64 Tank" },
 		{ "monster_janitor", "Janitor" },
@@ -1114,7 +1129,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "tesla_mine", "Tesla Mine\n" },
 		{ "emitter", "Laser Emitter\n" }
 	};
-	auto it = name_replacements.find(classname);
+	auto const it = name_replacements.find(classname);
 	return (it != name_replacements.end()) ? it->second : classname;
 }
 
@@ -1131,7 +1146,7 @@ std::string FormatClassname(const std::string& classname) {
 	return formatted_name;
 }
 
-bool IsValidClassname(const char* classname) {
+static bool IsValidClassname(const char* classname) noexcept {
 	if (!classname) return false;
 	const char* allowed_prefixes[] = {
 		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "emitter", nullptr
@@ -1160,7 +1175,7 @@ int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
 	}
-	int index = ArmorIndex(ent);
+	int const index = ArmorIndex(ent);
 	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
 
@@ -1208,8 +1223,8 @@ std::string FormatEntityInfo(edict_t* ent) {
 		std::string name = GetDisplayName(ent->classname);
 		info = fmt::format("{}H: {}", name, ent->health);
 		if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap")) {
-			gtime_t time_active = level.time - ent->timestamp;
-			gtime_t time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
+			gtime_t const time_active = level.time - ent->timestamp;
+			gtime_t const time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
 			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 			info += fmt::format(" T: {}s", remaining_time);
 		}
@@ -1221,8 +1236,8 @@ std::string FormatEntityInfo(edict_t* ent) {
 		if (ent->owner && ent->owner->inuse) {
 			info += fmt::format(" DMG: {}", ent->owner->health);
 			// Calcular tiempo restante
-			gtime_t time_active = level.time - ent->owner->timestamp;
-			gtime_t time_remaining = ent->timestamp - time_active;
+			gtime_t const time_active = level.time - ent->owner->timestamp;
+			gtime_t const time_remaining = ent->timestamp - time_active;
 			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
 			info += fmt::format(" T: {}s", remaining_time);
 		}
@@ -1241,7 +1256,7 @@ private:
 	std::vector<int> recentlyUsedIndices;
 
 public:
-	OptimizedEntityInfoManager() {
+	OptimizedEntityInfoManager() noexcept {
 		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
 			availableIndices.push(i);
 		}
@@ -1249,7 +1264,7 @@ public:
 
 	void updateEntityInfo(int entityIndex, const std::string& info) {
 		int configStringIndex;
-		auto it = entityToConfigStringIndex.find(entityIndex);
+		auto const it = entityToConfigStringIndex.find(entityIndex);
 
 		if (it == entityToConfigStringIndex.end()) {
 			if (availableIndices.empty()) {
@@ -1272,9 +1287,9 @@ public:
 	}
 
 	void removeEntityInfo(int entityIndex) {
-		auto it = entityToConfigStringIndex.find(entityIndex);
+		auto const it = entityToConfigStringIndex.find(entityIndex);
 		if (it != entityToConfigStringIndex.end()) {
-			int configStringIndex = it->second;
+			int const configStringIndex = it->second;
 			gi.configstring(CONFIG_ENTITY_INFO_START + configStringIndex, "");
 			activeConfigStrings[configStringIndex] = "";
 			entityToConfigStringIndex.erase(it);
@@ -1284,7 +1299,7 @@ public:
 	}
 
 	int getConfigStringIndex(int entityIndex) {
-		auto it = entityToConfigStringIndex.find(entityIndex);
+		auto const it = entityToConfigStringIndex.find(entityIndex);
 		if (it != entityToConfigStringIndex.end()) {
 			return CONFIG_ENTITY_INFO_START + it->second;
 		}
@@ -1294,7 +1309,7 @@ public:
 private:
 	int findLeastRecentlyUsedIndex() {
 		if (!recentlyUsedIndices.empty()) {
-			int leastRecentIndex = recentlyUsedIndices.front();
+			int const leastRecentIndex = recentlyUsedIndices.front();
 			recentlyUsedIndices.erase(recentlyUsedIndices.begin());
 			return leastRecentIndex;
 		}
@@ -1334,7 +1349,6 @@ void CTFSetIDView(edict_t* ent) {
 	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
 	}
-
 	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
@@ -1344,19 +1358,38 @@ void CTFSetIDView(edict_t* ent) {
 
 	edict_t* best = nullptr;
 	float closest_dist = 2048;
-	const float min_dot = 0.98f;
+	constexpr float min_dot = 0.98f;
+	constexpr float very_close_distance = 100.0f; // Ajusta este valor según sea necesario
+	constexpr float close_min_dot = 0.5f; // Menos restrictivo para entidades cercanas
 
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* who = g_edicts + i;
 		if (!IsValidTarget(ent, who, false)) continue;
 
 		vec3_t dir = who->s.origin - ent->s.origin;
-		dir.normalize();
-		float d = forward.dot(dir);
-		float dist = (who->s.origin - ent->s.origin).length();
-		if (d > min_dot && loc_CanSee(ent, who) && dist < closest_dist) {
-			closest_dist = dist;
-			best = who;
+		float const dist = dir.normalize();
+		float const d = forward.dot(dir);
+
+		bool is_valid_target = false;
+
+		if (dist < very_close_distance) {
+			// Para entidades muy cercanas, usamos un criterio menos estricto
+			is_valid_target = (d > close_min_dot);
+		}
+		else {
+			// Para entidades más lejanas, mantenemos el criterio original
+			is_valid_target = (d > min_dot);
+		}
+
+		if (is_valid_target && dist < closest_dist) {
+			vec3_t const start = ent->s.origin;
+			vec3_t const end = who->s.origin;
+			trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
+
+			if (tr.fraction == 1.0 || tr.ent == who) {
+				closest_dist = dist;
+				best = who;
+			}
 		}
 	}
 
@@ -1367,10 +1400,8 @@ void CTFSetIDView(edict_t* ent) {
 	if (best) {
 		ent->client->idtarget = best;
 		std::string info_string = FormatEntityInfo(best);
-
-		int entity_index = best - g_edicts;
+		int const entity_index = best - g_edicts;
 		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-
 		int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
 		if (configStringIndex != -1) {
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
@@ -1385,21 +1416,19 @@ void CTFSetIDView(edict_t* ent) {
 	}
 }
 
-
-
 // En el archivo donde manejas la muerte de entidades
 // En el archivo donde manejas la muerte de entidades
-void OnEntityDeath(edict_t* self) {
+void OnEntityDeath(const edict_t* self) {
 	if (self && self->inuse) {
-		int entity_index = self - g_edicts;
+		int const entity_index = self - g_edicts;
 		g_entityInfoManager.removeEntityInfo(entity_index);
 	}
 }
 
 // Asegúrate de llamar a esto cuando una entidad es removida del juego
-void OnEntityRemoved(edict_t* ent) {
+void OnEntityRemoved(const edict_t* ent) {
 	if (ent && ent->inuse) {
-		uint32_t entity_index = static_cast<uint32_t>(ent - g_edicts);
+		uint32_t const entity_index = static_cast<uint32_t>(ent - g_edicts);
 		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
 			g_entityInfoManager.removeEntityInfo(static_cast<int>(entity_index));
 		}
@@ -2057,8 +2086,10 @@ std::string GetActiveBonusesString() {
 		{"auto haste", "Auto-Haste"},
 		{"Cluster Prox Grenades", "Upgraded Prox Launcher"},
 		{"Traced-Piercing Bullets", "Traced-Piercing Bullets"},
-		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"}
+		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
+		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"}
 	};
+
 
 	std::vector<std::string> active_bonuses;
 	for (const auto& [benefit, bonus_text] : bonus_mappings) {
@@ -2473,7 +2504,7 @@ bool CTFApplyStrengthSound(edict_t* ent)
 	if (ent->client &&
 		ent->client->pers.inventory[IT_TECH_STRENGTH])
 	{
-		if (ent->client->ctf_techsndtime < level.time)
+		if (ent->client->ctf_techsndtime < level.time && (!(ent->svflags & SVF_BOT)))
 		{
 			ent->client->ctf_techsndtime = level.time + 1_sec;
 			if (ent->client->quad_time > level.time)
@@ -2649,7 +2680,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0078\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0079\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
@@ -3251,27 +3282,59 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
 // Definir los TECHS disponibles
 static const char* tech_names[] = {
-	"Haste",
 	"Strength",
+	"Haste",
 	"Regeneration",
 	"Resistance"
 };
 
 static pmenu_t tech_menu[6] = {
 	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
 	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler }
 };
 
+static pmenu_t tech_menustart[18] = {
+	{ "*Tech Menu", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "Select a TECH:", PMENU_ALIGN_LEFT, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "Strength", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Haste", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Regeneration", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "Resistance", PMENU_ALIGN_LEFT, TechMenuHandler },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "You can change it later", PMENU_ALIGN_LEFT, nullptr },
+	{ "On Horde Menu", PMENU_ALIGN_CENTER, nullptr },
+};
+
 void OpenTechMenu(edict_t* ent) {
-	PMenu_Open(ent, tech_menu, -1, sizeof(tech_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
+		PMenu_Open(ent, tech_menustart, -1, sizeof(tech_menustart) / sizeof(pmenu_t), nullptr, nullptr);
+	}
+	else {
+		PMenu_Open(ent, tech_menu, -1, sizeof(tech_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	}
 }
 
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur - 2; // Restar 2 para ajustar el índice al array de TECHS
+	int option;
+
+	// Determinar si estamos usando el menú para CTF_NOTEAM o el menú regular
+	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
+		option = p->cur - 4; // Ajustar para el menú CTF_NOTEAM (2 líneas extra al principio)
+	}
+	else {
+		option = p->cur - 2; // Ajuste original para el menú regular
+	}
 
 	if (option >= 0 && option < sizeof(tech_names) / sizeof(tech_names[0])) {
 		// Eliminar TECHS anteriores
@@ -3279,11 +3342,11 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 		// Mapear el índice de la opción al índice correcto en tech_ids
 		int tech_index = -1;
-		if (strcmp(tech_names[option], "Haste") == 0) {
-			tech_index = IT_TECH_HASTE;
-		}
-		else if (strcmp(tech_names[option], "Strength") == 0) {
+		if (strcmp(tech_names[option], "Strength") == 0) {
 			tech_index = IT_TECH_STRENGTH;
+		}
+		else if (strcmp(tech_names[option], "Haste") == 0) {
+			tech_index = IT_TECH_HASTE;
 		}
 		else if (strcmp(tech_names[option], "Regeneration") == 0) {
 			tech_index = IT_TECH_REGENERATION;
@@ -3300,16 +3363,16 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			// Ejecutar el sonido correspondiente al TECH seleccionado
 			switch (tech_index) {
 			case IT_TECH_HASTE:
-				CTFApplyHasteSound(ent);
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyHasteSound(ent) : CTFApplyHasteSound(ent);
 				break;
 			case IT_TECH_STRENGTH:
-				CTFApplyStrengthSound(ent);
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyStrengthSound(ent) : CTFApplyStrengthSound(ent);
 				break;
 			case IT_TECH_REGENERATION:
-				CTFApplyRegeneration(ent);
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyRegeneration(ent) : CTFApplyRegeneration(ent);
 				break;
 			case IT_TECH_RESISTANCE:
-				CTFApplyResistance(ent, 0); // 0 damage just to play the sound
+				ent->client->resp.ctf_team == CTF_NOTEAM ? CTFJoinTeam(ent, CTF_TEAM1), CTFApplyResistance(ent, 0) : CTFApplyResistance(ent, 0);
 				break;
 			}
 		}
@@ -3317,7 +3380,6 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	PMenu_Close(ent); // Cerrar el menú de TECHS
 }
-
 //HUD MENU
 void UpdateHUDMenuLayout(edict_t* ent);
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
@@ -3502,7 +3564,7 @@ void UpdateVoteMenu() {
 }
 
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur;
+	const int option = p->cur;
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
 		const char* voted_map = vote_menu[option].text;
 
@@ -3555,7 +3617,7 @@ void OpenVoteMenu(edict_t* ent) {
 }
 
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur;
+	const int option = p->cur;
 
 	// Cierra el menú sólo si es necesario al final de la ejecución del caso
 	bool shouldCloseMenu = true;
@@ -3741,7 +3803,8 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p)
 {
-	CTFJoinTeam(ent, CTF_TEAM1);
+	//CTFJoinTeam(ent, CTF_TEAM1);
+	OpenTechMenu(ent);
 
 }
 
@@ -4862,7 +4925,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		return;
 	}
 	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
-	int vote_index = atoi(map_name);  // Obtener el índice del mapa desde el argumento
+	const int vote_index = atoi(map_name);  // Obtener el índice del mapa desde el argumento
 	int current_index = 1;  // Contador para la búsqueda del mapa
 	bool found_map = false;
 	while (*(token = COM_Parse(&mlist)) != '\0')

@@ -534,11 +534,11 @@ THINK(proboscis_think) (edict_t* self) -> void
             if (self->timestamp <= level.time)
             {
                 int damage = 2;
-                if (M_DamageModifier) {
+                if (M_DamageModifier(self)) {
                     damage *= M_DamageModifier(self);
                 }
                 T_Damage(self->enemy, self, self->owner, tr.plane.normal, tr.endpos, tr.plane.normal, damage, 0, DAMAGE_NO_ARMOR, MOD_UNKNOWN);
-                self->owner->health = min(self->owner->max_health, self->owner->health + 2);
+                self->owner->health = min(self->owner->max_health, self->owner->health + 4);
                 if (self->owner->monsterinfo.setskin) {
                     self->owner->monsterinfo.setskin(self->owner);
                 }
@@ -1009,7 +1009,7 @@ void SP_monster_perrokl(edict_t* self)
 		if (G_IsCooperative())
 		self->health = 375 * st.health_multiplier;
 		if (g_horde->integer) {
-			self->health = 775 * current_wave_number;
+			self->health = 775 * current_wave_level;
 			self->s.scale = 1.2f;
 			self->mins *= 1.2f;
 			self->maxs *= 1.2f;

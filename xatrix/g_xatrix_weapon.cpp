@@ -536,7 +536,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
-	// Verificar y manejar el límite de trampas por jugador
+	// Verificar y manejar el lÃ­mite de trampas por jugador
 	//check_player_trap_limit(self);
 
 	edict_t* trap;
@@ -591,7 +591,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
 	//trap->svflags = SVF_PLAYER;
-	// Verifica si la trampa y el jugador son del mismo equipo y ajusta la máscara de colisión
+	// Verifica si la trampa y el jugador son del mismo equipo y ajusta la mÃ¡scara de colisiÃ³n
 	if (self->client && strcmp(trap->team, trap_team) == 0)
 	{
 		trap->clipmask &= ~CONTENTS_PLAYER;

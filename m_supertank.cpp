@@ -296,8 +296,7 @@ static void supertankGrenade(edict_t* self)
 	}
 }
 
-
-mframe_t supertank_frames_death1[] = {
+mframe_t supertank_frames_death1boss[] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
@@ -323,7 +322,22 @@ mframe_t supertank_frames_death1[] = {
 	{ ai_move },
 	{ ai_move, 0, BossLoop }
 };
-MMOVE_T(supertank_move_death) = { FRAME_death_1, FRAME_death_24, supertank_frames_death1, supertank_dead };
+MMOVE_T(supertank_move_deathboss) = { FRAME_death_1, FRAME_death_24, supertank_frames_death1boss, supertank_dead };
+
+
+mframe_t supertank_frames_death1[] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
+MMOVE_T(supertank_move_death) = { FRAME_death_1, FRAME_death_10, supertank_frames_death1, supertank_dead };
 
 mframe_t supertank_frames_attack4[] = {
 	{ ai_move, 0, supertankGrenade },
@@ -473,7 +487,7 @@ void supertankRocket(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	if (self->spawnflags.has(SPAWNFLAG_SUPERTANK_POWERSHIELD))
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	{
 		vec = self->enemy->s.origin;
 		vec[2] += self->enemy->viewheight;
@@ -521,9 +535,9 @@ MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 	// Attack 1 == Chaingun
 	// Attack 2 == Rocket Launcher
 	// Attack 3 == Grenade Launcher
-	bool chaingun_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_MACHINEGUN_1]);
-	bool rocket_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_ROCKET_1]);
-	bool grenade_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_GRENADE_1]);
+	const bool chaingun_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_MACHINEGUN_1]);
+	const bool rocket_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_ROCKET_1]);
+	const bool grenade_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_GRENADE_1]);
 
 	// fire rockets more often at distance
 	if (chaingun_good && (!rocket_good || range <= 540 || frandom() < 0.3f))
@@ -612,8 +626,9 @@ DIE(supertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 		self->deadflag = true;
 		self->takedamage = false;
 	}
-
-	M_SetAnimation(self, &supertank_move_death);
+	g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) ?
+		M_SetAnimation(self, &supertank_move_deathboss) :
+		M_SetAnimation(self, &supertank_move_death);
 }
 
 //===========
@@ -643,11 +658,11 @@ void SP_monster_supertank(edict_t* self)
 		return;
 	}
 
-	if (g_horde->integer && current_wave_number <= 18) {
+	if (g_horde->integer && current_wave_level <= 18) {
 
-		if (strcmp(self->classname, "monster_janitor")) {
+		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 			{
-				float randomsearch = frandom(); // Generate search sounds
+				const float randomsearch = frandom(); // Generate search sounds
 
 				if (randomsearch < 0.5f)
 
@@ -657,9 +672,10 @@ void SP_monster_supertank(edict_t* self)
 			}
 			self->health = 3300 * st.health_multiplier;
 		}
-		if (!strcmp(self->classname, "monster_janitor")) {
+		else
+		{
 			{
-				float randomsearch = frandom(); // Generate Search sounds
+				const float randomsearch = frandom(); // Generate Search sounds
 
 				if (randomsearch < 0.2f)
 
@@ -733,7 +749,7 @@ void SP_monster_supertank(edict_t* self)
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 3800;
+			self->monsterinfo.power_armor_power = 3300;
 	}
 	// RAFAEL
 
@@ -766,7 +782,7 @@ void SP_monster_boss5(edict_t* self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
-	self->health = 5600 + (1.08 * current_wave_number);
+	self->health = 5600 + (1.08 * current_wave_level);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -801,11 +817,11 @@ void SP_monster_supertankkl(edict_t* self)
 		SP_monster_supertank(self);
 		gi.soundindex("weapons/railgr1a.wav");
 
-		self->health = 675 * current_wave_number;
+		self->health = 675 * current_wave_level;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 
-			self->health = 5500;
+		self->health = 5500;
 	
 	
 
@@ -815,7 +831,7 @@ void SP_monster_supertankkl(edict_t* self)
 			self->monsterinfo.power_armor_power = 1800;
 
 		self->mass = 1200;
-		self->s.renderfx = RF_TRANSLUCENT;
+		self->s.alpha = 0.3f;
 		self->s.effects = EF_FLAG1 | EF_QUAD;
 	}
 	ApplyMonsterBonusFlags(self);

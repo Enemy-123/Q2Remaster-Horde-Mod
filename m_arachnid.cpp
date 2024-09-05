@@ -209,7 +209,7 @@ void arachnid_rail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 40, 100, id);
+	monster_fire_railgun(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 40 : 25, 100, id);
 }
 
 mframe_t arachnid_frames_attack1[] = {
@@ -255,16 +255,16 @@ void arachnid_melee_charge(edict_t* self)
 
 void arachnid_melee_hit(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
-		// Llamar a fire_hit solo si self->enemy está inicializado
+		// Llamar a fire_hit solo si self->enemy estÃ¡ inicializado
 		if (!fire_hit(self, { MELEE_DISTANCE, 0, 0 }, 15, 50))
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 	}
 	else {
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Puedes ajustar esto según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Puedes ajustar esto segÃºn sea necesario
 	}
 }
 
@@ -422,7 +422,7 @@ void SP_monster_arachnid(edict_t* self)
 
 
 	if (!strcmp(self->classname, "monster_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->health = 3500 + (1.08 * current_wave_number);
+		self->health = 3500 + (1.08 * current_wave_level);
 		self->gib_health = -99999;
 	}
 	else if (!strcmp(self->classname, "monster_arachnid") && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))

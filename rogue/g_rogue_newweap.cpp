@@ -132,20 +132,20 @@ THINK(Prox_Explode)(edict_t* ent) -> void {
 				// Las primeras 3 granadas caen directamente hacia abajo
 				VectorSet(forward, 0, 0, -1);
 
-				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
-				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
+				// Generar un tiempo de explosiÃ³n aleatorio entre 1 y 3 segundos
+				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
 				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
 			}
 			else {
-				// Las demás granadas siguen la fragmentación normal
+				// Las demÃ¡s granadas siguen la fragmentaciÃ³n normal
 				grenade_angs[0] = -45;
-				grenade_angs[1] = (n - 3) * 30.0f; // Ajuste del ángulo para evitar interferencia
+				grenade_angs[1] = (n - 3) * 30.0f; // Ajuste del Ã¡ngulo para evitar interferencia
 				grenade_angs[2] = 0;
 				AngleVectors(grenade_angs, forward, right, up);
 
-				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
-				float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
+				// Generar un tiempo de explosiÃ³n aleatorio entre 1 y 3 segundos
+				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
 
 				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
 			}
@@ -173,40 +173,62 @@ DIE(prox_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 	}
 }
 
-//===============
-//===============
 TOUCH(Prox_Field_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	edict_t* prox;
-
-	if (!(other->svflags & SVF_MONSTER) && !other->client)
+	if (!ent || !other) {
+		// Log error or handle null ent or other
 		return;
+	}
+
+	edict_t* prox = nullptr;
+
+	if (!(other->svflags & SVF_MONSTER)) {
+		// explode only if it's a monster
+		return;
+	}
 
 	// trigger the prox mine if it's still there, and still mine.
-	prox = ent->owner;
+	if (ent->owner) {
+		prox = ent->owner;
+	}
+	else {
+		// Log error or handle null owner
+		return;
+	}
 
 	// teammate avoidance
-	if (CheckTeamDamage(prox->teammaster, other))
+	if (prox->teammaster && CheckTeamDamage(prox->teammaster, other)) {
 		return;
-	if (G_IsDeathmatch() && g_horde->integer && other->client) // no self damage using traps on DM/Horde
-		return;
+	}
 
-	if (other == prox) // don't set self off
+	if (G_IsDeathmatch() && g_horde && g_horde->integer && other->client) {
+		// no self damage using traps on DM/Horde
 		return;
+	}
 
-	if (prox->think == Prox_Explode) // we're set to blow!
+	if (other == prox) {
+		// don't set self off
 		return;
+	}
 
-	if (prox->teamchain == ent)
-	{
-		gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
+	if (prox->think == Prox_Explode) {
+		// we're set to blow!
+		return;
+	}
+
+	if (prox->teamchain == ent) {
+		if (gi.soundindex && gi.sound) {
+			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
+		}
 		prox->think = Prox_Explode;
 		prox->nextthink = level.time + PROX_TIME_DELAY;
 		return;
 	}
 
-	ent->solid = SOLID_NOT;
-	G_FreeEdict(ent);
+	if (ent) {
+		ent->solid = SOLID_NOT;
+		G_FreeEdict(ent);
+	}
 }
 
 //===============
@@ -853,7 +875,7 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
 
-constexpr int MAX_TESLAS = 10; // Define el máximo de teslas permitidas por jugador
+constexpr int MAX_TESLAS = 10; // Define el mÃ¡ximo de teslas permitidas por jugador
 
 void tesla_remove(edict_t* self)
 {
@@ -909,7 +931,7 @@ TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 		return;
 	}
 
-	// Código existente para manejar el contacto aquí
+	// CÃ³digo existente para manejar el contacto aquÃ­
 }
 
 static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
@@ -1147,7 +1169,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	}
 }
 
-// Función para contar y manejar el número de teslas de un jugador
+// FunciÃ³n para contar y manejar el nÃºmero de teslas de un jugador
 void check_player_tesla_limit(edict_t* self)
 {
 	if (!self->client)
@@ -1173,7 +1195,7 @@ void check_player_tesla_limit(edict_t* self)
 		if (oldest_tesla)
 		{
 			G_FreeEdict(oldest_tesla);
-			self->client->num_teslas--; // Decrementar el contador al eliminar la más antigua
+			self->client->num_teslas--; // Decrementar el contador al eliminar la mÃ¡s antigua
 		}
 	}
 }
@@ -1181,7 +1203,7 @@ void check_player_tesla_limit(edict_t* self)
 
 void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int tesla_damage_multiplier, int speed)
 {
-	// Verificar y manejar el límite de teslas por jugador
+	// Verificar y manejar el lÃ­mite de teslas por jugador
 	check_player_tesla_limit(self);
 
 	edict_t* tesla;
@@ -1739,7 +1761,7 @@ void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 	}
 	else
 	{
-		bolt->nextthink = level.time + 10_sec;
+		bolt->nextthink = level.time + 7_sec; //reduce?
 		bolt->think = G_FreeEdict;
 	}
 

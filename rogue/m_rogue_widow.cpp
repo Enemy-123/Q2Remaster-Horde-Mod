@@ -16,10 +16,6 @@ black widow
 #include "../m_flash.h"
 #include "../shared.h"
 
-constexpr gtime_t RAIL_TIME = 1.5_sec;
-constexpr gtime_t BLASTER_TIME = 1_sec;
-constexpr int	BLASTER2_DAMAGE = 20;
-constexpr int	WIDOW_RAIL_DAMAGE = 90;
 
 bool infront(edict_t* self, edict_t* other);
 
@@ -65,6 +61,11 @@ void widow_start_run_10(edict_t* self);
 void widow_start_run_12(edict_t* self);
 
 void WidowCalcSlots(edict_t* self);
+
+constexpr gtime_t RAIL_TIME = 1.5_sec;
+constexpr gtime_t BLASTER_TIME = 1_sec;
+constexpr int	BLASTER2_DAMAGE = 20;
+constexpr int	WIDOW_RAIL_DAMAGE = 90;
 
 MONSTERINFO_SEARCH(widow_search) (edict_t* self) -> void
 {
@@ -202,7 +203,7 @@ void WidowBlaster(edict_t* self)
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW_BLASTER_SWEEP1];
 
 		AngleVectors(vec, forward, nullptr, nullptr);
-		monster_fire_blaster2(self, start, forward, BLASTER2_DAMAGE * widow_damage_multiplier, 1000, flashnum, effect);
+		monster_fire_blaster2(self, start, forward, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
 	}
 	else if ((self->s.frame >= FRAME_fired02a) && (self->s.frame <= FRAME_fired20))
 	{
@@ -251,7 +252,7 @@ void WidowBlaster(edict_t* self)
 			AngleVectors(angles, forward, nullptr, nullptr);
 		}
 
-		monster_fire_blaster2(self, start, forward, BLASTER2_DAMAGE * widow_damage_multiplier, 1000, flashnum, effect);
+		monster_fire_blaster2(self, start, forward, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
 	}
 	else if ((self->s.frame >= FRAME_run01) && (self->s.frame <= FRAME_run08))
 	{
@@ -262,7 +263,7 @@ void WidowBlaster(edict_t* self)
 		target[2] += self->enemy->viewheight;
 		target.normalize();
 
-		monster_fire_blaster2(self, start, target, BLASTER2_DAMAGE * widow_damage_multiplier, 1000, flashnum, effect);
+		monster_fire_blaster2(self, start, target, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
 	}
 }
 void WidowSpawn(edict_t* self)
@@ -541,7 +542,7 @@ void WidowRail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, WIDOW_RAIL_DAMAGE * widow_damage_multiplier, 100, flash);
+	monster_fire_railgun(self, start, dir, !strcmp(self->classname, "monster_widow1") ? 60 : 90 * widow_damage_multiplier, 100, flash);
 	self->timestamp = level.time + RAIL_TIME;
 }
 
@@ -701,24 +702,20 @@ void spawn_out_start(edict_t* self)
 
 	gi.sound(self, CHAN_VOICE, gi.soundindex("misc/bwidowbeamout.wav"), 1, ATTN_NORM, 0);
 }
-
 void spawn_out_do(edict_t* self)
 {
 	vec3_t startpoint, f, r, u;
-
 	AngleVectors(self->s.angles, f, r, u);
 	startpoint = G_ProjectSource2(self->s.origin, beameffects[0], f, r, u);
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WIDOWSPLASH);
 	gi.WritePosition(startpoint);
 	gi.multicast(startpoint, MULTICAST_ALL, false);
-
 	startpoint = G_ProjectSource2(self->s.origin, beameffects[1], f, r, u);
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WIDOWSPLASH);
 	gi.WritePosition(startpoint);
 	gi.multicast(startpoint, MULTICAST_ALL, false);
-
 	startpoint = self->s.origin;
 	startpoint[2] += 36;
 	gi.WriteByte(svc_temp_entity);
@@ -726,7 +723,8 @@ void spawn_out_do(edict_t* self)
 	gi.WritePosition(startpoint);
 	gi.multicast(startpoint, MULTICAST_PHS, false);
 
-	Widowlegs_Spawn(self->s.origin, self->s.angles);
+	// Pasamos self a Widowlegs_Spawn
+	Widowlegs_Spawn(self->s.origin, self->s.angles, self);
 
 	G_FreeEdict(self);
 }
@@ -766,9 +764,20 @@ mframe_t widow_frames_death[] = {
 };
 MMOVE_T(widow_move_death) = { FRAME_death01, FRAME_death31, widow_frames_death, nullptr };
 
+mframe_t widow1_frames_death[] = {
+	{ ai_move, 0, spawn_out_start }, // 25
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }, // 30
+	{ ai_move, 0, spawn_out_do }
+};
+MMOVE_T(widow1_move_death) = { FRAME_death25, FRAME_death31, widow1_frames_death, nullptr };
+
 void widow_attack_kick(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		vec3_t aim = { 100, 0, 4 };
 
@@ -782,8 +791,8 @@ void widow_attack_kick(edict_t* self)
 		// std::snprintf(buffer, sizeof(buffer), "widow_attack_kick: Error: enemy not properly initialized\n");
 		// gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		// Puedes agregar cualquier lógica adicional aquí si es necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		// Puedes agregar cualquier lÃ³gica adicional aquÃ­ si es necesario
 	}
 }
 
@@ -1051,7 +1060,7 @@ DIE(widow_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 		self->monsterinfo.quad_time = 0_ms;
 		self->monsterinfo.double_time = 0_ms;
 		self->monsterinfo.invincible_time = 0_ms;
-		BecomeExplosion1(self);
+		M_SetAnimation(self, &widow1_move_death);
 	}
 }
 

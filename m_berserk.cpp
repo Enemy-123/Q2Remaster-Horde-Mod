@@ -159,9 +159,9 @@ void berserk_attack_spike(edict_t* self)
 {
 	constexpr vec3_t aim = { MELEE_DISTANCE, 0, -24 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
-		// Llamar a fire_hit solo si self->enemy está inicializado
+		// Llamar a fire_hit solo si self->enemy estÃ¡ inicializado
 		if (!fire_hit(self, aim, irandom(6, 13) * M_DamageModifier(self), 80)) //	Faster attack -- upwards and backwards
 			self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
 	}
@@ -170,8 +170,8 @@ void berserk_attack_spike(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "berserk_attack_spike: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec; // Puedes ajustar esto según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.2_sec; // Puedes ajustar esto segÃºn sea necesario
 	}
 }
 
@@ -197,9 +197,9 @@ void berserk_attack_club(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
-		// Llamar a fire_hit solo si self->enemy está inicializado
+		// Llamar a fire_hit solo si self->enemy estÃ¡ inicializado
 		if (!fire_hit(self, aim, irandom(15, 21) * M_DamageModifier(self), 400)) // Slower attack
 			self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
 	}
@@ -208,8 +208,8 @@ void berserk_attack_club(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "berserk_attack_club: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec; // Puedes ajustar esto según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 2.5_sec; // Puedes ajustar esto segÃºn sea necesario
 	}
 }
 
@@ -325,7 +325,7 @@ static void berserk_high_gravity(edict_t* self)
 	if (self->velocity[2] < 0)
 		self->gravity = 2.25f * (800.f / level.gravity);
 	else
-		self->gravity = 5.25f * (800.f / level.gravity);
+		self->gravity = 7.25f * (800.f / level.gravity);
 }
 
 void berserk_jump_takeoff(edict_t* self)
@@ -336,15 +336,15 @@ void berserk_jump_takeoff(edict_t* self)
 		return;
 
 	// immediately turn to where we need to go
-	float length = (self->s.origin - self->enemy->s.origin).length();
-	float fwd_speed = length * 1.95f;
+	const float length = (self->s.origin - self->enemy->s.origin).length();
+	const float fwd_speed = length * 1.95f;
 	vec3_t dir;
 	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &dir, nullptr);
 	self->s.angles[1] = vectoyaw(dir);
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin[2] += 1;
 	self->velocity = forward * fwd_speed;
-	self->velocity[2] = 450;
+	self->velocity[2] = 280;
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
 	self->monsterinfo.attack_finished = level.time + 2.5_sec;
@@ -798,8 +798,8 @@ MONSTERINFO_DUCK(berserk_duck) (edict_t* self, gtime_t eta) -> bool
  */
 void SP_monster_berserk(edict_t* self)
 {
-	if (g_horde->integer && current_wave_number <= 18) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+	if (g_horde->integer && current_wave_level <= 18) {
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.12f)
 			gi.sound(self, CHAN_VOICE, sound_idle2, 1, ATTN_NORM, 0);

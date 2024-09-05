@@ -42,11 +42,11 @@ void makron_taunt(edict_t *self)
 
 	r = frandom();
 	if (r <= 0.3f)
-		gi.sound(self, CHAN_AUTO, sound_taunt1, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_AUTO, sound_taunt1, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else if (r <= 0.6f)
-		gi.sound(self, CHAN_AUTO, sound_taunt2, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_AUTO, sound_taunt2, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else
-		gi.sound(self, CHAN_AUTO, sound_taunt3, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_AUTO, sound_taunt3, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 }
 
 //
@@ -138,7 +138,7 @@ MMOVE_T(makron_move_run) = { FRAME_walk204, FRAME_walk213, makron_frames_run, nu
 
 void makron_hit(edict_t *self)
 {
-	gi.sound(self, CHAN_AUTO, sound_hit, 1, ATTN_NONE, 0);
+	gi.sound(self, CHAN_AUTO, sound_hit, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 }
 
 void makron_popup(edict_t *self)
@@ -455,10 +455,10 @@ void makronBFG(edict_t *self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_VOICE, sound_attack_bfg, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, 50, 800, 100, 300, MZ2_MAKRON_BFG);
+	monster_fire_bfg(self, start, dir, !strcmp(self->classname, "monster_makronkl") ? 40 : 15, 300, 100, 300, MZ2_MAKRON_BFG);
 }
 
-mframe_t makron_frames_attack3[] = {
+mframe_t makron_frames_attack3boss[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
@@ -468,7 +468,20 @@ mframe_t makron_frames_attack3[] = {
 	{ ai_charge, 0, makronBFG },
 	{ ai_move }
 };
+MMOVE_T(makron_move_attack3boss) = { FRAME_attak301, FRAME_attak308, makron_frames_attack3boss, makron_run };
+
+mframe_t makron_frames_attack3[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, makronBFG },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
 MMOVE_T(makron_move_attack3) = { FRAME_attak301, FRAME_attak308, makron_frames_attack3, makron_run };
+
 
 mframe_t makron_frames_attack4[] = {
 	{ ai_charge },
@@ -554,7 +567,7 @@ void MakronHyperblaster(edict_t *self)
 	vec3_t start;
 	vec3_t forward, right;
 
-	monster_muzzleflash_id_t flash_number = (monster_muzzleflash_id_t) (MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405));
+	const monster_muzzleflash_id_t flash_number = (monster_muzzleflash_id_t) (MZ2_MAKRON_BLASTER_1 + (self->s.frame - FRAME_attak405));
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
@@ -579,7 +592,8 @@ void MakronHyperblaster(edict_t *self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	monster_fire_blaster2(self, start, forward, 35, 2300, flash_number, EF_BLASTER);
+	!strcmp(self->classname, "monster_makron") ?  monster_fire_blaster2(self, start, forward, 35, 2300, flash_number, EF_BLASTER) :
+	monster_fire_heatbeam(self, start, forward, vec3_origin, 18, 60, flash_number);
 }
 
 PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
@@ -600,9 +614,9 @@ PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 	bool do_pain6 = false;
 
 	if (damage <= 40)
-		gi.sound(self, CHAN_VOICE, sound_pain4, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain4, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else if (damage <= 110)
-		gi.sound(self, CHAN_VOICE, sound_pain5, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain5, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else
 	{
 		if (damage <= 150)
@@ -610,7 +624,7 @@ PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 			if (frandom() <= 0.45f)
 			{
 				do_pain6 = true;
-				gi.sound(self, CHAN_VOICE, sound_pain6, 1, ATTN_NONE, 0);
+				gi.sound(self, CHAN_VOICE, sound_pain6, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 			}
 		}
 		else
@@ -618,7 +632,7 @@ PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const 
 			if (frandom() <= 0.35f)
 			{
 				do_pain6 = true;
-				gi.sound(self, CHAN_VOICE, sound_pain6, 1, ATTN_NONE, 0);
+				gi.sound(self, CHAN_VOICE, sound_pain6, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 			}
 		}
 	}
@@ -656,6 +670,7 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 	r = frandom();
 
 	if (r <= 0.3f)
+		!strcmp(self->classname, "monster_makronkl") ? M_SetAnimation(self, &makron_move_attack3boss) :
 		M_SetAnimation(self, &makron_move_attack3);
 	else if (r <= 0.6f)
 		M_SetAnimation(self, &makron_move_attack4);
@@ -701,7 +716,7 @@ DIE(makron_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damag
 		return;
 
 	// regular death
-	gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+	gi.sound(self, CHAN_VOICE, sound_death, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	self->deadflag = true;
 	self->takedamage = true;
 	self->svflags |= SVF_DEADMONSTER;
@@ -770,7 +785,7 @@ void SP_monster_makron(edict_t* self)
 	if (g_horde->integer) {
 		if (!strcmp(self->classname, "monster_makronkl"))
 		{
-			float randomsearch = frandom(); // Generar un n�mero aleatorio entre 0 y 1
+			const float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, sound_taunt1, 1, ATTN_NONE, 0);
@@ -846,12 +861,12 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	edict_t* player;
 
 
-	if (g_horde->integer && current_wave_number <= 20 || !g_horde->integer) {
+	if (g_horde->integer && current_wave_level <= 20 || !g_horde->integer) {
 
 		SP_monster_makron(self);
 
 	}
-	else if (g_horde->integer && current_wave_number >= 21) {
+	else if (g_horde->integer && current_wave_level >= 21) {
 
 		SP_monster_makronkl(self);
 	}
@@ -891,21 +906,39 @@ void MakronToss(edict_t* self)
 
 {
 	edict_t* ent = G_Spawn();
-	if (g_horde->integer && current_wave_number <= 20 || g_horde->integer) {
+
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BOSSTPORT);
+		gi.WritePosition(self->s.origin);
+		gi.multicast(self->s.origin, MULTICAST_PHS, false);
+		// just hide, don't kill ent so we can trigger it again
+		self->svflags |= SVF_NOCLIENT | SVF_DEADMONSTER;
+		self->solid = SOLID_NOT;
+		gi.linkentity(self);
+		monster_dead(self);
+		self->monsterinfo.aiflags &= ~AI_BRUTAL;
+		self->monsterinfo.aiflags &= ~AI_DOUBLE_TROUBLE;
+		return;
+	}
+	if (g_horde->integer && current_wave_level <= 20 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS) || !g_horde->integer) {
 
 		ent->classname = "monster_makron";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	else if (g_horde->integer && current_wave_number >= 21)
+	else if (g_horde->integer && current_wave_level >= 21 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	{
 		ent->classname = "monster_makronkl";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	MakronSpawn(ent);
+	if (!g_horde->integer|| g_horde->integer && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	MakronSpawn(ent); 
+
+
 	// [Paril-KEX] set health bar over to Makron when we throw him out
 	for (size_t i = 0; i < 2; i++)
 		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == self)
@@ -920,7 +953,7 @@ void SP_monster_makronkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_MAKRONKL;
 	SP_monster_makron(self);
 	self->s.skinnum = 2;
-	self->health = 2600 + (600 * current_wave_number);
+	self->health = 2600 + (600 * current_wave_level);
 	self->s.alpha = 0.4f;
 	self->s.effects = EF_FLAG1;
 

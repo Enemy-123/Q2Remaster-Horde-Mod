@@ -619,7 +619,7 @@ MMOVE_T(gekk_move_run_start) = { FRAME_stand_01, FRAME_stand_02, gekk_frames_run
 
 void gekk_hit_left(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (!self->enemy)
 	{
 		// char buffer[256];
@@ -641,7 +641,7 @@ void gekk_hit_left(edict_t* self)
 
 void gekk_hit_right(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (!self->enemy)
 	{
 		// char buffer[256];
@@ -772,11 +772,23 @@ void reloogie(edict_t* self)
 			M_SetAnimation(self, &gekk_move_spit);
 }
 
-mframe_t gekk_frames_spit[] = {
+mframe_t gekk_frames_spitharder[] = {
 	{ ai_charge, 0, loogie },
 	{ ai_charge, 0, loogie },
 	{ ai_charge },
 	{ ai_charge, 0, loogie },
+	{ ai_charge },
+	{ ai_charge, 0, loogie },
+	{ ai_charge, 0, reloogie }
+};
+MMOVE_T(gekk_move_spitharder) = { FRAME_spit_01, FRAME_spit_07, gekk_frames_spitharder, gekk_run_start };
+
+
+mframe_t gekk_frames_spit[] = {
+	{ ai_charge, 0, },
+	{ ai_charge, 0, },
+	{ ai_charge },
+	{ ai_charge, 0 },
 	{ ai_charge },
 	{ ai_charge, 0, loogie },
 	{ ai_charge, 0, reloogie }
@@ -869,7 +881,7 @@ MMOVE_T(gekk_move_leapatk2) = { FRAME_leapatk_01, FRAME_leapatk_19, gekk_frames_
 
 void gekk_bite(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (!self->enemy)
 	{
 		// char buffer[256];
@@ -1067,7 +1079,7 @@ void gekk_check_landing(edict_t* self)
 
 MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 {
-	float r = range_to(self, self->enemy);
+	const float r = range_to(self, self->enemy);
 
 	if (self->flags & FL_SWIM)
 	{
@@ -1082,8 +1094,10 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 	else
 	{
 		if (r >= RANGE_MID) {
-			if (frandom() > 0.5f) {
-				M_SetAnimation(self, &gekk_move_spit);
+			if (frandom() > 0.4f) {
+				first3waves ? 
+					M_SetAnimation(self, &gekk_move_spit) :
+					M_SetAnimation(self, &gekk_move_spitharder);
 			}
 			else {
 				M_SetAnimation(self, &gekk_move_run_start);
@@ -1091,7 +1105,9 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 			}
 		}
 		else if (frandom() > 0.7f) {
-			M_SetAnimation(self, &gekk_move_spit);
+			first3waves ? 
+				M_SetAnimation(self, &gekk_move_spit) : 
+				M_SetAnimation(self, &gekk_move_spitharder);
 		}
 		else {
 			if (self->spawnflags.has(SPAWNFLAG_GEKK_NOJUMPING) || frandom() > 0.7f) {

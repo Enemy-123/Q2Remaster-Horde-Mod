@@ -428,7 +428,7 @@ void G_TouchTriggers(edict_t* ent)
 	static edict_t* touch[MAX_EDICTS];
 	edict_t* hit;
 
-	if (!ent) // Comprobación de nulidad
+	if (!ent) // ComprobaciÃ³n de nulidad
 		return;
 
 	// dead things don't activate triggers!
@@ -462,7 +462,7 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 	// a bit ugly, but we'll store projectiles we are ignoring here.
 	static std::vector<skipped_projectile> skipped;
 
-	if (!ent) // Comprobación de nulidad
+	if (!ent) // ComprobaciÃ³n de nulidad
 		return;
 
 	while (true)
@@ -470,7 +470,7 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 		trace_t tr = gi.trace(previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ent->clipmask | CONTENTS_PROJECTILE);
 		if (tr.fraction == 1.0f)
 			break;
-		if (!tr.ent) // Comprobación de nulidad
+		if (!tr.ent) // ComprobaciÃ³n de nulidad
 			break;
 		if (!(tr.ent->svflags & SVF_PROJECTILE))
 			break;

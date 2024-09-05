@@ -580,11 +580,11 @@ This is the improved icarus monster.
 */
 void SP_monster_hover(edict_t* self)
 {
-	if (g_horde->integer && current_wave_number <= 18)
+	if (g_horde->integer && current_wave_level <= 18)
 	{
 		if (strcmp(self->classname, "monster_daedalus"))
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
@@ -596,7 +596,7 @@ void SP_monster_hover(edict_t* self)
 
 		else if (!strcmp(self->classname, "monster_daedalus")) {
 
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 			if (randomsearch < 0.23f)
 				gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);

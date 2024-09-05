@@ -100,7 +100,7 @@ bool Hook_Check(edict_t* self)
 	// drop the hook if player lets go of button
 	// and has the hook as current weapon
 	if (((self->owner->client->latched_buttons & BUTTON_ATTACK)
-		&& self->owner->client->pers.weapon && // Agregar esta verificaci�n
+		&& self->owner->client->pers.weapon && // Agregar esta verificaciÃ³n
 		(strcmp(self->owner->client->pers.weapon->pickup_name, "Hook") == 0))) // DEBUGGER POINTED THIS LINE!
 	{
 		Hook_Reset(self);
@@ -182,7 +182,7 @@ THINK(Hook_Track) (edict_t* self) -> void
 // the hook has hit something.  what could it be?
 TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	vec3_t dir, normal;
+	vec3_t dir, normal, forward;
 
 	// ignore hitting the person who launched us
 	if (other == self->owner)
@@ -201,11 +201,19 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 		return;
 	}
 
-	if (other->client) 		// we hit a player	
+	if (other->client && other->svflags & SVF_BOT) 		// we hit a bot	
 	{
-		// ignore hitting a teammate
-	//	if (OnSameTeam(other, self->owner))
-	//		return;
+		// if bot, apply the same pull force as brain tongue attack
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		other->velocity = forward * -1550;  // Apply pulling force to the bot
+
+		// Stop further processing as we already applied the force
+		Hook_Reset(self);
+		return;
+	}
+	else if (other->client)
+	{
+		if (OnSameTeam(other, self->owner) && other->svflags & ~SVF_BOT)
 
 		// we hit an enemy, so do a bit of damage
 		dir = self->owner->s.origin - other->s.origin;
@@ -221,7 +229,7 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 
 		self->owner->client->hook_damage += hook_initdamage->value;
 	}
-	else     // we hit something thats not a player
+	else     // we hit something that's not a player
 	{
 		// if we can hurt it, then do a bit of damage
 		if (other->takedamage) {
@@ -234,8 +242,6 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 		// stop moving
 		self->velocity = vec3_t{ 0,0,0 };
 
-		// gi.sound() doesnt work because the origin of an entity with no model is not 
-		// transmitted to clients or something.  hoped this would be fixed in Q2 ...
 		gi.positioned_sound(self->s.origin, self, CHAN_WEAPON, gi.soundindex("flyer/Flyatck2.wav"), 1, ATTN_NORM, 0);
 	}
 
@@ -248,7 +254,6 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 
 	// we are now anchored
 	self->owner->client->hook_on = true;
-	//	self->owner->client->ps.pmove.pm_flags |= PMF_NO_PREDICTION;
 
 	// keep up with that thing
 	self->think = Hook_Track;

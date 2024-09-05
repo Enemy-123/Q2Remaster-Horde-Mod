@@ -1548,8 +1548,8 @@ void Machinegun_Fire(edict_t* ent)
 	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
-	// Ajustar posiciÛn inicial para evitar colisiones con el techo
-	start[2] -= 5.0f;  // Baja la posiciÛn inicial un poco m·s abajo
+	// Ajustar posici√≥n inicial para evitar colisiones con el techo
+	start[2] -= 5.0f;  // Baja la posici√≥n inicial un poco m√°s abajo
 
 	G_LagCompensate(ent, start, forward);
 	fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
@@ -1565,7 +1565,7 @@ void Machinegun_Fire(edict_t* ent)
 
 	G_RemoveAmmo(ent);
 
-	// LÛgica para disparar trazadores
+	// L√≥gica para disparar trazadores
 	if (ent->lasthbshot <= level.time)
 	{
 		if (g_tracedbullets->integer)
@@ -1578,19 +1578,19 @@ void Machinegun_Fire(edict_t* ent)
 			// Ajustar el desplazamiento para que coincida con el lado del arma
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posiciÛn del blaster cuando est· agachado
+				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posici√≥n del blaster cuando est√° agachado
 			}
 			else
 			{
-				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posiciÛn del blaster cuando est· de pie
+				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posici√≥n del blaster cuando est√° de pie
 			}
 			VectorAdd(tracer_start, tracer_offset, tracer_start);
 
-			// Ajuste de direcciÛn para fire_blaster2
+			// Ajuste de direcci√≥n para fire_blaster2
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
 
-			// Disparo del blaster desde la posiciÛn ajustada y direcciÛn correcta
+			// Disparo del blaster desde la posici√≥n ajustada y direcci√≥n correcta
 			fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.5_sec;
@@ -1714,8 +1714,8 @@ void Chaingun_Fire(edict_t* ent)
 	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
 
-	// Ajustar posiciÛn inicial para evitar colisiones con el techo
-	start[2] -= 5.0f;  // Baja la posiciÛn inicial un poco m·s abajo
+	// Ajustar posici√≥n inicial para evitar colisiones con el techo
+	start[2] -= 5.0f;  // Baja la posici√≥n inicial un poco m√°s abajo
 
 	G_LagCompensate(ent, start, forward);
 	for (i = 0; i < shots; i++)
@@ -1737,7 +1737,7 @@ void Chaingun_Fire(edict_t* ent)
 
 	G_RemoveAmmo(ent, shots);
 
-	// LÛgica para disparar trazadores
+	// L√≥gica para disparar trazadores
 	if (ent->lasthbshot <= level.time)
 	{
 		if (g_tracedbullets->integer)
@@ -1750,19 +1750,19 @@ void Chaingun_Fire(edict_t* ent)
 			// Ajustar el desplazamiento para que coincida con el lado del arma
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posiciÛn del blaster cuando est· agachado
+				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posici√≥n del blaster cuando est√° agachado
 			}
 			else
 			{
-				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posiciÛn del blaster cuando est· de pie
+				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posici√≥n del blaster cuando est√° de pie
 			}
 			VectorAdd(tracer_start, tracer_offset, tracer_start);
 
-			// Ajuste de direcciÛn para fire_blaster2
+			// Ajuste de direcci√≥n para fire_blaster2
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
 
-			// Disparo del blaster desde la posiciÛn ajustada y direcciÛn correcta
+			// Disparo del blaster desde la posici√≥n ajustada y direcci√≥n correcta
 			fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.25_sec;
@@ -1935,6 +1935,41 @@ void Weapon_Railgun(edict_t* ent)
 	Weapon_Generic(ent, 3, 18, 56, 61, pause_frames, fire_frames, weapon_railgun_fire);
 }
 
+
+
+/////a
+
+//// Define vec3_zero() if not already defined
+//inline vec3_t vec3_zero() {
+//	return { 0, 0, 0 };
+//}
+//
+//float P_CurrentBFGKickFactor(edict_t* ent)
+//{
+//	if (ent->client->kick.time < level.time)
+//		return 0.f;
+//	float f = (ent->client->kick.time - level.time).seconds() / ent->client->kick.total.seconds();
+//	// Add easing function for smoother kick
+//	return sinf((1.0f - f) * (PIf * 0.5f));
+//}
+//
+//void P_ApplyContinuousKick(edict_t* ent, float dt)
+//{
+//	if (ent->client->kick.time >= level.time)
+//	{
+//		float factor = P_CurrentBFGKickFactor(ent);
+//		ent->client->kick_origin = ent->client->kick.origin * factor;
+//		ent->client->v_dmg_roll = ent->client->kick.angles[ROLL] * factor;
+//		ent->client->v_dmg_pitch = ent->client->kick.angles[PITCH] * factor;
+//	}
+//	else
+//	{
+//		ent->client->kick_origin = vec3_zero();
+//		ent->client->v_dmg_roll = 0;
+//		ent->client->v_dmg_pitch = 0;
+//	}
+//}
+
 /*
 ======================================================================
 
@@ -1942,6 +1977,53 @@ BFG10K
 
 ======================================================================
 */
+
+//
+//VORTEX BFG
+// 
+// 
+//void weapon_bfg_fire(edict_t* ent)
+//{
+//	int	  damage;
+//	float damage_radius = 1000;
+//	if (G_IsDeathmatch())
+//		damage = 700;
+//	else
+//		damage = 700;
+//
+//	if (ent->client->ps.gunframe == 9)
+//	{
+//		// cells can go down during windup (from power armor hits), so
+//		// check again and abort firing if we don't have enough now
+//		if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < 50)
+//			return;
+//
+//		if (is_quad)
+//			damage *= damage_multiplier;
+//
+//		vec3_t start, dir;
+//		P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
+//
+//		// Fire BFG immediately
+//		fire_bfg(ent, start, dir, damage, 600, damage_radius);
+//
+//		// Add weapon kick
+//		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -10.f, 0, crandom() * 2 });
+//		ent->client->kick.total = DAMAGE_TIME();
+//		ent->client->kick.time = level.time + ent->client->kick.total;
+//
+//		// send muzzle flash
+//		gi.WriteByte(svc_muzzleflash);
+//		gi.WriteEntity(ent);
+//		gi.WriteByte(MZ_BFG | is_silenced);
+//		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+//
+//		PlayerNoise(ent, start, PNOISE_WEAPON);
+//		G_RemoveAmmo(ent);
+//
+//		return;
+//	}
+//}
 
 void weapon_bfg_fire(edict_t* ent)
 {
@@ -1975,7 +2057,7 @@ void weapon_bfg_fire(edict_t* ent)
 
 	vec3_t start, dir;
 	P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-	fire_bfg(ent, start, dir, damage, 900, damage_radius);
+	fire_bfg(ent, start, dir, damage, 600, damage_radius);
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -20.f, 0, crandom() * 8 });
 	ent->client->kick.total = DAMAGE_TIME();
@@ -1991,6 +2073,7 @@ void weapon_bfg_fire(edict_t* ent)
 
 	G_RemoveAmmo(ent);
 }
+
 
 void Weapon_BFG(edict_t* ent)
 {

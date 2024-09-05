@@ -8,10 +8,13 @@ SOLDIER
 ==============================================================================
 */
 
+
 #include "g_local.h"
 #include "m_soldier.h"
 #include "m_flash.h"
 #include "shared.h"
+
+
 
 static cached_soundindex sound_idle;
 static cached_soundindex sound_sight1;
@@ -24,23 +27,23 @@ static cached_soundindex sound_death;
 static cached_soundindex sound_death_ss;
 static cached_soundindex sound_cock;
 
-void soldier_start_charge(edict_t *self)
+void soldier_start_charge(edict_t* self)
 {
 	self->monsterinfo.aiflags |= AI_CHARGING;
 }
 
-void soldier_stop_charge(edict_t *self)
+void soldier_stop_charge(edict_t* self)
 {
 	self->monsterinfo.aiflags &= ~AI_CHARGING;
 }
 
-void soldier_idle(edict_t *self)
+void soldier_idle(edict_t* self)
 {
 	if (frandom() > 0.8f)
 		gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_IDLE, 0);
 }
 
-void soldier_cock(edict_t *self)
+void soldier_cock(edict_t* self)
 {
 	if (self->s.frame == FRAME_stand322)
 		gi.sound(self, CHAN_WEAPON, sound_cock, 1, ATTN_IDLE, 0);
@@ -52,7 +55,7 @@ void soldier_cock(edict_t *self)
 }
 
 // RAFAEL
-void soldierh_hyper_laser_sound_start(edict_t *self)
+void soldierh_hyper_laser_sound_start(edict_t* self)
 {
 	if (self->style == 1)
 	{
@@ -61,7 +64,7 @@ void soldierh_hyper_laser_sound_start(edict_t *self)
 	}
 }
 
-void soldierh_hyper_laser_sound_end(edict_t *self)
+void soldierh_hyper_laser_sound_end(edict_t* self)
 {
 	if (self->monsterinfo.weapon_sound)
 	{
@@ -75,7 +78,7 @@ void soldierh_hyper_laser_sound_end(edict_t *self)
 
 // STAND
 
-void soldier_stand(edict_t *self);
+void soldier_stand(edict_t* self);
 
 mframe_t soldier_frames_stand1[] = {
 	{ ai_stand, 0, soldier_idle },
@@ -206,7 +209,7 @@ mframe_t soldier_frames_stand3[] = {
 };
 MMOVE_T(soldier_move_stand3) = { FRAME_stand301, FRAME_stand339, soldier_frames_stand3, soldier_stand };
 
-MONSTERINFO_STAND(soldier_stand) (edict_t *self) -> void
+MONSTERINFO_STAND(soldier_stand) (edict_t* self) -> void
 {
 	float r = frandom();
 
@@ -223,7 +226,7 @@ MONSTERINFO_STAND(soldier_stand) (edict_t *self) -> void
 // WALK
 //
 
-void soldier_walk1_random(edict_t *self)
+void soldier_walk1_random(edict_t* self)
 {
 	if (frandom() > 0.1f)
 		self->monsterinfo.nextframe = FRAME_walk101;
@@ -280,7 +283,7 @@ mframe_t soldier_frames_walk2[] = {
 };
 MMOVE_T(soldier_move_walk2) = { FRAME_walk209, FRAME_walk218, soldier_frames_walk2, nullptr };
 
-MONSTERINFO_WALK(soldier_walk) (edict_t *self) -> void
+MONSTERINFO_WALK(soldier_walk) (edict_t* self) -> void
 {
 	// [Paril-KEX] during N64 cutscene, always use fast walk or we bog down the line
 	if (!(self->hackflags & HACKFLAG_END_CUTSCENE) && frandom() < 0.5f)
@@ -293,7 +296,7 @@ MONSTERINFO_WALK(soldier_walk) (edict_t *self) -> void
 // RUN
 //
 
-void soldier_run(edict_t *self);
+void soldier_run(edict_t* self);
 
 mframe_t soldier_frames_start_run[] = {
 	{ ai_run, 7 },
@@ -303,7 +306,7 @@ MMOVE_T(soldier_move_start_run) = { FRAME_run01, FRAME_run02, soldier_frames_sta
 
 mframe_t soldier_frames_run[] = {
 	{ ai_run, 10 },
-	{ ai_run, 11, [](edict_t *self) { monster_done_dodge(self); monster_footstep(self); } },
+	{ ai_run, 11, [](edict_t* self) { monster_done_dodge(self); monster_footstep(self); } },
 	{ ai_run, 11 },
 	{ ai_run, 16 },
 	{ ai_run, 10, monster_footstep },
@@ -311,7 +314,7 @@ mframe_t soldier_frames_run[] = {
 };
 MMOVE_T(soldier_move_run) = { FRAME_run03, FRAME_run08, soldier_frames_run, nullptr };
 
-MONSTERINFO_RUN(soldier_run) (edict_t *self) -> void
+MONSTERINFO_RUN(soldier_run) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 	soldierh_hyper_laser_sound_end(self);
@@ -402,7 +405,7 @@ mframe_t soldier_frames_pain4[] = {
 };
 MMOVE_T(soldier_move_pain4) = { FRAME_pain401, FRAME_pain417, soldier_frames_pain4, soldier_run };
 
-PAIN(soldier_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
+PAIN(soldier_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	float r;
 	int	  n;
@@ -445,7 +448,7 @@ PAIN(soldier_pain) (edict_t *self, edict_t *other, float kick, int damage, const
 		soldierh_hyper_laser_sound_end(self);
 		return;
 	}
-	
+
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
@@ -464,7 +467,7 @@ PAIN(soldier_pain) (edict_t *self, edict_t *other, float kick, int damage, const
 	soldierh_hyper_laser_sound_end(self);
 }
 
-MONSTERINFO_SETSKIN(soldier_setskin) (edict_t *self) -> void
+MONSTERINFO_SETSKIN(soldier_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
 		self->s.skinnum |= 1;
@@ -480,7 +483,7 @@ constexpr monster_muzzleflash_id_t blaster_flash[] = { MZ2_SOLDIER_BLASTER_1, MZ
 constexpr monster_muzzleflash_id_t shotgun_flash[] = { MZ2_SOLDIER_SHOTGUN_1, MZ2_SOLDIER_SHOTGUN_2, MZ2_SOLDIER_SHOTGUN_3, MZ2_SOLDIER_SHOTGUN_4, MZ2_SOLDIER_SHOTGUN_5, MZ2_SOLDIER_SHOTGUN_6, MZ2_SOLDIER_SHOTGUN_7, MZ2_SOLDIER_SHOTGUN_8, MZ2_SOLDIER_SHOTGUN_9 };
 constexpr monster_muzzleflash_id_t machinegun_flash[] = { MZ2_SOLDIER_MACHINEGUN_1, MZ2_SOLDIER_MACHINEGUN_2, MZ2_SOLDIER_MACHINEGUN_3, MZ2_SOLDIER_MACHINEGUN_4, MZ2_SOLDIER_MACHINEGUN_5, MZ2_SOLDIER_MACHINEGUN_6, MZ2_SOLDIER_MACHINEGUN_7, MZ2_SOLDIER_MACHINEGUN_8, MZ2_SOLDIER_MACHINEGUN_9 };
 
-void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
+void soldier_fire_vanilla(edict_t* self, int flash_number, bool angle_limited)
 {
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
@@ -560,7 +563,7 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 
 	if (self->count <= 1)
 	{
-		monster_fire_blaster(self, start, aim, 8, 1200, flash_index, EF_BLASTER);
+		monster_fire_blaster(self, start, aim, first3waves ? 5 : 8, first3waves ? 600 : 1200, flash_index, EF_BLASTER);
 	}
 	else if (self->count <= 3)
 	{
@@ -583,9 +586,9 @@ void soldier_fire_vanilla(edict_t *self, int flash_number, bool angle_limited)
 	}
 }
 
-PRETHINK(soldierh_laser_update) (edict_t *laser) -> void
+PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 {
-	edict_t *self = laser->owner;
+	edict_t* self = laser->owner;
 
 	vec3_t forward, right, up;
 	vec3_t start;
@@ -600,7 +603,7 @@ PRETHINK(soldierh_laser_update) (edict_t *laser) -> void
 
 	if (!self->deadflag)
 		PredictAim(self, self->enemy, start, 0, false, frandom(0.1f, 0.2f), &forward, nullptr);
-	
+
 	laser->s.origin = start;
 	laser->movedir = forward;
 	gi.linkentity(laser);
@@ -608,16 +611,16 @@ PRETHINK(soldierh_laser_update) (edict_t *laser) -> void
 }
 
 // RAFAEL
-void soldierh_laserbeam(edict_t *self, int flash_index)
+void soldierh_laserbeam(edict_t* self, int flash_index)
 {
 	self->radius_dmg = flash_index;
-	monster_fire_dabeam(self, 2, false, soldierh_laser_update);
+	monster_fire_dabeam(self, first3waves ? 1 : 2, false, soldierh_laser_update);
 }
 
 constexpr monster_muzzleflash_id_t ripper_flash[] = { MZ2_SOLDIER_RIPPER_1, MZ2_SOLDIER_RIPPER_2, MZ2_SOLDIER_RIPPER_3, MZ2_SOLDIER_RIPPER_4, MZ2_SOLDIER_RIPPER_5, MZ2_SOLDIER_RIPPER_6, MZ2_SOLDIER_RIPPER_7, MZ2_SOLDIER_RIPPER_8, MZ2_SOLDIER_RIPPER_9 };
 constexpr monster_muzzleflash_id_t hyper_flash[] = { MZ2_SOLDIER_HYPERGUN_1, MZ2_SOLDIER_HYPERGUN_2, MZ2_SOLDIER_HYPERGUN_3, MZ2_SOLDIER_HYPERGUN_4, MZ2_SOLDIER_HYPERGUN_5, MZ2_SOLDIER_HYPERGUN_6, MZ2_SOLDIER_HYPERGUN_7, MZ2_SOLDIER_HYPERGUN_8, MZ2_SOLDIER_HYPERGUN_9 };
 
-void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
+void soldier_fire_xatrix(edict_t* self, int flash_number, bool angle_limited)
 {
 	vec3_t					 start;
 	vec3_t					 forward, right, up;
@@ -633,9 +636,7 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 	if (self->count < 2)
 		flash_index = ripper_flash[flash_number]; // ripper
 	else if (self->count < 4)
-		flash_index = hyper_flash[flash_number]; // 
-
-
+		flash_index = hyper_flash[flash_number]; // hyperblaster
 	else
 		flash_index = machinegun_flash[flash_number]; // laserbeam
 
@@ -675,7 +676,7 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 			aim_norm = aim;
 			aim_norm.normalize();
 			angle = aim_norm.dot(forward);
-			
+
 			if (angle < 0.5f) // ~25 degree angle
 			{
 				if (level.time >= self->monsterinfo.fire_wait)
@@ -705,11 +706,13 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 	{
 		// RAFAEL 24-APR-98
 		// droped the damage from 15 to 5
-		monster_fire_ionripper(self, start, aim, 3, 900, flash_index, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, aim, first3waves ? 3 : 5, first3waves ? 600 : 850, flash_index, EF_IONRIPPER);
 	}
 	else if (self->count <= 3)
 	{
-		monster_fire_blaster2(self, start, aim, 3, 975, flash_index, EF_BLUEHYPERBLASTER);
+		first3waves ?
+			monster_fire_blueblaster(self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER) :
+			monster_fire_blaster2(self, start, aim, 3, 975, flash_index, EF_BLUEHYPERBLASTER);
 	}
 	else
 	{
@@ -727,7 +730,7 @@ void soldier_fire_xatrix(edict_t *self, int flash_number, bool angle_limited)
 }
 // RAFAEL
 
-void soldier_fire(edict_t *self, int flash_number, bool angle_limited)
+void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 {
 	// RAFAEL
 	if (self->style == 1)
@@ -739,12 +742,12 @@ void soldier_fire(edict_t *self, int flash_number, bool angle_limited)
 
 // ATTACK1 (blaster/shotgun)
 
-void soldier_fire1(edict_t *self)
+void soldier_fire1(edict_t* self)
 {
 	soldier_fire(self, 0, false);
 }
 
-void soldier_attack1_refire1(edict_t *self)
+void soldier_attack1_refire1(edict_t* self)
 {
 	// [Paril-KEX]
 	if (self->count <= 0)
@@ -773,7 +776,7 @@ void soldier_attack1_refire1(edict_t *self)
 		self->monsterinfo.nextframe = FRAME_attak110;
 }
 
-void soldier_attack1_refire2(edict_t *self)
+void soldier_attack1_refire2(edict_t* self)
 {
 	if (!self->enemy)
 		return;
@@ -791,7 +794,7 @@ void soldier_attack1_refire2(edict_t *self)
 	}
 }
 
-static void soldier_attack1_shotgun_check(edict_t *self)
+static void soldier_attack1_shotgun_check(edict_t* self)
 {
 	if (self->dmg)
 	{
@@ -801,7 +804,7 @@ static void soldier_attack1_shotgun_check(edict_t *self)
 	}
 }
 
-static void soldier_blind_check(edict_t *self)
+static void soldier_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
@@ -814,20 +817,36 @@ mframe_t soldier_frames_attack1[] = {
 	{ ai_charge, 0, soldier_blind_check },
 	{ ai_charge, 0, soldier_attack1_shotgun_check },
 	{ ai_charge, 0, soldier_fire1 },
-	{ ai_charge, 0, soldier_fire1 },
-	{ ai_charge, 0, soldier_fire1 },
-	{ ai_charge, 0, soldier_attack1_refire1 },
-	{ ai_charge, 0, soldier_attack1_refire1 },
+	{ ai_charge, 0, },
+	{ ai_charge, 0, },
+	{ ai_charge, 0, soldier_attack1_refire1},
+	{ ai_charge },
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge, 0, soldier_attack1_refire2 },
-	{ ai_charge, 0, soldier_attack1_refire2 },
-	{ ai_charge, 0, soldier_attack1_refire2 },
-	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, },
+	{ ai_charge, 0, },
+	{ ai_charge, 0, }
 };
 MMOVE_T(soldier_move_attack1) = { FRAME_attak101, FRAME_attak112, soldier_frames_attack1, soldier_run };
 
+
+mframe_t soldier_frames_attack1hard[] = {
+	{ ai_charge, 0, soldier_blind_check },
+	{ ai_charge, 0, soldier_attack1_shotgun_check },
+	{ ai_charge, 0, soldier_fire1 },
+	{ ai_charge, 0, soldier_fire1},
+	{ ai_charge, 0, soldier_fire1},
+	{ ai_charge, 0, soldier_attack1_refire1},
+	{ ai_charge },
+	{ ai_charge, 0, soldier_cock },
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldier_attack1_refire2},
+	{ ai_charge, 0, soldier_attack1_refire2}
+};
+MMOVE_T(soldier_move_attack1hard) = { FRAME_attak101, FRAME_attak112, soldier_frames_attack1hard, soldier_run };
 // ATTACK1 (blaster/shotgun)
-void soldierh_hyper_refire1(edict_t *self)
+void soldierh_hyper_refire1(edict_t* self)
 {
 	if (!self->enemy)
 		return;
@@ -839,7 +858,7 @@ void soldierh_hyper_refire1(edict_t *self)
 	}
 }
 
-void soldierh_hyperripper1(edict_t *self)
+void soldierh_hyperripper1(edict_t* self)
 {
 	if (self->count < 4)
 		soldier_fire(self, 0, false);
@@ -856,19 +875,36 @@ mframe_t soldierh_frames_attack1[] = {
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge, 0, soldier_attack1_refire2 },
 	{ ai_charge, 0, soldierh_hyper_laser_sound_end },
-	{ ai_charge, 0, soldier_fire1 },
-	{ ai_charge, 0, soldier_fire1 },
+	{ ai_charge , 0,},
+	{ ai_charge , 0,},
 };
 MMOVE_T(soldierh_move_attack1) = { FRAME_attak101, FRAME_attak112, soldierh_frames_attack1, soldier_run };
 
+
+mframe_t soldierh_frames_attack1hard[] = {
+	{ ai_charge, 0, soldier_blind_check },
+	{ ai_charge, 0, soldierh_hyper_laser_sound_start },
+	{ ai_charge, 0, soldier_fire1 },
+	{ ai_charge, 0, soldierh_hyperripper1 },
+	{ ai_charge, 0, soldierh_hyperripper1 },
+	{ ai_charge, 0, soldier_attack1_refire1 },
+	{ ai_charge, 0, soldierh_hyper_refire1 },
+	{ ai_charge, 0, soldier_cock },
+	{ ai_charge, 0, soldier_attack1_refire2 },
+	{ ai_charge, 0, soldierh_hyper_laser_sound_end },
+	{ ai_charge , 0, soldier_fire1 },
+	{ ai_charge , 0, soldier_fire1 },
+};
+MMOVE_T(soldierh_move_attack1hard) = { FRAME_attak101, FRAME_attak112, soldierh_frames_attack1hard, soldier_run };
+
 // ATTACK2 (blaster/shotgun)
 
-void soldier_fire2(edict_t *self)
+void soldier_fire2(edict_t* self)
 {
 	soldier_fire(self, 1, false);
 }
 
-void soldier_attack2_refire1(edict_t *self)
+void soldier_attack2_refire1(edict_t* self)
 {
 	if (self->count <= 0)
 		self->monsterinfo.nextframe = FRAME_attak216;
@@ -886,7 +922,7 @@ void soldier_attack2_refire1(edict_t *self)
 		self->monsterinfo.nextframe = FRAME_attak204;
 }
 
-void soldier_attack2_refire2(edict_t *self)
+void soldier_attack2_refire2(edict_t* self)
 {
 	if (!self->enemy)
 		return;
@@ -906,7 +942,7 @@ void soldier_attack2_refire2(edict_t *self)
 	}
 }
 
-static void soldier_attack2_shotgun_check(edict_t *self)
+static void soldier_attack2_shotgun_check(edict_t* self)
 {
 	if (self->dmg)
 	{
@@ -939,7 +975,7 @@ mframe_t soldier_frames_attack2[] = {
 MMOVE_T(soldier_move_attack2) = { FRAME_attak201, FRAME_attak218, soldier_frames_attack2, soldier_run };
 
 // RAFAEL
-void soldierh_hyper_refire2(edict_t *self)
+void soldierh_hyper_refire2(edict_t* self)
 {
 	if (!self->enemy)
 		return;
@@ -952,8 +988,7 @@ void soldierh_hyper_refire2(edict_t *self)
 			self->s.frame = FRAME_attak205;
 	}
 }
-
-void soldierh_hyperripper2(edict_t *self)
+void soldierh_hyperripper2(edict_t* self)
 {
 	if (self->count < 4)
 		soldier_fire(self, 1, false);
@@ -961,8 +996,8 @@ void soldierh_hyperripper2(edict_t *self)
 
 mframe_t soldierh_frames_attack2[] = {
 	{ ai_charge },
-	{ ai_charge, 0, soldier_fire2 },
-	{ ai_charge, 0, soldier_fire2 },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge, 0, soldierh_hyper_laser_sound_start },
 	{ ai_charge, 0, soldier_fire2 },
 	{ ai_charge, 0, soldierh_hyperripper2 },
@@ -970,8 +1005,8 @@ mframe_t soldierh_frames_attack2[] = {
 	{ ai_charge, 0, soldier_attack2_refire1 },
 	{ ai_charge, 0, soldierh_hyper_refire2 },
 	{ ai_charge },
-	{ ai_charge, 0, soldierh_hyperripper2 },
-	{ ai_charge, 0, soldierh_hyperripper2 },
+	{ ai_charge },
+	{ ai_charge },
 	{ ai_charge, 0, soldier_cock },
 	{ ai_charge },
 	{ ai_charge, 0, soldier_attack2_refire2 },
@@ -983,18 +1018,18 @@ MMOVE_T(soldierh_move_attack2) = { FRAME_attak201, FRAME_attak218, soldierh_fram
 // RAFAEL
 
 // ATTACK3 (duck and shoot)
-void soldier_fire3(edict_t *self)
+void soldier_fire3(edict_t* self)
 {
 	soldier_fire(self, 2, false);
 }
 
-void soldierh_hyperripper3(edict_t *self)
+void soldierh_hyperripper3(edict_t* self)
 {
 	if (self->s.skinnum >= 6 && self->count < 4)
 		soldier_fire(self, 2, false);
 }
 
-void soldier_attack3_refire(edict_t *self)
+void soldier_attack3_refire(edict_t* self)
 {
 	if (self->dmg)
 		monster_duck_hold(self);
@@ -1017,7 +1052,7 @@ MMOVE_T(soldier_move_attack3) = { FRAME_attak301, FRAME_attak309, soldier_frames
 
 // ATTACK4 (machinegun)
 
-void soldier_fire4(edict_t *self)
+void soldier_fire4(edict_t* self)
 {
 	soldier_fire(self, 3, false);
 }
@@ -1034,12 +1069,12 @@ MMOVE_T(soldier_move_attack4) = { FRAME_attak401, FRAME_attak406, soldier_frames
 
 // ATTACK6 (run & shoot)
 
-void soldier_fire8(edict_t *self)
+void soldier_fire8(edict_t* self)
 {
 	soldier_fire(self, 7, true);
 }
 
-void soldier_attack6_refire1(edict_t *self)
+void soldier_attack6_refire1(edict_t* self)
 {
 	// PMM - make sure dodge & charge bits are cleared
 	monster_done_dodge(self);
@@ -1065,7 +1100,7 @@ void soldier_attack6_refire1(edict_t *self)
 		soldier_run(self);
 }
 
-void soldier_attack6_refire2(edict_t *self)
+void soldier_attack6_refire2(edict_t* self)
 {
 	// PMM - make sure dodge & charge bits are cleared
 	monster_done_dodge(self);
@@ -1089,7 +1124,7 @@ void soldier_attack6_refire2(edict_t *self)
 	}
 }
 
-static void soldier_attack6_shotgun_check(edict_t *self)
+static void soldier_attack6_shotgun_check(edict_t* self)
 {
 	if (self->dmg)
 	{
@@ -1099,7 +1134,7 @@ static void soldier_attack6_shotgun_check(edict_t *self)
 	}
 }
 
-void soldierh_hyperripper8(edict_t *self)
+void soldierh_hyperripper8(edict_t* self)
 {
 	if (self->s.skinnum >= 6 && self->count < 4)
 		soldier_fire(self, 7, true);
@@ -1109,8 +1144,8 @@ mframe_t soldier_frames_attack6[] = {
 	{ ai_run, 10, soldier_start_charge },
 	{ ai_run, 4, soldier_attack6_shotgun_check },
 	{ ai_run, 12, soldierh_hyper_laser_sound_start },
-	{ ai_run, 11, [](edict_t *self) { soldier_fire8(self); monster_footstep(self); } },
-	{ ai_run, 13, [](edict_t *self ) { soldierh_hyperripper8(self); monster_done_dodge(self); } },
+	{ ai_run, 11, [](edict_t* self) { soldier_fire8(self); monster_footstep(self); } },
+	{ ai_run, 13, [](edict_t* self) { soldierh_hyperripper8(self); monster_done_dodge(self); } },
 	{ ai_run, 18, soldierh_hyperripper8 },
 	{ ai_run, 15, monster_footstep },
 	{ ai_run, 14, soldier_attack6_refire1 },
@@ -1123,7 +1158,7 @@ mframe_t soldier_frames_attack6[] = {
 };
 MMOVE_T(soldier_move_attack6) = { FRAME_runs01, FRAME_runs14, soldier_frames_attack6, soldier_run, 0.65f };
 
-MONSTERINFO_ATTACK(soldier_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 {
 	float r, chance;
 
@@ -1158,10 +1193,12 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t *self) -> void
 
 		// RAFAEL
 		if (self->style == 1)
-			M_SetAnimation(self, &soldierh_move_attack1);
+			first3waves ? M_SetAnimation(self, &soldierh_move_attack1) :
+			M_SetAnimation(self, &soldierh_move_attack1hard);
 		else
 			// RAFAEL
-			M_SetAnimation(self, &soldier_move_attack1);
+			first3waves ? M_SetAnimation(self, &soldier_move_attack1) :
+			M_SetAnimation(self, &soldier_move_attack1hard);
 		self->monsterinfo.attack_finished = level.time + random_time(1.5_sec, 2.5_sec);
 		return;
 	}
@@ -1175,7 +1212,7 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t *self) -> void
 
 	if ((!(self->monsterinfo.aiflags & (AI_BLOCKED | AI_STAND_GROUND))) &&
 		(r < 0.25f &&
-		(self->count <= 3)) &&
+			(self->count <= 3)) &&
 		(range_to(self, self->enemy) >= (RANGE_NEAR * 0.5f)))
 	{
 		M_SetAnimation(self, &soldier_move_attack6);
@@ -1191,8 +1228,8 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t *self) -> void
 				attack1_possible = false;
 			else
 				attack1_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_1]);
-			
-			bool attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
+
+			const bool attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
 
 			if (attack1_possible && (!attack2_possible || frandom() < 0.5f))
 			{
@@ -1224,7 +1261,7 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t *self) -> void
 // SIGHT
 //
 
-MONSTERINFO_SIGHT(soldier_sight) (edict_t *self, edict_t *other) -> void
+MONSTERINFO_SIGHT(soldier_sight) (edict_t* self, edict_t* other) -> void
 {
 	if (frandom() < 0.5f)
 		gi.sound(self, CHAN_VOICE, sound_sight1, 1, ATTN_NORM, 0);
@@ -1233,11 +1270,11 @@ MONSTERINFO_SIGHT(soldier_sight) (edict_t *self, edict_t *other) -> void
 
 	if (self->enemy && (range_to(self, self->enemy) >= RANGE_NEAR) &&
 		visible(self, self->enemy) // Paril: don't run-shoot if we can't see them
-	)
+		)
 	{
 		// RAFAEL
 		if (self->style == 1 || frandom() > 0.75f)
-		// RAFAEL
+			// RAFAEL
 		{
 			// RAFAEL + legacy bug fix
 			// don't use run+shoot for machinegun/laser because
@@ -1265,14 +1302,14 @@ MMOVE_T(soldier_move_duck) = { FRAME_duck01, FRAME_duck05, soldier_frames_duck, 
 
 extern const mmove_t soldier_move_trip;
 
-static void soldier_stand_up(edict_t *self)
+static void soldier_stand_up(edict_t* self)
 {
 	soldierh_hyper_laser_sound_end(self);
 	M_SetAnimation(self, &soldier_move_trip, false);
 	self->monsterinfo.nextframe = FRAME_runt08;
 }
 
-static bool soldier_prone_shoot_ok(edict_t *self)
+static bool soldier_prone_shoot_ok(edict_t* self)
 {
 	if (!self->enemy || !self->enemy->inuse)
 		return false;
@@ -1288,11 +1325,11 @@ static bool soldier_prone_shoot_ok(edict_t *self)
 
 	if (v < 0.80f)
 		return false;
-	
+
 	return true;
 }
 
-static void ai_soldier_move(edict_t *self, float dist)
+static void ai_soldier_move(edict_t* self, float dist)
 {
 	ai_move(self, dist);
 
@@ -1303,12 +1340,12 @@ static void ai_soldier_move(edict_t *self, float dist)
 	}
 }
 
-void soldier_fire5(edict_t *self)
+void soldier_fire5(edict_t* self)
 {
 	soldier_fire(self, 8, true);
 }
 
-void soldierh_hyperripper5(edict_t *self)
+void soldierh_hyperripper5(edict_t* self)
 {
 	if (self->style && self->count < 4)
 		soldier_fire(self, 8, true);
@@ -1326,7 +1363,7 @@ mframe_t soldier_frames_attack5[] = {
 };
 MMOVE_T(soldier_move_attack5) = { FRAME_attak501, FRAME_attak508, soldier_frames_attack5, soldier_stand_up };
 
-static void monster_check_prone(edict_t *self)
+static void monster_check_prone(edict_t* self)
 {
 	// we're a shotgun guard waiting to cock
 	if (!self->style && self->count >= 2 && self->count <= 3 && self->dmg)
@@ -1362,10 +1399,9 @@ mframe_t soldier_frames_trip[] = {
 };
 MMOVE_T(soldier_move_trip) = { FRAME_runt01, FRAME_runt19, soldier_frames_trip, soldier_run };
 
-
 void soldier_jump_now(edict_t* self)
 {
-//	gi.Com_PrintFmt("soldier_jump_now called\n");
+	//	gi.Com_PrintFmt("soldier_jump_now called\n");
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
@@ -1396,22 +1432,35 @@ void soldier_jump_wait_land(edict_t* self)
 }
 
 mframe_t soldier_frames_jump[] = {
-	{ ai_move },
-	{ ai_move, 0, soldier_jump_now },
-	{ ai_move },
+	{ ai_move, 0, soldier_jump2_now },
 	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move }
 };
 MMOVE_T(soldier_move_jump) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump, soldier_run };
 
 mframe_t soldier_frames_jump2[] = {
-	{ ai_move },
 	{ ai_move, 0, soldier_jump2_now },
-	{ ai_move },
 	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move }
 };
 MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_run };
+
+//mframe_t soldier_frames_jumpattack[] = { //should extend soldier_frames_attack5 some day
+//	{ ai_move },
+//	{ ai_move, 0, soldier_jump_attack },
+//	{ ai_move },
+//	{ ai_move },
+//	{ ai_move },
+//	{ ai_move },
+//	{ ai_move, 0, soldier_jump_wait_land_attack },
+//	{ ai_move }
+//};
+//MMOVE_T(soldier_move_jumpattack) = { FRAME_duck01, FRAME_duck08, soldier_frames_attack5, soldier_run };
+
 
 void soldier_jump(edict_t* self, blocked_jump_result_t result)
 {
@@ -1425,6 +1474,25 @@ void soldier_jump(edict_t* self, blocked_jump_result_t result)
 	else
 		M_SetAnimation(self, &soldier_move_jump);
 }
+
+//void soldier_jump(edict_t* self, blocked_jump_result_t result)
+//{
+//
+//	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+//
+//	if (!self->enemy)
+//		return;
+//
+//	monster_done_dodge(self);
+//
+//	if (result == blocked_jump_result_t::JUMP_JUMP_UP && !visible(self, self->enemy))
+//		M_SetAnimation(self, &soldier_move_jump2);
+//	else if (!visible(self, self->enemy))
+//		M_SetAnimation(self, &soldier_move_jump);
+//	else
+//		M_SetAnimation(self, &soldier_move_jumpattack);
+//
+//}
 // pmm - blocking code
 
 MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool
@@ -1448,7 +1516,7 @@ MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool
 // DEATH
 //
 
-void soldier_fire6(edict_t *self)
+void soldier_fire6(edict_t* self)
 {
 	soldier_fire(self, 5, false);
 
@@ -1456,19 +1524,19 @@ void soldier_fire6(edict_t *self)
 		self->monsterinfo.nextframe = FRAME_death126;
 }
 
-void soldier_fire7(edict_t *self)
+void soldier_fire7(edict_t* self)
 {
 	soldier_fire(self, 6, false);
 }
 
-void soldier_dead(edict_t *self)
+void soldier_dead(edict_t* self)
 {
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, -8 };
 	monster_dead(self);
 }
 
-static void soldier_death_shrink(edict_t *self)
+static void soldier_death_shrink(edict_t* self)
 {
 	self->svflags |= SVF_DEADMONSTER;
 	self->maxs[2] = 0;
@@ -1500,7 +1568,7 @@ mframe_t soldier_frames_death1[] = {
 
 	{ ai_move, 0, soldierh_hyper_laser_sound_start },
 	{ ai_move, 0, soldier_fire6 },
-	{ ai_move, 0, soldier_fire6 },
+	{ ai_move },
 	{ ai_move },
 	{ ai_move, 0, soldier_fire7 },
 	{ ai_move, 0, soldierh_hyper_laser_sound_end },
@@ -1719,7 +1787,7 @@ mframe_t soldier_frames_death6[] = {
 };
 MMOVE_T(soldier_move_death6) = { FRAME_death601, FRAME_death610, soldier_frames_death6, soldier_dead };
 
-DIE(soldier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(soldier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
 	int n;
@@ -1747,7 +1815,7 @@ DIE(soldier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 			{ "models/monsters/soldier/gibs/gun.md2", GIB_SKINNED | GIB_UPRIGHT },
 			{ "models/monsters/soldier/gibs/chest.md2", GIB_SKINNED },
 			{ "models/monsters/soldier/gibs/head.md2", GIB_HEAD | GIB_SKINNED }
-		});
+			});
 		self->deadflag = true;
 		return;
 	}
@@ -1758,7 +1826,7 @@ DIE(soldier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 	// regular death
 	self->deadflag = true;
 	self->takedamage = true;
-	
+
 	n = self->count | 1;
 
 	if (n == 1)
@@ -1804,12 +1872,11 @@ DIE(soldier_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 		M_SetAnimation(self, &soldier_move_death6);
 }
 
-
 //
 // NEW DODGE CODE
 //
 
-MONSTERINFO_SIDESTEP(soldier_sidestep) (edict_t *self) -> bool
+MONSTERINFO_SIDESTEP(soldier_sidestep) (edict_t* self) -> bool
 {
 	// don't sidestep during trip or up pain
 	if (self->monsterinfo.active_move == &soldier_move_trip ||
@@ -1838,7 +1905,7 @@ MONSTERINFO_SIDESTEP(soldier_sidestep) (edict_t *self) -> bool
 	return true;
 }
 
-MONSTERINFO_DUCK(soldier_duck) (edict_t *self, gtime_t eta) -> bool
+MONSTERINFO_DUCK(soldier_duck) (edict_t* self, gtime_t eta) -> bool
 {
 	self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 
@@ -1859,10 +1926,9 @@ MONSTERINFO_DUCK(soldier_duck) (edict_t *self, gtime_t eta) -> bool
 	return true;
 }
 
-
 //=========
 // ROGUE
-void soldier_blind(edict_t *self);
+void soldier_blind(edict_t* self);
 
 mframe_t soldier_frames_blind[] = {
 	{ ai_move, 0, soldier_idle },
@@ -1900,7 +1966,7 @@ mframe_t soldier_frames_blind[] = {
 };
 MMOVE_T(soldier_move_blind) = { FRAME_stand101, FRAME_stand130, soldier_frames_blind, soldier_blind };
 
-MONSTERINFO_STAND(soldier_blind) (edict_t *self) -> void
+MONSTERINFO_STAND(soldier_blind) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &soldier_move_blind);
 }
@@ -1913,7 +1979,7 @@ MONSTERINFO_STAND(soldier_blind) (edict_t *self) -> void
 
 constexpr spawnflags_t SPAWNFLAG_SOLDIER_BLIND = 8_spawnflag;
 
-void SP_monster_soldier_x(edict_t *self)
+void SP_monster_soldier_x(edict_t* self)
 {
 	self->s.modelindex = gi.modelindex("models/monsters/soldier/tris.md2");
 	self->monsterinfo.scale = MODEL_SCALE;
@@ -1926,7 +1992,7 @@ void SP_monster_soldier_x(edict_t *self)
 	sound_sight1.assign("soldier/solsght1.wav");
 	sound_sight2.assign("soldier/solsrch1.wav");
 	sound_cock.assign("infantry/infatck3.wav");
-	
+
 	gi.modelindex("models/monsters/soldier/gibs/head.md2");
 	gi.modelindex("models/monsters/soldier/gibs/gun.md2");
 	gi.modelindex("models/monsters/soldier/gibs/arm.md2");
@@ -1969,7 +2035,7 @@ void SP_monster_soldier_x(edict_t *self)
 	ApplyMonsterBonusFlags(self);
 }
 
-void SP_monster_soldier_vanilla(edict_t *self)
+void SP_monster_soldier_vanilla(edict_t* self)
 {
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 68;
@@ -1979,10 +2045,10 @@ void SP_monster_soldier_vanilla(edict_t *self)
 
 /*QUAKED monster_soldier_light (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_soldier_light(edict_t *self)
+void SP_monster_soldier_light(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -2013,12 +2079,13 @@ void SP_monster_soldier_light(edict_t *self)
 	ApplyMonsterBonusFlags(self);
 }
 
+
 /*QUAKED monster_soldier (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_soldier(edict_t *self)
+void SP_monster_soldier(edict_t* self)
 {
-	if( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -2043,13 +2110,12 @@ void SP_monster_soldier(edict_t *self)
 	self->monsterinfo.can_jump = true;
 	ApplyMonsterBonusFlags(self);
 }
-
 /*QUAKED monster_soldier_ss (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_soldier_ss(edict_t *self)
+void SP_monster_soldier_ss(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -2070,11 +2136,12 @@ void SP_monster_soldier_ss(edict_t *self)
 	ApplyMonsterBonusFlags(self);
 }
 
+
 //
 // SPAWN
 //
 
-void SP_monster_soldier_h(edict_t *self)
+void SP_monster_soldier_h(edict_t* self)
 {
 	SP_monster_soldier_x(self);
 	self->style = 1;
@@ -2087,10 +2154,10 @@ void SP_monster_soldier_h(edict_t *self)
 
 /*QUAKED monster_soldier_ripper (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_soldier_ripper(edict_t *self)
+void SP_monster_soldier_ripper(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -2104,7 +2171,7 @@ void SP_monster_soldier_ripper(edict_t *self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = ((g_horde->integer && current_wave_number <= 2) ? 35 : (g_hardcoop->integer ? 25 : 0));
+		self->monsterinfo.power_armor_power = ((first3waves) ? 35 : (g_hardcoop->integer ? 25 : 0));
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
@@ -2122,12 +2189,13 @@ void SP_monster_soldier_ripper(edict_t *self)
 	ApplyMonsterBonusFlags(self);
 }
 
+
 /*QUAKED monster_soldier_hypergun (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
-void SP_monster_soldier_hypergun(edict_t *self)
+void SP_monster_soldier_hypergun(edict_t* self)
 {
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
@@ -2155,6 +2223,7 @@ void SP_monster_soldier_hypergun(edict_t *self)
 	ApplyMonsterBonusFlags(self);
 }
 
+
 /*QUAKED monster_soldier_lasergun (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight
  */
 void SP_monster_soldier_lasergun(edict_t* self)
@@ -2172,7 +2241,7 @@ void SP_monster_soldier_lasergun(edict_t* self)
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = ((g_horde->integer && current_wave_number <= 15) ? 75 : (g_hardcoop->integer ? 50 : 40)) * st.health_multiplier;
+	self->health = self->max_health = current_wave_level >= 10 ? 80 : 50;
 	self->gib_health = -30;
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 68;

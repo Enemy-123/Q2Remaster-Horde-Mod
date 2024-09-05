@@ -1,4 +1,4 @@
-﻿// Copyright (c) ZeniMax Media Inc.
+// Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "m_player.h"
@@ -326,13 +326,13 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		switch (mod.id)
 		{
 		case MOD_BLASTER:
-			base = "{0} was blasted by a {1}\n";
+			base = brandom() ? "{0} was humiliated by a {1}\n" : "{0} was blasted by a {1}\n";
 			break;
 		case MOD_SHOTGUN:
 			base = "{0}'s face was impacted by a {1}\n";
 			break;
 		case MOD_SSHOTGUN:
-			base = "{0} was blown to pieces by a {1}\n";
+			base = brandom() ? "{0} was blown to pieces by a {1}\n" : "{0}'s ribs were shattered by a {1}\n";
 			break;
 		case MOD_MACHINEGUN:
 			base = "{0} was shredded by a {1}\n";
@@ -341,13 +341,16 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 			base = "{0}'s torso was removed by a {1}\n";
 			break;
 		case MOD_GRENADE:
-			base = "{0} was gibbed by a {1}\n";
+			base = "{0} was gibbed by a {1}'s grenade\n";
 			break;
 		case MOD_G_SPLASH:
 			base = "{0} was splattered all over by a {1}\n";
 			break;
 		case MOD_ROCKET:
 			base = "{0} ate the rocket of a {1}\n";
+			break;
+		case MOD_FIREBALL:
+			base = "{0} was reduced to ashes by a {1}\n";
 			break;
 		case MOD_R_SPLASH:
 			base = "{0} was blown up by a {1}\n";
@@ -376,21 +379,30 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		case MOD_HELD_GRENADE:
 			base = "{0} was blown up by a {1}\n";
 			break;
+		case MOD_RIPPER:
+			base = "{0} got ionripped by a {1}\n";
+			break;
 		case MOD_TARGET_LASER:
 			base = "{0} was laser-cooked by a {1}\n";
+			break;
+		case MOD_TESLA:
+			base = "{0} got a shocking end thanks to a {1}\n";
 			break;
 		case MOD_TELEFRAG:
 		case MOD_TELEFRAG_SPAWN:
 			base = "{0} was telefragged by a {1}\n";
 			break;
 		case MOD_BRAINTENTACLE:
-			base = "{0} got a slimy end from a {1}'s tentacles. Gross!\n";
+			base = brandom() ? "{0} got a slimy end from a {1}'s tentacles. Gross!\n" : "{0} tastes finger lickin' good to a {1}\n";
 			break;
 		case MOD_GEKK:
 			base = "{0} was spat to death by a {1}. Yuck!\n";
 			break;
+		case MOD_TANK_PUNCH:
+			base = "{0} was pulverized by a {1}\n";
+			break;
 		default:
-			base = "{0} was killed by a {1}\n";
+			base = brandom() ? "{0} was killed insanely by a {1}\n" : "{0} was killed by a {1}\n";
 			break;
 		}
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname, monster_display_name.c_str());
@@ -567,9 +579,10 @@ player_die
 */
 DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-
-	// Guardar el arma y la salud m�xima antes de la muerte
-	SaveClientWeaponBeforeDeath(self->client);
+	if (g_horde->integer) {
+		// Guardar el arma y la salud m�xima antes de la muerte
+		SaveClientWeaponBeforeDeath(self->client);
+	}
 
 	PlayerTrail_Destroy(self);
 
@@ -759,53 +772,71 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	// Death logic
 	if (!self->deadflag)
 	{
-		if (G_IsCooperative() || (g_horde->integer && (g_coop_squad_respawn->integer || g_coop_enable_lives->integer)))
+		if (g_horde->integer)
 		{
-			if (g_coop_enable_lives->integer && self->client->pers.lives > 0)
+			if (g_coop_squad_respawn->integer || g_coop_enable_lives->integer)
 			{
-				self->client->pers.lives--;
-				self->client->resp.coop_respawn.lives--;
-			}
-
-			bool allPlayersDead = true;
-			for (auto player : active_players_no_spect())
-			{
-				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+				if (g_coop_enable_lives->integer && self->client->pers.lives > 0)
 				{
-					allPlayersDead = false;
-					break;
+					self->client->pers.lives--;
+					self->client->resp.coop_respawn.lives--;
 				}
-			}
-
-			if (allPlayersDead)
-			{
-				if (!g_horde->integer)
+				bool allPlayersDead = true;
+				for (auto const* player : active_players_no_spect())
 				{
-					// Cooperative mode
-					level.coop_level_restart_time = level.time + 5_sec;
-					for (auto player : active_players_no_spect())
-						gi.LocCenter_Print(player, "$g_coop_lose");
+					if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+					{
+						allPlayersDead = false;
+						break;
+					}
 				}
-				else
+				if (allPlayersDead)
 				{
 					// Horde mode
 					for (auto player : active_players_no_spect())
 						gi.LocCenter_Print(player, "$g_coop_lose");
 					gi.cvar_set("timelimit", "0.01");
 				}
+				// Set respawn time if level restart is not scheduled
+				if (!level.coop_level_restart_time)
+					self->client->respawn_time = level.time + 2_sec;
+			}
+		}
+		else if (G_IsCooperative() && (g_coop_squad_respawn->integer || G_IsCooperative() && g_coop_enable_lives->integer))
+		{
+			if (g_coop_enable_lives->integer && self->client->pers.lives)
+			{
+				self->client->pers.lives--;
+				self->client->resp.coop_respawn.lives--;
+			}
+			bool allPlayersDead = true;
+			for (auto const* player : active_players())
+				if (player->health > 0 || (!level.deadly_kill_box && g_coop_enable_lives->integer && player->client->pers.lives > 0))
+				{
+					allPlayersDead = false;
+					break;
+				}
+			if (allPlayersDead) // allow respawns for telefrags and weird shit
+			{
+				level.coop_level_restart_time = level.time + 5_sec;
+				for (const auto player : active_players())
+					gi.LocCenter_Print(player, "$g_coop_lose");
 			}
 
-			// Set respawn time if level restart is not scheduled
+			// in 3 seconds, attempt a respawn or put us into
+			// spectator mode
 			if (!level.coop_level_restart_time)
-				self->client->respawn_time = level.time + 2_sec;
+				self->client->respawn_time = level.time + 3_sec;
 		}
 	}
-
 	self->deadflag = true;
 	gi.linkentity(self);
 
-	// Remove all entities owned by the player
-	RemovePlayerOwnedEntities(self);
+	// Remove all entities owned by the player (only for g_horde->integer)
+	if (g_horde->integer)
+	{
+		RemovePlayerOwnedEntities(self);
+	}
 }
 //=======================================================================
 
@@ -848,35 +879,49 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 		G_FreeEdict(dummy);
 	}
 }
-
-void InitClientPt(edict_t* ent, gclient_t* client)
+constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
+bool IsTechItem(int item_id);
+void InitClientPt(const edict_t* ent, gclient_t* client)
 {
 	// backup & restore userinfo
 	char userinfo[MAX_INFO_STRING];
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
 	if (g_horde->integer) {
-		if (!(ent->svflags & SVF_BOT) && ent->client->resp.score <= 5) { // this is for those afk players, they will get to observer on the next map if score is below 5
+		if (!(ent->svflags & SVF_BOT) && client->resp.score <= 5) {
+			// Cambiar a CTF_NOTEAM solo si el score es <= 5
 			client->resp.ctf_team = CTF_NOTEAM;
 		}
 	}
-	// Limpiar el inventario
-	int i;
-	for (i = 0; i < MAX_ITEMS; i++) {
-		if (i != IT_WEAPON_BLASTER) {
+
+	// Limpiar el inventario para todos los jugadores, conservando solo el blaster y los TECH items
+	for (int i = 0; i < MAX_ITEMS; i++) {
+		if (i != IT_WEAPON_BLASTER && !IsTechItem(i)) {
 			client->pers.inventory[i] = 0;
 		}
 	}
 
-	// Establecer el blaster de arma
+	// Asegurarse de que el jugador tenga un blaster
 	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
-
+	// Restablecer la salud
 	client->pers.health = 100;
 	client->pers.max_health = 100;
-
 }
 
+// Función auxiliar para verificar si un ítem es un TECH
+bool IsTechItem(int item_id)
+{
+	static constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
+
+
+	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
+		if (item_id == tech_ids[i]) {
+			return true;
+		}
+	}
+	return false;
+}
 void SaveClientWeaponBeforeDeath(gclient_t* client)
 {
 	client->resp.weapon = client->pers.weapon;
@@ -906,22 +951,22 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	if (g_horde->integer) {
 		// Ajustar health y max_health basado en el número de oleadas actuales
-		if (current_wave_number >= 25 && current_wave_number <= 200) {
+		if (current_wave_level >= 25 && current_wave_level <= 200) {
 			client->pers.max_health = max(200, client->pers.max_health);
 		}
-		else if (current_wave_number >= 20 && current_wave_number <= 24) {
+		else if (current_wave_level >= 20 && current_wave_level <= 24) {
 			client->pers.max_health = max(180, client->pers.max_health);
 		}
-		else if (current_wave_number >= 15 && current_wave_number <= 19) {
+		else if (current_wave_level >= 15 && current_wave_level <= 19) {
 			client->pers.max_health = max(160, client->pers.max_health);
 		}
-		else if (current_wave_number >= 10 && current_wave_number <= 14) {
+		else if (current_wave_level >= 10 && current_wave_level <= 14) {
 			client->pers.max_health = max(140, client->pers.max_health);
 		}
-		else if (current_wave_number >= 5 && current_wave_number <= 9) {
+		else if (current_wave_level >= 5 && current_wave_level <= 9) {
 			client->pers.max_health = max(120, client->pers.max_health);
 		}
-		else if (current_wave_number >= 1 && current_wave_number <= 4) {
+		else if (current_wave_level >= 1 && current_wave_level <= 4) {
 			client->pers.max_health = max(100, client->pers.max_health);
 		}
 		else {
@@ -984,7 +1029,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 	if (!taken_loadout) {
 		// Lógica para el modo Horde
-		if (g_horde->integer && current_wave_number >= 15) {
+		if (g_horde->integer && current_wave_level >= 15) {
 			client->pers.max_ammo.fill(50);
 			client->pers.max_ammo[AMMO_BULLETS] = 400;
 			client->pers.max_ammo[AMMO_SHELLS] = 175;
@@ -1036,7 +1081,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			}
 		}
 		// Starting items for horde mode
-		if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 5 && current_wave_number <= 12) {
+		if (G_IsDeathmatch() && g_horde->integer && current_wave_level >= 5 && current_wave_level <= 12) {
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
@@ -1045,7 +1090,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
 			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 		}
-		else if (G_IsDeathmatch() && g_horde->integer && current_wave_number >= 13) {
+		else if (G_IsDeathmatch() && g_horde->integer && current_wave_level >= 13) {
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
@@ -1815,7 +1860,9 @@ void respawn(edict_t* self)
 	if (G_IsDeathmatch() || G_IsCooperative())
 	{
 		// Guardar el arma y la salud m�xima antes de la muerte
-		SaveClientWeaponBeforeDeath(self->client);
+		if (g_horde->integer) {
+			SaveClientWeaponBeforeDeath(self->client);
+		}
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
 			CopyToBodyQue(self);
@@ -2195,7 +2242,7 @@ void PutClientInServer(edict_t* ent)
 	// do it before setting health back up, so farthest
 	// ranging doesn't count this client
 	bool valid_spawn = false;
-	bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
+	const bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
 	bool is_landmark = false;
 
 	if (use_squad_respawn)
@@ -2452,7 +2499,7 @@ void PutClientInServer(edict_t* ent)
 	// intersecting spawns, so we'll do a sanity check here...
 	if (spawn_from_begin)
 	{
-		if (G_IsCooperative())
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 		{
 			edict_t* collision = G_UnsafeSpawnPosition(ent->s.origin, true);
 
@@ -3193,7 +3240,7 @@ void ClientDisconnect(edict_t* ent)
 ClientIsSpectating
 =================
 */
-bool ClientIsSpectating(gclient_t* cl) {
+bool ClientIsSpectating(const gclient_t* cl) noexcept {
 	if (!cl) return false;
 
 	return cl->resp.ctf_team == CTF_NOTEAM;
@@ -3204,10 +3251,10 @@ bool ClientIsSpectating(gclient_t* cl) {
 EntIsSpectating
 =================
 */
-bool EntIsSpectating(edict_t* ent)
+bool EntIsSpectating(const edict_t* ent) noexcept
 {
 	if (!ent || !ent->client)
-		return true;  
+		return true;
 
 
 
@@ -3279,9 +3326,6 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 	if (ent->client && (ent->client->hook_out || ent->client->hook_release_time + 1.0 >= level.time.seconds())) {
 		return;
 	}
-
-
-
 
 	// ZOID
 
@@ -3383,14 +3427,14 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 	return false;
 }
 // Declaración de VectorCompare
-bool VectorCompare(const vec3_t v1, const vec3_t v2) {
+static constexpr bool VectorCompare(const vec3_t v1, const vec3_t v2) {
 	return (v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2]);
 }
 
 // Constantes
-const gtime_t MIN_INACTIVITY_DURATION = 15_sec;
-const gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
-const gtime_t WARNING_TIME = 5_sec;
+constexpr gtime_t MIN_INACTIVITY_DURATION = 15_sec;
+constexpr gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
+constexpr gtime_t WARNING_TIME = 5_sec;
 
 // Enumeración para estados de actividad
 enum class ActivityState {
@@ -3411,7 +3455,7 @@ static void HandleInactivePlayer(edict_t* ent) {
 	ent->client->resp.inactive = true;
 }
 
-static bool IsPlayerActive(edict_t* ent) {
+static bool IsPlayerActive(const edict_t*  ent) {
 	return (ent->client->latched_buttons & BUTTON_ANY) ||
 		!VectorCompare(ent->client->old_origin, ent->s.origin) ||
 		!VectorCompare(ent->client->old_angles, ent->client->v_angle);
@@ -3430,7 +3474,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		return true;
 	}
 
-	gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
+	const gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
 
 	// Inicialización del temporizador de inactividad
 	if (!ent->client->resp.inactivity_time) {
@@ -3448,7 +3492,7 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		ent->client->resp.inactive = false;
 	}
 	else {
-		gtime_t current_time = level.time;
+		const gtime_t current_time = level.time;
 
 		// Manejo de jugador inactivo
 		if (current_time > ent->client->resp.inactivity_time) {
@@ -3800,9 +3844,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 }
 
-inline bool G_MonstersSearchingFor(edict_t* player)
+static inline bool G_MonstersSearchingFor(const edict_t* player)
 {
-	for (auto ent : active_monsters())
+	for (auto const* ent : active_monsters())
 	{
 		// check for *any* player target
 		if (player == nullptr && ent->enemy && !ent->enemy->client)
@@ -3860,7 +3904,7 @@ bool IsInsideTriggerHurt(const vec3_t& point) {
 			ent->absmin[2] <= point[2] && point[2] <= ent->absmax[2]) {
 
 			if (ent->spawnflags.has(SPAWNFLAG_HURT_CLIPPED)) {
-				trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, nullptr, MASK_SOLID);
+				const trace_t tr = gi.trace(point, vec3_origin, vec3_origin, point, nullptr, MASK_SOLID);
 				if (tr.fraction < 1.0f && tr.ent == ent)
 					return true;
 			}
@@ -3889,7 +3933,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 	constexpr float player_viewheight = 22.f;
 
 	// we don't want to spawn inside of these
-	contents_t mask = MASK_SOLID | CONTENTS_LAVA | CONTENTS_SLIME;
+	const contents_t mask = MASK_SOLID | CONTENTS_LAVA | CONTENTS_SLIME;
 
 	for (auto& yaw : yaw_spread)
 	{
@@ -3945,7 +3989,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 		spot = tr.endpos;
 
-		float z_diff = fabsf(player->s.origin[2] - tr.endpos[2]);
+		const float z_diff = fabsf(player->s.origin[2] - tr.endpos[2]);
 
 		// 5 steps is way too many steps
 		if (z_diff > STEPSIZE * 4.f)
@@ -3971,54 +4015,35 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 	return false;
 }
+
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
-	bool monsters_searching_for_anybody = G_MonstersSearchingFor(nullptr);
+	const bool is_horde_mode = g_horde->integer != 0;
 	gtime_t min_combat_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
-	gtime_t min_bad_area_time_left = 3_sec;  // Always start from 3 seconds
-	constexpr gtime_t safe_time_threshold = 3_sec;  // Tiempo seguro sin recibir daño
-	edict_t* best_player = nullptr;
-	vec3_t best_spot = {};
+	gtime_t min_bad_area_time_left = 3_sec;
+	std::vector<std::tuple<edict_t*, vec3_t>> squad_respawn_candidates;
 	bool combat_state_exists = false;
 	bool bad_area_state_exists = false;
 
-	for (auto player : active_players_no_spect()) {
-		if (player->deadflag) continue;
+	auto process_player = [&](edict_t* player) {
+		if (player->deadflag) return;
 
-		bool in_combat = false;
-		gtime_t combat_time_left = 0_sec;
-
-		// Check combat state
-		if (player->client->last_damage_time >= level.time) {
-			in_combat = true;
-			combat_time_left = player->client->last_damage_time - level.time;
-		}
-
-		// Check if monsters are searching for player
-		if (!in_combat && G_MonstersSearchingFor(player) && !g_horde->integer && !G_IsCooperative()) {
-			in_combat = true;
-			combat_time_left = safe_time_threshold;
-		}
-
-		// Check firing state
-		if (!in_combat && monsters_searching_for_anybody && player->client->last_firing_time >= level.time && !g_horde->integer && !G_IsCooperative()) {
-			in_combat = true;
-			combat_time_left = safe_time_threshold;
-		}
+		const bool in_combat = player->client->last_damage_time >= level.time;
 
 		if (in_combat) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			combat_state_exists = true;
+			gtime_t combat_time_left = player->client->last_damage_time - level.time;
 			if (combat_time_left < min_combat_time_left) {
 				min_combat_time_left = combat_time_left;
 			}
-			player->client->time_in_bad_area = 0_ms;  // Reset bad area time when in combat
-			continue;
+			player->client->time_in_bad_area = 0_ms;
+			return;
 		}
 
-		// Check positioning and blocked state only if not in combat
-		bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
+		const bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
 		vec3_t spot;
-		bool is_blocked = !G_FindRespawnSpot(player, spot);
+		const bool is_blocked = !G_FindRespawnSpot(player, spot);
+
 		if (is_bad_area || is_blocked) {
 			player->client->coop_respawn_state = is_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
 			player->client->time_in_bad_area += FRAME_TIME_MS;
@@ -4027,52 +4052,90 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 				min_bad_area_time_left = time_left_in_bad_area;
 			}
 			bad_area_state_exists = true;
-			continue;
-		}
-		else {
-			player->client->time_in_bad_area = 0_ms;
+			return;
 		}
 
-		best_player = player;
-		best_spot = spot;
-		break;
+		player->client->time_in_bad_area = 0_ms;
+		player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+		squad_respawn_candidates.emplace_back(player, spot);
+		};
+
+	if (is_horde_mode) {
+		for (auto player : active_players_no_spect()) {
+			process_player(player);
+		}
+	}
+	else {
+		for (auto player : active_players()) {
+			process_player(player);
+		}
 	}
 
-	// Update config string for all players
+	// Update config strings
 	if (combat_state_exists) {
-		std::string message_str = fmt::format("in Combat! Reviving in: {:.1f}(s)", min_combat_time_left.seconds<float>());
+		std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)", min_combat_time_left.seconds<float>());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");  // Clear the other message
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 	else if (bad_area_state_exists) {
 		std::string message_str = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)", min_bad_area_time_left.seconds<float>());
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");  // Clear the combat message
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str.c_str());
+
+		if (min_bad_area_time_left <= 0_ms) {
+			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
+		}
 	}
 	else {
-		// Clear both messages if there's no combat or bad area state
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 
-	// Return based on priority, considering only non-spectator players for respawn
-	if (combat_state_exists) {
-		return { nullptr, vec3_t{} };  // No respawn during combat
+	// Select a player for squad respawn
+	if (!squad_respawn_candidates.empty()) {
+		const size_t index = rand() % squad_respawn_candidates.size();
+		auto [selected_player, selected_spot] = squad_respawn_candidates[index];
+		// We don't change the coop_respawn_state here, as it's already set to COOP_RESPAWN_NONE
+		return { selected_player, selected_spot };
 	}
-	else if (bad_area_state_exists && min_bad_area_time_left <= 0_sec) {
-		// Force respawn at a single spawn point if bad area time has expired
-		for (auto player : active_players_no_spect()) {
+
+	// Set waiting state for players who can't respawn yet
+	for (auto player : active_players()) {
+		if (player->client->coop_respawn_state == COOP_RESPAWN_NONE) {
+			player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
+		}
+	}
+
+	// Force respawn if the "bad area" timer has reached 0 seconds
+	if (bad_area_state_exists && min_bad_area_time_left <= 0_ms) {
+		auto force_respawn = [](auto player) -> std::tuple<edict_t*, vec3_t> {
 			if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA || player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) {
 				edict_t* spawn_point = SelectSingleSpawnPoint(player);
 				if (spawn_point) {
+					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
 					return { player, spawn_point->s.origin };
 				}
+			}
+			return { nullptr, vec3_t{} };
+			};
+
+		if (is_horde_mode) {
+			for (auto player : active_players_no_spect()) {
+				auto [forced_player, forced_spot] = force_respawn(player);
+				if (forced_player) return { forced_player, forced_spot };
+			}
+		}
+		else {
+			for (auto player : active_players()) {
+				auto [forced_player, forced_spot] = force_respawn(player);
+				if (forced_player) return { forced_player, forced_spot };
 			}
 		}
 	}
 
-	return { best_player, best_spot };
+	return { nullptr, vec3_t{} };
 }
+
 enum respawn_state_t
 {
 	RESPAWN_NONE,     // invalid state
@@ -4113,7 +4176,7 @@ static bool G_CoopRespawn(edict_t* ent)
 		{
 			bool allDead = true;
 
-			for (auto player : active_players())
+			for (auto const* player : active_players())
 			{
 				if (player->health > 0)
 				{

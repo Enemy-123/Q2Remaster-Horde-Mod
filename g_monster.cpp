@@ -245,7 +245,7 @@ bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 		return false;
 
 	if (g_horde->integer) {
-		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET) || current_wave_number <= 10;
+		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET) || current_wave_level <= 10 || self->spawnflags.has(SPAWNFLAG_IS_BOSS);
 	}
 	else {
 		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
@@ -642,17 +642,17 @@ void G_MonsterKilled(edict_t* self)
 			self->enemy->client->resp.score++;
 			self->enemy->client->resp.spree++;
 
-			// Incrementar el tiempo de quadfire si g_autohaste está activo
+			// Incrementar el tiempo de quadfire si g_autohaste estÃ¡ activo
 			if (g_autohaste->integer)
 			{
 				if (self->enemy->client->quadfire_time > level.time)
 				{
-					gtime_t extra_time = gtime_t::from_sec(1.05); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(1.05); // Ajusta este valor segÃºn sea necesario
 					self->enemy->client->quadfire_time += extra_time;
 				}
 				 if (self->enemy->client->quad_time > level.time)
 				{
-					gtime_t extra_time = gtime_t::from_sec(0.55); // Ajusta este valor según sea necesario
+					 const	gtime_t extra_time = gtime_t::from_sec(0.55); // Ajusta este valor segÃºn sea necesario
 					self->enemy->client->quad_time += extra_time;
 				}
 			}
@@ -666,24 +666,24 @@ void G_MonsterKilled(edict_t* self)
 			self->enemy->owner->client->resp.score++;
 			self->enemy->owner->client->resp.spree++;
 
-			// Incrementar el tiempo de quadfire si g_autohaste está activo
+			// Incrementar el tiempo de quadfire si g_autohaste estÃ¡ activo
 			if (g_autohaste->integer)
 			{
 				if (self->enemy->owner->client->quadfire_time > level.time)
 				{
-					gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor segÃºn sea necesario
 					self->enemy->owner->client->quadfire_time += extra_time;
 				}
 
 				if (self->enemy->owner->client->double_time > level.time)
 				{
-					gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor segÃºn sea necesario
 					self->enemy->owner->client->double_time += extra_time;
 				}
 
 				 if (self->enemy->owner->client->quad_time > level.time)
 				{
-					gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor según sea necesario
+					 const	gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor segÃºn sea necesario
 					self->enemy->owner->client->quad_time += extra_time;
 				}
 			}
@@ -743,6 +743,13 @@ void M_ProcessPain(edict_t* e)
 		{
 			e->enemy = e->monsterinfo.damage_attacker;
 
+			if (e->monsterinfo.aiflags & AI_SPAWNED_TANK)
+			{
+				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
+					!strcmp(e->monsterinfo.commander->classname, "monster_tank_vanilla"))
+					e->monsterinfo.commander->monsterinfo.monster_used -= e->monsterinfo.monster_slots;
+				e->monsterinfo.commander = nullptr;
+			}
 			// ROGUE
 			// ROGUE - free up slot for spawned monster if it's spawned
 			if (e->monsterinfo.aiflags & AI_SPAWNED_CARRIER)
@@ -1261,6 +1268,11 @@ void monster_death_use(edict_t* self)
 // many active players we have
 void G_Monster_ScaleCoopHealth(edict_t* self)
 {
+
+	// No escalar si es un jefe
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+		return;;
+
 	// already scaled
 	if (self->monsterinfo.health_scaling >= level.coop_scale_players)
 		return;
@@ -1270,12 +1282,10 @@ void G_Monster_ScaleCoopHealth(edict_t* self)
 	if (!self->monsterinfo.base_health)
 		self->monsterinfo.base_health = self->max_health;
 
-	int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
-	int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
-
+	const int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
+	const int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
 	self->health = max(1, self->health + additional_health);
 	self->max_health += additional_health;
-
 	self->monsterinfo.health_scaling = level.coop_scale_players;
 }
 
@@ -1291,7 +1301,14 @@ struct monster_filter_t
 void G_Monster_CheckCoopHealthScaling()
 {
 	for (auto monster : entity_iterable_t<monster_filter_t>())
+	{
+		// No escalar si es un jefe
+		if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
+			continue;
+
+		// Aplicar el escalado
 		G_Monster_ScaleCoopHealth(monster);
+	}
 }
 
 //============================================================================

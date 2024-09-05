@@ -48,8 +48,76 @@ constexpr vec3_t lightning_right_hand[] = {
 	{ 27, -11, 83 }
 };
 
-void shambler_windup(edict_t* self);
+void shambler_windupFire(edict_t* self);
 
+static void shambler_fireball_update(edict_t* self)
+{
+	edict_t* fireball_effect = self->beam;
+	if (!fireball_effect) {
+		// Create new fireball effect
+		fireball_effect = G_Spawn();
+		self->beam = fireball_effect;
+		fireball_effect->s.effects = EF_FIREBALL | EF_BARREL_EXPLODING;
+		fireball_effect->s.renderfx = RF_GLOW;
+		fireball_effect->movetype = MOVETYPE_NONE;
+		fireball_effect->solid = SOLID_NOT;
+		gi.setmodel(fireball_effect, "models/objects/gibs/sm_meat/tris.md2");
+	}
+
+	if (self->s.frame >= FRAME_magic01 + q_countof(lightning_left_hand))
+	{
+		G_FreeEdict(fireball_effect);
+		self->beam = nullptr;
+		return;
+	}
+
+	vec3_t f, r;
+	AngleVectors(self->s.angles, f, r, nullptr);
+
+	// Calculate positions for both hands
+	const vec3_t left_pos = M_ProjectFlashSource(self, lightning_left_hand[self->s.frame - FRAME_magic01], f, r);
+	const vec3_t right_pos = M_ProjectFlashSource(self, lightning_right_hand[self->s.frame - FRAME_magic01], f, r);
+
+	// Calculate the midpoint between hands for the fireball effect
+	vec3_t midpoint;
+	VectorAdd(left_pos, right_pos, midpoint);
+	VectorScale(midpoint, 0.5f, midpoint);
+
+	// Update fireball effect position
+	VectorCopy(midpoint, fireball_effect->s.origin);
+
+	// Calculate size based on frame
+	const float size_factor = static_cast<float>(self->s.frame - FRAME_magic01) / static_cast<float>(q_countof(lightning_left_hand));
+	constexpr float max_size = 1.5f; // Maximum size multiplier
+	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
+
+	// Update size
+	fireball_effect->s.scale = current_size;
+
+	// Add pulsating effect using gtime_t
+	const gtime_t current_time = level.time;
+	const float pulse = sinf(current_time.seconds<float>() * 0.01f * PIf) * 0.2f + 0.8f;
+
+	// Apply pulse to scale
+	fireball_effect->s.scale *= pulse;
+
+	// Add SpawnGrow-like effect
+	if (frandom() < 0.3f) { // 30% chance each frame to spawn a particle
+		SpawnGrow_Spawn(midpoint, 10.0f, 1.0f);
+	}
+
+	gi.linkentity(fireball_effect);
+}
+
+void shambler_windupFire(edict_t* self)
+{
+	gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
+	// We don't need to spawn a beam entity here anymore
+	// The fireball effect will be created in shambler_lightning_update
+	self->beam = nullptr;
+	shambler_fireball_update(self); // Initial update
+}
+//
 static void shambler_lightning_update(edict_t* self)
 {
 	edict_t* lightning = self->beam;
@@ -306,10 +374,12 @@ void ShamblerCastLightning(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// calc direction to where we targted
-	if (g_hardcoop->integer == 2 || current_wave_number >=22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
-	{		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr); }
+	if (g_hardcoop->integer || current_wave_level >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	{
+		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
+	}
 	else
-	PredictAim(self, self->enemy, start, 0, false, self->spawnflags.has(SPAWNFLAG_SHAMBLER_PRECISE) ? 0.f : 0.1f, &dir, nullptr);
+		PredictAim(self, self->enemy, start, 0, false, self->spawnflags.has(SPAWNFLAG_SHAMBLER_PRECISE) ? 0.f : 0.1f, &dir, nullptr);
 
 	vec3_t end = start + (dir * 8192);
 	trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
@@ -324,6 +394,8 @@ void ShamblerCastLightning(edict_t* self)
 
 	fire_bullet(self, start, dir, irandom(8, 12), 15 * M_DamageModifier(self), 0, 0, MOD_TESLA);
 }
+
+
 
 mframe_t shambler_frames_magic[] = {
 	{ ai_charge, 0, shambler_windup },
@@ -342,9 +414,88 @@ mframe_t shambler_frames_magic[] = {
 
 MMOVE_T(shambler_attack_magic) = { FRAME_magic01, FRAME_magic12, shambler_frames_magic, shambler_run };
 
+void ShamblerCastFireballs(edict_t* self)
+{
+	if (!self->enemy)
+		return;
+
+	vec3_t start, dir, forward, right;
+	const vec3_t offset = FindShamblerOffset(self);
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, offset, forward, right);
+
+	// Number of fireballs to launch
+	constexpr int num_fireballs = 1;
+	const int speed = irandom(1120, 1280);
+
+	for (int i = 0; i < num_fireballs; i++)
+	{
+		// Calculate spread
+		float spread = 0.6f;
+		if (g_hardcoop->integer || current_wave_level >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+			spread = 0.3f;
+
+		// Calculate direction with some spread
+		PredictAim(self, self->enemy, start, speed, false, spread, &dir, nullptr);
+
+		// Create and launch fireball-rocket
+		edict_t* fireball = G_Spawn();
+		if (fireball)
+		{
+			fireball->s.origin = start;
+			fireball->s.angles = vectoangles(dir);
+			fireball->velocity = dir * speed;
+			fireball->movetype = MOVETYPE_FLYMISSILE;
+			fireball->svflags |= SVF_PROJECTILE;
+			fireball->flags |= FL_DODGE;
+			fireball->clipmask = MASK_PROJECTILE;
+			//if (self->client && !G_ShouldPlayersCollide(true))
+			//	fireball->clipmask &= ~CONTENTS_PLAYER;
+			fireball->solid = SOLID_BBOX;
+			fireball->s.effects = EF_FIREBALL; // fireball effects
+			fireball->s.renderfx = RF_MINLIGHT;
+			fireball->s.modelindex = frandom() < 0.1f ? gi.modelindex("models/objects/fire/tris.md2") : gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->owner = self;
+			fireball->touch = fireball_touch; // Use rocket touch function
+			fireball->nextthink = level.time + 7_sec;
+			fireball->think = G_FreeEdict;
+			fireball->dmg = irandom(22, 24) * M_DamageModifier(self);
+			fireball->radius_dmg = 35 * M_DamageModifier(self);
+			fireball->dmg_radius = 100;
+			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
+			fireball->classname = "shambler_fireball";
+			gi.linkentity(fireball);
+		}
+	}
+
+	// Play sound effect
+	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/rocklx1a.wav"), 1, ATTN_NORM, 0);
+}
+
+mframe_t shambler_frames_fireball[] = {
+	{ ai_charge, 0, shambler_windupFire },
+	{ ai_charge, 0, shambler_fireball_update },
+	{ ai_charge, 0, shambler_fireball_update },
+	{ ai_move, 0, shambler_fireball_update },
+	{ ai_move, 0, shambler_fireball_update },
+	{ ai_move, 0, ShamblerSaveLoc},
+	{ ai_move },
+	{ ai_charge },
+	{ ai_move, 0, ShamblerCastFireballs },
+	{ ai_move, 0, ShamblerCastFireballs },
+	{ ai_move, 0, ShamblerCastFireballs },
+	{ ai_move, 0, ShamblerCastFireballs },
+};
+
+MMOVE_T(shambler_attack_fireball) = { FRAME_magic01, FRAME_magic12, shambler_frames_fireball, shambler_run };
+
+
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
-	M_SetAnimation(self, &shambler_attack_magic);
+	M_SetAnimation(self, 
+		brandom() ?
+		&shambler_attack_magic :
+		&shambler_attack_fireball);
 }
 
 //
@@ -380,7 +531,7 @@ void sham_smash10(edict_t* self)
 		return;
 
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	bool hit = fire_hit(self, aim, irandom(110, 120), 120); // Slower attack
+	const bool hit = fire_hit(self, aim, irandom(110, 120), 120); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
@@ -404,8 +555,8 @@ void ShamClaw(edict_t* self)
 	if (!CanDamage(self->enemy, self))
 		return;
 
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
-	bool hit = fire_hit(self, aim, irandom(70, 80), 80); // Slower attack
+	const vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
+	const bool hit = fire_hit(self, aim, irandom(70, 80), 80); // Slower attack
 
 	if (hit)
 		gi.sound(self, CHAN_WEAPON, sound_smack, 1, ATTN_NORM, 0);
@@ -528,6 +679,9 @@ MMOVE_T(shambler_move_death) = { FRAME_death01, FRAME_death11, shambler_frames_d
 
 DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+		boss_die(self);
+
 	OnEntityDeath(self);
 	if (self->beam)
 	{
@@ -599,8 +753,6 @@ void SP_monster_shambler(edict_t* self)
 		self->gib_health = -190;
 	}
 
-
-
 	self->mass = 500;
 
 	self->pain = shambler_pain;
@@ -635,11 +787,11 @@ void SP_monster_shamblerkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
 	if (!strcmp(self->classname, "monster_shamblerkl")) {
-		self->health = 6500 + (1.08 * current_wave_number);
+		self->health = 6500 + (1.08 * current_wave_level);
 		self->gib_health = -190;
 	}
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-		self->gib_health = -999777;
+		self->gib_health = -3500;
 		}
 		self->yaw_speed = 65;
 		//	self->s.renderfx = RF_TRANSLUCENT;

@@ -48,22 +48,22 @@ void Boss2PredictiveRocket(edict_t* self)
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, -0.10f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, 50, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, -0.05f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, 50, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, 0.05f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, 50, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, 0.10f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, 50, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket(edict_t* self)
@@ -92,7 +92,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 800, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 800, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
@@ -101,7 +101,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 750, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 750, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
@@ -110,7 +110,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 650, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 650, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
@@ -120,7 +120,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, 50, 600, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 600, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket64(edict_t* self)
@@ -158,7 +158,7 @@ void Boss2Rocket64(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 
-	monster_fire_rocket(self, start, dir, 35, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 35 : 25, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
 }
 
 void boss2_firebullet_right(edict_t* self)
@@ -167,7 +167,7 @@ void boss2_firebullet_right(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_R1], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
+	monster_fire_bullet(self, start, forward, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_R1);
 }
 
 void boss2_firebullet_left(edict_t* self)
@@ -176,7 +176,7 @@ void boss2_firebullet_left(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_MACHINEGUN_L1], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.2f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
+	monster_fire_bullet(self, start, forward, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD * 1.2, DEFAULT_BULLET_VSPREAD, MZ2_BOSS2_MACHINEGUN_L1);
 }
 
 void Boss2MachineGun(edict_t* self)
@@ -287,7 +287,7 @@ void Boss2HyperBlaster(edict_t* self)
 {
 	vec3_t forward, right, target;
 	vec3_t start;
-	monster_muzzleflash_id_t id = (self->s.frame & 1) ? MZ2_BOSS2_MACHINEGUN_L2 : MZ2_BOSS2_MACHINEGUN_R2;
+	const monster_muzzleflash_id_t id = (self->s.frame & 1) ? MZ2_BOSS2_MACHINEGUN_L2 : MZ2_BOSS2_MACHINEGUN_R2;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
@@ -296,7 +296,7 @@ void Boss2HyperBlaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
-	monster_fire_blaster(self, start, forward, 4, 1330, id, (self->s.frame % 4) ? EF_PENT : EF_HYPERBLASTER);
+	monster_fire_blaster(self, start, forward, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 6 : 4, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
 }
 
 mframe_t boss2_frames_attack_hb[] = {
@@ -411,6 +411,19 @@ mframe_t boss2_frames_death[] = {
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
+	{ ai_move, 0, boss2_shrink },
+	{ ai_move },
+};
+MMOVE_T(boss2_move_death) = { FRAME_death2, FRAME_death10, boss2_frames_death, boss2_dead };
+
+mframe_t boss2_frames_deathboss[] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move },
@@ -454,7 +467,7 @@ mframe_t boss2_frames_death[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(boss2_move_death) = { FRAME_death2, FRAME_death50, boss2_frames_death, boss2_dead };
+MMOVE_T(boss2_move_deathboss) = { FRAME_death2, FRAME_death50, boss2_frames_deathboss, boss2_dead };
 
 MONSTERINFO_STAND(boss2_stand) (edict_t* self) -> void
 {
@@ -510,11 +523,11 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	// Determine attenuation based on the monster type and spawnflags
 	float attenuation;
-	if (!(g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))) {
-		attenuation = ATTN_NORM;
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		attenuation = ATTN_NONE;
 	}
 	else {
-		attenuation = ATTN_NONE;
+		attenuation = ATTN_NORM;
 	}
 
 	if (damage < 10)
@@ -606,11 +619,11 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	else
 	{
 		// Check if the monster is boss2_64 to use ATTN_NORM
-		if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
+		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
 		}
 		else {
-			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
 		}
 
 		self->deadflag = true;
@@ -620,7 +633,9 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 		self->gravityVector.z *= 0.30f;
 	}
 	OnEntityDeath(self);
-	M_SetAnimation(self, &boss2_move_death);
+	self->spawnflags.has(SPAWNFLAG_IS_BOSS) ?
+		M_SetAnimation(self, &boss2_move_deathboss) :
+		M_SetAnimation(self, &boss2_move_death);
 }
 
 
@@ -634,9 +649,8 @@ MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
  */
 void SP_monster_boss2(edict_t* self)
 {
-	if (g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 		{
-
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
 	}
@@ -686,7 +700,7 @@ void SP_monster_boss2(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 500;
 
-	self->health = 6500 + (1.08 * current_wave_number);
+	self->health = 6500 + (1.08 * current_wave_level);
 	self->gib_health = -200;
 	self->mass = 1000;
 
@@ -718,27 +732,19 @@ void SP_monster_boss2(edict_t* self)
 
 	ApplyMonsterBonusFlags(self);
 }
-//void SP_monster_boss2_64(edict_t* self)
-//{
-	//if (!M_AllowSpawn(self)) {
-		//G_FreeEdict(self);
-		//return;
-	//}
-
-/*QUAKED monster_boss2 (1 .5 0) (-64 -64 0) (64 64 72) Ambush Trigger_Spawn Sight
- */
-
-
 
 void SP_monster_boss2_64(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
-	if (g_horde->integer)	{
-		self->mins = { -24, -24, 0 };
-		self->maxs = { 24, 24, 48 };
+	if (g_horde->integer) {
 		self->s.scale = 0.6f;
+
+		// Ajustar la caja de colisi칩n con un Z m치s elevado
+		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
+		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
+
 	self->health = 1100 * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
@@ -746,6 +752,7 @@ void SP_monster_boss2_64(edict_t* self)
 
 	ApplyMonsterBonusFlags(self);
 }
+
 
 //HORDE BOSS
 constexpr spawnflags_t SPAWNFLAG_BOSS2KL = 8_spawnflag;
@@ -755,9 +762,11 @@ void SP_monster_boss2kl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (g_horde->integer) {
-		self->mins = { -24, -24, 0 };
-		self->maxs = { 24, 24, 48 };
 		self->s.scale = 0.6f;
+
+		// Ajustar la caja de colisi칩n con un Z m치s elevado
+		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
+		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
 	self->s.skinnum = 2;
 	self->gib_health = -130;

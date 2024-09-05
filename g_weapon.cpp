@@ -8,7 +8,7 @@ fire_hit
 Used for all impact(hit / punch / slash) attacks
 ================ =
 */
-bool fire_hit(edict_t * self, vec3_t aim, int damage, int kick)
+bool fire_hit(edict_t* self, vec3_t aim, int damage, int kick)
 {
 	trace_t tr;
 	vec3_t	forward, right, up;
@@ -16,13 +16,13 @@ bool fire_hit(edict_t * self, vec3_t aim, int damage, int kick)
 	vec3_t	point;
 	float	range;
 	vec3_t	dir;
-//	char buffer[256];
+	//	char buffer[256];
 
-	// Verificación inicial de null para enemy
+		// VerificaciÃ³n inicial de null para enemy
 	if (!self->enemy) {
 		return false; // Manejar el error apropiadamente
 	}
-	//// Verificación de null para attacker si es "monster_sentrygun"
+	//// VerificaciÃ³n de null para attacker si es "monster_sentrygun"
 	//if (self->enemy && self->enemy->classname && !strcmp(self->enemy->classname, "monster_sentrygun")) {
 	//	//std::snprintf(buffer, sizeof(buffer), "Error: attacker is monster_sentrygun\n");
 	//	//gi.Com_Print(buffer);
@@ -95,7 +95,7 @@ bool fire_hit(edict_t * self, vec3_t aim, int damage, int kick)
 // you can adjust the mask for the re-trace (for water, etc).
 // note that you must take care in your pierce callback to mark
 // the entities that are being pierced.
-void pierce_trace(const vec3_t &start, const vec3_t &end, edict_t *ignore, pierce_args_t &pierce, contents_t mask)
+void pierce_trace(const vec3_t& start, const vec3_t& end, edict_t* ignore, pierce_args_t& pierce, contents_t mask)
 {
 	int	   loop_count = MAX_EDICTS;
 	vec3_t own_start, own_end;
@@ -122,7 +122,7 @@ void pierce_trace(const vec3_t &start, const vec3_t &end, edict_t *ignore, pierc
 
 struct fire_lead_pierce_t : pierce_args_t
 {
-	edict_t		*self;
+	edict_t* self;
 	vec3_t		 start;
 	vec3_t		 aimdir;
 	int			 damage;
@@ -134,9 +134,9 @@ struct fire_lead_pierce_t : pierce_args_t
 	contents_t   mask;
 	bool	     water = false;
 	vec3_t	     water_start = {};
-	edict_t	    *chain = nullptr;
+	edict_t* chain = nullptr;
 
-	inline fire_lead_pierce_t(edict_t *self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, mod_t mod, int te_impact, contents_t mask) :
+	inline fire_lead_pierce_t(edict_t* self, vec3_t start, vec3_t aimdir, int damage, int kick, int hspread, int vspread, mod_t mod, int te_impact, contents_t mask) :
 		pierce_args_t(),
 		self(self),
 		start(start),
@@ -153,7 +153,7 @@ struct fire_lead_pierce_t : pierce_args_t
 
 	// we hit an entity; return false to stop the piercing.
 	// you can adjust the mask for the re-trace (for water, etc).
-	bool hit(contents_t &mask, vec3_t &end) override
+	bool hit(contents_t& mask, vec3_t& end) override
 	{
 		// see if we hit water
 		if (tr.contents & MASK_WATER)
@@ -255,7 +255,7 @@ fire_lead
 This is an internal support routine used for bullet/pellet based weapons.
 =================
 */
-static void fire_lead(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick, int te_impact, int hspread, int vspread, mod_t mod)
+static void fire_lead(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int te_impact, int hspread, int vspread, mod_t mod)
 {
 	fire_lead_pierce_t args = {
 		self,
@@ -335,7 +335,7 @@ Fires a single round.  Used for machinegun and chaingun.  Would be fine for
 pistols, rifles, etc....
 =================
 */
-void fire_bullet(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
+void fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, mod_t mod)
 {
 	if (self->svflags & SVF_MONSTER) {
 		damage *= M_DamageModifier(self);
@@ -350,7 +350,7 @@ fire_shotgun
 Shoots shotgun pellets.  Used by shotgun and super shotgun.
 =================
 */
-void fire_shotgun(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
+void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread, int vspread, int count, mod_t mod)
 {
 	if (self->svflags & SVF_MONSTER) {
 		damage *= M_DamageModifier(self);
@@ -372,7 +372,6 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	if (!self || !self->owner) {
 		return;
 	}
-
 	if (other == self->owner)
 		return;
 
@@ -381,10 +380,8 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 		G_FreeEdict(self);
 		return;
 	}
-
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
-
 	if (other->takedamage)
 	{
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
@@ -392,12 +389,36 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 	}
 	else
 	{
-		// Decrementar el contador de rebotes
-		if (tr.ent && tr.ent->solid == SOLID_BSP) // Verificar si está rebotando contra una pared o superficie sólida
+
+		//if someday this is a rpg mod, this will be useful!
+		// Check if the owner is a monster and if it's on easy difficulty
+		//if ((self->owner->svflags & SVF_MONSTER) && first3waves)
+		if (!strcmp(self->owner->classname, "monster_flyer") ||  //no bounce for these!
+			(!strcmp(self->owner->classname, "monster_hover_vanilla") ||  //no bounce for these!
+				!strcmp(self->owner->classname, "monster_medic")))
+		{
+			// No bounce, destroy the bolt
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
+			gi.WritePosition(self->s.origin);
+			gi.WriteDir(tr.plane.normal);
+			gi.multicast(self->s.origin, MULTICAST_PHS, false);
+			G_FreeEdict(self);
+			return;
+		}
+
+		// Bounce logic
+		if (tr.ent && tr.ent->solid == SOLID_BSP) // check if bouncing against walls 
 		{
 			self->bounce_count--;
 			if (self->bounce_count <= 0)
 			{
+				// vanilla effect for last bounce
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
+				gi.WritePosition(self->s.origin);
+				gi.WriteDir(tr.plane.normal);
+				gi.multicast(self->s.origin, MULTICAST_PHS, false);
 				G_FreeEdict(self);
 				return;
 			}
@@ -431,8 +452,12 @@ void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 	bolt->nextthink = level.time + 1.5_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
-	bolt->bounce_count = 4; // 4 bounces
+	bolt->bounce_count = self->svflags & SVF_MONSTER ? 2 : 5; // 5 bounces
 	gi.linkentity(bolt);
+
+	if (self->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(self);
+	}
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
 	if (tr.fraction < 1.0f)
@@ -451,14 +476,14 @@ constexpr spawnflags_t SPAWNFLAG_GRENADE_HELD = 2_spawnflag;
 fire_grenade
 =================
 */
-THINK(Grenade_Explode) (edict_t *ent) -> void
+THINK(Grenade_Explode) (edict_t* ent) -> void
 {
 	vec3_t origin;
 	mod_t  mod;
 
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
-	
+
 	// FIXME: if we are onground then raise our Z just a bit since we are a point?
 	if (ent->enemy)
 	{
@@ -475,7 +500,7 @@ THINK(Grenade_Explode) (edict_t *ent) -> void
 			mod = MOD_HANDGRENADE;
 		else
 			mod = MOD_GRENADE;
-		T_Damage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int) points, (int) points, DAMAGE_RADIUS, mod);
+		T_Damage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
 	}
 
 	if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD))
@@ -484,7 +509,7 @@ THINK(Grenade_Explode) (edict_t *ent) -> void
 		mod = MOD_HG_SPLASH;
 	else
 		mod = MOD_G_SPLASH;
-	T_RadiusDamage(ent, ent->owner, (float) ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
+	T_RadiusDamage(ent, ent->owner, (float)ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
 
 	origin = ent->s.origin + (ent->velocity * -0.02f);
 	gi.WriteByte(svc_temp_entity);
@@ -508,7 +533,7 @@ THINK(Grenade_Explode) (edict_t *ent) -> void
 	G_FreeEdict(ent);
 }
 
-TOUCH(Grenade_Touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(Grenade_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other == ent->owner)
 		return;
@@ -539,19 +564,19 @@ TOUCH(Grenade_Touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool othe
 	Grenade_Explode(ent);
 }
 
-THINK(Grenade4_Think) (edict_t *self) -> void
+THINK(Grenade4_Think) (edict_t* self) -> void
 {
 	if (level.time >= self->timestamp)
 	{
 		Grenade_Explode(self);
 		return;
 	}
-	
+
 	if (self->velocity)
 	{
-		float p = self->s.angles.x;
-		float z = self->s.angles.z;
-		float speed_frac = clamp(self->velocity.lengthSquared() / (self->speed * self->speed), 0.f, 1.f);
+		const float p = self->s.angles.x;
+		const float z = self->s.angles.z;
+		const float speed_frac = clamp(self->velocity.lengthSquared() / (self->speed * self->speed), 0.f, 1.f);
 		self->s.angles = vectoangles(self->velocity);
 		self->s.angles.x = LerpAngle(p, self->s.angles.x, speed_frac);
 		self->s.angles.z = z + (gi.frame_time_s * 360 * speed_frac);
@@ -567,7 +592,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
-	// Si la granada golpea a un enemigo, aplicar daño directo
+	// Si la granada golpea a un enemigo, aplicar daÃ±o directo
 	if (ent->enemy)
 	{
 		float points;
@@ -580,17 +605,17 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 		points = ent->dmg - 0.5f * v.length();
 		dir = ent->enemy->s.origin - ent->s.origin;
 
-		// Asegúrate de que el daño no sea negativo
+		// AsegÃºrate de que el daÃ±o no sea negativo
 		if (points < 0)
 			points = 0;
 
 		T_Damage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
 	}
 
-	// Infligir daño en la explosión
+	// Infligir daÃ±o en la explosiÃ³n
 	T_RadiusDamage(ent, ent->owner, ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
 
-	// Crear un efecto de explosión
+	// Crear un efecto de explosiÃ³n
 	origin = ent->s.origin + (ent->velocity * -0.02f);
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)
@@ -623,8 +648,8 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 			VectorScale(ent->velocity, 1.2f, ent->velocity); // Aumentar la velocidad tras cada rebote
 		}
 
-		// Reducir el daño en un 1/5, pero no menos del 20% del daño original
-		float min_dmg = ent->original_dmg * 0.20f;
+		// Reducir el daÃ±o en un 1/5, pero no menos del 20% del daÃ±o original
+		const float min_dmg = ent->original_dmg * 0.20f;
 		if (ent->dmg > min_dmg)
 		{
 			ent->dmg *= 0.8f;
@@ -639,7 +664,7 @@ THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 	}
 	else
 	{
-		// La granada realiza una última explosión y se elimina
+		// La granada realiza una Ãºltima explosiÃ³n y se elimina
 		G_FreeEdict(ent);
 	}
 }
@@ -721,18 +746,18 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 
 	if (g_bouncygl->integer && self->svflags & ~SVF_MONSTER)
 	{
-		// Comportamiento de rebote y explosión
+		// Comportamiento de rebote y explosiÃ³n
 		grenade->s.modelindex = gi.modelindex("models/objects/grenade/tris.md2");
 		grenade->s.angles = vectoangles(grenade->velocity);
 		grenade->nextthink = level.time + FRAME_TIME_S;
 		grenade->timestamp = level.time + timer;
-		grenade->think = BouncyGrenade_Think;  // Función de pensamiento específica para el comportamiento de rebote
+		grenade->think = BouncyGrenade_Think;  // FunciÃ³n de pensamiento especÃ­fica para el comportamiento de rebote
 		grenade->s.renderfx |= RF_MINLIGHT;
 		grenade->s.effects |= EF_GRENADE | EF_SPINNINGLIGHTS; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
-		grenade->count = 4;  // Número de rebotes/explosiones
+		grenade->count = 4;  // NÃºmero de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;
-		grenade->original_dmg = damage; // Establecer el daño original
+		grenade->original_dmg = damage; // Establecer el daÃ±o original
 	}
 	else if (monster)
 	{
@@ -815,12 +840,65 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 		gi.linkentity(grenade);
 	}
 }
+
+
+//FIREBALL
+
+TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	vec3_t origin;
+
+	if (other == ent->owner)
+		return;
+
+	if (tr.surface && (tr.surface->flags & SURF_SKY))
+	{
+		G_FreeEdict(ent);
+		return;
+	}
+
+	if (ent->owner->client)
+		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
+
+	// calculate position for the explosion entity
+	origin = ent->s.origin + tr.plane.normal;
+
+	if (other->takedamage)
+	{
+		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, 0, DAMAGE_NONE, MOD_FIREBALL);
+	}
+	else
+	{
+		// don't throw any debris in net games  // check horde later
+		if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
+		{
+			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
+			{
+				/*ThrowGibs(ent, 2, {
+					{ (size_t)irandom(5), "models/objects/debris2/tris.md2", GIB_METALLIC | GIB_DEBRIS }
+					});*/
+			}
+		}
+	}
+
+	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+
+	gi.WriteByte(svc_temp_entity);
+	if (ent->waterlevel)
+		gi.WriteByte(TE_ROCKET_EXPLOSION_WATER);
+	else
+		gi.WriteByte(TE_ROCKET_EXPLOSION);
+	gi.WritePosition(origin);
+	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+	G_FreeEdict(ent);
+}
 /*
 =================
 fire_rocket
 =================
 */
-TOUCH(rocket_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(rocket_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	vec3_t origin;
 
@@ -857,7 +935,7 @@ TOUCH(rocket_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other
 		}
 	}
 
-	T_RadiusDamage(ent, ent->owner, (float) ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
+	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_NONE, MOD_R_SPLASH);
 
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)
@@ -870,9 +948,9 @@ TOUCH(rocket_touch) (edict_t *ent, edict_t *other, const trace_t &tr, bool other
 	G_FreeEdict(ent);
 }
 
-edict_t *fire_rocket(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, float damage_radius, int radius_damage)
+edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius, int radius_damage)
 {
-	edict_t *rocket;
+	edict_t* rocket;
 
 	rocket = G_Spawn();
 	rocket->s.origin = start;
@@ -905,7 +983,7 @@ edict_t *fire_rocket(edict_t *self, const vec3_t &start, const vec3_t &dir, int 
 
 using search_callback_t = decltype(game_import_t::inPVS);
 
-bool binary_positional_search_r(const vec3_t &viewer, const vec3_t &start, const vec3_t &end, search_callback_t cb, int32_t split_num)
+bool binary_positional_search_r(const vec3_t& viewer, const vec3_t& start, const vec3_t& end, search_callback_t cb, int32_t split_num)
 {
 	// check half-way point
 	vec3_t mid = (start + end) * 0.5f;
@@ -923,7 +1001,7 @@ bool binary_positional_search_r(const vec3_t &viewer, const vec3_t &start, const
 
 // [Paril-KEX] simple binary search through a line to see if any points along
 // the line (in a binary split) pass the callback
-bool binary_positional_search(const vec3_t &viewer, const vec3_t &start, const vec3_t &end, search_callback_t cb, int32_t num_splits)
+bool binary_positional_search(const vec3_t& viewer, const vec3_t& start, const vec3_t& end, search_callback_t cb, int32_t num_splits)
 {
 	// check start/end first
 	if (cb(viewer, start, true) || cb(viewer, end, true))
@@ -935,13 +1013,13 @@ bool binary_positional_search(const vec3_t &viewer, const vec3_t &start, const v
 
 struct fire_rail_pierce_t : pierce_args_t
 {
-	edict_t *self;
+	edict_t* self;
 	vec3_t	 aimdir;
 	int		 damage;
 	int		 kick;
 	bool	 water = false;
 
-	inline fire_rail_pierce_t(edict_t *self, vec3_t aimdir, int damage, int kick) :
+	inline fire_rail_pierce_t(edict_t* self, vec3_t aimdir, int damage, int kick) :
 		pierce_args_t(),
 		self(self),
 		aimdir(aimdir),
@@ -952,7 +1030,7 @@ struct fire_rail_pierce_t : pierce_args_t
 
 	// we hit an entity; return false to stop the piercing.
 	// you can adjust the mask for the re-trace (for water, etc).
-	bool hit(contents_t &mask, vec3_t &end) override
+	bool hit(contents_t& mask, vec3_t& end) override
 	{
 		if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA))
 		{
@@ -1004,7 +1082,7 @@ uint32_t GetUnicastKey()
 fire_rail
 =================
 */
-void fire_rail(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int damage, int kick)
+void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick)
 {
 	fire_rail_pierce_t args = {
 		self,
@@ -1014,7 +1092,7 @@ void fire_rail(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int dam
 	};
 
 	contents_t mask = MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA;
-	
+
 	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		mask &= ~CONTENTS_PLAYER;
@@ -1023,14 +1101,14 @@ void fire_rail(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int dam
 
 	pierce_trace(start, end, self, args, mask);
 
-	uint32_t unicast_key = GetUnicastKey();
+	const uint32_t unicast_key = GetUnicastKey();
 
 	// send gun puff / flash
 	// [Paril-KEX] this often makes double noise, so trying
 	// a slightly different approach...
 	for (auto player : active_players())
 	{
-		vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
+		const vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
 
 		if (binary_positional_search(org, start, args.tr.endpos, gi.inPHS, 3))
 		{
@@ -1048,8 +1126,8 @@ void fire_rail(edict_t *self, const vec3_t &start, const vec3_t &aimdir, int dam
 
 static vec3_t bfg_laser_pos(vec3_t p, float dist)
 {
-	float theta = frandom(2 * PIf);
-	float phi = acos(crandom());
+	const float theta = frandom(2 * PIf);
+	const float phi = acos(crandom());
 
 	vec3_t d{
 		sin(phi) * cos(theta),
@@ -1075,8 +1153,8 @@ THINK(bfg_laser_update) (edict_t* self) -> void
 
 static void bfg_spawn_laser(edict_t* self)
 {
-	vec3_t end = bfg_laser_pos(self->s.origin, 256);
-	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE);
+	const	vec3_t end = bfg_laser_pos(self->s.origin, 256);
+	const	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE);
 
 	if (tr.fraction == 1.0f)
 		return;
@@ -1102,6 +1180,7 @@ static void bfg_spawn_laser(edict_t* self)
 fire_bfg
 =================
 */
+
 THINK(bfg_explode) (edict_t* self) -> void
 {
 	edict_t* ent;
@@ -1136,7 +1215,7 @@ THINK(bfg_explode) (edict_t* self) -> void
 
 			v = ent->mins + ent->maxs;
 			v = ent->s.origin + (v * 0.5f);
-			vec3_t centroid = v;
+			const vec3_t centroid = v;
 			v = self->s.origin - centroid;
 			dist = v.length();
 			points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
@@ -1239,76 +1318,83 @@ struct bfg_laser_pierce_t : pierce_args_t
 	}
 };
 
+
 THINK(bfg_think) (edict_t* self) -> void
 {
 	edict_t* ent;
-	vec3_t	 point;
-	vec3_t	 dir;
-	vec3_t	 start;
-	vec3_t	 end;
-	int		 dmg;
-	trace_t	 tr;
-
+	vec3_t   point;
+	vec3_t   dir;
+	vec3_t   start;
+	vec3_t   end;
+	int      dmg;
+	trace_t  tr;
+	constexpr float pull_strength = 600.0f; // Adjust this value to control the strength of the push
 	if (G_IsDeathmatch())
 		dmg = 10;
 	else
 		dmg = 10;
-
 	bfg_spawn_laser(self);
-
 	ent = nullptr;
-	while ((ent = findradius(ent, self->s.origin, 1536)) != nullptr)
+
+	// Define bfgrange for lasers range
+	const int bfgrange =
+		self->owner->svflags & SVF_MONSTER ? 256 :
+		g_bfgpull->integer && self->owner->client ? 1536 : 800;
+
+
+	while ((ent = findradius(ent, self->s.origin, bfgrange)) != nullptr)
 	{
-		if (ent == self)
+		if (ent == self || ent == self->owner || !ent->takedamage)
 			continue;
-
-		if (ent == self->owner)
-			continue;
-
-		if (!ent->takedamage)
-			continue;
-
 		// ROGUE - make tesla hurt by bfg
 		if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
 			continue;
-		// ZOID
-		// don't target players in CTF
+		// ZOID - don't target players in CTF
 		if (CheckTeamDamage(ent, self->owner))
 			continue;
-		// ZOID
-
 		point = (ent->absmin + ent->absmax) * 0.5f;
-
-		dir = point - self->s.origin;
+		dir = self->s.origin - point;
+		float const distance = dir.length();
 		dir.normalize();
-
 		start = self->s.origin;
-		end = start + (dir * 2048);
-
+		end = start + (dir * -2048.0f); // Reverse direction to go towards the monster
 		// [Paril-KEX] don't fire a laser if we're blocked by the world
 		tr = gi.traceline(start, point, nullptr, MASK_SOLID);
-
 		if (tr.fraction < 1.0f)
 			continue;
-
 		bfg_laser_pierce_t args{
-			self,
-			dir,
-			dmg
+			 self,
+			 dir,
+			 dmg
 		};
 
-		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
+		// Verifica si el lÃ¡ser golpea la entidad
+		trace_t const laser_tr = gi.traceline(start, end, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
+		if (laser_tr.ent == ent)
+		{
+			// Aplica la fuerza de empuje solo si g_bfgpull->integer es verdadero
+			if (g_bfgpull->integer && self->owner->client)
+			{
+				if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
+				{
+					ent->velocity = dir * pull_strength;
+				}
+			}
 
+			// DaÃ±a a la entidad
+			T_Damage(ent, self, self->owner, dir, laser_tr.endpos, vec3_origin, dmg, 0, DAMAGE_ENERGY, MOD_BFG_LASER);
+		}
+
+		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_BFG_LASER);
 		gi.WritePosition(self->s.origin);
-		gi.WritePosition(tr.endpos);
+		gi.WritePosition(laser_tr.endpos);
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 	}
 
 	self->nextthink = level.time + 10_hz;
 }
-
 void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius)
 {
 	edict_t* bfg;
@@ -1343,6 +1429,267 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	gi.linkentity(bfg);
 }
 
+//
+// 
+// VORTEX BFG
+// 
+//constexpr float BFG10K_INITIAL_SPEED = 400.0f;
+////constexpr float BFG10K_INITIAL_DURATION = 3.0f;
+////constexpr float BFG10K_ADDON_DURATION = 0.5f;
+////constexpr gtime_t BFG10K_DEFAULT_DURATION = 3.0_sec;
+////constexpr float BFG10K_DEFAULT_SLIDE = 1.0f;
+//constexpr gtime_t BFG_EXPIRE_TIME = 10_sec;
+//constexpr gtime_t BFG_WALL_EXPIRE_TIME = 2_sec;
+//constexpr gtime_t BFG_MAX_LIFETIME = 8_sec;
+//
+//THINK(bfg_explode) (edict_t* self) -> void
+//{
+//	edict_t* ent;
+//	float	 points;
+//	vec3_t	 v;
+//	float	 dist;
+//
+//	bfg_spawn_laser(self);
+//
+//	if (self->s.frame == 0)
+//	{
+//		ent = nullptr;
+//		while ((ent = findradius(ent, self->s.origin, self->dmg_radius)) != nullptr)
+//		{
+//			if (!ent->takedamage)
+//				continue;
+//			if (ent == self->owner)
+//				continue;
+//			if (!CanDamage(ent, self))
+//				continue;
+//			if (!CanDamage(ent, self->owner))
+//				continue;
+//			// ROGUE - make tesla hurt by bfg
+//			if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
+//				continue;
+//			// ZOID
+//			// don't target players in CTF
+//			if (CheckTeamDamage(ent, self->owner))
+//				continue;
+//			// ZOID
+//
+//			v = ent->mins + ent->maxs;
+//			v = ent->s.origin + (v * 0.5f);
+//			const vec3_t centroid = v;
+//			v = self->s.origin - centroid;
+//			dist = v.length();
+//			points = self->radius_dmg * (1.0f - sqrtf(dist / self->dmg_radius));
+//
+//			T_Damage(ent, self, self->owner, self->velocity, centroid, vec3_origin, (int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
+//
+//			// Paril: draw BFG lightning laser to enemies
+//			gi.WriteByte(svc_temp_entity);
+//			gi.WriteByte(TE_BFG_ZAP);
+//			gi.WritePosition(self->s.origin);
+//			gi.WritePosition(centroid);
+//			gi.multicast(self->s.origin, MULTICAST_PHS, false);
+//		}
+//	}
+//
+//	self->nextthink = level.time + 10_hz;
+//	self->s.frame++;
+//	if (self->s.frame == 5)
+//		self->think = G_FreeEdict;
+//}
+//
+//
+//struct bfg_laser_pierce_t : pierce_args_t
+//{
+//	edict_t* self;
+//	vec3_t	 dir;
+//	int		 damage;
+//
+//	inline bfg_laser_pierce_t(edict_t* self, vec3_t dir, int damage) :
+//		pierce_args_t(),
+//		self(self),
+//		dir(dir),
+//		damage(damage)
+//	{
+//	}
+//
+//	// we hit an entity; return false to stop the piercing.
+//	// you can adjust the mask for the re-trace (for water, etc).
+//	bool hit(contents_t& mask, vec3_t& end) override
+//	{
+//		// hurt it if we can
+//		if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && (tr.ent != self->owner))
+//			T_Damage(tr.ent, self, self->owner, dir, tr.endpos, vec3_origin, damage, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+//
+//		// if we hit something that's not a monster or player we're done
+//		if (!(tr.ent->svflags & SVF_MONSTER) && !(tr.ent->flags & FL_DAMAGEABLE) && (!tr.ent->client))
+//		{
+//			gi.WriteByte(svc_temp_entity);
+//			gi.WriteByte(TE_LASER_SPARKS);
+//			gi.WriteByte(4);
+//			gi.WritePosition(tr.endpos);
+//			gi.WriteDir(tr.plane.normal);
+//			gi.WriteByte(self->s.skinnum);
+//			gi.multicast(tr.endpos, MULTICAST_PVS, false);
+//			return false;
+//		}
+//
+//		if (!mark(tr.ent))
+//			return false;
+//
+//		return true;
+//	}
+//};
+//
+//THINK(bfg_think) (edict_t* self) -> void
+//{
+//	edict_t* ent;
+//	vec3_t   point;
+//	vec3_t   dir;
+//	vec3_t   start;
+//	vec3_t   end;
+//	int      dmg;
+//	trace_t  tr;
+//
+//	{
+//		// Check if it's time to expire (either max lifetime or wall touch expiration)
+//		if ((self->timestamp != 0_ms && level.time >= self->expire_time) ||
+//			(self->timestamp == 0_ms && level.time >= self->spawn_time + BFG_MAX_LIFETIME))
+//		{
+//			G_FreeEdict(self);
+//			return;
+//		}
+//
+//		dmg = deathmatch->integer ? 5 : 10;
+//
+//		bfg_spawn_laser(self);
+//
+//		self->nextthink = level.time + FRAME_TIME_S;
+//
+//		// Define bfgrange for lasers range
+//		const int bfgrange =
+//			self->owner->svflags & SVF_MONSTER ? 256 :
+//			g_bfgpull->integer && self->owner->client ? 1536 : 800;
+//
+//		ent = nullptr;
+//		while ((ent = findradius(ent, self->s.origin, 128)) != nullptr)
+//		{
+//			if (ent == self || ent == self->owner || !ent->takedamage)
+//				continue;
+//			// ROGUE - make tesla hurt by bfg
+//			if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
+//				continue;
+//			// ZOID - don't target players in CTF
+//			if (CheckTeamDamage(ent, self->owner))
+//				continue;
+//
+//			point = (ent->absmin + ent->absmax) * 0.5f;
+//			dir = self->s.origin - point;
+//			float const distance = dir.length();
+//			dir.normalize();
+//
+//			start = self->s.origin;
+//			end = start + (dir * 2048);
+//
+//			tr = gi.traceline(start, point, nullptr, MASK_SOLID);
+//
+//			if (tr.fraction < 1.0f)
+//				continue;
+//
+//			T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+//
+//			gi.WriteByte(svc_temp_entity);
+//			gi.WriteByte(TE_BFG_LASER);
+//			gi.WritePosition(self->s.origin);
+//			gi.WritePosition(tr.endpos);
+//			gi.multicast(self->s.origin, MULTICAST_PHS, false);
+//		}
+//
+//		self->nextthink = level.time + FRAME_TIME_MS * 3;
+//	}
+//}
+//
+//	THINK(bfg_expire_think) (edict_t * self) -> void
+//	{
+//		// Check if it's time to expire
+//		if (level.time >= self->expire_time)
+//		{
+//			G_FreeEdict(self);
+//			return;
+//		}
+//
+//		// Continue with normal BFG think logic
+//		bfg_think(self);
+//
+//		self->nextthink = level.time + 5_hz;
+//	}
+//
+//TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+//{
+//	if (other == self->owner)
+//		return;
+//
+//	if (tr.surface && (tr.surface->flags & SURF_SKY))
+//	{
+//		G_FreeEdict(self);
+//		return;
+//	}
+//
+//	// Start the wall expiration timer if not already set
+//	if (self->timestamp == 0_ms)
+//	{
+//		self->timestamp = level.time;
+//		self->expire_time = level.time + BFG_WALL_EXPIRE_TIME;
+//	}
+//
+//	// Slide implementation
+//	const float oldVelocity = self->velocity.length();
+//	float newVelocity = (2 * BFG10K_INITIAL_SPEED) - oldVelocity;
+//
+//	newVelocity = std::max(100.0f, std::min(newVelocity, oldVelocity));
+//
+//	self->velocity.normalize();
+//	self->velocity *= newVelocity;
+//
+//	if (self->owner->client)
+//		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
+//
+//	// Ensure the think function is set
+//	self->think = bfg_think;
+//	self->nextthink = level.time + FRAME_TIME_MS;
+//}
+//
+//void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius)
+//{
+//	edict_t* bfg = G_Spawn();
+//	bfg->s.origin = start;
+//	bfg->s.angles = vectoangles(dir);
+//	bfg->velocity = dir * speed;
+//	bfg->movetype = MOVETYPE_SLIDE;
+//	bfg->clipmask = MASK_PROJECTILE;
+//	bfg->svflags = SVF_PROJECTILE;
+//	if (self->client && !G_ShouldPlayersCollide(true))
+//		bfg->clipmask &= ~CONTENTS_PLAYER;
+//	bfg->solid = SOLID_BBOX;
+//	bfg->s.effects |= EF_BFG | EF_ANIM_ALLFAST;
+//	bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
+//	bfg->owner = self;
+//	bfg->touch = bfg_touch;
+//	bfg->nextthink = level.time + FRAME_TIME_S;
+//	bfg->think = bfg_think;
+//	bfg->radius_dmg = damage;
+//	bfg->dmg_radius = damage_radius;
+//	bfg->classname = "bfg blast";
+//	bfg->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
+//	bfg->timestamp = 0_ms; // Initialize timestamp to 0
+//	bfg->spawn_time = level.time; // Set spawn time
+//	bfg->expire_time = level.time + BFG_MAX_LIFETIME; // Set initial expiration to max lifetime
+//	bfg->teammaster = bfg;
+//	bfg->teamchain = nullptr;
+//
+//	gi.linkentity(bfg);
+//}
+//
+
 TOUCH(disintegrator_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	gi.WriteByte(svc_temp_entity);
@@ -1360,9 +1707,9 @@ TOUCH(disintegrator_touch) (edict_t* self, edict_t* other, const trace_t& tr, bo
 }
 
 
-void fire_disintegrator(edict_t *self, const vec3_t &start, const vec3_t &forward, int speed)
+void fire_disintegrator(edict_t* self, const vec3_t& start, const vec3_t& forward, int speed)
 {
-	edict_t *bfg;
+	edict_t* bfg;
 
 	bfg = G_Spawn();
 	bfg->s.origin = start;

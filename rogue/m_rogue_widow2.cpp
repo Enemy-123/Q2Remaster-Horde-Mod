@@ -862,11 +862,11 @@ PAIN(widow2_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 	self->pain_debounce_time = level.time + 5_sec;
 
 	if (damage < 15)
-		gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain1, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else if (damage < 75)
-		gi.sound(self, CHAN_VOICE, sound_pain2, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain2, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 	else
-		gi.sound(self, CHAN_VOICE, sound_pain3, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain3, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
@@ -922,6 +922,9 @@ void KillChildren(edict_t* self)
 
 DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+		boss_die(self);
+
 	OnEntityDeath(self);
 	int n;
 	int clipped;
@@ -963,7 +966,7 @@ DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 	gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
 	self->deadflag = true;
-	self->takedamage = false;
+	self->takedamage = true;
 	self->count = 0;
 	KillChildren(self);
 	self->monsterinfo.quad_time = 0_ms;
@@ -1037,7 +1040,7 @@ void SP_monster_widow2(edict_t* self)
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 
 	}
@@ -1055,15 +1058,14 @@ void SP_monster_widow2(edict_t* self)
 	sound_tentacles_retract.assign("brain/brnatck3.wav");
 
 	//	self->s.sound = gi.soundindex ("bosshovr/bhvengn1.wav");
-
+	self->s.scale = 0.8f;
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/blackwidow2/tris.md2");
 	self->mins = { -70, -70, 0 };
 	self->maxs = { 70, 70, 144 };
-	self->s.scale = 0.8f;
 
-	self->health = 6800 + (1.08 * current_wave_number);
+	self->health = 6800 + (1.08 * current_wave_level);
 	if (G_IsCooperative())
 		self->health += 500 * skill->integer;
 	if (g_horde->integer) { self->health = 5500; }
@@ -1272,7 +1274,7 @@ void ThrowMoreStuff(edict_t* self, const vec3_t& point)
 {
 	int n;
 
-	if (G_IsCooperative())
+	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
 	{
 		ThrowSmallStuff(self, point);
 		return;

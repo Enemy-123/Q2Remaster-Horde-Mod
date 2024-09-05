@@ -1061,6 +1061,9 @@ void SP_monster_turret(edict_t* self)
 		gi.soundindex("soldier/solatck2.wav");
 
 		self->spawnflags &= ~SPAWNFLAG_TURRET_WEAPONCHOICE;
+		if (g_horde->integer)
+		self->spawnflags |= SPAWNFLAG_TURRET_ROCKET;
+		else
 		self->spawnflags |= SPAWNFLAG_TURRET_BLASTER;
 	}
 
@@ -1080,7 +1083,7 @@ void SP_monster_turretkl(edict_t* self)
 		self->spawnflags |= SPAWNFLAG_TURRET_ROCKET;
 		SP_monster_turret(self);
 		self->s.skinnum = 2;
-		self->health = 350 * current_wave_number;
+		self->health = 350;
 		if (self->health >= 1400) {
 			self->health = 1400;
 		}

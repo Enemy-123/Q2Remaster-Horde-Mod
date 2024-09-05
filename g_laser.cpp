@@ -3,10 +3,10 @@
 
 constexpr int32_t MAX_LASERS = 6;
 constexpr int32_t LASER_COST = 25;
-constexpr int32_t LASER_INITIAL_DAMAGE = 50;
-constexpr int32_t LASER_ADDON_DAMAGE = 50;
-constexpr int32_t LASER_INITIAL_HEALTH = 275;  // DMG before explode
-constexpr int32_t LASER_ADDON_HEALTH = 75;     // DMG addon before explode
+constexpr int32_t LASER_INITIAL_DAMAGE = 1;
+constexpr int32_t LASER_ADDON_DAMAGE = 4;
+constexpr int32_t LASER_INITIAL_HEALTH = 100;  // DMG before explode
+constexpr int32_t LASER_ADDON_HEALTH = 100;     // DMG addon before explode
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
 constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
@@ -61,10 +61,10 @@ DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 
 PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	// Implementación básica de dolor
+	// ImplementaciÃ³n bÃ¡sica de dolor
 	if (self->health < self->max_health / 2)
 	{
-		// Cambiar el color a amarillo cuando está dañado
+		// Cambiar el color a amarillo cuando estÃ¡ daÃ±ado
 		self->s.skinnum = 0xd0d1d2d3;  // amarillo
 	}
 
@@ -74,7 +74,6 @@ PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 		laser_die(self, other, other, damage, self->s.origin, mod);
 	}
 }
-
 
 THINK(laser_beam_think)(edict_t* self) -> void
 {
@@ -88,67 +87,66 @@ THINK(laser_beam_think)(edict_t* self) -> void
 		return;
 	}
 
-	int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
+	const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
 	self->s.frame = size;
 
-	// Cambiar color basado en la salud del láser
-	if (self->health > self->max_health * 0.20f)
-	{
-		self->s.skinnum = 0xf2f2f0f0; // rojo
-	}
-	else
-	{
-		self->s.skinnum = 0xd0d1d2d3; // amarillo
-	}
+	// Cambiar color basado en la salud del lÃ¡ser
+	self->s.skinnum = (self->health > self->max_health * 0.20f) ? 0xf2f2f0f0 : 0xd0d1d2d3;
 
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	vec3_t start = self->pos1;
-	vec3_t end = start + forward * 8192;
+	const vec3_t start = self->pos1;
+	const vec3_t end = start + forward * 8192;
 	tr = gi.traceline(start, end, self->owner, MASK_SHOT);
 	self->s.origin = tr.endpos;
 	self->s.old_origin = self->pos1;
 
-	int damage = (size) ? std::min(self->dmg, self->health) : 0;
+	const int damage = (size) ? std::min(self->dmg, self->health) : 0;
 
 	if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster)
 	{
-		// Verificar si el objetivo es válido (monstruo, jugador, o entidad dañable)
+		// Verificar si el objetivo es vÃ¡lido (monstruo, jugador, o entidad daÃ±able)
 		if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage)
 		{
-			// Verificar si el objetivo está en el mismo equipo
+			// Verificar si el objetivo estÃ¡ en el mismo equipo
 			if (!OnSameTeam(self->teammaster, tr.ent))
 			{
-				// Aplicar daño incluso si la salud es <= 0, pero no contar como hit_valid_target
+				// Aplicar daÃ±o incluso si la salud es <= 0, pero no contar como hit_valid_target
 				T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
 				// Solo contar como hit_valid_target si la salud es > 0
 				if (tr.ent->health > 0)
 				{
 					hit_valid_target = true;
+					// Reducir la salud del lÃ¡ser solo si golpeÃ³ un objetivo vÃ¡lido con salud > 0
+					float damage_multiplier = 0.25f; // Valor por defecto para otros objetivos vÃ¡lidos
 
-					// Reducir la salud del láser solo si golpeó un objetivo válido con salud > 0
-					if (tr.ent->svflags & SVF_MONSTER && (!(tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))))
+					if (tr.ent->svflags & SVF_MONSTER)
 					{
-						self->health -= damage * 0.4f;  // desgaste aligerado contra monsters
+						if (tr.ent->monsterinfo.invincible_time > level.time)
+						{
+							damage_multiplier = 0.0f; // No desgaste contra objetivos invulnerables
+						}
+						else if (tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+						{
+							damage_multiplier = 1.25f; // Ligeramente mayor desgaste contra boss
+						}
+						else
+						{
+							damage_multiplier = 1.0f; // Desgaste normal contra monsters
+						}
 					}
-					else if (tr.ent->svflags & SVF_MONSTER && tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
-					{
-						self->health -= damage * 0.6f; // ligeramente mayor desgaste contra boss
-					}
-					else
-					{
-						self->health -= damage * 0.25f;  // Desgaste aún menor contra otros objetivos válidos
-					}
+
+					self->health -= damage * damage_multiplier;
 				}
 			}
 		}
 	}
 
-	// Si no golpeó un objetivo válido, no reducir la salud
+	// Si no golpeÃ³ un objetivo vÃ¡lido, no reducir la salud
 	if (!hit_valid_target)
 	{
-		// Opcionalmente, puedes agregar un desgaste mínimo aquí si lo deseas
-		// self->health -= 0.1f;  // Desgaste mínimo cuando no golpea nada
+		// Opcionalmente, puedes agregar un desgaste mÃ­nimo aquÃ­ si lo deseas
+		// self->health -= 0.1f;  // Desgaste mÃ­nimo cuando no golpea nada
 	}
 
 	// Si la salud llega a cero, explotar
@@ -161,6 +159,7 @@ THINK(laser_beam_think)(edict_t* self) -> void
 
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
+
 THINK(emitter_think)(edict_t* self) -> void
 {
 	// Check if the laser has timed out
@@ -238,8 +237,8 @@ void create_laser(edict_t* ent)
 	grenade = G_Spawn();
 
 	// create the laser beam
-	laser->dmg = LASER_INITIAL_DAMAGE + LASER_ADDON_DAMAGE;
-	laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * current_wave_number);
+	laser->dmg = LASER_INITIAL_DAMAGE + (LASER_ADDON_DAMAGE * (current_wave_level - 1));
+	laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * (current_wave_level - 1));
 	laser->max_health = laser->health;
 	laser->gib_health = -100;
 	laser->mass = 50;
@@ -263,7 +262,7 @@ void create_laser(edict_t* ent)
 	laser->pain = laser_pain;
 	laser->flags |= FL_NO_KNOCKBACK;
 
-	// Asignar el equipo al láser
+	// Asignar el equipo al lÃ¡ser
 	if (ent->client->resp.ctf_team == CTF_TEAM1) {
 		laser->team = TEAM1;
 	}
@@ -313,7 +312,7 @@ void create_laser(edict_t* ent)
 	gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->num_lasers, MAX_LASERS);
 }
 
-void remove_lasers(edict_t* ent)
+void remove_lasers(edict_t* ent) noexcept
 {
 	edict_t* e = nullptr;
 	while ((e = G_Find(e, [](edict_t* e) { return strcmp(e->classname, "emitter") == 0; })) != nullptr)

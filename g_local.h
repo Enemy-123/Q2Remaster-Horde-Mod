@@ -1,4 +1,4 @@
-﻿// Copyright (c) ZeniMax Media Inc.
+// Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 
 // g_local.h -- local definitions for game module
@@ -680,6 +680,7 @@ enum monster_ai_flags_t : uint64_t
 	AI_DO_NOT_COUNT = bit_v<21>,	 // set for healed monsters
 	AI_SPAWNED_CARRIER = bit_v<22>, // both do_not_count and spawned are set for spawned monsters
 	AI_SPAWNED_MEDIC_C = bit_v<23>, // both do_not_count and spawned are set for spawned monsters
+	AI_SPAWNED_TANK = bit_v<23>, // both do_not_count and spawned are set for spawned monsters
 	AI_SPAWNED_WIDOW = bit_v<24>,	 // both do_not_count and spawned are set for spawned monsters
 	AI_BLOCKED = bit_v<25>, // used by blocked_checkattack: set to say I'm attacking while blocked
 	// (prevents run-attacks)
@@ -770,7 +771,8 @@ enum movetype_t {
 	MOVETYPE_WALLBOUNCE,
 	// RAFAEL
 	// ROGUE
-	MOVETYPE_NEWTOSS // PGM - for deathball
+	MOVETYPE_NEWTOSS, // PGM - for deathball
+	MOVETYPE_SLIDE // bfg
 					 // ROGUE
 };
 
@@ -1022,6 +1024,7 @@ enum mod_id_t : uint8_t
 	MOD_GRENADE,
 	MOD_G_SPLASH,
 	MOD_ROCKET,
+	MOD_FIREBALL,
 	MOD_R_SPLASH,
 	MOD_HYPERBLASTER,
 	MOD_RAILGUN,
@@ -1081,7 +1084,8 @@ enum mod_id_t : uint8_t
 	// Kyper - Lithium port
 	MOD_HOOK,
 	MOD_TURRET,
-	MOD_PLAYER_LASER
+	MOD_PLAYER_LASER,
+	MOD_TANK_PUNCH
 	// Kyper
 };
 
@@ -1647,6 +1651,7 @@ struct monsterinfo_t
 
 	item_id_t power_armor_type;
 	int32_t	  power_armor_power;
+	int32_t base_power_armor;
 
 	// for monster revive
 	item_id_t initial_power_armor_type;
@@ -1741,9 +1746,9 @@ struct monsterinfo_t
 	gtime_t last_rocket_fire_time;
 	gtime_t last_plasma_fire_time;
 	float damage_quad; // trying to multiply dmg based on powerup
-	float noise_cooldown_time;
 	bool damage_modifier_applied;
 	gtime_t last_sentrygun_target_time;
+	gtime_t lastnoisecooldown;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
@@ -1965,12 +1970,14 @@ extern cvar_t* g_strict_saves;
 extern cvar_t* g_coop_health_scaling;
 extern cvar_t* g_weapon_respawn_time;
 
+extern cvar_t* g_easymonsters;
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
 extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
 extern cvar_t* g_tracedbullets;
 extern cvar_t* g_bouncygl;
+extern cvar_t* g_bfgpull;
 extern cvar_t* g_startarmor;
 extern cvar_t* g_vampire;
 extern cvar_t* g_iddmg;
@@ -2384,6 +2391,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
 	float damage_radius, bool held);
 void rocket_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
+void fireball_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius,
 	int radius_damage);
 void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick);
@@ -2455,7 +2463,7 @@ void respawn(edict_t* ent);
 void BeginIntermission(edict_t* targ);
 void PutClientInServer(edict_t* ent);
 void InitClientPersistant(edict_t* ent, gclient_t* client);
-void InitClientPt(edict_t* ent, gclient_t* client);
+void InitClientPt(const edict_t* ent, gclient_t* client);
 void InitClientResp(gclient_t* client);
 void InitBodyQue();
 void ClientBeginServerFrame(edict_t* ent);
@@ -2653,8 +2661,7 @@ bool	 CheckSpawnPoint(const vec3_t& origin, const vec3_t& mins, const vec3_t& ma
 bool	 CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const vec3_t& entMaxs, float height,
 	float gravity);
 void	 SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size);
-void	 Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles);
-
+void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* monster);
 // g_rogue_items
 bool Pickup_Nuke(edict_t* ent, edict_t* other);
 void Use_IR(edict_t* ent, gitem_t* item);
@@ -3112,14 +3119,14 @@ struct gclient_t
 	int dmg_counter; // ID DMG
 	// int total_damage; // Total damage dealt by this player
 	bool menu_selected;
-//	pmtype_t prev_pm_type;
+	//	pmtype_t prev_pm_type;
 	int num_lasers;
 
-//	LOAD SERVER CLIENT, CS
-//	bool isLoading;
-////	int entityLoadState;
-//	gtime_t nextLoadTime;
-//	int configStringLoadState;  // Nuevo miembro para la carga progresiva
+	//	LOAD SERVER CLIENT, CS
+	//	bool isLoading;
+	////	int entityLoadState;
+	//	gtime_t nextLoadTime;
+	//	int configStringLoadState;  // Nuevo miembro para la carga progresiva
 };
 
 
@@ -3138,8 +3145,8 @@ enum plat2flags_t
 MAKE_ENUM_BITFLAGS(plat2flags_t);
 
 #include <bitset>
-void OnEntityDeath(edict_t* ent);
-void OnEntityRemoved(edict_t* ent);
+void OnEntityDeath(const edict_t* ent);
+void OnEntityRemoved(const edict_t* ent);
 struct edict_t
 {
 	edict_t() = delete;
@@ -3365,7 +3372,9 @@ struct edict_t
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	float original_dmg; // original dmg on bouncy gl, so it will reduce over bounces
 	int configstringIndex; // cs
-//	gtime_t	regentime = 0.25_sec;
+	gtime_t expire_time;
+	gtime_t spawn_time;
+	//	gtime_t	regentime = 0.25_sec;
 };
 
 #define TEAM1 "team1"
@@ -3686,15 +3695,35 @@ struct gib_def_t
 	}
 };
 
+extern bool string_equals(const char* str1, const std::string_view& str2);
 // convenience function to throw different gib types
 // NOTE: always throw the head gib *last* since self's size is used
 // to position the gibs!
+#include <unordered_map>
+
+// Definición de los modelos que queremos multiplicar
+const std::unordered_map<std::string_view, int> gib_multipliers = {
+	{"models/objects/gibs/sm_metal/tris.md2", 3},
+	{"models/objects/gibs/sm_meat/tris.md2", 3},
+	{"models/objects/gibs/chest/tris.md2", 3},
+	{"models/objects/gibs/bone/tris.md2", 3},
+	{"models/objects/gibs/bone2/tris.md2", 2},
+	{"models/objects/gear/bone2/tris.md2", 2}
+};
+
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
 {
 	for (auto& gib : gibs)
 	{
+		int multiplier = 1;
 
-		for (size_t j = 0; j < 2; j++) // 
+		// Buscar si este gib debe ser multiplicado
+		auto it = gib_multipliers.find(gib.gibname);
+		if (it != gib_multipliers.end()) {
+			multiplier = it->second;
+		}
+
+		for (int j = 0; j < multiplier; j++)
 		{
 			for (size_t i = 0; i < gib.count; i++)
 			{
@@ -3703,8 +3732,7 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 		}
 	}
 }
-
-inline bool M_CheckGib(edict_t* self, const mod_t& mod) 
+inline bool M_CheckGib(edict_t* self, const mod_t& mod)
 {
 	if (self->deadflag)
 	{
@@ -3760,10 +3788,7 @@ inline bool pierce_args_t::mark(edict_t* ent)
 
 	return true;
 }
-
-extern int current_wave_number;
-
-extern int CalculateRemainingMonsters();
+extern int32_t current_wave_level;
 
 // implementation of pierce stuff
 inline void pierce_args_t::restore()
@@ -3838,8 +3863,8 @@ template<> cached_imageindex* cached_imageindex::head;
 extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
 
-extern void OnEntityDeath(edict_t* ent);
-extern inline void VectorCopy(const vec3_t& src, vec3_t& dest)  ;
+extern void OnEntityDeath(const edict_t* ent);
+extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
 extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 extern void VectorSet(vec3_t& v, float x, float y, float z);
@@ -3849,18 +3874,19 @@ extern void VectorNormalize(vec3_t v);
 extern void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out);
 extern void VectorClear(vec3_t v);
 //extern void VectorLerp(const vec3_t start, const vec3_t end, float t, vec3_t result);
+extern float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
-extern bool ClientIsSpectating(gclient_t* cl);
-extern bool EntIsSpectating(edict_t* ent);
+extern bool ClientIsSpectating(const gclient_t* cl) noexcept;
+extern bool EntIsSpectating(const edict_t* ent) noexcept;
 
 extern 	bool FindMTarget(edict_t* self);
 
 extern void boss_die(edict_t* boss);
 extern void BossDeathHandler(edict_t* boss);
 
-extern void AllowNextWaveAdvance();
+extern void AllowNextWaveAdvance() noexcept;
 extern void OpenSpectatorMenu(edict_t* ent);
 extern void UpdateVoteHUD();
 

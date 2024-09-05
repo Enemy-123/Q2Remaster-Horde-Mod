@@ -5,7 +5,7 @@
 
 #include "g_local.h"
 #include <string>
-
+#define first3waves current_wave_level <= 3
 // Define los flags de bonus
 #define BF_CHAMPION   0x00000001
 #define BF_CORRUPTED  0x00000002
@@ -23,21 +23,17 @@ std::string GetDisplayName(edict_t* ent);
 std::string GetTitleFromFlags(int bonus_flags);
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);
-void ApplyBossEffects(edict_t* boss, bool isSmallMap, bool isMediumMap, bool isBigMap, float& health_multiplier, float& power_armor_multiplier);
+void ApplyBossEffects(edict_t* boss);
 extern float M_DamageModifier(edict_t* monster);
 extern std::string GetPlayerName(edict_t* player);
 // Declarar funciones externas para el healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
 extern void check_target_healthbar(edict_t* self);
-extern void SetMonsterHealth(edict_t* monster, int base_health, int current_wave_number);
 extern void UpdatePowerUpTimes(edict_t* monster);
-void Boss_SpawnMonster(edict_t* self);
-//strogg ship
-//extern edict_t* CreatePathCornerOnSkySurface(edict_t* reference);
-//extern edict_t* CreatePathCornerAbovePlayer(edict_t* player);
-//extern float PlayersRangeFromSpot(edict_t* spot);
-//extern void MoveMonsterToPlayer(edict_t* monster);
+extern bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);
+void Monster_MoveSpawn(edict_t* self); 
+void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 
 struct MapSize {
     bool isSmallMap = false;
@@ -45,10 +41,10 @@ struct MapSize {
     bool isBigMap = false;
 };
 
-MapSize GetMapSize(const std::string& mapname)  ;
+MapSize GetMapSize(const std::string& mapname) ;
 
 
-// Estructura para almacenar las estad�sticas de los jugadores
+// Estructura para almacenar las estad√≠sticas de los jugadores
 struct PlayerStats {
     edict_t* player;
     int total_damage;

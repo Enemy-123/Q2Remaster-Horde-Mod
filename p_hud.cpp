@@ -701,7 +701,7 @@ void G_SetCoopStats(edict_t* ent) {
 
 	if (G_IsDeathmatch() && !level.intermissiontime) {
 
-		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_number;
+		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_level;
 	}
 	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
@@ -722,7 +722,7 @@ void G_SetCoopStats(edict_t* ent) {
 		ent->client->ps.stats[STAT_COOP_RESPAWN] = 0;
 }
 
-// Función de utilidad para convertir spawnflags_t a int de forma segura
+// FunciÃ³n de utilidad para convertir spawnflags_t a int de forma segura
 inline int SafeConvertSpawnflags(const spawnflags_t& flags) {
 	return static_cast<int>(static_cast<uint32_t>(flags));
 }
@@ -912,13 +912,13 @@ void G_SetStats(edict_t* ent)
 	ent->client->ps.stats[STAT_TIMER_ICON] = 0;
 	ent->client->ps.stats[STAT_TIMER] = 0;
 
-	// Estructura para manejar la información de las esferas
+	// Estructura para manejar la informaciÃ³n de las esferas
 	struct sphere_info_t {
 		spawnflags_t spawnflags;
 		const char* icon;
 	};
 
-	// Array de información de esferas
+	// Array de informaciÃ³n de esferas
 	const sphere_info_t sphere_table[] = {
 		{ SPHERE_DEFENDER, "p_defender" },
 		{ SPHERE_HUNTER, "p_hunter" },
@@ -961,7 +961,7 @@ void G_SetStats(edict_t* ent)
 
 	if (!active_powerups.empty() || active_sphere)
 	{
-		// Función de comparación para ordenar
+		// FunciÃ³n de comparaciÃ³n para ordenar
 		auto compare_powerups = [&ent](powerup_info_t* a, powerup_info_t* b) {
 			if (a->time_ptr && b->time_ptr)
 				return (ent->client->*a->time_ptr) < (ent->client->*b->time_ptr);
@@ -977,7 +977,7 @@ void G_SetStats(edict_t* ent)
 		int16_t timer_value = 0;
 		const char* icon = nullptr;
 
-		// Determinar el mejor power-up (incluyendo la esfera si está activa)
+		// Determinar el mejor power-up (incluyendo la esfera si estÃ¡ activa)
 		if (active_sphere && ent->client->owned_sphere)
 		{
 			timer_value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
@@ -995,7 +995,7 @@ void G_SetStats(edict_t* ent)
 				icon = item->icon;
 		}
 
-		// Implementar lógica de parpadeo
+		// Implementar lÃ³gica de parpadeo
 		if ((next_best_powerup || (active_sphere && best_powerup)) && ((level.time.milliseconds() % 3000) < 1500))
 		{
 			if (active_sphere && best_powerup && icon == active_sphere->icon)
@@ -1180,7 +1180,7 @@ void G_SetStats(edict_t* ent)
 				continue;
 			}
 			else {
-				// Asegurarse de que el nombre de la barra de salud esté actualizado
+				// Asegurarse de que el nombre de la barra de salud estÃ© actualizado
 				SetHealthBarName(level.health_bar_entities[i]->enemy);
 
 				float health_remaining = 0.0f;
@@ -1188,7 +1188,7 @@ void G_SetStats(edict_t* ent)
 					health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->initial_max_health;
 				}
 				else {
-					health_remaining = 0.0f; // Manejar el caso donde initial_max_health no esté configurado
+					health_remaining = 0.0f; // Manejar el caso donde initial_max_health no estÃ© configurado
 				}
 
 				*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;

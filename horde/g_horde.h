@@ -12,8 +12,8 @@ gitem_t* G_HordePickItem()  ;
 const char* G_HordePickMonster(edict_t* spawn_point)  ;
 
 // Game mode checks
-bool G_IsDeathmatch()  ;
-bool G_IsCooperative()  ;
+bool G_IsDeathmatch() noexcept;
+bool G_IsCooperative() noexcept;
 
 // Hook functionality for player interactions
 void Hook_InitGame(void);

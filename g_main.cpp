@@ -103,6 +103,7 @@ cvar_t* g_coop_health_scaling;
 cvar_t* g_weapon_respawn_time;
 
 // dm"flags"
+cvar_t* g_easymonsters;
 cvar_t* g_iddmg;
 cvar_t* g_autohaste;
 cvar_t* wavenext;
@@ -161,6 +162,7 @@ cvar_t* g_hardcoop;
 cvar_t* g_ammoregen;
 cvar_t* g_tracedbullets;
 cvar_t* g_bouncygl;
+cvar_t* g_bfgpull;
 cvar_t* g_startarmor;
 cvar_t* g_vampire;
 //cvar_t* g_vampire_health_max;
@@ -185,6 +187,12 @@ void G_PrepFrame();
 void InitSave();
 
 #include <chrono>
+
+// Implementaci贸n de la funci贸n auxiliar en el archivo apropiado (por ejemplo, g_main.c)
+bool PM_IsQ64Map() {
+	return strncmp(level.mapname, "q64/", 4) == 0;
+}
+
 /*
 ============
 PreInitGame
@@ -399,11 +407,13 @@ void InitGame()
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
 	g_tracedbullets = gi.cvar("g_tracedbullets", "0", CVAR_NOFLAGS);
 	g_bouncygl = gi.cvar("g_bouncygl", "0", CVAR_NOFLAGS);
+	g_bfgpull = gi.cvar("g_bfgpull", "0", CVAR_NOFLAGS);
 	g_startarmor = gi.cvar("g_startarmor", "0", CVAR_NOFLAGS);
 	g_upgradeproxs = gi.cvar("g_upgradeproxs", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 	g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
 	g_autohaste = gi.cvar("g_autohaste", "0", CVAR_NOFLAGS);
+	g_easymonsters = gi.cvar("g_easymonsters", "0", CVAR_NOFLAGS);
 	g_iddmg = gi.cvar("g_iddmg", "0", CVAR_NOFLAGS);
 
 	g_speedstuff = gi.cvar("g_speedstuff", "1.0f", CVAR_NOFLAGS);
@@ -765,7 +775,7 @@ void CheckDMRules()
 		return; // no checking in match mode
 	// ZOID
 
-	// A馻dir verificaci髇 de reglas de elecci髇
+	// A帽adir verificaci贸n de reglas de elecci贸n
 	if (CTFCheckRules())
 	{
 		return;
@@ -936,14 +946,14 @@ inline void G_RunFrame_(bool main_loop)
 
 	level.time += FRAME_TIME_MS;
 
-	// Manejar la intermisi髇
+	// Manejar la intermisi贸n
 	if (level.intermissiontime)
 	{
 		constexpr gtime_t INTERMISSION_DURATION = 30_sec;
 
 		if (level.intermissiontime == level.time)
 		{
-			// Primera vez que entramos en intermisi髇
+			// Primera vez que entramos en intermisi贸n
 			gi.Com_PrintFmt("Intermission started. Auto-exit scheduled in 30 seconds.\n");
 		}
 
@@ -952,13 +962,13 @@ inline void G_RunFrame_(bool main_loop)
 
 		if (time_remaining <= 0_ms)
 		{
-			// Es hora de salir de la intermisi髇
+			// Es hora de salir de la intermisi贸n
 			gi.Com_PrintFmt("Auto-exiting intermission after 30 seconds.\n");
 			level.exitintermission = true;
 		}
 		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 1000 == 0)
 		{
-			// Imprimir tiempo restante cada segundo en los 鷏timos 30 segundos
+			// Imprimir tiempo restante cada segundo en los 煤ltimos 30 segundos
 			gi.Com_PrintFmt("Intermission time remaining: {:.0f} seconds\n", time_remaining.seconds());
 		}
 	}

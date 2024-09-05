@@ -633,7 +633,7 @@ void G_LoadShadowLights()
 
 static void setup_dynamic_light(edict_t* self)
 {
-	if (level.intermissiontime)
+	if (level.intermissiontime || g_horde->integer)
 		return;
 	// [Sam-KEX] Shadow stuff
 	if (st.sl.data.radius > 0 && !level.intermissiontime)
@@ -675,8 +675,9 @@ void SP_light(edict_t* self)
 	if (level.intermissiontime)
 		return;
 	// no targeted lights in deathmatch, because they cause global messages
-//	if (!self->targetname && st.sl.data.radius == 0 && !level.intermissiontime) // [Sam-KEX]
-	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
+	// disabled for now, possibly causing crashes related to CS
+	//	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
+	if (G_IsDeathmatch()) // [Sam-KEX]
 	{
 		G_FreeEdict(self);
 		return;
@@ -1683,7 +1684,7 @@ void SP_misc_strogg_ship(edict_t* ent) {
 	//edict_t* reference = nullptr;
 	//float best_distance = 9999999.0f;
 
-	//// Encontrar el jugador m�s cercano para usarlo como referencia
+	//// Encontrar el jugador m√°s cercano para usarlo como referencia
 	//for (uint32_t n = 1; n <= game.maxclients; n++) {
 	//	edict_t* player = &g_edicts[n];
 
@@ -2261,9 +2262,15 @@ TOUCH(fire_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 		G_FreeEdict(self);
 		return;
 	}
+	if (g_horde->integer) {
+		if (other->takedamage && (!(other->svflags & SVF_MONSTER)))
+			T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, 20, 0, DAMAGE_NONE, MOD_EXPLOSIVE);
+	}
 
-	if (other->takedamage)
-		T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, 20, 0, DAMAGE_NONE, MOD_EXPLOSIVE);
+	if (!g_horde->integer) {
+		if (other->takedamage)
+			T_Damage(other, self, self, vec3_origin, self->s.origin, vec3_origin, 20, 0, DAMAGE_NONE, MOD_EXPLOSIVE);
+	}
 
 	if (gi.pointcontents(self->s.origin) & CONTENTS_LAVA)
 		G_FreeEdict(self);

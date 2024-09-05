@@ -221,6 +221,8 @@ static cached_soundindex sound_spin_loop;
 void guardian_atk1_charge(edict_t* self)
 {
 	self->monsterinfo.weapon_sound = sound_spin_loop;
+
+	if (!strcmp(self->classname, "monster_guardian"))
 	gi.sound(self, CHAN_WEAPON, sound_charge, 1.f, ATTN_NORM, 0.f);
 }
 
@@ -228,7 +230,7 @@ void guardian_fire_blaster(edict_t* self)
 {
 	vec3_t forward, right, target;
 	vec3_t start;
-	monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
+	const monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
@@ -239,7 +241,10 @@ void guardian_fire_blaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
+	if (!strcmp(self->classname, "monster_guardian"))
 	monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+	if (!strcmp(self->classname, "monster_janitor2"))
+		monster_fire_blueblaster(self, start, forward, 3, 850, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
 
 	if (self->enemy && self->enemy->health > 0 &&
 		self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
@@ -331,7 +336,7 @@ PRETHINK(guardian_fire_update) (edict_t* laser) -> void
 void guardian_laser_fire(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1.f, ATTN_NORM, 0.f);
-	monster_fire_dabeam(self, 25, self->s.frame & 1, guardian_fire_update);
+	monster_fire_dabeam(self, self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 25 : 5, self->s.frame & 1, guardian_fire_update);
 }
 
 mframe_t guardian_frames_atk2_fire[] = {
@@ -365,9 +370,9 @@ MMOVE_T(guardian_move_atk2_in) = { FRAME_atk2_in1, FRAME_atk2_in12, guardian_fra
 
 void guardian_kick(edict_t* self)
 {
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
-		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, 85, 700))
+		if (!fire_hit(self, { MELEE_DISTANCE, 0, -80 }, !strcmp(self->classname, "monster_guardian") ? 85 : 30, 700))
 			self->monsterinfo.melee_debounce_time = level.time + 1000_ms;
 	}
 	else {
@@ -375,8 +380,8 @@ void guardian_kick(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "guardian_kick: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1000_ms; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -402,11 +407,11 @@ MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	float r = range_to(self, self->enemy);
+	const float r = range_to(self, self->enemy);
 
-	if (r > RANGE_NEAR)
+	if (r > RANGE_NEAR && !strcmp(self->classname, "monster_guardian"))
 		M_SetAnimation(self, &guardian_move_atk2_in);
-	else if (self->monsterinfo.melee_debounce_time < level.time && r < 120.f)
+	else if (self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_guardian") || self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_janitor2") && r <= RANGE_MELEE)
 		M_SetAnimation(self, &guardian_move_kick);
 	else
 		M_SetAnimation(self, &guardian_move_atk1_in);
@@ -452,7 +457,7 @@ void guardian_dead(edict_t* self)
 		});
 }
 
-mframe_t guardian_frames_death1[FRAME_death26 - FRAME_death1 + 1] = {
+mframe_t guardian_frames_death1boss[FRAME_death26 - FRAME_death1 + 1] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
@@ -480,7 +485,22 @@ mframe_t guardian_frames_death1[FRAME_death26 - FRAME_death1 + 1] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(guardian_move_death) = { FRAME_death1, FRAME_death26, guardian_frames_death1, guardian_dead };
+MMOVE_T(guardian_move_deathboss) = { FRAME_death1, FRAME_death26, guardian_frames_death1boss, guardian_dead };
+
+mframe_t guardian_frames_death1[FRAME_death11 - FRAME_death1 + 1] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
+MMOVE_T(guardian_move_death) = { FRAME_death1, FRAME_death11, guardian_frames_death1, guardian_dead };
 
 DIE(guardian_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
@@ -489,9 +509,14 @@ DIE(guardian_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	//gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	self->monsterinfo.weapon_sound = 0;
 	self->deadflag = true;
-	self->takedamage = true;
+	self->takedamage = false;
 
-	M_SetAnimation(self, &guardian_move_death);
+	if (!strcmp(self->classname, "monster_guardian") || strcmp(self->classname, "monster_janitor2")) {
+		M_SetAnimation(self, &guardian_move_deathboss);
+	}
+	else {
+		M_SetAnimation(self, &guardian_move_death);
+	}
 }
 
 //
@@ -521,13 +546,13 @@ void SP_monster_guardian(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 6500 + (1.08 * current_wave_number);
+	self->health = 6500 + (1.08 * current_wave_level);
 	self->gib_health = -200;
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 550;
+		self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 550 : 225;
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
@@ -556,7 +581,7 @@ void SP_monster_janitor2(edict_t* self)
 	self->s.skinnum = 2;
 	if (!self->s.scale)
 		self->s.scale = 0.4f;
-	self->health = 800 * st.health_multiplier;
+	self->health = 400 * st.health_multiplier;
 
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };

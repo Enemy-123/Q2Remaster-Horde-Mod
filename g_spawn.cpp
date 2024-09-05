@@ -126,14 +126,14 @@ void SP_misc_lavaball(edict_t* ent);
 void SP_monster_berserk(edict_t* self);
 void SP_monster_gladiator(edict_t* self);
 void SP_monster_gunner(edict_t* self);
-void SP_monster_gunner2(edict_t* self);
+void SP_monster_gunner_vanilla(edict_t* self);
 void SP_monster_infantry(edict_t* self);
-void SP_monster_infantry2(edict_t* self);
+void SP_monster_infantry_vanilla(edict_t* self);
 void SP_monster_soldier_light(edict_t* self);
 void SP_monster_soldier(edict_t* self);
 void SP_monster_soldier_ss(edict_t* self);
 void SP_monster_tank(edict_t* self);
-void SP_monster_tank2(edict_t* self);
+void SP_monster_tank_vanilla(edict_t* self);
 void SP_monster_runnertank(edict_t* self);
 void SP_monster_tank_64(edict_t* self);
 void SP_monster_medic(edict_t* self);
@@ -144,9 +144,9 @@ void SP_monster_perrokl(edict_t* self);
 void SP_monster_flyer(edict_t* self);
 void SP_monster_brain(edict_t* self);
 void SP_monster_floater(edict_t* self);
-void SP_monster_floater2(edict_t* self);
+void SP_monster_floater_tracker(edict_t* self);
 void SP_monster_hover(edict_t* self);
-void SP_monster_hover2(edict_t* self);
+void SP_monster_hover_vanilla(edict_t* self);
 void SP_monster_mutant(edict_t* self);
 void SP_monster_redmutant(edict_t* self);
 void SP_monster_supertank(edict_t* self);
@@ -222,7 +222,7 @@ void SP_target_orb(edict_t* self);
 // pmm
 void SP_hint_path(edict_t* self);
 void SP_monster_carrier(edict_t* self);
-void SP_monster_carrier2(edict_t* self);
+void SP_monster_carrier_mini(edict_t* self);
 void SP_monster_widow(edict_t* self);
 void SP_monster_widow1(edict_t* self);
 void SP_monster_widow2(edict_t* self);
@@ -365,14 +365,14 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_berserk", SP_monster_berserk },
 	{ "monster_gladiator", SP_monster_gladiator },
 	{ "monster_gunner", SP_monster_gunner },
-	{ "monster_gunner2", SP_monster_gunner2 },
+	{ "monster_gunner_vanilla", SP_monster_gunner_vanilla },
 	{ "monster_infantry", SP_monster_infantry },
-	{ "monster_infantry2", SP_monster_infantry2 },
+	{ "monster_infantry_vanilla", SP_monster_infantry_vanilla },
 	{ "monster_soldier_light", SP_monster_soldier_light },
 	{ "monster_soldier", SP_monster_soldier },
 	{ "monster_soldier_ss", SP_monster_soldier_ss },
 	{ "monster_tank", SP_monster_tank },
-	{ "monster_tank2", SP_monster_tank2 },
+	{ "monster_tank_vanilla", SP_monster_tank_vanilla },
 	{ "monster_runnertank", SP_monster_runnertank },
 	{ "monster_tank_64", SP_monster_tank_64 },
 	{ "monster_tank_commander", SP_monster_tank },
@@ -384,9 +384,9 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_flyer", SP_monster_flyer },
 	{ "monster_brain", SP_monster_brain },
 	{ "monster_floater", SP_monster_floater },
-	{ "monster_floater2", SP_monster_floater2 },
+	{ "monster_floater_tracker", SP_monster_floater_tracker },
 	{ "monster_hover", SP_monster_hover },
-	{ "monster_hover2", SP_monster_hover2 },
+	{ "monster_hover_vanilla", SP_monster_hover_vanilla },
 	{ "monster_mutant", SP_monster_mutant },
 	{ "monster_redmutant", SP_monster_redmutant },
 	{ "monster_supertank", SP_monster_supertank },
@@ -462,10 +462,10 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "target_orb", SP_target_orb },
 	// pmm
 	{ "monster_daedalus", SP_monster_hover },
-	{ "monster_daedalus2", SP_monster_hover2 },
+	{ "monster_daedalus_bomber", SP_monster_hover_vanilla },
 	{ "hint_path", SP_hint_path },
 	{ "monster_carrier", SP_monster_carrier },
-	{ "monster_carrier2", SP_monster_carrier2 },
+	{ "monster_carrier_mini", SP_monster_carrier_mini },
 	{ "monster_widow", SP_monster_widow },
 	{ "monster_widow1", SP_monster_widow1 },
 	{ "monster_widow2", SP_monster_widow2 },
@@ -510,19 +510,30 @@ typedef struct {
 	int replacement_count;
 } MonsterReplacement;
 
-// Función auxiliar para seleccionar un reemplazo aleatorio
+// FunciÃ³n para generar un nÃºmero aleatorio en un rango especÃ­fico
+int mt_rand_range(int min, int max) {
+	std::uniform_int_distribution<int> dist(min, max);
+	return dist(mt_rand);
+}
+
+// FunciÃ³n para generar un nÃºmero aleatorio flotante entre 0 y 1
+float mt_rand_float() {
+	std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+	return dist(mt_rand);
+}
+
+// FunciÃ³n auxiliar para seleccionar un reemplazo aleatorio
 const char* get_random_replacement(const MonsterReplacement* replacement) {
 	if (replacement->replacement_count == 1) {
 		return replacement->replacements[0];
 	}
 	else {
-		int index = rand() % replacement->replacement_count;
+		const int index = mt_rand_range(0, replacement->replacement_count - 1);
 		return replacement->replacements[index];
 	}
 }
-#define MAX_CLASSNAME_LENGTH 64  // Ajusta este valor según sea necesario
 
-void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
+static void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, int replacement_count, float bonus_prob) {
 	if (!ent || !ent->classname) {
 		return;  // Salir si la entidad o su classname son nulos
 	}
@@ -531,20 +542,13 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 		if (replacements[i].original && strcmp(ent->classname, replacements[i].original) == 0) {
 			const char* new_classname = get_random_replacement(&replacements[i]);
 			if (new_classname) {
-				// Usar Q_strlcpy para copiar el nuevo classname
-				char temp_classname[MAX_CLASSNAME_LENGTH];
-				Q_strlcpy(temp_classname, new_classname, sizeof(temp_classname));
-
 				// Asignar el nuevo classname
-				ent->classname = G_CopyString(temp_classname, TAG_LEVEL);  // Asumiendo que TAG_LEVEL es el tag correcto
-
-				// Logging para debug
-			//	gi.Com_PrintFmt("Replacing monster: original={}, new={}\n", replacements[i].original, temp_classname);
+				ent->classname = G_CopyString(new_classname, TAG_LEVEL);
 			}
 
-			// Asignar una única flag de bonus según la probabilidad dada
-			if ((rand() / (float)RAND_MAX) < bonus_prob) {
-				float rand_val = rand() / (float)RAND_MAX;
+			// Asignar una Ãºnica flag de bonus segÃºn la probabilidad dada
+			if (mt_rand_float() < bonus_prob) {
+				const float rand_val = mt_rand_float();
 				int flag = 0;
 
 				if (rand_val < 0.2f) flag = BF_CHAMPION;
@@ -555,6 +559,16 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 				else if (rand_val < 1.0f) flag = BF_STYGIAN;
 
 				ent->monsterinfo.bonus_flags = flag;
+
+				if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+				{
+					// Si es un jefe, llamamos a ApplyBossEffects
+					const auto mapSize = GetMapSize(level.mapname);
+					ApplyBossEffects(ent);
+					break;
+				}
+				else
+
 				ApplyMonsterBonusFlags(ent);
 			}
 			break;
@@ -563,15 +577,15 @@ void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, i
 }
 void ED_CallSpawn(edict_t* ent) {
 
-	// Inicializa el multiplicador de daño para el monstruo
+	// Inicializa el multiplicador de daÃ±o para el monstruo
 	if (ent->svflags & SVF_MONSTER) {
 		ent->monsterinfo.damage_quad = 1.0f;
 	}
 
 	// Diccionarios de reemplazos para diferentes modos
-	MonsterReplacement chaotic_replacements[] = {
-		{"monster_soldier_ss", {"monster_infantry2"}, 1},
-		{"monster_infantry2", {"monster_gunner2", "monster_gunner"}, 2},
+	constexpr  MonsterReplacement chaotic_replacements[] = {
+		{"monster_soldier_ss", {"monster_infantry_vanilla"}, 1},
+		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_gunner"}, 2},
 		{"monster_stalker", {"monster_parasite", "monster_stalker"}, 2},
 		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
 		{"monster_tank", {"monster_tank_commander"}, 1},
@@ -580,16 +594,16 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
 		{"item_armor_body", {"item_armor_combat"}, 1},
 	};
-	int chaotic_replacement_count = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
+	constexpr int chaotic_replacement_count = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
 
-	MonsterReplacement insane_replacements[] = {
+	constexpr MonsterReplacement insane_replacements[] = {
 		{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}, 2},
 		{"monster_soldier", {"monster_soldier_hypergun", "monster_soldier_lasergun"}, 2},
-		{"monster_soldier_ss", {"monster_infantry", "monster_gunner2"}, 2},
-		{"monster_infantry2", {"monster_gunner", "monster_brain"}, 2},
-		{"monster_gunner2", {"monster_gunner", "monster_guncmdr"}, 2},
-		{"monster_brain", {"monster_brain", "monster_guncmdr", "monster_tank"}, 3},
-		{"monster_flyer", {"monster_daedalus", "monster_daedalus2", "monster_floater"}, 3},
+		{"monster_soldier_ss", {"monster_infantry", "monster_gunner_vanilla"}, 2},
+		{"monster_infantry_vanilla", {"monster_gunner", "monster_brain"}, 2},
+		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr"}, 2},
+		{"monster_brain", {"monster_brain", "monster_brain", "monster_tank"}, 3},
+		{"monster_flyer", {"monster_daedalus", "monster_daedalus_bomber", "monster_floater"}, 3},
 		{"monster_shambler", {"monster_tank_64", "monster_shambler"}, 2},
 		{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
 		{"monster_tank_commander", {"monster_tank_64", "monster_shambler"}, 2},
@@ -599,64 +613,74 @@ void ED_CallSpawn(edict_t* ent) {
 		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}, 3},
 		{"monster_fixbot", {"monster_parasite", "monster_daedalus", "monster_redmutant"}, 3},
-		{"monster_floater", {"monster_floater2", "monster_hover", "monster_daedalus2", "monster_floater", "monster_flyer"}, 5},
+		{"monster_floater", {"monster_floater_tracker", "monster_hover", "monster_daedalus_bomber", "monster_floater", "monster_flyer"}, 5},
 		{"item_armor_body", {"item_armor_combat"}, 1},
 		{"item_health_mega", {"item_adrenaline", "item_health_mega"}, 2},
 	};
-	int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
+	constexpr int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 
-	MonsterReplacement hardcoop_replacements[] = {
+	constexpr MonsterReplacement hardcoop_replacements[] = {
 		{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}, 5},
 		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}, 6},
-		{"monster_soldier_ss", {"monster_infantry", "monster_infantry2"}, 2},
-		{"monster_infantry", {"monster_gunner", "monster_gunner2"}, 2},
+		{"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}, 2},
+		{"monster_infantry", {"monster_gunner", "monster_gunner_vanilla"}, 2},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
 		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr2"}, 2},
-		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover2"}, 4},
-		{"monster_hover", {"monster_hover", "monster_hover2", "monster_daedalus2", "monster_daedalus"}, 4},
+		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover_vanilla"}, 4},
+		{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_daedalus_bomber", "monster_daedalus"}, 4},
 		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
-		{"monster_tank", {"monster_shambler", "monster_tank_64"}, 2},
-		{"monster_tank_commander", {"monster_shambler", "monster_janitor2"}, 2},
+		{"monster_tank", {"monster_shambler", "monster_tank_64", "monster_runnertank"}, 3},
+		{"monster_tank_commander", {"monster_runnertank", "monster_tank_vanilla"}, 2},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
 		{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}, 3},
 		{"monster_boss2", {"monster_boss2", "monster_carrier", "monster_boss2_64"}, 3},
 		{"monster_flipper", {"monster_gekk", "monster_flipper"}, 2},
 		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
-		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner2", "monster_tank"}, 5 },
+		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner_vanilla", "monster_tank"}, 5 },
 		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant", "monster_tank"}, 4},
-		{"monster_floater", {"monster_floater", "monster_floater2", "monster_daedalus2"}, 3},
+		{"monster_floater", {"monster_floater", "monster_floater_tracker", "monster_daedalus_bomber"}, 3},
 		{"monster_commander_body", {"monster_tank_64"}, 1},
 		{"item_quad", {"item_double"}, 1},
 		{"item_invulnerability", {"item_quadfire"}, 1},
 		{"item_power_shield", {"item_power_screen"}, 1},
 		{"item_silencer", {"item_bandolier"}, 1},
 	};
-	int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
+	constexpr int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
 
-	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
-	if (g_chaotic->integer == 2) {
+	// Realizar los reemplazos segÃºn el modo de juego y aplicar bonus flags segÃºn la probabilidad
+	switch (g_chaotic->integer) {
+	case 2:
 		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.008f);
-	}
-	else if (g_chaotic->integer == 1 && current_wave_number >= 7) {
-		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
+		break;
+	case 1:
+		if (current_wave_level >= 7) {
+			perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
+		}
+		break;
 	}
 
-	if (g_insane->integer == 1 && current_wave_number >= 19) {
-		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.04f);
-	}
-	else if (g_insane->integer == 2) {
+	switch (g_insane->integer) {
+	case 1:
+		if (current_wave_level >= 19) {
+			perform_replacement(ent, insane_replacements, insane_replacement_count, 0.04f);
+		}
+		break;
+	case 2:
 		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.33f);
+		break;
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
-		if (g_hardcoop->integer == 3) {
+		switch (g_hardcoop->integer) {
+		case 3:
 			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.50f);
-		}
-		else {
+			break;
+		default:
 			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.0f);
+			break;
+		}
 	}
-}
 
 
 gitem_t* item;
@@ -1395,7 +1419,7 @@ static void G_PrecacheStartItems()
 		PrecacheItem(item);
 	}
 }
-const size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
+constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
 bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
 	std::string filename = std::string("baseq2/maps/") + mapname + ".ent";
@@ -1406,7 +1430,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
 	}
 
 	fseek(f, 0, SEEK_END);
-	long length = ftell(f);
+	const long length = ftell(f);
 	fseek(f, 0, SEEK_SET);
 
 	if (length > MAX_ENTITY_FILE_SIZE) {
@@ -1474,10 +1498,10 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	// Load entity file
 	std::vector<char> entity_buffer;
-	bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer);
+	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer);
 
 	if (ent_file_loaded) {
-		cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
 		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
 			entities = entity_buffer.data();
 			gi.Com_PrintFmt("Entities override file verified and loaded: \"baseq2/maps/{}.ent\"\n", mapname);

@@ -123,7 +123,7 @@ mframe_t runnertank_frames_start_walk[] = {
 MMOVE_T(runnertank_move_start_walk) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_walk, runnertank_walk };
 #endif
 
-// Animación de caminata corregida
+// AnimaciÃ³n de caminata corregida
 mframe_t runnertank_frames_walk[] = {
 	{ ai_walk, 4 }, { ai_walk, 5 }, { ai_walk, 3 }, { ai_walk, 2 },
 	{ ai_walk, 5 }, { ai_walk, 5 }, { ai_walk, 4 }, { ai_walk, 4, runnertank_footstep },
@@ -162,21 +162,16 @@ mframe_t runnertank_frames_stop_walk[] = {
 };
 MMOVE_T(runnertank_move_stop_walk) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_walk, runnertank_stand };
 
-// Asegurarse de que la transición de caminata a carrera funcione correctamente
+void runnertank_walk_to_run(edict_t* self);
+void runnertank_stop_run_to_attack(edict_t* self);
+
 mframe_t runnertank_frames_start_run[] = {
 	{ ai_run, 8 }, { ai_run, 8 }, { ai_run, 8 }, { ai_run, 8, runnertank_footstep }
 };
-MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
-
-void runnertank_attack(edict_t* self);
-mframe_t runnertank_frames_stop_run[] = {
-	{ ai_run, 3 }, { ai_run, 3 }, { ai_run, 2 }, { ai_run, 2 },
-	{ ai_run, 0, runnertank_footstep }
-};
-MMOVE_T(runnertank_move_stop_run) = { FRAME_walk34, FRAME_walk38, runnertank_frames_stop_run, runnertank_attack };
+MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_walk_to_run };
 
 
-// Ajustar la función de caminata para una transición más suave
+// Ajustar la funciÃ³n de caminata para una transiciÃ³n mÃ¡s suave
 MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 {
 	if (self->monsterinfo.active_move != &runnertank_move_walk)
@@ -186,6 +181,27 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 	else
 	{
 		M_SetAnimation(self, &runnertank_move_walk);
+	}
+}
+
+
+void runnertank_unstuck(edict_t* self)
+{
+	static int stuck_count = 0;
+	if (VectorLength(self->velocity) < 10)
+	{
+		stuck_count++;
+		if (stuck_count > 5)
+		{
+			// Intenta moverse en una direcciÃ³n aleatoria
+			self->ideal_yaw = frandom() * 360;
+			M_ChangeYaw(self);
+			stuck_count = 0;
+		}
+	}
+	else
+	{
+		stuck_count = 0;
 	}
 }
 
@@ -203,22 +219,22 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 //};
 //MMOVE_T(runnertank_move_start_run) = { FRAME_walk01, FRAME_walk04, runnertank_frames_start_run, runnertank_run };
 //
-// Actualizar la animación de carrera
+// Actualizar la animaciÃ³n de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_run, 18, runnertank_footstep },
+	{ ai_run, 16, runnertank_footstep },
 	{ ai_run, 18, nullptr },
+	{ ai_run, 15, nullptr },
+	{ ai_run, 14, [](edict_t* self) { runnertank_check_wall(self, 32); } },
+	{ ai_run, 15, nullptr },
+	{ ai_run, 15, nullptr },
+	{ ai_run, 13, runnertank_footstep },
+	{ ai_run, 19, nullptr },
 	{ ai_run, 18, nullptr },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, runnertank_footstep },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, nullptr },
-	{ ai_run, 18, [](edict_t* self) { runnertank_check_wall(self, 32); } }
+	{ ai_run, 17, [](edict_t* self) { runnertank_check_wall(self, 32); } }
 };
 MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 
-#if 0
+
 mframe_t runnertank_frames_stop_run[] = {
 	{ ai_run, 3 },
 	{ ai_run, 3 },
@@ -226,14 +242,33 @@ mframe_t runnertank_frames_stop_run[] = {
 	{ ai_run, 2 },
 	{ ai_run, 4, runnertank_footstep }
 };
-MMOVE_T(runnertank_move_stop_run) = { FRAME_walk21, FRAME_walk25, runnertank_frames_stop_run, runnertank_walk };
-#endif
+MMOVE_T(runnertank_move_stop_run) = { FRAME_walk21, FRAME_walk25, runnertank_frames_stop_run, runnertank_stop_run_to_attack };
+
+// FunciÃ³n para manejar la transiciÃ³n de caminata a carrera
+void runnertank_walk_to_run(edict_t* self)
+{
+	if (self->enemy && range_to(self, self->enemy) > RANGE_NEAR)
+	{
+		M_SetAnimation(self, &runnertank_move_run);
+		self->monsterinfo.aiflags |= AI_CHARGING;
+	}
+	else
+	{
+		M_SetAnimation(self, &runnertank_move_walk);
+	}
+}
+
+
+
 bool runnertank_enemy_visible(edict_t* self)
 {
 	return self->enemy && visible(self, self->enemy);
 }
+
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
+	void runnertank_attack(edict_t * self);
+
 	if (self->enemy && self->enemy->client)
 		self->monsterinfo.aiflags |= AI_BRUTAL;
 	else
@@ -245,46 +280,73 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		return;
 	}
 
-	if (self->monsterinfo.active_move == &runnertank_move_walk ||
-		self->monsterinfo.active_move == &runnertank_move_start_run)
+	const float range = self->enemy ? range_to(self, self->enemy) : 0;
+
+	// Decidir si debe detenerse y atacar
+	if (range <= RANGE_NEAR)
+	{
+		// Probabilidad de detenerse aumenta a medida que se acerca al enemigo
+		const float stop_chance = 1.0f - (range / RANGE_NEAR);
+		if (frandom() < stop_chance)
+		{
+			M_SetAnimation(self, &runnertank_move_stop_run);
+			self->monsterinfo.aiflags &= ~AI_CHARGING;
+			runnertank_attack(self);  // Intentar atacar inmediatamente
+			return;
+		}
+	}
+
+	// Implementar carrera y strafing
+	if (self->monsterinfo.aiflags & AI_CHARGING)
 	{
 		M_SetAnimation(self, &runnertank_move_run);
+		// Aumentar la velocidad durante la carga
+		VectorScale(self->velocity, 1.5f, self->velocity);
 	}
 	else
 	{
 		M_SetAnimation(self, &runnertank_move_run);
 	}
 
-	// Comprobar la distancia al enemigo
-	if (self->enemy)
+	// Implementar strafing mejorado
+	if (self->enemy && visible(self, self->enemy))
 	{
-		vec3_t vec{};
-		float distance;
-		VectorSubtract(self->enemy->s.origin, self->s.origin, vec);
-		distance = VectorLength(vec);
+		if (range <= RANGE_MID)
+		{
+			float strafe_chance = 0.5f;  // 50% de probabilidad base de hacer strafe
+			// Aumentar la probabilidad de strafing si el enemigo estÃ¡ disparando
+			if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+				strafe_chance += 0.2f;
+			// Aumentar la probabilidad de strafing si el runnertank tiene poca salud
+			if (self->health < self->max_health * 0.5f)
+				strafe_chance += 0.2f;
 
-		// Si el enemigo está en rango melee, atacar en lugar de correr
-		if (distance <= RANGE_MELEE * 2 && visible(self, self->enemy))
-		{
-			self->monsterinfo.attack(self);
-			return;
-		}
-		// Si el enemigo está cerca, considerar atacar con una probabilidad
-		else if (distance < RANGE_NEAR && visible(self, self->enemy))
-		{
-			if (frandom() < 0.7)  // 70% de probabilidad de atacar
+			if (frandom() < strafe_chance)
 			{
-				self->monsterinfo.attack(self);
-				return;
+				// Decidir aleatoriamente si strafear a la izquierda o derecha
+				self->monsterinfo.lefty = frandom() < 0.5;
+
+				// Aplicar el movimiento de strafe
+				vec3_t right, strafe_vel;
+				AngleVectors(self->s.angles, nullptr, right, nullptr);
+				// Aumentar significativamente la velocidad de strafe
+				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
+				VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
+
+				// Combinar el movimiento de avance con el strafe
+				VectorAdd(self->velocity, strafe_vel, self->velocity);
+
+				// Ajustar la duraciÃ³n del strafe
+				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
 			}
 		}
+	}
 
-		// Si no está en rango melee, continuar corriendo hacia el enemigo
-		self->ideal_yaw = vectoyaw(vec);
-		M_ChangeYaw(self);
-
-		// Comprobar si hay obstáculos y ajustar si es necesario
-		runnertank_check_wall(self, 32);
+	// Volver a la direcciÃ³n original despuÃ©s del strafe
+	if (level.time > self->monsterinfo.pausetime)
+	{
+		self->monsterinfo.lefty = 0;
+		VectorSet(self->velocity, 0, 0, self->velocity[2]);  // Mantener solo la velocidad vertical
 	}
 }
 
@@ -417,7 +479,43 @@ void runnertankRail(edict_t* self)
 void runnertankStrike(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
+
+	{
+		gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
+
+
+		// Efecto visual similar al berserker
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BERSERK_SLAM);
+
+		vec3_t f, r, start;
+		AngleVectors(self->s.angles, f, r, nullptr);
+		start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
+		trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+
+		gi.WritePosition(tr.endpos);
+		gi.WriteDir({ 0.f, 0.f, 1.f });
+		gi.multicast(tr.endpos, MULTICAST_PHS, false);
+		void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
+		// DaÃ±o radial
+		T_SlamRadiusDamage(tr.endpos, self, self, 75, 450.f, self, 165, MOD_TANK_PUNCH);
+
+	}
 }
+
+mframe_t tank_frames_punch_attack[] =
+{
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, runnertankStrike},  // FRAME_attak225 - AÃ±adir footstep aquÃ­
+	{ai_charge, 0, nullptr},  // FRAME_attak226 - Engendrar monstruo aquÃ­
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr}   // FRAME_attak229
+};
+MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak229, tank_frames_punch_attack, runnertank_run };
+
 
 void runnertankRocket(edict_t* self)
 {
@@ -520,6 +618,7 @@ void runnertankRocket(edict_t* self)
 		}
 	}
 }
+
 void runnertankPlasmaGun(edict_t* self)
 {
 	bool blindfire = false;
@@ -535,30 +634,30 @@ void runnertankPlasmaGun(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Calcular la dirección base hacia el enemigo
+	// Calcular la direcciÃ³n base hacia el enemigo
 	vec3_t target = self->enemy->s.origin;
 	target[2] += self->enemy->viewheight;
 	VectorSubtract(target, start, dir);
 	VectorNormalize(dir);
 
-	// Calcular el ángulo de dispersión basado en la animación del tanque
+	// Calcular el Ã¡ngulo de dispersiÃ³n basado en la animaciÃ³n del tanque
 	float fanAngle;
 	if (self->s.frame <= FRAME_attak415)
 		fanAngle = -20 + (self->s.frame - FRAME_attak406) * 4; // Abanico de -20 a 20 grados
 	else
 		fanAngle = 20 - (self->s.frame - FRAME_attak416) * 4; // Abanico de 20 a -20 grados
 
-	// Rotar el vector de dirección para crear el efecto de abanico
-	float sinAngle = sin(DEG2RAD(fanAngle));
-	float cosAngle = cos(DEG2RAD(fanAngle));
-	float newX = forward[0] * cosAngle - right[0] * sinAngle;
-	float newY = forward[1] * cosAngle - right[1] * sinAngle;
-	float newZ = forward[2] * cosAngle - right[2] * sinAngle;
-	VectorSet(dir, newX, newY, newZ);
+	//// Rotar el vector de direcciÃ³n para crear el efecto de abanico
+	//float sinAngle = sin(DEG2RAD(fanAngle));
+	//float cosAngle = cos(DEG2RAD(fanAngle));
+	//float newX = forward[0] * cosAngle - right[0] * sinAngle;
+	//float newY = forward[1] * cosAngle - right[1] * sinAngle;
+	//float newZ = forward[2] * cosAngle - right[2] * sinAngle;
+	//VectorSet(dir, newX, newY, newZ);
 	VectorNormalize(dir);
 
-	// Añadir una pequeña dispersión aleatoria
-	float spread = 0.02f;
+	// AÃ±adir una pequeÃ±a dispersiÃ³n aleatoria
+	float spread = 0.08f;
 	dir[0] += crandom() * spread;
 	dir[1] += crandom() * spread;
 	dir[2] += crandom() * spread;
@@ -579,15 +678,16 @@ void runnertankPlasmaGun(edict_t* self)
 	// Disparar el plasma con la velocidad correcta
 	fire_plasma(self, start, dir, 35, 700, 40, 40);
 
-	// Guardar la posición del objetivo para el próximo disparo
+	// Guardar la posiciÃ³n del objetivo para el prÃ³ximo disparo
 	VectorCopy(self->enemy->s.origin, self->pos1);
 	self->pos1[2] += self->enemy->viewheight;
 }
+
 static void runnertank_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		const vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
@@ -682,12 +782,12 @@ mframe_t runnertank_frames_attack_pre_rocket[] = {
 MMOVE_T(runnertank_move_attack_pre_rocket) = { FRAME_attak303, FRAME_attak321, runnertank_frames_attack_pre_rocket, runnertank_doattack_rocket };
 
 mframe_t runnertank_frames_attack_fire_rocket[] = {
-	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
-	{ ai_charge }, { ai_charge }, { ai_charge, 0, runnertankRocket },
-	{ ai_charge }, { ai_charge }, { ai_charge },
-	{ ai_charge }, { ai_charge }, { ai_charge }, { ai_charge }, { ai_charge }
+	{ ai_charge }, { ai_charge },
+	{ ai_charge, 0, runnertankRocket },
+	 { ai_charge, 0, runnertankRocket },
+
 };
-MMOVE_T(runnertank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak335, runnertank_frames_attack_fire_rocket, runnertank_refire_rocket };
+MMOVE_T(runnertank_move_attack_fire_rocket) = { FRAME_attak322, FRAME_attak325, runnertank_frames_attack_fire_rocket, runnertank_refire_rocket };
 
 mframe_t runnertank_frames_attack_post_rocket[] = {
 
@@ -734,84 +834,107 @@ void runnertank_doattack_rocket(edict_t* self)
 
 mframe_t runnertank_frames_attack_chain[] = {
 	{ ai_charge },
-	{ ai_charge }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
-	{ nullptr, 0, runnertankPlasmaGun }, { nullptr, 0, runnertankPlasmaGun },
+	{ ai_charge }, 
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
+	{ nullptr, 0, runnertankPlasmaGun },
 	{ ai_charge }
 };
 MMOVE_T(runnertank_move_attack_chain) = { FRAME_attak404, FRAME_attak415, runnertank_frames_attack_chain, runnertank_run };
 
+void runnertank_stop_run_to_attack(edict_t* self)
+{
+	if (self->enemy && range_to(self, self->enemy) <= RANGE_NEAR)
+	{
+		M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+		self->monsterinfo.attack_finished = level.time + 2_sec;
+	}
+	else
+	{
+		M_SetAnimation(self, &runnertank_move_run);
+	}
+}
 MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
-	vec3_t vec;
-	float  range;
-
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	// Use M_CheckAttack_Base instead of M_CheckAttack
-	if (!M_CheckAttack_Base(self, 0.0f, 0.0f, 0.8f, 0.8f, 0.5f, 1.0f))
-	{
-		// If we can't attack, return to avoid the loop
-		return;
-	}
+	const float range = range_to(self, self->enemy);
+	const float r = frandom();
 
-	vec = self->enemy->s.origin - self->s.origin;
-	range = vec.length();
+	// Check if we can shoot
+	const bool can_blast = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
+	const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
+	const bool can_chain = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_1]);
 
-	// Adjust attack frequency
+	// Ajustar la frecuencia de ataque
 	if (level.time < self->monsterinfo.attack_finished)
 		return;
 
-	if (range <= RANGE_MELEE)
+	if (range <= MELEE_DISTANCE * 2)
 	{
-		// En rango melee, decide aleatoriamente entre cohetes y cadena
-		if (brandom())
+		// Ataque melee (punch)
+		M_SetAnimation(self, &tank_move_punch_attack);
+		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		return;
+	}
+	else if (range <= RANGE_NEAR)
+	{
+		if (can_chain && r < 0.4)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_chain);
+			self->monsterinfo.attack_finished = level.time + 3_sec;
+		}
+		else if (can_rocket && r < 0.7)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
 			self->pain_debounce_time = level.time + 3_sec;
 			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
-		else
-		{
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 3_sec; // Ajusta este tiempo según sea necesario
-		}
-	}
-	else if (range <= RANGE_MID)
-	{
-		// En rango cercano o medio, decide aleatoriamente entre correr, usar rail gun o cadena
-		bool can_rail = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
-		float random_choice = frandom();
-
-		if (can_rail && random_choice < 0.33f && visible(self, self->enemy))
+		else if (can_blast)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
-		else if (random_choice < 0.66f && visible(self, self->enemy))
+	}
+	else if (range <= RANGE_MID)
+	{
+		if (can_rocket && r < 0.5)
 		{
-			M_SetAnimation(self, &runnertank_move_attack_chain);
-			self->monsterinfo.attack_finished = level.time + 3_sec; // Ajusta este tiempo según sea necesario
+			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+			self->pain_debounce_time = level.time + 3_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
 		}
-		else if (!visible(self,self->enemy))
+		else if (can_blast)
 		{
-			// Si no puede usar rail o decide correr, muévete hacia el enemigo
-			M_SetAnimation(self, &runnertank_move_run);
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
 	}
 	else
 	{
-		// En rango lejano, corre hacia el enemigo
-		M_SetAnimation(self, &runnertank_move_run);
+		if (can_blast && r < 0.6)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+		}
+		else if (can_rocket)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
+			self->pain_debounce_time = level.time + 3_sec;
+			self->monsterinfo.attack_finished = level.time + 4_sec;
+		}
 	}
 
-	// Add a pause between attack decisions
-	self->monsterinfo.pausetime = level.time + 0.5_sec;
+	// AÃ±adir una pausa entre decisiones de ataque
+	self->monsterinfo.pausetime = level.time + 1.5_sec;
 }
-
 //
 // death
 //
@@ -998,41 +1121,33 @@ bool runnertank_check_wall(edict_t* self, float dist)
 	vec3_t check_point{}, wall_normal;
 	trace_t tr;
 
-	// Obtener los vectores de dirección
 	AngleVectors(self->s.angles, forward, right, up);
-
-	// Punto de verificación delante del monstruo
 	VectorMA(self->s.origin, dist + 10, forward, check_point);
 
-	// Realizar un trace hacia adelante
 	tr = gi.trace(self->s.origin, self->mins, self->maxs, check_point, self, MASK_MONSTERSOLID);
 
 	if (tr.fraction < 1.0) {
-		// Hemos golpeado algo, probablemente una pared
 		VectorCopy(tr.plane.normal, wall_normal);
 
 		// Calcular el producto punto manualmente
-		float dot = forward[0] * wall_normal[0] + forward[1] * wall_normal[1] + forward[2] * wall_normal[2];
+		const float dot = forward[0] * wall_normal[0] + forward[1] * wall_normal[1] + forward[2] * wall_normal[2];
 
-		// Calcular un nuevo ángulo de movimiento
-		float turn_factor = fabs(dot);  // Qué tan de frente está la pared
-		float max_turn = 45.0f;  // Máximo giro en grados
-		float turn_angle = max_turn * turn_factor;
+		const float turn_factor = fabs(dot);
+		const float max_turn = 90.0f; // Aumentado de 45.0f a 90.0f
+		const float turn_angle = max_turn * turn_factor;
 
 		if (dot < 0) {
-			// La pared está en frente, girar hacia la derecha
 			self->ideal_yaw = anglemod(self->s.angles[YAW] + turn_angle);
 		}
 		else {
-			// La pared está detrás, girar hacia la izquierda
 			self->ideal_yaw = anglemod(self->s.angles[YAW] - turn_angle);
 		}
 
-		// No aumentamos la velocidad de giro
+		// Usar M_ChangeYaw en lugar de ai_turn para un giro mÃ¡s suave
 		M_ChangeYaw(self);
 
-		// Reducir la velocidad del monstruo temporalmente
-		VectorScale(self->velocity, 0.5, self->velocity);
+		// Reducir la velocidad del monstruo de manera mÃ¡s gradual
+		VectorScale(self->velocity, 0.8f, self->velocity);
 
 		return true;
 	}
@@ -1042,30 +1157,69 @@ bool runnertank_check_wall(edict_t* self, float dist)
 
 MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {
-	if (self->monsterinfo.can_jump)
-	{
-		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
-		{
-			runnertank_jump(self, result);
-			return true;
-		}
-	}
+    if (self->monsterinfo.can_jump)
+    {
+        if (const auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+        {
+            runnertank_jump(self, result);
+            return true;
+        }
+    }
 
-	if (blocked_checkplat(self, dist))
-		return true;
+    if (blocked_checkplat(self, dist))
+        return true;
 
-	// Nuevo: Intenta cambiar de dirección si está bloqueado por una pared
-	if (runnertank_check_wall(self, dist))
-		return true;
+    // Intenta cambiar de direcciÃ³n si estÃ¡ bloqueado por una pared
+    if (runnertank_check_wall(self, dist))
+    {
+        // AÃ±adir un giro adicional usando ai_turn
+        ai_turn(self, 0);
+        return true;
+    }
 
-	return false;
+    return false;
 }
 // PGM
+// 
 //===========
 
 //
 // monster_runnertank
 //
+
+MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
+{
+	// No hacer sidestep si estamos en medio de un ataque
+	if ((self->monsterinfo.active_move == &runnertank_move_attack_blast) ||
+		(self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket) ||
+		(self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket))
+	{
+		return false;
+	}
+
+	// Si no estamos corriendo, cambiar a la animaciÃ³n de carrera
+	if (self->monsterinfo.active_move != &runnertank_move_run)
+		M_SetAnimation(self, &runnertank_move_run);
+
+	// Iniciar un nuevo movimiento de strafe
+	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
+
+	// Aplicar un impulso lateral mÃ¡s fuerte
+	vec3_t right, strafe_vel;
+	AngleVectors(self->s.angles, nullptr, right, nullptr);
+	const float strafe_speed = 300 + (frandom() * 200);  // Consistente con runnertank_run
+
+	if (self->monsterinfo.lefty)
+		VectorScale(right, -strafe_speed, strafe_vel);
+	else
+		VectorScale(right, strafe_speed, strafe_vel);
+
+	VectorAdd(self->velocity, strafe_vel, self->velocity);
+
+	self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
+
+	return true;
+}
 
 /*QUAKED monster_runnertank (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
 model="models/monsters/runnertank/tris.md2"
@@ -1142,6 +1296,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.stand = runnertank_stand;
 	self->monsterinfo.walk = runnertank_walk;
 	self->monsterinfo.run = runnertank_run;
+	self->monsterinfo.sidestep = runnertank_sidestep;
 	self->monsterinfo.dodge = nullptr;
 	self->monsterinfo.attack = runnertank_attack;
 	self->monsterinfo.melee = nullptr;

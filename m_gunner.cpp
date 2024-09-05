@@ -389,15 +389,16 @@ void GunnerFire(edict_t* self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-	PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 
 
-	if (current_wave_number <= 12) {
+
+	if (current_wave_level <= 12) {
+		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 		monster_fire_bullet(self, start, aim, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
-	if (current_wave_number >= 13 || g_hardcoop->integer <= 3) {
-
-		monster_fire_ionripper(self, start, aim, 6, 1300, flash_number, EF_IONRIPPER);
+	if (current_wave_level >= 13 || g_hardcoop->integer <= 3) {
+		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+		monster_fire_ionripper(self, start, aim, 4, 800, flash_number, EF_IONRIPPER);
 	}
 }
 
@@ -522,11 +523,11 @@ void GunnerGrenade(edict_t* self)
 	aim += (up * pitch);
 
 	// try search for best pitch
-	if (M_CalculatePitchToFire(self, target, start, aim, 760, 2.5f, false))
-		monster_fire_grenade(self, start, aim, 70, 720, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+	if (M_CalculatePitchToFire(self, target, start, aim, 690, 2.5f, false))
+		monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
 	else
 		// normal shot
-		monster_fire_grenade(self, start, aim, 70, 720, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+		monster_fire_grenade(self, start, aim, 40, 690, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 mframe_t gunner_frames_attack_chain[] = {
@@ -877,7 +878,7 @@ void SP_monster_gunner(edict_t* self)
 {
 
 	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un n�mero aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

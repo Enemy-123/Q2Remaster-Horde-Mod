@@ -18,9 +18,9 @@ carrier
 #include "../shared.h"
 
 // nb: specifying flyer multiple times so it has a higher chance
-constexpr const char *default_reinforcements = "monster_daedalus2 2;monster_floater 2;monster_floater2 3;monster_kamikaze 1;monster_hover2 4;monster_daedalus 2";
+constexpr const char *default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2";
 constexpr int32_t default_monster_slots_base = 3;
-constexpr spawnflags_t SPAWNFLAG_CARRIER2 = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_carrier_mini = 8_spawnflag;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 2_sec; // number of seconds between rocket shots
 constexpr int32_t CARRIER_ROCKET_SPEED = 950;
@@ -48,7 +48,7 @@ float orig_yaw_speed;
 void M_SetupReinforcements(const char *reinforcements, reinforcement_list_t &list);
 std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t *self, int32_t &num_chosen, int32_t max_slots);
 
-extern const mmove_t flyer_move_attack2, flyer_move_attack3, flyer_move_kamikaze;
+extern const mmove_t flyer_move_attack2, flyer_move_attack3, flyer_move_attack3normal, flyer_move_kamikaze;
 
 void carrier_run(edict_t *self);
 void carrier_dead(edict_t *self);
@@ -199,8 +199,8 @@ void CarrierGrenade(edict_t *self)
 		aim[2] = -0.5f;
 
 	flash_number = MZ2_GUNNER_GRENADE_1;
-	monster_fire_grenade(self, start, aim, 50, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
-	monster_fire_grenade(self, start, aim, 50, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 void CarrierPredictiveRocket(edict_t *self)
@@ -214,22 +214,22 @@ void CarrierPredictiveRocket(edict_t *self)
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_1], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.3f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0, &dir, nullptr);
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 
@@ -266,7 +266,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
@@ -275,7 +275,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
@@ -284,7 +284,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
@@ -294,7 +294,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, 50, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 void carrier_firebullet_right(edict_t *self)
@@ -311,7 +311,7 @@ void carrier_firebullet_right(edict_t *self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flashnum], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.3f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
+	monster_fire_bullet(self, start, forward, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
 }
 
 void carrier_firebullet_left(edict_t *self)
@@ -328,7 +328,7 @@ void carrier_firebullet_left(edict_t *self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flashnum], forward, right);
 	PredictAim(self, self->enemy, start, 0, true, -0.3f, &forward, nullptr);
-	monster_fire_bullet(self, start, forward, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
+	monster_fire_bullet(self, start, forward, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 6 : 5, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flashnum);
 }
 
 void CarrierMachineGun(edict_t *self)
@@ -363,7 +363,7 @@ void CarrierSpawn(edict_t *self)
 		if (!ent)
 			return;
 
-		gi.sound(self, CHAN_BODY, sound_spawn, 1, ATTN_NONE, 0);
+		gi.sound(self, CHAN_BODY, sound_spawn, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 
 		ent->nextthink = level.time;
 		ent->think(ent);
@@ -392,13 +392,17 @@ void CarrierSpawn(edict_t *self)
 				{
 					ent->monsterinfo.lefty = false;
 					ent->monsterinfo.attack_state = AS_SLIDING;
+					first3waves ? 
+					M_SetAnimation(ent, &flyer_move_attack3normal) :
 					M_SetAnimation(ent, &flyer_move_attack3);
 				}
 				else
 				{
 					ent->monsterinfo.lefty = true;
 					ent->monsterinfo.attack_state = AS_SLIDING;
-					M_SetAnimation(ent, &flyer_move_attack3);
+					first3waves ?
+						M_SetAnimation(ent, &flyer_move_attack3normal) :
+						M_SetAnimation(ent, &flyer_move_attack3);
 				}
 			}
 		}
@@ -625,7 +629,7 @@ void CarrierRail(edict_t *self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, 50, 100, MZ2_CARRIER_RAILGUN);
+	monster_fire_railgun(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, 100, MZ2_CARRIER_RAILGUN);
 	self->monsterinfo.attack_finished = level.time + RAIL_FIRE_TIME;
 }
 
@@ -693,7 +697,7 @@ mframe_t carrier_frames_pain_light[] = {
 };
 MMOVE_T(carrier_move_pain_light) = { FRAME_spawn01, FRAME_spawn04, carrier_frames_pain_light, carrier_run };
 
-mframe_t carrier_frames_death[] = {
+mframe_t carrier_frames_deathboss[] = {
 	{ ai_move, 0, BossExplode },
 	{ ai_move },
 	{ ai_move },
@@ -711,7 +715,22 @@ mframe_t carrier_frames_death[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(carrier_move_death) = { FRAME_death01, FRAME_death16, carrier_frames_death, carrier_dead };
+MMOVE_T(carrier_move_deathboss) = { FRAME_death01, FRAME_death16, carrier_frames_deathboss, carrier_dead };
+
+mframe_t carrier_frames_death[] = {
+	{ ai_move, 0, BossExplode },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+
+};
+MMOVE_T(carrier_move_death) = { FRAME_death01, FRAME_death10, carrier_frames_death, carrier_dead };
 
 MONSTERINFO_STAND(carrier_stand) (edict_t *self) -> void
 {
@@ -927,7 +946,7 @@ PAIN(carrier_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 	self->pain_debounce_time = level.time + 5_sec;
 
 	// Determine attenuation based on the monster type
-	float attenuation = (g_horde->integer && strcmp(self->classname, "monster_carrier2") == 0) ? ATTN_NORM : ATTN_NONE;
+	const float attenuation = self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM;
 
 	if (damage < 10)
 		gi.sound(self, CHAN_VOICE, sound_pain3, 1, attenuation, 0);
@@ -1020,7 +1039,9 @@ DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	self->deadflag = true;
 	self->takedamage = false;
 	self->count = 0;
-	M_SetAnimation(self, &carrier_move_death);
+	self->spawnflags.has(SPAWNFLAG_IS_BOSS) ?
+		M_SetAnimation(self, &carrier_move_deathboss) :
+		M_SetAnimation(self, &carrier_move_death);
 	self->velocity = {};
 	self->gravityVector.z *= 0.01f;
 	self->monsterinfo.weapon_sound = 0;
@@ -1029,9 +1050,9 @@ DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 
 MONSTERINFO_CHECKATTACK(Carrier_CheckAttack) (edict_t *self) -> bool
 {
-	bool enemy_infront = infront(self, self->enemy);
-	bool enemy_inback = inback(self, self->enemy);
-	bool enemy_below = below(self, self->enemy);
+	const bool enemy_infront = infront(self, self->enemy);
+	const bool enemy_inback = inback(self, self->enemy);
+	const bool enemy_below = below(self, self->enemy);
 
 	// PMM - shoot out the back if appropriate
 	if ((enemy_inback) || (!enemy_infront && enemy_below))
@@ -1052,7 +1073,7 @@ MONSTERINFO_CHECKATTACK(Carrier_CheckAttack) (edict_t *self) -> bool
 	return M_CheckAttack_Base(self, 0.4f, 0.8f, 0.8f, 0.8f, 0.5f, 0.f);
 }
 
-void CarrierPrecache()
+void CarrierPrecache() noexcept
 {
 	gi.soundindex("flyer/flysght1.wav");
 	gi.soundindex("flyer/flysrch1.wav");
@@ -1198,16 +1219,17 @@ void SP_monster_carrier(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
-void SP_monster_carrier2(edict_t* self)
+void SP_monster_carrier_mini(edict_t* self)
 {
-	if (!strcmp(self->classname, "monster_carrier2")) {
-		self->spawnflags |= SPAWNFLAG_CARRIER2;
+	if (!strcmp(self->classname, "monster_carrier_mini")) {
+		self->spawnflags |= SPAWNFLAG_carrier_mini;
 		SP_monster_carrier(self);
 
-
 		self->s.scale = 0.6f;
-		self->mins *= 0.6f;
-		self->maxs *= 0.6f;
+
+		// Aplicar la escala a mins y maxs
+		self->mins = { -56 * 0.6f, -56 * 0.6f, (-44 + 20) * 0.6f };
+		self->maxs = { 56 * 0.6f, 56 * 0.6f, (44 + 20) * 0.6f };    
 
 		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;
@@ -1219,5 +1241,6 @@ void SP_monster_carrier2(edict_t* self)
 		ApplyMonsterBonusFlags(self);
 	}
 }
+
 
 

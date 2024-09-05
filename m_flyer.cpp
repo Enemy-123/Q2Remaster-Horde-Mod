@@ -277,20 +277,115 @@ void flyer_kamikaze_check(edict_t* self)
 		flyer_kamikaze_explode(self);
 }
 
+void flyer_checkstrafe(edict_t* self)
+{	// Implementar strafing mejorado
+	const float range = self->enemy ? range_to(self, self->enemy) : 0;
+	if (self->enemy && visible(self, self->enemy))
+	{
+		if (range <= RANGE_MID)
+		{
+			float strafe_chance = 1.0f;  // 50% de probabilidad base de hacer strafe
+			// Aumentar la probabilidad de strafing si el enemigo estÃ¡ disparando
+			if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+				strafe_chance += 0.2f;
+			// Aumentar la probabilidad de strafing si el flyer tiene poca salud
+			if (self->health < self->max_health * 0.5f)
+				strafe_chance += 0.4f;
 
-#if 0
+			if (frandom() < strafe_chance)
+			{
+				// Decidir aleatoriamente si strafear a la izquierda o derecha
+				self->monsterinfo.lefty = frandom() < 0.5;
+
+				// Aplicar el movimiento de strafe
+				vec3_t right, strafe_vel;
+				AngleVectors(self->s.angles, nullptr, right, nullptr);
+				// Aumentar significativamente la velocidad de strafe
+				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
+				VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
+
+				// Combinar el movimiento de avance con el strafe
+				VectorAdd(self->velocity, strafe_vel, self->velocity);
+
+				// Ajustar la duraciÃ³n del strafe
+				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
+			}
+		}
+	}
+}
+
+
+void flyer_rocket(edict_t* self)
+{
+		vec3_t	forward;
+		vec3_t	start, end, dir;
+		float	dist, chance;
+		trace_t trace;
+		constexpr int rocketSpeed = 850;
+
+		if (!self->enemy || !self->enemy->inuse)
+			return;
+
+		if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
+			end = self->monsterinfo.blind_fire_target;
+		else
+			end = self->enemy->s.origin;
+		dir = end - self->s.origin;
+		dir.normalize();
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		chance = dir.dot(forward);
+		if (chance < 0.98f)
+			return;
+
+		chance = frandom();
+
+		if (visible(self, self->enemy))
+		{
+			start = self->s.origin;
+
+			// aim for the head.
+			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
+			{
+				if ((self->enemy) && (self->enemy->client))
+					end[2] += self->enemy->viewheight;
+				else
+					end[2] += 22;
+			}
+
+			dir = end - start;
+			dist = dir.length();
+
+			// check for predictive fire
+			// Paril: adjusted to be a bit more fair
+			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
+			{
+
+					PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
+			}
+
+			dir.normalize();
+			trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+			if (trace.ent == self->enemy || trace.ent == world)
+			{
+					if (dist * trace.fraction > 72)
+						monster_fire_rocket(self, start, dir, 35, rocketSpeed, MZ2_TURRET_ROCKET);
+				}
+			}
+}
+
+
 mframe_t flyer_frames_rollright[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
+	{ ai_charge, 3,flyer_checkstrafe },
+	{ ai_charge, 3,flyer_checkstrafe },
+	{ ai_charge, 3,flyer_checkstrafe },
+	{ ai_charge, 0, flyer_rocket },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
 };
-MMOVE_T(flyer_move_rollright) = { FRAME_rollr01, FRAME_rollr09, flyer_frames_rollright, nullptr };
+MMOVE_T(flyer_move_rollright) = { FRAME_rollr01, FRAME_rollr09, flyer_frames_rollright, flyer_run };
 
 mframe_t flyer_frames_rollleft[] = {
 	{ ai_move },
@@ -303,8 +398,8 @@ mframe_t flyer_frames_rollleft[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(flyer_move_rollleft) = { FRAME_rollf01, FRAME_rollf09, flyer_frames_rollleft, nullptr };
-#endif
+MMOVE_T(flyer_move_rollleft) = { FRAME_rollf01, FRAME_rollf09, flyer_frames_rollleft, flyer_run };
+
 
 mframe_t flyer_frames_pain3[] = {
 	{ ai_move },
@@ -387,6 +482,8 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	dir = end - start;
 	dir.normalize();
 
+	first3waves ?
+	monster_fire_blaster(self, start, dir, 1, 1000, flash_number, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER):
 	monster_fire_blaster2(self, start, dir, 2, 1000, flash_number, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 }
 
@@ -399,6 +496,52 @@ void flyer_fireright(edict_t* self)
 {
 	flyer_fire(self, MZ2_FLYER_BLASTER_2);
 }
+
+
+mframe_t flyer_frames_attack2normal[] = {
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge, -10, flyer_fireleft },	 // left gun
+	{ ai_charge, -10, flyer_fireright }, // right gun
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge }
+};
+MMOVE_T(flyer_move_attack2normal) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack2normal, flyer_run };
+
+// PMM
+// circle strafe frames
+
+mframe_t flyer_frames_attack3normal[] = {
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10, flyer_fireleft },	// left gun
+	{ ai_charge, 10, flyer_fireright }, // right gun
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 },
+	{ ai_charge, 10 }
+};
+MMOVE_T(flyer_move_attack3normal) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack3normal, flyer_run };
 
 mframe_t flyer_frames_attack2[] = {
 	{ ai_charge, -10, flyer_fireleft },	 // left gun
@@ -450,7 +593,7 @@ void flyer_slash_left(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, aim, 3, 0))
 			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
@@ -461,8 +604,8 @@ void flyer_slash_left(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "flyer_slash_left: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -471,7 +614,7 @@ void flyer_slash_right(edict_t* self)
 {
 	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
 
-	// Verificar si self->enemy está correctamente inicializado
+	// Verificar si self->enemy estÃ¡ correctamente inicializado
 	if (self->enemy) {
 		if (!fire_hit(self, aim, 3, 0))
 			self->monsterinfo.melee_debounce_time = level.time + 1.5_sec;
@@ -482,8 +625,8 @@ void flyer_slash_right(edict_t* self)
 		//std::snprintf(buffer, sizeof(buffer), "flyer_slash_right: Error: enemy not properly initialized\n");
 		//gi.Com_Print(buffer);
 
-		// Manejar el caso donde self->enemy no está inicializado
-		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar según sea necesario
+		// Manejar el caso donde self->enemy no estÃ¡ inicializado
+		self->monsterinfo.melee_debounce_time = level.time + 1.5_sec; // Ajustar segÃºn sea necesario
 	}
 }
 
@@ -556,7 +699,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 		return;
 	}
 
-	float range = range_to(self, self->enemy);
+	const float range = range_to(self, self->enemy);
 
 	if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
 	{
@@ -568,8 +711,26 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	else
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
-		M_SetAnimation(self, &flyer_move_attack2);
+
+		if (first3waves)
+		{
+			frandom() > 0.2f ? 
+				M_SetAnimation(self, &flyer_move_attack2normal) :
+				M_SetAnimation(self, &flyer_move_rollright);
+		}
+		else
+		{
+			if (frandom() > 0.4f)
+			{
+				M_SetAnimation(self, &flyer_move_attack2);
+			}
+			else
+			{
+				M_SetAnimation(self, &flyer_move_rollright);
+			}
+		}
 	}
+
 
 	// [Paril-KEX] for alternate fly mode, sometimes we'll pin us
 	// down, kind of like a pseudo-stand ground
@@ -728,8 +889,8 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
  */
 void SP_monster_flyer(edict_t* self)
 {
-	if (g_horde->integer && current_wave_number <= 18) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+	if (g_horde->integer && current_wave_level <= 18) {
+		float randomsearch = frandom(); // Generar un nÃºmero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.32f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);

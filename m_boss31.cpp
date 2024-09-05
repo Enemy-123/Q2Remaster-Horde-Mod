@@ -482,7 +482,7 @@ void jorgBFG(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, 50, 800, 100, 200, MZ2_JORG_BFG_1);
+	monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
 }
 
 void jorg_firebullet_right(edict_t* self)
@@ -635,12 +635,12 @@ void SP_monster_jorg(edict_t* self)
 	if (g_horde->integer) {
 		if (!strcmp(self->classname, "monster_jorg"))
 		{
-			float randomsearch = frandom(); // Generar un n�mero aleatorio entre 0 y 1
+			float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
 			if (randomsearch < 0.13f)
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
+				gi.sound(self, CHAN_VOICE, sound_search1, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 			else if (randomsearch < 0.36f)
-				gi.sound(self, CHAN_VOICE, sound_search3, 1, ATTN_NONE, 0);
+				gi.sound(self, CHAN_VOICE, sound_search3, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
 			else
 				nullptr;
 		}
@@ -700,7 +700,7 @@ void SP_monster_jorg(edict_t* self)
 	self->mins = { -80, -80, 0 };
 	self->maxs = { 80, 80, 140 };
 
-	self->health = 6500 + (1.08 * current_wave_number);
+	self->health = 6500 + (1.08 * current_wave_level);
 	self->gib_health = -2000;
 	self->mass = 1000;
 

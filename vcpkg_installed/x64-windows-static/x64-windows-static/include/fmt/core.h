@@ -395,13 +395,18 @@ FMT_CONSTEXPR auto to_unsigned(Int value) ->
 }
 
 FMT_CONSTEXPR inline auto is_utf8() -> bool {
-  FMT_MSC_WARNING(suppress : 4566) constexpr unsigned char section[] = "\u00A7";
+    FMT_MSC_WARNING(suppress : 4566) constexpr unsigned char section[] = "\u00A7";
 
-  // Avoid buggy sign extensions in MSVC's constant evaluation mode (#2297).
-  using uchar = unsigned char;
-  return FMT_UNICODE || (sizeof(section) == 3 && uchar(section[0]) == 0xC2 &&
-                         uchar(section[1]) == 0xA7);
+    // Comprobación del tamaño de la sección UTF-8
+    bool is_size_valid = sizeof(section) == 3;
+
+    // Verificación de los valores específicos en UTF-8
+    bool is_utf8_sequence = (static_cast<unsigned char>(section[0]) == 0xC2 &&
+        static_cast<unsigned char>(section[1]) == 0xA7);
+
+    return FMT_UNICODE || (is_size_valid && is_utf8_sequence);
 }
+
 }  // namespace detail
 
 /**

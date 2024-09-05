@@ -106,11 +106,11 @@ bool monster_jump_finished(edict_t *self)
 
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 
-	vec3_t forward_velocity = self->velocity.scaled(forward);
+	const vec3_t forward_velocity = self->velocity.scaled(forward);
 
 	if (forward_velocity.length() < 150.f)
 	{
-		float z_velocity = self->velocity.z;
+		const float z_velocity = self->velocity.z;
 		self->velocity = forward * 150.f;
 		self->velocity.z = z_velocity;
 	}
@@ -1155,7 +1155,7 @@ bool M_CalculatePitchToFire(edict_t *self, const vec3_t &target, const vec3_t &s
 			break;
 
 		pitched_aim[PITCH] = pitch;
-		vec3_t fwd = AngleVectors(pitched_aim).forward;
+		const vec3_t fwd = AngleVectors(pitched_aim).forward;
 
 		vec3_t velocity = fwd * speed;
 		vec3_t origin = start;
@@ -1166,8 +1166,8 @@ bool M_CalculatePitchToFire(edict_t *self, const vec3_t &target, const vec3_t &s
 		{
 			velocity += vec3_t{ 0, 0, -1 } * level.gravity * sim_time;
 
-			vec3_t end = origin + (velocity * sim_time);
-			trace_t tr = gi.traceline(origin, end, nullptr, MASK_SHOT);
+			const vec3_t end = origin + (velocity * sim_time);
+			const trace_t tr = gi.traceline(origin, end, nullptr, MASK_SHOT);
 
 			origin = tr.endpos;
 
@@ -1179,7 +1179,7 @@ bool M_CalculatePitchToFire(edict_t *self, const vec3_t &target, const vec3_t &s
 				origin += tr.plane.normal;
 				velocity = ClipVelocity(velocity, tr.plane.normal, 1.6f);
 
-				float dist = (origin - target).lengthSquared();
+				const float dist = (origin - target).lengthSquared();
 
 				if (tr.ent == self->enemy || tr.ent->client || (tr.plane.normal.z >= 0.7f && dist < (128.f * 128.f) && dist < best_dist))
 				{
@@ -1608,7 +1608,6 @@ THINK(BossExplode_think) (edict_t *self) -> void
 void BossExplode(edict_t *self)
 {
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
-		self->deadflag == true &&
 		!self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
 	{
 		BossDeathHandler(self);
