@@ -479,139 +479,103 @@ void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_tou
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
 	gi.Com_PrintFmt("Starting PushEntitiesAway at position: {}\n", center);
 
+	const int max_attempts = 5; // Maximum number of attempts to push entities
+	std::vector<edict_t*> stubborn_entities; // Entities that couldn't be moved after all attempts
+
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.030f);
 		const float end_size = size * 0.3f;
 
-		// Use ImprovedSpawnGrow and add fireballs for the first wave
-		if (wave == 0) {
-			// Create the main SpawnGrow effect
-			SpawnGrow_Spawn(center, size, end_size);
-
-			// Add more dramatic effects and fireballs for the first wave
-			for (int i = 0; i < 5; i++) {
-				vec3_t offset;
-				for (int j = 0; j < 3; j++) {
-					offset[j] = center[j] + crandom() * 125;  // Random offset within 75 units
-				}
-				SpawnGrow_Spawn(offset, size * 0.5f, end_size * 0.5f);
-
-				// Spawn a fireball
-				edict_t* fireball = G_Spawn();
-				if (fireball) {
-					fireball->s.effects = EF_FIREBALL;
-					fireball->s.renderfx = RF_MINLIGHT;
-					fireball->solid = SOLID_BBOX;
-					fireball->movetype = MOVETYPE_TOSS;
-					fireball->clipmask = MASK_SHOT;
-					fireball->velocity[0] = crandom() * 200;
-					fireball->velocity[1] = crandom() * 200;
-					fireball->velocity[2] = (200 + (frandom() * 200));
-					fireball->avelocity = { crandom() * 180, crandom() * 180, crandom() * 180 };
-					fireball->classname = "fireball";
-					gi.setmodel(fireball, "models/objects/gibs/sm_meat/tris.md2");
-					VectorCopy(offset, fireball->s.origin);
-					fireball->nextthink = level.time + 15000_ms;
-					fireball->think = G_FreeEdict;
-					fireball->touch = fire_touch;
-					gi.linkentity(fireball);
-				}
-			}
-		}
-		else {
-			// Use regular SpawnGrow for subsequent waves
-			SpawnGrow_Spawn(center, size, end_size);
-		}
+		// Use regular SpawnGrow for all waves
+		SpawnGrow_Spawn(center, size, end_size);
 
 		// Find and push entities
 		edict_t* ent = nullptr;
-		edict_t* ent2 = nullptr;
 
 		while ((ent = findradius(ent, center, size)) != nullptr) {
 			if (!ent || !ent->inuse || !ent->takedamage || !ent->s.origin)
 				continue;
 
 			// Check if the entity is a special case that should be removed
-			bool should_remove = false;
-			if (strcmp(ent->classname, "monster_sentrygun") == 0 ||
-				strcmp(ent->classname, "tesla_mine") == 0 ||
-				strcmp(ent->classname, "emitter") == 0 ||
-				strcmp(ent->classname, "laser") == 0 ||
-				strcmp(ent->classname, "food_cube_trap") == 0 ||
-				strcmp(ent->classname, "prox_mine") == 0 ||
-				(ent->flags & FL_STATIONARY) ||
-				ent->movetype == MOVETYPE_NONE) {
-				should_remove = true;
+			if (IsRemovableEntity(ent)) {
+				RemoveEntity(ent);
+				continue;
 			}
 
-			if (should_remove) {
-				T_Damage(ent, ent2, ent2, vec3_origin, ent->s.origin, vec3_origin, 9999, 100, DAMAGE_NONE, MOD_UNKNOWN);
-			}
+			// Attempt to push the entity multiple times
+			bool pushed = false;
+			for (int attempt = 0; attempt < max_attempts; attempt++) {
+				vec3_t push_dir{};
+				VectorSubtract(ent->s.origin, center, push_dir);
+				const float distance = VectorLength(push_dir);
 
-			vec3_t push_dir{};
-			VectorSubtract(ent->s.origin, center, push_dir);
-			const float distance = VectorLength(push_dir);
-
-			if (distance > 0.1f) {
-				VectorNormalize(push_dir);
-			}
-			else {
-				// If the entity is too close to the center, give it a random direction
-				push_dir[0] = crandom();
-				push_dir[1] = crandom();
-				push_dir[2] = 0;
-				VectorNormalize(push_dir);
-			}
-
-			// Calculate push strength with a sine wave for smoother effect
-			float wave_push_strength = push_strength * (1.0f - distance / size);
-			wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-			wave_push_strength = std::min(wave_push_strength, 1000.0f);  // Limit maximum push strength
-
-			// Calculate new position
-			const vec3_t new_pos{};
-			VectorMA(ent->s.origin, wave_push_strength / 700, push_dir, new_pos);
-
-			// Trace to ensure we're not pushing through walls
-		const trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
-
-			if (!tr.allsolid && !tr.startsolid) {
-				// Code to push entities
-				vec3_t final_velocity;
-				if (tr.fraction < 1.0) {
-					// If we hit something, adjust the push
-					VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+				if (distance > 0.1f) {
+					VectorNormalize(push_dir);
 				}
 				else {
-					VectorScale(push_dir, wave_push_strength, final_velocity);
+					// If the entity is too close to the center, give it a random direction
+					push_dir[0] = crandom();
+					push_dir[1] = crandom();
+					push_dir[2] = 0;
+					VectorNormalize(push_dir);
 				}
 
-				// Add strong horizontal component
-				float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-				final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
-				final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
+				// Calculate push strength with a sine wave for smoother effect
+				float wave_push_strength = push_strength * (1.0f - distance / size);
+				wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+				wave_push_strength = std::min(wave_push_strength, 1000.0f);  // Limit maximum push strength
 
-				// Add vertical component
-				final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+				// Increase push strength for subsequent attempts
+				wave_push_strength *= (1.0f + attempt * 0.5f);
 
-				VectorCopy(final_velocity, ent->velocity);
+				// Calculate new position
+				vec3_t new_pos{};
+				VectorMA(ent->s.origin, wave_push_strength / 700, push_dir, new_pos);
 
-				ent->groundentity = nullptr;
+				// Trace to ensure we're not pushing through walls
+				const trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, new_pos, ent, MASK_SOLID);
 
-				if (ent->client && ent->client->oldvelocity) {
-					VectorCopy(ent->velocity, ent->client->oldvelocity);
-					ent->client->oldgroundentity = ent->groundentity;
+				if (!tr.allsolid && !tr.startsolid) {
+					// Code to push entities
+					vec3_t final_velocity;
+					if (tr.fraction < 1.0) {
+						// If we hit something, adjust the push
+						VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
+					}
+					else {
+						VectorScale(push_dir, wave_push_strength, final_velocity);
+					}
+
+					// Add strong horizontal component
+					float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+					final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
+					final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
+
+					// Add vertical component
+					final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+
+					VectorCopy(final_velocity, ent->velocity);
+
+					ent->groundentity = nullptr;
+
+					if (ent->client && ent->client->oldvelocity) {
+						VectorCopy(ent->velocity, ent->client->oldvelocity);
+						ent->client->oldgroundentity = ent->groundentity;
+					}
+
+					gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n",
+						wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
+
+					pushed = true;
+					break;
 				}
-
-				gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n",
-					wave + 1, ent->classname ? ent->classname : "unknown", ent->velocity);
 			}
-			else {
-				// The entity couldn't be moved, we remove it
-				gi.Com_PrintFmt("Entity {} at {} could not be moved. Attempting to remove.\n",
-					ent->classname ? ent->classname : "unknown", ent->s.origin);
-				RemoveEntity(ent);
-				gi.Com_PrintFmt("Entity removed\n");
+
+			if (!pushed) {
+				// The entity couldn't be moved after multiple attempts
+				stubborn_entities.push_back(ent);
+				gi.Com_PrintFmt("Entity {} at {} could not be moved after {} attempts.\n",
+					ent->classname ? ent->classname : "unknown", ent->s.origin, max_attempts);
 			}
 		}
 
@@ -621,6 +585,28 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			// Here you would typically use a timer or delay mechanism
 			// The exact implementation depends on your game engine
 			// For example: wait_for_milliseconds(wave_interval_ms);
+		}
+	}
+	edict_t* SelectSingleSpawnPoint(edict_t* ent);
+	// Handle stubborn entities
+	for (auto* stubborn_ent : stubborn_entities) {
+		if (stubborn_ent->client) {
+			// For players, teleport to a safe spawn point
+			edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent);
+			if (spawn_point) {
+				VectorCopy(spawn_point->s.origin, stubborn_ent->s.origin);
+				VectorCopy(spawn_point->s.angles, stubborn_ent->s.angles);
+				stubborn_ent->s.event = EV_PLAYER_TELEPORT;
+				gi.Com_PrintFmt("Player {} teleported to spawn point.\n", stubborn_ent->client->pers.netname);
+			}
+			else {
+				gi.Com_PrintFmt("WARNING: Could not find a safe spawn point for player {}.\n", stubborn_ent->client->pers.netname);
+			}
+		}
+		else {
+			// For non-player entities, remove them
+			RemoveEntity(stubborn_ent);
+			gi.Com_PrintFmt("Non-player entity removed.\n");
 		}
 	}
 

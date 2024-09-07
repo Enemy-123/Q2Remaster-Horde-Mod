@@ -1431,7 +1431,7 @@ edict_t* SelectLavaCoopSpawnPoint(edict_t* ent)
 //===============
 
 // [Paril-KEX]
-static edict_t* SelectSingleSpawnPoint(edict_t* ent)
+edict_t* SelectSingleSpawnPoint(edict_t* ent)
 {
 	edict_t* spot = nullptr;
 
