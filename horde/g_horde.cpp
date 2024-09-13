@@ -335,10 +335,10 @@ void Horde_InitLevel(const int32_t lvl) {
 	VerifyAndAdjustBots();
 	// scaling damage switch
 	switch (g_horde_local.level) {
-	case 15: gi.cvar_set("g_damage_scale", "1.8"); break;
-	case 25: gi.cvar_set("g_damage_scale", "2.8"); break;
-	case 35: gi.cvar_set("g_damage_scale", "3.8"); break;
-	case 45: gi.cvar_set("g_damage_scale", "4.3"); break;
+	case 15: gi.cvar_set("g_damage_scale", "2.1"); break;
+	case 25: gi.cvar_set("g_damage_scale", "3.3"); break;
+	case 35: gi.cvar_set("g_damage_scale", "4.1"); break;
+	case 45: gi.cvar_set("g_damage_scale", "5.1"); break;
 	default: break; // Mantener el valor actual si no coincide
 	}
 	const auto mapSize = GetMapSize(level.mapname);
