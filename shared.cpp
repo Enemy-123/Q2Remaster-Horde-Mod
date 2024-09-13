@@ -159,7 +159,7 @@ std::string GetDisplayName(edict_t* ent)
 		{ "monster_infantry_vanilla", "Infantry" },
 		{ "monster_infantry", "Enforcer" },
 		{ "monster_flyer", "Flyer" },
-		{ "monster_kamikaze", "Kamikaze" },
+		{ "monster_kamikaze", "Kamikaze Flyer" },
 		{ "monster_hover_vanilla", "Blaster Icarus" },
 		{ "monster_fixbot", "Fixbot" },
 		{ "monster_gekk", "Gekk" },
@@ -473,6 +473,86 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 		}
 	}
 }
+
+inline float AngleNormalize360(float angle)
+{
+	angle = fmodf(angle, 360.0f);
+	if (angle < 0.0f)
+		angle += 360.0f;
+	return angle;
+}
+
+
+void TeleportEntity(edict_t* ent, edict_t* dest)
+{
+	if (!ent || !ent->inuse || !dest || !dest->inuse)
+		return;
+
+	// Teleport effect at source
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_TELEPORT_EFFECT);
+	gi.WritePosition(ent->s.origin);
+	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+
+	// Move entity
+	VectorCopy(dest->s.origin, ent->s.origin);
+	ent->s.origin[2] += 10; // Slightly above the ground
+
+	// Reset velocity
+	VectorClear(ent->velocity);
+
+	// Handle client-specific updates
+	if (ent->client)
+	{
+		// Hold time to prevent immediate movement
+		ent->client->ps.pmove.pm_time = 160; // Hold time (in milliseconds)
+		ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+
+		// Teleport event for visual effect
+		ent->s.event = EV_PLAYER_TELEPORT;
+
+		// Set view angles
+		VectorCopy(dest->s.angles, ent->s.angles);
+		VectorCopy(dest->s.angles, ent->client->ps.viewangles);
+		VectorCopy(dest->s.angles, ent->client->v_angle);
+
+		// Update delta_angles to prevent view snapping
+		for (int i = 0; i < 3; i++)
+		{
+			float angle_diff = AngleNormalize360(dest->s.angles[i]) - ent->client->resp.cmd_angles[i];
+			ent->client->ps.pmove.delta_angles[i] = angle_diff;
+		}
+
+		// Update client-side position
+		for (int i = 0; i < 3; i++)
+		{
+			ent->client->ps.pmove.origin[i] = static_cast<int16_t>(ent->s.origin[i] * 8.0f);
+		}
+
+		// Clear pmove velocity
+		VectorClear(ent->client->ps.pmove.velocity);
+	}
+	else
+	{
+		// For non-player entities, set angles
+		VectorCopy(dest->s.angles, ent->s.angles);
+	}
+
+	// Unlink and relink entity to update position
+	gi.unlinkentity(ent);
+	gi.linkentity(ent);
+
+	// Kill anything at the destination to prevent telefragging
+	KillBox(ent, false, MOD_TELEFRAG, true);
+
+	// Teleport effect at destination
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_TELEPORT_EFFECT);
+	gi.WritePosition(ent->s.origin);
+	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+}
+
+
 //constexpr spawnflags_t SPAWNFLAG_LAVABALL_NO_EXPLODE = 1_spawnflag;
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
@@ -540,7 +620,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 				wave_push_strength *= (1.0f + attempt * 0.5f);
 
 				// Calculate new position
-				vec3_t new_pos{};
+				const vec3_t new_pos{};
 				VectorMA(entity->s.origin, wave_push_strength / 700, push_dir, new_pos);
 
 				// Trace to ensure we're not pushing through walls
@@ -605,7 +685,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
         }
     }
 
-    // Handle stubborn entities
+	 // Handle stubborn entities
     for (auto* stubborn_ent : stubborn_entities) {
         if (!stubborn_ent || !stubborn_ent->inuse)
             continue;
@@ -614,20 +694,19 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
             // For players, teleport to a safe spawn point
             edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent);
             if (spawn_point) {
-                VectorCopy(spawn_point->s.origin, stubborn_ent->s.origin);
-                VectorCopy(spawn_point->s.angles, stubborn_ent->s.angles);
-                stubborn_ent->s.event = EV_PLAYER_TELEPORT;
-                gi.Com_PrintFmt("Player {} teleported to spawn point.\n", stubborn_ent->client->pers.netname);
+                TeleportEntity(stubborn_ent, spawn_point);
+
+                gi.Com_PrintFmt("Player %s teleported to spawn point.\n", stubborn_ent->client->pers.netname);
             }
             else {
-                gi.Com_PrintFmt("WARNING: Could not find a safe spawn point for player {}.\n", stubborn_ent->client->pers.netname);
+                gi.Com_PrintFmt("WARNING: Could not find a safe spawn point for player %s.\n", stubborn_ent->client->pers.netname);
             }
         }
         else {
             // For non-player entities, remove them
             if (stubborn_ent && stubborn_ent->inuse) {
                 RemoveEntity(stubborn_ent);
-                gi.Com_PrintFmt("Non-player entity removed.\n");
+                gi.Com_PrintFmt("Non-player entity %s removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
             }
         }
     }
@@ -635,9 +714,78 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
     gi.Com_PrintFmt("PushEntitiesAway completed\n");
 }
 
-
 bool string_equals(const char* str1, const std::string_view& str2) {
 	return str1 && str2.length() == strlen(str1) &&
 		!Q_strncasecmp(str1, str2.data(), str2.length());
 }
 
+bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs)
+{
+	vec3_t ent_mins, ent_maxs;
+
+	VectorAdd(ent->s.origin, ent->mins, ent_mins);
+	VectorAdd(ent->s.origin, ent->maxs, ent_maxs);
+
+	for (int i = 0; i < 3; i++)
+	{
+		if (ent_maxs[i] < area_mins[i] || ent_mins[i] > area_maxs[i])
+			return false;
+	}
+	return true;
+}
+
+
+void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs)
+{
+	edict_t* ent = nullptr;
+	vec3_t area_mins, area_maxs;
+
+	// Calculate the absolute bounds of the area to check
+	VectorAdd(origin, mins, area_mins);
+	VectorAdd(origin, maxs, area_maxs);
+
+	// Expand the area slightly to account for movement
+	for (int i = 0; i < 3; i++)
+	{
+		area_mins[i] -= 26.0f;
+		area_maxs[i] += 26.0f;
+	}
+
+	// Find entities within the area
+	while ((ent = findradius(ent, origin, VectorLength(maxs) + 16.0f)) != nullptr)
+	{
+		if (!ent->inuse)
+			continue;
+
+		if (ent->svflags & SVF_MONSTER)
+			continue;
+
+		if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
+			continue;
+
+		// Check if the entity is actually overlapping with the area
+		if (!EntitiesOverlap(ent, area_mins, area_maxs))
+			continue;
+
+		if (ent->client)
+		{
+			// For players, teleport them to a safe spawn point
+			edict_t* spawn_point = SelectSingleSpawnPoint(ent);
+			if (spawn_point)
+			{
+				TeleportEntity(ent, spawn_point);
+				gi.Com_PrintFmt("Player {} teleported to spawn point to make room for boss.\n", ent->client->pers.netname);
+			}
+			else
+			{
+				gi.Com_PrintFmt("WARNING: Could not find a spawn point for player %s.\n", ent->client->pers.netname);
+			}
+		}
+		else
+		{
+			// For non-player entities, remove them
+			RemoveEntity(ent);
+			gi.Com_PrintFmt("Entity %s removed from boss spawn area.\n", ent->classname ? ent->classname : "unknown");
+		}
+	}
+}

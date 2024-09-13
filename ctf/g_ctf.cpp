@@ -1062,7 +1062,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_infantry_vanilla", "Infantry" },
 		{ "monster_infantry", "Enforcer" },
 		{ "monster_flyer", "Flyer" },
-		{ "monster_kamikaze", "Kamikaze" },
+		{ "monster_kamikaze", "Kamikaze Flyer" },
 		{ "monster_hover_vanilla", "Blaster Icarus" },
 		{ "monster_fixbot", "Fixbot" },
 		{ "monster_gekk", "Gekk" },
@@ -2680,7 +2680,7 @@ static void SetGameName(pmenu_t* p)
 	if (ctf->integer)
 		Q_strlcpy(p->text, "$g_pc_3wctf", sizeof(p->text));
 	else
-		Q_strlcpy(p->text, "Horde MOD BETA v0.0079\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
+		Q_strlcpy(p->text, "Horde MOD BETA v0.0080\n\n\n\n\n\n\n\n\nDiscord:\nEnemy0416", sizeof(p->text));
 }
 
 static void SetLevelName(pmenu_t* p)
@@ -4145,7 +4145,7 @@ bool CTFCheckRules()
 		ctfgame.election = ELECT_NONE;
 
 		// Resetear el estado de votación de todos los jugadores
-		for (auto ent : active_players()) {
+		for (auto const* ent : active_players()) {
 			if (ent->inuse && ent->client)
 			{
 				ent->client->resp.voted = false;

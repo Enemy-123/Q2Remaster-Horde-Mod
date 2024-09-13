@@ -742,7 +742,7 @@ void SP_monster_boss2_64(edict_t* self)
 
 		// Ajustar la caja de colisi칩n con un Z m치s elevado
 		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
-		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
+		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 28) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
 
 	self->health = 1100 * st.health_multiplier;

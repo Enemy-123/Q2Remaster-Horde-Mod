@@ -335,10 +335,10 @@ void Horde_InitLevel(const int32_t lvl) {
 	VerifyAndAdjustBots();
 	// scaling damage switch
 	switch (g_horde_local.level) {
-	case 17: gi.cvar_set("g_damage_scale", "1.7"); break;
-	case 27: gi.cvar_set("g_damage_scale", "2.7"); break;
-	case 37: gi.cvar_set("g_damage_scale", "3.8"); break;
-	case 47: gi.cvar_set("g_damage_scale", "4.3"); break;
+	case 15: gi.cvar_set("g_damage_scale", "1.8"); break;
+	case 25: gi.cvar_set("g_damage_scale", "2.8"); break;
+	case 35: gi.cvar_set("g_damage_scale", "3.8"); break;
+	case 45: gi.cvar_set("g_damage_scale", "4.3"); break;
 	default: break; // Mantener el valor actual si no coincide
 	}
 	const auto mapSize = GetMapSize(level.mapname);
@@ -1183,6 +1183,7 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
 	{"monster_widow2", "***** A Strogg Boss has spawned! *****\n***** The Widow sneaks in, weaving disruptor shots! *****\n"},
 	{"monster_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid skitters in, itching to fry some flesh! *****\n"},
 	{"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid with missiles emerges, looking to blast you to bits! *****\n"},
+	{"monster_redmutant", "***** A Strogg Boss has spawned! *****\n***** The Bloody Mutant has spawned! *****\n"},
 	{"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg enters the fray, prepare for the showdown! *****\n"}
 };
 
@@ -1275,16 +1276,16 @@ void SpawnBossAutomatically() {
 	gi.Com_PrintFmt("Preparing to spawn boss at position: {}\n", boss->s.origin);
 
 	// Push entities away
-	PushEntitiesAway(boss->s.origin, 2, 500, 300.0f, 750.0f, 1000.0f, 500.0f);
+	PushEntitiesAway(boss->s.origin, 3, 500, 300.0f, 750.0f, 1000.0f, 500.0f);
 
 	// Delay boss spawn
-	boss->nextthink = level.time + 800_ms; // 0.8 seconds delay
+	boss->nextthink = level.time + 1000_ms; // 1 seconds delay
 	boss->think = BossSpawnThink;
 
 	gi.Com_PrintFmt("Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
 
-THINK(BossSpawnThink) (edict_t* self) -> void
+THINK(BossSpawnThink)(edict_t* self) -> void
 {
 	// Boss spawn message
 	const auto it_msg = bossMessagesMap.find(self->classname);
@@ -1301,13 +1302,27 @@ THINK(BossSpawnThink) (edict_t* self) -> void
 	self->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_sentrygun_target_time = 0_ms;
 
+	// Set the boss to non-solid before spawning to prevent interaction
+	self->solid = SOLID_NOT;
+
+	// Spawn the boss
 	ED_CallSpawn(self);
+
+	// Now that the boss is spawned, self->mins and self->maxs are set
+
+	// Clear the spawn area right after spawning the boss
+	ClearSpawnArea(self->s.origin, self->mins, self->maxs);
+
+	// Now set the boss to the appropriate solid type
+	self->solid = SOLID_BBOX; // Use SOLID_BSP if the boss is a brush model
+
+	// Relink the boss entity to update its state
+	gi.linkentity(self);
+
 
 	const float health_multiplier = 1.0f;
 	const float power_armor_multiplier = 1.0f;
 
-	//get map size
-	const auto mapSize = GetMapSize(level.mapname);
 	// Apply bonus flags and effects
 	ApplyBossEffects(self);
 
