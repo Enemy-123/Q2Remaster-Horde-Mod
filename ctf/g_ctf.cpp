@@ -989,10 +989,21 @@ void DMGID_f(edict_t* ent)
 		gi.LocClient_Print(ent, PRINT_HIGH, "Activating damage identication display.\n");
 		ent->client->resp.iddmg_state = true;
 	}
-
-
-
 }
+
+//void BFGMODE_f(edict_t* ent)
+//{
+//	if (ent->client->resp.slidebfg)
+//	{
+//		gi.LocClient_Print(ent, PRINT_HIGH, "BFG Mode switched to PULL.\n");
+//		ent->client->resp.slidebfg = false;
+//	}
+//	else
+//	{
+//		gi.LocClient_Print(ent, PRINT_HIGH, "BFG MODE switched to SLIDE.\n");
+//		ent->client->resp.slidebfg = true;
+//	}
+//}
 
 #include "../shared.h"
 #include <queue>
@@ -3412,6 +3423,11 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	case 6: // Close
 		PMenu_Close(ent);
 		return;
+	default:
+		// Manejo de opciones no previstas
+		gi.Com_PrintFmt("Invalid menu option selected for player {} hudmenuhandler {}\n", ent->client->pers.netname, option);
+		PMenu_Close(ent);
+		break;
 	}
 
 	// Actualizar el texto del menú aquí mismo
@@ -3421,9 +3437,6 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	// Reabrir el menú para reflejar los cambios
 	PMenu_Open(ent, hud_menu, option, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
 }
-
-
-
 
 
 void OpenHUDMenu(edict_t* ent) {

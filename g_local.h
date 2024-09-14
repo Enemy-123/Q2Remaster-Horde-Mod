@@ -1978,6 +1978,7 @@ extern cvar_t* g_ammoregen;
 extern cvar_t* g_tracedbullets;
 extern cvar_t* g_bouncygl;
 extern cvar_t* g_bfgpull;
+extern cvar_t* g_bfgslide;
 extern cvar_t* g_startarmor;
 extern cvar_t* g_vampire;
 extern cvar_t* g_iddmg;
@@ -3122,11 +3123,6 @@ struct gclient_t
 	//	pmtype_t prev_pm_type;
 	int num_lasers;
 
-	//	LOAD SERVER CLIENT, CS
-	//	bool isLoading;
-	////	int entityLoadState;
-	//	gtime_t nextLoadTime;
-	//	int configStringLoadState;  // Nuevo miembro para la carga progresiva
 };
 
 

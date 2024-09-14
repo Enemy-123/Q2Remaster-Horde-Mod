@@ -163,6 +163,7 @@ cvar_t* g_ammoregen;
 cvar_t* g_tracedbullets;
 cvar_t* g_bouncygl;
 cvar_t* g_bfgpull;
+cvar_t* g_bfgslide;
 cvar_t* g_startarmor;
 cvar_t* g_vampire;
 //cvar_t* g_vampire_health_max;
@@ -408,6 +409,7 @@ void InitGame()
 	g_tracedbullets = gi.cvar("g_tracedbullets", "0", CVAR_NOFLAGS);
 	g_bouncygl = gi.cvar("g_bouncygl", "0", CVAR_NOFLAGS);
 	g_bfgpull = gi.cvar("g_bfgpull", "0", CVAR_NOFLAGS);
+	g_bfgslide = gi.cvar("g_bfgslide", "0", CVAR_NOFLAGS);
 	g_startarmor = gi.cvar("g_startarmor", "0", CVAR_NOFLAGS);
 	g_upgradeproxs = gi.cvar("g_upgradeproxs", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
