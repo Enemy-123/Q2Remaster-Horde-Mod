@@ -2431,7 +2431,7 @@ always owned, never in the world
 			/* use_name */  "BFG10K",
 			/* pickup_name */  "$item_bfg10k",
 			/* pickup_name_definite */ "$item_bfg10k_def",
-			/* quantity */ 50,
+			/* quantity */ 25,
 			/* ammo */ IT_AMMO_CELLS,
 			/* chain */ IT_WEAPON_BFG,
 			/* flags */ IF_WEAPON | IF_STAY_COOP,

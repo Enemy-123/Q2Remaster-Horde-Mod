@@ -1181,18 +1181,24 @@ fire_bfg
 =================
 */
 
+#include <algorithm>
+
+constexpr float BFG10K_INITIAL_SPEED = 400.0f;
+constexpr gtime_t BFG_EXPIRE_TIME = 10_sec;
+constexpr gtime_t BFG_WALL_EXPIRE_TIME = 2_sec;
+constexpr gtime_t BFG_MAX_LIFETIME = 8_sec;
+
 THINK(bfg_explode) (edict_t* self) -> void
 {
 	edict_t* ent;
-	float	 points;
-	vec3_t	 v;
-	float	 dist;
+	float    points;
+	vec3_t   v;
+	float    dist;
 
 	bfg_spawn_laser(self);
 
 	if (self->s.frame == 0)
 	{
-		// the BFG effect
 		ent = nullptr;
 		while ((ent = findradius(ent, self->s.origin, self->dmg_radius)) != nullptr)
 		{
@@ -1204,14 +1210,10 @@ THINK(bfg_explode) (edict_t* self) -> void
 				continue;
 			if (!CanDamage(ent, self->owner))
 				continue;
-			// ROGUE - make tesla hurt by bfg
 			if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
 				continue;
-			// ZOID
-			// don't target players in CTF
 			if (CheckTeamDamage(ent, self->owner))
 				continue;
-			// ZOID
 
 			v = ent->mins + ent->maxs;
 			v = ent->s.origin + (v * 0.5f);
@@ -1222,7 +1224,6 @@ THINK(bfg_explode) (edict_t* self) -> void
 
 			T_Damage(ent, self, self->owner, self->velocity, centroid, vec3_origin, (int)points, 0, DAMAGE_ENERGY, MOD_BFG_EFFECT);
 
-			// Paril: draw BFG lightning laser to enemies
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_BFG_ZAP);
 			gi.WritePosition(self->s.origin);
@@ -1235,6 +1236,94 @@ THINK(bfg_explode) (edict_t* self) -> void
 	self->s.frame++;
 	if (self->s.frame == 5)
 		self->think = G_FreeEdict;
+}
+
+int calculate_bfg_range(edict_t* self)
+{
+	if (self->owner->svflags & SVF_MONSTER)
+	{
+		return 256; // Range for monsters
+	}
+	else if (g_bfgpull->integer && self->owner->client)
+	{
+		return 1536; // Range for g_bfgpull mode
+	}
+	else
+	{
+		return 256; // Default range for all other cases
+	}
+}
+
+THINK(bfg_think) (edict_t* self) -> void
+{
+	edict_t* ent;
+	vec3_t   point;
+	vec3_t   dir;
+	vec3_t   start;
+	vec3_t   end;
+	int      dmg;
+	trace_t  tr;
+
+	if ((self->timestamp != 0_ms && level.time >= self->expire_time) ||
+		(self->timestamp == 0_ms && level.time >= self->spawn_time + BFG_MAX_LIFETIME))
+	{
+		G_FreeEdict(self);
+		return;
+	}
+
+	dmg = deathmatch->integer ? 5 : 10;
+
+	bfg_spawn_laser(self);
+
+
+	// Usage in your function:
+	const int bfgrange = calculate_bfg_range(self);
+
+	ent = nullptr;
+	while ((ent = findradius(ent, self->s.origin, bfgrange)) != nullptr)
+	{
+		if (ent == self || ent == self->owner || !ent->takedamage)
+			continue;
+		if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
+			continue;
+		if (CheckTeamDamage(ent, self->owner))
+			continue;
+
+		point = (ent->absmin + ent->absmax) * 0.5f;
+		dir = self->s.origin - point;
+		float const distance = dir.length();
+		dir.normalize();
+
+		start = self->s.origin;
+		end = start + (dir * -2048.0f);
+
+		tr = gi.traceline(start, point, nullptr, MASK_SOLID);
+
+		if (tr.fraction < 1.0f)
+			continue;
+
+		T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+
+		if (g_bfgpull->integer && self->owner->client)
+		{
+			if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
+			{
+				constexpr float pull_strength = 600.0f;
+				ent->velocity = dir * pull_strength;
+			}
+		}
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BFG_LASER);
+		gi.WritePosition(self->s.origin);
+		gi.WritePosition(tr.endpos);
+		gi.multicast(self->s.origin, MULTICAST_PHS, false);
+	}
+	if (g_bfgslide->integer)
+	self->nextthink = level.time + FRAME_TIME_MS * 2;
+	else
+	self->nextthink = level.time + FRAME_TIME_MS * 3;
+
 }
 
 TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -1251,162 +1340,57 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
-	// core explosion - prevents firing it into the wall/floor
-	if (other->takedamage)
-		T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, 200, 0, DAMAGE_ENERGY, MOD_BFG_BLAST);
-	T_RadiusDamage(self, self->owner, 200, other, 100, DAMAGE_ENERGY, MOD_BFG_BLAST);
-
-	gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/bfg__x1b.wav"), 1, ATTN_NORM, 0);
-	self->solid = SOLID_NOT;
-	self->touch = nullptr;
-	self->s.origin += self->velocity * (-1 * gi.frame_time_s);
-	self->velocity = {};
-	self->s.modelindex = gi.modelindex("sprites/s_bfg3.sp2");
-	self->s.frame = 0;
-	self->s.sound = 0;
-	self->s.effects &= ~EF_ANIM_ALLFAST;
-	self->think = bfg_explode;
-	self->nextthink = level.time + 10_hz;
-	self->enemy = other;
-
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(TE_BFG_BIGEXPLOSION);
-	gi.WritePosition(self->s.origin);
-	gi.multicast(self->s.origin, MULTICAST_PHS, false);
-}
-
-
-struct bfg_laser_pierce_t : pierce_args_t
-{
-	edict_t* self;
-	vec3_t	 dir;
-	int		 damage;
-
-	inline bfg_laser_pierce_t(edict_t* self, vec3_t dir, int damage) :
-		pierce_args_t(),
-		self(self),
-		dir(dir),
-		damage(damage)
+	if (g_bfgslide->integer)
 	{
-	}
-
-	// we hit an entity; return false to stop the piercing.
-	// you can adjust the mask for the re-trace (for water, etc).
-	bool hit(contents_t& mask, vec3_t& end) override
-	{
-		// hurt it if we can
-		if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && (tr.ent != self->owner))
-			T_Damage(tr.ent, self, self->owner, dir, tr.endpos, vec3_origin, damage, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
-
-		// if we hit something that's not a monster or player we're done
-		if (!(tr.ent->svflags & SVF_MONSTER) && !(tr.ent->flags & FL_DAMAGEABLE) && (!tr.ent->client))
+		if (self->timestamp == 0_ms)
 		{
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(TE_LASER_SPARKS);
-			gi.WriteByte(4);
-			gi.WritePosition(tr.endpos);
-			gi.WriteDir(tr.plane.normal);
-			gi.WriteByte(self->s.skinnum);
-			gi.multicast(tr.endpos, MULTICAST_PVS, false);
-			return false;
+			self->timestamp = level.time;
+			self->expire_time = level.time + BFG_WALL_EXPIRE_TIME;
 		}
 
-		if (!mark(tr.ent))
-			return false;
+		const float oldVelocity = self->velocity.length();
+		float newVelocity = (2 * BFG10K_INITIAL_SPEED) - oldVelocity;
 
-		return true;
+		newVelocity = std::max(100.0f, std::min(newVelocity, oldVelocity));
+
+		self->velocity.normalize();
+		self->velocity *= newVelocity;
 	}
-};
-
-
-THINK(bfg_think) (edict_t* self) -> void
-{
-	edict_t* ent;
-	vec3_t   point;
-	vec3_t   dir;
-	vec3_t   start;
-	vec3_t   end;
-	int      dmg;
-	trace_t  tr;
-	constexpr float pull_strength = 600.0f; // Adjust this value to control the strength of the push
-	if (G_IsDeathmatch())
-		dmg = 10;
 	else
-		dmg = 10;
-	bfg_spawn_laser(self);
-	ent = nullptr;
-
-	// Define bfgrange for lasers range
-	const int bfgrange =
-		self->owner->svflags & SVF_MONSTER ? 256 :
-		g_bfgpull->integer && self->owner->client ? 1536 : 800;
-
-
-	while ((ent = findradius(ent, self->s.origin, bfgrange)) != nullptr)
 	{
-		if (ent == self || ent == self->owner || !ent->takedamage)
-			continue;
-		// ROGUE - make tesla hurt by bfg
-		if (!(ent->svflags & SVF_MONSTER) && !(ent->flags & FL_DAMAGEABLE) && (!ent->client) && (strcmp(ent->classname, "misc_explobox") != 0))
-			continue;
-		// ZOID - don't target players in CTF
-		if (CheckTeamDamage(ent, self->owner))
-			continue;
-		point = (ent->absmin + ent->absmax) * 0.5f;
-		dir = self->s.origin - point;
-		float const distance = dir.length();
-		dir.normalize();
-		start = self->s.origin;
-		end = start + (dir * -2048.0f); // Reverse direction to go towards the monster
-		// [Paril-KEX] don't fire a laser if we're blocked by the world
-		tr = gi.traceline(start, point, nullptr, MASK_SOLID);
-		if (tr.fraction < 1.0f)
-			continue;
-		bfg_laser_pierce_t args{
-			 self,
-			 dir,
-			 dmg
-		};
+		if (other->takedamage)
+			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal, 200, 0, DAMAGE_ENERGY, MOD_BFG_BLAST);
+		T_RadiusDamage(self, self->owner, 200, other, 100, DAMAGE_ENERGY, MOD_BFG_BLAST);
 
-		// Verifica si el láser golpea la entidad
-		trace_t const laser_tr = gi.traceline(start, end, self, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
-		if (laser_tr.ent == ent)
-		{
-			// Aplica la fuerza de empuje solo si g_bfgpull->integer es verdadero
-			if (g_bfgpull->integer && self->owner->client)
-			{
-				if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
-				{
-					ent->velocity = dir * pull_strength;
-				}
-			}
+		gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/bfg__x1b.wav"), 1, ATTN_NORM, 0);
+		self->solid = SOLID_NOT;
+		self->touch = nullptr;
+		self->s.origin += self->velocity * (-1 * gi.frame_time_s);
+		self->velocity = {};
+		self->s.modelindex = gi.modelindex("sprites/s_bfg3.sp2");
+		self->s.frame = 0;
+		self->s.sound = 0;
+		self->s.effects &= ~EF_ANIM_ALLFAST;
+		self->think = bfg_explode;
+		self->nextthink = level.time + 10_hz;
+		self->enemy = other;
 
-			// Daña a la entidad
-			T_Damage(ent, self, self->owner, dir, laser_tr.endpos, vec3_origin, dmg, 0, DAMAGE_ENERGY, MOD_BFG_LASER);
-		}
-
-		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
 		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_BFG_LASER);
+		gi.WriteByte(TE_BFG_BIGEXPLOSION);
 		gi.WritePosition(self->s.origin);
-		gi.WritePosition(laser_tr.endpos);
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 	}
-
-	self->nextthink = level.time + 10_hz;
 }
+
 void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius)
 {
-	edict_t* bfg;
-
-	bfg = G_Spawn();
+	edict_t* bfg = G_Spawn();
 	bfg->s.origin = start;
 	bfg->s.angles = vectoangles(dir);
 	bfg->velocity = dir * speed;
-	bfg->movetype = MOVETYPE_FLYMISSILE;
+	bfg->movetype = g_bfgslide->integer ? MOVETYPE_SLIDE : MOVETYPE_FLYMISSILE;
 	bfg->clipmask = MASK_PROJECTILE;
 	bfg->svflags = SVF_PROJECTILE;
-	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		bfg->clipmask &= ~CONTENTS_PLAYER;
 	bfg->solid = SOLID_BBOX;
@@ -1414,15 +1398,15 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->s.modelindex = gi.modelindex("sprites/s_bfg1.sp2");
 	bfg->owner = self;
 	bfg->touch = bfg_touch;
-	bfg->nextthink = level.time + gtime_t::from_sec(8000.f / speed);
-	bfg->think = G_FreeEdict;
+	bfg->nextthink = level.time + FRAME_TIME_S;
+	bfg->think = bfg_think;
 	bfg->radius_dmg = damage;
 	bfg->dmg_radius = damage_radius;
 	bfg->classname = "bfg blast";
 	bfg->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
-
-	bfg->think = bfg_think;
-	bfg->nextthink = level.time + FRAME_TIME_S;
+	bfg->timestamp = 0_ms;
+	bfg->spawn_time = level.time;
+	bfg->expire_time = level.time + BFG_MAX_LIFETIME;
 	bfg->teammaster = bfg;
 	bfg->teamchain = nullptr;
 

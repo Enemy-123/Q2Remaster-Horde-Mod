@@ -199,6 +199,7 @@ void ApplyBenefit(const std::string& benefit) {
 			break;
 		case hash("BFG Grav-Pull Lasers"):
 			gi.cvar_set("g_bfgpull", "1");
+			gi.cvar_set("g_bfgslide", "0");
 			break;
 		default:
 			gi.Com_PrintFmt("Unknown benefit: {}\n", benefit.c_str());
@@ -883,6 +884,7 @@ void Horde_PreInit() {
 		gi.cvar_set("g_tracedbullets", "0");
 		gi.cvar_set("g_bouncygl", "0");
 		gi.cvar_set("g_bfgpull", "0");
+		gi.cvar_set("g_bfgslide", "1");
 		gi.cvar_set("g_autohaste", "0");
 		gi.cvar_set("g_chaotic", "0");
 		gi.cvar_set("g_insane", "0");
@@ -1489,6 +1491,7 @@ void ResetGame() {
 	gi.cvar_set("g_tracedbullets", "0");
 	gi.cvar_set("g_bouncygl", "0");
 	gi.cvar_set("g_bfgpull", "0");
+	gi.cvar_set("g_bfgslide", "1");
 	gi.cvar_set("g_autohaste", "0");
 
 	// Reiniciar semilla aleatoria

@@ -262,6 +262,7 @@
     <ClCompile Include="rogue\rogue_dm_tag.cpp" />
     <ClCompile Include="m_runnertank.cpp" />
     <ClCompile Include="shared.cpp" />
+    <ClCompile Include="upgradeweapons.cpp" />
     <ClCompile Include="xatrix\g_xatrix_func.cpp" />
     <ClCompile Include="xatrix\g_xatrix_items.cpp" />
     <ClCompile Include="xatrix\g_xatrix_misc.cpp" />
