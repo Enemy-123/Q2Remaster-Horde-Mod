@@ -413,7 +413,7 @@ constexpr struct weighted_item_t {
 	{ "weapon_railgun", 22, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 17, -1, 0.29f, adjust_weight_weapon },
 	{ "weapon_disintegrator", 24, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_bfg", 25, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_bfg", 20, -1, 0.17f, adjust_weight_weapon },
 
 
 	{ "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },

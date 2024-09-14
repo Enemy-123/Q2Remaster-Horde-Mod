@@ -1421,8 +1421,45 @@ static void G_PrecacheStartItems()
 }
 constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
-bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
-	std::string filename = std::string("baseq2/maps/") + mapname + ".ent";
+#include <windows.h>
+#include <string>
+
+bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string& outFilename) {
+	char modulePath[MAX_PATH];
+	HMODULE hModule = NULL;
+
+	// Get the handle of the current module (DLL)
+	if (GetModuleHandleExA(
+		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+		(LPCSTR)&LoadEntityFile,
+		&hModule)) {
+		// Get the full path of the module
+		DWORD result = GetModuleFileNameA(hModule, modulePath, MAX_PATH);
+		if (result == 0 || result == MAX_PATH) {
+			gi.Com_PrintFmt("Error obtaining module path.\n");
+			return false;
+		}
+	}
+	else {
+		gi.Com_PrintFmt("Error obtaining module handle.\n");
+		return false;
+	}
+
+	// Extract the directory of the module
+	std::string path = modulePath;
+	size_t pos = path.find_last_of("\\/");
+	if (pos != std::string::npos) {
+		path = path.substr(0, pos);
+	}
+	else {
+		gi.Com_PrintFmt("Could not determine module directory.\n");
+		return false;
+	}
+
+	// Construct the filename inside the 'maps' folder in the same directory
+	std::string filename = path + "\\maps\\" + mapname + ".ent";
+	outFilename = filename; // Pass back the filename
+
 	FILE* f = fopen(filename.c_str(), "rb");
 	if (!f) {
 		gi.Com_PrintFmt("Failed to open entity file: {}\n", filename);
@@ -1434,7 +1471,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
 	fseek(f, 0, SEEK_SET);
 
 	if (length > MAX_ENTITY_FILE_SIZE) {
-		gi.Com_PrintFmt("Entities override file length exceeds maximum: \"{}\"\n", filename);
+		gi.Com_PrintFmt("Entity file size exceeds maximum allowed: \"{}\"\n", filename);
 		fclose(f);
 		return false;
 	}
@@ -1444,7 +1481,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer) {
 	fclose(f);
 
 	if (length != read_length) {
-		gi.Com_PrintFmt("Entities override file read error: \"{}\"\n", filename);
+		gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", filename);
 		return false;
 	}
 
@@ -1498,15 +1535,17 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	// Load entity file
 	std::vector<char> entity_buffer;
-	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer);
+	std::string ent_filename;
+	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer, ent_filename);
 
 	if (ent_file_loaded) {
 		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
 		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
 			entities = entity_buffer.data();
-			gi.Com_PrintFmt("Entities override file verified and loaded: \"baseq2/maps/{}.ent\"\n", mapname);
+			gi.Com_PrintFmt("Entity override file verified and loaded: \"{}\"\n", ent_filename);
 		}
 	}
+
 
 	// Parse entities
 	while (1) {
