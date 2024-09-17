@@ -44,7 +44,10 @@ struct HordeState {
 	gtime_t         monster_spawn_time;
 	int32_t         num_to_spawn = 0;
 	int32_t         level = 0;
-}g_horde_local;
+	int32_t         queued_monsters = 0;
+	gtime_t         lastPrintTime = 0_sec; // Nueva variable
+} g_horde_local;
+
 
 int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
@@ -325,8 +328,22 @@ static void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noex
 	else {
 		CalculateStandardSpawnCount(mapSize, lvl);
 		IncludeDifficultyAdjustments(mapSize, lvl);
+
+		// Incrementar 2 monstruos por ola
+		g_horde_local.num_to_spawn += 2;
+
+		// Obtener el máximo permitido según el tamaño del mapa
+		int32_t max_spawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+			(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+
+		// Si excede el máximo, agregar a la cola
+		if (g_horde_local.num_to_spawn > max_spawn) {
+			g_horde_local.queued_monsters += (g_horde_local.num_to_spawn - max_spawn);
+			g_horde_local.num_to_spawn = max_spawn;
+		}
 	}
 }
+
 
 static void Horde_CleanBodies();
 void ResetAllSpawnAttempts() noexcept;
@@ -334,23 +351,24 @@ void VerifyAndAdjustBots();
 void ResetCooldowns() noexcept;
 
 void Horde_InitLevel(const int32_t lvl) {
-	g_totalMonstersInWave = 0; // Mover el reseteo aquí
+	g_totalMonstersInWave = 0;
 	last_wave_number++;
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
-	//g_horde_local.monster_spawn_time = level.time;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
 	cachedRemainingMonsters = -1;
 	VerifyAndAdjustBots();
-	// scaling damage switch
+
+	// Ajustar la escala de daño según el nivel
 	switch (g_horde_local.level) {
 	case 15: gi.cvar_set("g_damage_scale", "2.1"); break;
 	case 25: gi.cvar_set("g_damage_scale", "3.3"); break;
 	case 35: gi.cvar_set("g_damage_scale", "4.1"); break;
 	case 45: gi.cvar_set("g_damage_scale", "5.1"); break;
-	default: break; // Mantener el valor actual si no coincide
+	default: break;
 	}
+
 	const auto mapSize = GetMapSize(level.mapname);
 	DetermineMonsterSpawnCount(mapSize, lvl);
 	CheckAndApplyBenefit(g_horde_local.level);
@@ -360,6 +378,7 @@ void Horde_InitLevel(const int32_t lvl) {
 	Horde_CleanBodies();
 	gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
 }
+
 bool G_IsDeathmatch() noexcept {
 	return deathmatch->integer && g_horde->integer;
 }
@@ -1614,18 +1633,21 @@ bool calculationsStarted = false;
 
 static void ResetWaveAdvanceState() noexcept {
 	g_independent_timer_start = level.time;
-	// g_totalMonstersInWave = 0; // Eliminar esta línea
 	g_maxMonstersReached = false;
 	g_allowWaveAdvance = false;
 	g_lowPercentageTriggered = false;
 	calculationsStarted = false;
+
+	// Resetear el tiempo de la última impresión
+	g_horde_local.lastPrintTime = 0_sec;
 }
 
-
-
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
-	gi.Com_PrintFmt("Checking remaining monsters condition. Wave: {}, Remaining: {}/{}\n",
-		current_wave_level, cachedRemainingMonsters, g_totalMonstersInWave);
+	if (level.time - g_horde_local.lastPrintTime >= 3_sec) {
+		gi.Com_PrintFmt("Checking remaining monsters condition. Wave: {}, Remaining: {}/{}\n",
+			current_wave_level, cachedRemainingMonsters, g_totalMonstersInWave);
+		g_horde_local.lastPrintTime = level.time;
+	}
 
 	if (g_allowWaveAdvance) {
 		gi.Com_PrintFmt("Wave advance allowed manually.\n");
@@ -1668,8 +1690,11 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	if (g_totalMonstersInWave > 0) {
 		const float percentageRemaining = static_cast<float>(cachedRemainingMonsters) / static_cast<float>(g_totalMonstersInWave);
 
-		gi.Com_PrintFmt("Remaining monsters: {}/{} ({}%)\n",
-			cachedRemainingMonsters, g_totalMonstersInWave, percentageRemaining * 100);
+		if (level.time - g_horde_local.lastPrintTime >= 3_sec) {
+			gi.Com_PrintFmt("Remaining monsters: {}/{} ({}%)\n",
+				cachedRemainingMonsters, g_totalMonstersInWave, percentageRemaining * 100);
+			g_horde_local.lastPrintTime = level.time;
+		}
 
 		if (percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 			if (!g_lowPercentageTriggered) {
@@ -1687,7 +1712,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	}
 
 	const gtime_t conditionElapsed = (g_maxMonstersReached || g_lowPercentageTriggered) ? (level.time - g_condition_start_time) : 0_sec;
-	const gtime_t independentElapsed = level.time - g_independent_timer_start; // Asegúrate de que esta línea está presente
+	const gtime_t independentElapsed = level.time - g_independent_timer_start;
 
 	if ((g_maxMonstersReached || g_lowPercentageTriggered) && (conditionElapsed >= timeThreshold)) {
 		shouldAdvance = true;
@@ -1862,8 +1887,8 @@ static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 static edict_t* SpawnMonsters() {
-	static const auto mapSize = GetMapSize(level.mapname);
-	static std::vector<edict_t*> available_spawns;
+	const auto mapSize = GetMapSize(level.mapname);
+	std::vector<edict_t*> available_spawns;
 	available_spawns.clear();
 	available_spawns.reserve(MAX_EDICTS);
 
@@ -1901,7 +1926,7 @@ static edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		auto monster = G_Spawn();
+		edict_t* monster = G_Spawn();
 		if (!monster) {
 			gi.Com_PrintFmt("G_Spawn Warning: Failed to spawn monster\n");
 			continue;
@@ -1939,6 +1964,19 @@ static edict_t* SpawnMonsters() {
 		MonsterSpawned(monster);
 		available_spawns.erase(available_spawns.begin() + spawn_index);
 		last_spawned_monster = monster;
+	}
+
+	// Manejar la cola de monstruos pendientes
+	if (g_horde_local.queued_monsters > 0) {
+		const int32_t activeMonsters = CalculateRemainingMonsters();
+		const int32_t max_spawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+			(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+		const int32_t spawnable = max_spawn - activeMonsters;
+		if (spawnable > 0) {
+			const int32_t to_spawn = std::min(g_horde_local.queued_monsters, spawnable);
+			g_horde_local.num_to_spawn += to_spawn;
+			g_horde_local.queued_monsters -= to_spawn;
+		}
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
@@ -1983,7 +2021,6 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 	{MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n"}
 };
 
-// Función para enviar el mensaje de limpieza actualizada
 void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 	const MessageType messageType = g_insane->integer ? MessageType::Insane :
 		(g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
@@ -1997,7 +2034,7 @@ void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 	}
 	else if (reason == WaveEndReason::MonstersRemaining) {
 		// Mensaje cuando la ola avanza por condiciones de monstruos restantes
-		formattedMessage = fmt::format("Wave Level {level} Cleared!\n",
+		formattedMessage = fmt::format("Wave Level {level} Pushed Back, But Still Threatening!\n",
 			fmt::arg("level", g_horde_local.level));
 	}
 	else if (reason == WaveEndReason::TimeLimitReached) {
