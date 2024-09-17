@@ -10,8 +10,6 @@ enum class WaveEndReason {
 	TimeLimitReached
 };
 
-
-
 int GetNumActivePlayers();
 int GetNumSpectPlayers();
 int GetNumHumanPlayers();
@@ -1833,7 +1831,7 @@ static const char* GetRandomWaveSound() {
 	return WAVE_SOUNDS[dist(mt_rand)];
 }
 
-static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
+void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 	const char* message;
 
 	if (!g_insane->integer) {
@@ -1852,14 +1850,8 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 
 	// Reproducir un sonido aleatorio
 	gi.sound(world, CHAN_VOICE, gi.soundindex(GetRandomWaveSound()), 1, ATTN_NONE, 0);
-
-	//// Resetear el daño total para todos los jugadores activos
-	//for (const auto player : active_players()) {
-	//    if (player->client) {
-	//        player->client->total_damage = 0;
-	//    }
-	//}
 }
+
 
 // Llamar a esta función durante la inicialización del juego
 void InitializeWaveSystem() noexcept {
@@ -2018,7 +2010,6 @@ void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 	UpdateHordeMessage(formattedMessage, duration);
 }
 
-
 void Horde_RunFrame() {
 	const auto mapSize = GetMapSize(level.mapname);
 
@@ -2066,7 +2057,7 @@ void Horde_RunFrame() {
 			if (g_horde_local.num_to_spawn == 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
-					gi.LocBroadcast_Print(PRINT_HIGH, "\n\n\nNew Wave Is Here.\nWave Level: {}\n", g_horde_local.level);
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nNew Wave Is Here.\nWave Level: {}\n", g_horde_local.level);
 					next_wave_message_sent = true; // Evitar que el mensaje se imprima múltiples veces
 				}
 				g_horde_local.state = horde_state_t::cleanup;
@@ -2085,6 +2076,20 @@ void Horde_RunFrame() {
 			SendCleanupMessage(5_sec, reason);
 			gi.Com_PrintFmt("Wave {} completed.\n", g_horde_local.level);
 
+			// Activar g_chaotic o g_insane dependiendo de current_wave_level
+			if (current_wave_level >= 15 && current_wave_level <= 28) {
+				gi.cvar_set("g_insane", "1");
+				gi.cvar_set("g_chaotic", "0");
+			}
+			else if (current_wave_level >= 31) {
+				gi.cvar_set("g_insane", "2");
+				gi.cvar_set("g_chaotic", "0");
+			}
+			else if (current_wave_level <= 14) {
+				gi.cvar_set("g_insane", "0");
+				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
+			}
+
 			// Cambiar al siguiente estado
 			g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
 			g_horde_local.state = horde_state_t::rest;
@@ -2097,6 +2102,10 @@ void Horde_RunFrame() {
 				reason = WaveEndReason::AllMonstersDead;
 				SendCleanupMessage(5_sec, reason);
 				gi.Com_PrintFmt("Wave {} completed by killing all monsters.\n", g_horde_local.level);
+
+				// Desactivar g_chaotic y g_insane
+				gi.cvar_set("g_chaotic", "0");
+				gi.cvar_set("g_insane", "0");
 
 				// Cambiar al siguiente estado
 				g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
@@ -2111,16 +2120,9 @@ void Horde_RunFrame() {
 		break;
 	}
 
-
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time) {
-			if (g_chaotic->integer || g_insane->integer) {
-				HandleWaveRestMessage(4_sec);
-			}
-			else {
-				gi.LocBroadcast_Print(PRINT_CENTER, "Loading Next Wave");
-				gi.sound(world, CHAN_VOICE, gi.soundindex("world/lite_on1.wav"), 1, ATTN_NONE, 0);
-			}
+			HandleWaveRestMessage(4_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
@@ -2136,6 +2138,7 @@ void Horde_RunFrame() {
 	// Actualizar el HUD de la horda
 	UpdateHordeHUD();
 }
+
 // Función para manejar el evento de reinicio
 void HandleResetEvent() {
 	ResetGame();
