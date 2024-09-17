@@ -1428,12 +1428,18 @@ void CTFSetIDView(edict_t* ent) {
 }
 
 // En el archivo donde manejas la muerte de entidades
-// En el archivo donde manejas la muerte de entidades
+void MonsterDied(const edict_t* monster);
 void OnEntityDeath(const edict_t* self) {
+
+	if (self->svflags & SVF_MONSTER) { //need ai do not count?
+		MonsterDied(self);
+	}
+
 	if (self && self->inuse) {
 		int const entity_index = self - g_edicts;
 		g_entityInfoManager.removeEntityInfo(entity_index);
 	}
+
 }
 
 // Asegúrate de llamar a esto cuando una entidad es removida del juego

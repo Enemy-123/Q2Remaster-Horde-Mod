@@ -516,29 +516,38 @@ void AssignMonsterTeam(edict_t* ent) {
 }
 bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
-	if (!ent1 || !ent2) {
+	if (!ent1 || !ent2)
 		return false;
+
+	// No podemos estar en el mismo equipo con nosotros mismos
+	if (ent1 == ent2)
+		return false;
+
+	if (G_IsCooperative() && !g_horde->integer)
+	{
+		// En modo cooperativo, los jugadores están en el mismo equipo
+		if (ent1->client && ent2->client)
+			return true;
+		else
+			return false; // Los demás entidades no están en el mismo equipo
 	}
-	//if (G_IsCooperative())
-	//{
-	//	if (!ent1->client || !ent2->client)
-	//	{
-	//		return false;
-	//	}
-	//	else if (ent1 == ent2)
-	//	{
-	//		return false;
-	//	}
-	//	if (G_TeamplayEnabled() && ent1->client && ent2->client)
-	//	{
-	//		if (ent1->client->resp.ctf_team == ent2->client->resp.ctf_team)
-	//		{
-	//			return true;
-	//		}
-	//	}
-	//	return false;
-	//}
-	//else if (g_horde->integer)
+	else if (G_TeamplayEnabled() && !g_horde->integer)
+	{
+		// En modo de juego en equipo, verificamos si están en el mismo equipo
+		if (ent1->client && ent2->client)
+		{
+			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+		}
+		else if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER) && !g_horde->integer)
+		{
+			// Lógica para monstruos en equipo
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
+		}
+		// Aquí puedes agregar lógica adicional para otras entidades (e.g., trampas, láseres)
+	}
+	else if (g_horde->integer)
 	{
 		if (ent1->client && ent2->client)
 		{
