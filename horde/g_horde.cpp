@@ -352,12 +352,12 @@ void ResetCooldowns() noexcept;
 
 void Horde_InitLevel(const int32_t lvl) {
 	g_totalMonstersInWave = 0;
+	cachedRemainingMonsters = 0;  // Indica que necesita ser calculado
 	last_wave_number++;
 	g_horde_local.level = lvl;
 	current_wave_level = lvl;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
-	cachedRemainingMonsters = -1;
 	VerifyAndAdjustBots();
 
 	// Ajustar la escala de daño según el nivel
@@ -1453,6 +1453,7 @@ static void ResetRecentBosses() noexcept {
 	recent_bosses.clear();
 }
 
+static void ResetWaveAdvanceState() noexcept;
 void ResetGame() {
 	// Reiniciar estructuras de datos globales
 	lastSpawnPointTime.clear();
@@ -1490,7 +1491,7 @@ void ResetGame() {
 	ResetCooldowns();
 	ResetBenefits();
 	ResetRecentBosses();
-
+	ResetWaveAdvanceState();
 
 	// Reset wave information
 	g_horde_local.level = 0;  // Reset current wave level
@@ -1568,15 +1569,15 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	// Configuración base según el tamaño del mapa
 	if (mapSize.isBigMap) {
-		params.maxMonsters = 24;
+		params.maxMonsters = 18;
 		params.timeThreshold = random_time(20_sec, 25_sec);
 	}
 	else if (mapSize.isSmallMap) {
-		params.maxMonsters = numHumanPlayers >= 3 ? 10 : 8;
+		params.maxMonsters = numHumanPlayers >= 3 ? 9 : 7;
 		params.timeThreshold = random_time(5_sec, 7_sec);
 	}
 	else { // Medium map
-		params.maxMonsters = numHumanPlayers >= 3 ? 16 : 14;
+		params.maxMonsters = numHumanPlayers >= 3 ? 14 : 11;
 		params.timeThreshold = random_time(10_sec, 15_sec);
 	}
 
@@ -1602,7 +1603,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	// Configuración para pocos monstruos restantes
 	params.lowPercentageTimeThreshold = random_time(4_sec, 6_sec);
-	params.lowPercentageThreshold = 0.3f;
+	params.lowPercentageThreshold = 0.25f;
 
 	// Ajuste del temporizador independiente
 	params.independentTimeThreshold = random_time(60_sec, 75_sec) + gtime_t::from_sec(lvl / 2);
@@ -1610,23 +1611,28 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	return params;
 }
 
+static gtime_t g_lastMonsterCountVerification = 0_ms;
+constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
+
+// Función para contar los monstruos activos
+static int32_t CountActiveMonsters() {
+	int32_t count = 0;
+	for (auto const* ent : active_monsters()) {
+		if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+			count++;
+		}
+	}
+	return count;
+}
+
+// Función para verificar y ajustar el conteo de monstruos
+void VerifyMonsterCount() {
+}
 
 static int32_t CalculateRemainingMonsters() {
-	static int32_t lastCalculatedRemaining = -1;
-	static gtime_t lastCalculationTime;
-
-	if (lastCalculatedRemaining == -1 || (level.time - lastCalculationTime) >= 0.5_sec) {
-		int32_t remaining = 0;
-		for (auto const* ent : active_monsters()) {
-			if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-				++remaining;
-			}
-		}
-		lastCalculatedRemaining = remaining;
-		lastCalculationTime = level.time;
-	}
-	return lastCalculatedRemaining;
+	return level.total_monsters - level.killed_monsters;
 }
+
 
 
 bool calculationsStarted = false;
@@ -1638,8 +1644,25 @@ static void ResetWaveAdvanceState() noexcept {
 	g_lowPercentageTriggered = false;
 	calculationsStarted = false;
 
-	// Resetear el tiempo de la última impresión
 	g_horde_local.lastPrintTime = 0_sec;
+
+	cachedRemainingMonsters = -1;
+	g_totalMonstersInWave = 0;
+
+	g_condition_start_time = 0_ms;
+
+	boss_spawned_for_wave = false;
+	flying_monsters_mode = false;
+
+	Horde_CleanBodies();
+
+	g_lastParams = ConditionParams();
+	g_lastWaveNumber = -1;
+	g_lastNumHumanPlayers = -1;
+
+	g_horde_local.queued_monsters = 0;
+
+	// Reiniciar cualquier otro estado específico de la ola que sea necesario
 }
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
@@ -1748,7 +1771,7 @@ void AllowNextWaveAdvance() noexcept {
 	g_allowWaveAdvance = true;
 }
 
-static void MonsterSpawned(const edict_t* monster) {
+void MonsterSpawned(const edict_t* monster) {
 	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 		cachedRemainingMonsters++;
 		g_totalMonstersInWave++;
@@ -1756,12 +1779,16 @@ static void MonsterSpawned(const edict_t* monster) {
 }
 
 void MonsterDied(const edict_t* monster) {
-	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-		cachedRemainingMonsters--;
+	if (!(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+		if (cachedRemainingMonsters > 0) {
+			cachedRemainingMonsters--;
+		}
+		else {
+			gi.Com_PrintFmt("Warning: Attempting to decrement cachedRemainingMonsters when it's already 0 or less.\n");
+			cachedRemainingMonsters = CalculateRemainingMonsters();  // Forzar recálculo
+		}
 	}
 }
-
-
 
 inline int32_t GetNumActivePlayers() {
 	int32_t numActivePlayers = 0;
@@ -2050,6 +2077,11 @@ void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 void Horde_RunFrame() {
 	const auto mapSize = GetMapSize(level.mapname);
 
+
+	if (level.time >= g_lastMonsterCountVerification + MONSTER_COUNT_VERIFICATION_INTERVAL) {
+		VerifyMonsterCount();
+		g_lastMonsterCountVerification = level.time;
+	}
 	// Si hay un número personalizado de monstruos, sobrescribir el número a spawnear
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
@@ -2094,7 +2126,7 @@ void Horde_RunFrame() {
 			if (g_horde_local.num_to_spawn == 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nNew Wave Is Here.\nWave Level: {}\n", g_horde_local.level);
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", g_horde_local.level);
 					next_wave_message_sent = true; // Evitar que el mensaje se imprima múltiples veces
 				}
 				g_horde_local.state = horde_state_t::cleanup;
@@ -2107,7 +2139,7 @@ void Horde_RunFrame() {
 		WaveEndReason reason;
 
 		// Llamar a CheckRemainingMonstersCondition y pasar 'reason' como segundo argumento
-		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
+		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
 			// Enviar el mensaje de limpieza con la razón correcta
 			SendCleanupMessage(5_sec, reason);
