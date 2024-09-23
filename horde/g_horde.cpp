@@ -362,7 +362,7 @@ struct ConditionParams {
 		timeThreshold(0_sec),
 		lowPercentageTimeThreshold(0_sec),
 		independentTimeThreshold(0_sec),
-		lowPercentageThreshold(0.15f),
+		lowPercentageThreshold(0.25f),
 		aggressiveTimeReductionThreshold(0.3f) {}
 };
 
@@ -375,7 +375,7 @@ static float CalculatePlayerPerformance() {
 
 // New constants and helper functions
 constexpr gtime_t BASE_MAX_WAVE_TIME = 45_sec;
-constexpr gtime_t TIME_INCREASE_PER_LEVEL = 0.1_sec;
+constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.1_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 5_sec;
 constexpr float LATE_STAGE_THRESHOLD = 0.7f;
@@ -433,7 +433,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
 
 	// Configuration for low percentage of monsters remaining
-	params.lowPercentageTimeThreshold = random_time(15_sec, 20_sec);
+	params.lowPercentageTimeThreshold = random_time(10_sec, 16_sec);
 	params.lowPercentageThreshold = 0.25f;
 
 	// Set independent time threshold
@@ -1729,7 +1729,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	}
 
 	// Calculate remaining time until waveEndTime
-	gtime_t remainingTime = waveEndTime - currentTime;
+	const gtime_t remainingTime = waveEndTime - currentTime;
 
 	// Display multiple warning messages
 	for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
