@@ -356,7 +356,7 @@ USE(actor_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	self->goalentity = self->movetarget = G_PickTarget(self->target);
 	if ((!self->movetarget) || (strcmp(self->movetarget->classname, "target_actor") != 0))
 	{
-		gi.Com_PrintFmt("{}: bad target {}\n", *self, self->target);
+		gi.Com_PrintFmt("PRINT: {}: bad target {}\n", *self, self->target);
 		self->target = nullptr;
 		self->monsterinfo.pausetime = HOLD_FOREVER;
 		self->monsterinfo.stand(self);
@@ -381,14 +381,14 @@ void SP_misc_actor(edict_t *self)
 
 	if (!self->targetname)
 	{
-		gi.Com_PrintFmt("{}: no targetname\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no targetname\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
 
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("{}: no target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no target\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -539,7 +539,7 @@ TOUCH(target_actor_touch) (edict_t *self, edict_t *other, const trace_t &tr, boo
 void SP_target_actor(edict_t *self)
 {
 	if (!self->targetname)
-		gi.Com_PrintFmt("{}: no targetname\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no targetname\n", *self);
 
 	self->solid = SOLID_TRIGGER;
 	self->touch = target_actor_touch;

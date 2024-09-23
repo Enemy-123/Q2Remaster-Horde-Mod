@@ -85,7 +85,7 @@ void InitSave()
 			if (g_strict_saves->integer)
 				gi.Com_ErrorFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
 			else
-				gi.Com_PrintFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
+				gi.Com_PrintFmt("PRINT: link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
 		}
 
 		if (list_str_hash.find(link->name) != list_str_hash.end())
@@ -98,7 +98,7 @@ void InitSave()
 			if (g_strict_saves->integer)
 				gi.Com_ErrorFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
 			else
-				gi.Com_PrintFmt("link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
+				gi.Com_PrintFmt("PRINT: link pointer {} already linked as {}; fatal error", link_ptr, existing.second->name);
 		}
 
 		list_hash.emplace(link_ptr, link);
@@ -135,7 +135,7 @@ const save_data_list_t* save_data_list_t::fetch(const void* ptr, save_data_tag_t
 	if (g_strict_saves->integer)
 		gi.Com_ErrorFmt("value pointer {} was not linked to save tag {}", ptr, (int32_t)tag);
 	else
-		gi.Com_PrintFmt("value pointer {} was not linked to save tag {}", ptr, (int32_t)tag);
+		gi.Com_PrintFmt("PRINT: value pointer {} was not linked to save tag {}", ptr, (int32_t)tag);
 
 	return nullptr;
 }
@@ -160,7 +160,7 @@ void json_print_error(const char* field, const char* message, bool fatal)
 	if (fatal || g_strict_saves->integer)
 		gi.Com_ErrorFmt("Error loading JSON\n{}.{}: {}", json_error_stack, field, message);
 
-	gi.Com_PrintFmt("Warning loading JSON\n{}.{}: {}\n", json_error_stack, field, message);
+	gi.Com_PrintFmt("PRINT: Warning loading JSON\n{}.{}: {}\n", json_error_stack, field, message);
 }
 
 using save_void_t = save_data_t<void, UINT_MAX>;

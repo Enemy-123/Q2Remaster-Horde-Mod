@@ -1220,7 +1220,7 @@ void monster_triggered_start(edict_t* self)
 			G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
 			G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
 			G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr)) {
-		gi.Com_PrintFmt("{}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
 	}
 }
 
@@ -1390,7 +1390,7 @@ bool monster_start(edict_t* self)
 	{
 		self->item = FindItemByClassname(st.item);
 		if (!self->item)
-			gi.Com_PrintFmt("{}: bad item: {}\n", *self, st.item);
+			gi.Com_PrintFmt("PRINT: {}: bad item: {}\n", *self, st.item);
 	}
 
 	// randomize what frame they start on
@@ -1435,7 +1435,7 @@ stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 	self->s.origin = check;
 
 	if (result == stuck_result_t::FIXED)
-		gi.Com_PrintFmt("fixed stuck {}\n", *self);
+		gi.Com_PrintFmt("PRINT: fixed stuck {}\n", *self);
 
 	return result;
 }
@@ -1503,7 +1503,7 @@ void monster_start_go(edict_t* self)
 		}
 
 		if (is_stuck)
-			gi.Com_PrintFmt("WARNING: {} stuck in solid\n", *self);
+			gi.Com_PrintFmt("PRINT: WARNING: {} stuck in solid\n", *self);
 	}
 
 
@@ -1537,7 +1537,7 @@ void monster_start_go(edict_t* self)
 			}
 		}
 		if (notcombat && self->combattarget)
-			gi.Com_PrintFmt("{}: has target with mixed types\n", *self);
+			gi.Com_PrintFmt("PRINT: {}: has target with mixed types\n", *self);
 		if (fixup)
 			self->target = nullptr;
 	}
@@ -1552,7 +1552,7 @@ void monster_start_go(edict_t* self)
 		{
 			if (strcmp(target->classname, "point_combat") != 0)
 			{
-				gi.Com_PrintFmt("{} has a bad combattarget {} ({})\n", *self, self->combattarget, *target);
+				gi.Com_PrintFmt("PRINT: {} has a bad combattarget {} ({})\n", *self, self->combattarget, *target);
 			}
 		}
 	}
@@ -1565,7 +1565,7 @@ void monster_start_go(edict_t* self)
 		self->goalentity = self->movetarget = G_PickTarget(self->target);
 		if (!self->movetarget)
 		{
-			gi.Com_PrintFmt("{}: can't find target {}\n", *self, self->target);
+			gi.Com_PrintFmt("PRINT: {}: can't find target {}\n", *self, self->target);
 			self->target = nullptr;
 			self->monsterinfo.pausetime = HOLD_FOREVER;
 			if (!spawn_dead)
@@ -1727,14 +1727,14 @@ void SP_trigger_health_relay(edict_t* self)
 {
 	if (!self->targetname)
 	{
-		gi.Com_PrintFmt("{} missing targetname\n", *self);
+		gi.Com_PrintFmt("PRINT: {} missing targetname\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
 
 	if (self->speed < 0 || self->speed > 100)
 	{
-		gi.Com_PrintFmt("{} has bad \"speed\" (health percentage); must be between 0 and 100, inclusive\n", *self);
+		gi.Com_PrintFmt("PRINT: {} has bad \"speed\" (health percentage); must be between 0 and 100, inclusive\n", *self);
 		G_FreeEdict(self);
 		return;
 	}

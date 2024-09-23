@@ -1202,7 +1202,7 @@ THINK(droptofloor) (edict_t* ent) -> void
 			else
 			{
 				// RAFAEL
-				gi.Com_PrintFmt("{}: droptofloor: startsolid\n", *ent);
+				gi.Com_PrintFmt("PRINT: {}: droptofloor: startsolid\n", *ent);
 				G_FreeEdict(ent);
 				return;
 				// RAFAEL
@@ -1358,7 +1358,7 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	else if (ent->spawnflags.value >= SPAWNFLAG_ITEM_MAX.value) // PGM
 	{
 		ent->spawnflags = SPAWNFLAG_NONE;
-		gi.Com_PrintFmt("{} has invalid spawnflags set\n", *ent);
+		gi.Com_PrintFmt("PRINT: {} has invalid spawnflags set\n", *ent);
 	}
 
 	if (G_IsDeathmatch())
@@ -1467,13 +1467,13 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	{
 		if (item->pickup == Pickup_sentrygun || item->pickup == Pickup_Nuke)
 		{
-			gi.Com_PrintFmt("{} spawned in non-DM; freeing...\n", *ent);
+			gi.Com_PrintFmt("PRINT: {} spawned in non-DM; freeing...\n", *ent);
 			G_FreeEdict(ent);
 			return;
 		}
 		if ((item->use == Use_Vengeance) || (item->use == Use_Hunter))
 		{
-			gi.Com_PrintFmt("{} spawned in non-DM; freeing...\n", *ent);
+			gi.Com_PrintFmt("PRINT: {} spawned in non-DM; freeing...\n", *ent);
 			G_FreeEdict(ent);
 			return;
 		}

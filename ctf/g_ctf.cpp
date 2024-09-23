@@ -888,7 +888,7 @@ THINK(CTFFlagSetup) (edict_t* ent) -> void
 	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, dest, ent, MASK_SOLID);
 	if (tr.startsolid)
 	{
-		gi.Com_PrintFmt("CTFFlagSetup: {} startsolid at {}\n", ent->classname, ent->s.origin);
+		gi.Com_PrintFmt("PRINT: CTFFlagSetup: {} startsolid at {}\n", ent->classname, ent->s.origin);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -1459,7 +1459,7 @@ void CleanupInvalidEntities() {
 			// Verifica si la entidad está en un estado inválido
 			if (ent->solid == SOLID_NOT && ent->health > 0 && ent->takedamage == false) {
 				// Esta entidad parece estar en un estado bugueado
-				gi.Com_PrintFmt("Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
+				gi.Com_PrintFmt("PRINT: Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
 
 				// Forzar la muerte de la entidad
 				ent->health = -1;
@@ -2303,7 +2303,7 @@ THINK(TechThink) (edict_t* tech) -> void
 {
 	if (tech == nullptr)
 	{
-		gi.Com_PrintFmt("TechThink: Invalid tech entity\n");
+		gi.Com_PrintFmt("PRINT: TechThink: Invalid tech entity\n");
 		return;
 	}
 
@@ -2317,7 +2317,7 @@ THINK(TechThink) (edict_t* tech) -> void
 		}
 		else
 		{
-			gi.Com_PrintFmt("TechThink: Tech entity has no item\n");
+			gi.Com_PrintFmt("PRINT: TechThink: Tech entity has no item\n");
 		}
 	}
 	else
@@ -2375,14 +2375,14 @@ static void SpawnTech(gitem_t* item, edict_t* spot)
 {
 	if (item == nullptr || spot == nullptr)
 	{
-		gi.Com_PrintFmt("SpawnTech: Invalid item or spot\n");
+		gi.Com_PrintFmt("PRINT: SpawnTech: Invalid item or spot\n");
 		return;
 	}
 
 	edict_t* ent = G_Spawn();
 	if (ent == nullptr)
 	{
-		gi.Com_PrintFmt("SpawnTech: Failed to spawn entity\n");
+		gi.Com_PrintFmt("PRINT: SpawnTech: Failed to spawn entity\n");
 		return;
 	}
 
@@ -2400,7 +2400,7 @@ static void SpawnTech(gitem_t* item, edict_t* spot)
 	}
 	else
 	{
-		gi.Com_PrintFmt("SpawnTech: Item has no world model\n");
+		gi.Com_PrintFmt("PRINT: SpawnTech: Item has no world model\n");
 	}
 
 	ent->solid = SOLID_TRIGGER;
@@ -2501,7 +2501,7 @@ int CTFApplyResistance(edict_t* ent, int dmg)
 int CTFApplyStrength(edict_t* ent, int dmg) {
 	if (ent == nullptr) {
 		// Este error sí debería ser raro y vale la pena registrarlo
-		gi.Com_PrintFmt("CTFApplyStrength: Error - ent is null\n");
+		gi.Com_PrintFmt("PRINT: CTFApplyStrength: Error - ent is null\n");
 		return dmg;
 	}
 
@@ -3431,7 +3431,7 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		return;
 	default:
 		// Manejo de opciones no previstas
-		gi.Com_PrintFmt("Invalid menu option selected for player {} hudmenuhandler {}\n", ent->client->pers.netname, option);
+		gi.Com_PrintFmt("PRINT: Invalid menu option selected for player {} hudmenuhandler {}\n", ent->client->pers.netname, option);
 		PMenu_Close(ent);
 		break;
 	}

@@ -427,7 +427,7 @@ void ApplyBossEffects(edict_t* boss)
 	boss->max_health = boss->health;
 	boss->initial_max_health = boss->health;
 
-	gi.Com_PrintFmt("Boss health set to: {}/{}\n", boss->health, boss->max_health);
+	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
 //getting real name
 
@@ -558,7 +558,7 @@ void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_tou
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
-    gi.Com_PrintFmt("Starting PushEntitiesAway at position: {}\n", center);
+    gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
 
     const int max_attempts = 5; // Maximum number of attempts to push entities
     std::vector<edict_t*> stubborn_entities; // Entities that couldn't be moved after all attempts
@@ -654,7 +654,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 						entity->client->oldgroundentity = entity->groundentity;
 					}
 
-					gi.Com_PrintFmt("Wave {}: Entity {} pushed. New velocity: {}\n",
+					gi.Com_PrintFmt("PRINT: Wave {}: Entity {} pushed. New velocity: {}\n",
 						wave + 1, entity->classname ? entity->classname : "unknown", entity->velocity);
 
 					pushed = true;
@@ -665,14 +665,14 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			if (!pushed) {
 				// The entity couldn't be moved after multiple attempts
 				stubborn_entities.push_back(entity);
-				gi.Com_PrintFmt("Entity {} at {} could not be moved after {} attempts.\n",
+				gi.Com_PrintFmt("PRINT: Entity {} at {} could not be moved after {} attempts.\n",
 					entity->classname ? entity->classname : "unknown", entity->s.origin, max_attempts);
 			}
 		}
 
         // Wait for the specified interval before the next wave
         if (wave < num_waves - 1) {
-            gi.Com_PrintFmt("Waiting {} milliseconds before next wave\n", wave_interval_ms);
+            gi.Com_PrintFmt("PRINT: Waiting {} milliseconds before next wave\n", wave_interval_ms);
             // Implement your delay mechanism here
         }
     }
@@ -681,7 +681,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
     for (auto* ent : entities_to_remove) {
         if (ent && ent->inuse) {
             RemoveEntity(ent);
-            gi.Com_PrintFmt("Entity {} removed.\n", ent->classname ? ent->classname : "unknown");
+            gi.Com_PrintFmt("PRINT: Entity {} removed.\n", ent->classname ? ent->classname : "unknown");
         }
     }
 
@@ -696,22 +696,22 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
             if (spawn_point) {
                 TeleportEntity(stubborn_ent, spawn_point);
 
-                gi.Com_PrintFmt("Player %s teleported to spawn point.\n", stubborn_ent->client->pers.netname);
+                gi.Com_PrintFmt("PRINT: Player %s teleported to spawn point.\n", stubborn_ent->client->pers.netname);
             }
             else {
-                gi.Com_PrintFmt("WARNING: Could not find a safe spawn point for player %s.\n", stubborn_ent->client->pers.netname);
+                gi.Com_PrintFmt("PRINT: WARNING: Could not find a safe spawn point for player %s.\n", stubborn_ent->client->pers.netname);
             }
         }
         else {
             // For non-player entities, remove them
             if (stubborn_ent && stubborn_ent->inuse) {
                 RemoveEntity(stubborn_ent);
-                gi.Com_PrintFmt("Non-player entity %s removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
+                gi.Com_PrintFmt("PRINT: Non-player entity %s removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
             }
         }
     }
 
-    gi.Com_PrintFmt("PushEntitiesAway completed\n");
+    gi.Com_PrintFmt("PRINT: PushEntitiesAway completed\n");
 }
 
 bool string_equals(const char* str1, const std::string_view& str2) {
@@ -774,18 +774,18 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 			if (spawn_point)
 			{
 				TeleportEntity(ent, spawn_point);
-				gi.Com_PrintFmt("Player {} teleported to spawn point to make room for boss.\n", ent->client->pers.netname);
+				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point to make room for boss.\n", ent->client->pers.netname);
 			}
 			else
 			{
-				gi.Com_PrintFmt("WARNING: Could not find a spawn point for player %s.\n", ent->client->pers.netname);
+				gi.Com_PrintFmt("PRINT: WARNING: Could not find a spawn point for player %s.\n", ent->client->pers.netname);
 			}
 		}
 		else
 		{
 			// For non-player entities, remove them
 			RemoveEntity(ent);
-			gi.Com_PrintFmt("Entity %s removed from boss spawn area.\n", ent->classname ? ent->classname : "unknown");
+			gi.Com_PrintFmt("PRINT: Entity %s removed from boss spawn area.\n", ent->classname ? ent->classname : "unknown");
 		}
 	}
 }

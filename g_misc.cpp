@@ -374,7 +374,7 @@ void SP_path_corner(edict_t* self)
 {
 	if (!self->targetname)
 	{
-		gi.Com_PrintFmt("{} with no targetname\n", *self);
+		gi.Com_PrintFmt("PRINT: {} with no targetname\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -405,7 +405,7 @@ TOUCH(point_combat_touch) (edict_t* self, edict_t* other, const trace_t& tr, boo
 		other->goalentity = other->movetarget = G_PickTarget(other->target);
 		if (!other->goalentity)
 		{
-			gi.Com_PrintFmt("{} target {} does not exist\n", *self, self->target);
+			gi.Com_PrintFmt("PRINT: {} target {} does not exist\n", *self, self->target);
 			other->movetarget = self;
 		}
 		// [Paril-KEX] allow them to be re-used
@@ -810,7 +810,7 @@ void SP_func_animation(edict_t* self)
 {
 	if (!self->bmodel_anim.enabled)
 	{
-		gi.Com_PrintFmt("{} has no animation data\n", *self);
+		gi.Com_PrintFmt("PRINT: {} has no animation data\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -1106,7 +1106,7 @@ void SP_func_explosive(edict_t* self)
 		if (self->sounds == 1)
 			self->noise_index = gi.soundindex("world/brkglas.wav");
 		else
-			gi.Com_PrintFmt("{}: invalid \"sounds\" {}\n", *self, self->sounds);
+			gi.Com_PrintFmt("PRINT: {}: invalid \"sounds\" {}\n", *self, self->sounds);
 	}
 
 	gi.linkentity(self);
@@ -1542,7 +1542,7 @@ void SP_misc_viper(edict_t* ent)
 {
 	if (!ent->target)
 	{
-		gi.Com_PrintFmt("{} without a target\n", *ent);
+		gi.Com_PrintFmt("PRINT: {} without a target\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -1661,7 +1661,7 @@ USE(misc_strogg_ship_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 void SP_misc_strogg_ship(edict_t* ent) {
 	if (!ent->target)
 	{
-		gi.Com_PrintFmt("{} without a target\n", *ent);
+		gi.Com_PrintFmt("PRINT: {} without a target\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -1699,23 +1699,23 @@ void SP_misc_strogg_ship(edict_t* ent) {
 	//}
 
 	//if (reference) {
-	//	gi.Com_PrintFmt("Reference player found at: {} {} {}\n", reference->s.origin[0], reference->s.origin[1], reference->s.origin[2]);
+	//	gi.Com_PrintFmt("PRINT: Reference player found at: {} {} {}\n", reference->s.origin[0], reference->s.origin[1], reference->s.origin[2]);
 
 	//	edict_t* path_corner_sky = CreatePathCornerOnSkySurface(reference);
 	//	edict_t* path_corner_player = CreatePathCornerAbovePlayer(reference);
 	//	if (path_corner_sky && path_corner_player) {
 	//		path_corner_sky->target = path_corner_player->targetname; // Conectar los dos path_corners
 	//		ent->target = path_corner_sky->targetname;
-	//		gi.Com_PrintFmt("Path corners created successfully\n");
+	//		gi.Com_PrintFmt("PRINT: Path corners created successfully\n");
 	//	}
 	//	else {
-	//		gi.Com_PrintFmt("Failed to create path_corners\n");
+	//		gi.Com_PrintFmt("PRINT: Failed to create path_corners\n");
 	//		G_FreeEdict(ent);
 	//		return;
 	//	}
 	//}
 	//else {
-	//	gi.Com_PrintFmt("No reference player found\n");
+	//	gi.Com_PrintFmt("PRINT: No reference player found\n");
 	//	G_FreeEdict(ent);
 	//	return;
 	//}
@@ -2020,14 +2020,14 @@ void SP_func_clock(edict_t* self)
 {
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("{} with no target\n", *self);
+		gi.Com_PrintFmt("PRINT: {} with no target\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TIMER_DOWN) && !self->count)
 	{
-		gi.Com_PrintFmt("{} with no count\n", *self);
+		gi.Com_PrintFmt("PRINT: {} with no count\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -2387,7 +2387,7 @@ THINK(info_world_text_think) (edict_t* self) -> void {
 
 	default:
 		color = rgba_white;
-		gi.Com_PrintFmt("{}: invalid color\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: invalid color\n", *self);
 		break;
 	}
 
@@ -2410,7 +2410,7 @@ designer placed in world text for debugging.
 */
 void SP_info_world_text(edict_t* self) {
 	if (self->message == nullptr) {
-		gi.Com_PrintFmt("{}: no message\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no message\n", *self);
 		G_FreeEdict(self);
 		return;
 	} // not much point without something to print...

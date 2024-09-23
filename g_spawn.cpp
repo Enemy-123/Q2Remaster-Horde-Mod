@@ -750,7 +750,7 @@ gitem_t* item;
 		}
 	}
 
-	gi.Com_PrintFmt("{} doesn't have a spawn function\n", *ent);
+	gi.Com_PrintFmt("PRINT: {} doesn't have a spawn function\n", *ent);
 	G_FreeEdict(ent);
 }
 
@@ -1105,7 +1105,7 @@ static bool VerifyEntityString(const char* entities) {
 		if (!or_buf)
 			break;
 		if (or_token[0] != '{') {
-			gi.Com_PrintFmt("{}: Found \"{}\" when expecting {{ in override.\n", __FUNCTION__, or_token);
+			gi.Com_PrintFmt("PRINT: {}: Found \"{}\" when expecting {{ in override.\n", __FUNCTION__, or_token);
 			return false;
 		}
 
@@ -1179,7 +1179,7 @@ void ED_ParseField(const char* key, const char* value, edict_t* ent)
 		return;
 	}
 
-	gi.Com_PrintFmt("{} is not a valid field\n", key);
+	gi.Com_PrintFmt("PRINT: {} is not a valid field\n", key);
 }
 
 /*
@@ -1301,7 +1301,7 @@ void G_FixTeams()
 		}
 	}
 
-	gi.Com_PrintFmt("{} teams repaired\n", c);
+	gi.Com_PrintFmt("PRINT: {} teams repaired\n", c);
 }
 
 void G_FindTeams()
@@ -1348,7 +1348,7 @@ void G_FindTeams()
 	G_FixTeams();
 	// ROGUE
 
-	gi.Com_PrintFmt("{} teams with {} entities\n", c, c2);
+	gi.Com_PrintFmt("PRINT: {} teams with {} entities\n", c, c2);
 }
 
 // inhibit entities from game based on cvars & spawnflags
@@ -1436,12 +1436,12 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 		// Get the full path of the module
 		DWORD result = GetModuleFileNameA(hModule, modulePath, MAX_PATH);
 		if (result == 0 || result == MAX_PATH) {
-			gi.Com_PrintFmt("Error obtaining module path.\n");
+			gi.Com_PrintFmt("PRINT: Error obtaining module path.\n");
 			return false;
 		}
 	}
 	else {
-		gi.Com_PrintFmt("Error obtaining module handle.\n");
+		gi.Com_PrintFmt("PRINT: Error obtaining module handle.\n");
 		return false;
 	}
 
@@ -1452,7 +1452,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 		path = path.substr(0, pos);
 	}
 	else {
-		gi.Com_PrintFmt("Could not determine module directory.\n");
+		gi.Com_PrintFmt("PRINT: Could not determine module directory.\n");
 		return false;
 	}
 
@@ -1462,7 +1462,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 
 	FILE* f = fopen(filename.c_str(), "rb");
 	if (!f) {
-		gi.Com_PrintFmt("Failed to open entity file: {}\n", filename);
+		gi.Com_PrintFmt("PRINT: Failed to open entity file: {}\n", filename);
 		return false;
 	}
 
@@ -1471,7 +1471,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 	fseek(f, 0, SEEK_SET);
 
 	if (length > MAX_ENTITY_FILE_SIZE) {
-		gi.Com_PrintFmt("Entity file size exceeds maximum allowed: \"{}\"\n", filename);
+		gi.Com_PrintFmt("PRINT: Entity file size exceeds maximum allowed: \"{}\"\n", filename);
 		fclose(f);
 		return false;
 	}
@@ -1481,7 +1481,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 	fclose(f);
 
 	if (length != read_length) {
-		gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", filename);
+		gi.Com_PrintFmt("PRINT: Error reading entity file: \"{}\"\n", filename);
 		return false;
 	}
 
@@ -1542,7 +1542,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
 		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
 			entities = entity_buffer.data();
-			gi.Com_PrintFmt("Entity override file verified and loaded: \"{}\"\n", ent_filename);
+			gi.Com_PrintFmt("PRINT: Entity override file verified and loaded: \"{}\"\n", ent_filename);
 		}
 	}
 
@@ -1576,7 +1576,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		ent->s.renderfx |= RF_IR_VISIBLE;
 	}
 
-	gi.Com_PrintFmt("{} entities inhibited\n", inhibit);
+	gi.Com_PrintFmt("PRINT: {} entities inhibited\n", inhibit);
 
 	G_PrecacheStartItems();
 	G_PrecacheInventoryItems();

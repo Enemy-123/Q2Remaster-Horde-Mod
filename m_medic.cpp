@@ -1502,7 +1502,7 @@ MONSTERINFO_SIDESTEP(medic_sidestep) (edict_t* self) -> bool
 
 void medic_jump_now(edict_t* self)
 {
-	//	gi.Com_PrintFmt("medic_jump_now called\n");
+	//	gi.Com_PrintFmt("PRINT: medic_jump_now called\n");
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);

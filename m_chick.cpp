@@ -757,7 +757,7 @@ MONSTERINFO_SIGHT(chick_sight) (edict_t* self, edict_t* other) -> void
 
 void chick_jump_now(edict_t* self)
 {
-	//	gi.Com_PrintFmt("chick_jump_now called\n");
+	//	gi.Com_PrintFmt("PRINT: chick_jump_now called\n");
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);

@@ -94,7 +94,7 @@ THINK(target_steam_start) (edict_t *self) -> void
 	{
 		ent = G_FindByString<&edict_t::targetname>(nullptr, self->target);
 		if (!ent)
-			gi.Com_PrintFmt("{}: target {} not found\n", *self, self->target);
+			gi.Com_PrintFmt("PRINT: {}: target {} not found\n", *self, self->target);
 		self->enemy = ent;
 	}
 	else

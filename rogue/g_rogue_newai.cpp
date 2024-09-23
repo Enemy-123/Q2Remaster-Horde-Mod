@@ -800,7 +800,7 @@ void SP_hint_path(edict_t *self)
 
 	if (!self->targetname && !self->target)
 	{
-		gi.Com_PrintFmt("{}: unlinked\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: unlinked\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -840,7 +840,7 @@ void InitHintPaths()
 			{
 				if (e->targetname) // this is a bad end, ignore it
 				{
-					gi.Com_PrintFmt("{}: marked as endpoint with both target ({}) and targetname ({})\n",
+					gi.Com_PrintFmt("PRINT: {}: marked as endpoint with both target ({}) and targetname ({})\n",
 						*e, e->target, e->targetname);
 				}
 				else
@@ -862,7 +862,7 @@ void InitHintPaths()
 		e = G_FindByString<&edict_t::targetname>(nullptr, current->target);
 		if (G_FindByString<&edict_t::targetname>(e, current->target))
 		{
-			gi.Com_PrintFmt("{}: Forked path detected for chain {}, target {}\n",
+			gi.Com_PrintFmt("PRINT: {}: Forked path detected for chain {}, target {}\n",
 				*current, num_hint_paths, current->target);
 			hint_path_start[i]->hint_chain = nullptr;
 			continue;
@@ -871,7 +871,7 @@ void InitHintPaths()
 		{
 			if (e->hint_chain)
 			{
-				gi.Com_PrintFmt("{}: Circular path detected for chain {}, targetname {}\n",
+				gi.Com_PrintFmt("PRINT: {}: Circular path detected for chain {}, targetname {}\n",
 					*e, num_hint_paths, e->targetname);
 				hint_path_start[i]->hint_chain = nullptr;
 				break;
@@ -884,7 +884,7 @@ void InitHintPaths()
 			e = G_FindByString<&edict_t::targetname>(nullptr, current->target);
 			if (G_FindByString<&edict_t::targetname>(e, current->target))
 			{
-				gi.Com_PrintFmt("{}: Forked path detected for chain {}, target {}\n",
+				gi.Com_PrintFmt("PRINT: {}: Forked path detected for chain {}, target {}\n",
 					*current, num_hint_paths, current->target);
 				hint_path_start[i]->hint_chain = nullptr;
 				break;

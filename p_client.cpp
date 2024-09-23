@@ -1728,7 +1728,7 @@ bool SelectSpawnPoint(edict_t* ent, vec3_t& origin, vec3_t& angles, bool force_s
 		// in SP, just put us at the origin if spawn fails
 		if (!spot)
 		{
-			gi.Com_PrintFmt("Couldn't find spawn point {}\n", game.spawnpoint);
+			gi.Com_PrintFmt("PRINT: Couldn't find spawn point {}\n", game.spawnpoint);
 
 			origin = { 0, 0, 0 };
 			angles = { 0, 0, 0 };
@@ -2628,7 +2628,7 @@ static void G_SetLevelEntry()
 
 	if (!found_entry)
 	{
-		gi.Com_PrintFmt("WARNING: more than {} maps in unit, can't track the rest\n", MAX_LEVELS_PER_UNIT);
+		gi.Com_PrintFmt("PRINT: WARNING: more than {} maps in unit, can't track the rest\n", MAX_LEVELS_PER_UNIT);
 		return;
 	}
 
@@ -2695,7 +2695,7 @@ static void G_SetLevelEntry()
 
 		if (!found_entry)
 		{
-			gi.Com_PrintFmt("WARNING: more than {} maps in unit, can't track the rest\n", MAX_LEVELS_PER_UNIT);
+			gi.Com_PrintFmt("PRINT: WARNING: more than {} maps in unit, can't track the rest\n", MAX_LEVELS_PER_UNIT);
 			return;
 		}
 
@@ -2946,7 +2946,7 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 
 		if (!num_players)
 		{
-			gi.Com_PrintFmt("coop slot {} is host {}+{}\n", 1, name, social_id);
+			gi.Com_PrintFmt("PRINT: coop slot {} is host {}+{}\n", 1, name, social_id);
 			return globals.edicts + 1;
 		}
 	}
@@ -3001,7 +3001,7 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 	{
 		if (matches[i].total == 1)
 		{
-			gi.Com_PrintFmt("coop slot {} restored for {}+{}\n", (ptrdiff_t)(matches[i].slot - globals.edicts), name, social_id);
+			gi.Com_PrintFmt("PRINT: coop slot {} restored for {}+{}\n", (ptrdiff_t)(matches[i].slot - globals.edicts), name, social_id);
 
 			// spawn us a ghost now since we're gonna spawn eventually
 			if (!matches[i].slot->inuse)
@@ -3036,14 +3036,14 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 	for (size_t i = 0; i < game.maxclients; i++)
 		if (!IsSlotIgnored(globals.edicts + i + 1, ignore, num_ignore) && !game.clients[i].pers.userinfo[0])
 		{
-			gi.Com_PrintFmt("coop slot {} issuing new for {}+{}\n", i + 1, name, social_id);
+			gi.Com_PrintFmt("PRINT: coop slot {} issuing new for {}+{}\n", i + 1, name, social_id);
 			return globals.edicts + i + 1;
 		}
 
 	// all slots have some player data in them, we're forced to replace one.
 	edict_t* any_slot = ClientChooseSlot_Any(ignore, num_ignore);
 
-	gi.Com_PrintFmt("coop slot {} any slot for {}+{}\n", !any_slot ? -1 : (ptrdiff_t)(any_slot - globals.edicts), name, social_id);
+	gi.Com_PrintFmt("PRINT: coop slot {} any slot for {}+{}\n", !any_slot ? -1 : (ptrdiff_t)(any_slot - globals.edicts), name, social_id);
 
 	return any_slot;
 }
@@ -3464,7 +3464,7 @@ static bool IsPlayerActive(const edict_t*  ent) {
 static bool ClientInactivityTimer(edict_t* ent) {
 	// Verificación de precondiciones
 	if (!ent || !ent->client) {
-		gi.Com_PrintFmt("Error: Invalid entity or client in ClientInactivityTimer\n");
+		gi.Com_PrintFmt("PRINT: Error: Invalid entity or client in ClientInactivityTimer\n");
 		return false;
 	}
 

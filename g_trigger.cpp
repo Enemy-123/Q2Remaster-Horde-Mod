@@ -191,7 +191,7 @@ void SP_trigger_multiple(edict_t* ent)
 	if (ent->spawnflags.has(SPAWNFLAG_TRIGGER_LATCHED))
 	{
 		if (ent->spawnflags.has(SPAWNFLAG_TRIGGER_TRIGGERED | SPAWNFLAG_TRIGGER_TOGGLE))
-			gi.Com_PrintFmt("{}: latched and triggered/toggle are not supported\n", *ent);
+			gi.Com_PrintFmt("PRINT: {}: latched and triggered/toggle are not supported\n", *ent);
 
 		ent->think = latched_trigger_think;
 		ent->nextthink = level.time + 1_ms;
@@ -243,7 +243,7 @@ void SP_trigger_once(edict_t* ent)
 	{
 		ent->spawnflags &= ~SPAWNFLAG_TRIGGER_MONSTER;
 		ent->spawnflags |= SPAWNFLAG_TRIGGER_TRIGGERED;
-		gi.Com_PrintFmt("{}: fixed TRIGGERED flag\n", *ent);
+		gi.Com_PrintFmt("PRINT: {}: fixed TRIGGERED flag\n", *ent);
 	}
 
 	ent->wait = -1;
@@ -369,20 +369,20 @@ void SP_trigger_key(edict_t* self)
 {
 	if (!st.item)
 	{
-		gi.Com_PrintFmt("{}: no key item\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no key item\n", *self);
 		return;
 	}
 	self->item = FindItemByClassname(st.item);
 
 	if (!self->item)
 	{
-		gi.Com_PrintFmt("{}: item {} not found\n", *self, st.item);
+		gi.Com_PrintFmt("PRINT: {}: item {} not found\n", *self, st.item);
 		return;
 	}
 
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("{}: no target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no target\n", *self);
 		return;
 	}
 
@@ -802,7 +802,7 @@ void SP_trigger_gravity(edict_t* self)
 {
 	if (!st.gravity || !*st.gravity)
 	{
-		gi.Com_PrintFmt("{}: no gravity set\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no gravity set\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -1175,7 +1175,7 @@ void SP_trigger_fog(edict_t* self)
 	InitTrigger(self);
 
 	if (!(self->spawnflags & (SPAWNFLAG_FOG_AFFECT_FOG | SPAWNFLAG_FOG_AFFECT_HEIGHTFOG)))
-		gi.Com_PrintFmt("WARNING: {} with no fog spawnflags set\n", *self);
+		gi.Com_PrintFmt("PRINT: WARNING: {} with no fog spawnflags set\n", *self);
 
 	if (self->target)
 	{
@@ -1308,7 +1308,7 @@ THINK(trigger_coop_relay_think) (edict_t* self) -> void
 void SP_trigger_coop_relay(edict_t* self)
 {
 	if (self->targetname && self->spawnflags.has(SPAWNFLAG_COOP_RELAY_AUTO_FIRE))
-		gi.Com_PrintFmt("{}: targetname and auto-fire are mutually exclusive\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: targetname and auto-fire are mutually exclusive\n", *self);
 
 	InitTrigger(self);
 

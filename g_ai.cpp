@@ -624,7 +624,7 @@ void FoundTarget(edict_t* self)
     {
         self->goalentity = self->movetarget = self->enemy;
         HuntTarget(self);
-        gi.Com_PrintFmt("{}: combattarget {} not found\n", *self, self->combattarget);
+        gi.Com_PrintFmt("PRINT: {}: combattarget {} not found\n", *self, self->combattarget);
         return;
     }
 

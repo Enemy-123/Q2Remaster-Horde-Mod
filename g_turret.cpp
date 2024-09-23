@@ -195,7 +195,7 @@ THINK(turret_breach_finish_init) (edict_t* self) -> void
 	// get and save info for muzzle location
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("{}: needs a target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: needs a target\n", *self);
 	}
 	else
 	{
@@ -206,7 +206,7 @@ THINK(turret_breach_finish_init) (edict_t* self) -> void
 			G_FreeEdict(self->target_ent);
 		}
 		else
-			gi.Com_PrintFmt("{}: could not find target entity \"{}\"\n", *self, self->target);
+			gi.Com_PrintFmt("PRINT: {}: could not find target entity \"{}\"\n", *self, self->target);
 	}
 
 	self->teammaster->dmg = self->dmg;
@@ -471,7 +471,7 @@ void SP_turret_driver(edict_t* self)
 	{
 		self->item = FindItemByClassname(st.item);
 		if (!self->item)
-			gi.Com_PrintFmt("{}: bad item: {}\n", *self, st.item);
+			gi.Com_PrintFmt("PRINT: {}: bad item: {}\n", *self, st.item);
 	}
 
 	self->think = turret_driver_link;

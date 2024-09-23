@@ -398,7 +398,7 @@ USE(info_nav_lock_use) (edict_t* self, edict_t* other, edict_t* activator) -> vo
 
 	while ((n = G_FindByString<&edict_t::targetname>(n, self->target))) {
 		if (!(n->svflags & SVF_DOOR)) {
-			gi.Com_PrintFmt("{} tried targeting {}, a non-SVF_DOOR\n", *self, *n);
+			gi.Com_PrintFmt("PRINT: {} tried targeting {}, a non-SVF_DOOR\n", *self, *n);
 			continue;
 		}
 
@@ -411,13 +411,13 @@ toggle locked state on linked entity
 */
 void SP_info_nav_lock(edict_t* self) {
 	if (!self->targetname) {
-		gi.Com_PrintFmt("{} missing targetname\n", *self);
+		gi.Com_PrintFmt("PRINT: {} missing targetname\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
 
 	if (!self->target) {
-		gi.Com_PrintFmt("{} missing target\n", *self);
+		gi.Com_PrintFmt("PRINT: {} missing target\n", *self);
 		G_FreeEdict(self);
 		return;
 	}

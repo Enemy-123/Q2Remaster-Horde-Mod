@@ -374,7 +374,7 @@ void hover_reattack(edict_t *self)
 					return;
 				}
 				else
-					gi.Com_PrintFmt("hover_reattack: unexpected state {}\n", (int32_t) self->monsterinfo.attack_state);
+					gi.Com_PrintFmt("PRINT: hover_reattack: unexpected state {}\n", (int32_t) self->monsterinfo.attack_state);
 			}
 	M_SetAnimation(self, &hover_move_end_attack);
 }

@@ -1011,7 +1011,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 				continue;
 			if (!self->teamchain || !self->teamchain->owner)
 			{
-				gi.Com_PrintFmt("Warning: tesla_think_active encountered null teamchain or owner\n");
+				gi.Com_PrintFmt("PRINT: Warning: tesla_think_active encountered null teamchain or owner\n");
 				continue;
 			}
 			if (CheckTeamDamage(hit, self->teamchain->owner))

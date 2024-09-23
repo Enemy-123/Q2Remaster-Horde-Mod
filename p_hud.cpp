@@ -885,7 +885,7 @@ void G_SetStats(edict_t* ent)
 	{
 		gitem_t* powerup = GetItemByPowerup((powerup_t)powerupIndex);
 		if (!powerup) {
-			gi.Com_PrintFmt("Warning: Invalid powerup index {}\n", powerupIndex);
+			gi.Com_PrintFmt("PRINT: Warning: Invalid powerup index {}\n", powerupIndex);
 			continue;
 		}
 
@@ -943,7 +943,7 @@ void G_SetStats(edict_t* ent)
 			}
 		}
 		if (!active_sphere) {
-			gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n",
+			gi.Com_PrintFmt("PRINT: Warning: Unknown sphere spawnflags {}\n",
 				SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
 		}
 	}

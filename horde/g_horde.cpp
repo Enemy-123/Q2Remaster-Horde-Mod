@@ -213,7 +213,7 @@ static void ApplyBenefit(const std::string& benefit) {
 			gi.cvar_set("g_bfgslide", "0");
 			break;
 		default:
-			gi.Com_PrintFmt("Unknown benefit: {}\n", benefit.c_str());
+			gi.Com_PrintFmt("PRINT: Unknown benefit: {}\n", benefit.c_str());
 			return;
 		}
 
@@ -228,7 +228,7 @@ static void ApplyBenefit(const std::string& benefit) {
 	}
 	else {
 		// Mensaje de depuración en caso de que el beneficio no sea encontrado
-		gi.Com_PrintFmt("Benefit not found: {}\n", benefit.c_str());
+		gi.Com_PrintFmt("PRINT: Benefit not found: {}\n", benefit.c_str());
 	}
 }
 
@@ -356,21 +356,33 @@ struct ConditionParams {
 	gtime_t lowPercentageTimeThreshold;
 	gtime_t independentTimeThreshold;
 	float lowPercentageThreshold;
+	float aggressiveTimeReductionThreshold;
 
 	ConditionParams() :
 		maxMonsters(0),
 		timeThreshold(0_sec),
 		lowPercentageTimeThreshold(0_sec),
 		independentTimeThreshold(0_sec),
-		lowPercentageThreshold(0.15f) {}
+		lowPercentageThreshold(0.15f),
+		aggressiveTimeReductionThreshold(0.3f) {}
 };
-
 
 // Función para calcular el rendimiento del jugador (implementa según tus necesidades)
 static float CalculatePlayerPerformance() {
 	// Esta es una implementación de ejemplo. Ajusta según tus necesidades.
 	const float killRate = static_cast<float>(level.killed_monsters) / std::max(1.0f, static_cast<float>(g_totalMonstersInWave));
 	return std::clamp(killRate, 0.5f, 2.0f);  // Limita el factor entre 0.5 y 2
+}
+
+// New constants and helper functions
+constexpr gtime_t BASE_MAX_WAVE_TIME = 60_sec;
+constexpr gtime_t TIME_INCREASE_PER_LEVEL = 2_sec;
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
+constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 5_sec;
+constexpr float LATE_STAGE_THRESHOLD = 0.7f;
+
+gtime_t calculate_max_wave_time(int32_t wave_level) {
+	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 120_sec);
 }
 
 // Variables globales
@@ -384,54 +396,68 @@ static bool g_maxMonstersReached = false;
 static bool g_lowPercentageTriggered = false;
 static float g_playerPerformanceFactor = 1.0f;
 
-static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
+ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
-	// Configuración base según el tamaño del mapa
+	// Base configuration based on map size
 	if (mapSize.isBigMap) {
 		params.maxMonsters = 18;
-		params.timeThreshold = random_time(20_sec, 25_sec);
+		params.timeThreshold = random_time(35_sec, 40_sec);
 	}
 	else if (mapSize.isSmallMap) {
 		params.maxMonsters = numHumanPlayers >= 3 ? 9 : 7;
-		params.timeThreshold = random_time(5_sec, 7_sec);
+		params.timeThreshold = random_time(20_sec, 25_sec);
 	}
 	else { // Medium map
 		params.maxMonsters = numHumanPlayers >= 3 ? 14 : 11;
-		params.timeThreshold = random_time(10_sec, 15_sec);
+		params.timeThreshold = random_time(25_sec, 30_sec);
 	}
 
-	// Escalado progresivo con el nivel
+	// Progressive scaling with level
 	params.maxMonsters += std::min(lvl / 5, 10);
 	params.timeThreshold += gtime_t::from_ms(100 * std::min(lvl / 3, 5));
 
-	// Ajustes adicionales para niveles altos
+	// Additional adjustments for high levels
 	if (lvl > 10) {
 		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f);
 		params.timeThreshold += 3_sec;
 	}
 
-	// Ajustes para modos caóticos o insanos
+	// Adjustments for chaotic or insane modes
 	if ((g_chaotic->integer || g_insane->integer) && numHumanPlayers <= 3) {
-		params.timeThreshold += random_time(5_sec, 8_sec);
+		params.timeThreshold += random_time(10_sec, 15_sec);
 	}
 
-	// Ajuste basado en el rendimiento de los jugadores
-	g_playerPerformanceFactor = CalculatePlayerPerformance();
-	params.maxMonsters = static_cast<int32_t>(params.maxMonsters * g_playerPerformanceFactor);
-	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * g_playerPerformanceFactor);
+	// Adjust based on player performance
+	float playerPerformanceFactor = CalculatePlayerPerformance();
+	params.maxMonsters = static_cast<int32_t>(params.maxMonsters * playerPerformanceFactor);
+	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
 
-	// Configuración para pocos monstruos restantes
-	params.lowPercentageTimeThreshold = random_time(4_sec, 6_sec);
+	// Configuration for low percentage of monsters remaining
+	params.lowPercentageTimeThreshold = random_time(15_sec, 20_sec);
 	params.lowPercentageThreshold = 0.25f;
 
-	// Asegúrate de que esto se configure correctamente
-	params.independentTimeThreshold = random_time(60_sec, 75_sec) + gtime_t::from_sec(lvl / 2);
+	// Set independent time threshold
+	params.independentTimeThreshold = calculate_max_wave_time(lvl);
 
-	gi.Com_PrintFmt("Setting wave time limit to: {:.1f} seconds\n", params.independentTimeThreshold.seconds());
+	gi.Com_PrintFmt("PRINT: Wave {} parameters set: Max monsters: {}, Time threshold: {:.1f}s, Low percentage threshold: {:.2f}, Independent time threshold: {:.1f}s\n",
+		lvl, params.maxMonsters, params.timeThreshold.seconds(), params.lowPercentageThreshold, params.independentTimeThreshold.seconds());
 
 	return params;
 }
+
+// Variables estáticas a nivel de archivo para controlar el estado de las condiciones
+static bool conditionTriggered = false;
+static gtime_t conditionStartTime = 0_sec;
+static gtime_t conditionTimeThreshold = 0_sec;
+static bool timeWarningIssued = false;
+static gtime_t waveEndTime = 0_sec; // Nueva variable para el tiempo de finalización de la ola
+
+
+// Warning times in seconds
+constexpr std::array<float, 5> WARNING_TIMES = { 60.0f, 30.0f, 20.0f, 10.0f, 5.0f };
+
+
 
 static void Horde_InitLevel(const int32_t lvl) {
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
@@ -444,9 +470,12 @@ static void Horde_InitLevel(const int32_t lvl) {
 	VerifyAndAdjustBots();
 
 	g_independent_timer_start = level.time;
-	g_condition_start_time = level.time;
+	conditionStartTime = level.time;
 	const auto mapSize = GetMapSize(level.mapname);
 	g_lastParams = GetConditionParams(mapSize, GetNumHumanPlayers(), lvl);
+
+	// Establecer waveEndTime basado en el tiempo independiente
+	waveEndTime = g_independent_timer_start + calculate_max_wave_time(current_wave_level);
 
 	// Ajustar la escala de daño según el nivel
 	switch (g_horde_local.level) {
@@ -463,8 +492,9 @@ static void Horde_InitLevel(const int32_t lvl) {
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
 	Horde_CleanBodies();
-	gi.Com_PrintFmt("Horde level initialized: {}\n", lvl);
+	gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
 }
+
 
 bool G_IsDeathmatch() noexcept {
 	return deathmatch->integer && g_horde->integer;
@@ -1228,7 +1258,7 @@ static void Horde_CleanBodies() {
 		}
 	}
 	if (cleaned_count > 0) {
-		gi.Com_PrintFmt("Cleaned {} monster bodies\n", cleaned_count);
+		gi.Com_PrintFmt("PRINT: Cleaned {} monster bodies\n", cleaned_count);
 	}
 }
 
@@ -1347,20 +1377,20 @@ static void SpawnBossAutomatically() {
 
 	const auto it = mapOrigins.find(level.mapname);
 	if (it == mapOrigins.end()) {
-		gi.Com_PrintFmt("Error: No spawn origin found for map {}\n", level.mapname);
+		gi.Com_PrintFmt("PRINT: Error: No spawn origin found for map {}\n", level.mapname);
 		return;
 	}
 
 	edict_t* boss = G_Spawn();
 	if (!boss) {
-		gi.Com_PrintFmt("Error: Failed to spawn boss entity\n");
+		gi.Com_PrintFmt("PRINT: Error: Failed to spawn boss entity\n");
 		return;
 	}
 
 	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
 	if (!desired_boss) {
 		G_FreeEdict(boss);
-		gi.Com_PrintFmt("Error: Failed to pick a boss type\n");
+		gi.Com_PrintFmt("PRINT: Error: Failed to pick a boss type\n");
 		return;
 	}
 
@@ -1379,7 +1409,7 @@ static void SpawnBossAutomatically() {
 	// Set boss origin
 	if (it->second.size() < 3) {
 		G_FreeEdict(boss);
-		gi.Com_PrintFmt("Error: Invalid spawn origin for map {}\n", level.mapname);
+		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
 		return;
 	}
 	VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
@@ -1387,7 +1417,7 @@ static void SpawnBossAutomatically() {
 					   static_cast<float>(it->second[2]) },
 		boss->s.origin);
 
-	gi.Com_PrintFmt("Preparing to spawn boss at position: {}\n", boss->s.origin);
+	gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
 
 	// Push entities away
 	PushEntitiesAway(boss->s.origin, 3, 500, 300.0f, 750.0f, 1000.0f, 500.0f);
@@ -1396,7 +1426,7 @@ static void SpawnBossAutomatically() {
 	boss->nextthink = level.time + 1000_ms; // 1 seconds delay
 	boss->think = BossSpawnThink;
 
-	gi.Com_PrintFmt("Boss spawn preparation complete. Boss will appear in 1 second.\n");
+	gi.Com_PrintFmt("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
 
 THINK(BossSpawnThink)(edict_t* self) -> void
@@ -1408,7 +1438,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", message);
 	}
 	else {
-		gi.Com_PrintFmt("Warning: No specific message found for boss type '{}'. Using default message.\n", self->classname);
+		gi.Com_PrintFmt("PRINT: Warning: No specific message found for boss type '{}'. Using default message.\n", self->classname);
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
 	}
 
@@ -1460,7 +1490,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 	SetHealthBarName(self);
 
 	auto_spawned_bosses.insert(self);
-	gi.Com_PrintFmt("Boss of type {} spawned successfully with {} health and {} power armor\n",
+	gi.Com_PrintFmt("PRINT: Boss of type {} spawned successfully with {} health and {} power armor\n",
 		self->classname, self->health, self->monsterinfo.power_armor_power);
 }
 
@@ -1612,7 +1642,7 @@ void ResetGame() {
 
 
 	// Registrar el reinicio
-	gi.Com_PrintFmt("Horde game state reset complete.\n");
+	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
 }
 
 static gtime_t g_lastMonsterCountVerification = 0_ms;
@@ -1633,16 +1663,125 @@ static int32_t CalculateRemainingMonsters() noexcept {
 	return level.total_monsters - level.killed_monsters;
 }
 
+static std::vector<bool> warningIssued(WARNING_TIMES.size(), false);
 
+
+#include <algorithm>
+
+bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+	const gtime_t currentTime = level.time;
+
+	// Initialize waveEndTime if not set
+	if (waveEndTime == 0_sec) {
+		waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
+	}
+
+	// Check for manual wave advance
+	if (g_allowWaveAdvance) {
+		gi.Com_PrintFmt("PRINT: Wave advance allowed manually.\n");
+		ResetWaveAdvanceState();
+		reason = WaveEndReason::AllMonstersDead;
+		return true;
+	}
+
+	// If there are still monsters to spawn or no monsters in total, do nothing
+	if (g_horde_local.num_to_spawn > 0 || g_totalMonstersInWave == 0) {
+		return false;
+	}
+
+	int32_t remainingMonsters = CalculateRemainingMonsters();
+	bool shouldAdvance = false;
+
+	// Determine if any condition is met
+	if (!conditionTriggered) {
+		const float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
+
+		if (remainingMonsters <= g_lastParams.maxMonsters || percentageRemaining <= g_lastParams.lowPercentageThreshold) {
+			conditionTriggered = true;
+			conditionStartTime = currentTime;
+
+			// Choose the shorter timeThreshold
+			if (remainingMonsters <= g_lastParams.maxMonsters && percentageRemaining <= g_lastParams.lowPercentageThreshold) {
+				conditionTimeThreshold = std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
+				gi.LocBroadcast_Print(PRINT_HIGH, "Both max monsters and low percentage conditions met. Wave time reduced!\n");
+			}
+			else if (remainingMonsters <= g_lastParams.maxMonsters) {
+				conditionTimeThreshold = g_lastParams.timeThreshold;
+				gi.LocBroadcast_Print(PRINT_HIGH, "Low monsters condition met. Wave time adjusted.\n");
+			}
+			else {
+				conditionTimeThreshold = g_lastParams.lowPercentageTimeThreshold;
+				gi.LocBroadcast_Print(PRINT_HIGH, "Low percentage of monsters remaining. Wave time reduced!\n");
+			}
+
+			// Set waveEndTime based on the condition
+			const gtime_t conditionEndTime = conditionStartTime + conditionTimeThreshold;
+			waveEndTime = std::min(waveEndTime, conditionEndTime);
+
+			gi.Com_PrintFmt("PRINT: Condition triggered. Remaining monsters: {}, Percentage remaining: {:.2f}%\n", remainingMonsters, percentageRemaining * 100);
+		}
+
+		// Aggressive time reduction for very few monsters
+		if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
+			const gtime_t aggressiveReduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
+			waveEndTime = std::min(waveEndTime, currentTime + aggressiveReduction);
+			gi.LocBroadcast_Print(PRINT_HIGH, "Very few monsters remaining. Wave time aggressively reduced!\n");
+		}
+	}
+
+	// Calculate remaining time until waveEndTime
+	gtime_t remainingTime = waveEndTime - currentTime;
+
+	// Display multiple warning messages
+	for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
+		const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
+		if (!warningIssued[i] && remainingTime <= warningTime && remainingTime > (warningTime - 1_sec)) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining in this wave!\n", static_cast<int>(WARNING_TIMES[i]));
+			warningIssued[i] = true;
+		}
+	}
+
+	// Check if wave time has reached zero
+	if (currentTime >= waveEndTime) {
+		if (currentTime >= (g_independent_timer_start + g_lastParams.independentTimeThreshold)) {
+			reason = WaveEndReason::TimeLimitReached;
+			shouldAdvance = true;
+		}
+		else if (conditionTriggered && currentTime >= (conditionStartTime + conditionTimeThreshold)) {
+			reason = WaveEndReason::MonstersRemaining;
+			shouldAdvance = true;
+		}
+	}
+
+	if (shouldAdvance) {
+		ResetWaveAdvanceState();
+		gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
+			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
+		return true;
+	}
+
+    // Provide periodic updates on remaining monsters and time
+    if (currentTime - g_horde_local.lastPrintTime >= 10_sec) {
+        gi.Com_PrintFmt("PRINT: Wave status: {} monsters remaining. {:.2f} seconds left.\n",
+            remainingMonsters, remainingTime.seconds());
+        g_horde_local.lastPrintTime = currentTime;
+    }
+
+	return false;
+}
 
 bool calculationsStarted = false;
 
 static void ResetWaveAdvanceState() noexcept {
 	g_independent_timer_start = level.time;
-	g_condition_start_time = 0_ms;
-	g_maxMonstersReached = false;
+
+	// Reiniciar variables de condición
+	conditionTriggered = false;
+	conditionStartTime = 0_sec;
+	conditionTimeThreshold = 0_sec;
+	timeWarningIssued = false;
+
 	g_allowWaveAdvance = false;
-	g_lowPercentageTriggered = false;
 	calculationsStarted = false;
 
 	g_horde_local.lastPrintTime = 0_sec;
@@ -1659,166 +1798,12 @@ static void ResetWaveAdvanceState() noexcept {
 
 	g_horde_local.queued_monsters = 0;
 
-	// Reset any other wave-specific state as needed
-}
+	waveEndTime = 0_sec; // Reiniciar waveEndTime
 
-#include <algorithm>
+	// Reiniciar las advertencias
+	std::fill(warningIssued.begin(), warningIssued.end(), false);
 
-// New constants and helper functions
-constexpr gtime_t BASE_MAX_WAVE_TIME = 60_sec;
-constexpr gtime_t TIME_INCREASE_PER_LEVEL = 2_sec;
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
-constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 5_sec;
-constexpr float LATE_STAGE_THRESHOLD = 0.7f;
-constexpr float LOW_PERCENTAGE_THRESHOLD = 0.15f;
-
-gtime_t calculate_max_wave_time(int32_t wave_level) {
-	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 120_sec);
-}
-
-static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
-	constexpr gtime_t PRINT_INTERVAL = 3_sec;
-	constexpr gtime_t WARNING_TIME = 5_sec;
-	constexpr gtime_t EXTENSION_TIME = 10_sec;
-	constexpr int MAX_EXTENSIONS = 2;
-	constexpr gtime_t MIN_EXTENSION_INTERVAL = 30_sec;
-
-	static gtime_t lastExtensionTime = 0_sec;
-	static int extensionCount = 0;
-	static bool timeWarningIssued = false;
-
-	const gtime_t independentElapsed = level.time - g_independent_timer_start;
-	gtime_t adjustedTimeThreshold = calculate_max_wave_time(current_wave_level);
-	gtime_t remainingTime = std::max(0_sec, adjustedTimeThreshold - independentElapsed);
-
-	if (level.time - g_horde_local.lastPrintTime >= PRINT_INTERVAL) {
-		int32_t remainingMonsters = CalculateRemainingMonsters();
-
-		// Synchronize remaining time with reached thresholds
-		if (g_maxMonstersReached || g_lowPercentageTriggered) {
-			const gtime_t elapsedSinceThreshold = level.time - g_condition_start_time;
-			const gtime_t thresholdTimeLimit = g_maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
-			remainingTime = std::max(0_sec, thresholdTimeLimit - elapsedSinceThreshold);
-		}
-
-		// Aggressive time reduction for few remaining monsters
-		if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-			const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-			remainingTime = std::max(0_sec, remainingTime - reduction);
-		}
-
-		gi.Com_PrintFmt("Wave: {}, Remaining: {}/{}, Time: {:.1f}/{:.1f}, Adjusted Time: {:.1f}, Remaining Time: {:.1f}\n",
-			current_wave_level, remainingMonsters, g_totalMonstersInWave,
-			independentElapsed.seconds(),
-			g_lastParams.independentTimeThreshold.seconds(),
-			adjustedTimeThreshold.seconds(),
-			remainingTime.seconds());
-		g_horde_local.lastPrintTime = level.time;
-	}
-
-	if (g_allowWaveAdvance) {
-		gi.Com_PrintFmt("Wave advance allowed manually.\n");
-		ResetWaveAdvanceState();
-		reason = WaveEndReason::AllMonstersDead;
-		return true;
-	}
-
-	const int32_t numHumanPlayers = GetNumHumanPlayers();
-	const bool shouldStartCalculations = g_horde_local.num_to_spawn == 0 && g_totalMonstersInWave > 0;
-
-	if (shouldStartCalculations && !calculationsStarted) {
-		calculationsStarted = true;
-		g_independent_timer_start = level.time;
-		g_condition_start_time = level.time;
-		gi.Com_PrintFmt("Starting calculations for wave advance.\n");
-	}
-
-	if (!calculationsStarted) {
-		return false;
-	}
-
-	int32_t remainingMonsters = CalculateRemainingMonsters();
-	bool shouldAdvance = false;
-	gtime_t timeThreshold = g_lastParams.timeThreshold;
-
-	if (g_totalMonstersInWave > 0) {
-		const float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
-		const float waveProgress = 1.0f - percentageRemaining;
-
-		if (percentageRemaining <= LOW_PERCENTAGE_THRESHOLD && !g_lowPercentageTriggered) {
-			g_lowPercentageTriggered = true;
-			g_condition_start_time = level.time;
-			timeThreshold = g_lastParams.lowPercentageTimeThreshold;
-			adjustedTimeThreshold = std::min(adjustedTimeThreshold, level.time + timeThreshold);
-			gi.Com_PrintFmt("Low percentage threshold reached. New time threshold: {:.1f}, Remaining monsters: {}/{}\n",
-				timeThreshold.seconds(), remainingMonsters, g_totalMonstersInWave);
-		}
-		else if (!g_maxMonstersReached && remainingMonsters <= g_lastParams.maxMonsters) {
-			g_maxMonstersReached = true;
-			g_condition_start_time = level.time;
-			adjustedTimeThreshold = std::min(adjustedTimeThreshold, level.time + timeThreshold);
-			gi.Com_PrintFmt("Max monsters threshold reached. Remaining monsters: {}/{}, Max allowed: {}\n",
-				remainingMonsters, g_totalMonstersInWave, g_lastParams.maxMonsters);
-		}
-
-		const gtime_t conditionElapsed = (g_maxMonstersReached || g_lowPercentageTriggered) ? (level.time - g_condition_start_time) : 0_sec;
-
-		// Adjust extension criteria for late stages of the wave
-		if (waveProgress < LATE_STAGE_THRESHOLD && extensionCount < MAX_EXTENSIONS &&
-			(level.time - lastExtensionTime) >= MIN_EXTENSION_INTERVAL) {
-		const float extensionDifficulty = waveProgress / LATE_STAGE_THRESHOLD;
-			if (frandom() > extensionDifficulty) {
-				adjustedTimeThreshold += EXTENSION_TIME;
-				remainingTime = std::max(0_sec, adjustedTimeThreshold - independentElapsed);
-				extensionCount++;
-				lastExtensionTime = level.time;
-
-				gi.Com_PrintFmt("Wave extended. New adjusted time: {:.1f}, Remaining time: {:.1f}, Extension count: {}\n",
-					adjustedTimeThreshold.seconds(), remainingTime.seconds(), extensionCount);
-			}
-		}
-
-		// Show warning message exactly at 5 seconds
-		if (remainingTime <= WARNING_TIME && remainingTime > (WARNING_TIME - 1_sec) && !timeWarningIssued) {
-			gi.LocBroadcast_Print(PRINT_CENTER, "Warning: {} seconds left in the wave!\n", WARNING_TIME.seconds());
-			timeWarningIssued = true;
-		}
-
-		if ((g_maxMonstersReached || g_lowPercentageTriggered) && (conditionElapsed >= timeThreshold)) {
-			shouldAdvance = true;
-			reason = WaveEndReason::MonstersRemaining;
-			gi.Com_PrintFmt("Advance condition met: monsters remaining condition met. Time elapsed: {:.1f}/{:.1f}\n",
-				conditionElapsed.seconds(), timeThreshold.seconds());
-		}
-
-		if (independentElapsed >= adjustedTimeThreshold) {
-			shouldAdvance = true;
-			reason = WaveEndReason::TimeLimitReached;
-			gi.Com_PrintFmt("Advance condition met: adjusted wave time limit reached.\n");
-		}
-
-		if (remainingTime == 10_sec) {
-			// Implement rush mode logic here (e.g., increase player speed or damage)
-			gi.LocBroadcast_Print(PRINT_HIGH, "10 seconds remaining!\n");
-		}
-	}
-
-	if (shouldAdvance) {
-		ResetWaveAdvanceState();
-		gi.Com_PrintFmt("Wave advance triggered. Reason: {}\n",
-			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
-
-		// Calculate and apply time bonus
-		const gtime_t timeBonus = adjustedTimeThreshold - independentElapsed;
-		if (timeBonus > 0_sec) {
-			// Implement time bonus logic here (e.g., extra points or resources)
-		//	gi.LocBroadcast_Print(PRINT_CENTER, "Time Bonus: {:.1f} seconds! Extra points awarded!\n", timeBonus.seconds());
-		}
-
-		return true;
-	}
-
-	return false;
+	// Resetear cualquier otro estado específico de la ola según sea necesario
 }
 
 void AllowNextWaveAdvance() noexcept {
@@ -1985,7 +1970,7 @@ static edict_t* SpawnMonsters() {
 	}
 
 	if (available_spawns.empty()) {
-		gi.Com_PrintFmt("Warning: No spawn points found\n");
+		gi.Com_PrintFmt("PRINT: Warning: No spawn points found\n");
 		return nullptr;
 	}
 
@@ -2003,7 +1988,7 @@ static edict_t* SpawnMonsters() {
 
 		edict_t* monster = G_Spawn();
 		if (!monster) {
-			gi.Com_PrintFmt("G_Spawn Warning: Failed to spawn monster\n");
+			gi.Com_PrintFmt("PRINT: G_Spawn Warning: Failed to spawn monster\n");
 			continue;
 		}
 
@@ -2017,7 +2002,7 @@ static edict_t* SpawnMonsters() {
 		ED_CallSpawn(monster);
 
 		if (!monster->inuse) {
-			gi.Com_PrintFmt("ED_CallSpawn Warning: Monster spawn failed\n");
+			gi.Com_PrintFmt("PRINT: ED_CallSpawn Warning: Monster spawn failed\n");
 			continue;
 		}
 
@@ -2183,7 +2168,7 @@ void Horde_RunFrame() {
 		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
 			SendCleanupMessage(5_sec, reason);
-			gi.Com_PrintFmt("Wave {} completed.\n", g_horde_local.level);
+			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", g_horde_local.level);
 
 			// Adjust difficulty settings based on current_wave_level
 			if (current_wave_level >= 15 && current_wave_level <= 28) {
@@ -2208,7 +2193,7 @@ void Horde_RunFrame() {
 			if (Horde_AllMonstersDead()) {
 				reason = WaveEndReason::AllMonstersDead;
 				SendCleanupMessage(5_sec, reason);
-				gi.Com_PrintFmt("Wave {} completed by killing all monsters.\n", g_horde_local.level);
+				gi.Com_PrintFmt("PRINT: Wave {} completed by killing all monsters.\n", g_horde_local.level);
 
 				gi.cvar_set("g_chaotic", "0");
 				gi.cvar_set("g_insane", "0");

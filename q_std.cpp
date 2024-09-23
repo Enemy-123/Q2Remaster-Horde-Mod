@@ -108,7 +108,7 @@ skipwhite:
 
 	if (len == buffer_size)
 	{
-		gi.Com_PrintFmt("Token exceeded {} chars, discarded.\n", buffer_size);
+		gi.Com_PrintFmt("PRINT: Token exceeded {} chars, discarded.\n", buffer_size);
 		len = 0;
 	}
 	buffer[len] = '\0';

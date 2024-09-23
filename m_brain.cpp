@@ -882,7 +882,7 @@ MONSTERINFO_DUCK(brain_duck) (edict_t* self, gtime_t eta) -> bool
 
 void brain_jump_now(edict_t* self)
 {
-	//	gi.Com_PrintFmt("brain_jump_now called\n");
+	//	gi.Com_PrintFmt("PRINT: brain_jump_now called\n");
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);

@@ -10,7 +10,7 @@ void SP_misc_crashviper(edict_t *ent)
 {
 	if (!ent->target)
 	{
-		gi.Com_PrintFmt("{}: no target\n", *ent);
+		gi.Com_PrintFmt("PRINT: {}: no target\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -86,7 +86,7 @@ void SP_misc_transport(edict_t *ent)
 {
 	if (!ent->target)
 	{
-		gi.Com_PrintFmt("{}: no target\n", *ent);
+		gi.Com_PrintFmt("PRINT: {}: no target\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}

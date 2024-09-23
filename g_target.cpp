@@ -72,7 +72,7 @@ void SP_target_speaker(edict_t* ent)
 {
 	if (!st.noise)
 	{
-		gi.Com_PrintFmt("{}: no noise set\n", *ent);
+		gi.Com_PrintFmt("PRINT: {}: no noise set\n", *ent);
 		return;
 	}
 
@@ -162,7 +162,7 @@ void SP_target_help(edict_t* ent)
 
 	if (!ent->message)
 	{
-		gi.Com_PrintFmt("{}: no message\n", *ent);
+		gi.Com_PrintFmt("PRINT: {}: no message\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -197,9 +197,9 @@ USE(use_target_secret) (edict_t* ent, edict_t* other, edict_t* activator) -> voi
 THINK(G_VerifyTargetted) (edict_t* ent) -> void
 {
 	if (!ent->targetname || !*ent->targetname)
-		gi.Com_PrintFmt("WARNING: missing targetname on {}\n", *ent);
+		gi.Com_PrintFmt("PRINT: WARNING: missing targetname on {}\n", *ent);
 	else if (!G_FindByString<&edict_t::target>(nullptr, ent->targetname))
-		gi.Com_PrintFmt("WARNING: doesn't appear to be anything targeting {}\n", *ent);
+		gi.Com_PrintFmt("PRINT: WARNING: doesn't appear to be anything targeting {}\n", *ent);
 }
 
 void SP_target_secret(edict_t* ent)
@@ -467,7 +467,7 @@ void SP_target_changelevel(edict_t* ent)
 {
 	if (!ent->map)
 	{
-		gi.Com_PrintFmt("{}: no map\n", *ent);
+		gi.Com_PrintFmt("PRINT: {}: no map\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -851,7 +851,7 @@ THINK(target_laser_start) (edict_t* self) -> void
 		{
 			ent = G_FindByString<&edict_t::targetname>(nullptr, self->target);
 			if (!ent)
-				gi.Com_PrintFmt("{}: {} is a bad target\n", *self, self->target);
+				gi.Com_PrintFmt("PRINT: {}: {} is a bad target\n", *self, self->target);
 			else
 			{
 				self->enemy = ent;
@@ -939,7 +939,7 @@ USE(target_lightramp_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 				break;
 			if (strcmp(e->classname, "light") != 0)
 			{
-				gi.Com_PrintFmt("{}: target {} ({}) is not a light\n", *self, self->target, *e);
+				gi.Com_PrintFmt("PRINT: {}: target {} ({}) is not a light\n", *self, self->target, *e);
 			}
 			else
 			{
@@ -949,7 +949,7 @@ USE(target_lightramp_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 
 		if (!self->enemy)
 		{
-			gi.Com_PrintFmt("{}: target {} not found\n", *self, self->target);
+			gi.Com_PrintFmt("PRINT: {}: target {} not found\n", *self, self->target);
 			G_FreeEdict(self);
 			return;
 		}
@@ -963,7 +963,7 @@ void SP_target_lightramp(edict_t* self)
 {
 	if (!self->message || strlen(self->message) != 2 || self->message[0] < 'a' || self->message[0] > 'z' || self->message[1] < 'a' || self->message[1] > 'z' || self->message[0] == self->message[1])
 	{
-		gi.Com_PrintFmt("{}: bad ramp ({})\n", *self, self->message ? self->message : "null string");
+		gi.Com_PrintFmt("PRINT: {}: bad ramp ({})\n", *self, self->message ? self->message : "null string");
 		G_FreeEdict(self);
 		return;
 	}
@@ -976,7 +976,7 @@ void SP_target_lightramp(edict_t* self)
 
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("{}: no target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no target\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -1076,7 +1076,7 @@ USE(target_earthquake_use) (edict_t* self, edict_t* other, edict_t* activator) -
 void SP_target_earthquake(edict_t* self)
 {
 	if (!self->targetname && !g_horde->integer)
-		gi.Com_PrintFmt("{}: untargeted\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: untargeted\n", *self);
 
 	if (level.is_n64)
 	{
@@ -1426,7 +1426,7 @@ void SP_target_soundfx(edict_t* self)
 		self->noise_index = gi.soundindex("world/bigpump2.wav");
 		break;
 	default:
-		gi.Com_PrintFmt("{}: unknown noise {}\n", *self, self->noise_index);
+		gi.Com_PrintFmt("PRINT: {}: unknown noise {}\n", *self, self->noise_index);
 		return;
 	}
 
@@ -1753,7 +1753,7 @@ USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 			}
 
 		if (!level.current_dynamic_poi)
-			gi.Com_PrintFmt("can't activate poi for {}; need DUMMY in chain\n", *ent);
+			gi.Com_PrintFmt("PRINT: can't activate poi for {}; need DUMMY in chain\n", *ent);
 	}
 	else
 		level.current_dynamic_poi = nullptr;
@@ -1771,7 +1771,7 @@ THINK(target_poi_setup) (edict_t* self) -> void
 		for (edict_t* m = self->teammaster; m; m = m->teamchain)
 		{
 			if (strcmp(m->classname, "target_poi"))
-				gi.Com_PrintFmt("WARNING: {} is teamed with target_poi's; unintentional\n", *m);
+				gi.Com_PrintFmt("PRINT: WARNING: {} is teamed with target_poi's; unintentional\n", *m);
 		}
 	}
 }
@@ -1797,9 +1797,9 @@ void SP_target_poi(edict_t* self)
 	if (!self->team)
 	{
 		if (self->spawnflags.has(SPAWNFLAG_POI_NEAREST))
-			gi.Com_PrintFmt("{} has useless spawnflag 'NEAREST'\n", *self);
+			gi.Com_PrintFmt("PRINT: {} has useless spawnflag 'NEAREST'\n", *self);
 		if (self->spawnflags.has(SPAWNFLAG_POI_DYNAMIC))
-			gi.Com_PrintFmt("{} has useless spawnflag 'DYNAMIC'\n", *self);
+			gi.Com_PrintFmt("PRINT: {} has useless spawnflag 'DYNAMIC'\n", *self);
 	}
 }
 
@@ -1848,7 +1848,7 @@ USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> 
 
 		return;
 	}
-	gi.Com_PrintFmt("{}: too many health bars\n", *ent);
+	gi.Com_PrintFmt("PRINT: {}: too many health bars\n", *ent);
 	G_FreeEdict(ent);
 }
 
@@ -1859,7 +1859,7 @@ THINK(check_target_healthbar) (edict_t* ent) -> void
 	if (!target || !(target->svflags & SVF_MONSTER))
 	{
 		if (target != nullptr) {
-			gi.Com_PrintFmt("{}: target {} does not appear to be a monster\n", *ent, *target);
+			gi.Com_PrintFmt("PRINT: {}: target {} does not appear to be a monster\n", *ent, *target);
 		}
 		return;
 	}
@@ -1934,7 +1934,7 @@ USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void 
 		if (sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate) != 2)
 		{
 			// Handle error, e.g., log a warning or set default values
-			gi.Com_PrintFmt("Warning: Failed to parse skyrotate config string\n");
+			gi.Com_PrintFmt("PRINT: Warning: Failed to parse skyrotate config string\n");
 			rotate = 0.0f;  // Default value or handle as needed
 			autorotate = 0; // Default value or handle as needed
 		}

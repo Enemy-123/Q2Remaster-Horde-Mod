@@ -48,7 +48,7 @@ pmenuhnd_t* PMenu_Open(edict_t* ent, const pmenu_t* entries, int cur, int num, v
 		Q_strlcpy(hnd->entries[i].text, entries[i].text, sizeof(entries[i].text));
 		if (hnd->entries[i].text[0] == '\0')
 		{
-	//		gi.Com_PrintFmt("warning: empty string detected in menu entry %d\n", i);
+	//		gi.Com_PrintFmt("PRINT: warning: empty string detected in menu entry %d\n", i);
 		}
 	}
 
@@ -88,7 +88,7 @@ void PMenu_Close(edict_t* ent)
 	//// Verificar si estamos en tiempo de intermisiÃ³n
 	//if (level.intermissiontime)
 	//{
-	//	gi.Com_PrintFmt("Skipping PMenu_Close during intermission\n");
+	//	gi.Com_PrintFmt("PRINT: Skipping PMenu_Close during intermission\n");
 	//	return;
 	//}
 
@@ -100,17 +100,17 @@ void PMenu_Close(edict_t* ent)
 	// Verificar y liberar memoria de manera segura
 	if (hnd->entries)
 	{
-//		gi.Com_PrintFmt("Freeing hnd->entries: {}\n", static_cast<void*>(hnd->entries)); // Cast to void*
+//		gi.Com_PrintFmt("PRINT: Freeing hnd->entries: {}\n", static_cast<void*>(hnd->entries)); // Cast to void*
 		gi.TagFree(hnd->entries);
 		hnd->entries = nullptr;
 	}
 	if (hnd->arg)
 	{
-//		gi.Com_PrintFmt("Freeing hnd->arg: {}\n", static_cast<void*>(hnd->arg)); // Cast to void*
+//		gi.Com_PrintFmt("PRINT: Freeing hnd->arg: {}\n", static_cast<void*>(hnd->arg)); // Cast to void*
 		gi.TagFree(hnd->arg);
 		hnd->arg = nullptr;
 	}
-//	gi.Com_PrintFmt("Freeing hnd: {}\n", static_cast<void*>(hnd)); // Cast to void*
+//	gi.Com_PrintFmt("PRINT: Freeing hnd: {}\n", static_cast<void*>(hnd)); // Cast to void*
 	gi.TagFree(hnd);
 	ent->client->menu = nullptr;
 	ent->client->showscores = false;

@@ -106,7 +106,7 @@ void DBall_ClientBegin(edict_t *ent)
 	ClientUserinfoChanged(ent, ent->client->pers.userinfo);
 
 	if (unassigned)
-		gi.Com_PrintFmt("{} unassigned players present!\n", unassigned);
+		gi.Com_PrintFmt("PRINT: {} unassigned players present!\n", unassigned);
 #endif
 }
 
@@ -237,7 +237,7 @@ int DBall_ChangeKnockback(edict_t *targ, edict_t *attacker, int knockback, mod_t
 		else if (mod.id == MOD_BFG_EFFECT) // bfg
 			knockback = 90;
 		else
-			gi.Com_PrintFmt("zero knockback, mod {}\n", (int32_t) mod.id);
+			gi.Com_PrintFmt("PRINT: zero knockback, mod {}\n", (int32_t) mod.id);
 	}
 	else
 	{
@@ -353,9 +353,9 @@ TOUCH(DBall_GoalTouch) (edict_t *self, edict_t *other, const trace_t &tr, bool o
 	}
 
 	if (other->enemy)
-		gi.Com_PrintFmt("score for team {} by {}\n", team_score, other->enemy->client->pers.netname);
+		gi.Com_PrintFmt("PRINT: score for team {} by {}\n", team_score, other->enemy->client->pers.netname);
 	else
-		gi.Com_PrintFmt("score for team {} by someone\n", team_score);
+		gi.Com_PrintFmt("PRINT: score for team {} by someone\n", team_score);
 
 	DBall_BallDie(other, other->enemy, other->enemy, 0, vec3_origin, MOD_SUICIDE);
 
@@ -428,7 +428,7 @@ PAIN(DBall_BallPain) (edict_t *self, edict_t *other, float kick, int damage, con
 	self->enemy = other;
 	self->health = self->max_health;
 	//	if(other->classname)
-	//		gi.Com_PrintFmt("hurt by {} -- {}\n", other->classname, self->health);
+	//		gi.Com_PrintFmt("PRINT: hurt by {} -- {}\n", other->classname, self->health);
 }
 
 DIE(DBall_BallDie) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void

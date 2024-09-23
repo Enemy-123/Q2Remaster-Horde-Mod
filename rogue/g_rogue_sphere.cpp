@@ -92,7 +92,7 @@ void sphere_chase(edict_t* self, int stupidChase)
 {
 	if (!self)
 	{
-		gi.Com_PrintFmt("Error: self es nulo en sphere_chase\n");
+		gi.Com_PrintFmt("PRINT: Error: self es nulo en sphere_chase\n");
 		return;
 	}
 
@@ -153,7 +153,7 @@ void sphere_chase(edict_t* self, int stupidChase)
 	}
 	else
 	{
-		gi.Com_PrintFmt("Advertencia: self->enemy es nulo en sphere_chase\n");
+		gi.Com_PrintFmt("PRINT: Advertencia: self->enemy es nulo en sphere_chase\n");
 		return;
 	}
 
@@ -172,7 +172,7 @@ void sphere_chase(edict_t* self, int stupidChase)
 	{
 		if (!self->enemy)
 		{
-			gi.Com_PrintFmt("Error: self->enemy es nulo en sphere_chase\n");
+			gi.Com_PrintFmt("PRINT: Error: self->enemy es nulo en sphere_chase\n");
 			return;
 		}
 		dir = self->enemy->s.origin - self->s.origin;
@@ -203,7 +203,7 @@ void sphere_chase(edict_t* self, int stupidChase)
 		{
 			if (!self->enemy)
 			{
-				gi.Com_PrintFmt("Error: self->enemy es nulo en sphere_chase\n");
+				gi.Com_PrintFmt("PRINT: Error: self->enemy es nulo en sphere_chase\n");
 				return;
 			}
 			dir = self->enemy->s.origin - self->s.origin;

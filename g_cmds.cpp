@@ -316,7 +316,7 @@ void Cmd_CheckPOI_f(edict_t* self)
 	char visible_phs = gi.inPHS(self->s.origin, level.current_poi, false) ? 'y' : 'n';
 	char visible_phs_portals = gi.inPHS(self->s.origin, level.current_poi, true) ? 'y' : 'n';
 
-	gi.Com_PrintFmt("pvs {} + portals {}, phs {} + portals {}\n", visible_pvs, visible_pvs_portals, visible_phs, visible_phs_portals);
+	gi.Com_PrintFmt("PRINT: pvs {} + portals {}, phs {} + portals {}\n", visible_pvs, visible_pvs_portals, visible_phs, visible_phs_portals);
 }
 
 // [Paril-KEX]
@@ -1580,7 +1580,7 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 		else if (e->deadflag)
 			continue;
 
-		gi.Com_PrintFmt("{}\n", *e);
+		gi.Com_PrintFmt("PRINT: {}\n", *e);
 	}
 }
 

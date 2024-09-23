@@ -1401,7 +1401,7 @@ MMOVE_T(soldier_move_trip) = { FRAME_runt01, FRAME_runt19, soldier_frames_trip, 
 
 void soldier_jump_now(edict_t* self)
 {
-	//	gi.Com_PrintFmt("soldier_jump_now called\n");
+	//	gi.Com_PrintFmt("PRINT: soldier_jump_now called\n");
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);

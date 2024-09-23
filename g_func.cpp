@@ -740,7 +740,7 @@ void SP_func_plat(edict_t *ent)
 	}
 
 	if (g_mover_debug->integer)
-		gi.Com_PrintFmt("Spawning {} - speed:{} accel:{} decel:{}\n", *ent, ent->speed, ent->accel, ent->decel);
+		gi.Com_PrintFmt("PRINT: Spawning {} - speed:{} accel:{} decel:{}\n", *ent, ent->speed, ent->accel, ent->decel);
 
 	if (!ent->dmg)
 		ent->dmg = 2;
@@ -1911,7 +1911,7 @@ void SP_func_door_rotating(edict_t *ent)
 
 	if (!st.distance)
 	{
-		gi.Com_PrintFmt("{}: no distance set\n", *ent);
+		gi.Com_PrintFmt("PRINT: {}: no distance set\n", *ent);
 		st.distance = 90;
 	}
 
@@ -1973,7 +1973,7 @@ void SP_func_door_rotating(edict_t *ent)
 		if (ent->spawnflags.has(SPAWNFLAG_DOOR_ROTATING_SAFE_OPEN))
 		{
 			ent->spawnflags &= ~SPAWNFLAG_DOOR_ROTATING_SAFE_OPEN;
-			gi.Com_PrintFmt("{}: SAFE_OPEN is not compatible with START_OPEN\n", *ent);
+			gi.Com_PrintFmt("PRINT: {}: SAFE_OPEN is not compatible with START_OPEN\n", *ent);
 		}
 
 		ent->s.angles = ent->pos2;
@@ -2260,7 +2260,7 @@ again:
 	ent = G_PickTarget(self->target);
 	if (!ent)
 	{
-		gi.Com_PrintFmt("{}: train_next: bad target {}\n", *self, self->target);
+		gi.Com_PrintFmt("PRINT: {}: train_next: bad target {}\n", *self, self->target);
 		return;
 	}
 
@@ -2271,7 +2271,7 @@ again:
 	{
 		if (!first)
 		{
-			gi.Com_PrintFmt("{}: connected teleport path_corners\n", *ent);
+			gi.Com_PrintFmt("PRINT: {}: connected teleport path_corners\n", *ent);
 			return;
 		}
 		first = false;
@@ -2393,13 +2393,13 @@ THINK(func_train_find) (edict_t *self) -> void
 
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("{}: train_find: no target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: train_find: no target\n", *self);
 		return;
 	}
 	ent = G_PickTarget(self->target);
 	if (!ent)
 	{
-		gi.Com_PrintFmt("{}: train_find: target {} not found\n", *self, self->target);
+		gi.Com_PrintFmt("PRINT: {}: train_find: target {} not found\n", *self, self->target);
 		return;
 	}
 	self->target = ent->target;
@@ -2511,7 +2511,7 @@ void SP_func_train(edict_t *self)
 	}
 	else
 	{
-		gi.Com_PrintFmt("{}: no target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: no target\n", *self);
 	}
 }
 
@@ -2526,14 +2526,14 @@ USE(trigger_elevator_use) (edict_t *self, edict_t *other, edict_t *activator) ->
 
 	if (!other->pathtarget)
 	{
-		gi.Com_PrintFmt("{}: elevator used with no pathtarget\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: elevator used with no pathtarget\n", *self);
 		return;
 	}
 
 	target = G_PickTarget(other->pathtarget);
 	if (!target)
 	{
-		gi.Com_PrintFmt("{}: elevator used with bad pathtarget: {}\n", *self, other->pathtarget);
+		gi.Com_PrintFmt("PRINT: {}: elevator used with bad pathtarget: {}\n", *self, other->pathtarget);
 		return;
 	}
 
@@ -2545,18 +2545,18 @@ THINK(trigger_elevator_init) (edict_t *self) -> void
 {
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("{}: has no target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: has no target\n", *self);
 		return;
 	}
 	self->movetarget = G_PickTarget(self->target);
 	if (!self->movetarget)
 	{
-		gi.Com_PrintFmt("{}: unable to find target {}\n", *self, self->target);
+		gi.Com_PrintFmt("PRINT: {}: unable to find target {}\n", *self, self->target);
 		return;
 	}
 	if (strcmp(self->movetarget->classname, "func_train") != 0)
 	{
-		gi.Com_PrintFmt("{}: target {} is not a train\n", *self, self->target);
+		gi.Com_PrintFmt("PRINT: {}: target {} is not a train\n", *self, self->target);
 		return;
 	}
 
@@ -2622,7 +2622,7 @@ void SP_func_timer(edict_t *self)
 	if (self->random >= self->wait)
 	{
 		self->random = self->wait - gi.frame_time_s;
-		gi.Com_PrintFmt("{}: random >= wait\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: random >= wait\n", *self);
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TIMER_START_ON))
@@ -2995,7 +2995,7 @@ THINK(func_eye_setup) (edict_t *self) -> void
 	edict_t *eye_pos = G_PickTarget(self->pathtarget);
 
 	if (!eye_pos)
-		gi.Com_PrintFmt("{}: bad target\n", *self);
+		gi.Com_PrintFmt("PRINT: {}: bad target\n", *self);
 	else
 		self->move_origin = eye_pos->s.origin - self->s.origin;
 

@@ -467,7 +467,7 @@ vec3_t parasite_get_proboscis_start(edict_t* self)
 THINK(proboscis_think) (edict_t* self) -> void
 {
     if (!self) {
-        gi.Com_PrintFmt("Warning: Null self pointer in proboscis_think\n");
+        gi.Com_PrintFmt("PRINT: Warning: Null self pointer in proboscis_think\n");
         return;
     }
 
@@ -477,7 +477,7 @@ THINK(proboscis_think) (edict_t* self) -> void
     if (self->style == 2)
     {
         if (!self->owner) {
-            gi.Com_PrintFmt("Warning: Null owner in proboscis_think during retraction\n");
+            gi.Com_PrintFmt("PRINT: Warning: Null owner in proboscis_think during retraction\n");
             proboscis_retract(self);
             return;
         }
@@ -510,7 +510,7 @@ THINK(proboscis_think) (edict_t* self) -> void
         }
 
         if (!self->owner) {
-            gi.Com_PrintFmt("Warning: Null owner in proboscis_think during stuck phase\n");
+            gi.Com_PrintFmt("PRINT: Warning: Null owner in proboscis_think during stuck phase\n");
             proboscis_retract(self);
             return;
         }
