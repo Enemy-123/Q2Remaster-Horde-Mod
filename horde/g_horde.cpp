@@ -358,7 +358,7 @@ struct ConditionParams {
 	float lowPercentageThreshold;
 	float aggressiveTimeReductionThreshold;
 
-	ConditionParams() :
+	ConditionParams() noexcept :
 		maxMonsters(0),
 		timeThreshold(0_sec),
 		lowPercentageTimeThreshold(0_sec),

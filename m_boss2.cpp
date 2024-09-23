@@ -48,22 +48,22 @@ void Boss2PredictiveRocket(edict_t* self)
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_1], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, -0.10f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, -0.05f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, 0.05f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
 	PredictAim(self, self->enemy, start, BOSS2_ROCKET_SPEED, false, 0.10f, &dir, nullptr);
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, BOSS2_ROCKET_SPEED, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket(edict_t* self)
@@ -92,7 +92,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 800, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, 800, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
@@ -101,7 +101,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 750, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, 750, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
@@ -110,7 +110,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 650, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, 650, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
@@ -120,7 +120,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 30, 600, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 40, 600, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket64(edict_t* self)

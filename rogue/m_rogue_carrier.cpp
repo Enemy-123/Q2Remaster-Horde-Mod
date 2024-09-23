@@ -199,8 +199,8 @@ void CarrierGrenade(edict_t *self)
 		aim[2] = -0.5f;
 
 	flash_number = MZ2_GUNNER_GRENADE_1;
-	monster_fire_grenade(self, start, aim, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
-	monster_fire_grenade(self, start, aim, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 45, 1250, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+	monster_fire_grenade(self, start, aim, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 45, 1150, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 }
 
 void CarrierPredictiveRocket(edict_t *self)
@@ -214,22 +214,22 @@ void CarrierPredictiveRocket(edict_t *self)
 	// 1
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_1], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.3f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, -0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
 	PredictAim(self, self->enemy, start, CARRIER_ROCKET_SPEED, false, 0.15f, &dir, nullptr);
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 
@@ -266,7 +266,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_1, self->accel);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_2], forward, right);
@@ -275,7 +275,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_2, self->accel);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_3], forward, right);
@@ -284,7 +284,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_3, self->accel);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_CARRIER_ROCKET_4], forward, right);
@@ -294,7 +294,7 @@ void CarrierRocket(edict_t *self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 25, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
+	monster_fire_heat(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 50 : 35, CARRIER_ROCKET_SPEED, MZ2_CARRIER_ROCKET_4, self->accel);
 }
 
 void carrier_firebullet_right(edict_t *self)
