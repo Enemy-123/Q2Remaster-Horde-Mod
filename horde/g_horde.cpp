@@ -1660,8 +1660,6 @@ static void ResetWaveAdvanceState() noexcept {
 	boss_spawned_for_wave = false;
 	flying_monsters_mode = false;
 
-	Horde_CleanBodies();
-
 	// No reiniciar g_lastParams aquí
 	g_lastWaveNumber = -1;
 	g_lastNumHumanPlayers = -1;
@@ -1673,13 +1671,14 @@ static void ResetWaveAdvanceState() noexcept {
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	constexpr gtime_t PRINT_INTERVAL = 3_sec;
-	constexpr gtime_t WARNING_TIME = 15_sec;
+	constexpr gtime_t WARNING_TIME = 5_sec;
 	constexpr gtime_t EXTENSION_TIME = 10_sec;
 	constexpr float LOW_PROGRESS_THRESHOLD = 0.6f;
 	constexpr float ADVANCE_PROGRESS_THRESHOLD = 0.7f;
 	constexpr int MAX_EXTENSIONS = 2;
+	constexpr gtime_t MIN_EXTENSION_INTERVAL = 30_sec;
 
-	static gtime_t lastExtensionPrintTime = 0_sec;
+	static gtime_t lastExtensionTime = 0_sec;
 	static int extensionCount = 0;
 	static bool timeWarningIssued = false;
 
@@ -1689,6 +1688,14 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	if (level.time - g_horde_local.lastPrintTime >= PRINT_INTERVAL) {
 		int32_t remainingMonsters = CalculateRemainingMonsters();
+
+		// Sincronizar el tiempo restante con los umbrales alcanzados
+		if (g_maxMonstersReached || g_lowPercentageTriggered) {
+			const gtime_t elapsedSinceThreshold = level.time - g_condition_start_time;
+			const gtime_t thresholdTimeLimit = g_maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
+			remainingTime = std::max(0_sec, thresholdTimeLimit - elapsedSinceThreshold);
+		}
+
 		gi.Com_PrintFmt("Wave: {}, Remaining: {}/{}, Time: {:.1f}/{:.1f}, Adjusted Time: {:.1f}, Remaining Time: {:.1f}\n",
 			current_wave_level, remainingMonsters, g_totalMonstersInWave,
 			independentElapsed.seconds(),
@@ -1731,32 +1738,33 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 			g_lowPercentageTriggered = true;
 			g_condition_start_time = level.time;
 			timeThreshold = g_lastParams.lowPercentageTimeThreshold;
-			adjustedTimeThreshold = independentElapsed + timeThreshold;
-			remainingTime = timeThreshold;
-			gi.Com_PrintFmt("Low percentage threshold reached. New time threshold: {:.1f}, Remaining monsters: {}/{}, Adjusted Time: {:.1f}, Remaining Time: {:.1f}\n",
-				timeThreshold.seconds(), remainingMonsters, g_totalMonstersInWave, adjustedTimeThreshold.seconds(), remainingTime.seconds());
+			adjustedTimeThreshold = std::min(adjustedTimeThreshold, level.time + timeThreshold);
+			gi.Com_PrintFmt("Low percentage threshold reached. New time threshold: {:.1f}, Remaining monsters: {}/{}\n",
+				timeThreshold.seconds(), remainingMonsters, g_totalMonstersInWave);
 		}
 		else if (!g_maxMonstersReached && remainingMonsters <= g_lastParams.maxMonsters) {
 			g_maxMonstersReached = true;
 			g_condition_start_time = level.time;
+			adjustedTimeThreshold = std::min(adjustedTimeThreshold, level.time + timeThreshold);
 			gi.Com_PrintFmt("Max monsters threshold reached. Remaining monsters: {}/{}, Max allowed: {}\n",
 				remainingMonsters, g_totalMonstersInWave, g_lastParams.maxMonsters);
 		}
 
 		const gtime_t conditionElapsed = (g_maxMonstersReached || g_lowPercentageTriggered) ? (level.time - g_condition_start_time) : 0_sec;
 
-		if (waveProgress < LOW_PROGRESS_THRESHOLD && extensionCount < MAX_EXTENSIONS) {
+		if (waveProgress < LOW_PROGRESS_THRESHOLD && extensionCount < MAX_EXTENSIONS &&
+			(level.time - lastExtensionTime) >= MIN_EXTENSION_INTERVAL) {
 			adjustedTimeThreshold += EXTENSION_TIME;
 			remainingTime = std::max(0_sec, adjustedTimeThreshold - independentElapsed);
+			extensionCount++;
+			lastExtensionTime = level.time;
 
-			if (level.time - lastExtensionPrintTime >= PRINT_INTERVAL) {
-				gi.Com_PrintFmt("Wave extended. New adjusted time: {:.1f}, Remaining time: {:.1f}\n",
-					adjustedTimeThreshold.seconds(), remainingTime.seconds());
-				lastExtensionPrintTime = level.time;
-			}
+			gi.Com_PrintFmt("Wave extended. New adjusted time: {:.1f}, Remaining time: {:.1f}, Extension count: {}\n",
+				adjustedTimeThreshold.seconds(), remainingTime.seconds(), extensionCount);
 		}
 
-		if (independentElapsed >= (adjustedTimeThreshold - WARNING_TIME) && !timeWarningIssued) {
+		// Mostrar mensaje de advertencia exactamente a los 5 segundos
+		if (remainingTime <= WARNING_TIME && remainingTime > (WARNING_TIME - 1_sec) && !timeWarningIssued) {
 			gi.LocBroadcast_Print(PRINT_CENTER, "Warning: {} seconds left in the wave!\n", WARNING_TIME.seconds());
 			timeWarningIssued = true;
 		}
@@ -1777,7 +1785,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	if (shouldAdvance) {
 		ResetWaveAdvanceState();
-		extensionCount = 0;
 		gi.Com_PrintFmt("Wave advance triggered. Reason: {}\n",
 			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
 		return true;
