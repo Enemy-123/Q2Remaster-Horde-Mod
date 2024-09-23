@@ -275,11 +275,14 @@ PAIN(tank_vanilla_pain) (edict_t* self, edict_t* other, float kick, int damage, 
 			if (frandom() > 0.2f)
 				return;
 
-		// don't go into pain while attacking
+		// don't go into pain while attacking/spawning
 		if ((self->s.frame >= FRAME_attak301) && (self->s.frame <= FRAME_attak330))
 			return;
 		if ((self->s.frame >= FRAME_attak101) && (self->s.frame <= FRAME_attak116))
+			return;	
+		if ((self->s.frame >= FRAME_attak223) && (self->s.frame <= FRAME_attak231)) //spawning
 			return;
+
 	}
 
 	self->pain_debounce_time = level.time + 3_sec;

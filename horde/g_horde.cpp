@@ -402,15 +402,15 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	// Base configuration based on map size
 	if (mapSize.isBigMap) {
 		params.maxMonsters = 26;
-		params.timeThreshold = random_time(35_sec, 40_sec);
+		params.timeThreshold = random_time(22_sec, 33_sec);
 	}
 	else if (mapSize.isSmallMap) {
 		params.maxMonsters = numHumanPlayers >= 3 ? 11 : 9;
-		params.timeThreshold = random_time(20_sec, 25_sec);
+		params.timeThreshold = random_time(18_sec, 22_sec);
 	}
 	else { // Medium map
 		params.maxMonsters = numHumanPlayers >= 3 ? 17 : 15;
-		params.timeThreshold = random_time(25_sec, 30_sec);
+		params.timeThreshold = random_time(18_sec, 30_sec);
 	}
 
 	// Progressive scaling with level
@@ -419,13 +419,13 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	// Additional adjustments for high levels
 	if (lvl > 10) {
-		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f);
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
 		params.timeThreshold += 3_sec;
 	}
 
 	// Adjustments for chaotic or insane modes
 	if ((g_chaotic->integer || g_insane->integer) && numHumanPlayers <= 3) {
-		params.timeThreshold += random_time(10_sec, 15_sec);
+		params.timeThreshold += random_time(5_sec, 10_sec);
 	}
 
 	// Adjust based on player performance
@@ -455,7 +455,7 @@ static gtime_t waveEndTime = 0_sec; // Nueva variable para el tiempo de finaliza
 
 
 // Warning times in seconds
-constexpr std::array<float, 5> WARNING_TIMES = { 60.0f, 30.0f, 20.0f, 10.0f, 5.0f };
+constexpr std::array<float, 4> WARNING_TIMES = { 30.0f, 20.0f, 10.0f, 5.0f };
 
 
 

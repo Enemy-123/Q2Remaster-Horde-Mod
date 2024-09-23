@@ -207,6 +207,9 @@ PAIN(infantry_pain) (edict_t *self, edict_t *other, float kick, int damage, cons
 		self->monsterinfo.active_move == &infantry_move_jump2) && self->think == monster_think)
 		return;
 
+	if ((self->s.frame >= FRAME_attak201) && (self->s.frame <= FRAME_attak208)) //grenade attack
+		return;
+
 	monster_done_dodge(self);
 
 	if (level.time < self->pain_debounce_time)

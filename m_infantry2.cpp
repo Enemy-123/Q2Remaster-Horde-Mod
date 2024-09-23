@@ -207,6 +207,9 @@ PAIN(infantry_vanilla_pain) (edict_t* self, edict_t* other, float kick, int dama
 		self->monsterinfo.active_move == &infantry_vanilla_move_jump2) && self->think == monster_think)
 		return;
 
+	if ((self->s.frame >= FRAME_attak201) && (self->s.frame <= FRAME_attak208)) //grenade attack
+		return;
+
 	monster_done_dodge(self);
 
 	if (level.time < self->pain_debounce_time)
@@ -718,8 +721,8 @@ void infantry_vanilla_grenade(edict_t* self)
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
 	// Predict target position
-	float time_to_target = (self->enemy->s.origin - start).length() / speed;
-	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+	const float time_to_target = (self->enemy->s.origin - start).length() / speed;
+	const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
 
 	aim = predicted_pos - start;
 	const float dist = aim.length();
@@ -753,7 +756,7 @@ void infantry_vanilla_grenade(edict_t* self)
 	}
 
 	// Compensate for the upward velocity in fire_grenade2
-	float gravityAdjustment = level.gravity / 800.f;
+	const float gravityAdjustment = level.gravity / 800.f;
 	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
 	aim[2] += downwardAdjustment;
 	aim.normalize();
