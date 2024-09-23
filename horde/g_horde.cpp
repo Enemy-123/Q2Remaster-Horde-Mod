@@ -401,15 +401,15 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	// Base configuration based on map size
 	if (mapSize.isBigMap) {
-		params.maxMonsters = 18;
+		params.maxMonsters = 26;
 		params.timeThreshold = random_time(35_sec, 40_sec);
 	}
 	else if (mapSize.isSmallMap) {
-		params.maxMonsters = numHumanPlayers >= 3 ? 9 : 7;
+		params.maxMonsters = numHumanPlayers >= 3 ? 11 : 9;
 		params.timeThreshold = random_time(20_sec, 25_sec);
 	}
 	else { // Medium map
-		params.maxMonsters = numHumanPlayers >= 3 ? 14 : 11;
+		params.maxMonsters = numHumanPlayers >= 3 ? 17 : 15;
 		params.timeThreshold = random_time(25_sec, 30_sec);
 	}
 
@@ -429,7 +429,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	}
 
 	// Adjust based on player performance
-	float playerPerformanceFactor = CalculatePlayerPerformance();
+	const float playerPerformanceFactor = CalculatePlayerPerformance();
 	params.maxMonsters = static_cast<int32_t>(params.maxMonsters * playerPerformanceFactor);
 	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
 
@@ -1705,13 +1705,16 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 				conditionTimeThreshold = std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
 				gi.LocBroadcast_Print(PRINT_HIGH, "Both max monsters and low percentage conditions met. Wave time reduced!\n");
 			}
+
+		/*	low monsters condition met.*/
 			else if (remainingMonsters <= g_lastParams.maxMonsters) {
 				conditionTimeThreshold = g_lastParams.timeThreshold;
-				gi.LocBroadcast_Print(PRINT_HIGH, "Low monsters condition met. Wave time adjusted.\n");
+				gi.LocBroadcast_Print(PRINT_HIGH, "Wave time adjusted.\n");
 			}
+			//Low percentage of monsters remaining.
 			else {
 				conditionTimeThreshold = g_lastParams.lowPercentageTimeThreshold;
-				gi.LocBroadcast_Print(PRINT_HIGH, "Low percentage of monsters remaining. Wave time reduced!\n");
+				gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
 			}
 
 			// Set waveEndTime based on the condition
