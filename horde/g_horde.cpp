@@ -106,7 +106,7 @@ constexpr weighted_benefit_t benefits[] = {
 
 
 // Funci�n para mezclar los beneficios
-void ShuffleBenefits() {
+static void ShuffleBenefits() {
 	shuffled_benefits.clear();
 	shuffled_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
 	for (const auto& benefit : benefits) {
@@ -129,7 +129,7 @@ struct picked_benefit_t {
 
 
 // Funci�n para seleccionar un beneficio aleatorio
-std::string SelectRandomBenefit(int32_t wave) {
+static std::string SelectRandomBenefit(int32_t wave) {
 	std::vector<picked_benefit_t> picked_benefits;
 	picked_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
 	float total_weight = 0.0f;
@@ -157,7 +157,7 @@ std::string SelectRandomBenefit(int32_t wave) {
 #include <string_view>
 
 // Función hash simple para strings en tiempo de compilación
-constexpr uint32_t hash(std::string_view str) {
+static constexpr uint32_t hash(std::string_view str) {
 	uint32_t hash = 5381;
 	for (const char c : str)
 		hash = ((hash << 5) + hash) + c;
@@ -165,7 +165,7 @@ constexpr uint32_t hash(std::string_view str) {
 }
 
 // Función para aplicar un beneficio específico
-void ApplyBenefit(const std::string& benefit) {
+static void ApplyBenefit(const std::string& benefit) {
 	static const std::unordered_map<std::string, std::pair<const char*, const char*>> benefitMessages = {
 		{"start armor", {"\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 50 BODY-ARMOR!\n"}},
 		{"vampire", {"\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n"}},
@@ -233,7 +233,7 @@ void ApplyBenefit(const std::string& benefit) {
 }
 
 // Funci�n para verificar y aplicar beneficios basados en la ola
-void CheckAndApplyBenefit(int32_t wave) {
+static void CheckAndApplyBenefit(int32_t wave) {
 	if (wave % 4 == 0) {
 		if (shuffled_benefits.empty()) {
 			ShuffleBenefits();
@@ -294,7 +294,7 @@ static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) no
 }
 
 // Función para ajustar la tasa de aparición de monstruos
-void AdjustMonsterSpawnRate() {
+static void AdjustMonsterSpawnRate() {
 	const auto humanPlayers = GetNumHumanPlayers();
 	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f;
 
@@ -333,7 +333,7 @@ static void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noex
 		g_horde_local.num_to_spawn += 2;
 
 		// Obtener el máximo permitido según el tamaño del mapa
-		int32_t max_spawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		const int32_t max_spawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 			(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
 
 		// Si excede el máximo, agregar a la cola
@@ -367,7 +367,7 @@ struct ConditionParams {
 
 
 // Función para calcular el rendimiento del jugador (implementa según tus necesidades)
-float CalculatePlayerPerformance() {
+static float CalculatePlayerPerformance() {
 	// Esta es una implementación de ejemplo. Ajusta según tus necesidades.
 	const float killRate = static_cast<float>(level.killed_monsters) / std::max(1.0f, static_cast<float>(g_totalMonstersInWave));
 	return std::clamp(killRate, 0.5f, 2.0f);  // Limita el factor entre 0.5 y 2
@@ -384,7 +384,7 @@ static bool g_maxMonstersReached = false;
 static bool g_lowPercentageTriggered = false;
 static float g_playerPerformanceFactor = 1.0f;
 
-ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
+static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
 	// Configuración base según el tamaño del mapa
@@ -433,7 +433,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	return params;
 }
 
-void Horde_InitLevel(const int32_t lvl) {
+static void Horde_InitLevel(const int32_t lvl) {
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
 	cachedRemainingMonsters = g_totalMonstersInWave;
 	last_wave_number++;
@@ -656,7 +656,7 @@ constexpr boss_t BOSS_LARGE[] = {
 };
 
 // Funci�n para obtener la lista de jefes basada en el tama�o del mapa
-const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
+static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
 		return BOSS_SMALL;
 	}
@@ -690,7 +690,7 @@ const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 constexpr int32_t MAX_RECENT_BOSSES = 3;
 std::vector<const char*> recent_bosses;  // Cambiado de std::deque a std::vector
 
-const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) {
+static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
 	if (!boss_list) return nullptr;
 
@@ -801,36 +801,36 @@ static int32_t countFlyingSpawns() noexcept {
 	return count;
 }
 
-inline bool IsFlyingMonster(const char* classname) {
+static inline bool IsFlyingMonster(const char* classname) {
 	return flying_monsters_set.find(classname) != flying_monsters_set.end();
 }
 
-constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
+static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
 	return (flyingSpawns > 0) ? 0.25f : 1.0f;
 }
 
-bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
+static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
 	return !(spawn_point->style == 1 && !isFlyingMonster) &&
 		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) &&
 		!(isFlyingMonster && currentWave < WAVE_TO_ALLOW_FLYING);
 }
 
-float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
+static float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
 	return item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
 }
 
-void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
+static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 	spawnAttempts[spawn_point] = 0;
 	spawnPointCooldowns[spawn_point] = level.time;
 }
 
-void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
+static void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
 	lastSpawnPointTime[spawn_point] = level.time;
 	lastMonsterSpawnTime[classname] = level.time;
 	spawnPointCooldowns[spawn_point] = level.time;
 }
 
-void IncreaseSpawnAttempts(edict_t* spawn_point) {
+static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	spawnAttempts[spawn_point]++;
 	if (spawnAttempts[spawn_point] % 3 == 0) {
 		spawnPointCooldowns[spawn_point] = gtime_t::from_sec(spawnPointCooldowns[spawn_point].seconds() * 0.9f);
@@ -1046,9 +1046,6 @@ void VerifyAndAdjustBots() {
 	gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
 
-
-#include <array>
-#include <string_view>
 #include <chrono>
 void InitializeWaveSystem() noexcept;
 void Horde_Init() {
@@ -1112,7 +1109,7 @@ constexpr int MAX_VERTICAL_VELOCITY = 800;
 constexpr int VERTICAL_VELOCITY_RANDOM_RANGE = 200;
 
 // Función auxiliar para generar velocidad aleatoria
-vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVertical, int maxVertical) {
+static vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVertical, int maxVertical) {
 	std::uniform_int_distribution<> horizontalDis(minHorizontal, maxHorizontal);
 	std::uniform_int_distribution<> verticalDis(minVertical, maxVertical);
 
@@ -1124,7 +1121,7 @@ vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVerti
 }
 
 // Función auxiliar para configurar un ítem soltado
-void SetupDroppedItem(edict_t* item, const vec3_t& origin, const vec3_t& velocity, bool applyFlags) {
+static void SetupDroppedItem(edict_t* item, const vec3_t& origin, const vec3_t& velocity, bool applyFlags) {
 	VectorCopy(origin, item->s.origin);
 	VectorCopy(velocity, item->velocity);
 	if (applyFlags) {
@@ -1307,7 +1304,7 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
 void SetHealthBarName(edict_t* boss);
 
 // attaching healthbar
-void AttachHealthBar(edict_t* boss) {
+static void AttachHealthBar(edict_t* boss) {
 	auto healthbar = G_Spawn();
 	if (!healthbar) return;
 
@@ -1341,7 +1338,7 @@ void AttachHealthBar(edict_t* boss) {
 static int boss_counter = 0; // Declaramos boss_counter como variable estática
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 
-void SpawnBossAutomatically() {
+static void SpawnBossAutomatically() {
 
 	const auto mapSize = GetMapSize(level.mapname);
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
@@ -1437,8 +1434,8 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 	gi.linkentity(self);
 
 
-	const float health_multiplier = 1.0f;
-	const float power_armor_multiplier = 1.0f;
+	constexpr float health_multiplier = 1.0f;
+	constexpr float power_armor_multiplier = 1.0f;
 
 	// Apply bonus flags and effects
 	ApplyBossEffects(self);
@@ -1632,11 +1629,7 @@ static int32_t CountActiveMonsters() {
 	return count;
 }
 
-// Función para verificar y ajustar el conteo de monstruos
-void VerifyMonsterCount() {
-}
-
-static int32_t CalculateRemainingMonsters() {
+static int32_t CalculateRemainingMonsters() noexcept {
 	return level.total_monsters - level.killed_monsters;
 }
 
@@ -1669,12 +1662,24 @@ static void ResetWaveAdvanceState() noexcept {
 	// Reset any other wave-specific state as needed
 }
 
-bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+#include <algorithm>
+
+// New constants and helper functions
+constexpr gtime_t BASE_MAX_WAVE_TIME = 60_sec;
+constexpr gtime_t TIME_INCREASE_PER_LEVEL = 2_sec;
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
+constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 5_sec;
+constexpr float LATE_STAGE_THRESHOLD = 0.7f;
+constexpr float LOW_PERCENTAGE_THRESHOLD = 0.15f;
+
+gtime_t calculate_max_wave_time(int32_t wave_level) {
+	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 120_sec);
+}
+
+static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	constexpr gtime_t PRINT_INTERVAL = 3_sec;
 	constexpr gtime_t WARNING_TIME = 5_sec;
 	constexpr gtime_t EXTENSION_TIME = 10_sec;
-	constexpr float LOW_PROGRESS_THRESHOLD = 0.6f;
-	constexpr float ADVANCE_PROGRESS_THRESHOLD = 0.7f;
 	constexpr int MAX_EXTENSIONS = 2;
 	constexpr gtime_t MIN_EXTENSION_INTERVAL = 30_sec;
 
@@ -1683,17 +1688,23 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	static bool timeWarningIssued = false;
 
 	const gtime_t independentElapsed = level.time - g_independent_timer_start;
-	gtime_t adjustedTimeThreshold = g_lastParams.independentTimeThreshold;
+	gtime_t adjustedTimeThreshold = calculate_max_wave_time(current_wave_level);
 	gtime_t remainingTime = std::max(0_sec, adjustedTimeThreshold - independentElapsed);
 
 	if (level.time - g_horde_local.lastPrintTime >= PRINT_INTERVAL) {
 		int32_t remainingMonsters = CalculateRemainingMonsters();
 
-		// Sincronizar el tiempo restante con los umbrales alcanzados
+		// Synchronize remaining time with reached thresholds
 		if (g_maxMonstersReached || g_lowPercentageTriggered) {
 			const gtime_t elapsedSinceThreshold = level.time - g_condition_start_time;
 			const gtime_t thresholdTimeLimit = g_maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
 			remainingTime = std::max(0_sec, thresholdTimeLimit - elapsedSinceThreshold);
+		}
+
+		// Aggressive time reduction for few remaining monsters
+		if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
+			const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
+			remainingTime = std::max(0_sec, remainingTime - reduction);
 		}
 
 		gi.Com_PrintFmt("Wave: {}, Remaining: {}/{}, Time: {:.1f}/{:.1f}, Adjusted Time: {:.1f}, Remaining Time: {:.1f}\n",
@@ -1734,7 +1745,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		const float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
 		const float waveProgress = 1.0f - percentageRemaining;
 
-		if (percentageRemaining <= g_lastParams.lowPercentageThreshold && !g_lowPercentageTriggered) {
+		if (percentageRemaining <= LOW_PERCENTAGE_THRESHOLD && !g_lowPercentageTriggered) {
 			g_lowPercentageTriggered = true;
 			g_condition_start_time = level.time;
 			timeThreshold = g_lastParams.lowPercentageTimeThreshold;
@@ -1752,18 +1763,22 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 		const gtime_t conditionElapsed = (g_maxMonstersReached || g_lowPercentageTriggered) ? (level.time - g_condition_start_time) : 0_sec;
 
-		if (waveProgress < LOW_PROGRESS_THRESHOLD && extensionCount < MAX_EXTENSIONS &&
+		// Adjust extension criteria for late stages of the wave
+		if (waveProgress < LATE_STAGE_THRESHOLD && extensionCount < MAX_EXTENSIONS &&
 			(level.time - lastExtensionTime) >= MIN_EXTENSION_INTERVAL) {
-			adjustedTimeThreshold += EXTENSION_TIME;
-			remainingTime = std::max(0_sec, adjustedTimeThreshold - independentElapsed);
-			extensionCount++;
-			lastExtensionTime = level.time;
+		const float extensionDifficulty = waveProgress / LATE_STAGE_THRESHOLD;
+			if (frandom() > extensionDifficulty) {
+				adjustedTimeThreshold += EXTENSION_TIME;
+				remainingTime = std::max(0_sec, adjustedTimeThreshold - independentElapsed);
+				extensionCount++;
+				lastExtensionTime = level.time;
 
-			gi.Com_PrintFmt("Wave extended. New adjusted time: {:.1f}, Remaining time: {:.1f}, Extension count: {}\n",
-				adjustedTimeThreshold.seconds(), remainingTime.seconds(), extensionCount);
+				gi.Com_PrintFmt("Wave extended. New adjusted time: {:.1f}, Remaining time: {:.1f}, Extension count: {}\n",
+					adjustedTimeThreshold.seconds(), remainingTime.seconds(), extensionCount);
+			}
 		}
 
-		// Mostrar mensaje de advertencia exactamente a los 5 segundos
+		// Show warning message exactly at 5 seconds
 		if (remainingTime <= WARNING_TIME && remainingTime > (WARNING_TIME - 1_sec) && !timeWarningIssued) {
 			gi.LocBroadcast_Print(PRINT_CENTER, "Warning: {} seconds left in the wave!\n", WARNING_TIME.seconds());
 			timeWarningIssued = true;
@@ -1781,12 +1796,25 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 			reason = WaveEndReason::TimeLimitReached;
 			gi.Com_PrintFmt("Advance condition met: adjusted wave time limit reached.\n");
 		}
+
+		if (remainingTime == 10_sec) {
+			// Implement rush mode logic here (e.g., increase player speed or damage)
+			gi.LocBroadcast_Print(PRINT_HIGH, "10 seconds remaining!\n");
+		}
 	}
 
 	if (shouldAdvance) {
 		ResetWaveAdvanceState();
 		gi.Com_PrintFmt("Wave advance triggered. Reason: {}\n",
 			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
+
+		// Calculate and apply time bonus
+		const gtime_t timeBonus = adjustedTimeThreshold - independentElapsed;
+		if (timeBonus > 0_sec) {
+			// Implement time bonus logic here (e.g., extra points or resources)
+		//	gi.LocBroadcast_Print(PRINT_CENTER, "Time Bonus: {:.1f} seconds! Extra points awarded!\n", timeBonus.seconds());
+		}
+
 		return true;
 	}
 
@@ -1797,7 +1825,7 @@ void AllowNextWaveAdvance() noexcept {
 	g_allowWaveAdvance = true;
 }
 
-void MonsterSpawned(const edict_t* monster) {
+static void MonsterSpawned(const edict_t* monster) {
 	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 		cachedRemainingMonsters++;
 		g_totalMonstersInWave++;
@@ -1903,7 +1931,7 @@ static const char* GetRandomWaveSound() {
 	return WAVE_SOUNDS[dist(mt_rand)];
 }
 
-void HandleWaveRestMessage(gtime_t duration = 4_sec) {
+static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 	const char* message;
 
 	if (!g_insane->integer) {
@@ -2067,7 +2095,7 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 	{MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n"}
 };
 
-void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
+static void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 	const MessageType messageType = g_insane->integer ? MessageType::Insane :
 		(g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
 
@@ -2096,11 +2124,6 @@ void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 void Horde_RunFrame() {
 	const auto mapSize = GetMapSize(level.mapname);
 
-
-	if (level.time >= g_lastMonsterCountVerification + MONSTER_COUNT_VERIFICATION_INTERVAL) {
-		VerifyMonsterCount();
-		g_lastMonsterCountVerification = level.time;
-	}
 	// Si hay un número personalizado de monstruos, sobrescribir el número a spawnear
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
