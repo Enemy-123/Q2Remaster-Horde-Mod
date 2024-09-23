@@ -375,13 +375,13 @@ static float CalculatePlayerPerformance() {
 
 // New constants and helper functions
 constexpr gtime_t BASE_MAX_WAVE_TIME = 45_sec;
-constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.1_sec;
+constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 5_sec;
-constexpr float LATE_STAGE_THRESHOLD = 0.7f;
+//constexpr float LATE_STAGE_THRESHOLD = 0.7f;
 
 gtime_t calculate_max_wave_time(int32_t wave_level) {
-	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 80_sec);
+	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 65_sec);
 }
 
 // Variables globales
