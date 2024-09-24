@@ -224,13 +224,13 @@ mframe_t runnertank_frames_run[] = {
 	{ ai_run, 16, runnertank_footstep },
 	{ ai_run, 18, nullptr },
 	{ ai_run, 15, nullptr },
-	{ ai_run, 14, [](edict_t* self) { runnertank_check_wall(self, 32); } },
+	{ ai_run, 14, nullptr }, // Remover la llamada lambda
 	{ ai_run, 15, nullptr },
 	{ ai_run, 15, nullptr },
 	{ ai_run, 13, runnertank_footstep },
 	{ ai_run, 19, nullptr },
 	{ ai_run, 18, nullptr },
-	{ ai_run, 17, [](edict_t* self) { runnertank_check_wall(self, 32); } }
+	{ ai_run, 17, nullptr } // Remover la llamada lambda
 };
 MMOVE_T(runnertank_move_run) = { FRAME_run01, FRAME_run10, runnertank_frames_run, nullptr };
 
@@ -265,15 +265,9 @@ bool runnertank_enemy_visible(edict_t* self)
 	return self->enemy && visible(self, self->enemy);
 }
 
+void runnertank_attack(edict_t* self);
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
-	void runnertank_attack(edict_t * self);
-
-	if (self->enemy && self->enemy->client)
-		self->monsterinfo.aiflags |= AI_BRUTAL;
-	else
-		self->monsterinfo.aiflags &= ~AI_BRUTAL;
-
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 	{
 		M_SetAnimation(self, &runnertank_move_stand);
@@ -296,49 +290,39 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		}
 	}
 
-	// Implementar carrera y strafing
-	if (self->monsterinfo.aiflags & AI_CHARGING)
-	{
-		M_SetAnimation(self, &runnertank_move_run);
-		// Aumentar la velocidad durante la carga
-		VectorScale(self->velocity, 1.5f, self->velocity);
-	}
-	else
-	{
-		M_SetAnimation(self, &runnertank_move_run);
-	}
+	// Implementar carrera
+	M_SetAnimation(self, &runnertank_move_run);
 
-	// Implementar strafing mejorado
-	if (self->enemy && visible(self, self->enemy))
+	// Implementar strafing
+	if (self->enemy && visible(self, self->enemy) && range <= RANGE_MID)
 	{
-		if (range <= RANGE_MID)
+		float strafe_chance = 0.5f;  // 50% de probabilidad base de hacer strafe
+
+		// Aumentar la probabilidad de strafing si el enemigo está disparando
+		if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+			strafe_chance += 0.2f;
+
+		// Aumentar la probabilidad de strafing si el runnertank tiene poca salud
+		if (self->health < self->max_health * 0.5f)
+			strafe_chance += 0.2f;
+
+		if (frandom() < strafe_chance)
 		{
-			float strafe_chance = 0.5f;  // 50% de probabilidad base de hacer strafe
-			// Aumentar la probabilidad de strafing si el enemigo está disparando
-			if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-				strafe_chance += 0.2f;
-			// Aumentar la probabilidad de strafing si el runnertank tiene poca salud
-			if (self->health < self->max_health * 0.5f)
-				strafe_chance += 0.2f;
+			// Decidir aleatoriamente si strafear a la izquierda o derecha
+			self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
 
-			if (frandom() < strafe_chance)
-			{
-				// Decidir aleatoriamente si strafear a la izquierda o derecha
-				self->monsterinfo.lefty = frandom() < 0.5;
+			// Aplicar el movimiento de strafe
+			vec3_t right, strafe_vel;
+			AngleVectors(self->s.angles, nullptr, right, nullptr);
+			const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
 
-				// Aplicar el movimiento de strafe
-				vec3_t right, strafe_vel;
-				AngleVectors(self->s.angles, nullptr, right, nullptr);
-				// Aumentar significativamente la velocidad de strafe
-				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
-				VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
+			VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
 
-				// Combinar el movimiento de avance con el strafe
-				VectorAdd(self->velocity, strafe_vel, self->velocity);
+			// Combinar el movimiento de avance con el strafe
+			VectorAdd(self->velocity, strafe_vel, self->velocity);
 
-				// Ajustar la duración del strafe
-				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
-			}
+			// Ajustar la duración del strafe
+			self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
 		}
 	}
 
@@ -1115,39 +1099,64 @@ void runnertank_jump(edict_t* self, blocked_jump_result_t result)
 }
 //===========
 // PGM
+
+
+// Función DotProduct si no está definida
+float DotProduct(const vec3_t v1, const vec3_t v2) {
+	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
+}
+
+// Función para calcular la diferencia angular
+float AngleDifference(float angle1, float angle2) {
+	float diff = angle1 - angle2;
+	while (diff > 180.0f) diff -= 360.0f;
+	while (diff < -180.0f) diff += 360.0f;
+	return diff;
+}
+
 bool runnertank_check_wall(edict_t* self, float dist)
 {
+	constexpr float WALL_CHECK_DISTANCE_OFFSET = 10.0f;
+	constexpr float MAX_TURN_ANGLE = 90.0f;
+	constexpr float VELOCITY_SCALE_FACTOR = 0.8f;
+	constexpr float MAX_YAW_CHANGE = 30.0f; // Grados por frame
+
 	vec3_t forward, right, up;
 	vec3_t check_point{}, wall_normal;
 	trace_t tr;
 
 	AngleVectors(self->s.angles, forward, right, up);
-	VectorMA(self->s.origin, dist + 10, forward, check_point);
+	VectorMA(self->s.origin, dist + WALL_CHECK_DISTANCE_OFFSET, forward, check_point);
 
 	tr = gi.trace(self->s.origin, self->mins, self->maxs, check_point, self, MASK_MONSTERSOLID);
 
-	if (tr.fraction < 1.0) {
+	if (tr.fraction < 1.0f) {
 		VectorCopy(tr.plane.normal, wall_normal);
 
-		// Calcular el producto punto manualmente
-		const float dot = forward[0] * wall_normal[0] + forward[1] * wall_normal[1] + forward[2] * wall_normal[2];
+		// Utilizar la función DotProduct definida
+		const float dot = DotProduct(forward, wall_normal);
 
-		const float turn_factor = fabs(dot);
-		const float max_turn = 90.0f; // Aumentado de 45.0f a 90.0f
-		const float turn_angle = max_turn * turn_factor;
+		// Calcular el factor de giro basado en el ángulo entre forward y wall_normal
+		const float angle_between = 1.0f - (acosf(fabs(dot)) / (PI / 2)); // Normalizado entre 0 y 1
+		const float turn_angle = MAX_TURN_ANGLE * angle_between;
 
-		if (dot < 0) {
-			self->ideal_yaw = anglemod(self->s.angles[YAW] + turn_angle);
+		// Logging
+		gi.Com_PrintFmt_("PRINT: runnertank_check_wall: dot={.2f}, angle_between={%.2f}, turn_angle={%.2f}", dot, angle_between, turn_angle);
+
+		// Ajustar ideal_yaw con un límite para suavizar el giro
+		float new_yaw = self->s.angles[YAW] + (dot < 0 ? turn_angle : -turn_angle);
+		float yaw_difference = AngleDifference(new_yaw, self->ideal_yaw);
+		if (fabs(yaw_difference) > MAX_YAW_CHANGE) {
+			new_yaw = self->s.angles[YAW] + (yaw_difference > 0 ? MAX_YAW_CHANGE : -MAX_YAW_CHANGE);
 		}
-		else {
-			self->ideal_yaw = anglemod(self->s.angles[YAW] - turn_angle);
-		}
+		self->ideal_yaw = anglemod(new_yaw);
 
-		// Usar M_ChangeYaw en lugar de ai_turn para un giro más suave
+		// Cambiar el yaw de manera suave
 		M_ChangeYaw(self);
 
-		// Reducir la velocidad del monstruo de manera más gradual
-		VectorScale(self->velocity, 0.8f, self->velocity);
+		// Reducir la velocidad de manera proporcional a la proximidad
+		const float speed_factor = tr.fraction; // Cuanto más cerca, menor velocidad
+		VectorScale(self->velocity, speed_factor * VELOCITY_SCALE_FACTOR, self->velocity);
 
 		return true;
 	}
@@ -1155,30 +1164,31 @@ bool runnertank_check_wall(edict_t* self, float dist)
 	return false;
 }
 
+
 MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {
-    if (self->monsterinfo.can_jump)
-    {
-        if (const auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
-        {
-            runnertank_jump(self, result);
-            return true;
-        }
-    }
+	if (self->monsterinfo.can_jump)
+	{
+		if (const auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		{
+			runnertank_jump(self, result);
+			return true;
+		}
+	}
 
-    if (blocked_checkplat(self, dist))
-        return true;
+	if (blocked_checkplat(self, dist))
+		return true;
 
-    // Intenta cambiar de dirección si está bloqueado por una pared
-    if (runnertank_check_wall(self, dist))
-    {
-        // Añadir un giro adicional usando ai_turn
-        ai_turn(self, 0);
-        return true;
-    }
+	// Eliminar la llamada a runnertank_check_wall aquí
+	// if (runnertank_check_wall(self, dist))
+	// {
+	//     ai_turn(self, 0);
+	//     return true;
+	// }
 
-    return false;
+	return false;
 }
+
 // PGM
 // 
 //===========
