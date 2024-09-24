@@ -3,7 +3,7 @@
 /*
 ==============================================================================
 
-TANK
+TANK ( CODIGO ACTUAL )
 
 ==============================================================================
 */
@@ -812,28 +812,105 @@ void tank_vanilla_doattack_rocket(edict_t* self)
 	M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
 }
 
-constexpr int32_t default_monster_slots_base = 3;
-// Define a higher slot limit for this monster type
+void VerifyTankSpawnCount(edict_t* tank)
+{
+	int actual_count = 0;
+	for (auto* ent : active_monsters())
+	{
+		if (ent->owner == tank && (ent->monsterinfo.aiflags & AI_SPAWNED_TANK)) {
+			actual_count++;
+		}
+	}
+
+	if (tank->monsterinfo.monster_used != actual_count) {
+		gi.Com_PrintFmt("VerifyTankSpawnCount: Correcting monster_used from {} to {}\n",
+			tank->monsterinfo.monster_used, actual_count);
+		tank->monsterinfo.monster_used = actual_count;
+	}
+}
+
+
+constexpr const char* tank_vanilla_hard_reinforcements = "monster_soldier_ss 3";
+constexpr const char* tank_vanilla_default_reinforcements = "monster_soldier 2 ;monster_gunner 1";
+constexpr int32_t TANK_VANILLA_MAX_REINFORCEMENTS = 5;
+
+// filter out the reinforcement indices we can pick given the space we have left
+static void M_PickValidReinforcements(edict_t* self, int32_t space, std::vector<uint8_t>& output)
+{
+	output.clear();
+
+	for (uint8_t i = 0; i < self->monsterinfo.reinforcements.num_reinforcements; i++)
+		if (self->monsterinfo.reinforcements.reinforcements[i].strength <= space)
+			output.push_back(i);
+}
+
+constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinforcement_position = {
+	vec3_t { 80, 0, 0 },
+	vec3_t { 40, 60, 0 },
+	vec3_t { 40, -60, 0 },
+	vec3_t { 0, 80, 0 },
+	vec3_t { 0, -80, 0 }
+};
+
+std::array<uint8_t, TANK_VANILLA_MAX_REINFORCEMENTS> Tank_Vanilla_PickReinforcements(edict_t* self, int32_t& num_chosen, int32_t max_slots = 0)
+{
+	static std::vector<uint8_t> available;
+	std::array<uint8_t, TANK_VANILLA_MAX_REINFORCEMENTS> chosen;
+	chosen.fill(255);
+
+	int32_t num_slots = max(1, (int32_t)log2(frandom(1.0f)));
+	int32_t remaining = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+
+	for (num_chosen = 0; num_chosen < num_slots; num_chosen++)
+	{
+		if ((max_slots && num_chosen == max_slots) || !remaining)
+			break;
+
+		M_PickValidReinforcements(self, remaining, available);
+		if (!available.size())
+			break;
+
+		chosen[num_chosen] = random_element(available);
+		remaining -= self->monsterinfo.reinforcements.reinforcements[chosen[num_chosen]].strength;
+	}
+
+	return chosen;
+}
+
 constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
 void Monster_MoveSpawn(edict_t* self)
 {
+	gi.Com_PrintFmt("{}: Monster_MoveSpawn called\n", self->classname);
 
 	if (!self || self->health <= 0 || self->deadflag)
+	{
+		gi.Com_PrintFmt("Monster_MoveSpawn: Invalid self or monster is dead\n");
 		return;
+	}
+
 	// Initialize monster slots if not set
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
-	// Check if we have slots left to spawn monsters
-	if (!M_SlotsLeft(self))
+
+	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+	if (available_slots <= 0)
+	{
+		gi.Com_PrintFmt("Monster_MoveSpawn: No slots available ({}/{})\n",
+			self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
 		return;
+	}
+
 	constexpr int NUM_MONSTERS_MIN = 4;
-	constexpr int NUM_MONSTERS_MAX = 5;
+	constexpr int NUM_MONSTERS_MAX = 6;
 	constexpr float SPAWN_RADIUS_MIN = 100.0f;
-	constexpr float SPAWN_RADIUS_MAX = 150.0f;
+	constexpr float SPAWN_RADIUS_MAX = 175.0f;
 	constexpr int MAX_SPAWN_ATTEMPTS = 10;
 	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
-	const int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
-	const int num_monsters = std::min(NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots);
+
+	const int num_monsters = std::min({ NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots });
+
+	gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn {} monsters\n", num_monsters);
+
 	for (int i = 0; i < num_monsters; i++)
 	{
 		vec3_t spawn_origin;
@@ -841,6 +918,7 @@ void Monster_MoveSpawn(edict_t* self)
 		const vec3_t maxs = { 16, 16, 32 };
 		bool found_spot = false;
 		float spawn_angle = 0;
+
 		for (int attempts = 0; attempts < MAX_SPAWN_ATTEMPTS; attempts++)
 		{
 			VectorCopy(self->s.origin, spawn_origin);
@@ -850,7 +928,6 @@ void Monster_MoveSpawn(edict_t* self)
 			spawn_origin[1] += sin(spawn_angle) * radius;
 			spawn_origin[2] += SPAWN_HEIGHT_OFFSET;
 
-			// Perform traceline check
 			const trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
 			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, mins, maxs))
 			{
@@ -858,19 +935,39 @@ void Monster_MoveSpawn(edict_t* self)
 				break;
 			}
 		}
+
 		if (!found_spot)
+		{
+			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find spawn spot for monster {}\n", i);
 			continue;
+		}
+
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180 / PI);
+
+		gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn monster_soldier_ss at {}\n", spawn_origin);
+
 		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, "monster_soldier_ss", 64);
 		if (!monster)
+		{
+			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster\n");
 			continue;
+		}
+
+		gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {}\n", monster->classname);
+
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_TANK;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
+		monster->owner = self;
 
-		self->monsterinfo.monster_used += 1;
+		self->monsterinfo.monster_used++;
+		available_slots--;
+
+		gi.Com_PrintFmt("Monster_MoveSpawn: Updated monster_used to {}/{}\n",
+			self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
+
 		const vec3_t spawngrow_pos = monster->s.origin;
 		const float magnitude = VectorLength(spawngrow_pos);
 		if (magnitude > 0) {
@@ -878,9 +975,18 @@ void Monster_MoveSpawn(edict_t* self)
 			const float end_size = magnitude * 0.005f;
 			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 		}
-		monster->owner = self;
 	}
+
+	gi.Com_PrintFmt("Monster_MoveSpawn: Finished spawning. Total monsters used: {}/{}\n",
+		self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
 }
+
+void tank_vanilla_spawn_finished(edict_t* self)
+{
+	self->monsterinfo.spawning_in_progress = false;
+	tank_vanilla_run(self);
+}
+
 
 mframe_t tank_frames_spawn[] =
 {
@@ -894,27 +1000,63 @@ mframe_t tank_frames_spawn[] =
 	{ai_charge, -2, nullptr},  // FRAME_attak229
 	{ai_charge, -2, nullptr}   // FRAME_attak229
 };
-MMOVE_T(tank_move_spawn) = { FRAME_attak223, FRAME_attak231, tank_frames_spawn, tank_vanilla_run };
+// Actualiza la definición de tank_move_spawn para usar la nueva función
+MMOVE_T(tank_move_spawn) = { FRAME_attak223, FRAME_attak231, tank_frames_spawn, tank_vanilla_spawn_finished };
+
+
+
 
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 {
-	vec3_t vec;
-	float  range{};
-	float  r;
-	// PMM
+	vec3_t vec{};
+	VectorSubtract(self->enemy->s.origin, self->s.origin, vec);
+	float range = VectorLength(vec);
+	float r = frandom();
 	float chance;
 
-	// PMM
+	// Verificar si hay un enemigo válido
 	if (!self->enemy || !self->enemy->inuse)
-		return;
-
-	if (!M_SlotsLeft(self) && visible(self, self->enemy) && infront(self, self->enemy) ||
-		range_to(self, self->enemy) <= RANGE_MELEE * 2 && visible(self, self->enemy) && infront(self, self->enemy))
 	{
-		M_SetAnimation(self, &tank_move_spawn);
-		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		self->monsterinfo.has_spawned_initially = false;
+		self->monsterinfo.spawning_in_progress = false;
 		return;
 	}
+
+	// Verificar si podemos spawnear más monstruos
+	VerifyTankSpawnCount(self);
+	const bool can_spawn = M_SlotsLeft(self) > 0;
+
+	// Verificar visibilidad y camino libre
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+
+	// Si el tanque tiene 3 o menos monstruos spawneados, hacer que spawnee repetidamente
+	// además de usar un ataque melee en rango cercano (range <= RANGE_MELEE * 2)
+	if (self->monsterinfo.monster_used <= 3 && can_spawn && has_clear_path &&
+		(visible(self, self->enemy) && infront(self, self->enemy) ||
+			range <= RANGE_MELEE * 2))
+	{
+		// Iniciar el proceso de spawneo como ataque melee (golpe al suelo y spawnear monstruos)
+		M_SetAnimation(self, &tank_move_spawn);  // Animación de spawneo y golpe al suelo
+		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		self->monsterinfo.has_spawned_initially = true;
+		self->monsterinfo.spawning_in_progress = true;
+		return;
+	}
+
+	// Si está en proceso de spawneo, verificar si ha finalizado
+	if (self->monsterinfo.spawning_in_progress)
+	{
+		if (level.time >= self->monsterinfo.attack_finished)
+		{
+			self->monsterinfo.spawning_in_progress = false;
+		}
+		else
+		{
+			// Si sigue spawneando, no atacar ahora
+			return;
+		}
+	}
+
 	if (self->enemy->health <= 0)
 	{
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
@@ -1062,9 +1204,25 @@ mframe_t tank_vanilla_frames_death1[] = {
 };
 MMOVE_T(tank_vanilla_move_death) = { FRAME_death101, FRAME_death132, tank_vanilla_frames_death1, tank_vanilla_dead };
 
+//
 DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	OnEntityDeath(self);
+
+	// Liberar slots de monstruos spawneados
+	for (unsigned int i = 0; i < globals.num_edicts; i++) {
+		edict_t* ent = &g_edicts[i];
+		if (ent->inuse && ent->owner == self && (ent->monsterinfo.aiflags & AI_SPAWNED_TANK))
+		{
+			// Asegúrate de que el monstruo muera
+			ent->health = -999;
+			ent->die(ent, self, self, 999, vec3_origin, mod);
+		}
+	}
+
+	// Resetear el contador de monstruos usados
+	self->monsterinfo.monster_used = 0;
+
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{
@@ -1143,6 +1301,9 @@ model="models/monsters/tank_vanilla/tris.md2"
 */
 /*QUAKED monster_tank_vanilla_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
  */
+
+void M_SetupReinforcements(const char* reinforcements, reinforcement_list_t& list);
+
 void SP_monster_tank_vanilla(edict_t* self)
 {
 	if (g_horde->integer) {
@@ -1158,6 +1319,18 @@ void SP_monster_tank_vanilla(edict_t* self)
 		G_FreeEdict(self);
 		return;
 	}
+
+	// Inicializar slots
+	if (!st.was_key_specified("monster_slots"))
+		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
+	self->monsterinfo.monster_used = 0;
+
+	// Configurar refuerzos
+	const char* reinforcements = tank_vanilla_default_reinforcements;
+	if (skill->integer >= 2)
+		reinforcements = tank_vanilla_hard_reinforcements;
+
+	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
 
 	self->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
 	self->mins = { -32, -32, -16 };

@@ -1435,6 +1435,15 @@ void OnEntityDeath(const edict_t* self) {
 		MonsterDied(self);
 	}
 
+	if (self->monsterinfo.aiflags & AI_SPAWNED_TANK) {
+		edict_t* tank = self->owner;
+		if (tank && tank->inuse) {
+			tank->monsterinfo.monster_used = max(0, tank->monsterinfo.monster_used - 1);
+			gi.Com_PrintFmt("Tank spawn died. Updated monster_used to {}/{}\n",
+				tank->monsterinfo.monster_used, tank->monsterinfo.monster_slots);
+		}
+	}
+
 	if (self && self->inuse) {
 		int const entity_index = self - g_edicts;
 		g_entityInfoManager.removeEntityInfo(entity_index);

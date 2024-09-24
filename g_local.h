@@ -1749,6 +1749,8 @@ struct monsterinfo_t
 	bool damage_modifier_applied;
 	gtime_t last_sentrygun_target_time;
 	gtime_t lastnoisecooldown;
+	bool has_spawned_initially = false;
+	bool spawning_in_progress = false;
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 };
