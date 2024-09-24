@@ -252,8 +252,8 @@ void T_SlamRadiusDamage(vec3_t point, edict_t* inflictor, edict_t* attacker, flo
 		if (!CanDamage(ent, inflictor))
 			continue;
 		// don't hit players in mid air
-		if (ent->client && !ent->groundentity)
-			continue;
+		//if (ent->client && !ent->groundentity)
+		//	continue;
 
 		v = closest_point_to_box(point, ent->s.origin + ent->mins, ent->s.origin + ent->maxs) - point;
 
@@ -325,7 +325,7 @@ static void berserk_high_gravity(edict_t* self)
 	if (self->velocity[2] < 0)
 		self->gravity = 2.25f * (800.f / level.gravity);
 	else
-		self->gravity = 7.25f * (800.f / level.gravity);
+		self->gravity = 5.25f * (800.f / level.gravity);
 }
 
 void berserk_jump_takeoff(edict_t* self)
