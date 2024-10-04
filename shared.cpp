@@ -696,17 +696,17 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
             if (spawn_point) {
                 TeleportEntity(stubborn_ent, spawn_point);
 
-                gi.Com_PrintFmt("PRINT: Player %s teleported to spawn point.\n", stubborn_ent->client->pers.netname);
+                gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point.\n", stubborn_ent->client->pers.netname);
             }
             else {
-                gi.Com_PrintFmt("PRINT: WARNING: Could not find a safe spawn point for player %s.\n", stubborn_ent->client->pers.netname);
+                gi.Com_PrintFmt("PRINT: WARNING: Could not find a safe spawn point for player {}.\n", stubborn_ent->client->pers.netname);
             }
         }
         else {
             // For non-player entities, remove them
             if (stubborn_ent && stubborn_ent->inuse) {
                 RemoveEntity(stubborn_ent);
-                gi.Com_PrintFmt("PRINT: Non-player entity %s removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
+                gi.Com_PrintFmt("PRINT: Non-player entity {} removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
             }
         }
     }
@@ -778,14 +778,14 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 			}
 			else
 			{
-				gi.Com_PrintFmt("PRINT: WARNING: Could not find a spawn point for player %s.\n", ent->client->pers.netname);
+				gi.Com_PrintFmt("PRINT: WARNING: Could not find a spawn point for player {}.\n", ent->client->pers.netname);
 			}
 		}
 		else
 		{
 			// For non-player entities, remove them
 			RemoveEntity(ent);
-			gi.Com_PrintFmt("PRINT: Entity %s removed from boss spawn area.\n", ent->classname ? ent->classname : "unknown");
+			gi.Com_PrintFmt("PRINT: Entity {} removed from boss spawn area.\n", ent->classname ? ent->classname : "unknown");
 		}
 	}
 }
