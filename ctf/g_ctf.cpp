@@ -1439,8 +1439,8 @@ void OnEntityDeath(const edict_t* self) {
 		edict_t* tank = self->owner;
 		if (tank && tank->inuse) {
 			tank->monsterinfo.monster_used = max(0, tank->monsterinfo.monster_used - 1);
-			gi.Com_PrintFmt("Tank spawn died. Updated monster_used to {}/{}\n",
-				tank->monsterinfo.monster_used, tank->monsterinfo.monster_slots);
+			//gi.Com_PrintFmt("Tank spawn died. Updated monster_used to {}/{}\n",
+				//tank->monsterinfo.monster_used, tank->monsterinfo.monster_slots);
 		}
 	}
 
@@ -1468,7 +1468,7 @@ void CleanupInvalidEntities() {
 			// Verifica si la entidad está en un estado inválido
 			if (ent->solid == SOLID_NOT && ent->health > 0 && ent->takedamage == false) {
 				// Esta entidad parece estar en un estado bugueado
-				gi.Com_PrintFmt("PRINT: Limpiando entidad de monstruo bugueada: {}\n", ent->classname);
+				gi.Com_PrintFmt("PRINT: Removing Bug/Immortal monster: {}\n", ent->classname);
 
 				// Forzar la muerte de la entidad
 				ent->health = -1;

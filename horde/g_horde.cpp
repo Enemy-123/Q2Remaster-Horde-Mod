@@ -22,9 +22,9 @@ bool allowWaveAdvance = false; // Variable global para controlar el avance de la
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
 
-int32_t last_wave_number = 0;
+uint64_t last_wave_number = 0;
 static int32_t cachedRemainingMonsters = -1;
-int32_t g_totalMonstersInWave = 0;
+uint32_t g_totalMonstersInWave = 0;
 
 gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 3.9_sec; // Cooldown en segundos para los puntos de spawn 3.0
@@ -58,7 +58,7 @@ std::unordered_set<edict_t*> auto_spawned_bosses;
 std::unordered_set<std::string> obtained_benefits;
 std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
-std::unordered_map<edict_t*, int32_t> spawnAttempts;
+std::unordered_map<edict_t*, uint32_t> spawnAttempts;
 std::unordered_map<edict_t*, gtime_t> spawnPointCooldowns;
 
 const std::unordered_set<std::string> smallMaps = {
@@ -128,31 +128,30 @@ struct picked_benefit_t {
 };
 
 
-// Funci�n para seleccionar un beneficio aleatorio
+// Función para seleccionar un beneficio aleatorio
 static std::string SelectRandomBenefit(int32_t wave) {
 	std::vector<picked_benefit_t> picked_benefits;
 	picked_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
-	float total_weight = 0.0f;
+	double total_weight = 0.0;
 
 	for (const auto& benefit : benefits) {
 		if ((wave >= benefit.min_level) &&
 			(benefit.max_level == -1 || wave <= benefit.max_level) &&
 			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
-			total_weight += benefit.weight;
-			picked_benefits.push_back({ &benefit, total_weight });
+			total_weight += static_cast<double>(benefit.weight);
+			picked_benefits.push_back({ &benefit, static_cast<float>(total_weight) }); // Conversión explícita
 		}
 	}
 
-	if (picked_benefits.empty()) return "";  // Verificar si est� vac�o antes de proceder
+	if (picked_benefits.empty()) return "";  // Verificar si está vacío antes de proceder
 
-	const float random_weight = frandom() * total_weight;
+	const double random_weight = frandom() * total_weight;
 	auto it = std::find_if(picked_benefits.begin(), picked_benefits.end(),
 		[random_weight](const picked_benefit_t& picked_benefit) {
-			return random_weight < picked_benefit.weight;
+			return random_weight < static_cast<double>(picked_benefit.weight);
 		});
 	return (it != picked_benefits.end()) ? it->benefit->benefit_name : "";
 }
-
 
 #include <string_view>
 
@@ -271,7 +270,15 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 
 // Función para incluir ajustes de dificultad
 static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
-	int32_t additionalSpawn;
+	// Inicializa la variable additionalSpawn en 0
+	int64_t additionalSpawn = 0;
+
+	// Ajuste de spawn inicial
+	additionalSpawn = static_cast<int64_t>(additionalSpawn) * 1.6;  // Este cálculo parece innecesario ya que additionalSpawn está en 0.
+	if (additionalSpawn > INT32_MAX) {
+		additionalSpawn = INT32_MAX; // Limitar al máximo valor de int32_t
+	}
+
 	if (mapSize.isSmallMap) {
 		additionalSpawn = (lvl >= 8) ? 8 : 6;
 	}
@@ -770,7 +777,7 @@ struct picked_item_t {
 
 gitem_t* G_HordePickItem() {
 	std::vector<picked_item_t> picked_items;
-	float total_weight = 0;
+	double total_weight = 0.0; // Cambiado a double para evitar overflow
 
 	for (const auto& item : items) {
 		if ((item.min_level != -1 && g_horde_local.level < item.min_level) ||
@@ -778,17 +785,17 @@ gitem_t* G_HordePickItem() {
 			continue;
 		}
 
-		float weight = item.weight;
+		float weight = item.weight; // Se mantiene como float para evitar errores con referencias
 		if (item.adjust_weight) item.adjust_weight(item, weight);
 		if (weight <= 0) continue;
 
-		total_weight += weight;
-		picked_items.push_back({ &item, total_weight });
+		total_weight += static_cast<double>(weight); // Convertir a double para acumulación
+		picked_items.push_back({ &item, static_cast<float>(total_weight) }); // Convertir de double a float para evitar narrowing conversion
 	}
 
 	if (picked_items.empty()) return nullptr;
 
-	const float random_weight = frandom() * total_weight;
+	const float random_weight = static_cast<float>(frandom() * total_weight); // Convertir a float para cumplir con el tipo
 	auto it = std::lower_bound(picked_items.begin(), picked_items.end(), random_weight,
 		[](const picked_item_t& item, float value) { return item.weight < value; });
 
@@ -859,10 +866,9 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
 static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	spawnAttempts[spawn_point]++;
 	if (spawnAttempts[spawn_point] % 3 == 0) {
-		spawnPointCooldowns[spawn_point] = gtime_t::from_sec(spawnPointCooldowns[spawn_point].seconds() * 0.9f);
+		spawnPointCooldowns[spawn_point] = std::max(gtime_t::from_sec(spawnPointCooldowns[spawn_point].seconds() * 0.9f), 1_sec);
 	}
 }
-
 
 // Estructura para pasar datos adicionales a la función de filtro
 struct FilterData {
@@ -926,13 +932,10 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-
 	// Use a static vector to avoid repeated allocations
-	static std::vector<std::pair<const weighted_item_t*, float>> eligible_monsters;
+	static std::vector<std::pair<const weighted_item_t*, double>> eligible_monsters;
 	eligible_monsters.clear();
-	float total_weight = 0.0f;
-
-
+	double total_weight = 0.0;
 
 	for (const auto& item : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(item.classname);
@@ -948,8 +951,8 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
 			const float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
 			if (weight > 0) {
-				total_weight += weight;
-				eligible_monsters.emplace_back(&item, weight);  // Store individual weights, not cumulative
+				total_weight += static_cast<double>(weight);  // Convertir a double para evitar acumulación de precisión baja
+				eligible_monsters.emplace_back(&item, static_cast<double>(weight));  // Guardar el peso como double
 			}
 		}
 	}
@@ -960,10 +963,10 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Create a vector of weights for std::discrete_distribution
-	std::vector<float> weights;
+	std::vector<double> weights;
 	weights.reserve(eligible_monsters.size());
 	for (const auto& monster : eligible_monsters) {
-		weights.push_back(monster.second);
+		weights.push_back(monster.second);  // Los pesos ya están en double
 	}
 
 	// Create and use the discrete distribution
@@ -1309,22 +1312,22 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 
 // Incluye otras cabeceras y definiciones necesarias
 static const std::unordered_map<std::string, std::string> bossMessagesMap = {
-	{"monster_boss2", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
-	{"monster_boss2kl", "***** A Strogg Boss has spawned! *****\n***** A Hornet descends, ready to add to the body count! *****\n"},
-	{"monster_carrier_mini", "***** A Strogg Boss has spawned! *****\n***** A Carrier arrives, dropping death like it's hot! *****\n"},
-	{"monster_carrier", "***** A Strogg Boss has spawned! *****\n***** A Carrier arrives, dropping death like it's hot! *****\n"},
-	{"monster_tank_64", "***** A Strogg Boss has spawned! *****\n***** The ground shakes as the Tank Commander rolls in, ready for some human gibs! *****\n"},
-	{"monster_shamblerkl", "***** A Strogg Boss has spawned! *****\n***** The Shambler steps out, eager to paint the town red! *****\n"},
-	{"monster_guncmdrkl", "***** A Strogg Boss has spawned! *****\n***** The Gunner Commander marches in, and he's not here to chat! *****\n"},
-	{"monster_makronkl", "***** A Strogg Boss has spawned! *****\n***** Makron drops by, craving some fresh carnage! *****\n"},
-	{"monster_guardian", "***** A Strogg Boss has spawned! *****\n***** The Guardian shows up, time to meet your maker! *****\n"},
-	{"monster_supertank", "***** A Strogg Boss has spawned! *****\n***** A Super-Tank rumbles in, ready to obliterate anything in its path! *****\n"},
-	{"monster_boss5", "***** A Strogg Boss has spawned! *****\n***** A Super-Tank rumbles in, ready to obliterate anything in its path! *****\n"},
-	{"monster_widow2", "***** A Strogg Boss has spawned! *****\n***** The Widow sneaks in, weaving disruptor shots! *****\n"},
-	{"monster_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid skitters in, itching to fry some flesh! *****\n"},
-	{"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** The Arachnid with missiles emerges, looking to blast you to bits! *****\n"},
-	{"monster_redmutant", "***** A Strogg Boss has spawned! *****\n***** The Bloody Mutant has spawned! *****\n"},
-	{"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg enters the fray, prepare for the showdown! *****\n"}
+	{"monster_boss2", "***** A Strogg Boss has spawned! *****\n***** Hornet incoming! He’s had enough of rations and is here to add some fresh Marine meat to the menu! *****\n"},
+	{"monster_boss2kl", "***** A Strogg Boss has spawned! *****\n***** Hornet incoming! You’re about to learn why they call him 'the swarm'. *****\n"},
+	{"monster_carrier_mini", "***** A Strogg Boss has spawned! *****\n***** Carrier Mini incoming! Forget delivery drones, this guy's bringing a payload of pain right to your face! *****\n"},
+	{"monster_carrier", "***** A Strogg Boss has spawned! *****\n***** Carrier here! And he’s dropping more than just supplies... hope you packed your will! *****\n"},
+	{"monster_tank_64", "***** A Strogg Boss has spawned! *****\n***** Tank Commander rolling in! He’s not just here to take names—he’s here to take limbs too! *****\n"},
+	{"monster_shamblerkl", "***** A Strogg Boss has spawned! *****\n***** The Shambler emerges from the shadows! If you thought he looked ugly before, just wait until he sees you up close! *****\n"},
+	{"monster_guncmdrkl", "***** A Strogg Boss has spawned! *****\n***** Gunner Commander steps in! He’s been practicing his aim, and your head's on his target list! *****\n"},
+	{"monster_makronkl", "***** A Strogg Boss has spawned! *****\n***** Makron arrives! He got tired of sending minions, now he's here to personally put your spine on his trophy wall! *****\n"},
+	{"monster_guardian", "***** A Strogg Boss has spawned! *****\n***** The Guardian appears! He’s been keeping watch for millennia, and today he gets to clock out—with your head! *****\n"},
+	{"monster_supertank", "***** A Strogg Boss has spawned! *****\n***** Super-Tank rolls in! Ready or not, this Strogg’s got more firepower than a birthday party at a munitions depot! *****\n"},
+	{"monster_boss5", "***** A Strogg Boss has spawned! *****\n***** Super-Tank is here to obliterate! You’re about to get a taste of pure Strogg engineering excellence... and it’s gonna hurt! *****\n"},
+	{"monster_widow2", "***** A Strogg Boss has spawned! *****\n***** The Widow is back, and she’s weaving a web of disruptor beams just for you! Hope you brought bug spray. *****\n"},
+	{"monster_arachnid", "***** A Strogg Boss has spawned! *****\n***** Arachnid’s on the hunt! He’s not here to cuddle—he’s here to fry your circuits and roast some Marine BBQ! *****\n"},
+	{"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** Missile Arachnid is crawling out! He’s got eight legs and an endless supply of rockets—run if you value those limbs! *****\n"},
+	{"monster_redmutant", "***** A Strogg Boss has spawned! *****\n***** The Bloody Mutant rises! This freak’s got more rage than a Marine denied shore leave—brace yourself! *****\n"},
+	{"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg is here! He’s upgraded his mech, and you’re about to experience the latest in Strogg death-delivery tech! *****\n"}
 };
 
 void SetHealthBarName(edict_t* boss);
@@ -1583,17 +1586,6 @@ void ResetGame() {
 	WAVE_TO_ALLOW_FLYING = 0;
 	SPAWN_POINT_COOLDOWN = 3.8_sec;
 
-	//// this fixes monsters travelling to the next map for now lol
-	//for (unsigned int i = 1; i < globals.num_edicts; i++) {
-	//    edict_t* ent = &g_edicts[i];
-	//    if (ent->inuse && (ent->svflags & SVF_MONSTER)) {
-	//        G_FreeEdict(ent);
-	//    }
-	//}
-
-	//// Reiniciar contadores de monstruos
-	//level.total_monsters = 0;
-	//level.killed_monsters = 0;
 	cachedRemainingMonsters = 0;
 
 	// Reset core gameplay elements
@@ -1977,6 +1969,9 @@ static edict_t* SpawnMonsters() {
 
 	for (int32_t spawnCount = 0; spawnCount < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++spawnCount) {
 		const size_t spawn_index = static_cast<size_t>(frandom() * available_spawns.size());
+		if (spawn_index >= available_spawns.size()) {
+			continue; // Prevenir acceso fuera de los límites
+		}
 		edict_t* spawn_point = available_spawns[spawn_index];
 
 		const char* monster_classname = G_HordePickMonster(spawn_point);
@@ -2046,7 +2041,7 @@ static void SetMonsterArmor(edict_t* monster) {
 	if (!st.was_key_specified("power_armor_power"))
 		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	if (!st.was_key_specified("power_armor_type")) {
-		const float health_factor = sqrt(monster->max_health / 100.0f);
+		const float health_factor = sqrt(std::max(0.0f, monster->max_health / 100.0f));
 		const int base_armor = (current_wave_level <= 25) ?
 			irandom(75, 225) + health_factor * irandom(1, 3) :
 			irandom(150, 320) + health_factor * irandom(2, 5);

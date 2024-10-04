@@ -90,7 +90,6 @@ constexpr int32_t PROX_DAMAGE = 90;
 
 #include <stdlib.h> // Para rand()
 
-#include <stdlib.h> // Para rand()
 #define VectorSet(v, x, y, z) ((v)[0]=(x), (v)[1]=(y), (v)[2]=(z))
 THINK(Prox_Explode)(edict_t* ent) -> void {
 	vec3_t origin;

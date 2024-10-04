@@ -2219,18 +2219,26 @@ Called when a player connects to a server or respawns in
 a deathmatch.
 ============
 */
+/*
+===========
+PutClientInServer
+
+Called when a player connects to a server or respawns in
+a deathmatch.
+===========
+*/
 void PutClientInServer(edict_t* ent)
 {
-	int					index;
-	vec3_t				spawn_origin, spawn_angles;
+	int index;
+	vec3_t spawn_origin, spawn_angles;
 	gclient_t* client;
 	client_persistant_t saved;
-	client_respawn_t	resp;
+	client_respawn_t resp;
 
 	index = ent - g_edicts - 1;
 	client = ent->client;
 
-	// clear velocity now, since landmark may change it
+	// Clear velocity now, since landmark may change it
 	ent->velocity = {};
 
 	bool keepVelocity = client->landmark_name != nullptr;
@@ -2238,8 +2246,8 @@ void PutClientInServer(edict_t* ent)
 	if (keepVelocity)
 		ent->velocity = client->oldvelocity;
 
-	// find a spawn point
-	// do it before setting health back up, so farthest
+	// Find a spawn point
+	// Do it before setting health back up, so farthest
 	// ranging doesn't count this client
 	bool valid_spawn = false;
 	const bool force_spawn = client->awaiting_respawn && level.time > client->respawn_timeout;
@@ -2252,49 +2260,70 @@ void PutClientInServer(edict_t* ent)
 		valid_spawn = true;
 	}
 	else if (gamerules->integer && DMGame.SelectSpawnPoint) // PGM
+	{
 		valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn); // PGM
-	else										  // PGM
+	}
+	else // PGM
+	{
 		valid_spawn = SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn, is_landmark);
+	}
 
 	// [Paril-KEX] if we didn't get a valid spawn, hold us in
 	// limbo for a while until we do get one
 	if (!valid_spawn)
 	{
-		// only do this once per spawn
+		// Only do this once per spawn
 		if (!client->awaiting_respawn)
 		{
 			char userinfo[MAX_INFO_STRING];
 			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 			ClientUserinfoChanged(ent, userinfo);
 
-			client->respawn_timeout = level.time + 0_sec;
+			// Ajuste: Añadido un pequeño retardo antes de permitir otro intento de reaparición
+			client->respawn_timeout = level.time + 3_sec;
 		}
 
-		// find a spot to place us
+		// Find a spot to place us
 		if (!level.respawn_intermission)
 		{
-			// find an intermission spot
+			// Find an intermission spot
 			edict_t* pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_intermission");
 			if (!pt)
-			{ // the map creator forgot to put in an intermission point...
-				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
+			{ // El creador del mapa olvidó poner un punto de intermission...
+				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
 				if (!pt)
-					pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+					pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
 			}
 			else
-			{ // choose one of four spots
+			{ // Choose one of four spots
 				int32_t i = irandom(4);
 				while (i--)
 				{
 					pt = G_FindByString<&edict_t::classname>(pt, "info_player_intermission");
-					if (!pt) // wrap around the list
-						pt = G_FindByString<&edict_t::classname>(pt, "info_player_start");
+					if (!pt) // Wrap around the list
+						pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
 				}
 			}
 
-			level.intermission_origin = pt->s.origin;
-			level.intermission_angle = pt->s.angles;
-			level.respawn_intermission = true;
+			// Check if pt is valid before accessing its members
+			if (pt != nullptr)
+			{
+				level.intermission_origin = pt->s.origin;
+				level.intermission_angle = pt->s.angles;
+				level.respawn_intermission = true;
+			}
+			else
+			{
+				// If pt is nullptr, no valid intermission point found
+				// Log a warning and prevent the player from spawning
+				vec3_t default_origin = { 0, 0, 0 }; // Puedes cambiar esto a un valor más apropiado
+				vec3_t default_angles = { 0, 0, 0 }; // Ángulos por defecto
+				level.intermission_origin = default_origin;
+				level.intermission_angle = default_angles;
+				level.respawn_intermission = true;
+
+				gi.Com_PrintFmt("PRINT: Advertencia: No se encontró un punto de intermission. Usando origen y ángulos por defecto.\n");
+			}
 		}
 
 		ent->s.origin = level.intermission_origin;
@@ -2328,10 +2357,9 @@ void PutClientInServer(edict_t* ent)
 	char social_id[MAX_INFO_VALUE];
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
-	// deathmatch wipes most client data every spawn
+	// Deathmatch wipes most client data every spawn
 	if (G_IsDeathmatch())
 	{
-
 		client->resp.inactivity_time = 0_sec; // Inicializa a 0 o a un valor apropiado
 		client->resp.inactivity_warning = false;
 		client->resp.inactive = false;
@@ -2340,11 +2368,11 @@ void PutClientInServer(edict_t* ent)
 	}
 	else
 	{
-		// [Kex] Maintain user info in singleplayer to keep the player skin. 
+		// [Kex] Maintain user info in singleplayer to keep the player skin.
 		char userinfo[MAX_INFO_STRING];
 		memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
-		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
 		{
 			resp = client->resp;
 
@@ -2357,7 +2385,7 @@ void PutClientInServer(edict_t* ent)
 			}
 			else
 			{
-				// fix weapon
+				// Fix weapon
 				if (!client->pers.weapon)
 					client->pers.weapon = client->pers.lastweapon;
 			}
@@ -2374,30 +2402,30 @@ void PutClientInServer(edict_t* ent)
 			memset(&resp, 0, sizeof(resp));
 	}
 
-	// clear everything but the persistant data
+	// Clear everything but the persistent data
 	saved = client->pers;
 	memset(client, 0, sizeof(*client));
 	client->pers = saved;
 	client->resp = resp;
 
-	// on a new, fresh spawn (always in DM, clear inventory
+	// On a new, fresh spawn (always in DM, clear inventory
 	// or new spawns in SP/coop)
 	if (client->pers.health <= 0)
 		InitClientPersistant(ent, client);
 
-	// restore social ID
+	// Restore social ID
 	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
 
-	// fix level switch issue
+	// Fix level switch issue
 	ent->client->pers.connected = true;
 
-	// slow time will be unset here
+	// Slow time will be unset here
 	globals.server_flags &= ~SERVER_FLAG_SLOW_TIME;
 
-	// copy some data from the client to the entity
+	// Copy some data from the client to the entity
 	FetchClientEntData(ent);
 
-	// clear entity values
+	// Clear entity values
 	ent->groundentity = nullptr;
 	ent->client = &game.clients[index];
 	ent->takedamage = true;
@@ -2423,7 +2451,7 @@ void PutClientInServer(edict_t* ent)
 	ent->mins = PLAYER_MINS;
 	ent->maxs = PLAYER_MAXS;
 
-	// clear playerstate values
+	// Clear playerstate values
 	memset(&ent->client->ps, 0, sizeof(client->ps));
 
 	char val[MAX_INFO_VALUE];
@@ -2444,10 +2472,10 @@ void PutClientInServer(edict_t* ent)
 	client->ps.gunskin = 0;
 	// PGM
 
-	// clear entity state values
+	// Clear entity state values
 	ent->s.effects = EF_NONE;
-	ent->s.modelindex = MODELINDEX_PLAYER;	// will use the skin specified model
-	ent->s.modelindex2 = MODELINDEX_PLAYER; // custom gun model
+	ent->s.modelindex = MODELINDEX_PLAYER; // Will use the skin specified model
+	ent->s.modelindex2 = MODELINDEX_PLAYER; // Custom gun model
 	// sknum is player num and weapon number
 	// weapon number will be added in changeweapon
 	P_AssignClientSkinnum(ent);
@@ -2456,7 +2484,7 @@ void PutClientInServer(edict_t* ent)
 
 	PutClientOnSpawnPoint(ent, spawn_origin, spawn_angles);
 
-	// [Paril-KEX] set up world fog & send it instantly
+	// [Paril-KEX] Set up world fog & send it instantly
 	ent->client->pers.wanted_fog = {
 		world->fog.density,
 		world->fog.color[0],
@@ -2477,7 +2505,7 @@ void PutClientInServer(edict_t* ent)
 		return;
 	// ZOID
 
-	// spawn a spectator
+	// Spawn a spectator
 	if (client->pers.spectator)
 	{
 		client->chase_target = nullptr;
@@ -2495,11 +2523,10 @@ void PutClientInServer(edict_t* ent)
 
 	client->resp.spectator = false;
 
-	// [Paril-KEX] a bit of a hack, but landmark spawns can sometimes cause
-	// intersecting spawns, so we'll do a sanity check here...
+	// [Paril-KEX] Sanity check for landmark spawns to prevent intersecting spawns
 	if (spawn_from_begin)
 	{
-		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
 		{
 			edict_t* collision = G_UnsafeSpawnPosition(ent->s.origin, true);
 
@@ -2509,37 +2536,36 @@ void PutClientInServer(edict_t* ent)
 
 				if (collision->client)
 				{
-					// we spawned in somebody else, so we're going to change their spawn position
+					// We spawned on somebody else, so change their spawn position
 					bool lm = false;
 					SelectSpawnPoint(collision, spawn_origin, spawn_angles, true, lm);
 					PutClientOnSpawnPoint(collision, spawn_origin, spawn_angles);
 				}
-				// else, no choice but to accept where ever we spawned :(
+				// Else, no choice but to accept where ever we spawned :(
 			}
 		}
 
-		// give us one (1) free fall ticket even if
-		// we didn't spawn from landmark
+		// Give one (1) free fall ticket even if we didn't spawn from landmark
 		ent->client->landmark_free_fall = true;
 	}
 
 	gi.linkentity(ent);
 
 	if (!KillBox(ent, true, MOD_TELEFRAG_SPAWN))
-	{ // could't spawn in?
+	{ // Couldn't spawn in?
+		// Aquí puedes manejar el caso en que KillBox falle, por ejemplo, teletransportar al jugador a otro lugar
 	}
 
-	// my tribute to cash's level-specific hacks. I hope I live
-	// up to his trailblazing cheese.
+	// Tribute to cash's level-specific hacks
 	if (Q_strcasecmp(level.mapname, "rboss") == 0)
 	{
-		// if you get on to rboss in single player or coop, ensure
+		// If you get on to rboss in single player or coop, ensure
 		// the player has the nuke key. (not in DM)
 		if (!G_IsDeathmatch())
 			client->pers.inventory[IT_KEY_NUKE] = 1;
 	}
 
-	// force the current weapon up
+	// Force the current weapon up
 	client->newweapon = client->pers.weapon;
 	ChangeWeapon(ent);
 

@@ -815,7 +815,7 @@ void tank_vanilla_doattack_rocket(edict_t* self)
 void VerifyTankSpawnCount(edict_t* tank)
 {
 	int actual_count = 0;
-	for (auto* ent : active_monsters())
+	for (auto const* ent : active_monsters())
 	{
 		if (ent->owner == tank && (ent->monsterinfo.aiflags & AI_SPAWNED_TANK)) {
 			actual_count++;
@@ -858,7 +858,7 @@ std::array<uint8_t, TANK_VANILLA_MAX_REINFORCEMENTS> Tank_Vanilla_PickReinforcem
 	std::array<uint8_t, TANK_VANILLA_MAX_REINFORCEMENTS> chosen;
 	chosen.fill(255);
 
-	int32_t num_slots = max(1, (int32_t)log2(frandom(1.0f)));
+	int32_t const num_slots = max(1, (int32_t)log2(frandom(1.0f)));
 	int32_t remaining = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 
 	for (num_chosen = 0; num_chosen < num_slots; num_chosen++)
@@ -880,11 +880,11 @@ std::array<uint8_t, TANK_VANILLA_MAX_REINFORCEMENTS> Tank_Vanilla_PickReinforcem
 constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
 void Monster_MoveSpawn(edict_t* self)
 {
-	gi.Com_PrintFmt("{}: Monster_MoveSpawn called\n", self->classname);
+	//gi.Com_PrintFmt("{}: Monster_MoveSpawn called\n", self->classname);
 
 	if (!self || self->health <= 0 || self->deadflag)
 	{
-		gi.Com_PrintFmt("Monster_MoveSpawn: Invalid self or monster is dead\n");
+		//gi.Com_PrintFmt("Monster_MoveSpawn: Invalid self or monster is dead\n");
 		return;
 	}
 
@@ -895,8 +895,8 @@ void Monster_MoveSpawn(edict_t* self)
 	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 	if (available_slots <= 0)
 	{
-		gi.Com_PrintFmt("Monster_MoveSpawn: No slots available ({}/{})\n",
-			self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
+		//gi.Com_PrintFmt("Monster_MoveSpawn: No slots available ({}/{})\n",
+		//	self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
 		return;
 	}
 
@@ -909,7 +909,7 @@ void Monster_MoveSpawn(edict_t* self)
 
 	const int num_monsters = std::min({ NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots });
 
-	gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn {} monsters\n", num_monsters);
+	//gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn {} monsters\n", num_monsters);
 
 	for (int i = 0; i < num_monsters; i++)
 	{
@@ -938,23 +938,23 @@ void Monster_MoveSpawn(edict_t* self)
 
 		if (!found_spot)
 		{
-			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find spawn spot for monster {}\n", i);
+		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find spawn spot for monster {}\n", i);
 			continue;
 		}
 
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180 / PI);
 
-		gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn monster_soldier_ss at {}\n", spawn_origin);
+		//gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn monster_soldier_ss at {}\n", spawn_origin);
 
 		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, "monster_soldier_ss", 64);
 		if (!monster)
 		{
-			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster\n");
+		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster\n");
 			continue;
 		}
 
-		gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {}\n", monster->classname);
+		//gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {}\n", monster->classname);
 
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_TANK;
@@ -965,8 +965,8 @@ void Monster_MoveSpawn(edict_t* self)
 		self->monsterinfo.monster_used++;
 		available_slots--;
 
-		gi.Com_PrintFmt("Monster_MoveSpawn: Updated monster_used to {}/{}\n",
-			self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
+		//gi.Com_PrintFmt("Monster_MoveSpawn: Updated monster_used to {}/{}\n",
+		//	self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
 
 		const vec3_t spawngrow_pos = monster->s.origin;
 		const float magnitude = VectorLength(spawngrow_pos);
@@ -977,8 +977,8 @@ void Monster_MoveSpawn(edict_t* self)
 		}
 	}
 
-	gi.Com_PrintFmt("Monster_MoveSpawn: Finished spawning. Total monsters used: {}/{}\n",
-		self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
+	//gi.Com_PrintFmt("Monster_MoveSpawn: Finished spawning. Total monsters used: {}/{}\n",
+	//	self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
 }
 
 void tank_vanilla_spawn_finished(edict_t* self)
