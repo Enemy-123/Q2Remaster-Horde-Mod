@@ -466,7 +466,7 @@ bool FindMTarget(edict_t* self) {
     for (auto ent : active_monsters()) {
         if (entityCount >= MAX_ENTITIES) break;
         if (!IsValidTarget(self, ent)) continue;
-       const float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
+        const float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
         if (distSquared <= MAX_RANGE_SQUARED) {
             nearbyEntities[entityCount++] = { ent, distSquared };
         }
@@ -919,7 +919,7 @@ bool FindTarget(edict_t* self)
         // us with the "same" enemy even though it's a different noise.
         if (heardit && (self->monsterinfo.aiflags & AI_SOUND_TARGET))
         {
-           const vec3_t temp = client->s.origin - self->s.origin;
+            const vec3_t temp = client->s.origin - self->s.origin;
             self->ideal_yaw = vectoyaw(temp);
 
             if (!FacingIdeal(self))
@@ -969,7 +969,7 @@ bool FindTarget(edict_t* self)
         // Paril: revised so that monsters can be woken up
 // by players 'seen' and attacked at by other monsters
 // if they are close enough. they don't have to be visible.
-       const bool is_visible =
+        const bool is_visible =
             ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
                 (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
 
@@ -1117,12 +1117,12 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 
             tr = gi.traceline(spot1, spot2, self,
                 MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA
-            | CONTENTS_PROJECTILECLIP // Paril: horde
-                );
+                | CONTENTS_PROJECTILECLIP // Paril: horde
+            );
 
-                // Paril: horde
-                if (tr.startsolid)
-                    return false;
+            // Paril: horde
+            if (tr.startsolid)
+                return false;
         }
         else
         {
@@ -1175,7 +1175,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
     }
     // ROGUE
 
-   const float enemy_range = range_to(self, self->enemy);
+    const float enemy_range = range_to(self, self->enemy);
 
     // melee attack
     if (enemy_range <= RANGE_MELEE)
@@ -1618,7 +1618,7 @@ void ai_run(edict_t* self, float dist)
         if (self->movetarget)
         {
             // nb: this is done from the centroid and not viewheight on purpose;
-           const trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f, { -2.f, -2.f, -2.f }, { 2.f, 2.f, 2.f }, self->movetarget->s.origin, self, CONTENTS_SOLID);
+            const trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f, { -2.f, -2.f, -2.f }, { 2.f, 2.f, 2.f }, self->movetarget->s.origin, self, CONTENTS_SOLID);
 
             // [Paril-KEX] special case: if we're stand ground & knocked way too far away
             // from our path_corner, or we can't see it any more, assume all

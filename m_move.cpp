@@ -212,10 +212,22 @@ inline bool SV_flystep_testvisposition(vec3_t start, vec3_t end, vec3_t starta, 
 
 static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_bad)
 {
-	// swimming monsters just follow their velocity in the air
-	if ((ent->flags & FL_SWIM) && ent->waterlevel < WATER_UNDER)
-		return true;
+	// Determinar la altura mínima (minheight) según el tipo de monstruo
+	float minheight;
 
+	if (!strcmp(ent->classname, "monster_hover") ||
+		!strcmp(ent->classname, "monster_hover_vanilla") ||
+		!strcmp(ent->classname, "monster_daedalus") ||
+		!strcmp(ent->classname, "monster_daedalus_bomber"))
+	{
+		minheight = 80;  // Valor ajustado según las necesidades de estos monstruos
+	}
+	else
+	{
+		minheight = 50;  // Por defecto, sin restricción de altura
+	}
+
+	// Update ideal position periodically or if enemy is no longer visible
 	if (ent->monsterinfo.fly_position_time <= level.time ||
 		(ent->enemy && ent->monsterinfo.fly_pinned && !visible(ent, ent->enemy)))
 	{
@@ -225,32 +237,21 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	}
 
 	vec3_t towards_origin, towards_velocity = {};
-
 	float current_speed;
-	vec3_t dir = ent->velocity.normalized(current_speed);
+	const vec3_t dir = ent->velocity.normalized(current_speed);
 
-	// FIXME
-	if (std::isnan(dir[0]) || std::isnan(dir[1]) || std::isnan(dir[2]))
-	{
-#if defined(_DEBUG) && defined(_WIN32)
-		__debugbreak();
-#endif
-		return false;
-	}
-
-	if (ent->monsterinfo.aiflags & AI_PATHING)
-		towards_origin = (ent->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
-		ent->monsterinfo.nav_path.secondMovePoint : ent->monsterinfo.nav_path.firstMovePoint;
-	else if (ent->enemy && !(ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT)))
+	if (ent->enemy)
 	{
 		towards_origin = ent->enemy->s.origin;
 		towards_velocity = ent->enemy->velocity;
 	}
 	else if (ent->goalentity)
-		towards_origin = ent->goalentity->s.origin;
-	else // what we're going towards probably died or something
 	{
-		// change speed
+		towards_origin = ent->goalentity->s.origin;
+	}
+	else
+	{
+		// Change speed if no valid target is found
 		if (current_speed)
 		{
 			if (current_speed > 0)
@@ -266,164 +267,71 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 
 	vec3_t wanted_pos;
 
-	if (ent->monsterinfo.fly_pinned)
-		wanted_pos = ent->monsterinfo.fly_ideal_position;
-	else if (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT))
-		wanted_pos = towards_origin;
+	// If the hover is attacking and too close to the player, try to back away gradually
+	const float currentDistance = VectorLength(towards_origin - ent->s.origin);
+	if (currentDistance < ent->monsterinfo.fly_min_distance)
+	{
+		// Generate a new ideal position farther away, but adjust smoothly
+		const vec3_t direction_away = (ent->s.origin - towards_origin).normalized();
+		float distance_factor = (ent->monsterinfo.fly_min_distance - currentDistance) / ent->monsterinfo.fly_min_distance;
+		float smooth_factor = 0.5f; // Reduce the drastic movement by adding a smooth factor
+		wanted_pos = ent->s.origin + direction_away * (ent->monsterinfo.fly_max_distance * distance_factor * smooth_factor);
+		wanted_pos[2] += 20 * distance_factor * smooth_factor; // Increase height proportionally to stay elevated
+	}
 	else
-		wanted_pos = (towards_origin + (towards_velocity * 0.25f)) + ent->monsterinfo.fly_ideal_position;
+	{
+		// Add randomness to hover positioning to make movement less predictable
+		vec3_t random_offset = {
+			crandom() * 20.0f,  // Random offset along X-axis
+			crandom() * 20.0f,  // Random offset along Y-axis
+			crandom() * 10.0f   // Random offset along Z-axis
+		};
+		wanted_pos = towards_origin + (towards_velocity * 0.25f) + ent->monsterinfo.fly_ideal_position + random_offset;
+	}
 
-	// find a place we can fit in from here
-	trace_t tr = gi.trace(towards_origin, { -8.f, -8.f, -8.f }, { 8.f, 8.f, 8.f }, wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+	// Asegurarse de que la posición deseada cumpla con la altura mínima
+	if (wanted_pos[2] < (ent->s.origin[2] - minheight))
+	{
+		wanted_pos[2] = ent->s.origin[2] - minheight;
+	}
+
+	// Verify if the new position is valid
+	trace_t tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
 	if (!tr.allsolid)
 		wanted_pos = tr.endpos;
 
+	// Calculate direction towards the new desired position
 	float dist_to_wanted;
 	vec3_t dest_diff = (wanted_pos - ent->s.origin);
-
-	if (dest_diff.z > ent->mins.z && dest_diff.z < ent->maxs.z)
-		dest_diff.z = 0;
-
-	vec3_t wanted_dir = dest_diff.normalized(dist_to_wanted);
+	const vec3_t wanted_dir = dest_diff.normalized(dist_to_wanted);
 
 	if (!(ent->monsterinfo.aiflags & AI_MANUAL_STEERING))
 		ent->ideal_yaw = vectoyaw((towards_origin - ent->s.origin).normalized());
 
-	// check if we're blocked from moving this way from where we are
-	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+	// Introduce a turn factor to smooth direction changes
+	const float turn_factor = min(1.f, 0.5f + (0.5f * (current_speed / ent->monsterinfo.fly_speed)));
+	vec3_t final_dir = slerp(dir, wanted_dir, turn_factor).normalized();
 
-	vec3_t aim_fwd, aim_rgt, aim_up;
-	vec3_t yaw_angles = { 0, ent->s.angles.y, 0 };
+	// Verify if there is a collision in the desired direction
+	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (final_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
-	AngleVectors(yaw_angles, aim_fwd, aim_rgt, aim_up);
-
-	// it's a fairly close block, so we may want to shift more dramatically
 	if (tr.fraction < 0.25f)
 	{
-		bool bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
-			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->mins.z - ent->monsterinfo.fly_acceleration }, ent);
-		bool top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
-			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->maxs.z + ent->monsterinfo.fly_acceleration }, ent);
-
-		// top & bottom are same, so we need to try right/left
-		if (bottom_visible == top_visible)
-		{
-			bool left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
-			bool right_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) + aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
-
-			if (left_visible != right_visible)
-			{
-				if (right_visible)
-					wanted_dir += aim_rgt;
-				else
-					wanted_dir -= aim_rgt;
-			}
-			else
-				// we're probably stuck, push us directly away
-				wanted_dir = tr.plane.normal;
-		}
-		else
-		{
-			if (top_visible)
-				wanted_dir += aim_up;
-			else
-				wanted_dir -= aim_up;
-		}
-
-		wanted_dir.normalize();
+		// Adjust direction if there is a close block (lightweight obstacle avoidance)
+		final_dir += vec3_t{ 0, 0, 1 }; // Attempt to rise to avoid the obstacle
+		final_dir.normalize();
 	}
 
-	// the closer we are to zero, the more we can change dir.
-	// if we're pushed past our max speed we shouldn't
-	// turn at all.
-	float turn_factor;
+	// Adjust speed for controlled hovering with a speed factor
+	const float speed_factor = min(1.f, dist_to_wanted / ent->monsterinfo.fly_speed);
+	const float wanted_speed = ent->monsterinfo.fly_speed * speed_factor;
 
-	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)) && dir.dot(wanted_dir) > 0.0f)
-		turn_factor = 0.45f;
-	else
-		turn_factor = min(1.f, 0.84f + (0.08f * (current_speed / ent->monsterinfo.fly_speed)));
-
-	vec3_t final_dir = dir ? dir : wanted_dir;
-
-	// FIXME
-	if (std::isnan(final_dir[0]) || std::isnan(final_dir[1]) || std::isnan(final_dir[2]))
-	{
-#if defined(_DEBUG) && defined(_WIN32)
-		__debugbreak();
-#endif
-		return false;
-	}
-
-	// swimming monsters don't exit water voluntarily, and
-	// flying monsters don't enter water voluntarily (but will
-	// try to leave it)
-	bool bad_movement_direction = false;
-
-	//if (!(ent->monsterinfo.aiflags & AI_COMBAT_POINT))
-	{
-		if (ent->flags & FL_SWIM)
-			bad_movement_direction = !(gi.pointcontents(ent->s.origin + (wanted_dir * current_speed)) & CONTENTS_WATER);
-		else if ((ent->flags & FL_FLY) && ent->waterlevel < WATER_UNDER)
-			bad_movement_direction = gi.pointcontents(ent->s.origin + (wanted_dir * current_speed)) & CONTENTS_WATER;
-	}
-
-	if (bad_movement_direction)
-	{
-		if (ent->monsterinfo.fly_recovery_time < level.time)
-		{
-			ent->monsterinfo.fly_recovery_dir = vec3_t{ crandom(), crandom(), crandom() }.normalized();
-			ent->monsterinfo.fly_recovery_time = level.time + 1_sec;
-		}
-
-		wanted_dir = ent->monsterinfo.fly_recovery_dir;
-	}
-
-	if (dir && turn_factor > 0)
-		final_dir = slerp(dir, wanted_dir, 1.0f - turn_factor).normalized();
-
-	// the closer we are to the wanted position, we want to slow
-	// down so we don't fly past it.
-	float speed_factor;
-
-	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)))
-		speed_factor = 1.f;
-	else if (aim_fwd.dot(wanted_dir) < -0.25 && dir)
-		speed_factor = 0.f;
-	else
-		speed_factor = min(1.f, dist_to_wanted / ent->monsterinfo.fly_speed);
-
-	if (bad_movement_direction)
-		speed_factor = -speed_factor;
-
-	float accel = ent->monsterinfo.fly_acceleration;
-
-	// if we're flying away from our destination, apply reverse thrusters
-	if (final_dir.dot(wanted_dir) < 0.25f)
-		accel *= 2.0f;
-
-	float wanted_speed = ent->monsterinfo.fly_speed * speed_factor;
-
-	if (ent->monsterinfo.aiflags & AI_MANUAL_STEERING)
-		wanted_speed = 0;
-
-	// change speed
 	if (current_speed > wanted_speed)
-		current_speed = max(wanted_speed, current_speed - accel);
+		current_speed = max(wanted_speed, current_speed - ent->monsterinfo.fly_acceleration);
 	else if (current_speed < wanted_speed)
-		current_speed = min(wanted_speed, current_speed + accel);
+		current_speed = min(wanted_speed, current_speed + ent->monsterinfo.fly_acceleration);
 
-	// FIXME
-	if (std::isnan(final_dir[0]) || std::isnan(final_dir[1]) || std::isnan(final_dir[2]) ||
-		std::isnan(current_speed))
-	{
-#if defined(_DEBUG) && defined(_WIN32)
-		__debugbreak();
-#endif
-		return false;
-	}
-
-	// commit
 	ent->velocity = final_dir * current_speed;
 
 	// for buzzards, set their pitch

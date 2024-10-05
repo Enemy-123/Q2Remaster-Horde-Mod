@@ -19,6 +19,7 @@ static cached_soundindex sound_weld2;
 static cached_soundindex sound_weld3;
 static cached_soundindex sound_gun;
 
+
 void fixbot_run(edict_t* self);
 void fixbot_attack(edict_t* self);
 void fixbot_dead(edict_t* self);
@@ -100,36 +101,16 @@ edict_t* fixbot_FindDeadMonster(edict_t* self)
 
 	return best;
 }
-static void fixbot_set_attack_fly_parameters(edict_t* self) {
-	self->monsterinfo.fly_min_distance = 50.f;  // Acercarse más para el ataque
-	self->monsterinfo.fly_max_distance = 140.f; // Pero mantener alguna distancia
-	self->monsterinfo.fly_speed = 180.f;        // Velocidad aumentada para el combate
-}
 
-static void fixbot_set_fly_parameters(edict_t* self, bool heal, bool weld)
+static void fixbot_set_attack_fly_parameters(edict_t* self)
 {
-	self->monsterinfo.fly_position_time = 0_sec;
-	self->monsterinfo.fly_acceleration = 8.f;
-	self->monsterinfo.fly_speed = 160.f;
-	self->monsterinfo.fly_buzzard = false;
-
-	if (heal)
-	{
-		self->monsterinfo.fly_min_distance = 100.f;
-		self->monsterinfo.fly_max_distance = 100.f;
-		self->monsterinfo.fly_thrusters = true;
-	}
-	else if (weld)
-	{
-		self->monsterinfo.fly_min_distance = 24.f;
-		self->monsterinfo.fly_max_distance = 24.f;
-	}
-	else
-	{
-		// timid bot
-		self->monsterinfo.fly_min_distance = 80.f;
-		self->monsterinfo.fly_max_distance = 200.f;
-	}
+	self->monsterinfo.fly_thrusters = false;
+	self->monsterinfo.fly_acceleration = 20.f;
+	self->monsterinfo.fly_speed = 270.f;
+	// Icarus prefers to keep its distance, but flies slower than the flyer.
+	// he never pins because of this.
+	self->monsterinfo.fly_min_distance = 300.f;
+	self->monsterinfo.fly_max_distance = 900.f;
 }
 
 edict_t* fixbot_FindLiveEnemy(edict_t* self) {
@@ -343,7 +324,7 @@ void use_scanner(edict_t* self)
 					vec = self->s.origin - self->goalentity->s.origin;
 					len = vec.normalize();
 
-					fixbot_set_fly_parameters(self, false, false);
+					fixbot_set_attack_fly_parameters(self);
 
 					if (len < 32)
 					{
@@ -1316,7 +1297,7 @@ void fixbot_start_attack(edict_t* self)
 
 MONSTERINFO_ATTACK(fixbot_attack) (edict_t* self) -> void {
 	if (self->enemy) {
-		fixbot_set_fly_parameters(self, false, false);
+		fixbot_set_attack_fly_parameters(self);
 		M_SetAnimation(self, &fixbot_move_attack2);
 	}
 	else {
@@ -1330,7 +1311,7 @@ PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 	if (level.time < self->pain_debounce_time)
 		return;
 
-	fixbot_set_fly_parameters(self, false, false);
+	fixbot_set_attack_fly_parameters(self);
 	self->pain_debounce_time = level.time + 3_sec;
 	gi.sound(self, CHAN_VOICE, sound_pain1, 1, ATTN_NORM, 0);
 
@@ -1403,14 +1384,18 @@ void SP_monster_fixbot(edict_t* self)
 	self->monsterinfo.run = fixbot_run;
 	self->monsterinfo.attack = fixbot_attack;
 
+	flymonster_start(self);
+
 	gi.linkentity(self);
 
 	M_SetAnimation(self, &fixbot_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
-	self->monsterinfo.aiflags |= AI_PATHING;
-	fixbot_set_fly_parameters(self, false, false);
 
-	flymonster_start(self);
+
+	self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
+	fixbot_set_attack_fly_parameters(self);
+
+
 
 	ApplyMonsterBonusFlags(self);
 }

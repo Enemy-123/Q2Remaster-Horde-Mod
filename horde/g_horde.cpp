@@ -1324,22 +1324,22 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 
 // Incluye otras cabeceras y definiciones necesarias
 static const std::unordered_map<std::string, std::string> bossMessagesMap = {
-	{"monster_boss2", "***** A Strogg Boss has spawned! *****\n***** Hornet incoming! He’s had enough of rations and is here to add some fresh Marine meat to the menu! *****\n"},
-	{"monster_boss2kl", "***** A Strogg Boss has spawned! *****\n***** Hornet incoming! You’re about to learn why they call him 'the swarm'. *****\n"},
-	{"monster_carrier_mini", "***** A Strogg Boss has spawned! *****\n***** Carrier Mini incoming! Forget delivery drones, this guy's bringing a payload of pain right to your face! *****\n"},
-	{"monster_carrier", "***** A Strogg Boss has spawned! *****\n***** Carrier here! And he’s dropping more than just supplies... hope you packed your will! *****\n"},
-	{"monster_tank_64", "***** A Strogg Boss has spawned! *****\n***** Tank Commander rolling in! He’s not just here to take names—he’s here to take limbs too! *****\n"},
-	{"monster_shamblerkl", "***** A Strogg Boss has spawned! *****\n***** The Shambler emerges from the shadows! If you thought he looked ugly before, just wait until he sees you up close! *****\n"},
-	{"monster_guncmdrkl", "***** A Strogg Boss has spawned! *****\n***** Gunner Commander steps in! He’s been practicing his aim, and your head's on his target list! *****\n"},
-	{"monster_makronkl", "***** A Strogg Boss has spawned! *****\n***** Makron arrives! He got tired of sending minions, now he's here to personally put your spine on his trophy wall! *****\n"},
-	{"monster_guardian", "***** A Strogg Boss has spawned! *****\n***** The Guardian appears! He’s been keeping watch for millennia, and today he gets to clock out—with your head! *****\n"},
-	{"monster_supertank", "***** A Strogg Boss has spawned! *****\n***** Super-Tank rolls in! Ready or not, this Strogg’s got more firepower than a birthday party at a munitions depot! *****\n"},
-	{"monster_boss5", "***** A Strogg Boss has spawned! *****\n***** Super-Tank is here to obliterate! You’re about to get a taste of pure Strogg engineering excellence... and it’s gonna hurt! *****\n"},
-	{"monster_widow2", "***** A Strogg Boss has spawned! *****\n***** The Widow is back, and she’s weaving a web of disruptor beams just for you! Hope you brought bug spray. *****\n"},
-	{"monster_arachnid", "***** A Strogg Boss has spawned! *****\n***** Arachnid’s on the hunt! He’s not here to cuddle—he’s here to fry your circuits and roast some Marine BBQ! *****\n"},
-	{"monster_gm_arachnid", "***** A Strogg Boss has spawned! *****\n***** Missile Arachnid is crawling out! He’s got eight legs and an endless supply of rockets—run if you value those limbs! *****\n"},
-	{"monster_redmutant", "***** A Strogg Boss has spawned! *****\n***** The Bloody Mutant rises! This freak’s got more rage than a Marine denied shore leave—brace yourself! *****\n"},
-	{"monster_jorg", "***** A Strogg Boss has spawned! *****\n***** Jorg is here! He’s upgraded his mech, and you’re about to experience the latest in Strogg death-delivery tech! *****\n"}
+	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
+	{"monster_boss2kl", "***** Boss incoming! Hornet 'the swarm' is about to strike! *****\n"},
+	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
+	{"monster_carrier", "***** Boss incoming! Carrier’s here with a deadly payload! *****\n"},
+	{"monster_tank_64", "***** Boss incoming! Tank Commander is here to take limbs! *****\n"},
+	{"monster_shamblerkl", "***** Boss incoming! The Shambler is emerging—watch out! *****\n"},
+	{"monster_guncmdrkl", "***** Boss incoming! Gunner Commander has you in his sights! *****\n"},
+	{"monster_makronkl", "***** Boss incoming! Makron is here to personally finish you off! *****\n"},
+	{"monster_guardian", "***** Boss incoming! The Guardian is ready to claim your head! *****\n"},
+	{"monster_supertank", "***** Boss incoming! Super-Tank has more firepower than you can handle! *****\n"},
+	{"monster_boss5", "***** Boss incoming! Super-Tank is here to show Strogg’s might! *****\n"},
+	{"monster_widow2", "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n"},
+	{"monster_arachnid", "***** Boss incoming! Arachnid is here for some Marine BBQ! *****\n"},
+	{"monster_gm_arachnid", "***** Boss incoming! Missile Arachnid is armed and ready! *****\n"},
+	{"monster_redmutant", "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n"},
+	{"monster_jorg", "***** Boss incoming! Jorg’s mech is upgraded and deadly! *****\n"}
 };
 
 void SetHealthBarName(edict_t* boss);
