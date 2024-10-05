@@ -896,10 +896,18 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 // is spawn occupied?
-static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
+static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr, const edict_t* monster = nullptr) {
 	vec3_t mins, maxs;
-	VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
-	VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
+
+	// Si hay un monstruo especificado, usa sus mins y maxs, si no, usa los valores por defecto (para jugador)
+	if (monster) {
+		VectorAdd(spawn_point->s.origin, monster->mins, mins);
+		VectorAdd(spawn_point->s.origin, monster->maxs, maxs);
+	}
+	else {
+		VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
+		VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
+	}
 
 	FilterData filter_data = { ignore_ent, 0 };
 
@@ -918,11 +926,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Check cooldowns
-	gtime_t currentCooldown = SPAWN_POINT_COOLDOWN;
-	if (const auto it = spawnPointCooldowns.find(spawn_point); it != spawnPointCooldowns.end()) {
-		currentCooldown = it->second;
-	}
-
 	if (const auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
 		if (level.time < it->second + SPAWN_POINT_COOLDOWN) {
 			return nullptr;  // aún en cooldown, no permitir spawn
@@ -941,6 +944,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	for (const auto& item : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(item.classname);
 
+		// Simplified logic for eligibility
 		if ((flying_monsters_mode && !isFlyingMonster) ||
 			(spawn_point->style == 1 && !isFlyingMonster) ||
 			(!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
@@ -949,7 +953,9 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 			continue;
 		}
 
+		// Verify if the monster is eligible for this spawn point and level
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
+			// Calculate the weight of this monster
 			const float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
 			if (weight > 0) {
 				total_weight += static_cast<double>(weight);  // Convertir a double para evitar acumulación de precisión baja
@@ -958,6 +964,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 		}
 	}
 
+	// If no eligible monsters, increase spawn attempts and return nullptr
 	if (eligible_monsters.empty()) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
@@ -975,10 +982,14 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	const size_t chosen_index = dist(mt_rand);
 
 	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
+
+	// Update cooldowns and reset spawn point attempts
 	UpdateCooldowns(spawn_point, chosen_monster);
 	ResetSingleSpawnPointAttempts(spawn_point);
+
 	return chosen_monster;
 }
+
 
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
