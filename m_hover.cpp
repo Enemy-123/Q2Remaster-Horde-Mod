@@ -569,8 +569,8 @@ static void hover_set_fly_parameters(edict_t *self)
 	self->monsterinfo.fly_speed = 320.f;
 	// Icarus prefers to keep its distance, but flies slower than the flyer.
 	// he never pins because of this.
-	self->monsterinfo.fly_min_distance = 400.f;
-	self->monsterinfo.fly_max_distance = 700.f;
+	self->monsterinfo.fly_min_distance = 600.f;
+	self->monsterinfo.fly_max_distance = 900.f;
 }
 
 /*QUAKED monster_hover (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight

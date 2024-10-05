@@ -886,16 +886,16 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 		return BoxEdictsResult_t::Skip;
 	}
 
-	// Filtrar solo jugadores y bots
-	for (auto const* player : active_players_no_spect()) {
-		if (player) filter_data->count++;
-		// Si encontramos al menos una entidad, podemos detener la búsqueda
-		return BoxEdictsResult_t::End;
+	// Verificar si la entidad es un jugador o bot
+	if (ent->client && ent->inuse) { // Comprobar si la entidad tiene un cliente asociado y está en uso
+		filter_data->count++;
+		return BoxEdictsResult_t::End; // Detener la búsqueda si se encuentra un jugador o bot
 	}
+
 	return BoxEdictsResult_t::Skip;
 }
 
-// is spawn occupied?
+// ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr, const edict_t* monster = nullptr) {
 	vec3_t mins, maxs;
 
@@ -914,9 +914,9 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 	// Usar BoxEdicts para verificar si hay entidades relevantes en el área
 	gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
+	// Retornar verdadero si encontramos al menos un jugador o bot en el área
 	return filter_data.count > 0;
 }
-
 #include <vector>
 
 const char* G_HordePickMonster(edict_t* spawn_point) {

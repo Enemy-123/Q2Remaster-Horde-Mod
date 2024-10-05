@@ -619,8 +619,8 @@ static void hover_vanilla_set_fly_parameters(edict_t* self) {
 			self->monsterinfo.fly_speed = 320.f;
 			// Icarus prefers to keep its distance, but flies slower than the flyer.
 			// he never pins because of this.
-			self->monsterinfo.fly_min_distance = 450.f;
-			self->monsterinfo.fly_max_distance = 800.f;
+			self->monsterinfo.fly_min_distance = 650.f;
+			self->monsterinfo.fly_max_distance = 900.f;
 		}
 	}
 	else
@@ -630,8 +630,8 @@ static void hover_vanilla_set_fly_parameters(edict_t* self) {
 		self->monsterinfo.fly_speed = 170.f;
 		// Icarus prefers to keep its distance, but flies slower than the flyer.
 		// he never pins because of this.
-		self->monsterinfo.fly_min_distance = 250.f;
-		self->monsterinfo.fly_max_distance = 450.f;
+		self->monsterinfo.fly_min_distance = 550.f;
+		self->monsterinfo.fly_max_distance = 850.f;
 	}
 }
 /*QUAKED monster_hover_vanilla (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight

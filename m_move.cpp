@@ -449,7 +449,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	}
 
 	// try the move
-	vec3_t oldorg = ent->s.origin;
+	const vec3_t oldorg = ent->s.origin;
 	vec3_t neworg = ent->s.origin + move;
 
 	// fixme: move to monsterinfo
@@ -460,7 +460,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	if (!strcmp(ent->classname, "monster_carrier") || !strcmp(ent->classname, "monster_carrier_mini"))
 		minheight = 104;
 	else
-		minheight = 40;
+		minheight = 50;
 
 	// try one move with vertical motion, then one without
 	for (int i = 0; i < 2; i++)
@@ -474,7 +474,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 
 			vec3_t& goal_position = (ent->monsterinfo.aiflags & AI_PATHING) ? ent->monsterinfo.nav_path.firstMovePoint : ent->goalentity->s.origin;
 
-			float dz = ent->s.origin[2] - goal_position[2];
+			const float dz = ent->s.origin[2] - goal_position[2];
 			float dist = move.length();
 
 			if (ent->goalentity->client)
