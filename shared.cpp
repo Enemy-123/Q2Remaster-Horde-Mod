@@ -247,7 +247,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.renderfx |= RF_SHELL_RED;
 		monster->health *= 2.0f;
 		monster->monsterinfo.power_armor_power *= 1.25f;
-		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 175_sec;
+		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 475_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
 	{
@@ -259,13 +259,13 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
 		monster->s.renderfx |= RF_TRANSLUCENT;
 		monster->monsterinfo.power_armor_power *= 4.0f;
-		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 12_sec;
+		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 15_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
 		monster->s.effects |= EF_GIB | EF_FLAG2;
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.3f;
-		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 175_sec;
+		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 475_sec;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_POSSESSED) {
@@ -344,7 +344,7 @@ void ApplyBossEffects(edict_t* boss)
 		boss->s.renderfx |= RF_SHELL_RED;
 		health_multiplier *= 1.5f;
 		power_armor_multiplier *= 1.25f;
-		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 175_sec;
+		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 475_sec;
 	}
 	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
 		if (!(mapSize.isSmallMap)) {
@@ -366,7 +366,7 @@ void ApplyBossEffects(edict_t* boss)
 		boss->s.effects |= EF_GIB | EF_FLAG2;
 		health_multiplier *= 1.5f;
 		power_armor_multiplier *= 1.5f;
-		boss->monsterinfo.quad_time = max(level.time, boss->monsterinfo.quad_time) + 175_sec;
+		boss->monsterinfo.quad_time = max(level.time, boss->monsterinfo.quad_time) + 475_sec;
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
