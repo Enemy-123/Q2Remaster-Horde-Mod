@@ -161,6 +161,7 @@ void SP_monster_makronkl(edict_t* self);
 // Paril
 void SP_monster_tank_stand(edict_t* self);
 void SP_monster_guardian(edict_t* self);
+void SP_monster_psxguardian(edict_t* self);
 void SP_monster_arachnid(edict_t* self);
 void SP_monster_spider(edict_t* self);
 void SP_monster_guncmdr(edict_t* self);
@@ -403,6 +404,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_tank_stand", SP_monster_tank_stand },
 	// Paril: PSX
 	{ "monster_guardian", SP_monster_guardian },
+	{ "monster_psxguardian", SP_monster_psxguardian },
 	{ "monster_arachnid", SP_monster_arachnid },
 	{ "monster_spider", SP_monster_spider },
 	{ "monster_guncmdr", SP_monster_guncmdr },

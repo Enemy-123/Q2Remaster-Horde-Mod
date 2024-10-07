@@ -19,8 +19,12 @@ using gvec4_t = std::array<float, 4>;
 using gvec3_t = float[3];
 using gvec3_ptr_t = gvec3_t;
 using gvec3_ref_t = gvec3_t;
-using gvec3_cref_t = const gvec3_t;
-using gvec3_cptr_t = const gvec3_t;
+// FIXME: MSVC bug
+//using gvec3_cref_t = const gvec3_t;
+typedef const gvec3_t gvec3_cref_t;
+// FIXME: MSVC bug
+//using gvec3_cptr_t = const gvec3_t;
+typedef const gvec3_t gvec3_cptr_t;
 using gvec4_t = float[4];
 #endif
 
@@ -297,7 +301,7 @@ constexpr contents_t MASK_ALL = static_cast<contents_t>(-1);
 constexpr contents_t MASK_SOLID = (CONTENTS_SOLID | CONTENTS_WINDOW);
 constexpr contents_t MASK_PLAYERSOLID = (CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER);
 constexpr contents_t MASK_DEADSOLID = (CONTENTS_SOLID | CONTENTS_PLAYERCLIP | CONTENTS_WINDOW);
-constexpr contents_t MASK_MONSTERSOLID = (CONTENTS_SOLID | CONTENTS_MONSTERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER |  CONTENTS_PLAYER);
+constexpr contents_t MASK_MONSTERSOLID = (CONTENTS_SOLID | CONTENTS_MONSTERCLIP | CONTENTS_WINDOW | CONTENTS_MONSTER | CONTENTS_PLAYER);
 constexpr contents_t MASK_WATER = (CONTENTS_WATER | CONTENTS_LAVA | CONTENTS_SLIME);
 constexpr contents_t MASK_OPAQUE = (CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA);
 constexpr contents_t MASK_SHOT = (CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_WINDOW | CONTENTS_DEADMONSTER);
@@ -388,6 +392,7 @@ enum pmflags_t : uint16_t
     PMF_NO_ANGULAR_PREDICTION = bit_v<8>, // temporary disables angular prediction
     PMF_IGNORE_PLAYER_COLLISION = bit_v<9>, // don't collide with other players
     PMF_TIME_TRICK = bit_v<10>, // pm_time is trick jump time
+    PMF_NO_GROUND_SEEK = bit_v<11>, // temporarily disable ground seeking
 };
 
 MAKE_ENUM_BITFLAGS(pmflags_t);
@@ -517,50 +522,50 @@ struct pmove_t
 // even if it has a zero index model.
 enum effects_t : uint64_t
 {
-    EF_NONE             = 0,           // no effects
-    EF_ROTATE           = bit_v<0>,  // rotate (bonus items)
-    EF_GIB              = bit_v<1>,  // leave a trail
-    EF_BOB              = bit_v<2>,  // bob (bonus items)
-    EF_BLASTER          = bit_v<3>,  // redlight + trail
-    EF_ROCKET           = bit_v<4>,  // redlight + trail
-    EF_GRENADE          = bit_v<5>,
-    EF_HYPERBLASTER     = bit_v<6>,
-    EF_BFG              = bit_v<7>,
-    EF_COLOR_SHELL      = bit_v<8>,
-    EF_POWERSCREEN      = bit_v<9>,
-    EF_ANIM01           = bit_v<10>,  // automatically cycle between frames 0 and 1 at 2 hz
-    EF_ANIM23           = bit_v<11>,  // automatically cycle between frames 2 and 3 at 2 hz
-    EF_ANIM_ALL         = bit_v<12>,  // automatically cycle through all frames at 2hz
-    EF_ANIM_ALLFAST     = bit_v<13>,  // automatically cycle through all frames at 10hz
-    EF_FLIES            = bit_v<14>,
-    EF_QUAD             = bit_v<15>,
-    EF_PENT             = bit_v<16>,
-    EF_TELEPORTER       = bit_v<17>,  // particle fountain
-    EF_FLAG1            = bit_v<18>,
-    EF_FLAG2            = bit_v<19>,
+    EF_NONE = 0,           // no effects
+    EF_ROTATE = bit_v<0>,  // rotate (bonus items)
+    EF_GIB = bit_v<1>,  // leave a trail
+    EF_BOB = bit_v<2>,  // bob (bonus items)
+    EF_BLASTER = bit_v<3>,  // redlight + trail
+    EF_ROCKET = bit_v<4>,  // redlight + trail
+    EF_GRENADE = bit_v<5>,
+    EF_HYPERBLASTER = bit_v<6>,
+    EF_BFG = bit_v<7>,
+    EF_COLOR_SHELL = bit_v<8>,
+    EF_POWERSCREEN = bit_v<9>,
+    EF_ANIM01 = bit_v<10>,  // automatically cycle between frames 0 and 1 at 2 hz
+    EF_ANIM23 = bit_v<11>,  // automatically cycle between frames 2 and 3 at 2 hz
+    EF_ANIM_ALL = bit_v<12>,  // automatically cycle through all frames at 2hz
+    EF_ANIM_ALLFAST = bit_v<13>,  // automatically cycle through all frames at 10hz
+    EF_FLIES = bit_v<14>,
+    EF_QUAD = bit_v<15>,
+    EF_PENT = bit_v<16>,
+    EF_TELEPORTER = bit_v<17>,  // particle fountain
+    EF_FLAG1 = bit_v<18>,
+    EF_FLAG2 = bit_v<19>,
     // RAFAEL
-    EF_IONRIPPER        = bit_v<20>,
-    EF_GREENGIB         = bit_v<21>,
+    EF_IONRIPPER = bit_v<20>,
+    EF_GREENGIB = bit_v<21>,
     EF_BLUEHYPERBLASTER = bit_v<22>,
-    EF_SPINNINGLIGHTS   = bit_v<23>,
-    EF_PLASMA           = bit_v<24>,
-    EF_TRAP             = bit_v<25>,
+    EF_SPINNINGLIGHTS = bit_v<23>,
+    EF_PLASMA = bit_v<24>,
+    EF_TRAP = bit_v<25>,
 
     // ROGUE
-    EF_TRACKER          = bit_v<26>,
-    EF_DOUBLE           = bit_v<27>,
-    EF_SPHERETRANS      = bit_v<28>,
-    EF_TAGTRAIL         = bit_v<29>,
-    EF_HALF_DAMAGE      = bit_v<30>,
-    EF_TRACKERTRAIL     = bit_v<31>,
+    EF_TRACKER = bit_v<26>,
+    EF_DOUBLE = bit_v<27>,
+    EF_SPHERETRANS = bit_v<28>,
+    EF_TAGTRAIL = bit_v<29>,
+    EF_HALF_DAMAGE = bit_v<30>,
+    EF_TRACKERTRAIL = bit_v<31>,
     // ROGUE
 
-    EF_DUALFIRE        = bit_v<32>, // [KEX] dualfire damage color shell
-    EF_HOLOGRAM        = bit_v<33>, // [Paril-KEX] N64 hologram
-    EF_FLASHLIGHT      = bit_v<34>, // [Paril-KEX] project flashlight, only for players
-    EF_BARREL_EXPLODING= bit_v<35>,
-    EF_TELEPORTER2     = bit_v<36>, // [Paril-KEX] n64 teleporter
-    EF_GRENADE_LIGHT   = bit_v<37>
+    EF_DUALFIRE = bit_v<32>, // [KEX] dualfire damage color shell
+    EF_HOLOGRAM = bit_v<33>, // [Paril-KEX] N64 hologram
+    EF_FLASHLIGHT = bit_v<34>, // [Paril-KEX] project flashlight, only for players
+    EF_BARREL_EXPLODING = bit_v<35>,
+    EF_TELEPORTER2 = bit_v<36>, // [Paril-KEX] n64 teleporter
+    EF_GRENADE_LIGHT = bit_v<37>
 };
 
 MAKE_ENUM_BITFLAGS(effects_t);
@@ -612,6 +617,7 @@ enum renderfx_t : uint32_t
 MAKE_ENUM_BITFLAGS(renderfx_t);
 
 constexpr renderfx_t RF_BEAM_LIGHTNING = RF_BEAM | RF_GLOW; // [Paril-KEX] make a lightning bolt instead of a laser
+//constexpr renderfx_t RF_BEAM_REACTOR = RF_BEAM | RF_USE_DISGUISE; // [Paril-KEX] make reactor FX, like PSX version
 
 MAKE_ENUM_BITFLAGS(refdef_flags_t);
 
@@ -644,7 +650,6 @@ enum player_muzzle_t : uint8_t
     MZ_PHALANX2 = 20,
     MZ_PHALANX3 = 20,
     MZ_PHALANX4 = 20,
-
 
     // ROGUE
     MZ_ETF_RIFLE = 30,
@@ -1507,24 +1512,24 @@ struct svc_fog_data_t
     enum bits_t : uint16_t
     {
         // global fog
-        BIT_DENSITY     = bit_v<0>,
-        BIT_R           = bit_v<1>,
-        BIT_G           = bit_v<2>,
-        BIT_B           = bit_v<3>,
-        BIT_TIME        = bit_v<4>, // if set, the transition takes place over N milliseconds
+        BIT_DENSITY = bit_v<0>,
+        BIT_R = bit_v<1>,
+        BIT_G = bit_v<2>,
+        BIT_B = bit_v<3>,
+        BIT_TIME = bit_v<4>, // if set, the transition takes place over N milliseconds
 
         // height fog
-        BIT_HEIGHTFOG_FALLOFF   = bit_v<5>,
-        BIT_HEIGHTFOG_DENSITY   = bit_v<6>,
-        BIT_MORE_BITS           = bit_v<7>, // read additional bit
-        BIT_HEIGHTFOG_START_R   = bit_v<8>,
-        BIT_HEIGHTFOG_START_G   = bit_v<9>,
-        BIT_HEIGHTFOG_START_B   = bit_v<10>,
-        BIT_HEIGHTFOG_START_DIST= bit_v<11>,
-        BIT_HEIGHTFOG_END_R     = bit_v<12>,
-        BIT_HEIGHTFOG_END_G     = bit_v<13>,
-        BIT_HEIGHTFOG_END_B     = bit_v<14>,
-        BIT_HEIGHTFOG_END_DIST  = bit_v<15>
+        BIT_HEIGHTFOG_FALLOFF = bit_v<5>,
+        BIT_HEIGHTFOG_DENSITY = bit_v<6>,
+        BIT_MORE_BITS = bit_v<7>, // read additional bit
+        BIT_HEIGHTFOG_START_R = bit_v<8>,
+        BIT_HEIGHTFOG_START_G = bit_v<9>,
+        BIT_HEIGHTFOG_START_B = bit_v<10>,
+        BIT_HEIGHTFOG_START_DIST = bit_v<11>,
+        BIT_HEIGHTFOG_END_R = bit_v<12>,
+        BIT_HEIGHTFOG_END_G = bit_v<13>,
+        BIT_HEIGHTFOG_END_B = bit_v<14>,
+        BIT_HEIGHTFOG_END_DIST = bit_v<15>
     };
 
     bits_t      bits;

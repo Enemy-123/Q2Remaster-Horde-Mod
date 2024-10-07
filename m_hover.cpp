@@ -318,8 +318,8 @@ mframe_t hover_frames_start_attack[] = {
 MMOVE_T(hover_move_start_attack) = { FRAME_attak101, FRAME_attak103, hover_frames_start_attack, hover_attack };
 
 mframe_t hover_frames_attack1[] = {
-	{ ai_charge, -5, hover_fire_blaster },
-	{ ai_charge, -5, hover_fire_blaster },
+	{ ai_charge, -10, hover_fire_blaster },
+	{ ai_charge, -10, hover_fire_blaster },
 	{ ai_charge, 0, hover_reattack },
 };
 MMOVE_T(hover_move_attack1) = { FRAME_attak104, FRAME_attak106, hover_frames_attack1, nullptr };
@@ -341,9 +341,9 @@ MMOVE_T(hover_move_start_attack2) = { FRAME_attak101, FRAME_attak103, hover_fram
 #endif
 
 mframe_t hover_frames_attack2[] = {
-	{ ai_charge, 1, hover_fire_blaster },
-	{ ai_charge, 1, hover_fire_blaster },
-	{ ai_charge, 1, hover_reattack },
+	{ ai_charge, 10, hover_fire_blaster },
+	{ ai_charge, 10, hover_fire_blaster },
+	{ ai_charge, 10, hover_reattack },
 };
 MMOVE_T(hover_move_attack2) = { FRAME_attak104, FRAME_attak106, hover_frames_attack2, nullptr };
 
@@ -374,7 +374,7 @@ void hover_reattack(edict_t* self)
 					return;
 				}
 				else
-					gi.Com_PrintFmt("PRINT: hover_reattack: unexpected state {}\n", (int32_t)self->monsterinfo.attack_state);
+					gi.Com_PrintFmt("hover_reattack: unexpected state {}\n", (int32_t)self->monsterinfo.attack_state);
 			}
 	M_SetAnimation(self, &hover_move_end_attack);
 }
@@ -388,7 +388,7 @@ void hover_fire_blaster(edict_t* self)
 	int		rocketSpeed;
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;		
+		return;
 	// PGM
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
@@ -608,8 +608,6 @@ void SP_monster_hover(edict_t* self)
 		}
 	}
 
-
-
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -627,7 +625,7 @@ void SP_monster_hover(edict_t* self)
 	self->mins = { -24, -24, -24 };
 	self->maxs = { 24, 24, 32 };
 
-	self->health = 190 * st.health_multiplier;
+	self->health = 240 * st.health_multiplier;
 	self->gib_health = -100;
 	self->mass = 150;
 
@@ -646,7 +644,7 @@ void SP_monster_hover(edict_t* self)
 	// PGM
 	if (strcmp(self->classname, "monster_daedalus") == 0)
 	{
-		self->health = 350 * st.health_multiplier;
+		self->health = 450 * st.health_multiplier;
 		self->mass = 225;
 		self->yaw_speed = 23;
 		if (!st.was_key_specified("power_armor_type"))

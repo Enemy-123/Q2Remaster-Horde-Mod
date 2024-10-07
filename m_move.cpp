@@ -184,7 +184,7 @@ static vec3_t G_IdealHoverPosition(edict_t* ent)
 		phi = acos(frandom());
 	// non-buzzards pick a level around the center
 	else
-		phi = acos(crandom() * 0.06f);
+		phi = acos(frandom() * 0.7f);
 
 	vec3_t d{
 		sin(phi) * cos(theta),
@@ -230,7 +230,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	vec3_t dir = ent->velocity.normalized(current_speed);
 
 	// FIXME
-	if (std::isnan(dir[0]) || std::isnan(dir[1]) || std::isnan(dir[2]))
+	if (isnan(dir[0]) || isnan(dir[1]) || isnan(dir[2]))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
@@ -272,6 +272,8 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		wanted_pos = towards_origin;
 	else
 		wanted_pos = (towards_origin + (towards_velocity * 0.25f)) + ent->monsterinfo.fly_ideal_position;
+
+	//gi.Draw_Point(wanted_pos, 8.0f, rgba_red, gi.frame_time_s, true);
 
 	// find a place we can fit in from here
 	trace_t tr = gi.trace(towards_origin, { -8.f, -8.f, -8.f }, { 8.f, 8.f, 8.f }, wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
@@ -337,9 +339,10 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// the closer we are to zero, the more we can change dir.
 	// if we're pushed past our max speed we shouldn't
 	// turn at all.
+	bool following_paths = ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT);
 	float turn_factor;
 
-	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)) && dir.dot(wanted_dir) > 0.0f)
+	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || following_paths) && dir.dot(wanted_dir) > 0.0f)
 		turn_factor = 0.45f;
 	else
 		turn_factor = min(1.f, 0.84f + (0.08f * (current_speed / ent->monsterinfo.fly_speed)));
@@ -347,7 +350,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	vec3_t final_dir = dir ? dir : wanted_dir;
 
 	// FIXME
-	if (std::isnan(final_dir[0]) || std::isnan(final_dir[1]) || std::isnan(final_dir[2]))
+	if (isnan(final_dir[0]) || isnan(final_dir[1]) || isnan(final_dir[2]))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
@@ -386,10 +389,17 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// down so we don't fly past it.
 	float speed_factor;
 
-	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT)))
-		speed_factor = 1.f;
-	else if (aim_fwd.dot(wanted_dir) < -0.25 && dir)
-		speed_factor = 0.f;
+	//gi.Draw_Ray(ent->s.origin, aim_fwd, 16.0f, 8.0f, rgba_green, gi.frame_time_s, true);
+	//gi.Draw_Ray(ent->s.origin, final_dir, 16.0f, 8.0f, rgba_blue, gi.frame_time_s, true);
+	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || following_paths)
+	{
+		// Paril: only do this correction if we are following paths. we want to move backwards
+		// away from players.
+		if (following_paths && dir && wanted_dir.dot(dir) < -0.25)
+			speed_factor = 0.f;
+		else
+			speed_factor = 1.f;
+	}
 	else
 		speed_factor = min(1.f, dist_to_wanted / ent->monsterinfo.fly_speed);
 
@@ -414,8 +424,8 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		current_speed = min(wanted_speed, current_speed + accel);
 
 	// FIXME
-	if (std::isnan(final_dir[0]) || std::isnan(final_dir[1]) || std::isnan(final_dir[2]) ||
-		std::isnan(current_speed))
+	if (isnan(final_dir[0]) || isnan(final_dir[1]) || isnan(final_dir[2]) ||
+		isnan(current_speed))
 	{
 #if defined(_DEBUG) && defined(_WIN32)
 		__debugbreak();
@@ -449,7 +459,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	}
 
 	// try the move
-	const vec3_t oldorg = ent->s.origin;
+	vec3_t oldorg = ent->s.origin;
 	vec3_t neworg = ent->s.origin + move;
 
 	// fixme: move to monsterinfo
@@ -460,7 +470,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	if (!strcmp(ent->classname, "monster_carrier") || !strcmp(ent->classname, "monster_carrier_mini"))
 		minheight = 104;
 	else
-		minheight = 50;
+		minheight = 40;
 
 	// try one move with vertical motion, then one without
 	for (int i = 0; i < 2; i++)
@@ -474,7 +484,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 
 			vec3_t& goal_position = (ent->monsterinfo.aiflags & AI_PATHING) ? ent->monsterinfo.nav_path.firstMovePoint : ent->goalentity->s.origin;
 
-			const float dz = ent->s.origin[2] - goal_position[2];
+			float dz = ent->s.origin[2] - goal_position[2];
 			float dist = move.length();
 
 			if (ent->goalentity->client)
@@ -741,7 +751,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 			{
 				gi.linkentity(ent);
 				if (!g_horde->integer) // Paril
-					G_TouchTriggers(ent);
+				G_TouchTriggers(ent);
 			}
 			ent->groundentity = nullptr;
 			return true;
@@ -778,7 +788,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	ent->s.origin = trace.endpos;
 
 	// PGM
-	// PMM - don't bother with bad areas if we're dead
+	//  PMM - don't bother with bad areas if we're dead
 	if (ent->health > 0)
 	{
 		// use AI_BLOCKED to tell the calling layer that we're now mad at a tesla or sentrygun
@@ -791,7 +801,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 				{
 					if ((!(ent->enemy)) || (!(ent->enemy->inuse)))
 					{
-						TargetInflictor(ent, new_bad->owner);
+						TargetTesla(ent, new_bad->owner);
 						ent->monsterinfo.aiflags |= AI_BLOCKED;
 					}
 					else if (!strcmp(ent->enemy->classname, "tesla_mine") || !strcmp(ent->enemy->classname, "monster_sentrygun"))
@@ -802,13 +812,13 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 					{
 						if (!visible(ent, ent->enemy))
 						{
-							TargetInflictor(ent, new_bad->owner);
+							TargetTesla(ent, new_bad->owner);
 							ent->monsterinfo.aiflags |= AI_BLOCKED;
 						}
 					}
 					else
 					{
-						TargetInflictor(ent, new_bad->owner);
+						TargetTesla(ent, new_bad->owner);
 						ent->monsterinfo.aiflags |= AI_BLOCKED;
 					}
 				}
@@ -830,7 +840,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 			{
 				gi.linkentity(ent);
 				if (!g_horde->integer) // Paril
-					G_TouchTriggers(ent);
+				G_TouchTriggers(ent);
 			}
 			return true;
 		}
@@ -880,8 +890,8 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		// [Paril-KEX] this is something N64 does to avoid doors opening
 		// at the start of a level, which triggers some monsters to spawn.
 		if (!g_horde->integer) // Paril
-			if (!level.is_n64 || level.time > FRAME_TIME_S)
-				G_TouchTriggers(ent);
+		if (!level.is_n64 || level.time > FRAME_TIME_S)
+			G_TouchTriggers(ent);
 	}
 
 	if (stepped)
@@ -1013,13 +1023,13 @@ bool SV_StepDirection(edict_t* ent, float yaw, float dist, bool allow_no_turns)
 		}
 		gi.linkentity(ent);
 		if (!g_horde->integer) // Paril
-			G_TouchTriggers(ent);
+		G_TouchTriggers(ent);
 		G_TouchProjectiles(ent, oldorigin);
 		return true;
 	}
 	gi.linkentity(ent);
 	if (!g_horde->integer) // Paril
-		G_TouchTriggers(ent);
+	G_TouchTriggers(ent);
 	ent->ideal_yaw = old_ideal_yaw;
 	ent->s.angles[YAW] = old_current_yaw;
 	return false;
@@ -1165,15 +1175,12 @@ bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 	// Verifica si ent o goal son nulos
 	if (!ent || !goal)
 		return false;
-
 	int i;
 
 	for (i = 0; i < 3; i++)
 	{
-		// Verifica si ent->absmax y goal->absmin son nulos antes de acceder a ellos
 		if (goal->absmin[i] > ent->absmax[i] + dist)
 			return false;
-		// Verifica si ent->absmin y goal->absmax son nulos antes de acceder a ellos
 		if (goal->absmax[i] < ent->absmin[i] - dist)
 			return false;
 	}
@@ -1188,8 +1195,13 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	vec3_t& path_to = (self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
 		self->monsterinfo.nav_path.secondMovePoint : self->monsterinfo.nav_path.firstMovePoint;
 
-	if ((self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending && (path_to - self->s.origin).length() <= (self->size.length() * 0.5f)) ||
-		self->monsterinfo.nav_path_cache_time <= level.time)
+	vec3_t ground_origin = self->s.origin + vec3_t{ 0.f, 0.f, self->mins[2] } - vec3_t{ 0.f, 0.f, PLAYER_MINS[2] };
+	vec3_t mon_mins = ground_origin + PLAYER_MINS;
+	vec3_t mon_maxs = ground_origin + PLAYER_MAXS;
+
+	if (self->monsterinfo.nav_path_cache_time <= level.time ||
+		(self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending &&
+			boxes_intersect(mon_mins, mon_maxs, path_to, path_to)))
 	{
 		PathRequest request;
 		if (self->enemy)
@@ -1201,6 +1213,15 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			request.debugging.drawTime = gi.frame_time_s;
 		request.start = self->s.origin;
 		request.pathFlags = PathFlags::Walk;
+
+		request.nodeSearch.minHeight = -(self->mins.z * 2);
+		request.nodeSearch.maxHeight = (self->maxs.z * 2);
+
+		// FIXME remove hardcoding
+		if (!strcmp(self->classname, "monster_guardian"))
+		{
+			request.nodeSearch.radius = 2048.f;
+		}
 
 		if (self->monsterinfo.can_jump || (self->flags & FL_FLY))
 		{

@@ -5,39 +5,36 @@
 #include "../shared.h"
 
 // RAFAEL
-void monster_fire_blueblaster(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
+void monster_fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
-
 	fire_blueblaster(self, start, dir, damage, speed, effect);
 	monster_muzzleflash(self, start, flashtype);
 }
 
 // RAFAEL
-void monster_fire_ionripper(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
+void monster_fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
-
 	fire_ionripper(self, start, dir, damage, speed, effect);
 	monster_muzzleflash(self, start, flashtype);
 }
 
 // RAFAEL
-void monster_fire_heat(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, monster_muzzleflash_id_t flashtype, float turn_fraction)
+void monster_fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, float turn_fraction)
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
-
-	fire_heat(self, start, dir, damage, speed, (float) damage, damage, turn_fraction);
+	fire_heat(self, start, dir, damage, speed, (float)damage, damage, turn_fraction);
 	monster_muzzleflash(self, start, flashtype);
 }
 
 // RAFAEL
 struct dabeam_pierce_t : pierce_args_t
 {
-	edict_t *self;
+	edict_t* self;
 	bool damage;
 
-	inline dabeam_pierce_t(edict_t *self, bool damage) :
+	inline dabeam_pierce_t(edict_t* self, bool damage) :
 		pierce_args_t(),
 		self(self),
 		damage(damage)
@@ -46,7 +43,7 @@ struct dabeam_pierce_t : pierce_args_t
 
 	// we hit an entity; return false to stop the piercing.
 	// you can adjust the mask for the re-trace (for water, etc).
-	virtual bool hit(contents_t &mask, vec3_t &end) override
+	virtual bool hit(contents_t& mask, vec3_t& end) override
 	{
 		if (damage)
 		{
@@ -88,12 +85,12 @@ struct dabeam_pierce_t : pierce_args_t
 	}
 };
 
-void dabeam_update(edict_t *self, bool damage)
+void dabeam_update(edict_t* self, bool damage)
 {
 	vec3_t start = self->s.origin;
 	vec3_t end = start + (self->movedir * 2048);
 
-	dabeam_pierce_t args {
+	dabeam_pierce_t args{
 		self,
 		damage
 	};
@@ -104,9 +101,7 @@ void dabeam_update(edict_t *self, bool damage)
 	gi.linkentity(self);
 }
 
-constexpr spawnflags_t SPAWNFLAG_DABEAM_SECONDARY = 1_spawnflag;
-
-THINK(beam_think) (edict_t *self) -> void
+THINK(beam_think) (edict_t* self) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_DABEAM_SECONDARY))
 		self->owner->beam2 = nullptr;
@@ -116,11 +111,10 @@ THINK(beam_think) (edict_t *self) -> void
 }
 
 // RAFAEL
-void monster_fire_dabeam(edict_t *self, int damage, bool secondary, void(*update_func)(edict_t *self))
+void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update_func)(edict_t* self))
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
-
-	edict_t *&beam_ptr = secondary ? self->beam2 : self->beam;
+	edict_t*& beam_ptr = secondary ? self->beam2 : self->beam;
 
 	if (!beam_ptr)
 	{
@@ -146,6 +140,8 @@ void monster_fire_dabeam(edict_t *self, int damage, bool secondary, void(*update
 	}
 
 	beam_ptr->nextthink = level.time + 200_ms;
+	beam_ptr->spawnflags &= ~SPAWNFLAG_DABEAM_SPAWNED;
 	update_func(beam_ptr);
 	dabeam_update(beam_ptr, true);
+	beam_ptr->spawnflags |= SPAWNFLAG_DABEAM_SPAWNED;
 }

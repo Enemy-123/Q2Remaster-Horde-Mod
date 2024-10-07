@@ -425,39 +425,35 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 		}
 	}
 }
-void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod)
+edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod)
 {
 	edict_t* bolt;
 	trace_t	 tr;
 
 	bolt = G_Spawn();
+	bolt->svflags = SVF_PROJECTILE;
 	bolt->s.origin = start;
 	bolt->s.old_origin = start;
 	bolt->s.angles = vectoangles(dir);
 	bolt->velocity = dir * speed;
-	bolt->movetype = MOVETYPE_WALLBOUNCE;
+	bolt->movetype = MOVETYPE_FLYMISSILE;
 	bolt->clipmask = MASK_PROJECTILE;
 	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
 		bolt->clipmask &= ~CONTENTS_PLAYER;
+	bolt->flags |= FL_DODGE;
 	bolt->solid = SOLID_BBOX;
 	bolt->s.effects |= effect;
-	bolt->svflags |= SVF_PROJECTILE;
-	bolt->flags |= FL_DODGE;
-	bolt->s.renderfx |= RF_FULLBRIGHT;
 	bolt->s.modelindex = gi.modelindex("models/objects/laser/tris.md2");
 	bolt->s.sound = gi.soundindex("misc/lasfly.wav");
 	bolt->owner = self;
 	bolt->touch = blaster_touch;
-	bolt->nextthink = level.time + 1.5_sec;
+	bolt->nextthink = level.time + 2_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
-	bolt->bounce_count = self->svflags & SVF_MONSTER ? 2 : 5; // 5 bounces
+	bolt->classname = "bolt";
+	bolt->style = mod.id;
 	gi.linkentity(bolt);
-
-	if (self->svflags & SVF_MONSTER) {
-		damage *= M_DamageModifier(self);
-	}
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
 	if (tr.fraction < 1.0f)
@@ -465,6 +461,8 @@ void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int dam
 		bolt->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		bolt->touch(bolt, tr.ent, tr, false);
 	}
+
+	return bolt;
 }
 
 

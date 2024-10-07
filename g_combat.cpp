@@ -345,7 +345,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 				if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname ||
 					(strcmp(targ->enemy->classname, "monster_sentrygun") && strcmp(targ->enemy->classname, "emitter"))))
 				{
-					TargetInflictor(targ, inflictor);
+					TargetTesla(targ, inflictor);
 					targ->monsterinfo.last_sentrygun_target_time = level.time;
 				}
 			}
@@ -353,7 +353,7 @@ void M_ReactToDamage(edict_t* targ, edict_t* attacker, edict_t* inflictor)
 		else if (!strcmp(inflictor->classname, "tesla_mine"))
 		{
 			if ((new_tesla || brandom()) && (!targ->enemy || !targ->enemy->classname || strcmp(targ->enemy->classname, "tesla_mine")))
-				TargetInflictor(targ, inflictor);
+				TargetTesla(targ, inflictor);
 		}
 		return;
 	}

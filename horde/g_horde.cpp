@@ -670,6 +670,7 @@ constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_boss2", 19, -1, 0.1f},
 	{"monster_tank_64", -1, 24, 0.1f},
 	{"monster_guardian", -1, 24, 0.1f},
+	{"monster_psxguardian", -1, 24, 0.1f},
 	{"monster_shamblerkl", -1, 24, 0.1f},
 	{"monster_guncmdrkl", -1, 24, 0.1f},
 	{"monster_widow2", 19, -1, 0.1f},
@@ -684,6 +685,7 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_boss5", -1, -1, 0.1f},
 	{"monster_tank_64", -1, 24, 0.1f},
 	{"monster_guardian", -1, 24, 0.1f},
+	{"monster_psxguardian", -1, 24, 0.1f},
 	{"monster_shamblerkl", -1, 24, 0.1f},
 	{"monster_boss5", -1, 24, 0.1f},
 	{"monster_jorg", 30, -1, 0.1f}
@@ -700,7 +702,7 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 			static std::vector<boss_t> filteredBossList;
 			if (filteredBossList.empty()) {
 				for (const auto& boss : BOSS_MEDIUM) {
-					if (std::strcmp(boss.classname, "monster_guardian") != 0) {
+					if (std::strcmp(boss.classname, "monster_guardian") != 0 || std::strcmp(boss.classname, "monster_psxguardian") != 0) {
 						filteredBossList.push_back(boss);
 					}
 				}
@@ -1333,6 +1335,7 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
 	{"monster_guncmdrkl", "***** Boss incoming! Gunner Commander has you in his sights! *****\n"},
 	{"monster_makronkl", "***** Boss incoming! Makron is here to personally finish you off! *****\n"},
 	{"monster_guardian", "***** Boss incoming! The Guardian is ready to claim your head! *****\n"},
+	{"monster_psxguardian", "***** Boss incoming! The Enhanced Guardian is ready to claim the timelimit! *****\n"},
 	{"monster_supertank", "***** Boss incoming! Super-Tank has more firepower than you can handle! *****\n"},
 	{"monster_boss5", "***** Boss incoming! Super-Tank is here to show Strogg’s might! *****\n"},
 	{"monster_widow2", "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n"},

@@ -165,7 +165,20 @@ struct vec3_t
 	}
 };
 
+
 constexpr vec3_t vec3_origin{};
+
+[[nodiscard]] inline bool is_valid_vector(const vec3_t& vec) {
+	return !std::isnan(vec.x) && !std::isnan(vec.y) && !std::isnan(vec.z);
+}
+
+[[nodiscard]] inline vec3_t safe_normalized(const vec3_t& vec) {
+	float len = vec.length();
+	if (len == 0.0f || std::isnan(len)) {
+		return vec3_origin;  // Retorna un vector de origen como valor seguro
+	}
+	return vec * (1.0f / len);
+}
 
 inline void AngleVectors(const vec3_t &angles, vec3_t *forward, vec3_t *right, vec3_t *up)
 {

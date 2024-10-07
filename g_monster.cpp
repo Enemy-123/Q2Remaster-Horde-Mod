@@ -41,12 +41,12 @@ void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimd
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
+edict_t* monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype, effects_t effect)
 {
-	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
-	fire_blaster(self, start, dir, damage, speed, effect, MOD_BLASTER);
+	edict_t* e = fire_blaster(self, start, dir, damage, speed, effect, MOD_BLASTER);
 	monster_muzzleflash(self, start, flashtype);
+	return e;
 }
 
 void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,

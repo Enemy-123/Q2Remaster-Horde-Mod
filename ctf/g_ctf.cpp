@@ -1112,6 +1112,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_janitor", "Janitor" },
 		{ "monster_janitor2", "Mini Guardian" },
 		{ "monster_guardian", "Guardian" },
+		{ "monster_psxguardian", "Enhanced Guardian" },
 		{ "monster_makron", "Makron" },
 		{ "monster_jorg", "Jorg" },
 		{ "monster_gladb", "DarkMatter Gladiator" },

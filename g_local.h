@@ -2246,7 +2246,7 @@ void monster_fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 	int vspread, monster_muzzleflash_id_t flashtype);
 void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, int count, monster_muzzleflash_id_t flashtype);
-void monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
+edict_t* monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype, effects_t effect);
 void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype);
@@ -2293,6 +2293,8 @@ void monster_fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& di
 	monster_muzzleflash_id_t flashtype, effects_t effect);
 void monster_fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype, float lerp_factor);
+constexpr spawnflags_t SPAWNFLAG_DABEAM_SECONDARY = 1_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_DABEAM_SPAWNED = 2_spawnflag;
 void monster_fire_dabeam(edict_t* self, int damage, bool secondary, void(*update_func)(edict_t* self));
 void dabeam_update(edict_t* self, bool damage);
 void monster_fire_blueblaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
@@ -2386,7 +2388,7 @@ void fire_bullet(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int d
 void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick, int hspread,
 	int vspread, int count, mod_t mod);
 void blaster_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
-void fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect,
+edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect,
 	mod_t mod);
 void Grenade_Explode(edict_t* ent);
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
@@ -2641,7 +2643,7 @@ void monster_duck_down(edict_t* self);
 void monster_duck_hold(edict_t* self);
 void monster_duck_up(edict_t* self);
 bool has_valid_enemy(edict_t* self);
-void TargetInflictor(edict_t* self, edict_t* inflictor);
+void TargetTesla(edict_t* self, edict_t* inflictor);
 void hintpath_stop(edict_t* self);
 edict_t* PickCoopTarget(edict_t* self);
 int		 CountPlayers();
@@ -3355,11 +3357,12 @@ struct edict_t
 	mod_t	lastMOD;
 	const char* style_on, * style_off;
 	uint32_t crosslevel_flags;
+	gtime_t no_gravity_time;
+	float vision_cone; // TODO: migrate vision_cone on old loads to -2.0f
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 
-
-	//Horde stuff
+		//Horde stuff
 	int initial_max_health; // healthbar max health fix
 	gtime_t safety_time;
 	edict_t* laser;
@@ -3374,7 +3377,6 @@ struct edict_t
 	gtime_t spawn_time;
 	//	gtime_t	regentime = 0.25_sec;
 };
-
 #define TEAM1 "team1"
 #define TEAM2 "team2"
 

@@ -1477,7 +1477,7 @@ bool has_valid_enemy(edict_t *self)
 	return true;
 }
 
-void TargetInflictor(edict_t* self, edict_t* inflictor)
+void TargetTesla(edict_t* self, edict_t* inflictor)
 {
 	if ((!self) || (!inflictor))
 		return;
