@@ -436,7 +436,7 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->s.old_origin = start;
 	bolt->s.angles = vectoangles(dir);
 	bolt->velocity = dir * speed;
-	bolt->movetype = MOVETYPE_FLYMISSILE;
+	bolt->movetype = MOVETYPE_WALLBOUNCE;
 	bolt->clipmask = MASK_PROJECTILE;
 	// [Paril-KEX]
 	if (self->client && !G_ShouldPlayersCollide(true))
@@ -451,9 +451,15 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->nextthink = level.time + 2_sec;
 	bolt->think = G_FreeEdict;
 	bolt->dmg = damage;
+	bolt->bounce_count = self->svflags & SVF_MONSTER ? 2 : 5; // 5 bounces
 	bolt->classname = "bolt";
 	bolt->style = mod.id;
 	gi.linkentity(bolt);
+
+	if (self->svflags & SVF_MONSTER) {
+		damage *= M_DamageModifier(self);
+	}
+
 
 	tr = gi.traceline(self->s.origin, bolt->s.origin, bolt, bolt->clipmask);
 	if (tr.fraction < 1.0f)
