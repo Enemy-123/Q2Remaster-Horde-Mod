@@ -1218,7 +1218,7 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 		request.nodeSearch.maxHeight = (self->maxs.z * 2);
 
 		// FIXME remove hardcoding
-		if (!strcmp(self->classname, "monster_guardian"))
+		if (!strcmp(self->classname, "monster_guardian") || !strcmp(self->classname, "monster_psxguardian"))
 		{
 			request.nodeSearch.radius = 2048.f;
 		}
