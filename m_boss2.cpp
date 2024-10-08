@@ -24,6 +24,17 @@ static cached_soundindex sound_pain3;
 static cached_soundindex sound_death;
 static cached_soundindex sound_search1;
 
+// he fly
+static void boss2_set_fly_parameters(edict_t* self, bool firing)
+{
+	self->monsterinfo.fly_thrusters = false;
+	self->monsterinfo.fly_acceleration = firing ? 1.5f : 3.f;
+	self->monsterinfo.fly_speed = firing ? 10.f : 80.f;
+	// BOSS2 stays far-ish away if he's in the open
+	self->monsterinfo.fly_min_distance = 400.f;
+	self->monsterinfo.fly_max_distance = 600.f;
+}
+
 MONSTERINFO_SEARCH(boss2_search) (edict_t* self) -> void
 {
 	if (frandom() < 0.5f)
@@ -476,6 +487,9 @@ MONSTERINFO_STAND(boss2_stand) (edict_t* self) -> void
 
 MONSTERINFO_RUN(boss2_run) (edict_t* self) -> void
 {
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	boss2_set_fly_parameters(self, false);
+
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 		M_SetAnimation(self, &boss2_move_stand);
 	else
@@ -499,6 +513,9 @@ MONSTERINFO_ATTACK(boss2_attack) (edict_t* self) -> void
 		M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_BOSS2_N64) ? &boss2_move_attack_hb : &boss2_move_attack_pre_mg);
 	else
 		M_SetAnimation(self, self->spawnflags.has(SPAWNFLAG_BOSS2_N64) ? &boss2_move_attack_rocket2 : &boss2_move_attack_rocket);
+
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	boss2_set_fly_parameters(self, true);
 }
 
 void boss2_attack_mg(edict_t* self)
@@ -520,6 +537,8 @@ PAIN(boss2_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 		return;
 
 	self->pain_debounce_time = level.time + 3_sec;
+
+	// American wanted these at no attenuation
 
 	// Determine attenuation based on the monster type and spawnflags
 	float attenuation;
@@ -605,7 +624,7 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 {
 	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
 	{
-		// Check for gib
+		// check for gib
 		if (M_CheckGib(self, mod))
 		{
 			boss2_gib(self);
@@ -618,14 +637,7 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	}
 	else
 	{
-		// Check if the monster is boss2_64 to use ATTN_NORM
-		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
-		}
-		else {
-			gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NORM, 0);
-		}
-
+		gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
 		self->deadflag = true;
 		self->takedamage = false;
 		self->count = 0;
@@ -637,7 +649,6 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 		M_SetAnimation(self, &boss2_move_deathboss) :
 		M_SetAnimation(self, &boss2_move_death);
 }
-
 
 // [Paril-KEX] use generic function
 MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
@@ -654,7 +665,6 @@ void SP_monster_boss2(edict_t* self)
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
 		}
 	}
-
 
 
 	if (!M_AllowSpawn(self)) {
@@ -720,16 +730,18 @@ void SP_monster_boss2(edict_t* self)
 	self->monsterinfo.setskin = boss2_setskin;
 	gi.linkentity(self);
 
-
-
 	M_SetAnimation(self, &boss2_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	// [Paril-KEX]
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 
-	flymonster_start(self);
+	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		self->monsterinfo.aiflags |= AI_ALTERNATE_FLY;
+		boss2_set_fly_parameters(self, false);
+	}
 
+	flymonster_start(self);
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -752,7 +764,6 @@ void SP_monster_boss2_64(edict_t* self)
 
 	ApplyMonsterBonusFlags(self);
 }
-
 
 //HORDE BOSS
 constexpr spawnflags_t SPAWNFLAG_BOSS2KL = 8_spawnflag;

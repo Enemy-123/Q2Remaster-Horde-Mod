@@ -1334,7 +1334,7 @@ Items can't be immediately dropped to floor, because they might
 be on an entity that hasn't spawned yet.
 ============
 */
-void SpawnItem(edict_t* ent, gitem_t* item)
+void SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st)
 {
 	// [Sam-KEX]
 	// Paril: allow all keys to be trigger_spawn'd (N64 uses this
@@ -1358,25 +1358,25 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	else if (ent->spawnflags.value >= SPAWNFLAG_ITEM_MAX.value) // PGM
 	{
 		ent->spawnflags = SPAWNFLAG_NONE;
-		gi.Com_PrintFmt("PRINT: {} has invalid spawnflags set\n", *ent);
+		gi.Com_PrintFmt("{} has invalid spawnflags set\n", *ent);
 	}
 
-	if (G_IsDeathmatch())
+	// some items will be prevented in deathmatch
+	if (deathmatch->integer)
 	{
-	// [Kex] In instagib, spawn no pickups! //moved outside DM for horde modes (when it was coop)
-	if (g_instagib->value)
-	{
-		if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
-			item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_sentrygun /*||
-			(item->flags & IF_HEALTH)*/
-			|| (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
-			item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
-			item->id == IT_AMMO_NUKE)
+		// [Kex] In instagib, spawn no pickups!
+		if (g_instagib->value)
 		{
-			G_FreeEdict(ent);
-			return;
+			if (item->pickup == Pickup_Armor || item->pickup == Pickup_PowerArmor ||
+				item->pickup == Pickup_Powerup || item->pickup == Pickup_Sphere || item->pickup == Pickup_sentrygun ||
+				(item->flags & IF_HEALTH) || (item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
+				item->id == IT_ITEM_BANDOLIER || item->id == IT_ITEM_PACK ||
+				item->id == IT_AMMO_NUKE)
+			{
+				G_FreeEdict(ent);
+				return;
+			}
 		}
-	}
 
 		if (g_no_armor->integer)
 		{
@@ -1463,17 +1463,17 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	//==========
 	// ROGUE
 	// DM only items
-	if (!G_IsDeathmatch())
+	if (!deathmatch->integer)
 	{
 		if (item->pickup == Pickup_sentrygun || item->pickup == Pickup_Nuke)
 		{
-			gi.Com_PrintFmt("PRINT: {} spawned in non-DM; freeing...\n", *ent);
+			gi.Com_PrintFmt("{} spawned in non-DM; freeing...\n", *ent);
 			G_FreeEdict(ent);
 			return;
 		}
 		if ((item->use == Use_Vengeance) || (item->use == Use_Hunter))
 		{
-			gi.Com_PrintFmt("PRINT: {} spawned in non-DM; freeing...\n", *ent);
+			gi.Com_PrintFmt("{} spawned in non-DM; freeing...\n", *ent);
 			G_FreeEdict(ent);
 			return;
 		}
@@ -1502,14 +1502,14 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 
 	PrecacheItem(item);
 
-	if (G_IsCooperative() && (item->id == IT_KEY_POWER_CUBE || item->id == IT_KEY_EXPLOSIVE_CHARGES))
+	if (coop->integer && (item->id == IT_KEY_POWER_CUBE || item->id == IT_KEY_EXPLOSIVE_CHARGES))
 	{
 		ent->spawnflags.value |= (1 << (8 + level.power_cubes));
 		level.power_cubes++;
 	}
 
 	// mark all items as instanced
-	if (G_IsCooperative())
+	if (coop->integer)
 	{
 		if (P_UseCoopInstancedItems())
 			ent->svflags |= SVF_INSTANCED;
@@ -1518,8 +1518,11 @@ void SpawnItem(edict_t* ent, gitem_t* item)
 	ent->item = item;
 	ent->nextthink = level.time + 20_hz; // items start after other solids
 	ent->think = droptofloor;
-	ent->s.effects = item->world_model_flags;
-	ent->s.renderfx = RF_GLOW | RF_NO_LOD;
+	if (!(level.is_spawning && st.was_key_specified("effects")) && !ent->s.effects)
+		ent->s.effects = item->world_model_flags;
+	if (!(level.is_spawning && st.was_key_specified("renderfx")) && !ent->s.renderfx)
+		ent->s.renderfx = RF_GLOW;
+	ent->s.renderfx |= RF_NO_LOD;
 	if (ent->model)
 		gi.modelindex(ent->model);
 

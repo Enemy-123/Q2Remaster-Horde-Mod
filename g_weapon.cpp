@@ -923,7 +923,7 @@ TOUCH(rocket_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 
 	if (other->takedamage)
 	{
-		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, 0, DAMAGE_NONE, MOD_ROCKET);
+		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_ROCKET);
 	}
 	else
 	{
@@ -984,6 +984,7 @@ edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int 
 
 	return rocket;
 }
+
 
 using search_callback_t = decltype(game_import_t::inPVS);
 

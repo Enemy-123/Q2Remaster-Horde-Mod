@@ -368,7 +368,7 @@ void CarrierSpawn(edict_t *self)
 		ent->nextthink = level.time;
 		ent->think(ent);
 
-		ent->monsterinfo.aiflags |= AI_SPAWNED_CARRIER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
+		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
 		ent->monsterinfo.commander = self;
 		ent->monsterinfo.monster_slots = reinforcement.strength;
 		self->monsterinfo.monster_used += reinforcement.strength;

@@ -743,7 +743,7 @@ void M_ProcessPain(edict_t* e)
 		{
 			e->enemy = e->monsterinfo.damage_attacker;
 
-			if (e->monsterinfo.aiflags & AI_SPAWNED_TANK)
+			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
 			{
 				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
 					!strcmp(e->monsterinfo.commander->classname, "monster_tank_vanilla"))
@@ -752,14 +752,14 @@ void M_ProcessPain(edict_t* e)
 			}
 			// ROGUE
 			// ROGUE - free up slot for spawned monster if it's spawned
-			if (e->monsterinfo.aiflags & AI_SPAWNED_CARRIER)
+			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
 			{
 				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
 					!strcmp(e->monsterinfo.commander->classname, "monster_carrier"))
 					e->monsterinfo.commander->monsterinfo.monster_slots++;
 				e->monsterinfo.commander = nullptr;
 			}
-			if (e->monsterinfo.aiflags & AI_SPAWNED_WIDOW)
+			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
 			{
 				// need to check this because we can have variable numbers of coop players
 				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
@@ -783,7 +783,7 @@ void M_ProcessPain(edict_t* e)
 		// [Paril-KEX] medic commander only gets his slots back after the monster is gibbed, since we can revive them
 		if (e->health <= e->gib_health)
 		{
-			if (e->monsterinfo.aiflags & AI_SPAWNED_MEDIC_C)
+			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
 			{
 				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse && !strcmp(e->monsterinfo.commander->classname, "monster_medic_commander"))
 					e->monsterinfo.commander->monsterinfo.monster_used -= e->monsterinfo.monster_slots;
@@ -1235,7 +1235,7 @@ enemy as activator.
 void monster_death_use(edict_t* self)
 {
 	self->flags &= ~(FL_FLY | FL_SWIM);
-	self->monsterinfo.aiflags &= (AI_DOUBLE_TROUBLE | AI_GOOD_GUY | AI_STINKY | AI_SPAWNED_MASK);
+	self->monsterinfo.aiflags &= AI_DEATH_MASK;
 
 	if (self->item)
 	{
@@ -1259,8 +1259,10 @@ void monster_death_use(edict_t* self)
 	// [Paril-KEX] fire health target
 	if (self->healthtarget)
 	{
+		const char* target = self->target;
 		self->target = self->healthtarget;
 		G_UseTargets(self, self->enemy);
+		self->target = target;
 	}
 }
 

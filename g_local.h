@@ -678,10 +678,8 @@ enum monster_ai_flags_t : uint64_t
 	// PMM - FIXME - last second added for E3 .. there's probably a better way to do this, but
 	// this works
 	AI_DO_NOT_COUNT = bit_v<21>,	 // set for healed monsters
-	AI_SPAWNED_CARRIER = bit_v<22>, // both do_not_count and spawned are set for spawned monsters
-	AI_SPAWNED_MEDIC_C = bit_v<23>, // both do_not_count and spawned are set for spawned monsters
-	AI_SPAWNED_TANK = bit_v<23>, // both do_not_count and spawned are set for spawned monsters
-	AI_SPAWNED_WIDOW = bit_v<24>,	 // both do_not_count and spawned are set for spawned monsters
+	AI_SPAWNED_COMMANDER = bit_v<22>, // both do_not_count and spawned are set for spawned monsters
+	AI_SPAWNED_NEEDS_GIB = bit_v<23>, // only return commander slots when gibbed
 	AI_BLOCKED = bit_v<25>, // used by blocked_checkattack: set to say I'm attacking while blocked
 	// (prevents run-attacks)
 	// ROGUE
@@ -702,8 +700,10 @@ enum monster_ai_flags_t : uint64_t
 };
 MAKE_ENUM_BITFLAGS(monster_ai_flags_t);
 
-constexpr monster_ai_flags_t AI_SPAWNED_MASK =
-AI_SPAWNED_CARRIER | AI_SPAWNED_MEDIC_C | AI_SPAWNED_WIDOW; // mask to catch all three flavors of spawned
+// flags saved when monster is respawned
+constexpr monster_ai_flags_t AI_RESPAWN_MASK = AI_STINKY | AI_SPAWNED_COMMANDER | AI_SPAWNED_NEEDS_GIB;
+// flags saved when a monster dies
+constexpr monster_ai_flags_t AI_DEATH_MASK = (AI_DOUBLE_TROUBLE | AI_GOOD_GUY | AI_RESPAWN_MASK);
 
 // monster attack state
 enum monster_attack_state_t
@@ -1164,8 +1164,9 @@ constexpr size_t MAX_HEALTH_BARS = 2;
 //
 struct level_locals_t
 {
-	bool in_frame;
-	gtime_t time;
+	bool in_frame = false;
+	bool is_spawning = false; // whether we're still doing SpawnEntities
+	gtime_t time = {};
 
 	char level_name[MAX_QPATH]; // the descriptive name (Outer Base, etc)
 	char mapname[MAX_QPATH];	// the server name (base1, etc)
@@ -1211,7 +1212,7 @@ struct level_locals_t
 	// ROGUE
 
 	int32_t shadow_light_count; // [Sam-KEX]
-	bool is_n64;
+	bool is_n64, is_psx;
 	gtime_t coop_level_restart_time; // restart the level after this time
 	bool instantitems; // instantitems 1 set in worldspawn
 
@@ -1260,6 +1261,12 @@ struct level_locals_t
 	bool story_active;
 	gtime_t next_auto_save;
 	gtime_t next_match_report;
+
+	const char* primary_objective_string;
+	const char* secondary_objective_string;
+
+	const char* primary_objective_title;
+	const char* secondary_objective_title;
 };
 
 struct shadow_light_temp_t
@@ -1285,9 +1292,9 @@ struct spawn_temp_t
 	int32_t skyautorotate = 1;
 	const char* nextmap;
 
-	int32_t		lip;
-	int32_t		distance;
-	int32_t		height;
+	float		lip;
+	float		distance;
+	float		height;
 	const char* noise;
 	float		pausetime;
 	const char* item;
@@ -1316,6 +1323,7 @@ struct spawn_temp_t
 	const char* start_items;
 	int no_grapple = 0;
 	float health_multiplier = 1.0f;
+	int physics_flags_sp = 0, physics_flags_dm = 0;
 
 	const char* reinforcements; // [Paril-KEX]
 	const char* noise_start, * noise_middle, * noise_end; // [Paril-KEX]
@@ -1323,10 +1331,18 @@ struct spawn_temp_t
 
 	std::unordered_set<const char*> keys_specified;
 
+	const char* primary_objective_string;
+	const char* secondary_objective_string;
+
+	const char* primary_objective_title;
+	const char* secondary_objective_title;
+
 	inline bool was_key_specified(const char* key) const
 	{
 		return keys_specified.find(key) != keys_specified.end();
 	}
+
+	static const spawn_temp_t empty;
 };
 
 enum move_state_t
@@ -1610,6 +1626,9 @@ struct reinforcement_list_t
 
 constexpr size_t MAX_REINFORCEMENTS = 5; // max number of spawns we can do at once.
 
+void M_SetupReinforcements(const char* reinforcements, reinforcement_list_t& list);
+std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t* self, int32_t& num_chosen, int32_t max_slots = 0);
+
 constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 
 
@@ -1651,7 +1670,6 @@ struct monsterinfo_t
 
 	item_id_t power_armor_type;
 	int32_t	  power_armor_power;
-	int32_t base_power_armor;
 
 	// for monster revive
 	item_id_t initial_power_armor_type;
@@ -1681,8 +1699,9 @@ struct monsterinfo_t
 	gtime_t blind_fire_delay;
 	vec3_t	blind_fire_target;
 	// used by the spawners to not spawn too much and keep track of #s of monsters spawned
-	int32_t	 monster_slots; // nb: for spawned monsters, this is how many slots we took from our commander
-	int32_t	 monster_used;
+	int32_t  slots_from_commander; // for spawned monsters, this is how many slots we took from our commander
+	int32_t	 monster_slots; // for commanders, total slots we can occupy
+	int32_t	 monster_used; // for commanders, total slots currently used
 	edict_t* commander;
 	// powerup timers, used by widow, our friend
 	gtime_t quad_time;
@@ -1739,6 +1758,9 @@ struct monsterinfo_t
 
 	gtime_t jump_time;
 
+	// NOTE: if adding new elements, make sure to add them
+	// in g_save.cpp too!
+
 	//Horde Stuff
 
 	int bonus_flags; //Powerups or Special Flags for horde
@@ -1751,9 +1773,9 @@ struct monsterinfo_t
 	gtime_t lastnoisecooldown;
 	bool has_spawned_initially = false;
 	bool spawning_in_progress = false;
-	// NOTE: if adding new elements, make sure to add them
-	// in g_save.cpp too!
+	int32_t base_power_armor;
 };
+
 // non-monsterinfo save stuff
 using save_prethink_t = save_data_t<void(*)(edict_t* self), SAVE_FUNC_PRETHINK>;
 #define PRETHINK(n) \
@@ -2090,7 +2112,7 @@ gitem_t* FindItemByClassname(const char* classname);
 edict_t* Drop_Item(edict_t* ent, gitem_t* item);
 void	  SetRespawn(edict_t* ent, gtime_t delay, bool hide_self = true);
 void	  ChangeWeapon(edict_t* ent);
-void	  SpawnItem(edict_t* ent, gitem_t* item);
+void	  SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st);
 void	  Think_Weapon(edict_t* ent);
 item_id_t ArmorIndex(edict_t* ent);
 item_id_t PowerArmorType(edict_t* ent);
@@ -2104,6 +2126,7 @@ void	  droptofloor(edict_t* ent);
 void      P_ToggleFlashlight(edict_t* ent, bool state);
 bool      Entity_IsVisibleToPlayer(edict_t* ent, edict_t* player);
 void      Compass_Update(edict_t* ent, bool first);
+
 //
 // g_utils.c
 //
@@ -2154,6 +2177,9 @@ void G_PlayerNotifyGoal(edict_t* player);
 //
 // g_spawn.c
 //
+const spawn_temp_t& ED_GetSpawnTemp();
+void  ED_ParseField(const char* key, const char* value, edict_t* ent, spawn_temp_t& st);
+void  ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp);
 void  ED_CallSpawn(edict_t* ent);
 char* ED_NewString(char* string);
 

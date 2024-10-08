@@ -259,6 +259,7 @@ void fire_heat(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage
 fire_plasma
 */
 
+
 TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	vec3_t origin;
@@ -276,11 +277,11 @@ TOUCH(plasma_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
 	// calculate position for the explosion entity
-	origin = ent->s.origin + (ent->velocity * -0.02f);
+	origin = ent->s.origin + tr.plane.normal;
 
 	if (other->takedamage)
 	{
-		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, 0, DAMAGE_ENERGY, MOD_PHALANX);
+		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_ENERGY, MOD_PHALANX);
 	}
 
 	T_RadiusDamage(ent, ent->owner, (float)ent->radius_dmg, other, ent->dmg_radius, DAMAGE_ENERGY, MOD_PHALANX);

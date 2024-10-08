@@ -817,7 +817,8 @@ void VerifyTankSpawnCount(edict_t* tank)
 	int actual_count = 0;
 	for (auto const* ent : active_monsters())
 	{
-		if (ent->owner == tank && (ent->monsterinfo.aiflags & AI_SPAWNED_TANK)) {
+		if (ent->owner == tank && (ent->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)) {
+		if (!strcmp(tank->monsterinfo.commander->classname, "monster_tank_vanilla"))
 			actual_count++;
 		}
 	}
@@ -957,7 +958,7 @@ void Monster_MoveSpawn(edict_t* self)
 		//gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {}\n", monster->classname);
 
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_TANK;
+		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
 		monster->owner = self;
@@ -1212,7 +1213,7 @@ DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int
 	// Liberar slots de monstruos spawneados
 	for (unsigned int i = 0; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
-		if (ent->inuse && ent->owner == self && (ent->monsterinfo.aiflags & AI_SPAWNED_TANK))
+		if (ent->inuse && ent->owner == self && (ent->monsterinfo.aiflags & AI_SPAWNED_COMMANDER))
 		{
 			// Asegúrate de que el monstruo muera
 			ent->health = -999;

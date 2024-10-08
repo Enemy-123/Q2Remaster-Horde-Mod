@@ -274,7 +274,7 @@ The tag token for deathmatch tag games.
 */
 void SP_dm_tag_token(edict_t* self)
 {
-	if (!G_IsDeathmatch())
+	if (!deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -293,5 +293,5 @@ void SP_dm_tag_token(edict_t* self)
 	self->classname = "dm_tag_token";
 	self->model = "models/items/tagtoken/tris.md2";
 	self->count = 1;
-	SpawnItem(self, GetItemByIndex(IT_ITEM_TAG_TOKEN));
+	SpawnItem(self, GetItemByIndex(IT_ITEM_TAG_TOKEN), ED_GetSpawnTemp());
 }

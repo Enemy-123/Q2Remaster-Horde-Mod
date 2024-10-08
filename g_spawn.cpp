@@ -497,12 +497,25 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_shamblerkl", SP_monster_shamblerkl }
 };
 
-#include <stdlib.h>
-#include "g_local.h"
-#include "shared.h"
-#include <cstdlib>
+// clang-format on
+
+static const spawn_temp_t* current_st;
+/*static*/ const spawn_temp_t spawn_temp_t::empty = {};
+
+const spawn_temp_t& ED_GetSpawnTemp()
+{
+	if (!current_st)
+	{
+		gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
+		return spawn_temp_t::empty;
+	}
+
+	return *current_st;
+}
 
 #include <stdlib.h>
+#include "shared.h"
+#include <cstdlib>
 #include <string.h>
 
 // Definir una estructura para almacenar reemplazos de monstruos
@@ -577,7 +590,7 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 		}
 	}
 }
-void ED_CallSpawn(edict_t* ent) {
+void  ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 
 	// Inicializa el multiplicador de daño para el monstruo
 	if (ent->svflags & SVF_MONSTER) {
@@ -685,77 +698,92 @@ void ED_CallSpawn(edict_t* ent) {
 	}
 
 
-gitem_t* item;
-	int i;
+		gitem_t* item;
+		int		 i;
 
-	if (!ent->classname)
-	{
-	//	gi.Com_Print("ED_CallSpawn: nullptr classname\n");
-		G_FreeEdict(ent);
-		return;
-	}
-
-	// PGM - do this before calling the spawn function so it can be overridden.
-	ent->gravityVector[0] = 0.0;
-	ent->gravityVector[1] = 0.0;
-	ent->gravityVector[2] = -1.0;
-	// PGM
-
-	ent->sv.init = false;
-
-	// FIXME - PMM classnames hack
-	if (!strcmp(ent->classname, "weapon_nailgun"))
-		ent->classname = GetItemByIndex(IT_WEAPON_ETF_RIFLE)->classname;
-	if (!strcmp(ent->classname, "ammo_nails"))
-		ent->classname = GetItemByIndex(IT_AMMO_FLECHETTES)->classname;
-	if (!strcmp(ent->classname, "weapon_heatbeam"))
-		ent->classname = GetItemByIndex(IT_WEAPON_PLASMABEAM)->classname;
-	// pmm
-
-	// check item spawn functions
-	for (i = 0, item = itemlist; i < IT_TOTAL; i++, item++)
-	{
-		if (!item->classname)
-			continue;
-		if (!strcmp(item->classname, ent->classname))
+		if (!ent->classname)
 		{
-			// found it
-			// before spawning, pick random item replacement
-			if (g_dm_random_items->integer)
+			gi.Com_Print("ED_CallSpawn: nullptr classname\n");
+			G_FreeEdict(ent);
+			return;
+		}
+
+		current_st = &spawntemp;
+
+		// PGM - do this before calling the spawn function so it can be overridden.
+		ent->gravityVector[0] = 0.0;
+		ent->gravityVector[1] = 0.0;
+		ent->gravityVector[2] = -1.0;
+		// PGM
+
+		ent->sv.init = false;
+
+		// FIXME - PMM classnames hack
+		if (!strcmp(ent->classname, "weapon_nailgun"))
+			ent->classname = GetItemByIndex(IT_WEAPON_ETF_RIFLE)->classname;
+		if (!strcmp(ent->classname, "ammo_nails"))
+			ent->classname = GetItemByIndex(IT_AMMO_FLECHETTES)->classname;
+		if (!strcmp(ent->classname, "weapon_heatbeam"))
+			ent->classname = GetItemByIndex(IT_WEAPON_PLASMABEAM)->classname;
+		// pmm
+
+		// check item spawn functions
+		for (i = 0, item = itemlist; i < IT_TOTAL; i++, item++)
+		{
+			if (!item->classname)
+				continue;
+			if (!strcmp(item->classname, ent->classname))
 			{
-				ent->item = item;
-				item_id_t new_item = DoRandomRespawn(ent);
-
-				if (new_item)
+				// found it
+				// before spawning, pick random item replacement
+				if (g_dm_random_items->integer)
 				{
-					item = GetItemByIndex(new_item);
-					ent->classname = item->classname;
+					ent->item = item;
+					item_id_t new_item = DoRandomRespawn(ent);
+
+					if (new_item)
+					{
+						item = GetItemByIndex(new_item);
+						ent->classname = item->classname;
+					}
 				}
+
+				SpawnItem(ent, item, spawntemp);
+
+				//if (level.is_psx)
+				//	ent->s.origin[2] += 15.f - (15.f * PSX_PHYSICS_SCALAR);
+
+				current_st = nullptr;
+				return;
 			}
-
-			SpawnItem(ent, item);
-			return;
 		}
+
+		// check normal spawn functions
+		for (auto& s : spawns)
+		{
+			if (!strcmp(s.name, ent->classname))
+			{ // found it
+				s.spawn(ent);
+
+				// Paril: swap classname with stored constant if we didn't change it
+				if (strcmp(ent->classname, s.name) == 0)
+					ent->classname = s.name;
+
+				current_st = nullptr;
+				return;
+			}
+		}
+
+		gi.Com_PrintFmt("{} doesn't have a spawn function\n", *ent);
+		G_FreeEdict(ent);
+		current_st = nullptr;
 	}
 
-	// check normal spawn functions
-	for (auto& s : spawns)
+	// Quick redirect to use empty spawntemp
+	void  ED_CallSpawn(edict_t * ent)
 	{
-		if (!strcmp(s.name, ent->classname))
-		{ // found it
-			s.spawn(ent);
-
-			// Paril: swap classname with stored constant if we didn't change it
-			if (strcmp(ent->classname, s.name) == 0)
-				ent->classname = s.name;
-			return;
-		}
+		ED_CallSpawn(ent, spawn_temp_t::empty);
 	}
-
-	gi.Com_PrintFmt("PRINT: {} doesn't have a spawn function\n", *ent);
-	G_FreeEdict(ent);
-}
-
 /*
 =============
 ED_NewString
@@ -1145,7 +1173,7 @@ Takes a key/value pair and sets the binary values
 in an edict
 ===============
 */
-void ED_ParseField(const char* key, const char* value, edict_t* ent)
+void ED_ParseField(const char* key, const char* value, edict_t* ent, spawn_temp_t& st)
 {
 	// check st first
 	for (auto& f : temp_fields)
@@ -1181,8 +1209,9 @@ void ED_ParseField(const char* key, const char* value, edict_t* ent)
 		return;
 	}
 
-	gi.Com_PrintFmt("PRINT: {} is not a valid field\n", key);
+	gi.Com_PrintFmt("{} is not a valid field\n", key);
 }
+
 
 /*
 ====================
@@ -1192,14 +1221,13 @@ Parses an edict out of the given string, returning the new position
 ed should be a properly initialized empty edict.
 ====================
 */
-const char* ED_ParseEdict(const char* data, edict_t* ent)
+const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 {
 	bool  init;
 	char  keyname[256];
 	const char* com_token;
 
 	init = false;
-	st = {};
 
 	// go through all the dictionary pairs
 	while (1)
@@ -1234,7 +1262,7 @@ const char* ED_ParseEdict(const char* data, edict_t* ent)
 			continue;
 		}
 
-		ED_ParseField(keyname, com_token, ent);
+		ED_ParseField(keyname, com_token, ent, st);
 	}
 
 	if (!init)
@@ -1493,13 +1521,15 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
+	level.is_spawning = true;
+
 	// clear cached indices
 	cached_soundindex::clear_all();
 	cached_modelindex::clear_all();
 	cached_imageindex::clear_all();
 
 	edict_t* ent;
-	int inhibit = 0;
+	int		 inhibit;
 	const char* com_token;
 
 	int skill_level = clamp(skill->integer, 0, 3);
@@ -1513,94 +1543,176 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	memset(&level, 0, sizeof(level));
 	memset(g_edicts, 0, game.maxentities * sizeof(g_edicts[0]));
 
+	// all other flags are not important atm
 	globals.server_flags &= SERVER_FLAG_LOADING;
 
 	Q_strlcpy(level.mapname, mapname, sizeof(level.mapname));
+	// Paril: fixes a bug where autosaves will start you at
+	// the wrong spawnpoint if they happen to be non-empty
+	// (mine2 -> mine3)
 	if (!game.autosaved)
 		Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
 
 	level.is_n64 = strncmp(level.mapname, "q64/", 4) == 0;
+	level.is_psx = strncmp(level.mapname, "psx/", 4) == 0;
 
 	level.coop_scale_players = 0;
 	level.coop_health_scaling = clamp(g_coop_health_scaling->value, 0.f, 1.f);
 
 	// set client fields on player ents
-	for (uint32_t i = 0; i < game.maxclients; i++) {
+	for (uint32_t i = 0; i < game.maxclients; i++)
+	{
 		g_edicts[i + 1].client = game.clients + i;
+
+		// "disconnect" all players since the level is switching
 		game.clients[i].pers.connected = false;
 		game.clients[i].pers.spawned = false;
 	}
 
 	ent = nullptr;
+	inhibit = 0;
 
+	// reserve some spots for dead player bodies for coop / deathmatch
 	InitBodyQue();
 
-	// Load entity file
-	std::vector<char> entity_buffer;
-	std::string ent_filename;
-	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer, ent_filename);
-
-	if (ent_file_loaded) {
-		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
-		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
-			entities = entity_buffer.data();
-			gi.Com_PrintFmt("PRINT: Entity override file verified and loaded: \"{}\"\n", ent_filename);
-		}
-	}
-
-
-	// Parse entities
-	while (1) {
+	// parse ents
+	while (1)
+	{
+		// parse the opening brace
 		com_token = COM_Parse(&entities);
 		if (!entities)
 			break;
 		if (com_token[0] != '{')
 			gi.Com_ErrorFmt("ED_LoadFromFile: found \"{}\" when expecting {{", com_token);
 
-		ent = (ent) ? G_Spawn() : g_edicts;
-		entities = ED_ParseEdict(entities, ent);
+		if (!ent)
+			ent = g_edicts;
+		else
+			ent = G_Spawn();
 
-		if (ent != g_edicts) {
-			if (G_InhibitEntity(ent)) {
+		spawn_temp_t st{};
+
+		entities = ED_ParseEdict(entities, ent, st);
+
+		// remove things (except the world) from different skill levels or deathmatch
+		if (ent != g_edicts)
+		{
+			if (G_InhibitEntity(ent))
+			{
 				G_FreeEdict(ent);
 				inhibit++;
 				continue;
 			}
+
 			ent->spawnflags &= ~SPAWNFLAG_EDITOR_MASK;
 		}
 
+		if (!ent)
+			gi.Com_Error("invalid/empty entity string!");
+
+		// PGM - do this before calling the spawn function so it can be overridden.
 		ent->gravityVector[0] = 0.0;
 		ent->gravityVector[1] = 0.0;
 		ent->gravityVector[2] = -1.0;
+		// PGM
 
-		ED_CallSpawn(ent);
+		ED_CallSpawn(ent, st);
 
-		ent->s.renderfx |= RF_IR_VISIBLE;
+		ent->s.renderfx |= RF_IR_VISIBLE; // PGM
 	}
 
-	gi.Com_PrintFmt("PRINT: {} entities inhibited\n", inhibit);
+	gi.Com_PrintFmt("{} entities inhibited\n", inhibit);
 
+	// precache start_items
 	G_PrecacheStartItems();
+
+	// precache player inventory items
 	G_PrecacheInventoryItems();
+
 	G_FindTeams();
 
+	// ZOID
 	CTFSpawn();
+	// ZOID
 
-	if (G_IsDeathmatch()) {
+	// ROGUE
+	if (deathmatch->integer)
+	{
 		if (g_dm_random_items->integer)
 			PrecacheForRandomRespawn();
 	}
-	else {
-		InitHintPaths();
+	else
+	{
+		InitHintPaths(); // if there aren't hintpaths on this map, enable quick aborts
 	}
+	// ROGUE
 
-	if (G_IsDeathmatch() && gamerules->integer) {
+	// ROGUE	-- allow dm games to do init stuff right before game starts.
+	if (deathmatch->integer && gamerules->integer)
+	{
 		if (DMGame.PostInitSetup)
 			DMGame.PostInitSetup();
 	}
+	// ROGUE
 
 	setup_shadow_lights();
+
+	/*if (gi.cvar("g_print_spawned_entities", "0", CVAR_NOFLAGS)->integer)
+	{
+		std::map<std::string, int> entities;
+		int total_monster_health = 0;
+
+		for (size_t i = 0; i < globals.num_edicts; i++)
+		{
+			edict_t* e = &globals.edicts[i];
+
+			if (!e->inuse)
+				continue;
+			else if (!e->item && !e->monsterinfo.stand)
+				continue;
+
+			const char* cn = e->classname ? e->classname : "noclass";
+
+			if (auto f = entities.find(cn); f != entities.end())
+			{
+				f->second++;
+			}
+			else
+			{
+				entities.insert({ cn, 1 });
+			}
+
+			if (e->monsterinfo.stand)
+			{
+				total_monster_health += e->health;
+			}
+
+			if (e->item && strcmp(e->classname, e->item->classname))
+			{
+				cn = e->item->classname ? e->item->classname : "noclass";
+
+				if (auto f = entities.find(cn); f != entities.end())
+				{
+					f->second++;
+				}
+				else
+				{
+					entities.insert({ cn, 1 });
+				}
+			}
+		}
+
+		gi.Com_PrintFmt("total monster health: {}\n", total_monster_health);
+
+		for (auto& e : entities)
+		{
+			gi.Com_PrintFmt("{}: {}\n", e.first, e.second);
+		}
+	}*/
+
+	level.is_spawning = false;
 }
+
 //===================================================================
 #include "g_statusbar.h"
 
