@@ -918,8 +918,6 @@ mframe_t fixbot_frames_attack1[] = {
 MMOVE_T(fixbot_move_attack1) = { FRAME_shoot_01, FRAME_shoot_06, fixbot_frames_attack1, nullptr };
 #endif
 
-void abortHeal(edict_t* self, bool change_frame, bool gib, bool mark);
-
 PRETHINK(fixbot_laser_update) (edict_t* laser) -> void
 {
 	edict_t* self = laser->owner;
@@ -943,6 +941,8 @@ PRETHINK(fixbot_laser_update) (edict_t* laser) -> void
 	gi.linkentity(laser);
 	dabeam_update(laser, true);
 }
+
+void abortHeal(edict_t* self, bool gib, bool mark);
 
 void fixbot_fire_laser(edict_t* self)
 {
@@ -975,12 +975,12 @@ void fixbot_fire_laser(edict_t* self)
 		trace_t tr = gi.trace(self->enemy->s.origin, self->enemy->mins, maxs, self->enemy->s.origin, self->enemy, MASK_MONSTERSOLID);
 		if (tr.startsolid || tr.allsolid)
 		{
-			abortHeal(self, false, true, false);
+			abortHeal(self, false, true);
 			return;
 		}
 		else if (tr.ent != world)
 		{
-			abortHeal(self, false, true, false);
+			abortHeal(self, false, true);
 			return;
 		}
 		else
@@ -1322,7 +1322,7 @@ PAIN(fixbot_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 	else
 		M_SetAnimation(self, &fixbot_move_paina);
 
-	abortHeal(self, false, false, false);
+	abortHeal(self, false, false);
 }
 
 void fixbot_dead(edict_t* self)
