@@ -1575,6 +1575,19 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	// reserve some spots for dead player bodies for coop / deathmatch
 	InitBodyQue();
 
+	// Load entity file
+	std::vector<char> entity_buffer;
+	std::string ent_filename;
+	const bool ent_file_loaded = LoadEntityFile(mapname, entity_buffer, ent_filename);
+
+	if (ent_file_loaded) {
+		const cvar_t* g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+		if (g_loadent->integer && VerifyEntityString(entity_buffer.data())) {
+			entities = entity_buffer.data();
+			gi.Com_PrintFmt("PRINT: Entity override file verified and loaded: \"{}\"\n", ent_filename);
+		}
+	}
+
 	// parse ents
 	while (1)
 	{

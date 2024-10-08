@@ -1438,7 +1438,6 @@ void OnEntityDeath(const edict_t* self) {
 
 	if (self->monsterinfo.aiflags & AI_SPAWNED_COMMANDER) {
 		edict_t* tank = self->owner;
-		if (!strcmp(tank->classname, "monster_tank_vanilla"))
 		if (tank && tank->inuse) {
 			tank->monsterinfo.monster_used = max(0, tank->monsterinfo.monster_used - 1);
 			//gi.Com_PrintFmt("Tank spawn died. Updated monster_used to {}/{}\n",
