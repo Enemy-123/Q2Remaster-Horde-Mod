@@ -1132,9 +1132,9 @@ void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 static vec3_t bfg_laser_pos(vec3_t p, float dist)
 {
 	const float theta = frandom(2 * PIf);
-	const float phi = acos(crandom());
+	const	float phi = acos(crandom());
 
-	vec3_t d{
+	const vec3_t d {
 		sin(phi) * cos(theta),
 		sin(phi) * sin(theta),
 		cos(phi)
@@ -1159,7 +1159,7 @@ THINK(bfg_laser_update) (edict_t* self) -> void
 static void bfg_spawn_laser(edict_t* self)
 {
 	const	vec3_t end = bfg_laser_pos(self->s.origin, 256);
-	const	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE);
+	const	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_OPAQUE | CONTENTS_PROJECTILECLIP);
 
 	if (tr.fraction == 1.0f)
 		return;
@@ -1259,6 +1259,49 @@ int calculate_bfg_range(edict_t* self)
 	}
 }
 
+
+struct bfg_laser_pierce_t : pierce_args_t
+{
+	edict_t* self;
+	vec3_t	 dir;
+	int		 damage;
+
+	inline bfg_laser_pierce_t(edict_t* self, vec3_t dir, int damage) :
+		pierce_args_t(),
+		self(self),
+		dir(dir),
+		damage(damage)
+	{
+	}
+
+	// we hit an entity; return false to stop the piercing.
+	// you can adjust the mask for the re-trace (for water, etc).
+	bool hit(contents_t& mask, vec3_t& end) override
+	{
+		// hurt it if we can
+		if ((tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && (tr.ent != self->owner))
+			T_Damage(tr.ent, self, self->owner, dir, tr.endpos, vec3_origin, damage, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+
+		// if we hit something that's not a monster or player we're done
+		if (!(tr.ent->svflags & SVF_MONSTER) && !(tr.ent->flags & FL_DAMAGEABLE) && (!tr.ent->client))
+		{
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_LASER_SPARKS);
+			gi.WriteByte(4);
+			gi.WritePosition(tr.endpos + tr.plane.normal);
+			gi.WriteDir(tr.plane.normal);
+			gi.WriteByte(208);
+			gi.multicast(tr.endpos + tr.plane.normal, MULTICAST_PVS, false);
+			return false;
+		}
+
+		if (!mark(tr.ent))
+			return false;
+
+		return true;
+	}
+};
+
 THINK(bfg_think) (edict_t* self) -> void
 {
 	edict_t* ent;
@@ -1279,9 +1322,6 @@ THINK(bfg_think) (edict_t* self) -> void
 	dmg = deathmatch->integer ? 5 : 10;
 
 	bfg_spawn_laser(self);
-
-
-	// Usage in your function:
 	const int bfgrange = calculate_bfg_range(self);
 
 	ent = nullptr;
@@ -1294,6 +1334,8 @@ THINK(bfg_think) (edict_t* self) -> void
 		if (CheckTeamDamage(ent, self->owner))
 			continue;
 
+		// ZOID
+
 		point = (ent->absmin + ent->absmax) * 0.5f;
 		dir = self->s.origin - point;
 		float const distance = dir.length();
@@ -1302,12 +1344,23 @@ THINK(bfg_think) (edict_t* self) -> void
 		start = self->s.origin;
 		end = start + (dir * -2048.0f);
 
-		tr = gi.traceline(start, point, nullptr, MASK_SOLID);
+		// [Paril-KEX] don't fire a laser if we're blocked by the world
+		tr = gi.traceline(start, point, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
 
 		if (tr.fraction < 1.0f)
 			continue;
 
 		T_Damage(ent, self, self->owner, dir, point, vec3_origin, dmg, 1, DAMAGE_ENERGY, MOD_BFG_LASER);
+
+		tr = gi.traceline(start, end, nullptr, CONTENTS_SOLID | CONTENTS_PROJECTILECLIP);
+
+		bfg_laser_pierce_t args{
+			self,
+			dir,
+			dmg
+		};
+
+		pierce_trace(start, end, self, args, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER | CONTENTS_PROJECTILECLIP);
 
 		if (g_bfgpull->integer && self->owner->client)
 		{
@@ -1325,9 +1378,9 @@ THINK(bfg_think) (edict_t* self) -> void
 		gi.multicast(self->s.origin, MULTICAST_PHS, false);
 	}
 	if (g_bfgslide->integer)
-	self->nextthink = level.time + FRAME_TIME_MS * 1.75;
+		self->nextthink = level.time + FRAME_TIME_MS * 1.75;
 	else
-	self->nextthink = level.time + FRAME_TIME_MS * 3;
+		self->nextthink = level.time + FRAME_TIME_MS * 3;
 
 }
 
