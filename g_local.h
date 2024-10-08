@@ -2198,6 +2198,8 @@ constexpr spawnflags_t SPAWNFLAG_LASER_ORANGE = 0x0020_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_LASER_FAT = 0x0040_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_LASER_ZAP = 0x80000000_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_LASER_LIGHTNING = 0x10000_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_LASER_REACTOR = 0x20000_spawnflag; // PSX reactor effect instead of beam
+constexpr spawnflags_t SPAWNFLAG_LASER_NO_PROTECTION = 0x40000_spawnflag; // no protection
 
 constexpr spawnflags_t SPAWNFLAG_HEALTHBAR_PVS_ONLY = 1_spawnflag;
 
@@ -2218,7 +2220,6 @@ enum damageflags_t
 	// ROGUE
 	DAMAGE_NO_INDICATOR = 0x00000200   // for clients: no damage indicators
 };
-
 MAKE_ENUM_BITFLAGS(damageflags_t);
 
 //
@@ -2312,7 +2313,7 @@ constexpr size_t HACKFLAG_ATTACK_PLAYER = 1;
 // used in N64, appears to change their behavior for the end scene.
 constexpr size_t HACKFLAG_END_CUTSCENE = 4;
 
-bool monster_start(edict_t* self);
+bool monster_start(edict_t* self, const spawn_temp_t& st);
 void monster_start_go(edict_t* self);
 // RAFAEL
 void monster_fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,

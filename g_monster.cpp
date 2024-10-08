@@ -1316,7 +1316,7 @@ void G_Monster_CheckCoopHealthScaling()
 //============================================================================
 constexpr spawnflags_t SPAWNFLAG_MONSTER_FUBAR = 4_spawnflag;
 
-bool monster_start(edict_t* self)
+bool monster_start(edict_t* self, const spawn_temp_t& st)
 {
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -1379,6 +1379,9 @@ bool monster_start(edict_t* self)
 		self->mass *= self->s.scale;
 	}
 
+	//if (level.is_psx)
+	//	self->s.origin[2] -= self->mins[2] - (self->mins[2] * PSX_PHYSICS_SCALAR);
+
 	// set combat style if unset
 	if (self->monsterinfo.combat_style == COMBAT_UNKNOWN)
 	{
@@ -1392,7 +1395,7 @@ bool monster_start(edict_t* self)
 	{
 		self->item = FindItemByClassname(st.item);
 		if (!self->item)
-			gi.Com_PrintFmt("PRINT: {}: bad item: {}\n", *self, st.item);
+			gi.Com_PrintFmt("{}: bad item: {}\n", *self, st.item);
 	}
 
 	// randomize what frame they start on
@@ -1420,6 +1423,12 @@ bool monster_start(edict_t* self)
 
 	// [Paril-KEX] co-op health scale
 	G_Monster_ScaleCoopHealth(self);
+
+	// set vision cone
+	if (!st.was_key_specified("vision_cone"))
+	{
+		self->vision_cone = -2.0f; // special value to use old algorithm
+	}
 
 	return true;
 }
@@ -1478,12 +1487,12 @@ void monster_start_go(edict_t* self)
 		{
 			// Paril: try nudging them out. this fixes monsters stuck
 			// in very shallow slopes.
-			constexpr const int32_t adjust[] = { 0, -4, 4, -8, 8, -16, 16 };
-			bool walked = false;
+			constexpr const int32_t adjust[] = { 0, -1, 1, -2, 2, -4, 4, -8, 8 };
+			bool					walked = false;
 
-			for (int32_t y = 0; !walked && y < 7; y++)
-				for (int32_t x = 0; !walked && x < 7; x++)
-					for (int32_t z = 0; !walked && z < 7; z++)
+			for (int32_t y = 0; !walked && y < 3; y++)
+				for (int32_t x = 0; !walked && x < 3; x++)
+					for (int32_t z = 0; !walked && z < 3; z++)
 					{
 						self->s.origin[0] = check[0] + adjust[x];
 						self->s.origin[1] = check[1] + adjust[y];
@@ -1505,9 +1514,8 @@ void monster_start_go(edict_t* self)
 		}
 
 		if (is_stuck)
-			gi.Com_PrintFmt("PRINT: WARNING: {} stuck in solid\n", *self);
+			gi.Com_PrintFmt("WARNING: {} stuck in solid\n", *self);
 	}
-
 
 	vec3_t v;
 
@@ -1519,8 +1527,8 @@ void monster_start_go(edict_t* self)
 	// check for target to combat_point and change to combattarget
 	if (self->target)
 	{
-		bool     notcombat;
-		bool     fixup;
+		bool	 notcombat;
+		bool	 fixup;
 		edict_t* target;
 
 		target = nullptr;
@@ -1539,7 +1547,7 @@ void monster_start_go(edict_t* self)
 			}
 		}
 		if (notcombat && self->combattarget)
-			gi.Com_PrintFmt("PRINT: {}: has target with mixed types\n", *self);
+			gi.Com_PrintFmt("{}: has target with mixed types\n", *self);
 		if (fixup)
 			self->target = nullptr;
 	}
@@ -1554,7 +1562,7 @@ void monster_start_go(edict_t* self)
 		{
 			if (strcmp(target->classname, "point_combat") != 0)
 			{
-				gi.Com_PrintFmt("PRINT: {} has a bad combattarget {} ({})\n", *self, self->combattarget, *target);
+				gi.Com_PrintFmt("{} has a bad combattarget {} ({})\n", *self, self->combattarget, *target);
 			}
 		}
 	}
@@ -1567,7 +1575,7 @@ void monster_start_go(edict_t* self)
 		self->goalentity = self->movetarget = G_PickTarget(self->target);
 		if (!self->movetarget)
 		{
-			gi.Com_PrintFmt("PRINT: {}: can't find target {}\n", *self, self->target);
+			gi.Com_PrintFmt("{}: can't find target {}\n", *self, self->target);
 			self->target = nullptr;
 			self->monsterinfo.pausetime = HOLD_FOREVER;
 			if (!spawn_dead)
@@ -1598,7 +1606,7 @@ void monster_start_go(edict_t* self)
 
 	if (spawn_dead)
 	{
-		// to spawn dead, we'll mimic them dying naturally
+		// to spawn dead, we'll mimick them dying naturally
 		self->health = 0;
 
 		vec3_t f = self->s.origin;
@@ -1665,7 +1673,7 @@ THINK(walkmonster_start_go) (edict_t* self) -> void
 void walkmonster_start(edict_t* self)
 {
 	self->think = walkmonster_start_go;
-	monster_start(self);
+	monster_start(self, ED_GetSpawnTemp());
 }
 
 THINK(flymonster_start_go) (edict_t* self) -> void
@@ -1683,7 +1691,7 @@ void flymonster_start(edict_t* self)
 {
 	self->flags |= FL_FLY;
 	self->think = flymonster_start_go;
-	monster_start(self);
+	monster_start(self, ED_GetSpawnTemp());
 }
 
 THINK(swimmonster_start_go) (edict_t* self) -> void
@@ -1701,7 +1709,7 @@ void swimmonster_start(edict_t* self)
 {
 	self->flags |= FL_SWIM;
 	self->think = swimmonster_start_go;
-	monster_start(self);
+	monster_start(self, ED_GetSpawnTemp());
 }
 
 USE(trigger_health_relay_use) (edict_t* self, edict_t* other, edict_t* activator) -> void

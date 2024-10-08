@@ -757,6 +757,9 @@ THINK(target_laser_think) (edict_t* self) -> void
 
 	contents_t mask = self->spawnflags.has(SPAWNFLAG_LASER_STOPWINDOW) ? MASK_SHOT : (CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
 
+	if (!self->dmg)
+		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER);
+
 	pierce_trace(start, end, self, args, mask);
 
 	self->s.old_origin = args.tr.endpos;
@@ -815,22 +818,9 @@ THINK(target_laser_start) (edict_t* self) -> void
 		}
 	}
 
-	if (self->spawnflags.has(SPAWNFLAG_LASER_LIGHTNING))
-	{
-		self->s.renderfx |= RF_BEAM_LIGHTNING; // tell renderer it is lightning
-
-		if (!self->s.skinnum)
-			self->s.skinnum = 0xf3f3f1f1; // default lightning color
-	}
-
-	// set the beam diameter
-	// [Paril-KEX] lab has this set prob before lightning was implemented
-	if (!level.is_n64 && self->spawnflags.has(SPAWNFLAG_LASER_FAT))
-		self->s.frame = 16;
-	else
-		self->s.frame = 4;
-
 	// set the color
+	// [Paril-KEX] moved it here so that color takes place
+	// before lightning/reactor check
 	if (!self->s.skinnum)
 	{
 		if (self->spawnflags.has(SPAWNFLAG_LASER_RED))
@@ -845,13 +835,33 @@ THINK(target_laser_start) (edict_t* self) -> void
 			self->s.skinnum = 0xe0e1e2e3;
 	}
 
+	if (self->spawnflags.has(SPAWNFLAG_LASER_REACTOR))
+		self->spawnflags |= SPAWNFLAG_LASER_LIGHTNING;
+
+	if (self->spawnflags.has(SPAWNFLAG_LASER_LIGHTNING))
+	{
+		self->s.renderfx |= RF_BEAM_LIGHTNING; // tell renderer it is lightning
+
+		if (!self->s.skinnum)
+			self->s.skinnum = 0xf3f3f1f1; // default lightning color
+	}
+	/*
+	else if (self->spawnflags.has(SPAWNFLAG_LASER_REACTOR))
+	{
+		self->s.renderfx |= RF_BEAM_REACTOR;
+
+		if (!self->s.skinnum)
+			self->s.skinnum = 0xf3f3f1f1; // default reactor color
+	}
+	*/
+
 	if (!self->enemy)
 	{
 		if (self->target)
 		{
 			ent = G_FindByString<&edict_t::targetname>(nullptr, self->target);
 			if (!ent)
-				gi.Com_PrintFmt("PRINT: {}: {} is a bad target\n", *self, self->target);
+				gi.Com_PrintFmt("{}: {} is a bad target\n", *self, self->target);
 			else
 			{
 				self->enemy = ent;
@@ -870,9 +880,6 @@ THINK(target_laser_start) (edict_t* self) -> void
 	self->use = target_laser_use;
 	self->think = target_laser_think;
 
-	if (!self->dmg)
-		self->dmg = 1;
-
 	self->mins = { -8, -8, -8 };
 	self->maxs = { 8, 8, 8 };
 	gi.linkentity(self);
@@ -882,9 +889,35 @@ THINK(target_laser_start) (edict_t* self) -> void
 	else
 		target_laser_off(self);
 }
-
 void SP_target_laser(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	// set the beam diameter
+	// [Paril-KEX] lab has this set prob before lightning was implemented
+	// [Paril-KEX] moved this here because st
+	if (!st.was_key_specified("frame"))
+	{
+		if (!level.is_n64 && self->spawnflags.has(SPAWNFLAG_LASER_FAT))
+			self->s.frame = 16;
+		else
+			self->s.frame = 4;
+	}
+
+	// [Paril-KEX] upper 2 bytes of reactor laser are count
+	/*
+	if (self->spawnflags.has(SPAWNFLAG_LASER_REACTOR))
+	{
+		self->s.frame &= 0xFFFF;
+
+		self->s.frame |= (self->count << 16) & 0xFFFF0000;
+	}
+	*/
+
+	// [Paril-KEX] moved this here because st
+	if (!st.was_key_specified("dmg"))
+		self->dmg = 1;
+
 	// let everything else get spawned before we start firing
 	self->think = target_laser_start;
 	self->flags |= FL_TRAP_LASER_FIELD;

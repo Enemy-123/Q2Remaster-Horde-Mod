@@ -244,6 +244,7 @@ void ai_stand(edict_t* self, float dist)
         }
     }
 }
+
 /*
 =============
 ai_walk
@@ -428,8 +429,8 @@ mid	    infront and show hostile
 > mid	only triggered by damage
 =============
 */
-#include <cassert> // Agrega esta línea al inicio del archivo
-#include <cmath> // Asegúrate de que también tienes la cabecera para std::isnan
+#include <cassert>
+#include <cmath> 
 float range_to(edict_t* self, edict_t* other) {
     assert(self != nullptr && other != nullptr);
     std::cerr << "self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
@@ -497,27 +498,27 @@ bool IsValidTarget(edict_t* self, edict_t* ent) {
         !OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER);
 }
 
-bool visible(edict_t* self, edict_t* other, bool through_glass) {
-    if (!self || !other || (other->flags & FL_NOVISIBLE)) {
-        return false;
-    }
-    if (other->client) {
-        if (self->hackflags & HACKFLAG_ATTACK_PLAYER) return self->inuse;
-        if (!other->solid) return false;
-        if (IsInvisible(other)) return false;
-        if (EntIsSpectating(other)) return false;
-    }
-
-    vec3_t spot1, spot2;
-    VectorCopy(self->s.origin, spot1);
-    spot1[2] += self->viewheight;
-    VectorCopy(other->s.origin, spot2);
-    spot2[2] += other->viewheight;
-    contents_t mask = MASK_OPAQUE;
-    if (!through_glass) mask |= CONTENTS_WINDOW;
-    const trace_t trace = gi.traceline(spot1, spot2, self, mask);
-    return trace.fraction == 1.0f || trace.ent == other;
-}
+//bool visible(edict_t* self, edict_t* other, bool through_glass) {
+//    if (!self || !other || (other->flags & FL_NOVISIBLE)) {
+//        return false;
+//    }
+//    if (other->client) {
+//        if (self->hackflags & HACKFLAG_ATTACK_PLAYER) return self->inuse;
+//        if (!other->solid) return false;
+//        if (IsInvisible(other)) return false;
+//        if (EntIsSpectating(other)) return false;
+//    }
+//
+//    vec3_t spot1, spot2;
+//    VectorCopy(self->s.origin, spot1);
+//    spot1[2] += self->viewheight;
+//    VectorCopy(other->s.origin, spot2);
+//    spot2[2] += other->viewheight;
+//    contents_t mask = MASK_OPAQUE;
+//    if (!through_glass) mask |= CONTENTS_WINDOW;
+//    const trace_t trace = gi.traceline(spot1, spot2, self, mask);
+//    return trace.fraction == 1.0f || trace.ent == other;
+//}
 
 bool IsInvisible(edict_t* ent) {
     if (ent->client->invisible_time > level.time) {
@@ -529,6 +530,80 @@ bool IsInvisible(edict_t* ent) {
     return false;
 }
 
+
+/*
+=============
+visible
+
+returns 1 if the entity is visible to self, even if not infront ()
+=============
+*/
+bool visible(edict_t* self, edict_t* other, bool through_glass)
+{
+    // never visible
+    if (other->flags & FL_NOVISIBLE)
+        return false;
+
+    // [Paril-KEX] bit of a hack, but we'll tweak monster-player visibility
+    // if they have the invisibility powerup.
+    if (other->client)
+    {
+        // always visible in rtest
+        if (self->hackflags & HACKFLAG_ATTACK_PLAYER)
+            return self->inuse;
+
+        // fix intermission
+        if (!other->solid)
+            return false;
+
+        if (other->client->invisible_time > level.time)
+        {
+            // can't see us at all after this time
+            if (other->client->invisibility_fade_time <= level.time)
+                return false;
+
+            // otherwise, throw in some randomness
+            if (frandom() > other->s.alpha)
+                return false;
+        }
+    }
+
+    vec3_t  spot1;
+    vec3_t  spot2;
+    trace_t trace;
+
+    spot1 = self->s.origin;
+    spot1[2] += self->viewheight;
+    spot2 = other->s.origin;
+    spot2[2] += other->viewheight;
+
+    contents_t mask = MASK_OPAQUE | CONTENTS_PROJECTILECLIP;
+
+    if (!through_glass)
+        mask |= CONTENTS_WINDOW;
+
+    trace = gi.traceline(spot1, spot2, self, mask);
+    return trace.fraction == 1.0f || trace.ent == other; // PGM
+}
+
+/*
+=============
+infront_cone
+
+returns 1 if the entity is in front (in sight) of self
+=============
+*/
+bool infront_cone(edict_t* self, edict_t* other, float cone)
+{
+    vec3_t forward;
+
+    AngleVectors(self->s.angles, forward, nullptr, nullptr);
+
+    vec3_t vec = (other->s.origin - self->s.origin).normalized();
+
+    return vec.dot(forward) > cone;
+}
+
 /*
 =============
 infront
@@ -538,21 +613,19 @@ returns 1 if the entity is in front (in sight) of self
 */
 bool infront(edict_t* self, edict_t* other)
 {
-    vec3_t vec;
-    float  dot;
-    vec3_t forward;
+    float cone = self->vision_cone;
 
-    AngleVectors(self->s.angles, forward, nullptr, nullptr);
-    vec = other->s.origin - self->s.origin;
-    vec.normalize();
-    dot = vec.dot(forward);
+    if (self->vision_cone < -1.0f)
+    {
+        // [Paril-KEX] if we're an ambush monster, reduce our cone of
+        // vision to not ruin surprises, unless we already had an enemy.
+        if (self->spawnflags.has(SPAWNFLAG_MONSTER_AMBUSH) && !self->monsterinfo.trail_time && !self->enemy)
+            cone = 0.15f;
+        else
+            cone = -0.30f;
+    }
 
-    // [Paril-KEX] if we're an ambush monster, reduce our cone of
-    // vision to not ruin surprises, unless we already had an enemy.
-    if (self->spawnflags.has(SPAWNFLAG_MONSTER_AMBUSH) && !self->monsterinfo.trail_time && !self->enemy)
-        return dot > 0.15f;
-
-    return dot > -0.30f;
+    return infront_cone(self, other, cone);
 }
 
 //============================================================================
@@ -624,7 +697,7 @@ void FoundTarget(edict_t* self)
     {
         self->goalentity = self->movetarget = self->enemy;
         HuntTarget(self);
-        gi.Com_PrintFmt("PRINT: {}: combattarget {} not found\n", *self, self->combattarget);
+        gi.Com_PrintFmt("{}: combattarget {} not found\n", *self, self->combattarget);
         return;
     }
 
@@ -834,11 +907,11 @@ bool FindTarget(edict_t* self)
         return false;
 
     // if the first spawnflag bit is set, the monster will only wake up on
-// really seeing the player, not another monster getting angry or hearing
-// something
+    // really seeing the player, not another monster getting angry or hearing
+    // something
 
-// revised behavior so they will wake up if they "see" a player make a noise
-// but not weapon impact/explosion noises
+    // revised behavior so they will wake up if they "see" a player make a noise
+    // but not weapon impact/explosion noises
     heardit = false;
 
     // Paril: revised so that monsters will first try to consider
@@ -859,8 +932,8 @@ bool FindTarget(edict_t* self)
         if (!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) && (client = AI_GetMonsterAlertedByPlayers(self)))
         {
             // KEX_FIXME: when does this happen? 
-// [Paril-KEX] adjusted to clear the client
-// so we can try other things
+            // [Paril-KEX] adjusted to clear the client
+            // so we can try other things
             if (client->enemy == self->enemy ||
                 !G_MonsterSourceVisible(self, client))
                 client = nullptr;
@@ -919,7 +992,7 @@ bool FindTarget(edict_t* self)
         // us with the "same" enemy even though it's a different noise.
         if (heardit && (self->monsterinfo.aiflags & AI_SOUND_TARGET))
         {
-            const vec3_t temp = client->s.origin - self->s.origin;
+       const     vec3_t temp = client->s.origin - self->s.origin;
             self->ideal_yaw = vectoyaw(temp);
 
             if (!FacingIdeal(self))
@@ -961,15 +1034,15 @@ bool FindTarget(edict_t* self)
     if (!heardit)
     {
         // this is where we would check invisibility
-        const float r = range_to(self, client);
+        float r = range_to(self, client);
 
         if (r > RANGE_MID)
             return false;
 
         // Paril: revised so that monsters can be woken up
-// by players 'seen' and attacked at by other monsters
-// if they are close enough. they don't have to be visible.
-        const bool is_visible =
+        // by players 'seen' and attacked at by other monsters
+        // if they are close enough. they don't have to be visible.
+        bool is_visible =
             ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
                 (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
 
@@ -1019,14 +1092,6 @@ bool FindTarget(edict_t* self)
                 return false;
         }
 
-        //if (g_horde->integer) { //hordehear only for flying or standing monsters
-        //    // Permite que los monstruos con FL_FLY o con AI_STAND_GROUND | AI_TEMP_STAND_GROUND oigan en el modo horde HORDEHEAR
-        //    if (!(self->flags & FL_FLY) && !(self->monsterinfo.aiflags & (AI_STAND_GROUND | AI_TEMP_STAND_GROUND)))
-        //    {
-        //        return false;
-        //    }
-        //}
-
         temp = client->s.origin - self->s.origin;
 
         if (temp.length() > 1000) // too far to hear
@@ -1051,7 +1116,7 @@ bool FindTarget(edict_t* self)
     //
     // got one
     //
-        // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
+    // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
     if (self->monsterinfo.aiflags & AI_HINT_PATH)
         hintpath_stop(self);  // this calls foundtarget for us
     else
@@ -1065,6 +1130,7 @@ bool FindTarget(edict_t* self)
 
     return true;
 }
+
 //=============================================================================
 
 /*
@@ -1075,7 +1141,7 @@ FacingIdeal
 */
 bool FacingIdeal(edict_t* self)
 {
-    const float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
+    float delta = anglemod(self->s.angles[YAW] - self->ideal_yaw);
 
     if (self->monsterinfo.aiflags & AI_PATHING)
         return !(delta > 5 && delta < 355);
@@ -1116,10 +1182,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
             spot2[2] += self->enemy->viewheight;
 
             tr = gi.traceline(spot1, spot2, self,
-                MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA
-                | CONTENTS_PROJECTILECLIP // Paril: horde
-            );
-
+                MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_PROJECTILECLIP);
             // Paril: horde
             if (tr.startsolid)
                 return false;
@@ -1157,7 +1220,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
                         {
                             // make sure we're not going to shoot a monster
                             tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self,
-                                CONTENTS_MONSTER
+                                CONTENTS_MONSTER 
                                 | CONTENTS_PROJECTILECLIP // Paril: horde
                             );
                             if (tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy)))
@@ -1175,7 +1238,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
     }
     // ROGUE
 
-    const float enemy_range = range_to(self, self->enemy);
+    float enemy_range = range_to(self, self->enemy);
 
     // melee attack
     if (enemy_range <= RANGE_MELEE)
@@ -1548,7 +1611,7 @@ bool ai_checkattack(edict_t* self, float dist)
 
     if (self->monsterinfo.checkattack_time <= level.time)
     {
-        self->monsterinfo.checkattack_time = level.time + 0.05_sec;
+        self->monsterinfo.checkattack_time = level.time + 0.07_sec;
         retval = self->monsterinfo.checkattack(self);
     }
 
@@ -1618,7 +1681,7 @@ void ai_run(edict_t* self, float dist)
         if (self->movetarget)
         {
             // nb: this is done from the centroid and not viewheight on purpose;
-            const trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f, { -2.f, -2.f, -2.f }, { 2.f, 2.f, 2.f }, self->movetarget->s.origin, self, CONTENTS_SOLID);
+            trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f, { -2.f, -2.f, -2.f }, { 2.f, 2.f, 2.f }, self->movetarget->s.origin, self, CONTENTS_SOLID);
 
             // [Paril-KEX] special case: if we're stand ground & knocked way too far away
             // from our path_corner, or we can't see it any more, assume all
@@ -1702,7 +1765,6 @@ void ai_run(edict_t* self, float dist)
 
         return;
     }
-
     // Si no hay enemigo, buscar un nuevo jugador válido
     if (!self->enemy) {
         edict_t* player = nullptr;

@@ -97,7 +97,7 @@ void stationarymonster_start(edict_t *self)
 {
 	self->flags |= FL_STATIONARY;
 	self->think = stationarymonster_start_go;
-	monster_start(self);
+	monster_start(self, ED_GetSpawnTemp());
 
 	// fix viewheight
 	self->viewheight = 0;
