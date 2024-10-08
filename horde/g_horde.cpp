@@ -577,7 +577,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
 
-	{ "item_bandolier", 5, -1, 0.18f, adjust_weight_ammo },
+	{ "item_bandolier", 4, -1, 0.18f, adjust_weight_ammo },
 	{ "item_pack", 15, -1, 0.32f, adjust_weight_ammo },
 	{ "item_silencer", 15, -1, 0.12f, adjust_weight_ammo },
 };
@@ -585,7 +585,7 @@ constexpr struct weighted_item_t {
 // Definici�n de monstruos ponderados
 constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, -1, 0.27f },
-	{ "monster_tank_vanilla", 2, 4, 0.1f },
+	{ "monster_tank_vanilla", 2, 4, 0.03f },
 	{ "monster_soldier_ss", -1, 22, 0.25f },
 	{ "monster_soldier", -1, 8, 0.2f },
 	{ "monster_soldier_hypergun", -1, -1, 0.2f },
@@ -608,8 +608,8 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_stalker", 4, 13, 0.19f },
 	{ "monster_parasite", 4, 17, 0.23f },
 	{ "monster_tank", 12, -1, 0.3f },
-	{ "monster_tank_vanilla", 5, 10, 0.15f },
-	{ "monster_tank_vanilla", 11, 17, 0.2f },
+	{ "monster_tank_vanilla", 5, 10, 0.1f },
+	{ "monster_tank_vanilla", 11, 23, 0.2f },
 	{ "monster_runnertank", 14, -1, 0.24f },
 	{ "monster_guncmdr2", 13, 10, 0.18f },
 	{ "monster_mutant", 4, -1, 0.35f },
@@ -1332,7 +1332,7 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
 	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
 	{"monster_carrier", "***** Boss incoming! Carrier’s here with a deadly payload! *****\n"},
 	{"monster_tank_64", "***** Boss incoming! Tank Commander is here to take limbs! *****\n"},
-	{"monster_shamblerkl", "***** Boss incoming! The Shambler is emerging—watch out! *****\n"},
+	{"monster_shamblerkl", "***** Boss incoming! The Shambler is emerging watch out! *****\n"},
 	{"monster_guncmdrkl", "***** Boss incoming! Gunner Commander has you in his sights! *****\n"},
 	{"monster_makronkl", "***** Boss incoming! Makron is here to personally finish you off! *****\n"},
 	{"monster_guardian", "***** Boss incoming! The Guardian is ready to claim your head! *****\n"},
