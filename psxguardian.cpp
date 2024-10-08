@@ -922,7 +922,7 @@ MONSTERINFO_SETSKIN(guardianpsx_setskin) (edict_t* self) -> void
  */
 void SP_monster_psxguardian(edict_t* self)
 {
-	//const spawn_temp_t& st = ED_GetSpawnTemp();
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);

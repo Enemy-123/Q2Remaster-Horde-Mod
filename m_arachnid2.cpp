@@ -541,6 +541,8 @@ DIE(arachnid2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
  */
 void SP_monster_arachnid2(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

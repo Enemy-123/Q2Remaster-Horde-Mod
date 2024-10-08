@@ -866,6 +866,7 @@ model="models/monsters/gunner/tris.md2"
 */
 void SP_monster_gunner_vanilla(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (g_horde->integer) {
 		float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1

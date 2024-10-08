@@ -660,6 +660,9 @@ MONSTERINFO_CHECKATTACK(Boss2_CheckAttack) (edict_t* self) -> bool
  */
 void SP_monster_boss2(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 		{
 			gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);

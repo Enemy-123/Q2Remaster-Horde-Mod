@@ -1317,6 +1317,8 @@ void WidowPrecache()
 /*QUAKED monster_widow (1 .5 0) (-40 -40 0) (40 40 144) Ambush Trigger_Spawn Sight
  */
 void SP_monster_widow(edict_t* self) {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!strcmp(self->classname, "monster_widow")) {
 		if (!M_AllowSpawn(self)) {
 			G_FreeEdict(self);
@@ -1383,6 +1385,8 @@ void SP_monster_widow(edict_t* self) {
 /*QUAKED monster_widow1 (1 .5 0) (-40 -40 0) (40 40 144) Ambush Trigger_Spawn Sight
  */
 void SP_monster_widow1(edict_t* self) {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!strcmp(self->classname, "monster_widow1")) {
 		if (!M_AllowSpawn(self)) {
 			G_FreeEdict(self);

@@ -642,6 +642,8 @@ static void hover_vanilla_set_fly_parameters(edict_t* self) {
  */
 void SP_monster_hover_vanilla(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer && current_wave_level <= 18)
 	{
 		if (strcmp(self->classname, "monster_daedalus_bomber"))

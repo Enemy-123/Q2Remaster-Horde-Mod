@@ -1103,6 +1103,7 @@ void CarrierPrecache() noexcept
  */
 void SP_monster_carrier(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (g_horde->integer) {
 		{

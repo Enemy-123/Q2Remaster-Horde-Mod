@@ -1209,6 +1209,7 @@ model="models/monsters/tank/tris.md2"
  */
 void SP_monster_tank(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (g_horde->integer) {
 		{

@@ -1981,6 +1981,8 @@ constexpr spawnflags_t SPAWNFLAG_SOLDIER_BLIND = 8_spawnflag;
 
 void SP_monster_soldier_x(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->s.modelindex = gi.modelindex("models/monsters/soldier/tris.md2");
 	self->monsterinfo.scale = MODEL_SCALE;
 	self->mins = { -16, -16, -24 };
@@ -2037,6 +2039,7 @@ void SP_monster_soldier_x(edict_t* self)
 
 void SP_monster_soldier_vanilla(edict_t* self)
 {
+
 	self->monsterinfo.drop_height = 256;
 	self->monsterinfo.jump_height = 68;
 	self->monsterinfo.can_jump = true;

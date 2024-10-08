@@ -1625,6 +1625,8 @@ MONSTERINFO_BLOCKED(gekk_blocked) (edict_t* self, float dist) -> bool
  */
 void SP_monster_gekk(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer) {
 		{
 			if (brandom())

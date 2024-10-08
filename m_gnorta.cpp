@@ -784,6 +784,8 @@ constexpr spawnflags_t SPAWNFLAG_gnorta_NOJUMPING = 16_spawnflag;
 
 void SP_monster_gnorta(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

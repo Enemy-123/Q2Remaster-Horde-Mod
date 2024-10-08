@@ -1020,6 +1020,8 @@ constexpr spawnflags_t SPAWNFLAG_STALKER_NOJUMPING = 16_spawnflag;
 
 void SP_monster_stalker(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

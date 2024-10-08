@@ -1435,6 +1435,8 @@ model="models/monsters/guncmdr/tris.md2"
 */
 void SP_monster_guncmdr2(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 
 	if (g_horde->integer) {
 		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1

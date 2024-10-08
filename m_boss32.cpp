@@ -782,6 +782,8 @@ void MakronPrecache()
  */
 void SP_monster_makron(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer) {
 		if (!strcmp(self->classname, "monster_makronkl"))
 		{

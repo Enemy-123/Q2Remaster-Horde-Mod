@@ -1035,6 +1035,8 @@ void Widow2Precache()
  */
 void SP_monster_widow2(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer) {
 		{
 			if (brandom())

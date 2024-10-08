@@ -918,6 +918,8 @@ When activated, wall units move 32 units in the direction they're facing.
 */
 void SP_monster_turret(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	int angle;
 
 	if (!M_AllowSpawn(self)) {

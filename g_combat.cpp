@@ -91,10 +91,11 @@ void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, co
 	// [Paril-KEX]
 	if ((targ->svflags & SVF_MONSTER) && targ->monsterinfo.aiflags & AI_MEDIC)
 	{
-		if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so		
+		if (targ->enemy && targ->enemy->inuse && (targ->enemy->svflags & SVF_MONSTER)) // god, I hope so
 		{
 			cleanupHealTarget(targ->enemy);
 		}
+
 		// clean up self
 		targ->monsterinfo.aiflags &= ~AI_MEDIC;
 	}

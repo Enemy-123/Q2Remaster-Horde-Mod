@@ -1238,6 +1238,7 @@ DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
  */
 void SP_monster_fixbot(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);

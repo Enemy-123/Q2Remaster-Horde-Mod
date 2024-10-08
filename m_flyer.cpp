@@ -887,6 +887,8 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
  */
 void SP_monster_flyer(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer && current_wave_level <= 18) {
 		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 

@@ -940,6 +940,8 @@ When activated, wall units move 32 units in the direction they're facing.
 */
 void SP_monster_sentrygun(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 #define playeref self->owner->s.effects;
 	self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
 	int angle;

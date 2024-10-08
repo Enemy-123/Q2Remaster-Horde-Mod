@@ -1033,6 +1033,8 @@ MONSTERINFO_BLOCKED(brain_blocked) (edict_t* self, float dist) -> bool
  */
 void SP_monster_brain(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer) {
 		{
 			if (brandom())

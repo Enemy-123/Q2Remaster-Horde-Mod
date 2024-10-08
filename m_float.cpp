@@ -671,6 +671,8 @@ constexpr spawnflags_t SPAWNFLAG_floater_tracker_DISGUISE = 8_spawnflag;
  */
 void SP_monster_floater_tracker(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer && current_wave_level <= 18)
 	{
 		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1

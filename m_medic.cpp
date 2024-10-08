@@ -11,6 +11,7 @@ MEDIC
 #include "g_local.h"
 #include "m_medic.h"
 #include "m_flash.h"
+#include "shared.h"
 
 constexpr float MEDIC_MIN_DISTANCE = 32;
 constexpr float MEDIC_MAX_HEAL_DISTANCE = 400;
@@ -814,6 +815,7 @@ MMOVE_T(medic_move_death) = { FRAME_death2, FRAME_death30, medic_frames_death, m
 
 DIE(medic_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
 	// if we had a pending patient, he was already freed up in Killed
 
 	// check for gib
@@ -1507,6 +1509,7 @@ MONSTERINFO_BLOCKED(medic_blocked) (edict_t* self, float dist) -> bool
  */
 void SP_monster_medic(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
@@ -1624,4 +1627,6 @@ void SP_monster_medic(edict_t* self)
 		self->s.skinnum = 0;
 	}
 	// pmm
+
+	ApplyMonsterBonusFlags(self);
 }

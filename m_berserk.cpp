@@ -181,7 +181,7 @@ void berserk_swing(edict_t* self)
 }
 
 mframe_t berserk_frames_attack_spike[] = {
-	
+
 	{ ai_charge, 0, berserk_swing },
 	{ ai_charge, 0, berserk_attack_spike },
 	{ ai_charge, 0, berserk_attack_spike },
@@ -213,7 +213,6 @@ void berserk_attack_club(edict_t* self)
 	}
 }
 
-
 mframe_t berserk_frames_attack_club[] = {
 	{ ai_charge, 0, monster_footstep },
 	{ ai_charge },
@@ -229,7 +228,6 @@ mframe_t berserk_frames_attack_club[] = {
 	{ ai_charge }
 };
 MMOVE_T(berserk_move_attack_club) = { FRAME_att_c9, FRAME_att_c20, berserk_frames_attack_club, berserk_run };
-
 
 /*
 ============
@@ -322,10 +320,14 @@ TOUCH(berserk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, boo
 
 static void berserk_high_gravity(edict_t* self)
 {
+	float gravity_scale = (800.f / level.gravity);
+
 	if (self->velocity[2] < 0)
-		self->gravity = 2.25f * (800.f / level.gravity);
+		self->gravity = 2.25f;
 	else
-		self->gravity = 5.25f * (800.f / level.gravity);
+		self->gravity = 5.25f;
+
+	self->gravity *= gravity_scale;
 }
 
 void berserk_jump_takeoff(edict_t* self)
@@ -336,20 +338,26 @@ void berserk_jump_takeoff(edict_t* self)
 		return;
 
 	// immediately turn to where we need to go
-	const float length = (self->s.origin - self->enemy->s.origin).length();
-	const float fwd_speed = length * 1.95f;
+	float length = (self->s.origin - self->enemy->s.origin).length();
+	float fwd_speed = length * 1.95f;
 	vec3_t dir;
 	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &dir, nullptr);
 	self->s.angles[1] = vectoyaw(dir);
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin[2] += 1;
 	self->velocity = forward * fwd_speed;
-	self->velocity[2] = 280;
+	self->velocity[2] = 400;
 	self->groundentity = nullptr;
 	self->monsterinfo.aiflags |= AI_DUCKED;
-	self->monsterinfo.attack_finished = level.time + 2.5_sec;
+	self->monsterinfo.attack_finished = level.time + 3_sec;
 	self->touch = berserk_jump_touch;
 	berserk_high_gravity(self);
+
+	self->gravity = -self->gravity;
+	SV_AddGravity(self);
+	self->gravity = -self->gravity;
+
+	gi.linkentity(self);
 }
 
 void berserk_check_landing(edict_t* self)
@@ -378,10 +386,10 @@ void berserk_check_landing(edict_t* self)
 
 mframe_t berserk_frames_attack_strike[] = {
 	{ ai_charge },
+	{ ai_charge },
 	{ ai_move, 0, berserk_jump_takeoff },
 	{ ai_move, 0, berserk_high_gravity },
 	{ ai_move, 0, berserk_check_landing },
-	{ ai_charge },
 	{ ai_move, 0, monster_footstep },
 	{ ai_move },
 	{ ai_move, 0, monster_footstep },
@@ -448,24 +456,24 @@ static void berserk_run_swing(edict_t* self)
 }
 
 mframe_t berserk_frames_run_attack1[] = {
-	{ ai_run, 23, berserk_run_attack_speed },
-	{ ai_run, 14, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
-	{ ai_run, 23, berserk_run_attack_speed },
-	{ ai_run, 28, [](edict_t* self) { berserk_run_attack_speed(self); monster_done_dodge(self); } },
-	{ ai_run, 21, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
-	{ ai_run, 22, berserk_run_attack_speed },
-	{ ai_run, 24 },
-	{ ai_run, 14, monster_footstep },
-	{ ai_run, 24 },
-	{ ai_run, 28 },
-	{ ai_run, 22, monster_footstep },
-	{ ai_run, 23 },
-	{ ai_run, 24, berserk_run_swing },
-	{ ai_run, 14, monster_footstep },
-	{ ai_run, 24 },
-	{ ai_run, 28 },
-	{ ai_run, 14, monster_footstep },
-	{ ai_run, 21, berserk_attack_club }
+	{ ai_run, 21, berserk_run_attack_speed },
+	{ ai_run, 11, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
+	{ ai_run, 21, berserk_run_attack_speed },
+	{ ai_run, 25, [](edict_t* self) { berserk_run_attack_speed(self); monster_done_dodge(self); } },
+	{ ai_run, 18, [](edict_t* self) { berserk_run_attack_speed(self); monster_footstep(self); } },
+	{ ai_run, 19, berserk_run_attack_speed },
+	{ ai_run, 21 },
+	{ ai_run, 11, monster_footstep },
+	{ ai_run, 21 },
+	{ ai_run, 25 },
+	{ ai_run, 18, monster_footstep },
+	{ ai_run, 19 },
+	{ ai_run, 21, berserk_run_swing },
+	{ ai_run, 11, monster_footstep },
+	{ ai_run, 21 },
+	{ ai_run, 25 },
+	{ ai_run, 18, monster_footstep },
+	{ ai_run, 19, berserk_attack_club }
 };
 MMOVE_T(berserk_move_run_attack1) = { FRAME_r_att1, FRAME_r_att18, berserk_frames_run_attack1, berserk_run };
 
@@ -603,6 +611,8 @@ MMOVE_T(berserk_move_death2) = { FRAME_deathc1, FRAME_deathc8, berserk_frames_de
 
 DIE(berserk_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	OnEntityDeath(self);
+
 	if (M_CheckGib(self, mod))
 	{
 		gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
@@ -628,7 +638,7 @@ DIE(berserk_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
 	self->deadflag = true;
 	self->takedamage = true;
-	OnEntityDeath(self);
+
 
 	if (damage >= 50)
 		M_SetAnimation(self, &berserk_move_death1);
@@ -798,6 +808,8 @@ MONSTERINFO_DUCK(berserk_duck) (edict_t* self, gtime_t eta) -> bool
  */
 void SP_monster_berserk(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer && current_wave_level <= 18) {
 		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
