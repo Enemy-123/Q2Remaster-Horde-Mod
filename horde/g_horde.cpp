@@ -660,8 +660,8 @@ constexpr boss_t BOSS_SMALL[] = {
 	{"monster_shamblerkl", -1, -1, 0.1f},
 	{"monster_guncmdrkl", -1, 19, 0.1f},
 	{"monster_makronkl", 36, -1, 0.1f},
-	{"monster_gm_arachnid", -1, 19, 0.1f},
-	{"monster_arachnid", -1, 19, 0.1f},
+//	{"monster_gm_arachnid", -1, 19, 0.1f},
+	{"monster_psxarachnid", -1, 19, 0.1f},
 	{"monster_redmutant", -1, 24, 0.1f}
 };
 
@@ -669,13 +669,13 @@ constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_carrier", 24, -1, 0.1f},
 	{"monster_boss2", 19, -1, 0.1f},
 	{"monster_tank_64", -1, 24, 0.1f},
-	{"monster_guardian", -1, 24, 0.1f},
+//	{"monster_guardian", -1, 24, 0.1f},
 	{"monster_psxguardian", -1, 24, 0.1f},
 	{"monster_shamblerkl", -1, 24, 0.1f},
 	{"monster_guncmdrkl", -1, 24, 0.1f},
 	{"monster_widow2", 19, -1, 0.1f},
-	{"monster_gm_arachnid", -1, 24, 0.1f},
-	{"monster_arachnid", -1, 24, 0.1f},
+	//{"monster_gm_arachnid", -1, 24, 0.1f},
+	{"monster_psxarachnid", -1, -1, 0.1f},
 	{"monster_makronkl", 26, -1, 0.1f}
 };
 
@@ -684,8 +684,9 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_boss2", 19, -1, 0.1f},
 	{"monster_boss5", -1, -1, 0.1f},
 	{"monster_tank_64", -1, 24, 0.1f},
-	{"monster_guardian", -1, 24, 0.1f},
-	{"monster_psxguardian", -1, 24, 0.1f},
+	{"monster_psxarachnid", -1, -1, 0.1f},
+//	{"monster_guardian", -1, 24, 0.1f},
+	{"monster_psxguardian", -1, -1, 0.1f},
 	{"monster_shamblerkl", -1, 24, 0.1f},
 	{"monster_boss5", -1, 24, 0.1f},
 	{"monster_jorg", 30, -1, 0.1f}
@@ -1335,11 +1336,12 @@ static const std::unordered_map<std::string, std::string> bossMessagesMap = {
 	{"monster_guncmdrkl", "***** Boss incoming! Gunner Commander has you in his sights! *****\n"},
 	{"monster_makronkl", "***** Boss incoming! Makron is here to personally finish you off! *****\n"},
 	{"monster_guardian", "***** Boss incoming! The Guardian is ready to claim your head! *****\n"},
-	{"monster_psxguardian", "***** Boss incoming! The Enhanced Guardian is ready to claim the timelimit! *****\n"},
+	{"monster_psxguardian", "***** Boss incoming! The Enhanced Guardian is ready to spam rockets! *****\n"},
 	{"monster_supertank", "***** Boss incoming! Super-Tank has more firepower than you can handle! *****\n"},
 	{"monster_boss5", "***** Boss incoming! Super-Tank is here to show Strogg’s might! *****\n"},
 	{"monster_widow2", "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n"},
 	{"monster_arachnid", "***** Boss incoming! Arachnid is here for some Marine BBQ! *****\n"},
+	{"monster_psxarachnid", "***** Boss incoming! Arachnid is here, Is this a new arachnid?!?! *****\n"},
 	{"monster_gm_arachnid", "***** Boss incoming! Missile Arachnid is armed and ready! *****\n"},
 	{"monster_redmutant", "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n"},
 	{"monster_jorg", "***** Boss incoming! Jorg’s mech is upgraded and deadly! *****\n"}

@@ -536,10 +536,12 @@ TOUCH(target_actor_touch) (edict_t *self, edict_t *other, const trace_t &tr, boo
 	}
 }
 
-void SP_target_actor(edict_t *self)
+void SP_target_actor(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!self->targetname)
-		gi.Com_PrintFmt("PRINT: {}: no targetname\n", *self);
+		gi.Com_PrintFmt("{}: no targetname\n", *self);
 
 	self->solid = SOLID_TRIGGER;
 	self->touch = target_actor_touch;
@@ -551,12 +553,13 @@ void SP_target_actor(edict_t *self)
 	{
 		if (!self->speed)
 			self->speed = 200;
-		if (!st.height)
-			st.height = 200;
+		int height = st.height;
+		if (!height)
+			height = 200;
 		if (self->s.angles[YAW] == 0)
 			self->s.angles[YAW] = 360;
 		G_SetMovedir(self->s.angles, self->movedir);
-		self->movedir[2] = (float) st.height;
+		self->movedir[2] = (float)st.height;
 	}
 
 	gi.linkentity(self);

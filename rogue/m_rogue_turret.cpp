@@ -731,7 +731,7 @@ MOVEINFO_ENDFUNC(turret_wake) (edict_t* ent) -> void
 
 	gi.linkentity(ent);
 
-	stationarymonster_start(ent);
+	stationarymonster_start(ent, spawn_temp_t::empty);
 
 	if (ent->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))
 	{
@@ -1034,7 +1034,7 @@ void SP_monster_turret(edict_t* self)
 	}
 	else
 	{
-		stationarymonster_start(self);
+		stationarymonster_start(self, spawn_temp_t::empty);
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET_MACHINEGUN))

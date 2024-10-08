@@ -2,19 +2,18 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "../g_local.h"
-#include "../shared.h"
 
 // ROGUE
-void monster_fire_blaster2(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
+void monster_fire_blaster2(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, monster_muzzleflash_id_t flashtype, effects_t effect)
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 
 	fire_blaster2(self, start, dir, damage, speed, effect, false);
 	if (self && self->svflags & SVF_MONSTER)
-	monster_muzzleflash(self, start, flashtype);
+		monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_tracker(edict_t *self, const vec3_t &start, const vec3_t &dir, int damage, int speed, edict_t *enemy, monster_muzzleflash_id_t flashtype)
+void monster_fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, edict_t* enemy, monster_muzzleflash_id_t flashtype)
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 
@@ -22,7 +21,7 @@ void monster_fire_tracker(edict_t *self, const vec3_t &start, const vec3_t &dir,
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_heatbeam(edict_t *self, const vec3_t &start, const vec3_t &dir, const vec3_t &offset, int damage, int kick, monster_muzzleflash_id_t flashtype)
+void monster_fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& offset, int damage, int kick, monster_muzzleflash_id_t flashtype)
 {
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 
@@ -33,9 +32,9 @@ void monster_fire_heatbeam(edict_t *self, const vec3_t &start, const vec3_t &dir
 
 // ROGUE
 
-void stationarymonster_start_go(edict_t *self);
+void stationarymonster_start_go(edict_t* self);
 
-THINK(stationarymonster_triggered_spawn) (edict_t *self) -> void
+THINK(stationarymonster_triggered_spawn) (edict_t* self) -> void
 {
 	self->solid = SOLID_BBOX;
 	self->movetype = MOVETYPE_NONE;
@@ -63,7 +62,7 @@ THINK(stationarymonster_triggered_spawn) (edict_t *self) -> void
 	}
 }
 
-USE(stationarymonster_triggered_spawn_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(stationarymonster_triggered_spawn_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	// we have a one frame delay here so we don't telefrag the guy who activated us
 	self->think = stationarymonster_triggered_spawn;
@@ -73,7 +72,7 @@ USE(stationarymonster_triggered_spawn_use) (edict_t *self, edict_t *other, edict
 	self->use = monster_use;
 }
 
-void stationarymonster_triggered_start(edict_t *self)
+void stationarymonster_triggered_start(edict_t* self)
 {
 	self->solid = SOLID_NOT;
 	self->movetype = MOVETYPE_NONE;
@@ -82,7 +81,7 @@ void stationarymonster_triggered_start(edict_t *self)
 	self->use = stationarymonster_triggered_spawn_use;
 }
 
-THINK(stationarymonster_start_go) (edict_t *self) -> void
+THINK(stationarymonster_start_go) (edict_t* self) -> void
 {
 	if (!self->yaw_speed)
 		self->yaw_speed = 20;
@@ -93,24 +92,24 @@ THINK(stationarymonster_start_go) (edict_t *self) -> void
 		stationarymonster_triggered_start(self);
 }
 
-void stationarymonster_start(edict_t *self)
+void stationarymonster_start(edict_t* self, const spawn_temp_t& st)
 {
 	self->flags |= FL_STATIONARY;
 	self->think = stationarymonster_start_go;
-	monster_start(self, ED_GetSpawnTemp());
+	monster_start(self, st);
 
 	// fix viewheight
 	self->viewheight = 0;
 }
 
-void monster_done_dodge(edict_t *self)
+void monster_done_dodge(edict_t* self)
 {
 	self->monsterinfo.aiflags &= ~AI_DODGING;
 	if (self->monsterinfo.attack_state == AS_SLIDING)
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 }
 
-int32_t M_SlotsLeft(edict_t *self)
+int32_t M_SlotsLeft(edict_t* self)
 {
 	return self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 }

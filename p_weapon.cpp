@@ -1455,7 +1455,7 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 				damage = 20;
 			else
 				damage = 20;
-			Blaster_Fire(ent, offset, damage, true, (ent->client->ps.gunframe % 4) ? EF_NONE : EF_HYPERBLASTER);
+			Blaster_Fire(ent, offset, damage, true, ((ent->client->ps.gunframe - 6) % 4) == 0 ? EF_HYPERBLASTER : EF_NONE);
 			Weapon_PowerupSound(ent);
 
 			G_RemoveAmmo(ent);

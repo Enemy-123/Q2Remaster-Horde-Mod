@@ -1975,6 +1975,7 @@ extern cvar_t* bob_roll;
 extern cvar_t* sv_cheats;
 extern cvar_t* g_debug_monster_paths;
 extern cvar_t* g_debug_monster_kills;
+extern cvar_t* g_debug_poi;;
 extern cvar_t* maxspectators;
 
 extern cvar_t* bot_debug_follow_actor;
@@ -2130,7 +2131,7 @@ void      Compass_Update(edict_t* ent, bool first);
 //
 // g_utils.c
 //
-bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod = MOD_TELEFRAG, bool bsp_clipping = true);
+bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod = MOD_TELEFRAG, bool bsp_clipping = true, bool allow_safety = false);
 edict_t* G_Find(edict_t* from, std::function<bool(edict_t* e)> matcher);
 
 // utility template for getting the type of a field
@@ -2281,8 +2282,8 @@ void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimd
 	monster_muzzleflash_id_t flashtype, float right_adjust, float up_adjust);
 void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype);
-void monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick,
-	monster_muzzleflash_id_t flashtype);
+bool monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick,
+	monster_muzzleflash_id_t flashtype); 
 void monster_fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, int kick,
 	float damage_radius, monster_muzzleflash_id_t flashtype);
 bool M_CheckClearShot(edict_t* self, const vec3_t& offset);
@@ -2335,7 +2336,7 @@ void monster_fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir,
 	monster_muzzleflash_id_t flashtype);
 void monster_fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, const vec3_t& offset, int damage,
 	int kick, monster_muzzleflash_id_t flashtype);
-void stationarymonster_start(edict_t* self);
+void stationarymonster_start(edict_t* self, const spawn_temp_t& st);
 void monster_done_dodge(edict_t* self);
 // ROGUE
 
@@ -2400,8 +2401,9 @@ float range_to(edict_t* self, edict_t* other);
 
 void FoundTarget(edict_t* self);
 void HuntTarget(edict_t* self, bool animate_state = true);
+bool infront_cone(edict_t* self, edict_t* other, float cone);
 bool infront(edict_t* self, edict_t* other);
-bool visible(edict_t* self, edict_t* other, bool through_glass = false);
+bool visible(edict_t* self, edict_t* other, bool through_glass = true);
 bool FacingIdeal(edict_t* self);
 // [Paril-KEX] generic function
 bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_chance, float near_chance, float mid_chance, float far_chance, float strafe_scalar);
@@ -2426,7 +2428,7 @@ void rocket_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 void fireball_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius,
 	int radius_damage);
-void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick);
+bool fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick); 
 void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius);
 // RAFAEL
 void fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect);
@@ -2531,9 +2533,19 @@ bool SV_FilterPacket(const char* from);
 //
 // p_view.c
 //
+struct step_parameters_t
+{
+	float			xyspeed;
+	float			bobmove;
+	int				bobcycle, bobcycle_run;	  // odd cycles are right foot going forward
+	float			bobfracsin; // sinf(bobfrac*M_PI)
+};
+
+void G_SetClientFrame(edict_t* ent, const step_parameters_t& step);
 void ClientEndServerFrame(edict_t* ent);
 void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& dir);
 void G_UnLagCompensate();
+
 
 //
 // p_hud.c

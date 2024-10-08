@@ -164,6 +164,7 @@ void SP_monster_guardian(edict_t* self);
 void SP_monster_psxguardian(edict_t* self);
 void SP_monster_arachnid(edict_t* self);
 void SP_monster_spider(edict_t* self);
+void SP_monster_psxarachnid(edict_t* self);
 void SP_monster_guncmdr(edict_t* self);
 void SP_monster_guncmdr2(edict_t* self);
 void SP_monster_guncmdrkl(edict_t* self);
@@ -407,6 +408,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_psxguardian", SP_monster_psxguardian },
 	{ "monster_arachnid", SP_monster_arachnid },
 	{ "monster_spider", SP_monster_spider },
+	{ "monster_psxarachnid", SP_monster_psxarachnid },
 	{ "monster_guncmdr", SP_monster_guncmdr },
 	{ "monster_guncmdr2", SP_monster_guncmdr2 },
 	{ "monster_guncmdrkl", SP_monster_guncmdrkl },
@@ -1108,12 +1110,21 @@ static const std::initializer_list<temp_field_t> temp_fields = {
 	FIELD_AUTO(no_grapple),
 	FIELD_AUTO(health_multiplier),
 
+	FIELD_AUTO(physics_flags_sp),
+	FIELD_AUTO(physics_flags_dm),
+
 	FIELD_AUTO(reinforcements),
 	FIELD_AUTO(noise_start),
 	FIELD_AUTO(noise_middle),
 	FIELD_AUTO(noise_end),
 
-	FIELD_AUTO(loop_count)
+	FIELD_AUTO(loop_count),
+
+	FIELD_AUTO(primary_objective_string),
+	FIELD_AUTO(secondary_objective_string),
+
+	FIELD_AUTO(primary_objective_title),
+	FIELD_AUTO(secondary_objective_title)
 };
 // clang-format on
 

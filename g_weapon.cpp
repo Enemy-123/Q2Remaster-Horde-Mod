@@ -480,7 +480,7 @@ constexpr spawnflags_t SPAWNFLAG_GRENADE_HELD = 2_spawnflag;
 fire_grenade
 =================
 */
-THINK(Grenade_Explode) (edict_t* ent) -> void
+static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal)
 {
 	vec3_t origin;
 	mod_t  mod;
@@ -489,22 +489,14 @@ THINK(Grenade_Explode) (edict_t* ent) -> void
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
 	// FIXME: if we are onground then raise our Z just a bit since we are a point?
-	if (ent->enemy)
+	if (other)
 	{
-		float  points;
-		vec3_t v;
-		vec3_t dir;
-
-		v = ent->enemy->mins + ent->enemy->maxs;
-		v = ent->enemy->s.origin + (v * 0.5f);
-		v = ent->s.origin - v;
-		points = ent->dmg - 0.5f * v.length();
-		dir = ent->enemy->s.origin - ent->s.origin;
+		vec3_t dir = other->s.origin - ent->s.origin;
 		if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
 			mod = MOD_HANDGRENADE;
 		else
 			mod = MOD_GRENADE;
-		T_Damage(ent->enemy, ent, ent->owner, dir, ent->s.origin, vec3_origin, (int)points, (int)points, DAMAGE_RADIUS, mod);
+		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal, ent->dmg, ent->dmg, mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_NONE, mod);
 	}
 
 	if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD))
@@ -513,9 +505,9 @@ THINK(Grenade_Explode) (edict_t* ent) -> void
 		mod = MOD_HG_SPLASH;
 	else
 		mod = MOD_G_SPLASH;
-	T_RadiusDamage(ent, ent->owner, (float)ent->dmg, ent->enemy, ent->dmg_radius, DAMAGE_NONE, mod);
+	T_RadiusDamage(ent, ent->owner, (float)ent->dmg, other, ent->dmg_radius, DAMAGE_NONE, mod);
 
-	origin = ent->s.origin + (ent->velocity * -0.02f);
+	origin = ent->s.origin + normal;
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)
 	{
@@ -535,6 +527,11 @@ THINK(Grenade_Explode) (edict_t* ent) -> void
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
 	G_FreeEdict(ent);
+}
+
+THINK(Grenade_Explode) (edict_t* ent) -> void
+{
+	Grenade_ExplodeReal(ent, nullptr, ent->velocity * -0.02f);
 }
 
 TOUCH(Grenade_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
@@ -565,7 +562,7 @@ TOUCH(Grenade_Touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool othe
 	}
 
 	ent->enemy = other;
-	Grenade_Explode(ent);
+	Grenade_ExplodeReal(ent, other, tr.plane.normal);
 }
 
 THINK(Grenade4_Think) (edict_t* self) -> void
@@ -1087,7 +1084,7 @@ uint32_t GetUnicastKey()
 fire_rail
 =================
 */
-void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick)
+bool fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick)
 {
 	fire_rail_pierce_t args = {
 		self,
@@ -1106,19 +1103,19 @@ void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 
 	pierce_trace(start, end, self, args, mask);
 
-	const uint32_t unicast_key = GetUnicastKey();
+	uint32_t unicast_key = GetUnicastKey();
 
 	// send gun puff / flash
 	// [Paril-KEX] this often makes double noise, so trying
 	// a slightly different approach...
 	for (auto player : active_players())
 	{
-		const vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
+		vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
 
 		if (binary_positional_search(org, start, args.tr.endpos, gi.inPHS, 3))
 		{
 			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte((G_IsDeathmatch() && g_instagib->integer || G_IsCooperative()) ? TE_RAILTRAIL2 : TE_RAILTRAIL);
+			gi.WriteByte((deathmatch->integer && g_instagib->integer) ? TE_RAILTRAIL2 : TE_RAILTRAIL);
 			gi.WritePosition(start);
 			gi.WritePosition(args.tr.endpos);
 			gi.unicast(player, false, unicast_key);
@@ -1127,6 +1124,8 @@ void fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 
 	if (self->client)
 		PlayerNoise(self, args.tr.endpos, PNOISE_IMPACT);
+
+	return args.num_pierced;
 }
 
 static vec3_t bfg_laser_pos(vec3_t p, float dist)

@@ -222,6 +222,7 @@
     <ClCompile Include="m_move.cpp" />
     <ClCompile Include="m_mutant.cpp" />
     <ClCompile Include="m_parasite.cpp" />
+    <ClCompile Include="m_psxarachnid.cpp" />
     <ClCompile Include="m_redmutant.cpp" />
     <ClCompile Include="m_shocker.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />

@@ -70,9 +70,11 @@ USE(Use_Target_Speaker) (edict_t* ent, edict_t* other, edict_t* activator) -> vo
 
 void SP_target_speaker(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!st.noise)
 	{
-		gi.Com_PrintFmt("PRINT: {}: no noise set\n", *ent);
+		gi.Com_PrintFmt("{}: no noise set\n", *ent);
 		return;
 	}
 
@@ -154,7 +156,9 @@ When fired, the "message" key becomes the current personal computer string, and 
 */
 void SP_target_help(edict_t* ent)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	if (deathmatch->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -162,7 +166,7 @@ void SP_target_help(edict_t* ent)
 
 	if (!ent->message)
 	{
-		gi.Com_PrintFmt("PRINT: {}: no message\n", *ent);
+		gi.Com_PrintFmt("{}: no message\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -197,14 +201,16 @@ USE(use_target_secret) (edict_t* ent, edict_t* other, edict_t* activator) -> voi
 THINK(G_VerifyTargetted) (edict_t* ent) -> void
 {
 	if (!ent->targetname || !*ent->targetname)
-		gi.Com_PrintFmt("PRINT: WARNING: missing targetname on {}\n", *ent);
+		gi.Com_PrintFmt("WARNING: missing targetname on {}\n", *ent);
 	else if (!G_FindByString<&edict_t::target>(nullptr, ent->targetname))
-		gi.Com_PrintFmt("PRINT: WARNING: doesn't appear to be anything targeting {}\n", *ent);
+		gi.Com_PrintFmt("WARNING: doesn't appear to be anything targeting {}\n", *ent);
 }
 
 void SP_target_secret(edict_t* ent)
 {
-	if (G_IsDeathmatch())
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	if (deathmatch->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -215,8 +221,9 @@ void SP_target_secret(edict_t* ent)
 
 	ent->use = use_target_secret;
 	if (!st.noise)
-		st.noise = "misc/secret.wav";
-	ent->noise_index = gi.soundindex(st.noise);
+		ent->noise_index = gi.soundindex("misc/secret.wav");
+	else
+		ent->noise_index = gi.soundindex(st.noise);
 	ent->svflags = SVF_NOCLIENT;
 	level.total_secrets++;
 }
@@ -285,7 +292,7 @@ void G_PlayerNotifyGoal(edict_t* player)
 
 		if (*game.helpmessage1)
 			// [Sam-KEX] Print objective to screen
-			gi.LocClient_Print(player, PRINT_TYPEWRITER, "$g_primary_mission_objective", game.helpmessage1);
+			gi.LocClient_Print(player, PRINT_TYPEWRITER, level.primary_objective_string, game.helpmessage1);
 	}
 
 	if (player->client->pers.game_help2changed != game.help2changed)
@@ -296,7 +303,7 @@ void G_PlayerNotifyGoal(edict_t* player)
 
 		if (*game.helpmessage2)
 			// [Sam-KEX] Print objective to screen
-			gi.LocClient_Print(player, PRINT_TYPEWRITER, "$g_secondary_mission_objective", game.helpmessage2);
+			gi.LocClient_Print(player, PRINT_TYPEWRITER, level.secondary_objective_string, game.helpmessage2);
 	}
 }
 
@@ -336,7 +343,9 @@ USE(use_target_goal) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 void SP_target_goal(edict_t* ent)
 {
-	if (G_IsDeathmatch())
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	if (deathmatch->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(ent);
 		return;
@@ -344,8 +353,9 @@ void SP_target_goal(edict_t* ent)
 
 	ent->use = use_target_goal;
 	if (!st.noise)
-		st.noise = "misc/secret.wav";
-	ent->noise_index = gi.soundindex(st.noise);
+		ent->noise_index = gi.soundindex("misc/secret.wav");
+	else
+		ent->noise_index = gi.soundindex(st.noise);
 	ent->svflags = SVF_NOCLIENT;
 	level.total_goals++;
 }
@@ -467,7 +477,7 @@ void SP_target_changelevel(edict_t* ent)
 {
 	if (!ent->map)
 	{
-		gi.Com_PrintFmt("PRINT: {}: no map\n", *ent);
+		gi.Com_PrintFmt("{}: no map\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -475,7 +485,6 @@ void SP_target_changelevel(edict_t* ent)
 	ent->use = use_target_changelevel;
 	ent->svflags = SVF_NOCLIENT;
 }
-
 
 //==========================================================
 
@@ -538,20 +547,16 @@ For gibs:
 	speed how fast it should be moving otherwise it
 	will just be dropped
 */
-void ED_CallSpawn(edict_t* ent);
 
 USE(use_target_spawner) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	edict_t* ent;
-
-	ent = G_Spawn();
+	edict_t* ent = G_Spawn();
 	ent->classname = self->target;
 	// RAFAEL
 	ent->flags = self->flags;
 	// RAFAEL
 	ent->s.origin = self->s.origin;
 	ent->s.angles = self->s.angles;
-	st = {};
 
 	// [Paril-KEX] although I fixed these in our maps, this is just
 	// in case anybody else does this by accident. Don't count these monsters
@@ -561,7 +566,9 @@ USE(use_target_spawner) (edict_t* self, edict_t* other, edict_t* activator) -> v
 	ED_CallSpawn(ent);
 	gi.linkentity(ent);
 
-	KillBox(ent, false);
+	if (ent->solid == SOLID_BBOX || (G_GetClipMask(ent) & (CONTENTS_PLAYER)))
+		KillBox(ent, false);
+
 	if (self->speed)
 		ent->velocity = self->movedir;
 
@@ -698,7 +705,12 @@ struct laser_pierce_t : pierce_args_t
 		if (self->dmg > 0 && (tr.ent->takedamage) && !(tr.ent->flags & FL_IMMUNE_LASER) && self->damage_debounce_time <= level.time)
 		{
 			damaged_thing = true;
-			T_Damage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, DAMAGE_ENERGY, MOD_TARGET_LASER);
+			damageflags_t dmg = DAMAGE_ENERGY;
+
+			if (self->spawnflags.has(SPAWNFLAG_LASER_NO_PROTECTION))
+				dmg |= DAMAGE_NO_PROTECTION;
+
+			T_Damage(tr.ent, self, self->activator, self->movedir, tr.endpos, vec3_origin, self->dmg, 1, dmg, MOD_TARGET_LASER);
 		}
 
 		// if we hit something that's not a monster or player or is immune to lasers, we're done
@@ -889,6 +901,7 @@ THINK(target_laser_start) (edict_t* self) -> void
 	else
 		target_laser_off(self);
 }
+
 void SP_target_laser(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
@@ -972,7 +985,7 @@ USE(target_lightramp_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 				break;
 			if (strcmp(e->classname, "light") != 0)
 			{
-				gi.Com_PrintFmt("PRINT: {}: target {} ({}) is not a light\n", *self, self->target, *e);
+				gi.Com_PrintFmt("{}: target {} ({}) is not a light\n", *self, self->target, *e);
 			}
 			else
 			{
@@ -982,7 +995,7 @@ USE(target_lightramp_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 
 		if (!self->enemy)
 		{
-			gi.Com_PrintFmt("PRINT: {}: target {} not found\n", *self, self->target);
+			gi.Com_PrintFmt("{}: target {} not found\n", *self, self->target);
 			G_FreeEdict(self);
 			return;
 		}
@@ -996,12 +1009,12 @@ void SP_target_lightramp(edict_t* self)
 {
 	if (!self->message || strlen(self->message) != 2 || self->message[0] < 'a' || self->message[0] > 'z' || self->message[1] < 'a' || self->message[1] > 'z' || self->message[0] == self->message[1])
 	{
-		gi.Com_PrintFmt("PRINT: {}: bad ramp ({})\n", *self, self->message ? self->message : "null string");
+		gi.Com_PrintFmt("{}: bad ramp ({})\n", *self, self->message ? self->message : "null string");
 		G_FreeEdict(self);
 		return;
 	}
 
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -1009,7 +1022,7 @@ void SP_target_lightramp(edict_t* self)
 
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("PRINT: {}: no target\n", *self);
+		gi.Com_PrintFmt("{}: no target\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -1108,8 +1121,8 @@ USE(target_earthquake_use) (edict_t* self, edict_t* other, edict_t* activator) -
 
 void SP_target_earthquake(edict_t* self)
 {
-	if (!self->targetname && !g_horde->integer)
-		gi.Com_PrintFmt("PRINT: {}: untargeted\n", *self);
+	if (!self->targetname)
+		gi.Com_PrintFmt("{}: untargeted\n", *self);
 
 	if (level.is_n64)
 	{
@@ -1283,17 +1296,16 @@ THINK(update_target_camera) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-void G_SetClientFrame(edict_t* ent);
-
-extern float xyspeed;
-
 THINK(target_camera_dummy_think) (edict_t* self) -> void
 {
 	// bit of a hack, but this will let the dummy
 	// move like a player
 	self->client = self->owner->client;
-	xyspeed = sqrtf(self->velocity[0] * self->velocity[0] + self->velocity[1] * self->velocity[1]);
-	G_SetClientFrame(self);
+
+	step_parameters_t step{};
+	step.xyspeed = sqrtf(self->velocity[0] * self->velocity[0] + self->velocity[1] * self->velocity[1]);
+	G_SetClientFrame(self, step);
+
 	self->client = nullptr;
 
 	// alpha fade out for voops
@@ -1388,7 +1400,7 @@ USE(use_target_camera) (edict_t* self, edict_t* other, edict_t* activator) -> vo
 
 void SP_target_camera(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (deathmatch->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;
@@ -1410,6 +1422,8 @@ USE(use_target_gravity) (edict_t* self, edict_t* other, edict_t* activator) -> v
 
 void SP_target_gravity(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->use = use_target_gravity;
 	self->gravity = atof(st.gravity);
 }
@@ -1431,6 +1445,8 @@ USE(use_target_soundfx) (edict_t* self, edict_t* other, edict_t* activator) -> v
 
 void SP_target_soundfx(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!self->volume)
 		self->volume = 1.0;
 
@@ -1459,7 +1475,7 @@ void SP_target_soundfx(edict_t* self)
 		self->noise_index = gi.soundindex("world/bigpump2.wav");
 		break;
 	default:
-		gi.Com_PrintFmt("PRINT: {}: unknown noise {}\n", *self, self->noise_index);
+		gi.Com_PrintFmt("{}: unknown noise {}\n", *self, self->noise_index);
 		return;
 	}
 
@@ -1563,6 +1579,8 @@ USE(target_light_use) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 
 void SP_target_light(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->s.modelindex = 1;
 	self->s.renderfx = RF_CUSTOM_LIGHT;
 	self->s.frame = st.radius ? st.radius : 150;
@@ -1656,18 +1674,34 @@ static float distance_to_poi(vec3_t start, vec3_t end)
 
 USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
+	bool debug = !!g_debug_poi->integer;
+
+	if (debug)
+		gi.Com_PrintFmt("POI {} used by {}\n", *ent, *other);
+
 	// we were disabled, so remove the disable check
 	if (ent->spawnflags.has(SPAWNFLAG_POI_DISABLED))
+	{
 		ent->spawnflags &= ~SPAWNFLAG_POI_DISABLED;
+		if (debug)
+			gi.Com_Print(" - POI was disabled, made re-enabled\n");
+	}
 
 	// early stage check
 	if (ent->count && level.current_poi_stage > ent->count)
+	{
+		if (debug)
+			gi.Com_PrintFmt(" - POI count is {}, current stage {}, early exit\n", ent->count, level.current_poi_stage);
 		return;
+	}
 
 	// teamed POIs work a bit differently
 	if (ent->team)
 	{
 		edict_t* poi_master = ent->teammaster;
+
+		if (debug)
+			gi.Com_PrintFmt(" - teamed POI \"{}\"; master is {}\n", ent->team, *poi_master);
 
 		// unset ent, since we need to find one that matches
 		ent = nullptr;
@@ -1679,42 +1713,79 @@ USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 		for (edict_t* poi = poi_master; poi; poi = poi->teamchain)
 		{
+			if (debug)
+				gi.Com_PrintFmt("  - checking team member {}\n", *poi);
+
 			// currently disabled
 			if (poi->spawnflags.has(SPAWNFLAG_POI_DISABLED))
+			{
+				if (debug)
+					gi.Com_Print("  - disabled, skipping\n");
+
 				continue;
+			}
 
 			// ignore dummy POI
 			if (poi->spawnflags.has(SPAWNFLAG_POI_DUMMY))
 			{
+				if (debug)
+					gi.Com_Print("  - dummy, skipping (but storing as fallback)\n");
+
 				dummy_fallback = poi;
 				continue;
 			}
 			// POI is not part of current stage
 			else if (poi->count && level.current_poi_stage > poi->count)
+			{
+				if (debug)
+					gi.Com_PrintFmt("  - staged POI; level stage {} = POI count {}, skipping\n", level.current_poi_stage, poi->count);
+
 				continue;
-			// POI isn't the right style
+				// POI isn't the right style
+			}
 			else if (poi->style > best_style)
+			{
+				if (debug)
+					gi.Com_PrintFmt("  - style {} > current best style {}, skipping\n", poi->style, best_style);
+
 				continue;
+			}
 
 			float dist = distance_to_poi(activator->s.origin, poi->s.origin);
+
+			if (debug)
+				gi.Com_PrintFmt("  - resolved distance as {} (used for nearest)\n", dist);
 
 			// we have one already and it's farther away, don't bother
 			if (poi_master->spawnflags.has(SPAWNFLAG_POI_NEAREST) &&
 				ent &&
 				dist > best_distance)
+			{
+				if (debug)
+					gi.Com_PrintFmt("  - nearest used; distance > best distance of {}, skipping\n", best_distance);
 				continue;
+			}
 
 			// found a better style; overwrite dist
 			if (poi->style < best_style)
 			{
+				if (debug)
+					gi.Com_PrintFmt("  - style {} < current best style {} - potentially better pick\n", poi->style, best_style);
+
 				// unless we weren't reachable...
 				if (poi_master->spawnflags.has(SPAWNFLAG_POI_NEAREST) && std::isinf(dist))
+				{
+					if (debug)
+						gi.Com_Print("  - not reachable; skipped\n");
 					continue;
+				}
 
 				best_style = poi->style;
 				if (poi_master->spawnflags.has(SPAWNFLAG_POI_NEAREST))
 					best_distance = dist;
 				ent = poi;
+				if (debug)
+					gi.Com_Print("  - marked as current best due to style\n");
 				continue;
 			}
 
@@ -1725,6 +1796,8 @@ USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 				{
 					best_distance = dist;
 					ent = poi;
+					if (debug)
+						gi.Com_Print("  - marked as current best due to distance\n");
 					continue;
 				}
 			}
@@ -1732,6 +1805,8 @@ USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 			{
 				// not picking by distance, so it's order of appearance
 				ent = poi;
+				if (debug)
+					gi.Com_Print("  - marked as current best due to order of appearance\n");
 			}
 		}
 
@@ -1740,36 +1815,66 @@ USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 		if (!ent)
 		{
 			if (dummy_fallback && dummy_fallback->spawnflags.has(SPAWNFLAG_POI_DYNAMIC))
+			{
+				if (debug)
+					gi.Com_Print(" - no valid POI found, but we had a dummy fallback\n");
 				ent = dummy_fallback;
+			}
 			else
+			{
+				if (debug)
+					gi.Com_Print(" - no valid POI found, skipping\n");
 				return;
+			}
 		}
 
 		// copy over POI stage value
 		if (ent->count)
 		{
 			if (level.current_poi_stage <= ent->count)
+			{
 				level.current_poi_stage = ent->count;
+				if (debug)
+					gi.Com_PrintFmt(" - current POI stage set to {}\n", ent->count);
+			}
 		}
 	}
 	else
 	{
+		if (debug)
+			gi.Com_Print(" - non-teamed POI\n");
+
 		if (ent->count)
 		{
 			if (level.current_poi_stage <= ent->count)
+			{
 				level.current_poi_stage = ent->count;
+				if (debug)
+					gi.Com_PrintFmt(" - level stage {} <= POI count {}, using new stage value\n", level.current_poi_stage, ent->count);
+			}
 			else
+			{
+				if (debug)
+					gi.Com_PrintFmt(" - level stage {} <= POI count {}, not part of current stage, skipping\n", level.current_poi_stage, ent->count);
 				return; // this POI is not part of our current stage
+			}
 		}
 	}
 
 	// dummy POI; not valid
 	if (!strcmp(ent->classname, "target_poi") && ent->spawnflags.has(SPAWNFLAG_POI_DUMMY) && !ent->spawnflags.has(SPAWNFLAG_POI_DYNAMIC))
+	{
+		if (debug)
+			gi.Com_Print(" - POI is target_poi, dummy & not dynamic; not a valid POI\n");
 		return;
+	}
 
 	level.valid_poi = true;
 	level.current_poi = ent->s.origin;
 	level.current_poi_image = ent->noise_index;
+
+	if (debug)
+		gi.Com_Print(" - got valid POI!\n");
 
 	if (!strcmp(ent->classname, "target_poi") && ent->spawnflags.has(SPAWNFLAG_POI_DYNAMIC))
 	{
@@ -1782,11 +1887,13 @@ USE(target_poi_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 			if (m->spawnflags.has(SPAWNFLAG_POI_DUMMY))
 			{
 				level.current_dynamic_poi = m;
+				if (debug)
+					gi.Com_Print(" - setting dynamic POI\n");
 				break;
 			}
 
 		if (!level.current_dynamic_poi)
-			gi.Com_PrintFmt("PRINT: can't activate poi for {}; need DUMMY in chain\n", *ent);
+			gi.Com_PrintFmt("can't activate dynamic poi for {}; need DUMMY in chain\n", *ent);
 	}
 	else
 		level.current_dynamic_poi = nullptr;
@@ -1804,14 +1911,16 @@ THINK(target_poi_setup) (edict_t* self) -> void
 		for (edict_t* m = self->teammaster; m; m = m->teamchain)
 		{
 			if (strcmp(m->classname, "target_poi"))
-				gi.Com_PrintFmt("PRINT: WARNING: {} is teamed with target_poi's; unintentional\n", *m);
+				gi.Com_PrintFmt("WARNING: {} is teamed with target_poi's; unintentional\n", *m);
 		}
 	}
 }
 
 void SP_target_poi(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	if (deathmatch->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;
@@ -1830,9 +1939,9 @@ void SP_target_poi(edict_t* self)
 	if (!self->team)
 	{
 		if (self->spawnflags.has(SPAWNFLAG_POI_NEAREST))
-			gi.Com_PrintFmt("PRINT: {} has useless spawnflag 'NEAREST'\n", *self);
+			gi.Com_PrintFmt("{} has useless spawnflag 'NEAREST'\n", *self);
 		if (self->spawnflags.has(SPAWNFLAG_POI_DYNAMIC))
-			gi.Com_PrintFmt("PRINT: {} has useless spawnflag 'DYNAMIC'\n", *self);
+			gi.Com_PrintFmt("{} has useless spawnflag 'DYNAMIC'\n", *self);
 	}
 }
 
@@ -1850,41 +1959,41 @@ void SP_target_music(edict_t* self)
 	self->use = use_target_music;
 }
 
-
 /*QUAKED target_healthbar (0 1 0) (-8 -8 -8) (8 8 8) PVS_ONLY
 *
 * Hook up health bars to monsters.
 * "delay" is how long to show the health bar for after death.
 * "message" is their name
 */
-// Modify the SP_target_healthbar function
 
-// Modify the use_target_healthbar function
 USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	edict_t* target = G_PickTarget(ent->target);
+
+	if (!target || ent->health != target->spawn_count)
+	{
+		if (target)
+			gi.Com_PrintFmt("{}: target {} changed from what it used to be\n", *ent, *target);
+		else
+			gi.Com_PrintFmt("{}: no target\n", *ent);
+		G_FreeEdict(ent);
+		return;
+	}
+
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
 	{
 		if (level.health_bar_entities[i])
 			continue;
+
 		ent->enemy = target;
 		level.health_bar_entities[i] = ent;
-
-		// Update the boss name configstring
-		gi.configstring( CONFIG_HEALTH_BAR_NAME, ent->message);
-
-		// Broadcast the update to all clients
-		gi.WriteByte(svc_configstring);
-		gi.WriteShort( CONFIG_HEALTH_BAR_NAME);
-		gi.WriteString(ent->message);
-		gi.multicast(vec3_origin, MULTICAST_ALL, true);
-
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, ent->message);
 		return;
 	}
-	gi.Com_PrintFmt("PRINT: {}: too many health bars\n", *ent);
+
+	gi.Com_PrintFmt("{}: too many health bars\n", *ent);
 	G_FreeEdict(ent);
 }
-
 
 THINK(check_target_healthbar) (edict_t* ent) -> void
 {
@@ -1892,33 +2001,42 @@ THINK(check_target_healthbar) (edict_t* ent) -> void
 	if (!target || !(target->svflags & SVF_MONSTER))
 	{
 		if (target != nullptr) {
-			gi.Com_PrintFmt("PRINT: {}: target {} does not appear to be a monster\n", *ent, *target);
+			gi.Com_PrintFmt("{}: target {} does not appear to be a monster\n", *ent, *target);
 		}
+		G_FreeEdict(ent);
 		return;
 	}
 
 	// just for sanity check
 	ent->health = target->spawn_count;
 }
+
 void SP_target_healthbar(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
 	}
-	if (!self->message)
+
+	if (!self->target || !*self->target)
 	{
+		gi.Com_PrintFmt("{}: missing target\n", *self);
+		G_FreeEdict(self);
 		return;
 	}
+
+	if (!self->message)
+	{
+		gi.Com_PrintFmt("{}: missing message\n", *self);
+		G_FreeEdict(self);
+		return;
+	}
+
 	self->use = use_target_healthbar;
 	self->think = check_target_healthbar;
 	self->nextthink = level.time + 25_ms;
-
-	// Set the boss name configstring
-	gi.configstring( CONFIG_HEALTH_BAR_NAME, self->message);
 }
-
 
 /*QUAKED target_autosave (0 1 0) (-8 -8 -8) (8 8 8)
 *
@@ -1938,7 +2056,7 @@ USE(use_target_autosave) (edict_t* ent, edict_t* other, edict_t* activator) -> v
 
 void SP_target_autosave(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -1950,12 +2068,13 @@ void SP_target_autosave(edict_t* self)
 /*QUAKED target_sky (0 1 0) (-8 -8 -8) (8 8 8)
 *
 * Change sky parameters.
-"sky"    environment map name
-"skyaxis"    vector axis for rotating sky
-"skyrotate"    speed of rotation in degrees/second
+"sky"	environment map name
+"skyaxis"	vector axis for rotating sky
+"skyrotate"	speed of rotation in degrees/second
 */
 
-USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void {
+USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void
+{
 	if (self->map)
 		gi.configstring(CS_SKY, self->map);
 
@@ -1964,13 +2083,7 @@ USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void 
 		float rotate;
 		int32_t autorotate;
 
-		if (sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate) != 2)
-		{
-			// Handle error, e.g., log a warning or set default values
-			gi.Com_PrintFmt("PRINT: Warning: Failed to parse skyrotate config string\n");
-			rotate = 0.0f;  // Default value or handle as needed
-			autorotate = 0; // Default value or handle as needed
-		}
+		sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate);
 
 		if (self->count & 1)
 			rotate = self->accel;
@@ -1987,6 +2100,8 @@ USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void 
 
 void SP_target_sky(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->use = use_target_sky;
 	if (st.was_key_specified("sky"))
 		self->map = st.sky;
@@ -2020,7 +2135,7 @@ USE(trigger_crossunit_trigger_use) (edict_t* self, edict_t* other, edict_t* acti
 
 void SP_target_crossunit_trigger(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -2047,7 +2162,7 @@ THINK(target_crossunit_target_think) (edict_t* self) -> void
 
 void SP_target_crossunit_target(edict_t* self)
 {
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -2075,7 +2190,9 @@ USE(use_target_achievement) (edict_t* self, edict_t* other, edict_t* activator) 
 
 void SP_target_achievement(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -2092,12 +2209,12 @@ USE(use_target_story) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 	else
 		level.story_active = false;
 
-//	gi.configstring(CONFIG_STORY, self->message ? self->message : "");
+	gi.configstring(CONFIG_STORY, self->message ? self->message : "");
 }
 
 void SP_target_story(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;

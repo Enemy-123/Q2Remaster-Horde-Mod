@@ -76,18 +76,21 @@ void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, 
 	monster_muzzleflash(self, start, flashtype);
 }
 
-void monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick,
+bool monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick,
 	monster_muzzleflash_id_t flashtype)
 {
+	if (gi.pointcontents(start) & MASK_SOLID)
+		return false;
+
 	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 
-	if (gi.pointcontents(start) & MASK_SOLID)
-		return;
-
-	fire_rail(self, start, aimdir, damage, kick);
+	bool hit = fire_rail(self, start, aimdir, damage, kick);
 
 	monster_muzzleflash(self, start, flashtype);
+
+	return hit;
 }
+
 
 void monster_fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, int kick,
 	float damage_radius, monster_muzzleflash_id_t flashtype)

@@ -179,6 +179,7 @@ void Widow2Spawn(edict_t* self)
 
 			self->monsterinfo.monster_used++;
 			ent->monsterinfo.commander = self;
+			ent->monsterinfo.slots_from_commander = 1;
 
 			ent->nextthink = level.time;
 			ent->think(ent);

@@ -633,10 +633,10 @@ void G_LoadShadowLights()
 
 static void setup_dynamic_light(edict_t* self)
 {
-	if (level.intermissiontime || g_horde->integer)
-		return;
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	// [Sam-KEX] Shadow stuff
-	if (st.sl.data.radius > 0 && !level.intermissiontime)
+	if (st.sl.data.radius > 0)
 	{
 		self->s.renderfx = RF_CASTSHADOW;
 		self->itemtarget = st.sl.lightstyletarget;
@@ -651,6 +651,7 @@ static void setup_dynamic_light(edict_t* self)
 		gi.linkentity(self);
 	}
 }
+
 
 USE(dynamic_light_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
@@ -672,12 +673,10 @@ void SP_dynamic_light(edict_t* self)
 
 void SP_light(edict_t* self)
 {
-	if (level.intermissiontime)
-		return;
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	// no targeted lights in deathmatch, because they cause global messages
-	// disabled for now, possibly causing crashes related to CS
-	//	if ((!self->targetname || (G_IsDeathmatch() && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
-	if (G_IsDeathmatch()) // [Sam-KEX]
+	if ((!self->targetname || (deathmatch->integer && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
 	{
 		G_FreeEdict(self);
 		return;
@@ -725,6 +724,7 @@ constexpr spawnflags_t SPAWNFLAG_WALL_TOGGLE = 2_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_WALL_START_ON = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_WALL_ANIMATED = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_WALL_ANIMATED_FAST = 16_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_SAFE_APPEAR = 32_spawnflag;
 
 USE(func_wall_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
@@ -733,7 +733,7 @@ USE(func_wall_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 		self->solid = SOLID_BSP;
 		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
-		KillBox(self, false);
+		KillBox(self, false, MOD_TELEFRAG, true, self->spawnflags.has(SPAWNFLAG_SAFE_APPEAR));
 	}
 	else
 	{
