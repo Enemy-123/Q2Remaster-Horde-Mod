@@ -862,37 +862,37 @@ void GuardianPowerArmor(edict_t* self)
 	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	// I don't like this, but it works
 	if (self->monsterinfo.power_armor_power <= 0)
-		self->monsterinfo.power_armor_power += 200 * skill->integer;
+		self->monsterinfo.power_armor_power += 3500 * skill->integer;
 }
 
-void GuardianRespondPowerup(edict_t* self, edict_t* other)
+void GuardianRespondPowerup(edict_t* self, edict_t* other) // needs test for horde
 {
-	if (other->s.effects & (EF_QUAD | EF_DOUBLE | EF_DUALFIRE | EF_PENT))
-	{
-		GuardianPowerArmor(self);
-	}
+	//if (other->s.effects & (EF_QUAD | EF_DOUBLE | EF_DUALFIRE | EF_PENT))
+	//{
+	//	GuardianPowerArmor(self);
+	//}
 }
 
 static void GuardianPowerups(edict_t* self)
 {
-	edict_t* ent;
-
-	if (!coop->integer)
-	{
-		GuardianRespondPowerup(self, self->enemy);
-	}
-	else
-	{
-		for (uint32_t player = 1; player <= game.maxclients; player++)
-		{
-			ent = &g_edicts[player];
-			if (!ent->inuse)
-				continue;
-			if (!ent->client)
-				continue;
-			GuardianRespondPowerup(self, ent);
-		}
-	}
+//	edict_t* ent;
+//
+//	if (!coop->integer)
+//	{
+//		GuardianRespondPowerup(self, self->enemy);
+//	}
+//	else
+//	{
+//		for (uint32_t player = 1; player <= game.maxclients; player++)
+//		{
+//			ent = &g_edicts[player];
+//			if (!ent->inuse)
+//				continue;
+//			if (!ent->client)
+//				continue;
+//			GuardianRespondPowerup(self, ent);
+//		}
+//	}
 }
 
 MONSTERINFO_CHECKATTACK(Guardian_CheckAttack) (edict_t* self) -> bool
@@ -949,7 +949,7 @@ void SP_monster_psxguardian(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	self->health = 2500 * st.health_multiplier;
+	self->health = 6500 * st.health_multiplier;
 	self->gib_health = -200;
 
 	if (skill->integer >= 3 || coop->integer)
