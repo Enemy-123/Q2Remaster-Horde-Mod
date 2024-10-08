@@ -104,6 +104,7 @@ vec3_t M_ProjectFlashSource(edict_t* self, const vec3_t& offset, const vec3_t& f
 	return G_ProjectSource(self->s.origin, self->s.scale ? (offset * self->s.scale) : offset, forward, right);
 }
 
+
 // [Paril-KEX] check if shots fired from the given offset
 // might be blocked by something
 bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start)
@@ -156,6 +157,10 @@ void M_CheckGround(edict_t* ent, contents_t mask)
 {
 	vec3_t	point;
 	trace_t trace;
+
+	// [Paril-KEX]
+	if (ent->no_gravity_time > level.time)
+		return;
 
 	if (ent->flags & (FL_SWIM | FL_FLY))
 		return;
@@ -258,43 +263,32 @@ void M_WorldEffects(edict_t* ent)
 
 	if (ent->health > 0)
 	{
+		bool take_drown_damage = false;
+
 		if (!(ent->flags & FL_SWIM))
 		{
 			if (ent->waterlevel < WATER_UNDER)
-			{
 				ent->air_finished = level.time + 6_sec;
-			}
 			else if (ent->air_finished < level.time)
-			{ // drown!
-				if (ent->pain_debounce_time < level.time)
-				{
-					dmg = 25 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
-					if (dmg > 15)
-						dmg = 140;
-					T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR,
-						MOD_WATER);
-					ent->pain_debounce_time = level.time + 1_sec;
-				}
-			}
+				take_drown_damage = true;
+
 		}
 		else
 		{
 			if (ent->waterlevel > WATER_NONE)
-			{
 				ent->air_finished = level.time + 6_sec;
-			}
 			else if (ent->air_finished < level.time)
-			{ // suffocate!
-				if (ent->pain_debounce_time < level.time)
-				{
-					dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
-					if (dmg > 15)
-						dmg = 15;
-					T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR,
-						MOD_WATER);
-					ent->pain_debounce_time = level.time + 1_sec;
-				}
-			}
+				take_drown_damage = true;
+		}
+
+		if (take_drown_damage && ent->pain_debounce_time < level.time)
+		{
+			dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
+			if (dmg > 15)
+				dmg = 120;
+			T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NO_ARMOR,
+				MOD_WATER);
+			ent->pain_debounce_time = level.time + 1_sec;
 		}
 	}
 
@@ -358,7 +352,7 @@ bool M_droptofloor_generic(vec3_t& origin, const vec3_t& mins, const vec3_t& max
 	trace_t trace;
 
 	// PGM
-	if (gi.trace(origin, mins, maxs, origin, ignore, mask).startsolid)   // crash en q2dm4 visto debugger
+	if (gi.trace(origin, mins, maxs, origin, ignore, mask).startsolid)
 	{
 		if (!ceiling)
 			origin[2] += 1;
@@ -650,9 +644,9 @@ void G_MonsterKilled(edict_t* self)
 					const	gtime_t extra_time = gtime_t::from_sec(1.05); // Ajusta este valor según sea necesario
 					self->enemy->client->quadfire_time += extra_time;
 				}
-				 if (self->enemy->client->quad_time > level.time)
+				if (self->enemy->client->quad_time > level.time)
 				{
-					 const	gtime_t extra_time = gtime_t::from_sec(0.55); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(0.55); // Ajusta este valor según sea necesario
 					self->enemy->client->quad_time += extra_time;
 				}
 			}
@@ -681,15 +675,14 @@ void G_MonsterKilled(edict_t* self)
 					self->enemy->owner->client->double_time += extra_time;
 				}
 
-				 if (self->enemy->owner->client->quad_time > level.time)
+				if (self->enemy->owner->client->quad_time > level.time)
 				{
-					 const	gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(1.5); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->quad_time += extra_time;
 				}
 			}
 		}
 	}
-
 	if (g_debug_monster_kills->integer)
 	{
 		bool found = false;
@@ -739,37 +732,16 @@ void M_ProcessPain(edict_t* e)
 		}
 		// ROGUE
 
+		bool dead_commander_check = false;
+
 		if (!e->deadflag)
 		{
 			e->enemy = e->monsterinfo.damage_attacker;
 
-			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
-			{
-				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
-					!strcmp(e->monsterinfo.commander->classname, "monster_tank_vanilla"))
-					e->monsterinfo.commander->monsterinfo.monster_used -= e->monsterinfo.monster_slots;
-				e->monsterinfo.commander = nullptr;
-			}
 			// ROGUE
 			// ROGUE - free up slot for spawned monster if it's spawned
-			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
-			{
-				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
-					!strcmp(e->monsterinfo.commander->classname, "monster_carrier"))
-					e->monsterinfo.commander->monsterinfo.monster_slots++;
-				e->monsterinfo.commander = nullptr;
-			}
-			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
-			{
-				// need to check this because we can have variable numbers of coop players
-				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse &&
-					!strncmp(e->monsterinfo.commander->classname, "monster_widow", 13))
-				{
-					if (e->monsterinfo.commander->monsterinfo.monster_used > 0)
-						e->monsterinfo.commander->monsterinfo.monster_used--;
-					e->monsterinfo.commander = nullptr;
-				}
-			}
+			if ((e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER) && !(e->monsterinfo.aiflags & AI_SPAWNED_NEEDS_GIB))
+				dead_commander_check = true;
 
 			if (!(e->monsterinfo.aiflags & AI_DO_NOT_COUNT) && !(e->spawnflags & SPAWNFLAG_MONSTER_DEAD))
 				G_MonsterKilled(e);
@@ -783,13 +755,18 @@ void M_ProcessPain(edict_t* e)
 		// [Paril-KEX] medic commander only gets his slots back after the monster is gibbed, since we can revive them
 		if (e->health <= e->gib_health)
 		{
-			if (e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)
-			{
-				if (e->monsterinfo.commander && e->monsterinfo.commander->inuse && !strcmp(e->monsterinfo.commander->classname, "monster_medic_commander"))
-					e->monsterinfo.commander->monsterinfo.monster_used -= e->monsterinfo.monster_slots;
+			if ((e->monsterinfo.aiflags & AI_SPAWNED_COMMANDER) && (e->monsterinfo.aiflags & AI_SPAWNED_NEEDS_GIB))
+				dead_commander_check = true;
+		}
 
-				e->monsterinfo.commander = nullptr;
-			}
+		if (dead_commander_check)
+		{
+			edict_t*& commander = e->monsterinfo.commander;
+
+			if (commander && commander->inuse)
+				commander->monsterinfo.monster_used = max(0, commander->monsterinfo.monster_used - e->monsterinfo.slots_from_commander);
+
+			commander = nullptr;
 		}
 
 		if (e->inuse && e->health > e->gib_health && e->s.frame == e->monsterinfo.active_move->lastframe)
@@ -829,7 +806,6 @@ void M_ProcessPain(edict_t* e)
 THINK(monster_dead_think) (edict_t* self) -> void
 {
 	OnEntityDeath(self);
-//	UpdateEntityConfigString(self);
 	// flies
 	if ((self->monsterinfo.aiflags & AI_STINKY) && !(self->monsterinfo.aiflags & AI_STUNK))
 	{
@@ -871,7 +847,7 @@ void monster_dead(edict_t* self)
 	self->fly_sound_debounce_time = 0_ms;
 	self->monsterinfo.aiflags &= ~AI_STUNK;
 	if (g_horde->integer) {
-	boss_die(self);
+		boss_die(self);
 	}
 	gi.linkentity(self);
 }
@@ -993,7 +969,7 @@ static bool CheckPathVisibility(const vec3_t& start, const vec3_t& end)
 THINK(monster_think) (edict_t* self) -> void
 {
 	// [Paril-KEX] monster sniff testing; if we can make an unobstructed path to the player, murder ourselves.
-	if (g_debug_monster_kills->integer) // todo horde, create cmd to track monsters without restart map
+	if (g_debug_monster_kills->integer)
 	{
 		if (g_edicts[1].inuse)
 		{
@@ -1208,7 +1184,8 @@ void monster_triggered_start(edict_t* self)
 	self->nextthink = 0_ms;
 	self->use = monster_triggered_spawn_use;
 
-	if (g_debug_monster_kills->integer) {
+	if (g_debug_monster_kills->integer)
+	{
 		self->think = monster_triggered_think;
 		self->nextthink = level.time + 1_ms;
 	}
@@ -1219,8 +1196,9 @@ void monster_triggered_start(edict_t* self)
 			G_FindByString<&edict_t::deathtarget>(nullptr, self->targetname) == nullptr &&
 			G_FindByString<&edict_t::itemtarget>(nullptr, self->targetname) == nullptr &&
 			G_FindByString<&edict_t::healthtarget>(nullptr, self->targetname) == nullptr &&
-			G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr)) {
-		gi.Com_PrintFmt("PRINT: {}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
+			G_FindByString<&edict_t::combattarget>(nullptr, self->targetname) == nullptr))
+	{
+		gi.Com_PrintFmt("{}: is trigger spawned, but has no targetname or no entity to spawn it\n", *self);
 	}
 }
 
@@ -1271,6 +1249,7 @@ void monster_death_use(edict_t* self)
 void G_Monster_ScaleCoopHealth(edict_t* self)
 {
 
+
 	// No escalar si es un jefe
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		return;;
@@ -1284,10 +1263,12 @@ void G_Monster_ScaleCoopHealth(edict_t* self)
 	if (!self->monsterinfo.base_health)
 		self->monsterinfo.base_health = self->max_health;
 
-	const int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
-	const int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
+	int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
+	int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
+
 	self->health = max(1, self->health + additional_health);
 	self->max_health += additional_health;
+
 	self->monsterinfo.health_scaling = level.coop_scale_players;
 }
 
@@ -1445,8 +1426,8 @@ stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 
 	self->s.origin = check;
 
-	if (result == stuck_result_t::FIXED)
-		gi.Com_PrintFmt("PRINT: fixed stuck {}\n", *self);
+	if (result == stuck_result_t::FIXED/* && developer->integer*/)
+		gi.Com_PrintFmt("fixed stuck {}\n", *self);
 
 	return result;
 }
@@ -1737,14 +1718,14 @@ void SP_trigger_health_relay(edict_t* self)
 {
 	if (!self->targetname)
 	{
-		gi.Com_PrintFmt("PRINT: {} missing targetname\n", *self);
+		gi.Com_PrintFmt("{} missing targetname\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
 
 	if (self->speed < 0 || self->speed > 100)
 	{
-		gi.Com_PrintFmt("PRINT: {} has bad \"speed\" (health percentage); must be between 0 and 100, inclusive\n", *self);
+		gi.Com_PrintFmt("{} has bad \"speed\" (health percentage); must be between 0 and 100, inclusive\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
