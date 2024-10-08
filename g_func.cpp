@@ -1543,26 +1543,29 @@ USE(door_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 
 TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	if (!self || !other) // Comprobación de nulidad
-		return;
-
 	if (other->health <= 0)
 		return;
+
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 		return;
 
-	// Comprobación de nulidad para self->owner
-	if (!self->owner)
-		return;
-
-	if (self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER) && (other->svflags & SVF_MONSTER))
-		return;
+	if (other->svflags & SVF_MONSTER)
+	{
+		if (self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER))
+			return;
+		// [Paril-KEX] this is for PSX; the scale is so small that monsters walking
+		// around to path_corners often initiate doors unintentionally.
+		else if (other->spawnflags.has(SPAWNFLAG_MONSTER_NO_IDLE_DOORS) && !other->enemy)
+			return;
+	}
 
 	if (level.time < self->touch_debounce_time)
 		return;
 	self->touch_debounce_time = level.time + 1_sec;
+
 	door_use(self->owner, other, other);
 }
+
 
 THINK(Think_CalcMoveSpeed) (edict_t *self) -> void
 {

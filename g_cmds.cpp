@@ -1025,6 +1025,7 @@ void Cmd_Kill_f(edict_t* ent)
 	player_die(ent, ent, ent, 100000, vec3_origin, { MOD_SUICIDE, !!teamplay->integer });
 }
 extern bool allowWaveAdvance;
+
 /*
 =================
 Cmd_Kill_AI_f
@@ -1062,13 +1063,10 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 
 	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");
 
-	// Permitir avanzar a la siguiente ola
-	AllowNextWaveAdvance();
+	// Permitir avanzar a la siguiente ola inmediatamente
+	allowWaveAdvance = true; // Seteamos la variable para permitir avanzar
+	AllowNextWaveAdvance();  // Llamamos la función para avanzar la ola
 }
-
-
-
-
 
 /*
 =================

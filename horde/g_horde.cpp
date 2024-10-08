@@ -1910,7 +1910,6 @@ constexpr std::array<const char*, 6> WAVE_SOUNDS = {
 	"world/v_fac3.wav"
 };
 
-
 // Función para precarga de sonidos
 static void PrecacheWaveSounds() noexcept {
 	for (const auto& sound : WAVE_SOUNDS) {

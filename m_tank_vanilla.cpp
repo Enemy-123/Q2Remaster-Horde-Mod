@@ -835,15 +835,6 @@ constexpr const char* tank_vanilla_hard_reinforcements = "monster_soldier_ss 3";
 constexpr const char* tank_vanilla_default_reinforcements = "monster_soldier 2 ;monster_gunner 1";
 constexpr int32_t TANK_VANILLA_MAX_REINFORCEMENTS = 5;
 
-// filter out the reinforcement indices we can pick given the space we have left
-static void M_PickValidReinforcements(edict_t* self, int32_t space, std::vector<uint8_t>& output)
-{
-	output.clear();
-
-	for (uint8_t i = 0; i < self->monsterinfo.reinforcements.num_reinforcements; i++)
-		if (self->monsterinfo.reinforcements.reinforcements[i].strength <= space)
-			output.push_back(i);
-}
 
 constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinforcement_position = {
 	vec3_t { 80, 0, 0 },
@@ -853,52 +844,28 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 	vec3_t { 0, -80, 0 }
 };
 
-std::array<uint8_t, TANK_VANILLA_MAX_REINFORCEMENTS> Tank_Vanilla_PickReinforcements(edict_t* self, int32_t& num_chosen, int32_t max_slots = 0)
-{
-	static std::vector<uint8_t> available;
-	std::array<uint8_t, TANK_VANILLA_MAX_REINFORCEMENTS> chosen;
-	chosen.fill(255);
-
-	int32_t const num_slots = max(1, (int32_t)log2(frandom(1.0f)));
-	int32_t remaining = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
-
-	for (num_chosen = 0; num_chosen < num_slots; num_chosen++)
-	{
-		if ((max_slots && num_chosen == max_slots) || !remaining)
-			break;
-
-		M_PickValidReinforcements(self, remaining, available);
-		if (!available.size())
-			break;
-
-		chosen[num_chosen] = random_element(available);
-		remaining -= self->monsterinfo.reinforcements.reinforcements[chosen[num_chosen]].strength;
-	}
-
-	return chosen;
-}
 
 constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
 void Monster_MoveSpawn(edict_t* self)
 {
-	//gi.Com_PrintFmt("{}: Monster_MoveSpawn called\n", self->classname);
-
 	if (!self || self->health <= 0 || self->deadflag)
 	{
-		//gi.Com_PrintFmt("Monster_MoveSpawn: Invalid self or monster is dead\n");
 		return;
 	}
 
-	// Initialize monster slots if not set
+	// Inicializar slots de monstruo si no se han establecido
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
 
 	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 	if (available_slots <= 0)
 	{
-		//gi.Com_PrintFmt("Monster_MoveSpawn: No slots available ({}/{})\n",
-		//	self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
 		return;
+	}
+
+	// Condiciones específicas para el tanque comandante
+	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0) {
+		gi.Com_PrintFmt("Tank Commander attempting to spawn reinforcements...\n");
 	}
 
 	constexpr int NUM_MONSTERS_MIN = 4;
@@ -909,8 +876,6 @@ void Monster_MoveSpawn(edict_t* self)
 	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
 
 	const int num_monsters = std::min({ NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots });
-
-	//gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn {} monsters\n", num_monsters);
 
 	for (int i = 0; i < num_monsters; i++)
 	{
@@ -939,23 +904,17 @@ void Monster_MoveSpawn(edict_t* self)
 
 		if (!found_spot)
 		{
-		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find spawn spot for monster {}\n", i);
 			continue;
 		}
 
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180 / PI);
 
-		//gi.Com_PrintFmt("Monster_MoveSpawn: Attempting to spawn monster_soldier_ss at {}\n", spawn_origin);
-
 		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, "monster_soldier_ss", 64);
 		if (!monster)
 		{
-		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster\n");
 			continue;
 		}
-
-		//gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {}\n", monster->classname);
 
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
@@ -966,9 +925,6 @@ void Monster_MoveSpawn(edict_t* self)
 		self->monsterinfo.monster_used++;
 		available_slots--;
 
-		//gi.Com_PrintFmt("Monster_MoveSpawn: Updated monster_used to {}/{}\n",
-		//	self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
-
 		const vec3_t spawngrow_pos = monster->s.origin;
 		const float magnitude = VectorLength(spawngrow_pos);
 		if (magnitude > 0) {
@@ -977,9 +933,6 @@ void Monster_MoveSpawn(edict_t* self)
 			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 		}
 	}
-
-	//gi.Com_PrintFmt("Monster_MoveSpawn: Finished spawning. Total monsters used: {}/{}\n",
-	//	self->monsterinfo.monster_used, self->monsterinfo.monster_slots);
 }
 
 void tank_vanilla_spawn_finished(edict_t* self)

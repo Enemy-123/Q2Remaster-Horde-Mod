@@ -1523,7 +1523,7 @@ struct mmove_t
 			throw std::exception("bad animation frames; check your numbers!");
 	}
 #endif
-};
+	};
 
 using save_mmove_t = save_data_t<mmove_t, SAVE_DATA_MMOVE>;
 #ifdef COMPILE_TIME_MOVE_CHECK
@@ -2086,7 +2086,8 @@ uint32_t GetUnicastKey();
 constexpr spawnflags_t SPAWNFLAG_ITEM_TRIGGER_SPAWN = 0x00000001_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_ITEM_NO_TOUCH = 0x00000002_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_ITEM_TOSS_SPAWN = 0x00000004_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_ITEM_MAX = 0x00000008_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_ITEM_NO_DROP = 0x00000008_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_ITEM_MAX = 0x00000016_spawnflag;
 // 8 bits reserved for editor flags & power cube bits
 // (see SPAWNFLAG_NOT_EASY above)
 constexpr spawnflags_t SPAWNFLAG_ITEM_DROPPED = 0x00010000_spawnflag;
@@ -2352,6 +2353,7 @@ constexpr spawnflags_t SPAWNFLAG_MONSTER_DEAD = 16_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_SUPER_STEP = 17_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_NO_DROP = 18_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_SCENIC = 19_spawnflag_bit;
+constexpr spawnflags_t SPAWNFLAG_MONSTER_NO_IDLE_DOORS = 20_spawnflag_bit;
 // fixbot spawnflags
 constexpr spawnflags_t SPAWNFLAG_FIXBOT_FIXIT = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_FIXBOT_TAKEOFF = 8_spawnflag;
@@ -3793,11 +3795,10 @@ struct fmt::formatter<edict_t>
 	}
 
 	template<typename FormatContext>
-	auto format(const edict_t& p, FormatContext& ctx) -> decltype(ctx.out())
+	auto format(const edict_t& p, FormatContext& ctx) const
 	{
-		if (p.linked)
-			return fmt::format_to(ctx.out(), FMT_STRING("{} @ {}"), p.classname, (p.absmax + p.absmin) * 0.5f);
-		return fmt::format_to(ctx.out(), FMT_STRING("{} @ {}"), p.classname, p.s.origin);
+		vec3_t pos = p.linked ? ((p.absmax + p.absmin) * 0.5f) : p.s.origin;
+		return fmt::format_to(ctx.out(), FMT_STRING("{} @ {}"), p.classname, pos);
 	}
 };
 

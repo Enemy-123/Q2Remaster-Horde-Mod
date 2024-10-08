@@ -1,4 +1,5 @@
 // Horde mode game initialization and management functions
+
 extern cvar_t* g_horde;
 void Horde_PreInit()  ;
 void Horde_Init()  ;

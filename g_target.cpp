@@ -1966,77 +1966,74 @@ void SP_target_music(edict_t* self)
 * "message" is their name
 */
 
-USE(use_target_healthbar) (edict_t* ent, edict_t* other, edict_t* activator) -> void
+/*QUAKED target_healthbar(0 1 0) (-8 - 8 - 8) (8 8 8) PVS_ONLY
+*
+* Hook up health bars to monsters.
+* "delay" is how long to show the health bar for after death.
+* "message" is their name
+*/
+// Modify the SP_target_healthbar function
+
+// Modify the use_target_healthbar function
+USE(use_target_healthbar) (edict_t * ent, edict_t * other, edict_t * activator) -> void
 {
 	edict_t* target = G_PickTarget(ent->target);
-
-	if (!target || ent->health != target->spawn_count)
-	{
-		if (target)
-			gi.Com_PrintFmt("{}: target {} changed from what it used to be\n", *ent, *target);
-		else
-			gi.Com_PrintFmt("{}: no target\n", *ent);
-		G_FreeEdict(ent);
-		return;
-	}
-
 	for (size_t i = 0; i < MAX_HEALTH_BARS; i++)
 	{
 		if (level.health_bar_entities[i])
 			continue;
-
 		ent->enemy = target;
 		level.health_bar_entities[i] = ent;
+
+		// Update the boss name configstring
 		gi.configstring(CONFIG_HEALTH_BAR_NAME, ent->message);
+
+		// Broadcast the update to all clients
+		gi.WriteByte(svc_configstring);
+		gi.WriteShort(CONFIG_HEALTH_BAR_NAME);
+		gi.WriteString(ent->message);
+		gi.multicast(vec3_origin, MULTICAST_ALL, true);
+
 		return;
 	}
-
-	gi.Com_PrintFmt("{}: too many health bars\n", *ent);
+	gi.Com_PrintFmt("PRINT: {}: too many health bars\n", *ent);
 	G_FreeEdict(ent);
 }
 
-THINK(check_target_healthbar) (edict_t* ent) -> void
+
+THINK(check_target_healthbar) (edict_t * ent) -> void
 {
 	edict_t* target = G_PickTarget(ent->target);
 	if (!target || !(target->svflags & SVF_MONSTER))
 	{
 		if (target != nullptr) {
-			gi.Com_PrintFmt("{}: target {} does not appear to be a monster\n", *ent, *target);
+			gi.Com_PrintFmt("PRINT: {}: target {} does not appear to be a monster\n", *ent, *target);
 		}
-		G_FreeEdict(ent);
 		return;
 	}
 
 	// just for sanity check
 	ent->health = target->spawn_count;
 }
-
-void SP_target_healthbar(edict_t* self)
+void SP_target_healthbar(edict_t * self)
 {
-	if (deathmatch->integer)
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
 		return;
 	}
-
-	if (!self->target || !*self->target)
-	{
-		gi.Com_PrintFmt("{}: missing target\n", *self);
-		G_FreeEdict(self);
-		return;
-	}
-
 	if (!self->message)
 	{
-		gi.Com_PrintFmt("{}: missing message\n", *self);
-		G_FreeEdict(self);
 		return;
 	}
-
 	self->use = use_target_healthbar;
 	self->think = check_target_healthbar;
 	self->nextthink = level.time + 25_ms;
+
+	// Set the boss name configstring
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, self->message);
 }
+
 
 /*QUAKED target_autosave (0 1 0) (-8 -8 -8) (8 8 8)
 *
