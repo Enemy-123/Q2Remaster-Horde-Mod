@@ -224,7 +224,7 @@
     <ClCompile Include="m_parasite.cpp" />
     <ClCompile Include="m_redmutant.cpp" />
     <ClCompile Include="m_shocker.cpp" />
-    <ClCompile Include="psxguardian.cpp" />
+    <ClCompile Include="m_psxguardian.cpp" />
     <ClCompile Include="rogue/m_rogue_turret.cpp" />
     <ClCompile Include="m_shambler.cpp" />
     <ClCompile Include="m_soldier.cpp" />

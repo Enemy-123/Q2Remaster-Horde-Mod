@@ -818,7 +818,7 @@ void VerifyTankSpawnCount(edict_t* tank)
 	for (auto const* ent : active_monsters())
 	{
 		if (ent->owner == tank && (ent->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)) {
-		if (!strcmp(tank->monsterinfo.commander->classname, "monster_tank_vanilla"))
+		if (!strcmp(tank->classname, "monster_tank_vanilla"))
 			actual_count++;
 		}
 	}
