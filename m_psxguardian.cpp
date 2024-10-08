@@ -952,6 +952,11 @@ void SP_monster_psxguardian(edict_t* self)
 	self->health = 6500 * st.health_multiplier;
 	self->gib_health = -200;
 
+	if (!st.was_key_specified("power_armor_power"))
+		self->monsterinfo.power_armor_power = 8500;
+	if (!st.was_key_specified("power_armor_type"))
+		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+
 	if (skill->integer >= 3 || coop->integer)
 		self->health *= 2;
 	else if (skill->integer == 2)
