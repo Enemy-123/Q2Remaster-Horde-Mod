@@ -999,6 +999,8 @@ void SP_monster_parasite(edict_t* self)
 constexpr spawnflags_t SPAWNFLAG_PERROKL = 8_spawnflag;
 void SP_monster_perrokl(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->spawnflags |= SPAWNFLAG_PERROKL;
 	SP_monster_parasite(self);
 	self->s.skinnum = 2;

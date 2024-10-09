@@ -592,6 +592,8 @@ void SP_monster_arachnid2(edict_t* self)
 
 void SP_monster_gm_arachnid(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	SP_monster_arachnid2(self);
 
 	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;

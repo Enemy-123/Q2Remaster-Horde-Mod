@@ -1891,6 +1891,8 @@ void SP_worldspawn(edict_t* ent)
 	ent->s.modelindex = MODELINDEX_WORLD;
 	ent->gravity = 1.0f;
 
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (st.hub_map)
 	{
 		level.hub_map = true;

@@ -790,6 +790,8 @@ void SP_monster_boss5(edict_t* self)
 
 void SP_monster_janitor(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 	self->count = 10;
 	SP_monster_supertank(self);
@@ -814,6 +816,8 @@ void SP_monster_janitor(edict_t* self)
 
 void SP_monster_supertankkl(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (g_horde->integer &&  !strcmp(self->classname, "monster_supertankkl")) {
 		self->count = 10;
 		SP_monster_supertank(self);

@@ -700,6 +700,8 @@ void SP_misc_insane(edict_t *self)
 
 void SP_misc_insane2(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->spawnflags|=SPAWNFLAG_INSANE_CRUCIFIED;
 	SP_misc_insane(self);
 	if (!self->s.scale)

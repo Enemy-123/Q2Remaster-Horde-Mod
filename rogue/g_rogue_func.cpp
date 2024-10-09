@@ -338,6 +338,8 @@ If the "height" key is set, that will determine the amount the plat moves, inste
 */
 void SP_func_plat2(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	edict_t* trigger;
 
 	ent->s.angles = {};

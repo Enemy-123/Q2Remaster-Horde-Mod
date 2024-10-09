@@ -750,6 +750,8 @@ void SP_monster_boss2(edict_t* self)
 
 void SP_monster_boss2_64(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (g_horde->integer) {

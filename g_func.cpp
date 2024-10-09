@@ -47,9 +47,10 @@ constexpr spawnflags_t SPAWNFLAG_DOOR_ROTATING_X_AXIS = 64_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_DOOR_ROTATING_Y_AXIS = 128_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_DOOR_ROTATING_INACTIVE = 0x10000_spawnflag; // Paril: moved to non-reserved
 constexpr spawnflags_t SPAWNFLAG_DOOR_ROTATING_SAFE_OPEN = 0x20000_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_DOOR_ROTATING_NO_COLLISION = 0x40000_spawnflag;
 
 // support routine for setting moveinfo sounds
-inline int32_t G_GetMoveinfoSoundIndex(edict_t *self, const char *default_value, const char *wanted_value)
+inline int32_t G_GetMoveinfoSoundIndex(edict_t* self, const char* default_value, const char* wanted_value)
 {
 	if (!wanted_value)
 	{
@@ -64,8 +65,10 @@ inline int32_t G_GetMoveinfoSoundIndex(edict_t *self, const char *default_value,
 	return gi.soundindex(wanted_value);
 }
 
-void G_SetMoveinfoSounds(edict_t *self, const char *default_start, const char *default_mid, const char *default_end)
+void G_SetMoveinfoSounds(edict_t* self, const char* default_start, const char* default_mid, const char* default_end)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->moveinfo.sound_start = G_GetMoveinfoSoundIndex(self, default_start, st.noise_start);
 	self->moveinfo.sound_middle = G_GetMoveinfoSoundIndex(self, default_mid, st.noise_middle);
 	self->moveinfo.sound_end = G_GetMoveinfoSoundIndex(self, default_end, st.noise_end);
@@ -75,13 +78,13 @@ void G_SetMoveinfoSounds(edict_t *self, const char *default_start, const char *d
 // Support routines for movement (changes in origin using velocity)
 //
 
-THINK(Move_Done) (edict_t *ent) -> void
+THINK(Move_Done) (edict_t* ent) -> void
 {
 	ent->velocity = {};
 	ent->moveinfo.endfunc(ent);
 }
 
-THINK(Move_Final) (edict_t *ent) -> void
+THINK(Move_Final) (edict_t* ent) -> void
 {
 	if (ent->moveinfo.remaining_distance == 0)
 	{
@@ -96,7 +99,7 @@ THINK(Move_Final) (edict_t *ent) -> void
 	ent->nextthink = level.time + FRAME_TIME_S;
 }
 
-THINK(Move_Begin) (edict_t *ent) -> void
+THINK(Move_Begin) (edict_t* ent) -> void
 {
 	float frames;
 
@@ -112,16 +115,16 @@ THINK(Move_Begin) (edict_t *ent) -> void
 	ent->think = Move_Final;
 }
 
-void Think_AccelMove_New(edict_t *ent);
-void Think_AccelMove(edict_t *ent);
-bool Think_AccelMove_MoveInfo(moveinfo_t *moveinfo);
+void Think_AccelMove_New(edict_t* ent);
+void Think_AccelMove(edict_t* ent);
+bool Think_AccelMove_MoveInfo(moveinfo_t* moveinfo);
 
 constexpr float AccelerationDistance(float target, float rate)
 {
 	return (target * ((target / rate) + 1) / 2);
 }
 
-inline void Move_Regular(edict_t *ent, const vec3_t &dest, void(*endfunc)(edict_t *self))
+inline void Move_Regular(edict_t* ent, const vec3_t& dest, void(*endfunc)(edict_t* self))
 {
 	if (level.current_entity == ((ent->flags & FL_TEAMSLAVE) ? ent->teammaster : ent))
 	{
@@ -134,7 +137,7 @@ inline void Move_Regular(edict_t *ent, const vec3_t &dest, void(*endfunc)(edict_
 	}
 }
 
-void Move_Calc(edict_t *ent, const vec3_t &dest, void(*endfunc)(edict_t *self))
+void Move_Calc(edict_t* ent, const vec3_t& dest, void(*endfunc)(edict_t* self))
 {
 	ent->velocity = {};
 	ent->moveinfo.dest = dest;
@@ -198,7 +201,7 @@ void Move_Calc(edict_t *ent, const vec3_t &dest, void(*endfunc)(edict_t *self))
 	}
 }
 
-THINK(Think_AccelMove_New) (edict_t *ent) -> void
+THINK(Think_AccelMove_New) (edict_t* ent) -> void
 {
 	float t = 0.f;
 	float target_dist;
@@ -217,7 +220,7 @@ THINK(Think_AccelMove_New) (edict_t *ent) -> void
 			}
 		}
 
-		t = (ent->moveinfo.subframe + 1) / ((float) ent->moveinfo.num_subframes + 1);
+		t = (ent->moveinfo.subframe + 1) / ((float)ent->moveinfo.num_subframes + 1);
 
 		target_dist = lerp(ent->moveinfo.curve_positions[ent->moveinfo.curve_frame - 1], ent->moveinfo.curve_positions[ent->moveinfo.curve_frame], t);
 		ent->moveinfo.subframe++;
@@ -243,13 +246,13 @@ THINK(Think_AccelMove_New) (edict_t *ent) -> void
 // Support routines for angular movement (changes in angle using avelocity)
 //
 
-THINK(AngleMove_Done) (edict_t *ent) -> void
+THINK(AngleMove_Done) (edict_t* ent) -> void
 {
 	ent->avelocity = {};
 	ent->moveinfo.endfunc(ent);
 }
 
-THINK(AngleMove_Final) (edict_t *ent) -> void
+THINK(AngleMove_Final) (edict_t* ent) -> void
 {
 	vec3_t move;
 
@@ -275,7 +278,7 @@ THINK(AngleMove_Final) (edict_t *ent) -> void
 	ent->nextthink = level.time + FRAME_TIME_S;
 }
 
-THINK(AngleMove_Begin) (edict_t *ent) -> void
+THINK(AngleMove_Begin) (edict_t* ent) -> void
 {
 	vec3_t destdelta;
 	float  len;
@@ -335,7 +338,7 @@ THINK(AngleMove_Begin) (edict_t *ent) -> void
 	// PGM
 }
 
-void AngleMove_Calc(edict_t *ent, void(*endfunc)(edict_t *self))
+void AngleMove_Calc(edict_t* ent, void(*endfunc)(edict_t* self))
 {
 	ent->avelocity = {};
 	ent->moveinfo.endfunc = endfunc;
@@ -365,7 +368,7 @@ The team has completed a frame of movement, so
 change the speed for the next frame
 ==============
 */
-void plat_CalcAcceleratedMove(moveinfo_t *moveinfo)
+void plat_CalcAcceleratedMove(moveinfo_t* moveinfo)
 {
 	float accel_dist;
 	float decel_dist;
@@ -395,7 +398,7 @@ void plat_CalcAcceleratedMove(moveinfo_t *moveinfo)
 	moveinfo->decel_distance = decel_dist;
 };
 
-void plat_Accelerate(moveinfo_t *moveinfo)
+void plat_Accelerate(moveinfo_t* moveinfo)
 {
 	// are we decelerating?
 	if (moveinfo->remaining_distance <= moveinfo->decel_distance)
@@ -419,7 +422,7 @@ void plat_Accelerate(moveinfo_t *moveinfo)
 		}
 		return;
 	}
-	
+
 	// are we at full speed and need to start decelerating during this move?
 	if (moveinfo->current_speed == moveinfo->move_speed)
 		if ((moveinfo->remaining_distance - moveinfo->current_speed) < moveinfo->decel_distance)
@@ -473,7 +476,7 @@ void plat_Accelerate(moveinfo_t *moveinfo)
 	return;
 }
 
-bool Think_AccelMove_MoveInfo (moveinfo_t *moveinfo)
+bool Think_AccelMove_MoveInfo(moveinfo_t* moveinfo)
 {
 	if (moveinfo->current_speed == 0)		// starting or blocked
 		plat_CalcAcceleratedMove(moveinfo);
@@ -485,7 +488,7 @@ bool Think_AccelMove_MoveInfo (moveinfo_t *moveinfo)
 }
 
 // Paril: old acceleration code; this is here only to support old save games.
-THINK(Think_AccelMove) (edict_t *ent) -> void
+THINK(Think_AccelMove) (edict_t* ent) -> void
 {
 	// [Paril-KEX] calculate distance dynamically
 	if (ent->moveinfo.state == STATE_UP)
@@ -511,9 +514,9 @@ THINK(Think_AccelMove) (edict_t *ent) -> void
 	ent->think = Think_AccelMove;
 }
 
-void plat_go_down(edict_t *ent);
+void plat_go_down(edict_t* ent);
 
-MOVEINFO_ENDFUNC(plat_hit_top) (edict_t *ent) -> void
+MOVEINFO_ENDFUNC(plat_hit_top) (edict_t* ent) -> void
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -527,7 +530,7 @@ MOVEINFO_ENDFUNC(plat_hit_top) (edict_t *ent) -> void
 	ent->nextthink = level.time + 3_sec;
 }
 
-MOVEINFO_ENDFUNC(plat_hit_bottom) (edict_t *ent) -> void
+MOVEINFO_ENDFUNC(plat_hit_bottom) (edict_t* ent) -> void
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -542,7 +545,7 @@ MOVEINFO_ENDFUNC(plat_hit_bottom) (edict_t *ent) -> void
 	// ROGUE
 }
 
-THINK(plat_go_down) (edict_t *ent) -> void
+THINK(plat_go_down) (edict_t* ent) -> void
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -556,7 +559,7 @@ THINK(plat_go_down) (edict_t *ent) -> void
 	Move_Calc(ent, ent->moveinfo.end_origin, plat_hit_bottom);
 }
 
-void plat_go_up(edict_t *ent)
+void plat_go_up(edict_t* ent)
 {
 	if (!(ent->flags & FL_TEAMSLAVE))
 	{
@@ -574,7 +577,7 @@ void plat_go_up(edict_t *ent)
 	// ROGUE
 }
 
-MOVEINFO_BLOCKED(plat_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(plat_blocked) (edict_t* self, edict_t* other) -> void
 {
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 	{
@@ -607,7 +610,7 @@ MOVEINFO_BLOCKED(plat_blocked) (edict_t *self, edict_t *other) -> void
 constexpr spawnflags_t SPAWNFLAG_PLAT_LOW_TRIGGER = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_PLAT_NO_MONSTER = 2_spawnflag;
 
-USE(Use_Plat) (edict_t *ent, edict_t *other, edict_t *activator) -> void
+USE(Use_Plat) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
 	//======
 	// ROGUE
@@ -629,7 +632,7 @@ USE(Use_Plat) (edict_t *ent, edict_t *other, edict_t *activator) -> void
 	plat_go_down(ent);
 }
 
-TOUCH(Touch_Plat_Center) (edict_t *ent, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(Touch_Plat_Center) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (!other->client)
 		return;
@@ -645,9 +648,11 @@ TOUCH(Touch_Plat_Center) (edict_t *ent, edict_t *other, const trace_t &tr, bool 
 }
 
 // PGM - plat2's change the trigger field
-edict_t *plat_spawn_inside_trigger(edict_t *ent)
+edict_t* plat_spawn_inside_trigger(edict_t* ent)
 {
-	edict_t *trigger;
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	edict_t* trigger;
 	vec3_t	 tmin, tmax;
 
 	//
@@ -708,8 +713,10 @@ Set "sounds" to one of the following:
 1) base fast
 2) chain slow
 */
-void SP_func_plat(edict_t *ent)
+void SP_func_plat(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	ent->s.angles = {};
 	ent->solid = SOLID_BSP;
 	ent->movetype = MOVETYPE_PUSH;
@@ -738,15 +745,13 @@ void SP_func_plat(edict_t *ent)
 		ent->accel = floor(ent->accel * g_speedstuff->value);
 		ent->decel = floor(ent->decel * g_speedstuff->value);
 	}
-
-	if (g_mover_debug->integer)
-		gi.Com_PrintFmt("PRINT: Spawning {} - speed:{} accel:{} decel:{}\n", *ent, ent->speed, ent->accel, ent->decel);
-
 	if (!ent->dmg)
 		ent->dmg = 2;
 
-	if (!st.lip)
-		st.lip = 8;
+	float lip = st.lip;
+
+	if (!st.was_key_specified("lip"))
+		lip = 8;
 
 	// pos1 is the top position, pos2 is the bottom
 	ent->pos1 = ent->s.origin;
@@ -754,7 +759,7 @@ void SP_func_plat(edict_t *ent)
 	if (st.height)
 		ent->pos2[2] -= st.height;
 	else
-		ent->pos2[2] -= (ent->maxs[2] - ent->mins[2]) - st.lip;
+		ent->pos2[2] -= (ent->maxs[2] - ent->mins[2]) - lip;
 
 	ent->use = Use_Plat;
 
@@ -815,7 +820,7 @@ ACCEL means it will accelerate to it's final speed and decelerate when shutting 
 
 //============
 // PGM
-THINK(rotating_accel) (edict_t *self) -> void
+THINK(rotating_accel) (edict_t* self) -> void
 {
 	float current_speed;
 
@@ -834,7 +839,7 @@ THINK(rotating_accel) (edict_t *self) -> void
 	}
 }
 
-THINK(rotating_decel) (edict_t *self) -> void
+THINK(rotating_decel) (edict_t* self) -> void
 {
 	float current_speed;
 
@@ -856,7 +861,7 @@ THINK(rotating_decel) (edict_t *self) -> void
 // PGM
 //============
 
-MOVEINFO_BLOCKED(rotating_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(rotating_blocked) (edict_t* self, edict_t* other) -> void
 {
 	if (!self->dmg)
 		return;
@@ -866,13 +871,13 @@ MOVEINFO_BLOCKED(rotating_blocked) (edict_t *self, edict_t *other) -> void
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
 }
 
-TOUCH(rotating_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(rotating_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (self->avelocity[0] || self->avelocity[1] || self->avelocity[2])
 		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
 }
 
-USE(rotating_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(rotating_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->avelocity)
 	{
@@ -905,8 +910,10 @@ USE(rotating_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	}
 }
 
-void SP_func_rotating(edict_t *ent)
+void SP_func_rotating(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	ent->solid = SOLID_BSP;
 	if (ent->spawnflags.has(SPAWNFLAG_ROTATING_STOP))
 		ent->movetype = MOVETYPE_STOP;
@@ -955,7 +962,6 @@ void SP_func_rotating(edict_t *ent)
 		ent->accel *= g_speedstuff->value;
 		ent->decel *= g_speedstuff->value;
 	}
-
 	if (!st.was_key_specified("dmg"))
 		ent->dmg = 2;
 
@@ -990,7 +996,7 @@ void SP_func_rotating(edict_t *ent)
 	gi.linkentity(ent);
 }
 
-THINK(func_spinning_think) (edict_t *ent) -> void
+THINK(func_spinning_think) (edict_t* ent) -> void
 {
 	if (ent->timestamp <= level.time)
 	{
@@ -1019,7 +1025,7 @@ THINK(func_spinning_think) (edict_t *ent) -> void
 }
 
 // [Paril-KEX]
-void SP_func_spinning(edict_t *ent)
+void SP_func_spinning(edict_t* ent)
 {
 	ent->solid = SOLID_BSP;
 
@@ -1151,6 +1157,7 @@ DIE(button_killed) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 
 void SP_func_button(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 	vec3_t abs_movedir;
 	float  dist;
 
@@ -1173,14 +1180,17 @@ void SP_func_button(edict_t* ent)
 
 	if (!ent->wait)
 		ent->wait = 3;
-	if (!st.lip)
-		st.lip = 4;
+
+	float lip = st.lip;
+
+	if (!lip)
+		lip = 4;
 
 	ent->pos1 = ent->s.origin;
 	abs_movedir[0] = fabsf(ent->movedir[0]);
 	abs_movedir[1] = fabsf(ent->movedir[1]);
 	abs_movedir[2] = fabsf(ent->movedir[2]);
-	dist = abs_movedir[0] * ent->size[0] + abs_movedir[1] * ent->size[1] + abs_movedir[2] * ent->size[2] - st.lip;
+	dist = abs_movedir[0] * ent->size[0] + abs_movedir[1] * ent->size[1] + abs_movedir[2] * ent->size[2] - lip;
 	ent->pos2 = ent->pos1 + (ent->movedir * dist);
 
 	ent->use = button_use;
@@ -1210,7 +1220,6 @@ void SP_func_button(edict_t* ent)
 
 	gi.linkentity(ent);
 }
-
 
 /*
 ======================================================================
@@ -1243,9 +1252,9 @@ NOMONSTER	monsters will not trigger this door
 4)	heavy
 */
 
-void door_use_areaportals(edict_t *self, bool open)
+void door_use_areaportals(edict_t* self, bool open)
 {
-	edict_t *t = nullptr;
+	edict_t* t = nullptr;
 
 	if (!self->target)
 		return;
@@ -1259,9 +1268,9 @@ void door_use_areaportals(edict_t *self, bool open)
 	}
 }
 
-void door_go_down(edict_t *self);
+void door_go_down(edict_t* self);
 
-static void door_play_sound(edict_t *self, int32_t sound)
+static void door_play_sound(edict_t* self, int32_t sound)
 {
 	if (!self->teammaster)
 	{
@@ -1272,7 +1281,7 @@ static void door_play_sound(edict_t *self, int32_t sound)
 	vec3_t p = {};
 	int32_t c = 0;
 
-	for (edict_t *t = self->teammaster; t; t = t->teamchain)
+	for (edict_t* t = self->teammaster; t; t = t->teamchain)
 	{
 		p += (t->absmin + t->absmax) * 0.5f;
 		c++;
@@ -1295,7 +1304,7 @@ static void door_play_sound(edict_t *self, int32_t sound)
 	gi.positioned_sound(p, self, CHAN_NO_PHS_ADD | CHAN_VOICE, sound, 1, self->attenuation, 0);
 }
 
-MOVEINFO_ENDFUNC(door_hit_top) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(door_hit_top) (edict_t* self) -> void
 {
 	if (!(self->flags & FL_TEAMSLAVE))
 	{
@@ -1316,7 +1325,7 @@ MOVEINFO_ENDFUNC(door_hit_top) (edict_t *self) -> void
 		door_use_areaportals(self, false);
 }
 
-MOVEINFO_ENDFUNC(door_hit_bottom) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(door_hit_bottom) (edict_t* self) -> void
 {
 	if (!(self->flags & FL_TEAMSLAVE))
 	{
@@ -1330,7 +1339,7 @@ MOVEINFO_ENDFUNC(door_hit_bottom) (edict_t *self) -> void
 		door_use_areaportals(self, false);
 }
 
-THINK(door_go_down) (edict_t *self) -> void
+THINK(door_go_down) (edict_t* self) -> void
 {
 	if (!(self->flags & FL_TEAMSLAVE))
 	{
@@ -1358,7 +1367,7 @@ THINK(door_go_down) (edict_t *self) -> void
 		door_use_areaportals(self, true);
 }
 
-void door_go_up(edict_t *self, edict_t *activator)
+void door_go_up(edict_t* self, edict_t* activator)
 {
 	if (self->moveinfo.state == STATE_UP)
 		return; // already going up
@@ -1395,11 +1404,11 @@ void door_go_up(edict_t *self, edict_t *activator)
 //======
 // PGM
 
-THINK(smart_water_go_up) (edict_t *self) -> void
+THINK(smart_water_go_up) (edict_t* self) -> void
 {
 	float	 distance;
-	edict_t *lowestPlayer;
-	edict_t *ent;
+	edict_t* lowestPlayer;
+	edict_t* ent;
 	float	 lowestPlayerPt;
 
 	if (self->moveinfo.state == STATE_TOP)
@@ -1485,9 +1494,9 @@ THINK(smart_water_go_up) (edict_t *self) -> void
 // PGM
 //======
 
-USE(door_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(door_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 	vec3_t	 center; // PGM
 
 	if (self->flags & FL_TEAMSLAVE)
@@ -1566,10 +1575,9 @@ TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool
 	door_use(self->owner, other, other);
 }
 
-
-THINK(Think_CalcMoveSpeed) (edict_t *self) -> void
+THINK(Think_CalcMoveSpeed) (edict_t* self) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 	float	 min;
 	float	 time;
 	float	 newspeed;
@@ -1607,9 +1615,9 @@ THINK(Think_CalcMoveSpeed) (edict_t *self) -> void
 	}
 }
 
-THINK(Think_SpawnDoorTrigger) (edict_t *ent) -> void
+THINK(Think_SpawnDoorTrigger) (edict_t* ent) -> void
 {
-	edict_t *other;
+	edict_t* other;
 	vec3_t	 mins, maxs;
 
 	if (ent->flags & FL_TEAMSLAVE)
@@ -1642,9 +1650,9 @@ THINK(Think_SpawnDoorTrigger) (edict_t *ent) -> void
 	Think_CalcMoveSpeed(ent);
 }
 
-MOVEINFO_BLOCKED(door_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(door_blocked) (edict_t* self, edict_t* other) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 	{
@@ -1655,7 +1663,7 @@ MOVEINFO_BLOCKED(door_blocked) (edict_t *self, edict_t *other) -> void
 			BecomeExplosion1(other);
 		return;
 	}
-	
+
 	if (self->dmg && !(level.time < self->touch_debounce_time))
 	{
 		self->touch_debounce_time = level.time + 10_hz;
@@ -1683,9 +1691,9 @@ MOVEINFO_BLOCKED(door_blocked) (edict_t *self, edict_t *other) -> void
 	}
 }
 
-DIE(door_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(door_killed) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	for (ent = self->teammaster; ent; ent = ent->teamchain)
 	{
@@ -1695,7 +1703,7 @@ DIE(door_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dama
 	door_use(self->teammaster, attacker, attacker);
 }
 
-TOUCH(door_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(door_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (!other->client)
 		return;
@@ -1708,7 +1716,7 @@ TOUCH(door_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_
 	gi.sound(other, CHAN_AUTO, gi.soundindex("misc/talk1.wav"), 1, ATTN_NORM, 0);
 }
 
-THINK(Think_DoorActivateAreaPortal) (edict_t *ent) -> void
+THINK(Think_DoorActivateAreaPortal) (edict_t* ent) -> void
 {
 	door_use_areaportals(ent, true);
 
@@ -1718,8 +1726,9 @@ THINK(Think_DoorActivateAreaPortal) (edict_t *ent) -> void
 		Think_SpawnDoorTrigger(ent);
 }
 
-void SP_func_door(edict_t *ent)
+void SP_func_door(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 	vec3_t abs_movedir;
 
 	if (ent->sounds != 1)
@@ -1754,7 +1763,7 @@ void SP_func_door(edict_t *ent)
 
 	if (!ent->speed)
 		ent->speed = 100;
-    if (G_IsDeathmatch() && g_horde->integer)
+	if (deathmatch->integer)
 		ent->speed *= 2;
 
 	if (!ent->accel)
@@ -1762,16 +1771,17 @@ void SP_func_door(edict_t *ent)
 	if (!ent->decel)
 		ent->decel = ent->speed;
 
+
 	if (g_speedstuff->value != 1.0f) {
 		ent->speed *= g_speedstuff->value;
 		ent->accel *= g_speedstuff->value;
 		ent->decel *= g_speedstuff->value;
 	}
-
 	if (!ent->wait)
 		ent->wait = 3;
-	if (!st.lip)
-		st.lip = 8;
+	float lip = st.lip;
+	if (!lip)
+		lip = 8;
 	if (!ent->dmg)
 		ent->dmg = 2;
 
@@ -1781,7 +1791,7 @@ void SP_func_door(edict_t *ent)
 	abs_movedir[1] = fabsf(ent->movedir[1]);
 	abs_movedir[2] = fabsf(ent->movedir[2]);
 	ent->moveinfo.distance =
-		abs_movedir[0] * ent->size[0] + abs_movedir[1] * ent->size[1] + abs_movedir[2] * ent->size[2] - st.lip;
+		abs_movedir[0] * ent->size[0] + abs_movedir[1] * ent->size[1] + abs_movedir[2] * ent->size[2] - lip;
 	ent->pos2 = ent->pos1 + (ent->movedir * ent->moveinfo.distance);
 
 	// if it starts open, switch the positions
@@ -1831,7 +1841,7 @@ void SP_func_door(edict_t *ent)
 	gi.linkentity(ent);
 
 	ent->nextthink = level.time + FRAME_TIME_S;
-	
+
 	if (ent->spawnflags.has(SPAWNFLAG_DOOR_START_OPEN))
 		ent->think = Think_DoorActivateAreaPortal;
 	else if (ent->health || ent->targetname)
@@ -1841,7 +1851,7 @@ void SP_func_door(edict_t *ent)
 }
 
 // PGM
-USE(Door_Activate) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(Door_Activate) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->use = nullptr;
 
@@ -1892,7 +1902,7 @@ SAFE_OPEN will cause the door to open in reverse if you are on the `angles` side
 4)	heavy
 */
 
-void SP_func_door_rotating(edict_t *ent)
+void SP_func_door_rotating(edict_t* ent)
 {
 	if (ent->spawnflags.has(SPAWNFLAG_DOOR_ROTATING_SAFE_OPEN))
 		G_SetMovedir(ent->s.angles, ent->moveinfo.dir);
@@ -1912,16 +1922,19 @@ void SP_func_door_rotating(edict_t *ent)
 	if (ent->spawnflags.has(SPAWNFLAG_DOOR_REVERSE))
 		ent->movedir = -ent->movedir;
 
-	if (!st.distance)
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+	int distance = st.distance;
+
+	if (!distance)
 	{
-		gi.Com_PrintFmt("PRINT: {}: no distance set\n", *ent);
-		st.distance = 90;
+		gi.Com_PrintFmt("{}: no distance set\n", *ent);
+		distance = 90;
 	}
 
 	ent->pos1 = ent->s.angles;
-	ent->pos2 = ent->s.angles + (ent->movedir * st.distance);
-	ent->pos3 = ent->s.angles + (ent->movedir * -st.distance);
-	ent->moveinfo.distance = (float) st.distance;
+	ent->pos2 = ent->s.angles + (ent->movedir * distance);
+	ent->pos3 = ent->s.angles + (ent->movedir * -distance);
+	ent->moveinfo.distance = (float)distance;
 
 	ent->movetype = MOVETYPE_PUSH;
 	ent->solid = SOLID_BSP;
@@ -1943,7 +1956,6 @@ void SP_func_door_rotating(edict_t *ent)
 		ent->accel *= g_speedstuff->value;
 		ent->decel *= g_speedstuff->value;
 	}
-
 	if (!ent->wait)
 		ent->wait = 3;
 	if (!ent->dmg)
@@ -1976,7 +1988,7 @@ void SP_func_door_rotating(edict_t *ent)
 		if (ent->spawnflags.has(SPAWNFLAG_DOOR_ROTATING_SAFE_OPEN))
 		{
 			ent->spawnflags &= ~SPAWNFLAG_DOOR_ROTATING_SAFE_OPEN;
-			gi.Com_PrintFmt("PRINT: {}: SAFE_OPEN is not compatible with START_OPEN\n", *ent);
+			gi.Com_PrintFmt("{}: SAFE_OPEN is not compatible with START_OPEN\n", *ent);
 		}
 
 		ent->s.angles = ent->pos2;
@@ -1984,6 +1996,9 @@ void SP_func_door_rotating(edict_t *ent)
 		ent->pos1 = ent->s.angles;
 		ent->movedir = -ent->movedir;
 	}
+
+	if (ent->spawnflags.has(SPAWNFLAG_DOOR_ROTATING_NO_COLLISION))
+		ent->clipmask = CONTENTS_AREAPORTAL; // just because zero is automatic
 
 	if (ent->health)
 	{
@@ -2036,7 +2051,7 @@ void SP_func_door_rotating(edict_t *ent)
 	// PGM
 }
 
-MOVEINFO_BLOCKED(smart_water_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(smart_water_blocked) (edict_t* self, edict_t* other) -> void
 {
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 	{
@@ -2071,8 +2086,9 @@ SMART causes the water to adjust its speed depending on distance to player.
 2)	lava
 */
 
-void SP_func_water(edict_t *self)
+void SP_func_water(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 	vec3_t abs_movedir;
 
 	G_SetMovedir(self->s.angles, self->movedir);
@@ -2126,7 +2142,6 @@ void SP_func_water(edict_t *self)
 		self->accel *= g_speedstuff->value;
 		self->decel *= g_speedstuff->value;
 	}
-
 	self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed = self->speed;
 
 	// ROGUE
@@ -2168,9 +2183,9 @@ noise	looping sound to play when the train is in motion
 
 To have other entities move with the train, set all the piece's team value to the same thing. They will move in unison.
 */
-void train_next(edict_t *self);
+void train_next(edict_t* self);
 
-MOVEINFO_BLOCKED(train_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(train_blocked) (edict_t* self, edict_t* other) -> void
 {
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 	{
@@ -2191,12 +2206,12 @@ MOVEINFO_BLOCKED(train_blocked) (edict_t *self, edict_t *other) -> void
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
 }
 
-MOVEINFO_ENDFUNC(train_wait) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(train_wait) (edict_t* self) -> void
 {
 	if (self->target_ent->pathtarget)
 	{
-		const char	 *savetarget;
-		edict_t *ent;
+		const char* savetarget;
+		edict_t* ent;
 
 		ent = self->target_ent;
 		savetarget = ent->target;
@@ -2241,14 +2256,14 @@ MOVEINFO_ENDFUNC(train_wait) (edict_t *self) -> void
 }
 
 // PGM
-MOVEINFO_ENDFUNC(train_piece_wait) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(train_piece_wait) (edict_t* self) -> void
 {
 }
 // PGM
 
-THINK(train_next) (edict_t *self) -> void
+THINK(train_next) (edict_t* self) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 	vec3_t	 dest;
 	bool	 first;
 
@@ -2263,7 +2278,7 @@ again:
 	ent = G_PickTarget(self->target);
 	if (!ent)
 	{
-		gi.Com_PrintFmt("PRINT: {}: train_next: bad target {}\n", *self, self->target);
+		gi.Com_PrintFmt("{}: train_next: bad target {}\n", *self, self->target);
 		return;
 	}
 
@@ -2274,7 +2289,7 @@ again:
 	{
 		if (!first)
 		{
-			gi.Com_PrintFmt("PRINT: {}: connected teleport path_corners\n", *ent);
+			gi.Com_PrintFmt("{}: connected teleport path_corners\n", *ent);
 			return;
 		}
 		first = false;
@@ -2286,7 +2301,7 @@ again:
 			self->s.origin = ent->s.origin - self->mins;
 
 			if (self->spawnflags.has(SPAWNFLAG_TRAIN_FIX_OFFSET))
-				self->s.origin -= vec3_t{1.f, 1.f, 1.f};
+				self->s.origin -= vec3_t{ 1.f, 1.f, 1.f };
 		}
 
 		self->s.old_origin = self->s.origin;
@@ -2322,7 +2337,7 @@ again:
 	}
 
 	self->s.sound = self->moveinfo.sound_middle;
-	
+
 	if (self->spawnflags.has(SPAWNFLAG_TRAIN_USE_ORIGIN))
 		dest = ent->s.origin;
 	else
@@ -2330,7 +2345,7 @@ again:
 		dest = ent->s.origin - self->mins;
 
 		if (self->spawnflags.has(SPAWNFLAG_TRAIN_FIX_OFFSET))
-			dest -= vec3_t{1.f, 1.f, 1.f};
+			dest -= vec3_t{ 1.f, 1.f, 1.f };
 	}
 
 	self->moveinfo.state = STATE_TOP;
@@ -2342,7 +2357,7 @@ again:
 	// PGM
 	if (self->spawnflags.has(SPAWNFLAG_TRAIN_MOVE_TEAMCHAIN))
 	{
-		edict_t *e;
+		edict_t* e;
 		vec3_t	 dir, dst;
 
 		dir = dest - self->s.origin;
@@ -2364,13 +2379,13 @@ again:
 	// PGM
 }
 
-void train_resume(edict_t *self)
+void train_resume(edict_t* self)
 {
-	edict_t *ent;
+	edict_t* ent;
 	vec3_t	 dest;
 
 	ent = self->target_ent;
-	
+
 	if (self->spawnflags.has(SPAWNFLAG_TRAIN_USE_ORIGIN))
 		dest = ent->s.origin;
 	else
@@ -2378,8 +2393,25 @@ void train_resume(edict_t *self)
 		dest = ent->s.origin - self->mins;
 
 		if (self->spawnflags.has(SPAWNFLAG_TRAIN_FIX_OFFSET))
-			dest -= vec3_t{1.f, 1.f, 1.f};
+			dest -= vec3_t{ 1.f, 1.f, 1.f };
 	}
+
+	// PGM (Paril)
+	if (ent->speed)
+	{
+		self->speed = ent->speed;
+		self->moveinfo.speed = ent->speed;
+		if (ent->accel)
+			self->moveinfo.accel = ent->accel;
+		else
+			self->moveinfo.accel = ent->speed;
+		if (ent->decel)
+			self->moveinfo.decel = ent->decel;
+		else
+			self->moveinfo.decel = ent->speed;
+		self->moveinfo.current_speed = 0;
+	}
+	// PGM
 
 	self->s.sound = self->moveinfo.sound_middle;
 
@@ -2390,19 +2422,19 @@ void train_resume(edict_t *self)
 	self->spawnflags |= SPAWNFLAG_TRAIN_START_ON;
 }
 
-THINK(func_train_find) (edict_t *self) -> void
+THINK(func_train_find) (edict_t* self) -> void
 {
-	edict_t *ent;
+	edict_t* ent;
 
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("PRINT: {}: train_find: no target\n", *self);
+		gi.Com_PrintFmt("{}: train_find: no target\n", *self);
 		return;
 	}
 	ent = G_PickTarget(self->target);
 	if (!ent)
 	{
-		gi.Com_PrintFmt("PRINT: {}: train_find: target {} not found\n", *self, self->target);
+		gi.Com_PrintFmt("{}: train_find: target {} not found\n", *self, self->target);
 		return;
 	}
 	self->target = ent->target;
@@ -2414,7 +2446,7 @@ THINK(func_train_find) (edict_t *self) -> void
 		self->s.origin = ent->s.origin - self->mins;
 
 		if (self->spawnflags.has(SPAWNFLAG_TRAIN_FIX_OFFSET))
-			self->s.origin -= vec3_t{1.f, 1.f, 1.f};
+			self->s.origin -= vec3_t{ 1.f, 1.f, 1.f };
 	}
 
 	gi.linkentity(self);
@@ -2431,7 +2463,7 @@ THINK(func_train_find) (edict_t *self) -> void
 	}
 }
 
-USE(train_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(train_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->activator = activator;
 
@@ -2452,8 +2484,9 @@ USE(train_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	}
 }
 
-void SP_func_train(edict_t *self)
+void SP_func_train(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 	self->movetype = MOVETYPE_PUSH;
 
 	self->s.angles = {};
@@ -2497,7 +2530,6 @@ void SP_func_train(edict_t *self)
 		self->accel *= g_speedstuff->value;
 		self->decel *= g_speedstuff->value;
 	}
-
 	self->moveinfo.speed = self->speed;
 	self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed;
 
@@ -2514,29 +2546,29 @@ void SP_func_train(edict_t *self)
 	}
 	else
 	{
-		gi.Com_PrintFmt("PRINT: {}: no target\n", *self);
+		gi.Com_PrintFmt("{}: no target\n", *self);
 	}
 }
 
 /*QUAKED trigger_elevator (0.3 0.1 0.6) (-8 -8 -8) (8 8 8)
  */
-USE(trigger_elevator_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_elevator_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	edict_t *target;
+	edict_t* target;
 
 	if (self->movetarget->nextthink)
 		return;
 
 	if (!other->pathtarget)
 	{
-		gi.Com_PrintFmt("PRINT: {}: elevator used with no pathtarget\n", *self);
+		gi.Com_PrintFmt("{}: elevator used with no pathtarget\n", *self);
 		return;
 	}
 
 	target = G_PickTarget(other->pathtarget);
 	if (!target)
 	{
-		gi.Com_PrintFmt("PRINT: {}: elevator used with bad pathtarget: {}\n", *self, other->pathtarget);
+		gi.Com_PrintFmt("{}: elevator used with bad pathtarget: {}\n", *self, other->pathtarget);
 		return;
 	}
 
@@ -2544,22 +2576,22 @@ USE(trigger_elevator_use) (edict_t *self, edict_t *other, edict_t *activator) ->
 	train_resume(self->movetarget);
 }
 
-THINK(trigger_elevator_init) (edict_t *self) -> void
+THINK(trigger_elevator_init) (edict_t* self) -> void
 {
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("PRINT: {}: has no target\n", *self);
+		gi.Com_PrintFmt("{}: has no target\n", *self);
 		return;
 	}
 	self->movetarget = G_PickTarget(self->target);
 	if (!self->movetarget)
 	{
-		gi.Com_PrintFmt("PRINT: {}: unable to find target {}\n", *self, self->target);
+		gi.Com_PrintFmt("{}: unable to find target {}\n", *self, self->target);
 		return;
 	}
 	if (strcmp(self->movetarget->classname, "func_train") != 0)
 	{
-		gi.Com_PrintFmt("PRINT: {}: target {} is not a train\n", *self, self->target);
+		gi.Com_PrintFmt("{}: target {} is not a train\n", *self, self->target);
 		return;
 	}
 
@@ -2567,7 +2599,7 @@ THINK(trigger_elevator_init) (edict_t *self) -> void
 	self->svflags = SVF_NOCLIENT;
 }
 
-void SP_trigger_elevator(edict_t *self)
+void SP_trigger_elevator(edict_t* self)
 {
 	self->think = trigger_elevator_init;
 	self->nextthink = level.time + FRAME_TIME_S;
@@ -2590,13 +2622,13 @@ These can used but not touched.
 
 constexpr spawnflags_t SPAWNFLAG_TIMER_START_ON = 1_spawnflag;
 
-THINK(func_timer_think) (edict_t *self) -> void
+THINK(func_timer_think) (edict_t* self) -> void
 {
 	G_UseTargets(self, self->activator);
 	self->nextthink = level.time + gtime_t::from_sec(self->wait + crandom() * self->random);
 }
 
-USE(func_timer_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(func_timer_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->activator = activator;
 
@@ -2614,8 +2646,9 @@ USE(func_timer_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 		func_timer_think(self);
 }
 
-void SP_func_timer(edict_t *self)
+void SP_func_timer(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 	if (!self->wait)
 		self->wait = 1.0;
 
@@ -2625,7 +2658,7 @@ void SP_func_timer(edict_t *self)
 	if (self->random >= self->wait)
 	{
 		self->random = self->wait - gi.frame_time_s;
-		gi.Com_PrintFmt("PRINT: {}: random >= wait\n", *self);
+		gi.Com_PrintFmt("{}: random >= wait\n", *self);
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TIMER_START_ON))
@@ -2646,7 +2679,7 @@ The brush should be have a surface with at least one current content enabled.
 speed	default 100
 */
 
-USE(func_conveyor_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(func_conveyor_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_CONVEYOR_START_ON))
 	{
@@ -2655,7 +2688,7 @@ USE(func_conveyor_use) (edict_t *self, edict_t *other, edict_t *activator) -> vo
 	}
 	else
 	{
-		self->speed = (float) self->count;
+		self->speed = (float)self->count;
 		self->spawnflags |= SPAWNFLAG_CONVEYOR_START_ON;
 	}
 
@@ -2663,14 +2696,14 @@ USE(func_conveyor_use) (edict_t *self, edict_t *other, edict_t *activator) -> vo
 		self->count = 0;
 }
 
-void SP_func_conveyor(edict_t *self)
+void SP_func_conveyor(edict_t* self)
 {
 	if (!self->speed)
 		self->speed = 100;
 
 	if (!self->spawnflags.has(SPAWNFLAG_CONVEYOR_START_ON))
 	{
-		self->count = (int) self->speed;
+		self->count = (int)self->speed;
 		self->speed = 0;
 	}
 
@@ -2698,15 +2731,15 @@ constexpr spawnflags_t SPAWNFLAG_SECRET_ALWAYS_SHOOT = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_SECRET_1ST_LEFT = 2_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_SECRET_1ST_DOWN = 4_spawnflag;
 
-void door_secret_move1(edict_t *self);
-void door_secret_move2(edict_t *self);
-void door_secret_move3(edict_t *self);
-void door_secret_move4(edict_t *self);
-void door_secret_move5(edict_t *self);
-void door_secret_move6(edict_t *self);
-void door_secret_done(edict_t *self);
+void door_secret_move1(edict_t* self);
+void door_secret_move2(edict_t* self);
+void door_secret_move3(edict_t* self);
+void door_secret_move4(edict_t* self);
+void door_secret_move5(edict_t* self);
+void door_secret_move6(edict_t* self);
+void door_secret_done(edict_t* self);
 
-USE(door_secret_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(door_secret_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	// make sure we're not already moving
 	if (self->s.origin)
@@ -2716,18 +2749,18 @@ USE(door_secret_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	door_use_areaportals(self, true);
 }
 
-MOVEINFO_ENDFUNC(door_secret_move1) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(door_secret_move1) (edict_t* self) -> void
 {
 	self->nextthink = level.time + 1_sec;
 	self->think = door_secret_move2;
 }
 
-THINK(door_secret_move2) (edict_t *self) -> void
+THINK(door_secret_move2) (edict_t* self) -> void
 {
 	Move_Calc(self, self->pos2, door_secret_move3);
 }
 
-MOVEINFO_ENDFUNC(door_secret_move3) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(door_secret_move3) (edict_t* self) -> void
 {
 	if (self->wait == -1)
 		return;
@@ -2735,23 +2768,23 @@ MOVEINFO_ENDFUNC(door_secret_move3) (edict_t *self) -> void
 	self->think = door_secret_move4;
 }
 
-THINK(door_secret_move4) (edict_t *self) -> void
+THINK(door_secret_move4) (edict_t* self) -> void
 {
 	Move_Calc(self, self->pos1, door_secret_move5);
 }
 
-MOVEINFO_ENDFUNC(door_secret_move5) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(door_secret_move5) (edict_t* self) -> void
 {
 	self->nextthink = level.time + 1_sec;
 	self->think = door_secret_move6;
 }
 
-THINK(door_secret_move6) (edict_t *self) -> void
+THINK(door_secret_move6) (edict_t* self) -> void
 {
 	Move_Calc(self, vec3_origin, door_secret_done);
 }
 
-MOVEINFO_ENDFUNC(door_secret_done) (edict_t *self) -> void
+MOVEINFO_ENDFUNC(door_secret_done) (edict_t* self) -> void
 {
 	if (!(self->targetname) || self->spawnflags.has(SPAWNFLAG_SECRET_ALWAYS_SHOOT))
 	{
@@ -2761,7 +2794,7 @@ MOVEINFO_ENDFUNC(door_secret_done) (edict_t *self) -> void
 	door_use_areaportals(self, false);
 }
 
-MOVEINFO_BLOCKED(door_secret_blocked) (edict_t *self, edict_t *other) -> void
+MOVEINFO_BLOCKED(door_secret_blocked) (edict_t* self, edict_t* other) -> void
 {
 	if (!(other->svflags & SVF_MONSTER) && (!other->client))
 	{
@@ -2780,13 +2813,13 @@ MOVEINFO_BLOCKED(door_secret_blocked) (edict_t *self, edict_t *other) -> void
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
 }
 
-DIE(door_secret_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(door_secret_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	self->takedamage = false;
 	door_secret_use(self, attacker, attacker);
 }
 
-void SP_func_door_secret(edict_t *ent)
+void SP_func_door_secret(edict_t* ent)
 {
 	vec3_t forward, right, up;
 	float  side;
@@ -2818,7 +2851,10 @@ void SP_func_door_secret(edict_t *ent)
 	if (!ent->wait)
 		ent->wait = 5;
 
-	ent->moveinfo.accel = ent->moveinfo.decel = ent->moveinfo.speed = 50;
+	if (!ent->speed)
+		ent->moveinfo.accel = ent->moveinfo.decel = ent->moveinfo.speed = 50;
+	else
+		ent->moveinfo.accel = ent->moveinfo.decel = ent->moveinfo.speed = ent->speed * 0.1f;
 
 	// calculate positions
 	AngleVectors(ent->s.angles, forward, right, up);
@@ -2856,7 +2892,7 @@ Kills everything inside when fired, irrespective of protection.
 constexpr spawnflags_t SPAWNFLAG_KILLBOX_DEADLY_COOP = 2_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_KILLBOX_EXACT_COLLISION = 4_spawnflag;
 
-USE(use_killbox) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(use_killbox) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_KILLBOX_DEADLY_COOP))
 		level.deadly_kill_box = true;
@@ -2872,7 +2908,7 @@ USE(use_killbox) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	level.deadly_kill_box = false;
 }
 
-void SP_func_killbox(edict_t *ent)
+void SP_func_killbox(edict_t* ent)
 {
 	gi.setmodel(ent, ent->model);
 	ent->use = use_killbox;
@@ -2893,11 +2929,11 @@ the origin of the brush and using the entity's angles
 */
 constexpr spawnflags_t SPAWNFLAG_FUNC_EYE_FIRED_TARGETS = 17_spawnflag_bit; // internal use only
 
-THINK(func_eye_think) (edict_t *self) -> void
+THINK(func_eye_think) (edict_t* self) -> void
 {
 	// find enemy to track
 	float closest_dist = 0;
-	edict_t *closest_player = nullptr;
+	edict_t* closest_player = nullptr;
 
 	for (auto player : active_players())
 	{
@@ -2929,7 +2965,7 @@ THINK(func_eye_think) (edict_t *self) -> void
 	eye_pos += fwd * self->move_origin[0];
 	eye_pos += rgt * self->move_origin[1];
 	eye_pos += up * self->move_origin[2];
-	
+
 	if (self->enemy)
 	{
 		if (!(self->spawnflags & SPAWNFLAG_FUNC_EYE_FIRED_TARGETS))
@@ -2955,7 +2991,7 @@ THINK(func_eye_think) (edict_t *self) -> void
 		else
 			wanted_angles = self->s.angles;
 	}
-	
+
 	for (int i = 0; i < 2; i++)
 	{
 		float current = anglemod(self->s.angles[i]);
@@ -2993,12 +3029,12 @@ THINK(func_eye_think) (edict_t *self) -> void
 	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-THINK(func_eye_setup) (edict_t *self) -> void
+THINK(func_eye_setup) (edict_t* self) -> void
 {
-	edict_t *eye_pos = G_PickTarget(self->pathtarget);
+	edict_t* eye_pos = G_PickTarget(self->pathtarget);
 
 	if (!eye_pos)
-		gi.Com_PrintFmt("PRINT: {}: bad target\n", *self);
+		gi.Com_PrintFmt("{}: bad target\n", *self);
 	else
 		self->move_origin = eye_pos->s.origin - self->s.origin;
 
@@ -3008,8 +3044,9 @@ THINK(func_eye_setup) (edict_t *self) -> void
 	self->nextthink = level.time + 10_hz;
 }
 
-void SP_func_eye(edict_t *ent)
+void SP_func_eye(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 	ent->movetype = MOVETYPE_PUSH;
 	ent->solid = SOLID_BSP;
 	gi.setmodel(ent, ent->model);
@@ -3021,6 +3058,10 @@ void SP_func_eye(edict_t *ent)
 
 	if (!ent->speed)
 		ent->speed = 45;
+
+	// set vision cone
+	if (st.was_key_specified("vision_cone"))
+		ent->yaw_speed = ent->vision_cone;
 
 	if (!ent->yaw_speed)
 		ent->yaw_speed = 0.5f;

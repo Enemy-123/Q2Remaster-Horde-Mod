@@ -2050,6 +2050,8 @@ void SP_monster_soldier_vanilla(edict_t* self)
  */
 void SP_monster_soldier_light(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -2087,6 +2089,8 @@ void SP_monster_soldier_light(edict_t* self)
  */
 void SP_monster_soldier(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -2117,6 +2121,8 @@ void SP_monster_soldier(edict_t* self)
  */
 void SP_monster_soldier_ss(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -2159,6 +2165,8 @@ void SP_monster_soldier_h(edict_t* self)
  */
 void SP_monster_soldier_ripper(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -2197,6 +2205,8 @@ void SP_monster_soldier_ripper(edict_t* self)
  */
 void SP_monster_soldier_hypergun(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

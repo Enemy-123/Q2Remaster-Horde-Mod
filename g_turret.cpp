@@ -64,7 +64,7 @@ void turret_breach_fire(edict_t* self)
 		damage = self->count;
 	else
 		damage = (int)frandom(150, 180);
-	speed = 1150 + 50 * skill->integer;
+	speed = 550 + 50 * skill->integer;
 	edict_t* rocket = fire_rocket(self->teammaster->owner->activator ? self->teammaster->owner->activator : self->teammaster->owner, start, f, damage, speed, 150, damage);
 	rocket->s.scale = self->teammaster->dmg_radius;
 
@@ -195,7 +195,7 @@ THINK(turret_breach_finish_init) (edict_t* self) -> void
 	// get and save info for muzzle location
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("PRINT: {}: needs a target\n", *self);
+		gi.Com_PrintFmt("{}: needs a target\n", *self);
 	}
 	else
 	{
@@ -206,7 +206,7 @@ THINK(turret_breach_finish_init) (edict_t* self) -> void
 			G_FreeEdict(self->target_ent);
 		}
 		else
-			gi.Com_PrintFmt("PRINT: {}: could not find target entity \"{}\"\n", *self, self->target);
+			gi.Com_PrintFmt("{}: could not find target entity \"{}\"\n", *self, self->target);
 	}
 
 	self->teammaster->dmg = self->dmg;
@@ -217,6 +217,8 @@ THINK(turret_breach_finish_init) (edict_t* self) -> void
 
 void SP_turret_breach(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->solid = SOLID_BSP;
 	self->movetype = MOVETYPE_PUSH;
 
@@ -230,17 +232,21 @@ void SP_turret_breach(edict_t* self)
 	if (!self->dmg)
 		self->dmg = 10;
 
-	if (!st.minpitch)
-		st.minpitch = -30;
-	if (!st.maxpitch)
-		st.maxpitch = 30;
-	if (!st.maxyaw)
-		st.maxyaw = 360;
+	float minpitch = st.minpitch;
+	float maxpitch = st.maxpitch;
+	float maxyaw = st.maxyaw;
 
-	self->pos1[PITCH] = -1 * st.minpitch;
+	if (!minpitch)
+		minpitch = -30;
+	if (!maxpitch)
+		maxpitch = 30;
+	if (!maxyaw)
+		maxyaw = 360;
+
+	self->pos1[PITCH] = -1 * minpitch;
 	self->pos1[YAW] = st.minyaw;
-	self->pos2[PITCH] = -1 * st.maxpitch;
-	self->pos2[YAW] = st.maxyaw;
+	self->pos2[PITCH] = -1 * maxpitch;
+	self->pos2[YAW] = maxyaw;
 
 	// scale used for rocket scale
 	self->dmg_radius = self->s.scale;
@@ -263,6 +269,8 @@ MUST be teamed with a turret_breach.
 
 void SP_turret_base(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->solid = SOLID_BSP;
 	self->movetype = MOVETYPE_PUSH;
 
@@ -288,10 +296,6 @@ DIE(turret_driver_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, in
 {
 	if (!self->deadflag)
 	{
-
-		// Llamar a OnEntityDeath primero
-		OnEntityDeath(self);
-
 		edict_t* ent;
 
 		// level the gun
@@ -314,7 +318,7 @@ DIE(turret_driver_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, in
 		self->movetype = MOVETYPE_STEP;
 
 		self->think = monster_think;
-
+		self->classname = "monster_infantry"; // [Paril-KEX] fix revive
 	}
 
 	infantry_die(self, inflictor, attacker, damage, point, mod);
@@ -329,7 +333,7 @@ bool FindTarget(edict_t* self);
 
 THINK(turret_driver_think) (edict_t* self) -> void
 {
-	vec3_t target{};
+	vec3_t target;
 	vec3_t dir;
 
 	self->nextthink = level.time + FRAME_TIME_S;
@@ -362,30 +366,22 @@ THINK(turret_driver_think) (edict_t* self) -> void
 	}
 
 	// let the turret know where we want it to aim
-	if (self->enemy) {
-		target = self->enemy->s.origin;
-		target[2] += self->enemy->viewheight;
-	}
-	else {
-		VectorClear(target);  // Clear target if enemy is null to avoid undefined behavior
-	}
+	target = self->enemy->s.origin;
+	target[2] += self->enemy->viewheight;
+	dir = target - self->target_ent->s.origin;
+	self->target_ent->move_angles = vectoangles(dir);
 
-	if (self->target_ent) {
-		dir = target - self->target_ent->s.origin;
-		self->target_ent->move_angles = vectoangles(dir);
+	// decide if we should shoot
+	if (level.time < self->monsterinfo.attack_finished)
+		return;
 
-		// decide if we should shoot
-		if (level.time < self->monsterinfo.attack_finished)
-			return;
+	gtime_t reaction_time = gtime_t::from_sec(3 - skill->integer);
+	if ((level.time - self->monsterinfo.trail_time) < reaction_time)
+		return;
 
-		gtime_t reaction_time = gtime_t::from_sec(3 - skill->integer);
-		if ((level.time - self->monsterinfo.trail_time) < reaction_time)
-			return;
-
-		self->monsterinfo.attack_finished = level.time + reaction_time + 1_sec;
-		// FIXME how do we really want to pass this along?
-		self->target_ent->spawnflags |= SPAWNFLAG_TURRET_BREACH_FIRE;
-	}
+	self->monsterinfo.attack_finished = level.time + reaction_time + 1_sec;
+	// FIXME how do we really want to pass this along?
+	self->target_ent->spawnflags |= SPAWNFLAG_TURRET_BREACH_FIRE;
 }
 
 THINK(turret_driver_link) (edict_t* self) -> void
@@ -425,6 +421,8 @@ void InfantryPrecache();
 
 void SP_turret_driver(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (G_IsDeathmatch() && !g_horde->integer)
 	{
 		G_FreeEdict(self);
@@ -471,7 +469,7 @@ void SP_turret_driver(edict_t* self)
 	{
 		self->item = FindItemByClassname(st.item);
 		if (!self->item)
-			gi.Com_PrintFmt("PRINT: {}: bad item: {}\n", *self, st.item);
+			gi.Com_PrintFmt("{}: bad item: {}\n", *self, st.item);
 	}
 
 	self->think = turret_driver_link;
@@ -620,7 +618,7 @@ USE(turret_brain_activate) (edict_t* self, edict_t* other, edict_t* activator) -
 	if (self->wait)
 		self->monsterinfo.attack_finished = level.time + gtime_t::from_sec(self->wait);
 	else
-		self->monsterinfo.attack_finished = level.time + 1.0_sec;
+		self->monsterinfo.attack_finished = level.time + 1_sec;
 	self->use = turret_brain_deactivate;
 
 	// Paril NOTE: rhangar1 has a turret_invisible_brain that breaks the

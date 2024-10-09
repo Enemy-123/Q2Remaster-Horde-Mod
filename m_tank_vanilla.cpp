@@ -848,6 +848,8 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
 void Monster_MoveSpawn(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!self || self->health <= 0 || self->deadflag)
 	{
 		return;

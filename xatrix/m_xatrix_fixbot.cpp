@@ -946,125 +946,125 @@ void abortHeal(edict_t* self, bool gib, bool mark);
 
 void fixbot_fire_laser(edict_t* self)
 {
-	// critter dun got blown up while bein' fixed
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= self->enemy->gib_health)
-	{
-		M_SetAnimation(self, &fixbot_move_stand);
-		self->monsterinfo.aiflags &= ~AI_MEDIC;
-		return;
-	}
+	//// critter dun got blown up while bein' fixed
+	//if (!self->enemy || !self->enemy->inuse || self->enemy->health <= self->enemy->gib_health)
+	//{
+	//	M_SetAnimation(self, &fixbot_move_stand);
+	//	self->monsterinfo.aiflags &= ~AI_MEDIC;
+	//	return;
+	//}
 
-	monster_fire_dabeam(self, -1, false, fixbot_laser_update);
+	//monster_fire_dabeam(self, -1, false, fixbot_laser_update);
 
-	if (self->enemy->health > (self->enemy->mass / 10))
-	{
-		vec3_t maxs;
-		self->enemy->spawnflags = SPAWNFLAG_NONE;
-		self->enemy->monsterinfo.aiflags &= AI_STINKY;
-		self->enemy->target = nullptr;
-		self->enemy->targetname = nullptr;
-		self->enemy->combattarget = nullptr;
-		self->enemy->deathtarget = nullptr;
-		self->enemy->healthtarget = nullptr;
-		self->enemy->itemtarget = nullptr;
-		self->enemy->monsterinfo.healer = self;
+	//if (self->enemy->health > (self->enemy->mass / 10))
+	//{
+	//	vec3_t maxs;
+	//	self->enemy->spawnflags = SPAWNFLAG_NONE;
+	//	self->enemy->monsterinfo.aiflags &= AI_STINKY;
+	//	self->enemy->target = nullptr;
+	//	self->enemy->targetname = nullptr;
+	//	self->enemy->combattarget = nullptr;
+	//	self->enemy->deathtarget = nullptr;
+	//	self->enemy->healthtarget = nullptr;
+	//	self->enemy->itemtarget = nullptr;
+	//	self->enemy->monsterinfo.healer = self;
 
-		maxs = self->enemy->maxs;
-		maxs[2] += 48; // compensate for change when they die
+	//	maxs = self->enemy->maxs;
+	//	maxs[2] += 48; // compensate for change when they die
 
-		trace_t tr = gi.trace(self->enemy->s.origin, self->enemy->mins, maxs, self->enemy->s.origin, self->enemy, MASK_MONSTERSOLID);
-		if (tr.startsolid || tr.allsolid)
-		{
-			abortHeal(self, false, true);
-			return;
-		}
-		else if (tr.ent != world)
-		{
-			abortHeal(self, false, true);
-			return;
-		}
-		else
-		{
-			self->enemy->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
+	//	trace_t tr = gi.trace(self->enemy->s.origin, self->enemy->mins, maxs, self->enemy->s.origin, self->enemy, MASK_MONSTERSOLID);
+	//	if (tr.startsolid || tr.allsolid)
+	//	{
+	//		abortHeal(self, false, true);
+	//		return;
+	//	}
+	//	else if (tr.ent != world)
+	//	{
+	//		abortHeal(self, false, true);
+	//		return;
+	//	}
+	//	else
+	//	{
+	//		self->enemy->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
 
-			// backup & restore health stuff, because of multipliers
-			int32_t old_max_health = self->enemy->max_health;
-			item_id_t old_power_armor_type = self->enemy->monsterinfo.initial_power_armor_type;
-			int32_t old_power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
-			int32_t old_base_health = self->enemy->monsterinfo.base_health;
-			int32_t old_health_scaling = self->enemy->monsterinfo.health_scaling;
-			auto reinforcements = self->enemy->monsterinfo.reinforcements;
-			int32_t monster_slots = self->enemy->monsterinfo.monster_slots;
-			int32_t monster_used = self->enemy->monsterinfo.monster_used;
-			int32_t old_gib_health = self->enemy->gib_health;
+	//		// backup & restore health stuff, because of multipliers
+	//		int32_t old_max_health = self->enemy->max_health;
+	//		item_id_t old_power_armor_type = self->enemy->monsterinfo.initial_power_armor_type;
+	//		int32_t old_power_armor_power = self->enemy->monsterinfo.max_power_armor_power;
+	//		int32_t old_base_health = self->enemy->monsterinfo.base_health;
+	//		int32_t old_health_scaling = self->enemy->monsterinfo.health_scaling;
+	//		auto reinforcements = self->enemy->monsterinfo.reinforcements;
+	//		int32_t monster_slots = self->enemy->monsterinfo.monster_slots;
+	//		int32_t monster_used = self->enemy->monsterinfo.monster_used;
+	//		int32_t old_gib_health = self->enemy->gib_health;
 
-			st = {};
-			st.keys_specified.emplace("reinforcements");
-			st.reinforcements = "";
+	//		st = {};
+	//		st.keys_specified.emplace("reinforcements");
+	//		st.reinforcements = "";
 
-			ED_CallSpawn(self->enemy);
+	//		ED_CallSpawn(self->enemy);
 
-			self->enemy->monsterinfo.reinforcements = reinforcements;
-			self->enemy->monsterinfo.monster_slots = monster_slots;
-			self->enemy->monsterinfo.monster_used = monster_used;
+	//		self->enemy->monsterinfo.reinforcements = reinforcements;
+	//		self->enemy->monsterinfo.monster_slots = monster_slots;
+	//		self->enemy->monsterinfo.monster_used = monster_used;
 
-			self->enemy->gib_health = old_gib_health / 2;
-			self->enemy->health = self->enemy->max_health = old_max_health;
-			self->enemy->monsterinfo.power_armor_power = self->enemy->monsterinfo.max_power_armor_power = old_power_armor_power;
-			self->enemy->monsterinfo.power_armor_type = self->enemy->monsterinfo.initial_power_armor_type = old_power_armor_type;
-			self->enemy->monsterinfo.base_health = old_base_health;
-			self->enemy->monsterinfo.health_scaling = old_health_scaling;
+	//		self->enemy->gib_health = old_gib_health / 2;
+	//		self->enemy->health = self->enemy->max_health = old_max_health;
+	//		self->enemy->monsterinfo.power_armor_power = self->enemy->monsterinfo.max_power_armor_power = old_power_armor_power;
+	//		self->enemy->monsterinfo.power_armor_type = self->enemy->monsterinfo.initial_power_armor_type = old_power_armor_type;
+	//		self->enemy->monsterinfo.base_health = old_base_health;
+	//		self->enemy->monsterinfo.health_scaling = old_health_scaling;
 
-			if (self->enemy->monsterinfo.setskin)
-				self->enemy->monsterinfo.setskin(self->enemy);
+	//		if (self->enemy->monsterinfo.setskin)
+	//			self->enemy->monsterinfo.setskin(self->enemy);
 
-			if (self->enemy->think)
-			{
-				self->enemy->nextthink = level.time;
-				self->enemy->think(self->enemy);
-			}
-			self->enemy->monsterinfo.aiflags &= ~AI_RESURRECTING;
-			self->enemy->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
-			// turn off flies
-			self->enemy->s.effects &= ~EF_FLIES;
-			self->enemy->monsterinfo.healer = nullptr;
+	//		if (self->enemy->think)
+	//		{
+	//			self->enemy->nextthink = level.time;
+	//			self->enemy->think(self->enemy);
+	//		}
+	//		self->enemy->monsterinfo.aiflags &= ~AI_RESURRECTING;
+	//		self->enemy->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
+	//		// turn off flies
+	//		self->enemy->s.effects &= ~EF_FLIES;
+	//		self->enemy->monsterinfo.healer = nullptr;
 
-			// clean up target, if we have one and it's legit
-			if (self->enemy && self->enemy->inuse)
-			{
-				cleanupHealTarget(self->enemy);
+	//		// clean up target, if we have one and it's legit
+	//		if (self->enemy && self->enemy->inuse)
+	//		{
+	//			cleanupHealTarget(self->enemy);
 
-				if ((self->oldenemy) && (self->oldenemy->inuse) && (self->oldenemy->health > 0))
-				{
-					self->enemy->enemy = self->oldenemy;
-					FoundTarget(self->enemy);
-				}
-				else
-				{
-					self->enemy->enemy = nullptr;
-					if (!FindTarget(self->enemy))
-					{
-						// no valid enemy, so stop acting
-						self->enemy->monsterinfo.pausetime = HOLD_FOREVER;
-						self->enemy->monsterinfo.stand(self->enemy);
-					}
-					self->enemy = nullptr;
-					self->oldenemy = nullptr;
-					if (!FindTarget(self))
-					{
-						// no valid enemy, so stop acting
-						self->monsterinfo.pausetime = HOLD_FOREVER;
-						self->monsterinfo.stand(self);
-						return;
-					}
-				}
-			}
-		}
+	//			if ((self->oldenemy) && (self->oldenemy->inuse) && (self->oldenemy->health > 0))
+	//			{
+	//				self->enemy->enemy = self->oldenemy;
+	//				FoundTarget(self->enemy);
+	//			}
+	//			else
+	//			{
+	//				self->enemy->enemy = nullptr;
+	//				if (!FindTarget(self->enemy))
+	//				{
+	//					// no valid enemy, so stop acting
+	//					self->enemy->monsterinfo.pausetime = HOLD_FOREVER;
+	//					self->enemy->monsterinfo.stand(self->enemy);
+	//				}
+	//				self->enemy = nullptr;
+	//				self->oldenemy = nullptr;
+	//				if (!FindTarget(self))
+	//				{
+	//					// no valid enemy, so stop acting
+	//					self->monsterinfo.pausetime = HOLD_FOREVER;
+	//					self->monsterinfo.stand(self);
+	//					return;
+	//				}
+	//			}
+	//		}
+	//	}
 
-		M_SetAnimation(self, &fixbot_move_stand);
-	}
-	else
-		self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
+	//	M_SetAnimation(self, &fixbot_move_stand);
+	//}
+	//else
+	//	self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
 }
 
 mframe_t fixbot_frames_laserattack[] = {
@@ -1352,6 +1352,8 @@ DIE(fixbot_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
  */
 void SP_monster_fixbot(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;

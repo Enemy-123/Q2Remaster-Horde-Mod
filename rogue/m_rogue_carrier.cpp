@@ -1222,6 +1222,8 @@ void SP_monster_carrier(edict_t* self)
 
 void SP_monster_carrier_mini(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!strcmp(self->classname, "monster_carrier_mini")) {
 		self->spawnflags |= SPAWNFLAG_carrier_mini;
 		SP_monster_carrier(self);

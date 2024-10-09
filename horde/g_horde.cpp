@@ -2054,6 +2054,8 @@ static edict_t* SpawnMonsters() {
 }
 // Funciones auxiliares para reducir el tamaño de SpawnMonsters
 static void SetMonsterArmor(edict_t* monster) {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	if (!st.was_key_specified("power_armor_power"))
 		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 	if (!st.was_key_specified("power_armor_type")) {

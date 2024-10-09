@@ -578,6 +578,8 @@ void SP_monster_guardian(edict_t* self)
 
 void SP_monster_janitor2(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->spawnflags |= SPAWNFLAG_GUARDIAN_JANITOR;
 	SP_monster_guardian(self);
 	self->s.skinnum = 2;

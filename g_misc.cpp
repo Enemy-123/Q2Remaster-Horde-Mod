@@ -276,6 +276,7 @@ void ThrowClientHead(edict_t* self, int damage)
 	gi.linkentity(self);
 }
 
+
 void BecomeExplosion1(edict_t* self)
 {
 	gi.WriteByte(svc_temp_entity);
@@ -374,7 +375,7 @@ void SP_path_corner(edict_t* self)
 {
 	if (!self->targetname)
 	{
-		gi.Com_PrintFmt("PRINT: {} with no targetname\n", *self);
+		gi.Com_PrintFmt("{} with no targetname\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -405,7 +406,7 @@ TOUCH(point_combat_touch) (edict_t* self, edict_t* other, const trace_t& tr, boo
 		other->goalentity = other->movetarget = G_PickTarget(other->target);
 		if (!other->goalentity)
 		{
-			gi.Com_PrintFmt("PRINT: {} target {} does not exist\n", *self, self->target);
+			gi.Com_PrintFmt("{} target {} does not exist\n", *self, self->target);
 			other->movetarget = self;
 		}
 		// [Paril-KEX] allow them to be re-used
@@ -652,7 +653,6 @@ static void setup_dynamic_light(edict_t* self)
 	}
 }
 
-
 USE(dynamic_light_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	self->svflags ^= SVF_NOCLIENT;
@@ -703,7 +703,6 @@ void SP_light(edict_t* self)
 
 	setup_dynamic_light(self);
 }
-
 
 /*QUAKED func_wall (0 .5 .8) ? TRIGGER_SPAWN TOGGLE START_ON ANIMATED ANIMATED_FAST
 This is just a solid wall if not inhibited
@@ -810,7 +809,7 @@ void SP_func_animation(edict_t* self)
 {
 	if (!self->bmodel_anim.enabled)
 	{
-		gi.Com_PrintFmt("PRINT: {} has no animation data\n", *self);
+		gi.Com_PrintFmt("{} has no animation data\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -1052,7 +1051,7 @@ USE(func_explosive_spawn) (edict_t* self, edict_t* other, edict_t* activator) ->
 
 void SP_func_explosive(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (G_IsDeathmatch() && !g_horde->integer) 
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;
@@ -1106,7 +1105,7 @@ void SP_func_explosive(edict_t* self)
 		if (self->sounds == 1)
 			self->noise_index = gi.soundindex("world/brkglas.wav");
 		else
-			gi.Com_PrintFmt("PRINT: {}: invalid \"sounds\" {}\n", *self, self->sounds);
+			gi.Com_PrintFmt("{}: invalid \"sounds\" {}\n", *self, self->sounds);
 	}
 
 	gi.linkentity(self);
@@ -1204,6 +1203,8 @@ THINK(barrel_start) (edict_t* self) -> void
 // PGM
 //=========
 
+constexpr spawnflags_t SPAWNFLAG_EXPLOBOX_NO_MOVE = 1_spawnflag;
+
 void SP_misc_explobox(edict_t* self)
 {
 	if (G_IsDeathmatch() && !g_horde->integer)
@@ -1236,7 +1237,10 @@ void SP_misc_explobox(edict_t* self)
 	self->takedamage = true;
 	self->flags |= FL_TRAP;
 
-	self->touch = barrel_touch;
+	if (!self->spawnflags.has(SPAWNFLAG_EXPLOBOX_NO_MOVE))
+		self->touch = barrel_touch;
+	else
+		self->flags |= FL_NO_KNOCKBACK;
 
 	// PGM - change so barrels will think and hence, blow up
 	self->think = barrel_start;
@@ -1542,7 +1546,7 @@ void SP_misc_viper(edict_t* ent)
 {
 	if (!ent->target)
 	{
-		gi.Com_PrintFmt("PRINT: {} without a target\n", *ent);
+		gi.Com_PrintFmt("{} without a target\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
@@ -1658,13 +1662,15 @@ USE(misc_strogg_ship_use) (edict_t* self, edict_t* other, edict_t* activator) ->
 	train_use(self, other, activator);
 }
 
-void SP_misc_strogg_ship(edict_t* ent) {
+void SP_misc_strogg_ship(edict_t* ent)
+{
 	if (!ent->target)
 	{
-		gi.Com_PrintFmt("PRINT: {} without a target\n", *ent);
+		gi.Com_PrintFmt("{} without a target\n", *ent);
 		G_FreeEdict(ent);
 		return;
 	}
+
 	if (!ent->speed)
 		ent->speed = 300;
 
@@ -1680,49 +1686,8 @@ void SP_misc_strogg_ship(edict_t* ent) {
 	ent->svflags |= SVF_NOCLIENT;
 	ent->moveinfo.accel = ent->moveinfo.decel = ent->moveinfo.speed = ent->speed;
 
-	//// Crear un path_corner en la superficie con SURF_SKY
-	//edict_t* reference = nullptr;
-	//float best_distance = 9999999.0f;
-
-	//// Encontrar el jugador m√°s cercano para usarlo como referencia
-	//for (uint32_t n = 1; n <= game.maxclients; n++) {
-	//	edict_t* player = &g_edicts[n];
-
-	//	if (!player->inuse || !player->solid || player->health <= 0)
-	//		continue;
-
-	//	float distance = PlayersRangeFromSpot(player);
-	//	if (distance < best_distance) {
-	//		best_distance = distance;
-	//		reference = player;
-	//	}
-	//}
-
-	//if (reference) {
-	//	gi.Com_PrintFmt("PRINT: Reference player found at: {} {} {}\n", reference->s.origin[0], reference->s.origin[1], reference->s.origin[2]);
-
-	//	edict_t* path_corner_sky = CreatePathCornerOnSkySurface(reference);
-	//	edict_t* path_corner_player = CreatePathCornerAbovePlayer(reference);
-	//	if (path_corner_sky && path_corner_player) {
-	//		path_corner_sky->target = path_corner_player->targetname; // Conectar los dos path_corners
-	//		ent->target = path_corner_sky->targetname;
-	//		gi.Com_PrintFmt("PRINT: Path corners created successfully\n");
-	//	}
-	//	else {
-	//		gi.Com_PrintFmt("PRINT: Failed to create path_corners\n");
-	//		G_FreeEdict(ent);
-	//		return;
-	//	}
-	//}
-	//else {
-	//	gi.Com_PrintFmt("PRINT: No reference player found\n");
-	//	G_FreeEdict(ent);
-	//	return;
-	//}
-
 	gi.linkentity(ent);
 }
-
 
 /*QUAKED misc_satellite_dish (1 .5 0) (-64 -64 0) (64 64 128)
 model="models/objects/satellite/tris.md2"
@@ -2020,14 +1985,14 @@ void SP_func_clock(edict_t* self)
 {
 	if (!self->target)
 	{
-		gi.Com_PrintFmt("PRINT: {} with no target\n", *self);
+		gi.Com_PrintFmt("{} with no target\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TIMER_DOWN) && !self->count)
 	{
-		gi.Com_PrintFmt("PRINT: {} with no count\n", *self);
+		gi.Com_PrintFmt("{} with no count\n", *self);
 		G_FreeEdict(self);
 		return;
 	}
@@ -2188,6 +2153,8 @@ USE(misc_flare_use) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 void SP_misc_flare(edict_t* ent)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	ent->s.modelindex = 1;
 	ent->s.renderfx = RF_FLARE;
 	ent->solid = SOLID_NOT;
@@ -2387,7 +2354,7 @@ THINK(info_world_text_think) (edict_t* self) -> void {
 
 	default:
 		color = rgba_white;
-		gi.Com_PrintFmt("PRINT: {}: invalid color\n", *self);
+		gi.Com_PrintFmt("{}: invalid color\n", *self);
 		break;
 	}
 
@@ -2410,10 +2377,12 @@ designer placed in world text for debugging.
 */
 void SP_info_world_text(edict_t* self) {
 	if (self->message == nullptr) {
-		gi.Com_PrintFmt("PRINT: {}: no message\n", *self);
+		gi.Com_PrintFmt("{}: no message\n", *self);
 		G_FreeEdict(self);
 		return;
 	} // not much point without something to print...
+
+	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	self->think = info_world_text_think;
 	self->use = info_world_text_use;
@@ -2558,6 +2527,8 @@ void SetupMannequinModel(edict_t* self, const int32_t modelType, const char* wea
  "radius"		- How much to scale the model in-game
 */
 void SP_misc_player_mannequin(edict_t* self) {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->movetype = MOVETYPE_NONE;
 	self->solid = SOLID_BBOX;
 	if (!st.was_key_specified("effects"))
@@ -2595,10 +2566,28 @@ void SP_misc_player_mannequin(edict_t* self) {
 	gi.linkentity(self);
 }
 
+constexpr spawnflags_t SPAWNFLAG_MODEL_TOGGLE = 1_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_MODEL_START_ON = 2_spawnflag;
+
+USE(misc_model_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
+{
+	self->svflags ^= SVF_NOCLIENT;
+}
+
 /*QUAKED misc_model (1 0 0) (-8 -8 -8) (8 8 8)
 */
 void SP_misc_model(edict_t* ent)
 {
-	gi.setmodel(ent, ent->model);
+	if (ent->model && ent->model[0])
+		gi.setmodel(ent, ent->model);
+
+	if (ent->spawnflags.has(SPAWNFLAG_MODEL_TOGGLE))
+	{
+		ent->use = misc_model_use;
+
+		if (!ent->spawnflags.has(SPAWNFLAG_MODEL_START_ON))
+			ent->svflags |= SVF_NOCLIENT;
+	}
+
 	gi.linkentity(ent);
 }

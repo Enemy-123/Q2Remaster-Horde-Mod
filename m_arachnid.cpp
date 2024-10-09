@@ -435,6 +435,8 @@ void SP_monster_arachnid(edict_t* self)
 }
 void SP_monster_spider(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->spawnflags |= SPAWNFLAG_SPIDER;
 	SP_monster_arachnid(self);
 
