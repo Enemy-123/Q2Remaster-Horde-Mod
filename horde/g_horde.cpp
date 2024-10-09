@@ -2024,11 +2024,19 @@ static edict_t* SpawnMonsters() {
 			monster->item = G_HordePickItem();
 		}
 
+		// Establecer posición del spawngro y valores de tamaño ajustados
 		const vec3_t spawngrow_pos = monster->s.origin;
-		const float magnitude = VectorLength(spawngrow_pos);
-		const float start_size = magnitude * 0.055f;
-		const float end_size = magnitude * 0.005f;
-		ImprovedSpawnGrow(spawngrow_pos, start_size, end_size, monster);
+
+		// Incrementar los valores para garantizar que el spawngro sea lo suficientemente visible
+		const float start_size = 80.0f;  // Tamaño inicial aumentado para mayor visibilidad
+		const float end_size = 10.0f;     // Tamaño final aumentado
+
+		// Mensajes de depuración para comprobar si estamos creando el spawngro
+		//gi.Com_PrintFmt("PRINT: Spawning spawngrow effect at position: ({}, {}, {}) with start size: {} and end size: {}\n",
+		//	spawngrow_pos[0], spawngrow_pos[1], spawngrow_pos[2], start_size, end_size);
+
+		// Utilizar SpawnGrow_Spawn con los nuevos valores de tamaño
+		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
 		--g_horde_local.num_to_spawn;
 		g_totalMonstersInWave++;
@@ -2052,6 +2060,7 @@ static edict_t* SpawnMonsters() {
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned_monster;
 }
+
 // Funciones auxiliares para reducir el tamaño de SpawnMonsters
 static void SetMonsterArmor(edict_t* monster) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();

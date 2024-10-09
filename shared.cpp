@@ -449,7 +449,6 @@ constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
 [[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
-
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity) {
 	// Create the main SpawnGrow effect
 	SpawnGrow_Spawn(position, start_size, end_size);
@@ -460,19 +459,19 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 		for (int i = 0; i < 5; i++) {
 			vec3_t offset;
 			for (int j = 0; j < 3; j++) {
-				offset[j] = position[j] + crandom() * 75;  // Random offset within 50 units
+				offset[j] = position[j] + crandom() * 125;  // Random offset within 50 units
 			}
 			SpawnGrow_Spawn(offset, start_size * 0.5f, end_size * 0.5f);
 		}
 
-		// Add a ground shake effect
+		// Crear el efecto de terremoto
 		auto earthquake = G_Spawn();
-		if (earthquake) {
-			earthquake->classname = "target_earthquake";
-			earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_TOGGLE : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT;
-			SP_target_earthquake(earthquake);
-			earthquake->use(earthquake, spawned_entity, spawned_entity);
-		}
+		earthquake->classname = "target_earthquake";
+		earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_SILENT : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
+		earthquake->speed = 500; // Severidad del terremoto
+		earthquake->count = 4; // Duración del terremoto en segundos
+		SP_target_earthquake(earthquake);
+		earthquake->use(earthquake, spawned_entity, spawned_entity); // Activar el terremoto
 	}
 }
 
