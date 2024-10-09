@@ -1498,6 +1498,7 @@ void ClientEndServerFrame(edict_t* ent)
 	// regen tech
 	CTFApplyRegeneration(ent);
 	// ZOID
+	HORDE_ApplyAmmoRegen(ent);
 
 	vec3_t forward, right, up;
 	AngleVectors(ent->client->v_angle, forward, right, up);
