@@ -58,8 +58,14 @@ std::unordered_set<edict_t*> auto_spawned_bosses;
 std::unordered_set<std::string> obtained_benefits;
 std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
-std::unordered_map<edict_t*, uint32_t> spawnAttempts;
-std::unordered_map<edict_t*, gtime_t> spawnPointCooldowns;
+
+struct SpawnPointData {
+	uint32_t attempts = 0;
+	gtime_t cooldown = 0_sec;
+};
+
+std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
+
 
 const std::unordered_set<std::string> smallMaps = {
 	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
@@ -729,9 +735,10 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 #include <array>
 #include <unordered_set>
 #include <random>
+#include <deque>
 
 constexpr int32_t MAX_RECENT_BOSSES = 3;
-std::vector<const char*> recent_bosses;  // Cambiado de std::deque a std::vector
+std::deque<const char*> recent_bosses;  // Changed from std::vector to std::deque
 
 static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
@@ -772,13 +779,14 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 		const boss_t* chosen_boss = eligible_bosses[static_cast<size_t>(frandom() * eligible_bosses.size())];
 		recent_bosses.push_back(chosen_boss->classname);
 		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
-			recent_bosses.erase(recent_bosses.begin());
+			recent_bosses.pop_front();
 		}
 		return chosen_boss->classname;
 	}
 
 	return nullptr;
 }
+
 
 struct picked_item_t {
 	const weighted_item_t* item;
@@ -862,25 +870,34 @@ static float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, 
 	return item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
 }
 
+// Function to reset spawn point attempts and cooldown
 static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
-	spawnAttempts[spawn_point] = 0;
-	spawnPointCooldowns[spawn_point] = level.time;
+	auto& data = spawnPointsData[spawn_point];
+	data.attempts = 0;
+	data.cooldown = level.time;
 }
 
+// Function to update spawn point cooldowns and the last spawn times for the monster
 static void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
+	auto& data = spawnPointsData[spawn_point];
+	data.cooldown = level.time;
+
 	lastSpawnPointTime[spawn_point] = level.time;
 	lastMonsterSpawnTime[classname] = level.time;
-	spawnPointCooldowns[spawn_point] = level.time;
 }
 
+// Function to increase spawn attempts and adjust cooldown as necessary
 static void IncreaseSpawnAttempts(edict_t* spawn_point) {
-	spawnAttempts[spawn_point]++;
-	if (spawnAttempts[spawn_point] % 3 == 0) {
-		spawnPointCooldowns[spawn_point] = std::max(gtime_t::from_sec(spawnPointCooldowns[spawn_point].seconds() * 1.5f), 2.5_sec);
+	auto& data = spawnPointsData[spawn_point];
+	data.attempts++;
+
+	if (data.attempts % 3 == 0) {
+		data.cooldown = std::max(gtime_t::from_sec(data.cooldown.seconds() * 1.5f), 2.5_sec);
 	}
-	if (spawnAttempts[spawn_point] >= 6) {
-		gi.Com_PrintFmt("PRINT: Punto de spawn {} marcado como inactivo temporalmente.\n", spawn_point->s.origin);
-		spawnPointCooldowns[spawn_point] = level.time + 10_sec; // Desactivar por 10 segundos después de varios intentos fallidos
+
+	if (data.attempts >= 6) {
+		gi.Com_PrintFmt("PRINT: SpawnPoint {} Is Inactive for 10 sec.\n", spawn_point->s.origin);
+		data.cooldown = level.time + 10_sec; // Desactivar por 10 segundos después de varios intentos fallidos
 	}
 }
 
@@ -1577,11 +1594,9 @@ static void ResetBenefits() noexcept {
 }
 
 void ResetAllSpawnAttempts() noexcept {
-	for (auto& attempt : spawnAttempts) {
-		attempt.second = 0;
-	}
-	for (auto& cooldown : spawnPointCooldowns) {
-		cooldown.second = SPAWN_POINT_COOLDOWN;
+	for (auto& [spawn_point, data] : spawnPointsData) {
+		data.attempts = 0;
+		data.cooldown = SPAWN_POINT_COOLDOWN;  // Reset cooldown to the default value
 	}
 }
 
@@ -1592,11 +1607,15 @@ static void ResetRecentBosses() noexcept {
 
 static void ResetWaveAdvanceState() noexcept;
 void ResetGame() {
+
+	// Reset all spawn point data
+	spawnPointsData.clear();
+
 	// Reiniciar estructuras de datos globales
 	lastSpawnPointTime.clear();
-	spawnPointCooldowns.clear();
 	lastMonsterSpawnTime.clear();
-	spawnAttempts.clear();
+
+
 
 	// Reiniciar variables de estado global
 	g_horde_local = HordeState();  // Asume que HordeState tiene un constructor por defecto adecuado
@@ -1608,7 +1627,7 @@ void ResetGame() {
 
 	// Reiniciar otras variables relevantes
 	WAVE_TO_ALLOW_FLYING = 0;
-	SPAWN_POINT_COOLDOWN = 3.8_sec;
+	SPAWN_POINT_COOLDOWN = 3.9_sec;
 
 	cachedRemainingMonsters = 0;
 
