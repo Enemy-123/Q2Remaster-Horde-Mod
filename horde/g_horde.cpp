@@ -353,13 +353,11 @@ gtime_t calculate_max_wave_time(int32_t wave_level) {
 // Variables globales
 static gtime_t g_condition_start_time;
 static gtime_t g_independent_timer_start;
-static bool g_allowWaveAdvance = false;
 static ConditionParams g_lastParams;
 static int32_t g_lastWaveNumber = -1;
 static int32_t g_lastNumHumanPlayers = -1;
 static bool g_maxMonstersReached = false;
 static bool g_lowPercentageTriggered = false;
-static float g_playerPerformanceFactor = 1.0f;
 
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
@@ -776,7 +774,6 @@ gitem_t* G_HordePickItem() {
 }
 
 int32_t WAVE_TO_ALLOW_FLYING;
-extern gtime_t SPAWN_POINT_COOLDOWN;
 
 // Keep the existing array
 constexpr std::array<const char*, 10> flying_monster_classnames = {
@@ -1678,7 +1675,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	}
 
 	// Check for manual wave advance
-	if (g_allowWaveAdvance) {
+	if (allowWaveAdvance) {
 		gi.Com_PrintFmt("PRINT: Wave advance allowed manually.\n");
 		ResetWaveAdvanceState();
 		reason = WaveEndReason::AllMonstersDead;
@@ -1774,7 +1771,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	return false;
 }
 
-bool calculationsStarted = false;
 
 static void ResetWaveAdvanceState() noexcept {
 	g_independent_timer_start = level.time;
@@ -1785,8 +1781,7 @@ static void ResetWaveAdvanceState() noexcept {
 	conditionTimeThreshold = 0_sec;
 	timeWarningIssued = false;
 
-	g_allowWaveAdvance = false;
-	calculationsStarted = false;
+	allowWaveAdvance = false;
 
 	g_horde_local.lastPrintTime = 0_sec;
 
@@ -1811,7 +1806,7 @@ static void ResetWaveAdvanceState() noexcept {
 }
 
 void AllowNextWaveAdvance() noexcept {
-	g_allowWaveAdvance = true;
+	allowWaveAdvance = true;
 }
 
 static void MonsterSpawned(const edict_t* monster) {
