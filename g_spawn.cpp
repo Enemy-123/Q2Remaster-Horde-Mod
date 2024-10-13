@@ -592,19 +592,17 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 		}
 	}
 }
-void  ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
-
+void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 	// Inicializa el multiplicador de daño para el monstruo
 	if (ent->svflags & SVF_MONSTER) {
 		ent->monsterinfo.damage_quad = 1.0f;
 	}
 
-	// Diccionarios de reemplazos para diferentes modos
-	constexpr  MonsterReplacement chaotic_replacements[] = {
+	// Definiciones de reemplazo de monstruos
+	constexpr MonsterReplacement chaotic_replacements[] = {
 		{"monster_soldier_ss", {"monster_infantry_vanilla"}, 1},
 		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_gunner"}, 2},
 		{"monster_stalker", {"monster_parasite", "monster_stalker"}, 2},
-		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
 		{"monster_tank", {"monster_tank_commander"}, 1},
 		{"monster_tank_commander", {"monster_shambler"}, 1},
 		{"monster_supertank", {"monster_boss5"}, 1},
@@ -665,121 +663,102 @@ void  ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 	};
 	constexpr int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
 
-	// Realizar los reemplazos según el modo de juego y aplicar bonus flags según la probabilidad
-	switch (g_chaotic->integer) {
-	case 2:
-		perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.008f);
-		break;
-	case 1:
-		if (current_wave_level >= 7) {
-			perform_replacement(ent, chaotic_replacements, chaotic_replacement_count, 0.03f);
+	// Función para realizar el reemplazo según el modo de juego
+	auto perform_replacements = [&](int mode, int wave_level, const MonsterReplacement* replacements, int replacement_count, float prob) {
+		switch (mode) {
+		case 2:
+			perform_replacement(ent, replacements, replacement_count, prob);
+			break;
+		case 1:
+			if (wave_level >= 7) {
+				perform_replacement(ent, replacements, replacement_count, prob);
+			}
+			break;
 		}
-		break;
+		};
+
+	// Aplicar los reemplazos según el modo de juego
+	if (g_chaotic->integer) {
+		perform_replacements(g_chaotic->integer, current_wave_level, chaotic_replacements, chaotic_replacement_count, g_chaotic->integer == 2 ? 0.008f : 0.03f);
 	}
 
-	switch (g_insane->integer) {
-	case 1:
-		if (current_wave_level >= 19) {
-			perform_replacement(ent, insane_replacements, insane_replacement_count, 0.04f);
-		}
-		break;
-	case 2:
-		perform_replacement(ent, insane_replacements, insane_replacement_count, 0.33f);
-		break;
+	if (g_insane->integer) {
+		perform_replacements(g_insane->integer, current_wave_level, insane_replacements, insane_replacement_count, g_insane->integer == 2 ? 0.33f : 0.04f);
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
-		switch (g_hardcoop->integer) {
-		case 3:
-			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.50f);
-			break;
-		default:
-			perform_replacement(ent, hardcoop_replacements, hardcoop_replacement_count, 0.0f);
-			break;
-		}
+		perform_replacements(g_hardcoop->integer, current_wave_level, hardcoop_replacements, hardcoop_replacement_count, g_hardcoop->integer == 3 ? 0.50f : 0.0f);
 	}
 
+	gitem_t* item;
+	int i;
 
-		gitem_t* item;
-		int		 i;
+	if (!ent->classname) {
+		gi.Com_Print("ED_CallSpawn: nullptr classname\n");
+		G_FreeEdict(ent);
+		return;
+	}
 
-		if (!ent->classname)
-		{
-			gi.Com_Print("ED_CallSpawn: nullptr classname\n");
-			G_FreeEdict(ent);
+	current_st = &spawntemp;
+
+	// PGM - do this before calling the spawn function so it can be overridden.
+	ent->gravityVector[0] = 0.0;
+	ent->gravityVector[1] = 0.0;
+	ent->gravityVector[2] = -1.0;
+	// PGM
+
+	ent->sv.init = false;
+
+	// FIXME - PMM classnames hack
+	if (!strcmp(ent->classname, "weapon_nailgun"))
+		ent->classname = GetItemByIndex(IT_WEAPON_ETF_RIFLE)->classname;
+	if (!strcmp(ent->classname, "ammo_nails"))
+		ent->classname = GetItemByIndex(IT_AMMO_FLECHETTES)->classname;
+	if (!strcmp(ent->classname, "weapon_heatbeam"))
+		ent->classname = GetItemByIndex(IT_WEAPON_PLASMABEAM)->classname;
+	// pmm
+
+	// check item spawn functions
+	for (i = 0, item = itemlist; i < IT_TOTAL; i++, item++) {
+		if (!item->classname)
+			continue;
+		if (!strcmp(item->classname, ent->classname)) {
+			// found it
+			// before spawning, pick random item replacement
+			if (g_dm_random_items->integer) {
+				ent->item = item;
+				item_id_t new_item = DoRandomRespawn(ent);
+
+				if (new_item) {
+					item = GetItemByIndex(new_item);
+					ent->classname = item->classname;
+				}
+			}
+
+			SpawnItem(ent, item, spawntemp);
+			current_st = nullptr;
 			return;
 		}
-
-		current_st = &spawntemp;
-
-		// PGM - do this before calling the spawn function so it can be overridden.
-		ent->gravityVector[0] = 0.0;
-		ent->gravityVector[1] = 0.0;
-		ent->gravityVector[2] = -1.0;
-		// PGM
-
-		ent->sv.init = false;
-
-		// FIXME - PMM classnames hack
-		if (!strcmp(ent->classname, "weapon_nailgun"))
-			ent->classname = GetItemByIndex(IT_WEAPON_ETF_RIFLE)->classname;
-		if (!strcmp(ent->classname, "ammo_nails"))
-			ent->classname = GetItemByIndex(IT_AMMO_FLECHETTES)->classname;
-		if (!strcmp(ent->classname, "weapon_heatbeam"))
-			ent->classname = GetItemByIndex(IT_WEAPON_PLASMABEAM)->classname;
-		// pmm
-
-		// check item spawn functions
-		for (i = 0, item = itemlist; i < IT_TOTAL; i++, item++)
-		{
-			if (!item->classname)
-				continue;
-			if (!strcmp(item->classname, ent->classname))
-			{
-				// found it
-				// before spawning, pick random item replacement
-				if (g_dm_random_items->integer)
-				{
-					ent->item = item;
-					item_id_t new_item = DoRandomRespawn(ent);
-
-					if (new_item)
-					{
-						item = GetItemByIndex(new_item);
-						ent->classname = item->classname;
-					}
-				}
-
-				SpawnItem(ent, item, spawntemp);
-
-				//if (level.is_psx)
-				//	ent->s.origin[2] += 15.f - (15.f * PSX_PHYSICS_SCALAR);
-
-				current_st = nullptr;
-				return;
-			}
-		}
-
-		// check normal spawn functions
-		for (auto& s : spawns)
-		{
-			if (!strcmp(s.name, ent->classname))
-			{ // found it
-				s.spawn(ent);
-
-				// Paril: swap classname with stored constant if we didn't change it
-				if (strcmp(ent->classname, s.name) == 0)
-					ent->classname = s.name;
-
-				current_st = nullptr;
-				return;
-			}
-		}
-
-		gi.Com_PrintFmt("{} doesn't have a spawn function\n", *ent);
-		G_FreeEdict(ent);
-		current_st = nullptr;
 	}
+
+	// check normal spawn functions
+	for (auto& s : spawns) {
+		if (!strcmp(s.name, ent->classname)) { // found it
+			s.spawn(ent);
+
+			// Paril: swap classname with stored constant if we didn't change it
+			if (strcmp(ent->classname, s.name) == 0)
+				ent->classname = s.name;
+
+			current_st = nullptr;
+			return;
+		}
+	}
+
+	gi.Com_PrintFmt("{} doesn't have a spawn function\n", *ent);
+	G_FreeEdict(ent);
+	current_st = nullptr;
+}
 
 	// Quick redirect to use empty spawntemp
 	void  ED_CallSpawn(edict_t * ent)

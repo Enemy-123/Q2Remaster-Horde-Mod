@@ -23,7 +23,7 @@ bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
 
 uint64_t last_wave_number = 0;
-static int32_t cachedRemainingMonsters = -1;
+uint16_t cachedRemainingMonsters = 0;
 uint32_t g_totalMonstersInWave = 0;
 
 gtime_t horde_message_end_time = 0_sec;
@@ -302,28 +302,25 @@ static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) no
 
 // Función para ajustar la tasa de aparición de monstruos
 static void AdjustMonsterSpawnRate() {
-	const auto humanPlayers = GetNumHumanPlayers();
-	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.1f;
+    const auto humanPlayers = GetNumHumanPlayers();
+    const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f; // Hacer el crecimiento menos agresivo
 
-	if (g_horde_local.level % 3 == 0) {
-		g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
+    if (g_horde_local.level % 3 == 0) {
+        g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
 
-		const bool isChaoticOrInsane = g_chaotic->integer || g_insane->integer;
-		const gtime_t spawnTimeReduction = isChaoticOrInsane ? 0.3_sec : 0.1_sec;
-		const gtime_t cooldownReduction = isChaoticOrInsane ? 0.3_sec : 0.1_sec;
+        const gtime_t spawnTimeReduction = g_chaotic->integer || g_insane->integer ? 0.25_sec : 0.15_sec;
+        g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
+        g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 2.0_sec);
 
-		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
-		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 1.3_sec);
+        SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
+        SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
+    }
 
-		SPAWN_POINT_COOLDOWN -= cooldownReduction * difficultyMultiplier;
-		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 2.2_sec);
-	}
-
-	const auto mapSize = GetMapSize(level.mapname);
-	// Asegurar que el número de spawn no exceda el máximo permitido para el tamaño del mapa
-	const int32_t maxSpawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
-	g_horde_local.num_to_spawn = std::min(g_horde_local.num_to_spawn, maxSpawn);
+    // Limitar el número de monstruos según el tamaño del mapa
+    const auto mapSize = GetMapSize(level.mapname);
+    const int32_t maxSpawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+                             (mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+    g_horde_local.num_to_spawn = std::min(g_horde_local.num_to_spawn, maxSpawn);
 }
 
 // Función principal para determinar y ajustar el número de monstruos a spawnear
@@ -870,7 +867,11 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
 static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	spawnAttempts[spawn_point]++;
 	if (spawnAttempts[spawn_point] % 3 == 0) {
-		spawnPointCooldowns[spawn_point] = std::max(gtime_t::from_sec(spawnPointCooldowns[spawn_point].seconds() * 0.9f), 1_sec);
+		spawnPointCooldowns[spawn_point] = std::max(gtime_t::from_sec(spawnPointCooldowns[spawn_point].seconds() * 1.5f), 2.5_sec);
+	}
+	if (spawnAttempts[spawn_point] >= 6) {
+		gi.Com_PrintFmt("PRINT: Punto de spawn {} marcado como inactivo temporalmente.\n", spawn_point->s.origin);
+		spawnPointCooldowns[spawn_point] = level.time + 10_sec; // Desactivar por 10 segundos después de varios intentos fallidos
 	}
 }
 
