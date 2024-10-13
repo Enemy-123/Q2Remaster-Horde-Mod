@@ -60,9 +60,14 @@ std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
 
 struct SpawnPointData {
-	uint32_t attempts = 0;
-	gtime_t cooldown = 0_sec;
+	uint32_t attempts = 0;               // Número de intentos fallidos de spawn
+	gtime_t cooldown = 0_sec;            // Tiempo de espera (cooldown) antes de intentar nuevamente
+	gtime_t lastSpawnTime = 0_sec;       // Último tiempo registrado de intento de spawn
+	uint32_t successfulSpawns = 0;       // Número de spawns exitosos realizados
+	bool isTemporarilyDisabled = false;  // Indica si el punto de spawn está temporalmente deshabilitado
 };
+
+
 
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
 
@@ -841,15 +846,16 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	data.attempts++;
 
-	if (data.attempts % 3 == 0) {
+	if (data.attempts >= 6) {
+		gi.Com_PrintFmt("PRINT: SpawnPoint {} está inactivo por 10 segundos.\n", spawn_point->s.origin);
+		data.isTemporarilyDisabled = true; // Desactivar temporalmente
+		data.cooldown = level.time + 10_sec;
+	}
+	else if (data.attempts % 3 == 0) {
 		data.cooldown = std::max(gtime_t::from_sec(data.cooldown.seconds() * 1.5f), 2.5_sec);
 	}
-
-	if (data.attempts >= 6) {
-		gi.Com_PrintFmt("PRINT: SpawnPoint {} Is Inactive for 10 sec.\n", spawn_point->s.origin);
-		data.cooldown = level.time + 10_sec; // Desactivar por 10 segundos después de varios intentos fallidos
-	}
 }
+
 
 // Estructura para pasar datos adicionales a la función de filtro
 struct FilterData {
@@ -900,14 +906,20 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 #include <vector>
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
+
+	auto it = spawnPointsData.find(spawn_point);
+	if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
+		return nullptr; // El punto de spawn está deshabilitado, no intentar spawnear
+	}
+
 	// Check if the spawn point is occupied
 	if (IsSpawnPointOccupied(spawn_point)) {
 		return nullptr;
 	}
 
 	// Check cooldowns
-	if (const auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
-		if (level.time < it->second + SPAWN_POINT_COOLDOWN) {
+	if (const auto cooldown_it = lastSpawnPointTime.find(spawn_point); cooldown_it != lastSpawnPointTime.end()) {
+		if (level.time < cooldown_it->second + SPAWN_POINT_COOLDOWN) {
 			return nullptr;  // Aún en cooldown, no permitir spawn
 		}
 	}
@@ -919,6 +931,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Use a static vector to avoid repeated allocations
 	static std::vector<std::pair<const weighted_item_t*, double>> eligible_monsters;
 	eligible_monsters.clear();
+	eligible_monsters.reserve(std::size(monsters));
 	double total_weight = 0.0;
 
 	for (const auto& item : monsters) {
@@ -954,12 +967,12 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	const double random_weight = frandom() * total_weight;
 
 	// Use std::lower_bound to find the chosen monster
-	auto it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), random_weight,
+	auto chosen_it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), random_weight,
 		[](const std::pair<const weighted_item_t*, double>& monster, double value) {
 			return monster.second < value;
 		});
 
-	const char* chosen_monster = (it != eligible_monsters.end()) ? it->first->classname : nullptr;
+	const char* chosen_monster = (chosen_it != eligible_monsters.end()) ? chosen_it->first->classname : nullptr;
 
 	// Update cooldowns and reset spawn point attempts
 	UpdateCooldowns(spawn_point, chosen_monster);
@@ -967,6 +980,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	return chosen_monster;
 }
+
 
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
@@ -1532,9 +1546,15 @@ void ClearHordeMessage() {
 }
 // reset cooldowns, fixed no monster spawning on next map
 void ResetCooldowns() noexcept {
+	for (auto& [spawn_point, data] : spawnPointsData) {
+		data.attempts = 0;
+		data.cooldown = SPAWN_POINT_COOLDOWN;
+		data.isTemporarilyDisabled = false;
+	}
 	lastSpawnPointTime.clear();
 	lastMonsterSpawnTime.clear();
 }
+
 
 // For resetting bonus 
 static void ResetBenefits() noexcept {
@@ -2103,8 +2123,22 @@ static void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 	UpdateHordeMessage(formattedMessage, duration);
 }
 
+// Add this function in the appropriate source file that deals with spawn management.
+static void CheckAndResetDisabledSpawnPoints() {
+	for (auto& [spawn_point, data] : spawnPointsData) {
+		if (data.isTemporarilyDisabled && level.time >= data.cooldown) {
+			data.isTemporarilyDisabled = false;  // Restablecer el punto de spawn
+			data.attempts = 0;  // Resetear los intentos fallidos
+			gi.Com_PrintFmt("PRINT: SpawnPoint {} se ha reactivado.\n", spawn_point->s.origin);
+		}
+	}
+}
+
+
 void Horde_RunFrame() {
 	const auto mapSize = GetMapSize(level.mapname);
+
+	CheckAndResetDisabledSpawnPoints();
 
 	// Si hay un número personalizado de monstruos, sobrescribir el número a spawnear
 	if (dm_monsters->integer > 0) {
