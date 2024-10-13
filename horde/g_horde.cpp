@@ -432,10 +432,10 @@ static void Horde_InitLevel(const int32_t lvl) {
 
 	// Ajustar la escala de daño según el nivel
 	switch (g_horde_local.level) {
-	case 15: gi.cvar_set("g_damage_scale", "2.1"); break;
-	case 25: gi.cvar_set("g_damage_scale", "3.3"); break;
-	case 35: gi.cvar_set("g_damage_scale", "4.1"); break;
-	case 45: gi.cvar_set("g_damage_scale", "5.1"); break;
+	case 15: gi.cvar_set("g_damage_scale", "1.75"); break;
+	case 25: gi.cvar_set("g_damage_scale", "2.25"); break;
+	case 35: gi.cvar_set("g_damage_scale", "3.5"); break;
+	case 45: gi.cvar_set("g_damage_scale", "4.0"); break;
 	default: break;
 	}
 
@@ -1073,13 +1073,54 @@ void VerifyAndAdjustBots() {
 
 #include <chrono>
 void InitializeWaveSystem() noexcept;
-void Horde_Init() {
-	// Precache all items
+
+// Definición de constantes y estructuras necesarias
+static cached_soundindex sound_tele3;
+static cached_soundindex sound_klaxon2;
+static cached_soundindex sound_tele_up;
+static cached_soundindex sound_incoming;
+static cached_soundindex sound_yelforce;
+
+static cached_soundindex sound_action_fail;
+static cached_soundindex sound_roar1;
+static cached_soundindex sound_ack;
+static cached_soundindex sound_spawn1;
+static cached_soundindex sound_voice3;
+static cached_soundindex sound_v_fac3;
+
+// Función para precargar todos los ítems y jefes
+static void PrecacheItemsAndBosses() noexcept {
 	for (auto& item : itemlist) {
 		PrecacheItem(&item);
 	}
 
-	// Precache monsters
+	for (const auto& boss : BOSS_SMALL) {
+		PrecacheItem(FindItemByClassname(boss.classname));
+	}
+	for (const auto& boss : BOSS_MEDIUM) {
+		PrecacheItem(FindItemByClassname(boss.classname));
+	}
+	for (const auto& boss : BOSS_LARGE) {
+		PrecacheItem(FindItemByClassname(boss.classname));
+	}
+}
+
+static void PrecacheAllSounds() noexcept {
+	sound_tele3.assign("misc/r_tele3.wav");
+	sound_klaxon2.assign("world/klaxon2.wav");
+	sound_tele_up.assign("misc/tele_up.wav");
+	sound_incoming.assign("world/incoming.wav");
+	sound_yelforce.assign("world/yelforce.wav");
+
+	sound_action_fail.assign("nav_editor/action_fail.wav");
+	sound_roar1.assign("makron/roar1.wav");
+	sound_ack.assign("zortemp/ack.wav");
+	sound_spawn1.assign("misc/spawn1.wav");
+	sound_voice3.assign("makron/voice3.wav");
+	sound_v_fac3.assign("world/v_fac3.wav");
+}
+
+static void PrecacheAllMonsters() noexcept {
 	for (const auto& monster : monsters) {
 		edict_t* e = G_Spawn();
 		if (!e) {
@@ -1091,39 +1132,21 @@ void Horde_Init() {
 		ED_CallSpawn(e);
 		G_FreeEdict(e);
 	}
+}
 
-	// Initialize wave system (includes precaching of wave sounds)
+void Horde_Init() {
+	// Precache items, bosses, monsters, and sounds
+	PrecacheItemsAndBosses();
+	PrecacheAllMonsters();
+	PrecacheAllSounds();
+
+	// Inicializar otros sistemas de la horda (e.g., sistema de oleadas)
 	InitializeWaveSystem();
 
-	// Precache items and bosses
-	const auto precacheEntity = [](const auto& entity) {
-		if (entity.classname) {
-			PrecacheItem(FindItemByClassname(entity.classname));
-		}
-		else {
-			gi.Com_Print("Error: Invalid entity classname for precaching.\n");
-		}
-		};
-
-	for (const auto& item : items) precacheEntity(item);
-	for (const auto& boss : BOSS_SMALL) precacheEntity(boss);
-	for (const auto& boss : BOSS_MEDIUM) precacheEntity(boss);
-	for (const auto& boss : BOSS_LARGE) precacheEntity(boss);
-
-	// Precache additional sounds
-	constexpr std::array<const char*, 5> additional_sounds = {
-		 "misc/r_tele3.wav",
-		 "world/klaxon2.wav",
-		 "misc/tele_up.wav",
-		 "world/incoming.wav",
-		 "world/yelforce.wav"
-	};
-
-	for (const auto& sound : additional_sounds) {
-		gi.soundindex(sound);
-	}
-
+	// Resetear el estado del juego para la horda
 	ResetGame();
+
+	gi.Com_PrintFmt("PRINT: Horde game state initialized with all necessary resources precached.\n");
 }
 
 // Constantes para mejorar la legibilidad y mantenibilidad
