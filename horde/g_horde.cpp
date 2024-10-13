@@ -260,18 +260,6 @@ static void CheckAndApplyBenefit(int32_t wave) {
 	}
 }
 
-// Función para calcular la cantidad de monstruos estándar a spawnear
-static void CalculateStandardSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
-	if (mapSize.isSmallMap) {
-		g_horde_local.num_to_spawn = std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP);
-	}
-	else if (mapSize.isBigMap) {
-		g_horde_local.num_to_spawn = std::min((lvl <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP);
-	}
-	else { // Medium map
-		g_horde_local.num_to_spawn = std::min((lvl <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
-	}
-}
 
 // Función para calcular el bono de locura y caos
 static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
@@ -283,85 +271,39 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	}
 }
 
-// Función para incluir ajustes de dificultad
-static void IncludeDifficultyAdjustments(const MapSize& mapSize, int32_t lvl) noexcept {
-	// Inicializa la variable additionalSpawn en 0
-	int64_t additionalSpawn = 0;
+static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
+	// Lógica de ajuste de spawn combinada
+	int32_t baseCount = (mapSize.isSmallMap) ? std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP) :
+		(mapSize.isBigMap) ? std::min((lvl <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP) :
+		std::min((lvl <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
 
-	// Ajuste de spawn inicial
-	additionalSpawn = static_cast<int64_t>(additionalSpawn) * 1.6;  // Este cálculo parece innecesario ya que additionalSpawn está en 0.
-	if (additionalSpawn > INT32_MAX) {
-		additionalSpawn = INT32_MAX; // Limitar al máximo valor de int32_t
-	}
-
-	if (mapSize.isSmallMap) {
-		additionalSpawn = (lvl >= 8) ? 8 : 6;
-	}
-	else if (mapSize.isBigMap) {
-		additionalSpawn = (lvl >= 8) ? 12 : 8;
-	}
-	else { // Medium map
-		additionalSpawn = (lvl >= 8) ? 7 : 6;
-	}
-
+	int64_t additionalSpawn = (lvl >= 8) ? ((mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7)) : 6;
 	if (lvl > 25) {
 		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6);
 	}
-
 	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
 	}
 
-	g_horde_local.num_to_spawn += additionalSpawn;
-}
-
-// Función para ajustar la tasa de aparición de monstruos
-static void AdjustMonsterSpawnRate() {
-    const auto humanPlayers = GetNumHumanPlayers();
-    const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f; // Hacer el crecimiento menos agresivo
-
-    if (g_horde_local.level % 3 == 0) {
-        g_horde_local.num_to_spawn = static_cast<int32_t>(g_horde_local.num_to_spawn * difficultyMultiplier);
-
-        const gtime_t spawnTimeReduction = g_chaotic->integer || g_insane->integer ? 0.25_sec : 0.15_sec;
-        g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
-        g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 2.0_sec);
-
-        SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
-        SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
-    }
-
-    // Limitar el número de monstruos según el tamaño del mapa
-    const auto mapSize = GetMapSize(level.mapname);
-    const int32_t maxSpawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-                             (mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
-    g_horde_local.num_to_spawn = std::min(g_horde_local.num_to_spawn, maxSpawn);
-}
-
-// Función principal para determinar y ajustar el número de monstruos a spawnear
-static void DetermineMonsterSpawnCount(const MapSize& mapSize, int32_t lvl) noexcept {
-	const int32_t custom_monster_count = dm_monsters->integer;
-	if (custom_monster_count > 0) {
-		g_horde_local.num_to_spawn = custom_monster_count;
+	float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
+	if (lvl % 3 == 0) {
+		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
+		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN - 0.15_sec * difficultyMultiplier, 3.0_sec);
 	}
-	else {
-		CalculateStandardSpawnCount(mapSize, lvl);
-		IncludeDifficultyAdjustments(mapSize, lvl);
 
-		// Incrementar 2 monstruos por ola
-		g_horde_local.num_to_spawn += 2;
+	g_horde_local.num_to_spawn = std::min(baseCount + static_cast<int32_t>(additionalSpawn), mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP));
 
-		// Obtener el máximo permitido según el tamaño del mapa
-		const int32_t max_spawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-			(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+	// Ajustar tasa de aparición y tiempos de cooldown
+	if (lvl % 3 == 0) {
+		const gtime_t spawnTimeReduction = g_chaotic->integer || g_insane->integer ? 0.25_sec : 0.15_sec;
+		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
+		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 2.0_sec);
 
-		// Si excede el máximo, agregar a la cola
-		if (g_horde_local.num_to_spawn > max_spawn) {
-			g_horde_local.queued_monsters += (g_horde_local.num_to_spawn - max_spawn);
-			g_horde_local.num_to_spawn = max_spawn;
-		}
+		SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
+		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
 }
+
 
 static void Horde_CleanBodies();
 void ResetAllSpawnAttempts() noexcept;
@@ -475,6 +417,7 @@ static gtime_t waveEndTime = 0_sec; // Nueva variable para el tiempo de finaliza
 constexpr std::array<float, 4> WARNING_TIMES = { 30.0f, 20.0f, 10.0f, 5.0f };
 
 static void Horde_InitLevel(const int32_t lvl) {
+	// Inicialización básica del nivel
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
 	cachedRemainingMonsters = g_totalMonstersInWave;
 	last_wave_number++;
@@ -484,8 +427,11 @@ static void Horde_InitLevel(const int32_t lvl) {
 	boss_spawned_for_wave = false;
 	VerifyAndAdjustBots();
 
+	// Configurar tiempos iniciales
 	g_independent_timer_start = level.time;
 	conditionStartTime = level.time;
+
+	// Obtener el tamaño del mapa y calcular parámetros
 	const auto mapSize = GetMapSize(level.mapname);
 	g_lastParams = GetConditionParams(mapSize, GetNumHumanPlayers(), lvl);
 
@@ -501,14 +447,18 @@ static void Horde_InitLevel(const int32_t lvl) {
 	default: break;
 	}
 
-	DetermineMonsterSpawnCount(mapSize, lvl);
+	// Determinar y ajustar el número de monstruos a spawnear con la nueva función unificada
+	UnifiedAdjustSpawnRate(mapSize, lvl, GetNumHumanPlayers());
+
+	// Verificar y aplicar beneficios, y otras configuraciones iniciales
 	CheckAndApplyBenefit(g_horde_local.level);
-	AdjustMonsterSpawnRate();
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
 	Horde_CleanBodies();
+
 	gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
 }
+
 
 
 bool G_IsDeathmatch() noexcept {
