@@ -465,7 +465,6 @@ constexpr gtime_t operator"" _hz(unsigned long long int s)
 	return gtime_t::from_ms(static_cast<int64_t>((1.0 / s) * 1000));
 }
 
-#define SERVER_TICK_RATE gi.tick_rate // in hz
 extern gtime_t FRAME_TIME_S;
 extern gtime_t FRAME_TIME_MS;
 
@@ -1103,10 +1102,6 @@ struct mod_t
 	}
 };
 
-// the total number of levels we'll track for the
-// end of unit screen.
-constexpr size_t MAX_LEVELS_PER_UNIT = 8;
-
 struct level_entry_t
 {
 	// bsp name
@@ -1494,14 +1489,6 @@ struct mframe_t
 	int32_t lerp_frame = -1;
 };
 
-// this check only works on windows, and is only
-// of importance to developers anyways
-#if defined(_WIN32) && defined(_MSC_VER)
-#if _MSC_VER >= 1934
-#define COMPILE_TIME_MOVE_CHECK
-#endif
-#endif
-
 struct mmove_t
 {
 	int32_t	  firstframe;
@@ -1510,33 +1497,29 @@ struct mmove_t
 	void (*endfunc)(edict_t* self);
 	float sidestep_scale;
 
-#ifdef COMPILE_TIME_MOVE_CHECK
+#ifdef _DEBUG
+	size_t framecount;
+#endif
+
 	template<size_t N>
-	constexpr mmove_t(int32_t firstframe, int32_t lastframe, const mframe_t(&frames)[N], void (*endfunc)(edict_t* self) = nullptr, float sidestep_scale = 0.0f) :
+	inline mmove_t(int32_t firstframe, int32_t lastframe, const mframe_t(&frames)[N], void (*endfunc)(edict_t* self) = nullptr, float sidestep_scale = 0.0f) :
 		firstframe(firstframe),
 		lastframe(lastframe),
 		frame(frames),
 		endfunc(endfunc),
 		sidestep_scale(sidestep_scale)
-	{
-		if ((lastframe - firstframe + 1) != N)
-			throw std::exception("bad animation frames; check your numbers!");
-	}
+#ifdef _DEBUG
+		, framecount(N)
 #endif
-	};
+	{
+	}
+};
 
 using save_mmove_t = save_data_t<mmove_t, SAVE_DATA_MMOVE>;
-#ifdef COMPILE_TIME_MOVE_CHECK
-#define MMOVE_T(n) \
-	extern const mmove_t n; \
-	static const save_data_list_t save__##n(#n, SAVE_DATA_MMOVE, &n); \
-	constexpr mmove_t n
-#else
 #define MMOVE_T(n) \
 	extern const mmove_t n; \
 	static const save_data_list_t save__##n(#n, SAVE_DATA_MMOVE, &n); \
 	const mmove_t n
-#endif
 
 DEFINE_DATA_FUNC(monsterinfo_stand, MONSTERINFO_STAND, void, edict_t* self);
 #define MONSTERINFO_STAND(n) \
@@ -1936,7 +1919,7 @@ inline void VectorCopy(const vec3_t& src, vec3_t& dest) {
 	dest[2] = src[2];
 }
 
-
+extern cvar_t* developer;
 extern cvar_t* deathmatch;
 extern cvar_t* coop;
 extern cvar_t* skill;

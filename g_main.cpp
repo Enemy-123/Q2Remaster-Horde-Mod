@@ -27,6 +27,7 @@ cached_soundindex		snd_fry;
 
 edict_t* g_edicts;
 
+cvar_t* developer;
 cvar_t* deathmatch;
 cvar_t* coop;
 cvar_t* skill;
@@ -206,6 +207,7 @@ is loaded.
 */
 void PreInitGame()
 {
+	developer = gi.cvar("developer", "0", CVAR_NOFLAGS);
 	maxclients = gi.cvar("maxclients", G_Fmt("{}", MAX_SPLIT_PLAYERS).data(), CVAR_SERVERINFO | CVAR_LATCH);
 	deathmatch = gi.cvar("deathmatch", "0", CVAR_LATCH);
 	coop = gi.cvar("coop", "0", CVAR_LATCH);

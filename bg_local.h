@@ -12,6 +12,10 @@
 #define GAME_INCLUDE
 #include "game.h"
 
+// the total number of levels we'll track for the
+// end of unit screen.
+constexpr size_t MAX_LEVELS_PER_UNIT = 16;
+
 //
 // p_move.c
 //
