@@ -875,8 +875,15 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 		return BoxEdictsResult_t::End; // Detener la búsqueda si se encuentra un jugador o bot
 	}
 
+	// Verificar si la entidad es un monstruo (usando el flag SVF_MONSTER)
+	if (ent->svflags & SVF_MONSTER) {
+		filter_data->count++;
+		return BoxEdictsResult_t::End; // Detener la búsqueda si se encuentra un monstruo
+	}
+
 	return BoxEdictsResult_t::Skip;
 }
+
 
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr, const edict_t* monster = nullptr) {
