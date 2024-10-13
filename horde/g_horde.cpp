@@ -1223,6 +1223,9 @@ void BossDeathHandler(edict_t* boss) {
 	OnEntityRemoved(boss); // Añadido para liberar el configstring
 	boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
 
+	// Liberar el jefe del conjunto de jefes generados automáticamente
+	auto_spawned_bosses.erase(boss);
+
 	const std::array<const char*, 6> itemsToDrop = {
 		"item_adrenaline", "item_pack", "item_doppleganger",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier"
@@ -1261,6 +1264,9 @@ void BossDeathHandler(edict_t* boss) {
 	}
 }
 
+
+
+
 void boss_die(edict_t* boss) {
 	if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->health <= 0 &&
 		auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
@@ -1297,22 +1303,35 @@ static bool Horde_AllMonstersDead() {
 
 static void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
+
+	// Iterar sobre todos los monstruos activos o muertos
 	for (auto ent : active_or_dead_monsters()) {
+		// Comprobar si el monstruo está muerto o si su salud es menor o igual a cero
 		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
+			// Si la entidad es un jefe y no se ha manejado su muerte correctamente
 			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
-				boss_die(ent);
+				BossDeathHandler(ent);
 			}
 			else {
+				// Aplicar lógica general para la muerte de la entidad
 				OnEntityDeath(ent);
 			}
+
+			// Eliminar el jefe del conjunto de `auto_spawned_bosses` si está presente
+			auto_spawned_bosses.erase(ent);
+
+			// Liberar el edicto de la entidad
 			G_FreeEdict(ent);
 			cleaned_count++;
 		}
 	}
+
+	// Imprimir cuántos cuerpos fueron limpiados
 	if (cleaned_count > 0) {
 		gi.Com_PrintFmt("PRINT: Cleaned {} monster bodies\n", cleaned_count);
 	}
 }
+
 
 // spawning boss origin
 std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
@@ -1652,6 +1671,7 @@ void ResetGame() {
 	cachedRemainingMonsters = 0;
 
 	// Reset core gameplay elements
+	auto_spawned_bosses.clear(); // Limpiar todos los jefes generados automáticamente
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
 	ResetBenefits();
