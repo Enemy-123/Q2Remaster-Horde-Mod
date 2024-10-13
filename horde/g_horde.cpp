@@ -432,10 +432,10 @@ static void Horde_InitLevel(const int32_t lvl) {
 
 	// Ajustar la escala de daño según el nivel
 	switch (g_horde_local.level) {
-	case 15: gi.cvar_set("g_damage_scale", "1.75"); break;
-	case 25: gi.cvar_set("g_damage_scale", "2.25"); break;
-	case 35: gi.cvar_set("g_damage_scale", "3.5"); break;
-	case 45: gi.cvar_set("g_damage_scale", "4.0"); break;
+	case 15: gi.cvar_set("g_damage_scale", "2.35"); break;
+	case 25: gi.cvar_set("g_damage_scale", "3.25"); break;
+	case 35: gi.cvar_set("g_damage_scale", "3.8"); break;
+	case 45: gi.cvar_set("g_damage_scale", "4.3"); break;
 	case 55: gi.cvar_set("g_damage_scale", "5.5"); break;
 	default: break;
 	}
@@ -818,40 +818,54 @@ static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 	data.attempts = 0;
 	data.cooldown = level.time;
 }
+
+constexpr gtime_t CLEANUP_THRESHOLD = 3_sec;
+
+// Function to ensure a spawn point entry exists in the data map
+SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
+	if (!spawn_point) {
+		gi.Com_PrintFmt("Warning: Attempted to ensure spawn point data for a nullptr.\n");
+		// Handle the nullptr case appropriately
+		throw std::invalid_argument("Null spawn point passed to EnsureSpawnPointDataExists.");
+	}
+	auto [insert_it, inserted] = spawnPointsData.emplace(spawn_point, SpawnPointData());
+	return insert_it->second;
+}
+
+void CleanUpSpawnPointsData() {
+	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
+		const auto& spawn_data = it->second;
+
+		// Example: Remove if the cooldown ended a long time ago and the spawn point has not been used
+		if (spawn_data.isTemporarilyDisabled && level.time > spawn_data.cooldownEndsAt + CLEANUP_THRESHOLD) {
+			auto spawn_point_address = it->first; // Save address before deleting
+			it = spawnPointsData.erase(it);
+			gi.Com_PrintFmt("Removed spawn_point at address {} due to extended inactivity.\n", fmt::ptr(spawn_point_address));
+		}
+		else {
+			++it;
+		}
+	}
+}
+
 // Function to update spawn point cooldowns and the last spawn times for the monster
 void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
-	// Check if the spawn point exists in spawnPointsData
-	auto it = spawnPointsData.find(spawn_point);
-	if (it == spawnPointsData.end()) {
-		// Initialize data for spawn point if it doesn't already exist
-	//	gi.Com_PrintFmt("Warning: spawn_point at address {} not found in spawnPointsData. Initializing new entry.\n", fmt::ptr(spawn_point));
-		spawnPointsData[spawn_point] = SpawnPointData(); // Assuming SpawnPointData is a valid struct/class for storing spawn info
-		it = spawnPointsData.find(spawn_point); // Update iterator to the newly created entry
-	}
+	// Ensure the spawn point entry exists in spawnPointsData
+	SpawnPointData& spawn_data = EnsureSpawnPointDataExists(spawn_point);
 
-	// Proceed to update cooldowns for the spawn point
-	SpawnPointData& spawn_data = it->second;
-
-	// Example cooldown update logic
+	// Update spawn time
 	spawn_data.lastSpawnTime = level.time;
 
 	if (chosen_monster) {
-	//	gi.Com_PrintFmt("Updating cooldown for spawn_point at address {} with chosen monster {}.\n", fmt::ptr(spawn_point), chosen_monster);
 		spawn_data.lastSpawnedMonsterClassname = chosen_monster;
 	}
-	else {
-	//	gi.Com_PrintFmt("No monster chosen for spawn_point at address {}, just updating spawn time.\n", fmt::ptr(spawn_point));
-	}
 
-	// Update other necessary spawn point fields as per your requirements
-	// For instance, if there's a cooldown logic or setting new attributes to track usage
+	// Reset cooldown timer
+	spawn_data.isTemporarilyDisabled = true;
+	spawn_data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 
-	// Example: Reset the cooldown timer if needed
-	spawn_data.isTemporarilyDisabled = true; // If required by your cooldown logic
-	spawn_data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN; // Marking cooldown for the next available spawn
-
-	// Optional debug info to ensure function worked as expected
-//	gi.Com_PrintFmt("Cooldown updated for spawn_point at address {}. Cooldown ends at {} ms.\n", fmt::ptr(spawn_point), spawn_data.cooldownEndsAt.milliseconds());
+	// Clean up old spawn points if necessary (could be called periodically elsewhere instead)
+	CleanUpSpawnPointsData();
 }
 
 // Function to increase spawn attempts and adjust cooldown as necessary
@@ -860,12 +874,12 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	data.attempts++;
 
 	if (data.attempts >= 6) {
-		gi.Com_PrintFmt("PRINT: SpawnPoint {} inactived for 10 seconds.\n", spawn_point->s.origin);
-		data.isTemporarilyDisabled = true; // Desactivar temporalmente
-		data.cooldown = level.time + 10_sec;
+		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated for 10 seconds.\n", spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
+		data.isTemporarilyDisabled = true; // Temporarily deactivate
+		data.cooldownEndsAt = level.time + 10_sec;
 	}
 	else if (data.attempts % 3 == 0) {
-		data.cooldown = std::max(gtime_t::from_sec(data.cooldown.seconds() * 1.5f), 2.5_sec);
+		data.cooldownEndsAt = std::max(data.cooldownEndsAt + (data.cooldownEndsAt / 2), 2.5_sec);
 	}
 }
 
@@ -2163,7 +2177,7 @@ static void CheckAndResetDisabledSpawnPoints() {
 		if (data.isTemporarilyDisabled && level.time >= data.cooldown) {
 			data.isTemporarilyDisabled = false;  // Restablecer el punto de spawn
 			data.attempts = 0;  // Resetear los intentos fallidos
-			gi.Com_PrintFmt("PRINT: SpawnPoint {} se ha reactivado.\n", spawn_point->s.origin);
+		//	gi.Com_PrintFmt("PRINT: SpawnPoint {} is active again.\n", spawn_point->s.origin);
 		}
 	}
 }
