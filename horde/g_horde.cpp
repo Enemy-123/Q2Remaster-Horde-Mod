@@ -130,27 +130,36 @@ struct picked_benefit_t {
 
 // Función para seleccionar un beneficio aleatorio
 static std::string SelectRandomBenefit(int32_t wave) {
-	std::vector<picked_benefit_t> picked_benefits;
-	picked_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
 	double total_weight = 0.0;
 
+	// Primera pasada: calcular el total del peso
 	for (const auto& benefit : benefits) {
 		if ((wave >= benefit.min_level) &&
 			(benefit.max_level == -1 || wave <= benefit.max_level) &&
 			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
 			total_weight += static_cast<double>(benefit.weight);
-			picked_benefits.push_back({ &benefit, static_cast<float>(total_weight) }); // Conversión explícita
 		}
 	}
 
-	if (picked_benefits.empty()) return "";  // Verificar si está vacío antes de proceder
+	// Verificar si no hay beneficios seleccionables
+	if (total_weight == 0.0) return "";
 
+	// Segunda pasada: seleccionar con peso aleatorio
 	const double random_weight = frandom() * total_weight;
-	auto it = std::find_if(picked_benefits.begin(), picked_benefits.end(),
-		[random_weight](const picked_benefit_t& picked_benefit) {
-			return random_weight < static_cast<double>(picked_benefit.weight);
-		});
-	return (it != picked_benefits.end()) ? it->benefit->benefit_name : "";
+	double cumulative_weight = 0.0;
+
+	for (const auto& benefit : benefits) {
+		if ((wave >= benefit.min_level) &&
+			(benefit.max_level == -1 || wave <= benefit.max_level) &&
+			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
+			cumulative_weight += static_cast<double>(benefit.weight);
+			if (random_weight <= cumulative_weight) {
+				return benefit.benefit_name;
+			}
+		}
+	}
+
+	return "";
 }
 
 #include <string_view>
@@ -778,7 +787,7 @@ struct picked_item_t {
 
 gitem_t* G_HordePickItem() {
 	std::vector<picked_item_t> picked_items;
-	double total_weight = 0.0; // Cambiado a double para evitar overflow
+	float total_weight = 0.0f;
 
 	for (const auto& item : items) {
 		if ((item.min_level != -1 && g_horde_local.level < item.min_level) ||
@@ -786,17 +795,17 @@ gitem_t* G_HordePickItem() {
 			continue;
 		}
 
-		float weight = item.weight; // Se mantiene como float para evitar errores con referencias
-		if (item.adjust_weight) item.adjust_weight(item, weight);
-		if (weight <= 0) continue;
+		float weight = item.weight; // Mantener como float para la función de ajuste
+		if (item.adjust_weight) item.adjust_weight(item, weight); // Mantener la referencia como float&
+		if (weight <= 0.0f) continue;
 
-		total_weight += static_cast<double>(weight); // Convertir a double para acumulación
-		picked_items.push_back({ &item, static_cast<float>(total_weight) }); // Convertir de double a float para evitar narrowing conversion
+		total_weight += weight;
+		picked_items.push_back({ &item, total_weight }); // Mantener el peso acumulado como float
 	}
 
 	if (picked_items.empty()) return nullptr;
 
-	const float random_weight = static_cast<float>(frandom() * total_weight); // Convertir a float para cumplir con el tipo
+	const float random_weight = frandom() * total_weight; // Mantener como float
 	auto it = std::lower_bound(picked_items.begin(), picked_items.end(), random_weight,
 		[](const picked_item_t& item, float value) { return item.weight < value; });
 
@@ -932,7 +941,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Check cooldowns
 	if (const auto it = lastSpawnPointTime.find(spawn_point); it != lastSpawnPointTime.end()) {
 		if (level.time < it->second + SPAWN_POINT_COOLDOWN) {
-			return nullptr;  // aún en cooldown, no permitir spawn
+			return nullptr;  // Aún en cooldown, no permitir spawn
 		}
 	}
 
@@ -960,10 +969,10 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 		// Verify if the monster is eligible for this spawn point and level
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
 			// Calculate the weight of this monster
-			const float weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
-			if (weight > 0) {
-				total_weight += static_cast<double>(weight);  // Convertir a double para evitar acumulación de precisión baja
-				eligible_monsters.emplace_back(&item, static_cast<double>(weight));  // Guardar el peso como double
+			const double weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+			if (weight > 0.0) {
+				total_weight += weight;
+				eligible_monsters.emplace_back(&item, total_weight); // Guardar el peso acumulado directamente como double
 			}
 		}
 	}
@@ -974,18 +983,16 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 		return nullptr;
 	}
 
-	// Create a vector of weights for std::discrete_distribution
-	std::vector<double> weights;
-	weights.reserve(eligible_monsters.size());
-	for (const auto& monster : eligible_monsters) {
-		weights.push_back(monster.second);  // Los pesos ya están en double
-	}
+	// Pick a random weight
+	const double random_weight = frandom() * total_weight;
 
-	// Create and use the discrete distribution
-	std::discrete_distribution<> dist(weights.begin(), weights.end());
-	const size_t chosen_index = dist(mt_rand);
+	// Use std::lower_bound to find the chosen monster
+	auto it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), random_weight,
+		[](const std::pair<const weighted_item_t*, double>& monster, double value) {
+			return monster.second < value;
+		});
 
-	const char* chosen_monster = eligible_monsters[chosen_index].first->classname;
+	const char* chosen_monster = (it != eligible_monsters.end()) ? it->first->classname : nullptr;
 
 	// Update cooldowns and reset spawn point attempts
 	UpdateCooldowns(spawn_point, chosen_monster);
@@ -993,7 +1000,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	return chosen_monster;
 }
-
 
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
