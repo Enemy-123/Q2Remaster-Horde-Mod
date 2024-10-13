@@ -53,9 +53,7 @@ int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 int32_t vampire_level = 0;
 
-std::vector<std::string> shuffled_benefits;
 std::unordered_set<edict_t*> auto_spawned_bosses;
-std::unordered_set<std::string> obtained_benefits;
 std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
 
@@ -93,7 +91,7 @@ MapSize GetMapSize(const std::string& mapname) {
 	return mapSize;
 }
 
-// Definici�n de la estructura weighted_benefit_t
+// Definición de la estructura weighted_benefit_t
 struct weighted_benefit_t {
 	const char* benefit_name;
 	int32_t min_level;
@@ -101,8 +99,8 @@ struct weighted_benefit_t {
 	float weight;
 };
 
-// Lista de beneficios ponderados
-constexpr weighted_benefit_t benefits[] = {
+// Lista de beneficios ponderados (constexpr para ser evaluado en tiempo de compilación)
+constexpr std::array<weighted_benefit_t, 9> benefits = { {
 	{ "vampire", 4, -1, 0.2f },
 	{ "vampire upgraded", 24, -1, 0.1f },
 	{ "ammo regen", 8, -1, 0.15f },
@@ -112,79 +110,79 @@ constexpr weighted_benefit_t benefits[] = {
 	{ "Cluster Prox Grenades", 25, -1, 0.2f },
 	{ "Napalm-Grenade Launcher", 25, -1, 0.2f },
 	{ "BFG Grav-Pull Lasers", 35, -1, 0.2f }
-};
+} };
 
+// Lista para los beneficios mezclados
+std::vector<const weighted_benefit_t*> shuffled_benefits;
 
+// Set para almacenar los beneficios obtenidos
+std::unordered_set<std::string> obtained_benefits;
 
-// Funci�n para mezclar los beneficios
-static void ShuffleBenefits() {
+// Mezcla los beneficios disponibles y asegura que "vampire" viene antes de "vampire upgraded"
+void ShuffleBenefits() {
 	shuffled_benefits.clear();
-	shuffled_benefits.reserve(std::size(benefits)); // Reservar espacio para todos los beneficios
-	for (const auto& benefit : benefits) {
-		shuffled_benefits.push_back(benefit.benefit_name);
-	}
-	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), std::default_random_engine());
+	shuffled_benefits.reserve(benefits.size());
 
-	// Asegurar que 'vampire' viene antes que 'vampire upgraded'
-	auto vampire_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire");
-	auto upgraded_it = std::find(shuffled_benefits.begin(), shuffled_benefits.end(), "vampire upgraded");
+	// Agrega todos los beneficios disponibles
+	for (const auto& benefit : benefits) {
+		if (obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
+			shuffled_benefits.push_back(&benefit);
+		}
+	}
+
+	// Mezclar beneficios disponibles
+	std::random_device rd;
+	std::default_random_engine rng(rd());
+	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), rng);
+
+	// Asegurar que 'vampire' viene antes que 'vampire upgraded' si ambos están presentes
+	auto vampire_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(), [](const weighted_benefit_t* b) {
+		return std::string(b->benefit_name) == "vampire";
+		});
+	auto upgraded_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(), [](const weighted_benefit_t* b) {
+		return std::string(b->benefit_name) == "vampire upgraded";
+		});
+
 	if (vampire_it != shuffled_benefits.end() && upgraded_it != shuffled_benefits.end() && vampire_it > upgraded_it) {
 		std::iter_swap(vampire_it, upgraded_it);
 	}
 }
-// Estructura para almacenar los beneficios seleccionados
-struct picked_benefit_t {
-	const weighted_benefit_t* benefit;
-	float weight;
-};
 
-
-// Función para seleccionar un beneficio aleatorio
-static std::string SelectRandomBenefit(int32_t wave) {
+// Selecciona un beneficio aleatorio basado en los pesos ponderados
+const weighted_benefit_t* SelectRandomBenefit(int32_t wave) {
 	double total_weight = 0.0;
 
-	// Primera pasada: calcular el total del peso
+	// Calcular el peso total de los beneficios disponibles para la ola actual
 	for (const auto& benefit : benefits) {
-		if ((wave >= benefit.min_level) &&
-			(benefit.max_level == -1 || wave <= benefit.max_level) &&
+		if (wave >= benefit.min_level && (benefit.max_level == -1 || wave <= benefit.max_level) &&
 			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
 			total_weight += static_cast<double>(benefit.weight);
 		}
 	}
 
-	// Verificar si no hay beneficios seleccionables
-	if (total_weight == 0.0) return "";
+	if (total_weight == 0.0) return nullptr;
 
-	// Segunda pasada: seleccionar con peso aleatorio
-	const double random_weight = frandom() * total_weight;
+	// Seleccionar un beneficio aleatorio
+	double random_weight = static_cast<double>(rand()) / RAND_MAX * total_weight;
 	double cumulative_weight = 0.0;
 
 	for (const auto& benefit : benefits) {
-		if ((wave >= benefit.min_level) &&
-			(benefit.max_level == -1 || wave <= benefit.max_level) &&
+		if (wave >= benefit.min_level && (benefit.max_level == -1 || wave <= benefit.max_level) &&
 			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
 			cumulative_weight += static_cast<double>(benefit.weight);
 			if (random_weight <= cumulative_weight) {
-				return benefit.benefit_name;
+				return &benefit;
 			}
 		}
 	}
 
-	return "";
+	return nullptr;
 }
 
-#include <string_view>
+// Aplicar el beneficio específico
+void ApplyBenefit(const weighted_benefit_t* benefit) {
+	if (!benefit) return;
 
-// Función hash simple para strings en tiempo de compilación
-static constexpr uint32_t hash(std::string_view str) {
-	uint32_t hash = 5381;
-	for (const char c : str)
-		hash = ((hash << 5) + hash) + c;
-	return hash;
-}
-
-// Función para aplicar un beneficio específico
-static void ApplyBenefit(const std::string& benefit) {
 	static const std::unordered_map<std::string, std::pair<const char*, const char*>> benefitMessages = {
 		{"start armor", {"\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 50 BODY-ARMOR!\n"}},
 		{"vampire", {"\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n"}},
@@ -197,75 +195,66 @@ static void ApplyBenefit(const std::string& benefit) {
 		{"BFG Grav-Pull Lasers", {"\n\n\n\nBFG LASERS UPGRADED!\n", "BFG Grav-Pull Lasers Enabled\n"}}
 	};
 
-	const auto it = benefitMessages.find(benefit);
-	if (it != benefitMessages.end()) {
-		// Aplicar el beneficio
-		switch (hash(benefit)) {
-		case hash("start armor"):
-			gi.cvar_set("g_startarmor", "1");
-			break;
-		case hash("vampire"):
-			vampire_level = 1;
-			gi.cvar_set("g_vampire", "1");
-			break;
-		case hash("vampire upgraded"):
-			vampire_level = 2;
-			gi.cvar_set("g_vampire", "2");
-			break;
-		case hash("ammo regen"):
-			gi.cvar_set("g_ammoregen", "1");
-			break;
-		case hash("auto haste"):
-			gi.cvar_set("g_autohaste", "1");
-			break;
-		case hash("Cluster Prox Grenades"):
-			gi.cvar_set("g_upgradeproxs", "1");
-			break;
-		case hash("Traced-Piercing Bullets"):
-			gi.cvar_set("g_tracedbullets", "1");
-			break;
-		case hash("Napalm-Grenade Launcher"):
-			gi.cvar_set("g_bouncygl", "1");
-			break;
-		case hash("BFG Grav-Pull Lasers"):
-			gi.cvar_set("g_bfgpull", "1");
-			gi.cvar_set("g_bfgslide", "0");
-			break;
-		default:
-			gi.Com_PrintFmt("PRINT: Unknown benefit: {}\n", benefit.c_str());
-			return;
-		}
-
-		// Enviar los mensajes de beneficio
-		gi.LocBroadcast_Print(PRINT_CENTER, it->second.first);
-		if (!std::string(it->second.second).empty()) {
-			gi.LocBroadcast_Print(PRINT_CHAT, it->second.second);
-		}
-
-		// Marcar el beneficio como obtenido
-		obtained_benefits.insert(benefit);
+	// Aplicar cambios de juego específicos
+	if (std::string(benefit->benefit_name) == "start armor") {
+		gi.cvar_set("g_startarmor", "1");
+	}
+	else if (std::string(benefit->benefit_name) == "vampire") {
+		vampire_level = 1;
+		gi.cvar_set("g_vampire", "1");
+	}
+	else if (std::string(benefit->benefit_name) == "vampire upgraded") {
+		vampire_level = 2;
+		gi.cvar_set("g_vampire", "2");
+	}
+	else if (std::string(benefit->benefit_name) == "ammo regen") {
+		gi.cvar_set("g_ammoregen", "1");
+	}
+	else if (std::string(benefit->benefit_name) == "auto haste") {
+		gi.cvar_set("g_autohaste", "1");
+	}
+	else if (std::string(benefit->benefit_name) == "Cluster Prox Grenades") {
+		gi.cvar_set("g_upgradeproxs", "1");
+	}
+	else if (std::string(benefit->benefit_name) == "Traced-Piercing Bullets") {
+		gi.cvar_set("g_tracedbullets", "1");
+	}
+	else if (std::string(benefit->benefit_name) == "Napalm-Grenade Launcher") {
+		gi.cvar_set("g_bouncygl", "1");
+	}
+	else if (std::string(benefit->benefit_name) == "BFG Grav-Pull Lasers") {
+		gi.cvar_set("g_bfgpull", "1");
+		gi.cvar_set("g_bfgslide", "0");
 	}
 	else {
-		// Mensaje de depuración en caso de que el beneficio no sea encontrado
-		gi.Com_PrintFmt("PRINT: Benefit not found: {}\n", benefit.c_str());
+		gi.Com_PrintFmt("PRINT: Unknown benefit: %s\n", benefit->benefit_name);
+		return;
 	}
+
+	// Enviar los mensajes de beneficio
+	const auto it = benefitMessages.find(benefit->benefit_name);
+	if (it != benefitMessages.end()) {
+		gi.LocBroadcast_Print(PRINT_CENTER, it->second.first);
+		gi.LocBroadcast_Print(PRINT_CHAT, it->second.second);
+	}
+
+	// Marcar el beneficio como obtenido
+	obtained_benefits.insert(benefit->benefit_name);
 }
 
-// Funci�n para verificar y aplicar beneficios basados en la ola
-static void CheckAndApplyBenefit(int32_t wave) {
+// Verificar y aplicar beneficios basados en la ola
+void CheckAndApplyBenefit(int32_t wave) {
 	if (wave % 4 == 0) {
 		if (shuffled_benefits.empty()) {
 			ShuffleBenefits();
 		}
 
-		std::string benefit = SelectRandomBenefit(wave);
-		if (!benefit.empty()) {
+		const auto benefit = SelectRandomBenefit(wave);
+		if (benefit) {
 			ApplyBenefit(benefit);
 		}
 	}
 }
-
-
 // Función para calcular el bono de locura y caos
 static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	if (g_chaotic->integer) return (lvl <= 3) ? 6 : 3;

@@ -2119,9 +2119,17 @@ std::string GetActiveBonusesString() {
 		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"}
 	};
 
-
 	std::vector<std::string> active_bonuses;
+
+	// Check if "vampire upgraded" is obtained first
+	bool has_vampire_upgraded = obtained_benefits.count("vampire upgraded");
+
 	for (const auto& [benefit, bonus_text] : bonus_mappings) {
+		// Skip "vampire" if "vampire upgraded" is already obtained
+		if (benefit == "vampire" && has_vampire_upgraded) {
+			continue;
+		}
+
 		if (obtained_benefits.count(benefit)) {
 			active_bonuses.push_back(bonus_text);
 		}
