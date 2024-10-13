@@ -317,23 +317,22 @@ struct ConditionParams {
 		timeThreshold(0_sec),
 		lowPercentageTimeThreshold(0_sec),
 		independentTimeThreshold(0_sec),
-		lowPercentageThreshold(0.25f),
+		lowPercentageThreshold(0.3f),
 		aggressiveTimeReductionThreshold(0.3f) {}
 };
 
 // Función para calcular el rendimiento del jugador (implementa según tus necesidades)
 static float CalculatePlayerPerformance() {
-	// Esta es una implementación de ejemplo. Ajusta según tus necesidades.
+	// Implementación de ejemplo. Ajusta según tus necesidades.
 	const float killRate = static_cast<float>(level.killed_monsters) / std::max(1.0f, static_cast<float>(g_totalMonstersInWave));
 	return std::clamp(killRate, 0.5f, 2.0f);  // Limita el factor entre 0.5 y 2
 }
 
-// New constants and helper functions
+// Constantes y funciones auxiliares
 constexpr gtime_t BASE_MAX_WAVE_TIME = 40_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 5_sec;
-//constexpr float LATE_STAGE_THRESHOLD = 0.7f;
 
 gtime_t calculate_max_wave_time(int32_t wave_level) {
 	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 70_sec);
@@ -351,45 +350,55 @@ static bool g_lowPercentageTriggered = false;
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
-	// Base configuration based on map size
-	if (mapSize.isBigMap) {
-		params.maxMonsters = 26;
-		params.timeThreshold = random_time(22_sec, 33_sec);
-	}
-	else if (mapSize.isSmallMap) {
-		params.maxMonsters = numHumanPlayers >= 3 ? 11 : 9;
-		params.timeThreshold = random_time(18_sec, 22_sec);
-	}
-	else { // Medium map
-		params.maxMonsters = numHumanPlayers >= 3 ? 17 : 15;
-		params.timeThreshold = random_time(18_sec, 30_sec);
+	auto ConfigureMapParams = [&params, &mapSize, numHumanPlayers]() {
+		if (mapSize.isBigMap) {
+			params.maxMonsters = 26;
+			params.timeThreshold = random_time(22_sec, 30_sec);
+		}
+		else if (mapSize.isSmallMap) {
+			params.maxMonsters = numHumanPlayers >= 3 ? 11 : 9;
+			params.timeThreshold = random_time(18_sec, 20_sec);
+		}
+		else {
+			params.maxMonsters = numHumanPlayers >= 3 ? 17 : 15;
+			params.timeThreshold = random_time(18_sec, 25_sec);
+		}
+		};
+
+	ConfigureMapParams();
+
+	// Ajuste progresivo basado en el nivel
+	params.maxMonsters += std::min(lvl / 5, 10);
+	params.timeThreshold += gtime_t::from_ms(100 * std::min(lvl / 3, 5));
+
+	// Ajuste para niveles altos
+	if (lvl > 10) {
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
+		params.timeThreshold += 0.2_sec;
 	}
 
-	//// Progressive scaling with level
-	//params.maxMonsters += std::min(lvl / 5, 10);
-	//params.timeThreshold += gtime_t::from_ms(100 * std::min(lvl / 3, 5));
-
-	//// Additional adjustments for high levels
-	//if (lvl > 10) {
-	//	params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
-	//	params.timeThreshold += 0.2_sec;
-	//}
-
-	// Adjustments for chaotic or insane modes
+	// Ajuste basado en dificultad
 	if ((g_chaotic->integer || g_insane->integer) && numHumanPlayers <= 3) {
 		params.timeThreshold += random_time(5_sec, 10_sec);
 	}
 
-	// Adjust based on player performance
+	// Ajuste basado en el rendimiento del jugador
 	const float playerPerformanceFactor = CalculatePlayerPerformance();
 	params.maxMonsters = static_cast<int32_t>(params.maxMonsters * playerPerformanceFactor);
-	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
 
-	// Configuration for low percentage of monsters remaining
-	params.lowPercentageTimeThreshold = random_time(10_sec, 16_sec);
-	params.lowPercentageThreshold = 0.25f;
+	// Aplicar un factor de reducción adicional si el rendimiento es alto
+	if (playerPerformanceFactor > 1.0f) {
+		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() / playerPerformanceFactor);
+	}
+	else {
+		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
+	}
 
-	// Set independent time threshold
+	// Configuración para el porcentaje bajo de monstruos restantes
+	params.lowPercentageTimeThreshold = random_time(7_sec, 14_sec);
+	params.lowPercentageThreshold = 0.3f;
+
+	// Configuración para tiempo independiente basado en el nivel
 	params.independentTimeThreshold = calculate_max_wave_time(lvl);
 
 	gi.Com_PrintFmt("PRINT: Wave {} parameters set: Max monsters: {}, Time threshold: {:.1f}s, Low percentage threshold: {:.2f}, Independent time threshold: {:.1f}s\n",
@@ -397,7 +406,6 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	return params;
 }
-
 // Variables estáticas a nivel de archivo para controlar el estado de las condiciones
 static bool conditionTriggered = false;
 static gtime_t conditionStartTime = 0_sec;
