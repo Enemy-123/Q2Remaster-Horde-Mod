@@ -436,6 +436,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	case 25: gi.cvar_set("g_damage_scale", "2.25"); break;
 	case 35: gi.cvar_set("g_damage_scale", "3.5"); break;
 	case 45: gi.cvar_set("g_damage_scale", "4.0"); break;
+	case 55: gi.cvar_set("g_damage_scale", "5.5"); break;
 	default: break;
 	}
 
@@ -899,38 +900,36 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 #include <vector>
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
-
-	auto it = spawnPointsData.find(spawn_point);
-	if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
-		return nullptr; // El punto de spawn está deshabilitado, no intentar spawnear
+	// Verificar si el punto de spawn está temporalmente deshabilitado
+	if (auto it = spawnPointsData.find(spawn_point); it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
+		return nullptr; // El punto de spawn está deshabilitado
 	}
 
-	// Check if the spawn point is occupied
+	// Verificar si el punto de spawn está ocupado
 	if (IsSpawnPointOccupied(spawn_point)) {
 		return nullptr;
 	}
 
-	// Check cooldowns
-	if (const auto cooldown_it = lastSpawnPointTime.find(spawn_point); cooldown_it != lastSpawnPointTime.end()) {
-		if (level.time < cooldown_it->second + SPAWN_POINT_COOLDOWN) {
-			return nullptr;  // Aún en cooldown, no permitir spawn
-		}
+	// Verificar cooldown
+	if (auto cooldown_it = lastSpawnPointTime.find(spawn_point); cooldown_it != lastSpawnPointTime.end() && level.time < cooldown_it->second + SPAWN_POINT_COOLDOWN) {
+		return nullptr; // Aún en cooldown
 	}
 
-	// Calculate flying spawn adjustment
+	// Ajustar probabilidad de spawn de monstruos voladores
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-	// Use a static vector to avoid repeated allocations
+	// Vector estático para evitar asignaciones repetidas
 	static std::vector<std::pair<const weighted_item_t*, double>> eligible_monsters;
 	eligible_monsters.clear();
 	eligible_monsters.reserve(std::size(monsters));
 	double total_weight = 0.0;
 
+	// Evaluar monstruos elegibles
 	for (const auto& item : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(item.classname);
 
-		// Simplified logic for eligibility
+		// Simplificar lógica de elegibilidad
 		if ((flying_monsters_mode && !isFlyingMonster) ||
 			(spawn_point->style == 1 && !isFlyingMonster) ||
 			(!flying_monsters_mode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
@@ -939,27 +938,24 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 			continue;
 		}
 
-		// Verify if the monster is eligible for this spawn point and level
+		// Verificar si el monstruo es elegible
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-			// Calculate the weight of this monster
 			const double weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
 			if (weight > 0.0) {
 				total_weight += weight;
-				eligible_monsters.emplace_back(&item, total_weight); // Guardar el peso acumulado directamente como double
+				eligible_monsters.emplace_back(&item, total_weight); // Guardar el peso acumulado
 			}
 		}
 	}
 
-	// If no eligible monsters, increase spawn attempts and return nullptr
+	// Si no hay monstruos elegibles, incrementar intentos de spawn y retornar nullptr
 	if (eligible_monsters.empty()) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
-	// Pick a random weight
+	// Seleccionar un monstruo basado en el peso aleatorio
 	const double random_weight = frandom() * total_weight;
-
-	// Use std::lower_bound to find the chosen monster
 	auto chosen_it = std::lower_bound(eligible_monsters.begin(), eligible_monsters.end(), random_weight,
 		[](const std::pair<const weighted_item_t*, double>& monster, double value) {
 			return monster.second < value;
@@ -967,13 +963,12 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	const char* chosen_monster = (chosen_it != eligible_monsters.end()) ? chosen_it->first->classname : nullptr;
 
-	// Update cooldowns and reset spawn point attempts
+	// Actualizar cooldowns y reiniciar intentos del punto de spawn
 	UpdateCooldowns(spawn_point, chosen_monster);
 	ResetSingleSpawnPointAttempts(spawn_point);
 
 	return chosen_monster;
 }
-
 
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);

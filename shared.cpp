@@ -23,11 +23,11 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	for (unsigned int i = 0; i < globals.num_edicts; i++)
 	{
 		edict_t* ent = &g_edicts[i];
-		if (!ent->inuse)
+		if (!ent->inuse || !ent->owner)
 			continue;
 
 		bool shouldRemove = (ent->owner == player ||
-			(ent->owner && ent->owner->owner == player) ||
+			ent->owner->owner == player ||
 			ent->teammaster == player ||
 			(ent->teammaster && ent->teammaster->teammaster == player));
 
@@ -48,45 +48,45 @@ void RemovePlayerOwnedEntities(edict_t* player)
 		player->client->num_lasers = 0;
 	}
 }
-
 bool IsRemovableEntity(const edict_t* ent)
 {
-	static const std::unordered_set<std::string> removableEntities = {
+	static const std::unordered_set<std::string_view> removableEntities = {
 		"tesla_mine", "food_cube_trap", "prox_mine", "monster_sentrygun",
 		"emitter", "laser"
 	};
 
-	return removableEntities.find(ent->classname) != removableEntities.end();
+	return ent && removableEntities.find(ent->classname) != removableEntities.end();
 }
 
 void RemoveEntity(edict_t* ent)
 {
-	if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
+	static const std::unordered_map<std::string_view, void(*)(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&)> deathFunctions = {
+		{"monster_sentrygun", turret_die},
+		{"tesla_mine", tesla_die},
+		{"prox_mine", prox_die},
+		{"food_cube_trap", trap_die},
+		{"emitter", laser_die},
+		{"laser", laser_die}
+	};
+
+	if (ent && ent->inuse)
 	{
-		ent->health = -1;
-		turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(ent->classname, "tesla_mine"))
-	{
-		tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(ent->classname, "prox_mine"))
-	{
-		prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(ent->classname, "food_cube_trap"))
-	{
-		trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else if (!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"))
-	{
-		laser_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
-	}
-	else
-	{
-		BecomeExplosion1(ent);
+		auto it = deathFunctions.find(ent->classname);
+		if (it != deathFunctions.end())
+		{
+			if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
+			{
+				ent->health = -1;
+			}
+			it->second(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+		}
+		else
+		{
+			BecomeExplosion1(ent);
+		}
 	}
 }
+
 void UpdatePowerUpTimes(edict_t* monster) {
 
 	if (monster->monsterinfo.quad_time <= level.time) {
@@ -559,29 +559,29 @@ void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_tou
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
-    gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
+	gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
 
-    const int max_attempts = 5; // Maximum number of attempts to push entities
-    std::vector<edict_t*> stubborn_entities; // Entities that couldn't be moved after all attempts
-    std::vector<edict_t*> entities_to_remove; // Entities to remove after iteration
+	const int max_attempts = 5; // Maximum number of attempts to push entities
+	std::vector<edict_t*> stubborn_entities; // Entities that couldn't be moved after all attempts
+	std::vector<edict_t*> entities_to_remove; // Entities to remove after iteration
 
-    for (int wave = 0; wave < num_waves; wave++) {
-        const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.030f);
-        const float end_size = size * 0.3f;
+	for (int wave = 0; wave < num_waves; wave++) {
+		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.030f);
+		const float end_size = size * 0.3f;
 
-        // Use regular SpawnGrow for all waves
-        SpawnGrow_Spawn(center, size, end_size);
+		// Use regular SpawnGrow for all waves
+		SpawnGrow_Spawn(center, size, end_size);
 
-        // Find and collect entities
-        std::vector<edict_t*> entities_in_radius;
-        edict_t* ent = nullptr;
+		// Find and collect entities
+		std::vector<edict_t*> entities_in_radius;
+		edict_t* ent = nullptr;
 
-        while ((ent = findradius(ent, center, size)) != nullptr) {
-            if (!ent || !ent->inuse || !ent->takedamage || !ent->s.origin)
-                continue;
+		while ((ent = findradius(ent, center, size)) != nullptr) {
+			if (!ent || !ent->inuse || !ent->takedamage || !ent->s.origin)
+				continue;
 
-            entities_in_radius.push_back(ent);
-        }
+			entities_in_radius.push_back(ent);
+		}
 
 		// Process entities
 		for (auto* entity : entities_in_radius) {
@@ -621,7 +621,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 				wave_push_strength *= (1.0f + attempt * 0.5f);
 
 				// Calculate new position
-				const vec3_t new_pos{};
+				vec3_t new_pos{};
 				VectorMA(entity->s.origin, wave_push_strength / 700, push_dir, new_pos);
 
 				// Trace to ensure we're not pushing through walls
@@ -671,48 +671,48 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			}
 		}
 
-        // Wait for the specified interval before the next wave
-        if (wave < num_waves - 1) {
-            gi.Com_PrintFmt("PRINT: Waiting {} milliseconds before next wave\n", wave_interval_ms);
-            // Implement your delay mechanism here
-        }
-    }
+		// Wait for the specified interval before the next wave
+		if (wave < num_waves - 1) {
+			gi.Com_PrintFmt("PRINT: Waiting {} milliseconds before next wave\n", wave_interval_ms);
+			// Implement your delay mechanism here
+		}
+	}
 
-    // Remove entities after iteration
-    for (auto* ent : entities_to_remove) {
-        if (ent && ent->inuse) {
-            RemoveEntity(ent);
-            gi.Com_PrintFmt("PRINT: Entity {} removed.\n", ent->classname ? ent->classname : "unknown");
-        }
-    }
+	// Remove entities after iteration
+	for (auto* ent : entities_to_remove) {
+		if (ent && ent->inuse) {
+			RemoveEntity(ent);
+			gi.Com_PrintFmt("PRINT: Entity {} removed.\n", ent->classname ? ent->classname : "unknown");
+		}
+	}
 
-	 // Handle stubborn entities
-    for (auto* stubborn_ent : stubborn_entities) {
-        if (!stubborn_ent || !stubborn_ent->inuse)
-            continue;
+	// Handle stubborn entities
+	for (auto* stubborn_ent : stubborn_entities) {
+		if (!stubborn_ent || !stubborn_ent->inuse)
+			continue;
 
-        if (stubborn_ent->client) {
-            // For players, teleport to a safe spawn point
-            edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent);
-            if (spawn_point) {
-                TeleportEntity(stubborn_ent, spawn_point);
+		if (stubborn_ent->client) {
+			// For players, teleport to a safe spawn point
+			edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent);
+			if (spawn_point) {
+				TeleportEntity(stubborn_ent, spawn_point);
 
-                gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point.\n", stubborn_ent->client->pers.netname);
-            }
-            else {
-                gi.Com_PrintFmt("PRINT: WARNING: Could not find a safe spawn point for player {}.\n", stubborn_ent->client->pers.netname);
-            }
-        }
-        else {
-            // For non-player entities, remove them
-            if (stubborn_ent && stubborn_ent->inuse) {
-                RemoveEntity(stubborn_ent);
-                gi.Com_PrintFmt("PRINT: Non-player entity {} removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
-            }
-        }
-    }
+				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point.\n", stubborn_ent->client->pers.netname);
+			}
+			else {
+				gi.Com_PrintFmt("PRINT: WARNING: Could not find a safe spawn point for player {}.\n", stubborn_ent->client->pers.netname);
+			}
+		}
+		else {
+			// For non-player entities, remove them
+			if (stubborn_ent && stubborn_ent->inuse) {
+				RemoveEntity(stubborn_ent);
+				gi.Com_PrintFmt("PRINT: Non-player entity {} removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
+			}
+		}
+	}
 
-    gi.Com_PrintFmt("PRINT: PushEntitiesAway completed\n");
+	gi.Com_PrintFmt("PRINT: PushEntitiesAway completed\n");
 }
 
 bool string_equals(const char* str1, const std::string_view& str2) {
