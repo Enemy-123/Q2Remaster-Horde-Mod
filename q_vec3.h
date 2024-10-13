@@ -544,41 +544,50 @@ constexpr float STOP_EPSILON = 0.1f;
 }
 
 
-[[nodiscard]] inline vec3_t slerp(const vec3_t &from, const vec3_t &to, float t)
+[[nodiscard]] inline vec3_t slerp(const vec3_t& from, const vec3_t& to, float t)
 {
-    float dot = from.dot(to);
-    float aFactor;
-    float bFactor;
-    if (fabsf(dot) > 0.9995f)
-    {
-        aFactor = 1.0f - t;
-        bFactor = t;
-    }
-    else
-    {
-        float ang = acos(dot);
-        float sinOmega = sin(ang);
-        float sinAOmega = sin((1.0f - t) * ang);
-        float sinBOmega = sin(t * ang);
-        aFactor = sinAOmega / sinOmega;
-        bFactor = sinBOmega / sinOmega;
-    }
-    return from * aFactor + to * bFactor;
+	float dot = from.dot(to);
+	float aFactor;
+	float bFactor;
+	if (dot >= 0.9995f)
+	{
+		aFactor = 1.0f - t;
+		bFactor = t;
+	}
+	else if (dot <= -0.9995f)
+	{
+		vec3_t c = vec3_t{ 1.0f, 0.0f, 0.0f }.cross(to);
+
+		if (t <= 0.5f)
+			return lerp(from, c, t * 2);
+		else
+			return lerp(c, to, (t - 0.5f) * 2);
+	}
+	else
+	{
+		float ang = acos(dot);
+		float sinOmega = sin(ang);
+		float sinAOmega = sin((1.0f - t) * ang);
+		float sinBOmega = sin(t * ang);
+		aFactor = sinAOmega / sinOmega;
+		bFactor = sinBOmega / sinOmega;
+	}
+	return from * aFactor + to * bFactor;
 }
 
 // Fmt support
 template<>
 struct fmt::formatter<vec3_t> : fmt::formatter<float>
 {
-    template<typename FormatContext>
-    auto format(const vec3_t &p, FormatContext &ctx) -> decltype(ctx.out())
-    {
+	template<typename FormatContext>
+	auto format(const vec3_t& p, FormatContext& ctx) const
+	{
 		auto out = fmt::formatter<float>::format(p.x, ctx);
-        out = fmt::format_to(out, " ");
+		out = fmt::format_to(out, " ");
 		ctx.advance_to(out);
 		out = fmt::formatter<float>::format(p.y, ctx);
-        out = fmt::format_to(out, " ");
+		out = fmt::format_to(out, " ");
 		ctx.advance_to(out);
 		return fmt::formatter<float>::format(p.z, ctx);
-    }
+	}
 };

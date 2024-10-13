@@ -31,8 +31,6 @@ bool inback(edict_t *self, edict_t *other);
 bool below(edict_t *self, edict_t *other);
 void drawbbox(edict_t *self);
 
-void ED_CallSpawn(edict_t *ent);
-
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
 static cached_soundindex sound_pain3;

@@ -62,44 +62,6 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	fire_nuke(ent, start, forward, speed);
 }
 
-//backup
-//void Use_sentrygun(edict_t* ent, gitem_t* item)
-//{
-//	vec3_t forward, right;
-//	vec3_t createPt, spawnPt;
-//	vec3_t ang;
-//
-//	// Establecer el ángulo de spawn basado en la dirección del jugador
-//	ang[PITCH] = 0;
-//	ang[YAW] = ent->client->v_angle[YAW];
-//	ang[ROLL] = 0;
-//	AngleVectors(ang, forward, right, nullptr);
-//
-//	// Calcular el punto inicial de creación
-//	createPt = ent->s.origin + (forward * 48);
-//
-//	// Encontrar un punto de spawn válido
-//	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, 32))
-//	{
-//		gi.Client_Print(ent, PRINT_HIGH, "No suitable spawn point found.\n");
-//		return;
-//	}
-//
-//	// Verificar si el punto de spawn está en el suelo
-//	if (!CheckGroundSpawnPoint(spawnPt, ent->mins, ent->maxs, 64, -1))
-//	{
-//		gi.Client_Print(ent, PRINT_HIGH, "Cannot spawn turret here.\n");
-//		return;
-//	}
-//
-//	// Intentar spawnear la torreta y verificar si tuvo éxito
-//	if (fire_sentrygun(ent, spawnPt, forward, 128.f, 76.f))
-//	{
-//		// Reducir la cantidad de ítems en el inventario solo si se pudo spawnear la torreta
-//		ent->client->pers.inventory[item->id]--;
-//	}
-//}
-
 constexpr int MAX_SENTRIES = 3;
 
 void Use_sentrygun(edict_t* ent, gitem_t* item)
@@ -183,6 +145,50 @@ bool Pickup_sentrygun(edict_t* ent, edict_t* other)
 
 	return true;
 }
+
+//void Use_Doppleganger(edict_t* ent, gitem_t* item)
+//{
+//	vec3_t forward, right;
+//	vec3_t createPt, spawnPt;
+//	vec3_t ang;
+//
+//	ang[PITCH] = 0;
+//	ang[YAW] = ent->client->v_angle[YAW];
+//	ang[ROLL] = 0;
+//	AngleVectors(ang, forward, right, nullptr);
+//
+//	createPt = ent->s.origin + (forward * 48);
+//
+//	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, 32))
+//		return;
+//
+//	if (!CheckGroundSpawnPoint(spawnPt, ent->mins, ent->maxs, 64, -1))
+//		return;
+//
+//	ent->client->pers.inventory[item->id]--;
+//
+//	SpawnGrow_Spawn(spawnPt, 24.f, 48.f);
+//	fire_doppleganger(ent, spawnPt, forward);
+//}
+//
+//bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
+//{
+//	int quantity;
+//
+//	if (!deathmatch->integer) // item is DM only
+//		return false;
+//
+//	quantity = other->client->pers.inventory[ent->item->id];
+//	if (quantity >= 1) // FIXME - apply max to dopplegangers
+//		return false;
+//
+//	other->client->pers.inventory[ent->item->id]++;
+//
+//	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED))
+//		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
+//
+//	return true;
+//}
 
 bool Pickup_Sphere(edict_t* ent, edict_t* other)
 {
@@ -283,8 +289,13 @@ USE(Item_TriggeredSpawn) (edict_t* self, edict_t* other, edict_t* activator) -> 
 		self->velocity[2] = 300;
 	}
 
-	if (self->item->id != IT_KEY_POWER_CUBE && self->item->id != IT_KEY_EXPLOSIVE_CHARGES) // leave them be on key_power_cube..
-		self->spawnflags &= SPAWNFLAG_ITEM_NO_TOUCH;
+	if (!self->spawnflags.has(SPAWNFLAG_ITEM_NO_DROP))
+	{
+		if (self->item->id != IT_KEY_POWER_CUBE && self->item->id != IT_KEY_EXPLOSIVE_CHARGES) // leave them be on key_power_cube..
+			self->spawnflags &= SPAWNFLAG_ITEM_NO_TOUCH;
+	}
+	else
+		self->spawnflags &= ~SPAWNFLAG_ITEM_TRIGGER_SPAWN;
 
 	droptofloor(self);
 }

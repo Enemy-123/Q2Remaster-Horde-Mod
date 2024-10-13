@@ -1065,6 +1065,9 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		if (level.start_items && *level.start_items)
 			Player_GiveStartItems(ent, level.start_items);
 
+		// power armor from start items
+		G_CheckPowerArmor(ent);
+
 		if (!G_IsDeathmatch() || g_horde->integer) {
 			client->pers.inventory[IT_ITEM_COMPASS] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
@@ -1125,7 +1128,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		client->pers.lives = g_coop_num_lives->integer + 1;
 
 	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
-		ent->flags |= FL_WANTS_POWER_ARMOR;
+		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
 
 	client->pers.connected = true;
 	client->pers.spawned = true;
@@ -3667,7 +3670,17 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
 
 		// PGM	trigger_gravity support
-		client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
+		if (ent->no_gravity_time > level.time)
+		{
+			client->ps.pmove.gravity = 0;
+			client->ps.pmove.pm_flags |= PMF_NO_GROUND_SEEK;
+		}
+		else
+		{
+			client->ps.pmove.gravity = (short)(level.gravity * ent->gravity);
+			client->ps.pmove.pm_flags &= ~PMF_NO_GROUND_SEEK;
+		}
+
 		pm.s = client->ps.pmove;
 
 		pm.s.origin = ent->s.origin;
