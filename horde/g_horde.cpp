@@ -58,14 +58,14 @@ std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
 
 struct SpawnPointData {
-	uint32_t attempts = 0;               // Número de intentos fallidos de spawn
-	gtime_t cooldown = 0_sec;            // Tiempo de espera (cooldown) antes de intentar nuevamente
-	gtime_t lastSpawnTime = 0_sec;       // Último tiempo registrado de intento de spawn
-	uint32_t successfulSpawns = 0;       // Número de spawns exitosos realizados
-	bool isTemporarilyDisabled = false;  // Indica si el punto de spawn está temporalmente deshabilitado
+	uint32_t attempts = 0;               // Number of failed spawn attempts
+	gtime_t cooldown = 0_sec;            // Cooldown time before retrying
+	gtime_t lastSpawnTime = 0_sec;       // Last recorded spawn attempt time
+	uint32_t successfulSpawns = 0;       // Number of successful spawns
+	bool isTemporarilyDisabled = false;  // Indicates if the spawn point is temporarily disabled
+	std::string lastSpawnedMonsterClassname; // Stores the classname of the last spawned monster
+	gtime_t cooldownEndsAt = 0_sec;      // Time when the cooldown ends for the spawn point
 };
-
-
 
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
 
@@ -818,14 +818,40 @@ static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 	data.attempts = 0;
 	data.cooldown = level.time;
 }
-
 // Function to update spawn point cooldowns and the last spawn times for the monster
-static void UpdateCooldowns(edict_t* spawn_point, const char* classname) {
-	auto& data = spawnPointsData[spawn_point];
-	data.cooldown = level.time;
+void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
+	// Check if the spawn point exists in spawnPointsData
+	auto it = spawnPointsData.find(spawn_point);
+	if (it == spawnPointsData.end()) {
+		// Initialize data for spawn point if it doesn't already exist
+	//	gi.Com_PrintFmt("Warning: spawn_point at address {} not found in spawnPointsData. Initializing new entry.\n", fmt::ptr(spawn_point));
+		spawnPointsData[spawn_point] = SpawnPointData(); // Assuming SpawnPointData is a valid struct/class for storing spawn info
+		it = spawnPointsData.find(spawn_point); // Update iterator to the newly created entry
+	}
 
-	lastSpawnPointTime[spawn_point] = level.time;
-	lastMonsterSpawnTime[classname] = level.time;
+	// Proceed to update cooldowns for the spawn point
+	SpawnPointData& spawn_data = it->second;
+
+	// Example cooldown update logic
+	spawn_data.lastSpawnTime = level.time;
+
+	if (chosen_monster) {
+	//	gi.Com_PrintFmt("Updating cooldown for spawn_point at address {} with chosen monster {}.\n", fmt::ptr(spawn_point), chosen_monster);
+		spawn_data.lastSpawnedMonsterClassname = chosen_monster;
+	}
+	else {
+	//	gi.Com_PrintFmt("No monster chosen for spawn_point at address {}, just updating spawn time.\n", fmt::ptr(spawn_point));
+	}
+
+	// Update other necessary spawn point fields as per your requirements
+	// For instance, if there's a cooldown logic or setting new attributes to track usage
+
+	// Example: Reset the cooldown timer if needed
+	spawn_data.isTemporarilyDisabled = true; // If required by your cooldown logic
+	spawn_data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN; // Marking cooldown for the next available spawn
+
+	// Optional debug info to ensure function worked as expected
+//	gi.Com_PrintFmt("Cooldown updated for spawn_point at address {}. Cooldown ends at {} ms.\n", fmt::ptr(spawn_point), spawn_data.cooldownEndsAt.milliseconds());
 }
 
 // Function to increase spawn attempts and adjust cooldown as necessary
@@ -834,7 +860,7 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	data.attempts++;
 
 	if (data.attempts >= 6) {
-		gi.Com_PrintFmt("PRINT: SpawnPoint {} está inactivo por 10 segundos.\n", spawn_point->s.origin);
+		gi.Com_PrintFmt("PRINT: SpawnPoint {} inactived for 10 seconds.\n", spawn_point->s.origin);
 		data.isTemporarilyDisabled = true; // Desactivar temporalmente
 		data.cooldown = level.time + 10_sec;
 	}
@@ -842,7 +868,6 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 		data.cooldown = std::max(gtime_t::from_sec(data.cooldown.seconds() * 1.5f), 2.5_sec);
 	}
 }
-
 
 // Estructura para pasar datos adicionales a la función de filtro
 struct FilterData {
