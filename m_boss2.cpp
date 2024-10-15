@@ -774,6 +774,8 @@ void SP_monster_boss2_64(edict_t* self)
 constexpr spawnflags_t SPAWNFLAG_BOSS2KL = 8_spawnflag;
 void SP_monster_boss2kl(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 	self->spawnflags |= SPAWNFLAG_BOSS2KL;
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);

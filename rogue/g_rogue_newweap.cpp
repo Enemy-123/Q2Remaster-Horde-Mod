@@ -970,11 +970,11 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	if (!self)
 		return;
 
-	int      i, num;
+	int i, num, max_targets = 3;  // Limitar a 3 objetivos por ciclo
 	static edict_t* touch[MAX_EDICTS];
 	edict_t* hit;
-	vec3_t   dir, start;
-	trace_t  tr;
+	vec3_t dir, start;
+	trace_t tr;
 
 	if (level.time > self->air_finished)
 	{
@@ -991,8 +991,12 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		return;
 	}
 
+	// Obtener todos los objetivos en el área
 	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch, MAX_EDICTS, AREA_SOLID, tesla_think_active_BoxFilter, self);
-	for (i = 0; i < num; i++)
+
+	// Limitar el número de objetivos a los que se atacará en este ciclo
+	int targets_attacked = 0;
+	for (i = 0; i < num && targets_attacked < max_targets; i++)
 	{
 		if (!(self->inuse))
 			break;
@@ -1021,14 +1025,18 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		if (hit->classname && strcmp(hit->classname, "monster_sentrygun") == 0)
 			continue;
 
+		// Realizar un trace hacia el objetivo
 		tr = gi.traceline(start, hit->s.origin, self, MASK_PROJECTILE);
 		if (tr.fraction == 1 || tr.ent == hit)
 		{
+			// Calcular la dirección del ataque
 			dir = hit->s.origin - start;
 
+			// Sonido si el daño es mayor al normal
 			if (self->dmg > TESLA_DAMAGE)
 				gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
+			// Aplicar el daño al objetivo
 			if ((hit->svflags & SVF_MONSTER) && !(hit->flags & (FL_FLY | FL_SWIM)))
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 					self->dmg, 0, DAMAGE_NONE, MOD_TESLA);
@@ -1036,6 +1044,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 					self->dmg, TESLA_KNOCKBACK, DAMAGE_NONE, MOD_TESLA);
 
+			// Efecto visual del rayo
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LIGHTNING);
 			gi.WriteEntity(self);
@@ -1043,16 +1052,19 @@ THINK(tesla_think_active) (edict_t* self) -> void
 			gi.WritePosition(start);
 			gi.WritePosition(tr.endpos);
 			gi.multicast(start, MULTICAST_PVS, false);
+
+			// Incrementar el contador de objetivos atacados en este ciclo
+			targets_attacked++;
 		}
 	}
 
+	// Configurar el siguiente ciclo de ataque
 	if (self->inuse)
 	{
 		self->think = tesla_think_active;
 		self->nextthink = level.time + 10_hz;
 	}
 }
-
 THINK(tesla_activate) (edict_t* self) -> void
 {
 	edict_t* trigger;
@@ -1147,7 +1159,7 @@ THINK(tesla_think) (edict_t* ent) -> void
 				ent->s.skinnum = 3;
 		}
 		ent->think = tesla_think;
-		ent->nextthink = level.time + 10_hz;
+		ent->nextthink = level.time + 15_hz;
 	}
 }
 
