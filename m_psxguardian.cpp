@@ -588,13 +588,13 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 	heat->s.scale = 1.5f;
 	heat->owner = self;
 	heat->touch = rocket_touch;
-	heat->speed = speed / 2;
+	heat->speed = speed / 1.75;
 	heat->yaw_speed = speed * 2;
 	heat->accel = turn_fraction;
 	heat->pos1 = rest_dir;
 	heat->mins = { -5, -5, -5 };
 	heat->maxs = { 5, 5, 5 };
-	heat->health = 15;
+	heat->health = 25;
 	heat->takedamage = true;
 	heat->die = guardianpsx_heat_die;
 
@@ -657,11 +657,11 @@ static void guardianpsx_blind_fire_check(edict_t* self)
 static mframe_t guardianpsx_frames_rocket[] = {
 	{ ai_charge, 0, guardianpsx_blind_fire_check },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, guardianpsx_fire_rocket_l },
 	{ ai_charge },
 	{ ai_charge, 0, guardianpsx_fire_rocket_l },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, guardianpsx_fire_rocket_r },
 	{ ai_charge },
 	{ ai_charge, 0, guardianpsx_fire_rocket_r },
 	{ ai_charge },
@@ -669,11 +669,11 @@ static mframe_t guardianpsx_frames_rocket[] = {
 	{ ai_charge },
 	{ ai_charge, 0, guardianpsx_fire_rocket_l },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, guardianpsx_fire_rocket_l },
 	{ ai_charge },
 	{ ai_charge, 0, guardianpsx_fire_rocket_r },
 	{ ai_charge },
-	{ ai_charge },
+	{ ai_charge, 0, guardianpsx_fire_rocket_r },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge }

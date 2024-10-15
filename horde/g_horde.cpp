@@ -2032,7 +2032,7 @@ static edict_t* SpawnMonsters() {
 	available_spawns.reserve(MAX_EDICTS);
 
 	const int32_t monsters_per_spawn = std::min(
-		mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 4 : 3) :
+		mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 4 : 4) :
 		mapSize.isBigMap ? (g_horde_local.level >= 5 ? 6 : 5) :
 		(g_horde_local.level >= 5 ? 5 : 4),
 		6
@@ -2088,7 +2088,7 @@ static edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		if (g_horde_local.level >= 17) {
+		if (g_horde_local.level >= 15) {
 			SetMonsterArmor(monster);
 		}
 
@@ -2152,7 +2152,7 @@ static void SetMonsterArmor(edict_t* monster) {
 
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 	g_horde_local.monster_spawn_time = level.time +
-		(mapSize.isSmallMap ? (1.2_sec, 1.5_sec) :
+		(mapSize.isSmallMap ? random_time(1.2_sec, 1.5_sec) :
 			mapSize.isBigMap ? random_time(0.9_sec, 1.1_sec) :
 			random_time(1.7_sec, 1.8_sec));
 }
