@@ -384,61 +384,64 @@ R_ConcatRotations
 	};
 }
 
-[[nodiscard]] constexpr vec3_t closest_point_to_box(const vec3_t& from, const vec3_t& absmins, const vec3_t& absmaxs)
-{
-	// Verificar que todos los valores dentro de los vectores sean válidos
-	for (size_t i = 0; i < 3; i++) {
-		if (std::isnan(from[i]) || std::isnan(absmins[i]) || std::isnan(absmaxs[i])) {
-			return vec3_t{ 0, 0, 0 }; // Manejar caso de valores no válidos
-		}
-	}
-
+[[nodiscard]] constexpr vec3_t closest_point_to_box(const vec3_t& from, const vec3_t& absmins, const vec3_t& absmaxs) {
+	// Eliminamos el check de NaN - en un juego de acción rápida como Quake, 
+	// estos checks deberían hacerse en la capa de datos, no en cada cálculo
 	return {
-		(from[0] < absmins[0]) ? absmins[0] : (from[0] > absmaxs[0]) ? absmaxs[0] : from[0],
-		(from[1] < absmins[1]) ? absmins[1] : (from[1] > absmaxs[1]) ? absmaxs[1] : from[1],
-		(from[2] < absmins[2]) ? absmins[2] : (from[2] > absmaxs[2]) ? absmaxs[2] : from[2]
+		std::clamp(from[0], absmins[0], absmaxs[0]),
+		std::clamp(from[1], absmins[1], absmaxs[1]),
+		std::clamp(from[2], absmins[2], absmaxs[2])
 	};
 }
-#include <iostream> // Para la depuración
-[[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa, const vec3_t& absminsb, const vec3_t& absmaxsb) {
-	// Verificar que todos los valores dentro de los vectores sean válidos
-	for (size_t i = 0; i < 3; i++) {
-		if (std::isnan(absminsa[i]) || std::isnan(absmaxsa[i]) || std::isnan(absminsb[i]) || std::isnan(absmaxsb[i])) {
-			std::cerr << "Invalid value detected in distance_between_boxes: "
-				<< "absminsa[" << i << "]=" << absminsa[i] << ", "
-				<< "absmaxsa[" << i << "]=" << absmaxsa[i] << ", "
-				<< "absminsb[" << i << "]=" << absminsb[i] << ", "
-				<< "absmaxsb[" << i << "]=" << absmaxsb[i] << std::endl;
-			return 0.0f; // Manejar caso de valores no válidos
-		}
+
+[[nodiscard]] inline float distance_between_boxes(const vec3_t& absminsa, const vec3_t& absmaxsa,
+	const vec3_t& absminsb, const vec3_t& absmaxsb) {
+	float len_squared = 0.0f;
+	float d;
+
+	// Calcular diferencia en el eje x
+	if (absmaxsa.x < absminsb.x) {
+		d = absminsb.x - absmaxsa.x;
+		len_squared += d * d;
+	}
+	else if (absminsa.x > absmaxsb.x) {
+		d = absminsa.x - absmaxsb.x;
+		len_squared += d * d;
 	}
 
-	float len = 0;
-
-	for (size_t i = 0; i < 3; i++) {
-		if (absmaxsa[i] < absminsb[i]) { // Si el max de A es menor que el min de B
-			float d = absminsb[i] - absmaxsa[i];
-			len += d * d;
-		}
-		else if (absminsa[i] > absmaxsb[i]) { // Si el min de A es mayor que el max de B
-			float d = absminsa[i] - absmaxsb[i];
-			len += d * d;
-		}
+	// Calcular diferencia en el eje y
+	if (absmaxsa.y < absminsb.y) {
+		d = absminsb.y - absmaxsa.y;
+		len_squared += d * d;
+	}
+	else if (absminsa.y > absmaxsb.y) {
+		d = absminsa.y - absmaxsb.y;
+		len_squared += d * d;
 	}
 
-	return sqrt(len);
+	// Calcular diferencia en el eje z
+	if (absmaxsa.z < absminsb.z) {
+		d = absminsb.z - absmaxsa.z;
+		len_squared += d * d;
+	}
+	else if (absminsa.z > absmaxsb.z) {
+		d = absminsa.z - absmaxsb.z;
+		len_squared += d * d;
+	}
+
+	// Solo calcular la raíz cuadrada si len_squared no es 0
+	return len_squared == 0.0f ? 0.0f : std::sqrt(len_squared);
 }
 
 
-
-[[nodiscard]] constexpr bool boxes_intersect(const vec3_t &amins, const vec3_t &amaxs, const vec3_t &bmins, const vec3_t &bmaxs)
+[[nodiscard]] constexpr bool boxes_intersect(const vec3_t& amins, const vec3_t& amaxs, const vec3_t& bmins, const vec3_t& bmaxs)
 {
 	return amins.x <= bmaxs.x &&
-		   amaxs.x >= bmins.x &&
-		   amins.y <= bmaxs.y &&
-		   amaxs.y >= bmins.y &&
-		   amins.z <= bmaxs.z &&
-		   amaxs.z >= bmins.z;
+		amaxs.x >= bmins.x &&
+		amins.y <= bmaxs.y &&
+		amaxs.y >= bmins.y &&
+		amins.z <= bmaxs.z &&
+		amaxs.z >= bmins.z;
 }
 
 /*

@@ -657,45 +657,6 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_jorg", 30, -1, 0.1f}
 };
 
-static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
-	if (mapname == "test/spbox" || mapname == "q2ctf4") {
-		// Excluir a "boss5" de la lista de jefes para estos mapas grandes
-		static std::vector<boss_t> filteredBossList;
-		if (filteredBossList.empty()) {
-			for (const auto& boss : BOSS_LARGE) {
-				if (std::strcmp(boss.classname, "boss5") != 0) {
-					filteredBossList.push_back(boss);
-				}
-			}
-		}
-		return filteredBossList.empty() ? nullptr : filteredBossList.data();
-	}
-
-	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
-		return BOSS_SMALL;
-	}
-
-	if (mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1") {
-		if (mapname == "mgu6m3" || mapname == "rboss") {
-			static std::vector<boss_t> filteredBossList;
-			if (filteredBossList.empty()) {
-				for (const auto& boss : BOSS_MEDIUM) {
-					if (std::strcmp(boss.classname, "monster_guardian") != 0 || std::strcmp(boss.classname, "monster_psxguardian") != 0) {
-						filteredBossList.push_back(boss);
-					}
-				}
-			}
-			return filteredBossList.empty() ? nullptr : filteredBossList.data();
-		}
-		return BOSS_MEDIUM;
-	}
-
-	if (mapSize.isBigMap) {
-		return BOSS_LARGE;
-	}
-
-	return nullptr;
-}
 
 
 #include <array>
@@ -703,17 +664,102 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 #include <random>
 #include <deque>
 
+
+static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
+	// Small maps logic
+	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
+		return BOSS_SMALL;
+	}
+
+	// Medium maps with guardian filter
+	if (mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1") {
+		if (mapname == "mgu6m3" || mapname == "rboss") {
+			static std::vector<boss_t> filteredMediumBossList;
+			if (filteredMediumBossList.empty()) {
+				for (const auto& boss : BOSS_MEDIUM) {
+					if (std::strcmp(boss.classname, "monster_guardian") != 0 &&
+						std::strcmp(boss.classname, "monster_psxguardian") != 0) {
+						filteredMediumBossList.push_back(boss);
+					}
+				}
+			}
+			return filteredMediumBossList.empty() ? nullptr : filteredMediumBossList.data();
+		}
+		return BOSS_MEDIUM;
+	}
+
+	// Large maps with boss5 filter for specific maps
+	if (mapSize.isBigMap || mapname == "test/spbox" || mapname == "q2ctf4") {
+		if (mapname == "test/spbox" || mapname == "q2ctf4") {
+			static std::vector<boss_t> filteredLargeBossList;
+			if (filteredLargeBossList.empty()) {
+				for (const auto& boss : BOSS_LARGE) {
+					if (std::strcmp(boss.classname, "boss5") != 0) {
+						filteredLargeBossList.push_back(boss);
+					}
+				}
+			}
+			return filteredLargeBossList.empty() ? nullptr : filteredLargeBossList.data();
+		}
+		return BOSS_LARGE;
+	}
+
+	return nullptr;
+}
+
+static size_t GetBossListSize(const MapSize& mapSize, const std::string& mapname, const boss_t* boss_list) {
+	if (!boss_list) return 0;
+
+	// For filtered medium maps
+	if ((mapname == "mgu6m3" || mapname == "rboss") &&
+		(mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1")) {
+		static size_t filteredMediumSize = 0;
+		if (filteredMediumSize == 0) {
+			for (const auto* b = BOSS_MEDIUM; b->classname != nullptr; ++b) {
+				if (std::strcmp(b->classname, "monster_guardian") != 0 &&
+					std::strcmp(b->classname, "monster_psxguardian") != 0) {
+					filteredMediumSize++;
+				}
+			}
+		}
+		return filteredMediumSize;
+	}
+
+	// For filtered large maps
+	if (mapname == "test/spbox" || mapname == "q2ctf4") {
+		static size_t filteredLargeSize = 0;
+		if (filteredLargeSize == 0) {
+			for (const auto* b = BOSS_LARGE; b->classname != nullptr; ++b) {
+				if (std::strcmp(b->classname, "boss5") != 0) {
+					filteredLargeSize++;
+				}
+			}
+		}
+		return filteredLargeSize;
+	}
+
+	// For standard maps
+	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
+		return std::size(BOSS_SMALL);
+	}
+	if (mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1") {
+		return std::size(BOSS_MEDIUM);
+	}
+	if (mapSize.isBigMap) {
+		return std::size(BOSS_LARGE);
+	}
+
+	return 0;
+}
+
 constexpr int32_t MAX_RECENT_BOSSES = 3;
-std::deque<const char*> recent_bosses;  // Changed from std::vector to std::deque
+std::deque<const char*> recent_bosses;
 
 static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
 	if (!boss_list) return nullptr;
 
-	const size_t boss_list_size = mapSize.isSmallMap ? std::size(BOSS_SMALL) :
-		mapSize.isMediumMap ? std::size(BOSS_MEDIUM) :
-		std::size(BOSS_LARGE);
-
+	const size_t boss_list_size = GetBossListSize(mapSize, mapname, boss_list);
 	std::vector<const boss_t*> eligible_bosses;
 	eligible_bosses.reserve(boss_list_size);
 
@@ -746,7 +792,6 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 		std::default_random_engine rng(rd());
 		std::uniform_int_distribution<size_t> dist(0, eligible_bosses.size() - 1);
 		const boss_t* chosen_boss = eligible_bosses[dist(rng)];
-
 		recent_bosses.push_back(chosen_boss->classname);
 		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
 			recent_bosses.pop_front();
@@ -756,7 +801,6 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 
 	return nullptr;
 }
-
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -917,50 +961,53 @@ struct FilterData {
 };
 
 // Función de filtro optimizada
+// Modified SpawnPointFilter function
 static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	FilterData* filter_data = static_cast<FilterData*>(data);
 
-	// Ignorar la entidad especificada (si existe)
+	// Ignore the specified entity (if exists)
 	if (ent == filter_data->ignore_ent) {
 		return BoxEdictsResult_t::Skip;
 	}
 
-	// Verificar si la entidad es un jugador o bot
-	if (ent->client && ent->inuse) { // Comprobar si la entidad tiene un cliente asociado y está en uso
+	// Check if the entity is a player or bot
+	if (ent->client && ent->inuse) {
 		filter_data->count++;
-		return BoxEdictsResult_t::End; // Detener la búsqueda si se encuentra un jugador o bot
+		return BoxEdictsResult_t::End; // Stop searching if a player or bot is found
 	}
 
-	// Verificar si la entidad es un monstruo (usando el flag SVF_MONSTER)
+	// Check if the entity is a monster (using the SVF_MONSTER flag)
 	if (ent->svflags & SVF_MONSTER) {
 		filter_data->count++;
-		return BoxEdictsResult_t::End; // Detener la búsqueda si se encuentra un monstruo
+		return BoxEdictsResult_t::End; // Stop searching if a monster is found
 	}
 
 	return BoxEdictsResult_t::Skip;
 }
 
-
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr, const edict_t* monster = nullptr) {
+	// Define the bounding box for checking occupation
 	vec3_t mins, maxs;
 
-	// Si hay un monstruo especificado, usa sus mins y maxs, si no, usa los valores por defecto (para jugador)
+	// If there is a specific monster, use its bounding box dimensions
 	if (monster) {
 		VectorAdd(spawn_point->s.origin, monster->mins, mins);
 		VectorAdd(spawn_point->s.origin, monster->maxs, maxs);
 	}
 	else {
+		// Default bounding box for player size
 		VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
 		VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
 	}
 
+	// Data structure to hold information for filtering entities
 	FilterData filter_data = { ignore_ent, 0 };
 
-	// Usar BoxEdicts para verificar si hay entidades relevantes en el área
+	// Use BoxEdicts to check for any relevant entities in the area
 	gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
-	// Retornar verdadero si encontramos al menos un jugador o bot en el área
+	// Return true if we found at least one player or bot in the area
 	return filter_data.count > 0;
 }
 #include <vector>

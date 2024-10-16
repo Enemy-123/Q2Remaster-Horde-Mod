@@ -1060,7 +1060,6 @@ void GunnerCmdrGrenade(edict_t* self)
 			monster_fire_grenade(self, start, aim, !strcmp(self->classname, "monster_guncmdrkl") ? 50 : 35, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 	}
 }
-
 mframe_t guncmdr_frames_attack_mortar[] = {
 	{ ai_charge },
 	{ ai_charge },
@@ -1208,12 +1207,6 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
 	assert(self->enemy != nullptr);
 
 	monster_done_dodge(self);
-
-	// Depuración adicional antes de la llamada a range_to
-	std::cerr << "In guncmdr_attack, self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
-	std::cerr << "In guncmdr_attack, self->absmax: [" << self->absmax[0] << ", " << self->absmax[1] << ", " << self->absmax[2] << "]" << std::endl;
-	std::cerr << "In guncmdr_attack, self->enemy: " << self->enemy << ", self->enemy->absmin: [" << self->enemy->absmin[0] << ", " << self->enemy->absmin[1] << ", " << self->enemy->absmin[2] << "]" << std::endl;
-	std::cerr << "In guncmdr_attack, self->enemy->absmax: [" << self->enemy->absmax[0] << ", " << self->enemy->absmax[1] << ", " << self->enemy->absmax[2] << "]" << std::endl;
 
 	float d = range_to(self, self->enemy);
 

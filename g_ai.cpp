@@ -433,10 +433,12 @@ mid	    infront and show hostile
 #include <cmath> 
 float range_to(edict_t* self, edict_t* other) {
     assert(self != nullptr && other != nullptr);
-    std::cerr << "self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
-    std::cerr << "self->absmax: [" << self->absmax[0] << ", " << self->absmax[1] << ", " << self->absmax[2] << "]" << std::endl;
-    std::cerr << "other: " << other << ", other->absmin: [" << other->absmin[0] << ", " << other->absmin[1] << ", " << other->absmin[2] << "]" << std::endl;
-    std::cerr << "other->absmax: [" << other->absmax[0] << ", " << other->absmax[1] << ", " << other->absmax[2] << "]" << std::endl;
+
+    //gi.Com_PrintFmt(FMT_STRING("self: {}, self->absmin: [{}, {}, {}]\n"), self, self->absmin[0], self->absmin[1], self->absmin[2]);
+    //gi.Com_PrintFmt(FMT_STRING("self->absmax: [{}, {}, {}]\n"), self->absmax[0], self->absmax[1], self->absmax[2]);
+    //gi.Com_PrintFmt(FMT_STRING("other: {}, other->absmin: [{}, {}, {}]\n"), other, other->absmin[0], other->absmin[1], other->absmin[2]);
+    //gi.Com_PrintFmt(FMT_STRING("other->absmax: [{}, {}, {}]\n"), other->absmax[0], other->absmax[1], other->absmax[2]);
+
     assert(!std::isnan(self->absmin[0]) && !std::isnan(self->absmin[1]) && !std::isnan(self->absmin[2]));
     assert(!std::isnan(self->absmax[0]) && !std::isnan(self->absmax[1]) && !std::isnan(self->absmax[2]));
     assert(!std::isnan(other->absmin[0]) && !std::isnan(other->absmin[1]) && !std::isnan(other->absmin[2]));
@@ -444,6 +446,7 @@ float range_to(edict_t* self, edict_t* other) {
 
     return distance_between_boxes(self->absmin, self->absmax, other->absmin, other->absmax);
 }
+
 
 bool IsInvisible(edict_t* ent);
 bool IsValidTarget(edict_t* self, edict_t* ent);
