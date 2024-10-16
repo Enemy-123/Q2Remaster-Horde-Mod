@@ -476,7 +476,7 @@ void turret2Fire(edict_t* self)
 					if (dist * trace.fraction > 72 && !damageApplied)
 					{
 						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
-						fire_rocket(self->owner, start, dir, 100, 1220, 100, 75);
+						fire_rocket(self->owner, start, dir, 100, 1420, 120, 105);
 						damageApplied = true;
 					}
 				}
@@ -516,7 +516,7 @@ void turret2Fire(edict_t* self)
 			}
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
-				const gtime_t PLASMA_FIRE_INTERVAL = random_time(2_sec, 3_sec);
+				const gtime_t PLASMA_FIRE_INTERVAL = random_time(1.8_sec, 2.5_sec);
 				start = self->s.origin;
 
 				// Mejora en la predicción para el heatbeam
@@ -544,7 +544,7 @@ void turret2Fire(edict_t* self)
 						// Mira predictiva para el plasma
 						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &predictedDir, nullptr);
 
-						fire_plasma(self->owner, start, predictedDir, 90, 950, 100, 75);
+						fire_plasma(self->owner, start, predictedDir, 100, 1250, 120, 100);
 					}
 				}
 			}
