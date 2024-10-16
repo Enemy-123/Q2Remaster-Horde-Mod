@@ -922,13 +922,13 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	VectorCopy(self->enemy->s.origin, spot2);
 	spot2[2] += self->enemy->viewheight;
 
-	// Ajusta la máscara de contenido para ignorar otros monstruos
-	const contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW);
+	// Ajusta la máscara de contenido para ignorar otros monstruos (agregando MASK_MONSTERSOLID para omitir otros monstruos)
+	const contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW) & ~CONTENTS_MONSTER;
 
 	tr = gi.traceline(spot1, spot2, self, mask);
 
 	// Comprueba si hay línea de visión directa
-	if (tr.fraction == 1.0 || tr.ent == self->enemy)
+	if (tr.fraction == 1.0 || tr.ent == self->enemy || (tr.ent && tr.ent->svflags & SVF_MONSTER))
 	{
 		if (level.time < self->monsterinfo.attack_finished)
 			return false;
@@ -970,6 +970,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 
 	return false;
 }
+
 // **********************
 //  SPAWN
 // **********************
