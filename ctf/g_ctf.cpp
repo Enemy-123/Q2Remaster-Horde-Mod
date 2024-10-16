@@ -3306,7 +3306,7 @@ void ShowInventory(edict_t* ent) {
 	}
 	gi.unicast(ent, true);
 }
-void OpenSpectatorMenu(edict_t* ent);
+void OpenHordeMenu(edict_t* ent);
 void CTFJoinTeam1(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam2(edict_t* ent, pmenuhnd_t* p);
 void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
@@ -3444,7 +3444,7 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		gi.LocCenter_Print(ent, "\n\n\nID - DMG state toggled to {}\n", ent->client->resp.iddmg_state ? "ON" : "OFF");
 		break;
 	case 5: // Back to Horde Menu
-		OpenSpectatorMenu(ent);
+		OpenHordeMenu(ent);
 		return; // Volver al menú principal sin cerrar
 	case 6: // Close
 		PMenu_Close(ent);
@@ -3639,7 +3639,7 @@ void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		}
 		else {
 			PMenu_Close(ent); // Cerrar el menú de votación de mapas
-			OpenSpectatorMenu(ent); // Abrir el menú de horda
+			OpenHordeMenu(ent); // Abrir el menú de horda
 		}
 	}
 	else if (option == MAX_MAPS_PER_PAGE + 5) { // Ajustar índices
@@ -3733,7 +3733,7 @@ static const pmenu_t vote_in_progress_menu[] = {
 
 // normal menu
 
-void OpenSpectatorMenu(edict_t* ent) {
+void OpenHordeMenu(edict_t* ent) {
 	std::vector<pmenu_t> dynamic_horde_menu;
 
 	// Crear las opciones del menú dinámicamente

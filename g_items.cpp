@@ -1465,7 +1465,7 @@ void SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st)
 	// DM only items
 	if (!deathmatch->integer)
 	{
-		if (item->pickup == Pickup_sentrygun || item->pickup == Pickup_Nuke)
+		if (/*item->pickup == Pickup_sentrygun || */item->pickup == Pickup_Nuke)
 		{
 			gi.Com_PrintFmt("{} spawned in non-DM; freeing...\n", *ent);
 			G_FreeEdict(ent);
@@ -1608,7 +1608,7 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 
 		if (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_TEAM1)
 		{
-			OpenSpectatorMenu(ent);
+			OpenHordeMenu(ent);
 			return;
 		}
 	}
@@ -1692,10 +1692,6 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 	}
 }
 
-
-const char* GetUseName() { // Compass name on horde, because it opens Menu
-	return (g_horde->integer) ? "Horde Menu" : "Compass";
-}
 //======================================================================
 
 // clang-format off

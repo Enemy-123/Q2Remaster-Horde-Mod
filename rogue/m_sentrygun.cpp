@@ -26,7 +26,7 @@ void turret2_run(edict_t* self);
 extern const mmove_t turret2_move_fire;
 extern const mmove_t turret2_move_fire_blind;
 
-static cached_soundindex sound_moved, sound_moving;
+static cached_soundindex sound_moved, sound_moving, sound_pew;
 
 void turret2Aim(edict_t* self)
 {
@@ -389,11 +389,11 @@ void TurretCheckPowerups(edict_t* turret) {
 // **********************
 
 
-constexpr int32_t TURRET2_BLASTER_DAMAGE = 3;
-constexpr int32_t TURRET2_BULLET_DAMAGE = 2;
+ int32_t TURRET2_BLASTER_DAMAGE = 3;
+ int32_t TURRET2_BULLET_DAMAGE = 2;
 // unused
 // constexpr int32_t turret2_HEAT_DAMAGE	= 4;
-constexpr gtime_t ROCKET_FIRE_INTERVAL = 2.2_sec; // 2.3 segundos
+constexpr gtime_t ROCKET_FIRE_INTERVAL = 1.5_sec; // 2.3 segundos
 void turret2Fire(edict_t* self)
 {
 	vec3_t forward;
@@ -460,6 +460,11 @@ void turret2Fire(edict_t* self)
 			PredictAim(self, self->enemy, start, projectileSpeed, true, 0.0f, &dir, nullptr);
 		}
 
+		// Calcula el daño base multiplicado por el modificador solo una vez
+		float damageModifier = M_DamageModifier(self);
+		int baseDamage = 100;
+		int modifiedDamage = static_cast<int>(baseDamage * damageModifier);
+
 		dir.normalize();
 		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
 		if (trace.ent == self->enemy || trace.ent == world)
@@ -476,8 +481,9 @@ void turret2Fire(edict_t* self)
 					if (dist * trace.fraction > 72 && !damageApplied)
 					{
 						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
-						fire_rocket(self->owner, start, dir, 100, 1420, 120, 105);
+						fire_rocket(self->owner, start, dir, modifiedDamage, 1420, 120, modifiedDamage);
 						damageApplied = true;
+						gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 					}
 				}
 
@@ -498,12 +504,9 @@ void turret2Fire(edict_t* self)
 						vec3_t predictedDir;
 						PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
 
-						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE, 5, DAMAGE_NONE, MOD_TURRET);
+						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE * damageModifier, 5 * damageModifier, DAMAGE_NONE, MOD_TURRET);
 
 						// Usar la dirección predicha para fire_bullet
-					//	fire_bullet(self, start, predictedDir, TURRET2_BULLET_DAMAGE, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_TURRET);
-
-						// Efecto visual del disparo
 						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
 
 						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
@@ -551,6 +554,7 @@ void turret2Fire(edict_t* self)
 		}
 	}
 }
+
 // PMM
 void turret2FireBlind(edict_t* self)
 {
@@ -997,6 +1001,7 @@ void SP_monster_sentrygun(edict_t* self)
 	}
 
 	// pre-caches
+	sound_pew.assign("makron/blaster.wav");
 	sound_moved.assign("gunner/gunidle1.wav");
 	sound_moving.assign("turret/moving.wav");
 	gi.modelindex("models/objects/debris1/tris.md2");

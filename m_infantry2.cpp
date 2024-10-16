@@ -712,7 +712,7 @@ void infantry_vanilla_grenade(edict_t* self)
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
 	const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
-	const float speed = GRENADE_SPEED;
+	float speed = GRENADE_SPEED;  // Permitir ajuste dinámico de velocidad
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
@@ -720,51 +720,63 @@ void infantry_vanilla_grenade(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Predict target position
-	const float time_to_target = (self->enemy->s.origin - start).length() / speed;
-	const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+	// Predicción de la posición del enemigo
+	vec3_t enemy_pos = self->enemy->s.origin + (self->enemy->velocity * 0.5f); // Ajuste rápido para predecir la posición
+	const float time_to_target = (enemy_pos - start).length() / speed;
+	vec3_t predicted_pos = enemy_pos + (self->enemy->velocity * time_to_target);
 
 	aim = predicted_pos - start;
 	const float dist = aim.length();
 
-	// Adjust aim based on distance
+	// Ajuste del ángulo según la distancia
 	if (dist > 200)
 	{
-		// Reduced vertical adjustment for longer distances
-		float vertical_adjust = (dist - 200) * 0.0010f;
+		// Ajuste vertical más sutil para distancias largas
+		float vertical_adjust = (dist - 200) * 0.0008f;
 		aim[2] += vertical_adjust;
 	}
 
-	// Reduced random spread
-	aim[0] += crandom_open() * 0.03f;
-	aim[1] += crandom_open() * 0.03f;
-	aim[2] += crandom_open() * 0.03f;
+	// Disminuir la dispersión para distancias largas
+	float spread_factor = (dist > 500) ? 0.01f : 0.03f;
+	aim[0] += crandom_open() * spread_factor;
+	aim[1] += crandom_open() * spread_factor;
+	aim[2] += crandom_open() * spread_factor;
 	aim.normalize();
 
-	// Adjust the pitch slightly downward to counteract the upward trajectory
-	// Increased downward adjustment
-	const float pitch_adjust = -0.15f - (dist * 0.00015f);
+	// Ajuste del pitch para compensar la trayectoria
+	float pitch_adjust = -0.12f - (dist * 0.00012f); // Ajuste menor hacia abajo
 	aim += up * pitch_adjust;
 	aim.normalize();
 
-	// Calculate the best pitch, but allow for some error
-	if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.5f, false))
+	// Ajustar la velocidad de la granada según la distancia al objetivo
+	if (dist > 600)
 	{
-		// Reduced random adjustment to the calculated pitch
-		aim[2] += crandom_open() * 0.01f;
+		speed += 150; // Aumentar la velocidad para distancias mayores
+	}
+	else if (dist < 300)
+	{
+		speed -= 50; // Reducir la velocidad para distancias cortas
+	}
+
+	// Cálculo del mejor ángulo (pitch) con menor margen de error
+	if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.2f, false))
+	{
+		// Reducir el ajuste aleatorio de la inclinación calculada
+		aim[2] += crandom_open() * 0.008f;
 		aim.normalize();
 	}
 
-	// Compensate for the upward velocity in fire_grenade2
+	// Compensar la gravedad
 	const float gravityAdjustment = level.gravity / 800.f;
-	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
+	float downwardAdjustment = -150.0f * gravityAdjustment / speed; // Ajuste de gravedad menor
 	aim[2] += downwardAdjustment;
 	aim.normalize();
 
-	// Fire the grenade
+	// Lanzar la granada
 	fire_grenade2(self, start, aim, 55, speed, 2.5_sec, 95, false);
-	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/grenade_launcher.wav"), 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);
 }
+
 mframe_t infantry_vanilla_frames_grenade[] = {
 	{ ai_charge, 3 },
 	{ ai_charge, 6 },

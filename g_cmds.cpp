@@ -732,7 +732,7 @@ void Cmd_Drop_f(edict_t* ent)
 }
 
 // Al principio del archivo
-void OpenSpectatorMenu(edict_t* ent);
+void OpenHordeMenu(edict_t* ent);
 void Cmd_Inven_f(edict_t* ent)
 {
 	int i;
@@ -771,7 +771,7 @@ void Cmd_Inven_f(edict_t* ent)
 		}
 
 
-		OpenSpectatorMenu(ent);
+		OpenHordeMenu(ent);
 		return;
 	}
 
