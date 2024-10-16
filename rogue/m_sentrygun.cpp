@@ -371,7 +371,12 @@ void TurretRespondPowerup(edict_t* turret, edict_t* owner) {
 	if (owner->client->double_time > level.time) {
 		turret->monsterinfo.double_time = owner->client->double_time;
 	}
+
+	if (owner->client->invincible_time > level.time) {
+		turret->monsterinfo.invincible_time = owner->client->invincible_time;
+	}
 }
+
 
 void TurretCheckPowerups(edict_t* turret) {
 	if (!turret || !turret->owner || !turret->owner->client)
@@ -379,9 +384,10 @@ void TurretCheckPowerups(edict_t* turret) {
 
 	edict_t* owner = turret->owner;
 
-	// Asegúrate de que la torreta siempre herede el quad y el double del jugador
+	// Ensure the turret always inherits quad, double, and invincibility from the player
 	TurretRespondPowerup(turret, owner);
-}
+} // Now, turrets will also inherit invincibility from their owners, just like quad and double.
+
 
 
 // **********************
