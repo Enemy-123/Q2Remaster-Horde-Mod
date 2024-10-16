@@ -322,12 +322,10 @@ static void CalculateBossMinimums(int wave_number, int& health_min, int& power_a
 }
 void ApplyBossEffects(edict_t* boss)
 {
-
 	if (!boss->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		return;
 
 	const auto mapSize = GetMapSize(level.mapname);
-
 	const int32_t random_flag = 1 << (rand() % 6);
 	boss->monsterinfo.bonus_flags = random_flag;
 
@@ -336,10 +334,15 @@ void ApplyBossEffects(edict_t* boss)
 
 	// Aplicar efectos de bonus flags
 	if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
-		if (!(mapSize.isSmallMap)) {
+		if (!mapSize.isSmallMap) {
 			boss->s.scale *= 1.3f;
 			boss->mins *= 1.3f;
 			boss->maxs *= 1.3f;
+
+			// Ajustar la posición después de escalar para alinear con el suelo
+			float height_offset = -(boss->mins[2]);
+			boss->s.origin[2] += height_offset;
+			gi.linkentity(boss);  // Relink para asegurar la actualización en el servidor
 		}
 		boss->s.effects |= EF_ROCKET | EF_FIREBALL;
 		boss->s.renderfx |= RF_SHELL_RED;
@@ -347,29 +350,38 @@ void ApplyBossEffects(edict_t* boss)
 		power_armor_multiplier *= 1.25f;
 		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 475_sec;
 	}
+
 	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		if (!(mapSize.isSmallMap)) {
+		if (!mapSize.isSmallMap) {
 			boss->s.scale *= 1.5f;
 			boss->mins *= 1.5f;
 			boss->maxs *= 1.5f;
+
+			// Ajustar la posición después de escalar para alinear con el suelo
+			float height_offset = -(boss->mins[2]);
+			boss->s.origin[2] += height_offset;
+			gi.linkentity(boss);  // Relink para asegurar la actualización en el servidor
 		}
 		boss->s.effects |= EF_PLASMA | EF_TAGTRAIL;
 		health_multiplier *= 1.4f;
 		power_armor_multiplier *= 1.4f;
 	}
+
 	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		boss->s.effects |= EF_BLUEHYPERBLASTER;
 		boss->s.renderfx |= RF_TRANSLUCENT;
 		power_armor_multiplier *= 1.4f;
-		boss->monsterinfo.invincible_time = max(level.time, boss->monsterinfo.invincible_time) + 12_sec;
+		boss->monsterinfo.invincible_time = std::max(level.time, boss->monsterinfo.invincible_time) + 12_sec;
 	}
+
 	if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
 		boss->s.effects |= EF_GIB | EF_FLAG2;
 		health_multiplier *= 1.5f;
 		power_armor_multiplier *= 1.5f;
-		boss->monsterinfo.quad_time = max(level.time, boss->monsterinfo.quad_time) + 475_sec;
+		boss->monsterinfo.quad_time = std::max(level.time, boss->monsterinfo.quad_time) + 475_sec;
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
+
 	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
 		boss->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
 		boss->s.alpha = 0.6f;
@@ -377,12 +389,17 @@ void ApplyBossEffects(edict_t* boss)
 		power_armor_multiplier *= 1.4f;
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
-	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
 
-		if (!(mapSize.isSmallMap)) {
+	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
+		if (!mapSize.isSmallMap) {
 			boss->s.scale *= 1.2f;
 			boss->mins *= 1.2f;
 			boss->maxs *= 1.2f;
+
+			// Ajustar la posición después de escalar para alinear con el suelo
+			float height_offset = -(boss->mins[2]);
+			boss->s.origin[2] += height_offset;
+			gi.linkentity(boss);  // Relink para asegurar la actualización en el servidor
 		}
 		boss->s.effects |= EF_TRACKER | EF_FLAG1;
 		health_multiplier *= 1.5f;
@@ -431,8 +448,8 @@ void ApplyBossEffects(edict_t* boss)
 
 	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
-//getting real name
 
+//getting real name
 std::string GetPlayerName(edict_t* player) {
 	if (player && player->client) {
 		char playerName[MAX_INFO_VALUE] = { 0 };

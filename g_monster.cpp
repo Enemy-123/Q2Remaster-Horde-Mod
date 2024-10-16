@@ -1361,6 +1361,9 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		self->mins *= self->s.scale;
 		self->maxs *= self->s.scale;
 		self->mass *= self->s.scale;
+
+		// Ajustar la posición para evitar quedar flotando
+		self->s.origin[2] -= (self->mins[2] - (self->mins[2] * self->s.scale));
 	}
 
 	//if (level.is_psx)
