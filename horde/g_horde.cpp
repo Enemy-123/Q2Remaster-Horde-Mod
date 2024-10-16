@@ -657,10 +657,18 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_jorg", 30, -1, 0.1f}
 };
 
-// Función para obtener la lista de jefes basada en el tamaño del mapa
 static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
-	if (mapname == "test/spbox") {
-		return BOSS_LARGE; // Forzar a que "test/spbox" use la lista de jefes para mapas grandes
+	if (mapname == "test/spbox" || mapname == "q2ctf4") {
+		// Excluir a "boss5" de la lista de jefes para estos mapas grandes
+		static std::vector<boss_t> filteredBossList;
+		if (filteredBossList.empty()) {
+			for (const auto& boss : BOSS_LARGE) {
+				if (std::strcmp(boss.classname, "boss5") != 0) {
+					filteredBossList.push_back(boss);
+				}
+			}
+		}
+		return filteredBossList.empty() ? nullptr : filteredBossList.data();
 	}
 
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
@@ -734,7 +742,11 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 	}
 
 	if (!eligible_bosses.empty()) {
-		const boss_t* chosen_boss = eligible_bosses[static_cast<size_t>(frandom() * eligible_bosses.size())];
+		std::random_device rd;
+		std::default_random_engine rng(rd());
+		std::uniform_int_distribution<size_t> dist(0, eligible_bosses.size() - 1);
+		const boss_t* chosen_boss = eligible_bosses[dist(rng)];
+
 		recent_bosses.push_back(chosen_boss->classname);
 		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
 			recent_bosses.pop_front();
@@ -744,7 +756,6 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 
 	return nullptr;
 }
-
 
 struct picked_item_t {
 	const weighted_item_t* item;
