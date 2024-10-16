@@ -559,11 +559,6 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 		if (replacements[i].original && strcmp(ent->classname, replacements[i].original) == 0) {
 			const char* new_classname = get_random_replacement(&replacements[i]);
 			if (new_classname) {
-				// Verificar si la entidad debe ser liberada antes de asignar un nuevo classname
-				if (ent->classname && (ent->classname != replacements[i].original)) {
-					G_FreeEdict(ent);  // Liberar la entidad antes de asignar un nuevo valor
-				}
-
 				// Asignar el nuevo classname
 				ent->classname = G_CopyString(new_classname, TAG_LEVEL);
 			}
@@ -582,27 +577,22 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 
 				ent->monsterinfo.bonus_flags = flag;
 
-				if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+				if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+				{
 					// Si es un jefe, llamamos a ApplyBossEffects
 					const auto mapSize = GetMapSize(level.mapname);
 					ApplyBossEffects(ent);
 					break;
 				}
-				else {
+				else
+
 					ApplyMonsterBonusFlags(ent);
-				}
 			}
 			break;
 		}
 	}
 }
 void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
-
-	if (!ent || !ent->classname) {
-		gi.Com_Print("ED_CallSpawn: ent or classname: NULL\n");
-		return;
-	}
-
 	// Inicializa el multiplicador de daño para el monstruo
 	if (ent->svflags & SVF_MONSTER) {
 		ent->monsterinfo.damage_quad = 1.0f;
@@ -770,11 +760,11 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 	current_st = nullptr;
 }
 
-	// Quick redirect to use empty spawntemp
-	void  ED_CallSpawn(edict_t * ent)
-	{
-		ED_CallSpawn(ent, spawn_temp_t::empty);
-	}
+// Quick redirect to use empty spawntemp
+void  ED_CallSpawn(edict_t* ent)
+{
+	ED_CallSpawn(ent, spawn_temp_t::empty);
+}
 /*
 =============
 ED_NewString
@@ -1788,7 +1778,7 @@ static void G_InitStatusbar()
 
 
 		sb.xl(2).yb(-23).string2("\nINSANE COOP");
-		
+
 
 		sb.ifstat(STAT_ID_DAMAGE)
 			.xv(136).yv(150).num(5, STAT_ID_DAMAGE)
@@ -1965,7 +1955,7 @@ void SP_worldspawn(edict_t* ent)
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_PVE).data());
 	else if (ctf->integer || (teamplay->integer && !g_horde->integer))
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
-	else 
+	else
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_FFA).data());
 
 	// [Paril-KEX]

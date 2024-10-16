@@ -358,6 +358,32 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 	}
 }
 
+//Powerups
+
+void TurretRespondPowerup(edict_t* turret, edict_t* owner) {
+	if (!turret || !owner || !owner->client)
+		return;
+
+	if (owner->client->quad_time > level.time) {
+		turret->monsterinfo.quad_time = owner->client->quad_time;
+	}
+
+	if (owner->client->double_time > level.time) {
+		turret->monsterinfo.double_time = owner->client->double_time;
+	}
+}
+
+void TurretCheckPowerups(edict_t* turret) {
+	if (!turret || !turret->owner || !turret->owner->client)
+		return;
+
+	edict_t* owner = turret->owner;
+
+	// Asegúrate de que la torreta siempre herede el quad y el double del jugador
+	TurretRespondPowerup(turret, owner);
+}
+
+
 // **********************
 //  ATTACK
 // **********************
@@ -376,6 +402,11 @@ void turret2Fire(edict_t* self)
 	trace_t trace;
 	int projectileSpeed{};
 	bool damageApplied = false;  // Bandera para prevenir daño duplicado
+
+	// Revisar si el dueño tiene power-ups
+	if (self->owner && self->owner->client) {
+		TurretRespondPowerup(self, self->owner);
+	}
 
 	turret2Aim(self);
 
@@ -942,6 +973,12 @@ void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+	// Al crear la torreta, verificar si el owner tiene power-ups activos
+	if (self->owner && self->owner->client) {
+		TurretRespondPowerup(self, self->owner);
+	}
+
+
 #define playeref self->owner->s.effects;
 	self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
 	int angle;
@@ -969,8 +1006,6 @@ void SP_monster_sentrygun(edict_t* self)
 	self->maxs = { 12, 12, 12 };
 	self->movetype = MOVETYPE_NONE;
 
-	//self->nextthink = level.time + FRAME_TIME_MS;
-	//self->think = turret2_regen;
 
 
 
@@ -987,7 +1022,7 @@ void SP_monster_sentrygun(edict_t* self)
 	self->die = turret2_die;
 
 	// [Paril-KEX]
-	if (self->owner->client && !G_ShouldPlayersCollide(true)) {
+	if (self->client && !G_ShouldPlayersCollide(true) || self->owner->client && !G_ShouldPlayersCollide(true)) {
 		self->clipmask &= ~CONTENTS_PLAYER;
 	}
 
@@ -996,7 +1031,7 @@ void SP_monster_sentrygun(edict_t* self)
 	//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 
 	// map designer didn't specify weapon type. set it now.
-	float randomValue = frandom();
+	const float randomValue = frandom();
 
 	// Si el valor aleatorio es menor que 0.3, selecciona HEATBEAM; de lo contrario, MACHINEGUN
 	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE)) {
