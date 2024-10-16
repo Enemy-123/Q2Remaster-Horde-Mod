@@ -2293,7 +2293,7 @@ void Horde_RunFrame() {
 				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 			}
 
-			g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
+			g_horde_local.warm_time = level.time + random_time(1.5_sec, 2.5_sec);
 			g_horde_local.state = horde_state_t::rest;
 			cachedRemainingMonsters = CalculateRemainingMonsters();
 		}
