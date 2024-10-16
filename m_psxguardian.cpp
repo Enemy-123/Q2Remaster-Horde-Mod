@@ -14,9 +14,9 @@ GUARDIAN
 #include "shared.h"
 constexpr spawnflags_t SPAWNFLAG_GUARDIAN_JANITOR = 8_spawnflag;
 static cached_soundindex sound_sight;
-static cached_soundindex sound_pain1;
-static cached_soundindex sound_pain2;
-static cached_soundindex sound_death;
+//static cached_soundindex sound_pain1;
+//static cached_soundindex sound_pain2;
+//static cached_soundindex sound_death;
 
 //
 // stand
@@ -253,10 +253,10 @@ PAIN(guardianpsx_pain) (edict_t* self, edict_t* other, float kick, int damage, c
 
 	self->pain_debounce_time = level.time + 3_sec;
 
-	if (brandom())
-		gi.sound(self, CHAN_BODY, sound_pain1, 1.f, 0.1f, 0.0f);
-	else
-		gi.sound(self, CHAN_BODY, sound_pain2, 1.f, 0.1f, 0.0f);
+	//if (brandom())
+	//	gi.sound(self, CHAN_BODY, sound_pain1, 1.f, 0.1f, 0.0f);
+	//else
+	//	gi.sound(self, CHAN_BODY, sound_pain2, 1.f, 0.1f, 0.0f);
 
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
@@ -854,7 +854,7 @@ DIE(guardianpsx_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int 
 	self->takedamage = true;
 
 	M_SetAnimation(self, &guardianpsx_move_death);
-	gi.sound(self, CHAN_BODY, sound_death, 1.f, 0.1f, 0.0f);
+//	gi.sound(self, CHAN_BODY, sound_death, 1.f, 0.1f, 0.0f);
 }
 
 void GuardianPowerArmor(edict_t* self)
@@ -935,10 +935,10 @@ void SP_monster_psxguardian(edict_t* self)
 	sound_laser.assign("weapons/laser2.wav");
 	sound_pew.assign("makron/blaster.wav");
 
-	sound_sight.assign("guardian/sight.wav");
-	sound_pain1.assign("guardian/pain1.wav");
-	sound_pain2.assign("guardian/pain2.wav");
-	sound_death.assign("guardian/death.wav");
+	sound_sight.assign("zortemp/ack.wav");
+	//sound_pain1.assign("guardian/pain1.wav");
+	//sound_pain2.assign("guardian/pain2.wav");
+	//sound_death.assign("guardian/death.wav");
 
 	for (auto& gib : gibs)
 		gi.modelindex(gib);

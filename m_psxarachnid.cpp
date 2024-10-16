@@ -629,7 +629,7 @@ void SP_monster_psxarachnid(edict_t* self)
 	sound_pain.assign("arachnid/pain.wav");
 	sound_death.assign("arachnid/death.wav");
 	sound_sight.assign("arachnid/sight.wav");
-	sound_pissed.assign("arachnid/angry.wav");
+	sound_pissed.assign("guncmdr/gcdrsrch1.wav");
 
 	if (skill->value >= 3)
 	{
