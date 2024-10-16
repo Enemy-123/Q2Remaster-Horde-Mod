@@ -941,7 +941,7 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 		return BoxEdictsResult_t::Skip;
 	if (check == self)
 		return BoxEdictsResult_t::Skip;
-	if (check->health < 1)
+	if (check->health < -40)
 		return BoxEdictsResult_t::Skip;
 	// don't hit teammates
 	if (check->client)
@@ -973,7 +973,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	int i, num, max_targets = 3;  // Limitar a 3 objetivos por ciclo
 	static edict_t* touch[MAX_EDICTS];
 	edict_t* hit;
-	vec3_t dir, start;
+	vec3_t dir{}, start;
 	trace_t tr;
 
 	if (level.time > self->air_finished)
@@ -982,7 +982,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		return;
 	}
 
-	start = self->s.origin;
+	VectorCopy(self->s.origin, start);
 	start[2] += 16;
 
 	if (!self->teamchain)
@@ -1030,7 +1030,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		if (tr.fraction == 1 || tr.ent == hit)
 		{
 			// Calcular la dirección del ataque
-			dir = hit->s.origin - start;
+			VectorSubtract(hit->s.origin, start, dir);
 
 			// Sonido si el daño es mayor al normal
 			if (self->dmg > TESLA_DAMAGE)
@@ -1038,11 +1038,25 @@ THINK(tesla_think_active) (edict_t* self) -> void
 
 			// Aplicar el daño al objetivo
 			if ((hit->svflags & SVF_MONSTER) && !(hit->flags & (FL_FLY | FL_SWIM)))
+			{
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-					self->dmg, 0, DAMAGE_NONE, MOD_TESLA);
+					self->dmg, 0, DAMAGE_NO_ARMOR, MOD_TESLA);
+
+				// Verifica si el monstruo ha muerto y aplica gib
+				if (hit->health <= 0)
+				{
+					// if killed by Tesla, force gib
+					hit->health = -100;
+					vec3_t up = { 0.0f, 0.0f, 1.0f };  // Definir la dirección hacia arriba
+					T_Damage(hit, self, self->teammaster, vec3_origin, hit->s.origin, up,
+						9999, 0, DAMAGE_NO_ARMOR, MOD_TESLA);
+				}
+			}
 			else
+			{
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-					self->dmg, TESLA_KNOCKBACK, DAMAGE_NONE, MOD_TESLA);
+					self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
+			}
 
 			// Efecto visual del rayo
 			gi.WriteByte(svc_temp_entity);
@@ -1065,6 +1079,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		self->nextthink = level.time + 10_hz;
 	}
 }
+
 THINK(tesla_activate) (edict_t* self) -> void
 {
 	edict_t* trigger;
