@@ -649,6 +649,7 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_boss5", -1, -1, 0.1f},
 	{"monster_tank_64", -1, 24, 0.1f},
 	{"monster_psxarachnid", -1, -1, 0.1f},
+	{"monster_widow", -1, -1, 0.1f},
 //	{"monster_guardian", -1, 24, 0.1f},
 	{"monster_psxguardian", -1, -1, 0.1f},
 	{"monster_shamblerkl", -1, 24, 0.1f},
@@ -656,8 +657,12 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_jorg", 30, -1, 0.1f}
 };
 
-// Funci�n para obtener la lista de jefes basada en el tama�o del mapa
+// Función para obtener la lista de jefes basada en el tamaño del mapa
 static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
+	if (mapname == "test/spbox") {
+		return BOSS_LARGE; // Forzar a que "test/spbox" use la lista de jefes para mapas grandes
+	}
+
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
 		return BOSS_SMALL;
 	}
@@ -683,6 +688,7 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 
 	return nullptr;
 }
+
 
 #include <array>
 #include <unordered_set>
