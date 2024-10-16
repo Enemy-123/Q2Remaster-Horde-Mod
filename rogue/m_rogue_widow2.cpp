@@ -777,7 +777,7 @@ MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void
 	}
 
 	// accept bias towards spawning
-	if (blocked && (M_SlotsLeft(self) >= 2))
+	if (M_SlotsLeft(self) >= 2)
 	{
 		M_SetAnimation(self, &widow2_move_spawn);
 		return;
@@ -993,7 +993,7 @@ MONSTERINFO_CHECKATTACK(Widow2_CheckAttack) (edict_t* self) -> bool
 
 	if ((frandom() < 0.8f) && (M_SlotsLeft(self) >= 2) && (realrange(self, self->enemy) > 150))
 	{
-		self->monsterinfo.aiflags |= AI_BLOCKED;
+		//self->monsterinfo.aiflags |= AI_BLOCKED;
 		self->monsterinfo.attack_state = AS_MISSILE;
 		return true;
 	}
