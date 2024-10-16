@@ -395,11 +395,10 @@ void TurretCheckPowerups(edict_t* turret) {
 // **********************
 
 
- int32_t TURRET2_BLASTER_DAMAGE = 3;
- int32_t TURRET2_BULLET_DAMAGE = 2;
-// unused
-// constexpr int32_t turret2_HEAT_DAMAGE	= 4;
+int32_t TURRET2_BLASTER_DAMAGE = 3;
+int32_t TURRET2_BULLET_DAMAGE = 2;
 constexpr gtime_t ROCKET_FIRE_INTERVAL = 1.5_sec; // 2.3 segundos
+
 void turret2Fire(edict_t* self)
 {
 	vec3_t forward;
@@ -510,7 +509,9 @@ void turret2Fire(edict_t* self)
 						vec3_t predictedDir;
 						PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
 
-						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BULLET_DAMAGE * damageModifier, 5 * damageModifier, DAMAGE_NONE, MOD_TURRET);
+						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal,
+							static_cast<int>(TURRET2_BULLET_DAMAGE * damageModifier),
+							static_cast<int>(5 * damageModifier), DAMAGE_NONE, MOD_TURRET);
 
 						// Usar la dirección predicha para fire_bullet
 						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
@@ -539,7 +540,8 @@ void turret2Fire(edict_t* self)
 					if (!damageApplied)
 					{
 						// Dispara el heatbeam con la dirección predicha
-						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal, TURRET2_BLASTER_DAMAGE, 0, DAMAGE_ENERGY, MOD_TURRET);
+						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal,
+							static_cast<int>(TURRET2_BLASTER_DAMAGE * damageModifier), 0, DAMAGE_ENERGY, MOD_TURRET);
 						monster_fire_heatbeam(self, start, predictedDir, vec3_origin, 0, 30, MZ2_TURRET_BLASTER);
 						damageApplied = true;
 					}

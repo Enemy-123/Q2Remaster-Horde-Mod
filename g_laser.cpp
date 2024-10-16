@@ -5,7 +5,7 @@ constexpr int32_t MAX_LASERS = 6;
 constexpr int32_t LASER_COST = 25;
 constexpr int32_t LASER_INITIAL_DAMAGE = 1;
 constexpr int32_t LASER_ADDON_DAMAGE = 4;
-constexpr int32_t LASER_INITIAL_HEALTH = 100;  // DMG before explode
+constexpr int32_t LASER_INITIAL_HEALTH = 125;  // DMG before explode
 constexpr int32_t LASER_ADDON_HEALTH = 100;     // DMG addon before explode
 constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
 constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
@@ -273,8 +273,8 @@ void create_laser(edict_t* ent)
 		laser->team = "neutral"; // O cualquier valor por defecto que prefieras
 	}
 
-	if (laser->health >= 1500)
-		laser->health = 1500;
+	if (laser->health >= 1750)
+		laser->health = 1750;
 
 	gi.linkentity(laser);
 
