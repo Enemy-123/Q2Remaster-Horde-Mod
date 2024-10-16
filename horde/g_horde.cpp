@@ -331,8 +331,8 @@ static float CalculatePlayerPerformance() {
 // Constantes y funciones auxiliares
 constexpr gtime_t BASE_MAX_WAVE_TIME = 40_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1_sec;
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 3;
-constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 5_sec;
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 4;
+constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 15_sec;
 
 gtime_t calculate_max_wave_time(int32_t wave_level) {
 	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 70_sec);
