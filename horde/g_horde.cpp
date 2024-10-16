@@ -811,6 +811,7 @@ static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
 	return (flyingSpawns > 0) ? 0.25f : 1.0f;
 }
 
+
 static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
 	return !(spawn_point->style == 1 && !isFlyingMonster) &&
 		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) &&
@@ -1958,11 +1959,11 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 
 // Funci�n para manejar el mensaje de limpieza de ola
 static void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
-	if (current_wave_level >= 15 && current_wave_level <= 28) {
+	if (current_wave_level >= 15 && current_wave_level <= 26) {
 		gi.cvar_set("g_insane", "1");
 		gi.cvar_set("g_chaotic", "0");
 	}
-	else if (current_wave_level >= 31) {
+	else if (current_wave_level >= 27) {
 		gi.cvar_set("g_insane", "2");
 		gi.cvar_set("g_chaotic", "0");
 	}

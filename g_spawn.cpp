@@ -559,6 +559,11 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 		if (replacements[i].original && strcmp(ent->classname, replacements[i].original) == 0) {
 			const char* new_classname = get_random_replacement(&replacements[i]);
 			if (new_classname) {
+				// Verificar si la entidad debe ser liberada antes de asignar un nuevo classname
+				if (ent->classname && (ent->classname != replacements[i].original)) {
+					G_FreeEdict(ent);  // Liberar la entidad antes de asignar un nuevo valor
+				}
+
 				// Asignar el nuevo classname
 				ent->classname = G_CopyString(new_classname, TAG_LEVEL);
 			}
@@ -577,22 +582,27 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 
 				ent->monsterinfo.bonus_flags = flag;
 
-				if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
-				{
+				if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 					// Si es un jefe, llamamos a ApplyBossEffects
 					const auto mapSize = GetMapSize(level.mapname);
 					ApplyBossEffects(ent);
 					break;
 				}
-				else
-
-				ApplyMonsterBonusFlags(ent);
+				else {
+					ApplyMonsterBonusFlags(ent);
+				}
 			}
 			break;
 		}
 	}
 }
 void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
+
+	if (!ent || !ent->classname) {
+		gi.Com_Print("ED_CallSpawn: ent or classname: NULL\n");
+		return;
+	}
+
 	// Inicializa el multiplicador de daño para el monstruo
 	if (ent->svflags & SVF_MONSTER) {
 		ent->monsterinfo.damage_quad = 1.0f;
