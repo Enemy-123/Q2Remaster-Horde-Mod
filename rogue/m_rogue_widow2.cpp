@@ -199,6 +199,7 @@ void Widow2Spawn(edict_t* self)
 			ent->think(ent);
 
 			ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
+			ApplyMonsterBonusFlags(ent);
 
 			if (!G_IsCooperative()) {
 				designated_enemy = self->enemy;
