@@ -25,6 +25,7 @@ static cached_soundindex sound_step;
 static cached_soundindex sound_sight;
 static cached_soundindex sound_windup;
 static cached_soundindex sound_strike;
+static cached_soundindex sound_spawn_commander;
 
 constexpr spawnflags_t SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING = 16_spawnflag;
@@ -830,11 +831,20 @@ void VerifyTankSpawnCount(edict_t* tank)
 	}
 }
 
+constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
 
-constexpr const char* tank_vanilla_hard_reinforcements = "monster_soldier_ss 3";
-constexpr const char* tank_vanilla_default_reinforcements = "monster_soldier 2 ;monster_gunner 1";
+// Definición de refuerzos con fuerza 1 y separados por puntos y comas
+constexpr const char* tank_vanilla_default_reinforcements =
+"monster_soldier 2;"
+"monster_gunner 1;";
+
+constexpr const char* tank_vanilla_hard_reinforcements =
+"monster_soldier_ss 3;"
+"monster_soldier_ss 3;"
+"monster_soldier_ss 3;";
+
+// Lista de posiciones de refuerzo
 constexpr int32_t TANK_VANILLA_MAX_REINFORCEMENTS = 5;
-
 
 constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinforcement_position = {
 	vec3_t { 80, 0, 0 },
@@ -844,8 +854,7 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 	vec3_t { 0, -80, 0 }
 };
 
-
-constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
+// Función de spawneo
 void Monster_MoveSpawn(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
@@ -906,15 +915,26 @@ void Monster_MoveSpawn(edict_t* self)
 
 		if (!found_spot)
 		{
+			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find a valid spawn point for reinforcement {}.\n", i + 1);
 			continue;
 		}
 
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180 / PI);
 
-		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, "monster_soldier_ss", 64);
+		// Seleccionar el tipo de refuerzo basado en la lista
+		if (i >= static_cast<int>(self->monsterinfo.reinforcements.num_reinforcements))
+
+		{
+			gi.Com_PrintFmt("Monster_MoveSpawn: No more reinforcements available in the list.\n");
+			break;
+		}
+
+		reinforcement_t& reinf = self->monsterinfo.reinforcements.reinforcements[i];
+		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, reinf.classname, 64);
 		if (!monster)
 		{
+			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster {}.\n", reinf.classname);
 			continue;
 		}
 
@@ -923,6 +943,8 @@ void Monster_MoveSpawn(edict_t* self)
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
 		monster->owner = self;
+		//monster->monsterinfo.bonus_flags |= BF_RAGEQUITTER;
+		ApplyMonsterBonusFlags(monster);
 
 		self->monsterinfo.monster_used++;
 		available_slots--;
@@ -934,7 +956,14 @@ void Monster_MoveSpawn(edict_t* self)
 			const float end_size = magnitude * 0.005f;
 			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 		}
+
+		// Reproducir sonido de spawn
+		gi.sound(self, CHAN_BODY, sound_spawn_commander, 1, ATTN_NONE, 0);
+
+		gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {} at position ({}, {}, {}).\n",
+			reinf.classname, spawn_origin[0], spawn_origin[1], spawn_origin[2]);
 	}
+
 }
 
 void tank_vanilla_spawn_finished(edict_t* self)
@@ -947,14 +976,14 @@ void tank_vanilla_spawn_finished(edict_t* self)
 mframe_t tank_frames_spawn[] =
 {
 	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
+	{ai_charge, 0, Monster_MoveSpawn},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, tank_vanillaStrike},  // FRAME_attak225 - Añadir footstep aquí
 	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquí
 	{ai_charge, -1, nullptr},
-	{ai_charge, -2, nullptr}, // FRAME_attak229
-	{ai_charge, -2, nullptr},  // FRAME_attak229
-	{ai_charge, -2, nullptr}   // FRAME_attak229
+	{ai_charge, -2, Monster_MoveSpawn}, // FRAME_attak229
+	{ai_charge, -2, Monster_MoveSpawn},  // FRAME_attak229
+	{ai_charge, -2, Monster_MoveSpawn}   // FRAME_attak229
 };
 // Actualiza la definición de tank_move_spawn para usar la nueva función
 MMOVE_T(tank_move_spawn) = { FRAME_attak223, FRAME_attak231, tank_frames_spawn, tank_vanilla_spawn_finished };
@@ -1258,21 +1287,19 @@ model="models/monsters/tank_vanilla/tris.md2"
 /*QUAKED monster_tank_vanilla_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
  */
 
-void M_SetupReinforcements(const char* reinforcements, reinforcement_list_t& list);
-
 void SP_monster_tank_vanilla(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
 
 	if (g_horde->integer) {
 		{
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 	}
-
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
@@ -1286,22 +1313,25 @@ void SP_monster_tank_vanilla(edict_t* self)
 	// Configurar refuerzos
 	const char* reinforcements = tank_vanilla_default_reinforcements;
 	if (skill->integer >= 2)
-		reinforcements = tank_vanilla_hard_reinforcements;
+		reinforcements = "monster_soldier_ss 3"; // Puedes ajustar según la dificultad
 
 	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
 
+	// Asignar modelo y dimensiones
 	self->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
 	self->mins = { -32, -32, -16 };
 	self->maxs = { 32, 32, 64 };
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
+	// Pre-cargar modelos de gibs
 	gi.modelindex("models/monsters/tank/gibs/barm.md2");
 	gi.modelindex("models/monsters/tank/gibs/head.md2");
 	gi.modelindex("models/monsters/tank/gibs/chest.md2");
 	gi.modelindex("models/monsters/tank/gibs/foot.md2");
 	gi.modelindex("models/monsters/tank/gibs/thigh.md2");
 
+	// Asignar sonidos
 	sound_thud.assign("tank/tnkdeth2.wav");
 	sound_idle.assign("tank/tnkidle1.wav");
 	sound_die.assign("tank/death.wav");
@@ -1309,6 +1339,7 @@ void SP_monster_tank_vanilla(edict_t* self)
 	sound_windup.assign("tank/tnkatck4.wav");
 	sound_strike.assign("tank/tnkatck5.wav");
 	sound_sight.assign("tank/sight1.wav");
+	sound_spawn_commander.assign("mediccommander1.wav"); // Asignar el nuevo sonido
 
 	gi.soundindex("tank/tnkatck1.wav");
 	gi.soundindex("tank/tnkatk2a.wav");
@@ -1318,6 +1349,7 @@ void SP_monster_tank_vanilla(edict_t* self)
 	gi.soundindex("tank/tnkatk2e.wav");
 	gi.soundindex("tank/tnkatck3.wav");
 
+	// Configurar salud y propiedades según tipo
 	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0)
 	{
 		self->health = 1000 * st.health_multiplier;
@@ -1334,22 +1366,18 @@ void SP_monster_tank_vanilla(edict_t* self)
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
-	// [Paril-KEX] N64 tank commander is a chonky boy
+	// Ajustar dimensiones si es comandante
 	if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_GUARDIAN))
 	{
 		if (!self->s.scale)
 			self->s.scale = 1.5f;
-			self->mins *= 1.5f;
-			self->maxs *= 1.5f;
+		self->mins *= 1.5f;
+		self->maxs *= 1.5f;
 		self->health = 1500 * st.health_multiplier;
 	}
 
-	// heat seekingness
-	if (!self->accel)
-		self->accel = 0.075f;
-
+	// Configurar otros atributos
 	self->mass = 500;
-
 	self->pain = tank_vanilla_pain;
 	self->die = tank_vanilla_die;
 	self->monsterinfo.stand = tank_vanilla_stand;
@@ -1363,21 +1391,24 @@ void SP_monster_tank_vanilla(edict_t* self)
 	self->monsterinfo.blocked = tank_vanilla_blocked; // PGM
 	self->monsterinfo.setskin = tank_vanilla_setskin;
 
+	// Enlazar entidad
 	gi.linkentity(self);
 
+	// Iniciar animación de stand
 	M_SetAnimation(self, &tank_vanilla_move_stand);
 
+	// Iniciar comportamiento de walkmonster
 	walkmonster_start(self);
 
-	// PMM
+	// Configurar flags adicionales
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	self->monsterinfo.blindfire = true;
-	// pmm
+
 	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0)
 		self->s.skinnum = 2;
 
+	// Aplicar banderas de bonificación
 	ApplyMonsterBonusFlags(self);
-
 }
 
 void Use_Boss3(edict_t* ent, edict_t* other, edict_t* activator);

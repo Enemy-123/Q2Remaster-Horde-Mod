@@ -282,12 +282,12 @@ MMOVE_T(widow2_move_walk) = { FRAME_walk01, FRAME_walk09, widow2_frames_walk, nu
 
 mframe_t widow2_frames_run[] = {
 	{ ai_run, 9.01f, widow2_step },
-	{ ai_run, 7.55f },
+	{ ai_run, 7.55f, Widow2Spawn },
 	{ ai_run, 7.01f },
 	{ ai_run, 6.66f },
 	{ ai_run, 6.20f },
 	{ ai_run, 5.78f, widow2_step },
-	{ ai_run, 7.25f },
+	{ ai_run, 7.25f, Widow2Spawn },
 	{ ai_run, 8.37f },
 	{ ai_run, 10.41f }
 };
@@ -304,9 +304,9 @@ MMOVE_T(widow2_move_attack_pre_beam) = { FRAME_fireb01, FRAME_fireb04, widow2_fr
 // Loop this
 mframe_t widow2_frames_attack_beam[] = {
 	{ ai_charge, 0, Widow2Beam },
+	{ ai_charge, 0, widow2_spawn_check },
 	{ ai_charge, 0, Widow2Beam },
-	{ ai_charge, 0, Widow2Beam },
-	{ ai_charge, 0, Widow2Beam },
+	{ ai_charge, 0, widow2_spawn_check },
 	{ ai_charge, 0, widow2_reattack_beam }
 };
 MMOVE_T(widow2_move_attack_beam) = { FRAME_fireb05, FRAME_fireb09, widow2_frames_attack_beam, nullptr };
@@ -407,15 +407,15 @@ mframe_t widow2_frames_spawn[] = {
 	{ ai_charge },
 	{ ai_charge, 0, [](edict_t* self) { widow_start_spawn(self); widow2_step(self); } },
 	{ ai_charge, 0, Widow2Beam },
-	{ ai_charge, 0, Widow2Beam }, // 5
-	{ ai_charge, 0, Widow2Beam },
+	{ ai_charge, 0, widow2_spawn_check }, // 5
+	{ ai_charge, 0, widow2_spawn_check },
 	{ ai_charge, 0, Widow2Beam },
 	{ ai_charge, 0, Widow2Beam },
 	{ ai_charge, 0, Widow2Beam },
 	{ ai_charge, 0, widow2_ready_spawn }, // 10
 	{ ai_charge, 0, Widow2Beam },
-	{ ai_charge, 0, Widow2Beam },
-	{ ai_charge, 0, Widow2Beam },
+	{ ai_charge, 0, widow2_spawn_check },
+	{ ai_charge, 0, widow2_spawn_check },
 	{ ai_charge, 0, widow2_spawn_check },
 	{ ai_charge }, // 15
 	{ ai_charge },
@@ -734,6 +734,12 @@ MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
 	float luck;
 	bool blocked = false;
 
+	// Si se ha alcanzado el máximo de stalkers, usar animación de ataque mejorada
+	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+		brandom() ? M_SetAnimation(self, &widow2_move_attack_disrupt) : M_SetAnimation(self, &widow2_move_tongs);
+		return;
+	}
+
 	// Verificar si la entidad está bloqueada
 	if (self->monsterinfo.aiflags & AI_BLOCKED) {
 		blocked = true;
@@ -838,11 +844,7 @@ MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
 		}
 	}
 
-	// Si se ha alcanzado el máximo de stalkers, usar animación de ataque mejorada
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
-		brandom() ? M_SetAnimation(self, &widow2_move_attack_disrupt) : M_SetAnimation(self, &widow2_move_tongs);
-		return;
-	}
+
 }
 
 

@@ -309,6 +309,7 @@ void WidowSpawn(edict_t* self) {
 			ent->think(ent);
 
 			ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
+			ApplyMonsterBonusFlags(ent);
 
 			if (!G_IsCooperative()) {
 				designated_enemy = self->enemy;
@@ -405,14 +406,14 @@ MMOVE_T(widow_move_walk) = { FRAME_walk01, FRAME_walk13, widow_frames_walk, null
 
 mframe_t widow_frames_run[] = {
 	{ ai_run, 2.79f, widow_step },
-	{ ai_run, 2.77f },
+	{ ai_run, 2.77f, WidowSpawn},
 	{ ai_run, 3.53f },
 	{ ai_run, 3.97f },
 	{ ai_run, 4.13f }, // 5
 	{ ai_run, 4.09f },
 	{ ai_run, 3.84f },
 	{ ai_run, 3.62f, widow_step },
-	{ ai_run, 3.29f },
+	{ ai_run, 3.29f ,WidowSpawn},
 	{ ai_run, 6.08f }, // 10
 	{ ai_run, 6.94f },
 	{ ai_run, 5.73f },
@@ -429,11 +430,11 @@ void widow_stepshoot(edict_t* self)
 mframe_t widow_frames_run_attack[] = {
 	{ ai_charge, 13, widow_stepshoot },
 	{ ai_charge, 11.72f, WidowBlaster },
-	{ ai_charge, 18.04f, WidowBlaster },
+	{ ai_charge, 18.04f, widow_spawn_check },
 	{ ai_charge, 14.58f, WidowBlaster },
 	{ ai_charge, 13, widow_stepshoot }, // 5
 	{ ai_charge, 12.12f, WidowBlaster },
-	{ ai_charge, 19.63f, WidowBlaster },
+	{ ai_charge, 19.63f, widow_spawn_check },
 	{ ai_charge, 11.37f, WidowBlaster }
 };
 MMOVE_T(widow_move_run_attack) = { FRAME_run01, FRAME_run08, widow_frames_run_attack, widow_run };
@@ -658,11 +659,11 @@ mframe_t widow_frames_spawn[] = {
 	{ ai_charge, 0, WidowBlaster }, // 9
 	{ ai_charge, 0, widow_spawn_check },
 	{ ai_charge, 0, WidowBlaster }, // 11
-	{ ai_charge, 0, WidowBlaster },
+	{ ai_charge, 0, widow_spawn_check },
 	{ ai_charge, 0, WidowBlaster }, // 13
-	{ ai_charge, 0, WidowBlaster }, // 11
+	{ ai_charge, 0, widow_spawn_check }, // 11
 	{ ai_charge, 0, WidowBlaster },
-	{ ai_charge, 0, WidowBlaster }, // 13
+	{ ai_charge, 0, widow_spawn_check }, // 13
 	{ ai_charge },
 	{ ai_charge, 0, widow_done_spawn }
 };

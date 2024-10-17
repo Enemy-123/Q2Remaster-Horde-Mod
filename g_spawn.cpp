@@ -602,7 +602,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 	constexpr MonsterReplacement chaotic_replacements[] = {
 		{"monster_soldier_ss", {"monster_infantry_vanilla"}, 1},
 		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_gunner"}, 2},
-		{"monster_stalker", {"monster_parasite", "monster_stalker"}, 2},
+		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
 		{"monster_tank", {"monster_tank_commander"}, 1},
 		{"monster_tank_commander", {"monster_shambler"}, 1},
 		{"monster_supertank", {"monster_boss5"}, 1},
@@ -622,7 +622,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 		{"monster_shambler", {"monster_tank_64", "monster_shambler"}, 2},
 		{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
 		{"monster_tank_commander", {"monster_tank_64", "monster_shambler"}, 2},
-		{"monster_stalker", {"monster_perrokl", "monster_parasite", "monster_stalker", "monster_floater"}, 4},
+		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker", "monster_floater"}, 4},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick_heat", "monster_chick"}, 2},
 		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
