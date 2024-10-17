@@ -354,12 +354,12 @@ void ApplyBossEffects(edict_t* boss)
 		// Aplicar escalado basado en la categoría de tamaño
 		switch (sizeCategory) {
 		case BossSizeCategory::Small:
-			ScaleEntity(1.3f);
+			ScaleEntity(1.1f);
 			health_multiplier *= 1.5f;
 			power_armor_multiplier *= 1.25f;
 			break;
 		case BossSizeCategory::Medium:
-			ScaleEntity(1.4f);
+			ScaleEntity(1.25f);
 			health_multiplier *= 1.5f;
 			power_armor_multiplier *= 1.25f;
 			break;
@@ -380,17 +380,17 @@ void ApplyBossEffects(edict_t* boss)
 		// Aplicar escalado basado en la categoría de tamaño
 		switch (sizeCategory) {
 		case BossSizeCategory::Small:
-			ScaleEntity(1.5f);
+			ScaleEntity(1.2f);
 			health_multiplier *= 1.4f;
 			power_armor_multiplier *= 1.4f;
 			break;
 		case BossSizeCategory::Medium:
-			ScaleEntity(1.6f);
+			ScaleEntity(1.3f);
 			health_multiplier *= 1.4f;
 			power_armor_multiplier *= 1.4f;
 			break;
 		case BossSizeCategory::Large:
-			ScaleEntity(1.7f);
+			ScaleEntity(1.4f);
 			health_multiplier *= 1.4f;
 			power_armor_multiplier *= 1.4f;
 			break;
@@ -427,12 +427,12 @@ void ApplyBossEffects(edict_t* boss)
 		// Aplicar escalado basado en la categoría de tamaño
 		switch (sizeCategory) {
 		case BossSizeCategory::Small:
-			ScaleEntity(1.2f);
+			ScaleEntity(1.1f);
 			health_multiplier *= 1.5f;
 			power_armor_multiplier *= 1.1f;
 			break;
 		case BossSizeCategory::Medium:
-			ScaleEntity(1.3f);
+			ScaleEntity(1.2f);
 			health_multiplier *= 1.5f;
 			power_armor_multiplier *= 1.1f;
 			break;
