@@ -337,7 +337,10 @@ PRETHINK(guardian_fire_update) (edict_t* laser) -> void
 	gi.linkentity(laser);
 	dabeam_update(laser, false);
 }
+
 constexpr float GRENADE_SPEED = 1200;
+
+// Función para lanzar granadas alternando entre dos posiciones
 static void guardian_grenade(edict_t* self)
 {
 	vec3_t start{};
@@ -350,50 +353,53 @@ static void guardian_grenade(edict_t* self)
 		return;
 
 	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Predict target position
+	// Seleccionar la posición de la granada basada en el contador
+	int pos_index = self->count % 2; // Alterna entre 0 y 1
+	start = M_ProjectFlashSource(self, laser_positions[1 - (self->s.frame & 1)], forward, right);
+
+	// Incrementar el contador para la próxima granada
+	self->count++;
+
+	// Predecir la posición del objetivo
 	float time_to_target = (self->enemy->s.origin - start).length() / speed;
 	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
 
 	aim = predicted_pos - start;
 	const float dist = aim.length();
 
-	// Adjust aim based on distance
+	// Ajustar la puntería basada en la distancia
 	if (dist > 200)
 	{
-		// Reduced vertical adjustment for longer distances
 		float vertical_adjust = (dist - 200) * 0.0010f;
 		aim[2] += vertical_adjust;
 	}
 
-	// Reduced random spread
+	// Reducir la dispersión aleatoria
 	aim[0] += crandom_open() * 0.03f;
 	aim[1] += crandom_open() * 0.03f;
 	aim[2] += crandom_open() * 0.03f;
 	aim.normalize();
 
-	// Adjust the pitch slightly downward to counteract the upward trajectory
-	// Increased downward adjustment
+	// Ajustar el pitch ligeramente hacia abajo
 	const float pitch_adjust = -0.15f - (dist * 0.00015f);
 	aim += up * pitch_adjust;
 	aim.normalize();
 
-	// Calculate the best pitch, but allow for some error
+	// Calcular el mejor pitch para disparar
 	if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.5f, false))
 	{
-		// Reduced random adjustment to the calculated pitch
 		aim[2] += crandom_open() * 0.01f;
 		aim.normalize();
 	}
 
-	// Compensate for the upward velocity in fire_grenade2
+	// Compensar la velocidad ascendente en fire_grenade2
 	float gravityAdjustment = level.gravity / 800.f;
 	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
 	aim[2] += downwardAdjustment;
 	aim.normalize();
 
-	// Fire the grenade
+	// Disparar la granada
 	fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
 	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);
 }
@@ -636,6 +642,9 @@ void SP_monster_guardian(edict_t* self)
 
 	self->health = 6500 + (1.08 * current_wave_level);
 	self->gib_health = -200;
+
+	// Inicializar el contador para alternar posiciones de granadas
+	self->count = 0;
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
