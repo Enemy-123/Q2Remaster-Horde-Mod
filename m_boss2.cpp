@@ -705,8 +705,8 @@ void SP_monster_boss2(edict_t* self)
 	gi.modelindex("models/monsters/boss2/gibs/spine.md2");
 	gi.modelindex("models/monsters/boss2/gibs/wing.md2");
 
-	self->mins = { -56, -56, 0 };
-	self->maxs = { 56, 56, 80 };
+	self->mins = { -60, -60, 0 };
+	self->maxs = { 60, 60, 90 };
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
@@ -758,8 +758,8 @@ void SP_monster_boss2_64(edict_t* self)
 		self->s.scale = 0.6f;
 
 		// Ajustar la caja de colisi칩n con un Z m치s elevado
-		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
-		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 28) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
+		self->mins = { -60 * 0.6f, -60 * 0.6f, 0 };
+		self->maxs = { 60 * 0.6f, 60 * 0.6f, (90 + 25) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
 
 	self->health = 1100 * st.health_multiplier;
@@ -783,8 +783,8 @@ void SP_monster_boss2kl(edict_t* self)
 		self->s.scale = 0.6f;
 
 		// Ajustar la caja de colisi칩n con un Z m치s elevado
-		self->mins = { -56 * 0.6f, -56 * 0.6f, 0 };
-		self->maxs = { 56 * 0.6f, 56 * 0.6f, (80 + 20) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
+		self->mins = { -60 * 0.6f, -60 * 0.6f, 0 };
+		self->maxs = { 60 * 0.6f, 60 * 0.6f, (90 + 25) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
 	self->s.skinnum = 2;
 	self->gib_health = -130;

@@ -1109,43 +1109,49 @@ void WidowPowerArmor(edict_t* self)
 void WidowRespondPowerup(edict_t* self, edict_t* other)
 {
 	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
-		// Verificar si el monstruo tiene alguno de los bonus flags
+		// Check if the monster has any of the bonus flags
 		if (!(self->monsterinfo.bonus_flags & (BF_BERSERKING | BF_RAGEQUITTER | BF_CHAMPION))) {
-			if (other->s.effects & EF_QUAD)
+			// Ensure 'other' is a player before accessing 'client'
+			if (other->client)
 			{
-				if (skill->integer == 1)
-					WidowDouble(self, other->client->quad_time);
-				else if (skill->integer == 2)
-					WidowGoinQuad(self, other->client->quad_time);
-				else if (skill->integer == 3)
+				if (other->s.effects & EF_QUAD)
 				{
-					WidowGoinQuad(self, other->client->quad_time);
-					WidowPowerArmor(self);
+					if (skill->integer == 1)
+						WidowDouble(self, other->client->quad_time);
+					else if (skill->integer == 2)
+						WidowGoinQuad(self, other->client->quad_time);
+					else if (skill->integer == 3)
+					{
+						WidowGoinQuad(self, other->client->quad_time);
+						WidowPowerArmor(self);
+					}
 				}
-			}
-			else if (other->s.effects & EF_DOUBLE)
-			{
-				if (skill->integer == 2)
-					WidowDouble(self, other->client->double_time);
-				else if (skill->integer == 3)
+				else if (other->s.effects & EF_DOUBLE)
 				{
-					WidowDouble(self, other->client->double_time);
-					WidowPowerArmor(self);
+					if (skill->integer == 2)
+						WidowDouble(self, other->client->double_time);
+					else if (skill->integer == 3)
+					{
+						WidowDouble(self, other->client->double_time);
+						WidowPowerArmor(self);
+					}
 				}
-			}
-			else
-				widow_damage_multiplier = 1;
+				else
+				{
+					widow_damage_multiplier = 1;
+				}
 
-			if (other->s.effects & EF_PENT)
-			{
-				if (skill->integer == 1)
-					WidowPowerArmor(self);
-				else if (skill->integer == 2)
-					WidowPent(self, other->client->invincible_time);
-				else if (skill->integer == 3)
+				if (other->s.effects & EF_PENT)
 				{
-					WidowPent(self, other->client->invincible_time);
-					WidowPowerArmor(self);
+					if (skill->integer == 1)
+						WidowPowerArmor(self);
+					else if (skill->integer == 2)
+						WidowPent(self, other->client->invincible_time);
+					else if (skill->integer == 3)
+					{
+						WidowPent(self, other->client->invincible_time);
+						WidowPowerArmor(self);
+					}
 				}
 			}
 		}

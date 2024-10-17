@@ -22,9 +22,9 @@ constexpr const char *default_reinforcements = "monster_daedalus_bomber 2;monste
 constexpr int32_t default_monster_slots_base = 3;
 constexpr spawnflags_t SPAWNFLAG_carrier_mini = 8_spawnflag;
 
-constexpr gtime_t CARRIER_ROCKET_TIME = 2_sec; // number of seconds between rocket shots
-constexpr int32_t CARRIER_ROCKET_SPEED = 950;
-constexpr gtime_t RAIL_FIRE_TIME = 2_sec;
+constexpr gtime_t CARRIER_ROCKET_TIME = 1.5_sec; // number of seconds between rocket shots
+constexpr int32_t CARRIER_ROCKET_SPEED = 1150;
+constexpr gtime_t RAIL_FIRE_TIME = 1.25_sec;
 
 bool infront(edict_t *self, edict_t *other);
 bool inback(edict_t *self, edict_t *other);
@@ -370,6 +370,7 @@ void CarrierSpawn(edict_t *self)
 		ent->monsterinfo.commander = self;
 		ent->monsterinfo.monster_slots = reinforcement.strength;
 		self->monsterinfo.monster_used += reinforcement.strength;
+		ApplyMonsterBonusFlags(ent);
 
 		if ((self->enemy->inuse) && (self->enemy->health > 0))
 		{
@@ -662,7 +663,7 @@ mframe_t carrier_frames_spawn[] = {
 	{ ai_charge, -2, carrier_start_spawn }, // 8 - start of spawn
 	{ ai_charge, -2, carrier_ready_spawn },
 	{ ai_charge, -2 },
-	{ ai_charge, -2 },
+	{ ai_charge, -2,  carrier_spawn_check },
 	{ ai_charge, -10, carrier_spawn_check }, // 12 - actual spawn
 	{ ai_charge, -2 },	 // 13 - begin of wind down
 	{ ai_charge, -2 },

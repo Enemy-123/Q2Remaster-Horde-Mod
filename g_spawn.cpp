@@ -614,7 +614,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 	constexpr MonsterReplacement insane_replacements[] = {
 		{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}, 2},
 		{"monster_soldier", {"monster_soldier_hypergun", "monster_soldier_lasergun"}, 2},
-		{"monster_soldier_ss", {"monster_infantry", "monster_gunner_vanilla"}, 2},
+		{"monster_soldier_ss", {"monster_infantry", "monster_gunner_vanilla", "monster_infantry_vanilla", "monster_soldier_lasergun"}, 4},
 		{"monster_infantry_vanilla", {"monster_gunner", "monster_brain"}, 2},
 		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr"}, 2},
 		{"monster_brain", {"monster_brain", "monster_brain", "monster_tank"}, 3},
