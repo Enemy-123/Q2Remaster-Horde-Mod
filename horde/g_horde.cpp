@@ -296,6 +296,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
+	g_horde_local.queued_monsters = lvl * 2 + GetNumHumanPlayers();
 }
 
 
@@ -417,7 +418,7 @@ static gtime_t waveEndTime = 0_sec; // Nueva variable para el tiempo de finaliza
 constexpr std::array<float, 4> WARNING_TIMES = { 30.0f, 20.0f, 10.0f, 5.0f };
 
 static void Horde_InitLevel(const int32_t lvl) {
-	// Inicialización básica del nivel
+	// Configuración de variables iniciales para el nivel
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
 	cachedRemainingMonsters = g_totalMonstersInWave;
 	last_wave_number++;
@@ -425,6 +426,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	current_wave_level = lvl;
 	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
+	// Verificar y ajustar bots, y otras configuraciones de la oleada
 	VerifyAndAdjustBots();
 
 	// Configurar tiempos iniciales
@@ -2097,12 +2099,12 @@ static edict_t* SpawnMonsters() {
 	available_spawns.clear();
 	available_spawns.reserve(MAX_EDICTS);
 
-	const int32_t monsters_per_spawn = std::min(
-		mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 4 : 4) :
+	// Adjust monsters_per_spawn if there are queued monsters
+	const int32_t default_monsters_per_spawn = mapSize.isSmallMap ? (g_horde_local.level >= 5 ? 4 : 4) :
 		mapSize.isBigMap ? (g_horde_local.level >= 5 ? 6 : 5) :
-		(g_horde_local.level >= 5 ? 5 : 4),
-		6
-	);
+		(g_horde_local.level >= 5 ? 5 : 4);
+
+	const int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ? 1 : std::min(default_monsters_per_spawn, 6);
 
 	const float drop_probability = (current_wave_level <= 2) ? 0.8f :
 		(current_wave_level <= 7) ? 0.6f : 0.45f;
@@ -2124,7 +2126,7 @@ static edict_t* SpawnMonsters() {
 	for (int32_t spawnCount = 0; spawnCount < monsters_per_spawn && g_horde_local.num_to_spawn > 0 && !available_spawns.empty(); ++spawnCount) {
 		const size_t spawn_index = static_cast<size_t>(frandom() * available_spawns.size());
 		if (spawn_index >= available_spawns.size()) {
-			continue; // Prevenir acceso fuera de los límites
+			continue; // Prevent out-of-bounds access
 		}
 		edict_t* spawn_point = available_spawns[spawn_index];
 
@@ -2154,7 +2156,7 @@ static edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		if (g_horde_local.level >= 15) {
+		if (g_horde_local.level >= 17) {
 			SetMonsterArmor(monster);
 		}
 
@@ -2162,18 +2164,10 @@ static edict_t* SpawnMonsters() {
 			monster->item = G_HordePickItem();
 		}
 
-		// Establecer posición del spawngro y valores de tamaño ajustados
+		// Adjusted values for the spawn grow effect
 		const vec3_t spawngrow_pos = monster->s.origin;
-
-		// Incrementar los valores para garantizar que el spawngro sea lo suficientemente visible
-		const float start_size = 80.0f;  // Tamaño inicial aumentado para mayor visibilidad
-		const float end_size = 10.0f;     // Tamaño final aumentado
-
-		// Mensajes de depuración para comprobar si estamos creando el spawngro
-		//gi.Com_PrintFmt("PRINT: Spawning spawngrow effect at position: ({}, {}, {}) with start size: {} and end size: {}\n",
-		//	spawngrow_pos[0], spawngrow_pos[1], spawngrow_pos[2], start_size, end_size);
-
-		// Utilizar SpawnGrow_Spawn con los nuevos valores de tamaño
+		const float start_size = 80.0f;
+		const float end_size = 10.0f;
 		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
 		--g_horde_local.num_to_spawn;
@@ -2182,7 +2176,7 @@ static edict_t* SpawnMonsters() {
 		last_spawned_monster = monster;
 	}
 
-	// Manejar la cola de monstruos pendientes
+	// Handle queued monsters
 	if (g_horde_local.queued_monsters > 0) {
 		const int32_t activeMonsters = CalculateRemainingMonsters();
 		const int32_t max_spawn = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
