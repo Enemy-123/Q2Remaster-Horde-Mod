@@ -242,9 +242,14 @@ void guardian_fire_blaster(edict_t* self)
 	forward.normalize();
 
 	if (!strcmp(self->classname, "monster_guardian"))
-	monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
-	if (!strcmp(self->classname, "monster_janitor2"))
-		monster_fire_blueblaster(self, start, forward, 3, 850, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+	{
+		monster_fire_blaster(self, start, forward, 18, 1800, id, (self->s.frame % 4) ? EF_QUAD : EF_HYPERBLASTER);
+	}
+	else if (!strcmp(self->classname, "monster_janitor2"))
+	{
+		// Cambiar al Ionripper
+		monster_fire_ionripper(self, start, forward, 25, 2000, id, EF_IONRIPPER);
+	}
 
 	if (self->enemy && self->enemy->health > 0 &&
 		self->s.frame == FRAME_atk1_spin12 && self->timestamp > level.time && visible(self, self->enemy))
@@ -332,6 +337,66 @@ PRETHINK(guardian_fire_update) (edict_t* laser) -> void
 	gi.linkentity(laser);
 	dabeam_update(laser, false);
 }
+constexpr float GRENADE_SPEED = 1200;
+static void guardian_grenade(edict_t* self)
+{
+	vec3_t start{};
+	vec3_t forward{}, right{}, up{};
+	vec3_t aim{};
+	const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
+	const float speed = GRENADE_SPEED;
+
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	AngleVectors(self->s.angles, forward, right, up);
+	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	// Predict target position
+	float time_to_target = (self->enemy->s.origin - start).length() / speed;
+	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+
+	aim = predicted_pos - start;
+	const float dist = aim.length();
+
+	// Adjust aim based on distance
+	if (dist > 200)
+	{
+		// Reduced vertical adjustment for longer distances
+		float vertical_adjust = (dist - 200) * 0.0010f;
+		aim[2] += vertical_adjust;
+	}
+
+	// Reduced random spread
+	aim[0] += crandom_open() * 0.03f;
+	aim[1] += crandom_open() * 0.03f;
+	aim[2] += crandom_open() * 0.03f;
+	aim.normalize();
+
+	// Adjust the pitch slightly downward to counteract the upward trajectory
+	// Increased downward adjustment
+	const float pitch_adjust = -0.15f - (dist * 0.00015f);
+	aim += up * pitch_adjust;
+	aim.normalize();
+
+	// Calculate the best pitch, but allow for some error
+	if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.5f, false))
+	{
+		// Reduced random adjustment to the calculated pitch
+		aim[2] += crandom_open() * 0.01f;
+		aim.normalize();
+	}
+
+	// Compensate for the upward velocity in fire_grenade2
+	float gravityAdjustment = level.gravity / 800.f;
+	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
+	aim[2] += downwardAdjustment;
+	aim.normalize();
+
+	// Fire the grenade
+	fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
+	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);
+}
 
 void guardian_laser_fire(edict_t* self)
 {
@@ -339,11 +404,29 @@ void guardian_laser_fire(edict_t* self)
 	monster_fire_dabeam(self, self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 25 : 5, self->s.frame & 1, guardian_fire_update);
 }
 
+// Nueva función para manejar ataques basados en el tipo de entidad
+void guardian_fire_attack(edict_t* self)
+{
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	if (strcmp(self->classname, "monster_janitor2") == 0) {
+		// Ataque con granadas para janitor2
+		guardian_grenade(self);
+	}
+	else if (strcmp(self->classname, "monster_guardian") == 0) {
+		// Ataque con láser para guardian
+		guardian_laser_fire(self);
+	}
+}
+
+
+// Actualización de los frames de atk2_fire para utilizar guardian_fire_attack
 mframe_t guardian_frames_atk2_fire[] = {
-	{ ai_charge, 0, guardian_laser_fire },
-	{ ai_charge, 0, guardian_laser_fire },
-	{ ai_charge, 0, guardian_laser_fire },
-	{ ai_charge, 0, guardian_laser_fire }
+	{ ai_charge, 0, guardian_fire_attack },
+	{ ai_charge, 0, guardian_fire_attack },
+	{ ai_charge, 0, guardian_fire_attack },
+	{ ai_charge, 0, guardian_fire_attack }
 };
 MMOVE_T(guardian_move_atk2_fire) = { FRAME_atk2_fire1, FRAME_atk2_fire4, guardian_frames_atk2_fire, guardian_atk2_out };
 
@@ -409,9 +492,12 @@ MONSTERINFO_ATTACK(guardian_attack) (edict_t* self) -> void
 
 	const float r = range_to(self, self->enemy);
 
-	if (r > RANGE_NEAR && !strcmp(self->classname, "monster_guardian"))
+	if (r > RANGE_NEAR)
 		M_SetAnimation(self, &guardian_move_atk2_in);
-	else if (self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_guardian") || self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_janitor2") && r <= RANGE_MELEE)
+	else if (
+		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_guardian")) ||
+		(self->monsterinfo.melee_debounce_time < level.time && r < 120.f && !strcmp(self->classname, "monster_janitor2") && r <= RANGE_MELEE)
+		)
 		M_SetAnimation(self, &guardian_move_kick);
 	else
 		M_SetAnimation(self, &guardian_move_atk1_in);

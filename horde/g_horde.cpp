@@ -299,7 +299,6 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	g_horde_local.queued_monsters += 3 + GetNumHumanPlayers();
 }
 
-
 static void Horde_CleanBodies();
 void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
