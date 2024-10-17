@@ -296,7 +296,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
-	g_horde_local.queued_monsters = lvl * 2 + GetNumHumanPlayers();
+	g_horde_local.queued_monsters += 3 + GetNumHumanPlayers();
 }
 
 
@@ -330,13 +330,13 @@ static float CalculatePlayerPerformance() {
 }
 
 // Constantes y funciones auxiliares
-constexpr gtime_t BASE_MAX_WAVE_TIME = 40_sec;
-constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1_sec;
-constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 4;
-constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 15_sec;
+constexpr gtime_t BASE_MAX_WAVE_TIME = 45_sec;
+constexpr gtime_t TIME_INCREASE_PER_LEVEL = 0.8_sec;
+constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
+constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 10_sec;
 
 gtime_t calculate_max_wave_time(int32_t wave_level) {
-	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 70_sec);
+	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 65_sec);
 }
 
 // Variables globales
@@ -396,7 +396,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	}
 
 	// Configuración para el porcentaje bajo de monstruos restantes
-	params.lowPercentageTimeThreshold = random_time(7_sec, 14_sec);
+	params.lowPercentageTimeThreshold = random_time(8_sec, 17_sec);
 	params.lowPercentageThreshold = 0.3f;
 
 	// Configuración para tiempo independiente basado en el nivel
@@ -1760,6 +1760,7 @@ void ResetGame() {
 	g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
 	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	g_horde_local.num_to_spawn = 0;
+	g_horde_local.queued_monsters = 0;
 
 	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
@@ -1944,7 +1945,7 @@ static void ResetWaveAdvanceState() noexcept {
 	g_lastWaveNumber = -1;
 	g_lastNumHumanPlayers = -1;
 
-	g_horde_local.queued_monsters = 0;
+	//g_horde_local.queued_monsters = 0;
 
 	waveEndTime = 0_sec; // Reiniciar waveEndTime
 

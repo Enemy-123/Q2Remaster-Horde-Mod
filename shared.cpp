@@ -292,22 +292,22 @@ static void CalculateBossMinimums(int wave_number, int& health_min, int& power_a
 	if (wave_number >= 25 && wave_number <= 200)
 	{
 		health_min = 18000;
-		power_armor_min = std::min(18550, 80000);
+		power_armor_min = std::min(18550, 26000);
 	}
 	else if (wave_number >= 20 && wave_number <= 24)
 	{
 		health_min = 15000;
-		power_armor_min = std::min(13000, 65000);
+		power_armor_min = std::min(13000, 22000);
 	}
 	else if (wave_number >= 15 && wave_number <= 19)
 	{
 		health_min = 12000;
-		power_armor_min = std::min(9500, 30000);
+		power_armor_min = std::min(9500, 16000);
 	}
 	else if (wave_number >= 10 && wave_number <= 14)
 	{
 		health_min = 10000;
-		power_armor_min = std::min(5475, 20000);
+		power_armor_min = std::min(5475, 12000);
 	}
 	else if (wave_number >= 5 && wave_number <= 9)
 	{
