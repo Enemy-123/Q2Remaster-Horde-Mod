@@ -2752,7 +2752,17 @@ constexpr spawnflags_t SPAWNFLAG_LANDMARK_KEEP_Z = 1_spawnflag;
 // Paril
 #include "horde/g_horde.h"
 
+
+// Define esta enumeración antes de la estructura edict_t
+enum class BossSizeCategory {
+	Small,
+	Medium,
+	Large
+};
+
 //============================================================================
+
+
 
 // client_t->anim_priority
 enum anim_priority_t
@@ -3399,6 +3409,8 @@ struct edict_t
 	int configstringIndex; // cs
 	gtime_t expire_time;
 	gtime_t spawn_time;
+	BossSizeCategory bossSizeCategory;
+	bool effects_applied = false;
 	//	gtime_t	regentime = 0.25_sec;
 };
 #define TEAM1 "team1"

@@ -610,55 +610,6 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_perrokl", 21, -1, 0.33f },
 	{ "monster_widow1", 23, -1, 0.08f }
 };
-// Definici�n de jefes por tama�o de mapa
-struct boss_t {
-	const char* classname;
-	int32_t min_level;
-	int32_t max_level;
-	float weight;
-};
-
-constexpr boss_t BOSS_SMALL[] = {
-	{"monster_carrier_mini", 24, -1, 0.1f},
-	{"monster_boss2kl", 24, -1, 0.1f},
-	{"monster_widow2", 19, -1, 0.1f},
-	{"monster_tank_64", -1, -1, 0.1f},
-	{"monster_shamblerkl", -1, -1, 0.1f},
-	{"monster_guncmdrkl", -1, 19, 0.1f},
-	{"monster_makronkl", 36, -1, 0.1f},
-//	{"monster_gm_arachnid", -1, 19, 0.1f},
-	{"monster_psxarachnid", -1, 19, 0.1f},
-	{"monster_redmutant", -1, 24, 0.1f}
-};
-
-constexpr boss_t BOSS_MEDIUM[] = {
-	{"monster_carrier", 24, -1, 0.1f},
-	{"monster_boss2", 19, -1, 0.1f},
-	{"monster_tank_64", -1, 24, 0.1f},
-//	{"monster_guardian", -1, 24, 0.1f},
-	{"monster_psxguardian", -1, 24, 0.1f},
-	{"monster_shamblerkl", -1, 24, 0.1f},
-	{"monster_guncmdrkl", -1, 24, 0.1f},
-	{"monster_widow2", 19, -1, 0.1f},
-	//{"monster_gm_arachnid", -1, 24, 0.1f},
-	{"monster_psxarachnid", -1, -1, 0.1f},
-	{"monster_makronkl", 26, -1, 0.1f}
-};
-
-constexpr boss_t BOSS_LARGE[] = {
-	{"monster_carrier", 24, -1, 0.1f},
-	{"monster_boss2", 19, -1, 0.1f},
-	{"monster_boss5", -1, -1, 0.1f},
-	{"monster_tank_64", -1, 24, 0.1f},
-	{"monster_psxarachnid", -1, -1, 0.1f},
-	{"monster_widow", -1, -1, 0.1f},
-//	{"monster_guardian", -1, 24, 0.1f},
-	{"monster_psxguardian", -1, -1, 0.1f},
-	{"monster_shamblerkl", -1, 24, 0.1f},
-	{"monster_boss5", -1, 24, 0.1f},
-	{"monster_jorg", 30, -1, 0.1f}
-};
-
 
 
 #include <array>
@@ -666,7 +617,59 @@ constexpr boss_t BOSS_LARGE[] = {
 #include <random>
 #include <deque>
 
+// Definición de jefes por tamaño de mapa
+struct boss_t {
+	const char* classname;
+	int32_t min_level;
+	int32_t max_level;
+	float weight;
+	BossSizeCategory sizeCategory; // Si decides extender la estructura
+};
 
+// Listas de jefes con la categoría de tamaño asignada
+constexpr boss_t BOSS_SMALL[] = {
+	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small},
+	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small},
+	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small},
+	{"monster_tank_64", -1, -1, 0.1f, BossSizeCategory::Small},
+	{"monster_shamblerkl", -1, -1, 0.1f, BossSizeCategory::Small},
+	{"monster_guncmdrkl", -1, 19, 0.1f, BossSizeCategory::Small},
+	{"monster_makronkl", 36, -1, 0.1f, BossSizeCategory::Small},
+	// {"monster_gm_arachnid", -1, 19, 0.1f, BossSizeCategory::Small},
+	{"monster_psxarachnid", -1, 19, 0.1f, BossSizeCategory::Small},
+	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small}
+};
+
+constexpr boss_t BOSS_MEDIUM[] = {
+	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium},
+	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium},
+	{"monster_tank_64", -1, 24, 0.1f, BossSizeCategory::Medium},
+	// {"monster_guardian", -1, 24, 0.1f, BossSizeCategory::Medium},
+	{"monster_psxguardian", -1, 24, 0.1f, BossSizeCategory::Medium},
+	{"monster_shamblerkl", -1, 24, 0.1f, BossSizeCategory::Medium},
+	{"monster_guncmdrkl", -1, 24, 0.1f, BossSizeCategory::Medium},
+	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium},
+	// {"monster_gm_arachnid", -1, 24, 0.1f, BossSizeCategory::Medium},
+	{"monster_psxarachnid", -1, -1, 0.1f, BossSizeCategory::Medium},
+	{"monster_makronkl", 26, -1, 0.1f, BossSizeCategory::Medium}
+};
+
+constexpr boss_t BOSS_LARGE[] = {
+	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_tank_64", -1, 24, 0.1f, BossSizeCategory::Large},
+	{"monster_psxarachnid", -1, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_widow", -1, -1, 0.1f, BossSizeCategory::Large},
+	// {"monster_guardian", -1, 24, 0.1f, BossSizeCategory::Large},
+	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_shamblerkl", -1, 24, 0.1f, BossSizeCategory::Large},
+	{"monster_boss5", -1, 24, 0.1f, BossSizeCategory::Large},
+	{"monster_jorg", 30, -1, 0.1f, BossSizeCategory::Large}
+};
+
+
+// Función para obtener la lista de jefes según el tamaño del mapa
 static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 	// Small maps logic
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
@@ -709,6 +712,7 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 	return nullptr;
 }
 
+// Función para obtener el tamaño de la lista de jefes
 static size_t GetBossListSize(const MapSize& mapSize, const std::string& mapname, const boss_t* boss_list) {
 	if (!boss_list) return 0;
 
@@ -757,7 +761,8 @@ static size_t GetBossListSize(const MapSize& mapSize, const std::string& mapname
 constexpr int32_t MAX_RECENT_BOSSES = 3;
 std::deque<const char*> recent_bosses;
 
-static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber) {
+// Función para seleccionar un jefe y asignar su categoría de tamaño
+static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
 	if (!boss_list) return nullptr;
 
@@ -794,15 +799,22 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 		std::default_random_engine rng(rd());
 		std::uniform_int_distribution<size_t> dist(0, eligible_bosses.size() - 1);
 		const boss_t* chosen_boss = eligible_bosses[dist(rng)];
+
+		// Registrar el jefe como reciente
 		recent_bosses.push_back(chosen_boss->classname);
 		if (recent_bosses.size() > MAX_RECENT_BOSSES) {
 			recent_bosses.pop_front();
 		}
+
+		// Asignar la categoría de tamaño directamente desde la estructura del jefe
+		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
+
 		return chosen_boss->classname;
 	}
 
 	return nullptr;
 }
+
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -1536,7 +1548,7 @@ static void SpawnBossAutomatically() {
 		return;
 	}
 
-	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level);
+	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level, boss);
 	if (!desired_boss) {
 		G_FreeEdict(boss);
 		gi.Com_PrintFmt("PRINT: Error: Failed to pick a boss type\n");

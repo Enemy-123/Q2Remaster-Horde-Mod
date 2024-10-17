@@ -292,22 +292,22 @@ static void CalculateBossMinimums(int wave_number, int& health_min, int& power_a
 	if (wave_number >= 25 && wave_number <= 200)
 	{
 		health_min = 18000;
-		power_armor_min = std::min(18550, 26000);
+		power_armor_min = std::min(18550, 20000);
 	}
 	else if (wave_number >= 20 && wave_number <= 24)
 	{
-		health_min = 15000;
-		power_armor_min = std::min(13000, 22000);
+		health_min = std::min(15000, 16500);
+		power_armor_min = std::min(13000, 16000);
 	}
 	else if (wave_number >= 15 && wave_number <= 19)
 	{
-		health_min = 12000;
-		power_armor_min = std::min(9500, 16000);
+		health_min = std::min(12000, 15500);
+		power_armor_min = std::min(9500, 12000);
 	}
 	else if (wave_number >= 10 && wave_number <= 14)
 	{
-		health_min = 10000;
-		power_armor_min = std::min(5475, 12000);
+		health_min = std::min(10000, 12500);
+		power_armor_min = std::min(5475, 8000);
 	}
 	else if (wave_number >= 5 && wave_number <= 9)
 	{
@@ -322,49 +322,82 @@ static void CalculateBossMinimums(int wave_number, int& health_min, int& power_a
 }
 void ApplyBossEffects(edict_t* boss)
 {
-	if (!boss->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	// Verificar si es un jefe y si ya se han aplicado los efectos
+	if (!boss->spawnflags.has(SPAWNFLAG_IS_BOSS) || boss->effects_applied)
 		return;
 
-	const auto mapSize = GetMapSize(level.mapname);
+	// Obtener la categoría de tamaño del jefe
+	BossSizeCategory sizeCategory = boss->bossSizeCategory;
+
+	// Generar un flag aleatorio
 	const int32_t random_flag = 1 << (rand() % 6);
 	boss->monsterinfo.bonus_flags = random_flag;
 
 	float health_multiplier = 1.0f;
 	float power_armor_multiplier = 1.0f;
 
+	// Función de utilidad para escalar el jefe
+	auto ScaleEntity = [&](float scale_factor) {
+		boss->s.scale *= scale_factor;
+		boss->mins *= scale_factor;
+		boss->maxs *= scale_factor;
+		boss->mass *= scale_factor;
+
+		// Ajustar la posición para alinear con el suelo
+		float height_offset = -(boss->mins[2]);
+		boss->s.origin[2] += height_offset;
+		gi.linkentity(boss);
+		};
+
 	// Aplicar efectos de bonus flags
 	if (boss->monsterinfo.bonus_flags & BF_CHAMPION) {
-		if (!mapSize.isSmallMap) {
-			boss->s.scale *= 1.3f;
-			boss->mins *= 1.3f;
-			boss->maxs *= 1.3f;
-
-			// Ajustar la posición después de escalar para alinear con el suelo
-			float height_offset = -(boss->mins[2]);
-			boss->s.origin[2] += height_offset;
-			gi.linkentity(boss);  // Relink para asegurar la actualización en el servidor
+		// Aplicar escalado basado en la categoría de tamaño
+		switch (sizeCategory) {
+		case BossSizeCategory::Small:
+			ScaleEntity(1.3f);
+			health_multiplier *= 1.5f;
+			power_armor_multiplier *= 1.25f;
+			break;
+		case BossSizeCategory::Medium:
+			ScaleEntity(1.4f);
+			health_multiplier *= 1.5f;
+			power_armor_multiplier *= 1.25f;
+			break;
+		case BossSizeCategory::Large:
+			ScaleEntity(1.5f);
+			health_multiplier *= 1.5f;
+			power_armor_multiplier *= 1.25f;
+			break;
 		}
+
+		// Aplicar efectos visuales adicionales
 		boss->s.effects |= EF_ROCKET | EF_FIREBALL;
 		boss->s.renderfx |= RF_SHELL_RED;
-		health_multiplier *= 1.5f;
-		power_armor_multiplier *= 1.25f;
 		boss->monsterinfo.double_time = std::max(level.time, boss->monsterinfo.double_time) + 475_sec;
 	}
 
 	if (boss->monsterinfo.bonus_flags & BF_CORRUPTED) {
-		if (!mapSize.isSmallMap) {
-			boss->s.scale *= 1.5f;
-			boss->mins *= 1.5f;
-			boss->maxs *= 1.5f;
-
-			// Ajustar la posición después de escalar para alinear con el suelo
-			float height_offset = -(boss->mins[2]);
-			boss->s.origin[2] += height_offset;
-			gi.linkentity(boss);  // Relink para asegurar la actualización en el servidor
+		// Aplicar escalado basado en la categoría de tamaño
+		switch (sizeCategory) {
+		case BossSizeCategory::Small:
+			ScaleEntity(1.5f);
+			health_multiplier *= 1.4f;
+			power_armor_multiplier *= 1.4f;
+			break;
+		case BossSizeCategory::Medium:
+			ScaleEntity(1.6f);
+			health_multiplier *= 1.4f;
+			power_armor_multiplier *= 1.4f;
+			break;
+		case BossSizeCategory::Large:
+			ScaleEntity(1.7f);
+			health_multiplier *= 1.4f;
+			power_armor_multiplier *= 1.4f;
+			break;
 		}
+
+		// Aplicar efectos visuales adicionales
 		boss->s.effects |= EF_PLASMA | EF_TAGTRAIL;
-		health_multiplier *= 1.4f;
-		power_armor_multiplier *= 1.4f;
 	}
 
 	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
@@ -391,19 +424,27 @@ void ApplyBossEffects(edict_t* boss)
 	}
 
 	if (boss->monsterinfo.bonus_flags & BF_STYGIAN) {
-		if (!mapSize.isSmallMap) {
-			boss->s.scale *= 1.2f;
-			boss->mins *= 1.2f;
-			boss->maxs *= 1.2f;
-
-			// Ajustar la posición después de escalar para alinear con el suelo
-			float height_offset = -(boss->mins[2]);
-			boss->s.origin[2] += height_offset;
-			gi.linkentity(boss);  // Relink para asegurar la actualización en el servidor
+		// Aplicar escalado basado en la categoría de tamaño
+		switch (sizeCategory) {
+		case BossSizeCategory::Small:
+			ScaleEntity(1.2f);
+			health_multiplier *= 1.5f;
+			power_armor_multiplier *= 1.1f;
+			break;
+		case BossSizeCategory::Medium:
+			ScaleEntity(1.3f);
+			health_multiplier *= 1.5f;
+			power_armor_multiplier *= 1.1f;
+			break;
+		case BossSizeCategory::Large:
+			ScaleEntity(1.4f);
+			health_multiplier *= 1.5f;
+			power_armor_multiplier *= 1.1f;
+			break;
 		}
+
+		// Aplicar efectos visuales adicionales
 		boss->s.effects |= EF_TRACKER | EF_FLAG1;
-		health_multiplier *= 1.5f;
-		power_armor_multiplier *= 1.1f;
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
 
@@ -411,7 +452,7 @@ void ApplyBossEffects(edict_t* boss)
 	int health_min, power_armor_min;
 	CalculateBossMinimums(current_wave_level, health_min, power_armor_min);
 
-	// Aplicar multiplicadores y asegurar que no estén por debajo del mínimo
+	// Aplicar multiplicadores de salud y armadura
 	boss->health = std::max(static_cast<int>(boss->health * health_multiplier), health_min);
 	boss->max_health = boss->health;
 	boss->initial_max_health = boss->health;
@@ -424,18 +465,21 @@ void ApplyBossEffects(edict_t* boss)
 		);
 	}
 
-	// Aplicar ajustes de tamaño de mapa
-	if (mapSize.isSmallMap)
-	{
+	// Aplicar escalado de salud y armadura basado en la categoría de tamaño
+	switch (sizeCategory) {
+	case BossSizeCategory::Small:
 		boss->health = static_cast<int>(boss->health * 0.8f);
 		if (boss->monsterinfo.power_armor_power > 0)
 			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * 0.9f);
-	}
-	else if (mapSize.isBigMap)
-	{
+		break;
+	case BossSizeCategory::Large:
 		boss->health = static_cast<int>(boss->health * 1.2f);
 		if (boss->monsterinfo.power_armor_power > 0)
 			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * 1.2f);
+		break;
+	case BossSizeCategory::Medium:
+		// Opcional: Puedes aplicar un escalado diferente o ninguno para categorías medias
+		break;
 	}
 
 	// Asegurar que la salud y la armadura no caigan por debajo de los valores mínimos después de los ajustes
@@ -446,8 +490,12 @@ void ApplyBossEffects(edict_t* boss)
 	boss->max_health = boss->health;
 	boss->initial_max_health = boss->health;
 
+	// Marcar que los efectos ya fueron aplicados para evitar escalados acumulativos
+	boss->effects_applied = true;
+
 	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
+
 
 //getting real name
 std::string GetPlayerName(edict_t* player) {
