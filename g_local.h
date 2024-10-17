@@ -1757,6 +1757,10 @@ struct monsterinfo_t
 	bool has_spawned_initially = false;
 	bool spawning_in_progress = false;
 	int32_t base_power_armor;
+	//widow
+	int active_stalkers;   // Contador de stalkers activos
+	int max_stalkers;      // Número máximo de stalkers permitidos
+	gtime_t spawn_cooldown; // Tiempo de espera entre spawns
 };
 
 // non-monsterinfo save stuff

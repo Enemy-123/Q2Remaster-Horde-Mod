@@ -266,28 +266,42 @@ void WidowBlaster(edict_t* self)
 		monster_fire_blaster2(self, start, target, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
 	}
 }
-void WidowSpawn(edict_t* self)
-{
-	vec3_t	 f, r, u, offset, startpoint, spawnpoint;
+void WidowSpawn(edict_t* self) {
+	// Verificar si se ha alcanzado el límite máximo de stalkers
+	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+		// Ya se alcanzó el límite máximo de stalkers
+		return;
+	}
+
+	// Verificar si aún está en cooldown
+	if (level.time < self->monsterinfo.spawn_cooldown) {
+		// Aún está en cooldown
+		return;
+	}
+
+	vec3_t f, r, u, offset, startpoint, spawnpoint;
 	edict_t* ent, * designated_enemy;
-	int		 i;
+	int i;
 
 	AngleVectors(self->s.angles, f, r, u);
 
-	for (i = 0; i < 2; i++)
-	{
-		offset = spawnpoints[i];
+	for (i = 0; i < 2; i++) { // Puedes ajustar el número de spawn points si es necesario
+		// Verificar nuevamente el límite dentro del bucle
+		if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+			break; // Salir si se alcanzó el límite
+		}
 
+		offset = spawnpoints[i];
 		startpoint = G_ProjectSource2(self->s.origin, offset, f, r, u);
 
-		if (FindSpawnPoint(startpoint, stalker_mins, stalker_maxs, spawnpoint, 64))
-		{
+		if (FindSpawnPoint(startpoint, stalker_mins, stalker_maxs, spawnpoint, 64)) {
 			ent = CreateGroundMonster(spawnpoint, self->s.angles, stalker_mins, stalker_maxs, "monster_stalker", 256);
 
 			if (!ent)
 				continue;
 
 			self->monsterinfo.monster_used++;
+			self->monsterinfo.active_stalkers++; // Incrementar el contador de stalkers activos
 			ent->monsterinfo.commander = self;
 			ent->monsterinfo.slots_from_commander = 1;
 
@@ -296,18 +310,14 @@ void WidowSpawn(edict_t* self)
 
 			ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
 
-			if (!G_IsCooperative())
-			{
+			if (!G_IsCooperative()) {
 				designated_enemy = self->enemy;
 			}
-			else
-			{
+			else {
 				designated_enemy = PickCoopTarget(ent);
-				if (designated_enemy)
-				{
-					// try to avoid using my enemy
-					if (designated_enemy == self->enemy)
-					{
+				if (designated_enemy) {
+					// Evitar usar al mismo enemigo
+					if (designated_enemy == self->enemy) {
 						designated_enemy = PickCoopTarget(ent);
 						if (!designated_enemy)
 							designated_enemy = self->enemy;
@@ -317,14 +327,16 @@ void WidowSpawn(edict_t* self)
 					designated_enemy = self->enemy;
 			}
 
-			if ((designated_enemy->inuse) && (designated_enemy->health > 0))
-			{
+			if ((designated_enemy->inuse) && (designated_enemy->health > 0)) {
 				ent->enemy = designated_enemy;
 				FoundTarget(ent);
 				ent->monsterinfo.attack(ent);
 			}
 		}
 	}
+
+	// Establecer un nuevo cooldown después de spawning
+	self->monsterinfo.spawn_cooldown = level.time + 5_sec; // Ajusta el tiempo según sea necesario
 }
 
 void widow_spawn_check(edict_t* self)
@@ -830,22 +842,28 @@ MONSTERINFO_WALK(widow_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &widow_move_walk);
 }
+//// Definir una nueva animación mejorada para cuando se alcanzan los max_stalkers
+//mframe_t widow_frames_attack_improved[] = {
+//	{ ai_charge, 10, WidowBlaster },
+//	{ ai_charge, 12, WidowBlaster },
+//	{ ai_charge, 15, WidowBlaster },
+//	// Añade más frames según sea necesario
+//};
+//MMOVE_T(widow_move_attack_improved) = { FRAME_attack_start, FRAME_attack_end, widow_frames_attack_improved, widow_run };
 
-MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void
-{
+// Modificación completa de la función de ataque
+MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	float luck;
-	bool  rail_frames = false, blaster_frames = false, blocked = false, anger = false;
+	bool rail_frames = false, blaster_frames = false, blocked = false, anger = false;
 
 	self->movetarget = nullptr;
 
-	if (self->monsterinfo.aiflags & AI_BLOCKED)
-	{
+	if (self->monsterinfo.aiflags & AI_BLOCKED) {
 		blocked = true;
 		self->monsterinfo.aiflags &= ~AI_BLOCKED;
 	}
 
-	if (self->monsterinfo.aiflags & AI_TARGET_ANGER)
-	{
+	if (self->monsterinfo.aiflags & AI_TARGET_ANGER) {
 		anger = true;
 		self->monsterinfo.aiflags &= ~AI_TARGET_ANGER;
 	}
@@ -853,12 +871,10 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void
 	if ((!self->enemy) || (!self->enemy->inuse))
 		return;
 
-	if (self->bad_area)
-	{
+	if (self->bad_area) {
 		if ((frandom() < 0.1f) || (level.time < self->timestamp))
 			M_SetAnimation(self, &widow_move_attack_pre_blaster);
-		else
-		{
+		else {
 			gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
 			M_SetAnimation(self, &widow_move_attack_pre_rail);
 		}
@@ -876,44 +892,38 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void
 
 	WidowCalcSlots(self);
 
-	// if we see the target, spawn stuff regardless of frame
-	if ((self->monsterinfo.attack_state == AS_BLIND) && (M_SlotsLeft(self) >= 2) && visible(self, self->enemy))
-	{
+	// Si vemos al objetivo, spawnar sin importar el frame
+	if ((self->monsterinfo.attack_state == AS_BLIND) && (M_SlotsLeft(self) >= 2) && visible(self, self->enemy)) {
 		M_SetAnimation(self, &widow_move_spawn);
 		return;
 	}
 
-	// accept bias towards spawning regardless of frame
-	if (M_SlotsLeft(self) >= 2)
-	{
+	// Decidir si spawnar basado en active_stalkers
+	if (self->monsterinfo.active_stalkers < self->monsterinfo.max_stalkers && M_SlotsLeft(self) >= 2 && realrange(self, self->enemy) > 150) {
 		M_SetAnimation(self, &widow_move_spawn);
 		return;
 	}
 
-	if ((realrange(self, self->enemy) > 300) && (!anger) && (frandom() < 0.5f) && (!blocked))
-	{
-		M_SetAnimation(self, &widow_move_run_attack);
+	// Si se ha alcanzado el máximo, proceder con la animación de ataque mejorada
+	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+		brandom() ? M_SetAnimation(self, &widow_move_attack_pre_rail) : M_SetAnimation(self, &widow_move_attack_pre_blaster);
 		return;
 	}
 
-	if (blaster_frames)
-	{
-		if (M_SlotsLeft(self) >= 2)
-		{
+	// Continuar con la lógica de ataque existente
+	if (blaster_frames) {
+		if (self->monsterinfo.active_stalkers < self->monsterinfo.max_stalkers && M_SlotsLeft(self) >= 2) {
 			M_SetAnimation(self, &widow_move_spawn);
 			return;
 		}
-		else if (self->monsterinfo.fire_wait + BLASTER_TIME <= level.time)
-		{
+		else if (self->monsterinfo.fire_wait + BLASTER_TIME <= level.time) {
 			M_SetAnimation(self, &widow_move_attack_pre_blaster);
 			return;
 		}
 	}
 
-	if (rail_frames)
-	{
-		if (!(level.time < self->timestamp))
-		{
+	if (rail_frames) {
+		if (!(level.time < self->timestamp)) {
 			gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
 			M_SetAnimation(self, &widow_move_attack_pre_rail);
 		}
@@ -923,24 +933,20 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void
 		return;
 
 	luck = frandom();
-	if (M_SlotsLeft(self) >= 2)
-	{
+	if (self->monsterinfo.active_stalkers < self->monsterinfo.max_stalkers && M_SlotsLeft(self) >= 2) {
 		if ((luck <= 0.40f) && (self->monsterinfo.fire_wait + BLASTER_TIME <= level.time))
 			M_SetAnimation(self, &widow_move_attack_pre_blaster);
-		else if ((luck <= 0.7f) && !(level.time < self->timestamp))
-		{
+		else if ((luck <= 0.7f) && !(level.time < self->timestamp)) {
 			gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
 			M_SetAnimation(self, &widow_move_attack_pre_rail);
 		}
 		else
 			M_SetAnimation(self, &widow_move_spawn);
 	}
-	else
-	{
+	else {
 		if (level.time < self->timestamp)
 			M_SetAnimation(self, &widow_move_attack_pre_blaster);
-		else if ((luck <= 0.50f) || (level.time + BLASTER_TIME >= self->monsterinfo.fire_wait))
-		{
+		else if ((luck <= 0.50f) || (level.time + BLASTER_TIME >= self->monsterinfo.fire_wait)) {
 			gi.sound(self, CHAN_WEAPON, sound_rail, 1, ATTN_NORM, 0);
 			M_SetAnimation(self, &widow_move_attack_pre_rail);
 		}
@@ -1326,34 +1332,39 @@ void SP_monster_widow(edict_t* self) {
 			return;
 		}
 
+		// Asignar sonidos
 		sound_pain1.assign("widow/bw1pain1.wav");
 		sound_pain2.assign("widow/bw1pain2.wav");
 		sound_pain3.assign("widow/bw1pain3.wav");
 		sound_rail.assign("gladiator/railgun.wav");
 
+		// Configurar propiedades físicas y de modelo
 		self->movetype = MOVETYPE_STEP;
 		self->solid = SOLID_BBOX;
 		self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
 		self->mins = { -40, -40, 0 };
 		self->maxs = { 40, 40, 144 };
 
+		// Configurar salud y masa
 		self->health = (2800 * skill->integer) * st.health_multiplier;
 		if (G_IsCooperative())
 			self->health += 500 * skill->integer;
 		self->gib_health = -5000;
 		self->mass = 1500;
 
+		// Configurar armadura de poder si es necesario
 		if (skill->integer == 3) {
 			if (!st.was_key_specified("power_armor_type"))
 				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 			if (!st.was_key_specified("power_armor_power"))
 				self->monsterinfo.power_armor_power = 500;
 		}
-		self->yaw_speed = 30;
 
+		self->yaw_speed = 30;
 		self->flags |= FL_IMMUNE_LASER;
 		self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 
+		// Asignar funciones de comportamiento
 		self->pain = widow_pain;
 		self->die = widow_die;
 
@@ -1377,6 +1388,11 @@ void SP_monster_widow(edict_t* self) {
 		WidowCalcSlots(self);
 		widow_damage_multiplier = 1;
 
+		// Inicializar contadores de stalkers
+		self->monsterinfo.active_stalkers = 0;
+		self->monsterinfo.max_stalkers = 4; // Número máximo de stalkers permitidos
+		self->monsterinfo.spawn_cooldown = 0_sec;
+
 		walkmonster_start(self);
 
 		ApplyMonsterBonusFlags(self);
@@ -1384,7 +1400,7 @@ void SP_monster_widow(edict_t* self) {
 }
 
 /*QUAKED monster_widow1 (1 .5 0) (-40 -40 0) (40 40 144) Ambush Trigger_Spawn Sight
- */
+*/
 void SP_monster_widow1(edict_t* self) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
@@ -1394,22 +1410,25 @@ void SP_monster_widow1(edict_t* self) {
 			return;
 		}
 
+		// Asignar sonidos
 		sound_pain1.assign("widow/bw1pain1.wav");
 		sound_pain2.assign("widow/bw1pain2.wav");
 		sound_pain3.assign("widow/bw1pain3.wav");
 		sound_rail.assign("gladiator/railgun.wav");
 
+		// Configurar propiedades físicas y de modelo
 		self->movetype = MOVETYPE_STEP;
 		self->solid = SOLID_BBOX;
 		self->s.modelindex = gi.modelindex("models/monsters/blackwidow/tris.md2");
 		self->mins = { -40, -40, 0 };
 		self->maxs = { 40, 40, 144 };
-		self->health = 1750; // Fija la salud de monster_widow1 a 2500
+		self->health = 1750; // Fija la salud de monster_widow1 a 1750
 		if (G_IsCooperative())
 			self->health += 500 * skill->integer;
 		self->gib_health = -5000;
 		self->mass = 1500;
 
+		// Configurar armadura de poder si es necesario
 		if (skill->integer == 3) {
 			if (!st.was_key_specified("power_armor_type"))
 				self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
@@ -1422,6 +1441,7 @@ void SP_monster_widow1(edict_t* self) {
 		self->flags |= FL_IMMUNE_LASER;
 		self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 
+		// Asignar funciones de comportamiento
 		self->pain = widow_pain;
 		self->die = widow_die;
 
@@ -1444,6 +1464,11 @@ void SP_monster_widow1(edict_t* self) {
 		WidowPrecache();
 		WidowCalcSlots(self);
 		widow_damage_multiplier = 1;
+
+		// Inicializar contadores de stalkers
+		self->monsterinfo.active_stalkers = 0;
+		self->monsterinfo.max_stalkers = 4; // Número máximo de stalkers permitidos
+		self->monsterinfo.spawn_cooldown = 0_sec;
 
 		walkmonster_start(self);
 

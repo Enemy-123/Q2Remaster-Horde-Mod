@@ -649,7 +649,7 @@ void SP_monster_guardian(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 550 : 225;
+		self->monsterinfo.power_armor_power = !strcmp(self->classname, "monster_guardian") ? 550 : 385;
 
 	self->monsterinfo.scale = MODEL_SCALE;
 
@@ -680,7 +680,7 @@ void SP_monster_janitor2(edict_t* self)
 	self->s.skinnum = 2;
 	if (!self->s.scale)
 		self->s.scale = 0.4f;
-	self->health = 400 * st.health_multiplier;
+	self->health = 600 * st.health_multiplier;
 
 	self->mins = { -18, -18, -24 };
 	self->maxs = { 18, 18, 30 };

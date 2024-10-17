@@ -975,6 +975,12 @@ DIE(stalker_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	self->s.angles[2] = 0;
 	self->gravityVector = { 0, 0, -1 };
 
+	// Notificar al comandante que este stalker ha muerto
+	if (self->monsterinfo.commander && self->monsterinfo.commander->inuse) {
+		self->monsterinfo.commander->monsterinfo.active_stalkers--;
+	}
+
+
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{
