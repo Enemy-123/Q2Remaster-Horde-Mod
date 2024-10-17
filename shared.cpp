@@ -380,13 +380,13 @@ void ApplyBossEffects(edict_t* boss)
 		// Aplicar escalado basado en la categoría de tamaño
 		switch (sizeCategory) {
 		case BossSizeCategory::Small:
-			ScaleEntity(1.2f);
+			ScaleEntity(1.1f);
 			health_multiplier *= 1.4f;
 			power_armor_multiplier *= 1.4f;
 			break;
 		case BossSizeCategory::Medium:
 			ScaleEntity(1.3f);
-			health_multiplier *= 1.4f;
+			health_multiplier *= 1.2f;
 			power_armor_multiplier *= 1.4f;
 			break;
 		case BossSizeCategory::Large:
