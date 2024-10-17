@@ -876,7 +876,7 @@ void Monster_MoveSpawn(edict_t* self)
 
 	// Condiciones específicas para el tanque comandante
 	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0) {
-		gi.Com_PrintFmt("Tank Commander attempting to spawn reinforcements...\n");
+	//	gi.Com_PrintFmt("Tank Commander attempting to spawn reinforcements...\n");
 	}
 
 	constexpr int NUM_MONSTERS_MIN = 4;
@@ -915,7 +915,7 @@ void Monster_MoveSpawn(edict_t* self)
 
 		if (!found_spot)
 		{
-			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find a valid spawn point for reinforcement {}.\n", i + 1);
+		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find a valid spawn point for reinforcement {}.\n", i + 1);
 			continue;
 		}
 
@@ -926,7 +926,7 @@ void Monster_MoveSpawn(edict_t* self)
 		if (i >= static_cast<int>(self->monsterinfo.reinforcements.num_reinforcements))
 
 		{
-			gi.Com_PrintFmt("Monster_MoveSpawn: No more reinforcements available in the list.\n");
+		//	gi.Com_PrintFmt("Monster_MoveSpawn: No more reinforcements available in the list.\n");
 			break;
 		}
 
@@ -934,7 +934,7 @@ void Monster_MoveSpawn(edict_t* self)
 		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, reinf.classname, 64);
 		if (!monster)
 		{
-			gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster {}.\n", reinf.classname);
+		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster {}.\n", reinf.classname);
 			continue;
 		}
 
@@ -960,8 +960,8 @@ void Monster_MoveSpawn(edict_t* self)
 		// Reproducir sonido de spawn
 		gi.sound(self, CHAN_BODY, sound_spawn_commander, 1, ATTN_NONE, 0);
 
-		gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {} at position ({}, {}, {}).\n",
-			reinf.classname, spawn_origin[0], spawn_origin[1], spawn_origin[2]);
+	//	gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {} at position ({}, {}, {}).\n",
+	//		reinf.classname, spawn_origin[0], spawn_origin[1], spawn_origin[2]);
 	}
 
 }
