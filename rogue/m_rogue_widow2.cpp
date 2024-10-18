@@ -1075,7 +1075,7 @@ void SP_monster_widow2(edict_t* self)
 	sound_search1.assign("bosshovr/bhvunqv1.wav");
 	sound_tentacles_retract.assign("brain/brnatck3.wav");
 
-	self->s.scale = 1.f;
+	self->s.scale = 0.8f;
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 	self->s.modelindex = gi.modelindex("models/monsters/blackwidow2/tris.md2");
