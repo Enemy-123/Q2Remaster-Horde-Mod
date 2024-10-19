@@ -1313,9 +1313,10 @@ void BossDeathHandler(edict_t* boss) {
 	// Liberar el jefe del conjunto de jefes generados automáticamente
 	auto_spawned_bosses.erase(boss);
 
-	const std::array<const char*, 6> itemsToDrop = {
+	const std::array<const char*, 7> itemsToDrop = {
 		"item_adrenaline", "item_pack", "item_doppleganger",
-		"item_sphere_defender", "item_armor_combat", "item_bandolier"
+		"item_sphere_defender", "item_armor_combat", "item_bandolier",
+		"item_invulnerability"
 	};
 
 	// Soltar ítem especial (quad o quadfire)
