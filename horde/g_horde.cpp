@@ -55,6 +55,7 @@ struct HordeState {
 	gtime_t         conditionTimeThreshold = 0_sec;
 	bool            timeWarningIssued = false;
 	gtime_t         waveEndTime = 0_sec;
+	std::vector<bool> warningIssued = { false, false, false, false }; // Assuming 4 warning times
 } g_horde_local;
 
 
@@ -1408,8 +1409,11 @@ static bool Horde_AllMonstersDead() {
 			}
 		}
 	}
+	// Añadir un mensaje de depuración para confirmar que todos los monstruos están muertos
+	gi.Com_Print("DEBUG: All monsters are dead.\n");
 	return true;
 }
+
 
 static void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
@@ -1857,90 +1861,117 @@ static int32_t CalculateRemainingMonsters() noexcept {
 	return level.total_monsters - level.killed_monsters;
 }
 
-static std::vector<bool> warningIssued(WARNING_TIMES.size(), false);
+//static std::vector<bool> warningIssued(WARNING_TIMES.size(), false);
 
 
 #include <algorithm>
-
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	const gtime_t currentTime = level.time;
 
-	// Initialize condition only once upon entering 'active_wave'
-	if (g_horde_local.state == horde_state_t::active_wave && !g_horde_local.conditionTriggered) {
-		int32_t remainingMonsters = CalculateRemainingMonsters();
+	// Verificar si todos los monstruos han sido derrotados
+	if (Horde_AllMonstersDead()) {
+		reason = WaveEndReason::AllMonstersDead;
+		return true;
+	}
+
+	// Inicializar waveEndTime si no está establecido
+	if (g_horde_local.waveEndTime == 0_sec) {
+		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
+	}
+
+	// Verificar si se ha permitido avanzar la ola manualmente
+	if (allowWaveAdvance) {
+		gi.Com_PrintFmt("PRINT: Wave advance allowed manually.\n");
+		ResetWaveAdvanceState();
+		reason = WaveEndReason::AllMonstersDead;
+		return true;
+	}
+
+	// Si aún hay monstruos por spawnear o no hay monstruos en total, no hacer nada
+	if (g_horde_local.num_to_spawn > 0 || g_totalMonstersInWave == 0) {
+		return false;
+	}
+
+	int32_t remainingMonsters = CalculateRemainingMonsters();
+	bool shouldAdvance = false;
+
+	// Determinar si alguna condición se ha cumplido
+	if (!g_horde_local.conditionTriggered) {
 		float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
 
 		if (remainingMonsters <= g_lastParams.maxMonsters || percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Determine threshold time based on conditions
+			// Elegir el menor umbral de tiempo
 			if (remainingMonsters <= g_lastParams.maxMonsters && percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 				g_horde_local.conditionTimeThreshold = std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
 				gi.LocBroadcast_Print(PRINT_HIGH, "Both max monsters and low percentage conditions met. Wave time reduced!\n");
 			}
 			else if (remainingMonsters <= g_lastParams.maxMonsters) {
 				g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
-				// Optional: gi.LocBroadcast_Print(PRINT_HIGH, "Wave time adjusted.\n");
+				// Opcional: gi.LocBroadcast_Print(PRINT_HIGH, "Wave time adjusted.\n");
 			}
 			else {
 				g_horde_local.conditionTimeThreshold = g_lastParams.lowPercentageTimeThreshold;
-				// Optional: gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
+				// Opcional: gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
 			}
 
-			// Set waveEndTime based on condition time
+			// Establecer waveEndTime basado en la condición
 			g_horde_local.waveEndTime = g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold;
 
 			gi.Com_PrintFmt("PRINT: Condition triggered. Remaining monsters: {}, Percentage remaining: {:.2f}%\n",
 				remainingMonsters, percentageRemaining * 100);
 
-			// Aggressive time reduction if very few monsters remain
+			// Reducción agresiva del tiempo si quedan muy pocos monstruos
 			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t aggressiveReduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-				g_horde_local.waveEndTime = std::min(g_horde_local.waveEndTime, currentTime + aggressiveReduction);
+				g_horde_local.waveEndTime = std::min(
+					g_horde_local.waveEndTime,
+					currentTime + AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters)
+				);
 				gi.LocBroadcast_Print(PRINT_HIGH, "Very few monsters remaining. Wave time aggressively reduced!\n");
 			}
 		}
 	}
 
-	// Check if condition has been triggered
+	// Verificar si la condición ha sido activada
 	if (!g_horde_local.conditionTriggered) {
 		return false;
 	}
 
-	// Calculate remaining time
+	// Calcular el tiempo restante
 	const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 
-	// Emit warnings at predefined times
+	// Emitir advertencias en tiempos predefinidos
 	for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 		const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
-		if (!g_horde_local.timeWarningIssued && remainingTime <= warningTime && remainingTime > (warningTime - 1_sec)) {
+		if (!g_horde_local.warningIssued[i] && remainingTime <= warningTime && remainingTime > (warningTime - 1_sec)) {
 			gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining in this wave!\n", static_cast<int>(WARNING_TIMES[i]));
-			g_horde_local.timeWarningIssued = true;
+			g_horde_local.warningIssued[i] = true;
 		}
 	}
 
-	// Check if the wave should advance
+	// Verificar si el tiempo de la ola ha llegado a cero
 	if (currentTime >= g_horde_local.waveEndTime) {
 		if (currentTime >= (g_independent_timer_start + g_lastParams.independentTimeThreshold)) {
 			reason = WaveEndReason::TimeLimitReached;
-			ResetWaveAdvanceState();
-			gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
-				reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
-			return true;
+			shouldAdvance = true;
 		}
 		else if (g_horde_local.conditionTriggered && currentTime >= (g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold)) {
 			reason = WaveEndReason::MonstersRemaining;
-			ResetWaveAdvanceState();
-			gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
-				reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
-			return true;
+			shouldAdvance = true;
 		}
 	}
 
-	// Provide periodic updates every 10 seconds
+	if (shouldAdvance) {
+		ResetWaveAdvanceState();
+		gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
+			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
+		return true;
+	}
+
+	// Proveer actualizaciones periódicas sobre monstruos restantes y tiempo
 	if (currentTime - g_horde_local.lastPrintTime >= 10_sec) {
-		int32_t remainingMonsters = CalculateRemainingMonsters();
 		gi.Com_PrintFmt("PRINT: Wave status: {} monsters remaining. {:.2f} seconds left.\n",
 			remainingMonsters, remainingTime.seconds());
 		g_horde_local.lastPrintTime = currentTime;
@@ -1948,7 +1979,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	return false;
 }
-
 
 static void ResetWaveAdvanceState() noexcept {
 	g_independent_timer_start = level.time;
@@ -1974,7 +2004,7 @@ static void ResetWaveAdvanceState() noexcept {
 
 	g_horde_local.waveEndTime = 0_sec;
 	// Reiniciar las advertencias
-	std::fill(warningIssued.begin(), warningIssued.end(), false);
+//	std::fill(warningIssued.begin(), warningIssued.end(), false);
 }
 
 void AllowNextWaveAdvance() noexcept {
@@ -2281,23 +2311,23 @@ void Horde_RunFrame() {
 
 	CheckAndResetDisabledSpawnPoints();
 
-	// Si hay un número personalizado de monstruos, sobrescribir el número a spawnear
+	// Si se establece un número personalizado de monstruos, sobrescribir el conteo
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
 	}
 
-	// Ajustar la escala de cooperación basado en el número de jugadores humanos
+	// Ajustar la escala de cooperación basada en el número de jugadores humanos
 	level.coop_scale_players = 1 + GetNumHumanPlayers();
 
 	// Verificar y ajustar la salud de los bots si es necesario
 	G_Monster_CheckCoopHealthScaling();
 
-	// Calcular el número de monstruos activos y el máximo permitido
+	// Calcular monstruos activos y máximo permitido
 	const int32_t activeMonsters = level.total_monsters - level.killed_monsters;
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-	// Limpiar entidades inválidas si es necesario
+	// Limpieza de entidades inválidas si es necesario
 	CleanupInvalidEntities();
 
 	switch (g_horde_local.state) {
@@ -2326,16 +2356,18 @@ void Horde_RunFrame() {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", g_horde_local.level);
-					next_wave_message_sent = true; // Evitar mensajes repetidos
+					next_wave_message_sent = true; // Prevenir mensajes múltiples
 				}
 
-				// Transición al nuevo estado 'active_wave'
+				// Transición al estado 'active_wave'
 				g_horde_local.state = horde_state_t::active_wave;
-				g_horde_local.conditionTriggered = false; // Reiniciar condición
+				g_horde_local.conditionTriggered = false; // Resetear condición
 				g_horde_local.conditionStartTime = 0_sec;
 				g_horde_local.waveEndTime = 0_sec;
 				g_horde_local.lastPrintTime = 0_sec;
-				gi.Com_PrintFmt("PRINT:going into 'active_wave'state. conditions starts now.\n");
+				// Resetear advertencias
+				std::fill(g_horde_local.warningIssued.begin(), g_horde_local.warningIssued.end(), false);
+				gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
 			}
 		}
 		break;
@@ -2346,9 +2378,9 @@ void Horde_RunFrame() {
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
 			SendCleanupMessage(5_sec, reason);
-			gi.Com_PrintFmt("PRINT: wave {} completed.\n", g_horde_local.level);
+			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", g_horde_local.level);
 
-			// Ajustar configuraciones de dificultad según el nivel actual
+			// Ajustar configuraciones de dificultad basadas en current_wave_level
 			if (current_wave_level >= 15 && current_wave_level <= 28) {
 				gi.cvar_set("g_insane", "1");
 				gi.cvar_set("g_chaotic", "0");
@@ -2420,7 +2452,7 @@ void Horde_RunFrame() {
 				g_horde_local.monster_spawn_time = level.time + 3_sec;
 			}
 		}
-		break;
+			break;
 	}
 
 	case horde_state_t::rest:
@@ -2433,7 +2465,7 @@ void Horde_RunFrame() {
 		break;
 	}
 
-	// Resetea el mensaje de horda si el tiempo ha expirado
+	// Resetear el mensaje de horda si el tiempo ha expirado
 	if (horde_message_end_time && level.time >= horde_message_end_time) {
 		ClearHordeMessage();
 	}
