@@ -926,7 +926,7 @@ SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
 	return insert_it->second;
 }
 
-constexpr size_t MAX_SPAWN_POINTS_DATA = 700; // Define un límite razonable
+constexpr size_t MAX_SPAWN_POINTS_DATA = 30; // Define un límite razonable
 
 void CleanUpSpawnPointsData() {
 	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
