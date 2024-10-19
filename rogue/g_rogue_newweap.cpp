@@ -965,20 +965,41 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 
 	return BoxEdictsResult_t::Keep;
 }
+#include <algorithm> // Para std::min si decides usarlo
+
+constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array touch
+
 THINK(tesla_think_active) (edict_t* self) -> void
 {
 	if (!self)
 		return;
 
 	int i, num, max_targets = 3;  // Limitar a 3 objetivos por ciclo
-	static edict_t* touch[MAX_EDICTS];
+	edict_t** touch = nullptr;
 	edict_t* hit;
 	vec3_t dir{}, start;
 	trace_t tr;
 
+	// Asignar memoria dinámicamente para el array touch
+	try {
+		touch = new edict_t * [MAX_TOUCH_ENTITIES];
+	}
+	catch (const std::bad_alloc&) {
+		gi.Com_Print("Error: tesla_think_active no pudo asignar memoria para el array touch\n");
+		tesla_remove(self);
+		return;
+	}
+
+	if (!touch) {
+		gi.Com_Print("Error: tesla_think_active recibió un puntero touch nulo después de la asignación\n");
+		tesla_remove(self);
+		return;
+	}
+
 	if (level.time > self->air_finished)
 	{
 		tesla_remove(self);
+		delete[] touch;
 		return;
 	}
 
@@ -987,12 +1008,13 @@ THINK(tesla_think_active) (edict_t* self) -> void
 
 	if (!self->teamchain)
 	{
-		gi.Com_Print("Warning: tesla_think_active called with null teamchain\n");
+		gi.Com_Print("Warning: tesla_think_active llamado con teamchain nulo\n");
+		delete[] touch;
 		return;
 	}
 
-	// Obtener todos los objetivos en el área
-	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch, MAX_EDICTS, AREA_SOLID, tesla_think_active_BoxFilter, self);
+	// Obtener todos los objetivos en el área, limitado por MAX_TOUCH_ENTITIES
+	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch, MAX_TOUCH_ENTITIES, AREA_SOLID, tesla_think_active_BoxFilter, self);
 
 	// Limitar el número de objetivos a los que se atacará en este ciclo
 	int targets_attacked = 0;
@@ -1014,7 +1036,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 				continue;
 			if (!self->teamchain || !self->teamchain->owner)
 			{
-				gi.Com_PrintFmt("PRINT: Warning: tesla_think_active encountered null teamchain or owner\n");
+				gi.Com_PrintFmt("PRINT: Warning: tesla_think_active encontró teamchain o owner nulo\n");
 				continue;
 			}
 			if (CheckTeamDamage(hit, self->teamchain->owner))
@@ -1071,6 +1093,9 @@ THINK(tesla_think_active) (edict_t* self) -> void
 			targets_attacked++;
 		}
 	}
+
+	// Liberar la memoria asignada para el array touch
+	delete[] touch;
 
 	// Configurar el siguiente ciclo de ataque
 	if (self->inuse)
