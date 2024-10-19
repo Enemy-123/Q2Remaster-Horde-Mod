@@ -915,10 +915,9 @@ constexpr gtime_t CLEANUP_THRESHOLD = 3_sec;
 
 // Función modificada sin lanzar excepciones
 SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
-	// Asegurar que el spawn_point no sea nullptr
 	if (!spawn_point) {
 		gi.Com_PrintFmt("Warning: Attempted to ensure spawn point data for a nullptr.\n");
-		// Retornar una referencia a un SpawnPointData estático para evitar comportamientos indefinidos
+		// Manejar el caso de manera segura sin retornar una referencia a un objeto estático
 		static SpawnPointData dummy;
 		return dummy;
 	}
@@ -927,18 +926,26 @@ SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
 	return insert_it->second;
 }
 
+constexpr size_t MAX_SPAWN_POINTS_DATA = 700; // Define un límite razonable
+
 void CleanUpSpawnPointsData() {
 	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
 		const auto& spawn_data = it->second;
 
-		// Remover si el cooldown terminó y el spawn point está deshabilitado
 		if (spawn_data.isTemporarilyDisabled && level.time > spawn_data.cooldownEndsAt + CLEANUP_THRESHOLD) {
-			edict_t* spawn_point_address = it->first; // Guardar antes de eliminar
+			edict_t* spawn_point_address = it->first;
 			it = spawnPointsData.erase(it);
 			gi.Com_PrintFmt("Removed spawn_point at address %p due to extended inactivity.\n", (void*)spawn_point_address);
 		}
 		else {
 			++it;
+		}
+
+		// Limitar el tamaño del contenedor
+		if (spawnPointsData.size() > MAX_SPAWN_POINTS_DATA) {
+			gi.Com_Print("WARNING: spawnPointsData exceeded maximum size. Clearing data.\n");
+			spawnPointsData.clear();
+			break;
 		}
 	}
 }
@@ -1605,11 +1612,13 @@ static void SpawnBossAutomatically() {
 	}
 
 	// Set boss origin
-	if (it->second.size() < 3) {
+	if (it->second[0] == 0 && it->second[1] == 0 && it->second[2] == 0) {
 		G_FreeEdict(boss);
 		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
 		return;
 	}
+
+
 	VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
 					   static_cast<float>(it->second[1]),
 					   static_cast<float>(it->second[2]) },
@@ -1868,8 +1877,13 @@ static int32_t CountActiveMonsters() {
 	return count;
 }
 
-static int32_t CalculateRemainingMonsters() noexcept {
-	return level.total_monsters - level.killed_monsters;
+int32_t CalculateRemainingMonsters() {
+	int32_t remainingMonsters = level.total_monsters - level.killed_monsters;
+	if (remainingMonsters < 0) {
+		remainingMonsters = 0;
+		gi.Com_Print("DEBUG: remainingMonsters was negative. Resetting to 0.\n");
+	}
+	return remainingMonsters;
 }
 
 //static std::vector<bool> warningIssued(WARNING_TIMES.size(), false);
@@ -2031,7 +2045,11 @@ static void MonsterSpawned(const edict_t* monster) {
 
 void MonsterDied(const edict_t* monster) {
 	if (!(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-		cachedRemainingMonsters = CalculateRemainingMonsters();
+		int32_t remaining = CalculateRemainingMonsters();
+		if (remaining < 0) {
+			remaining = 0;
+		}
+		cachedRemainingMonsters = static_cast<uint16_t>(remaining);
 	}
 }
 
