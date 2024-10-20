@@ -118,25 +118,25 @@ THINK(laser_beam_think)(edict_t* self) -> void
 				{
 					hit_valid_target = true;
 					// Reducir la salud del láser solo si golpeó un objetivo válido con salud > 0
-					float damage_multiplier = 0.25f; // Valor por defecto para otros objetivos válidos
+					float damageMult = 0.25f; // Valor por defecto para otros objetivos válidos
 
 					if (tr.ent->svflags & SVF_MONSTER)
 					{
 						if (tr.ent->monsterinfo.invincible_time > level.time)
 						{
-							damage_multiplier = 0.0f; // No desgaste contra objetivos invulnerables
+							damageMult = 0.0f; // No desgaste contra objetivos invulnerables
 						}
 						else if (tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
 						{
-							damage_multiplier = 1.25f; // Ligeramente mayor desgaste contra boss
+							damageMult = 1.25f; // Ligeramente mayor desgaste contra boss
 						}
 						else
 						{
-							damage_multiplier = 1.0f; // Desgaste normal contra monsters
+							damageMult = 1.0f; // Desgaste normal contra monsters
 						}
 					}
 
-					self->health -= damage * damage_multiplier;
+					self->health -= damage * damageMult;
 				}
 			}
 		}

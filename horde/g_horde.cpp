@@ -191,7 +191,6 @@ const weighted_benefit_t* SelectRandomBenefit(int32_t wave) {
 	return nullptr;
 }
 
-
 // Aplicar el beneficio específico
 void ApplyBenefit(const weighted_benefit_t* benefit) {
 	if (!benefit) return;
@@ -278,6 +277,12 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	}
 }
 
+inline void ClampNumToSpawn(const MapSize& mapSize) {
+	int32_t maxAllowed = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+	g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, maxAllowed);
+}
+
 static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	// Lógica de ajuste de spawn combinada
 	int32_t baseCount = (mapSize.isSmallMap) ? std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP) :
@@ -298,7 +303,9 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN - 0.15_sec * difficultyMultiplier, 3.0_sec);
 	}
 
-	g_horde_local.num_to_spawn = std::min(baseCount + static_cast<int32_t>(additionalSpawn), mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP : (mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP));
+	// Actualizar num_to_spawn sin clamping directo
+	g_horde_local.num_to_spawn = baseCount + static_cast<int32_t>(additionalSpawn);
+	ClampNumToSpawn(mapSize); // Aplicar clamping
 
 	// Ajustar tasa de aparición y tiempos de cooldown
 	if (lvl % 3 == 0) {
@@ -2238,7 +2245,9 @@ static edict_t* SpawnMonsters() {
 		const float end_size = 10.0f;
 		SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
 
-		--g_horde_local.num_to_spawn;
+		// Decrementar num_to_spawn y asegurar que no sea negativo usando ClampNumToSpawn
+		g_horde_local.num_to_spawn = std::max(g_horde_local.num_to_spawn - 1, 0);
+		ClampNumToSpawn(mapSize); // Opcional, si el decremento puede causar problemas
 		g_totalMonstersInWave++;
 		last_spawned_monster = monster;
 
@@ -2258,6 +2267,7 @@ static edict_t* SpawnMonsters() {
 		if (spawnable > 0) {
 			const int32_t to_spawn = std::min(g_horde_local.queued_monsters, spawnable);
 			g_horde_local.num_to_spawn += to_spawn;
+			ClampNumToSpawn(mapSize); // Asegurar que no exceda el límite
 			g_horde_local.queued_monsters -= to_spawn;
 		}
 	}
@@ -2351,6 +2361,7 @@ void Horde_RunFrame() {
 	// Si se establece un número personalizado de monstruos, sobrescribir el conteo
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
+		ClampNumToSpawn(mapSize); // Asegurar que no exceda el límite
 	}
 
 	// Ajustar la escala de cooperación basada en el número de jugadores humanos
@@ -2489,7 +2500,7 @@ void Horde_RunFrame() {
 				g_horde_local.monster_spawn_time = level.time + 3_sec;
 			}
 		}
-			break;
+		break;
 	}
 
 	case horde_state_t::rest:

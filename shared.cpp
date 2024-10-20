@@ -855,3 +855,47 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		}
 	}
 }
+
+
+
+// Define the vector functions if they are not already defined
+// Copy a vector
+inline void InlineVectorCopy(const vec3_t& src, vec3_t& dest) {
+	dest[0] = src[0];
+	dest[1] = src[1];
+	dest[2] = src[2];
+}
+
+// Subtracts two vectors
+void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out) {
+	out[0] = veca[0] - vecb[0];
+	out[1] = veca[1] - vecb[1];
+	out[2] = veca[2] - vecb[2];
+}
+
+// Returns the length of a vector
+float VectorLength(const vec3_t v) {
+	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+}
+
+// Normalizes a vector
+void VectorNormalize(vec3_t v) {
+	float length = VectorLength(v);
+	if (length) {
+		float ilength = 1.0f / length;
+		v[0] *= ilength;
+		v[1] *= ilength;
+		v[2] *= ilength;
+	}
+}
+void VectorClear(vec3_t v) {
+	v[0] = 0;
+	v[1] = 0;
+	v[2] = 0;
+}
+// Adds a scaled vector to another vector
+void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out) {
+	out[0] = veca[0] + scale * vecb[0];
+	out[1] = veca[1] + scale * vecb[1];
+	out[2] = veca[2] + scale * vecb[2];
+}
