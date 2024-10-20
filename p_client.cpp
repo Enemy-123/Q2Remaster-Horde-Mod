@@ -3065,14 +3065,14 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 	for (size_t i = 0; i < game.maxclients; i++)
 		if (!IsSlotIgnored(globals.edicts + i + 1, ignore, num_ignore) && !game.clients[i].pers.userinfo[0])
 		{
-			gi.Com_PrintFmt("PRINT: coop slot {} issuing new for {}+{}\n", i + 1, name, social_id);
+			gi.Com_PrintFmt("coop slot {} issuing new for {}+{}\n", i + 1, name, social_id);
 			return globals.edicts + i + 1;
 		}
 
 	// all slots have some player data in them, we're forced to replace one.
 	edict_t* any_slot = ClientChooseSlot_Any(ignore, num_ignore);
 
-	gi.Com_PrintFmt("PRINT: coop slot {} any slot for {}+{}\n", !any_slot ? -1 : (ptrdiff_t)(any_slot - globals.edicts), name, social_id);
+	gi.Com_PrintFmt("coop slot {} any slot for {}+{}\n", !any_slot ? -1 : (ptrdiff_t)(any_slot - globals.edicts), name, social_id);
 
 	return any_slot;
 }
@@ -3082,7 +3082,7 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBot, edict_t** ignore, size_t num_ignore, bool cinematic)
 {
 	// coop and non-bots is the only thing that we need to do special behavior on
-	if (!cinematic && G_IsCooperative() && !isBot)
+	if (!cinematic && G_IsCooperative() && !isBot || !cinematic && g_horde->integer && !isBot)
 		return ClientChooseSlot_Coop(userinfo, social_id, isBot, ignore, num_ignore);
 
 	// just find any free slot

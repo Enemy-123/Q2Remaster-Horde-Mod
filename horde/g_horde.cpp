@@ -461,9 +461,9 @@ static void Horde_InitLevel(const int32_t lvl) {
 	switch (g_horde_local.level) {
 	case 15: gi.cvar_set("g_damage_scale", "2.35"); break;
 	case 25: gi.cvar_set("g_damage_scale", "3.25"); break;
-	case 35: gi.cvar_set("g_damage_scale", "3.8"); break;
-	case 45: gi.cvar_set("g_damage_scale", "4.3"); break;
-	case 55: gi.cvar_set("g_damage_scale", "5.5"); break;
+	case 35: gi.cvar_set("g_damage_scale", "4"); break;
+	case 45: gi.cvar_set("g_damage_scale", "5.5"); break;
+	case 55: gi.cvar_set("g_damage_scale", "7"); break;
 		//case 60: gi.cvar_set("dm_monsters", "30"); break;
 	default: break;
 	}
@@ -591,6 +591,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_tank", 12, -1, 0.3f },
 	{ "monster_tank_vanilla", 5, 10, 0.1f },
 	{ "monster_tank_vanilla", 11, 23, 0.2f },
+	{ "monster_tank_vanilla", 32, -1, 0.25f },
 	{ "monster_runnertank", 14, -1, 0.24f },
 	{ "monster_guncmdr2", 13, 10, 0.18f },
 	{ "monster_mutant", 4, -1, 0.35f },
@@ -1147,7 +1148,7 @@ void Horde_PreInit() {
 		gi.cvar_set("ctf", "0");
 		gi.cvar_set("teamplay", "0");
 		gi.cvar_set("coop", "0");
-		gi.cvar_set("timelimit", "40");
+		gi.cvar_set("timelimit", "50");
 		gi.cvar_set("fraglimit", "0");
 		gi.cvar_set("sv_target_id", "1");
 		gi.cvar_set("g_speedstuff", "2.3f");
@@ -1848,7 +1849,7 @@ void ResetGame() {
 	gi.cvar_set("g_insane", "0");
 	gi.cvar_set("g_hardcoop", "0");
 	gi.cvar_set("dm_monsters", "0");
-	gi.cvar_set("timelimit", "40");
+	gi.cvar_set("timelimit", "50");
 	gi.cvar_set("bot_pause", "0");
 	gi.cvar_set("set cheats 0 s", "");
 	gi.cvar_set("ai_damage_scale", "1");

@@ -409,7 +409,7 @@ bool M_droptofloor(edict_t* ent)
 
 void M_SetEffects(edict_t* ent)
 {
-	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES);
+	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES | EF_DUALFIRE);
 	ent->s.renderfx &= ~(RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE);
 
 	ent->s.sound = 0;

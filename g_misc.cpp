@@ -676,11 +676,11 @@ void SP_light(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	// no targeted lights in deathmatch, because they cause global messages
-	if ((!self->targetname || (deathmatch->integer && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
-	{
-		G_FreeEdict(self);
-		return;
-	}
+	//if ((!self->targetname || (deathmatch->integer && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
+	//{
+	//	G_FreeEdict(self);
+	//	return;
+	//}
 
 	if (self->style >= 32)
 	{
