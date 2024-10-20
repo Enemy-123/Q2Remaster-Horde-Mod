@@ -1064,8 +1064,8 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");
 
 	// Permitir avanzar a la siguiente ola inmediatamente
-	allowWaveAdvance = true; // Seteamos la variable para permitir avanzar
 	AllowNextWaveAdvance();  // Llamamos la función para avanzar la ola
+	fastNextWave();
 }
 
 /*

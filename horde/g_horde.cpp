@@ -2039,6 +2039,12 @@ void AllowNextWaveAdvance() noexcept {
 	allowWaveAdvance = true;
 }
 
+void fastNextWave() noexcept {
+	g_horde_local.warm_time = level.time;
+	g_horde_local.num_to_spawn = 0; // Establecer a cero para indicar que no hay más monstruos por spawnear
+	g_horde_local.monster_spawn_time = level.time;
+}
+
 static void MonsterSpawned(const edict_t* monster) {
 	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 		cachedRemainingMonsters++;
@@ -2327,7 +2333,14 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 };
 
 // Ejemplo: Uso de enum class para WaveEndReason
-void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
+void SendCleanupMessage(WaveEndReason reason) {
+	gtime_t duration = 5_sec; // Duración por defecto
+
+	// Si allowWaveAdvance está activo y la razón es AllMonstersDead, establecer duración a 0
+	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
+		duration = 0_sec;
+	}
+
 	std::string formattedMessage;
 
 	switch (reason) {
@@ -2428,7 +2441,7 @@ void Horde_RunFrame() {
 
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
-			SendCleanupMessage(5_sec, reason);
+			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", g_horde_local.level);
 
 			// Ajustar configuraciones de dificultad basadas en current_wave_level
@@ -2463,7 +2476,7 @@ void Horde_RunFrame() {
 
 		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
-			SendCleanupMessage(5_sec, reason);
+			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", g_horde_local.level);
 
 			// Ajustar configuraciones de dificultad según el nivel actual
@@ -2488,7 +2501,7 @@ void Horde_RunFrame() {
 		if (g_horde_local.monster_spawn_time < level.time) {
 			if (Horde_AllMonstersDead()) {
 				reason = WaveEndReason::AllMonstersDead;
-				SendCleanupMessage(5_sec, reason);
+				SendCleanupMessage(reason);
 				gi.Com_PrintFmt("PRINT: Wave {} completed by killing all monsters.\n", g_horde_local.level);
 
 				gi.cvar_set("g_chaotic", "0");

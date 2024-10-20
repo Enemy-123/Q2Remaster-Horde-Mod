@@ -3926,6 +3926,7 @@ extern void boss_die(edict_t* boss);
 extern void BossDeathHandler(edict_t* boss);
 
 extern void AllowNextWaveAdvance() noexcept;
+extern void fastNextWave() noexcept;
 extern void OpenHordeMenu(edict_t* ent);
 extern void UpdateVoteHUD();
 

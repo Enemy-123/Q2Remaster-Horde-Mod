@@ -1476,7 +1476,6 @@ void CleanupInvalidEntities() {
 				// Forzar la muerte de la entidad
 				ent->health = -1;
 
-
 				// Asegurarse de que la entidad se libere
 				OnEntityDeath(ent);
 				G_FreeEdict(ent);
