@@ -93,12 +93,20 @@ const std::unordered_set<std::string> bigMaps = {
 	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2"
 };
 
-// Funci�n para obtener el tama�o del mapa
+std::unordered_map<std::string, MapSize> mapSizeCache;
+
 MapSize GetMapSize(const std::string& mapname) {
+	auto it = mapSizeCache.find(mapname);
+	if (it != mapSizeCache.end()) {
+		return it->second;
+	}
+
 	MapSize mapSize;
 	mapSize.isSmallMap = smallMaps.count(mapname) > 0;
 	mapSize.isBigMap = bigMaps.count(mapname) > 0;
 	mapSize.isMediumMap = !mapSize.isSmallMap && !mapSize.isBigMap;
+
+	mapSizeCache[mapname] = mapSize;
 	return mapSize;
 }
 
@@ -1884,17 +1892,10 @@ static int32_t CountActiveMonsters() {
 	return count;
 }
 
-int32_t CalculateRemainingMonsters() {
+inline int32_t CalculateRemainingMonsters() {
 	int32_t remainingMonsters = level.total_monsters - level.killed_monsters;
-	if (remainingMonsters < 0) {
-		remainingMonsters = 0;
-		gi.Com_Print("DEBUG: remainingMonsters was negative. Resetting to 0.\n");
-	}
-	return remainingMonsters;
+	return (remainingMonsters < 0) ? 0 : remainingMonsters;
 }
-
-//static std::vector<bool> warningIssued(WARNING_TIMES.size(), false);
-
 
 #include <algorithm>
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
