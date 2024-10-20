@@ -137,7 +137,7 @@ std::vector<const weighted_benefit_t*> shuffled_benefits;
 // Set para almacenar los beneficios obtenidos
 std::unordered_set<std::string> obtained_benefits;
 
-// Mezcla los beneficios disponibles y asegura que "vampire" viene antes de "vampire upgraded"
+// Actualizar ShuffleBenefits para usar el generador existente
 void ShuffleBenefits() {
 	shuffled_benefits.clear();
 	shuffled_benefits.reserve(benefits.size());
@@ -149,29 +149,24 @@ void ShuffleBenefits() {
 		}
 	}
 
-	// Mezclar beneficios disponibles
-	std::random_device rd;
-	std::default_random_engine rng(rd());
-	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), rng);
+	// Mezclar beneficios disponibles usando mt_rand
+	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), mt_rand);
 
-	// Asegurar que 'vampire' viene antes que 'vampire upgraded' si ambos están presentes
-	auto vampire_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(), [](const weighted_benefit_t* b) {
-		return std::string(b->benefit_name) == "vampire";
-		});
-	auto upgraded_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(), [](const weighted_benefit_t* b) {
-		return std::string(b->benefit_name) == "vampire upgraded";
-		});
+	// Asegurar que 'vampire' venga antes que 'vampire upgraded' si ambos están presentes
+	auto vampire_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(),
+		[](const weighted_benefit_t* b) { return std::strcmp(b->benefit_name, "vampire") == 0; });
+	auto upgraded_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(),
+		[](const weighted_benefit_t* b) { return std::strcmp(b->benefit_name, "vampire upgraded") == 0; });
 
 	if (vampire_it != shuffled_benefits.end() && upgraded_it != shuffled_benefits.end() && vampire_it > upgraded_it) {
 		std::iter_swap(vampire_it, upgraded_it);
 	}
 }
 
-// Selecciona un beneficio aleatorio basado en los pesos ponderados
+// Actualizar otras funciones que usan generación aleatoria para reutilizar el generador global
 const weighted_benefit_t* SelectRandomBenefit(int32_t wave) {
 	double total_weight = 0.0;
 
-	// Calcular el peso total de los beneficios disponibles para la ola actual
 	for (const auto& benefit : benefits) {
 		if (wave >= benefit.min_level && (benefit.max_level == -1 || wave <= benefit.max_level) &&
 			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
@@ -181,7 +176,6 @@ const weighted_benefit_t* SelectRandomBenefit(int32_t wave) {
 
 	if (total_weight == 0.0) return nullptr;
 
-	// Seleccionar un beneficio aleatorio usando una distribución uniforme
 	std::uniform_real_distribution<double> dist(0.0, total_weight);
 	double random_weight = dist(mt_rand);
 	double cumulative_weight = 0.0;
@@ -844,6 +838,7 @@ struct picked_item_t {
 
 gitem_t* G_HordePickItem() {
 	std::vector<picked_item_t> picked_items;
+	picked_items.reserve(std::size(items));
 	float total_weight = 0.0f;
 
 	for (const auto& item : items) {
@@ -852,17 +847,17 @@ gitem_t* G_HordePickItem() {
 			continue;
 		}
 
-		float weight = item.weight; // Mantener como float para la función de ajuste
-		if (item.adjust_weight) item.adjust_weight(item, weight); // Mantener la referencia como float&
+		float weight = item.weight;
+		if (item.adjust_weight) item.adjust_weight(item, weight);
 		if (weight <= 0.0f) continue;
 
 		total_weight += weight;
-		picked_items.push_back({ &item, total_weight }); // Mantener el peso acumulado como float
+		picked_items.emplace_back(picked_item_t{ &item, total_weight });
 	}
 
 	if (picked_items.empty()) return nullptr;
 
-	const float random_weight = frandom() * total_weight; // Mantener como float
+	float random_weight = frandom() * total_weight;
 	auto it = std::lower_bound(picked_items.begin(), picked_items.end(), random_weight,
 		[](const picked_item_t& item, float value) { return item.weight < value; });
 
@@ -900,7 +895,7 @@ static int32_t countFlyingSpawns() noexcept {
 	return count;
 }
 
-static inline bool IsFlyingMonster(const char* classname) {
+inline bool IsFlyingMonster(const char* classname) {
 	return flying_monsters_set.find(classname) != flying_monsters_set.end();
 }
 
@@ -2284,7 +2279,7 @@ static edict_t* SpawnMonsters() {
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
 		g_horde_local.num_to_spawn += additional_to_spawn;
 		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters - additional_to_spawn, 0);
-		ClampNumToSpawn(mapSize); // Asegurar que num_to_spawn no exceda el máximo permitido
+		ClampNumToSpawn(mapSize); // Asegurar que num_to_spawn no exceda el límite permitido
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
@@ -2331,29 +2326,22 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 	{MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n"}
 };
 
-static void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
-	const MessageType messageType = g_insane->integer ? MessageType::Insane :
-		(g_chaotic->integer ? MessageType::Chaotic : MessageType::Standard);
-
+// Ejemplo: Uso de enum class para WaveEndReason
+void SendCleanupMessage(gtime_t duration, WaveEndReason reason) {
 	std::string formattedMessage;
 
-	if (reason == WaveEndReason::AllMonstersDead) {
-		// Mensaje cuando todos los monstruos están muertos
-		formattedMessage = fmt::format("Wave Level {level} Defeated, GG!\n",
-			fmt::arg("level", g_horde_local.level));
-	}
-	else if (reason == WaveEndReason::MonstersRemaining) {
-		// Mensaje cuando la ola avanza por condiciones de monstruos restantes
-		formattedMessage = fmt::format("Wave Level {level} Pushed Back, But Still Threatening!\n",
-			fmt::arg("level", g_horde_local.level));
-	}
-	else if (reason == WaveEndReason::TimeLimitReached) {
-		// Mensaje cuando se alcanzó el límite de tiempo
-		formattedMessage = fmt::format("Time's up! Wave Level {level} Ended!\n",
-			fmt::arg("level", g_horde_local.level));
+	switch (reason) {
+	case WaveEndReason::AllMonstersDead:
+		formattedMessage = fmt::format("Wave Level {} Defeated, GG!\n", g_horde_local.level);
+		break;
+	case WaveEndReason::MonstersRemaining:
+		formattedMessage = fmt::format("Wave Level {} Pushed Back, But Still Threatening!\n", g_horde_local.level);
+		break;
+	case WaveEndReason::TimeLimitReached:
+		formattedMessage = fmt::format("Time's up! Wave Level {} Ended!\n", g_horde_local.level);
+		break;
 	}
 
-	// Actualizar el mensaje de horda con la duración adecuada
 	UpdateHordeMessage(formattedMessage, duration);
 }
 
