@@ -1218,6 +1218,10 @@ std::string FormatEntityInfo(edict_t* ent) {
 			int remaining_invincible_time = static_cast<int>((ent->monsterinfo.invincible_time - level.time).seconds<float>());
 			info += fmt::format("\nInvuln: {}s", remaining_invincible_time);
 		}
+		if (ent->monsterinfo.quadfire_time > level.time) {
+			int remaining_quadfire_time = static_cast<int>((ent->monsterinfo.quadfire_time - level.time).seconds<float>());
+			info += fmt::format("\nAccel: {}s", remaining_quadfire_time);
+		}
 	}
 	else if (ent->client) {
 		std::string playerName = GetPlayerName(ent);

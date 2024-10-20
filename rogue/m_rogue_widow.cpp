@@ -859,6 +859,12 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 
 	self->movetarget = nullptr;
 
+	// Si se ha alcanzado el máximo, proceder con la animación de ataque mejorada
+	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers && visible(self, self->enemy)) {
+		brandom() ? M_SetAnimation(self, &widow_move_attack_pre_rail) : M_SetAnimation(self, &widow_move_attack_pre_blaster);
+		return;
+	}
+
 	if (self->monsterinfo.aiflags & AI_BLOCKED) {
 		blocked = true;
 		self->monsterinfo.aiflags &= ~AI_BLOCKED;
@@ -902,12 +908,6 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	// Decidir si spawnar basado en active_stalkers
 	if (self->monsterinfo.active_stalkers < self->monsterinfo.max_stalkers && M_SlotsLeft(self) >= 2 && realrange(self, self->enemy) > 150) {
 		M_SetAnimation(self, &widow_move_spawn);
-		return;
-	}
-
-	// Si se ha alcanzado el máximo, proceder con la animación de ataque mejorada
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
-		brandom() ? M_SetAnimation(self, &widow_move_attack_pre_rail) : M_SetAnimation(self, &widow_move_attack_pre_blaster);
 		return;
 	}
 

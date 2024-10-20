@@ -736,7 +736,7 @@ MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
 	bool blocked = false;
 
 	// Si se ha alcanzado el máximo de stalkers, usar animación de ataque mejorada
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers && visible(self, self->enemy)) {
 		brandom() ? M_SetAnimation(self, &widow2_move_attack_disrupt) : M_SetAnimation(self, &widow2_move_tongs);
 		return;
 	}

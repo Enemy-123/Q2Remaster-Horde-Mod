@@ -375,6 +375,9 @@ void TurretRespondPowerup(edict_t* turret, edict_t* owner) {
 	if (owner->client->invincible_time > level.time) {
 		turret->monsterinfo.invincible_time = owner->client->invincible_time;
 	}
+	if (owner->client->quadfire_time > level.time) {
+		turret->monsterinfo.quadfire_time = owner->client->quadfire_time;
+	}
 }
 
 
@@ -397,10 +400,12 @@ void TurretCheckPowerups(edict_t* turret) {
 
 int32_t TURRET2_BLASTER_DAMAGE = 3;
 int32_t TURRET2_BULLET_DAMAGE = 2;
-constexpr gtime_t ROCKET_FIRE_INTERVAL = 1.5_sec; // 2.3 segundos
+
 
 void turret2Fire(edict_t* self)
 {
+
+	const gtime_t ROCKET_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec; // 2.3 segundos
 	vec3_t forward;
 	vec3_t start, end, dir;
 	float dist, chance;
@@ -466,9 +471,9 @@ void turret2Fire(edict_t* self)
 		}
 
 		// Calcula el daño base multiplicado por el modificador solo una vez
-		float damageModifier = M_DamageModifier(self);
-		int baseDamage = 100;
-		int modifiedDamage = static_cast<int>(baseDamage * damageModifier);
+		const float damageModifier = M_DamageModifier(self);
+		constexpr int baseDamage = 100;
+		const int modifiedDamage = static_cast<int>(baseDamage * damageModifier);
 
 		dir.normalize();
 		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
@@ -516,7 +521,8 @@ void turret2Fire(edict_t* self)
 						// Usar la dirección predicha para fire_bullet
 						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
 
-						self->monsterinfo.melee_debounce_time = level.time + 15_hz;
+						self->monsterinfo.quadfire_time > level.time ? self->monsterinfo.melee_debounce_time = level.time + 9_hz :
+																		self->monsterinfo.melee_debounce_time = level.time + 15_hz;
 						damageApplied = true;
 					}
 
@@ -526,7 +532,7 @@ void turret2Fire(edict_t* self)
 			}
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
-				const gtime_t PLASMA_FIRE_INTERVAL = random_time(1.8_sec, 2.5_sec);
+				const gtime_t PLASMA_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec;;
 				start = self->s.origin;
 
 				// Mejora en la predicción para el heatbeam
@@ -556,6 +562,7 @@ void turret2Fire(edict_t* self)
 						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &predictedDir, nullptr);
 
 						fire_plasma(self->owner, start, predictedDir, 100, 1250, 120, 100);
+						gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 					}
 				}
 			}
@@ -667,13 +674,13 @@ float entdist(const edict_t* ent1, const edict_t* ent2)
 
 PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-		self->enemy = other;
+	self->enemy = other;
 
-		if (level.time < self->pain_debounce_time)
-			return;
+	if (level.time < self->pain_debounce_time)
+		return;
 
-		self->pain_debounce_time = level.time + 2_sec;
-		gi.sound(self, CHAN_VOICE, gi.soundindex("tank/tnkpain2.wav"), 1, ATTN_NORM, 0);
+	self->pain_debounce_time = level.time + 2_sec;
+	gi.sound(self, CHAN_VOICE, gi.soundindex("tank/tnkpain2.wav"), 1, ATTN_NORM, 0);
 }
 
 // **********************
@@ -1178,4 +1185,7 @@ void SP_monster_sentrygun(edict_t* self)
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER))
 		self->monsterinfo.blindfire = true;
 
+	if (self->monsterinfo.quadfire_time > level.time) {
+		self->yaw_speed *= 2.0f;
+	}
 }

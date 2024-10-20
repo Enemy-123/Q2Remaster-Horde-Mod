@@ -1688,6 +1688,7 @@ struct monsterinfo_t
 	edict_t* commander;
 	// powerup timers, used by widow, our friend
 	gtime_t quad_time;
+	gtime_t quadfire_time;
 	gtime_t invincible_time;
 	gtime_t double_time;
 	// ROGUE

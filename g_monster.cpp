@@ -470,6 +470,11 @@ void M_SetEffects(edict_t* ent)
 		if (G_PowerUpExpiring(ent->monsterinfo.invincible_time))
 			ent->s.effects |= EF_PENT;
 	}
+	if (ent->monsterinfo.quadfire_time > level.time)
+	{
+		if (G_PowerUpExpiring(ent->monsterinfo.quadfire_time))
+			ent->s.effects |= EF_DUALFIRE;
+	}
 }
 
 bool M_AllowSpawn(edict_t* self) {
