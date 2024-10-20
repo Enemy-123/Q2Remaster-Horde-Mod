@@ -1007,12 +1007,7 @@ void DMGID_f(edict_t* ent)
 
 #include "../shared.h"
 #include <queue>
-#include <unordered_map>
-#include <string>
 #include <sstream>
-#include <cctype>
-#include <algorithm>
-
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 
