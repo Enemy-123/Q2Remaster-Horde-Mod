@@ -18,7 +18,7 @@ constexpr int32_t MAX_MONSTERS_BIG_MAP = 27;
 constexpr int32_t MAX_MONSTERS_MEDIUM_MAP = 16;
 constexpr int32_t MAX_MONSTERS_SMALL_MAP = 14;
 
-bool allowWaveAdvance = false; // Variable global para controlar el avance de la ola
+bool allowWaveAdvance = false; // Global variable to control wave advancement
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
 
@@ -114,6 +114,7 @@ struct weighted_benefit_t {
 	int32_t max_level;
 	float weight;
 };
+
 
 // Lista de beneficios ponderados (constexpr para ser evaluado en tiempo de compilación)
 constexpr std::array<weighted_benefit_t, 9> benefits = { {
@@ -254,7 +255,7 @@ void ApplyBenefit(const weighted_benefit_t* benefit) {
 }
 
 // Verificar y aplicar beneficios basados en la ola
-void CheckAndApplyBenefit(int32_t wave) {
+void CheckAndApplyBenefit(const int32_t wave) {
 	if (wave % 4 == 0) {
 		if (shuffled_benefits.empty()) {
 			ShuffleBenefits();
@@ -789,10 +790,10 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 	const size_t boss_list_size = GetBossListSize(mapSize, mapname, boss_list);
 	if (boss_list_size == 0) return nullptr;
 
-	std::vector<const boss_t*> eligible_bosses;
+	auto eligible_bosses = std::vector<const boss_t*>();
 	eligible_bosses.reserve(boss_list_size);
 
-	auto is_boss_eligible = [waveNumber](const boss_t& boss) {
+	auto is_boss_eligible = [&](const boss_t& boss) -> bool {
 		return (waveNumber >= boss.min_level || boss.min_level == -1) &&
 			(waveNumber <= boss.max_level || boss.max_level == -1);
 		};
@@ -1539,7 +1540,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 
 
 // Incluye otras cabeceras y definiciones necesarias
-static const std::unordered_map<std::string, std::string> bossMessagesMap = {
+static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
 	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
 	{"monster_boss2kl", "***** Boss incoming! Hornet 'the swarm' is about to strike! *****\n"},
 	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
@@ -1665,7 +1666,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 	// Boss spawn message
 	const auto it_msg = bossMessagesMap.find(self->classname);
 	if (it_msg != bossMessagesMap.end()) {
-		const char* message = it_msg->second.c_str();
+		const char* message = it_msg->second.data();
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", message);
 	}
 	else {
