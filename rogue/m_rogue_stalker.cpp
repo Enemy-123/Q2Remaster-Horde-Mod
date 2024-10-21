@@ -514,7 +514,7 @@ void stalker_shoot_attack(edict_t* self)
 
 void stalker_shoot_attack2(edict_t* self)
 {
-	if (frandom() < 0.5)
+	if (frandom() < 0.8)
 		stalker_shoot_attack(self);
 }
 
@@ -822,7 +822,7 @@ void stalker_jump_up(edict_t* self)
 //===================
 void stalker_jump_wait_land(edict_t* self)
 {
-	if ((frandom() < 0.4f) && (level.time >= self->monsterinfo.attack_finished))
+	if ((frandom() < 0.7f) && (level.time >= self->monsterinfo.attack_finished))
 	{
 		self->monsterinfo.attack_finished = level.time + 300_ms;
 		stalker_shoot_attack(self);
@@ -1061,7 +1061,7 @@ void SP_monster_stalker(edict_t* self)
 	self->health = 175 * st.health_multiplier;
 	self->gib_health = -50;
 	self->mass = 250;
-	self->s.scale = 0.8f;
+	//self->s.scale = 0.8f;
 
 	self->pain = stalker_pain;
 	self->die = stalker_die;
