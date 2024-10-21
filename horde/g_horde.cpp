@@ -266,6 +266,7 @@ void CheckAndApplyBenefit(int32_t wave) {
 		}
 	}
 }
+
 // Función para calcular el bono de locura y caos
 static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	if (g_chaotic->integer) return (lvl <= 3) ? 6 : 3;
@@ -458,9 +459,9 @@ static void Horde_InitLevel(const int32_t lvl) {
 	switch (g_horde_local.level) {
 	case 15: gi.cvar_set("g_damage_scale", "2.35"); break;
 	case 25: gi.cvar_set("g_damage_scale", "3.25"); break;
-	case 35: gi.cvar_set("g_damage_scale", "4"); break;
-	case 45: gi.cvar_set("g_damage_scale", "5.5"); break;
-	case 55: gi.cvar_set("g_damage_scale", "7"); break;
+	case 35: gi.cvar_set("g_damage_scale", "3.5"); break;
+	case 45: gi.cvar_set("g_damage_scale", "4"); break;
+	//case 55: gi.cvar_set("g_damage_scale", "7"); break;
 		//case 60: gi.cvar_set("dm_monsters", "30"); break;
 	default: break;
 	}
@@ -555,6 +556,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 22, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_nuke", 25, -1, 0.01f, adjust_weight_ammo },
 
 	{ "item_bandolier", 4, -1, 0.18f, adjust_weight_ammo },
 	{ "item_pack", 15, -1, 0.32f, adjust_weight_ammo },
