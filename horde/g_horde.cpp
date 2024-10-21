@@ -354,8 +354,9 @@ constexpr gtime_t TIME_INCREASE_PER_LEVEL = 0.8_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 10_sec;
 
-gtime_t calculate_max_wave_time(int32_t wave_level) {
-	return std::min(BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level, 65_sec);
+constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
+	return (BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level <= 65_sec) ?
+		BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level : 65_sec;
 }
 
 // Variables globales
@@ -1780,7 +1781,7 @@ static void ResetBenefits() noexcept {
 void ResetAllSpawnAttempts() noexcept {
 	for (auto& [spawn_point, data] : spawnPointsData) {
 		data.attempts = 0;
-		data.cooldown = SPAWN_POINT_COOLDOWN;  // Reset cooldown to the default value
+		data.cooldown = SPAWN_POINT_COOLDOWN;
 	}
 }
 
