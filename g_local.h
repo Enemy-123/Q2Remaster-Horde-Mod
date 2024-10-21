@@ -1810,7 +1810,6 @@ constexpr gtime_t DUCK_INTERVAL = 5000_ms;
 extern game_locals_t  game;
 extern level_locals_t level;
 extern game_export_t  globals;
-//extern spawn_temp_t	  st;
 
 extern edict_t* g_edicts;
 

@@ -103,7 +103,7 @@ MapSize GetMapSize(const std::string& mapname) {
 	mapSize.isBigMap = bigMaps.count(mapname) > 0;
 	mapSize.isMediumMap = !mapSize.isSmallMap && !mapSize.isBigMap;
 
-	mapSizeCache[mapname] = mapSize;
+	mapSizeCache.emplace(mapname, mapSize);
 	return mapSize;
 }
 
@@ -906,13 +906,14 @@ static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
 }
 
 
-static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
+inline bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
 	return !(spawn_point->style == 1 && !isFlyingMonster) &&
 		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) &&
 		!(isFlyingMonster && currentWave < WAVE_TO_ALLOW_FLYING);
 }
 
-static float CalculateWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
+// Función para calcular el peso del monstruo basado en si es volador
+inline double CalculateMonsterWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
 	return item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
 }
 
@@ -1103,7 +1104,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 		// Verificar si el monstruo es elegible
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-			const double weight = CalculateWeight(item, isFlyingMonster, adjustmentFactor);
+			const double weight = CalculateMonsterWeight(item, isFlyingMonster, adjustmentFactor); // Nombre corregido
 			if (weight > 0.0) {
 				total_weight += weight;
 				eligible_monsters.push_back(&item);
@@ -1118,7 +1119,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	// Seleccionar un monstruo basado en el peso aleatorio
-	double random_weight = frandom() * total_weight;
+	float random_weight = frandom(0.0f, static_cast<float>(total_weight)); // Usar frandom
 	double cumulative_weight = 0.0;
 	const weighted_item_t* chosen_monster = nullptr;
 
@@ -2187,7 +2188,7 @@ static edict_t* SpawnMonsters() {
 	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts; edictIndex++) {
 		edict_t* e = &g_edicts[edictIndex];
 		if (e->inuse && e->classname && std::strcmp(e->classname, "info_player_deathmatch") == 0 && !e->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-			available_spawns.push_back(e);
+			available_spawns.emplace_back(e);
 		}
 	}
 
@@ -2198,10 +2199,10 @@ static edict_t* SpawnMonsters() {
 
 	// Determinar cuántos monstruos spawnear en esta llamada
 	const int32_t default_monsters_per_spawn = mapSize.isSmallMap ? 4 :
-		mapSize.isBigMap ? 6 : 5;
+		(mapSize.isBigMap ? 6 : 5);
 	const int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
-		std::min(static_cast<int32_t>(g_horde_local.queued_monsters), 3) :
-		std::min(default_monsters_per_spawn, 6);
+		std::min(g_horde_local.queued_monsters, static_cast<int32_t>(3)) :
+		std::min(default_monsters_per_spawn, static_cast<int32_t>(6));
 
 	// Asegurar que no se spawnee más de lo permitido por el mapa
 	const int32_t activeMonsters = CountActiveMonsters();
@@ -2217,11 +2218,11 @@ static edict_t* SpawnMonsters() {
 
 	edict_t* last_spawned_monster = nullptr;
 
-	// Mezclar aleatoriamente los puntos de spawn una vez
+	// Mezclar aleatoriamente los puntos de spawn usando mt_rand
 	std::shuffle(available_spawns.begin(), available_spawns.end(), mt_rand);
 
 	int32_t spawnIndex = 0;
-	for (int32_t spawnCount = 0; spawnCount < actual_spawn_count && g_horde_local.num_to_spawn > 0 && spawnIndex < available_spawns.size(); ++spawnCount, ++spawnIndex) {
+	for (int32_t spawnCount = 0; spawnCount < actual_spawn_count && g_horde_local.num_to_spawn > 0 && spawnIndex < static_cast<int32_t>(available_spawns.size()); ++spawnCount, ++spawnIndex) {
 		edict_t* spawn_point = available_spawns[spawnIndex];
 
 		const char* monster_classname = G_HordePickMonster(spawn_point);
@@ -2257,9 +2258,10 @@ static edict_t* SpawnMonsters() {
 		}
 
 		// Determinar si el monstruo soltará un ítem
-		const float drop_probability = (current_wave_level <= 2) ? 0.8f :
-			(current_wave_level <= 7) ? 0.6f : 0.45f;
-		if (frandom() <= drop_probability) {
+		const float drop_probability = (g_horde_local.level <= 2) ? 0.8f :
+			(g_horde_local.level <= 7) ? 0.6f : 0.45f;
+		std::uniform_real_distribution<float> drop_dist(0.0f, 1.0f);
+		if (drop_dist(mt_rand) <= drop_probability) {
 			monster->item = G_HordePickItem();
 		}
 

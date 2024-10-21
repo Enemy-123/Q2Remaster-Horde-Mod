@@ -227,7 +227,7 @@ void Widow2Spawn(edict_t* self)
 	}
 
 	// Establecer un nuevo cooldown después de spawning
-	self->monsterinfo.spawn_cooldown = level.time + 5_sec; // Ajusta el tiempo según sea necesario
+	self->monsterinfo.spawn_cooldown = level.time + 2_sec; // Ajusta el tiempo según sea necesario
 }
 
 
