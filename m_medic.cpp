@@ -319,7 +319,7 @@ bool finishHeal(edict_t* self)
 	healee->oldenemy = nullptr;
 	healee->enemy = self->enemy;
 
-	if (healee->enemy)
+	if (healee->enemy && !g_horde->integer)
 		FoundTarget(healee);
 	else
 	{

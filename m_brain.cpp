@@ -738,8 +738,11 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 {
 	const float r = range_to(self, self->enemy);
 
-	if (!strcmp(self->enemy->classname, "tesla_mine") || (!strcmp(self->enemy->classname, "monster_sentrygun")))
+	if (!strcmp(self->enemy->classname, "tesla_mine") || !strcmp(self->enemy->classname, "monster_sentrygun"))
+	{
 		M_SetAnimation(self, &brain_move_attack4);
+		return; // Salir para evitar cambios adicionales de animación
+	}
 
 	if (r <= RANGE_NEAR)
 	{
@@ -752,10 +755,8 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 	{
 		M_SetAnimation(self, &brain_move_attack3);
 	}
-
-
-
 }
+
 // RAFAEL
 
 //
