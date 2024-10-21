@@ -65,7 +65,6 @@ std::unordered_set<edict_t*> auto_spawned_bosses;
 std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
 std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
 
-// Definición de SpawnPointData con lastUsedTime
 struct SpawnPointData {
 	uint32_t attempts = 0;               // Number of failed spawn attempts
 	gtime_t cooldown = 0_sec;            // Cooldown time before retrying
@@ -74,19 +73,7 @@ struct SpawnPointData {
 	bool isTemporarilyDisabled = false;  // Indicates if the spawn point is temporarily disabled
 	std::string lastSpawnedMonsterClassname; // Stores the classname of the last spawned monster
 	gtime_t cooldownEndsAt = 0_sec;      // Time when the cooldown ends for the spawn point
-	gtime_t lastUsedTime = 0_sec;        // Última vez que el punto de spawn fue utilizado
 };
-
-
-// Constantes para la limpieza
-constexpr gtime_t CLEANUP_THRESHOLD = 3_sec;
-constexpr gtime_t INACTIVITY_THRESHOLD = 60_sec;      // Tiempo máximo de inactividad antes de eliminar
-constexpr uint32_t MAX_FAILED_ATTEMPTS = 10;         // Número máximo de intentos fallidos antes de eliminar
-constexpr gtime_t CLEANUP_INTERVAL = 10_sec;         // Intervalo de limpieza
-constexpr size_t MAX_SPAWN_POINTS_DATA = 30;         // Límite máximo de puntos de spawn
-
-gtime_t last_cleanup_time = 0_sec; // Última vez que se ejecutó la limpieza
-
 
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
 
@@ -474,8 +461,8 @@ static void Horde_InitLevel(const int32_t lvl) {
 	case 25: gi.cvar_set("g_damage_scale", "3.25"); break;
 	case 35: gi.cvar_set("g_damage_scale", "3.5"); break;
 	case 45: gi.cvar_set("g_damage_scale", "4"); break;
-	//case 55: gi.cvar_set("g_damage_scale", "7"); break;
-		//case 60: gi.cvar_set("dm_monsters", "30"); break;
+		//case 55: gi.cvar_set("g_damage_scale", "7"); break;
+			//case 60: gi.cvar_set("dm_monsters", "30"); break;
 	default: break;
 	}
 
@@ -935,6 +922,8 @@ static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 	data.cooldown = level.time;
 }
 
+constexpr gtime_t CLEANUP_THRESHOLD = 3_sec;
+
 // Función modificada sin lanzar excepciones
 SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
 	if (!spawn_point) {
@@ -945,99 +934,52 @@ SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
 	}
 
 	auto [insert_it, inserted] = spawnPointsData.emplace(spawn_point, SpawnPointData());
-	if (inserted) {
-		// Inicializar lastUsedTime en el momento de la creación
-		insert_it->second.lastUsedTime = level.time;
-	}
 	return insert_it->second;
 }
 
+constexpr size_t MAX_SPAWN_POINTS_DATA = 30; // Define un límite razonable
+
 void CleanUpSpawnPointsData() {
-	const gtime_t currentTime = level.time;
-	size_t removed_count = 0;
-
 	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
-		bool should_remove = false;
-		const SpawnPointData& spawn_data = it->second;
+		const auto& spawn_data = it->second;
 
-		// Condición 1: Punto de spawn deshabilitado y cooldown expirado más umbral
-		if (spawn_data.isTemporarilyDisabled && currentTime > spawn_data.cooldownEndsAt + CLEANUP_THRESHOLD) {
-			should_remove = true;
-		}
-
-		// Condición 2: Punto de spawn no usado por mucho tiempo
-		if (currentTime > spawn_data.lastUsedTime + INACTIVITY_THRESHOLD) {
-			should_remove = true;
-		}
-
-		// Condición 3: Punto de spawn con demasiados intentos fallidos
-		if (spawn_data.attempts >= MAX_FAILED_ATTEMPTS) {
-			should_remove = true;
-		}
-
-		if (should_remove) {
+		if (spawn_data.isTemporarilyDisabled && level.time > spawn_data.cooldownEndsAt + CLEANUP_THRESHOLD) {
 			edict_t* spawn_point_address = it->first;
 			it = spawnPointsData.erase(it);
-			removed_count++;
-			gi.Com_PrintFmt("Removed spawn_point at address {} due to cleanup criteria.\n", (void*)spawn_point_address);
+			gi.Com_PrintFmt("Removed spawn_point at address %p due to extended inactivity.\n", (void*)spawn_point_address);
 		}
 		else {
 			++it;
 		}
-	}
 
-	// Limitar el tamaño del contenedor eliminando los puntos de spawn menos recientemente usados
-	if (spawnPointsData.size() > MAX_SPAWN_POINTS_DATA) {
-		// Crear un vector de pares ordenados por lastUsedTime ascendente
-		std::vector<std::pair<edict_t*, gtime_t>> sorted_spawns;
-		sorted_spawns.reserve(spawnPointsData.size());
-
-		for (const auto& [spawn_point, data] : spawnPointsData) {
-			sorted_spawns.emplace_back(spawn_point, data.lastUsedTime);
+		// Limitar el tamaño del contenedor
+		if (spawnPointsData.size() > MAX_SPAWN_POINTS_DATA) {
+			gi.Com_Print("WARNING: spawnPointsData exceeded maximum size. Clearing data.\n");
+			spawnPointsData.clear();
+			break;
 		}
-
-		// Ordenar por lastUsedTime, los menos usados primero
-		std::sort(sorted_spawns.begin(), sorted_spawns.end(),
-			[](const std::pair<edict_t*, gtime_t>& a, const std::pair<edict_t*, gtime_t>& b) {
-				return a.second < b.second;
-			});
-
-		// Eliminar los puntos de spawn menos usados hasta alcanzar el límite
-		size_t excess = spawnPointsData.size() - MAX_SPAWN_POINTS_DATA;
-		for (size_t i = 0; i < excess; ++i) {
-			edict_t* spawn_point_to_remove = sorted_spawns[i].first;
-			spawnPointsData.erase(spawn_point_to_remove);
-			gi.Com_PrintFmt("Removed spawn_point at address {} due to exceeding max size.\n", (void*)spawn_point_to_remove);
-			removed_count++;
-		}
-	}
-
-	if (removed_count > 0) {
-		gi.Com_PrintFmt("CleanUpSpawnPointsData: Removed {} spawn points.\n", removed_count);
 	}
 }
 
 
 // Function to update spawn point cooldowns and the last spawn times for the monster
 void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
-	// Asegurar que la entrada del punto de spawn existe en spawnPointsData
+	// Ensure the spawn point entry exists in spawnPointsData
 	SpawnPointData& spawn_data = EnsureSpawnPointDataExists(spawn_point);
 
-	// Actualizar tiempo de spawn
+	// Update spawn time
 	spawn_data.lastSpawnTime = level.time;
 
 	if (chosen_monster) {
 		spawn_data.lastSpawnedMonsterClassname = chosen_monster;
 	}
 
-	// Actualizar tiempo de última utilización
-	spawn_data.lastUsedTime = level.time;
-
-	// Resetear el timer de cooldown
+	// Reset cooldown timer
 	spawn_data.isTemporarilyDisabled = true;
 	spawn_data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 
-	// No llamar a CleanUpSpawnPointsData aquí para evitar sobrecarga
+	// Clean up old spawn points if necessary (could be called periodically elsewhere instead)
+	CleanUpSpawnPointsData();
 }
 
 // Function to increase spawn attempts and adjust cooldown as necessary
@@ -1045,17 +987,13 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	data.attempts++;
 
-	if (data.attempts >= MAX_FAILED_ATTEMPTS) { // MAX_FAILED_ATTEMPTS
-		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated due to excessive failed attempts.\n",
-			spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
-		data.isTemporarilyDisabled = true; // Desactivar temporalmente
-		data.cooldownEndsAt = level.time + 60_sec; // Cooldown más largo
+	if (data.attempts >= 6) {
+		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated for 10 seconds.\n", spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
+		data.isTemporarilyDisabled = true; // Temporarily deactivate
+		data.cooldownEndsAt = level.time + 10_sec;
 	}
 	else if (data.attempts % 3 == 0) {
-		data.cooldownEndsAt += 5_sec; // Incrementar el cooldown progresivamente
-		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) cooldown increased to {:.1f} seconds.\n",
-			spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2],
-			(data.cooldownEndsAt - level.time).seconds());
+		data.cooldownEndsAt = std::max(data.cooldownEndsAt + (data.cooldownEndsAt / 2), 2.5_sec);
 	}
 }
 
@@ -1182,10 +1120,8 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	const char* chosen_monster = (chosen_it != eligible_monsters.end()) ? chosen_it->first->classname : nullptr;
 
 	// Actualizar cooldowns y reiniciar intentos del punto de spawn
-	if (chosen_monster) {
-		UpdateCooldowns(spawn_point, chosen_monster);
-		ResetSingleSpawnPointAttempts(spawn_point);
-	}
+	UpdateCooldowns(spawn_point, chosen_monster);
+	ResetSingleSpawnPointAttempts(spawn_point);
 
 	return chosen_monster;
 }
@@ -1339,18 +1275,18 @@ static void PrecacheAllSounds() noexcept {
 }
 
 static void PrecacheAllMonsters() noexcept {
-    for (const auto& monster : monsters) {
-        edict_t* e = G_Spawn();
-        if (!e) {
-            gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
-            continue;
-        }
-        e->classname = monster.classname;
-        e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-        ED_CallSpawn(e);
-        PrecacheItem(const_cast<gitem_t*>(FindItemByClassname(monster.classname)));
-        G_FreeEdict(e);
-    }
+	for (const auto& monster : monsters) {
+		edict_t* e = G_Spawn();
+		if (!e) {
+			gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
+			continue;
+		}
+		e->classname = monster.classname;
+		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+		ED_CallSpawn(e);
+		PrecacheItem(const_cast<gitem_t*>(FindItemByClassname(monster.classname)));
+		G_FreeEdict(e);
+	}
 }
 
 // Array de sonidos constante
@@ -2429,22 +2365,16 @@ static void CheckAndResetDisabledSpawnPoints() {
 		if (data.isTemporarilyDisabled && level.time >= data.cooldown) {
 			data.isTemporarilyDisabled = false;  // Restablecer el punto de spawn
 			data.attempts = 0;  // Resetear los intentos fallidos
-		//	gi.Com_PrintFmt("PRINT: SpawnPoint {} is active again.\n", spawn_point->s.origin);
+			//	gi.Com_PrintFmt("PRINT: SpawnPoint {} is active again.\n", spawn_point->s.origin);
 		}
 	}
 }
 
-// Función para ejecutar la limpieza periódica en cada frame
 void Horde_RunFrame() {
 	const auto mapSize = GetMapSize(level.mapname);
 
-	// Ejecutar limpieza periódica
-	if (level.time - last_cleanup_time >= CLEANUP_INTERVAL) {
-		CleanUpSpawnPointsData();
-		last_cleanup_time = level.time;
-	}
+	CheckAndResetDisabledSpawnPoints();
 
-	// Resto del código existente...
 	// Si se establece un número personalizado de monstruos, sobrescribir el conteo
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
@@ -2458,7 +2388,7 @@ void Horde_RunFrame() {
 	G_Monster_CheckCoopHealthScaling();
 
 	// Calcular monstruos activos y máximo permitido
-	const int32_t activeMonsters = CountActiveMonsters();
+	const int32_t activeMonsters = level.total_monsters - level.killed_monsters;
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
