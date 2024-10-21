@@ -22,7 +22,7 @@ constexpr const char *default_reinforcements = "monster_daedalus_bomber 2;monste
 constexpr int32_t default_monster_slots_base = 3;
 constexpr spawnflags_t SPAWNFLAG_carrier_mini = 8_spawnflag;
 
-constexpr gtime_t CARRIER_ROCKET_TIME = 1.5_sec; // number of seconds between rocket shots
+constexpr gtime_t CARRIER_ROCKET_TIME = 3_sec; // number of seconds between rocket shots
 constexpr int32_t CARRIER_ROCKET_SPEED = 1150;
 constexpr gtime_t RAIL_FIRE_TIME = 1.25_sec;
 

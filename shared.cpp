@@ -258,7 +258,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	}
 	if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
-		monster->s.renderfx |= RF_TRANSLUCENT;
+		monster->s.alpha = 0.6f;
 		monster->monsterinfo.power_armor_power *= 4.0f;
 		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 15_sec;
 	}
@@ -402,7 +402,7 @@ void ApplyBossEffects(edict_t* boss)
 
 	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		boss->s.effects |= EF_BLUEHYPERBLASTER;
-		boss->s.renderfx |= RF_TRANSLUCENT;
+		boss->s.alpha = 0.6f;
 		power_armor_multiplier *= 1.4f;
 		boss->monsterinfo.invincible_time = std::max(level.time, boss->monsterinfo.invincible_time) + 12_sec;
 	}
@@ -626,7 +626,7 @@ edict_t* SelectSingleSpawnPoint(edict_t* ent);
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
 	gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
 
-	const int max_attempts = 5; // Maximum number of attempts to push entities
+	constexpr int max_attempts = 5; // Maximum number of attempts to push entities
 	std::vector<edict_t*> stubborn_entities; // Entities that couldn't be moved after all attempts
 	std::vector<edict_t*> entities_to_remove; // Entities to remove after iteration
 

@@ -1336,11 +1336,11 @@ void Horde_Init() {
 }
 
 // Constantes para mejorar la legibilidad y mantenibilidad
-constexpr int MIN_VELOCITY = -200;
-constexpr int MAX_VELOCITY = 200;
-constexpr int MIN_VERTICAL_VELOCITY = 650;
-constexpr int MAX_VERTICAL_VELOCITY = 800;
-constexpr int VERTICAL_VELOCITY_RANDOM_RANGE = 200;
+constexpr int MIN_VELOCITY = -800;
+constexpr int MAX_VELOCITY = 800;
+constexpr int MIN_VERTICAL_VELOCITY = 400;
+constexpr int MAX_VERTICAL_VELOCITY = 950;
+constexpr int VERTICAL_VELOCITY_RANDOM_RANGE = 300;
 
 // Función auxiliar para generar velocidad aleatoria
 static vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVertical, int maxVertical) {
@@ -1392,8 +1392,10 @@ void BossDeathHandler(edict_t* boss) {
 	SetupDroppedItem(specialItem, boss->s.origin, specialVelocity, false);
 
 	// Configuración adicional para el ítem especial
-	specialItem->s.effects |= EF_BFG | EF_COLOR_SHELL | EF_BLUEHYPERBLASTER;
-	specialItem->s.renderfx |= RF_SHELL_LITE_GREEN;
+	specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
+	//specialItem->s.renderfx |= RF_SHELL_RED;
+	specialItem->s.alpha = 0.8f;
+	specialItem->s.scale = 1.5f;
 
 	// Soltar los demás ítems
 	std::vector<const char*> shuffledItems(itemsToDrop.begin(), itemsToDrop.end());
@@ -1416,9 +1418,6 @@ void BossDeathHandler(edict_t* boss) {
 		flying_monsters_mode = false;
 	}
 }
-
-
-
 
 void boss_die(edict_t* boss) {
 	if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->health <= 0 &&

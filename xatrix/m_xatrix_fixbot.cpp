@@ -106,7 +106,7 @@ static void fixbot_set_attack_fly_parameters(edict_t* self)
 {
 	self->monsterinfo.fly_thrusters = false;
 	self->monsterinfo.fly_acceleration = 20.f;
-	self->monsterinfo.fly_speed = 270.f;
+	self->monsterinfo.fly_speed = 120.f;
 	// Icarus prefers to keep its distance, but flies slower than the flyer.
 	// he never pins because of this.
 	self->monsterinfo.fly_min_distance = 300.f;

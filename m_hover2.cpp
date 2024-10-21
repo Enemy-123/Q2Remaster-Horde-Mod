@@ -631,7 +631,7 @@ static void hover_vanilla_set_fly_parameters(edict_t* self) {
 		// Icarus prefers to keep its distance, but flies slower than the flyer.
 		// he never pins because of this.
 		self->monsterinfo.fly_min_distance = 250.f;
-		self->monsterinfo.fly_max_distance = 400.f;
+		self->monsterinfo.fly_max_distance = 450.f;
 
 	}
 }

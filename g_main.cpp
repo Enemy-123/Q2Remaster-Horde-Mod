@@ -20,7 +20,6 @@ local_game_import_t  gi;
 /*static*/ std::array<const char*, MAX_LOCALIZATION_ARGS> local_game_import_t::buffer_ptrs;
 
 game_export_t  globals;
-spawn_temp_t   st;
 
 cached_modelindex		sm_meat_index;
 cached_soundindex		snd_fry;
