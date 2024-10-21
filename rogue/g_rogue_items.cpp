@@ -127,7 +127,6 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 	}
 }
 
-
 bool Pickup_sentrygun(edict_t* ent, edict_t* other)
 {
 	int quantity;

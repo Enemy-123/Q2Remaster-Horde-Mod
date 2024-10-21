@@ -39,7 +39,6 @@ enum class horde_state_t {
 	rest
 };
 
-
 struct HordeState {
 	gtime_t         warm_time = 4_sec;
 	horde_state_t   state = horde_state_t::warmup;
@@ -57,8 +56,6 @@ struct HordeState {
 	gtime_t         waveEndTime = 0_sec;
 	std::vector<bool> warningIssued = { false, false, false, false }; // Assuming 4 warning times
 } g_horde_local;
-
-
 
 int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
@@ -521,6 +518,7 @@ constexpr struct weighted_item_t {
 	{ "item_quadfire", 2, -1, 0.06f, adjust_weight_powerup },
 	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
 	{ "item_sphere_defender", 2, -1, 0.06f, adjust_weight_powerup },
+	{ "item_sphere_vengeance", 28, -1, 0.06f, adjust_weight_powerup },
 	{ "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 	{ "item_doppleganger", 2, 8, 0.028f, adjust_weight_powerup },
