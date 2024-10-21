@@ -2794,8 +2794,8 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	int time_left = (ctfgame.electtime - level.time).seconds<int>();
 
 	// Create full message for vote info
-	std::string vote_info = fmt::format("Vote: {} by {}. Time: {}s",
-		msg, ent->client->pers.netname, time_left);
+	std::string vote_info = fmt::format("Vote: {} by {}. Time: {}s\n",
+		msg, GetPlayerName(ent), time_left);
 
 	// No truncation for configstring
 	gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
@@ -2828,7 +2828,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 void UpdateVoteHUD() {
 	if (ctfgame.election != ELECT_NONE) {
-		std::string vote_info = fmt::format("{} Time left: {}s",
+		std::string vote_info = fmt::format("{} Time left: {}s\n",
 			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
 
 		// No truncation for configstring
