@@ -57,6 +57,48 @@ struct HordeState {
 	std::vector<bool> warningIssued = { false, false, false, false }; // Assuming 4 warning times
 } g_horde_local;
 
+struct weighted_benefit_t {
+	const char* benefit_name;
+	int32_t min_level;
+	int32_t max_level;
+	float weight;
+};
+
+// Clase de selección genérica usando templates
+template <typename T>
+struct WeightedSelection {
+	std::vector<const T*> items;
+	std::vector<double> cumulative_weights;
+	double total_weight;
+
+	// Constructor por defecto
+	WeightedSelection() : total_weight(0.0) {}
+
+	// Reconstruir las estructuras de pesos acumulados
+	void rebuild(const std::vector<const T*>& eligible_items) {
+		items = eligible_items;
+		cumulative_weights.clear();
+		total_weight = 0.0;
+		for (const auto& item : items) {
+			total_weight += item->weight;
+			cumulative_weights.push_back(total_weight);
+		}
+	}
+
+	// Seleccionar un elemento basado en pesos
+	const T* select(std::mt19937& rng) const {
+		if (items.empty()) return nullptr;
+		std::uniform_real_distribution<double> dist(0.0, total_weight);
+		double random_weight = dist(rng);
+		auto it = std::upper_bound(cumulative_weights.begin(), cumulative_weights.end(), random_weight);
+		size_t index = std::distance(cumulative_weights.begin(), it);
+		// Asegurar que el índice esté dentro de los límites
+		if (index >= items.size()) index = items.size() - 1;
+		return items[index];
+	}
+};
+
+
 int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 int32_t vampire_level = 0;
@@ -107,17 +149,8 @@ MapSize GetMapSize(const std::string& mapname) {
 	return mapSize;
 }
 
-// Definición de la estructura weighted_benefit_t
-struct weighted_benefit_t {
-	const char* benefit_name;
-	int32_t min_level;
-	int32_t max_level;
-	float weight;
-};
-
-
 // Lista de beneficios ponderados (constexpr para ser evaluado en tiempo de compilación)
-constexpr std::array<weighted_benefit_t, 9> benefits = { {
+const std::array<weighted_benefit_t, 9> benefits = { {
 	{ "vampire", 4, -1, 0.2f },
 	{ "vampire upgraded", 24, -1, 0.1f },
 	{ "ammo regen", 8, -1, 0.15f },
@@ -136,21 +169,16 @@ std::vector<const weighted_benefit_t*> shuffled_benefits;
 std::unordered_set<std::string> obtained_benefits;
 
 // Actualizar ShuffleBenefits para usar el generador existente
-void ShuffleBenefits() {
+void ShuffleBenefits(std::mt19937& rng) {
 	shuffled_benefits.clear();
-	shuffled_benefits.reserve(benefits.size());
-
-	// Agrega todos los beneficios disponibles
 	for (const auto& benefit : benefits) {
 		if (obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
 			shuffled_benefits.push_back(&benefit);
 		}
 	}
+	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), rng);
 
-	// Mezclar beneficios disponibles usando mt_rand
-	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), mt_rand);
-
-	// Asegurar que 'vampire' venga antes que 'vampire upgraded' si ambos están presentes
+	// Asegurar orden específico si es necesario
 	auto vampire_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(),
 		[](const weighted_benefit_t* b) { return std::strcmp(b->benefit_name, "vampire") == 0; });
 	auto upgraded_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(),
@@ -162,33 +190,16 @@ void ShuffleBenefits() {
 }
 
 // Actualizar otras funciones que usan generación aleatoria para reutilizar el generador global
-const weighted_benefit_t* SelectRandomBenefit(int32_t wave) {
-	double total_weight = 0.0;
-
+const weighted_benefit_t* SelectRandomBenefit(int32_t wave, WeightedSelection<weighted_benefit_t>& selection, std::mt19937& rng) {
+	std::vector<const weighted_benefit_t*> eligible_benefits;
 	for (const auto& benefit : benefits) {
 		if (wave >= benefit.min_level && (benefit.max_level == -1 || wave <= benefit.max_level) &&
 			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
-			total_weight += static_cast<double>(benefit.weight);
+			eligible_benefits.push_back(&benefit);
 		}
 	}
-
-	if (total_weight == 0.0) return nullptr;
-
-	std::uniform_real_distribution<double> dist(0.0, total_weight);
-	double random_weight = dist(mt_rand);
-	double cumulative_weight = 0.0;
-
-	for (const auto& benefit : benefits) {
-		if (wave >= benefit.min_level && (benefit.max_level == -1 || wave <= benefit.max_level) &&
-			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
-			cumulative_weight += static_cast<double>(benefit.weight);
-			if (random_weight <= cumulative_weight) {
-				return &benefit;
-			}
-		}
-	}
-
-	return nullptr;
+	selection.rebuild(eligible_benefits);
+	return selection.select(rng);
 }
 
 // Aplicar el beneficio específico
@@ -258,10 +269,11 @@ void ApplyBenefit(const weighted_benefit_t* benefit) {
 void CheckAndApplyBenefit(const int32_t wave) {
 	if (wave % 4 == 0) {
 		if (shuffled_benefits.empty()) {
-			ShuffleBenefits();
+			ShuffleBenefits(mt_rand);
 		}
 
-		const auto benefit = SelectRandomBenefit(wave);
+		WeightedSelection<weighted_benefit_t> selection; // Usar la clase genérica
+		const auto benefit = SelectRandomBenefit(wave, selection, mt_rand);
 		if (benefit) {
 			ApplyBenefit(benefit);
 		}
@@ -688,9 +700,9 @@ constexpr boss_t BOSS_LARGE[] = {
 
 
 // Definir constantes de tamaño para cada arreglo de jefes
-constexpr size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
-constexpr size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
-constexpr size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
+const size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
+const size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
+const size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
 
 // Actualizar GetBossList para devolver el arreglo correcto
 static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
@@ -770,7 +782,7 @@ static size_t GetBossListSize(const MapSize& mapSize, const std::string& mapname
 	return 0;
 }
 
-constexpr int32_t MAX_RECENT_BOSSES = 3;
+const int32_t MAX_RECENT_BOSSES = 3;
 std::deque<const char*> recent_bosses;
 
 // Función para agregar un jefe reciente de manera segura
@@ -783,94 +795,107 @@ static void AddRecentBoss(const char* classname) {
 	}
 }
 
-static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
+const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
+	// Obtener la lista de jefes para el mapa actual
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
 	if (!boss_list) return nullptr;
 
+	// Obtener el tamaño de la lista de jefes
 	const size_t boss_list_size = GetBossListSize(mapSize, mapname, boss_list);
 	if (boss_list_size == 0) return nullptr;
 
-	auto eligible_bosses = std::vector<const boss_t*>();
+	// Vector para almacenar los jefes elegibles
+	std::vector<const boss_t*> eligible_bosses;
 	eligible_bosses.reserve(boss_list_size);
 
+	// Lambda para verificar si un jefe es elegible según el nivel de la ola
 	auto is_boss_eligible = [&](const boss_t& boss) -> bool {
 		return (waveNumber >= boss.min_level || boss.min_level == -1) &&
 			(waveNumber <= boss.max_level || boss.max_level == -1);
 		};
 
-	auto is_boss_recent = [&](const char* classname) {
+	// Lambda para verificar si un jefe ya ha sido recientemente seleccionado
+	auto is_boss_recent = [&](const char* classname) -> bool {
 		return std::find(recent_bosses.begin(), recent_bosses.end(), classname) != recent_bosses.end();
 		};
 
+	// Filtrar jefes elegibles que no están en la lista de jefes recientes
 	for (size_t i = 0; i < boss_list_size; ++i) {
-		if (is_boss_eligible(boss_list[i]) && !is_boss_recent(boss_list[i].classname)) {
-			eligible_bosses.push_back(&boss_list[i]);
+		const boss_t& boss = boss_list[i];
+		if (is_boss_eligible(boss) && !is_boss_recent(boss.classname)) {
+			eligible_bosses.push_back(&boss);
 		}
 	}
 
+	// Si no hay jefes elegibles, limpiar la lista de jefes recientes y volver a filtrar
 	if (eligible_bosses.empty()) {
-		// Reiniciar la lista de bosses recientes
 		recent_bosses.clear();
 		for (size_t i = 0; i < boss_list_size; ++i) {
-			if (is_boss_eligible(boss_list[i])) {
-				eligible_bosses.push_back(&boss_list[i]);
+			const boss_t& boss = boss_list[i];
+			if (is_boss_eligible(boss)) {
+				eligible_bosses.push_back(&boss);
 			}
 		}
 	}
 
-	if (!eligible_bosses.empty()) {
-		std::uniform_int_distribution<size_t> dist(0, eligible_bosses.size() - 1);
-		const boss_t* chosen_boss = eligible_bosses[dist(mt_rand)];
+	// Si aún no hay jefes elegibles, retornar nullptr
+	if (eligible_bosses.empty()) {
+		return nullptr;
+	}
 
-		// Registrar el jefe como reciente de manera segura
+	// Crear una instancia de WeightedSelection para los jefes
+	WeightedSelection<boss_t> selection;
+	selection.rebuild(eligible_bosses); // Reconstruir con los jefes elegibles
+
+	// Seleccionar un jefe basado en los pesos
+	const boss_t* chosen_boss = selection.select(mt_rand);
+
+	if (chosen_boss) {
+		// Agregar el jefe seleccionado a la lista de jefes recientes
 		AddRecentBoss(chosen_boss->classname);
 
-		// Asignar la categoría de tamaño directamente desde la estructura del jefe
+		// Asignar la categoría de tamaño al jefe
 		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
 
+		// Retornar el nombre de clase del jefe seleccionado
 		return chosen_boss->classname;
 	}
 
+	// Si no se seleccionó ningún jefe, retornar nullptr
 	return nullptr;
 }
-
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
 };
 
-gitem_t* G_HordePickItem() {
-	std::vector<picked_item_t> picked_items;
-	picked_items.reserve(std::size(items));
-	float total_weight = 0.0f;
-
+gitem_t* G_HordePickItem(std::mt19937& rng) {
+	std::vector<const weighted_item_t*> eligible_items;
 	for (const auto& item : items) {
 		if ((item.min_level != -1 && g_horde_local.level < item.min_level) ||
 			(item.max_level != -1 && g_horde_local.level > item.max_level)) {
 			continue;
 		}
-
 		float weight = item.weight;
 		if (item.adjust_weight) item.adjust_weight(item, weight);
 		if (weight <= 0.0f) continue;
-
-		total_weight += weight;
-		picked_items.emplace_back(picked_item_t{ &item, total_weight });
+		eligible_items.push_back(&item);
 	}
 
-	if (picked_items.empty()) return nullptr;
+	if (eligible_items.empty()) return nullptr;
 
-	float random_weight = frandom() * total_weight;
-	auto it = std::lower_bound(picked_items.begin(), picked_items.end(), random_weight,
-		[](const picked_item_t& item, float value) { return item.weight < value; });
+	WeightedSelection<weighted_item_t> selection;
+	selection.rebuild(eligible_items);
+	const weighted_item_t* chosen_item = selection.select(rng);
 
-	return (it != picked_items.end()) ? FindItemByClassname(it->item->classname) : nullptr;
+	return (chosen_item) ? FindItemByClassname(chosen_item->classname) : nullptr;
 }
+
 
 int32_t WAVE_TO_ALLOW_FLYING;
 
 // Keep the existing array
-constexpr std::array<const char*, 10> flying_monster_classnames = {
+const std::array<const char*, 10> flying_monster_classnames = {
 	"monster_boss2_64",
 	"monster_carrier_mini",
 	"monster_floater",
@@ -908,15 +933,25 @@ static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
 
 
 inline bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
-	return !(spawn_point->style == 1 && !isFlyingMonster) &&
-		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave)) &&
-		!(isFlyingMonster && currentWave < WAVE_TO_ALLOW_FLYING);
+	// Si el modo de monstruos voladores está activo, solo permitir monstruos voladores
+	if (flying_monsters_mode) {
+		return isFlyingMonster &&
+			!(spawn_point->style == 1 && !isFlyingMonster) &&
+			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
+	}
+	else {
+		return !(spawn_point->style == 1 && !isFlyingMonster) &&
+			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
+	}
 }
 
-// Función para calcular el peso del monstruo basado en si es volador
 inline double CalculateMonsterWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
-	return item.weight * (isFlyingMonster ? adjustmentFactor : 1.0f);
+	if (flying_monsters_mode && isFlyingMonster) {
+		return item.weight * 1.5; // Aumentar el peso para preferir monstruos voladores
+	}
+	return item.weight;
 }
+
 
 // Function to reset spawn point attempts and cooldown
 static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
@@ -1057,89 +1092,51 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 }
 #include <vector>
 
-static const char* G_HordePickMonster(edict_t* spawn_point) {
-	// Verificar si el punto de spawn está temporalmente deshabilitado
-	auto spawn_it = spawnPointsData.find(spawn_point);
-	if (spawn_it != spawnPointsData.end() && spawn_it->second.isTemporarilyDisabled) {
-		return nullptr; // El punto de spawn está deshabilitado
-	}
-
-	// Verificar si el punto de spawn está ocupado
-	if (IsSpawnPointOccupied(spawn_point)) {
+const char* G_HordePickMonster(edict_t* spawn_point, std::mt19937& rng) {
+	if (spawnPointsData[spawn_point].isTemporarilyDisabled || IsSpawnPointOccupied(spawn_point)) {
 		return nullptr;
 	}
 
-	// Verificar cooldown
-	auto cooldown_it = lastSpawnPointTime.find(spawn_point);
-	if (cooldown_it != lastSpawnPointTime.end() && level.time < cooldown_it->second + SPAWN_POINT_COOLDOWN) {
-		return nullptr; // Aún en cooldown
-	}
+	int32_t flyingSpawns = countFlyingSpawns();
+	float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-	// Ajustar probabilidad de spawn de monstruos voladores
-	const int32_t flyingSpawns = countFlyingSpawns();
-	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
-
-	// Vector estático para evitar asignaciones repetidas
-	static std::vector<const weighted_item_t*> eligible_monsters;
-	eligible_monsters.clear();
-	eligible_monsters.reserve(std::size(monsters));
-
-	double total_weight = 0.0;
-
-	// Precalcular condiciones basadas en el nivel y estado de monstruos voladores
-	const bool allowFlying = g_horde_local.level >= WAVE_TO_ALLOW_FLYING;
-	const bool isFlyingMode = flying_monsters_mode;
-
-	// Evaluar monstruos elegibles
+	std::vector<const weighted_item_t*> eligible_monsters;
 	for (const auto& item : monsters) {
-		const bool isFlyingMonster = IsFlyingMonster(item.classname);
-
-		// Simplificar lógica de elegibilidad
-		if ((isFlyingMode && !isFlyingMonster) ||
-			(spawn_point->style == 1 && !isFlyingMonster) ||
-			(!isFlyingMode && isFlyingMonster && spawn_point->style != 1 && flyingSpawns > 0) ||
-			(item.min_level > g_horde_local.level || (item.max_level != -1 && item.max_level < g_horde_local.level)) ||
-			(isFlyingMonster && !allowFlying)) {
-			continue;
-		}
-
-		// Verificar si el monstruo es elegible
+		bool isFlyingMonster = IsFlyingMonster(item.classname);
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-			const double weight = CalculateMonsterWeight(item, isFlyingMonster, adjustmentFactor); // Nombre corregido
-			if (weight > 0.0) {
-				total_weight += weight;
-				eligible_monsters.push_back(&item);
-			}
+			eligible_monsters.push_back(&item);
 		}
 	}
 
-	// Si no hay monstruos elegibles, incrementar intentos de spawn y retornar nullptr
 	if (eligible_monsters.empty()) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
-	// Seleccionar un monstruo basado en el peso aleatorio
-	float random_weight = frandom(0.0f, static_cast<float>(total_weight)); // Usar frandom
-	double cumulative_weight = 0.0;
-	const weighted_item_t* chosen_monster = nullptr;
+	WeightedSelection<weighted_item_t> selection;
+	selection.rebuild(eligible_monsters);
 
+	// Ajustar los pesos antes de seleccionar
+	std::vector<const weighted_item_t*> adjusted_monsters;
 	for (const auto& monster : eligible_monsters) {
-		cumulative_weight += monster->weight * (IsFlyingMonster(monster->classname) ? adjustmentFactor : 1.0f);
-		if (random_weight <= cumulative_weight) {
-			chosen_monster = monster;
-			break;
+		double adjusted_weight = CalculateMonsterWeight(*monster, IsFlyingMonster(monster->classname), adjustmentFactor);
+		if (adjusted_weight > 0.0) {
+			adjusted_monsters.push_back(monster);
 		}
 	}
+	selection.rebuild(adjusted_monsters);
+
+	const weighted_item_t* chosen_monster = selection.select(rng);
 
 	if (chosen_monster) {
-		// Actualizar cooldowns y reiniciar intentos del punto de spawn
 		UpdateCooldowns(spawn_point, chosen_monster->classname);
 		ResetSingleSpawnPointAttempts(spawn_point);
+		return chosen_monster->classname;
 	}
 
-	return chosen_monster ? chosen_monster->classname : nullptr;
+	return nullptr;
 }
+
 
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
@@ -1257,22 +1254,29 @@ static cached_soundindex sound_voice3;
 static cached_soundindex sound_v_fac3;
 
 // Función para precargar todos los ítems y jefes
-static void PrecacheItemsAndBosses() noexcept {
-	for (auto& item : itemlist) {
-		PrecacheItem(&item);
+void PrecacheItemsAndBosses() noexcept {
+	std::unordered_set<std::string> unique_classnames;
+	for (auto& item : items) {
+		unique_classnames.insert(item.classname);
+	}
+	for (auto& monster : monsters) {
+		unique_classnames.insert(monster.classname);
+	}
+	for (auto& boss : BOSS_SMALL) {
+		unique_classnames.insert(boss.classname);
+	}
+	for (auto& boss : BOSS_MEDIUM) {
+		unique_classnames.insert(boss.classname);
+	}
+	for (auto& boss : BOSS_LARGE) {
+		unique_classnames.insert(boss.classname);
 	}
 
-	// Precachar jefes de todas las categorías
-	for (size_t i = 0; i < BOSS_SMALL_SIZE; ++i) {
-		PrecacheItem(FindItemByClassname(BOSS_SMALL[i].classname));
-	}
-	for (size_t i = 0; i < BOSS_MEDIUM_SIZE; ++i) {
-		PrecacheItem(FindItemByClassname(BOSS_MEDIUM[i].classname));
-	}
-	for (size_t i = 0; i < BOSS_LARGE_SIZE; ++i) {
-		PrecacheItem(FindItemByClassname(BOSS_LARGE[i].classname));
+	for (const auto& classname : unique_classnames) {
+		PrecacheItem(FindItemByClassname(classname.c_str()));
 	}
 }
+
 
 static void PrecacheAllSounds() noexcept {
 	sound_tele3.assign("misc/r_tele3.wav");
@@ -1821,7 +1825,7 @@ void ResetGame() {
 	allowWaveAdvance = false;
 
 	// Reiniciar otras variables relevantes
-	WAVE_TO_ALLOW_FLYING = 0;
+	//WAVE_TO_ALLOW_FLYING = 0;
 	SPAWN_POINT_COOLDOWN = 3.9_sec;
 
 	cachedRemainingMonsters = 0;
@@ -2226,7 +2230,7 @@ static edict_t* SpawnMonsters() {
 	for (int32_t spawnCount = 0; spawnCount < actual_spawn_count && g_horde_local.num_to_spawn > 0 && spawnIndex < static_cast<int32_t>(available_spawns.size()); ++spawnCount, ++spawnIndex) {
 		edict_t* spawn_point = available_spawns[spawnIndex];
 
-		const char* monster_classname = G_HordePickMonster(spawn_point);
+		const char* monster_classname = G_HordePickMonster(spawn_point, mt_rand);
 		if (!monster_classname) {
 			continue; // Saltar si no se pudo seleccionar un monstruo válido
 		}
@@ -2263,7 +2267,7 @@ static edict_t* SpawnMonsters() {
 			(g_horde_local.level <= 7) ? 0.6f : 0.45f;
 		std::uniform_real_distribution<float> drop_dist(0.0f, 1.0f);
 		if (drop_dist(mt_rand) <= drop_probability) {
-			monster->item = G_HordePickItem();
+			monster->item = G_HordePickItem(mt_rand);
 		}
 
 		// Aplicar efectos de spawn grow

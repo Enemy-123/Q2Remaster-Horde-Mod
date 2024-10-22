@@ -9,8 +9,8 @@ void HandleResetEvent()  ;
 extern uint64_t last_wave_number;  // Tracks the last completed wave number, used for intermission
 
 // Item selection in Horde mode
-gitem_t* G_HordePickItem()  ;
-const char* G_HordePickMonster(edict_t* spawn_point)  ;
+gitem_t* G_HordePickItem(std::mt19937& rng)  ;
+const char* G_HordePickMonster(edict_t* spawn_point, std::mt19937& rng)  ;
 
 // Game mode checks
 bool G_IsDeathmatch() noexcept;
