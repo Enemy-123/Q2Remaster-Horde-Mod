@@ -2193,16 +2193,18 @@ static edict_t* SpawnMonsters() {
 	}
 
 	// Determinar cuántos monstruos spawnear en esta llamada
-	int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
+	const int32_t default_monsters_per_spawn = mapSize.isSmallMap ? 4 :
+		(mapSize.isBigMap ? 6 : 5);
+	const int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
 		std::min(g_horde_local.queued_monsters, static_cast<int32_t>(3)) :
-		std::min((mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5)), static_cast<int32_t>(6));
+		std::min(default_monsters_per_spawn, static_cast<int32_t>(6));
 
 	// Asegurar que no se spawnee más de lo permitido por el mapa
-	int32_t activeMonsters = CountActiveMonsters();
-	int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
-	int32_t spawnable = maxMonsters - activeMonsters;
-	int32_t actual_spawn_count = std::min(monsters_per_spawn, spawnable);
+	const int32_t activeMonsters = CountActiveMonsters();
+	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+	const int32_t spawnable = maxMonsters - activeMonsters;
+	const int32_t actual_spawn_count = std::min(monsters_per_spawn, spawnable);
 
 	if (actual_spawn_count <= 0) {
 		gi.Com_Print("PRINT: Maximum number of monsters reached. No more spawns.\n");
@@ -2214,10 +2216,14 @@ static edict_t* SpawnMonsters() {
 	// Mezclar aleatoriamente los puntos de spawn usando mt_rand
 	std::shuffle(available_spawns.begin(), available_spawns.end(), mt_rand);
 
-	for (int32_t spawnCount = 0, spawnIndex = 0; spawnCount < actual_spawn_count && spawnIndex < static_cast<int32_t>(available_spawns.size()); ++spawnCount, ++spawnIndex) {
+	int32_t spawnIndex = 0;
+	for (int32_t spawnCount = 0; spawnCount < actual_spawn_count && g_horde_local.num_to_spawn > 0 && spawnIndex < static_cast<int32_t>(available_spawns.size()); ++spawnCount, ++spawnIndex) {
 		edict_t* spawn_point = available_spawns[spawnIndex];
+
 		const char* monster_classname = G_HordePickMonster(spawn_point, mt_rand);
-		if (!monster_classname) continue;
+		if (!monster_classname) {
+			continue; // Saltar si no se pudo seleccionar un monstruo válido
+		}
 
 		// Spawnear el monstruo
 		edict_t* monster = G_Spawn();
@@ -2234,6 +2240,7 @@ static edict_t* SpawnMonsters() {
 		VectorCopy(spawn_point->s.angles, monster->s.angles);
 
 		ED_CallSpawn(monster);
+
 		if (!monster->inuse) {
 			gi.Com_PrintFmt("PRINT: ED_CallSpawn Warning: Monster spawn failed\n");
 			G_FreeEdict(monster);
@@ -2264,8 +2271,8 @@ static edict_t* SpawnMonsters() {
 
 	// Manejar monstruos en cola adicionales si aún hay capacidad para spawnear
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		int32_t additional_spawnable = maxMonsters - CountActiveMonsters();
-		int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
+		const int32_t additional_spawnable = maxMonsters - CountActiveMonsters();
+		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
 		g_horde_local.num_to_spawn += additional_to_spawn;
 		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters - additional_to_spawn, 0);
 		ClampNumToSpawn(mapSize); // Asegurar que num_to_spawn no exceda el límite permitido
