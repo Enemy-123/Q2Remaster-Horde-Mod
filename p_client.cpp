@@ -16,6 +16,8 @@ THINK(info_player_start_drop) (edict_t* self) -> void
 	gi.linkentity(self);
 }
 
+constexpr spawnflags_t SPAWNFLAG_SPAWN_RIDE = 1_spawnflag;
+
 /*QUAKED info_player_start (1 0 0) (-16 -16 -24) (16 16 32)
 The normal starting point for a level.
 */
@@ -27,11 +29,14 @@ void SP_info_player_start(edict_t* self)
 
 	// [Paril-KEX] on n64, since these can spawn riding elevators,
 	// allow them to "ride" the elevators so respawning works
-	if (level.is_n64)
+	if (level.is_n64 || level.is_psx || self->spawnflags.has(SPAWNFLAG_SPAWN_RIDE))
 	{
 		self->think = info_player_start_drop;
 		self->nextthink = level.time + FRAME_TIME_S;
 	}
+
+	if (level.is_psx)
+		self->s.origin[2] -= PLAYER_MINS[2] - (PLAYER_MINS[2] * PSX_PHYSICS_SCALAR);
 }
 
 /*QUAKED info_player_deathmatch (1 0 1) (-16 -16 -24) (16 16 32)
@@ -3360,7 +3365,11 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 
 	float delta = pm.impact_delta;
 
-	delta = delta * delta * 0.0001f;
+	if (level.is_psx)
+		delta = delta * delta * 0.000078f;
+	else
+		delta = delta * delta * 0.0001f;
+
 
 	if (pm.waterlevel == WATER_WAIST)
 		delta *= 0.25f;
@@ -3400,15 +3409,16 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 			ent->s.event = EV_FALL;
 
 		ent->pain_debounce_time = level.time + FRAME_TIME_S; // no normal pain sound
-		damage = (int)((delta - 30) / 2);
-		if (damage < 1)
-			damage = 1;
+		damage = std::max((int)((delta - 30) / 2), 1);
+
+		if (level.is_psx)
+			damage = std::min(4, damage);
+
 		dir = { 0, 0, 1 };
 
 		if (!G_IsDeathmatch() || !g_dm_no_fall_damage->integer)
 			T_Damage(ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING);
 	}
-	else
 		ent->s.event = EV_FALLSHORT;
 
 	// Paril: falling damage noises alert monsters
