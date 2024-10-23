@@ -34,7 +34,7 @@ cvar_t* g_horde;
 enum class horde_state_t {
 	warmup,
 	spawning,
-	active_wave, // Nuevo estado
+	active_wave, 
 	cleanup,
 	rest
 };
@@ -977,6 +977,8 @@ constexpr size_t MAX_SPAWN_POINTS_DATA = 30; // Define un límite razonable
 
 void CleanUpSpawnPointsData() {
 	const gtime_t currentTime = level.time;
+
+	// Remove spawn points that are temporarily disabled and past cooldown
 	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
 		if (it->second.isTemporarilyDisabled && currentTime > it->second.cooldownEndsAt + CLEANUP_THRESHOLD) {
 			gi.Com_PrintFmt("Removed spawn_point at address {} due to extended inactivity.\n", static_cast<void*>(it->first));
@@ -985,15 +987,15 @@ void CleanUpSpawnPointsData() {
 		else {
 			++it;
 		}
+	}
 
-		// Limitar el tamaño del contenedor
-		if (spawnPointsData.size() > MAX_SPAWN_POINTS_DATA) {
-			gi.Com_Print("WARNING: spawnPointsData exceeded maximum size. Clearing data.\n");
-			spawnPointsData.clear();
-			break;
-		}
+	// Limit the size of the container
+	if (spawnPointsData.size() > MAX_SPAWN_POINTS_DATA) {
+		gi.Com_Print("WARNING: spawnPointsData exceeded maximum size. Clearing data.\n");
+		spawnPointsData.clear();
 	}
 }
+
 
 // Function to update spawn point cooldowns and the last spawn times for the monster
 void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
@@ -1205,13 +1207,10 @@ void Horde_PreInit() {
 
 // Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
 inline int32_t GetNumHumanPlayers() {
-	int32_t numHumanPlayers = 0;
-	for (auto const* player : active_players()) {
-		if (player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT)) {
-			numHumanPlayers++;
-		}
-	}
-	return numHumanPlayers;
+	return std::count_if(active_players().begin(), active_players().end(),
+		[](const edict_t* player) {
+			return player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT);
+		});
 }
 
 void VerifyAndAdjustBots() {
@@ -1885,13 +1884,10 @@ constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
 
 // Función para contar los monstruos activos
 static int32_t CountActiveMonsters() {
-	int32_t count = 0;
-	for (auto const* ent : active_monsters()) {
-		if (!ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-			count++;
-		}
-	}
-	return count;
+	return std::count_if(active_monsters().begin(), active_monsters().end(),
+		[](const edict_t* ent) {
+			return !ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT);
+		});
 }
 
 inline int32_t CalculateRemainingMonsters() {
@@ -2065,23 +2061,13 @@ void MonsterDied(const edict_t* monster) {
 }
 
 inline int32_t GetNumActivePlayers() {
-	int32_t numActivePlayers = 0;
-	for (auto const* player : active_players()) {
-		if (player->client->resp.ctf_team == CTF_TEAM1) {
-			numActivePlayers++;
-		}
-	}
-	return numActivePlayers;
+	return std::count_if(active_players().begin(), active_players().end(),
+		[](const edict_t* player) { return player->client->resp.ctf_team == CTF_TEAM1; });
 }
 
 inline int32_t GetNumSpectPlayers() {
-	int32_t numSpectPlayers = 0;
-	for (auto const* player : active_players()) {
-		if (player->client->resp.ctf_team != CTF_TEAM1) {
-			numSpectPlayers++;
-		}
-	}
-	return numSpectPlayers;
+	return std::count_if(active_players().begin(), active_players().end(),
+		[](const edict_t* player) { return player->client->resp.ctf_team != CTF_TEAM1; });
 }
 
 static bool UseFarthestSpawn() noexcept {
