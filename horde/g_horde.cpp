@@ -170,6 +170,8 @@ std::unordered_set<std::string> obtained_benefits;
 // Actualizar ShuffleBenefits para usar el generador existente
 void ShuffleBenefits(std::mt19937& rng) {
 	shuffled_benefits.clear();
+	shuffled_benefits.reserve(benefits.size()); // Preasignar memoria para mejorar rendimiento
+
 	for (const auto& benefit : benefits) {
 		if (obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
 			shuffled_benefits.push_back(&benefit);
@@ -177,7 +179,7 @@ void ShuffleBenefits(std::mt19937& rng) {
 	}
 	std::shuffle(shuffled_benefits.begin(), shuffled_benefits.end(), rng);
 
-	// Asegurar orden específico si es necesario
+	// Asegurar que 'vampire' esté antes de 'vampire upgraded'
 	auto vampire_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(),
 		[](const weighted_benefit_t* b) { return std::strcmp(b->benefit_name, "vampire") == 0; });
 	auto upgraded_it = std::find_if(shuffled_benefits.begin(), shuffled_benefits.end(),
