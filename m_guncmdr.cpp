@@ -763,7 +763,6 @@ DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		else
 			M_SetAnimation(self, &guncmdr_move_pain5);
 	}
-
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		BossDeathHandler(self);
 
@@ -1179,7 +1178,6 @@ static void guncmdr_kick(edict_t* self)
 	}
 }
 
-
 mframe_t guncmdr_frames_attack_kick[] = {
 	{ ai_charge, -7.7f },
 	{ ai_charge, -4.9f },
@@ -1200,9 +1198,12 @@ constexpr float RANGE_GRENADE = 100.f;
 constexpr float RANGE_GRENADE_MORTAR = 525.f;
 
 // at this range, run towards the enemy
-constexpr float RANGE_CHAINGUN_RUN = 0.f;
+constexpr float RANGE_CHAINGUN_RUN = 400.f;
+
 #include <cassert>
+
 MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
+	// Asegúrate de que self y su enemigo estén correctamente inicializados
 	assert(self != nullptr);
 	assert(self->enemy != nullptr);
 
@@ -1213,27 +1214,36 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
 	vec3_t forward, right, aim;
 	AngleVectors(self->s.angles, forward, right, nullptr); // PGM
 
+	//// Depuración adicional
+	//std::cerr << "In guncmdr_attack, self: " << self << ", self->absmin: [" << self->absmin[0] << ", " << self->absmin[1] << ", " << self->absmin[2] << "]" << std::endl;
+	//std::cerr << "In guncmdr_attack, self->absmax: [" << self->absmax[0] << ", " << self->absmax[1] << ", " << self->absmax[2] << "]" << std::endl;
+	//std::cerr << "In guncmdr_attack, self->enemy: " << self->enemy << ", self->enemy->absmin: [" << self->enemy->absmin[0] << ", " << self->enemy->absmin[1] << ", " << self->enemy->absmin[2] << "]" << std::endl;
+	//std::cerr << "In guncmdr_attack, self->enemy->absmax: [" << self->enemy->absmax[0] << ", " << self->enemy->absmax[1] << ", " << self->enemy->absmax[2] << "]" << std::endl;
+
 	// always use chaingun on tesla
 	// kick close enemies
 	if (!self->bad_area && d < RANGE_MELEE && self->monsterinfo.melee_debounce_time < level.time) {
 		M_SetAnimation(self, &guncmdr_move_attack_kick);
 	}
-	else if ((d >= RANGE_GRENADE_MORTAR ||
-		fabs(self->absmin.z - self->enemy->absmax.z) > 64.f // enemy is far below or above us, always try mortar
-		) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1]) &&
-		M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
+	//else if (self->bad_area || ((d <= RANGE_GRENADE || brandom()) && M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_CHAINGUN_1]))) {
+	//	M_SetAnimation(self, &guncmdr_move_attack_chain);
+	//}
+	else if ((d >= RANGE_GRENADE_MORTAR || fabs(self->absmin.z - self->enemy->absmax.z) > 64.f) // enemy is far below or above us, always try mortar
+		&& M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1])
+		&& M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_MORTAR_1], forward, right),
 			aim = (self->enemy->s.origin - self->s.origin).normalized(), MORTAR_SPEED, 2.5f, true)) {
 		M_SetAnimation(self, &guncmdr_move_attack_mortar);
 		monster_duck_down(self);
 	}
-	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1]) && !(self->monsterinfo.aiflags & AI_STAND_GROUND) &&
-		M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
+	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1])
+		&& !(self->monsterinfo.aiflags & AI_STAND_GROUND)
+		&& M_CalculatePitchToFire(self, self->enemy->s.origin, M_ProjectFlashSource(self, monster_flash_offset[MZ2_GUNCMDR_GRENADE_FRONT_1], forward, right),
 			aim = (self->enemy->s.origin - self->s.origin).normalized(), GRENADE_SPEED, 2.5f, false)) {
 		M_SetAnimation(self, &guncmdr_move_attack_grenade_back);
 	}
-	else if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
-		M_SetAnimation(self, &guncmdr_move_attack_chain);
-	}
+	//else if (self->monsterinfo.aiflags & AI_STAND_GROUND) {
+	//	M_SetAnimation(self, &guncmdr_move_attack_chain);
+	//}
 }
 void guncmdr_fire_chain(edict_t* self)
 {
@@ -1242,7 +1252,6 @@ void guncmdr_fire_chain(edict_t* self)
 	else
 		M_SetAnimation(self, &guncmdr_move_fire_chain);
 }
-
 
 void guncmdr_refire_chain(edict_t* self) {
 	monster_done_dodge(self);
@@ -1267,8 +1276,8 @@ void guncmdr_refire_chain(edict_t* self) {
 			}
 		}
 	}
+	M_SetAnimation(self, &guncmdr_move_endfire_chain, false);
 }
-
 
 //===========
 // PGM
@@ -1379,13 +1388,13 @@ mframe_t guncmdr_frames_duck_attack[] = {
 	//{ ai_charge, 9.5f, GunnerCmdrGrenade },
 	//{ ai_charge, -1.5f, GunnerCmdrGrenade },
 
+	{ ai_charge, 0 },
+	{ ai_charge, 9.5f, GunnerCmdrCounter },
 	{ ai_charge, -1.5f },
 	{ ai_charge },
-	{ ai_charge },
-	{ ai_charge, 9.5f, GunnerCmdrCounter },
 	{ ai_charge, 0, monster_duck_up },
 	{ ai_charge },
-	{ ai_charge, 11.f, GunnerCmdrGrenade },
+	{ ai_charge, 11.f },
 	{ ai_charge, 2.0f },
 	{ ai_charge, 5.6f }
 };
@@ -1476,8 +1485,9 @@ void SP_monster_guncmdr(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
+
 	if (g_horde->integer) {
-		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
@@ -1523,7 +1533,6 @@ void SP_monster_guncmdr(edict_t* self)
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->gib_health = -999777;
 	}
-
 	self->pain = guncmdr_pain;
 	self->die = guncmdr_die;
 
@@ -1549,7 +1558,7 @@ void SP_monster_guncmdr(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 200;
+		self->monsterinfo.power_armor_power = 180;
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 
@@ -1560,7 +1569,6 @@ void SP_monster_guncmdr(edict_t* self)
 	self->monsterinfo.jump_height = 40;
 
 	walkmonster_start(self);
-
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -1573,15 +1581,15 @@ void SP_monster_guncmdrkl(edict_t* self)
 	self->health = 4500 + (1.08 * current_wave_level);
 
 
-		if (self->health < (self->max_health / 2))
-			self->s.skinnum |= 1;
-		else
-			self->s.skinnum &= ~1;
-	
+	if (self->health < (self->max_health / 2))
+		self->s.skinnum |= 1;
+	else
+		self->s.skinnum &= ~1;
+
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		self->mass *= 3.0f;
 		self->gib_health = -999777;
-	}	
+	}
 
 	self->s.renderfx = RF_TRANSLUCENT;
 	self->s.effects = EF_FLAG1;

@@ -1151,6 +1151,7 @@ constexpr float RANGE_CHAINGUN_RUN = 400.f;
 #include <cassert>
 #include <cmath>
 #include <iostream> // Para la depuración
+#include "shared.h"
 
 MONSTERINFO_ATTACK(guncmdr2_attack) (edict_t* self) -> void {
 	// Asegúrate de que self y su enemigo estén correctamente inicializados
@@ -1518,4 +1519,5 @@ void SP_monster_guncmdr2(edict_t* self)
 	self->monsterinfo.jump_height = 40;
 
 	walkmonster_start(self);
+	ApplyMonsterBonusFlags(self);
 }
