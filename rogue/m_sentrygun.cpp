@@ -952,7 +952,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 			return false;
 
 		self->monsterinfo.attack_state = AS_MISSILE;
-		self->monsterinfo.attack_finished = level.time + 1_sec;
+		self->monsterinfo.attack_finished = level.time + 1_ms;
 		return true;
 	}
 
