@@ -781,7 +781,7 @@ void GunnerCmdrFire(edict_t* self)
 	vec3_t					 aim;
 	monster_muzzleflash_id_t flash_number;
 
-	if (self && self->enemy || self && self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
+	if (!self && self->enemy || !self && !self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
 		return;								 // PGM
 
 	if (self->s.frame >= FRAME_c_attack401 && self->s.frame <= FRAME_c_attack505)
@@ -791,10 +791,10 @@ void GunnerCmdrFire(edict_t* self)
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-	PredictAim(self, self->enemy, start, 800, false, frandom() * 0.3f, &aim, nullptr);
+	PredictAim(self, self->enemy, start, 1200, false, frandom() * 0.3f, &aim, nullptr);
 	for (int i = 0; i < 3; i++)
 		aim[i] += crandom_open() * 0.025f;
-	monster_fire_flechette(self, start, aim, 4, 1200, flash_number);
+	monster_fire_flechette(self, start, aim, 8, 1200, flash_number);
 }
 
 mframe_t guncmdr_frames_attack_chain[] = {
@@ -1203,11 +1203,16 @@ constexpr float RANGE_CHAINGUN_RUN = 400.f;
 #include <cassert>
 
 MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
-	// Asegúrate de que self y su enemigo estén correctamente inicializados
-	assert(self != nullptr);
-	assert(self->enemy != nullptr);
-
+	//// Asegúrate de que self y su enemigo estén correctamente inicializados
+	//assert(self != nullptr);
+	//assert(self->enemy != nullptr);
 	monster_done_dodge(self);
+
+	if (!strcmp(self->enemy->classname, "tesla_mine") || !strcmp(self->enemy->classname, "monster_sentrygun"))
+	{
+		M_SetAnimation(self, &guncmdr_move_attack_chain);
+		return; // Salir para evitar cambios adicionales de animación
+	}
 
 	float d = range_to(self, self->enemy);
 
