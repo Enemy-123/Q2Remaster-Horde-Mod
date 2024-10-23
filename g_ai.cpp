@@ -1206,7 +1206,7 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
                 // Paril - *and* we have at least seen them once
                 if (!(tr.ent->svflags & SVF_MONSTER) && !visible(self, self->enemy) && self->monsterinfo.had_visibility)
                 {
-                    if (self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 8_sec))
+                    if (self->monsterinfo.blindfire && (self->monsterinfo.blind_fire_delay <= 20_sec))
                     {
                         if (level.time < self->monsterinfo.attack_finished)
                         {
@@ -1223,9 +1223,8 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
                         {
                             // make sure we're not going to shoot a monster
                             tr = gi.traceline(spot1, self->monsterinfo.blind_fire_target, self,
-                                CONTENTS_MONSTER
-                                | CONTENTS_PROJECTILECLIP // Paril: horde
-                            );
+                                CONTENTS_MONSTER);
+                          //  | CONTENTS_PROJECTILECLIP // Paril: horde
                             if (tr.allsolid || tr.startsolid || ((tr.fraction < 1.0f) && (tr.ent != self->enemy)))
                                 return false;
 
