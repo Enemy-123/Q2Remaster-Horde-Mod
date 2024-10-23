@@ -91,10 +91,10 @@ struct WeightedSelection {
 		std::uniform_real_distribution<double> dist(0.0, total_weight);
 		double random_weight = dist(rng);
 		auto it = std::upper_bound(cumulative_weights.begin(), cumulative_weights.end(), random_weight);
-		size_t index = std::distance(cumulative_weights.begin(), it);
-		// Asegurar que el índice esté dentro de los límites
-		if (index >= items.size()) index = items.size() - 1;
-		return items[index];
+		if (it == cumulative_weights.end()) {
+			return items.back();
+		}
+		return items[std::distance(cumulative_weights.begin(), it)];
 	}
 };
 
@@ -103,10 +103,9 @@ int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 int32_t vampire_level = 0;
 
-std::unordered_set<edict_t*> auto_spawned_bosses;
-std::unordered_map<std::string, gtime_t> lastMonsterSpawnTime;
-std::unordered_map<edict_t*, gtime_t> lastSpawnPointTime;
-
+auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
+auto lastMonsterSpawnTime = std::unordered_map<std::string, gtime_t>{};
+auto lastSpawnPointTime = std::unordered_map<edict_t*, gtime_t>{};
 struct SpawnPointData {
 	uint32_t attempts = 0;               // Number of failed spawn attempts
 	gtime_t cooldown = 0_sec;            // Cooldown time before retrying
@@ -271,16 +270,15 @@ void ApplyBenefit(const weighted_benefit_t* benefit) {
 
 // Verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(const int32_t wave) {
-	if (wave % 4 == 0) {
-		if (shuffled_benefits.empty()) {
-			ShuffleBenefits(mt_rand);
-		}
+	if (wave % 4 != 0) return;
 
-		WeightedSelection<weighted_benefit_t> selection; // Usar la clase genérica
-		const auto benefit = SelectRandomBenefit(wave, selection, mt_rand);
-		if (benefit) {
-			ApplyBenefit(benefit);
-		}
+	if (shuffled_benefits.empty()) {
+		ShuffleBenefits(mt_rand);
+	}
+
+	WeightedSelection<weighted_benefit_t> selection;
+	if (const auto benefit = SelectRandomBenefit(wave, selection, mt_rand)) {
+		ApplyBenefit(benefit);
 	}
 }
 
@@ -388,22 +386,23 @@ static bool g_lowPercentageTriggered = false;
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
-	auto ConfigureMapParams = [&params, &mapSize, numHumanPlayers]() {
+	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
 			params.maxMonsters = 26;
 			params.timeThreshold = random_time(22_sec, 30_sec);
 		}
 		else if (mapSize.isSmallMap) {
-			params.maxMonsters = numHumanPlayers >= 3 ? 11 : 9;
+			params.maxMonsters = (numHumanPlayers >= 3) ? 11 : 9;
 			params.timeThreshold = random_time(18_sec, 20_sec);
 		}
 		else {
-			params.maxMonsters = numHumanPlayers >= 3 ? 17 : 15;
+			params.maxMonsters = (numHumanPlayers >= 3) ? 17 : 15;
 			params.timeThreshold = random_time(18_sec, 25_sec);
 		}
 		};
 
-	ConfigureMapParams();
+	configureMapParams(params);
+
 
 	// Ajuste progresivo basado en el nivel
 	params.maxMonsters += std::min(lvl / 5, 10);
@@ -708,9 +707,9 @@ constexpr boss_t BOSS_LARGE[] = {
 
 
 // Definir constantes de tamaño para cada arreglo de jefes
-const size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
-const size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
-const size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
+constexpr size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
+constexpr size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
+constexpr size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
 
 static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
@@ -795,11 +794,10 @@ static void AddRecentBoss(const char* classname) {
 
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
 	// Obtener la lista de jefes para el mapa actual
-	const boss_t* boss_list = GetBossList(mapSize, mapname);
+	auto boss_list = GetBossList(mapSize, mapname);
 	if (!boss_list) return nullptr;
 
-	// Obtener el tamaño de la lista de jefes
-	const size_t boss_list_size = GetBossListSize(mapSize, mapname, boss_list);
+	auto boss_list_size = GetBossListSize(mapSize, mapname, boss_list);
 	if (boss_list_size == 0) return nullptr;
 
 	// Vector para almacenar los jefes elegibles
@@ -929,7 +927,7 @@ static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
 }
 
 
-static bool IsFlyingMonster(const char* classname) {
+bool IsFlyingMonster(const std::string& classname) {
 	return flying_monsters_set.find(classname) != flying_monsters_set.end();
 }
 
@@ -1299,9 +1297,8 @@ static void PrecacheAllMonsters() noexcept {
 		G_FreeEdict(e);
 	}
 }
-
 // Array de sonidos constante
-constexpr std::array<const char*, 6> WAVE_SOUNDS = {
+constexpr std::array<std::string_view, 6> WAVE_SOUNDS = {
 	"nav_editor/action_fail.wav",
 	"makron/roar1.wav",
 	"zortemp/ack.wav",
@@ -1313,7 +1310,7 @@ constexpr std::array<const char*, 6> WAVE_SOUNDS = {
 // Función para precarga de sonidos
 static void PrecacheWaveSounds() noexcept {
 	for (const auto& sound : WAVE_SOUNDS) {
-		gi.soundindex(sound);
+		gi.soundindex(sound.data());
 	}
 }
 
@@ -1399,7 +1396,7 @@ void BossDeathHandler(edict_t* boss) {
 
 	// Soltar los demás ítems
 	std::vector<const char*> shuffledItems(itemsToDrop.begin(), itemsToDrop.end());
-	std::shuffle(shuffledItems.begin(), shuffledItems.end(), std::mt19937(std::random_device()()));
+	std::shuffle(shuffledItems.begin(), shuffledItems.end(), mt_rand);
 
 	for (const auto& itemClassname : shuffledItems) {
 		edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
@@ -2121,15 +2118,19 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 
 // Funci�n para manejar el mensaje de limpieza de ola
 static void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
-	if (current_wave_level >= 15 && current_wave_level <= 26) {
+	bool isStandardWave = (current_wave_level >= 15 && current_wave_level <= 26);
+	bool isAdvancedWave = (current_wave_level >= 27);
+	bool isInitialWave = (current_wave_level <= 14);
+
+	if (isStandardWave) {
 		gi.cvar_set("g_insane", "1");
 		gi.cvar_set("g_chaotic", "0");
 	}
-	else if (current_wave_level >= 27) {
+	else if (isAdvancedWave) {
 		gi.cvar_set("g_insane", "2");
 		gi.cvar_set("g_chaotic", "0");
 	}
-	else if (current_wave_level <= 14) {
+	else if (isInitialWave) {
 		gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 	}
 
@@ -2139,8 +2140,9 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
 // Función para obtener un sonido aleatorio
 static const char* GetRandomWaveSound() {
 	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
-	return WAVE_SOUNDS[dist(mt_rand)];
+	return WAVE_SOUNDS[dist(mt_rand)].data(); // Usar .data() para obtener const char*
 }
+
 
 static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 	const char* message;
