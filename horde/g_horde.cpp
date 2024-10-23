@@ -1255,28 +1255,17 @@ static cached_soundindex sound_v_fac3;
 
 // Función para precargar todos los ítems y jefes
 void PrecacheItemsAndBosses() noexcept {
-	std::unordered_set<std::string> unique_classnames;
-	for (auto& item : items) {
-		unique_classnames.insert(item.classname);
-	}
-	for (auto& monster : monsters) {
-		unique_classnames.insert(monster.classname);
-	}
-	for (auto& boss : BOSS_SMALL) {
-		unique_classnames.insert(boss.classname);
-	}
-	for (auto& boss : BOSS_MEDIUM) {
-		unique_classnames.insert(boss.classname);
-	}
-	for (auto& boss : BOSS_LARGE) {
-		unique_classnames.insert(boss.classname);
-	}
+	std::unordered_set<std::string_view> unique_classnames;
+	for (const auto& item : items) unique_classnames.emplace(item.classname);
+	for (const auto& monster : monsters) unique_classnames.emplace(monster.classname);
+	for (const auto& boss : BOSS_SMALL) unique_classnames.emplace(boss.classname);
+	for (const auto& boss : BOSS_MEDIUM) unique_classnames.emplace(boss.classname);
+	for (const auto& boss : BOSS_LARGE) unique_classnames.emplace(boss.classname);
 
 	for (const auto& classname : unique_classnames) {
-		PrecacheItem(FindItemByClassname(classname.c_str()));
+		PrecacheItem(FindItemByClassname(classname.data()));
 	}
 }
-
 
 static void PrecacheAllSounds() noexcept {
 	sound_tele3.assign("misc/r_tele3.wav");
@@ -1390,8 +1379,10 @@ void BossDeathHandler(edict_t* boss) {
 		"item_invulnerability"
 	};
 
-	// Soltar ítem especial (quad o quadfire)
-	const char* specialItemName = (rand() % 2 == 0) ? "item_quad" : "item_quadfire";
+	// Soltar ítem especial (quad o quadfire) usando brandom()
+	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
+
+
 	edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName));
 
 	const vec3_t specialVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, 300, 400);
