@@ -1007,15 +1007,16 @@ MONSTERINFO_CHECKATTACK(Widow2_CheckAttack) (edict_t* self) -> bool
 
 	WidowPowerups(self);
 
-	if ((frandom() < 0.8f) && (M_SlotsLeft(self) >= 2) && (realrange(self, self->enemy) > 150))
+	if ((frandom() < 0.8f) /*&& (M_SlotsLeft(self) >= 2)*/ && (realrange(self, self->enemy) > 150))
 	{
-		//self->monsterinfo.aiflags |= AI_BLOCKED;
+	//	self->monsterinfo.aiflags |= AI_BLOCKED;
 		self->monsterinfo.attack_state = AS_MISSILE;
 		return true;
 	}
 
 	return M_CheckAttack_Base(self, 0.4f, 0.8f, 0.8f, 0.5f, 0.f, 0.f);
 }
+
 
 void Widow2Precache()
 {

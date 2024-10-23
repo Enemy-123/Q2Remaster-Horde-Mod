@@ -53,7 +53,7 @@ void widow_reattack_blaster(edict_t* self);
 void widow_start_spawn(edict_t* self);
 void widow_done_spawn(edict_t* self);
 void widow_spawn_check(edict_t* self);
-void widow_prep_spawn(edict_t* self);
+//void widow_prep_spawn(edict_t* self);
 void widow_attack_rail(edict_t* self);
 
 void widow_start_run_5(edict_t* self);
@@ -1241,9 +1241,9 @@ MONSTERINFO_CHECKATTACK(Widow_CheckAttack) (edict_t* self) -> bool
 
 	// give a LARGE bias to spawning things when we have room
 	// use AI_BLOCKED as a signal to attack to spawn
-	if ((frandom() < 0.8f) && (M_SlotsLeft(self) >= 2) && (realrange(self, self->enemy) > 150))
+	if ((frandom() < 0.8f) /*&& (M_SlotsLeft(self) >= 2)*/ && (realrange(self, self->enemy) > 150))
 	{
-		//self->monsterinfo.aiflags |= AI_BLOCKED;
+	// //	self->monsterinfo.aiflags |= AI_BLOCKED;
 		self->monsterinfo.attack_state = AS_MISSILE;
 		return true;
 	}
