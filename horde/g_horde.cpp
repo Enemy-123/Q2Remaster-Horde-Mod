@@ -191,16 +191,20 @@ void ShuffleBenefits(std::mt19937& rng) {
 
 // Actualizar otras funciones que usan generación aleatoria para reutilizar el generador global
 const weighted_benefit_t* SelectRandomBenefit(int32_t wave, WeightedSelection<weighted_benefit_t>& selection, std::mt19937& rng) {
-	std::vector<const weighted_benefit_t*> eligible_benefits;
+	static std::vector<const weighted_benefit_t*> eligible_benefits; // Vector estático para reutilización
+	eligible_benefits.clear();
+
 	for (const auto& benefit : benefits) {
 		if (wave >= benefit.min_level && (benefit.max_level == -1 || wave <= benefit.max_level) &&
 			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
-			eligible_benefits.push_back(&benefit);
+			eligible_benefits.emplace_back(&benefit);
 		}
 	}
+
 	selection.rebuild(eligible_benefits);
 	return selection.select(rng);
 }
+
 
 // Aplicar el beneficio específico
 void ApplyBenefit(const weighted_benefit_t* benefit) {
@@ -445,8 +449,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 constexpr std::array<float, 4> WARNING_TIMES = { 30.0f, 20.0f, 10.0f, 5.0f };
 
 static void Horde_InitLevel(const int32_t lvl) {
-	// Cachear el tamaño del mapa y parámetros necesarios
-	const auto mapSize = GetMapSize(level.mapname);
+	const MapSize& mapSize = GetMapSize(level.mapname);
 
 	// Configuración de variables iniciales para el nivel
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
@@ -458,7 +461,6 @@ static void Horde_InitLevel(const int32_t lvl) {
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 
-	// Verificar y ajustar bots, y otras configuraciones de la oleada
 	VerifyAndAdjustBots();
 
 	// Configurar tiempos iniciales
@@ -468,22 +470,28 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.lastPrintTime = 0_sec;
 
-	// Obtener parámetros de condiciones
 	g_lastParams = GetConditionParams(mapSize, GetNumHumanPlayers(), lvl);
 
 	// Ajustar la escala de daño según el nivel
 	switch (lvl) {
-	case 15:	gi.cvar_set("g_damage_scale", "2.35");	break;
-	case 25:	gi.cvar_set("g_damage_scale", "3.25");	break;
-	case 35:	gi.cvar_set("g_damage_scale", "3.5");	break;
-	case 45:	gi.cvar_set("g_damage_scale", "4");	break;
-	default:	break;
+	case 15:
+		gi.cvar_set("g_damage_scale", "2.35");
+		break;
+	case 25:
+		gi.cvar_set("g_damage_scale", "3.25");
+		break;
+	case 35:
+		gi.cvar_set("g_damage_scale", "3.5");
+		break;
+	case 45:
+		gi.cvar_set("g_damage_scale", "4");
+		break;
+	default:
+		break;
 	}
 
-	// Determinar y ajustar el número de monstruos a spawnear con la nueva función unificada
 	UnifiedAdjustSpawnRate(mapSize, lvl, GetNumHumanPlayers());
 
-	// Verificar y aplicar beneficios, y otras configuraciones iniciales
 	CheckAndApplyBenefit(lvl);
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
@@ -704,7 +712,6 @@ const size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
 const size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
 const size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
 
-// Actualizar GetBossList para devolver el arreglo correcto
 static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
 		return BOSS_SMALL;
@@ -714,10 +721,10 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 		if (mapname == "mgu6m3" || mapname == "rboss") {
 			static std::vector<boss_t> filteredMediumBossList;
 			if (filteredMediumBossList.empty()) {
-				for (size_t i = 0; i < BOSS_MEDIUM_SIZE; ++i) {
-					if (std::strcmp(BOSS_MEDIUM[i].classname, "monster_guardian") != 0 &&
-						std::strcmp(BOSS_MEDIUM[i].classname, "monster_psxguardian") != 0) {
-						filteredMediumBossList.push_back(BOSS_MEDIUM[i]);
+				for (const auto& boss : BOSS_MEDIUM) {
+					if (std::strcmp(boss.classname, "monster_guardian") != 0 &&
+						std::strcmp(boss.classname, "monster_psxguardian") != 0) {
+						filteredMediumBossList.emplace_back(boss);
 					}
 				}
 			}
@@ -730,9 +737,9 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 		if (mapname == "test/spbox" || mapname == "q2ctf4") {
 			static std::vector<boss_t> filteredLargeBossList;
 			if (filteredLargeBossList.empty()) {
-				for (size_t i = 0; i < BOSS_LARGE_SIZE; ++i) {
-					if (std::strcmp(BOSS_LARGE[i].classname, "monster_boss5") != 0) {
-						filteredLargeBossList.push_back(BOSS_LARGE[i]);
+				for (const auto& boss : BOSS_LARGE) {
+					if (std::strcmp(boss.classname, "monster_boss5") != 0) {
+						filteredLargeBossList.emplace_back(boss);
 					}
 				}
 			}
@@ -744,53 +751,44 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 	return nullptr;
 }
 
-// Actualizar GetBossListSize para usar los tamaños conocidos
 static size_t GetBossListSize(const MapSize& mapSize, const std::string& mapname, const boss_t* boss_list) {
 	if (boss_list == BOSS_SMALL) return BOSS_SMALL_SIZE;
 	if (boss_list == BOSS_MEDIUM) return BOSS_MEDIUM_SIZE;
 	if (boss_list == BOSS_LARGE) return BOSS_LARGE_SIZE;
 
-	// Para listas filtradas
-	if ((mapname == "mgu6m3" || mapname == "rboss") && boss_list != nullptr) {
-		// Determinar el tamaño de la lista filtrada de medium
+	if ((mapname == "mgu6m3" || mapname == "rboss") && boss_list) {
 		size_t size = 0;
-		for (size_t i = 0; i < BOSS_MEDIUM_SIZE; ++i) {
-			if (std::strcmp(BOSS_MEDIUM[i].classname, "monster_guardian") != 0 &&
-				std::strcmp(BOSS_MEDIUM[i].classname, "monster_psxguardian") != 0) {
+		for (const auto& boss : BOSS_MEDIUM) {
+			if (std::strcmp(boss.classname, "monster_guardian") != 0 &&
+				std::strcmp(boss.classname, "monster_psxguardian") != 0) {
 				size++;
 			}
 		}
 		return size;
 	}
 
-	if ((mapname == "test/spbox" || mapname == "q2ctf4") && boss_list != nullptr) {
-		// Determinar el tamaño de la lista filtrada de large
+	if ((mapname == "test/spbox" || mapname == "q2ctf4") && boss_list) {
 		size_t size = 0;
-		for (size_t i = 0; i < BOSS_LARGE_SIZE; ++i) {
-			if (std::strcmp(BOSS_LARGE[i].classname, "monster_boss5") != 0) {
+		for (const auto& boss : BOSS_LARGE) {
+			if (std::strcmp(boss.classname, "monster_boss5") != 0) {
 				size++;
 			}
 		}
 		return size;
 	}
-
-	// Para listas estándar
-	if (boss_list == BOSS_SMALL || mapSize.isSmallMap) return BOSS_SMALL_SIZE;
-	if (boss_list == BOSS_MEDIUM || mapSize.isMediumMap) return BOSS_MEDIUM_SIZE;
-	if (boss_list == BOSS_LARGE || mapSize.isBigMap) return BOSS_LARGE_SIZE;
 
 	return 0;
 }
 
-const int32_t MAX_RECENT_BOSSES = 3;
+constexpr int32_t MAX_RECENT_BOSSES = 3;
 std::deque<const char*> recent_bosses;
 
 // Función para agregar un jefe reciente de manera segura
 static void AddRecentBoss(const char* classname) {
 	if (classname == nullptr) return;
 
-	recent_bosses.push_back(classname);
-	while (recent_bosses.size() > MAX_RECENT_BOSSES) {
+	recent_bosses.emplace_back(classname);
+	if (recent_bosses.size() > MAX_RECENT_BOSSES) {
 		recent_bosses.pop_front();
 	}
 }
@@ -819,11 +817,11 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 		return std::find(recent_bosses.begin(), recent_bosses.end(), classname) != recent_bosses.end();
 		};
 
-	// Filtrar jefes elegibles que no están en la lista de jefes recientes
+	// Populate eligible_bosses
 	for (size_t i = 0; i < boss_list_size; ++i) {
 		const boss_t& boss = boss_list[i];
 		if (is_boss_eligible(boss) && !is_boss_recent(boss.classname)) {
-			eligible_bosses.push_back(&boss);
+			eligible_bosses.emplace_back(&boss);
 		}
 	}
 
@@ -864,6 +862,7 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 	// Si no se seleccionó ningún jefe, retornar nullptr
 	return nullptr;
 }
+
 struct picked_item_t {
 	const weighted_item_t* item;
 	float weight;
@@ -894,8 +893,9 @@ gitem_t* G_HordePickItem(std::mt19937& rng) {
 
 int32_t WAVE_TO_ALLOW_FLYING;
 
+
 // Keep the existing array
-const std::array<const char*, 10> flying_monster_classnames = {
+static const std::array<const char*, 10> flying_monster_classnames = {
 	"monster_boss2_64",
 	"monster_carrier_mini",
 	"monster_floater",
@@ -908,9 +908,10 @@ const std::array<const char*, 10> flying_monster_classnames = {
 	"monster_daedalus_bomber"
 };
 
-// Create a static set for faster lookup
+// Variables que no cambian después de la inicialización
 static const std::unordered_set<std::string> flying_monsters_set(
 	flying_monster_classnames.begin(), flying_monster_classnames.end());
+
 
 static int32_t countFlyingSpawns() noexcept {
 	int32_t count = 0;
@@ -923,17 +924,16 @@ static int32_t countFlyingSpawns() noexcept {
 	return count;
 }
 
-inline bool IsFlyingMonster(const char* classname) {
-	return flying_monsters_set.find(classname) != flying_monsters_set.end();
-}
-
 static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
 	return (flyingSpawns > 0) ? 0.25f : 1.0f;
 }
 
 
+static bool IsFlyingMonster(const char* classname) {
+	return flying_monsters_set.find(classname) != flying_monsters_set.end();
+}
+
 inline bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
-	// Si el modo de monstruos voladores está activo, solo permitir monstruos voladores
 	if (flying_monsters_mode) {
 		return isFlyingMonster &&
 			!(spawn_point->style == 1 && !isFlyingMonster) &&
@@ -980,11 +980,9 @@ constexpr size_t MAX_SPAWN_POINTS_DATA = 30; // Define un límite razonable
 void CleanUpSpawnPointsData() {
 	const gtime_t currentTime = level.time;
 	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
-		const auto& [spawn_point, spawn_data] = *it;
-
-		if (spawn_data.isTemporarilyDisabled && currentTime > spawn_data.cooldownEndsAt + CLEANUP_THRESHOLD) {
+		if (it->second.isTemporarilyDisabled && currentTime > it->second.cooldownEndsAt + CLEANUP_THRESHOLD) {
+			gi.Com_PrintFmt("Removed spawn_point at address {} due to extended inactivity.\n", static_cast<void*>(it->first));
 			it = spawnPointsData.erase(it);
-			gi.Com_PrintFmt("Removed spawn_point at address {} due to extended inactivity.\n", (void*)spawn_point);
 		}
 		else {
 			++it;
@@ -1256,6 +1254,10 @@ static cached_soundindex sound_v_fac3;
 // Función para precargar todos los ítems y jefes
 void PrecacheItemsAndBosses() noexcept {
 	std::unordered_set<std::string_view> unique_classnames;
+	unique_classnames.reserve(sizeof(items) / sizeof(items[0]) + sizeof(monsters) / sizeof(monsters[0]) +
+		sizeof(BOSS_SMALL) / sizeof(BOSS_SMALL[0]) + sizeof(BOSS_MEDIUM) / sizeof(BOSS_MEDIUM[0]) +
+		sizeof(BOSS_LARGE) / sizeof(BOSS_LARGE[0]));
+
 	for (const auto& item : items) unique_classnames.emplace(item.classname);
 	for (const auto& monster : monsters) unique_classnames.emplace(monster.classname);
 	for (const auto& boss : BOSS_SMALL) unique_classnames.emplace(boss.classname);
@@ -1266,6 +1268,7 @@ void PrecacheItemsAndBosses() noexcept {
 		PrecacheItem(FindItemByClassname(classname.data()));
 	}
 }
+
 
 static void PrecacheAllSounds() noexcept {
 	sound_tele3.assign("misc/r_tele3.wav");
@@ -1443,15 +1446,12 @@ static bool Horde_AllMonstersDead() {
 		if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && ent->health <= 0) {
 			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				boss_die(ent);
-				// No es necesario llamar a OnEntityRemoved aquí, ya que BossDeathHandler ya lo hace
 			}
 		}
 	}
-	// Añadir un mensaje de depuración para confirmar que todos los monstruos están muertos
 	gi.Com_Print("DEBUG: All monsters are dead.\n");
 	return true;
 }
-
 
 static void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
@@ -1905,9 +1905,10 @@ inline int32_t CalculateRemainingMonsters() {
 #include <algorithm>
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	const gtime_t currentTime = level.time;
+	const bool allMonstersDead = Horde_AllMonstersDead();
 
 	// Verificar si todos los monstruos han sido derrotados
-	if (Horde_AllMonstersDead()) {
+	if (allMonstersDead) {
 		reason = WaveEndReason::AllMonstersDead;
 		return true;
 	}
@@ -1925,18 +1926,14 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		return true;
 	}
 
-	// Si aún hay monstruos por spawnear o no hay monstruos en total, no hacer nada
-	if (g_horde_local.num_to_spawn > 0 || g_totalMonstersInWave == 0) {
-		return false;
-	}
-
+	// Obtener número de monstruos restantes una sola vez
 	int32_t remainingMonsters = CalculateRemainingMonsters();
+	float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
+
 	bool shouldAdvance = false;
 
 	// Determinar si alguna condición se ha cumplido
 	if (!g_horde_local.conditionTriggered) {
-		float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
-
 		if (remainingMonsters <= g_lastParams.maxMonsters || percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
@@ -2176,12 +2173,12 @@ static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 static edict_t* SpawnMonsters() {
-	const auto mapSize = GetMapSize(level.mapname);
+	const MapSize& mapSize = GetMapSize(level.mapname);
 	std::vector<edict_t*> available_spawns;
+	available_spawns.reserve(MAX_EDICTS);
 
 	// Recolectar todos los puntos de spawn disponibles que no son jefes
-	available_spawns.reserve(MAX_EDICTS);
-	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts; edictIndex++) {
+	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts; ++edictIndex) {
 		edict_t* e = &g_edicts[edictIndex];
 		if (e->inuse && e->classname && std::strcmp(e->classname, "info_player_deathmatch") == 0 && !e->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 			available_spawns.emplace_back(e);
@@ -2194,18 +2191,16 @@ static edict_t* SpawnMonsters() {
 	}
 
 	// Determinar cuántos monstruos spawnear en esta llamada
-	const int32_t default_monsters_per_spawn = mapSize.isSmallMap ? 4 :
-		(mapSize.isBigMap ? 6 : 5);
-	const int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
+	int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
 		std::min(g_horde_local.queued_monsters, static_cast<int32_t>(3)) :
-		std::min(default_monsters_per_spawn, static_cast<int32_t>(6));
+		std::min((mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5)), static_cast<int32_t>(6));
 
 	// Asegurar que no se spawnee más de lo permitido por el mapa
-	const int32_t activeMonsters = CountActiveMonsters();
-	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
-	const int32_t spawnable = maxMonsters - activeMonsters;
-	const int32_t actual_spawn_count = std::min(monsters_per_spawn, spawnable);
+	int32_t activeMonsters = CountActiveMonsters();
+	int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
+	int32_t spawnable = maxMonsters - activeMonsters;
+	int32_t actual_spawn_count = std::min(monsters_per_spawn, spawnable);
 
 	if (actual_spawn_count <= 0) {
 		gi.Com_Print("PRINT: Maximum number of monsters reached. No more spawns.\n");
@@ -2217,14 +2212,10 @@ static edict_t* SpawnMonsters() {
 	// Mezclar aleatoriamente los puntos de spawn usando mt_rand
 	std::shuffle(available_spawns.begin(), available_spawns.end(), mt_rand);
 
-	int32_t spawnIndex = 0;
-	for (int32_t spawnCount = 0; spawnCount < actual_spawn_count && g_horde_local.num_to_spawn > 0 && spawnIndex < static_cast<int32_t>(available_spawns.size()); ++spawnCount, ++spawnIndex) {
+	for (int32_t spawnCount = 0, spawnIndex = 0; spawnCount < actual_spawn_count && spawnIndex < static_cast<int32_t>(available_spawns.size()); ++spawnCount, ++spawnIndex) {
 		edict_t* spawn_point = available_spawns[spawnIndex];
-
 		const char* monster_classname = G_HordePickMonster(spawn_point, mt_rand);
-		if (!monster_classname) {
-			continue; // Saltar si no se pudo seleccionar un monstruo válido
-		}
+		if (!monster_classname) continue;
 
 		// Spawnear el monstruo
 		edict_t* monster = G_Spawn();
@@ -2241,7 +2232,6 @@ static edict_t* SpawnMonsters() {
 		VectorCopy(spawn_point->s.angles, monster->s.angles);
 
 		ED_CallSpawn(monster);
-
 		if (!monster->inuse) {
 			gi.Com_PrintFmt("PRINT: ED_CallSpawn Warning: Monster spawn failed\n");
 			G_FreeEdict(monster);
@@ -2254,10 +2244,9 @@ static edict_t* SpawnMonsters() {
 		}
 
 		// Determinar si el monstruo soltará un ítem
-		const float drop_probability = (g_horde_local.level <= 2) ? 0.8f :
+		float drop_probability = (g_horde_local.level <= 2) ? 0.8f :
 			(g_horde_local.level <= 7) ? 0.6f : 0.45f;
-		std::uniform_real_distribution<float> drop_dist(0.0f, 1.0f);
-		if (drop_dist(mt_rand) <= drop_probability) {
+		if (std::uniform_real_distribution<float>(0.0f, 1.0f)(mt_rand) <= drop_probability) {
 			monster->item = G_HordePickItem(mt_rand);
 		}
 
@@ -2273,8 +2262,8 @@ static edict_t* SpawnMonsters() {
 
 	// Manejar monstruos en cola adicionales si aún hay capacidad para spawnear
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		const int32_t additional_spawnable = maxMonsters - CountActiveMonsters();
-		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
+		int32_t additional_spawnable = maxMonsters - CountActiveMonsters();
+		int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
 		g_horde_local.num_to_spawn += additional_to_spawn;
 		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters - additional_to_spawn, 0);
 		ClampNumToSpawn(mapSize); // Asegurar que num_to_spawn no exceda el límite permitido
@@ -2362,8 +2351,8 @@ static void CheckAndResetDisabledSpawnPoints() {
 }
 
 void Horde_RunFrame() {
-	const auto mapSize = GetMapSize(level.mapname);
-
+	const MapSize& mapSize = GetMapSize(level.mapname);
+	const int32_t currentLevel = g_horde_local.level;
 	CheckAndResetDisabledSpawnPoints();
 
 	// Si se establece un número personalizado de monstruos, sobrescribir el conteo
@@ -2384,14 +2373,11 @@ void Horde_RunFrame() {
 
 	// Calcular monstruos activos y máximo permitido
 	const int32_t activeMonsters = CountActiveMonsters();
-	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+	const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
 	// Limpieza de entidades inválidas si es necesario
 	CleanupInvalidEntities();
-
-	// Cachear el nivel actual para evitar accesos repetidos
-	const int32_t currentLevel = g_horde_local.level;
 
 	switch (g_horde_local.state) {
 	case horde_state_t::warmup:
@@ -2438,7 +2424,6 @@ void Horde_RunFrame() {
 
 	case horde_state_t::active_wave: {
 		WaveEndReason reason;
-
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
 			SendCleanupMessage(reason);
@@ -2473,8 +2458,7 @@ void Horde_RunFrame() {
 
 	case horde_state_t::cleanup: {
 		WaveEndReason reason;
-
-		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
+		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", currentLevel);
