@@ -210,11 +210,11 @@ const weighted_benefit_t* SelectRandomBenefit(int32_t wave, WeightedSelection<we
 void ApplyBenefit(const weighted_benefit_t* benefit) {
 	if (!benefit) return;
 
-	static const std::unordered_map<std::string, std::pair<const char*, const char*>> benefitMessages = {
+	static const std::unordered_map<std::string_view, std::pair<std::string_view, std::string_view>> benefitMessages = {
 		{"start armor", {"\n\n\nSTARTING ARMOR\nENABLED!\n", "STARTING WITH 50 BODY-ARMOR!\n"}},
 		{"vampire", {"\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n", "RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n"}},
 		{"ammo regen", {"AMMO REGEN\n\nENABLED!\n", "AMMO REGEN IS NOW ENABLED!\n"}},
-		{"auto haste", {"\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED !\n"}},
+		{"auto haste", {"\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS \nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n", "AUTO-HASTE ENABLED!\n"}},
 		{"vampire upgraded", {"\n\n\n\nIMPROVED VAMPIRE ABILITY\n", "RECOVERING HEALTH & ARMOR NOW!\n"}},
 		{"Cluster Prox Grenades", {"\n\n\n\nIMPROVED PROX GRENADES\n", "Prox Cluster Launcher Enabled\n"}},
 		{"Traced-Piercing Bullets", {"\n\n\n\nBULLETS\nUPGRADED!\n", "Piercing-PowerShield Bullets!\n"}},
@@ -223,33 +223,33 @@ void ApplyBenefit(const weighted_benefit_t* benefit) {
 	};
 
 	// Aplicar cambios de juego específicos
-	if (std::string(benefit->benefit_name) == "start armor") {
+	if (std::strcmp(benefit->benefit_name, "start armor") == 0) {
 		gi.cvar_set("g_startarmor", "1");
 	}
-	else if (std::string(benefit->benefit_name) == "vampire") {
+	else if (std::strcmp(benefit->benefit_name, "vampire") == 0) {
 		vampire_level = 1;
 		gi.cvar_set("g_vampire", "1");
 	}
-	else if (std::string(benefit->benefit_name) == "vampire upgraded") {
+	else if (std::strcmp(benefit->benefit_name, "vampire upgraded") == 0) {
 		vampire_level = 2;
 		gi.cvar_set("g_vampire", "2");
 	}
-	else if (std::string(benefit->benefit_name) == "ammo regen") {
+	else if (std::strcmp(benefit->benefit_name, "ammo regen") == 0) {
 		gi.cvar_set("g_ammoregen", "1");
 	}
-	else if (std::string(benefit->benefit_name) == "auto haste") {
+	else if (std::strcmp(benefit->benefit_name, "auto haste") == 0) {
 		gi.cvar_set("g_autohaste", "1");
 	}
-	else if (std::string(benefit->benefit_name) == "Cluster Prox Grenades") {
+	else if (std::strcmp(benefit->benefit_name, "Cluster Prox Grenades") == 0) {
 		gi.cvar_set("g_upgradeproxs", "1");
 	}
-	else if (std::string(benefit->benefit_name) == "Traced-Piercing Bullets") {
+	else if (std::strcmp(benefit->benefit_name, "Traced-Piercing Bullets") == 0) {
 		gi.cvar_set("g_tracedbullets", "1");
 	}
-	else if (std::string(benefit->benefit_name) == "Napalm-Grenade Launcher") {
+	else if (std::strcmp(benefit->benefit_name, "Napalm-Grenade Launcher") == 0) {
 		gi.cvar_set("g_bouncygl", "1");
 	}
-	else if (std::string(benefit->benefit_name) == "BFG Grav-Pull Lasers") {
+	else if (std::strcmp(benefit->benefit_name, "BFG Grav-Pull Lasers") == 0) {
 		gi.cvar_set("g_bfgpull", "1");
 		gi.cvar_set("g_bfgslide", "0");
 	}
@@ -259,14 +259,14 @@ void ApplyBenefit(const weighted_benefit_t* benefit) {
 	}
 
 	// Enviar los mensajes de beneficio
-	const auto it = benefitMessages.find(benefit->benefit_name);
+	auto it = benefitMessages.find(benefit->benefit_name);
 	if (it != benefitMessages.end()) {
-		gi.LocBroadcast_Print(PRINT_CENTER, it->second.first);
-		gi.LocBroadcast_Print(PRINT_CHAT, it->second.second);
+		gi.LocBroadcast_Print(PRINT_CENTER, it->second.first.data());
+		gi.LocBroadcast_Print(PRINT_CHAT, it->second.second.data());
 	}
 
 	// Marcar el beneficio como obtenido
-	obtained_benefits.insert(benefit->benefit_name);
+	obtained_benefits.emplace(benefit->benefit_name);
 }
 
 // Verificar y aplicar beneficios basados en la ola
