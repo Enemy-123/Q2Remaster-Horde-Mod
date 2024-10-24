@@ -131,23 +131,32 @@ const std::unordered_set<std::string> bigMaps = {
 	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2"
 };
 
-std::unordered_map<std::string, MapSize> mapSizeCache;
+constexpr size_t MAX_MAPS = 64;
+std::array<std::pair<std::string, MapSize>, MAX_MAPS> mapSizeCache;
+size_t mapSizeCacheSize = 0;
 
 MapSize GetMapSize(const std::string& mapname) {
-	auto it = mapSizeCache.find(mapname);
-	if (it != mapSizeCache.end()) {
-		return it->second;
+	// Buscar en el cache
+	for (size_t i = 0; i < mapSizeCacheSize; ++i) {
+		if (mapSizeCache[i].first == mapname) {
+			return mapSizeCache[i].second;
+		}
 	}
 
+	// Si no está en cache, crear nuevo MapSize
 	MapSize mapSize;
 	mapSize.isSmallMap = smallMaps.count(mapname) > 0;
 	mapSize.isBigMap = bigMaps.count(mapname) > 0;
 	mapSize.isMediumMap = !mapSize.isSmallMap && !mapSize.isBigMap;
 
-	mapSizeCache.emplace(mapname, mapSize);
+	// Añadir al cache si hay espacio
+	if (mapSizeCacheSize < MAX_MAPS) {
+		mapSizeCache[mapSizeCacheSize] = std::make_pair(mapname, mapSize);
+		++mapSizeCacheSize;
+	}
+
 	return mapSize;
 }
-
 // Lista de beneficios ponderados (constexpr para ser evaluado en tiempo de compilación)
 const std::array<weighted_benefit_t, 9> benefits = { {
 	{ "vampire", 4, -1, 0.2f },
@@ -1719,12 +1728,9 @@ void UpdateHordeHUD() {
 	}
 }
 
-// Declaración de UpdateHordeMessage
-void UpdateHordeMessage(std::string_view message, gtime_t duration);
-
 // Implementación de UpdateHordeMessage
-void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
-	std::string fullMessage(message);
+void UpdateHordeMessage(std::string_view message, gtime_t duration)
+{	std::string fullMessage(message);
 
 
 	gi.configstring(CONFIG_HORDEMSG, fullMessage.c_str());
@@ -1855,10 +1861,20 @@ constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
 
 // Función para contar los monstruos activos
 static int32_t CountActiveMonsters() {
-	return std::count_if(active_monsters().begin(), active_monsters().end(),
+	static int32_t lastCount = 0;
+	static gtime_t lastCountTime = 0_ms;
+
+	// Cache el conteo por 100ms
+	if (level.time - lastCountTime < 100_ms) {
+		return lastCount;
+	}
+
+	lastCount = std::count_if(active_monsters().begin(), active_monsters().end(),
 		[](const edict_t* ent) {
 			return !ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT);
 		});
+	lastCountTime = level.time;
+	return lastCount;
 }
 
 inline int32_t CalculateRemainingMonsters() {
@@ -1868,37 +1884,53 @@ inline int32_t CalculateRemainingMonsters() {
 
 #include <algorithm>
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+	struct CheckCache {
+		gtime_t last_check = 0_ms;
+		bool result = false;
+		WaveEndReason cached_reason;
+		int32_t remaining_monsters = 0;
+	};
+	static CheckCache check_cache;
+
 	const gtime_t currentTime = level.time;
-	const bool allMonstersDead = Horde_AllMonstersDead();
 
-	if (allMonstersDead) {
-		reason = WaveEndReason::AllMonstersDead;
-		return true;
+	// Use cached result if recent enough
+	if (currentTime - check_cache.last_check < 100_ms) {
+		reason = check_cache.cached_reason;
+		return check_cache.result;
 	}
 
-	if (g_horde_local.waveEndTime == 0_sec) {
-		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
-	}
-
+	// Check for immediate conditions
 	if (allowWaveAdvance) {
-		gi.Com_PrintFmt("PRINT: Wave advance allowed manually.\n");
 		ResetWaveAdvanceState();
 		reason = WaveEndReason::AllMonstersDead;
 		return true;
 	}
 
-	int32_t remainingMonsters = CalculateRemainingMonsters();
-	float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
+	const bool allMonstersDead = Horde_AllMonstersDead();
+	if (allMonstersDead) {
+		check_cache = { currentTime, true, WaveEndReason::AllMonstersDead, 0 };
+		reason = WaveEndReason::AllMonstersDead;
+		return true;
+	}
 
-	bool shouldAdvance = false;
+	// Initialize wave end time if needed
+	if (g_horde_local.waveEndTime == 0_sec) {
+		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
+	}
 
-	if (!g_horde_local.conditionTriggered && (remainingMonsters <= g_lastParams.maxMonsters || percentageRemaining <= g_lastParams.lowPercentageThreshold)) {
+	const int32_t remainingMonsters = CalculateRemainingMonsters();
+	const float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
+
+	// Check condition triggers
+	if (!g_horde_local.conditionTriggered &&
+		(remainingMonsters <= g_lastParams.maxMonsters || percentageRemaining <= g_lastParams.lowPercentageThreshold)) {
 		g_horde_local.conditionTriggered = true;
 		g_horde_local.conditionStartTime = currentTime;
 
+		// Set appropriate threshold
 		if (remainingMonsters <= g_lastParams.maxMonsters && percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 			g_horde_local.conditionTimeThreshold = std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
-			gi.LocBroadcast_Print(PRINT_HIGH, "Conditions met. Wave time reduced!\n");
 		}
 		else if (remainingMonsters <= g_lastParams.maxMonsters) {
 			g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
@@ -1909,22 +1941,19 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 		g_horde_local.waveEndTime = g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold;
 
-		gi.Com_PrintFmt("PRINT: Condition triggered. Remaining monsters: {}, Percentage remaining: {:.2f}%\n",
-			remainingMonsters, percentageRemaining * 100);
-
+		// Apply aggressive reduction if very few monsters remain
 		if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
 			g_horde_local.waveEndTime = std::min(
 				g_horde_local.waveEndTime,
 				currentTime + AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters)
 			);
-			gi.LocBroadcast_Print(PRINT_HIGH, "Very few monsters remaining. Wave time reduced!\n");
 		}
 	}
 
+	// Handle active condition
 	if (g_horde_local.conditionTriggered) {
-		gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
-
-		// Emitir advertencias
+		// Process warnings
+		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] && remainingTime <= warningTime && remainingTime > (warningTime - 1_sec)) {
@@ -1933,26 +1962,21 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 			}
 		}
 
-		// Verificar si se debe avanzar la ola
+		// Check end conditions
 		if (currentTime >= g_horde_local.waveEndTime) {
 			if (currentTime >= (g_independent_timer_start + g_lastParams.independentTimeThreshold)) {
+				check_cache = { currentTime, true, WaveEndReason::TimeLimitReached, remainingMonsters };
 				reason = WaveEndReason::TimeLimitReached;
-				shouldAdvance = true;
+				return true;
 			}
 			else if (currentTime >= (g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold)) {
+				check_cache = { currentTime, true, WaveEndReason::MonstersRemaining, remainingMonsters };
 				reason = WaveEndReason::MonstersRemaining;
-				shouldAdvance = true;
+				return true;
 			}
 		}
 
-		if (shouldAdvance) {
-			ResetWaveAdvanceState();
-			gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
-				reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
-			return true;
-		}
-
-		// Actualizaciones periódicas
+		// Periodic status updates
 		if (currentTime - g_horde_local.lastPrintTime >= 10_sec) {
 			gi.Com_PrintFmt("PRINT: Wave status: {} monsters remaining. {:.2f} seconds left.\n",
 				remainingMonsters, remainingTime.seconds());
@@ -1960,9 +1984,10 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		}
 	}
 
+	// Cache and return result
+	check_cache = { currentTime, false, WaveEndReason::AllMonstersDead, remainingMonsters };
 	return false;
 }
-
 
 static void ResetWaveAdvanceState() noexcept {
 	g_independent_timer_start = level.time;
@@ -2036,18 +2061,26 @@ static bool UseFarthestSpawn() noexcept {
 }
 
 static void PlayWaveStartSound() {
-	static const std::vector<std::string> sounds = {
-		"misc/r_tele3.wav",
-		"world/klaxon2.wav",
-		"misc/tele_up.wav",
-		"world/incoming.wav",
-		"world/yelforce.wav"
-	};
+	static std::array<int, 5> cached_sound_indices = { -1, -1, -1, -1, -1 };
+	static bool indices_initialized = false;
 
-	const int32_t sound_index = static_cast<int32_t>(frandom() * sounds.size());
-	if (sound_index >= 0 && sound_index < sounds.size()) {
-		gi.sound(world, CHAN_VOICE, gi.soundindex(sounds[sound_index].c_str()), 1, ATTN_NONE, 0);
+	if (!indices_initialized) {
+		const std::array<const char*, 5> sound_files = {
+			"misc/r_tele3.wav",
+			"world/klaxon2.wav",
+			"misc/tele_up.wav",
+			"world/incoming.wav",
+			"world/yelforce.wav"
+		};
+
+		for (size_t i = 0; i < sound_files.size(); ++i) {
+			cached_sound_indices[i] = gi.soundindex(sound_files[i]);
+		}
+		indices_initialized = true;
 	}
+
+	const int32_t sound_index = static_cast<int32_t>(frandom() * cached_sound_indices.size());
+	gi.sound(world, CHAN_VOICE, cached_sound_indices[sound_index], 1, ATTN_NONE, 0);
 }
 
 enum class WaveMessageType {
