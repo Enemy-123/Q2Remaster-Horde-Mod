@@ -472,9 +472,34 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 // Warning times in seconds
 constexpr std::array<float, 4> WARNING_TIMES = { 30.0f, 20.0f, 10.0f, 5.0f };
 
+
+// Variable global para la caché checkremainingmonsterconditions
+// Estructura de caché con método de reset
+struct alignas(64) MonsterCheckCacheData {
+	gtime_t last_check_time = 0_ms;
+	bool result = false;
+	WaveEndReason cached_reason = WaveEndReason::AllMonstersDead;
+	int32_t remaining_monsters = 0;
+	float remaining_percentage = 0.0f;
+	bool cache_valid = false;
+
+	void Reset() {
+		last_check_time = 0_ms;
+		result = false;
+		cached_reason = WaveEndReason::AllMonstersDead;
+		remaining_monsters = 0;
+		remaining_percentage = 0.0f;
+		cache_valid = false;
+	}
+};
+
+
+static MonsterCheckCacheData g_monster_check_cache;
+
 static void Horde_InitLevel(const int32_t lvl) {
 	const MapSize& mapSize = GetMapSize(level.mapname);
 
+	g_monster_check_cache.Reset();
 	// Configuración de variables iniciales para el nivel
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
 	cachedRemainingMonsters = g_totalMonstersInWave;
@@ -1226,7 +1251,8 @@ void Horde_PreInit() {
 		gi.cvar_set("g_coop_squad_respawn", "1");
 		gi.cvar_set("g_iddmg", "1");
 
-		HandleResetEvent();
+		// Asegurarnos de que el estado se reinicie completamente al cambiar de mapa
+		ResetGame();
 	}
 }
 
@@ -1787,6 +1813,10 @@ static void ResetRecentBosses() noexcept {
 
 static void ResetWaveAdvanceState() noexcept;
 void ResetGame() {
+
+	// Resetear la caché de verificación de monstruos
+	g_monster_check_cache.Reset();
+	g_lastWaveNumber = -1;  // Forzar reinicio de caché en próxima verificación
 	// Reset all spawn point data
 	spawnPointsData.clear();
 
@@ -1835,7 +1865,7 @@ void ResetGame() {
 	// Reset wave information
 	g_horde_local.level = 0; // Reset current wave level
 	g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
-	g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
+	//g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
 	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
@@ -1897,30 +1927,28 @@ inline int32_t CalculateRemainingMonsters() {
 }
 
 #include <algorithm>
-// Estructura de caché con alineación optimizada - movida fuera de la función
-struct alignas(64) MonsterCheckCacheData {
-	gtime_t last_check_time = 0_ms;
-	bool result = false;
-	WaveEndReason cached_reason = WaveEndReason::AllMonstersDead;
-	int32_t remaining_monsters = 0;
-	float remaining_percentage = 0.0f;
-	bool cache_valid = false;
-};
+
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
-	static MonsterCheckCacheData cache;
+	// Reset the cache if we're in a new wave
+	if (current_wave_level != g_lastWaveNumber) {
+		g_monster_check_cache.Reset();
+		g_lastWaveNumber = current_wave_level;
+	}
+
 	const gtime_t current_time = level.time;
 
 	// Sistema de caché mejorado con invalidación temporal
-	if (cache.cache_valid && current_time - cache.last_check_time < 100_ms) {
-		reason = cache.cached_reason;
-		return cache.result;
+	if (g_monster_check_cache.cache_valid &&
+		current_time - g_monster_check_cache.last_check_time < 100_ms) {
+		reason = g_monster_check_cache.cached_reason;
+		return g_monster_check_cache.result;
 	}
 
 	// Comprobación rápida para wave advance manual
 	if (allowWaveAdvance) {
 		ResetWaveAdvanceState();
-		cache = { current_time, true, WaveEndReason::AllMonstersDead, 0, 0.0f, true };
+		g_monster_check_cache = { current_time, true, WaveEndReason::AllMonstersDead, 0, 0.0f, true };
 		reason = WaveEndReason::AllMonstersDead;
 		return true;
 	}
@@ -1934,7 +1962,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	// Verificación de monsters_dead con early return
 	const bool all_monsters_dead = Horde_AllMonstersDead();
 	if (all_monsters_dead) {
-		cache = {
+		g_monster_check_cache = {
 			current_time,
 			true,
 			WaveEndReason::AllMonstersDead,
@@ -2010,13 +2038,13 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		// Verificación de condiciones de finalización
 		if (current_time >= g_horde_local.waveEndTime) {
 			if (conditions.time_exceeded) {
-				cache = { current_time, true, WaveEndReason::TimeLimitReached,
+				g_monster_check_cache = { current_time, true, WaveEndReason::TimeLimitReached,
 						remaining_monsters, percentage_remaining, true };
 				reason = WaveEndReason::TimeLimitReached;
 				return true;
 			}
 			else if (current_time >= (g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold)) {
-				cache = { current_time, true, WaveEndReason::MonstersRemaining,
+				g_monster_check_cache = { current_time, true, WaveEndReason::MonstersRemaining,
 						remaining_monsters, percentage_remaining, true };
 				reason = WaveEndReason::MonstersRemaining;
 				return true;
@@ -2032,7 +2060,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	}
 
 	// Actualizar caché y retornar
-	cache = {
+	g_monster_check_cache = {
 		current_time,
 		false,
 		WaveEndReason::AllMonstersDead,
@@ -2043,6 +2071,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	return false;
 }
+
 static void ResetWaveAdvanceState() noexcept {
 	g_independent_timer_start = level.time;
 
