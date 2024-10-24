@@ -1489,7 +1489,14 @@ void VectorSet(vec3_t& v, float x, float y, float z) {
 	v[2] = z;
 }
 
+// Función segura para suma de vectores con verificación
 void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c) {
+	// Verificar que los punteros sean válidos
+	if (!a || !b || !c) {
+		gi.Com_PrintFmt("WARNING: Attempted vector addition with invalid pointers\n");
+		return;
+	}
+
 	c[0] = a[0] + b[0];
 	c[1] = a[1] + b[1];
 	c[2] = a[2] + b[2];

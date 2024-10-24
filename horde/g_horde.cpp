@@ -2154,16 +2154,28 @@ static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 edict_t* SpawnMonsters() {
-	const MapSize& mapSize = GetMapSize(level.mapname);
-	std::vector<edict_t*> available_spawns;
-
+	static std::vector<edict_t*> available_spawns;
+	available_spawns.clear();
 	available_spawns.reserve(MAX_EDICTS);
 
-	// Recolectar puntos de spawn disponibles
-	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts; ++edictIndex) {
-		edict_t* e = &g_edicts[edictIndex];
-		if (e->inuse && e->classname && std::strcmp(e->classname, "info_player_deathmatch") == 0 && !e->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-			available_spawns.emplace_back(e);
+	const MapSize& mapSize = GetMapSize(level.mapname);
+	const int32_t activeMonsters = CountActiveMonsters();
+	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP :
+		MAX_MONSTERS_MEDIUM_MAP;
+
+	// Early return si ya alcanzamos el máximo
+	if (activeMonsters >= maxMonsters) {
+		return nullptr;
+	}
+
+	// Recolectar spawns válidos 
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
+		edict_t* e = &g_edicts[i];
+		if (e->inuse && e->classname &&
+			std::strcmp(e->classname, "info_player_deathmatch") == 0 &&
+			!e->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+			available_spawns.push_back(e);
 		}
 	}
 
@@ -2172,90 +2184,110 @@ edict_t* SpawnMonsters() {
 		return nullptr;
 	}
 
-	// Determinar cuántos monstruos spawnear
-	const int32_t default_monsters_per_spawn = mapSize.isSmallMap ? 4 :
-		(mapSize.isBigMap ? 6 : 5);
-	const int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
-		std::min(g_horde_local.queued_monsters, static_cast<int32_t>(3)) :
-		std::min(default_monsters_per_spawn, static_cast<int32_t>(6));
+	// Optimizar cálculo de monsters_per_spawn
+	const int32_t default_monsters = mapSize.isSmallMap ? 4 :
+		mapSize.isBigMap ? 6 : 5;
 
-	// Calcular spawnable y actual_spawn_count
-	const int32_t activeMonsters = CountActiveMonsters();
-	const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
+	// Asegurar un mínimo de monstruos por spawn
+	const int32_t monsters_per_spawn = g_horde_local.queued_monsters > 0 ?
+		std::max(2, std::min(g_horde_local.queued_monsters, 3)) :
+		std::max(2, std::min(default_monsters, 6));
+
 	const int32_t spawnable = maxMonsters - activeMonsters;
-	const int32_t actual_spawn_count = std::min(monsters_per_spawn, spawnable);
+	const int32_t actual_spawn_count = std::min({
+		monsters_per_spawn,
+		spawnable,
+		static_cast<int32_t>(available_spawns.size()),
+		std::max(2, g_horde_local.num_to_spawn) // Asegurar al menos 2 spawns si hay suficientes para spawnear
+		});
 
-	if (actual_spawn_count <= 0) {
-		gi.Com_Print("PRINT: Maximum number of monsters reached. No more spawns.\n");
+	if (actual_spawn_count <= 0 || g_horde_local.num_to_spawn <= 0) {
 		return nullptr;
 	}
 
-	// Mezclar los puntos de spawn una vez
-	std::shuffle(available_spawns.begin(), available_spawns.end(), mt_rand);
+	// Shuffle optimizado usando Fisher-Yates
+	for (size_t i = available_spawns.size() - 1; i > 0; --i) {
+		size_t j = static_cast<size_t>(mt_rand()) % (i + 1);
+		std::swap(available_spawns[i], available_spawns[j]);
+	}
 
-	int32_t spawnIndex = 0;
 	edict_t* last_spawned_monster = nullptr;
 
-	for (int32_t spawnCount = 0; spawnCount < actual_spawn_count && g_horde_local.num_to_spawn > 0 && spawnIndex < static_cast<int32_t>(available_spawns.size()); ++spawnCount, ++spawnIndex) {
-		edict_t* spawn_point = available_spawns[spawnIndex];
+	// Pre-reservar memoria para transformaciones
+	static vec3_t origin_cache[MAX_EDICTS];
+	static vec3_t angles_cache[MAX_EDICTS];
+
+	int32_t successful_spawns = 0;
+	const int32_t min_spawns = std::min(2, actual_spawn_count); // Asegurar al menos 2 spawns si es posible
+
+	for (int32_t spawnCount = 0;
+		spawnCount < actual_spawn_count && successful_spawns < min_spawns;
+		++spawnCount) {
+
+		edict_t* spawn_point = available_spawns[spawnCount];
 		const char* monster_classname = G_HordePickMonster(spawn_point, mt_rand);
 		if (!monster_classname) continue;
 
-		// Spawnear el monstruo
 		edict_t* monster = G_Spawn();
-		if (!monster) {
-			gi.Com_PrintFmt("PRINT: G_Spawn Warning: Failed to spawn monster\n");
-			continue;
-		}
+		if (!monster) continue;
+
+		// Cache transformations
+		VectorCopy(spawn_point->s.origin, origin_cache[spawnCount]);
+		VectorCopy(spawn_point->s.angles, angles_cache[spawnCount]);
 
 		monster->classname = monster_classname;
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
-		VectorCopy(spawn_point->s.origin, monster->s.origin);
-		VectorCopy(spawn_point->s.angles, monster->s.angles);
+
+		VectorCopy(origin_cache[spawnCount], monster->s.origin);
+		VectorCopy(angles_cache[spawnCount], monster->s.angles);
 
 		ED_CallSpawn(monster);
 
 		if (!monster->inuse) {
-			gi.Com_PrintFmt("PRINT: ED_CallSpawn Warning: Monster spawn failed\n");
 			G_FreeEdict(monster);
 			continue;
 		}
 
-		// Ajustar armadura si es necesario
 		if (g_horde_local.level >= 17) {
 			SetMonsterArmor(monster);
 		}
 
-		// Determinar si el monstruo soltará un ítem
-		float drop_probability = (g_horde_local.level <= 2) ? 0.8f :
-			(g_horde_local.level <= 7) ? 0.6f : 0.45f;
+		const float drop_probability = g_horde_local.level <= 2 ? 0.8f :
+			g_horde_local.level <= 7 ? 0.6f : 0.45f;
+
 		if (std::uniform_real_distribution<float>(0.0f, 1.0f)(mt_rand) <= drop_probability) {
 			monster->item = G_HordePickItem(mt_rand);
 		}
 
-		// Aplicar efectos de spawn grow
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 
-		// Actualizar contadores
-		g_horde_local.num_to_spawn = std::max(g_horde_local.num_to_spawn - 1, 0);
-		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters - 1, 0);
+		g_horde_local.num_to_spawn = std::max(0, g_horde_local.num_to_spawn - 1);
+		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
 		g_totalMonstersInWave++;
 		last_spawned_monster = monster;
+		successful_spawns++;
 	}
 
-	// Manejar monstruos en cola adicionales si aún hay capacidad para spawnear
+	// Manejar cola adicional
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		const int32_t additional_spawnable = maxMonsters - CountActiveMonsters();
+		const int32_t additional_spawnable = std::max(0, maxMonsters - CountActiveMonsters());
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
-		g_horde_local.num_to_spawn += additional_to_spawn;
-		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters - additional_to_spawn, 0);
-		ClampNumToSpawn(mapSize);
+
+		if (additional_to_spawn > 0) {
+			g_horde_local.num_to_spawn += additional_to_spawn;
+			g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - additional_to_spawn);
+			ClampNumToSpawn(mapSize);
+		}
 	}
 
-	SetNextMonsterSpawnTime(mapSize);
+	// Ajustar tiempo de spawn basado en el tamaño del mapa
+	g_horde_local.monster_spawn_time = level.time +
+		(mapSize.isSmallMap ? random_time(0.8_sec, 1.0_sec) :   // Más rápido para mapas pequeños
+			mapSize.isBigMap ? random_time(0.6_sec, 0.8_sec) :     // Aún más rápido para mapas grandes
+			random_time(0.9_sec, 1.1_sec));                        // Tiempo base para mapas medianos
+
 	return last_spawned_monster;
 }
 
