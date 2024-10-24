@@ -128,7 +128,7 @@ const std::unordered_set<std::string> smallMaps = {
 };
 
 const std::unordered_set<std::string> bigMaps = {
-	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2"
+	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2", "rdm9"
 };
 
 constexpr size_t MAX_MAPS = 64;
@@ -1527,6 +1527,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"q2dm1", {1184, 568, 704}},
 	{"rdm4", {-336, 2456, -288}},
 	{"rdm8", {-1516, 976, -156}},
+	{"rdm9", {-984, -80, 232}},
 	{"rdm14", {1248, 664, 896}},
 	{"q2dm2", {128, -960, 704}},
 	{"q2dm3", {192, -136, 72}},
