@@ -2183,95 +2183,131 @@ static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 edict_t* SpawnMonsters() {
-	static std::vector<edict_t*> available_spawns;
-	available_spawns.clear();
-	available_spawns.reserve(MAX_EDICTS);
+	// Estructura para cachear datos de spawn
+	struct SpawnData {
+		edict_t* point;
+		float distance_to_players;
+		bool is_valid;
+	};
+
+	static std::vector<SpawnData> spawn_cache;
+	spawn_cache.clear();
+	spawn_cache.reserve(MAX_EDICTS);
 
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t activeMonsters = CountActiveMonsters();
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP :
-		MAX_MONSTERS_MEDIUM_MAP;
+		mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP;
 
 	// Early return si ya alcanzamos el máximo
-	if (activeMonsters >= maxMonsters) {
+	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0) {
 		return nullptr;
 	}
 
-	// Recolectar spawns válidos 
-	for (uint32_t i = 1; i < globals.num_edicts; i++) {
-		edict_t* e = &g_edicts[i];
-		if (e->inuse && e->classname &&
-			std::strcmp(e->classname, "info_player_deathmatch") == 0 &&
-			!e->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-			available_spawns.push_back(e);
+	// Cache de posiciones de jugadores para cálculos de distancia
+	static std::vector<vec3_t> player_positions;
+	player_positions.clear();
+	for (auto player : active_players()) {
+		if (player->client->resp.ctf_team == CTF_TEAM1) {
+			player_positions.push_back(player->s.origin);
 		}
 	}
 
-	if (available_spawns.empty()) {
-		gi.Com_PrintFmt("PRINT: Warning: No spawn points found\n");
+	// Recolectar y evaluar puntos de spawn
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
+		edict_t* e = &g_edicts[i];
+		if (!e->inuse || !e->classname ||
+			std::strcmp(e->classname, "info_player_deathmatch") != 0 ||
+			e->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+			continue;
+		}
+
+		// Calcular distancia mínima a jugadores
+		float min_distance = std::numeric_limits<float>::max();
+		for (const auto& pos : player_positions) {
+			float dist = VectorDistance(e->s.origin, pos);
+			min_distance = std::min(min_distance, dist);
+		}
+
+		spawn_cache.push_back({ e, min_distance, !spawnPointsData[e].isTemporarilyDisabled });
+	}
+
+	if (spawn_cache.empty()) {
+		gi.Com_PrintFmt("PRINT: Warning: No valid spawn points found\n");
 		return nullptr;
 	}
 
-	// Optimizar cálculo de monsters_per_spawn
+	// Ordenar puntos de spawn por distancia si es necesario
+	if (UseFarthestSpawn()) {
+		std::sort(spawn_cache.begin(), spawn_cache.end(),
+			[](const SpawnData& a, const SpawnData& b) {
+				return a.distance_to_players > b.distance_to_players;
+			});
+	}
+	else {
+		// Shuffle optimizado usando Fisher-Yates solo para spawns válidos
+		for (size_t i = spawn_cache.size() - 1; i > 0; --i) {
+			if (spawn_cache[i].is_valid) {
+				size_t j = static_cast<size_t>(mt_rand()) % (i + 1);
+				if (spawn_cache[j].is_valid) {
+					std::swap(spawn_cache[i], spawn_cache[j]);
+				}
+			}
+		}
+	}
+
+	// Calcular número óptimo de spawns
 	const int32_t default_monsters = mapSize.isSmallMap ? 4 :
 		mapSize.isBigMap ? 6 : 5;
-
-	// Asegurar un mínimo de monstruos por spawn
 	const int32_t monsters_per_spawn = g_horde_local.queued_monsters > 0 ?
 		std::max(2, std::min(g_horde_local.queued_monsters, 3)) :
 		std::max(2, std::min(default_monsters, 6));
 
-	const int32_t spawnable = maxMonsters - activeMonsters;
-	const int32_t actual_spawn_count = std::min({
-		monsters_per_spawn,
-		spawnable,
-		static_cast<int32_t>(available_spawns.size()),
-		std::max(2, g_horde_local.num_to_spawn) // Asegurar al menos 2 spawns si hay suficientes para spawnear
+	const int32_t spawnable = std::min({
+		maxMonsters - activeMonsters,
+		g_horde_local.num_to_spawn,
+		static_cast<int32_t>(spawn_cache.size())
 		});
 
-	if (actual_spawn_count <= 0 || g_horde_local.num_to_spawn <= 0) {
-		return nullptr;
-	}
+	const int32_t actual_spawn_count = std::min(monsters_per_spawn, spawnable);
 
-	// Shuffle optimizado usando Fisher-Yates
-	for (size_t i = available_spawns.size() - 1; i > 0; --i) {
-		size_t j = static_cast<size_t>(mt_rand()) % (i + 1);
-		std::swap(available_spawns[i], available_spawns[j]);
-	}
+	// Preallocate memory for monster data
+	static std::vector<std::pair<edict_t*, vec3_t>> monster_spawn_data;
+	monster_spawn_data.clear();
+	monster_spawn_data.reserve(actual_spawn_count);
 
 	edict_t* last_spawned_monster = nullptr;
-
-	// Pre-reservar memoria para transformaciones
-	static vec3_t origin_cache[MAX_EDICTS];
-	static vec3_t angles_cache[MAX_EDICTS];
-
 	int32_t successful_spawns = 0;
-	const int32_t min_spawns = std::min(2, actual_spawn_count); // Asegurar al menos 2 spawns si es posible
 
-	for (int32_t spawnCount = 0;
-		spawnCount < actual_spawn_count && successful_spawns < min_spawns;
-		++spawnCount) {
+	// Pool de memoria para transformaciones
+	static std::array<vec3_t, MAX_EDICTS> origin_cache;
+	static std::array<vec3_t, MAX_EDICTS> angles_cache;
 
-		edict_t* spawn_point = available_spawns[spawnCount];
+	// Spawning loop optimizado
+	for (int32_t i = 0; i < actual_spawn_count && successful_spawns < actual_spawn_count; ++i) {
+		if (i >= spawn_cache.size() || !spawn_cache[i].is_valid) continue;
+
+		edict_t* spawn_point = spawn_cache[i].point;
 		const char* monster_classname = G_HordePickMonster(spawn_point, mt_rand);
 		if (!monster_classname) continue;
 
 		edict_t* monster = G_Spawn();
 		if (!monster) continue;
 
-		// Cache transformations
-		VectorCopy(spawn_point->s.origin, origin_cache[spawnCount]);
-		VectorCopy(spawn_point->s.angles, angles_cache[spawnCount]);
+		// Cache transformaciones
+		VectorCopy(spawn_point->s.origin, origin_cache[successful_spawns]);
+		VectorCopy(spawn_point->s.angles, angles_cache[successful_spawns]);
 
+		// Configurar monstruo
 		monster->classname = monster_classname;
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
 
-		VectorCopy(origin_cache[spawnCount], monster->s.origin);
-		VectorCopy(angles_cache[spawnCount], monster->s.angles);
+		VectorCopy(origin_cache[successful_spawns], monster->s.origin);
+		VectorCopy(angles_cache[successful_spawns], monster->s.angles);
 
+		// Spawn del monstruo
 		ED_CallSpawn(monster);
 
 		if (!monster->inuse) {
@@ -2279,27 +2315,34 @@ edict_t* SpawnMonsters() {
 			continue;
 		}
 
+		// Aplicar mejoras y drops
 		if (g_horde_local.level >= 17) {
 			SetMonsterArmor(monster);
 		}
 
-		const float drop_probability = g_horde_local.level <= 2 ? 0.8f :
+		const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 			g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-		if (std::uniform_real_distribution<float>(0.0f, 1.0f)(mt_rand) <= drop_probability) {
+		if (std::uniform_real_distribution<float>(0.0f, 1.0f)(mt_rand) <= drop_chance) {
 			monster->item = G_HordePickItem(mt_rand);
 		}
 
+		// Efectos visuales
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 
-		g_horde_local.num_to_spawn = std::max(0, g_horde_local.num_to_spawn - 1);
+		// Actualizar contadores
+		g_horde_local.num_to_spawn--;
 		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
 		g_totalMonstersInWave++;
+
 		last_spawned_monster = monster;
 		successful_spawns++;
+
+		// Almacenar datos para procesamiento en lote
+		monster_spawn_data.emplace_back(monster, monster->s.origin);
 	}
 
-	// Manejar cola adicional
+	// Procesar cola adicional de forma más eficiente
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = std::max(0, maxMonsters - CountActiveMonsters());
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
@@ -2311,11 +2354,8 @@ edict_t* SpawnMonsters() {
 		}
 	}
 
-	// Ajustar tiempo de spawn basado en el tamaño del mapa
-	g_horde_local.monster_spawn_time = level.time +
-		(mapSize.isSmallMap ? random_time(0.8_sec, 1.0_sec) :   // Más rápido para mapas pequeños
-			mapSize.isBigMap ? random_time(0.6_sec, 0.8_sec) :     // Aún más rápido para mapas grandes
-			random_time(0.9_sec, 1.1_sec));                        // Tiempo base para mapas medianos
+	// Ajustar tiempo de spawn basado en el tamaño del mapa y rendimiento
+	SetNextMonsterSpawnTime(mapSize);
 
 	return last_spawned_monster;
 }

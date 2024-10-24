@@ -899,3 +899,50 @@ void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out) {
 	out[1] = veca[1] + scale * vecb[1];
 	out[2] = veca[2] + scale * vecb[2];
 }
+
+#include <cmath>
+
+#ifdef __SSE__
+#include <xmmintrin.h>  // SSE
+#endif
+#ifdef __SSE2__
+#include <emmintrin.h>  // SSE2
+#endif
+
+// Versión optimizada utilizando SIMD cuando está disponible
+#if defined(__SSE2__)
+inline float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
+	// Cargar los vectores en registros SSE
+	__m128 a = _mm_loadu_ps(v1);
+	__m128 b = _mm_loadu_ps(v2);
+
+	// Calcular la diferencia
+	__m128 diff = _mm_sub_ps(a, b);
+
+	// Multiplicar la diferencia por sí misma (diff * diff)
+	__m128 sq = _mm_mul_ps(diff, diff);
+
+	// Sumar los componentes horizontalmente
+	__m128 shuf = _mm_shuffle_ps(sq, sq, _MM_SHUFFLE(2, 3, 0, 1));
+	__m128 sums = _mm_add_ps(sq, shuf);
+	shuf = _mm_movehl_ps(shuf, sums);
+	sums = _mm_add_ss(sums, shuf);
+
+	// Calcular la raíz cuadrada
+	__m128 result = _mm_sqrt_ss(sums);
+
+	// Retornar el resultado como float
+	float distance;
+	_mm_store_ss(&distance, result);
+	return distance;
+}
+
+#else
+// Versión estándar optimizada sin SIMD
+inline float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
+	const float dx = v1[0] - v2[0];
+	const float dy = v1[1] - v2[1];
+	const float dz = v1[2] - v2[2];
+	return std::sqrt(dx * dx + dy * dy + dz * dz);
+}
+#endif

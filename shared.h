@@ -55,5 +55,5 @@ struct PlayerStats {
 
 
 
-
+extern inline float VectorDistance(const vec3_t& v1, const vec3_t& v2);
 #endif // SHARED_H
