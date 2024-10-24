@@ -2182,13 +2182,13 @@ void InitializeWaveSystem() noexcept {
 static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
-edict_t* SpawnMonsters() {
-	static struct SpawnData {
-		edict_t* point;
-		float distance_to_players;
-		bool is_valid;
-	};
+struct SpawnData {
+	edict_t* point;
+	float distance_to_players;
+	bool is_valid;
+};
 
+edict_t* SpawnMonsters() {
 	static std::vector<SpawnData> spawn_cache;
 	static std::vector<vec3_t> player_positions;
 	static std::vector<std::pair<edict_t*, vec3_t>> monster_spawn_data;
@@ -2211,7 +2211,9 @@ edict_t* SpawnMonsters() {
 	}
 
 	// Prealocar memoria para los contenedores
-	spawn_cache.reserve(MAX_EDICTS);
+	const size_t estimated_spawns = (globals.num_edicts < MAX_EDICTS) ?
+		static_cast<size_t>(globals.num_edicts) : MAX_EDICTS;
+	spawn_cache.reserve(estimated_spawns);
 	player_positions.reserve(MAX_CLIENTS);
 
 	// Cachear posiciones de jugadores en una sola pasada
@@ -2237,7 +2239,11 @@ edict_t* SpawnMonsters() {
 			min_distance = std::min(min_distance, dist);
 		}
 
-		spawn_cache.push_back({ e, min_distance, !spawnPointsData[e].isTemporarilyDisabled });
+		spawn_cache.emplace_back(SpawnData{
+			e,
+			min_distance,
+			!spawnPointsData[e].isTemporarilyDisabled
+			});
 	}
 
 	if (spawn_cache.empty()) {
@@ -2246,9 +2252,9 @@ edict_t* SpawnMonsters() {
 
 	// Optimización: Usar algoritmo de selección basado en el modo de juego
 	if (UseFarthestSpawn()) {
-		// Partial sort es más eficiente que sort completo cuando solo necesitamos los N más lejanos
+		const size_t sort_count = std::min<size_t>(5, spawn_cache.size());
 		std::partial_sort(spawn_cache.begin(),
-			spawn_cache.begin() + std::min(size_t(5), spawn_cache.size()),
+			spawn_cache.begin() + sort_count,
 			spawn_cache.end(),
 			[](const SpawnData& a, const SpawnData& b) {
 				return a.distance_to_players > b.distance_to_players;
@@ -2258,10 +2264,13 @@ edict_t* SpawnMonsters() {
 		// Shuffle optimizado solo para spawns válidos
 		size_t valid_count = std::count_if(spawn_cache.begin(), spawn_cache.end(),
 			[](const SpawnData& sd) { return sd.is_valid; });
+
 		if (valid_count > 1) {
 			for (size_t i = 0; i < valid_count - 1; ++i) {
+				if (!spawn_cache[i].is_valid) continue;
+
 				size_t j = i + (mt_rand() % (valid_count - i));
-				if (i != j && spawn_cache[i].is_valid && spawn_cache[j].is_valid) {
+				if (i != j && spawn_cache[j].is_valid) {
 					std::swap(spawn_cache[i], spawn_cache[j]);
 				}
 			}
@@ -2269,10 +2278,13 @@ edict_t* SpawnMonsters() {
 	}
 
 	// Optimización: Cálculo de spawns con valores precalculados
+	constexpr int32_t MIN_MONSTERS_PER_SPAWN = 2;
+	constexpr int32_t MAX_MONSTERS_PER_SPAWN = 6;
+
 	const int32_t default_monsters = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
 	const int32_t monsters_per_spawn = g_horde_local.queued_monsters > 0
-		? std::clamp(g_horde_local.queued_monsters, 2, 3)
-		: std::clamp(default_monsters, 2, 6);
+		? std::clamp(g_horde_local.queued_monsters, MIN_MONSTERS_PER_SPAWN, 3)
+		: std::clamp(default_monsters, MIN_MONSTERS_PER_SPAWN, MAX_MONSTERS_PER_SPAWN);
 
 	const int32_t spawnable = std::min({
 		maxMonsters - activeMonsters,
@@ -2336,12 +2348,12 @@ edict_t* SpawnMonsters() {
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 
 		// Actualizar contadores de forma eficiente
-		g_horde_local.num_to_spawn--;
+		--g_horde_local.num_to_spawn;
 		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
-		g_totalMonstersInWave++;
+		++g_totalMonstersInWave;
 
 		last_spawned_monster = monster;
-		successful_spawns++;
+		++successful_spawns;
 
 		monster_spawn_data.emplace_back(monster, monster->s.origin);
 	}
@@ -2361,7 +2373,6 @@ edict_t* SpawnMonsters() {
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned_monster;
 }
-
 // Funciones auxiliares para reducir el tamaño de SpawnMonsters
 static void SetMonsterArmor(edict_t* monster) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
