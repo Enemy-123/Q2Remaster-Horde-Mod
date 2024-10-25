@@ -436,7 +436,7 @@ void ShamblerCastFireballs(edict_t* self)
 			spread = 0.3f;
 
 		// Calculate direction with some spread
-		PredictAim(self, self->enemy, start, speed, false, spread, &dir, nullptr);
+		PredictAim(self, self->enemy, start, 1220, false, spread, &dir, nullptr);
 
 		// Create and launch fireball-rocket
 		edict_t* fireball = G_Spawn();
