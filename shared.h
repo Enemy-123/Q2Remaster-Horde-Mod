@@ -22,7 +22,7 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
 
 // Declarar funciones globales name strings
-std::string GetDisplayName(edict_t* ent);
+std::string GetDisplayName(const edict_t* ent);
 std::string GetTitleFromFlags(int bonus_flags);
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);

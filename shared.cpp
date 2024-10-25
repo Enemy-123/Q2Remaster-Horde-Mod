@@ -148,8 +148,12 @@ std::string GetTitleFromFlags(int bonus_flags)
 	return title;
 }
 
-std::string GetDisplayName(edict_t* ent)
+std::string GetDisplayName(const edict_t* ent)
 {
+	if (!ent) {
+		return "Unknown";
+	}
+
 	static const std::unordered_map<std::string, std::string> name_replacements = {
 		{ "monster_soldier_light", "Light Soldier" },
 		{ "monster_soldier_ss", "SS Soldier" },
@@ -232,10 +236,10 @@ std::string GetDisplayName(edict_t* ent)
 	};
 
 	const auto it = name_replacements.find(ent->classname);
-	std::string display_name = (it != name_replacements.end()) ? it->second : ent->classname;
+	std::string display_name = (it != name_replacements.end()) ?
+		std::string(it->second) : ent->classname;
 
-	std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
-	return title + display_name;
+	return GetTitleFromFlags(ent->monsterinfo.bonus_flags) + display_name;
 }
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
