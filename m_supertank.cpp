@@ -660,7 +660,7 @@ void SP_monster_supertank(edict_t* self)
 		return;
 	}
 
-	if (g_horde->integer && current_wave_level <= 18) {
+	if (g_horde->integer && GetCurrentWaveLevel() <= 18) {
 
 		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
 			{
@@ -784,7 +784,7 @@ void SP_monster_boss5(edict_t* self)
 	SP_monster_supertank(self);
 	gi.soundindex("weapons/railgr1a.wav");
 	self->s.skinnum = 2;
-	self->health = 5600 + (1.08 * current_wave_level);
+	self->health = 5600 + (1.08 * GetCurrentWaveLevel());
 	ApplyMonsterBonusFlags(self);
 }
 
@@ -823,7 +823,7 @@ void SP_monster_supertankkl(edict_t* self)
 		SP_monster_supertank(self);
 		gi.soundindex("weapons/railgr1a.wav");
 
-		self->health = 675 * current_wave_level;
+		self->health = 675 * GetCurrentWaveLevel();
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_POWERSHIELD;
 		self->spawnflags |= SPAWNFLAG_SUPERTANK_LONG_DEATH;
 

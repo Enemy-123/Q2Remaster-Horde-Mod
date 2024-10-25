@@ -480,7 +480,7 @@ void ApplyBossEffects(edict_t* boss)
 
 	// Calcular valores mínimos basados en el número de ola
 	int health_min, power_armor_min;
-	CalculateBossMinimums(current_wave_level, health_min, power_armor_min);
+	CalculateBossMinimums(GetCurrentWaveLevel(), health_min, power_armor_min);
 
 	// Aplicar multiplicadores de salud y armadura
 	boss->health = std::max(static_cast<int>(boss->health * health_multiplier), health_min);

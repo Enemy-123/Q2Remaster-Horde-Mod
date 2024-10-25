@@ -269,7 +269,7 @@ struct WeightedSelection {
 };
 
 
-//int32_t current_wave_level = g_horde_local.level;
+//int32_t g_horde_local.level = g_horde_local.level;
 int32_t vampire_level = 0;
 
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
@@ -2004,62 +2004,29 @@ static void ResetRecentBosses() noexcept {
 
 static void ResetWaveAdvanceState() noexcept;
 void ResetGame() {
-
 	// Resetear la caché de verificación de monstruos
-//	g_monster_check_cache.Reset();
-//	g_lastWaveNumber = -1;  // Forzar reinicio de caché en próxima verificación
+	g_monster_check_cache.Reset();
+	g_lastWaveNumber = -1;
+
 	// Reset all spawn point data
 	spawnPointsData.clear();
-
-	// Reiniciar estructuras de datos globales
 	lastSpawnPointTime.clear();
 	lastMonsterSpawnTime.clear();
 
-	// Reiniciar variables de estado global
+	// Reiniciar estructuras de datos globales
 	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
-	current_wave_level = 0;
-	g_horde_local.flying_monsters_mode = false;
-	g_horde_local.boss_spawned_for_wave = false;
-	g_horde_local.next_wave_message_sent = false;
-	g_horde_local.allow_wave_advance = false;
+	g_horde_local.state = horde_state_t::warmup;
+	g_horde_local.warm_time = level.time + 2_sec;
 
-	// Reiniciar otras variables relevantes
-	//WAVE_TO_ALLOW_FLYING = 0;
-	SPAWN_POINT_COOLDOWN = 3.9_sec;
-
-	g_horde_local.cached_remaining_monsters = 0;
-	g_horde_local.total_monsters_in_wave = 0;
-
-	// Resetear el estado de las condiciones
-	g_horde_local.conditionTriggered = false;
-	g_horde_local.conditionStartTime = 0_sec;
-	g_horde_local.conditionTimeThreshold = 0_sec;
-	g_horde_local.waveEndTime = 0_sec;
-	g_horde_local.timeWarningIssued = false;
-
-	// Resetear cualquier otro estado específico de la ola según sea necesario
-	g_horde_local.boss_spawned_for_wave = false;
-	g_horde_local.flying_monsters_mode = false;
-
-	// Reset core gameplay elements
-	auto_spawned_bosses.clear(); // Limpiar todos los jefes generados automáticamente
-	ResetAllSpawnAttempts();
-	ResetCooldowns();
+	// Resetear beneficios
 	ResetBenefits();
 
-	// Reiniciar la lista de bosses recientes
+	// Resetear listas y contadores
+	auto_spawned_bosses.clear();
+	ResetAllSpawnAttempts();
+	ResetCooldowns();
 	ResetRecentBosses();
-
-	// Reiniciar wave advance state
 	ResetWaveAdvanceState();
-
-	// Reset wave information
-	g_horde_local.level = 0; // Reset current wave level
-	//g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
-	//g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
-	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
-	g_horde_local.num_to_spawn = 0;
-	g_horde_local.queued_monsters = 0;
 
 	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
@@ -2068,11 +2035,9 @@ void ResetGame() {
 	gi.cvar_set("dm_monsters", "0");
 	gi.cvar_set("timelimit", "50");
 	gi.cvar_set("bot_pause", "0");
-	gi.cvar_set("set cheats 0 s", "");
 	gi.cvar_set("ai_damage_scale", "1");
 	gi.cvar_set("ai_allow_dm_spawn", "1");
 	gi.cvar_set("g_damage_scale", "1");
-
 	// Reset bonuses
 	gi.cvar_set("g_vampire", "0");
 	gi.cvar_set("g_startarmor", "0");
@@ -2088,7 +2053,7 @@ void ResetGame() {
 	srand(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
 
 	// Registrar el reinicio
-	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
+	gi.Com_Print("DEBUG: Horde game state reset complete.\n");
 }
 
 static gtime_t g_lastMonsterCountVerification = 0_ms;
@@ -2122,9 +2087,9 @@ inline int32_t CalculateRemainingMonsters() {
 
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	// Reset the cache if we're in a new wave
-	if (current_wave_level != g_lastWaveNumber) {
+	if (g_horde_local.level != g_lastWaveNumber) {
 		g_monster_check_cache.Reset();
-		g_lastWaveNumber = current_wave_level;
+		g_lastWaveNumber = g_horde_local.level;
 	}
 
 	const gtime_t current_time = level.time;
@@ -2722,7 +2687,7 @@ static void SetMonsterArmor(edict_t* monster) {
 			monster->max_health / ARMOR_PARAMS.health_base));
 
 		// Determinar si estamos en nivel alto
-		const bool is_high_level = current_wave_level > ARMOR_PARAMS.wave_limit;
+		const bool is_high_level = g_horde_local.level > ARMOR_PARAMS.wave_limit;
 
 		// Seleccionar parámetros basados en nivel
 		const ArmorLevel& params = is_high_level ? ARMOR_PARAMS.high : ARMOR_PARAMS.normal;
@@ -2733,7 +2698,7 @@ static void SetMonsterArmor(edict_t* monster) {
 				irandom(params.health_factor_min, params.health_factor_max));
 
 		// Calcular armadura adicional basada en el nivel
-		const int32_t level_difference = std::max(0, current_wave_level - ARMOR_PARAMS.wave_threshold);
+		const int32_t level_difference = std::max(0, g_horde_local.level - ARMOR_PARAMS.wave_threshold);
 		const int32_t additional_armor = static_cast<int32_t>(level_difference *
 			ARMOR_PARAMS.wave_multiplier *
 			health_factor);
@@ -2804,28 +2769,56 @@ static void CheckAndResetDisabledSpawnPoints() {
 }
 
 static void TransitionToActiveWave() {
-	// Asegurarnos que no haya más spawns pendientes
+	gi.Com_PrintFmt("DEBUG: Starting transition to active wave. Current state: {}\n",
+		static_cast<int>(g_horde_local.state));
+
+	// Verificar condiciones de transición
+	if (g_horde_local.state != horde_state_t::spawning) {
+		gi.Com_Print("WARNING: Attempting to transition to active_wave from invalid state\n");
+		return;
+	}
+
+	// Limpieza de spawns pendientes
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
+	g_horde_local.spawn_points_need_update = true;
 
+	// Configuración del nuevo estado
 	g_horde_local.state = horde_state_t::active_wave;
 	g_horde_local.conditionTriggered = false;
 	g_horde_local.conditionStartTime = 0_sec;
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.lastPrintTime = 0_sec;
 
+	// Reset de warnings
 	std::fill(g_horde_local.warningIssued.begin(),
 		g_horde_local.warningIssued.end(), false);
 
+	// Inicializar timers
 	g_independent_timer_start = level.time;
+	g_horde_local.monster_spawn_time = level.time + 1_sec;
 
-	gi.Com_Print("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
+	gi.Com_Print("DEBUG: Transition to active_wave complete\n");
 }
 
 void Horde_RunFrame() {
+	static gtime_t last_state_check = 0_ms;
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t currentLevel = g_horde_local.level;
 	CheckAndResetDisabledSpawnPoints();
+
+
+	// Verificación periódica del estado
+	if (level.time - last_state_check > 5_sec) {
+		last_state_check = level.time;
+
+		if (g_horde_local.state == horde_state_t::spawning &&
+			g_horde_local.num_to_spawn == 0 &&
+			!g_horde_local.next_wave_message_sent) {
+			gi.Com_Print("WARNING: Potentially stuck in spawning state - forcing transition\n");
+			TransitionToActiveWave();
+		}
+	}
 
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
@@ -2853,7 +2846,7 @@ void Horde_RunFrame() {
 			g_horde_local.cached_remaining_monsters = CalculateRemainingMonsters();
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
-			current_wave_level = 1;
+			g_horde_local.level = 1;
 			PlayWaveStartSound();
 			DisplayWaveMessage();
 		}
@@ -2912,15 +2905,15 @@ void Horde_RunFrame() {
 			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", currentLevel);
 
 			// Ajustar dificultad basada en el nivel de la ola
-			if (current_wave_level >= 15 && current_wave_level <= 28) {
+			if (g_horde_local.level >= 15 && g_horde_local.level <= 28) {
 				gi.cvar_set("g_insane", "1");
 				gi.cvar_set("g_chaotic", "0");
 			}
-			else if (current_wave_level >= 31) {
+			else if (g_horde_local.level >= 31) {
 				gi.cvar_set("g_insane", "2");
 				gi.cvar_set("g_chaotic", "0");
 			}
-			else if (current_wave_level <= 14) {
+			else if (g_horde_local.level <= 14) {
 				gi.cvar_set("g_insane", "0");
 				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 			}
@@ -2956,15 +2949,15 @@ void Horde_RunFrame() {
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", currentLevel);
 
-			if (current_wave_level >= 15 && current_wave_level <= 28) {
+			if (g_horde_local.level >= 15 && g_horde_local.level <= 28) {
 				gi.cvar_set("g_insane", "1");
 				gi.cvar_set("g_chaotic", "0");
 			}
-			else if (current_wave_level >= 31) {
+			else if (g_horde_local.level >= 31) {
 				gi.cvar_set("g_insane", "2");
 				gi.cvar_set("g_chaotic", "0");
 			}
-			else if (current_wave_level <= 14) {
+			else if (g_horde_local.level <= 14) {
 				gi.cvar_set("g_insane", "0");
 				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 			}
@@ -2997,16 +2990,19 @@ void Horde_RunFrame() {
 
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time == 0_sec) {
-			g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
+			gi.Com_Print("WARNING: warm_time not set in rest state\n");
+			g_horde_local.warm_time = level.time + 2_sec;
 		}
 		if (g_horde_local.warm_time < level.time) {
 			HandleWaveRestMessage(4_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
-			g_horde_local.warm_time = 0_sec; // Reset para siguiente uso
+			g_horde_local.warm_time = 0_sec;
+			gi.Com_Print("DEBUG: Transitioning from rest to spawning state\n");
 		}
 		break;
+
 	}
 
 	// Resetear el mensaje de horda si el tiempo ha expirado
@@ -3021,4 +3017,11 @@ void Horde_RunFrame() {
 // Función para manejar el evento de reinicio
 void HandleResetEvent() {
 	ResetGame();
+}
+
+int32_t GetCurrentWaveLevel() noexcept {
+	return g_horde_local.level;
+}
+	int32_t GetLastWaveNumber() noexcept {
+	return g_horde_local.last_wave_number;
 }

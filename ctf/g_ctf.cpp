@@ -402,7 +402,7 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	switch (ent->client->resp.ctf_team)
 	{
 	case CTF_TEAM1:
-		if (current_wave_level == 0 && count_ground_spawns() > 0) {
+		if (GetCurrentWaveLevel() == 0 && count_ground_spawns() > 0) {
 			cname = "info_player_deathmatch";
 			use_ground_spawns = true;
 		}
@@ -2177,7 +2177,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	// Header
 	if (g_horde->integer) {
 		layout += fmt::format("if 0 xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
-			last_wave_number, level.total_monsters - level.killed_monsters);
+			GetLastWaveNumber(), level.total_monsters - level.killed_monsters);
 	}
 	if (timelimit->value) {
 		layout += fmt::format("if 0 xv 340 yv -33 time_limit {} endif \n",

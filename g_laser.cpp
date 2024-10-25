@@ -374,9 +374,9 @@ void create_laser(edict_t* ent) {
 
     // Configurar láser
     laser->dmg = LaserConstants::LASER_INITIAL_DAMAGE +
-        (LaserConstants::LASER_ADDON_DAMAGE * (current_wave_level - 1));
+        (LaserConstants::LASER_ADDON_DAMAGE * (GetCurrentWaveLevel() - 1));
     laser->health = std::min(LaserConstants::LASER_INITIAL_HEALTH +
-        (LaserConstants::LASER_ADDON_HEALTH * (current_wave_level - 1)),
+        (LaserConstants::LASER_ADDON_HEALTH * (GetCurrentWaveLevel() - 1)),
         LaserConstants::MAX_LASER_HEALTH);
     laser->max_health = laser->health;
     laser->gib_health = -100;

@@ -1583,7 +1583,7 @@ void SP_monster_guncmdrkl(edict_t* self)
 {
 	self->spawnflags |= SPAWNFLAG_GUNCMDRKL;
 	SP_monster_guncmdr(self);
-	self->health = 4500 + (1.08 * current_wave_level);
+	self->health = 4500 + (1.08 * GetCurrentWaveLevel());
 
 
 	if (self->health < (self->max_health / 2))

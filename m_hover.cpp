@@ -583,7 +583,7 @@ void SP_monster_hover(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer && current_wave_level <= 18)
+	if (g_horde->integer && GetCurrentWaveLevel() <= 18)
 	{
 		if (strcmp(self->classname, "monster_daedalus"))
 		{

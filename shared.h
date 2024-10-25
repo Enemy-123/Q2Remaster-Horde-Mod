@@ -5,7 +5,7 @@
 
 #include "g_local.h"
 #include <string>
-#define first3waves current_wave_level <= 3
+#define first3waves GetCurrentWaveLevel() <= 3
 // Define los flags de bonus
 #define BF_CHAMPION   0x00000001
 #define BF_CORRUPTED  0x00000002
@@ -52,8 +52,6 @@ struct PlayerStats {
     edict_t* player;
     int total_damage;
 };
-
-
 
 extern inline float VectorDistance(const vec3_t& v1, const vec3_t& v2);
 #endif // SHARED_H
