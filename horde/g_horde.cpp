@@ -2126,7 +2126,8 @@ void fastNextWave() noexcept {
 	g_horde_local.monster_spawn_time = level.time;
 
 	// Forzar la transición al siguiente estado
-	g_horde_local.state = horde_state_t::active_wave;
+	g_horde_local.state = horde_state_t::rest;
+	g_horde_local.warm_time = level.time;
 	g_horde_local.conditionTriggered = false;
 	g_horde_local.conditionStartTime = 0_sec;
 	g_horde_local.waveEndTime = 0_sec;
@@ -2348,6 +2349,13 @@ struct SpawnPointCache {
 static SpawnPointCache g_spawn_cache;
 
 edict_t* SpawnMonsters() {
+
+	// Verificación temprana del estado
+	if (g_horde_local.state != horde_state_t::active_wave &&
+		g_horde_local.state != horde_state_t::spawning) {
+		return nullptr;
+	}
+
 	// Cache estática para resultados intermedios
 	static std::array<MonsterState, MONSTER_BATCH_SIZE> monster_states;
 	static std::array<vec3_t, MAX_CLIENTS> player_positions;
@@ -2638,6 +2646,10 @@ static void CheckAndResetDisabledSpawnPoints() {
 }
 
 static void TransitionToActiveWave() {
+	// Asegurarnos que no haya más spawns pendientes
+	g_horde_local.num_to_spawn = 0;
+	g_horde_local.queued_monsters = 0;
+
 	g_horde_local.state = horde_state_t::active_wave;
 	g_horde_local.conditionTriggered = false;
 	g_horde_local.conditionStartTime = 0_sec;
@@ -2730,9 +2742,14 @@ void Horde_RunFrame() {
 		WaveEndReason reason;
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
+			// Inmediatamente detener cualquier spawn pendiente
+			g_horde_local.num_to_spawn = 0;
+			g_horde_local.queued_monsters = 0;
+
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", currentLevel);
 
+			// Ajustar dificultad basada en el nivel de la ola
 			if (current_wave_level >= 15 && current_wave_level <= 28) {
 				gi.cvar_set("g_insane", "1");
 				gi.cvar_set("g_chaotic", "0");
@@ -2746,12 +2763,24 @@ void Horde_RunFrame() {
 				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 			}
 
+			// Configurar tiempo de descanso y transición
 			g_horde_local.warm_time = level.time + random_time(1.5_sec, 2.5_sec);
 			g_horde_local.state = horde_state_t::rest;
 			cachedRemainingMonsters = CalculateRemainingMonsters();
+
+			// Limpiar cualquier estado pendiente
+			next_wave_message_sent = false;
+			boss_spawned_for_wave = false;
+
+			break; // Salir inmediatamente para evitar spawns adicionales
 		}
 
-		if (g_horde_local.monster_spawn_time <= level.time && activeMonsters < maxMonsters) {
+		// Solo intentar spawn si no estamos en transición y es necesario
+		if (!shouldAdvance &&
+			g_horde_local.monster_spawn_time <= level.time &&
+			activeMonsters < maxMonsters &&
+			(g_horde_local.num_to_spawn > 0 || g_horde_local.queued_monsters > 0))
+		{
 			SpawnMonsters();
 		}
 
