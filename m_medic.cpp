@@ -239,16 +239,53 @@ void abortHeal(edict_t* self, bool gib, bool mark)
 bool finishHeal(edict_t* self)
 {
 	edict_t* healee = self->enemy;
+	bool isBodyque = !strcmp(healee->classname, "bodyque");
 
-	healee->spawnflags = SPAWNFLAG_NONE;
-	healee->monsterinfo.aiflags &= AI_RESPAWN_MASK;
-	healee->target = nullptr;
-	healee->targetname = nullptr;
-	healee->combattarget = nullptr;
-	healee->deathtarget = nullptr;
-	healee->healthtarget = nullptr;
-	healee->itemtarget = nullptr;
-	healee->monsterinfo.healer = self;
+	// If reviving a bodyque entity, we'll spawn a soldier instead
+	if (isBodyque) {
+		// Get position and angles from the corpse
+		vec3_t position = healee->s.origin;
+		vec3_t angles = healee->s.angles;
+
+		// Create the new soldier first
+		edict_t* soldier = G_Spawn();
+		soldier->s.origin = position;
+		soldier->s.angles = angles;
+		soldier->classname = "monster_soldier_ss";
+
+		// Call the spawn function for soldier
+		ED_CallSpawn(soldier);
+
+		// Force gib effect and then free the entity
+		gi.sound(healee, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+
+		ThrowGibs(healee, 50, {
+			{ 2, "models/objects/gibs/bone/tris.md2" },
+			{ 4, "models/objects/gibs/sm_meat/tris.md2" },
+			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
+			});
+
+		healee->s.modelindex = 0;
+		healee->solid = SOLID_NOT;
+		healee->takedamage = false;
+		healee->svflags |= SVF_NOCLIENT;
+		healee->deadflag = true;
+		G_FreeEdict(healee);
+
+		// Point healee to the new soldier
+		self->enemy = healee = soldier;
+	}
+	else {
+		healee->spawnflags = SPAWNFLAG_NONE;
+		healee->monsterinfo.aiflags &= AI_RESPAWN_MASK;
+		healee->target = nullptr;
+		healee->targetname = nullptr;
+		healee->combattarget = nullptr;
+		healee->deathtarget = nullptr;
+		healee->healthtarget = nullptr;
+		healee->itemtarget = nullptr;
+		healee->monsterinfo.healer = self;
+	}
 
 	vec3_t maxs = healee->maxs;
 	maxs[2] += 48; // compensate for change when they die
@@ -268,35 +305,38 @@ bool finishHeal(edict_t* self)
 
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
 
-	// backup & restore health stuff, because of multipliers
-	int32_t old_max_health = healee->max_health;
-	item_id_t old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
-	int32_t old_power_armor_power = healee->monsterinfo.max_power_armor_power;
-	int32_t old_base_health = healee->monsterinfo.base_health;
-	int32_t old_health_scaling = healee->monsterinfo.health_scaling;
-	auto reinforcements = healee->monsterinfo.reinforcements;
-	int32_t slots_from_commander = healee->monsterinfo.slots_from_commander;
-	int32_t monster_slots = healee->monsterinfo.monster_slots;
-	int32_t monster_used = healee->monsterinfo.monster_used;
-	int32_t old_gib_health = healee->gib_health;
+	// if it's a bodyque spawn, the rest is already handled by ED_CallSpawn
+	if (!isBodyque) {
+		// backup & restore health stuff, because of multipliers
+		int32_t old_max_health = healee->max_health;
+		item_id_t old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
+		int32_t old_power_armor_power = healee->monsterinfo.max_power_armor_power;
+		int32_t old_base_health = healee->monsterinfo.base_health;
+		int32_t old_health_scaling = healee->monsterinfo.health_scaling;
+		auto reinforcements = healee->monsterinfo.reinforcements;
+		int32_t slots_from_commander = healee->monsterinfo.slots_from_commander;
+		int32_t monster_slots = healee->monsterinfo.monster_slots;
+		int32_t monster_used = healee->monsterinfo.monster_used;
+		int32_t old_gib_health = healee->gib_health;
 
-	spawn_temp_t st{};
-	st.keys_specified.emplace("reinforcements");
-	st.reinforcements = "";
+		spawn_temp_t st{};
+		st.keys_specified.emplace("reinforcements");
+		st.reinforcements = "";
 
-	ED_CallSpawn(healee, st);
+		ED_CallSpawn(healee, st);
 
-	healee->monsterinfo.slots_from_commander = slots_from_commander;
-	healee->monsterinfo.reinforcements = reinforcements;
-	healee->monsterinfo.monster_slots = monster_slots;
-	healee->monsterinfo.monster_used = monster_used;
+		healee->monsterinfo.slots_from_commander = slots_from_commander;
+		healee->monsterinfo.reinforcements = reinforcements;
+		healee->monsterinfo.monster_slots = monster_slots;
+		healee->monsterinfo.monster_used = monster_used;
 
-	healee->gib_health = old_gib_health / 2;
-	healee->health = healee->max_health = old_max_health;
-	healee->monsterinfo.power_armor_power = healee->monsterinfo.max_power_armor_power = old_power_armor_power;
-	healee->monsterinfo.power_armor_type = healee->monsterinfo.initial_power_armor_type = old_power_armor_type;
-	healee->monsterinfo.base_health = old_base_health;
-	healee->monsterinfo.health_scaling = old_health_scaling;
+		healee->gib_health = old_gib_health / 2;
+		healee->health = healee->max_health = old_max_health;
+		healee->monsterinfo.power_armor_power = healee->monsterinfo.max_power_armor_power = old_power_armor_power;
+		healee->monsterinfo.power_armor_type = healee->monsterinfo.initial_power_armor_type = old_power_armor_type;
+		healee->monsterinfo.base_health = old_base_health;
+		healee->monsterinfo.health_scaling = old_health_scaling;
+	}
 
 	if (healee->monsterinfo.setskin)
 		healee->monsterinfo.setskin(healee);
@@ -306,6 +346,7 @@ bool finishHeal(edict_t* self)
 		healee->nextthink = level.time;
 		healee->think(healee);
 	}
+
 	healee->monsterinfo.aiflags &= ~AI_RESURRECTING;
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
 	// turn off flies
@@ -359,7 +400,8 @@ edict_t* healFindMonster(edict_t* self, float radius)
 	{
 		if (ent == self)
 			continue;
-		if (!(ent->svflags & SVF_MONSTER))
+		// Check for both monsters and bodyque entities
+		if (!(ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "bodyque") != 0)
 			continue;
 		if (ent->monsterinfo.aiflags & AI_GOOD_GUY)
 			continue;
