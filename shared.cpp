@@ -17,37 +17,29 @@ bool hasEntities = false;
 
 void RemovePlayerOwnedEntities(edict_t* player)
 {
-	if (!player)
+	if (!player || !globals.num_edicts)
 		return;
 
-	for (unsigned int i = 0; i < globals.num_edicts; i++)
-	{
-		edict_t* ent = &g_edicts[i];
-		if (!ent->inuse || !ent->owner)
+	for (unsigned int i = 0; i < globals.num_edicts; i++) {
+		edict_t& ent = g_edicts[i];
+		if (!ent.inuse || !ent.owner)
 			continue;
 
-		bool shouldRemove = (ent->owner == player ||
-			ent->owner->owner == player ||
-			ent->teammaster == player ||
-			(ent->teammaster && ent->teammaster->teammaster == player));
+		if (ent.owner == player ||
+			ent.owner->owner == player ||
+			ent.teammaster == player ||
+			(ent.teammaster && ent.teammaster->teammaster == player)) {
 
-		if (shouldRemove)
-		{
-			OnEntityDeath(ent);
-
-			if (IsRemovableEntity(ent))
-			{
-				RemoveEntity(ent);
-			}
+			OnEntityDeath(&ent);
+			if (IsRemovableEntity(&ent))
+				RemoveEntity(&ent);
 		}
 	}
 
-	// Reset the player's laser counter
 	if (player->client)
-	{
 		player->client->num_lasers = 0;
-	}
 }
+
 bool IsRemovableEntity(const edict_t* ent)
 {
 	static const std::unordered_set<std::string_view> removableEntities = {
@@ -138,12 +130,21 @@ float M_DamageModifier(edict_t* monster)
 std::string GetTitleFromFlags(int bonus_flags)
 {
 	std::string title;
-	if (bonus_flags & BF_CHAMPION) { title += "Champion "; }
-	if (bonus_flags & BF_CORRUPTED) { title += "Corrupted "; }
-	if (bonus_flags & BF_RAGEQUITTER) { title += "Ragequitter "; }
-	if (bonus_flags & BF_BERSERKING) { title += "Berserking "; }
-	if (bonus_flags & BF_POSSESSED) { title += "Possessed "; }
-	if (bonus_flags & BF_STYGIAN) { title += "Stygian "; }
+	title.reserve(100); // Reservar espacio anticipadamente
+
+	static const std::pair<int, std::string_view> flagTitles[] = {
+		{BF_CHAMPION, "Champion "},
+		{BF_CORRUPTED, "Corrupted "},
+		{BF_RAGEQUITTER, "Ragequitter "},
+		{BF_BERSERKING, "Berserking "},
+		{BF_POSSESSED, "Possessed "},
+		{BF_STYGIAN, "Stygian "}
+	};
+
+	for (const auto& [flag, name] : flagTitles)
+		if (bonus_flags & flag)
+			title += name;
+
 	return title;
 }
 
@@ -287,39 +288,34 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 }
 
 // Función auxiliar para calcular los valores mínimos de salud y armadura
-static void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
+static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {
-	if (wave_number >= 25 && wave_number <= 200)
-	{
+	if (wave_number >= 25) {
 		health_min = 18000;
 		power_armor_min = std::min(18550, 20000);
 	}
-	else if (wave_number >= 20 && wave_number <= 24)
-	{
+	else if (wave_number >= 20) {
 		health_min = std::min(15000, 16500);
 		power_armor_min = std::min(13000, 16000);
 	}
-	else if (wave_number >= 15 && wave_number <= 19)
-	{
+	else if (wave_number >= 15) {
 		health_min = std::min(12000, 15500);
 		power_armor_min = std::min(9500, 12000);
 	}
-	else if (wave_number >= 10 && wave_number <= 14)
-	{
+	else if (wave_number >= 10) {
 		health_min = std::min(10000, 12500);
 		power_armor_min = std::min(5475, 8000);
 	}
-	else if (wave_number >= 5 && wave_number <= 9)
-	{
+	else if (wave_number >= 5) {
 		health_min = std::min(10000, 12500);
 		power_armor_min = std::min(5475, 8000);
 	}
-	else
-	{
+	else {
 		health_min = 5000;
 		power_armor_min = 1500;
 	}
 }
+
 void ApplyBossEffects(edict_t* boss)
 {
 	// Verificar si es un jefe y si ya se han aplicado los efectos
@@ -629,6 +625,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	constexpr int max_attempts = 5; // Maximum number of attempts to push entities
 	std::vector<edict_t*> stubborn_entities; // Entities that couldn't be moved after all attempts
 	std::vector<edict_t*> entities_to_remove; // Entities to remove after iteration
+
+	// Reservar memoria anticipadamente
+	stubborn_entities.reserve(MAX_EDICTS);
+	entities_to_remove.reserve(MAX_EDICTS);
 
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.030f);
