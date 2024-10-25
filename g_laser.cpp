@@ -1,335 +1,461 @@
 #include "g_local.h"
 #include "shared.h"
+#include <array>
+#include <unordered_map>
 
-constexpr int32_t MAX_LASERS = 6;
-constexpr int32_t LASER_COST = 25;
-constexpr int32_t LASER_INITIAL_DAMAGE = 1;
-constexpr int32_t LASER_ADDON_DAMAGE = 4;
-constexpr int32_t LASER_INITIAL_HEALTH = 125;  // DMG before explode
-constexpr int32_t LASER_ADDON_HEALTH = 100;     // DMG addon before explode
-constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
-constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
-constexpr float LASER_NONCLIENT_MOD = 0.25f;    // Reducido para menor desgaste contra objetos
+// Forward declarations
+void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+class PlayerLaserManager;
 
-void laser_remove(edict_t* self)
-{
-	// remove emitter/grenade
-	self->think = BecomeExplosion1;
-	self->nextthink = level.time + FRAME_TIME_MS;
+// Parte 2: LaserManagerHolder (reemplaza la versión anterior)
+class LaserManagerHolder {
+public:
+    PlayerLaserManager* manager_ptr;
+    LaserManagerHolder();
+    ~LaserManagerHolder();
+};
 
-	// remove laser beam
-	if (self->owner && self->owner->inuse)
-	{
-		self->owner->think = G_FreeEdict;
-		self->owner->nextthink = level.time + FRAME_TIME_MS;
-	}
-
-	// decrement laser counter
-	if (self->teammaster && self->teammaster->inuse && self->teammaster->client)
-	{
-		self->teammaster->client->num_lasers--;
-		gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
-			self->teammaster->client->num_lasers, MAX_LASERS);
-	}
+// Constants
+namespace LaserConstants {
+    constexpr int32_t MAX_LASERS = 6;
+    constexpr int32_t LASER_COST = 25;
+    constexpr int32_t LASER_INITIAL_DAMAGE = 1;
+    constexpr int32_t LASER_ADDON_DAMAGE = 4;
+    constexpr int32_t LASER_INITIAL_HEALTH = 125;
+    constexpr int32_t LASER_ADDON_HEALTH = 100;
+    constexpr int32_t MAX_LASER_HEALTH = 1750;
+    constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
+    constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
+    constexpr gtime_t TRACE_UPDATE_INTERVAL = 50_ms;
+    constexpr gtime_t BLINK_INTERVAL = 500_ms;
+    constexpr gtime_t WARNING_TIME = 10_sec;
+    constexpr float LASER_NONCLIENT_MOD = 1.0f;   // Aumentado para mejor daño PvE
 }
 
-DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
-{
-	OnEntityDeath(self);
-	// Decrement laser counter for the owner
-	if (self->teammaster && self->teammaster->client)
-	{
-		self->teammaster->client->num_lasers--;
-		gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
-			self->teammaster->client->num_lasers, MAX_LASERS);
-	}
+// Estructuras de apoyo
+struct LaserState {
+    vec3_t last_trace_start;
+    vec3_t last_trace_end;
+    gtime_t last_trace_time = 0_ms;
+    bool needs_retrace = true;
+};
 
-	// Remove both the emitter and the beam
-	if (self->classname && strcmp(self->classname, "emitter") == 0)
-	{
-		if (self->owner)
-			G_FreeEdict(self->owner);  // Free the laser beam
-		BecomeExplosion1(self);  // Explode the emitter
-	}
-	else
-	{
-		if (self->owner)
-			BecomeExplosion1(self->owner);  // Explode the emitter
-		G_FreeEdict(self);  // Free the laser beam
-	}
-}
+struct EmitterState {
+    bool is_warning_phase = false;
+    bool is_blink_on = false;
+    gtime_t last_blink_time = 0_ms;
+};
 
-PAIN(laser_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
-{
-	// Implementación básica de dolor
-	if (self->health < self->max_health / 2)
-	{
-		// Cambiar el color a amarillo cuando está dañado
-		self->s.skinnum = 0xd0d1d2d3;  // amarillo
-	}
+// Sistema de gestión de láseres por jugador
+class PlayerLaserManager {
+private:
+    struct LaserEntry {
+        edict_t* emitter = nullptr;
+        edict_t* beam = nullptr;
+        bool active = false;
+    };
 
-	// Llamar a laser_die si la salud llega a cero o menos
-	if (self->health <= 0)
-	{
-		laser_die(self, other, other, damage, self->s.origin, mod);
-	}
-}
+    std::array<LaserEntry, LaserConstants::MAX_LASERS> lasers;
+    int active_count = 0;
+    edict_t* owner;
 
-THINK(laser_beam_think)(edict_t* self) -> void
-{
-	vec3_t forward;
-	trace_t tr;
-	bool hit_valid_target = false;
+public:
+    explicit PlayerLaserManager(edict_t* player) : owner(player) {}
 
-	if (!self->owner)
-	{
-		G_FreeEdict(self);
-		return;
-	}
+    bool can_add_laser() const {
+        return active_count < LaserConstants::MAX_LASERS;
+    }
 
-	const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
-	self->s.frame = size;
+    void add_laser(edict_t* emitter, edict_t* beam) {
+        if (!can_add_laser()) return;
 
-	// Cambiar color basado en la salud del láser
-	self->s.skinnum = (self->health > self->max_health * 0.20f) ? 0xf2f2f0f0 : 0xd0d1d2d3;
+        for (auto& entry : lasers) {
+            if (!entry.active) {
+                entry.emitter = emitter;
+                entry.beam = beam;
+                entry.active = true;
+                active_count++;
+                break;
+            }
+        }
+    }
 
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	const vec3_t start = self->pos1;
-	const vec3_t end = start + forward * 8192;
-	tr = gi.traceline(start, end, self->owner, MASK_SHOT);
-	self->s.origin = tr.endpos;
-	self->s.old_origin = self->pos1;
+    void remove_laser(edict_t* entity) {
+        for (auto& entry : lasers) {
+            if (entry.active && (entry.emitter == entity || entry.beam == entity)) {
+                entry.active = false;
+                entry.emitter = nullptr;
+                entry.beam = nullptr;
+                active_count--;
+                break;
+            }
+        }
+    }
 
-	const int damage = (size) ? std::min(self->dmg, self->health) : 0;
+    void remove_all_lasers() {
+        for (auto& entry : lasers) {
+            if (entry.active) {
+                if (entry.emitter) {
+                    laser_die(entry.emitter, nullptr, owner, 9999, vec3_origin, MOD_UNKNOWN);
+                }
+                entry.active = false;
+                entry.emitter = nullptr;
+                entry.beam = nullptr;
+            }
+        }
+        active_count = 0;
+    }
 
-	if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster)
-	{
-		// Verificar si el objetivo es válido (monstruo, jugador, o entidad dañable)
-		if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage)
-		{
-			// Verificar si el objetivo está en el mismo equipo
-			if (!OnSameTeam(self->teammaster, tr.ent))
-			{
-				// Aplicar daño incluso si la salud es <= 0, pero no contar como hit_valid_target
-				T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin, damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+    int get_active_count() const {
+        return active_count;
+    }
+};
 
-				// Solo contar como hit_valid_target si la salud es > 0
-				if (tr.ent->health > 0)
-				{
-					hit_valid_target = true;
-					// Reducir la salud del láser solo si golpeó un objetivo válido con salud > 0
-					float damageMult = 0.25f; // Valor por defecto para otros objetivos válidos
+LaserManagerHolder::LaserManagerHolder() : manager_ptr(nullptr) {}
 
-					if (tr.ent->svflags & SVF_MONSTER)
-					{
-						if (tr.ent->monsterinfo.invincible_time > level.time)
-						{
-							damageMult = 0.0f; // No desgaste contra objetivos invulnerables
-						}
-						else if (tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
-						{
-							damageMult = 1.25f; // Ligeramente mayor desgaste contra boss
-						}
-						else
-						{
-							damageMult = 1.0f; // Desgaste normal contra monsters
-						}
-					}
-
-					self->health -= damage * damageMult;
-				}
-			}
-		}
-	}
-
-	// Si no golpeó un objetivo válido, no reducir la salud
-	if (!hit_valid_target)
-	{
-		// Opcionalmente, puedes agregar un desgaste mínimo aquí si lo deseas
-		// self->health -= 0.1f;  // Desgaste mínimo cuando no golpea nada
-	}
-
-	// Si la salud llega a cero, explotar
-	if (self->health <= 0)
-	{
-		gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser emitter burned out and exploded.\n");
-		laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_PLAYER_LASER);
-		return;
-	}
-
-	self->nextthink = level.time + FRAME_TIME_MS;
-}
-
-THINK(emitter_think)(edict_t* self) -> void
-{
-	// Check if the laser has timed out
-	if (level.time >= self->timestamp)
-	{
-		gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
-		laser_die(self, nullptr, self->teammaster, 9999, self->s.origin, MOD_UNKNOWN);
-		return;
-	}
-
-	// flash green when we are about to expire (last 10 seconds)
-	if (level.time >= self->timestamp - 10_sec)
-	{
-		if (level.time.milliseconds() / 500 % 2 == 0)  // Blink every 0.5 seconds
-		{
-			self->s.renderfx |= RF_SHELL_GREEN;
-			self->s.effects |= EF_COLOR_SHELL;
-		}
-		else
-		{
-			self->s.renderfx &= ~RF_SHELL_GREEN;
-			self->s.effects &= ~EF_COLOR_SHELL;
-		}
-	}
-	else
-	{
-		self->s.renderfx &= ~RF_SHELL_GREEN;
-		self->s.effects &= ~EF_COLOR_SHELL;
-	}
-
-	self->nextthink = level.time + FRAME_TIME_MS;
+LaserManagerHolder::~LaserManagerHolder() {
+    delete manager_ptr;
 }
 
 
-void create_laser(edict_t* ent)
-{
-	vec3_t forward, right, start, end, offset;
-	trace_t tr;
-	edict_t* grenade;
-	edict_t* laser;
+// Funciones helper
+namespace LaserHelpers {
+    bool is_valid_target(const edict_t* ent) {
+        return ent && ent->inuse &&
+            ((ent->svflags & SVF_MONSTER) || ent->client || ent->takedamage);
+    }
 
-	if (!g_horde->integer)
-	{
-		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a laser\n");
-		return;
-	}
+    bool is_same_team(const edict_t* ent1, const edict_t* ent2) {
+        return ent1 && ent2 && ent1->team && ent2->team &&
+            strcmp(ent1->team, ent2->team) == 0;
+    }
 
-	if (ent->movetype != MOVETYPE_WALK) {
-		gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect to create laser.\n");
-		return;
-	}
+    float calculate_damage_multiplier(const edict_t* target) {
+        if (!target) return 0.0f;
 
-	if (ent->client->num_lasers >= MAX_LASERS)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
-		return;
-	}
+        if (target->svflags & SVF_MONSTER) {
+            if (target->monsterinfo.invincible_time > level.time) {
+                return 0.0f;
+            }
+            return target->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 1.25f : 1.0f;
+        }
+        return LaserConstants::LASER_NONCLIENT_MOD;
+    }
 
-	if (ent->client->pers.inventory[IT_AMMO_CELLS] < LASER_COST)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Not enough cells to create a laser.\n");
-		return;
-	}
+    void update_visual_state(edict_t* ent, bool warning_state, bool blink_state) {
+        if (warning_state && blink_state) {
+            ent->s.renderfx |= RF_SHELL_GREEN;
+            ent->s.effects |= EF_COLOR_SHELL;
+        }
+        else {
+            ent->s.renderfx &= ~RF_SHELL_GREEN;
+            ent->s.effects &= ~EF_COLOR_SHELL;
+        }
+    }
 
-	// get starting position and forward vector
-	AngleVectors(ent->client->v_angle, forward, right, nullptr);
-	VectorSet(offset, 0, 8, ent->viewheight - 8);
-	start = G_ProjectSource(ent->s.origin, offset, forward, right);
-	// get end position
-	end = start + forward * 64;
+    vec3_t normalize_vector(const vec3_t& v) {
+        float length = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
+        if (length == 0) return vec3_origin;
+        return vec3_t{ v[0] / length, v[1] / length, v[2] / length };
+    }
 
-	tr = gi.traceline(start, end, ent, MASK_SOLID);
-
-	if (tr.fraction == 1.0f)
-	{
-		gi.LocClient_Print(ent, PRINT_HIGH, "Too far from wall.\n");
-		return;
-	}
-
-	laser = G_Spawn();
-	grenade = G_Spawn();
-
-	// create the laser beam
-	laser->dmg = LASER_INITIAL_DAMAGE + (LASER_ADDON_DAMAGE * (current_wave_level - 1));
-	laser->health = LASER_INITIAL_HEALTH + (LASER_ADDON_HEALTH * (current_wave_level - 1));
-	laser->max_health = laser->health;
-	laser->gib_health = -100;
-	laser->mass = 50;
-	laser->movetype = MOVETYPE_NONE;
-	laser->solid = SOLID_NOT;
-	laser->s.renderfx = RF_BEAM | RF_TRANSLUCENT;
-	laser->s.modelindex = 1; // must be non-zero
-	laser->s.sound = gi.soundindex("world/laser.wav");
-	laser->classname = "laser";
-	laser->teammaster = ent; // link to player
-	laser->owner = grenade; // link to grenade
-	laser->s.skinnum = 0xf2f2f0f0; // red beam color
-	laser->think = laser_beam_think;
-	laser->nextthink = level.time + LASER_SPAWN_DELAY;
-	laser->s.origin = ent->s.origin;
-	laser->s.old_origin = tr.endpos;
-	laser->pos1 = tr.endpos; // beam origin
-	laser->s.angles = vectoangles(tr.plane.normal);
-	laser->takedamage = false;
-	laser->die = laser_die;
-	laser->pain = laser_pain;
-	laser->flags |= FL_NO_KNOCKBACK;
-
-	// Asignar el equipo al láser
-	if (ent->client->resp.ctf_team == CTF_TEAM1) {
-		laser->team = TEAM1;
-	}
-	else if (ent->client->resp.ctf_team == CTF_TEAM2) {
-		laser->team = TEAM2;
-	}
-	else {
-		laser->team = "neutral"; // O cualquier valor por defecto que prefieras
-	}
-
-	if (laser->health >= 1750)
-		laser->health = 1750;
-
-	gi.linkentity(laser);
-
-	// create the laser emitter (grenade)
-	grenade->s.origin = tr.endpos;
-	grenade->s.angles = vectoangles(tr.plane.normal);
-	grenade->movetype = MOVETYPE_NONE;
-	grenade->clipmask = MASK_SHOT;
-	grenade->solid = SOLID_BBOX;
-	VectorSet(grenade->mins, -3, -3, 0);
-	VectorSet(grenade->maxs, 3, 3, 6);
-	grenade->takedamage = true;
-	grenade->health = 100;
-	grenade->gib_health = -50;
-	grenade->mass = 25;
-	grenade->s.modelindex = gi.modelindex("models/objects/grenade2/tris.md2");
-	grenade->teammaster = ent; // link to player
-	grenade->owner = laser; // link to laser
-	grenade->classname = "emitter";
-	grenade->nextthink = level.time + FRAME_TIME_MS;
-	grenade->think = emitter_think;
-	grenade->die = laser_die;
-	grenade->svflags = SVF_BOT;
-	grenade->pain = laser_pain;
-	grenade->timestamp = level.time + LASER_TIMEOUT_DELAY;
-	laser->flags |= FL_NO_KNOCKBACK;
-
-	grenade->team = laser->team;
-
-	gi.linkentity(grenade);
-
-	ent->client->num_lasers++;
-	ent->client->pers.inventory[IT_AMMO_CELLS] -= LASER_COST;
-
-	gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n", ent->client->num_lasers, MAX_LASERS);
+    PlayerLaserManager* get_laser_manager(edict_t* ent) {
+        if (!ent || !ent->client) return nullptr;
+        auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
+        return holder ? static_cast<PlayerLaserManager*>(holder->manager_ptr) : nullptr;
+    }
 }
 
-void remove_lasers(edict_t* ent) noexcept
-{
-	edict_t* e = nullptr;
-	while ((e = G_Find(e, [](edict_t* e) { return strcmp(e->classname, "emitter") == 0; })) != nullptr)
-	{
-		if (e && (e->teammaster == ent))
-		{
-			laser_die(e, nullptr, ent, 9999, vec3_origin, MOD_UNKNOWN);
-		}
-	}
+// Funciones principales optimizadas
+void laser_remove(edict_t* self) {
+    if (!self) return;
 
-	// reset laser counter
-	ent->client->num_lasers = 0;
+    self->think = BecomeExplosion1;
+    self->nextthink = level.time + FRAME_TIME_MS;
+
+    if (self->owner && self->owner->inuse) {
+        self->owner->think = G_FreeEdict;
+        self->owner->nextthink = level.time + FRAME_TIME_MS;
+    }
+
+    if (self->teammaster && self->teammaster->inuse && self->teammaster->client) {
+        if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
+            manager->remove_laser(self);
+            gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
+                manager->get_active_count(), LaserConstants::MAX_LASERS);
+        }
+    }
 }
 
+DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void {
+    if (!self) return;
+
+    OnEntityDeath(self);
+
+    // Asegurarse de que el manager actualice el contador
+    if (self->teammaster && self->teammaster->client) {
+        if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
+            manager->remove_laser(self);
+        }
+    }
+
+    if (self->classname && strcmp(self->classname, "emitter") == 0) {
+        if (self->owner)
+            G_FreeEdict(self->owner);
+        BecomeExplosion1(self);
+    }
+    else {
+        if (self->owner)
+            BecomeExplosion1(self->owner);
+        G_FreeEdict(self);
+    }
+}
+
+THINK(laser_beam_think)(edict_t* self) -> void {
+    if (!self || !self->owner) {
+        G_FreeEdict(self);
+        return;
+    }
+
+    static std::unordered_map<const edict_t*, LaserState> laser_states;
+    auto& state = laser_states[self];
+
+    // Simplify size calculation to match original behavior
+    const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
+    self->s.frame = size;
+    self->s.skinnum = (self->health > self->max_health * 0.20f) ? 0xf2f2f0f0 : 0xd0d1d2d3;
+
+    if (state.needs_retrace || level.time >= state.last_trace_time + LaserConstants::TRACE_UPDATE_INTERVAL) {
+        vec3_t forward;
+        AngleVectors(self->s.angles, forward, nullptr, nullptr);
+
+        state.last_trace_start = self->pos1;
+        state.last_trace_end = state.last_trace_start + forward * 8192;
+
+        trace_t tr = gi.traceline(state.last_trace_start, state.last_trace_end, self->owner, MASK_SHOT);
+        self->s.origin = tr.endpos;
+
+        // Original damage calculation
+        const int damage = (size) ? std::min(self->dmg, self->health) : 0;
+
+        if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
+            bool hit_valid_target = false;
+
+            if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage) {
+                if (!OnSameTeam(self->teammaster, tr.ent)) {
+                    // Apply damage using original forward vector
+                    T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
+                        damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+
+                    // Only count as valid hit if target has health > 0
+                    if (tr.ent->health > 0) {
+                        hit_valid_target = true;
+
+                        // Original damage multiplier logic
+                        float damageMult = 0.25f; // Default for other valid targets
+
+                        if (tr.ent->svflags & SVF_MONSTER) {
+                            if (tr.ent->monsterinfo.invincible_time > level.time) {
+                                damageMult = 0.0f; // No wear against invulnerable targets
+                            }
+                            else if (tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+                                damageMult = 1.25f; // Slightly more wear against bosses
+                            }
+                            else {
+                                damageMult = 1.0f; // Normal wear against monsters
+                            }
+                        }
+
+                        // Apply health reduction only for valid targets
+                        if (hit_valid_target) {
+                            self->health -= damage * damageMult;
+                        }
+                    }
+                }
+            }
+        }
+
+        state.last_trace_time = level.time;
+        state.needs_retrace = false;
+    }
+
+    self->s.old_origin = self->pos1;
+
+    if (self->health <= 0) {
+        if (self->teammaster && self->teammaster->inuse && self->teammaster->client) {
+            if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
+                manager->remove_laser(self);
+                gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser emitter burned out and exploded. {}/{} remaining.\n",
+                    manager->get_active_count(), LaserConstants::MAX_LASERS);
+            }
+        }
+        laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_PLAYER_LASER);
+        laser_states.erase(self);
+        return;
+    }
+
+    self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+THINK(emitter_think)(edict_t* self) -> void {
+    if (!self) return;
+
+    static std::unordered_map<const edict_t*, EmitterState> emitter_states;
+    auto& state = emitter_states[self];
+
+    if (level.time >= self->timestamp) {
+        gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser timed out and was removed.\n");
+        laser_die(self, nullptr, self->teammaster, 9999, self->s.origin, MOD_UNKNOWN);
+        emitter_states.erase(self);
+        return;
+    }
+
+    bool should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
+    if (should_warn != state.is_warning_phase) {
+        state.is_warning_phase = should_warn;
+        state.last_blink_time = 0_ms;
+    }
+
+    if (state.is_warning_phase && level.time >= state.last_blink_time + LaserConstants::BLINK_INTERVAL) {
+        state.is_blink_on = !state.is_blink_on;
+        state.last_blink_time = level.time;
+    }
+
+    LaserHelpers::update_visual_state(self, state.is_warning_phase, state.is_blink_on);
+    self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+void create_laser(edict_t* ent) {
+    if (!ent || !ent->client) return;
+
+    if (!g_horde->integer) {
+        gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a laser\n");
+        return;
+    }
+
+    if (ent->movetype != MOVETYPE_WALK) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect to create laser.\n");
+        return;
+    }
+
+    // Inicializar el manager de láseres si no existe
+    if (!ent->client->laser_manager) {
+        auto* holder = new LaserManagerHolder();
+        holder->manager_ptr = new PlayerLaserManager(ent);
+        ent->client->laser_manager = reinterpret_cast<void*>(holder);
+    }
+
+    // Ahora verificamos si podemos agregar más láseres
+    auto* current_manager = LaserHelpers::get_laser_manager(ent);
+    if (!current_manager || !current_manager->can_add_laser()) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
+        return;
+    }
+
+    if (ent->client->pers.inventory[IT_AMMO_CELLS] < LaserConstants::LASER_COST) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Not enough cells to create a laser.\n");
+        return;
+    }
+    vec3_t forward, right, start, end, offset;
+    AngleVectors(ent->client->v_angle, forward, right, nullptr);
+    VectorSet(offset, 0, 8, ent->viewheight - 8);
+    start = G_ProjectSource(ent->s.origin, offset, forward, right);
+    end = start + forward * 64;
+
+    trace_t tr = gi.traceline(start, end, ent, MASK_SOLID);
+
+    if (tr.fraction == 1.0f) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Too far from wall.\n");
+        return;
+    }
+
+    edict_t* laser = G_Spawn();
+    edict_t* grenade = G_Spawn();
+
+    // Configurar láser
+    laser->dmg = LaserConstants::LASER_INITIAL_DAMAGE +
+        (LaserConstants::LASER_ADDON_DAMAGE * (current_wave_level - 1));
+    laser->health = std::min(LaserConstants::LASER_INITIAL_HEALTH +
+        (LaserConstants::LASER_ADDON_HEALTH * (current_wave_level - 1)),
+        LaserConstants::MAX_LASER_HEALTH);
+    laser->max_health = laser->health;
+    laser->gib_health = -100;
+    laser->mass = 50;
+    laser->movetype = MOVETYPE_NONE;
+    laser->solid = SOLID_NOT;
+    laser->s.renderfx = RF_BEAM | RF_TRANSLUCENT;
+    laser->s.modelindex = 1;
+    laser->s.sound = gi.soundindex("world/laser.wav");
+    laser->classname = "laser";
+    laser->teammaster = ent;
+    laser->owner = grenade;
+    laser->s.skinnum = 0xf2f2f0f0;
+    laser->think = laser_beam_think;
+    laser->nextthink = level.time + LaserConstants::LASER_SPAWN_DELAY;
+    laser->s.origin = ent->s.origin;
+    laser->s.old_origin = tr.endpos;
+    laser->pos1 = tr.endpos;
+    laser->s.angles = vectoangles(tr.plane.normal);
+    laser->takedamage = false;
+    laser->die = laser_die;
+    laser->flags |= FL_NO_KNOCKBACK;
+
+    // Establecer equipo basado en CTF
+    if (ent->client->resp.ctf_team == CTF_TEAM1) {
+        laser->team = TEAM1;
+    }
+    else if (ent->client->resp.ctf_team == CTF_TEAM2) {
+        laser->team = TEAM2;
+    }
+    else {
+        laser->team = "neutral";
+    }
+
+    // Configurar granada (emisor)
+    grenade->s.origin = tr.endpos;
+    grenade->s.angles = vectoangles(tr.plane.normal);
+    grenade->movetype = MOVETYPE_NONE;
+    grenade->clipmask = MASK_SHOT;
+    grenade->solid = SOLID_BBOX;
+    VectorSet(grenade->mins, -3, -3, 0);
+    VectorSet(grenade->maxs, 3, 3, 6);
+    grenade->takedamage = true;
+    grenade->health = 100;
+    grenade->gib_health = -50;
+    grenade->mass = 25;
+    grenade->s.modelindex = gi.modelindex("models/objects/grenade2/tris.md2");
+    grenade->teammaster = ent;
+    grenade->owner = laser;
+    grenade->classname = "emitter";
+    grenade->nextthink = level.time + FRAME_TIME_MS;
+    grenade->think = emitter_think;
+    grenade->die = laser_die;
+    grenade->svflags = SVF_BOT;
+    //    grenade->pain = laser_pain;
+    grenade->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
+    grenade->flags |= FL_NO_KNOCKBACK;
+    grenade->team = laser->team;
+
+    // Enlazar entidades
+    gi.linkentity(laser);
+    gi.linkentity(grenade);
+
+    // Actualizar inventario y contador del jugador
+    ent->client->pers.inventory[IT_AMMO_CELLS] -= LaserConstants::LASER_COST;
+
+    // Obtener el manager y registrar el nuevo láser
+    if (auto* current_manager = LaserHelpers::get_laser_manager(ent)) {
+        current_manager->add_laser(grenade, laser);
+        gi.LocClient_Print(ent, PRINT_HIGH, "Laser built. You have {}/{} lasers.\n",
+            current_manager->get_active_count(), LaserConstants::MAX_LASERS);
+    }
+}
+
+    void remove_lasers(edict_t * ent) noexcept {
+        if (!ent) return;
+
+        // Usar el manager para remover todos los láseres
+        if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
+            manager->remove_all_lasers();
+        }
+    }
