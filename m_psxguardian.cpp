@@ -307,7 +307,7 @@ void guardianpsx_fire_blaster(edict_t* self)
 	forward += up * crandom() * 0.02f;
 	forward.normalize();
 
-	edict_t* bolt = monster_fire_blaster(self, start, forward, 3, 1100, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+	edict_t* bolt = monster_fire_blaster(self, start, forward, 5, 1100, id, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 	bolt->s.scale = 2.0f;
 
 	if (self->enemy && self->enemy->health > 0 &&
