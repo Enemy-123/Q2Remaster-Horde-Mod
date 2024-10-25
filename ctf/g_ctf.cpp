@@ -4092,25 +4092,45 @@ bool CTFStartClient(edict_t* ent)
 	return false;
 }
 
-
 void RemoveAllTechItems(edict_t* ent)
 {
+	// Verificar que el jugador y su cliente sean válidos
+	if (!ent || !ent->client)
+		return;
+
 	// Recorrer todo el inventario del jugador
 	for (int i = 0; i < MAX_ITEMS; i++)
 	{
 		gitem_t* item = &itemlist[i];
-		if (item->flags & IF_TECH && ent->client->pers.inventory[i] > 0 ||
-			(item->flags & IF_ARMOR && ent->client->pers.inventory[i] > 0 ||
-				(item->flags & IF_POWERUP && ent->client->pers.inventory[i] > 0)))
+
+		// Verificar que el item sea válido
+		if (!item)
+			continue;
+
+		bool isTechItem = (item->flags & IF_TECH) && ent->client->pers.inventory[i] > 0;
+		bool isArmorItem = (item->flags & IF_ARMOR) && ent->client->pers.inventory[i] > 0;
+		bool isPowerupItem = (item->flags & IF_POWERUP) && ent->client->pers.inventory[i] > 0;
+
+		// Verificar el classname antes de usar strcmp
+		bool isDoppleganger = false;
+		if (item->classname && isPowerupItem) {
+			isDoppleganger = strcmp(item->classname, "item_doppleganger") == 0;
+		}
+
+		// Si es un tech item, armor, o powerup (excepto doppleganger)
+		if (isTechItem || isArmorItem || (isPowerupItem && !isDoppleganger))
 		{
-			// Eliminar el tech item del inventario del jugador
+			// Eliminar el item del inventario del jugador
 			ent->client->pers.inventory[i] = 0;
 
-			// Reiniciar el estado de todos los tech items del mismo tipo
+			// Reiniciar el estado de todos los items del mismo tipo
 			for (unsigned int j = 0; j < game.maxentities; j++)
 			{
 				edict_t* tech = &g_edicts[j];
-				if (tech->inuse && tech->item == item)
+				if (!tech || !tech->inuse)
+					continue;
+
+				if (tech->item == item)
 				{
 					tech->svflags &= ~SVF_NOCLIENT;
 					tech->solid = SOLID_TRIGGER;
@@ -4118,8 +4138,10 @@ void RemoveAllTechItems(edict_t* ent)
 					tech->touch = Touch_Item;
 					tech->nextthink = level.time + CTF_TECH_TIMEOUT;
 					tech->think = TechThink;
-					// Reiniciar el registro de quién ha recogido el item
+
+					// Llamar directamente al método reset
 					tech->item_picked_up_by.reset();
+
 					gi.linkentity(tech);
 				}
 			}
