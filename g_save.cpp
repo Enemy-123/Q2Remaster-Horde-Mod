@@ -1273,30 +1273,6 @@ FIELD_AUTO(monsterinfo.jump_time),
 FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),
 FIELD_AUTO(monsterinfo.chosen_reinforcements),
 
-//monsterinfo horde stuff //Enemy
-FIELD_AUTO(monsterinfo.damage_modifier_applied),
-FIELD_AUTO(monsterinfo.chosen_reinforcements),
-FIELD_AUTO(monsterinfo.last_rocket_fire_time),
-FIELD_AUTO(monsterinfo.last_plasma_fire_time),
-FIELD_AUTO(monsterinfo.last_sentrygun_target_time),
-FIELD_AUTO(monsterinfo.lastnoisecooldown),
-FIELD_AUTO(monsterinfo.damage_quad),
-FIELD_AUTO(monsterinfo.bonus_flags),
-FIELD_AUTO(monsterinfo.team),
-
-
-//edict horde stuff //Enemy
-
-FIELD_AUTO(initial_max_health),
-FIELD_AUTO(safety_time),
-FIELD_AUTO(hook_time),
-FIELD_AUTO(laser),
-FIELD_AUTO(lasthbshot),
-FIELD_AUTO(bounce_count),
-FIELD_AUTO(lastdmg),
-FIELD_AUTO(original_dmg),
-FIELD_AUTO(configstringIndex),
-
 // back to edict_t
 FIELD_AUTO(plat2flags),
 FIELD_AUTO(offset),

@@ -201,6 +201,12 @@ void create_laser(edict_t* ent)
 	edict_t* grenade;
 	edict_t* laser;
 
+	if (!g_horde->integer)
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a laser\n");
+		return;
+	}
+
 	if (ent->movetype != MOVETYPE_WALK) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Need to be Non-Spect to create laser.\n");
 		return;

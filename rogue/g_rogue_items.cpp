@@ -66,6 +66,11 @@ constexpr int MAX_SENTRIES = 3;
 
 void Use_sentrygun(edict_t* ent, gitem_t* item)
 {
+	if (!g_horde->integer)
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a Sentry-Gun\n");
+		return;
+	}
 
 	if (ClientIsSpectating(ent->client)) {
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to spawn a Sentry-Gun\n");
