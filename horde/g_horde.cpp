@@ -2507,28 +2507,52 @@ void Horde_RunFrame() {
 
 	case horde_state_t::spawning:
 		if (g_horde_local.monster_spawn_time <= level.time) {
+			// Spawn boss first if needed (moved before message check)
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
 
-			if (activeMonsters < maxMonsters) {
+			// Cache active monsters count
+			const int32_t current_active_monsters = activeMonsters;
+
+			if (current_active_monsters < maxMonsters) {
 				SpawnMonsters();
 			}
 
+			// Check for wave completion
 			if (g_horde_local.num_to_spawn == 0) {
 				if (!next_wave_message_sent) {
-					VerifyAndAdjustBots();
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
-					next_wave_message_sent = true;
+					// Pre-verify bots before sending message
+					static gtime_t last_bot_verify = 0_ms;
+					if (level.time - last_bot_verify >= 500_ms) {
+						VerifyAndAdjustBots();
+						last_bot_verify = level.time;
+					}
+
+					// Batch updates together
+					{
+						// Use fmt for formatting
+						gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
+						next_wave_message_sent = true;
+					}
 				}
 
-				g_horde_local.state = horde_state_t::active_wave;
-				g_horde_local.conditionTriggered = false;
-				g_horde_local.conditionStartTime = 0_sec;
-				g_horde_local.waveEndTime = 0_sec;
-				g_horde_local.lastPrintTime = 0_sec;
-				std::fill(g_horde_local.warningIssued.begin(), g_horde_local.warningIssued.end(), false);
-				gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
+				// Batch state transitions
+				{
+					g_horde_local.state = horde_state_t::active_wave;
+					g_horde_local.conditionTriggered = false;
+					g_horde_local.conditionStartTime = 0_sec;
+					g_horde_local.waveEndTime = 0_sec;
+					g_horde_local.lastPrintTime = 0_sec;
+
+					// Reset warnings using index-based access
+					for (size_t i = 0; i < g_horde_local.warningIssued.size(); i++) {
+						g_horde_local.warningIssued[i] = false;
+					}
+
+					// Use fmt for logging
+					gi.Com_Print("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
+				}
 			}
 		}
 		break;

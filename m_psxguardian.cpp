@@ -588,13 +588,13 @@ void fire_guardianpsx_heat(edict_t* self, const vec3_t& start, const vec3_t& dir
 	heat->s.scale = 1.5f;
 	heat->owner = self;
 	heat->touch = rocket_touch;
-	heat->speed = speed / 1.75;
-	heat->yaw_speed = speed * 2;
+	heat->speed = speed / 1.45;
+	heat->yaw_speed = speed * 2.4;
 	heat->accel = turn_fraction;
 	heat->pos1 = rest_dir;
 	heat->mins = { -5, -5, -5 };
 	heat->maxs = { 5, 5, 5 };
-	heat->health = 25;
+	heat->health = 50;
 	heat->takedamage = true;
 	heat->die = guardianpsx_heat_die;
 
