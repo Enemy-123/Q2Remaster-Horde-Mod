@@ -3,7 +3,6 @@
 #include "g_horde.h"
 #include "../shared.h"
 #include <set>
-
 enum class WaveEndReason {
 	AllMonstersDead,
 	MonstersRemaining,
@@ -17,14 +16,6 @@ int GetNumHumanPlayers();
 constexpr int32_t MAX_MONSTERS_BIG_MAP = 27;
 constexpr int32_t MAX_MONSTERS_MEDIUM_MAP = 16;
 constexpr int32_t MAX_MONSTERS_SMALL_MAP = 14;
-
-bool allowWaveAdvance = false; // Global variable to control wave advancement
-bool boss_spawned_for_wave = false; // Variable de control para el jefe
-bool flying_monsters_mode = false; // Variable de control para el jefe volador
-
-uint64_t last_wave_number = 0;
-uint16_t cachedRemainingMonsters = 0;
-uint32_t g_totalMonstersInWave = 0;
 
 gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 3.9_sec; // Cooldown en segundos para los puntos de spawn 3.0
@@ -40,22 +31,201 @@ enum class horde_state_t {
 };
 
 struct HordeState {
-    gtime_t         warm_time = 0_sec; 
-    horde_state_t   state = horde_state_t::warmup;
-    gtime_t         monster_spawn_time;
-    int32_t         num_to_spawn = 0;
-    int32_t         level = 0;
-    int32_t         queued_monsters = 0;
-    gtime_t         lastPrintTime = 0_sec;
-    
-    // Variables para condiciones
-    bool            conditionTriggered = false;
-    gtime_t         conditionStartTime = 0_sec;
-    gtime_t         conditionTimeThreshold = 0_sec;
-    bool            timeWarningIssued = false;
-    gtime_t         waveEndTime = 0_sec;
-    std::vector<bool> warningIssued = { false, false, false, false };
-} g_horde_local;
+	// Existing fields
+	gtime_t         warm_time = 0_sec;
+	horde_state_t   state = horde_state_t::warmup;
+	gtime_t         monster_spawn_time;
+	int32_t         num_to_spawn = 0;
+	int32_t         level = 0;
+	int32_t         queued_monsters = 0;
+	gtime_t         lastPrintTime = 0_sec;
+
+	// Existing condition fields
+	bool            conditionTriggered = false;
+	gtime_t         conditionStartTime = 0_sec;
+	gtime_t         conditionTimeThreshold = 0_sec;
+	bool            timeWarningIssued = false;
+	gtime_t         waveEndTime = 0_sec;
+	std::vector<bool> warningIssued = { false, false, false, false };
+
+	// New safety fields
+	uint32_t        frame_counter = 0;           // Track number of RunFrame calls
+	gtime_t         last_frame_time = 0_sec;     // Last time RunFrame was called
+	uint16_t        spawn_attempts = 0;          // Track consecutive spawn attempts
+	uint32_t        total_spawns_this_wave = 0;  // Track total spawns in current wave
+
+	// New performance optimization fields
+	gtime_t         last_monster_count = 0_sec;  // Last time we counted monsters
+	int32_t         cached_monster_count = 0;    // Cached monster count
+	bool            spawn_points_need_update = true; // Flag for spawn point cache refresh
+
+	// New state validation fields
+	bool            is_transitioning = false;     // Prevent state race conditions
+	uint32_t        state_duration = 0;          // Track time spent in current state
+	bool            spawn_lock = false;          // Prevent concurrent spawns
+	uint16_t        consecutive_spawn_failures = 0; // Track spawn failures
+
+	// New wave management fields - FIXED TYPE
+	gtime_t         wave_start_time = 0_sec;     // When current wave started (changed from uint32_t)
+	uint16_t        expected_monster_count = 0;  // Expected number of monsters this wave
+	bool            wave_cleanup_initiated = false; // Flag for cleanup phase
+
+	// Campos adicionales para tracking de monstruos
+	uint32_t total_monsters_in_wave = 0;
+	uint16_t cached_remaining_monsters = 0;
+	uint64_t last_wave_number = 0;
+
+	// Estado de la oleada
+	bool flying_monsters_mode = false;
+	bool boss_spawned_for_wave = false;
+	bool next_wave_message_sent = false;
+	bool allow_wave_advance = false;
+
+	void updateMonsterCount(int32_t count, gtime_t current_time) {
+		cached_remaining_monsters = static_cast<uint16_t>(count);
+		last_monster_count = current_time;
+	}
+
+	void registerNewMonster() {
+		total_monsters_in_wave++;
+		cached_remaining_monsters++;
+	}
+
+
+
+	// Rest of the struct remains the same...
+	void reset() {
+		frame_counter = 0;
+		last_frame_time = 0_sec;
+		spawn_attempts = 0;
+		total_spawns_this_wave = 0;
+		last_monster_count = 0_sec;
+		cached_monster_count = 0;
+		spawn_points_need_update = true;
+		is_transitioning = false;
+		state_duration = 0;
+		spawn_lock = false;
+		consecutive_spawn_failures = 0;
+		wave_start_time = 0_sec;      // Note: using 0_sec literal here now
+		expected_monster_count = 0;
+		wave_cleanup_initiated = false;
+
+		// Reset existing fields
+		warm_time = 0_sec;
+		state = horde_state_t::warmup;
+		monster_spawn_time = 0_sec;
+		num_to_spawn = 0;
+		level = 0;
+		queued_monsters = 0;
+		lastPrintTime = 0_sec;
+		conditionTriggered = false;
+		conditionStartTime = 0_sec;
+		conditionTimeThreshold = 0_sec;
+		timeWarningIssued = false;
+		waveEndTime = 0_sec;
+		warningIssued = { false, false, false, false };
+	}
+}g_horde_local;
+
+class HordeStateManager {
+private:
+	HordeState& state;
+
+public:
+	HordeStateManager(HordeState& state) : state(state) {}
+
+	// Métodos existentes
+	void SetWaveLevel(int32_t level) {
+		state.level = level;
+	}
+
+	int32_t GetWaveLevel() const {
+		return state.level;
+	}
+
+	void IncrementWaveLevel() {
+		state.level++;
+	}
+
+	void SetMonstersToSpawn(int32_t count) {
+		state.num_to_spawn = count;
+	}
+
+	void DecrementMonstersToSpawn() {
+		if (state.num_to_spawn > 0) {
+			state.num_to_spawn--;
+		}
+	}
+
+	void SetWarmupTime(gtime_t time) {
+		state.warm_time = time;
+	}
+
+	void SetMonsterSpawnTime(gtime_t time) {
+		state.monster_spawn_time = time;
+	}
+
+	void SetState(horde_state_t new_state) {
+		state.state = new_state;
+	}
+
+	horde_state_t GetState() const {
+		return state.state;
+	}
+
+	void ResetConditions() {
+		state.conditionTriggered = false;
+		state.conditionStartTime = 0_sec;
+		state.conditionTimeThreshold = 0_sec;
+		state.timeWarningIssued = false;
+		state.waveEndTime = 0_sec;
+		std::fill(state.warningIssued.begin(), state.warningIssued.end(), false);
+	}
+
+	void SetBossSpawned(bool spawned) {
+		state.boss_spawned_for_wave = spawned;
+	}
+
+	void SetFlyingMode(bool enabled) {
+		state.flying_monsters_mode = enabled;
+	}
+
+	void SetNextWaveMessageSent(bool sent) {
+		state.next_wave_message_sent = sent;
+	}
+
+	void UpdateMonsterCount(int32_t count) {
+		state.cached_remaining_monsters = count;
+	}
+
+	void RegisterNewMonster() {
+		state.total_monsters_in_wave++;
+		state.cached_remaining_monsters++;
+	}
+
+	// **Método para resetear todo el estado de la horda**
+	void Reset() {
+		state.reset();
+	}
+
+	// **Métodos adicionales para manipular otros campos según sea necesario**
+	void SetWaveStartTime(gtime_t time) {
+		state.wave_start_time = time;
+	}
+
+	gtime_t GetWaveStartTime() const {
+		return state.wave_start_time;
+	}
+
+	void SetWaveCleanupInitiated(bool initiated) {
+		state.wave_cleanup_initiated = initiated;
+	}
+
+	bool IsWaveCleanupInitiated() const {
+		return state.wave_cleanup_initiated;
+	}
+
+};
 
 struct weighted_benefit_t {
 	const char* benefit_name;
@@ -99,8 +269,7 @@ struct WeightedSelection {
 };
 
 
-int32_t current_wave_level = g_horde_local.level;
-bool next_wave_message_sent = false;
+//int32_t current_wave_level = g_horde_local.level;
 int32_t vampire_level = 0;
 
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
@@ -281,6 +450,7 @@ void ApplyBenefit(const weighted_benefit_t* benefit) {
 
 // Verificar y aplicar beneficios basados en la ola
 void CheckAndApplyBenefit(const int32_t wave) {
+	HordeStateManager manager(g_horde_local);
 	if (wave % 4 != 0) return;
 
 	static WeightedSelection<weighted_benefit_t> selection;
@@ -400,7 +570,7 @@ struct ConditionParams {
 // Función para calcular el rendimiento del jugador (implementa según tus necesidades)
 static float CalculatePlayerPerformance() {
 	// Implementación de ejemplo. Ajusta según tus necesidades.
-	const float killRate = static_cast<float>(level.killed_monsters) / std::max(1.0f, static_cast<float>(g_totalMonstersInWave));
+	const float killRate = static_cast<float>(level.killed_monsters) / std::max(1.0f, static_cast<float>(g_horde_local.total_monsters_in_wave));
 	return std::clamp(killRate, 0.5f, 2.0f);  // Limita el factor entre 0.5 y 2
 }
 
@@ -514,30 +684,34 @@ static MonsterCheckCacheData g_monster_check_cache;
 
 static void Horde_InitLevel(const int32_t lvl) {
 	const MapSize& mapSize = GetMapSize(level.mapname);
-
 	g_monster_check_cache.Reset();
-	// Configuración de variables iniciales para el nivel
-	g_totalMonstersInWave = g_horde_local.num_to_spawn;
-	cachedRemainingMonsters = g_totalMonstersInWave;
-	last_wave_number++;
+
+	// Configuración de variables del HordeState
+	g_horde_local.total_spawns_this_wave = 0;
+	g_horde_local.expected_monster_count = g_horde_local.num_to_spawn;
+	g_horde_local.cached_monster_count = g_horde_local.num_to_spawn;
+	g_horde_local.frame_counter = 0;
+	g_horde_local.last_frame_time = level.time;
+	g_horde_local.wave_start_time = level.time;
 	g_horde_local.level = lvl;
-	current_wave_level = lvl;
-	flying_monsters_mode = false;
-	boss_spawned_for_wave = false;
-	next_wave_message_sent = false;
+	g_horde_local.flying_monsters_mode = false;
+	g_horde_local.boss_spawned_for_wave = false;
+	g_horde_local.next_wave_message_sent = false;
+	g_horde_local.is_transitioning = false;
+	g_horde_local.spawn_lock = false;
+	g_horde_local.consecutive_spawn_failures = 0;
+	g_horde_local.wave_cleanup_initiated = false;
 
-	VerifyAndAdjustBots();
-
-	// Configurar tiempos iniciales
+	// Configuración de tiempos y condiciones
 	g_independent_timer_start = level.time;
 	g_horde_local.conditionStartTime = 0_sec;
 	g_horde_local.conditionTriggered = false;
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.lastPrintTime = 0_sec;
-
 	g_horde_local.monster_spawn_time = level.time + 1_sec;
-	g_horde_local.warm_time = 0_sec; // Reset para próximo uso
+	g_horde_local.warm_time = 0_sec;
 
+	VerifyAndAdjustBots();
 	g_lastParams = GetConditionParams(mapSize, GetNumHumanPlayers(), lvl);
 
 	// Ajustar la escala de daño según el nivel
@@ -559,7 +733,6 @@ static void Horde_InitLevel(const int32_t lvl) {
 	}
 
 	UnifiedAdjustSpawnRate(mapSize, lvl, GetNumHumanPlayers());
-
 	CheckAndApplyBenefit(lvl);
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
@@ -567,7 +740,6 @@ static void Horde_InitLevel(const int32_t lvl) {
 
 	gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
 }
-
 bool G_IsDeathmatch() noexcept {
 	return deathmatch->integer && g_horde->integer;
 }
@@ -1001,7 +1173,7 @@ inline bool IsFlyingMonster(const std::string& classname) {
 }
 
 inline bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
-	if (flying_monsters_mode) {
+	if (g_horde_local.flying_monsters_mode) {
 		return isFlyingMonster &&
 			!(spawn_point->style == 1 && !isFlyingMonster) &&
 			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
@@ -1013,7 +1185,7 @@ inline bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t&
 }
 
 inline double CalculateMonsterWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
-	if (flying_monsters_mode && isFlyingMonster) {
+	if (g_horde_local.flying_monsters_mode && isFlyingMonster) {
 		return item.weight * 1.5; // Aumentar el peso para preferir monstruos voladores
 	}
 	return item.weight;
@@ -1478,7 +1650,7 @@ void BossDeathHandler(edict_t* boss) {
 		"monster_boss2", "monster_carrier", "monster_carrier_mini", "monster_boss2kl"
 	};
 	if (std::find(flyingBosses.begin(), flyingBosses.end(), boss->classname) != flyingBosses.end()) {
-		flying_monsters_mode = false;
+		g_horde_local.flying_monsters_mode = false;
 	}
 }
 
@@ -1728,12 +1900,12 @@ void SpawnBossAutomatically() {
 		return;
 	}
 
-	boss_spawned_for_wave = true;
+	g_horde_local.boss_spawned_for_wave = true;
 	boss->classname = desired_boss;
 
 	// Configurar modo de monstruos voladores si aplica
 	if (IsFlyingMonster(desired_boss)) {
-		flying_monsters_mode = true;
+		g_horde_local.flying_monsters_mode = true;
 	}
 
 	// Configurar la posición del jefe
@@ -1846,17 +2018,17 @@ void ResetGame() {
 	// Reiniciar variables de estado global
 	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
 	current_wave_level = 0;
-	flying_monsters_mode = false;
-	boss_spawned_for_wave = false;
-	next_wave_message_sent = false;
-	allowWaveAdvance = false;
+	g_horde_local.flying_monsters_mode = false;
+	g_horde_local.boss_spawned_for_wave = false;
+	g_horde_local.next_wave_message_sent = false;
+	g_horde_local.allow_wave_advance = false;
 
 	// Reiniciar otras variables relevantes
 	//WAVE_TO_ALLOW_FLYING = 0;
 	SPAWN_POINT_COOLDOWN = 3.9_sec;
 
-	cachedRemainingMonsters = 0;
-	g_totalMonstersInWave = 0;
+	g_horde_local.cached_remaining_monsters = 0;
+	g_horde_local.total_monsters_in_wave = 0;
 
 	// Resetear el estado de las condiciones
 	g_horde_local.conditionTriggered = false;
@@ -1866,8 +2038,8 @@ void ResetGame() {
 	g_horde_local.timeWarningIssued = false;
 
 	// Resetear cualquier otro estado específico de la ola según sea necesario
-	boss_spawned_for_wave = false;
-	flying_monsters_mode = false;
+	g_horde_local.boss_spawned_for_wave = false;
+	g_horde_local.flying_monsters_mode = false;
 
 	// Reset core gameplay elements
 	auto_spawned_bosses.clear(); // Limpiar todos los jefes generados automáticamente
@@ -1965,7 +2137,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	}
 
 	// Comprobación rápida para wave advance manual
-	if (allowWaveAdvance) {
+	if (g_horde_local.allow_wave_advance) {
 		ResetWaveAdvanceState();
 		g_monster_check_cache = { current_time, true, WaveEndReason::AllMonstersDead, 0, 0.0f, true };
 		reason = WaveEndReason::AllMonstersDead;
@@ -1974,9 +2146,9 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	// Optimización: calcular monstruos restantes una sola vez
 	const int32_t remaining_monsters = CalculateRemainingMonsters();
-	// Fix del error de tipo: asegurarse de que g_totalMonstersInWave sea > 0
+	// Fix del error de tipo: asegurarse de que g_horde_local.total_monsters_in_wave sea > 0
 	const float percentage_remaining = static_cast<float>(remaining_monsters) /
-		static_cast<float>(std::max(1, static_cast<int32_t>(g_totalMonstersInWave)));
+		static_cast<float>(std::max(1, static_cast<int32_t>(g_horde_local.total_monsters_in_wave)));
 
 	// Verificación de monsters_dead con early return
 	const bool all_monsters_dead = Horde_AllMonstersDead();
@@ -2100,15 +2272,15 @@ static void ResetWaveAdvanceState() noexcept {
 	g_horde_local.conditionTimeThreshold = 0_sec;
 	g_horde_local.timeWarningIssued = false;
 
-	allowWaveAdvance = false;
+	g_horde_local.allow_wave_advance = false;
 
 	g_horde_local.lastPrintTime = 0_sec;
 
-	cachedRemainingMonsters = -1;
-	g_totalMonstersInWave = 0;
+	g_horde_local.cached_remaining_monsters = -1;
+	g_horde_local.total_monsters_in_wave = 0;
 
-	boss_spawned_for_wave = false;
-	flying_monsters_mode = false;
+	g_horde_local.boss_spawned_for_wave = false;
+	g_horde_local.flying_monsters_mode = false;
 
 	g_lastWaveNumber = -1;
 	g_lastNumHumanPlayers = -1;
@@ -2119,7 +2291,7 @@ static void ResetWaveAdvanceState() noexcept {
 }
 
 void AllowNextWaveAdvance() noexcept {
-	allowWaveAdvance = true;
+	g_horde_local.allow_wave_advance = true;
 }
 
 void fastNextWave() noexcept {
@@ -2148,8 +2320,8 @@ void fastNextWave() noexcept {
 
 static void MonsterSpawned(const edict_t* monster) {
 	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-		cachedRemainingMonsters++;
-		g_totalMonstersInWave++;
+		g_horde_local.cached_remaining_monsters++;
+		g_horde_local.total_monsters_in_wave++;
 	}
 }
 
@@ -2159,7 +2331,7 @@ void MonsterDied(const edict_t* monster) {
 		if (remaining < 0) {
 			remaining = 0;
 		}
-		cachedRemainingMonsters = static_cast<uint16_t>(remaining);
+		g_horde_local.cached_remaining_monsters = static_cast<uint16_t>(remaining);
 	}
 }
 
@@ -2335,7 +2507,7 @@ struct SpawnPointCache {
 static SpawnPointCache g_spawn_cache;
 
 edict_t* SpawnMonsters() {
-
+	HordeStateManager manager(g_horde_local);
 	// Verificación temprana del estado
 	if (g_horde_local.state != horde_state_t::active_wave &&
 		g_horde_local.state != horde_state_t::spawning) {
@@ -2496,7 +2668,7 @@ edict_t* SpawnMonsters() {
 
 		--g_horde_local.num_to_spawn;
 		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
-		++g_totalMonstersInWave;
+		++g_horde_local.total_monsters_in_wave;
 		++successful_spawns;
 		last_spawned = monster;
 	}
@@ -2598,8 +2770,8 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 void SendCleanupMessage(WaveEndReason reason) {
 	gtime_t duration = 5_sec; // Duración por defecto
 
-	// Si allowWaveAdvance está activo y la razón es AllMonstersDead, establecer duración a 0
-	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
+	// Si g_horde_local.allow_wave_advance está activo y la razón es AllMonstersDead, establecer duración a 0
+	if (g_horde_local.allow_wave_advance && reason == WaveEndReason::AllMonstersDead) {
 		duration = 0_sec;
 	}
 
@@ -2678,7 +2850,7 @@ void Horde_RunFrame() {
 			g_horde_local.warm_time = level.time + 2_sec;
 		}
 		if (g_horde_local.warm_time < level.time) {
-			cachedRemainingMonsters = CalculateRemainingMonsters();
+			g_horde_local.cached_remaining_monsters = CalculateRemainingMonsters();
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(1);
 			current_wave_level = 1;
@@ -2691,7 +2863,7 @@ void Horde_RunFrame() {
 	case horde_state_t::spawning: {  
 		if (g_horde_local.monster_spawn_time <= level.time) {
 			// Spawn boss first if needed
-			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
+			if (currentLevel >= 10 && currentLevel % 5 == 0 && !g_horde_local.boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
 
@@ -2710,7 +2882,7 @@ void Horde_RunFrame() {
 					g_horde_local.queued_monsters = std::max(0, maxMonsters - activeMonsters);
 				}
 
-				if (!next_wave_message_sent) {
+				if (!g_horde_local.next_wave_message_sent) {
 					// Verificación de bots y mensaje
 					static gtime_t last_bot_verify = 0_ms;
 					if (level.time - last_bot_verify >= 500_ms) {
@@ -2719,7 +2891,7 @@ void Horde_RunFrame() {
 					}
 
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
-					next_wave_message_sent = true;
+					g_horde_local.next_wave_message_sent = true;
 				}
 
 				// Transición al siguiente estado
@@ -2756,11 +2928,11 @@ void Horde_RunFrame() {
 			// Configurar tiempo de descanso y transición
 			g_horde_local.warm_time = level.time + random_time(1.5_sec, 2.5_sec);
 			g_horde_local.state = horde_state_t::rest;
-			cachedRemainingMonsters = CalculateRemainingMonsters();
+			g_horde_local.cached_remaining_monsters = CalculateRemainingMonsters();
 
 			// Limpiar cualquier estado pendiente
-			next_wave_message_sent = false;
-			boss_spawned_for_wave = false;
+			g_horde_local.next_wave_message_sent = false;
+			g_horde_local.boss_spawned_for_wave = false;
 
 			break; // Salir inmediatamente para evitar spawns adicionales
 		}
@@ -2799,7 +2971,7 @@ void Horde_RunFrame() {
 
 			g_horde_local.warm_time = level.time + random_time(1.5_sec, 2.5_sec);
 			g_horde_local.state = horde_state_t::rest;
-			cachedRemainingMonsters = CalculateRemainingMonsters();
+			g_horde_local.cached_remaining_monsters = CalculateRemainingMonsters();
 		}
 
 		if (g_horde_local.monster_spawn_time < level.time) {
@@ -2813,10 +2985,10 @@ void Horde_RunFrame() {
 
 				g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
 				g_horde_local.state = horde_state_t::rest;
-				cachedRemainingMonsters = CalculateRemainingMonsters();
+				g_horde_local.cached_remaining_monsters = CalculateRemainingMonsters();
 			}
 			else {
-				cachedRemainingMonsters = CalculateRemainingMonsters();
+				g_horde_local.cached_remaining_monsters = CalculateRemainingMonsters();
 				g_horde_local.monster_spawn_time = level.time + 3_sec;
 			}
 		}
