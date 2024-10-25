@@ -34,7 +34,7 @@ cvar_t* g_horde;
 enum class horde_state_t {
 	warmup,
 	spawning,
-	active_wave, 
+	active_wave,
 	cleanup,
 	rest
 };
@@ -1795,7 +1795,8 @@ void UpdateHordeHUD() {
 
 // Implementación de UpdateHordeMessage
 void UpdateHordeMessage(std::string_view message, gtime_t duration)
-{	std::string fullMessage(message);
+{
+	std::string fullMessage(message);
 
 
 	gi.configstring(CONFIG_HORDEMSG, fullMessage.c_str());

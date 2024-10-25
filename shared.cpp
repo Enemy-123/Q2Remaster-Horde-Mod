@@ -66,8 +66,8 @@ void RemovePlayerOwnedEntities(edict_t* player)
 		player->client->num_teslas = std::max(0, player->client->num_teslas - teslas_removed);
 		player->client->num_sentries = std::max(0, player->client->num_sentries - sentries_removed);
 
-//		gi.Com_PrintFmt("PRINT: Removed {} tesla(s) and {} sentry gun(s) from player {}\n",
-//			teslas_removed, sentries_removed, GetPlayerName(player));
+		//		gi.Com_PrintFmt("PRINT: Removed {} tesla(s) and {} sentry gun(s) from player {}\n",
+		//			teslas_removed, sentries_removed, GetPlayerName(player));
 	}
 }
 
