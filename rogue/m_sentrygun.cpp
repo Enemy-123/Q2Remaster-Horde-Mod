@@ -923,30 +923,48 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 
 	vec3_t spot1, spot2;
 	trace_t tr;
-
 	VectorCopy(self->s.origin, spot1);
 	spot1[2] += self->viewheight;
 	VectorCopy(self->enemy->s.origin, spot2);
 	spot2[2] += self->enemy->viewheight;
 
-	// Ajusta la máscara de contenido para ignorar otros monstruos (agregando MASK_MONSTERSOLID para omitir otros monstruos)
-	const contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW) & ~CONTENTS_MONSTER;
-
+	// Mantenemos la máscara básica para detectar colisiones con monstruos
+	const contents_t mask = MASK_SHOT;
 	tr = gi.traceline(spot1, spot2, self, mask);
 
-	// Comprueba si hay línea de visión directa
-	if (tr.fraction == 1.0 || tr.ent == self->enemy || (tr.ent && tr.ent->svflags & SVF_MONSTER))
+	// Nuevo: si encontramos un monstruo en el camino, considerarlo como objetivo potencial
+	if (tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent) && tr.ent->health > 0) {
+		// Cambiar al nuevo objetivo si está más cerca
+		vec3_t diff_current = self->enemy->s.origin - self->s.origin;
+		vec3_t diff_new = tr.ent->s.origin - self->s.origin;
+
+		if (diff_new.lengthSquared() < diff_current.lengthSquared()) {
+			self->enemy = tr.ent;
+			// Actualizar el punto de destino
+			VectorCopy(tr.ent->s.origin, spot2);
+			spot2[2] += tr.ent->viewheight;
+		}
+	}
+
+	// Verificar si podemos atacar
+	if (tr.fraction == 1.0 || tr.ent == self->enemy ||
+		(tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent)))
 	{
 		if (level.time < self->monsterinfo.attack_finished)
 			return false;
 
-		float chance = 0.0f;
-		if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-			chance = 0.9f;
-		else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
-			chance = 0.8f;
-		else // SPAWNFLAG_TURRET2_ROCKET
-			chance = 0.7f;
+		// Probabilidades de disparo basadas en el tipo de arma
+		float chance = self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) ? 0.9f :
+			self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) ? 0.8f :
+			0.7f; // ROCKET
+
+		// Aumentar la probabilidad si hay un enemigo cercano
+		if (range_to(self, self->enemy) <= RANGE_NEAR)
+			chance += 0.1f;
+
+		// Siempre disparar si el enemigo está muy cerca
+		if (range_to(self, self->enemy) <= RANGE_MELEE)
+			chance = 1.0f;
 
 		if (frandom() > chance)
 			return false;
@@ -956,28 +974,35 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		return true;
 	}
 
-	// Si no hay línea de visión directa, intenta fuego ciego
+	// Mejorado: fuego ciego con mejor predicción
 	if (self->monsterinfo.blindfire && level.time > self->monsterinfo.blind_fire_delay)
 	{
 		vec3_t aim_point;
-		VectorCopy(self->enemy->s.origin, aim_point);
+		// Usar la última posición conocida como base
+		VectorCopy(self->monsterinfo.last_sighting, aim_point);
 
-		// Ajusta el punto de apuntado para el fuego ciego
+		// Ajustar el punto de disparo basado en el movimiento del enemigo
+		if (self->enemy->client) {
+			vec3_t velocity;
+			VectorScale(self->enemy->velocity, 0.2, velocity);
+			VectorAdd(aim_point, velocity, aim_point);
+		}
+
+		// Añadir una pequeña variación aleatoria
 		for (int i = 0; i < 3; i++)
-			aim_point[i] += crandom() * 200;
+			aim_point[i] += crandom() * 100;
 
 		tr = gi.traceline(spot1, aim_point, self, mask);
-		if (tr.fraction < 1.0 && tr.ent != self->enemy)
-			return false;
 
-		self->monsterinfo.attack_state = AS_BLIND;
-		self->monsterinfo.blind_fire_delay = level.time + 1.5_sec;
-		return true;
+		if (tr.fraction >= 0.3) { // Permitir disparos si al menos tenemos 30% de línea de visión
+			self->monsterinfo.attack_state = AS_BLIND;
+			self->monsterinfo.blind_fire_delay = level.time + 1.5_sec;
+			return true;
+		}
 	}
 
 	return false;
 }
-
 // **********************
 //  SPAWN
 // **********************

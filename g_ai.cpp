@@ -449,79 +449,110 @@ float range_to(edict_t* self, edict_t* other) {
 
 
 bool IsInvisible(edict_t* ent);
-bool IsValidTarget(edict_t* self, edict_t* ent);
+constexpr size_t MAX_ENTITIES = 64;
+constexpr float MAX_RANGE = 1000.0f;
+constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+constexpr float PRIORITY_ATTACKER_BONUS = 0.5f;
 
-
-constexpr size_t MAX_ENTITIES = 34;  // Ajustado al máximo esperado
-
-struct NearbyEntity {
+struct TargetPriority {
     edict_t* entity;
+    float priority;
     float distanceSquared;
+    bool isAttacker;
 };
 
-bool FindMTarget(edict_t* self) {
-    constexpr float MAX_RANGE = 800.0f;
-    constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+bool IsValidTarget(edict_t* self, edict_t* ent) {
+    if (!ent || !ent->inuse || !ent->solid || ent == self ||
+        ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
+        return false;
 
-    std::array<NearbyEntity, MAX_ENTITIES> nearbyEntities;
-    size_t entityCount = 0;
-
-    // Iterar solo sobre monstruos activos
-    for (auto ent : active_monsters()) {
-        if (entityCount >= MAX_ENTITIES) break;
-        if (!IsValidTarget(self, ent)) continue;
-        const float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
-        if (distSquared <= MAX_RANGE_SQUARED) {
-            nearbyEntities[entityCount++] = { ent, distSquared };
-        }
+    // Ignorar jugadores invisibles o con invulnerabilidad
+    if (ent->client) {
+        if (ent->client->invincible_time > level.time ||
+            IsInvisible(ent))
+            return false;
     }
 
-    // Ordenar entidades por distancia
-    std::sort(nearbyEntities.begin(), nearbyEntities.begin() + entityCount,
-        [](const NearbyEntity& a, const NearbyEntity& b) {
-            return a.distanceSquared < b.distanceSquared;
+    // Verificar si es un monstruo válido y no está en el mismo equipo
+    return (ent->svflags & SVF_MONSTER) &&
+        !OnSameTeam(self, ent) &&
+        ent->monsterinfo.invincible_time <= level.time;
+}
+
+float CalculateTargetPriority(edict_t* self, edict_t* target, float distanceSquared, bool isAttacker) {
+    float priority = 1.0f / (distanceSquared + 1.0f);
+
+    // Bonus por ser el atacante previo o el último enemigo que nos dañó
+    if (isAttacker || target == self->monsterinfo.damage_attacker)
+        priority += PRIORITY_ATTACKER_BONUS;
+
+    // Bonus por tipo de enemigo
+    if (target->health > 200)
+        priority *= 1.2f;
+
+    if (target->client)
+        priority *= 1.3f;
+
+    // Penalización por objetivos parcialmente cubiertos
+    trace_t tr = gi.traceline(self->s.origin, target->s.origin, self, MASK_SHOT);
+    if (tr.fraction < 1.0f && tr.ent != target)
+        priority *= 0.5f;
+
+    return priority;
+}
+
+bool FindMTarget(edict_t* self) {
+    std::vector<TargetPriority> targets;
+    targets.reserve(MAX_ENTITIES);
+
+    // Recolectar objetivos potenciales
+    for (auto ent : active_monsters()) {
+        if (!IsValidTarget(self, ent))
+            continue;
+
+        vec3_t diff = ent->s.origin - self->s.origin;
+        float distSquared = diff.lengthSquared();
+
+        if (distSquared > MAX_RANGE_SQUARED)
+            continue;
+
+        // Considerar tanto el enemigo actual como el último atacante
+        bool isAttacker = (self->enemy == ent || ent == self->monsterinfo.damage_attacker);
+        float priority = CalculateTargetPriority(self, ent, distSquared, isAttacker);
+
+        targets.push_back({ ent, priority, distSquared, isAttacker });
+    }
+
+    // Ordenar por prioridad
+    std::sort(targets.begin(), targets.end(),
+        [](const TargetPriority& a, const TargetPriority& b) {
+            if (fabs(a.priority - b.priority) < 0.001f)
+                return a.distanceSquared < b.distanceSquared;
+            return a.priority > b.priority;
         });
 
-    // Encontrar el objetivo más cercano visible
-    for (size_t i = 0; i < entityCount; i++) {
-        if (visible(self, nearbyEntities[i].entity, false)) {
-            self->enemy = nearbyEntities[i].entity;
+    // Seleccionar el mejor objetivo visible
+    for (const auto& target : targets) {
+        if (visible(self, target.entity)) {
+            // Si es un nuevo objetivo, actualizar el tiempo de reacción al daño
+            if (self->enemy != target.entity) {
+                self->monsterinfo.react_to_damage_time = level.time + 1_sec;
+            }
+
+            self->enemy = target.entity;
             return true;
         }
     }
 
+    // Mantener el objetivo actual si aún es válido y estamos dentro del tiempo de reacción
+    if (self->enemy && IsValidTarget(self, self->enemy) &&
+        level.time < self->monsterinfo.react_to_damage_time) {
+        return true;
+    }
+
+    self->enemy = nullptr;
     return false;
 }
-
-bool IsValidTarget(edict_t* self, edict_t* ent) {
-    return ent->inuse && ent->solid && ent != self && ent->health > 0 &&
-        !ent->deadflag && ent->solid != SOLID_NOT &&
-        !(ent->svflags & SVF_PLAYER) &&
-        ent->monsterinfo.invincible_time <= level.time &&
-        !OnSameTeam(self, ent) && (ent->svflags & SVF_MONSTER);
-}
-
-//bool visible(edict_t* self, edict_t* other, bool through_glass) {
-//    if (!self || !other || (other->flags & FL_NOVISIBLE)) {
-//        return false;
-//    }
-//    if (other->client) {
-//        if (self->hackflags & HACKFLAG_ATTACK_PLAYER) return self->inuse;
-//        if (!other->solid) return false;
-//        if (IsInvisible(other)) return false;
-//        if (EntIsSpectating(other)) return false;
-//    }
-//
-//    vec3_t spot1, spot2;
-//    VectorCopy(self->s.origin, spot1);
-//    spot1[2] += self->viewheight;
-//    VectorCopy(other->s.origin, spot2);
-//    spot2[2] += other->viewheight;
-//    contents_t mask = MASK_OPAQUE;
-//    if (!through_glass) mask |= CONTENTS_WINDOW;
-//    const trace_t trace = gi.traceline(spot1, spot2, self, mask);
-//    return trace.fraction == 1.0f || trace.ent == other;
-//}
 
 bool IsInvisible(edict_t* ent) {
     if (ent->client->invisible_time > level.time) {
