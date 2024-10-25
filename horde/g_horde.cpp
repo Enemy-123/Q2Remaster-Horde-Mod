@@ -493,7 +493,7 @@ inline void ClampNumToSpawn(const MapSize& mapSize) {
 	g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, maxAllowed);
 }
 
-static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
+void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	// Convertir a int64_t antes de las operaciones para prevenir overflow
 	const int64_t lvl_64 = static_cast<int64_t>(lvl);
 
@@ -542,7 +542,12 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 
 	ClampNumToSpawn(mapSize);
 
-	g_horde_local.queued_monsters += 3 + GetNumHumanPlayers();
+	// Incrementar `queued_monsters` de manera controlada
+	int32_t increment = 3 + GetNumHumanPlayers();
+	g_horde_local.queued_monsters += increment;
+
+	// Asegurar que `queued_monsters` no exceda el máximo permitido
+	g_horde_local.queued_monsters = std::min(g_horde_local.queued_monsters, static_cast<int32_t>(MAX_MONSTERS_BIG_MAP));
 }
 
 static void Horde_CleanBodies();
@@ -701,6 +706,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_horde_local.spawn_lock = false;
 	g_horde_local.consecutive_spawn_failures = 0;
 	g_horde_local.wave_cleanup_initiated = false;
+	g_horde_local.last_wave_number++;
 
 	// Configuración de tiempos y condiciones
 	g_independent_timer_start = level.time;
@@ -1376,7 +1382,6 @@ const char* G_HordePickMonster(edict_t* spawn_point, std::mt19937& rng) {
 	return nullptr;
 }
 
-
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
@@ -1995,8 +2000,12 @@ void ResetAllSpawnAttempts() noexcept {
 		data.attempts = 0;
 		data.cooldown = SPAWN_POINT_COOLDOWN;
 	}
-}
+	lastSpawnPointTime.clear();
+	lastMonsterSpawnTime.clear();
 
+	// Asegurar que queued_monsters se restablezca solo si es necesario
+	// Por ejemplo, solo en un reset completo del juego
+}
 static void ResetRecentBosses() noexcept {
 	// Reinicia la lista de bosses recientes
 	recent_bosses.clear();
@@ -2055,7 +2064,6 @@ void ResetGame() {
 	// Registrar el reinicio
 	gi.Com_Print("DEBUG: Horde game state reset complete.\n");
 }
-
 static gtime_t g_lastMonsterCountVerification = 0_ms;
 constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
 
@@ -2078,7 +2086,7 @@ static int32_t CountActiveMonsters() {
 }
 
 inline int32_t CalculateRemainingMonsters() {
-	int32_t remainingMonsters = level.total_monsters - level.killed_monsters;
+	int32_t remainingMonsters = g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
 	return (remainingMonsters < 0) ? 0 : remainingMonsters;
 }
 
@@ -2595,6 +2603,7 @@ edict_t* SpawnMonsters() {
 			state.item = G_HordePickItem(mt_rand);
 		}
 	}
+
 	// Spawn batch con mejor manejo de memoria
 	edict_t* last_spawned = nullptr;
 	int32_t successful_spawns = 0;
@@ -2632,15 +2641,19 @@ edict_t* SpawnMonsters() {
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 
 		--g_horde_local.num_to_spawn;
-		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
-		++g_horde_local.total_monsters_in_wave;
 		++successful_spawns;
+		++g_horde_local.total_monsters_in_wave;
 		last_spawned = monster;
 	}
+
+	// Actualizar `queued_monsters` basado en los spawn exitosos
+	g_horde_local.queued_monsters -= successful_spawns;
+	g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters);
 
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned;
 }
+
 // Funciones auxiliares para reducir el tamaño de SpawnMonsters
 // Armor managenement
 struct ArmorLevel {
@@ -2780,7 +2793,7 @@ static void TransitionToActiveWave() {
 
 	// Limpieza de spawns pendientes
 	g_horde_local.num_to_spawn = 0;
-	g_horde_local.queued_monsters = 0;
+//	g_horde_local.queued_monsters = 0;
 	g_horde_local.spawn_points_need_update = true;
 
 	// Configuración del nuevo estado
@@ -2807,13 +2820,13 @@ void Horde_RunFrame() {
 	const int32_t currentLevel = g_horde_local.level;
 	CheckAndResetDisabledSpawnPoints();
 
-
 	// Verificación periódica del estado
-	if (level.time - last_state_check > 5_sec) {
+	if (level.time - last_state_check > 20_sec) {
 		last_state_check = level.time;
 
 		if (g_horde_local.state == horde_state_t::spawning &&
 			g_horde_local.num_to_spawn == 0 &&
+			g_horde_local.queued_monsters == 0 &&
 			!g_horde_local.next_wave_message_sent) {
 			gi.Com_Print("WARNING: Potentially stuck in spawning state - forcing transition\n");
 			TransitionToActiveWave();
@@ -2852,8 +2865,7 @@ void Horde_RunFrame() {
 		}
 		break;
 
-
-	case horde_state_t::spawning: {  
+	case horde_state_t::spawning: {
 		if (g_horde_local.monster_spawn_time <= level.time) {
 			// Spawn boss first if needed
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !g_horde_local.boss_spawned_for_wave) {
@@ -2868,11 +2880,13 @@ void Horde_RunFrame() {
 			}
 
 			// Check for wave completion
-			if (g_horde_local.num_to_spawn == 0) {
+			if (g_horde_local.num_to_spawn == 0 && g_horde_local.queued_monsters == 0) {
 				// Verificar límite de monstruos
-				const int32_t totalMonsters = activeMonsters + g_horde_local.queued_monsters;
+				int32_t totalMonsters = activeMonsters + g_horde_local.num_to_spawn + g_horde_local.queued_monsters;
 				if (totalMonsters > maxMonsters) {
-					g_horde_local.queued_monsters = std::max(0, maxMonsters - activeMonsters);
+					// Ajusta los conteos para no exceder el límite
+					g_horde_local.num_to_spawn = maxMonsters - activeMonsters - g_horde_local.queued_monsters;
+					ClampNumToSpawn(mapSize);
 				}
 
 				if (!g_horde_local.next_wave_message_sent) {
@@ -2892,15 +2906,12 @@ void Horde_RunFrame() {
 			}
 		}
 		break;
-	} 
+	}
 	case horde_state_t::active_wave: {
 		WaveEndReason reason;
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 		if (shouldAdvance) {
-			// Inmediatamente detener cualquier spawn pendiente
-			g_horde_local.num_to_spawn = 0;
-			g_horde_local.queued_monsters = 0;
-
+			// Transición al estado de descanso y notificación
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", currentLevel);
 
