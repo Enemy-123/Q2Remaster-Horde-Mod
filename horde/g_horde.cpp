@@ -361,10 +361,8 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 
 	float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
 
+	// Solo ajustar el cooldown en olas múltiplo de 3, no el baseCount
 	if (lvl % 3 == 0) {
-		// Convertir a int64_t para el cálculo intermedio
-		int64_t scaledBase = static_cast<int64_t>(static_cast<float>(baseCount) * difficultyMultiplier);
-		baseCount = static_cast<int32_t>(std::min(scaledBase, static_cast<int64_t>(INT32_MAX)));
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN - 0.15_sec * difficultyMultiplier, 3.0_sec);
 	}
 
@@ -373,14 +371,6 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	g_horde_local.num_to_spawn = static_cast<int32_t>(std::min(totalSpawn, static_cast<int64_t>(INT32_MAX)));
 
 	ClampNumToSpawn(mapSize);
-
-	if (lvl % 3 == 0) {
-		const gtime_t spawnTimeReduction = g_chaotic->integer || g_insane->integer ? 0.25_sec : 0.15_sec;
-		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
-		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 2.0_sec);
-		SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
-		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
-	}
 
 	g_horde_local.queued_monsters += 3 + GetNumHumanPlayers();
 }

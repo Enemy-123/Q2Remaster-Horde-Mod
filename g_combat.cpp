@@ -617,48 +617,52 @@ bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
 // Calculate DMG
 static int CalculateRealDamage(edict_t* targ, int take, int initial_health) {
 	if (!targ) {
-		return take; // If targ is null, we simply return the original damage
+		return take;
 	}
-	int real_damage = take;
-	if (!(targ->svflags & SVF_DEADMONSTER)) {
-		if (initial_health > 0) {
-			real_damage = std::min(take, initial_health);
-			if (targ->health <= 0) {
-				real_damage += std::min(abs(targ->gib_health), initial_health);
-			}
-		}
-		else {
-			real_damage = std::min(take, 10);
-		}
+
+	if (targ->svflags & SVF_DEADMONSTER) {
+		return std::min(take, 5);
 	}
-	else {
-		real_damage = std::min(take, 5);
+
+	if (initial_health <= 0) {
+		return std::min(take, 10);
 	}
+
+	int real_damage = std::min(take, initial_health);
+	if (targ->health <= 0) {
+		real_damage += std::min(abs(targ->gib_health), initial_health);
+	}
+
 	return real_damage;
 }
 
+
 // IDDMG
 static void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
-	if (!attacker || !attacker->client || !g_iddmg || !targ) {
+	if (!attacker || !attacker->client || !g_iddmg || !targ ||
+		!g_iddmg->integer || !attacker->client->resp.iddmg_state) {
 		return;
 	}
-	if (g_iddmg->integer && attacker->client->resp.iddmg_state) {
-		if (!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
-			if (level.time - attacker->lastdmg <= 1.75_sec && attacker->client->dmg_counter <= 32767) {
-				attacker->client->dmg_counter += real_damage;
-			}
-			else {
-				attacker->client->dmg_counter = real_damage;
-			}
-			attacker->client->ps.stats[STAT_ID_DAMAGE] = attacker->client->dmg_counter;
-		}
+
+	if (targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time) {
+		return;
 	}
+
+	if (level.time - attacker->lastdmg <= 1.75_sec && attacker->client->dmg_counter <= 32767) {
+		attacker->client->dmg_counter += real_damage;
+	}
+	else {
+		attacker->client->dmg_counter = real_damage;
+	}
+
+	attacker->client->ps.stats[STAT_ID_DAMAGE] = attacker->client->dmg_counter;
 	attacker->lastdmg = level.time;
-	//	attacker->client->total_damage += real_damage;
 }
 
 // This function should be called in T_Damage
 void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
+	if (!targ) return;
+
 	const int initial_health = targ->health;
 	const int real_damage = CalculateRealDamage(targ, take, initial_health);
 
@@ -669,21 +673,22 @@ void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
 
 // AUTO HASTE
 static void HandleAutoHaste(edict_t* attacker, edict_t* targ, int damage) {
-	if (!g_autohaste || !attacker || !attacker->client || !targ) {
+	if (!g_autohaste || !attacker || !attacker->client || !targ ||
+		!g_autohaste->integer || attacker->client->quadfire_time >= level.time) {
 		return;
 	}
 
-	if (g_autohaste->integer && attacker->client->quadfire_time < level.time) {
-		if (damage > 0 && (!(attacker->health < 1 && targ->health < 1))) {
-			const	float probability = damage / 1150.0f;
-			const	float randomChance = frandom();
+	if (damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
+		return;
+	}
 
-			if (randomChance <= probability) {
-				attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
-			}
-		}
+	const float probability = damage / 1150.0f;
+	if (frandom() <= probability) {
+		attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
 	}
 }
+
+
 int calculate_health_stolen(edict_t* attacker, int base_health_stolen);
 void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept;
 void apply_armor_vampire(edict_t* attacker, int damage);
@@ -693,22 +698,16 @@ static bool CanUseVampireEffect(edict_t* attacker) {
 		return false;
 	}
 
-	if ((attacker->svflags & SVF_MONSTER) &&
-		((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
-			(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
-		!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
-		return true;
+	if (!(attacker->svflags & SVF_MONSTER)) {
+		return true;  // Players can use vampire
 	}
 
 	if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
 		return true;
 	}
 
-	if (!(attacker->svflags & SVF_MONSTER)) {
-		return true; // Players can also use the vampire ability
-	}
-
-	return false;
+	return (attacker->monsterinfo.bonus_flags & (BF_STYGIAN | BF_POSSESSED)) &&
+		!attacker->spawnflags.has(SPAWNFLAG_IS_BOSS);
 }
 
 void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
@@ -716,66 +715,41 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 		return;
 	}
 
-	bool CanUseVamp = false;
-	bool isSentrygun = false;
+	if (!CanUseVampireEffect(attacker)) {
+		return;
+	}
 
-	// Check if the attacker can use the vampire ability
-	if (attacker->health > 0 && !attacker->deadflag) {
-		if ((attacker->svflags & SVF_MONSTER) &&
-			((attacker->monsterinfo.bonus_flags & BF_STYGIAN) ||
-				(attacker->monsterinfo.bonus_flags & BF_POSSESSED)) &&
-			!(attacker->spawnflags.has(SPAWNFLAG_IS_BOSS))) {
-			CanUseVamp = true;
+	if (attacker == targ || OnSameTeam(targ, attacker) || damage <= 0 ||
+		(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) {
+		return;
+	}
+
+	const bool isSentrygun = strcmp(attacker->classname, "monster_sentrygun") == 0;
+	int health_stolen = isSentrygun ? 1 : damage / 4;
+
+	if (attacker->health < attacker->max_health) {
+		if (!isSentrygun) {
+			health_stolen = calculate_health_stolen(attacker, health_stolen);
 		}
+		attacker->health = std::min(attacker->health + health_stolen, attacker->max_health);
+	}
 
-		if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
-			isSentrygun = true;
-			CanUseVamp = true;
-		}
-		else if (!(attacker->svflags & SVF_MONSTER)) {
-			CanUseVamp = true; // Players can also use the vampire ability
-		}
+	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
+		heal_attacker_sentries(attacker, health_stolen);
+	}
 
-		if (CanUseVamp) {
-			if (attacker != targ &&
-				!OnSameTeam(targ, attacker) &&
-				damage > 0 && // Accept any amount of damage
-				!(targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time)) { // Check if the target is invulnerable
-
-				// Health Vampire
-				int health_stolen = damage / 4; // Steal 25% of damage as health
-				if (attacker->health < attacker->max_health) {
-					if (isSentrygun) {
-						health_stolen = 1; // If it's a sentrygun, it can only steal 1 health
-					}
-					else {
-						health_stolen = calculate_health_stolen(attacker, health_stolen);
-					}
-					attacker->health = std::min(attacker->health + health_stolen, attacker->max_health);
-				}
-
-				// Heal entities owned by the attacker
-				if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
-					heal_attacker_sentries(attacker, health_stolen);
-				}
-
-				// Armor Vampire
-				if (g_vampire->integer == 2) {
-					apply_armor_vampire(attacker, damage);
-				}
-			}
-		}
+	if (g_vampire->integer == 2) {
+		apply_armor_vampire(attacker, damage);
 	}
 }
-
 
 int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	if (!attacker || !attacker->client || !attacker->client->pers.weapon) {
 		return base_health_stolen;
 	}
 
-	const int weapon_id = attacker->client->pers.weapon->id;
 	float multiplier = 1.0f;
+	const int weapon_id = attacker->client->pers.weapon->id;
 
 	switch (weapon_id) {
 	case IT_WEAPON_SHOTGUN:
@@ -799,30 +773,29 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 		break;
 	}
 
-	int health_stolen = std::max(1, static_cast<int>(base_health_stolen * multiplier));
+	if (attacker->client->quad_time > level.time) multiplier /= 2.6f;
+	if (attacker->client->double_time > level.time) multiplier /= 1.5f;
+	if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) multiplier /= 1.5f;
 
-	// Aplicar modificadores adicionales
-	if (attacker->client->quad_time > level.time) health_stolen = std::max(1, static_cast<int>(health_stolen / 2.4f));
-	if (attacker->client->double_time > level.time) health_stolen = std::max(1, static_cast<int>(health_stolen / 1.5f));
-	if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) health_stolen = std::max(1, static_cast<int>(health_stolen / 1.5f));
-
-	return health_stolen;
+	return std::max(1, static_cast<int>(base_health_stolen * multiplier));
 }
 
 void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept {
-	if (!attacker) {
+	if (!attacker || current_wave_level < 17) {
 		return;
 	}
 
 	for (unsigned int i = 0; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
 
-		if (!ent->inuse || strcmp(ent->classname, "monster_sentrygun") != 0 || ent->owner != attacker)
+		if (!ent->inuse ||
+			strcmp(ent->classname, "monster_sentrygun") != 0 ||
+			ent->owner != attacker ||
+			ent->health <= 0) {
 			continue;
-
-		if (ent->health > 0 && current_wave_level >= 17) {
-			ent->health = std::min(ent->health + health_stolen, ent->max_health);
 		}
+
+		ent->health = std::min(ent->health + health_stolen, ent->max_health);
 	}
 }
 
@@ -832,14 +805,18 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 	}
 
 	const int index = ArmorIndex(attacker);
-	if (index && attacker->client->pers.inventory[index] > 0) {
-		int armor_stolen = std::max(1, static_cast<int>(0.7f * (damage / 4)));
-		const int max_armor = 200;
-		armor_stolen = std::min(armor_stolen, max_armor - attacker->client->pers.inventory[index]);
-		attacker->client->pers.inventory[index] += armor_stolen;
+	if (!index || attacker->client->pers.inventory[index] <= 0) {
+		return;
 	}
-}
 
+	const int max_armor = 200;
+	const int armor_stolen = std::min(
+		std::max(1, static_cast<int>(0.7f * (damage / 4))),
+		max_armor - attacker->client->pers.inventory[index]
+	);
+
+	attacker->client->pers.inventory[index] += armor_stolen;
+}
 //t_damage
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
 	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
