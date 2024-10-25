@@ -477,6 +477,9 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
+	if (frandom() < 0.3f)
+		PredictAim(self, self->enemy, start, 1000, true, 0, &dir, &end);
+	else
 	end = self->enemy->s.origin;
 	end[2] += self->enemy->viewheight;
 	dir = end - start;

@@ -297,7 +297,7 @@ void InfantryMachineGun(edict_t *self)
 
 	dir = self->enemy->s.origin - start;
 	if (frandom() < 0.3f)
-		PredictAim(self, self->enemy, start, 1000, true, 0, &dir, &end);
+		PredictAim(self, self->enemy, start, 1075, true, 0, &dir, &end);
 	else
 		end = self->enemy->s.origin;
 

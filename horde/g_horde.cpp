@@ -1889,7 +1889,7 @@ void ResetGame() {
 
 	// Reset wave information
 	g_horde_local.level = 0; // Reset current wave level
-	g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
+	//g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
 	//g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
 	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	g_horde_local.num_to_spawn = 0;
