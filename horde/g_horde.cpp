@@ -2352,8 +2352,11 @@ edict_t* SpawnMonsters() {
 		mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP :
 		MAX_MONSTERS_MEDIUM_MAP;
 
-	// Early exit optimizado
-	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0) {
+	// Verificación más estricta del límite
+	if (activeMonsters >= maxMonsters ||
+		(activeMonsters + g_horde_local.queued_monsters) > maxMonsters ||
+		g_horde_local.num_to_spawn <= 0) {
+		g_horde_local.queued_monsters = 0; // Reset queue if we're at limit
 		return nullptr;
 	}
 
@@ -2379,7 +2382,6 @@ edict_t* SpawnMonsters() {
 				continue;
 			}
 
-			// Cálculo optimizado de distancia mínima usando SIMD si está disponible
 			float min_distance = std::numeric_limits<float>::max();
 			for (size_t j = 0; j < player_count; j++) {
 				const vec3_t& player_pos = player_positions[j];
@@ -2404,7 +2406,6 @@ edict_t* SpawnMonsters() {
 	const size_t effective_spawn_count = g_spawn_cache.count;
 	if (UseFarthestSpawn()) {
 		const size_t heap_size = std::min<size_t>(5, effective_spawn_count);
-		// Usar lambda explícita para la comparación
 		std::make_heap(g_spawn_cache.points.begin(),
 			g_spawn_cache.points.begin() + effective_spawn_count,
 			[](const SpawnData& a, const SpawnData& b) {
@@ -2416,9 +2417,7 @@ edict_t* SpawnMonsters() {
 				return a.distance_to_players < b.distance_to_players;
 			});
 	}
-
 	else {
-		// Shuffle optimizado con menos intercambios
 		for (size_t i = 0; i < effective_spawn_count - 1; ++i) {
 			size_t j = i + std::uniform_int_distribution<size_t>(0, effective_spawn_count - i - 1)(mt_rand);
 			if (i != j) {
@@ -2442,7 +2441,7 @@ edict_t* SpawnMonsters() {
 
 	const int32_t actual_spawn_count = std::min(monsters_per_spawn, max_possible_spawns);
 
-	// Preparación de estados en batch con mejor localidad de memoria
+	// Preparación de estados en batch
 	std::memset(monster_states.data(), 0, actual_spawn_count * sizeof(MonsterState));
 
 	for (int32_t i = 0; i < actual_spawn_count; ++i) {
@@ -2450,7 +2449,6 @@ edict_t* SpawnMonsters() {
 		state.classname = G_HordePickMonster(g_spawn_cache.points[i].point, mt_rand);
 		if (!state.classname) continue;
 
-		// Usar lookup table para drop chances
 		static const std::array<float, 3> DROP_CHANCES = { 0.8f, 0.6f, 0.45f };
 		size_t chance_idx = g_horde_local.level <= 2 ? 0 : g_horde_local.level <= 7 ? 1 : 2;
 		state.drop_chance = DROP_CHANCES[chance_idx];
@@ -2472,7 +2470,6 @@ edict_t* SpawnMonsters() {
 		edict_t* monster = G_Spawn();
 		if (!monster) continue;
 
-		// Configuración eficiente del monstruo
 		monster->classname = state.classname;
 		monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags = AI_IGNORE_SHOTS;
@@ -2489,7 +2486,6 @@ edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		// Aplicar estados adicionales solo si es necesario
 		if (state.needs_armor) {
 			SetMonsterArmor(monster);
 		}
@@ -2497,7 +2493,6 @@ edict_t* SpawnMonsters() {
 			monster->item = state.item;
 		}
 
-		// Efectos visuales y contadores
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 
 		--g_horde_local.num_to_spawn;
@@ -2505,18 +2500,6 @@ edict_t* SpawnMonsters() {
 		++g_totalMonstersInWave;
 		++successful_spawns;
 		last_spawned = monster;
-	}
-
-	// Manejo optimizado de cola adicional
-	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		const int32_t additional_spawnable = std::max(0, maxMonsters - activeMonsters);
-		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
-
-		if (additional_to_spawn > 0) {
-			g_horde_local.num_to_spawn += additional_to_spawn;
-			g_horde_local.queued_monsters -= additional_to_spawn;
-			ClampNumToSpawn(mapSize);
-		}
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
@@ -2685,7 +2668,7 @@ void Horde_RunFrame() {
 
 	case horde_state_t::spawning:
 		if (g_horde_local.monster_spawn_time <= level.time) {
-			// Spawn boss first if needed (moved before message check)
+			// Spawn boss first if needed
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
@@ -2699,6 +2682,13 @@ void Horde_RunFrame() {
 
 			// Check for wave completion
 			if (g_horde_local.num_to_spawn == 0) {
+				// Verificar que no excedemos el límite antes de transicionar
+				const int32_t totalMonsters = activeMonsters + g_horde_local.queued_monsters;
+				if (totalMonsters > maxMonsters) {
+					// Ajustar queued_monsters para respetar el límite
+					g_horde_local.queued_monsters = std::max(0, maxMonsters - activeMonsters);
+				}
+
 				if (!next_wave_message_sent) {
 					// Pre-verify bots before sending message
 					static gtime_t last_bot_verify = 0_ms;
@@ -2709,7 +2699,6 @@ void Horde_RunFrame() {
 
 					// Batch updates together
 					{
-						// Use fmt for formatting
 						gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 						next_wave_message_sent = true;
 					}
@@ -2728,7 +2717,6 @@ void Horde_RunFrame() {
 						g_horde_local.warningIssued[i] = false;
 					}
 
-					// Use fmt for logging
 					gi.Com_Print("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
 				}
 			}
