@@ -1085,12 +1085,6 @@ bool MarkTeslaArea(edict_t *self, edict_t *tesla)
 // aimpoint is the resulting aimpoint (pass in nullptr if don't want it)
 
 /**
- * Constants for aim prediction
- */
-constexpr float MIN_VALID_DOT_PRODUCT = 0.0f;
-constexpr float MIN_TRACE_FRACTION = 0.9f;
-
-/**
  * Calculates the optimal aim direction and point to hit a moving target.
  *
  * @param self        The entity doing the shooting
@@ -1102,15 +1096,24 @@ constexpr float MIN_TRACE_FRACTION = 0.9f;
  * @param aimdir      [out] Resulting aim direction (can be null)
  * @param aimpoint    [out] Resulting aim point in world space (can be null)
  */
+ /**
+  * Constants for aim prediction with enhanced validation
+  */
+constexpr float MIN_VALID_DOT_PRODUCT = 0.7f;    // Increased from 0.0f for stricter angle validation
+constexpr float MIN_TRACE_FRACTION = 0.95f;      // Increased from 0.9f for stricter obstacle checking
+constexpr float MIN_TARGET_DISTANCE = 32.0f;     // Minimum distance to target to avoid very close shots
+constexpr float MAX_PREDICTION_TIME = 2.0f;      // Maximum time for prediction to avoid unrealistic shots
+constexpr float MIN_VELOCITY_THRESHOLD = 50.0f;  // Minimum velocity to consider target moving
+
 void PredictAim(edict_t* self, edict_t* target, const vec3_t& start,
 	float bolt_speed, bool eye_height, float offset,
 	vec3_t* aimdir, vec3_t* aimpoint)
 {
-	// Early exit for invalid target
-	if (!target || !target->inuse)
+	// Validate input parameters
+	if (!target || !target->inuse || !self || !self->inuse)
 	{
-		if (aimdir)
-			*aimdir = {};
+		if (aimdir) *aimdir = {};
+		if (aimpoint) *aimpoint = {};
 		return;
 	}
 
@@ -1118,64 +1121,112 @@ void PredictAim(edict_t* self, edict_t* target, const vec3_t& start,
 	vec3_t target_pos = target->s.origin;
 	if (eye_height)
 		target_pos[2] += target->viewheight;
-
 	vec3_t dir_to_target = target_pos - start;
 	float distance = dir_to_target.length();
 
-	// Check if line of sight is blocked and try alternate height
-	trace_t visibility_check = gi.traceline(start, start + dir_to_target,
-		self, MASK_PROJECTILE);
-
-	if (visibility_check.ent != target)
+	// Check minimum distance to avoid point-blank shots
+	if (distance < MIN_TARGET_DISTANCE)
 	{
-		// Try opposite height if current one is blocked
-		eye_height = !eye_height;
-		target_pos = target->s.origin;
-		if (eye_height)
-			target_pos[2] += target->viewheight;
-
-		dir_to_target = target_pos - start;
-		distance = dir_to_target.length();
+		if (aimdir) *aimdir = {};
+		if (aimpoint) *aimpoint = {};
+		return;
 	}
 
-	// Calculate intercept time and position
-	float intercept_time = bolt_speed ? (distance / bolt_speed) : 0.0f;
-	vec3_t predicted_pos = target->s.origin +
-		(target->velocity * (intercept_time - offset));
+	// Enhanced visibility check with multiple trace points
+	trace_t visibility_checks[3];
+	vec3_t check_points[3] = {
+		target_pos,
+		{target_pos[0], target_pos[1], target_pos[2] + target->viewheight * 0.5f},
+		{target_pos[0], target_pos[1], target_pos[2] - target->viewheight * 0.5f}
+	};
 
-	// Validate predicted position
+	bool has_line_of_sight = false;
+	vec3_t best_target_pos = target_pos;
+	float best_visibility = 0.0f;
+
+	for (int i = 0; i < 3; i++)
+	{
+		visibility_checks[i] = gi.traceline(start, check_points[i], self, MASK_PROJECTILE);
+		if (visibility_checks[i].fraction > best_visibility)
+		{
+			best_visibility = visibility_checks[i].fraction;
+			best_target_pos = check_points[i];
+			if (visibility_checks[i].ent == target)
+			{
+				has_line_of_sight = true;
+				break;
+			}
+		}
+	}
+
+	if (!has_line_of_sight && best_visibility < MIN_TRACE_FRACTION)
+	{
+		if (aimdir) *aimdir = {};
+		if (aimpoint) *aimpoint = {};
+		return;
+	}
+
+	// Calculate intercept time with better bounds checking
+	float target_speed = target->velocity.length();
+	float intercept_time = 0.0f;
+
+	if (bolt_speed > 0.0f)
+	{
+		intercept_time = distance / bolt_speed;
+
+		// Limit prediction time to avoid unrealistic shots
+		if (intercept_time > MAX_PREDICTION_TIME)
+		{
+			intercept_time = MAX_PREDICTION_TIME;
+		}
+	}
+
+	// Only predict movement if target is moving significantly
+	vec3_t predicted_pos;
+	if (target_speed > MIN_VELOCITY_THRESHOLD)
+	{
+		predicted_pos = target->s.origin + (target->velocity * (intercept_time - offset));
+	}
+	else
+	{
+		predicted_pos = target->s.origin;
+	}
+
+	// Enhanced prediction validation
 	vec3_t dir_current = dir_to_target.normalized();
 	vec3_t dir_predicted = (predicted_pos - start).normalized();
 	bool is_prediction_valid = true;
 
-	// Check if prediction went backwards
+	// Stricter angle validation
 	if (dir_current.dot(dir_predicted) < MIN_VALID_DOT_PRODUCT)
 	{
 		is_prediction_valid = false;
 	}
 
-	// Check if prediction would hit a wall
+	// Enhanced obstacle check with multiple points along trajectory
 	if (is_prediction_valid)
 	{
-		trace_t wall_check = gi.traceline(start, predicted_pos, nullptr, MASK_SOLID);
-		if (wall_check.fraction < MIN_TRACE_FRACTION)
+		vec3_t path_vector = predicted_pos - start;
+		float path_length = path_vector.length();
+		vec3_t path_dir = path_vector.normalized();
+
+		constexpr int num_checks = 4;
+		for (int i = 1; i < num_checks; i++)
 		{
-			is_prediction_valid = false;
+			float check_distance = (path_length * i) / num_checks;
+			vec3_t check_point = start + (path_dir * check_distance);
+			trace_t path_check = gi.traceline(start, check_point, nullptr, MASK_SOLID);
+
+			if (path_check.fraction < MIN_TRACE_FRACTION)
+			{
+				is_prediction_valid = false;
+				break;
+			}
 		}
 	}
 
-	// Use original position if prediction is invalid
-	vec3_t final_pos;
-	if (!is_prediction_valid)
-	{
-		final_pos = target->s.origin;
-	}
-	else
-	{
-		final_pos = predicted_pos;
-	}
-
-	// Apply eye height to final position if needed
+	// Use validated position for final aim
+	vec3_t final_pos = is_prediction_valid ? predicted_pos : target->s.origin;
 	if (eye_height)
 	{
 		final_pos[2] += target->viewheight;
@@ -1195,15 +1246,6 @@ void PredictAim(edict_t* self, edict_t* target, const vec3_t& start,
 // [Paril-KEX] find a pitch that will at some point land on or near the player.
 // very approximate. aim will be adjusted to the correct aim vector.
 
-
-// Constants for trajectory calculation
-constexpr float SIMULATION_TIME_STEP = 0.1f;
-constexpr float BOUNCE_FACTOR = 1.6f;
-constexpr float VIABLE_HIT_DISTANCE = 12.0f;
-constexpr float MIN_SURFACE_NORMAL_Z = 0.7f;
-constexpr float PITCH_ANGLES[] = { -80.f, -70.f, -60.f, -50.f, -40.f, -30.f, -20.f, -10.f, -5.f };
-constexpr float MORTAR_MAX_PITCH = -30.0f;
-
 /**
  * Calculate pitch angle to hit a target with a projectile.
  *
@@ -1217,74 +1259,143 @@ constexpr float MORTAR_MAX_PITCH = -30.0f;
  * @param destroy_on_touch If true, projectile is destroyed on first impact
  * @return              true if a valid trajectory was found
  */
+ // Constants for improved trajectory calculation
+constexpr float SIMULATION_TIME_STEP = 0.05f;    // Reduced for better accuracy
+constexpr float BOUNCE_FACTOR = 1.4f;            // Reduced for more realistic bounces
+constexpr float VIABLE_HIT_DISTANCE = 16.0f;     // Increased slightly for better hit detection
+constexpr float MIN_SURFACE_NORMAL_Z = 0.7f;
+constexpr float PITCH_ANGLES[] = {
+	-85.f, -80.f, -75.f, -70.f, -65.f, -60.f, -55.f, -50.f, -45.f,
+	-40.f, -35.f, -30.f, -25.f, -20.f, -15.f, -10.f, -5.f
+};
+constexpr float MORTAR_MAX_PITCH = -30.0f;
+constexpr float MIN_EFFECTIVE_DISTANCE = 200.0f;  // Minimum distance for mortar use
+constexpr float MAX_EFFECTIVE_DISTANCE = 2000.0f; // Maximum effective range
+constexpr float ACCURACY_WEIGHT = 0.7f;          // Weight for accuracy vs. trajectory arc
+constexpr float ARC_WEIGHT = 0.3f;               // Weight for preferring nice arcing shots
+
 bool M_CalculatePitchToFire(edict_t* self, const vec3_t& target, const vec3_t& start,
 	vec3_t& aim, float speed, float time_remaining,
 	bool mortar, bool destroy_on_touch)
 {
 	float best_pitch = 0.f;
-	float best_dist = std::numeric_limits<float>::infinity();
+	float best_score = std::numeric_limits<float>::infinity();
 	vec3_t pitched_aim = vectoangles(aim);
 
-	// Try different pitch angles to find optimal trajectory
-	for (const float pitch : PITCH_ANGLES)
-	{
-		// Skip shallow angles for mortar-style shots
-		if (mortar && pitch >= MORTAR_MAX_PITCH)
-			break;
+	// Calculate distance to target
+	float target_distance = (target - start).length();
 
-		// Set up initial trajectory for this pitch angle
-		pitched_aim[PITCH] = pitch;
+	// Skip calculation if target is too close or too far
+	if (mortar && (target_distance < MIN_EFFECTIVE_DISTANCE ||
+		target_distance > MAX_EFFECTIVE_DISTANCE))
+	{
+		return false;
+	}
+
+	// Adjust pitch angles based on distance
+	float distance_factor = std::clamp(target_distance / MAX_EFFECTIVE_DISTANCE, 0.0f, 1.0f);
+	float min_viable_pitch = mortar ? -85.f : -45.f;
+	float max_viable_pitch = mortar ? -35.f : -5.f;
+
+	for (const float base_pitch : PITCH_ANGLES)
+	{
+		// Skip inappropriate angles
+		if (mortar && base_pitch >= MORTAR_MAX_PITCH)
+			break;
+		if (base_pitch > max_viable_pitch || base_pitch < min_viable_pitch)
+			continue;
+
+		// Adjust pitch based on distance
+		float adjusted_pitch = base_pitch + (distance_factor * 10.0f);
+		pitched_aim[PITCH] = adjusted_pitch;
 		const vec3_t forward = AngleVectors(pitched_aim).forward;
 		vec3_t velocity = forward * speed;
 		vec3_t origin = start;
 
+		float highest_point = start[2];
+		float lowest_point = start[2];
+		bool valid_trajectory = true;
+		float final_dist_sq = std::numeric_limits<float>::infinity();
+
 		// Simulate projectile path
 		float remaining_time = time_remaining;
-		while (remaining_time > 0.f)
+		int bounce_count = 0;
+
+		while (remaining_time > 0.f && bounce_count < 3)  // Limit bounces
 		{
-			// Apply gravity
+			// Track trajectory bounds
+			highest_point = std::max(highest_point, origin[2]);
+			lowest_point = std::min(lowest_point, origin[2]);
+
+			// Apply gravity with smoother integration
+			vec3_t old_velocity = velocity;
 			velocity += vec3_t{ 0, 0, -1 } *level.gravity * SIMULATION_TIME_STEP;
-			const vec3_t end_pos = origin + (velocity * SIMULATION_TIME_STEP);
+			const vec3_t end_pos = origin + ((old_velocity + velocity) * 0.5f * SIMULATION_TIME_STEP);
 
 			// Check for collisions
 			const trace_t trace = gi.traceline(origin, end_pos, nullptr, MASK_SHOT);
 			origin = trace.endpos;
 
-			// Handle collision or continue simulation
 			if (trace.fraction < 1.0f)
 			{
-				// Skip trajectory if projectile hits skybox
 				if (trace.surface->flags & SURF_SKY)
+				{
+					valid_trajectory = false;
 					break;
+				}
 
 				// Update position and velocity after bounce
 				origin += trace.plane.normal;
 				velocity = ClipVelocity(velocity, trace.plane.normal, BOUNCE_FACTOR);
+				bounce_count++;
 
-				// Check if this is a viable hit
+				// Calculate distance to target
 				const float dist_sq = (origin - target).lengthSquared();
+				final_dist_sq = dist_sq;
+
+				// Check for valid hits
 				const bool is_direct_hit = (trace.ent == self->enemy || trace.ent->client);
 				const bool is_close_ground_hit = (trace.plane.normal.z >= MIN_SURFACE_NORMAL_Z &&
 					dist_sq < (VIABLE_HIT_DISTANCE * VIABLE_HIT_DISTANCE));
 
-				if (is_direct_hit || (is_close_ground_hit && dist_sq < best_dist))
+				if (is_direct_hit || is_close_ground_hit)
 				{
-					best_pitch = pitch;
-					best_dist = dist_sq;
+					// Calculate trajectory quality score
+					float trajectory_height = highest_point - lowest_point;
+					float ideal_height = target_distance * 0.5f;
+					float height_score = std::abs(trajectory_height - ideal_height) / ideal_height;
+
+					// Combined score weighing accuracy and trajectory aesthetics
+					float accuracy_score = std::sqrt(dist_sq) / VIABLE_HIT_DISTANCE;
+					float arc_score = height_score;
+					float total_score = (accuracy_score * ACCURACY_WEIGHT) +
+						(arc_score * ARC_WEIGHT);
+
+					if (total_score < best_score)
+					{
+						best_pitch = adjusted_pitch;
+						best_score = total_score;
+					}
 				}
 
-				// Check if projectile should be destroyed
 				const bool hits_entity = (trace.contents & (CONTENTS_MONSTER | CONTENTS_PLAYER | CONTENTS_DEADMONSTER));
 				if (destroy_on_touch || hits_entity)
 					break;
 			}
 
 			remaining_time -= SIMULATION_TIME_STEP;
+
+			// Early exit if trajectory is clearly missing
+			if ((origin - target).lengthSquared() >
+				(target_distance * target_distance * 4.0f))
+			{
+				break;
+			}
 		}
 	}
 
 	// Update aim vector if valid trajectory found
-	if (!std::isinf(best_dist))
+	if (!std::isinf(best_score))
 	{
 		pitched_aim[PITCH] = best_pitch;
 		aim = AngleVectors(pitched_aim).forward;

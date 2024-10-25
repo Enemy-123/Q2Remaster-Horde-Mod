@@ -40,21 +40,21 @@ enum class horde_state_t {
 };
 
 struct HordeState {
-	gtime_t         warm_time = 4_sec;
-	horde_state_t   state = horde_state_t::warmup;
-	gtime_t         monster_spawn_time;
-	int32_t         num_to_spawn = 0;
-	int32_t         level = 0;
-	int32_t         queued_monsters = 0;
-	gtime_t         lastPrintTime = 0_sec; // Nueva variable
-
-	// Variables para condiciones
-	bool            conditionTriggered = false;
-	gtime_t         conditionStartTime = 0_sec;
-	gtime_t         conditionTimeThreshold = 0_sec;
-	bool            timeWarningIssued = false;
-	gtime_t         waveEndTime = 0_sec;
-	std::vector<bool> warningIssued = { false, false, false, false }; // Assuming 4 warning times
+    gtime_t         warm_time = 0_sec; 
+    horde_state_t   state = horde_state_t::warmup;
+    gtime_t         monster_spawn_time;
+    int32_t         num_to_spawn = 0;
+    int32_t         level = 0;
+    int32_t         queued_monsters = 0;
+    gtime_t         lastPrintTime = 0_sec;
+    
+    // Variables para condiciones
+    bool            conditionTriggered = false;
+    gtime_t         conditionStartTime = 0_sec;
+    gtime_t         conditionTimeThreshold = 0_sec;
+    bool            timeWarningIssued = false;
+    gtime_t         waveEndTime = 0_sec;
+    std::vector<bool> warningIssued = { false, false, false, false };
 } g_horde_local;
 
 struct weighted_benefit_t {
@@ -534,6 +534,9 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_horde_local.conditionTriggered = false;
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.lastPrintTime = 0_sec;
+
+	g_horde_local.monster_spawn_time = level.time + 1_sec;
+	g_horde_local.warm_time = 0_sec; // Reset para próximo uso
 
 	g_lastParams = GetConditionParams(mapSize, GetNumHumanPlayers(), lvl);
 
@@ -2217,35 +2220,14 @@ void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	}
 }
 
-// Funci�n para manejar el mensaje de limpieza de ola
-static void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
-	bool isStandardWave = (current_wave_level >= 15 && current_wave_level <= 26);
-	bool isAdvancedWave = (current_wave_level >= 27);
-	bool isInitialWave = (current_wave_level <= 14);
-
-	if (isStandardWave) {
-		gi.cvar_set("g_insane", "1");
-		gi.cvar_set("g_chaotic", "0");
-	}
-	else if (isAdvancedWave) {
-		gi.cvar_set("g_insane", "2");
-		gi.cvar_set("g_chaotic", "0");
-	}
-	else if (isInitialWave) {
-		gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
-	}
-
-	g_horde_local.state = horde_state_t::rest;
-}
-
 // Función para obtener un sonido aleatorio
 static const char* GetRandomWaveSound() {
 	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
 	return WAVE_SOUNDS[dist(mt_rand)].data(); // Usar .data() para obtener const char*
 }
 
-void HandleWaveRestMessage(gtime_t duration = 4_sec) {
-	std::string_view message;
+static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
+	const char* message;
 	if (!g_insane->integer) {
 		message = "STROGGS STARTING TO PUSH!\n\n";
 	}
@@ -2260,7 +2242,11 @@ void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 
 	UpdateHordeMessage(message, duration);
 	gi.sound(world, CHAN_VOICE, gi.soundindex(GetRandomWaveSound()), 1, ATTN_NONE, 0);
+
+	// Asegurar que el tiempo de spawn inicial esté establecido
+	g_horde_local.monster_spawn_time = level.time + 1_sec;
 }
+
 
 // Llamar a esta función durante la inicialización del juego
 void InitializeWaveSystem() noexcept {
@@ -2688,6 +2674,9 @@ void Horde_RunFrame() {
 
 	switch (g_horde_local.state) {
 	case horde_state_t::warmup:
+		if (g_horde_local.warm_time == 0_sec) {
+			g_horde_local.warm_time = level.time + 2_sec;
+		}
 		if (g_horde_local.warm_time < level.time) {
 			cachedRemainingMonsters = CalculateRemainingMonsters();
 			g_horde_local.state = horde_state_t::spawning;
@@ -2697,6 +2686,7 @@ void Horde_RunFrame() {
 			DisplayWaveMessage();
 		}
 		break;
+
 
 	case horde_state_t::spawning: {  
 		if (g_horde_local.monster_spawn_time <= level.time) {
@@ -2834,11 +2824,15 @@ void Horde_RunFrame() {
 	}
 
 	case horde_state_t::rest:
+		if (g_horde_local.warm_time == 0_sec) {
+			g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
+		}
 		if (g_horde_local.warm_time < level.time) {
 			HandleWaveRestMessage(4_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 			Horde_CleanBodies();
+			g_horde_local.warm_time = 0_sec; // Reset para siguiente uso
 		}
 		break;
 	}
