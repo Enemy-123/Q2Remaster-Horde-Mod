@@ -2120,9 +2120,26 @@ void AllowNextWaveAdvance() noexcept {
 }
 
 void fastNextWave() noexcept {
-	g_horde_local.warm_time = level.time;
-	g_horde_local.num_to_spawn = 0; // Establecer a cero para indicar que no hay más monstruos por spawnear
+	// Limpiar el estado actual
+	g_horde_local.num_to_spawn = 0;
+	g_horde_local.queued_monsters = 0;
 	g_horde_local.monster_spawn_time = level.time;
+
+	// Forzar la transición al siguiente estado
+	g_horde_local.state = horde_state_t::active_wave;
+	g_horde_local.conditionTriggered = false;
+	g_horde_local.conditionStartTime = 0_sec;
+	g_horde_local.waveEndTime = 0_sec;
+
+	// Resetear advertencias
+	std::fill(g_horde_local.warningIssued.begin(),
+		g_horde_local.warningIssued.end(), false);
+
+	// Actualizar el tiempo
+	g_independent_timer_start = level.time;
+
+	// Notificar el cambio
+	gi.Com_Print("PRINT: Fast transitioning to next wave.\n");
 }
 
 static void MonsterSpawned(const edict_t* monster) {
@@ -2439,7 +2456,6 @@ edict_t* SpawnMonsters() {
 		state.classname = G_HordePickMonster(g_spawn_cache.points[i].point, mt_rand);
 		if (!state.classname) continue;
 
-		static const std::array<float, 3> DROP_CHANCES = { 0.8f, 0.6f, 0.45f };
 		size_t chance_idx = g_horde_local.level <= 2 ? 0 : g_horde_local.level <= 7 ? 1 : 2;
 		state.drop_chance = DROP_CHANCES[chance_idx];
 
@@ -2448,7 +2464,6 @@ edict_t* SpawnMonsters() {
 			state.item = G_HordePickItem(mt_rand);
 		}
 	}
-
 	// Spawn batch con mejor manejo de memoria
 	edict_t* last_spawned = nullptr;
 	int32_t successful_spawns = 0;
@@ -2622,6 +2637,21 @@ static void CheckAndResetDisabledSpawnPoints() {
 	}
 }
 
+static void TransitionToActiveWave() {
+	g_horde_local.state = horde_state_t::active_wave;
+	g_horde_local.conditionTriggered = false;
+	g_horde_local.conditionStartTime = 0_sec;
+	g_horde_local.waveEndTime = 0_sec;
+	g_horde_local.lastPrintTime = 0_sec;
+
+	std::fill(g_horde_local.warningIssued.begin(),
+		g_horde_local.warningIssued.end(), false);
+
+	g_independent_timer_start = level.time;
+
+	gi.Com_Print("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
+}
+
 void Horde_RunFrame() {
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t currentLevel = g_horde_local.level;
@@ -2656,7 +2686,7 @@ void Horde_RunFrame() {
 		}
 		break;
 
-	case horde_state_t::spawning:
+	case horde_state_t::spawning: {  
 		if (g_horde_local.monster_spawn_time <= level.time) {
 			// Spawn boss first if needed
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
@@ -2672,47 +2702,30 @@ void Horde_RunFrame() {
 
 			// Check for wave completion
 			if (g_horde_local.num_to_spawn == 0) {
-				// Verificar que no excedemos el límite antes de transicionar
+				// Verificar límite de monstruos
 				const int32_t totalMonsters = activeMonsters + g_horde_local.queued_monsters;
 				if (totalMonsters > maxMonsters) {
-					// Ajustar queued_monsters para respetar el límite
 					g_horde_local.queued_monsters = std::max(0, maxMonsters - activeMonsters);
 				}
 
 				if (!next_wave_message_sent) {
-					// Pre-verify bots before sending message
+					// Verificación de bots y mensaje
 					static gtime_t last_bot_verify = 0_ms;
 					if (level.time - last_bot_verify >= 500_ms) {
 						VerifyAndAdjustBots();
 						last_bot_verify = level.time;
 					}
 
-					// Batch updates together
-					{
-						gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
-						next_wave_message_sent = true;
-					}
+					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
+					next_wave_message_sent = true;
 				}
 
-				// Batch state transitions
-				{
-					g_horde_local.state = horde_state_t::active_wave;
-					g_horde_local.conditionTriggered = false;
-					g_horde_local.conditionStartTime = 0_sec;
-					g_horde_local.waveEndTime = 0_sec;
-					g_horde_local.lastPrintTime = 0_sec;
-
-					// Reset warnings using index-based access
-					for (size_t i = 0; i < g_horde_local.warningIssued.size(); i++) {
-						g_horde_local.warningIssued[i] = false;
-					}
-
-					gi.Com_Print("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
-				}
+				// Transición al siguiente estado
+				TransitionToActiveWave();
 			}
 		}
 		break;
-
+	} 
 	case horde_state_t::active_wave: {
 		WaveEndReason reason;
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
