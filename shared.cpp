@@ -15,10 +15,26 @@ void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, 
 void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 bool hasEntities = false;
 
+
+// Mover la definición de deathFunctions al alcance global
+static const std::unordered_map<std::string_view, void(*)(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&)> deathFunctions = {
+	{"monster_sentrygun", turret_die},
+	{"tesla_mine", tesla_die},
+	{"prox_mine", prox_die},
+	{"food_cube_trap", trap_die},
+	{"emitter", laser_die},
+	{"laser", laser_die}
+};
+
+
 void RemovePlayerOwnedEntities(edict_t* player)
 {
 	if (!player || !globals.num_edicts)
 		return;
+
+	// Contadores para llevar registro de las entidades eliminadas
+	int teslas_removed = 0;
+	int sentries_removed = 0;
 
 	for (unsigned int i = 0; i < globals.num_edicts; i++) {
 		edict_t& ent = g_edicts[i];
@@ -30,14 +46,29 @@ void RemovePlayerOwnedEntities(edict_t* player)
 			ent.teammaster == player ||
 			(ent.teammaster && ent.teammaster->teammaster == player)) {
 
+			// Contar entidades antes de eliminarlas
+			if (!strcmp(ent.classname, "tesla_mine")) {
+				teslas_removed++;
+			}
+			else if (!strcmp(ent.classname, "monster_sentrygun")) {
+				sentries_removed++;
+			}
+
 			OnEntityDeath(&ent);
 			if (IsRemovableEntity(&ent))
 				RemoveEntity(&ent);
 		}
 	}
 
-	if (player->client)
+	if (player->client) {
+		// Actualizar todos los contadores relevantes
 		player->client->num_lasers = 0;
+		player->client->num_teslas = std::max(0, player->client->num_teslas - teslas_removed);
+		player->client->num_sentries = std::max(0, player->client->num_sentries - sentries_removed);
+
+//		gi.Com_PrintFmt("PRINT: Removed {} tesla(s) and {} sentry gun(s) from player {}\n",
+//			teslas_removed, sentries_removed, GetPlayerName(player));
+	}
 }
 
 bool IsRemovableEntity(const edict_t* ent)
@@ -52,32 +83,31 @@ bool IsRemovableEntity(const edict_t* ent)
 
 void RemoveEntity(edict_t* ent)
 {
-	static const std::unordered_map<std::string_view, void(*)(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&)> deathFunctions = {
-		{"monster_sentrygun", turret_die},
-		{"tesla_mine", tesla_die},
-		{"prox_mine", prox_die},
-		{"food_cube_trap", trap_die},
-		{"emitter", laser_die},
-		{"laser", laser_die}
-	};
+	if (!ent || !ent->inuse)
+		return;
 
-	if (ent && ent->inuse)
-	{
-		auto it = deathFunctions.find(ent->classname);
-		if (it != deathFunctions.end())
-		{
-			if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
-			{
-				ent->health = -1;
-			}
-			it->second(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	// Actualizar contadores del propietario si es necesario
+	if (ent->owner && ent->owner->client) {
+		if (!strcmp(ent->classname, "tesla_mine")) {
+			ent->owner->client->num_teslas = std::max(0, ent->owner->client->num_teslas - 1);
 		}
-		else
-		{
-			BecomeExplosion1(ent);
+		else if (!strcmp(ent->classname, "monster_sentrygun")) {
+			ent->owner->client->num_sentries = std::max(0, ent->owner->client->num_sentries - 1);
 		}
 	}
+
+	auto it = deathFunctions.find(ent->classname);
+	if (it != deathFunctions.end()) {
+		if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0) {
+			ent->health = -1;
+		}
+		it->second(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else {
+		BecomeExplosion1(ent);
+	}
 }
+
 
 void UpdatePowerUpTimes(edict_t* monster) {
 
@@ -626,46 +656,68 @@ edict_t* SelectSingleSpawnPoint(edict_t* ent);
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
 	gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
 
-	constexpr int max_attempts = 5; // Maximum number of attempts to push entities
-	std::vector<edict_t*> stubborn_entities; // Entities that couldn't be moved after all attempts
-	std::vector<edict_t*> entities_to_remove; // Entities to remove after iteration
+	constexpr int max_attempts = 5;
+	std::vector<edict_t*> stubborn_entities;
+	std::vector<edict_t*> entities_to_process; // Lista principal de entidades a procesar
+	std::vector<edict_t*> entities_to_remove;  // Lista específica para entidades a eliminar
 
 	// Reservar memoria anticipadamente
 	stubborn_entities.reserve(MAX_EDICTS);
+	entities_to_process.reserve(MAX_EDICTS);
 	entities_to_remove.reserve(MAX_EDICTS);
 
+	// Primera pasada: recolectar todas las entidades en el radio
+	edict_t* ent = nullptr;
+	while ((ent = findradius(ent, center, push_radius)) != nullptr) {
+		if (!ent || !ent->inuse)
+			continue;
+
+		// Separar inmediatamente las entidades removibles
+		if (IsRemovableEntity(ent)) {
+			entities_to_remove.push_back(ent);
+		}
+		else if (ent->takedamage && ent->s.origin) {
+			entities_to_process.push_back(ent);
+		}
+	}
+
+	// Primero, manejar las entidades removibles
+	for (auto* remove_ent : entities_to_remove) {
+		if (remove_ent && remove_ent->inuse) {
+			RemoveEntity(remove_ent);
+			gi.Com_PrintFmt("PRINT: Removable entity {} eliminated.\n",
+				remove_ent->classname ? remove_ent->classname : "unknown");
+		}
+	}
+	entities_to_remove.clear();
+
+	// Procesar las olas
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.030f);
 		const float end_size = size * 0.3f;
 
-		// Use regular SpawnGrow for all waves
 		SpawnGrow_Spawn(center, size, end_size);
 
-		// Find and collect entities
-		std::vector<edict_t*> entities_in_radius;
-		edict_t* ent = nullptr;
+		// Procesar entidades normales
+		for (auto it = entities_to_process.begin(); it != entities_to_process.end();) {
+			auto* entity = *it;
 
-		while ((ent = findradius(ent, center, size)) != nullptr) {
-			if (!ent || !ent->inuse || !ent->takedamage || !ent->s.origin)
-				continue;
-
-			entities_in_radius.push_back(ent);
-		}
-
-		// Process entities
-		for (auto* entity : entities_in_radius) {
-			if (!entity || !entity->inuse)
-				continue;
-
-			// Check if the entity is a special case that should be removed
-			if (IsRemovableEntity(entity)) {
-				entities_to_remove.push_back(entity);
+			if (!entity || !entity->inuse) {
+				it = entities_to_process.erase(it);
 				continue;
 			}
 
-			// Attempt to push the entity multiple times
+			// Verificar nuevamente si la entidad se volvió removible
+			if (IsRemovableEntity(entity)) {
+				RemoveEntity(entity);
+				gi.Com_PrintFmt("PRINT: Entity {} became removable and was eliminated.\n",
+					entity->classname ? entity->classname : "unknown");
+				it = entities_to_process.erase(it);
+				continue;
+			}
+
 			bool pushed = false;
-			for (int attempt = 0; attempt < max_attempts; attempt++) {
+			for (int attempt = 0; attempt < max_attempts && !pushed; attempt++) {
 				vec3_t push_dir{};
 				VectorSubtract(entity->s.origin, center, push_dir);
 				const float distance = VectorLength(push_dir);
@@ -674,49 +726,32 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 					VectorNormalize(push_dir);
 				}
 				else {
-					// If the entity is too close to the center, give it a random direction
 					push_dir[0] = crandom();
 					push_dir[1] = crandom();
 					push_dir[2] = 0;
 					VectorNormalize(push_dir);
 				}
 
-				// Calculate push strength with a sine wave for smoother effect
 				float wave_push_strength = push_strength * (1.0f - distance / size);
 				wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-				wave_push_strength = std::min(wave_push_strength, 1000.0f);  // Limit maximum push strength
-
-				// Increase push strength for subsequent attempts
+				wave_push_strength = std::min(wave_push_strength, 1000.0f);
 				wave_push_strength *= (1.0f + attempt * 0.5f);
 
-				// Calculate new position
 				vec3_t new_pos{};
 				VectorMA(entity->s.origin, wave_push_strength / 700, push_dir, new_pos);
 
-				// Trace to ensure we're not pushing through walls
 				const trace_t tr = gi.trace(entity->s.origin, entity->mins, entity->maxs, new_pos, entity, MASK_SOLID);
 
 				if (!tr.allsolid && !tr.startsolid) {
-					// Code to push entities
 					vec3_t final_velocity;
-					if (tr.fraction < 1.0) {
-						// If we hit something, adjust the push
-						VectorScale(push_dir, tr.fraction * wave_push_strength, final_velocity);
-					}
-					else {
-						VectorScale(push_dir, wave_push_strength, final_velocity);
-					}
+					VectorScale(push_dir, tr.fraction < 1.0f ? tr.fraction * wave_push_strength : wave_push_strength, final_velocity);
 
-					// Add strong horizontal component
 					float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
 					final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
 					final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
-
-					// Add vertical component
 					final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
 
 					VectorCopy(final_velocity, entity->velocity);
-
 					entity->groundentity = nullptr;
 
 					if (entity->client) {
@@ -724,59 +759,55 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 						entity->client->oldgroundentity = entity->groundentity;
 					}
 
-					gi.Com_PrintFmt("PRINT: Wave {}: Entity {} pushed. New velocity: {}\n",
-						wave + 1, entity->classname ? entity->classname : "unknown", entity->velocity);
-
 					pushed = true;
-					break;
+					gi.Com_PrintFmt("PRINT: Wave {}: Entity {} pushed. Velocity: {}\n",
+						wave + 1, entity->classname ? entity->classname : "unknown", entity->velocity);
 				}
 			}
 
 			if (!pushed) {
-				// The entity couldn't be moved after multiple attempts
 				stubborn_entities.push_back(entity);
 				gi.Com_PrintFmt("PRINT: Entity {} at {} could not be moved after {} attempts.\n",
 					entity->classname ? entity->classname : "unknown", entity->s.origin, max_attempts);
 			}
+
+			++it;
 		}
 
-		// Wait for the specified interval before the next wave
 		if (wave < num_waves - 1) {
 			gi.Com_PrintFmt("PRINT: Waiting {} milliseconds before next wave\n", wave_interval_ms);
-			// Implement your delay mechanism here
 		}
 	}
 
-	// Remove entities after iteration
-	for (auto* ent : entities_to_remove) {
-		if (ent && ent->inuse) {
-			RemoveEntity(ent);
-			gi.Com_PrintFmt("PRINT: Entity {} removed.\n", ent->classname ? ent->classname : "unknown");
-		}
-	}
-
-	// Handle stubborn entities
+	// Manejar entidades tercas
 	for (auto* stubborn_ent : stubborn_entities) {
 		if (!stubborn_ent || !stubborn_ent->inuse)
 			continue;
 
 		if (stubborn_ent->client) {
-			// For players, teleport to a safe spawn point
 			edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent);
 			if (spawn_point) {
 				TeleportEntity(stubborn_ent, spawn_point);
-
-				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point.\n", stubborn_ent->client->pers.netname);
+				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point.\n",
+					stubborn_ent->client->pers.netname);
 			}
 			else {
-				gi.Com_PrintFmt("PRINT: WARNING: Could not find a safe spawn point for player {}.\n", stubborn_ent->client->pers.netname);
+				gi.Com_PrintFmt("PRINT: WARNING: Could not find spawn point for player {}.\n",
+					stubborn_ent->client->pers.netname);
 			}
 		}
 		else {
-			// For non-player entities, remove them
-			if (stubborn_ent && stubborn_ent->inuse) {
+			// Verificar una última vez si la entidad es removible
+			if (IsRemovableEntity(stubborn_ent)) {
 				RemoveEntity(stubborn_ent);
-				gi.Com_PrintFmt("PRINT: Non-player entity {} removed.\n", stubborn_ent->classname ? stubborn_ent->classname : "unknown");
+				gi.Com_PrintFmt("PRINT: Stubborn removable entity {} eliminated.\n",
+					stubborn_ent->classname ? stubborn_ent->classname : "unknown");
+			}
+			else {
+				// Para entidades no removibles que siguen siendo tercas
+				RemoveEntity(stubborn_ent);
+				gi.Com_PrintFmt("PRINT: Stubborn non-player entity {} removed.\n",
+					stubborn_ent->classname ? stubborn_ent->classname : "unknown");
 			}
 		}
 	}

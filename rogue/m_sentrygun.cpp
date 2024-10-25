@@ -404,16 +404,19 @@ int32_t TURRET2_BULLET_DAMAGE = 2;
 
 void turret2Fire(edict_t* self)
 {
-
-	const gtime_t ROCKET_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec; // 2.3 segundos
 	vec3_t forward;
 	vec3_t start, end, dir;
 	float dist, chance;
 	trace_t trace;
 	int projectileSpeed{};
-	bool damageApplied = false;  // Bandera para prevenir daño duplicado
+	bool damageApplied = false;
 
-	// Revisar si el dueño tiene power-ups
+	// Intervalos de disparo basados en powerups
+	const gtime_t ROCKET_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec;
+	const gtime_t MACHINEGUN_FIRE_RATE = self->monsterinfo.quadfire_time > level.time ? 9_hz : 15_hz;
+	const gtime_t PLASMA_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec;
+
+	// Revisar powerups del dueño
 	if (self->owner && self->owner->client) {
 		TurretRespondPowerup(self, self->owner);
 	}
@@ -426,7 +429,6 @@ void turret2Fire(edict_t* self)
 			return;
 	}
 
-	// Comportamiento de disparo más agresivo
 	self->monsterinfo.attack_finished = level.time;
 
 	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
@@ -442,17 +444,17 @@ void turret2Fire(edict_t* self)
 	if (chance < 0.98f)
 		return;
 
-	chance = frandom();
-
+	// Configurar velocidad del proyectil
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-		projectileSpeed = 1800;
+		projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 2000 : 1800; // Más rápido con quad
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
-		projectileSpeed = 1650;  // Velocidad del cohete para la ametralladora/cohete
+		projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1850 : 1650;
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) || self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) || visible(self, self->enemy))
 	{
 		start = self->s.origin;
-		// Apuntar a la cabeza
+
+		// Ajuste de puntería
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
 			if ((self->enemy) && (self->enemy->client))
@@ -464,25 +466,29 @@ void turret2Fire(edict_t* self)
 		dir = end - start;
 		dist = dir.length();
 
-		// Fuego predictivo mejorado
+		// Predicción mejorada con quad
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
-			PredictAim(self, self->enemy, start, projectileSpeed, true, 0.0f, &dir, nullptr);
+			float predictionError = self->monsterinfo.quadfire_time > level.time ?
+				0.02f : // Menor error con quad
+				(frandom(3.f - skill->integer) / 3.f);
+			PredictAim(self, self->enemy, start, projectileSpeed, true, predictionError, &dir, nullptr);
 		}
 
-		// Calcula el daño base multiplicado por el modificador solo una vez
+		// Cálculo de daño mejorado con quad
 		const float damageModifier = M_DamageModifier(self);
+		const float quadMultiplier = self->monsterinfo.quadfire_time > level.time ? 1.5f : 1.0f;
 		constexpr int baseDamage = 100;
-		const int modifiedDamage = static_cast<int>(baseDamage * damageModifier);
+		const int modifiedDamage = static_cast<int>(baseDamage * damageModifier * quadMultiplier);
 
 		dir.normalize();
 		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
-			// Lógica combinada de ametralladora y cohetes
 			if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 			{
-				// Disparo de cohetes cada 2.3 segundos
+				// Sistema de cohetes mejorado
 				const gtime_t currentTime = level.time;
 				if (currentTime > self->monsterinfo.last_rocket_fire_time + ROCKET_FIRE_INTERVAL)
 				{
@@ -490,19 +496,25 @@ void turret2Fire(edict_t* self)
 
 					if (dist * trace.fraction > 72 && !damageApplied)
 					{
-						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
-						fire_rocket(self->owner, start, dir, modifiedDamage, 1420, 120, modifiedDamage);
+						PredictAim(self, self->enemy, start, projectileSpeed, false,
+							self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.05f,
+							&dir, nullptr);
+
+						fire_rocket(self->owner, start, dir, modifiedDamage,
+							self->monsterinfo.quadfire_time > level.time ? 1600 : 1420,
+							120, modifiedDamage);
 						damageApplied = true;
 						gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 					}
 				}
 
-				// Lógica mejorada de la ametralladora
+				// Sistema de ametralladora mejorado
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
-					self->monsterinfo.duck_wait_time = level.time + 5_sec + gtime_t::from_sec(frandom(skill->value));
-					self->monsterinfo.next_duck_time = level.time + gtime_t::from_sec(0.1f);
+					self->monsterinfo.duck_wait_time = level.time +
+						(self->monsterinfo.quadfire_time > level.time ? 3_sec : 5_sec);
+					self->monsterinfo.next_duck_time = level.time + 0.1_sec;
 					gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
 				}
 				else
@@ -510,19 +522,24 @@ void turret2Fire(edict_t* self)
 					if (self->monsterinfo.next_duck_time < level.time &&
 						self->monsterinfo.melee_debounce_time <= level.time && !damageApplied)
 					{
-						// Predicción mejorada para fire_bullet
 						vec3_t predictedDir;
-						PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
+						PredictAim(self, self->enemy, start, 9999, false,
+							self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
+							&predictedDir, nullptr);
 
+						// Daño de ametralladora mejorado con quad
 						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal,
-							static_cast<int>(TURRET2_BULLET_DAMAGE * damageModifier),
-							static_cast<int>(5 * damageModifier), DAMAGE_NONE, MOD_TURRET);
+							static_cast<int>(TURRET2_BULLET_DAMAGE * damageModifier * quadMultiplier),
+							static_cast<int>(5 * damageModifier * quadMultiplier),
+							DAMAGE_NONE, MOD_TURRET);
 
-						// Usar la dirección predicha para fire_bullet
-						monster_fire_bullet(self, start, predictedDir, 0, 5, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MZ2_TURRET_MACHINEGUN);
+						monster_fire_bullet(self, start, predictedDir, 0, 5,
+							self->monsterinfo.quadfire_time > level.time ? DEFAULT_BULLET_HSPREAD / 2 : DEFAULT_BULLET_HSPREAD,
+							self->monsterinfo.quadfire_time > level.time ? DEFAULT_BULLET_VSPREAD / 2 : DEFAULT_BULLET_VSPREAD,
+							MZ2_TURRET_MACHINEGUN);
 
-						self->monsterinfo.quadfire_time > level.time ? self->monsterinfo.melee_debounce_time = level.time + 9_hz :
-																		self->monsterinfo.melee_debounce_time = level.time + 15_hz;
+						// Velocidad de disparo basada en quad
+						self->monsterinfo.melee_debounce_time = level.time + MACHINEGUN_FIRE_RATE;
 						damageApplied = true;
 					}
 
@@ -532,12 +549,13 @@ void turret2Fire(edict_t* self)
 			}
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
-				const gtime_t PLASMA_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec;;
 				start = self->s.origin;
-
-				// Mejora en la predicción para el heatbeam
 				vec3_t predictedDir;
-				PredictAim(self, self->enemy, start, 9999, false, 0.0f, &predictedDir, nullptr);
+
+				// Predicción mejorada con quad
+				PredictAim(self, self->enemy, start, 9999, false,
+					self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
+					&predictedDir, nullptr);
 
 				trace = gi.traceline(start, start + predictedDir * 8192, self, MASK_PROJECTILE);
 
@@ -545,23 +563,31 @@ void turret2Fire(edict_t* self)
 				{
 					if (!damageApplied)
 					{
-						// Dispara el heatbeam con la dirección predicha
+						// Daño del heatbeam mejorado con quad
 						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal,
-							static_cast<int>(TURRET2_BLASTER_DAMAGE * damageModifier), 0, DAMAGE_ENERGY, MOD_TURRET);
-						monster_fire_heatbeam(self, start, predictedDir, vec3_origin, 0, 30, MZ2_TURRET_BLASTER);
+							static_cast<int>(TURRET2_BLASTER_DAMAGE * damageModifier * quadMultiplier),
+							0, DAMAGE_ENERGY, MOD_TURRET);
+
+						monster_fire_heatbeam(self, start, predictedDir, vec3_origin,
+							self->monsterinfo.quadfire_time > level.time ? 2 : 0,
+							30, MZ2_TURRET_BLASTER);
 						damageApplied = true;
 					}
 
-					// Disparo de plasma en intervalos con mira predictiva
+					// Sistema de plasma mejorado
 					const gtime_t currentTime = level.time;
 					if (currentTime > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
 					{
 						self->monsterinfo.last_plasma_fire_time = currentTime;
 
-						// Mira predictiva para el plasma
-						PredictAim(self, self->enemy, start, projectileSpeed, false, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &predictedDir, nullptr);
+						PredictAim(self, self->enemy, start, projectileSpeed, false,
+							self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.05f,
+							&predictedDir, nullptr);
 
-						fire_plasma(self->owner, start, predictedDir, 100, 1250, 120, 100);
+						fire_plasma(self->owner, start, predictedDir,
+							static_cast<int>(100 * quadMultiplier),
+							self->monsterinfo.quadfire_time > level.time ? 1450 : 1250,
+							120, static_cast<int>(100 * quadMultiplier));
 						gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 					}
 				}
@@ -984,7 +1010,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		// Ajustar el punto de disparo basado en el movimiento del enemigo
 		if (self->enemy->client) {
 			vec3_t velocity;
-			VectorScale(self->enemy->velocity, 0.2, velocity);
+			VectorScale(self->enemy->velocity, 0.2f, velocity);
 			VectorAdd(aim_point, velocity, aim_point);
 		}
 
