@@ -1598,7 +1598,7 @@ void Machinegun_Fire(edict_t* ent)
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
 
 			// Disparo del blaster desde la posición ajustada y dirección correcta
-			fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, EF_NONE);
+			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_BLUEHYPERBLASTER);
 		}
 		ent->lasthbshot = level.time + 0.5_sec;
 	}
@@ -1770,7 +1770,7 @@ void Chaingun_Fire(edict_t* ent)
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
 
 			// Disparo del blaster desde la posición ajustada y dirección correcta
-			fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, EF_NONE);
+			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.25_sec;
 	}
