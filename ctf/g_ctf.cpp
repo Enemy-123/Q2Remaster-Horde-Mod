@@ -4060,7 +4060,6 @@ void CTFOpenJoinMenu(edict_t* ent)
 	PMenu_Open(ent, joinmenu, team, sizeof(joinmenu) / sizeof(pmenu_t), nullptr, CTFUpdateJoinMenu);
 }
 
-
 bool CTFStartClient(edict_t* ent)
 {
 	if (!G_TeamplayEnabled())
@@ -4094,61 +4093,69 @@ bool CTFStartClient(edict_t* ent)
 
 void RemoveAllTechItems(edict_t* ent)
 {
-	// Verificar que el jugador y su cliente sean válidos
+	// Verify player and client validity
 	if (!ent || !ent->client)
 		return;
 
-	// Recorrer todo el inventario del jugador
-	for (int i = 0; i < MAX_ITEMS; i++)
+	// Use the known safe upper bound directly
+	const int SAFE_MAX_ITEMS = 85; // Based on the warning message indicating valid range 0-84
+
+	// Iterate through the inventory up to our known safe limit
+	for (int i = 0; i < SAFE_MAX_ITEMS; i++)
 	{
 		gitem_t* item = &itemlist[i];
 
-		// Verificar que el item sea válido
-		if (!item)
+		// Skip if item is null or inventory slot is empty
+		if (!item || ent->client->pers.inventory[i] <= 0)
 			continue;
 
-		bool isTechItem = (item->flags & IF_TECH) && ent->client->pers.inventory[i] > 0;
-		bool isArmorItem = (item->flags & IF_ARMOR) && ent->client->pers.inventory[i] > 0;
-		bool isPowerupItem = (item->flags & IF_POWERUP) && ent->client->pers.inventory[i] > 0;
+		// Check item flags
+		const bool isTechItem = (item->flags & IF_TECH) != 0;
+		const bool isArmorItem = (item->flags & IF_ARMOR) != 0;
+		const bool isPowerupItem = (item->flags & IF_POWERUP) != 0;
 
-		// Verificar el classname antes de usar strcmp
+		// Early continue if item doesn't match any category
+		if (!isTechItem && !isArmorItem && !isPowerupItem)
+			continue;
+
+		// Check for doppelganger
 		bool isDoppleganger = false;
 		if (item->classname && isPowerupItem) {
-			isDoppleganger = strcmp(item->classname, "item_doppleganger") == 0;
+			isDoppleganger = (strcmp(item->classname, "item_doppleganger") == 0);
 		}
 
-		// Si es un tech item, armor, o powerup (excepto doppleganger)
-		if (isTechItem || isArmorItem || (isPowerupItem && !isDoppleganger))
+		// Skip doppelganger items
+		if (isDoppleganger)
+			continue;
+
+		// Remove item from player's inventory
+		ent->client->pers.inventory[i] = 0;
+
+		// Reset all entities of this item type
+		for (unsigned int j = 0; j < game.maxentities; j++)
 		{
-			// Eliminar el item del inventario del jugador
-			ent->client->pers.inventory[i] = 0;
+			edict_t* tech = &g_edicts[j];
 
-			// Reiniciar el estado de todos los items del mismo tipo
-			for (unsigned int j = 0; j < game.maxentities; j++)
-			{
-				edict_t* tech = &g_edicts[j];
-				if (!tech || !tech->inuse)
-					continue;
+			// Skip invalid or unused entities
+			if (!tech || !tech->inuse || tech->item != item)
+				continue;
 
-				if (tech->item == item)
-				{
-					tech->svflags &= ~SVF_NOCLIENT;
-					tech->solid = SOLID_TRIGGER;
-					tech->movetype = MOVETYPE_TOSS;
-					tech->touch = Touch_Item;
-					tech->nextthink = level.time + CTF_TECH_TIMEOUT;
-					tech->think = TechThink;
+			// Reset entity state
+			tech->svflags &= ~SVF_NOCLIENT;
+			tech->solid = SOLID_TRIGGER;
+			tech->movetype = MOVETYPE_TOSS;
+			tech->touch = Touch_Item;
+			tech->nextthink = level.time + CTF_TECH_TIMEOUT;
+			tech->think = TechThink;
 
-					// Llamar directamente al método reset
-					tech->item_picked_up_by.reset();
+			// Reset item pickup tracking
+			tech->item_picked_up_by.reset();
 
-					gi.linkentity(tech);
-				}
-			}
+			// Update entity in game world
+			gi.linkentity(tech);
 		}
 	}
 }
-
 void CTFObserver(edict_t* ent)
 {
 	if (!G_TeamplayEnabled() || g_teamplay_force_join->integer)
