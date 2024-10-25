@@ -1328,21 +1328,19 @@ static void PrecacheAllSounds() noexcept {
 }
 
 static void PrecacheAllMonsters() noexcept {
-	std::unordered_set<std::string_view> unique_monsters;
-	unique_monsters.reserve(sizeof(monsters) / sizeof(monsters[0]));
-
 	for (const auto& monster : monsters) {
-		unique_monsters.emplace(monster.classname);
-	}
-
-	for (const auto& classname : unique_monsters) {
-		gitem_t* item = FindItemByClassname(classname.data());
-		if (item) {
-			PrecacheItem(item);
+		edict_t* e = G_Spawn();
+		if (!e) {
+			gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
+			gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
+			gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
+			continue;
 		}
-		else {
-			gi.Com_PrintFmt("PRINT: Warning: Item not found for classname '{}'\n", classname.data());
-		}
+		e->classname = monster.classname;
+		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+		ED_CallSpawn(e);
+		PrecacheItem(const_cast<gitem_t*>(FindItemByClassname(monster.classname)));
+		G_FreeEdict(e);
 	}
 }
 
@@ -1816,8 +1814,8 @@ static void ResetWaveAdvanceState() noexcept;
 void ResetGame() {
 
 	// Resetear la caché de verificación de monstruos
-	g_monster_check_cache.Reset();
-	g_lastWaveNumber = -1;  // Forzar reinicio de caché en próxima verificación
+//	g_monster_check_cache.Reset();
+//	g_lastWaveNumber = -1;  // Forzar reinicio de caché en próxima verificación
 	// Reset all spawn point data
 	spawnPointsData.clear();
 
