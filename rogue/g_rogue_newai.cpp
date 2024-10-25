@@ -1199,7 +1199,7 @@ void PredictAim(edict_t* self, edict_t* target, const vec3_t& start,
 // Constants for trajectory calculation
 constexpr float SIMULATION_TIME_STEP = 0.1f;
 constexpr float BOUNCE_FACTOR = 1.6f;
-constexpr float VIABLE_HIT_DISTANCE = 128.0f;
+constexpr float VIABLE_HIT_DISTANCE = 12.0f;
 constexpr float MIN_SURFACE_NORMAL_Z = 0.7f;
 constexpr float PITCH_ANGLES[] = { -80.f, -70.f, -60.f, -50.f, -40.f, -30.f, -20.f, -10.f, -5.f };
 constexpr float MORTAR_MAX_PITCH = -30.0f;

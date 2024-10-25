@@ -393,7 +393,7 @@ void hover_vanilla_fire_blaster(edict_t* self)
 		vec3_t aim{};
 		const float spread = 0.4f;
 		const float pitch = -3.0f;
-		monster_muzzleflash_id_t flash_number;
+		monster_muzzleflash_id_t flash_number{};
 
 		if (!self->enemy || !self->enemy->inuse)
 			return;
@@ -413,6 +413,33 @@ void hover_vanilla_fire_blaster(edict_t* self)
 		}
 		else
 		{
+
+			// mortar fires farther
+			float speed;
+
+			if (flash_number >= MZ2_DAEDALUS_BLASTER_2)
+				speed = MORTAR_SPEED;
+			else
+				speed = GRENADE_SPEED;
+
+			vec3_t target;
+
+			bool   blindfire = false;
+
+			// pmm
+			if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+				blindfire = true;
+
+			if ((blindfire) && (!visible(self, self->enemy)))
+			{
+				// and we have a valid blind_fire_target
+				if (!self->monsterinfo.blind_fire_target)
+					return;
+
+				target = self->monsterinfo.blind_fire_target;
+			}
+			else
+				target = self->enemy->s.origin;
 			// Ajusta la lógica de lanzamiento de granadas para alternar brazos
 			flash_number = (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1;
 
@@ -421,7 +448,11 @@ void hover_vanilla_fire_blaster(edict_t* self)
 			VectorMA(aim, pitch, up, aim);
 			VectorNormalize(aim);
 
-			monster_fire_grenade(self, start, aim, 30, (flash_number == MZ2_HOVER_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 7.0f);
+			if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, (flash_number >= MZ2_DAEDALUS_BLASTER_2 && flash_number <= MZ2_HOVER_BLASTER_1)))
+			monster_fire_grenade(self, start, aim, 30, (flash_number == MZ2_DAEDALUS_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 7.0f);
+			else
+				// normal shot
+				monster_fire_grenade(self, start, aim, !strcmp(self->classname, "monster_daedalus_bomber") ? 40 : 35, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
 		}
 	}
 
