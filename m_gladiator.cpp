@@ -257,7 +257,7 @@ void gladcGun(edict_t* self)
 	}
 	float r = frandom();
 	fire_plasma(self, start, dir, damage, 925, radius_damage, radius_damage);
-	if (r < 0.5f && GetCurrentWaveLevel() >= 18) {
+	if (r < 0.5f && current_wave_level >= 18) {
 		fire_plasma(self, start, dir, damage, 1225, radius_damage, radius_damage);
 	}
 
@@ -470,7 +470,7 @@ void SP_monster_gladiator(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer && GetCurrentWaveLevel() <= 18)
+	if (g_horde->integer && current_wave_level <= 18)
 	{
 		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 

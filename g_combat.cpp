@@ -734,7 +734,7 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 		attacker->health = std::min(attacker->health + health_stolen, attacker->max_health);
 	}
 
-	if ((attacker->svflags & SVF_PLAYER) && GetCurrentWaveLevel() >= 10) {
+	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
 		heal_attacker_sentries(attacker, health_stolen);
 	}
 
@@ -781,7 +781,7 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 }
 
 void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept {
-	if (!attacker || GetCurrentWaveLevel() < 17) {
+	if (!attacker || current_wave_level < 17) {
 		return;
 	}
 

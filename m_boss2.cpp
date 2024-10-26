@@ -713,7 +713,7 @@ void SP_monster_boss2(edict_t* self)
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 500;
 
-	self->health = 6500 + (1.08 * GetCurrentWaveLevel());
+	self->health = 6500 + (1.08 * current_wave_level);
 	self->gib_health = -200;
 	self->mass = 1000;
 

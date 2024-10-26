@@ -3828,8 +3828,8 @@ inline bool pierce_args_t::mark(edict_t* ent)
 
 	return true;
 }
-extern int32_t GetCurrentWaveLevel() noexcept;
-extern int32_t GetLastWaveNumber()  noexcept;
+extern int32_t current_wave_level;
+extern uint64_t last_wave_number;
 
 // implementation of pierce stuff
 inline void pierce_args_t::restore()

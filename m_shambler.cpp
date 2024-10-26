@@ -374,7 +374,7 @@ void ShamblerCastLightning(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// calc direction to where we targted
-	if (g_hardcoop->integer || GetCurrentWaveLevel() >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	if (g_hardcoop->integer || current_wave_level >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	{
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	}
@@ -432,7 +432,7 @@ void ShamblerCastFireballs(edict_t* self)
 	{
 		// Calculate spread
 		float spread = 0.6f;
-		if (g_hardcoop->integer || GetCurrentWaveLevel() >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+		if (g_hardcoop->integer || current_wave_level >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 			spread = 0.3f;
 
 		// Calculate direction with some spread
@@ -789,7 +789,7 @@ void SP_monster_shamblerkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
 	if (!strcmp(self->classname, "monster_shamblerkl")) {
-		self->health = 6500 + (1.08 * GetCurrentWaveLevel());
+		self->health = 6500 + (1.08 * current_wave_level);
 		self->gib_health = -190;
 	}
 	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {

@@ -679,15 +679,15 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 
 	// Aplicar los reemplazos según el modo de juego
 	if (g_chaotic->integer) {
-		perform_replacements(g_chaotic->integer, GetCurrentWaveLevel(), chaotic_replacements, chaotic_replacement_count, g_chaotic->integer == 2 ? 0.008f : 0.03f);
+		perform_replacements(g_chaotic->integer, current_wave_level, chaotic_replacements, chaotic_replacement_count, g_chaotic->integer == 2 ? 0.008f : 0.03f);
 	}
 
 	if (g_insane->integer) {
-		perform_replacements(g_insane->integer, GetCurrentWaveLevel(), insane_replacements, insane_replacement_count, g_insane->integer == 2 ? 0.33f : 0.04f);
+		perform_replacements(g_insane->integer, current_wave_level, insane_replacements, insane_replacement_count, g_insane->integer == 2 ? 0.33f : 0.04f);
 	}
 
 	if (!g_horde->integer && g_hardcoop->integer) {
-		perform_replacements(g_hardcoop->integer, GetCurrentWaveLevel(), hardcoop_replacements, hardcoop_replacement_count, g_hardcoop->integer == 3 ? 0.50f : 0.0f);
+		perform_replacements(g_hardcoop->integer, current_wave_level, hardcoop_replacements, hardcoop_replacement_count, g_hardcoop->integer == 3 ? 0.50f : 0.0f);
 	}
 
 	gitem_t* item;

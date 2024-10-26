@@ -863,12 +863,12 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	edict_t* player;
 
 
-	if (g_horde->integer && GetCurrentWaveLevel() <= 20 || !g_horde->integer) {
+	if (g_horde->integer && current_wave_level <= 20 || !g_horde->integer) {
 
 		SP_monster_makron(self);
 
 	}
-	else if (g_horde->integer && GetCurrentWaveLevel() >= 21) {
+	else if (g_horde->integer && current_wave_level >= 21) {
 
 		SP_monster_makronkl(self);
 	}
@@ -923,14 +923,14 @@ void MakronToss(edict_t* self)
 		self->monsterinfo.aiflags &= ~AI_DOUBLE_TROUBLE;
 		return;
 	}
-	if (g_horde->integer && GetCurrentWaveLevel() <= 20 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS) || !g_horde->integer) {
+	if (g_horde->integer && current_wave_level <= 20 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS) || !g_horde->integer) {
 
 		ent->classname = "monster_makron";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	else if (g_horde->integer && GetCurrentWaveLevel() >= 21 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	else if (g_horde->integer && current_wave_level >= 21 && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
 	{
 		ent->classname = "monster_makronkl";
 		ent->target = self->target;
@@ -955,7 +955,7 @@ void SP_monster_makronkl(edict_t* self)
 	self->spawnflags |= SPAWNFLAG_MAKRONKL;
 	SP_monster_makron(self);
 	self->s.skinnum = 2;
-	self->health = 2600 + (600 * GetCurrentWaveLevel());
+	self->health = 2600 + (600 * current_wave_level);
 	self->s.alpha = 0.4f;
 	self->s.effects = EF_FLAG1;
 
