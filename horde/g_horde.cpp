@@ -1220,17 +1220,9 @@ void VerifyAndAdjustBots() {
 	const int32_t humanPlayers = GetNumHumanPlayers();
 	const int32_t spectPlayers = GetNumSpectPlayers();
 	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
-
-	// Calcular el n�mero requerido de bots
 	int32_t requiredBots = baseBots + spectPlayers;
-
-	// Asegurar que el n�mero de bots no sea menor que el valor base
 	requiredBots = std::max(requiredBots, baseBots);
-
-	// Establecer el n�mero de bots m�nimos necesarios
-	std::string botClientsStr = std::to_string(requiredBots);
-	gi.cvar_set("bot_minClients", botClientsStr.c_str());
-
+	gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
 
 #include <chrono>
@@ -1324,6 +1316,7 @@ void Horde_Init() {
 
 	// Inicializar otros sistemas de la horda (e.g., sistema de oleadas)
 	InitializeWaveSystem();
+	last_wave_number = 0;
 
 	// Resetear el estado del juego para la horda
 	ResetGame();
@@ -1776,7 +1769,6 @@ void ResetCooldowns() noexcept {
 	lastMonsterSpawnTime.clear();
 }
 
-
 // For resetting bonus 
 static void ResetBenefits() noexcept {
 	shuffled_benefits.clear();
@@ -1850,8 +1842,6 @@ void ResetGame() {
 	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
-	last_wave_number = 0;
-
 	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
 	gi.cvar_set("g_insane", "0");
