@@ -1851,6 +1851,7 @@ void ResetGame() {
 	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
+	last_wave_number = 0;
 
 	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
