@@ -4,6 +4,20 @@
 #include "../shared.h"
 #include <set>
 
+//precache
+static cached_soundindex sound_spawn;
+static cached_soundindex sound_tele3;
+static cached_soundindex sound_klaxon2;
+static cached_soundindex sound_tele_up;
+static cached_soundindex sound_incoming;
+static cached_soundindex sound_yelforce;
+static cached_soundindex sound_action_fail;
+static cached_soundindex sound_roar1;
+static cached_soundindex sound_ack;
+static cached_soundindex sound_spawn1;
+static cached_soundindex sound_voice3;
+static cached_soundindex sound_v_fac3;
+
 enum class WaveEndReason {
 	AllMonstersDead,
 	MonstersRemaining,
@@ -1233,19 +1247,6 @@ void VerifyAndAdjustBots() {
 #include <chrono>
 void InitializeWaveSystem() noexcept;
 
-// Definición de constantes y estructuras necesarias
-static cached_soundindex sound_tele3;
-static cached_soundindex sound_klaxon2;
-static cached_soundindex sound_tele_up;
-static cached_soundindex sound_incoming;
-static cached_soundindex sound_yelforce;
-
-static cached_soundindex sound_action_fail;
-static cached_soundindex sound_roar1;
-static cached_soundindex sound_ack;
-static cached_soundindex sound_spawn1;
-static cached_soundindex sound_voice3;
-static cached_soundindex sound_v_fac3;
 
 // Función para precargar todos los ítems y jefes
 void PrecacheItemsAndBosses() noexcept {
@@ -1265,8 +1266,8 @@ void PrecacheItemsAndBosses() noexcept {
 	}
 }
 
-
 static void PrecacheAllSounds() noexcept {
+	sound_spawn.assign("misc/spawn1.wav");
 	sound_tele3.assign("misc/r_tele3.wav");
 	sound_klaxon2.assign("world/klaxon2.wav");
 	sound_tele_up.assign("misc/tele_up.wav");
@@ -2219,7 +2220,6 @@ void InitializeWaveSystem() noexcept {
 	PrecacheWaveSounds();
 }
 
-static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 // MONSTER SPAWNING STUFF
@@ -2281,7 +2281,7 @@ edict_t* SpawnMonsters() {
 
 	// Cache valores frecuentemente usados
 	static std::array<edict_t*, MAX_EDICTS> available_spawns;
-	static const int32_t spawn_sound_index = gi.soundindex("misc/spawn1.wav");
+	static const int32_t spawn_sound_index = sound_spawn;
 	size_t spawn_count = 0;
 
 	const MapSize& mapSize = GetMapSize(level.mapname);
@@ -2313,16 +2313,14 @@ edict_t* SpawnMonsters() {
 	// Optimizar el shuffle para el número real de spawns
 	std::shuffle(available_spawns.begin(), available_spawns.begin() + spawn_count, mt_rand);
 
-	// Determinar el tamaño del lote basado en el mapa
+	// Determinar el tamaño del lote y spawnables
 	const int32_t base_batch_size = mapSize.isSmallMap ? 4 :
 		mapSize.isBigMap ? 6 : 5;
 
-	// Ajustar el tamaño del lote basado en monstruos en cola
 	const int32_t batch_size = g_horde_local.queued_monsters > 0 ?
 		std::clamp(g_horde_local.queued_monsters, 2, 6) :
 		base_batch_size;
 
-	// Calcular cuántos monstruos realmente podemos spawnear en este lote
 	const int32_t spawnable = std::min({
 		maxMonsters - activeMonsters,
 		g_horde_local.num_to_spawn,
@@ -2330,42 +2328,16 @@ edict_t* SpawnMonsters() {
 		static_cast<int32_t>(spawn_count)
 		});
 
-	edict_t* last_spawned = nullptr;
+	if (spawnable <= 0) return nullptr;
+
 	float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	// Función lambda para configurar el monstruo
-	auto setup_monster = [&](edict_t* monster, edict_t* spawn_point) {
-		VectorCopy(spawn_point->s.origin, monster->s.origin);
-		VectorCopy(spawn_point->s.angles, monster->s.angles);
-		monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
-		monster->monsterinfo.aiflags = AI_IGNORE_SHOTS;
-		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+	// Mantener un vector de monstruos spawnados exitosamente 
+	std::vector<edict_t*> spawned_monsters;
+	spawned_monsters.reserve(spawnable);
 
-		// Procesar armadura y items solo si es necesario
-		if (g_horde_local.level >= 17) {
-			const float health_factor = sqrtf(std::max(0.0f,
-				monster->max_health / ARMOR_PARAMS.health_base));
-			const bool is_high_level = current_wave_level > ARMOR_PARAMS.wave_limit;
-			const ArmorLevel& params = is_high_level ? ARMOR_PARAMS.high : ARMOR_PARAMS.normal;
-
-			monster->monsterinfo.armor_power = irandom(params.min, params.max) +
-				static_cast<int32_t>(health_factor * irandom(params.health_factor_min,
-					params.health_factor_max)) +
-				static_cast<int32_t>(std::max(0, current_wave_level - ARMOR_PARAMS.wave_threshold) *
-					ARMOR_PARAMS.wave_multiplier * health_factor);
-		}
-
-		if (frandom() <= drop_chance) {
-			monster->item = G_HordePickItem();
-		}
-
-		// Efecto de spawn
-		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-		gi.sound(monster, CHAN_AUTO, spawn_sound_index, 1, ATTN_NORM, 0);
-		};
-
-	// Spawn batch
+	// Spawn batch con manejo de errores mejorado
 	for (int32_t i = 0; i < spawnable; ++i) {
 		const char* monster_class = G_HordePickMonster(available_spawns[i]);
 		if (!monster_class) continue;
@@ -2374,8 +2346,15 @@ edict_t* SpawnMonsters() {
 		if (!monster) continue;
 
 		monster->classname = monster_class;
-		setup_monster(monster, available_spawns[i]);
 
+		// Setup básico del monstruo
+		VectorCopy(available_spawns[i]->s.origin, monster->s.origin);
+		VectorCopy(available_spawns[i]->s.angles, monster->s.angles);
+		monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
+		monster->monsterinfo.aiflags = AI_IGNORE_SHOTS;
+		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+
+		// Spawn el monstruo
 		ED_CallSpawn(monster);
 
 		if (!monster->inuse) {
@@ -2383,49 +2362,39 @@ edict_t* SpawnMonsters() {
 			continue;
 		}
 
+		// Procesar armadura si es necesario
+		if (g_horde_local.level >= 17) {
+			const float health_factor = sqrtf(std::max(0.0f,
+				monster->max_health / ARMOR_PARAMS.health_base));
+			const bool is_high_level = current_wave_level > ARMOR_PARAMS.wave_limit;
+			const ArmorLevel& params = is_high_level ? ARMOR_PARAMS.high : ARMOR_PARAMS.normal;
+
+			monster->monsterinfo.armor_power = irandom(params.min, params.max) +
+				static_cast<int32_t>(health_factor * irandom(params.health_factor_min, params.health_factor_max)) +
+				static_cast<int32_t>(std::max(0, current_wave_level - ARMOR_PARAMS.wave_threshold) *
+					ARMOR_PARAMS.wave_multiplier * health_factor);
+		}
+
+		// Asignar item con probabilidad
+		if (frandom() <= drop_chance) {
+			monster->item = G_HordePickItem();
+		}
+
+		// Contadores y tracking
 		--g_horde_local.num_to_spawn;
 		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
 		++g_totalMonstersInWave;
-		last_spawned = monster;
+
+		// Efectos de spawn
+		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+		gi.sound(monster, CHAN_AUTO, sound_spawn, 1, ATTN_NORM, 0);
+
+		spawned_monsters.push_back(monster);
 	}
 
+	// Actualizar tiempo de spawn y retornar último monstruo
 	SetNextMonsterSpawnTime(mapSize);
-	return last_spawned;
-}
-static void SetMonsterArmor(edict_t* monster) {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
-
-	// Establecer tipo de armadura si no está especificado
-	if (!st.was_key_specified("power_armor_power")) {
-		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-	}
-
-	// Calcular armadura si no está especificada
-	if (!st.was_key_specified("power_armor_type")) {
-		// Precalcular factor de salud una sola vez
-		const float health_factor = sqrtf(std::max(0.0f,
-			monster->max_health / ARMOR_PARAMS.health_base));
-
-		// Determinar si estamos en nivel alto
-		const bool is_high_level = current_wave_level > ARMOR_PARAMS.wave_limit;
-
-		// Seleccionar parámetros basados en nivel
-		const ArmorLevel& params = is_high_level ? ARMOR_PARAMS.high : ARMOR_PARAMS.normal;
-
-		// Calcular armadura base
-		const int32_t base_armor = irandom(params.min, params.max) +
-			static_cast<int32_t>(health_factor *
-				irandom(params.health_factor_min, params.health_factor_max));
-
-		// Calcular armadura adicional basada en el nivel
-		const int32_t level_difference = std::max(0, current_wave_level - ARMOR_PARAMS.wave_threshold);
-		const int32_t additional_armor = static_cast<int32_t>(level_difference *
-			ARMOR_PARAMS.wave_multiplier *
-			health_factor);
-
-		// Asignar armadura total
-		monster->monsterinfo.armor_power = base_armor + additional_armor;
-	}
+	return spawned_monsters.empty() ? nullptr : spawned_monsters.back();
 }
 
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
