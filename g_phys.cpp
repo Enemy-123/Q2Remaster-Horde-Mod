@@ -854,8 +854,9 @@ void SV_Physics_Step(edict_t* ent)
 
         // [Paril-KEX] this is something N64 does to avoid doors opening
         // at the start of a level, which triggers some monsters to spawn.
-        if (!level.is_n64 || level.time > FRAME_TIME_S)
-            G_TouchTriggers(ent);
+        if (!g_horde->integer) // Paril
+            if (!level.is_n64 || level.time > FRAME_TIME_S)
+                G_TouchTriggers(ent);
 
         if (!ent->inuse)
             return;
@@ -865,6 +866,9 @@ void SV_Physics_Step(edict_t* ent)
                 if (hitsound)
                     ent->s.event = EV_FOOTSTEP;
     }
+
+    if (g_horde->integer)
+        G_TouchTriggers(ent);
 
     if (!ent->inuse) // PGM g_touchtrigger free problem
         return;
@@ -885,7 +889,6 @@ void SV_Physics_Step(edict_t* ent)
     // regular thinking
     SV_RunThink(ent);
 }
-
 // [Paril-KEX]
 inline void G_RunBmodelAnimation(edict_t* ent)
 {

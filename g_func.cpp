@@ -1562,9 +1562,7 @@ TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool
 	{
 		if (self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER))
 			return;
-		// [Paril-KEX] this is for PSX; the scale is so small that monsters walking
-		// around to path_corners often initiate doors unintentionally.
-		else if (other->spawnflags.has(SPAWNFLAG_MONSTER_NO_IDLE_DOORS) && !other->enemy)
+		else if (!g_horde->integer && other->spawnflags.has(SPAWNFLAG_MONSTER_NO_IDLE_DOORS) && !other->enemy)
 			return;
 	}
 
@@ -1618,7 +1616,7 @@ THINK(Think_CalcMoveSpeed) (edict_t* self) -> void
 THINK(Think_SpawnDoorTrigger) (edict_t* ent) -> void
 {
 	edict_t* other;
-	vec3_t	 mins, maxs;
+	vec3_t mins, maxs;
 
 	if (ent->flags & FL_TEAMSLAVE)
 		return; // only the team leader spawns a trigger
@@ -1632,11 +1630,12 @@ THINK(Think_SpawnDoorTrigger) (edict_t* ent) -> void
 		AddPointToBounds(other->absmax, mins, maxs);
 	}
 
-	// expand
-	mins[0] -= 60;
-	mins[1] -= 60;
-	maxs[0] += 60;
-	maxs[1] += 60;
+	// expand - aumentamos la distancia para monstruos
+	float trigger_size = 120; // Aumentado de 60 a 120 o el valor que prefieras
+	mins[0] -= trigger_size;
+	mins[1] -= trigger_size;
+	maxs[0] += trigger_size;
+	maxs[1] += trigger_size;
 
 	other = G_Spawn();
 	other->mins = mins;
@@ -1649,6 +1648,7 @@ THINK(Think_SpawnDoorTrigger) (edict_t* ent) -> void
 
 	Think_CalcMoveSpeed(ent);
 }
+
 
 MOVEINFO_BLOCKED(door_blocked) (edict_t* self, edict_t* other) -> void
 {
