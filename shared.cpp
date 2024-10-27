@@ -3,8 +3,6 @@
 #include <unordered_map>
 #include <algorithm>  // For std::max
 
-#include "g_local.h"
-
 bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
 
@@ -15,95 +13,75 @@ void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, 
 void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 bool hasEntities = false;
 
-
-// Mover la definición de deathFunctions al alcance global
-static const std::unordered_map<std::string_view, void(*)(edict_t*, edict_t*, edict_t*, int, const vec3_t&, const mod_t&)> deathFunctions = {
-	{"monster_sentrygun", turret_die},
-	{"tesla_mine", tesla_die},
-	{"prox_mine", prox_die},
-	{"food_cube_trap", trap_die},
-	{"emitter", laser_die},
-	{"laser", laser_die}
-};
-
-
 void RemovePlayerOwnedEntities(edict_t* player)
 {
-	if (!player || !globals.num_edicts)
+	if (!player)
 		return;
 
-	// Contadores para llevar registro de las entidades eliminadas
-	int teslas_removed = 0;
-	int sentries_removed = 0;
-
-	for (unsigned int i = 0; i < globals.num_edicts; i++) {
-		edict_t& ent = g_edicts[i];
-		if (!ent.inuse || !ent.owner)
+	for (unsigned int i = 0; i < globals.num_edicts; i++)
+	{
+		edict_t* ent = &g_edicts[i];
+		if (!ent->inuse)
 			continue;
 
-		if (ent.owner == player ||
-			ent.owner->owner == player ||
-			ent.teammaster == player ||
-			(ent.teammaster && ent.teammaster->teammaster == player)) {
+		bool shouldRemove = (ent->owner == player ||
+			(ent->owner && ent->owner->owner == player) ||
+			ent->teammaster == player ||
+			(ent->teammaster && ent->teammaster->teammaster == player));
 
-			// Contar entidades antes de eliminarlas
-			if (!strcmp(ent.classname, "tesla_mine")) {
-				teslas_removed++;
-			}
-			else if (!strcmp(ent.classname, "monster_sentrygun")) {
-				sentries_removed++;
-			}
+		if (shouldRemove)
+		{
+			OnEntityDeath(ent);
 
-			OnEntityDeath(&ent);
-			if (IsRemovableEntity(&ent))
-				RemoveEntity(&ent);
+			if (IsRemovableEntity(ent))
+			{
+				RemoveEntity(ent);
+			}
 		}
 	}
 
-	if (player->client) {
-		// Actualizar todos los contadores relevantes
+	// Reset the player's laser counter
+	if (player->client)
+	{
 		player->client->num_lasers = 0;
-		player->client->num_teslas = std::max(0, player->client->num_teslas - teslas_removed);
-		player->client->num_sentries = std::max(0, player->client->num_sentries - sentries_removed);
-
-		//		gi.Com_PrintFmt("PRINT: Removed {} tesla(s) and {} sentry gun(s) from player {}\n",
-		//			teslas_removed, sentries_removed, GetPlayerName(player));
 	}
 }
 
 bool IsRemovableEntity(const edict_t* ent)
 {
-	static const std::unordered_set<std::string_view> removableEntities = {
+	static const std::unordered_set<std::string> removableEntities = {
 		"tesla_mine", "food_cube_trap", "prox_mine", "monster_sentrygun",
 		"emitter", "laser"
 	};
 
-	return ent && removableEntities.find(ent->classname) != removableEntities.end();
+	return removableEntities.find(ent->classname) != removableEntities.end();
 }
 
 void RemoveEntity(edict_t* ent)
 {
-	if (!ent || !ent->inuse)
-		return;
-
-	// Actualizar contadores del propietario si es necesario
-	if (ent->owner && ent->owner->client) {
-		if (!strcmp(ent->classname, "tesla_mine")) {
-			ent->owner->client->num_teslas = std::max(0, ent->owner->client->num_teslas - 1);
-		}
-		else if (!strcmp(ent->classname, "monster_sentrygun")) {
-			ent->owner->client->num_sentries = std::max(0, ent->owner->client->num_sentries - 1);
-		}
+	if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
+	{
+		ent->health = -1;
+		turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-
-	auto it = deathFunctions.find(ent->classname);
-	if (it != deathFunctions.end()) {
-		if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0) {
-			ent->health = -1;
-		}
-		it->second(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	else if (!strcmp(ent->classname, "tesla_mine"))
+	{
+		tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-	else {
+	else if (!strcmp(ent->classname, "prox_mine"))
+	{
+		prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else if (!strcmp(ent->classname, "food_cube_trap"))
+	{
+		trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else if (!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"))
+	{
+		laser_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+	}
+	else
+	{
 		BecomeExplosion1(ent);
 	}
 }
