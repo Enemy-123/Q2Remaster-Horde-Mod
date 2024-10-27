@@ -366,7 +366,6 @@ THINK(Trap_Gib_Think) (edict_t* ent) -> void
 
 DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
 	BecomeExplosion1(self);
 }
 
@@ -378,14 +377,15 @@ THINK(Trap_Think) (edict_t* ent) -> void
 {
 	edict_t* target = nullptr;
 	edict_t* best = nullptr;
-	vec3_t   vec;
-	float    len;
-	float    oldlen = 8000;
+	vec3_t	 vec;
+	float	 len;
+	float	 oldlen = 8000;
 
-	// Add a new timer to limit the trap's lifetime
-	if (ent->timestamp < level.time || ent->wait > 6.0f)  // 6 seconds max attraction time
+	if (ent->timestamp < level.time)
 	{
 		BecomeExplosion1(ent);
+		// note to self
+		// cause explosion damage???
 		return;
 	}
 
@@ -394,6 +394,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	if (!ent->groundentity)
 		return;
 
+	// ok lets do the blood effect
 	if (ent->s.frame > 4)
 	{
 		if (ent->s.frame == 5)
@@ -443,7 +444,9 @@ THINK(Trap_Think) (edict_t* ent) -> void
 	if (ent->s.frame >= 4)
 	{
 		ent->s.effects |= EF_TRAP;
-		ent->owner = nullptr;
+		// clear the owner if in deathmatch
+		if (G_IsDeathmatch())
+			ent->owner = nullptr;
 	}
 
 	if (ent->s.frame < 4)
@@ -480,7 +483,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		}
 	}
 
-	// Attract the enemy
+	// pull the enemy in
 	if (best)
 	{
 		if (best->groundentity)
@@ -491,9 +494,9 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		vec = ent->s.origin - best->s.origin;
 		len = vec.normalize();
 
-		float max_speed = 150.f;
+		float max_speed = best->client ? 290.f : 150.f;
 
-		best->velocity += (vec * clamp(max_speed - len, 92.f, max_speed));
+		best->velocity += (vec * clamp(max_speed - len, 64.f, max_speed));
 
 		ent->s.sound = gi.soundindex("weapons/trapsuck.wav");
 
@@ -515,11 +518,14 @@ THINK(Trap_Think) (edict_t* ent) -> void
 				ent->s.old_origin = ent->s.origin;
 				ent->timestamp = level.time + 30_sec;
 				ent->accel = best->mass;
-				ent->mass = best->mass / 10;
-
+				if (G_IsDeathmatch())
+					ent->mass = best->mass / 4;
+				else
+					ent->mass = best->mass / 10;
+				// ok spawn the food cube
 				ent->s.frame = 5;
 
-				// Link any gibs this monster may have generated
+				// link up any gibs that this monster may have spawned
 				for (uint32_t i = 0; i < globals.num_edicts; i++)
 				{
 					edict_t* e = &g_edicts[i];
@@ -547,19 +553,14 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			}
 		}
 	}
-
-	// Increment the wait time to track how long we've been trying to attract
-	ent->wait += gi.frame_time_s;
 }
 
+// RAFAEL
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
-	// Verificar y manejar el límite de trampas por jugador
-	//check_player_trap_limit(self);
-
 	edict_t* trap;
-	vec3_t   dir;
-	vec3_t   forward, right, up;
+	vec3_t	 dir;
+	vec3_t	 forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -598,22 +599,19 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	}
 	trap->team = trap_team;
 	trap->teammaster->team = trap_team;
-
 	trap->nextthink = level.time + 1_sec;
 	trap->think = Trap_Think;
 	trap->classname = "food_cube_trap";
-
 	// RAFAEL 16-APR-98
 	trap->s.sound = gi.soundindex("weapons/traploop.wav");
 	// END 16-APR-98
+
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
-	//trap->svflags = SVF_PLAYER;
-	// Verifica si la trampa y el jugador son del mismo equipo y ajusta la máscara de colisión
-	if (self->client && strcmp(trap->team, trap_team) == 0)
-	{
+
+	// [Paril-KEX]
+	if (self->client && !G_ShouldPlayersCollide(true))
 		trap->clipmask &= ~CONTENTS_PLAYER;
-	}
 
 	gi.linkentity(trap);
 
