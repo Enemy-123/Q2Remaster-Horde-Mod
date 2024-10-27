@@ -131,20 +131,30 @@ const std::unordered_set<std::string> bigMaps = {
 	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2", "rdm9"
 };
 
-std::unordered_map<std::string, MapSize> mapSizeCache;
+constexpr size_t MAX_MAPS = 64;
+std::array<std::pair<std::string, MapSize>, MAX_MAPS> mapSizeCache;
+size_t mapSizeCacheSize = 0;
 
 MapSize GetMapSize(const std::string& mapname) {
-	auto it = mapSizeCache.find(mapname);
-	if (it != mapSizeCache.end()) {
-		return it->second;
+	// Buscar en el cache
+	for (size_t i = 0; i < mapSizeCacheSize; ++i) {
+		if (mapSizeCache[i].first == mapname) {
+			return mapSizeCache[i].second;
+		}
 	}
 
+	// Si no está en cache, crear nuevo MapSize
 	MapSize mapSize;
 	mapSize.isSmallMap = smallMaps.count(mapname) > 0;
 	mapSize.isBigMap = bigMaps.count(mapname) > 0;
 	mapSize.isMediumMap = !mapSize.isSmallMap && !mapSize.isBigMap;
 
-	mapSizeCache.emplace(mapname, mapSize);
+	// Añadir al cache si hay espacio
+	if (mapSizeCacheSize < MAX_MAPS) {
+		mapSizeCache[mapSizeCacheSize] = std::make_pair(mapname, mapSize);
+		++mapSizeCacheSize;
+	}
+
 	return mapSize;
 }
 
@@ -170,7 +180,7 @@ std::unordered_set<std::string> obtained_benefits;
 // Actualizar ShuffleBenefits para usar el generador existente
 void ShuffleBenefits(std::mt19937& rng) {
 	shuffled_benefits.clear();
-	shuffled_benefits.reserve(benefits.size()); // Preasignar memoria para mejorar rendimiento
+	shuffled_benefits.reserve(benefits.size());
 
 	for (const auto& benefit : benefits) {
 		if (obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
@@ -274,12 +284,26 @@ void ApplyBenefit(const weighted_benefit_t* benefit) {
 void CheckAndApplyBenefit(const int32_t wave) {
 	if (wave % 4 != 0) return;
 
+	static WeightedSelection<weighted_benefit_t> selection;
+	static std::vector<const weighted_benefit_t*> eligible_benefits;
+	eligible_benefits.clear();
+
 	if (shuffled_benefits.empty()) {
 		ShuffleBenefits(mt_rand);
 	}
 
-	WeightedSelection<weighted_benefit_t> selection;
-	if (const auto benefit = SelectRandomBenefit(wave, selection, mt_rand)) {
+	for (const auto& benefit : benefits) {
+		if (wave >= benefit.min_level &&
+			(benefit.max_level == -1 || wave <= benefit.max_level) &&
+			obtained_benefits.find(benefit.benefit_name) == obtained_benefits.end()) {
+			eligible_benefits.push_back(&benefit);
+		}
+	}
+
+	if (eligible_benefits.empty()) return;
+
+	selection.rebuild(eligible_benefits);
+	if (const auto benefit = selection.select(mt_rand)) {
 		ApplyBenefit(benefit);
 	}
 }
