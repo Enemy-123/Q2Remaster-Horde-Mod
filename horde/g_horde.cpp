@@ -1216,7 +1216,7 @@ inline int32_t GetNumHumanPlayers() {
 }
 
 void VerifyAndAdjustBots() {
-	const auto mapSize = GetMapSize(level.mapname);
+	const MapSize mapSize = GetMapSize(level.mapname);
 	const int32_t humanPlayers = GetNumHumanPlayers();
 	const int32_t spectPlayers = GetNumSpectPlayers();
 	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
@@ -1658,10 +1658,9 @@ static void SpawnBossAutomatically() {
 THINK(BossSpawnThink)(edict_t* self) -> void
 {
 	// Boss spawn message
-	const auto it_msg = bossMessagesMap.find(self->classname);
+	auto it_msg = bossMessagesMap.find(self->classname);
 	if (it_msg != bossMessagesMap.end()) {
-		const char* message = it_msg->second.data();
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", message);
+		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", it_msg->second.data());
 	}
 	else {
 		gi.Com_PrintFmt("PRINT: Warning: No specific message found for boss type '{}'. Using default message.\n", self->classname);
