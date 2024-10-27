@@ -6,7 +6,7 @@
 // RAFAEL
 void SP_item_foodcube(edict_t* self)
 {
-	if (deathmatch->integer && g_no_health->integer)
+	if (G_IsDeathmatch() && g_no_health->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -14,7 +14,7 @@ void SP_item_foodcube(edict_t* self)
 
 	self->model = "models/objects/trapfx/tris.md2";
 	SpawnItem(self, GetItemByIndex(IT_HEALTH_SMALL), ED_GetSpawnTemp());
-	self->spawnflags |= SPAWNFLAG_ITEM_DROPPED;
+	self->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
 	self->style = HEALTH_IGNORE_MAX;
 	self->classname = "item_foodcube";
 	self->s.effects |= EF_GIB;
