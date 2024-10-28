@@ -1359,7 +1359,7 @@ void SP_monster_tank_vanilla(edict_t* self)
 	}
 	else
 	{
-		self->health = 750 * st.health_multiplier;
+		self->health = 550 * st.health_multiplier;
 		self->gib_health = -200;
 		sound_pain.assign("tank/tnkpain2.wav");
 	}
