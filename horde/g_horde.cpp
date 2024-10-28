@@ -388,7 +388,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	}
 
 	// Progressive queue scaling based on wave level with improved balance
-	int32_t baseQueueIncrease = 3; // Base increase per level
+	int32_t baseQueueIncrease = 2; // Base increase per level
 
 	// Calculate base queued monsters
 	int32_t baseQueued = baseQueueIncrease * lvl;
