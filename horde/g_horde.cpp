@@ -1526,14 +1526,8 @@ static void StartFadeOut(edict_t* ent) {
 	ent->solid = SOLID_NOT;
 	ent->movetype = MOVETYPE_NONE;
 	ent->takedamage = false;
-	ent->s.renderfx |= RF_TRANSLUCENT;
 	ent->svflags &= ~SVF_NOCLIENT;
 	ent->s.renderfx &= ~RF_DOT_SHADOW;
-
-	// Opcional: añadir un poco de rotación durante el fade
-	ent->avelocity[0] = frandom(40.f, 90.f);
-	ent->avelocity[1] = frandom(40.f, 90.f);
-	ent->avelocity[2] = frandom(40.f, 90.f);
 
 	// Asegurar que la entidad está enlazada
 	gi.linkentity(ent);
