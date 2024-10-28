@@ -225,6 +225,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	}
 
 	vec3_t towards_origin, towards_velocity = {};
+
 	float current_speed;
 	vec3_t dir = ent->velocity.normalized(current_speed);
 
@@ -235,9 +236,8 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		__debugbreak();
 #endif
 		return false;
-	}
+}
 
-	// Determine target position
 	if (ent->monsterinfo.aiflags & AI_PATHING)
 		towards_origin = (ent->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
 		ent->monsterinfo.nav_path.secondMovePoint : ent->monsterinfo.nav_path.firstMovePoint;
@@ -250,7 +250,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		towards_origin = ent->goalentity->s.origin;
 	else // what we're going towards probably died or something
 	{
-		// Decelerate smoothly
+		// change speed
 		if (current_speed)
 		{
 			if (current_speed > 0)
@@ -260,40 +260,24 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 
 			ent->velocity = dir * current_speed;
 		}
+
 		return true;
 	}
 
-	// Calculate desired position with distance constraints
 	vec3_t wanted_pos;
-	bool following_paths = ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT);
 
 	if (ent->monsterinfo.fly_pinned)
 		wanted_pos = ent->monsterinfo.fly_ideal_position;
-	else if (following_paths)
+	else if (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT))
 		wanted_pos = towards_origin;
 	else
-	{
-		vec3_t base_direction = (towards_origin - ent->s.origin).normalized();
-		float current_distance = (towards_origin - ent->s.origin).length();
+		wanted_pos = (towards_origin + (towards_velocity * 0.25f)) + ent->monsterinfo.fly_ideal_position;
 
-		// Adjust position based on min/max distances if they are set
-		if (ent->monsterinfo.fly_min_distance > 0 && ent->monsterinfo.fly_max_distance > 0)
-		{
-			if (current_distance < ent->monsterinfo.fly_min_distance)
-				wanted_pos = ent->s.origin + (base_direction * -ent->monsterinfo.fly_min_distance);
-			else if (current_distance > ent->monsterinfo.fly_max_distance)
-				wanted_pos = ent->s.origin + (base_direction * -ent->monsterinfo.fly_max_distance);
-			else
-				wanted_pos = towards_origin + (towards_velocity * 0.25f);
-		}
-		else
-			wanted_pos = towards_origin + (towards_velocity * 0.25f);
+	//gi.Draw_Point(wanted_pos, 8.0f, rgba_red, gi.frame_time_s, true);
 
-		wanted_pos += ent->monsterinfo.fly_ideal_position;
-	}
-
-	// Find a valid position
+	// find a place we can fit in from here
 	trace_t tr = gi.trace(towards_origin, { -8.f, -8.f, -8.f }, { 8.f, 8.f, 8.f }, wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+
 	if (!tr.allsolid)
 		wanted_pos = tr.endpos;
 
@@ -308,15 +292,15 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	if (!(ent->monsterinfo.aiflags & AI_MANUAL_STEERING))
 		ent->ideal_yaw = vectoyaw((towards_origin - ent->s.origin).normalized());
 
-	// Obstacle avoidance
-	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration),
-		ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
+	// check if we're blocked from moving this way from where we are
+	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
 	vec3_t aim_fwd, aim_rgt, aim_up;
 	vec3_t yaw_angles = { 0, ent->s.angles.y, 0 };
+
 	AngleVectors(yaw_angles, aim_fwd, aim_rgt, aim_up);
 
-	// Enhanced obstacle avoidance
+	// it's a fairly close block, so we may want to shift more dramatically
 	if (tr.fraction < 0.25f)
 	{
 		bool bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
@@ -324,42 +308,44 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		bool top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
 			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->maxs.z + ent->monsterinfo.fly_acceleration }, ent);
 
+		// top & bottom are same, so we need to try right/left
 		if (bottom_visible == top_visible)
 		{
-			bool left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs),
-				wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
-			bool right_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) + aim_rgt.scaled(ent->maxs),
-				wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+			bool left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+			bool right_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) + aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
 
 			if (left_visible != right_visible)
-				wanted_dir += right_visible ? aim_rgt : -aim_rgt;
+			{
+				if (right_visible)
+					wanted_dir += aim_rgt;
+				else
+					wanted_dir -= aim_rgt;
+			}
 			else
+				// we're probably stuck, push us directly away
 				wanted_dir = tr.plane.normal;
 		}
 		else
-			wanted_dir += top_visible ? aim_up : -aim_up;
+		{
+			if (top_visible)
+				wanted_dir += aim_up;
+			else
+				wanted_dir -= aim_up;
+		}
 
 		wanted_dir.normalize();
 	}
 
-	// Calculate turn factor based on current state and distance
+	// the closer we are to zero, the more we can change dir.
+	// if we're pushed past our max speed we shouldn't
+	// turn at all.
+	bool following_paths = ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT);
 	float turn_factor;
 
 	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || following_paths) && dir.dot(wanted_dir) > 0.0f)
 		turn_factor = 0.45f;
 	else
-	{
 		turn_factor = min(1.f, 0.84f + (0.08f * (current_speed / ent->monsterinfo.fly_speed)));
-
-		// Adjust turn factor based on distance if min/max distances are set
-		if (ent->enemy && ent->monsterinfo.fly_min_distance > 0)
-		{
-			float current_distance = (towards_origin - ent->s.origin).length();
-			if (current_distance < ent->monsterinfo.fly_min_distance ||
-				current_distance > ent->monsterinfo.fly_max_distance)
-				turn_factor *= 0.8f;  // More aggressive turns when outside desired range
-	}
-}
 
 	vec3_t final_dir = dir ? dir : wanted_dir;
 
@@ -372,13 +358,18 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		return false;
 	}
 
-	// Water entry/exit handling
+	// swimming monsters don't exit water voluntarily, and
+	// flying monsters don't enter water voluntarily (but will
+	// try to leave it)
 	bool bad_movement_direction = false;
 
-	if (ent->flags & FL_SWIM)
-		bad_movement_direction = !(gi.pointcontents(ent->s.origin + (wanted_dir * current_speed)) & CONTENTS_WATER);
-	else if ((ent->flags & FL_FLY) && ent->waterlevel < WATER_UNDER)
-		bad_movement_direction = gi.pointcontents(ent->s.origin + (wanted_dir * current_speed)) & CONTENTS_WATER;
+	//if (!(ent->monsterinfo.aiflags & AI_COMBAT_POINT))
+	{
+		if (ent->flags & FL_SWIM)
+			bad_movement_direction = !(gi.pointcontents(ent->s.origin + (wanted_dir * current_speed)) & CONTENTS_WATER);
+		else if ((ent->flags & FL_FLY) && ent->waterlevel < WATER_UNDER)
+			bad_movement_direction = gi.pointcontents(ent->s.origin + (wanted_dir * current_speed)) & CONTENTS_WATER;
+	}
 
 	if (bad_movement_direction)
 	{
@@ -387,33 +378,27 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 			ent->monsterinfo.fly_recovery_dir = vec3_t{ crandom(), crandom(), crandom() }.normalized();
 			ent->monsterinfo.fly_recovery_time = level.time + 1_sec;
 		}
+
 		wanted_dir = ent->monsterinfo.fly_recovery_dir;
 	}
 
-	// Apply turning
 	if (dir && turn_factor > 0)
 		final_dir = slerp(dir, wanted_dir, 1.0f - turn_factor).normalized();
 
-	// Calculate speed factor with improved distance handling
+	// the closer we are to the wanted position, we want to slow
+	// down so we don't fly past it.
 	float speed_factor;
 
+	//gi.Draw_Ray(ent->s.origin, aim_fwd, 16.0f, 8.0f, rgba_green, gi.frame_time_s, true);
+	//gi.Draw_Ray(ent->s.origin, final_dir, 16.0f, 8.0f, rgba_blue, gi.frame_time_s, true);
 	if (!ent->enemy || (ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || following_paths)
 	{
+		// Paril: only do this correction if we are following paths. we want to move backwards
+		// away from players.
 		if (following_paths && dir && wanted_dir.dot(dir) < -0.25)
 			speed_factor = 0.f;
 		else
-		{
 			speed_factor = 1.f;
-
-			// Adjust speed based on distance when applicable
-			if (ent->enemy && ent->monsterinfo.fly_min_distance > 0)
-			{
-				float current_distance = (towards_origin - ent->s.origin).length();
-				if (current_distance >= ent->monsterinfo.fly_min_distance &&
-					current_distance <= ent->monsterinfo.fly_max_distance)
-					speed_factor = 0.7f;  // Reduced speed when in optimal range
-			}
-		}
 	}
 	else
 		speed_factor = min(1.f, dist_to_wanted / ent->monsterinfo.fly_speed);
@@ -421,17 +406,18 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	if (bad_movement_direction)
 		speed_factor = -speed_factor;
 
-	// Apply acceleration with improved handling
 	float accel = ent->monsterinfo.fly_acceleration;
+
+	// if we're flying away from our destination, apply reverse thrusters
 	if (final_dir.dot(wanted_dir) < 0.25f)
-		accel *= 2.0f;  // Double acceleration when changing direction significantly
+		accel *= 2.0f;
 
 	float wanted_speed = ent->monsterinfo.fly_speed * speed_factor;
 
 	if (ent->monsterinfo.aiflags & AI_MANUAL_STEERING)
 		wanted_speed = 0;
 
-	// Smooth speed changes
+	// change speed
 	if (current_speed > wanted_speed)
 		current_speed = max(wanted_speed, current_speed - accel);
 	else if (current_speed < wanted_speed)
@@ -447,10 +433,10 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		return false;
 	}
 
-	// Apply final velocity
+	// commit
 	ent->velocity = final_dir * current_speed;
 
-	// Handle special case pitch for buzzards and medics
+	// for buzzards, set their pitch
 	if (ent->enemy && (ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC)))
 	{
 		vec3_t d = (ent->s.origin - towards_origin).normalized();
@@ -461,7 +447,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		ent->s.angles[PITCH] = 0;
 
 	return true;
-}
+	}
 
 // flying monsters don't step up
 static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_bad)
