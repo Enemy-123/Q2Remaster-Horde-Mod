@@ -1404,14 +1404,14 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	if (fabs(tr.plane.normal[2]) > 0.7f)
 	{
 		// Para superficies horizontales, usar dimensiones normales
-		ent->mins = { -16, -16, 0 };
-		ent->maxs = { 16, 16, 32 };
+		ent->mins = { -4, -4, 0 };
+		ent->maxs = { 4, 4, 8 };
 	}
 	else
 	{
 		// Para paredes, rotar el área de detección
-		ent->mins = { 0, -16, -16 };
-		ent->maxs = { 32, 16, 16 };
+		ent->mins = { 0, -4, -4 };
+		ent->maxs = { 8, 4, 4 };
 	}
 
 	// Iniciar la secuencia de activación
