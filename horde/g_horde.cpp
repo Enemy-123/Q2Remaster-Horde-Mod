@@ -1668,28 +1668,39 @@ static void AttachHealthBar(edict_t* boss) {
 
 static int boss_counter = 0; // Declaramos boss_counter como variable estática
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
-
+void SP_target_orb(edict_t* ent);
 static void SpawnBossAutomatically() {
-
 	const auto mapSize = GetMapSize(level.mapname);
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
 		return;
 	}
-
 	const auto it = mapOrigins.find(level.mapname);
 	if (it == mapOrigins.end()) {
 		gi.Com_PrintFmt("PRINT: Error: No spawn origin found for map {}\n", level.mapname);
 		return;
 	}
 
+	// Create black light effect first
+	edict_t* orb = G_Spawn();
+	if (orb) {
+		orb->classname = "target_orb";
+		VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
+						  static_cast<float>(it->second[1]),
+						  static_cast<float>(it->second[2]) },
+			orb->s.origin);
+		SP_target_orb(orb);
+	}
+
 	edict_t* boss = G_Spawn();
 	if (!boss) {
+		if (orb) G_FreeEdict(orb);
 		gi.Com_PrintFmt("PRINT: Error: Failed to spawn boss entity\n");
 		return;
 	}
 
 	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level, boss);
 	if (!desired_boss) {
+		if (orb) G_FreeEdict(orb);
 		G_FreeEdict(boss);
 		gi.Com_PrintFmt("PRINT: Error: Failed to pick a boss type\n");
 		return;
@@ -1709,11 +1720,11 @@ static void SpawnBossAutomatically() {
 
 	// Set boss origin
 	if (it->second[0] == 0 && it->second[1] == 0 && it->second[2] == 0) {
+		if (orb) G_FreeEdict(orb);
 		G_FreeEdict(boss);
 		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
 		return;
 	}
-
 
 	VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
 					   static_cast<float>(it->second[1]),
@@ -1725,15 +1736,23 @@ static void SpawnBossAutomatically() {
 	// Push entities away
 	PushEntitiesAway(boss->s.origin, 3, 500, 300.0f, 750.0f, 1000.0f, 500.0f);
 
-	// Delay boss spawn
-	boss->nextthink = level.time + 1000_ms; // 1 seconds delay
-	boss->think = BossSpawnThink;
+	// Store orb entity in boss for later removal
+	boss->owner = orb;
 
+	// Delay boss spawn
+	boss->nextthink = level.time + 1000_ms; // 1 second delay
+	boss->think = BossSpawnThink;
 	gi.Com_PrintFmt("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
 
 THINK(BossSpawnThink)(edict_t* self) -> void
 {
+	// Remove the black light effect if it exists
+	if (self->owner) {
+		G_FreeEdict(self->owner);
+		self->owner = nullptr;
+	}
+
 	// Boss spawn message
 	auto it_msg = bossMessagesMap.find(self->classname);
 	if (it_msg != bossMessagesMap.end()) {
@@ -1743,54 +1762,37 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 		gi.Com_PrintFmt("PRINT: Warning: No specific message found for boss type '{}'. Using default message.\n", self->classname);
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
 	}
-	// Configure boss
+
+	// Rest of the original BossSpawnThink function...
 	self->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_sentrygun_target_time = 0_ms;
-
-	// Set the boss to non-solid before spawning to prevent interaction
 	self->solid = SOLID_NOT;
-
-	// Spawn the boss
 	ED_CallSpawn(self);
-
-	// Now that the boss is spawned, self->mins and self->maxs are set
-
-	// Clear the spawn area right after spawning the boss
 	ClearSpawnArea(self->s.origin, self->mins, self->maxs);
-
-	// Now set the boss to the appropriate solid type
-	self->solid = SOLID_BBOX; // Use SOLID_BSP if the boss is a brush model
-
-	// Relink the boss entity to update its state
+	self->solid = SOLID_BBOX;
 	gi.linkentity(self);
-
 
 	constexpr float health_multiplier = 1.0f;
 	constexpr float power_armor_multiplier = 1.0f;
 
-	// Apply bonus flags and effects
 	ApplyBossEffects(self);
-
 	self->monsterinfo.attack_state = AS_BLIND;
 
-	// Adjust final power armor
 	if (self->monsterinfo.power_armor_power > 0)
 	{
 		self->monsterinfo.power_armor_power = static_cast<int32_t>(self->monsterinfo.power_armor_power);
 	}
 
-	// Spawn grow effect
 	vec3_t const spawngrow_pos = self->s.origin;
 	const float size = VectorLength(spawngrow_pos) * 0.35f;
 	const float end_size = size * 0.005f;
 	ImprovedSpawnGrow(spawngrow_pos, size, end_size, self);
 	SpawnGrow_Spawn(spawngrow_pos, size, end_size);
 
-	// Attach health bar and set its name after all health adjustments
 	AttachHealthBar(self);
 	SetHealthBarName(self);
-
 	auto_spawned_bosses.insert(self);
+
 	gi.Com_PrintFmt("PRINT: Boss of type {} spawned successfully with {} health and {} power armor\n",
 		self->classname, self->health, self->monsterinfo.power_armor_power);
 }

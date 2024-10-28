@@ -523,29 +523,54 @@ constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_TOGGLE = 2_spawnflag;
 [[maybe_unused]] constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_UNKNOWN_ROGUE = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_ONE_SHOT = 8_spawnflag;
 
-void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity) {
-	// Create the main SpawnGrow effect
+void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity)
+{
+	// Constantes para mejor legibilidad y mantenimiento
+	constexpr int   NUM_SECONDARY_EFFECTS = 9;
+	constexpr float RANDOM_OFFSET_RANGE = 255.0f;
+	constexpr float EFFECT_SCALE = 0.55f;
+	constexpr float EARTHQUAKE_SPEED = 500.0f;
+	constexpr int   EARTHQUAKE_DURATION = 7;
+
+	// Crear el efecto principal de spawn
 	SpawnGrow_Spawn(position, start_size, end_size);
 
-	// Create additional effects only for boss spawns
-	if (spawned_entity && spawned_entity->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-		// Add more dramatic effects for boss spawns
-		for (int i = 0; i < 5; i++) {
-			vec3_t offset;
-			for (int j = 0; j < 3; j++) {
-				offset[j] = position[j] + crandom() * 125;  // Random offset within 50 units
-			}
-			SpawnGrow_Spawn(offset, start_size * 0.5f, end_size * 0.5f);
+	// Si no es una entidad jefe, terminamos aquí
+	if (!spawned_entity || !spawned_entity->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		return;
+	}
+
+	// Efectos adicionales para spawn de jefes
+	for (int i = 0; i < NUM_SECONDARY_EFFECTS; i++)
+	{
+		vec3_t offset;
+
+		// Calcular posición aleatoria para cada efecto secundario
+		for (int j = 0; j < 3; j++) {
+			offset[j] = position[j] + crandom() * RANDOM_OFFSET_RANGE;
 		}
 
-		// Crear el efecto de terremoto
-		auto earthquake = G_Spawn();
+		// Crear efecto secundario escalado
+		SpawnGrow_Spawn(offset,
+			start_size * EFFECT_SCALE,
+			end_size * EFFECT_SCALE);
+	}
+
+	// Crear y configurar el efecto de terremoto
+	edict_t* earthquake = G_Spawn();
+	if (earthquake)
+	{
+		// Configurar parámetros del terremoto
 		earthquake->classname = "target_earthquake";
-		earthquake->spawnflags = brandom() ? SPAWNFLAGS_EARTHQUAKE_SILENT : SPAWNFLAGS_EARTHQUAKE_ONE_SHOT; // Usar flag de un solo uso para activarlo una vez
-		earthquake->speed = 500; // Severidad del terremoto
-		earthquake->count = 4; // Duración del terremoto en segundos
+		earthquake->spawnflags = brandom()
+			? SPAWNFLAGS_EARTHQUAKE_SILENT
+			: SPAWNFLAGS_EARTHQUAKE_ONE_SHOT;
+		earthquake->speed = EARTHQUAKE_SPEED;
+		earthquake->count = EARTHQUAKE_DURATION;
+
+		// Inicializar y activar el terremoto
 		SP_target_earthquake(earthquake);
-		earthquake->use(earthquake, spawned_entity, spawned_entity); // Activar el terremoto
+		earthquake->use(earthquake, spawned_entity, spawned_entity);
 	}
 }
 
