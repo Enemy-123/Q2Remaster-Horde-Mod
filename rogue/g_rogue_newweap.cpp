@@ -991,13 +991,12 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	if (!self)
 		return;
 
-	int i, num, max_targets = 3;  // Limitar a 3 objetivos por ciclo
+	int i, num, max_targets = 3;
 	edict_t** touch = nullptr;
 	edict_t* hit;
 	vec3_t dir{}, start;
 	trace_t tr;
 
-	// Asignar memoria dinámicamente para el array touch
 	try {
 		touch = new edict_t * [MAX_TOUCH_ENTITIES];
 	}
@@ -1020,8 +1019,31 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		return;
 	}
 
+	// Ajustar el punto de inicio del rayo según la orientación
 	VectorCopy(self->s.origin, start);
-	start[2] += 16;
+
+	// Determinar si está en una pared por el PITCH
+	bool is_on_wall = fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135;
+
+	// Obtener los vectores de dirección según la orientación
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+
+	if (is_on_wall) {
+		// En pared, ajustar el inicio según la orientación
+		VectorMA(start, 16, forward, start); // Mover el punto de inicio hacia afuera de la pared
+	}
+	else {
+		// En suelo o techo
+		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
+			// En techo
+			VectorMA(start, -16, up, start); // Mover hacia abajo desde el techo
+		}
+		else {
+			// En suelo
+			VectorMA(start, 16, up, start); // Mover hacia arriba desde el suelo
+		}
+	}
 
 	if (!self->teamchain)
 	{
@@ -1030,10 +1052,35 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		return;
 	}
 
-	// Obtener todos los objetivos en el área, limitado por MAX_TOUCH_ENTITIES
+	// Ajustar el área de detección según la orientación
+	if (is_on_wall) {
+		// Para teslas en pared, área de detección más amplia
+		float radius = TESLA_DAMAGE_RADIUS * 1.5f;
+		self->teamchain->mins = { -radius / 2, -radius, -radius };
+		self->teamchain->maxs = { radius, radius, radius };
+
+		// Desplazar el centro del área de detección hacia adelante
+		VectorMA(self->s.origin, radius / 2, forward, self->teamchain->s.origin);
+	}
+	else {
+		// Para teslas en suelo o techo
+		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
+			// En techo, invertir el área de detección
+			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS };
+			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, 0 };
+		}
+		else {
+			// En suelo, área normal
+			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, 0 };
+			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS };
+		}
+	}
+
+	gi.linkentity(self->teamchain);
+
 	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch, MAX_TOUCH_ENTITIES, AREA_SOLID, tesla_think_active_BoxFilter, self);
 
-	// Limitar el número de objetivos a los que se atacará en este ciclo
+	// Mejorar la lógica de selección de objetivos
 	int targets_attacked = 0;
 	for (i = 0; i < num && targets_attacked < max_targets; i++)
 	{
@@ -1064,29 +1111,34 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		if (hit->classname && strcmp(hit->classname, "monster_sentrygun") == 0)
 			continue;
 
-		// Realizar un trace hacia el objetivo
-		tr = gi.traceline(start, hit->s.origin, self, MASK_PROJECTILE);
+		// Ajustar el punto de origen del trace según la orientación
+		vec3_t trace_start;
+		VectorCopy(start, trace_start);
+
+		// Realizar un trace hacia el centro del objetivo
+		vec3_t target_center;
+		VectorAdd(hit->mins, hit->maxs, target_center);
+		VectorScale(target_center, 0.5f, target_center);
+		VectorAdd(hit->s.origin, target_center, target_center);
+
+		tr = gi.traceline(trace_start, target_center, self, MASK_PROJECTILE);
+
 		if (tr.fraction == 1 || tr.ent == hit)
 		{
-			// Calcular la dirección del ataque
-			VectorSubtract(hit->s.origin, start, dir);
+			VectorSubtract(target_center, trace_start, dir);
 
-			// Sonido si el daño es mayor al normal
 			if (self->dmg > TESLA_DAMAGE)
 				gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
-			// Aplicar el daño al objetivo
 			if ((hit->svflags & SVF_MONSTER) && !(hit->flags & (FL_FLY | FL_SWIM)))
 			{
 				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 					self->dmg, 0, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-				// Verifica si el monstruo ha muerto y aplica gib
 				if (hit->health <= 0)
 				{
-					// if killed by Tesla, force gib
 					hit->health = -100;
-					vec3_t up = { 0.0f, 0.0f, 1.0f };  // Definir la dirección hacia arriba
+					vec3_t up = { 0.0f, 0.0f, 1.0f };
 					T_Damage(hit, self, self->teammaster, vec3_origin, hit->s.origin, up,
 						9999, 0, DAMAGE_NO_ARMOR, MOD_TESLA);
 				}
@@ -1102,19 +1154,16 @@ THINK(tesla_think_active) (edict_t* self) -> void
 			gi.WriteByte(TE_LIGHTNING);
 			gi.WriteEntity(self);
 			gi.WriteEntity(hit);
-			gi.WritePosition(start);
+			gi.WritePosition(trace_start);
 			gi.WritePosition(tr.endpos);
-			gi.multicast(start, MULTICAST_PVS, false);
+			gi.multicast(trace_start, MULTICAST_PVS, false);
 
-			// Incrementar el contador de objetivos atacados en este ciclo
 			targets_attacked++;
 		}
 	}
 
-	// Liberar la memoria asignada para el array touch
 	delete[] touch;
 
-	// Configurar el siguiente ciclo de ataque
 	if (self->inuse)
 	{
 		self->think = tesla_think_active;
@@ -1168,7 +1217,7 @@ THINK(tesla_activate) (edict_t* self) -> void
 	// doesn't need to be marked as a teamslave since the move code for bounce looks for teamchains
 	gi.linkentity(trigger);
 
-	self->s.angles = {};
+	//self->s.angles = {};
 	// clear the owner if in deathmatch and not horde
 	if (G_IsDeathmatch() && !g_horde->integer)
 		self->owner = nullptr;
@@ -1186,7 +1235,7 @@ THINK(tesla_think) (edict_t* ent) -> void
 		return;
 	}
 
-	ent->s.angles = {};
+	//ent->s.angles = {};
 
 	if (!(ent->s.frame))
 		gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/teslaopen.wav"), 1, ATTN_NORM, 0);
@@ -1220,14 +1269,158 @@ THINK(tesla_think) (edict_t* ent) -> void
 	}
 }
 
+// Modificamos la función tesla_lava para que maneje la adhesión como prox_land
 TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	if (tr.contents & (CONTENTS_SLIME | CONTENTS_LAVA))
+	vec3_t dir;
+	vec3_t forward, right, up;
+	movetype_t movetype = MOVETYPE_NONE;
+	int stick_ok = 0;
+	vec3_t land_point;
+
+	// Verificar si golpea el cielo
+	if (tr.surface && (tr.surface->flags & SURF_SKY))
+	{
+		G_FreeEdict(ent);
+		return;
+	}
+
+	// Verificar si golpea lava o slime
+	if (tr.plane.normal)
+	{
+		land_point = ent->s.origin + (tr.plane.normal * -10.0f);
+		if (gi.pointcontents(land_point) & (CONTENTS_SLIME | CONTENTS_LAVA))
+		{
+			tesla_blow(ent);
+			return;
+		}
+	}
+
+	constexpr float TESLA_STOP_EPSILON = 0.1f;
+
+	// Si golpea un monstruo, jugador o entidad dañable, explota
+	if (!tr.plane.normal || (other->svflags & SVF_MONSTER) || other->client || (other->flags & FL_DAMAGEABLE))
+	{
+		if (other != ent->teammaster)
+			tesla_blow(ent);
+		return;
+	}
+	// Si golpea otra entidad que no es el mundo
+	else if (other != world)
+	{
+		vec3_t out;
+		float backoff, change;
+		int i;
+
+		// Verificar si puede adherirse a entidades móviles
+		if ((other->movetype == MOVETYPE_PUSH) && (tr.plane.normal[2] > 0.7f))
+			stick_ok = 1;
+		else
+			stick_ok = 0;
+
+		// Calcular rebote
+		backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
+		for (i = 0; i < 3; i++)
+		{
+			change = tr.plane.normal[i] * backoff;
+			out[i] = ent->velocity[i] - change;
+			if (out[i] > -TESLA_STOP_EPSILON && out[i] < TESLA_STOP_EPSILON)
+				out[i] = 0;
+		}
+
+		// Si rebota muy alto, continuar
+		if (out[2] > 60)
+			return;
+
+		movetype = MOVETYPE_BOUNCE;
+
+		// Adherir o rebotar
+		if (stick_ok)
+		{
+			ent->velocity = {};
+			ent->avelocity = {};
+		}
+		else
+		{
+			if (tr.plane.normal[2] > 0.7f)
+			{
+				tesla_blow(ent);
+				return;
+			}
+			return;
+		}
+	}
+	else if (other->s.modelindex != MODELINDEX_WORLD)
+		return;
+
+	// Calcular orientación basada en la normal de la superficie
+	dir = vectoangles(tr.plane.normal);
+	AngleVectors(dir, forward, right, up);
+
+	// Verificar si está en lava o slime
+	if (gi.pointcontents(ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME))
 	{
 		tesla_blow(ent);
 		return;
 	}
 
+	// Preparar la tesla para su activación
+	ent->svflags &= ~SVF_PROJECTILE;
+	ent->velocity = {};
+	ent->avelocity = {};
+
+	// Ajustar la orientación según la superficie
+	if (fabs(tr.plane.normal[2]) > 0.7f)
+	{
+		// Superficie horizontal (suelo o techo)
+		if (tr.plane.normal[2] > 0)
+		{
+			// Suelo - orientación normal
+			ent->s.angles = {};
+		}
+		else
+		{
+			// Techo - girar 180 grados
+			ent->s.angles = { 180, 0, 0 };
+		}
+	}
+	else
+	{
+		// Superficie vertical (pared)
+		dir = vectoangles(tr.plane.normal);
+		// Rotar 90 grados para orientar horizontalmente
+		ent->s.angles[PITCH] = dir[PITCH] + 90;
+		ent->s.angles[YAW] = dir[YAW];
+		ent->s.angles[ROLL] = 0;
+	}
+
+	ent->takedamage = true;
+	ent->movetype = movetype;
+	ent->die = tesla_die;
+	ent->touch = nullptr;
+	ent->solid = SOLID_BBOX;
+
+	// Ajustar el área de detección según la orientación
+	if (fabs(tr.plane.normal[2]) > 0.7f)
+	{
+		// Para superficies horizontales, usar dimensiones normales
+		ent->mins = { -16, -16, 0 };
+		ent->maxs = { 16, 16, 32 };
+	}
+	else
+	{
+		// Para paredes, rotar el área de detección
+		ent->mins = { 0, -16, -16 };
+		ent->maxs = { 32, 16, 16 };
+	}
+
+	// Iniciar la secuencia de activación
+	ent->think = tesla_think;
+	ent->nextthink = level.time;
+
+	gi.linkentity(ent);
+
+	// Reproducir sonido de adherencia
 	if (ent->velocity)
 	{
 		if (frandom() > 0.5f)
