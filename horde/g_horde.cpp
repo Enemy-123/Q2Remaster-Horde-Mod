@@ -1521,7 +1521,7 @@ void CheckAndRestoreMonsterAlpha(edict_t* ent) {
 
 
 // Constante para el tiempo de vida del fade
-constexpr gtime_t FADE_LIFESPAN = 2_sec;
+constexpr gtime_t FADE_LIFESPAN = 1_sec;
 
 THINK(fade_out_think)(edict_t* self) -> void {
 	// Si el monstruo está vivo, restaurar su estado
