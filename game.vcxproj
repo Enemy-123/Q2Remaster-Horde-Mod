@@ -48,7 +48,7 @@
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>C:\Program Files (x86)\GOG Galaxy\Games\Quake II Enhanced\hordemod\</OutDir>
+    <OutDir>C:\Program Files (x86)\Steam\steamapps\common\Quake 2\rerelease\mod</OutDir>
     <TargetName>$(projectname)_x64</TargetName>
     <EnableClangTidyCodeAnalysis>false</EnableClangTidyCodeAnalysis>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
@@ -264,7 +264,6 @@
     <ClCompile Include="rogue\rogue_dm_tag.cpp" />
     <ClCompile Include="m_runnertank.cpp" />
     <ClCompile Include="shared.cpp" />
-    <ClCompile Include="upgradeweapons.cpp" />
     <ClCompile Include="xatrix\g_xatrix_func.cpp" />
     <ClCompile Include="xatrix\g_xatrix_items.cpp" />
     <ClCompile Include="xatrix\g_xatrix_misc.cpp" />

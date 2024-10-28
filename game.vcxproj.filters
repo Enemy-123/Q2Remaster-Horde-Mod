@@ -274,7 +274,6 @@
     <ClCompile Include="m_arachnid2.cpp" />
     <ClCompile Include="m_runnertank.cpp" />
     <ClCompile Include="g_laser.cpp" />
-    <ClCompile Include="upgradeweapons.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
     <ClCompile Include="m_psxarachnid.cpp" />
   </ItemGroup>
