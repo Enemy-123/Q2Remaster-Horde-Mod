@@ -1528,6 +1528,7 @@ static void StartFadeOut(edict_t* ent) {
 	ent->takedamage = false;
 	ent->s.renderfx |= RF_TRANSLUCENT;
 	ent->svflags &= ~SVF_NOCLIENT;
+	ent->s.renderfx &= ~RF_DOT_SHADOW;
 
 	// Opcional: añadir un poco de rotación durante el fade
 	ent->avelocity[0] = frandom(40.f, 90.f);
