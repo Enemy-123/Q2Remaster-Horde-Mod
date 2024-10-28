@@ -1489,17 +1489,26 @@ void VectorSet(vec3_t& v, float x, float y, float z) {
 	v[2] = z;
 }
 
-// Función segura para suma de vectores con verificación
 void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c) {
-	// Verificar que los punteros sean válidos
-	if (!a || !b || !c) {
-		gi.Com_PrintFmt("WARNING: Attempted vector addition with invalid pointers\n");
-		return;
-	}
+	// Si algún vector es inválido, usar un vector cero como fallback
+	static const vec3_t zero_vector = { 0, 0, 0 };
 
-	c[0] = a[0] + b[0];
-	c[1] = a[1] + b[1];
-	c[2] = a[2] + b[2];
+	const vec3_t& safe_a = a ? a : zero_vector;
+	const vec3_t& safe_b = b ? b : zero_vector;
+
+	if (c) {
+		c[0] = safe_a[0] + safe_b[0];
+		c[1] = safe_a[1] + safe_b[1];
+		c[2] = safe_a[2] + safe_b[2];
+	}
+	else {
+		// Si c es inválido, intentar asignar un nuevo vector si es posible
+		static vec3_t fallback_result = { 0, 0, 0 };
+		fallback_result[0] = safe_a[0] + safe_b[0];
+		fallback_result[1] = safe_a[1] + safe_b[1];
+		fallback_result[2] = safe_a[2] + safe_b[2];
+		c = fallback_result;  // Intenta asignar el resultado
+	}
 }
 /*
 ======================================================================
