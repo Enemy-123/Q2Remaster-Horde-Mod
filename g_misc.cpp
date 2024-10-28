@@ -1051,7 +1051,7 @@ USE(func_explosive_spawn) (edict_t* self, edict_t* other, edict_t* activator) ->
 
 void SP_func_explosive(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer) 
+	if (G_IsDeathmatch() && !g_horde->integer)
 	{ // auto-remove for deathmatch
 		G_FreeEdict(self);
 		return;

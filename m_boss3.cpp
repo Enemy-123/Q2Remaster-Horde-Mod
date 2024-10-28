@@ -11,7 +11,7 @@ boss3
 #include "g_local.h"
 #include "m_boss32.h"
 
-USE(Use_Boss3) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(Use_Boss3) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_BOSSTPORT);
@@ -23,7 +23,7 @@ USE(Use_Boss3) (edict_t *self, edict_t *other, edict_t *activator) -> void
 	self->solid = SOLID_NOT;
 }
 
-THINK(Think_Boss3Stand) (edict_t *self) -> void
+THINK(Think_Boss3Stand) (edict_t* self) -> void
 {
 	if (self->s.frame == FRAME_stand260)
 		self->s.frame = FRAME_stand201;
@@ -36,17 +36,17 @@ THINK(Think_Boss3Stand) (edict_t *self) -> void
 
 Just stands and cycles in one place until targeted, then teleports away.
 */
-void SP_monster_boss3_stand(edict_t *self)
+void SP_monster_boss3_stand(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if ( !M_AllowSpawn( self ) ) {
-		G_FreeEdict( self );
+	if (!M_AllowSpawn(self)) {
+		G_FreeEdict(self);
 		return;
 	}
 
-	self->movetype = MOVETYPE_NONE;
-	self->solid = SOLID_BSP;
+	self->movetype = MOVETYPE_STEP;
+	self->solid = SOLID_BBOX;
 	self->model = "models/monsters/boss3/rider/tris.md2";
 	self->s.modelindex = gi.modelindex(self->model);
 	self->s.frame = FRAME_stand201;
