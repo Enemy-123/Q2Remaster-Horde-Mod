@@ -66,12 +66,6 @@ constexpr int MAX_SENTRIES = 3;
 
 void Use_sentrygun(edict_t* ent, gitem_t* item)
 {
-	// Constantes
-	static constexpr float MIN_FORWARD_DISTANCE = 22.0f;
-	static constexpr float MAX_FORWARD_DISTANCE = 155.0f;
-	static constexpr float MIN_HEIGHT = 50.0f;
-	static constexpr float MAX_HEIGHT = 155.0f;
-
 	if (!g_horde->integer)
 	{
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a Sentry-Gun\n");
@@ -95,58 +89,48 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 		}
 	}
 
-
-	// Cálculo de vectores de dirección
 	vec3_t forward, right;
 	vec3_t createPt, spawnPt;
-	vec3_t ang = {
-		ent->client->v_angle[PITCH],
-		ent->client->v_angle[YAW],
-		0  // Roll siempre en 0
-	};
+	vec3_t ang;
 
+	// Establecer el ángulo de spawn basado en la dirección del jugador
+	ang[PITCH] = ent->client->v_angle[PITCH];
+	ang[YAW] = ent->client->v_angle[YAW];
+	ang[ROLL] = 0;
 	AngleVectors(ang, forward, right, nullptr);
 
-	// Versión corregida del cálculo de distancia
-	float forwardDistance = static_cast<float>(irandom(
-		static_cast<int32_t>(MIN_FORWARD_DISTANCE),
-		static_cast<int32_t>(MAX_FORWARD_DISTANCE)
-	));
-	forwardDistance = std::max(MIN_FORWARD_DISTANCE, forwardDistance);
+	// Generar la altura con irandom y ajustar si es menor que 50
+	float forwardturret = irandom(22.f, 125.f);
+	if (forwardturret < 22.f) {
+		forwardturret = 22.f;
+	}
+	// Calcular el punto inicial de creación
+	createPt = ent->s.origin + (forward * forwardturret);
 
-	// Versión corregida del cálculo de altura
-	float height = static_cast<float>(irandom(
-		static_cast<int32_t>(MIN_HEIGHT),
-		static_cast<int32_t>(MAX_HEIGHT)
-	));
-	height = std::max(MIN_HEIGHT, height);
-
-
-	// Cálculo del punto de spawn
-	createPt = ent->s.origin + (forward * forwardDistance);
-
-	// Verificación de punto de spawn válido con mejor mensaje de error
+	// Encontrar un punto de spawn válido
 	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, true)) {
-		gi.Client_Print(ent, PRINT_HIGH, "Cannot deploy sentry gun here. Try a different location.\n");
+		gi.Client_Print(ent, PRINT_HIGH, "No suitable spawn point found.\n");
 		return;
 	}
 
-	// Intento de spawn con manejo de errores
-	if (fire_sentrygun(ent, spawnPt, forward, forwardDistance, height)) {
-		// Actualización de inventario y contador
+	// Generar la altura con irandom y ajustar si es menor que 50
+	float height = irandom(50.f, 125.f);
+	if (height < 50.f) {
+		height = 50.f;
+	}
+
+	// Intentar spawnear la torreta y verificar si tuvo éxito
+	if (fire_sentrygun(ent, spawnPt, forward, forwardturret, height)) {
+		// Reducir la cantidad de ítems en el inventario solo si se pudo spawnear la torreta
 		ent->client->pers.inventory[item->id]--;
+		// Incrementa el número de torretas del jugador
 		ent->client->num_sentries++;
+
 		// Nuevo mensaje después de construir la torreta
 		gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun spawned. You have {}/{} sentry guns.\n",
 			ent->client->num_sentries, MAX_SENTRIES);
-
-
-	}
-	else {
-		gi.Client_Print(ent, PRINT_HIGH, "Failed to deploy sentry gun. Please try again.\n");
 	}
 }
-
 
 bool Pickup_sentrygun(edict_t* ent, edict_t* other)
 {
