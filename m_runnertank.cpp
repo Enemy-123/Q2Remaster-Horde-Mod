@@ -410,9 +410,9 @@ PAIN(runnertank_pain) (edict_t* self, edict_t* other, float kick, int damage, co
 MONSTERINFO_SETSKIN(runnertank_setskin) (edict_t* self) -> void
 {
 	if (self->health < (self->max_health / 2))
-		self->s.skinnum |= 1;
-	else
-		self->s.skinnum &= ~1;
+		self->s.skinnum |= self->s.skinnum = gi.imageindex("models/monsters/tank/pain.pcx");;
+	//else
+	//	self->s.skinnum &= ~1;
 }
 
 // [Paril-KEX]
@@ -1317,6 +1317,10 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.blocked = runnertank_blocked; // PGM
 	self->monsterinfo.setskin = runnertank_setskin;
 	self->yaw_speed *= 2;
+
+	self->s.renderfx |= RF_CUSTOMSKIN;
+	self->s.skinnum = gi.imageindex("models/monsters/tank/skin.pcx");
+
 	gi.linkentity(self);
 
 	M_SetAnimation(self, &runnertank_move_stand);
