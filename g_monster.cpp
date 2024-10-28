@@ -431,6 +431,7 @@ void M_SetEffects(edict_t* ent)
 	{
 		ent->s.effects |= EF_COLOR_SHELL;
 		ent->s.renderfx |= RF_SHELL_RED;
+		ent->s.alpha = 0.0f;
 	}
 
 	ent->s.renderfx |= RF_DOT_SHADOW;

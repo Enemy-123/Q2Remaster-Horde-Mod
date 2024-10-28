@@ -251,7 +251,10 @@ std::string GetDisplayName(const edict_t* ent)
 }
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
-	monster->gib_health *= 6.0f;
+	if (monster->gib_health >= -999)
+		monster->gib_health == -999;
+
+	monster->gib_health *= 3.2f;
 
 	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		return;

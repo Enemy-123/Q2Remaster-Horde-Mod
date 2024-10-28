@@ -1328,7 +1328,7 @@ THINK(misc_eastertank_think) (edict_t* self) -> void
 void SP_misc_eastertank(edict_t* ent)
 {
 	ent->movetype = MOVETYPE_NONE;
-	ent->solid = SOLID_BSP;
+	ent->solid = SOLID_BBOX;
 	ent->mins = { -32, -32, -16 };
 	ent->maxs = { 32, 32, 32 };
 	ent->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
@@ -1355,7 +1355,7 @@ THINK(misc_easterchick_think) (edict_t* self) -> void
 void SP_misc_easterchick(edict_t* ent)
 {
 	ent->movetype = MOVETYPE_NONE;
-	ent->solid = SOLID_BSP;
+	ent->solid = SOLID_BBOX;
 	ent->mins = { -32, -32, 0 };
 	ent->maxs = { 32, 32, 32 };
 	ent->s.modelindex = gi.modelindex("models/monsters/bitch/tris.md2");
@@ -1382,7 +1382,7 @@ THINK(misc_easterchick2_think) (edict_t* self) -> void
 void SP_misc_easterchick2(edict_t* ent)
 {
 	ent->movetype = MOVETYPE_NONE;
-	ent->solid = SOLID_BSP;
+	ent->solid = SOLID_BBOX;
 	ent->mins = { -32, -32, 0 };
 	ent->maxs = { 32, 32, 32 };
 	ent->s.modelindex = gi.modelindex("models/monsters/bitch/tris.md2");
@@ -1424,7 +1424,7 @@ THINK(commander_body_drop) (edict_t* self) -> void
 void SP_monster_commander_body(edict_t* self)
 {
 	self->movetype = MOVETYPE_NONE;
-	self->solid = SOLID_BSP;
+	self->solid = SOLID_BBOX;
 	self->model = "models/monsters/commandr/tris.md2";
 	self->s.modelindex = gi.modelindex(self->model);
 	self->mins = { -32, -32, 0 };
@@ -1575,7 +1575,7 @@ This is a large stationary viper as seen in Paul's intro
 void SP_misc_bigviper(edict_t* ent)
 {
 	ent->movetype = MOVETYPE_NONE;
-	ent->solid = SOLID_BSP;
+	ent->solid = SOLID_BBOX;
 	ent->mins = { -176, -120, -24 };
 	ent->maxs = { 176, 120, 72 };
 	ent->s.modelindex = gi.modelindex("models/ships/bigviper/tris.md2");

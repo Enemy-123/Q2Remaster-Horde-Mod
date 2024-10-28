@@ -1496,6 +1496,30 @@ static bool Horde_AllMonstersDead() {
 	return true;
 }
 
+void CheckAndRestoreMonsterAlpha(edict_t* ent) {
+	// Si la entidad no es válida o no es un monstruo, retornar
+	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
+		return;
+	}
+
+	// Si el monstruo está vivo pero tiene alpha reducido (está en fade)
+	if (ent->health > 0 && !ent->deadflag && ent->s.alpha < 1.0f) {
+		// Restaurar el alpha y otros estados relevantes
+		ent->s.alpha = 0.0f;
+		ent->s.renderfx &= ~RF_TRANSLUCENT;
+
+		// Asegurar que el monstruo puede tomar daño
+		ent->takedamage = true;
+
+		// Actualizar la entidad
+		gi.linkentity(ent);
+
+		//gi.Com_PrintFmt("PRINT: Restored alpha for monster {}\n",
+		//	ent->classname);
+	}
+}
+
+
 // Constante para el tiempo de vida del fade
 constexpr gtime_t FADE_LIFESPAN = 2_sec;
 
@@ -1546,38 +1570,6 @@ static void StartFadeOut(edict_t* ent) {
 	gi.linkentity(ent);
 }
 
-void CheckAndRestoreMonsterAlpha(edict_t* ent) {
-	// Si la entidad no es válida o no es un monstruo, retornar
-	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
-		return;
-	}
-
-	// Si el monstruo está vivo pero tiene alpha reducido (está en fade)
-	if (ent->health > 0 && !ent->deadflag && ent->s.alpha < 1.0f) {
-		// Restaurar el alpha y otros estados relevantes
-		ent->s.alpha = 0.0f;
-		ent->s.renderfx &= ~RF_TRANSLUCENT;
-
-		// Asegurar que el monstruo puede tomar daño
-		ent->takedamage = true;
-
-		// Restaurar el movetype si fue cambiado
-		if (ent->movetype == MOVETYPE_NONE) {
-			ent->movetype = MOVETYPE_STEP;
-		}
-
-		// Restaurar la solidez si fue cambiada
-		if (ent->solid == SOLID_NOT) {
-			ent->solid = SOLID_BBOX;
-		}
-
-		// Actualizar la entidad
-		gi.linkentity(ent);
-
-		gi.Com_PrintFmt("PRINT: Restored alpha for monster {}\n",
-			ent->classname);
-	}
-}
 
 static void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
