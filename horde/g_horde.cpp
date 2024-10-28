@@ -335,39 +335,88 @@ inline void ClampNumToSpawn(const MapSize& mapSize) {
 }
 
 static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
-	// Lógica de ajuste de spawn combinada
-	int32_t baseCount = (mapSize.isSmallMap) ? std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP) :
-		(mapSize.isBigMap) ? std::min((lvl <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP) :
+	// Base count calculation with level scaling
+	int32_t baseCount = (mapSize.isSmallMap) ?
+		std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP) :
+		(mapSize.isBigMap) ?
+		std::min((lvl <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP) :
 		std::min((lvl <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
 
-	int64_t additionalSpawn = (lvl >= 8) ? ((mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7)) : 6;
+	// Additional spawn calculation with progressive scaling
+	int32_t additionalSpawn = (lvl >= 8) ?
+		((mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7)) : 6;
+
+	// Enhanced level scaling for higher levels
 	if (lvl > 25) {
-		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6);
+		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
 	}
+
+	// Bonus for chaotic/insane modes
 	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
 	}
 
+	// Dynamic difficulty scaling based on player count
 	float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
+
+	// Periodic scaling adjustments
 	if (lvl % 3 == 0) {
 		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
-		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN - 0.15_sec * difficultyMultiplier, 3.0_sec);
+		SPAWN_POINT_COOLDOWN = std::max(
+			SPAWN_POINT_COOLDOWN - 0.15_sec * difficultyMultiplier,
+			3.0_sec
+		);
 	}
 
-	// Actualizar num_to_spawn sin clamping directo
+	// Update spawn count with clamping
 	g_horde_local.num_to_spawn = baseCount + static_cast<int32_t>(additionalSpawn);
-	ClampNumToSpawn(mapSize); // Aplicar clamping
+	ClampNumToSpawn(mapSize);
 
-	// Ajustar tasa de aparición y tiempos de cooldown
+	// Cooldown adjustments for higher levels
 	if (lvl % 3 == 0) {
-		const gtime_t spawnTimeReduction = g_chaotic->integer || g_insane->integer ? 0.25_sec : 0.15_sec;
+		const gtime_t spawnTimeReduction =
+			(g_chaotic->integer || g_insane->integer) ? 0.25_sec : 0.15_sec;
+
 		g_horde_local.monster_spawn_time -= spawnTimeReduction * difficultyMultiplier;
-		g_horde_local.monster_spawn_time = std::max(g_horde_local.monster_spawn_time, 2.0_sec);
+		g_horde_local.monster_spawn_time = std::max(
+			g_horde_local.monster_spawn_time,
+			2.0_sec
+		);
 
 		SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
-	g_horde_local.queued_monsters += 3 + GetNumHumanPlayers();
+
+	// Progressive queue scaling based on wave level with improved balance
+	int32_t baseQueueIncrease = 3; // Base increase per level
+
+	// Calculate base queued monsters
+	int32_t baseQueued = baseQueueIncrease * lvl;
+
+	// Add map size adjustments
+	if (mapSize.isSmallMap) {
+		baseQueued = static_cast<int32_t>(baseQueued * 0.8f); // Reduce for small maps
+	}
+	else if (mapSize.isBigMap) {
+		baseQueued = static_cast<int32_t>(baseQueued * 1.2f); // Increase for big maps
+	}
+
+	// Additional scaling for higher levels with better progression
+	if (lvl > 20) {
+		int32_t bonusQueued = static_cast<int32_t>((lvl - 20) * 2);
+		// Cap the bonus to prevent excessive scaling
+		bonusQueued = std::min(bonusQueued, 30);
+		baseQueued += bonusQueued;
+	}
+
+	// Apply insanity/chaotic bonus to queued monsters
+	if (g_insane->integer || g_chaotic->integer) {
+		baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
+	}
+
+	// Prevent excessive queuing while maintaining challenge
+	int32_t maxQueued = mapSize.isSmallMap ? 45 : (mapSize.isBigMap ? 75 : 60);
+	g_horde_local.queued_monsters += std::min(baseQueued, maxQueued);
 }
 
 static void Horde_CleanBodies();
@@ -1447,38 +1496,75 @@ static bool Horde_AllMonstersDead() {
 	return true;
 }
 
+// Constante para el tiempo de vida del fade
+constexpr gtime_t FADE_LIFESPAN = 1000_ms;
+
+THINK(fade_out_think)(edict_t* self) -> void {
+	if (level.time >= self->timestamp) {
+		G_FreeEdict(self);
+		return;
+	}
+
+	// Calcular el factor de fade usando el mismo método que spawngrow
+	float t = 1.f - ((level.time - self->teleport_time).seconds() / self->wait);
+	self->s.alpha = t * t; // Usar t^2 para un fade más suave como spawngrow
+
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
+static void StartFadeOut(edict_t* ent) {
+	// Configurar tiempos
+	ent->teleport_time = level.time;
+	ent->timestamp = level.time + FADE_LIFESPAN;
+	ent->wait = FADE_LIFESPAN.seconds();
+
+	// Configurar pensamiento
+	ent->think = fade_out_think;
+	ent->nextthink = level.time + FRAME_TIME_MS;
+
+	// Configurar estados
+	ent->solid = SOLID_NOT;
+	ent->movetype = MOVETYPE_NONE;
+	ent->takedamage = false;
+	ent->s.renderfx |= RF_TRANSLUCENT;
+	ent->svflags &= ~SVF_NOCLIENT;
+
+	// Opcional: añadir un poco de rotación durante el fade
+	ent->avelocity[0] = frandom(40.f, 90.f);
+	ent->avelocity[1] = frandom(40.f, 90.f);
+	ent->avelocity[2] = frandom(40.f, 90.f);
+
+	// Asegurar que la entidad está enlazada
+	gi.linkentity(ent);
+}
+
 static void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
 
-	// Iterar sobre todos los monstruos activos o muertos
 	for (auto ent : active_or_dead_monsters()) {
-		// Comprobar si el monstruo está muerto o si su salud es menor o igual a cero
 		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
-			// Si la entidad es un jefe y no se ha manejado su muerte correctamente
+			// Manejar jefes si es necesario
 			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				BossDeathHandler(ent);
 			}
 			else {
-				// Aplicar lógica general para la muerte de la entidad
 				OnEntityDeath(ent);
 			}
 
-			// Eliminar el jefe del conjunto de `auto_spawned_bosses` si está presente
+			// Eliminar de auto_spawned_bosses si es necesario
 			auto_spawned_bosses.erase(ent);
 
-			// Liberar el edicto de la entidad
-			G_FreeEdict(ent);
+			// Iniciar el fade out
+			StartFadeOut(ent);
+
 			cleaned_count++;
 		}
 	}
 
-	// Imprimir cuántos cuerpos fueron limpiados
 	if (cleaned_count > 0) {
-		gi.Com_PrintFmt("PRINT: Cleaned {} monster bodies\n", cleaned_count);
+		gi.Com_PrintFmt("PRINT: Marked {} monster bodies for fade out\n", cleaned_count);
 	}
 }
-
-
 // spawning boss origin
 std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"q2dm1", {1184, 568, 704}},
