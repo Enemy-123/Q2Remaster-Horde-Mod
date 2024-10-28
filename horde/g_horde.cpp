@@ -1500,6 +1500,13 @@ static bool Horde_AllMonstersDead() {
 constexpr gtime_t FADE_LIFESPAN = 2_sec;
 
 THINK(fade_out_think)(edict_t* self) -> void {
+	// Si el monstruo está vivo, restaurar su estado
+	if (self->health > 0 && !self->deadflag) {
+		CheckAndRestoreMonsterAlpha(self);
+		self->think = monster_think; // Restaurar el think normal del monstruo
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
 	if (level.time >= self->timestamp) {
 		G_FreeEdict(self);
 		return;
@@ -1513,6 +1520,12 @@ THINK(fade_out_think)(edict_t* self) -> void {
 }
 
 static void StartFadeOut(edict_t* ent) {
+	// No iniciar fade out si el monstruo está vivo
+	if (ent->health > 0 && !ent->deadflag) {
+		CheckAndRestoreMonsterAlpha(ent);
+		return;
+	}
+
 	// Configurar tiempos
 	ent->teleport_time = level.time;
 	ent->timestamp = level.time + FADE_LIFESPAN;
@@ -1531,6 +1544,39 @@ static void StartFadeOut(edict_t* ent) {
 
 	// Asegurar que la entidad está enlazada
 	gi.linkentity(ent);
+}
+
+void CheckAndRestoreMonsterAlpha(edict_t* ent) {
+	// Si la entidad no es válida o no es un monstruo, retornar
+	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
+		return;
+	}
+
+	// Si el monstruo está vivo pero tiene alpha reducido (está en fade)
+	if (ent->health > 0 && !ent->deadflag && ent->s.alpha < 1.0f) {
+		// Restaurar el alpha y otros estados relevantes
+		ent->s.alpha = 0.0f;
+		ent->s.renderfx &= ~RF_TRANSLUCENT;
+
+		// Asegurar que el monstruo puede tomar daño
+		ent->takedamage = true;
+
+		// Restaurar el movetype si fue cambiado
+		if (ent->movetype == MOVETYPE_NONE) {
+			ent->movetype = MOVETYPE_STEP;
+		}
+
+		// Restaurar la solidez si fue cambiada
+		if (ent->solid == SOLID_NOT) {
+			ent->solid = SOLID_BBOX;
+		}
+
+		// Actualizar la entidad
+		gi.linkentity(ent);
+
+		gi.Com_PrintFmt("PRINT: Restored alpha for monster {}\n",
+			ent->classname);
+	}
 }
 
 static void Horde_CleanBodies() {
@@ -2492,6 +2538,9 @@ void Horde_RunFrame() {
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
 	// Limpieza de entidades inválidas si es necesario
+	for (auto ent : active_monsters()) {
+		CheckAndRestoreMonsterAlpha(ent);
+	}
 	CleanupInvalidEntities();
 
 	switch (g_horde_local.state) {
