@@ -1497,7 +1497,7 @@ static bool Horde_AllMonstersDead() {
 }
 
 // Constante para el tiempo de vida del fade
-constexpr gtime_t FADE_LIFESPAN = 1000_ms;
+constexpr gtime_t FADE_LIFESPAN = 2_sec;
 
 THINK(fade_out_think)(edict_t* self) -> void {
 	if (level.time >= self->timestamp) {
