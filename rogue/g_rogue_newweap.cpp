@@ -1299,7 +1299,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	constexpr float TESLA_STOP_EPSILON = 0.1f;
 
 	// Si golpea un monstruo, jugador o entidad dañable, explota
-	if (!tr.plane.normal || (other->svflags & SVF_MONSTER) || other->client || (other->flags & FL_DAMAGEABLE))
+	if (!tr.plane.normal/* || (other->svflags & SVF_MONSTER) || other->client || (other->flags & FL_DAMAGEABLE)*/)
 	{
 		if (other != ent->teammaster)
 			tesla_blow(ent);
