@@ -3758,8 +3758,23 @@ const std::unordered_map<std::string_view, int> gib_multipliers = {
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
 {
 	for (auto& gib : gibs)
-		for (size_t i = 0; i < gib.count; i++)
-			ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1), gib.framenum);
+	{
+		int multiplier = 1;
+
+		// Buscar si este gib debe ser multiplicado
+		auto it = gib_multipliers.find(gib.gibname);
+		if (it != gib_multipliers.end()) {
+			multiplier = it->second;
+		}
+
+		for (int j = 0; j < multiplier; j++)
+		{
+			for (size_t i = 0; i < gib.count; i++)
+			{
+				ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1), gib.framenum);
+			}
+		}
+	}
 }
 
 inline bool M_CheckGib(edict_t* self, const mod_t& mod)
