@@ -79,15 +79,15 @@ static void shambler_fireball_update(edict_t* self)
 	const vec3_t right_pos = M_ProjectFlashSource(self, lightning_right_hand[self->s.frame - FRAME_magic01], f, r);
 
 	// Calculate the midpoint between hands for the fireball effect
-	vec3_t midpoint;
-	VectorAdd(left_pos, right_pos, midpoint);
-	VectorScale(midpoint, 0.5f, midpoint);
+	// Combinar VectorAdd y VectorScale en una operación
+	vec3_t midpoint = (left_pos + right_pos) * 0.5f;
 
 	// Update fireball effect position
-	VectorCopy(midpoint, fireball_effect->s.origin);
+	fireball_effect->s.origin = midpoint;  // Reemplaza VectorCopy
 
 	// Calculate size based on frame
-	const float size_factor = static_cast<float>(self->s.frame - FRAME_magic01) / static_cast<float>(q_countof(lightning_left_hand));
+	const float size_factor = static_cast<float>(self->s.frame - FRAME_magic01) /
+		static_cast<float>(q_countof(lightning_left_hand));
 	constexpr float max_size = 1.5f; // Maximum size multiplier
 	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
 
@@ -108,7 +108,6 @@ static void shambler_fireball_update(edict_t* self)
 
 	gi.linkentity(fireball_effect);
 }
-
 void shambler_windupFire(edict_t* self)
 {
 	gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);

@@ -3904,7 +3904,6 @@ extern cached_soundindex snd_fry;
 extern void OnEntityDeath(const edict_t* ent);
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
-extern  void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c);
 extern void VectorSet(vec3_t& v, float x, float y, float z);
 extern void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out);
 extern float VectorLength(const vec3_t v);

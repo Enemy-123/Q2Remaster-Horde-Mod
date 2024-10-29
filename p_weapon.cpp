@@ -87,7 +87,6 @@ void P_AddWeaponKick(edict_t* ent, const vec3_t& origin, const vec3_t& angles)
 	ent->client->kick.total = 200_ms;
 	ent->client->kick.time = level.time + ent->client->kick.total;
 }
-
 void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t& result_start, vec3_t& result_dir, bool adjust_for_pierce)
 {
 	if (ent->client->pers.hand == LEFT_HANDED)
@@ -1491,27 +1490,6 @@ void VectorSet(vec3_t& v, float x, float y, float z) {
 	v[2] = z;
 }
 
-void VectorAdd(const vec3_t& a, const vec3_t& b, vec3_t& c) {
-	// Si algún vector es inválido, usar un vector cero como fallback
-	static const vec3_t zero_vector = { 0, 0, 0 };
-
-	const vec3_t& safe_a = a ? a : zero_vector;
-	const vec3_t& safe_b = b ? b : zero_vector;
-
-	if (c) {
-		c[0] = safe_a[0] + safe_b[0];
-		c[1] = safe_a[1] + safe_b[1];
-		c[2] = safe_a[2] + safe_b[2];
-	}
-	else {
-		// Si c es inválido, intentar asignar un nuevo vector si es posible
-		static vec3_t fallback_result = { 0, 0, 0 };
-		fallback_result[0] = safe_a[0] + safe_b[0];
-		fallback_result[1] = safe_a[1] + safe_b[1];
-		fallback_result[2] = safe_a[2] + safe_b[2];
-		c = fallback_result;  // Intenta asignar el resultado
-	}
-}
 /*
 ======================================================================
 
@@ -1589,20 +1567,20 @@ void Machinegun_Fire(edict_t* ent)
 		if (g_tracedbullets->integer)
 		{
 			int tracer_damage = 40;
-			vec3_t tracer_start, tracer_forward, tracer_offset;
-			VectorCopy(start, tracer_start);
-			VectorCopy(forward, tracer_forward);
+			vec3_t tracer_start = start;  // Reemplaza VectorCopy
+			vec3_t tracer_forward = forward;  // Reemplaza VectorCopy
+			vec3_t tracer_offset;
 
 			// Ajustar el desplazamiento para que coincida con el lado del arma
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posición del blaster cuando está agachado
+				tracer_offset = { 0.0f, 8.0f, -6.0f };  // Reemplaza VectorSet
 			}
 			else
 			{
-				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posición del blaster cuando está de pie
+				tracer_offset = { 0.0f, 10.5f, -11.0f };  // Reemplaza VectorSet
 			}
-			VectorAdd(tracer_start, tracer_offset, tracer_start);
+			tracer_start = tracer_start + tracer_offset;  // Reemplaza VectorAdd
 
 			// Ajuste de dirección para fire_blaster2
 			vec3_t dir;
@@ -1755,26 +1733,25 @@ void Chaingun_Fire(edict_t* ent)
 
 	G_RemoveAmmo(ent, shots);
 
-	// Lógica para disparar trazadores
 	if (ent->lasthbshot <= level.time)
 	{
 		if (g_tracedbullets->integer)
 		{
 			int tracer_damage = 20;
-			vec3_t tracer_start, tracer_forward, tracer_offset;
-			VectorCopy(start, tracer_start);
-			VectorCopy(forward, tracer_forward);
+			vec3_t tracer_start = start;  // Reemplaza VectorCopy
+			vec3_t tracer_forward = forward;  // Reemplaza VectorCopy
 
 			// Ajustar el desplazamiento para que coincida con el lado del arma
+			vec3_t tracer_offset;
 			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 			{
-				VectorSet(tracer_offset, 0.0f, 8.0f, -6.0f);  // Alinea la posición del blaster cuando está agachado
+				tracer_offset = { 0.0f, 8.0f, -6.0f };  // Reemplaza VectorSet
 			}
 			else
 			{
-				VectorSet(tracer_offset, 0.0f, 10.5f, -11.0f);  // Alinea la posición del blaster cuando está de pie
+				tracer_offset = { 0.0f, 10.5f, -11.0f };  // Reemplaza VectorSet
 			}
-			VectorAdd(tracer_start, tracer_offset, tracer_start);
+			tracer_start = tracer_start + tracer_offset;  // Reemplaza VectorAdd
 
 			// Ajuste de dirección para fire_blaster2
 			vec3_t dir;

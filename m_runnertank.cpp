@@ -266,6 +266,25 @@ bool runnertank_enemy_visible(edict_t* self)
 }
 
 void runnertank_attack(edict_t* self);
+
+void runnertank_consider_strafe(edict_t* self);
+
+
+void runnertank_consider_attack(edict_t* self);
+void runnertank_combat_decisions(edict_t* self)
+{
+	if (!self->enemy)
+		return;
+
+	float range = range_to(self, self->enemy);
+	if (range <= RANGE_NEAR && visible(self, self->enemy))
+		runnertank_consider_attack(self);
+	else if (range <= RANGE_MID)
+		runnertank_consider_strafe(self);
+
+	self->monsterinfo.pausetime = level.time + 0.5_sec;
+}
+
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
@@ -274,66 +293,25 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		return;
 	}
 
-	const float range = self->enemy ? range_to(self, self->enemy) : 0;
-
-	// Decidir si debe detenerse y atacar
-	if (range <= RANGE_NEAR)
-	{
-		// Probabilidad de detenerse aumenta a medida que se acerca al enemigo
-		const float stop_chance = 1.0f - (range / RANGE_NEAR);
-		if (frandom() < stop_chance)
-		{
-			M_SetAnimation(self, &runnertank_move_stop_run);
-			self->monsterinfo.aiflags &= ~AI_CHARGING;
-			runnertank_attack(self);  // Intentar atacar inmediatamente
-			return;
-		}
-	}
-
-	// Implementar carrera
+	// Mantener la animación de corrida como base
 	M_SetAnimation(self, &runnertank_move_run);
 
-	// Implementar strafing
-	if (self->enemy && visible(self, self->enemy) && range <= RANGE_MID)
+	// Actualizar decisiones de combate cada cierto tiempo
+	if (self->enemy && level.time >= self->monsterinfo.pausetime)
 	{
-		float strafe_chance = 0.5f;  // 50% de probabilidad base de hacer strafe
+		float range = range_to(self, self->enemy);
 
-		// Aumentar la probabilidad de strafing si el enemigo está disparando
-		if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-			strafe_chance += 0.38f;
+		// Considerar ataque si estamos cerca
+		if (range <= RANGE_NEAR && visible(self, self->enemy))
+			runnertank_consider_attack(self);
+		// Considerar strafe si estamos a rango medio
+		else if (range <= RANGE_MID)
+			runnertank_consider_strafe(self);
 
-		// Aumentar la probabilidad de strafing si el runnertank tiene poca salud
-		if (self->health < self->max_health * 0.5f)
-			strafe_chance += 0.2f;
-
-		if (frandom() < strafe_chance)
-		{
-			// Decidir aleatoriamente si strafear a la izquierda o derecha
-			self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
-
-			// Aplicar el movimiento de strafe
-			vec3_t right, strafe_vel;
-			AngleVectors(self->s.angles, nullptr, right, nullptr);
-			const float strafe_speed = 200 + (frandom() * 150);  // Velocidad de strafe variable y aumentada
-
-			VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
-
-			// Combinar el movimiento de avance con el strafe
-			VectorAdd(self->velocity, strafe_vel, self->velocity);
-
-			// Ajustar la duración del strafe
-			self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
-		}
-	}
-
-	// Volver a la dirección original después del strafe
-	if (level.time > self->monsterinfo.pausetime)
-	{
-		self->monsterinfo.lefty = 0;
-		VectorSet(self->velocity, 0, 0, self->velocity[2]);  // Mantener solo la velocidad vertical
+		// Establecer próxima actualización
+		self->monsterinfo.pausetime = level.time + 0.3_sec;
 	}
 }
-
 //
 // pain
 //
@@ -844,66 +822,95 @@ void runnertank_stop_run_to_attack(edict_t* self)
 		M_SetAnimation(self, &runnertank_move_run);
 	}
 }
-MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
+
+void runnertank_consider_strafe(edict_t* self)
+{
+	// No strafear si estamos en medio de un ataque
+	if (self->monsterinfo.active_move == &runnertank_move_attack_blast ||
+		self->monsterinfo.active_move == &runnertank_move_attack_pre_rocket ||
+		self->monsterinfo.active_move == &runnertank_move_attack_fire_rocket ||
+		self->monsterinfo.active_move == &tank_move_punch_attack)
+		return;
+
+	float strafe_chance = 0.3f; // Base chance más baja para no ser tan errático
+	// Aumentar probabilidad en situaciones críticas
+	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+		strafe_chance += 0.2f;
+	if (self->health < self->max_health * 0.5f)
+		strafe_chance += 0.15f;
+
+	// Solo strafear si tenemos una buena razón
+	if (frandom() < strafe_chance)
+	{
+		// Decidir dirección
+		self->monsterinfo.lefty = (frandom() < 0.5f) ? 1 : -1;
+
+		// Calcular velocidad de strafe
+		vec3_t right;
+		AngleVectors(self->s.angles, nullptr, right, nullptr);
+		float strafe_speed = 150.0f; // Velocidad base más controlada
+
+		// Ajustar velocidad según la situación
+		if (self->health < self->max_health * 0.5f)
+			strafe_speed *= 1.2f; // Más rápido si está herido
+
+		// Aplicar el strafe directamente usando los operadores de vec3_t
+		self->velocity = self->velocity + (right * (strafe_speed * self->monsterinfo.lefty));
+
+		// Tiempo más corto de strafe para mayor control
+		self->monsterinfo.pausetime = level.time + random_time(0.5_sec, 1.0_sec);
+	}
+}
+
+void runnertank_consider_attack(edict_t* self)
 {
 	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	// No considerar nuevo ataque si estamos en cooldown
+	if (level.time < self->monsterinfo.attack_finished)
 		return;
 
 	const float range = range_to(self, self->enemy);
 	const float r = frandom();
 
-	// Check if we can shoot
+	// Verificar líneas de visión para cada tipo de ataque
 	const bool can_blast = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
 	const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 	const bool can_chain = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_1]);
 
-	// Ajustar la frecuencia de ataque
-	if (level.time < self->monsterinfo.attack_finished)
-		return;
-
-	if (range <= MELEE_DISTANCE * 2)
+	// Sistema de selección de ataque priorizado
+	if (range <= MELEE_DISTANCE * 1.5f)
 	{
-		// Ataque melee (punch)
 		M_SetAnimation(self, &tank_move_punch_attack);
-		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		self->monsterinfo.attack_finished = level.time + 0.5_sec;
 		return;
 	}
-	else if (range <= RANGE_NEAR)
+
+	// Para rango cercano, priorizar diferentes ataques
+	if (range <= RANGE_NEAR)
 	{
-		if (can_chain && r < 0.4)
+		if (can_chain && self->health < self->max_health * 0.5f && r < 0.4f)
 		{
+			// Usar plasma más en situaciones defensivas
 			M_SetAnimation(self, &runnertank_move_attack_chain);
+			self->monsterinfo.attack_finished = level.time + 2.5_sec;
+		}
+		else if (can_rocket && r < 0.6f)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
 			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
-		else if (can_rocket && r < 0.7)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-			self->pain_debounce_time = level.time + 3_sec;
-			self->monsterinfo.attack_finished = level.time + 4_sec;
-		}
 		else if (can_blast)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
 	}
+	// Rango medio, priorizar ataques de precisión
 	else if (range <= RANGE_MID)
 	{
-		if (can_rocket && r < 0.5)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-			self->pain_debounce_time = level.time + 3_sec;
-			self->monsterinfo.attack_finished = level.time + 4_sec;
-		}
-		else if (can_blast)
-		{
-			M_SetAnimation(self, &runnertank_move_attack_blast);
-			self->monsterinfo.attack_finished = level.time + 2_sec;
-		}
-	}
-	else
-	{
-		if (can_blast && r < 0.6)
+		if (can_blast && r < 0.4f)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
@@ -911,13 +918,24 @@ MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 		else if (can_rocket)
 		{
 			M_SetAnimation(self, &runnertank_move_attack_pre_rocket);
-			self->pain_debounce_time = level.time + 3_sec;
-			self->monsterinfo.attack_finished = level.time + 4_sec;
+			self->monsterinfo.attack_finished = level.time + 3_sec;
 		}
 	}
+	// Largo alcance, preferir railgun
+	else
+	{
+		if (can_blast)
+		{
+			M_SetAnimation(self, &runnertank_move_attack_blast);
+			self->monsterinfo.attack_finished = level.time + 2_sec;
+		}
+	}
+}
 
-	// Añadir una pausa entre decisiones de ataque
-	self->monsterinfo.pausetime = level.time + 1.5_sec;
+
+MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
+{
+	runnertank_consider_attack(self);
 }
 //
 // death
@@ -1206,28 +1224,20 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 	{
 		return false;
 	}
-
 	// Si no estamos corriendo, cambiar a la animación de carrera
 	if (self->monsterinfo.active_move != &runnertank_move_run)
 		M_SetAnimation(self, &runnertank_move_run);
-
 	// Iniciar un nuevo movimiento de strafe
 	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
-
 	// Aplicar un impulso lateral más fuerte
-	vec3_t right, strafe_vel;
+	vec3_t right;
 	AngleVectors(self->s.angles, nullptr, right, nullptr);
 	const float strafe_speed = 200 + (frandom() * 150);  // Consistente con runnertank_run
 
-	if (self->monsterinfo.lefty)
-		VectorScale(right, -strafe_speed, strafe_vel);
-	else
-		VectorScale(right, strafe_speed, strafe_vel);
-
-	VectorAdd(self->velocity, strafe_vel, self->velocity);
+	// VectorScale + VectorAdd combinados usando los operadores de vec3_t
+	self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
 
 	self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
-
 	return true;
 }
 
@@ -1246,8 +1256,8 @@ void SP_monster_runnertank(edict_t* self)
 	}
 
 	self->s.modelindex = gi.modelindex("models/vault/monsters/tank/tris.md2");
-	self->mins = { -32, -32, -16 };
-	self->maxs = { 32, 32, 64 };
+	self->mins = { -28, -28, -14 };
+	self->maxs = { 28, 28, 56 };
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 

@@ -1020,7 +1020,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	}
 
 	// Ajustar el punto de inicio del rayo según la orientación
-	VectorCopy(self->s.origin, start);
+	start = self->s.origin;
 
 	// Determinar si está en una pared por el PITCH
 	bool is_on_wall = fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135;
@@ -1031,17 +1031,17 @@ THINK(tesla_think_active) (edict_t* self) -> void
 
 	if (is_on_wall) {
 		// En pared, ajustar el inicio según la orientación
-		VectorMA(start, 16, forward, start); // Mover el punto de inicio hacia afuera de la pared
+		start = start + (forward * 16); // Reemplaza VectorMA
 	}
 	else {
 		// En suelo o techo
 		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
 			// En techo
-			VectorMA(start, -16, up, start); // Mover hacia abajo desde el techo
+			start = start + (up * -16); // Reemplaza VectorMA
 		}
 		else {
 			// En suelo
-			VectorMA(start, 16, up, start); // Mover hacia arriba desde el suelo
+			start = start + (up * 16); // Reemplaza VectorMA
 		}
 	}
 
@@ -1060,7 +1060,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		self->teamchain->maxs = { radius, radius, radius };
 
 		// Desplazar el centro del área de detección hacia adelante
-		VectorMA(self->s.origin, radius / 2, forward, self->teamchain->s.origin);
+		self->teamchain->s.origin = self->s.origin + (forward * (radius / 2)); // Reemplaza VectorMA
 	}
 	else {
 		// Para teslas en suelo o techo
@@ -1112,20 +1112,17 @@ THINK(tesla_think_active) (edict_t* self) -> void
 			continue;
 
 		// Ajustar el punto de origen del trace según la orientación
-		vec3_t trace_start;
-		VectorCopy(start, trace_start);
+		vec3_t trace_start = start;  // Reemplaza VectorCopy
 
 		// Realizar un trace hacia el centro del objetivo
-		vec3_t target_center;
-		VectorAdd(hit->mins, hit->maxs, target_center);
-		VectorScale(target_center, 0.5f, target_center);
-		VectorAdd(hit->s.origin, target_center, target_center);
+		vec3_t target_center = (hit->mins + hit->maxs) * 0.5f;  // Reemplaza VectorAdd y VectorScale
+		target_center = hit->s.origin + target_center;  // Reemplaza VectorAdd
 
 		tr = gi.traceline(trace_start, target_center, self, MASK_PROJECTILE);
 
 		if (tr.fraction == 1 || tr.ent == hit)
 		{
-			VectorSubtract(target_center, trace_start, dir);
+			dir = target_center - trace_start;  // Reemplaza VectorSubtract
 
 			if (self->dmg > TESLA_DAMAGE)
 				gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
@@ -1157,7 +1154,6 @@ THINK(tesla_think_active) (edict_t* self) -> void
 			gi.WritePosition(trace_start);
 			gi.WritePosition(tr.endpos);
 			gi.multicast(trace_start, MULTICAST_PVS, false);
-
 			targets_attacked++;
 		}
 	}

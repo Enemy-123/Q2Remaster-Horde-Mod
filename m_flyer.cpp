@@ -278,7 +278,8 @@ void flyer_kamikaze_check(edict_t* self)
 }
 
 void flyer_checkstrafe(edict_t* self)
-{	// Implementar strafing mejorado
+{
+	// Implementar strafing mejorado
 	const float range = self->enemy ? range_to(self, self->enemy) : 0;
 	if (self->enemy && visible(self, self->enemy))
 	{
@@ -298,14 +299,15 @@ void flyer_checkstrafe(edict_t* self)
 				self->monsterinfo.lefty = frandom() < 0.5;
 
 				// Aplicar el movimiento de strafe
-				vec3_t right, strafe_vel;
+				vec3_t right;
 				AngleVectors(self->s.angles, nullptr, right, nullptr);
+
 				// Aumentar significativamente la velocidad de strafe
 				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
-				VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
 
-				// Combinar el movimiento de avance con el strafe
-				VectorAdd(self->velocity, strafe_vel, self->velocity);
+				// Aplicar el strafe usando operadores modernos:
+				// Combina VectorScale y VectorAdd en una sola operación
+				self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
 
 				// Ajustar la duración del strafe
 				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);

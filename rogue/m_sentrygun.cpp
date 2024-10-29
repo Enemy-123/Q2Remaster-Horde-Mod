@@ -946,16 +946,13 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	if (!self->enemy || self->enemy->health <= 0) {
 		return false;
 	}
-
 	vec3_t spot1, spot2;
 	trace_t tr;
-
 	// Punto de origen ajustado para la torreta
-	VectorCopy(self->s.origin, spot1);
+	spot1 = self->s.origin;
 	spot1[2] += self->viewheight;
-
 	// Punto de destino ajustado según el scale del enemigo
-	VectorCopy(self->enemy->s.origin, spot2);
+	spot2 = self->enemy->s.origin;
 	if (self->enemy->client) {
 		spot2[2] += self->enemy->viewheight;
 	}
@@ -964,31 +961,23 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		float enemy_height = (self->enemy->maxs[2] - self->enemy->mins[2]) * self->enemy->s.scale;
 		spot2[2] += enemy_height * 0.5f; // Apuntar al centro de masa
 	}
-
 	// Máscara de contenido que ignora otros monstruos para mejor detección
 	const contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW) & ~CONTENTS_MONSTER;
 	tr = gi.traceline(spot1, spot2, self, mask);
-
 	// Búsqueda de objetivos mejorada considerando el scale
 	if (tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent) && tr.ent->health > 0) {
-		vec3_t diff_current{}, diff_new{};
-		float dist_current, dist_new;
-
-		VectorSubtract(self->enemy->s.origin, self->s.origin, diff_current);
-		VectorSubtract(tr.ent->s.origin, self->s.origin, diff_new);
-
+		vec3_t diff_current = self->enemy->s.origin - self->s.origin;
+		vec3_t diff_new = tr.ent->s.origin - self->s.origin;
 		// Ajustar distancias según el scale
-		dist_current = VectorLength(diff_current) / self->enemy->s.scale;
-		dist_new = VectorLength(diff_new) / tr.ent->s.scale;
-
+		float dist_current = VectorLength(diff_current) / self->enemy->s.scale;
+		float dist_new = VectorLength(diff_new) / tr.ent->s.scale;
 		// Cambiar objetivo si encontramos uno mejor considerando scale
 		if (dist_new < dist_current) {
 			self->enemy = tr.ent;
-			VectorCopy(tr.ent->s.origin, spot2);
+			spot2 = tr.ent->s.origin;
 			spot2[2] += (tr.ent->maxs[2] - tr.ent->mins[2]) * tr.ent->s.scale * 0.5f;
 		}
 	}
-
 	// Verificación de ataque considerando línea de visión y scale
 	if (tr.fraction == 1.0 || tr.ent == self->enemy ||
 		(tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent)))
@@ -1031,36 +1020,28 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		self->monsterinfo.attack_finished = level.time + 1_sec;
 		return true;
 	}
-
 	// Fuego ciego mejorado con consideración de scale
 	if (self->monsterinfo.blindfire && level.time > self->monsterinfo.blind_fire_delay)
 	{
-		vec3_t aim_point;
-		VectorCopy(self->monsterinfo.last_sighting, aim_point);
-
+		vec3_t aim_point = self->monsterinfo.last_sighting;
 		// Ajustar predicción según scale y velocidad
 		if (self->enemy->client || self->enemy->velocity != vec3_t{}) {
-			vec3_t velocity;
-			float prediction_scale = 0.2f * self->enemy->s.scale;
-			VectorScale(self->enemy->velocity, prediction_scale, velocity);
-			VectorAdd(aim_point, velocity, aim_point);
+			// Usar operator* directo en vez de VectorScale
+			vec3_t velocity = self->enemy->velocity * (0.2f * self->enemy->s.scale);
+			aim_point = aim_point + velocity;  // Usar operator+ en vez de VectorAdd
 		}
-
 		// Variación aleatoria ajustada al scale
 		float spread = 100.0f / self->enemy->s.scale;
 		for (int i = 0; i < 3; i++) {
 			aim_point[i] += crandom() * spread;
 		}
-
 		tr = gi.traceline(spot1, aim_point, self, mask);
-
 		if (tr.fraction >= 0.3f) {
 			self->monsterinfo.attack_state = AS_BLIND;
 			self->monsterinfo.blind_fire_delay = level.time + 1.5_sec;
 			return true;
 		}
 	}
-
 	return false;
 }
 // **********************

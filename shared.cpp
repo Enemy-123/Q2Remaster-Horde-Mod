@@ -829,10 +829,8 @@ bool string_equals(const char* str1, const std::string_view& str2) {
 
 bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs)
 {
-	vec3_t ent_mins, ent_maxs;
-
-	VectorAdd(ent->s.origin, ent->mins, ent_mins);
-	VectorAdd(ent->s.origin, ent->maxs, ent_maxs);
+	vec3_t ent_mins = ent->s.origin + ent->mins;
+	vec3_t ent_maxs = ent->s.origin + ent->maxs;
 
 	for (int i = 0; i < 3; i++)
 	{
@@ -842,39 +840,31 @@ bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_m
 	return true;
 }
 
-
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs)
 {
 	edict_t* ent = nullptr;
 	vec3_t area_mins, area_maxs;
-
 	// Calculate the absolute bounds of the area to check
-	VectorAdd(origin, mins, area_mins);
-	VectorAdd(origin, maxs, area_maxs);
-
+	area_mins = origin + mins;
+	area_maxs = origin + maxs;
 	// Expand the area slightly to account for movement
 	for (int i = 0; i < 3; i++)
 	{
 		area_mins[i] -= 26.0f;
 		area_maxs[i] += 26.0f;
 	}
-
 	// Find entities within the area
 	while ((ent = findradius(ent, origin, VectorLength(maxs) + 16.0f)) != nullptr)
 	{
 		if (!ent->inuse)
 			continue;
-
 		if (ent->svflags & SVF_MONSTER)
 			continue;
-
 		if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
 			continue;
-
 		// Check if the entity is actually overlapping with the area
 		if (!EntitiesOverlap(ent, area_mins, area_maxs))
 			continue;
-
 		if (ent->client)
 		{
 			// For players, teleport them to a safe spawn point
@@ -897,8 +887,6 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		}
 	}
 }
-
-
 
 // Define the vector functions if they are not already defined
 // Copy a vector

@@ -1142,28 +1142,23 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr, const edict_t* monster = nullptr) {
 	// Define the bounding box for checking occupation
 	vec3_t mins, maxs;
-
 	// If there is a specific monster, use its bounding box dimensions
 	if (monster) {
-		VectorAdd(spawn_point->s.origin, monster->mins, mins);
-		VectorAdd(spawn_point->s.origin, monster->maxs, maxs);
+		mins = spawn_point->s.origin + monster->mins;
+		maxs = spawn_point->s.origin + monster->maxs;
 	}
 	else {
 		// Default bounding box for player size
-		VectorAdd(spawn_point->s.origin, vec3_t{ -16, -16, -24 }, mins);
-		VectorAdd(spawn_point->s.origin, vec3_t{ 16, 16, 32 }, maxs);
+		mins = spawn_point->s.origin + vec3_t{ -16, -16, -24 };
+		maxs = spawn_point->s.origin + vec3_t{ 16, 16, 32 };
 	}
-
 	// Data structure to hold information for filtering entities
 	FilterData filter_data = { ignore_ent, 0 };
-
 	// Use BoxEdicts to check for any relevant entities in the area
 	gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
-
 	// Return true if we found at least one player or bot in the area
 	return filter_data.count > 0;
 }
-#include <vector>
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
 	if (spawnPointsData[spawn_point].isTemporarilyDisabled || IsSpawnPointOccupied(spawn_point)) {
