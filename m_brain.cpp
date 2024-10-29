@@ -435,66 +435,66 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 
 void brain_tounge_attack(edict_t* self)
 {
-	vec3_t offset, start, f, r, end, dir{};
-	trace_t tr;
+	if (!self || !self->enemy)
+		return;
+
+	constexpr float CLOSE_RANGE = 64.0f;
+	vec3_t offset{ 24, 0, 16 };
 	int damage = 5;
 
 	// Check distance to enemy
 	const float dist = range_to(self, self->enemy);
 
-	// If the enemy is within close range, use the same logic as brain_tounge_attack_continue
-	if (dist <= 64) {
-		VectorSubtract(self->enemy->s.origin, self->s.origin, dir);
-		VectorNormalize(dir);
+	// Close range attack
+	if (dist <= CLOSE_RANGE) {
+		vec3_t dir = (self->enemy->s.origin - self->s.origin).normalized();
 
-		if (M_DamageModifier(self)) {
-			damage *= M_DamageModifier(self);
+		if (float modifier = M_DamageModifier(self); modifier != 1.0f) {
+			damage *= modifier;
 		}
 
 		// Apply damage directly, without knockback
-		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin,
+			damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
 
 		// Heal the brain
 		self->health = std::min(self->health + damage, self->max_health);
 
 		// Pull the enemy in
-		vec3_t forward;
-		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		auto [forward, right, up] = AngleVectors(self->s.angles);
 		self->enemy->velocity = forward * -800;
-
 		return;
 	}
 
-	// Original brain_tounge_attack logic for longer distances
-	AngleVectors(self->s.angles, f, r, nullptr);
-	offset = { 24, 0, 16 };
-	start = M_ProjectFlashSource(self, offset, f, r);
+	// Long range attack
+	auto [f, r, up] = AngleVectors(self->s.angles);
+	vec3_t start = M_ProjectFlashSource(self, offset, f, r);
+	vec3_t end = self->enemy->s.origin;
 
-	if (self && self->enemy)
-	{
+	// Try different vertical positions if initial attack path is blocked
+	if (!brain_tounge_attack_ok(start, end)) {
 		end = self->enemy->s.origin;
-		if (!brain_tounge_attack_ok(start, end))
-		{
-			end[2] = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
-			if (!brain_tounge_attack_ok(start, end))
-			{
-				end[2] = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
-				if (!brain_tounge_attack_ok(start, end))
-					return;
+		end.z = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
+
+		if (!brain_tounge_attack_ok(start, end)) {
+			end.z = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
+
+			if (!brain_tounge_attack_ok(start, end)) {
+				return;
 			}
 		}
 	}
 
-	tr = gi.traceline(start, end, self, MASK_PROJECTILE);
-	if (tr.ent != self->enemy)
+	// Check if we can hit the enemy
+	trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE);
+	if (tr.ent != self->enemy) {
 		return;
+	}
 
-	dir = start - end;
-	//T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage * M_DamageModifier(self), 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+	vec3_t dir = start - end;
 
 	// Pull the enemy in
-	vec3_t forward;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	auto [forward, right, dummy] = AngleVectors(self->s.angles);
 	self->enemy->velocity = forward * -800;
 }
 
@@ -532,8 +532,15 @@ MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_co
 
 void brain_tounge_attack_continue(edict_t* self)
 {
-	// Check if enemy is still valid
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0 || !self->enemy->takedamage)
+	constexpr float ATTACK_RANGE = 64.0f;
+	constexpr int BASE_DAMAGE = 5;
+	constexpr float PULL_FORCE = -800.0f;
+
+	// Early exit if enemy is invalid
+	if (!self->enemy ||
+		!self->enemy->inuse ||
+		self->enemy->health <= 0 ||
+		!self->enemy->takedamage)
 	{
 		M_SetAnimation(self, &brain_move_run);
 		return;
@@ -542,51 +549,46 @@ void brain_tounge_attack_continue(edict_t* self)
 	// Check distance to enemy
 	const float dist = range_to(self, self->enemy);
 
-	// Calculate direction vector
-	vec3_t dir{};
-	VectorSubtract(self->enemy->s.origin, self->s.origin, dir);
-	VectorNormalize(dir);
+	// Handle close range attack
+	if (dist <= ATTACK_RANGE) {
+		// Calculate normalized direction vector using vec3_t operators
+		vec3_t dir = (self->enemy->s.origin - self->s.origin).normalized();
 
-	// Always apply damage if within range, regardless of how close
-	if (dist <= 64) {
-		int damage = 5; // Increased damage to match brain_tounge_attack
-		if (M_DamageModifier(self)) {
-			damage *= M_DamageModifier(self);
+		// Calculate damage with modifier
+		int damage = BASE_DAMAGE;
+		if (float modifier = M_DamageModifier(self); modifier != 1.0f) {
+			damage *= modifier;
 		}
 
 		// Apply damage directly, without knockback
-		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin,
+			vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
 
 		// Heal the brain
 		self->health = std::min(self->health + damage, self->max_health);
 
-		// Update the brain's skin if it has a setskin function
+		// Update visual appearance if possible
 		if (self->monsterinfo.setskin) {
 			self->monsterinfo.setskin(self);
 		}
 
-		// Pull the enemy in
-		vec3_t forward;
-		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-		self->enemy->velocity = forward * -800;
+		// Pull enemy towards brain
+		auto [forward, right, up] = AngleVectors(self->s.angles);
+		self->enemy->velocity = forward * PULL_FORCE;
 
-		// Set the next frame to continue the attack animation
+		// Continue attack animation
 		self->monsterinfo.nextframe = FRAME_attak206;
 	}
-	else
-	{
-		// If we can't reach the enemy, switch to run animation
+	else {
+		// Switch to run animation if enemy is out of range
 		M_SetAnimation(self, &brain_move_run);
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	}
 
-	// Set next attack time (increased frequency for constant damage)
-	self->monsterinfo.attack_finished = level.time + 1_hz; // Attack twice per second
-
-	// Set next think time
+	// Set next attack and think times
+	self->monsterinfo.attack_finished = level.time + 1_hz;
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
-
 
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {

@@ -3904,13 +3904,12 @@ extern cached_soundindex snd_fry;
 extern void OnEntityDeath(const edict_t* ent);
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
-extern void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out);
 extern float VectorLength(const vec3_t v);
 extern void VectorNormalize(vec3_t v);
 extern void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out);
 extern void VectorClear(vec3_t v);
 //extern void VectorLerp(const vec3_t start, const vec3_t end, float t, vec3_t result);
-extern float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
+extern [[nodiscard]] constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);

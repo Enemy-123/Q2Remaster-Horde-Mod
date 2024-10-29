@@ -689,10 +689,7 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 }
 float entdist(const edict_t* ent1, const edict_t* ent2)
 {
-	const vec3_t vec{};
-
-	VectorSubtract(ent1->s.origin, ent2->s.origin, vec);
-	return VectorLength(vec);
+	return (ent1->s.origin - ent2->s.origin).length();
 }
 // **********************
 //  PAIN

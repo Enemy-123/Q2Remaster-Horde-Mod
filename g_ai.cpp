@@ -16,13 +16,9 @@ constexpr float MAX_SIDESTEP = 8.0f;
 // ROGUE
 
 //============================================================================
-// Función auxiliar para calcular la distancia al cuadrado (más eficiente que VectorLength)
-float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
-    vec3_t diff{};
-    VectorSubtract(v1, v2, diff);
-    return diff[0] * diff[0] + diff[1] * diff[1] + diff[2] * diff[2];
+[[nodiscard]] constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
+    return (v1 - v2).lengthSquared();
 }
-
 /*
 =================
 AI_GetSightClient

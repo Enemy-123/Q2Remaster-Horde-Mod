@@ -583,68 +583,72 @@ void runnertankRocket(edict_t* self)
 
 void runnertankPlasmaGun(edict_t* self)
 {
-	bool blindfire = false;
-	vec3_t start;
-	vec3_t dir{};
-	vec3_t forward, right, up;
-	monster_muzzleflash_id_t flash_number;
-
-	if (!self->enemy || !self->enemy->inuse || self->enemy && !visible(self, self->enemy) || self->enemy && infront(self, self->enemy))
+	// Early validation
+	if (!self->enemy ||
+		!self->enemy->inuse ||
+		(self->enemy && !visible(self, self->enemy)) ||
+		(self->enemy && infront(self, self->enemy)))
 		return;
 
-	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
-	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+	constexpr float SPREAD = 0.08f;
+	constexpr float PREDICTION_TIME = 0.2f;
+	constexpr float PROJECTILE_SPEED = 700.0f;
+	constexpr int PLASMA_DAMAGE = 35;
+	constexpr float PLASMA_RADIUS = 40.0f;
 
-	// Calcular la dirección base hacia el enemigo
+	// Calculate flash number based on animation frame
+	const monster_muzzleflash_id_t flash_number =
+		static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
+
+	// Get directional vectors
+	auto [forward, right, up] = AngleVectors(self->s.angles);
+
+	// Calculate firing position
+	const vec3_t start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	// Calculate base target position
 	vec3_t target = self->enemy->s.origin;
-	target[2] += self->enemy->viewheight;
-	VectorSubtract(target, start, dir);
-	VectorNormalize(dir);
+	target.z += self->enemy->viewheight;
 
-	// Calcular el ángulo de dispersión basado en la animación del tanque
+	// Calculate initial direction
+	vec3_t dir = (target - start).normalized();
+
+	// Calculate fan angle based on tank animation
 	float fanAngle;
 	if (self->s.frame <= FRAME_attak415)
-		fanAngle = -20 + (self->s.frame - FRAME_attak406) * 4; // Abanico de -20 a 20 grados
+		fanAngle = -20.0f + (self->s.frame - FRAME_attak406) * 4.0f; // Fan from -20 to 20 degrees
 	else
-		fanAngle = 20 - (self->s.frame - FRAME_attak416) * 4; // Abanico de 20 a -20 grados
+		fanAngle = 20.0f - (self->s.frame - FRAME_attak416) * 4.0f; // Fan from 20 to -20 degrees
 
-	//// Rotar el vector de dirección para crear el efecto de abanico
-	//float sinAngle = sin(DEG2RAD(fanAngle));
-	//float cosAngle = cos(DEG2RAD(fanAngle));
-	//float newX = forward[0] * cosAngle - right[0] * sinAngle;
-	//float newY = forward[1] * cosAngle - right[1] * sinAngle;
-	//float newZ = forward[2] * cosAngle - right[2] * sinAngle;
-	//VectorSet(dir, newX, newY, newZ);
-	VectorNormalize(dir);
+	// Add spread to direction
+	dir += vec3_t{
+		crandom() * SPREAD,
+		crandom() * SPREAD,
+		crandom() * SPREAD
+	};
+	dir.normalize();
 
-	// Añadir una pequeña dispersión aleatoria
-	float spread = 0.08f;
-	dir[0] += crandom() * spread;
-	dir[1] += crandom() * spread;
-	dir[2] += crandom() * spread;
-	VectorNormalize(dir);
-
-	if (blindfire)
-	{
+	// Handle blind fire or predictive aim
+	const bool blindfire = false; // Set based on your conditions
+	if (blindfire && self->monsterinfo.blind_fire_target) {
 		target = self->monsterinfo.blind_fire_target;
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
-	else
-	{
-		// Usamos PredictAim para seguir la trayectoria del enemigo
-		PredictAim(self, self->enemy, start, 640, false, 0.2f, &dir, nullptr);
+	else {
+		// Use PredictAim to track enemy trajectory
+		PredictAim(self, self->enemy, start, PROJECTILE_SPEED, false,
+			PREDICTION_TIME, &dir, nullptr);
 	}
 
-	// Disparar el plasma con la velocidad correcta
-	fire_plasma(self, start, dir, 35, 700, 40, 40);
+	// Fire plasma projectile
+	fire_plasma(self, start, dir, PLASMA_DAMAGE, PROJECTILE_SPEED,
+		PLASMA_RADIUS, PLASMA_RADIUS);
 
-	// Guardar la posición del objetivo para el próximo disparo
-	VectorCopy(self->enemy->s.origin, self->pos1);
-	self->pos1[2] += self->enemy->viewheight;
+	// Store target position for next shot
+	self->pos1 = self->enemy->s.origin;
+	self->pos1.z += self->enemy->viewheight;
 }
-
 static void runnertank_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)

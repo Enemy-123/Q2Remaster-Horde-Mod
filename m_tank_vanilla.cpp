@@ -993,64 +993,52 @@ MMOVE_T(tank_move_spawn) = { FRAME_attak223, FRAME_attak231, tank_frames_spawn, 
 
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 {
-	vec3_t vec{};
-	VectorSubtract(self->enemy->s.origin, self->s.origin, vec);
-	float range = VectorLength(vec);
-	float r = frandom();
-	float chance;
-
-	// Verificar si hay un enemigo válido
-	if (!self->enemy || !self->enemy->inuse)
-	{
+	// Early validation
+	if (!self->enemy || !self->enemy->inuse) {
 		self->monsterinfo.has_spawned_initially = false;
 		self->monsterinfo.spawning_in_progress = false;
 		return;
 	}
 
-	// Verificar si podemos spawnear más monstruos
-	VerifyTankSpawnCount(self);
-	const bool can_spawn = M_SlotsLeft(self) > 0;
+	constexpr float CLOSE_RANGE = 125.0f;
+	constexpr float MID_RANGE = 250.0f;
+	constexpr gtime_t PAIN_IMMUNITY = 5_sec;
 
-	// Verificar visibilidad y camino libre
+	// Get range to enemy
+	const vec3_t to_enemy = self->enemy->s.origin - self->s.origin;
+	const float range = to_enemy.length();
+
+	// Handle monster spawning logic
+	const bool can_spawn = M_SlotsLeft(self) > 0;
 	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
 
-	// Si el tanque tiene 3 o menos monstruos spawneados, hacer que spawnee repetidamente
-	// además de usar un ataque melee en rango cercano (range <= RANGE_MELEE * 2)
 	if (self->monsterinfo.monster_used <= 3 && can_spawn && has_clear_path &&
 		(visible(self, self->enemy) && infront(self, self->enemy) ||
 			range <= RANGE_MELEE * 2))
 	{
-		// Iniciar el proceso de spawneo como ataque melee (golpe al suelo y spawnear monstruos)
-		M_SetAnimation(self, &tank_move_spawn);  // Animación de spawneo y golpe al suelo
+		M_SetAnimation(self, &tank_move_spawn);
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;
 		self->monsterinfo.has_spawned_initially = true;
 		self->monsterinfo.spawning_in_progress = true;
 		return;
 	}
 
-	// Si está en proceso de spawneo, verificar si ha finalizado
-	if (self->monsterinfo.spawning_in_progress)
-	{
+	// Check if still spawning
+	if (self->monsterinfo.spawning_in_progress) {
 		if (level.time >= self->monsterinfo.attack_finished)
-		{
 			self->monsterinfo.spawning_in_progress = false;
-		}
 		else
-		{
-			// Si sigue spawneando, no atacar ahora
 			return;
-		}
 	}
 
-	if (self->enemy->health <= 0)
-	{
+	if (self->enemy->health <= 0) {
 		self->monsterinfo.aiflags &= ~AI_BRUTAL;
 		return;
 	}
-	// PMM
-	if (self->monsterinfo.attack_state == AS_BLIND)
-	{
-		// setup shot probabilities
+
+	// Handle blind fire state
+	if (self->monsterinfo.attack_state == AS_BLIND) {
+		float chance;
 		if (self->monsterinfo.blind_fire_delay < 1_sec)
 			chance = 1.0f;
 		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
@@ -1058,17 +1046,10 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 		else
 			chance = 0.1f;
 
-		r = frandom();
+		if (frandom() > chance || !self->monsterinfo.blind_fire_target)
+			return;
 
 		self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
-
-		// don't shoot at the origin
-		if (!self->monsterinfo.blind_fire_target)
-			return;
-
-		// don't shoot if the dice say not to
-		if (r > chance)
-			return;
 
 		const bool rocket_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 		const bool blaster_visible = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]);
@@ -1078,63 +1059,50 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 
 		const bool use_rocket = (rocket_visible && blaster_visible) ? brandom() : rocket_visible;
 
-		// turn on manual steering to signal both manual steering and blindfire
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
 
 		if (use_rocket)
 			M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
-		else
-		{
+		else {
 			M_SetAnimation(self, &tank_vanilla_move_attack_blast);
 			self->monsterinfo.nextframe = FRAME_attak108;
 		}
 
 		self->monsterinfo.attack_finished = level.time + random_time(3_sec, 5_sec);
-		self->pain_debounce_time = level.time + 5_sec; // no pain for a while
+		self->pain_debounce_time = level.time + PAIN_IMMUNITY;
 		return;
 	}
-	// pmm
 
-	vec = self->enemy->s.origin - self->s.origin;
-	range = vec.length();
+	// Normal attack selection based on range
+	const float r = frandom();
+	const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) &&
+		M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
 
-	r = frandom();
-
-	if (range <= 125)
-	{
-		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
-
+	if (range <= CLOSE_RANGE) {
 		if (can_machinegun && r < 0.5f)
 			M_SetAnimation(self, &tank_vanilla_move_attack_chain);
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
 			M_SetAnimation(self, &tank_vanilla_move_attack_blast);
 	}
-	else if (range <= 250)
-	{
-		const bool can_machinegun = (!self->enemy->classname || strcmp(self->enemy->classname, "tesla_mine")) && M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
-
+	else if (range <= MID_RANGE) {
 		if (can_machinegun && r < 0.25f)
 			M_SetAnimation(self, &tank_vanilla_move_attack_chain);
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
 			M_SetAnimation(self, &tank_vanilla_move_attack_blast);
 	}
-	else
-	{
-		const bool can_machinegun = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_5]);
+	else {
 		const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 
 		if (can_machinegun && r < 0.33f)
 			M_SetAnimation(self, &tank_vanilla_move_attack_chain);
-		else if (can_rocket && r < 0.66f)
-		{
+		else if (can_rocket && r < 0.66f) {
 			M_SetAnimation(self, &tank_vanilla_move_attack_pre_rocket);
-			self->pain_debounce_time = level.time + 5_sec; // no pain for a while
+			self->pain_debounce_time = level.time + PAIN_IMMUNITY;
 		}
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
 			M_SetAnimation(self, &tank_vanilla_move_attack_blast);
 	}
 }
-
 //
 // death
 //

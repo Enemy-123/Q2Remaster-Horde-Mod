@@ -384,108 +384,95 @@ constexpr float GRENADE_SPEED = 760.f;
 
 void hover_vanilla_fire_blaster(edict_t* self)
 {
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
-	if (strcmp(self->classname, "monster_daedalus_bomber") == 0) {
-		vec3_t start;
-		vec3_t forward, right, up;
-		vec3_t end;
-		vec3_t dir{};
-		vec3_t aim{};
-		const float spread = 0.4f;
-		const float pitch = -3.0f;
-		monster_muzzleflash_id_t flash_number{};
+	constexpr float DAEDALUS_SPREAD = 0.4f;
+	constexpr float DAEDALUS_PITCH = -3.0f;
+	constexpr int DAEDALUS_DAMAGE = 40;
+	constexpr int HOVER_DAMAGE = 35;
+	constexpr float RANDOM_ANGLE = 10.0f;
+	constexpr float BASE_FUSE = 200.0f;
 
-		if (!self->enemy || !self->enemy->inuse)
-			return;
+	const bool is_daedalus = (strcmp(self->classname, "monster_daedalus_bomber") == 0);
+	const bool is_left_weapon = (self->s.frame & 1);
+	const monster_muzzleflash_id_t flash_number = is_left_weapon ?
+		(is_daedalus ? MZ2_DAEDALUS_BLASTER_2 : MZ2_HOVER_BLASTER_2) :
+		(is_daedalus ? MZ2_DAEDALUS_BLASTER : MZ2_HOVER_BLASTER_1);
 
-		AngleVectors(self->s.angles, forward, right, up); // Asegúrate de declarar up aquí
-		const vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
-		start = M_ProjectFlashSource(self, o, forward, right);
+	// Calculate firing vectors
+	auto [forward, right, up] = AngleVectors(self->s.angles);
+	const vec3_t offset = monster_flash_offset[is_left_weapon ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
+	const vec3_t start = M_ProjectFlashSource(self, offset, forward, right);
 
-		VectorCopy(self->enemy->s.origin, end);
-		end[2] += self->enemy->viewheight;
-		VectorSubtract(end, start, dir);
-		VectorNormalize(dir);
-
+	if (is_daedalus)
+	{
 		if (self->mass < 200)
 		{
-			monster_fire_blaster(self, start, dir, 3, 1000, (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+			// Light daedalus - uses blaster
+			vec3_t end = self->enemy->s.origin;
+			end.z += self->enemy->viewheight;
+			vec3_t dir = (end - start).normalized();
+
+			monster_fire_blaster(self, start, dir, 3, 1000, flash_number,
+				(self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 		}
 		else
 		{
+			// Heavy daedalus - uses mortar/grenade
+			const float speed = (flash_number >= MZ2_DAEDALUS_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED;
 
-			// mortar fires farther
-			float speed;
-
-			if (flash_number >= MZ2_DAEDALUS_BLASTER_2)
-				speed = MORTAR_SPEED;
-			else
-				speed = GRENADE_SPEED;
-
+			// Determine target based on AI flags
 			vec3_t target;
+			const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING) &&
+				!visible(self, self->enemy);
 
-			bool   blindfire = false;
-
-			// pmm
-			if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
-				blindfire = true;
-
-			if ((blindfire) && (!visible(self, self->enemy)))
-			{
-				// and we have a valid blind_fire_target
-				if (!self->monsterinfo.blind_fire_target)
-					return;
-
+			if (blindfire && self->monsterinfo.blind_fire_target)
 				target = self->monsterinfo.blind_fire_target;
-			}
 			else
 				target = self->enemy->s.origin;
-			// Ajusta la lógica de lanzamiento de granadas para alternar brazos
-			flash_number = (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1;
 
-			VectorCopy(forward, aim);
-			VectorMA(aim, spread, right, aim);
-			VectorMA(aim, pitch, up, aim);
-			VectorNormalize(aim);
+			// Calculate aim vector with spread
+			vec3_t aim = forward;
+			aim += right * DAEDALUS_SPREAD;
+			aim += up * DAEDALUS_PITCH;
+			aim.normalize();
 
-			if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f, (flash_number >= MZ2_DAEDALUS_BLASTER_2 && flash_number <= MZ2_HOVER_BLASTER_1)))
-			monster_fire_grenade(self, start, aim, 30, (flash_number == MZ2_DAEDALUS_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED, flash_number, 10.0f, 7.0f);
+			if (M_CalculatePitchToFire(self, target, start, aim, speed, 2.5f,
+				(flash_number >= MZ2_DAEDALUS_BLASTER_2 && flash_number <= MZ2_HOVER_BLASTER_1)))
+			{
+				// Calculated shot
+				monster_fire_grenade(self, start, aim, 30, speed, flash_number, 10.0f, 7.0f);
+			}
 			else
-				// normal shot
-				monster_fire_grenade(self, start, aim, !strcmp(self->classname, "monster_daedalus_bomber") ? 40 : 35, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+			{
+				// Normal shot
+				const int damage = is_daedalus ? DAEDALUS_DAMAGE : HOVER_DAMAGE;
+				monster_fire_grenade(self, start, aim, damage, speed, flash_number,
+					crandom_open() * RANDOM_ANGLE,
+					BASE_FUSE + (crandom_open() * RANDOM_ANGLE));
+			}
 		}
 	}
-
 	else
 	{
-		vec3_t	  start;
-		vec3_t	  forward, right;
-		vec3_t	  end;
-		vec3_t	  dir;
+		// Regular hover - uses blaster
+		vec3_t end = self->enemy->s.origin;
+		end.z += self->enemy->viewheight;
+		vec3_t dir = (end - start).normalized();
 
-		if (!self->enemy || !self->enemy->inuse) // PGM
-			return;								 // PGM
-
-		AngleVectors(self->s.angles, forward, right, nullptr);
-		const vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
-		start = M_ProjectFlashSource(self, o, forward, right);
-
-		end = self->enemy->s.origin;
-		end[2] += self->enemy->viewheight;
-		dir = end - start;
-		dir.normalize();
-
-		// PGM	- daedalus fires blaster2
 		if (self->mass < 200)
-			monster_fire_blaster(self, start, dir, 1, 1000, (self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+		{
+			monster_fire_blaster(self, start, dir, 1, 1000, flash_number,
+				(self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+		}
 		else
-			monster_fire_blaster2(self, start, dir, 1, 1000, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
-		// PGM
+		{
+			monster_fire_blaster2(self, start, dir, 1, 1000, flash_number,
+				(self->s.frame % 4) ? EF_NONE : EF_BLASTER);
+		}
 	}
-
-
 }
-
 
 
 MONSTERINFO_STAND(hover_vanilla_stand) (edict_t* self) -> void

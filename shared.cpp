@@ -660,35 +660,34 @@ void TeleportEntity(edict_t* ent, edict_t* dest)
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 
-void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength) {
+void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
+	float push_radius, float push_strength,
+	float horizontal_push_strength, float vertical_push_strength)
+{
 	gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
 
-	constexpr int max_attempts = 5;
+	constexpr int MAX_ATTEMPTS = 5;
 	std::vector<edict_t*> stubborn_entities;
-	std::vector<edict_t*> entities_to_process; // Lista principal de entidades a procesar
-	std::vector<edict_t*> entities_to_remove;  // Lista específica para entidades a eliminar
+	std::vector<edict_t*> entities_to_process;
+	std::vector<edict_t*> entities_to_remove;
 
-	// Reservar memoria anticipadamente
+	// Pre-reserve vectors to avoid reallocations
 	stubborn_entities.reserve(MAX_EDICTS);
 	entities_to_process.reserve(MAX_EDICTS);
 	entities_to_remove.reserve(MAX_EDICTS);
 
-	// Primera pasada: recolectar todas las entidades en el radio
-	edict_t* ent = nullptr;
-	while ((ent = findradius(ent, center, push_radius)) != nullptr) {
+	// Collect entities in radius
+	for (edict_t* ent = nullptr; (ent = findradius(ent, center, push_radius)) != nullptr;) {
 		if (!ent || !ent->inuse)
 			continue;
 
-		// Separar inmediatamente las entidades removibles
-		if (IsRemovableEntity(ent)) {
+		if (IsRemovableEntity(ent))
 			entities_to_remove.push_back(ent);
-		}
-		else if (ent->takedamage && ent->s.origin) {
+		else if (ent->takedamage && ent->s.origin)
 			entities_to_process.push_back(ent);
-		}
 	}
 
-	// Primero, manejar las entidades removibles
+	// Handle removable entities first
 	for (auto* remove_ent : entities_to_remove) {
 		if (remove_ent && remove_ent->inuse) {
 			RemoveEntity(remove_ent);
@@ -698,14 +697,13 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	}
 	entities_to_remove.clear();
 
-	// Procesar las olas
+	// Process waves
 	for (int wave = 0; wave < num_waves; wave++) {
-		const float size = std::max(push_radius * (1.0f - static_cast<float>(wave) / num_waves), 0.030f);
-		const float end_size = size * 0.3f;
+		const float wave_progress = static_cast<float>(wave) / num_waves;
+		const float size = std::max(push_radius * (1.0f - wave_progress), 0.030f);
+		SpawnGrow_Spawn(center, size, size * 0.3f);
 
-		SpawnGrow_Spawn(center, size, end_size);
-
-		// Procesar entidades normales
+		// Process normal entities
 		for (auto it = entities_to_process.begin(); it != entities_to_process.end();) {
 			auto* entity = *it;
 
@@ -714,7 +712,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 				continue;
 			}
 
-			// Verificar nuevamente si la entidad se volvió removible
 			if (IsRemovableEntity(entity)) {
 				RemoveEntity(entity);
 				gi.Com_PrintFmt("PRINT: Entity {} became removable and was eliminated.\n",
@@ -724,45 +721,45 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			}
 
 			bool pushed = false;
-			for (int attempt = 0; attempt < max_attempts && !pushed; attempt++) {
-				vec3_t push_dir{};
-				VectorSubtract(entity->s.origin, center, push_dir);
-				const float distance = VectorLength(push_dir);
+			for (int attempt = 0; attempt < MAX_ATTEMPTS && !pushed; attempt++) {
+				// Calculate push direction
+				vec3_t push_dir = entity->s.origin - center;
+				const float distance = push_dir.length();
 
 				if (distance > 0.1f) {
-					VectorNormalize(push_dir);
+					push_dir.normalize();
 				}
 				else {
-					push_dir[0] = crandom();
-					push_dir[1] = crandom();
-					push_dir[2] = 0;
-					VectorNormalize(push_dir);
+					push_dir = vec3_t{ crandom(), crandom(), 0 }.normalized();
 				}
 
-				float wave_push_strength = push_strength * (1.0f - distance / size);
-				wave_push_strength *= sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-				wave_push_strength = std::min(wave_push_strength, 1000.0f);
-				wave_push_strength *= (1.0f + attempt * 0.5f);
+				// Calculate push strength
+				const float distance_factor = 1.0f - distance / size;
+				float wave_push_strength = push_strength * distance_factor;
+				wave_push_strength *= sinf(DEG2RAD(90.0f * distance_factor));
+				wave_push_strength = std::min(wave_push_strength * (1.0f + attempt * 0.5f), 1000.0f);
 
-				vec3_t new_pos{};
-				VectorMA(entity->s.origin, wave_push_strength / 700, push_dir, new_pos);
-
-				const trace_t tr = gi.trace(entity->s.origin, entity->mins, entity->maxs, new_pos, entity, MASK_SOLID);
+				// Calculate new position
+				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / 700));
+				const trace_t tr = gi.trace(entity->s.origin, entity->mins, entity->maxs,
+					new_pos, entity, MASK_SOLID);
 
 				if (!tr.allsolid && !tr.startsolid) {
-					vec3_t final_velocity;
-					VectorScale(push_dir, tr.fraction < 1.0f ? tr.fraction * wave_push_strength : wave_push_strength, final_velocity);
+					// Calculate final velocity
+					const float tr_scale = tr.fraction < 1.0f ? tr.fraction : 1.0f;
+					vec3_t final_velocity = push_dir * (wave_push_strength * tr_scale);
 
-					float horizontal_factor = sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
-					final_velocity[0] += push_dir[0] * horizontal_push_strength * horizontal_factor;
-					final_velocity[1] += push_dir[1] * horizontal_push_strength * horizontal_factor;
-					final_velocity[2] += vertical_push_strength * sinf(DEG2RAD(90.0f * (1.0f - distance / size)));
+					// Add horizontal and vertical components
+					const float horizontal_factor = sinf(DEG2RAD(90.0f * distance_factor));
+					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor);
+					final_velocity.z += vertical_push_strength * sinf(DEG2RAD(90.0f * distance_factor));
 
-					VectorCopy(final_velocity, entity->velocity);
+					// Apply velocity
+					entity->velocity = final_velocity;
 					entity->groundentity = nullptr;
 
 					if (entity->client) {
-						VectorCopy(entity->velocity, entity->client->oldvelocity);
+						entity->client->oldvelocity = entity->velocity;
 						entity->client->oldgroundentity = entity->groundentity;
 					}
 
@@ -775,7 +772,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			if (!pushed) {
 				stubborn_entities.push_back(entity);
 				gi.Com_PrintFmt("PRINT: Entity {} at {} could not be moved after {} attempts.\n",
-					entity->classname ? entity->classname : "unknown", entity->s.origin, max_attempts);
+					entity->classname ? entity->classname : "unknown", entity->s.origin, MAX_ATTEMPTS);
 			}
 
 			++it;
@@ -786,14 +783,13 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		}
 	}
 
-	// Manejar entidades tercas
+	// Handle stubborn entities
 	for (auto* stubborn_ent : stubborn_entities) {
 		if (!stubborn_ent || !stubborn_ent->inuse)
 			continue;
 
 		if (stubborn_ent->client) {
-			edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent);
-			if (spawn_point) {
+			if (edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent)) {
 				TeleportEntity(stubborn_ent, spawn_point);
 				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point.\n",
 					stubborn_ent->client->pers.netname);
@@ -803,19 +799,15 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 					stubborn_ent->client->pers.netname);
 			}
 		}
+		else if (IsRemovableEntity(stubborn_ent)) {
+			RemoveEntity(stubborn_ent);
+			gi.Com_PrintFmt("PRINT: Stubborn removable entity {} eliminated.\n",
+				stubborn_ent->classname ? stubborn_ent->classname : "unknown");
+		}
 		else {
-			// Verificar una última vez si la entidad es removible
-			if (IsRemovableEntity(stubborn_ent)) {
-				RemoveEntity(stubborn_ent);
-				gi.Com_PrintFmt("PRINT: Stubborn removable entity {} eliminated.\n",
-					stubborn_ent->classname ? stubborn_ent->classname : "unknown");
-			}
-			else {
-				// Para entidades no removibles que siguen siendo tercas
-				RemoveEntity(stubborn_ent);
-				gi.Com_PrintFmt("PRINT: Stubborn non-player entity {} removed.\n",
-					stubborn_ent->classname ? stubborn_ent->classname : "unknown");
-			}
+			RemoveEntity(stubborn_ent);
+			gi.Com_PrintFmt("PRINT: Stubborn non-player entity {} removed.\n",
+				stubborn_ent->classname ? stubborn_ent->classname : "unknown");
 		}
 	}
 
@@ -894,13 +886,6 @@ inline void InlineVectorCopy(const vec3_t& src, vec3_t& dest) {
 	dest[0] = src[0];
 	dest[1] = src[1];
 	dest[2] = src[2];
-}
-
-// Subtracts two vectors
-void VectorSubtract(const vec3_t veca, const vec3_t vecb, vec3_t out) {
-	out[0] = veca[0] - vecb[0];
-	out[1] = veca[1] - vecb[1];
-	out[2] = veca[2] - vecb[2];
 }
 
 // Returns the length of a vector
