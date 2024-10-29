@@ -300,7 +300,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 
 		// Aumentar la probabilidad de strafing si el enemigo está disparando
 		if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-			strafe_chance += 0.2f;
+			strafe_chance += 0.38f;
 
 		// Aumentar la probabilidad de strafing si el runnertank tiene poca salud
 		if (self->health < self->max_health * 0.5f)
@@ -314,7 +314,7 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 			// Aplicar el movimiento de strafe
 			vec3_t right, strafe_vel;
 			AngleVectors(self->s.angles, nullptr, right, nullptr);
-			const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
+			const float strafe_speed = 200 + (frandom() * 150);  // Velocidad de strafe variable y aumentada
 
 			VectorScale(right, self->monsterinfo.lefty ? -strafe_speed : strafe_speed, strafe_vel);
 
@@ -611,7 +611,7 @@ void runnertankPlasmaGun(edict_t* self)
 	vec3_t forward, right, up;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse || self->enemy && !visible(self, self->enemy))
+	if (!self->enemy || !self->enemy->inuse || self->enemy && !visible(self, self->enemy) || self->enemy && infront(self, self->enemy))
 		return;
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
@@ -656,7 +656,7 @@ void runnertankPlasmaGun(edict_t* self)
 	else
 	{
 		// Usamos PredictAim para seguir la trayectoria del enemigo
-		PredictAim(self, self->enemy, start, 700, false, 0.2f, &dir, nullptr);
+		PredictAim(self, self->enemy, start, 640, false, 0.2f, &dir, nullptr);
 	}
 
 	// Disparar el plasma con la velocidad correcta
@@ -1217,7 +1217,7 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 	// Aplicar un impulso lateral más fuerte
 	vec3_t right, strafe_vel;
 	AngleVectors(self->s.angles, nullptr, right, nullptr);
-	const float strafe_speed = 300 + (frandom() * 200);  // Consistente con runnertank_run
+	const float strafe_speed = 200 + (frandom() * 150);  // Consistente con runnertank_run
 
 	if (self->monsterinfo.lefty)
 		VectorScale(right, -strafe_speed, strafe_vel);
