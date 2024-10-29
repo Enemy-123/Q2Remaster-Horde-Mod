@@ -886,11 +886,3 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		}
 	}
 }
-#include <cmath>
-
-#ifdef __SSE__
-#include <xmmintrin.h>  // SSE
-#endif
-#ifdef __SSE2__
-#include <emmintrin.h>  // SSE2
-#endif

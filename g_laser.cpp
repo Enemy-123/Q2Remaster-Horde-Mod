@@ -363,7 +363,7 @@ void create_laser(edict_t* ent) {
     forward = fwd;
     right = rgt;
 
-    vec3_t offset{ 0, 8, ent->viewheight - 8 };
+    vec3_t offset{ 0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f };
     vec3_t start = G_ProjectSource(ent->s.origin, offset, forward, right);
     vec3_t end = start + forward * 64;
 

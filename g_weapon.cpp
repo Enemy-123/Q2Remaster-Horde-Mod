@@ -598,10 +598,8 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 {
 	vec3_t origin;
 	mod_t mod;
-
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
-
 	if (other)
 	{
 		vec3_t dir = other->s.origin - ent->s.origin;
@@ -611,7 +609,6 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 			mod = MOD_GRENADE;
 		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal, ent->dmg, ent->dmg, mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_RADIUS, mod);
 	}
-
 	if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD))
 		mod = MOD_HELD_GRENADE;
 	else if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
@@ -619,7 +616,6 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 	else
 		mod = MOD_G_SPLASH;
 	T_RadiusDamage(ent, ent->owner, (float)ent->dmg, other, ent->dmg_radius, DAMAGE_NONE, mod);
-
 	origin = ent->s.origin + normal;
 	gi.WriteByte(svc_temp_entity);
 	if (ent->waterlevel)
@@ -638,7 +634,6 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 	}
 	gi.WritePosition(origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
-
 	if (ent->count > 0)
 	{
 		if (ent->groundentity)
@@ -648,9 +643,8 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 			dir[1] = crandom() * 360;
 			dir[2] = crandom() * 360;
 			AngleVectors(dir, ent->velocity, nullptr, nullptr);
-			VectorScale(ent->velocity, 1.4f, ent->velocity);
+			ent->velocity *= 1.4f; // Reemplazamos VectorScale con el operador *=
 		}
-
 		const float min_dmg = ent->original_dmg * 0.30f;
 		if (ent->dmg > min_dmg)
 		{
@@ -660,7 +654,6 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 				ent->dmg = min_dmg;
 			}
 		}
-
 		ent->count--;
 		ent->nextthink = level.time + 1.0_sec;
 	}
@@ -669,7 +662,6 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 		G_FreeEdict(ent);
 	}
 }
-
 // THINK sin argumentos adicionales para explotar la granada
 THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 {
