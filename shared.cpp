@@ -165,7 +165,7 @@ std::string GetDisplayName(const edict_t* ent)
 	static const std::unordered_map<std::string, std::string> name_replacements = {
 		{ "monster_soldier_light", "Blaster Guard" },
 		{ "monster_soldier_ss", "SS Guard" },
-		{ "monster_soldier", "Guard" },
+		{ "monster_soldier", "SG Guard" },
 		{ "monster_soldier_hypergun", "Hyper Guard" },
 		{ "monster_soldier_lasergun", "Laser Guard" },
 		{ "monster_soldier_ripper", "Ripper Guard" },
