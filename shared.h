@@ -53,6 +53,4 @@ struct PlayerStats {
     edict_t* player;
     int total_damage;
 };
-
-extern inline float VectorDistance(const vec3_t& v1, const vec3_t& v2);
 #endif // SHARED_H

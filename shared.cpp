@@ -597,27 +597,27 @@ void TeleportEntity(edict_t* ent, edict_t* dest)
 	gi.WritePosition(ent->s.origin);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
-	// Move entity
-	VectorCopy(dest->s.origin, ent->s.origin);
-	ent->s.origin[2] += 10; // Slightly above the ground
+	// Move entity - usando asignación directa de vec3_t
+	ent->s.origin = dest->s.origin;
+	ent->s.origin.z += 10; // Slightly above the ground
 
-	// Reset velocity
-	VectorClear(ent->velocity);
+	// Reset velocity - usando vec3_origin en lugar de VectorClear
+	ent->velocity = vec3_origin;
 
 	// Handle client-specific updates
 	if (ent->client)
 	{
 		// Hold time to prevent immediate movement
-		ent->client->ps.pmove.pm_time = 160; // Hold time (in milliseconds)
+		ent->client->ps.pmove.pm_time = 160;
 		ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
 
 		// Teleport event for visual effect
 		ent->s.event = EV_PLAYER_TELEPORT;
 
-		// Set view angles
-		VectorCopy(dest->s.angles, ent->s.angles);
-		VectorCopy(dest->s.angles, ent->client->ps.viewangles);
-		VectorCopy(dest->s.angles, ent->client->v_angle);
+		// Set view angles - usando asignación directa de vec3_t
+		ent->s.angles = dest->s.angles;
+		ent->client->ps.viewangles = dest->s.angles;
+		ent->client->v_angle = dest->s.angles;
 
 		// Update delta_angles to prevent view snapping
 		for (int i = 0; i < 3; i++)
@@ -632,13 +632,13 @@ void TeleportEntity(edict_t* ent, edict_t* dest)
 			ent->client->ps.pmove.origin[i] = static_cast<int16_t>(ent->s.origin[i] * 8.0f);
 		}
 
-		// Clear pmove velocity
-		VectorClear(ent->client->ps.pmove.velocity);
+		// Clear pmove velocity - usando vec3_origin
+		ent->client->ps.pmove.velocity = vec3_origin;
 	}
 	else
 	{
-		// For non-player entities, set angles
-		VectorCopy(dest->s.angles, ent->s.angles);
+		// For non-player entities, set angles - usando asignación directa
+		ent->s.angles = dest->s.angles;
 	}
 
 	// Unlink and relink entity to update position
@@ -654,7 +654,6 @@ void TeleportEntity(edict_t* ent, edict_t* dest)
 	gi.WritePosition(ent->s.origin);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 }
-
 
 //constexpr spawnflags_t SPAWNFLAG_LAVABALL_NO_EXPLODE = 1_spawnflag;
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
@@ -903,11 +902,6 @@ void VectorNormalize(vec3_t v) {
 		v[2] *= ilength;
 	}
 }
-void VectorClear(vec3_t v) {
-	v[0] = 0;
-	v[1] = 0;
-	v[2] = 0;
-}
 
 #include <cmath>
 
@@ -917,11 +911,3 @@ void VectorClear(vec3_t v) {
 #ifdef __SSE2__
 #include <emmintrin.h>  // SSE2
 #endif
-
-// Versión estándar optimizada sin SIMD
-inline float VectorDistance(const vec3_t& v1, const vec3_t& v2) {
-	const float dx = v1[0] - v2[0];
-	const float dy = v1[1] - v2[1];
-	const float dz = v1[2] - v2[2];
-	return std::sqrt(dx * dx + dy * dy + dz * dz);
-}
