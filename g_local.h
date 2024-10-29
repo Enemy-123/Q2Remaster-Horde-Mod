@@ -3906,7 +3906,6 @@ extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
 extern float VectorLength(const vec3_t v);
 extern void VectorNormalize(vec3_t v);
-extern void VectorMA(const vec3_t veca, float scale, const vec3_t vecb, vec3_t out);
 extern void VectorClear(vec3_t v);
 //extern void VectorLerp(const vec3_t start, const vec3_t end, float t, vec3_t result);
 extern [[nodiscard]] constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);

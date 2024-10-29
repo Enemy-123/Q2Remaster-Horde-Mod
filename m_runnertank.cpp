@@ -1138,54 +1138,57 @@ float AngleDifference(float angle1, float angle2) {
 
 bool runnertank_check_wall(edict_t* self, float dist)
 {
-	constexpr float WALL_CHECK_DISTANCE_OFFSET = 10.0f;
-	constexpr float MAX_TURN_ANGLE = 90.0f;
-	constexpr float VELOCITY_SCALE_FACTOR = 0.8f;
-	constexpr float MAX_YAW_CHANGE = 30.0f; // Grados por frame
+	static constexpr float WALL_CHECK_DISTANCE_OFFSET = 10.0f;
+	static constexpr float MAX_TURN_ANGLE = 90.0f;
+	static constexpr float VELOCITY_SCALE_FACTOR = 0.8f;
+	static constexpr float MAX_YAW_CHANGE = 30.0f; // Grados por frame
 
-	vec3_t forward, right, up;
-	vec3_t check_point{}, wall_normal;
-	trace_t tr;
+	// Obtener los vectores de dirección usando destructuring
+	auto [forward, right, up] = AngleVectors(self->s.angles);
 
-	AngleVectors(self->s.angles, forward, right, up);
-	VectorMA(self->s.origin, dist + WALL_CHECK_DISTANCE_OFFSET, forward, check_point);
+	// Calcular el punto de verificación usando operadores de vec3_t
+	vec3_t check_point = self->s.origin + (forward * (dist + WALL_CHECK_DISTANCE_OFFSET));
 
-	tr = gi.trace(self->s.origin, self->mins, self->maxs, check_point, self, MASK_MONSTERSOLID);
+	// Realizar el trace
+	trace_t tr = gi.trace(self->s.origin, self->mins, self->maxs, check_point, self, MASK_MONSTERSOLID);
 
 	if (tr.fraction < 1.0f) {
-		VectorCopy(tr.plane.normal, wall_normal);
+		// Usar la normal del plano directamente
+		const vec3_t& wall_normal = tr.plane.normal;
 
-		// Utilizar la función DotProduct definida
-		const float dot = DotProduct(forward, wall_normal);
+		// Usar el método dot() de vec3_t en lugar de DotProduct
+		const float dot = forward.dot(wall_normal);
 
-		// Calcular el factor de giro basado en el ángulo entre forward y wall_normal
-		const float angle_between = 1.0f - (acosf(fabs(dot)) / (PI / 2)); // Normalizado entre 0 y 1
+		// Calcular el factor de giro basado en el ángulo
+		const float angle_between = 1.0f - (acosf(std::abs(dot)) / (PIf / 2)); // Normalizado entre 0 y 1
 		const float turn_angle = MAX_TURN_ANGLE * angle_between;
 
-		// Logging
-		gi.Com_PrintFmt_("PRINT: runnertank_check_wall: dot={.2f}, angle_between={%.2f}, turn_angle={%.2f}", dot, angle_between, turn_angle);
+		// Logging con valores formateados
+		gi.Com_PrintFmt_("PRINT: runnertank_check_wall: dot={.2f}, angle_between={%.2f}, turn_angle={%.2f}",
+			dot, angle_between, turn_angle);
 
-		// Ajustar ideal_yaw con un límite para suavizar el giro
+		// Calcular nuevo yaw con límites para suavizar el giro
 		float new_yaw = self->s.angles[YAW] + (dot < 0 ? turn_angle : -turn_angle);
 		float yaw_difference = AngleDifference(new_yaw, self->ideal_yaw);
-		if (fabs(yaw_difference) > MAX_YAW_CHANGE) {
+
+		if (std::abs(yaw_difference) > MAX_YAW_CHANGE) {
 			new_yaw = self->s.angles[YAW] + (yaw_difference > 0 ? MAX_YAW_CHANGE : -MAX_YAW_CHANGE);
 		}
+
+		// Actualizar ideal_yaw
 		self->ideal_yaw = anglemod(new_yaw);
 
-		// Cambiar el yaw de manera suave
+		// Actualizar orientación
 		M_ChangeYaw(self);
 
-		// Reducir la velocidad de manera proporcional a la proximidad
-		const float speed_factor = tr.fraction; // Cuanto más cerca, menor velocidad
-		VectorScale(self->velocity, speed_factor * VELOCITY_SCALE_FACTOR, self->velocity);
+		// Ajustar velocidad usando operadores de vec3_t
+		self->velocity = self->velocity * (tr.fraction * VELOCITY_SCALE_FACTOR);
 
 		return true;
 	}
 
 	return false;
 }
-
 
 MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {

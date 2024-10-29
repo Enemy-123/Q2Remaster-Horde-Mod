@@ -180,27 +180,24 @@ THINK(sentrygun_timeout)(edict_t* self) -> void
 bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
 	edict_t* turret;
-	vec3_t forward, right, up, end{}, new_start;
-	trace_t tr;
-	vec3_t mins = { -16, -16, -24 };
-	vec3_t maxs = { 16, 16, 32 };
+	const vec3_t mins{ -16, -16, -24 };
+	const vec3_t maxs{ 16, 16, 32 };
 
 	// Convert aimdir to angles and get direction vectors
-	vec3_t dir = vectoangles(aimdir);
-	AngleVectors(dir, forward, right, up);
+	auto dir = vectoangles(aimdir);
+	auto [forward, right, up] = AngleVectors(dir);
 
-	// Calculate the end point of the trace
-	VectorMA(start, distance, forward, end);
+	// Calculate the end point of the trace using vector operations
+	vec3_t end = start + (forward * distance);
 
 	// Perform a trace to check for wall collision and other entities
-	tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+	trace_t tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	VectorCopy(tr.endpos, new_start);
+	// Calculate new position with height offset
+	vec3_t new_start = tr.endpos;
+	new_start.z += height;  // Direct vector component access
 
-	// Add height to the new origin
-	new_start[2] += height;
-
-	// Ensure the position is valid and does not intersect with other entities
+	// Ensure the position is valid
 	tr = gi.trace(new_start, mins, maxs, new_start, nullptr, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 	if (tr.startsolid || tr.allsolid)
 	{
@@ -211,28 +208,24 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	// Create and configure the turret
 	turret = G_Spawn();
 	turret->classname = "monster_sentrygun";
-	VectorCopy(new_start, turret->s.origin);
-	VectorCopy(dir, turret->s.angles);
+	turret->s.origin = new_start;  // Direct vector assignment
+	turret->s.angles = dir;        // Direct vector assignment
 	turret->movetype = MOVETYPE_BOUNCE;
 	turret->s.renderfx |= RF_IR_VISIBLE;
-	turret->s.angles[PITCH] = 0;
-	turret->mins[0] = -16;
-	turret->mins[1] = -16;
-	turret->mins[2] = -24;
-	turret->maxs[0] = 16;
-	turret->maxs[1] = 16;
-	turret->maxs[2] = 32;
+	turret->s.angles[PITCH] = 0;   // Using operator[] for single component
+	turret->mins = mins;           // Direct vector assignment
+	turret->maxs = maxs;           // Direct vector assignment
 	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
 	turret->die = sentrygun_die;
-	turret->die = sentrygun_die;
 	turret->takedamage = true;
-	turret->owner = ent;  // Set the owner
+	turret->owner = ent;
 
 	// [Paril-KEX]
 	if (!G_ShouldPlayersCollide(true)) {
 		turret->clipmask &= ~CONTENTS_PLAYER;
 	}
-	// Asigna el equipo como una cadena de caracteres
+
+	// Assign team as string
 	if (ent->client->resp.ctf_team == CTF_TEAM1) {
 		turret->team = TEAM1;
 	}
@@ -240,16 +233,14 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 		turret->team = TEAM2;
 	}
 	else {
-		turret->team = "neutral"; // O cualquier valor por defecto que quieras
+		turret->team = "neutral";
 	}
 
-	// Initialize and link the turret in the game
+	// Initialize and link the turret
 	ED_CallSpawn(turret);
 	gi.linkentity(turret);
-
 	return true;
 }
-
 
 void Tag_GameInit();
 void Tag_PostInitSetup();
