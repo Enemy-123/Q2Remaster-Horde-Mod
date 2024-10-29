@@ -1583,15 +1583,21 @@ static void StartFadeOut(edict_t* ent) {
 void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
 	for (auto ent : active_or_dead_monsters()) {
-		// Detectar específicamente el cuerpo de Widow2
+		// Detectar específicamente el cuerpo de Widow2 y skulls
 		bool is_widow2_corpse = (ent->s.modelindex == gi.modelindex("models/monsters/blackwidow2/tris.md2") &&
 			ent->movetype == MOVETYPE_TOSS);
 
-		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0 || is_widow2_corpse) {
+		bool is_skull = (ent->s.modelindex == gi.modelindex("models/objects/gibs/head/tris.md2") ||
+			ent->s.modelindex == gi.modelindex("models/objects/gibs/head2/tris.md2") ||
+			ent->s.modelindex == gi.modelindex("models/objects/gibs/skull/tris.md2")) &&
+			(ent->movetype == MOVETYPE_BOUNCE);
+
+		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0 || is_widow2_corpse || is_skull) {
 			// No procesar si ya está en fade
 			if (ent->is_fading_out) {
 				continue;
 			}
+
 			// Manejar jefes si es necesario
 			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				BossDeathHandler(ent);
@@ -1599,15 +1605,18 @@ void Horde_CleanBodies() {
 			else {
 				OnEntityDeath(ent);
 			}
+
 			// Eliminar de auto_spawned_bosses si es necesario
 			auto_spawned_bosses.erase(ent);
+
 			// Iniciar el fade out
 			StartFadeOut(ent);
 			cleaned_count++;
 		}
 	}
+
 	if (cleaned_count > 0) {
-		gi.Com_PrintFmt("PRINT: Marked {} monster bodies for fade out\n", cleaned_count);
+		gi.Com_PrintFmt("PRINT: Marked {} monster bodies and heads for fade out\n", cleaned_count);
 	}
 }
 // spawning boss origin
