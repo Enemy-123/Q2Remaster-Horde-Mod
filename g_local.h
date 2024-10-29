@@ -3417,6 +3417,7 @@ struct edict_t
 	gtime_t spawn_time;
 	BossSizeCategory bossSizeCategory;
 	bool effects_applied = false;
+	bool is_fading_out = false; // corpse cleaning management
 	//	gtime_t	regentime = 0.25_sec;
 };
 #define TEAM1 "team1"

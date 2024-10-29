@@ -735,7 +735,7 @@ void G_SetCoopStats(edict_t* ent) {
 	// Game timer with horde mode support
 	if (sv_wave_timer->integer)
 	{
-		int t;
+		int t{};
 
 		// Horde mode timer
 		if (g_horde->integer) {

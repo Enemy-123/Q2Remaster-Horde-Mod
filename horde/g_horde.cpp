@@ -586,7 +586,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	CheckAndApplyBenefit(lvl);
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
-	Horde_CleanBodies();
+	//Horde_CleanBodies();
 
 	gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
 }
@@ -1534,11 +1534,14 @@ THINK(fade_out_think)(edict_t* self) -> void {
 	// Si el monstruo está vivo, restaurar su estado
 	if (self->health > 0 && !self->deadflag) {
 		CheckAndRestoreMonsterAlpha(self);
-		self->think = monster_think; // Restaurar el think normal del monstruo
+		self->think = monster_think;
 		self->nextthink = level.time + FRAME_TIME_MS;
+		self->is_fading_out = false;  // Usar bool
 		return;
 	}
+
 	if (level.time >= self->timestamp) {
+		self->is_fading_out = false;  // Limpiar el bool antes de liberar
 		G_FreeEdict(self);
 		return;
 	}
@@ -1550,10 +1553,10 @@ THINK(fade_out_think)(edict_t* self) -> void {
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+
 static void StartFadeOut(edict_t* ent) {
-	// No iniciar fade out si el monstruo está vivo
-	if (ent->health > 0 && !ent->deadflag) {
-		CheckAndRestoreMonsterAlpha(ent);
+	// No iniciar fade out si el monstruo está vivo o ya está en fade
+	if (ent->health > 0 && !ent->deadflag || ent->is_fading_out) {
 		return;
 	}
 
@@ -1566,6 +1569,9 @@ static void StartFadeOut(edict_t* ent) {
 	ent->think = fade_out_think;
 	ent->nextthink = level.time + FRAME_TIME_MS;
 
+	// Marcar que está en proceso de fade
+	ent->is_fading_out = true;
+
 	// Configurar estados
 	ent->solid = SOLID_NOT;
 	ent->movetype = MOVETYPE_NONE;
@@ -1577,12 +1583,16 @@ static void StartFadeOut(edict_t* ent) {
 	gi.linkentity(ent);
 }
 
-
 void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
 
 	for (auto ent : active_or_dead_monsters()) {
 		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
+			// No procesar si ya está en fade
+			if (ent->is_fading_out) {
+				continue;
+			}
+
 			// Manejar jefes si es necesario
 			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				BossDeathHandler(ent);
@@ -1596,7 +1606,6 @@ void Horde_CleanBodies() {
 
 			// Iniciar el fade out
 			StartFadeOut(ent);
-
 			cleaned_count++;
 		}
 	}
