@@ -663,7 +663,7 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	}
 	else if (style.has_blaster())
 	{
-		monster_fire_blaster(self, start, aim, 5, 600, flash_index, EF_BLASTER);
+		monster_fire_blaster(self, start, aim, first3waves ? 5 : 8, first3waves ? 600 : 1200, flash_index, EF_BLASTER);
 	}
 	else if (style.has_shotgun())
 	{
@@ -2032,7 +2032,7 @@ void SP_monster_soldier_light(edict_t* self)
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 32 * st.health_multiplier;
+	self->health = self->max_health = 38 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire

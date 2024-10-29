@@ -1059,12 +1059,12 @@ ConfigStringManager configStringManager;
 std::string GetDisplayName(const std::string& classname) {
 	static const std::unordered_map<std::string, std::string> name_replacements = {
 		// Lista de reemplazos de nombre
-		{ "monster_soldier_light", "Light Soldier" },
-		{ "monster_soldier_ss", "SS Soldier" },
-		{ "monster_soldier", "Soldier" },
-		{ "monster_soldier_hypergun", "Hyper Soldier" },
-		{ "monster_soldier_lasergun", "Laser Soldier" },
-		{ "monster_soldier_ripper", "Ripper Soldier" },
+		{ "monster_soldier_light", "Blaster Guard" },
+		{ "monster_soldier_ss", "SS Guard" },
+		{ "monster_soldier", "Guard" },
+		{ "monster_soldier_hypergun", "Hyper Guard" },
+		{ "monster_soldier_lasergun", "Laser Guard" },
+		{ "monster_soldier_ripper", "Ripper Guard" },
 		{ "monster_infantry_vanilla", "Infantry" },
 		{ "monster_infantry", "Enforcer" },
 		{ "monster_flyer", "Flyer" },
