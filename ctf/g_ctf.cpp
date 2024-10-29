@@ -1432,7 +1432,7 @@ void CTFSetIDView(edict_t* ent) {
 void MonsterDied(const edict_t* monster);
 
 void OnEntityDeath(const edict_t* self) {
-	if ((self->svflags & SVF_MONSTER) && !(self->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+	if ((g_horde->integer && self->svflags & SVF_MONSTER) && !(self->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 		MonsterDied(self);
 	}
 

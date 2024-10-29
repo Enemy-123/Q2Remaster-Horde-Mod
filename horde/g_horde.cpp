@@ -1969,7 +1969,7 @@ void ResetGame() {
 	// Reset wave information
 	g_horde_local.level = 0; // Reset current wave level
 	g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
-	g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
+	g_horde_local.warm_time = level.time; // Reiniciar el tiempo de warmup
 	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
@@ -2190,9 +2190,14 @@ void AllowNextWaveAdvance() noexcept {
 }
 
 void fastNextWave() noexcept {
+
+	// Forzar la actualización del estado de la ola
+	g_monster_check_cache.Reset();
+//	g_horde_local.state = horde_state_t::cleanup;
+	g_horde_local.monster_spawn_time = level.time;
+
 	g_horde_local.warm_time = level.time;
 	g_horde_local.num_to_spawn = 0; // Establecer a cero para indicar que no hay más monstruos por spawnear
-	g_horde_local.monster_spawn_time = level.time;
 }
 
 static void MonsterSpawned(const edict_t* monster) {
@@ -2488,7 +2493,7 @@ const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
 
 // Ejemplo: Uso de enum class para WaveEndReason
 void SendCleanupMessage(WaveEndReason reason) {
-	gtime_t duration = 5_sec; // Duración por defecto
+	gtime_t duration = 3_sec; // Duración por defecto
 
 	// Si allowWaveAdvance está activo y la razón es AllMonstersDead, establecer duración a 0
 	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
@@ -2600,6 +2605,7 @@ void Horde_RunFrame() {
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 
 		if (shouldAdvance) {
+			Horde_CleanBodies();
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
 			g_horde_local.state = horde_state_t::cleanup;
@@ -2634,7 +2640,7 @@ void Horde_RunFrame() {
 			}
 
 			// Transición al estado de descanso
-			g_horde_local.warm_time = level.time + random_time(1.5_sec, 2.5_sec);
+			g_horde_local.warm_time = level.time + random_time(0.8_sec, 1.5_sec);
 			g_horde_local.state = horde_state_t::rest;
 			cachedRemainingMonsters = CalculateRemainingMonsters();
 		}
@@ -2646,7 +2652,6 @@ void Horde_RunFrame() {
 			HandleWaveRestMessage(4_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
-			Horde_CleanBodies();
 		}
 		break;
 	}
