@@ -387,36 +387,39 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
 
-	// Progressive queue scaling based on wave level with improved balance
-	int32_t baseQueueIncrease = 2; // Base increase per level
+	// Calculate queued monsters with better balance
+	int32_t baseQueued = 0;
 
-	// Calculate base queued monsters
-	int32_t baseQueued = baseQueueIncrease * lvl;
+	// Solo aplicar cola si el nivel es mayor a 3
+	if (lvl > 3) {
+		// Base queue calculation
+		baseQueued = lvl;
 
-	// Add map size adjustments
-	if (mapSize.isSmallMap) {
-		baseQueued = static_cast<int32_t>(baseQueued * 0.8f); // Reduce for small maps
+		// Ajuste por tamaño de mapa
+		if (mapSize.isSmallMap) {
+			baseQueued = static_cast<int32_t>(baseQueued * 0.7f);
+		}
+		else if (mapSize.isBigMap) {
+			baseQueued = static_cast<int32_t>(baseQueued * 1.3f);
+		}
+
+		// Ajuste para niveles altos
+		if (lvl > 20) {
+			baseQueued += std::min((lvl - 20) * 2, 15);
+		}
+
+		// Bonus por dificultad
+		if (g_insane->integer || g_chaotic->integer) {
+			baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
+		}
+
+		// Limitar el máximo de monstruos en cola según el tamaño del mapa
+		int32_t maxQueued = mapSize.isSmallMap ? 25 : (mapSize.isBigMap ? 45 : 35);
+		baseQueued = std::min(baseQueued, maxQueued);
 	}
-	else if (mapSize.isBigMap) {
-		baseQueued = static_cast<int32_t>(baseQueued * 1.2f); // Increase for big maps
-	}
 
-	// Additional scaling for higher levels with better progression
-	if (lvl > 20) {
-		int32_t bonusQueued = static_cast<int32_t>((lvl - 20) * 2);
-		// Cap the bonus to prevent excessive scaling
-		bonusQueued = std::min(bonusQueued, 30);
-		baseQueued += bonusQueued;
-	}
-
-	// Apply insanity/chaotic bonus to queued monsters
-	if (g_insane->integer || g_chaotic->integer) {
-		baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
-	}
-
-	// Prevent excessive queuing while maintaining challenge
-	int32_t maxQueued = mapSize.isSmallMap ? 45 : (mapSize.isBigMap ? 75 : 60);
-	g_horde_local.queued_monsters += std::min(baseQueued, maxQueued);
+	// Actualizar la cola, reemplazando el valor anterior en lugar de acumular
+	g_horde_local.queued_monsters = baseQueued;
 }
 
 void ResetAllSpawnAttempts() noexcept;
@@ -472,12 +475,12 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
-			params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 22;
-			params.timeThreshold = random_time(22_sec, 30_sec);
+			params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 24;
+			params.timeThreshold = random_time(18_sec, 24_sec);
 		}
 		else if (mapSize.isSmallMap) {
-			params.maxMonsters = (numHumanPlayers >= 3) ? 11 : 9;
-			params.timeThreshold = random_time(18_sec, 20_sec);
+			params.maxMonsters = (numHumanPlayers >= 3) ? 12 : 9;
+			params.timeThreshold = random_time(14_sec, 20_sec);
 		}
 		else {
 			params.maxMonsters = (numHumanPlayers >= 3) ? 17 : 15;
@@ -488,19 +491,22 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 	configureMapParams(params);
 
 
-	// Ajuste progresivo basado en el nivel
-	params.maxMonsters += std::min(lvl / 5, 10);
-	params.timeThreshold += gtime_t::from_ms(100 * std::min(lvl / 3, 5));
+	// Ajuste progresivo basado en el nivel - más agresivo
+	params.maxMonsters += std::min(lvl / 4, 8); // Ajustado de lvl/5,10 a lvl/4,8
+	params.timeThreshold += gtime_t::from_ms(75 * std::min(lvl / 3, 4)); // Reducido el incremento de tiempo
 
-	// Ajuste para niveles altos
+	// Ajuste para niveles altos - más dinámico
 	if (lvl > 10) {
-		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.3f);
-		params.timeThreshold += 0.2_sec;
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f); // Reducido de 1.3 a 1.2
+		params.timeThreshold += 0.15_sec; // Reducido de 0.2 a 0.15
 	}
 
-	// Ajuste basado en dificultad
-	if ((g_chaotic->integer || g_insane->integer) && numHumanPlayers <= 3) {
-		params.timeThreshold += random_time(5_sec, 10_sec);
+	// Ajuste basado en dificultad - más agresivo
+	if (g_chaotic->integer || g_insane->integer) {
+		if (numHumanPlayers <= 3) {
+			params.timeThreshold += random_time(3_sec, 6_sec); // Reducido de 5-10 a 3-6
+		}
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
 	}
 
 	//// Ajuste basado en el rendimiento del jugador
@@ -533,6 +539,8 @@ constexpr std::array<float, 4> WARNING_TIMES = { 30.0f, 20.0f, 10.0f, 5.0f };
 
 static void Horde_InitLevel(const int32_t lvl) {
 	const MapSize& mapSize = GetMapSize(level.mapname);
+
+	g_independent_timer_start = level.time;
 
 	// Configuración de variables iniciales para el nivel
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
@@ -2038,6 +2046,11 @@ static MonsterCheckCacheData g_monster_check_cache;
 bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	const gtime_t currentTime = level.time;
 	const bool allMonstersDead = Horde_AllMonstersDead();
+
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
+	}
 
 	// Verificar si todos los monstruos han sido derrotados
 	if (allMonstersDead) {
