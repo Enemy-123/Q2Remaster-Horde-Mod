@@ -399,20 +399,23 @@ mframe_t infantry_frames_death3[] = {
 };
 MMOVE_T(infantry_move_death3) = { FRAME_death301, FRAME_death309, infantry_frames_death3, infantry_dead };
 
-DIE(infantry_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	// Si ya está muerto, no procesar de nuevo
+	if (self->deadflag)
+		return;
+
+	self->deadflag = true;
+	self->takedamage = true;
 	OnEntityDeath(self);
-	int n;
-	
+
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{
 		gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-
-		const char *head_gib = (self->monsterinfo.active_move != &infantry_move_death3) ? "models/objects/gibs/sm_meat/tris.md2" : "models/monsters/infantry/gibs/head.md2";
-
+		const char* head_gib = (self->monsterinfo.active_move != &infantry_move_death3) ?
+			"models/objects/gibs/sm_meat/tris.md2" : "models/monsters/infantry/gibs/head.md2";
 		self->s.skinnum /= 2;
-
 		ThrowGibs(self, damage, {
 			{ "models/objects/gibs/bone/tris.md2" },
 			{ 3, "models/objects/gibs/sm_meat/tris.md2" },
@@ -421,20 +424,15 @@ DIE(infantry_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
 			{ 2, "models/monsters/infantry/gibs/foot.md2", GIB_SKINNED },
 			{ 2, "models/monsters/infantry/gibs/arm.md2", GIB_SKINNED },
 			{ head_gib, GIB_HEAD | GIB_SKINNED }
-		});
-		self->deadflag = true;
+			});
+		// Asegurarse de que el monstruo realmente muera
+		self->health = -999;
+		self->svflags |= SVF_DEADMONSTER;
 		return;
 	}
 
-	if (self->deadflag)
-		return;
-
 	// regular death
-	self->deadflag = true;
-	self->takedamage = true;
-
-	n = irandom(3);
-
+	int n = irandom(3);
 	if (n == 0)
 	{
 		M_SetAnimation(self, &infantry_move_death1);
@@ -454,12 +452,11 @@ DIE(infantry_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
 	// don't always pop a head gib, it gets old
 	if (n != 2 && frandom() <= 0.25f)
 	{
-		edict_t *head = ThrowGib(self, "models/monsters/infantry/gibs/head.md2", damage, GIB_NONE, self->s.scale);
-
+		edict_t* head = ThrowGib(self, "models/monsters/infantry/gibs/head.md2", damage, GIB_NONE, self->s.scale);
 		if (head)
 		{
 			head->s.angles = self->s.angles;
-			head->s.origin = self->s.origin + vec3_t{0, 0, 32.f};
+			head->s.origin = self->s.origin + vec3_t{ 0, 0, 32.f };
 			vec3_t headDir = (self->s.origin - inflictor->s.origin);
 			head->velocity = headDir / headDir.length() * 100.0f;
 			head->velocity[2] = 200.0f;
@@ -468,8 +465,10 @@ DIE(infantry_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int dam
 			gi.linkentity(head);
 		}
 	}
-}
 
+	// Asegurarse de que el monstruo realmente muera
+	self->svflags |= SVF_DEADMONSTER;
+}
 mframe_t infantry_frames_duck[] = {
 	{ ai_move, -2, monster_duck_down },
 	{ ai_move, -5, monster_duck_hold },

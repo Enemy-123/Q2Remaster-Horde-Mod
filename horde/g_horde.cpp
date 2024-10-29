@@ -1531,7 +1531,7 @@ THINK(fade_out_think)(edict_t* self) -> void {
 	// Si el monstruo está vivo, restaurar su estado
 	if (self->health > 0 && !self->deadflag) {
 		CheckAndRestoreMonsterAlpha(self);
-		self->think = monster_think;
+	//	self->think = monster_think;
 		self->nextthink = level.time + FRAME_TIME_MS;
 		self->is_fading_out = false;  // Usar bool
 		return;
