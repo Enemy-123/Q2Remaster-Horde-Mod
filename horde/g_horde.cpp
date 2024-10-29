@@ -1585,14 +1585,16 @@ static void StartFadeOut(edict_t* ent) {
 
 void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
-
 	for (auto ent : active_or_dead_monsters()) {
-		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0) {
+		// Detectar específicamente el cuerpo de Widow2
+		bool is_widow2_corpse = (ent->s.modelindex == gi.modelindex("models/monsters/blackwidow2/tris.md2") &&
+			ent->movetype == MOVETYPE_TOSS);
+
+		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0 || is_widow2_corpse) {
 			// No procesar si ya está en fade
 			if (ent->is_fading_out) {
 				continue;
 			}
-
 			// Manejar jefes si es necesario
 			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				BossDeathHandler(ent);
@@ -1600,16 +1602,13 @@ void Horde_CleanBodies() {
 			else {
 				OnEntityDeath(ent);
 			}
-
 			// Eliminar de auto_spawned_bosses si es necesario
 			auto_spawned_bosses.erase(ent);
-
 			// Iniciar el fade out
 			StartFadeOut(ent);
 			cleaned_count++;
 		}
 	}
-
 	if (cleaned_count > 0) {
 		gi.Com_PrintFmt("PRINT: Marked {} monster bodies for fade out\n", cleaned_count);
 	}
@@ -2167,7 +2166,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	return false;
 }
 
-static void ResetWaveAdvanceState() noexcept {
+void ResetWaveAdvanceState() noexcept {
 	g_independent_timer_start = level.time;
 
 	// Reiniciar variables de condición

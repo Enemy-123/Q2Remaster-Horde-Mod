@@ -3643,9 +3643,17 @@ struct active_or_dead_monsters_filter_t
 {
 	inline bool operator()(edict_t* ent) const
 	{
-		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0) || (ent->svflags & SVF_DEADMONSTER);
+		// Detectar específicamente el cuerpo de Widow2
+		bool is_widow2_corpse = (ent->inuse &&
+			ent->s.modelindex == gi.modelindex("models/monsters/blackwidow2/tris.md2") &&
+			ent->movetype == MOVETYPE_TOSS);
+
+		return (ent->inuse && (ent->svflags & SVF_MONSTER) && ent->health > 0) ||
+			(ent->svflags & SVF_DEADMONSTER) ||
+			is_widow2_corpse;
 	}
 };
+
 
 inline entity_iterable_t<active_or_dead_monsters_filter_t> active_or_dead_monsters()
 {
