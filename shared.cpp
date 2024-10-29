@@ -254,7 +254,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->gib_health <= -900)
 		monster->gib_health = -900;
 
-	monster->gib_health *= 4.4f;
+	monster->gib_health *= 2.8f;
 
 	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
 		return;

@@ -986,6 +986,9 @@ void SP_monster_infantry(edict_t *self)
 	self->mins = { -16, -16, -24 };
 	self->maxs = { 16, 16, 32 };
 
+	if (!g_horde->integer) {
+		self->health = 100 * st.health_multiplier;
+	}
 
 	if (g_horde->integer) {
 
