@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "g_statusbar.h"
+#include "shared.h"
 
 /*
 ======================================================================
@@ -707,35 +708,54 @@ void Cmd_Help_f(edict_t* ent)
 // [Paril-KEX] for stats we want to always be set in coop
 // even if we're spectating
 void G_SetCoopStats(edict_t* ent) {
-
 	if (G_IsDeathmatch() && g_coop_enable_lives->integer)
 		ent->client->ps.stats[STAT_LIVES] = ent->client->pers.lives + 1;
 	else
 		ent->client->ps.stats[STAT_LIVES] = 0;
 
 	if (G_IsDeathmatch() && !level.intermissiontime) {
-
 		ent->client->ps.stats[STAT_WAVE_NUMBER] = current_wave_level;
 	}
-	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
+	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 	UpdateVoteHUD();
 
 	if (G_IsDeathmatch() && level.intermissiontime) {
-
 		ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
 	}
 
 	ent->client->ps.stats[STAT_REMAINING_MONSTERS] = level.total_monsters - level.killed_monsters;
-
 
 	// stat for text on what we're doing for respawn
 	if (ent->client->coop_respawn_state)
 		ent->client->ps.stats[STAT_COOP_RESPAWN] = CONFIG_COOP_RESPAWN_STRING + (ent->client->coop_respawn_state - COOP_RESPAWN_IN_COMBAT);
 	else
 		ent->client->ps.stats[STAT_COOP_RESPAWN] = 0;
-}
 
+	// Game timer with horde mode support
+	if (sv_wave_timer->integer)
+	{
+		int t;
+
+		// Horde mode timer
+		if (g_horde->integer) {
+			// Get wave timer and convert to seconds as int
+			const gtime_t waveTime = GetWaveTimer();
+			t = waveTime.seconds<int>();
+		}
+	// Only update if the time has changed
+		if (t != ent->client->last_wave_timer_horde_update)
+		{
+			ent->client->last_wave_timer_horde_update = t;
+			char game_timer[64];
+			// Ensure t is not negative
+			t = std::max(0, t);
+			G_FmtTo(game_timer, "{:02}:{:02}", t / 60, t % 60);
+			ent->client->ps.stats[STAT_GAME_TIMER] = HORDE_WAVE_TIMER;
+			gi.configstring(HORDE_WAVE_TIMER, game_timer);
+		}
+	}
+}
 // Función de utilidad para convertir spawnflags_t a int de forma segura
 inline int SafeConvertSpawnflags(const spawnflags_t& flags) {
 	return static_cast<int>(static_cast<uint32_t>(flags));

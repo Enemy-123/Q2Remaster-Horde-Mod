@@ -1987,6 +1987,7 @@ extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
 extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
+extern cvar_t* sv_wave_timer;
 extern cvar_t* g_tracedbullets;
 extern cvar_t* g_bouncygl;
 extern cvar_t* g_bfgpull;
@@ -3065,7 +3066,7 @@ struct gclient_t
 	int num_teslas; // max teslas per client
 	//int num_traps; //foodcube trap per client
 	int num_sentries; //Sentry Guns per client
-	// 
+	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];
 	// ROGUE
 //=======

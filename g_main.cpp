@@ -161,6 +161,7 @@ cvar_t* g_chaotic;
 cvar_t* g_insane;
 cvar_t* g_hardcoop;
 cvar_t* g_ammoregen;
+cvar_t* sv_wave_timer;
 cvar_t* g_tracedbullets;
 cvar_t* g_bouncygl;
 cvar_t* g_bfgpull;
@@ -409,6 +410,7 @@ void InitGame()
 	g_insane = gi.cvar("g_insane", "0", CVAR_NOFLAGS);
 	g_hardcoop = gi.cvar("g_hardcoop", "0", CVAR_NOFLAGS);
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
+	sv_wave_timer = gi.cvar("sv_wave_timer", "1", CVAR_NOFLAGS);
 	g_tracedbullets = gi.cvar("g_tracedbullets", "0", CVAR_NOFLAGS);
 	g_bouncygl = gi.cvar("g_bouncygl", "0", CVAR_NOFLAGS);
 	g_bfgpull = gi.cvar("g_bfgpull", "0", CVAR_NOFLAGS);

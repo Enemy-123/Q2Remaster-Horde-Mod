@@ -69,7 +69,11 @@ enum
 	// [Paril-KEX] if 1, n64 player physics apply
 	CONFIG_N64_PHYSICS,
 	CONFIG_HEALTH_BAR_NAME, // active health bar name
+	// Horde wave timer
+	HORDE_WAVE_TIMER,
+
 	CONFIG_STORY,
+
 	CONFIG_LAST
 };
 
@@ -290,9 +294,13 @@ enum player_stat_t
 	// [Paril-KEX]
 	STAT_ACTIVE_WEAPON,
 
+	STAT_GAME_TIMER,
 	STAT_HORDEMSG,
 	STAT_ID_DAMAGE,
 	STAT_VOTESTRING,
+
+	// Q2ETweaks game timer stat string id
+
 	// don't use; just for verification
 	STAT_LAST
 };

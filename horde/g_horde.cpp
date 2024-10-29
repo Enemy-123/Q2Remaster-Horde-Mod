@@ -387,39 +387,42 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
 
-	// Progressive queue scaling based on wave level with improved balance
-	int32_t baseQueueIncrease = 2; // Base increase per level
+	// Calculate queued monsters with better balance
+	int32_t baseQueued = 0;
 
-	// Calculate base queued monsters
-	int32_t baseQueued = baseQueueIncrease * lvl;
+	// Solo aplicar cola si el nivel es mayor a 3
+	if (lvl > 3) {
+		// Base queue calculation
+		baseQueued = lvl;
 
-	// Add map size adjustments
-	if (mapSize.isSmallMap) {
-		baseQueued = static_cast<int32_t>(baseQueued * 0.8f); // Reduce for small maps
+		// Ajuste por tamaño de mapa
+		if (mapSize.isSmallMap) {
+			baseQueued = static_cast<int32_t>(baseQueued * 0.7f);
+		}
+		else if (mapSize.isBigMap) {
+			baseQueued = static_cast<int32_t>(baseQueued * 1.3f);
+		}
+
+		// Ajuste para niveles altos
+		if (lvl > 20) {
+			baseQueued += std::min((lvl - 20) * 2, 15);
+		}
+
+		// Bonus por dificultad
+		if (g_insane->integer || g_chaotic->integer) {
+			baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
+		}
+
+		// Limitar el máximo de monstruos en cola según el tamaño del mapa
+		int32_t maxQueued = mapSize.isSmallMap ? 25 : (mapSize.isBigMap ? 45 : 35);
+		baseQueued = std::min(baseQueued, maxQueued);
 	}
-	else if (mapSize.isBigMap) {
-		baseQueued = static_cast<int32_t>(baseQueued * 1.2f); // Increase for big maps
-	}
 
-	// Additional scaling for higher levels with better progression
-	if (lvl > 20) {
-		int32_t bonusQueued = static_cast<int32_t>((lvl - 20) * 2);
-		// Cap the bonus to prevent excessive scaling
-		bonusQueued = std::min(bonusQueued, 30);
-		baseQueued += bonusQueued;
-	}
-
-	// Apply insanity/chaotic bonus to queued monsters
-	if (g_insane->integer || g_chaotic->integer) {
-		baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
-	}
-
-	// Prevent excessive queuing while maintaining challenge
-	int32_t maxQueued = mapSize.isSmallMap ? 45 : (mapSize.isBigMap ? 75 : 60);
-	g_horde_local.queued_monsters += std::min(baseQueued, maxQueued);
+	// Actualizar la cola, reemplazando el valor anterior en lugar de acumular
+	g_horde_local.queued_monsters = baseQueued;
 }
 
-static void Horde_CleanBodies();
+
 void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
 void ResetCooldowns() noexcept;
@@ -473,7 +476,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
-			params.maxMonsters = 26;
+			params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 22;
 			params.timeThreshold = random_time(22_sec, 30_sec);
 		}
 		else if (mapSize.isSmallMap) {
@@ -495,7 +498,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 
 	// Ajuste para niveles altos
 	if (lvl > 10) {
-		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.3f);
 		params.timeThreshold += 0.2_sec;
 	}
 
@@ -504,17 +507,17 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 		params.timeThreshold += random_time(5_sec, 10_sec);
 	}
 
-	// Ajuste basado en el rendimiento del jugador
-	const float playerPerformanceFactor = CalculatePlayerPerformance();
-	params.maxMonsters = static_cast<int32_t>(params.maxMonsters * playerPerformanceFactor);
+	//// Ajuste basado en el rendimiento del jugador
+	//const float playerPerformanceFactor = CalculatePlayerPerformance();
+	//params.maxMonsters = static_cast<int32_t>(params.maxMonsters * playerPerformanceFactor);
 
-	// Aplicar un factor de reducción adicional si el rendimiento es alto
-	if (playerPerformanceFactor > 1.0f) {
-		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() / playerPerformanceFactor);
-	}
-	else {
-		params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
-	}
+	//// Aplicar un factor de reducción adicional si el rendimiento es alto
+	//if (playerPerformanceFactor > 1.0f) {
+	//	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() / playerPerformanceFactor);
+	//}
+	//else {
+	//	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
+	//}
 
 	// Configuración para el porcentaje bajo de monstruos restantes
 	params.lowPercentageTimeThreshold = random_time(8_sec, 17_sec);
@@ -623,9 +626,9 @@ constexpr struct weighted_item_t {
 	{ "item_quad", 6, -1, 0.054f, adjust_weight_powerup },
 	{ "item_double", 4, -1, 0.07f, adjust_weight_powerup },
 	{ "item_quadfire", 2, -1, 0.06f, adjust_weight_powerup },
-	{ "item_invulnerability", 4, -1, 0.051f, adjust_weight_powerup },
+	{ "item_invulnerability", 4, -1, 0.041f, adjust_weight_powerup },
 	{ "item_sphere_defender", 2, -1, 0.06f, adjust_weight_powerup },
-	{ "item_sphere_vengeance", 28, -1, 0.06f, adjust_weight_powerup },
+	{ "item_sphere_vengeance", 23, -1, 0.06f, adjust_weight_powerup },
 	{ "item_sphere_hunter", 9, -1, 0.06f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 	{ "item_doppleganger", 2, 8, 0.028f, adjust_weight_powerup },
@@ -642,12 +645,12 @@ constexpr struct weighted_item_t {
 	{ "weapon_proxlauncher", 4, -1, 0.1f, adjust_weight_weapon },
 	{ "weapon_boomer", 14, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 12, -1, 0.22f, adjust_weight_weapon },
-	{ "weapon_phalanx", 16, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 14, -1, 0.19f, adjust_weight_weapon },
-	{ "weapon_railgun", 22, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_railgun", 24, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_phalanx", 16, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_plasmabeam", 17, -1, 0.29f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 24, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_bfg", 20, -1, 0.17f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 28, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_bfg", 24, -1, 0.17f, adjust_weight_weapon },
 
 
 	{ "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },
@@ -664,8 +667,8 @@ constexpr struct weighted_item_t {
 	{ "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_nuke", 25, -1, 0.01f, adjust_weight_ammo },
 
-	{ "item_bandolier", 4, -1, 0.18f, adjust_weight_ammo },
-	{ "item_pack", 15, -1, 0.32f, adjust_weight_ammo },
+	{ "item_bandolier", 4, -1, 0.2f, adjust_weight_ammo },
+	{ "item_pack", 15, -1, 0.34f, adjust_weight_ammo },
 	{ "item_silencer", 15, -1, 0.12f, adjust_weight_ammo },
 };
 
@@ -1571,7 +1574,7 @@ static void StartFadeOut(edict_t* ent) {
 }
 
 
-static void Horde_CleanBodies() {
+void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
 
 	for (auto ent : active_or_dead_monsters()) {
@@ -1912,7 +1915,7 @@ static void ResetRecentBosses() noexcept {
 	recent_bosses.clear();
 }
 
-static void ResetWaveAdvanceState() noexcept;
+void ResetWaveAdvanceState() noexcept;
 void ResetGame() {
 	// Reset all spawn point data
 	spawnPointsData.clear();
@@ -2682,4 +2685,32 @@ void Horde_RunFrame() {
 // Función para manejar el evento de reinicio
 void HandleResetEvent() {
 	ResetGame();
+}
+
+// Get the remaining time for the current wave
+gtime_t GetWaveTimer() {
+	// If we're not in an active wave or cleanup state, return 0
+	if (g_horde_local.state != horde_state_t::active_wave &&
+		g_horde_local.state != horde_state_t::cleanup) {
+		return 0_sec;
+	}
+
+	const gtime_t currentTime = level.time;
+	gtime_t remainingTime = 0_sec;
+
+	// If condition is triggered, use condition time
+	if (g_horde_local.conditionTriggered && g_horde_local.waveEndTime > currentTime) {
+		remainingTime = g_horde_local.waveEndTime - currentTime;
+	}
+	// If no condition triggered or condition time is higher, check independent timer
+	if (!g_horde_local.conditionTriggered ||
+		(g_independent_timer_start + g_lastParams.independentTimeThreshold - currentTime < remainingTime)) {
+		gtime_t independentRemaining = g_independent_timer_start + g_lastParams.independentTimeThreshold - currentTime;
+		if (independentRemaining > 0_sec) {
+			remainingTime = (remainingTime > 0_sec) ?
+				std::min(remainingTime, independentRemaining) : independentRemaining;
+		}
+	}
+
+	return remainingTime;
 }

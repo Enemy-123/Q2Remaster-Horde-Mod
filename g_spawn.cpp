@@ -1807,6 +1807,12 @@ static void G_InitStatusbar()
 
 	if (G_IsDeathmatch()) // & Horde
 	{
+		// Q2ETweaks game timer
+		sb.ifstat(STAT_GAME_TIMER)
+			.xl(85).yb(-35).stat_string(STAT_GAME_TIMER)
+			.xl(2).yb(-35).string("Wave Timer:")
+			.endifstat();
+
 		sb.ifstat(STAT_HEALTH_BARS).yt(24).health_bars().endifstat();
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
 

@@ -1032,19 +1032,22 @@ Cmd_Kill_AI_f
 =================
 */
 void Cmd_Kill_AI_f(edict_t* ent) {
+	// Verificar cheats
 	if (!sv_cheats->integer) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: Cheats Must Be Enabled!\n");
 		return;
 	}
 
-	// except the one we're looking at...
+	// Encontrar el monstruo que estamos mirando para excluirlo
 	edict_t* looked_at = nullptr;
-
 	vec3_t start = ent->s.origin + vec3_t{ 0.f, 0.f, (float)ent->viewheight };
 	vec3_t end = start + ent->client->v_forward * 1024.f;
-
 	looked_at = gi.traceline(start, end, ent, MASK_SHOT).ent;
 
+	// Contador de monstruos eliminados
+	int killed_count = 0;
+
+	// Eliminar todos los monstruos excepto el que miramos
 	const int numEdicts = globals.num_edicts;
 	for (int edictIdx = 1; edictIdx < numEdicts; ++edictIdx) {
 		edict_t* edict = &g_edicts[edictIdx];
@@ -1052,22 +1055,39 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 			continue;
 		}
 
-		if ((edict->svflags & SVF_MONSTER) == 0) {
+		// Verificar que es un monstruo válido
+		if ((edict->svflags & SVF_MONSTER) == 0 ||
+			edict->deadflag ||
+			(edict->monsterinfo.team == CTF_TEAM1) ||
+			(edict->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
 			continue;
 		}
 
-		// Dañar severamente al AI
-		if (!edict->deadflag && (!(edict->monsterinfo.team == CTF_TEAM1)))
-			T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 }, 99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
+		// Matar al monstruo
+		T_Damage(edict, ent, ent, { 0, 0, 1 }, edict->s.origin, { 0, 0, 1 },
+			99999, 99999, DAMAGE_NO_PROTECTION, MOD_BFG_BLAST);
+		killed_count++;
 	}
 
-	gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: All AI Were Severely Purged...\n");
+	// Manejar la transición de ola solo si matamos algunos monstruos
+	if (killed_count > 0) {
+		gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: {} monsters were eliminated.\n", killed_count);
 
-	// Permitir avanzar a la siguiente ola inmediatamente
-	AllowNextWaveAdvance();  // Llamamos la función para avanzar la ola
-	fastNextWave();
+		// Actualizar contadores de monstruos
+		cachedRemainingMonsters = CalculateRemainingMonsters();
+
+		// Permitir avanzar a la siguiente ola
+		AllowNextWaveAdvance();
+		fastNextWave();
+
+		// Forzar limpieza de cuerpos
+		Horde_CleanBodies();
+		ResetWaveAdvanceState;
+	}
+	else {
+		gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: No valid monsters found to eliminate.\n");
+	}
 }
-
 /*
 =================
 Cmd_Where_f
