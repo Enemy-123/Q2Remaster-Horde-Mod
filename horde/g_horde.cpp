@@ -535,7 +535,7 @@ ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlaye
 }
 
 // Warning times in seconds
-constexpr std::array<float, 4> WARNING_TIMES = { 30.0f, 20.0f, 10.0f, 5.0f };
+constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 
 static void Horde_InitLevel(const int32_t lvl) {
 	const MapSize& mapSize = GetMapSize(level.mapname);
@@ -2047,8 +2047,11 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	const gtime_t currentTime = level.time;
 	const bool allMonstersDead = Horde_AllMonstersDead();
 
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
+	// Verificar si se ha permitido avanzar la ola manualmente
+	if (allowWaveAdvance) {
+		gi.Com_PrintFmt("PRINT: Wave advance allowed manually.\n");
+		ResetWaveAdvanceState();
+		reason = WaveEndReason::AllMonstersDead;
 		return true;
 	}
 
@@ -2058,17 +2061,15 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		return true;
 	}
 
+	// Verificar tiempo límite independiente
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
+	}
+
 	// Inicializar waveEndTime si no está establecido
 	if (g_horde_local.waveEndTime == 0_sec) {
 		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
-	}
-
-	// Verificar si se ha permitido avanzar la ola manualmente
-	if (allowWaveAdvance) {
-		gi.Com_PrintFmt("PRINT: Wave advance allowed manually.\n");
-		ResetWaveAdvanceState();
-		reason = WaveEndReason::AllMonstersDead;
-		return true;
 	}
 
 	// Obtener número de monstruos restantes una sola vez
@@ -2095,7 +2096,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 				g_horde_local.conditionTimeThreshold = g_lastParams.lowPercentageTimeThreshold;
 			}
 
-			// Establecer waveEndTime basado en la condición
 			g_horde_local.waveEndTime = g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold;
 
 			gi.Com_PrintFmt("PRINT: Condition triggered. Remaining monsters: {}, Percentage remaining: {:.2f}%\n",
@@ -2142,7 +2142,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	}
 
 	if (shouldAdvance) {
-		ResetWaveAdvanceState();
+		// No resetear el timer aquí, se manejará en HandleWaveRestMessage
 		gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
 			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
 		return true;
@@ -2298,7 +2298,6 @@ static const char* GetRandomWaveSound() {
 	return WAVE_SOUNDS[dist(mt_rand)].data(); // Usar .data() para obtener const char*
 }
 
-
 static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 	const char* message;
 
@@ -2316,10 +2315,19 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 
 	UpdateHordeMessage(message, duration);
 
+	// Resetear el timer y estados relacionados aquí
+	g_independent_timer_start = level.time;
+	g_horde_local.waveEndTime = 0_sec;
+	g_horde_local.conditionTriggered = false;
+	g_horde_local.conditionStartTime = 0_sec;
+	g_horde_local.conditionTimeThreshold = 0_sec;
+
+	// Resetear las advertencias
+	std::fill(g_horde_local.warningIssued.begin(), g_horde_local.warningIssued.end(), false);
+
 	// Reproducir un sonido aleatorio
 	gi.sound(world, CHAN_VOICE, gi.soundindex(GetRandomWaveSound()), 1, ATTN_NONE, 0);
 }
-
 
 // Llamar a esta función durante la inicialización del juego
 void InitializeWaveSystem() noexcept {
