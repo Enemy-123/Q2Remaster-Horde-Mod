@@ -3732,8 +3732,13 @@ struct gib_def_t
 		type(GIB_NONE)
 	{
 	}
-};
 
+	inline gib_def_t& frame(int f)
+	{
+		framenum = f;
+		return *this;
+	}
+};
 extern bool string_equals(const char* str1, const std::string_view& str2);
 // convenience function to throw different gib types
 // NOTE: always throw the head gib *last* since self's size is used
@@ -3912,15 +3917,3 @@ extern void UpdateVoteHUD();
 extern std::string GetDisplayName(const edict_t* ent); 
 extern std::string GetTitleFromFlags(int bonus_flags);
 extern float M_DamageModifier(edict_t* monster);
-
-
-//extern void ContinueProgressiveLoading(edict_t* ent);
-//extern void SendBasicEntityInfo(edict_t* ent, edict_t* target);
-//extern void SendEntityInfoToClient(edict_t* ent, edict_t* target);
-//extern void SendCriticalEntityInfo(edict_t* ent, edict_t* target);
-//extern bool IsImportantEntity(edict_t* target);
-
-
-
-
-//extern void UpdateAllClients();
