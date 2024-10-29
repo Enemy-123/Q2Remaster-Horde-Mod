@@ -188,7 +188,9 @@ MONSTERINFO_WALK(runnertank_walk) (edict_t* self) -> void
 void runnertank_unstuck(edict_t* self)
 {
 	static int stuck_count = 0;
-	if (VectorLength(self->velocity) < 10)
+
+	// Usar el método length() de vec3_t directamente
+	if (self->velocity.length() < 10.0f)
 	{
 		stuck_count++;
 		if (stuck_count > 5)
@@ -204,7 +206,6 @@ void runnertank_unstuck(edict_t* self)
 		stuck_count = 0;
 	}
 }
-
 //
 // run
 //

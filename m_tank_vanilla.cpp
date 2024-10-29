@@ -854,15 +854,11 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 	vec3_t { 0, -80, 0 }
 };
 
-// Función de spawneo
 void Monster_MoveSpawn(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
 	if (!self || self->health <= 0 || self->deadflag)
-	{
 		return;
-	}
 
 	// Inicializar slots de monstruo si no se han establecido
 	if (!st.was_key_specified("monster_slots"))
@@ -870,43 +866,54 @@ void Monster_MoveSpawn(edict_t* self)
 
 	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 	if (available_slots <= 0)
-	{
 		return;
-	}
 
 	// Condiciones específicas para el tanque comandante
 	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0) {
-	//	gi.Com_PrintFmt("Tank Commander attempting to spawn reinforcements...\n");
+		// Debug log removido
 	}
 
+	// Constantes de spawneo
 	constexpr int NUM_MONSTERS_MIN = 4;
 	constexpr int NUM_MONSTERS_MAX = 6;
 	constexpr float SPAWN_RADIUS_MIN = 100.0f;
 	constexpr float SPAWN_RADIUS_MAX = 175.0f;
 	constexpr int MAX_SPAWN_ATTEMPTS = 10;
 	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
+	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };
+	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };
 
-	const int num_monsters = std::min({ NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)), available_slots });
+	const int num_monsters = std::min({
+		NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)),
+		available_slots
+		});
 
 	for (int i = 0; i < num_monsters; i++)
 	{
-		vec3_t spawn_origin;
-		const vec3_t mins = { -16, -16, -24 };
-		const vec3_t maxs = { 16, 16, 32 };
-		bool found_spot = false;
-		float spawn_angle = 0;
+		if (i >= static_cast<int>(self->monsterinfo.reinforcements.num_reinforcements))
+			break;
 
+		vec3_t spawn_origin;
+		bool found_spot = false;
+		float spawn_angle = 0.0f;
+
+		// Buscar punto de spawn válido
 		for (int attempts = 0; attempts < MAX_SPAWN_ATTEMPTS; attempts++)
 		{
-			VectorCopy(self->s.origin, spawn_origin);
-			spawn_angle = frandom() * 2 * PI;
+			spawn_origin = self->s.origin;  // Usar asignación directa
+			spawn_angle = frandom() * 2.0f * PIf;
+
 			float radius = SPAWN_RADIUS_MIN + frandom() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
-			spawn_origin[0] += cos(spawn_angle) * radius;
-			spawn_origin[1] += sin(spawn_angle) * radius;
-			spawn_origin[2] += SPAWN_HEIGHT_OFFSET;
+			vec3_t offset{
+				cosf(spawn_angle) * radius,
+				sinf(spawn_angle) * radius,
+				SPAWN_HEIGHT_OFFSET
+			};
+
+			spawn_origin += offset;  // Usar operador de suma de vec3_t
 
 			const trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
-			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, mins, maxs))
+			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, MONSTER_MINS, MONSTER_MAXS))
 			{
 				found_spot = true;
 				break;
@@ -914,58 +921,45 @@ void Monster_MoveSpawn(edict_t* self)
 		}
 
 		if (!found_spot)
-		{
-		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to find a valid spawn point for reinforcement {}.\n", i + 1);
 			continue;
-		}
 
+		// Configurar ángulos de spawn
 		vec3_t spawn_angles = self->s.angles;
-		spawn_angles[YAW] = spawn_angle * (180 / PI);
+		spawn_angles[YAW] = spawn_angle * (180.0f / PIf);
 
-		// Seleccionar el tipo de refuerzo basado en la lista
-		if (i >= static_cast<int>(self->monsterinfo.reinforcements.num_reinforcements))
-
-		{
-		//	gi.Com_PrintFmt("Monster_MoveSpawn: No more reinforcements available in the list.\n");
-			break;
-		}
-
+		// Crear el monstruo
 		reinforcement_t& reinf = self->monsterinfo.reinforcements.reinforcements[i];
-		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles, mins, maxs, reinf.classname, 64);
-		if (!monster)
-		{
-		//	gi.Com_PrintFmt("Monster_MoveSpawn: Failed to create monster {}.\n", reinf.classname);
-			continue;
-		}
+		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles,
+			MONSTER_MINS, MONSTER_MAXS,
+			reinf.classname, 64);
 
+		if (!monster)
+			continue;
+
+		// Configurar flags y propiedades del monstruo
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
 		monster->owner = self;
-		//monster->monsterinfo.bonus_flags |= BF_RAGEQUITTER;
 		ApplyMonsterBonusFlags(monster);
 
+		// Actualizar contadores
 		self->monsterinfo.monster_used++;
 		available_slots--;
 
-		const vec3_t spawngrow_pos = monster->s.origin;
-		const float magnitude = VectorLength(spawngrow_pos);
-		if (magnitude > 0) {
+		// Efectos visuales de spawn
+		const float magnitude = monster->s.origin.length();  // Usar método length() de vec3_t
+		if (magnitude > 0.0f) {
 			const float start_size = magnitude * 0.055f;
 			const float end_size = magnitude * 0.005f;
-			SpawnGrow_Spawn(spawngrow_pos, start_size, end_size);
+			SpawnGrow_Spawn(monster->s.origin, start_size, end_size);
 		}
 
-		// Reproducir sonido de spawn
+		// Efectos de sonido
 		gi.sound(self, CHAN_BODY, sound_spawn_commander, 1, ATTN_NONE, 0);
-
-	//	gi.Com_PrintFmt("Monster_MoveSpawn: Successfully spawned {} at position ({}, {}, {}).\n",
-	//		reinf.classname, spawn_origin[0], spawn_origin[1], spawn_origin[2]);
 	}
-
 }
-
 void tank_vanilla_spawn_finished(edict_t* self)
 {
 	self->monsterinfo.spawning_in_progress = false;

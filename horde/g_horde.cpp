@@ -1807,44 +1807,61 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", it_msg->second.data());
 	}
 	else {
-		gi.Com_PrintFmt("PRINT: Warning: No specific message found for boss type '{}'. Using default message.\n", self->classname);
+		gi.Com_PrintFmt("PRINT: Warning: No specific message found for boss type '{}'. Using default message.\n",
+			self->classname);
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
 	}
 
-	// Rest of the original BossSpawnThink function...
+	// Configuración inicial del boss
 	self->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_sentrygun_target_time = 0_ms;
-	self->solid = SOLID_NOT;
-	ED_CallSpawn(self);
-	ClearSpawnArea(self->s.origin, self->mins, self->maxs);
-	self->solid = SOLID_BBOX;
-	gi.linkentity(self);
 
+	// Proceso de spawn seguro
+	{
+		// Temporalmente no sólido durante el spawn
+		const auto original_solid = self->solid;
+		self->solid = SOLID_NOT;
+
+		ED_CallSpawn(self);
+		ClearSpawnArea(self->s.origin, self->mins, self->maxs);
+
+		// Restaurar solidez y actualizar
+		self->solid = SOLID_BBOX;
+		gi.linkentity(self);
+	}
+
+	// Aplicar multiplicadores y efectos
 	constexpr float health_multiplier = 1.0f;
 	constexpr float power_armor_multiplier = 1.0f;
 
 	ApplyBossEffects(self);
 	self->monsterinfo.attack_state = AS_BLIND;
 
-	if (self->monsterinfo.power_armor_power > 0)
-	{
-		self->monsterinfo.power_armor_power = static_cast<int32_t>(self->monsterinfo.power_armor_power);
+	// Ajustar power armor si está presente
+	if (self->monsterinfo.power_armor_power > 0) {
+		self->monsterinfo.power_armor_power =
+			static_cast<int32_t>(self->monsterinfo.power_armor_power);
 	}
 
-	vec3_t const spawngrow_pos = self->s.origin;
-	const float size = VectorLength(spawngrow_pos) * 0.35f;
-	const float end_size = size * 0.005f;
-	ImprovedSpawnGrow(spawngrow_pos, size, end_size, self);
-	SpawnGrow_Spawn(spawngrow_pos, size, end_size);
+	// Efectos visuales de spawn
+	const vec3_t spawn_pos = self->s.origin;  // Usar asignación directa de vec3_t
+	const float magnitude = spawn_pos.length();  // Usar método length() en vez de VectorLength
+	const float base_size = magnitude * 0.35f;
+	const float end_size = base_size * 0.005f;
 
+	// Aplicar efectos de spawn
+	ImprovedSpawnGrow(spawn_pos, base_size, end_size, self);
+	SpawnGrow_Spawn(spawn_pos, base_size, end_size);
+
+	// Configuración final
 	AttachHealthBar(self);
 	SetHealthBarName(self);
 	auto_spawned_bosses.insert(self);
 
+	// Log de spawn exitoso
 	gi.Com_PrintFmt("PRINT: Boss of type {} spawned successfully with {} health and {} power armor\n",
 		self->classname, self->health, self->monsterinfo.power_armor_power);
 }
-
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss)
 {

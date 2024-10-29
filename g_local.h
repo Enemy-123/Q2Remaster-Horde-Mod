@@ -3904,9 +3904,6 @@ extern cached_soundindex snd_fry;
 extern void OnEntityDeath(const edict_t* ent);
 extern inline void VectorCopy(const vec3_t& src, vec3_t& dest);
 
-extern float VectorLength(const vec3_t v);
-extern void VectorNormalize(vec3_t v);
-//extern void VectorLerp(const vec3_t start, const vec3_t end, float t, vec3_t result);
 extern [[nodiscard]] constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);

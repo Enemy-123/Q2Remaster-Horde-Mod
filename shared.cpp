@@ -834,18 +834,21 @@ bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_m
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs)
 {
 	edict_t* ent = nullptr;
-	vec3_t area_mins, area_maxs;
+
 	// Calculate the absolute bounds of the area to check
-	area_mins = origin + mins;
-	area_maxs = origin + maxs;
+	vec3_t area_mins = origin + mins;
+	vec3_t area_maxs = origin + maxs;
+
 	// Expand the area slightly to account for movement
-	for (int i = 0; i < 3; i++)
-	{
-		area_mins[i] -= 26.0f;
-		area_maxs[i] += 26.0f;
-	}
+	vec3_t expansion{ 26.0f, 26.0f, 26.0f };
+	area_mins -= expansion;
+	area_maxs += expansion;
+
+	// Calculate search radius using vec3_t's length() method
+	float search_radius = maxs.length() + 16.0f;
+
 	// Find entities within the area
-	while ((ent = findradius(ent, origin, VectorLength(maxs) + 16.0f)) != nullptr)
+	while ((ent = findradius(ent, origin, search_radius)) != nullptr)
 	{
 		if (!ent->inuse)
 			continue;
@@ -853,9 +856,11 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 			continue;
 		if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
 			continue;
+
 		// Check if the entity is actually overlapping with the area
 		if (!EntitiesOverlap(ent, area_mins, area_maxs))
 			continue;
+
 		if (ent->client)
 		{
 			// For players, teleport them to a safe spawn point
@@ -863,46 +868,24 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 			if (spawn_point)
 			{
 				TeleportEntity(ent, spawn_point);
-				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point to make room for boss.\n", ent->client->pers.netname);
+				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point to make room for boss.\n",
+					ent->client->pers.netname);
 			}
 			else
 			{
-				gi.Com_PrintFmt("PRINT: WARNING: Could not find a spawn point for player {}.\n", ent->client->pers.netname);
+				gi.Com_PrintFmt("PRINT: WARNING: Could not find a spawn point for player {}.\n",
+					ent->client->pers.netname);
 			}
 		}
 		else
 		{
 			// For non-player entities, remove them
 			RemoveEntity(ent);
-			gi.Com_PrintFmt("PRINT: Entity {} removed from boss spawn area.\n", ent->classname ? ent->classname : "unknown");
+			gi.Com_PrintFmt("PRINT: Entity {} removed from boss spawn area.\n",
+				ent->classname ? ent->classname : "unknown");
 		}
 	}
 }
-
-// Define the vector functions if they are not already defined
-// Copy a vector
-inline void InlineVectorCopy(const vec3_t& src, vec3_t& dest) {
-	dest[0] = src[0];
-	dest[1] = src[1];
-	dest[2] = src[2];
-}
-
-// Returns the length of a vector
-float VectorLength(const vec3_t v) {
-	return sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-}
-
-// Normalizes a vector
-void VectorNormalize(vec3_t v) {
-	float length = VectorLength(v);
-	if (length) {
-		float ilength = 1.0f / length;
-		v[0] *= ilength;
-		v[1] *= ilength;
-		v[2] *= ilength;
-	}
-}
-
 #include <cmath>
 
 #ifdef __SSE__

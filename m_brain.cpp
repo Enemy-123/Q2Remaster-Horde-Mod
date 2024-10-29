@@ -904,16 +904,15 @@ void brain_jump2_now(edict_t* self)
 
 void brain_jump_attack(edict_t* self)
 {
-	vec3_t forward, up;
 	if (!self->enemy)
 		return;
 
-	// Calculate direction and distance to enemy
+	// Calculate direction and distance to enemy using vec3_t operators
 	const vec3_t dir = self->enemy->s.origin - self->s.origin;
-	const float length = VectorLength(dir);
+	const float distance = dir.length();  // Usar length() en vez de VectorLength
 
 	// Calculate forward speed based on distance
-	const float fwd_speed = length * 2.0f;
+	const float fwd_speed = distance * 2.0f;
 
 	// Predict aim
 	vec3_t aim_dir;
@@ -922,9 +921,11 @@ void brain_jump_attack(edict_t* self)
 	// Set angles based on aim direction
 	self->s.angles[YAW] = vectoyaw(aim_dir);
 
-	// Calculate velocity
-	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity = forward * fwd_speed + up * 125;
+	// Calculate velocity using angle_vectors_t struct
+	auto vectors = AngleVectors(self->s.angles);  // Obtiene forward, right, up de una vez
+
+	// Construir el vector de velocidad usando operadores de vec3_t
+	self->velocity = vectors.forward * fwd_speed + vectors.up * 125.0f;
 
 	// Set other properties
 	self->groundentity = nullptr;
