@@ -84,7 +84,7 @@ TOUCH(gib_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	}
 }
 
-edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale)
+edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame)
 {
 	edict_t* gib;
 	vec3_t	 vd;
@@ -154,7 +154,7 @@ edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t typ
 		gib->s.skinnum = self->s.skinnum;
 	else
 		gib->s.skinnum = 0;
-	gib->s.frame = 0;
+	gib->s.frame = frame;
 	gib->mins = gib->maxs = {};
 	gib->s.sound = 0;
 	gib->monsterinfo.engine_sound = 0;

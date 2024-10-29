@@ -767,7 +767,7 @@ void reloogie(edict_t* self)
 		return;
 	}
 
-	if (self->enemy->health >= 0)
+	if (self->enemy->health > 0)
 		if ((range_to(self, self->enemy) <= RANGE_NEAR))
 			M_SetAnimation(self, &gekk_move_spit);
 }

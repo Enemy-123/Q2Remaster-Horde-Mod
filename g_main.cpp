@@ -1114,7 +1114,7 @@ inline void G_RunFrame_(bool main_loop)
 
 		for (auto player : active_players())
 		{
-			if (player->health >= 0)
+			if (player->health > 0)
 			{
 				reset_coop_respawn = false;
 				break;

@@ -297,7 +297,7 @@ MMOVE_T(guncmdr2_move_death1) = { FRAME_c_death101, FRAME_c_death118, guncmdr2_f
 
 void guncmdr2_pain5_to_death1(edict_t* self)
 {
-	if (self->health < 0)
+	if (self->health <= 0)
 		M_SetAnimation(self, &guncmdr2_move_death1, false);
 }
 
@@ -311,7 +311,7 @@ MMOVE_T(guncmdr2_move_death2) = { FRAME_c_death201, FRAME_c_death204, guncmdr2_f
 
 void guncmdr2_pain5_to_death2(edict_t* self)
 {
-	if (self->health < 0 && brandom())
+	if (self->health <= 0 && brandom())
 		M_SetAnimation(self, &guncmdr2_move_death2, false);
 }
 
@@ -380,7 +380,7 @@ MMOVE_T(guncmdr2_move_death6) = { FRAME_c_death601, FRAME_c_death614, guncmdr2_f
 
 static void guncmdr2_pain6_to_death6(edict_t* self)
 {
-	if (self->health < 0)
+	if (self->health <= 0)
 		M_SetAnimation(self, &guncmdr2_move_death6, false);
 }
 

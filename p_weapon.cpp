@@ -88,7 +88,7 @@ void P_AddWeaponKick(edict_t* ent, const vec3_t& origin, const vec3_t& angles)
 	ent->client->kick.time = level.time + ent->client->kick.total;
 }
 
-void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t& result_start, vec3_t& result_dir)
+void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t& result_start, vec3_t& result_dir, bool adjust_for_pierce)
 {
 	if (ent->client->pers.hand == LEFT_HANDED)
 		distance[1] *= -1;
@@ -111,27 +111,29 @@ void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t
 
 	trace_t tr = gi.traceline(eye_position, end, ent, mask);
 
-	// if the point was a monster & close to us, use raw forward
+	// if the point was damageable, use raw forward
 	// so railgun pierces properly
-	if (tr.startsolid || ((tr.contents & (CONTENTS_MONSTER | CONTENTS_PLAYER)) && (tr.fraction * 8192.f) < 128.f))
-		result_dir = forward;
-	else
+	if ((tr.startsolid || adjust_for_pierce) && tr.ent->takedamage)
 	{
-		end = tr.endpos;
-		result_dir = (end - result_start).normalized();
+		result_dir = forward;
+		return;
+	}
+
+	end = tr.endpos;
+	result_dir = (end - result_start).normalized();
 
 #if 0
-		// correction for blocked shots
-		trace_t eye_tr = gi.traceline(result_start, result_start + (result_dir * tr.fraction * 8192.f), ent, mask);
+	// correction for blocked shots.
+	// disabled because it looks weird.
+	trace_t eye_tr = gi.traceline(result_start, result_start + (result_dir * tr.fraction * 8192.f), ent, mask);
 
-		if ((eye_tr.endpos - tr.endpos).length() > 32.f)
-		{
-			result_start = eye_position;
-			result_dir = (end - result_start).normalized();
-			return;
-		}
+	if ((eye_tr.endpos - tr.endpos).length() > 32.f)
+	{
+		result_start = eye_position;
+		result_dir = (end - result_start).normalized();
+		return;
+}
 #endif
-	}
 }
 
 /*

@@ -2353,7 +2353,7 @@ constexpr spawnflags_t SPAWNFLAG_FIXBOT_WORKING = 32_spawnflag;
 //
 void ThrowClientHead(edict_t* self, int damage);
 void gib_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
-edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale);
+edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t type, float scale, int frame = 0);
 void BecomeExplosion1(edict_t* self);
 void misc_viper_use(edict_t* self, edict_t* other, edict_t* activator);
 void misc_strogg_ship_use(edict_t* self, edict_t* other, edict_t* activator);
@@ -2553,7 +2553,7 @@ void G_ReportMatchDetails(bool is_end);
 // p_weapon.c
 //
 void PlayerNoise(edict_t* who, const vec3_t& where, player_noise_t type);
-void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t& result_start, vec3_t& result_dir);
+void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t& result_start, vec3_t& result_dir, bool adjust_for_pierce = false);
 void NoAmmoWeaponChange(edict_t* ent, bool sound);
 void G_RemoveAmmo(edict_t* ent);
 void G_RemoveAmmo(edict_t* ent, int32_t quantity);
@@ -3680,6 +3680,7 @@ struct gib_def_t
 	const char* gibname;
 	float scale;
 	gib_type_t type;
+	int framenum = 0;
 
 	constexpr gib_def_t(size_t count, const char* gibname) :
 		count(count),
@@ -3765,24 +3766,10 @@ const std::unordered_map<std::string_view, int> gib_multipliers = {
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
 {
 	for (auto& gib : gibs)
-	{
-		int multiplier = 1;
-
-		// Buscar si este gib debe ser multiplicado
-		auto it = gib_multipliers.find(gib.gibname);
-		if (it != gib_multipliers.end()) {
-			multiplier = it->second;
-		}
-
-		for (int j = 0; j < multiplier; j++)
-		{
-			for (size_t i = 0; i < gib.count; i++)
-			{
-				ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1));
-			}
-		}
-	}
+		for (size_t i = 0; i < gib.count; i++)
+			ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1), gib.framenum);
 }
+
 inline bool M_CheckGib(edict_t* self, const mod_t& mod)
 {
 	if (self->deadflag)

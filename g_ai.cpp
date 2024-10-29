@@ -1616,7 +1616,7 @@ bool ai_checkattack(edict_t* self, float dist)
     enemy_vis = visible(self, self->enemy);
     if (enemy_vis)
     {
-        self->monsterinfo.had_visibility = true;
+        self->monsterinfo.had_visibility = visible(self, self->enemy, false);
         self->enemy->show_hostile = level.time + 1_sec; // wake up other monsters
         self->monsterinfo.search_time = level.time + 5_sec;
         self->monsterinfo.last_sighting = self->monsterinfo.saved_goal = self->enemy->s.origin;
@@ -1627,6 +1627,8 @@ bool ai_checkattack(edict_t* self, float dist)
 
             if (self->monsterinfo.move_block_change_time < level.time)
                 self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
+
+            self->monsterinfo.checkattack_time = level.time + random_time(50_ms, 200_ms);
         }
         self->monsterinfo.trail_time = level.time;
         self->monsterinfo.blind_fire_target = self->monsterinfo.last_sighting + (self->enemy->velocity * -0.1f);
@@ -1833,7 +1835,7 @@ void ai_run(edict_t* self, float dist)
 
         bool touching_noise = SV_CloseEnough(self, self->enemy, dist * (gi.tick_rate / 10));
 
-        if ((!self->enemy) || (touching_noise && FacingIdeal(self)))
+        if ((!self->enemy || !self->enemy->inuse) || (touching_noise && FacingIdeal(self)))
             // pmm
         {
             self->monsterinfo.aiflags |= (AI_STAND_GROUND | AI_TEMP_STAND_GROUND);

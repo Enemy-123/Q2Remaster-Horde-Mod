@@ -715,7 +715,7 @@ void SP_monster_boss2(edict_t* self)
 
 	self->health = 6500 + (1.08 * current_wave_level);
 	self->gib_health = -200;
-	self->mass = 1000;
+	self->mass = 2000;
 
 	self->yaw_speed = 50;
 
