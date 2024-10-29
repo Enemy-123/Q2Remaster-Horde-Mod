@@ -3244,7 +3244,7 @@ always owned, never in the world
 			/* pickup_sound */ "items/pkup.wav",
 			/* world_model */ "models/monsters/turret/tris.md2",
 		//	/* world_model */ "models/items/dopple/tris.md2",
-			/* world_model_flags */ EF_ROTATE | EF_BOB,
+			/* world_model_flags */ EF_ROTATE,
 			/* view_model */ nullptr,
 			/* icon */ "p_doppleganger",
 			/* use_name */  "Sentry Gun",

@@ -1065,10 +1065,10 @@ void Cmd_Kill_AI_f(edict_t* ent) {
 
 	// Permitir avanzar a la siguiente ola inmediatamente
 	AllowNextWaveAdvance();  // Llamamos la función para avanzar la ola
-	//fastNextWave();
 	// Forzar limpieza de cuerpos
 	Horde_CleanBodies();
 	ResetWaveAdvanceState;
+	fastNextWave();
 }
 
 /*
