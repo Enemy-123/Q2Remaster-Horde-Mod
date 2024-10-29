@@ -387,41 +387,37 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
 
-	// Calculate queued monsters with better balance
-	int32_t baseQueued = 0;
+	// Progressive queue scaling based on wave level with improved balance
+	int32_t baseQueueIncrease = 2; // Base increase per level
 
-	// Solo aplicar cola si el nivel es mayor a 3
-	if (lvl > 3) {
-		// Base queue calculation
-		baseQueued = lvl;
+	// Calculate base queued monsters
+	int32_t baseQueued = baseQueueIncrease * lvl;
 
-		// Ajuste por tamaño de mapa
-		if (mapSize.isSmallMap) {
-			baseQueued = static_cast<int32_t>(baseQueued * 0.7f);
-		}
-		else if (mapSize.isBigMap) {
-			baseQueued = static_cast<int32_t>(baseQueued * 1.3f);
-		}
-
-		// Ajuste para niveles altos
-		if (lvl > 20) {
-			baseQueued += std::min((lvl - 20) * 2, 15);
-		}
-
-		// Bonus por dificultad
-		if (g_insane->integer || g_chaotic->integer) {
-			baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
-		}
-
-		// Limitar el máximo de monstruos en cola según el tamaño del mapa
-		int32_t maxQueued = mapSize.isSmallMap ? 25 : (mapSize.isBigMap ? 45 : 35);
-		baseQueued = std::min(baseQueued, maxQueued);
+	// Add map size adjustments
+	if (mapSize.isSmallMap) {
+		baseQueued = static_cast<int32_t>(baseQueued * 0.8f); // Reduce for small maps
+	}
+	else if (mapSize.isBigMap) {
+		baseQueued = static_cast<int32_t>(baseQueued * 1.2f); // Increase for big maps
 	}
 
-	// Actualizar la cola, reemplazando el valor anterior en lugar de acumular
-	g_horde_local.queued_monsters = baseQueued;
-}
+	// Additional scaling for higher levels with better progression
+	if (lvl > 20) {
+		int32_t bonusQueued = static_cast<int32_t>((lvl - 20) * 2);
+		// Cap the bonus to prevent excessive scaling
+		bonusQueued = std::min(bonusQueued, 30);
+		baseQueued += bonusQueued;
+	}
 
+	// Apply insanity/chaotic bonus to queued monsters
+	if (g_insane->integer || g_chaotic->integer) {
+		baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
+	}
+
+	// Prevent excessive queuing while maintaining challenge
+	int32_t maxQueued = mapSize.isSmallMap ? 45 : (mapSize.isBigMap ? 75 : 60);
+	g_horde_local.queued_monsters += std::min(baseQueued, maxQueued);
+}
 
 void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
@@ -2511,28 +2507,21 @@ void Horde_RunFrame() {
 	const int32_t currentLevel = g_horde_local.level;
 	CheckAndResetDisabledSpawnPoints();
 
-	// Si se establece un número personalizado de monstruos, sobrescribir el conteo
+	// Manejo de monstruos personalizados
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
-		ClampNumToSpawn(mapSize); // Asegurar que no exceda el límite
+		ClampNumToSpawn(mapSize);
 	}
 
-	// Obtener el número de jugadores humanos y espectadores una sola vez
+	// Obtener contadores de jugadores
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 	const int32_t numSpectPlayers = GetNumSpectPlayers();
 
-	// Ajustar la escala de cooperación basada en el número de jugadores humanos
+	// Ajustes de cooperación
 	level.coop_scale_players = 1 + numHumanPlayers;
-
-	// Verificar y ajustar la salud de los bots si es necesario
 	G_Monster_CheckCoopHealthScaling();
 
-	// Calcular monstruos activos y máximo permitido
-	const int32_t activeMonsters = CountActiveMonsters();
-	const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
-
-	// Limpieza de entidades inválidas si es necesario
+	// Verificaciones constantes
 	for (auto ent : active_monsters()) {
 		CheckAndRestoreMonsterAlpha(ent);
 	}
@@ -2552,31 +2541,35 @@ void Horde_RunFrame() {
 
 	case horde_state_t::spawning:
 		if (g_horde_local.monster_spawn_time <= level.time) {
-			// Verificar si se debe spawnear un jefe
+			// Spawn de jefe si corresponde
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
+
+			const int32_t activeMonsters = CountActiveMonsters();
+			const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
 			if (activeMonsters < maxMonsters) {
 				SpawnMonsters();
 			}
 
+			// Transición a active_wave cuando se complete el spawn
 			if (g_horde_local.num_to_spawn == 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
-					next_wave_message_sent = true; // Prevenir mensajes múltiples
+					next_wave_message_sent = true;
 				}
 
-				// Transición al estado 'active_wave'
+				// Inicializar el estado active_wave
 				g_horde_local.state = horde_state_t::active_wave;
-				g_horde_local.conditionTriggered = false; // Resetear condición
+				g_horde_local.conditionTriggered = false;
 				g_horde_local.conditionStartTime = 0_sec;
 				g_horde_local.waveEndTime = 0_sec;
 				g_horde_local.lastPrintTime = 0_sec;
-				// Resetear advertencias
 				std::fill(g_horde_local.warningIssued.begin(), g_horde_local.warningIssued.end(), false);
-				gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Conditions start now.\n");
+				gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
 			}
 		}
 		break;
@@ -2584,45 +2577,28 @@ void Horde_RunFrame() {
 	case horde_state_t::active_wave: {
 		WaveEndReason reason;
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
+
 		if (shouldAdvance) {
 			SendCleanupMessage(reason);
-			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", currentLevel);
-
-			// Ajustar configuraciones de dificultad basadas en current_wave_level
-			if (current_wave_level >= 15 && current_wave_level <= 28) {
-				gi.cvar_set("g_insane", "1");
-				gi.cvar_set("g_chaotic", "0");
-			}
-			else if (current_wave_level >= 31) {
-				gi.cvar_set("g_insane", "2");
-				gi.cvar_set("g_chaotic", "0");
-			}
-			else if (current_wave_level <= 14) {
-				gi.cvar_set("g_insane", "0");
-				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
-			}
-
-			g_horde_local.warm_time = level.time + random_time(1.5_sec, 2.5_sec);
-			g_horde_local.state = horde_state_t::rest;
-			cachedRemainingMonsters = CalculateRemainingMonsters();
+			gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
+			g_horde_local.state = horde_state_t::cleanup;
+			g_horde_local.monster_spawn_time = level.time + 3_sec;
 		}
+		else if (g_horde_local.monster_spawn_time <= level.time) {
+			const int32_t activeMonsters = CountActiveMonsters();
+			const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
-		// Opcional: spawnear monstruos adicionales durante la ola activa
-		if (g_horde_local.monster_spawn_time <= level.time && activeMonsters < maxMonsters) {
-			SpawnMonsters();
+			if (activeMonsters < maxMonsters) {
+				SpawnMonsters();
+			}
 		}
-
 		break;
 	}
 
 	case horde_state_t::cleanup: {
-		WaveEndReason reason;
-		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
-		if (shouldAdvance) {
-			SendCleanupMessage(reason);
-			gi.Com_PrintFmt("PRINT: Wave {} completed.\n", currentLevel);
-
-			// Ajustar configuraciones de dificultad según el nivel actual
+		if (g_horde_local.monster_spawn_time < level.time) {
+			// Ajustar configuraciones de dificultad
 			if (current_wave_level >= 15 && current_wave_level <= 28) {
 				gi.cvar_set("g_insane", "1");
 				gi.cvar_set("g_chaotic", "0");
@@ -2636,28 +2612,10 @@ void Horde_RunFrame() {
 				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 			}
 
+			// Transición al estado de descanso
 			g_horde_local.warm_time = level.time + random_time(1.5_sec, 2.5_sec);
 			g_horde_local.state = horde_state_t::rest;
 			cachedRemainingMonsters = CalculateRemainingMonsters();
-		}
-
-		if (g_horde_local.monster_spawn_time < level.time) {
-			if (Horde_AllMonstersDead()) {
-				reason = WaveEndReason::AllMonstersDead;
-				SendCleanupMessage(reason);
-				gi.Com_PrintFmt("PRINT: Wave {} completed by killing all monsters.\n", currentLevel);
-
-				gi.cvar_set("g_chaotic", "0");
-				gi.cvar_set("g_insane", "0");
-
-				g_horde_local.warm_time = level.time + random_time(2.2_sec, 3.0_sec);
-				g_horde_local.state = horde_state_t::rest;
-				cachedRemainingMonsters = CalculateRemainingMonsters();
-			}
-			else {
-				cachedRemainingMonsters = CalculateRemainingMonsters();
-				g_horde_local.monster_spawn_time = level.time + 3_sec;
-			}
 		}
 		break;
 	}
@@ -2672,15 +2630,12 @@ void Horde_RunFrame() {
 		break;
 	}
 
-	// Resetear el mensaje de horda si el tiempo ha expirado
+	// Actualizar mensajes y HUD
 	if (horde_message_end_time && level.time >= horde_message_end_time) {
 		ClearHordeMessage();
 	}
-
-	// Actualizar el HUD de la horda
 	UpdateHordeHUD();
 }
-
 
 // Función para manejar el evento de reinicio
 void HandleResetEvent() {
