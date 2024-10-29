@@ -1484,12 +1484,6 @@ void Weapon_HyperBlaster(edict_t* ent)
 	Weapon_Repeating(ent, 5, 20, 49, 53, pause_frames, Weapon_HyperBlaster_Fire);
 }
 
-void VectorSet(vec3_t& v, float x, float y, float z) {
-	v[0] = x;
-	v[1] = y;
-	v[2] = z;
-}
-
 /*
 ======================================================================
 
@@ -1499,113 +1493,99 @@ MACHINEGUN / CHAINGUN
 */
 void Machinegun_Fire(edict_t* ent)
 {
-	int i;
-	int damage;
+	if (!ent->client)
+		return;
+
+	int damage = irandom(7, 10);
 	int kick = 2;
 
-	damage = irandom(7, 10);
-	if (!(ent->client->buttons & BUTTON_ATTACK))
-	{
+	if (!(ent->client->buttons & BUTTON_ATTACK)) {
 		ent->client->machinegun_shots = 0;
 		ent->client->ps.gunframe = 6;
 		return;
 	}
 
-	if (ent->client->ps.gunframe == 4)
-		ent->client->ps.gunframe = 5;
-	else
-		ent->client->ps.gunframe = 4;
+	ent->client->ps.gunframe = (ent->client->ps.gunframe == 4) ? 5 : 4;
 
-	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < 1)
-	{
+	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < 1) {
 		ent->client->ps.gunframe = 6;
 		NoAmmoWeaponChange(ent, true);
 		return;
 	}
 
-	if (is_quad)
-	{
+	if (is_quad) {
 		damage *= damage_multiplier;
 		kick *= damage_multiplier;
 	}
 
+	// Inicializar vectores de kick usando la sintaxis de inicialización
 	vec3_t kick_origin{}, kick_angles{};
-	for (i = 0; i < 3; i++)
-	{
+	for (int i = 0; i < 3; i++) {
 		kick_origin[i] = crandom() * 0.35f;
 		kick_angles[i] = crandom() * 0.7f;
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	vec3_t start, forward, right, up, offset;
-	AngleVectors(ent->client->v_angle, forward, right, up);
+	// Calcular vectores de disparo
+	vec3_t start;
+	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
 
-	// Ajuste para fire_bullet
-	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
+	// Offset del arma usando inicialización directa
+	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
+
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
-
-	// Ajustar posición inicial para evitar colisiones con el techo
-	start[2] -= 5.0f;  // Baja la posición inicial un poco más abajo
+	start[2] -= 5.0f;  // Ajuste de altura
 
 	G_LagCompensate(ent, start, forward);
-	fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
+
+	fire_bullet(ent, start, forward, damage, kick,
+		DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_MACHINEGUN);
+
 	G_UnLagCompensate();
 	Weapon_PowerupSound(ent);
 
+	// Muzzle flash
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
 	gi.WriteByte(MZ_MACHINEGUN | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-
 	G_RemoveAmmo(ent);
 
 	// Lógica para disparar trazadores
-	if (ent->lasthbshot <= level.time)
-	{
-		if (g_tracedbullets->integer)
-		{
+	if (ent->lasthbshot <= level.time) {
+		if (g_tracedbullets->integer) {
 			int tracer_damage = 40;
-			vec3_t tracer_start = start;  // Reemplaza VectorCopy
-			vec3_t tracer_forward = forward;  // Reemplaza VectorCopy
-			vec3_t tracer_offset;
+			vec3_t tracer_start = start;
+			vec3_t tracer_forward = forward;
 
-			// Ajustar el desplazamiento para que coincida con el lado del arma
-			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-			{
-				tracer_offset = { 0.0f, 8.0f, -6.0f };  // Reemplaza VectorSet
-			}
-			else
-			{
-				tracer_offset = { 0.0f, 10.5f, -11.0f };  // Reemplaza VectorSet
-			}
-			tracer_start = tracer_start + tracer_offset;  // Reemplaza VectorAdd
+			// Offset del trazador usando inicialización condicional
+			vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+				? vec3_t{ 0.0f, 8.0f, -6.0f }
+			: vec3_t{ 0.0f, 10.5f, -11.0f };
 
-			// Ajuste de dirección para fire_blaster2
+			tracer_start = tracer_start + tracer_offset;
+
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
-
-			// Disparo del blaster desde la posición ajustada y dirección correcta
 			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_BLUEHYPERBLASTER);
 		}
 		ent->lasthbshot = level.time + 0.5_sec;
 	}
 
+	// Configuración de animación
 	ent->client->anim_priority = ANIM_ATTACK;
-	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-	{
+	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (int)(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_crattak9;
 	}
-	else
-	{
+	else {
 		ent->s.frame = FRAME_attack1 - (int)(frandom() + 0.25f);
 		ent->client->anim_end = FRAME_attack8;
 	}
 	ent->client->anim_time = 0_ms;
 }
-
 void Weapon_Machinegun(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 23, 45, 0 };
@@ -1614,38 +1594,34 @@ void Weapon_Machinegun(edict_t* ent)
 }
 void Chaingun_Fire(edict_t* ent)
 {
-	int i;
+	if (!ent->client)
+		return;
+
 	int shots;
 	int damage;
 	int kick = 2;
 
-	if (G_IsDeathmatch())
-		damage = irandom(5, 9);
-	else
-		damage = irandom(5, 9);
+	damage = irandom(5, 9);
 
-	if (ent->client->ps.gunframe > 31)
-	{
+	if (ent->client->ps.gunframe > 31) {
 		ent->client->ps.gunframe = 5;
 		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
 	}
-	else if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK))
-	{
+	else if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK)) {
 		ent->client->ps.gunframe = 32;
 		ent->client->weapon_sound = 0;
 		return;
 	}
-	else if ((ent->client->ps.gunframe == 21) && (ent->client->buttons & BUTTON_ATTACK) && ent->client->pers.inventory[ent->client->pers.weapon->ammo])
-	{
+	else if ((ent->client->ps.gunframe == 21) &&
+		(ent->client->buttons & BUTTON_ATTACK) &&
+		ent->client->pers.inventory[ent->client->pers.weapon->ammo]) {
 		ent->client->ps.gunframe = 15;
 	}
-	else
-	{
+	else {
 		ent->client->ps.gunframe++;
 	}
 
-	if (ent->client->ps.gunframe == 22)
-	{
+	if (ent->client->ps.gunframe == 22) {
 		ent->client->weapon_sound = 0;
 		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
 	}
@@ -1654,116 +1630,96 @@ void Chaingun_Fire(edict_t* ent)
 		return;
 
 	ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
-
 	ent->client->anim_priority = ANIM_ATTACK;
-	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-	{
+
+	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
 		ent->client->anim_end = FRAME_crattak9;
 	}
-	else
-	{
+	else {
 		ent->s.frame = FRAME_attack1 - (ent->client->ps.gunframe & 1);
 		ent->client->anim_end = FRAME_attack8;
 	}
+
 	ent->client->anim_time = 0_ms;
 
 	if (ent->client->ps.gunframe <= 9)
 		shots = 1;
 	else if (ent->client->ps.gunframe <= 14)
-	{
-		if (ent->client->buttons & BUTTON_ATTACK)
-			shots = 2;
-		else
-			shots = 1;
-	}
+		shots = (ent->client->buttons & BUTTON_ATTACK) ? 2 : 1;
 	else
 		shots = 3;
 
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < shots)
 		shots = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
 
-	if (!shots)
-	{
+	if (!shots) {
 		NoAmmoWeaponChange(ent, true);
 		return;
 	}
 
-	if (is_quad)
-	{
+	if (is_quad) {
 		damage *= damage_multiplier;
 		kick *= damage_multiplier;
 	}
 
+	// Inicializar vectores de kick usando la sintaxis de inicialización
 	vec3_t kick_origin{}, kick_angles{};
-	for (i = 0; i < 3; i++)
-	{
+	for (int i = 0; i < 3; i++) {
 		kick_origin[i] = crandom() * 0.35f;
 		kick_angles[i] = crandom() * (0.5f + (shots * 0.15f));
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	vec3_t start, forward, right, up, offset;
-	AngleVectors(ent->client->v_angle, forward, right, up);
+	// Calcular vectores de disparo
+	vec3_t start;
+	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
 
-	// Ajustar los valores de offset para fire_bullet
-	VectorSet(offset, 0.0f, 8.0f, ent->viewheight - 8.0f);
+	// Offset del arma usando inicialización directa
+	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
+
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
-
-	// Ajustar posición inicial para evitar colisiones con el techo
-	start[2] -= 5.0f;  // Baja la posición inicial un poco más abajo
+	start[2] -= 5.0f;  // Ajuste de altura
 
 	G_LagCompensate(ent, start, forward);
-	for (i = 0; i < shots; i++)
-	{
-		// Mantener el start y forward constantes
-		fire_bullet(ent, start, forward, damage, kick, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
-	}
-	G_UnLagCompensate();
 
+	for (int i = 0; i < shots; i++) {
+		fire_bullet(ent, start, forward, damage, kick,
+			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
+	}
+
+	G_UnLagCompensate();
 	Weapon_PowerupSound(ent);
 
-	// enviar muzzle flash
+	// Muzzle flash
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
 	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-
 	G_RemoveAmmo(ent, shots);
 
-	if (ent->lasthbshot <= level.time)
-	{
-		if (g_tracedbullets->integer)
-		{
+	if (ent->lasthbshot <= level.time) {
+		if (g_tracedbullets->integer) {
 			int tracer_damage = 20;
-			vec3_t tracer_start = start;  // Reemplaza VectorCopy
-			vec3_t tracer_forward = forward;  // Reemplaza VectorCopy
+			vec3_t tracer_start = start;
+			vec3_t tracer_forward = forward;
 
-			// Ajustar el desplazamiento para que coincida con el lado del arma
-			vec3_t tracer_offset;
-			if (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-			{
-				tracer_offset = { 0.0f, 8.0f, -6.0f };  // Reemplaza VectorSet
-			}
-			else
-			{
-				tracer_offset = { 0.0f, 10.5f, -11.0f };  // Reemplaza VectorSet
-			}
-			tracer_start = tracer_start + tracer_offset;  // Reemplaza VectorAdd
+			// Offset del trazador usando inicialización directa
+			vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+				? vec3_t{ 0.0f, 8.0f, -6.0f }
+			: vec3_t{ 0.0f, 10.5f, -11.0f };
 
-			// Ajuste de dirección para fire_blaster2
+			tracer_start = tracer_start + tracer_offset;
+
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
-
-			// Disparo del blaster desde la posición ajustada y dirección correcta
 			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.25_sec;
 	}
 }
-
 void Weapon_Chaingun(edict_t* ent)
 {
 	constexpr int pause_frames[] = { 38, 43, 51, 61, 0 };

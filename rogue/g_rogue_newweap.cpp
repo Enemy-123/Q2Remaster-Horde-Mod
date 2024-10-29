@@ -92,74 +92,62 @@ constexpr float PROX_DAMAGE_OPEN_MULTIPLIER = 1.5f;
 
 #include <stdlib.h> // Para rand()
 
-#define VectorSet(v, x, y, z) ((v)[0]=(x), (v)[1]=(y), (v)[2]=(z))
-static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) 
+static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal)
 {
-vec3_t origin;
-	vec3_t forward, right, up;
-	vec3_t grenade_angs;
-	edict_t* owner;
-	int n;
-
 	// free the trigger field
 	if (ent->teamchain && ent->teamchain->owner == ent)
 		G_FreeEdict(ent->teamchain);
 
-	owner = ent;
-	if (ent->teammaster)
-	{
-		owner = ent->teammaster;
+	edict_t* owner = ent->teammaster ? ent->teammaster : ent;
+
+	if (ent->teammaster) {
 		PlayerNoise(owner, ent->s.origin, PNOISE_IMPACT);
 	}
 
-	if (other)
-	{
+	if (other) {
 		vec3_t dir = other->s.origin - ent->s.origin;
 		T_Damage(other, ent, owner, dir, ent->s.origin, normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
 	}
 
 	// play quad sound if appropriate
-	if (ent->dmg > PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER)
+	if (ent->dmg > PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER) {
 		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
+	}
 
 	ent->takedamage = false;
-	T_RadiusDamage(ent, owner, (float)ent->dmg, other, PROX_DAMAGE_RADIUS, DAMAGE_NONE, MOD_PROX);
+	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other, PROX_DAMAGE_RADIUS, DAMAGE_NONE, MOD_PROX);
 
-	origin = ent->s.origin + normal;
+	vec3_t origin = ent->s.origin + normal;
+
 	gi.WriteByte(svc_temp_entity);
-	if (ent->groundentity)
-		gi.WriteByte(TE_GRENADE_EXPLOSION);
-	else
-		gi.WriteByte(TE_ROCKET_EXPLOSION);
+	gi.WriteByte(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION);
 	gi.WritePosition(origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
 	if (g_upgradeproxs->integer) {
 		// Fragmentation effect
-		for (n = 0; n < 15; n++) {
+		for (int n = 0; n < 15; n++) {
+			vec3_t forward;
+
 			if (n < 3) {
 				// Las primeras 3 granadas caen directamente hacia abajo
-				VectorSet(forward, 0, 0, -1);
-
-				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
-				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
-
-				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
+				forward = vec3_t{ 0, 0, -1 };
 			}
 			else {
 				// Las demás granadas siguen la fragmentación normal
-				grenade_angs[0] = -45;
-				grenade_angs[1] = (n - 3) * 30.0f; // Ajuste del ángulo para evitar interferencia
-				grenade_angs[2] = 0;
-				AngleVectors(grenade_angs, forward, right, up);
-
-				// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
-				const float random_explode_time = 1.0f + ((float)rand() / RAND_MAX) * 2.0f;
-
-				fire_grenade2(owner, origin, forward, 60, 600, gtime_t::from_sec(random_explode_time), 120, false);
+				vec3_t grenade_angs{ -45, (n - 3) * 30.0f, 0 };
+				auto [fwd, right, up] = AngleVectors(grenade_angs);
+				forward = fwd;
 			}
+
+			// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
+			const float random_explode_time = 1.0f + (static_cast<float>(rand()) / RAND_MAX) * 2.0f;
+
+			fire_grenade2(owner, origin, forward, 60, 600,
+				gtime_t::from_sec(random_explode_time), 120, false);
 		}
 	}
+
 	G_FreeEdict(ent);
 }
 

@@ -356,11 +356,16 @@ void create_laser(edict_t* ent) {
         gi.LocClient_Print(ent, PRINT_HIGH, "Not enough cells to create a laser.\n");
         return;
     }
-    vec3_t forward, right, start, end, offset;
-    AngleVectors(ent->client->v_angle, forward, right, nullptr);
-    VectorSet(offset, 0, 8, ent->viewheight - 8);
-    start = G_ProjectSource(ent->s.origin, offset, forward, right);
-    end = start + forward * 64;
+
+    // Calcular posiciones
+    vec3_t forward, right;
+    auto [fwd, rgt, _] = AngleVectors(ent->client->v_angle);
+    forward = fwd;
+    right = rgt;
+
+    vec3_t offset{ 0, 8, ent->viewheight - 8 };
+    vec3_t start = G_ProjectSource(ent->s.origin, offset, forward, right);
+    vec3_t end = start + forward * 64;
 
     trace_t tr = gi.traceline(start, end, ent, MASK_SOLID);
 
@@ -417,8 +422,8 @@ void create_laser(edict_t* ent) {
     grenade->movetype = MOVETYPE_NONE;
     grenade->clipmask = MASK_SHOT;
     grenade->solid = SOLID_BBOX;
-    VectorSet(grenade->mins, -3, -3, 0);
-    VectorSet(grenade->maxs, 3, 3, 6);
+    grenade->mins = vec3_t{ -3, -3, 0 };
+    grenade->maxs = vec3_t{ 3, 3, 6 };
     grenade->takedamage = true;
     grenade->health = 100;
     grenade->gib_health = -50;
@@ -450,7 +455,6 @@ void create_laser(edict_t* ent) {
             current_manager->get_active_count(), LaserConstants::MAX_LASERS);
     }
 }
-
     void remove_lasers(edict_t * ent) noexcept {
         if (!ent) return;
 
