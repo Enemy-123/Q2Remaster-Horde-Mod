@@ -3551,9 +3551,9 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		ent->client->resp.inactivity_warning = false;
 	}
 
-	// Actualización de la posición y ángulos antiguos
-	VectorCopy(ent->s.origin, ent->client->old_origin);
-	VectorCopy(ent->client->v_angle, ent->client->old_angles);
+	// Actualización de la posición y ángulos antiguos usando asignación directa
+	ent->client->old_origin = ent->s.origin;
+	ent->client->old_angles = ent->client->v_angle;
 
 	return true;
 }

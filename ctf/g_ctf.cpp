@@ -2284,39 +2284,30 @@ bool CTFPickup_Tech(edict_t* ent, edict_t* other)
 
 static void SpawnTech(gitem_t* item, edict_t* spot);
 
-static edict_t* FindTechSpawn()
-{
+static edict_t* FindTechSpawn() {
 	edict_t* spot = nullptr;
-	int attempts = 0;
+	constexpr vec3_t mins{};  // Constructor por defecto inicializa a {0,0,0}
+	constexpr vec3_t maxs{};
 
 	// Intentar encontrar un punto de generación válido varias veces
-	while (attempts < 10)
-	{
+	for (int attempts = 0; attempts < 10; attempts++) {
 		spot = SelectDeathmatchSpawnPoint(false, true, true).spot;
-		if (spot)
-		{
-			trace_t tr;
-			vec3_t start, end;
-			vec3_t mins = { 0, 0, 0 }; // Declarar mins y maxs como vectores vacíos
-			vec3_t maxs = { 0, 0, 0 };
-			VectorCopy(spot->s.origin, start);
-			VectorCopy(spot->s.origin, end);
-			end[2] -= 128; // Comprobar 128 unidades hacia abajo para asegurarse de que no está flotando
+		if (!spot) continue;
 
-			tr = gi.trace(start, mins, maxs, end, spot, MASK_SOLID);
+		// Usar el origen del spot para start y ajustar end hacia abajo
+		vec3_t start = spot->s.origin;
+		vec3_t end = spot->s.origin + vec3_t{ 0, 0, -128 };
 
-			if (tr.fraction < 1.0 && !tr.startsolid && !tr.allsolid)
-			{
-				return spot;
-			}
+		// Realizar el trace para verificar que el punto está sobre suelo sólido
+		trace_t tr = gi.trace(start, mins, maxs, end, spot, MASK_SOLID);
+
+		if (tr.fraction < 1.0 && !tr.startsolid && !tr.allsolid) {
+			return spot;
 		}
-		attempts++;
 	}
 
-	// Si no se encontró un punto válido, devolver nullptr
 	return nullptr;
 }
-
 THINK(TechThink) (edict_t* tech) -> void
 {
 	if (tech == nullptr)

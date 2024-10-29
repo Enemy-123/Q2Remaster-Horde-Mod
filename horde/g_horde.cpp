@@ -1399,12 +1399,14 @@ static vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int m
 
 // Función auxiliar para configurar un ítem soltado
 static void SetupDroppedItem(edict_t* item, const vec3_t& origin, const vec3_t& velocity, bool applyFlags) {
-	VectorCopy(origin, item->s.origin);
-	VectorCopy(velocity, item->velocity);
+	item->s.origin = origin;
+	item->velocity = velocity;
+
 	if (applyFlags) {
 		item->spawnflags &= ~SPAWNFLAG_ITEM_DROPPED;
 		item->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
 	}
+
 	item->movetype = MOVETYPE_BOUNCE;
 	item->s.effects |= EF_GIB;
 	item->flags &= ~FL_RESPAWN;
@@ -1688,8 +1690,9 @@ static void AttachHealthBar(edict_t* boss) {
 	if (!healthbar) return;
 
 	healthbar->classname = "target_healthbar";
-	VectorCopy(boss->s.origin, healthbar->s.origin);
-	healthbar->s.origin[2] += 20;
+	// Usar asignación directa y operador de suma de vec3_t
+	healthbar->s.origin = boss->s.origin + vec3_t{ 0, 0, 20 };
+
 	healthbar->delay = 2.0f;
 	healthbar->target = boss->targetname;
 
@@ -1722,9 +1725,23 @@ static void SpawnBossAutomatically() {
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
 		return;
 	}
+
 	const auto it = mapOrigins.find(level.mapname);
 	if (it == mapOrigins.end()) {
 		gi.Com_PrintFmt("PRINT: Error: No spawn origin found for map {}\n", level.mapname);
+		return;
+	}
+
+	// Crear el vector de origen una sola vez
+	const vec3_t spawn_origin = {
+		static_cast<float>(it->second[0]),
+		static_cast<float>(it->second[1]),
+		static_cast<float>(it->second[2])
+	};
+
+	// Validar origen antes de continuar
+	if (spawn_origin == vec3_origin) {
+		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
 		return;
 	}
 
@@ -1732,10 +1749,7 @@ static void SpawnBossAutomatically() {
 	edict_t* orb = G_Spawn();
 	if (orb) {
 		orb->classname = "target_orb";
-		VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
-						  static_cast<float>(it->second[1]),
-						  static_cast<float>(it->second[2]) },
-			orb->s.origin);
+		orb->s.origin = spawn_origin;
 		SP_target_orb(orb);
 	}
 
@@ -1767,18 +1781,7 @@ static void SpawnBossAutomatically() {
 	}
 
 	// Set boss origin
-	if (it->second[0] == 0 && it->second[1] == 0 && it->second[2] == 0) {
-		if (orb) G_FreeEdict(orb);
-		G_FreeEdict(boss);
-		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
-		return;
-	}
-
-	VectorCopy(vec3_t{ static_cast<float>(it->second[0]),
-					   static_cast<float>(it->second[1]),
-					   static_cast<float>(it->second[2]) },
-		boss->s.origin);
-
+	boss->s.origin = spawn_origin;
 	gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
 
 	// Push entities away
@@ -1792,7 +1795,6 @@ static void SpawnBossAutomatically() {
 	boss->think = BossSpawnThink;
 	gi.Com_PrintFmt("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
-
 THINK(BossSpawnThink)(edict_t* self) -> void
 {
 	// Remove the black light effect if it exists
@@ -2367,7 +2369,7 @@ static edict_t* SpawnMonsters() {
 	std::vector<edict_t*> available_spawns;
 	available_spawns.reserve(MAX_EDICTS);
 
-	// Recolectar todos los puntos de spawn disponibles que no son jefes
+	// Collect all available non-boss spawn points
 	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts; ++edictIndex) {
 		edict_t* e = &g_edicts[edictIndex];
 		if (e->inuse && e->classname && std::strcmp(e->classname, "info_player_deathmatch") == 0 && !e->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
@@ -2380,14 +2382,14 @@ static edict_t* SpawnMonsters() {
 		return nullptr;
 	}
 
-	// Determinar cuántos monstruos spawnear en esta llamada
+	// Determine how many monsters to spawn in this call
 	const int32_t default_monsters_per_spawn = mapSize.isSmallMap ? 4 :
 		(mapSize.isBigMap ? 6 : 5);
 	const int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
 		std::min(g_horde_local.queued_monsters, static_cast<int32_t>(3)) :
 		std::min(default_monsters_per_spawn, static_cast<int32_t>(6));
 
-	// Asegurar que no se spawnee más de lo permitido por el mapa
+	// Ensure we don't spawn more than allowed by the map
 	const int32_t activeMonsters = CountActiveMonsters();
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
@@ -2401,7 +2403,7 @@ static edict_t* SpawnMonsters() {
 
 	edict_t* last_spawned_monster = nullptr;
 
-	// Mezclar aleatoriamente los puntos de spawn usando mt_rand
+	// Randomly shuffle spawn points using mt_rand
 	std::shuffle(available_spawns.begin(), available_spawns.end(), mt_rand);
 
 	int32_t spawnIndex = 0;
@@ -2410,10 +2412,10 @@ static edict_t* SpawnMonsters() {
 
 		const char* monster_classname = G_HordePickMonster(spawn_point);
 		if (!monster_classname) {
-			continue; // Saltar si no se pudo seleccionar un monstruo válido
+			continue; // Skip if no valid monster could be selected
 		}
 
-		// Spawnear el monstruo
+		// Spawn the monster
 		edict_t* monster = G_Spawn();
 		if (!monster) {
 			gi.Com_PrintFmt("PRINT: G_Spawn Warning: Failed to spawn monster\n");
@@ -2424,8 +2426,10 @@ static edict_t* SpawnMonsters() {
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
-		VectorCopy(spawn_point->s.origin, monster->s.origin);
-		VectorCopy(spawn_point->s.angles, monster->s.angles);
+
+		// Reemplazamos VectorCopy con asignación directa
+		monster->s.origin = spawn_point->s.origin;
+		monster->s.angles = spawn_point->s.angles;
 
 		ED_CallSpawn(monster);
 
@@ -2435,42 +2439,41 @@ static edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		// Ajustar armadura si es necesario
+		// Adjust armor if needed
 		if (g_horde_local.level >= 17) {
 			SetMonsterArmor(monster);
 		}
 
-		// Determinar si el monstruo soltará un ítem
+		// Determine if monster will drop an item
 		float drop_probability = (g_horde_local.level <= 2) ? 0.8f :
 			(g_horde_local.level <= 7) ? 0.6f : 0.45f;
 		if (std::uniform_real_distribution<float>(0.0f, 1.0f)(mt_rand) <= drop_probability) {
 			monster->item = G_HordePickItem();
 		}
 
-		// Aplicar efectos de spawn grow
+		// Apply spawn grow effects
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 		gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
-		// Actualizar contadores
+		// Update counters
 		g_horde_local.num_to_spawn = std::max(g_horde_local.num_to_spawn - 1, 0);
 		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters - 1, 0);
 		g_totalMonstersInWave++;
 		last_spawned_monster = monster;
 	}
 
-	// Manejar monstruos en cola adicionales si aún hay capacidad para spawnear
+	// Handle additional queued monsters if there's still spawn capacity
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = maxMonsters - CountActiveMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
 		g_horde_local.num_to_spawn += additional_to_spawn;
 		g_horde_local.queued_monsters = std::max(g_horde_local.queued_monsters - additional_to_spawn, 0);
-		ClampNumToSpawn(mapSize); // Asegurar que num_to_spawn no exceda el límite permitido
+		ClampNumToSpawn(mapSize); // Ensure num_to_spawn doesn't exceed the allowed limit
 	}
 
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned_monster;
 }
-
 // Funciones auxiliares para reducir el tamaño de SpawnMonsters
 static void SetMonsterArmor(edict_t* monster) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
