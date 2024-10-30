@@ -70,10 +70,7 @@ static edict_t* PlayerTrail_Spawn(edict_t* owner)
 void PlayerTrail_Destroy(edict_t* player)
 {
 	for (size_t i = 0; i < globals.num_edicts; i++)
-		if (g_edicts[i].classname &&
-			(strcmp(g_edicts[i].classname, "player_trail") == 0 ||
-				strcmp(g_edicts[i].classname, "player_noise") == 0)
-			)
+		if (g_edicts[i].classname && strcmp(g_edicts[i].classname, "player_trail") == 0)
 			if (!player || g_edicts[i].owner == player)
 				G_FreeEdict(&g_edicts[i]);
 
@@ -101,12 +98,10 @@ void PlayerTrail_Add(edict_t* player)
 	trail->owner = player;
 }
 
-// pick a trail node that matches the player
-// we're hunting that is visible to us.
 edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 {
-	// not player or doesn't have a trail yet
-	if (!self->enemy->client || !self->enemy->client->trail_head)
+	// Verifica si self o self->enemy son nulos // fixing crash probably
+	if (!self || !self->enemy || !self->enemy->client || !self->enemy->client->trail_head)
 		return nullptr;
 
 	// find which marker head that was dropped while we
