@@ -581,39 +581,6 @@ mframe_t widow2_frames_pain[] = {
 MMOVE_T(widow2_move_pain) = { FRAME_pain01, FRAME_pain05, widow2_frames_pain, widow2_run };
 
 mframe_t widow2_frames_death[] = {
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 0, WidowExplosion1 }, // 3 boom
-	{ ai_move },
-	{ ai_move }, // 5
-
-	{ ai_move, 0, WidowExplosion2 }, // 6 boom
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }, // 10
-
-	{ ai_move },
-	{ ai_move }, // 12
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }, // 15
-
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 0, WidowExplosion3 }, // 18
-	{ ai_move },					 // 19
-	{ ai_move },					 // 20
-
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move, 0, WidowExplosion4 }, // 25
-
-	{ ai_move }, // 26
-	{ ai_move },
-	{ ai_move },
 	{ ai_move, 0, WidowExplosion5 },
 	{ ai_move, 0, WidowExplosionLeg }, // 30
 
@@ -634,7 +601,7 @@ mframe_t widow2_frames_death[] = {
 	{ ai_move },
 	{ ai_move, 0, WidowExplode } // 44
 };
-MMOVE_T(widow2_move_death) = { FRAME_death01, FRAME_death44, widow2_frames_death, nullptr };
+MMOVE_T(widow2_move_death) = { FRAME_death13, FRAME_death44, widow2_frames_death, nullptr };
 
 void widow2_start_searching(edict_t* self);
 void widow2_keep_searching(edict_t* self);
@@ -697,6 +664,7 @@ void widow2_finaldeath(edict_t* self)
 	self->maxs = { 70, 70, 80 };
 	self->movetype = MOVETYPE_TOSS;
 	self->takedamage = true;
+	self->svflags |= SVF_DEADMONSTER;  // Asegurar que está marcado como muerto
 	self->nextthink = 0_ms;
 	gi.linkentity(self);
 }
@@ -975,6 +943,9 @@ DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
 			});
 
+		// Asegurarse de que esté marcada como un monstruo muerto
+		self->svflags |= SVF_DEADMONSTER;
+		self->takedamage = false;
 		return;
 	}
 

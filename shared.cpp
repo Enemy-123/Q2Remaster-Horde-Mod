@@ -6,7 +6,7 @@
 bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
 
-void turret_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
+void turret2_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void prox_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void tesla_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 void trap_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
@@ -62,7 +62,7 @@ void RemoveEntity(edict_t* ent)
 	if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
 	{
 		ent->health = -1;
-		turret_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
+		turret2_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
 	else if (!strcmp(ent->classname, "tesla_mine"))
 	{
@@ -675,8 +675,14 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	entities_to_process.reserve(MAX_EDICTS);
 	entities_to_remove.reserve(MAX_EDICTS);
 
-	// Collect entities in radius
-	for (edict_t* ent = nullptr; (ent = findradius(ent, center, push_radius)) != nullptr;) {
+	// Aumentar significativamente el radio y la fuerza
+	push_radius *= 1.5f;  // Doblar el radio de búsqueda
+	push_strength *= 2.5f; // Multiplicar por 8 la fuerza base
+	horizontal_push_strength *= 2.0f; // Multiplicar por 6 la fuerza horizontal
+	vertical_push_strength *= 2.0f;   // Multiplicar por 7 la fuerza vertical
+
+	// Collect entities in radius with increased search radius
+	for (edict_t* ent = nullptr; (ent = findradius(ent, center, push_radius * 1.5f)) != nullptr;) {
 		if (!ent || !ent->inuse)
 			continue;
 
@@ -699,7 +705,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	// Process waves
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float wave_progress = static_cast<float>(wave) / num_waves;
-		const float size = std::max(push_radius * (1.0f - wave_progress), 0.030f);
+		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f); // Reducir la degradación del radio
 		SpawnGrow_Spawn(center, size, size * 0.3f);
 
 		// Process normal entities
@@ -732,34 +738,53 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 					push_dir = vec3_t{ crandom(), crandom(), 0 }.normalized();
 				}
 
-				// Calculate push strength
-				const float distance_factor = 1.0f - distance / size;
+				// Calculate push strength with greatly increased intensity
+				const float distance_factor = std::max(0.2f, 1.0f - (distance / size)); // Minimum 20% force
 				float wave_push_strength = push_strength * distance_factor;
 				wave_push_strength *= sinf(DEG2RAD(90.0f * distance_factor));
-				wave_push_strength = std::min(wave_push_strength * (1.0f + attempt * 0.5f), 1000.0f);
 
-				// Calculate new position
-				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / 700));
+				// Aumentar dramáticamente el máximo de fuerza permitido y el escalado por intento
+				const float attempt_multiplier = 1.0f + (attempt * 1.5f);
+				wave_push_strength = std::min(wave_push_strength * attempt_multiplier, 4000.0f);
+
+				// Calculate new position with increased movement
+				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / 300)); // Reducido de 500 a 300
 				const trace_t tr = gi.trace(entity->s.origin, entity->mins, entity->maxs,
 					new_pos, entity, MASK_SOLID);
 
 				if (!tr.allsolid && !tr.startsolid) {
-					// Calculate final velocity
+					// Calculate final velocity with increased force
 					const float tr_scale = tr.fraction < 1.0f ? tr.fraction : 1.0f;
 					vec3_t final_velocity = push_dir * (wave_push_strength * tr_scale);
 
-					// Add horizontal and vertical components
+					// Add much stronger horizontal and vertical components
 					const float horizontal_factor = sinf(DEG2RAD(90.0f * distance_factor));
-					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor);
-					final_velocity.z += vertical_push_strength * sinf(DEG2RAD(90.0f * distance_factor));
+					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor * 2.5f);
+					final_velocity.z += vertical_push_strength * sinf(DEG2RAD(90.0f * distance_factor)) * 3.0f;
 
-					// Apply velocity
+					// Add substantial upward boost for first two waves
+					if (wave <= 1) {
+						final_velocity.z += 400.0f + (wave == 0 ? 200.0f : 0.0f);
+					}
+
+					// Apply minimum velocity thresholds to ensure strong push
+					const float min_velocity = 300.0f;
+					for (int i = 0; i < 3; i++) {
+						if (std::abs(final_velocity[i]) < min_velocity) {
+							final_velocity[i] = (final_velocity[i] >= 0 ? min_velocity : -min_velocity);
+						}
+					}
+
+					// Apply velocity with increased intensity
 					entity->velocity = final_velocity;
 					entity->groundentity = nullptr;
 
 					if (entity->client) {
 						entity->client->oldvelocity = entity->velocity;
 						entity->client->oldgroundentity = entity->groundentity;
+
+						// Add extra push for players to ensure they move
+						entity->client->ps.pmove.velocity = final_velocity;
 					}
 
 					pushed = true;

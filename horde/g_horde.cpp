@@ -1582,41 +1582,62 @@ static void StartFadeOut(edict_t* ent) {
 
 void Horde_CleanBodies() {
 	int32_t cleaned_count = 0;
+
+	// Cached model indices para mejor rendimiento
+	static int32_t widow2_model = -1;
+	static int32_t head_models[3] = { -1, -1, -1 };
+
+	// Inicializar índices de modelos solo una vez
+	if (widow2_model == -1) {
+		widow2_model = gi.modelindex("models/monsters/blackwidow2/tris.md2");
+		head_models[0] = gi.modelindex("models/objects/gibs/head/tris.md2");
+		head_models[1] = gi.modelindex("models/objects/gibs/head2/tris.md2");
+		head_models[2] = gi.modelindex("models/objects/gibs/skull/tris.md2");
+	}
+
 	for (auto ent : active_or_dead_monsters()) {
-		// Detectar específicamente el cuerpo de Widow2 y skulls
-		bool is_widow2_corpse = (ent->s.modelindex == gi.modelindex("models/monsters/blackwidow2/tris.md2") &&
-			ent->movetype == MOVETYPE_TOSS);
+		// Skip entidades que ya están en proceso de fade
+		if (ent->is_fading_out) {
+			continue;
+		}
 
-		bool is_skull = (ent->s.modelindex == gi.modelindex("models/objects/gibs/head/tris.md2") ||
-			ent->s.modelindex == gi.modelindex("models/objects/gibs/head2/tris.md2") ||
-			ent->s.modelindex == gi.modelindex("models/objects/gibs/skull/tris.md2")) &&
-			(ent->movetype == MOVETYPE_BOUNCE);
+		// Función helper para verificar si es una cabeza
+		auto is_head_model = [&](int32_t model_index) {
+			return std::find(std::begin(head_models), std::end(head_models), model_index) != std::end(head_models);
+			};
 
-		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0 || is_widow2_corpse || is_skull) {
-			// No procesar si ya está en fade
-			if (ent->is_fading_out) {
-				continue;
-			}
+		// Verificar condiciones para limpieza
+		bool should_clean = false;
 
-			// Manejar jefes si es necesario
-			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		// Verificar si es un monstruo muerto O si es widow2 muerta
+		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0 ||
+			(ent->s.modelindex == widow2_model && ent->health <= 0)) {
+			should_clean = true;
+		}
+		// Verificar si es una cabeza con movetype bounce
+		else if (is_head_model(ent->s.modelindex) && ent->movetype == MOVETYPE_BOUNCE) {
+			should_clean = true;
+		}
+
+		if (should_clean) {
+			// Manejar muerte de jefes si es necesario
+			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
+				!ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 				BossDeathHandler(ent);
 			}
 			else {
 				OnEntityDeath(ent);
 			}
 
-			// Eliminar de auto_spawned_bosses si es necesario
+			// Limpieza y fade out
 			auto_spawned_bosses.erase(ent);
-
-			// Iniciar el fade out
 			StartFadeOut(ent);
 			cleaned_count++;
 		}
 	}
 
 	if (cleaned_count > 0) {
-		gi.Com_PrintFmt("PRINT: Marked {} monster bodies and heads for fade out\n", cleaned_count);
+		gi.Com_PrintFmt("Marked {} monster bodies and heads for fade out\n", cleaned_count);
 	}
 }
 // spawning boss origin
