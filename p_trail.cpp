@@ -27,14 +27,14 @@ constexpr size_t TRAIL_LENGTH = 8;
 // places a new entity at the head of the player trail.
 // the tail entity may be moved to the front if the length
 // is at the end.
-static edict_t *PlayerTrail_Spawn(edict_t *owner)
+static edict_t* PlayerTrail_Spawn(edict_t* owner)
 {
 	size_t len = 0;
 
-	for (edict_t *tail = owner->client->trail_tail; tail; tail = tail->chain)
+	for (edict_t* tail = owner->client->trail_tail; tail; tail = tail->chain)
 		len++;
 
-	edict_t *trail;
+	edict_t* trail;
 
 	// move the tail to the head
 	if (len == TRAIL_LENGTH)
@@ -85,7 +85,7 @@ void PlayerTrail_Destroy(edict_t* player)
 
 // check to see if we can add a new player trail spot
 // for this player.
-void PlayerTrail_Add(edict_t *player)
+void PlayerTrail_Add(edict_t* player)
 {
 	// if we can still see the head, we don't want a new one.
 	if (player->client->trail_head && visible(player, player->client->trail_head))
@@ -95,16 +95,18 @@ void PlayerTrail_Add(edict_t *player)
 		!player->groundentity)
 		return;
 
-	edict_t *trail = PlayerTrail_Spawn(player);
+	edict_t* trail = PlayerTrail_Spawn(player);
 	trail->s.origin = player->s.old_origin;
 	trail->timestamp = level.time;
 	trail->owner = player;
 }
 
+// pick a trail node that matches the player
+// we're hunting that is visible to us.
 edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 {
-	// Verifica si self o self->enemy son nulos // fixing crash probably
-	if (!self || !self->enemy || !self->enemy->client || !self->enemy->client->trail_head)
+	// not player or doesn't have a trail yet
+	if (!self->enemy->client || !self->enemy->client->trail_head)
 		return nullptr;
 
 	// find which marker head that was dropped while we

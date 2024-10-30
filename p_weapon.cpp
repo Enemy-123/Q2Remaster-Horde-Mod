@@ -1533,7 +1533,7 @@ void Machinegun_Fire(edict_t* ent)
 	// Offset del arma usando inicialización directa
 	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
 
-	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
+	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
 	start[2] -= 5.0f;  // Ajuste de altura
 
 	G_LagCompensate(ent, start, forward);
@@ -1678,7 +1678,7 @@ void Chaingun_Fire(edict_t* ent)
 	// Offset del arma usando inicialización directa
 	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
 
-	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward);
+	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
 	start[2] -= 5.0f;  // Ajuste de altura
 
 	G_LagCompensate(ent, start, forward);
@@ -1714,7 +1714,7 @@ void Chaingun_Fire(edict_t* ent)
 			tracer_start = tracer_start + tracer_offset;
 
 			vec3_t dir;
-			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
+			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
 			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.25_sec;
@@ -1743,7 +1743,7 @@ void weapon_shotgun_fire(edict_t* ent)
 	damage = irandom(3, 5);
 	vec3_t start, dir;
 	// Paril: kill sideways angle on hitscan
-	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir);
+	P_ProjectSource(ent, ent->client->v_angle, { 0, 0, -8 }, start, dir, true);
 
 	P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });
 
@@ -1802,10 +1802,10 @@ void weapon_supershotgun_fire(edict_t* ent)
 	v[YAW] = ent->client->v_angle[YAW] - 5;
 	v[ROLL] = ent->client->v_angle[ROLL];
 	// Paril: kill sideways angle on hitscan
-	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir);
+	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir, true);
 	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2, MOD_SSHOTGUN);
 	v[YAW] = ent->client->v_angle[YAW] + 5;
-	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir);
+	P_ProjectSource(ent, v, { 0, 0, -8 }, start, dir, true);
 	fire_shotgun(ent, start, dir, damage, kick, DEFAULT_SHOTGUN_HSPREAD, DEFAULT_SHOTGUN_VSPREAD, DEFAULT_SSHOTGUN_COUNT / 2, MOD_SSHOTGUN);
 	G_UnLagCompensate();
 	// DEFAULT_SSHOTGUN_COUNT /2.7
@@ -1860,7 +1860,7 @@ void weapon_railgun_fire(edict_t* ent)
 	}
 
 	vec3_t start, dir;
-	P_ProjectSource(ent, ent->client->v_angle, { 0, 7, -8 }, start, dir);
+	P_ProjectSource(ent, ent->client->v_angle, { 0, 7, -8 }, start, dir, true);
 	G_LagCompensate(ent, start, dir);
 	fire_rail(ent, start, dir, damage, kick);
 	G_UnLagCompensate();
