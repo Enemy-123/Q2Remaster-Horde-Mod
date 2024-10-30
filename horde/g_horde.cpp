@@ -586,7 +586,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	CheckAndApplyBenefit(lvl);
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
-	//Horde_CleanBodies();
+	Horde_CleanBodies();
 
 	gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
 }
@@ -1972,105 +1972,6 @@ static void ResetRecentBosses() noexcept {
 }
 
 void ResetWaveAdvanceState() noexcept;
-void ResetGame() {
-	// Reset all spawn point data
-	spawnPointsData.clear();
-
-	// Reiniciar estructuras de datos globales
-	lastSpawnPointTime.clear();
-	lastMonsterSpawnTime.clear();
-
-	// Reiniciar variables de estado global
-	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
-	current_wave_level = 0;
-	flying_monsters_mode = false;
-	boss_spawned_for_wave = false;
-	next_wave_message_sent = false;
-	allowWaveAdvance = false;
-
-	// Reiniciar otras variables relevantes
-	//WAVE_TO_ALLOW_FLYING = 0;
-	SPAWN_POINT_COOLDOWN = 3.9_sec;
-
-	cachedRemainingMonsters = 0;
-	g_totalMonstersInWave = 0;
-
-	// Resetear el estado de las condiciones
-	g_horde_local.conditionTriggered = false;
-	g_horde_local.conditionStartTime = 0_sec;
-	g_horde_local.conditionTimeThreshold = 0_sec;
-	g_horde_local.waveEndTime = 0_sec;
-	g_horde_local.timeWarningIssued = false;
-
-	// Resetear cualquier otro estado específico de la ola según sea necesario
-	boss_spawned_for_wave = false;
-	flying_monsters_mode = false;
-
-	// Reset core gameplay elements
-	auto_spawned_bosses.clear(); // Limpiar todos los jefes generados automáticamente
-	ResetAllSpawnAttempts();
-	ResetCooldowns();
-	ResetBenefits();
-
-	// Reiniciar la lista de bosses recientes
-	ResetRecentBosses();
-
-	// Reiniciar wave advance state
-	ResetWaveAdvanceState();
-
-	// Reset wave information
-	g_horde_local.level = 0; // Reset current wave level
-	g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
-	g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
-	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
-	g_horde_local.num_to_spawn = 0;
-	g_horde_local.queued_monsters = 0;
-
-	// Reset gameplay configuration variables
-	gi.cvar_set("g_chaotic", "0");
-	gi.cvar_set("g_insane", "0");
-	gi.cvar_set("g_hardcoop", "0");
-	gi.cvar_set("dm_monsters", "0");
-	gi.cvar_set("timelimit", "50");
-	gi.cvar_set("bot_pause", "0");
-	gi.cvar_set("set cheats 0 s", "");
-	gi.cvar_set("ai_damage_scale", "1");
-	gi.cvar_set("ai_allow_dm_spawn", "1");
-	gi.cvar_set("g_damage_scale", "1");
-
-	// Reset bonuses
-	gi.cvar_set("g_vampire", "0");
-	gi.cvar_set("g_startarmor", "0");
-	gi.cvar_set("g_ammoregen", "0");
-	gi.cvar_set("g_upgradeproxs", "0");
-	gi.cvar_set("g_tracedbullets", "0");
-	gi.cvar_set("g_bouncygl", "0");
-	gi.cvar_set("g_bfgpull", "0");
-	gi.cvar_set("g_bfgslide", "1");
-	gi.cvar_set("g_autohaste", "0");
-
-	// Reiniciar semilla aleatoria
-	srand(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
-
-	// Registrar el reinicio
-	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
-}
-
-static gtime_t g_lastMonsterCountVerification = 0_ms;
-constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
-
-// Función para contar los monstruos activos
-static int32_t CountActiveMonsters() {
-	return std::count_if(active_monsters().begin(), active_monsters().end(),
-		[](const edict_t* ent) {
-			return !ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT);
-		});
-}
-
-inline int32_t CalculateRemainingMonsters() {
-	int32_t remainingMonsters = level.total_monsters - level.killed_monsters + (g_horde_local.queued_monsters);
-	return (remainingMonsters < 0) ? 0 : remainingMonsters;
-}
 
 #include <algorithm>
 // Variable global para la caché checkremainingmonsterconditions
@@ -2208,6 +2109,123 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	}
 
 	return false;
+}
+
+void ResetGame() {
+	// Resetear todas las variables globales
+	last_wave_number = 0;
+	horde_message_end_time = 0_sec;
+	cachedRemainingMonsters = 0;
+	g_totalMonstersInWave = 0;
+
+	// Resetear el caché de verificación de monstruos
+	g_monster_check_cache.Reset();
+
+	// Resetear flags de control
+	g_maxMonstersReached = false;
+	g_lowPercentageTriggered = false;
+
+	// Limpiar cachés
+	mapSizeCacheSize = 0;
+	spawnPointsData.clear();
+	lastMonsterSpawnTime.clear();
+	lastSpawnPointTime.clear();
+
+
+
+
+	// Reiniciar variables de estado global
+	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
+	current_wave_level = 0;
+	flying_monsters_mode = false;
+	boss_spawned_for_wave = false;
+	next_wave_message_sent = false;
+	allowWaveAdvance = false;
+
+	// Reiniciar otras variables relevantes
+	//WAVE_TO_ALLOW_FLYING = 0;
+	SPAWN_POINT_COOLDOWN = 3.9_sec;
+
+	cachedRemainingMonsters = 0;
+	g_totalMonstersInWave = 0;
+
+	// Resetear el estado de las condiciones
+	g_horde_local.conditionTriggered = false;
+	g_horde_local.conditionStartTime = 0_sec;
+	g_horde_local.conditionTimeThreshold = 0_sec;
+	g_horde_local.waveEndTime = 0_sec;
+	g_horde_local.timeWarningIssued = false;
+
+	// Resetear cualquier otro estado específico de la ola según sea necesario
+	boss_spawned_for_wave = false;
+	flying_monsters_mode = false;
+
+	// Reset core gameplay elements
+	auto_spawned_bosses.clear(); // Limpiar todos los jefes generados automáticamente
+	ResetAllSpawnAttempts();
+	ResetCooldowns();
+	ResetBenefits();
+	vampire_level = 0;
+
+	// Reiniciar la lista de bosses recientes
+	ResetRecentBosses();
+
+	// Reiniciar wave advance state
+	ResetWaveAdvanceState();
+
+
+	// Log del reset
+	// Reset wave information
+	g_horde_local.level = 0; // Reset current wave level
+	g_horde_local.state = horde_state_t::warmup; // Set game state to warmup
+	g_horde_local.warm_time = level.time + 4_sec; // Reiniciar el tiempo de warmup
+	g_horde_local.monster_spawn_time = level.time; // Reiniciar el tiempo de spawn de monstruos
+	g_horde_local.num_to_spawn = 0;
+	g_horde_local.queued_monsters = 0;
+
+	// Reset gameplay configuration variables
+	gi.cvar_set("g_chaotic", "0");
+	gi.cvar_set("g_insane", "0");
+	gi.cvar_set("g_hardcoop", "0");
+	gi.cvar_set("dm_monsters", "0");
+	gi.cvar_set("timelimit", "50");
+	gi.cvar_set("bot_pause", "0");
+	gi.cvar_set("set cheats 0 s", "");
+	gi.cvar_set("ai_damage_scale", "1");
+	gi.cvar_set("ai_allow_dm_spawn", "1");
+	gi.cvar_set("g_damage_scale", "1");
+
+	// Reset bonuses
+	gi.cvar_set("g_vampire", "0");
+	gi.cvar_set("g_startarmor", "0");
+	gi.cvar_set("g_ammoregen", "0");
+	gi.cvar_set("g_upgradeproxs", "0");
+	gi.cvar_set("g_tracedbullets", "0");
+	gi.cvar_set("g_bouncygl", "0");
+	gi.cvar_set("g_bfgpull", "0");
+	gi.cvar_set("g_bfgslide", "1");
+	gi.cvar_set("g_autohaste", "0");
+
+	// Reiniciar semilla aleatoria
+	srand(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
+
+	// Registrar el reinicio
+	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
+}
+static gtime_t g_lastMonsterCountVerification = 0_ms;
+constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
+
+// Función para contar los monstruos activos
+static int32_t CountActiveMonsters() {
+	return std::count_if(active_monsters().begin(), active_monsters().end(),
+		[](const edict_t* ent) {
+			return !ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT);
+		});
+}
+
+inline int32_t CalculateRemainingMonsters() {
+	int32_t remainingMonsters = level.total_monsters - level.killed_monsters + (g_horde_local.queued_monsters);
+	return (remainingMonsters < 0) ? 0 : remainingMonsters;
 }
 
 void ResetWaveAdvanceState() noexcept {
@@ -2658,7 +2676,6 @@ void Horde_RunFrame() {
 		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 
 		if (shouldAdvance) {
-			Horde_CleanBodies();
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
 			g_horde_local.state = horde_state_t::cleanup;
