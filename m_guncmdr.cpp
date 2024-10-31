@@ -1156,7 +1156,7 @@ static void guncmdr_kick_finished(edict_t* self)
 {
 	if (self && self->enemy && self->monsterinfo.attack) {
 		self->monsterinfo.melee_debounce_time = level.time + 3_sec;
-		self->monsterinfo.attack(self);
+		self->monsterinfo.run(self);
 	}
 }
 
