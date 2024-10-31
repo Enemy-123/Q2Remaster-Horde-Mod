@@ -2113,7 +2113,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 void ResetGame() {
 	// Resetear todas las variables globales
-	last_wave_number = 0;
+//	last_wave_number = 0;
 	horde_message_end_time = 0_sec;
 	cachedRemainingMonsters = 0;
 	g_totalMonstersInWave = 0;
