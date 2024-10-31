@@ -279,43 +279,42 @@ void flyer_kamikaze_check(edict_t* self)
 
 void flyer_checkstrafe(edict_t* self)
 {
-	// Implementar strafing mejorado
-	const float range = self->enemy ? range_to(self, self->enemy) : 0;
-	if (self->enemy && visible(self, self->enemy))
+	// Validate enemy exists and is visible 
+	if (!self->enemy || !visible(self, self->enemy))
+		return;
+
+	const float range = range_to(self, self->enemy);
+	if (range <= RANGE_MID)
 	{
-		if (range <= RANGE_MID)
+		vec3_t right;
+		AngleVectors(self->s.angles, nullptr, right, nullptr);
+
+		// Validate the direction vector
+		if (!is_valid_vector(right)) {
+			// Handle invalid vector case
+			return;
+		}
+
+		// Ensure right vector is normalized
+		right = safe_normalized(right);
+
+		float strafe_chance = 1.0f;
+		if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
+			strafe_chance += 0.2f;
+		if (self->health < self->max_health * 0.5f)
+			strafe_chance += 0.4f;
+
+		if (frandom() < strafe_chance)
 		{
-			float strafe_chance = 1.0f;  // 50% de probabilidad base de hacer strafe
-			// Aumentar la probabilidad de strafing si el enemigo está disparando
-			if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-				strafe_chance += 0.2f;
-			// Aumentar la probabilidad de strafing si el flyer tiene poca salud
-			if (self->health < self->max_health * 0.5f)
-				strafe_chance += 0.4f;
+			self->monsterinfo.lefty = frandom() < 0.5;
+			const float strafe_speed = 300 + (frandom() * 200);
 
-			if (frandom() < strafe_chance)
-			{
-				// Decidir aleatoriamente si strafear a la izquierda o derecha
-				self->monsterinfo.lefty = frandom() < 0.5;
-
-				// Aplicar el movimiento de strafe
-				vec3_t right;
-				AngleVectors(self->s.angles, nullptr, right, nullptr);
-
-				// Aumentar significativamente la velocidad de strafe
-				const float strafe_speed = 300 + (frandom() * 200);  // Velocidad de strafe variable y aumentada
-
-				// Aplicar el strafe usando operadores modernos:
-				// Combina VectorScale y VectorAdd en una sola operación
-				self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
-
-				// Ajustar la duración del strafe
-				self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
-			}
+			// Apply strafe movement using validated vector
+			self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
+			self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
 		}
 	}
 }
-
 
 void flyer_rocket(edict_t* self)
 {
