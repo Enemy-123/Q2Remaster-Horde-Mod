@@ -30,250 +30,182 @@ static cached_soundindex sound_moved, sound_moving, sound_pew;
 
 void turret2Aim(edict_t* self)
 {
-	vec3_t end, dir;
-	vec3_t ang;
-	float move, idealPitch, idealYaw, current, speed;
-	int orientation;
+	// Validaciones iniciales
+	if (!self || !self->inuse)
+		return;
 
 	// Verifica el estado del enemigo
-	bool enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
+	bool enemy_valid = (self->enemy && self->enemy != world &&
+		self->enemy->inuse && !OnSameTeam(self, self->enemy));
 
-	// Si el enemigo no es válido, busca un nuevo objetivo
-	if (!enemy_valid)
-	{
+	if (!enemy_valid) {
 		if (!FindMTarget(self))
+			return;
+
+		// Revalidar después de buscar nuevo objetivo
+		enemy_valid = (self->enemy && self->enemy != world &&
+			self->enemy->inuse && !OnSameTeam(self, self->enemy));
+		if (!enemy_valid)
 			return;
 	}
 
-	// Actualiza el enemigo válido después de intentar encontrar un nuevo objetivo
-	enemy_valid = (self->enemy && self->enemy != world && self->enemy->inuse && !OnSameTeam(self, self->enemy));
-	if (!enemy_valid)
-		return;
-
-	// Si la torreta está en modo inactivo, prepara el arma, pero no apuntes
-	if (self->s.frame < FRAME_active01)
-	{
+	// Si la torreta está en modo inactivo, prepara el arma sin apuntar
+	if (self->s.frame < FRAME_active01) {
 		turret2_ready_gun(self);
 		return;
 	}
-	// Si la torreta aún se está preparando, no apuntes.
+
+	// Si la torreta aún se está preparando, no apuntar
 	if (self->s.frame < FRAME_run01)
 		return;
 
-	// PMM - Apuntado de fuego ciego aquí
-	if (self->monsterinfo.active_move == &turret2_move_fire_blind)
-	{
+	// Calcular punto de destino
+	vec3_t end;
+	if (self->monsterinfo.active_move == &turret2_move_fire_blind) {
 		end = self->monsterinfo.blind_fire_target;
-		if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
-			end[2] += self->enemy->viewheight + 10;
-		else
-			end[2] += self->enemy->mins[2] - 10;
+		end[2] += (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2]) ?
+			self->enemy->viewheight + 10 :
+			self->enemy->mins[2] - 10;
 	}
-	else
-	{
+	else {
 		end = self->enemy->s.origin;
-		if (self->enemy->client)
-			end[2] += self->enemy->viewheight;
-		else
-			end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) / 2; // Ajusta para enemigos pequeños
+		end[2] += self->enemy->client ?
+			self->enemy->viewheight :
+			(self->enemy->mins[2] + self->enemy->maxs[2]) * 0.5f;
 	}
 
-	dir = end - self->s.origin;
-	ang = vectoangles(dir);
-
-	// Ajuste de pitch y yaw
-	idealPitch = ang[PITCH];
-	idealYaw = ang[YAW];
-
-	orientation = (int)self->offset[1];
-	switch (orientation)
-	{
-	case -1: // up, pitch: 0 to 90
-		if (idealPitch < -90)
-			idealPitch += 360;
-		if (idealPitch > -5)
-			idealPitch = -5;
-		break;
-	case -2: // down, pitch: -180 to -360
-		if (idealPitch > -90)
-			idealPitch -= 360;
-		if (idealPitch < -355)
-			idealPitch = -355;
-		else if (idealPitch > -185)
-			idealPitch = -185;
-		break;
-	case 0: // +X, pitch: 0 to -90, -270 to -360 (or 0 to 90)
-		if (idealPitch < -180)
-			idealPitch += 360;
-
-		if (idealPitch > 85)
-			idealPitch = 85;
-		else if (idealPitch < -85)
-			idealPitch = -85;
-
-		if (idealYaw > 180)
-			idealYaw -= 360;
-		if (idealYaw > 85)
-			idealYaw = 85;
-		else if (idealYaw < -85)
-			idealYaw = -85;
-		break;
-	case 90: // +Y, pitch: 0 to 90, -270 to -360 (or 0 to 90)
-		if (idealPitch < -180)
-			idealPitch += 360;
-
-		if (idealPitch > 85)
-			idealPitch = 85;
-		else if (idealPitch < -85)
-			idealPitch = -85;
-
-		if (idealYaw > 270)
-			idealYaw -= 360;
-		if (idealYaw > 175)
-			idealYaw = 175;
-		else if (idealYaw < 5)
-			idealYaw = 5;
-		break;
-	case 180: // -X, pitch: 0 to 90, -270 to -360 (or 0 to 90)
-		if (idealPitch < -180)
-			idealPitch += 360;
-
-		if (idealPitch > 85)
-			idealPitch = 85;
-		else if (idealPitch < -85)
-			idealPitch = -85;
-
-		if (idealYaw > 265)
-			idealYaw = 265;
-		else if (idealYaw < 95)
-			idealYaw = 95;
-		break;
-	case 270: // -Y, pitch: 0 to 90, -270 to -360 (or 0 to 90)
-		if (idealPitch < -180)
-			idealPitch += 360;
-
-		if (idealPitch > 85)
-			idealPitch = 85;
-		else if (idealPitch < -85)
-			idealPitch = -85;
-
-		if (idealYaw < 90)
-			idealYaw += 360;
-		if (idealYaw > 355)
-			idealYaw = 355;
-		else if (idealYaw < 185)
-			idealYaw = 185;
-		break;
-	}
-
-	// Ajuste de pitch
-	current = self->s.angles[PITCH];
-	speed = self->yaw_speed / (gi.tick_rate / 10);
-
-	if (idealPitch != current)
-	{
-		move = idealPitch - current;
-
-		while (move >= 360)
-			move -= 360;
-		if (move >= 90)
-		{
-			move = move - 360;
-		}
-
-		while (move <= -360)
-			move += 360;
-		if (move <= -90)
-		{
-			move = move + 360;
-		}
-
-		if (move > 0)
-		{
-			if (move > speed)
-				move = speed;
-		}
-		else
-		{
-			if (move < -speed)
-				move = -speed;
-		}
-
-		self->s.angles[PITCH] = anglemod(current + move);
-	}
-
-	// Ajuste de yaw
-	current = self->s.angles[YAW];
-
-	if (idealYaw != current)
-	{
-		move = idealYaw - current;
-
-		if (move >= 180)
-		{
-			move = move - 360;
-		}
-
-		if (move <= -180)
-		{
-			move = move + 360;
-		}
-
-		if (move > 0)
-		{
-			if (move > speed)
-				move = speed;
-		}
-		else
-		{
-			if (move < -speed)
-				move = -speed;
-		}
-
-		self->s.angles[YAW] = anglemod(current + move);
-	}
-
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT) || self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+	// Calcular dirección y ángulos
+	vec3_t dir = end - self->s.origin;
+	if (!is_valid_vector(dir)) {
 		return;
+	}
+	dir = safe_normalized(dir);
+	vec3_t ang = vectoangles(dir);
 
-	// Paril: improved turrets; draw lasersight
-	if (!self->target_ent)
-	{
-		self->target_ent = G_Spawn();
-		self->target_ent->s.modelindex = MODELINDEX_WORLD;
-		self->target_ent->s.renderfx = RF_BEAM;
-		self->target_ent->s.frame = 1;
-		self->target_ent->s.skinnum = 0xd0d1d2d3;
-		self->target_ent->classname = "turret2_lasersight";
-		self->target_ent->s.effects = EF_BOB;
-		self->target_ent->s.origin = self->s.origin;
-		self->target_ent->owner = self;  // Establecer el propietario del lasersight
+	// Ajustar pitch y yaw ideales
+	float idealPitch = ang[PITCH];
+	float idealYaw = ang[YAW];
+
+	// Procesamiento según orientación
+	int orientation = static_cast<int>(self->offset[1]);
+	switch (orientation) {
+	case -1: // up, pitch: 0 to 90
+		if (idealPitch < -90) idealPitch += 360;
+		idealPitch = std::clamp(idealPitch, -90.0f, -5.0f);
+		break;
+
+	case -2: // down, pitch: -180 to -360
+		if (idealPitch > -90) idealPitch -= 360;
+		idealPitch = std::clamp(idealPitch, -355.0f, -185.0f);
+		break;
+
+	case 0: // +X
+		if (idealPitch < -180) idealPitch += 360;
+		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
+		if (idealYaw > 180) idealYaw -= 360;
+		idealYaw = std::clamp(idealYaw, -85.0f, 85.0f);
+		break;
+
+	case 90: // +Y
+		if (idealPitch < -180) idealPitch += 360;
+		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
+		if (idealYaw > 270) idealYaw -= 360;
+		idealYaw = std::clamp(idealYaw, 5.0f, 175.0f);
+		break;
+
+	case 180: // -X
+		if (idealPitch < -180) idealPitch += 360;
+		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
+		idealYaw = std::clamp(idealYaw, 95.0f, 265.0f);
+		break;
+
+	case 270: // -Y
+		if (idealPitch < -180) idealPitch += 360;
+		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
+		if (idealYaw < 90) idealYaw += 360;
+		idealYaw = std::clamp(idealYaw, 185.0f, 355.0f);
+		break;
 	}
 
-	vec3_t forward;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	end = self->s.origin + (forward * 8192);
-	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
+	// Ajustar velocidad base según powerups
+	float base_speed = self->yaw_speed / (gi.tick_rate / 10);
+	if (self->monsterinfo.quadfire_time > level.time) {
+		base_speed *= 1.5f;
+	}
 
-	float scan_range = 64.f;
+	// Ajustar pitch
+	float current_pitch = self->s.angles[PITCH];
+	float pitch_move = idealPitch - current_pitch;
 
-	if (visible(self, self->enemy))
-		scan_range = 12.f;
+	// Normalizar movimiento de pitch
+	while (std::abs(pitch_move) >= 360) {
+		pitch_move += (pitch_move < 0) ? 360 : -360;
+	}
+	if (std::abs(pitch_move) > 90) {
+		pitch_move += (pitch_move < 0) ? 360 : -360;
+	}
 
-	tr.endpos[0] += sinf(level.time.seconds() + self->s.number) * scan_range;
-	tr.endpos[1] += cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range;
-	tr.endpos[2] += sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range;
+	pitch_move = std::clamp(pitch_move, -base_speed, base_speed);
+	self->s.angles[PITCH] = anglemod(current_pitch + pitch_move);
 
-	forward = tr.endpos - self->s.origin;
-	forward.normalize();
+	// Ajustar yaw
+	float current_yaw = self->s.angles[YAW];
+	float yaw_move = idealYaw - current_yaw;
 
-	end = self->s.origin + (forward * 8192);
-	tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
+	// Normalizar movimiento de yaw
+	if (std::abs(yaw_move) >= 180) {
+		yaw_move += (yaw_move < 0) ? 360 : -360;
+	}
 
-	self->target_ent->s.old_origin = tr.endpos;
-	gi.linkentity(self->target_ent);
+	yaw_move = std::clamp(yaw_move, -base_speed, base_speed);
+	self->s.angles[YAW] = anglemod(current_yaw + yaw_move);
+
+	// Manejar laser sight
+	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT) &&
+		!self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+	{
+		// Inicializar laser sight si no existe
+		if (!self->target_ent) {
+			self->target_ent = G_Spawn();
+			self->target_ent->s.modelindex = MODELINDEX_WORLD;
+			self->target_ent->s.renderfx = RF_BEAM;
+			self->target_ent->s.frame = 1;
+			self->target_ent->s.skinnum = 0xd0d1d2d3;
+			self->target_ent->classname = "turret2_lasersight";
+			self->target_ent->s.effects = EF_BOB;
+			self->target_ent->s.origin = self->s.origin;
+			self->target_ent->owner = self;
+		}
+
+		// Calcular punto final del láser
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+
+		float scan_range = visible(self, self->enemy) ? 12.f : 64.f;
+
+		vec3_t laser_end = self->s.origin + (forward * 8192);
+		trace_t tr = gi.traceline(self->s.origin, laser_end, self, MASK_SOLID);
+
+		// Aplicar efecto de ondulación
+		vec3_t wave{
+			sinf(level.time.seconds() + self->s.number) * scan_range,
+			cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range,
+			sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range
+		};
+
+		tr.endpos += wave;
+
+		// Actualizar dirección del láser
+		forward = tr.endpos - self->s.origin;
+		if (is_valid_vector(forward)) {
+			forward.normalize();
+			laser_end = self->s.origin + (forward * 8192);
+			tr = gi.traceline(self->s.origin, laser_end, self, MASK_SOLID);
+			self->target_ent->s.old_origin = tr.endpos;
+			gi.linkentity(self->target_ent);
+		}
+	}
 }
-
 
 MONSTERINFO_SIGHT(turret2_sight) (edict_t* self, edict_t* other) -> void
 {
@@ -404,26 +336,28 @@ int32_t TURRET2_BULLET_DAMAGE = 2;
 
 void turret2Fire(edict_t* self)
 {
-	vec3_t forward;
-	vec3_t start, end, dir;
-	float dist, chance;
-	trace_t trace;
-	int projectileSpeed{};
-	bool damageApplied = false;
+	if (!self || !self->inuse)
+		return;
 
-	// Intervalos de disparo basados en powerups
-	const gtime_t ROCKET_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec;
-	const gtime_t MACHINEGUN_FIRE_RATE = self->monsterinfo.quadfire_time > level.time ? 9_hz : 15_hz;
-	const gtime_t PLASMA_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec;
-
-	// Revisar powerups del dueño
+	// Verificar powerups y heredar del dueño
 	if (self->owner && self->owner->client) {
 		TurretRespondPowerup(self, self->owner);
 	}
 
+	// Configurar intervalos de disparo basados en powerups
+	const gtime_t ROCKET_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ?
+		0.75_sec : 1.5_sec;
+	const gtime_t MACHINEGUN_FIRE_RATE = self->monsterinfo.quadfire_time > level.time ?
+		9_hz : 15_hz;
+	const gtime_t PLASMA_FIRE_INTERVAL = self->monsterinfo.quadfire_time > level.time ?
+		0.8_sec : 2_sec;
+
+	// Actualizar orientación
 	turret2Aim(self);
 
-	if (!self->enemy || !self->enemy->inuse || OnSameTeam(self, self->enemy) || self->enemy->deadflag)
+	// Validar enemigo
+	if (!self->enemy || !self->enemy->inuse ||
+		OnSameTeam(self, self->enemy) || self->enemy->deadflag)
 	{
 		if (!FindMTarget(self))
 			return;
@@ -431,115 +365,143 @@ void turret2Fire(edict_t* self)
 
 	self->monsterinfo.attack_finished = level.time;
 
-	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
-		end = self->monsterinfo.blind_fire_target;
-	else
-		end = self->enemy->s.origin;
+	// Determinar punto final
+	vec3_t end = (self->monsterinfo.aiflags & AI_LOST_SIGHT) ?
+		self->monsterinfo.blind_fire_target :
+		self->enemy->s.origin;
 
-	dir = end - self->s.origin;
+	// Calcular dirección
+	vec3_t start = self->s.origin;
+	vec3_t dir = end - start;
+	if (!is_valid_vector(dir)) {
+		return;
+	}
 	dir.normalize();
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	chance = dir.dot(forward);
 
+	// Verificar ángulo de disparo
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	float chance = dir.dot(forward);
 	if (chance < 0.98f)
 		return;
 
 	// Configurar velocidad del proyectil
+	float projectileSpeed = 0.0f;
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-		projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 2000 : 1800; // Más rápido con quad
+		projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 2000.0f : 1800.0f;
 	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
-		projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1850 : 1650;
+		projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1850.0f : 1650.0f;
 
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) || self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) || visible(self, self->enemy))
+	// Procesar disparo si hay línea de visión
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) ||
+		self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) ||
+		visible(self, self->enemy))
 	{
-		start = self->s.origin;
-
-		// Ajuste de puntería
-		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
-		{
-			if ((self->enemy) && (self->enemy->client))
+		// Ajustar punto de mira
+		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT)) {
+			if (self->enemy->client)
 				end[2] += self->enemy->viewheight;
 			else
 				end[2] += 7;
 		}
 
 		dir = end - start;
-		dist = dir.length();
+		float dist = dir.length();
 
 		// Predicción mejorada con quad
-		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
-		{
+		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT)) {
 			float predictionError = self->monsterinfo.quadfire_time > level.time ?
-				0.02f : // Menor error con quad
-				(frandom(3.f - skill->integer) / 3.f);
-			PredictAim(self, self->enemy, start, projectileSpeed, true, predictionError, &dir, nullptr);
+				0.02f : (frandom(3.f - skill->integer) / 3.f);
+			PredictAim(self, self->enemy, start, projectileSpeed, true,
+				predictionError, &dir, nullptr);
 		}
 
-		// Cálculo de daño mejorado con quad
+		// Calcular daño base y modificadores
 		const float damageModifier = M_DamageModifier(self);
-		const float quadMultiplier = self->monsterinfo.quadfire_time > level.time ? 1.5f : 1.0f;
+		const float quadMultiplier = self->monsterinfo.quadfire_time > level.time ?
+			1.5f : 1.0f;
 		constexpr int baseDamage = 100;
-		const int modifiedDamage = static_cast<int>(baseDamage * damageModifier * quadMultiplier);
+		const int modifiedDamage = static_cast<int>(baseDamage * damageModifier *
+			quadMultiplier);
 
+		if (!is_valid_vector(dir)) {
+			return;
+		}
 		dir.normalize();
-		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
 
-		if (trace.ent == self->enemy || trace.ent == world)
+		// Verificar línea de disparo
+		trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE);
+		if (tr.ent == self->enemy || tr.ent == world)
 		{
+			bool damageApplied = false;
+
+			// Procesar disparo según tipo de arma
 			if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 			{
-				// Sistema de cohetes mejorado
-				const gtime_t currentTime = level.time;
-				if (currentTime > self->monsterinfo.last_rocket_fire_time + ROCKET_FIRE_INTERVAL)
+				// Sistema de cohetes
+				if (level.time > self->monsterinfo.last_rocket_fire_time +
+					ROCKET_FIRE_INTERVAL)
 				{
-					self->monsterinfo.last_rocket_fire_time = currentTime;
+					self->monsterinfo.last_rocket_fire_time = level.time;
 
-					if (dist * trace.fraction > 72 && !damageApplied)
+					if (dist * tr.fraction > 72 && !damageApplied)
 					{
+						vec3_t rocketDir;
 						PredictAim(self, self->enemy, start, projectileSpeed, false,
-							self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.05f,
-							&dir, nullptr);
+							self->monsterinfo.quadfire_time > level.time ?
+							0.01f : 0.05f,
+							&rocketDir, nullptr);
 
-						fire_rocket(self->owner, start, dir, modifiedDamage,
-							self->monsterinfo.quadfire_time > level.time ? 1600 : 1420,
-							120, modifiedDamage);
-						damageApplied = true;
-						gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
+						if (is_valid_vector(rocketDir)) {
+							fire_rocket(self->owner, start, rocketDir, modifiedDamage,
+								self->monsterinfo.quadfire_time > level.time ?
+								1600 : 1420,
+								120, modifiedDamage);
+							damageApplied = true;
+							gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
+						}
 					}
 				}
 
-				// Sistema de ametralladora mejorado
+				// Sistema de ametralladora
 				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
 				{
 					self->monsterinfo.aiflags |= AI_HOLD_FRAME;
 					self->monsterinfo.duck_wait_time = level.time +
 						(self->monsterinfo.quadfire_time > level.time ? 3_sec : 5_sec);
 					self->monsterinfo.next_duck_time = level.time + 0.1_sec;
-					gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_NORM, 0);
+					gi.sound(self, CHAN_VOICE, gi.soundindex("weapons/chngnu1a.wav"),
+						1, ATTN_NORM, 0);
 				}
-				else
+				else if (self->monsterinfo.next_duck_time < level.time &&
+					self->monsterinfo.melee_debounce_time <= level.time &&
+					!damageApplied)
 				{
-					if (self->monsterinfo.next_duck_time < level.time &&
-						self->monsterinfo.melee_debounce_time <= level.time && !damageApplied)
-					{
-						vec3_t predictedDir;
-						PredictAim(self, self->enemy, start, 9999, false,
-							self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
-							&predictedDir, nullptr);
+					vec3_t bulletDir;
+					PredictAim(self, self->enemy, start, 9999, false,
+						self->monsterinfo.quadfire_time > level.time ?
+						0.01f : 0.03f,
+						&bulletDir, nullptr);
 
+					if (is_valid_vector(bulletDir)) {
 						// Daño de ametralladora mejorado con quad
-						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal,
-							static_cast<int>(TURRET2_BULLET_DAMAGE * damageModifier * quadMultiplier),
+						T_Damage(tr.ent, self, self->owner, bulletDir, tr.endpos,
+							tr.plane.normal,
+							static_cast<int>(TURRET2_BULLET_DAMAGE *
+								damageModifier * quadMultiplier),
 							static_cast<int>(5 * damageModifier * quadMultiplier),
 							DAMAGE_NONE, MOD_TURRET);
 
-						monster_fire_bullet(self, start, predictedDir, 0, 5,
-							self->monsterinfo.quadfire_time > level.time ? DEFAULT_BULLET_HSPREAD / 2 : DEFAULT_BULLET_HSPREAD,
-							self->monsterinfo.quadfire_time > level.time ? DEFAULT_BULLET_VSPREAD / 2 : DEFAULT_BULLET_VSPREAD,
+						monster_fire_bullet(self, start, bulletDir, 0, 5,
+							self->monsterinfo.quadfire_time > level.time ?
+							DEFAULT_BULLET_HSPREAD / 2 : DEFAULT_BULLET_HSPREAD,
+							self->monsterinfo.quadfire_time > level.time ?
+							DEFAULT_BULLET_VSPREAD / 2 : DEFAULT_BULLET_VSPREAD,
 							MZ2_TURRET_MACHINEGUN);
 
 						// Velocidad de disparo basada en quad
-						self->monsterinfo.melee_debounce_time = level.time + MACHINEGUN_FIRE_RATE;
+						self->monsterinfo.melee_debounce_time = level.time +
+							MACHINEGUN_FIRE_RATE;
 						damageApplied = true;
 					}
 
@@ -549,46 +511,52 @@ void turret2Fire(edict_t* self)
 			}
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
-				start = self->s.origin;
 				vec3_t predictedDir;
-
-				// Predicción mejorada con quad
 				PredictAim(self, self->enemy, start, 9999, false,
-					self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.03f,
+					self->monsterinfo.quadfire_time > level.time ?
+					0.01f : 0.03f,
 					&predictedDir, nullptr);
 
-				trace = gi.traceline(start, start + predictedDir * 8192, self, MASK_PROJECTILE);
+				if (is_valid_vector(predictedDir)) {
+					trace_t blasterTrace = gi.traceline(start,
+						start + predictedDir * 8192,
+						self, MASK_PROJECTILE);
 
-				if (trace.ent == self->enemy || trace.ent == world)
-				{
-					if (!damageApplied)
+					if (blasterTrace.ent == self->enemy ||
+						blasterTrace.ent == world)
 					{
-						// Daño del heatbeam mejorado con quad
-						T_Damage(trace.ent, self, self->owner, predictedDir, trace.endpos, trace.plane.normal,
-							static_cast<int>(TURRET2_BLASTER_DAMAGE * damageModifier * quadMultiplier),
-							0, DAMAGE_ENERGY, MOD_TURRET);
+						if (!damageApplied)
+						{
+							// Daño del blaster mejorado con quad
+							T_Damage(blasterTrace.ent, self, self->owner,
+								predictedDir, blasterTrace.endpos,
+								blasterTrace.plane.normal,
+								static_cast<int>(TURRET2_BLASTER_DAMAGE *
+									damageModifier * quadMultiplier),
+								0, DAMAGE_ENERGY, MOD_TURRET);
 
-						monster_fire_heatbeam(self, start, predictedDir, vec3_origin,
-							self->monsterinfo.quadfire_time > level.time ? 2 : 0,
-							30, MZ2_TURRET_BLASTER);
-						damageApplied = true;
-					}
+							monster_fire_heatbeam(self, start, predictedDir,
+								vec3_origin,
+								self->monsterinfo.quadfire_time >
+								level.time ? 2 : 0,
+								30, MZ2_TURRET_BLASTER);
+							damageApplied = true;
+						}
 
-					// Sistema de plasma mejorado
-					const gtime_t currentTime = level.time;
-					if (currentTime > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
-					{
-						self->monsterinfo.last_plasma_fire_time = currentTime;
+						// Sistema de plasma mejorado
+						if (level.time > self->monsterinfo.last_plasma_fire_time +
+							PLASMA_FIRE_INTERVAL)
+						{
+							self->monsterinfo.last_plasma_fire_time = level.time;
 
-						PredictAim(self, self->enemy, start, projectileSpeed, false,
-							self->monsterinfo.quadfire_time > level.time ? 0.01f : 0.05f,
-							&predictedDir, nullptr);
-
-						fire_plasma(self->owner, start, predictedDir,
-							static_cast<int>(100 * quadMultiplier),
-							self->monsterinfo.quadfire_time > level.time ? 1450 : 1250,
-							120, static_cast<int>(100 * quadMultiplier));
-						gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
+							fire_plasma(self->owner, start, predictedDir,
+								static_cast<int>(100 * quadMultiplier),
+								self->monsterinfo.quadfire_time > level.time ?
+								1450 : 1250,
+								120,
+								static_cast<int>(100 * quadMultiplier));
+							gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
+						}
 					}
 				}
 			}
