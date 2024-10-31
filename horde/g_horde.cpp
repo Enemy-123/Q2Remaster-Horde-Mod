@@ -333,8 +333,56 @@ inline void ClampNumToSpawn(const MapSize& mapSize) {
 		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
 	g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, maxAllowed);
 }
+// Calcular queued monsters con mejor balance
+int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHardMode) {
+	if (lvl <= 3) return 0;
 
-static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
+	// Base progresiva que crece más rápido en niveles bajos y se estabiliza
+	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
+
+	// Multiplicador por nivel que se incrementa
+	baseQueued *= (1.0f + (lvl) * 0.15f);
+
+	// Ajustes por tamaño de mapa
+	float mapSizeMultiplier;
+	int32_t maxQueued;
+
+	if (mapSize.isSmallMap) {
+		mapSizeMultiplier = 1.0f;
+		maxQueued = 35;
+	}
+	else if (mapSize.isBigMap) {
+		mapSizeMultiplier = 1.3f;
+		maxQueued = 55;
+	}
+	else {
+		mapSizeMultiplier = 1.1f;
+		maxQueued = 45;
+	}
+
+	baseQueued *= mapSizeMultiplier;
+
+	// Bonus exponencial para niveles altos
+	if (lvl > 20) {
+		float highLevelBonus = std::pow(1.1f, std::min(lvl - 20, 15));
+		baseQueued *= highLevelBonus;
+	}
+
+	// Bonus por dificultad más dinámico
+	if (isHardMode) {
+		float difficultyMultiplier = 1.2f;
+		if (lvl > 25) {
+			difficultyMultiplier += (lvl - 25) * 0.02f; // Incremento adicional por nivel
+			difficultyMultiplier = std::min(difficultyMultiplier, 1.5f); // Cap en 50% extra
+		}
+		baseQueued *= difficultyMultiplier;
+	}
+
+	// Asegurar que no exceda el máximo para el tamaño del mapa
+	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
+}
+
+void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	// Base count calculation with level scaling
 	int32_t baseCount = (mapSize.isSmallMap) ?
 		std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP) :
@@ -372,6 +420,10 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	g_horde_local.num_to_spawn = baseCount + static_cast<int32_t>(additionalSpawn);
 	ClampNumToSpawn(mapSize);
 
+	// Actualizar la cola usando el nuevo sistema
+	bool isHardMode = g_insane->integer || g_chaotic->integer;
+	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
+
 	// Cooldown adjustments for higher levels
 	if (lvl % 3 == 0) {
 		const gtime_t spawnTimeReduction =
@@ -386,42 +438,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		SPAWN_POINT_COOLDOWN -= spawnTimeReduction * difficultyMultiplier;
 		SPAWN_POINT_COOLDOWN = std::max(SPAWN_POINT_COOLDOWN, 3.0_sec);
 	}
-
-	// Calculate queued monsters with better balance
-	int32_t baseQueued = 0;
-
-	// Solo aplicar cola si el nivel es mayor a 3
-	if (lvl > 3) {
-		// Base queue calculation
-		baseQueued = lvl;
-
-		// Ajuste por tamaño de mapa
-		if (mapSize.isSmallMap) {
-			baseQueued = static_cast<int32_t>(baseQueued * 0.7f);
-		}
-		else if (mapSize.isBigMap) {
-			baseQueued = static_cast<int32_t>(baseQueued * 1.3f);
-		}
-
-		// Ajuste para niveles altos
-		if (lvl > 20) {
-			baseQueued += std::min((lvl - 20) * 2, 15);
-		}
-
-		// Bonus por dificultad
-		if (g_insane->integer || g_chaotic->integer) {
-			baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
-		}
-
-		//// Limitar el máximo de monstruos en cola según el tamaño del mapa
-		//int32_t maxQueued = mapSize.isSmallMap ? 35 : (mapSize.isBigMap ? 55 : 45);
-		//baseQueued = std::min(baseQueued, maxQueued);
-	}
-
-	// Actualizar la cola, reemplazando el valor anterior en lugar de acumular
-	g_horde_local.queued_monsters = baseQueued;
 }
-
 void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
 void ResetCooldowns() noexcept;
@@ -2602,7 +2619,7 @@ void Horde_RunFrame() {
 	CheckAndResetDisabledSpawnPoints();
 
 	// Manejo de monstruos personalizados
-	if (dm_monsters->integer > 0) {
+	if (dm_monsters->integer >= 1) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
 		g_horde_local.queued_monsters = 0;
 		ClampNumToSpawn(mapSize);
