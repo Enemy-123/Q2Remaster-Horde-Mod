@@ -782,7 +782,7 @@ constexpr boss_t BOSS_SMALL[] = {
 	{"monster_guncmdrkl", -1, 19, 0.1f, BossSizeCategory::Small},
 	{"monster_makronkl", 36, -1, 0.1f, BossSizeCategory::Small},
 	// {"monster_gm_arachnid", -1, 19, 0.1f, BossSizeCategory::Small},
-	{"monster_psxarachnid", -1, 19, 0.1f, BossSizeCategory::Small},
+	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small}
 };
 
@@ -796,7 +796,7 @@ constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_guncmdrkl", -1, 24, 0.1f, BossSizeCategory::Medium},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium},
 	// {"monster_gm_arachnid", -1, 24, 0.1f, BossSizeCategory::Medium},
-	{"monster_psxarachnid", -1, -1, 0.1f, BossSizeCategory::Medium},
+	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_makronkl", 26, -1, 0.1f, BossSizeCategory::Medium}
 };
 
@@ -805,7 +805,7 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_tank_64", -1, 24, 0.1f, BossSizeCategory::Large},
-	{"monster_psxarachnid", -1, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_psxarachnid", 14, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_widow", -1, -1, 0.1f, BossSizeCategory::Large},
 	// {"monster_guardian", -1, 24, 0.1f, BossSizeCategory::Large},
 	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large},
@@ -1404,13 +1404,10 @@ constexpr int VERTICAL_VELOCITY_RANDOM_RANGE = 300;
 
 // Función auxiliar para generar velocidad aleatoria
 static vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVertical, int maxVertical) {
-	std::uniform_int_distribution<> horizontalDis(minHorizontal, maxHorizontal);
-	std::uniform_int_distribution<> verticalDis(minVertical, maxVertical);
-
 	return {
-		static_cast<float>(horizontalDis(mt_rand)),
-		static_cast<float>(horizontalDis(mt_rand)),
-		static_cast<float>(verticalDis(mt_rand) + std::uniform_int_distribution<>(0, VERTICAL_VELOCITY_RANDOM_RANGE)(mt_rand))
+		static_cast<float>(std::uniform_int_distribution<>(minHorizontal, maxHorizontal)(mt_rand)),
+		static_cast<float>(std::uniform_int_distribution<>(minHorizontal, maxHorizontal)(mt_rand)),
+		static_cast<float>(std::uniform_int_distribution<>(minVertical, maxVertical)(mt_rand))
 	};
 }
 
