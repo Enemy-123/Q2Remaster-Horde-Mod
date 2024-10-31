@@ -2032,7 +2032,7 @@ void SP_monster_soldier_light(edict_t* self)
 
 	self->s.skinnum = 0;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 38 * st.health_multiplier;
+	self->health = self->max_health = 52 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2063,7 +2063,7 @@ void SP_monster_soldier(edict_t* self)
 
 	self->s.skinnum = 2;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 30 * st.health_multiplier;
+	self->health = self->max_health = 48 * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
@@ -2091,7 +2091,7 @@ void SP_monster_soldier_ss(edict_t* self)
 
 	self->s.skinnum = 4;
 	self->count = self->s.skinnum;
-	self->health = self->max_health = 40 * st.health_multiplier;
+	self->health = self->max_health = 55 * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
@@ -2142,7 +2142,7 @@ void SP_monster_soldier_ripper(edict_t* self)
 
 	self->s.skinnum = 6;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 50 * st.health_multiplier;
+	self->health = self->max_health = 60 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2176,7 +2176,7 @@ void SP_monster_soldier_hypergun(edict_t* self)
 
 	self->s.skinnum = 8;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 60 * st.health_multiplier;
+	self->health = self->max_health = 65 * st.health_multiplier;
 	self->gib_health = -30;
 
 	// PMM - blindfire
@@ -2207,7 +2207,7 @@ void SP_monster_soldier_lasergun(edict_t* self)
 
 	self->s.skinnum = 10;
 	self->count = self->s.skinnum - 6;
-	self->health = self->max_health = 70 * st.health_multiplier;
+	self->health = self->max_health = 80 * st.health_multiplier;
 	self->gib_health = -30;
 
 	self->monsterinfo.drop_height = 256;
