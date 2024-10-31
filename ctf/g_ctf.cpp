@@ -2515,7 +2515,7 @@ int CTFApplyStrength(edict_t* ent, int dmg) {
 	}
 
 	if (ent->client && dmg && ent->client->pers.inventory[IT_TECH_STRENGTH]) {
-		return dmg * 2;
+		return dmg * 1.5f;
 	}
 
 	return dmg;
