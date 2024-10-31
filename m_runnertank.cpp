@@ -585,10 +585,24 @@ void runnertankRocket(edict_t* self)
 void runnertankPlasmaGun(edict_t* self)
 {
 	// Early validation
-	if (!self->enemy ||
-		!self->enemy->inuse ||
-		(self->enemy && !visible(self, self->enemy)) ||
-		(self->enemy && infront(self, self->enemy)))
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	// Check shooting angle
+	vec3_t fwd;
+	AngleVectors(self->s.angles, fwd, nullptr, nullptr);
+
+	vec3_t diff = self->enemy->s.origin - self->s.origin;
+	diff.z = 0;
+	diff.normalize();
+
+	float v = fwd.dot(diff);
+	// Permitimos un ángulo más amplio para el tank (0.5 = ~60 grados)
+	if (v < 0.5f)
+		return;
+
+	// El resto de las validaciones
+	if (!visible(self, self->enemy) || !infront(self, self->enemy))
 		return;
 
 	constexpr float SPREAD = 0.08f;
@@ -895,7 +909,7 @@ void runnertank_consider_attack(edict_t* self)
 	// Para rango cercano, priorizar diferentes ataques
 	if (range <= RANGE_NEAR)
 	{
-		if (can_chain && self->health < self->max_health * 0.5f && r < 0.4f)
+		if (can_chain && self->health < self->max_health * 0.7)
 		{
 			// Usar plasma más en situaciones defensivas
 			M_SetAnimation(self, &runnertank_move_attack_chain);
