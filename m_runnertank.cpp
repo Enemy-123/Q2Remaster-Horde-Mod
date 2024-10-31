@@ -480,162 +480,127 @@ mframe_t tank_frames_punch_attack[] =
 MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak229, tank_frames_punch_attack, runnertank_run };
 
 
-void runnertankRocket(edict_t* self)
-{
-	vec3_t					 forward, right;
-	vec3_t					 start;
-	vec3_t					 dir;
-	vec3_t					 vec;
-	monster_muzzleflash_id_t flash_number;
-	int						 rocketSpeed; // PGM
-	// pmm - blindfire support
+void runnertankRocket(edict_t* self) {
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	// Determinar flash number basado en el frame actual
+	monster_muzzleflash_id_t flash_number = static_cast<monster_muzzleflash_id_t>(
+		self->s.frame == FRAME_attak324 ? MZ2_TANK_ROCKET_1 :
+		self->s.frame == FRAME_attak327 ? MZ2_TANK_ROCKET_2 :
+		MZ2_TANK_ROCKET_3);
+
+	// Obtener vectores de dirección usando destructuring
+	auto [forward, right, up] = AngleVectors(self->s.angles);
+
+	// Calcular posición de inicio usando M_ProjectFlashSource
+	vec3_t start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	// Determinar velocidad del cohete
+	int32_t rocket_speed = self->speed ? self->speed :
+		self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING) ? 500 : 650;
+
+	// Calcular punto objetivo
 	vec3_t target;
+	const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
-
-	bool   blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
-
-	if (self->s.frame == FRAME_attak324)
-		flash_number = MZ2_TANK_ROCKET_1;
-	else if (self->s.frame == FRAME_attak327)
-		flash_number = MZ2_TANK_ROCKET_2;
-	else // (self->s.frame == FRAME_attak330)
-		flash_number = MZ2_TANK_ROCKET_3;
-
-	AngleVectors(self->s.angles, forward, right, nullptr);
-
-	// [Paril-KEX] scale
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-
-	if (self->speed)
-		rocketSpeed = self->speed;
-	else if (self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING))
-		rocketSpeed = 500;
-	else
-		rocketSpeed = 650;
-
-	// PMM
-	if (blindfire)
+	if (blindfire) {
 		target = self->monsterinfo.blind_fire_target;
-	else
-		target = self->enemy->s.origin;
-	// pmm
-
-	// PGM
-	//  PMM - blindfire shooting
-	if (blindfire)
-	{
-		vec = target;
-		dir = vec - start;
+		vec3_t dir = target - start;
+		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
+			return;
 	}
-	// pmm
-	// don't shoot at feet if they're above me.
-	else if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
-	{
-		vec = self->enemy->s.origin;
-		vec[2] += self->enemy->viewheight;
-		dir = vec - start;
-	}
-	else
-	{
-		vec = self->enemy->s.origin;
-		vec[2] = self->enemy->absmin[2] + 1;
-		dir = vec - start;
-	}
-	// PGM
-
-	//======
-	// PMM - lead target  (not when blindfiring)
-	// 20, 35, 50, 65 chance of leading
-	if ((!blindfire) && ((frandom() < (0.2f + ((3 - skill->integer) * 0.15f)))))
-		PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &vec);
-	// PMM - lead target
-	//======
-
-	dir.normalize();
-
-	// pmm blindfire doesn't check target (done in checkattack)
-	// paranoia, make sure we're not shooting a target right next to us
-	if (blindfire)
-	{
-		// blindfire has different fail criteria for the trace
-		if (M_AdjustBlindfireTarget(self, start, vec, right, dir))
-		{
-			if (self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING))
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
-			else
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, flash_number);
+	else {
+		// Decidir punto de objetivo basado en posición del enemigo
+		if (frandom() < 0.66f || start.z < self->enemy->absmin.z) {
+			// Apuntar al centro del cuerpo
+			target = self->enemy->s.origin;
+			target.z += self->enemy->viewheight;
+		}
+		else {
+			// Apuntar a los pies
+			target = self->enemy->s.origin;
+			target.z = self->enemy->absmin.z + 1;
 		}
 	}
-	else
-	{
-		trace_t trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
 
-		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
-		{
+	// Calcular dirección base
+	vec3_t dir = (target - start).normalized();
+
+	// Predicción de objetivo para disparos no ciegos
+	if (!blindfire && frandom() < (0.2f + ((3 - skill->integer) * 0.15f))) {
+		PredictAim(self, self->enemy, start, rocket_speed, false, 0, &dir, &target);
+	}
+
+	// Verificar línea de visión y disparar
+	if (blindfire) {
+		if (M_AdjustBlindfireTarget(self, start, target, right, dir)) {
 			if (self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING))
-				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
+				monster_fire_heat(self, start, dir, 50, rocket_speed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, flash_number);
+				monster_fire_rocket(self, start, dir, 50, rocket_speed, flash_number);
+		}
+	}
+	else {
+		trace_t trace = gi.traceline(start, target, self, MASK_PROJECTILE);
+		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP) {
+			if (self->spawnflags.has(SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING))
+				monster_fire_heat(self, start, dir, 50, rocket_speed, flash_number, self->accel);
+			else
+				monster_fire_rocket(self, start, dir, 50, rocket_speed, flash_number);
 		}
 	}
 }
 
-void runnertankPlasmaGun(edict_t* self)
-{
-	// Early validation
+void runnertankPlasmaGun(edict_t* self) {
+	// Validaciones iniciales
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	// Check shooting angle
-	vec3_t fwd;
-	AngleVectors(self->s.angles, fwd, nullptr, nullptr);
+	// Verificar ángulo de disparo
+	vec3_t initial_forward;
+	AngleVectors(self->s.angles, initial_forward, nullptr, nullptr);
 
-	vec3_t diff = self->enemy->s.origin - self->s.origin;
-	diff.z = 0;
-	diff.normalize();
+	vec3_t dir_to_enemy = (self->enemy->s.origin - self->s.origin).normalized();
+	dir_to_enemy.z = 0; // Aplanar para comparación horizontal
 
-	float v = fwd.dot(diff);
-	// Permitimos un ángulo más amplio para el tank (0.5 = ~60 grados)
-	if (v < 0.5f)
+	if (initial_forward.dot(dir_to_enemy) < 0.5f)
 		return;
 
-	// El resto de las validaciones
 	if (!visible(self, self->enemy) || !infront(self, self->enemy))
 		return;
 
+	// Constantes del arma
 	constexpr float SPREAD = 0.08f;
 	constexpr float PREDICTION_TIME = 0.2f;
 	constexpr float PROJECTILE_SPEED = 700.0f;
 	constexpr int PLASMA_DAMAGE = 35;
 	constexpr float PLASMA_RADIUS = 40.0f;
 
-	// Calculate flash number based on animation frame
-	const monster_muzzleflash_id_t flash_number =
-		static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
+	// Calcular flash number basado en el frame
+	monster_muzzleflash_id_t flash_number = static_cast<monster_muzzleflash_id_t>
+		(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
 
-	// Get directional vectors
-	auto [forward, right, up] = AngleVectors(self->s.angles);
+	// Obtener vectores de dirección de manera correcta
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, &forward, &right, &up);
 
-	// Calculate firing position
-	const vec3_t start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+	// Calcular posición de inicio
+	vec3_t start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// Calculate base target position
+	// Calcular dirección base al objetivo
 	vec3_t target = self->enemy->s.origin;
 	target.z += self->enemy->viewheight;
-
-	// Calculate initial direction
 	vec3_t dir = (target - start).normalized();
 
-	// Calculate fan angle based on tank animation
-	float fanAngle;
+	// Calcular ángulo de abanico
+	float fan_angle;
 	if (self->s.frame <= FRAME_attak415)
-		fanAngle = -20.0f + (self->s.frame - FRAME_attak406) * 4.0f; // Fan from -20 to 20 degrees
+		fan_angle = -20.0f + (self->s.frame - FRAME_attak406) * 4.0f;
 	else
-		fanAngle = 20.0f - (self->s.frame - FRAME_attak416) * 4.0f; // Fan from 20 to -20 degrees
+		fan_angle = 20.0f - (self->s.frame - FRAME_attak416) * 4.0f;
 
-	// Add spread to direction
+	// Añadir dispersión a la dirección
 	dir += vec3_t{
 		crandom() * SPREAD,
 		crandom() * SPREAD,
@@ -643,26 +608,16 @@ void runnertankPlasmaGun(edict_t* self)
 	};
 	dir.normalize();
 
-	// Handle blind fire or predictive aim
-	const bool blindfire = false; // Set based on your conditions
-	if (blindfire && self->monsterinfo.blind_fire_target) {
-		target = self->monsterinfo.blind_fire_target;
-		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
-			return;
-	}
-	else {
-		// Use PredictAim to track enemy trajectory
-		PredictAim(self, self->enemy, start, PROJECTILE_SPEED, false,
-			PREDICTION_TIME, &dir, nullptr);
-	}
+	// Predicción de movimiento del objetivo
+	PredictAim(self, self->enemy, start, PROJECTILE_SPEED, false,
+		PREDICTION_TIME, &dir, nullptr);
 
-	// Fire plasma projectile
+	// Disparar el proyectil de plasma
 	fire_plasma(self, start, dir, PLASMA_DAMAGE, PROJECTILE_SPEED,
 		PLASMA_RADIUS, PLASMA_RADIUS);
 
-	// Store target position for next shot
-	self->pos1 = self->enemy->s.origin;
-	self->pos1.z += self->enemy->viewheight;
+	// Actualizar posición del último disparo
+	self->pos1 = target;
 }
 static void runnertank_blind_check(edict_t* self)
 {
@@ -1071,20 +1026,18 @@ DIE(runnertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int d
 }
 void runnertank_jump_now(edict_t* self)
 {
-	vec3_t forward, up;
-
-	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 130);
-	self->velocity += (up * 300);
+    auto [forward, right, up] = AngleVectors(self->s.angles);
+    
+    // Usar operadores vec3_t para impulso
+    self->velocity += forward * 130.0f + up * 300.0f;
 }
 
 void runnertank_jump2_now(edict_t* self)
 {
-	vec3_t forward, up;
+	auto [forward, right, up] = AngleVectors(self->s.angles);
 
-	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 250);
-	self->velocity += (up * 400);
+	// Usar operadores vec3_t para impulso
+	self->velocity += forward * 250.0f + up * 400.0f;
 }
 
 void runnertank_jump_wait_land(edict_t* self)
@@ -1153,55 +1106,34 @@ float AngleDifference(float angle1, float angle2) {
 
 bool runnertank_check_wall(edict_t* self, float dist)
 {
-	static constexpr float WALL_CHECK_DISTANCE_OFFSET = 10.0f;
-	static constexpr float MAX_TURN_ANGLE = 90.0f;
-	static constexpr float VELOCITY_SCALE_FACTOR = 0.8f;
-	static constexpr float MAX_YAW_CHANGE = 30.0f; // Grados por frame
-
-	// Obtener los vectores de dirección usando destructuring
 	auto [forward, right, up] = AngleVectors(self->s.angles);
 
-	// Calcular el punto de verificación usando operadores de vec3_t
-	vec3_t check_point = self->s.origin + (forward * (dist + WALL_CHECK_DISTANCE_OFFSET));
+	// Usar operador + de vec3_t para punto de verificación
+	vec3_t check_point = self->s.origin + (forward * (dist + 10.0f));
 
-	// Realizar el trace
-	trace_t tr = gi.trace(self->s.origin, self->mins, self->maxs, check_point, self, MASK_MONSTERSOLID);
+	trace_t tr = gi.trace(self->s.origin, self->mins, self->maxs,
+		check_point, self, MASK_MONSTERSOLID);
 
 	if (tr.fraction < 1.0f) {
-		// Usar la normal del plano directamente
-		const vec3_t& wall_normal = tr.plane.normal;
+		// Usar dot() de vec3_t
+		float dot = forward.dot(tr.plane.normal);
+		float turn_angle = 90.0f * (1.0f - std::abs(dot));
 
-		// Usar el método dot() de vec3_t en lugar de DotProduct
-		const float dot = forward.dot(wall_normal);
-
-		// Calcular el factor de giro basado en el ángulo
-		const float angle_between = 1.0f - (acosf(std::abs(dot)) / (PIf / 2)); // Normalizado entre 0 y 1
-		const float turn_angle = MAX_TURN_ANGLE * angle_between;
-
-		// Logging con valores formateados
-		gi.Com_PrintFmt_("PRINT: runnertank_check_wall: dot={.2f}, angle_between={%.2f}, turn_angle={%.2f}",
-			dot, angle_between, turn_angle);
-
-		// Calcular nuevo yaw con límites para suavizar el giro
+		// Actualizar orientación usando el resultado
 		float new_yaw = self->s.angles[YAW] + (dot < 0 ? turn_angle : -turn_angle);
-		float yaw_difference = AngleDifference(new_yaw, self->ideal_yaw);
+		float yaw_diff = AngleDifference(new_yaw, self->ideal_yaw);
 
-		if (std::abs(yaw_difference) > MAX_YAW_CHANGE) {
-			new_yaw = self->s.angles[YAW] + (yaw_difference > 0 ? MAX_YAW_CHANGE : -MAX_YAW_CHANGE);
-		}
+		if (std::abs(yaw_diff) > 30.0f)
+			new_yaw = self->s.angles[YAW] + (yaw_diff > 0 ? 30.0f : -30.0f);
 
-		// Actualizar ideal_yaw
 		self->ideal_yaw = anglemod(new_yaw);
-
-		// Actualizar orientación
 		M_ChangeYaw(self);
 
-		// Ajustar velocidad usando operadores de vec3_t
-		self->velocity = self->velocity * (tr.fraction * VELOCITY_SCALE_FACTOR);
+		// Ajustar velocidad usando operador * de vec3_t
+		self->velocity = self->velocity * (tr.fraction * 0.8f);
 
 		return true;
 	}
-
 	return false;
 }
 
@@ -1249,15 +1181,15 @@ MONSTERINFO_SIDESTEP(runnertank_sidestep) (edict_t* self) -> bool
 	// Si no estamos corriendo, cambiar a la animación de carrera
 	if (self->monsterinfo.active_move != &runnertank_move_run)
 		M_SetAnimation(self, &runnertank_move_run);
-	// Iniciar un nuevo movimiento de strafe
-	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
-	// Aplicar un impulso lateral más fuerte
-	vec3_t right;
-	AngleVectors(self->s.angles, nullptr, right, nullptr);
-	const float strafe_speed = 200 + (frandom() * 150);  // Consistente con runnertank_run
 
-	// VectorScale + VectorAdd combinados usando los operadores de vec3_t
-	self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
+	self->monsterinfo.lefty = (frandom() < 0.5f) ? 0 : 1;
+
+	// Calcular strafe usando vec3_t
+	auto [forward, right, up] = AngleVectors(self->s.angles);
+	float strafe_speed = 200.0f + (frandom() * 150.0f);
+
+	// Usar operadores vec3_t para el movimiento
+	self->velocity += right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed);
 
 	self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
 	return true;
