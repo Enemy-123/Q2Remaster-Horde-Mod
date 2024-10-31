@@ -1080,7 +1080,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_stalker", "Stalker" },
 		{ "monster_parasite", "Parasite" },
 		{ "monster_tank", "Tank" },
-		{ "monster_tank_vanilla", "Spawner Tank" },
+		{ "monster_tank_spawner", "Spawner Tank" },
 		{ "monster_runnertank", "BETA Runner Tank" },
 		{ "monster_guncmdr2", "Gunner Commander" },
 		{ "monster_mutant", "Mutant" },
@@ -1437,7 +1437,7 @@ void OnEntityDeath(const edict_t* self) {
 	}
 
 	// Verificar si el comandante es un tanque
-	if (self->monsterinfo.aiflags & AI_SPAWNED_COMMANDER && strcmp(self->classname, "monster_tank_vanilla_commander") == 0) {
+	if (self->monsterinfo.aiflags & AI_SPAWNED_COMMANDER && strcmp(self->classname, "monster_tank_spawner_commander") == 0) {
 		edict_t* tank = self->owner;
 		if (tank && tank->inuse) {
 			tank->monsterinfo.monster_used = max(0, tank->monsterinfo.monster_used - 1);

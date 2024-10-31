@@ -819,7 +819,7 @@ void VerifyTankSpawnCount(edict_t* tank)
 	for (auto const* ent : active_monsters())
 	{
 		if (ent->owner == tank && (ent->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)) {
-		if (!strcmp(tank->classname, "monster_tank_vanilla"))
+		if (!strcmp(tank->classname, "monster_tank_spawner"))
 			actual_count++;
 		}
 	}
@@ -869,7 +869,7 @@ void Monster_MoveSpawn(edict_t* self)
 		return;
 
 	// Condiciones específicas para el tanque comandante
-	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0) {
+	if (strcmp(self->classname, "monster_tank_spawner_commander") == 0) {
 		// Debug log removido
 	}
 
@@ -1240,16 +1240,16 @@ MONSTERINFO_BLOCKED(tank_vanilla_blocked) (edict_t* self, float dist) -> bool
 //===========
 
 //
-// monster_tank_vanilla
+// monster_tank_spawner
 //
 
-/*QUAKED monster_tank_vanilla (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
+/*QUAKED monster_tank_spawner (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight
 model="models/monsters/tank_vanilla/tris.md2"
 */
-/*QUAKED monster_tank_vanilla_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
+/*QUAKED monster_tank_spawner_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
  */
 
-void SP_monster_tank_vanilla(edict_t* self)
+void SP_monster_tank_spawner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
@@ -1312,7 +1312,7 @@ void SP_monster_tank_vanilla(edict_t* self)
 	gi.soundindex("tank/tnkatck3.wav");
 
 	// Configurar salud y propiedades según tipo
-	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0)
+	if (strcmp(self->classname, "monster_tank_spawner_commander") == 0)
 	{
 		self->health = 1000 * st.health_multiplier;
 		self->gib_health = -225;
@@ -1366,7 +1366,7 @@ void SP_monster_tank_vanilla(edict_t* self)
 	self->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 	self->monsterinfo.blindfire = true;
 
-	if (strcmp(self->classname, "monster_tank_vanilla_commander") == 0)
+	if (strcmp(self->classname, "monster_tank_spawner_commander") == 0)
 		self->s.skinnum = 2;
 
 	// Aplicar banderas de bonificación
@@ -1385,12 +1385,12 @@ THINK(Think_tank_vanillaStand) (edict_t* ent) -> void
 }
 
 
-/*QUAKED monster_tank_vanilla_stand (1 .5 0) (-32 -32 0) (32 32 90)
+/*QUAKED monster_tank_spawner_stand (1 .5 0) (-32 -32 0) (32 32 90)
 
 Just stands and cycles in one place until targeted, then teleports away.
 N64 edition!
 */
-void SP_monster_tank_vanilla_stand(edict_t* self)
+void SP_monster_tank_spawner_stand(edict_t* self)
 {
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);

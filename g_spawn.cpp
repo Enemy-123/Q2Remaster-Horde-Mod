@@ -133,7 +133,7 @@ void SP_monster_soldier_light(edict_t* self);
 void SP_monster_soldier(edict_t* self);
 void SP_monster_soldier_ss(edict_t* self);
 void SP_monster_tank(edict_t* self);
-void SP_monster_tank_vanilla(edict_t* self);
+void SP_monster_tank_spawner(edict_t* self);
 void SP_monster_runnertank(edict_t* self);
 void SP_monster_tank_64(edict_t* self);
 void SP_monster_medic(edict_t* self);
@@ -374,7 +374,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_soldier", SP_monster_soldier },
 	{ "monster_soldier_ss", SP_monster_soldier_ss },
 	{ "monster_tank", SP_monster_tank },
-	{ "monster_tank_vanilla", SP_monster_tank_vanilla },
+	{ "monster_tank_spawner", SP_monster_tank_spawner },
 	{ "monster_runnertank", SP_monster_runnertank },
 	{ "monster_tank_64", SP_monster_tank_64 },
 	{ "monster_tank_commander", SP_monster_tank },
@@ -645,7 +645,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 		{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_daedalus_bomber", "monster_daedalus"}, 4},
 		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
 		{"monster_tank", {"monster_shambler", "monster_tank_64", "monster_runnertank"}, 3},
-		{"monster_tank_commander", {"monster_runnertank", "monster_tank_vanilla"}, 2},
+		{"monster_tank_commander", {"monster_runnertank", "monster_tank_spawner"}, 2},
 		{"monster_supertank", {"monster_boss5"}, 1},
 		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
 		{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}, 3},

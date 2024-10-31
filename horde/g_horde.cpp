@@ -413,9 +413,9 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 			baseQueued = static_cast<int32_t>(baseQueued * 1.2f);
 		}
 
-		// Limitar el máximo de monstruos en cola según el tamaño del mapa
-		int32_t maxQueued = mapSize.isSmallMap ? 25 : (mapSize.isBigMap ? 45 : 35);
-		baseQueued = std::min(baseQueued, maxQueued);
+		//// Limitar el máximo de monstruos en cola según el tamaño del mapa
+		//int32_t maxQueued = mapSize.isSmallMap ? 35 : (mapSize.isBigMap ? 55 : 45);
+		//baseQueued = std::min(baseQueued, maxQueued);
 	}
 
 	// Actualizar la cola, reemplazando el valor anterior en lugar de acumular
@@ -679,7 +679,7 @@ constexpr struct weighted_item_t {
 // Definici�n de monstruos ponderados
 constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_light", -1, -1, 0.27f },
-	{ "monster_tank_vanilla", 2, 4, 0.03f },
+	{ "monster_tank_spawner", 2, 4, 0.015f },
 	{ "monster_soldier_ss", -1, 22, 0.25f },
 	{ "monster_soldier", -1, 8, 0.2f },
 	{ "monster_soldier_hypergun", -1, -1, 0.2f },
@@ -702,11 +702,11 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_stalker", 4, 13, 0.19f },
 	{ "monster_parasite", 4, 17, 0.23f },
 	{ "monster_tank", 12, -1, 0.3f },
-	{ "monster_tank_vanilla", 5, 10, 0.1f },
-	{ "monster_tank_vanilla", 11, 23, 0.2f },
-	{ "monster_tank_vanilla", 32, -1, 0.25f },
+	{ "monster_tank_spawner", 5, 10, 0.1f },
+	{ "monster_tank_spawner", 11, 23, 0.2f },
+	{ "monster_tank_spawner", 32, -1, 0.25f },
 	{ "monster_runnertank", 14, -1, 0.24f },
-	{ "monster_guncmdr2", 13, 10, 0.18f },
+	{ "monster_guncmdr2", 8, -1, 0.18f },
 	{ "monster_mutant", 4, -1, 0.35f },
 	{ "monster_redmutant", 6, 12, 0.02f },
 	{ "monster_redmutant", 13, -1, 0.22f },
@@ -726,7 +726,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_guncmdr", 11, -1, 0.28f },
 	{ "monster_gladc", 17, -1, 0.3f },
 	{ "monster_gladiator", 14, -1, 0.3f },
-	{ "monster_shambler", 16, 28, 0.03f },
+	{ "monster_shambler", 16, 28, 0.06f },
 	{ "monster_shambler", 29, -1, 0.33f },
 	{ "monster_floater_tracker", 23, -1, 0.18f },
 	{ "monster_tank_64", 24, -1, 0.11f },
@@ -2206,9 +2206,6 @@ void ResetGame() {
 	gi.cvar_set("g_bfgslide", "1");
 	gi.cvar_set("g_autohaste", "0");
 
-	// Reiniciar semilla aleatoria
-	srand(static_cast<unsigned int>(std::chrono::system_clock::now().time_since_epoch().count()));
-
 	// Registrar el reinicio
 	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
 }
@@ -2607,6 +2604,7 @@ void Horde_RunFrame() {
 	// Manejo de monstruos personalizados
 	if (dm_monsters->integer > 0) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
+		g_horde_local.queued_monsters = 0;
 		ClampNumToSpawn(mapSize);
 	}
 

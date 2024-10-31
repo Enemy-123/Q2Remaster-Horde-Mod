@@ -611,7 +611,7 @@ MONSTERINFO_SETSKIN(arachnid_psx_setskin) (edict_t* self) -> void
 // monster_arachnid
 //
 // 
-constexpr const char* default_reinforcements = "monster_tank_vanilla 2";
+constexpr const char* default_reinforcements = "monster_tank_spawner 2";
 constexpr int32_t default_monster_slots_base = 5;
 
 /*QUAKED monster_arachnid (1 .5 0) (-40 -40 -20) (40 40 48) Ambush Trigger_Spawn Sight

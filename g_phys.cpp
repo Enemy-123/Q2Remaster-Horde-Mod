@@ -58,7 +58,7 @@ contents_t G_GetClipMask(edict_t* ent)
         //strcmp(ent->classname, "monster_runnertank") &&
        // strcmp(ent->classname, "monster_carrier_mini") &&
         strcmp(ent->classname, "monster_sentrygun") &&
-        strcmp(ent->classname, "monster_tank_vanilla_stand") &&
+        strcmp(ent->classname, "monster_tank_spawner_stand") &&
         strcmp(ent->classname, "monster_boss2kl")) {
         mask &= ~CONTENTS_MONSTER;
     }
