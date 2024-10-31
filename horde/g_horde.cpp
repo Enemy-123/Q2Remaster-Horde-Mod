@@ -1429,35 +1429,79 @@ static void SetupDroppedItem(edict_t* item, const vec3_t& origin, const vec3_t& 
 	item->flags &= ~FL_RESPAWN;
 }
 
+// Función auxiliar para seleccionar un arma apropiada según el nivel
+static const char* SelectBossWeaponDrop(int32_t wave_level) {
+	// Array de armas disponibles con sus niveles mínimos requeridos
+	const std::array<std::pair<const char*, int32_t>, 8> weapons = { {
+		{"weapon_hyperblaster", 12},
+		{"weapon_railgun", 24},
+		{"weapon_rocketlauncher", 14},
+		{"weapon_chaingun", 9},
+		{"weapon_boomer", 14},
+		{"weapon_plasmabeam", 17},
+		{"weapon_disintegrator", 28},
+		{"weapon_bfg", 24}
+	} };
+
+	// Filtrar armas que son de nivel superior al actual
+	std::vector<const char*> eligible_weapons;
+	for (const auto& [weapon, min_level] : weapons) {
+		if (min_level > wave_level) { // Solo armas de nivel superior al actual
+			eligible_weapons.push_back(weapon);
+		}
+	}
+
+	// Si no hay armas elegibles, retornar nullptr
+	if (eligible_weapons.empty()) {
+		return nullptr;
+	}
+
+	// Seleccionar un arma aleatoria de las elegibles
+	return eligible_weapons[irandom(0, eligible_weapons.size() - 1)];
+}
+
 void BossDeathHandler(edict_t* boss) {
-	if (!g_horde->integer || !boss->spawnflags.has(SPAWNFLAG_IS_BOSS) || boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (!g_horde->integer || !boss->spawnflags.has(SPAWNFLAG_IS_BOSS) ||
+		boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
 		return;
 	}
-	OnEntityDeath(boss);
-	OnEntityRemoved(boss); // Añadido para liberar el configstring
-	boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
 
-	// Liberar el jefe del conjunto de jefes generados automáticamente
+	OnEntityDeath(boss);
+	OnEntityRemoved(boss);
+	boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
 	auto_spawned_bosses.erase(boss);
 
+	// Items normales que el boss dropea
 	const std::array<const char*, 7> itemsToDrop = {
 		"item_adrenaline", "item_pack", "item_doppleganger",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier",
 		"item_invulnerability"
 	};
 
-	// Soltar ítem especial (quad o quadfire) usando brandom()
+	// Dropear un arma especial de nivel superior
+	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
+		edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname));
+		if (weapon) {
+			// Configurar el arma dropeada
+			const vec3_t weaponVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY,
+				MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
+			SetupDroppedItem(weapon, boss->s.origin, weaponVelocity, true);
+
+			// Agregar efectos visuales especiales
+			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
+			weapon->s.renderfx |= RF_GLOW;
+			weapon->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+			weapon->s.alpha = 0.85f;
+			weapon->s.scale = 1.25f;
+		}
+	}
+
+	// Soltar ítem especial (quad o quadfire)
 	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
-
-
 	edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName));
-
 	const vec3_t specialVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, 300, 400);
 	SetupDroppedItem(specialItem, boss->s.origin, specialVelocity, false);
-
-	// Configuración adicional para el ítem especial
 	specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
-	//specialItem->s.renderfx |= RF_SHELL_RED;
 	specialItem->s.alpha = 0.8f;
 	specialItem->s.scale = 1.5f;
 
@@ -1467,22 +1511,24 @@ void BossDeathHandler(edict_t* boss) {
 
 	for (const auto& itemClassname : shuffledItems) {
 		edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
-		const vec3_t itemVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
+		const vec3_t itemVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY,
+			MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
 		SetupDroppedItem(droppedItem, boss->s.origin, itemVelocity, true);
 	}
 
-	// Marcar al boss como no atacable para evitar doble manejo
+	// Finalizar el manejo del boss
 	boss->takedamage = false;
 
-	// Resetear el modo de monstruos voladores si el jefe corresponde a los tipos específicos
-	const std::array<const char*, 4> flyingBosses = {
-		"monster_boss2", "monster_carrier", "monster_carrier_mini", "monster_boss2kl"
+	// Verificar si es un jefe volador usando el array existente
+	const std::array<const char*, 4> flyingBossTypes = {
+		"monster_boss2", "monster_carrier",
+		"monster_carrier_mini", "monster_boss2kl"
 	};
-	if (std::find(flyingBosses.begin(), flyingBosses.end(), boss->classname) != flyingBosses.end()) {
+
+	if (std::find(flyingBossTypes.begin(), flyingBossTypes.end(), boss->classname) != flyingBossTypes.end()) {
 		flying_monsters_mode = false;
 	}
 }
-
 void boss_die(edict_t* boss) {
 	if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->health <= 0 &&
 		auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
