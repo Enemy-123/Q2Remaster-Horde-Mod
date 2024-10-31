@@ -1436,7 +1436,7 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 		{"weapon_hyperblaster", 12},
 		{"weapon_railgun", 24},
 		{"weapon_rocketlauncher", 14},
-		{"weapon_chaingun", 9},
+		{"weapon_phalanx", 16},
 		{"weapon_boomer", 14},
 		{"weapon_plasmabeam", 17},
 		{"weapon_disintegrator", 28},
