@@ -711,14 +711,15 @@ static void infantry_vanilla_grenade(edict_t* self)
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
-	const vec3_t offset = { 24, 10, 10 };  // Using same offset as MachineGun
+	const vec3_t offset = { 24, 10, 10 }; 
 	const float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
 	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, offset, forward, right);
+	start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
 	// Predict target position
 	const float time_to_target = (self->enemy->s.origin - start).length() / speed;
 	const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);

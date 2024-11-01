@@ -274,34 +274,35 @@ constexpr vec3_t aimangles[] = {
 	{ 90.0f, 35.0f, 0.0f }
 };
 
-void InfantryMachineGun(edict_t *self)
+void InfantryMachineGun(edict_t* self)
 {
-	vec3_t	offset, start, f, r, dir;
-	vec3_t	end;
-	float	dist;
+	vec3_t offset, start, forward, right, up, dir, end;
 	trace_t trace;
 
 	if (!has_valid_enemy(self))
 		return;
 
-	if (self->groundentity && frandom() < 0.33f)
-	{
-		dir = self->enemy->s.origin - self->s.origin;
-		dist = dir.length();
+	// Configurar offset más preciso
+	offset = { 24, 10, 8 };
 
-	}
+	// Obtener todos los vectores de dirección
+	AngleVectors(self->s.angles, forward, right, up);
 
-	AngleVectors(self->s.angles, f, r, nullptr);
-	offset = { 24, 10, 6 };
-	start = M_ProjectFlashSource(self, offset, f, r);
+	// Usar G_ProjectSource2 para mayor precisión
+	start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
+	// Calcular dirección al enemigo
 	dir = self->enemy->s.origin - start;
+
+	// Predicción de disparo
 	if (frandom() < 0.3f)
 		PredictAim(self, self->enemy, start, 1075, true, 0, &dir, &end);
 	else
 		end = self->enemy->s.origin;
 
+	// Verificar línea de visión
 	trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+
 	if (trace.ent == self->enemy || trace.ent == world)
 	{
 		dir.normalize();
@@ -663,15 +664,14 @@ static void infantry_grenade(edict_t* self)
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
-	const vec3_t offset = { 24, 10, 10 };  // Using same offset as MachineGun
+	const vec3_t offset = { 24, 10, 10 }; 
 	const float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
 	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, offset, forward, right);
-
+	start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 	// Predict target position
 	float time_to_target = (self->enemy->s.origin - start).length() / speed;
 	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
