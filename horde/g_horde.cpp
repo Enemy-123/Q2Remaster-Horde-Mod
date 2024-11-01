@@ -1428,8 +1428,8 @@ static void SetupDroppedItem(edict_t* item, const vec3_t& origin, const vec3_t& 
 
 // Función auxiliar para seleccionar un arma apropiada según el nivel
 static const char* SelectBossWeaponDrop(int32_t wave_level) {
-	// Array de armas disponibles con sus niveles mínimos requeridos
-	const std::array<std::pair<const char*, int32_t>, 8> weapons = { {
+	// Array fijo de armas disponibles con sus niveles mínimos requeridos
+	static const std::array<std::pair<const char*, int32_t>, 8> weapons = { {
 		{"weapon_hyperblaster", 12},
 		{"weapon_railgun", 24},
 		{"weapon_rocketlauncher", 14},
@@ -1440,21 +1440,37 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 		{"weapon_bfg", 24}
 	} };
 
-	// Filtrar armas que son de nivel superior al actual
+	// Filtrar armas que son de nivel inferior o igual al actual
 	std::vector<const char*> eligible_weapons;
+	eligible_weapons.reserve(weapons.size()); // Reservar espacio para evitar reallocaciones
+
 	for (const auto& [weapon, min_level] : weapons) {
-		if (min_level > wave_level) { // Solo armas de nivel superior al actual
+		if (min_level <= wave_level) {
 			eligible_weapons.push_back(weapon);
 		}
 	}
 
-	// Si no hay armas elegibles, retornar nullptr
+	// Si no hay armas elegibles, retornar nullptr explícitamente
 	if (eligible_weapons.empty()) {
 		return nullptr;
 	}
 
-	// Seleccionar un arma aleatoria de las elegibles
-	return eligible_weapons[irandom(0, eligible_weapons.size() - 1)];
+	// Usar mt_rand para una mejor generación de números aleatorios
+	// Asegurarnos de que el índice está dentro del rango válido
+	size_t random_index;
+	if (eligible_weapons.size() == 1) {
+		random_index = 0;
+	}
+	else {
+		random_index = mt_rand() % eligible_weapons.size();
+	}
+
+	// Verificación adicional de seguridad
+	if (random_index >= eligible_weapons.size()) {
+		return nullptr;
+	}
+
+	return eligible_weapons[random_index];
 }
 
 void BossDeathHandler(edict_t* boss) {
