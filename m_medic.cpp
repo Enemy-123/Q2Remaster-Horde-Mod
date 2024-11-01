@@ -996,12 +996,23 @@ constexpr vec3_t medic_cable_offsets[] = {
 	{ 32.7f, -19.7f, 10.4f }
 };
 
+// Función auxiliar para restaurar el estado
+void medic_restore_takedamage(edict_t* ent)
+{
+	if (ent->inuse)
+	{
+		ent->takedamage = true;
+		ent->monsterinfo.aiflags &= ~AI_RESURRECTING;
+		M_SetEffects(ent);
+	}
+}
+
 void medic_cable_attack(edict_t* self)
 {
-	vec3_t	offset, start, end, f, r;
+	vec3_t offset, start, end, f, r;
 	trace_t tr;
-	vec3_t	dir;
-	float	distance;
+	vec3_t dir;
+	float distance;
 
 	if ((!self->enemy) || (!self->enemy->inuse) || (self->enemy->s.effects & EF_GIB))
 	{
@@ -1009,12 +1020,9 @@ void medic_cable_attack(edict_t* self)
 		return;
 	}
 
-	// we switched back to a player; let the animation finish
 	if (self->enemy->client)
 		return;
 
-	// see if our enemy has changed to a client, or our target has more than 0 health,
-	// abort it .. we got switched to someone else due to damage
 	if (self->enemy->health > 0)
 	{
 		abortHeal(self, false, false);
@@ -1025,11 +1033,9 @@ void medic_cable_attack(edict_t* self)
 	offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
 	start = M_ProjectFlashSource(self, offset, f, r);
 
-	// check for max distance
-	// not needed, done in checkattack
-	// check for min distance
 	dir = start - self->enemy->s.origin;
 	distance = dir.length();
+
 	if (distance < MEDIC_MIN_DISTANCE)
 	{
 		abortHeal(self, true, false);
@@ -1042,7 +1048,6 @@ void medic_cable_attack(edict_t* self)
 	{
 		if (tr.ent == world)
 		{
-			// give up on second try
 			if (self->monsterinfo.medicTries > 1)
 			{
 				abortHeal(self, false, true);
@@ -1061,7 +1066,6 @@ void medic_cable_attack(edict_t* self)
 
 	if (self->s.frame == FRAME_attack43)
 	{
-		// PMM - commander sounds
 		if (self->mass == 400)
 			gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
 		else
@@ -1069,31 +1073,27 @@ void medic_cable_attack(edict_t* self)
 
 		self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
 		self->enemy->takedamage = false;
+
+		static constexpr gtime_t REVIVE_EFFECT_DURATION = 2_sec;
+		// Usar attack_finished como nuestro timer para el efecto
+		self->enemy->monsterinfo.attack_finished = level.time + REVIVE_EFFECT_DURATION;
 		M_SetEffects(self->enemy);
 	}
 	else if (self->s.frame == FRAME_attack50)
 	{
 		if (!finishHeal(self))
 			self->monsterinfo.nextframe = FRAME_attack52;
-
 		return;
 	}
-	else
+	else if (self->s.frame == FRAME_attack44)
 	{
-		if (self->s.frame == FRAME_attack44)
-		{
-			// PMM - medic commander sounds
-			if (self->mass == 400)
-				gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
-			else
-				gi.sound(self, CHAN_WEAPON, commander_sound_hook_heal, 1, ATTN_NORM, 0);
-		}
+		if (self->mass == 400)
+			gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
+		else
+			gi.sound(self, CHAN_WEAPON, commander_sound_hook_heal, 1, ATTN_NORM, 0);
 	}
 
-	// adjust start for beam origin being in middle of a segment
 	start += (f * 8);
-
-	// adjust end z for end spot since the monster is currently dead
 	end = self->enemy->s.origin;
 	end[2] = (self->enemy->absmin[2] + self->enemy->absmax[2]) / 2;
 
@@ -1104,7 +1104,6 @@ void medic_cable_attack(edict_t* self)
 	gi.WritePosition(end);
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
 }
-
 void medic_hook_retract(edict_t* self)
 {
 	if (self->mass == 400)

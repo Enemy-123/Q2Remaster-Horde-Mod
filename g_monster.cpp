@@ -407,6 +407,8 @@ bool M_droptofloor(edict_t* ent)
 	return true;
 }
 
+void medic_restore_takedamage(edict_t* ent);
+
 void M_SetEffects(edict_t* ent)
 {
 	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES | EF_DUALFIRE | EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE | EF_ROCKET | EF_FIREBALL | EF_PLASMA | EF_TAGTRAIL | EF_BLUEHYPERBLASTER | EF_GIB | EF_FLAG2 | EF_TRACKER | EF_FLAG1);
@@ -427,12 +429,23 @@ void M_SetEffects(edict_t* ent)
 	else if (ent->monsterinfo.engine_sound)
 		ent->s.sound = ent->monsterinfo.engine_sound;
 
-	if (ent->monsterinfo.aiflags & AI_RESURRECTING)
+	// Verificar si AI_RESURRECTING está activo y si estamos dentro del tiempo de efecto
+	if ((ent->monsterinfo.aiflags & AI_RESURRECTING) &&
+		(level.time < ent->monsterinfo.attack_finished))
 	{
 		ent->s.effects |= EF_COLOR_SHELL;
 		ent->s.renderfx |= RF_SHELL_RED;
 		ent->s.alpha = 0.0f;
 	}
+	else if (ent->monsterinfo.aiflags & AI_RESURRECTING)
+	{
+		(ent);
+	}
+
+	ent->s.renderfx |= RF_DOT_SHADOW;
+
+	if (ent->health <= 0)
+		return;
 
 	ent->s.renderfx |= RF_DOT_SHADOW;
 

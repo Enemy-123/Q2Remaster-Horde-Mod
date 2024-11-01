@@ -2753,7 +2753,7 @@ void Horde_RunFrame() {
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
 			g_horde_local.state = horde_state_t::cleanup;
-			g_horde_local.monster_spawn_time = level.time;
+			g_horde_local.monster_spawn_time = level.time + 0.5_sec; // test to fix last monster that wasnt getting removed
 		}
 		else if (g_horde_local.monster_spawn_time <= level.time) {
 			const int32_t activeMonsters = CountActiveMonsters();
