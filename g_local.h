@@ -3900,6 +3900,13 @@ template<> cached_imageindex* cached_imageindex::head;
 extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
 
+
+[[nodiscard]] constexpr vec3_t GetScaledFlashOffset(edict_t* self, const vec3_t& original_offset)
+{
+	return original_offset * self->s.scale;
+}
+
+
 extern void OnEntityDeath(const edict_t* ent);
 
 extern [[nodiscard]] constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);

@@ -164,46 +164,44 @@ void WidowBlaster(edict_t* self)
 	if (!ent2 || !visible(self, ent2))
 		return;
 
-
 	vec3_t forward, right, up, target, vec, targ_angles;
 	vec3_t start;
 	monster_muzzleflash_id_t flashnum;
 	effects_t effect;
 
-	// Add offset for scaled-down widow
-	vec3_t offset = { 0.0f, 0.0f, 0.0f }; // No offset by default
-
-	// Check if the monster is the scaled-down widow
-	if (strcmp(self->classname, "monster_widow1") == 0)
-	{
-		offset[2] = -45.0f; // Adjust Z-axis offset for the scaled-down widow
-	}
-
 	if (!self->enemy)
 		return;
 
+	// Obtener los flash offsets escalados
+	auto GetScaledFlashOffset = [](edict_t* self, const vec3_t& original_offset) -> vec3_t {
+		if (strcmp(self->classname, "monster_widow1") == 0)
+			return original_offset * self->s.scale;
+		return original_offset;
+		};
+
 	shotsfired++;
-	if (!(shotsfired % 4))
-		effect = EF_BLASTER;
-	else
-		effect = EF_NONE;
+	effect = (!(shotsfired % 4)) ? EF_BLASTER : EF_NONE;
 
 	AngleVectors(self->s.angles, forward, right, up);
+
 	if ((self->s.frame >= FRAME_spawn05) && (self->s.frame <= FRAME_spawn13))
 	{
-		// sweep
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW_BLASTER_SWEEP1 + self->s.frame - FRAME_spawn05);
-		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
+		vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[flashnum]);
+		start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
+
 		target = self->enemy->s.origin - start;
 		targ_angles = vectoangles(target);
-
 		vec = self->s.angles;
-
 		vec[PITCH] += targ_angles[PITCH];
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW_BLASTER_SWEEP1];
-
 		AngleVectors(vec, forward, nullptr, nullptr);
-		monster_fire_blaster2(self, start, forward, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
+
+		const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
+		monster_fire_blaster2(self, start, forward,
+			is_widow1 ? 10 : 20 * widow_damage_multiplier,
+			is_widow1 ? 850 : 1000,
+			flashnum, effect);
 	}
 	else if ((self->s.frame >= FRAME_fired02a) && (self->s.frame <= FRAME_fired20))
 	{
@@ -212,18 +210,16 @@ void WidowBlaster(edict_t* self)
 		float error;
 
 		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
-
 		self->monsterinfo.nextframe = WidowTorso(self);
-
 		if (!self->monsterinfo.nextframe)
 			self->monsterinfo.nextframe = self->s.frame;
 
-		if (self->s.frame == FRAME_fired02a)
-			flashnum = MZ2_WIDOW_BLASTER_0;
-		else
-			flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW_BLASTER_100 + self->s.frame - FRAME_fired03);
+		flashnum = (self->s.frame == FRAME_fired02a) ?
+			MZ2_WIDOW_BLASTER_0 :
+			static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW_BLASTER_100 + self->s.frame - FRAME_fired03);
 
-		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
+		vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[flashnum]);
+		start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 
 		PredictAim(self, self->enemy, start, 1000, true, crandom() * 0.1f, &forward, nullptr);
 
@@ -257,15 +253,21 @@ void WidowBlaster(edict_t* self)
 	else if ((self->s.frame >= FRAME_run01) && (self->s.frame <= FRAME_run08))
 	{
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW_RUN_1 + self->s.frame - FRAME_run01);
-		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
+		vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[flashnum]);
+		start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 
 		target = self->enemy->s.origin - start;
 		target[2] += self->enemy->viewheight;
 		target.normalize();
 
-		monster_fire_blaster2(self, start, target, !strcmp(self->classname, "monster_widow1") ? 10 : 20 * widow_damage_multiplier, !strcmp(self->classname, "monster_widow1") ? 850 : 1000, flashnum, effect);
+		const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
+		monster_fire_blaster2(self, start, target,
+			is_widow1 ? 10 : 20 * widow_damage_multiplier,
+			is_widow1 ? 850 : 1000,
+			flashnum, effect);
 	}
 }
+
 void WidowSpawn(edict_t* self) {
 	// Verificar si se ha alcanzado el límite máximo de stalkers
 	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
@@ -526,40 +528,31 @@ void WidowRail(edict_t* self)
 	vec3_t forward, right, up;
 	monster_muzzleflash_id_t flash;
 
-	// Add offset for scaled-down widow
-	vec3_t offset = { 0.0f, 0.0f, 0.0f }; // No offset by default
-
-	// Check if the monster is the scaled-down widow
-	if (strcmp(self->classname, "monster_widow1") == 0)
-	{
-		offset[2] = -45.0f; // Adjust Z-axis offset for the scaled-down widow
-	}
-
 	AngleVectors(self->s.angles, forward, right, up);
 
+	// Determinar qué tipo de disparo es basado en la animación actual
 	if (self->monsterinfo.active_move == &widow_move_attack_rail_l)
-	{
 		flash = MZ2_WIDOW_RAIL_LEFT;
-	}
 	else if (self->monsterinfo.active_move == &widow_move_attack_rail_r)
-	{
 		flash = MZ2_WIDOW_RAIL_RIGHT;
-	}
 	else
-	{
 		flash = MZ2_WIDOW_RAIL;
-	}
 
-	start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flash], forward, right, up, offset);
+	// Obtener el offset escalado para la posición del disparo
+	vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[flash]);
+	start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 
-	// Calculate direction to where we targeted
+	// Calcular dirección hacia el objetivo guardado
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, !strcmp(self->classname, "monster_widow1") ? 60 : 90 * widow_damage_multiplier, 100, flash);
+	const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
+	monster_fire_railgun(self, start, dir,
+		is_widow1 ? 60 : 90 * widow_damage_multiplier,
+		100, flash);
+
 	self->timestamp = level.time + RAIL_TIME;
 }
-
 void WidowSaveLoc(edict_t* self)
 {
 	self->pos1 = self->enemy->s.origin; // save for aiming the shot
