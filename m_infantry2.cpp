@@ -706,20 +706,19 @@ MMOVE_T(infantry_vanilla_move_attack4) = { FRAME_run201, FRAME_run208, infantry_
 
 
 constexpr float GRENADE_SPEED = 900;
-void infantry_vanilla_grenade(edict_t* self)
+static void infantry_vanilla_grenade(edict_t* self)
 {
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
-	const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
+	const vec3_t offset = { 24, 10, 10 };  // Using same offset as MachineGun
 	const float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
 	AngleVectors(self->s.angles, forward, right, up);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
-
+	start = M_ProjectFlashSource(self, offset, forward, right);
 	// Predict target position
 	const float time_to_target = (self->enemy->s.origin - start).length() / speed;
 	const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
