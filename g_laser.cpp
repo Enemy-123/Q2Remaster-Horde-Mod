@@ -118,7 +118,6 @@ LaserManagerHolder::~LaserManagerHolder() {
 }
 
 
-// Funciones helper
 namespace LaserHelpers {
     bool is_valid_target(const edict_t* ent) {
         return ent && ent->inuse &&
@@ -153,16 +152,28 @@ namespace LaserHelpers {
         }
     }
 
-    vec3_t normalize_vector(const vec3_t& v) {
-        float length = sqrt(v[0] * v[0] + v[1] * v[1] + v[2] * v[2]);
-        if (length == 0) return vec3_origin;
-        return vec3_t{ v[0] / length, v[1] / length, v[2] / length };
-    }
-
     PlayerLaserManager* get_laser_manager(edict_t* ent) {
         if (!ent || !ent->client) return nullptr;
         auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
         return holder ? static_cast<PlayerLaserManager*>(holder->manager_ptr) : nullptr;
+    }
+
+    // Función helper para obtener el ángulo entre dos vectores
+    [[nodiscard]] float get_angle_between_vectors(const vec3_t& v1, const vec3_t& v2) {
+        if (!is_valid_vector(v1) || !is_valid_vector(v2)) {
+            return 0.0f;
+        }
+
+        vec3_t normalized_v1 = safe_normalized(v1);
+        vec3_t normalized_v2 = safe_normalized(v2);
+
+        float dot = normalized_v1.dot(normalized_v2);
+        return acosf(std::clamp(dot, -1.0f, 1.0f)) * (180.0f / PIf);
+    }
+
+    // Función helper para verificar si un vector está dentro de un rango angular
+    [[nodiscard]] bool is_vector_within_angle(const vec3_t& vec, const vec3_t& reference, float max_angle) {
+        return get_angle_between_vectors(vec, reference) <= max_angle;
     }
 }
 
@@ -226,51 +237,50 @@ THINK(laser_beam_think)(edict_t* self) -> void {
     self->s.skinnum = (self->health > self->max_health * 0.20f) ? 0xf2f2f0f0 : 0xd0d1d2d3;
 
     if (state.needs_retrace || level.time >= state.last_trace_time + LaserConstants::TRACE_UPDATE_INTERVAL) {
+        // Fix 1: Usar normalización segura para el vector forward
         vec3_t forward;
-        AngleVectors(self->s.angles, forward, nullptr, nullptr);
+        AngleVectors(self->s.angles, &forward, nullptr, nullptr);
+        forward = safe_normalized(forward);
 
+        // Fix 2: Asegurar que los puntos de inicio y fin son válidos
         state.last_trace_start = self->pos1;
-        state.last_trace_end = state.last_trace_start + forward * 8192;
+        if (!is_valid_vector(state.last_trace_start)) {
+            state.last_trace_start = self->s.old_origin;
+        }
 
+        // Fix 3: Calcular el punto final usando distancia fija
+        constexpr float LASER_LENGTH = 8192.0f;
+        state.last_trace_end = state.last_trace_start + forward * LASER_LENGTH;
+
+        // Fix 4: Validar el vector resultante
+        if (!is_valid_vector(state.last_trace_end)) {
+            state.last_trace_end = state.last_trace_start + vec3_t{ LASER_LENGTH, 0, 0 };
+        }
+
+        // Realizar el trace con los vectores validados
         trace_t tr = gi.traceline(state.last_trace_start, state.last_trace_end, self->owner, MASK_SHOT);
-        self->s.origin = tr.endpos;
 
-        // Original damage calculation
+        // Fix 5: Asegurar que el punto final del trace es válido
+        if (is_valid_vector(tr.endpos)) {
+            self->s.origin = tr.endpos;
+        }
+        else {
+            self->s.origin = state.last_trace_start;
+        }
+
+        // Original damage calculation with fixes
         const int damage = (size) ? std::min(self->dmg, self->health) : 0;
 
         if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
-            bool hit_valid_target = false;
+            if (LaserHelpers::is_valid_target(tr.ent) && !LaserHelpers::is_same_team(self->teammaster, tr.ent)) {
+                // Fix 6: Usar el vector forward normalizado para el daño
+                T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
+                    damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
-            if ((tr.ent->svflags & SVF_MONSTER) || tr.ent->client || tr.ent->takedamage) {
-                if (!OnSameTeam(self->teammaster, tr.ent)) {
-                    // Apply damage using original forward vector
-                    T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
-                        damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
-
-                    // Only count as valid hit if target has health > 0
-                    if (tr.ent->health > 0) {
-                        hit_valid_target = true;
-
-                        // Original damage multiplier logic
-                        float damageMult = 0.25f; // Default for other valid targets
-
-                        if (tr.ent->svflags & SVF_MONSTER) {
-                            if (tr.ent->monsterinfo.invincible_time > level.time) {
-                                damageMult = 0.0f; // No wear against invulnerable targets
-                            }
-                            else if (tr.ent->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
-                                damageMult = 1.25f; // Slightly more wear against bosses
-                            }
-                            else {
-                                damageMult = 1.0f; // Normal wear against monsters
-                            }
-                        }
-
-                        // Apply health reduction only for valid targets
-                        if (hit_valid_target) {
-                            self->health -= damage * damageMult;
-                        }
-                    }
+                // Aplicar desgaste solo si el objetivo tiene salud positiva
+                if (tr.ent->health > 0) {
+                    float damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
+                    self->health -= damage * damageMult;
                 }
             }
         }
@@ -279,13 +289,16 @@ THINK(laser_beam_think)(edict_t* self) -> void {
         state.needs_retrace = false;
     }
 
+    // Fix 7: Mantener consistente el punto de origen del láser
     self->s.old_origin = self->pos1;
 
+    // Health check and cleanup
     if (self->health <= 0) {
         if (self->teammaster && self->teammaster->inuse && self->teammaster->client) {
             if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
                 manager->remove_laser(self);
-                gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser emitter burned out and exploded. {}/{} remaining.\n",
+                gi.LocClient_Print(self->teammaster, PRINT_HIGH,
+                    "Laser emitter burned out and exploded. {}/{} remaining.\n",
                     manager->get_active_count(), LaserConstants::MAX_LASERS);
             }
         }
@@ -328,6 +341,7 @@ THINK(emitter_think)(edict_t* self) -> void {
 void create_laser(edict_t* ent) {
     if (!ent || !ent->client) return;
 
+    // Validaciones iniciales (modo horde, movetype, etc...)
     if (!g_horde->integer) {
         gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a laser\n");
         return;
@@ -338,16 +352,15 @@ void create_laser(edict_t* ent) {
         return;
     }
 
-    // Inicializar el manager de láseres si no existe
+    // Inicialización del manager
     if (!ent->client->laser_manager) {
         auto* holder = new LaserManagerHolder();
         holder->manager_ptr = new PlayerLaserManager(ent);
         ent->client->laser_manager = reinterpret_cast<void*>(holder);
     }
 
-    // Ahora verificamos si podemos agregar más láseres
-    auto* current_manager = LaserHelpers::get_laser_manager(ent);
-    if (!current_manager || !current_manager->can_add_laser()) {
+    auto* manager = LaserHelpers::get_laser_manager(ent);
+    if (!manager || !manager->can_add_laser()) {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
         return;
     }
@@ -357,15 +370,21 @@ void create_laser(edict_t* ent) {
         return;
     }
 
-    // Calcular posiciones
+    // Fix 8: Calcular vectores de dirección de forma segura
     vec3_t forward, right;
     auto [fwd, rgt, _] = AngleVectors(ent->client->v_angle);
-    forward = fwd;
-    right = rgt;
+    forward = safe_normalized(fwd);
+    right = safe_normalized(rgt);
 
+    // Fix 9: Ajustar el offset y calcular posiciones de forma segura
     vec3_t offset{ 0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f };
     vec3_t start = G_ProjectSource(ent->s.origin, offset, forward, right);
     vec3_t end = start + forward * 64;
+
+    if (!is_valid_vector(start) || !is_valid_vector(end)) {
+        gi.LocClient_Print(ent, PRINT_HIGH, "Invalid position for laser placement.\n");
+        return;
+    }
 
     trace_t tr = gi.traceline(start, end, ent, MASK_SOLID);
 
@@ -379,7 +398,7 @@ void create_laser(edict_t* ent) {
 
     // Configurar láser
     laser->dmg = LaserConstants::LASER_INITIAL_DAMAGE +
-        (LaserConstants::LASER_ADDON_DAMAGE * (current_wave_level - 1));
+        (LaserConstants::LASER_ADDON_DAMAGE * (current_wave_level));
     laser->health = std::min(LaserConstants::LASER_INITIAL_HEALTH +
         (LaserConstants::LASER_ADDON_HEALTH * (current_wave_level - 1)),
         LaserConstants::MAX_LASER_HEALTH);
