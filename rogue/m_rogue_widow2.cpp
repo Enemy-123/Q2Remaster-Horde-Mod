@@ -100,16 +100,6 @@ void Widow2Beam(edict_t* self)
 	if (!ent2 || !visible(self, ent2))
 		return;
 
-
-	// Add offset for scaled-down widow2
-	vec3_t offset = { 0.0f, 0.0f, 0.0f }; // No offset by default
-
-	// Check if the monster is the scaled-down widow2
-	if (strcmp(self->classname, "monster_widow2") == 0)
-	{
-		offset[2] = -20.0f; // Adjust Z-axis offset for the scaled-down widow2
-	}
-
 	AngleVectors(self->s.angles, forward, right, up);
 
 	if ((self->s.frame >= FRAME_fireb05) && (self->s.frame <= FRAME_fireb09))
@@ -117,7 +107,8 @@ void Widow2Beam(edict_t* self)
 		// regular beam attack
 		Widow2SaveBeamTarget(self);
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW2_BEAMER_1 + self->s.frame - FRAME_fireb05);
-		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
+		vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[flashnum]);
+		start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 		target = self->pos2;
 		target[2] += self->enemy->viewheight - 10;
 		forward = target - start;
@@ -128,12 +119,12 @@ void Widow2Beam(edict_t* self)
 	{
 		// sweep
 		flashnum = static_cast<monster_muzzleflash_id_t>(MZ2_WIDOW2_BEAM_SWEEP_1 + self->s.frame - FRAME_spawn04);
-		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[flashnum], forward, right, up, offset);
+		vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[flashnum]);
+		start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 		target = self->enemy->s.origin - start;
 		targ_angles = vectoangles(target);
 
 		vec = self->s.angles;
-
 		vec[PITCH] += targ_angles[PITCH];
 		vec[YAW] -= sweep_angles[flashnum - MZ2_WIDOW2_BEAM_SWEEP_1];
 
@@ -143,7 +134,8 @@ void Widow2Beam(edict_t* self)
 	else
 	{
 		Widow2SaveBeamTarget(self);
-		start = G_ProjectSourceWithOffset(self->s.origin, monster_flash_offset[MZ2_WIDOW2_BEAMER_1], forward, right, up, offset);
+		vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[MZ2_WIDOW2_BEAMER_1]);
+		start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 
 		target = self->pos2;
 		target[2] += self->enemy->viewheight - 10;
@@ -322,11 +314,12 @@ void WidowDisrupt(edict_t* self)
 {
 	vec3_t start;
 	vec3_t dir;
-	vec3_t forward, right;
-	float  len;
+	vec3_t forward, right, up;
+	float len;
 
-	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_WIDOW_DISRUPTOR], forward, right);
+	AngleVectors(self->s.angles, forward, right, up);
+	vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[MZ2_WIDOW_DISRUPTOR]);
+	start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
 
 	dir = self->pos1 - self->enemy->s.origin;
 	len = dir.length();
@@ -446,12 +439,14 @@ static bool widow2_tongue_attack_ok(const vec3_t& start, const vec3_t& end, floa
 
 void Widow2Tongue(edict_t* self)
 {
-	vec3_t	f, r, u;
-	vec3_t	start, end, dir;
+	vec3_t f, r, u;
+	vec3_t start, end, dir;
 	trace_t tr;
 
 	AngleVectors(self->s.angles, f, r, u);
-	start = G_ProjectSource2(self->s.origin, offsets[self->s.frame - FRAME_tongs01], f, r, u);
+	vec3_t scaled_offset = GetScaledFlashOffset(self, offsets[self->s.frame - FRAME_tongs01]);
+	start = G_ProjectSource2(self->s.origin, scaled_offset, f, r, u);
+
 	end = self->enemy->s.origin;
 	if (!widow2_tongue_attack_ok(start, end, 256))
 	{
