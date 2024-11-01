@@ -838,11 +838,16 @@ void runnertank_consider_strafe(edict_t* self)
 
 void runnertank_consider_attack(edict_t* self)
 {
+	// Validación básica
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	// No considerar nuevo ataque si estamos en cooldown
 	if (level.time < self->monsterinfo.attack_finished)
+		return;
+
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
 		return;
 
 	const float range = range_to(self, self->enemy);
