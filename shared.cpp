@@ -301,6 +301,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	}
 
 	monster->initial_max_health = monster->health;
+	monster->s.renderfx |= RF_IR_VISIBLE;
 }
 
 // Función auxiliar para calcular los valores mínimos de salud y armadura
