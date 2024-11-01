@@ -67,12 +67,15 @@ void weapon_phalanx_fire(edict_t* ent)
     vec3_t dir;
     vec3_t start;
 
-    // 20% de probabilidad de activar el modo de 4 disparos
     bool quad_shot_mode = frandom() < 0.20f;
 
     if (quad_shot_mode)
     {
-        // Configuración para cada disparo en modo cuádruple
+        // Consumir munición para los 4 disparos - como el modo normal usa 2 plasmas,
+        // duplicamos el consumo para el modo quad (4 plasmas)
+        G_RemoveAmmo(ent);
+        G_RemoveAmmo(ent);
+
         struct PhalanxShot {
             float yaw_offset;
             float pitch_offset;
@@ -102,11 +105,10 @@ void weapon_phalanx_fire(edict_t* ent)
             gi.WriteByte(current_shot.muzzle_effect | is_silenced);
             gi.multicast(ent->s.origin, MULTICAST_PVS, false);
         }
-        G_RemoveAmmo(ent);
     }
     else
     {
-        // Comportamiento original
+        // Comportamiento original - dispara 2 plasmas
         if (ent->client->ps.gunframe == 8)
         {
             v[PITCH] = ent->client->v_angle[PITCH];
@@ -120,7 +122,7 @@ void weapon_phalanx_fire(edict_t* ent)
             gi.WriteEntity(ent);
             gi.WriteByte(MZ_PHALANX2 | is_silenced);
             gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-            G_RemoveAmmo(ent);
+            G_RemoveAmmo(ent);  // Consume munición para el primer plasma
         }
         else
         {
@@ -134,12 +136,12 @@ void weapon_phalanx_fire(edict_t* ent)
             gi.WriteByte(MZ_PHALANX | is_silenced);
             gi.multicast(ent->s.origin, MULTICAST_PVS, false);
             PlayerNoise(ent, start, PNOISE_WEAPON);
+            G_RemoveAmmo(ent);  // Consume munición para el segundo plasma
         }
     }
 
     P_AddWeaponKick(ent, ent->client->v_forward * -2, { -2.f, 0.f, 0.f });
 }
-
 void Weapon_Phalanx(edict_t* ent)
 {
     constexpr int pause_frames[] = { 29, 42, 55, 0 };
