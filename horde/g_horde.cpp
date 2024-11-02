@@ -2447,11 +2447,9 @@ void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	UpdateHordeMessage(messages[choice], duration);
 }
 
-// Funci�n para manejar el mensaje de limpieza de ola
 static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reason) noexcept {
-	// Solo ajustar dificultad si la ola terminó por victoria completa
+	// Si la ola terminó con todos los monstruos muertos, aplicar reglas normales
 	if (reason == WaveEndReason::AllMonstersDead) {
-		// Progresión normal de dificultad
 		if (current_wave_level >= 15 && current_wave_level <= 26) {
 			gi.cvar_set("g_insane", "1");
 			gi.cvar_set("g_chaotic", "0");
@@ -2466,23 +2464,27 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 		}
 	}
 	else {
-		// Probabilidad base según el tamaño del mapa
-		float probability = mapSize.isBigMap ? 0.5f :
-			mapSize.isSmallMap ? 0.3f : 0.4f;
+		// Si la ola no terminó por victoria completa, pequeña probabilidad de mantener la dificultad
+		float probability = mapSize.isBigMap ? 0.3f :
+			mapSize.isSmallMap ? 0.2f : 0.25f;  // 20-30% según tamaño de mapa
 
 		if (frandom() < probability) {
-			// Decidir aleatoriamente entre chaotic e insane
-			if (brandom()) {
+			// Si gana la probabilidad, aplicar la dificultad según el nivel actual
+			if (current_wave_level >= 15 && current_wave_level <= 26) {
 				gi.cvar_set("g_insane", "1");
 				gi.cvar_set("g_chaotic", "0");
 			}
-			else {
+			else if (current_wave_level >= 27) {
+				gi.cvar_set("g_insane", "2");
+				gi.cvar_set("g_chaotic", "0");
+			}
+			else if (current_wave_level <= 14) {
 				gi.cvar_set("g_insane", "0");
 				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 			}
 		}
 		else {
-			// Si no se activa la probabilidad, desactivar ambos modos
+			// Si no gana la probabilidad, desactivar ambos modos
 			gi.cvar_set("g_insane", "0");
 			gi.cvar_set("g_chaotic", "0");
 		}
