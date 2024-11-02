@@ -644,6 +644,7 @@ constexpr struct weighted_item_t {
 	{ "item_power_screen", 2, 8, 0.03f, adjust_weight_armor },
 	{ "item_power_shield", 14, -1, 0.07f, adjust_weight_armor },
 
+	{ "item_ir_goggles", -1, -1, 0.034f, adjust_weight_powerup },
 	{ "item_quad", 6, -1, 0.054f, adjust_weight_powerup },
 	{ "item_double", 4, -1, 0.07f, adjust_weight_powerup },
 	{ "item_quadfire", 2, -1, 0.06f, adjust_weight_powerup },
@@ -695,68 +696,95 @@ constexpr struct weighted_item_t {
 
 // Definici�n de monstruos ponderados
 constexpr weighted_item_t monsters[] = {
-	{ "monster_soldier_light", -1, -1, 0.27f },
-	{ "monster_tank_spawner", 2, 4, 0.015f },
-	{ "monster_soldier_ss", -1, 22, 0.25f },
-	{ "monster_soldier", -1, 8, 0.2f },
-	{ "monster_soldier_hypergun", -1, -1, 0.2f },
-	{ "monster_soldier_lasergun", 5, -1, 0.35f },
-	{ "monster_soldier_ripper", -1, 12, 0.25f },
-	{ "monster_infantry_vanilla", -1, 1, 0.2f },
-	{ "monster_infantry_vanilla", 2, -1, 0.39f },
-	{ "monster_infantry", 9, -1, 0.36f },
-	{ "monster_flyer", -1, 2, 0.07f },
-	{ "monster_flyer", 3, -1, 0.1f },
-	{ "monster_hover_vanilla", 6, 19, 0.18f },
-	{ "monster_fixbot", 8, 21, 0.11f },
-	{ "monster_gekk", -1, 3, 0.1f },
-	{ "monster_gekk", 4, 17, 0.17f },
-	{ "monster_gunner_vanilla", 5, -1, 0.35f },
-	{ "monster_gunner", 14, -1, 0.34f },
-	{ "monster_brain", 7, 15, 0.27f },
-	{ "monster_brain", 16, -1, 0.4f },
-	{ "monster_stalker", 2, 3, 0.1f },
-	{ "monster_stalker", 4, 13, 0.19f },
-	{ "monster_parasite", 4, 17, 0.23f },
-	{ "monster_tank", 12, -1, 0.3f },
-	{ "monster_tank_spawner", 5, 10, 0.1f },
-	{ "monster_tank_spawner", 11, 23, 0.2f },
-	{ "monster_tank_spawner", 32, -1, 0.25f },
-	{ "monster_runnertank", 14, -1, 0.24f },
-	{ "monster_guncmdr2", 8, -1, 0.18f },
-	{ "monster_mutant", 4, -1, 0.35f },
-	{ "monster_redmutant", 6, 12, 0.02f },
-	{ "monster_redmutant", 13, -1, 0.22f },
-	{ "monster_chick", 5, 26, 0.3f },
-	{ "monster_chick_heat", 10, -1, 0.34f },
-	{ "monster_berserk", 4, -1, 0.3f },
-	{ "monster_floater", 10, -1, 0.26f },
-	{ "monster_hover", 15, -1, 0.18f },
-	{ "monster_daedalus", 16, -1, 0.1f },
-	{ "monster_daedalus_bomber", 21, -1, 0.14f },
-	{ "monster_medic", 5, -1, 0.1f },
-	{ "monster_medic_commander", 16, -1, 0.06f },
-	{ "monster_tank_commander", 11, -1, 0.15f },
-	{ "monster_spider", 11, 19, 0.27f },
-	{ "monster_gm_arachnid", 22, -1, 0.24f },
-	{ "monster_arachnid", 20, -1, 0.27f },
-	{ "monster_guncmdr", 11, -1, 0.28f },
-	{ "monster_gladc", 17, -1, 0.3f },
-	{ "monster_gladiator", 14, -1, 0.3f },
-	{ "monster_shambler", 16, 28, 0.06f },
-	{ "monster_shambler", 29, -1, 0.33f },
-	{ "monster_floater_tracker", 23, -1, 0.18f },
-	{ "monster_tank_64", 24, -1, 0.11f },
-	{ "monster_janitor", 24, -1, 0.14f },
-	{ "monster_janitor2", 18, -1, 0.12f },
-	{ "monster_makron", 17, 22, 0.015f },
-	{ "monster_gladb", 18, -1, 0.45f },
-	{ "monster_boss2_64", 16, -1, 0.1f },
-	{ "monster_carrier_mini", 20, -1, 0.07f },
-	{ "monster_perrokl", 21, -1, 0.33f },
-	{ "monster_widow1", 23, -1, 0.08f }
-};
+	// Enemigos básicos (Olas 1-5)
+	{ "monster_soldier_light", -1, 8, 0.27f },
+	{ "monster_soldier", -1, 8, 0.25f },
+	{ "monster_soldier_ss", -1, 12, 0.23f },
+	{ "monster_infantry_vanilla", -1, 3, 0.25f },
+	{ "monster_infantry_vanilla", 4, 12, 0.32f },
 
+	// Enemigos intermedios (Olas 4-10)
+	{ "monster_soldier_hypergun", 4, -1, 0.2f },
+	{ "monster_soldier_lasergun", 6, -1, 0.3f },
+	{ "monster_soldier_ripper", 5, 14, 0.22f },
+	{ "monster_infantry", 8, -1, 0.32f },
+
+	// Enemigos de apoyo temprano
+	{ "monster_medic", 3, 12, 0.15f },
+	{ "monster_medic", 13, 20, 0.12f },
+	{ "monster_medic_commander", 21, -1, 0.08f },       // Retrasado a ola 21
+
+	// Voladores básicos y early challengers
+	{ "monster_flyer", -1, 4, 0.1f },
+	{ "monster_flyer", 5, -1, 0.15f },
+	{ "monster_hover_vanilla", 7, 16, 0.18f },
+	{ "monster_hover", 13, -1, 0.16f },
+	{ "monster_gekk", -1, 5, 0.12f },
+	{ "monster_gekk", 6, 15, 0.15f },
+
+	// Enemigos técnicos y Gunners
+	{ "monster_fixbot", 8, 19, 0.13f },
+	{ "monster_gunner_vanilla", 5, 15, 0.3f },
+	{ "monster_gunner", 12, -1, 0.28f },
+	{ "monster_guncmdr2", 8, 15, 0.18f },              // Versión más débil
+	{ "monster_guncmdr", 14, -1, 0.25f },              // Versión fuerte
+
+	// Enemigos especializados
+	{ "monster_brain", 8, 14, 0.22f },
+	{ "monster_brain", 15, -1, 0.25f },
+	{ "monster_stalker", 6, 15, 0.17f },
+	{ "monster_parasite", 4, 16, 0.2f },
+
+	// Tanques y variantes (progresión gradual)
+	{ "monster_tank_spawner", 3, 6, 0.015f },
+	{ "monster_tank_spawner", 7, 12, 0.08f },
+	{ "monster_tank_spawner", 13, 25, 0.15f },
+	{ "monster_tank_spawner", 26, -1, 0.2f },
+	{ "monster_tank", 11, -1, 0.25f },
+	{ "monster_tank_commander", 14, -1, 0.15f },
+	{ "monster_runnertank", 16, -1, 0.22f },
+
+	// Voladores avanzados (retrasados)
+	{ "monster_floater", 12, -1, 0.22f },               // Desde ola 12
+	{ "monster_floater_tracker", 20, -1, 0.16f },
+	{ "monster_daedalus", 18, -1, 0.12f },              // Retrasado a ola 18
+	{ "monster_daedalus_bomber", 22, -1, 0.14f },       // Retrasado a ola 22
+
+	// Enemigos brutales
+	{ "monster_mutant", 4, 12, 0.3f },
+	{ "monster_mutant", 13, -1, 0.25f },
+	{ "monster_redmutant", 9, 14, 0.04f },
+	{ "monster_redmutant", 15, -1, 0.18f },
+	{ "monster_berserk", 7, -1, 0.25f },
+
+	// Gladiators
+	{ "monster_gladiator", 13, -1, 0.25f },
+	{ "monster_gladb", 16, -1, 0.35f },
+	{ "monster_gladc", 18, -1, 0.28f },
+
+	// Cazadores especializados
+	{ "monster_chick", 6, 20, 0.25f },
+	{ "monster_chick_heat", 13, -1, 0.3f },
+
+	// Arachnids (después de ola 15)
+	{ "monster_spider", 15, 20, 0.25f },
+	{ "monster_gm_arachnid", 20, -1, 0.22f },
+	{ "monster_arachnid", 18, -1, 0.25f },
+
+	// Mini-jefes
+	{ "monster_shambler", 15, 25, 0.08f },
+	{ "monster_shambler", 26, -1, 0.28f },
+	{ "monster_tank_64", 23, -1, 0.13f },
+
+	// Enemigos especiales late-game
+	{ "monster_janitor", 23, -1, 0.12f },
+	{ "monster_janitor2", 19, -1, 0.1f },
+	{ "monster_makron", 16, 21, 0.015f },
+	{ "monster_boss2_64", 15, -1, 0.09f },
+	{ "monster_carrier_mini", 19, -1, 0.08f },
+	{ "monster_perrokl", 20, -1, 0.3f },
+	{ "monster_widow1", 22, -1, 0.1f }
+};
 
 #include <array>
 #include <unordered_set>
@@ -2420,26 +2448,32 @@ void DisplayWaveMessage(gtime_t duration = 5_sec) {
 }
 
 // Funci�n para manejar el mensaje de limpieza de ola
-static void HandleWaveCleanupMessage(const MapSize& mapSize) noexcept {
-	bool isStandardWave = (current_wave_level >= 15 && current_wave_level <= 26);
-	bool isAdvancedWave = (current_wave_level >= 27);
-	bool isInitialWave = (current_wave_level <= 14);
-
-	if (isStandardWave) {
-		gi.cvar_set("g_insane", "1");
-		gi.cvar_set("g_chaotic", "0");
+static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reason) noexcept {
+	// Solo ajustar dificultad si la ola terminó por victoria completa
+	if (reason == WaveEndReason::AllMonstersDead) {
+		// Progresión normal de dificultad
+		if (current_wave_level >= 15 && current_wave_level <= 26) {
+			gi.cvar_set("g_insane", "1");
+			gi.cvar_set("g_chaotic", "0");
+		}
+		else if (current_wave_level >= 27) {
+			gi.cvar_set("g_insane", "2");
+			gi.cvar_set("g_chaotic", "0");
+		}
+		else if (current_wave_level <= 14) {
+			gi.cvar_set("g_insane", "0");
+			gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
+		}
 	}
-	else if (isAdvancedWave) {
-		gi.cvar_set("g_insane", "2");
+	else {
+		// Si la ola terminó por tiempo o monstruos restantes, desactivar modos difíciles
+		gi.cvar_set("g_insane", "0");
 		gi.cvar_set("g_chaotic", "0");
-	}
-	else if (isInitialWave) {
-		gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
+		gi.LocBroadcast_Print(PRINT_HIGH, "Difficulty reduced due to incomplete wave clear.\n");
 	}
 
 	g_horde_local.state = horde_state_t::rest;
 }
-
 // Función para obtener un sonido aleatorio
 static const char* GetRandomWaveSound() {
 	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
@@ -2675,6 +2709,7 @@ static void CheckAndResetDisabledSpawnPoints() {
 void Horde_RunFrame() {
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t currentLevel = g_horde_local.level;
+	static WaveEndReason currentWaveEndReason;  // Agregar esta declaración
 	CheckAndResetDisabledSpawnPoints();
 
 	// Manejo de monstruos personalizados
@@ -2753,7 +2788,8 @@ void Horde_RunFrame() {
 			SendCleanupMessage(reason);
 			gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
 			g_horde_local.state = horde_state_t::cleanup;
-			g_horde_local.monster_spawn_time = level.time + 0.5_sec; // test to fix last monster that wasnt getting removed
+			g_horde_local.monster_spawn_time = level.time + 0.5_sec;
+			currentWaveEndReason = reason; // Guardar la razón aquí
 		}
 		else if (g_horde_local.monster_spawn_time <= level.time) {
 			const int32_t activeMonsters = CountActiveMonsters();
@@ -2769,19 +2805,7 @@ void Horde_RunFrame() {
 
 	case horde_state_t::cleanup: {
 		if (g_horde_local.monster_spawn_time < level.time) {
-			// Ajustar configuraciones de dificultad
-			if (current_wave_level >= 15 && current_wave_level <= 28) {
-				gi.cvar_set("g_insane", "1");
-				gi.cvar_set("g_chaotic", "0");
-			}
-			else if (current_wave_level >= 31) {
-				gi.cvar_set("g_insane", "2");
-				gi.cvar_set("g_chaotic", "0");
-			}
-			else if (current_wave_level <= 14) {
-				gi.cvar_set("g_insane", "0");
-				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
-			}
+			HandleWaveCleanupMessage(mapSize, currentWaveEndReason); // Pasar la razón guardada
 
 			// Transición al estado de descanso
 			g_horde_local.warm_time = level.time + random_time(0.8_sec, 1.5_sec);
@@ -2790,7 +2814,6 @@ void Horde_RunFrame() {
 		}
 		break;
 	}
-
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time) {
 			HandleWaveRestMessage(4_sec);

@@ -600,37 +600,56 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 
 	// Definiciones de reemplazo de monstruos
 	constexpr MonsterReplacement chaotic_replacements[] = {
-		{"monster_soldier_ss", {"monster_infantry_vanilla"}, 1},
-		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_gunner"}, 2},
+		// Early game (Olas 1-10)
+		{"monster_soldier_light", {"monster_soldier_hypergun", "monster_soldier"}, 2},
+		{"monster_soldier_ss", {"monster_infantry_vanilla", "monster_soldier_lasergun"}, 2},
+		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_infantry"}, 2},
 		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
-		{"monster_tank", {"monster_tank_commander"}, 1},
-		{"monster_tank_commander", {"monster_shambler"}, 1},
-		{"monster_supertank", {"monster_boss5"}, 1},
-		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
-		{"item_armor_body", {"item_armor_combat"}, 1},
+		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr2"}, 2},
+		{"monster_guncmdr2", {"monster_gunner", "monster_guncmdr"}, 2},
+
+		// Mid game (Olas 11-20)
+		{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
+		{"monster_brain", {"monster_brain", "monster_gunner"}, 2},
+		{"monster_gladiator", {"monster_gladb", "monster_tank"}, 2},
+		{"monster_medic", {"monster_medic", "monster_gunner"}, 2},
+
+		// Late game (Ola 21+)
+		{"monster_floater", {"monster_daedalus", "monster_hover"}, 2},
+		{"monster_spider", {"monster_gm_arachnid", "monster_tank_commander"}, 2}
 	};
 	constexpr int chaotic_replacement_count = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
 
 	constexpr MonsterReplacement insane_replacements[] = {
+		// Early game
 		{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}, 2},
-		{"monster_soldier", {"monster_soldier_hypergun", "monster_soldier_lasergun"}, 2},
-		{"monster_soldier_ss", {"monster_infantry", "monster_gunner_vanilla", "monster_infantry_vanilla", "monster_soldier_lasergun"}, 4},
+		{"monster_soldier", {"monster_soldier_hypergun", "monster_gunner_vanilla"}, 2},
 		{"monster_infantry_vanilla", {"monster_gunner", "monster_brain"}, 2},
-		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr"}, 2},
-		{"monster_brain", {"monster_brain", "monster_brain", "monster_tank"}, 3},
-		{"monster_flyer", {"monster_daedalus", "monster_daedalus_bomber", "monster_floater"}, 3},
-		{"monster_shambler", {"monster_tank_64", "monster_shambler"}, 2},
+		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr2"}, 2},
+		{"monster_guncmdr2", {"monster_gunner", "monster_guncmdr"}, 2},
+
+		// Mid game
+		{"monster_brain", {"monster_tank", "monster_shambler", "monster_gladiator"}, 3},
 		{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
-		{"monster_tank_commander", {"monster_tank_64", "monster_shambler"}, 2},
-		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker", "monster_floater"}, 4},
-		{"monster_supertank", {"monster_boss5"}, 1},
-		{"monster_chick", {"monster_chick_heat", "monster_chick"}, 2},
-		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
-		{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}, 3},
-		{"monster_fixbot", {"monster_parasite", "monster_daedalus", "monster_redmutant"}, 3},
-		{"monster_floater", {"monster_floater_tracker", "monster_hover", "monster_daedalus_bomber", "monster_floater", "monster_flyer"}, 5},
+		{"monster_gunner", {"monster_guncmdr", "monster_gladb"}, 2},
+
+		// Flying enemies (retrasados)
+		{"monster_flyer", {"monster_hover", "monster_daedalus"}, 2},
+		{"monster_floater", {"monster_floater_tracker", "monster_daedalus_bomber"}, 2},
+
+		// Late game elite
+		{"monster_spider", {"monster_gm_arachnid", "monster_tank_64"}, 2},
+		{"monster_arachnid", {"monster_tank_commander", "monster_boss2_64"}, 2},
+		{"monster_shambler", {"monster_tank_64", "monster_boss2_64"}, 2},
+
+		// Special enemies
+		{"monster_medic", {"monster_medic_commander", "monster_brain"}, 2},
+		{"monster_gladiator", {"monster_gladc", "monster_tank_commander"}, 2},
+		{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64"}, 2},
+
+		// Items
 		{"item_armor_body", {"item_armor_combat"}, 1},
-		{"item_health_mega", {"item_adrenaline", "item_health_mega"}, 2},
+		{"item_health_mega", {"item_adrenaline"}, 1}
 	};
 	constexpr int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 
