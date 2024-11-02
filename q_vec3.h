@@ -219,7 +219,7 @@ struct angle_vectors_t {
 // for destructuring
 inline angle_vectors_t AngleVectors(const vec3_t &angles)
 {
-	angle_vectors_t v;
+	angle_vectors_t v{};
 	AngleVectors(angles, &v.forward, &v.right, &v.up);
 	return v;
 }
@@ -283,7 +283,7 @@ inline void AddPointToBounds(const vec3_t &v, vec3_t &mins, vec3_t &maxs)
 	int	   pos;
 	int	   i;
 	float  minelem = 1.0F;
-	vec3_t tempvec;
+	vec3_t tempvec{};
 
 	/*
 	** find the smallest magnitude axially aligned vector
@@ -335,7 +335,7 @@ R_ConcatRotations
 
 [[nodiscard]] inline vec3_t RotatePointAroundVector(const vec3_t &dir, const vec3_t &point, float degrees)
 {
-	mat3_t	m;
+	mat3_t	m{};
 	mat3_t  im;
 	mat3_t  zrot;
 	mat3_t  rot;

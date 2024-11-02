@@ -463,9 +463,9 @@ void brain_tounge_attack(edict_t* self)
 		auto [forward, right, up] = AngleVectors(self->s.angles);
 		self->enemy->velocity = forward * -800;
 
-		// Add upward velocity if enemy is below brain
-		if (self->enemy->s.origin[2] < self->s.origin[2])
-			self->enemy->velocity[2] += 200;
+		// Calculate height difference and add appropriate vertical velocity
+		float height_diff = self->s.origin[2] - self->enemy->s.origin[2];
+		self->enemy->velocity[2] = height_diff * 2;  // Velocidad vertical proporcional a la diferencia de altura
 
 		return;
 	}
@@ -499,9 +499,9 @@ void brain_tounge_attack(edict_t* self)
 	auto [forward, right, dummy] = AngleVectors(self->s.angles);
 	self->enemy->velocity = forward * -800;
 
-	// Add upward velocity if enemy is below brain
-	if (self->enemy->s.origin[2] < self->s.origin[2])
-		self->enemy->velocity[2] += 200;
+	// Calculate height difference and add appropriate vertical velocity
+	float height_diff = self->s.origin[2] - self->enemy->s.origin[2];
+	self->enemy->velocity[2] = height_diff * 2;  // Velocidad vertical proporcional a la diferencia de altura
 }
 
 mframe_t brain_frames_run[] = {
@@ -535,6 +535,7 @@ mframe_t brain_frames_continue[] = {
 	//{ ai_charge, -9, brain_chest_closed },
 };
 MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_continue, brain_tounge_attack };
+
 
 void brain_tounge_attack_continue(edict_t* self)
 {
@@ -582,9 +583,9 @@ void brain_tounge_attack_continue(edict_t* self)
 		auto [forward, right, up] = AngleVectors(self->s.angles);
 		self->enemy->velocity = forward * PULL_FORCE;
 
-		// Add upward velocity if enemy is below brain
-		if (self->enemy->s.origin[2] < self->s.origin[2])
-			self->enemy->velocity[2] += 200;
+		// Calculate height difference and add appropriate vertical velocity
+		float height_diff = self->s.origin[2] - self->enemy->s.origin[2];
+		self->enemy->velocity[2] = height_diff * 2;  // Velocidad vertical proporcional a la diferencia de altura
 
 		// Continue attack animation
 		self->monsterinfo.nextframe = FRAME_attak206;
@@ -599,7 +600,6 @@ void brain_tounge_attack_continue(edict_t* self)
 	self->monsterinfo.attack_finished = level.time + 1_hz;
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
-
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {
 	{ 0.746700f, 0.238370f, 34.167690f },
@@ -1095,6 +1095,7 @@ void SP_monster_brain(edict_t* self)
 	self->health = 225 * st.health_multiplier;
 	self->gib_health = -90;
 	self->mass = 400;
+	self->yaw_speed = 400;
 
 	self->pain = brain_pain;
 	self->die = brain_die;
