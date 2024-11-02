@@ -687,7 +687,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 22, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_nuke", 25, -1, 0.01f, adjust_weight_ammo },
+	{ "ammo_nuke", 20, -1, 0.01f, adjust_weight_ammo },
 
 	{ "item_bandolier", 4, -1, 0.2f, adjust_weight_ammo },
 	{ "item_pack", 15, -1, 0.34f, adjust_weight_ammo },
