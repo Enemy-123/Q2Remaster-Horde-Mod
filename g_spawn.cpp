@@ -166,7 +166,7 @@ void SP_monster_arachnid(edict_t* self);
 void SP_monster_spider(edict_t* self);
 void SP_monster_psxarachnid(edict_t* self);
 void SP_monster_guncmdr(edict_t* self);
-void SP_monster_guncmdr2(edict_t* self);
+void SP_monster_guncmdr_vanilla(edict_t* self);
 void SP_monster_guncmdrkl(edict_t* self);
 void SP_monster_shocker(edict_t* self);
 void SP_monster_gnorta(edict_t* self);
@@ -410,7 +410,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_spider", SP_monster_spider },
 	{ "monster_psxarachnid", SP_monster_psxarachnid },
 	{ "monster_guncmdr", SP_monster_guncmdr },
-	{ "monster_guncmdr2", SP_monster_guncmdr2 },
+	{ "monster_guncmdr_vanilla", SP_monster_guncmdr_vanilla },
 	{ "monster_guncmdrkl", SP_monster_guncmdrkl },
 	{ "monster_shocker", SP_monster_shocker },
 	{ "monster_gnorta", SP_monster_gnorta },
@@ -605,8 +605,8 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 		{"monster_soldier_ss", {"monster_infantry_vanilla", "monster_soldier_lasergun"}, 2},
 		{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_infantry"}, 2},
 		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
-		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr2"}, 2},
-		{"monster_guncmdr2", {"monster_gunner", "monster_guncmdr"}, 2},
+		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr_vanilla"}, 2},
+		{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr"}, 2},
 
 		// Mid game (Olas 11-20)
 		{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
@@ -625,8 +625,8 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 		{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}, 2},
 		{"monster_soldier", {"monster_soldier_hypergun", "monster_gunner_vanilla"}, 2},
 		{"monster_infantry_vanilla", {"monster_gunner", "monster_brain"}, 2},
-		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr2"}, 2},
-		{"monster_guncmdr2", {"monster_gunner", "monster_guncmdr"}, 2},
+		{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr_vanilla"}, 2},
+		{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr"}, 2},
 
 		// Mid game
 		{"monster_brain", {"monster_tank", "monster_shambler", "monster_gladiator"}, 3},
@@ -659,7 +659,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 		{"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}, 2},
 		{"monster_infantry", {"monster_gunner", "monster_gunner_vanilla"}, 2},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
-		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr2"}, 2},
+		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr_vanilla"}, 2},
 		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover_vanilla"}, 4},
 		{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_daedalus_bomber", "monster_daedalus"}, 4},
 		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},

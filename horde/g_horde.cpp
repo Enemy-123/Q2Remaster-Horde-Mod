@@ -716,7 +716,7 @@ constexpr weighted_item_t monsters[] = {
 
 	// Voladores básicos y early challengers
 	{ "monster_flyer", -1, 4, 0.1f },
-	{ "monster_flyer", 5, -1, 0.15f },
+	{ "monster_flyer", 5, -1, 0.17f },
 	{ "monster_hover_vanilla", 7, 16, 0.18f },
 	{ "monster_hover", 13, -1, 0.16f },
 	{ "monster_gekk", -1, 5, 0.12f },
@@ -726,7 +726,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_fixbot", 8, 19, 0.13f },
 	{ "monster_gunner_vanilla", 5, 15, 0.3f },
 	{ "monster_gunner", 12, -1, 0.28f },
-	{ "monster_guncmdr2", 8, 15, 0.18f },              // Versión más débil
+	{ "monster_guncmdr_vanilla", 8, 15, 0.18f },              // Versión más débil
 	{ "monster_guncmdr", 14, -1, 0.25f },              // Versión fuerte
 
 	// Enemigos especializados
@@ -744,14 +744,15 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_tank_commander", 14, -1, 0.15f },
 	{ "monster_runnertank", 16, -1, 0.22f },
 
-	// Voladores avanzados (retrasados)
+	// Voladores avanzados
 	{ "monster_floater", 12, -1, 0.22f },               // Desde ola 12
 	{ "monster_floater_tracker", 20, -1, 0.16f },
 	{ "monster_daedalus", 18, -1, 0.12f },              // Retrasado a ola 18
 	{ "monster_daedalus_bomber", 22, -1, 0.14f },       // Retrasado a ola 22
+	{ "monster_daedalus_bomber", 6, -1, 0.041f },       // Retrasado a ola 22
 
 	// Enemigos brutales
-	{ "monster_mutant", 4, 12, 0.3f },
+	{ "monster_mutant", 4, 12, 0.2f },
 	{ "monster_mutant", 13, -1, 0.25f },
 	{ "monster_redmutant", 9, 14, 0.04f },
 	{ "monster_redmutant", 15, -1, 0.18f },
@@ -2469,7 +2470,7 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 		// Si la ola terminó por tiempo o monstruos restantes, desactivar modos difíciles
 		gi.cvar_set("g_insane", "0");
 		gi.cvar_set("g_chaotic", "0");
-		gi.LocBroadcast_Print(PRINT_HIGH, "Difficulty reduced due to incomplete wave clear.\n");
+	//	gi.LocBroadcast_Print(PRINT_HIGH, "Difficulty reduced due to incomplete wave clear.\n");
 	}
 
 	g_horde_local.state = horde_state_t::rest;

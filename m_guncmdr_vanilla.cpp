@@ -1431,10 +1431,10 @@ MONSTERINFO_BLOCKED(guncmdr2_blocked) (edict_t* self, float dist) -> bool
 // PGM
 //===========
 
-/*QUAKED monster_guncmdr2 (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight NoJumping
+/*QUAKED monster_guncmdr_vanilla (1 .5 0) (-16 -16 -24) (16 16 32) Ambush Trigger_Spawn Sight NoJumping
 model="models/monsters/guncmdr/tris.md2"
 */
-void SP_monster_guncmdr2(edict_t* self)
+void SP_monster_guncmdr_vanilla(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 

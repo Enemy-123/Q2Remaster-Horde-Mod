@@ -1082,7 +1082,7 @@ std::string GetDisplayName(const std::string& classname) {
 		{ "monster_tank", "Tank" },
 		{ "monster_tank_spawner", "Spawner Tank" },
 		{ "monster_runnertank", "BETA Runner Tank" },
-		{ "monster_guncmdr2", "Gunner Commander" },
+		{ "monster_guncmdr_vanilla", "Gunner Commander" },
 		{ "monster_mutant", "Mutant" },
 		{ "monster_redmutant", "Raged Mutant" },
 		{ "monster_chick", "Iron Maiden" },
