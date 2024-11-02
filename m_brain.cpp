@@ -437,7 +437,6 @@ void brain_tounge_attack(edict_t* self)
 {
 	if (!self || !self->enemy)
 		return;
-
 	constexpr float CLOSE_RANGE = 64.0f;
 	vec3_t offset{ 24, 0, 16 };
 	int damage = 5;
@@ -460,9 +459,14 @@ void brain_tounge_attack(edict_t* self)
 		// Heal the brain
 		self->health = std::min(self->health + damage, self->max_health);
 
-		// Pull the enemy in
+		// Pull the enemy in with vertical component
 		auto [forward, right, up] = AngleVectors(self->s.angles);
 		self->enemy->velocity = forward * -800;
+
+		// Add upward velocity if enemy is below brain
+		if (self->enemy->s.origin[2] < self->s.origin[2])
+			self->enemy->velocity[2] += 200;
+
 		return;
 	}
 
@@ -475,10 +479,8 @@ void brain_tounge_attack(edict_t* self)
 	if (!brain_tounge_attack_ok(start, end)) {
 		end = self->enemy->s.origin;
 		end.z = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
-
 		if (!brain_tounge_attack_ok(start, end)) {
 			end.z = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
-
 			if (!brain_tounge_attack_ok(start, end)) {
 				return;
 			}
@@ -493,9 +495,13 @@ void brain_tounge_attack(edict_t* self)
 
 	vec3_t dir = start - end;
 
-	// Pull the enemy in
+	// Pull the enemy in with vertical component
 	auto [forward, right, dummy] = AngleVectors(self->s.angles);
 	self->enemy->velocity = forward * -800;
+
+	// Add upward velocity if enemy is below brain
+	if (self->enemy->s.origin[2] < self->s.origin[2])
+		self->enemy->velocity[2] += 200;
 }
 
 mframe_t brain_frames_run[] = {
@@ -572,9 +578,13 @@ void brain_tounge_attack_continue(edict_t* self)
 			self->monsterinfo.setskin(self);
 		}
 
-		// Pull enemy towards brain
+		// Pull enemy towards brain with vertical component
 		auto [forward, right, up] = AngleVectors(self->s.angles);
 		self->enemy->velocity = forward * PULL_FORCE;
+
+		// Add upward velocity if enemy is below brain
+		if (self->enemy->s.origin[2] < self->s.origin[2])
+			self->enemy->velocity[2] += 200;
 
 		// Continue attack animation
 		self->monsterinfo.nextframe = FRAME_attak206;
