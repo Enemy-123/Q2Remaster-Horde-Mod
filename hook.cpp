@@ -113,22 +113,22 @@ bool Hook_Check(edict_t* self)
 
 void Hook_Service(edict_t* self)
 {
-	vec3_t	hook_dir;
-
 	// if hook should be dropped, just return
 	if (Hook_Check(self))
 		return;
 
 	// give the client some velocity ...
+	vec3_t hook_dir;
 	if (self->enemy->client)
 		hook_dir = self->enemy->s.origin - self->owner->s.origin;
 	else
 		hook_dir = self->s.origin - self->owner->s.origin;
 
-	hook_dir.normalize();
+	// Normalize safely and apply velocity
+	hook_dir = safe_normalized(hook_dir);
 	self->owner->velocity = hook_dir * hook_pullspeed->value;
 
-	//	SV_AddGravity(self->owner);
+	//  SV_AddGravity(self->owner);
 }
 
 // keeps the invisible hook entity on hook->enemy (can be world or an entity)
@@ -240,7 +240,7 @@ TOUCH(Hook_Touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_
 			self->owner->client->hook_damage += hook_initdamage->value;
 		}
 		// stop moving
-		self->velocity = vec3_t{ 0,0,0 };
+		self->velocity = vec3_origin;
 
 		gi.positioned_sound(self->s.origin, self, CHAN_WEAPON, gi.soundindex("flyer/Flyatck2.wav"), 1, ATTN_NORM, 0);
 	}

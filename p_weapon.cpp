@@ -1888,99 +1888,6 @@ void Weapon_Railgun(edict_t* ent)
 
 
 
-/////a
-
-//// Define vec3_zero() if not already defined
-//inline vec3_t vec3_zero() {
-//	return { 0, 0, 0 };
-//}
-//
-//float P_CurrentBFGKickFactor(edict_t* ent)
-//{
-//	if (ent->client->kick.time < level.time)
-//		return 0.f;
-//	float f = (ent->client->kick.time - level.time).seconds() / ent->client->kick.total.seconds();
-//	// Add easing function for smoother kick
-//	return sinf((1.0f - f) * (PIf * 0.5f));
-//}
-//
-//void P_ApplyContinuousKick(edict_t* ent, float dt)
-//{
-//	if (ent->client->kick.time >= level.time)
-//	{
-//		float factor = P_CurrentBFGKickFactor(ent);
-//		ent->client->kick_origin = ent->client->kick.origin * factor;
-//		ent->client->v_dmg_roll = ent->client->kick.angles[ROLL] * factor;
-//		ent->client->v_dmg_pitch = ent->client->kick.angles[PITCH] * factor;
-//	}
-//	else
-//	{
-//		ent->client->kick_origin = vec3_zero();
-//		ent->client->v_dmg_roll = 0;
-//		ent->client->v_dmg_pitch = 0;
-//	}
-//}
-
-/*
-======================================================================
-
-BFG10K
-
-======================================================================
-*/
-
-//
-//VORTEX BFG
-// 
-// 
-//void weapon_bfg_fire(edict_t* ent)
-//{
-//	int	  damage;
-//	float damage_radius = 1000;
-//	if (G_IsDeathmatch())
-//		damage = 700;
-//	else
-//		damage = 700;
-//
-//	if (ent->client->ps.gunframe == 9)
-//	{
-//		// cells can go down during windup (from power armor hits), so
-//		// check again and abort firing if we don't have enough now
-//		if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < 50)
-//			return;
-//
-//		if (is_quad)
-//			damage *= damage_multiplier;
-//
-//		vec3_t start, dir;
-//		P_ProjectSource(ent, ent->client->v_angle, { 8, 8, -8 }, start, dir);
-//
-//		// Fire BFG immediately
-//		fire_bfg(ent, start, dir, damage, 600, damage_radius);
-//
-//		// Add weapon kick
-//		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -10.f, 0, crandom() * 2 });
-//		ent->client->kick.total = DAMAGE_TIME();
-//		ent->client->kick.time = level.time + ent->client->kick.total;
-//
-//		// send muzzle flash
-//		gi.WriteByte(svc_muzzleflash);
-//		gi.WriteEntity(ent);
-//		gi.WriteByte(MZ_BFG | is_silenced);
-//		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-//
-//		PlayerNoise(ent, start, PNOISE_WEAPON);
-//		G_RemoveAmmo(ent);
-//
-//		return;
-//	}
-//}
-
-// Define vec3_zero() if not already defined
-inline vec3_t vec3_zero() {
-	return { 0, 0, 0 };
-}
-
 float P_CurrentBFGKickFactor(edict_t* ent)
 {
 	if (ent->client->kick.time < level.time)
@@ -2001,7 +1908,7 @@ void P_ApplyContinuousKick(edict_t* ent, float dt)
 	}
 	else
 	{
-		ent->client->kick_origin = vec3_zero();
+		ent->client->kick_origin = vec3_origin;
 		ent->client->v_dmg_roll = 0;
 		ent->client->v_dmg_pitch = 0;
 	}
