@@ -698,7 +698,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 
 	// Aplicar los reemplazos según el modo de juego
 	if (g_chaotic->integer) {
-		perform_replacements(g_chaotic->integer, current_wave_level, chaotic_replacements, chaotic_replacement_count, g_chaotic->integer == 2 ? 0.008f : 0.03f);
+		perform_replacements(g_chaotic->integer, current_wave_level, chaotic_replacements, chaotic_replacement_count, g_chaotic->integer == 2 ? 0.08f : 0.03f);
 	}
 
 	if (g_insane->integer) {
