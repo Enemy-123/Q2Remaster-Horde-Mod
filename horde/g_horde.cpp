@@ -2467,10 +2467,26 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 		}
 	}
 	else {
-		// Si la ola terminó por tiempo o monstruos restantes, desactivar modos difíciles
-		gi.cvar_set("g_insane", "0");
-		gi.cvar_set("g_chaotic", "0");
-	//	gi.LocBroadcast_Print(PRINT_HIGH, "Difficulty reduced due to incomplete wave clear.\n");
+		// Probabilidad base según el tamaño del mapa
+		float probability = mapSize.isBigMap ? 0.5f :
+			mapSize.isSmallMap ? 0.3f : 0.4f;
+
+		if (frandom() < probability) {
+			// Decidir aleatoriamente entre chaotic e insane
+			if (brandom()) {
+				gi.cvar_set("g_insane", "1");
+				gi.cvar_set("g_chaotic", "0");
+			}
+			else {
+				gi.cvar_set("g_insane", "0");
+				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
+			}
+		}
+		else {
+			// Si no se activa la probabilidad, desactivar ambos modos
+			gi.cvar_set("g_insane", "0");
+			gi.cvar_set("g_chaotic", "0");
+		}
 	}
 
 	g_horde_local.state = horde_state_t::rest;
@@ -2484,21 +2500,42 @@ static const char* GetRandomWaveSound() {
 static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 	const char* message;
 
-	if (!g_insane->integer) {
-		message = "STROGGS STARTING TO PUSH!\n\n";
+	// Modo chaotic
+	if (g_chaotic->integer > 0) {
+		if (g_chaotic->integer == 2) {
+			message = brandom() ?
+				"***RELENTLESS WAVE INCOMING***\n\nSTAND YOUR GROUND!\n" :
+				"***OVERWHELMING FORCES APPROACHING***\n\nHOLD THE LINE!\n";
+		}
+		else {
+			message = brandom() ?
+				"***CHAOTIC WAVE INCOMING***\n\nSTEEL YOURSELF!\n" :
+				"***CHAOS APPROACHES***\n\nREADY FOR BATTLE!\n";
+		}
 	}
-	else if (g_insane->integer == 1) {
-		message = brandom() ?
-			"--STRONGER WAVE INCOMING--\n\n\n" :
-			"--STRONGER WAVE INCOMING--\n\nSHOW NO MERCY!\n";
+	// Modo insane
+	else if (g_insane->integer > 0) {
+		if (g_insane->integer == 2) {
+			message = brandom() ?
+				"***MERCILESS WAVE INCOMING***\n\nNO RETREAT!\n" :
+				"***DEADLY WAVE APPROACHES***\n\nFIGHT TO SURVIVE!\n";
+		}
+		else {
+			message = brandom() ?
+				"***INTENSE WAVE INCOMING***\n\nSHOW NO MERCY!\n" :
+				"***FIERCE BATTLE AHEAD***\n\nSTAND READY!\n";
+		}
 	}
+	// Modo normal
 	else {
-		message = "***CHAOTIC WAVE INCOMING***\n\nNO RETREAT!\n";
+		message = brandom() ?
+			"STROGGS STARTING TO PUSH!\n\nSTAY ALERT!\n" :
+			"PREPARE FOR INCOMING WAVE!\n\nHOLD POSITION!\n";
 	}
 
 	UpdateHordeMessage(message, duration);
 
-	// Resetear el timer y estados relacionados aquí
+	// Resetear el timer y estados relacionados
 	g_independent_timer_start = level.time;
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.conditionTriggered = false;
