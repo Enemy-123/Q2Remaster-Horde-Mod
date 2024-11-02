@@ -129,34 +129,35 @@ void PMenu_UpdateEntry(pmenu_t* entry, const char* text, int align, SelectFunc_t
 
 void PMenu_Do_Update(edict_t* ent)
 {
-	int			i;
-	pmenu_t* p;
-	int			x;
-	pmenuhnd_t* hnd;
-	const char* t;
-	bool		alt = false;
-
 	if (!ent->client->menu)
 	{
-		gi.Com_Print("warning:  ent has no menu\n");
+		gi.Com_Print("warning: ent has no menu\n");
 		return;
 	}
 
-	hnd = ent->client->menu;
+	pmenuhnd_t* hnd = ent->client->menu;
 
 	if (hnd->UpdateFunc)
 		hnd->UpdateFunc(ent);
 
 	statusbar_t sb;
 
-	sb.xv(32).yv(8).picn("inventory");
+	// Posiciones base y espaciado usando vec3_t
+	vec3_t menu_base = { 32, 8, 0 };  // Posición base del menú
+	vec3_t title_offset = { 0, 24, 0 };  // Offset para el título
+	vec3_t item_spacing = { 0, 8, 0 };  // Espaciado entre items
 
-	for (i = 0, p = hnd->entries; i < hnd->num; i++, p++)
+	// Draw menu background
+	sb.xv(menu_base.x).yv(menu_base.y).picn("inventory");
+
+	for (int i = 0; i < hnd->num; i++)
 	{
-		if (!*(p->text))
+		pmenu_t* p = &hnd->entries[i];
+		if (!p->text[0])
 			continue; // blank line
 
-		t = p->text;
+		const char* t = p->text;
+		bool alt = false;
 
 		if (*t == '*')
 		{
@@ -164,25 +165,28 @@ void PMenu_Do_Update(edict_t* ent)
 			t++;
 		}
 
-		sb.yv(32 + i * 8);
+		// Calcular posición del item actual
+		vec3_t item_pos = menu_base + title_offset + (item_spacing * static_cast<float>(i));
+		sb.yv(item_pos.y);
 
 		const char* loc_func = "loc_string";
+		float x_pos;
 
-		if (p->align == PMENU_ALIGN_CENTER)
-		{
-			x = 0;
+		switch (p->align) {
+		case PMENU_ALIGN_CENTER:
+			x_pos = 0;
 			loc_func = "loc_cstring";
-		}
-		else if (p->align == PMENU_ALIGN_RIGHT)
-		{
-			x = 260;
+			break;
+		case PMENU_ALIGN_RIGHT:
+			x_pos = menu_base.x + 228;
 			loc_func = "loc_rstring";
+			break;
+		default: // PMENU_ALIGN_LEFT
+			x_pos = menu_base.x + 32;
+			break;
 		}
-		else
-			x = 64;
 
-		sb.xv(x);
-
+		sb.xv(x_pos);
 		sb.sb << loc_func;
 
 		if (hnd->cur == i || alt)
@@ -190,13 +194,14 @@ void PMenu_Do_Update(edict_t* ent)
 
 		sb.sb << " 1 \"" << t << "\" \"" << p->text_arg1 << "\" ";
 
+		// Draw cursor for selected item
 		if (hnd->cur == i)
 		{
-			sb.xv(56);
+			vec3_t cursor_pos = item_pos;
+			cursor_pos.x = menu_base.x + 24;
+			sb.xv(cursor_pos.x);
 			sb.string2("\">\"");
 		}
-
-		alt = false;
 	}
 
 	gi.WriteByte(svc_layout);

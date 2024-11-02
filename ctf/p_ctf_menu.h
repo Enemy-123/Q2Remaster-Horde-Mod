@@ -39,3 +39,5 @@ void		PMenu_Update(edict_t *ent);
 void		PMenu_Next(edict_t *ent);
 void		PMenu_Prev(edict_t *ent);
 void		PMenu_Select(edict_t *ent);
+pmenuhnd_t* CreateHUDMenu(edict_t* ent);
+pmenuhnd_t* CreateHordeMenu(edict_t* ent);

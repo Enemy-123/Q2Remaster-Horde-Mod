@@ -2698,7 +2698,7 @@ void SP_misc_ctf_small_banner(edict_t* ent)
 	ent->think = misc_ctf_banner_think;
 	ent->nextthink = level.time + 10_hz;
 }
-
+void CTFWinElection();
 /*-----------------------------------------------------------------------*/
 
 static void SetGameName(pmenu_t* p)
@@ -2724,18 +2724,27 @@ static void SetLevelName(pmenu_t* p)
 
 /*-----------------------------------------------------------------------*/
 #include <fmt/core.h>
-#include <string>
+// Constantes del sistema de votación
+struct VoteConstants {
+	static constexpr size_t MAX_VOTE_INFO_LENGTH = 75;
+	static constexpr size_t MAX_VOTE_MAP_LENGTH = 128;
+	static constexpr size_t MAX_VOTE_MSG_LENGTH = 256;
+	static constexpr gtime_t VOTE_DURATION = 25_sec;
+};
 
-void CTFWinElection();
-
-constexpr size_t MAX_VOTE_INFO_LENGTH = 75;  // Asumiendo que este es el tamaño de client->voted_map
+// Helper function para verificar longitud de strings de votación
+[[nodiscard]] inline bool IsValidVoteString(const char* str, size_t max_length) {
+	return str && strlen(str) < max_length - 1;
+}
 
 std::string TruncateMessage(const std::string& message, size_t max_length) {
 	if (message.length() <= max_length) {
 		return message;
 	}
+
 	std::string truncated = message.substr(0, max_length - 3) + "...";
 	size_t last_space = truncated.find_last_of(' ');
+
 	if (last_space != std::string::npos && last_space > truncated.length() - 10) {
 		truncated = truncated.substr(0, last_space) + "...";
 	}
@@ -2743,8 +2752,10 @@ std::string TruncateMessage(const std::string& message, size_t max_length) {
 }
 
 bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
-	int count;
-	edict_t* e;
+	// Validaciones iniciales
+	if (!ent || !ent->client || !msg) {
+		return false;
+	}
 
 	if (electpercentage->value == 0) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Elections are disabled, only an admin can process this action.\n");
@@ -2761,57 +2772,58 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 		return false;
 	}
 
-	// clear votes
-	count = 0;
-	ctfgame.evotes = 0; // Initialize vote count to 0
-	for (uint32_t i = 1; i <= game.maxclients; i++) {
-		e = g_edicts + i;
-		if (e->inuse && e->client) {
-			e->client->resp.voted = false;
-			if (!(e->svflags & SVF_BOT) && e->client->resp.ctf_team == CTF_TEAM1) {
+	// Conteo de jugadores y limpieza de votos
+	int count = 0;
+	ctfgame.evotes = 0;
+
+	for (auto player : active_players()) {
+		if (player->client) {
+			player->client->resp.voted = false;
+			if (!(player->svflags & SVF_BOT) && player->client->resp.ctf_team == CTF_TEAM1) {
 				count++;
 			}
 		}
 	}
 
+	// Configuración de la votación
 	ctfgame.etarget = ent;
 	ctfgame.election = type;
 	ctfgame.needvotes = static_cast<int>((count * electpercentage->value) / 100);
-	ctfgame.electtime = level.time + 25_sec; // 25 seconds for election
+	ctfgame.electtime = level.time + VoteConstants::VOTE_DURATION;
 
-	// No truncation for ctfgame.emsg
-	Q_strlcpy(ctfgame.emsg, msg, sizeof(ctfgame.emsg));
+	// Preparación de mensajes
+	if (IsValidVoteString(msg, sizeof(ctfgame.emsg))) {
+		Q_strlcpy(ctfgame.emsg, msg, sizeof(ctfgame.emsg));
+	}
+	else {
+		Q_strlcpy(ctfgame.emsg, "Vote in progress", sizeof(ctfgame.emsg));
+	}
 
-	int time_left = (ctfgame.electtime - level.time).seconds<int>();
+	const int time_left = (ctfgame.electtime - level.time).seconds<int>();
+	const std::string vote_info = fmt::format("Vote: {} by {}. Time: {}s\n",
+		ctfgame.emsg, GetPlayerName(ent), time_left);
+	const std::string full_vote_info = vote_info + "\nUse Compass/Inventory to vote.";
 
-	// Create full message for vote info
-	std::string vote_info = fmt::format("Vote: {} by {}. Time: {}s\n",
-		msg, GetPlayerName(ent), time_left);
-
-	// No truncation for configstring
+	// Actualización de información
 	gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
 
-	// Full message for voted_map (including additional instructions)
-	std::string full_vote_info = vote_info + "\nUse Compass/Inventory to vote.";
-
-	// Save in voted_map of each client without truncation
-	for (uint32_t i = 1; i <= game.maxclients; i++) {
-		edict_t* player = &g_edicts[i];
-		if (player->inuse && player->client) {
-			Q_strlcpy(player->client->voted_map, full_vote_info.c_str(), sizeof(player->client->voted_map));
+	// Distribución de información a clientes
+	for (auto player : active_players()) {
+		if (player->client) {
+			Q_strlcpy(player->client->voted_map, full_vote_info.c_str(), VoteConstants::MAX_VOTE_MAP_LENGTH);
 		}
 	}
 
-	// Show separate messages
+	// Mensajes broadcast
 	gi.LocBroadcast_Print(PRINT_CHAT, vote_info.c_str());
 	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass/Inventory to vote, or type YES/NO in console.\n");
 	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
 
-	// If there's only one player, approve the election automatically
+	// Auto-aprobación para un solo jugador
 	if (count == 1) {
 		ctfgame.evotes = ctfgame.needvotes;
 		gi.LocBroadcast_Print(PRINT_CHAT, "Election approved automatically as there are no other (human) players logged.\n");
-		CTFWinElection(); // Process the election result immediately
+		CTFWinElection();
 	}
 
 	return true;
@@ -2819,27 +2831,26 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 void UpdateVoteHUD() {
 	if (ctfgame.election != ELECT_NONE) {
-		std::string vote_info = fmt::format("{} Time left: {}s\n",
+		const std::string vote_info = fmt::format("{} Time left: {}s\n",
 			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
 
-		// No truncation for configstring
 		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
+		ClearHordeMessage();
 
-		ClearHordeMessage(); // Clear hordemsg when vote message is active
-
-		// Update the voted_map for each player with the full info
 		for (auto player : active_players()) {
-			if (player->inuse && player->client) {
-				Q_strlcpy(player->client->voted_map, vote_info.c_str(), sizeof(player->client->voted_map));
-				player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
+			if (player->client) {
+				if (IsValidVoteString(vote_info.c_str(), VoteConstants::MAX_VOTE_MAP_LENGTH)) {
+					Q_strlcpy(player->client->voted_map, vote_info.c_str(), VoteConstants::MAX_VOTE_MAP_LENGTH);
+					player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
+				}
 			}
 		}
 	}
 	else {
 		gi.configstring(CONFIG_VOTE_INFO, "");
-		// Clear the voted_map for each player
+
 		for (auto player : active_players()) {
-			if (player->inuse && player->client) {
+			if (player->client) {
 				player->client->voted_map[0] = '\0';
 				player->client->ps.stats[STAT_VOTESTRING] = 0;
 			}
@@ -3302,6 +3313,20 @@ void CTFReturnToMain(edict_t* ent, pmenuhnd_t* p);
 void CTFChaseCam(edict_t* ent, pmenuhnd_t* p);
 void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team);
 
+void OpenHordeMenu(edict_t* ent)
+{
+	CreateHordeMenu(ent);
+}
+
+void OpenHUDMenu(edict_t* ent)
+{
+	CreateHUDMenu(ent);
+}
+
+constexpr size_t MAX_MAPS_PER_PAGE = 11;
+constexpr size_t MAX_MAP_ENTRIES = 64;
+constexpr size_t MAX_TECH_OPTIONS = 4;
+
 //Tech Menus
 void OpenTechMenu(edict_t* ent);
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p);
@@ -3343,12 +3368,16 @@ static pmenu_t tech_menustart[18] = {
 };
 
 void OpenTechMenu(edict_t* ent) {
-	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
-		PMenu_Open(ent, tech_menustart, -1, sizeof(tech_menustart) / sizeof(pmenu_t), nullptr, nullptr);
+	if (!ent || !ent->client) {
+		return;
 	}
-	else {
-		PMenu_Open(ent, tech_menu, -1, sizeof(tech_menu) / sizeof(pmenu_t), nullptr, nullptr);
-	}
+
+	const pmenu_t* menu = (ent->client->resp.ctf_team == CTF_NOTEAM) ?
+		tech_menustart : tech_menu;
+	const size_t menu_size = (ent->client->resp.ctf_team == CTF_NOTEAM) ?
+		sizeof(tech_menustart) : sizeof(tech_menu);
+
+	PMenu_Open(ent, menu, -1, menu_size / sizeof(pmenu_t), nullptr, nullptr);
 }
 
 void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
@@ -3421,61 +3450,67 @@ static pmenu_t hud_menu[] = {
 };
 
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	int option = p->cur;
+	if (!ent || !ent->client || !p) {
+		return;
+	}
+
+	const int option = p->cur;
+	bool should_reopen = true;
 
 	switch (option) {
 	case 2: // Toggle ID
-		ent->client->resp.id_state = !ent->client->resp.id_state;
-		gi.LocCenter_Print(ent, "\n\n\nID state toggled to {}\n", ent->client->resp.id_state ? "ON" : "OFF");
+	case 3: { // Toggle ID-DMG
+		bool& state = (option == 2) ? ent->client->resp.id_state : ent->client->resp.iddmg_state;
+		state = !state;
+		gi.LocCenter_Print(ent, "\n\n\n{} state toggled to {}\n",
+			(option == 2) ? "ID" : "ID-DMG",
+			state ? "ON" : "OFF");
 		break;
-	case 3: // Toggle ID-DMG
-		ent->client->resp.iddmg_state = !ent->client->resp.iddmg_state;
-		gi.LocCenter_Print(ent, "\n\n\nID - DMG state toggled to {}\n", ent->client->resp.iddmg_state ? "ON" : "OFF");
-		break;
+	}
 	case 5: // Back to Horde Menu
+		should_reopen = false;
+		PMenu_Close(ent);
 		OpenHordeMenu(ent);
-		return; // Volver al menú principal sin cerrar
+		return;
 	case 6: // Close
+		should_reopen = false;
 		PMenu_Close(ent);
 		return;
 	default:
-		// Manejo de opciones no previstas
-		gi.Com_PrintFmt("PRINT: Invalid menu option selected for player {} hudmenuhandler {}\n", ent->client->pers.netname, option);
+		gi.Com_PrintFmt("Invalid menu option {} for player {}\n",
+			option, ent->client->pers.netname);
+		should_reopen = false;
 		PMenu_Close(ent);
-		break;
+		return;
 	}
 
-	// Actualizar el texto del menú aquí mismo
-	snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]", ent->client->resp.id_state ? "ON" : "OFF");
-	snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]", ent->client->resp.iddmg_state ? "ON" : "OFF");
+	if (should_reopen) {
+		// Actualizar textos del menú
+		snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]",
+			ent->client->resp.id_state ? "ON" : "OFF");
+		snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]",
+			ent->client->resp.iddmg_state ? "ON" : "OFF");
 
-	// Reabrir el menú para reflejar los cambios
-	PMenu_Open(ent, hud_menu, option, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
-}
-
-
-void OpenHUDMenu(edict_t* ent) {
-	// Actualizar dinámicamente los textos del menú basado en el estado actual
-	snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]", ent->client->resp.id_state ? "ON" : "OFF");
-	snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]", ent->client->resp.iddmg_state ? "ON" : "OFF");
-
-	// Abrir el menú con las opciones actualizadas
-	PMenu_Open(ent, hud_menu, -1, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
+		PMenu_Open(ent, hud_menu, option, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	}
 }
 
 void CheckAndUpdateMenus() {
 	for (auto player : active_players()) {
-		if (player->client->menudirty) {
-			if (player->client->menu) {
-				// Actualizar dinámicamente los textos del menú basado en el estado actual
-				snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]", player->client->resp.id_state ? "ON" : "OFF");
-				snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]", player->client->resp.iddmg_state ? "ON" : "OFF");
-
-				PMenu_Do_Update(player);
-				gi.unicast(player, true);
-			}
-			player->client->menudirty = false; // Resetear el flag
+		if (!player->client || !player->client->menudirty) {
+			continue;
 		}
+
+		if (player->client->menu) {
+			snprintf(hud_menu[2].text, sizeof(hud_menu[2].text),
+				"Enable/Disable ID [%s]", player->client->resp.id_state ? "ON" : "OFF");
+			snprintf(hud_menu[3].text, sizeof(hud_menu[3].text),
+				"Enable/Disable ID-DMG [%s]", player->client->resp.iddmg_state ? "ON" : "OFF");
+
+			PMenu_Do_Update(player);
+			gi.unicast(player, true);
+		}
+		player->client->menudirty = false;
 	}
 }
 
@@ -3500,8 +3535,6 @@ void UpdateHUDMenuLayout(edict_t* ent) {
 
 
 //maplist menu
-#define MAX_MAPS_PER_PAGE 11
-
 struct map_list_t {
 	char maps[64][128]; // Asumiendo que hay un máximo de 64 mapas y cada nombre de mapa tiene hasta 128 caracteres
 	int num_maps;
@@ -3592,47 +3625,56 @@ void UpdateVoteMenu() {
 }
 
 void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p) {
+		return;
+	}
+
 	const int option = p->cur;
+
+	// Manejo de selección de mapa
 	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
 		const char* voted_map = vote_menu[option].text;
+		if (!voted_map[0]) {
+			return;  // Entrada vacía
+		}
 
-		// Verificar si el mapa seleccionado es el mismo que el mapa actual
-		if (Q_strcasecmp(voted_map, level.mapname) == 0)
-		{
-			gi.LocClient_Print(ent, PRINT_HIGH, "This map is already in progress. Please choose a different one.\n");
-			// No cerramos el menú aquí para permitir al jugador elegir otro mapa
+		if (Q_strcasecmp(voted_map, level.mapname) == 0) {
+			gi.LocClient_Print(ent, PRINT_HIGH,
+				"This map is already in progress. Please choose a different one.\n");
 			return;
 		}
+
 		gi.LocCenter_Print(ent, "You voted for Map: {}\n", voted_map);
-		// Guardar el nombre del mapa votado en el cliente
 		Q_strlcpy(ent->client->voted_map, voted_map, sizeof(ent->client->voted_map));
 		CTFWarp(ent, voted_map);
 		PMenu_Close(ent);
+		return;
 	}
-	else if (option == MAX_MAPS_PER_PAGE + 3) { // Ajustar índices
-		// Next
-		if ((current_page + 1) * MAX_MAPS_PER_PAGE < map_list.num_maps) {
-			current_page++;
-			UpdateVoteMenu();
-			PMenu_Close(ent); // Cerrar el menú actual antes de abrir uno nuevo
-			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
-		}
+
+	// Manejo de navegación
+	const bool is_next = (option == MAX_MAPS_PER_PAGE + 3);
+	const bool is_prev = (option == MAX_MAPS_PER_PAGE + 4);
+	const bool is_close = (option == MAX_MAPS_PER_PAGE + 5);
+
+	if (is_next && (current_page + 1) * MAX_MAPS_PER_PAGE < map_list.num_maps) {
+		current_page++;
+		UpdateVoteMenu();
+		PMenu_Close(ent);
+		PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
 	}
-	else if (option == MAX_MAPS_PER_PAGE + 4) { // Ajustar índices
-		// Previous o Back to Horde Menu
+	else if (is_prev) {
 		if (current_page > 0) {
 			current_page--;
 			UpdateVoteMenu();
-			PMenu_Close(ent); // Cerrar el menú actual antes de abrir uno nuevo
+			PMenu_Close(ent);
 			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
 		}
 		else {
-			PMenu_Close(ent); // Cerrar el menú de votación de mapas
-			OpenHordeMenu(ent); // Abrir el menú de horda
+			PMenu_Close(ent);
+			OpenHordeMenu(ent);
 		}
 	}
-	else if (option == MAX_MAPS_PER_PAGE + 5) { // Ajustar índices
-		// Close
+	else if (is_close) {
 		PMenu_Close(ent);
 	}
 }
@@ -3720,43 +3762,100 @@ static const pmenu_t vote_in_progress_menu[] = {
 	{ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler }
 };
 
-// normal menu
+// horde menu
 
-void OpenHordeMenu(edict_t* ent) {
-	std::vector<pmenu_t> dynamic_horde_menu;
+// // Helper function para crear menús de horda dinámicamente
+pmenuhnd_t* CreateHordeMenu(edict_t* ent)
+{
+	static pmenu_t entries[32];  // Tamaño máximo razonable para el menú
+	int count = 0;
 
-	// Crear las opciones del menú dinámicamente
-	dynamic_horde_menu.push_back({ "*Horde Menu", PMENU_ALIGN_CENTER, nullptr });
-	dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
-	dynamic_horde_menu.push_back({ "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler });
-	dynamic_horde_menu.push_back({ "Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler });
+	// Menú base
+	entries[count++] = { "*Horde Menu", PMENU_ALIGN_CENTER, nullptr };
+	entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
+	entries[count++] = { "Show Inventory", PMENU_ALIGN_LEFT, HordeMenuHandler };
+	entries[count++] = { "Go Spectator/AFK", PMENU_ALIGN_LEFT, HordeMenuHandler };
+	entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
 
-	if (ctfgame.election == ELECT_NONE) {
-		// Opciones cuando no hay votación en progreso
-		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
-		dynamic_horde_menu.push_back({ "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler });
-		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
-		dynamic_horde_menu.push_back({ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler });
-		dynamic_horde_menu.push_back({ "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler });
-		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
-		dynamic_horde_menu.push_back({ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler });
+	if (ctfgame.election == ELECT_NONE)
+	{
+		// Opciones normales
+		entries[count++] = { "Vote Map", PMENU_ALIGN_LEFT, HordeMenuHandler };
+		entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
+		entries[count++] = { "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler };
+		entries[count++] = { "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler };
 	}
-	else {
-		// Opciones cuando hay votación en progreso
-		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
-		dynamic_horde_menu.push_back({ "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler });
-		dynamic_horde_menu.push_back({ "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler });
-		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
-		dynamic_horde_menu.push_back({ "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler });
-		dynamic_horde_menu.push_back({ "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler });
-		dynamic_horde_menu.push_back({ "", PMENU_ALIGN_CENTER, nullptr }); // Línea en blanco
-		dynamic_horde_menu.push_back({ "Close", PMENU_ALIGN_LEFT, HordeMenuHandler });
+	else
+	{
+		// Opciones durante votación
+		entries[count++] = { "Vote Yes", PMENU_ALIGN_LEFT, HordeMenuHandler };
+		entries[count++] = { "Vote No", PMENU_ALIGN_LEFT, HordeMenuHandler };
+		entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
+		entries[count++] = { "Change Tech", PMENU_ALIGN_LEFT, HordeMenuHandler };
+		entries[count++] = { "HUD Options", PMENU_ALIGN_LEFT, HordeMenuHandler };
 	}
 
-	// Convertir el vector a un array
-	PMenu_Open(ent, dynamic_horde_menu.data(), -1, dynamic_horde_menu.size(), nullptr, nullptr);
+	entries[count++] = { "", PMENU_ALIGN_CENTER, nullptr };
+	entries[count++] = { "Close", PMENU_ALIGN_LEFT, HordeMenuHandler };
+
+	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
 
+
+
+// Helper function para crear menú HUD
+pmenuhnd_t* CreateHUDMenu(edict_t* ent)
+{
+	static pmenu_t entries[8];  // Tamaño fijo para el menú HUD
+	int count = 0;
+
+	// Título y espaciado
+	Q_strlcpy(entries[count].text, "*HUD Options", sizeof(entries[count].text));
+	entries[count].align = PMENU_ALIGN_CENTER;
+	entries[count].SelectFunc = nullptr;
+	count++;
+
+	Q_strlcpy(entries[count].text, "", sizeof(entries[count].text));
+	entries[count].align = PMENU_ALIGN_CENTER;
+	entries[count].SelectFunc = nullptr;
+	count++;
+
+	// Opciones de ID con estado actual
+	char id_text[64];
+	char dmg_text[64];
+	snprintf(id_text, sizeof(id_text), "Enable/Disable ID [%s]",
+		ent->client->resp.id_state ? "ON" : "OFF");
+	snprintf(dmg_text, sizeof(dmg_text), "Enable/Disable ID-DMG [%s]",
+		ent->client->resp.iddmg_state ? "ON" : "OFF");
+
+	// Copiar los textos generados a las entradas del menú
+	Q_strlcpy(entries[count].text, id_text, sizeof(entries[count].text));
+	entries[count].align = PMENU_ALIGN_LEFT;
+	entries[count].SelectFunc = HUDMenuHandler;
+	count++;
+
+	Q_strlcpy(entries[count].text, dmg_text, sizeof(entries[count].text));
+	entries[count].align = PMENU_ALIGN_LEFT;
+	entries[count].SelectFunc = HUDMenuHandler;
+	count++;
+
+	Q_strlcpy(entries[count].text, "", sizeof(entries[count].text));
+	entries[count].align = PMENU_ALIGN_CENTER;
+	entries[count].SelectFunc = nullptr;
+	count++;
+
+	Q_strlcpy(entries[count].text, "Back to Horde Menu", sizeof(entries[count].text));
+	entries[count].align = PMENU_ALIGN_LEFT;
+	entries[count].SelectFunc = HUDMenuHandler;
+	count++;
+
+	Q_strlcpy(entries[count].text, "Close", sizeof(entries[count].text));
+	entries[count].align = PMENU_ALIGN_LEFT;
+	entries[count].SelectFunc = HUDMenuHandler;
+	count++;
+
+	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
+}
 
 //TEAMS MENU & STUFF
 
@@ -4952,42 +5051,54 @@ void CTFPlayerList(edict_t* ent)
 
 	gi.Client_Print(ent, PRINT_HIGH, text.data());
 }
+
 void CTFWarp(edict_t* ent, const char* map_name)
 {
 	char* token;
 	if (!map_name || !*map_name)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
-		// Crear una cadena temporal para la lista de mapas
+
 		const char* mlist = g_map_list->string;
 		char* formatted_map_list = new char[8192];
-		formatted_map_list[0] = '-';
-		int map_index = 1;  // Contador para la numeración de mapas
-		// Procesar cada mapa individualmente
+		formatted_map_list[0] = '\0';  // Inicializar string vacío
+		int map_index = 1;
+
+		// Buffer temporal para construir la lista
+		char temp_buffer[8192] = "";
+
 		while (*(token = COM_Parse(&mlist)) != '\0')
 		{
+			// Construir cada entrada directamente en el buffer temporal
 			char map_entry[128];
-			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-			strncat(formatted_map_list, map_entry, 8192 - strlen(formatted_map_list) - 1);
-			map_index++;
+			snprintf(map_entry, sizeof(map_entry), "%s%d: %s\n",
+				map_index == 1 ? "" : "-", // Solo añadir guión si no es el primer elemento
+				map_index,
+				token);
+
+			// Verificar espacio disponible
+			if (strlen(temp_buffer) + strlen(map_entry) < sizeof(temp_buffer))
+			{
+				Q_strlcat(temp_buffer, map_entry, sizeof(temp_buffer));
+				map_index++;
+			}
 		}
-		// Quitar el último guion si existe
-		size_t len = strlen(formatted_map_list);
-		if (len > 0 && formatted_map_list[len - 1] == '-')
-		{
-			formatted_map_list[len - 1] = '\0';
-		}
+
+		// Copiar el buffer temporal al resultado final
+		Q_strlcpy(formatted_map_list, temp_buffer, 8192);
+
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
-		delete[] formatted_map_list; // Liberar la memoria
+		delete[] formatted_map_list;
 		return;
 	}
-	const char* mlist = g_map_list->string;  // Usar g_map_list en lugar de warp_list
-	const int vote_index = atoi(map_name);  // Obtener el índice del mapa desde el argumento
-	int current_index = 1;  // Contador para la búsqueda del mapa
+
+	const char* mlist = g_map_list->string;
+	const int vote_index = atoi(map_name);
+	int current_index = 1;
 	bool found_map = false;
+
 	while (*(token = COM_Parse(&mlist)) != '\0')
 	{
-		// Comparar tanto el número del mapa como el nombre del mapa
 		if (current_index == vote_index || Q_strcasecmp(token, map_name) == 0)
 		{
 			found_map = true;
@@ -4995,53 +5106,62 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		}
 		current_index++;
 	}
+
 	if (!found_map)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
-		// Crear una cadena temporal para la lista de mapas
+
 		mlist = g_map_list->string;
 		char* formatted_map_list = new char[8192];
-		formatted_map_list[0] = '-';
-		int map_index = 1;  // Contador para la numeración de mapas
-		// Procesar cada mapa individualmente
+		formatted_map_list[0] = '\0';
+		int map_index = 1;
+
+		// Buffer temporal para construir la lista
+		char temp_buffer[8192] = "";
+
 		while (*(token = COM_Parse(&mlist)) != '\0')
 		{
 			char map_entry[128];
-			snprintf(map_entry, sizeof(map_entry), "%d: %s\n-", map_index, token);
-			strncat(formatted_map_list, map_entry, 8192 - strlen(formatted_map_list) - 1);
-			map_index++;
+			snprintf(map_entry, sizeof(map_entry), "%s%d: %s\n",
+				map_index == 1 ? "" : "-",
+				map_index,
+				token);
+
+			if (strlen(temp_buffer) + strlen(map_entry) < sizeof(temp_buffer))
+			{
+				Q_strlcat(temp_buffer, map_entry, sizeof(temp_buffer));
+				map_index++;
+			}
 		}
-		// Quitar el último guion si existe
-		size_t len = strlen(formatted_map_list);
-		if (len > 0 && formatted_map_list[len - 1] == '-')
-		{
-			formatted_map_list[len - 1] = '\0';
-		}
+
+		// Copiar el buffer final
+		Q_strlcpy(formatted_map_list, temp_buffer, 8192);
+
 		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
-		delete[] formatted_map_list; // Liberar la memoria
+		delete[] formatted_map_list;
 		return;
 	}
 
-	// Verificar si el mapa seleccionado es el mismo que el mapa actual
 	if (Q_strcasecmp(token, level.mapname) == 0)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Cannot vote for the current map.\n");
 		return;
 	}
 
-	// Extraer el nombre del jugador desde userinfo
 	char playerName[32];
 	gi.Info_ValueForKey(ent->client->pers.userinfo, "name", playerName, sizeof(playerName));
-	// Establecer ctfgame.elevel antes de llamar a CTFBeginElection
+
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
-	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n", playerName, token).data()))
+
+	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n",
+		playerName, token).data()))
 	{
-		// Cerrar el menú antes de cambiar el mapa
 		if (ent->client->menu) {
 			PMenu_Close(ent);
 		}
 	}
 }
+
 void CTFBoot(edict_t* ent)
 {
 	edict_t* targ;
