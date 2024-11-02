@@ -1399,8 +1399,8 @@ void soldier_jump_now(edict_t* self)
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 100);
-	self->velocity += (up * 300);
+	self->velocity += (forward * 90);
+	self->velocity += (up * 200);
 }
 
 void soldier_jump2_now(edict_t* self)
@@ -1408,8 +1408,8 @@ void soldier_jump2_now(edict_t* self)
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 150);
-	self->velocity += (up * 400);
+	self->velocity += (forward * 130);
+	self->velocity += (up * 300);
 }
 
 void soldier_jump_wait_land(edict_t* self)

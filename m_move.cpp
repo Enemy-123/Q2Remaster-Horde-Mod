@@ -979,62 +979,81 @@ void M_ChangeYaw(edict_t* ent)
 /*
 ======================
 SV_StepDirection
-
-Turns to the movement direction, and walks the current distance if
-facing it.
-
+Turns to the movement direction, and walks the current distance if facing it.
+Returns true if the movement was successful.
 ======================
 */
 bool SV_StepDirection(edict_t* ent, float yaw, float dist, bool allow_no_turns)
 {
-	vec3_t move, oldorigin;
+	if (!ent || !ent->inuse || dist <= 0)
+		return false;
 
-	if (!ent->inuse)
-		return true; // PGM g_touchtrigger free problem
+	// Store original values for potential rollback
+	const vec3_t oldorigin = ent->s.origin;
+	const float old_ideal_yaw = ent->ideal_yaw;
+	const float old_current_yaw = ent->s.angles[YAW];
 
-	float old_ideal_yaw = ent->ideal_yaw;
-	float old_current_yaw = ent->s.angles[YAW];
-
+	// Update entity yaw
 	ent->ideal_yaw = yaw;
 	M_ChangeYaw(ent);
 
-	yaw = yaw * PIf * 2 / 360;
-	move[0] = cosf(yaw) * dist;
-	move[1] = sinf(yaw) * dist;
-	move[2] = 0;
+	// Calculate movement vector
+	const float rad_yaw = DEG2RAD(yaw);
+	vec3_t move = {
+		cosf(rad_yaw) * dist,
+		sinf(rad_yaw) * dist,
+		0
+	};
 
-	oldorigin = ent->s.origin;
+	// Special handling for specific monster types
+	const bool is_widow = !strncmp(ent->classname, "monster_widow", 13) ||
+		!strncmp(ent->classname, "monster_widow2", 13);
+
+	// Attempt movement
 	if (SV_movestep(ent, move, false))
 	{
+		// Clear blocked flag on successful movement
 		ent->monsterinfo.aiflags &= ~AI_BLOCKED;
-		if (!ent->inuse)
-			return true; // PGM g_touchtrigger free problem
 
-		if (strncmp(ent->classname, "monster_widow", 13))
+		// Safety check for entity still being valid
+		if (!ent->inuse)
+			return true;
+
+		// Check if entity is facing the right direction
+		if (!is_widow && !FacingIdeal(ent))
 		{
-			if (!FacingIdeal(ent))
-			{
-				// not turned far enough, so don't take the step
-				// but still turn
-				ent->s.origin = oldorigin;
-				M_CheckGround(ent, G_GetClipMask(ent));
-				return allow_no_turns; // [Paril-KEX]
-			}
+			// Revert position but maintain rotation if allowed
+			ent->s.origin = oldorigin;
+			M_CheckGround(ent, G_GetClipMask(ent));
+			return allow_no_turns;
 		}
+
+		// Update entity state and check triggers
 		gi.linkentity(ent);
-		if (!g_horde->integer) // Paril
-		G_TouchTriggers(ent);
+
+		if (!g_horde->integer)
+		{
+			G_TouchTriggers(ent);
+		}
+
 		G_TouchProjectiles(ent, oldorigin);
 		return true;
 	}
-	gi.linkentity(ent);
-	if (!g_horde->integer) // Paril
-	G_TouchTriggers(ent);
+
+	// Movement failed, restore original rotation
 	ent->ideal_yaw = old_ideal_yaw;
 	ent->s.angles[YAW] = old_current_yaw;
+
+	// Update entity state and check triggers even on failure
+	gi.linkentity(ent);
+
+	if (!g_horde->integer)
+	{
+		G_TouchTriggers(ent);
+	}
+
 	return false;
 }
-
 /*
 ======================
 SV_FixCheckBottom
@@ -1054,116 +1073,113 @@ SV_NewChaseDir
 */
 constexpr float DI_NODIR = -1;
 
+/*
+================
+SV_NewChaseDir
+
+Enhanced pathfinding that maintains stability while improving
+movement options and intelligence.
+================
+*/
 bool SV_NewChaseDir(edict_t* actor, vec3_t pos, float dist)
 {
-	float deltax, deltay;
-	float d[3];
-	float tdir, olddir, turnaround;
+	if (!actor || !actor->inuse || dist <= 0)
+		return false;
 
-	olddir = anglemod(truncf(actor->ideal_yaw / 45) * 45);
-	turnaround = anglemod(olddir - 180);
+	// Calculate current direction and turnaround
+	const float olddir = anglemod(truncf(actor->ideal_yaw / 45) * 45);
+	const float turnaround = anglemod(olddir - 180);
 
-	deltax = pos[0] - actor->s.origin[0];
-	deltay = pos[1] - actor->s.origin[1];
-	if (deltax > 10)
-		d[1] = 0;
-	else if (deltax < -10)
-		d[1] = 180;
-	else
-		d[1] = DI_NODIR;
-	if (deltay < -10)
-		d[2] = 270;
-	else if (deltay > 10)
-		d[2] = 90;
-	else
-		d[2] = DI_NODIR;
+	// Calculate delta to target
+	const vec3_t delta = pos - actor->s.origin;
+	const float dx = delta.x;
+	const float dy = delta.y;
 
-	// try direct route
-	if (d[1] != DI_NODIR && d[2] != DI_NODIR)
+	// Determine primary movement directions with 8-way movement
+	const float tdir_x = (dx > 10.0f) ? 0.0f : (dx < -10.0f) ? 180.0f : DI_NODIR;
+	const float tdir_y = (dy < -10.0f) ? 270.0f : (dy > 10.0f) ? 90.0f : DI_NODIR;
+
+	// Try diagonal movement first for more natural paths
+	if (tdir_x != DI_NODIR && tdir_y != DI_NODIR)
 	{
-		if (d[1] == 0)
-			tdir = d[2] == 90 ? 45.f : 315.f;
-		else
-			tdir = d[2] == 90 ? 135.f : 215.f;
+		const float diagonal_dir = (tdir_x == 0.0f) ?
+			(tdir_y == 90.0f ? 45.0f : 315.0f) :
+			(tdir_y == 90.0f ? 135.0f : 225.0f);
 
-		if (tdir != turnaround && SV_StepDirection(actor, tdir, dist, false))
+		if (diagonal_dir != turnaround && SV_StepDirection(actor, diagonal_dir, dist, false))
 			return true;
 	}
 
-	// try other directions
-	if (brandom() || fabsf(deltay) > fabsf(deltax))
+	// Determine movement priority based on situation
+	const bool try_vertical_first = (brandom() || fabsf(dy) > fabsf(dx));
+	const float primary_dir = try_vertical_first ? tdir_y : tdir_x;
+	const float secondary_dir = try_vertical_first ? tdir_x : tdir_y;
+
+	// Try primary direction
+	if (primary_dir != DI_NODIR && primary_dir != turnaround)
+		if (SV_StepDirection(actor, primary_dir, dist, false))
+			return true;
+
+	// Try secondary direction
+	if (secondary_dir != DI_NODIR && secondary_dir != turnaround)
+		if (SV_StepDirection(actor, secondary_dir, dist, false))
+			return true;
+
+	// Handle specific monster blocked behavior
+	if (actor->monsterinfo.blocked && actor->health > 0 &&
+		!(actor->monsterinfo.aiflags & AI_TARGET_ANGER))
 	{
-		tdir = d[1];
-		d[1] = d[2];
-		d[2] = tdir;
-	}
-
-	if (d[1] != DI_NODIR && d[1] != turnaround && SV_StepDirection(actor, d[1], dist, false))
-		return true;
-
-	if (d[2] != DI_NODIR && d[2] != turnaround && SV_StepDirection(actor, d[2], dist, false))
-		return true;
-
-	// ROGUE
-	if (actor->monsterinfo.blocked)
-	{
-		if ((actor->inuse) && (actor->health > 0) && !(actor->monsterinfo.aiflags & AI_TARGET_ANGER))
+		// Try blocked behavior first
+		if (actor->monsterinfo.blocked(actor, dist))
 		{
-			// if block "succeeds", the actor will not move or turn.
-			if (actor->monsterinfo.blocked(actor, dist))
-			{
-				actor->monsterinfo.move_block_counter = -2;
-				return true;
-			}
+			actor->monsterinfo.move_block_counter = -2;
+			return true;
+		}
 
-			// we couldn't step; instead of running endlessly in our current
-			// spot, try switching to node navigation temporarily to get to
-			// where we need to go.
-			if (!(actor->monsterinfo.aiflags & (AI_LOST_SIGHT | AI_COMBAT_POINT | AI_TARGET_ANGER | AI_PATHING | AI_TEMP_MELEE_COMBAT | AI_NO_PATH_FINDING)))
-			{
-				if (++actor->monsterinfo.move_block_counter > 2)
-				{
-					actor->monsterinfo.aiflags |= AI_TEMP_MELEE_COMBAT;
-					actor->monsterinfo.move_block_change_time = level.time + 3_sec;
-					actor->monsterinfo.move_block_counter = 0;
-				}
-			}
+		// Consider switching to node navigation
+		const bool can_use_pathing = !(actor->monsterinfo.aiflags &
+			(AI_LOST_SIGHT | AI_COMBAT_POINT | AI_TARGET_ANGER |
+				AI_PATHING | AI_TEMP_MELEE_COMBAT | AI_NO_PATH_FINDING));
+
+		if (can_use_pathing && ++actor->monsterinfo.move_block_counter > 2)
+		{
+			actor->monsterinfo.aiflags |= AI_TEMP_MELEE_COMBAT;
+			actor->monsterinfo.move_block_change_time = level.time + 3_sec;
+			actor->monsterinfo.move_block_counter = 0;
 		}
 	}
-	// ROGUE
 
-	/* there is no direct path to the player, so pick another direction */
-
+	// Try previous direction
 	if (olddir != DI_NODIR && SV_StepDirection(actor, olddir, dist, false))
 		return true;
 
-	if (brandom()) /*randomly determine direction of search*/
+	// Try alternating between clockwise and counter-clockwise search
+	const bool search_clockwise = brandom();
+	const float angle_start = search_clockwise ? 0.0f : 315.0f;
+	const float angle_end = search_clockwise ? 315.0f : 0.0f;
+	const float angle_step = search_clockwise ? 45.0f : -45.0f;
+
+	for (float test_dir = angle_start;
+		search_clockwise ? (test_dir <= angle_end) : (test_dir >= angle_end);
+		test_dir += angle_step)
 	{
-		for (tdir = 0; tdir <= 315; tdir += 45)
-			if (tdir != turnaround && SV_StepDirection(actor, tdir, dist, false))
-				return true;
-	}
-	else
-	{
-		for (tdir = 315; tdir >= 0; tdir -= 45)
-			if (tdir != turnaround && SV_StepDirection(actor, tdir, dist, false))
-				return true;
+		if (test_dir != turnaround && SV_StepDirection(actor, test_dir, dist, false))
+			return true;
 	}
 
+	// Last resort: try turning around
 	if (turnaround != DI_NODIR && SV_StepDirection(actor, turnaround, dist, false))
 		return true;
 
-	actor->ideal_yaw = frandom(0, 360); // can't move; pick a random yaw...
+	// If all movement attempts failed, try a random direction
+	actor->ideal_yaw = frandom(0, 360);
 
-	// if a bridge was pulled out from underneath a monster, it may not have
-	// a valid standing position at all
-
+	// Check and fix ground position if needed
 	if (!M_CheckBottom(actor))
 		SV_FixCheckBottom(actor);
 
 	return false;
 }
-
 /*
 ======================
 SV_CloseEnough
@@ -1189,57 +1205,77 @@ bool SV_CloseEnough(edict_t* ent, edict_t* goal, float dist)
 
 static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 {
+	if (!self || dist <= 0)
+		return false;
+
 	// mark us as *trying* now (nav_pos is valid)
 	self->monsterinfo.aiflags |= AI_PATHING;
 
 	vec3_t& path_to = (self->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
 		self->monsterinfo.nav_path.secondMovePoint : self->monsterinfo.nav_path.firstMovePoint;
 
-	vec3_t ground_origin = self->s.origin + vec3_t{ 0.f, 0.f, self->mins[2] } - vec3_t{ 0.f, 0.f, PLAYER_MINS[2] };
+	// Calculate monster's actual dimensions and collision bounds
+	const float height = self->maxs[2] - self->mins[2];
+	const float width = std::max(self->maxs[0] - self->mins[0], self->maxs[1] - self->mins[1]);
+	const float ground_offset = self->mins[2] - PLAYER_MINS[2];
+
+	vec3_t ground_origin = self->s.origin + vec3_t{ 0.f, 0.f, ground_offset };
 	vec3_t mon_mins = ground_origin + PLAYER_MINS;
 	vec3_t mon_maxs = ground_origin + PLAYER_MAXS;
 
-	if (self->monsterinfo.nav_path_cache_time <= level.time ||
-		(self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending &&
-			boxes_intersect(mon_mins, mon_maxs, path_to, path_to)))
+	// Check if we need to recalculate path
+	const bool path_expired = self->monsterinfo.nav_path_cache_time <= level.time;
+	const bool path_intersecting = self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending &&
+		boxes_intersect(mon_mins, mon_maxs, path_to, path_to);
+
+	if (path_expired || path_intersecting)
 	{
 		PathRequest request;
-		if (self->enemy)
-			request.goal = self->enemy->s.origin;
-		else
-			request.goal = self->goalentity->s.origin;
+
+		// Set goal based on enemy or goalentity
+		request.goal = self->enemy ? self->enemy->s.origin : self->goalentity->s.origin;
 		request.moveDist = dist;
-		if (g_debug_monster_paths->integer == 1)
-			request.debugging.drawTime = gi.frame_time_s;
 		request.start = self->s.origin;
 		request.pathFlags = PathFlags::Walk;
 
-		request.nodeSearch.minHeight = -(self->mins.z * 2);
-		request.nodeSearch.maxHeight = (self->maxs.z * 2);
+		// Set node search parameters based on actual monster dimensions
+		request.nodeSearch.minHeight = -(height * 1.5f); // Extra margin for slopes/stairs
+		request.nodeSearch.maxHeight = height * 2;       // Extra height for jumps/drops
 
-		// FIXME remove hardcoding
+		// Debug drawing if enabled
+		if (g_debug_monster_paths->integer == 1)
+			request.debugging.drawTime = gi.frame_time_s;
+
+		// Special handling for specific monster types
+		// Consider using monster dimensions for radius calculation
 		if (!strcmp(self->classname, "monster_guardian") || !strcmp(self->classname, "monster_psxguardian"))
 		{
-			request.nodeSearch.radius = 2048.f;
+			request.nodeSearch.radius = std::max(2048.f, width * 4); // Use width to inform radius
 		}
 
+		// Configure movement capabilities
 		if (self->monsterinfo.can_jump || (self->flags & FL_FLY))
 		{
 			if (self->monsterinfo.jump_height)
 			{
 				request.pathFlags |= PathFlags::BarrierJump;
-				request.traversals.jumpHeight = self->monsterinfo.jump_height;
+				// Scale jump height based on monster size
+				request.traversals.jumpHeight = std::min(self->monsterinfo.jump_height, height * 3);
 			}
 			if (self->monsterinfo.drop_height)
 			{
 				request.pathFlags |= PathFlags::WalkOffLedge;
-				request.traversals.dropHeight = self->monsterinfo.drop_height;
+				// Scale drop height based on monster size
+				request.traversals.dropHeight = std::min(self->monsterinfo.drop_height, height * 4);
 			}
 		}
 
+		// Flying monsters get special treatment
 		if (self->flags & FL_FLY)
 		{
-			request.nodeSearch.maxHeight = request.nodeSearch.minHeight = 8192.f;
+			// Use monster's actual height for vertical limits
+			const float vertical_limit = std::max(8192.f, height * 8);
+			request.nodeSearch.maxHeight = request.nodeSearch.minHeight = vertical_limit;
 			request.pathFlags |= PathFlags::LongJump;
 		}
 
@@ -1254,26 +1290,36 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 		self->monsterinfo.nav_path_cache_time = level.time + 2_sec;
 	}
 
+	// Store original yaw values for potential restoration
 	float yaw;
-	float old_yaw = self->s.angles[YAW];
-	float old_ideal_yaw = self->ideal_yaw;
+	const float old_yaw = self->s.angles[YAW];
+	const float old_ideal_yaw = self->ideal_yaw;
 
+	// Calculate movement direction
 	if (self->monsterinfo.random_change_time >= level.time &&
 		!(self->monsterinfo.aiflags & AI_ALTERNATE_FLY))
+	{
 		yaw = self->ideal_yaw;
+	}
 	else
-		yaw = vectoyaw((path_to - self->s.origin).normalized());
+	{
+		vec3_t dir = path_to - self->s.origin;
+		dir.normalize();
+		yaw = vectoyaw(dir);
+	}
 
-	if (!SV_StepDirection(self, yaw, dist, true)) {
-
+	// Try primary movement
+	if (!SV_StepDirection(self, yaw, dist, true))
+	{
 		if (!self->inuse)
 			return false;
 
+		// Handle blocked state
 		if (self->monsterinfo.blocked && !(self->monsterinfo.aiflags & AI_TARGET_ANGER))
 		{
 			if ((self->inuse) && (self->health > 0))
 			{
-				// if we're blocked, the blocked function will be deferred to for yaw
+				// Restore original yaw for blocked handling
 				self->s.angles[YAW] = old_yaw;
 				self->ideal_yaw = old_ideal_yaw;
 				if (self->monsterinfo.blocked(self, dist))
@@ -1281,22 +1327,26 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 			}
 		}
 
-		// try the first point
+		// Try movement to first point
 		if (self->monsterinfo.random_change_time >= level.time)
 			yaw = self->ideal_yaw;
 		else
-			yaw = vectoyaw((self->monsterinfo.nav_path.firstMovePoint - self->s.origin).normalized());
+		{
+			vec3_t dir = self->monsterinfo.nav_path.firstMovePoint - self->s.origin;
+			dir.normalize();
+			yaw = vectoyaw(dir);
+		}
 
-		if (!SV_StepDirection(self, yaw, dist, true)) {
-
-			// we got blocked, but all is not lost yet; do a similar bump around-ish behavior
-			// to try to regain our composure
+		if (!SV_StepDirection(self, yaw, dist, true))
+		{
+			// Handle blocked flag
 			if (self->monsterinfo.aiflags & AI_BLOCKED)
 			{
 				self->monsterinfo.aiflags &= ~AI_BLOCKED;
 				return true;
 			}
 
+			// Try random direction change
 			if (self->monsterinfo.random_change_time < level.time && self->inuse)
 			{
 				self->monsterinfo.random_change_time = level.time + 1500_ms;
@@ -1304,16 +1354,17 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 					return true;
 			}
 
+			// Update blocked counter
 			self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 3;
-		}
 
-		if (self->monsterinfo.path_blocked_counter > 1.5_sec)
-			return false;
+			// Check if we've been blocked too long
+			if (self->monsterinfo.path_blocked_counter > 1.5_sec)
+				return false;
+		}
 	}
 
 	return true;
 }
-
 /*
 =============
 M_MoveToPath

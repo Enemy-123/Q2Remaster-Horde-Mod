@@ -501,31 +501,23 @@ bool M_AllowSpawn(edict_t* self) {
 void M_SetAnimation(edict_t* self, const save_mmove_t& move, bool instant)
 {
 	// [Paril-KEX] free the beams if we switch animations.
-	if (self->beam) {
+	if (self->beam)
+	{
 		G_FreeEdict(self->beam);
 		self->beam = nullptr;
 	}
-	if (self->beam2) {
+
+	if (self->beam2)
+	{
 		G_FreeEdict(self->beam2);
 		self->beam2 = nullptr;
 	}
 
-	// Validar frames del nuevo movimiento
-	const mmove_t* new_move = move.pointer();
-	if (new_move->firstframe < 0 || new_move->lastframe < new_move->firstframe) {
-		gi.Com_PrintFmt("Error: M_SetAnimation - invalid frame range");
-		return;
-	}
-
 	// instant switches will cause active_move to change on the next frame
-	if (instant) {
+	if (instant)
+	{
 		self->monsterinfo.active_move = move;
 		self->monsterinfo.next_move = nullptr;
-
-		// Asegurar que el frame inicial está dentro del rango válido
-		if (self->s.frame < new_move->firstframe || self->s.frame > new_move->lastframe) {
-			self->s.frame = new_move->firstframe;
-		}
 		return;
 	}
 
@@ -543,155 +535,120 @@ void LogFrameError(edict_t* self, const mmove_t* move)
 }
 void M_MoveFrame(edict_t* self)
 {
-	// Validate self pointer
-	if (!self) {
-		gi.Com_PrintFmt("Error: M_MoveFrame - null entity");
-		return;
-	}
-
-	// Validate active_move pointer
 	const mmove_t* move = self->monsterinfo.active_move.pointer();
-	if (!move) {
-		gi.Com_PrintFmt("Error: M_MoveFrame - null movement");
-		return;
-	}
 
-	// [Paril-KEX] high tick rate adjustments
+	// [Paril-KEX] high tick rate adjustments;
+	// monsters still only step frames and run thinkfunc's at
+	// 10hz, but will run aifuncs at full speed with
+	// distance spread over 10hz
+
 	self->nextthink = level.time + FRAME_TIME_S;
 
-	// Validate frame bounds
-	if (move->firstframe < 0 || move->lastframe < move->firstframe) {
-		gi.Com_PrintFmt("Error: M_MoveFrame - invalid frame bounds");
-		return;
-	}
-
+	// time to run next 10hz move yet?
 	bool run_frame = self->monsterinfo.next_move_time <= level.time;
 
-	// Handle frame switching
-	if (run_frame && self->monsterinfo.next_move.pointer()) {
-		if (self->monsterinfo.active_move != self->monsterinfo.next_move) {
-			M_SetAnimation(self, self->monsterinfo.next_move, true);
-			move = self->monsterinfo.active_move.pointer();
-			if (!move) {
-				gi.Com_PrintFmt("Error: M_MoveFrame - null movement after animation set");
-				return;
-			}
-		}
+	// we asked nicely to switch frames when the timer ran up
+	if (run_frame && self->monsterinfo.next_move.pointer() && self->monsterinfo.active_move != self->monsterinfo.next_move)
+	{
+		M_SetAnimation(self, self->monsterinfo.next_move, true);
+		move = self->monsterinfo.active_move.pointer();
 	}
 
-	// Check if we were forced into another move
-	if (!run_frame) {
+	if (!move)
+		return;
+
+	// no, but maybe we were explicitly forced into another move (pain,
+	// death, etc)
+	if (!run_frame)
 		run_frame = (self->s.frame < move->firstframe || self->s.frame > move->lastframe);
-	}
 
-	if (run_frame) {
+	if (run_frame)
+	{
+		// [Paril-KEX] allow next_move and nextframe to work properly after an endfunc
 		bool explicit_frame = false;
 
-		// Handle nextframe logic
-		if (self->monsterinfo.nextframe) {
-			if (self->monsterinfo.nextframe >= move->firstframe &&
-				self->monsterinfo.nextframe <= move->lastframe) {
-				self->s.frame = self->monsterinfo.nextframe;
-				self->monsterinfo.nextframe = 0;
-			}
+		if ((self->monsterinfo.nextframe) && (self->monsterinfo.nextframe >= move->firstframe) &&
+			(self->monsterinfo.nextframe <= move->lastframe))
+		{
+			self->s.frame = self->monsterinfo.nextframe;
+			self->monsterinfo.nextframe = 0;
 		}
-		else {
-			// Handle last frame and endfunc
-			if (self->s.frame == move->lastframe) {
-				if (move->endfunc) {
+		else
+		{
+			if (self->s.frame == move->lastframe)
+			{
+				if (move->endfunc)
+				{
 					move->endfunc(self);
 
-					if (self->monsterinfo.next_move) {
+					if (self->monsterinfo.next_move)
+					{
 						M_SetAnimation(self, self->monsterinfo.next_move, true);
-						move = self->monsterinfo.active_move.pointer();
-						if (!move) {
-							gi.Com_PrintFmt("Error: M_MoveFrame - null movement after endfunc");
-							return;
-						}
 
-						if (self->monsterinfo.nextframe) {
+						if (self->monsterinfo.nextframe)
+						{
 							self->s.frame = self->monsterinfo.nextframe;
 							self->monsterinfo.nextframe = 0;
 							explicit_frame = true;
 						}
 					}
 
-					// Check for death
-					if (self->svflags & SVF_DEADMONSTER) {
+					// regrab move, endfunc is very likely to change it
+					move = self->monsterinfo.active_move.pointer();
+
+					// check for death
+					if (self->svflags & SVF_DEADMONSTER)
 						return;
-					}
 				}
 			}
 
-			// Handle frame boundaries
-			if (self->s.frame < move->firstframe || self->s.frame > move->lastframe) {
+			if (self->s.frame < move->firstframe || self->s.frame > move->lastframe)
+			{
 				self->monsterinfo.aiflags &= ~AI_HOLD_FRAME;
 				self->s.frame = move->firstframe;
 			}
-			else if (!explicit_frame) {
-				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+			else if (!explicit_frame)
+			{
+				if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
+				{
 					self->s.frame++;
-					if (self->s.frame > move->lastframe) {
+					if (self->s.frame > move->lastframe)
 						self->s.frame = move->firstframe;
-					}
 				}
 			}
 		}
 
-		// Update next move time
-		if (self->monsterinfo.aiflags & AI_HIGH_TICK_RATE) {
+		if (self->monsterinfo.aiflags & AI_HIGH_TICK_RATE)
 			self->monsterinfo.next_move_time = level.time;
-		}
-		else {
+		else
 			self->monsterinfo.next_move_time = level.time + 10_hz;
-		}
 
-		// Clear invalid nextframe
-		if (self->monsterinfo.nextframe) {
-			if (!(self->monsterinfo.nextframe >= move->firstframe &&
-				self->monsterinfo.nextframe <= move->lastframe)) {
-				self->monsterinfo.nextframe = 0;
-			}
-		}
+		if ((self->monsterinfo.nextframe) && !((self->monsterinfo.nextframe >= move->firstframe) &&
+			(self->monsterinfo.nextframe <= move->lastframe)))
+			self->monsterinfo.nextframe = 0;
 	}
+
+	// NB: frame thinkfunc can be called on the same frame
+	// as the animation changing
 
 	int32_t index = self->s.frame - move->firstframe;
-	if (index < 0 || index >= (move->lastframe - move->firstframe + 1)) {
-		LogFrameError(self, move);
-		// Opcional: corregir el frame TEST
-		self->s.frame = move->firstframe;
-		return;
-	}
-
-	// Handle AI function
-	if (move->frame[index].aifunc) {
-		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME)) {
+	if (move->frame[index].aifunc)
+	{
+		if (!(self->monsterinfo.aiflags & AI_HOLD_FRAME))
+		{
 			float dist = move->frame[index].dist * self->monsterinfo.scale;
 			dist /= gi.tick_rate / 10;
 			move->frame[index].aifunc(self, dist);
 		}
-		else {
+		else
 			move->frame[index].aifunc(self, 0);
-		}
 	}
 
-	// Handle think function - add validation
-	if (run_frame && move->frame[index].thinkfunc) {
-		if (!move->frame[index].thinkfunc) {
-			gi.Com_PrintFmt("Error: M_MoveFrame - null think function");
-			return;
-		}
-		try {
-			move->frame[index].thinkfunc(self);
-		}
-		catch (...) {
-			gi.Com_PrintFmt("Error: M_MoveFrame - exception in think function");
-			return;
-		}
-	}
+	if (run_frame && move->frame[index].thinkfunc)
+		move->frame[index].thinkfunc(self);
 
-	// Handle lerp frame
-	if (move->frame[index].lerp_frame != -1) {
+	if (move->frame[index].lerp_frame != -1)
+	{
 		self->s.renderfx |= RF_OLD_FRAME_LERP;
 		self->s.old_frame = move->frame[index].lerp_frame;
 	}
