@@ -684,10 +684,34 @@ void brain_laserbeam(edict_t* self)
 
 void brain_laserbeam_reattack(edict_t* self)
 {
-	if (frandom() < 0.5f)
-		if (visible(self, self->enemy))
-			if (self->enemy->health > 0)
-				self->s.frame = FRAME_walk101;
+	// Validar que self es válido
+	if (!self) {
+		gi.Com_PrintFmt("Error: brain_laserbeam_reattack - null self");
+		return;
+	}
+
+	// Validar que enemy existe y está vivo
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0) {
+		return;
+	}
+
+	// Verificar probabilidad y visibilidad
+	if (frandom() < 0.5f && visible(self, self->enemy)) {
+		// Validar que el frame está dentro del rango permitido
+		const mmove_t* move = self->monsterinfo.active_move.pointer();
+		if (!move) {
+			return;
+		}
+
+		// Verificar que FRAME_walk101 está dentro del rango válido para este movimiento
+		if (FRAME_walk101 >= move->firstframe && FRAME_walk101 <= move->lastframe) {
+			self->s.frame = FRAME_walk101;
+		}
+		else {
+			// Si el frame no es válido, volver al movimiento de run
+			M_SetAnimation(self, &brain_move_run);
+		}
+	}
 }
 
 mframe_t brain_frames_attack3[] = {
