@@ -427,139 +427,145 @@ mid	    infront and show hostile
 */
 #include <cassert>
 #include <cmath> 
+// Constantes estáticas para mejorar rendimiento
+static constexpr float MAX_RANGE = 1000.0f;
+static constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
+static constexpr float PRIORITY_ATTACKER_BONUS = 0.5f;
+
+// Función range_to simplificada y más segura
 float range_to(edict_t* self, edict_t* other) {
-    assert(self != nullptr && other != nullptr);
+    if (!self || !other)
+        return MAX_RANGE;
 
-    //gi.Com_PrintFmt(FMT_STRING("self: {}, self->absmin: [{}, {}, {}]\n"), self, self->absmin[0], self->absmin[1], self->absmin[2]);
-    //gi.Com_PrintFmt(FMT_STRING("self->absmax: [{}, {}, {}]\n"), self->absmax[0], self->absmax[1], self->absmax[2]);
-    //gi.Com_PrintFmt(FMT_STRING("other: {}, other->absmin: [{}, {}, {}]\n"), other, other->absmin[0], other->absmin[1], other->absmin[2]);
-    //gi.Com_PrintFmt(FMT_STRING("other->absmax: [{}, {}, {}]\n"), other->absmax[0], other->absmax[1], other->absmax[2]);
-
-    assert(!std::isnan(self->absmin[0]) && !std::isnan(self->absmin[1]) && !std::isnan(self->absmin[2]));
-    assert(!std::isnan(self->absmax[0]) && !std::isnan(self->absmax[1]) && !std::isnan(self->absmax[2]));
-    assert(!std::isnan(other->absmin[0]) && !std::isnan(other->absmin[1]) && !std::isnan(other->absmin[2]));
-    assert(!std::isnan(other->absmax[0]) && !std::isnan(other->absmax[1]) && !std::isnan(other->absmax[2]));
-
-    return distance_between_boxes(self->absmin, self->absmax, other->absmin, other->absmax);
+    return distance_between_boxes(
+        self->absmin, self->absmax,
+        other->absmin, other->absmax);
 }
 
-
-bool IsInvisible(edict_t* ent);
-constexpr size_t MAX_ENTITIES = 64;
-constexpr float MAX_RANGE = 1000.0f;
-constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
-constexpr float PRIORITY_ATTACKER_BONUS = 0.5f;
-
-struct TargetPriority {
-    edict_t* entity;
-    float priority;
-    float distanceSquared;
-    bool isAttacker;
-};
-
-bool IsValidTarget(edict_t* self, edict_t* ent) {
-    if (!ent || !ent->inuse || !ent->solid || ent == self ||
-        ent->health <= 0 || ent->deadflag || ent->solid == SOLID_NOT)
+// Función de comprobación de invisibilidad optimizada
+inline bool IsInvisible(edict_t* ent) {
+    if (!ent->client)
         return false;
 
-    // Ignorar jugadores invisibles o con invulnerabilidad
+    const gtime_t current_time = level.time;
+
+    if (ent->client->invisible_time <= current_time)
+        return false;
+
+    if (ent->client->invisibility_fade_time <= current_time)
+        return true;
+
+    return frandom() > ent->s.alpha;
+}
+
+// Función de verificación de objetivo válido optimizada
+inline bool IsValidTarget(edict_t* self, edict_t* ent) {
+    if (!ent || !ent->inuse || ent == self ||
+        ent->health <= 0 || ent->deadflag ||
+        ent->solid == SOLID_NOT ||
+        !(ent->svflags & SVF_MONSTER))
+        return false;
+
+    const gtime_t current_time = level.time;
+
     if (ent->client) {
-        if (ent->client->invincible_time > level.time ||
-            IsInvisible(ent))
+        if (ent->client->invincible_time > current_time || IsInvisible(ent))
             return false;
     }
 
-    // Verificar si es un monstruo válido y no está en el mismo equipo
-    return (ent->svflags & SVF_MONSTER) &&
-        !OnSameTeam(self, ent) &&
-        ent->monsterinfo.invincible_time <= level.time;
+    return !OnSameTeam(self, ent) &&
+        ent->monsterinfo.invincible_time <= current_time;
 }
 
-float CalculateTargetPriority(edict_t* self, edict_t* target, float distanceSquared, bool isAttacker) {
-    float priority = 1.0f / (distanceSquared + 1.0f);
+// Función de cálculo de prioridad optimizada
+float CalculateTargetPriority(edict_t* self, edict_t* target, float distSquared, bool isAttacker) {
+    float priority = 1.0f / (distSquared + 1.0f);
 
-    // Bonus por ser el atacante previo o el último enemigo que nos dañó
-    if (isAttacker || target == self->monsterinfo.damage_attacker)
+    if (isAttacker)
         priority += PRIORITY_ATTACKER_BONUS;
 
-    // Bonus por tipo de enemigo
     if (target->health > 200)
         priority *= 1.2f;
 
     if (target->client)
         priority *= 1.3f;
 
-    // Penalización por objetivos parcialmente cubiertos
-    trace_t tr = gi.traceline(self->s.origin, target->s.origin, self, MASK_SHOT);
-    if (tr.fraction < 1.0f && tr.ent != target)
-        priority *= 0.5f;
+    // Hacer el trace solo si la prioridad es significativa
+    if (priority > 0.2f) {
+        trace_t tr = gi.traceline(self->s.origin, target->s.origin, self, MASK_SHOT);
+        if (tr.fraction < 1.0f && tr.ent != target)
+            priority *= 0.5f;
+    }
 
     return priority;
 }
 
-bool FindMTarget(edict_t* self) {
-    std::vector<TargetPriority> targets;
-    targets.reserve(MAX_ENTITIES);
+// Estructura de objetivo compacta
+struct target_data_t {
+    edict_t* ent;
+    float priority;
+    float dist_squared;
+    uint8_t is_attacker : 1;
+};
 
-    // Recolectar objetivos potenciales
+// Función principal de búsqueda de objetivo
+bool FindMTarget(edict_t* self) {
+    if (!self)
+        return false;
+
+    // Cache valores frecuentemente usados
+    const vec3_t& self_origin = self->s.origin;
+    edict_t* current_enemy = self->enemy;
+    edict_t* last_attacker = self->monsterinfo.damage_attacker;
+    const gtime_t current_time = level.time;
+
+    // Variables para el mejor objetivo
+    edict_t* best_target = nullptr;
+    float best_priority = -1.0f;
+    float best_dist_squared = MAX_RANGE_SQUARED;
+
+    // Buscar el mejor objetivo directamente
     for (auto ent : active_monsters()) {
         if (!IsValidTarget(self, ent))
             continue;
 
-        vec3_t diff = ent->s.origin - self->s.origin;
-        float distSquared = diff.lengthSquared();
-
-        if (distSquared > MAX_RANGE_SQUARED)
+        float dist_squared = DistanceSquared(self_origin, ent->s.origin);
+        if (dist_squared > MAX_RANGE_SQUARED)
             continue;
 
-        // Considerar tanto el enemigo actual como el último atacante
-        bool isAttacker = (self->enemy == ent || ent == self->monsterinfo.damage_attacker);
-        float priority = CalculateTargetPriority(self, ent, distSquared, isAttacker);
+        bool is_attacker = (ent == current_enemy || ent == last_attacker);
+        float priority = CalculateTargetPriority(self, ent, dist_squared, is_attacker);
 
-        targets.push_back({ ent, priority, distSquared, isAttacker });
-    }
+        // Solo hacer visible check si podría ser mejor objetivo
+        if (priority > best_priority && visible(self, ent, false)) {
+            best_priority = priority;
+            best_dist_squared = dist_squared;
+            best_target = ent;
 
-    // Ordenar por prioridad
-    std::sort(targets.begin(), targets.end(),
-        [](const TargetPriority& a, const TargetPriority& b) {
-            if (fabs(a.priority - b.priority) < 0.001f)
-                return a.distanceSquared < b.distanceSquared;
-            return a.priority > b.priority;
-        });
-
-    // Seleccionar el mejor objetivo visible
-    for (const auto& target : targets) {
-        if (visible(self, target.entity)) {
-            // Si es un nuevo objetivo, actualizar el tiempo de reacción al daño
-            if (self->enemy != target.entity) {
-                self->monsterinfo.react_to_damage_time = level.time + 1_sec;
-            }
-
-            self->enemy = target.entity;
-            return true;
+            // Early out para atacantes de alta prioridad
+            if (is_attacker && priority > 0.8f)
+                break;
         }
     }
 
-    // Mantener el objetivo actual si aún es válido y estamos dentro del tiempo de reacción
-    if (self->enemy && IsValidTarget(self, self->enemy) &&
-        level.time < self->monsterinfo.react_to_damage_time) {
+    // Actualizar objetivo si encontramos uno mejor
+    if (best_target) {
+        if (self->enemy != best_target)
+            self->monsterinfo.react_to_damage_time = current_time + 1_sec;
+        self->enemy = best_target;
+        return true;
+    }
+
+    // Mantener objetivo actual si sigue siendo válido
+    if (current_enemy &&
+        IsValidTarget(self, current_enemy) &&
+        current_time < self->monsterinfo.react_to_damage_time) {
         return true;
     }
 
     self->enemy = nullptr;
     return false;
 }
-
-bool IsInvisible(edict_t* ent) {
-    if (ent->client->invisible_time > level.time) {
-        if (ent->client->invisibility_fade_time <= level.time) {
-            return true;
-        }
-        return frandom() > ent->s.alpha;
-    }
-    return false;
-}
-
 
 /*
 =============
