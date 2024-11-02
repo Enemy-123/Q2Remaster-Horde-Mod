@@ -93,6 +93,8 @@
       <EnablePREfast>true</EnablePREfast>
       <Optimization>Disabled</Optimization>
       <AdditionalOptions>/wd6285 /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalIncludeDirectories>
+      </AdditionalIncludeDirectories>
     </ClCompile>
     <Link>
       <SubSystem>NotSet</SubSystem>
