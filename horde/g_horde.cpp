@@ -1254,7 +1254,7 @@ void Horde_PreInit() {
 		gi.cvar_set("g_disable_player_collision", "1");
 		gi.cvar_set("g_dm_no_self_damage", "1");
 		gi.cvar_set("g_allow_techs", "1");
-		gi.cvar_set("g_no_nukes", "1");
+		gi.cvar_set("g_no_nukes", "0");
 		gi.cvar_set("g_use_hook", "1");
 		gi.cvar_set("set g_hook_wave", "1");
 		gi.cvar_set("hook_pullspeed", "1200");
