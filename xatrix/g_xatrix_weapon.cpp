@@ -331,6 +331,18 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 
 THINK(Trap_Gib_Think) (edict_t* ent) -> void
 {
+
+	// Verificar si ent es válido
+	if (!ent)
+		return;
+
+	// Verificar si owner es válido
+	if (!ent->owner)
+	{
+		G_FreeEdict(ent);
+		return;
+	}
+
 	if (ent->owner->s.frame != 5)
 	{
 		G_FreeEdict(ent);
