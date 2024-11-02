@@ -2100,12 +2100,12 @@ void CTFTeam_f(edict_t* ent)
 #include <vector>
 #include <algorithm>
 #include <fmt/format.h>
+#include "../horde/g_horde_benefits.h"
 
 constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
-extern std::unordered_set<std::string> obtained_benefits;
 
 std::string GetActiveBonusesString() {
-	const std::vector<std::pair<std::string, std::string>> bonus_mappings = {
+	const std::vector<std::pair<const char*, const char*>> bonus_mappings = {
 		{"vampire upgraded", "Health & Armor Vampirism"},
 		{"vampire", "Health Vampirism"},
 		{"ammo regen", "Ammo Regen"},
@@ -2120,16 +2120,28 @@ std::string GetActiveBonusesString() {
 	std::vector<std::string> active_bonuses;
 
 	// Check if "vampire upgraded" is obtained first
-	bool has_vampire_upgraded = obtained_benefits.count("vampire upgraded");
+	bool has_vampire_upgraded = false;
+	for (size_t i = 0; i < MAX_BENEFITS; i++) {
+		if (std::strcmp(BENEFITS[i].name, "vampire upgraded") == 0) {
+			has_vampire_upgraded = has_benefit(i);
+			break;
+		}
+	}
 
-	for (const auto& [benefit, bonus_text] : bonus_mappings) {
+	for (size_t i = 0; i < MAX_BENEFITS; i++) {
 		// Skip "vampire" if "vampire upgraded" is already obtained
-		if (benefit == "vampire" && has_vampire_upgraded) {
+		if (std::strcmp(BENEFITS[i].name, "vampire") == 0 && has_vampire_upgraded) {
 			continue;
 		}
 
-		if (obtained_benefits.count(benefit)) {
-			active_bonuses.push_back(bonus_text);
+		if (has_benefit(i)) {
+			// Encontrar el texto del bonus correspondiente
+			for (const auto& [benefit_name, bonus_text] : bonus_mappings) {
+				if (std::strcmp(BENEFITS[i].name, benefit_name) == 0) {
+					active_bonuses.push_back(bonus_text);
+					break;
+				}
+			}
 		}
 	}
 
