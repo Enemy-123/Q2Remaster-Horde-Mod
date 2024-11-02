@@ -682,33 +682,29 @@ void brain_laserbeam(edict_t* self)
 	monster_fire_dabeam(self, 1, true, brain_left_eye_laser_update);
 }
 
+// Función auxiliar para validar frames
+bool IsValidFrame(edict_t* self, int frame)
+{
+	if (!self || !self->monsterinfo.active_move.pointer())
+		return false;
+
+	const mmove_t* move = self->monsterinfo.active_move.pointer();
+	return (frame >= move->firstframe && frame <= move->lastframe);
+}
+
 void brain_laserbeam_reattack(edict_t* self)
 {
-	// Validar que self es válido
-	if (!self) {
-		gi.Com_PrintFmt("Error: brain_laserbeam_reattack - null self");
+	// Validaciones básicas
+	if (!self || !self->enemy || !self->enemy->inuse)
 		return;
-	}
 
-	// Validar que enemy existe y está vivo
-	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0) {
-		return;
-	}
-
-	// Verificar probabilidad y visibilidad
-	if (frandom() < 0.5f && visible(self, self->enemy)) {
-		// Validar que el frame está dentro del rango permitido
-		const mmove_t* move = self->monsterinfo.active_move.pointer();
-		if (!move) {
-			return;
-		}
-
-		// Verificar que FRAME_walk101 está dentro del rango válido para este movimiento
-		if (FRAME_walk101 >= move->firstframe && FRAME_walk101 <= move->lastframe) {
+	if (frandom() < 0.5f && visible(self, self->enemy) && self->enemy->health > 0) {
+		// Verificar si FRAME_walk101 es válido para el movimiento actual
+		if (IsValidFrame(self, FRAME_walk101)) {
 			self->s.frame = FRAME_walk101;
 		}
 		else {
-			// Si el frame no es válido, volver al movimiento de run
+			// Si el frame no es válido, cambiar a una animación apropiada
 			M_SetAnimation(self, &brain_move_run);
 		}
 	}
@@ -772,12 +768,22 @@ MMOVE_T(brain_move_jumpattack) = { FRAME_duck01, FRAME_duck08, brain_frames_jump
 // RAFAEL
 MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 {
+	if (!self || !self->enemy)
+		return;
+
 	const float r = range_to(self, self->enemy);
 
-	if (!strcmp(self->enemy->classname, "tesla_mine") || !strcmp(self->enemy->classname, "monster_sentrygun"))
+	// Asegurarse de que la animación actual es válida antes de cambiar
+	if (!self->monsterinfo.active_move.pointer()) {
+		M_SetAnimation(self, &brain_move_run);
+		return;
+	}
+
+	if (!strcmp(self->enemy->classname, "tesla_mine") ||
+		!strcmp(self->enemy->classname, "monster_sentrygun"))
 	{
 		M_SetAnimation(self, &brain_move_attack4);
-		return; // Salir para evitar cambios adicionales de animación
+		return;
 	}
 
 	if (r <= RANGE_NEAR)

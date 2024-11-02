@@ -501,28 +501,77 @@ bool M_AllowSpawn(edict_t* self) {
 void M_SetAnimation(edict_t* self, const save_mmove_t& move, bool instant)
 {
 	// [Paril-KEX] free the beams if we switch animations.
-	if (self->beam)
-	{
+	if (self->beam) {
 		G_FreeEdict(self->beam);
 		self->beam = nullptr;
 	}
-
-	if (self->beam2)
-	{
+	if (self->beam2) {
 		G_FreeEdict(self->beam2);
 		self->beam2 = nullptr;
 	}
 
+	// Validar frames del nuevo movimiento
+	const mmove_t* new_move = move.pointer();
+	if (new_move->firstframe < 0 || new_move->lastframe < new_move->firstframe) {
+		gi.Com_PrintFmt("Error: M_SetAnimation - invalid frame range");
+		return;
+	}
+
 	// instant switches will cause active_move to change on the next frame
-	if (instant)
-	{
+	if (instant) {
 		self->monsterinfo.active_move = move;
 		self->monsterinfo.next_move = nullptr;
+
+		// Asegurar que el frame inicial está dentro del rango válido
+		if (self->s.frame < new_move->firstframe || self->s.frame > new_move->lastframe) {
+			self->s.frame = new_move->firstframe;
+		}
 		return;
 	}
 
 	// these wait until the frame is ready to be finished
 	self->monsterinfo.next_move = move;
+}
+
+void LogFrameError(edict_t* self, const mmove_t* move)
+{
+	// Obtener información básica
+	const char* monster_name = self->classname ? self->classname : "unknown";
+	const char* enemy_name = (self->enemy && self->enemy->classname) ? self->enemy->classname : "no_enemy";
+
+	// Determinar estado actual
+	const char* current_state;
+	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
+		current_state = "STANDING";
+	else if (self->monsterinfo.aiflags & AI_DUCKED)
+		current_state = "DUCKING";
+	else if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
+		current_state = "COMBAT";
+	else if (self->monsterinfo.attack_state == AS_MELEE)
+		current_state = "MELEE";
+	else if (self->monsterinfo.attack_state == AS_MISSILE)
+		current_state = "MISSILE";
+	else if (self->enemy)
+		current_state = "ATTACKING";
+	else
+		current_state = "UNKNOWN";
+
+	// Usar el formato correcto para tu implementación
+	gi.Com_PrintFmt("Frame Error:\n"
+		"Monster: {}\n"
+		"State: {}\n"
+		"Enemy: {}\n"
+		"Frame: {} (valid range: {}-{})\n"
+		"Pos: {:.1f} {:.1f} {:.1f}\n",
+		monster_name,
+		current_state,
+		enemy_name,
+		self->s.frame,
+		move->firstframe,
+		move->lastframe,
+		self->s.origin[0],
+		self->s.origin[1],
+		self->s.origin[2]);
 }
 
 void M_MoveFrame(edict_t* self)
@@ -639,10 +688,11 @@ void M_MoveFrame(edict_t* self)
 		}
 	}
 
-	// Calculate and validate frame index
 	int32_t index = self->s.frame - move->firstframe;
 	if (index < 0 || index >= (move->lastframe - move->firstframe + 1)) {
-		gi.Com_PrintFmt("Error: M_MoveFrame - frame index out of bounds");
+		LogFrameError(self, move);
+		// Opcional: corregir el frame TEST
+		self->s.frame = move->firstframe;
 		return;
 	}
 
