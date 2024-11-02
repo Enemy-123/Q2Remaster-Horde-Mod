@@ -2437,15 +2437,14 @@ enum class WaveMessageType {
 
 // Implementación de DisplayWaveMessage
 void DisplayWaveMessage(gtime_t duration = 5_sec) {
-	WaveMessageType msgType = (brandom()) ? WaveMessageType::InventoryPrompt : WaveMessageType::Welcome;
-	switch (msgType) {
-	case WaveMessageType::InventoryPrompt:
-		UpdateHordeMessage("Use Inventory <KEY> or Use Compass To Open Horde Menu.\n\nMAKE THEM PAY!\n", duration);
-		break;
-	case WaveMessageType::Welcome:
-		UpdateHordeMessage("Welcome to Hell.\n\nNew! Use FlipOff <Key> looking to the wall to spawn a laser (cost: 25 cells)", duration);
-		break;
-	}
+	static const std::array<const char*, 3> messages = {
+		"Horde Menu available upon opening Inventory or using Compass\n\nMAKE THEM PAY!\n",
+		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
+		"NEW!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!"
+	};
+
+	int choice = irandom(0, messages.size() - 1);
+	UpdateHordeMessage(messages[choice], duration);
 }
 
 // Funci�n para manejar el mensaje de limpieza de ola
