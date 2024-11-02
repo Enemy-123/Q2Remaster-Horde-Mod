@@ -974,6 +974,91 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 
 constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array touch
 
+
+// Diferentes offsets según la superficie
+constexpr float TESLA_WALL_OFFSET = 4.51f;      // Offset para paredes
+constexpr float TESLA_CEILING_OFFSET = 6.4f;   // Offset optimizado para techos
+constexpr float TESLA_FLOOR_OFFSET = 0.0f;     // Offset para suelo
+constexpr float TESLA_ORB_OFFSET = 12.0f;      // Altura de la esfera normal
+constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f;  // Altura de la esfera cuando está en techo
+
+// Función modificada para el origen del rayo
+vec3_t calculate_tesla_ray_origin(const edict_t* self) {
+	vec3_t ray_origin = self->s.origin;
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+
+	// En pared
+	if (fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135) {
+		// Obtener el YAW normalizado
+		float yaw = fmod(self->s.angles[YAW] + 360.0f, 360.0f);
+
+		// Cálculo base del punto de origen
+		ray_origin = ray_origin + (forward * 8.0f);  // Mover hacia adelante
+
+		// Calculamos un vector compuesto para la altura
+		vec3_t height_vector;
+		if (yaw >= 90 && yaw < 270) {
+			// Para un lado
+			height_vector = up + (forward * 0.25f);  // Combinar up con un poco de forward
+		}
+		else {
+			// Para el otro lado
+			height_vector = up - (forward * 0.25f);  // Combinar up con forward negativo
+		}
+
+		// Normalizar el vector de altura y aplicarlo
+		height_vector.normalize();
+		ray_origin = ray_origin + (height_vector * 16.0f);
+
+		// Pequeño ajuste final según la orientación
+		if (yaw >= 90 && yaw < 270) {
+			ray_origin = ray_origin + (forward * 2.0f);
+		}
+		else {
+			ray_origin = ray_origin - (forward * 2.0f);
+		}
+	}
+	// En techo
+	else if (fabs(self->s.angles[PITCH]) > 150 || fabs(self->s.angles[PITCH]) < -150) {
+		ray_origin = ray_origin - (up * TESLA_ORB_OFFSET_CEIL);
+		ray_origin = ray_origin - (up * 4.0f);
+	}
+	// En suelo
+	else {
+		ray_origin = ray_origin + (up * TESLA_ORB_OFFSET);
+	}
+
+	return ray_origin;
+}
+// Función para calcular el punto objetivo del rayo tesla
+vec3_t calculate_tesla_ray_target(const edict_t* self, const edict_t* target) {
+	// Calcular el centro del objetivo
+	vec3_t target_center = target->s.origin;
+	vec3_t target_mins = target->mins;
+	vec3_t target_maxs = target->maxs;
+
+	// Ajustar el punto objetivo al centro de masa del target
+	target_center[0] += (target_mins[0] + target_maxs[0]) * 0.5f;
+	target_center[1] += (target_mins[1] + target_maxs[1]) * 0.5f;
+	target_center[2] += (target_mins[2] + target_maxs[2]) * 0.5f;
+
+	return target_center;
+}
+
+// Función mejorada para la detección de colisiones del rayo
+bool tesla_ray_trace(const edict_t* self, const edict_t* target, trace_t& tr) {
+	vec3_t ray_start = calculate_tesla_ray_origin(self);
+	vec3_t ray_end = calculate_tesla_ray_target(self, target);
+
+	// Realizar el trace
+	tr = gi.traceline(ray_start, ray_end, self, MASK_PROJECTILE);
+
+	// Verificar si el rayo alcanza al objetivo
+	return tr.fraction == 1.0f || tr.ent == target;
+}
+
+
 THINK(tesla_think_active) (edict_t* self) -> void
 {
 	if (!self)
@@ -983,7 +1068,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	edict_t** touch = nullptr;
 	edict_t* hit;
 	vec3_t dir{}, start;
-	trace_t tr;
+	//trace_t tr{};
 
 	try {
 		touch = new edict_t * [MAX_TOUCH_ENTITIES];
@@ -1070,78 +1155,33 @@ THINK(tesla_think_active) (edict_t* self) -> void
 
 	// Mejorar la lógica de selección de objetivos
 	int targets_attacked = 0;
-	for (i = 0; i < num && targets_attacked < max_targets; i++)
-	{
-		if (!(self->inuse))
-			break;
-
+	for (i = 0; i < num && targets_attacked < max_targets; i++) {
 		hit = touch[i];
-		if (!hit || !hit->inuse)
-			continue;
-		if (hit == self)
-			continue;
-		if (hit->health < 1)
-			continue;
-		if (hit->client)
-		{
-			if (!G_IsDeathmatch())
-				continue;
-			if (!self->teamchain || !self->teamchain->owner)
-			{
-				gi.Com_PrintFmt("PRINT: Warning: tesla_think_active encontró teamchain o owner nulo\n");
-				continue;
-			}
-			if (CheckTeamDamage(hit, self->teamchain->owner))
-				continue;
-		}
-		if (!(hit->svflags & SVF_MONSTER) && !(hit->flags & FL_DAMAGEABLE) && !hit->client)
-			continue;
-		if (hit->classname && strcmp(hit->classname, "monster_sentrygun") == 0)
+		if (!hit->inuse || hit == self || hit->health < 1)
 			continue;
 
-		// Ajustar el punto de origen del trace según la orientación
-		vec3_t trace_start = start;  // Reemplaza VectorCopy
+		trace_t tr;
+		if (tesla_ray_trace(self, hit, tr)) {
+			vec3_t ray_start = calculate_tesla_ray_origin(self);
+			vec3_t ray_end = tr.endpos;
 
-		// Realizar un trace hacia el centro del objetivo
-		vec3_t target_center = (hit->mins + hit->maxs) * 0.5f;  // Reemplaza VectorAdd y VectorScale
-		target_center = hit->s.origin + target_center;  // Reemplaza VectorAdd
+			// Calcular la dirección del daño
+			vec3_t dir = ray_end - ray_start;
+			dir.normalize();
 
-		tr = gi.traceline(trace_start, target_center, self, MASK_PROJECTILE);
+			// Aplicar el daño
+			T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
+				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-		if (tr.fraction == 1 || tr.ent == hit)
-		{
-			dir = target_center - trace_start;  // Reemplaza VectorSubtract
-
-			if (self->dmg > TESLA_DAMAGE)
-				gi.sound(self, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
-
-			if ((hit->svflags & SVF_MONSTER) && !(hit->flags & (FL_FLY | FL_SWIM)))
-			{
-				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-					self->dmg, 0, DAMAGE_NO_ARMOR, MOD_TESLA);
-
-				if (hit->health <= 0)
-				{
-					hit->health = -100;
-					vec3_t up = { 0.0f, 0.0f, 1.0f };
-					T_Damage(hit, self, self->teammaster, vec3_origin, hit->s.origin, up,
-						9999, 0, DAMAGE_NO_ARMOR, MOD_TESLA);
-				}
-			}
-			else
-			{
-				T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
-					self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
-			}
-
-			// Efecto visual del rayo
+			// Efecto visual del rayo mejorado
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LIGHTNING);
 			gi.WriteEntity(self);
 			gi.WriteEntity(hit);
-			gi.WritePosition(trace_start);
-			gi.WritePosition(tr.endpos);
-			gi.multicast(trace_start, MULTICAST_PVS, false);
+			gi.WritePosition(ray_start);
+			gi.WritePosition(ray_end);
+			gi.multicast(ray_start, MULTICAST_PVS, false);
+
 			targets_attacked++;
 		}
 	}
@@ -1260,7 +1300,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	vec3_t forward, right, up;
 	movetype_t movetype = MOVETYPE_NONE;
 	int stick_ok = 0;
-	vec3_t land_point;
+	//vec3_t land_point{};
 
 	// Verificar si golpea el cielo
 	if (tr.surface && (tr.surface->flags & SURF_SKY))
@@ -1269,15 +1309,27 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 		return;
 	}
 
-	// Verificar si golpea lava o slime
-	if (tr.plane.normal)
-	{
-		land_point = ent->s.origin + (tr.plane.normal * -10.0f);
-		if (gi.pointcontents(land_point) & (CONTENTS_SLIME | CONTENTS_LAVA))
-		{
-			tesla_blow(ent);
-			return;
+	if (tr.plane.normal) {
+		float offset;
+
+		// Determinar qué offset usar según la superficie
+		if (fabs(tr.plane.normal[2]) > 0.7f) {
+			if (tr.plane.normal[2] > 0) {
+				// Suelo
+				offset = TESLA_FLOOR_OFFSET;
+			}
+			else {
+				// Techo
+				offset = TESLA_CEILING_OFFSET;
+			}
 		}
+		else {
+			// Pared
+			offset = TESLA_WALL_OFFSET;
+		}
+
+		// Aplicar el offset apropiado
+		ent->s.origin = ent->s.origin + (tr.plane.normal * -offset);
 	}
 
 	constexpr float TESLA_STOP_EPSILON = 0.1f;
