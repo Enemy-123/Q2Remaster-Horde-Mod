@@ -535,45 +535,12 @@ void M_SetAnimation(edict_t* self, const save_mmove_t& move, bool instant)
 
 void LogFrameError(edict_t* self, const mmove_t* move)
 {
-	// Obtener información básica
-	const char* monster_name = self->classname ? self->classname : "unknown";
-	const char* enemy_name = (self->enemy && self->enemy->classname) ? self->enemy->classname : "no_enemy";
-
-	// Determinar estado actual
-	const char* current_state;
-	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
-		current_state = "STANDING";
-	else if (self->monsterinfo.aiflags & AI_DUCKED)
-		current_state = "DUCKING";
-	else if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
-		current_state = "COMBAT";
-	else if (self->monsterinfo.attack_state == AS_MELEE)
-		current_state = "MELEE";
-	else if (self->monsterinfo.attack_state == AS_MISSILE)
-		current_state = "MISSILE";
-	else if (self->enemy)
-		current_state = "ATTACKING";
-	else
-		current_state = "UNKNOWN";
-
-	// Usar el formato correcto para tu implementación
-	gi.Com_PrintFmt("Frame Error:\n"
-		"Monster: {}\n"
-		"State: {}\n"
-		"Enemy: {}\n"
-		"Frame: {} (valid range: {}-{})\n"
-		"Pos: {:.1f} {:.1f} {:.1f}\n",
-		monster_name,
-		current_state,
-		enemy_name,
+	gi.Com_PrintFmt("Frame Error: {} frame {} not in range {}-{}\n",
+		self->classname,
 		self->s.frame,
 		move->firstframe,
-		move->lastframe,
-		self->s.origin[0],
-		self->s.origin[1],
-		self->s.origin[2]);
+		move->lastframe);
 }
-
 void M_MoveFrame(edict_t* self)
 {
 	// Validate self pointer
