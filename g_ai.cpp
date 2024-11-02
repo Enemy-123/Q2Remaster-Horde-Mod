@@ -832,64 +832,64 @@ bool G_MonsterSourceVisible(edict_t* self, edict_t* client)
             (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
     return is_visible;
 }
+
 bool FindEnhancedTarget(edict_t* self) {
-    // Si es una torreta, usar FindMTarget directamente
+    // Caso especial para torreta
     if (strcmp(self->classname, "monster_sentrygun") == 0) {
         return FindMTarget(self);
     }
 
-    constexpr float MAX_RANGE = 1000.0f;
-    constexpr float MAX_RANGE_SQUARED = MAX_RANGE * MAX_RANGE;
-    std::vector<std::pair<edict_t*, float>> nearbyEntities;
+    edict_t* best_target = nullptr;
+    float best_dist = MAX_RANGE_SQUARED;
 
-    // Función lambda para verificar si una entidad es un objetivo válido
-    auto isValidTarget = [self](edict_t* ent) {
-        if (ent == self || !ent->inuse) return false;
-
-        // Para monstruos, considerar jugadores y otras entidades enemigas
-        return !OnSameTeam(self, ent) &&
-            (ent->client || (ent->svflags & SVF_MONSTER) ||
-                strcmp(ent->classname, "monster_sentrygun") == 0);
-        };
-
-    // Iterar sobre todas las entidades activas
-    for (unsigned int i = 0; i < globals.num_edicts; i++) {
+    // Iterar una sola vez, manteniendo el mejor objetivo
+    for (unsigned int i = 1; i < globals.num_edicts; i++) {
         edict_t* ent = &g_edicts[i];
-        if (!isValidTarget(ent)) continue;
-        float distSquared = DistanceSquared(self->s.origin, ent->s.origin);
-        if (distSquared <= MAX_RANGE_SQUARED) {
-            nearbyEntities.push_back({ ent, distSquared });
+
+        // Verificaciones rápidas primero para early-out
+        if (!ent->inuse || ent == self ||
+            ent->health <= 0 || ent->deadflag) {
+            continue;
+        }
+
+        // Verificar si es un objetivo válido
+        if (!(!OnSameTeam(self, ent) &&
+            (ent->client || (ent->svflags & SVF_MONSTER) ||
+                strcmp(ent->classname, "monster_sentrygun") == 0))) {
+            continue;
+        }
+
+        // Verificaciones específicas para clientes
+        if (ent->client) {
+            if (ent->client->invisible_time > level.time &&
+                ent->client->invisibility_fade_time <= level.time) {
+                continue;
+            }
+            if (EntIsSpectating(ent)) {
+                continue;
+            }
+        }
+
+        // Check de distancia
+        float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
+        if (dist_squared > MAX_RANGE_SQUARED) {
+            continue;
+        }
+
+        // Solo hacer el check de visibilidad si este objetivo está más cerca que el mejor actual
+        if (dist_squared < best_dist && visible(self, ent, false)) {
+            best_dist = dist_squared;
+            best_target = ent;
         }
     }
 
-    // Ordenar entidades por distancia
-    std::sort(nearbyEntities.begin(), nearbyEntities.end(),
-        [](const auto& a, const auto& b) {
-            return a.second < b.second;
-        });
-
-    // Encontrar el objetivo más cercano visible y vivo
-    for (const auto& [ent, _] : nearbyEntities) {
-        if (ent->health > 0 && !ent->deadflag && visible(self, ent, false)) {
-            // Verificación adicional para jugadores
-            if (ent->client) {
-                if (ent->client->invisible_time > level.time &&
-                    ent->client->invisibility_fade_time <= level.time) {
-                    continue; // Saltar jugadores completamente invisibles
-                }
-                if (EntIsSpectating(ent)) {
-                    continue; // Saltar espectadores
-                }
-            }
-
-            self->enemy = ent;
-            return true;
-        }
+    if (best_target) {
+        self->enemy = best_target;
+        return true;
     }
 
     return false;
-}
-/*
+}/*
 ===========
 FindTarget
 
