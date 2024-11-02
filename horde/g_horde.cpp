@@ -2448,8 +2448,8 @@ void DisplayWaveMessage(gtime_t duration = 5_sec) {
 }
 
 static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reason) noexcept {
-	// Si la ola terminó con todos los monstruos muertos, aplicar reglas normales
-	if (reason == WaveEndReason::AllMonstersDead) {
+	// Si la ola terminó con todos los monstruos muertos o había un jefe, aplicar reglas normales
+	if (reason == WaveEndReason::AllMonstersDead || boss_spawned_for_wave) {
 		if (current_wave_level >= 15 && current_wave_level <= 26) {
 			gi.cvar_set("g_insane", "1");
 			gi.cvar_set("g_chaotic", "0");
@@ -2463,7 +2463,7 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 			gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
 		}
 	}
-	else {
+	else if (!boss_spawned_for_wave) { // Solo aplicar lógica de probabilidad si no había jefe
 		// Si la ola no terminó por victoria completa, pequeña probabilidad de mantener la dificultad
 		float probability = mapSize.isBigMap ? 0.3f :
 			mapSize.isSmallMap ? 0.2f : 0.25f;  // 20-30% según tamaño de mapa
@@ -2492,6 +2492,7 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 
 	g_horde_local.state = horde_state_t::rest;
 }
+
 // Función para obtener un sonido aleatorio
 static const char* GetRandomWaveSound() {
 	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
