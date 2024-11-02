@@ -1867,14 +1867,14 @@ static void SpawnBossAutomatically() {
 		return;
 	}
 
-	// Crear el vector de origen una sola vez
-	const vec3_t spawn_origin = {
+	// Crear el vector de origen usando inicialización de agregados
+	const vec3_t spawn_origin{
 		static_cast<float>(it->second[0]),
 		static_cast<float>(it->second[1]),
 		static_cast<float>(it->second[2])
 	};
 
-	// Validar origen antes de continuar
+	// Usar vec3_origin para la comparación
 	if (spawn_origin == vec3_origin) {
 		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
 		return;

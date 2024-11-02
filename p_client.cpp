@@ -3465,10 +3465,6 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 
 	return false;
 }
-// Declaración de VectorCompare
-constexpr bool VectorCompare(const vec3_t v1, const vec3_t v2) {
-	return (v1[0] == v2[0] && v1[1] == v2[1] && v1[2] == v2[2]);
-}
 
 // Constantes
 constexpr gtime_t MIN_INACTIVITY_DURATION = 15_sec;
@@ -3494,10 +3490,10 @@ static void HandleInactivePlayer(edict_t* ent) {
 	ent->client->resp.inactive = true;
 }
 
-static bool IsPlayerActive(const edict_t*  ent) {
+static bool IsPlayerActive(const edict_t* ent) {
 	return (ent->client->latched_buttons & BUTTON_ANY) ||
-		!VectorCompare(ent->client->old_origin, ent->s.origin) ||
-		!VectorCompare(ent->client->old_angles, ent->client->v_angle);
+		ent->client->old_origin != ent->s.origin ||
+		ent->client->old_angles != ent->client->v_angle;
 }
 
 static bool ClientInactivityTimer(edict_t* ent) {

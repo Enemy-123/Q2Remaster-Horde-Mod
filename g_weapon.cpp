@@ -586,13 +586,6 @@ THINK(Grenade4_Think) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-void VectorNegate(const vec3_t in, vec3_t out)
-{
-	out[0] = -in[0];
-	out[1] = -in[1];
-	out[2] = -in[2];
-}
-
 // Nueva función para manejar la lógica completa de la explosión
 void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal)
 {
@@ -665,8 +658,8 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 // THINK sin argumentos adicionales para explotar la granada
 THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 {
-	vec3_t normal{};
-	VectorNegate(ent->velocity, normal);  // Usar la velocidad negativa como la dirección de impacto
+	// Usar el operador unario - para obtener la velocidad negativa como dirección de impacto
+	vec3_t normal = -ent->velocity;
 	BouncyGrenade_ExplodeReal(ent, ent->groundentity, normal);
 }
 
@@ -699,11 +692,8 @@ THINK(BouncyGrenade_Think)(edict_t* ent) -> void
 	if (ent->groundentity || !ent->velocity[2])
 	{
 		edict_t* other = ent->groundentity;  // Asignar el suelo como el "other" cuando está en el suelo
-		vec3_t normal{};
-
-		// Calcular la dirección del impacto como la opuesta a la velocidad
-		VectorNegate(ent->velocity, normal);
-
+		// Calcular la dirección del impacto como la opuesta a la velocidad usando el operador -
+		vec3_t normal = -ent->velocity;
 		// Llamar a la función de explosión real
 		BouncyGrenade_ExplodeReal(ent, other, normal);
 	}

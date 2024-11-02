@@ -3050,11 +3050,6 @@ struct gclient_t
 
 	edict_t* owned_sphere; // this points to the player's sphere
 
-	int num_teslas; // max teslas per client
-	//int num_traps; //foodcube trap per client
-	int num_sentries; //Sentry Guns per client
-	int last_wave_timer_horde_update; //eaks hud timer
-	char voted_map[128];
 	// ROGUE
 //=======
 
@@ -3152,7 +3147,12 @@ struct gclient_t
 	bool menu_selected;
 	//	pmtype_t prev_pm_type;
 	void* laser_manager;
-	int num_lasers;
+	int num_lasers = 0;
+	int num_teslas = 0; // max teslas per client
+	//int num_traps; //foodcube trap per client
+	int num_sentries = 0; //Sentry Guns per client
+	int last_wave_timer_horde_update; //eaks hud timer
+	char voted_map[128];
 
 };
 
