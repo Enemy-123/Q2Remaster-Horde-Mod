@@ -34,7 +34,7 @@ void Use_IR(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
 
-	ent->client->ir_time = max(level.time, ent->client->ir_time) + 60_sec;
+	ent->client->ir_time = max(level.time, ent->client->ir_time) + 25_sec;
 
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NORM, 0);
 }
