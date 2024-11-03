@@ -539,7 +539,7 @@ void turret2Fire(edict_t* self)
 								vec3_origin,
 								self->monsterinfo.quadfire_time >
 								level.time ? 2 : 0,
-								30, MZ2_TURRET_BLASTER);
+								10, MZ2_TURRET_BLASTER);
 							damageApplied = true;
 						}
 
