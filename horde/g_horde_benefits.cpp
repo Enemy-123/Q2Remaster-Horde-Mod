@@ -7,10 +7,11 @@ uint32_t obtained_benefits_mask = 0;
 uint8_t recent_benefits[MAX_RECENT_BENEFITS] = { 0xFF, 0xFF, 0xFF };
 size_t recent_index = 0;
 int32_t vampire_level = 0;
+bool bfg_pull_active = false;  // New variable to track BFG pull state
 
 
 // Array estático de beneficios
-const benefit_t BENEFITS[MAX_BENEFITS] = {	{
+const benefit_t BENEFITS[MAX_BENEFITS] = { {
 		"vampire",
 		"\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n",
 		"RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n",
@@ -82,6 +83,9 @@ void ResetBenefits() noexcept {
 	std::fill_n(recent_benefits, 3, 0xFF);
 	recent_index = 0;
 	vampire_level = 0;
+	bfg_pull_active = false;
+	gi.cvar_set("g_bfgpull", "0");  // Reset to default slide behavior
+	gi.cvar_set("g_bfgslide", "1"); // Enable slide by default
 }
 
 
@@ -115,14 +119,31 @@ static inline bool is_benefit_eligible(const benefit_t& benefit, int32_t wave, s
 }
 
 static void apply_benefit(const benefit_t& benefit) {
-	// Configurar el cvar
-	gi.cvar_set(benefit.cvar_name, benefit.cvar_value);
+	// Special handling for BFG Grav-Pull
+	if (std::strcmp(benefit.name, "BFG Grav-Pull Lasers") == 0) {
+		bfg_pull_active = !bfg_pull_active;
 
-	// Mostrar mensajes
+		if (bfg_pull_active) {
+			gi.cvar_set("g_bfgpull", "1");   // Enable pull
+			gi.cvar_set("g_bfgslide", "0");  // Disable slide
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nBFG LASERS UPGRADED!\n");
+			gi.LocBroadcast_Print(PRINT_CHAT, "BFG Grav-Pull Lasers Enabled\n");
+		}
+		else {
+			gi.cvar_set("g_bfgpull", "0");   // Disable pull
+			gi.cvar_set("g_bfgslide", "1");  // Enable slide
+			gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\n\nBFG LASERS NORMAL MODE\n");
+			gi.LocBroadcast_Print(PRINT_CHAT, "BFG Slide Mode Active\n");
+		}
+		return;
+	}
+
+	// Normal benefit application
+	gi.cvar_set(benefit.cvar_name, benefit.cvar_value);
 	gi.LocBroadcast_Print(PRINT_CENTER, "{}", benefit.center_msg);
 	gi.LocBroadcast_Print(PRINT_CHAT, "{}", benefit.chat_msg);
 
-	// Manejar caso especial de vampire
+	// Handle vampire cases
 	if (std::strcmp(benefit.name, "vampire") == 0)
 		vampire_level = 1;
 	else if (std::strcmp(benefit.name, "vampire upgraded") == 0)
