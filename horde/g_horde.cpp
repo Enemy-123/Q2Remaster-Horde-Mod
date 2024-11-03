@@ -61,6 +61,7 @@ enum class horde_state_t {
 	rest
 };
 
+// En HordeState, reemplazar el vector con array estático
 struct HordeState {
 	gtime_t         warm_time = 4_sec;
 	horde_state_t   state = horde_state_t::warmup;
@@ -68,48 +69,64 @@ struct HordeState {
 	int32_t         num_to_spawn = 0;
 	int32_t         level = 0;
 	int32_t         queued_monsters = 0;
-	gtime_t         lastPrintTime = 0_sec; // Nueva variable
+	gtime_t         lastPrintTime = 0_sec;
 
-	// Variables para condiciones
 	bool            conditionTriggered = false;
 	gtime_t         conditionStartTime = 0_sec;
 	gtime_t         conditionTimeThreshold = 0_sec;
 	bool            timeWarningIssued = false;
 	gtime_t         waveEndTime = 0_sec;
-	std::vector<bool> warningIssued = { false, false, false, false }; // Assuming 4 warning times
-} g_horde_local;
+	bool            warningIssued[4] = { false, false, false, false }; // Array estático en lugar de vector
+}g_horde_local;
 
 // Clase de selección genérica usando templates
+// Nueva implementación de WeightedSelection usando arrays estáticos
 template <typename T>
 struct WeightedSelection {
-	std::vector<const T*> items;
-	std::vector<double> cumulative_weights;
-	double total_weight;
+	static constexpr size_t MAX_ITEMS = 64;
+	const T* items[MAX_ITEMS];
+	double cumulative_weights[MAX_ITEMS];
+	size_t item_count = 0;
+	double total_weight = 0.0;
 
-	WeightedSelection() : total_weight(0.0) {}
-
-	void rebuild(const std::vector<const T*>& eligible_items) {
-		items = eligible_items;
-		cumulative_weights.clear();
+	void clear() {
+		item_count = 0;
 		total_weight = 0.0;
+	}
 
-		for (const auto& item : items) {
-			total_weight += item->weight;
-			cumulative_weights.push_back(total_weight);
+	void add(const T* item, double weight) {
+		if (item_count < MAX_ITEMS) {
+			items[item_count] = item;
+			total_weight += weight;
+			cumulative_weights[item_count] = total_weight;
+			item_count++;
 		}
 	}
 
 	const T* select() const {
-		if (items.empty()) return nullptr;
+		if (item_count == 0) return nullptr;
 
 		std::uniform_real_distribution<double> dist(0.0, total_weight);
 		double random_weight = dist(mt_rand);
 
-		auto it = std::upper_bound(cumulative_weights.begin(), cumulative_weights.end(), random_weight);
-		return items[it == cumulative_weights.end() ? items.size() - 1 :
-			std::distance(cumulative_weights.begin(), it)];
+		// Búsqueda binaria en el array de pesos acumulativos
+		size_t left = 0;
+		size_t right = item_count - 1;
+
+		while (left < right) {
+			size_t mid = (left + right) / 2;
+			if (cumulative_weights[mid] < random_weight) {
+				left = mid + 1;
+			}
+			else {
+				right = mid;
+			}
+		}
+
+		return items[left];
 	}
 };
+
 
 int32_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
@@ -889,8 +906,8 @@ struct picked_item_t {
 };
 
 gitem_t* G_HordePickItem() {
-	std::vector<const weighted_item_t*> eligible_items;
-	eligible_items.reserve(std::size(items));
+	static const weighted_item_t* eligible_items[MAX_ELIGIBLE_ITEMS];
+	size_t eligible_count = 0;
 
 	for (const auto& item : items) {
 		if ((item.min_level == -1 || g_horde_local.level >= item.min_level) &&
@@ -899,20 +916,21 @@ gitem_t* G_HordePickItem() {
 			if (item.adjust_weight) {
 				item.adjust_weight(item, weight);
 			}
-			if (weight > 0.0f) {
-				eligible_items.push_back(&item);
+			if (weight > 0.0f && eligible_count < MAX_ELIGIBLE_ITEMS) {
+				eligible_items[eligible_count++] = &item;
 			}
 		}
 	}
 
-	if (eligible_items.empty()) return nullptr;
+	if (eligible_count == 0) return nullptr;
 
-	WeightedSelection<weighted_item_t> selection;
-	selection.rebuild(eligible_items);
-	const weighted_item_t* chosen_item = selection.select();
+	// Selección aleatoria simple
+	size_t selected_index = mt_rand() % eligible_count;
+	const weighted_item_t* chosen_item = eligible_items[selected_index];
 
 	return chosen_item ? FindItemByClassname(chosen_item->classname) : nullptr;
 }
+
 int32_t WAVE_TO_ALLOW_FLYING;
 
 
@@ -1108,44 +1126,68 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 	// Return true if we found at least one player or bot in the area
 	return filter_data.count > 0;
 }
-
 const char* G_HordePickMonster(edict_t* spawn_point) {
 	if (spawnPointsData[spawn_point].isTemporarilyDisabled || IsSpawnPointOccupied(spawn_point)) {
 		return nullptr;
 	}
 
+	// Arrays estáticos para almacenar monstruos elegibles y sus pesos
+	static const weighted_item_t* eligible_monsters[MAX_ELIGIBLE_MONSTERS];
+	static double monster_weights[MAX_ELIGIBLE_MONSTERS];
+	size_t eligible_count = 0;
+	double total_weight = 0.0;
+
+	// Calcular factores de ajuste
 	int32_t flyingSpawns = countFlyingSpawns();
 	float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-	std::vector<const weighted_item_t*> eligible_monsters;
+	// Colectar monstruos elegibles y calcular pesos en un solo paso
 	for (const auto& item : monsters) {
 		bool isFlyingMonster = IsFlyingMonster(item.classname);
 		if (IsMonsterEligible(spawn_point, item, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
-			eligible_monsters.push_back(&item);
+			double weight = CalculateMonsterWeight(item, isFlyingMonster, adjustmentFactor);
+			if (weight > 0.0 && eligible_count < MAX_ELIGIBLE_MONSTERS) {
+				eligible_monsters[eligible_count] = &item;
+				monster_weights[eligible_count] = weight;
+				total_weight += weight;
+				eligible_count++;
+			}
 		}
 	}
 
-	if (eligible_monsters.empty()) {
+	// Verificar si hay monstruos elegibles
+	if (eligible_count == 0) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
-	WeightedSelection<weighted_item_t> selection;
-	selection.rebuild(eligible_monsters);
+	// Convertir pesos a probabilidades acumulativas
+	for (size_t i = 1; i < eligible_count; i++) {
+		monster_weights[i] += monster_weights[i - 1];
+	}
 
-	// Ajustar los pesos antes de seleccionar
-	std::vector<const weighted_item_t*> adjusted_monsters;
-	for (const auto& monster : eligible_monsters) {
-		double adjusted_weight = CalculateMonsterWeight(*monster, IsFlyingMonster(monster->classname), adjustmentFactor);
-		if (adjusted_weight > 0.0) {
-			adjusted_monsters.push_back(monster);
+	// Selección basada en peso usando búsqueda binaria
+	double random_value = frandom() * total_weight;
+	size_t selected_index = 0;
+
+	// Búsqueda binaria para encontrar el monstruo seleccionado
+	size_t left = 0;
+	size_t right = eligible_count - 1;
+
+	while (left < right) {
+		size_t mid = (left + right) / 2;
+		if (monster_weights[mid] < random_value) {
+			left = mid + 1;
+		}
+		else {
+			right = mid;
 		}
 	}
-	selection.rebuild(adjusted_monsters);
+	selected_index = left;
 
-	const weighted_item_t* chosen_monster = selection.select();
-
-	if (chosen_monster) {
+	// Verificar selección válida
+	if (selected_index < eligible_count) {
+		const weighted_item_t* chosen_monster = eligible_monsters[selected_index];
 		UpdateCooldowns(spawn_point, chosen_monster->classname);
 		ResetSingleSpawnPointAttempts(spawn_point);
 		return chosen_monster->classname;
@@ -1153,7 +1195,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	return nullptr;
 }
-
 
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
@@ -1416,8 +1457,8 @@ void BossDeathHandler(edict_t* boss) {
 	boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
 	auto_spawned_bosses.erase(boss);
 
-	// Items normales que el boss dropea
-	const std::array<const char*, 7> itemsToDrop = {
+	// Items normales que el boss dropea (array estático)
+	static const char* itemsToDrop[7] = {
 		"item_adrenaline", "item_pack", "item_doppleganger",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier",
 		"item_invulnerability"
@@ -1450,12 +1491,24 @@ void BossDeathHandler(edict_t* boss) {
 	specialItem->s.alpha = 0.8f;
 	specialItem->s.scale = 1.5f;
 
-	// Soltar los demás ítems
-	std::vector<const char*> shuffledItems(itemsToDrop.begin(), itemsToDrop.end());
-	std::shuffle(shuffledItems.begin(), shuffledItems.end(), mt_rand);
+	// Hacer shuffle in-place de los items usando Fisher-Yates
+	static char* shuffledItems[7];
+	for (size_t i = 0; i < 7; i++) {
+		shuffledItems[i] = const_cast<char*>(itemsToDrop[i]);
+	}
 
-	for (const auto& itemClassname : shuffledItems) {
-		edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname));
+	for (int i = 6; i > 0; i--) {
+		int j = mt_rand() % (i + 1);
+		if (i != j) {
+			char* temp = shuffledItems[i];
+			shuffledItems[i] = shuffledItems[j];
+			shuffledItems[j] = temp;
+		}
+	}
+
+	// Soltar los items shuffleados
+	for (int i = 0; i < 7; i++) {
+		edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(shuffledItems[i]));
 		const vec3_t itemVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY,
 			MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
 		SetupDroppedItem(droppedItem, boss->s.origin, itemVelocity, true);
@@ -1464,16 +1517,21 @@ void BossDeathHandler(edict_t* boss) {
 	// Finalizar el manejo del boss
 	boss->takedamage = false;
 
-	// Verificar si es un jefe volador usando el array existente
-	const std::array<const char*, 4> flyingBossTypes = {
+	// Verificar si es un jefe volador (array estático)
+	static const char* flyingBossTypes[4] = {
 		"monster_boss2", "monster_carrier",
 		"monster_carrier_mini", "monster_boss2kl"
 	};
 
-	if (std::find(flyingBossTypes.begin(), flyingBossTypes.end(), boss->classname) != flyingBossTypes.end()) {
-		flying_monsters_mode = false;
+	// Búsqueda lineal simple en lugar de std::find
+	for (int i = 0; i < 4; i++) {
+		if (strcmp(boss->classname, flyingBossTypes[i]) == 0) {
+			flying_monsters_mode = false;
+			break;
+		}
 	}
 }
+
 void boss_die(edict_t* boss) {
 	if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->health <= 0 &&
 		auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
@@ -2393,7 +2451,6 @@ static const char* GetRandomWaveSound() {
 static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 	const char* message;
 
-	// Modo chaotic
 	if (g_chaotic->integer > 0) {
 		if (g_chaotic->integer == 2) {
 			message = brandom() ?
@@ -2406,7 +2463,6 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 				"***CHAOS APPROACHES***\n\nREADY FOR BATTLE!\n";
 		}
 	}
-	// Modo insane
 	else if (g_insane->integer > 0) {
 		if (g_insane->integer == 2) {
 			message = brandom() ?
@@ -2419,7 +2475,6 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 				"***FIERCE BATTLE AHEAD***\n\nSTAND READY!\n";
 		}
 	}
-	// Modo normal
 	else {
 		message = brandom() ?
 			"STROGGS STARTING TO PUSH!\n\nSTAY ALERT!\n" :
@@ -2428,17 +2483,17 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 
 	UpdateHordeMessage(message, duration);
 
-	// Resetear el timer y estados relacionados
 	g_independent_timer_start = level.time;
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.conditionTriggered = false;
 	g_horde_local.conditionStartTime = 0_sec;
 	g_horde_local.conditionTimeThreshold = 0_sec;
 
-	// Resetear las advertencias
-	std::fill(g_horde_local.warningIssued.begin(), g_horde_local.warningIssued.end(), false);
+	// Resetear las advertencias usando un bucle for simple
+	for (size_t i = 0; i < 4; i++) {
+		g_horde_local.warningIssued[i] = false;
+	}
 
-	// Reproducir un sonido aleatorio
 	gi.sound(world, CHAN_VOICE, gi.soundindex(GetRandomWaveSound()), 1, ATTN_NONE, 0);
 }
 
@@ -2715,7 +2770,12 @@ void Horde_RunFrame() {
 				g_horde_local.conditionStartTime = 0_sec;
 				g_horde_local.waveEndTime = 0_sec;
 				g_horde_local.lastPrintTime = 0_sec;
-				std::fill(g_horde_local.warningIssued.begin(), g_horde_local.warningIssued.end(), false);
+
+				// Resetear las warningtimes usando un bucle for simple
+				for (size_t i = 0; i < 4; i++) {
+					g_horde_local.warningIssued[i] = false;
+				}
+
 				gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
 			}
 		}
