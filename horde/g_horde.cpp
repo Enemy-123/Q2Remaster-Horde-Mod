@@ -5,7 +5,7 @@
 #include <set>
 #include "g_horde_benefits.h"
 
-// Constantes para tamaños máximos
+// Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 32;
 constexpr size_t MAX_ELIGIBLE_MONSTERS = 64;
 constexpr size_t MAX_ELIGIBLE_ITEMS = 64;
@@ -2511,7 +2511,9 @@ static edict_t* SpawnMonsters() {
 	size_t spawn_count = 0;
 
 	// Recolectar puntos de spawn disponibles
-	for (unsigned int edictIndex = 1; edictIndex < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++edictIndex) {
+	for (unsigned int edictIndex = 1;
+		edictIndex < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS;
+		++edictIndex) {
 		edict_t* e = &g_edicts[edictIndex];
 		if (e->inuse && e->classname &&
 			std::strcmp(e->classname, "info_player_deathmatch") == 0 &&
@@ -2525,7 +2527,17 @@ static edict_t* SpawnMonsters() {
 		return nullptr;
 	}
 
-	// Determinar cuántos monstruos spawner
+	// Un solo Fisher-Yates shuffle
+	for (size_t i = spawn_count - 1; i > 0; --i) {
+		// Usar distribución uniforme en lugar de módulo
+		std::uniform_int_distribution<size_t> dist(0, i);
+		size_t j = dist(mt_rand);
+		if (i != j) {
+			std::swap(available_spawns[i], available_spawns[j]);
+		}
+	}
+
+	// Determinar cuántos monstruos spawner.
 	const int32_t default_monsters_per_spawn = mapSize.isSmallMap ? 4 :
 		(mapSize.isBigMap ? 6 : 5);
 	const int32_t monsters_per_spawn = (g_horde_local.queued_monsters > 0) ?
@@ -2544,15 +2556,6 @@ static edict_t* SpawnMonsters() {
 		return nullptr;
 	}
 
-	// Fisher-Yates shuffle para los puntos de spawn
-	for (size_t i = spawn_count - 1; i > 0; --i) {
-		size_t j = mt_rand() % (i + 1);
-		if (i != j) {
-			edict_t* temp = available_spawns[i];
-			available_spawns[i] = available_spawns[j];
-			available_spawns[j] = temp;
-		}
-	}
 
 	edict_t* last_spawned_monster = nullptr;
 
