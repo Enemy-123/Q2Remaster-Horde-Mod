@@ -660,21 +660,98 @@ void TeleportEntity(edict_t* ent, edict_t* dest)
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 
+bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs)
+{
+	vec3_t ent_mins = ent->s.origin + ent->mins;
+	vec3_t ent_maxs = ent->s.origin + ent->maxs;
+
+	for (int i = 0; i < 3; i++)
+	{
+		if (ent_maxs[i] < area_mins[i] || ent_mins[i] > area_maxs[i])
+			return false;
+	}
+	return true;
+}
+
+// Arrays estáticos a nivel de archivo (fuera de las funciones)
+namespace {
+	constexpr int MAX_ENTITIES = 300;
+	edict_t* g_stubborn_entities[MAX_ENTITIES];
+	edict_t* g_entities_to_process[MAX_ENTITIES];
+	edict_t* g_entities_to_remove[MAX_ENTITIES];
+	edict_t* g_spawn_area_entities[MAX_ENTITIES];  // Para ClearSpawnArea
+}
+
+void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs)
+{
+	int entity_count = 0;
+
+	// Calculate the absolute bounds of the area to check
+	vec3_t area_mins = origin + mins;
+	vec3_t area_maxs = origin + maxs;
+
+	// Expand the area slightly to account for movement
+	vec3_t expansion{ 26.0f, 26.0f, 26.0f };
+	area_mins -= expansion;
+	area_maxs += expansion;
+
+	// Calculate search radius using vec3_t's length() method
+	float search_radius = maxs.length() + 16.0f;
+
+	// First pass: collect entities
+	for (edict_t* ent = nullptr; (ent = findradius(ent, origin, search_radius)) != nullptr;) {
+		if (!ent->inuse)
+			continue;
+		if (ent->svflags & SVF_MONSTER)
+			continue;
+		if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
+			continue;
+
+		if (!EntitiesOverlap(ent, area_mins, area_maxs))
+			continue;
+
+		if (entity_count < MAX_ENTITIES) {
+			g_spawn_area_entities[entity_count++] = ent;  // Usar el array global
+		}
+	}
+
+	// Second pass: process entities
+	for (int i = 0; i < entity_count; i++) {
+		edict_t* ent = g_spawn_area_entities[i];  // Usar el array global
+
+		if (ent->client) {
+			// For players, teleport them to a safe spawn point
+			edict_t* spawn_point = SelectSingleSpawnPoint(ent);
+			if (spawn_point) {
+				TeleportEntity(ent, spawn_point);
+				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point to make room for boss.\n",
+					ent->client->pers.netname);
+			}
+			else {
+				gi.Com_PrintFmt("PRINT: WARNING: Could not find a spawn point for player {}.\n",
+					ent->client->pers.netname);
+			}
+		}
+		else {
+			// For non-player entities, remove them
+			RemoveEntity(ent);
+			gi.Com_PrintFmt("PRINT: Entity {} removed from boss spawn area.\n",
+				ent->classname ? ent->classname : "unknown");
+		}
+	}
+}
+
 void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	float push_radius, float push_strength,
 	float horizontal_push_strength, float vertical_push_strength)
 {
+	int stubborn_count = 0;
+	int process_count = 0;
+	int remove_count = 0;
+
 	gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
 
 	constexpr int MAX_ATTEMPTS = 5;
-	std::vector<edict_t*> stubborn_entities;
-	std::vector<edict_t*> entities_to_process;
-	std::vector<edict_t*> entities_to_remove;
-
-	// Pre-reserve vectors
-	stubborn_entities.reserve(MAX_EDICTS);
-	entities_to_process.reserve(MAX_EDICTS);
-	entities_to_remove.reserve(MAX_EDICTS);
 
 	// Ajustar parámetros
 	push_radius *= 1.25f;
@@ -682,27 +759,33 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	horizontal_push_strength *= 2.0f;
 	vertical_push_strength *= 1.5f;
 
-	// Recolectar entidades - usar lengthSquared() para evitar raíz cuadrada innecesaria
+	// Recolectar entidades
 	const float max_radius_squared = (push_radius * 1.5f) * (push_radius * 1.5f);
 	for (edict_t* ent = nullptr; (ent = findradius(ent, center, push_radius * 1.5f)) != nullptr;) {
 		if (!ent || !ent->inuse)
 			continue;
 
-		if (IsRemovableEntity(ent))
-			entities_to_remove.push_back(ent);
-		else if (ent->takedamage && ent->s.origin)
-			entities_to_process.push_back(ent);
+		if (IsRemovableEntity(ent)) {
+			if (remove_count < MAX_ENTITIES) {
+				g_entities_to_remove[remove_count++] = ent;
+			}
+		}
+		else if (ent->takedamage && ent->s.origin) {
+			if (process_count < MAX_ENTITIES) {
+				g_entities_to_process[process_count++] = ent;
+			}
+		}
 	}
 
 	// Procesar entidades removibles
-	for (auto* remove_ent : entities_to_remove) {
+	for (int i = 0; i < remove_count; i++) {
+		edict_t* remove_ent = g_entities_to_remove[i];
 		if (remove_ent && remove_ent->inuse) {
 			RemoveEntity(remove_ent);
 			gi.Com_PrintFmt("PRINT: Removable entity {} eliminated.\n",
 				remove_ent->classname ? remove_ent->classname : "unknown");
 		}
 	}
-	entities_to_remove.clear();
 
 	// Procesar olas
 	for (int wave = 0; wave < num_waves; wave++) {
@@ -710,17 +793,16 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
 		SpawnGrow_Spawn(center, size, size * 0.3f);
 
-		for (auto it = entities_to_process.begin(); it != entities_to_process.end();) {
-			auto* entity = *it;
+		for (int entity_idx = 0; entity_idx < process_count; entity_idx++) {
+			edict_t* entity = g_entities_to_process[entity_idx];
 
 			if (!entity || !entity->inuse) {
-				it = entities_to_process.erase(it);
 				continue;
 			}
 
 			if (IsRemovableEntity(entity)) {
 				RemoveEntity(entity);
-				it = entities_to_process.erase(it);
+				g_entities_to_process[entity_idx] = nullptr;
 				continue;
 			}
 
@@ -730,11 +812,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 				vec3_t push_dir = entity->s.origin - center;
 				const float distance_squared = push_dir.lengthSquared();
 
-				if (distance_squared > 0.01f) { // Usar comparación con cuadrado
+				if (distance_squared > 0.01f) {
 					push_dir = push_dir.normalized();
 				}
 				else {
-					// Crear vector aleatorio normalizado usando operaciones vec3_t
 					push_dir = vec3_t{ crandom(), crandom(), 0.0f }.normalized();
 				}
 
@@ -747,7 +828,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 				const float attempt_multiplier = 1.0f + (attempt * 1.5f);
 				wave_push_strength = std::min(wave_push_strength * attempt_multiplier, 4000.0f);
 
-				// Calcular nueva posición usando operaciones vec3_t
 				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / 300.0f));
 				const trace_t tr = gi.trace(entity->s.origin, entity->mins, entity->maxs,
 					new_pos, entity, MASK_SOLID);
@@ -755,27 +835,23 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 				if (!tr.allsolid && !tr.startsolid) {
 					const float tr_scale = tr.fraction < 1.0f ? tr.fraction : 1.0f;
 
-					// Construir velocidad final usando operaciones vec3_t
 					vec3_t final_velocity = push_dir * (wave_push_strength * tr_scale);
 
 					const float horizontal_factor = std::sin(DEG2RAD(90.0f * distance_factor));
 					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor * 2.5f);
 					final_velocity.z += vertical_push_strength * std::sin(DEG2RAD(90.0f * distance_factor)) * 3.0f;
 
-					// Boost vertical para primeras olas
 					if (wave <= 1) {
 						final_velocity.z += wave == 0 ? 600.0f : 400.0f;
 					}
 
-					// Aplicar velocidad mínima
 					const float min_velocity = 300.0f;
-					for (int i = 0; i < 3; i++) {
-						if (std::abs(final_velocity[i]) < min_velocity) {
-							final_velocity[i] = (final_velocity[i] >= 0 ? min_velocity : -min_velocity);
+					for (int axis = 0; axis < 3; axis++) { 
+						if (std::abs(final_velocity[axis]) < min_velocity) {
+							final_velocity[axis] = (final_velocity[axis] >= 0 ? min_velocity : -min_velocity);
 						}
 					}
 
-					// Aplicar velocidad
 					entity->velocity = final_velocity;
 					entity->groundentity = nullptr;
 
@@ -790,17 +866,15 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 						wave + 1, entity->classname ? entity->classname : "unknown", final_velocity);
 				}
 			}
-
-			if (!pushed) {
-				stubborn_entities.push_back(entity);
+			if (!pushed && stubborn_count < MAX_ENTITIES) {
+				g_stubborn_entities[stubborn_count++] = entity;
 			}
-
-			++it;
 		}
 	}
 
 	// Manejar entidades tercas
-	for (auto* stubborn_ent : stubborn_entities) {
+	for (int i = 0; i < stubborn_count; i++) {
+		edict_t* stubborn_ent = g_stubborn_entities[i];
 		if (!stubborn_ent || !stubborn_ent->inuse)
 			continue;
 
@@ -822,71 +896,3 @@ bool string_equals(const char* str1, const std::string_view& str2) {
 		!Q_strncasecmp(str1, str2.data(), str2.length());
 }
 
-bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs)
-{
-	vec3_t ent_mins = ent->s.origin + ent->mins;
-	vec3_t ent_maxs = ent->s.origin + ent->maxs;
-
-	for (int i = 0; i < 3; i++)
-	{
-		if (ent_maxs[i] < area_mins[i] || ent_mins[i] > area_maxs[i])
-			return false;
-	}
-	return true;
-}
-
-void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs)
-{
-	edict_t* ent = nullptr;
-
-	// Calculate the absolute bounds of the area to check
-	vec3_t area_mins = origin + mins;
-	vec3_t area_maxs = origin + maxs;
-
-	// Expand the area slightly to account for movement
-	vec3_t expansion{ 26.0f, 26.0f, 26.0f };
-	area_mins -= expansion;
-	area_maxs += expansion;
-
-	// Calculate search radius using vec3_t's length() method
-	float search_radius = maxs.length() + 16.0f;
-
-	// Find entities within the area
-	while ((ent = findradius(ent, origin, search_radius)) != nullptr)
-	{
-		if (!ent->inuse)
-			continue;
-		if (ent->svflags & SVF_MONSTER)
-			continue;
-		if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
-			continue;
-
-		// Check if the entity is actually overlapping with the area
-		if (!EntitiesOverlap(ent, area_mins, area_maxs))
-			continue;
-
-		if (ent->client)
-		{
-			// For players, teleport them to a safe spawn point
-			edict_t* spawn_point = SelectSingleSpawnPoint(ent);
-			if (spawn_point)
-			{
-				TeleportEntity(ent, spawn_point);
-				gi.Com_PrintFmt("PRINT: Player {} teleported to spawn point to make room for boss.\n",
-					ent->client->pers.netname);
-			}
-			else
-			{
-				gi.Com_PrintFmt("PRINT: WARNING: Could not find a spawn point for player {}.\n",
-					ent->client->pers.netname);
-			}
-		}
-		else
-		{
-			// For non-player entities, remove them
-			RemoveEntity(ent);
-			gi.Com_PrintFmt("PRINT: Entity {} removed from boss spawn area.\n",
-				ent->classname ? ent->classname : "unknown");
-		}
-	}
-}
