@@ -1007,7 +1007,7 @@ bool SV_StepDirection(edict_t* ent, float yaw, float dist, bool allow_no_turns)
 
 	// Special handling for specific monster types
 	const bool is_widow = !strncmp(ent->classname, "monster_widow", 13) ||
-		!strncmp(ent->classname, "monster_widow2", 13);
+		!strncmp(ent->classname, "monster_widow1", 13);
 
 	// Attempt movement
 	if (SV_movestep(ent, move, false))
