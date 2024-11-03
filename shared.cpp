@@ -251,6 +251,8 @@ std::string GetDisplayName(const edict_t* ent)
 }
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
+	monster->spawnflags.has(SPAWNFLAG_MONSTER_NO_DROP);
+
 	if (monster->gib_health <= -900)
 		monster->gib_health = -900;
 

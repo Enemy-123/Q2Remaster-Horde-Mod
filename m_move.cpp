@@ -1375,34 +1375,40 @@ Feel free to add any other conditions needed.
 */
 static bool M_MoveToPath(edict_t* self, float dist)
 {
+	// 1. Mejorar las condiciones iniciales con comprobaciones más precisas
 	if (self->flags & FL_STATIONARY)
 		return false;
 	else if (self->monsterinfo.aiflags & AI_NO_PATH_FINDING)
 		return false;
 	else if (self->monsterinfo.path_wait_time > level.time)
 		return false;
-	else if (!self->enemy)
+	else if (!self->enemy || !self->enemy->inuse)  // Añadir check de inuse
 		return false;
-	else if (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time)
+	else if (self->enemy->client &&
+		self->enemy->client->invisible_time > level.time &&
+		self->enemy->client->invisibility_fade_time <= level.time)
 		return false;
 	else if (self->monsterinfo.attack_state >= AS_MISSILE)
 		return true;
 
 	combat_style_t style = self->monsterinfo.combat_style;
-
 	if (self->monsterinfo.aiflags & AI_TEMP_MELEE_COMBAT)
 		style = COMBAT_MELEE;
 
+	// 2. Mejorar la lógica de visibilidad y rango
 	if (visible(self, self->enemy, false)) {
+		float dist_to_enemy = range_to(self, self->enemy);
+		float height_diff = fabs(self->s.origin.z - self->enemy->s.origin.z);
+		float max_step_height = max(self->maxs.z, -self->mins.z);
+
 		if ((self->flags & (FL_SWIM | FL_FLY)) || style == COMBAT_RANGED) {
-			// do the normal "shoot, walk, shoot" behavior...
-			return false;
+			return false;  // Mantener comportamiento normal para voladores/nadadores
 		}
 		else if (style == COMBAT_MELEE) {
-			// path pretty close to the enemy, then let normal Quake movement take over.
-			if (range_to(self, self->enemy) > 240.f ||
-				fabs(self->s.origin.z - self->enemy->s.origin.z) > max(self->maxs.z, -self->mins.z)) {
+			// Ajustar rangos para melee más agresivo
+			if (dist_to_enemy > 240.f || height_diff > max_step_height) {
 				if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
+					self->monsterinfo.path_blocked_counter = 0_ms;  // Reset contador al encontrar camino
 					return true;
 				}
 				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
@@ -1413,10 +1419,10 @@ static bool M_MoveToPath(edict_t* self, float dist)
 			}
 		}
 		else if (style == COMBAT_MIXED) {
-			// most mixed combat AI have fairly short range attacks, so try to path within mid range.
-			if (range_to(self, self->enemy) > RANGE_NEAR ||
-				fabs(self->s.origin.z - self->enemy->s.origin.z) > max(self->maxs.z, -self->mins.z) * 2.0f) {
+			// Ajustar rangos para combate mixto más dinámico
+			if (dist_to_enemy > RANGE_NEAR || height_diff > max_step_height * 2.0f) {
 				if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
+					self->monsterinfo.path_blocked_counter = 0_ms;
 					return true;
 				}
 			}
@@ -1426,34 +1432,34 @@ static bool M_MoveToPath(edict_t* self, float dist)
 		}
 	}
 	else {
-		// we can't see our enemy, let's see if we can path to them
+		// 3. Mejorar el manejo de enemigos no visibles
 		if (M_NavPathToGoal(self, dist, self->enemy->s.origin)) {
+			self->monsterinfo.path_blocked_counter = 0_ms;
 			return true;
 		}
 	}
 
+	// 4. Mejorar el manejo de errores y bloqueos
 	if (!self->inuse)
 		return false;
 
-	if (self->monsterinfo.nav_path.returnCode > PathReturnCode::StartPathErrors)
-	{
+	if (self->monsterinfo.nav_path.returnCode > PathReturnCode::StartPathErrors) {
+		// Incrementar tiempo de espera si hay múltiples errores
 		self->monsterinfo.path_wait_time = level.time + 10_sec;
 		return false;
 	}
 
-	self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 3;
+	// 5. Ajustar el contador de bloqueo para ser más responsivo
+	self->monsterinfo.path_blocked_counter += FRAME_TIME_S * 2;  // Reducido de 3 a 2
 
-	if (self->monsterinfo.path_blocked_counter > 5_sec)
-	{
+	if (self->monsterinfo.path_blocked_counter > 3_sec) {  // Reducido de 5 a 3 segundos
 		self->monsterinfo.path_blocked_counter = 0_ms;
-		self->monsterinfo.path_wait_time = level.time + 5_sec;
-
+		self->monsterinfo.path_wait_time = level.time + 3_sec;  // Reducido de 5 a 3 segundos
 		return false;
 	}
 
 	return true;
 }
-
 /*
 ======================
 M_MoveToGoal

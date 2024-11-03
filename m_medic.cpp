@@ -953,9 +953,43 @@ static void medic_quick_attack(edict_t* self)
 
 void medic_continue(edict_t* self)
 {
+	// Validar que self es válido
+	if (!self) {
+		gi.Com_PrintFmt("Error: medic_continue - null self");
+		return;
+	}
+
+	// Validar que enemy existe y está vivo
+	if (!self->enemy || !self->enemy->inuse || self->enemy->health <= 0) {
+		return;
+	}
+
+	// Verificar visibilidad y probabilidad de ataque
 	if (visible(self, self->enemy))
+	{
+		// Validar que el movimiento actual es válido
+		const mmove_t* currentMove = self->monsterinfo.active_move.pointer();
+		if (!currentMove) {
+			return;
+		}
+
+		// Alta probabilidad de atacar (95%) si tenemos línea de visión
 		if (frandom() <= 0.95f)
+		{
+			// Cambiar a la animación de ataque con HyperBlaster
 			M_SetAnimation(self, &medic_move_attackHyperBlaster, false);
+		}
+		else
+		{
+			// Si no ataca, volver al movimiento de run
+			M_SetAnimation(self, &medic_move_run);
+		}
+	}
+	else
+	{
+		// Si no hay visibilidad, intentar perseguir al enemigo
+		M_SetAnimation(self, &medic_move_run);
+	}
 }
 
 mframe_t medic_frames_attackBlaster[] = {
@@ -1328,6 +1362,7 @@ void medic_finish_spawn(edict_t* self)
 		ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_SPAWNED_NEEDS_GIB;
 		ent->monsterinfo.commander = self;
 		ent->monsterinfo.slots_from_commander = reinforcement.strength;
+		ApplyMonsterBonusFlags(ent);
 		self->monsterinfo.monster_used += reinforcement.strength;
 
 		if (self->monsterinfo.aiflags & AI_MEDIC)
