@@ -508,66 +508,53 @@ inline float AngleNormalize360(float angle)
 }
 
 
-void TeleportEntity(edict_t* ent, edict_t* dest)
-{
+void TeleportEntity(edict_t* ent, edict_t* dest) {
 	if (!ent || !ent->inuse || !dest || !dest->inuse)
 		return;
+
+	// Store original position for effect
+	const vec3_t old_origin = ent->s.origin;
 
 	// Teleport effect at source
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_TELEPORT_EFFECT);
-	gi.WritePosition(ent->s.origin);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	gi.WritePosition(old_origin);
+	gi.multicast(old_origin, MULTICAST_PVS, false);
 
-	// Move entity - usando asignación directa de vec3_t
+	// Move entity using vec3_t operations
 	ent->s.origin = dest->s.origin;
-	ent->s.origin.z += 10; // Slightly above the ground
+	ent->s.origin.z += 10; // Slight elevation to prevent clipping
 
-	// Reset velocity - usando vec3_origin en lugar de VectorClear
+	// Reset velocities using vec3_t assignments
 	ent->velocity = vec3_origin;
 
-	// Handle client-specific updates
-	if (ent->client)
-	{
-		// Hold time to prevent immediate movement
+	if (ent->client) {
 		ent->client->ps.pmove.pm_time = 160;
 		ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-
-		// Teleport event for visual effect
 		ent->s.event = EV_PLAYER_TELEPORT;
 
-		// Set view angles - usando asignación directa de vec3_t
-		ent->s.angles = dest->s.angles;
+		// Direct vec3_t angle assignments
 		ent->client->ps.viewangles = dest->s.angles;
 		ent->client->v_angle = dest->s.angles;
+		ent->s.angles = dest->s.angles;
 
-		// Update delta_angles to prevent view snapping
-		for (int i = 0; i < 3; i++)
-		{
-			float angle_diff = AngleNormalize360(dest->s.angles[i]) - ent->client->resp.cmd_angles[i];
+		// Convert to pmove origin format using vec3_t
+		for (int i = 0; i < 3; i++) {
+			ent->client->ps.pmove.origin[i] = static_cast<int16_t>(ent->s.origin[i] * 8.0f);
+			float angle_diff = anglemod(dest->s.angles[i] - ent->client->resp.cmd_angles[i]);
 			ent->client->ps.pmove.delta_angles[i] = angle_diff;
 		}
 
-		// Update client-side position
-		for (int i = 0; i < 3; i++)
-		{
-			ent->client->ps.pmove.origin[i] = static_cast<int16_t>(ent->s.origin[i] * 8.0f);
-		}
-
-		// Clear pmove velocity - usando vec3_origin
 		ent->client->ps.pmove.velocity = vec3_origin;
 	}
-	else
-	{
-		// For non-player entities, set angles - usando asignación directa
+	else {
 		ent->s.angles = dest->s.angles;
 	}
 
-	// Unlink and relink entity to update position
 	gi.unlinkentity(ent);
 	gi.linkentity(ent);
 
-	// Kill anything at the destination to prevent telefragging
+	// Prevent telefrag
 	KillBox(ent, false, MOD_TELEFRAG, true);
 
 	// Teleport effect at destination
@@ -581,17 +568,13 @@ void TeleportEntity(edict_t* ent, edict_t* dest)
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 
-bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs)
-{
-	vec3_t ent_mins = ent->s.origin + ent->mins;
-	vec3_t ent_maxs = ent->s.origin + ent->maxs;
+bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs) {
+	// Calculate bounds using vec3_t operations
+	const vec3_t ent_mins = ent->s.origin + ent->mins;
+	const vec3_t ent_maxs = ent->s.origin + ent->maxs;
 
-	for (int i = 0; i < 3; i++)
-	{
-		if (ent_maxs[i] < area_mins[i] || ent_mins[i] > area_maxs[i])
-			return false;
-	}
-	return true;
+	// Use boxes_intersect from g_local
+	return boxes_intersect(ent_mins, ent_maxs, area_mins, area_maxs);
 }
 
 // Arrays estáticos a nivel de archivo (fuera de las funciones)
@@ -831,7 +814,8 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			}
 		}
 	}
-} 
+}
+
 
 [[nodiscard]] constexpr bool string_equals(const char* str1, const std::string_view& str2) noexcept {
 	return str1 && str2.length() == strlen(str1) && !Q_strncasecmp(str1, str2.data(), str2.length());
