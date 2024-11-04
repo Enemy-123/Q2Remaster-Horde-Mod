@@ -277,6 +277,11 @@ THINK(laser_beam_think)(edict_t* self) -> void {
 
         if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
             if (LaserHelpers::is_valid_target(tr.ent) && !LaserHelpers::is_same_team(self->teammaster, tr.ent)) {
+                // Modificar el gib_health para que el láser cause gib más fácilmente
+                if (tr.ent->svflags & SVF_MONSTER && tr.ent->health <= 100) {
+                    tr.ent->gib_health = 10;  // Un valor bajo hará que el monstruo haga gib más fácilmente
+                }
+
                 // Fix 6: Usar el vector forward normalizado para el daño
                 T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
                     damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);

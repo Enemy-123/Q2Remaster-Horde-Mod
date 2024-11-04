@@ -687,10 +687,10 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		}
 		self->client->owned_sphere = nullptr;
 	}
-	// if we've been killed by the tracker, GIB!
-	if (mod.id == MOD_TRACKER)
+	// if we've been killed by the tracker or laser, GIB!
+	if (mod.id == MOD_TRACKER || mod.id == MOD_PLAYER_LASER)
 	{
-		self->health = -100;
+		self->health = -400;
 		damage = 9999;
 	}
 
