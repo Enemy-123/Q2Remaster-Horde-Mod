@@ -915,253 +915,208 @@ slower noticing monsters.
 bool FindTarget(edict_t* self)
 {
     edict_t* client = nullptr;
-    bool     heardit;
-    bool     ignore_sight_sound = false;
+    bool heardit = false;
+    bool ignore_sight_sound = false;
 
-    // [Paril-KEX] if we're in a level transition, don't worry about enemies
+    // Skip if in transition or end cutscene
     if (globals.server_flags & SERVER_FLAG_LOADING)
         return false;
-
-    // N64 cutscene behavior
     if (self->hackflags & HACKFLAG_END_CUTSCENE)
         return false;
 
+    // Good guy logic check
     if (self->monsterinfo.aiflags & AI_GOOD_GUY)
     {
-        if (self->goalentity && self->goalentity->inuse && self->goalentity->classname)
-        {
-            if (strcmp(self->goalentity->classname, "target_actor") == 0)
-                return false;
-        }
-
-        // FIXME look for monsters?
+        if (self->goalentity && self->goalentity->inuse &&
+            self->goalentity->classname &&
+            strcmp(self->goalentity->classname, "target_actor") == 0)
+            return false;
         return false;
     }
 
-    // if we're going to a combat point, just proceed
+    // Combat point check
     if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
         return false;
 
-    // if the first spawnflag bit is set, the monster will only wake up on
-    // really seeing the player, not another monster getting angry or hearing
-    // something
+    // Horde mode specific target finding
+    if (g_horde->integer) {
+        edict_t* best_target = nullptr;
+        float best_priority = FLT_MAX;
 
-    // revised behavior so they will wake up if they "see" a player make a noise
-    // but not weapon impact/explosion noises
-    heardit = false;
+        for (auto player : active_players_no_spect()) {
+            if (!player->inuse || player->health <= 0 ||
+                EntIsSpectating(player))
+                continue;
 
-    // Paril: revised so that monsters will first try to consider
-    // the current sight client immediately if they can see it.
-    // this fixes them dancing in front of you if you fire every frame.
-    if ((client = AI_GetSightClient(self)))
-    {
-        if (client == self->enemy)
-        {
-            return false;
+            // Skip invisible players
+            if (player->client && player->client->invisible_time > level.time &&
+                player->client->invisibility_fade_time <= level.time)
+                continue;
+
+            float dist = DistanceSquared(self->s.origin, player->s.origin);
+
+            // Priority calculation based on multiple factors
+            float priority = dist;
+
+            // Lower priority for higher health targets
+            priority *= (1.0f + (player->health / player->max_health));
+
+            // Increase priority for visible targets
+            if (visible(self, player))
+                priority *= 0.5f;
+
+            // Increase priority for targets in front
+            if (infront(self, player))
+                priority *= 0.75f;
+
+            if (priority < best_priority) {
+                best_priority = priority;
+                best_target = player;
+            }
+        }
+
+        if (best_target) {
+            self->enemy = best_target;
+            FoundTarget(self);
+            self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
+            return true;
         }
     }
-    // check indirect sources
-    if (!client)
-    {
-        // check monsters that were alerted by players; we can only be alerted if we
-        // can see them
-        if (!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) && (client = AI_GetMonsterAlertedByPlayers(self)))
-        {
-            // KEX_FIXME: when does this happen? 
-            // [Paril-KEX] adjusted to clear the client
-            // so we can try other things
-            if (client->enemy == self->enemy ||
-                !G_MonsterSourceVisible(self, client))
-                client = nullptr;
-        }
-        // ROGUE
 
-        if (client == nullptr)
-        {
-            if (level.disguise_violation_time > level.time)
-            {
+    // Try to find sight client first
+    if ((client = AI_GetSightClient(self))) {
+        if (client == self->enemy)
+            return false;
+    }
+
+    // Check for alerted monsters and sounds if no direct sight
+    if (!client) {
+        if (!(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH))
+            client = AI_GetMonsterAlertedByPlayers(self);
+
+        if (!client) {
+            if (level.disguise_violation_time > level.time) {
                 client = level.disguise_violator;
             }
-            // ROGUE
-            else if ((client = AI_GetSoundClient(self, true)))
-            {
-                heardit = true;
-            }
-            else if (!(self->enemy) && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) &&
-                (client = AI_GetSoundClient(self, false)))
-            {
-                heardit = true;
+            else {
+                client = AI_GetSoundClient(self, true);
+                if (client)
+                    heardit = true;
+                else if (!self->enemy && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) {
+                    client = AI_GetSoundClient(self, false);
+                    if (client)
+                        heardit = true;
+                }
             }
         }
     }
 
-    // Apply cooldown logic only for horde mode
-    if (g_horde->integer && heardit)
-    {
+    // Apply sound cooldown for horde mode
+    if (g_horde->integer && heardit) {
         if (self->monsterinfo.lastnoisecooldown > level.time)
-        {
             return false;
-        }
-        self->monsterinfo.lastnoisecooldown = level.time + 3.5_sec; //hordehear cooldown
+        self->monsterinfo.lastnoisecooldown = level.time + 3.5_sec;
     }
 
+    // Handle no valid target found
     if (!client)
-    {
-        if (g_horde->integer)
-        {
-            // Usar la misma lógica mejorada para todos, incluyendo sentrygun
-            return FindEnhancedTarget(self);
-        }
-        return false; // No se encontraron objetivos
-    }
+        return false;
 
-    // if the entity went away, forget it
     if (!client->inuse)
         return false;
 
-    if (client == self->enemy)
-    {
-        bool skip_found = true;
-
-        // [Paril-KEX] slight special behavior if we are currently going to a sound
-        // and we hear a new one; because player noises are re-used, this can leave
-        // us with the "same" enemy even though it's a different noise.
-        if (heardit && (self->monsterinfo.aiflags & AI_SOUND_TARGET))
-        {
-       const     vec3_t temp = client->s.origin - self->s.origin;
+    // Handle existing enemy cases
+    if (client == self->enemy) {
+        if (heardit && (self->monsterinfo.aiflags & AI_SOUND_TARGET)) {
+            vec3_t temp = client->s.origin - self->s.origin;
             self->ideal_yaw = vectoyaw(temp);
-
-            if (!FacingIdeal(self))
-                skip_found = false;
-            else if (!SV_CloseEnough(self, client, 8.f))
-                skip_found = false;
-
-            if (!skip_found && (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND))
-            {
-                self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
+            if (!FacingIdeal(self) || !SV_CloseEnough(self, client, 8.f)) {
+                if (self->monsterinfo.aiflags & AI_TEMP_STAND_GROUND)
+                    self->monsterinfo.aiflags &= ~(AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
+                return true;
             }
         }
-
-        if (skip_found)
-            return true; // JDC false;
+        return true;
     }
 
-    // ROGUE - hintpath coop fix
-    if ((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative() || (self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsDeathmatch() && g_horde->integer)
+    // Special case handling
+    if ((self->monsterinfo.aiflags & AI_HINT_PATH) &&
+        (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer)))
         heardit = false;
-    // ROGUE
 
-    if (client->svflags & SVF_MONSTER)
-    {
-        if (!client->enemy)
-            return false;
-        if (client->enemy->flags & FL_NOTARGET)
+    if (client->svflags & SVF_MONSTER) {
+        if (!client->enemy || (client->enemy->flags & FL_NOTARGET))
             return false;
     }
-    else if (heardit)
-    {
-        // pgm - a little more paranoia won't hurt....
-        if ((client->owner) && (client->owner->flags & FL_NOTARGET))
+    else if (heardit) {
+        if (client->owner && (client->owner->flags & FL_NOTARGET))
             return false;
     }
-    else if (!client->client)
+    else if (!client->client) {
         return false;
+    }
 
-    if (!heardit)
-    {
-        // this is where we would check invisibility
+    // Visibility and range checks
+    if (!heardit) {
         float r = range_to(self, client);
-
         if (r > RANGE_MID)
             return false;
 
-        // Paril: revised so that monsters can be woken up
-        // by players 'seen' and attacked at by other monsters
-        // if they are close enough. they don't have to be visible.
-        bool is_visible =
-            ((r <= RANGE_NEAR && client->show_hostile >= level.time && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
-                (visible(self, client) && (r <= RANGE_MELEE || (self->monsterinfo.aiflags & AI_THIRD_EYE) || infront(self, client))));
+        bool is_visible = ((r <= RANGE_NEAR &&
+            client->show_hostile >= level.time &&
+            !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH)) ||
+            (visible(self, client) &&
+                (r <= RANGE_MELEE ||
+                    (self->monsterinfo.aiflags & AI_THIRD_EYE) ||
+                    infront(self, client))));
 
         if (!is_visible)
             return false;
 
         self->enemy = client;
 
-        if (strcmp(self->enemy->classname, "player_noise") != 0)
-        {
+        if (strcmp(self->enemy->classname, "player_noise") != 0) {
             self->monsterinfo.aiflags &= ~AI_SOUND_TARGET;
-
-            if (!self->enemy->client)
-            {
+            if (!self->enemy->client) {
                 self->enemy = self->enemy->enemy;
                 if (!self->enemy->client)
-                {
-                    self->enemy = nullptr;
                     return false;
-                }
             }
         }
-
-        if (self->enemy->client && self->enemy->client->invisible_time > level.time && self->enemy->client->invisibility_fade_time <= level.time)
-        {
-            self->enemy = nullptr;
-            return false;
-        }
-
-        if (self->monsterinfo.close_sight_tripped)
-            ignore_sight_sound = true;
-        else
-            self->monsterinfo.close_sight_tripped = true;
     }
-    else // heardit
-    {
-        vec3_t temp;
-
-        if (self->spawnflags.has(SPAWNFLAG_MONSTER_AMBUSH))
-        {
+    else {
+        if (self->spawnflags.has(SPAWNFLAG_MONSTER_AMBUSH)) {
             if (!visible(self, client))
                 return false;
         }
-        else
-        {
+        else {
             if (!gi.inPHS(self->s.origin, client->s.origin, true))
                 return false;
         }
 
-        temp = client->s.origin - self->s.origin;
-
-        if (temp.length() > 1000) // too far to hear
+        vec3_t temp = client->s.origin - self->s.origin;
+        if (temp.length() > 1000)
             return false;
 
-        // check area portals - if they are different and not connected then we can't hear it
-        if (client->areanum != self->areanum)
-            if (!gi.AreasConnected(self->areanum, client->areanum))
-                return false;
+        if (client->areanum != self->areanum &&
+            !gi.AreasConnected(self->areanum, client->areanum))
+            return false;
 
         self->ideal_yaw = vectoyaw(temp);
-        // ROGUE
-        if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
-            // ROGUE
-            M_ChangeYaw(self);
+        M_ChangeYaw(self);
 
-        // hunt the sound for a bit; hopefully find the real player
         self->monsterinfo.aiflags |= AI_SOUND_TARGET;
         self->enemy = client;
     }
 
-    //
-    // got one
-    //
-    // ROGUE - if we got an enemy, we need to bail out of hint paths, so take over here
+    // Handle found target
     if (self->monsterinfo.aiflags & AI_HINT_PATH)
-        hintpath_stop(self);  // this calls foundtarget for us
+        hintpath_stop(self);
     else
         FoundTarget(self);
 
-    // ROGUE
-    if (!(self->monsterinfo.aiflags & AI_SOUND_TARGET) && (self->monsterinfo.sight) &&
-        // Paril: adjust to prevent monsters getting stuck in sight loops
-        !ignore_sight_sound)
+    if (!(self->monsterinfo.aiflags & AI_SOUND_TARGET) &&
+        self->monsterinfo.sight && !ignore_sight_sound)
         self->monsterinfo.sight(self, self->enemy);
 
     return true;
@@ -1692,24 +1647,22 @@ The monster has an enemy it is trying to kill
 */
 void ai_run(edict_t* self, float dist)
 {
-    vec3_t   v;
+    vec3_t v;
     edict_t* tempgoal;
     edict_t* save;
-    bool     newEnemy;
+    bool newEnemy;
     edict_t* marker;
-    float    d1, d2;
-    trace_t  tr;
-    vec3_t   v_forward, v_right;
-    float    left, center, right;
-    vec3_t   left_target, right_target;
-    // ROGUE
-    bool     retval;
-    bool     alreadyMoved = false;
-    bool     gotcha = false;
+    float d1, d2;
+    trace_t tr;
+    vec3_t v_forward, v_right;
+    float left, center, right;
+    vec3_t left_target, right_target;
+    bool retval;
+    bool alreadyMoved = false;
+    bool gotcha = false;
     edict_t* realEnemy;
-    // ROGUE
 
-    // if we're going to a combat point, just proceed
+    // Si estamos yendo a un punto de combate, proceder directamente
     if (self->monsterinfo.aiflags & AI_COMBAT_POINT)
     {
         ai_checkattack(self, dist);
@@ -1717,57 +1670,46 @@ void ai_run(edict_t* self, float dist)
 
         if (self->movetarget)
         {
-            // nb: this is done from the centroid and not viewheight on purpose;
-            trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f, { -2.f, -2.f, -2.f }, { 2.f, 2.f, 2.f }, self->movetarget->s.origin, self, CONTENTS_SOLID);
+            // Checkear si estamos muy lejos del punto de combate
+            trace_t tr = gi.trace((self->absmax + self->absmin) * 0.5f,
+                { -2.f, -2.f, -2.f },
+                { 2.f, 2.f, 2.f },
+                self->movetarget->s.origin,
+                self,
+                CONTENTS_SOLID);
 
-            // [Paril-KEX] special case: if we're stand ground & knocked way too far away
-            // from our path_corner, or we can't see it any more, assume all
-            // is lost.
-            if ((self->monsterinfo.aiflags & AI_REACHED_HOLD_COMBAT) && (((closest_point_to_box(self->movetarget->s.origin, self->absmin, self->absmax) - self->movetarget->s.origin).length() > 160.f)
-                || (tr.fraction < 1.0f && tr.plane.normal.z <= 0.7f))) // if we hit a climbable, ignore this result
+            if ((self->monsterinfo.aiflags & AI_REACHED_HOLD_COMBAT) &&
+                (((closest_point_to_box(self->movetarget->s.origin, self->absmin, self->absmax) -
+                    self->movetarget->s.origin).length() > 160.f) ||
+                    (tr.fraction < 1.0f && tr.plane.normal.z <= 0.7f)))
             {
                 self->monsterinfo.aiflags &= ~AI_COMBAT_POINT;
                 self->movetarget = nullptr;
                 self->target = nullptr;
                 self->goalentity = self->enemy;
             }
-            else
-                return;
         }
-        else
-            return;
+        return;
     }
 
-    // PMM
+    // Manejo de agachado
     if ((self->monsterinfo.aiflags & AI_DUCKED) && self->monsterinfo.unduck)
         self->monsterinfo.unduck(self);
 
-    //==========
-    // PGM
-    // if we're currently looking for a hint path
+    // Manejo de caminos de sugerencia
     if (self->monsterinfo.aiflags & AI_HINT_PATH)
     {
-        // determine direction to our destination hintpath.
         M_MoveToGoal(self, dist);
         if (!self->inuse)
             return;
 
-        // first off, make sure we're looking for the player, not a noise he made
-        if (self->enemy)
+        // Determinar el enemigo real
+        if (self->enemy && self->enemy->inuse)
         {
-            if (self->enemy->inuse)
-            {
-                if (strcmp(self->enemy->classname, "player_noise") != 0)
-                    realEnemy = self->enemy;
-                else if (self->enemy->owner)
-                    realEnemy = self->enemy->owner;
-                else // uh oh, can't figure out enemy, bail
-                {
-                    self->enemy = nullptr;
-                    hintpath_stop(self);
-                    return;
-                }
-            }
+            if (strcmp(self->enemy->classname, "player_noise") != 0)
+                realEnemy = self->enemy;
+            else if (self->enemy->owner)
+                realEnemy = self->enemy->owner;
             else
             {
                 self->enemy = nullptr;
@@ -1777,116 +1719,98 @@ void ai_run(edict_t* self, float dist)
         }
         else
         {
+            self->enemy = nullptr;
             hintpath_stop(self);
             return;
         }
 
-        if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+        // Verificar visibilidad en coop/horde
+        if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
         {
-            // if we're in coop, check my real enemy first .. if I SEE him, set gotcha to true
             if (self->enemy && visible(self, realEnemy))
                 gotcha = true;
-            else // otherwise, let FindTarget bump us out of hint paths, if appropriate
+            else
                 FindTarget(self);
         }
-        else
-        {
-            if (self->enemy && visible(self, realEnemy))
-                gotcha = true;
-        }
+        else if (self->enemy && visible(self, realEnemy))
+            gotcha = true;
 
-        // if we see the player, stop following hintpaths.
         if (gotcha)
-            // disconnect from hintpaths and start looking normally for players.
             hintpath_stop(self);
 
         return;
     }
-    // Si no hay enemigo, buscar un nuevo jugador válido
-    if (!self->enemy) {
-        edict_t* player = nullptr;
-        for (auto client : active_players())
+
+    // Búsqueda de enemigos en modo horde
+    if (g_horde->integer && !self->enemy)
+    {
+        float nearest_dist = FLT_MAX;
+        edict_t* best_target = nullptr;
+
+        // Encontrar el jugador más cercano y válido
+        for (auto player : active_players_no_spect())
         {
-            if (!client->inuse || !client->client) {
+            if (!player->inuse || player->health <= 0 ||
+                (player->client && player->client->invisible_time > level.time) ||
+                EntIsSpectating(player))
                 continue;
-            }
-            // Verificar si el jugador es válido
-            if (client->health <= 0 ||
-                client->client->invisible_time > level.time ||
-                EntIsSpectating(client))
+
+            float dist_sq = DistanceSquared(self->s.origin, player->s.origin);
+            if (dist_sq < nearest_dist)
             {
-                continue;
+                nearest_dist = dist_sq;
+                best_target = player;
             }
-            player = client;
-            break;
         }
-        if (player) {
-            self->enemy = player;
-            self->monsterinfo.run(self); // Pone al monstruo en modo de persecución
+
+        if (best_target)
+        {
+            self->enemy = best_target;
+            self->monsterinfo.run(self);
             return;
         }
     }
-    // PGM
-    //==========
 
+    // Manejo de objetivos de sonido
     if (self->monsterinfo.aiflags & AI_SOUND_TARGET)
     {
-        // PMM - paranoia checking
         if (self->enemy)
             v = self->s.origin - self->enemy->s.origin;
 
-        bool touching_noise = SV_CloseEnough(self, self->enemy, dist * (gi.tick_rate / 10));
-
-        if ((!self->enemy || !self->enemy->inuse) || (touching_noise && FacingIdeal(self)))
-            // pmm
+        if ((!self->enemy || !self->enemy->inuse) ||
+            (SV_CloseEnough(self, self->enemy, dist * (gi.tick_rate / 10)) && FacingIdeal(self)))
         {
             self->monsterinfo.aiflags |= (AI_STAND_GROUND | AI_TEMP_STAND_GROUND);
             self->s.angles[YAW] = self->ideal_yaw;
             self->monsterinfo.stand(self);
-            self->monsterinfo.close_sight_tripped = false;
             return;
         }
 
-        // if we're close to the goal, just turn
-        if (touching_noise)
-            M_ChangeYaw(self);
-        else
-            M_MoveToGoal(self, dist);
-
-        // ROGUE - prevent double moves for sound_targets
+        M_MoveToGoal(self, dist);
         alreadyMoved = true;
 
         if (!self->inuse)
-            return; // PGM - g_touchtrigger free problem
-        // ROGUE
+            return;
 
         if (!FindTarget(self))
             return;
     }
 
-    // PMM -- moved ai_checkattack up here so the monsters can attack while strafing or charging
-
-    // PMM -- if we're dodging, make sure to keep the attack_state AS_SLIDING
+    // Verificar ataque
     retval = ai_checkattack(self, dist);
 
-    // PMM - don't strafe if we can't see our enemy
+    // Actualizar estado de ataque
     if ((!enemy_vis) && (self->monsterinfo.attack_state == AS_SLIDING))
         self->monsterinfo.attack_state = AS_STRAIGHT;
-    // unless we're dodging (dodging out of view looks smart)
     if (self->monsterinfo.aiflags & AI_DODGING)
         self->monsterinfo.attack_state = AS_SLIDING;
-    // pmm
 
+    // Manejo de deslizamiento
     if (self->monsterinfo.attack_state == AS_SLIDING)
     {
-        // PMM - protect against double moves
         if (!alreadyMoved)
             ai_run_slide(self, dist);
-        // PMM
-        // we're using attack_state as the return value out of ai_run_slide to indicate whether or not the
-        // move succeeded.  If the move succeeded, and we're still sliding, we're done in here (since we've
-        // had our chance to shoot in ai_checkattack, and have moved).
-        // if the move failed, our state is as_straight, and it will be taken care of below
+
         if ((!retval) && (self->monsterinfo.attack_state == AS_SLIDING))
             return;
     }
@@ -1896,93 +1820,80 @@ void ai_run(edict_t* self, float dist)
         if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING))
             M_ChangeYaw(self);
     }
+
+    // Manejo de ataque exitoso
     if (retval)
     {
-        // PMM - is this useful?  Monsters attacking usually call the ai_charge routine..
-        // the only monster this affects should be the soldier
-        if ((dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY)) && (!alreadyMoved) && (self->monsterinfo.attack_state == AS_STRAIGHT) &&
+        if ((dist || (self->monsterinfo.aiflags & AI_ALTERNATE_FLY)) &&
+            (!alreadyMoved) &&
+            (self->monsterinfo.attack_state == AS_STRAIGHT) &&
             (!(self->monsterinfo.aiflags & AI_STAND_GROUND)))
         {
             M_MoveToGoal(self, dist);
         }
-        if ((self->enemy) && (self->enemy->inuse) && (enemy_vis))
+
+        if (self->enemy && self->enemy->inuse && enemy_vis)
         {
             if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
             {
                 self->monsterinfo.aiflags &= ~AI_LOST_SIGHT;
-
                 if (self->monsterinfo.move_block_change_time < level.time)
                     self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
             }
+
             self->monsterinfo.last_sighting = self->monsterinfo.saved_goal = self->enemy->s.origin;
             self->monsterinfo.trail_time = level.time;
-            // PMM
             self->monsterinfo.blind_fire_target = self->monsterinfo.last_sighting + (self->enemy->velocity * -0.1f);
             self->monsterinfo.blind_fire_delay = 0_ms;
-            // pmm
         }
         return;
     }
-    // PMM
 
-    // PGM - added a little paranoia checking here... 9/22/98
-    if ((self->enemy) && (self->enemy->inuse) && (enemy_vis))
+    // Manejo de enemigo visible
+    if (self->enemy && self->enemy->inuse && enemy_vis)
     {
-        // PMM - check for alreadyMoved
         if (!alreadyMoved)
             M_MoveToGoal(self, dist);
+
         if (!self->inuse)
-            return; // PGM - g_touchtrigger free problem
+            return;
 
         if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
         {
             self->monsterinfo.aiflags &= ~AI_LOST_SIGHT;
-
             if (self->monsterinfo.move_block_change_time < level.time)
                 self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
         }
+
         self->monsterinfo.last_sighting = self->monsterinfo.saved_goal = self->enemy->s.origin;
         self->monsterinfo.trail_time = level.time;
-        // PMM
         self->monsterinfo.blind_fire_target = self->monsterinfo.last_sighting + (self->enemy->velocity * -0.1f);
         self->monsterinfo.blind_fire_delay = 0_ms;
-        // pmm
 
-        // [Paril-KEX] if our enemy is literally right next to us, give
-        // us more rotational speed so we don't get circled
         if (range_to(self, self->enemy) <= RANGE_MELEE * 2.5f)
             M_ChangeYaw(self);
 
         return;
     }
 
-    //=======
-    // PGM
-    // if we've been looking (unsuccessfully) for the player for 10 seconds
-    // PMM - reduced to 5, makes them much nastier
+    // Comprobar caminos de sugerencia después de tiempo sin ver al jugador
     if ((self->monsterinfo.trail_time + 5_sec) <= level.time)
     {
-        // and we haven't checked for valid hint paths in the last 10 seconds
         if ((self->monsterinfo.last_hint_time + 10_sec) <= level.time)
         {
-            // check for hint_paths.
             self->monsterinfo.last_hint_time = level.time;
             if (monsterlost_checkhint(self))
                 return;
         }
     }
-    // PGM
-    //=======
 
-    // PMM - moved down here to allow monsters to get on hint paths
-    // coop will change to another enemy if visible
+    // Búsqueda de objetivos en cooperativo
     if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
         FindTarget(self);
-    // pmm
 
+    // Manejo de búsqueda
     if ((self->monsterinfo.search_time) && (level.time > (self->monsterinfo.search_time + 20_sec)))
     {
-        // PMM - double move protection
         if (!alreadyMoved)
             M_MoveToGoal(self, dist);
         self->monsterinfo.search_time = 0_ms;
@@ -1997,12 +1908,10 @@ void ai_run(edict_t* self, float dist)
 
     if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
     {
-        // just lost sight of the player, decide where to go first
         self->monsterinfo.aiflags |= (AI_LOST_SIGHT | AI_PURSUIT_LAST_SEEN);
         self->monsterinfo.aiflags &= ~(AI_PURSUE_NEXT | AI_PURSUE_TEMP);
         newEnemy = true;
 
-        // immediately try paths
         self->monsterinfo.path_blocked_counter = 0_ms;
         self->monsterinfo.path_wait_time = 0_ms;
     }
@@ -2010,8 +1919,6 @@ void ai_run(edict_t* self, float dist)
     if (self->monsterinfo.aiflags & AI_PURSUE_NEXT)
     {
         self->monsterinfo.aiflags &= ~AI_PURSUE_NEXT;
-
-        // give ourself more time since we got this far
         self->monsterinfo.search_time = level.time + 5_sec;
 
         if (self->monsterinfo.aiflags & AI_PURSUE_TEMP)
@@ -2027,27 +1934,23 @@ void ai_run(edict_t* self, float dist)
             marker = PlayerTrail_Pick(self, false);
         }
         else
-        {
             marker = PlayerTrail_Pick(self, true);
-        }
 
         if (marker)
         {
             self->monsterinfo.last_sighting = marker->s.origin;
             self->monsterinfo.trail_time = marker->timestamp;
             self->s.angles[YAW] = self->ideal_yaw = marker->s.angles[YAW];
-
             newEnemy = true;
         }
     }
 
     if (!(self->monsterinfo.aiflags & AI_PATHING) &&
-        boxes_intersect(self->monsterinfo.last_sighting, self->monsterinfo.last_sighting, self->s.origin + self->mins, self->s.origin + self->maxs))
+        boxes_intersect(self->monsterinfo.last_sighting, self->monsterinfo.last_sighting,
+            self->s.origin + self->mins, self->s.origin + self->maxs))
     {
         self->monsterinfo.aiflags |= AI_PURSUE_NEXT;
         dist = min(dist, (self->s.origin - self->monsterinfo.last_sighting).length());
-        // [Paril-KEX] this helps them navigate corners when two next pursuits
-        // are really close together
         self->monsterinfo.random_change_time = level.time + 10_hz;
     }
 

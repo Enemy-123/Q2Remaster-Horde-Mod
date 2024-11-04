@@ -40,49 +40,27 @@ bool M_CheckBottom_Fast_Generic(const vec3_t& absmins, const vec3_t& absmaxs, bo
 	return true; // we got out easy
 }
 
-bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs, edict_t* ignore, contents_t mask, bool ceiling, bool allow_any_step_height)
-{
-	vec3_t start;
+bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs, edict_t* ignore, contents_t mask, bool ceiling, bool allow_any_step_height) {
+    // Optimizar el cálculo de dimensiones para reutilización
+    vec3_t step_quadrant_size = (maxs - mins) * 0.5f;
+    step_quadrant_size.z = 0;
+    vec3_t half_step_quadrant = step_quadrant_size * 0.5f;
+    vec3_t half_step_quadrant_mins = -half_step_quadrant;
 
-	//
-	// check it for real...
-	//
-	vec3_t step_quadrant_size = (maxs - mins) * 0.5f;
-	step_quadrant_size.z = 0;
+    // Simplificar trazas iniciales
+    vec3_t start = origin;
+    vec3_t stop = origin;
+    stop.z = ceiling ? 
+        (origin.z + maxs.z + STEPSIZE * 2) : 
+        (origin.z + mins.z - STEPSIZE * 2);
 
-	vec3_t half_step_quadrant = step_quadrant_size * 0.5f;
-	vec3_t half_step_quadrant_mins = -half_step_quadrant;
+    trace_t trace = gi.trace(start, mins, maxs, stop, ignore, mask);
+    
+    if (trace.fraction == 1.0f)
+        return false;
 
-	vec3_t stop;
-
-	start[0] = stop[0] = origin.x;
-	start[1] = stop[1] = origin.y;
-
-	// PGM
-	if (!ceiling)
-	{
-		start[2] = origin.z + mins.z;
-		stop[2] = start[2] - STEPSIZE * 2;
-	}
-	else
-	{
-		start[2] = origin.z + maxs.z;
-		stop[2] = start[2] + STEPSIZE * 2;
-	}
-	// PGM
-
-	vec3_t mins_no_z = mins;
-	vec3_t maxs_no_z = maxs;
-	mins_no_z.z = maxs_no_z.z = 0;
-
-	trace_t trace = gi.trace(start, mins_no_z, maxs_no_z, stop, ignore, mask);
-
-	if (trace.fraction == 1.0f)
-		return false;
-
-	// [Paril-KEX]
-	if (allow_any_step_height)
-		return true;
+    if (allow_any_step_height)
+        return true;
 
 	start[0] = stop[0] = origin.x + ((mins.x + maxs.x) * 0.5f);
 	start[1] = stop[1] = origin.y + ((mins.y + maxs.y) * 0.5f);
