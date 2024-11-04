@@ -156,99 +156,18 @@ std::string GetTitleFromFlags(int bonus_flags)
 	return title;
 }
 
-std::string GetDisplayName(const edict_t* ent)
-{
-	if (!ent) {
-		return "Unknown";
+// Sobrecarga para edict_t*
+std::string GetDisplayName(const edict_t* ent) {
+	if (!ent) return "Unknown";
+
+	std::string base_name = GetDisplayName(ent->classname);
+	if (ent->monsterinfo.bonus_flags) {
+		return GetTitleFromFlags(ent->monsterinfo.bonus_flags) + base_name;
 	}
-
-	static const std::unordered_map<std::string, std::string> name_replacements = {
-		{ "monster_soldier_light", "Blaster Guard" },
-		{ "monster_soldier_ss", "SS Guard" },
-		{ "monster_soldier", "SG Guard" },
-		{ "monster_soldier_hypergun", "Hyper Guard" },
-		{ "monster_soldier_lasergun", "Laser Guard" },
-		{ "monster_soldier_ripper", "Ripper Guard" },
-		{ "monster_infantry_vanilla", "Infantry" },
-		{ "monster_infantry", "Enforcer" },
-		{ "monster_flyer", "Flyer" },
-		{ "monster_kamikaze", "Kamikaze Flyer" },
-		{ "monster_hover_vanilla", "Blaster Icarus" },
-		{ "monster_fixbot", "Fixbot" },
-		{ "monster_gekk", "Gekk" },
-		{ "monster_flipper", "Flipper" },
-		{ "monster_gunner_vanilla", "Gunner" },
-		{ "monster_gunner", "Heavy Gunner" },
-		{ "monster_medic", "Medic" },
-		{ "monster_brain", "Brain" },
-		{ "monster_stalker", "Stalker" },
-		{ "monster_parasite", "Parasite" },
-		{ "monster_tank", "Tank" },
-		{ "monster_tank_spawner", "Spawner Tank" },
-		{ "monster_runnertank", "BETA Runner Tank" },
-		{ "monster_guncmdr_vanilla", "Gunner Commander" },
-		{ "monster_mutant", "Mutant" },
-		{ "monster_redmutant", "Raged Mutant" },
-		{ "monster_chick", "Iron Maiden" },
-		{ "monster_chick_heat", "Iron Praetor" },
-		{ "monster_berserk", "Berserker" },
-		{ "monster_floater", "Technician" },
-		{ "monster_hover", "Rocket Icarus" },
-		{ "monster_daedalus", "Daedalus" },
-		{ "monster_daedalus_bomber", "Bombardier Hover" },
-		{ "monster_medic_commander", "Medic Commander" },
-		{ "monster_tank_commander", "Tank Commander" },
-		{ "monster_spider", "Arachnid" },
-		{ "monster_arachnid", "Arachnid" },
-		{ "monster_psxarachnid", "Arachnid" },
-		{ "monster_guncmdr", "Grenadier Commander" },
-		{ "monster_gladc", "Plasma Gladiator" },
-		{ "monster_gladiator", "Gladiator" },
-		{ "monster_shambler", "Shambler" },
-		{ "monster_floater_tracker", "DarkMatter Technician" },
-		{ "monster_carrier_mini", "Mini Carrier" },
-		{ "monster_carrier", "Carrier" },
-		{ "monster_tank_64", "N64 Tank" },
-		{ "monster_janitor", "Janitor" },
-		{ "monster_janitor2", "Mini Guardian" },
-		{ "monster_guardian", "Guardian" },
-		{ "monster_psxguardian", "Enhanced Guardian" },
-		{ "monster_makron", "Makron" },
-		{ "monster_jorg", "Jorg" },
-		{ "monster_gladb", "DarkMatter Gladiator" },
-		{ "monster_boss2_64", "N64 Hornet" },
-		{ "monster_boss2kl", "N64 Hornet" },
-		{ "monster_boss2", "Hornet" },
-		{ "monster_perrokl", "Infected Parasite" },
-		{ "monster_guncmdrkl", "Gunner Grenadier" },
-		{ "monster_shambler", "Shambler" },
-		{ "monster_shamblerkl", "Shambler" },
-		{ "monster_makronkl", "Makron" },
-		{ "monster_widow1", "Widow Apprentice" },
-		{ "monster_widow", "Widow Matriarch" },
-		{ "monster_widow2", "Widow Creator" },
-		{ "monster_supertank", "Super-Tank" },
-		{ "monster_supertankkl", "Super-Tank" },
-		{ "monster_boss5", "Super-Tank" },
-		{ "monster_sentrygun", "Friendly Sentry-Gun" },
-		{ "monster_turret", "TurretGun" },
-		{ "monster_turretkl", "TurretGun" },
-		{ "monster_gnorta", "Gnorta" },
-		{ "monster_shocker", "Shocker" },
-		{ "monster_arachnid2", "Arachnid" },
-		{ "monster_gm_arachnid", "Guided-Missile Arachnid" },
-		{ "misc_insane", "Insane Grunt" },
-		{ "food_cube_trap", "Stroggonoff Maker\n" },
-		{ "tesla_mine", " Tesla Mine\n" },
-		{ "emitter", "Laser Emitter\n" }
-	};
-
-	const auto it = name_replacements.find(ent->classname);
-	std::string display_name = (it != name_replacements.end()) ?
-		std::string(it->second) : ent->classname;
-
-	return GetTitleFromFlags(ent->monsterinfo.bonus_flags) + display_name;
+	return base_name;
 }
+
+
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
 	monster->spawnflags.has(SPAWNFLAG_MONSTER_NO_DROP);
@@ -747,116 +666,155 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	float push_radius, float push_strength,
 	float horizontal_push_strength, float vertical_push_strength)
 {
-	int stubborn_count = 0;
-	int process_count = 0;
-	int remove_count = 0;
+	// Constantes optimizadas
+	static constexpr float MIN_VELOCITY = 400.0f;
+	static constexpr float MAX_FORCE = 4000.0f;
+	static constexpr float BASE_FORCE = 500.0f;
+	static constexpr int MAX_ATTEMPTS = 5;
+	static constexpr float VERTICAL_BOOST_FIRST = 800.0f;
+	static constexpr float VERTICAL_BOOST_SECOND = 600.0f;
+	static constexpr float FORCE_MULTIPLIER = 1.25f;
+	static constexpr float ATTEMPT_SCALE = 0.75f;
+	static constexpr float MIN_DISTANCE_CHECK = 0.01f;
 
-	gi.Com_PrintFmt("PRINT: Starting PushEntitiesAway at position: {}\n", center);
+	// Arrays estáticos para entidades
+	static edict_t* entities_to_process[MAX_ENTITIES];
+	static edict_t* entities_to_remove[MAX_ENTITIES];
+	size_t process_count = 0;
+	size_t remove_count = 0;
 
-	constexpr int MAX_ATTEMPTS = 5;
+	// Asegurar radio mínimo y calcular radio de búsqueda
+	push_radius = std::max(push_radius, 1.0f);
+	const float search_radius = push_radius * 1.5f;
 
-	// Ajustar parámetros
-	push_radius *= 1.25f;
-	push_strength *= 2.25f;
-	horizontal_push_strength *= 2.0f;
-	vertical_push_strength *= 1.5f;
-
-	// Recolectar entidades
-	const float max_radius_squared = (push_radius * 1.5f) * (push_radius * 1.5f);
-	for (edict_t* ent = nullptr; (ent = findradius(ent, center, push_radius * 1.5f)) != nullptr;) {
+	// Recolectar entidades con verificación de visibilidad
+	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
 		if (!ent || !ent->inuse)
 			continue;
 
+		// Verificar PVS y línea de visión
+		if (!gi.inPVS(center, ent->s.origin, false))
+			continue;
+
+		// Verificar línea de visión directa
+		vec3_t check_point = ent->s.origin;
+		check_point.z += (ent->maxs.z + ent->mins.z) * 0.5f;
+
+		const trace_t tr = gi.traceline(center, check_point, nullptr, MASK_SOLID);
+		if (tr.fraction < 1.0f && tr.ent != ent)
+			continue;
+
 		if (IsRemovableEntity(ent)) {
-			if (remove_count < MAX_ENTITIES) {
-				g_entities_to_remove[remove_count++] = ent;
-			}
+			if (remove_count < MAX_ENTITIES)
+				entities_to_remove[remove_count++] = ent;
 		}
-		else if (ent->takedamage && ent->s.origin) {
-			if (process_count < MAX_ENTITIES) {
-				g_entities_to_process[process_count++] = ent;
-			}
+		else if (ent->takedamage) {
+			if (process_count < MAX_ENTITIES)
+				entities_to_process[process_count++] = ent;
 		}
 	}
 
-	// Procesar entidades removibles
-	for (int i = 0; i < remove_count; i++) {
-		edict_t* remove_ent = g_entities_to_remove[i];
-		if (remove_ent && remove_ent->inuse) {
-			RemoveEntity(remove_ent);
-			gi.Com_PrintFmt("PRINT: Removable entity {} eliminated.\n",
-				remove_ent->classname ? remove_ent->classname : "unknown");
-		}
+	// Procesar entidades removibles primero
+	for (size_t i = 0; i < remove_count; i++) {
+		if (entities_to_remove[i] && entities_to_remove[i]->inuse)
+			RemoveEntity(entities_to_remove[i]);
 	}
 
 	// Procesar olas
 	for (int wave = 0; wave < num_waves; wave++) {
 		const float wave_progress = static_cast<float>(wave) / num_waves;
 		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
+
+		// Efecto visual de spawn
 		SpawnGrow_Spawn(center, size, size * 0.3f);
 
-		for (int entity_idx = 0; entity_idx < process_count; entity_idx++) {
-			edict_t* entity = g_entities_to_process[entity_idx];
+		// Procesar cada entidad
+		for (size_t entity_idx = 0; entity_idx < process_count; entity_idx++) {
+			edict_t* entity = entities_to_process[entity_idx];
 
-			if (!entity || !entity->inuse) {
+			if (!entity || !entity->inuse)
 				continue;
-			}
 
-			if (IsRemovableEntity(entity)) {
-				RemoveEntity(entity);
-				g_entities_to_process[entity_idx] = nullptr;
+			// Re-verificar PVS para esta entidad
+			if (!gi.inPVS(center, entity->s.origin, false))
 				continue;
-			}
 
 			bool pushed = false;
-			for (int attempt = 0; attempt < MAX_ATTEMPTS && !pushed; attempt++) {
-				// Usar operaciones de vec3_t directamente
+			int attempts = 0;
+
+			while (!pushed && attempts < MAX_ATTEMPTS) {
+				// Verificar línea de visión nuevamente
+				const trace_t vis_tr = gi.traceline(center,
+					entity->s.origin, nullptr, MASK_SOLID);
+				if (vis_tr.fraction < 1.0f && vis_tr.ent != entity) {
+					attempts++;
+					continue;
+				}
+
+				// Calcular dirección de empuje usando vec3_t
 				vec3_t push_dir = entity->s.origin - center;
 				const float distance_squared = push_dir.lengthSquared();
 
-				if (distance_squared > 0.01f) {
+				// Normalizar dirección
+				if (distance_squared > MIN_DISTANCE_CHECK) {
 					push_dir = push_dir.normalized();
 				}
 				else {
+					// Dirección aleatoria si está muy cerca
 					push_dir = vec3_t{ crandom(), crandom(), 0.0f }.normalized();
 				}
 
-				// Calcular fuerza de empuje
 				const float distance = std::sqrt(distance_squared);
-				const float distance_factor = std::max(0.2f, 1.0f - (distance / size));
+				const float distance_factor = std::max(0.3f, 1.0f - (distance / size));
+
+				// Calcular fuerza de empuje
 				float wave_push_strength = push_strength * distance_factor *
-					std::sin(DEG2RAD(90.0f * distance_factor));
+					std::sin(DEG2RAD(90.0f * distance_factor)) * FORCE_MULTIPLIER;
 
-				const float attempt_multiplier = 1.0f + (attempt * 1.5f);
-				wave_push_strength = std::min(wave_push_strength * attempt_multiplier, 4000.0f);
+				// Ajustar por intentos
+				const float attempt_multiplier = 1.0f + (attempts * ATTEMPT_SCALE);
+				wave_push_strength = std::min(wave_push_strength * attempt_multiplier, MAX_FORCE);
 
-				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / 300.0f));
+				// Calcular nueva posición
+				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / BASE_FORCE));
+
+				// Verificar colisión
 				const trace_t tr = gi.trace(entity->s.origin, entity->mins, entity->maxs,
 					new_pos, entity, MASK_SOLID);
 
 				if (!tr.allsolid && !tr.startsolid) {
+					// Calcular velocidad final
 					const float tr_scale = tr.fraction < 1.0f ? tr.fraction : 1.0f;
-
 					vec3_t final_velocity = push_dir * (wave_push_strength * tr_scale);
 
+					// Añadir componente horizontal
 					const float horizontal_factor = std::sin(DEG2RAD(90.0f * distance_factor));
-					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor * 2.5f);
-					final_velocity.z += vertical_push_strength * std::sin(DEG2RAD(90.0f * distance_factor)) * 3.0f;
+					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor);
 
+					// Añadir componente vertical
+					final_velocity.z += vertical_push_strength *
+						std::sin(DEG2RAD(90.0f * distance_factor));
+
+					// Boost vertical para primeras olas
 					if (wave <= 1) {
-						final_velocity.z += wave == 0 ? 600.0f : 400.0f;
+						final_velocity.z += (wave == 0) ? VERTICAL_BOOST_FIRST : VERTICAL_BOOST_SECOND;
 					}
 
-					const float min_velocity = 300.0f;
-					for (int axis = 0; axis < 3; axis++) { 
-						if (std::abs(final_velocity[axis]) < min_velocity) {
-							final_velocity[axis] = (final_velocity[axis] >= 0 ? min_velocity : -min_velocity);
+					// Asegurar velocidad mínima
+					for (int axis = 0; axis < 3; axis++) {
+						if (std::abs(final_velocity[axis]) < MIN_VELOCITY) {
+							final_velocity[axis] = (final_velocity[axis] >= 0 ? MIN_VELOCITY : -MIN_VELOCITY);
 						}
 					}
 
+					// Aplicar velocidad final
+					final_velocity *= FORCE_MULTIPLIER;
+
+					// Actualizar entidad
 					entity->velocity = final_velocity;
 					entity->groundentity = nullptr;
 
+					// Actualizar cliente si es necesario
 					if (entity->client) {
 						entity->client->oldvelocity = final_velocity;
 						entity->client->oldgroundentity = nullptr;
@@ -864,37 +822,99 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 					}
 
 					pushed = true;
-					gi.Com_PrintFmt("PRINT: Wave {}: Entity {} pushed with velocity: {}\n",
+
+					gi.Com_PrintFmt("PRINT: Wave {}: Entity {} pushed with velocity {}\n",
 						wave + 1, entity->classname ? entity->classname : "unknown", final_velocity);
 				}
-			}
-			if (!pushed && stubborn_count < MAX_ENTITIES) {
-				g_stubborn_entities[stubborn_count++] = entity;
+
+				attempts++;
 			}
 		}
 	}
+} 
 
-	// Manejar entidades tercas
-	for (int i = 0; i < stubborn_count; i++) {
-		edict_t* stubborn_ent = g_stubborn_entities[i];
-		if (!stubborn_ent || !stubborn_ent->inuse)
-			continue;
-
-		if (stubborn_ent->client) {
-			if (edict_t* spawn_point = SelectSingleSpawnPoint(stubborn_ent)) {
-				TeleportEntity(stubborn_ent, spawn_point);
-			}
-		}
-		else {
-			RemoveEntity(stubborn_ent);
-		}
-	}
-
-	gi.Com_PrintFmt("PRINT: PushEntitiesAway completed\n");
+[[nodiscard]] constexpr bool string_equals(const char* str1, const std::string_view& str2) noexcept {
+	return str1 && str2.length() == strlen(str1) && !Q_strncasecmp(str1, str2.data(), str2.length());
 }
 
-bool string_equals(const char* str1, const std::string_view& str2) {
-	return str1 && str2.length() == strlen(str1) &&
-		!Q_strncasecmp(str1, str2.data(), str2.length());
-}
-
+// Define el mapa de nombres aquí
+const std::unordered_map<std::string_view, std::string_view> name_replacements = {
+		{ "monster_soldier_light", "Blaster Guard" },
+		{ "monster_soldier_ss", "SS Guard" },
+		{ "monster_soldier", "SG Guard" },
+		{ "monster_soldier_hypergun", "Hyper Guard" },
+		{ "monster_soldier_lasergun", "Laser Guard" },
+		{ "monster_soldier_ripper", "Ripper Guard" },
+		{ "monster_infantry_vanilla", "Infantry" },
+		{ "monster_infantry", "Enforcer" },
+		{ "monster_flyer", "Flyer" },
+		{ "monster_kamikaze", "Kamikaze Flyer" },
+		{ "monster_hover_vanilla", "Blaster Icarus" },
+		{ "monster_fixbot", "Fixbot" },
+		{ "monster_gekk", "Gekk" },
+		{ "monster_flipper", "Flipper" },
+		{ "monster_gunner_vanilla", "Gunner" },
+		{ "monster_gunner", "Heavy Gunner" },
+		{ "monster_medic", "Medic" },
+		{ "monster_brain", "Brain" },
+		{ "monster_stalker", "Stalker" },
+		{ "monster_parasite", "Parasite" },
+		{ "monster_tank", "Tank" },
+		{ "monster_tank_spawner", "Spawner Tank" },
+		{ "monster_runnertank", "BETA Runner Tank" },
+		{ "monster_guncmdr_vanilla", "Gunner Commander" },
+		{ "monster_mutant", "Mutant" },
+		{ "monster_redmutant", "Raged Mutant" },
+		{ "monster_chick", "Iron Maiden" },
+		{ "monster_chick_heat", "Iron Praetor" },
+		{ "monster_berserk", "Berserker" },
+		{ "monster_floater", "Technician" },
+		{ "monster_hover", "Rocket Icarus" },
+		{ "monster_daedalus", "Daedalus" },
+		{ "monster_daedalus_bomber", "Bombardier Hover" },
+		{ "monster_medic_commander", "Medic Commander" },
+		{ "monster_tank_commander", "Tank Commander" },
+		{ "monster_spider", "Arachnid" },
+		{ "monster_arachnid", "Arachnid" },
+		{ "monster_psxarachnid", "Arachnid" },
+		{ "monster_guncmdr", "Grenadier Commander" },
+		{ "monster_gladc", "Plasma Gladiator" },
+		{ "monster_gladiator", "Gladiator" },
+		{ "monster_shambler", "Shambler" },
+		{ "monster_floater_tracker", "DarkMatter Technician" },
+		{ "monster_carrier_mini", "Mini Carrier" },
+		{ "monster_carrier", "Carrier" },
+		{ "monster_tank_64", "N64 Tank" },
+		{ "monster_janitor", "Janitor" },
+		{ "monster_janitor2", "Mini Guardian" },
+		{ "monster_guardian", "Guardian" },
+		{ "monster_psxguardian", "Enhanced Guardian" },
+		{ "monster_makron", "Makron" },
+		{ "monster_jorg", "Jorg" },
+		{ "monster_gladb", "DarkMatter Gladiator" },
+		{ "monster_boss2_64", "N64 Hornet" },
+		{ "monster_boss2kl", "N64 Hornet" },
+		{ "monster_boss2", "Hornet" },
+		{ "monster_perrokl", "Infected Parasite" },
+		{ "monster_guncmdrkl", "Gunner Grenadier" },
+		{ "monster_shambler", "Shambler" },
+		{ "monster_shamblerkl", "Shambler" },
+		{ "monster_makronkl", "Makron" },
+		{ "monster_widow1", "Widow Apprentice" },
+		{ "monster_widow", "Widow Matriarch" },
+		{ "monster_widow2", "Widow Creator" },
+		{ "monster_supertank", "Super-Tank" },
+		{ "monster_supertankkl", "Super-Tank" },
+		{ "monster_boss5", "Super-Tank" },
+		{ "monster_sentrygun", "Friendly Sentry-Gun" },
+		{ "monster_turret", "TurretGun" },
+		{ "monster_turretkl", "TurretGun" },
+		{ "monster_gnorta", "Gnorta" },
+		{ "monster_shocker", "Shocker" },
+		{ "monster_arachnid2", "Arachnid" },
+		{ "monster_gm_arachnid", "Guided-Missile Arachnid" },
+		{ "misc_insane", "Insane Grunt" },
+		{ "food_cube_trap", "Stroggonoff Maker\n" },
+		{ "tesla_mine", " Tesla Mine\n" },
+		{ "emitter", "Laser Emitter\n" }
+};

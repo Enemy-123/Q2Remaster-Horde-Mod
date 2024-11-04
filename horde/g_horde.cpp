@@ -846,7 +846,6 @@ static void AddRecentBoss(const char* classname) {
 
 // Modifica G_HordePickBOSS para usar arrays estáticos
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
-	static RecentBosses recent_bosses;
 	static EligibleBosses eligible_bosses;
 	eligible_bosses.clear();
 
@@ -1088,25 +1087,21 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr, const edict_t* monster = nullptr) {
-	// Define the bounding box for checking occupation
-	vec3_t mins, maxs;
-	// If there is a specific monster, use its bounding box dimensions
-	if (monster) {
-		mins = spawn_point->s.origin + monster->mins;
-		maxs = spawn_point->s.origin + monster->maxs;
-	}
-	else {
-		// Default bounding box for player size
-		mins = spawn_point->s.origin + vec3_t{ -16, -16, -24 };
-		maxs = spawn_point->s.origin + vec3_t{ 16, 16, 32 };
-	}
-	// Data structure to hold information for filtering entities
+	static constexpr vec3_t DEFAULT_MINS = { -16, -16, -24 };
+	static constexpr vec3_t DEFAULT_MAXS = { 16, 16, 32 };
+
+	const vec3_t mins = monster ? monster->mins : DEFAULT_MINS;
+	const vec3_t maxs = monster ? monster->maxs : DEFAULT_MAXS;
+
+	const vec3_t check_mins = spawn_point->s.origin + mins;
+	const vec3_t check_maxs = spawn_point->s.origin + maxs;
+
 	FilterData filter_data = { ignore_ent, 0 };
-	// Use BoxEdicts to check for any relevant entities in the area
-	gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
-	// Return true if we found at least one player or bot in the area
+	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+
 	return filter_data.count > 0;
 }
+
 const char* G_HordePickMonster(edict_t* spawn_point) {
 	if (spawnPointsData[spawn_point].isTemporarilyDisabled || IsSpawnPointOccupied(spawn_point)) {
 		return nullptr;
@@ -1862,7 +1857,7 @@ static void SpawnBossAutomatically() {
 	gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
 
 	// Push entities away
-	PushEntitiesAway(boss->s.origin, 3, 500, 300.0f, 750.0f, 1000.0f, 500.0f);
+	PushEntitiesAway(boss->s.origin, 3, 500, 1000.0f, 3750.0f, 1600.0f, 990.0f);
 
 	// Store orb entity in boss for later removal
 	boss->owner = orb;
@@ -1942,20 +1937,25 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 		self->classname, self->health, self->monsterinfo.power_armor_power);
 }
 // En SetHealthBarName
-void SetHealthBarName(edict_t* boss)
-{
-	std::string full_display_name = GetDisplayName(boss);
-	gi.configstring(CONFIG_HEALTH_BAR_NAME, full_display_name.c_str());
+void SetHealthBarName(edict_t* boss) {
+	static char buffer[MAX_STRING_CHARS];
 
-	// Preparar el mensaje para multicast
+	// Evitar asignaciones dinámicas
+	const std::string_view display_name = GetDisplayName(boss);
+	const size_t name_len = std::min(display_name.length(), sizeof(buffer) - 1);
+	memcpy(buffer, display_name.data(), name_len);
+	buffer[name_len] = '\0';
+
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, buffer);
+
+	// Preparar mensaje una vez
 	gi.WriteByte(svc_configstring);
 	gi.WriteShort(CONFIG_HEALTH_BAR_NAME);
-	gi.WriteString(full_display_name.c_str());
+	gi.WriteString(buffer);
 
-	// Usar multicast para enviar la actualización a todos los clientes de manera confiable
+	// Enviar a todos los clientes
 	gi.multicast(vec3_origin, MULTICAST_ALL, true);
 }
-
 //CS HORDE
 
 void UpdateHordeHUD() {

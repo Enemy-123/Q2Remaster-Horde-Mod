@@ -132,6 +132,10 @@ namespace LaserHelpers {
     float calculate_damage_multiplier(const edict_t* target) {
         if (!target) return 0.0f;
 
+        if (target->client) {
+            return 0.0f;
+        }
+
         if (target->svflags & SVF_MONSTER) {
             if (target->monsterinfo.invincible_time > level.time) {
                 return 0.0f;

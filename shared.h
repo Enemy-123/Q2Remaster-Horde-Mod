@@ -22,7 +22,13 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
 
 // Declarar funciones globales name strings
+std::string GetDisplayName(const char* classname);
 std::string GetDisplayName(const edict_t* ent);
+std::string GetDisplayName(const std::string& classname);
+
+// Mantén el mapa de nombres como una variable externa
+extern const std::unordered_map<std::string_view, std::string_view> name_replacements;
+
 std::string GetTitleFromFlags(int bonus_flags);
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);

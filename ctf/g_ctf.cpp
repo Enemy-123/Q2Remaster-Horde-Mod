@@ -1056,89 +1056,11 @@ struct ConfigStringManager {
 
 ConfigStringManager configStringManager;
 
-std::string GetDisplayName(const std::string& classname) {
-	static const std::unordered_map<std::string, std::string> name_replacements = {
-		// Lista de reemplazos de nombre
-		{ "monster_soldier_light", "Blaster Guard" },
-		{ "monster_soldier_ss", "SS Guard" },
-		{ "monster_soldier", "SG Guard" },
-		{ "monster_soldier_hypergun", "Hyper Guard" },
-		{ "monster_soldier_lasergun", "Laser Guard" },
-		{ "monster_soldier_ripper", "Ripper Guard" },
-		{ "monster_infantry_vanilla", "Infantry" },
-		{ "monster_infantry", "Enforcer" },
-		{ "monster_flyer", "Flyer" },
-		{ "monster_kamikaze", "Kamikaze Flyer" },
-		{ "monster_hover_vanilla", "Blaster Icarus" },
-		{ "monster_fixbot", "Fixbot" },
-		{ "monster_gekk", "Gekk" },
-		{ "monster_flipper", "Flipper" },
-		{ "monster_gunner_vanilla", "Gunner" },
-		{ "monster_gunner", "Heavy Gunner" },
-		{ "monster_medic", "Medic" },
-		{ "monster_brain", "Brain" },
-		{ "monster_stalker", "Stalker" },
-		{ "monster_parasite", "Parasite" },
-		{ "monster_tank", "Tank" },
-		{ "monster_tank_spawner", "Spawner Tank" },
-		{ "monster_runnertank", "BETA Runner Tank" },
-		{ "monster_guncmdr_vanilla", "Gunner Commander" },
-		{ "monster_mutant", "Mutant" },
-		{ "monster_redmutant", "Raged Mutant" },
-		{ "monster_chick", "Iron Maiden" },
-		{ "monster_chick_heat", "Iron Praetor" },
-		{ "monster_berserk", "Berserker" },
-		{ "monster_floater", "Technician" },
-		{ "monster_hover", "Rocket Icarus" },
-		{ "monster_daedalus", "Daedalus" },
-		{ "monster_daedalus_bomber", "Bombardier Hover" },
-		{ "monster_medic_commander", "Medic Commander" },
-		{ "monster_tank_commander", "Tank Commander" },
-		{ "monster_spider", "Arachnid" },
-		{ "monster_arachnid", "Arachnid" },
-		{ "monster_psxarachnid", "Arachnid" },
-		{ "monster_guncmdr", "Grenadier Commander" },
-		{ "monster_gladc", "Plasma Gladiator" },
-		{ "monster_gladiator", "Gladiator" },
-		{ "monster_shambler", "Shambler" },
-		{ "monster_floater_tracker", "DarkMatter Technician" },
-		{ "monster_carrier_mini", "Mini Carrier" },
-		{ "monster_carrier", "Carrier" },
-		{ "monster_tank_64", "N64 Tank" },
-		{ "monster_janitor", "Janitor" },
-		{ "monster_janitor2", "Mini Guardian" },
-		{ "monster_guardian", "Guardian" },
-		{ "monster_psxguardian", "Enhanced Guardian" },
-		{ "monster_makron", "Makron" },
-		{ "monster_jorg", "Jorg" },
-		{ "monster_gladb", "DarkMatter Gladiator" },
-		{ "monster_boss2_64", "N64 Hornet" },
-		{ "monster_boss2kl", "N64 Hornet" },
-		{ "monster_boss2", "Hornet" },
-		{ "monster_perrokl", "Infected Parasite" },
-		{ "monster_guncmdrkl", "Gunner Grenadier" },
-		{ "monster_shamblerkl", "Shambler" },
-		{ "monster_makronkl", "Makron" },
-		{ "monster_widow1", "Widow Apprentice" },
-		{ "monster_widow", "Widow Matriarch" },
-		{ "monster_widow2", "Widow Creator" },
-		{ "monster_supertank", "Super-Tank" },
-		{ "monster_supertankkl", "Super-Tank" },
-		{ "monster_boss5", "Super-Tank" },
-		{ "monster_sentrygun", "Friendly Sentry-Gun" },
-		{ "monster_turret", "TurretGun" },
-		{ "monster_turretkl", "TurretGun" },
-		{ "monster_gnorta", "Gnorta" },
-		{ "monster_shocker", "Shocker" },
-		{ "monster_arachnid2", "Arachnid" },
-		{ "monster_gm_arachnid", "Guided-Missile Arachnid" },
-		{ "misc_insane", "Insane Grunt" },
-		{ "food_cube_trap", "Stroggonoff Maker\n" },
-		{ "tesla_mine", "Tesla Mine\n" },
-		{ "emitter", "Laser Emitter\n" }
-	};
-	auto const it = name_replacements.find(classname);
-	return (it != name_replacements.end()) ? it->second : classname;
+std::string GetDisplayName(const char* classname) {
+	if (!classname) return "Unknown";
+
+	auto it = name_replacements.find(classname);
+	return std::string(it != name_replacements.end() ? it->second : classname);
 }
 
 std::string FormatClassname(const std::string& classname) {

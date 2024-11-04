@@ -3731,7 +3731,7 @@ struct gib_def_t
 		return *this;
 	}
 };
-extern bool string_equals(const char* str1, const std::string_view& str2);
+
 // convenience function to throw different gib types
 // NOTE: always throw the head gib *last* since self's size is used
 // to position the gibs!
