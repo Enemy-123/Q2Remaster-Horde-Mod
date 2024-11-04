@@ -2295,14 +2295,26 @@ void AllowNextWaveAdvance() noexcept {
 }
 
 void fastNextWave() noexcept {
-
-	// Forzar la actualización del estado de la ola
-	g_monster_check_cache.Reset();
-//	g_horde_local.state = horde_state_t::cleanup;
 	g_horde_local.monster_spawn_time = level.time;
-
 	g_horde_local.warm_time = level.time;
-	g_horde_local.num_to_spawn = 0; // Establecer a cero para indicar que no hay más monstruos por spawnear
+
+	// Permitir el avance inmediato
+	allowWaveAdvance = true;
+
+	// Resetear variables importantes
+	g_horde_local.num_to_spawn = 0;
+	g_horde_local.queued_monsters = 0;
+
+	// Forzar la actualización del estado
+	g_monster_check_cache.Reset();
+	g_horde_local.conditionTriggered = true;
+	g_horde_local.waveEndTime = level.time;
+
+	// Limpiar cualquier mensaje pendiente
+	ClearHordeMessage();
+
+	g_horde_local.state = horde_state_t::spawning;
+	Horde_InitLevel(g_horde_local.level + 1);
 }
 
 static void MonsterSpawned(const edict_t* monster) {
