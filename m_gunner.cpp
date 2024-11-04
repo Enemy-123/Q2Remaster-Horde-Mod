@@ -377,20 +377,21 @@ void gunner_opengun(edict_t* self)
 
 void GunnerFire(edict_t* self)
 {
-	vec3_t					 start;
-	vec3_t					 forward, right;
-	vec3_t					 aim;
+	vec3_t start;
+	vec3_t forward, right;
+	vec3_t aim;
+	vec3_t offset = { 30.1f * 1.15f, 3.9f * 1.15f, 19.6f * 1.15f + 4.0f };
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
-	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_GUNNER_MACHINEGUN_1 + (self->s.frame - FRAME_attak216));
-
+	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_SOLDIER_RIPPER_1 + (self->s.frame - FRAME_attak216));
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-
+	// Calcular el punto de inicio usando operadores de vec3_t
+	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
+	start.z += offset[2];
 
 	if (current_wave_level <= 12) {
 		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
@@ -401,7 +402,6 @@ void GunnerFire(edict_t* self)
 		monster_fire_ionripper(self, start, aim, 4, 800, flash_number, EF_IONRIPPER);
 	}
 }
-
 
 bool gunner_grenade_check(edict_t* self)
 {

@@ -230,10 +230,21 @@ void guardian_fire_blaster(edict_t* self)
 {
 	vec3_t forward, right, target;
 	vec3_t start;
-	const monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
-
+	monster_muzzleflash_id_t id;
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
+
+	if (!strcmp(self->classname, "monster_janitor2")) {
+		id = static_cast<monster_muzzleflash_id_t>(MZ2_SOLDIER_RIPPER_1);
+		// Aplicar el offset escalado
+		vec3_t offset = { 88.f * self->s.scale, 50.f * self->s.scale, 60.f * self->s.scale };
+		start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
+		start.z += offset[2];
+	}
+	else {
+		id = MZ2_GUARDIAN_BLASTER;
+		start = M_ProjectFlashSource(self, monster_flash_offset[id], forward, right);
+	}
+
 	target = self->enemy->s.origin;
 	target[2] += self->enemy->viewheight;
 	for (int i = 0; i < 3; i++)
@@ -247,7 +258,7 @@ void guardian_fire_blaster(edict_t* self)
 	}
 	else if (!strcmp(self->classname, "monster_janitor2"))
 	{
-		// Cambiar al Ionripper
+		// Usar Ionripper para janitor2
 		monster_fire_ionripper(self, start, forward, 25, 2000, id, EF_IONRIPPER);
 	}
 
