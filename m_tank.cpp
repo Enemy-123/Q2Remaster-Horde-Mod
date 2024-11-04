@@ -622,33 +622,30 @@ void TankRocket(edict_t* self)
 
 void TankMachineGun(edict_t* self)
 {
-	vec3_t					 dir;
-	vec3_t					 vec;
-	vec3_t					 start;
-	vec3_t					 forward, right;
+	vec3_t dir;
+	vec3_t vec;
+	vec3_t start;
+	vec3_t forward, right;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
-
 	AngleVectors(self->s.angles, forward, right, nullptr);
-
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	if (self->enemy)
-	{
+	if (self->enemy) {
 		vec = self->enemy->s.origin;
 		vec[2] += self->enemy->viewheight;
 		vec -= start;
 		vec = vectoangles(vec);
 		dir[0] = vec[0];
 	}
-	else
-	{
+	else {
 		dir[0] = 0;
 	}
+
 	if (self->s.frame <= FRAME_attak415)
 		dir[1] = self->s.angles[1] - 8 * (self->s.frame - FRAME_attak411);
 	else
@@ -656,10 +653,27 @@ void TankMachineGun(edict_t* self)
 	dir[2] = 0;
 
 	AngleVectors(dir, forward, nullptr, nullptr);
-	!strcmp(self->classname, "monster_tank_commander") || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) ?
-	monster_fire_flechette(self, start, forward, 20, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 1150 : 700, flash_number) :
-	monster_fire_bullet(self, start, forward, 20, 8, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 
+	if (!strcmp(self->classname, "monster_tank_commander") || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING)) {
+		// Primer flechette con dirección base
+		monster_fire_flechette(self, start, forward, 20,
+			self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 1150 : 700,
+			flash_number);
+
+		// Segundo flechette con una ligera desviación hacia la derecha
+		vec3_t right_offset;
+		AngleVectors(vectoangles(forward), nullptr, &right_offset, nullptr);
+		vec3_t forward_right = forward + (right_offset * 0.05f);
+		forward_right.normalize();
+		monster_fire_flechette(self, start, forward_right, 20,
+			self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 1150 : 700,
+			flash_number);
+	}
+	else {
+		monster_fire_bullet(self, start, forward, 20, 8,
+			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD,
+			flash_number);
+	}
 }
 
 static void tank_blind_check(edict_t* self)
