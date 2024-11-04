@@ -391,15 +391,28 @@ void hover_vanilla_fire_blaster(edict_t* self)
 {
 	if (!self->enemy || !self->enemy->inuse)
 		return;
-
 	const bool is_daedalus = (strcmp(self->classname, "monster_daedalus_bomber") == 0);
 	const bool is_left_weapon = (self->s.frame & 1);
-	const monster_muzzleflash_id_t flash_number = is_left_weapon ?
-		(is_daedalus ? MZ2_DAEDALUS_BLASTER_2 : MZ2_HOVER_BLASTER_2) :
-		(is_daedalus ? MZ2_DAEDALUS_BLASTER : MZ2_HOVER_BLASTER_1);
+
+	vec3_t offset;
+	monster_muzzleflash_id_t flash_number;
+
+	// Para granadas (daedalus pesado), usamos siempre el mismo flash y offset
+	if (is_daedalus && self->mass >= 200)
+	{
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+		offset = { 1.7f, 7.0f, 11.3f };
+	}
+	else
+	{
+		// Para el resto de casos, usamos los flash y offset normales
+		flash_number = is_left_weapon ?
+			(is_daedalus ? MZ2_DAEDALUS_BLASTER_2 : MZ2_HOVER_BLASTER_2) :
+			(is_daedalus ? MZ2_DAEDALUS_BLASTER : MZ2_HOVER_BLASTER_1);
+		offset = monster_flash_offset[is_left_weapon ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
+	}
 
 	const auto [forward, right, up] = AngleVectors(self->s.angles);
-	const vec3_t offset = monster_flash_offset[is_left_weapon ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
 	const vec3_t start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
 	if (is_daedalus)
@@ -410,7 +423,6 @@ void hover_vanilla_fire_blaster(edict_t* self)
 			vec3_t aim_dir;
 			vec3_t aim_point;
 			PredictAim(self, self->enemy, start, 1000, true, 0, &aim_dir, &aim_point);
-
 			monster_fire_blaster(self, start, aim_dir, 3, 1000, flash_number,
 				(self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
 		}
@@ -418,17 +430,11 @@ void hover_vanilla_fire_blaster(edict_t* self)
 		{
 			// Heavy daedalus - improved grenade/mortar logic
 			const float speed = (flash_number >= MZ2_DAEDALUS_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED;
-
-			// Get predicted aim using PredictAim
 			vec3_t aim_dir;
 			vec3_t aim_point;
 			PredictAim(self, self->enemy, start, speed, true, 0, &aim_dir, &aim_point);
-
-			// Calculate distance for adjustments
 			const float dist = (aim_point - start).length();
 			vec3_t aim = aim_dir;
-
-			// Add slight spread based on distance
 			if (dist > 200)
 			{
 				float spread_factor = std::min(dist / 1000.0f, 0.15f);
@@ -436,29 +442,22 @@ void hover_vanilla_fire_blaster(edict_t* self)
 				aim += up * (crandom_open() * spread_factor);
 				aim.normalize();
 			}
-
-			// Calculate gravity compensation
 			const float pitch_adjust = -0.15f - (dist * 0.00015f);
 			aim += up * pitch_adjust;
 			aim.normalize();
-
-			// Use M_CalculatePitchToFire for final adjustment
 			if (M_CalculatePitchToFire(self, aim_point, start, aim, speed, 2.5f,
 				(flash_number >= MZ2_DAEDALUS_BLASTER_2)))
 			{
-				// Successful trajectory calculation
 				monster_fire_grenade(self, start, aim, 30, speed, flash_number, 5.0f, 3.0f);
 			}
 			else
 			{
-				// Fallback with direct aim plus slight adjustments
 				const int damage = is_daedalus ? DAEDALUS_DAMAGE : HOVER_DAMAGE;
 				float gravity_comp = (level.gravity / 800.f) * (dist / speed);
 				aim[2] += gravity_comp;
 				aim.normalize();
-
 				monster_fire_grenade(self, start, aim, damage, speed, flash_number,
-					crandom_open() * RANDOM_ANGLE * 0.5f,  // Reduced spread
+					crandom_open() * RANDOM_ANGLE * 0.5f,
 					BASE_FUSE + (crandom_open() * RANDOM_ANGLE * 0.5f));
 			}
 		}
@@ -469,7 +468,6 @@ void hover_vanilla_fire_blaster(edict_t* self)
 		vec3_t aim_dir;
 		vec3_t aim_point;
 		PredictAim(self, self->enemy, start, 1000, true, 0, &aim_dir, &aim_point);
-
 		if (self->mass < 200)
 		{
 			monster_fire_blaster(self, start, aim_dir, 1, 1000, flash_number,
