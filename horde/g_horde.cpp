@@ -1086,22 +1086,23 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 // ¿Está el punto de spawn ocupado?
-static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr, const edict_t* monster = nullptr) {
-	static constexpr vec3_t DEFAULT_MINS = { -16, -16, -24 };
-	static constexpr vec3_t DEFAULT_MAXS = { 16, 16, 32 };
-
-	const vec3_t mins = monster ? monster->mins : DEFAULT_MINS;
-	const vec3_t maxs = monster ? monster->maxs : DEFAULT_MAXS;
+static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
+	const vec3_t mins = monster ? monster->mins : vec3_t{ -16, -16, -24 };
+	const vec3_t maxs = monster ? monster->maxs : vec3_t{ 16, 16, 32 };
 
 	const vec3_t check_mins = spawn_point->s.origin + mins;
 	const vec3_t check_maxs = spawn_point->s.origin + maxs;
 
-	FilterData filter_data = { ignore_ent, 0 };
-	gi.BoxEdicts(check_mins, check_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+	// Verificar colisiones con otros monstruos/jugadores
+	for (auto ent : active_monsters()) {
+		if (boxes_intersect(check_mins, check_maxs,
+			ent->absmin, ent->absmax)) {
+			return true;
+		}
+	}
 
-	return filter_data.count > 0;
+	return false;
 }
-
 const char* G_HordePickMonster(edict_t* spawn_point) {
 	if (spawnPointsData[spawn_point].isTemporarilyDisabled || IsSpawnPointOccupied(spawn_point)) {
 		return nullptr;
@@ -1434,7 +1435,7 @@ void BossDeathHandler(edict_t* boss) {
 	auto_spawned_bosses.erase(boss);
 
 	// Items normales que el boss dropea (array estático)
-	static const char* itemsToDrop[7] = {
+	static const std::array<const char*, 7> itemsToDrop = {
 		"item_adrenaline", "item_pack", "item_doppleganger",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier",
 		"item_invulnerability"
@@ -1442,66 +1443,83 @@ void BossDeathHandler(edict_t* boss) {
 
 	// Dropear un arma especial de nivel superior
 	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
-		edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname));
-		if (weapon) {
-			// Configurar el arma dropeada
-			const vec3_t weaponVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY,
-				MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
-			SetupDroppedItem(weapon, boss->s.origin, weaponVelocity, true);
+		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
+			// Generar velocidad aleatoria usando vec3_t
+			const vec3_t weaponVelocity = {
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY)(mt_rand))
+			};
 
-			// Agregar efectos visuales especiales
+			weapon->s.origin = boss->s.origin;
+			weapon->velocity = weaponVelocity;
+			weapon->movetype = MOVETYPE_BOUNCE;
 			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
 			weapon->s.renderfx |= RF_GLOW;
 			weapon->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
 			weapon->s.alpha = 0.85f;
 			weapon->s.scale = 1.25f;
+			weapon->flags &= ~FL_RESPAWN;
 		}
 	}
 
 	// Soltar ítem especial (quad o quadfire)
 	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
-	edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName));
-	const vec3_t specialVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY, 300, 400);
-	SetupDroppedItem(specialItem, boss->s.origin, specialVelocity, false);
-	specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
-	specialItem->s.alpha = 0.8f;
-	specialItem->s.scale = 1.5f;
+	if (edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName))) {
+		const vec3_t specialVelocity = {
+			static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+			static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+			static_cast<float>(std::uniform_int_distribution<>(300, 400)(mt_rand))
+		};
 
-	// Hacer shuffle in-place de los items usando Fisher-Yates
-	static char* shuffledItems[7];
-	for (size_t i = 0; i < 7; i++) {
-		shuffledItems[i] = const_cast<char*>(itemsToDrop[i]);
+		specialItem->s.origin = boss->s.origin;
+		specialItem->velocity = specialVelocity;
+		specialItem->movetype = MOVETYPE_BOUNCE;
+		specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
+		specialItem->s.alpha = 0.8f;
+		specialItem->s.scale = 1.5f;
+		specialItem->flags &= ~FL_RESPAWN;
 	}
 
+	// Fisher-Yates shuffle optimizado
+	std::array<const char*, 7> shuffledItems = itemsToDrop;
 	for (int i = 6; i > 0; i--) {
 		int j = mt_rand() % (i + 1);
 		if (i != j) {
-			char* temp = shuffledItems[i];
-			shuffledItems[i] = shuffledItems[j];
-			shuffledItems[j] = temp;
+			std::swap(shuffledItems[i], shuffledItems[j]);
 		}
 	}
 
 	// Soltar los items shuffleados
-	for (int i = 0; i < 7; i++) {
-		edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(shuffledItems[i]));
-		const vec3_t itemVelocity = GenerateRandomVelocity(MIN_VELOCITY, MAX_VELOCITY,
-			MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
-		SetupDroppedItem(droppedItem, boss->s.origin, itemVelocity, true);
+	for (const auto& itemClassname : shuffledItems) {
+		if (edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname))) {
+			const vec3_t itemVelocity = {
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY)(mt_rand))
+			};
+
+			droppedItem->s.origin = boss->s.origin;
+			droppedItem->velocity = itemVelocity;
+			droppedItem->movetype = MOVETYPE_BOUNCE;
+			droppedItem->flags &= ~FL_RESPAWN;
+			droppedItem->s.effects |= EF_GIB;
+			droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+		}
 	}
 
 	// Finalizar el manejo del boss
 	boss->takedamage = false;
 
 	// Verificar si es un jefe volador (array estático)
-	static const char* flyingBossTypes[4] = {
+	static constexpr std::array<const char*, 4> flyingBossTypes = {
 		"monster_boss2", "monster_carrier",
 		"monster_carrier_mini", "monster_boss2kl"
 	};
 
-	// Búsqueda lineal simple en lugar de std::find
-	for (int i = 0; i < 4; i++) {
-		if (strcmp(boss->classname, flyingBossTypes[i]) == 0) {
+	// Búsqueda simple en el array
+	for (const auto& bossType : flyingBossTypes) {
+		if (strcmp(boss->classname, bossType) == 0) {
 			flying_monsters_mode = false;
 			break;
 		}
@@ -1804,20 +1822,20 @@ static void SpawnBossAutomatically() {
 		return;
 	}
 
-	// Crear el vector de origen usando inicialización de agregados
+	// Usar vec3_t con inicialización agregada
 	const vec3_t spawn_origin{
 		static_cast<float>(it->second[0]),
 		static_cast<float>(it->second[1]),
 		static_cast<float>(it->second[2])
 	};
 
-	// Usar vec3_origin para la comparación
-	if (spawn_origin == vec3_origin) {
+	// Validar origen usando vec3_t
+	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin) {
 		gi.Com_PrintFmt("PRINT: Error: Invalid spawn origin for map {}\n", level.mapname);
 		return;
 	}
 
-	// Create black light effect first
+	// Crear efecto de orbe primero
 	edict_t* orb = G_Spawn();
 	if (orb) {
 		orb->classname = "target_orb";
@@ -1843,27 +1861,27 @@ static void SpawnBossAutomatically() {
 	boss_spawned_for_wave = true;
 	boss->classname = desired_boss;
 
-	// Set flying monsters mode if applicable
-	if (boss->classname && (
+	// Configurar modo de monstruos voladores si aplica
+	flying_monsters_mode = (boss->classname && (
 		strcmp(boss->classname, "monster_boss2") == 0 ||
 		strcmp(boss->classname, "monster_carrier") == 0 ||
 		strcmp(boss->classname, "monster_carrier_mini") == 0 ||
-		strcmp(boss->classname, "monster_boss2kl") == 0)) {
-		flying_monsters_mode = true;
-	}
+		strcmp(boss->classname, "monster_boss2kl") == 0));
 
-	// Set boss origin
+	// Posicionar jefe usando vec3_t
 	boss->s.origin = spawn_origin;
 	gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
 
-	// Push entities away
-	PushEntitiesAway(boss->s.origin, 3, 500, 1000.0f, 3750.0f, 1600.0f, 990.0f);
+	// Empujar entidades usando vec3_t
+	const float push_radius = 500.0f;
+	const float push_force = 1000.0f;
+	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f, 990.0f);
 
-	// Store orb entity in boss for later removal
+	// Almacenar entidad orbe en el jefe
 	boss->owner = orb;
 
-	// Delay boss spawn
-	boss->nextthink = level.time + 1000_ms; // 1 second delay
+	// Retardar spawn del jefe
+	boss->nextthink = level.time + 1000_ms;
 	boss->think = BossSpawnThink;
 	gi.Com_PrintFmt("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
@@ -1989,13 +2007,13 @@ void ClearHordeMessage() {
 }
 // reset cooldowns, fixed no monster spawning on next map
 void ResetCooldowns() noexcept {
-	for (auto& [spawn_point, data] : spawnPointsData) {
-		data.attempts = 0;
-		data.cooldown = SPAWN_POINT_COOLDOWN;
-		data.isTemporarilyDisabled = false;
-	}
+	spawnPointsData.clear();
 	lastSpawnPointTime.clear();
 	lastMonsterSpawnTime.clear();
+
+	// Usar SPAWN_POINT_COOLDOWN como base
+	SPAWN_POINT_COOLDOWN = std::max(3.0_sec,
+		gtime_t::from_sec(g_horde_local.level > 25 ? 2.5f : 3.9f));
 }
 
 void ResetAllSpawnAttempts() noexcept {
@@ -2254,7 +2272,9 @@ constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
 static int32_t CountActiveMonsters() {
 	return std::count_if(active_monsters().begin(), active_monsters().end(),
 		[](const edict_t* ent) {
-			return !ent->deadflag && !(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT);
+			return !ent->deadflag &&
+				!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) &&
+				is_valid_vector(ent->s.origin);
 		});
 }
 
