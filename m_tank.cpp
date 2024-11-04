@@ -362,28 +362,36 @@ constexpr float GRENADE_SPEED = 1600.f;
 void TankGrenades(edict_t* self)
 {
 	vec3_t start, aim, aimpoint;
+	vec3_t forward, right;
 	monster_muzzleflash_id_t flash_number;
-	const float spread = 0.05f; // Ligera desviación hacia la derecha
+	vec3_t offset;
+	const float spread = 0.05f;
 	float pitch = 0;
 	bool blindfire = false;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
-
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 		blindfire = true;
 
-	// Determinar el número de flash basado en el frame
-	if (self->s.frame == FRAME_attak110)
-		flash_number = MZ2_TANK_BLASTER_1;
-	else if (self->s.frame == FRAME_attak113)
-		flash_number = MZ2_TANK_BLASTER_2;
-	else // (self->s.frame == FRAME_attak116)
-		flash_number = MZ2_TANK_BLASTER_3;
+	// Determinar el flash number y offset según el frame
+	if (self->s.frame == FRAME_attak110) {
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+		offset = { 28.7f, -18.5f, 28.7f };
+	}
+	else if (self->s.frame == FRAME_attak113) {
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
+		offset = { 24.6f, -21.5f, 30.1f };
+	}
+	else { // (self->s.frame == FRAME_attak116)
+		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
+		offset = { 19.8f, -23.9f, 32.1f };
+	}
 
 	// Calcular la posición de inicio del disparo
-	AngleVectors(self->s.angles, nullptr, nullptr, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], AngleVectors(self->s.angles).forward, AngleVectors(self->s.angles).right);
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
+	start.z += offset[2];
 
 	// Determinar si es un disparo de mortero o una granada normal
 	const bool is_mortar = (self->s.frame == FRAME_attak110);
@@ -393,7 +401,7 @@ void TankGrenades(edict_t* self)
 	PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
 
 	// Añadir una ligera desviación hacia la derecha
-	aim += AngleVectors(self->s.angles).right * spread;
+	aim += right * spread;
 	aim.normalize();
 
 	// Calcular el pitch basado en la dirección de aim
