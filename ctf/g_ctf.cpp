@@ -2733,23 +2733,10 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 		Q_strlcpy(ctfgame.emsg, "Vote in progress", sizeof(ctfgame.emsg));
 	}
 
-	const int time_left = (ctfgame.electtime - level.time).seconds<int>();
-	const std::string vote_info = fmt::format("Vote: {} by {}. Time: {}s\n",
-		ctfgame.emsg, GetPlayerName(ent), time_left);
-	const std::string full_vote_info = vote_info + "\nUse Compass/Inventory to vote.";
+	// Actualización del HUD y mensajes
+	UpdateVoteHUD();  // Esta función ya maneja la actualización del configstring y voted_map
 
-	// Actualización de información
-	gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
-
-	// Distribución de información a clientes
-	for (auto player : active_players()) {
-		if (player->client) {
-			Q_strlcpy(player->client->voted_map, full_vote_info.c_str(), VoteConstants::MAX_VOTE_MAP_LENGTH);
-		}
-	}
-
-	// Mensajes broadcast
-	gi.LocBroadcast_Print(PRINT_CHAT, vote_info.c_str());
+	// Mensajes broadcast adicionales
 	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass/Inventory to vote, or type YES/NO in console.\n");
 	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
 
