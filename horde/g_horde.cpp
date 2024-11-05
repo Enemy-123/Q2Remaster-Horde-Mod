@@ -191,54 +191,46 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 inline void ClampNumToSpawn(const MapSize& mapSize) {
 	int32_t maxAllowed = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
+
+	// Ajuste dinámico basado en jugadores activos
+	const int32_t activePlayers = GetNumActivePlayers();
+	maxAllowed += std::min(activePlayers - 1, 4) * 2;
+
 	g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, maxAllowed);
 }
-// Calcular queued monsters con mejor balance
+
 int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHardMode) {
 	if (lvl <= 3) return 0;
 
-	// Base progresiva que crece más rápido en niveles bajos y se estabiliza
-	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
+	// Base más agresiva
+	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 4.0f;
+	baseQueued *= (1.0f + (lvl) * 0.18f);
 
-	// Multiplicador por nivel que se incrementa
-	baseQueued *= (1.0f + (lvl) * 0.15f);
+	// Mejores multiplicadores por tamaño de mapa
+	float mapSizeMultiplier = mapSize.isSmallMap ? 1.2f :
+		mapSize.isBigMap ? 1.5f : 1.3f;
 
-	// Ajustes por tamaño de mapa
-	float mapSizeMultiplier;
-	int32_t maxQueued;
-
-	if (mapSize.isSmallMap) {
-		mapSizeMultiplier = 1.0f;
-		maxQueued = 35;
-	}
-	else if (mapSize.isBigMap) {
-		mapSizeMultiplier = 1.3f;
-		maxQueued = 55;
-	}
-	else {
-		mapSizeMultiplier = 1.1f;
-		maxQueued = 45;
-	}
+	int32_t maxQueued = mapSize.isSmallMap ? 40 :
+		mapSize.isBigMap ? 65 : 50;
 
 	baseQueued *= mapSizeMultiplier;
 
-	// Bonus exponencial para niveles altos
+	// Bonus exponencial mejorado
 	if (lvl > 20) {
-		float highLevelBonus = std::pow(1.1f, std::min(lvl - 20, 15));
+		float highLevelBonus = std::pow(1.15f, std::min(lvl - 20, 18));
 		baseQueued *= highLevelBonus;
 	}
 
-	// Bonus por dificultad más dinámico
+	// Mejor bonus por dificultad
 	if (isHardMode) {
-		float difficultyMultiplier = 1.2f;
+		float difficultyMultiplier = 1.25f;
 		if (lvl > 25) {
-			difficultyMultiplier += (lvl - 25) * 0.02f; // Incremento adicional por nivel
-			difficultyMultiplier = std::min(difficultyMultiplier, 1.5f); // Cap en 50% extra
+			difficultyMultiplier += (lvl - 25) * 0.025f;
+			difficultyMultiplier = std::min(difficultyMultiplier, 1.75f);
 		}
 		baseQueued *= difficultyMultiplier;
 	}
 
-	// Asegurar que no exceda el máximo para el tamaño del mapa
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
 
