@@ -645,20 +645,20 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 	}
 }
 
-void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
-	float push_radius, float push_strength,
-	float horizontal_push_strength, float vertical_push_strength)
+void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength)
 {
 	// Constantes optimizadas
 	static constexpr float MIN_VELOCITY = 400.0f;
 	static constexpr float MAX_FORCE = 4000.0f;
 	static constexpr float BASE_FORCE = 500.0f;
 	static constexpr int MAX_ATTEMPTS = 5;
+	static constexpr float DAMPING_FACTOR = 0.85f;
+	static constexpr float MASS_SCALING = 0.75f;
+	static constexpr float MIN_DISTANCE_CHECK = 0.01f;
+	static constexpr float SIZE_INFLUENCE = 0.3f;
 	static constexpr float VERTICAL_BOOST_FIRST = 800.0f;
 	static constexpr float VERTICAL_BOOST_SECOND = 600.0f;
-	static constexpr float FORCE_MULTIPLIER = 1.25f;
-	static constexpr float ATTEMPT_SCALE = 0.75f;
-	static constexpr float MIN_DISTANCE_CHECK = 0.01f;
+	static constexpr float ROTATION_FACTOR = 0.15f;
 
 	// Arrays estáticos para entidades
 	static edict_t* entities_to_process[MAX_ENTITIES];
@@ -666,11 +666,11 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 	size_t process_count = 0;
 	size_t remove_count = 0;
 
-	// Asegurar radio mínimo y calcular radio de búsqueda
+	// Radio mínimo y búsqueda
 	push_radius = std::max(push_radius, 1.0f);
 	const float search_radius = push_radius * 1.5f;
 
-	// Recolectar entidades con verificación de visibilidad
+	// Recolectar entidades
 	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
 		if (!ent || !ent->inuse)
 			continue;
@@ -679,7 +679,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		if (!gi.inPVS(center, ent->s.origin, false))
 			continue;
 
-		// Verificar línea de visión directa
 		vec3_t check_point = ent->s.origin;
 		check_point.z += (ent->maxs.z + ent->mins.z) * 0.5f;
 
@@ -687,6 +686,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		if (tr.fraction < 1.0f && tr.ent != ent)
 			continue;
 
+		// Clasificar entidades
 		if (IsRemovableEntity(ent)) {
 			if (remove_count < MAX_ENTITIES)
 				entities_to_remove[remove_count++] = ent;
@@ -697,7 +697,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		}
 	}
 
-	// Procesar entidades removibles primero
+	// Remover entidades primero
 	for (size_t i = 0; i < remove_count; i++) {
 		if (entities_to_remove[i] && entities_to_remove[i]->inuse)
 			RemoveEntity(entities_to_remove[i]);
@@ -708,17 +708,27 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		const float wave_progress = static_cast<float>(wave) / num_waves;
 		const float size = std::max(push_radius * (1.0f - wave_progress * 0.5f), 0.030f);
 
-		// Efecto visual de spawn
+		// Efecto visual mejorado
 		SpawnGrow_Spawn(center, size, size * 0.3f);
 
-		// Procesar cada entidad
+		// Efectos adicionales para olas posteriores
+		if (wave > 0) {
+			vec3_t effect_pos = center;
+			for (int i = 0; i < 4; i++) {
+				effect_pos[0] = center[0] + crandom() * size * 0.5f;
+				effect_pos[1] = center[1] + crandom() * size * 0.5f;
+				effect_pos[2] = center[2] + crandom() * size * 0.25f;
+				SpawnGrow_Spawn(effect_pos, size * 0.5f, size * 0.15f);
+			}
+		}
+
+		// Procesar entidades
 		for (size_t entity_idx = 0; entity_idx < process_count; entity_idx++) {
 			edict_t* entity = entities_to_process[entity_idx];
 
 			if (!entity || !entity->inuse)
 				continue;
 
-			// Re-verificar PVS para esta entidad
 			if (!gi.inPVS(center, entity->s.origin, false))
 				continue;
 
@@ -726,37 +736,44 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 			int attempts = 0;
 
 			while (!pushed && attempts < MAX_ATTEMPTS) {
-				// Verificar línea de visión nuevamente
-				const trace_t vis_tr = gi.traceline(center,
-					entity->s.origin, nullptr, MASK_SOLID);
+				// Verificar línea de visión
+				const trace_t vis_tr = gi.traceline(center, entity->s.origin, nullptr, MASK_SOLID);
 				if (vis_tr.fraction < 1.0f && vis_tr.ent != entity) {
 					attempts++;
 					continue;
 				}
 
-				// Calcular dirección de empuje usando vec3_t
+				// Calcular dirección y fuerza
 				vec3_t push_dir = entity->s.origin - center;
 				const float distance_squared = push_dir.lengthSquared();
 
-				// Normalizar dirección
 				if (distance_squared > MIN_DISTANCE_CHECK) {
 					push_dir = push_dir.normalized();
 				}
 				else {
-					// Dirección aleatoria si está muy cerca
-					push_dir = vec3_t{ crandom(), crandom(), 0.0f }.normalized();
+					push_dir = vec3_t{ crandom(), crandom(), 0.3f }.normalized();
 				}
 
 				const float distance = std::sqrt(distance_squared);
 				const float distance_factor = std::max(0.3f, 1.0f - (distance / size));
 
-				// Calcular fuerza de empuje
+				// Fuerza base mejorada con curva sinusoidal
 				float wave_push_strength = push_strength * distance_factor *
-					std::sin(DEG2RAD(90.0f * distance_factor)) * FORCE_MULTIPLIER;
+					(0.5f + 0.5f * std::cos(distance_factor * PI)) *
+					std::pow(1.0f - wave_progress, 0.5f);
+
+				// Escalar por masa y tamaño
+				if (entity->mass > 0) {
+					wave_push_strength *= std::pow(static_cast<float>(entity->mass), -MASS_SCALING);
+				}
+
+				// Factor de tamaño
+				const float size_factor = (entity->maxs - entity->mins).length() * SIZE_INFLUENCE;
+				wave_push_strength *= (1.0f / (1.0f + size_factor));
 
 				// Ajustar por intentos
-				const float attempt_multiplier = 1.0f + (attempts * ATTEMPT_SCALE);
-				wave_push_strength = std::min(wave_push_strength * attempt_multiplier, MAX_FORCE);
+				wave_push_strength *= (1.0f + (attempts * 0.25f));
+				wave_push_strength = std::min(wave_push_strength, MAX_FORCE);
 
 				// Calcular nueva posición
 				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / BASE_FORCE));
@@ -766,22 +783,23 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 					new_pos, entity, MASK_SOLID);
 
 				if (!tr.allsolid && !tr.startsolid) {
-					// Calcular velocidad final
+					// Velocidad final con componentes mejorados
 					const float tr_scale = tr.fraction < 1.0f ? tr.fraction : 1.0f;
 					vec3_t final_velocity = push_dir * (wave_push_strength * tr_scale);
 
-					// Añadir componente horizontal
+					// Componente horizontal mejorado
 					const float horizontal_factor = std::sin(DEG2RAD(90.0f * distance_factor));
 					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor);
 
-					// Añadir componente vertical
-					final_velocity.z += vertical_push_strength *
-						std::sin(DEG2RAD(90.0f * distance_factor));
+					// Componente vertical con variación por ola
+					const float vertical_factor = std::sin(DEG2RAD(90.0f * distance_factor));
+					float vertical_boost = vertical_push_strength * vertical_factor;
 
-					// Boost vertical para primeras olas
 					if (wave <= 1) {
-						final_velocity.z += (wave == 0) ? VERTICAL_BOOST_FIRST : VERTICAL_BOOST_SECOND;
+						vertical_boost += (wave == 0) ? VERTICAL_BOOST_FIRST : VERTICAL_BOOST_SECOND;
 					}
+
+					final_velocity.z += vertical_boost;
 
 					// Asegurar velocidad mínima
 					for (int axis = 0; axis < 3; axis++) {
@@ -790,24 +808,44 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 						}
 					}
 
-					// Aplicar velocidad final
-					final_velocity *= FORCE_MULTIPLIER;
+					// Aplicar damping y escala final
+					final_velocity *= DAMPING_FACTOR;
 
-					// Actualizar entidad
+					// Rotación para entidades no jugador
+					if (!entity->client) {
+						entity->avelocity = {
+							crandom() * wave_push_strength * ROTATION_FACTOR,
+							crandom() * wave_push_strength * ROTATION_FACTOR,
+							crandom() * wave_push_strength * ROTATION_FACTOR
+						};
+					}
+
+					// Aplicar velocidad
 					entity->velocity = final_velocity;
 					entity->groundentity = nullptr;
 
-					// Actualizar cliente si es necesario
+					// Actualizar cliente
 					if (entity->client) {
 						entity->client->oldvelocity = final_velocity;
 						entity->client->oldgroundentity = nullptr;
 						entity->client->ps.pmove.velocity = final_velocity;
+
+						// Efecto de pantalla para jugadores usando flags existentes
+						if (wave == 0) {
+							// Usar TIME_TELEPORT para el efecto de knockback
+							entity->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+							entity->client->ps.pmove.pm_time = 100;
+
+							// Deshabilitar predicción temporal para un efecto más suave
+							entity->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
+
+							// Opcional: también podemos deshabilitar la predicción angular
+							entity->client->ps.pmove.pm_flags |= PMF_NO_ANGULAR_PREDICTION;
+
+						}
 					}
 
 					pushed = true;
-
-					gi.Com_PrintFmt("PRINT: Wave {}: Entity {} pushed with velocity {}\n",
-						wave + 1, entity->classname ? entity->classname : "unknown", final_velocity);
 				}
 
 				attempts++;
@@ -815,7 +853,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, int wave_interval_ms,
 		}
 	}
 }
-
 
 [[nodiscard]] constexpr bool string_equals(const char* str1, const std::string_view& str2) noexcept {
 	return str1 && str2.length() == strlen(str1) && !Q_strncasecmp(str1, str2.data(), str2.length());

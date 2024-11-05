@@ -1875,7 +1875,7 @@ static void SpawnBossAutomatically() {
 	// Empujar entidades usando vec3_t
 	const float push_radius = 500.0f;
 	const float push_force = 1000.0f;
-	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f, 990.0f);
+	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f);
 
 	// Almacenar entidad orbe en el jefe
 	boss->owner = orb;
@@ -2621,23 +2621,66 @@ static edict_t* SpawnMonsters() {
 	return last_spawned;
 }
 
-// Funciones auxiliares para reducir el tamaño de SpawnMonsters
 static void SetMonsterArmor(edict_t* monster) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (!st.was_key_specified("power_armor_power"))
+	if (!st.was_key_specified("power_armor_power")) {
 		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-	if (!st.was_key_specified("power_armor_type")) {
-		const float health_factor = sqrt(std::max(0.0f, monster->max_health / 100.0f));
-		const int base_armor = (current_wave_level <= 25) ?
-			irandom(75, 225) + health_factor * irandom(1, 3) :
-			irandom(150, 320) + health_factor * irandom(2, 5);
 
-		const int additional_armor = static_cast<int>((current_wave_level - 20) * 10 * health_factor);
-		monster->monsterinfo.armor_power = base_armor + additional_armor;
+		// Factores base mejorados
+		const float health_ratio = monster->health / static_cast<float>(monster->max_health);
+		const float size_factor = (monster->maxs - monster->mins).length() / 64.0f;
+		const float mass_factor = std::min(monster->mass / 200.0f, 2.0f);
+
+		// Factor de nivel dinámico
+		float level_scaling;
+		if (current_wave_level <= 15) {
+			level_scaling = 1.0f + (current_wave_level * 0.08f);
+		}
+		else if (current_wave_level <= 25) {
+			level_scaling = 2.2f + ((current_wave_level - 15) * 0.12f);
+		}
+		else {
+			level_scaling = 3.4f + ((current_wave_level - 25) * 0.15f);
+		}
+
+		// Base armor con mejor escalado
+		int base_armor = static_cast<int>(
+			(100 + monster->max_health * 0.2f) *
+			std::pow(health_ratio, 1.2f) *
+			std::pow(size_factor, 0.8f) *
+			std::pow(mass_factor, 0.7f) *
+			level_scaling
+			);
+
+		// Bonus por dificultad
+		if (g_insane->integer) {
+			base_armor *= 1.3f;
+		}
+		else if (g_chaotic->integer) {
+			base_armor *= 1.15f;
+		}
+
+		// Factor aleatorio controlado
+		const float random_factor = 1.0f + (crandom() * 0.15f);
+		base_armor = static_cast<int>(base_armor * random_factor);
+
+		// Ajustes finales por nivel
+		if (current_wave_level > 25) {
+			base_armor *= 1.0f + ((current_wave_level - 25) * 0.05f);
+		}
+
+		// Límites dinámicos
+		const int min_armor = std::max(50, static_cast<int>(monster->max_health * 0.1f));
+		const int max_armor = static_cast<int>(monster->max_health *
+			(current_wave_level > 25 ? 2.0f : 1.5f));
+
+		// Asignar armor usando los campos correctos de monsterinfo
+		monster->monsterinfo.armor_power = std::clamp(base_armor, min_armor, max_armor);
+		// Guardar el base power armor para referencia
+		monster->monsterinfo.base_power_armor = monster->monsterinfo.armor_power;
 	}
 }
-
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 	g_horde_local.monster_spawn_time = level.time +
 		(mapSize.isSmallMap ? random_time(1.2_sec, 1.5_sec) :
