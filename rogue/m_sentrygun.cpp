@@ -511,6 +511,10 @@ void turret2Fire(edict_t* self)
 			}
 			else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
 			{
+				vec3_t offset = { 20.f, 0.f, 0.f };
+				// Calcular el punto de inicio usando el offset fijo
+				vec3_t start = self->s.origin + (forward * offset[0]);
+
 				vec3_t predictedDir;
 				PredictAim(self, self->enemy, start, 9999, false,
 					self->monsterinfo.quadfire_time > level.time ?
@@ -539,9 +543,10 @@ void turret2Fire(edict_t* self)
 								vec3_origin,
 								self->monsterinfo.quadfire_time >
 								level.time ? 2 : 0,
-								10, MZ2_TURRET_BLASTER);
+								10, MZ2_WIDOW2_BEAM_SWEEP_1);  // Cambiado a MZ2_WIDOW2_BEAM_SWEEP_1
 							damageApplied = true;
 						}
+
 
 						// Sistema de plasma mejorado
 						if (level.time > self->monsterinfo.last_plasma_fire_time +
