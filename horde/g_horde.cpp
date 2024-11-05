@@ -203,7 +203,7 @@ int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHard
 	if (lvl <= 3) return 0;
 
 	// Base más agresiva
-	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 4.0f;
+	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
 	baseQueued *= (1.0f + (lvl) * 0.18f);
 
 	// Mejores multiplicadores por tamaño de mapa
