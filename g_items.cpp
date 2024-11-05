@@ -1043,7 +1043,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	{
 		bool should_remove = false;
 
-		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+		if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer || !G_IsDeathmatch())
 		{
 			// in coop with instanced items, *only* dropped 
 			// player items will ever get deleted permanently.

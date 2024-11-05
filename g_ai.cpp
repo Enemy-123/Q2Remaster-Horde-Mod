@@ -508,7 +508,6 @@ struct target_data_t {
     uint8_t is_attacker : 1;
 };
 
-// Función principal de búsqueda de objetivo
 bool FindMTarget(edict_t* self) {
     if (!self)
         return false;
@@ -531,6 +530,11 @@ bool FindMTarget(edict_t* self) {
 
         float dist_squared = DistanceSquared(self_origin, ent->s.origin);
         if (dist_squared > MAX_RANGE_SQUARED)
+            continue;
+
+        // Check PVS antes de hacer cálculos más costosos
+        // Usamos portals=true para permitir ver a través de portales
+        if (!gi.inPVS(self_origin, ent->s.origin, true))
             continue;
 
         bool is_attacker = (ent == current_enemy || ent == last_attacker);
@@ -556,9 +560,10 @@ bool FindMTarget(edict_t* self) {
         return true;
     }
 
-    // Mantener objetivo actual si sigue siendo válido
+    // Mantener objetivo actual si sigue siendo válido y visible
     if (current_enemy &&
         IsValidTarget(self, current_enemy) &&
+        gi.inPVS(self_origin, current_enemy->s.origin, true) &&
         current_time < self->monsterinfo.react_to_damage_time) {
         return true;
     }
@@ -566,7 +571,6 @@ bool FindMTarget(edict_t* self) {
     self->enemy = nullptr;
     return false;
 }
-
 /*
 =============
 visible
