@@ -249,59 +249,36 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 	item_id_t index;
 	gitem_t* ammo;
 	index = ent->item->id;
-
 	if (G_WeaponShouldStay() && other->client->pers.inventory[index])
 	{
 		if (!(ent->spawnflags & (SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER)))
 			return false;
 	}
-
 	bool is_new = !other->client->pers.inventory[index];
 	other->client->pers.inventory[index]++;
-
-	//gi.Com_PrintFmt("Horde mode: {}\n", g_horde->integer);
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) || g_horde->integer)
 	{
 		if (ent->item->ammo != IT_NULL)
 		{
 			ammo = GetItemByIndex(ent->item->ammo);
-
-		/*	gi.Com_PrintFmt("Weapon: {}, Ammo type: {}, Base quantity: {}\n",
-				ent->item->pickup_name,
-				ammo->pickup_name,
-				ammo->quantity);*/
-
 			if (G_CheckInfiniteAmmo(ammo))
 			{
 				Add_Ammo(other, ammo, 1000);
-			//	gi.Com_PrintFmt("Added infinite ammo (1000)\n");
 			}
 			else
 			{
 				int given_quantity = ammo->quantity;
-				float multiplier = 1.0f;
-
 				if (g_horde->integer)
 				{
-					// Asegurar que los valores están dentro del rango correcto
-					float min_mult = 0.5f;
-					float max_mult = 1.3f;
-					multiplier = min_mult + ((float)rand() / RAND_MAX) * (max_mult - min_mult);
+					// Usar frandom para obtener un valor entre 0.7 y 1.3
+					float multiplier = frandom(0.7f, 1.3f);
 					given_quantity = (int)(given_quantity * multiplier);
 				}
-
-				// Asegurar que given_quantity sea al menos 1 pero no menor que la cantidad base
 				given_quantity = std::max(1, given_quantity);
-
-				gi.Com_PrintFmt("Horde mode multiplier: {}, Final quantity: {}\n",
-					multiplier, given_quantity);
-
 				Add_Ammo(other, ammo, given_quantity);
-				gi.Com_PrintFmt("Added {} ammo\n", given_quantity);
 			}
 		}
-
 		else
 		{
 			gi.Com_PrintFmt("Warning: Weapon has no ammo type assigned\n");
@@ -318,10 +295,10 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 				ent->flags |= FL_RESPAWN;
 		}
 	}
-
 	G_CheckAutoSwitch(other, ent->item, is_new);
 	return true;
 }
+
 static void Weapon_RunThink(edict_t* ent)
 {
 	// call active weapon think routine
