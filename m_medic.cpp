@@ -763,6 +763,49 @@ MONSTERINFO_SETSKIN(medic_setskin) (edict_t* self) -> void
 		self->s.skinnum &= ~1;
 }
 
+void medic_fire_blaster_bolt(edict_t* self)
+{
+    vec3_t start;
+    vec3_t forward, right;
+    vec3_t end;
+    vec3_t dir;
+    int damage = 30;
+    monster_muzzleflash_id_t mz;
+
+    mz = static_cast<monster_muzzleflash_id_t>(((self->mass > 400) ? MZ2_MEDIC_HYPERBLASTER2_1 : MZ2_MEDIC_HYPERBLASTER1_1));
+
+    if (!(self->enemy && self->enemy->inuse))
+        return;
+
+    AngleVectors(self->s.angles, forward, right, nullptr);
+    const vec3_t& offset = monster_flash_offset[mz];
+    start = M_ProjectFlashSource(self, offset, forward, right);
+    end = self->enemy->s.origin;
+    end[2] += self->enemy->viewheight;
+    dir = end - start;
+    dir.normalize();
+
+    if (!strcmp(self->enemy->classname, "tesla_mine"))
+        damage = 60;
+
+    // Cambiar la flag del SVF del self temporalmente para permitir rebote
+   // self->svflags &= ~SVF_MONSTER;  // Esto evitará que se active la excepción de no-rebote
+    
+    // Crear el bolt
+    edict_t* bolt = fire_blaster(self, start, dir, damage, 1500,
+        (brandom()) ? EF_TRACKER : EF_TRACKER | EF_BLUEHYPERBLASTER, MOD_BLASTER);
+
+    // Restaurar la flag
+   // self->svflags |= SVF_MONSTER;
+
+    // Configurar propiedades especiales del bolt
+    if (bolt) {
+        bolt->bounce_count = 3;  // Número de rebotes
+        bolt->s.scale = 0.5f;
+        bolt->s.renderfx = RF_SHELL_HALF_DAM;
+    }
+}
+
 void medic_fire_blaster(edict_t* self)
 {
 	vec3_t	  start;
@@ -805,7 +848,11 @@ void medic_fire_blaster(edict_t* self)
 	if (self->mass > 400)
 		monster_fire_blaster2(self, start, dir, damage, 1000, mz, effect);
 	else
-		monster_fire_blaster(self, start, dir, damage, 1000, mz, effect);
+	{
+		edict_t* bolt = monster_fire_blaster(self, start, dir, damage, 1000, mz, effect);
+		if (bolt)
+			bolt->movetype = MOVETYPE_FLYMISSILE; // Override to prevent bouncing
+	}
 }
 
 void medic_dead(edict_t* self)
@@ -999,10 +1046,10 @@ mframe_t medic_frames_attackBlaster[] = {
 	{ ai_charge, 0, medic_quick_attack },
 	{ ai_charge, 0, monster_footstep },
 	{ ai_charge },
-	{ ai_charge, 0, medic_fire_blaster },
+	{ ai_charge, 0, medic_fire_blaster_bolt },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge, 0, medic_fire_blaster },
+	{ ai_charge, 0, medic_fire_blaster_bolt },
 	{ ai_charge },
 	{ ai_charge, 0, medic_continue } // Change to medic_continue... Else, go to frame 32
 };
