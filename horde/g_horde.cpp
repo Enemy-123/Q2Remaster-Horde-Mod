@@ -435,10 +435,10 @@ static void Horde_InitLevel(const int32_t lvl) {
 	// Ajustar la escala de daño según el nivel
 	switch (lvl) {
 	case 15:
-		gi.cvar_set("g_damage_scale", "2.35");
+		gi.cvar_set("g_damage_scale", "1.75");
 		break;
 	case 25:
-		gi.cvar_set("g_damage_scale", "3.25");
+		gi.cvar_set("g_damage_scale", "2.25");
 		break;
 	case 35:
 		gi.cvar_set("g_damage_scale", "3.5");
