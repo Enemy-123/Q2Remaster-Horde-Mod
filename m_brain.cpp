@@ -322,7 +322,6 @@ void brain_hit_left(edict_t* self)
 	}
 }
 
-
 mframe_t brain_frames_attack1[] = {
 	{ ai_charge, 0, monster_footstep },
 	{ ai_charge, -3, brain_swing_right },
@@ -416,19 +415,48 @@ MONSTERINFO_MELEE(brain_melee) (edict_t* self) -> void
 // RAFAEL
 static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 {
-	vec3_t dir, angles;
+	constexpr float MAX_ATTACK_DISTANCE = 512.0f;
+	constexpr float MAX_PITCH_ANGLE = 30.0f;
+	constexpr float MIN_CLEARANCE = 24.0f; // Espacio mínimo necesario para el tentáculo
 
-	// check for max distance
-	dir = start - end;
-	if (dir.length() > 512)
+	// Verificar distancia máxima
+	vec3_t dir = start - end;
+	float dist = dir.length();
+	if (dist > MAX_ATTACK_DISTANCE)
 		return false;
 
-	// check for min/max pitch
-	angles = vectoangles(dir);
-	if (angles[0] < -180)
-		angles[0] += 360;
-	if (fabsf(angles[0]) > 30)
+	// Verificar ángulo de pitch
+	vec3_t angles = vectoangles(dir);
+
+	// Normalizar el ángulo de pitch a -180/+180
+	if (angles[PITCH] < -180)
+		angles[PITCH] += 360;
+	else if (angles[PITCH] > 180)
+		angles[PITCH] -= 360;
+
+	// Verificar si el ángulo está dentro del rango permitido
+	if (fabsf(angles[PITCH]) > MAX_PITCH_ANGLE)
 		return false;
+
+	// Verificar si hay suficiente espacio libre en la trayectoria
+	trace_t tr = gi.traceline(start, end, nullptr, MASK_SOLID);
+
+	// Si hay una colisión antes del objetivo, verificar la fracción
+	if (tr.fraction < 1.0f)
+	{
+		// Verificar si hay suficiente espacio para que el tentáculo pase
+		vec3_t test_start = start;
+		vec3_t test_end = end;
+		vec3_t test_mins = { -MIN_CLEARANCE, -MIN_CLEARANCE, -MIN_CLEARANCE };
+		vec3_t test_maxs = { MIN_CLEARANCE, MIN_CLEARANCE, MIN_CLEARANCE };
+
+		// Hacer un trace más preciso con una caja
+		tr = gi.trace(test_start, test_mins, test_maxs, test_end, nullptr, MASK_SOLID);
+
+		// Si hay una obstrucción significativa, no permitir el ataque
+		if (tr.fraction < 0.9f)
+			return false;
+	}
 
 	return true;
 }
@@ -504,6 +532,7 @@ void brain_tounge_attack(edict_t* self)
 	self->enemy->velocity[2] = height_diff * 2;  // Velocidad vertical proporcional a la diferencia de altura
 }
 
+
 mframe_t brain_frames_run[] = {
 	{ ai_run, 12 },
 	{ ai_run, 5 },
@@ -530,12 +559,8 @@ mframe_t brain_frames_continue[] = {
 	{ ai_charge, 0, brain_tounge_attack_continue },
 	{ ai_charge, 0, brain_tounge_attack_continue },
 	{ ai_charge, 0, brain_tounge_attack_continue },
-	//{ ai_charge, 0, brain_tounge_attack },
-	//{ ai_charge, 0, brain_tounge_attack },
-	//{ ai_charge, -9, brain_chest_closed },
 };
 MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_continue, brain_tounge_attack };
-
 
 void brain_tounge_attack_continue(edict_t* self)
 {
@@ -600,6 +625,7 @@ void brain_tounge_attack_continue(edict_t* self)
 	self->monsterinfo.attack_finished = level.time + 1_hz;
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
+
 // Brian right eye center
 constexpr vec3_t brain_reye[] = {
 	{ 0.746700f, 0.238370f, 34.167690f },
@@ -772,31 +798,78 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 		return;
 
 	const float r = range_to(self, self->enemy);
+	constexpr float MELEE_DISTANCE = 80.0f;
+	constexpr float JUMP_MIN_DISTANCE = MELEE_DISTANCE * 2;
+	constexpr float JUMP_MAX_DISTANCE = MELEE_DISTANCE * 6;
 
-	// Asegurarse de que la animación actual es válida antes de cambiar
+	// Asegurarse de que la animación actual es válida
 	if (!self->monsterinfo.active_move.pointer()) {
 		M_SetAnimation(self, &brain_move_run);
 		return;
 	}
 
+	// Contra objetivos especiales siempre usar láser
 	if (!strcmp(self->enemy->classname, "tesla_mine") ||
 		!strcmp(self->enemy->classname, "monster_sentrygun"))
+	{
+		if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
+			M_SetAnimation(self, &brain_move_attack4);
+		return;
+	}
+
+	// Verificar línea de visión y altura relativa
+	bool has_los = visible(self, self->enemy);
+	float height_diff = fabs(self->s.origin[2] - self->enemy->s.origin[2]);
+
+	// Si estamos muy cerca, priorizar el pull/melee
+	if (r <= MELEE_DISTANCE && has_los)
+	{
+		// Intentar hacer pull directamente
+		M_SetAnimation(self, &brain_move_attack3);
+		return;
+	}
+
+	// Para rango medio/cercano, mezclar ataques
+	if (r <= JUMP_MIN_DISTANCE)
+	{
+		float attack_chance = frandom();
+
+		if (attack_chance < 0.4f && !self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
+			M_SetAnimation(self, &brain_move_attack4); // Laser
+		else if (attack_chance < 0.7f)
+			M_SetAnimation(self, &brain_move_attack3); // Pull
+		else
+			M_SetAnimation(self, &brain_move_jumpattack); // Salto corto
+
+		return;
+	}
+
+	// Para rango medio/largo, evaluar salto
+	if (r <= JUMP_MAX_DISTANCE && has_los && height_diff < 120.0f)
+	{
+		// Calcular punto medio entre brain y enemigo
+		vec3_t midpoint = (self->s.origin + self->enemy->s.origin) * 0.5f;
+
+		// Verificar si hay espacio para saltar
+		trace_t tr = gi.trace(self->s.origin, self->mins, self->maxs,
+			midpoint, self, MASK_MONSTERSOLID);
+
+		if (tr.fraction >= 0.8f) // Si hay suficiente espacio libre
+		{
+			M_SetAnimation(self, &brain_move_jumpattack);
+			return;
+		}
+	}
+
+	// Rango largo o sin línea de visión clara, usar láser si está disponible
+	if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 	{
 		M_SetAnimation(self, &brain_move_attack4);
 		return;
 	}
 
-	if (r <= RANGE_NEAR)
-	{
-		if (frandom() < 0.6f)
-			M_SetAnimation(self, &brain_move_jumpattack);
-		else if (!self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
-			M_SetAnimation(self, &brain_move_attack4);
-	}
-	else if (r <= RANGE_MELEE * 6)
-	{
-		M_SetAnimation(self, &brain_move_attack3);
-	}
+	// Si nada más es viable, intentar acercarse
+	M_SetAnimation(self, &brain_move_run);
 }
 
 // RAFAEL
