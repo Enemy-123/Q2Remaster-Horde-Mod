@@ -236,7 +236,7 @@ inline bool G_WeaponShouldStay()
 	if (G_IsDeathmatch())
 		return !P_UseCoopInstancedItems(); // somehow works for horde, probably
 		//return g_dm_weapons_stay->integer;
-	else if (G_IsCooperative())
+	else if (!G_IsDeathmatch())
 		return !P_UseCoopInstancedItems();
 
 	return false;
@@ -281,7 +281,7 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 		}
 		else
 		{
-			gi.Com_PrintFmt("Warning: Weapon has no ammo type assigned\n");
+			//gi.Com_PrintFmt("Warning: Weapon has no ammo type assigned\n");
 		}
 
 		if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER & SPAWNFLAG_ITEM_DROPPED))
