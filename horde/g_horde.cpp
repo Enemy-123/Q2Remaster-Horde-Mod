@@ -839,7 +839,9 @@ static void AddRecentBoss(const char* classname) {
 // Modifica G_HordePickBOSS para usar arrays estáticos
 const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
 	static EligibleBosses eligible_bosses;
+	static double cumulative_weights[MAX_ELIGIBLE_BOSSES];
 	eligible_bosses.clear();
+	double total_weight = 0.0;
 
 	const boss_t* boss_list = GetBossList(mapSize, mapname);
 	if (!boss_list) return nullptr;
@@ -847,23 +849,51 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 	const size_t boss_list_size = GetBossListSize(mapSize, mapname, boss_list);
 	if (boss_list_size == 0) return nullptr;
 
-	// Filtrar jefes elegibles
+	// Recolectar bosses elegibles y calcular pesos acumulativos
 	for (size_t i = 0; i < boss_list_size; ++i) {
 		const boss_t& boss = boss_list[i];
 		if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 			(waveNumber <= boss.max_level || boss.max_level == -1) &&
 			!recent_bosses.contains(boss.classname)) {
+
+			// Ajustar peso base según nivel y dificultad
+			float adjusted_weight = boss.weight;
+
+			// Boost para bosses apropiados al nivel
+			if (waveNumber >= boss.min_level && waveNumber <= boss.min_level + 5) {
+				adjusted_weight *= 1.3f;
+			}
+
+			// Ajuste por dificultad
+			if (g_insane->integer || g_chaotic->integer) {
+				if (boss.sizeCategory == BossSizeCategory::Large) {
+					adjusted_weight *= 1.2f;
+				}
+			}
+
+			// Penalización suave para bosses de nivel muy bajo
+			if (boss.min_level != -1 && waveNumber > boss.min_level + 10) {
+				adjusted_weight *= 0.8f;
+			}
+
+			total_weight += adjusted_weight;
+			cumulative_weights[eligible_bosses.count] = total_weight;
 			eligible_bosses.add(&boss);
 		}
 	}
 
-	// Si no hay jefes elegibles, limpiar historial y reintentar
+	// Si no hay bosses elegibles, limpiar historial y reintentar
 	if (eligible_bosses.count == 0) {
 		recent_bosses.clear();
+		total_weight = 0.0;
+
 		for (size_t i = 0; i < boss_list_size; ++i) {
 			const boss_t& boss = boss_list[i];
 			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 				(waveNumber <= boss.max_level || boss.max_level == -1)) {
+				float adjusted_weight = boss.weight;
+				total_weight += adjusted_weight;
+				cumulative_weights[eligible_bosses.count] = total_weight;
 				eligible_bosses.add(&boss);
 			}
 		}
@@ -871,10 +901,22 @@ const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, 
 
 	if (eligible_bosses.count == 0) return nullptr;
 
-	// Selección aleatoria usando índices
-	size_t random_index = mt_rand() % eligible_bosses.count;
-	const boss_t* chosen_boss = eligible_bosses.items[random_index];
+	// Selección basada en peso usando búsqueda binaria
+	double random_value = frandom() * total_weight;
+	size_t left = 0;
+	size_t right = eligible_bosses.count - 1;
 
+	while (left < right) {
+		size_t mid = (left + right) / 2;
+		if (cumulative_weights[mid] < random_value) {
+			left = mid + 1;
+		}
+		else {
+			right = mid;
+		}
+	}
+
+	const boss_t* chosen_boss = eligible_bosses.items[left];
 	if (chosen_boss) {
 		recent_bosses.add(chosen_boss->classname);
 		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
