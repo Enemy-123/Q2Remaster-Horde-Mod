@@ -370,6 +370,10 @@ void CarrierSpawn(edict_t *self)
 		ent->monsterinfo.commander = self;
 		ent->monsterinfo.monster_slots = reinforcement.strength;
 		self->monsterinfo.monster_used += reinforcement.strength;
+
+		if (g_horde->integer)
+			ent->item = brandom() ? G_HordePickItem() : nullptr;
+
 		ApplyMonsterBonusFlags(ent);
 
 		if ((self->enemy->inuse) && (self->enemy->health > 0))

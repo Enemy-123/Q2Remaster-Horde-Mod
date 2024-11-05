@@ -942,6 +942,9 @@ void Monster_MoveSpawn(edict_t* self)
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
 		monster->owner = self;
+		if (g_horde->integer)
+			monster->item = brandom() ? G_HordePickItem() : nullptr;
+
 		ApplyMonsterBonusFlags(monster);
 
 		// Actualizar contadores

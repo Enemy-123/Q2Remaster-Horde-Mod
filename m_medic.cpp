@@ -1362,6 +1362,10 @@ void medic_finish_spawn(edict_t* self)
 		ent->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER | AI_SPAWNED_NEEDS_GIB;
 		ent->monsterinfo.commander = self;
 		ent->monsterinfo.slots_from_commander = reinforcement.strength;
+
+		if (g_horde->integer)
+			ent->item = brandom() ? G_HordePickItem() : nullptr;
+
 		ApplyMonsterBonusFlags(ent);
 		self->monsterinfo.monster_used += reinforcement.strength;
 

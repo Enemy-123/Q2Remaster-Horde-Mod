@@ -311,6 +311,10 @@ void WidowSpawn(edict_t* self) {
 			ent->think(ent);
 
 			ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
+
+			if (g_horde->integer)
+				ent->item = brandom() ? G_HordePickItem() : nullptr;
+
 			ApplyMonsterBonusFlags(ent);
 
 			if (!G_IsCooperative()) {
