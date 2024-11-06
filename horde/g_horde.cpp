@@ -2234,6 +2234,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	// Determinar si alguna condición se ha cumplido
 	if (!g_horde_local.conditionTriggered) {
+		bool timeReduced = false;
 		if (remainingMonsters <= g_lastParams.maxMonsters || percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
@@ -2241,13 +2242,15 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 			// Elegir el menor umbral de tiempo
 			if (remainingMonsters <= g_lastParams.maxMonsters && percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 				g_horde_local.conditionTimeThreshold = std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
-				gi.LocBroadcast_Print(PRINT_HIGH, "Conditions met. Wave time reduced!\n");
+				timeReduced = true;
 			}
 			else if (remainingMonsters <= g_lastParams.maxMonsters) {
 				g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
+				timeReduced = true;
 			}
 			else {
 				g_horde_local.conditionTimeThreshold = g_lastParams.lowPercentageTimeThreshold;
+				timeReduced = true;
 			}
 
 			g_horde_local.waveEndTime = g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold;
@@ -2261,7 +2264,12 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 					g_horde_local.waveEndTime,
 					currentTime + AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters)
 				);
-				gi.LocBroadcast_Print(PRINT_HIGH, "Very few monsters remaining. Wave time reduced!\n");
+				timeReduced = true;
+			}
+
+			// Solo mostrar el mensaje una vez si hubo alguna reducción
+			if (timeReduced) {
+				gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
 			}
 		}
 	}
