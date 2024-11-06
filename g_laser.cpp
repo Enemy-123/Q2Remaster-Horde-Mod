@@ -226,93 +226,61 @@ DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
     }
 }
 
+// Fix the laser beam think function first
 THINK(laser_beam_think)(edict_t* self) -> void {
     if (!self || !self->owner) {
         G_FreeEdict(self);
         return;
     }
 
-    static std::unordered_map<const edict_t*, LaserState> laser_states;
-    auto& state = laser_states[self];
-
-    // Simplify size calculation to match original behavior
+    // Size calculation
     const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
     self->s.frame = size;
     self->s.skinnum = (self->health > self->max_health * 0.20f) ? 0xf2f2f0f0 : 0xd0d1d2d3;
 
-    if (state.needs_retrace || level.time >= state.last_trace_time + LaserConstants::TRACE_UPDATE_INTERVAL) {
-        // Fix 1: Usar normalización segura para el vector forward
-        vec3_t forward;
-        AngleVectors(self->s.angles, &forward, nullptr, nullptr);
-        forward = safe_normalized(forward);
+    // Calculate like in original version
+    vec3_t forward;
+    AngleVectors(self->s.angles, &forward, nullptr, nullptr);
 
-        // Fix 2: Asegurar que los puntos de inicio y fin son válidos
-        state.last_trace_start = self->pos1;
-        if (!is_valid_vector(state.last_trace_start)) {
-            state.last_trace_start = self->s.old_origin;
-        }
+    const vec3_t start = self->pos1;
+    const vec3_t end = start + forward * 8192;
 
-        // Fix 3: Calcular el punto final usando distancia fija
-        constexpr float LASER_LENGTH = 8192.0f;
-        state.last_trace_end = state.last_trace_start + forward * LASER_LENGTH;
+    trace_t tr = gi.traceline(start, end, self->owner, MASK_SHOT);
 
-        // Fix 4: Validar el vector resultante
-        if (!is_valid_vector(state.last_trace_end)) {
-            state.last_trace_end = state.last_trace_start + vec3_t{ LASER_LENGTH, 0, 0 };
-        }
-
-        // Realizar el trace con los vectores validados
-        trace_t tr = gi.traceline(state.last_trace_start, state.last_trace_end, self->owner, MASK_SHOT);
-
-        // Fix 5: Asegurar que el punto final del trace es válido
-        if (is_valid_vector(tr.endpos)) {
-            self->s.origin = tr.endpos;
-        }
-        else {
-            self->s.origin = state.last_trace_start;
-        }
-
-        // Original damage calculation with fixes
-        const int damage = (size) ? std::min(self->dmg, self->health) : 0;
-
-        if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
-            if (LaserHelpers::is_valid_target(tr.ent) && !LaserHelpers::is_same_team(self->teammaster, tr.ent)) {
-                // Modificar el gib_health para que el láser cause gib más fácilmente
-                if (tr.ent->svflags & SVF_MONSTER && tr.ent->health <= 100) {
-                    tr.ent->gib_health = 10;  // Un valor bajo hará que el monstruo haga gib más fácilmente
-                }
-
-                // Fix 6: Usar el vector forward normalizado para el daño
-                T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
-                    damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
-
-                // Aplicar desgaste solo si el objetivo tiene salud positiva
-                if (tr.ent->health > 0) {
-                    float damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
-                    self->health -= damage * damageMult;
-                }
-            }
-        }
-
-        state.last_trace_time = level.time;
-        state.needs_retrace = false;
-    }
-
-    // Fix 7: Mantener consistente el punto de origen del láser
+    // Update positions like in original
+    self->s.origin = tr.endpos;
     self->s.old_origin = self->pos1;
 
-    // Health check and cleanup
-    if (self->health <= 0) {
-        if (self->teammaster && self->teammaster->inuse && self->teammaster->client) {
-            if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
-                manager->remove_laser(self);
-                gi.LocClient_Print(self->teammaster, PRINT_HIGH,
-                    "Laser emitter burned out and exploded. {}/{} remaining.\n",
-                    manager->get_active_count(), LaserConstants::MAX_LASERS);
+    // Damage calculation and application
+    const int damage = (size) ? std::min(self->dmg, self->health) : 0;
+    bool hit_valid_target = false;
+
+    if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
+        if (LaserHelpers::is_valid_target(tr.ent) && !LaserHelpers::is_same_team(self->teammaster, tr.ent)) {
+            // Modify gib health for monsters like in original
+            if (tr.ent->svflags & SVF_MONSTER && tr.ent->health <= 100) {
+                tr.ent->gib_health = 10;
+            }
+
+            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
+                damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+
+            if (tr.ent->health > 0) {
+                hit_valid_target = true;
+                float damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
+                self->health -= damage * damageMult;
             }
         }
+    }
+
+    if (self->health <= 0) {
+        if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
+            manager->remove_laser(self);
+            gi.LocClient_Print(self->teammaster, PRINT_HIGH,
+                "Laser emitter burned out and exploded. {}/{} remaining.\n",
+                manager->get_active_count(), LaserConstants::MAX_LASERS);
+        }
         laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_PLAYER_LASER);
-        laser_states.erase(self);
         return;
     }
 
@@ -379,21 +347,13 @@ void create_laser(edict_t* ent) {
         return;
     }
 
-    // Fix 8: Calcular vectores de dirección de forma segura
+    // Calculate vectors like in original
     vec3_t forward, right;
-    auto [fwd, rgt, _] = AngleVectors(ent->client->v_angle);
-    forward = safe_normalized(fwd);
-    right = safe_normalized(rgt);
+    AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
 
-    // Fix 9: Ajustar el offset y calcular posiciones de forma segura
     vec3_t offset{ 0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f };
     vec3_t start = G_ProjectSource(ent->s.origin, offset, forward, right);
     vec3_t end = start + forward * 64;
-
-    if (!is_valid_vector(start) || !is_valid_vector(end)) {
-        gi.LocClient_Print(ent, PRINT_HIGH, "Invalid position for laser placement.\n");
-        return;
-    }
 
     trace_t tr = gi.traceline(start, end, ent, MASK_SOLID);
 
@@ -405,9 +365,9 @@ void create_laser(edict_t* ent) {
     edict_t* laser = G_Spawn();
     edict_t* grenade = G_Spawn();
 
-    // Configurar láser
+    // Configure laser - keep original positioning logic
     laser->dmg = LaserConstants::LASER_INITIAL_DAMAGE +
-        (LaserConstants::LASER_ADDON_DAMAGE * (current_wave_level));
+        (LaserConstants::LASER_ADDON_DAMAGE * (current_wave_level - 1));
     laser->health = std::min(LaserConstants::LASER_INITIAL_HEALTH +
         (LaserConstants::LASER_ADDON_HEALTH * (current_wave_level - 1)),
         LaserConstants::MAX_LASER_HEALTH);
@@ -433,6 +393,7 @@ void create_laser(edict_t* ent) {
     laser->die = laser_die;
     laser->flags |= FL_NO_KNOCKBACK;
 
+
     // Establecer equipo basado en CTF
     if (ent->client->resp.ctf_team == CTF_TEAM1) {
         laser->team = TEAM1;
@@ -443,10 +404,9 @@ void create_laser(edict_t* ent) {
     else {
         laser->team = "neutral";
     }
-
-    // Configurar granada (emisor)
+    // Configure grenade/emitter
     grenade->s.origin = tr.endpos;
-    grenade->s.angles = vectoangles(tr.plane.normal);
+    grenade->s.angles = vectoangles(tr.plane.normal);  // Keep original angle calculation
     grenade->movetype = MOVETYPE_NONE;
     grenade->clipmask = MASK_SHOT;
     grenade->solid = SOLID_BBOX;
@@ -464,12 +424,11 @@ void create_laser(edict_t* ent) {
     grenade->think = emitter_think;
     grenade->die = laser_die;
     grenade->svflags = SVF_BOT;
-    //    grenade->pain = laser_pain;
     grenade->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
     grenade->flags |= FL_NO_KNOCKBACK;
     grenade->team = laser->team;
 
-    // Enlazar entidades
+    // Proper entity linking
     gi.linkentity(laser);
     gi.linkentity(grenade);
 
