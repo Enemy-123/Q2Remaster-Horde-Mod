@@ -453,7 +453,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 		else
 		{
-			self->client->resp.score--;
+		//	self->client->resp.score--;
 
 			if (teamplay->integer)
 				G_AdjustTeamScore(attacker->client->resp.ctf_team, -1);
