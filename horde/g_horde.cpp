@@ -2867,41 +2867,45 @@ enum class MessageType {
 	Insane
 };
 
-// Función para calcular el jugador con más daño
 void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
-    int total_damage = 0;
-    topDamager.total_damage = 0;
+	int32_t total_damage = 0;
+	topDamager = PlayerStats(); // Reset usando el constructor por defecto
 
-    for (const auto& player : active_players()) {
-        if (!player->client) continue;
+	for (const auto& player : active_players()) {
+		if (!player->client)
+			continue;
 
-        int player_damage = player->client->total_damage;
+		int32_t player_damage = player->client->total_damage;
 
-        total_damage += player_damage;
-        if (player_damage > topDamager.total_damage) {
-            topDamager.total_damage = player_damage;
-            topDamager.player = player;
-        }
-    }
+		// Solo considerar jugadores que hayan hecho daño
+		if (player_damage > 0) {
+			total_damage += player_damage;
+			if (player_damage > topDamager.total_damage) {
+				topDamager.total_damage = player_damage;
+				topDamager.player = player;
+			}
+		}
+	}
 
-    percentage = (total_damage > 0) ?
-        (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
+	// Calcular porcentaje solo si hubo daño total
+	percentage = (total_damage > 0) ?
+		(static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
 
-    // Redondear el porcentaje a dos decimales
-    percentage = std::round(percentage * 100) / 100;
+	// Redondear el porcentaje a dos decimales
+	percentage = std::round(percentage * 100) / 100;
 }
-
 
 void SendCleanupMessage(WaveEndReason reason) {
 	gtime_t duration = 3_sec;
 	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
 		duration = 0_sec;
 	}
+
 	// Calcular el top damager
 	PlayerStats topDamager;
 	float percentage = 0.0f;
 	CalculateTopDamager(topDamager, percentage);
-	std::string playerName = topDamager.player ? GetPlayerName(topDamager.player) : "No one";
+
 	// Mostrar mensaje principal en el centro
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
@@ -2914,37 +2918,58 @@ void SendCleanupMessage(WaveEndReason reason) {
 		UpdateHordeMessage(fmt::format("Time's up! Wave Level {} Ended!\n", g_horde_local.level), duration);
 		break;
 	}
-	// Mostrar mensaje de top damage en PRINT_HIGH
+
+	// Proceder con el top damager solo si hay un jugador válido que hizo daño
 	if (topDamager.player) {
+		std::string playerName = GetPlayerName(topDamager.player);
+
+		// Mostrar mensaje de top damage
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}!\n",
 			playerName.c_str(), topDamager.total_damage);
-		// Dar recompensa al top damager
-		if (topDamager.total_damage > 0) {
-			static const std::array<item_id_t, 5> rewards = {
-				IT_ITEM_BANDOLIER,
-				IT_ITEM_PACK,
-				IT_ITEM_DOUBLE,
-				IT_ITEM_DOPPELGANGER,
-				IT_ITEM_SPHERE_DEFENDER
-			};
 
-			// Usar mt_rand con distribución uniforme
-			std::uniform_int_distribution<size_t> dist(0, rewards.size() - 1);
-			item_id_t reward_id = rewards[dist(mt_rand)];
+		// Configurar y entregar recompensa
+		static const std::array<item_id_t, 5> rewards = {
+			IT_ITEM_BANDOLIER,
+			IT_ITEM_PACK,
+			IT_ITEM_DOUBLE,
+			IT_ITEM_DOPPELGANGER,
+			IT_ITEM_SPHERE_DEFENDER
+		};
 
-			gitem_t* it = GetItemByIndex(reward_id);
-			if (!it)
-				return;
+		// Seleccionar recompensa aleatoria
+		std::uniform_int_distribution<size_t> dist(0, rewards.size() - 1);
+		item_id_t reward_id = rewards[dist(mt_rand)];
+
+		if (gitem_t* it = GetItemByIndex(reward_id)) {
+			// Crear y configurar la entidad de recompensa
 			edict_t* it_ent = G_Spawn();
+			if (!it_ent)
+				return;
+
 			it_ent->classname = it->classname;
-			it_ent->item = it;  // Asignamos el item al edict
+			it_ent->item = it;
+
+			// Intentar spawnar y entregar el item
 			SpawnItem(it_ent, it, spawn_temp_t::empty);
 			if (it_ent->inuse) {
 				Touch_Item(it_ent, topDamager.player, null_trace, true);
 				if (it_ent->inuse)
 					G_FreeEdict(it_ent);
+
+				// Anunciar la recompensa
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
 					playerName.c_str(), it->use_name);
+
+				// Resetear contadores de daño después de dar recompensas
+				for (auto player : active_players()) {
+					if (player->client) {
+						player->client->total_damage = 0;
+						player->lastdmg = level.time;
+						player->client->dmg_counter = 0;
+						player->client->ps.stats[STAT_ID_DAMAGE] = 0;  // Asegurar que el HUD se actualice
+					}
+
+				}
 			}
 		}
 	}
