@@ -2078,13 +2078,14 @@ struct PlayerScore {
 	unsigned int index;
 	int score;
 	int ping;
-	bool has_flag;
+	bool is_dead;  // Cambiado de has_flag a is_dead
 };
 
 void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 	std::vector<PlayerScore> team_players;
 	std::vector<PlayerScore> spectators;
 	int total_score = 0;
+
 	// Sort players
 	for (unsigned int i = 0; i < game.maxclients; i++) {
 		edict_t* cl_ent = g_edicts + 1 + i;
@@ -2095,8 +2096,9 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			i,
 			cl->resp.score,
 			std::min(cl->ping, 999),
-			cl_ent->client->pers.inventory[IT_FLAG2] != 0
+			(cl_ent->deadflag != false)  // Usando deadflag en lugar de inventory
 		};
+
 		if (cl->resp.ctf_team == CTF_TEAM1) {
 			team_players.push_back(player);
 			total_score += player.score;
@@ -2105,18 +2107,23 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			spectators.push_back(player);
 		}
 	}
+
 	std::sort(team_players.begin(), team_players.end(),
 		[](const PlayerScore& a, const PlayerScore& b) { return a.score > b.score; });
+
 	std::string layout;
+
 	// Header
 	if (g_horde->integer) {
 		layout += fmt::format("if 0 xv -20 yv -10 loc_string2 1 \"Wave Number: {}          Stroggs Remaining: {}\" endif \n",
 			last_wave_number, level.total_monsters - level.killed_monsters);
 	}
+
 	if (timelimit->value) {
 		layout += fmt::format("if 0 xv 340 yv -33 time_limit {} endif \n",
 			gi.ServerFrame() + ((gtime_t::from_min(timelimit->value) - level.time)).milliseconds() / gi.frame_time_ms);
 	}
+
 	// Team score
 	if (!level.intermissiontime) {
 		layout += fmt::format("if 25 xv -90 yv 10 dogtag endif \n");
@@ -2131,13 +2138,22 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			"if 0 xv 70 yv -20 num 2 19 endif \n",
 			total_score, team_players.size());
 	}
-	// Player list
+
+	// Player list con indicador de muerte
 	for (size_t i = 0; i < team_players.size() && i < 16; ++i) {
 		const auto& player = team_players[i];
-		layout += fmt::format("if 0 ctf -90 {} {} {} {} {} endif \n",
-			42 + i * 8, player.index, player.score, player.ping,
-			player.has_flag ? "sbfctf2" : "\"\"");
+		int y = 42 + i * 8;
+
+		// Primero añadimos el indicador de muerte si corresponde
+		if (player.is_dead) {
+			layout += fmt::format("if 0 xv -135 yv {} string \"[Dead]\" endif ", y);
+		}
+
+		// Luego añadimos la información normal del jugador
+		layout += fmt::format("if 0 ctf -90 {} {} {} {} \"\" endif \n",
+			y, player.index, player.score, player.ping);
 	}
+
 	// Spectators
 	if (layout.size() < MAX_CTF_STAT_LENGTH - 50 && !spectators.empty()) {
 		int y = 42 + (std::min<size_t>(team_players.size(), 16) + 2) * 8;
@@ -2149,6 +2165,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			y += 8;
 		}
 	}
+
 	// Footer
 	if (!level.intermissiontime) {
 		layout += fmt::format("if 0 xv 0 yb -55 cstring2 \"{}\" endif \n",
@@ -2157,11 +2174,11 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 			: "Use Compass or Inventory <KEY> to toggle Horde Menu.");
 	}
 	else {
-		// Mostrar el mensaje después de 5 segundos de intermisión
 		layout += fmt::format("ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
 			level.intermission_server_frame + (5_sec).frames(),
 			brandom() ? "MAKE THEM PAY !!!" : "THEY WILL REGRET THIS !!!");
 	}
+
 	gi.WriteByte(svc_layout);
 	gi.WriteString(layout.c_str());
 }
