@@ -856,16 +856,8 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 		}
 	}
 
-	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER & SPAWNFLAG_ITEM_DROPPED))
-	{
-		if (G_IsDeathmatch())
-		{
-			if (g_dm_weapons_stay->integer)
-				ent->flags |= FL_RESPAWN;
-		}
-		if (G_IsCooperative())
-			ent->flags |= FL_RESPAWN;
-	}
+	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch() || !(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED_PLAYER) && G_IsDeathmatch())
+		SetRespawn(ent, 20_sec);
 
 	return true;
 }
