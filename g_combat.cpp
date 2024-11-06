@@ -644,10 +644,12 @@ static void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
 		return;
 	}
 
+	// Ignorar daño si el objetivo es invulnerable
 	if (targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time) {
 		return;
 	}
 
+	// Acumular daño para el contador de daño instantáneo (IDDMG)
 	if (level.time - attacker->lastdmg <= 1.75_sec && attacker->client->dmg_counter <= 32767) {
 		attacker->client->dmg_counter += real_damage;
 	}
@@ -655,17 +657,22 @@ static void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
 		attacker->client->dmg_counter = real_damage;
 	}
 
+	// Actualizar el stat de IDDMG
 	attacker->client->ps.stats[STAT_ID_DAMAGE] = attacker->client->dmg_counter;
 	attacker->lastdmg = level.time;
+
+	// Acumular daño total para la ola actual
+	// Solo acumular daño contra monstruos
+	if (targ->svflags & SVF_MONSTER && targ->health >= 1) {
+		attacker->client->total_damage += real_damage;
+	}
 }
 
 // This function should be called in T_Damage
 void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
 	if (!targ) return;
-
 	const int initial_health = targ->health;
 	const int real_damage = CalculateRealDamage(targ, take, initial_health);
-
 	if (real_damage > 0 && attacker && attacker->client) {
 		HandleIDDamage(attacker, targ, real_damage);
 	}

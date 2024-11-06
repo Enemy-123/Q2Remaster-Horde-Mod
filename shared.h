@@ -55,7 +55,7 @@ extern gtime_t GetWaveTimer();
 
 // Estructura para almacenar las estad√≠sticas de los jugadores
 struct PlayerStats {
-    edict_t* player;
-    int total_damage;
+    edict_t* player = nullptr;
+    int32_t total_damage = 0;
 };
 #endif // SHARED_H

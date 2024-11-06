@@ -3143,7 +3143,7 @@ struct gclient_t
 	gtime_t time_in_bad_area;
 	edict_t* idtarget;
 	int dmg_counter; // ID DMG
-	// int total_damage; // Total damage dealt by this player
+	int total_damage; // Total damage dealt by this player
 	bool menu_selected;
 	//	pmtype_t prev_pm_type;
 	void* laser_manager;

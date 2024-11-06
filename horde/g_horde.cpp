@@ -205,8 +205,8 @@ int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHard
 	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
 	baseQueued *= (1.0f + (lvl) * 0.18f);
 	// Mejores multiplicadores por tamaño de mapa
-	float mapSizeMultiplier = mapSize.isSmallMap ? 1.2f :
-		mapSize.isBigMap ? 1.5f : 1.3f;
+	float mapSizeMultiplier = mapSize.isSmallMap ? 1.3f :
+		mapSize.isBigMap ? 1.5f : 1.4f;
 	int32_t maxQueued = mapSize.isSmallMap ? 40 :
 		mapSize.isBigMap ? 55 : 40;
 	baseQueued *= mapSizeMultiplier;
@@ -226,7 +226,7 @@ int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHard
 	}
 
 	// Aplicamos el factor de reducción de 0.75 antes del clamp final
-	baseQueued *= 0.75f;
+	baseQueued *= 0.85f;
 
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
@@ -630,7 +630,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_janitor2", 19, -1, 0.1f },
 	{ "monster_makron", 16, 21, 0.015f },
 	{ "monster_boss2_64", 15, -1, 0.09f },
-	{ "monster_carrier_mini", 19, -1, 0.08f },
+	{ "monster_carrier_mini", 19, -1, 0.09f },
 	{ "monster_perrokl", 20, -1, 0.3f },
 	{ "monster_widow1", 22, -1, 0.1f }
 };
@@ -2650,6 +2650,12 @@ static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
 			"PREPARE FOR INCOMING WAVE!\n\nHOLD POSITION!\n";
 	}
 
+	for (auto player : active_players()) {
+		if (player->client) {
+			player->client->total_damage = 0;
+		}
+	}
+
 	UpdateHordeMessage(message, duration);
 
 	g_independent_timer_start = level.time;
@@ -2853,37 +2859,87 @@ enum class MessageType {
 	Insane
 };
 
-// Definición de los mensajes de limpieza con placeholders nombrados
-const std::unordered_map<MessageType, std::string_view> cleanupMessages = {
-	{MessageType::Standard, "Wave Level {level} Defeated, GG!\n"},
-	{MessageType::Chaotic, "Harder Wave Level {level} Controlled, GG!\n"},
-	{MessageType::Insane, "Insane Wave Level {level} Controlled, GG!\n"}
-};
+// Función para calcular el jugador con más daño
+void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
+    int total_damage = 0;
+    topDamager.total_damage = 0;
 
-// Ejemplo: Uso de enum class para WaveEndReason
+    for (const auto& player : active_players()) {
+        if (!player->client) continue;
+
+        int player_damage = player->client->total_damage;
+
+        total_damage += player_damage;
+        if (player_damage > topDamager.total_damage) {
+            topDamager.total_damage = player_damage;
+            topDamager.player = player;
+        }
+    }
+
+    percentage = (total_damage > 0) ?
+        (static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
+
+    // Redondear el porcentaje a dos decimales
+    percentage = std::round(percentage * 100) / 100;
+}
+
+
 void SendCleanupMessage(WaveEndReason reason) {
-	gtime_t duration = 3_sec; // Duración por defecto
-
-	// Si allowWaveAdvance está activo y la razón es AllMonstersDead, establecer duración a 0
+	gtime_t duration = 3_sec;
 	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
 		duration = 0_sec;
 	}
-
-	std::string formattedMessage;
-
+	// Calcular el top damager
+	PlayerStats topDamager;
+	float percentage = 0.0f;
+	CalculateTopDamager(topDamager, percentage);
+	std::string playerName = topDamager.player ? GetPlayerName(topDamager.player) : "No one";
+	// Mostrar mensaje principal en el centro
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
-		formattedMessage = fmt::format("Wave Level {} Defeated, GG!\n", g_horde_local.level);
+		UpdateHordeMessage(fmt::format("Wave Level {} Defeated, GG!\n", g_horde_local.level), duration);
 		break;
 	case WaveEndReason::MonstersRemaining:
-		formattedMessage = fmt::format("Wave Level {} Pushed Back, But Still Threatening!\n", g_horde_local.level);
+		UpdateHordeMessage(fmt::format("Wave Level {} Pushed Back!\n", g_horde_local.level), duration);
 		break;
 	case WaveEndReason::TimeLimitReached:
-		formattedMessage = fmt::format("Time's up! Wave Level {} Ended!\n", g_horde_local.level);
+		UpdateHordeMessage(fmt::format("Time's up! Wave Level {} Ended!\n", g_horde_local.level), duration);
 		break;
 	}
+	// Mostrar mensaje de top damage en PRINT_HIGH
+	if (topDamager.player) {
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}!\n",
+			playerName.c_str(), topDamager.total_damage);
+		// Dar recompensa al top damager
+		if (topDamager.total_damage > 0) {
+			static const std::array<item_id_t, 5> rewards = {
+				IT_ITEM_BANDOLIER,
+				IT_ITEM_PACK,
+				IT_ITEM_DOUBLE,
+				IT_ITEM_DOPPELGANGER,
+				IT_ITEM_SPHERE_DEFENDER
+			};
 
-	UpdateHordeMessage(formattedMessage, duration);
+			// Usar mt_rand con distribución uniforme
+			std::uniform_int_distribution<size_t> dist(0, rewards.size() - 1);
+			item_id_t reward_id = rewards[dist(mt_rand)];
+
+			gitem_t* it = GetItemByIndex(reward_id);
+			if (!it)
+				return;
+			edict_t* it_ent = G_Spawn();
+			it_ent->classname = it->classname;
+			it_ent->item = it;  // Asignamos el item al edict
+			SpawnItem(it_ent, it, spawn_temp_t::empty);
+			if (it_ent->inuse) {
+				Touch_Item(it_ent, topDamager.player, null_trace, true);
+				if (it_ent->inuse)
+					G_FreeEdict(it_ent);
+				gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
+					playerName.c_str(), it->use_name);
+			}
+		}
+	}
 }
 
 // Add this function in the appropriate source file that deals with spawn management.

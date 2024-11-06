@@ -86,6 +86,7 @@
     <ClInclude Include="m_gnorta.h" />
     <ClInclude Include="m_runnertank.h" />
     <ClInclude Include="laser.h" />
+    <ClInclude Include="horde\g_horde_benefits.h" />
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="cg_main.cpp" />
@@ -276,6 +277,7 @@
     <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="m_psxguardian.cpp" />
     <ClCompile Include="m_psxarachnid.cpp" />
+    <ClCompile Include="horde\g_horde_benefits.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="bots">
