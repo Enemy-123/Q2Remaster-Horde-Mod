@@ -201,26 +201,20 @@ inline void ClampNumToSpawn(const MapSize& mapSize) {
 
 int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHardMode) {
 	if (lvl <= 3) return 0;
-
 	// Base más agresiva
 	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
 	baseQueued *= (1.0f + (lvl) * 0.18f);
-
 	// Mejores multiplicadores por tamaño de mapa
 	float mapSizeMultiplier = mapSize.isSmallMap ? 1.2f :
 		mapSize.isBigMap ? 1.5f : 1.3f;
-
 	int32_t maxQueued = mapSize.isSmallMap ? 40 :
 		mapSize.isBigMap ? 55 : 40;
-
 	baseQueued *= mapSizeMultiplier;
-
 	// Bonus exponencial mejorado
 	if (lvl > 20) {
 		float highLevelBonus = std::pow(1.15f, std::min(lvl - 20, 18));
 		baseQueued *= highLevelBonus;
 	}
-
 	// Mejor bonus por dificultad
 	if (isHardMode) {
 		float difficultyMultiplier = 1.25f;
@@ -231,9 +225,11 @@ int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHard
 		baseQueued *= difficultyMultiplier;
 	}
 
+	// Aplicamos el factor de reducción de 0.75 antes del clamp final
+	baseQueued *= 0.75f;
+
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
-
 void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	// Base count calculation with level scaling
 	int32_t baseCount = (mapSize.isSmallMap) ?
@@ -1449,6 +1445,9 @@ static void PrecacheWaveSounds() noexcept {
 }
 
 void Horde_Init() {
+
+	auto_spawned_bosses.clear();
+
 	// Precache items, bosses, monsters, and sounds
 	PrecacheItemsAndBosses();
 	PrecacheAllMonsters();
@@ -1544,14 +1543,21 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 }
 
 void BossDeathHandler(edict_t* boss) {
-	if (!g_horde->integer || !boss->spawnflags.has(SPAWNFLAG_IS_BOSS) ||
-		boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	// Verificación más estricta para el manejo de muerte del boss
+	if (!g_horde->integer ||
+		!boss ||
+		!boss->inuse ||
+		!boss->spawnflags.has(SPAWNFLAG_IS_BOSS) ||
+		boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED) ||
+		boss->health > 0) {  // Añadir verificación explícita de salud
 		return;
 	}
 
+	// Marcar el boss como manejado inmediatamente para prevenir múltiples drops
+	boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
+
 	OnEntityDeath(boss);
 	OnEntityRemoved(boss);
-	boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
 	auto_spawned_bosses.erase(boss);
 
 	// Items normales que el boss dropea (array estático)
@@ -1647,8 +1653,17 @@ void BossDeathHandler(edict_t* boss) {
 }
 
 void boss_die(edict_t* boss) {
-	if (g_horde->integer && boss->spawnflags.has(SPAWNFLAG_IS_BOSS) && boss->health <= 0 &&
-		auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() && !boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (!boss || !boss->inuse) {
+		return;
+	}
+
+	// Verificación más estricta para la muerte del boss
+	if (g_horde->integer &&
+		boss->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
+		boss->health <= 0 &&
+		auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() &&
+		!boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+
 		BossDeathHandler(boss);
 
 		// Limpiar la barra de salud
@@ -2289,6 +2304,19 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 }
 
 void ResetGame() {
+
+	// Añadir limpieza explícita de bosses
+	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
+		edict_t* boss = *it;
+		if (boss && boss->inuse) {
+			// Asegurarse de que el boss esté marcado como manejado
+			boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
+			// Limpiar cualquier estado pendiente
+			OnEntityRemoved(boss);
+		}
+		it = auto_spawned_bosses.erase(it);
+	}
+
 	// Resetear todas las variables globales
 //	last_wave_number = 0;
 	horde_message_end_time = 0_sec;
@@ -2338,7 +2366,6 @@ void ResetGame() {
 	flying_monsters_mode = false;
 
 	// Reset core gameplay elements
-	auto_spawned_bosses.clear(); // Limpiar todos los jefes generados automáticamente
 	ResetAllSpawnAttempts();
 	ResetCooldowns();
 	ResetBenefits();
