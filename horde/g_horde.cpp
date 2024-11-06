@@ -211,7 +211,7 @@ int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHard
 		mapSize.isBigMap ? 1.5f : 1.3f;
 
 	int32_t maxQueued = mapSize.isSmallMap ? 40 :
-		mapSize.isBigMap ? 65 : 50;
+		mapSize.isBigMap ? 55 : 40;
 
 	baseQueued *= mapSizeMultiplier;
 
