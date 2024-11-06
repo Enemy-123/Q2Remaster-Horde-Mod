@@ -1145,29 +1145,38 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
-	// Factor de multiplicación para aumentar el área
-	const float space_multiplier = 2.5f;
+	// Factor de multiplicación para garantizar espacio adicional
+	const float space_multiplier = 1.5f;  // Ajustado a 1.5 para balance
 
-	// Usar los mins/maxs del monstruo si se proporciona, sino usar valores por defecto multiplicados
-	const vec3_t mins = monster ?
-		monster->mins * space_multiplier :
-		vec3_t{ -16 * space_multiplier, -16 * space_multiplier, -24 * space_multiplier };
+	// Calcular dimensiones del área a verificar
+	vec3_t mins, maxs;
+	if (monster) {
+		// Usar dimensiones del monstruo con factor de espacio
+		mins = spawn_point->s.origin + (monster->mins * space_multiplier);
+		maxs = spawn_point->s.origin + (monster->maxs * space_multiplier);
+	}
+	else {
+		// Dimensiones por defecto para jugadores con factor de espacio
+		mins = spawn_point->s.origin + vec3_t{ -16 * space_multiplier, -16 * space_multiplier, -24 * space_multiplier };
+		maxs = spawn_point->s.origin + vec3_t{ 16 * space_multiplier, 16 * space_multiplier, 32 * space_multiplier };
+	}
 
-	const vec3_t maxs = monster ?
-		monster->maxs * space_multiplier :
-		vec3_t{ 16 * space_multiplier, 16 * space_multiplier, 32 * space_multiplier };
-
-	const vec3_t check_mins = spawn_point->s.origin + mins;
-	const vec3_t check_maxs = spawn_point->s.origin + maxs;
-
-	// Verificar colisiones con otros monstruos/jugadores
+	// Verificar colisiones con jugadores y monstruos activos
 	for (auto ent : active_monsters()) {
-		if (boxes_intersect(check_mins, check_maxs,
-			ent->absmin, ent->absmax)) {
-			return true;
+		if (ent != monster && // Ignorar la propia entidad si se proporciona
+			boxes_intersect(mins, maxs, ent->absmin, ent->absmax)) {
+			return true; // Punto ocupado
 		}
 	}
-	return false;
+
+	// Verificar colisiones con jugadores
+	for (auto player : active_players()) {
+		if (boxes_intersect(mins, maxs, player->absmin, player->absmax)) {
+			return true; // Punto ocupado por un jugador
+		}
+	}
+
+	return false; // Punto libre
 }
 const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Verificación inicial de condiciones de spawn
