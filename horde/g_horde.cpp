@@ -558,7 +558,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_infantry", 8, -1, 0.32f },
 
 	// Enemigos de apoyo temprano
-	{ "monster_medic", 3, 12, 0.12f },
+	{ "monster_medic", 3, 12, 0.13f },
 	{ "monster_medic", 13, 20, 0.12f },
 	{ "monster_medic_commander", 21, -1, 0.08f },       // Retrasado a ola 21
 
@@ -600,7 +600,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_daedalus_bomber", 6, -1, 0.041f },       // Retrasado a ola 22
 
 	// Enemigos brutales
-	{ "monster_mutant", 4, 12, 0.2f },
+	{ "monster_mutant", 4, 12, 0.18f },
 	{ "monster_mutant", 13, -1, 0.25f },
 	{ "monster_redmutant", 9, 14, 0.04f },
 	{ "monster_redmutant", 15, -1, 0.18f },

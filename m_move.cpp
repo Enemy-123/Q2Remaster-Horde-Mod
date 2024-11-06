@@ -122,31 +122,33 @@ bool IsBadAhead(edict_t* self, edict_t* bad, const vec3_t& move)
 	return false;
 }
 
-static vec3_t G_IdealHoverPosition(edict_t* ent)
+[[nodiscard]] vec3_t G_IdealHoverPosition(const edict_t* ent)
 {
-	if ((!ent->enemy && !(ent->monsterinfo.aiflags & AI_MEDIC)) || (ent->monsterinfo.aiflags & (AI_COMBAT_POINT | AI_SOUND_TARGET | AI_HINT_PATH | AI_PATHING)))
-		return { 0, 0, 0 }; // go right for the center
+	constexpr uint32_t SKIP_FLAGS = AI_COMBAT_POINT | AI_SOUND_TARGET | AI_HINT_PATH | AI_PATHING;
 
-	// pick random direction
-	float theta = frandom(2 * PIf);
-	float phi;
+	// Early return for default cases
+	if ((!ent->enemy && !(ent->monsterinfo.aiflags & AI_MEDIC)) ||
+		(ent->monsterinfo.aiflags & SKIP_FLAGS)) {
+		return vec3_origin;
+	}
 
-	// buzzards pick half sphere
-	if (ent->monsterinfo.fly_above)
-		phi = acos(0.7f + frandom(0.3f));
-	else if (ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC))
-		phi = acos(frandom());
-	// non-buzzards pick a level around the center
-	else
-		phi = acos(frandom() * 0.7f);
+	// Calculate random angle in horizontal plane
+	const float theta = frandom(2 * PIf);
 
-	vec3_t d{
+	// Calculate vertical angle based on entity type
+	const float phi = ent->monsterinfo.fly_above ? acos(0.7f + frandom(0.3f)) :
+		(ent->monsterinfo.fly_buzzard || (ent->monsterinfo.aiflags & AI_MEDIC)) ? acos(frandom()) :
+		acos(frandom() * 0.7f);
+
+	// Calculate direction vector
+	const vec3_t direction{
 		sin(phi) * cos(theta),
 		sin(phi) * sin(theta),
 		cos(phi)
 	};
 
-	return d * frandom(ent->monsterinfo.fly_min_distance, ent->monsterinfo.fly_max_distance);
+	// Scale direction by random distance within range
+	return direction * frandom(ent->monsterinfo.fly_min_distance, ent->monsterinfo.fly_max_distance);
 }
 
 inline bool SV_flystep_testvisposition(vec3_t start, vec3_t end, vec3_t starta, vec3_t startb, edict_t* ent)
@@ -174,7 +176,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		(ent->enemy && ent->monsterinfo.fly_pinned && !visible(ent, ent->enemy)))
 	{
 		ent->monsterinfo.fly_pinned = false;
-		ent->monsterinfo.fly_position_time = level.time + random_time(3_sec, 10_sec);
+		ent->monsterinfo.fly_position_time = level.time + random_time(3_sec, 5_sec);
 		ent->monsterinfo.fly_ideal_position = G_IdealHoverPosition(ent);
 	}
 
@@ -225,7 +227,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	else if (ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_SOUND_TARGET | AI_LOST_SIGHT))
 		wanted_pos = towards_origin;
 	else
-		wanted_pos = (towards_origin + (towards_velocity * 0.25f)) + ent->monsterinfo.fly_ideal_position;
+		wanted_pos = (towards_origin + (towards_velocity * 0.5f)) + ent->monsterinfo.fly_ideal_position;
 
 	//gi.Draw_Point(wanted_pos, 8.0f, rgba_red, gi.frame_time_s, true);
 
