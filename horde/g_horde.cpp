@@ -558,7 +558,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_infantry", 8, -1, 0.32f },
 
 	// Enemigos de apoyo temprano
-	{ "monster_medic", 3, 12, 0.15f },
+	{ "monster_medic", 3, 12, 0.12f },
 	{ "monster_medic", 13, 20, 0.12f },
 	{ "monster_medic_commander", 21, -1, 0.08f },       // Retrasado a ola 21
 
@@ -1446,6 +1446,15 @@ static void PrecacheWaveSounds() noexcept {
 
 void Horde_Init() {
 
+	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
+		edict_t* boss = *it;
+		if (boss && boss->inuse) {
+			// Asegurar que el boss está marcado como manejado
+			boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
+			OnEntityRemoved(boss);
+		}
+		it = auto_spawned_bosses.erase(it);
+	}
 	auto_spawned_bosses.clear();
 
 	// Precache items, bosses, monsters, and sounds
