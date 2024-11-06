@@ -940,6 +940,34 @@ This is only called when the game first initializes in single player,
 but is called after each death and level change in deathmatch
 ==============
 */
+// Calcula la salud máxima basada en el nivel de oleada actual
+int CalculateWaveBasedMaxHealth(int base_max_health)
+{
+	if (!g_horde->integer)
+		return max(100, base_max_health);
+
+	int calculated_max_health = base_max_health;
+
+	// Ajustar health y max_health basado en el número de oleadas actuales
+	if (current_wave_level >= 25 && current_wave_level <= 200)
+		calculated_max_health = max(200, calculated_max_health);
+	else if (current_wave_level >= 20 && current_wave_level <= 24)
+		calculated_max_health = max(180, calculated_max_health);
+	else if (current_wave_level >= 15 && current_wave_level <= 19)
+		calculated_max_health = max(160, calculated_max_health);
+	else if (current_wave_level >= 10 && current_wave_level <= 14)
+		calculated_max_health = max(140, calculated_max_health);
+	else if (current_wave_level >= 5 && current_wave_level <= 9)
+		calculated_max_health = max(120, calculated_max_health);
+	else if (current_wave_level >= 1 && current_wave_level <= 4)
+		calculated_max_health = max(100, calculated_max_health);
+	else
+		calculated_max_health = max(100, calculated_max_health); // default, and wave 0
+
+	return calculated_max_health;
+}
+
+// Modificación de InitClientPersistant
 void InitClientPersistant(edict_t* ent, gclient_t* client)
 {
 	// Backup & restore userinfo
@@ -954,33 +982,14 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	// Usar max_health de resp para inicializar pers.max_health
 	client->pers.max_health = client->resp.max_health > 0 ? client->resp.max_health : 100;
 
-	if (g_horde->integer) {
-		// Ajustar health y max_health basado en el número de oleadas actuales
-		if (current_wave_level >= 25 && current_wave_level <= 200) {
-			client->pers.max_health = max(200, client->pers.max_health);
-		}
-		else if (current_wave_level >= 20 && current_wave_level <= 24) {
-			client->pers.max_health = max(180, client->pers.max_health);
-		}
-		else if (current_wave_level >= 15 && current_wave_level <= 19) {
-			client->pers.max_health = max(160, client->pers.max_health);
-		}
-		else if (current_wave_level >= 10 && current_wave_level <= 14) {
-			client->pers.max_health = max(140, client->pers.max_health);
-		}
-		else if (current_wave_level >= 5 && current_wave_level <= 9) {
-			client->pers.max_health = max(120, client->pers.max_health);
-		}
-		else if (current_wave_level >= 1 && current_wave_level <= 4) {
-			client->pers.max_health = max(100, client->pers.max_health);
-		}
-		else {
-			client->pers.max_health = max(100, client->pers.max_health); // default, and wave 0
-		}
-	}
-	else {
-		client->pers.max_health = max(100, client->pers.max_health);
-	}
+	// Calcular max_health basado en el nivel de oleada
+	client->pers.max_health = CalculateWaveBasedMaxHealth(client->pers.max_health);
+
+	// Inicializar health basado en max_health
+	client->pers.health = client->pers.max_health;
+
+	// Asegurar que health no exceda max_health
+	client->pers.health = min(client->pers.health, client->pers.max_health);
 
 	// Inicializar health basado en max_health
 	client->pers.health = client->pers.max_health;
@@ -3793,6 +3802,31 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		gi.linkentity(ent);
 
 		ent->gravity = 1.0;
+
+		if (g_horde->integer && !client->resp.spectator && client->pers.spawned &&
+			ent->health > 0 && ent->deadflag == false)
+		{
+			int new_max_health = CalculateWaveBasedMaxHealth(client->pers.max_health);
+
+			// Si la salud máxima ha cambiado, actualizar los valores
+			if (new_max_health != client->pers.max_health)
+			{
+				// Calculamos la proporción de salud actual respecto al máximo anterior
+				float health_ratio = (float)ent->health / (float)client->pers.max_health;
+
+				// Actualizamos la salud máxima
+				client->pers.max_health = new_max_health;
+				ent->max_health = new_max_health;     // Actualizar max_health de la entidad
+
+				// Actualizamos la salud actual manteniendo la misma proporción
+				int new_health = (int)(health_ratio * new_max_health);
+				new_health = min(new_health, new_max_health);
+
+				// Forzar actualización de estado
+				gi.linkentity(ent);
+			}
+		}
+
 
 		if (ent->movetype != MOVETYPE_NOCLIP)
 		{

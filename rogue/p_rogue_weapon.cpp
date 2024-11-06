@@ -86,9 +86,9 @@ void weapon_chainfist_fire(edict_t* ent)
 
 
 	if (G_IsDeathmatch())
-		damage = irandom(12, 17);
+		damage = irandom(18, 27);
 	if (G_IsCooperative())
-		damage = irandom(12, 17);
+		damage = irandom(18, 27);
 
 	if (is_quad)
 		damage *= damage_multiplier;
@@ -192,7 +192,7 @@ void weapon_tracker_fire(edict_t* self)
 
 	// PMM - felt a little high at 25
 	if (G_IsDeathmatch())
-		damage = 135;
+		damage = 145;
 	else
 		damage = 135;
 
