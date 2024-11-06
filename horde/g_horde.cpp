@@ -1145,8 +1145,17 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
-	const vec3_t mins = monster ? monster->mins : vec3_t{ -16, -16, -24 };
-	const vec3_t maxs = monster ? monster->maxs : vec3_t{ 16, 16, 32 };
+	// Factor de multiplicación para aumentar el área
+	const float space_multiplier = 2.5f;
+
+	// Usar los mins/maxs del monstruo si se proporciona, sino usar valores por defecto multiplicados
+	const vec3_t mins = monster ?
+		monster->mins * space_multiplier :
+		vec3_t{ -16 * space_multiplier, -16 * space_multiplier, -24 * space_multiplier };
+
+	const vec3_t maxs = monster ?
+		monster->maxs * space_multiplier :
+		vec3_t{ 16 * space_multiplier, 16 * space_multiplier, 32 * space_multiplier };
 
 	const vec3_t check_mins = spawn_point->s.origin + mins;
 	const vec3_t check_maxs = spawn_point->s.origin + maxs;
@@ -1158,7 +1167,6 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* mons
 			return true;
 		}
 	}
-
 	return false;
 }
 const char* G_HordePickMonster(edict_t* spawn_point) {

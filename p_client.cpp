@@ -3978,7 +3978,7 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 	constexpr float player_viewheight = 22.f;
 
 	// we don't want to spawn inside of these
-	const contents_t mask = MASK_SOLID | CONTENTS_LAVA | CONTENTS_SLIME;
+	const contents_t mask = MASK_SOLID | CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_PLAYERCLIP;
 
 	for (auto& yaw : yaw_spread)
 	{

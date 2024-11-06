@@ -33,34 +33,55 @@ edict_t* AI_GetSightClient(edict_t* self)
     if (level.intermissiontime)
         return nullptr;
 
-    edict_t** visible_players = (edict_t**)malloc(sizeof(edict_t*) * game.maxclients);
-    if (!visible_players) {
-        // Handle allocation failure
-        return nullptr;
+    // Usar stack array en lugar de malloc para pequeñas cantidades
+    constexpr size_t MAX_STACK_CLIENTS = 32;
+    edict_t* stack_players[MAX_STACK_CLIENTS];
+    edict_t** visible_players = stack_players;
+    size_t num_visible = 0;
+
+    // Solo alocar dinámicamente si es necesario
+    if (game.maxclients > MAX_STACK_CLIENTS) {
+        visible_players = (edict_t**)malloc(sizeof(edict_t*) * game.maxclients);
+        if (!visible_players)
+            return nullptr;
     }
 
-    size_t num_visible = 0;
+    // Cache de valores usados en el loop
+    const vec3_t& self_origin = self->s.origin;
+    const vec3_t& self_absmin = self->absmin;
+    const vec3_t& self_absmax = self->absmax;
+
     for (auto player : active_players())
     {
-        if (player->health <= 0 || player->deadflag || !player->solid)
+        // Early out conditions agrupados
+        if (player->health <= 0 ||
+            player->deadflag ||
+            !player->solid ||
+            player->flags & (FL_NOTARGET | FL_DISGUISED))
             continue;
-        if (player->flags & (FL_NOTARGET | FL_DISGUISED))
+
+        // Cache intersección de cajas
+        bool touching = boxes_intersect(self_absmin, self_absmax,
+            player->absmin, player->absmax);
+
+        if (!touching &&
+            (!(self->monsterinfo.aiflags & AI_THIRD_EYE) &&
+                !infront(self, player)) ||
+            !visible(self, player))
             continue;
-        // if we're touching them, allow to pass through
-        if (!boxes_intersect(self->absmin, self->absmax, player->absmin, player->absmax))
-        {
-            if ((!(self->monsterinfo.aiflags & AI_THIRD_EYE) && !infront(self, player)) || !visible(self, player))
-                continue;
-        }
-        visible_players[num_visible++] = player; // got one
+
+        visible_players[num_visible++] = player;
     }
 
+    // Seleccionar jugador aleatorio de los visibles
     edict_t* chosen_player = nullptr;
-    if (num_visible > 0) {
+    if (num_visible > 0)
         chosen_player = visible_players[irandom(num_visible)];
-    }
 
-    free(visible_players);
+    // Liberar memoria si fue alocada dinámicamente
+    if (visible_players != stack_players)
+        free(visible_players);
+
     return chosen_player;
 }
 //============================================================================

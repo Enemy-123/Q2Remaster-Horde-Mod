@@ -19,89 +19,65 @@ is not a staircase.
 */
 bool M_CheckBottom_Fast_Generic(const vec3_t& absmins, const vec3_t& absmaxs, bool ceiling)
 {
-	// PGM
-	//  FIXME - this will only handle 0,0,1 and 0,0,-1 gravity vectors
 	vec3_t start;
+	start[2] = ceiling ? absmaxs[2] + 1 : absmins[2] - 1;
 
-	start[2] = absmins[2] - 1;
-	if (ceiling)
-		start[2] = absmaxs[2] + 1;
-	// PGM
-
-	for (int x = 0; x <= 1; x++)
-		for (int y = 0; y <= 1; y++)
-		{
-			start[0] = x ? absmaxs[0] : absmins[0];
-			start[1] = y ? absmaxs[1] : absmins[1];
-			if (gi.pointcontents(start) != CONTENTS_SOLID)
-				return false;
-		}
-
-	return true; // we got out easy
+	// Usar una sola iteración con bit masking para probar las 4 esquinas
+	for (int i = 0; i < 4; i++) {
+		start[0] = (i & 1) ? absmaxs[0] : absmins[0];
+		start[1] = (i & 2) ? absmaxs[1] : absmins[1];
+		if (gi.pointcontents(start) != CONTENTS_SOLID)
+			return false;
+	}
+	return true;
 }
 
-bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs, edict_t* ignore, contents_t mask, bool ceiling, bool allow_any_step_height) {
-    // Optimizar el cálculo de dimensiones para reutilización
-    vec3_t step_quadrant_size = (maxs - mins) * 0.5f;
-    step_quadrant_size.z = 0;
-    vec3_t half_step_quadrant = step_quadrant_size * 0.5f;
-    vec3_t half_step_quadrant_mins = -half_step_quadrant;
 
-    // Simplificar trazas iniciales
-    vec3_t start = origin;
-    vec3_t stop = origin;
-    stop.z = ceiling ? 
-        (origin.z + maxs.z + STEPSIZE * 2) : 
-        (origin.z + mins.z - STEPSIZE * 2);
+bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs,
+	edict_t* ignore, contents_t mask, bool ceiling, bool allow_any_step_height)
+{
+	// Precalcular dimensiones para reutilización
+	const vec3_t step_quadrant_size = (maxs - mins) * 0.5f;
+	const vec3_t half_step_quadrant = step_quadrant_size * 0.5f;
+	const vec3_t half_step_quadrant_mins = -half_step_quadrant;
 
-    trace_t trace = gi.trace(start, mins, maxs, stop, ignore, mask);
-    
-    if (trace.fraction == 1.0f)
-        return false;
+	// Optimizar trazas iniciales
+	vec3_t start = origin;
+	vec3_t stop = origin;
+	stop.z = ceiling ?
+		(origin.z + maxs.z + STEPSIZE * 2) :
+		(origin.z + mins.z - STEPSIZE * 2);
 
-    if (allow_any_step_height)
-        return true;
+	trace_t trace = gi.trace(start, mins, maxs, stop, ignore, mask);
 
-	start[0] = stop[0] = origin.x + ((mins.x + maxs.x) * 0.5f);
-	start[1] = stop[1] = origin.y + ((mins.y + maxs.y) * 0.5f);
+	if (trace.fraction == 1.0f)
+		return false;
 
-	float mid = trace.endpos[2];
+	if (allow_any_step_height)
+		return true;
 
-	// the corners must be within 16 of the midpoint
-	for (int32_t x = 0; x <= 1; x++)
-		for (int32_t y = 0; y <= 1; y++)
-		{
-			vec3_t quadrant_start = start;
+	const float mid = trace.endpos[2];
+	const float step_threshold = STEPSIZE;
+	vec3_t quadrant_start, quadrant_end;
 
-			if (x)
-				quadrant_start.x += half_step_quadrant.x;
-			else
-				quadrant_start.x -= half_step_quadrant.x;
+	// Optimizar bucle de verificación de esquinas
+	for (int i = 0; i < 4; i++) {
+		quadrant_start = start;
+		quadrant_start.x += ((i & 1) ? half_step_quadrant.x : -half_step_quadrant.x);
+		quadrant_start.y += ((i & 2) ? half_step_quadrant.y : -half_step_quadrant.y);
+		quadrant_end = quadrant_start;
+		quadrant_end.z = stop.z;
 
-			if (y)
-				quadrant_start.y += half_step_quadrant.y;
-			else
-				quadrant_start.y -= half_step_quadrant.y;
+		trace = gi.trace(quadrant_start, half_step_quadrant_mins, half_step_quadrant,
+			quadrant_end, ignore, mask);
 
-			vec3_t quadrant_end = quadrant_start;
-			quadrant_end.z = stop.z;
+		const float height_diff = ceiling ?
+			trace.endpos[2] - mid :
+			mid - trace.endpos[2];
 
-			trace = gi.trace(quadrant_start, half_step_quadrant_mins, half_step_quadrant, quadrant_end, ignore, mask);
-
-			// PGM
-			//  FIXME - this will only handle 0,0,1 and 0,0,-1 gravity vectors
-			if (ceiling)
-			{
-				if (trace.fraction == 1.0f || trace.endpos[2] - mid > (STEPSIZE))
-					return false;
-			}
-			else
-			{
-				if (trace.fraction == 1.0f || mid - trace.endpos[2] > (STEPSIZE))
-					return false;
-			}
-			// PGM
-		}
+		if (trace.fraction == 1.0f || height_diff > step_threshold)
+			return false;
+	}
 
 	return true;
 }
@@ -214,7 +190,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		__debugbreak();
 #endif
 		return false;
-}
+	}
 
 	if (ent->monsterinfo.aiflags & AI_PATHING)
 		towards_origin = (ent->monsterinfo.nav_path.returnCode == PathReturnCode::TraversalPending) ?
@@ -425,7 +401,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 		ent->s.angles[PITCH] = 0;
 
 	return true;
-	}
+}
 
 // flying monsters don't step up
 static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_bad)
