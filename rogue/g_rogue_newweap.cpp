@@ -1302,7 +1302,9 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	vec3_t forward, right, up;
 	movetype_t movetype = MOVETYPE_NONE;
 	int stick_ok = 0;
-	//vec3_t land_point{};
+
+	if (other->client) 
+		return;
 
 	// Verificar si golpea el cielo
 	if (tr.surface && (tr.surface->flags & SURF_SKY))
