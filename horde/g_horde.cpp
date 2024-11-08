@@ -2209,7 +2209,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		return true;
 	}
 
-	// Victoria por eliminación total
+	// Verificar si todos los monstruos han sido derrotados
 	if (allMonstersDead) {
 		reason = WaveEndReason::AllMonstersDead;
 		return true;
@@ -2220,100 +2220,108 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		return false;
 	}
 
-	// Obtener número de monstruos restantes una sola vez
-	int32_t remainingMonsters = CalculateRemainingMonsters();
-	float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
-
-	// Verificar el tiempo límite independiente primero
+	// Verificar tiempo límite independiente
 	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		if (!g_horde_local.conditionTriggered) {
-			g_horde_local.conditionTriggered = true;
-			g_horde_local.conditionStartTime = currentTime;
-			g_horde_local.conditionTimeThreshold = 1_sec;
-			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
-			gi.LocBroadcast_Print(PRINT_HIGH, "Time limit reached - Final push!\n");
-		}
 		reason = WaveEndReason::TimeLimitReached;
 		return true;
 	}
 
-	// Si no se ha iniciado la condición, verificar si debemos iniciarla
+	// Inicializar waveEndTime si no está establecido
+	if (g_horde_local.waveEndTime == 0_sec) {
+		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
+	}
+
+	// Obtener número de monstruos restantes una sola vez
+	int32_t remainingMonsters = CalculateRemainingMonsters();
+	float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
+
+	bool shouldAdvance = false;
+
+	// Determinar si alguna condición se ha cumplido
 	if (!g_horde_local.conditionTriggered) {
-		bool shouldTrigger = false;
-		gtime_t timeThreshold = g_lastParams.timeThreshold;
-
-		if (remainingMonsters <= g_lastParams.maxMonsters) {
-			shouldTrigger = true;
-			// Dar más tiempo si quedan más monstruos
-			timeThreshold = g_lastParams.timeThreshold *
-				(1.0f + (remainingMonsters / static_cast<float>(g_lastParams.maxMonsters) * 0.25f));
-		}
-		else if (percentageRemaining <= g_lastParams.lowPercentageThreshold) {
-			shouldTrigger = true;
-			timeThreshold = g_lastParams.lowPercentageTimeThreshold *
-				(1.0f + (percentageRemaining / g_lastParams.lowPercentageThreshold * 0.2f));
-		}
-
-		if (shouldTrigger) {
+		bool timeReduced = false;
+		if (remainingMonsters <= g_lastParams.maxMonsters || percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Ajuste más suave del tiempo
-			float timeMultiplier = 1.0f;
-
-			// Más tiempo si quedan muchos monstruos, pero de forma más gradual
-			if (remainingMonsters > g_lastParams.maxMonsters) {
-				timeMultiplier = 1.0f + ((remainingMonsters - g_lastParams.maxMonsters) /
-					static_cast<float>(g_lastParams.maxMonsters)) * 0.2f;
+			// Elegir el menor umbral de tiempo
+			if (remainingMonsters <= g_lastParams.maxMonsters && percentageRemaining <= g_lastParams.lowPercentageThreshold) {
+				g_horde_local.conditionTimeThreshold = std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold);
+				timeReduced = true;
 			}
-			// Menos tiempo si quedan pocos
-			else if (remainingMonsters <= g_lastParams.maxMonsters * 0.5f) {
-				timeMultiplier = 0.8f + (remainingMonsters / (g_lastParams.maxMonsters * 0.5f)) * 0.2f;
+			else if (remainingMonsters <= g_lastParams.maxMonsters) {
+				g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
+				timeReduced = true;
 			}
-
-			// Ajuste de dificultad más sutil
-			if (g_insane->integer || g_chaotic->integer) {
-				timeMultiplier *= 1.05f;
+			else {
+				g_horde_local.conditionTimeThreshold = g_lastParams.lowPercentageTimeThreshold;
+				timeReduced = true;
 			}
 
-			g_horde_local.conditionTimeThreshold = timeThreshold * timeMultiplier;
-			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
+			g_horde_local.waveEndTime = g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold;
 
-			// Mensajes más descriptivos basados en la situación
-			if (timeMultiplier < 1.0f) {
-				gi.LocBroadcast_Print(PRINT_HIGH, "Remaining monsters dwindling - Time reduced!\n");
+			gi.Com_PrintFmt("PRINT: Condition triggered. Remaining monsters: {}, Percentage remaining: {:.2f}%\n",
+				remainingMonsters, percentageRemaining * 100);
+
+			// Reducción agresiva del tiempo si quedan muy pocos monstruos
+			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
+				g_horde_local.waveEndTime = std::min(
+					g_horde_local.waveEndTime,
+					currentTime + AGGRESSIVE_TIME_REDUCTION_PER_MONSTER * (MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters)
+				);
+				timeReduced = true;
 			}
-			else if (timeMultiplier > 1.0f) {
-				gi.LocBroadcast_Print(PRINT_HIGH, "Heavy resistance detected - Time extended!\n");
+
+			// Solo mostrar el mensaje una vez si hubo alguna reducción
+			if (timeReduced) {
+				gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
 			}
 		}
 	}
 
-	// Si la condición está activa, verificar si se alcanzó el tiempo límite
-	if (g_horde_local.conditionTriggered) {
-		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
+	// Verificar si la condición ha sido activada
+	if (!g_horde_local.conditionTriggered) {
+		return false;
+	}
 
-		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
-			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
-			if (!g_horde_local.warningIssued[i] &&
-				remainingTime <= warningTime &&
-				remainingTime > (warningTime - 1_sec)) {
-				gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
-					static_cast<int>(WARNING_TIMES[i]));
-				g_horde_local.warningIssued[i] = true;
-			}
+	// Calcular el tiempo restante
+	const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
+
+	// Emitir advertencias en tiempos predefinidos
+	for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
+		const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
+		if (!g_horde_local.warningIssued[i] &&
+			remainingTime <= warningTime &&
+			remainingTime > (warningTime - 1_sec)) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
+				static_cast<int>(WARNING_TIMES[i]));
+			g_horde_local.warningIssued[i] = true;
 		}
+	}
 
-		if (currentTime >= g_horde_local.waveEndTime) {
+	// Verificar si el tiempo de la ola ha llegado a cero
+	if (currentTime >= g_horde_local.waveEndTime) {
+		if (currentTime >= (g_independent_timer_start + g_lastParams.independentTimeThreshold)) {
+			reason = WaveEndReason::TimeLimitReached;
+			shouldAdvance = true;
+		}
+		else if (g_horde_local.conditionTriggered && currentTime >= (g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold)) {
 			reason = WaveEndReason::MonstersRemaining;
-			return true;
+			shouldAdvance = true;
 		}
 	}
 
-	// Actualizar info de progreso cada 10 segundos
+	if (shouldAdvance) {
+		// No resetear el timer aquí, se manejará en HandleWaveRestMessage
+		gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
+			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
+		return true;
+	}
+
+	// Proveer actualizaciones periódicas sobre monstruos restantes y tiempo
 	if (currentTime - g_horde_local.lastPrintTime >= 10_sec) {
-		gi.Com_PrintFmt("PRINT: Wave status: {} monsters remaining ({}%)\n",
-			remainingMonsters, static_cast<int>(percentageRemaining * 100));
+		gi.Com_PrintFmt("PRINT: Wave status: {} monsters remaining. {:.2f} seconds left.\n",
+			remainingMonsters, remainingTime.seconds());
 		g_horde_local.lastPrintTime = currentTime;
 	}
 
@@ -2763,7 +2771,7 @@ static edict_t* SpawnMonsters() {
 		}
 
 		// Configuración post-spawn inline
-		if (g_horde_local.level >= 17)
+		if (g_horde_local.level >= 15)
 			SetMonsterArmor(monster);
 
 		if (frandom() <= (g_horde_local.level <= 2 ? 0.8f :
@@ -2793,10 +2801,8 @@ static edict_t* SpawnMonsters() {
 
 static void SetMonsterArmor(edict_t* monster) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
-
 	if (!st.was_key_specified("power_armor_power")) {
 		monster->monsterinfo.armor_type = IT_ARMOR_COMBAT;
-
 		// Factores base mejorados
 		const float health_ratio = monster->health / static_cast<float>(monster->max_health);
 		const float size_factor = (monster->maxs - monster->mins).length() / 64.0f;
@@ -2805,13 +2811,13 @@ static void SetMonsterArmor(edict_t* monster) {
 		// Factor de nivel dinámico
 		float level_scaling;
 		if (current_wave_level <= 15) {
-			level_scaling = 1.0f + (current_wave_level * 0.08f);
+			level_scaling = 1.0f + (current_wave_level * 0.05f);
 		}
 		else if (current_wave_level <= 25) {
-			level_scaling = 2.2f + ((current_wave_level - 15) * 0.12f);
+			level_scaling = 2.2f + ((current_wave_level - 15) * 0.8f);
 		}
 		else {
-			level_scaling = 3.4f + ((current_wave_level - 25) * 0.15f);
+			level_scaling = 3.4f + ((current_wave_level - 25) * 0.1f);
 		}
 
 		// Base armor con mejor escalado
@@ -2825,10 +2831,10 @@ static void SetMonsterArmor(edict_t* monster) {
 
 		// Bonus por dificultad
 		if (g_insane->integer) {
-			base_armor *= 1.3f;
+			base_armor *= 1.2f;
 		}
 		else if (g_chaotic->integer) {
-			base_armor *= 1.15f;
+			base_armor *= 1.05f;
 		}
 
 		// Factor aleatorio controlado
@@ -2839,6 +2845,13 @@ static void SetMonsterArmor(edict_t* monster) {
 		if (current_wave_level > 25) {
 			base_armor *= 1.0f + ((current_wave_level - 25) * 0.05f);
 		}
+
+		// Reducción de armadura hasta la ola 40
+		float armor_multiplier = 1.0f;
+		if (g_horde_local.level <= 40) {
+			armor_multiplier = 0.5f;  // Reduce la armadura a la mitad hasta la ola 40
+		}
+		base_armor = static_cast<int>(base_armor * armor_multiplier);
 
 		// Límites dinámicos
 		const int min_armor = std::max(50, static_cast<int>(monster->max_health * 0.1f));
@@ -2851,6 +2864,7 @@ static void SetMonsterArmor(edict_t* monster) {
 		monster->monsterinfo.base_power_armor = monster->monsterinfo.armor_power;
 	}
 }
+
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 	g_horde_local.monster_spawn_time = level.time +
 		(mapSize.isSmallMap ? random_time(1.2_sec, 1.5_sec) :
@@ -2895,9 +2909,24 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 	percentage = std::round(percentage * 100) / 100;
 }
 
-void SendCleanupMessage(WaveEndReason reason) {
+void SpawnAndGiveItem(edict_t* ent, const char* classname) {
+	if (gitem_t* item = FindItemByClassname(classname)) {
+		edict_t* it_ent = G_Spawn();
+		if (it_ent) {
+			it_ent->classname = classname;
+			it_ent->item = item;
+			SpawnItem(it_ent, item, spawn_temp_t::empty);
+			if (it_ent->inuse) {
+				Touch_Item(it_ent, ent, null_trace, true);
+				if (it_ent->inuse)
+					G_FreeEdict(it_ent);
+			}
+		}
+	}
+}
 
-	// Resetear tiempo de revivir para todos los jugadores
+void SendCleanupMessage(WaveEndReason reason) {
+	// Reset respawn time for all players
 	for (auto player : active_players()) {
 		if (player->client) {
 			player->client->respawn_time = 0_sec;
@@ -2911,12 +2940,12 @@ void SendCleanupMessage(WaveEndReason reason) {
 		duration = 0_sec;
 	}
 
-	// Calcular el top damager
+	// Calculate top damager
 	PlayerStats topDamager;
 	float percentage = 0.0f;
 	CalculateTopDamager(topDamager, percentage);
 
-	// Mensajes personalizados según el tipo de finalización
+	// Custom messages based on completion type
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		UpdateHordeMessage(fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level), duration);
@@ -2932,7 +2961,7 @@ void SendCleanupMessage(WaveEndReason reason) {
 	if (topDamager.player) {
 		std::string playerName = GetPlayerName(topDamager.player);
 
-		// Mensaje más detallado basado en el porcentaje de daño
+		// Message based on damage percentage
 		if (percentage > 75.0f) {
 			gi.LocBroadcast_Print(PRINT_HIGH, "{} dominated with {} damage! ({}% of total)\n",
 				playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
@@ -2946,52 +2975,30 @@ void SendCleanupMessage(WaveEndReason reason) {
 				playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
 		}
 
-		// Sistema de recompensas escalonado
-		static const std::array<std::pair<item_id_t, float>, 2> tiered_rewards = { {
-			{IT_ITEM_BANDOLIER, 0.0f},            // Básica
-			{IT_ITEM_PACK, 30.0f},                // Buena
-			//{IT_ITEM_DOUBLE, 40.0f},              // Muy buena
-		//	{IT_ITEM_DOPPELGANGER, 50.0f},        // Excelente
-			//{IT_ITEM_SPHERE_DEFENDER, 60.0f},     // Excepcional
-		//	{IT_ITEM_QUAD, 70.0f}                 // Legendaria
+		// Simplified reward system using classnames
+		static const std::array<std::pair<const char*, float>, 3> reward_items = { {
+			{"item_bandolier", 0.0f},     // Basic reward
+			{"item_pack", 30.0f},         // Enhanced reward
+			{"item_adrenaline", 45.0f}    // Top reward
 		} };
 
-		// Seleccionar la mejor recompensa disponible según el porcentaje
-		item_id_t reward_id = tiered_rewards[0].first;
-		for (const auto& [item, req_percentage] : tiered_rewards) {
+		// Select reward based on percentage
+		const char* reward_classname = reward_items[0].first;
+		for (const auto& [classname, req_percentage] : reward_items) {
 			if (percentage >= req_percentage) {
-				reward_id = item;
+				reward_classname = classname;
 			}
 		}
 
-		// Crear y entregar la recompensa
-		if (gitem_t* it = GetItemByIndex(reward_id)) {
-			edict_t* it_ent = G_Spawn();
-			if (!it_ent)
-				return;
+		// Give reward directly to player using the new function
+		SpawnAndGiveItem(topDamager.player, reward_classname);
 
-			it_ent->classname = it->classname;
-			it_ent->item = it;
-
-			SpawnItem(it_ent, it, spawn_temp_t::empty);
-			if (it_ent->inuse) {
-				// Efectos visuales mejorados basados en el porcentaje
-				it_ent->s.effects |= EF_GIB;
-				if (percentage >= 50.0f) it_ent->s.effects |= EF_BLUEHYPERBLASTER;
-				if (percentage >= 70.0f) it_ent->s.effects |= EF_HOLOGRAM;
-
-				Touch_Item(it_ent, topDamager.player, null_trace, true);
-				if (it_ent->inuse)
-					G_FreeEdict(it_ent);
-
-
-
-				gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for outstanding performance!\n",
-					playerName.c_str(), it->use_name);
-			}
+		if (gitem_t* item = FindItemByClassname(reward_classname)) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for outstanding performance!\n",
+				playerName.c_str(), item->use_name);
 		}
 
-		// Resetear estadísticas de daño
+		// Reset damage statistics
 		for (auto player : active_players()) {
 			if (player->client) {
 				player->client->total_damage = 0;
@@ -3002,7 +3009,6 @@ void SendCleanupMessage(WaveEndReason reason) {
 		}
 	}
 }
-
 // Add this function in the appropriate source file that deals with spawn management.
 static void CheckAndResetDisabledSpawnPoints() {
 	for (auto& [spawn_point, data] : spawnPointsData) {
