@@ -318,12 +318,23 @@ static float CalculatePlayerPerformance() {
 // Constantes y funciones auxiliares
 constexpr gtime_t BASE_MAX_WAVE_TIME = 60_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 0.8_sec;
+constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 10_sec;
 
 constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
-	return (BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level <= 90_sec) ?
-		BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level : 90_sec;
+	// Calcular el tiempo base según el nivel
+	gtime_t base_time = BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level;
+
+	// Limitar el tiempo base a 90 segundos
+	base_time = (base_time <= 90_sec) ? base_time : 90_sec;
+
+	// Añadir tiempo extra si es una ola con jefe (niveles múltiplos de 5 después del 10)
+	if (wave_level >= 10 && wave_level % 5 == 0) {
+		base_time += BOSS_TIME_BONUS;
+	}
+
+	return base_time;
 }
 
 // Variables globales
@@ -337,6 +348,9 @@ static bool g_lowPercentageTriggered = false;
 
 ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
+
+	if (g_horde_local.level == 0)
+		return params; //maybe this will prevent wave timer pre wave 1
 
 	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
