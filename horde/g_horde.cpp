@@ -2905,7 +2905,7 @@ void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 // Enumeration for different reward types with their relative weights
 enum class RewardType {
 	BANDOLIER = 0,
-	AMMO_PACK = 1,
+	AMMO_TESLA = 1,
 	SENTRY_GUN = 2
 };
 
@@ -2917,7 +2917,7 @@ struct RewardInfo {
 // Define reward table with weights
 static const std::unordered_map<RewardType, RewardInfo> REWARD_TABLE = {
 	{RewardType::BANDOLIER, {IT_ITEM_BANDOLIER, 50}},    // Most common
-	{RewardType::AMMO_PACK, {IT_AMMO_TESLA, 30}},         // Medium rarity
+	{RewardType::AMMO_TESLA, {IT_AMMO_TESLA, 30}},         // Medium rarity
 	{RewardType::SENTRY_GUN, {IT_ITEM_DOPPELGANGER, 20}} // Least common
 };
 
