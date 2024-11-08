@@ -855,6 +855,11 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	bool rail_frames = false, blaster_frames = false, blocked = false, anger = false;
 
 	self->movetarget = nullptr;
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
+		return M_SetAnimation(self, &widow_move_run);
+
 
 	// Si se ha alcanzado el máximo, proceder con la animación de ataque mejorada
 	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers && visible(self, self->enemy)) {
@@ -1216,7 +1221,7 @@ void WidowPowerups(edict_t* self)
 
 MONSTERINFO_CHECKATTACK(Widow_CheckAttack) (edict_t* self) -> bool
 {
-	if (!self->enemy)
+	if (!self->enemy || ClientIsSpectating(self->enemy->client))
 		return false;
 
 	WidowPowerups(self);

@@ -241,22 +241,36 @@ bool finishHeal(edict_t* self)
 	edict_t* healee = self->enemy;
 	bool isBodyque = !strcmp(healee->classname, "bodyque");
 
-	// If reviving a bodyque entity, we'll spawn a soldier instead
+	// Si estamos reviviendo un bodyque, creamos el soldado primero
 	if (isBodyque) {
-		// Get position and angles from the corpse
+		// Guardar posición y ángulos del cadáver
 		vec3_t position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
 
-		// Create the new soldier first
+		// Crear el nuevo soldado
 		edict_t* soldier = G_Spawn();
+		if (!soldier) {
+			// Si falla el spawn, abortar la curación
+			abortHeal(self, false, false);
+			return false;
+		}
+
 		soldier->s.origin = position;
 		soldier->s.angles = angles;
 		soldier->classname = "monster_soldier_ss";
 
-		// Call the spawn function for soldier
-		ED_CallSpawn(soldier);
+		// Llamar al spawn del soldado
+		spawn_temp_t st{};
+		ED_CallSpawn(soldier, st);
 
-		// Force gib effect and then free the entity
+		if (!soldier->inuse) {
+			// Si el spawn falló, abortar
+			G_FreeEdict(soldier);
+			abortHeal(self, false, false);
+			return false;
+		}
+
+		// Efecto de gib en el bodyque
 		gi.sound(healee, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
 
 		ThrowGibs(healee, 50, {
@@ -265,6 +279,7 @@ bool finishHeal(edict_t* self)
 			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
 			});
 
+		// Limpiar el bodyque
 		healee->s.modelindex = 0;
 		healee->solid = SOLID_NOT;
 		healee->takedamage = false;
@@ -272,42 +287,26 @@ bool finishHeal(edict_t* self)
 		healee->deadflag = true;
 		G_FreeEdict(healee);
 
-		// Point healee to the new soldier
+		// Apuntar healee al nuevo soldado
 		self->enemy = healee = soldier;
 	}
-	else {
-		healee->spawnflags = SPAWNFLAG_NONE;
-		healee->monsterinfo.aiflags &= AI_RESPAWN_MASK;
-		healee->target = nullptr;
-		healee->targetname = nullptr;
-		healee->combattarget = nullptr;
-		healee->deathtarget = nullptr;
-		healee->healthtarget = nullptr;
-		healee->itemtarget = nullptr;
-		healee->monsterinfo.healer = self;
-	}
 
+	// Verificar espacio para el spawn
 	vec3_t maxs = healee->maxs;
-	maxs[2] += 48; // compensate for change when they die
+	maxs[2] += 48; // Compensar el cambio cuando mueren
 
 	trace_t tr = gi.trace(healee->s.origin, healee->mins, maxs, healee->s.origin, healee, MASK_MONSTERSOLID);
 
-	if (tr.startsolid || tr.allsolid)
-	{
-		abortHeal(self, true, false);
-		return false;
-	}
-	else if (tr.ent != world)
-	{
+	if (tr.startsolid || tr.allsolid || tr.ent != world) {
 		abortHeal(self, true, false);
 		return false;
 	}
 
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
 
-	// if it's a bodyque spawn, the rest is already handled by ED_CallSpawn
+	// Si no es un bodyque, restaurar stats
 	if (!isBodyque) {
-		// backup & restore health stuff, because of multipliers
+		// Backup y restaurar stats
 		int32_t old_max_health = healee->max_health;
 		item_id_t old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
 		int32_t old_power_armor_power = healee->monsterinfo.max_power_armor_power;
@@ -325,11 +324,11 @@ bool finishHeal(edict_t* self)
 
 		ED_CallSpawn(healee, st);
 
+		// Restaurar stats
 		healee->monsterinfo.slots_from_commander = slots_from_commander;
 		healee->monsterinfo.reinforcements = reinforcements;
 		healee->monsterinfo.monster_slots = monster_slots;
 		healee->monsterinfo.monster_used = monster_used;
-
 		healee->gib_health = old_gib_health / 2;
 		healee->health = healee->max_health = old_max_health;
 		healee->monsterinfo.power_armor_power = healee->monsterinfo.max_power_armor_power = old_power_armor_power;
@@ -338,36 +337,40 @@ bool finishHeal(edict_t* self)
 		healee->monsterinfo.health_scaling = old_health_scaling;
 	}
 
+	// Configuración común para ambos casos
+	healee->spawnflags = SPAWNFLAG_NONE;
+	healee->monsterinfo.aiflags &= AI_RESPAWN_MASK;
+	healee->target = nullptr;
+	healee->targetname = nullptr;
+	healee->combattarget = nullptr;
+	healee->deathtarget = nullptr;
+	healee->healthtarget = nullptr;
+	healee->itemtarget = nullptr;
+	healee->monsterinfo.healer = self;
+
 	if (healee->monsterinfo.setskin)
 		healee->monsterinfo.setskin(healee);
 
-	if (healee->think)
-	{
+	if (healee->think) {
 		healee->nextthink = level.time;
 		healee->think(healee);
 	}
 
 	healee->monsterinfo.aiflags &= ~AI_RESURRECTING;
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
-	// turn off flies
 	healee->s.effects &= ~EF_FLIES;
 	healee->monsterinfo.healer = nullptr;
 
-	// switch our enemy
+	// Configurar enemigo
 	fixHealerEnemy(self);
-
-	// switch revivee's enemy
 	healee->oldenemy = nullptr;
 	healee->enemy = self->enemy;
 
 	if (healee->enemy && !g_horde->integer)
 		FoundTarget(healee);
-	else
-	{
+	else {
 		healee->enemy = nullptr;
-		if (!FindTarget(healee))
-		{
-			// no valid enemy, so stop acting
+		if (!FindTarget(healee)) {
 			healee->monsterinfo.pausetime = HOLD_FOREVER;
 			healee->monsterinfo.stand(healee);
 		}
@@ -376,7 +379,6 @@ bool finishHeal(edict_t* self)
 	cleanupHeal(self);
 	return true;
 }
-
 bool canReach(edict_t* self, edict_t* other)
 {
 	vec3_t	spot1;

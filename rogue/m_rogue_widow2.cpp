@@ -321,6 +321,19 @@ void WidowDisrupt(edict_t* self)
 	vec3_t forward, right, up;
 	float len;
 
+	// Validación básica
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	if (level.time < self->monsterinfo.attack_finished)
+		return;
+
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
+		return;
+
+
 	AngleVectors(self->s.angles, forward, right, up);
 	vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[MZ2_WIDOW_DISRUPTOR]);
 	start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
@@ -486,6 +499,19 @@ void Widow2TonguePull(edict_t* self)
 	vec3_t vec;
 	vec3_t f, r, u;
 	vec3_t start, end;
+
+	// Validación básica
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	if (level.time < self->monsterinfo.attack_finished)
+		return;
+
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
+		return;
+
 
 	if ((!self->enemy) || (!self->enemy->inuse))
 	{
@@ -701,6 +727,12 @@ MONSTERINFO_MELEE(widow2_melee) (edict_t* self) -> void
 MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
 	float luck;
 	bool blocked = false;
+
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
+		return M_SetAnimation(self, &widow2_move_run);
+
 
 	// Si se ha alcanzado el máximo de stalkers, usar animación de ataque mejorada
 	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers && visible(self, self->enemy)) {
@@ -972,7 +1004,7 @@ DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 MONSTERINFO_CHECKATTACK(Widow2_CheckAttack) (edict_t* self) -> bool
 {
-	if (!self->enemy)
+	if (!self->enemy || ClientIsSpectating(self->enemy->client))
 		return false;
 
 	WidowPowerups(self);
