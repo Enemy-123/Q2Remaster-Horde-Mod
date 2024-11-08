@@ -316,14 +316,14 @@ static float CalculatePlayerPerformance() {
 }
 
 // Constantes y funciones auxiliares
-constexpr gtime_t BASE_MAX_WAVE_TIME = 45_sec;
+constexpr gtime_t BASE_MAX_WAVE_TIME = 60_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 0.8_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 10_sec;
 
 constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
-	return (BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level <= 65_sec) ?
-		BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level : 65_sec;
+	return (BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level <= 90_sec) ?
+		BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level : 90_sec;
 }
 
 // Variables globales
@@ -2201,9 +2201,15 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	const gtime_t currentTime = level.time;
 	const bool allMonstersDead = Horde_AllMonstersDead();
 
+	// Verificar tiempo límite independiente primero y de forma más directa
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		gi.Com_PrintFmt("PRINT: Independent time limit reached. Forcing wave advance.\n");
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
+	}
+
 	// Verificar si se ha permitido avanzar la ola manualmente
 	if (allowWaveAdvance) {
-		gi.Com_PrintFmt("PRINT: Wave advance allowed manually.\n");
 		ResetWaveAdvanceState();
 		reason = WaveEndReason::AllMonstersDead;
 		return true;
@@ -2215,12 +2221,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 		return true;
 	}
 
-	// Verificar tiempo límite independiente
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
-	}
-
 	// Inicializar waveEndTime si no está establecido
 	if (g_horde_local.waveEndTime == 0_sec) {
 		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
@@ -2229,7 +2229,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	// Obtener número de monstruos restantes una sola vez
 	int32_t remainingMonsters = CalculateRemainingMonsters();
 	float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
-
 	bool shouldAdvance = false;
 
 	// Determinar si alguna condición se ha cumplido
@@ -2293,21 +2292,25 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	// Verificar si el tiempo de la ola ha llegado a cero
 	if (currentTime >= g_horde_local.waveEndTime) {
-		if (currentTime >= (g_independent_timer_start + g_lastParams.independentTimeThreshold)) {
+		bool shouldAdvance = false;
+
+		// Aquí también verificamos el tiempo independiente de nuevo
+		if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
 			reason = WaveEndReason::TimeLimitReached;
 			shouldAdvance = true;
 		}
-		else if (g_horde_local.conditionTriggered && currentTime >= (g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold)) {
+		else if (g_horde_local.conditionTriggered &&
+			currentTime >= (g_horde_local.conditionStartTime + g_horde_local.conditionTimeThreshold)) {
 			reason = WaveEndReason::MonstersRemaining;
 			shouldAdvance = true;
 		}
-	}
 
-	if (shouldAdvance) {
-		// No resetear el timer aquí, se manejará en HandleWaveRestMessage
-		gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
-			reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
-		return true;
+		if (shouldAdvance) {
+			// No resetear el timer aquí, se manejará en HandleWaveRestMessage
+			gi.Com_PrintFmt("PRINT: Wave advance triggered. Reason: {}\n",
+				reason == WaveEndReason::TimeLimitReached ? "Time Limit" : "Monsters Remaining");
+			return true;
+		}
 	}
 
 	// Proveer actualizaciones periódicas sobre monstruos restantes y tiempo
@@ -2319,6 +2322,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 
 	return false;
 }
+
 
 void ResetGame() {
 
@@ -3073,6 +3077,17 @@ void Horde_RunFrame() {
 		break;
 
 	case horde_state_t::spawning:
+		// Verificar tiempo límite independiente primero
+		if (level.time >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+			WaveEndReason reason = WaveEndReason::TimeLimitReached;
+			SendCleanupMessage(reason);
+			gi.Com_PrintFmt("PRINT: Wave {} time limit reached during spawn. Transitioning to cleanup.\n", currentLevel);
+			g_horde_local.state = horde_state_t::cleanup;
+			g_horde_local.monster_spawn_time = level.time + 0.5_sec;
+			currentWaveEndReason = reason;
+			break;
+		}
+
 		if (g_horde_local.monster_spawn_time <= level.time) {
 			// Spawn de jefe si corresponde
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
@@ -3169,27 +3184,22 @@ void HandleResetEvent() {
 
 // Get the remaining time for the current wave
 gtime_t GetWaveTimer() {
-	// If we're not in an active wave or cleanup state, return 0
-	if (g_horde_local.state != horde_state_t::active_wave &&
-		g_horde_local.state != horde_state_t::cleanup) {
-		return 0_sec;
-	}
-
 	const gtime_t currentTime = level.time;
 	gtime_t remainingTime = 0_sec;
 
-	// If condition is triggered, use condition time
+	// Calcular tiempo de condición si está activa
 	if (g_horde_local.conditionTriggered && g_horde_local.waveEndTime > currentTime) {
 		remainingTime = g_horde_local.waveEndTime - currentTime;
 	}
-	// If no condition triggered or condition time is higher, check independent timer
-	if (!g_horde_local.conditionTriggered ||
-		(g_independent_timer_start + g_lastParams.independentTimeThreshold - currentTime < remainingTime)) {
-		gtime_t independentRemaining = g_independent_timer_start + g_lastParams.independentTimeThreshold - currentTime;
-		if (independentRemaining > 0_sec) {
-			remainingTime = (remainingTime > 0_sec) ?
-				std::min(remainingTime, independentRemaining) : independentRemaining;
-		}
+
+	// Calcular tiempo independiente
+	gtime_t independentRemaining = g_independent_timer_start + g_lastParams.independentTimeThreshold - currentTime;
+
+	// Siempre retornar el menor tiempo entre ambos si son válidos
+	if (independentRemaining > 0_sec) {
+		remainingTime = (remainingTime > 0_sec) ?
+			std::min(remainingTime, independentRemaining) :
+			independentRemaining;
 	}
 
 	return remainingTime;
