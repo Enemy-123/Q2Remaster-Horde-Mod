@@ -2951,7 +2951,7 @@ void SendCleanupMessage(WaveEndReason reason) {
 		UpdateHordeMessage(fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level), duration);
 		break;
 	case WaveEndReason::MonstersRemaining:
-		UpdateHordeMessage(fmt::format("Wave {} Pushed Back - Area Secured!\n", g_horde_local.level), duration);
+		UpdateHordeMessage(fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level), duration);
 		break;
 	case WaveEndReason::TimeLimitReached:
 		UpdateHordeMessage(fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level), duration);
