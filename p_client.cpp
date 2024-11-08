@@ -4096,49 +4096,57 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 }
 
 inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
+	static constexpr size_t MAX_CANDIDATES = 32;
+	static struct {
+		edict_t* player;
+		vec3_t spot;
+	} candidates[MAX_CANDIDATES];
+	size_t candidate_count = 0;
+
 	const bool is_horde_mode = g_horde->integer != 0;
 	gtime_t min_combat_time_left = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 	gtime_t min_bad_area_time_left = 3_sec;
-	std::vector<std::tuple<edict_t*, vec3_t>> squad_respawn_candidates;
 	bool combat_state_exists = false;
 	bool bad_area_state_exists = false;
 
 	auto process_player = [&](edict_t* player) {
 		if (player->deadflag) return;
 
-		const bool in_combat = player->client->last_damage_time >= level.time;
-
-		if (in_combat) {
+		if (player->client->last_damage_time >= level.time) {
 			player->client->coop_respawn_state = COOP_RESPAWN_IN_COMBAT;
 			combat_state_exists = true;
-			gtime_t combat_time_left = player->client->last_damage_time - level.time;
-			if (combat_time_left < min_combat_time_left) {
-				min_combat_time_left = combat_time_left;
-			}
+			min_combat_time_left = std::min(min_combat_time_left,
+				player->client->last_damage_time - level.time);
 			player->client->time_in_bad_area = 0_ms;
 			return;
 		}
 
-		const bool is_bad_area = (player->groundentity != world || player->waterlevel >= WATER_UNDER);
+		const bool is_bad_area = (player->groundentity != world ||
+			player->waterlevel >= WATER_UNDER);
 		vec3_t spot;
 		const bool is_blocked = !G_FindRespawnSpot(player, spot);
 
 		if (is_bad_area || is_blocked) {
-			player->client->coop_respawn_state = is_bad_area ? COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
+			player->client->coop_respawn_state = is_bad_area ?
+				COOP_RESPAWN_BAD_AREA : COOP_RESPAWN_BLOCKED;
 			player->client->time_in_bad_area += FRAME_TIME_MS;
-			gtime_t time_left_in_bad_area = std::max(0_ms, 3_sec - player->client->time_in_bad_area);
-			if (time_left_in_bad_area < min_bad_area_time_left) {
-				min_bad_area_time_left = time_left_in_bad_area;
-			}
+			min_bad_area_time_left = std::min(min_bad_area_time_left,
+				std::max(0_ms, 3_sec - player->client->time_in_bad_area));
 			bad_area_state_exists = true;
 			return;
 		}
 
 		player->client->time_in_bad_area = 0_ms;
 		player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-		squad_respawn_candidates.emplace_back(player, spot);
+
+		if (candidate_count < MAX_CANDIDATES) {
+			candidates[candidate_count].player = player;
+			candidates[candidate_count].spot = spot;
+			candidate_count++;
+		}
 		};
 
+	// Procesar jugadores según el modo
 	if (is_horde_mode) {
 		for (auto player : active_players_no_spect()) {
 			process_player(player);
@@ -4150,16 +4158,18 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		}
 	}
 
-	// Update config strings
+	// Actualizar strings de configuración usando fmt
 	if (combat_state_exists) {
-		std::string message_str = fmt::format("In Combat! Reviving in: {:.1f}(s)", min_combat_time_left.seconds<float>());
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message_str.c_str());
+		std::string_view message = fmt::format("In Combat! Reviving in: {:.1f}(s)",
+			min_combat_time_left.seconds<float>());
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message.data());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 	else if (bad_area_state_exists) {
-		std::string message_str = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)", min_bad_area_time_left.seconds<float>());
+		std::string_view message = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)",
+			min_bad_area_time_left.seconds<float>());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
-		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message_str.c_str());
+		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message.data());
 
 		if (min_bad_area_time_left <= 0_ms) {
 			gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
@@ -4170,27 +4180,25 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 
-	// Select a player for squad respawn
-	if (!squad_respawn_candidates.empty()) {
-		const size_t index = rand() % squad_respawn_candidates.size();
-		auto [selected_player, selected_spot] = squad_respawn_candidates[index];
-		// We don't change the coop_respawn_state here, as it's already set to COOP_RESPAWN_NONE
-		return { selected_player, selected_spot };
+	// Seleccionar candidato para respawn
+	if (candidate_count > 0) {
+		size_t index = rand() % candidate_count;
+		return { candidates[index].player, candidates[index].spot };
 	}
 
-	// Set waiting state for players who can't respawn yet
+	// Establecer estado de espera
 	for (auto player : active_players()) {
 		if (player->client->coop_respawn_state == COOP_RESPAWN_NONE) {
 			player->client->coop_respawn_state = COOP_RESPAWN_WAITING;
 		}
 	}
 
-	// Force respawn if the "bad area" timer has reached 0 seconds
+	// Forzar respawn si el temporizador de "bad area" llegó a 0
 	if (bad_area_state_exists && min_bad_area_time_left <= 0_ms) {
 		auto force_respawn = [](auto player) -> std::tuple<edict_t*, vec3_t> {
-			if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA || player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) {
-				edict_t* spawn_point = SelectSingleSpawnPoint(player);
-				if (spawn_point) {
+			if (player->client->coop_respawn_state == COOP_RESPAWN_BAD_AREA ||
+				player->client->coop_respawn_state == COOP_RESPAWN_BLOCKED) {
+				if (edict_t* spawn_point = SelectSingleSpawnPoint(player)) {
 					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
 					return { player, spawn_point->s.origin };
 				}
@@ -4214,7 +4222,6 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 
 	return { nullptr, vec3_t{} };
 }
-
 enum respawn_state_t
 {
 	RESPAWN_NONE,     // invalid state
