@@ -29,11 +29,33 @@ extern const mmove_t turret2_move_fire_blind;
 
 static cached_soundindex sound_moved, sound_moving, sound_pew;
 
+// Actualizar la posición del efecto
+void UpdateGlowPosition(edict_t* self) {
+	if (!self || !self->inuse || !self->target_hint_chain || !self->target_hint_chain->inuse)
+		return;
+
+	// Actualizar frame y skin
+	self->target_hint_chain->s.frame = self->s.frame;
+	self->target_hint_chain->s.skinnum = self->s.skinnum;
+
+	// Actualizar posición y ángulos
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	self->target_hint_chain->s.origin = self->s.origin + (forward * 20.0f);
+	self->target_hint_chain->s.angles = self->s.angles;
+
+	gi.linkentity(self->target_hint_chain);
+}
+
+
 void turret2Aim(edict_t* self)
 {
 	// Validaciones iniciales
 	if (!self || !self->inuse)
 		return;
+
+	// Actualizar la posición del efecto visual
+	UpdateGlowPosition(self);  // Actualizar la posición del efect
 
 	TurretSparks(self);
 
@@ -278,9 +300,9 @@ MMOVE_T(turret2_move_run) = { FRAME_run01, FRAME_run02, turret2_frames_run, turr
 
 MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 {
-	if (self->s.frame < FRAME_run01)
-		turret2_ready_gun(self);
-	else
+	//if (self->s.frame < FRAME_run01)
+	//	turret2_ready_gun(self);
+	//else
 	{
 		self->monsterinfo.aiflags |= AI_HIGH_TICK_RATE;
 		M_SetAnimation(self, &turret2_move_run);
@@ -793,6 +815,12 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 			G_UseTargets(self, self);
 	}
 
+	// Limpiar el efecto de brillo
+	if (self->target_hint_chain && self->target_hint_chain->inuse) {
+		G_FreeEdict(self->target_hint_chain);
+		self->target_hint_chain = nullptr;
+	}
+
 	if (self->target_ent)
 	{
 		G_FreeEdict(self->target_ent);
@@ -1093,6 +1121,50 @@ Check the weapon you want it to use: blaster, machinegun, rocket, heatbeam.
 Default weapon is blaster.
 When activated, wall units move 32 units in the direction they're facing.
 */
+
+void CreateTurretGlowEffect(edict_t* turret) {
+	if (!turret || !turret->inuse)
+		return;
+
+	// Eliminar el efecto anterior si existe
+	if (turret->target_hint_chain && turret->target_hint_chain->inuse) {
+		G_FreeEdict(turret->target_hint_chain);
+		turret->target_hint_chain = nullptr;
+	}
+
+	edict_t* glow = G_Spawn();
+	if (!glow)
+		return;
+
+	// Opción 1: Usar una escala muy pequeña
+	glow->movetype = MOVETYPE_NONE;
+	glow->solid = SOLID_NOT;
+	glow->s.modelindex = turret->s.modelindex;
+	glow->s.frame = turret->s.frame;
+	glow->s.skinnum = turret->s.skinnum;
+	glow->s.effects = EF_GRENADE | EF_BOB;
+	glow->s.renderfx = RF_FULLBRIGHT;
+	glow->s.scale = 0.01f;  // Hacerlo casi invisible
+	glow->owner = turret;
+	glow->classname = "turret_glow";
+
+	// Alternativa: Usar rendermode
+	/*
+	glow->s.rendermode = kRenderTransAdd;  // Modo de render aditivo
+	glow->s.renderfx = RF_FULLBRIGHT;
+	glow->s.renderamt = 1;  // Casi transparente
+	*/
+
+	vec3_t forward;
+	AngleVectors(turret->s.angles, forward, nullptr, nullptr);
+	glow->s.origin = turret->s.origin + (forward * 20.0f);
+	glow->s.angles = turret->s.angles;
+
+	gi.linkentity(glow);
+	turret->target_hint_chain = glow;
+}
+
+
 void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
@@ -1109,8 +1181,13 @@ void SP_monster_sentrygun(edict_t* self)
 
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	self->monsterinfo.team = CTF_TEAM1;
-	self->s.effects = EF_BOB | EF_GRENADE;
 	self->monsterinfo.attack_state = AS_BLIND;
+
+	//test EF grenade
+	self->s.effects = EF_BOB; // Quitar EF_GRENADE de aquí
+	self->target_hint_chain = nullptr; // Inicializar el puntero del efecto
+	// Crear el efecto visual después de establecer la posición y ángulos
+	CreateTurretGlowEffect(self);
 
 	ApplyMonsterBonusFlags(self);
 
