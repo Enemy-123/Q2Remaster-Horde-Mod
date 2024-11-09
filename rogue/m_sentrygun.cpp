@@ -22,6 +22,7 @@ constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 void turret2Aim(edict_t* self);
 void turret2_ready_gun(edict_t* self);
 void turret2_run(edict_t* self);
+void TurretSparks(edict_t* self);
 
 extern const mmove_t turret2_move_fire;
 extern const mmove_t turret2_move_fire_blind;
@@ -33,6 +34,8 @@ void turret2Aim(edict_t* self)
 	// Validaciones iniciales
 	if (!self || !self->inuse)
 		return;
+
+	TurretSparks(self);
 
 	// Verifica el estado del enemigo
 	bool enemy_valid = (self->enemy && self->enemy != world &&
@@ -288,6 +291,7 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 			gi.sound(self, CHAN_WEAPON, sound_moved, 1.0f, ATTN_STATIC, 0.f);
 		}
 	}
+	TurretSparks(self);
 }
 
 //Powerups
@@ -370,20 +374,6 @@ void turret2Fire(edict_t* self)
 		self->monsterinfo.blind_fire_target :
 		self->enemy->s.origin;
 
-	// Calcular dirección
-	vec3_t start = self->s.origin;
-	vec3_t dir = end - start;
-	if (!is_valid_vector(dir)) {
-		return;
-	}
-	dir.normalize();
-
-	// Verificar ángulo de disparo
-	vec3_t forward;
-	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	float chance = dir.dot(forward);
-	if (chance < 0.98f)
-		return;
 
 	// Configurar velocidad del proyectil
 	float projectileSpeed = 0.0f;
@@ -404,6 +394,22 @@ void turret2Fire(edict_t* self)
 			else
 				end[2] += 7;
 		}
+
+		// Calcular dirección
+		vec3_t start = self->s.origin;
+		vec3_t dir = end - start;
+		if (!is_valid_vector(dir)) {
+			return;
+		}
+		dir.normalize();
+
+		// Verificar ángulo de disparo
+		vec3_t forward;
+		AngleVectors(self->s.angles, forward, nullptr, nullptr);
+		float chance = dir.dot(forward);
+		if (chance < 0.98f)
+			return;
+
 
 		dir = end - start;
 		float dist = dir.length();
@@ -513,17 +519,17 @@ void turret2Fire(edict_t* self)
 			{
 				vec3_t offset = { 20.f, 0.f, 0.f };
 				// Calcular el punto de inicio usando el offset fijo
-				vec3_t start = self->s.origin + (forward * offset[0]);
+				const vec3_t hbturretstart = self->s.origin + (forward * offset[0]);
 
 				vec3_t predictedDir;
-				PredictAim(self, self->enemy, start, 9999, false,
+				PredictAim(self, self->enemy, hbturretstart, 9999, false,
 					self->monsterinfo.quadfire_time > level.time ?
 					0.01f : 0.03f,
 					&predictedDir, nullptr);
 
 				if (is_valid_vector(predictedDir)) {
-					trace_t blasterTrace = gi.traceline(start,
-						start + predictedDir * 8192,
+					trace_t blasterTrace = gi.traceline(hbturretstart,
+						hbturretstart + predictedDir * 8192,
 						self, MASK_PROJECTILE);
 
 					if (blasterTrace.ent == self->enemy ||
@@ -539,7 +545,7 @@ void turret2Fire(edict_t* self)
 									damageModifier * quadMultiplier),
 								0, DAMAGE_ENERGY, MOD_TURRET);
 
-							monster_fire_heatbeam(self, start, predictedDir,
+							monster_fire_heatbeam(self, hbturretstart, predictedDir,
 								vec3_origin,
 								self->monsterinfo.quadfire_time >
 								level.time ? 2 : 0,
@@ -554,7 +560,7 @@ void turret2Fire(edict_t* self)
 						{
 							self->monsterinfo.last_plasma_fire_time = level.time;
 
-							fire_plasma(self->owner, start, predictedDir,
+							fire_plasma(self->owner, hbturretstart, predictedDir,
 								static_cast<int>(100 * quadMultiplier),
 								self->monsterinfo.quadfire_time > level.time ?
 								1450 : 1250,
@@ -664,19 +670,76 @@ float entdist(const edict_t* ent1, const edict_t* ent2)
 {
 	return (ent1->s.origin - ent2->s.origin).length();
 }
+
+void TurretSparks(edict_t* self)
+{
+	if (!self || !self->inuse)
+		return;
+
+	if (self->health <= (self->max_health / 3)) {
+		if (level.time >= self->monsterinfo.next_duck_time) {
+			vec3_t forward, right, up;
+			AngleVectors(self->s.angles, forward, right, up);
+
+			// Calculate spark origin using offset
+			vec3_t spark_origin = self->s.origin + (forward * 20.0f);
+
+			vec3_t dir;
+			if (!self->enemy) {
+				dir = { crandom(), crandom(), crandom() };
+				dir.normalize();
+			}
+			else {
+				dir = (spark_origin - self->enemy->s.origin).normalized();
+			}
+
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_SPLASH);
+			gi.WriteByte(32);
+			gi.WritePosition(spark_origin);
+			gi.WriteDir(dir);
+			gi.WriteByte(SPLASH_SPARKS);
+			gi.multicast(spark_origin, MULTICAST_PVS, false);
+
+			self->monsterinfo.next_duck_time = level.time + random_time(2_sec, 7_sec);
+		}
+	}
+}
+
 // **********************
 //  PAIN
 // **********************
 
 PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
-	self->enemy = other;
-
 	if (level.time < self->pain_debounce_time)
 		return;
 
-	self->pain_debounce_time = level.time + 2_sec;
+	self->pain_debounce_time = level.time + 3_sec;
 	gi.sound(self, CHAN_VOICE, gi.soundindex("tank/tnkpain2.wav"), 1, ATTN_NORM, 0);
+
+	// Calculate spark origin with offset
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+	vec3_t spark_origin = self->s.origin + (forward * 20.0f);
+
+	// Create spark effect for heavy hits (damage >= 40)
+	if (damage >= 40) {
+		vec3_t dir = (spark_origin - (other ? other->s.origin : spark_origin)).normalized();
+
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_SPLASH);
+		gi.WriteByte(32);
+		gi.WritePosition(spark_origin);
+		gi.WriteDir(dir);
+		gi.WriteByte(SPLASH_SPARKS);
+		gi.multicast(spark_origin, MULTICAST_PVS, false);
+	}
+
+	self->enemy = other;
+
+	// Call periodic sparks function
+	TurretSparks(self);
 }
 
 // **********************
@@ -1083,10 +1146,9 @@ void SP_monster_sentrygun(edict_t* self)
 	self->pain = turret2_pain;
 	self->die = turret2_die;
 
-	// [Paril-KEX]
-	if (self->client && !G_ShouldPlayersCollide(true) || self->owner->client && !G_ShouldPlayersCollide(true)) {
-		self->clipmask &= ~CONTENTS_PLAYER;
-	}
+	//if (self->client && !G_ShouldPlayersCollide(true) || self->owner->client && !G_ShouldPlayersCollide(true)) {
+	//	self->clipmask &= ~CONTENTS_PLAYER;
+	//}
 
 	//// map designer didn't specify weapon type. set it now.
 	//if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_level <= 5)
