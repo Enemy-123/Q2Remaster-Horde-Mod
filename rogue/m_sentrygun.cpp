@@ -1205,7 +1205,7 @@ void SP_monster_sentrygun(edict_t* self)
 	int angle;
 
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-	self->monsterinfo.team = CTF_TEAM1;
+//	self->monsterinfo.team = CTF_TEAM1;
 	self->monsterinfo.attack_state = AS_BLIND;
 
 	//test EF grenade
