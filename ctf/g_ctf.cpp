@@ -4992,45 +4992,40 @@ void CTFPlayerList(edict_t* ent)
 
 void CTFWarp(edict_t* ent, const char* map_name)
 {
-	char* token;
+	// Function to print available maps list
+	auto PrintMapList = [](edict_t* ent) {
+		const char* mlist = g_map_list->string;
+		char* token;
+		std::string formatted_list;
+		formatted_list.reserve(8192); // Pre-reserve space but allocate on heap
+
+		int map_index = 1;
+		while (*(token = COM_Parse(&mlist)) != '\0')
+		{
+			// Use string formatting with less stack usage
+			formatted_list += (map_index == 1 ? "" : "-");
+			formatted_list += std::to_string(map_index);
+			formatted_list += ": ";
+			formatted_list += token;
+			formatted_list += "\n";
+
+			map_index++;
+		}
+
+		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_list.c_str());
+		};
+
+	// If no map name provided, just print the list
 	if (!map_name || !*map_name)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Choose a level to vote to. You can now use (optional) just number!\n");
-
-		const char* mlist = g_map_list->string;
-		char* formatted_map_list = new char[8192];
-		formatted_map_list[0] = '\0';  // Inicializar string vacío
-		int map_index = 1;
-
-		// Buffer temporal para construir la lista
-		char temp_buffer[8192] = "";
-
-		while (*(token = COM_Parse(&mlist)) != '\0')
-		{
-			// Construir cada entrada directamente en el buffer temporal
-			char map_entry[128];
-			snprintf(map_entry, sizeof(map_entry), "%s%d: %s\n",
-				map_index == 1 ? "" : "-", // Solo añadir guión si no es el primer elemento
-				map_index,
-				token);
-
-			// Verificar espacio disponible
-			if (strlen(temp_buffer) + strlen(map_entry) < sizeof(temp_buffer))
-			{
-				Q_strlcat(temp_buffer, map_entry, sizeof(temp_buffer));
-				map_index++;
-			}
-		}
-
-		// Copiar el buffer temporal al resultado final
-		Q_strlcpy(formatted_map_list, temp_buffer, 8192);
-
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
-		delete[] formatted_map_list;
+		PrintMapList(ent);
 		return;
 	}
 
+	// Find the requested map
 	const char* mlist = g_map_list->string;
+	char* token;
 	const int vote_index = atoi(map_name);
 	int current_index = 1;
 	bool found_map = false;
@@ -5045,54 +5040,30 @@ void CTFWarp(edict_t* ent, const char* map_name)
 		current_index++;
 	}
 
+	// Handle map not found
 	if (!found_map)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Unknown HORDE level.\n");
-
-		mlist = g_map_list->string;
-		char* formatted_map_list = new char[8192];
-		formatted_map_list[0] = '\0';
-		int map_index = 1;
-
-		// Buffer temporal para construir la lista
-		char temp_buffer[8192] = "";
-
-		while (*(token = COM_Parse(&mlist)) != '\0')
-		{
-			char map_entry[128];
-			snprintf(map_entry, sizeof(map_entry), "%s%d: %s\n",
-				map_index == 1 ? "" : "-",
-				map_index,
-				token);
-
-			if (strlen(temp_buffer) + strlen(map_entry) < sizeof(temp_buffer))
-			{
-				Q_strlcat(temp_buffer, map_entry, sizeof(temp_buffer));
-				map_index++;
-			}
-		}
-
-		// Copiar el buffer final
-		Q_strlcpy(formatted_map_list, temp_buffer, 8192);
-
-		gi.LocClient_Print(ent, PRINT_HIGH, "Available levels are:\n{}\n", formatted_map_list);
-		delete[] formatted_map_list;
+		PrintMapList(ent);
 		return;
 	}
 
+	// Check if trying to vote for current map
 	if (Q_strcasecmp(token, level.mapname) == 0)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "Cannot vote for the current map.\n");
 		return;
 	}
 
+	// Process the vote
 	char playerName[32];
 	gi.Info_ValueForKey(ent->client->pers.userinfo, "name", playerName, sizeof(playerName));
-
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
 
-	if (CTFBeginElection(ent, ELECT_MAP, G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n",
-		playerName, token).data()))
+	std::string voteMessage = G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n",
+		playerName, token).data();
+
+	if (CTFBeginElection(ent, ELECT_MAP, voteMessage.c_str()))
 	{
 		if (ent->client->menu) {
 			PMenu_Close(ent);

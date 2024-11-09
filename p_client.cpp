@@ -917,9 +917,6 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 // Función auxiliar para verificar si un ítem es un TECH
 bool IsTechItem(int item_id)
 {
-	static constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
-
-
 	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
 		if (item_id == tech_ids[i]) {
 			return true;

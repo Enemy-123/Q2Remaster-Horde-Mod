@@ -941,7 +941,6 @@ TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
 {
 	edict_t* self = (edict_t*)data;
-
 	if (!check->inuse)
 		return BoxEdictsResult_t::Skip;
 	if (check == self)
@@ -959,15 +958,18 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->client)
 		return BoxEdictsResult_t::Skip;
 
+	const char* classname = check->classname;
+	// Safety check for null classname
+	if (!classname)
+		return BoxEdictsResult_t::Keep;
+
 	// don't hit other teslas in SP/coop
-	if (!G_IsDeathmatch() && check->classname && (check->flags & FL_TRAP) ||
-		g_horde->integer && check->classname && (check->flags & FL_TRAP))
+	if ((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP))
 		return BoxEdictsResult_t::Skip;
 
-	// Don't hit monster_sentrygun
-	if (check->classname && 
-		strcmp(check->classname, "monster_sentrygun") == 0 ||
-		strcmp(check->classname, "emitter") == 0)
+	// Don't hit monster_sentrygun or emitter
+	if (strcmp(classname, "monster_sentrygun") == 0 ||
+		strcmp(classname, "emitter") == 0)
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;
@@ -1069,7 +1071,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	int i, num, max_targets = 3;
 	edict_t** touch = nullptr;
 	edict_t* hit;
-	vec3_t dir{}, start;
+	vec3_t start;
 	//trace_t tr{};
 
 	try {
