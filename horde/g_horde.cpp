@@ -316,7 +316,7 @@ static float CalculatePlayerPerformance() {
 }
 
 // Constantes y funciones auxiliares
-constexpr gtime_t BASE_MAX_WAVE_TIME = 60_sec;
+constexpr gtime_t BASE_MAX_WAVE_TIME = 120_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 0.8_sec;
 constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
@@ -327,7 +327,7 @@ constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 	gtime_t base_time = BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level;
 
 	// Limitar el tiempo base a 90 segundos
-	base_time = (base_time <= 90_sec) ? base_time : 90_sec;
+	base_time = (base_time <= 200_sec) ? base_time : 200_sec;
 
 	// Añadir tiempo extra si es una ola con jefe (niveles múltiplos de 5 después del 10)
 	if (wave_level >= 10 && wave_level % 5 == 0) {
@@ -2215,7 +2215,7 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	const gtime_t currentTime = level.time;
 	const bool allMonstersDead = Horde_AllMonstersDead();
 
-	// Verificar tiempo límite independiente primero y de forma más directa
+	// Verificar tiempo límite independiente primero
 	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
 		gi.Com_PrintFmt("PRINT: Independent time limit reached. Forcing wave advance.\n");
 		reason = WaveEndReason::TimeLimitReached;
@@ -2226,12 +2226,18 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	if (allowWaveAdvance) {
 		ResetWaveAdvanceState();
 		reason = WaveEndReason::AllMonstersDead;
+		// Establecer explícitamente monsters restantes a 0
+		//level.killed_monsters = level.total_monsters;
+		cachedRemainingMonsters = 0;
 		return true;
 	}
 
 	// Verificar si todos los monstruos han sido derrotados
 	if (allMonstersDead) {
 		reason = WaveEndReason::AllMonstersDead;
+		// Establecer explícitamente monsters restantes a 0
+	//	level.killed_monsters = level.total_monsters;
+		cachedRemainingMonsters = 0;
 		return true;
 	}
 

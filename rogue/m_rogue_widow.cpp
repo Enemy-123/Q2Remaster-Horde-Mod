@@ -269,81 +269,90 @@ void WidowBlaster(edict_t* self)
 }
 
 void WidowSpawn(edict_t* self) {
-	// Verificar si se ha alcanzado el límite máximo de stalkers
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
-		// Ya se alcanzó el límite máximo de stalkers
+	// Validate self pointer
+	if (!self) {
+		gi.Com_PrintFmt("WidowSpawn: null self pointer\n");
 		return;
 	}
 
-	// Verificar si aún está en cooldown
+	// Check stalker limits
+	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+		return;
+	}
+
+	// Check cooldown
 	if (level.time < self->monsterinfo.spawn_cooldown) {
-		// Aún está en cooldown
 		return;
 	}
 
 	vec3_t f, r, u, offset, startpoint, spawnpoint;
-	edict_t* ent, * designated_enemy;
-	int i;
+	edict_t* ent, * designated_enemy = nullptr;
 
+	// Calculate spawn vectors
 	AngleVectors(self->s.angles, f, r, u);
 
-	for (i = 0; i < 2; i++) { // Puedes ajustar el número de spawn points si es necesario
-		// Verificar nuevamente el límite dentro del bucle
+	for (int i = 0; i < 2; i++) {
+		// Recheck stalker limit inside loop
 		if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
-			break; // Salir si se alcanzó el límite
+			break;
 		}
 
 		offset = spawnpoints[i];
 		startpoint = G_ProjectSource2(self->s.origin, offset, f, r, u);
 
-		if (FindSpawnPoint(startpoint, stalker_mins, stalker_maxs, spawnpoint, 64)) {
-			ent = CreateGroundMonster(spawnpoint, self->s.angles, stalker_mins, stalker_maxs, "monster_stalker", 256);
+		if (!FindSpawnPoint(startpoint, stalker_mins, stalker_maxs, spawnpoint, 64)) {
+			continue;
+		}
 
-			if (!ent)
-				continue;
+		ent = CreateGroundMonster(spawnpoint, self->s.angles, stalker_mins,
+			stalker_maxs, "monster_stalker", 256);
+		if (!ent) {
+			continue;
+		}
 
-			self->monsterinfo.monster_used++;
-			self->monsterinfo.active_stalkers++; // Incrementar el contador de stalkers activos
-			ent->monsterinfo.commander = self;
-			ent->monsterinfo.slots_from_commander = 1;
+		// Initialize new stalker
+		self->monsterinfo.monster_used++;
+		self->monsterinfo.active_stalkers++;
+		ent->monsterinfo.commander = self;
+		ent->monsterinfo.slots_from_commander = 1;
+		ent->nextthink = level.time;
 
-			ent->nextthink = level.time;
+		if (ent->think) {
 			ent->think(ent);
+		}
 
-			ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
+		ent->monsterinfo.aiflags |= AI_SPAWNED_COMMANDER | AI_DO_NOT_COUNT | AI_IGNORE_SHOTS;
 
-			if (g_horde->integer)
-				ent->item = brandom() ? G_HordePickItem() : nullptr;
+		if (g_horde->integer) {
+			ent->item = brandom() ? G_HordePickItem() : nullptr;
+		}
 
-			ApplyMonsterBonusFlags(ent);
+		ApplyMonsterBonusFlags(ent);
 
-			if (!G_IsCooperative()) {
-				designated_enemy = self->enemy;
+		// Enemy designation logic with null checks
+		designated_enemy = !G_IsCooperative() ? self->enemy : PickCoopTarget(ent);
+
+		// Fallback enemy selection for cooperative mode
+		if (G_IsCooperative()) {
+			if (!designated_enemy || designated_enemy == self->enemy) {
+				edict_t* alternate_enemy = PickCoopTarget(ent);
+				designated_enemy = alternate_enemy ? alternate_enemy : self->enemy;
 			}
-			else {
-				designated_enemy = PickCoopTarget(ent);
-				if (designated_enemy) {
-					// Evitar usar al mismo enemigo
-					if (designated_enemy == self->enemy) {
-						designated_enemy = PickCoopTarget(ent);
-						if (!designated_enemy)
-							designated_enemy = self->enemy;
-					}
-				}
-				else
-					designated_enemy = self->enemy;
-			}
+		}
 
-			if ((designated_enemy->inuse) && (designated_enemy->health > 0)) {
-				ent->enemy = designated_enemy;
-				FoundTarget(ent);
+		// Validate enemy before assignment
+		if (designated_enemy && designated_enemy->inuse && designated_enemy->health > 0) {
+			ent->enemy = designated_enemy;
+			FoundTarget(ent);
+
+			if (ent->monsterinfo.attack) {
 				ent->monsterinfo.attack(ent);
 			}
 		}
 	}
 
-	// Establecer un nuevo cooldown después de spawning
-	self->monsterinfo.spawn_cooldown = level.time + 2_sec; // Ajusta el tiempo según sea necesario
+	// Set spawn cooldown
+	self->monsterinfo.spawn_cooldown = level.time + 2_sec;
 }
 
 void widow_spawn_check(edict_t* self)
