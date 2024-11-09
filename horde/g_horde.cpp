@@ -188,7 +188,7 @@ static inline int32_t CalculateChaosInsanityBonus(int32_t lvl) noexcept {
 	}
 }
 
-inline void ClampNumToSpawn(const MapSize& mapSize) {
+inline static void ClampNumToSpawn(const MapSize& mapSize) {
 	int32_t maxAllowed = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isBigMap ? MAX_MONSTERS_BIG_MAP : MAX_MONSTERS_MEDIUM_MAP);
 
@@ -199,20 +199,20 @@ inline void ClampNumToSpawn(const MapSize& mapSize) {
 	g_horde_local.num_to_spawn = std::clamp(g_horde_local.num_to_spawn, 0, maxAllowed);
 }
 
-int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHardMode) {
+static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHardMode) {
 	if (lvl <= 3) return 0;
 	// Base más agresiva
 	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
 	baseQueued *= (1.0f + (lvl) * 0.18f);
 	// Mejores multiplicadores por tamaño de mapa
-	float mapSizeMultiplier = mapSize.isSmallMap ? 1.3f :
+	const float mapSizeMultiplier = mapSize.isSmallMap ? 1.3f :
 		mapSize.isBigMap ? 1.5f : 1.4f;
-	int32_t maxQueued = mapSize.isSmallMap ? 40 :
+	const int32_t maxQueued = mapSize.isSmallMap ? 40 :
 		mapSize.isBigMap ? 55 : 40;
 	baseQueued *= mapSizeMultiplier;
 	// Bonus exponencial mejorado
 	if (lvl > 20) {
-		float highLevelBonus = std::pow(1.15f, std::min(lvl - 20, 18));
+		const	float highLevelBonus = std::pow(1.15f, std::min(lvl - 20, 18));
 		baseQueued *= highLevelBonus;
 	}
 	// Mejor bonus por dificultad
@@ -230,7 +230,7 @@ int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHard
 
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
-void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
+static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	// Base count calculation with level scaling
 	int32_t baseCount = (mapSize.isSmallMap) ?
 		std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP) :
@@ -253,7 +253,7 @@ void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPl
 	}
 
 	// Dynamic difficulty scaling based on player count
-	float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
+	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
 
 	// Periodic scaling adjustments
 	if (lvl % 3 == 0) {
@@ -269,7 +269,7 @@ void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPl
 	ClampNumToSpawn(mapSize);
 
 	// Actualizar la cola usando el nuevo sistema
-	bool isHardMode = g_insane->integer || g_chaotic->integer;
+	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
 
 	// Cooldown adjustments for higher levels
@@ -322,7 +322,7 @@ constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 10_sec;
 
-constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
+static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 	// Calcular el tiempo base según el nivel
 	gtime_t base_time = BASE_MAX_WAVE_TIME + TIME_INCREASE_PER_LEVEL * wave_level;
 
@@ -346,7 +346,7 @@ static int32_t g_lastNumHumanPlayers = -1;
 static bool g_maxMonstersReached = false;
 static bool g_lowPercentageTriggered = false;
 
-ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
+static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
 	if (g_horde_local.level == 0)
@@ -847,7 +847,7 @@ static void AddRecentBoss(const char* classname) {
 
 
 // Modifica G_HordePickBOSS para usar arrays estáticos
-const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
+static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
 	static EligibleBosses eligible_bosses;
 	static double cumulative_weights[MAX_ELIGIBLE_BOSSES];
 	eligible_bosses.clear();
@@ -971,7 +971,7 @@ gitem_t* G_HordePickItem() {
 	}
 
 	// Generar un valor aleatorio entre 0 y el peso total
-	double random_value = frandom() * total_weight;
+	const double random_value = frandom() * total_weight;
 
 	// Búsqueda binaria para encontrar el ítem seleccionado
 	size_t left = 0;
@@ -1029,11 +1029,11 @@ static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
 }
 
 
-bool IsFlyingMonster(const std::string& classname) {
+static bool IsFlyingMonster(const std::string& classname) {
 	return flying_monsters_set.find(classname) != flying_monsters_set.end();
 }
 
-inline bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
+inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
 	if (flying_monsters_mode) {
 		return isFlyingMonster &&
 			!(spawn_point->style == 1 && !isFlyingMonster) &&
@@ -1045,7 +1045,7 @@ inline bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t&
 	}
 }
 
-inline double CalculateMonsterWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
+inline static double CalculateMonsterWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
 	if (flying_monsters_mode && isFlyingMonster) {
 		return item.weight * 1.5; // Aumentar el peso para preferir monstruos voladores
 	}
@@ -1063,7 +1063,7 @@ static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 constexpr gtime_t CLEANUP_THRESHOLD = 3_sec;
 
 // Función modificada sin lanzar excepciones
-SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
+static SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
 	if (!spawn_point) {
 		gi.Com_PrintFmt("Warning: Attempted to ensure spawn point data for a nullptr.\n");
 		// Manejar el caso de manera segura sin retornar una referencia a un objeto estático
@@ -1077,7 +1077,7 @@ SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
 
 constexpr size_t MAX_SPAWN_POINTS_DATA = 30; // Define un límite razonable
 
-void CleanUpSpawnPointsData() {
+static void CleanUpSpawnPointsData() {
 	const gtime_t currentTime = level.time;
 
 	// Remove spawn points that are temporarily disabled and past cooldown
@@ -1100,7 +1100,7 @@ void CleanUpSpawnPointsData() {
 
 
 // Function to update spawn point cooldowns and the last spawn times for the monster
-void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
+static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
 	data.lastSpawnTime = level.time;
 	data.lastSpawnedMonsterClassname = chosen_monster;
@@ -1156,7 +1156,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
 	// Factor de multiplicación para garantizar espacio adicional
-	const float space_multiplier = 2.0f;  // Ajustado a 1.5 para balance
+	constexpr float space_multiplier = 2.0f;  // Ajustado a 1.5 para balance
 
 	// Calcular dimensiones del área a verificar
 	vec3_t mins, maxs;
@@ -1394,7 +1394,7 @@ void VerifyAndAdjustBots() {
 void InitializeWaveSystem() noexcept;
 
 // Función para precargar todos los ítems y jefes
-void PrecacheItemsAndBosses() noexcept {
+static void PrecacheItemsAndBosses() noexcept {
 	std::unordered_set<std::string_view> unique_classnames;
 	unique_classnames.reserve(sizeof(items) / sizeof(items[0]) + sizeof(monsters) / sizeof(monsters[0]) +
 		sizeof(BOSS_SMALL) / sizeof(BOSS_SMALL[0]) + sizeof(BOSS_MEDIUM) / sizeof(BOSS_MEDIUM[0]) +
@@ -1718,7 +1718,7 @@ static bool Horde_AllMonstersDead() {
 	return true;
 }
 
-void CheckAndRestoreMonsterAlpha(edict_t* ent) {
+static void CheckAndRestoreMonsterAlpha(edict_t* ent) {
 	// Si la entidad no es válida o no es un monstruo, retornar
 	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
 		return;
@@ -1745,7 +1745,7 @@ void CheckAndRestoreMonsterAlpha(edict_t* ent) {
 // Constante para el tiempo de vida del fade
 constexpr gtime_t FADE_LIFESPAN = 1_sec;
 
-THINK(fade_out_think)(edict_t* self) -> void {
+static THINK(fade_out_think)(edict_t* self) -> void {
 	// Si el monstruo está vivo, restaurar su estado
 	if (self->health > 0 && !self->deadflag) {
 		CheckAndRestoreMonsterAlpha(self);
@@ -2211,7 +2211,7 @@ struct alignas(64) MonsterCheckCacheData {
 static MonsterCheckCacheData g_monster_check_cache;
 
 #include <algorithm>
-bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	const gtime_t currentTime = level.time;
 	const bool allMonstersDead = Horde_AllMonstersDead();
 
@@ -2249,7 +2249,6 @@ bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reas
 	// Obtener número de monstruos restantes una sola vez
 	int32_t remainingMonsters = CalculateRemainingMonsters();
 	float percentageRemaining = static_cast<float>(remainingMonsters) / static_cast<float>(g_totalMonstersInWave);
-	bool shouldAdvance = false;
 
 	// Determinar si alguna condición se ha cumplido
 	if (!g_horde_local.conditionTriggered) {
@@ -2898,7 +2897,7 @@ enum class MessageType {
 	Insane
 };
 
-void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
+static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 	int32_t total_damage = 0;
 	topDamager = PlayerStats(); // Reset usando el constructor por defecto
 
@@ -2995,7 +2994,7 @@ bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::string& play
 	return false;
 }
 
-void SendCleanupMessage(WaveEndReason reason) {
+static void SendCleanupMessage(WaveEndReason reason) {
 	gtime_t duration = 3_sec;
 	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
 		duration = 0_sec;

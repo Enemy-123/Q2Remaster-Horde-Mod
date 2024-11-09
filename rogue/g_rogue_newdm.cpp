@@ -158,16 +158,6 @@ void PrecacheForRandomRespawn()
 //  SPAWN TURRET LOGIC
 // ***************************
 
-// Función auxiliar simple para muerte de la torreta temporal
-DIE(sentrygun_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
-{
-	if (self->owner && self->owner->client) {
-		self->owner->client->num_sentries--;
-	}
-	OnEntityDeath(self);
-	BecomeExplosion1(self);
-}
-
 // Función principal para colocar la torreta
 bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
