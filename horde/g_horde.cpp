@@ -1156,7 +1156,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
 	// Factor de multiplicación para garantizar espacio adicional
-	const float space_multiplier = 1.5f;  // Ajustado a 1.5 para balance
+	const float space_multiplier = 2.0f;  // Ajustado a 1.5 para balance
 
 	// Calcular dimensiones del área a verificar
 	vec3_t mins, maxs;
