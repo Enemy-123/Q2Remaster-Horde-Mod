@@ -41,7 +41,7 @@ void UpdateSmokePosition(edict_t* self) {
 	// Calcular la nueva posición para el emisor de humo
 	vec3_t forward;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	vec3_t smoke_pos = self->s.origin + (forward * 20.0f);
+	const vec3_t smoke_pos = self->s.origin + (forward * 20.0f);
 
 	// Actualizar posición del emisor
 	self->target_hint_chain->s.origin = smoke_pos;
@@ -121,7 +121,7 @@ void turret2Aim(edict_t* self)
 	float idealYaw = ang[YAW];
 
 	// Procesamiento según orientación
-	int orientation = static_cast<int>(self->offset[1]);
+	const int orientation = static_cast<int>(self->offset[1]);
 	switch (orientation) {
 	case -1: // up, pitch: 0 to 90
 		if (idealPitch < -90) idealPitch += 360;
@@ -168,7 +168,7 @@ void turret2Aim(edict_t* self)
 	}
 
 	// Ajustar pitch
-	float current_pitch = self->s.angles[PITCH];
+	const 	float current_pitch = self->s.angles[PITCH];
 	float pitch_move = idealPitch - current_pitch;
 
 	// Normalizar movimiento de pitch
@@ -183,7 +183,7 @@ void turret2Aim(edict_t* self)
 	self->s.angles[PITCH] = anglemod(current_pitch + pitch_move);
 
 	// Ajustar yaw
-	float current_yaw = self->s.angles[YAW];
+	const float current_yaw = self->s.angles[YAW];
 	float yaw_move = idealYaw - current_yaw;
 
 	// Normalizar movimiento de yaw
@@ -215,13 +215,13 @@ void turret2Aim(edict_t* self)
 		vec3_t forward;
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
 
-		float scan_range = visible(self, self->enemy) ? 12.f : 64.f;
+		const	float scan_range = visible(self, self->enemy) ? 12.f : 64.f;
 
 		vec3_t laser_end = self->s.origin + (forward * 8192);
 		trace_t tr = gi.traceline(self->s.origin, laser_end, self, MASK_SOLID);
 
 		// Aplicar efecto de ondulación
-		vec3_t wave{
+		const	vec3_t wave{
 			sinf(level.time.seconds() + self->s.number) * scan_range,
 			cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range,
 			sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range
@@ -429,7 +429,7 @@ void turret2Fire(edict_t* self)
 		}
 
 		// Calcular dirección
-		vec3_t start = self->s.origin;
+		const vec3_t start = self->s.origin;
 		vec3_t dir = end - start;
 		if (!is_valid_vector(dir)) {
 			return;
@@ -439,17 +439,17 @@ void turret2Fire(edict_t* self)
 		// Verificar ángulo de disparo
 		vec3_t forward;
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-		float chance = dir.dot(forward);
+		const float chance = dir.dot(forward);
 		if (chance < 0.98f)
 			return;
 
 
 		dir = end - start;
-		float dist = dir.length();
+		const float dist = dir.length();
 
 		// Predicción mejorada con quad
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT)) {
-			float predictionError = self->monsterinfo.quadfire_time > level.time ?
+			const	float predictionError = self->monsterinfo.quadfire_time > level.time ?
 				0.02f : (frandom(3.f - skill->integer) / 3.f);
 			PredictAim(self, self->enemy, start, projectileSpeed, true,
 				predictionError, &dir, nullptr);
@@ -715,7 +715,7 @@ void TurretSparks(edict_t* self)
 			AngleVectors(self->s.angles, forward, right, up);
 
 			// Calculate spark origin using offset
-			vec3_t spark_origin = self->s.origin + (forward * 20.0f);
+			const	vec3_t spark_origin = self->s.origin + (forward * 20.0f);
 
 			vec3_t dir;
 			if (!self->enemy) {
@@ -757,8 +757,8 @@ PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 	vec3_t spark_origin = self->s.origin + (forward * 20.0f);
 
 	// Create spark effect for heavy hits (damage >= 40)
-	if (damage >= 40) {
-		vec3_t dir = (spark_origin - (other ? other->s.origin : spark_origin)).normalized();
+	if (damage >= 20) {
+		const vec3_t dir = (spark_origin - (other ? other->s.origin : spark_origin)).normalized();
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_SPLASH);
@@ -1031,7 +1031,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	}
 	else {
 		// Ajuste dinámico basado en el scale del enemigo
-		float enemy_height = (self->enemy->maxs[2] - self->enemy->mins[2]) * self->enemy->s.scale;
+		const float enemy_height = (self->enemy->maxs[2] - self->enemy->mins[2]) * self->enemy->s.scale;
 		spot2.z += enemy_height * 0.5f; // Apuntar al centro de masa
 	}
 
@@ -1041,12 +1041,12 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 
 	// Búsqueda de objetivos mejorada considerando el scale
 	if (tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent) && tr.ent->health > 0) {
-		vec3_t diff_current = self->enemy->s.origin - self->s.origin;
-		vec3_t diff_new = tr.ent->s.origin - self->s.origin;
+		const	vec3_t diff_current = self->enemy->s.origin - self->s.origin;
+		const	vec3_t diff_new = tr.ent->s.origin - self->s.origin;
 
 		// Usar length() en vez de VectorLength
-		float dist_current = diff_current.length() / self->enemy->s.scale;
-		float dist_new = diff_new.length() / tr.ent->s.scale;
+		const float dist_current = diff_current.length() / self->enemy->s.scale;
+		const float dist_new = diff_new.length() / tr.ent->s.scale;
 
 		// Cambiar objetivo si encontramos uno mejor considerando scale
 		if (dist_new < dist_current) {
@@ -1068,11 +1068,11 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 			self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) ? 0.8f : 0.7f;
 
 		// Ajustar probabilidad según el scale del enemigo
-		float scale_factor = self->enemy->s.scale;
+		const float scale_factor = self->enemy->s.scale;
 		chance += (scale_factor > 1.0f) ? 0.1f : (scale_factor < 1.0f) ? -0.1f : 0.0f;
 
 		// Ajustar según la distancia y scale combinados
-		float range = range_to(self, self->enemy) / scale_factor;
+		const float range = range_to(self, self->enemy) / scale_factor;
 		if (range <= RANGE_MELEE) {
 			chance = 1.0f;
 		}
@@ -1104,8 +1104,8 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		}
 
 		// Variación aleatoria ajustada al scale
-		float spread = 100.0f / self->enemy->s.scale;
-		vec3_t random_spread{
+		const float spread = 100.0f / self->enemy->s.scale;
+		const vec3_t random_spread{
 			crandom() * spread,
 			crandom() * spread,
 			crandom() * spread
