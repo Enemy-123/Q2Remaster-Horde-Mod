@@ -1252,11 +1252,16 @@ void SP_monster_sentrygun(edict_t* self)
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 	{
+		gi.modelindex("models/objects/laser/tris.md2");
 		gi.soundindex("infantry/infatck1.wav");
 		gi.soundindex("weapons/chngnu1a.wav");
 		gi.soundindex("weapons/rockfly.wav");
 		gi.modelindex("models/objects/rocket/tris.md2");
 		gi.soundindex("chick/chkatck2.wav");
+		gi.soundindex("tank/tnkpain2.wav");
+		gi.soundindex("makron/blaster.wav");
+		gi.soundindex("gunner/gunidle1.wav");
+
 		self->s.skinnum = 2;
 
 		self->spawnflags &= ~SPAWNFLAG_TURRET2_WEAPONCHOICE;
@@ -1267,6 +1272,9 @@ void SP_monster_sentrygun(edict_t* self)
 		gi.soundindex("weapons/rockfly.wav");
 		gi.modelindex("models/objects/rocket/tris.md2");
 		gi.soundindex("chick/chkatck2.wav");
+		gi.soundindex("tank/tnkpain2.wav");
+		gi.soundindex("makron/blaster.wav");
+		gi.soundindex("gunner/gunidle1.wav");
 		self->s.skinnum = 2;
 
 		self->spawnflags &= ~SPAWNFLAG_TURRET2_WEAPONCHOICE;
@@ -1277,6 +1285,9 @@ void SP_monster_sentrygun(edict_t* self)
 		gi.modelindex("models/objects/laser/tris.md2");
 		gi.soundindex("misc/lasfly.wav");
 		gi.soundindex("soldier/solatck2.wav");
+		gi.soundindex("tank/tnkpain2.wav");
+		gi.soundindex("makron/blaster.wav");
+		gi.soundindex("gunner/gunidle1.wav");
 
 		self->spawnflags &= ~SPAWNFLAG_TURRET2_WEAPONCHOICE;
 		self->spawnflags |= SPAWNFLAG_TURRET2_BLASTER;
