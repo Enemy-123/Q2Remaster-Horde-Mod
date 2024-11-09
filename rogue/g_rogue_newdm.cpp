@@ -154,82 +154,62 @@ void PrecacheForRandomRespawn()
 		PrecacheItem(it);
 	}
 }
-
 // ***************************
 //  SPAWN TURRET LOGIC
 // ***************************
 
-edict_t* SpawnTurret(edict_t* owner, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
-
+// Función auxiliar simple para muerte de la torreta temporal
 DIE(sentrygun_die)(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
+	if (self->owner && self->owner->client) {
+		self->owner->client->num_sentries--;
+	}
 	OnEntityDeath(self);
-	self->takedamage = DAMAGE_NONE;
 	BecomeExplosion1(self);
 }
-PAIN(sentrygun_pain)(edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
-{
-	// Turret doesn't need to track an enemy like a sentrygun, so this can be simplified or removed.
-}
 
-THINK(sentrygun_timeout)(edict_t* self) -> void
-{
-	// Timeout logic isn't needed for the turret, so this can be simplified or removed.
-	sentrygun_die(self, self, self, 9999, self->s.origin, MOD_UNKNOWN);
-}
+// Función principal para colocar la torreta
 bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height)
 {
+	if (!ent || !ent->client)
+		return false;
+
 	const vec3_t mins{ -16, -16, -24 };
 	const vec3_t maxs{ 16, 16, 32 };
 
+	// Calcular posición final
 	auto dir = vectoangles(aimdir);
-	auto [forward, right, up] = AngleVectors(dir);
+	vec3_t end = start + (aimdir * distance);
 
-	vec3_t end = start + (forward * distance);
+	// Verificar espacio para la torreta
 	trace_t tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
-
 	vec3_t new_start = tr.endpos;
 	new_start.z += height;
 
 	tr = gi.trace(new_start, mins, maxs, new_start, nullptr, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
-	if (tr.startsolid || tr.allsolid)
-	{
+	if (tr.startsolid || tr.allsolid) {
 		gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
 		return false;
 	}
 
+	// Crear y configurar la torreta
 	edict_t* turret = G_Spawn();
 	turret->classname = "monster_sentrygun";
 	turret->s.origin = new_start;
 	turret->s.angles = dir;
-	turret->movetype = MOVETYPE_BOUNCE;
-	turret->s.renderfx |= RF_IR_VISIBLE;
-	turret->s.angles[PITCH] = 0;
-	turret->mins = mins;
-	turret->maxs = maxs;
-	turret->s.modelindex = gi.modelindex("models/monsters/turret/tris.md2");
-	turret->die = sentrygun_die;
-	turret->takedamage = true;
 	turret->owner = ent;
 
-	if (!G_ShouldPlayersCollide(true)) {
-		turret->clipmask &= ~CONTENTS_PLAYER;
-	}
+	// Configurar equipo
+	if (ent->client->resp.ctf_team == CTF_TEAM1)
+		turret->monsterinfo.team = CTF_TEAM1;
+	else if (ent->client->resp.ctf_team == CTF_TEAM2)
+		turret->monsterinfo.team = CTF_TEAM2;
 
-	if (ent->client->resp.ctf_team == CTF_TEAM1) {
-		turret->team = TEAM1;
-	}
-	else if (ent->client->resp.ctf_team == CTF_TEAM2) {
-		turret->team = TEAM2;
-	}
-	else {
-		turret->team = "neutral";
-	}
-
+	// Spawner usando la lógica existente de monster_sentrygun
 	ED_CallSpawn(turret);
-	gi.linkentity(turret);
 
-	// Spawnear el efecto visual exactamente en la posición de la torreta
+
+	// Efecto visual de spawn
 	SpawnGrow_Spawn(turret->s.origin, 24.f, 48.f);
 
 	return true;

@@ -349,8 +349,6 @@ void TurretCheckPowerups(edict_t* turret) {
 	TurretRespondPowerup(turret, owner);
 } // Now, turrets will also inherit invincibility from their owners, just like quad and double.
 
-
-
 // **********************
 //  ATTACK
 // **********************
@@ -1076,7 +1074,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		}
 
 		self->monsterinfo.attack_state = AS_MISSILE;
-		self->monsterinfo.attack_finished = level.time + 1_sec;
+		self->monsterinfo.attack_finished = level.time + 150_ms;
 		return true;
 	}
 
@@ -1144,16 +1142,9 @@ void CreateTurretGlowEffect(edict_t* turret) {
 	glow->s.skinnum = turret->s.skinnum;
 	glow->s.effects = EF_GRENADE | EF_BOB;
 	glow->s.renderfx = RF_FULLBRIGHT;
-	glow->s.scale = 0.01f;  // Hacerlo casi invisible
+	glow->s.scale = 0.1f;  // Hacerlo casi invisible
 	glow->owner = turret;
 	glow->classname = "turret_glow";
-
-	// Alternativa: Usar rendermode
-	/*
-	glow->s.rendermode = kRenderTransAdd;  // Modo de render aditivo
-	glow->s.renderfx = RF_FULLBRIGHT;
-	glow->s.renderamt = 1;  // Casi transparente
-	*/
 
 	vec3_t forward;
 	AngleVectors(turret->s.angles, forward, nullptr, nullptr);
