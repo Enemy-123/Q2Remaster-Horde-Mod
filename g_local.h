@@ -3153,6 +3153,7 @@ struct gclient_t
 	int num_sentries = 0; //Sentry Guns per client
 	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];
+	int adrenaline_count = 0;
 
 };
 

@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
 #include "bots/bot_includes.h"
+#include "shared.h"
 
 bool Pickup_Weapon(edict_t* ent, edict_t* other);
 void Use_Weapon(edict_t* ent, gitem_t* inv);
@@ -284,26 +285,30 @@ void Drop_General(edict_t* ent, gitem_t* item)
 
 //======================================================================
 
+int CalculateWaveBasedMaxHealth(int base_max_health);
+
+
 void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
-	int health_increase = (G_IsCooperative() && !g_horde->integer) ? 5 : 10;
+	if (!ent->client)
+		return;
 
-	ent->max_health += health_increase;
+	// Increment adrenaline count
+	ent->client->adrenaline_count++;
+
+	// Calculate new max health (wave base + adrenaline bonus)
+	int wave_base = CalculateWaveBasedMaxHealth(100);
+	int new_max = wave_base + (ent->client->adrenaline_count * ADRENALINE_HEALTH_BONUS);
+
+	ent->max_health = new_max;
+	ent->client->resp.max_health = new_max;
+
 	if (ent->health < ent->max_health)
 		ent->health = ent->max_health;
 
-	// Check if ent->client is not null before accessing it
-	if (ent->client)
-	{
-		ent->client->resp.max_health = ent->max_health;
-		ent->client->pers.inventory[item->id]--;
-	}
-
+	ent->client->pers.inventory[item->id]--;
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
 }
-
-
-
 bool Pickup_LegacyHead(edict_t* ent, edict_t* other)
 {
 	other->max_health += 5;

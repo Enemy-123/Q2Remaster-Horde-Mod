@@ -847,6 +847,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 #include <string>
 #include <sstream>
+#include "shared.h"
 
 // [Paril-KEX]
 static void Player_GiveStartItems(edict_t* ent, const char* ptr)
@@ -938,6 +939,34 @@ but is called after each death and level change in deathmatch
 ==============
 */
 // Calcula la salud máxima basada en el nivel de oleada actual
+//int CalculateWaveBasedMaxHealth(int base_max_health)
+//{
+//	if (!g_horde->integer)
+//		return max(100, base_max_health);
+//
+//	int calculated_max_health = base_max_health;
+//
+//	// Ajustar health y max_health basado en el número de oleadas actuales
+//	if (current_wave_level >= 30 && current_wave_level <= 200)
+//		calculated_max_health = max(250, calculated_max_health);
+//	if (current_wave_level >= 25 && current_wave_level <= 29)
+//		calculated_max_health = max(225, calculated_max_health);
+//	else if (current_wave_level >= 20 && current_wave_level <= 24)
+//		calculated_max_health = max(200, calculated_max_health);
+//	else if (current_wave_level >= 15 && current_wave_level <= 19)
+//		calculated_max_health = max(175, calculated_max_health);
+//	else if (current_wave_level >= 10 && current_wave_level <= 14)
+//		calculated_max_health = max(150, calculated_max_health);
+//	else if (current_wave_level >= 5 && current_wave_level <= 9)
+//		calculated_max_health = max(125, calculated_max_health);
+//	else if (current_wave_level >= 1 && current_wave_level <= 4)
+//		calculated_max_health = max(100, calculated_max_health);
+//	else
+//		calculated_max_health = max(100, calculated_max_health); // default, and wave 0
+//
+//	return calculated_max_health;
+//}
+
 int CalculateWaveBasedMaxHealth(int base_max_health)
 {
 	if (!g_horde->integer)
@@ -963,6 +992,8 @@ int CalculateWaveBasedMaxHealth(int base_max_health)
 
 	return calculated_max_health;
 }
+
+
 
 // Modificación de InitClientPersistant
 void InitClientPersistant(edict_t* ent, gclient_t* client)
@@ -1145,7 +1176,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	client->pers.spawned = true;
 
 	if (g_startarmor->integer) {
-		client->pers.inventory[IT_ARMOR_BODY] = 50;
+		client->pers.inventory[IT_ARMOR_BODY] = 100;
 	}
 }
 
@@ -3799,27 +3830,21 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		gi.linkentity(ent);
 
 		ent->gravity = 1.0;
-
 		if (g_horde->integer && !client->resp.spectator && client->pers.spawned &&
 			ent->health > 0 && ent->deadflag == false)
 		{
-			int new_max_health = CalculateWaveBasedMaxHealth(client->pers.max_health);
+			const int wave_base = CalculateWaveBasedMaxHealth(100);
+			// Use the same ADRENALINE_HEALTH_BONUS constant
+			const int new_max_health = wave_base + (client->adrenaline_count * ADRENALINE_HEALTH_BONUS);
 
-			// Si la salud máxima ha cambiado, actualizar los valores
 			if (new_max_health != client->pers.max_health)
 			{
-				// Calculamos la proporción de salud actual respecto al máximo anterior
-				float health_ratio = (float)ent->health / (float)client->pers.max_health;
-
-				// Actualizamos la salud máxima
+				const float health_ratio = (float)ent->health / (float)client->pers.max_health;
 				client->pers.max_health = new_max_health;
-				ent->max_health = new_max_health;     // Actualizar max_health de la entidad
-
-				// Actualizamos la salud actual manteniendo la misma proporción
+				ent->max_health = new_max_health;
 				int new_health = (int)(health_ratio * new_max_health);
 				new_health = min(new_health, new_max_health);
-
-				// Forzar actualización de estado
+				ent->health = new_health;
 				gi.linkentity(ent);
 			}
 		}

@@ -42,7 +42,7 @@ const benefit_t BENEFITS[MAX_BENEFITS] = { {
 	{
 		"start armor",
 		"\n\n\nSTARTING ARMOR\nENABLED!\n",
-		"STARTING WITH 50 BODY-ARMOR!\n",
+		"STARTING WITH 100 BODY-ARMOR!\n",
 		"g_startarmor", "1",
 		9, -1, 0.1f
 	},

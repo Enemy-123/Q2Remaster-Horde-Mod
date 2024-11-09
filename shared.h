@@ -4,6 +4,8 @@
 #define SHARED_H
 
 #include "g_local.h"
+
+constexpr int ADRENALINE_HEALTH_BONUS = 5;
 #include <string>
 #define first3waves current_wave_level <= 3
 // Define los flags de bonus
