@@ -2333,8 +2333,8 @@ void PutClientInServer(edict_t* ent)
 			{
 				// If pt is nullptr, no valid intermission point found
 				// Log a warning and prevent the player from spawning
-				vec3_t default_origin = { 0, 0, 0 }; // Puedes cambiar esto a un valor más apropiado
-				vec3_t default_angles = { 0, 0, 0 }; // Ángulos por defecto
+				vec3_t default_origin = vec3_origin; // Puedes cambiar esto a un valor más apropiado
+				vec3_t default_angles = vec3_origin; // Ángulos por defecto
 				level.intermission_origin = default_origin;
 				level.intermission_angle = default_angles;
 				level.respawn_intermission = true;
