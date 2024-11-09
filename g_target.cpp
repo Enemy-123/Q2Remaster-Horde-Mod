@@ -2080,7 +2080,7 @@ USE(use_target_sky) (edict_t* self, edict_t* other, edict_t* activator) -> void
 		float rotate;
 		int32_t autorotate;
 
-		sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate);
+		//sscanf(gi.get_configstring(CS_SKYROTATE), "%f %i", &rotate, &autorotate);
 
 		if (self->count & 1)
 			rotate = self->accel;
