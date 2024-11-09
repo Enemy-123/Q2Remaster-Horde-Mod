@@ -195,16 +195,15 @@ void turret2Aim(edict_t* self)
 	self->s.angles[YAW] = anglemod(current_yaw + yaw_move);
 
 	// Manejar laser sight
-	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT) &&
-		!self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
 	{
 		// Inicializar laser sight si no existe
 		if (!self->target_ent) {
 			self->target_ent = G_Spawn();
 			self->target_ent->s.modelindex = MODELINDEX_WORLD;
 			self->target_ent->s.renderfx = RF_BEAM;
-			self->target_ent->s.frame = 1;
-			self->target_ent->s.skinnum = 0xd0d1d2d3;
+			self->target_ent->s.frame = 1.5f;
+			self->target_ent->s.skinnum = 0xe0e1e2e3;
 			self->target_ent->classname = "turret2_lasersight";
 			self->target_ent->s.effects = EF_BOB;
 			self->target_ent->s.origin = self->s.origin;
