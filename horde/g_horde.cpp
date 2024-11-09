@@ -316,8 +316,8 @@ static float CalculatePlayerPerformance() {
 }
 
 // Constantes y funciones auxiliares
-constexpr gtime_t BASE_MAX_WAVE_TIME = 120_sec;
-constexpr gtime_t TIME_INCREASE_PER_LEVEL = 0.8_sec;
+constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
+constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
 constexpr gtime_t BOSS_TIME_BONUS = 60_sec;
 constexpr int MONSTERS_FOR_AGGRESSIVE_REDUCTION = 5;
 constexpr gtime_t AGGRESSIVE_TIME_REDUCTION_PER_MONSTER = 10_sec;
