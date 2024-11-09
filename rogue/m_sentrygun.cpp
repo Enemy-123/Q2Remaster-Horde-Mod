@@ -30,19 +30,28 @@ extern const mmove_t turret2_move_fire_blind;
 static cached_soundindex sound_moved, sound_moving, sound_pew;
 
 // Actualizar la posición del efecto
-void UpdateGlowPosition(edict_t* self) {
+void UpdateSmokePosition(edict_t* self) {
 	if (!self || !self->inuse || !self->target_hint_chain || !self->target_hint_chain->inuse)
 		return;
 
-	// Actualizar frame y skin
+	// Actualizar frame y skin si es necesario
 	self->target_hint_chain->s.frame = self->s.frame;
 	self->target_hint_chain->s.skinnum = self->s.skinnum;
 
-	// Actualizar posición y ángulos
+	// Calcular la nueva posición para el emisor de humo
 	vec3_t forward;
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
-	self->target_hint_chain->s.origin = self->s.origin + (forward * 20.0f);
+	vec3_t smoke_pos = self->s.origin + (forward * 20.0f);
+
+	// Actualizar posición del emisor
+	self->target_hint_chain->s.origin = smoke_pos;
 	self->target_hint_chain->s.angles = self->s.angles;
+
+	// Emitir el efecto de humo
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_CHAINFIST_SMOKE);
+	gi.WritePosition(smoke_pos);
+	gi.multicast(smoke_pos, MULTICAST_PVS, false);
 
 	gi.linkentity(self->target_hint_chain);
 }
@@ -55,7 +64,7 @@ void turret2Aim(edict_t* self)
 		return;
 
 	// Actualizar la posición del efecto visual
-	UpdateGlowPosition(self);
+	UpdateSmokePosition(self);
 
 	TurretSparks(self);
 
@@ -1126,6 +1135,26 @@ Default weapon is blaster.
 When activated, wall units move 32 units in the direction they're facing.
 */
 
+THINK(EmitSmokeEffect)(edict_t* ent) -> void {
+	if (!ent || !ent->owner || !ent->owner->inuse) {
+		G_FreeEdict(ent);
+		return;
+	}
+
+	// Solo emitir humo con una probabilidad del 40%
+	if (frandom() < 0.4f) {
+		// Escribir el efecto de humo
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_CHAINFIST_SMOKE);
+		gi.WritePosition(ent->s.origin);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+	}
+
+	// Configurar el próximo think con tiempo aleatorio
+	ent->nextthink = level.time + random_time(2_sec, 5_sec);
+	ent->think = EmitSmokeEffect;
+}
+
 void CreateTurretGlowEffect(edict_t* turret) {
 	if (!turret || !turret->inuse)
 		return;
@@ -1136,32 +1165,31 @@ void CreateTurretGlowEffect(edict_t* turret) {
 		turret->target_hint_chain = nullptr;
 	}
 
-	edict_t* glow = G_Spawn();
-	if (!glow)
+	edict_t* smoke = G_Spawn();
+	if (!smoke)
 		return;
 
-	// Opción 1: Usar una escala muy pequeña
-	glow->movetype = MOVETYPE_NONE;
-	glow->solid = SOLID_NOT;
-	glow->s.modelindex = turret->s.modelindex;
-	glow->s.frame = turret->s.frame;
-	glow->s.skinnum = turret->s.skinnum;
-	glow->s.effects = EF_GRENADE | EF_BOB;
-	glow->s.renderfx = RF_FULLBRIGHT;
-	glow->s.scale = 0.1f;  // Hacerlo casi invisible
-	glow->owner = turret;
-	glow->classname = "turret_glow";
+	smoke->movetype = MOVETYPE_NONE;
+	smoke->solid = SOLID_NOT;
+	smoke->s.modelindex = 0;  // No necesitamos modelo para el efecto de humo
+	smoke->s.renderfx = RF_FULLBRIGHT;
+	smoke->s.effects = EF_BOB;  // Efecto de bobbing
+	smoke->owner = turret;
+	smoke->classname = "turret_smoke";
+	smoke->think = EmitSmokeEffect;
+	smoke->nextthink = level.time + random_time(8_sec, 15_sec);  // Inicio retrasado aleatorio
 
+	// Posicionar el emisor de humo usando el nuevo vec3_t
 	vec3_t forward;
 	AngleVectors(turret->s.angles, forward, nullptr, nullptr);
-	glow->s.origin = turret->s.origin + (forward * 20.0f);
-	glow->s.angles = turret->s.angles;
 
-	gi.linkentity(glow);
-	turret->target_hint_chain = glow;
+	// Usar la nueva sintaxis de vec3_t para el posicionamiento
+	smoke->s.origin = turret->s.origin + (forward * 20.0f);
+	smoke->s.angles = turret->s.angles;
+
+	gi.linkentity(smoke);
+	turret->target_hint_chain = smoke;
 }
-
-
 void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
