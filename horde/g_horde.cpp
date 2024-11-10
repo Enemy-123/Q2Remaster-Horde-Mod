@@ -61,6 +61,19 @@ constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 		return 1.5_sec;  // Mapas medianos tienen cooldown intermedio
 }
 
+// Nueva función para calcular el factor de escala del cooldown basado en el nivel
+static float CalculateCooldownScale(int32_t level) {
+	if (level <= 10) {
+		return 1.0f; // Sin cambios hasta nivel 10
+	}
+
+	// Comenzar a escalar después del nivel 10
+	float scale = 1.0f + ((level - 10) * 0.05f); // 5% de aumento por nivel
+
+	// Limitar el máximo de escala para que no exceda 3 segundos
+	return std::min(scale, 1.75f); // 1.75x del base cooldown como máximo
+}
+
 
 cvar_t* g_horde;
 
@@ -253,69 +266,29 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	int32_t additionalSpawn = (lvl >= 8) ?
 		((mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7)) : 6;
 
-	// Ajuste dinámico del cooldown basado en el nivel y tamaño del mapa
+	// Ajuste dinámico del cooldown basado en el nivel
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 
-	// Reducción progresiva del cooldown basada en el nivel
-	// Más conservadora para mapas grandes
-	if (lvl > 15) {
-		float reductionFactor;
-		if (mapSize.isBigMap) {
-			reductionFactor = 1.0f - std::min((lvl - 15) * 0.01f, 0.25f); // Reducción más suave para mapas grandes
-		}
-		else if (mapSize.isSmallMap) {
-			reductionFactor = 1.0f - std::min((lvl - 15) * 0.03f, 0.4f);  // Reducción más agresiva para mapas pequeños
-		}
-		else {
-			reductionFactor = 1.0f - std::min((lvl - 15) * 0.02f, 0.3f);  // Reducción media para mapas medianos
-		}
-		SPAWN_POINT_COOLDOWN *= reductionFactor;
-	}
+	// Aplicar escala basada en nivel después del nivel 10
+	float cooldownScale = CalculateCooldownScale(lvl);
+	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-	// Ajuste adicional basado en jugadores humanos
-	// Más conservador en mapas grandes
+	// Ajuste de spawn rate basado en jugadores
 	if (humanPlayers > 1) {
-		float playerAdjustment;
-		if (mapSize.isBigMap) {
-			playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f); // Reducción menor en mapas grandes
-		}
-		else {
-			playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.1f);  // Reducción normal en otros mapas
-		}
+		float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
 		SPAWN_POINT_COOLDOWN *= playerAdjustment;
-	}
-
-	// Límites absolutos para el cooldown según tamaño del mapa
-	if (mapSize.isBigMap) {
-		SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
-			1.5_sec,  // Mínimo cooldown para mapas grandes
-			2.5_sec); // Máximo cooldown para mapas grandes
-	}
-	else if (mapSize.isSmallMap) {
-		SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
-			0.8_sec,  // Mínimo cooldown para mapas pequeños
-			1.5_sec); // Máximo cooldown para mapas pequeños
-	}
-	else {
-		SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN,
-			1.2_sec,  // Mínimo cooldown para mapas medianos
-			2.0_sec); // Máximo cooldown para mapas medianos
 	}
 
 	// Enhanced level scaling for higher levels
 	if (lvl > 25) {
 		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
-		// Reducción adicional del cooldown para niveles altos, ajustada por tamaño de mapa
-		float highLevelReduction = mapSize.isBigMap ? 0.95f : 0.85f;
-		SPAWN_POINT_COOLDOWN *= highLevelReduction;
 	}
 
 	// Bonus for chaotic/insane modes
 	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
-		// Reducción del cooldown en modos difíciles, ajustada por tamaño de mapa
-		float difficultyReduction = mapSize.isBigMap ? 0.95f : 0.9f;
-		SPAWN_POINT_COOLDOWN *= difficultyReduction;
+		// Reducción del cooldown en modos difíciles
+		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
 
 	// Dynamic difficulty scaling based on player count
@@ -324,13 +297,21 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	// Periodic scaling adjustments
 	if (lvl % 3 == 0) {
 		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
-		// Ajuste periódico del cooldown, más conservador en mapas grandes
-		gtime_t periodicReduction = mapSize.isBigMap ? 0.1_sec : 0.15_sec;
+
+		// Convertir el multiplicador de dificultad a tiempo
+		const gtime_t periodicReduction = gtime_t::from_sec(
+			(mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier
+		);
+
+		// Aplicar la reducción con límites apropiados
 		SPAWN_POINT_COOLDOWN = std::max(
-			SPAWN_POINT_COOLDOWN - periodicReduction * difficultyMultiplier,
-			mapSize.isBigMap ? 1.5_sec : 0.8_sec
+			SPAWN_POINT_COOLDOWN - periodicReduction,
+			1.0_sec
 		);
 	}
+
+	// Límites absolutos finales para el cooldown
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
 
 	// Update spawn count with clamping
 	g_horde_local.num_to_spawn = baseCount + static_cast<int32_t>(additionalSpawn);
@@ -340,10 +321,19 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
 
-	gi.Com_PrintFmt("DEBUG: Adjusted spawn cooldown to {:.2f} seconds for level {} on {} map\n",
-		SPAWN_POINT_COOLDOWN.seconds(), lvl,
+	// Debug info mejorado
+	gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", lvl);
+	gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
+		SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
+	gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
+	gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
+	gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
+	gi.Com_PrintFmt("  - Map type: {}\n",
 		mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
-}void ResetAllSpawnAttempts() noexcept;
+}
+
+
+void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
 void ResetCooldowns() noexcept;
 
@@ -2241,6 +2231,7 @@ void ClearHordeMessage() {
 	horde_message_end_time = 0_sec;
 }
 // reset cooldowns, fixed no monster spawning on next map
+// En UnifiedAdjustSpawnRate y ResetCooldowns:
 void ResetCooldowns() noexcept {
 	spawnPointsData.clear();
 	lastSpawnPointTime.clear();
@@ -2253,50 +2244,28 @@ void ResetCooldowns() noexcept {
 	// Obtener cooldown base según el tamaño del mapa
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 
-	// Ajustes dinámicos basados en el nivel actual
-	if (currentLevel > 0) {
-		// Reducción progresiva por nivel, ajustada según tamaño del mapa
-		float levelReduction;
-		if (mapSize.isBigMap) {
-			levelReduction = std::min((currentLevel - 1) * 0.01f, 0.25f); // Más conservador
-		}
-		else if (mapSize.isSmallMap) {
-			levelReduction = std::min((currentLevel - 1) * 0.03f, 0.4f);  // Más agresivo
-		}
-		else {
-			levelReduction = std::min((currentLevel - 1) * 0.02f, 0.3f);  // Intermedio
-		}
-		SPAWN_POINT_COOLDOWN *= (1.0f - levelReduction);
+	// Aplicar escala basada en nivel
+	float cooldownScale = CalculateCooldownScale(currentLevel);
+	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-		// Ajuste por número de jugadores, más conservador en mapas grandes
-		if (humanPlayers > 1) {
-			float playerAdjustment = mapSize.isBigMap ?
-				1.0f - (std::min(humanPlayers - 1, 3) * 0.05f) :
-				1.0f - (std::min(humanPlayers - 1, 3) * 0.1f);
-			SPAWN_POINT_COOLDOWN *= playerAdjustment;
-		}
-
-		// Ajustes por modo de dificultad
-		if (g_insane->integer || g_chaotic->integer) {
-			SPAWN_POINT_COOLDOWN *= mapSize.isBigMap ? 0.95f : 0.9f;
-		}
+	// Ajustes adicionales (reducidos pero mantenidos para balance)
+	if (humanPlayers > 1) {
+		float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
+		SPAWN_POINT_COOLDOWN *= playerAdjustment;
 	}
 
-	// Aplicar límites finales según tamaño del mapa
-	if (mapSize.isBigMap) {
-		SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.5_sec, 2.5_sec);
-	}
-	else if (mapSize.isSmallMap) {
-		SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 0.8_sec, 1.5_sec);
-	}
-	else {
-		SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.2_sec, 2.0_sec);
+	// Ajustes por modo de dificultad (reducidos) - Con verificación de seguridad
+	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
+		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
 
-	gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds for {} map\n",
-		SPAWN_POINT_COOLDOWN.seconds(),
-		mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
+	// Aplicar límites absolutos
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
+
+	gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
+		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
 }
+
 void ResetAllSpawnAttempts() noexcept {
 	for (auto& [spawn_point, data] : spawnPointsData) {
 		data.attempts = 0;
