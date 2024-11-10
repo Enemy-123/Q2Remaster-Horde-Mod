@@ -2434,8 +2434,25 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	return false;
 }
 
+//Capping resets on map end
 
+static bool hasBeenReset = false;
+void AllowReset() {
+	hasBeenReset = false;
+}
+
+/// ///
+/// game reset
 void ResetGame() {
+
+	// Si ya se ha ejecutado una vez, retornar inmediatamente
+	if (hasBeenReset) {
+		gi.Com_PrintFmt("PRINT: Reset already performed, skipping...\n");
+		return;
+	}
+
+	// Establecer el flag al inicio de la ejecución
+	hasBeenReset = true;
 
 	// Añadir limpieza explícita de bosses
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
@@ -2467,9 +2484,6 @@ void ResetGame() {
 	spawnPointsData.clear();
 	lastMonsterSpawnTime.clear();
 	lastSpawnPointTime.clear();
-
-
-
 
 	// Reiniciar variables de estado global
 	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
@@ -2508,8 +2522,6 @@ void ResetGame() {
 	// Reiniciar wave advance state
 	ResetWaveAdvanceState();
 
-
-	// Log del reset
 	// Reset wave information
 	g_horde_local.level = 0; // Reset current wave level
 	g_horde_local.state = horde_state_t::warmup; // Set game state to warmup

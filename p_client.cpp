@@ -3,6 +3,7 @@
 #include "g_local.h"
 #include "m_player.h"
 #include "bots/bot_includes.h"
+#include "shared.h"
 
 void SP_misc_teleporter_dest(edict_t* ent);
 
@@ -453,7 +454,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 		else
 		{
-		//	self->client->resp.score--;
+			//	self->client->resp.score--;
 
 			if (teamplay->integer)
 				G_AdjustTeamScore(attacker->client->resp.ctf_team, -1);
@@ -800,6 +801,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 					// Horde mode
 					for (auto player : active_players_no_spect())
 						gi.LocCenter_Print(player, "$g_coop_lose");
+						AllowReset();
 					gi.cvar_set("timelimit", "0.01");
 				}
 				// Set respawn time if level restart is not scheduled
@@ -847,7 +849,6 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 
 #include <string>
 #include <sstream>
-#include "shared.h"
 
 // [Paril-KEX]
 static void Player_GiveStartItems(edict_t* ent, const char* ptr)
@@ -3456,7 +3457,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 		if (!G_IsDeathmatch() || !g_dm_no_fall_damage->integer)
 			T_Damage(ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING);
 	}
-		ent->s.event = EV_FALLSHORT;
+	ent->s.event = EV_FALLSHORT;
 
 	// Paril: falling damage noises alert monsters
 	if (ent->health)

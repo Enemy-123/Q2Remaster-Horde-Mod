@@ -61,4 +61,7 @@ struct PlayerStats {
     edict_t* player = nullptr;
     int32_t total_damage = 0;
 };
+
+void AllowReset();
+
 #endif // SHARED_H
