@@ -1747,6 +1747,9 @@ struct monsterinfo_t
 
 	//Horde Stuff
 
+	bool IS_BOSS = false; // Is monster a boss?
+	bool BOSS_DEATH_HANDLED = false; // is dead?
+
 	int bonus_flags; //Powerups or Special Flags for horde
 	int team; // Setting a team, test
 	gtime_t last_rocket_fire_time;

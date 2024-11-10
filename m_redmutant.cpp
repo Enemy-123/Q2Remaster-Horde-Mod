@@ -733,7 +733,7 @@ void SP_monster_redmutant(edict_t* self)
 	self->mass = 450;
 	self->s.scale = 1.1f;
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->health *= 3.8f;
 		self->gib_health = -999777;
 		self->mass *= 3.0f;

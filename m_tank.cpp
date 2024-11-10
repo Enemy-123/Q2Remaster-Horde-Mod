@@ -456,7 +456,7 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	// pmm
 
-	if (!strcmp(self->classname, "monster_tank_64") || g_hardcoop->integer || self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+	if (!strcmp(self->classname, "monster_tank_64") || g_hardcoop->integer || self->monsterinfo.IS_BOSS) {
 
 		PredictAim(self, self->enemy, start, 0, false, 0.075f, &dir, nullptr);
 
@@ -499,7 +499,7 @@ void TankStrike(edict_t* self)
 			gi.multicast(tr.endpos, MULTICAST_PHS, false);
 			void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 			// Daño radial
-			T_SlamRadiusDamage(tr.endpos, self, self, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 150 : 75, 450.f, self, 165, MOD_TANK_PUNCH);
+			T_SlamRadiusDamage(tr.endpos, self, self, self->monsterinfo.IS_BOSS ? 150 : 75, 450.f, self, 165, MOD_TANK_PUNCH);
 
 		}
 }
@@ -657,7 +657,7 @@ void TankMachineGun(edict_t* self)
 	if (!strcmp(self->classname, "monster_tank_commander") || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING)) {
 		// Primer flechette con dirección base
 		monster_fire_flechette(self, start, forward, 20,
-			self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 1150 : 700,
+			self->monsterinfo.IS_BOSS ? 1150 : 700,
 			flash_number);
 
 		// Segundo flechette con una ligera desviación hacia la derecha
@@ -666,7 +666,7 @@ void TankMachineGun(edict_t* self)
 		vec3_t forward_right = forward + (right_offset * 0.05f);
 		forward_right.normalize();
 		monster_fire_flechette(self, start, forward_right, 20,
-			self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 1150 : 700,
+			self->monsterinfo.IS_BOSS ? 1150 : 700,
 			flash_number);
 	}
 	else {
@@ -1202,7 +1202,7 @@ DIE(tank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 
 	M_SetAnimation(self, &tank_move_death);
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		BossDeathHandler(self);
 
 	}
@@ -1300,7 +1300,7 @@ void SP_monster_tank(edict_t* self)
 				self->s.scale = 1.25f;
 			self->accel = 0.25f;
 			self->health = 1750 + (1.005 * current_wave_level);
-			if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+			if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 				self->gib_health = -999777;
 				self->health *= 2.3;
 

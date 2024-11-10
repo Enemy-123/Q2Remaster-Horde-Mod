@@ -911,11 +911,11 @@ PAIN(widow2_pain) (edict_t* self, edict_t* other, float kick, int damage, const 
 	self->pain_debounce_time = level.time + 5_sec;
 
 	if (damage < 15)
-		gi.sound(self, CHAN_VOICE, sound_pain1, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain1, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 	else if (damage < 75)
-		gi.sound(self, CHAN_VOICE, sound_pain2, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain2, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 	else
-		gi.sound(self, CHAN_VOICE, sound_pain3, 1, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? ATTN_NONE : ATTN_NORM, 0);
+		gi.sound(self, CHAN_VOICE, sound_pain3, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
@@ -971,7 +971,7 @@ void KillChildren(edict_t* self)
 
 DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
 	OnEntityDeath(self);
@@ -1027,8 +1027,8 @@ DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	M_SetAnimation(self, &widow2_move_death);
 
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
-		!self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+	if (self->monsterinfo.IS_BOSS &&
+		!self->monsterinfo.BOSS_DEATH_HANDLED)
 	{
 		BossDeathHandler(self);
 	}

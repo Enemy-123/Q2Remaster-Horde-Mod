@@ -209,7 +209,7 @@ void arachnid_rail(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	monster_fire_railgun(self, start, dir, self->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 40 : 35, 100, id);
+	monster_fire_railgun(self, start, dir, self->monsterinfo.IS_BOSS ? 40 : 35, 100, id);
 }
 
 mframe_t arachnid_frames_attack1[] = {
@@ -369,7 +369,7 @@ DIE(arachnid_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 
 	M_SetAnimation(self, &arachnid_move_death);
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		BossDeathHandler(self);
 	}
 }
@@ -422,11 +422,11 @@ void SP_monster_arachnid(edict_t* self)
 
 
 
-	if (!strcmp(self->classname, "monster_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (!strcmp(self->classname, "monster_arachnid") && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->health = 3500 + (1.08 * current_wave_level);
 		self->gib_health = -99999;
 	}
-	else if (!strcmp(self->classname, "monster_arachnid") && !self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	else if (!strcmp(self->classname, "monster_arachnid") && !self->monsterinfo.IS_BOSS)
 	{
 		self->health = 1000 * st.health_multiplier;
 		self->gib_health = -200;

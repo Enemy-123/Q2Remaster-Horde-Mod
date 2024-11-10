@@ -763,7 +763,7 @@ DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		else
 			M_SetAnimation(self, &guncmdr_move_pain5);
 	}
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		BossDeathHandler(self);
 
 	}
@@ -1535,7 +1535,7 @@ void SP_monster_guncmdr(edict_t* self)
 	self->gib_health = -175;
 	self->mass = 255;
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->gib_health = -999777;
 	}
 	self->pain = guncmdr_pain;
@@ -1591,7 +1591,7 @@ void SP_monster_guncmdrkl(edict_t* self)
 	else
 		self->s.skinnum &= ~1;
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->mass *= 3.0f;
 		self->gib_health = -999777;
 	}

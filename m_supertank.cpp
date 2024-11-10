@@ -487,7 +487,7 @@ void supertankRocket(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	if (self->monsterinfo.IS_BOSS)
 	{
 		vec = self->enemy->s.origin;
 		vec[2] += self->enemy->viewheight;
@@ -626,7 +626,7 @@ DIE(supertank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 		self->deadflag = true;
 		self->takedamage = false;
 	}
-	g_horde->integer && self->spawnflags.has(SPAWNFLAG_IS_BOSS) ?
+	g_horde->integer && self->monsterinfo.IS_BOSS ?
 		M_SetAnimation(self, &supertank_move_deathboss) :
 		M_SetAnimation(self, &supertank_move_death);
 }
@@ -662,7 +662,7 @@ void SP_monster_supertank(edict_t* self)
 
 	if (g_horde->integer && current_wave_level <= 18) {
 
-		if (self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+		if (self->monsterinfo.IS_BOSS) {
 			{
 				const float randomsearch = frandom(); // Generate search sounds
 

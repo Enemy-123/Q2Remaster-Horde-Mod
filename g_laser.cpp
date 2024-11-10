@@ -140,7 +140,7 @@ namespace LaserHelpers {
             if (target->monsterinfo.invincible_time > level.time) {
                 return 0.0f;
             }
-            return target->spawnflags.has(SPAWNFLAG_IS_BOSS) ? 1.25f : 1.0f;
+            return target->monsterinfo.IS_BOSS ? 1.25f : 1.0f;
         }
         return LaserConstants::LASER_NONCLIENT_MOD;
     }

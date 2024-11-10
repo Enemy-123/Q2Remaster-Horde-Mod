@@ -511,10 +511,8 @@ const spawn_temp_t& ED_GetSpawnTemp()
 		gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
 		return spawn_temp_t::empty;
 	}
-
 	return *current_st;
 }
-
 #include <stdlib.h>
 #include "shared.h"
 #include <cstdlib>
@@ -577,7 +575,7 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 
 				ent->monsterinfo.bonus_flags = flag;
 
-				if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS))
+				if (ent->monsterinfo.IS_BOSS)
 				{
 					// Si es un jefe, llamamos a ApplyBossEffects
 					const auto mapSize = GetMapSize(level.mapname);
@@ -592,8 +590,7 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 		}
 	}
 }
-void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
-	// Inicializa el multiplicador de daño para el monstruo
+void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::empty) {	
 	if (ent->svflags & SVF_MONSTER) {
 		ent->monsterinfo.damage_quad = 1.0f;
 	}

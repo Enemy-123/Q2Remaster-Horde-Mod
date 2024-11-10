@@ -177,7 +177,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->gib_health <= -200)
 		monster->gib_health = -200;
 
-	if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	if (monster->monsterinfo.IS_BOSS)
 		return;
 
 	if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
@@ -257,7 +257,7 @@ static constexpr void CalculateBossMinimums(int wave_number, int& health_min, in
 void ApplyBossEffects(edict_t* boss)
 {
 	// Verificar si es un jefe y si ya se han aplicado los efectos
-	if (!boss->spawnflags.has(SPAWNFLAG_IS_BOSS) || boss->effects_applied)
+	if (!boss->monsterinfo.IS_BOSS || boss->effects_applied)
 		return;
 
 	// Obtener la categoría de tamaño del jefe
@@ -273,8 +273,8 @@ void ApplyBossEffects(edict_t* boss)
 	// Función de utilidad para escalar el jefe
 	auto ScaleEntity = [&](float scale_factor) {
 		boss->s.scale *= scale_factor;
-		boss->mins *= scale_factor;
-		boss->maxs *= scale_factor;
+		//boss->mins *= scale_factor;
+		//boss->maxs *= scale_factor;
 		boss->mass *= scale_factor;
 
 		// Ajustar la posición para alinear con el suelo
@@ -461,7 +461,7 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 	SpawnGrow_Spawn(position, start_size, end_size);
 
 	// Si no es una entidad jefe, terminamos aquí
-	if (!spawned_entity || !spawned_entity->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+	if (!spawned_entity || !spawned_entity->monsterinfo.IS_BOSS) {
 		return;
 	}
 

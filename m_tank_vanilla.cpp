@@ -856,24 +856,19 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 
 void Monster_MoveSpawn(edict_t* self)
 {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
+	// Validación inicial
 	if (!self || self->health <= 0 || self->deadflag)
 		return;
 
-	// Inicializar slots de monstruo si no se han establecido
-	if (!st.was_key_specified("monster_slots"))
+	// Inicializar slots si no están establecidos
+	if (self->monsterinfo.monster_slots <= 0)
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
 
 	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 	if (available_slots <= 0)
 		return;
 
-	// Condiciones específicas para el tanque comandante
-	if (strcmp(self->classname, "monster_tank_spawner_commander") == 0) {
-		// Debug log removido
-	}
-
-	// Constantes de spawneo
+	// Constantes
 	constexpr int NUM_MONSTERS_MIN = 4;
 	constexpr int NUM_MONSTERS_MAX = 6;
 	constexpr float SPAWN_RADIUS_MIN = 100.0f;
@@ -883,16 +878,15 @@ void Monster_MoveSpawn(edict_t* self)
 	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };
 	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };
 
+	// Determinar número de monstruos a spawnear
 	const int num_monsters = std::min({
 		NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)),
-		available_slots
+		available_slots,
+		static_cast<int>(self->monsterinfo.reinforcements.num_reinforcements)
 		});
 
 	for (int i = 0; i < num_monsters; i++)
 	{
-		if (i >= static_cast<int>(self->monsterinfo.reinforcements.num_reinforcements))
-			break;
-
 		vec3_t spawn_origin;
 		bool found_spot = false;
 		float spawn_angle = 0.0f;
@@ -900,7 +894,7 @@ void Monster_MoveSpawn(edict_t* self)
 		// Buscar punto de spawn válido
 		for (int attempts = 0; attempts < MAX_SPAWN_ATTEMPTS; attempts++)
 		{
-			spawn_origin = self->s.origin;  // Usar asignación directa
+			spawn_origin = self->s.origin;
 			spawn_angle = frandom() * 2.0f * PIf;
 
 			float radius = SPAWN_RADIUS_MIN + frandom() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
@@ -910,7 +904,7 @@ void Monster_MoveSpawn(edict_t* self)
 				SPAWN_HEIGHT_OFFSET
 			};
 
-			spawn_origin += offset;  // Usar operador de suma de vec3_t
+			spawn_origin += offset;
 
 			const trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
 			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, MONSTER_MINS, MONSTER_MAXS))
@@ -927,21 +921,32 @@ void Monster_MoveSpawn(edict_t* self)
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180.0f / PIf);
 
-		// Crear el monstruo
+		// Crear el monstruo con spawn_temp_t::empty
 		reinforcement_t& reinf = self->monsterinfo.reinforcements.reinforcements[i];
-		edict_t* monster = CreateGroundMonster(spawn_origin, spawn_angles,
-			MONSTER_MINS, MONSTER_MAXS,
-			reinf.classname, 64);
-
+		edict_t* monster = G_Spawn();
 		if (!monster)
 			continue;
 
-		// Configurar flags y propiedades del monstruo
+		// Configurar propiedades básicas
+		monster->classname = reinf.classname;
+		monster->s.origin = spawn_origin;
+		monster->s.angles = spawn_angles;
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
 		monster->owner = self;
+
+		// Spawn del monstruo usando spawn_temp_t::empty
+		ED_CallSpawn(monster, spawn_temp_t::empty);
+
+		if (!monster->inuse)
+		{
+			G_FreeEdict(monster);
+			continue;
+		}
+
+		// Configuraciones post-spawn
 		if (g_horde->integer)
 			monster->item = brandom() ? G_HordePickItem() : nullptr;
 
@@ -951,15 +956,16 @@ void Monster_MoveSpawn(edict_t* self)
 		self->monsterinfo.monster_used++;
 		available_slots--;
 
-		// Efectos visuales de spawn
-		const float magnitude = monster->s.origin.length();  // Usar método length() de vec3_t
-		if (magnitude > 0.0f) {
+		// Efectos visuales
+		const float magnitude = monster->s.origin.length();
+		if (magnitude > 0.0f)
+		{
 			const float start_size = magnitude * 0.055f;
 			const float end_size = magnitude * 0.005f;
 			SpawnGrow_Spawn(monster->s.origin, start_size, end_size);
 		}
 
-		// Efectos de sonido
+		// Efecto de sonido
 		gi.sound(self, CHAN_BODY, sound_spawn_commander, 1, ATTN_NONE, 0);
 	}
 }

@@ -397,25 +397,45 @@ void Cmd_Spawn_f(edict_t* ent)
 	if (!G_CheatCheck(ent))
 		return;
 
+	if (gi.argc() < 2)
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Usage: spawn <classname> [key value] ...\n");
+		return;
+	}
+
 	solid_t backup = ent->solid;
 	ent->solid = SOLID_NOT;
 	gi.linkentity(ent);
 
 	edict_t* other = G_Spawn();
-	other->classname = gi.argv(1);
+	if (!other)
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Failed to spawn entity\n");
+		ent->solid = backup;
+		gi.linkentity(ent);
+		return;
+	}
 
+	other->classname = gi.argv(1);
 	other->s.origin = ent->s.origin + (AngleVectors(ent->s.angles).forward * 24.f);
 	other->s.angles[1] = ent->s.angles[1];
 
-	spawn_temp_t st{};
-
-	if (gi.argc() > 3)
+	// Usar spawn_temp_t::empty directamente si no hay parámetros adicionales
+	if (gi.argc() <= 3)
 	{
-		for (int i = 2; i < gi.argc(); i += 2)
-			ED_ParseField(gi.argv(i), gi.argv(i + 1), other, st);
+		ED_CallSpawn(other, spawn_temp_t::empty);
 	}
-
-	ED_CallSpawn(other, st);
+	else
+	{
+		// Si hay parámetros adicionales, usar un spawn_temp_t local
+		spawn_temp_t st{};
+		for (int i = 2; i < gi.argc(); i += 2)
+		{
+			if (i + 1 < gi.argc()) // Asegurarse de que hay un valor para cada clave
+				ED_ParseField(gi.argv(i), gi.argv(i + 1), other, st);
+		}
+		ED_CallSpawn(other, st);
+	}
 
 	if (other->inuse)
 	{
@@ -425,7 +445,12 @@ void Cmd_Spawn_f(edict_t* ent)
 		end[2] += ent->viewheight;
 		end += (forward * 8192);
 
-		trace_t tr = gi.traceline(ent->s.origin + vec3_t{ 0.f, 0.f, (float)ent->viewheight }, end, other, MASK_SHOT | CONTENTS_MONSTERCLIP);
+		trace_t tr = gi.traceline(
+			ent->s.origin + vec3_t{ 0.f, 0.f, (float)ent->viewheight },
+			end,
+			other,
+			MASK_SHOT | CONTENTS_MONSTERCLIP);
+
 		other->s.origin = tr.endpos;
 
 		for (int32_t i = 0; i < 3; i++)
@@ -436,9 +461,12 @@ void Cmd_Spawn_f(edict_t* ent)
 				other->s.origin[i] += other->maxs[i] * -tr.plane.normal[i];
 		}
 
-		while (gi.trace(other->s.origin, other->mins, other->maxs, other->s.origin, other,
-			MASK_SHOT | CONTENTS_MONSTERCLIP)
-			.startsolid)
+		// Buscar una posición válida
+		int attempts = 0;
+		constexpr int MAX_ATTEMPTS = 10;
+		while (attempts++ < MAX_ATTEMPTS &&
+			gi.trace(other->s.origin, other->mins, other->maxs, other->s.origin, other,
+				MASK_SHOT | CONTENTS_MONSTERCLIP).startsolid)
 		{
 			float dx = other->mins[0] - other->maxs[0];
 			float dy = other->mins[1] - other->maxs[1];
@@ -453,16 +481,17 @@ void Cmd_Spawn_f(edict_t* ent)
 		}
 
 		if (other->inuse)
+		{
 			gi.linkentity(other);
-
-		if ((other->svflags & SVF_MONSTER) && other->think)
-			other->think(other);
+			// Inicializar monstruos si es necesario
+			if ((other->svflags & SVF_MONSTER) && other->think)
+				other->think(other);
+		}
 	}
 
 	ent->solid = backup;
 	gi.linkentity(ent);
 }
-
 #include "laser.h"
 #include "shared.h"
 

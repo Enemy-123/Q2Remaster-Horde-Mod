@@ -529,7 +529,7 @@ DIE(arachnid2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int da
 
 	M_SetAnimation(self, &arachnid2_move_death);
 
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		BossDeathHandler(self);
 	}
 }
@@ -564,7 +564,7 @@ void SP_monster_arachnid2(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 
-	 if (!strcmp(self->classname, "monster_arachnid2") && !self->spawnflags.has(SPAWNFLAG_IS_BOSS)) {
+	 if (!strcmp(self->classname, "monster_arachnid2") && !self->monsterinfo.IS_BOSS) {
 		self->s.scale = 0.85f;
 		self->health = 1000 * st.health_multiplier;
 		self->mins = { -41, -41, -17 };
@@ -604,7 +604,7 @@ void SP_monster_gm_arachnid(edict_t* self)
 	self->mins = { -48, -48, -20 };
 	self->maxs = { 48, 48, 48 };
 
-	if (!strcmp(self->classname, "monster_gm_arachnid") && self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (!strcmp(self->classname, "monster_gm_arachnid") && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->health = 2800 + (1.08 * current_wave_level);
 		self->mins = { -41, -41, -17 };
 		self->maxs = { 41, 41, 41 };

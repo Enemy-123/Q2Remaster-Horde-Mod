@@ -538,10 +538,10 @@ void WidowRail(edict_t* self)
 {
 	vec3_t start;
 	vec3_t dir;
-	vec3_t forward, right, up;
+	vec3_t forward, right;
 	monster_muzzleflash_id_t flash;
 
-	AngleVectors(self->s.angles, forward, right, up);
+	AngleVectors(self->s.angles, forward, right, nullptr);
 
 	// Determinar qué tipo de disparo es basado en la animación actual
 	if (self->monsterinfo.active_move == &widow_move_attack_rail_l)
@@ -551,9 +551,14 @@ void WidowRail(edict_t* self)
 	else
 		flash = MZ2_WIDOW_RAIL;
 
-	// Obtener el offset escalado para la posición del disparo
-	vec3_t scaled_offset = GetScaledFlashOffset(self, monster_flash_offset[flash]);
-	start = G_ProjectSource2(self->s.origin, scaled_offset, forward, right, up);
+	// Get the base flash offset and scale it if necessary
+	vec3_t scaled_offset = monster_flash_offset[flash];
+	if (!strcmp(self->classname, "monster_widow1")) {
+		scaled_offset = scaled_offset * self->s.scale;
+	}
+
+	// Use G_ProjectSource (not G_ProjectSource2) to maintain original behavior
+	start = G_ProjectSource(self->s.origin, scaled_offset, forward, right);
 
 	// Calcular dirección hacia el objetivo guardado
 	dir = self->pos1 - start;
@@ -561,7 +566,7 @@ void WidowRail(edict_t* self)
 
 	const bool is_widow1 = !strcmp(self->classname, "monster_widow1");
 	monster_fire_railgun(self, start, dir,
-		is_widow1 ? 60 : 90 * widow_damage_multiplier,
+		is_widow1 ? 60 : WIDOW_RAIL_DAMAGE * widow_damage_multiplier,
 		100, flash);
 
 	self->timestamp = level.time + RAIL_TIME;
@@ -1062,7 +1067,7 @@ void widow_dead(edict_t* self)
 
 DIE(widow_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
 	OnEntityDeath(self);

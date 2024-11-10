@@ -714,7 +714,7 @@ static bool CanUseVampireEffect(edict_t* attacker) {
 	}
 
 	return (attacker->monsterinfo.bonus_flags & (BF_STYGIAN | BF_POSSESSED)) &&
-		!attacker->spawnflags.has(SPAWNFLAG_IS_BOSS);
+		!attacker->monsterinfo.IS_BOSS;
 }
 
 void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {

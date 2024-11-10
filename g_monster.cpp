@@ -253,7 +253,7 @@ bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 		return false;
 
 	if (g_horde->integer) {
-		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET) || current_wave_level <= 10 || self->spawnflags.has(SPAWNFLAG_IS_BOSS);
+		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA || mod.id == MOD_TURRET) || current_wave_level <= 10 || self->monsterinfo.IS_BOSS;
 	}
 	else {
 		return (mod.id == MOD_CHAINFIST || mod.id == MOD_TESLA) || skill->integer < 3;
@@ -1281,7 +1281,7 @@ void G_Monster_ScaleCoopHealth(edict_t* self)
 
 
 	// No escalar si es un jefe
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	if (self->monsterinfo.IS_BOSS)
 		return;;
 
 	// already scaled
@@ -1316,7 +1316,7 @@ void G_Monster_CheckCoopHealthScaling()
 	for (auto monster : entity_iterable_t<monster_filter_t>())
 	{
 		// No escalar si es un jefe
-		if (monster->spawnflags.has(SPAWNFLAG_IS_BOSS))
+		if (monster->monsterinfo.IS_BOSS)
 			continue;
 
 		// Aplicar el escalado

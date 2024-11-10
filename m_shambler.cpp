@@ -373,7 +373,7 @@ void ShamblerCastLightning(edict_t* self)
 	start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// calc direction to where we targted
-	if (g_hardcoop->integer || current_wave_level >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+	if (g_hardcoop->integer || current_wave_level >= 22 || self->monsterinfo.IS_BOSS)
 	{
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 	}
@@ -431,7 +431,7 @@ void ShamblerCastFireballs(edict_t* self)
 	{
 		// Calculate spread
 		float spread = 0.6f;
-		if (g_hardcoop->integer || current_wave_level >= 22 || self->spawnflags.has(SPAWNFLAG_IS_BOSS))
+		if (g_hardcoop->integer || current_wave_level >= 22 || self->monsterinfo.IS_BOSS)
 			spread = 0.3f;
 
 		// Calculate direction with some spread
@@ -678,7 +678,7 @@ MMOVE_T(shambler_move_death) = { FRAME_death01, FRAME_death11, shambler_frames_d
 
 DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED))
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
 	OnEntityDeath(self);
@@ -791,7 +791,7 @@ void SP_monster_shamblerkl(edict_t* self)
 		self->health = 6500 + (1.08 * current_wave_level);
 		self->gib_health = -190;
 	}
-	if (self->spawnflags.has(SPAWNFLAG_IS_BOSS) && !self->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->gib_health = -3500;
 		}
 		self->yaw_speed = 65;

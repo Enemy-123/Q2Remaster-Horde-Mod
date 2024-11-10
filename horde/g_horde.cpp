@@ -1539,7 +1539,7 @@ void Horde_Init() {
 		edict_t* boss = *it;
 		if (boss && boss->inuse) {
 			// Asegurar que el boss está marcado como manejado
-			boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
+			boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 			OnEntityRemoved(boss);
 		}
 		it = auto_spawned_bosses.erase(it);
@@ -1646,14 +1646,14 @@ void BossDeathHandler(edict_t* boss) {
 	if (!g_horde->integer ||
 		!boss ||
 		!boss->inuse ||
-		!boss->spawnflags.has(SPAWNFLAG_IS_BOSS) ||
-		boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED) ||
-		boss->health > 0) {  // Añadir verificación explícita de salud
+		!boss->monsterinfo.IS_BOSS ||  // Cambiado de spawnflags
+		boss->monsterinfo.BOSS_DEATH_HANDLED ||  // Cambiado de spawnflags
+		boss->health > 0) {
 		return;
 	}
 
-	// Marcar el boss como manejado inmediatamente para prevenir múltiples drops
-	boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
+	// Marcar el boss como manejado inmediatamente
+	boss->monsterinfo.BOSS_DEATH_HANDLED = true;  // Cambiado de spawnflags
 
 	OnEntityDeath(boss);
 	OnEntityRemoved(boss);
@@ -1758,10 +1758,10 @@ void boss_die(edict_t* boss) {
 
 	// Verificación más estricta para la muerte del boss
 	if (g_horde->integer &&
-		boss->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
+		boss->monsterinfo.IS_BOSS &&
 		boss->health <= 0 &&
 		auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() &&
-		!boss->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		!boss->monsterinfo.BOSS_DEATH_HANDLED) {
 
 		BossDeathHandler(boss);
 
@@ -1784,8 +1784,8 @@ static bool Horde_AllMonstersDead() {
 		if (!ent->deadflag && ent->health > 0) {
 			return false;
 		}
-		if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) && ent->health <= 0) {
-			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() && !ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+		if (ent->monsterinfo.IS_BOSS && ent->health <= 0) {
+			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() && !ent->monsterinfo.BOSS_DEATH_HANDLED) {
 				boss_die(ent);
 			}
 		}
@@ -1915,8 +1915,8 @@ void Horde_CleanBodies() {
 
 		if (should_clean) {
 			// Manejar muerte de jefes si es necesario
-			if (ent->spawnflags.has(SPAWNFLAG_IS_BOSS) &&
-				!ent->spawnflags.has(SPAWNFLAG_BOSS_DEATH_HANDLED)) {
+			if (ent->monsterinfo.IS_BOSS &&
+				!ent->monsterinfo.BOSS_DEATH_HANDLED) {
 				BossDeathHandler(ent);
 			}
 			else {
@@ -2139,7 +2139,10 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 	}
 
 	// Configuración inicial del boss
-	self->spawnflags |= SPAWNFLAG_IS_BOSS | SPAWNFLAG_MONSTER_SUPER_STEP;
+	self->monsterinfo.IS_BOSS = true;
+	//self->monsterinfo.BOSS_DEATH_HANDLED = false;
+
+	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_sentrygun_target_time = 0_ms;
 
 	// Proceso de spawn seguro
@@ -2461,7 +2464,7 @@ void ResetGame() {
 		edict_t* boss = *it;
 		if (boss && boss->inuse) {
 			// Asegurarse de que el boss esté marcado como manejado
-			boss->spawnflags |= SPAWNFLAG_BOSS_DEATH_HANDLED;
+			boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 			// Limpiar cualquier estado pendiente
 			OnEntityRemoved(boss);
 		}
@@ -2827,7 +2830,7 @@ static edict_t* SpawnMonsters() {
 		edict_t* e = &g_edicts[i];
 		if (!e->inuse || !e->classname ||
 			strcmp(e->classname, "info_player_deathmatch") != 0 ||
-			e->spawnflags.has(SPAWNFLAG_IS_BOSS))
+			e->monsterinfo.IS_BOSS)
 			continue;
 
 		auto it = spawnPointsData.find(e);
