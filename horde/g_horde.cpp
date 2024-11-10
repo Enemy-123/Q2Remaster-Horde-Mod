@@ -1387,14 +1387,16 @@ void Horde_PreInit() {
 		gi.cvar_set("fraglimit", "0");
 	}
 
+	// Configuración automática cuando horde está activo
 	if (g_horde->integer) {
-		gi.Com_Print("Horde mode must be DM.\n");
-		gi.cvar_set("deathmatch", "1");
-		gi.cvar_set("ctf", "0");
-		gi.cvar_set("teamplay", "0");
-		gi.cvar_set("coop", "0");
+		gi.Com_Print("Initializing Horde mode settings...\n");
+
+		// Configuración de tiempo y límites
 		gi.cvar_set("timelimit", "50");
 		gi.cvar_set("fraglimit", "0");
+		gi.cvar_set("capturelimit", "0");
+
+		// Configuración de jugabilidad
 		gi.cvar_set("sv_target_id", "1");
 		gi.cvar_set("g_speedstuff", "2.3f");
 		gi.cvar_set("sv_eyecam", "1");
@@ -1402,18 +1404,24 @@ void Horde_PreInit() {
 		gi.cvar_set("g_disable_player_collision", "1");
 		gi.cvar_set("g_dm_no_self_damage", "1");
 		gi.cvar_set("g_allow_techs", "1");
+
+		// Configuración de armas y daño
 		gi.cvar_set("g_no_nukes", "0");
+		gi.cvar_set("g_instant_weapon_switch", "1");
+		gi.cvar_set("g_dm_no_quad_drop", "0");
+		gi.cvar_set("g_dm_no_quadfire_drop", "0");
+
+		// Configuración del hook/grapple
 		gi.cvar_set("g_use_hook", "1");
-		gi.cvar_set("set g_hook_wave", "1");
+		gi.cvar_set("g_hook_wave", "1");
 		gi.cvar_set("hook_pullspeed", "1200");
 		gi.cvar_set("hook_speed", "3000");
 		gi.cvar_set("hook_sky", "1");
 		gi.cvar_set("g_allow_grapple", "1");
 		gi.cvar_set("g_grapple_fly_speed", "3000");
 		gi.cvar_set("g_grapple_pull_speed", "1200");
-		gi.cvar_set("g_instant_weapon_switch", "1");
-		gi.cvar_set("g_dm_no_quad_drop", "0");
-		gi.cvar_set("g_dm_no_quadfire_drop", "0");
+
+		// Configuración de gameplay específica
 		gi.cvar_set("g_startarmor", "0");
 		gi.cvar_set("g_vampire", "0");
 		gi.cvar_set("g_ammoregen", "0");
@@ -1425,7 +1433,8 @@ void Horde_PreInit() {
 		gi.cvar_set("g_chaotic", "0");
 		gi.cvar_set("g_insane", "0");
 		gi.cvar_set("g_hardcoop", "0");
-		gi.cvar_set("capturelimit", "0");
+
+		// Configuración de IA y bots
 		gi.cvar_set("g_dm_spawns", "0");
 		gi.cvar_set("g_damage_scale", "1");
 		gi.cvar_set("ai_allow_dm_spawn", "1");
@@ -1436,9 +1445,16 @@ void Horde_PreInit() {
 		gi.cvar_set("g_coop_squad_respawn", "1");
 		gi.cvar_set("g_iddmg", "1");
 
+		// Activar monstruos automáticamente
+		gi.cvar_set("dm_monsters", "0");
+
+		// Resetear el estado del juego
 		HandleResetEvent();
+
+		// Mensaje de confirmación
+		gi.Com_Print("Horde mode initialized successfully.\n");
 	}
-}
+
 
 // Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
 inline int32_t GetNumHumanPlayers() {
