@@ -1297,6 +1297,13 @@ THINK(tesla_think) (edict_t* ent) -> void
 	}
 }
 
+// Constantes para ajustar el comportamiento del rebote
+constexpr float TESLA_BOUNCE_MULTIPLIER = 1.25f;    // Multiplicador base del rebote
+constexpr float TESLA_MIN_BOUNCE_SPEED = 100.0f;    // Velocidad mínima después de un rebote
+constexpr float TESLA_BOUNCE_RANDOM = 40.0f;        // Factor de aleatoriedad en el rebote
+constexpr float TESLA_VERTICAL_BOOST = 150.0f;      // Impulso vertical adicional
+
+
 // Modificamos la función tesla_lava para que maneje la adhesión como prox_land
 TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
@@ -1304,85 +1311,63 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	movetype_t movetype = MOVETYPE_NONE;
 	int stick_ok = 0;
 
-	// No explotar al tocar clientes o teslas del mismo equipo
-	if (other->client || other->svflags & SVF_MONSTER) {
-		// Si toca un cliente, simplemente rebotar
+	// No explotar al tocar clientes, monstruos o teslas del mismo equipo
+	bool should_bounce = other->client || (other->svflags & SVF_MONSTER);
+
+	// Verificar si es otra tesla (del mismo equipo o no)
+	if (strcmp(other->classname, "tesla_mine") == 0) {
+		// Siempre rebotar al tocar otras teslas
+		should_bounce = true;
+	}
+
+	if (should_bounce) {
 		if (tr.plane.normal) {
 			vec3_t out;
-			float backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
+			// Aumentar el backoff para más rebote
+			float backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
 
+			// Calcular dirección base del rebote
 			for (int i = 0; i < 3; i++) {
 				float change = tr.plane.normal[i] * backoff;
 				out[i] = ent->velocity[i] - change;
-				if (out[i] > -0.1f && out[i] < 0.1f)
-					out[i] = 0;
-			}
 
-			ent->velocity = out;
-		}
-		return;
-	}
+				// Añadir un componente aleatorio al rebote
+				out[i] += crandom() * TESLA_BOUNCE_RANDOM;
 
-	// Verificar si es otra tesla del mismo equipo
-	if (strcmp(other->classname, "tesla_mine") == 0) {
-		// Si ambas teslas tienen el mismo equipo, rebotar
-		if (ent->team && other->team && strcmp(ent->team, other->team) == 0) {
-			if (tr.plane.normal) {
-				vec3_t out;
-				float backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
-
-				for (int i = 0; i < 3; i++) {
-					float change = tr.plane.normal[i] * backoff;
-					out[i] = ent->velocity[i] - change;
-					if (out[i] > -0.1f && out[i] < 0.1f)
-						out[i] = 0;
+				// Asegurar una velocidad mínima
+				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0) {
+					out[i] = (out[i] < 0 ? -TESLA_MIN_BOUNCE_SPEED : TESLA_MIN_BOUNCE_SPEED);
 				}
-
-				ent->velocity = out;
-			}
-			return;
-		}
-	}
-
-	// Verificar si golpea el cielo
-	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
-		G_FreeEdict(ent);
-		return;
-	}
-
-	// Manejo de colisión con puertas y otras entidades móviles
-	if (other != world) {
-		// Si es una entidad móvil (como una puerta)
-		if (other->movetype == MOVETYPE_PUSH) {
-			vec3_t out;
-			float backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
-
-			// Calcular vector de rebote
-			for (int i = 0; i < 3; i++) {
-				float change = tr.plane.normal[i] * backoff;
-				out[i] = ent->velocity[i] - change;
-				if (out[i] > -0.1f && out[i] < 0.1f)
-					out[i] = 0;
 			}
 
-			// Si el rebote es muy vertical, explotar
-			if (out[2] > 60) {
-				tesla_blow(ent);
-				return;
+			// Añadir un impulso vertical adicional para evitar que se quede en el suelo
+			if (tr.plane.normal[2] > 0) { // Si golpea algo desde abajo
+				out[2] += TESLA_VERTICAL_BOOST;
 			}
 
-			// Aplicar el rebote
+			// Asegurar una velocidad mínima total
+			if (out.length() < TESLA_MIN_BOUNCE_SPEED) {
+				out.normalize();
+				out = out * TESLA_MIN_BOUNCE_SPEED;
+			}
+
+			// Aplicar la nueva velocidad
 			ent->velocity = out;
+
+			// Añadir algo de rotación aleatoria
+			ent->avelocity[0] = crandom() * 200;
+			ent->avelocity[1] = crandom() * 200;
+			ent->avelocity[2] = crandom() * 200;
 
 			// Reproducir sonido de rebote
-			if (ent->velocity.length()) {
+			if (ent->velocity.length() > 0) {
 				if (frandom() > 0.5f)
 					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
 				else
 					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
 			}
-			return;
 		}
+		return;
 	}
 	if (tr.plane.normal) {
 		float offset;
