@@ -1995,7 +1995,7 @@ void BossDeathHandler(edict_t* boss) {
 		return;
 	}
 
-	if (brandom()) {
+	if (frandom() < 0.65f) {
 		OldBossDeathHandler(boss);
 		return;
 	}
@@ -2146,15 +2146,11 @@ static void CheckAndRestoreMonsterAlpha(edict_t* ent) {
 		// Restaurar el alpha y otros estados relevantes
 		ent->s.alpha = 0.0f;
 		ent->s.renderfx &= ~RF_TRANSLUCENT;
-
 		// Asegurar que el monstruo puede tomar daño
 		ent->takedamage = true;
-
 		// Actualizar la entidad
 		gi.linkentity(ent);
 
-		//gi.Com_PrintFmt("PRINT: Restored alpha for monster {}\n",
-		//	ent->classname);
 	}
 }
 
@@ -2179,7 +2175,7 @@ static THINK(fade_out_think)(edict_t* self) -> void {
 	}
 
 	// Calcular el factor de fade usando el mismo método que spawngrow
-	float t = 1.f - ((level.time - self->teleport_time).seconds() / self->wait);
+	const float t = 1.f - ((level.time - self->teleport_time).seconds() / self->wait);
 	self->s.alpha = t * t; // Usar t^2 para un fade más suave como spawngrow
 
 	self->nextthink = level.time + FRAME_TIME_MS;

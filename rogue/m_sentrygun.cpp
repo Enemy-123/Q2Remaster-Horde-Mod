@@ -256,6 +256,9 @@ MMOVE_T(turret2_move_stand) = { FRAME_stand01, FRAME_stand02, turret2_frames_sta
 
 MONSTERINFO_STAND(turret2_stand) (edict_t* self) -> void
 {
+
+	TurretSparks(self);
+
 	M_SetAnimation(self, &turret2_move_stand);
 	if (self->target_ent)
 	{
@@ -708,13 +711,13 @@ void TurretSparks(edict_t* self)
 	if (!self || !self->inuse)
 		return;
 
-	if (self->health <= (self->max_health / 3)) {
+	if (self->health <= (self->max_health / 2)) {
 		if (level.time >= self->monsterinfo.next_duck_time) {
 			vec3_t forward, right, up;
 			AngleVectors(self->s.angles, forward, right, up);
 
 			// Calculate spark origin using offset
-			const	vec3_t spark_origin = self->s.origin + (forward * 20.0f);
+			const	vec3_t spark_origin = self->s.origin + (forward * 18.0f);
 
 			vec3_t dir;
 			if (!self->enemy) {
@@ -733,7 +736,7 @@ void TurretSparks(edict_t* self)
 			gi.WriteByte(SPLASH_SPARKS);
 			gi.multicast(spark_origin, MULTICAST_PVS, false);
 
-			self->monsterinfo.next_duck_time = level.time + random_time(2_sec, 7_sec);
+			self->monsterinfo.next_duck_time = level.time + random_time(2_sec, 4.5_sec);
 		}
 	}
 }
@@ -1015,6 +1018,9 @@ USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 
 MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 {
+
+	TurretSparks(self);
+
 	if (!self->enemy || self->enemy->health <= 0) {
 		return false;
 	}
@@ -1246,14 +1252,6 @@ void SP_monster_sentrygun(edict_t* self)
 	self->flags |= FL_MECHANICAL;
 	self->pain = turret2_pain;
 	self->die = turret2_die;
-
-	//if (self->client && !G_ShouldPlayersCollide(true) || self->owner->client && !G_ShouldPlayersCollide(true)) {
-	//	self->clipmask &= ~CONTENTS_PLAYER;
-	//}
-
-	//// map designer didn't specify weapon type. set it now.
-	//if (!self->spawnflags.has(SPAWNFLAG_TURRET2_WEAPONCHOICE) && current_wave_level <= 5)
-	//	self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 
 	// map designer didn't specify weapon type. set it now.
 	const float randomValue = frandom();

@@ -3931,8 +3931,6 @@ extern bool ClientIsSpectating(const gclient_t* cl) noexcept;
 extern bool EntIsSpectating(const edict_t* ent) noexcept;
 
 extern 	bool FindMTarget(edict_t* self);
-
-extern void boss_die(edict_t* boss);
 extern void BossDeathHandler(edict_t* boss);
 
 extern void AllowNextWaveAdvance() noexcept;

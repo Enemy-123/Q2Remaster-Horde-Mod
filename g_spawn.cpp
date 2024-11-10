@@ -501,27 +501,19 @@ static const std::initializer_list<spawn_t> spawns = {
 
 // clang-format on
 
-/*static*/ const spawn_temp_t spawn_temp_t::empty = {};
-
 static const spawn_temp_t* current_st;
-static edict_t* current_spawning_entity = nullptr;
+/*static*/ const spawn_temp_t spawn_temp_t::empty = {};
 
 const spawn_temp_t& ED_GetSpawnTemp()
 {
-    if (!current_st)
-    {
-        gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
-        
-        if (current_spawning_entity && current_spawning_entity->classname) {
-            gi.Com_PrintFmt("Entity being spawned: {}\n", current_spawning_entity->classname);
-        } else {
-            gi.Com_Print("No entity classname available\n");
-        }
-        
-        return spawn_temp_t::empty;
-    }
-    return *current_st;
+	if (!current_st)
+	{
+	//	gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
+		return spawn_temp_t::empty;
+	}
+	return *current_st;
 }
+
 #include <stdlib.h>
 #include "shared.h"
 #include <cstdlib>
