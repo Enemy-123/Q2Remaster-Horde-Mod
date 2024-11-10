@@ -1373,6 +1373,7 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 void Horde_PreInit() {
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
+	//gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
 	if (!g_horde->integer) return;
 
@@ -1525,6 +1526,13 @@ static void PrecacheWaveSounds() noexcept {
 	}
 }
 
+//Capping resets on map end
+
+static bool hasBeenReset = false;
+void AllowReset() {
+	hasBeenReset = false;
+}
+
 void Horde_Init() {
 
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
@@ -1548,6 +1556,7 @@ void Horde_Init() {
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
+	AllowReset();
 	// Resetear el estado del juego para la horda
 	ResetGame();
 
@@ -2432,13 +2441,6 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	}
 
 	return false;
-}
-
-//Capping resets on map end
-
-static bool hasBeenReset = false;
-void AllowReset() {
-	hasBeenReset = false;
 }
 
 /// ///
