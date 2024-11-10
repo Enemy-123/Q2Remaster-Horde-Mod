@@ -231,8 +231,8 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 	// Mejores multiplicadores por tamaño de mapa
 	const float mapSizeMultiplier = mapSize.isSmallMap ? 1.3f :
 		mapSize.isBigMap ? 1.5f : 1.4f;
-	const int32_t maxQueued = mapSize.isSmallMap ? 40 :
-		mapSize.isBigMap ? 55 : 40;
+	const int32_t maxQueued = mapSize.isSmallMap ? 30 :
+		mapSize.isBigMap ? 45 : 35;
 	baseQueued *= mapSizeMultiplier;
 	// Bonus exponencial mejorado
 	if (lvl > 20) {
@@ -275,7 +275,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 
 	// Ajuste de spawn rate basado en jugadores
 	if (humanPlayers > 1) {
-		float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
+		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
 		SPAWN_POINT_COOLDOWN *= playerAdjustment;
 	}
 
@@ -400,15 +400,15 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 
 	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
-			params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 24;
-			params.timeThreshold = random_time(18_sec, 24_sec);
+			params.maxMonsters = (numHumanPlayers >= 3) ? 26 : 22;
+			params.timeThreshold = random_time(20_sec, 26_sec);
 		}
 		else if (mapSize.isSmallMap) {
 			params.maxMonsters = (numHumanPlayers >= 3) ? 12 : 9;
 			params.timeThreshold = random_time(14_sec, 20_sec);
 		}
 		else {
-			params.maxMonsters = (numHumanPlayers >= 3) ? 17 : 15;
+			params.maxMonsters = (numHumanPlayers >= 3) ? 17 : 13;
 			params.timeThreshold = random_time(18_sec, 25_sec);
 		}
 		};
@@ -429,7 +429,7 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 	// Ajuste basado en dificultad - más agresivo
 	if (g_chaotic->integer || g_insane->integer) {
 		if (numHumanPlayers <= 3) {
-			params.timeThreshold += random_time(3_sec, 6_sec); // Reducido de 5-10 a 3-6
+			params.timeThreshold += random_time(5_sec, 8_sec); // Reducido de 5-10 a 5-8
 		}
 		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
 	}
@@ -1203,7 +1203,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
 	// Verificar primero si el punto está en cooldown
-	auto it = spawnPointsData.find(const_cast<edict_t*>(spawn_point));
+	const auto it = spawnPointsData.find(const_cast<edict_t*>(spawn_point));
 	if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
 		if (level.time < it->second.cooldownEndsAt) {
 			return true;
@@ -1227,7 +1227,7 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* mons
 	}
 
 	// Verificar colisiones con jugadores y monstruos activos
-	for (auto ent : active_monsters()) {
+	for (const auto ent : active_monsters()) {
 		if (ent != monster && // Ignorar la propia entidad si se proporciona
 			boxes_intersect(mins, maxs, ent->absmin, ent->absmax)) {
 			return true; // Punto ocupado
