@@ -49,7 +49,18 @@ uint16_t cachedRemainingMonsters = 0;
 uint32_t g_totalMonstersInWave = 0;
 
 gtime_t horde_message_end_time = 0_sec;
-gtime_t SPAWN_POINT_COOLDOWN = 3.9_sec; // Cooldown en segundos para los puntos de spawn 3.0
+gtime_t SPAWN_POINT_COOLDOWN = 2.2_sec; //spawns Cooldown 
+
+// Añadir cerca de las otras constexpr al inicio del archivo
+constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
+	if (isSmallMap)
+		return 0.5_sec;  // Mapas pequeños necesitan más cooldown
+	else if (isBigMap)
+		return 2.5_sec;  // Mapas grandes tienen menos cooldown
+	else
+		return 1.5_sec;  // Mapas medianos tienen cooldown intermedio
+}
+
 
 cvar_t* g_horde;
 
@@ -1100,7 +1111,6 @@ static void CleanUpSpawnPointsData() {
 }
 
 
-// Function to update spawn point cooldowns and the last spawn times for the monster
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
 	data.lastSpawnTime = level.time;
@@ -1108,6 +1118,7 @@ static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	data.isTemporarilyDisabled = true;
 	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 }
+
 // Function to increase spawn attempts and adjust cooldown as necessary
 static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
@@ -1156,6 +1167,14 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
+	// Verificar primero si el punto está en cooldown
+	auto it = spawnPointsData.find(const_cast<edict_t*>(spawn_point));
+	if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
+		if (level.time < it->second.cooldownEndsAt) {
+			return true;
+		}
+	}
+
 	// Factor de multiplicación para garantizar espacio adicional
 	constexpr float space_multiplier = 2.0f;  // Ajustado a 1.5 para balance
 
@@ -1190,8 +1209,20 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* mons
 	return false; // Punto libre
 }
 const char* G_HordePickMonster(edict_t* spawn_point) {
-	// Verificación inicial de condiciones de spawn
-	if (spawnPointsData[spawn_point].isTemporarilyDisabled || IsSpawnPointOccupied(spawn_point)) {
+	// Verificar el cooldown del spawn point de manera más estricta
+	auto& data = spawnPointsData[spawn_point];
+	if (data.isTemporarilyDisabled) {
+		if (level.time < data.cooldownEndsAt) {
+			return nullptr;
+		}
+		// Si el cooldown ha terminado, resetear el estado
+		data.isTemporarilyDisabled = false;
+		data.attempts = 0;
+	}
+
+	// Verificar si el punto está realmente ocupado
+	if (IsSpawnPointOccupied(spawn_point)) {
+		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
@@ -2170,9 +2201,20 @@ void ResetCooldowns() noexcept {
 	lastSpawnPointTime.clear();
 	lastMonsterSpawnTime.clear();
 
-	// Usar SPAWN_POINT_COOLDOWN como base
-	SPAWN_POINT_COOLDOWN = std::max(3.0_sec,
-		gtime_t::from_sec(g_horde_local.level > 25 ? 2.5f : 3.9f));
+	const MapSize& mapSize = GetMapSize(level.mapname);
+
+	// Usar la función helper para establecer el cooldown base
+	gtime_t baseCooldown = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+
+	// Ajustar el cooldown según el nivel de la ola
+	if (g_horde_local.level > 25) {
+		baseCooldown = std::max(2.5_sec, baseCooldown * 0.8f);
+	}
+	else if (g_horde_local.level > 15) {
+		baseCooldown = std::max(2.8_sec, baseCooldown * 0.9f);
+	}
+
+	SPAWN_POINT_COOLDOWN = baseCooldown;
 }
 
 void ResetAllSpawnAttempts() noexcept {
@@ -2713,18 +2755,23 @@ static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 static edict_t* SpawnMonsters() {
-	// Pre-reservar el array de spawn points
 	static edict_t* available_spawns[MAX_SPAWN_POINTS];
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	size_t spawn_count = 0;
 
-	// Mejorar la recolección de puntos de spawn usando iteración directa
+	// Recolectar solo puntos de spawn que no estén en cooldown
 	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
 		edict_t* e = &g_edicts[i];
 		if (!e->inuse || !e->classname ||
 			strcmp(e->classname, "info_player_deathmatch") != 0 ||
 			e->spawnflags.has(SPAWNFLAG_IS_BOSS))
 			continue;
+
+		auto it = spawnPointsData.find(e);
+		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
+			if (level.time < it->second.cooldownEndsAt)
+				continue;
+		}
 
 		available_spawns[spawn_count++] = e;
 	}
@@ -3048,11 +3095,13 @@ static void SendCleanupMessage(WaveEndReason reason) {
 
 // Add this function in the appropriate source file that deals with spawn management.
 static void CheckAndResetDisabledSpawnPoints() {
+	const gtime_t currentTime = level.time;
 	for (auto& [spawn_point, data] : spawnPointsData) {
-		if (data.isTemporarilyDisabled && level.time >= data.cooldown) {
-			data.isTemporarilyDisabled = false;  // Restablecer el punto de spawn
-			data.attempts = 0;  // Resetear los intentos fallidos
-			//	gi.Com_PrintFmt("PRINT: SpawnPoint {} is active again.\n", spawn_point->s.origin);
+		if (data.isTemporarilyDisabled && currentTime >= data.cooldownEndsAt) {
+			data.isTemporarilyDisabled = false;
+			data.attempts = 0;
+			data.cooldownEndsAt = 0_sec;
+			spawn_point->nextthink = 0_sec;
 		}
 	}
 }

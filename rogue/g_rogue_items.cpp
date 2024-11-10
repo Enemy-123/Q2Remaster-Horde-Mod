@@ -63,6 +63,31 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	fire_nuke(ent, start, forward, speed);
 }
 
+// Variable estática para rastrear el último uso del teleport por bots
+static gtime_t last_bot_teleport_time = 0_sec;
+constexpr gtime_t BOT_TELEPORT_COOLDOWN = 15_sec;  // Cooldown en segundos
+
+static bool TryBotTeleport(const edict_t* ent)
+{
+	// Si es un bot (SVF_BOT flag)
+	if (ent->svflags & SVF_BOT)
+	{
+		// Verificar si ha pasado suficiente tiempo desde el último uso
+		if ((level.time - last_bot_teleport_time) < BOT_TELEPORT_COOLDOWN)
+		{
+			// No ha pasado suficiente tiempo - mostrar tiempo restante
+			float remaining = (BOT_TELEPORT_COOLDOWN - (level.time - last_bot_teleport_time)).seconds();
+//			gi.Client_Print(ent, PRINT_HIGH, "Bot teleport on cooldown. Please wait %.1f seconds.\n", remaining);
+			return false;
+		}
+
+		// Actualizar el tiempo del último uso
+		last_bot_teleport_time = level.time;
+	}
+
+	return true;
+}
+
 void Use_TeleportSelf(edict_t* ent, gitem_t* item)
 {
 	if (!g_horde->integer)
@@ -70,8 +95,15 @@ void Use_TeleportSelf(edict_t* ent, gitem_t* item)
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to Teleport Away\n");
 		return;
 	}
+
 	if (ClientIsSpectating(ent->client)) {
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to Teleport\n");
+		return;
+	}
+
+	// Verificar el cooldown para bots antes de permitir el teleport
+	if (!TryBotTeleport(ent))
+	{
 		return;
 	}
 
@@ -81,8 +113,31 @@ void Use_TeleportSelf(edict_t* ent, gitem_t* item)
 	}
 }
 
-
+// Variable estática para rastrear el último uso de sentry por bots
+static gtime_t last_bot_sentry_time = 0_sec;
+constexpr gtime_t BOT_SENTRY_COOLDOWN = 5_sec;
 constexpr int MAX_SENTRIES = 3;
+
+static bool TryBotSentry(const edict_t* ent)
+{
+	// Si es un bot (SVF_BOT flag)
+	if (ent->svflags & SVF_BOT)
+	{
+		// Verificar si ha pasado suficiente tiempo desde el último uso
+		if ((level.time - last_bot_sentry_time) < BOT_SENTRY_COOLDOWN)
+		{
+			// No ha pasado suficiente tiempo - mostrar tiempo restante
+			float remaining = (BOT_SENTRY_COOLDOWN - (level.time - last_bot_sentry_time)).seconds();
+//			gi.Client_Print(ent, PRINT_HIGH, "Bot sentry on cooldown. Please wait %.1f seconds.\n", remaining);
+			return false;
+		}
+
+		// Actualizar el tiempo del último uso
+		last_bot_sentry_time = level.time;
+	}
+
+	return true;
+}
 
 void Use_SentryGun(edict_t* ent, gitem_t* item)
 {
@@ -91,11 +146,17 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to spawn a Sentry-Gun\n");
 		return;
 	}
-
 	if (ClientIsSpectating(ent->client)) {
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to spawn a Sentry-Gun\n");
 		return;
 	}
+
+	// Verificar el cooldown para bots antes de cualquier otra comprobación
+	if (!TryBotSentry(ent))
+	{
+		return;
+	}
+
 	// Comprueba si el jugador puede colocar una nueva torreta
 	if (ent->svflags & SVF_BOT) {
 		if (ent->client->num_sentries >= 1) {
@@ -112,7 +173,6 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 	vec3_t forward, right;
 	vec3_t createPt, spawnPt;
 	vec3_t ang;
-
 	// Establecer el ángulo de spawn basado en la dirección del jugador
 	ang[PITCH] = ent->client->v_angle[PITCH];
 	ang[YAW] = ent->client->v_angle[YAW];
@@ -124,6 +184,7 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 	if (forwardturret < 22.f) {
 		forwardturret = 22.f;
 	}
+
 	// Calcular el punto inicial de creación
 	createPt = ent->s.origin + (forward * forwardturret);
 
@@ -145,13 +206,11 @@ void Use_SentryGun(edict_t* ent, gitem_t* item)
 		ent->client->pers.inventory[item->id]--;
 		// Incrementa el número de torretas del jugador
 		ent->client->num_sentries++;
-
 		// Nuevo mensaje después de construir la torreta
 		gi.LocClient_Print(ent, PRINT_HIGH, "Sentry gun spawned. You have {}/{} sentry guns.\n",
 			ent->client->num_sentries, MAX_SENTRIES);
 	}
 }
-
 bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 {
 	int quantity;
