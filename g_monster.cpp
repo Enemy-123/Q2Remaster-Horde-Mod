@@ -1459,7 +1459,7 @@ stuck_result_t G_FixStuckObject(edict_t* self, vec3_t check)
 
 	self->s.origin = check;
 
-	if (result == stuck_result_t::FIXED/* && developer->integer*/)
+	if (result == stuck_result_t::FIXED && developer->integer)
 		gi.Com_PrintFmt("fixed stuck {}\n", *self);
 
 	return result;

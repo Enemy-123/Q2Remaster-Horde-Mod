@@ -13,12 +13,12 @@ Toss, bounce, and fly movement. When on ground and no velocity, do nothing. With
 slide.
 =============
 */
-void SV_Physics_NewToss_Rogue(edict_t *ent)
+void SV_Physics_NewToss(edict_t* ent)
 {
 	trace_t trace;
 	vec3_t	move;
 	//	float		backoff;
-	edict_t *slave;
+	edict_t* slave;
 	bool	 wasinwater;
 	bool	 isinwater;
 	float	 speed, newspeed;
@@ -66,7 +66,7 @@ void SV_Physics_NewToss_Rogue(edict_t *ent)
 	speed = ent->velocity.length();
 	if (ent->waterlevel) // friction for water movement
 	{
-		newspeed = speed - (sv_waterfriction * 6 * (float) ent->waterlevel);
+		newspeed = speed - (sv_waterfriction * 6 * (float)ent->waterlevel);
 		if (newspeed < 0)
 			newspeed = 0;
 		newspeed /= speed;
