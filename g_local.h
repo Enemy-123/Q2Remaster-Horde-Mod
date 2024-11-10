@@ -3778,6 +3778,8 @@ inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_d
 	}
 }
 
+extern void boss_die(edict_t* boss);
+
 inline bool M_CheckGib(edict_t* self, const mod_t& mod)
 {
 	if (self->deadflag)
@@ -3785,6 +3787,9 @@ inline bool M_CheckGib(edict_t* self, const mod_t& mod)
 		if (mod.id == MOD_CRUSH)
 			return true;
 	}
+
+	if (g_horde->integer && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
+		boss_die(self);
 
 	return self->health <= self->gib_health;
 }

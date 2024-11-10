@@ -1642,24 +1642,26 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 }
 
 //CRAZY BOSS ANIMATION DROP ITEMS
-constexpr float ITEM_ROTATION_SPEED = 550.0f;       // Reducida para más control
+constexpr float ITEM_ROTATION_SPEED = 550.0f;
 constexpr float ITEM_ORBIT_RADIUS = 254.0f;
-constexpr float ITEM_VERTICAL_OFFSET = 12.0f;        // Reducido para control inicial
-constexpr float SCATTER_SPEED = 650.0f;             // Reducida para dispersión más suave
-constexpr float RISE_SPEED = 70.0f;                 // Velocidad de elevación
-constexpr float MAX_HEIGHT = 150.0f;                // Altura máxima antes de dispersar
-constexpr float ABSOLUTE_MAX_HEIGHT = 256.0f; // Altura máxima absoluta
+constexpr float ITEM_VERTICAL_OFFSET = 12.0f;
+constexpr float SCATTER_SPEED = 650.0f;
+constexpr float RISE_SPEED_BASE = 70.0f;            // Velocidad base de elevación
+constexpr float RISE_SPEED_VARIANCE = 30.0f;        // Variación de velocidad
+constexpr float MAX_HEIGHT_BASE = 150.0f;           // Altura base máxima
+constexpr float MAX_HEIGHT_VARIANCE = 50.0f;        // Variación de altura
+constexpr float ABSOLUTE_MAX_HEIGHT = 256.0f;
 
 // Estado de la rotación
 enum class ItemState {
-	RISING,         // Nueva fase inicial
+	RISING,
 	ORBITING,
 	SCATTERING,
 	SCATTERED
 };
 
 // Declarar el think function antes de usarlo
-void(Item_Scatter_Think) (edict_t* ent);
+void(Item_Scatter_Think)(edict_t* ent);
 
 THINK(Item_Orbit_Think) (edict_t* ent) -> void {
 	if (!ent || !ent->owner) {
@@ -1671,13 +1673,22 @@ THINK(Item_Orbit_Think) (edict_t* ent) -> void {
 	float height_diff = ent->s.origin[2] - ent->owner->s.origin[2];
 	ItemState current_state = static_cast<ItemState>(ent->count);
 
+	// Usamos pos2 para almacenar valores únicos por item
+	if (ent->pos2[0] == 0) { // Si no está inicializado
+		ent->pos2[0] = RISE_SPEED_BASE + (crandom() * RISE_SPEED_VARIANCE);  // Velocidad única
+		ent->pos2[1] = MAX_HEIGHT_BASE + (crandom() * MAX_HEIGHT_VARIANCE);  // Altura máxima única
+	}
+
 	switch (current_state) {
 	case ItemState::RISING: {
-		// Fase de elevación con límite más estricto
-		if (height_diff < MAX_HEIGHT) {
-			float rise_amount = std::min(RISE_SPEED * gi.frame_time_s,
-				MAX_HEIGHT - height_diff);
+		// Fase de elevación con límite personalizado
+		if (height_diff < ent->pos2[1]) {
+			float rise_amount = std::min(ent->pos2[0] * gi.frame_time_s,
+				ent->pos2[1] - height_diff);
 			ent->s.origin[2] += rise_amount;
+
+			// Añadir pequeña oscilación vertical durante la subida
+			ent->s.origin[2] += sinf(level.time.seconds() * 3.0f + ent->s.number) * 2.0f;
 		}
 		else {
 			ent->count = static_cast<int>(ItemState::ORBITING);
@@ -1685,24 +1696,27 @@ THINK(Item_Orbit_Think) (edict_t* ent) -> void {
 		break;
 	}
 
+
 	case ItemState::ORBITING: {
 		// Verificar si es tiempo de dispersar
 		if (level.time >= ent->owner->timestamp) {
-			// Calcular dirección de dispersión más horizontal
 			vec3_t scatter_dir = ent->s.origin - ent->owner->s.origin;
 			scatter_dir.normalize();
 
-			// Reducir componente vertical de la dispersión
-			scatter_dir[2] *= 0.2f; // Reduce movimiento vertical
+			// Añadir más variación vertical en la dispersión
+			scatter_dir[2] *= 0.2f + (crandom() * 0.3f); // 0.2 ± 0.3
 			scatter_dir.normalize();
 
-			// Agregar ligera variación horizontal
-			scatter_dir += vec3_t{ crandom() * 0.15f, crandom() * 1.15f, 0.0f };
+			// Variación horizontal con componente vertical aleatorio
+			scatter_dir += vec3_t{
+				crandom() * 0.15f,
+				crandom() * 0.15f,
+				crandom() * 0.55f  // Añadido componente vertical aleatorio
+			};
 			scatter_dir.normalize();
 
-			ent->velocity = scatter_dir * SCATTER_SPEED;
+			ent->velocity = scatter_dir * (SCATTER_SPEED + (crandom() * 100.0f));
 
-			// Guardar la altura inicial en pos1.z (que está disponible en edict_t)
 			ent->pos1[2] = ent->owner->s.origin[2];
 			ent->owner = nullptr;
 			ent->think = Item_Scatter_Think;
@@ -1710,27 +1724,26 @@ THINK(Item_Orbit_Think) (edict_t* ent) -> void {
 			return;
 		}
 
-		// Mantener altura constante durante la órbita
+		// Altura objetivo con oscilación suave
 		vec3_t target_pos = ent->owner->s.origin;
-		target_pos[2] += MAX_HEIGHT;
+		target_pos[2] += ent->pos2[1] + (sinf(level.time.seconds() * 2.0f + ent->s.number) * 15.0f);
 
-		// Interpolar suavemente hacia la altura objetivo
 		float height_diff = target_pos[2] - ent->s.origin[2];
 		ent->s.origin[2] += height_diff * 0.1f;
 
-		// Comportamiento de órbita normal
+		// Resto del código de órbita igual...
 		vec3_t forward, right, up;
 		AngleVectors(ent->owner->s.angles, forward, right, up);
 
 		float degrees = (ITEM_ROTATION_SPEED * gi.frame_time_s) + ent->owner->delay;
 		vec3_t diff = ent->owner->s.origin - ent->s.origin;
-		diff[2] = 0; // Mantener altura constante durante órbita
+		diff[2] = 0;
 
 		vec3_t vec = RotatePointAroundVector(up, diff, degrees);
 		ent->s.angles[1] += degrees;
 
 		vec3_t new_origin = ent->owner->s.origin - vec;
-		new_origin[2] = ent->s.origin[2]; // Mantener altura actual
+		new_origin[2] = ent->s.origin[2];
 
 		trace_t tr = gi.traceline(ent->s.origin, new_origin, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
 		if (tr.fraction == 1.0f) {
@@ -1860,6 +1873,117 @@ THINK(Item_Scatter_Think) (edict_t* ent) -> void {
 	ent->nextthink = level.time + FRAME_TIME_S;
 	gi.linkentity(ent);
 }
+void OldBossDeathHandler(edict_t* boss)
+{
+	// Verificación más estricta para el manejo de muerte del boss
+	if (!g_horde->integer ||
+		!boss ||
+		!boss->inuse ||
+		!boss->monsterinfo.IS_BOSS ||  // Cambiado de spawnflags
+		boss->monsterinfo.BOSS_DEATH_HANDLED ||  // Cambiado de spawnflags
+		boss->health > 0) {
+		return;
+	}
+
+	// Marcar el boss como manejado inmediatamente
+	boss->monsterinfo.BOSS_DEATH_HANDLED = true;  // Cambiado de spawnflags
+
+	OnEntityDeath(boss);
+	OnEntityRemoved(boss);
+	auto_spawned_bosses.erase(boss);
+
+	// Items normales que el boss dropea (array estático)
+	static const std::array<const char*, 7> itemsToDrop = {
+		"item_adrenaline", "item_pack", "item_doppleganger",
+		"item_sphere_defender", "item_armor_combat", "item_bandolier",
+		"item_invulnerability"
+	};
+
+	// Dropear un arma especial de nivel superior
+	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
+		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
+			// Generar velocidad aleatoria usando vec3_t
+			const vec3_t weaponVelocity = {
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY)(mt_rand))
+			};
+
+			weapon->s.origin = boss->s.origin;
+			weapon->velocity = weaponVelocity;
+			weapon->movetype = MOVETYPE_BOUNCE;
+			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
+			weapon->s.renderfx |= RF_GLOW;
+			weapon->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+			weapon->s.alpha = 0.85f;
+			weapon->s.scale = 1.25f;
+			weapon->flags &= ~FL_RESPAWN;
+		}
+	}
+
+	// Soltar ítem especial (quad o quadfire)
+	const char* specialItemName = brandom() ? "item_quadfire" : "item_quad";
+	if (edict_t* specialItem = Drop_Item(boss, FindItemByClassname(specialItemName))) {
+		const vec3_t specialVelocity = {
+			static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+			static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+			static_cast<float>(std::uniform_int_distribution<>(300, 400)(mt_rand))
+		};
+
+		specialItem->s.origin = boss->s.origin;
+		specialItem->velocity = specialVelocity;
+		specialItem->movetype = MOVETYPE_BOUNCE;
+		specialItem->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER | EF_HOLOGRAM;
+		specialItem->s.alpha = 0.8f;
+		specialItem->s.scale = 1.5f;
+		specialItem->flags &= ~FL_RESPAWN;
+	}
+
+	// Fisher-Yates shuffle optimizado
+	std::array<const char*, 7> shuffledItems = itemsToDrop;
+	for (int i = 6; i > 0; i--) {
+		int j = mt_rand() % (i + 1);
+		if (i != j) {
+			std::swap(shuffledItems[i], shuffledItems[j]);
+		}
+	}
+
+	// Soltar los items shuffleados
+	for (const auto& itemClassname : shuffledItems) {
+		if (edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname))) {
+			const vec3_t itemVelocity = {
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
+				static_cast<float>(std::uniform_int_distribution<>(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY)(mt_rand))
+			};
+
+			droppedItem->s.origin = boss->s.origin;
+			droppedItem->velocity = itemVelocity;
+			droppedItem->movetype = MOVETYPE_BOUNCE;
+			droppedItem->flags &= ~FL_RESPAWN;
+			droppedItem->s.effects |= EF_GIB;
+			droppedItem->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
+		}
+	}
+
+	// Finalizar el manejo del boss
+	boss->takedamage = false;
+
+	// Verificar si es un jefe volador (array estático)
+	static constexpr std::array<const char*, 4> flyingBossTypes = {
+		"monster_boss2", "monster_carrier",
+		"monster_carrier_mini", "monster_boss2kl"
+	};
+
+	// Búsqueda simple en el array
+	for (const auto& bossType : flyingBossTypes) {
+		if (strcmp(boss->classname, bossType) == 0) {
+			flying_monsters_mode = false;
+			break;
+		}
+	}
+}
+
 
 void BossDeathHandler(edict_t* boss) {
 	if (!g_horde->integer ||
@@ -1870,6 +1994,12 @@ void BossDeathHandler(edict_t* boss) {
 		boss->health > 0) {
 		return;
 	}
+
+	if (brandom()) {
+		OldBossDeathHandler(boss);
+		return;
+	}
+	else
 
 	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 
