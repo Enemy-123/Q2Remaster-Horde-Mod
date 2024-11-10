@@ -1454,7 +1454,7 @@ void Horde_PreInit() {
 		// Mensaje de confirmación
 		gi.Com_Print("Horde mode initialized successfully.\n");
 	}
-
+}
 
 // Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
 inline int32_t GetNumHumanPlayers() {

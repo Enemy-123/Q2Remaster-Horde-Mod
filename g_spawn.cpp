@@ -1775,7 +1775,7 @@ static void G_InitStatusbar()
 
 	// ---- gamemode-specific stuff ----
 
-	if (G_IsCooperative())
+	if (G_IsCooperative() || !G_IsDeathmatch())
 	{
 		// SP/coop
 		// key display
@@ -1792,7 +1792,6 @@ static void G_InitStatusbar()
 
 		// help / weapon icon
 		sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
-
 
 		sb.xl(2).yb(-23).string2("\nINSANE COOP");
 
