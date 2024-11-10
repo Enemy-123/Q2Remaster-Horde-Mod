@@ -2005,6 +2005,23 @@ void SP_worldspawn(edict_t* ent)
 		pm_config.n64_physics = false;
 	}
 
+	level.primary_objective_string = "$g_primary_mission_objective";
+	level.secondary_objective_string = "$g_secondary_mission_objective";
+
+	if (st.primary_objective_string && st.primary_objective_string[0])
+		level.primary_objective_string = st.primary_objective_string;
+	if (st.secondary_objective_string && st.secondary_objective_string[0])
+		level.secondary_objective_string = st.secondary_objective_string;
+
+	level.primary_objective_title = "$g_pc_primary_objective";
+	level.secondary_objective_title = "$g_pc_secondary_objective";
+
+	if (st.primary_objective_title && st.primary_objective_title[0])
+		level.primary_objective_title = st.primary_objective_title;
+	if (st.secondary_objective_title && st.secondary_objective_title[0])
+		level.secondary_objective_title = st.secondary_objective_title;
+
+
 	// statusbar prog
 	G_InitStatusbar();
 
