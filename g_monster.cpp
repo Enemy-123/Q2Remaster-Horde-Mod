@@ -1293,8 +1293,8 @@ void G_Monster_ScaleCoopHealth(edict_t* self)
 	if (!self->monsterinfo.base_health)
 		self->monsterinfo.base_health = self->max_health;
 
-	int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
-	int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
+	const int32_t delta = level.coop_scale_players - self->monsterinfo.health_scaling;
+	const int32_t additional_health = delta * (int32_t)(self->monsterinfo.base_health * level.coop_health_scaling);
 
 	self->health = max(1, self->health + additional_health);
 	self->max_health += additional_health;

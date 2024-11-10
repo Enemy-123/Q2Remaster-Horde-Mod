@@ -508,7 +508,7 @@ const spawn_temp_t& ED_GetSpawnTemp()
 {
 	if (!current_st)
 	{
-		//gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
+		gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
 		return spawn_temp_t::empty;
 	}
 

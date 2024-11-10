@@ -861,9 +861,8 @@ bool Pickup_Armor(edict_t* ent, edict_t* other)
 		}
 	}
 
-	if (!(ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED) ||
-		ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED_PLAYER)) &&
-		G_IsDeathmatch())
+	// Al final, cambiar la condición para que sea igual a la de MegaHealth:
+	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) && G_IsDeathmatch())
 	{
 		SetRespawn(ent, 20_sec);
 	}
