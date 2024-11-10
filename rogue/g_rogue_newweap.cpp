@@ -1301,175 +1301,146 @@ THINK(tesla_think) (edict_t* ent) -> void
 TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	vec3_t dir;
-	vec3_t forward, right, up;
 	movetype_t movetype = MOVETYPE_NONE;
 	int stick_ok = 0;
 
-	if (other->client) 
+	// No explotar al tocar clientes o teslas del mismo equipo
+	if (other->client || other->svflags & SVF_MONSTER) {
+		// Si toca un cliente, simplemente rebotar
+		if (tr.plane.normal) {
+			vec3_t out;
+			float backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
+
+			for (int i = 0; i < 3; i++) {
+				float change = tr.plane.normal[i] * backoff;
+				out[i] = ent->velocity[i] - change;
+				if (out[i] > -0.1f && out[i] < 0.1f)
+					out[i] = 0;
+			}
+
+			ent->velocity = out;
+		}
 		return;
+	}
+
+	// Verificar si es otra tesla del mismo equipo
+	if (strcmp(other->classname, "tesla_mine") == 0) {
+		// Si ambas teslas tienen el mismo equipo, rebotar
+		if (ent->team && other->team && strcmp(ent->team, other->team) == 0) {
+			if (tr.plane.normal) {
+				vec3_t out;
+				float backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
+
+				for (int i = 0; i < 3; i++) {
+					float change = tr.plane.normal[i] * backoff;
+					out[i] = ent->velocity[i] - change;
+					if (out[i] > -0.1f && out[i] < 0.1f)
+						out[i] = 0;
+				}
+
+				ent->velocity = out;
+			}
+			return;
+		}
+	}
 
 	// Verificar si golpea el cielo
-	if (tr.surface && (tr.surface->flags & SURF_SKY))
-	{
+	if (tr.surface && (tr.surface->flags & SURF_SKY)) {
 		G_FreeEdict(ent);
 		return;
 	}
 
-	if (tr.plane.normal) {
-		float offset;
+	// Manejo de colisión con puertas y otras entidades móviles
+	if (other != world) {
+		// Si es una entidad móvil (como una puerta)
+		if (other->movetype == MOVETYPE_PUSH) {
+			vec3_t out;
+			float backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
 
-		// Determinar qué offset usar según la superficie
-		if (fabs(tr.plane.normal[2]) > 0.7f) {
-			if (tr.plane.normal[2] > 0) {
-				// Suelo
-				offset = TESLA_FLOOR_OFFSET;
+			// Calcular vector de rebote
+			for (int i = 0; i < 3; i++) {
+				float change = tr.plane.normal[i] * backoff;
+				out[i] = ent->velocity[i] - change;
+				if (out[i] > -0.1f && out[i] < 0.1f)
+					out[i] = 0;
 			}
-			else {
-				// Techo
-				offset = TESLA_CEILING_OFFSET;
-			}
-		}
-		else {
-			// Pared
-			offset = TESLA_WALL_OFFSET;
-		}
 
-		// Aplicar el offset apropiado
-		ent->s.origin = ent->s.origin + (tr.plane.normal * -offset);
-	}
-
-	constexpr float TESLA_STOP_EPSILON = 0.1f;
-
-	// Si golpea un monstruo, jugador o entidad dañable, explota
-	if (!tr.plane.normal/* || (other->svflags & SVF_MONSTER) || other->client || (other->flags & FL_DAMAGEABLE)*/)
-	{
-		if (other != ent->teammaster)
-			tesla_blow(ent);
-		return;
-	}
-	// Si golpea otra entidad que no es el mundo
-	else if (other != world)
-	{
-		vec3_t out;
-		float backoff, change;
-		int i;
-
-		// Verificar si puede adherirse a entidades móviles
-		if ((other->movetype == MOVETYPE_PUSH) && (tr.plane.normal[2] > 0.7f))
-			stick_ok = 1;
-		else
-			stick_ok = 0;
-
-		// Calcular rebote
-		backoff = ent->velocity.dot(tr.plane.normal) * 1.5f;
-		for (i = 0; i < 3; i++)
-		{
-			change = tr.plane.normal[i] * backoff;
-			out[i] = ent->velocity[i] - change;
-			if (out[i] > -TESLA_STOP_EPSILON && out[i] < TESLA_STOP_EPSILON)
-				out[i] = 0;
-		}
-
-		// Si rebota muy alto, continuar
-		if (out[2] > 60)
-			return;
-
-		movetype = MOVETYPE_BOUNCE;
-
-		// Adherir o rebotar
-		if (stick_ok)
-		{
-			ent->velocity = {};
-			ent->avelocity = {};
-		}
-		else
-		{
-			if (tr.plane.normal[2] > 0.7f)
-			{
+			// Si el rebote es muy vertical, explotar
+			if (out[2] > 60) {
 				tesla_blow(ent);
 				return;
 			}
+
+			// Aplicar el rebote
+			ent->velocity = out;
+
+			// Reproducir sonido de rebote
+			if (ent->velocity.length()) {
+				if (frandom() > 0.5f)
+					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
+				else
+					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
+			}
 			return;
 		}
 	}
-	else if (other->s.modelindex != MODELINDEX_WORLD)
-		return;
+	if (tr.plane.normal) {
+		float offset;
 
-	// Calcular orientación basada en la normal de la superficie
-	dir = vectoangles(tr.plane.normal);
-	AngleVectors(dir, forward, right, up);
+		// Determinar offset según la superficie
+		if (fabs(tr.plane.normal[2]) > 0.7f) {
+			offset = (tr.plane.normal[2] > 0) ? TESLA_FLOOR_OFFSET : TESLA_CEILING_OFFSET;
+		}
+		else {
+			offset = TESLA_WALL_OFFSET;
+		}
 
-	// Verificar si está en lava o slime
-	if (gi.pointcontents(ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME))
-	{
+		ent->s.origin = ent->s.origin + (tr.plane.normal * -offset);
+	}
+
+	// Si está en lava o slime, explotar
+	if (gi.pointcontents(ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME)) {
 		tesla_blow(ent);
 		return;
 	}
 
-	// Preparar la tesla para su activación
+	// Configurar la tesla para su activación
 	ent->svflags &= ~SVF_PROJECTILE;
 	ent->velocity = {};
 	ent->avelocity = {};
 
-	// Ajustar la orientación según la superficie
-	if (fabs(tr.plane.normal[2]) > 0.7f)
-	{
-		// Superficie horizontal (suelo o techo)
-		if (tr.plane.normal[2] > 0)
-		{
-			// Suelo - orientación normal
-			ent->s.angles = {};
-		}
-		else
-		{
-			// Techo - girar 180 grados
-			ent->s.angles = { 180, 0, 0 };
-		}
+	// Ajustar orientación según la superficie
+	if (fabs(tr.plane.normal[2]) > 0.7f) {
+		ent->s.angles = (tr.plane.normal[2] > 0) ? vec3_t{} : vec3_t{ 180, 0, 0 };
 	}
-	else
-	{
-		// Superficie vertical (pared)
+	else {
 		dir = vectoangles(tr.plane.normal);
-		// Rotar 90 grados para orientar horizontalmente
 		ent->s.angles[PITCH] = dir[PITCH] + 90;
 		ent->s.angles[YAW] = dir[YAW];
 		ent->s.angles[ROLL] = 0;
 	}
 
+	// Configuración final
 	ent->takedamage = true;
 	ent->movetype = movetype;
 	ent->die = tesla_die;
 	ent->touch = nullptr;
 	ent->solid = SOLID_BBOX;
 
-	// Ajustar el área de detección según la orientación
-	if (fabs(tr.plane.normal[2]) > 0.7f)
-	{
-		// Para superficies horizontales, usar dimensiones normales
+	// Ajustar área de colisión
+	if (fabs(tr.plane.normal[2]) > 0.7f) {
 		ent->mins = { -4, -4, 0 };
 		ent->maxs = { 4, 4, 8 };
 	}
-	else
-	{
-		// Para paredes, rotar el área de detección
+	else {
 		ent->mins = { 0, -4, -4 };
 		ent->maxs = { 8, 4, 4 };
 	}
 
-	// Iniciar la secuencia de activación
 	ent->think = tesla_think;
 	ent->nextthink = level.time;
 
 	gi.linkentity(ent);
-
-	// Reproducir sonido de adherencia
-	if (ent->velocity)
-	{
-		if (frandom() > 0.5f)
-			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
-		else
-			gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
-	}
 }
 
 // Función para contar y manejar el número de teslas de un jugador

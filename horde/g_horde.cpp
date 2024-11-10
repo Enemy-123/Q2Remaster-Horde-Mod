@@ -2872,7 +2872,7 @@ static edict_t* SpawnMonsters() {
 
 	edict_t* last_spawned = nullptr;
 
-	// Spawn optimizado
+	// Spawn optimizado usando spawn_temp_t::empty
 	for (size_t i = 0; i < spawn_count && i < static_cast<size_t>(spawnable) && g_horde_local.num_to_spawn > 0; ++i) {
 		edict_t* spawn_point = available_spawns[i];
 		const char* monster_classname = G_HordePickMonster(spawn_point);
@@ -2884,22 +2884,23 @@ static edict_t* SpawnMonsters() {
 		if (!monster)
 			continue;
 
-		// Configuración directa
+		// Configuración básica pre-spawn
 		monster->classname = monster_classname;
+		monster->s.origin = spawn_point->s.origin;
+		monster->s.angles = spawn_point->s.angles;
 		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
-		monster->s.origin = spawn_point->s.origin;
-		monster->s.angles = spawn_point->s.angles;
 
-		ED_CallSpawn(monster);
+		// Spawn del monstruo usando spawn_temp_t::empty
+		ED_CallSpawn(monster, spawn_temp_t::empty);
 
 		if (!monster->inuse) {
 			G_FreeEdict(monster);
 			continue;
 		}
 
-		// Configuración post-spawn inline
+		// Configuración post-spawn
 		if (g_horde_local.level >= 14)
 			SetMonsterArmor(monster);
 
@@ -2907,9 +2908,11 @@ static edict_t* SpawnMonsters() {
 			g_horde_local.level <= 7 ? 0.6f : 0.45f))
 			monster->item = G_HordePickItem();
 
+		// Efectos visuales y sonoros
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 		gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
+		// Actualizar contadores
 		g_horde_local.num_to_spawn = std::max(0, g_horde_local.num_to_spawn - 1);
 		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
 		g_totalMonstersInWave++;
