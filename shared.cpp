@@ -595,12 +595,12 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 	vec3_t area_maxs = origin + maxs;
 
 	// Expand the area slightly to account for movement
-	vec3_t expansion{ 26.0f, 26.0f, 26.0f };
+	const vec3_t expansion{ 26.0f, 26.0f, 26.0f };
 	area_mins -= expansion;
 	area_maxs += expansion;
 
 	// Calculate search radius using vec3_t's length() method
-	float search_radius = maxs.length() + 16.0f;
+	const float search_radius = maxs.length() + 16.0f;
 
 	// First pass: collect entities
 	for (edict_t* ent = nullptr; (ent = findradius(ent, origin, search_radius)) != nullptr;) {
@@ -939,3 +939,83 @@ const std::unordered_map<std::string_view, std::string_view> name_replacements =
 		{ "tesla_mine", " Tesla Mine\n" },
 		{ "emitter", "Laser Emitter\n" }
 };
+
+bool SpawnPointClear(edict_t* spot);
+float PlayersRangeFromSpot(edict_t* spot);
+
+
+bool TeleportSelf(edict_t* ent)
+{
+	if (!ent || !ent->inuse || !ent->client)
+		return false;
+
+	// Check cooldown
+	if (ent->client->teleport_cooldown > level.time)
+	{
+		// Optional: Inform player of remaining cooldown
+		float remaining = (ent->client->teleport_cooldown - level.time).seconds();
+		gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {:.1} seconds\n", remaining);
+		return false;
+	}
+
+	// Set cooldown for 3 seconds
+	ent->client->teleport_cooldown = level.time + 3_sec;
+	std::string playerName = GetPlayerName(ent);
+
+	struct spawn_point_t
+	{
+		edict_t* point;
+		float dist;
+	};
+	std::vector<spawn_point_t> spawn_points;
+
+	// Gather all valid deathmatch spawn points with style == 0
+	edict_t* spot = nullptr;
+	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
+		if (spot->style == 0) {  // Only use spawn points with style == 0
+			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
+		}
+	}
+
+	// No valid spawn points found
+	if (spawn_points.size() == 0) {
+		gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+		return false;
+	}
+
+	// If there's only one spawn point, use it if clear
+	if (spawn_points.size() == 1) {
+		if (SpawnPointClear(spawn_points[0].point)) {
+			TeleportEntity(ent, spawn_points[0].point);
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
+			return true;
+		}
+		gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
+		return false;
+	}
+
+	// Sort spawn points by distance (ascending)
+	std::sort(spawn_points.begin(), spawn_points.end(),
+		[](const spawn_point_t& a, const spawn_point_t& b) {
+			return a.dist < b.dist;
+		});
+
+	// Try to find the farthest clear spawn point
+	for (int32_t i = spawn_points.size() - 1; i >= 0; --i) {
+		if (SpawnPointClear(spawn_points[i].point)) {
+			TeleportEntity(ent, spawn_points[i].point);
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
+			return true;
+		}
+	}
+
+	// If no clear points found, use a random one
+	size_t random_index = rand() % spawn_points.size();
+	TeleportEntity(ent, spawn_points[random_index].point);
+	gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
+	gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
+	return true;
+}

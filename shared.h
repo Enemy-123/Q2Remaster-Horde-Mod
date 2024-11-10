@@ -54,6 +54,7 @@ struct MapSize {
 MapSize GetMapSize(const std::string& mapname) ;
 
 extern gtime_t GetWaveTimer();
+bool TeleportSelf(edict_t* ent);
 
 // Estructura para almacenar las estad√≠sticas de los jugadores
 struct PlayerStats {

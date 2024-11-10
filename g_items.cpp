@@ -1373,7 +1373,7 @@ void SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st)
 		if (g_instagib->value)
 		{
 			if (/*item->pickup == Pickup_Armor ||*/ item->pickup == Pickup_PowerArmor ||
-				item->pickup == Pickup_Powerup /*|| item->pickup == Pickup_Sphere*/ || /*item->pickup == Pickup_sentrygun ||*/
+				item->pickup == Pickup_Powerup /*|| item->pickup == Pickup_Sphere*/ || /*item->pickup == Pickup_SentryGun ||*/
 				/*(item->flags & IF_HEALTH) || */(item->flags & IF_AMMO) || item->pickup == Pickup_Weapon || item->pickup == Pickup_Pack ||
 				/*item->id == IT_ITEM_BANDOLIER ||*/ item->id == IT_ITEM_PACK) /*||
 				item->id == IT_AMMO_NUKE)*/
@@ -1405,7 +1405,7 @@ void SpawnItem(edict_t* ent, gitem_t* item, const spawn_temp_t& st)
 				G_FreeEdict(ent);
 				return;
 			}
-			if (item->pickup == Pickup_sentrygun)
+			if (item->pickup == Pickup_SentryGun)
 			{
 				G_FreeEdict(ent);
 				return;
@@ -3242,8 +3242,8 @@ always owned, never in the world
 		{
 			/* id */ IT_ITEM_DOPPELGANGER,
 			/* classname */ "item_doppleganger",
-			/* pickup */ Pickup_sentrygun,
-			/* use */ Use_sentrygun,
+			/* pickup */ Pickup_SentryGun,
+			/* use */ Use_SentryGun,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
@@ -3443,9 +3443,9 @@ always owned, never in the world
 	*/
 		{
 			/* id */ IT_KEY_DATA_SPINNER,
-			/* classname */ "key_data_spinner",
-			/* pickup */ Pickup_Key,
-			/* use */ nullptr,
+			/* classname */ "teleport_device",
+			/* pickup */ Pickup_Teleport,
+			/* use */ Use_TeleportSelf,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
@@ -3453,14 +3453,14 @@ always owned, never in the world
 			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
 			/* icon */ "k_dataspin",
-			/* use_name */  "Data Spinner",
-			/* pickup_name */  "$item_data_spinner",
+			/* use_name */  "Teleport Device",
+			/* pickup_name */  "Teleport Device",
 			/* pickup_name_definite */ "$item_data_spinner_def",
 			/* quantity */ 0,
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
-			/* flags */ IF_STAY_COOP | IF_KEY
-		},
+			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL, },
+
 
 	/*QUAKED key_pass (0 .5 .8) (-16 -16 -16) (16 16 16)
 	security pass for the security level

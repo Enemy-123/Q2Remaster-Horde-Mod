@@ -2,6 +2,7 @@
 // Licensed under the GNU General Public License 2.0.
 
 #include "../g_local.h"
+#include "../shared.h"
 
 // ================
 // PMM
@@ -62,9 +63,28 @@ void Use_Nuke(edict_t* ent, gitem_t* item)
 	fire_nuke(ent, start, forward, speed);
 }
 
+void Use_TeleportSelf(edict_t* ent, gitem_t* item)
+{
+	if (!g_horde->integer)
+	{
+		gi.Client_Print(ent, PRINT_HIGH, "Need to be on Horde Mode to Teleport Away\n");
+		return;
+	}
+	if (ClientIsSpectating(ent->client)) {
+		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to Teleport\n");
+		return;
+	}
+
+	// Solo consume el item si el teleport fue exitoso
+	if (TeleportSelf(ent)) {
+		ent->client->pers.inventory[item->id]--;
+	}
+}
+
+
 constexpr int MAX_SENTRIES = 3;
 
-void Use_sentrygun(edict_t* ent, gitem_t* item)
+void Use_SentryGun(edict_t* ent, gitem_t* item)
 {
 	if (!g_horde->integer)
 	{
@@ -132,7 +152,7 @@ void Use_sentrygun(edict_t* ent, gitem_t* item)
 	}
 }
 
-bool Pickup_sentrygun(edict_t* ent, edict_t* other)
+bool Pickup_SentryGun(edict_t* ent, edict_t* other)
 {
 	int quantity;
 
@@ -140,6 +160,25 @@ bool Pickup_sentrygun(edict_t* ent, edict_t* other)
 		return false;
 	quantity = other->client->pers.inventory[ent->item->id];
 	if (quantity >= 3) // FIXME - apply max to sentryguns
+		return false;
+
+	other->client->pers.inventory[ent->item->id]++;
+
+	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED))
+		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
+
+	return true;
+}
+
+
+bool Pickup_Teleport(edict_t* ent, edict_t* other)
+{
+	int quantity;
+
+	if (!G_IsDeathmatch()) // item is DM only
+		return false;
+	quantity = other->client->pers.inventory[ent->item->id];
+	if (quantity >= 2)
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;

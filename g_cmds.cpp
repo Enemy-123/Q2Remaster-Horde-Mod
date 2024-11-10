@@ -464,6 +464,7 @@ void Cmd_Spawn_f(edict_t* ent)
 }
 
 #include "laser.h"
+#include "shared.h"
 
 void Cmd_Laser_f(edict_t* ent)
 {
@@ -1024,6 +1025,12 @@ void Cmd_Kill_f(edict_t* ent)
 	// [Paril-KEX] don't allow kill to take points away in TDM
 	player_die(ent, ent, ent, 100000, vec3_origin, { MOD_SUICIDE, !!teamplay->integer });
 }
+
+void Cmd_TeleportSelf_f(edict_t* ent)
+{
+	TeleportSelf(ent);
+}
+
 extern bool allowWaveAdvance;
 
 /*
@@ -1666,6 +1673,11 @@ void ClientCommand(edict_t* ent)
 	}
 	if (Q_strcasecmp(cmd, "removelaser") == 0) {
 		Cmd_RemoveLaser_f(ent);
+		return;
+	}
+
+	if (Q_strcasecmp(cmd, "tself") == 0) {
+		Cmd_TeleportSelf_f(ent);
 		return;
 	}
 

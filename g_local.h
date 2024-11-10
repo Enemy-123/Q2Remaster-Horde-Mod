@@ -2688,8 +2688,13 @@ bool Pickup_Nuke(edict_t* ent, edict_t* other);
 void Use_IR(edict_t* ent, gitem_t* item);
 void Use_Double(edict_t* ent, gitem_t* item);
 void Use_Nuke(edict_t* ent, gitem_t* item);
-void Use_sentrygun(edict_t* ent, gitem_t* item);
-bool Pickup_sentrygun(edict_t* ent, edict_t* other);
+
+void Use_SentryGun(edict_t* ent, gitem_t* item);
+bool Pickup_SentryGun(edict_t* ent, edict_t* other);
+
+void Use_TeleportSelf(edict_t* ent, gitem_t* item);
+bool Pickup_Teleport(edict_t* ent, edict_t* other);
+
 bool Pickup_Sphere(edict_t* ent, edict_t* other);
 void Use_Defender(edict_t* ent, gitem_t* item);
 void Use_Hunter(edict_t* ent, gitem_t* item);
@@ -3154,7 +3159,7 @@ struct gclient_t
 	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];
 	int adrenaline_count = 0;
-
+	gtime_t teleport_cooldown = 3_sec;
 };
 
 

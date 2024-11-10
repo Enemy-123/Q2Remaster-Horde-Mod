@@ -515,6 +515,7 @@ constexpr struct weighted_item_t {
 	{ "item_sphere_vengeance", 23, -1, 0.06f, adjust_weight_powerup },
 	{ "item_sphere_hunter", 9, -1, 0.04f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
+	{ "teleport_device", 4, -1, 0.06f, adjust_weight_powerup },
 	{ "item_doppleganger", 2, 8, 0.028f, adjust_weight_powerup },
 	{ "item_doppleganger", 9, 19, 0.062f, adjust_weight_powerup },
 	{ "item_doppleganger", 20, -1, 0.1f, adjust_weight_powerup },
