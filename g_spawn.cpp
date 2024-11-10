@@ -648,8 +648,8 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp) {
 		{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64"}, 2},
 
 		// Items
-		{"item_armor_body", {"item_armor_combat"}, 1},
-		{"item_health_mega", {"item_adrenaline"}, 1}
+		//{"item_armor_body", {"item_armor_combat"}, 1},
+		//{"item_health_mega", {"item_adrenaline"}, 1}
 	};
 	constexpr int insane_replacement_count = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 

@@ -68,7 +68,7 @@ static float CalculateCooldownScale(int32_t level) {
 	}
 
 	// Comenzar a escalar después del nivel 10
-	float scale = 1.0f + ((level - 10) * 0.05f); // 5% de aumento por nivel
+	const float scale = 1.0f + ((level - 10) * 0.05f); // 5% de aumento por nivel
 
 	// Limitar el máximo de escala para que no exceda 3 segundos
 	return std::min(scale, 1.75f); // 1.75x del base cooldown como máximo
@@ -189,7 +189,7 @@ size_t mapSizeCacheSize = 0;
 MapSize GetMapSize(const std::string& mapname) {
 	static std::unordered_map<std::string, MapSize> cache;
 
-	auto it = cache.find(mapname);
+	const auto it = cache.find(mapname);
 	if (it != cache.end())
 		return it->second;
 
