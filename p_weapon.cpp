@@ -1597,46 +1597,58 @@ void Weapon_Machinegun(edict_t* ent)
 
 	Weapon_Repeating(ent, 3, 5, 45, 49, pause_frames, Machinegun_Fire);
 }
+
+const int SPINUP_FRAMES = 5;      // Number of frames for spin-up
+const int SPINDOWN_FRAMES = 2;    // Number of frames for spin-down
+const int FULL_ROF_SHOTS = 3;     // Shots per frame at full rate of fire
+const int damage = irandom(5, 9);
+const int kick = 2;
 void Chaingun_Fire(edict_t* ent)
 {
 	if (!ent->client)
 		return;
 
-	int shots;
-	int damage;
-	int kick = 2;
-
-	damage = irandom(5, 9);
-
-	if (ent->client->ps.gunframe > 31) {
-		ent->client->ps.gunframe = 5;
-		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
-	}
-	else if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK)) {
-		ent->client->ps.gunframe = 32;
-		ent->client->weapon_sound = 0;
-		return;
-	}
-	else if ((ent->client->ps.gunframe == 21) &&
-		(ent->client->buttons & BUTTON_ATTACK) &&
-		ent->client->pers.inventory[ent->client->pers.weapon->ammo]) {
-		ent->client->ps.gunframe = 15;
-	}
-	else {
+	// Handle spin-up animation
+	if (ent->client->ps.gunframe <= SPINUP_FRAMES) {
 		ent->client->ps.gunframe++;
+		// Play spin-up sound only on first frame
+		if (ent->client->ps.gunframe == 1) {
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
+		}
+		return; // Don't fire during spin-up
 	}
 
-	if (ent->client->ps.gunframe == 22) {
+	// Handle firing and spin-down states
+	if (ent->client->buttons & BUTTON_ATTACK) {
+		// Reset to firing frame if we were in spin-down
+		if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
+			ent->client->ps.gunframe = SPINUP_FRAMES + 1;
+		}
+
+		// Maintain firing sound
+		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+	}
+	// Handle spin-down when button released
+	else {
 		ent->client->weapon_sound = 0;
-		gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		ent->client->ps.gunframe++;
+
+		// Play spin-down sound
+		if (ent->client->ps.gunframe == SPINUP_FRAMES + 2) {
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		}
+
+		// If we're in spin-down, don't fire
+		if (ent->client->ps.gunframe > SPINUP_FRAMES + 1) {
+			if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
+				ent->client->ps.gunframe = 8; // Reset to start
+			}
+			return;
+		}
 	}
 
-	if (ent->client->ps.gunframe < 5 || ent->client->ps.gunframe > 21)
-		return;
-
-	ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+	// Animation handling
 	ent->client->anim_priority = ANIM_ATTACK;
-
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
 		ent->client->anim_end = FRAME_crattak9;
@@ -1645,79 +1657,66 @@ void Chaingun_Fire(edict_t* ent)
 		ent->s.frame = FRAME_attack1 - (ent->client->ps.gunframe & 1);
 		ent->client->anim_end = FRAME_attack8;
 	}
-
 	ent->client->anim_time = 0_ms;
 
-	if (ent->client->ps.gunframe <= 9)
-		shots = 1;
-	else if (ent->client->ps.gunframe <= 14)
-		shots = (ent->client->buttons & BUTTON_ATTACK) ? 2 : 1;
-	else
-		shots = 3;
-
-	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < shots)
-		shots = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
-
-	if (!shots) {
+	// Ammo check
+	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < FULL_ROF_SHOTS) {
 		NoAmmoWeaponChange(ent, true);
 		return;
 	}
 
+	// Calculate damage with quad damage
+	int final_damage = damage;
+	int final_kick = kick;
 	if (is_quad) {
-		damage *= damage_multiplier;
-		kick *= damage_multiplier;
+		final_damage *= damage_multiplier;
+		final_kick *= damage_multiplier;
 	}
 
-	// Inicializar vectores de kick usando la sintaxis de inicialización
+	// Kick calculation
 	vec3_t kick_origin{}, kick_angles{};
 	for (int i = 0; i < 3; i++) {
 		kick_origin[i] = crandom() * 0.35f;
-		kick_angles[i] = crandom() * (0.5f + (shots * 0.15f));
+		kick_angles[i] = crandom() * (0.5f + (FULL_ROF_SHOTS * 0.15f));
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// Calcular vectores de disparo
+	// Fire vectors calculation
 	vec3_t start;
 	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
-
-	// Offset del arma usando inicialización directa
 	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
-
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
-	start[2] -= 5.0f;  // Ajuste de altura
+	start[2] -= 5.0f;
 
+	// Firing
 	G_LagCompensate(ent, start, forward);
-
-	for (int i = 0; i < shots; i++) {
-		fire_bullet(ent, start, forward, damage, kick,
+	for (int i = 0; i < FULL_ROF_SHOTS; i++) {
+		fire_bullet(ent, start, forward, final_damage, final_kick,
 			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
 	}
-
 	G_UnLagCompensate();
-	Weapon_PowerupSound(ent);
 
-	// Muzzle flash
+	// Effects
+	Weapon_PowerupSound(ent);
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
-	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
+	gi.WriteByte((MZ_CHAINGUN1 + FULL_ROF_SHOTS - 1) | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-
 	PlayerNoise(ent, start, PNOISE_WEAPON);
-	G_RemoveAmmo(ent, shots);
 
+	// Ammo consumption
+	G_RemoveAmmo(ent, FULL_ROF_SHOTS);
+
+	// Tracer effects
 	if (ent->lasthbshot <= level.time) {
 		if (g_tracedbullets->integer) {
 			int tracer_damage = 20;
 			vec3_t tracer_start = start;
 			vec3_t tracer_forward = forward;
-
-			// Offset del trazador usando inicialización directa
 			vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 				? vec3_t{ 0.0f, 8.0f, -6.0f }
 			: vec3_t{ 0.0f, 10.5f, -11.0f };
-
 			tracer_start = tracer_start + tracer_offset;
-
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
 			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
@@ -1725,11 +1724,12 @@ void Chaingun_Fire(edict_t* ent)
 		ent->lasthbshot = level.time + 0.25_sec;
 	}
 }
+
 void Weapon_Chaingun(edict_t* ent)
 {
-	constexpr int pause_frames[] = { 38, 43, 51, 61, 0 };
-
-	Weapon_Repeating(ent, 4, 31, 61, 64, pause_frames, Chaingun_Fire);
+	constexpr int pause_frames[] = { 0 }; // No pauses needed with new system
+	Weapon_Repeating(ent, 1, SPINUP_FRAMES + SPINDOWN_FRAMES, SPINUP_FRAMES + SPINDOWN_FRAMES + 1,
+		SPINUP_FRAMES + SPINDOWN_FRAMES + 1, pause_frames, Chaingun_Fire);
 }
 
 /*
