@@ -1438,7 +1438,7 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 		ent->client->weapon_sound = 0;
 
 	// fire frames
-	bool request_firing = ent->client->weapon_fire_buffered || (ent->client->buttons & BUTTON_ATTACK);
+	const bool request_firing = ent->client->weapon_fire_buffered || (ent->client->buttons & BUTTON_ATTACK);
 
 	if (request_firing)
 	{
@@ -1561,9 +1561,9 @@ void Machinegun_Fire(edict_t* ent)
 	// Lógica para disparar trazadores
 	if (ent->lasthbshot <= level.time) {
 		if (g_tracedbullets->integer) {
-			int tracer_damage = 40;
+		constexpr int tracer_damage = 40;
 			vec3_t tracer_start = start;
-			vec3_t tracer_forward = forward;
+			const vec3_t tracer_forward = forward;
 
 			// Offset del trazador usando inicialización condicional
 			vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1598,11 +1598,28 @@ void Weapon_Machinegun(edict_t* ent)
 	Weapon_Repeating(ent, 3, 5, 45, 49, pause_frames, Machinegun_Fire);
 }
 
-const int SPINUP_FRAMES = 5;      // Number of frames for spin-up
-const int SPINDOWN_FRAMES = 2;    // Number of frames for spin-down
-const int FULL_ROF_SHOTS = 3;     // Shots per frame at full rate of fire
+void chaingun_smoke(edict_t* ent)
+{
+	vec3_t tempVec, dir;
+	// Aumentamos el primer valor (forward) para mover el humo más adelante
+	// Opciones de offset:
+	// Original: { 8, 8, -4 }  // cerca del arma
+	// Opción 1: { 20, 8, -4 } // un poco más adelante
+	// Opción 2: { 32, 8, -4 } // bastante más adelante
+	// Opción 3: { 48, 8, -4 } // muy adelante
+
+	P_ProjectSource(ent, ent->client->v_angle, { 20, 8, -4 }, tempVec, dir);
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_CHAINFIST_SMOKE);
+	gi.WritePosition(tempVec);
+	gi.unicast(ent, 0);
+}
+
+constexpr int SPINUP_FRAMES = 5;      // Number of frames for spin-up
+constexpr int SPINDOWN_FRAMES = 2;    // Number of frames for spin-down
+constexpr int FULL_ROF_SHOTS = 3;     // Shots per frame at full rate of fire
 const int damage = irandom(5, 9);
-const int kick = 2;
+constexpr int kick = 2;
 void Chaingun_Fire(edict_t* ent)
 {
 	if (!ent->client)
@@ -1627,6 +1644,15 @@ void Chaingun_Fire(edict_t* ent)
 
 		// Maintain firing sound
 		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+
+		// Add screen shake effect during firing
+		ent->client->quake_time = level.time + 100_ms;  // Short shake duration
+
+		// Add some view kick during firing
+		float shake_intensity = 1.6f;  // Adjust this value to control shake strength
+		ent->client->v_dmg_pitch = crandom() * shake_intensity;
+		ent->client->v_dmg_roll = crandom() * shake_intensity;
+		ent->client->v_dmg_time = level.time + DAMAGE_TIME();
 	}
 	// Handle spin-down when button released
 	else {
@@ -1635,6 +1661,7 @@ void Chaingun_Fire(edict_t* ent)
 
 		// Play spin-down sound
 		if (ent->client->ps.gunframe == SPINUP_FRAMES + 2) {
+			chaingun_smoke(ent);
 			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
 		}
 
@@ -1710,15 +1737,16 @@ void Chaingun_Fire(edict_t* ent)
 	// Tracer effects
 	if (ent->lasthbshot <= level.time) {
 		if (g_tracedbullets->integer) {
-			int tracer_damage = 20;
+			constexpr int tracer_damage = 20;
 			vec3_t tracer_start = start;
-			vec3_t tracer_forward = forward;
-			vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+			const vec3_t tracer_forward = forward;
+			const vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 				? vec3_t{ 0.0f, 8.0f, -6.0f }
 			: vec3_t{ 0.0f, 10.5f, -11.0f };
 			tracer_start = tracer_start + tracer_offset;
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
+			//fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
 			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
 		}
 		ent->lasthbshot = level.time + 0.25_sec;
