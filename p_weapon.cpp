@@ -1642,19 +1642,26 @@ void Chaingun_Fire(edict_t* ent)
 			ent->client->ps.gunframe = SPINUP_FRAMES + 1;
 		}
 
+		// Simulate the rotating barrel animation by cycling through frames
+		if (ent->client->ps.gunframe == SPINUP_FRAMES + 1) {
+			ent->client->ps.gunframe = SPINUP_FRAMES + 2;
+		}
+		else {
+			ent->client->ps.gunframe = SPINUP_FRAMES + 1;
+		}
+
 		// Maintain firing sound
 		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
 
 		// Add screen shake effect during firing
-		ent->client->quake_time = level.time + 100_ms;  // Short shake duration
+		ent->client->quake_time = level.time + 100_ms;
 
 		// Add some view kick during firing
-		float shake_intensity = 1.6f;  // Adjust this value to control shake strength
+		float shake_intensity = 1.6f;
 		ent->client->v_dmg_pitch = crandom() * shake_intensity;
 		ent->client->v_dmg_roll = crandom() * shake_intensity;
 		ent->client->v_dmg_time = level.time + DAMAGE_TIME();
 	}
-	// Handle spin-down when button released
 	else {
 		ent->client->weapon_sound = 0;
 		ent->client->ps.gunframe++;
@@ -1674,7 +1681,7 @@ void Chaingun_Fire(edict_t* ent)
 		}
 	}
 
-	// Animation handling
+	// Animation handling - using alternating frames for rotation effect
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
