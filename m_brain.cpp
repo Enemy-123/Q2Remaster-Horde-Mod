@@ -417,48 +417,40 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 {
 	constexpr float MAX_ATTACK_DISTANCE = 512.0f;
 	constexpr float MAX_PITCH_ANGLE = 30.0f;
-	constexpr float MIN_CLEARANCE = 24.0f; // Espacio mínimo necesario para el tentáculo
+	constexpr float MIN_CLEARANCE = 16.0f;
 
-	// Verificar distancia máxima
+	// Usar operadores de vec3_t para el cálculo de dirección y distancia
 	vec3_t dir = start - end;
 	float dist = dir.length();
+
+	// Check de distancia
 	if (dist > MAX_ATTACK_DISTANCE)
 		return false;
 
-	// Verificar ángulo de pitch
+	// Obtener ángulos usando vectoangles que ya trabaja con vec3_t
 	vec3_t angles = vectoangles(dir);
 
-	// Normalizar el ángulo de pitch a -180/+180
-	if (angles[PITCH] < -180)
-		angles[PITCH] += 360;
-	else if (angles[PITCH] > 180)
-		angles[PITCH] -= 360;
-
-	// Verificar si el ángulo está dentro del rango permitido
+	// Verificar el pitch - no necesitamos normalización manual ya que
+	// vectoangles nos da el ángulo ya normalizado
 	if (fabsf(angles[PITCH]) > MAX_PITCH_ANGLE)
 		return false;
 
-	// Verificar si hay suficiente espacio libre en la trayectoria
+	// Verificación de línea de visión
 	trace_t tr = gi.traceline(start, end, nullptr, MASK_SOLID);
 
-	// Si hay una colisión antes del objetivo, verificar la fracción
-	if (tr.fraction < 1.0f)
-	{
-		// Verificar si hay suficiente espacio para que el tentáculo pase
-		vec3_t test_start = start;
-		vec3_t test_end = end;
-		vec3_t test_mins = { -MIN_CLEARANCE, -MIN_CLEARANCE, -MIN_CLEARANCE };
-		vec3_t test_maxs = { MIN_CLEARANCE, MIN_CLEARANCE, MIN_CLEARANCE };
+	if (tr.fraction == 1.0f)
+		return true;
 
-		// Hacer un trace más preciso con una caja
-		tr = gi.trace(test_start, test_mins, test_maxs, test_end, nullptr, MASK_SOLID);
+	if (tr.fraction < 0.5f)
+		return false;
 
-		// Si hay una obstrucción significativa, no permitir el ataque
-		if (tr.fraction < 0.9f)
-			return false;
-	}
+	// Box trace usando vec3_t para los bounds
+	vec3_t mins = { -MIN_CLEARANCE, -MIN_CLEARANCE, -MIN_CLEARANCE };
+	vec3_t maxs = { MIN_CLEARANCE, MIN_CLEARANCE, MIN_CLEARANCE };
 
-	return true;
+	tr = gi.trace(start, mins, maxs, end, nullptr, MASK_SOLID);
+
+	return (tr.fraction >= 0.9f);
 }
 
 void brain_tounge_attack(edict_t* self)
@@ -1198,7 +1190,7 @@ void SP_monster_brain(edict_t* self)
 	self->health = 225 * st.health_multiplier;
 	self->gib_health = -90;
 	self->mass = 400;
-	self->yaw_speed = 400;
+	//self->yaw_speed = 400;
 
 	self->pain = brain_pain;
 	self->die = brain_die;
