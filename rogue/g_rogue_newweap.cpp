@@ -90,66 +90,118 @@ constexpr int32_t PROX_DAMAGE = 80;
 constexpr float PROX_DAMAGE_OPEN_MULTIPLIER = 1.5f;
 
 
-#include <stdlib.h> // Para rand()
+// Estructura para configurar el comportamiento de las granadas fragmentarias
+struct ClusterConfig {
+	int num_grenades;          // Número total de granadas
+	int direct_grenades;       // Granadas que caen directamente
+	float spread_angle;        // Ángulo de dispersión para fragmentación
+	float min_velocity;        // Velocidad mínima de las granadas
+	float max_velocity;        // Velocidad máxima de las granadas
+	float min_fuse_time;       // Tiempo mínimo de explosión
+	float max_fuse_time;       // Tiempo máximo de explosión
+	float damage_multiplier;   // Multiplicador de daño para fragmentos
+};
 
-static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal)
-{
-	// free the trigger field
-	if (ent->teamchain && ent->teamchain->owner == ent)
+// Configuración por defecto para el clustering
+static const ClusterConfig DEFAULT_CLUSTER_CONFIG = {
+	15,     // num_grenades
+	3,      // direct_grenades
+	45.0f,  // spread_angle
+	400.0f, // min_velocity
+	600.0f, // max_velocity
+	0.5f,   // min_fuse_time
+	2.0f,   // max_fuse_time
+	0.5f    // damage_multiplier
+};
+
+// Función separada para el manejo de granadas fragmentarias
+static void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage) {
+	const ClusterConfig& config = DEFAULT_CLUSTER_CONFIG;
+
+	// Calcular el daño para cada granada fragmentaria
+	int fragment_damage = static_cast<int>(base_damage * config.damage_multiplier);
+
+	for (int n = 0; n < config.num_grenades; n++) {
+		vec3_t forward;
+
+		if (n < config.direct_grenades) {
+			// Granadas que caen directamente hacia abajo
+			forward = vec3_t{ 0, 0, -1 };
+		}
+		else {
+			// Granadas con dispersión radial
+			float pitch = -config.spread_angle + (frandom() - 0.5f) * 30.0f;
+			float yaw = (n - config.direct_grenades) * (360.0f / (config.num_grenades - config.direct_grenades));
+			// Añadir una pequeña variación al yaw para más naturalidad
+			yaw += (frandom() - 0.5f) * 10.0f;
+
+			vec3_t angles{ pitch, yaw, 0 };
+			auto [fwd, right, up] = AngleVectors(angles);
+			forward = fwd;
+		}
+
+		// Velocidad aleatoria para cada granada
+		float velocity = config.min_velocity + frandom() * (config.max_velocity - config.min_velocity);
+
+		// Tiempo de explosión aleatorio
+		float explode_time = config.min_fuse_time + frandom() * (config.max_fuse_time - config.min_fuse_time);
+
+		// Lanzar la granada con los parámetros calculados
+		fire_grenade2(owner, origin, forward, fragment_damage, velocity,
+			gtime_t::from_sec(explode_time),
+			static_cast<float>(fragment_damage), false);
+	}
+}
+
+static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
+	// Cleanup trigger field
+	if (ent->teamchain && ent->teamchain->owner == ent) {
 		G_FreeEdict(ent->teamchain);
+	}
 
+	// Determine owner for damage attribution
 	edict_t* owner = ent->teammaster ? ent->teammaster : ent;
 
+	// Generate noise for owner awareness
 	if (ent->teammaster) {
 		PlayerNoise(owner, ent->s.origin, PNOISE_IMPACT);
 	}
 
+	// Direct damage to triggering entity
 	if (other) {
 		vec3_t dir = other->s.origin - ent->s.origin;
-		T_Damage(other, ent, owner, dir, ent->s.origin, normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
+		T_Damage(other, ent, owner, dir, ent->s.origin, normal,
+			ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
 	}
 
-	// play quad sound if appropriate
+	// Quad damage sound effect
 	if (ent->dmg > PROX_DAMAGE * PROX_DAMAGE_OPEN_MULTIPLIER) {
 		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 	}
 
+	// Prepare for explosion
 	ent->takedamage = false;
-	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other, PROX_DAMAGE_RADIUS, DAMAGE_NONE, MOD_PROX);
-
 	vec3_t origin = ent->s.origin + normal;
 
+	// Apply radius damage
+	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other,
+		PROX_DAMAGE_RADIUS, DAMAGE_NONE, MOD_PROX);
+
+	// Visual explosion effect
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION);
 	gi.WritePosition(origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
 
+	// Enhanced proximity mine features
 	if (g_upgradeproxs->integer) {
-		// Fragmentation effect
-		for (int n = 0; n < 15; n++) {
-			vec3_t forward;
-
-			if (n < 3) {
-				// Las primeras 3 granadas caen directamente hacia abajo
-				forward = vec3_t{ 0, 0, -1 };
-			}
-			else {
-				// Las demás granadas siguen la fragmentación normal
-				vec3_t grenade_angs{ -45, (n - 3) * 30.0f, 0 };
-				auto [fwd, right, up] = AngleVectors(grenade_angs);
-				forward = fwd;
-			}
-
-			// Generar un tiempo de explosión aleatorio entre 1 y 3 segundos
-			const float random_explode_time = 1.0f + (static_cast<float>(rand()) / RAND_MAX) * 2.0f;
-
-			fire_grenade2(owner, origin, forward, 60, 600,
-				gtime_t::from_sec(random_explode_time), 120, false);
-		}
+		SpawnClusterGrenades(owner, origin, ent->dmg);
 	}
 
 	G_FreeEdict(ent);
 }
+
+
 
 THINK(Prox_Explode) (edict_t* ent) -> void
 {
