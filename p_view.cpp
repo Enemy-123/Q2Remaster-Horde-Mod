@@ -1017,7 +1017,8 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 
 		 // Bullets (Machine guns)
 		 {(client->pers.inventory[IT_WEAPON_MACHINEGUN] || client->pers.inventory[IT_WEAPON_CHAINGUN]),
-		  IT_AMMO_BULLETS, AMMO_BULLETS, g_tracedbullets->integer ? 45 : 30},
+		  IT_AMMO_BULLETS, AMMO_BULLETS,
+		  (g_improvedchaingun->integer ? 120 : (g_tracedbullets->integer ? 45 : 30))},
 
 		  // Grenades (Sin check de arma)
 		  {1, IT_AMMO_GRENADES, AMMO_GRENADES, g_bouncygl->integer ? 10 : 6},

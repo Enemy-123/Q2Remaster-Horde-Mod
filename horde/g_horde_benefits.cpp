@@ -61,6 +61,13 @@ const benefit_t BENEFITS[MAX_BENEFITS] = { {
 		25, -1, 0.2f
 	},
 	{
+		"Improved Chaingun",
+		"\n\n\n\nChaingun Started to Feel Different...\n",
+		"IMPROVED CHAINGUN!\n",
+		"g_improvedchaingun", "1",
+		25, -1, 0.2f
+	},
+	{
 		"Napalm-Grenade Launcher",
 		"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n",
 		"Napalm-Grenade Launcher Enabled\n",

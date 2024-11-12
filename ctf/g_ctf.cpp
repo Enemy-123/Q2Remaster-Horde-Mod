@@ -2036,7 +2036,8 @@ std::string GetActiveBonusesString() {
 		{"Cluster Prox Grenades", "Upgraded Prox Launcher"},
 		{"Traced-Piercing Bullets", "Traced-Piercing Bullets"},
 		{"Napalm-Grenade Launcher", "Napalm-Grenade Launcher"},
-		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"}
+		{"BFG Grav-Pull Lasers", "BFG Grav-Pull Lasers"},
+		{"Improved Chaingun", "Improved Chaingun"}
 	};
 
 	std::vector<std::string> active_bonuses;
