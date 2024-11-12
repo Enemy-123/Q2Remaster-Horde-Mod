@@ -2012,7 +2012,7 @@ void BossDeathHandler(edict_t* boss) {
 		return;
 	}
 
-	if (frandom() < 0.65f) {
+	if (frandom() < 0.75f) {
 		OldBossDeathHandler(boss);
 		return;
 	}
