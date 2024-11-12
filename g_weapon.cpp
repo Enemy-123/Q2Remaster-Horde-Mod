@@ -586,140 +586,123 @@ THINK(Grenade4_Think) (edict_t* self) -> void
 	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-// Nueva función para manejar la lógica completa de la explosión
+// Configuración para granadas rebotantes
+struct BouncyGrenadeConfig {
+	int max_bounces = 4;                  // Número de rebotes
+	float bounce_scale = 1.4f;            // Multiplicador de velocidad al rebotar
+	float damage_decay = 0.8f;            // Reducción de daño por rebote
+	float min_damage_fraction = 0.35f;    // Fracción mínima del daño original
+	float random_dir_scale = 360.0f;      // Escala para la dirección aleatoria
+	gtime_t think_time = 1.0_sec;         // Tiempo entre rebotes
+};
+
+static const BouncyGrenadeConfig BOUNCY_CONFIG;
+
 void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal)
 {
-	vec3_t origin;
-	mod_t mod;
+	// Notificar ruido al dueño
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
+
+	// Daño directo si impacta con algo
 	if (other)
 	{
 		vec3_t dir = other->s.origin - ent->s.origin;
-		if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
-			mod = MOD_HANDGRENADE;
-		else
-			mod = MOD_GRENADE;
-		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal, ent->dmg, ent->dmg, mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_RADIUS, mod);
+		mod_t mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND) ?
+			MOD_HANDGRENADE : MOD_GRENADE;
+
+		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal,
+			ent->dmg, ent->dmg,
+			mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_RADIUS,
+			mod);
 	}
-	if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD))
-		mod = MOD_HELD_GRENADE;
-	else if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
-		mod = MOD_HG_SPLASH;
-	else
-		mod = MOD_G_SPLASH;
-	T_RadiusDamage(ent, ent->owner, (float)ent->dmg, other, ent->dmg_radius, DAMAGE_NONE, mod);
-	origin = ent->s.origin + normal;
+
+	// Daño de radio
+	mod_t splash_mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD) ? MOD_HELD_GRENADE :
+		ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND) ? MOD_HG_SPLASH :
+		MOD_G_SPLASH;
+
+	T_RadiusDamage(ent, ent->owner, static_cast<float>(ent->dmg), other,
+		ent->dmg_radius, DAMAGE_NONE, splash_mod);
+
+	// Efectos visuales
+	vec3_t origin = ent->s.origin + normal;
 	gi.WriteByte(svc_temp_entity);
-	if (ent->waterlevel)
-	{
-		if (ent->groundentity)
-			gi.WriteByte(TE_GRENADE_EXPLOSION_WATER);
-		else
-			gi.WriteByte(TE_ROCKET_EXPLOSION_WATER);
-	}
-	else
-	{
-		if (ent->groundentity)
-			gi.WriteByte(TE_GRENADE_EXPLOSION);
-		else
-			gi.WriteByte(TE_ROCKET_EXPLOSION);
-	}
+	gi.WriteByte(ent->waterlevel ?
+		(ent->groundentity ? TE_GRENADE_EXPLOSION_WATER : TE_ROCKET_EXPLOSION_WATER) :
+		(ent->groundentity ? TE_GRENADE_EXPLOSION : TE_ROCKET_EXPLOSION));
 	gi.WritePosition(origin);
 	gi.multicast(ent->s.origin, MULTICAST_PHS, false);
+
+	// Procesar rebote si quedan
 	if (ent->count > 0)
 	{
+		// Nueva dirección aleatoria si está en el suelo
 		if (ent->groundentity)
 		{
-			vec3_t dir;
-			dir[0] = crandom() * 360;
-			dir[1] = crandom() * 360;
-			dir[2] = crandom() * 360;
+			vec3_t dir = {
+				crandom() * BOUNCY_CONFIG.random_dir_scale,
+				crandom() * BOUNCY_CONFIG.random_dir_scale,
+				crandom() * BOUNCY_CONFIG.random_dir_scale
+			};
+
 			AngleVectors(dir, ent->velocity, nullptr, nullptr);
-			ent->velocity *= 1.4f; // Reemplazamos VectorScale con el operador *=
+			ent->velocity *= BOUNCY_CONFIG.bounce_scale;
 		}
-		const float min_dmg = ent->original_dmg * 0.30f;
+
+		// Reducir daño gradualmente
+		const float min_dmg = ent->original_dmg * BOUNCY_CONFIG.min_damage_fraction;
 		if (ent->dmg > min_dmg)
 		{
-			ent->dmg *= 0.8f;
+			ent->dmg *= BOUNCY_CONFIG.damage_decay;
 			if (ent->dmg < min_dmg)
-			{
 				ent->dmg = min_dmg;
-			}
 		}
+
 		ent->count--;
-		ent->nextthink = level.time + 1.0_sec;
+		ent->nextthink = level.time + BOUNCY_CONFIG.think_time;
 	}
 	else
 	{
 		G_FreeEdict(ent);
 	}
 }
-// THINK sin argumentos adicionales para explotar la granada
+
 THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 {
-	// Usar el operador unario - para obtener la velocidad negativa como dirección de impacto
 	vec3_t normal = -ent->velocity;
 	BouncyGrenade_ExplodeReal(ent, ent->groundentity, normal);
 }
 
-// Función TOUCH para manejar el impacto con otro objeto
 TOUCH(BouncyGrenade_Touch)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	// Ignorar si el contacto es con el dueño de la granada
 	if (other == ent->owner)
 		return;
 
-	// Si se toca el cielo, liberar el edict
 	if (tr.surface && (tr.surface->flags & SURF_SKY))
 	{
 		G_FreeEdict(ent);
 		return;
 	}
 
-	// Si el otro objeto puede recibir daño, configurarlo como el enemigo
 	if (other->takedamage)
 		ent->enemy = other;
 
-	// Llamar a BouncyGrenade_ExplodeReal con los argumentos correctos
-	vec3_t normal = tr.plane.normal;  // Obtener la normal de la superficie de impacto
-	BouncyGrenade_ExplodeReal(ent, other, normal);
+	BouncyGrenade_ExplodeReal(ent, other, tr.plane.normal);
 }
 
 THINK(BouncyGrenade_Think)(edict_t* ent) -> void
 {
-	// Verificar si la granada está en el suelo. Si es así, explotar
 	if (ent->groundentity || !ent->velocity[2])
 	{
-		edict_t* other = ent->groundentity;  // Asignar el suelo como el "other" cuando está en el suelo
-		// Calcular la dirección del impacto como la opuesta a la velocidad usando el operador -
 		vec3_t normal = -ent->velocity;
-		// Llamar a la función de explosión real
-		BouncyGrenade_ExplodeReal(ent, other, normal);
+		BouncyGrenade_ExplodeReal(ent, ent->groundentity, normal);
 	}
 	else
 	{
-		// Continuar pensando en el siguiente frame
 		ent->nextthink = level.time + FRAME_TIME_S;
 	}
 }
-
-// Función THINK para verificar si la granada está en el suelo y hacerla explotar
-THINK(BouncyGrenade_OnGroundThink)(edict_t* ent) -> void
-{
-	// Verificar si está en el suelo. Si es así, explota
-	if (ent->groundentity || !ent->velocity[2])
-	{
-		BouncyGrenade_Explode(ent);
-	}
-	else
-	{
-		// Si no está en el suelo, seguir pensando
-		ent->think = BouncyGrenade_Think;
-		ent->nextthink = level.time + FRAME_TIME_S;
-	}
-}
-
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer, float damage_radius, float right_adjust, float up_adjust, bool monster)
 {
 	edict_t* grenade;
