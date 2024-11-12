@@ -1618,70 +1618,104 @@ void chaingun_smoke(edict_t* ent)
 constexpr int SPINUP_FRAMES = 5;      // Number of frames for spin-up
 constexpr int SPINDOWN_FRAMES = 2;    // Number of frames for spin-down
 constexpr int FULL_ROF_SHOTS = 3;     // Shots per frame at full rate of fire
-const int damage = irandom(5, 9);
-constexpr int kick = 2;
 void Chaingun_Fire(edict_t* ent)
 {
 	if (!ent->client)
 		return;
 
-	// Handle spin-up animation
-	if (ent->client->ps.gunframe <= SPINUP_FRAMES) {
-		ent->client->ps.gunframe++;
-		// Play spin-up sound only on first frame
-		if (ent->client->ps.gunframe == 1) {
-			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
-		}
-		return; // Don't fire during spin-up
-	}
+	int shots;
+	int damage;
+	int kick = 2;
+	damage = irandom(5, 9);
 
-	// Handle firing and spin-down states
-	if (ent->client->buttons & BUTTON_ATTACK) {
-		// Reset to firing frame if we were in spin-down
-		if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
-			ent->client->ps.gunframe = SPINUP_FRAMES + 1;
-		}
-
-		// Simulate the rotating barrel animation by cycling through frames
-		if (ent->client->ps.gunframe == SPINUP_FRAMES + 1) {
-			ent->client->ps.gunframe = SPINUP_FRAMES + 2;
-		}
-		else {
-			ent->client->ps.gunframe = SPINUP_FRAMES + 1;
-		}
-
-		// Maintain firing sound
-		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
-
-		// Add screen shake effect during firing
-		ent->client->quake_time = level.time + 100_ms;
-
-		// Add some view kick during firing
-		float shake_intensity = 1.6f;
-		ent->client->v_dmg_pitch = crandom() * shake_intensity;
-		ent->client->v_dmg_roll = crandom() * shake_intensity;
-		ent->client->v_dmg_time = level.time + DAMAGE_TIME();
-	}
-	else {
-		ent->client->weapon_sound = 0;
-		ent->client->ps.gunframe++;
-
-		// Play spin-down sound
-		if (ent->client->ps.gunframe == SPINUP_FRAMES + 2) {
-			chaingun_smoke(ent);
-			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
-		}
-
-		// If we're in spin-down, don't fire
-		if (ent->client->ps.gunframe > SPINUP_FRAMES + 1) {
-			if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
-				ent->client->ps.gunframe = 8; // Reset to start
+	if (g_improvedchaingun->integer) {
+		// Improved chaingun behavior
+		if (ent->client->ps.gunframe <= SPINUP_FRAMES) {
+			ent->client->ps.gunframe++;
+			if (ent->client->ps.gunframe == 1) {
+				gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
 			}
 			return;
 		}
+
+		if (ent->client->buttons & BUTTON_ATTACK) {
+			if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
+				ent->client->ps.gunframe = SPINUP_FRAMES + 1;
+			}
+
+			if (ent->client->ps.gunframe == SPINUP_FRAMES + 1) {
+				ent->client->ps.gunframe = SPINUP_FRAMES + 2;
+			}
+			else {
+				ent->client->ps.gunframe = SPINUP_FRAMES + 1;
+			}
+
+			ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+			ent->client->quake_time = level.time + 100_ms;
+
+			float shake_intensity = 1.6f;
+			ent->client->v_dmg_pitch = crandom() * shake_intensity;
+			ent->client->v_dmg_roll = crandom() * shake_intensity;
+			ent->client->v_dmg_time = level.time + DAMAGE_TIME();
+
+			shots = FULL_ROF_SHOTS;
+		}
+		else {
+			ent->client->weapon_sound = 0;
+			ent->client->ps.gunframe++;
+
+			if (ent->client->ps.gunframe == SPINUP_FRAMES + 2) {
+				chaingun_smoke(ent);
+				gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+			}
+
+			if (ent->client->ps.gunframe > SPINUP_FRAMES + 1) {
+				if (ent->client->ps.gunframe > SPINUP_FRAMES + SPINDOWN_FRAMES) {
+					ent->client->ps.gunframe = 8;
+				}
+				return;
+			}
+		}
+	}
+	else {
+		// Original chaingun behavior
+		if (ent->client->ps.gunframe > 31) {
+			ent->client->ps.gunframe = 5;
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
+		}
+		else if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK)) {
+			ent->client->ps.gunframe = 32;
+			ent->client->weapon_sound = 0;
+			return;
+		}
+		else if ((ent->client->ps.gunframe == 21) &&
+			(ent->client->buttons & BUTTON_ATTACK) &&
+			ent->client->pers.inventory[ent->client->pers.weapon->ammo]) {
+			ent->client->ps.gunframe = 15;
+		}
+		else {
+			ent->client->ps.gunframe++;
+		}
+
+		if (ent->client->ps.gunframe == 22) {
+			ent->client->weapon_sound = 0;
+			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
+		}
+
+		if (ent->client->ps.gunframe < 5 || ent->client->ps.gunframe > 21)
+			return;
+
+		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
+
+		if (ent->client->ps.gunframe <= 9)
+			shots = 1;
+		else if (ent->client->ps.gunframe <= 14)
+			shots = (ent->client->buttons & BUTTON_ATTACK) ? 2 : 1;
+		else
+			shots = 3;
 	}
 
-	// Animation handling - using alternating frames for rotation effect
+	// Common animation code for both modes
 	ent->client->anim_priority = ANIM_ATTACK;
 	if (ent->client->ps.pmove.pm_flags & PMF_DUCKED) {
 		ent->s.frame = FRAME_crattak1 - (ent->client->ps.gunframe & 1);
@@ -1694,28 +1728,35 @@ void Chaingun_Fire(edict_t* ent)
 	ent->client->anim_time = 0_ms;
 
 	// Ammo check
-	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < FULL_ROF_SHOTS) {
+	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < shots) {
+		if (g_improvedchaingun->integer) {
+			NoAmmoWeaponChange(ent, true);
+			return;
+		}
+		else {
+			shots = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
+		}
+	}
+
+	if (!shots) {
 		NoAmmoWeaponChange(ent, true);
 		return;
 	}
 
-	// Calculate damage with quad damage
-	int final_damage = damage;
-	int final_kick = kick;
+	// Damage and kick calculations
 	if (is_quad) {
-		final_damage *= damage_multiplier;
-		final_kick *= damage_multiplier;
+		damage *= damage_multiplier;
+		kick *= damage_multiplier;
 	}
 
-	// Kick calculation
 	vec3_t kick_origin{}, kick_angles{};
 	for (int i = 0; i < 3; i++) {
 		kick_origin[i] = crandom() * 0.35f;
-		kick_angles[i] = crandom() * (0.5f + (FULL_ROF_SHOTS * 0.15f));
+		kick_angles[i] = crandom() * (0.5f + (shots * 0.15f));
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// Fire vectors calculation
+	// Firing vectors calculation
 	vec3_t start;
 	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
 	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
@@ -1724,8 +1765,8 @@ void Chaingun_Fire(edict_t* ent)
 
 	// Firing
 	G_LagCompensate(ent, start, forward);
-	for (int i = 0; i < FULL_ROF_SHOTS; i++) {
-		fire_bullet(ent, start, forward, final_damage, final_kick,
+	for (int i = 0; i < shots; i++) {
+		fire_bullet(ent, start, forward, damage, kick,
 			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
 	}
 	G_UnLagCompensate();
@@ -1734,12 +1775,11 @@ void Chaingun_Fire(edict_t* ent)
 	Weapon_PowerupSound(ent);
 	gi.WriteByte(svc_muzzleflash);
 	gi.WriteEntity(ent);
-	gi.WriteByte((MZ_CHAINGUN1 + FULL_ROF_SHOTS - 1) | is_silenced);
+	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 	PlayerNoise(ent, start, PNOISE_WEAPON);
 
-	// Ammo consumption
-	G_RemoveAmmo(ent, FULL_ROF_SHOTS);
+	G_RemoveAmmo(ent, shots);
 
 	// Tracer effects
 	if (ent->lasthbshot <= level.time) {
@@ -1753,20 +1793,33 @@ void Chaingun_Fire(edict_t* ent)
 			tracer_start = tracer_start + tracer_offset;
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
-			//fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
-			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
+			if (g_improvedchaingun->integer) {
+				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
+			}
+			else {
+				fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
+			}
 		}
 		ent->lasthbshot = level.time + 0.25_sec;
 	}
 }
 
+
+
 void Weapon_Chaingun(edict_t* ent)
 {
-	constexpr int pause_frames[] = { 0 }; // No pauses needed with new system
-	Weapon_Repeating(ent, 1, SPINUP_FRAMES + SPINDOWN_FRAMES, SPINUP_FRAMES + SPINDOWN_FRAMES + 1,
-		SPINUP_FRAMES + SPINDOWN_FRAMES + 1, pause_frames, Chaingun_Fire);
+	if (g_improvedchaingun->integer) {
+		constexpr int pause_frames[] = { 0 };
+		Weapon_Repeating(ent, 1, SPINUP_FRAMES + SPINDOWN_FRAMES,
+			SPINUP_FRAMES + SPINDOWN_FRAMES + 1,
+			SPINUP_FRAMES + SPINDOWN_FRAMES + 1,
+			pause_frames, Chaingun_Fire);
+	}
+	else {
+		constexpr int pause_frames[] = { 38, 43, 51, 61, 0 };
+		Weapon_Repeating(ent, 4, 31, 61, 64, pause_frames, Chaingun_Fire);
+	}
 }
-
 /*
 ======================================================================
 

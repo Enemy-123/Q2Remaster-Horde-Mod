@@ -1429,6 +1429,7 @@ void Horde_PreInit() {
 		gi.cvar_set("g_bouncygl", "0");
 		gi.cvar_set("g_bfgpull", "0");
 		gi.cvar_set("g_bfgslide", "1");
+		gi.cvar_set("g_improvedchaingun", "0");
 		gi.cvar_set("g_autohaste", "0");
 		gi.cvar_set("g_chaotic", "0");
 		gi.cvar_set("g_insane", "0");

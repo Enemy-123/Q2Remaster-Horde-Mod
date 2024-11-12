@@ -1979,6 +1979,7 @@ extern cvar_t* g_hardcoop;
 extern cvar_t* g_ammoregen;
 extern cvar_t* sv_wave_timer;
 extern cvar_t* g_tracedbullets;
+extern cvar_t* g_improvedchaingun;
 extern cvar_t* g_bouncygl;
 extern cvar_t* g_bfgpull;
 extern cvar_t* g_bfgslide;
