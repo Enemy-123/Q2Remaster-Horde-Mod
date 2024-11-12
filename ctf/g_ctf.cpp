@@ -1109,9 +1109,6 @@ int GetArmorInfo(edict_t* ent) {
 	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
 }
 
-std::string GetPlayerName(edict_t* player);
-std::string GetTitleFromFlags(int bonus_flags);
-
 std::string FormatEntityInfo(edict_t* ent) {
 	std::string info;
 
@@ -2769,12 +2766,12 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 }
 
 void UpdateVoteHUD() {
-	if (ctfgame.election != ELECT_NONE) {
-		const std::string vote_info = fmt::format("{} Time left: {}s\n",
-			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
+		if (ctfgame.election != ELECT_NONE) {
+			const std::string vote_info = fmt::format("{} Time left: {}s\n",
+				ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
 
-		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
-		ClearHordeMessage();
+			gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
+			ClearHordeMessage();
 
 		for (auto player : active_players()) {
 			if (player->client) {

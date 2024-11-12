@@ -1,6 +1,7 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
+#include "shared.h"
 
 /*QUAKED target_temp_entity (1 0 0) (-8 -8 -8) (8 8 8)
 Fire an origin based temp entity event to the clients.
@@ -2015,23 +2016,28 @@ THINK(check_target_healthbar) (edict_t * ent) -> void
 	// just for sanity check
 	ent->health = target->spawn_count;
 }
-void SP_target_healthbar(edict_t * self)
-{
-	if (G_IsDeathmatch() && !g_horde->integer)
-	{
+void SP_target_healthbar(edict_t* self) {
+	if (G_IsDeathmatch() && !g_horde->integer) {
 		G_FreeEdict(self);
 		return;
 	}
-	if (!self->message)
-	{
+
+	if (!self->message) {
 		return;
 	}
+
 	self->use = use_target_healthbar;
 	self->think = check_target_healthbar;
 	self->nextthink = level.time + 25_ms;
 
-	// Set the boss name configstring
-	gi.configstring(CONFIG_HEALTH_BAR_NAME, self->message);
+	// En modo Horde, usar SetHealthBarName para mejor consistencia
+	if (g_horde->integer && self->enemy) {
+		SetHealthBarName(self->enemy);
+	}
+	else {
+		// Comportamiento original para otros modos
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, self->message);
+	}
 }
 
 

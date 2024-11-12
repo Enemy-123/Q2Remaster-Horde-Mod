@@ -2555,47 +2555,71 @@ void SetHealthBarName(edict_t* boss) {
 	memcpy(buffer, display_name.data(), name_len);
 	buffer[name_len] = '\0';
 
+	// Actualizar el configstring
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, buffer);
 
-	// Preparar mensaje una vez
+	// Preparar y enviar mensaje a todos los clientes
 	gi.WriteByte(svc_configstring);
 	gi.WriteShort(CONFIG_HEALTH_BAR_NAME);
 	gi.WriteString(buffer);
-
-	// Enviar a todos los clientes
 	gi.multicast(vec3_origin, MULTICAST_ALL, true);
 }
+
 //CS HORDE
 
 void UpdateHordeHUD() {
-	for (auto player : active_players()) {
-		if (player->inuse && player->client) {
-			if (!player->client->voted_map[0]) {
+	// Check if message has expired
+	if (horde_message_end_time && level.time >= horde_message_end_time) {
+		ClearHordeMessage();
+		return;
+	}
+
+	// Only update if we have an active message
+	if (gi.get_configstring(CONFIG_HORDEMSG)[0] != '\0') {
+		for (auto player : active_players()) {
+			if (player->inuse && player->client && !player->client->voted_map[0]) {
 				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-			}
-			else {
-				player->client->ps.stats[STAT_HORDEMSG] = 0;
 			}
 		}
 	}
 }
 
-// Declaración de UpdateHordeMessage
-void UpdateHordeMessage(std::string_view message, gtime_t duration);
-
 // Implementación de UpdateHordeMessage
 void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
-	std::string fullMessage(message);
+	// Ensure message isn't empty and duration is valid
+	if (message.empty() || duration <= 0_sec) {
+		ClearHordeMessage();
+		return;
+	}
 
+	// Only update if message actually changed
+	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+	if (!current_msg || strcmp(current_msg, message.data()) != 0) {
+		gi.configstring(CONFIG_HORDEMSG, message.data());
+	}
 
-	gi.configstring(CONFIG_HORDEMSG, fullMessage.c_str());
-	horde_message_end_time = level.time + std::max(duration, 0_sec);
+	// Update duration
+	horde_message_end_time = level.time + duration;
 }
+
+
 // Implementación de ClearHordeMessage
 void ClearHordeMessage() {
-	gi.configstring(CONFIG_HORDEMSG, "");
+	// Only clear if there's actually a message
+	if (gi.get_configstring(CONFIG_HORDEMSG)[0] != '\0') {
+		gi.configstring(CONFIG_HORDEMSG, "");
+	}
+
 	horde_message_end_time = 0_sec;
+
+	// Reset player stats
+	for (auto player : active_players()) {
+		if (player->inuse && player->client) {
+			player->client->ps.stats[STAT_HORDEMSG] = 0;
+		}
+	}
 }
+
 // reset cooldowns, fixed no monster spawning on next map
 // En UnifiedAdjustSpawnRate y ResetCooldowns:
 void ResetCooldowns() noexcept {
