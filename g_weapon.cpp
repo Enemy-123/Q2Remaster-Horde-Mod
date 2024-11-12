@@ -589,11 +589,11 @@ THINK(Grenade4_Think) (edict_t* self) -> void
 // Configuración para granadas rebotantes
 struct BouncyGrenadeConfig {
 	int max_bounces = 4;                  // Número de rebotes
-	float bounce_scale = 1.4f;            // Multiplicador de velocidad al rebotar
+	float bounce_scale = 1.4f;            // // does this work?
 	float damage_decay = 0.85f;            // Reducción de daño por rebote
 	float min_damage_fraction = 0.35f;    // Fracción mínima del daño original
-	float random_dir_scale = 360.0f;      // Escala para la dirección aleatoria
-	gtime_t think_time = 1.0_sec;         // Tiempo entre rebotes
+	float random_dir_scale = 360.0f;      // does this work?
+	gtime_t think_time = 1.0_sec;         // does this work?
 };
 
 static const BouncyGrenadeConfig BOUNCY_CONFIG;
