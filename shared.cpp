@@ -837,10 +837,10 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 							entity->client->ps.pmove.pm_time = 100;
 
 							// Deshabilitar predicción temporal para un efecto más suave
-							entity->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
+							//entity->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
 
 							// Opcional: también podemos deshabilitar la predicción angular
-							entity->client->ps.pmove.pm_flags |= PMF_NO_ANGULAR_PREDICTION;
+							//entity->client->ps.pmove.pm_flags |= PMF_NO_ANGULAR_PREDICTION;
 
 						}
 					}
