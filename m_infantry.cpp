@@ -303,7 +303,7 @@ void InfantryMachineGun(edict_t* self)
 	else
 	{
 		// Comportamiento normal cuando no está muriendo
-		vec3_t offset = { 26.6f, 7.1f, 13.1f };
+		vec3_t offset = { 26.6f, 6.1f, 10.1f };
 		AngleVectors(self->s.angles, forward, right, up);
 		start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
@@ -792,9 +792,9 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 	{
 		M_SetAnimation(self, &infantry_move_attack2);
 	}
-	else if (r > RANGE_MELEE && frandom() <= 0.5f)
+	else if (r > RANGE_MELEE && frandom() <= 0.35f)
 	{
-		// 30% chance to throw a grenade when enemy is beyond melee range
+		// 35% chance to throw a grenade when enemy is beyond melee range
 		M_SetAnimation(self, &infantry_move_grenade);
 	}
 	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_INFANTRY_MACHINEGUN_1]))
@@ -803,7 +803,7 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &infantry_move_attack1);
 		else
 		{
-			M_SetAnimation(self, frandom() <= 0.1f ? &infantry_move_attack5 : &infantry_move_attack3);
+			M_SetAnimation(self, frandom() <= 0.2f ? &infantry_move_attack5 : &infantry_move_attack3);
 			self->monsterinfo.nextframe = FRAME_attak405;
 		}
 	}
