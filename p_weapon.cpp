@@ -1574,7 +1574,12 @@ void Machinegun_Fire(edict_t* ent)
 
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
-			fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_BLUEHYPERBLASTER);
+			if (frandom() < 0.3f) {
+				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
+			}
+			else {
+				fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
+			}
 		}
 		ent->lasthbshot = level.time + 0.5_sec;
 	}
@@ -1793,7 +1798,7 @@ void Chaingun_Fire(edict_t* ent)
 			tracer_start = tracer_start + tracer_offset;
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
-			if (g_improvedchaingun->integer) {
+			if (frandom() < 0.3f) {
 				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
 			}
 			else {
