@@ -5,7 +5,6 @@ void Horde_Init()  ;
 void Horde_RunFrame()  ;
 void ResetGame()  ;
 void HandleResetEvent()  ;
-//extern uint64_t last_wave_number;  // Tracks the last completed wave number, used for intermission
 
 // Item selection in Horde mode
 gitem_t* G_HordePickItem()  ;
@@ -34,12 +33,13 @@ extern gtime_t horde_message_end_time;  // Add this line
 extern void ClearHordeMessage();
 extern void UpdateHordeMessage(std::string_view message, gtime_t duration);
 extern void UpdateHordeHUD();
-extern uint32_t g_totalMonstersInWave;
 
 extern void CleanupInvalidEntities();
 
-extern uint16_t cachedRemainingMonsters;
-extern inline int32_t CalculateRemainingMonsters();
+extern uint8_t cachedRemainingMonsters;
+extern uint16_t g_totalMonstersInWave;
+
+extern inline int8_t CalculateRemainingMonsters();
 
 
 // Forzar limpieza de cuerpos

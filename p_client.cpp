@@ -2500,7 +2500,7 @@ void PutClientInServer(edict_t* ent)
 	// Clear playerstate values
 	memset(&ent->client->ps, 0, sizeof(client->ps));
 
-	char val[MAX_INFO_VALUE];
+	char val[MAX_INFO_VALUE] = { 0 };
 	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val, sizeof(val));
 	ent->client->ps.fov = clamp((float)atoi(val), 1.f, 160.f);
 

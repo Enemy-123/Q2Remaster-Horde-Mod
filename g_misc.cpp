@@ -220,23 +220,15 @@ edict_t* ThrowGib(edict_t* self, const char* gibname, int damage, gib_type_t typ
 
 void ThrowClientHead(edict_t* self, int damage)
 {
-	vec3_t vd;
+	vec3_t		vd;
 	const char* gibname;
 
-	// Obtener un valor aleatorio en el rango [0, 1)
-	float r = frandom();
-
-	if (r < 0.333f) // 33.3% de probabilidad
-	{
-		gibname = "models/objects/gibs/head/tris.md2";
-		self->s.skinnum = 1; // segunda skin es player
-	}
-	else if (r < 0.666f) // 33.3% de probabilidad
+	if (brandom())
 	{
 		gibname = "models/objects/gibs/head2/tris.md2";
-		self->s.skinnum = 1; // segunda skin es player
+		self->s.skinnum = 1; // second skin is player
 	}
-	else // 33.3% de probabilidad
+	else
 	{
 		gibname = "models/objects/gibs/skull/tris.md2";
 		self->s.skinnum = 0;
@@ -275,7 +267,6 @@ void ThrowClientHead(edict_t* self, int damage)
 
 	gi.linkentity(self);
 }
-
 
 void BecomeExplosion1(edict_t* self)
 {

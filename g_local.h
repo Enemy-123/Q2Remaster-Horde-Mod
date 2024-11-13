@@ -1373,46 +1373,45 @@ DEFINE_DATA_FUNC(moveinfo_blocked, MOVEINFO_BLOCKED, void, edict_t* self, edict_
 template<typename T, int32_t tag>
 struct savable_allocated_memory_t
 {
-	T* ptr;
-	size_t	count;
+	T* ptr = nullptr;  // Inicialización por defecto
+	size_t count = 0;  // Inicialización por defecto
 
-	constexpr savable_allocated_memory_t(T* ptr, size_t count) :
+	// Constructor
+	constexpr savable_allocated_memory_t(T* ptr = nullptr, size_t count = 0) noexcept :
 		ptr(ptr),
 		count(count)
 	{
 	}
 
-	inline ~savable_allocated_memory_t()
+	// Destructor
+	inline ~savable_allocated_memory_t() noexcept
 	{
 		release();
 	}
 
 	// no copy
-	constexpr savable_allocated_memory_t(const savable_allocated_memory_t&) = delete;
-	constexpr savable_allocated_memory_t& operator=(const savable_allocated_memory_t&) = delete;
+	savable_allocated_memory_t(const savable_allocated_memory_t&) = delete;
+	savable_allocated_memory_t& operator=(const savable_allocated_memory_t&) = delete;
 
-	// free move
-	constexpr savable_allocated_memory_t(savable_allocated_memory_t&& move)
+	// move semantics mejorado con std::exchange
+	constexpr savable_allocated_memory_t(savable_allocated_memory_t&& move) noexcept :
+		ptr(std::exchange(move.ptr, nullptr)),
+		count(std::exchange(move.count, 0))
 	{
-		ptr = move.ptr;
-		count = move.count;
-
-		move.ptr = nullptr;
-		move.count = 0;
 	}
 
-	constexpr savable_allocated_memory_t& operator=(savable_allocated_memory_t&& move)
+	constexpr savable_allocated_memory_t& operator=(savable_allocated_memory_t&& move) noexcept
 	{
-		ptr = move.ptr;
-		count = move.count;
-
-		move.ptr = nullptr;
-		move.count = 0;
-
+		if (this != &move) {  // Protección contra auto-asignación
+			release();
+			ptr = std::exchange(move.ptr, nullptr);
+			count = std::exchange(move.count, 0);
+		}
 		return *this;
 	}
 
-	inline void release()
+	// Liberación de memoria
+	inline void release() noexcept
 	{
 		if (ptr)
 		{
@@ -1422,25 +1421,37 @@ struct savable_allocated_memory_t
 		}
 	}
 
-	constexpr explicit operator T* () { return ptr; }
-	constexpr explicit operator const T* () const { return ptr; }
+	// Operadores de conversión
+	[[nodiscard]] constexpr explicit operator T* () noexcept { return ptr; }
+	[[nodiscard]] constexpr explicit operator const T* () const noexcept { return ptr; }
 
-	constexpr std::add_lvalue_reference_t<T> operator[](const size_t index) { return ptr[index]; }
-	constexpr const std::add_lvalue_reference_t<T> operator[](const size_t index) const { return ptr[index]; }
+	// Acceso a elementos con SFINAE para evitar referencias a void
+	template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
+	[[nodiscard]] constexpr U& operator[](const size_t index)
+	{
+		return ptr[index];
+	}
 
-	constexpr size_t size() const { return count * sizeof(T); }
-	constexpr operator bool() const { return !!ptr; }
+	template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
+	[[nodiscard]] constexpr const U& operator[](const size_t index) const
+	{
+		return ptr[index];
+	}
+
+	// Getters
+	[[nodiscard]] constexpr size_t size() const noexcept { return count * sizeof(T); }
+	[[nodiscard]] constexpr size_t length() const noexcept { return count; }
+	[[nodiscard]] constexpr explicit operator bool() const noexcept { return ptr != nullptr; }
 };
 
+// Helper function sin cambios
 template<typename T, int32_t tag>
-inline savable_allocated_memory_t<T, tag> make_savable_memory(size_t count)
+[[nodiscard]] inline savable_allocated_memory_t<T, tag> make_savable_memory(size_t count)
 {
 	if (!count)
 		return { nullptr, 0 };
-
 	return { reinterpret_cast<T*>(gi.TagMalloc(sizeof(T) * count, tag)), count };
 }
-
 struct moveinfo_t
 {
 	// fixed data
@@ -3745,38 +3756,12 @@ struct gib_def_t
 // convenience function to throw different gib types
 // NOTE: always throw the head gib *last* since self's size is used
 // to position the gibs!
-#include <unordered_map>
-
-// Definición de los modelos que queremos multiplicar
-const std::unordered_map<std::string_view, int> gib_multipliers = {
-	{"models/objects/gibs/sm_metal/tris.md2", 3},
-	{"models/objects/gibs/sm_meat/tris.md2", 3},
-	{"models/objects/gibs/chest/tris.md2", 3},
-	{"models/objects/gibs/bone/tris.md2", 3},
-	{"models/objects/gibs/bone2/tris.md2", 2},
-	{"models/objects/gear/bone2/tris.md2", 2}
-};
 
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
 {
 	for (auto& gib : gibs)
-	{
-		int multiplier = 1;
-
-		// Buscar si este gib debe ser multiplicado
-		auto it = gib_multipliers.find(gib.gibname);
-		if (it != gib_multipliers.end()) {
-			multiplier = it->second;
-		}
-
-		for (int j = 0; j < multiplier; j++)
-		{
-			for (size_t i = 0; i < gib.count; i++)
-			{
-				ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1), gib.framenum);
-			}
-		}
-	}
+		for (size_t i = 0; i < gib.count; i++)
+			ThrowGib(self, gib.gibname, damage, gib.type, gib.scale * (self->s.scale ? self->s.scale : 1), gib.framenum);
 }
 
 extern void boss_die(edict_t* boss);
@@ -3839,8 +3824,8 @@ inline bool pierce_args_t::mark(edict_t* ent)
 
 	return true;
 }
-extern int32_t current_wave_level;
-extern uint64_t last_wave_number;
+extern int8_t current_wave_level;
+extern int8_t last_wave_number;
 
 // implementation of pierce stuff
 inline void pierce_args_t::restore()

@@ -6,11 +6,11 @@
 #include "g_horde_benefits.h"
 
 // Definir tamaños máximos para arrays estáticos
-constexpr size_t MAX_ELIGIBLE_BOSSES = 32;
-constexpr size_t MAX_ELIGIBLE_MONSTERS = 64;
-constexpr size_t MAX_ELIGIBLE_ITEMS = 64;
+constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
+constexpr size_t MAX_ELIGIBLE_MONSTERS = 32;
+constexpr size_t MAX_ELIGIBLE_ITEMS = 32;
 constexpr size_t MAX_RECENT_BOSSES = 3;
-constexpr size_t MAX_SPAWN_POINTS = 64;
+constexpr size_t MAX_SPAWN_POINTS = 32;
 
 
 //precache
@@ -36,17 +36,17 @@ int GetNumActivePlayers();
 int GetNumSpectPlayers();
 int GetNumHumanPlayers();
 
-constexpr int32_t MAX_MONSTERS_BIG_MAP = 27;
-constexpr int32_t MAX_MONSTERS_MEDIUM_MAP = 16;
-constexpr int32_t MAX_MONSTERS_SMALL_MAP = 14;
+constexpr int8_t MAX_MONSTERS_BIG_MAP = 27;
+constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;
+constexpr int8_t MAX_MONSTERS_SMALL_MAP = 14;
 
 bool allowWaveAdvance = false; // Global variable to control wave advancement
 bool boss_spawned_for_wave = false; // Variable de control para el jefe
 bool flying_monsters_mode = false; // Variable de control para el jefe volador
 
-uint64_t last_wave_number = 0;
-uint16_t cachedRemainingMonsters = 0;
-uint32_t g_totalMonstersInWave = 0;
+int8_t last_wave_number = 0;              // Reducido de uint64_t
+uint8_t cachedRemainingMonsters = 0;        // Reducido de uint16_t
+uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 
 gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.2_sec; //spawns Cooldown 
@@ -107,11 +107,11 @@ struct HordeState {
 // Nueva implementación de WeightedSelection usando arrays estáticos
 template <typename T>
 struct WeightedSelection {
-	static constexpr size_t MAX_ITEMS = 64;
+	static constexpr size_t MAX_ITEMS = 32; // Reducido de 64
 	const T* items[MAX_ITEMS];
-	double cumulative_weights[MAX_ITEMS];
+	float cumulative_weights[MAX_ITEMS]; // Cambiado de double a float
 	size_t item_count = 0;
-	double total_weight = 0.0;
+	float total_weight = 0.0f; // Cambiado de double a float
 
 	void clear() {
 		item_count = 0;
@@ -152,19 +152,19 @@ struct WeightedSelection {
 };
 
 
-int32_t current_wave_level = g_horde_local.level;
+int8_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
 auto lastMonsterSpawnTime = std::unordered_map<std::string, gtime_t>{};
 auto lastSpawnPointTime = std::unordered_map<edict_t*, gtime_t>{};
 struct SpawnPointData {
-	uint32_t attempts = 0;               // Number of failed spawn attempts
-	gtime_t cooldown = 0_sec;            // Cooldown time before retrying
-	gtime_t lastSpawnTime = 0_sec;       // Last recorded spawn attempt time
-	uint32_t successfulSpawns = 0;       // Number of successful spawns
-	bool isTemporarilyDisabled = false;  // Indicates if the spawn point is temporarily disabled
-	std::string lastSpawnedMonsterClassname; // Stores the classname of the last spawned monster
-	gtime_t cooldownEndsAt = 0_sec;      // Time when the cooldown ends for the spawn point
+	uint16_t attempts = 0;              // Reducido de uint32_t 
+	gtime_t cooldown = 0_sec;
+	gtime_t lastSpawnTime = 0_sec;
+	uint16_t successfulSpawns = 0;      // Reducido de uint32_t
+	bool isTemporarilyDisabled = false;
+	gtime_t cooldownEndsAt = 0_sec;
+	// Eliminado lastSpawnedMonsterClassname para ahorrar memoria
 };
 
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
@@ -182,7 +182,7 @@ const std::unordered_set<std::string> bigMaps = {
 	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2", "rdm9"
 };
 
-constexpr size_t MAX_MAPS = 64;
+constexpr size_t MAX_MAPS = 32;
 std::array<std::pair<std::string, MapSize>, MAX_MAPS> mapSizeCache;
 size_t mapSizeCacheSize = 0;
 
@@ -1117,7 +1117,7 @@ static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 	data.cooldown = level.time;
 }
 
-constexpr gtime_t CLEANUP_THRESHOLD = 3_sec;
+constexpr gtime_t CLEANUP_THRESHOLD = 2_sec;
 
 // Función modificada sin lanzar excepciones
 static SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
@@ -1132,7 +1132,7 @@ static SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
 	return insert_it->second;
 }
 
-constexpr size_t MAX_SPAWN_POINTS_DATA = 30; // Define un límite razonable
+constexpr size_t MAX_SPAWN_POINTS_DATA = 16; // Define un límite razonable
 
 static void CleanUpSpawnPointsData() {
 	const gtime_t currentTime = level.time;
@@ -1159,7 +1159,7 @@ static void CleanUpSpawnPointsData() {
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
 	data.lastSpawnTime = level.time;
-	data.lastSpawnedMonsterClassname = chosen_monster;
+	//data.lastSpawnedMonsterClassname = chosen_monster;
 	data.isTemporarilyDisabled = true;
 	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 }
@@ -1169,10 +1169,10 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	data.attempts++;
 
-	if (data.attempts >= 6) {
+	if (data.attempts >= 3) {  // Reducido de 4
 		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated for 10 seconds.\n", spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
 		data.isTemporarilyDisabled = true; // Temporarily deactivate
-		data.cooldownEndsAt = level.time + 10_sec;
+		data.cooldownEndsAt = level.time + 5_sec;  // Reducido de 10_sec
 	}
 	else if (data.attempts % 3 == 0) {
 		data.cooldownEndsAt = std::max(data.cooldownEndsAt + (data.cooldownEndsAt / 2), 2.5_sec);
@@ -2049,102 +2049,103 @@ void BossDeathHandler(edict_t* boss) {
 		return;
 	}
 
-	if (frandom() < 0.75f) {
-		OldBossDeathHandler(boss);
-		return;
-	}
-	else
-
-	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
-
-	OnEntityDeath(boss);
-	OnEntityRemoved(boss);
-	auto_spawned_bosses.erase(boss);
-
-
-
-	// Crear punto central invisible para la rotación
-	edict_t* center_point = G_Spawn();
-	center_point->s.origin = boss->s.origin;
-	center_point->s.angles = boss->s.angles;
-	center_point->delay = 0;
-	// Tiempo en que los items comenzarán a dispersarse
-	center_point->timestamp = level.time + 2_sec;
-	center_point->think = G_FreeEdict;
-	// Dar tiempo extra para que los items se dispersen
-	center_point->nextthink = level.time + 3_sec;
-
-	static const std::array<const char*, 7> itemsToDrop = {
-		"item_adrenaline", "item_pack", "item_doppleganger",
-		"item_sphere_defender", "item_armor_combat", "item_bandolier",
-		"item_invulnerability"
-	};
-
-	// Dropear arma especial con rotación
-	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
-		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
-			float angle = frandom() * PI * 2;
-			weapon->s.origin = boss->s.origin + vec3_t{
-				cosf(angle) * ITEM_ORBIT_RADIUS,
-				sinf(angle) * ITEM_ORBIT_RADIUS,
-				ITEM_VERTICAL_OFFSET
-			};
-
-			weapon->movetype = MOVETYPE_FLY;
-			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
-			weapon->s.renderfx |= RF_GLOW;
-			weapon->s.alpha = 0.85f;
-			weapon->s.scale = 1.25f;
-			weapon->flags &= ~FL_RESPAWN;
-			weapon->owner = center_point;
-			weapon->think = Item_Orbit_Think;
-			weapon->nextthink = level.time + FRAME_TIME_S;
-		}
-	}
-
-	// Items normales con rotación
-	std::array<const char*, 7> shuffledItems = itemsToDrop;
-	for (int i = 6; i > 0; i--) {
-		int j = mt_rand() % (i + 1);
-		if (i != j) {
-			std::swap(shuffledItems[i], shuffledItems[j]);
-		}
-	}
-
-	for (size_t i = 0; i < shuffledItems.size(); i++) {
-		if (edict_t* item = Drop_Item(boss, FindItemByClassname(shuffledItems[i]))) {
-			// Distribuir items en círculo más pequeño inicialmente
-			float angle = (static_cast<float>(i) / shuffledItems.size()) * PI * 2;
-			item->s.origin = boss->s.origin + vec3_t{
-				cosf(angle) * (ITEM_ORBIT_RADIUS * 0.5f),
-				sinf(angle) * (ITEM_ORBIT_RADIUS * 0.5f),
-				ITEM_VERTICAL_OFFSET
-			};
-
-			item->movetype = MOVETYPE_FLY;
-			item->s.effects |= EF_GIB;
-			item->flags &= ~FL_RESPAWN;
-			item->owner = center_point;
-			item->think = Item_Orbit_Think;
-			item->nextthink = level.time + FRAME_TIME_S;
-			item->count = static_cast<int>(ItemState::RISING); // Iniciar en estado RISING
-		}
-	}
-
-	boss->takedamage = false;
-
-	static constexpr std::array<const char*, 4> flyingBossTypes = {
-		"monster_boss2", "monster_carrier",
-		"monster_carrier_mini", "monster_boss2kl"
-	};
-
-	for (const auto& bossType : flyingBossTypes) {
-		if (strcmp(boss->classname, bossType) == 0) {
-			flying_monsters_mode = false;
-			break;
-		}
-	}
+	//if (frandom() < 0.80f) {
+	OldBossDeathHandler(boss);
+	return;
 }
+	//}
+//	else
+//
+//	boss->monsterinfo.BOSS_DEATH_HANDLED = true;
+//
+//	OnEntityDeath(boss);
+//	OnEntityRemoved(boss);
+//	auto_spawned_bosses.erase(boss);
+//
+//
+//
+//	// Crear punto central invisible para la rotación
+//	edict_t* center_point = G_Spawn();
+//	center_point->s.origin = boss->s.origin;
+//	center_point->s.angles = boss->s.angles;
+//	center_point->delay = 0;
+//	// Tiempo en que los items comenzarán a dispersarse
+//	center_point->timestamp = level.time + 2_sec;
+//	center_point->think = G_FreeEdict;
+//	// Dar tiempo extra para que los items se dispersen
+//	center_point->nextthink = level.time + 3_sec;
+//
+//	static const std::array<const char*, 7> itemsToDrop = {
+//		"item_adrenaline", "item_pack", "item_doppleganger",
+//		"item_sphere_defender", "item_armor_combat", "item_bandolier",
+//		"item_invulnerability"
+//	};
+//
+//	// Dropear arma especial con rotación
+//	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
+//		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
+//			float angle = frandom() * PI * 2;
+//			weapon->s.origin = boss->s.origin + vec3_t{
+//				cosf(angle) * ITEM_ORBIT_RADIUS,
+//				sinf(angle) * ITEM_ORBIT_RADIUS,
+//				ITEM_VERTICAL_OFFSET
+//			};
+//
+//			weapon->movetype = MOVETYPE_FLY;
+//			weapon->s.effects |= EF_GRENADE_LIGHT | EF_GIB | EF_BLUEHYPERBLASTER;
+//			weapon->s.renderfx |= RF_GLOW;
+//			weapon->s.alpha = 0.85f;
+//			weapon->s.scale = 1.25f;
+//			weapon->flags &= ~FL_RESPAWN;
+//			weapon->owner = center_point;
+//			weapon->think = Item_Orbit_Think;
+//			weapon->nextthink = level.time + FRAME_TIME_S;
+//		}
+//	}
+//
+//	// Items normales con rotación
+//	std::array<const char*, 7> shuffledItems = itemsToDrop;
+//	for (int i = 6; i > 0; i--) {
+//		int j = mt_rand() % (i + 1);
+//		if (i != j) {
+//			std::swap(shuffledItems[i], shuffledItems[j]);
+//		}
+//	}
+//
+//	for (size_t i = 0; i < shuffledItems.size(); i++) {
+//		if (edict_t* item = Drop_Item(boss, FindItemByClassname(shuffledItems[i]))) {
+//			// Distribuir items en círculo más pequeño inicialmente
+//			float angle = (static_cast<float>(i) / shuffledItems.size()) * PI * 2;
+//			item->s.origin = boss->s.origin + vec3_t{
+//				cosf(angle) * (ITEM_ORBIT_RADIUS * 0.5f),
+//				sinf(angle) * (ITEM_ORBIT_RADIUS * 0.5f),
+//				ITEM_VERTICAL_OFFSET
+//			};
+//
+//			item->movetype = MOVETYPE_FLY;
+//			item->s.effects |= EF_GIB;
+//			item->flags &= ~FL_RESPAWN;
+//			item->owner = center_point;
+//			item->think = Item_Orbit_Think;
+//			item->nextthink = level.time + FRAME_TIME_S;
+//			item->count = static_cast<int>(ItemState::RISING); // Iniciar en estado RISING
+//		}
+//	}
+//
+//	boss->takedamage = false;
+//
+//	static constexpr std::array<const char*, 4> flyingBossTypes = {
+//		"monster_boss2", "monster_carrier",
+//		"monster_carrier_mini", "monster_boss2kl"
+//	};
+//
+//	for (const auto& bossType : flyingBossTypes) {
+//		if (strcmp(boss->classname, bossType) == 0) {
+//			flying_monsters_mode = false;
+//			break;
+//		}
+//	}
+//}
 
 void boss_die(edict_t* boss) {
 	if (!boss || !boss->inuse) {
@@ -2210,7 +2211,7 @@ static void CheckAndRestoreMonsterAlpha(edict_t* ent) {
 
 
 // Constante para el tiempo de vida del fade
-constexpr gtime_t FADE_LIFESPAN = 1_sec;
+constexpr gtime_t FADE_LIFESPAN = 0.5_sec;
 
 static THINK(fade_out_think)(edict_t* self) -> void {
 	// Si el monstruo está vivo, restaurar su estado
@@ -2265,66 +2266,30 @@ static void StartFadeOut(edict_t* ent) {
 	gi.linkentity(ent);
 }
 
+// Asegúrate de limpiar entidades muertas
 void Horde_CleanBodies() {
-	int32_t cleaned_count = 0;
-
-	// Cached model indices para mejor rendimiento
-	static int32_t widow2_model = -1;
-	static int32_t head_models[3] = { -1, -1, -1 };
-
-	// Inicializar índices de modelos solo una vez
-	if (widow2_model == -1) {
-		widow2_model = gi.modelindex("models/monsters/blackwidow2/tris.md2");
-		head_models[0] = gi.modelindex("models/objects/gibs/head/tris.md2");
-		head_models[1] = gi.modelindex("models/objects/gibs/head2/tris.md2");
-		head_models[2] = gi.modelindex("models/objects/gibs/skull/tris.md2");
-	}
-
 	for (auto ent : active_or_dead_monsters()) {
-		// Skip entidades que ya están en proceso de fade
-		if (ent->is_fading_out) {
-			continue;
-		}
+		// Limpiar inmediatamente si está muerto
+		if (ent->deadflag || ent->health <= 0) {
+			// Remover inmediatamente sin fade si está muy lejos de los jugadores
+			bool far_from_players = true;
+			for (auto player : active_players_no_spect()) {
+				if ((ent->s.origin - player->s.origin).length() < 1000) {
+					far_from_players = false;
+					break;
+				}
+			}
 
-		// Función helper para verificar si es una cabeza
-		auto is_head_model = [&](int32_t model_index) {
-			return std::find(std::begin(head_models), std::end(head_models), model_index) != std::end(head_models);
-			};
-
-		// Verificar condiciones para limpieza
-		bool should_clean = false;
-
-		// Verificar si es un monstruo muerto O si es widow2 muerta
-		if ((ent->svflags & SVF_DEADMONSTER) || ent->health <= 0 ||
-			(ent->s.modelindex == widow2_model && ent->health <= 0)) {
-			should_clean = true;
-		}
-		// Verificar si es una cabeza con movetype bounce
-		else if (is_head_model(ent->s.modelindex) && ent->movetype == MOVETYPE_BOUNCE) {
-			should_clean = true;
-		}
-
-		if (should_clean) {
-			// Manejar muerte de jefes si es necesario
-			if (ent->monsterinfo.IS_BOSS &&
-				!ent->monsterinfo.BOSS_DEATH_HANDLED) {
-				BossDeathHandler(ent);
+			if (far_from_players) {
+				G_FreeEdict(ent);
 			}
 			else {
-				OnEntityDeath(ent);
+				StartFadeOut(ent);
 			}
-
-			// Limpieza y fade out
-			auto_spawned_bosses.erase(ent);
-			StartFadeOut(ent);
-			cleaned_count++;
 		}
 	}
-
-	if (cleaned_count > 0) {
-		gi.Com_PrintFmt("Marked {} monster bodies and heads for fade out\n", cleaned_count);
-	}
 }
+
 // spawning boss origin
 std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"q2dm1", {1184, 568, 704}},
@@ -2506,7 +2471,7 @@ static void SpawnBossAutomatically() {
 	boss->owner = orb;
 
 	// Retardar spawn del jefe
-	boss->nextthink = level.time + 1000_ms;
+	boss->nextthink = level.time + 750_ms;
 	boss->think = BossSpawnThink;
 	gi.Com_PrintFmt("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
@@ -2989,8 +2954,8 @@ static int32_t CountActiveMonsters() {
 		});
 }
 
-inline int32_t CalculateRemainingMonsters() {
-	int32_t remainingMonsters = level.total_monsters - level.killed_monsters + (g_horde_local.queued_monsters);
+inline int8_t CalculateRemainingMonsters() {
+	int16_t remainingMonsters = level.total_monsters - level.killed_monsters + (g_horde_local.queued_monsters);
 	return (remainingMonsters < 0) ? 0 : remainingMonsters;
 }
 
@@ -3172,7 +3137,7 @@ static const char* GetRandomWaveSound() {
 	return WAVE_SOUNDS[dist(mt_rand)].data(); // Usar .data() para obtener const char*
 }
 
-static void HandleWaveRestMessage(gtime_t duration = 4_sec) {
+static void HandleWaveRestMessage(gtime_t duration = 3_sec) {
 	const char* message;
 
 	if (g_chaotic->integer > 0) {
@@ -3429,7 +3394,8 @@ enum class MessageType {
 	Insane
 };
 
-static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
+void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
+	constexpr int32_t MAX_DAMAGE = 100000; // Añadir límite máximo de daño
 	int32_t total_damage = 0;
 	topDamager = PlayerStats(); // Reset usando el constructor por defecto
 
@@ -3437,7 +3403,7 @@ static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
 		if (!player->client)
 			continue;
 
-		int32_t player_damage = player->client->total_damage;
+		int32_t player_damage = std::min(player->client->total_damage, MAX_DAMAGE);
 
 		// Solo considerar jugadores que hayan hecho daño
 		if (player_damage > 0) {
@@ -3527,7 +3493,7 @@ bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::string& play
 }
 
 static void SendCleanupMessage(WaveEndReason reason) {
-	gtime_t duration = 3_sec;
+	gtime_t duration = 2_sec;
 	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
 		duration = 0_sec;
 	}
@@ -3716,7 +3682,7 @@ void Horde_RunFrame() {
 	}
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time) {
-			HandleWaveRestMessage(4_sec);
+			HandleWaveRestMessage(3_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
 		}

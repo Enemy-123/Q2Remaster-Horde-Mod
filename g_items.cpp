@@ -1135,7 +1135,7 @@ THINK(drop_make_touchable) (edict_t* ent) -> void
 	ent->touch = Touch_Item;
 	if (G_IsDeathmatch())
 	{
-		ent->nextthink = level.time + 25_sec;
+		ent->nextthink = level.time + 15_sec; //hopefully we will fix overflow crashes - reduced from 25
 		ent->think = G_FreeEdict;
 	}
 }
