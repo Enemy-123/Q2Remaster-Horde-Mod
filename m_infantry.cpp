@@ -29,7 +29,7 @@ static cached_soundindex sound_search;
 static cached_soundindex sound_idle;
 
 // range at which we'll try to initiate a run-attack to close distance
-constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.75f;
+constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.65f;
 
 mframe_t infantry_frames_stand[] = {
 	{ ai_stand },
@@ -303,7 +303,7 @@ void InfantryMachineGun(edict_t* self)
 	else
 	{
 		// Comportamiento normal cuando no está muriendo
-		vec3_t offset = { 24, 10, 8 };
+		vec3_t offset = { 26.6f, 7.1f, 13.1f };
 		AngleVectors(self->s.angles, forward, right, up);
 		start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
@@ -797,7 +797,7 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 		// 30% chance to throw a grenade when enemy is beyond melee range
 		M_SetAnimation(self, &infantry_move_grenade);
 	}
-	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_MEDIC_BLASTER_2]))
+	else if (M_CheckClearShot(self, monster_flash_offset[MZ2_INFANTRY_MACHINEGUN_1]))
 	{
 		if (self->count)
 			M_SetAnimation(self, &infantry_move_attack1);
