@@ -256,11 +256,27 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 }
 static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
 	// Base count calculation with level scaling
-	int32_t baseCount = (mapSize.isSmallMap) ?
-		std::min((lvl <= 6) ? 7 : 9 + lvl, MAX_MONSTERS_SMALL_MAP) :
-		(mapSize.isBigMap) ?
-		std::min((lvl <= 4) ? 24 : 27 + lvl, MAX_MONSTERS_BIG_MAP) :
-		std::min((lvl <= 4) ? 5 : 8 + lvl, MAX_MONSTERS_MEDIUM_MAP);
+	// Base count con mejor progresión
+	int32_t baseCount;
+	if (lvl <= 5) {
+		baseCount = mapSize.isSmallMap ? 6 : (mapSize.isBigMap ? 12 : 8);
+	}
+	else if (lvl <= 10) {
+		baseCount = mapSize.isSmallMap ? 8 : (mapSize.isBigMap ? 16 : 12);
+	}
+	else if (lvl <= 15) {
+		baseCount = mapSize.isSmallMap ? 10 : (mapSize.isBigMap ? 20 : 14);
+	}
+	else {
+		baseCount = mapSize.isSmallMap ? 12 : (mapSize.isBigMap ? 24 : 16);
+	}
+
+	// Ajuste progresivo por jugadores
+	float playerMultiplier = 1.0f;
+	if (humanPlayers > 1) {
+		playerMultiplier = 1.0f + ((humanPlayers - 1) * 0.2f);
+		baseCount = static_cast<int32_t>(baseCount * playerMultiplier);
+	}
 
 	// Additional spawn calculation with progressive scaling
 	int32_t additionalSpawn = (lvl >= 8) ?
@@ -272,12 +288,6 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	// Aplicar escala basada en nivel después del nivel 10
 	float cooldownScale = CalculateCooldownScale(lvl);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
-
-	// Ajuste de spawn rate basado en jugadores
-	if (humanPlayers > 1) {
-		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
-		SPAWN_POINT_COOLDOWN *= playerAdjustment;
-	}
 
 	// Enhanced level scaling for higher levels
 	if (lvl > 25) {
@@ -1221,18 +1231,17 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 }
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
-	// Verificar el cooldown del spawn point de manera más estricta
+	// Verificar el cooldown del spawn point
 	auto& data = spawnPointsData[spawn_point];
 	if (data.isTemporarilyDisabled) {
 		if (level.time < data.cooldownEndsAt) {
 			return nullptr;
 		}
-		// Si el cooldown ha terminado, resetear el estado
 		data.isTemporarilyDisabled = false;
 		data.attempts = 0;
 	}
 
-	// Verificar si el punto está realmente ocupado
+	// Verificar si el punto está ocupado
 	if (IsSpawnPointOccupied(spawn_point)) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
@@ -1244,64 +1253,108 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	size_t eligible_count = 0;
 	double total_weight = 0.0;
 
-	// Calcular factores de ajuste una sola vez
+	// Factores de ajuste
+	const int32_t humanPlayers = GetNumHumanPlayers();
+	const float playerScaling = 1.0f + (humanPlayers - 1) * 0.15f;
+	const int32_t currentLevel = g_horde_local.level;
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
-	const bool isLateGame = g_horde_local.level >= 20;
-	const bool isMidGame = g_horde_local.level >= 10 && g_horde_local.level < 20;
 
-	// Colectar monstruos elegibles y calcular pesos en un solo paso
+	// Calcular fase del juego
+	const bool isEarlyGame = currentLevel <= 5;
+	const bool isEarlyMidGame = currentLevel <= 10;
+	const bool isMidGame = currentLevel <= 15;
+	const bool isLateGame = currentLevel > 15;
+
+	// Colectar monstruos elegibles y calcular pesos
 	for (const auto& monster : monsters) {
 		const bool isFlyingMonster = IsFlyingMonster(monster.classname);
 
-		if (!IsMonsterEligible(spawn_point, monster, isFlyingMonster, g_horde_local.level, flyingSpawns)) {
+		// Verificar elegibilidad básica
+		if (!IsMonsterEligible(spawn_point, monster, isFlyingMonster, currentLevel, flyingSpawns)) {
+			continue;
+		}
+
+		// Verificar rango de nivel
+		if ((monster.min_level != -1 && currentLevel < monster.min_level) ||
+			(monster.max_level != -1 && currentLevel > monster.max_level)) {
 			continue;
 		}
 
 		// Base weight
 		double weight = monster.weight;
 
-		// Ajustes de peso basados en el modo de juego
-		if (flying_monsters_mode) {
-			if (isFlyingMonster) {
-				weight *= 2.0; // Boost para monstruos voladores en modo volador
-			}
-			else {
-				weight *= 0.5; // Reducción para no voladores en modo volador
+		// Ajustes progresivos por fase del juego
+		if (isEarlyGame) {
+			// Early game: Favorecer monstruos básicos
+			if (monster.min_level <= 3) {
+				weight *= 1.4f;
 			}
 		}
-
-		// Ajustes de peso basados en el nivel del juego
-		if (isLateGame) {
-			if (monster.min_level >= 15) {
-				weight *= 1.3; // Boost para monstruos de nivel alto en late game
+		else if (isEarlyMidGame) {
+			// Early-mid game: Transición a monstruos intermedios
+			if (monster.min_level >= 4 && monster.min_level <= 8) {
+				weight *= 1.3f;
 			}
 		}
 		else if (isMidGame) {
-			if (monster.min_level >= 8 && monster.min_level <= 15) {
-				weight *= 1.2; // Boost para monstruos de nivel medio en mid game
+			// Mid game: Balance entre básicos y avanzados
+			if (monster.min_level >= 8 && monster.min_level <= 12) {
+				weight *= 1.25f;
 			}
 		}
 		else {
-			if (monster.min_level <= 5) {
-				weight *= 1.1; // Ligero boost para monstruos básicos en early game
+			// Late game: Favorecer monstruos avanzados
+			if (monster.min_level >= 12) {
+				weight *= 1.35f + ((currentLevel - 15) * 0.02f);
 			}
 		}
+
+		// Ajuste por modo de juego
+		if (flying_monsters_mode) {
+			if (isFlyingMonster) {
+				weight *= 2.0;
+			}
+			else {
+				weight *= 0.5;
+			}
+		}
+
+		// Ajuste por spawn point aéreo
+		if (spawn_point->style == 1 && isFlyingMonster) {
+			weight *= 1.5;
+		}
+
+		// Ajuste por número de jugadores
+		weight *= playerScaling;
 
 		// Ajustes por dificultad
 		if (g_insane->integer || g_chaotic->integer) {
-			if (monster.min_level >= 10) {
-				weight *= 1.25; // Boost para monstruos más difíciles en modos duros
+			float difficultyScale = 1.0f;
+			if (currentLevel <= 10) {
+				difficultyScale = 1.1f;
 			}
+			else if (currentLevel <= 20) {
+				difficultyScale = 1.2f;
+			}
+			else if (currentLevel <= 30) {
+				difficultyScale = 1.3f;
+			}
+			else {
+				difficultyScale = 1.4f;
+			}
+
+			if (monster.min_level >= 10) {
+				difficultyScale *= 1.2f; // Bonus adicional para monstruos avanzados
+			}
+
+			weight *= difficultyScale;
 		}
 
-		// Ajuste final por spawn point type
-		if (spawn_point->style == 1 && isFlyingMonster) {
-			weight *= 1.5; // Boost para voladores en spawn points aéreos
-		}
-
+		// Factor de ajuste final
 		weight *= adjustmentFactor;
 
+		// Almacenar si el peso es válido
 		if (weight > 0.0 && eligible_count < MAX_ELIGIBLE_MONSTERS) {
 			eligible_monsters[eligible_count] = &monster;
 			total_weight += weight;
@@ -1341,7 +1394,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	if (selected_index < eligible_count) {
 		const weighted_item_t* chosen_monster = eligible_monsters[selected_index];
 		UpdateCooldowns(spawn_point, chosen_monster->classname);
-		ResetSingleSpawnPointAttempts(spawn_point);
 		return chosen_monster->classname;
 	}
 
