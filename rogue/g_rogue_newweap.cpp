@@ -1016,7 +1016,7 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 		return BoxEdictsResult_t::Keep;
 
 	// don't hit other teslas in SP/coop
-	if ((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP))
+	if ((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP) || check->monsterinfo.invincible_time > level.time)
 		return BoxEdictsResult_t::Skip;
 
 	// Don't hit monster_sentrygun or emitter
@@ -1026,7 +1026,6 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 
 	return BoxEdictsResult_t::Keep;
 }
-#include <algorithm> // Para std::min si decides usarlo
 
 constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array touch
 
