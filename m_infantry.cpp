@@ -276,37 +276,51 @@ constexpr vec3_t aimangles[] = {
 
 void InfantryMachineGun(edict_t* self)
 {
-	vec3_t offset, start, forward, right, up, dir, end;
-	trace_t trace;
+	vec3_t start, forward, right, up, dir, end;
 
 	if (!has_valid_enemy(self))
 		return;
 
-	// Configurar offset más preciso
-	offset = { 24, 10, 8 };
-
-	// Obtener todos los vectores de dirección
-	AngleVectors(self->s.angles, forward, right, up);
-
-	// Usar G_ProjectSource2 para mayor precisión
-	start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
-
-	// Calcular dirección al enemigo
-	dir = self->enemy->s.origin - start;
-
-	// Predicción de disparo
-	if (frandom() < 0.3f)
-		PredictAim(self, self->enemy, start, 1075, true, 0, &dir, &end);
-	else
-		end = self->enemy->s.origin;
-
-	// Verificar línea de visión
-	trace = gi.traceline(start, end, self, MASK_PROJECTILE);
-
-	if (trace.ent == self->enemy || trace.ent == world)
+	// Si está en secuencia de muerte y tiene salud > 0
+	if (self->health <= 0 && self->s.frame >= FRAME_death211 && self->s.frame <= FRAME_death225)
 	{
-		dir.normalize();
-		monster_fire_blaster2(self, start, dir, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+		// Usar los offsets precisos del machinegun durante la muerte
+		monster_muzzleflash_id_t flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_INFANTRY_MACHINEGUN_2 + (self->s.frame - FRAME_death211));
+
+		// Obtener vectores de dirección
+		AngleVectors(self->s.angles, forward, right, nullptr);
+
+		// Usar los offsets precisos del machinegun
+		start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+		// Calcular dirección usando los ángulos predefinidos
+		vec3_t vec = self->s.angles - aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2];
+		AngleVectors(vec, forward, nullptr, nullptr);
+
+		// Disparar usando el efecto y sonido del hyperblaster
+		monster_fire_blaster2(self, start, forward, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+	}
+	else
+	{
+		// Comportamiento normal cuando no está muriendo
+		vec3_t offset = { 24, 10, 8 };
+		AngleVectors(self->s.angles, forward, right, up);
+		start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+
+		dir = self->enemy->s.origin - start;
+
+		if (frandom() < 0.3f)
+			PredictAim(self, self->enemy, start, 1075, true, 0, &dir, &end);
+		else
+			end = self->enemy->s.origin;
+
+		trace_t trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+
+		if (trace.ent == self->enemy || trace.ent == world)
+		{
+			dir.normalize();
+			monster_fire_blaster2(self, start, dir, 6, 1150, MZ2_MEDIC_HYPERBLASTER1_5, EF_BLASTER);
+		}
 	}
 }
 
@@ -369,19 +383,19 @@ mframe_t infantry_frames_death2[] = {
 	{ ai_move, 4 },
 	{ ai_move, 3 },
 	{ ai_move },
-	{ ai_move, -2 },
-	{ ai_move, 1, monster_footstep },
-	{ ai_move, 4 },
-	{ ai_move, 1, monster_footstep },
-	{ ai_move, 4 },
-	{ ai_move, 3 },
-	{ ai_move, 1, monster_footstep },
-	{ ai_move, 4 },
-	{ ai_move, 3 },
-	{ ai_move, 1, monster_footstep },
-	{ ai_move, 4 },
-	{ ai_move, 3 },
-	{ ai_move, -6, [](edict_t *self) { infantry_shrink(self); monster_footstep(self); } },
+	{ ai_move, -2, InfantryMachineGun },
+	{ ai_move, -2, InfantryMachineGun },
+	{ ai_move, -3, InfantryMachineGun },
+	{ ai_move, -1, InfantryMachineGun },
+	{ ai_move, -2, InfantryMachineGun },
+	{ ai_move, 0, InfantryMachineGun },
+	{ ai_move, 2, InfantryMachineGun },
+	{ ai_move, 2, InfantryMachineGun },
+	{ ai_move, 3, InfantryMachineGun },
+	{ ai_move, -10, InfantryMachineGun },
+	{ ai_move, -7, InfantryMachineGun },
+	{ ai_move, -8, InfantryMachineGun },
+	{ ai_move, -6, [](edict_t* self) { infantry_shrink(self); monster_footstep(self); } },
 	{ ai_move, 4 },
 	{ ai_move }
 };

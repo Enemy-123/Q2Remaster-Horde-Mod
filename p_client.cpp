@@ -3215,7 +3215,10 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		if (!game.autosaved || !ent->client->pers.weapon)
 			InitClientPersistant(ent, ent->client);
 	}
-
+	if (!g_horde->integer) {
+		ent->client->resp.id_state = true;
+		ent->client->resp.iddmg_state = true;
+	}
 	// make sure we start with known default(s)
 	ent->svflags = SVF_PLAYER;
 	if (isBot) {
