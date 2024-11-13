@@ -170,6 +170,42 @@ std::string GetDisplayName(const edict_t* ent) {
 
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
+
+	if (monster->monsterinfo.issummoned) {
+
+		FindMTarget(monster);
+
+		if (monster->svflags & SVF_MONSTER)
+		monster->svflags & ~SVF_MONSTER;
+
+		monster->svflags |= SVF_PLAYER;
+
+		monster->monsterinfo.team = CTF_TEAM1;
+
+		//monster->classname = "summonedent";
+
+		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
+			// Configurar equipo
+			if (monster->owner->client->resp.ctf_team == CTF_TEAM1)
+				monster->monsterinfo.team = CTF_TEAM1;
+			else if (monster->owner->client->resp.ctf_team == CTF_TEAM2)
+				monster->monsterinfo.team = CTF_TEAM2;
+
+		// Establecer equipo basado en CTF
+		if (monster->owner->client->resp.ctf_team == CTF_TEAM1) {
+			monster->team = TEAM1;
+		}
+		else if (monster->owner->client->resp.ctf_team == CTF_TEAM2) {
+			monster->team = TEAM2;
+		}
+		else {
+			monster->team = "neutral";
+		}
+		gi.linkentity(monster);
+
+	}
+
 	monster->spawnflags.has(SPAWNFLAG_MONSTER_NO_DROP);
 
 	monster->gib_health *= 2.8f;

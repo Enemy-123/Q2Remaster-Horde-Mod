@@ -6,6 +6,7 @@
 
 #include "../g_local.h"
 #include "../m_player.h"
+#include "../shared.h"
 
 dm_game_rt DMGame;
 
@@ -163,12 +164,14 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 {
 	if (!ent || !ent->client)
 		return false;
-
 	const vec3_t mins{ -16, -16, -24 };
 	const vec3_t maxs{ 16, 16, 32 };
 
 	// Calcular posición final
-	auto dir = vectoangles(aimdir);
+	vec3_t angles = vectoangles(aimdir);
+	// Mantener solo el yaw (rotación horizontal), resetear pitch y roll
+	angles = vec3_t{ 0, angles.y, 0 };  // Solo preservamos el yaw
+
 	vec3_t end = start + (aimdir * distance);
 
 	// Verificar espacio para la torreta
@@ -181,20 +184,18 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 		gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
 		return false;
 	}
-
 	// Crear y configurar la torreta
 	edict_t* turret = G_Spawn();
+	turret->monsterinfo.issummoned = true;
+	//brandom() ? turret->classname = "monster_sentrygun" :
+	//turret->classname = "monster_hover";
 	turret->classname = "monster_sentrygun";
 	turret->s.origin = new_start;
-	turret->s.angles = dir;
+	turret->s.angles = angles;  // Usamos los ángulos modificados
 	turret->owner = ent;
 
-	// Configurar equipo
-	if (ent->client->resp.ctf_team == CTF_TEAM1)
-		turret->monsterinfo.team = CTF_TEAM1;
-	else if (ent->client->resp.ctf_team == CTF_TEAM2)
-		turret->monsterinfo.team = CTF_TEAM2;
 
+	ApplyMonsterBonusFlags(turret);
 	// Spawner usando la lógica existente de monster_sentrygun
 	ED_CallSpawn(turret);
 

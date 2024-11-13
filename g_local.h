@@ -1746,7 +1746,7 @@ struct monsterinfo_t
 	// in g_save.cpp too!
 
 	//Horde Stuff
-
+	bool issummoned = false; // corpse cleaning management
 	bool IS_BOSS = false; // Is monster a boss?
 	bool BOSS_DEATH_HANDLED = false; // is dead?
 

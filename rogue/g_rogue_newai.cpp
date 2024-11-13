@@ -1474,6 +1474,9 @@ bool has_valid_enemy(edict_t *self)
 	if (self->enemy->health < 1)
 		return false;
 
+	if (OnSameTeam(self, self->enemy))
+		return false;
+
 	return true;
 }
 
