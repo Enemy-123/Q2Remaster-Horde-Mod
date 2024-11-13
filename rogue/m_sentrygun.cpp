@@ -1199,7 +1199,7 @@ void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
+	//self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
 
 	// Al crear la torreta, verificar si el owner tiene power-ups activos
 	if (self->owner && self->owner->client) {
