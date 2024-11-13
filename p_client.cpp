@@ -3352,7 +3352,7 @@ bool G_ShouldPlayersCollide(bool weaponry)
 		return false; // only for debugging.
 
 	// always collide on dm
-	if (deathmatch->integer && !g_horde->integer)
+	if (!coop->integer || !g_horde->integer)
 		return true;
 
 	// weaponry collides if friendly fire is enabled

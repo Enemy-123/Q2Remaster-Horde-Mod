@@ -524,7 +524,7 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 	if (ent1 == ent2)
 		return false;
 
-	if (G_IsCooperative() && !g_horde->integer)
+	if (G_IsCooperative())
 	{
 		// En modo cooperativo, los jugadores están en el mismo equipo
 		if (ent1->client && ent2->client)

@@ -858,12 +858,12 @@ TOUCH(fireball_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool oth
 
 	if (other->takedamage)
 	{
-		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, 0, DAMAGE_NONE, MOD_FIREBALL);
+		T_Damage(other, ent, ent->owner, ent->velocity, ent->s.origin, tr.plane.normal, ent->dmg, ent->dmg, DAMAGE_NONE, MOD_FIREBALL);
 	}
 	else
 	{
 		// don't throw any debris in net games  // check horde later
-		if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
+		if (!G_IsDeathmatch() || !g_horde->integer || !G_IsCooperative())
 		{
 			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
 			{
@@ -917,7 +917,7 @@ TOUCH(rocket_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other
 	else
 	{
 		// don't throw any debris in net games  // check horde later
-		if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
+		if (!G_IsDeathmatch() || !g_horde->integer || !G_IsCooperative())
 		{
 			if (tr.surface && !(tr.surface->flags & (SURF_WARP | SURF_TRANS33 | SURF_TRANS66 | SURF_FLOWING)))
 			{

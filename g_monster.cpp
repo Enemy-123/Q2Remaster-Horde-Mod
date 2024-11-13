@@ -661,7 +661,7 @@ void G_MonsterKilled(edict_t* self)
 	// Verificar si el enemigo es un cliente (jugador) o una torreta propiedad de un jugador
 	if (self->enemy && self->enemy->client)
 	{
-		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
+		if (G_IsCooperative() || (g_horde->integer))
 		{
 			self->enemy->client->resp.score++;
 			self->enemy->client->resp.spree++;
@@ -685,7 +685,7 @@ void G_MonsterKilled(edict_t* self)
 	else if (self->enemy && self->enemy->owner && self->enemy->owner->client)
 	{
 		// Acreditar la muerte al propietario de la torreta
-		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
+		if (G_IsCooperative() || (g_horde->integer))
 		{
 			self->enemy->owner->client->resp.score++;
 			self->enemy->owner->client->resp.spree++;

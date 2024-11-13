@@ -230,7 +230,7 @@ bool Pickup_Powerup(edict_t* ent, edict_t* other)
 		return false;
 
 	if (G_IsCooperative() && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0) ||
-		G_IsDeathmatch() && g_horde->integer && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))
+		g_horde->integer && !P_UseCoopInstancedItems() && (ent->item->flags & IF_STAY_COOP) && (quantity > 0))
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;
@@ -974,19 +974,16 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	// already got this instanced item
 	if (g_horde->integer)
 	{
-		if ((G_IsDeathmatch() && P_UseCoopInstancedItems()) || (G_IsCooperative() && P_UseCoopInstancedItems()))
+		if (P_UseCoopInstancedItems())
 		{
 			if (ent->item_picked_up_by[other->s.number - 1])
 				return;
 		}
 	}
-	else
+	else if (coop->integer && P_UseCoopInstancedItems())
 	{
-		if (coop->integer && P_UseCoopInstancedItems())
-		{
-			if (ent->item_picked_up_by[other->s.number - 1])
-				return;
-		}
+		if (ent->item_picked_up_by[other->s.number - 1])
+			return;
 	}
 
 	// ZOID
@@ -1001,6 +998,7 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	{
 		// flash the screen
 		other->client->bonus_alpha = 0.25;
+
 		// show icon and name on status bar
 		other->client->ps.stats[STAT_PICKUP_ICON] = gi.imageindex(ent->item->icon);
 		other->client->ps.stats[STAT_PICKUP_STRING] = CS_ITEMS + ent->item->id;
@@ -1035,59 +1033,47 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			if (coop->integer && P_UseCoopInstancedItems() && !ent->item_picked_up_by[player_number])
 			{
 				ent->item_picked_up_by[player_number] = true;
-
-				// [Paril-KEX] this is to fix a coop quirk where items
-				// that send a message on pick up will only print on the
-				// player that picked them up, and never anybody else; 
-				// when instanced items are enabled we don't need to limit
-				// ourselves to this, but it does mean that relays that trigger
-				// messages won't work, so we'll have to fix those
 				if (ent->message)
 					G_PrintActivationMessage(ent, other, false);
 			}
 		}
-	}
 
-	if (!(ent->spawnflags & SPAWNFLAG_ITEM_TARGETS_USED))
-	{
-		// [Paril-KEX] see above msg; this also disables the message in DM
-		// since there's no need to print pickup messages in DM (this wasn't
-		// even a documented feature, relays were traditionally used for this)
-		const char* message_backup = nullptr;
-		if (g_horde->integer)
+		if (!(ent->spawnflags & SPAWNFLAG_ITEM_TARGETS_USED))
 		{
-			if (G_IsDeathmatch() || (G_IsCooperative() && P_UseCoopInstancedItems()))
-				std::swap(message_backup, ent->message);
-		}
-		else
-		{
-			if (deathmatch->integer || (coop->integer && P_UseCoopInstancedItems()))
-				std::swap(message_backup, ent->message);
+			const char* message_backup = nullptr;
+
+			if (g_horde->integer)
+			{
+				if (G_IsDeathmatch() || (G_IsCooperative() && P_UseCoopInstancedItems()))
+					std::swap(message_backup, ent->message);
+			}
+			else
+			{
+				if (deathmatch->integer || (coop->integer && P_UseCoopInstancedItems()))
+					std::swap(message_backup, ent->message);
+			}
+
+			G_UseTargets(ent, other);
+
+			if (g_horde->integer)
+			{
+				if (G_IsDeathmatch() || (G_IsCooperative() && P_UseCoopInstancedItems()))
+					std::swap(message_backup, ent->message);
+			}
+			else
+			{
+				if (deathmatch->integer || (coop->integer && P_UseCoopInstancedItems()))
+					std::swap(message_backup, ent->message);
+			}
+
+			ent->spawnflags |= SPAWNFLAG_ITEM_TARGETS_USED;
 		}
 
-		G_UseTargets(ent, other);
-
-		if (g_horde->integer)
-		{
-			if (G_IsDeathmatch() || (G_IsCooperative() && P_UseCoopInstancedItems()))
-				std::swap(message_backup, ent->message);
-		}
-		else
-		{
-			if (deathmatch->integer || (coop->integer && P_UseCoopInstancedItems()))
-				std::swap(message_backup, ent->message);
-		}
-
-		ent->spawnflags |= SPAWNFLAG_ITEM_TARGETS_USED;
-	}
-
-	if (taken)
-	{
 		bool should_remove = false;
 
 		if (g_horde->integer)
 		{
-			if (G_IsCooperative() || G_IsDeathmatch() || !G_IsDeathmatch())
+			if (G_IsCooperative() || G_IsDeathmatch())
 			{
 				if (P_UseCoopInstancedItems())
 					should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED_PLAYER);
@@ -1099,19 +1085,30 @@ TOUCH(Touch_Item) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 				should_remove = G_IsDeathmatch() ||
 				ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
 		}
+		else if (coop->integer)
+		{
+			if (P_UseCoopInstancedItems())
+				should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED_PLAYER);
+			else
+				should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER) ||
+				!(ent->item->flags & IF_STAY_COOP);
+		}
+		else if (deathmatch->integer)
+		{
+			// En deathmatch normal
+			should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
+
+			// Los ítems normales (no dropped) usan el sistema de respawn
+			if (!should_remove)
+			{
+				SetRespawn(ent, 30_sec);
+				return;
+			}
+		}
 		else
 		{
-			if (coop->integer)
-			{
-				if (P_UseCoopInstancedItems())
-					should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED_PLAYER);
-				else
-					should_remove = ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER) ||
-					!(ent->item->flags & IF_STAY_COOP);
-			}
-			else
-				should_remove = !deathmatch->integer ||
-				ent->spawnflags.has(SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER);
+			// Single player - eliminar todos los ítems recogidos
+			should_remove = true;
 		}
 
 		if (should_remove)
@@ -1188,7 +1185,7 @@ edict_t* Drop_Item(edict_t* ent, gitem_t* item)
 	dropped->think = drop_make_touchable;
 	dropped->nextthink = level.time + 1_sec;
 
-	if (G_IsDeathmatch() && g_horde->integer && P_UseCoopInstancedItems() || G_IsCooperative() && P_UseCoopInstancedItems())
+	if (g_horde->integer && P_UseCoopInstancedItems() || G_IsCooperative() && P_UseCoopInstancedItems())
 		dropped->svflags |= SVF_INSTANCED;
 
 	gi.linkentity(dropped);

@@ -527,7 +527,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 }
 
 bool G_IsDeathmatch() noexcept {
-	return deathmatch->integer && g_horde->integer;
+	return deathmatch->integer;
 }
 
 bool G_IsCooperative() noexcept {
@@ -1400,6 +1400,8 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 	return nullptr;
 }
 void Horde_PreInit() {
+	gi.Com_Print("Horde mode must be DM set <deathmatch 1> and <horde 1>.\n");
+	gi.Com_Print("COOP requires <coop 1> and <horde 0>, optionally <g_hardcoop 1/0>.\n");
 	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 	//gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
@@ -1408,13 +1410,19 @@ void Horde_PreInit() {
 
 	if (!deathmatch->integer || ctf->integer || teamplay->integer || coop->integer) {
 		gi.Com_Print("Horde mode must be DM.\n");
-		gi.cvar_set("deathmatch", "1");
-		gi.cvar_set("ctf", "0");
-		gi.cvar_set("teamplay", "0");
-		gi.cvar_set("coop", "0");
-		gi.cvar_set("timelimit", "20");
-		gi.cvar_set("fraglimit", "0");
+		//gi.cvar_set("deathmatch", "1");
+		//gi.cvar_set("ctf", "0");
+		//gi.cvar_set("teamplay", "0");
+		//gi.cvar_set("coop", "0");
+		//gi.cvar_set("timelimit", "20");
+		//gi.cvar_set("fraglimit", "0");
 	}
+
+	if (deathmatch->integer && !g_horde->integer)
+		gi.cvar_set("g_coop_player_collision", "0");
+		gi.cvar_set("g_coop_squad_respawn", "0");
+		gi.cvar_set("g_coop_instanced_items", "0");
+		gi.cvar_set("g_disable_player_collision", "0");
 
 	// Configuración automática cuando horde está activo
 	if (g_horde->integer) {

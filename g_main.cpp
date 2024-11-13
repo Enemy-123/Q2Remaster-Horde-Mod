@@ -305,7 +305,6 @@ void InitGame()
 	g_no_self_damage = gi.cvar("g_no_self_damage", "0", CVAR_NOFLAGS);
 	sv_target_id = gi.cvar("sv_target_id", "0", CVAR_NOFLAGS);
 	g_coop_player_collision = gi.cvar("g_coop_player_collision", "0", CVAR_LATCH);
-	g_coop_squad_respawn = gi.cvar("g_coop_squad_respawn", "1", CVAR_LATCH);
 	g_coop_enable_lives = gi.cvar("g_coop_enable_lives", "0", CVAR_LATCH);
 	g_coop_num_lives = gi.cvar("g_coop_num_lives", "2", CVAR_LATCH);
 	g_coop_instanced_items = gi.cvar("g_coop_instanced_items", "1", CVAR_LATCH);
@@ -320,6 +319,10 @@ void InitGame()
 
 	bot_debug_follow_actor = gi.cvar("bot_debug_follow_actor", "0", CVAR_NOFLAGS);
 	bot_debug_move_to_point = gi.cvar("bot_debug_move_to_point", "0", CVAR_NOFLAGS);
+
+	g_horde->integer
+		? g_coop_squad_respawn = gi.cvar("g_coop_squad_respawn", "1", CVAR_LATCH)
+		: g_coop_squad_respawn = gi.cvar("g_coop_squad_respawn", "0", CVAR_LATCH);
 
 	// noset vars
 	sv_dedicated = gi.cvar("dedicated", "0", CVAR_NOSET);
@@ -406,7 +409,7 @@ void InitGame()
 	g_teamplay_armor_protect = gi.cvar("g_teamplay_armor_protect", "0", CVAR_NOFLAGS);
 	g_allow_techs = gi.cvar("g_allow_techs", "auto", CVAR_NOFLAGS);
 
-	g_loadent = gi.cvar("g_loadent", "1", CVAR_NOFLAGS);
+	g_loadent = gi.cvar("g_loadent", "1", CVAR_LATCH);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
 	g_insane = gi.cvar("g_insane", "0", CVAR_NOFLAGS);
 	g_hardcoop = gi.cvar("g_hardcoop", "0", CVAR_NOFLAGS);

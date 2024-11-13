@@ -1973,12 +1973,13 @@ void SP_worldspawn(edict_t* ent)
 	}
 
 	// [Paril-KEX]
-	if (G_IsDeathmatch() || G_IsCooperative())
+	if (!deathmatch->integer || g_horde->integer)
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_PVE).data());
-	else if (ctf->integer || (teamplay->integer && !g_horde->integer))
+	else if (teamplay->integer || ctf->integer)
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
 	else
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_FFA).data());
+
 
 	// [Paril-KEX]
 	if (st.goals)
@@ -2215,7 +2216,7 @@ void SP_worldspawn(edict_t* ent)
 	// coop respawn strings
 
 
-	if (G_IsCooperative() || G_IsDeathmatch() && g_horde->integer)
+	if (G_IsCooperative() || g_horde->integer)
 	{
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "$g_coop_respawn_in_combat");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "$g_coop_respawn_bad_area");

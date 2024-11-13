@@ -937,8 +937,8 @@ void MakronToss(edict_t* self)
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	if (!g_horde->integer|| g_horde->integer && !self->monsterinfo.IS_BOSS)
-	MakronSpawn(ent); 
+	if (!g_horde->integer || g_horde->integer && !self->monsterinfo.IS_BOSS)
+		MakronSpawn(ent);
 
 
 	// [Paril-KEX] set health bar over to Makron when we throw him out

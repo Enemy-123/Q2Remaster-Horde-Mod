@@ -789,7 +789,7 @@ void Cmd_Inven_f(edict_t* ent)
 	}
 
 	// ZOID
-	if (G_TeamplayEnabled() && cl->resp.ctf_team == CTF_TEAM1)
+	if (G_TeamplayEnabled() && cl->resp.ctf_team == CTF_TEAM1 || deathmatch->integer && !g_horde->integer)
 	{
 		if (ent->svflags & SVF_BOT || ent->deadflag)
 			return;

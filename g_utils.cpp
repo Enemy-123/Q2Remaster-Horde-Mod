@@ -468,11 +468,12 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 	while (true)
 	{
 		trace_t tr = gi.trace(previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ent->clipmask | CONTENTS_PROJECTILE);
+
 		if (tr.fraction == 1.0f)
 			break;
 		if (!tr.ent) // Comprobación de nulidad
 			break;
-		if (!(tr.ent->svflags & SVF_PROJECTILE))
+	    if (!(tr.ent->svflags & SVF_PROJECTILE))
 			break;
 
 		// always skip this projectile since certain conditions may cause the projectile
@@ -493,6 +494,7 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 
 	skipped.clear();
 }
+
 
 /*
 ==============================================================================
