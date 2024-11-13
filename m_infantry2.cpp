@@ -29,7 +29,7 @@ static cached_soundindex sound_search;
 static cached_soundindex sound_idle;
 
 // range at which we'll try to initiate a run-attack to close distance
-constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.65f;
+constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.75f;
 
 mframe_t infantry_vanilla_frames_stand[] = {
 	{ ai_stand },
