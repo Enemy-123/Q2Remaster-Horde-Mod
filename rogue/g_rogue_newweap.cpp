@@ -1021,7 +1021,8 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 
 	// Don't hit monster_sentrygun or emitter
 	if (strcmp(classname, "monster_sentrygun") == 0 ||
-		strcmp(classname, "emitter") == 0)
+		strcmp(classname, "emitter") == 0 ||
+		strcmp(classname, "nuke") == 0) 
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;
