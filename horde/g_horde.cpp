@@ -596,7 +596,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 22, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_nuke", 20, -1, 0.01f, adjust_weight_ammo },
+	{ "ammo_nuke", 15, -1, 0.01f, adjust_weight_ammo },
 
 	{ "item_bandolier", 4, -1, 0.2f, adjust_weight_ammo },
 	{ "item_pack", 15, -1, 0.34f, adjust_weight_ammo },
@@ -1201,48 +1201,25 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 }
 
 // ¿Está el punto de spawn ocupado?
-static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* monster = nullptr) {
-	// Verificar primero si el punto está en cooldown
-	const auto it = spawnPointsData.find(const_cast<edict_t*>(spawn_point));
-	if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
-		if (level.time < it->second.cooldownEndsAt) {
-			return true;
-		}
-	}
-
-	// Factor de multiplicación para garantizar espacio adicional
-	constexpr float space_multiplier = 2.0f;  // Ajustado a 1.5 para balance
-
-	// Calcular dimensiones del área a verificar
+static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
+	// Define the bounding box for checking occupation
 	vec3_t mins, maxs;
-	if (monster) {
-		// Usar dimensiones del monstruo con factor de espacio
-		mins = spawn_point->s.origin + (monster->mins * space_multiplier);
-		maxs = spawn_point->s.origin + (monster->maxs * space_multiplier);
-	}
-	else {
-		// Dimensiones por defecto para jugadores con factor de espacio
-		mins = spawn_point->s.origin + vec3_t{ -16 * space_multiplier, -16 * space_multiplier, -24 * space_multiplier };
-		maxs = spawn_point->s.origin + vec3_t{ 16 * space_multiplier, 16 * space_multiplier, 32 * space_multiplier };
-	}
+	// Factor de multiplicación para garantizar espacio adicional 
+	constexpr float space_multiplier = 2.0f;
 
-	// Verificar colisiones con jugadores y monstruos activos
-	for (const auto ent : active_monsters()) {
-		if (ent != monster && // Ignorar la propia entidad si se proporciona
-			boxes_intersect(mins, maxs, ent->absmin, ent->absmax)) {
-			return true; // Punto ocupado
-		}
-	}
+	// Default bounding box for player size
+	mins = spawn_point->s.origin + vec3_t{ -16 * space_multiplier, -16 * space_multiplier, -24 * space_multiplier };
+	maxs = spawn_point->s.origin + vec3_t{ 16 * space_multiplier, 16 * space_multiplier, 32 * space_multiplier };
 
-	// Verificar colisiones con jugadores
-	for (auto player : active_players()) {
-		if (boxes_intersect(mins, maxs, player->absmin, player->absmax)) {
-			return true; // Punto ocupado por un jugador
-		}
-	}
+	// Data structure to hold information for filtering entities
+	FilterData filter_data = { ignore_ent, 0 };
 
-	return false; // Punto libre
+	// Use BoxEdicts to check for any relevant entities in the area
+	gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+
+	return filter_data.count > 0;
 }
+
 const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Verificar el cooldown del spawn point de manera más estricta
 	auto& data = spawnPointsData[spawn_point];
