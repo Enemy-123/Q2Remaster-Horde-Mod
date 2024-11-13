@@ -464,9 +464,9 @@ void G_RemoveAmmo(edict_t* ent)
 	G_RemoveAmmo(ent, ent->client->pers.weapon->quantity);
 }
 
-// [Paril-KEX] get time per animation frame
 inline gtime_t Weapon_AnimationTime(edict_t* ent)
 {
+	// Base animation rate
 	if (g_quick_weapon_switch->integer && (gi.tick_rate >= 20) &&
 		(ent->client->weaponstate == WEAPON_ACTIVATING || ent->client->weaponstate == WEAPON_DROPPING))
 		ent->client->ps.gunrate = 20;
@@ -489,26 +489,38 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		const bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
 		const bool using_trap = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TRAP;
 
+		float final_multiplier = 1.0f;
 
-
+		// Apply quad fire multiplier
 		if (is_quadfire)
-			ent->client->ps.gunrate *= 2;
+			final_multiplier *= 2.0f;
+
+		// Apply haste multiplier
 		if (CTFApplyHaste(ent))
-			ent->client->ps.gunrate *= 2;
+			final_multiplier *= 2.0f;
 
-			if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher) {
-				ent->client->ps.gunrate *= 1.4;
-			}
+		// Weapon-specific multipliers
+		if (using_blaster) {
+			final_multiplier *= 1.25f;
+		}
+		if (using_glauncher || using_etfrifle || using_proxlauncher) {
+			final_multiplier *= 1.4f;
+		}
+		if (using_shotgun || using_trap) {
+			final_multiplier *= 1.5f;
+		}
 
+		// Special handling for chaingun
+		if (using_chaingun) {
+			// Limit chaingun to maximum 2x speed regardless of other multipliers
+			final_multiplier = min(final_multiplier, 2.0f);
+		}
 
-			if (using_shotgun || using_trap)  {
-				ent->client->ps.gunrate *= 1.5;
-			}
-	
+		// Apply final multiplier
+		ent->client->ps.gunrate *= final_multiplier;
 	}
-	
 
-	// network optimization...
+	// Network optimization
 	if (ent->client->ps.gunrate == 10)
 	{
 		ent->client->ps.gunrate = 0;
@@ -1606,13 +1618,6 @@ void Weapon_Machinegun(edict_t* ent)
 void chaingun_smoke(edict_t* ent)
 {
 	vec3_t tempVec, dir;
-	// Aumentamos el primer valor (forward) para mover el humo más adelante
-	// Opciones de offset:
-	// Original: { 8, 8, -4 }  // cerca del arma
-	// Opción 1: { 20, 8, -4 } // un poco más adelante
-	// Opción 2: { 32, 8, -4 } // bastante más adelante
-	// Opción 3: { 48, 8, -4 } // muy adelante
-
 	P_ProjectSource(ent, ent->client->v_angle, { 20, 8, -4 }, tempVec, dir);
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_CHAINFIST_SMOKE);
@@ -1620,18 +1625,21 @@ void chaingun_smoke(edict_t* ent)
 	gi.unicast(ent, 0);
 }
 
-constexpr int SPINUP_FRAMES = 5;      // Number of frames for spin-up
-constexpr int SPINDOWN_FRAMES = 2;    // Number of frames for spin-down
-constexpr int FULL_ROF_SHOTS = 3;     // Shots per frame at full rate of fire
+constexpr int SPINUP_FRAMES = 5;
+constexpr int SPINDOWN_FRAMES = 2;
+constexpr int FULL_ROF_SHOTS = 3;
+
 void Chaingun_Fire(edict_t* ent)
 {
 	if (!ent->client)
 		return;
 
-	int shots;
+	int shots{};
 	int damage;
 	int kick = 2;
-	damage = irandom(5, 9);
+
+	// Usar el mismo daño que en el segundo código
+	damage = (deathmatch->integer) ? irandom(7, 9) : 7;
 
 	if (g_improvedchaingun->integer) {
 		// Improved chaingun behavior
@@ -1664,6 +1672,18 @@ void Chaingun_Fire(edict_t* ent)
 			ent->client->v_dmg_time = level.time + DAMAGE_TIME();
 
 			shots = FULL_ROF_SHOTS;
+
+			// Verificación de munición como en el segundo código
+			if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] == 2) {
+				shots = 2;
+			}
+			else if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] == 1) {
+				shots = 1;
+			}
+			else if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] == 0) {
+				NoAmmoWeaponChange(ent, true);
+				return;
+			}
 		}
 		else {
 			ent->client->weapon_sound = 0;
@@ -1683,12 +1703,22 @@ void Chaingun_Fire(edict_t* ent)
 		}
 	}
 	else {
-		// Original chaingun behavior
+		// Original chaingun behavior - mantenido igual que en el segundo código
 		if (ent->client->ps.gunframe > 31) {
 			ent->client->ps.gunframe = 5;
 			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnu1a.wav"), 1, ATTN_IDLE, 0);
 		}
+		else if ((ent->client->ps.gunframe == 9) && !(ent->client->buttons & BUTTON_ATTACK)) {
+			ent->client->ps.gunframe = 32;
+			ent->client->weapon_sound = 0;
+			return;
+		}
 		else if ((ent->client->ps.gunframe == 14) && !(ent->client->buttons & BUTTON_ATTACK)) {
+			ent->client->ps.gunframe = 32;
+			ent->client->weapon_sound = 0;
+			return;
+		}
+		else if ((ent->client->ps.gunframe == 18) && !(ent->client->buttons & BUTTON_ATTACK)) {
 			ent->client->ps.gunframe = 32;
 			ent->client->weapon_sound = 0;
 			return;
@@ -1702,22 +1732,22 @@ void Chaingun_Fire(edict_t* ent)
 			ent->client->ps.gunframe++;
 		}
 
-		if (ent->client->ps.gunframe == 22) {
-			ent->client->weapon_sound = 0;
-			gi.sound(ent, CHAN_AUTO, gi.soundindex("weapons/chngnd1a.wav"), 1, ATTN_IDLE, 0);
-		}
-
-		if (ent->client->ps.gunframe < 5 || ent->client->ps.gunframe > 21)
-			return;
-
-		ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
-
+		// Sistema de disparos del segundo código
 		if (ent->client->ps.gunframe <= 9)
-			shots = 1;
-		else if (ent->client->ps.gunframe <= 14)
-			shots = (ent->client->buttons & BUTTON_ATTACK) ? 2 : 1;
-		else
-			shots = 3;
+			shots = 0;
+		else if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] >= 3) {
+			if (ent->client->ps.gunframe <= 14) {
+				shots = (ent->client->buttons & BUTTON_ATTACK) ? 3 : 0;
+			}
+			else if (ent->client->ps.gunframe <= 18) {
+				shots = (ent->client->buttons & BUTTON_ATTACK) ? 3 : 0;
+			}
+			else if (ent->client->ps.gunframe <= 21) {
+				shots = 3;
+			}
+			else
+				shots = 0;
+		}
 	}
 
 	// Common animation code for both modes
@@ -1732,23 +1762,6 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	ent->client->anim_time = 0_ms;
 
-	// Ammo check
-	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < shots) {
-		if (g_improvedchaingun->integer) {
-			NoAmmoWeaponChange(ent, true);
-			return;
-		}
-		else {
-			shots = ent->client->pers.inventory[ent->client->pers.weapon->ammo];
-		}
-	}
-
-	if (!shots) {
-		NoAmmoWeaponChange(ent, true);
-		return;
-	}
-
-	// Damage and kick calculations
 	if (is_quad) {
 		damage *= damage_multiplier;
 		kick *= damage_multiplier;
@@ -1761,55 +1774,79 @@ void Chaingun_Fire(edict_t* ent)
 	}
 	P_AddWeaponKick(ent, kick_origin, kick_angles);
 
-	// Firing vectors calculation
-	vec3_t start;
-	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
-	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
-	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
-	start[2] -= 5.0f;
+	// Firing vectors calculation with random spread como en el segundo código
+	vec3_t start, dir;
+	float r = crandom() * 4;
+	float u = crandom() * 4;
+	P_ProjectSource(ent, ent->client->v_angle, { 0, r, u + -8 }, start, dir, true);
 
 	// Firing
-	G_LagCompensate(ent, start, forward);
+	G_LagCompensate(ent, start, dir);
 	for (int i = 0; i < shots; i++) {
-		fire_bullet(ent, start, forward, damage, kick,
+		fire_bullet(ent, start, dir, damage, kick,
 			DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, MOD_CHAINGUN);
 	}
 	G_UnLagCompensate();
 
-	// Effects
-	Weapon_PowerupSound(ent);
-	gi.WriteByte(svc_muzzleflash);
-	gi.WriteEntity(ent);
-	gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
-	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
-	PlayerNoise(ent, start, PNOISE_WEAPON);
+	// Effects específicos según el modo
+	if (g_improvedchaingun->integer) {
+		gi.WriteByte(svc_muzzleflash);
+		gi.WriteEntity(ent);
+		gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
+		gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+		PlayerNoise(ent, start, PNOISE_WEAPON);
+	}
+	else {
+		Weapon_PowerupSound(ent);
+		// Sistema de efectos del segundo código
+		if ((ent->client->ps.gunframe >= 10 && ent->client->ps.gunframe <= 18) &&
+			(ent->client->buttons & BUTTON_ATTACK)) {
+			gi.WriteByte(svc_muzzleflash);
+			gi.WriteEntity(ent);
+			gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
+			gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+		}
+		else if (ent->client->ps.gunframe >= 15 && ent->client->ps.gunframe <= 21) {
+			gi.WriteByte(svc_muzzleflash);
+			gi.WriteEntity(ent);
+			gi.WriteByte((MZ_CHAINGUN1 + shots - 1) | is_silenced);
+			gi.multicast(ent->s.origin, MULTICAST_PVS, false);
+		}
+
+		// PlayerNoise específico del segundo código
+		if (ent->client->ps.gunframe == 10 ||
+			ent->client->ps.gunframe == 12 ||
+			ent->client->ps.gunframe == 15 ||
+			ent->client->ps.gunframe == 18) {
+			PlayerNoise(ent, start, PNOISE_WEAPON);
+
+			// Tracer effects
+			if (ent->lasthbshot <= level.time) {
+				if (g_tracedbullets->integer) {
+					constexpr int tracer_damage = 20;
+					vec3_t tracer_start = start;
+					const vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+						? vec3_t{ 0.0f, 8.0f, -6.0f }
+					: vec3_t{ 0.0f, 10.5f, -11.0f };
+					tracer_start = tracer_start + tracer_offset;
+					vec3_t tracer_dir;
+					P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, tracer_dir, true);
+					if (frandom() < 0.3f || g_improvedchaingun->integer) {
+						fire_blaster2(ent, tracer_start, tracer_dir, tracer_damage, 3150, ent->s.frame % 4 ? EF_NONE : EF_HYPERBLASTER, false);
+					}
+					else {
+						fire_blueblaster(ent, tracer_start, tracer_dir, tracer_damage, 3150, ent->s.frame % 4 ? EF_NONE : EF_HYPERBLASTER);
+					}
+				}
+				ent->lasthbshot = level.time + 0.25_sec;
+			}
+		}
+	}
 
 	G_RemoveAmmo(ent, shots);
 
-	// Tracer effects
-	if (ent->lasthbshot <= level.time) {
-		if (g_tracedbullets->integer) {
-			constexpr int tracer_damage = 20;
-			vec3_t tracer_start = start;
-			const vec3_t tracer_forward = forward;
-			const vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
-				? vec3_t{ 0.0f, 8.0f, -6.0f }
-			: vec3_t{ 0.0f, 10.5f, -11.0f };
-			tracer_start = tracer_start + tracer_offset;
-			vec3_t dir;
-			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
-			if (frandom() < 0.3f) {
-				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
-			}
-			else {
-				fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
-			}
-		}
-		ent->lasthbshot = level.time + 0.25_sec;
-	}
+
 }
-
-
 
 void Weapon_Chaingun(edict_t* ent)
 {
