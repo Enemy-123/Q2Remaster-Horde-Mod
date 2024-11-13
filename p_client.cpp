@@ -45,7 +45,7 @@ potential spawning position for deathmatch games
 */
 void SP_info_player_deathmatch(edict_t* self)
 {
-	if (!g_horde->integer && !G_IsDeathmatch())
+	if (!g_horde->integer || !deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -107,7 +107,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 {
 	const char* base = nullptr;
 
-	if (G_IsCooperative() && attacker->client || G_IsDeathmatch() && g_horde->integer)
+	if (G_IsCooperative() && attacker->client || deathmatch->integer)
 		mod.friendly_fire = true;
 
 	switch (mod.id)
@@ -187,7 +187,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 	if (base)
 	{
 		gi.LocBroadcast_Print(PRINT_MEDIUM, base, self->client->pers.netname);
-		if (G_IsDeathmatch() && !mod.no_point_loss)
+		if (deathmatch->integer && !mod.no_point_loss)
 		{
 			self->client->resp.score--;
 
@@ -441,7 +441,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 		}
 	}
 
-	if (G_IsDeathmatch() && !mod.no_point_loss)
+	if (deathmatch->integer && !mod.no_point_loss)
 	{
 		// ROGUE
 		if (gamerules->integer)
@@ -472,7 +472,7 @@ void TossClientWeapon(edict_t* self)
 	// RAFAEL
 	float spread;
 
-	if (!G_IsDeathmatch())
+	if (!deathmatch->integer)
 		return;
 
 	item = self->client->pers.weapon;
@@ -616,7 +616,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	if (!self->deadflag)
 	{
 		self->client->respawn_time = (level.time + 1_sec);
-		if (G_IsDeathmatch() && g_dm_force_respawn_time->integer) {
+		if (deathmatch->integer && g_dm_force_respawn_time->integer) {
 			self->client->respawn_time = (level.time + gtime_t::from_sec(g_dm_force_respawn_time->value));
 		}
 
@@ -634,10 +634,10 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		CTFDeadDropFlag(self);
 		CTFDeadDropTech(self);
 		// ZOID
-		if (G_IsDeathmatch() && !self->client->showscores)
+		if (deathmatch->integer && !self->client->showscores)
 			Cmd_Help_f(self); // show scores
 
-		if (G_IsDeathmatch() && g_horde->integer && !P_UseCoopInstancedItems() || G_IsCooperative() && !P_UseCoopInstancedItems())
+		if (deathmatch->integer && g_horde->integer && !P_UseCoopInstancedItems() || G_IsCooperative() && !P_UseCoopInstancedItems())
 		{
 			// clear inventory
 			// this is kind of ugly, but it's how we want to handle keys in coop
@@ -719,7 +719,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 			gi.sound(self, CHAN_BODY, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
 
 			// more meaty gibs for your dollar!
-			if (G_IsDeathmatch() && (self->health < -80))
+			if (deathmatch->integer && (self->health < -80))
 				ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
 
 			ThrowGibs(self, damage, { { 4, "models/objects/gibs/sm_meat/tris.md2" } });
@@ -1099,7 +1099,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.max_ammo[AMMO_TRAP] = 5;
 		}
 
-		if (G_IsDeathmatch())
+		if (deathmatch->integer)
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 		if (*g_start_items->string)
@@ -1111,7 +1111,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		// power armor from start items
 		G_CheckPowerArmor(ent);
 
-		if (!G_IsDeathmatch() || g_horde->integer) {
+		if (!deathmatch->integer && !g_horde->integer || g_horde->integer) {
 			client->pers.inventory[IT_ITEM_COMPASS] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
@@ -1719,7 +1719,7 @@ bool SelectSpawnPoint(edict_t* ent, vec3_t& origin, vec3_t& angles, bool force_s
 	edict_t* spot = nullptr;
 
 	// DM spots are simple
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 	{
 		if (G_TeamplayEnabled())
 			spot = SelectCTFSpawnPoint(ent, force_spawn);
@@ -1903,7 +1903,7 @@ void G_PostRespawn(edict_t* self)
 
 void respawn(edict_t* self)
 {
-	if (G_IsDeathmatch() || G_IsCooperative())
+	if (deathmatch->integer || coop->integer)
 	{
 		// Guardar el arma y la salud m�xima antes de la muerte
 		if (g_horde->integer) {
@@ -2404,7 +2404,7 @@ void PutClientInServer(edict_t* ent)
 	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
 
 	// Deathmatch wipes most client data every spawn
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 	{
 		client->resp.inactivity_time = 0_sec; // Inicializa a 0 o a un valor apropiado
 		client->resp.inactivity_warning = false;
@@ -2418,7 +2418,7 @@ void PutClientInServer(edict_t* ent)
 		char userinfo[MAX_INFO_STRING];
 		memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
-		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
+		if (G_IsCooperative() || deathmatch->integer && g_horde->integer)
 		{
 			resp = client->resp;
 
@@ -2572,7 +2572,7 @@ void PutClientInServer(edict_t* ent)
 	// [Paril-KEX] Sanity check for landmark spawns to prevent intersecting spawns
 	if (spawn_from_begin)
 	{
-		if (G_IsCooperative() || (G_IsDeathmatch() && g_horde->integer))
+		if (G_IsCooperative() || (deathmatch->integer && g_horde->integer))
 		{
 			edict_t* collision = G_UnsafeSpawnPosition(ent->s.origin, true);
 
@@ -2607,7 +2607,7 @@ void PutClientInServer(edict_t* ent)
 	{
 		// If you get on to rboss in single player or coop, ensure
 		// the player has the nuke key. (not in DM)
-		if (!G_IsDeathmatch())
+		if (!deathmatch->integer)
 			client->pers.inventory[IT_KEY_NUKE] = 1;
 	}
 
@@ -2675,7 +2675,7 @@ void ClientBeginDeathmatch(edict_t* ent)
 
 static void G_SetLevelEntry()
 {
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 		return;
 	// map is a hub map, so we shouldn't bother tracking any of this.
 	// the next map will pick up as the start.
@@ -2792,7 +2792,7 @@ void ClientBegin(edict_t* ent)
 	// [Paril-KEX] we're always connected by this point...
 	ent->client->pers.connected = true;
 
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 	{
 		ClientBeginDeathmatch(ent);
 		return;
@@ -2902,7 +2902,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	gi.Info_ValueForKey(userinfo, "spectator", val, sizeof(val));
 
 	// spectators are only supported in deathmatch
-	if (G_IsDeathmatch() && !G_TeamplayEnabled() && *val && strcmp(val, "0"))
+	if (deathmatch->integer && !G_TeamplayEnabled() && *val && strcmp(val, "0"))
 		ent->client->pers.spectator = true;
 	else
 		ent->client->pers.spectator = false;
@@ -3304,7 +3304,7 @@ void ClientDisconnect(edict_t* ent)
 	ent->timestamp = level.time + 1_sec;
 
 	// update active scoreboards
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 		for (auto player : active_players())
 			if (player->client->showscores)
 				player->client->menutime = level.time;
@@ -3352,7 +3352,7 @@ bool G_ShouldPlayersCollide(bool weaponry)
 		return false; // only for debugging.
 
 	// always collide on dm
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (deathmatch->integer && !g_horde->integer)
 		return true;
 
 	// weaponry collides if friendly fire is enabled
@@ -3457,7 +3457,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 
 		dir = { 0, 0, 1 };
 
-		if (!G_IsDeathmatch() || !g_dm_no_fall_damage->integer)
+		if (!deathmatch->integer || !g_dm_no_fall_damage->integer)
 			T_Damage(ent, world, world, dir, ent->s.origin, vec3_origin, damage, 0, DAMAGE_NONE, MOD_FALLING);
 	}
 	ent->s.event = EV_FALLSHORT;
@@ -3711,7 +3711,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		// [Paril-KEX]
 		if (!G_ShouldPlayersCollide(false) ||
-			(G_IsDeathmatch() && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER))) // if player collision is on and we're temporarily ghostly...
+			(deathmatch->integer && g_horde->integer && !(ent->clipmask & CONTENTS_PLAYER))) // if player collision is on and we're temporarily ghostly...
 			client->ps.pmove.pm_flags |= PMF_IGNORE_PLAYER_COLLISION;
 		else
 			client->ps.pmove.pm_flags &= ~PMF_IGNORE_PLAYER_COLLISION;
@@ -4423,13 +4423,13 @@ void ClientBeginServerFrame(edict_t* ent)
 			if (!G_CoopRespawn(ent))
 			{
 				// in deathmatch, only wait for attack button
-				if (G_IsDeathmatch())
+				if (deathmatch->integer)
 					buttonMask = BUTTON_ATTACK;
 				else
 					buttonMask = -1;
 
 				if ((client->latched_buttons & buttonMask) ||
-					(G_IsDeathmatch() && g_dm_force_respawn->integer))
+					(deathmatch->integer && g_dm_force_respawn->integer))
 				{
 					respawn(ent);
 					client->latched_buttons = BUTTON_NONE;
@@ -4440,7 +4440,7 @@ void ClientBeginServerFrame(edict_t* ent)
 	}
 
 	// add player trail so monsters can follow
-	if (G_IsDeathmatch() && g_horde->integer || G_IsCooperative())
+	if (!deathmatch->integer || g_horde->integer || G_IsCooperative())
 		PlayerTrail_Add(ent);
 
 	client->latched_buttons = BUTTON_NONE;

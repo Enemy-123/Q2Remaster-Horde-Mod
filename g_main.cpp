@@ -975,9 +975,9 @@ inline void G_RunFrame_(bool main_loop)
 			gi.Com_PrintFmt("PRINT: Auto-exiting intermission after 30 seconds.\n");
 			level.exitintermission = true;
 		}
-		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 1000 == 0)
+		else if (time_remaining.seconds() < 30 && time_remaining.milliseconds() % 5000 == 0)
 		{
-			// Imprimir tiempo restante cada segundo en los últimos 30 segundos
+			// Imprimir tiempo restante cada 5 segundos en los últimos 30 segundos
 			gi.Com_PrintFmt("PRINT: Intermission time remaining: {:.0f} seconds\n", time_remaining.seconds());
 		}
 	}
