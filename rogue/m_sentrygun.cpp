@@ -315,9 +315,9 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 {
 	CreateTurretGlowEffect(self);
 
-	//if (self->s.frame < FRAME_run01)
-	//	turret2_ready_gun(self);
-	//else
+	if (self->s.frame < FRAME_run01)
+		turret2_ready_gun(self);
+	else
 	{
 		self->monsterinfo.aiflags |= AI_HIGH_TICK_RATE;
 		M_SetAnimation(self, &turret2_move_run);
@@ -1198,6 +1198,8 @@ void CreateTurretGlowEffect(edict_t* turret) {
 void SP_monster_sentrygun(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	self->spawnflags.has(SPAWNFLAG_TURRET2_WALL_UNIT);
 
 	// Al crear la torreta, verificar si el owner tiene power-ups activos
 	if (self->owner && self->owner->client) {
