@@ -500,21 +500,21 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 			final_multiplier *= 2.0f;
 
 		// Weapon-specific multipliers
-		if (using_blaster) {
-			final_multiplier *= 1.25f;
-		}
-		if (using_glauncher || using_etfrifle || using_proxlauncher) {
+		//if (using_blaster) {
+		//	final_multiplier *= 1.4f;
+		//}
+		if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher) {
 			final_multiplier *= 1.4f;
 		}
 		if (using_shotgun || using_trap) {
 			final_multiplier *= 1.5f;
 		}
 
-		// Special handling for chaingun
-		if (using_chaingun) {
-			// Limit chaingun to maximum 2x speed regardless of other multipliers
-			final_multiplier = min(final_multiplier, 2.0f);
-		}
+		//// Special handling for chaingun (improved)
+		//if (using_chaingun) {
+		//	// Limit chaingun to maximum 2x speed regardless of other multipliers
+		//	final_multiplier = min(final_multiplier, 2.0f);
+		//}
 
 		// Apply final multiplier
 		ent->client->ps.gunrate *= final_multiplier;
