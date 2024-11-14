@@ -14,7 +14,7 @@ struct benefit_t {
 };
 
 // Constantes globales
-constexpr size_t MAX_BENEFITS = 10;  // Número de beneficios en el array
+constexpr size_t MAX_BENEFITS = 9;  // Número de beneficios en el array
 constexpr size_t MAX_RECENT_BENEFITS = 3;
 
 // Declaraciones externas
