@@ -1008,7 +1008,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 
 	// Handle Horde Bonus Stuff
-	if (attacker && attacker->client && !ClientIsSpectating(attacker->client)) {
+	if (g_horde->integer && attacker && attacker->client && !ClientIsSpectating(attacker->client) || !g_horde->integer) {
 		HandleAutoHaste(attacker, targ, damage);
 		HandleVampireEffect(attacker, targ, damage);
 		HandleIDDamage(attacker, targ, real_damage);
