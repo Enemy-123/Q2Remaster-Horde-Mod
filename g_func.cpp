@@ -673,14 +673,7 @@ edict_t* plat_spawn_inside_trigger(edict_t* ent)
 	tmax[2] = ent->maxs[2] + 8;
 
 
-	if (&st == nullptr) { // fix crash on plat_spawn_inside_trigger, happened during basicsjam1_jayhobs, lip nullptr
-		// Use a default
-		tmin[2] = tmax[2] - (ent->pos1[2] - ent->pos2[2] + 8);
-		trigger->mins = tmin;
-		trigger->maxs = tmax;
-		gi.linkentity(trigger);
-		return trigger;
-	}
+	tmin[2] = tmax[2] - (ent->pos1[2] - ent->pos2[2] + st.lip);
 
 	if (ent->spawnflags.has(SPAWNFLAG_PLAT_LOW_TRIGGER))
 		tmax[2] = tmin[2] + 8;
