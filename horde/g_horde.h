@@ -36,7 +36,6 @@ extern void UpdateHordeHUD();
 
 extern void CleanupInvalidEntities();
 
-extern uint8_t cachedRemainingMonsters;
 extern uint16_t g_totalMonstersInWave;
 
 extern inline int8_t CalculateRemainingMonsters();
