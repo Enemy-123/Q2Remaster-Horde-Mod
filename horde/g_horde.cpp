@@ -2956,7 +2956,7 @@ static int32_t CountActiveMonsters() {
 }
 
 inline int8_t CalculateRemainingMonsters() {
-	int16_t remainingMonsters = level.total_monsters - level.killed_monsters + (g_horde_local.queued_monsters);
+	int16_t remainingMonsters = level.total_monsters - level.killed_monsters;
 	return (remainingMonsters < 0) ? 0 : remainingMonsters;
 }
 
@@ -3014,22 +3014,22 @@ void fastNextWave() noexcept {
 	Horde_InitLevel(g_horde_local.level + 1);
 }
 
-static void MonsterSpawned(const edict_t* monster) {
-	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-		cachedRemainingMonsters++;
-		g_totalMonstersInWave++;
-	}
-}
-
-void MonsterDied(const edict_t* monster) {
-	if (!(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-		int32_t remaining = CalculateRemainingMonsters();
-		if (remaining < 0) {
-			remaining = 0;
-		}
-		cachedRemainingMonsters = static_cast<uint16_t>(remaining);
-	}
-}
+//static void MonsterSpawned(const edict_t* monster) {
+//	if (!monster->deadflag && !(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+//		cachedRemainingMonsters++;
+//		g_totalMonstersInWave++;
+//	}
+//}
+//
+//void MonsterDied(const edict_t* monster) {
+//	if (!(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+//		int32_t remaining = CalculateRemainingMonsters();
+//		if (remaining < 0) {
+//			remaining = 0;
+//		}
+//		cachedRemainingMonsters = static_cast<uint16_t>(remaining);
+//	}
+//}
 
 inline int32_t GetNumActivePlayers() {
 	return std::count_if(active_players().begin(), active_players().end(),

@@ -1348,12 +1348,12 @@ void CTFSetIDView(edict_t* ent) {
 }
 
 // En el archivo donde manejas la muerte de entidades
-void MonsterDied(const edict_t* monster);
+//void MonsterDied(const edict_t* monster);
 
 void OnEntityDeath(const edict_t* self) {
-	if ((g_horde->integer && self->svflags & SVF_MONSTER) && !(self->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-		MonsterDied(self);
-	}
+	//if ((g_horde->integer && self->svflags & SVF_MONSTER) && !(self->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
+	//	MonsterDied(self);
+	//}
 
 	// Verificar si el comandante es un tanque
 	if (self->monsterinfo.aiflags & AI_SPAWNED_COMMANDER && strcmp(self->classname, "monster_tank_spawner_commander") == 0) {

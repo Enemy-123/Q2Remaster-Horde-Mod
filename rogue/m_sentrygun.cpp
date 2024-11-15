@@ -952,7 +952,7 @@ MOVEINFO_ENDFUNC(turret2_wake) (edict_t* ent) -> void
 	}
 
 	// but we do want the death to count
-	ent->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
+	//ent->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
 }
 
 USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> void
