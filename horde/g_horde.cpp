@@ -169,6 +169,7 @@ struct SpawnPointData {
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
 
 
+
 const std::unordered_set<std::string> smallMaps = {
 	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
 	"q64/dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
@@ -180,10 +181,6 @@ const std::unordered_set<std::string> smallMaps = {
 const std::unordered_set<std::string> bigMaps = {
 	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "rdm6", "rdm8", "xdm1", "waste2", "rdm9"
 };
-
-constexpr size_t MAX_MAPS = 32;
-std::array<std::pair<std::string, MapSize>, MAX_MAPS> mapSizeCache;
-size_t mapSizeCacheSize = 0;
 
 MapSize GetMapSize(const std::string& mapname) {
 	static std::unordered_map<std::string, MapSize> cache;
@@ -1046,9 +1043,6 @@ gitem_t* G_HordePickItem() {
 	const weighted_item_t* chosen_item = eligible_items[left];
 	return chosen_item ? FindItemByClassname(chosen_item->classname) : nullptr;
 }
-
-int32_t WAVE_TO_ALLOW_FLYING;
-
 
 // Keep the existing array
 static const std::array<const char*, 10> flying_monster_classnames = {
@@ -2396,7 +2390,6 @@ static void AttachHealthBar(edict_t* boss) {
 	healthbar->nextthink = level.time + 20_sec;
 }
 
-static int boss_counter = 0; // Declaramos boss_counter como variable estática
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 void SP_target_orb(edict_t* ent);
 static void SpawnBossAutomatically() {
@@ -2671,29 +2664,6 @@ static void ResetRecentBosses() noexcept {
 
 void ResetWaveAdvanceState() noexcept;
 
-#include <algorithm>
-// Variable global para la caché checkremainingmonsterconditions
-struct alignas(64) MonsterCheckCacheData {
-	gtime_t last_check_time = 0_ms;
-	bool result = false;
-	WaveEndReason cached_reason = WaveEndReason::AllMonstersDead;
-	int32_t remaining_monsters = 0;
-	float remaining_percentage = 0.0f;
-	bool cache_valid = false;
-
-	void Reset() {
-		last_check_time = 0_ms;
-		result = false;
-		cached_reason = WaveEndReason::AllMonstersDead;
-		remaining_monsters = 0;
-		remaining_percentage = 0.0f;
-		cache_valid = false;
-	}
-};
-
-static MonsterCheckCacheData g_monster_check_cache;
-
-#include <algorithm>
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
 	const gtime_t currentTime = level.time;
 	const bool allMonstersDead = Horde_AllMonstersDead();
@@ -2849,15 +2819,11 @@ void ResetGame() {
 	horde_message_end_time = 0_sec;
 	g_totalMonstersInWave = 0;
 
-	// Resetear el caché de verificación de monstruos
-	g_monster_check_cache.Reset();
-
 	// Resetear flags de control
 	g_maxMonstersReached = false;
 	g_lowPercentageTriggered = false;
 
 	// Limpiar cachés
-	mapSizeCacheSize = 0;
 	spawnPointsData.clear();
 	lastMonsterSpawnTime.clear();
 	lastSpawnPointTime.clear();
@@ -2932,8 +2898,6 @@ void ResetGame() {
 	// Registrar el reinicio
 	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
 }
-static gtime_t g_lastMonsterCountVerification = 0_ms;
-constexpr gtime_t MONSTER_COUNT_VERIFICATION_INTERVAL = 5_sec;
 
 // Función para contar los monstruos activos
 static int32_t CountActiveMonsters() {
@@ -2991,8 +2955,6 @@ void fastNextWave() noexcept {
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
 
-	// Forzar la actualización del estado
-	g_monster_check_cache.Reset();
 	g_horde_local.conditionTriggered = true;
 	g_horde_local.waveEndTime = level.time;
 
@@ -3011,13 +2973,6 @@ inline int32_t GetNumActivePlayers() {
 inline int32_t GetNumSpectPlayers() {
 	return std::count_if(active_players().begin(), active_players().end(),
 		[](const edict_t* player) { return player->client->resp.ctf_team != CTF_TEAM1; });
-}
-
-static bool UseFarthestSpawn() noexcept {
-	if (g_horde_local.level >= 15) {
-		return (rand() % 4 == 0);  // 25% de probabilidad a partir del nivel 15
-	}
-	return false;
 }
 
 static void PlayWaveStartSound() {
@@ -3042,12 +2997,6 @@ static void PlayWaveStartSound() {
 	const int32_t sound_index = static_cast<int32_t>(frandom() * cached_sound_indices.size());
 	gi.sound(world, CHAN_VOICE, cached_sound_indices[sound_index], 1, ATTN_NONE, 0);
 }
-
-
-enum class WaveMessageType {
-	InventoryPrompt,
-	Welcome
-};
 
 // Implementación de DisplayWaveMessage
 void DisplayWaveMessage(gtime_t duration = 5_sec) {
