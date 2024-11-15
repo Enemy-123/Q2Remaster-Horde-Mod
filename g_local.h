@@ -1776,6 +1776,8 @@ struct monsterinfo_t
 	int active_stalkers;   // Contador de stalkers activos
 	int max_stalkers;      // Número máximo de stalkers permitidos
 	gtime_t spawn_cooldown; // Tiempo de espera entre spawns
+	gtime_t stuck_check_time;
+	bool was_stuck = false;
 };
 
 // non-monsterinfo save stuff

@@ -1098,6 +1098,10 @@ THINK(monster_think) (edict_t* self) -> void
 	M_CatagorizePosition(self, self->s.origin, self->waterlevel, self->watertype);
 	M_WorldEffects(self);
 	M_SetEffects(self);
+
+	// Agregar el chequeo de monstruo atascado
+	if (g_horde->integer)
+	CheckAndTeleportStuckMonster(self);
 }
 
 /*

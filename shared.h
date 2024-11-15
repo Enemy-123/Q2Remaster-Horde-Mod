@@ -40,7 +40,7 @@ extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activat
 extern void check_target_healthbar(edict_t* self);
 extern void UpdatePowerUpTimes(edict_t* monster);
 extern bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);
-void Monster_MoveSpawn(edict_t* self); 
+extern void Monster_MoveSpawn(edict_t* self); 
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 struct MapSize {
     bool isSmallMap = false;
@@ -60,5 +60,8 @@ struct PlayerStats {
 };
 
 void AllowReset();
+
+extern bool CheckAndTeleportStuckMonster(edict_t* self);
+
 
 #endif // SHARED_H

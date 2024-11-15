@@ -331,15 +331,16 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
 
-	// Debug info mejorado
-	gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", lvl);
-	gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
-		SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
-	gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
-	gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
-	gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
-	gi.Com_PrintFmt("  - Map type: {}\n",
-		mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
+	if (developer->integer) {// Debug info mejorado
+		gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", lvl);
+		gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
+			SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
+		gi.Com_PrintFmt("  - Base monsters: {}\n", baseCount);
+		gi.Com_PrintFmt("  - Additional spawns: {}\n", additionalSpawn);
+		gi.Com_PrintFmt("  - Queued monsters: {}\n", g_horde_local.queued_monsters);
+		gi.Com_PrintFmt("  - Map type: {}\n",
+			mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
+	}
 }
 
 
@@ -1140,7 +1141,7 @@ static void CleanUpSpawnPointsData() {
 	// Remove spawn points that are temporarily disabled and past cooldown
 	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
 		if (it->second.isTemporarilyDisabled && currentTime > it->second.cooldownEndsAt + CLEANUP_THRESHOLD) {
-			gi.Com_PrintFmt("Removed spawn_point at address {} due to extended inactivity.\n", static_cast<void*>(it->first));
+			if (developer->integer)	gi.Com_PrintFmt("Removed spawn_point at address {} due to extended inactivity.\n", static_cast<void*>(it->first));
 			it = spawnPointsData.erase(it);
 		}
 		else {
@@ -1150,7 +1151,7 @@ static void CleanUpSpawnPointsData() {
 
 	// Limit the size of the container
 	if (spawnPointsData.size() > MAX_SPAWN_POINTS_DATA) {
-		gi.Com_Print("WARNING: spawnPointsData exceeded maximum size. Clearing data.\n");
+		if (developer->integer)	gi.Com_Print("WARNING: spawnPointsData exceeded maximum size. Clearing data.\n");
 		spawnPointsData.clear();
 	}
 }
@@ -1170,7 +1171,7 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	data.attempts++;
 
 	if (data.attempts >= 3) {  // Reducido de 4
-		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated for 10 seconds.\n", spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
+		if (developer->integer)		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated for 10 seconds.\n", spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
 		data.isTemporarilyDisabled = true; // Temporarily deactivate
 		data.cooldownEndsAt = level.time + 5_sec;  // Reducido de 10_sec
 	}
@@ -1695,238 +1696,238 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 	return eligible_weapons[random_index];
 }
 
-//CRAZY BOSS ANIMATION DROP ITEMS
-constexpr float ITEM_ROTATION_SPEED = 550.0f;
-constexpr float ITEM_ORBIT_RADIUS = 254.0f;
-constexpr float ITEM_VERTICAL_OFFSET = 12.0f;
-constexpr float SCATTER_SPEED = 650.0f;
-constexpr float RISE_SPEED_BASE = 70.0f;            // Velocidad base de elevación
-constexpr float RISE_SPEED_VARIANCE = 30.0f;        // Variación de velocidad
-constexpr float MAX_HEIGHT_BASE = 150.0f;           // Altura base máxima
-constexpr float MAX_HEIGHT_VARIANCE = 50.0f;        // Variación de altura
-constexpr float ABSOLUTE_MAX_HEIGHT = 256.0f;
-
-// Estado de la rotación
-enum class ItemState {
-	RISING,
-	ORBITING,
-	SCATTERING,
-	SCATTERED
-};
-
-// Declarar el think function antes de usarlo
-void(Item_Scatter_Think)(edict_t* ent);
-
-THINK(Item_Orbit_Think) (edict_t* ent) -> void {
-	if (!ent || !ent->owner) {
-		G_FreeEdict(ent);
-		return;
-	}
-
-	// Control de estado basado en altura
-	float height_diff = ent->s.origin[2] - ent->owner->s.origin[2];
-	ItemState current_state = static_cast<ItemState>(ent->count);
-
-	// Usamos pos2 para almacenar valores únicos por item
-	if (ent->pos2[0] == 0) { // Si no está inicializado
-		ent->pos2[0] = RISE_SPEED_BASE + (crandom() * RISE_SPEED_VARIANCE);  // Velocidad única
-		ent->pos2[1] = MAX_HEIGHT_BASE + (crandom() * MAX_HEIGHT_VARIANCE);  // Altura máxima única
-	}
-
-	switch (current_state) {
-	case ItemState::RISING: {
-		// Fase de elevación con límite personalizado
-		if (height_diff < ent->pos2[1]) {
-			float rise_amount = std::min(ent->pos2[0] * gi.frame_time_s,
-				ent->pos2[1] - height_diff);
-			ent->s.origin[2] += rise_amount;
-
-			// Añadir pequeña oscilación vertical durante la subida
-			ent->s.origin[2] += sinf(level.time.seconds() * 3.0f + ent->s.number) * 2.0f;
-		}
-		else {
-			ent->count = static_cast<int>(ItemState::ORBITING);
-		}
-		break;
-	}
-
-
-	case ItemState::ORBITING: {
-		// Verificar si es tiempo de dispersar
-		if (level.time >= ent->owner->timestamp) {
-			vec3_t scatter_dir = ent->s.origin - ent->owner->s.origin;
-			scatter_dir.normalize();
-
-			// Añadir más variación vertical en la dispersión
-			scatter_dir[2] *= 0.2f + (crandom() * 0.3f); // 0.2 ± 0.3
-			scatter_dir.normalize();
-
-			// Variación horizontal con componente vertical aleatorio
-			scatter_dir += vec3_t{
-				crandom() * 0.15f,
-				crandom() * 0.15f,
-				crandom() * 0.55f  // Añadido componente vertical aleatorio
-			};
-			scatter_dir.normalize();
-
-			ent->velocity = scatter_dir * (SCATTER_SPEED + (crandom() * 100.0f));
-
-			ent->pos1[2] = ent->owner->s.origin[2];
-			ent->owner = nullptr;
-			ent->think = Item_Scatter_Think;
-			ent->nextthink = level.time + FRAME_TIME_S;
-			return;
-		}
-
-		// Altura objetivo con oscilación suave
-		vec3_t target_pos = ent->owner->s.origin;
-		target_pos[2] += ent->pos2[1] + (sinf(level.time.seconds() * 2.0f + ent->s.number) * 15.0f);
-
-		float height_diff = target_pos[2] - ent->s.origin[2];
-		ent->s.origin[2] += height_diff * 0.1f;
-
-		// Resto del código de órbita igual...
-		vec3_t forward, right, up;
-		AngleVectors(ent->owner->s.angles, forward, right, up);
-
-		float degrees = (ITEM_ROTATION_SPEED * gi.frame_time_s) + ent->owner->delay;
-		vec3_t diff = ent->owner->s.origin - ent->s.origin;
-		diff[2] = 0;
-
-		vec3_t vec = RotatePointAroundVector(up, diff, degrees);
-		ent->s.angles[1] += degrees;
-
-		vec3_t new_origin = ent->owner->s.origin - vec;
-		new_origin[2] = ent->s.origin[2];
-
-		trace_t tr = gi.traceline(ent->s.origin, new_origin, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-		if (tr.fraction == 1.0f) {
-			ent->s.origin = new_origin;
-		}
-		break;
-	}
-	}
-
-	// Comprobar agua
-	ent->watertype = gi.pointcontents(ent->s.origin);
-	if (ent->watertype & MASK_WATER)
-		ent->waterlevel = WATER_FEET;
-
-	ent->nextthink = level.time + FRAME_TIME_S;
-	gi.linkentity(ent);
-}
-
-THINK(Item_Scatter_Think) (edict_t* ent) -> void {
-	if (!ent) {
-		G_FreeEdict(ent);
-		return;
-	}
-
-	// Limitar la velocidad vertical para evitar que suban demasiado
-	if (ent->velocity[2] > 100.0f) {
-		ent->velocity[2] = 100.0f;
-	}
-
-	// Comprobar altura máxima absoluta usando pos1.z como referencia
-	if (ent->s.origin[2] > ent->pos1[2] + ABSOLUTE_MAX_HEIGHT) {
-		ent->s.origin[2] = ent->pos1[2] + ABSOLUTE_MAX_HEIGHT;
-		ent->velocity[2] = 0; // Detener movimiento vertical
-	}
-
-	// Velocidad mínima para evitar que se peguen
-	constexpr float MIN_VELOCITY = 60.0f;
-
-	// Comprobar colisiones antes de mover
-	vec3_t next_pos = ent->s.origin + (ent->velocity * gi.frame_time_s);
-	trace_t tr = gi.traceline(ent->s.origin, next_pos, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-
-	if (tr.fraction < 1.0f) {
-		// Si estamos empezando en sólido, intentar "empujar" hacia afuera
-		if (tr.startsolid || tr.allsolid) {
-			// Intentar mover en dirección opuesta
-			ent->velocity = -ent->velocity;
-			ent->velocity *= 1.5f; // Dar un empujón extra
-			return;
-		}
-
-		// Calcular rebote con más energía para evitar pegarse
-		vec3_t bounce_vel = SlideClipVelocity(ent->velocity, tr.plane.normal, 1.5f);
-
-		// Si el rebote es muy vertical, agregar componente horizontal
-		if (fabs(tr.plane.normal[2]) > 0.7f) {
-			bounce_vel[0] += crandom() * 100.0f;
-			bounce_vel[1] += crandom() * 100.0f;
-		}
-
-		// Si la velocidad es muy baja, dar un empujón en dirección aleatoria
-		if (bounce_vel.length() < MIN_VELOCITY) {
-			bounce_vel[0] += crandom() * MIN_VELOCITY;
-			bounce_vel[1] += crandom() * MIN_VELOCITY;
-			if (bounce_vel[2] < MIN_VELOCITY * 0.5f)
-				bounce_vel[2] += MIN_VELOCITY * 0.5f;
-		}
-
-		ent->velocity = bounce_vel;
-
-		// Movernos un poco más lejos de la superficie de colisión
-		ent->s.origin = tr.endpos + (tr.plane.normal * 8.0f);
-	}
-	else {
-		ent->s.origin = next_pos;
-	}
-
-	// Reducir velocidad más gradualmente
-	float speed = ent->velocity.length();
-	if (speed > MIN_VELOCITY) {
-		ent->velocity[0] *= 0.99f;
-		ent->velocity[1] *= 0.99f;
-		ent->velocity[2] *= 0.97f; // Más fricción vertical
-	}
-
-	// Gravedad más suave, pero asegurándonos de mantener velocidad mínima
-	ent->velocity[2] -= 175.0f * gi.frame_time_s;
-
-	// Verificar si la velocidad es muy baja y el item está cerca de una pared
-	if (speed < MIN_VELOCITY) {
-		trace_t side_traces[4];
-		vec3_t check_dirs[4] = {
-			{1, 0, 0}, {-1, 0, 0},
-			{0, 1, 0}, {0, -1, 0}
-		};
-
-		bool near_wall = false;
-		for (int i = 0; i < 4; i++) {
-			vec3_t check_pos = ent->s.origin + (check_dirs[i] * 10.0f);
-			side_traces[i] = gi.traceline(ent->s.origin, check_pos, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-			if (side_traces[i].fraction < 1.0f) {
-				near_wall = true;
-				break;
-			}
-		}
-
-		if (near_wall) {
-			// Dar un empujón aleatorio si estamos cerca de una pared
-			ent->velocity[0] += crandom() * MIN_VELOCITY * 2.0f;
-			ent->velocity[1] += crandom() * MIN_VELOCITY * 2.0f;
-			ent->velocity[2] += MIN_VELOCITY;
-		}
-	}
-
-	// Solo detenerse si realmente tiene poca velocidad y no está cerca de paredes
-	if (ent->velocity.length() < 5.0f) {
-		trace_t ground_tr = gi.traceline(ent->s.origin, ent->s.origin + vec3_t{ 0, 0, -16.0f },
-			ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-		if (ground_tr.fraction < 1.0f) {
-			ent->think = nullptr;
-			ent->nextthink = {};
-			ent->movetype = MOVETYPE_TOSS;
-			return;
-		}
-	}
-
-	ent->nextthink = level.time + FRAME_TIME_S;
-	gi.linkentity(ent);
-}
+////CRAZY BOSS ANIMATION DROP ITEMS
+//constexpr float ITEM_ROTATION_SPEED = 550.0f;
+//constexpr float ITEM_ORBIT_RADIUS = 254.0f;
+//constexpr float ITEM_VERTICAL_OFFSET = 12.0f;
+//constexpr float SCATTER_SPEED = 650.0f;
+//constexpr float RISE_SPEED_BASE = 70.0f;            // Velocidad base de elevación
+//constexpr float RISE_SPEED_VARIANCE = 30.0f;        // Variación de velocidad
+//constexpr float MAX_HEIGHT_BASE = 150.0f;           // Altura base máxima
+//constexpr float MAX_HEIGHT_VARIANCE = 50.0f;        // Variación de altura
+//constexpr float ABSOLUTE_MAX_HEIGHT = 256.0f;
+//
+//// Estado de la rotación
+//enum class ItemState {
+//	RISING,
+//	ORBITING,
+//	SCATTERING,
+//	SCATTERED
+//};
+//
+//// Declarar el think function antes de usarlo
+//void(Item_Scatter_Think)(edict_t* ent);
+//
+//THINK(Item_Orbit_Think) (edict_t* ent) -> void {
+//	if (!ent || !ent->owner) {
+//		G_FreeEdict(ent);
+//		return;
+//	}
+//
+//	// Control de estado basado en altura
+//	float height_diff = ent->s.origin[2] - ent->owner->s.origin[2];
+//	ItemState current_state = static_cast<ItemState>(ent->count);
+//
+//	// Usamos pos2 para almacenar valores únicos por item
+//	if (ent->pos2[0] == 0) { // Si no está inicializado
+//		ent->pos2[0] = RISE_SPEED_BASE + (crandom() * RISE_SPEED_VARIANCE);  // Velocidad única
+//		ent->pos2[1] = MAX_HEIGHT_BASE + (crandom() * MAX_HEIGHT_VARIANCE);  // Altura máxima única
+//	}
+//
+//	switch (current_state) {
+//	case ItemState::RISING: {
+//		// Fase de elevación con límite personalizado
+//		if (height_diff < ent->pos2[1]) {
+//			float rise_amount = std::min(ent->pos2[0] * gi.frame_time_s,
+//				ent->pos2[1] - height_diff);
+//			ent->s.origin[2] += rise_amount;
+//
+//			// Añadir pequeña oscilación vertical durante la subida
+//			ent->s.origin[2] += sinf(level.time.seconds() * 3.0f + ent->s.number) * 2.0f;
+//		}
+//		else {
+//			ent->count = static_cast<int>(ItemState::ORBITING);
+//		}
+//		break;
+//	}
+//
+//
+//	case ItemState::ORBITING: {
+//		// Verificar si es tiempo de dispersar
+//		if (level.time >= ent->owner->timestamp) {
+//			vec3_t scatter_dir = ent->s.origin - ent->owner->s.origin;
+//			scatter_dir.normalize();
+//
+//			// Añadir más variación vertical en la dispersión
+//			scatter_dir[2] *= 0.2f + (crandom() * 0.3f); // 0.2 ± 0.3
+//			scatter_dir.normalize();
+//
+//			// Variación horizontal con componente vertical aleatorio
+//			scatter_dir += vec3_t{
+//				crandom() * 0.15f,
+//				crandom() * 0.15f,
+//				crandom() * 0.55f  // Añadido componente vertical aleatorio
+//			};
+//			scatter_dir.normalize();
+//
+//			ent->velocity = scatter_dir * (SCATTER_SPEED + (crandom() * 100.0f));
+//
+//			ent->pos1[2] = ent->owner->s.origin[2];
+//			ent->owner = nullptr;
+//			ent->think = Item_Scatter_Think;
+//			ent->nextthink = level.time + FRAME_TIME_S;
+//			return;
+//		}
+//
+//		// Altura objetivo con oscilación suave
+//		vec3_t target_pos = ent->owner->s.origin;
+//		target_pos[2] += ent->pos2[1] + (sinf(level.time.seconds() * 2.0f + ent->s.number) * 15.0f);
+//
+//		float height_diff = target_pos[2] - ent->s.origin[2];
+//		ent->s.origin[2] += height_diff * 0.1f;
+//
+//		// Resto del código de órbita igual...
+//		vec3_t forward, right, up;
+//		AngleVectors(ent->owner->s.angles, forward, right, up);
+//
+//		float degrees = (ITEM_ROTATION_SPEED * gi.frame_time_s) + ent->owner->delay;
+//		vec3_t diff = ent->owner->s.origin - ent->s.origin;
+//		diff[2] = 0;
+//
+//		vec3_t vec = RotatePointAroundVector(up, diff, degrees);
+//		ent->s.angles[1] += degrees;
+//
+//		vec3_t new_origin = ent->owner->s.origin - vec;
+//		new_origin[2] = ent->s.origin[2];
+//
+//		trace_t tr = gi.traceline(ent->s.origin, new_origin, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
+//		if (tr.fraction == 1.0f) {
+//			ent->s.origin = new_origin;
+//		}
+//		break;
+//	}
+//	}
+//
+//	// Comprobar agua
+//	ent->watertype = gi.pointcontents(ent->s.origin);
+//	if (ent->watertype & MASK_WATER)
+//		ent->waterlevel = WATER_FEET;
+//
+//	ent->nextthink = level.time + FRAME_TIME_S;
+//	gi.linkentity(ent);
+//}
+//
+//THINK(Item_Scatter_Think) (edict_t* ent) -> void {
+//	if (!ent) {
+//		G_FreeEdict(ent);
+//		return;
+//	}
+//
+//	// Limitar la velocidad vertical para evitar que suban demasiado
+//	if (ent->velocity[2] > 100.0f) {
+//		ent->velocity[2] = 100.0f;
+//	}
+//
+//	// Comprobar altura máxima absoluta usando pos1.z como referencia
+//	if (ent->s.origin[2] > ent->pos1[2] + ABSOLUTE_MAX_HEIGHT) {
+//		ent->s.origin[2] = ent->pos1[2] + ABSOLUTE_MAX_HEIGHT;
+//		ent->velocity[2] = 0; // Detener movimiento vertical
+//	}
+//
+//	// Velocidad mínima para evitar que se peguen
+//	constexpr float MIN_VELOCITY = 60.0f;
+//
+//	// Comprobar colisiones antes de mover
+//	vec3_t next_pos = ent->s.origin + (ent->velocity * gi.frame_time_s);
+//	trace_t tr = gi.traceline(ent->s.origin, next_pos, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
+//
+//	if (tr.fraction < 1.0f) {
+//		// Si estamos empezando en sólido, intentar "empujar" hacia afuera
+//		if (tr.startsolid || tr.allsolid) {
+//			// Intentar mover en dirección opuesta
+//			ent->velocity = -ent->velocity;
+//			ent->velocity *= 1.5f; // Dar un empujón extra
+//			return;
+//		}
+//
+//		// Calcular rebote con más energía para evitar pegarse
+//		vec3_t bounce_vel = SlideClipVelocity(ent->velocity, tr.plane.normal, 1.5f);
+//
+//		// Si el rebote es muy vertical, agregar componente horizontal
+//		if (fabs(tr.plane.normal[2]) > 0.7f) {
+//			bounce_vel[0] += crandom() * 100.0f;
+//			bounce_vel[1] += crandom() * 100.0f;
+//		}
+//
+//		// Si la velocidad es muy baja, dar un empujón en dirección aleatoria
+//		if (bounce_vel.length() < MIN_VELOCITY) {
+//			bounce_vel[0] += crandom() * MIN_VELOCITY;
+//			bounce_vel[1] += crandom() * MIN_VELOCITY;
+//			if (bounce_vel[2] < MIN_VELOCITY * 0.5f)
+//				bounce_vel[2] += MIN_VELOCITY * 0.5f;
+//		}
+//
+//		ent->velocity = bounce_vel;
+//
+//		// Movernos un poco más lejos de la superficie de colisión
+//		ent->s.origin = tr.endpos + (tr.plane.normal * 8.0f);
+//	}
+//	else {
+//		ent->s.origin = next_pos;
+//	}
+//
+//	// Reducir velocidad más gradualmente
+//	float speed = ent->velocity.length();
+//	if (speed > MIN_VELOCITY) {
+//		ent->velocity[0] *= 0.99f;
+//		ent->velocity[1] *= 0.99f;
+//		ent->velocity[2] *= 0.97f; // Más fricción vertical
+//	}
+//
+//	// Gravedad más suave, pero asegurándonos de mantener velocidad mínima
+//	ent->velocity[2] -= 175.0f * gi.frame_time_s;
+//
+//	// Verificar si la velocidad es muy baja y el item está cerca de una pared
+//	if (speed < MIN_VELOCITY) {
+//		trace_t side_traces[4];
+//		vec3_t check_dirs[4] = {
+//			{1, 0, 0}, {-1, 0, 0},
+//			{0, 1, 0}, {0, -1, 0}
+//		};
+//
+//		bool near_wall = false;
+//		for (int i = 0; i < 4; i++) {
+//			vec3_t check_pos = ent->s.origin + (check_dirs[i] * 10.0f);
+//			side_traces[i] = gi.traceline(ent->s.origin, check_pos, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
+//			if (side_traces[i].fraction < 1.0f) {
+//				near_wall = true;
+//				break;
+//			}
+//		}
+//
+//		if (near_wall) {
+//			// Dar un empujón aleatorio si estamos cerca de una pared
+//			ent->velocity[0] += crandom() * MIN_VELOCITY * 2.0f;
+//			ent->velocity[1] += crandom() * MIN_VELOCITY * 2.0f;
+//			ent->velocity[2] += MIN_VELOCITY;
+//		}
+//	}
+//
+//	// Solo detenerse si realmente tiene poca velocidad y no está cerca de paredes
+//	if (ent->velocity.length() < 5.0f) {
+//		trace_t ground_tr = gi.traceline(ent->s.origin, ent->s.origin + vec3_t{ 0, 0, -16.0f },
+//			ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
+//		if (ground_tr.fraction < 1.0f) {
+//			ent->think = nullptr;
+//			ent->nextthink = {};
+//			ent->movetype = MOVETYPE_TOSS;
+//			return;
+//		}
+//	}
+//
+//	ent->nextthink = level.time + FRAME_TIME_S;
+//	gi.linkentity(ent);
+//}
 void OldBossDeathHandler(edict_t* boss)
 {
 	// Verificación más estricta para el manejo de muerte del boss
@@ -2186,7 +2187,7 @@ static bool Horde_AllMonstersDead() {
 			}
 		}
 	}
-	gi.Com_Print("DEBUG: All monsters are dead.\n");
+	if (developer->integer) gi.Com_Print("DEBUG: All monsters are dead.\n");
 	return true;
 }
 
@@ -2654,7 +2655,7 @@ void ResetCooldowns() noexcept {
 	// Aplicar límites absolutos
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
 
-	gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
+	if (developer->integer) gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
 		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
 }
 
@@ -3199,6 +3200,129 @@ void InitializeWaveSystem() noexcept {
 
 static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
+
+bool CheckAndTeleportStuckMonster(edict_t* self) {
+	if (level.intermissiontime || !g_horde->integer || !self || !self->inuse || self->deadflag)
+		return false;
+
+	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
+	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
+
+	// Si tiene un enemigo visible, no está realmente "stuck"
+	if (self->monsterinfo.issummoned || self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
+		self->monsterinfo.was_stuck = false;
+		self->monsterinfo.stuck_check_time = 0_sec;
+		return false;
+	}
+
+	// Verificar si está en solid o no ha recibido daño por mucho tiempo
+	bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+	bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= NO_DAMAGE_TIMEOUT;
+
+	if (is_stuck || no_damage_timeout) {
+		if (!self->monsterinfo.was_stuck) {
+			self->monsterinfo.stuck_check_time = level.time;
+			self->monsterinfo.was_stuck = true;
+		}
+
+		// Esperar el tiempo de verificación antes de teletransportar
+		if (level.time >= self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME) {
+			static edict_t* available_spawns[MAX_SPAWN_POINTS];
+			size_t spawn_count = 0;
+
+			// Recolectar spawns disponibles
+			for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
+				edict_t* e = &g_edicts[i];
+				if (!e->inuse || !e->classname ||
+					strcmp(e->classname, "info_player_deathmatch") != 0)
+					continue;
+
+				auto it = spawnPointsData.find(e);
+				if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled)
+					continue;
+
+				if (!IsSpawnPointOccupied(e)) {
+					// Verificar que el punto tenga línea de visión a algún jugador
+					bool can_see_player = false;
+					for (auto player : active_players()) {
+						if (!player->inuse || player->deadflag)
+							continue;
+
+						trace_t tr = gi.traceline(e->s.origin, player->s.origin, self, MASK_SOLID);
+						if (tr.fraction >= 0.3f) { // Permitir algo de obstrucción
+							can_see_player = true;
+							break;
+						}
+					}
+
+					if (can_see_player) {
+						available_spawns[spawn_count++] = e;
+					}
+				}
+			}
+
+			if (spawn_count > 0) {
+				size_t spawn_index = rand() % spawn_count;
+				edict_t* spawn_point = available_spawns[spawn_index];
+
+				vec3_t old_velocity = self->velocity;
+				vec3_t old_origin = self->s.origin;
+
+				self->s.origin = spawn_point->s.origin;
+				self->s.old_origin = spawn_point->s.origin;
+				self->velocity = vec3_origin;
+
+				// Verificar si la nueva posición es válida
+				bool new_pos_valid = true;
+				if (!(self->flags & (FL_FLY | FL_SWIM))) {
+					if (!M_droptofloor(self)) {
+						new_pos_valid = false;
+					}
+				}
+
+				// Verificar que no esté en solid en la nueva posición
+				if (new_pos_valid && !gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
+					// Teletransporte exitoso
+					gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+					SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+
+					// Resetear estados
+					self->monsterinfo.was_stuck = false;
+					self->monsterinfo.stuck_check_time = 0_sec;
+					self->monsterinfo.react_to_damage_time = level.time; // Resetear timer de daño
+
+					gi.linkentity(self);
+
+					
+					if (developer->integer) {// Debug message
+						if (no_damage_timeout) {
+							gi.Com_PrintFmt("Monster teleported due to no damage timeout\n");
+						}
+						else {
+							gi.Com_PrintFmt("Monster teleported due to being stuck in solid\n");
+						}
+					}
+
+					return true;
+				}
+				else {
+					// Restaurar posición anterior si la nueva no es válida
+					self->s.origin = old_origin;
+					self->s.old_origin = old_origin;
+					self->velocity = old_velocity;
+					gi.linkentity(self);
+				}
+			}
+		}
+	}
+	else {
+		// No está atascado ni timeado, resetear estado
+		self->monsterinfo.was_stuck = false;
+		self->monsterinfo.stuck_check_time = 0_sec;
+	}
+
+	return false;
+}
 
 static edict_t* SpawnMonsters() {
 	static edict_t* available_spawns[MAX_SPAWN_POINTS];

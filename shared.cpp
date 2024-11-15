@@ -1012,7 +1012,7 @@ bool TeleportSelf(edict_t* ent)
 
 	// No valid spawn points found
 	if (spawn_points.size() == 0) {
-		gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+		if (developed->integer) gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
 		return false;
 	}
 
@@ -1024,7 +1024,7 @@ bool TeleportSelf(edict_t* ent)
 			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 			return true;
 		}
-		gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
+		if (developed->integer) gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
 		return false;
 	}
 
@@ -1049,6 +1049,7 @@ bool TeleportSelf(edict_t* ent)
 	TeleportEntity(ent, spawn_points[random_index].point);
 	gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
-	gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
+	if (developed->integer) gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
 	return true;
 }
+

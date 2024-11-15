@@ -611,7 +611,9 @@ bool FindMTarget(edict_t* self) {
 	// Si llegamos aquí, no hay objetivo válido
 	self->enemy = nullptr;
 	return false;
-}/*
+}
+
+/*
 =============
 visible
 

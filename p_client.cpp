@@ -3973,10 +3973,6 @@ static inline bool G_MonstersSearchingFor(const edict_t* player)
 
 // [Paril-KEX] from the given player, find a good spot to
 // spawn a player
-#include <limits>
-#include <algorithm>
-#include <string>
-#include <fmt/format.h>
 
 // Spawnflags for trigger_hurt
 constexpr spawnflags_t SPAWNFLAG_HURT_START_OFF = 1_spawnflag;
