@@ -172,6 +172,12 @@ void WidowBlaster(edict_t* self)
 	if (!self->enemy)
 		return;
 
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
+		return;
+
+
 	// Obtener los flash offsets escalados
 	auto GetScaledFlashOffset = [](edict_t* self, const vec3_t& original_offset) -> vec3_t {
 		if (strcmp(self->classname, "monster_widow1") == 0)
@@ -542,6 +548,14 @@ void WidowRail(edict_t* self)
 	monster_muzzleflash_id_t flash;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
+
+	if (!self->enemy)
+		return;
+
+	// Agregar verificación de línea de visión
+	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!has_clear_path && !visible(self, self->enemy))
+		return;
 
 	// Determinar qué tipo de disparo es basado en la animación actual
 	if (self->monsterinfo.active_move == &widow_move_attack_rail_l)
