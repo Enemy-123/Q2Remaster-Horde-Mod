@@ -674,7 +674,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
 		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner_vanilla"}, 4 },
 		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant"}, 3},
-		{"monster_floater", {"monster_floater", "monster_floater_tracker"}, 2},
+		//{"monster_floater", {"monster_floater", "monster_floater_tracker"}, 2},
 		{"monster_commander_body", {"monster_tank_64", "monster_tank_commander"}, 2},
 		{"monster_guardian", {"monster_psxguardian"}, 1},
 		{"monster_arachnid", {"monster_arachnid", "monster_psxarachid", "monster_gm_arachnid"}, 3},
@@ -687,18 +687,22 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 
 	// Función para realizar el reemplazo según el modo de juego
 	auto perform_replacements = [&](int mode, int wave_level, const MonsterReplacement* replacements, int replacement_count, float prob) {
-		switch (mode) {
-
-		case 2:
-			if (wave_level >= 4) {
-				perform_replacement(ent, replacements, replacement_count, prob);
+		if (g_horde->integer) { // Para chaotic e insane
+			switch (mode) {
+			case 2:
+				if (wave_level >= 4) {
+					perform_replacement(ent, replacements, replacement_count, prob);
+				}
+				break;
+			case 1:
+				if (wave_level >= 7) {
+					perform_replacement(ent, replacements, replacement_count, prob);
+				}
+				break;
 			}
-			break;
-		case 1:
-			if (wave_level >= 7) {
-				perform_replacement(ent, replacements, replacement_count, prob);
-			}
-			break;
+		}
+		else { // Para hardcoop
+			perform_replacement(ent, replacements, replacement_count, prob);
 		}
 		};
 
