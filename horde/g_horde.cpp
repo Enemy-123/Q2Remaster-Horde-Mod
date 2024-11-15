@@ -3202,7 +3202,7 @@ static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-	if (level.intermissiontime || !g_horde->integer || !self || !self->inuse || self->deadflag)
+	if (level.intermissiontime || !g_horde->integer || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS)
 		return false;
 
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
