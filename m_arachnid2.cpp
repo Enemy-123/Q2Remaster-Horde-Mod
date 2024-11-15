@@ -565,13 +565,16 @@ void SP_monster_arachnid2(edict_t* self)
 
 
 	 if (!strcmp(self->classname, "monster_arachnid2") && !self->monsterinfo.IS_BOSS) {
+	 if (g_horde->integer)
 		self->s.scale = 0.85f;
-		self->health = 1000 * st.health_multiplier;
 		self->mins = { -41, -41, -17 };
 		self->maxs = { 41, 41, 41 };
-		self->gib_health = -200;
 	}
+	 self->gib_health = -200;
+	 self->mins = { -48, -48, -20 };
+	 self->maxs = { 48, 48, 48 };
 	self->mass = 450;
+	self->health = 1000 * st.health_multiplier;
 
 	self->pain = arachnid2_pain;
 	self->die = arachnid2_die;
@@ -600,9 +603,11 @@ void SP_monster_gm_arachnid(edict_t* self)
 	self->monsterinfo.armor_power = 500;
 	self->style = 1;
 	self->health = 1000 * st.health_multiplier;
-	self->s.scale = 0.85f;
-	self->mins = { -48, -48, -20 };
-	self->maxs = { 48, 48, 48 };
+	if (g_horde->integer) {
+		self->s.scale = 0.85f;
+		self->mins = { -48, -48, -20 };
+		self->maxs = { 48, 48, 48 };
+	}
 
 	if (!strcmp(self->classname, "monster_gm_arachnid") && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 		self->health = 2800 + (1.08 * current_wave_level);

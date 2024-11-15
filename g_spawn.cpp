@@ -506,9 +506,9 @@ static const spawn_temp_t* current_st;
 
 const spawn_temp_t& ED_GetSpawnTemp()
 {
-	if (!current_st)
+	if (!current_st && developer->integer)
 	{
-	//	gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
+		gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
 		return spawn_temp_t::empty;
 	}
 	return *current_st;
@@ -655,36 +655,43 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 		{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}, 5},
 		{"monster_soldier", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss", "monster_soldier_light"}, 6},
 		{"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}, 2},
-		{"monster_infantry", {"monster_gunner", "monster_gunner_vanilla"}, 2},
+		{"monster_infantry", {"monster_infantry", "monster_infantry_vanilla"}, 2},
 		{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
-		{"monster_gunner", {"monster_guncmdr", "monster_guncmdr_vanilla"}, 2},
-		{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover_vanilla"}, 4},
-		{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_daedalus_bomber", "monster_daedalus"}, 4},
-		{"monster_parasite", {"monster_perrokl", "monster_parasite", "monster_stalker"}, 3},
-		{"monster_tank", {"monster_shambler", "monster_tank_64", "monster_runnertank"}, 3},
-		{"monster_tank_commander", {"monster_runnertank", "monster_tank_spawner"}, 2},
-		{"monster_supertank", {"monster_boss5"}, 1},
+		{"monster_gunner", {"monster_gunner", "monster_gunner_vanilla", "monster_guncmdr_vanilla"}, 3},
+	//	{"monster_flyer", {"monster_fixbot", "monster_flyer", "monster_hover", "monster_hover_vanilla"}, 4},
+		{"monster_fixbot", {"monster_fixbot", "monster_flyer"}, 2},
+		{"monster_hover", {"monster_hover", "monster_hover_vanilla"}, 2},
+		{"monster_daedalus", {"monster_daedalus_bomber", "monster_daedalus"}, 2},
+		{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
+		{"monster_tank", {"monster_shambler", "monster_tank_64", "monster_runnertank", "monster_tank", "monster_tank_spawner"}, 5},
+		{"monster_tank_commander", {"monster_runnertank", "monster_tank_spawner", "monster_tank_commander"}, 3},
+		{"monster_supertank", {"monster_boss5", "monster_supertank"}, 2},
 		{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
 		{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}, 3},
-		{"monster_boss2", {"monster_boss2", "monster_carrier", "monster_boss2_64"}, 3},
+		//{"monster_boss2", {"monster_boss2", "monster_carrier", "monster_boss2_64"}, 3},
 		{"monster_flipper", {"monster_gekk", "monster_flipper"}, 2},
 		{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
-		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner_vanilla", "monster_tank"}, 5 },
-		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant", "monster_tank"}, 4},
-		{"monster_floater", {"monster_floater", "monster_floater_tracker", "monster_daedalus_bomber"}, 3},
-		{"monster_commander_body", {"monster_tank_64"}, 1},
-		{"item_quad", {"item_double"}, 1},
-		{"item_invulnerability", {"item_quadfire"}, 1},
-		{"item_power_shield", {"item_power_screen"}, 1},
-		{"item_silencer", {"item_bandolier"}, 1},
+		{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner" , "monster_gunner_vanilla"}, 4 },
+		{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant"}, 3},
+		{"monster_floater", {"monster_floater", "monster_floater_tracker"}, 2},
+		{"monster_commander_body", {"monster_tank_64", "monster_tank_commander"}, 2},
+		{"monster_guardian", {"monster_psxguardian"}, 1},
+		{"monster_arachnid", {"monster_arachnid", "monster_psxarachid", "monster_gm_arachnid"}, 3},
+		//{"item_quad", {"item_double"}, 1},
+		//{"item_invulnerability", {"item_quadfire"}, 1},
+		//{"item_power_shield", {"item_power_screen"}, 1},
+		//{"item_silencer", {"item_bandolier"}, 1},
 	};
 	constexpr int hardcoop_replacement_count = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
 
 	// Función para realizar el reemplazo según el modo de juego
 	auto perform_replacements = [&](int mode, int wave_level, const MonsterReplacement* replacements, int replacement_count, float prob) {
 		switch (mode) {
+
 		case 2:
-			perform_replacement(ent, replacements, replacement_count, prob);
+			if (wave_level >= 4) {
+				perform_replacement(ent, replacements, replacement_count, prob);
+			}
 			break;
 		case 1:
 			if (wave_level >= 7) {
@@ -695,11 +702,11 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 		};
 
 	// Aplicar los reemplazos según el modo de juego
-	if (g_chaotic->integer) {
+	if (g_horde->integer &&  g_chaotic->integer) {
 		perform_replacements(g_chaotic->integer, current_wave_level, chaotic_replacements, chaotic_replacement_count, g_chaotic->integer == 2 ? 0.08f : 0.03f);
 	}
 
-	if (g_insane->integer) {
+	if (g_horde->integer && g_insane->integer) {
 		perform_replacements(g_insane->integer, current_wave_level, insane_replacements, insane_replacement_count, g_insane->integer == 2 ? 0.33f : 0.04f);
 	}
 

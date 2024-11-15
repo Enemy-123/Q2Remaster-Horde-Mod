@@ -611,7 +611,8 @@ MONSTERINFO_SETSKIN(arachnid_psx_setskin) (edict_t* self) -> void
 // monster_arachnid
 //
 // 
-constexpr const char* default_reinforcements = "monster_tank_spawner 2";
+constexpr const char* default_boss_reinforcements = "monster_tank_spawner 2";
+constexpr const char* coop_reinforcements = "monster_tank_spawner 2";
 constexpr int32_t default_monster_slots_base = 5;
 
 /*QUAKED monster_arachnid (1 .5 0) (-40 -40 -20) (40 40 48) Ambush Trigger_Spawn Sight
@@ -634,17 +635,19 @@ void SP_monster_psxarachnid(edict_t* self)
 	sound_sight.assign("arachnid/sight.wav");
 	sound_pissed.assign("guncmdr/gcdrsrch1.wav");
 
-	if (skill->value >= 3)
+	const char* reinforcements = nullptr; // Declare outside if blocks
+	if (skill->value >= 3 || g_horde->integer)
 	{
 		sound_spawn.assign("medic_commander/monsterspawn1.wav");
-
-		const char* reinforcements = default_reinforcements;
+		if (self->monsterinfo.IS_BOSS)
+			reinforcements = default_boss_reinforcements;
+		else
+			reinforcements = coop_reinforcements;
 
 		if (!st.was_key_specified("monster_slots"))
 			self->monsterinfo.monster_slots = default_monster_slots_base;
 		if (st.was_key_specified("reinforcements"))
 			reinforcements = st.reinforcements;
-
 		if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
 			M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
 	}
@@ -655,12 +658,12 @@ void SP_monster_psxarachnid(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	if (!st.was_key_specified("power_armor_type"))
+	if (!st.was_key_specified("power_armor_type") && self->monsterinfo.IS_BOSS)
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-	if (!st.was_key_specified("power_armor_power"))
+	if (!st.was_key_specified("power_armor_power") && self->monsterinfo.IS_BOSS)
 		self->monsterinfo.power_armor_power = 2500;
 
-	self->health = 7000 * st.health_multiplier;
+	self->health = 1000 * st.health_multiplier;
 	self->gib_health = -200;
 
 	self->monsterinfo.scale = MODEL_SCALE;

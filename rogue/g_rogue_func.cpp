@@ -294,6 +294,8 @@ USE(Use_Plat2) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 USE(plat2_activate) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
+
+
 	edict_t* trigger;
 
 	//	if(ent->targetname)
@@ -372,11 +374,6 @@ void SP_func_plat2(edict_t* ent)
 		ent->decel *= 2;
 	}
 
-	if (g_speedstuff->value != 1.0f) {
-		ent->speed *= g_speedstuff->value;
-		ent->accel *= g_speedstuff->value;
-		ent->decel *= g_speedstuff->value;
-	}
 	// PMM Added to kill things it's being blocked by
 	if (!ent->dmg)
 		ent->dmg = 2;
