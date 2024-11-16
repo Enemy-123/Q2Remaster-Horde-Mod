@@ -296,7 +296,7 @@ void turret2_ready_gun(edict_t* self)
 	if (self->monsterinfo.active_move != &turret2_move_ready_gun)
 	{
 		M_SetAnimation(self, &turret2_move_ready_gun);
-		self->monsterinfo.weapon_sound = sound_moving;
+//		self->monsterinfo.weapon_sound = sound_moving;
 	}
 }
 
@@ -326,9 +326,9 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 {
 	CreateTurretGlowEffect(self);
 
-	if (self->s.frame < FRAME_run01)
-		turret2_ready_gun(self);
-	else
+	//if (self->s.frame < FRAME_run01)
+	//	turret2_ready_gun(self);
+	//else
 	{
 		self->monsterinfo.aiflags |= AI_HIGH_TICK_RATE;
 		M_SetAnimation(self, &turret2_move_run);

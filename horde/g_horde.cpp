@@ -3246,39 +3246,49 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
+	// Usar array estático para evitar allocaciones
 	static edict_t* available_spawns[MAX_SPAWN_POINTS];
-	const MapSize& mapSize = GetMapSize(level.mapname);
 	size_t spawn_count = 0;
 
-	// Recolectar solo puntos de spawn que no estén en cooldown
+	// Pre-reservar espacio para el array
+	for (auto& spawn : available_spawns) {
+		spawn = nullptr;
+	}
+
+	// Optimizar la recolección de spawn points usando referencias
 	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
-		edict_t* e = &g_edicts[i];
-		if (!e->inuse || !e->classname ||
-			strcmp(e->classname, "info_player_deathmatch") != 0 ||
-			e->monsterinfo.IS_BOSS)
+		edict_t& e = g_edicts[i];
+		if (!e.inuse || !e.classname ||
+			strcmp(e.classname, "info_player_deathmatch") != 0 ||
+			e.monsterinfo.IS_BOSS)
 			continue;
 
-		auto it = spawnPointsData.find(e);
-		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
-			if (level.time < it->second.cooldownEndsAt)
+		const auto& spawn_data = spawnPointsData.find(&e);
+		if (spawn_data != spawnPointsData.end() && spawn_data->second.isTemporarilyDisabled) {
+			if (level.time < spawn_data->second.cooldownEndsAt)
 				continue;
 		}
 
-		available_spawns[spawn_count++] = e;
+		available_spawns[spawn_count++] = &e;
 	}
 
-	if (spawn_count == 0)
-		return nullptr;
-
-	// Optimizar el Fisher-Yates shuffle usando distribución uniforme
-	std::uniform_int_distribution<size_t> dist(0, spawn_count - 1);
-	for (size_t i = spawn_count - 1; i > 0; --i) {
-		size_t j = dist(mt_rand);
-		if (i != j)
-			std::swap(available_spawns[i], available_spawns[j]);
+	// Optimización 6: Usar shuffle más eficiente con distribución uniforme
+	if (spawn_count > 1) {
+		std::uniform_int_distribution<size_t> dist(0, spawn_count - 1);
+		for (size_t i = spawn_count - 1; i > 0; --i) {
+			size_t j = dist(mt_rand);
+			if (i != j) {
+				std::swap(available_spawns[i], available_spawns[j]);
+			}
+		}
 	}
 
-	// Calcular monsters per spawn una sola vez
+	// Optimización 7: Cálculos de límites una sola vez
+	const MapSize& mapSize = GetMapSize(level.mapname);
+	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+
+	const int32_t activeMonsters = CountActiveMonsters();
 	const int32_t monsters_per_spawn = std::min(
 		g_horde_local.queued_monsters > 0
 		? std::min(g_horde_local.queued_monsters, 3)
@@ -3286,15 +3296,12 @@ static edict_t* SpawnMonsters() {
 		6
 	);
 
-	// Cache de límites
-	const int32_t activeMonsters = CountActiveMonsters();
-	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
-	const int32_t spawnable = std::max(0, std::min(monsters_per_spawn, maxMonsters - activeMonsters));
+	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
 
-	if (spawnable <= 0)
+	// Optimización 8: Early return si no hay nada que spawnear
+	if (spawnable <= 0 || spawn_count == 0) {
 		return nullptr;
-
+	}
 	edict_t* last_spawned = nullptr;
 
 	// Spawn optimizado usando spawn_temp_t::empty

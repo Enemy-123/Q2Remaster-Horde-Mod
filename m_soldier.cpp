@@ -1430,10 +1430,10 @@ mframe_t soldier_frames_jump[] = {
 	{ ai_move, 0, soldier_jump_wait_land },
 	{ ai_move },
 	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move },
-	{ ai_move }
+	{ ai_soldier_move, 0, soldierh_hyper_sound_start },
+	{ ai_soldier_move, 0, soldier_fire5 },
+	{ ai_soldier_move, 0, soldierh_hyperripper5 },
+	{ ai_soldier_move, 0, soldierh_hyperripper5 },
 };
 MMOVE_T(soldier_move_jump) = { FRAME_attak501, FRAME_attak508, soldier_frames_jump, soldier_stand_up };
 
@@ -1444,7 +1444,7 @@ mframe_t soldier_frames_jump2[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_stand_up };
+MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_run };
 
 void soldier_jump(edict_t* self, blocked_jump_result_t result)
 {
