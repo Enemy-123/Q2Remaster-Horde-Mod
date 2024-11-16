@@ -32,9 +32,9 @@ enum class WaveEndReason {
 	TimeLimitReached
 };
 
-int GetNumActivePlayers();
-int GetNumSpectPlayers();
-int GetNumHumanPlayers();
+inline int8_t GetNumActivePlayers();
+inline int8_t GetNumSpectPlayers();
+inline int8_t GetNumHumanPlayers();
 
 constexpr int8_t MAX_MONSTERS_BIG_MAP = 27;
 constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;
@@ -1487,21 +1487,12 @@ void Horde_PreInit() {
 	}
 }
 
-// Funci�n para obtener el n�mero de jugadores humanos activos (excluyendo bots)
-inline int32_t GetNumHumanPlayers() {
-	return std::count_if(active_players().begin(), active_players().end(),
-		[](const edict_t* player) {
-			return player->client->resp.ctf_team == CTF_TEAM1 && !(player->svflags & SVF_BOT);
-		});
-}
-
 void VerifyAndAdjustBots() {
 	const MapSize mapSize = GetMapSize(level.mapname);
-	const int32_t humanPlayers = GetNumHumanPlayers();
-	const int32_t spectPlayers = GetNumSpectPlayers();
+	const int32_t spectPlayers = GetNumSpectPlayers();  // Solo necesitamos spectPlayers
 	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
-	int32_t requiredBots = baseBots + spectPlayers;
-	requiredBots = std::max(requiredBots, baseBots);
+	const int32_t requiredBots = std::max(baseBots + spectPlayers, baseBots);
+
 	gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
 }
 
@@ -2183,22 +2174,16 @@ static bool Horde_AllMonstersDead() {
 	return true;
 }
 
-static void CheckAndRestoreMonsterAlpha(edict_t* ent) {
-	// Si la entidad no es válida o no es un monstruo, retornar
+static void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
 	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
 		return;
 	}
 
-	// Si el monstruo está vivo pero tiene alpha reducido (está en fade)
 	if (ent->health > 0 && !ent->deadflag && ent->s.alpha < 1.0f) {
-		// Restaurar el alpha y otros estados relevantes
 		ent->s.alpha = 0.0f;
 		ent->s.renderfx &= ~RF_TRANSLUCENT;
-		// Asegurar que el monstruo puede tomar daño
 		ent->takedamage = true;
-		// Actualizar la entidad
 		gi.linkentity(ent);
-
 	}
 }
 
@@ -2899,19 +2884,10 @@ void ResetGame() {
 	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
 }
 
-// Función para contar los monstruos activos
-static int32_t CountActiveMonsters() {
-	return std::count_if(active_monsters().begin(), active_monsters().end(),
-		[](const edict_t* ent) {
-			return !ent->deadflag &&
-				!(ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) &&
-				is_valid_vector(ent->s.origin);
-		});
-}
-
 inline int8_t CalculateRemainingMonsters() {
-	const int16_t remainingMonsters = level.total_monsters - level.killed_monsters;
-	return (remainingMonsters < 0) ? 0 : remainingMonsters;
+    // Usar variables del nivel en lugar de recorrer entidades
+    const int32_t remaining = level.total_monsters - level.killed_monsters;
+    return std::max(0, remaining);  // Asegurar que no sea negativo
 }
 
 void ResetWaveAdvanceState() noexcept {
@@ -2965,14 +2941,29 @@ void fastNextWave() noexcept {
 	Horde_InitLevel(g_horde_local.level + 1);
 }
 
-inline int32_t GetNumActivePlayers() {
-	return std::count_if(active_players().begin(), active_players().end(),
-		[](const edict_t* player) { return player->client->resp.ctf_team == CTF_TEAM1; });
+inline int8_t GetNumActivePlayers() {
+	const auto& players = active_players();
+	return std::count_if(players.begin(), players.end(),
+		[](const edict_t* const player) {
+			return player->client && player->client->resp.ctf_team == CTF_TEAM1;
+		});
 }
 
-inline int32_t GetNumSpectPlayers() {
-	return std::count_if(active_players().begin(), active_players().end(),
-		[](const edict_t* player) { return player->client->resp.ctf_team != CTF_TEAM1; });
+inline int8_t GetNumHumanPlayers() {
+    const auto& players = active_players();
+    return std::count_if(players.begin(), players.end(),
+        [](const edict_t* const player) {
+            return player->client->resp.ctf_team == CTF_TEAM1 && 
+                   !(player->svflags & SVF_BOT);
+        });
+}
+
+inline int8_t GetNumSpectPlayers() {
+    const auto& players = active_players();
+    return std::count_if(players.begin(), players.end(),
+        [](const edict_t* const player) {
+            return player->client->resp.ctf_team != CTF_TEAM1;
+        });
 }
 
 static void PlayWaveStartSound() {
@@ -3288,7 +3279,7 @@ static edict_t* SpawnMonsters() {
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-	const int32_t activeMonsters = CountActiveMonsters();
+	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t monsters_per_spawn = std::min(
 		g_horde_local.queued_monsters > 0
 		? std::min(g_horde_local.queued_monsters, 3)
@@ -3353,7 +3344,7 @@ static edict_t* SpawnMonsters() {
 
 	// Manejar monstruos en cola restantes de manera más eficiente
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		const int32_t additional_spawnable = maxMonsters - CountActiveMonsters();
+		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
 		g_horde_local.num_to_spawn += additional_to_spawn;
 		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - additional_to_spawn);
@@ -3664,7 +3655,7 @@ void Horde_RunFrame() {
 				SpawnBossAutomatically();
 			}
 
-			const int32_t activeMonsters = CountActiveMonsters();
+			const int32_t activeMonsters = CalculateRemainingMonsters();
 			const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
@@ -3709,7 +3700,7 @@ void Horde_RunFrame() {
 			currentWaveEndReason = reason; // Guardar la razón aquí
 		}
 		else if (g_horde_local.monster_spawn_time <= level.time) {
-			const int32_t activeMonsters = CountActiveMonsters();
+			const int32_t activeMonsters = CalculateRemainingMonsters();
 			const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
 
