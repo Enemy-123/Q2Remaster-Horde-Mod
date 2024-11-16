@@ -2926,6 +2926,7 @@ struct client_respawn_t
 	bool inactive;
 	gtime_t id_persist_time;
 	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
+	int adrenaline_count = 0;
 };
 
 // [Paril-KEX] seconds until we are fully invisible after
@@ -3175,7 +3176,6 @@ struct gclient_t
 	int num_sentries = 0; //Sentry Guns per client
 	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];
-	int adrenaline_count = 0;
 	gtime_t teleport_cooldown = 3_sec;
 };
 

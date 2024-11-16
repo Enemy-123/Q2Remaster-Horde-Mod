@@ -285,8 +285,7 @@ void Drop_General(edict_t* ent, gitem_t* item)
 
 //======================================================================
 
-int CalculateWaveBasedMaxHealth(int base_max_health);
-
+int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr);
 
 void Use_Adrenaline(edict_t* ent, gitem_t* item)
 {
@@ -294,21 +293,24 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 		return;
 
 	// Increment adrenaline count
-	ent->client->adrenaline_count++;
+	ent->client->resp.adrenaline_count++;
 
-	// Calculate new max health (wave base + adrenaline bonus)
-	int wave_base = CalculateWaveBasedMaxHealth(100);
-	int new_max = wave_base + (ent->client->adrenaline_count * ADRENALINE_HEALTH_BONUS);
+	// Calculate new max health
+	int new_max = CalculateWaveBasedMaxHealth(100, ent->client);
 
+	// Update all relevant health values
 	ent->max_health = new_max;
+	ent->client->pers.max_health = new_max;
 	ent->client->resp.max_health = new_max;
+	ent->client->resp.coop_respawn.max_health = new_max;
 
-	if (ent->health < ent->max_health)
-		ent->health = ent->max_health;
+	if (ent->health < new_max)
+		ent->health = new_max;
 
 	ent->client->pers.inventory[item->id]--;
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("items/n_health.wav"), 1, ATTN_NORM, 0);
 }
+
 bool Pickup_LegacyHead(edict_t* ent, edict_t* other)
 {
 	other->max_health += 5;
