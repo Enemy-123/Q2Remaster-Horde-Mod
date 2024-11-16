@@ -1211,37 +1211,37 @@ class tm_writer {
   const Duration* subsecs_;
   const std::tm& tm_;
 
-  auto tm_sec() const   -> int {
+  auto tm_sec() const noexcept -> int {
     FMT_ASSERT(tm_.tm_sec >= 0 && tm_.tm_sec <= 61, "");
     return tm_.tm_sec;
   }
-  auto tm_min() const   -> int {
+  auto tm_min() const noexcept -> int {
     FMT_ASSERT(tm_.tm_min >= 0 && tm_.tm_min <= 59, "");
     return tm_.tm_min;
   }
-  auto tm_hour() const   -> int {
+  auto tm_hour() const noexcept -> int {
     FMT_ASSERT(tm_.tm_hour >= 0 && tm_.tm_hour <= 23, "");
     return tm_.tm_hour;
   }
-  auto tm_mday() const   -> int {
+  auto tm_mday() const noexcept -> int {
     FMT_ASSERT(tm_.tm_mday >= 1 && tm_.tm_mday <= 31, "");
     return tm_.tm_mday;
   }
-  auto tm_mon() const   -> int {
+  auto tm_mon() const noexcept -> int {
     FMT_ASSERT(tm_.tm_mon >= 0 && tm_.tm_mon <= 11, "");
     return tm_.tm_mon;
   }
-  auto tm_year() const   -> long long { return 1900ll + tm_.tm_year; }
-  auto tm_wday() const   -> int {
+  auto tm_year() const noexcept -> long long { return 1900ll + tm_.tm_year; }
+  auto tm_wday() const noexcept -> int {
     FMT_ASSERT(tm_.tm_wday >= 0 && tm_.tm_wday <= 6, "");
     return tm_.tm_wday;
   }
-  auto tm_yday() const   -> int {
+  auto tm_yday() const noexcept -> int {
     FMT_ASSERT(tm_.tm_yday >= 0 && tm_.tm_yday <= 365, "");
     return tm_.tm_yday;
   }
 
-  auto tm_hour12() const   -> int {
+  auto tm_hour12() const noexcept -> int {
     const auto h = tm_hour();
     const auto z = h < 12 ? h : h - 12;
     return z == 0 ? 12 : z;
@@ -1251,14 +1251,14 @@ class tm_writer {
   // do if the year is negative or exceeds 9999. Use the convention that %C
   // concatenated with %y yields the same output as %Y, and that %Y contains at
   // least 4 characters, with more only if necessary.
-  auto split_year_lower(long long year) const   -> int {
+  auto split_year_lower(long long year) const noexcept -> int {
     auto l = year % 100;
     if (l < 0) l = -l;  // l in [0, 99]
     return static_cast<int>(l);
   }
 
   // Algorithm: https://en.wikipedia.org/wiki/ISO_week_date.
-  auto iso_year_weeks(long long curr_year) const   -> int {
+  auto iso_year_weeks(long long curr_year) const noexcept -> int {
     const auto prev_year = curr_year - 1;
     const auto curr_p =
         (curr_year + curr_year / 4 - curr_year / 100 + curr_year / 400) %
@@ -1268,18 +1268,18 @@ class tm_writer {
         days_per_week;
     return 52 + ((curr_p == 4 || prev_p == 3) ? 1 : 0);
   }
-  auto iso_week_num(int tm_yday, int tm_wday) const   -> int {
+  auto iso_week_num(int tm_yday, int tm_wday) const noexcept -> int {
     return (tm_yday + 11 - (tm_wday == 0 ? days_per_week : tm_wday)) /
            days_per_week;
   }
-  auto tm_iso_week_year() const   -> long long {
+  auto tm_iso_week_year() const noexcept -> long long {
     const auto year = tm_year();
     const auto w = iso_week_num(tm_yday(), tm_wday());
     if (w < 1) return year - 1;
     if (w > iso_year_weeks(year)) return year + 1;
     return year;
   }
-  auto tm_iso_week_of_year() const   -> int {
+  auto tm_iso_week_of_year() const noexcept -> int {
     const auto year = tm_year();
     const auto w = iso_week_num(tm_yday(), tm_wday());
     if (w < 1) return iso_year_weeks(year - 1);
@@ -2040,9 +2040,9 @@ class weekday {
 
  public:
   weekday() = default;
-  constexpr explicit weekday(unsigned wd)  
+  constexpr explicit weekday(unsigned wd) noexcept
       : value_(static_cast<unsigned char>(wd != 7 ? wd : 0)) {}
-  constexpr auto c_encoding() const   -> unsigned { return value_; }
+  constexpr auto c_encoding() const noexcept -> unsigned { return value_; }
 };
 
 class day {
@@ -2051,9 +2051,9 @@ class day {
 
  public:
   day() = default;
-  constexpr explicit day(unsigned d)  
+  constexpr explicit day(unsigned d) noexcept
       : value_(static_cast<unsigned char>(d)) {}
-  constexpr explicit operator unsigned() const   { return value_; }
+  constexpr explicit operator unsigned() const noexcept { return value_; }
 };
 
 class month {
@@ -2062,9 +2062,9 @@ class month {
 
  public:
   month() = default;
-  constexpr explicit month(unsigned m)  
+  constexpr explicit month(unsigned m) noexcept
       : value_(static_cast<unsigned char>(m)) {}
-  constexpr explicit operator unsigned() const   { return value_; }
+  constexpr explicit operator unsigned() const noexcept { return value_; }
 };
 
 class year {
@@ -2073,8 +2073,8 @@ class year {
 
  public:
   year() = default;
-  constexpr explicit year(int y)   : value_(y) {}
-  constexpr explicit operator int() const   { return value_; }
+  constexpr explicit year(int y) noexcept : value_(y) {}
+  constexpr explicit operator int() const noexcept { return value_; }
 };
 
 class year_month_day {
@@ -2085,11 +2085,11 @@ class year_month_day {
 
  public:
   year_month_day() = default;
-  constexpr year_month_day(const year& y, const month& m, const day& d)  
+  constexpr year_month_day(const year& y, const month& m, const day& d) noexcept
       : year_(y), month_(m), day_(d) {}
-  constexpr auto year() const   -> fmt::year { return year_; }
-  constexpr auto month() const   -> fmt::month { return month_; }
-  constexpr auto day() const   -> fmt::day { return day_; }
+  constexpr auto year() const noexcept -> fmt::year { return year_; }
+  constexpr auto month() const noexcept -> fmt::month { return month_; }
+  constexpr auto day() const noexcept -> fmt::day { return day_; }
 };
 #endif
 

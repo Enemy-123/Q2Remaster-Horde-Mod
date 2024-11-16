@@ -1,32 +1,33 @@
 Package: vcpkg-cmake-config
-Version: 2021-02-26
+Version: 2024-05-23
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 0f89a4eed8d642c1a7ff2ddf3d8bde7bdf1a1289f7a104aa65d95edfe8472b48
+Abi: d25a7648991d75212c607bf11a411675ddbb44dd30aa493e816378ca26c3e152
 Status: install ok installed
 
 Package: vcpkg-cmake
-Version: 2021-02-26
+Version: 2024-04-23
 Architecture: x64-windows
 Multi-Arch: same
-Abi: 8a53f6be35d744b9a91ceadc3350321c04d67ed1df3b3b798bf74c9b1d0bff60
+Abi: ba8353ff9b3928c87f0cd2e9429ee321c953f3a81d87ae444f75964cdc6788d2
 Status: install ok installed
 
 Package: fmt
-Version: 7.1.3
+Version: 11.0.2
 Port-Version: 1
-Depends: vcpkg-cmake, vcpkg-cmake-config
-Architecture: x64-windows
+Depends: vcpkg-cmake:x64-windows, vcpkg-cmake-config:x64-windows
+Architecture: x64-windows-static
 Multi-Arch: same
-Abi: 0ca4c4757bb7d3a27da944ee8de8417c2bf51cdc4045653a72eb437ef47219b7
-Description: Formatting library for C++. It can be used as a safe alternative to printf or as a fast alternative to IOStreams.
+Abi: ce6da09a8a77509bb96156b610a685e3b96faa70abcf9ec9fd4303aa8a8ccde6
+Description: {fmt} is an open-source formatting library providing a fast and safe alternative to C stdio and C++ iostreams.
 Status: install ok installed
 
 Package: jsoncpp
-Version: 1.9.4
-Architecture: x64-windows
+Version: 1.9.6
+Depends: vcpkg-cmake:x64-windows, vcpkg-cmake-config:x64-windows
+Architecture: x64-windows-static
 Multi-Arch: same
-Abi: 5b08174f9fc3b15cd621c7ee983a34ca79f3fd9283b56946edd4b49afe76180f
-Description: jsoncpp is an implementation of a JSON reader and writer in C++. JSON (JavaScript Object Notation) is a lightweight data-interchange format that it is easy to parse and redeable for human.
+Abi: f30ed5100419584769a38e2c420fbaa4972baa30e475d0eb79e8ee51a2d1fa1b
+Description: JsonCpp is a C++ library that allows manipulating JSON values, including serialization and deserialization to and from strings. It can also preserve existing comment in unserialization/serialization steps, making it a convenient format to store user input files.
 Status: install ok installed
 

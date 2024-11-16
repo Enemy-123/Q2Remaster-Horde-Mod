@@ -3,22 +3,13 @@
   "spdxVersion": "SPDX-2.2",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-<<<<<<< HEAD
-  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-windows-static-1.9.5#4-67cc830d-dbf7-4ff4-a4e1-e4477d09cf81",
-  "name": "jsoncpp:x64-windows-static@1.9.5#4 80773f70dc32e2e6ee8896a9ba28f54ddbd7a745ad2b786e582ad13540265e20",
-=======
-  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-windows-static-1.9.5#4-877071a9-85df-4b6c-b08f-301fb9ee536f",
-  "name": "jsoncpp:x64-windows-static@1.9.5#4 9d4fb82b5f2facbfa5dc5e86fd709c6df2e145a4bbbe51ee84208a95c655df5c",
->>>>>>> f5e9f5a8fa47f491ea28c26821016350b2ec90bc
+  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-windows-static-1.9.6-556d03c9-6e2a-4585-ba5c-b265784b92b5",
+  "name": "jsoncpp:x64-windows-static@1.9.6 f30ed5100419584769a38e2c420fbaa4972baa30e475d0eb79e8ee51a2d1fa1b",
   "creationInfo": {
     "creators": [
-      "Tool: vcpkg-7d353e869753e5609a1f1a057df3db8fd356e49d"
+      "Tool: vcpkg-2024-11-12-eb492805e92a2c14a230f5c3deb3e89f6771c321"
     ],
-<<<<<<< HEAD
-    "created": "2024-08-09T06:07:26Z"
-=======
-    "created": "2024-08-09T22:29:40Z"
->>>>>>> f5e9f5a8fa47f491ea28c26821016350b2ec90bc
+    "created": "2024-11-16T19:31:06Z"
   },
   "relationships": [
     {
@@ -56,8 +47,8 @@
     {
       "name": "jsoncpp",
       "SPDXID": "SPDXRef-port",
-      "versionInfo": "1.9.5#4",
-      "downloadLocation": "git+https://github.com/microsoft/vcpkg@4f722023370407388c3014d52fee17dbe8d65cc3",
+      "versionInfo": "1.9.6",
+      "downloadLocation": "git+https://github.com/Microsoft/vcpkg@dde49ad9d554fd5f062c0c1deea6e54b6fdb35b2",
       "homepage": "https://github.com/open-source-parsers/jsoncpp",
       "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
@@ -68,11 +59,7 @@
     {
       "name": "jsoncpp:x64-windows-static",
       "SPDXID": "SPDXRef-binary",
-<<<<<<< HEAD
-      "versionInfo": "80773f70dc32e2e6ee8896a9ba28f54ddbd7a745ad2b786e582ad13540265e20",
-=======
-      "versionInfo": "9d4fb82b5f2facbfa5dc5e86fd709c6df2e145a4bbbe51ee84208a95c655df5c",
->>>>>>> f5e9f5a8fa47f491ea28c26821016350b2ec90bc
+      "versionInfo": "f30ed5100419584769a38e2c420fbaa4972baa30e475d0eb79e8ee51a2d1fa1b",
       "downloadLocation": "NONE",
       "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
@@ -82,38 +69,38 @@
     {
       "SPDXID": "SPDXRef-resource-1",
       "name": "open-source-parsers/jsoncpp",
-      "downloadLocation": "git+https://github.com/open-source-parsers/jsoncpp@1.9.5",
+      "downloadLocation": "git+https://github.com/open-source-parsers/jsoncpp@1.9.6",
       "licenseConcluded": "NOASSERTION",
       "licenseDeclared": "NOASSERTION",
       "copyrightText": "NOASSERTION",
       "checksums": [
         {
           "algorithm": "SHA512",
-          "checksumValue": "1d06e044759b1e1a4cc4960189dd7e001a0a4389d7239a6d59295af995a553518e4e0337b4b4b817e70da5d9731a4c98655af90791b6287870b5ff8d73ad8873"
+          "checksumValue": "006d81f9f723dcfe875ebc2147449c07c5246bf97dd7b9eee1909decc914b051d6f3f06feb5c3dfa143d28773fb310aabb04a81dc447cc61513309df8eba8b08"
         }
       ]
     }
   ],
   "files": [
     {
-      "fileName": "./C:/Users/pipev/AppData/Local/vcpkg/registries/git-trees/4f722023370407388c3014d52fee17dbe8d65cc3/portfile.cmake",
+      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/jsoncpp/dde49ad9d554fd5f062c0c1deea6e54b6fdb35b2/portfile.cmake",
       "SPDXID": "SPDXRef-file-0",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "14818af3f1c8c16805bfa7dad73d8638b654711f13606c5e2b9e730261caf0b9"
+          "checksumValue": "3179577246ad40d0bc2187a916a21ca0451431c0f745ffbd4c7a5ad77ddcfb58"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./C:/Users/pipev/AppData/Local/vcpkg/registries/git-trees/4f722023370407388c3014d52fee17dbe8d65cc3/vcpkg.json",
+      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/jsoncpp/dde49ad9d554fd5f062c0c1deea6e54b6fdb35b2/vcpkg.json",
       "SPDXID": "SPDXRef-file-1",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "6cbcf1175609b04fae21638a2a9635e7f7d5c2413e0e3de757641080dca59fb1"
+          "checksumValue": "c6172fba1d57280b910b63f1cee01a9fd54745e4c494705b63f78324cd52db0f"
         }
       ],
       "licenseConcluded": "NOASSERTION",

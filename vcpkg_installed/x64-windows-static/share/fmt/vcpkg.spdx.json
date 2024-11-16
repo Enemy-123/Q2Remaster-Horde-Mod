@@ -3,13 +3,13 @@
   "spdxVersion": "SPDX-2.2",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "documentNamespace": "https://spdx.org/spdxdocs/fmt-x64-windows-static-11.0.2-5fdc73df-f519-4afe-958c-8be69de70156",
-  "name": "fmt:x64-windows-static@11.0.2 9b221709ef76cb65cb9582cf21c58b83c7869fb7579a6d9e9af13feffe04a643",
+  "documentNamespace": "https://spdx.org/spdxdocs/fmt-x64-windows-static-11.0.2#1-128b304f-1e2c-49c8-b310-be24b644f1e9",
+  "name": "fmt:x64-windows-static@11.0.2#1 ce6da09a8a77509bb96156b610a685e3b96faa70abcf9ec9fd4303aa8a8ccde6",
   "creationInfo": {
     "creators": [
-      "Tool: vcpkg-2024-08-01-fd884a0d390d12783076341bd43d77c3a6a15658"
+      "Tool: vcpkg-2024-11-12-eb492805e92a2c14a230f5c3deb3e89f6771c321"
     ],
-    "created": "2024-08-12T02:19:18Z"
+    "created": "2024-11-16T19:30:46Z"
   },
   "relationships": [
     {
@@ -38,6 +38,11 @@
       "relatedSpdxElement": "SPDXRef-file-3"
     },
     {
+      "spdxElementId": "SPDXRef-port",
+      "relationshipType": "CONTAINS",
+      "relatedSpdxElement": "SPDXRef-file-4"
+    },
+    {
       "spdxElementId": "SPDXRef-binary",
       "relationshipType": "GENERATED_FROM",
       "relatedSpdxElement": "SPDXRef-port"
@@ -61,14 +66,19 @@
       "spdxElementId": "SPDXRef-file-3",
       "relationshipType": "CONTAINED_BY",
       "relatedSpdxElement": "SPDXRef-port"
+    },
+    {
+      "spdxElementId": "SPDXRef-file-4",
+      "relationshipType": "CONTAINED_BY",
+      "relatedSpdxElement": "SPDXRef-port"
     }
   ],
   "packages": [
     {
       "name": "fmt",
       "SPDXID": "SPDXRef-port",
-      "versionInfo": "11.0.2",
-      "downloadLocation": "git+https://github.com/Microsoft/vcpkg@65fe4dea09fc09a30e6ece9ac19edb7ad6a49601",
+      "versionInfo": "11.0.2#1",
+      "downloadLocation": "git+https://github.com/Microsoft/vcpkg@07a73a7565e5de9eb42e90c16c133bdfdfebbcda",
       "homepage": "https://github.com/fmtlib/fmt",
       "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
@@ -79,7 +89,7 @@
     {
       "name": "fmt:x64-windows-static",
       "SPDXID": "SPDXRef-binary",
-      "versionInfo": "9b221709ef76cb65cb9582cf21c58b83c7869fb7579a6d9e9af13feffe04a643",
+      "versionInfo": "ce6da09a8a77509bb96156b610a685e3b96faa70abcf9ec9fd4303aa8a8ccde6",
       "downloadLocation": "NONE",
       "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
@@ -103,8 +113,20 @@
   ],
   "files": [
     {
-      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/65fe4dea09fc09a30e6ece9ac19edb7ad6a49601/fix-write-batch.patch",
+      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/07a73a7565e5de9eb42e90c16c133bdfdfebbcda/fix-pass-utf-8-only-if-the-compiler-is-MSVC-at-build.patch",
       "SPDXID": "SPDXRef-file-0",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "d74f4f0f8d1e4fe92276c3c95b00b6a3add53afbb3e862741da425d968aca674"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "copyrightText": "NOASSERTION"
+    },
+    {
+      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/07a73a7565e5de9eb42e90c16c133bdfdfebbcda/fix-write-batch.patch",
+      "SPDXID": "SPDXRef-file-1",
       "checksums": [
         {
           "algorithm": "SHA256",
@@ -115,20 +137,20 @@
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/65fe4dea09fc09a30e6ece9ac19edb7ad6a49601/portfile.cmake",
-      "SPDXID": "SPDXRef-file-1",
+      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/07a73a7565e5de9eb42e90c16c133bdfdfebbcda/portfile.cmake",
+      "SPDXID": "SPDXRef-file-2",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "bde7ca9aa0edb47a826d511a9fcaccbe61da9f882ddcc39ea4d813e1d69cfbe7"
+          "checksumValue": "d0adfee327b3609a41a474dcd75b2dd78090857f4335af029a43bc857929934e"
         }
       ],
       "licenseConcluded": "NOASSERTION",
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/65fe4dea09fc09a30e6ece9ac19edb7ad6a49601/usage",
-      "SPDXID": "SPDXRef-file-2",
+      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/07a73a7565e5de9eb42e90c16c133bdfdfebbcda/usage",
+      "SPDXID": "SPDXRef-file-3",
       "checksums": [
         {
           "algorithm": "SHA256",
@@ -139,12 +161,12 @@
       "copyrightText": "NOASSERTION"
     },
     {
-      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/65fe4dea09fc09a30e6ece9ac19edb7ad6a49601/vcpkg.json",
-      "SPDXID": "SPDXRef-file-3",
+      "fileName": "./C:/Users/pipev/source/repos/vcpkg/buildtrees/versioning_/versions/fmt/07a73a7565e5de9eb42e90c16c133bdfdfebbcda/vcpkg.json",
+      "SPDXID": "SPDXRef-file-4",
       "checksums": [
         {
           "algorithm": "SHA256",
-          "checksumValue": "cbb9781388649a9dd3ec4121b7cb4d98bfe2a134db69910708a67bb1d783ab1d"
+          "checksumValue": "8d8fdba284a4cb69f8c42a8c211d724af7a8d8522d0f098d2dd35f7bf1c5caa6"
         }
       ],
       "licenseConcluded": "NOASSERTION",

@@ -2069,7 +2069,14 @@ std::string GetActiveBonusesString() {
 		return ""; // Return an empty string if there are no active bonuses
 	}
 
-	return fmt::format("* {}", fmt::join(active_bonuses, "\n* "));
+	std::string result = "* ";
+	for (size_t i = 0; i < active_bonuses.size(); ++i) {
+		result += active_bonuses[i];
+		if (i < active_bonuses.size() - 1) {
+			result += "\n* ";
+		}
+	}
+	return result;
 }
 
 struct PlayerScore {

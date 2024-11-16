@@ -325,8 +325,8 @@ class uint128_fallback {
   constexpr uint128_fallback(uint64_t hi, uint64_t lo) : lo_(lo), hi_(hi) {}
   constexpr uint128_fallback(uint64_t value = 0) : lo_(value), hi_(0) {}
 
-  constexpr auto high() const   -> uint64_t { return hi_; }
-  constexpr auto low() const   -> uint64_t { return lo_; }
+  constexpr auto high() const noexcept -> uint64_t { return hi_; }
+  constexpr auto low() const noexcept -> uint64_t { return lo_; }
 
   template <typename T, FMT_ENABLE_IF(std::is_integral<T>::value)>
   constexpr explicit operator T() const {
@@ -402,7 +402,7 @@ class uint128_fallback {
     hi_ &= n.hi_;
   }
 
-  FMT_CONSTEXPR20 auto operator+=(uint64_t n)   -> uint128_fallback& {
+  FMT_CONSTEXPR20 auto operator+=(uint64_t n) noexcept -> uint128_fallback& {
     if (is_constant_evaluated()) {
       lo_ += n;
       hi_ += (lo_ < n ? 1 : 0);
@@ -903,13 +903,13 @@ class basic_memory_buffer : public detail::buffer<T> {
  public:
   /// Constructs a `basic_memory_buffer` object moving the content of the other
   /// object to it.
-  FMT_CONSTEXPR20 basic_memory_buffer(basic_memory_buffer&& other)  
+  FMT_CONSTEXPR20 basic_memory_buffer(basic_memory_buffer&& other) noexcept
       : detail::buffer<T>(grow) {
     move(other);
   }
 
   /// Moves the content of the other `basic_memory_buffer` object to this one.
-  auto operator=(basic_memory_buffer&& other)   -> basic_memory_buffer& {
+  auto operator=(basic_memory_buffer&& other) noexcept -> basic_memory_buffer& {
     FMT_ASSERT(this != &other, "");
     deallocate();
     move(other);
@@ -1232,11 +1232,11 @@ FMT_CONSTEXPR20 inline auto count_digits(uint32_t n) -> int {
   return count_digits_fallback(n);
 }
 
-template <typename Int> constexpr auto digits10()   -> int {
+template <typename Int> constexpr auto digits10() noexcept -> int {
   return std::numeric_limits<Int>::digits10;
 }
-template <> constexpr auto digits10<int128_opt>()   -> int { return 38; }
-template <> constexpr auto digits10<uint128_t>()   -> int { return 38; }
+template <> constexpr auto digits10<int128_opt>() noexcept -> int { return 38; }
+template <> constexpr auto digits10<uint128_t>() noexcept -> int { return 38; }
 
 template <typename Char> struct thousands_sep_result {
   std::string grouping;
@@ -1434,7 +1434,7 @@ template <typename WChar, typename Buffer = memory_buffer> class to_utf8 {
 };
 
 // Computes 128-bit result of multiplication of two 64-bit unsigned integers.
-inline auto umul128(uint64_t x, uint64_t y)   -> uint128_fallback {
+inline auto umul128(uint64_t x, uint64_t y) noexcept -> uint128_fallback {
 #if FMT_USE_INT128
   auto p = static_cast<uint128_opt>(x) * static_cast<uint128_opt>(y);
   return {static_cast<uint64_t>(p >> 64), static_cast<uint64_t>(p)};
@@ -1465,19 +1465,19 @@ inline auto umul128(uint64_t x, uint64_t y)   -> uint128_fallback {
 namespace dragonbox {
 // Computes floor(log10(pow(2, e))) for e in [-2620, 2620] using the method from
 // https://fmt.dev/papers/Dragonbox.pdf#page=28, section 6.1.
-inline auto floor_log10_pow2(int e)   -> int {
+inline auto floor_log10_pow2(int e) noexcept -> int {
   FMT_ASSERT(e <= 2620 && e >= -2620, "too large exponent");
   static_assert((-1 >> 1) == -1, "right shift is not arithmetic");
   return (e * 315653) >> 20;
 }
 
-inline auto floor_log2_pow10(int e)   -> int {
+inline auto floor_log2_pow10(int e) noexcept -> int {
   FMT_ASSERT(e <= 1233 && e >= -1233, "too large exponent");
   return (e * 1741647) >> 19;
 }
 
 // Computes upper 64 bits of multiplication of two 64-bit unsigned integers.
-inline auto umul128_upper64(uint64_t x, uint64_t y)   -> uint64_t {
+inline auto umul128_upper64(uint64_t x, uint64_t y) noexcept -> uint64_t {
 #if FMT_USE_INT128
   auto p = static_cast<uint128_opt>(x) * static_cast<uint128_opt>(y);
   return static_cast<uint64_t>(p >> 64);
@@ -1490,14 +1490,14 @@ inline auto umul128_upper64(uint64_t x, uint64_t y)   -> uint64_t {
 
 // Computes upper 128 bits of multiplication of a 64-bit unsigned integer and a
 // 128-bit unsigned integer.
-inline auto umul192_upper128(uint64_t x, uint128_fallback y)  
+inline auto umul192_upper128(uint64_t x, uint128_fallback y) noexcept
     -> uint128_fallback {
   uint128_fallback r = umul128(x, y.high());
   r += umul128_upper64(x, y.low());
   return r;
 }
 
-FMT_API auto get_cached_power(int k)   -> uint128_fallback;
+FMT_API auto get_cached_power(int k) noexcept -> uint128_fallback;
 
 // Type-specific information that Dragonbox uses.
 template <typename T, typename Enable = void> struct float_info;
@@ -1547,7 +1547,7 @@ template <typename T> struct decimal_fp {
   int exponent;
 };
 
-template <typename T> FMT_API auto to_decimal(T x)   -> decimal_fp<T>;
+template <typename T> FMT_API auto to_decimal(T x) noexcept -> decimal_fp<T>;
 }  // namespace dragonbox
 
 // Returns true iff Float has the implicit bit which is not stored.
@@ -3861,11 +3861,11 @@ auto vformat(const Locale& loc, basic_string_view<Char> fmt,
 using format_func = void (*)(detail::buffer<char>&, int, const char*);
 
 FMT_API void format_error_code(buffer<char>& out, int error_code,
-                               string_view message)  ;
+                               string_view message) noexcept;
 
 using fmt::report_error;
 FMT_API void report_error(format_func func, int error_code,
-                          const char* message)  ;
+                          const char* message) noexcept;
 }  // namespace detail
 
 FMT_BEGIN_EXPORT
@@ -3907,11 +3907,11 @@ auto system_error(int error_code, format_string<T...> fmt, T&&... args)
  * `error_code` is a system error code as given by `errno`.
  */
 FMT_API void format_system_error(detail::buffer<char>& out, int error_code,
-                                 const char* message)  ;
+                                 const char* message) noexcept;
 
 // Reports a system error without throwing an exception.
 // Can be used to report errors from destructors.
-FMT_API void report_system_error(int error_code, const char* message)  ;
+FMT_API void report_system_error(int error_code, const char* message) noexcept;
 
 /// A fast integer formatter.
 class format_int {
@@ -4029,13 +4029,13 @@ template <typename T> auto ptr(T p) -> const void* {
  *     auto s = fmt::format("{}", fmt::underlying(color::red));
  */
 template <typename Enum>
-constexpr auto underlying(Enum e)   -> underlying_t<Enum> {
+constexpr auto underlying(Enum e) noexcept -> underlying_t<Enum> {
   return static_cast<underlying_t<Enum>>(e);
 }
 
 namespace enums {
 template <typename Enum, FMT_ENABLE_IF(std::is_enum<Enum>::value)>
-constexpr auto format_as(Enum e)   -> underlying_t<Enum> {
+constexpr auto format_as(Enum e) noexcept -> underlying_t<Enum> {
   return static_cast<underlying_t<Enum>>(e);
 }
 }  // namespace enums

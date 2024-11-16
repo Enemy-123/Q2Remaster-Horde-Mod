@@ -13,7 +13,7 @@ constexpr size_t MAX_RECENT_BOSSES = 3;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
 
-//precache
+//precache//
 static cached_soundindex sound_tele3;
 static cached_soundindex sound_klaxon2;
 static cached_soundindex sound_tele_up;

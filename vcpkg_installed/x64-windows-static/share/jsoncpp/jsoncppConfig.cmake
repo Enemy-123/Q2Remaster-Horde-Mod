@@ -1,5 +1,5 @@
 cmake_policy(PUSH)
-cmake_policy(VERSION 3.0)
+cmake_policy(VERSION 3.0...3.26)
 
 
 ####### Expanded from @PACKAGE_INIT@ by configure_package_config_file() #######
