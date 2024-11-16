@@ -3428,7 +3428,6 @@ static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 			random_time(1.7_sec, 1.8_sec) / 2);
 }
 #include <unordered_map>
-#include <fmt/core.h>
 
 // Usar enum class para mejorar la seguridad de tipos
 enum class MessageType {

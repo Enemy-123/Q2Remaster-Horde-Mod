@@ -2018,7 +2018,6 @@ void CTFTeam_f(edict_t* ent)
 #include <string>
 #include <vector>
 #include <algorithm>
-#include <fmt/format.h>
 #include "../horde/g_horde_benefits.h"
 
 constexpr size_t MAX_CTF_STAT_LENGTH = 1024;
@@ -2679,7 +2678,7 @@ static void SetLevelName(pmenu_t* p)
 }
 
 /*-----------------------------------------------------------------------*/
-#include <fmt/core.h>
+//#include <fmt/core.h>
 // Constantes del sistema de votación
 struct VoteConstants {
 	static constexpr size_t MAX_VOTE_INFO_LENGTH = 75;
