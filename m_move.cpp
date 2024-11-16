@@ -461,31 +461,31 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 			else
 			{
 				// RAFAEL
-				if (strcmp(ent->classname, "monster_fixbot") == 0)
-				{
-					if (ent->s.frame >= 105 && ent->s.frame <= 120)
-					{
-						if (dz > 12)
-							new_move[2]--;
-						else if (dz < -12)
-							new_move[2]++;
-					}
-					else if (ent->s.frame >= 31 && ent->s.frame <= 88)
-					{
-						if (dz > 12)
-							new_move[2] -= 12;
-						else if (dz < -12)
-							new_move[2] += 12;
-					}
-					else
-					{
-						if (dz > 12)
-							new_move[2] -= 8;
-						else if (dz < -12)
-							new_move[2] += 8;
-					}
-				}
-				else
+				//if (strcmp(ent->classname, "monster_fixbot") == 0)
+				//{
+				//	if (ent->s.frame >= 105 && ent->s.frame <= 120)
+				//	{
+				//		if (dz > 12)
+				//			new_move[2]--;
+				//		else if (dz < -12)
+				//			new_move[2]++;
+				//	}
+				//	else if (ent->s.frame >= 31 && ent->s.frame <= 88)
+				//	{
+				//		if (dz > 12)
+				//			new_move[2] -= 12;
+				//		else if (dz < -12)
+				//			new_move[2] += 12;
+				//	}
+				//	else
+				//	{
+				//		if (dz > 12)
+				//			new_move[2] -= 8;
+				//		else if (dz < -12)
+				//			new_move[2] += 8;
+				//	}
+				//}
+				//else
 				{
 					// RAFAEL
 					if (dz > 0)

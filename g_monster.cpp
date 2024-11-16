@@ -1148,14 +1148,14 @@ THINK(monster_triggered_spawn) (edict_t* self) -> void
 	monster_start_go(self);
 
 	// RAFAEL
-	if (strcmp(self->classname, "monster_fixbot") == 0)
-	{
-		if (self->spawnflags.has(SPAWNFLAG_FIXBOT_LANDING | SPAWNFLAG_FIXBOT_TAKEOFF | SPAWNFLAG_FIXBOT_FIXIT))
-		{
-			self->enemy = nullptr;
-			return;
-		}
-	}
+	//if (strcmp(self->classname, "monster_fixbot") == 0)
+	//{
+	//	if (self->spawnflags.has(SPAWNFLAG_FIXBOT_LANDING | SPAWNFLAG_FIXBOT_TAKEOFF | SPAWNFLAG_FIXBOT_FIXIT))
+	//	{
+	//		self->enemy = nullptr;
+	//		return;
+	//	}
+	//}
 	// RAFAEL
 
 	if (self->enemy && !(self->spawnflags & SPAWNFLAG_MONSTER_AMBUSH) && !(self->enemy->flags & FL_NOTARGET) && !(self->monsterinfo.aiflags & AI_GOOD_GUY))

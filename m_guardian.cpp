@@ -259,7 +259,7 @@ void guardian_fire_blaster(edict_t* self)
 	else if (!strcmp(self->classname, "monster_janitor2"))
 	{
 		// Usar Ionripper para janitor2
-		monster_fire_ionripper(self, start, forward, 25, 2000, id, EF_IONRIPPER);
+		monster_fire_ionripper(self, start, forward, 25, 1600, id, EF_IONRIPPER);
 	}
 
 	if (self->enemy && self->enemy->health > 0 &&
