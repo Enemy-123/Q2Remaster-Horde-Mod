@@ -301,7 +301,7 @@ void flyer_checkstrafe(edict_t* self)
 		float strafe_chance = 1.0f;
 		if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
 			strafe_chance += 0.2f;
-		if (self->health < self->max_health * 0.5f)
+		if (self->health < self->max_health * 0.65f)
 			strafe_chance += 0.4f;
 
 		if (frandom() < strafe_chance)
@@ -311,7 +311,7 @@ void flyer_checkstrafe(edict_t* self)
 
 			// Apply strafe movement using validated vector
 			self->velocity = self->velocity + (right * (self->monsterinfo.lefty ? -strafe_speed : strafe_speed));
-			self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 2_sec);
+			self->monsterinfo.pausetime = level.time + random_time(0.75_sec, 1.3_sec);
 		}
 	}
 }
