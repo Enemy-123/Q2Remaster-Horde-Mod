@@ -1187,7 +1187,7 @@ edict_t* Drop_Item(edict_t* ent, gitem_t* item)
 	dropped->think = drop_make_touchable;
 	dropped->nextthink = level.time + 1_sec;
 
-	if (g_horde->integer && P_UseCoopInstancedItems() || G_IsCooperative() && P_UseCoopInstancedItems())
+	if ((g_horde->integer && P_UseCoopInstancedItems()) || (G_IsCooperative() && P_UseCoopInstancedItems()))
 		dropped->svflags |= SVF_INSTANCED;
 
 	gi.linkentity(dropped);
