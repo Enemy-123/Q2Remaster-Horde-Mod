@@ -57,9 +57,54 @@ void UpdateSmokePosition(edict_t* self) {
 }
 
 
+// Función auxiliar para normalizar ángulos de manera más eficiente
+float NormalizeAngle(float angle) {
+	while (angle > 360)
+		angle -= 360;
+	while (angle < 0)
+		angle += 360;
+	return angle;
+}
+
+// Función auxiliar para encontrar la ruta más corta entre dos ángulos
+float ShortestAnglePath(float current, float target) {
+	float diff = target - current;
+
+	// Normalizar la diferencia al rango -180 a 180
+	if (diff > 180)
+		diff -= 360;
+	else if (diff < -180)
+		diff += 360;
+
+	return diff;
+}
+
+// Reemplazar la sección de ajuste de pitch y yaw con esto:
+void AdjustTurretAngles(edict_t* self, float idealPitch, float idealYaw, float base_speed)
+{
+	// Normalizar ángulos actuales y objetivos
+	float current_pitch = NormalizeAngle(self->s.angles[PITCH]);
+	float current_yaw = NormalizeAngle(self->s.angles[YAW]);
+	idealPitch = NormalizeAngle(idealPitch);
+	idealYaw = NormalizeAngle(idealYaw);
+
+	// Calcular el camino más corto para pitch y yaw
+	float pitch_diff = ShortestAnglePath(current_pitch, idealPitch);
+	float yaw_diff = ShortestAnglePath(current_yaw, idealYaw);
+
+	// Aplicar movimiento con límite de velocidad
+	float pitch_move = std::clamp(pitch_diff, -base_speed, base_speed);
+	float yaw_move = std::clamp(yaw_diff, -base_speed, base_speed);
+
+	// Actualizar ángulos
+	self->s.angles[PITCH] = NormalizeAngle(current_pitch + pitch_move);
+	self->s.angles[YAW] = NormalizeAngle(current_yaw + yaw_move);
+}
+
+
 void turret2Aim(edict_t* self)
 {
-	// Validaciones iniciales
+	// Validaciones iniciales críticas
 	if (!self || !self->inuse)
 		return;
 
@@ -68,28 +113,23 @@ void turret2Aim(edict_t* self)
 
 	TurretSparks(self);
 
-	// Verifica el estado del enemigo
+	// Verificación del enemigo con early return
 	bool enemy_valid = (self->enemy && self->enemy != world &&
 		self->enemy->inuse && !OnSameTeam(self, self->enemy));
 
 	if (!enemy_valid) {
 		if (!FindMTarget(self))
 			return;
-
-		// Revalidar después de buscar nuevo objetivo
-		enemy_valid = (self->enemy && self->enemy != world &&
-			self->enemy->inuse && !OnSameTeam(self, self->enemy));
-		if (!enemy_valid)
+		// Re-verificar después de encontrar objetivo
+		if (!self->enemy || self->enemy == world)
 			return;
 	}
 
-	// Si la torreta está en modo inactivo, prepara el arma sin apuntar
+	// Manejo de estados de la torreta
 	if (self->s.frame < FRAME_active01) {
 		turret2_ready_gun(self);
 		return;
 	}
-
-	// Si la torreta aún se está preparando, no apuntar
 	if (self->s.frame < FRAME_run01)
 		return;
 
@@ -97,138 +137,109 @@ void turret2Aim(edict_t* self)
 	vec3_t end;
 	if (self->monsterinfo.active_move == &turret2_move_fire_blind) {
 		end = self->monsterinfo.blind_fire_target;
-		end[2] += (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2]) ?
-			self->enemy->viewheight + 10 :
-			self->enemy->mins[2] - 10;
+		end[2] += (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
+			? self->enemy->viewheight + 10
+			: self->enemy->mins[2] - 10;
 	}
 	else {
 		end = self->enemy->s.origin;
-		end[2] += self->enemy->client ?
-			self->enemy->viewheight :
-			(self->enemy->mins[2] + self->enemy->maxs[2]) * 0.5f;
+		if (self->enemy->client)
+			end[2] += self->enemy->viewheight;
+		else
+			end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) * 0.5f;
 	}
 
 	// Calcular dirección y ángulos
 	vec3_t dir = end - self->s.origin;
-	if (!is_valid_vector(dir)) {
+	if (!is_valid_vector(dir))
 		return;
-	}
-	dir = safe_normalized(dir);
+
+	dir.normalize();
 	vec3_t ang = vectoangles(dir);
 
-	// Ajustar pitch y yaw ideales
+	// Ajustar ángulos ideales
 	float idealPitch = ang[PITCH];
 	float idealYaw = ang[YAW];
 
-	// Procesamiento según orientación
+	// Procesar según orientación
 	const int orientation = static_cast<int>(self->offset[1]);
 	switch (orientation) {
-	case -1: // up, pitch: 0 to 90
-		if (idealPitch < -90) idealPitch += 360;
+	case -1: // up
+		if (idealPitch < -90)
+			idealPitch += 360;
 		idealPitch = std::clamp(idealPitch, -90.0f, -5.0f);
 		break;
-
-	case -2: // down, pitch: -180 to -360
-		if (idealPitch > -90) idealPitch -= 360;
+	case -2: // down
+		if (idealPitch > -90)
+			idealPitch -= 360;
 		idealPitch = std::clamp(idealPitch, -355.0f, -185.0f);
 		break;
-
 	case 0: // +X
-		if (idealPitch < -180) idealPitch += 360;
+		if (idealPitch < -180)
+			idealPitch += 360;
 		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
-		if (idealYaw > 180) idealYaw -= 360;
+		if (idealYaw > 180)
+			idealYaw -= 360;
 		idealYaw = std::clamp(idealYaw, -85.0f, 85.0f);
 		break;
-
 	case 90: // +Y
-		if (idealPitch < -180) idealPitch += 360;
+		if (idealPitch < -180)
+			idealPitch += 360;
 		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
-		if (idealYaw > 270) idealYaw -= 360;
+		if (idealYaw > 270)
+			idealYaw -= 360;
 		idealYaw = std::clamp(idealYaw, 5.0f, 175.0f);
 		break;
-
 	case 180: // -X
-		if (idealPitch < -180) idealPitch += 360;
+		if (idealPitch < -180)
+			idealPitch += 360;
 		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
 		idealYaw = std::clamp(idealYaw, 95.0f, 265.0f);
 		break;
-
 	case 270: // -Y
-		if (idealPitch < -180) idealPitch += 360;
+		if (idealPitch < -180)
+			idealPitch += 360;
 		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
-		if (idealYaw < 90) idealYaw += 360;
+		if (idealYaw < 90)
+			idealYaw += 360;
 		idealYaw = std::clamp(idealYaw, 185.0f, 355.0f);
 		break;
 	}
 
-	// Ajustar velocidad base según powerups
+	// Calcular velocidad base
 	float base_speed = self->yaw_speed / (gi.tick_rate / 10);
-	if (self->monsterinfo.quadfire_time > level.time) {
+	if (self->monsterinfo.quadfire_time > level.time)
 		base_speed *= 1.5f;
-	}
 
-	// Ajustar pitch
-	const 	float current_pitch = self->s.angles[PITCH];
-	float pitch_move = idealPitch - current_pitch;
-
-	// Normalizar movimiento de pitch
-	while (std::abs(pitch_move) >= 360) {
-		pitch_move += (pitch_move < 0) ? 360 : -360;
-	}
-	if (std::abs(pitch_move) > 90) {
-		pitch_move += (pitch_move < 0) ? 360 : -360;
-	}
-
-	pitch_move = std::clamp(pitch_move, -base_speed, base_speed);
-	self->s.angles[PITCH] = anglemod(current_pitch + pitch_move);
-
-	// Ajustar yaw
-	const float current_yaw = self->s.angles[YAW];
-	float yaw_move = idealYaw - current_yaw;
-
-	// Normalizar movimiento de yaw
-	if (std::abs(yaw_move) >= 180) {
-		yaw_move += (yaw_move < 0) ? 360 : -360;
-	}
-
-	yaw_move = std::clamp(yaw_move, -base_speed, base_speed);
-	self->s.angles[YAW] = anglemod(current_yaw + yaw_move);
+	// Ajustar ángulos
+	AdjustTurretAngles(self, idealPitch, idealYaw, base_speed);
 
 	// Manejar laser sight
-	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
-	{
-		// Inicializar laser sight si no existe
+	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT)) {
 		if (!self->target_ent) {
 			self->target_ent = G_Spawn();
 			self->target_ent->s.modelindex = MODELINDEX_WORLD;
 			self->target_ent->s.renderfx = RF_BEAM;
-			self->target_ent->s.frame = 1.5f;
-			self->target_ent->s.skinnum = 0xe0e1e2e3;
+			self->target_ent->s.frame = 1.8;
+			self->target_ent->s.skinnum = 0xf0f0f0f0;
 			self->target_ent->classname = "turret2_lasersight";
 			self->target_ent->s.effects = EF_BOB;
 			self->target_ent->s.origin = self->s.origin;
 			self->target_ent->owner = self;
 		}
 
-		// Calcular punto final del láser
 		vec3_t forward;
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
 
-		const	float scan_range = visible(self, self->enemy) ? 12.f : 64.f;
-
+		float scan_range = visible(self, self->enemy) ? 12.f : 64.f;
 		vec3_t laser_end = self->s.origin + (forward * 8192);
 		trace_t tr = gi.traceline(self->s.origin, laser_end, self, MASK_SOLID);
 
-		// Aplicar efecto de ondulación
-		const	vec3_t wave{
-			sinf(level.time.seconds() + self->s.number) * scan_range,
-			cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range,
-			sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range
-		};
+		// Efecto de ondulación del láser
+		tr.endpos[0] += sinf(level.time.seconds() + self->s.number) * scan_range;
+		tr.endpos[1] += cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range;
+		tr.endpos[2] += sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range;
 
-		tr.endpos += wave;
-
-		// Actualizar dirección del láser
 		forward = tr.endpos - self->s.origin;
 		if (is_valid_vector(forward)) {
 			forward.normalize();
