@@ -612,7 +612,7 @@ MONSTERINFO_SETSKIN(arachnid_psx_setskin) (edict_t* self) -> void
 //
 // 
 constexpr const char* default_boss_reinforcements = "monster_tank_spawner 2";
-constexpr const char* coop_reinforcements = "monster_tank_spawner 2";
+constexpr const char* coop_reinforcements = "monster_stalker 2";
 constexpr int32_t default_monster_slots_base = 5;
 
 /*QUAKED monster_arachnid (1 .5 0) (-40 -40 -20) (40 40 48) Ambush Trigger_Spawn Sight
@@ -636,8 +636,8 @@ void SP_monster_psxarachnid(edict_t* self)
 	sound_pissed.assign("guncmdr/gcdrsrch1.wav");
 
 	const char* reinforcements = nullptr; // Declare outside if blocks
-	if (skill->value >= 3 || g_horde->integer)
-	{
+
+	
 		sound_spawn.assign("medic_commander/monsterspawn1.wav");
 		if (self->monsterinfo.IS_BOSS)
 			reinforcements = default_boss_reinforcements;
@@ -650,7 +650,7 @@ void SP_monster_psxarachnid(edict_t* self)
 			reinforcements = st.reinforcements;
 		if (self->monsterinfo.monster_slots && reinforcements && *reinforcements)
 			M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
-	}
+	
 
 	self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
 	self->mins = { -40, -40, -20 };
