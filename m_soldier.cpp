@@ -1426,13 +1426,16 @@ void soldier_jump_wait_land(edict_t* self)
 }
 
 mframe_t soldier_frames_jump[] = {
-	{ ai_move, 0, soldier_jump2_now },
+	{ ai_move, 0, soldier_jump_now },
 	{ ai_move, 0, soldier_jump_wait_land },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
 	{ ai_move },
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(soldier_move_jump) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump, soldier_run };
+MMOVE_T(soldier_move_jump) = { FRAME_attak501, FRAME_attak508, soldier_frames_jump, soldier_stand_up };
 
 mframe_t soldier_frames_jump2[] = {
 	{ ai_move, 0, soldier_jump2_now },
@@ -1441,7 +1444,7 @@ mframe_t soldier_frames_jump2[] = {
 	{ ai_move },
 	{ ai_move }
 };
-MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_run };
+MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_stand_up };
 
 void soldier_jump(edict_t* self, blocked_jump_result_t result)
 {
@@ -1451,8 +1454,13 @@ void soldier_jump(edict_t* self, blocked_jump_result_t result)
 	monster_done_dodge(self);
 
 	if (result == blocked_jump_result_t::JUMP_JUMP_UP)
-		M_SetAnimation(self, &soldier_move_jump2);
+
+		brandom() ?
+		M_SetAnimation(self, &soldier_move_jump2) :
+		M_SetAnimation(self, &soldier_move_jump);
 	else
+		brandom() ?
+		M_SetAnimation(self, &soldier_move_jump2) :
 		M_SetAnimation(self, &soldier_move_jump);
 }
 // pmm - blocking code
