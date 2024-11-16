@@ -603,7 +603,7 @@ void TankRocket(edict_t* self)
 			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
 				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, flash_number);
+				monster_fire_rocket(self, start, dir, 50, (self->classname, "monster_tank_commander") ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
 		}
 	}
 	else
@@ -615,7 +615,7 @@ void TankRocket(edict_t* self)
 			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
 				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, rocketSpeed, flash_number);
+				monster_fire_rocket(self, start, dir, 50, (self->classname, "monster_tank_commander") ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
 		}
 	}
 }

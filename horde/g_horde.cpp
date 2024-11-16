@@ -61,19 +61,40 @@ constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 }
 
 // Nueva función para calcular el factor de escala del cooldown basado en el nivel
-static float CalculateCooldownScale(int32_t level) {
+static float CalculateCooldownScale(int32_t level, const MapSize& mapSize) {
+	// Si el nivel es 10 o menor, no hay escala
 	if (level <= 10) {
-		return 1.0f; // Sin cambios hasta nivel 10
+		return 1.0f;
 	}
 
-	// Comenzar a escalar después del nivel 10
-	const float scale = 1.0f + ((level - 10) * 0.05f); // 5% de aumento por nivel
+	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Limitar el máximo de escala para que no exceda 3 segundos
-	return std::min(scale, 1.75f); // 1.75x del base cooldown como máximo
+	// Factor base que aumenta con el nivel
+	float scale = 1.0f + ((level - 10) * 0.05f); // 5% de aumento por nivel
+
+	// Reducción basada en el número de jugadores
+	// Más jugadores = menor escala
+	if (numHumanPlayers > 1) {
+		const float playerReduction = (numHumanPlayers - 1) * 0.15f; // 15% de reducción por jugador adicional
+		scale *= (1.0f - std::min(playerReduction, 0.45f)); // Máximo 45% de reducción
+	}
+
+	// Ajustes adicionales según el tamaño del mapa
+	if (mapSize.isSmallMap) {
+		// Mapas pequeños: escala reducida significativamente
+		scale *= 0.7f;
+		return std::min(scale, 1.3f); // Máximo 1.3x para mapas pequeños
+	}
+	else if (mapSize.isBigMap) {
+		// Mapas grandes: puede escalar más
+		return std::min(scale, 1.75f); // Mantener el máximo original para mapas grandes
+	}
+	else {
+		// Mapas medianos: escala intermedia
+		scale *= 0.85f;
+		return std::min(scale, 1.5f); // Máximo 1.5x para mapas medianos
+	}
 }
-
-
 cvar_t* g_horde;
 
 enum class horde_state_t {
@@ -282,7 +303,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 
 	// Aplicar escala basada en nivel después del nivel 10
-	float cooldownScale = CalculateCooldownScale(lvl);
+	float cooldownScale = CalculateCooldownScale(lvl, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
 	// Enhanced level scaling for higher levels
@@ -695,7 +716,8 @@ constexpr weighted_item_t monsters[] = {
 	// Enemigos especiales late-game
 	{ "monster_janitor", 23, -1, 0.12f },
 	{ "monster_janitor2", 19, -1, 0.1f },
-	{ "monster_makron", 16, 21, 0.015f },
+	{ "monster_makron", 16, 40, 0.015f },
+	{ "monster_makronkl", 41, 21, 0.025f },
 	{ "monster_boss2_64", 15, -1, 0.09f },
 	{ "monster_carrier_mini", 19, -1, 0.09f },
 	{ "monster_perrokl", 20, -1, 0.3f },
@@ -2527,17 +2549,13 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 // En SetHealthBarName
 void SetHealthBarName(edict_t* boss) {
 	static char buffer[MAX_STRING_CHARS];
-
-	// Evitar asignaciones dinámicas
 	const std::string_view display_name = GetDisplayName(boss);
+
 	const size_t name_len = std::min(display_name.length(), sizeof(buffer) - 1);
 	memcpy(buffer, display_name.data(), name_len);
 	buffer[name_len] = '\0';
 
-	// Actualizar el configstring
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, buffer);
-
-	// Preparar y enviar mensaje a todos los clientes
 	gi.WriteByte(svc_configstring);
 	gi.WriteShort(CONFIG_HEALTH_BAR_NAME);
 	gi.WriteString(buffer);
@@ -2614,7 +2632,7 @@ void ResetCooldowns() noexcept {
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 
 	// Aplicar escala basada en nivel
-	float cooldownScale = CalculateCooldownScale(currentLevel);
+	float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
 	// Ajustes adicionales (reducidos pero mantenidos para balance)
@@ -3540,27 +3558,28 @@ static void SendCleanupMessage(WaveEndReason reason) {
 		duration = 0_sec;
 	}
 
-	// Calculate top damager
 	PlayerStats topDamager;
 	float percentage = 0.0f;
 	CalculateTopDamager(topDamager, percentage);
 
-	// Show main message based on completion type
+	// Simplificar el mensaje usando condicionales directos
+	std::string message;
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
-		UpdateHordeMessage(fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level), duration);
+		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
 		break;
 	case WaveEndReason::MonstersRemaining:
-		UpdateHordeMessage(fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level), duration);
+		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
 		break;
 	case WaveEndReason::TimeLimitReached:
-		UpdateHordeMessage(fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level), duration);
+		message = fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level);
 		break;
 	}
 
-	// Handle top damager rewards
+	UpdateHordeMessage(message, duration);
+
 	if (topDamager.player) {
-		std::string playerName = GetPlayerName(topDamager.player);
+		const std::string playerName = GetPlayerName(topDamager.player);
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
 			playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
 
