@@ -589,7 +589,7 @@ void TankRocket(edict_t* self)
 	if ((!blindfire) && ((frandom() < (0.2f + ((3 - skill->integer) * 0.15f)))))
 		PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &vec);
 	// PMM - lead target
-	//======
+	//======//
 
 	dir.normalize();
 

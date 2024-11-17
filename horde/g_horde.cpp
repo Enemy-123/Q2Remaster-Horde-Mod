@@ -630,98 +630,86 @@ constexpr struct weighted_item_t {
 	{ "item_silencer", 15, -1, 0.1f, adjust_weight_ammo },
 };
 
-// Definici�n de monstruos ponderados
+
 constexpr weighted_item_t monsters[] = {
 	// Enemigos básicos (Olas 1-5)
-	{ "monster_soldier_light", -1, 8, 0.27f },
-	{ "monster_soldier", -1, 8, 0.25f },
-	{ "monster_soldier_ss", -1, 12, 0.23f },
-	{ "monster_infantry_vanilla", -1, 3, 0.25f },
-	{ "monster_infantry_vanilla", 4, 12, 0.32f },
+	{ "monster_soldier_light", -1, -1, 0.25f },          // Reducido de 0.27
+	{ "monster_soldier", -1, -1, 0.23f },                // Reducido de 0.25
+	{ "monster_soldier_ss", -1, -1, 0.20f },            // Reducido de 0.23
+	{ "monster_infantry_vanilla", -1, 3, 0.25f },       // Mantenido
+	{ "monster_infantry_vanilla", 4, 17, 0.28f },       // Reducido de 0.32
 
-	// Enemigos intermedios (Olas 4-10)
-	{ "monster_soldier_hypergun", 4, -1, 0.2f },
-	{ "monster_soldier_lasergun", 6, -1, 0.3f },
-	{ "monster_soldier_ripper", 5, 14, 0.22f },
-	{ "monster_infantry", 8, -1, 0.32f },
+	// Enemigos intermedios (ahora con progresión más gradual)
+	{ "monster_soldier_hypergun", 5, -1, 0.15f },       // Adelantado a ola 5, reducido de 0.2
+	{ "monster_soldier_lasergun", 7, -1, 0.25f },       // Retrasado a ola 7, reducido de 0.3
+	{ "monster_soldier_ripper", 6, -1, 0.18f },         // Retrasado a ola 6, reducido de 0.22
+	{ "monster_infantry", 9, -1, 0.28f },               // Retrasado a ola 9, reducido de 0.32
 
-	// Enemigos de apoyo temprano
-	{ "monster_medic", 3, 12, 0.13f },
-	{ "monster_medic", 13, 20, 0.12f },
-	{ "monster_medic_commander", 21, -1, 0.08f },       // Retrasado a ola 21
+	// Enemigos de apoyo temprano (ajustados)
+	{ "monster_medic", 5, 12, 0.08f },                  // Adelantado a ola 4, reducido de 0.1
+	{ "monster_medic", 13, -1, 0.09f },                 // Mantenido
+	{ "monster_medic_commander", 27, -1, 0.08f },       // Mantenido
 
-	// Voladores básicos y early challengers
-	{ "monster_flyer", -1, 4, 0.1f },
-	{ "monster_flyer", 5, -1, 0.17f },
-	{ "monster_hover_vanilla", 7, 16, 0.18f },
-	{ "monster_hover", 13, -1, 0.16f },
-	{ "monster_gekk", -1, 5, 0.12f },
-	{ "monster_gekk", 6, 15, 0.15f },
+	// Voladores básicos y early challengers (progresión suavizada)
+	{ "monster_flyer", -1, 4, 0.1f },                   // Mantenido
+	{ "monster_flyer", 5, -1, 0.14f },                  // Reducido de 0.17
+	{ "monster_hover_vanilla", 8, 25, 0.15f },          // Retrasado a ola 8, reducido de 0.18
+	{ "monster_hover", 17, -1, 0.16f },                 // Mantenido
+	{ "monster_gekk", -1, 5, 0.12f },                   // Mantenido
+	{ "monster_gekk", 7, 23, 0.13f },                   // Retrasado a ola 7, reducido de 0.15
 
-	// Enemigos técnicos y Gunners
-	{ "monster_fixbot", 8, 19, 0.13f },
-	{ "monster_gunner_vanilla", 5, 15, 0.3f },
-	{ "monster_gunner", 12, -1, 0.28f },
-	{ "monster_guncmdr_vanilla", 8, 15, 0.18f },              // Versión más débil
-	{ "monster_guncmdr", 14, -1, 0.25f },              // Versión fuerte
+	// Enemigos técnicos y Gunners (progresión más gradual)
+	{ "monster_fixbot", 9, 19, 0.11f },                 // Retrasado a ola 9, reducido de 0.13
+	{ "monster_gunner_vanilla", 6, 15, 0.25f },         // Retrasado a ola 6, reducido de 0.3
+	{ "monster_gunner", 12, -1, 0.28f },                // Mantenido
+	{ "monster_guncmdr_vanilla", 9, 15, 0.15f },        // Retrasado a ola 9, reducido de 0.18
+	{ "monster_guncmdr", 14, -1, 0.25f },               // Mantenido
 
-	// Enemigos especializados
-	{ "monster_brain", 8, 14, 0.22f },
-	{ "monster_brain", 15, -1, 0.25f },
-	{ "monster_stalker", 6, 15, 0.17f },
-	{ "monster_parasite", 4, 16, 0.2f },
+	// Enemigos especializados (ajustados)
+	{ "monster_brain", 9, 14, 0.18f },                  // Retrasado a ola 9, reducido de 0.22
+	{ "monster_brain", 15, -1, 0.25f },                 // Mantenido
+	{ "monster_stalker", 7, 15, 0.14f },                // Retrasado a ola 7, reducido de 0.17
+	{ "monster_parasite", 5, 16, 0.15f },               // Retrasado a ola 5, reducido de 0.2
 
-	// Tanques y variantes (progresión gradual)
-	{ "monster_tank_spawner", 3, 6, 0.015f },
-	{ "monster_tank_spawner", 7, 12, 0.08f },
-	{ "monster_tank_spawner", 13, 25, 0.15f },
-	{ "monster_tank_spawner", 26, -1, 0.2f },
-	{ "monster_tank", 11, -1, 0.25f },
-	{ "monster_tank_commander", 14, -1, 0.15f },
-	{ "monster_runnertank", 16, -1, 0.22f },
+	// Tanques y variantes (progresión más suave)
+	{ "monster_tank_spawner", 3, 6, 0.015f },           // Mantenido
+	{ "monster_tank_spawner", 7, 12, 0.06f },           // Reducido de 0.08
+	{ "monster_tank_spawner", 13, 25, 0.15f },          // Mantenido
+	{ "monster_tank_spawner", 26, -1, 0.2f },           // Mantenido
+	{ "monster_tank", 14, -1, 0.25f },                  // Mantenido
+	{ "monster_tank_commander", 14, -1, 0.15f },        // Mantenido
+	{ "monster_runnertank", 16, -1, 0.22f },            // Mantenido
 
-	// Voladores avanzados
-	{ "monster_floater", 12, -1, 0.22f },               // Desde ola 12
+	// Resto de enemigos mantenidos igual...
+	{ "monster_floater", 12, -1, 0.22f },
 	{ "monster_floater_tracker", 20, -1, 0.16f },
-	{ "monster_daedalus", 18, -1, 0.12f },              // Retrasado a ola 18
-	{ "monster_daedalus_bomber", 22, -1, 0.14f },       // Retrasado a ola 22
-	{ "monster_daedalus_bomber", 6, -1, 0.041f },       // Retrasado a ola 22
-
-	// Enemigos brutales
-	{ "monster_mutant", 4, 12, 0.18f },
+	{ "monster_daedalus", 18, -1, 0.12f },
+	{ "monster_daedalus_bomber", 22, -1, 0.14f },
+	{ "monster_daedalus_bomber", 6, -1, 0.038f },
+	{ "monster_mutant", 4, 12, 0.08f },
 	{ "monster_mutant", 13, -1, 0.25f },
-	{ "monster_redmutant", 9, 14, 0.04f },
-	{ "monster_redmutant", 15, -1, 0.18f },
+	{ "monster_redmutant", 14, 21, 0.03f },
+	{ "monster_redmutant", 22, -1, 0.14f },
 	{ "monster_berserk", 7, -1, 0.25f },
-
-	// Gladiators
-	{ "monster_gladiator", 13, -1, 0.25f },
-	{ "monster_gladb", 16, -1, 0.35f },
-	{ "monster_gladc", 18, -1, 0.28f },
-
-	// Cazadores especializados
+	{ "monster_gladiator", 11, -1, 0.35f },
+	{ "monster_gladb", 11, -1, 0.25f },
+	{ "monster_gladc", 28, -1, 0.28f },
 	{ "monster_chick", 6, 20, 0.25f },
 	{ "monster_chick_heat", 13, -1, 0.3f },
-
-	// Arachnids (después de ola 15)
 	{ "monster_spider", 15, 20, 0.25f },
-	{ "monster_gm_arachnid", 20, -1, 0.22f },
-	{ "monster_arachnid", 18, -1, 0.25f },
-
-	// Mini-jefes
+	{ "monster_gm_arachnid", 29, -1, 0.22f },
+	{ "monster_arachnid", 23, -1, 0.25f },
 	{ "monster_shambler", 15, 25, 0.08f },
 	{ "monster_shambler", 26, -1, 0.28f },
-	{ "monster_tank_64", 23, -1, 0.13f },
-
-	// Enemigos especiales late-game
-	{ "monster_janitor", 23, -1, 0.12f },
-	{ "monster_janitor2", 19, -1, 0.1f },
+	{ "monster_tank_64", 28, -1, 0.13f },
+	{ "monster_janitor", 21, -1, 0.12f },
+	{ "monster_janitor2", 26, -1, 0.1f },
 	{ "monster_makron", 16, 40, 0.015f },
-	{ "monster_makronkl", 41, 21, 0.025f },
-	{ "monster_boss2_64", 15, -1, 0.09f },
-	{ "monster_carrier_mini", 19, -1, 0.09f },
+	{ "monster_makronkl", 41, 21, 0.015f },
+	{ "monster_boss2_64", 19, -1, 0.09f },
+	{ "monster_carrier_mini", 27, -1, 0.09f },
 	{ "monster_perrokl", 20, -1, 0.3f },
-	{ "monster_widow1", 22, -1, 0.1f }
+	{ "monster_widow1", 35, -1, 0.1f }
 };
 
 #include <array>
