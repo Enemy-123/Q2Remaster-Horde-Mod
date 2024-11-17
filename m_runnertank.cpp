@@ -400,43 +400,68 @@ bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& t
 //
 // attacks
 //
+// Definimos los offsets específicos para cada frame
+struct RailOffset {
+	float x;
+	float y;
+	float z;
+};
+
+const RailOffset RAIL_OFFSETS[] = {
+	{28.7f, -18.5f, 28.7f},  // FRAME_attak110
+	{24.6f, -21.5f, 30.1f},  // FRAME_attak113
+	{19.8f, -23.9f, 32.1f}   // FRAME_attak116
+};
+
 void runnertankRail(edict_t* self)
 {
 	vec3_t forward, right;
 	vec3_t start;
 	vec3_t dir;
 	monster_muzzleflash_id_t flash_number;
+	const RailOffset* current_offset;
 
 	if (!self->enemy || !self->enemy->inuse || !infront(self, self->enemy) || !visible(self, self->enemy))
 		return;
 
 	bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
-	// Mantenemos los mismos flash numbers
-	if (self->s.frame == FRAME_attak110)
-		flash_number = MZ2_TANK_BLASTER_1;
-	else if (self->s.frame == FRAME_attak113)
-		flash_number = MZ2_TANK_BLASTER_2;
-	else // (self->s.frame == FRAME_attak116)
-		flash_number = MZ2_TANK_BLASTER_3;
+	// Seleccionamos el offset basado en el frame actual
+	if (self->s.frame == FRAME_attak110) {
+		flash_number = MZ2_ARACHNID_RAIL2;
+		current_offset = &RAIL_OFFSETS[0];
+	}
+	else if (self->s.frame == FRAME_attak113) {
+		flash_number = MZ2_ARACHNID_RAIL2;
+		current_offset = &RAIL_OFFSETS[1];
+	}
+	else { // FRAME_attak116
+		flash_number = MZ2_ARACHNID_RAIL2;
+		current_offset = &RAIL_OFFSETS[2];
+	}
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+
+	// Creamos un vector temporal para el offset actual
+	vec3_t custom_offset = {
+		current_offset->x,
+		current_offset->y,
+		current_offset->z
+	};
+
+	// Usamos el offset personalizado en lugar del monster_flash_offset
+	start = M_ProjectFlashSource(self, custom_offset, forward, right);
 
 	vec3_t target;
-	if (blindfire)
-	{
+	if (blindfire) {
 		target = self->monsterinfo.blind_fire_target;
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
-	else
-	{
-		// Usamos PredictAim para seguir la trayectoria del enemigo
+	else {
 		PredictAim(self, self->enemy, start, 0, false, 0.2f, &dir, nullptr);
 	}
 
-	// Cambiamos monster_fire_blaster por monster_fire_railgun
 	monster_fire_railgun(self, start, dir, 45, 100, flash_number);
 }
 void runnertankStrike(edict_t* self)

@@ -1033,7 +1033,7 @@ void Cmd_Kill_f(edict_t* ent)
 		return;
 	// ZOID
 
-	if ((level.time - ent->client->respawn_time) < 5_sec)
+	if ((level.time - ent->client->respawn_time) < 0.5_ms)
 		return;
 
 	ent->flags &= ~FL_GODMODE;

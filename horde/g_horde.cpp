@@ -70,12 +70,12 @@ static float CalculateCooldownScale(int32_t level, const MapSize& mapSize) {
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
 	// Factor base que aumenta con el nivel
-	float scale = 1.0f + ((level - 10) * 0.05f); // 5% de aumento por nivel
+	float scale = 1.0f + ((level - 10) * 0.04f); // 4% de aumento por nivel
 
 	// Reducción basada en el número de jugadores
 	// Más jugadores = menor escala
 	if (numHumanPlayers > 1) {
-		const float playerReduction = (numHumanPlayers - 1) * 0.15f; // 15% de reducción por jugador adicional
+		const float playerReduction = (numHumanPlayers - 1) * 0.08f; // 8% de reducción por jugador adicional
 		scale *= (1.0f - std::min(playerReduction, 0.45f)); // Máximo 45% de reducción
 	}
 
@@ -86,12 +86,13 @@ static float CalculateCooldownScale(int32_t level, const MapSize& mapSize) {
 		return std::min(scale, 1.3f); // Máximo 1.3x para mapas pequeños
 	}
 	else if (mapSize.isBigMap) {
+		scale *= 0.85f;
 		// Mapas grandes: puede escalar más
 		return std::min(scale, 1.75f); // Mantener el máximo original para mapas grandes
 	}
 	else {
 		// Mapas medianos: escala intermedia
-		scale *= 0.85f;
+		scale *= 0.80f;
 		return std::min(scale, 1.5f); // Máximo 1.5x para mapas medianos
 	}
 }
@@ -271,52 +272,61 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
 }
+
 static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
-	// Base count calculation with level scaling
-	// Base count con mejor progresión
+	// Base count con progresión más suave
 	int32_t baseCount;
-	if (lvl <= 5) {
-		baseCount = mapSize.isSmallMap ? 6 : (mapSize.isBigMap ? 12 : 8);
+	if (lvl <= 3) {  // Primeras 3 olas más fáciles
+		baseCount = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 8 : 6);
 	}
-	else if (lvl <= 10) {
+	else if (lvl <= 5) {
+		baseCount = mapSize.isSmallMap ? 5 : (mapSize.isBigMap ? 10 : 7);
+	}
+	else if (lvl <= 13) {
 		baseCount = mapSize.isSmallMap ? 8 : (mapSize.isBigMap ? 16 : 12);
 	}
-	else if (lvl <= 15) {
+	else if (lvl <= 20) {
 		baseCount = mapSize.isSmallMap ? 10 : (mapSize.isBigMap ? 20 : 14);
 	}
 	else {
 		baseCount = mapSize.isSmallMap ? 12 : (mapSize.isBigMap ? 24 : 16);
 	}
 
-	// Ajuste progresivo por jugadores
+	// Ajuste progresivo por jugadores (solo si hay 2 o más jugadores humanos)
 	float playerMultiplier = 1.0f;
-	if (humanPlayers > 1) {
-		playerMultiplier = 1.0f + ((humanPlayers - 1) * 0.2f);
+	if (humanPlayers >= 2) {
+		playerMultiplier = 1.0f + ((humanPlayers - 2) * 0.2f); // Comenzar desde 2 jugadores
 		baseCount = static_cast<int32_t>(baseCount * playerMultiplier);
 	}
 
-	// Additional spawn calculation with progressive scaling
-	int32_t additionalSpawn = (lvl >= 8) ?
-		((mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7)) : 6;
+	// Additional spawn más suave al inicio
+	int32_t additionalSpawn;
+	if (lvl <= 3) {
+		additionalSpawn = 3; // Menos spawns adicionales en las primeras olas
+	}
+	else if (lvl <= 7) {
+		additionalSpawn = 4;
+	}
+	else {
+		additionalSpawn = (mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7);
+	}
 
 	// Ajuste dinámico del cooldown basado en el nivel
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
-
-	// Aplicar escala basada en nivel después del nivel 10
 	float cooldownScale = CalculateCooldownScale(lvl, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
 	// Enhanced level scaling for higher levels
 	if (lvl > 25) {
-		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
+		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.5f);
 	}
 
-	// Bonus for chaotic/insane modes
-	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
+	// Bonus for chaotic/insane modes (solo después de la ola 5)
+	if (lvl >= 5 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
-		// Reducción del cooldown en modos difíciles
 		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
+
 
 	// Dynamic difficulty scaling based on player count
 	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
@@ -632,75 +642,83 @@ constexpr struct weighted_item_t {
 
 
 constexpr weighted_item_t monsters[] = {
-	// Enemigos básicos (Olas 1-5)
-	{ "monster_soldier_light", -1, -1, 0.25f },          // Reducido de 0.27
-	{ "monster_soldier", -1, -1, 0.23f },                // Reducido de 0.25
-	{ "monster_soldier_ss", -1, -1, 0.20f },            // Reducido de 0.23
-	{ "monster_infantry_vanilla", -1, 3, 0.25f },       // Mantenido
-	{ "monster_infantry_vanilla", 4, 17, 0.28f },       // Reducido de 0.32
+	// Enemigos básicos (mejor distribuidos)
+	{ "monster_soldier_light", -1, -1, 0.25f },
+	{ "monster_soldier", -1, -1, 0.23f },
+	{ "monster_soldier_ss", -1, -1, 0.20f },
+	{ "monster_infantry_vanilla", -1, 3, 0.25f },
+	{ "monster_infantry_vanilla", 3, 17, 0.28f },     // Adelantado a ola 3
 
-	// Enemigos intermedios (ahora con progresión más gradual)
-	{ "monster_soldier_hypergun", 5, -1, 0.15f },       // Adelantado a ola 5, reducido de 0.2
-	{ "monster_soldier_lasergun", 7, -1, 0.25f },       // Retrasado a ola 7, reducido de 0.3
-	{ "monster_soldier_ripper", 6, -1, 0.18f },         // Retrasado a ola 6, reducido de 0.22
-	{ "monster_infantry", 9, -1, 0.28f },               // Retrasado a ola 9, reducido de 0.32
+	// Enemigos intermedios (progresión más suave)
+	{ "monster_soldier_hypergun", 4, -1, 0.15f },     // Adelantado a ola 4
+	{ "monster_soldier_lasergun", 8, -1, 0.25f },     // Retrasado a ola 8
+	{ "monster_soldier_ripper", 6, -1, 0.18f },
+	{ "monster_infantry", 9, -1, 0.28f },
 
-	// Enemigos de apoyo temprano (ajustados)
-	{ "monster_medic", 5, 12, 0.08f },                  // Adelantado a ola 4, reducido de 0.1
-	{ "monster_medic", 13, -1, 0.09f },                 // Mantenido
-	{ "monster_medic_commander", 27, -1, 0.08f },       // Mantenido
+	// Enemigos de apoyo temprano
+	{ "monster_medic", 4, 12, 0.08f },                // Adelantado a ola 4
+	{ "monster_medic", 13, -1, 0.09f },
+	{ "monster_medic_commander", 27, -1, 0.08f },
 
-	// Voladores básicos y early challengers (progresión suavizada)
-	{ "monster_flyer", -1, 4, 0.1f },                   // Mantenido
-	{ "monster_flyer", 5, -1, 0.14f },                  // Reducido de 0.17
-	{ "monster_hover_vanilla", 8, 25, 0.15f },          // Retrasado a ola 8, reducido de 0.18
-	{ "monster_hover", 17, -1, 0.16f },                 // Mantenido
-	{ "monster_gekk", -1, 5, 0.12f },                   // Mantenido
-	{ "monster_gekk", 7, 23, 0.13f },                   // Retrasado a ola 7, reducido de 0.15
+	// Voladores básicos y early challengers
+	{ "monster_flyer", -1, 4, 0.1f },
+	{ "monster_flyer", 5, -1, 0.14f },
+	{ "monster_hover_vanilla", 7, 25, 0.15f },        // Adelantado a ola 7
+	{ "monster_hover", 17, -1, 0.16f },
+	{ "monster_gekk", 3, 5, 0.12f },                  // Cambiado a olas 3-5
+	{ "monster_gekk", 7, 23, 0.13f },
 
-	// Enemigos técnicos y Gunners (progresión más gradual)
-	{ "monster_fixbot", 9, 19, 0.11f },                 // Retrasado a ola 9, reducido de 0.13
-	{ "monster_gunner_vanilla", 6, 15, 0.25f },         // Retrasado a ola 6, reducido de 0.3
-	{ "monster_gunner", 12, -1, 0.28f },                // Mantenido
-	{ "monster_guncmdr_vanilla", 9, 15, 0.15f },        // Retrasado a ola 9, reducido de 0.18
-	{ "monster_guncmdr", 14, -1, 0.25f },               // Mantenido
+	// Enemigos técnicos y Gunners (mejor espaciados)
+	{ "monster_fixbot", 8, 19, 0.11f },               // Ajustado a ola 8
+	{ "monster_gunner_vanilla", 5, 15, 0.25f },       // Adelantado a ola 5
+	{ "monster_gunner", 12, -1, 0.28f },
+	{ "monster_guncmdr_vanilla", 10, 15, 0.15f },
+	{ "monster_guncmdr", 14, -1, 0.25f },
 
-	// Enemigos especializados (ajustados)
-	{ "monster_brain", 9, 14, 0.18f },                  // Retrasado a ola 9, reducido de 0.22
-	{ "monster_brain", 15, -1, 0.25f },                 // Mantenido
-	{ "monster_stalker", 7, 15, 0.14f },                // Retrasado a ola 7, reducido de 0.17
-	{ "monster_parasite", 5, 16, 0.15f },               // Retrasado a ola 5, reducido de 0.2
+	// Enemigos especializados (mejor distribuidos)
+	{ "monster_brain", 9, 14, 0.18f },                // Ajustado a ola 9
+	{ "monster_brain", 15, -1, 0.25f },
+	{ "monster_stalker", 6, 15, 0.14f },              // Adelantado a ola 6
+	{ "monster_parasite", 4, 16, 0.15f },             // Adelantado a ola 4
 
-	// Tanques y variantes (progresión más suave)
-	{ "monster_tank_spawner", 3, 6, 0.015f },           // Mantenido
-	{ "monster_tank_spawner", 7, 12, 0.06f },           // Reducido de 0.08
-	{ "monster_tank_spawner", 13, 25, 0.15f },          // Mantenido
-	{ "monster_tank_spawner", 26, -1, 0.2f },           // Mantenido
-	{ "monster_tank", 14, -1, 0.25f },                  // Mantenido
-	{ "monster_tank_commander", 14, -1, 0.15f },        // Mantenido
-	{ "monster_runnertank", 16, -1, 0.22f },            // Mantenido
+	// Tanques y variantes (progresión más gradual)
+	{ "monster_tank_spawner", 3, 6, 0.015f },         // Adelantado a ola 3
+	{ "monster_tank_spawner", 7, 12, 0.06f },
+	{ "monster_tank_spawner", 13, 25, 0.15f },
+	{ "monster_tank_spawner", 26, -1, 0.2f },
+	{ "monster_tank", 14, -1, 0.25f },
+	{ "monster_tank_commander", 15, -1, 0.15f },      // Retrasado a ola 15
+	{ "monster_runnertank", 16, -1, 0.22f },
 
-	// Resto de enemigos mantenidos igual...
-	{ "monster_floater", 12, -1, 0.22f },
-	{ "monster_floater_tracker", 20, -1, 0.16f },
+	// Voladores avanzados (mejor espaciados)
+	{ "monster_floater", 11, -1, 0.22f },             // Adelantado a ola 11
+	{ "monster_floater_tracker", 22, -1, 0.16f },
 	{ "monster_daedalus", 18, -1, 0.12f },
-	{ "monster_daedalus_bomber", 22, -1, 0.14f },
-	{ "monster_daedalus_bomber", 6, -1, 0.038f },
-	{ "monster_mutant", 4, 12, 0.08f },
+	{ "monster_daedalus_bomber", 27, -1, 0.14f },
+	{ "monster_daedalus_bomber", 7, 26, 0.038f },     // Adelantado a ola 5
+
+	// Mutantes y variantes (mejor distribuidos)
+	{ "monster_mutant", 6, 12, 0.08f },               // Adelantado a ola 3
 	{ "monster_mutant", 13, -1, 0.25f },
 	{ "monster_redmutant", 14, 21, 0.03f },
 	{ "monster_redmutant", 22, -1, 0.14f },
-	{ "monster_berserk", 7, -1, 0.25f },
+	{ "monster_berserk", 8, -1, 0.25f },              // Retrasado a ola 8
+
+	// Gladiators (mejor espaciados)
 	{ "monster_gladiator", 11, -1, 0.35f },
-	{ "monster_gladb", 11, -1, 0.25f },
-	{ "monster_gladc", 28, -1, 0.28f },
-	{ "monster_chick", 6, 20, 0.25f },
+	{ "monster_gladb", 13, -1, 0.25f },
+	{ "monster_gladc", 18, -1, 0.28f },
+
+	// Cazadores y arácnidos
+	{ "monster_chick", 7, 20, 0.25f },                // Adelantado a ola 5
 	{ "monster_chick_heat", 13, -1, 0.3f },
 	{ "monster_spider", 15, 20, 0.25f },
 	{ "monster_gm_arachnid", 29, -1, 0.22f },
 	{ "monster_arachnid", 23, -1, 0.25f },
+
+	// Mini-jefes y especiales (mantenidos igual)
 	{ "monster_shambler", 15, 25, 0.08f },
-	{ "monster_shambler", 26, -1, 0.28f },
+	{ "monster_shambler", 26, -1, 0.25f },
 	{ "monster_tank_64", 28, -1, 0.13f },
 	{ "monster_janitor", 21, -1, 0.12f },
 	{ "monster_janitor2", 26, -1, 0.1f },
@@ -708,10 +726,9 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_makronkl", 41, 21, 0.015f },
 	{ "monster_boss2_64", 19, -1, 0.09f },
 	{ "monster_carrier_mini", 27, -1, 0.09f },
-	{ "monster_perrokl", 20, -1, 0.3f },
+	{ "monster_perrokl", 20, -1, 0.25f },
 	{ "monster_widow1", 35, -1, 0.1f }
-};
-
+}; 
 #include <array>
 #include <unordered_set>
 #include <random>
@@ -3059,7 +3076,7 @@ static const char* GetRandomWaveSound() {
 static void HandleWaveRestMessage(gtime_t duration = 3_sec) {
 	const char* message;
 
-	if (g_chaotic->integer > 0) {
+	if (g_chaotic->integer > 0 && g_horde_local.level >= 5) {  // Solo después de la ola 5
 		if (g_chaotic->integer == 2) {
 			message = brandom() ?
 				"***RELENTLESS WAVE INCOMING***\n\nSTAND YOUR GROUND!\n" :
