@@ -800,7 +800,11 @@ static void P_WorldEffects(edict_t* ent, const step_parameters_t& step)
 		{
 			if (ent->client->next_drown_time < level.time)
 			{
-				gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("world/amb18.wav", 1 + ((int32_t)level.time.seconds() % 3)).data()), 1, ATTN_NORM, 0);
+#ifdef PSX_ASSETS
+				gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("player/breathout{}.wav", 1 + ((int32_t)level.time.seconds() % 3)).data()), 1, ATTN_NORM, 0);
+#else
+				gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("player/wade{}.wav", 1 + ((int32_t)level.time.seconds() % 3)).data()), 1, ATTN_NORM, 0);
+#endif
 				ent->client->next_drown_time = level.time + 1_sec;
 			}
 		}
@@ -809,11 +813,11 @@ static void P_WorldEffects(edict_t* ent, const step_parameters_t& step)
 	{
 		if (waterlevel == WATER_WAIST)
 		{
-			//if (level.is_psx)
-			//{
+			if (level.is_psx || g_horde->integer)
+			{
 				if ((int)(client->bobtime + step.bobmove) != step.bobcycle_run)
 					gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("player/wade{}.wav", irandom(1, 4)).data()), 1, ATTN_NORM, 0);
-			//}
+			}
 		}
 
 		ent->air_finished = level.time + 12_sec;

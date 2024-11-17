@@ -1397,8 +1397,8 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		self->s.origin[2] -= (self->mins[2] - (self->mins[2] * self->s.scale));
 	}
 
-	//if (level.is_psx)
-	//	self->s.origin[2] -= self->mins[2] - (self->mins[2] * PSX_PHYSICS_SCALAR);
+	if (level.is_psx)
+		self->s.origin[2] -= self->mins[2] - (self->mins[2] * PSX_PHYSICS_SCALAR);
 
 	// set combat style if unset
 	if (self->monsterinfo.combat_style == COMBAT_UNKNOWN)

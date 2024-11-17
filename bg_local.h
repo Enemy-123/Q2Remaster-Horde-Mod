@@ -12,20 +12,45 @@
 #define GAME_INCLUDE
 #include "game.h"
 
+// physics modifiers
+enum physics_flags_t
+{
+	PHYSICS_PC = 0,
+
+	PHYSICS_N64_MOVEMENT = bit_v<0>,
+	PHYSICS_PSX_MOVEMENT = bit_v<1>,
+
+	PHYSICS_PSX_SCALE = bit_v<2>,
+
+	PHYSICS_DEATHMATCH = bit_v<3>
+};
+
 // the total number of levels we'll track for the
 // end of unit screen.
 constexpr size_t MAX_LEVELS_PER_UNIT = 16;
+
+MAKE_ENUM_BITFLAGS(physics_flags_t);
+
+
+// can't crouch in single player N64
+constexpr bool PM_CrouchingDisabled(physics_flags_t flags)
+{
+	return (flags & PHYSICS_N64_MOVEMENT) && !(flags & PHYSICS_DEATHMATCH);
+}
 
 //
 // p_move.c
 //
 struct pm_config_t
 {
-	int32_t		airaccel = 0;
-	bool		n64_physics = false;
+	int32_t			airaccel = 0;
+	physics_flags_t	physics_flags = PHYSICS_PC;
 };
-extern bool PM_IsQ64Map();
+
 extern pm_config_t pm_config;
+
+extern bool PM_IsQ64Map();
+
 
 void Pmove(pmove_t* pmove);
 using pm_trace_func_t = trace_t(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end);
@@ -66,8 +91,8 @@ enum
 	// nb: offset by 1 since NONE is zero
 	CONFIG_COOP_RESPAWN_STRING,
 	CONFIG_COOP_RESPAWN_STRING_END = CONFIG_COOP_RESPAWN_STRING + (COOP_RESPAWN_TOTAL - 1),
-	// [Paril-KEX] if 1, n64 player physics apply
-	CONFIG_N64_PHYSICS,
+	// [Paril-KEX] see enum physics_flags_t
+	CONFIG_PHYSICS_FLAGS,
 	CONFIG_HEALTH_BAR_NAME, // active health bar name
 	// Horde wave timer
 	HORDE_WAVE_TIMER,

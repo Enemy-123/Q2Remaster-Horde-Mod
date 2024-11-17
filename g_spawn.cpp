@@ -765,6 +765,10 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 			}
 
 			SpawnItem(ent, item, spawntemp);
+
+			if (level.is_psx)
+				ent->s.origin[2] += 15.f - (15.f * PSX_PHYSICS_SCALAR);
+
 			current_st = nullptr;
 			return;
 		}
@@ -1573,7 +1577,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
 
 	level.is_n64 = strncmp(level.mapname, "q64/", 4) == 0;
-	level.is_psx = strncmp(level.mapname, "psx/", 4) == 0;
+	level.is_psx = strncmp(level.mapname, "psx/", 4) == 0 || strncmp(level.mapname, "psxjam1/", 4);
 
 	level.coop_scale_players = 0;
 	level.coop_health_scaling = clamp(g_coop_health_scaling->value, 0.f, 1.f);
@@ -1985,13 +1989,12 @@ void SP_worldspawn(edict_t* ent)
 	}
 
 	// [Paril-KEX]
-	if (!deathmatch->integer || g_horde->integer)
+	if (!deathmatch->integer)
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_PVE).data());
 	else if (teamplay->integer || ctf->integer)
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_TDM).data());
 	else
 		gi.configstring(CS_GAME_STYLE, G_Fmt("{}", (int32_t)game_style_t::GAME_STYLE_FFA).data());
-
 
 	// [Paril-KEX]
 	if (st.goals)
@@ -1999,7 +2002,6 @@ void SP_worldspawn(edict_t* ent)
 		level.goals = st.goals;
 		game.help1changed++;
 	}
-
 
 	if (st.start_items)
 		level.start_items = st.start_items;
@@ -2009,11 +2011,31 @@ void SP_worldspawn(edict_t* ent)
 
 	gi.configstring(CS_MAXCLIENTS, G_Fmt("{}", game.maxclients).data());
 
-	if (level.is_n64 && !G_IsDeathmatch())
+	int override_physics = gi.cvar("g_override_physics_flags", "-1", CVAR_NOFLAGS)->integer;
+
+	if (override_physics == -1)
 	{
-		gi.configstring(CONFIG_N64_PHYSICS, "1");
-		pm_config.n64_physics = false;
+		if (deathmatch->integer && st.was_key_specified("physics_flags_dm"))
+			override_physics = st.physics_flags_dm;
+		else if (!deathmatch->integer && st.was_key_specified("physics_flags_sp"))
+			override_physics = st.physics_flags_sp;
 	}
+
+	if (override_physics >= 0)
+		pm_config.physics_flags = (physics_flags_t)override_physics;
+	else
+	{
+		if (level.is_n64)
+			pm_config.physics_flags |= PHYSICS_N64_MOVEMENT;
+
+		if (level.is_psx)
+			pm_config.physics_flags |= PHYSICS_PSX_MOVEMENT | PHYSICS_PSX_SCALE;
+
+		if (deathmatch->integer)
+			pm_config.physics_flags |= PHYSICS_DEATHMATCH;
+	}
+
+	gi.configstring(CONFIG_PHYSICS_FLAGS, G_Fmt("{}", (int)pm_config.physics_flags).data());
 
 	level.primary_objective_string = "$g_primary_mission_objective";
 	level.secondary_objective_string = "$g_secondary_mission_objective";
@@ -2031,10 +2053,8 @@ void SP_worldspawn(edict_t* ent)
 	if (st.secondary_objective_title && st.secondary_objective_title[0])
 		level.secondary_objective_title = st.secondary_objective_title;
 
-
 	// statusbar prog
 	G_InitStatusbar();
-
 
 	// [Paril-KEX] air accel handled by game DLL now, and allow
 	// it to be changed in sp/coop
@@ -2147,6 +2167,12 @@ void SP_worldspawn(edict_t* ent)
 	gi.soundindex("player/wade2.wav");
 	gi.soundindex("player/wade3.wav");
 
+#ifdef PSX_ASSETS
+	gi.soundindex("player/breathout1.wav");
+	gi.soundindex("player/breathout2.wav");
+	gi.soundindex("player/breathout3.wav");
+#endif
+
 	gi.soundindex("items/pkup.wav");   // bonus item pickup
 	gi.soundindex("world/land.wav");   // landing thud
 	gi.soundindex("misc/h2ohit1.wav"); // landing splash
@@ -2226,8 +2252,6 @@ void SP_worldspawn(edict_t* ent)
 	gi.configstring(CS_LIGHTS + 63, "a");
 
 	// coop respawn strings
-
-
 	if (G_IsCooperative() || g_horde->integer)
 	{
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "$g_coop_respawn_in_combat");

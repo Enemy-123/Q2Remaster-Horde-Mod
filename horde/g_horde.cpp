@@ -274,59 +274,51 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 }
 
 static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
-	// Base count con progresión más suave
+	// Base count calculation with level scaling
+	// Base count con mejor progresión
 	int32_t baseCount;
-	if (lvl <= 3) {  // Primeras 3 olas más fáciles
-		baseCount = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 8 : 6);
+	if (lvl <= 5) {
+		baseCount = mapSize.isSmallMap ? 6 : (mapSize.isBigMap ? 12 : 8);
 	}
-	else if (lvl <= 5) {
-		baseCount = mapSize.isSmallMap ? 5 : (mapSize.isBigMap ? 10 : 7);
-	}
-	else if (lvl <= 13) {
+	else if (lvl <= 10) {
 		baseCount = mapSize.isSmallMap ? 8 : (mapSize.isBigMap ? 16 : 12);
 	}
-	else if (lvl <= 20) {
+	else if (lvl <= 15) {
 		baseCount = mapSize.isSmallMap ? 10 : (mapSize.isBigMap ? 20 : 14);
 	}
 	else {
 		baseCount = mapSize.isSmallMap ? 12 : (mapSize.isBigMap ? 24 : 16);
 	}
 
-	// Ajuste progresivo por jugadores (solo si hay 2 o más jugadores humanos)
+	// Ajuste progresivo por jugadores
 	float playerMultiplier = 1.0f;
-	if (humanPlayers >= 2) {
-		playerMultiplier = 1.0f + ((humanPlayers - 2) * 0.2f); // Comenzar desde 2 jugadores
+	if (humanPlayers > 1) {
+		playerMultiplier = 1.0f + ((humanPlayers - 1) * 0.2f);
 		baseCount = static_cast<int32_t>(baseCount * playerMultiplier);
 	}
 
-	// Additional spawn más suave al inicio
-	int32_t additionalSpawn;
-	if (lvl <= 3) {
-		additionalSpawn = 3; // Menos spawns adicionales en las primeras olas
-	}
-	else if (lvl <= 7) {
-		additionalSpawn = 4;
-	}
-	else {
-		additionalSpawn = (mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7);
-	}
+	// Additional spawn calculation with progressive scaling
+	int32_t additionalSpawn = (lvl >= 8) ?
+		((mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7)) : 6;
 
 	// Ajuste dinámico del cooldown basado en el nivel
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+
+	// Aplicar escala basada en nivel después del nivel 10
 	float cooldownScale = CalculateCooldownScale(lvl, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
 	// Enhanced level scaling for higher levels
 	if (lvl > 25) {
-		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.5f);
+		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
 	}
 
-	// Bonus for chaotic/insane modes (solo después de la ola 5)
-	if (lvl >= 5 && (g_chaotic->integer || g_insane->integer)) {
+	// Bonus for chaotic/insane modes
+	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
+		// Reducción del cooldown en modos difíciles
 		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
-
 
 	// Dynamic difficulty scaling based on player count
 	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;

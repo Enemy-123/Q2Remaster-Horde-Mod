@@ -53,7 +53,7 @@ static cached_soundindex commander_sound_hook_heal;
 static cached_soundindex commander_sound_hook_retract;
 static cached_soundindex commander_sound_spawn;
 
-constexpr const char* default_reinforcements = "monster_janitor2 1;monster_gekk 2;monster_brain 2;monster_infantry 3;monster_gunner 4;monster_janitor2 5;monster_gladiator 6";
+constexpr const char* default_reinforcements = "monster_gunner_vanilla 1;monster_gunner_brain 2;monster_janitor2 3;monster_infantry 3;monster_gunner 4;monster_gladiator 6";
 constexpr int32_t default_monster_slots_base = 3;
 
 static const float inverse_log_slots = pow(2, MAX_REINFORCEMENTS);
@@ -238,12 +238,22 @@ void abortHeal(edict_t* self, bool gib, bool mark)
 
 bool finishHeal(edict_t* self)
 {
+	edict_t* healee = self->enemy;
+
+	healee->spawnflags = SPAWNFLAG_NONE;
+	healee->monsterinfo.aiflags &= AI_RESPAWN_MASK;
+	healee->target = nullptr;
+	healee->targetname = nullptr;
+	healee->combattarget = nullptr;
+	healee->deathtarget = nullptr;
+	healee->healthtarget = nullptr;
+	healee->itemtarget = nullptr;
+	healee->monsterinfo.healer = self;
+
 	// Initial null checks
 	if (!self) {
 		return false;
 	}
-
-	edict_t* healee = self->enemy;
 	if (!healee) {
 		return false;
 	}
@@ -301,90 +311,83 @@ bool finishHeal(edict_t* self)
 		return false;
 	}
 
-	// Space verification
 	vec3_t maxs = healee->maxs;
-	maxs[2] += 48;
+	maxs[2] += 48; // compensate for change when they die
 
 	trace_t tr = gi.trace(healee->s.origin, healee->mins, maxs, healee->s.origin, healee, MASK_MONSTERSOLID);
 
-	if (tr.startsolid || tr.allsolid || tr.ent != world) {
+	if (tr.startsolid || tr.allsolid)
+	{
+		abortHeal(self, true, false);
+		return false;
+	}
+	else if (tr.ent != world)
+	{
 		abortHeal(self, true, false);
 		return false;
 	}
 
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
 
-	// Non-bodyque stat restoration
-	if (!isBodyque) {
-		int32_t old_max_health = healee->max_health;
-		item_id_t old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
-		int32_t old_power_armor_power = healee->monsterinfo.max_power_armor_power;
-		int32_t old_base_health = healee->monsterinfo.base_health;
-		int32_t old_health_scaling = healee->monsterinfo.health_scaling;
-		auto reinforcements = healee->monsterinfo.reinforcements;
-		int32_t slots_from_commander = healee->monsterinfo.slots_from_commander;
-		int32_t monster_slots = healee->monsterinfo.monster_slots;
-		int32_t monster_used = healee->monsterinfo.monster_used;
-		int32_t old_gib_health = healee->gib_health;
+	// backup & restore health stuff, because of multipliers
+	int32_t old_max_health = healee->max_health;
+	item_id_t old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
+	int32_t old_power_armor_power = healee->monsterinfo.max_power_armor_power;
+	int32_t old_base_health = healee->monsterinfo.base_health;
+	int32_t old_health_scaling = healee->monsterinfo.health_scaling;
+	auto reinforcements = healee->monsterinfo.reinforcements;
+	int32_t slots_from_commander = healee->monsterinfo.slots_from_commander;
+	int32_t monster_slots = healee->monsterinfo.monster_slots;
+	int32_t monster_used = healee->monsterinfo.monster_used;
+	int32_t old_gib_health = healee->gib_health;
 
-		spawn_temp_t st{};
-		st.keys_specified.emplace("reinforcements");
-		st.reinforcements = "";
+	spawn_temp_t st{};
+	st.keys_specified.emplace("reinforcements");
+	st.reinforcements = "";
 
-		ED_CallSpawn(healee, st);
+	ED_CallSpawn(healee, st);
 
-		// Verify healee is still valid after respawn
-		if (!healee) {
-			abortHeal(self, false, false);
-			return false;
-		}
+	healee->monsterinfo.slots_from_commander = slots_from_commander;
+	healee->monsterinfo.reinforcements = reinforcements;
+	healee->monsterinfo.monster_slots = monster_slots;
+	healee->monsterinfo.monster_used = monster_used;
 
-		healee->monsterinfo.slots_from_commander = slots_from_commander;
-		healee->monsterinfo.reinforcements = reinforcements;
-		healee->monsterinfo.monster_slots = monster_slots;
-		healee->monsterinfo.monster_used = monster_used;
-		healee->gib_health = old_gib_health / 2;
-		healee->health = healee->max_health = old_max_health;
-		healee->monsterinfo.power_armor_power = healee->monsterinfo.max_power_armor_power = old_power_armor_power;
-		healee->monsterinfo.power_armor_type = healee->monsterinfo.initial_power_armor_type = old_power_armor_type;
-		healee->monsterinfo.base_health = old_base_health;
-		healee->monsterinfo.health_scaling = old_health_scaling;
-	}
-
-	// Common configuration
-	healee->spawnflags = SPAWNFLAG_NONE;
-	healee->monsterinfo.aiflags &= AI_RESPAWN_MASK;
-	healee->target = nullptr;
-	healee->targetname = nullptr;
-	healee->combattarget = nullptr;
-	healee->deathtarget = nullptr;
-	healee->healthtarget = nullptr;
-	healee->itemtarget = nullptr;
-	healee->monsterinfo.healer = self;
+	healee->gib_health = old_gib_health / 2;
+	healee->health = healee->max_health = old_max_health;
+	healee->monsterinfo.power_armor_power = healee->monsterinfo.max_power_armor_power = old_power_armor_power;
+	healee->monsterinfo.power_armor_type = healee->monsterinfo.initial_power_armor_type = old_power_armor_type;
+	healee->monsterinfo.base_health = old_base_health;
+	healee->monsterinfo.health_scaling = old_health_scaling;
 
 	if (healee->monsterinfo.setskin)
 		healee->monsterinfo.setskin(healee);
 
-	if (healee->think) {
+	if (healee->think)
+	{
 		healee->nextthink = level.time;
 		healee->think(healee);
 	}
-
 	healee->monsterinfo.aiflags &= ~AI_RESURRECTING;
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
+	// turn off flies
 	healee->s.effects &= ~EF_FLIES;
 	healee->monsterinfo.healer = nullptr;
 
-	// Enemy handling
+	// switch our enemy
 	fixHealerEnemy(self);
+
+	// switch revivee's enemy
 	healee->oldenemy = nullptr;
 	healee->enemy = self->enemy;
 
 	if (healee->enemy && !g_horde->integer)
 		FoundTarget(healee);
-	else {
+	else
+	{
 		healee->enemy = nullptr;
-		if (!FindTarget(healee)) {
+		if (!FindTarget(healee))
+		{
+			// no valid enemy, so stop acting
 			healee->monsterinfo.pausetime = HOLD_FOREVER;
 			healee->monsterinfo.stand(healee);
 		}
@@ -418,7 +421,7 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		if (ent == self)
 			continue;
 		// Check for both monsters and bodyque entities
-		if (!(ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "bodyque") != 0)
+		if (!(ent->svflags & SVF_MONSTER)/* && strcmp(ent->classname, "bodyque") != 0*/)	
 			continue;
 		if (ent->monsterinfo.aiflags & AI_GOOD_GUY)
 			continue;
@@ -782,45 +785,45 @@ MONSTERINFO_SETSKIN(medic_setskin) (edict_t* self) -> void
 
 void medic_fire_blaster_bolt(edict_t* self)
 {
-    vec3_t start;
-    vec3_t forward, right;
-    vec3_t end;
-    vec3_t dir;
-    int damage = 30;
-    monster_muzzleflash_id_t mz;
+	vec3_t start;
+	vec3_t forward, right;
+	vec3_t end;
+	vec3_t dir;
+	int damage = 30;
+	monster_muzzleflash_id_t mz;
 
-    mz = static_cast<monster_muzzleflash_id_t>(((self->mass > 400) ? MZ2_MEDIC_HYPERBLASTER2_1 : MZ2_MEDIC_HYPERBLASTER1_1));
+	mz = static_cast<monster_muzzleflash_id_t>(((self->mass > 400) ? MZ2_MEDIC_HYPERBLASTER2_1 : MZ2_MEDIC_HYPERBLASTER1_1));
 
-    if (!(self->enemy && self->enemy->inuse))
-        return;
+	if (!(self->enemy && self->enemy->inuse))
+		return;
 
-    AngleVectors(self->s.angles, forward, right, nullptr);
-    const vec3_t& offset = monster_flash_offset[mz];
-    start = M_ProjectFlashSource(self, offset, forward, right);
-    end = self->enemy->s.origin;
-    end[2] += self->enemy->viewheight;
-    dir = end - start;
-    dir.normalize();
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	const vec3_t& offset = monster_flash_offset[mz];
+	start = M_ProjectFlashSource(self, offset, forward, right);
+	end = self->enemy->s.origin;
+	end[2] += self->enemy->viewheight;
+	dir = end - start;
+	dir.normalize();
 
-    if (!strcmp(self->enemy->classname, "tesla_mine"))
-        damage = 60;
+	if (!strcmp(self->enemy->classname, "tesla_mine"))
+		damage = 60;
 
-    // Cambiar la flag del SVF del self temporalmente para permitir rebote
+	// Cambiar la flag del SVF del self temporalmente para permitir rebote
    // self->svflags &= ~SVF_MONSTER;  // Esto evitará que se active la excepción de no-rebote
-    
-    // Crear el bolt
-    edict_t* bolt = fire_blaster(self, start, dir, damage, 1500,
-        (brandom()) ? EF_TRACKER : EF_TRACKER | EF_BLUEHYPERBLASTER, MOD_BLASTER);
 
-    // Restaurar la flag
+	// Crear el bolt
+	edict_t* bolt = fire_blaster(self, start, dir, damage, 1500,
+		(brandom()) ? EF_TRACKER : EF_TRACKER | EF_BLUEHYPERBLASTER, MOD_BLASTER);
+
+	// Restaurar la flag
    // self->svflags |= SVF_MONSTER;
 
-    // Configurar propiedades especiales del bolt
-    if (bolt) {
-        bolt->bounce_count = 3;  // Número de rebotes
-        bolt->s.scale = 0.5f;
-        bolt->s.renderfx = RF_SHELL_HALF_DAM;
-    }
+	// Configurar propiedades especiales del bolt
+	if (bolt) {
+		bolt->bounce_count = 3;  // Número de rebotes
+		bolt->s.scale = 0.5f;
+		bolt->s.renderfx = RF_SHELL_HALF_DAM;
+	}
 }
 
 void medic_fire_blaster(edict_t* self)
@@ -1094,23 +1097,12 @@ constexpr vec3_t medic_cable_offsets[] = {
 	{ 32.7f, -19.7f, 10.4f }
 };
 
-// Función auxiliar para restaurar el estado
-void medic_restore_takedamage(edict_t* ent)
-{
-	if (ent->inuse)
-	{
-		ent->takedamage = true;
-		ent->monsterinfo.aiflags &= ~AI_RESURRECTING;
-		M_SetEffects(ent);
-	}
-}
-
 void medic_cable_attack(edict_t* self)
 {
-	vec3_t offset, start, end, f, r;
+	vec3_t	offset, start, end, f, r;
 	trace_t tr;
-	vec3_t dir;
-	float distance;
+	vec3_t	dir;
+	float	distance;
 
 	if ((!self->enemy) || (!self->enemy->inuse) || (self->enemy->s.effects & EF_GIB))
 	{
@@ -1118,9 +1110,12 @@ void medic_cable_attack(edict_t* self)
 		return;
 	}
 
+	// we switched back to a player; let the animation finish
 	if (self->enemy->client)
 		return;
 
+	// see if our enemy has changed to a client, or our target has more than 0 health,
+	// abort it .. we got switched to someone else due to damage
 	if (self->enemy->health > 0)
 	{
 		abortHeal(self, false, false);
@@ -1131,9 +1126,11 @@ void medic_cable_attack(edict_t* self)
 	offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
 	start = M_ProjectFlashSource(self, offset, f, r);
 
+	// check for max distance
+	// not needed, done in checkattack
+	// check for min distance
 	dir = start - self->enemy->s.origin;
 	distance = dir.length();
-
 	if (distance < MEDIC_MIN_DISTANCE)
 	{
 		abortHeal(self, true, false);
@@ -1146,6 +1143,7 @@ void medic_cable_attack(edict_t* self)
 	{
 		if (tr.ent == world)
 		{
+			// give up on second try
 			if (self->monsterinfo.medicTries > 1)
 			{
 				abortHeal(self, false, true);
@@ -1164,6 +1162,7 @@ void medic_cable_attack(edict_t* self)
 
 	if (self->s.frame == FRAME_attack43)
 	{
+		// PMM - commander sounds
 		if (self->mass == 400)
 			gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
 		else
@@ -1171,27 +1170,31 @@ void medic_cable_attack(edict_t* self)
 
 		self->enemy->monsterinfo.aiflags |= AI_RESURRECTING;
 		self->enemy->takedamage = false;
-
-		static constexpr gtime_t REVIVE_EFFECT_DURATION = 2_sec;
-		// Usar attack_finished como nuestro timer para el efecto
-		self->enemy->monsterinfo.attack_finished = level.time + REVIVE_EFFECT_DURATION;
 		M_SetEffects(self->enemy);
 	}
 	else if (self->s.frame == FRAME_attack50)
 	{
 		if (!finishHeal(self))
 			self->monsterinfo.nextframe = FRAME_attack52;
+
 		return;
 	}
-	else if (self->s.frame == FRAME_attack44)
+	else
 	{
-		if (self->mass == 400)
-			gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
-		else
-			gi.sound(self, CHAN_WEAPON, commander_sound_hook_heal, 1, ATTN_NORM, 0);
+		if (self->s.frame == FRAME_attack44)
+		{
+			// PMM - medic commander sounds
+			if (self->mass == 400)
+				gi.sound(self, CHAN_WEAPON, sound_hook_heal, 1, ATTN_NORM, 0);
+			else
+				gi.sound(self, CHAN_WEAPON, commander_sound_hook_heal, 1, ATTN_NORM, 0);
+		}
 	}
 
+	// adjust start for beam origin being in middle of a segment
 	start += (f * 8);
+
+	// adjust end z for end spot since the monster is currently dead
 	end = self->enemy->s.origin;
 	end[2] = (self->enemy->absmin[2] + self->enemy->absmax[2]) / 2;
 
@@ -1202,6 +1205,7 @@ void medic_cable_attack(edict_t* self)
 	gi.WritePosition(end);
 	gi.multicast(self->s.origin, MULTICAST_PVS, false);
 }
+
 void medic_hook_retract(edict_t* self)
 {
 	if (self->mass == 400)
