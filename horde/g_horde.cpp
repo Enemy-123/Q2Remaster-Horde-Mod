@@ -3107,14 +3107,12 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
 
-	// Si tiene un enemigo visible, no está realmente "stuck"
 	if (self->monsterinfo.issummoned || self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
 		return false;
 	}
 
-	// Verificar si está en solid o no ha recibido daño por mucho tiempo
 	bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
 	bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= NO_DAMAGE_TIMEOUT;
 
@@ -3124,12 +3122,10 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			self->monsterinfo.was_stuck = true;
 		}
 
-		// Esperar el tiempo de verificación antes de teletransportar
 		if (level.time >= self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME) {
 			static edict_t* available_spawns[MAX_SPAWN_POINTS];
 			size_t spawn_count = 0;
 
-			// Recolectar spawns disponibles
 			for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
 				edict_t* e = &g_edicts[i];
 				if (!e->inuse || !e->classname ||
@@ -3141,14 +3137,13 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 					continue;
 
 				if (!IsSpawnPointOccupied(e)) {
-					// Verificar que el punto tenga línea de visión a algún jugador
 					bool can_see_player = false;
 					for (auto player : active_players()) {
 						if (!player->inuse || player->deadflag)
 							continue;
 
 						trace_t tr = gi.traceline(e->s.origin, player->s.origin, self, MASK_SOLID);
-						if (tr.fraction >= 0.3f) { // Permitir algo de obstrucción
+						if (tr.fraction >= 0.3f) {
 							can_see_player = true;
 							break;
 						}
@@ -3171,7 +3166,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 				self->s.old_origin = spawn_point->s.origin;
 				self->velocity = vec3_origin;
 
-				// Verificar si la nueva posición es válida
 				bool new_pos_valid = true;
 				if (!(self->flags & (FL_FLY | FL_SWIM))) {
 					if (!M_droptofloor(self)) {
@@ -3179,21 +3173,17 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 					}
 				}
 
-				// Verificar que no esté en solid en la nueva posición
 				if (new_pos_valid && !gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
-					// Teletransporte exitoso
 					gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 					SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
 
-					// Resetear estados
 					self->monsterinfo.was_stuck = false;
 					self->monsterinfo.stuck_check_time = 0_sec;
-					self->monsterinfo.react_to_damage_time = level.time; // Resetear timer de daño
+					self->monsterinfo.react_to_damage_time = level.time;
 
 					gi.linkentity(self);
 
-					
-					if (developer->integer) {// Debug message
+					if (developer->integer) {
 						if (no_damage_timeout) {
 							gi.Com_PrintFmt("Monster teleported due to no damage timeout\n");
 						}
@@ -3205,7 +3195,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 					return true;
 				}
 				else {
-					// Restaurar posición anterior si la nueva no es válida
 					self->s.origin = old_origin;
 					self->s.old_origin = old_origin;
 					self->velocity = old_velocity;
@@ -3215,7 +3204,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		}
 	}
 	else {
-		// No está atascado ni timeado, resetear estado
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
 	}
@@ -3224,33 +3212,25 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
-	// Usar array estático para evitar allocaciones
 	static edict_t* available_spawns[MAX_SPAWN_POINTS];
 	size_t spawn_count = 0;
 
-	// Pre-reservar espacio para el array
-	for (auto& spawn : available_spawns) {
-		spawn = nullptr;
-	}
-
-	// Optimizar la recolección de spawn points usando referencias
 	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
-		edict_t& e = g_edicts[i];
-		if (!e.inuse || !e.classname ||
-			strcmp(e.classname, "info_player_deathmatch") != 0 ||
-			e.monsterinfo.IS_BOSS)
+		edict_t* e = &g_edicts[i];
+		if (!e->inuse || !e->classname ||
+			strcmp(e->classname, "info_player_deathmatch") != 0 ||
+			e->monsterinfo.IS_BOSS)
 			continue;
 
-		const auto& spawn_data = spawnPointsData.find(&e);
+		const auto& spawn_data = spawnPointsData.find(e);
 		if (spawn_data != spawnPointsData.end() && spawn_data->second.isTemporarilyDisabled) {
 			if (level.time < spawn_data->second.cooldownEndsAt)
 				continue;
 		}
 
-		available_spawns[spawn_count++] = &e;
+		available_spawns[spawn_count++] = e;
 	}
 
-	// Optimización 6: Usar shuffle más eficiente con distribución uniforme
 	if (spawn_count > 1) {
 		std::uniform_int_distribution<size_t> dist(0, spawn_count - 1);
 		for (size_t i = spawn_count - 1; i > 0; --i) {
@@ -3261,7 +3241,6 @@ static edict_t* SpawnMonsters() {
 		}
 	}
 
-	// Optimización 7: Cálculos de límites una sola vez
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
@@ -3276,13 +3255,12 @@ static edict_t* SpawnMonsters() {
 
 	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
 
-	// Optimización 8: Early return si no hay nada que spawnear
 	if (spawnable <= 0 || spawn_count == 0) {
 		return nullptr;
 	}
+
 	edict_t* last_spawned = nullptr;
 
-	// Spawn optimizado usando spawn_temp_t::empty
 	for (size_t i = 0; i < spawn_count && i < static_cast<size_t>(spawnable) && g_horde_local.num_to_spawn > 0; ++i) {
 		edict_t* spawn_point = available_spawns[i];
 		const char* monster_classname = G_HordePickMonster(spawn_point);
@@ -3294,7 +3272,7 @@ static edict_t* SpawnMonsters() {
 		if (!monster)
 			continue;
 
-		// Configuración básica pre-spawn
+		// Configuración básica
 		monster->classname = monster_classname;
 		monster->s.origin = spawn_point->s.origin;
 		monster->s.angles = spawn_point->s.angles;
@@ -3302,7 +3280,7 @@ static edict_t* SpawnMonsters() {
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
 
-		// Spawn del monstruo usando spawn_temp_t::empty
+		// Spawn usando spawn_temp_t::empty
 		ED_CallSpawn(monster, spawn_temp_t::empty);
 
 		if (!monster->inuse) {
@@ -3329,7 +3307,6 @@ static edict_t* SpawnMonsters() {
 		last_spawned = monster;
 	}
 
-	// Manejar monstruos en cola restantes de manera más eficiente
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
@@ -3349,60 +3326,59 @@ static void SetMonsterArmor(edict_t* monster) {
 		// Factores base más conservadores
 		const float health_ratio = monster->health / static_cast<float>(monster->max_health);
 		const float size_factor = (monster->maxs - monster->mins).length() / 64.0f;
-		const float mass_factor = std::min(monster->mass / 200.0f, 1.5f);  // Reducido de 2.0f a 1.5f
+		const float mass_factor = std::min(monster->mass / 200.0f, 1.5f);
 
 		// Factor de nivel dinámico más suave
 		float level_scaling;
 		if (current_wave_level <= 15) {
-			level_scaling = 1.0f + (current_wave_level * 0.04f);  // Reducido de 0.08f a 0.04f
+			level_scaling = 1.0f + (current_wave_level * 0.04f);
 		}
 		else if (current_wave_level <= 25) {
-			level_scaling = 1.6f + ((current_wave_level - 15) * 0.06f);  // Reducido de 2.2f y 0.12f
+			level_scaling = 1.6f + ((current_wave_level - 15) * 0.06f);
 		}
 		else {
-			level_scaling = 2.2f + ((current_wave_level - 25) * 0.08f);  // Reducido de 3.4f y 0.15f
+			level_scaling = 2.2f + ((current_wave_level - 25) * 0.08f);
 		}
 
 		// Base armor más baja con mejor balance
-		float base_armor = (75 + monster->max_health * 0.15f) *  // Reducido de 100 y 0.2f
-			std::pow(health_ratio, 1.1f) *                       // Reducido de 1.2f
-			std::pow(size_factor, 0.7f) *                        // Reducido de 0.8f
-			std::pow(mass_factor, 0.6f) *                        // Reducido de 0.7f
+		float base_armor = (75 + monster->max_health * 0.15f) *
+			std::pow(health_ratio, 1.1f) *
+			std::pow(size_factor, 0.7f) *
+			std::pow(mass_factor, 0.6f) *
 			level_scaling;
 
-		// Reducción de armadura progresiva
+		// Reducción progresiva
 		float armor_multiplier = 1.0f;
 		if (current_wave_level <= 30) {
-			armor_multiplier = 0.4f;                             // Reducido de 0.5f
+			armor_multiplier = 0.4f;
 		}
 		else if (current_wave_level <= 40) {
-			armor_multiplier = 0.5f;                             // Nueva etapa intermedia
+			armor_multiplier = 0.5f;
 		}
 		base_armor *= armor_multiplier;
 
 		// Bonus por dificultad reducidos
 		if (g_insane->integer) {
-			base_armor *= 1.2f;                                 // Reducido de 1.3f
+			base_armor *= 1.2f;
 		}
 		else if (g_chaotic->integer) {
-			base_armor *= 1.1f;                                 // Reducido de 1.15f
+			base_armor *= 1.1f;
 		}
 
 		// Factor aleatorio más controlado
-		const float random_factor = 1.0f + (crandom() * 0.1f);  // Reducido de 0.15f
+		const float random_factor = 1.0f + (crandom() * 0.1f);
 		base_armor *= random_factor;
 
-		// Ajustes finales por nivel más suaves
+		// Ajustes finales por nivel
 		if (current_wave_level > 25) {
-			base_armor *= 1.0f + ((current_wave_level - 25) * 0.03f);  // Reducido de 0.05f
+			base_armor *= 1.0f + ((current_wave_level - 25) * 0.03f);
 		}
 
 		// Límites dinámicos más restrictivos
-		const int min_armor = std::max(25, static_cast<int>(monster->max_health * 0.08f));  // Reducido de 50 y 0.1f
+		const int min_armor = std::max(25, static_cast<int>(monster->max_health * 0.08f));
 		const int max_armor = static_cast<int>(monster->max_health *
-			(current_wave_level > 25 ? 1.5f : 1.2f));  // Reducido de 2.0f y 1.5f
+			(current_wave_level > 25 ? 1.5f : 1.2f));
 
-		// Asignar armor usando los campos correctos de monsterinfo
 		monster->monsterinfo.armor_power = std::clamp(static_cast<int>(base_armor), min_armor, max_armor);
 		monster->monsterinfo.base_power_armor = monster->monsterinfo.armor_power;
 	}
