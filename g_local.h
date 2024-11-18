@@ -925,6 +925,7 @@ enum item_id_t : int32_t {
 	IT_ITEM_SPHERE_VENGEANCE,
 	IT_ITEM_SPHERE_HUNTER,
 	IT_ITEM_SPHERE_DEFENDER,
+	IT_ITEM_SENTRYGUN,
 	IT_ITEM_DOPPELGANGER,
 	IT_ITEM_TAG_TOKEN,
 
@@ -934,6 +935,7 @@ enum item_id_t : int32_t {
 	IT_KEY_YELLOW,
 	IT_KEY_POWER_CORE,
 	IT_KEY_PYRAMID,
+	IT_ITEM_TELEPORT,
 	IT_KEY_DATA_SPINNER,
 	IT_KEY_PASS,
 	IT_KEY_BLUE_KEY,
@@ -2705,7 +2707,8 @@ bool Pickup_Nuke(edict_t* ent, edict_t* other);
 void Use_IR(edict_t* ent, gitem_t* item);
 void Use_Double(edict_t* ent, gitem_t* item);
 void Use_Nuke(edict_t* ent, gitem_t* item);
-
+void Use_Doppleganger(edict_t* ent, gitem_t* item);
+bool Pickup_Doppleganger(edict_t* ent, edict_t* other);
 void Use_SentryGun(edict_t* ent, gitem_t* item);
 bool Pickup_SentryGun(edict_t* ent, edict_t* other);
 
@@ -2734,7 +2737,8 @@ item_id_t DoRandomRespawn(edict_t* ent);
 void	 PrecacheForRandomRespawn();
 bool	 Tag_PickupToken(edict_t* ent, edict_t* other);
 void	 Tag_DropToken(edict_t* ent, gitem_t* item);
-bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
+void	 fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir);
+bool	 fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 
 //
 // p_client.c

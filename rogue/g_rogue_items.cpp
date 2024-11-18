@@ -248,49 +248,49 @@ bool Pickup_Teleport(edict_t* ent, edict_t* other)
 	return true;
 }
 
-//void Use_Doppleganger(edict_t* ent, gitem_t* item)
-//{
-//	vec3_t forward, right;
-//	vec3_t createPt, spawnPt;
-//	vec3_t ang;
-//
-//	ang[PITCH] = 0;
-//	ang[YAW] = ent->client->v_angle[YAW];
-//	ang[ROLL] = 0;
-//	AngleVectors(ang, forward, right, nullptr);
-//
-//	createPt = ent->s.origin + (forward * 48);
-//
-//	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, 32))
-//		return;
-//
-//	if (!CheckGroundSpawnPoint(spawnPt, ent->mins, ent->maxs, 64, -1))
-//		return;
-//
-//	ent->client->pers.inventory[item->id]--;
-//
-//	SpawnGrow_Spawn(spawnPt, 24.f, 48.f);
-//	fire_doppleganger(ent, spawnPt, forward);
-//}
-//
-//bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
-//{
-//	int quantity;
-//
-//	if (!deathmatch->integer) // item is DM only
-//		return false;
-//
-//	quantity = other->client->pers.inventory[ent->item->id];
-//	if (quantity >= 1) // FIXME - apply max to dopplegangers
-//		return false;
-//
-//	other->client->pers.inventory[ent->item->id]++;
-//
-//	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED))
-//		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
-//
-//	return true;
-//}
+void Use_Doppleganger(edict_t* ent, gitem_t* item)
+{
+	vec3_t forward, right;
+	vec3_t createPt, spawnPt;
+	vec3_t ang;
+
+	ang[PITCH] = 0;
+	ang[YAW] = ent->client->v_angle[YAW];
+	ang[ROLL] = 0;
+	AngleVectors(ang, forward, right, nullptr);
+
+	createPt = ent->s.origin + (forward * 48);
+
+	if (!FindSpawnPoint(createPt, ent->mins, ent->maxs, spawnPt, 32))
+		return;
+
+	if (!CheckGroundSpawnPoint(spawnPt, ent->mins, ent->maxs, 64, -1))
+		return;
+
+	ent->client->pers.inventory[item->id]--;
+
+	SpawnGrow_Spawn(spawnPt, 24.f, 48.f);
+	fire_doppleganger(ent, spawnPt, forward);
+}
+
+bool Pickup_Doppleganger(edict_t* ent, edict_t* other)
+{
+	int quantity;
+
+	if (!deathmatch->integer) // item is DM only
+		return false;
+
+	quantity = other->client->pers.inventory[ent->item->id];
+	if (quantity >= 1) // FIXME - apply max to dopplegangers
+		return false;
+
+	other->client->pers.inventory[ent->item->id]++;
+
+	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED))
+		SetRespawn(ent, gtime_t::from_sec(ent->item->quantity));
+
+	return true;
+}
 
 bool Pickup_Sphere(edict_t* ent, edict_t* other)
 {

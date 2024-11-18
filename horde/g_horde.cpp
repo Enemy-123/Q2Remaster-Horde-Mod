@@ -591,9 +591,11 @@ constexpr struct weighted_item_t {
 	{ "item_sphere_hunter", 9, -1, 0.04f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
 	{ "teleport_device", 4, -1, 0.06f, adjust_weight_powerup },
-	{ "item_doppleganger", 2, 8, 0.028f, adjust_weight_powerup },
-	{ "item_doppleganger", 9, 19, 0.062f, adjust_weight_powerup },
-	{ "item_doppleganger", 20, -1, 0.1f, adjust_weight_powerup },
+	{ "item_doppleganger", 5, -1, 0.028f, adjust_weight_powerup },
+	{ "item_sentrygun", 2, 8, 0.028f, adjust_weight_powerup },
+	{ "item_sentrygun", 9, 19, 0.062f, adjust_weight_powerup },
+	{ "item_sentrygun", 9, 19, 0.062f, adjust_weight_powerup },
+	{ "item_sentrygun", 20, -1, 0.1f, adjust_weight_powerup },
 
 	{ "weapon_chainfist", -1, 3, 0.05f, adjust_weight_weapon },
 	{ "weapon_shotgun", -1, -1, 0.22f, adjust_weight_weapon },
@@ -1951,7 +1953,7 @@ void OldBossDeathHandler(edict_t* boss)
 
 	// Items normales que el boss dropea (array estático)
 	static const std::array<const char*, 7> itemsToDrop = {
-		"item_adrenaline", "item_pack", "item_doppleganger",
+		"item_adrenaline", "item_pack", "item_sentrygun",
 		"item_sphere_defender", "item_armor_combat", "item_bandolier",
 		"item_invulnerability"
 	};

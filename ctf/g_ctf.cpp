@@ -4151,13 +4151,13 @@ void RemoveAllTechItems(edict_t* ent)
 			continue;
 
 		// Check for doppelganger
-		bool isDoppleganger = false;
+		bool issentrygun = false;
 		if (item->classname && isPowerupItem) {
-			isDoppleganger = (strcmp(item->classname, "item_doppleganger") == 0);
+			issentrygun = (strcmp(item->classname, "item_sentrygun") == 0);
 		}
 
 		// Skip doppelganger items
-		if (isDoppleganger)
+		if (issentrygun)
 			continue;
 
 		// Remove item from player's inventory

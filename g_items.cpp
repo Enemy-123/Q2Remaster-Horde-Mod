@@ -3288,33 +3288,61 @@ always owned, never in the world
 			/* precaches */ "models/objects/laser/tris.md2 models/items/shell/tris.md2 spheres/d_idle.wav"
 		},
 
-	/*QUAKED item_doppleganger (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
-	*/
+		/*QUAKED item_sentrygun (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
+*/
 		{
-			/* id */ IT_ITEM_DOPPELGANGER,
-			/* classname */ "item_doppleganger",
+			/* id */ IT_ITEM_SENTRYGUN,
+			/* classname */ "item_sentrygun",
 			/* pickup */ Pickup_SentryGun,
 			/* use */ Use_SentryGun,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
 			/* world_model */ "models/monsters/turret/tris.md2",
-		//	/* world_model */ "models/items/dopple/tris.md2",
 			/* world_model_flags */ EF_ROTATE,
 			/* view_model */ nullptr,
-			/* icon */ "p_doppleganger",
+			/* icon */ "i_airstrike",
 			/* use_name */  "Sentry Gun",
 			/* pickup_name */  "Sentry Gun\n",
-			/* pickup_name_definite */ "$item_doppleganger_def",
+			/* pickup_name_definite */ "Sentry Gun\n",
 			/* quantity */ 90,
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
 			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
 			/* vwep_model */ nullptr,
 			/* armor_info */ nullptr,
-			/* tag */ POWERUP_DOPPELGANGER,
+			/* tag */ POWERUP_DOUBLE,
 			/* precaches */ "models/monsters/turret/tris.md2 gunner/gunidle1.wav turret/moving.wav",
 		},
+
+
+		/*QUAKED item_doppleganger (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
+*/
+	{
+		/* id */ IT_ITEM_DOPPELGANGER,
+		/* classname */ "item_doppleganger",
+		/* pickup */ Pickup_Doppleganger,
+		/* use */ Use_Doppleganger,
+		/* drop */ Drop_General,
+		/* weaponthink */ nullptr,
+		/* pickup_sound */ "items/pkup.wav",
+		/* world_model */ "models/items/dopple/tris.md2",
+		/* world_model_flags */ EF_ROTATE | EF_BOB,
+		/* view_model */ nullptr,
+		/* icon */ "p_doppleganger",
+		/* use_name */  "Doppelganger",
+		/* pickup_name */  "$item_doppleganger",
+		/* pickup_name_definite */ "$item_doppleganger_def",
+		/* quantity */ 90,
+		/* ammo */ IT_NULL,
+		/* chain */ IT_NULL,
+		/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
+		/* vwep_model */ nullptr,
+		/* armor_info */ nullptr,
+		/* tag */ POWERUP_DOPPELGANGER,
+		/* precaches */ "models/objects/dopplebase/tris.md2 models/items/spawngro3/tris.md2 medic_commander/monsterspawn1.wav models/items/hunter/tris.md2 models/items/vengnce/tris.md2",
+	},
+
 
 		{
 			/* id */ IT_ITEM_TAG_TOKEN,
@@ -3487,6 +3515,32 @@ always owned, never in the world
 			/* chain */ IT_NULL,
 			/* flags */ IF_STAY_COOP | IF_KEY
 		},
+
+		/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
+key for the city computer
+model="models/items/keys/spinner/tris.md2"
+*/
+	{
+		/* id */ IT_ITEM_TELEPORT,
+		/* classname */ "key_data_spinner",
+		/* pickup */ Pickup_Key,
+		/* use */ nullptr,
+		/* drop */ Drop_General,
+		/* weaponthink */ nullptr,
+		/* pickup_sound */ "items/pkup.wav",
+		/* world_model */ "models/items/keys/spinner/tris.md2",
+		/* world_model_flags */ EF_ROTATE | EF_BOB,
+		/* view_model */ nullptr,
+		/* icon */ "k_dataspin",
+		/* use_name */  "Data Spinner",
+		/* pickup_name */  "$item_data_spinner",
+		/* pickup_name_definite */ "$item_data_spinner_def",
+		/* quantity */ 0,
+		/* ammo */ IT_NULL,
+		/* chain */ IT_NULL,
+		/* flags */ IF_STAY_COOP
+	},
+
 
 	/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
 	key for the city computer

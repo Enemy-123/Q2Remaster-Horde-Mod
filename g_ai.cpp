@@ -918,15 +918,18 @@ bool FindEnhancedTarget(edict_t* self) {
 			continue;
 		}
 
-		// Ignorar unidades invocadas como objetivos
-		if (ent->monsterinfo.issummoned) {
+		// Verificar si es un objetivo válido - incluir doppleganger aquí
+		if (!(!OnSameTeam(self, ent) &&
+			(ent->client || (ent->svflags & SVF_MONSTER) ||
+				(ent->classname && strcmp(ent->classname, "doppleganger") == 0)))) {
 			continue;
 		}
 
-		// Verificar si es un objetivo válido
-		if (!(!OnSameTeam(self, ent) &&
-			(ent->client || (ent->svflags & SVF_MONSTER)))) {
-			continue;
+		// Si el objetivo es un doppleganger, verificar que no sea del mismo equipo
+		if (ent->classname && strcmp(ent->classname, "doppleganger") == 0) {
+			if (ent->teammaster == self->teammaster) {
+				continue;
+			}
 		}
 
 		// Verificaciones específicas para clientes
@@ -935,7 +938,6 @@ bool FindEnhancedTarget(edict_t* self) {
 			if (self->monsterinfo.issummoned) {
 				continue;
 			}
-
 			if (ent->client->invisible_time > level.time &&
 				ent->client->invisibility_fade_time <= level.time) {
 				continue;
@@ -969,7 +971,6 @@ bool FindEnhancedTarget(edict_t* self) {
 
 	return false;
 }
-
 /*
 ===========
 FindTarget
