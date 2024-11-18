@@ -412,10 +412,10 @@ void InitGame()
 	g_loadent = gi.cvar("g_loadent", "1", CVAR_LATCH);
 	g_chaotic = gi.cvar("g_chaotic", "0", CVAR_NOFLAGS);
 	g_insane = gi.cvar("g_insane", "0", CVAR_NOFLAGS);
-	g_hardcoop = gi.cvar("g_hardcoop", "0", CVAR_NOFLAGS);
+	g_hardcoop = gi.cvar("g_hardcoop", "1", CVAR_NOFLAGS);
 	g_ammoregen = gi.cvar("g_ammoregen", "0", CVAR_NOFLAGS);
 	sv_wave_timer = gi.cvar("sv_wave_timer", "1", CVAR_NOFLAGS);
-	g_tracedbullets = gi.cvar("g_tracedbullets", "0", CVAR_NOFLAGS);
+	g_tracedbullets = gi.cvar("g_tracedbullets", "1", CVAR_NOFLAGS);
 	g_improvedchaingun = gi.cvar("g_improvedchaingun", "0", CVAR_NOFLAGS);
 	g_bouncygl = gi.cvar("g_bouncygl", "0", CVAR_NOFLAGS);
 	g_bfgpull = gi.cvar("g_bfgpull", "0", CVAR_NOFLAGS);

@@ -1416,9 +1416,10 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 void Horde_PreInit() {
 	gi.Com_Print("Horde mode must be DM set <deathmatch 1> and <horde 1>.\n");
 	gi.Com_Print("COOP requires <coop 1> and <horde 0>, optionally <g_hardcoop 1/0>.\n");
-	dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
+
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 	//gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
+
 
 	if (!g_horde->integer) return;
 
@@ -1440,6 +1441,9 @@ void Horde_PreInit() {
 
 	// Configuración automática cuando horde está activo
 	if (g_horde->integer) {
+
+		dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
+
 		gi.Com_Print("Initializing Horde mode settings...\n");
 
 		// Configuración de tiempo y límites
@@ -1456,6 +1460,9 @@ void Horde_PreInit() {
 		gi.cvar_set("g_dm_no_self_damage", "1");
 		gi.cvar_set("g_allow_techs", "1");
 
+		// Configuración de physics
+		gi.cvar_set("g_override_physics_flags", "-1");	
+		
 		// Configuración de armas y daño
 		gi.cvar_set("g_no_nukes", "0");
 		gi.cvar_set("g_instant_weapon_switch", "1");

@@ -476,8 +476,8 @@ void TossClientWeapon(edict_t* self)
 		return;
 
 	item = self->client->pers.weapon;
-	//	if (item && g_instagib->integer)
-	//		item = nullptr;
+		if (item && g_instagib->integer)
+			item = nullptr;
 	if (item && !self->client->pers.inventory[self->client->pers.weapon->ammo])
 		item = nullptr;
 	if (item && !item->drop)
