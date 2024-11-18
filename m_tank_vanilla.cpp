@@ -935,6 +935,7 @@ void Monster_MoveSpawn(edict_t* self)
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
+		monster->enemy = self->enemy;
 		monster->owner = self;
 
 		// Spawn del monstruo usando spawn_temp_t::empty
@@ -979,17 +980,27 @@ void tank_vanilla_spawn_finished(edict_t* self)
 mframe_t tank_frames_spawn[] =
 {
 	{ai_charge, 0, nullptr},
-	{ai_charge, 0, Monster_MoveSpawn},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, tank_vanillaStrike},  // FRAME_attak225 - Añadir footstep aquí
 	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquí
-	{ai_charge, -1, nullptr},
+	{ai_charge, 0, Monster_MoveSpawn},
 	{ai_charge, -2, Monster_MoveSpawn}, // FRAME_attak229
 	{ai_charge, -2, Monster_MoveSpawn},  // FRAME_attak229
-	{ai_charge, -2, Monster_MoveSpawn}   // FRAME_attak229
+	{ai_charge, -2, Monster_MoveSpawn} ,  // FRAME_attak229
+	{ai_charge, 0, nullptr },
+	{ai_charge, -2, Monster_MoveSpawn},
+	{ai_charge, 0, nullptr},
+	{ai_charge, -2, Monster_MoveSpawn},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr}
 };
 // Actualiza la definición de tank_move_spawn para usar la nueva función
-MMOVE_T(tank_move_spawn) = { FRAME_attak223, FRAME_attak231, tank_frames_spawn, tank_vanilla_spawn_finished };
+MMOVE_T(tank_move_spawn) = { FRAME_attak220, FRAME_attak238, tank_frames_spawn, tank_vanilla_spawn_finished };
 
 
 
