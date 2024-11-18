@@ -632,7 +632,6 @@ void SP_monster_gm_arachnid(edict_t* self)
 		self->health = 2800 + (1.08 * current_wave_level);
 		self->mins = { -41, -41, -17 };
 		self->maxs = { 41, 41, 41 };
-		self->gib_health = -999777;
 	}
 	ApplyMonsterBonusFlags(self);
 }

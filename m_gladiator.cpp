@@ -205,12 +205,12 @@ void gladbGun(edict_t* self)
 		dir = self->pos1 - start;
 		dir.normalize();
 
-		monster_fire_tracker(self, start, dir, 16, 900, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
+		monster_fire_tracker(self, start, dir, 16, 875, self->enemy, MZ2_GLADIATOR_RAILGUN_1);
 	}
 	else
 	{
-		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 16, 950, nullptr, MZ2_GLADIATOR_RAILGUN_1);
+		PredictAim(self, self->enemy, start, 980, true, 0, &dir, nullptr);
+		monster_fire_tracker(self, start, dir, 16, 900, nullptr, MZ2_GLADIATOR_RAILGUN_1);
 	}
 }
 void gladbGun_check(edict_t* self)
@@ -465,26 +465,18 @@ MONSTERINFO_BLOCKED(gladiator_blocked) (edict_t* self, float dist) -> bool
 //===========
 
 /*QUAKED monster_gladiator (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
- */
+*/
 void SP_monster_gladiator(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer && current_wave_level <= 18)
-	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-		if (randomsearch < 0.23f)
-			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-		else
-			nullptr;
-	}
-
+	// Early exit check
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);
 		return;
 	}
 
+	// Sound assignments
 	sound_pain1.assign("gladiator/pain.wav");
 	sound_pain2.assign("gladiator/gldpain2.wav");
 	sound_die.assign("gladiator/glddeth2.wav");
@@ -496,72 +488,65 @@ void SP_monster_gladiator(edict_t* self)
 	sound_search.assign("gladiator/gldsrch1.wav");
 	sound_sight.assign("gladiator/sight.wav");
 
-	self->movetype = MOVETYPE_STEP;
-	self->solid = SOLID_BBOX;
+	// Model setup
 	self->s.modelindex = gi.modelindex("models/monsters/gladiatr/tris.md2");
-
 	gi.modelindex("models/monsters/gladiatr/gibs/chest.md2");
 	gi.modelindex("models/monsters/gladiatr/gibs/head.md2");
 	gi.modelindex("models/monsters/gladiatr/gibs/larm.md2");
 	gi.modelindex("models/monsters/gladiatr/gibs/rarm.md2");
 	gi.modelindex("models/monsters/gladiatr/gibs/thigh.md2");
 
-	// RAFAEL
-	if (strcmp(self->classname, "monster_gladb") == 0)
-	{
-		sound_gunb.assign("weapons/disrupt.wav");
-
-		self->health = 280 * st.health_multiplier;
-		self->mass = 350;
-
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 250;
-		self->s.skinnum = 2;
-	//	self->s.scale = 1.2;
-		self->style = 1;
-		self->s.effects = EF_TRACKER;
-
-		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
-	}
-	else if (strcmp(self->classname, "monster_gladc") == 0)
-	{
-		sound_gunc.assign("weapons/plasshot.wav");
-
-		self->health = 250 * st.health_multiplier;
-		self->mass = 350;
-
-		if (!st.was_key_specified("power_armor_type"))
-			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 100;
-		self->s.skinnum = 2;
-		self->style = 3;
-
-		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
-	}
-	else
-	{
-		// RAFAEL
-		sound_gun.assign("gladiator/railgun.wav");
-
-		self->health = 320 * st.health_multiplier;
-		self->mass = 400;
-		// RAFAEL
-
-		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");
-	}
-	// RAFAEL
-
+	// Basic monster properties
+	self->movetype = MOVETYPE_STEP;
+	self->solid = SOLID_BBOX;
 	self->gib_health = -175;
-
 	self->mins = { -32, -32, -24 };
 	self->maxs = { 32, 32, 42 };
 
+	// Type-specific configuration based on style
+	switch (self->style) {
+	case 1: // gladb
+		sound_gunb.assign("weapons/disrupt.wav");
+		self->health = 280 * st.health_multiplier;
+		self->mass = 350;
+		if (!st.was_key_specified("power_armor_type") &&
+			self->monsterinfo.power_armor_type != IT_ARMOR_COMBAT)
+		{
+			self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
+			self->monsterinfo.power_armor_power = 250;
+		}
+		self->s.skinnum = 2;
+		self->s.effects = EF_TRACKER;
+		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
+		break;
+
+	case 3: // gladc
+		sound_gunc.assign("weapons/plasshot.wav");
+		self->health = 250 * st.health_multiplier;
+		self->mass = 350;
+		if (!st.was_key_specified("power_armor_type")) {
+			self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
+			self->monsterinfo.power_armor_power = 100;
+		}
+		self->s.skinnum = 2;
+		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
+		break;
+
+	default: // normal gladiator
+		sound_gun.assign("gladiator/railgun.wav");
+		self->health = 320 * st.health_multiplier;
+		self->mass = 400;
+		if (!st.was_key_specified("power_armor_type")) {
+			self->monsterinfo.power_armor_type = IT_NULL;
+			self->monsterinfo.power_armor_power = 0;
+		}
+		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");
+		break;
+	}
+
+	// Monster AI/behavior functions
 	self->pain = gladiator_pain;
 	self->die = gladiator_die;
-
 	self->monsterinfo.stand = gladiator_stand;
 	self->monsterinfo.walk = gladiator_walk;
 	self->monsterinfo.run = gladiator_run;
@@ -571,34 +556,46 @@ void SP_monster_gladiator(edict_t* self)
 	self->monsterinfo.sight = gladiator_sight;
 	self->monsterinfo.idle = gladiator_idle;
 	self->monsterinfo.search = gladiator_search;
-	self->monsterinfo.blocked = gladiator_blocked; // PGM
+	self->monsterinfo.blocked = gladiator_blocked;
 	self->monsterinfo.setskin = gladiator_setskin;
 
+	// Horde mode specific
+	if (g_horde->integer && current_wave_level <= 18) {
+		if (frandom() < 0.23f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+	}
+
+	// Final setup
 	gi.linkentity(self);
 	M_SetAnimation(self, &gladiator_move_stand);
 	self->monsterinfo.scale = MODEL_SCALE;
-
 	walkmonster_start(self);
-
 	ApplyMonsterBonusFlags(self);
 }
 
-//
-// monster_gladb
-// RAFAEL
-//
 /*QUAKED monster_gladb (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
- */
+*/
 void SP_monster_gladb(edict_t* self)
 {
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+
+	self->style = 1;
+	// Forzar el tipo de armadura antes de llamar a SP_monster_gladiator
+	self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
+	self->monsterinfo.power_armor_power = 180;
 	SP_monster_gladiator(self);
 
-	ApplyMonsterBonusFlags(self);
+	// Asegurar que el tipo de armadura se mantenga después de SP_monster_gladiator
+	if (!st.was_key_specified("power_armor_type"))
+	{
+		self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
+		self->monsterinfo.power_armor_power = 180;
+	}
 }
 
 void SP_monster_gladc(edict_t* self)
 {
+	self->style = 3;
 	SP_monster_gladiator(self);
-
-	ApplyMonsterBonusFlags(self);
 }

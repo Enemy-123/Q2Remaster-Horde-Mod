@@ -411,8 +411,11 @@ void medic_restore_takedamage(edict_t* ent);
 
 void M_SetEffects(edict_t* ent)
 {
-	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES | EF_DUALFIRE | EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE | EF_ROCKET | EF_FIREBALL | EF_PLASMA | EF_TAGTRAIL | EF_BLUEHYPERBLASTER | EF_GIB | EF_FLAG2 | EF_TRACKER | EF_FLAG1);
+	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES);
 	ent->s.renderfx &= ~(RF_SHELL_RED | RF_SHELL_GREEN | RF_SHELL_BLUE | RF_SHELL_DOUBLE);
+
+	if (ent->health <= 0)
+		ent->s.effects &= ~(EF_DUALFIRE | EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE | EF_ROCKET | EF_FIREBALL | EF_PLASMA | EF_TAGTRAIL | EF_BLUEHYPERBLASTER | EF_GIB | EF_FLAG2 | EF_TRACKER | EF_FLAG1);
 
 	ent->s.sound = 0;
 	ent->s.loop_attenuation = 0;

@@ -2025,10 +2025,10 @@ void SP_worldspawn(edict_t* ent)
 		pm_config.physics_flags = (physics_flags_t)override_physics;
 	else
 	{
-		if (level.is_n64)
+		if (level.is_n64 && !g_horde->integer)
 			pm_config.physics_flags |= PHYSICS_N64_MOVEMENT;
 
-		if (level.is_psx)
+		if (level.is_psx && !g_horde->integer)
 			pm_config.physics_flags |= PHYSICS_PSX_MOVEMENT | PHYSICS_PSX_SCALE;
 
 		if (deathmatch->integer)

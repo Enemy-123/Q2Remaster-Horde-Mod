@@ -1399,7 +1399,7 @@ void soldier_jump_now(edict_t* self)
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
-	self->velocity += (forward * 90);
+	self->velocity += (forward * 120);
 	self->velocity += (up * 200);
 }
 

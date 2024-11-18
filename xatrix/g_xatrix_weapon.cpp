@@ -478,7 +478,8 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			continue;
 		if (target->health <= 0)
 			continue;
-		if (!visible(ent, target))
+		// Update visibility check to handle windows
+		if (!visible(ent, target, false))
 			continue;
 		vec = ent->s.origin - target->s.origin;
 		len = vec.length();
