@@ -3548,7 +3548,7 @@ model="models/items/keys/spinner/tris.md2"
 	*/
 		{
 			/* id */ IT_KEY_DATA_SPINNER,
-			/* classname */ "teleport_device",
+			/* classname */ "item_teleport_device",
 			/* pickup */ Pickup_Teleport,
 			/* use */ Use_TeleportSelf,
 			/* drop */ Drop_General,

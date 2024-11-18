@@ -590,7 +590,7 @@ constexpr struct weighted_item_t {
 	{ "item_sphere_vengeance", 23, -1, 0.06f, adjust_weight_powerup },
 	{ "item_sphere_hunter", 9, -1, 0.04f, adjust_weight_powerup },
 	{ "item_invisibility", 4, -1, 0.06f, adjust_weight_powerup },
-	{ "teleport_device", 4, -1, 0.06f, adjust_weight_powerup },
+	{ "item_teleport_device", 4, -1, 0.06f, adjust_weight_powerup },
 	{ "item_doppleganger", 5, -1, 0.038f, adjust_weight_powerup },
 	{ "item_sentrygun", 2, 8, 0.028f, adjust_weight_powerup },
 	{ "item_sentrygun", 9, 19, 0.062f, adjust_weight_powerup },
@@ -627,7 +627,7 @@ constexpr struct weighted_item_t {
 	{ "ammo_slugs", 22, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_disruptor", 24, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_rockets", 13, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_nuke", 15, -1, 0.01f, adjust_weight_ammo },
+	{ "ammo_nuke", 12, -1, 0.03f, adjust_weight_ammo },
 
 	{ "item_bandolier", 4, -1, 0.2f, adjust_weight_ammo },
 	{ "item_pack", 15, -1, 0.34f, adjust_weight_ammo },

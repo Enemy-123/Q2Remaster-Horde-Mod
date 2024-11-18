@@ -476,6 +476,17 @@ void SP_monster_gladiator(edict_t* self)
 		return;
 	}
 
+	if (g_horde->integer && current_wave_level <= 18)
+	{
+		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+
+		if (randomsearch < 0.23f)
+			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+		else
+			nullptr;
+	}
+
+
 	// Sound assignments
 	sound_pain1.assign("gladiator/pain.wav");
 	sound_pain2.assign("gladiator/gldpain2.wav");
