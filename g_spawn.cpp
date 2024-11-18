@@ -1482,40 +1482,38 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 	HMODULE hModule = NULL;
 
 	// Get the handle of the current module (DLL)
-	if (GetModuleHandleExA(
+	if (!GetModuleHandleExA(
 		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
 		(LPCSTR)&LoadEntityFile,
 		&hModule)) {
-		// Get the full path of the module
-		DWORD result = GetModuleFileNameA(hModule, modulePath, MAX_PATH);
-		if (result == 0 || result == MAX_PATH) {
-			gi.Com_PrintFmt("PRINT: Error obtaining module path.\n");
-			return false;
-		}
+		gi.Com_PrintFmt("Error obtaining module handle.\n");
+		return false;
 	}
-	else {
-		gi.Com_PrintFmt("PRINT: Error obtaining module handle.\n");
+
+	// Get the full path of the module
+	DWORD result = GetModuleFileNameA(hModule, modulePath, MAX_PATH);
+	if (result == 0 || result == MAX_PATH) {
+		gi.Com_PrintFmt("Error obtaining module path.\n");
 		return false;
 	}
 
 	// Extract the directory of the module
 	std::string path = modulePath;
 	size_t pos = path.find_last_of("\\/");
-	if (pos != std::string::npos) {
-		path = path.substr(0, pos);
-	}
-	else {
-		gi.Com_PrintFmt("PRINT: Could not determine module directory.\n");
+	if (pos == std::string::npos) {
+		gi.Com_PrintFmt("Could not determine module directory.\n");
 		return false;
 	}
 
-	// Construct the filename inside the 'maps' folder in the same directory
-	std::string filename = path + "\\maps\\" + mapname + ".ent";
-	outFilename = filename; // Pass back the filename
+	path = path.substr(0, pos);
 
-	FILE* f = fopen(filename.c_str(), "rb");
+	// Construct the filename inside the 'maps' folder
+	outFilename = G_Fmt("{}\\maps\\{}.ent", path, mapname);
+
+	// Open and read file
+	FILE* f = fopen(outFilename.c_str(), "rb");
 	if (!f) {
-		gi.Com_PrintFmt("PRINT: Failed to open entity file: {}\n", filename);
+		gi.Com_PrintFmt("Failed to open entity file: {}\n", outFilename);
 		return false;
 	}
 
@@ -1524,7 +1522,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 	fseek(f, 0, SEEK_SET);
 
 	if (length > MAX_ENTITY_FILE_SIZE) {
-		gi.Com_PrintFmt("PRINT: Entity file size exceeds maximum allowed: \"{}\"\n", filename);
+		gi.Com_PrintFmt("Entity file size exceeds maximum allowed: \"{}\"\n", outFilename);
 		fclose(f);
 		return false;
 	}
@@ -1534,7 +1532,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 	fclose(f);
 
 	if (length != read_length) {
-		gi.Com_PrintFmt("PRINT: Error reading entity file: \"{}\"\n", filename);
+		gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", outFilename);
 		return false;
 	}
 
