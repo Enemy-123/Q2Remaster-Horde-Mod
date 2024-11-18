@@ -1609,7 +1609,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
 
 	level.is_n64 = strncmp(level.mapname, "q64/", 4) == 0;
-	level.is_psx = strncmp(level.mapname, "psx/", 4) == 0 || strncmp(level.mapname, "psxjam1/", 4);
+	level.is_psx = strncmp(level.mapname, "psx", 3) == 0;
 
 	level.coop_scale_players = 0;
 	level.coop_health_scaling = clamp(g_coop_health_scaling->value, 0.f, 1.f);
