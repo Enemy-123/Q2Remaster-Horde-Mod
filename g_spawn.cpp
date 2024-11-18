@@ -1477,69 +1477,103 @@ constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 #include <windows.h>
 #include <string>
 
+#include <format>
+#include <filesystem>
+
 bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string& outFilename) {
-	char modulePath[MAX_PATH];
-	HMODULE hModule = NULL;
+	namespace fs = std::filesystem;
 
-	// Get the handle of the current module (DLL)
-	if (!GetModuleHandleExA(
-		GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-		(LPCSTR)&LoadEntityFile,
-		&hModule)) {
-		gi.Com_PrintFmt("Error obtaining module handle.\n");
+	try {
+		char modulePath[MAX_PATH];
+		HMODULE hModule = NULL;
+
+		// Get module handle with structured binding
+		if (auto [success, handle] = [&] {
+			HMODULE h = NULL;
+			bool s = GetModuleHandleExA(
+				GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+				(LPCSTR)&LoadEntityFile,
+				&h);
+				return std::make_tuple(s, h);
+			}(); !success) {
+			gi.Com_PrintFmt("{}", std::format("Error obtaining module handle.\n"));
+			return false;
+		}
+		else {
+			hModule = handle;
+		}
+
+		// Get module path using std::format for error message
+		if (DWORD result = GetModuleFileNameA(hModule, modulePath, MAX_PATH);
+			result == 0 || result == MAX_PATH) {
+			gi.Com_PrintFmt("{}", std::format("Error obtaining module path.\n"));
+			return false;
+		}
+
+		// Use std::filesystem for path manipulation
+		fs::path moduledir = fs::path(modulePath).parent_path();
+		fs::path entfile = moduledir / "maps" / std::format("{}.ent", mapname);
+		outFilename = entfile.string();
+
+		// RAII file handling
+		struct ScopedFile {
+			FILE* f;
+			ScopedFile(const char* path, const char* mode) : f(fopen(path, mode)) {}
+			~ScopedFile() { if (f) fclose(f); }
+			operator FILE* () { return f; }
+			FILE* get() { return f; }
+
+			// Delete copy operations
+			ScopedFile(const ScopedFile&) = delete;
+			ScopedFile& operator=(const ScopedFile&) = delete;
+		};
+
+		ScopedFile file(outFilename.c_str(), "rb");
+		if (!file.get()) {
+			gi.Com_PrintFmt("{}", std::format("Failed to open entity file: {}\n", outFilename));
+			return false;
+		}
+
+		// Use std::fseek and std::ftell for better portability
+		if (std::fseek(file.get(), 0, SEEK_END) != 0) {
+			gi.Com_PrintFmt("{}", std::format("Error seeking entity file: {}\n", outFilename));
+			return false;
+		}
+
+		const long length = std::ftell(file.get());
+		if (length == -1) {
+			gi.Com_PrintFmt("{}", std::format("Error getting entity file size: {}\n", outFilename));
+			return false;
+		}
+
+		if (length > MAX_ENTITY_FILE_SIZE) {
+			gi.Com_PrintFmt("{}", std::format("Entity file size exceeds maximum allowed: \"{}\"\n", outFilename));
+			return false;
+		}
+
+		if (std::fseek(file.get(), 0, SEEK_SET) != 0) {
+			gi.Com_PrintFmt("{}", std::format("Error seeking entity file: {}\n", outFilename));
+			return false;
+		}
+
+		// Reserve buffer space
+		buffer.resize(length + 1);
+
+		// Read file content
+		size_t read_length = std::fread(buffer.data(), 1, length, file.get());
+		if (length != read_length) {
+			gi.Com_PrintFmt("{}", std::format("Error reading entity file: \"{}\"\n", outFilename));
+			return false;
+		}
+
+		buffer[length] = '\0';
+		return true;
+	}
+	catch (const std::exception& e) {
+		gi.Com_PrintFmt("{}", std::format("Unexpected error loading entity file: {}\n", e.what()));
 		return false;
 	}
-
-	// Get the full path of the module
-	DWORD result = GetModuleFileNameA(hModule, modulePath, MAX_PATH);
-	if (result == 0 || result == MAX_PATH) {
-		gi.Com_PrintFmt("Error obtaining module path.\n");
-		return false;
-	}
-
-	// Extract the directory of the module
-	std::string path = modulePath;
-	size_t pos = path.find_last_of("\\/");
-	if (pos == std::string::npos) {
-		gi.Com_PrintFmt("Could not determine module directory.\n");
-		return false;
-	}
-
-	path = path.substr(0, pos);
-
-	// Construct the filename inside the 'maps' folder
-	outFilename = G_Fmt("{}\\maps\\{}.ent", path, mapname);
-
-	// Open and read file
-	FILE* f = fopen(outFilename.c_str(), "rb");
-	if (!f) {
-		gi.Com_PrintFmt("Failed to open entity file: {}\n", outFilename);
-		return false;
-	}
-
-	fseek(f, 0, SEEK_END);
-	const long length = ftell(f);
-	fseek(f, 0, SEEK_SET);
-
-	if (length > MAX_ENTITY_FILE_SIZE) {
-		gi.Com_PrintFmt("Entity file size exceeds maximum allowed: \"{}\"\n", outFilename);
-		fclose(f);
-		return false;
-	}
-
-	buffer.resize(length + 1);
-	size_t read_length = fread(buffer.data(), 1, length, f);
-	fclose(f);
-
-	if (length != read_length) {
-		gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", outFilename);
-		return false;
-	}
-
-	buffer[length] = '\0';
-	return true;
 }
-
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
 	level.is_spawning = true;
