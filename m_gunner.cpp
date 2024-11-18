@@ -393,11 +393,18 @@ void GunnerFire(edict_t* self)
 	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
 	start.z += offset[2];
 
-	if (current_wave_level <= 12) {
+	if (g_hardcoop->integer <= 3) {
+		// Modo hardcoop bajo: solo ionripper
+		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
+		monster_fire_ionripper(self, start, aim, 4, 800, flash_number, EF_IONRIPPER);
+	}
+	else if (current_wave_level <= 12) {
+		// Waves bajos: bullet
 		PredictAim(self, self->enemy, start, 0, true, -0.1f, &aim, nullptr);
 		monster_fire_bullet(self, start, aim, 6, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
 	}
-	if (current_wave_level >= 13 || g_hardcoop->integer <= 3) {
+	else {
+		// Waves altos: ionripper
 		PredictAim(self, self->enemy, start, 800, true, 0.1f, &aim, nullptr);
 		monster_fire_ionripper(self, start, aim, 4, 800, flash_number, EF_IONRIPPER);
 	}
