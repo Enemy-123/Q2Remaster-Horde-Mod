@@ -3444,7 +3444,7 @@ struct RewardInfo {
 static const std::unordered_map<RewardType, RewardInfo> REWARD_TABLE = {
 	{RewardType::BANDOLIER, {IT_ITEM_BANDOLIER, 50}},    // Most common
 	{RewardType::AMMO_TESLA, {IT_AMMO_TESLA, 30}},         // Medium rarity
-	{RewardType::SENTRY_GUN, {IT_ITEM_DOPPELGANGER, 20}} // Least common
+	{RewardType::SENTRY_GUN, {IT_ITEM_SENTRYGUN, 20}} // Least common
 };
 
 // Function to handle reward selection and distribution
