@@ -3075,6 +3075,9 @@ struct gclient_t
 	gtime_t nuke_time;
 	gtime_t tracker_pain_time;
 
+	bool ir_tracking_active; //horde tracking
+	int ir_frame_count;
+
 	edict_t* owned_sphere; // this points to the player's sphere
 
 	// ROGUE

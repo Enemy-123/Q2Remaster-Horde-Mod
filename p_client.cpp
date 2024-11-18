@@ -3646,6 +3646,39 @@ void UpdateClientHealth(edict_t* ent, gclient_t* client)
 	}
 }
 
+void UpdateIRTracking(edict_t* ent, gclient_t* client)
+{
+	if (!developer->integer)
+		return;
+	// Si no está activo el IR o el cliente no es válido, salir
+	if (!client || !client->ir_tracking_active || client->ir_time <= level.time)
+	{
+		if (client)
+			client->ir_tracking_active = false;
+		return;
+	}
+
+	// Solo buscar monstruos cada X frames para mejorar rendimiento
+	client->ir_frame_count = (client->ir_frame_count + 1) % 3;
+	if (client->ir_frame_count != 0)
+		return;
+
+	static uint32_t ir_dupe_key = 0;  // Clave única para el IR
+
+	// Usar el iterador de monstruos activos
+	for (const auto monster : active_monsters())
+	{
+		// Solo dibujar si es un monstruo "contable"
+		if (!(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+		{
+			gi.unicast(ent, false, ir_dupe_key);  // Primero indicamos que el mensaje es solo para este cliente
+			gi.Draw_Bounds(monster->absmin, monster->absmax, rgba_red, 0.1f, false);
+		}
+	}
+
+	ir_dupe_key++;  // Incrementar la clave para el siguiente frame
+}
+
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
@@ -3870,6 +3903,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		//horde updating client health
 		UpdateClientHealth(ent, client);
+		UpdateIRTracking(ent, client);
 
 
 		if (ent->movetype != MOVETYPE_NOCLIP)

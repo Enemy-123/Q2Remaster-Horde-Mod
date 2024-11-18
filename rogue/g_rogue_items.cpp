@@ -34,9 +34,8 @@ bool Pickup_Nuke(edict_t* ent, edict_t* other)
 void Use_IR(edict_t* ent, gitem_t* item)
 {
 	ent->client->pers.inventory[item->id]--;
-
 	ent->client->ir_time = max(level.time, ent->client->ir_time) + 25_sec;
-
+	ent->client->ir_tracking_active = true;  // Activar el tracking
 	gi.sound(ent, CHAN_ITEM, gi.soundindex("misc/ir_start.wav"), 1, ATTN_NORM, 0);
 }
 
