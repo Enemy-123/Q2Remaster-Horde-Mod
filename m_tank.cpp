@@ -627,21 +627,24 @@ void TankRocket(edict_t* self)
 
 void TankMachineGun(edict_t* self)
 {
-	vec3_t dir;
-	vec3_t vec;
-	vec3_t start;
-	vec3_t forward, right;
-	monster_muzzleflash_id_t flash_number;
-
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
+	// Aumenta velocidad de giro
+	self->yaw_speed = 45; // Valor original era más bajo
+
+	vec3_t dir = self->enemy->s.origin - self->s.origin;
+	self->ideal_yaw = vectoyaw(dir);
+	M_ChangeYaw(self);
+
+	// Resto del código igual...
+	monster_muzzleflash_id_t flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
+	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+	vec3_t start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
 	if (self->enemy) {
-		vec = self->enemy->s.origin;
+		vec3_t vec = self->enemy->s.origin;
 		vec[2] += self->enemy->viewheight;
 		vec -= start;
 		vec = vectoangles(vec);
@@ -660,12 +663,10 @@ void TankMachineGun(edict_t* self)
 	AngleVectors(dir, forward, nullptr, nullptr);
 
 	if (!strcmp(self->classname, "monster_tank_commander") || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING)) {
-		// Primer flechette con dirección base
 		monster_fire_flechette(self, start, forward, 20,
 			self->monsterinfo.IS_BOSS ? 1150 : 700,
 			flash_number);
 
-		// Segundo flechette con una ligera desviación hacia la derecha
 		vec3_t right_offset;
 		AngleVectors(vectoangles(forward), nullptr, &right_offset, nullptr);
 		vec3_t forward_right = forward + (right_offset * 0.05f);
