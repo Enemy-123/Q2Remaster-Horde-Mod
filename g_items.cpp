@@ -3540,7 +3540,6 @@ always owned, never in the world
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
 			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
-			/* precaches */ "world/scan1.wav"
 		},
 
 

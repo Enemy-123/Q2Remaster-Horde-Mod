@@ -421,13 +421,12 @@ void TankGrenades(edict_t* self)
 
 void TankBlaster(edict_t* self)
 {
-	vec3_t					 forward, right;
-	vec3_t					 start;
-	vec3_t					 dir;
+	vec3_t forward, right;
+	vec3_t dir;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
 	const bool blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
@@ -439,39 +438,45 @@ void TankBlaster(edict_t* self)
 		flash_number = MZ2_TANK_BLASTER_3;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
-	// pmm - blindfire support
-	vec3_t target;
+	const vec3_t start = G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right);
 
-	// PMM
-	if (blindfire)
-	{
-		target = self->monsterinfo.blind_fire_target;
+	vec3_t bullet_offset;
+	if (self->s.frame == FRAME_attak110) {
+		bullet_offset = vec3_t{ 28.7f, -18.5f, 28.7f };
+	}
+	else if (self->s.frame == FRAME_attak113) {
+		bullet_offset = vec3_t{ 24.6f, -21.5f, 30.1f };
+	}
+	else { // FRAME_attak116
+		bullet_offset = vec3_t{ 19.8f, -23.9f, 32.1f };
+	}
+	const vec3_t bullet_start = G_ProjectSource(self->s.origin, bullet_offset, forward, right);
 
+	if (blindfire) {
+		vec3_t target = self->monsterinfo.blind_fire_target;
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
 	else
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
-	// pmm
 
-	if (!strcmp(self->classname, "monster_tank_64") || g_hardcoop->integer || self->monsterinfo.IS_BOSS) {
+	const bool isBoss = !strcmp(self->classname, "monster_tank_64") || g_hardcoop->integer || self->monsterinfo.IS_BOSS;
 
-		PredictAim(self, self->enemy, start, 0, false, 0.075f, &dir, nullptr);
-
-		const vec3_t end = start + (dir * 8192);
-		const trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
+	if (isBoss) {
+		PredictAim(self, self->enemy, bullet_start, 0, false, 0.075f, &dir, nullptr);
+		const vec3_t end = bullet_start + (dir * 8192);
+		const trace_t tr = gi.traceline(bullet_start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
 
 		gi.WriteByte(svc_temp_entity);
 		gi.WriteByte(TE_LIGHTNING);
-		gi.WriteEntity(self);	// source entity
-		gi.WriteEntity(world); // destination entity
-		gi.WritePosition(start);
+		gi.WriteEntity(self);
+		gi.WriteEntity(world);
+		gi.WritePosition(bullet_start);
 		gi.WritePosition(tr.endpos);
-		gi.multicast(start, MULTICAST_PVS, false);
+		gi.multicast(bullet_start, MULTICAST_PVS, false);
 
-		fire_bullet(self, start, dir, irandom(8, 12), 15, 0, 0, MOD_TESLA);
+		fire_bullet(self, bullet_start, dir, irandom(8, 12), 15, 0, 0, MOD_TESLA);
 	}
 	else
 		monster_fire_blaster2(self, start, dir, 30, 950, flash_number, EF_BLASTER);
@@ -603,7 +608,7 @@ void TankRocket(edict_t* self)
 			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
 				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, (self->classname, "monster_tank_commander") ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+				monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
 		}
 	}
 	else
@@ -615,7 +620,7 @@ void TankRocket(edict_t* self)
 			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
 				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
 			else
-				monster_fire_rocket(self, start, dir, 50, (self->classname, "monster_tank_commander") ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
+				monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
 		}
 	}
 }
@@ -1295,10 +1300,11 @@ void SP_monster_tank(edict_t* self)
 	// [Paril-KEX] N64 tank commander is a chonky boy
 	if (!strcmp(self->classname, "monster_tank_64"))
 	{
+		self->accel = 0.075f;
 		if (g_horde->integer) {
 			if (!self->s.scale)
 				self->s.scale = 1.25f;
-			self->accel = 0.25f;
+
 			self->health = 1750 + (1.005 * current_wave_level);
 			if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
 				self->gib_health = -999777;
