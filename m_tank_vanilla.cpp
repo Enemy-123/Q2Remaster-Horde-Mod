@@ -838,11 +838,6 @@ constexpr const char* tank_vanilla_default_reinforcements =
 "monster_soldier 2;"
 "monster_gunner 1;";
 
-constexpr const char* tank_vanilla_hard_reinforcements =
-"monster_soldier_ss 3;"
-"monster_soldier_ss 3;"
-"monster_soldier_ss 3;";
-
 // Lista de posiciones de refuerzo
 constexpr int32_t TANK_VANILLA_MAX_REINFORCEMENTS = 5;
 
@@ -854,13 +849,10 @@ constexpr std::array<vec3_t, TANK_VANILLA_MAX_REINFORCEMENTS> tank_vanilla_reinf
 	vec3_t { 0, -80, 0 }
 };
 
-void Monster_MoveSpawn(edict_t* self)
-{
-	// Validación inicial
+void Monster_MoveSpawn(edict_t* self) {
 	if (!self || self->health <= 0 || self->deadflag)
 		return;
 
-	// Inicializar slots si no están establecidos
 	if (self->monsterinfo.monster_slots <= 0)
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
 
@@ -868,108 +860,99 @@ void Monster_MoveSpawn(edict_t* self)
 	if (available_slots <= 0)
 		return;
 
-	// Constantes
-	constexpr int NUM_MONSTERS_MIN = 4;
-	constexpr int NUM_MONSTERS_MAX = 6;
-	constexpr float SPAWN_RADIUS_MIN = 100.0f;
-	constexpr float SPAWN_RADIUS_MAX = 175.0f;
-	constexpr int MAX_SPAWN_ATTEMPTS = 10;
-	constexpr float SPAWN_HEIGHT_OFFSET = 8.0f;
-	constexpr vec3_t MONSTER_MINS = { -16.0f, -16.0f, -24.0f };
-	constexpr vec3_t MONSTER_MAXS = { 16.0f, 16.0f, 32.0f };
+	constexpr int MIN_MONSTERS = 5;
+	constexpr int MAX_MONSTERS = 6;
+	constexpr float RADIUS_MIN = 100.0f;
+	constexpr float RADIUS_MAX = 175.0f;
+	constexpr int MAX_ATTEMPTS = 10;
+	constexpr float HEIGHT_OFFSET = 8.0f;
+	constexpr vec3_t MINS = { -16.0f, -16.0f, -24.0f };
+	constexpr vec3_t MAXS = { 16.0f, 16.0f, 32.0f };
 
-	// Determinar número de monstruos a spawnear
-	const int num_monsters = std::min({
-		NUM_MONSTERS_MIN + (rand() % (NUM_MONSTERS_MAX - NUM_MONSTERS_MIN + 1)),
+	// Print debug info
+	gi.Com_PrintFmt("Available slots: {}\n", available_slots);
+	gi.Com_PrintFmt("Num reinforcements: {}\n", self->monsterinfo.reinforcements.num_reinforcements);
+
+	int num_monsters = MIN_MONSTERS;
+	if (MAX_MONSTERS > MIN_MONSTERS) {
+		num_monsters += irandom(MAX_MONSTERS - MIN_MONSTERS + 1);
+	}
+
+	// Ensure we don't exceed our limits
+	num_monsters = std::min({
+		num_monsters,
 		available_slots,
 		static_cast<int>(self->monsterinfo.reinforcements.num_reinforcements)
 		});
 
-	for (int i = 0; i < num_monsters; i++)
-	{
-		vec3_t spawn_origin;
-		bool found_spot = false;
-		float spawn_angle = 0.0f;
+	gi.Com_PrintFmt("Will spawn {} monsters\n", num_monsters);
 
-		// Buscar punto de spawn válido
-		for (int attempts = 0; attempts < MAX_SPAWN_ATTEMPTS; attempts++)
-		{
-			spawn_origin = self->s.origin;
-			spawn_angle = frandom() * 2.0f * PIf;
 
-			float radius = SPAWN_RADIUS_MIN + frandom() * (SPAWN_RADIUS_MAX - SPAWN_RADIUS_MIN);
+	auto find_spawn_position = [&](vec3_t& out_origin, vec3_t& out_angles) -> bool {
+		for (int attempts = 0; attempts < MAX_ATTEMPTS; attempts++) {
+			const float spawn_angle = frandom(2.0f * PIf);
+			const float radius = frandom(RADIUS_MIN, RADIUS_MAX);
+
 			vec3_t offset{
 				cosf(spawn_angle) * radius,
 				sinf(spawn_angle) * radius,
-				SPAWN_HEIGHT_OFFSET
+				HEIGHT_OFFSET
 			};
 
-			spawn_origin += offset;
+			out_origin = self->s.origin + offset;
+			out_angles = self->s.angles;
+			out_angles[YAW] = spawn_angle * (180.0f / PIf);
 
-			const trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
-			if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, MONSTER_MINS, MONSTER_MAXS))
-			{
-				found_spot = true;
-				break;
-			}
+			const trace_t trace = gi.traceline(self->s.origin, out_origin, self, MASK_SOLID);
+			if (trace.fraction == 1.0f && CheckSpawnPoint(out_origin, MINS, MAXS))
+				return true;
 		}
+		return false;
+		};
 
-		if (!found_spot)
+	for (int i = 0; i < num_monsters && available_slots > 0; i++) {
+		vec3_t spawn_origin, spawn_angles;
+		if (!find_spawn_position(spawn_origin, spawn_angles))
 			continue;
 
-		// Configurar ángulos de spawn
-		vec3_t spawn_angles = self->s.angles;
-		spawn_angles[YAW] = spawn_angle * (180.0f / PIf);
-
-		// Crear el monstruo con spawn_temp_t::empty
 		reinforcement_t& reinf = self->monsterinfo.reinforcements.reinforcements[i];
 		edict_t* monster = G_Spawn();
 		if (!monster)
 			continue;
 
-		// Configurar propiedades básicas
 		monster->classname = reinf.classname;
 		monster->s.origin = spawn_origin;
 		monster->s.angles = spawn_angles;
-		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
+		monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
+		monster->monsterinfo.aiflags = AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
 		monster->monsterinfo.last_sentrygun_target_time = 0_sec;
 		monster->monsterinfo.commander = self;
+		monster->monsterinfo.slots_from_commander = reinf.strength;
 		monster->enemy = self->enemy;
 		monster->owner = self;
 
-		// Spawn del monstruo usando spawn_temp_t::empty
 		ED_CallSpawn(monster, spawn_temp_t::empty);
-
-		if (!monster->inuse)
-		{
+		if (!monster->inuse) {
 			G_FreeEdict(monster);
 			continue;
 		}
 
-		// Configuraciones post-spawn
 		if (g_horde->integer)
 			monster->item = brandom() ? G_HordePickItem() : nullptr;
 
 		ApplyMonsterBonusFlags(monster);
 
-		// Actualizar contadores
-		self->monsterinfo.monster_used++;
-		available_slots--;
+		// SpawnGrow effect before updating counters
+		float size = (monster->maxs - monster->mins).length() * 0.5f;
+		SpawnGrow_Spawn(spawn_origin, size * 2.0f, size * 0.5f);
 
-		// Efectos visuales
-		const float magnitude = monster->s.origin.length();
-		if (magnitude > 0.0f)
-		{
-			const float start_size = magnitude * 0.055f;
-			const float end_size = magnitude * 0.005f;
-			SpawnGrow_Spawn(monster->s.origin, start_size, end_size);
-		}
+		self->monsterinfo.monster_used += reinf.strength;
+		available_slots -= reinf.strength;
 
-		// Efecto de sonido
 		gi.sound(self, CHAN_BODY, sound_spawn_commander, 1, ATTN_NONE, 0);
 	}
 }
+
 void tank_vanilla_spawn_finished(edict_t* self)
 {
 	self->monsterinfo.spawning_in_progress = false;
@@ -977,32 +960,28 @@ void tank_vanilla_spawn_finished(edict_t* self)
 }
 
 
-mframe_t tank_frames_spawn[] =
-{
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, tank_vanillaStrike},  // FRAME_attak225 - Añadir footstep aquí
-	{ai_charge, 0, Monster_MoveSpawn},  // FRAME_attak226 - Engendrar monstruo aquí
-	{ai_charge, 0, Monster_MoveSpawn},
-	{ai_charge, -2, Monster_MoveSpawn}, // FRAME_attak229
-	{ai_charge, -2, Monster_MoveSpawn},  // FRAME_attak229
-	{ai_charge, -2, Monster_MoveSpawn} ,  // FRAME_attak229
-	{ai_charge, 0, nullptr },
-	{ai_charge, -2, Monster_MoveSpawn},
-	{ai_charge, 0, nullptr},
-	{ai_charge, -2, Monster_MoveSpawn},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr}
+mframe_t tank_frames_spawn[] = {
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge},
+	{ai_charge, 0, tank_vanillaStrike},  // Strike at start
+	{ai_charge},                         // Pause
+	{ai_charge},                         // Pause
+	{ai_charge, 0, Monster_MoveSpawn},   // First spawn
+	{ai_charge},                         // Pause
+	{ai_charge},                         // Pause
+	{ai_charge, 0, Monster_MoveSpawn},   // Second spawn
+	{ai_charge},                         // Pause
+	{ai_charge},                         // Pause 
+	{ai_charge, 0, Monster_MoveSpawn},   // Third spawn
+	{ai_charge},                         // Pause
+	{ai_charge},                         // Pause
+	{ai_charge, 0, Monster_MoveSpawn},   // Fourth spawn
+	{ai_charge}                          // End sequence
 };
-// Actualiza la definición de tank_move_spawn para usar la nueva función
 MMOVE_T(tank_move_spawn) = { FRAME_attak220, FRAME_attak238, tank_frames_spawn, tank_vanilla_spawn_finished };
-
-
 
 
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
@@ -1268,6 +1247,13 @@ model="models/monsters/tank_vanilla/tris.md2"
 */
 /*QUAKED monster_tank_spawner_commander (1 .5 0) (-32 -32 -16) (32 32 72) Ambush Trigger_Spawn Sight Guardian HeatSeeking
  */
+constexpr const char* tank_vanilla_hard_reinforcements =
+"monster_soldier_ss 1;"
+"monster_soldier_ss 1;"
+"monster_soldier_ss 1;"
+"monster_soldier_ss 1;"
+"monster_soldier_ss 1;"
+"monster_soldier_ss 1;";  // 6 entries for 6 potential spawns
 
 void SP_monster_tank_spawner(edict_t* self)
 {
@@ -1292,12 +1278,11 @@ void SP_monster_tank_spawner(edict_t* self)
 		self->monsterinfo.monster_slots = MONSTER_MAX_SLOTS;
 	self->monsterinfo.monster_used = 0;
 
-	// Configurar refuerzos
-	const char* reinforcements = tank_vanilla_default_reinforcements;
-	if (skill->integer >= 2)
-		reinforcements = "monster_soldier_ss 3"; // Puedes ajustar según la dificultad
 
+	// Single reinforcements setup
+	const char* reinforcements = tank_vanilla_hard_reinforcements;
 	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
+
 
 	// Asignar modelo y dimensiones
 	self->s.modelindex = gi.modelindex("models/monsters/tank/tris.md2");
@@ -1321,7 +1306,7 @@ void SP_monster_tank_spawner(edict_t* self)
 	sound_windup.assign("tank/tnkatck4.wav");
 	sound_strike.assign("tank/tnkatck5.wav");
 	sound_sight.assign("tank/sight1.wav");
-	sound_spawn_commander.assign("mediccommander1.wav"); // Asignar el nuevo sonido
+	sound_spawn_commander.assign("medic_commander/monsterspawn1.wav"); // Asignar el nuevo sonido
 
 	gi.soundindex("tank/tnkatck1.wav");
 	gi.soundindex("tank/tnkatk2a.wav");
