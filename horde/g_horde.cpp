@@ -53,11 +53,11 @@ gtime_t SPAWN_POINT_COOLDOWN = 2.2_sec; //spawns Cooldown
 // Añadir cerca de las otras constexpr al inicio del archivo
 constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 	if (isSmallMap)
-		return 0.5_sec;  // Mapas pequeños necesitan más cooldown
+		return 0.3_sec;
 	else if (isBigMap)
-		return 2.5_sec;  // Mapas grandes tienen menos cooldown
+		return 1.8_sec;
 	else
-		return 1.5_sec;  // Mapas medianos tienen cooldown intermedio
+		return 1.0_sec;
 }
 
 // Nueva función para calcular el factor de escala del cooldown basado en el nivel
@@ -68,7 +68,7 @@ static float CalculateCooldownScale(int32_t level, const MapSize& mapSize) {
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
 	// Usar constantes para mejor mantenimiento y rendimiento
-	constexpr float LEVEL_SCALE_FACTOR = 0.04f;
+	constexpr float LEVEL_SCALE_FACTOR = 0.02f;
 	constexpr float PLAYER_REDUCTION_FACTOR = 0.08f;
 	constexpr float MAX_PLAYER_REDUCTION = 0.45f;
 
@@ -3354,10 +3354,10 @@ static void SetMonsterArmor(edict_t* monster) {
 
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
 	g_horde_local.monster_spawn_time = level.time + random_time(
-		mapSize.isSmallMap ? 1.2_sec :
-		mapSize.isBigMap ? 0.9_sec : 1.7_sec,
-		mapSize.isSmallMap ? 1.5_sec :
-		mapSize.isBigMap ? 1.1_sec : 1.8_sec
+		mapSize.isSmallMap ? 0.6_sec :
+		mapSize.isBigMap ? 0.4_sec : 0.8_sec,
+		mapSize.isSmallMap ? 0.8_sec :
+		mapSize.isBigMap ? 0.6_sec : 1.0_sec
 	);
 }
 #include <unordered_map>
