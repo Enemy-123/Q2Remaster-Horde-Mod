@@ -20,6 +20,7 @@ static cached_soundindex sound_idle;
 static cached_soundindex sound_pain1;
 static cached_soundindex sound_pain2;
 static cached_soundindex sound_sight;
+static cached_soundindex sound_tracker;
 
 MONSTERINFO_SIGHT(floater_tracker_sight) (edict_t* self, edict_t* other) -> void
 {
@@ -40,27 +41,33 @@ void floater_tracker_fire_blaster(edict_t* self)
 {
 	vec3_t start;
 	vec3_t dir;
-	vec3_t forward, right;
-	float  len;
-	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = G_ProjectSource(self->s.origin, monster_flash_offset[MZ2_FLOAT_BLASTER_1], forward, right);
+	float len;
+
+	// Definimos el offset personalizado
+	constexpr vec3_t custom_offset = { 32.5f, -0.8f, 10.f };
+
+	// Obtenemos los vectores usando la estructura
+	angle_vectors_t vectors = AngleVectors(self->s.angles);
+
+	// Usamos G_ProjectSourceWithOffset con vec3_origin
+	start = G_ProjectSourceWithOffset(self->s.origin, custom_offset, vectors.forward, vectors.right, vectors.up, vec3_origin);
+
 	dir = self->pos1 - self->enemy->s.origin;
 	len = dir.length();
+
 	if (len < 30)
 	{
 		// calc direction to where we targeted
 		dir = self->pos1 - start;
 		dir.normalize();
-
-		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_FLOAT_BLASTER_1);
+		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_UNUSED_0);
 	}
 	else
 	{
 		PredictAim(self, self->enemy, start, 1200, true, 0, &dir, nullptr);
-		monster_fire_tracker(self, start, dir, 13, 860, nullptr, MZ2_FLOAT_BLASTER_1);
+		monster_fire_tracker(self, start, dir, 13, 860, nullptr, MZ2_UNUSED_0);
 	}
 }
-
 mframe_t floater_tracker_frames_stand1[] = {
 	{ ai_stand },
 	{ ai_stand },
@@ -576,6 +583,8 @@ MONSTERINFO_ATTACK(floater_tracker_attack) (edict_t* self) -> void
 		self->monsterinfo.attack_state = AS_SLIDING;
 		M_SetAnimation(self, &floater_tracker_move_attack1a);
 	}
+
+	gi.sound(self, CHAN_WEAPON, sound_tracker, 1, ATTN_NORM, 0);
 }
 
 MONSTERINFO_MELEE(floater_tracker_melee) (edict_t* self) -> void
@@ -695,6 +704,8 @@ void SP_monster_floater_tracker(edict_t* self)
 	sound_pain1.assign("floater/fltpain1.wav");
 	sound_pain2.assign("floater/fltpain2.wav");
 	sound_sight.assign("floater/fltsght1.wav");
+	sound_sight.assign("floater/fltsght1.wav");
+	sound_tracker.assign("weapons/disrupt.wav");
 
 	gi.soundindex("floater/fltatck1.wav");
 
