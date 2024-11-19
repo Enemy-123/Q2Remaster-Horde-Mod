@@ -576,9 +576,9 @@ static constexpr MonsterReplacement insane_replacements[] = {
 	{"monster_floater", {"monster_floater_tracker", "monster_daedalus_bomber"}, 2},
 
 	// Late game elite
-	{"monster_spider", {"monster_gm_arachnid", "monster_psxarachnid"}, 2},
-	{"monster_arachnid2", {"monster_gm_arachnid", "monster_psxarachnid"}, 2},
-	{"monster_arachnid", {"monster_tank_commander", "monster_psxarachnid"}, 2},
+	{"monster_spider", {"monster_gm_arachnid", "monster_arachnid2"}, 2},
+	{"monster_arachnid2", {"monster_gm_arachnid", "monster_arachnid2", "monster_arachnid"}, 3},
+	{"monster_arachnid", {"monster_tank_commander", "monster_psxarachnid", "monster_arachnid", "monster_gm_arachnid"}, 4},
 	{"monster_shambler", {"monster_tank_64", "monster_boss2_64"}, 2},
 
 	// Special enemies
