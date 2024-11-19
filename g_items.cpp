@@ -3297,11 +3297,11 @@ always owned, never in the world
 			/* use */ Use_SentryGun,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
-			/* pickup_sound */ "items/pkup.wav",
+			/* pickup_sound */ "gunner/gunidle1.wav",
 			/* world_model */ "models/monsters/turret/tris.md2",
 			/* world_model_flags */ EF_ROTATE,
 			/* view_model */ nullptr,
-			/* icon */ "i_airstrike",
+			/* icon */ "i_tagtoken",
 			/* use_name */  "Sentry Gun",
 			/* pickup_name */  "Sentry Gun\n",
 			/* pickup_name_definite */ "Sentry Gun\n",
@@ -3424,29 +3424,29 @@ always owned, never in the world
 	*/
 		{
 			/* id */ IT_KEY_EXPLOSIVE_CHARGES,
-			/* classname */ "key_explosive_charges",
-			/* pickup */ Pickup_Key,
-			/* use */ nullptr,
-			/* drop */ Drop_General,
-			/* weaponthink */ nullptr,
-			/* pickup_sound */ "items/pkup.wav",
-			/* world_model */ "models/items/n64/charge/tris.md2",
-			/* world_model_flags */ EF_ROTATE | EF_BOB,
-			/* view_model */ nullptr,
-			/* icon */ "n64/i_charges",
-			/* use_name */  "Explosive Charges",
-			/* pickup_name */  "$item_explosive_charges",
-			/* pickup_name_definite */ "$item_explosive_charges_def",
-			/* quantity */ 0,
-			/* ammo */ IT_NULL,
-			/* chain */ IT_NULL,
-			/* flags */ IF_STAY_COOP | IF_KEY
+				/* classname */ "key_explosive_charges",
+				/* pickup */ Pickup_Key,
+				/* use */ nullptr,
+				/* drop */ Drop_General,
+				/* weaponthink */ nullptr,
+				/* pickup_sound */ "items/pkup.wav",
+				/* world_model */ "models/items/n64/charge/tris.md2",
+				/* world_model_flags */ EF_ROTATE | EF_BOB,
+				/* view_model */ nullptr,
+				/* icon */ "n64/i_charges",
+				/* use_name */  "Explosive Charges",
+				/* pickup_name */  "$item_explosive_charges",
+				/* pickup_name_definite */ "$item_explosive_charges_def",
+				/* quantity */ 0,
+				/* ammo */ IT_NULL,
+				/* chain */ IT_NULL,
+				/* flags */ IF_STAY_COOP | IF_KEY
 		},
 
-	/*QUAKED key_yellow_key (0 .5 .8) (-16 -16 -16) (16 16 16)
-	normal door key - yellow
-	[Sam-KEX] New key type for Q2 N64
-	*/
+			/*QUAKED key_yellow_key (0 .5 .8) (-16 -16 -16) (16 16 16)
+			normal door key - yellow
+			[Sam-KEX] New key type for Q2 N64
+			*/
 		{
 			/* id */ IT_KEY_YELLOW,
 			/* classname */ "key_yellow_key",
@@ -3468,9 +3468,9 @@ always owned, never in the world
 			/* flags */ IF_STAY_COOP | IF_KEY
 		},
 
-	/*QUAKED key_power_core (0 .5 .8) (-16 -16 -16) (16 16 16)
-	key for N64
-	*/
+			/*QUAKED key_power_core (0 .5 .8) (-16 -16 -16) (16 16 16)
+			key for N64
+			*/
 		{
 			/* id */ IT_KEY_POWER_CORE,
 			/* classname */ "key_power_core",
@@ -3492,9 +3492,9 @@ always owned, never in the world
 			/* flags */ IF_STAY_COOP | IF_KEY
 		},
 
-	/*QUAKED key_pyramid (0 .5 .8) (-16 -16 -16) (16 16 16)
-	key for the entrance of jail3
-	*/
+			/*QUAKED key_pyramid (0 .5 .8) (-16 -16 -16) (16 16 16)
+			key for the entrance of jail3
+			*/
 		{
 			/* id */ IT_KEY_PYRAMID,
 			/* classname */ "key_pyramid",
@@ -3516,41 +3516,43 @@ always owned, never in the world
 			/* flags */ IF_STAY_COOP | IF_KEY
 		},
 
-		/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
-key for the city computer
-model="models/items/keys/spinner/tris.md2"
-*/
-	{
-		/* id */ IT_ITEM_TELEPORT,
-		/* classname */ "key_data_spinner",
-		/* pickup */ Pickup_Key,
-		/* use */ nullptr,
-		/* drop */ Drop_General,
-		/* weaponthink */ nullptr,
-		/* pickup_sound */ "items/pkup.wav",
-		/* world_model */ "models/items/keys/spinner/tris.md2",
-		/* world_model_flags */ EF_ROTATE | EF_BOB,
-		/* view_model */ nullptr,
-		/* icon */ "k_dataspin",
-		/* use_name */  "Data Spinner",
-		/* pickup_name */  "$item_data_spinner",
-		/* pickup_name_definite */ "$item_data_spinner_def",
-		/* quantity */ 0,
-		/* ammo */ IT_NULL,
-		/* chain */ IT_NULL,
-		/* flags */ IF_STAY_COOP
-	},
 
-
-	/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
-	key for the city computer
-	model="models/items/keys/spinner/tris.md2"
-	*/
+			/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
+			key for the city computer
+			model="models/items/keys/spinner/tris.md2"
+			*/
 		{
-			/* id */ IT_KEY_DATA_SPINNER,
+			/* id */ IT_ITEM_TELEPORT,
 			/* classname */ "item_teleport_device",
 			/* pickup */ Pickup_Teleport,
 			/* use */ Use_TeleportSelf,
+			/* drop */ Drop_General,
+			/* weaponthink */ nullptr,
+			/* pickup_sound */ "world/scan1.wav",
+			/* world_model */ "models/items/n64/yellow_key/tris.md2",
+			/* world_model_flags */ EF_ROTATE | EF_BOB,
+			/* view_model */ nullptr,
+			/* icon */ "n64/i_yellow_key",
+			/* use_name */  "Teleport Device",
+			/* pickup_name */  "Teleport Device\n",
+			/* pickup_name_definite */ "Teleport Device\n",
+			/* quantity */ 90,
+			/* ammo */ IT_NULL,
+			/* chain */ IT_NULL,
+			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
+			/* precaches */ "world/scan1.wav"
+		},
+
+
+		/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
+		key for the city computer
+		model="models/items/keys/spinner/tris.md2"
+		*/
+		{
+			/* id */ IT_KEY_DATA_SPINNER,
+			/* classname */ "key_data_spinner",
+			/* pickup */ Pickup_Key,
+			/* use */ nullptr,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
@@ -3558,13 +3560,14 @@ model="models/items/keys/spinner/tris.md2"
 			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
 			/* icon */ "k_dataspin",
-			/* use_name */  "Teleport Device",
-			/* pickup_name */  "Teleport Device",
+			/* use_name */  "Data Spinner",
+			/* pickup_name */  "$item_data_spinner",
 			/* pickup_name_definite */ "$item_data_spinner_def",
 			/* quantity */ 0,
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
-			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL, },
+			/* flags */ IF_STAY_COOP
+		},
 
 
 	/*QUAKED key_pass (0 .5 .8) (-16 -16 -16) (16 16 16)
