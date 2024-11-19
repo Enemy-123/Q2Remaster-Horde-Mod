@@ -3121,17 +3121,17 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	static edict_t* available_spawns[MAX_SPAWN_POINTS];
 	size_t spawn_count = 0;
 
-	// Recolección optimizada de spawn points
+	// Recolección optimizada de spawn points, excluyendo style 1
 	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
 		edict_t* e = &g_edicts[i];
 		if (!e->inuse || !e->classname ||
-			strcmp(e->classname, "info_player_deathmatch") != 0)
+			strcmp(e->classname, "info_player_deathmatch") != 0 ||
+			e->style == 1)  // Excluir spawns para voladores
 			continue;
 
 		auto it = spawnPointsData.find(e);
 		if (it != spawnPointsData.end()) {
 			auto& spawn_data = it->second;
-			// Check teleport cooldown
 			if (level.time < spawn_data.teleport_cooldown)
 				continue;
 		}
@@ -3194,6 +3194,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	gi.linkentity(self);
 	return false;
 }
+
 static edict_t* SpawnMonsters() {
 	static std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns;
 	size_t spawn_count = 0;
