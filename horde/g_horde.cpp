@@ -62,40 +62,36 @@ constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 
 // Nueva función para calcular el factor de escala del cooldown basado en el nivel
 static float CalculateCooldownScale(int32_t level, const MapSize& mapSize) {
-	// Si el nivel es 10 o menor, no hay escala
-	if (level <= 10) {
+	if (level <= 10)
 		return 1.0f;
-	}
 
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Factor base que aumenta con el nivel
-	float scale = 1.0f + ((level - 10) * 0.04f); // 4% de aumento por nivel
+	// Usar constantes para mejor mantenimiento y rendimiento
+	constexpr float LEVEL_SCALE_FACTOR = 0.04f;
+	constexpr float PLAYER_REDUCTION_FACTOR = 0.08f;
+	constexpr float MAX_PLAYER_REDUCTION = 0.45f;
 
-	// Reducción basada en el número de jugadores
-	// Más jugadores = menor escala
+	// Combinar cálculos para reducir operaciones
+	float scale = 1.0f + ((level - 10) * LEVEL_SCALE_FACTOR);
+
 	if (numHumanPlayers > 1) {
-		const float playerReduction = (numHumanPlayers - 1) * 0.08f; // 8% de reducción por jugador adicional
-		scale *= (1.0f - std::min(playerReduction, 0.45f)); // Máximo 45% de reducción
+		scale *= (1.0f - std::min((numHumanPlayers - 1) * PLAYER_REDUCTION_FACTOR, MAX_PLAYER_REDUCTION));
 	}
 
-	// Ajustes adicionales según el tamaño del mapa
-	if (mapSize.isSmallMap) {
-		// Mapas pequeños: escala reducida significativamente
-		scale *= 0.7f;
-		return std::min(scale, 1.3f); // Máximo 1.3x para mapas pequeños
-	}
-	else if (mapSize.isBigMap) {
-		scale *= 0.85f;
-		// Mapas grandes: puede escalar más
-		return std::min(scale, 1.75f); // Mantener el máximo original para mapas grandes
-	}
-	else {
-		// Mapas medianos: escala intermedia
-		scale *= 0.80f;
-		return std::min(scale, 1.5f); // Máximo 1.5x para mapas medianos
-	}
+	// Ajustes por tamaño de mapa usando lookup en vez de condicionales
+	constexpr std::array<std::pair<float, float>, 3> MAP_ADJUSTMENTS = { {
+		{0.7f, 1.3f},  // Small maps
+		{0.80f, 1.5f}, // Medium maps
+		{0.85f, 1.75f} // Big maps
+	} };
+
+	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
+	const auto [multiplier, maxScale] = MAP_ADJUSTMENTS[mapIndex];
+
+	return std::min(scale * multiplier, maxScale);
 }
+
 cvar_t* g_horde;
 
 enum class horde_state_t {
@@ -274,79 +270,59 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 }
 
 static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
-	// Base count calculation with level scaling
-	// Base count con mejor progresión
-	int32_t baseCount;
-	if (lvl <= 5) {
-		baseCount = mapSize.isSmallMap ? 6 : (mapSize.isBigMap ? 12 : 8);
-	}
-	else if (lvl <= 10) {
-		baseCount = mapSize.isSmallMap ? 8 : (mapSize.isBigMap ? 16 : 12);
-	}
-	else if (lvl <= 15) {
-		baseCount = mapSize.isSmallMap ? 10 : (mapSize.isBigMap ? 20 : 14);
-	}
-	else {
-		baseCount = mapSize.isSmallMap ? 12 : (mapSize.isBigMap ? 24 : 16);
-	}
+	// Lookup table para base counts
+	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = { {
+		{{6, 8, 10, 12}},  // Small maps
+		{{8, 12, 14, 16}}, // Medium maps
+		{{12, 16, 20, 24}} // Large maps
+	} };
 
-	// Ajuste progresivo por jugadores
-	float playerMultiplier = 1.0f;
+	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
+	const size_t levelIndex = lvl <= 5 ? 0 : (lvl <= 10 ? 1 : (lvl <= 15 ? 2 : 3));
+
+	int32_t baseCount = BASE_COUNTS[mapIndex][levelIndex];
+
+	// Ajuste de jugadores optimizado
 	if (humanPlayers > 1) {
-		playerMultiplier = 1.0f + ((humanPlayers - 1) * 0.2f);
-		baseCount = static_cast<int32_t>(baseCount * playerMultiplier);
+		baseCount = static_cast<int32_t>(baseCount * (1.0f + ((humanPlayers - 1) * 0.2f)));
 	}
 
-	// Additional spawn calculation with progressive scaling
-	int32_t additionalSpawn = (lvl >= 8) ?
-		((mapSize.isBigMap) ? 12 : (mapSize.isSmallMap ? 8 : 7)) : 6;
+	// Cálculo de spawns adicionales optimizado
+	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = { 8, 7, 12 }; // Small, Medium, Large
+	int32_t additionalSpawn = (lvl >= 8) ? ADDITIONAL_SPAWNS[mapIndex] : 6;
 
-	// Ajuste dinámico del cooldown basado en el nivel
+	// Optimizar cálculo de cooldown
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
-
-	// Aplicar escala basada en nivel después del nivel 10
-	float cooldownScale = CalculateCooldownScale(lvl, mapSize);
+	const float cooldownScale = CalculateCooldownScale(lvl, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-	// Enhanced level scaling for higher levels
+	// Scaling para niveles altos
 	if (lvl > 25) {
 		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
 	}
 
-	// Bonus for chaotic/insane modes
+	// Bonus para modos difíciles
 	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
-		// Reducción del cooldown en modos difíciles
 		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
 
-	// Dynamic difficulty scaling based on player count
+	// Ajuste dinámico final
 	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
-
-	// Periodic scaling adjustments
 	if (lvl % 3 == 0) {
 		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
-
-		// Convertir el multiplicador de dificultad a tiempo
-		const gtime_t periodicReduction = gtime_t::from_sec(
-			(mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier
-		);
-
-		// Aplicar la reducción con límites apropiados
 		SPAWN_POINT_COOLDOWN = std::max(
-			SPAWN_POINT_COOLDOWN - periodicReduction,
+			SPAWN_POINT_COOLDOWN - gtime_t::from_sec((mapSize.isBigMap ? 0.1f : 0.15f) * difficultyMultiplier),
 			1.0_sec
 		);
 	}
 
-	// Límites absolutos finales para el cooldown
+	// Aplicar límites finales
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
-
-	// Update spawn count with clamping
 	g_horde_local.num_to_spawn = baseCount + static_cast<int32_t>(additionalSpawn);
 	ClampNumToSpawn(mapSize);
 
-	// Actualizar la cola usando el nuevo sistema
+	// Actualizar cola con sistema optimizado
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
 
@@ -361,7 +337,6 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 			mapSize.isBigMap ? "big" : (mapSize.isSmallMap ? "small" : "medium"));
 	}
 }
-
 
 void ResetAllSpawnAttempts() noexcept;
 void VerifyAndAdjustBots();
