@@ -620,7 +620,8 @@ static constexpr size_t HARDCOOP_COUNT = sizeof(hardcoop_replacements) / sizeof(
 
 // Función helper para aplicar reemplazos (usando las funciones de random optimizadas)
 static void perform_replacement(edict_t* ent, const MonsterReplacement* replacements, size_t count, float prob) {
-	if (!ent || !ent->classname) return;
+	if (!ent || !ent->classname)
+		return;
 
 	for (size_t i = 0; i < count; i++) {
 		if (strcmp(ent->classname, replacements[i].original) != 0)
@@ -630,36 +631,47 @@ static void perform_replacement(edict_t* ent, const MonsterReplacement* replacem
 		if (repl.replacement_count == 0)
 			continue;
 
-		// Usar irandom para selección de índice
-		int index = (repl.replacement_count > 1) ? irandom(repl.replacement_count) : 0;
+		// Usar irandom para selección de índice cuando hay múltiples reemplazos
+		if (repl.replacement_count > 1) {
+			int index = irandom(repl.replacement_count);
+			if (index < repl.replacement_count) {
+				ent->classname = G_CopyString(repl.replacements[index], TAG_LEVEL);
 
-		if (index < repl.replacement_count) {
-			ent->classname = G_CopyString(repl.replacements[index], TAG_LEVEL);
+				// Usar frandom para check de probabilidad de bonus
+				if (frandom() < prob) {
+					const float roll = frandom();
+					int flag;
 
-			// Usar frandom para probabilidad de bonus
-			if (frandom() < prob) {
-				float roll = frandom();
-				int flag;
+					// Rangos de probabilidad para diferentes bonus
+					if (roll < 0.20f)
+						flag = BF_CHAMPION;
+					else if (roll < 0.35f)
+						flag = BF_CORRUPTED;
+					else if (roll < 0.45f)
+						flag = BF_RAGEQUITTER;
+					else if (roll < 0.70f)
+						flag = BF_BERSERKING;
+					else if (roll < 0.80f)
+						flag = BF_POSSESSED;
+					else
+						flag = BF_STYGIAN;
 
-				if (roll < 0.20f)      flag = BF_CHAMPION;
-				else if (roll < 0.35f) flag = BF_CORRUPTED;
-				else if (roll < 0.45f) flag = BF_RAGEQUITTER;
-				else if (roll < 0.70f) flag = BF_BERSERKING;
-				else if (roll < 0.80f) flag = BF_POSSESSED;
-				else                   flag = BF_STYGIAN;
+					ent->monsterinfo.bonus_flags = flag;
 
-				ent->monsterinfo.bonus_flags = flag;
-
-				if (ent->monsterinfo.IS_BOSS)
-					ApplyBossEffects(ent);
-				else
-					ApplyMonsterBonusFlags(ent);
+					if (ent->monsterinfo.IS_BOSS)
+						ApplyBossEffects(ent);
+					else
+						ApplyMonsterBonusFlags(ent);
+				}
 			}
+		}
+		else if (repl.replacement_count == 1) {
+			// Si solo hay un reemplazo, aplicarlo directamente
+			ent->classname = G_CopyString(repl.replacements[0], TAG_LEVEL);
 		}
 		return;
 	}
 }
-
 void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::empty) {
 	if (!ent) {
 		gi.Com_Print("ED_CallSpawn: null entity\n");
