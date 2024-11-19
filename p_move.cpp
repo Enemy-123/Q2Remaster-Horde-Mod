@@ -491,6 +491,13 @@ void PM_StepSlideMove()
 
 	PM_StepSlideMove_();
 
+	if (!PM_AllowStepUp())
+	{
+		// no step up
+		if (!(pm->s.pm_flags & PMF_ON_GROUND))
+			return;
+	}
+
 	down_o = pml.origin;
 	down_v = pml.velocity;
 
@@ -646,20 +653,18 @@ void PM_Accelerate(const vec3_t& wishdir, float wishspeed, float accel)
 
 void PM_AirAccelerate(const vec3_t& wishdir, float wishspeed, float accel)
 {
-	int	  i;
-	float addspeed, accelspeed, currentspeed, wishspd = wishspeed;
-
+	float wishspd = wishspeed;
 	if (wishspd > 30)
 		wishspd = 30;
-	currentspeed = pml.velocity.dot(wishdir);
-	addspeed = wishspd - currentspeed;
+	float currentspeed = pml.velocity.dot(wishdir);
+	float addspeed = wishspd - currentspeed;
 	if (addspeed <= 0)
 		return;
-	accelspeed = accel * wishspeed * pml.frametime;
+	float accelspeed = accel * wishspeed * pml.frametime;
 	if (accelspeed > addspeed)
 		accelspeed = addspeed;
 
-	for (i = 0; i < 3; i++)
+	for (int i = 0; i < 3; i++)
 		pml.velocity[i] += accelspeed * wishdir[i];
 }
 
@@ -1140,6 +1145,7 @@ void PM_CheckJump()
 	if (pml.velocity[2] < jump_height)
 		pml.velocity[2] = jump_height;
 }
+
 /*
 =============
 PM_CheckSpecialMovement
