@@ -587,7 +587,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 {
 	if (g_horde->integer) {
 		// Guardar el arma y la salud m�xima antes de la muerte
-		SaveClientWeaponBeforeDeath(self->client);
+		//SaveClientWeaponBeforeDeath(self->client);
 	}
 
 	PlayerTrail_Destroy(self);
@@ -926,11 +926,11 @@ bool IsTechItem(int item_id)
 	}
 	return false;
 }
-void SaveClientWeaponBeforeDeath(gclient_t* client)
-{
-	client->resp.weapon = client->pers.weapon;
-	client->pers.lastweapon = client->pers.weapon;
-}
+//void SaveClientWeaponBeforeDeath(gclient_t* client)
+//{
+//	client->resp.weapon = client->pers.weapon;
+//	client->pers.lastweapon = client->pers.weapon;
+//}
 /*
 ==============
 InitClientPersistant
@@ -1153,12 +1153,12 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
 	}
 
-	// Restaurar el arma que el jugador estaba usando antes de morir
-	if (client->resp.weapon && client->pers.inventory[client->resp.weapon->id] > 0) {
-		client->pers.weapon = client->resp.weapon;
-		client->pers.selected_item = client->resp.weapon->id;
-	}
-	else if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
+	//// Restaurar el arma que el jugador estaba usando antes de morir
+	//if (client->resp.weapon && client->pers.inventory[client->resp.weapon->id] > 0) {
+	//	client->pers.weapon = client->resp.weapon;
+	//	client->pers.selected_item = client->resp.weapon->id;
+/*	}
+	else*/ if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
 		client->pers.weapon = client->pers.lastweapon;
 		client->pers.selected_item = client->pers.lastweapon->id;
 	}
@@ -1198,16 +1198,16 @@ void InitClientResp(gclient_t* client)
 {
 	// ZOID
 	const ctfteam_t ctf_team = client->resp.ctf_team;
-	const bool id_state = client->resp.id_state = true;
-	const bool iddmg_state = client->resp.iddmg_state = true;
+	const bool id_state = client->pers.id_state = true;
+	const bool iddmg_state = client->pers.iddmg_state = true;
 	// ZOID
 
 	memset(&client->resp, 0, sizeof(client->resp));
 
 	// ZOID
 	client->resp.ctf_team = ctf_team;
-	client->resp.id_state = id_state;
-	client->resp.iddmg_state = iddmg_state;
+	client->pers.id_state = id_state;
+	client->pers.iddmg_state = iddmg_state;
 	// ZOID
 
 	client->resp.entertime = level.time;
@@ -1919,7 +1919,7 @@ void respawn(edict_t* self)
 	{
 		// Guardar el arma y la salud m�xima antes de la muerte
 		if (g_horde->integer) {
-			SaveClientWeaponBeforeDeath(self->client);
+		//	SaveClientWeaponBeforeDeath(self->client);
 		}
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
@@ -3220,16 +3220,16 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		// clear the respawning variables
 		// ZOID -- force team join
 		ent->client->resp.ctf_team = CTF_NOTEAM;
-		ent->client->resp.id_state =  true;
-		ent->client->resp.iddmg_state = true;
+		ent->client->pers.id_state =  true;
+		ent->client->pers.iddmg_state = true;
 		// ZOID
 		InitClientResp(ent->client);
 		if (!game.autosaved || !ent->client->pers.weapon)
 			InitClientPersistant(ent, ent->client);
 	}
 	if (!g_horde->integer) {
-		ent->client->resp.id_state =  true;
-		ent->client->resp.iddmg_state = true;
+		ent->client->pers.id_state =  true;
+		ent->client->pers.iddmg_state = true;
 	}
 	// make sure we start with known default(s)
 	ent->svflags = SVF_PLAYER;

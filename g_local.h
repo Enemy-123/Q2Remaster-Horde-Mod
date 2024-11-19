@@ -2488,7 +2488,6 @@ constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_NO_END_OF_UNIT = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_FADE_OUT = 32_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE = 64_spawnflag;
 
-void SaveClientWeaponBeforeDeath(gclient_t* client);
 void respawn(edict_t* ent);
 void BeginIntermission(edict_t* targ);
 void PutClientInServer(edict_t* ent);
@@ -2897,6 +2896,8 @@ struct client_persistant_t
 	int32_t lives; // player lives left (1 = no respawns remaining)
 	uint8_t n64_crouch_warn_times;
 	gtime_t n64_crouch_warning;
+	bool	 id_state;
+	bool	 iddmg_state;
 };
 
 // client data that stays across deathmatch respawns
@@ -2907,7 +2908,8 @@ struct client_respawn_t
 	int32_t				score;		  // frags, etc
 	vec3_t				cmd_angles;	  // angles sent over in the last command
 	int max_health; // Agrega este miembro si no está presente
-	gitem_t* weapon; // Agrega este miembro para almacenar el arma
+	client_persistant_t weapon; // for horde, this will keep us  the smae weapon after die
+	client_persistant_t lastweapon; //for horde, this will keep us  the smae weapon after die
 	bool spectator; // client is a spectator
 
 	// ZOID
@@ -2917,8 +2919,6 @@ struct client_respawn_t
 	gtime_t	 ctf_lastreturnedflag;
 	gtime_t	 ctf_flagsince;
 	gtime_t	 ctf_lastfraggedcarrier;
-	bool	 id_state;
-	bool	 iddmg_state;
 	gtime_t	 lastidtime;
 	bool	 voted; // for elections
 	bool	 ready;
@@ -2928,7 +2928,6 @@ struct client_respawn_t
 	bool inactivity_warning;
 	gtime_t inactivity_time;
 	bool inactive;
-	gtime_t id_persist_time;
 	int32_t spree = 0;                   // contador de muertes realizadas mientras está vivo
 	int adrenaline_count = 0;
 };
@@ -3163,7 +3162,7 @@ struct gclient_t
 	edict_t* hook;
 	float		last_hook_time;
 	int			hook_damage;
-	// Kyper
+// HORDE STUFF
 	std::string target_health_str;  // Cadena para mostrar la salud del objetivo
 	std::string last_statusbar;  // último statusbar para comparar cambios
 

@@ -1233,7 +1233,7 @@ void G_SetStats(edict_t* ent)
 	void CTFSetIDView(edict_t * ent);
 	//ID DMG and CTFIDVIEW
 
-	if (ent->client->resp.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
+	if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
 		CTFSetIDView(ent);
 
 	else
@@ -1247,7 +1247,7 @@ void G_SetStats(edict_t* ent)
 	if (level.time > ent->lastdmg + 1.75_sec || !g_iddmg->integer) {
 		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
 	}
-	else if (ent->client->resp.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
+	else if (ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
 		ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
 	}
 

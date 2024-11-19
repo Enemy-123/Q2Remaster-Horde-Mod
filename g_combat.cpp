@@ -640,7 +640,7 @@ static int CalculateRealDamage(edict_t* targ, int take, int initial_health) {
 // IDDMG
 static void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
 	if (!attacker || !attacker->client || !g_iddmg || !targ ||
-		!g_iddmg->integer || !attacker->client->resp.iddmg_state) {
+		!g_iddmg->integer || !attacker->client->pers.iddmg_state) {
 		return;
 	}
 
