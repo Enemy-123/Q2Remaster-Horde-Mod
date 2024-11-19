@@ -706,9 +706,10 @@ constexpr weighted_item_t monsters[] = {
 	// Cazadores y arácnidos
 	{ "monster_chick", 7, 20, 0.25f },                // Adelantado a ola 5
 	{ "monster_chick_heat", 13, -1, 0.3f },
-	{ "monster_spider", 15, 20, 0.25f },
+	{ "monster_spider", 15, 31, 0.25f },
 	{ "monster_gm_arachnid", 29, -1, 0.22f },
-	{ "monster_arachnid", 23, -1, 0.25f },
+	{ "monster_psxarachnid", 32, -1, 0.22f },
+	{ "monster_arachnid", 23, 31, 0.25f },
 
 	// Mini-jefes y especiales (mantenidos igual)
 	{ "monster_shambler", 15, 25, 0.08f },
@@ -2362,7 +2363,7 @@ static const std::unordered_map<std::string_view, std::string_view> bossMessages
 	{"monster_boss5", "***** Boss incoming! Super-Tank is here to show Strogg’s might! *****\n"},
 	{"monster_widow2", "***** Boss incoming! The Widow is weaving disruptor beams just for you! *****\n"},
 	{"monster_arachnid", "***** Boss incoming! Arachnid is here for some Marine BBQ! *****\n"},
-	{"monster_psxarachnid", "***** Boss incoming! Arachnid is here, Is this a new arachnid?!?! *****\n"},
+	{"monster_psxarachnid", "***** Boss incoming! Arachnid is here *****\n"},
 	{"monster_gm_arachnid", "***** Boss incoming! Missile Arachnid is armed and ready! *****\n"},
 	{"monster_redmutant", "***** Boss incoming! The Bloody Mutant is out for blood—yours! *****\n"},
 	{"monster_jorg", "***** Boss incoming! Jorg’s mech is upgraded and deadly! *****\n"}

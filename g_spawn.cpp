@@ -540,12 +540,11 @@ static constexpr MonsterReplacement chaotic_replacements[] = {
 	// Mid game (Olas 11-20)
 	{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
 	{"monster_brain", {"monster_brain", "monster_gunner"}, 2},
-	{"monster_gladiator", {"monster_gladb", "monster_tank"}, 2},
+	{"monster_gladiator", {"monster_gladc", "monster_tank", "monster_gladiator", "monster_gladb"}, 2},
 	{"monster_medic", {"monster_medic", "monster_gunner"}, 2},
 
 	// Late game (Ola 21+)
 	{"monster_floater", {"monster_daedalus", "monster_hover"}, 2},
-	{"monster_spider", {"monster_gm_arachnid", "monster_tank_commander"}, 2}
 };
 
 static constexpr MonsterReplacement insane_replacements[] = {
@@ -566,13 +565,14 @@ static constexpr MonsterReplacement insane_replacements[] = {
 	{"monster_floater", {"monster_floater_tracker", "monster_daedalus_bomber"}, 2},
 
 	// Late game elite
-	{"monster_spider", {"monster_gm_arachnid", "monster_tank_64"}, 2},
-	{"monster_arachnid", {"monster_tank_commander", "monster_boss2_64"}, 2},
+	{"monster_spider", {"monster_gm_arachnid", "monster_psxarachnid"}, 2},
+	{"monster_arachnid2", {"monster_gm_arachnid", "monster_psxarachnid"}, 2},
+	{"monster_arachnid", {"monster_tank_commander", "monster_psxarachnid"}, 2},
 	{"monster_shambler", {"monster_tank_64", "monster_boss2_64"}, 2},
 
 	// Special enemies
 	{"monster_medic", {"monster_medic_commander", "monster_brain"}, 2},
-	{"monster_gladiator", {"monster_gladc", "monster_tank_commander"}, 2},
+	{"monster_gladiator", {"monster_gladc", "monster_gladb", "monster_gladiator", "monster_tank_commander"}, 4},
 	{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64"}, 2}
 };
 
@@ -582,7 +582,7 @@ static constexpr MonsterReplacement hardcoop_replacements[] = {
 	{"monster_soldier_ss", {"monster_infantry", "monster_infantry_vanilla"}, 2},
 	{"monster_infantry", {"monster_infantry", "monster_infantry_vanilla"}, 2},
 	{"monster_mutant", {"monster_mutant", "monster_redmutant"}, 2},
-	{"monster_gunner", {"monster_gunner", "monster_gunner_vanilla", "monster_guncmdr_vanilla"}, 3},
+	{"monster_gunner", {"monster_gunner", "monster_gunner_vanilla"}, 2},
 	{"monster_fixbot", {"monster_fixbot", "monster_flyer"}, 2},
 	{"monster_hover", {"monster_hover", "monster_hover_vanilla"}, 2},
 	{"monster_daedalus", {"monster_daedalus_bomber", "monster_daedalus"}, 2},

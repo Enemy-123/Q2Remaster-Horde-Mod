@@ -162,7 +162,7 @@ void berserk_attack_spike(edict_t* self)
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		// Llamar a fire_hit solo si self->enemy está inicializado
-		if (!fire_hit(self, aim, irandom(17, 26) * M_DamageModifier(self), 120)) //	Faster attack -- upwards and backwards
+		if (!fire_hit(self, aim, irandom(17, 26) * M_DamageModifier(self), 400)) //	Faster attack -- upwards and backwards
 			self->monsterinfo.melee_debounce_time = level.time + 1.2_sec;
 	}
 	else {
