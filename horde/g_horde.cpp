@@ -986,8 +986,8 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 
 	if (eligible_bosses.count == 0) return nullptr;
 
-	// Selección basada en peso usando búsqueda binaria
-const double random_value = frandom() * total_weight;
+// Usar el rango completo de la distribución en lugar de multiplicar posteriormente
+	const double random_value = std::uniform_real_distribution<double>(0.0, total_weight)(mt_rand);
 	size_t left = 0;
 	size_t right = eligible_bosses.count - 1;
 
@@ -2018,12 +2018,13 @@ void OldBossDeathHandler(edict_t* boss)
 	// Soltar los items shuffleados
 	for (const auto& itemClassname : shuffledItems) {
 		if (edict_t* droppedItem = Drop_Item(boss, FindItemByClassname(itemClassname))) {
-			const vec3_t itemVelocity = {
-				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
-				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
-				static_cast<float>(std::uniform_int_distribution<>(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY)(mt_rand))
+			static std::uniform_int_distribution<> vel_dist(MIN_VELOCITY, MAX_VELOCITY);
+			static std::uniform_int_distribution<> vert_dist(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY);
+			const vec3_t itemVelocity{
+				static_cast<float>(vel_dist(mt_rand)),
+				static_cast<float>(vel_dist(mt_rand)),
+				static_cast<float>(vert_dist(mt_rand))
 			};
-
 			droppedItem->s.origin = boss->s.origin;
 			droppedItem->velocity = itemVelocity;
 			droppedItem->movetype = MOVETYPE_BOUNCE;
@@ -3103,113 +3104,107 @@ static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-	if (level.intermissiontime || !g_horde->integer || !self || !self->inuse || self->deadflag || self->monsterinfo.IS_BOSS)
+	// Early returns optimizados
+	if (!self || !self->inuse || self->deadflag ||
+		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
 		return false;
 
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
 
-	if (self->monsterinfo.issummoned || self->enemy && self->enemy->inuse && visible(self, self->enemy, false)) {
+	// Check rápido para condiciones que resetean el estado stuck
+	if (self->monsterinfo.issummoned ||
+		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
 		return false;
 	}
 
-	bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid;
-	bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= NO_DAMAGE_TIMEOUT;
+	const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
+		self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+	const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >=
+		NO_DAMAGE_TIMEOUT;
 
-	if (is_stuck || no_damage_timeout) {
-		if (!self->monsterinfo.was_stuck) {
-			self->monsterinfo.stuck_check_time = level.time;
-			self->monsterinfo.was_stuck = true;
-		}
+	// Early return si no hay condiciones de stuck
+	if (!is_stuck && !no_damage_timeout)
+		return false;
 
-		if (level.time >= self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME) {
-			static edict_t* available_spawns[MAX_SPAWN_POINTS];
-			size_t spawn_count = 0;
+	// Inicializar stuck check si es necesario
+	if (!self->monsterinfo.was_stuck) {
+		self->monsterinfo.stuck_check_time = level.time;
+		self->monsterinfo.was_stuck = true;
+		return false;
+	}
 
-			for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
-				edict_t* e = &g_edicts[i];
-				if (!e->inuse || !e->classname ||
-					strcmp(e->classname, "info_player_deathmatch") != 0)
+	// Early return si no ha pasado suficiente tiempo
+	if (level.time < self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME)
+		return false;
+
+	static edict_t* available_spawns[MAX_SPAWN_POINTS];
+	size_t spawn_count = 0;
+
+	// Recolección optimizada de spawn points
+	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
+		edict_t* e = &g_edicts[i];
+		if (!e->inuse || !e->classname ||
+			strcmp(e->classname, "info_player_deathmatch") != 0)
+			continue;
+
+		auto it = spawnPointsData.find(e);
+		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled)
+			continue;
+
+		if (!IsSpawnPointOccupied(e)) {
+			bool can_see_player = false;
+			for (auto player : active_players()) {
+				if (!player->inuse || player->deadflag)
 					continue;
 
-				auto it = spawnPointsData.find(e);
-				if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled)
-					continue;
-
-				if (!IsSpawnPointOccupied(e)) {
-					bool can_see_player = false;
-					for (auto player : active_players()) {
-						if (!player->inuse || player->deadflag)
-							continue;
-
-						trace_t tr = gi.traceline(e->s.origin, player->s.origin, self, MASK_SOLID);
-						if (tr.fraction >= 0.3f) {
-							can_see_player = true;
-							break;
-						}
-					}
-
-					if (can_see_player) {
-						available_spawns[spawn_count++] = e;
-					}
+				if (gi.traceline(e->s.origin, player->s.origin, self, MASK_SOLID).fraction >= 0.3f) {
+					can_see_player = true;
+					break;
 				}
 			}
 
-			if (spawn_count > 0) {
-				size_t spawn_index = rand() % spawn_count;
-				edict_t* spawn_point = available_spawns[spawn_index];
-
-				vec3_t old_velocity = self->velocity;
-				vec3_t old_origin = self->s.origin;
-
-				self->s.origin = spawn_point->s.origin;
-				self->s.old_origin = spawn_point->s.origin;
-				self->velocity = vec3_origin;
-
-				bool new_pos_valid = true;
-				if (!(self->flags & (FL_FLY | FL_SWIM))) {
-					if (!M_droptofloor(self)) {
-						new_pos_valid = false;
-					}
-				}
-
-				if (new_pos_valid && !gi.trace(self->s.origin, self->mins, self->maxs, self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
-					gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-					SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-
-					self->monsterinfo.was_stuck = false;
-					self->monsterinfo.stuck_check_time = 0_sec;
-					self->monsterinfo.react_to_damage_time = level.time;
-
-					gi.linkentity(self);
-
-					if (developer->integer) {
-						if (no_damage_timeout) {
-							gi.Com_PrintFmt("Monster teleported due to no damage timeout\n");
-						}
-						else {
-							gi.Com_PrintFmt("Monster teleported due to being stuck in solid\n");
-						}
-					}
-
-					return true;
-				}
-				else {
-					self->s.origin = old_origin;
-					self->s.old_origin = old_origin;
-					self->velocity = old_velocity;
-					gi.linkentity(self);
-				}
-			}
+			if (can_see_player)
+				available_spawns[spawn_count++] = e;
 		}
 	}
-	else {
+
+	if (spawn_count == 0)
+		return false;
+
+	// Teleport optimizado
+	edict_t* spawn_point = available_spawns[std::uniform_int_distribution<size_t>(0, spawn_count - 1)(mt_rand)];
+	vec3_t old_velocity = self->velocity;
+	vec3_t old_origin = self->s.origin;
+
+	self->s.origin = spawn_point->s.origin;
+	self->s.old_origin = spawn_point->s.origin;
+	self->velocity = vec3_origin;
+
+	bool teleport_success = true;
+	if (!(self->flags & (FL_FLY | FL_SWIM)))
+		teleport_success = M_droptofloor(self);
+
+	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
+		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
+		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
+		self->monsterinfo.react_to_damage_time = level.time;
+
+		gi.linkentity(self);
+		return true;
 	}
 
+	// Restaurar posición si falló el teleport
+	self->s.origin = old_origin;
+	self->s.old_origin = old_origin;
+	self->velocity = old_velocity;
+	gi.linkentity(self);
 	return false;
 }
 
@@ -3248,12 +3243,11 @@ static edict_t* SpawnMonsters() {
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
 	const int32_t activeMonsters = CalculateRemainingMonsters();
-	const int32_t monsters_per_spawn = std::min(
-		g_horde_local.queued_monsters > 0
-		? std::min(g_horde_local.queued_monsters, 3)
-		: (mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5)),
-		6
-	);
+	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
+	const int32_t monsters_per_spawn = std::uniform_int_distribution<int32_t>(
+		std::min(g_horde_local.queued_monsters, base_spawn),
+		std::min(base_spawn + 1, 6)
+	)(mt_rand);
 
 	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
 
@@ -3294,8 +3288,11 @@ static edict_t* SpawnMonsters() {
 		if (g_horde_local.level >= 14)
 			SetMonsterArmor(monster);
 
-		if (frandom() <= (g_horde_local.level <= 2 ? 0.8f :
-			g_horde_local.level <= 7 ? 0.6f : 0.45f))
+		static std::uniform_real_distribution<float> drop_dist(0.0f, 1.0f);
+		const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
+			g_horde_local.level <= 7 ? 0.6f : 0.45f;
+
+		if (drop_dist(mt_rand) < drop_chance)
 			monster->item = G_HordePickItem();
 
 		// Efectos visuales y sonoros
@@ -3368,7 +3365,7 @@ static void SetMonsterArmor(edict_t* monster) {
 		}
 
 		// Factor aleatorio más controlado
-		const float random_factor = 1.0f + (crandom() * 0.1f);
+		const float random_factor = std::uniform_real_distribution<float>(0.9f, 1.1f)(mt_rand);
 		base_armor *= random_factor;
 
 		// Ajustes finales por nivel
@@ -3387,10 +3384,12 @@ static void SetMonsterArmor(edict_t* monster) {
 }
 
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
-	g_horde_local.monster_spawn_time = level.time +
-		(mapSize.isSmallMap ? random_time(1.2_sec, 1.5_sec) :
-			mapSize.isBigMap ? random_time(0.9_sec, 1.1_sec) :
-			random_time(1.7_sec, 1.8_sec) / 2);
+	g_horde_local.monster_spawn_time = level.time + random_time(
+		mapSize.isSmallMap ? 1.2_sec :
+		mapSize.isBigMap ? 0.9_sec : 1.7_sec,
+		mapSize.isSmallMap ? 1.5_sec :
+		mapSize.isBigMap ? 1.1_sec : 1.8_sec
+	);
 }
 #include <unordered_map>
 
