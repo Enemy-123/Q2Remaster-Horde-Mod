@@ -48,7 +48,7 @@ int8_t last_wave_number = 0;              // Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 
 gtime_t horde_message_end_time = 0_sec;
-gtime_t SPAWN_POINT_COOLDOWN = 2.2_sec; //spawns Cooldown 
+gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown 
 
 // Añadir cerca de las otras constexpr al inicio del archivo
 constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
@@ -175,13 +175,13 @@ auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
 auto lastMonsterSpawnTime = std::unordered_map<std::string, gtime_t>{};
 auto lastSpawnPointTime = std::unordered_map<edict_t*, gtime_t>{};
 struct SpawnPointData {
-	uint16_t attempts = 0;              // Reducido de uint32_t 
-	gtime_t cooldown = 0_sec;
+	uint16_t attempts = 0;
+	gtime_t spawn_cooldown = 0_sec;     // Regular spawn cooldown
+	gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
 	gtime_t lastSpawnTime = 0_sec;
-	uint16_t successfulSpawns = 0;      // Reducido de uint32_t
+	uint16_t successfulSpawns = 0;
 	bool isTemporarilyDisabled = false;
 	gtime_t cooldownEndsAt = 0_sec;
-	// Eliminado lastSpawnedMonsterClassname para ahorrar memoria
 };
 
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
@@ -1104,7 +1104,9 @@ inline static double CalculateMonsterWeight(const weighted_item_t& item, bool is
 static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
 	auto& data = spawnPointsData[spawn_point];
 	data.attempts = 0;
-	data.cooldown = level.time;
+	data.spawn_cooldown = level.time;
+	data.teleport_cooldown = level.time;
+	data.isTemporarilyDisabled = false;
 }
 
 constexpr gtime_t CLEANUP_THRESHOLD = 2_sec;
@@ -1149,7 +1151,7 @@ static void CleanUpSpawnPointsData() {
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
 	data.lastSpawnTime = level.time;
-	//data.lastSpawnedMonsterClassname = chosen_monster;
+	data.spawn_cooldown = level.time + SPAWN_POINT_COOLDOWN;
 	data.isTemporarilyDisabled = true;
 	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
 }
@@ -1205,7 +1207,7 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 	// Define the bounding box for checking occupation
 	vec3_t mins, maxs;
 	// Factor de multiplicación para garantizar espacio adicional 
-	constexpr float space_multiplier = 2.0f;
+	constexpr float space_multiplier = 2.5f;
 
 	// Default bounding box for player size
 	mins = spawn_point->s.origin + vec3_t{ -16 * space_multiplier, -16 * space_multiplier, -24 * space_multiplier };
@@ -1221,7 +1223,6 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 }
 
 const char* G_HordePickMonster(edict_t* spawn_point) {
-	// Verificar el cooldown del spawn point
 	auto& data = spawnPointsData[spawn_point];
 	if (data.isTemporarilyDisabled) {
 		if (level.time < data.cooldownEndsAt) {
@@ -1231,7 +1232,6 @@ const char* G_HordePickMonster(edict_t* spawn_point) {
 		data.attempts = 0;
 	}
 
-	// Verificar si el punto está ocupado
 	if (IsSpawnPointOccupied(spawn_point)) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
@@ -2640,7 +2640,10 @@ void ResetCooldowns() noexcept {
 void ResetAllSpawnAttempts() noexcept {
 	for (auto& [spawn_point, data] : spawnPointsData) {
 		data.attempts = 0;
-		data.cooldown = SPAWN_POINT_COOLDOWN;
+		data.spawn_cooldown = SPAWN_POINT_COOLDOWN;
+		data.teleport_cooldown = level.time;
+		data.isTemporarilyDisabled = false;
+		data.cooldownEndsAt = 0_sec;
 	}
 }
 
@@ -2788,7 +2791,7 @@ void ResetGame() {
 
 	// Reiniciar otras variables relevantes
 	//WAVE_TO_ALLOW_FLYING = 0;
-	SPAWN_POINT_COOLDOWN = 2.2_sec;
+	SPAWN_POINT_COOLDOWN = 2.8_sec;
 
 	g_totalMonstersInWave = 0;
 
@@ -3126,8 +3129,12 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			continue;
 
 		auto it = spawnPointsData.find(e);
-		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled)
-			continue;
+		if (it != spawnPointsData.end()) {
+			auto& spawn_data = it->second;
+			// Check teleport cooldown
+			if (level.time < spawn_data.teleport_cooldown)
+				continue;
+		}
 
 		if (!IsSpawnPointOccupied(e)) {
 			bool can_see_player = false;
@@ -3151,6 +3158,11 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	// Teleport optimizado
 	edict_t* spawn_point = available_spawns[std::uniform_int_distribution<size_t>(0, spawn_count - 1)(mt_rand)];
+
+	// Set teleport cooldown
+	auto& spawn_data = spawnPointsData[spawn_point];
+	spawn_data.teleport_cooldown = level.time + 2_sec;
+
 	vec3_t old_velocity = self->velocity;
 	vec3_t old_origin = self->s.origin;
 
@@ -3182,7 +3194,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	gi.linkentity(self);
 	return false;
 }
-
 static edict_t* SpawnMonsters() {
 	static std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns;
 	size_t spawn_count = 0;
