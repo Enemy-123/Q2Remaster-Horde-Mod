@@ -3184,9 +3184,10 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
-	static edict_t* available_spawns[MAX_SPAWN_POINTS];
+	static std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns;
 	size_t spawn_count = 0;
 
+	// Recolección de spawns optimizada usando array estático
 	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
 		edict_t* e = &g_edicts[i];
 		if (!e->inuse || !e->classname ||
@@ -3194,22 +3195,24 @@ static edict_t* SpawnMonsters() {
 			e->monsterinfo.IS_BOSS)
 			continue;
 
-		const auto& spawn_data = spawnPointsData.find(e);
-		if (spawn_data != spawnPointsData.end() && spawn_data->second.isTemporarilyDisabled) {
-			if (level.time < spawn_data->second.cooldownEndsAt)
+		auto it = spawnPointsData.find(e);
+		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
+			if (level.time < it->second.cooldownEndsAt)
 				continue;
 		}
 
 		available_spawns[spawn_count++] = e;
 	}
 
+	// Usar un único RNG para todas las operaciones aleatorias
+	static std::mt19937 rng(std::random_device{}());
+
 	if (spawn_count > 1) {
-		std::uniform_int_distribution<size_t> dist(0, spawn_count - 1);
 		for (size_t i = spawn_count - 1; i > 0; --i) {
-			size_t j = dist(mt_rand);
-			if (i != j) {
+			std::uniform_int_distribution<size_t> dist(0, i);
+			size_t j = dist(rng);
+			if (i != j)
 				std::swap(available_spawns[i], available_spawns[j]);
-			}
 		}
 	}
 
@@ -3219,18 +3222,20 @@ static edict_t* SpawnMonsters() {
 
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
-	const int32_t monsters_per_spawn = std::uniform_int_distribution<int32_t>(
+
+	std::uniform_int_distribution<int32_t> spawn_dist(
 		std::min(g_horde_local.queued_monsters, base_spawn),
 		std::min(base_spawn + 1, 6)
-	)(mt_rand);
+	);
 
+	const int32_t monsters_per_spawn = spawn_dist(rng);
 	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
 
-	if (spawnable <= 0 || spawn_count == 0) {
+	if (spawnable <= 0 || spawn_count == 0)
 		return nullptr;
-	}
 
 	edict_t* last_spawned = nullptr;
+	std::uniform_real_distribution<float> drop_dist(0.0f, 1.0f);
 
 	for (size_t i = 0; i < spawn_count && i < static_cast<size_t>(spawnable) && g_horde_local.num_to_spawn > 0; ++i) {
 		edict_t* spawn_point = available_spawns[i];
@@ -3243,7 +3248,7 @@ static edict_t* SpawnMonsters() {
 		if (!monster)
 			continue;
 
-		// Configuración básica
+		// Configuración básica optimizada
 		monster->classname = monster_classname;
 		monster->s.origin = spawn_point->s.origin;
 		monster->s.angles = spawn_point->s.angles;
@@ -3259,18 +3264,17 @@ static edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		// Configuración post-spawn
+		// Configuración post-spawn optimizada
 		if (g_horde_local.level >= 14)
 			SetMonsterArmor(monster);
 
-		static std::uniform_real_distribution<float> drop_dist(0.0f, 1.0f);
 		const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 			g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-		if (drop_dist(mt_rand) < drop_chance)
+		if (drop_dist(rng) < drop_chance)
 			monster->item = G_HordePickItem();
 
-		// Efectos visuales y sonoros
+		// Efectos visuales y sonoros optimizados
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 		gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
@@ -3281,6 +3285,7 @@ static edict_t* SpawnMonsters() {
 		last_spawned = monster;
 	}
 
+	// Actualizar cola de monstruos de manera optimizada
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
@@ -3291,7 +3296,6 @@ static edict_t* SpawnMonsters() {
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned;
 }
-
 static void SetMonsterArmor(edict_t* monster) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	if (!st.was_key_specified("power_armor_power")) {
