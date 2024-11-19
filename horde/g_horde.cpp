@@ -197,7 +197,7 @@ const std::unordered_set<std::string> smallMaps = {
 	"q64/dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
 	"q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","mgu3m4",
 	"mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0", "q64/dm6",
-	"q64/dm8", "q64/dm4", "q64/dm3", "industry"
+	"q64/dm8", "q64/dm4", "q64/dm3", "industry", "e3/jail_e3"
 };
 
 const std::unordered_set<std::string> bigMaps = {
@@ -987,12 +987,12 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 	if (eligible_bosses.count == 0) return nullptr;
 
 	// Selección basada en peso usando búsqueda binaria
-	double random_value = frandom() * total_weight;
+const double random_value = frandom() * total_weight;
 	size_t left = 0;
 	size_t right = eligible_bosses.count - 1;
 
 	while (left < right) {
-		size_t mid = (left + right) / 2;
+	const size_t mid = (left + right) / 2;
 		if (cumulative_weights[mid] < random_value) {
 			left = mid + 1;
 		}
@@ -2009,7 +2009,7 @@ void OldBossDeathHandler(edict_t* boss)
 	// Fisher-Yates shuffle optimizado
 	std::array<const char*, 7> shuffledItems = itemsToDrop;
 	for (int i = 6; i > 0; i--) {
-		int j = mt_rand() % (i + 1);
+		const int j = mt_rand() % (i + 1);
 		if (i != j) {
 			std::swap(shuffledItems[i], shuffledItems[j]);
 		}
@@ -2280,7 +2280,7 @@ void Horde_CleanBodies() {
 		if (ent->deadflag || ent->health <= 0) {
 			// Remover inmediatamente sin fade si está muy lejos de los jugadores
 			bool far_from_players = true;
-			for (auto player : active_players_no_spect()) {
+			for (const auto player : active_players_no_spect()) {
 				if ((ent->s.origin - player->s.origin).length() < 1000) {
 					far_from_players = false;
 					break;
@@ -2343,7 +2343,8 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"old/kmdm3", {-480, -572, 144}},
 	{"test/mals_barrier_test", {24, 136, 224}},
 	{"test/spbox", {112, 192, 168}},
-	{"test/test_kaiser", {1344, 176, -8}}
+	{"test/test_kaiser", {1344, 176, -8}},
+	{"e3/jail_e3", {-572, -1312, 76}}
 };
 
 
@@ -3647,14 +3648,14 @@ void Horde_RunFrame() {
 					g_horde_local.warningIssued[i] = false;
 				}
 
-				gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
+				if (developer->integer) gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
 			}
 		}
 		break;
 
 	case horde_state_t::active_wave: {
 		WaveEndReason reason;
-		bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
+		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 
 		if (shouldAdvance) {
 			SendCleanupMessage(reason);
