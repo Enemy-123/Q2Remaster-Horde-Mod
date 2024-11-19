@@ -3204,13 +3204,10 @@ static edict_t* SpawnMonsters() {
 		available_spawns[spawn_count++] = e;
 	}
 
-	// Usar un único RNG para todas las operaciones aleatorias
-	static std::mt19937 rng(std::random_device{}());
-
+	// Shuffle de spawns usando mt_rand
 	if (spawn_count > 1) {
 		for (size_t i = spawn_count - 1; i > 0; --i) {
-			std::uniform_int_distribution<size_t> dist(0, i);
-			size_t j = dist(rng);
+			size_t j = irandom(i + 1); // Usar irandom que internamente usa mt_rand
 			if (i != j)
 				std::swap(available_spawns[i], available_spawns[j]);
 		}
@@ -3223,19 +3220,17 @@ static edict_t* SpawnMonsters() {
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
 
-	std::uniform_int_distribution<int32_t> spawn_dist(
-		std::min(g_horde_local.queued_monsters, base_spawn),
-		std::min(base_spawn + 1, 6)
-	);
+	// Usar irandom en lugar de distribution
+	const int32_t min_spawn = std::min(g_horde_local.queued_monsters, base_spawn);
+	const int32_t max_spawn = std::min(base_spawn + 1, 6);
+	const int32_t monsters_per_spawn = irandom(min_spawn, max_spawn);
 
-	const int32_t monsters_per_spawn = spawn_dist(rng);
 	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
 
 	if (spawnable <= 0 || spawn_count == 0)
 		return nullptr;
 
 	edict_t* last_spawned = nullptr;
-	std::uniform_real_distribution<float> drop_dist(0.0f, 1.0f);
 
 	for (size_t i = 0; i < spawn_count && i < static_cast<size_t>(spawnable) && g_horde_local.num_to_spawn > 0; ++i) {
 		edict_t* spawn_point = available_spawns[i];
@@ -3248,7 +3243,6 @@ static edict_t* SpawnMonsters() {
 		if (!monster)
 			continue;
 
-		// Configuración básica optimizada
 		monster->classname = monster_classname;
 		monster->s.origin = spawn_point->s.origin;
 		monster->s.angles = spawn_point->s.angles;
@@ -3256,7 +3250,6 @@ static edict_t* SpawnMonsters() {
 		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
 
-		// Spawn usando spawn_temp_t::empty
 		ED_CallSpawn(monster, spawn_temp_t::empty);
 
 		if (!monster->inuse) {
@@ -3264,28 +3257,25 @@ static edict_t* SpawnMonsters() {
 			continue;
 		}
 
-		// Configuración post-spawn optimizada
 		if (g_horde_local.level >= 14)
 			SetMonsterArmor(monster);
 
 		const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 			g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-		if (drop_dist(rng) < drop_chance)
+		// Usar frandom en lugar de distribution
+		if (frandom() < drop_chance)
 			monster->item = G_HordePickItem();
 
-		// Efectos visuales y sonoros optimizados
 		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 		gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 
-		// Actualizar contadores
 		g_horde_local.num_to_spawn = std::max(0, g_horde_local.num_to_spawn - 1);
 		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
 		g_totalMonstersInWave++;
 		last_spawned = monster;
 	}
 
-	// Actualizar cola de monstruos de manera optimizada
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
