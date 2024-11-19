@@ -529,22 +529,33 @@ struct MonsterReplacement {
 
 // Arrays de reemplazos para cada modo (manteniendo los originales)
 static constexpr MonsterReplacement chaotic_replacements[] = {
-	// Early game (Olas 1-10)
-	{"monster_soldier_light", {"monster_soldier_hypergun", "monster_soldier"}, 2},
-	{"monster_soldier_ss", {"monster_infantry_vanilla", "monster_soldier_lasergun"}, 2},
-	{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_infantry"}, 2},
-	{"monster_parasite", {"monster_parasite", "monster_stalker"}, 2},
-	{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr_vanilla"}, 2},
-	{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr"}, 2},
+	// Early game (Olas 1-5)
+	{"monster_soldier_light", {"monster_soldier_hypergun", "monster_soldier", "monster_soldier_ripper"}, 3},
+	{"monster_soldier_ss", {"monster_infantry_vanilla", "monster_soldier_lasergun", "monster_soldier_hypergun"}, 3},
+	{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_infantry", "monster_soldier_ss"}, 3},
+	{"monster_parasite", {"monster_parasite", "monster_stalker", "monster_gekk"}, 3},
 
-	// Mid game (Olas 11-20)
-	{"monster_tank", {"monster_tank_commander", "monster_shambler"}, 2},
-	{"monster_brain", {"monster_brain", "monster_gunner"}, 2},
-	{"monster_gladiator", {"monster_gladc", "monster_tank", "monster_gladiator", "monster_gladb"}, 2},
-	{"monster_medic", {"monster_medic", "monster_gunner"}, 2},
+	// Mid-early game (Olas 6-10)
+	{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr_vanilla", "monster_brain"}, 3},
+	{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr", "monster_brain"}, 3},
+	{"monster_medic", {"monster_medic", "monster_gunner", "monster_brain"}, 3},
+	{"monster_flyer", {"monster_hover_vanilla", "monster_flyer", "monster_fixbot"}, 3},
 
-	// Late game (Ola 21+)
-	{"monster_floater", {"monster_daedalus", "monster_hover"}, 2},
+	// Mid game (Olas 11-14)
+	{"monster_tank", {"monster_tank_commander", "monster_shambler", "monster_tank_spawner", "monster_runnertank"}, 4},
+	{"monster_brain", {"monster_brain", "monster_gunner", "monster_berserk", "monster_mutant"}, 4},
+	{"monster_gladiator", {"monster_gladc", "monster_tank", "monster_gladiator", "monster_gladb"}, 4},
+	{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_daedalus"}, 3},
+	{"monster_floater", {"monster_daedalus", "monster_hover", "monster_floater_tracker"}, 3},
+
+	// Special spawns (Todas las olas, baja probabilidad)
+	{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}, 3},
+	{"monster_chick", {"monster_chick", "monster_chick_heat", "monster_gladiator"}, 3},
+	{"monster_gekk", {"monster_gekk", "monster_stalker", "monster_parasite"}, 3},
+
+	// Mini-boss replacements (Baja probabilidad)
+	{"monster_tank_commander", {"monster_tank_64", "monster_shambler", "monster_boss2_64"}, 3},
+	{"monster_shambler", {"monster_tank_commander", "monster_boss2_64", "monster_tank_64"}, 3}
 };
 
 static constexpr MonsterReplacement insane_replacements[] = {
