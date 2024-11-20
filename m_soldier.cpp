@@ -1323,11 +1323,44 @@ static void ai_soldier_move(edict_t* self, float dist)
 {
 	ai_move(self, dist);
 
-	if (!soldier_prone_shoot_ok(self))
+	// Si no tenemos enemigo o no está en uso, mantener comportamiento original
+	if (!self->enemy || !self->enemy->inuse)
 	{
+		if (!soldier_prone_shoot_ok(self))
+		{
+			soldier_stand_up(self);
+			return;
+		}
+		return;
+	}
+
+	// Calcular dirección al enemigo
+	vec3_t dir = self->enemy->s.origin - self->s.origin;
+	float ideal_yaw = vectoyaw(dir);
+
+	// Limitar el ángulo de rotación mientras está tendido
+	float current_yaw = anglemod(self->s.angles[YAW]);
+	float delta_yaw = anglemod(ideal_yaw - current_yaw);
+
+	// Permitir rotación solo dentro de un cono de ~120 grados (60 a cada lado)
+	if (delta_yaw > 180)
+		delta_yaw -= 360;
+
+	if (fabs(delta_yaw) > 60)
+	{
+		// Si el enemigo está fuera del arco de visión permitido, levantarse
 		soldier_stand_up(self);
 		return;
 	}
+
+	// Actualizar la orientación del soldier suavemente
+	float yaw_speed = 3.0f; // Velocidad de rotación más lenta mientras está tendido
+	if (delta_yaw > yaw_speed)
+		self->s.angles[YAW] = anglemod(current_yaw + yaw_speed);
+	else if (delta_yaw < -yaw_speed)
+		self->s.angles[YAW] = anglemod(current_yaw - yaw_speed);
+	else
+		self->s.angles[YAW] = ideal_yaw;
 }
 
 void soldier_fire5(edict_t* self)
@@ -1393,16 +1426,36 @@ mframe_t soldier_frames_trip[] = {
 };
 MMOVE_T(soldier_move_trip) = { FRAME_runt01, FRAME_runt19, soldier_frames_trip, soldier_run };
 
+static void soldier_high_gravity(edict_t* self)
+{
+	float gravity_scale = (800.f / level.gravity);
+
+	if (self->velocity[2] < 0)
+		self->gravity = 2.0f;  // Aumentado de 1.75f para una caída más notable
+	else
+		self->gravity = 4.75f; // Aumentado de 4.0f para un control más preciso del salto
+
+	self->gravity *= gravity_scale;
+
+	// Asegurarse de que la gravedad se aplique correctamente
+	self->gravity = -self->gravity;
+	SV_AddGravity(self);
+	self->gravity = -self->gravity;
+
+	gi.linkentity(self);
+}
+
 void soldier_jump_now(edict_t* self)
 {
-	//	gi.Com_PrintFmt("PRINT: soldier_jump_now called\n");
 	vec3_t forward, up;
 
 	AngleVectors(self->s.angles, forward, nullptr, up);
 	self->velocity += (forward * 120);
 	self->velocity += (up * 200);
-}
 
+	// Aplicar gravedad aumentada
+	soldier_high_gravity(self);
+}
 void soldier_jump2_now(edict_t* self)
 {
 	vec3_t forward, up;
@@ -1410,7 +1463,11 @@ void soldier_jump2_now(edict_t* self)
 	AngleVectors(self->s.angles, forward, nullptr, up);
 	self->velocity += (forward * 130);
 	self->velocity += (up * 300);
+
+	// Aplicar gravedad aumentada
+	soldier_high_gravity(self);
 }
+
 
 void soldier_jump_wait_land(edict_t* self)
 {
@@ -1445,6 +1502,7 @@ mframe_t soldier_frames_jump2[] = {
 	{ ai_move }
 };
 MMOVE_T(soldier_move_jump2) = { FRAME_duck01, FRAME_duck05, soldier_frames_jump2, soldier_run };
+
 
 void soldier_jump(edict_t* self, blocked_jump_result_t result)
 {
