@@ -1737,7 +1737,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 				total_monster_health += e->health;
 			}
 
-			if (e->item && strcmp(e->classname, e->item->classname))
+			if (e->item && e->classname && e->item->classname && strcmp(e->classname, e->item->classname))
 			{
 				cn = e->item->classname ? e->item->classname : "noclass";
 
