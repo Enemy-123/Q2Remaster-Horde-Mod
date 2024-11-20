@@ -13,7 +13,7 @@ struct vec3_t
 {
 	float x, y, z;
 
-	[[nodiscard]] constexpr const float &operator[](size_t i) const
+	[[nodiscard]] constexpr const float& operator[](size_t i) const
 	{
 		if (i == 0)
 			return x;
@@ -24,7 +24,7 @@ struct vec3_t
 		throw std::out_of_range("i");
 	}
 
-	[[nodiscard]] constexpr float &operator[](size_t i)
+	[[nodiscard]] constexpr float& operator[](size_t i)
 	{
 		if (i == 0)
 			return x;
@@ -36,62 +36,63 @@ struct vec3_t
 	}
 
 	// comparison
-	[[nodiscard]] constexpr bool equals(const vec3_t &v) const
+	[[nodiscard]] constexpr bool equals(const vec3_t& v) const
 	{
 		return x == v.x && y == v.y && z == v.z;
 	}
-	[[nodiscard]] inline bool equals(const vec3_t &v, const float &epsilon) const
+	[[nodiscard]] inline bool equals(const vec3_t& v, const float& epsilon) const
 	{
 		return fabsf(x - v.x) <= epsilon && fabsf(y - v.y) <= epsilon && fabsf(z - v.z) <= epsilon;
 	}
-	[[nodiscard]] constexpr bool operator==(const vec3_t &v) const
+	[[nodiscard]] constexpr bool operator==(const vec3_t& v) const
 	{
 		return equals(v);
 	}
-	[[nodiscard]] constexpr bool operator!=(const vec3_t &v) const
+	[[nodiscard]] constexpr bool operator!=(const vec3_t& v) const
 	{
 		return !(*this == v);
 	}
 	[[nodiscard]] constexpr explicit operator bool() const
 	{
- 		return x || y || z;
+		return x || y || z;
 	}
 
 	// dot
-	[[nodiscard]] constexpr float dot(const vec3_t &v) const
+	[[nodiscard]] constexpr float dot(const vec3_t& v) const
 	{
 		return (x * v.x) + (y * v.y) + (z * v.z);
 	}
-	[[nodiscard]] constexpr vec3_t scaled(const vec3_t &v) const
+	[[nodiscard]] constexpr vec3_t scaled(const vec3_t& v) const
 	{
 		return { x * v.x, y * v.y, z * v.z };
 	}
-	constexpr vec3_t &scale(const vec3_t &v)
+	constexpr vec3_t& scale(const vec3_t& v)
 	{
 		*this = this->scaled(v);
 		return *this;
 	}
 
 	// basic operators
-	[[nodiscard]] constexpr vec3_t operator-(const vec3_t &v) const
+	[[nodiscard]] constexpr vec3_t operator-(const vec3_t& v) const
 	{
 		return { x - v.x, y - v.y, z - v.z };
 	}
-	[[nodiscard]] constexpr vec3_t operator+(const vec3_t &v) const
+	[[nodiscard]] constexpr vec3_t operator+(const vec3_t& v) const
 	{
 		return { x + v.x, y + v.y, z + v.z };
 	}
-	[[nodiscard]] constexpr vec3_t operator/(const vec3_t &v) const
+	[[nodiscard]] constexpr vec3_t operator/(const vec3_t& v) const
 	{
 		return { x / v.x, y / v.y, z / v.z };
 	}
 	template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
-	[[nodiscard]] constexpr vec3_t operator/(const T &v) const
+	[[nodiscard]] constexpr vec3_t operator/(const T& v) const
 	{
 		return { static_cast<float>(x / v), static_cast<float>(y / v), static_cast<float>(z / v) };
 	}
 	template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
-	[[nodiscard]] constexpr vec3_t operator*(const T& v) const {
+	[[nodiscard]] constexpr vec3_t operator*(const T& v) const
+	{
 		return { static_cast<float>(x * v), static_cast<float>(y * v), static_cast<float>(z * v) };
 	}
 	[[nodiscard]] constexpr vec3_t operator-() const
@@ -99,29 +100,29 @@ struct vec3_t
 		return { -x, -y, -z };
 	}
 
-	constexpr vec3_t &operator-=(const vec3_t &v)
+	constexpr vec3_t& operator-=(const vec3_t& v)
 	{
 		*this = *this - v;
 		return *this;
 	}
-	constexpr vec3_t &operator+=(const vec3_t &v)
+	constexpr vec3_t& operator+=(const vec3_t& v)
 	{
 		*this = *this + v;
 		return *this;
 	}
-	constexpr vec3_t &operator/=(const vec3_t &v)
+	constexpr vec3_t& operator/=(const vec3_t& v)
 	{
 		*this = *this / v;
 		return *this;
 	}
 	template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
-	constexpr vec3_t &operator/=(const T &v)
+	constexpr vec3_t& operator/=(const T& v)
 	{
 		*this = *this / v;
 		return *this;
 	}
 	template<typename T, typename = std::enable_if_t<std::is_floating_point_v<T> || std::is_integral_v<T>>>
-	constexpr vec3_t &operator*=(const T &v)
+	constexpr vec3_t& operator*=(const T& v)
 	{
 		*this = *this * v;
 		return *this;
@@ -141,7 +142,7 @@ struct vec3_t
 		float len = length();
 		return len ? (*this * (1.f / len)) : *this;
 	}
-	[[nodiscard]] inline vec3_t normalized(float &len) const
+	[[nodiscard]] inline vec3_t normalized(float& len) const
 	{
 		len = length();
 		return len ? (*this * (1.f / len)) : *this;
@@ -155,7 +156,7 @@ struct vec3_t
 
 		return len;
 	}
-	[[nodiscard]] constexpr vec3_t cross(const vec3_t &v) const
+	[[nodiscard]] constexpr vec3_t cross(const vec3_t& v) const
 	{
 		return {
 			y * v.z - z * v.y,
@@ -164,7 +165,6 @@ struct vec3_t
 		};
 	}
 };
-
 
 constexpr vec3_t vec3_origin{};
 
@@ -180,7 +180,8 @@ constexpr vec3_t vec3_origin{};
 	return vec * (1.0f / len);
 }
 
-inline void AngleVectors(const vec3_t &angles, vec3_t *forward, vec3_t *right, vec3_t *up)
+
+inline void AngleVectors(const vec3_t& angles, vec3_t* forward, vec3_t* right, vec3_t* up)
 {
 	float angle = angles[YAW] * (PIf * 2 / 360);
 	float sy = sinf(angle);
@@ -217,46 +218,46 @@ struct angle_vectors_t {
 };
 
 // for destructuring
-inline angle_vectors_t AngleVectors(const vec3_t &angles)
+inline angle_vectors_t AngleVectors(const vec3_t& angles)
 {
-	angle_vectors_t v{};
+	angle_vectors_t v;
 	AngleVectors(angles, &v.forward, &v.right, &v.up);
 	return v;
 }
 
 // silly wrappers to allow old C code to work
-inline void AngleVectors(const vec3_t &angles, vec3_t &forward, vec3_t &right, vec3_t &up)
+inline void AngleVectors(const vec3_t& angles, vec3_t& forward, vec3_t& right, vec3_t& up)
 {
 	AngleVectors(angles, &forward, &right, &up);
 }
-inline void AngleVectors(const vec3_t &angles, vec3_t &forward, vec3_t &right, nullptr_t)
+inline void AngleVectors(const vec3_t& angles, vec3_t& forward, vec3_t& right, nullptr_t)
 {
 	AngleVectors(angles, &forward, &right, nullptr);
 }
-inline void AngleVectors(const vec3_t &angles, vec3_t &forward, nullptr_t, vec3_t &up)
+inline void AngleVectors(const vec3_t& angles, vec3_t& forward, nullptr_t, vec3_t& up)
 {
 	AngleVectors(angles, &forward, nullptr, &up);
 }
-inline void AngleVectors(const vec3_t &angles, vec3_t &forward, nullptr_t, nullptr_t)
+inline void AngleVectors(const vec3_t& angles, vec3_t& forward, nullptr_t, nullptr_t)
 {
 	AngleVectors(angles, &forward, nullptr, nullptr);
 }
-inline void AngleVectors(const vec3_t &angles, nullptr_t, nullptr_t, vec3_t &up)
+inline void AngleVectors(const vec3_t& angles, nullptr_t, nullptr_t, vec3_t& up)
 {
 	AngleVectors(angles, nullptr, nullptr, &up);
 }
-inline void AngleVectors(const vec3_t &angles, nullptr_t, vec3_t &right, nullptr_t)
+inline void AngleVectors(const vec3_t& angles, nullptr_t, vec3_t& right, nullptr_t)
 {
 	AngleVectors(angles, nullptr, &right, nullptr);
 }
 
-inline void ClearBounds(vec3_t &mins, vec3_t &maxs)
+inline void ClearBounds(vec3_t& mins, vec3_t& maxs)
 {
 	mins[0] = mins[1] = mins[2] = std::numeric_limits<float>::infinity();
 	maxs[0] = maxs[1] = maxs[2] = -std::numeric_limits<float>::infinity();
 }
 
-inline void AddPointToBounds(const vec3_t &v, vec3_t &mins, vec3_t &maxs)
+inline void AddPointToBounds(const vec3_t& v, vec3_t& mins, vec3_t& maxs)
 {
 	for (int i = 0; i < 3; i++)
 	{
@@ -268,7 +269,7 @@ inline void AddPointToBounds(const vec3_t &v, vec3_t &mins, vec3_t &maxs)
 	}
 }
 
-[[nodiscard]] constexpr vec3_t ProjectPointOnPlane(const vec3_t &p, const vec3_t &normal)
+[[nodiscard]] constexpr vec3_t ProjectPointOnPlane(const vec3_t& p, const vec3_t& normal)
 {
 	float inv_denom = 1.0f / normal.dot(normal);
 	float d = normal.dot(p) * inv_denom;
@@ -278,12 +279,12 @@ inline void AddPointToBounds(const vec3_t &v, vec3_t &mins, vec3_t &maxs)
 /*
 ** assumes "src" is normalized
 */
-[[nodiscard]] inline vec3_t PerpendicularVector(const vec3_t &src)
+[[nodiscard]] inline vec3_t PerpendicularVector(const vec3_t& src)
 {
 	int	   pos;
 	int	   i;
 	float  minelem = 1.0F;
-	vec3_t tempvec{};
+	vec3_t tempvec;
 
 	/*
 	** find the smallest magnitude axially aligned vector
@@ -312,7 +313,7 @@ using mat3_t = std::array<std::array<float, 3>, 3>;
 R_ConcatRotations
 ================
 */
-[[nodiscard]] constexpr mat3_t R_ConcatRotations(const mat3_t &in1, const mat3_t &in2)
+[[nodiscard]] constexpr mat3_t R_ConcatRotations(const mat3_t& in1, const mat3_t& in2)
 {
 	return {
 		std::array<float, 3> {
@@ -333,9 +334,9 @@ R_ConcatRotations
 	};
 }
 
-[[nodiscard]] inline vec3_t RotatePointAroundVector(const vec3_t &dir, const vec3_t &point, float degrees)
+[[nodiscard]] inline vec3_t RotatePointAroundVector(const vec3_t& dir, const vec3_t& point, float degrees)
 {
-	mat3_t	m{};
+	mat3_t	m;
 	mat3_t  im;
 	mat3_t  zrot;
 	mat3_t  rot;
@@ -384,13 +385,12 @@ R_ConcatRotations
 	};
 }
 
-[[nodiscard]] constexpr vec3_t closest_point_to_box(const vec3_t& from, const vec3_t& absmins, const vec3_t& absmaxs) {
-	// Eliminamos el check de NaN - en un juego de acción rápida como Quake, 
-	// estos checks deberían hacerse en la capa de datos, no en cada cálculo
+[[nodiscard]] constexpr vec3_t closest_point_to_box(const vec3_t& from, const vec3_t& absmins, const vec3_t& absmaxs)
+{
 	return {
-		std::clamp(from[0], absmins[0], absmaxs[0]),
-		std::clamp(from[1], absmins[1], absmaxs[1]),
-		std::clamp(from[2], absmins[2], absmaxs[2])
+		(from[0] < absmins[0]) ? absmins[0] : (from[0] > absmaxs[0]) ? absmaxs[0] : from[0],
+		(from[1] < absmins[1]) ? absmins[1] : (from[1] > absmaxs[1]) ? absmaxs[1] : from[1],
+		(from[2] < absmins[2]) ? absmins[2] : (from[2] > absmaxs[2]) ? absmaxs[2] : from[2]
 	};
 }
 
@@ -453,7 +453,7 @@ Slide off of the impacting object
 */
 constexpr float STOP_EPSILON = 0.1f;
 
-[[nodiscard]] constexpr vec3_t ClipVelocity(const vec3_t &in, const vec3_t &normal, float overbounce)
+[[nodiscard]] constexpr vec3_t ClipVelocity(const vec3_t& in, const vec3_t& normal, float overbounce)
 {
 	float dot = in.dot(normal);
 	vec3_t out = in + (normal * (-2 * dot));
@@ -465,7 +465,7 @@ constexpr float STOP_EPSILON = 0.1f;
 	return out;
 }
 
-[[nodiscard]] constexpr vec3_t SlideClipVelocity(const vec3_t &in, const vec3_t &normal, float overbounce)
+[[nodiscard]] constexpr vec3_t SlideClipVelocity(const vec3_t& in, const vec3_t& normal, float overbounce)
 {
 	float backoff = in.dot(normal) * overbounce;
 	vec3_t out = in - (normal * backoff);
@@ -477,7 +477,7 @@ constexpr float STOP_EPSILON = 0.1f;
 	return out;
 }
 
-[[nodiscard]] inline float vectoyaw(const vec3_t &vec)
+[[nodiscard]] inline float vectoyaw(const vec3_t& vec)
 {
 	// PMM - fixed to correct for pitch of 0
 	if (vec[PITCH] == 0)
@@ -498,7 +498,7 @@ constexpr float STOP_EPSILON = 0.1f;
 	return yaw;
 }
 
-[[nodiscard]] inline vec3_t vectoangles(const vec3_t &vec)
+[[nodiscard]] inline vec3_t vectoangles(const vec3_t& vec)
 {
 	float forward;
 	float yaw, pitch;
@@ -531,12 +531,12 @@ constexpr float STOP_EPSILON = 0.1f;
 	return { -pitch, yaw, 0 };
 }
 
-[[nodiscard]] constexpr vec3_t G_ProjectSource(const vec3_t &point, const vec3_t &distance, const vec3_t &forward, const vec3_t &right)
+[[nodiscard]] constexpr vec3_t G_ProjectSource(const vec3_t& point, const vec3_t& distance, const vec3_t& forward, const vec3_t& right)
 {
-	return point + (forward * distance[0]) + (right * distance[1]) + vec3_t{0.f, 0.f, distance[2]};
+	return point + (forward * distance[0]) + (right * distance[1]) + vec3_t{ 0.f, 0.f, distance[2] };
 }
 
-[[nodiscard]] constexpr vec3_t G_ProjectSource2(const vec3_t &point, const vec3_t &distance, const vec3_t &forward, const vec3_t &right, const vec3_t &up)
+[[nodiscard]] constexpr vec3_t G_ProjectSource2(const vec3_t& point, const vec3_t& distance, const vec3_t& forward, const vec3_t& right, const vec3_t& up)
 {
 	return point + (forward * distance[0]) + (right * distance[1]) + (up * distance[2]);
 }
@@ -545,7 +545,6 @@ constexpr float STOP_EPSILON = 0.1f;
 {
 	return point + (forward * distance[0]) + (right * distance[1]) + (up * distance[2]) + offset;
 }
-
 
 [[nodiscard]] inline vec3_t slerp(const vec3_t& from, const vec3_t& to, float t)
 {

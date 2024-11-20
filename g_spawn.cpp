@@ -49,6 +49,7 @@ void SP_trigger_flashlight(edict_t* self); // [Paril-KEX]
 void SP_trigger_fog(edict_t* self); // [Paril-KEX]
 void SP_trigger_coop_relay(edict_t* self); // [Paril-KEX]
 void SP_trigger_health_relay(edict_t* self); // [Paril-KEX]
+void SP_trigger_safe_fall(edict_t* ent); // [Paril-KEX]
 
 void SP_target_temp_entity(edict_t* ent);
 void SP_target_speaker(edict_t* ent);
@@ -290,6 +291,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "trigger_fog", SP_trigger_fog }, // [Paril-KEX]
 	{ "trigger_coop_relay", SP_trigger_coop_relay }, // [Paril-KEX]
 	{ "trigger_health_relay", SP_trigger_health_relay }, // [Paril-KEX]
+	{ "trigger_safe_fall", SP_trigger_safe_fall }, // [Paril-KEX]
 
 	{ "target_temp_entity", SP_target_temp_entity },
 	{ "target_speaker", SP_target_speaker },
@@ -1584,7 +1586,10 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		Q_strlcpy(game.spawnpoint, spawnpoint, sizeof(game.spawnpoint));
 
 	level.is_n64 = strncmp(level.mapname, "q64/", 4) == 0;
-	level.is_psx = strncmp(level.mapname, "psx", 3) == 0;
+	level.is_psx = (strncmp(level.mapname, "psx/", 4) == 0) ||
+		(strncmp(level.mapname, "psx", 3) == 0 &&
+			level.mapname[3] != '\0' &&
+			level.mapname[3] != '.');
 
 	level.coop_scale_players = 0;
 	level.coop_health_scaling = clamp(g_coop_health_scaling->value, 0.f, 1.f);
