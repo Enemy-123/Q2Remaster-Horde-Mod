@@ -99,40 +99,21 @@ void UpdatePowerUpTimes(edict_t* monster) {
 	}
 }
 
-float M_DamageModifier(edict_t* monster)
-{
+[[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept {
 	if (monster->monsterinfo.damage_modifier_applied)
-	{
-		return 1.0f; // No additional modifier
-	}
+		return 1.0f;
 
-	float damageModifier = 1.0f;
+	float mod = 1.0f;
+	const bool has_quad = monster->monsterinfo.quad_time > level.time;
+	const bool has_double = monster->monsterinfo.double_time > level.time;
 
-	if (monster->monsterinfo.quad_time > level.time)
-	{
-		damageModifier *= 4.0f;
-	}
-
-	if (monster->monsterinfo.double_time > level.time)
-	{
-		if (monster->monsterinfo.quad_time <= level.time)
-		{
-			damageModifier *= 2.0f;
-		}
-	}
-
-	if (damageModifier > 4.0f)
-	{
-		damageModifier = 4.0f;
-	}
-	else if (damageModifier > 2.0f && monster->monsterinfo.quad_time <= level.time)
-	{
-		damageModifier = 2.0f;
-	}
+	if (has_quad)
+		mod = 4.0f;
+	else if (has_double)
+		mod = 2.0f;
 
 	monster->monsterinfo.damage_modifier_applied = true;
-
-	return damageModifier;
+	return mod;
 }
 
 std::string GetTitleFromFlags(int bonus_flags)
