@@ -26,6 +26,7 @@ static cached_soundindex sound_step;
 static cached_soundindex sound_sight;
 static cached_soundindex sound_windup;
 static cached_soundindex sound_strike;
+static cached_soundindex sound_grenade;
 
 constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_GUARDIAN = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING = 16_spawnflag;
@@ -361,64 +362,44 @@ constexpr float GRENADE_SPEED = 1600.f;
 
 void TankGrenades(edict_t* self)
 {
-	vec3_t start, aim, aimpoint;
-	vec3_t forward, right;
-	monster_muzzleflash_id_t flash_number;
-	vec3_t offset;
-	const float spread = 0.05f;
-	float pitch = 0;
-	bool blindfire = false;
-
 	if (!self->enemy || !self->enemy->inuse)
 		return;
-	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
-		blindfire = true;
 
-	// Determinar el flash number y offset según el frame
-	if (self->s.frame == FRAME_attak110) {
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
-		offset = { 28.7f, -18.5f, 28.7f };
-	}
-	else if (self->s.frame == FRAME_attak113) {
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_2;
-		offset = { 24.6f, -21.5f, 30.1f };
-	}
-	else { // (self->s.frame == FRAME_attak116)
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_3;
-		offset = { 19.8f, -23.9f, 32.1f };
-	}
-
-	// Calcular la posición de inicio del disparo
+	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
-	start.z += offset[2];
 
-	// Determinar si es un disparo de mortero o una granada normal
+	// Definir el offset según el frame
+	vec3_t offset;
+	if (self->s.frame == FRAME_attak110)
+		offset = { 28.7f, -18.5f, 28.7f };
+	else if (self->s.frame == FRAME_attak113)
+		offset = { 24.6f, -21.5f, 30.1f };
+	else // FRAME_attak116
+		offset = { 19.8f, -23.9f, 32.1f };
+
+	// Calcular punto de inicio usando M_ProjectFlashSource
+	vec3_t start = M_ProjectFlashSource(self, offset, forward, right);
+
+	// Determinar si es disparo de mortero
 	const bool is_mortar = (self->s.frame == FRAME_attak110);
 	const float speed = is_mortar ? MORTAR_SPEED : GRENADE_SPEED;
 
-	// Usar PredictAim para calcular la dirección del disparo
+	vec3_t aim, aimpoint;
+	// Calcular dirección de disparo con PredictAim
 	PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
 
-	// Añadir una ligera desviación hacia la derecha
-	aim += right * spread;
+	// Añadir ligera dispersión
+	aim += right * 0.05f;
 	aim.normalize();
 
-	// Calcular el pitch basado en la dirección de aim
-	pitch = asinf(aim.z);
-	if (pitch > 0.4f)
-		pitch = 0.4f;
-	else if (pitch < -0.5f)
-		pitch = -0.5f;
-
-	// Intentar encontrar el mejor pitch para el disparo
+	// Intentar encontrar el mejor pitch
 	if (M_CalculatePitchToFire(self, aimpoint, start, aim, speed, 2.5f, is_mortar))
-		monster_fire_grenade(self, start, aim, 50, speed, flash_number, (crandom_open() * 10.0f), frandom() * 10.f);
+		monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0, crandom_open() * 10.0f, frandom() * 10.f);
 	else
-		// Disparo normal si no se encuentra un pitch óptimo
-		monster_fire_grenade(self, start, aim, 50, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
-}
+		monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0, crandom_open() * 10.0f, 200.f + (crandom_open() * 10.0f));
 
+	gi.sound(self, CHAN_WEAPON, sound_grenade, 1, ATTN_NORM, 0);
+}
 void TankBlaster(edict_t* self)
 {
 	vec3_t forward, right;
@@ -1273,6 +1254,7 @@ void SP_monster_tank(edict_t* self)
 	sound_windup.assign("tank/tnkatck4.wav");
 	sound_strike.assign("tank/tnkatck5.wav");
 	sound_sight.assign("tank/sight1.wav");
+	sound_grenade.assign("guncmdr/gcdratck3.wav");
 
 	gi.soundindex("tank/tnkatck1.wav");
 	gi.soundindex("tank/tnkatk2a.wav");
