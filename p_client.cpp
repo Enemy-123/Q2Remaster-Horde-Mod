@@ -985,7 +985,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
 
 		// Preservar el contador de adrenalina antes de la inicialización
-		int saved_adrenaline = client->resp.adrenaline_count;
+		const int saved_adrenaline = client->resp.adrenaline_count;
 
 		client->pers.max_health = new_max_health;
 		client->resp.max_health = new_max_health;

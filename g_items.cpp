@@ -297,7 +297,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 
 	if (g_horde->integer) {
 		// En modo horde, usar el sistema de cálculo basado en oleadas
-		int new_max = CalculateWaveBasedMaxHealth(100, ent->client);
+		const int new_max = CalculateWaveBasedMaxHealth(100, ent->client);
 
 		// Actualizar todos los valores de salud relevantes
 		ent->max_health = new_max;
@@ -307,7 +307,7 @@ void Use_Adrenaline(edict_t* ent, gitem_t* item)
 	}
 	else {
 		// Fuera del modo horde, aplicar un bonus fijo por cada uso
-		int new_max = ent->max_health + ADRENALINE_HEALTH_BONUS;
+		const int new_max = ent->max_health + ADRENALINE_HEALTH_BONUS;
 
 		// Actualizar los valores de salud
 		ent->max_health = new_max;
