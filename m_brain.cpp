@@ -540,10 +540,6 @@ mframe_t brain_frames_run[] = {
 };
 MMOVE_T(brain_move_run) = { FRAME_walk101, FRAME_walk111, brain_frames_run, nullptr };
 
-bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2) {
-	const trace_t tr = gi.traceline(spot1, spot2, ignore, mask);
-	return (tr.fraction == 1.0f);
-}
 void brain_tounge_attack_continue(edict_t* self);
 mframe_t brain_frames_continue[] = {
 	{ ai_charge, 0, brain_tounge_attack_continue },

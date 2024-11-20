@@ -620,7 +620,7 @@ void HelpComputer(edict_t* ent)
 		const char* second_message = game.helpmessage2;
 		const char* second_title = level.secondary_objective_title;
 
-		if (level.is_psx)
+		if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
 		{
 			std::swap(first_message, second_message);
 			std::swap(first_title, second_title);

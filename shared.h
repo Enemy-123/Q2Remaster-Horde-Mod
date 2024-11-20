@@ -33,14 +33,15 @@ std::string GetTitleFromFlags(int bonus_flags);
 void ApplyMonsterBonusFlags(edict_t* monster);
 void ApplyBossEffects(edict_t* boss);
 extern float M_DamageModifier(edict_t* monster);
-extern std::string GetPlayerName(edict_t* player);
-// Declarar funciones externas para el healthbar
+void UpdatePowerUpTimes(edict_t* monster);
+
+std::string GetPlayerName(edict_t* player);
+// healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
 extern void check_target_healthbar(edict_t* self);
-extern void UpdatePowerUpTimes(edict_t* monster);
-extern bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);
-extern void Monster_MoveSpawn(edict_t* self); 
+
+void Monster_MoveSpawn(edict_t* self); 
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 struct MapSize {
     bool isSmallMap = false;
@@ -62,7 +63,8 @@ struct PlayerStats {
 
 void AllowReset();
 
-extern bool CheckAndTeleportStuckMonster(edict_t* self);
+bool CheckAndTeleportStuckMonster(edict_t* self);
+bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);
 
 
 #endif // SHARED_H

@@ -527,10 +527,10 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 	if (ent->movetype == MOVETYPE_NOCLIP)
 		return true;
 
-	contents_t mask = CONTENTS_MONSTER | ~CONTENTS_PLAYER;
+	contents_t mask = CONTENTS_MONSTER | CONTENTS_PLAYER;
 
 	// [Paril-KEX] don't gib other players in coop if we're not colliding
-	if (from_spawning && ent->client && G_IsCooperative() && !G_ShouldPlayersCollide(false))
+	if (from_spawning && ent->client && coop->integer && !G_ShouldPlayersCollide(false))
 		mask &= ~CONTENTS_PLAYER;
 
 	int		 i, num;
@@ -561,7 +561,7 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 		// [Paril-KEX] don't allow telefragging of friends in coop.
 		// the player that is about to be telefragged will have collision
 		// disabled until another time.
-		if (ent->client && hit->client && G_IsCooperative())
+		if (ent->client && hit->client && coop->integer)
 		{
 			hit->clipmask &= ~CONTENTS_PLAYER;
 			ent->clipmask &= ~CONTENTS_PLAYER;

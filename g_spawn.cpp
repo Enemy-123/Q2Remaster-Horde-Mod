@@ -745,7 +745,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 
 			SpawnItem(ent, item, spawntemp);
 
-			if (level.is_psx)
+			if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
 				ent->s.origin[2] += 15.f - (15.f * PSX_PHYSICS_SCALAR);
 
 			current_st = nullptr;
@@ -1003,7 +1003,7 @@ static const std::initializer_list<field_t> entity_fields = {
 
 	// [Paril-KEX] func_eye stuff
 	FIELD_AUTO_NAMED("eye_position", move_origin),
-	FIELD_AUTO_NAMED("vision_cone", yaw_speed),
+	FIELD_AUTO(vision_cone),
 
 	// [Paril-KEX] for trigger_coop_relay
 	FIELD_AUTO_NAMED("message2", map),
@@ -1551,6 +1551,8 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 		return false;
 	}
 }
+
+#include <map>
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
 	level.is_spawning = true;
@@ -1705,7 +1707,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	setup_shadow_lights();
 
-	/*if (gi.cvar("g_print_spawned_entities", "0", CVAR_NOFLAGS)->integer)
+	if (gi.cvar("g_print_spawned_entities", "0", CVAR_NOFLAGS)->integer)
 	{
 		std::map<std::string, int> entities;
 		int total_monster_health = 0;
@@ -1756,7 +1758,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 		{
 			gi.Com_PrintFmt("{}: {}\n", e.first, e.second);
 		}
-	}*/
+	}
 
 	level.is_spawning = false;
 }
@@ -2027,7 +2029,7 @@ void SP_worldspawn(edict_t* ent)
 
 	if (override_physics == -1)
 	{
-		if (g_horde->integer || deathmatch->integer && st.was_key_specified("physics_flags_dm"))
+		if (deathmatch->integer && st.was_key_specified("physics_flags_dm"))
 			override_physics = st.physics_flags_dm;
 		else if (!deathmatch->integer && st.was_key_specified("physics_flags_sp"))
 			override_physics = st.physics_flags_sp;

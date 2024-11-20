@@ -200,7 +200,7 @@ void berserk_attack_club(edict_t* self)
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		// Llamar a fire_hit solo si self->enemy está inicializado
-		if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 400)) // Slower attack
+		if (!fire_hit(self, aim, irandom(21, 28) * M_DamageModifier(self), 250)) // Slower attack
 			self->monsterinfo.melee_debounce_time = level.time + 2.5_sec;
 	}
 	else {

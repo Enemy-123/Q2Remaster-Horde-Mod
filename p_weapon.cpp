@@ -266,15 +266,21 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 			{
 				Add_Ammo(other, ammo, 1000);
 			}
+
 			else
 			{
 				int given_quantity = ammo->quantity;
+
+				if (level.is_psx && deathmatch->integer)
+					given_quantity *= 2;
+
 				if (g_horde->integer)
 				{
 					// Usar frandom para obtener un valor entre 0.7 y 1.3
 					float multiplier = frandom(0.7f, 1.3f);
 					given_quantity = (int)(given_quantity * multiplier);
 				}
+
 				given_quantity = std::max(1, given_quantity);
 				Add_Ammo(other, ammo, given_quantity);
 			}

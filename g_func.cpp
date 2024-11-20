@@ -1563,7 +1563,9 @@ TOUCH(Touch_DoorTrigger) (edict_t* self, edict_t* other, const trace_t& tr, bool
 	{
 		if (self->owner->spawnflags.has(SPAWNFLAG_DOOR_NOMONSTER))
 			return;
-		else if (!g_horde->integer && other->spawnflags.has(SPAWNFLAG_MONSTER_NO_IDLE_DOORS) && !other->enemy)
+		// [Paril-KEX] this is for PSX; the scale is so small that monsters walking
+		// around to path_corners often initiate doors unintentionally.
+		else if (other->spawnflags.has(SPAWNFLAG_MONSTER_NO_IDLE_DOORS) && !other->enemy)
 			return;
 	}
 

@@ -1400,7 +1400,7 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 		self->s.origin[2] -= (self->mins[2] - (self->mins[2] * self->s.scale));
 	}
 
-	if (level.is_psx)
+	if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
 		self->s.origin[2] -= self->mins[2] - (self->mins[2] * PSX_PHYSICS_SCALAR);
 
 	// set combat style if unset
@@ -1735,7 +1735,7 @@ void swimmonster_start(edict_t* self)
 
 USE(trigger_health_relay_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
-	float percent_health = clamp((float)(other->health) / (float)(other->max_health), 0.f, 1.f);
+	const float percent_health = clamp((float)(other->health) / (float)(other->max_health), 0.f, 1.f);
 
 	// not ready to trigger yet
 	if (percent_health > self->speed)

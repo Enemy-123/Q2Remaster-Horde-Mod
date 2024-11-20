@@ -532,6 +532,11 @@ void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size,
 	}
 }
 
+bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2) {
+	const trace_t tr = gi.traceline(spot1, spot2, ignore, mask);
+	return (tr.fraction == 1.0f);
+}
+
 inline float AngleNormalize360(float angle)
 {
 	angle = fmodf(angle, 360.0f);

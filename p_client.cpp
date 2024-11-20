@@ -36,7 +36,7 @@ void SP_info_player_start(edict_t* self)
 		self->nextthink = level.time + FRAME_TIME_S;
 	}
 
-	if (level.is_psx)
+	if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
 		self->s.origin[2] -= PLAYER_MINS[2] - (PLAYER_MINS[2] * PSX_PHYSICS_SCALAR);
 }
 
@@ -3389,7 +3389,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 
 	float delta = pm.impact_delta;
 
-	if (level.is_psx)
+	if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
 		delta = delta * delta * 0.000078f;
 	else
 		delta = delta * delta * 0.0001f;
@@ -3435,7 +3435,7 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 		ent->pain_debounce_time = level.time + FRAME_TIME_S; // no normal pain sound
 		damage = std::max((int)((delta - 30) / 2), 1);
 
-		if (level.is_psx)
+		if (pm_config.physics_flags & PHYSICS_PSX_SCALE)
 			damage = std::min(4, damage);
 
 		dir = { 0, 0, 1 };
