@@ -275,7 +275,7 @@ const char* CTFTeamName(int team)
 	switch (team)
 	{
 	case CTF_TEAM1:
-		return "Stroggiciders";
+		return "Stroggicide Squad";
 	case CTF_TEAM2:
 		return "BLUE";
 	case CTF_NOTEAM:
