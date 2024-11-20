@@ -265,23 +265,23 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {
 	if (wave_number >= 25) {
-		health_min = 18000;
-		power_armor_min = std::min(18550, 20000);
+		health_min = 16500;
+		power_armor_min = std::min(13550, 15000);
 	}
 	else if (wave_number >= 20) {
-		health_min = std::min(15000, 16500);
-		power_armor_min = std::min(13000, 16000);
+		health_min = std::min(13000, 16500);
+		power_armor_min = std::min(9000, 12000);
 	}
 	else if (wave_number >= 15) {
-		health_min = std::min(12000, 15500);
-		power_armor_min = std::min(9500, 12000);
+		health_min = std::min(10000, 13500);
+		power_armor_min = std::min(4500, 10000);
 	}
 	else if (wave_number >= 10) {
-		health_min = std::min(10000, 12500);
+		health_min = std::min(7000, 9500);
 		power_armor_min = std::min(5475, 8000);
 	}
 	else if (wave_number >= 5) {
-		health_min = std::min(10000, 12500);
+		health_min = std::min(10000, 2500);
 		power_armor_min = std::min(5475, 8000);
 	}
 	else {
