@@ -993,36 +993,51 @@ TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
 {
 	edict_t* self = (edict_t*)data;
+
 	if (!check->inuse)
 		return BoxEdictsResult_t::Skip;
 	if (check == self)
 		return BoxEdictsResult_t::Skip;
 	if (check->health < -40)
 		return BoxEdictsResult_t::Skip;
-	// don't hit teammates
-	if (check->client)
-	{
+
+	// Monster-owned tesla checks, later will be useful for monster's teslas
+	if (self->owner && (self->owner->svflags & SVF_MONSTER)) {
+		// Don't attack owner
+		if (check == self->owner)
+			return BoxEdictsResult_t::Skip;
+
+		// Don't attack teammates of owner
+		if (check->svflags & SVF_MONSTER && OnSameTeam(check, self->owner))
+			return BoxEdictsResult_t::Skip;
+
+		// Attack players and non-team monsters
+		if ((check->client && !OnSameTeam(check, self->owner)) ||
+			(check->svflags & SVF_MONSTER && !OnSameTeam(check, self->owner)))
+			return BoxEdictsResult_t::Keep;
+	}
+
+	// Regular tesla checks
+	if (check->client) {
 		if (!G_IsDeathmatch() && !g_horde->integer)
 			return BoxEdictsResult_t::Skip;
 		else if (CheckTeamDamage(check, self->teammaster))
 			return BoxEdictsResult_t::Skip;
 	}
+
 	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->client)
 		return BoxEdictsResult_t::Skip;
 
 	const char* classname = check->classname;
-	// Safety check for null classname
 	if (!classname)
 		return BoxEdictsResult_t::Keep;
 
-	// don't hit other teslas in SP/coop
 	if ((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP) || check->monsterinfo.invincible_time > level.time)
 		return BoxEdictsResult_t::Skip;
 
-	// Don't hit monster_sentrygun or emitter
 	if (strcmp(classname, "monster_sentrygun") == 0 ||
 		strcmp(classname, "emitter") == 0 ||
-		strcmp(classname, "nuke") == 0) 
+		strcmp(classname, "nuke") == 0)
 		return BoxEdictsResult_t::Skip;
 
 	return BoxEdictsResult_t::Keep;
@@ -1361,66 +1376,43 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 {
 	vec3_t dir;
 	movetype_t movetype = MOVETYPE_NONE;
-	int stick_ok = 0;
-
-	// No explotar al tocar clientes, monstruos o teslas del mismo equipo
-	bool should_bounce = other->client || (other->svflags & SVF_MONSTER);
-
-	// Verificar si es otra tesla (del mismo equipo o no)
-	if (strcmp(other->classname, "tesla_mine") == 0) {
-		// Siempre rebotar al tocar otras teslas
-		should_bounce = true;
-	}
-
-	if (should_bounce) {
+	// Don't stick to non-world entities
+	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client)) {
+		// Always bounce off non-world entities
 		if (tr.plane.normal) {
 			vec3_t out;
-			// Aumentar el backoff para más rebote
 			float backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
 
-			// Calcular dirección base del rebote
 			for (int i = 0; i < 3; i++) {
 				float change = tr.plane.normal[i] * backoff;
 				out[i] = ent->velocity[i] - change;
-
-				// Añadir un componente aleatorio al rebote
 				out[i] += crandom() * TESLA_BOUNCE_RANDOM;
 
-				// Asegurar una velocidad mínima
 				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0) {
 					out[i] = (out[i] < 0 ? -TESLA_MIN_BOUNCE_SPEED : TESLA_MIN_BOUNCE_SPEED);
 				}
 			}
 
-			// Añadir un impulso vertical adicional para evitar que se quede en el suelo
-			if (tr.plane.normal[2] > 0) { // Si golpea algo desde abajo
+			if (tr.plane.normal[2] > 0) {
 				out[2] += TESLA_VERTICAL_BOOST;
 			}
 
-			// Asegurar una velocidad mínima total
 			if (out.length() < TESLA_MIN_BOUNCE_SPEED) {
 				out.normalize();
 				out = out * TESLA_MIN_BOUNCE_SPEED;
 			}
 
-			// Aplicar la nueva velocidad
 			ent->velocity = out;
+			ent->avelocity = { crandom() * 200, crandom() * 200, crandom() * 200 };
 
-			// Añadir algo de rotación aleatoria
-			ent->avelocity[0] = crandom() * 200;
-			ent->avelocity[1] = crandom() * 200;
-			ent->avelocity[2] = crandom() * 200;
-
-			// Reproducir sonido de rebote
 			if (ent->velocity.length() > 0) {
-				if (frandom() > 0.5f)
-					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
-				else
-					gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
+				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
+					"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
 			}
 		}
 		return;
 	}
+
 	if (tr.plane.normal) {
 		float offset;
 

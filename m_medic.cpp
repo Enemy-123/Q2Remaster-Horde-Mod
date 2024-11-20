@@ -13,6 +13,11 @@ MEDIC
 #include "m_flash.h"
 #include "shared.h"
 
+
+// Add these prototypes near the top
+//bool tesla_check_conversion(edict_t* tesla, edict_t* converter);
+//void tesla_convert(edict_t* tesla, edict_t* converter);
+
 constexpr float MEDIC_MIN_DISTANCE = 32;
 constexpr float MEDIC_MAX_HEAL_DISTANCE = 400;
 constexpr gtime_t MEDIC_TRY_TIME = 10_sec;
@@ -1110,6 +1115,31 @@ void medic_cable_attack(edict_t* self)
 		return;
 	}
 
+	//// Check for existing enemy tesla conversion
+	//if (self->enemy && self->enemy->inuse && !strcmp(self->enemy->classname, "tesla_mine"))
+	//{
+	//	vec3_t offset, start, end{}, f, r;
+	//	AngleVectors(self->s.angles, f, r, nullptr);
+	//	offset = medic_cable_offsets[self->s.frame - FRAME_attack42];
+	//	start = M_ProjectFlashSource(self, offset, f, r);
+
+	//	// Verify distance
+	//	float dist = (start - self->enemy->s.origin).length();
+	//	if (dist < MEDIC_MIN_DISTANCE)
+	//	{
+	//		abortHeal(self, true, false);
+	//		self->monsterinfo.nextframe = FRAME_attack52;
+	//		return;
+	//	}
+
+	//	// On hit frame, convert the tesla
+	//	if (self->s.frame == FRAME_attack43)
+	//	{
+	//		gi.sound(self->enemy, CHAN_AUTO, sound_hook_hit, 1, ATTN_NORM, 0);
+	//		tesla_convert(self->enemy, self);
+	//	}
+	//}
+
 	// we switched back to a player; let the animation finish
 	if (self->enemy->client)
 		return;
@@ -1500,12 +1530,64 @@ mframe_t medic_frames_callReinforcements[] = {
 };
 MMOVE_T(medic_move_callReinforcements) = { FRAME_attack33, FRAME_attack55, medic_frames_callReinforcements, medic_run };
 
+
+
+//// Add this function to check if a tesla mine can be converted
+//bool tesla_check_conversion(edict_t* tesla, edict_t* converter)
+//{
+//	// Must be active tesla mine
+//	if (!tesla || !tesla->inuse || strcmp(tesla->classname, "tesla_mine") != 0)
+//		return false;
+//
+//	// Must be on different teams
+//	if (tesla->team == converter->team)
+//		return false;
+//
+//	// Must be in range and visible
+//	if (!visible(converter, tesla))
+//		return false;
+//
+//	float dist = (tesla->s.origin - converter->s.origin).length();
+//	if (dist > MEDIC_MAX_HEAL_DISTANCE)
+//		return false;
+//
+//	return true;
+//}
+//
+//// Add this function to convert a tesla mine to the medic's team
+//void tesla_convert(edict_t* tesla, edict_t* converter)
+//{
+//	// Change team
+//	tesla->team = converter->team;
+//
+//	// Update visuals to match new team
+//	tesla->s.effects &= ~(EF_COLOR_SHELL);
+//	tesla->s.renderfx &= ~(RF_SHELL_RED | RF_SHELL_BLUE);
+//	tesla->s.effects |= EF_COLOR_SHELL;
+//	tesla->s.renderfx |= (converter->team == TEAM1) ? RF_SHELL_RED : RF_SHELL_BLUE;
+//
+//	// Reset owner
+//	tesla->owner = converter;
+//}
+
 MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
 	float enemy_range = range_to(self, self->enemy);
 
+	//// Check for tesla mines to convert
+	//edict_t* tesla = nullptr;
+	//while ((tesla = findradius(tesla, self->s.origin, MEDIC_MAX_HEAL_DISTANCE)) != nullptr)
+	//{
+	//	if (tesla_check_conversion(tesla, self))
+	//	{
+	//		self->oldenemy = self->enemy;
+	//		self->enemy = tesla;
+	//		M_SetAnimation(self, &medic_move_attackCable);
+	//		return;
+	//	}
+	//}
 	// signal from checkattack to spawn
 	if (self->monsterinfo.aiflags & AI_BLOCKED)
 	{

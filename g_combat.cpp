@@ -571,14 +571,22 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 		{
 			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
 		}
-		// Verifica si uno de los entes es una tesla mine
+
+// For tesla_mine check section: this will be useful for converting teslas, possibly monsters to our team and viceversa
 		if (ent1->classname && !strcmp(ent1->classname, "tesla_mine"))
 		{
-			return !strcmp(ent1->team, ent2->client ? (ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent2->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2));
+			if (ent2->client)
+				return ent1->team && !strcmp(ent1->team, ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2);
+			else if (ent2->svflags & SVF_MONSTER)
+				return ent1->team && !strcmp(ent1->team, ent2->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+			return false;
 		}
 		if (ent2->classname && !strcmp(ent2->classname, "tesla_mine"))
 		{
-			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2));
+			const char* team1 = ent1->client ?
+				(ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
+				(ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+			return ent2->team && !strcmp(ent2->team, team1);
 		}
 		// Verifica si uno de los entes es una trampa
 		if (ent1->classname && !strcmp(ent1->classname, "food_cube_trap"))

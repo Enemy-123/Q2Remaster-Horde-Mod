@@ -32,7 +32,7 @@ std::string GetTitleFromFlags(int bonus_flags);
 //DMG & POWERUP
 void ApplyMonsterBonusFlags(edict_t* monster);
 void ApplyBossEffects(edict_t* boss);
-extern float M_DamageModifier(edict_t* monster);
+//extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
 void UpdatePowerUpTimes(edict_t* monster);
 
 std::string GetPlayerName(edict_t* player);

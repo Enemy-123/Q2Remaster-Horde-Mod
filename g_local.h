@@ -3936,4 +3936,4 @@ extern void UpdateVoteHUD();
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
 extern std::string GetDisplayName(const edict_t* ent); 
 extern std::string GetTitleFromFlags(int bonus_flags);
-extern float M_DamageModifier(edict_t* monster);
+extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
