@@ -36,7 +36,7 @@ inline int8_t GetNumActivePlayers();
 inline int8_t GetNumSpectPlayers();
 inline int8_t GetNumHumanPlayers();
 
-constexpr int8_t MAX_MONSTERS_BIG_MAP = 27;
+constexpr int8_t MAX_MONSTERS_BIG_MAP = 32;
 constexpr int8_t MAX_MONSTERS_MEDIUM_MAP = 16;
 constexpr int8_t MAX_MONSTERS_SMALL_MAP = 14;
 
