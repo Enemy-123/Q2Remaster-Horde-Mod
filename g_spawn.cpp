@@ -606,7 +606,7 @@ static constexpr MonsterReplacement hardcoop_replacements[] = {
 	{"monster_chick", {"monster_chick", "monster_chick_heat"}, 2},
 	{"monster_gladiator", {"monster_gladb", "monster_gladc", "monster_gladiator"}, 3},
 	{"monster_flipper", {"monster_gekk", "monster_flipper"}, 2},
-	{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
+//	{"monster_medic", {"monster_medic", "monster_spider", "monster_gm_arachnid"}, 3},
 	{"monster_brain", {"monster_brain", "monster_berserk", "monster_gunner", "monster_gunner_vanilla"}, 4},
 	{"monster_berserk", {"monster_brain", "monster_berserk", "monster_mutant"}, 3},
 	{"monster_commander_body", {"monster_tank_64", "monster_tank_commander"}, 2},
