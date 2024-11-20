@@ -2175,7 +2175,7 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 		layout += fmt::format("if 0 xv 0 yb -55 cstring2 \"{}\" endif \n",
 			ent->client->resp.ctf_team != CTF_TEAM1
 			? "Use Inventory <KEY> to toggle Horde Menu."
-			: "Use Compass or Inventory <KEY> to toggle Horde Menu.");
+			: "Use Horde Menu on Powerup Wheel or press Inventory <KEY> to toggle Horde Menu.");
 	}
 	else {
 		layout += fmt::format("ifgef {} yb -48 xv 0 loc_cstring2 0 \"{}\" endif \n",
@@ -2195,7 +2195,7 @@ void CTFHasTech(edict_t* who)
 	// Check if the message has been shown less than twice and the current wave number is less or equal to 5
 	if (who->client->ctf_lasttechmsg_count < 2)
 	{
-		gi.LocCenter_Print(who, "\n\nTechs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Equip it on Horde Menu! Use *Compass* to open menu\n");
+		gi.LocCenter_Print(who, "\n\nTechs Are Now Being Saved After Death.\nYou Can Use Your *Drop Tech* Key \nOr\n Swap them on Horde Menu! Open Horde Menu (TURTLE) on POWERUP WHEEL\n");
 
 		// Increment the message count
 		who->client->ctf_lasttechmsg_count++;
@@ -2758,7 +2758,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	UpdateVoteHUD();  // Esta función ya maneja la actualización del configstring y voted_map
 
 	// Mensajes broadcast adicionales
-	gi.LocBroadcast_Print(PRINT_HIGH, "Use Compass/Inventory to vote, or type YES/NO in console.\n");
+	gi.LocBroadcast_Print(PRINT_HIGH, "Use Horde Menu (TURTLE) on POWERUP WHEEL to vote, or type YES/NO in console.\n");
 	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
 
 	// Auto-aprobación para un solo jugador
@@ -5190,7 +5190,7 @@ void CTFWarp(edict_t* ent, const char* map_name)
 	gi.Info_ValueForKey(ent->client->pers.userinfo, "name", playerName, sizeof(playerName));
 	Q_strlcpy(ctfgame.elevel, token, sizeof(ctfgame.elevel));
 
-	std::string voteMessage = G_Fmt("{} has requested a vote for level {}.\nUse Compass / Inventory to vote.\n",
+	std::string voteMessage = G_Fmt("{} has requested a vote for level {}.\nUse Horde Menu (TURTLE) on POWERUP WHEEL to vote YES/NO.\n",
 		playerName, token).data();
 
 	if (CTFBeginElection(ent, ELECT_MAP, voteMessage.c_str()))

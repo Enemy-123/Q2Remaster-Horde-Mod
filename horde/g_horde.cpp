@@ -2962,7 +2962,7 @@ static void PlayWaveStartSound() {
 // Implementación de DisplayWaveMessage
 void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	static const std::array<const char*, 3> messages = {
-		"Horde Menu available upon opening Inventory or using Compass\n\nMAKE THEM PAY!\n",
+		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
 		"NEW!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!"
 	};
