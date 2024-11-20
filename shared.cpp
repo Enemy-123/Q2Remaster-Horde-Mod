@@ -182,7 +182,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 
 		monster->monsterinfo.team = CTF_TEAM1;
 
-		//monster->classname = "summonedent";
 
 		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
