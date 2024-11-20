@@ -561,7 +561,7 @@ bool KillBox(edict_t* ent, bool from_spawning, mod_id_t mod, bool bsp_clipping, 
 		// [Paril-KEX] don't allow telefragging of friends in coop.
 		// the player that is about to be telefragged will have collision
 		// disabled until another time.
-		if (ent->client && hit->client && coop->integer)
+		if (ent->client && hit->client/* && coop->integer*/) // disabled coop check so horde works
 		{
 			hit->clipmask &= ~CONTENTS_PLAYER;
 			ent->clipmask &= ~CONTENTS_PLAYER;

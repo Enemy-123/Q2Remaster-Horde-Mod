@@ -2029,9 +2029,9 @@ void SP_worldspawn(edict_t* ent)
 
 	if (override_physics == -1)
 	{
-		if (deathmatch->integer && st.was_key_specified("physics_flags_dm"))
+		if (g_horde->integer || deathmatch->integer && st.was_key_specified("physics_flags_dm"))
 			override_physics = st.physics_flags_dm;
-		else if (!deathmatch->integer && st.was_key_specified("physics_flags_sp"))
+		else if (!g_horde->integer && !deathmatch->integer && st.was_key_specified("physics_flags_sp"))
 			override_physics = st.physics_flags_sp;
 	}
 
@@ -2039,13 +2039,13 @@ void SP_worldspawn(edict_t* ent)
 		pm_config.physics_flags = (physics_flags_t)override_physics;
 	else
 	{
-		if (level.is_n64)
+		if (level.is_n64 && !g_horde->integer)
 			pm_config.physics_flags |= PHYSICS_N64_MOVEMENT;
 
-		if (level.is_psx)
+		if (level.is_psx && !g_horde->integer)
 			pm_config.physics_flags |= PHYSICS_PSX_MOVEMENT | PHYSICS_PSX_SCALE;
 
-		if (deathmatch->integer)
+		if (deathmatch->integer || g_horde->integer)
 			pm_config.physics_flags |= PHYSICS_DEATHMATCH;
 	}
 
