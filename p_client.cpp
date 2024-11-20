@@ -3491,6 +3491,7 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 }
 
 // Constantes
+constexpr gtime_t BOT_INACTIVITY_DURATION = 20_sec;  // Duración específica para bots
 constexpr gtime_t MIN_INACTIVITY_DURATION = 15_sec;
 constexpr gtime_t DEFAULT_INACTIVITY_DURATION = 45_sec;
 constexpr gtime_t WARNING_TIME = 5_sec;
@@ -3520,6 +3521,11 @@ static bool IsPlayerActive(const edict_t* ent) {
 		ent->client->old_angles != ent->client->v_angle;
 }
 
+static bool IsBotStuckAtOrigin(const edict_t* ent) {
+	return (ent->svflags & SVF_BOT) &&
+		ent->client->old_origin == ent->s.origin;
+}
+
 static bool ClientInactivityTimer(edict_t* ent) {
 	// Verificación de precondiciones
 	if (!ent || !ent->client) {
@@ -3528,14 +3534,44 @@ static bool ClientInactivityTimer(edict_t* ent) {
 	}
 
 	// Casos especiales donde no se aplica la inactividad
-	if (level.intermissiontime || (ent->svflags & SVF_BOT) ||
-		ClientIsSpectating(ent->client) || ent->client->resp.ctf_team == CTF_NOTEAM) {
+	if (level.intermissiontime ||
+		ClientIsSpectating(ent->client) ||
+		ent->client->resp.ctf_team == CTF_NOTEAM) {
 		return true;
 	}
 
+	// Manejo especial para bots
+	if (ent->svflags & SVF_BOT) {
+		// Inicialización del temporizador de inactividad para bots
+		if (!ent->client->resp.inactivity_time) {
+			ent->client->resp.inactivity_time = level.time + BOT_INACTIVITY_DURATION;
+			ent->client->old_origin = ent->s.origin;
+			return true;
+		}
+
+		// Si el bot está atascado en su origen
+		if (IsBotStuckAtOrigin(ent)) {
+			if (level.time > ent->client->resp.inactivity_time) {
+				// Teletransportar al bot
+				TeleportSelf(ent);
+				// Reiniciar el temporizador
+				ent->client->resp.inactivity_time = level.time + BOT_INACTIVITY_DURATION;
+				return true;
+			}
+		}
+		else {
+			// Si el bot se mueve, reiniciar el temporizador
+			ent->client->resp.inactivity_time = level.time + BOT_INACTIVITY_DURATION;
+		}
+
+		// Actualizar la posición antigua del bot
+		ent->client->old_origin = ent->s.origin;
+		return true;
+	}
+
+	// Código original para jugadores humanos
 	const gtime_t inactivity_duration = std::max(DEFAULT_INACTIVITY_DURATION, MIN_INACTIVITY_DURATION);
 
-	// Inicialización del temporizador de inactividad
 	if (!ent->client->resp.inactivity_time) {
 		ent->client->resp.inactivity_time = level.time + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
@@ -3544,7 +3580,6 @@ static bool ClientInactivityTimer(edict_t* ent) {
 		return true;
 	}
 
-	// Comprobación de actividad del jugador
 	if (IsPlayerActive(ent)) {
 		ent->client->resp.inactivity_time = level.time + inactivity_duration;
 		ent->client->resp.inactivity_warning = false;
@@ -3552,29 +3587,22 @@ static bool ClientInactivityTimer(edict_t* ent) {
 	}
 	else {
 		const gtime_t current_time = level.time;
-
-		// Manejo de jugador inactivo
 		if (current_time > ent->client->resp.inactivity_time) {
 			HandleInactivePlayer(ent);
 			return false;
 		}
-
-		// Advertencia de inactividad
 		if (current_time > ent->client->resp.inactivity_time - WARNING_TIME && !ent->client->resp.inactivity_warning) {
 			ent->client->resp.inactivity_warning = true;
 			WarnInactivePlayer(ent);
 		}
 	}
 
-	// Reseteo de advertencia si el jugador se vuelve activo
 	if (ent->client->resp.inactivity_warning && IsPlayerActive(ent)) {
 		ent->client->resp.inactivity_warning = false;
 	}
 
-	// Actualización de la posición y ángulos antiguos usando asignación directa
 	ent->client->old_origin = ent->s.origin;
 	ent->client->old_angles = ent->client->v_angle;
-
 	return true;
 }
 
