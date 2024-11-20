@@ -2964,10 +2964,12 @@ void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	static const std::array<const char*, 3> messages = {
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
-		"NEW!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!"
+		"New Tactics!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!"
 	};
 
-	int choice = irandom(0, messages.size() - 1);
+	// Usar distribución uniforme con mt_rand
+	std::uniform_int_distribution<size_t> dist(0, messages.size() - 1);
+	size_t choice = dist(mt_rand);
 	UpdateHordeMessage(messages[choice], duration);
 }
 
