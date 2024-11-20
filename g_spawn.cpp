@@ -612,7 +612,7 @@ static constexpr MonsterReplacement hardcoop_replacements[] = {
 	{"monster_commander_body", {"monster_tank_64", "monster_tank_commander"}, 2},
 	{"monster_guardian", {"monster_psxguardian"}, 1},
 //	{"monster_arachnid", {"monster_arachnid", "monster_psxarachid", "monster_gm_arachnid"}, 3}
-	{"monster_arachnid", {"monster_psxarachid"}, 1}
+	{"monster_arachnid", {"monster_psxarachnid"}, 1}
 };
 
 // Tamaños constexpr
