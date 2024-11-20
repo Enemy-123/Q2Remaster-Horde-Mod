@@ -20,6 +20,7 @@ static cached_soundindex sound_pain2;
 static cached_soundindex sound_slash;
 static cached_soundindex sound_sproing;
 static cached_soundindex sound_die;
+static cached_soundindex sound_laser;
 
 void flyer_check_melee(edict_t* self);
 void flyer_loop_melee(edict_t* self);
@@ -318,60 +319,60 @@ void flyer_checkstrafe(edict_t* self)
 
 void flyer_rocket(edict_t* self)
 {
-		vec3_t	forward;
-		vec3_t	start, end, dir;
-		float	dist, chance;
-		trace_t trace;
-		constexpr int rocketSpeed = 850;
+	vec3_t	forward;
+	vec3_t	start, end, dir;
+	float	dist, chance;
+	trace_t trace;
+	constexpr int rocketSpeed = 850;
 
-		if (!self->enemy || !self->enemy->inuse)
-			return;
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
-		if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
-			end = self->monsterinfo.blind_fire_target;
-		else
-			end = self->enemy->s.origin;
-		dir = end - self->s.origin;
-		dir.normalize();
-		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-		chance = dir.dot(forward);
-		if (chance < 0.98f)
-			return;
+	if (self->monsterinfo.aiflags & AI_LOST_SIGHT)
+		end = self->monsterinfo.blind_fire_target;
+	else
+		end = self->enemy->s.origin;
+	dir = end - self->s.origin;
+	dir.normalize();
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	chance = dir.dot(forward);
+	if (chance < 0.98f)
+		return;
 
-		chance = frandom();
+	chance = frandom();
 
-		if (visible(self, self->enemy))
+	if (visible(self, self->enemy))
+	{
+		start = self->s.origin;
+
+		// aim for the head.
+		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
-			start = self->s.origin;
+			if ((self->enemy) && (self->enemy->client))
+				end[2] += self->enemy->viewheight;
+			else
+				end[2] += 22;
+		}
 
-			// aim for the head.
-			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
-			{
-				if ((self->enemy) && (self->enemy->client))
-					end[2] += self->enemy->viewheight;
-				else
-					end[2] += 22;
-			}
+		dir = end - start;
+		dist = dir.length();
 
-			dir = end - start;
-			dist = dir.length();
+		// check for predictive fire
+		// Paril: adjusted to be a bit more fair
+		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
+		{
 
-			// check for predictive fire
-			// Paril: adjusted to be a bit more fair
-			if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
-			{
+			PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
+		}
 
-					PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
-			}
-
-			dir.normalize();
-			trace = gi.traceline(start, end, self, MASK_PROJECTILE);
-			if (trace.ent == self->enemy || trace.ent == world)
-			{
-					if (dist * trace.fraction > 72)
-						monster_fire_rocket(self, start, dir, 35, rocketSpeed, MZ2_TURRET_ROCKET);
-				}
-			}
+		dir.normalize();
+		trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+		if (trace.ent == self->enemy || trace.ent == world)
+		{
+			if (dist * trace.fraction > 72)
+				monster_fire_rocket(self, start, dir, 35, rocketSpeed, MZ2_TURRET_ROCKET);
+		}
+	}
 }
 
 
@@ -481,7 +482,7 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	if (frandom() < 0.3f)
 		PredictAim(self, self->enemy, start, 1000, true, 0, &dir, &end);
 	else
-	end = self->enemy->s.origin;
+		end = self->enemy->s.origin;
 	end[2] += self->enemy->viewheight;
 	dir = end - start;
 	dir.normalize();
@@ -693,6 +694,151 @@ static void flyer_set_fly_parameters(edict_t* self, bool melee)
 	}
 }
 
+// Posiciones de los láseres
+constexpr vec3_t FLYER_LEFT_LASER = { 14.1f, -13.4f, -7.0f };
+constexpr vec3_t FLYER_RIGHT_LASER = { 14.1f, 13.4f, -7.0f };
+
+PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
+{
+	edict_t* self = laser->owner;
+	vec3_t start, forward, right, up, dir;
+
+	// Obtener los vectores de dirección
+	AngleVectors(self->s.angles, forward, right, up);
+
+	// Calcular el punto de inicio del láser izquierdo
+	start = self->s.origin + (forward * FLYER_LEFT_LASER.x);
+	start += (right * FLYER_LEFT_LASER.y);
+	start += (up * FLYER_LEFT_LASER.z);
+
+	// Predicción de objetivo con ligera dispersión para efecto de abanico
+	if (self->enemy)
+	{
+		float spread = sinf(level.time.seconds() * 15.0f) * 0.2f; // Oscilación suave
+		vec3_t target = self->enemy->s.origin;
+		target += right * spread * 32.0f;
+
+		PredictAim(self, self->enemy, start, 0, false, 0.0f, &dir, nullptr);
+		dir += right * spread;
+		dir.normalize();
+	}
+	else
+		dir = forward;
+
+	laser->s.origin = start;
+	laser->movedir = dir;
+	gi.linkentity(laser);
+	dabeam_update(laser, false);
+}
+
+PRETHINK(flyer_right_laser_update) (edict_t* laser) -> void
+{
+	edict_t* self = laser->owner;
+	vec3_t start, forward, right, up, dir;
+
+	// Obtener los vectores de dirección
+	AngleVectors(self->s.angles, forward, right, up);
+
+	// Calcular el punto de inicio del láser derecho
+	start = self->s.origin + (forward * FLYER_RIGHT_LASER.x);
+	start += (right * FLYER_RIGHT_LASER.y);
+	start += (up * FLYER_RIGHT_LASER.z);
+
+	// Predicción de objetivo con ligera dispersión para efecto de abanico
+	if (self->enemy)
+	{
+		float spread = sinf(level.time.seconds() * 15.0f + PIf) * 0.02f; // Desfasado del izquierdo
+		vec3_t target = self->enemy->s.origin;
+		target += right * spread * 32.0f;
+
+		PredictAim(self, self->enemy, start, 0, false, 0.3f, &dir, nullptr);
+		dir += right * spread;
+		dir.normalize();
+	}
+	else
+		dir = forward;
+
+	laser->s.origin = start;
+	laser->movedir = dir;
+	gi.linkentity(laser);
+	dabeam_update(laser, false);
+}
+
+void flyer_laser_on(edict_t* self)
+{
+	if (!self->enemy)
+		return;
+
+	// Sonido de láser
+	gi.sound(self, CHAN_WEAPON, sound_laser, 1, ATTN_NORM, 0);
+
+	// Disparar ambos láseres
+	monster_fire_dabeam(self, 8, false, flyer_left_laser_update);
+	monster_fire_dabeam(self, 8, true, flyer_right_laser_update);
+}
+
+void flyer_laser_off(edict_t* self)
+{
+	if (self->beam) {
+		G_FreeEdict(self->beam);
+		self->beam = nullptr;
+	}
+	if (self->beam2) {
+		G_FreeEdict(self->beam2);
+		self->beam2 = nullptr;
+	}
+}
+
+void flyer_recharge(edict_t* self);
+
+// Frames para el ataque láser
+mframe_t flyer_frames_laser_right[] = {
+	{ ai_charge, 0, nullptr },           // Preparación
+	{ ai_charge, 0, nullptr },    // Inicio del láser
+	{ ai_charge, 0, nullptr },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+};
+MMOVE_T(flyer_move_laser_right) = { FRAME_attak201, FRAME_attak216, flyer_frames_laser_right, flyer_recharge };
+
+mframe_t flyer_frames_laser_left[] = {
+	{ ai_charge, 0, nullptr },           // Preparación
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	{ ai_charge, 0, flyer_laser_on },    // Inicio del láser
+	//	{ ai_charge, 0, flyer_laser_off },   // Fin del láser
+		{ ai_charge, 0, nullptr }            // Recuperación
+};
+MMOVE_T(flyer_move_laser_left) = { FRAME_bankl01, FRAME_bankl07, flyer_frames_laser_left, flyer_recharge };
+
+mframe_t flyer_frames_laser_recharge[] = {
+	{ ai_charge, 0, nullptr },           // Preparación
+	{ ai_charge, 0, flyer_laser_off },   // Fin del láser
+	{ ai_charge, 0, nullptr },            // Recuperación
+	{ ai_charge, 0, nullptr },            // Recuperación
+	{ ai_charge, 0, nullptr },            // Recuperación
+	{ ai_charge, 0, nullptr }            // Recuperación
+};
+MMOVE_T(flyer_move_laser_recharge) = { FRAME_defens01, FRAME_defens06, flyer_frames_laser_recharge, flyer_run };
+
+void flyer_recharge(edict_t* self)
+{
+	M_SetAnimation(self, &flyer_move_laser_recharge);
+}
 MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 {
 	if (self->mass > 50)
@@ -702,6 +848,13 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	}
 
 	const float range = range_to(self, self->enemy);
+	const float attack_chance = frandom();
+
+	// Ataque láser a media distancia
+	if (self && self->enemy && self->enemy->health <= 65 && range > 100 && range < 1400 && attack_chance < 0.75f) {
+		M_SetAnimation(self, &flyer_move_laser_right);
+		return;
+	}
 
 	if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
 	{
@@ -716,7 +869,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 
 		if (first3waves)
 		{
-			frandom() > 0.2f ? 
+			frandom() > 0.2f ?
 				M_SetAnimation(self, &flyer_move_attack2normal) :
 				M_SetAnimation(self, &flyer_move_rollright);
 		}
