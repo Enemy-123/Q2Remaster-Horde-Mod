@@ -19,7 +19,7 @@ constexpr int ADRENALINE_HEALTH_BONUS = 5;
 // boss stuff
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
-extern void SetHealthBarName(edict_t* boss);
+extern void SetHealthBarName(const edict_t* boss);
 
 // Declarar funciones globales name strings
 std::string GetDisplayName(const char* classname);

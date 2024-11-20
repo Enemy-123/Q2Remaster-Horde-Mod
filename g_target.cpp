@@ -2017,7 +2017,6 @@ THINK(check_target_healthbar) (edict_t* ent) -> void
 	ent->health = target->spawn_count;
 }
 
-void SetHealthBarName(edict_t* self);
 void SP_target_healthbar(edict_t* self)
 {
 	if (deathmatch->integer && !g_horde->integer)
