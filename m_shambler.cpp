@@ -50,6 +50,23 @@ constexpr vec3_t lightning_right_hand[] = {
 
 void shambler_windupFire(edict_t* self);
 
+
+constexpr vec3_t fireball_left_hand[] = {
+	{ 44, 36, 45 },    // Aumentado Z de 25 a 45
+	{ 10, 44, 77 },    // Aumentado Z de 57 a 77
+	{ -1, 40, 90 },    // Aumentado Z de 70 a 90
+	{ -10, 34, 95 },   // Aumentado Z de 75 a 95
+	{ 7.4f, 24, 109 }  // Aumentado Z de 89 a 109
+};
+
+constexpr vec3_t fireball_right_hand[] = {
+	{ 28, -38, 45 },    // Aumentado Z de 25 a 45
+	{ 31, -7, 90 },     // Aumentado Z de 70 a 90
+	{ 20, 0, 100 },     // Aumentado Z de 80 a 100
+	{ 16, 1.2f, 101 },  // Aumentado Z de 81 a 101
+	{ 27, -11, 103 }    // Aumentado Z de 83 a 103
+};
+
 static void shambler_fireball_update(edict_t* self)
 {
 	edict_t* fireball_effect = self->beam;
@@ -75,19 +92,19 @@ static void shambler_fireball_update(edict_t* self)
 	AngleVectors(self->s.angles, f, r, nullptr);
 
 	// Calculate positions for both hands
-	const vec3_t left_pos = M_ProjectFlashSource(self, lightning_left_hand[self->s.frame - FRAME_magic01], f, r);
-	const vec3_t right_pos = M_ProjectFlashSource(self, lightning_right_hand[self->s.frame - FRAME_magic01], f, r);
+	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
+	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
 
 	// Calculate the midpoint between hands for the fireball effect
 	// Combinar VectorAdd y VectorScale en una operación
-	vec3_t midpoint = (left_pos + right_pos) * 0.5f;
+	const vec3_t midpoint = (left_pos + right_pos) * 0.5f;
 
 	// Update fireball effect position
 	fireball_effect->s.origin = midpoint;  // Reemplaza VectorCopy
 
 	// Calculate size based on frame
-	const float size_factor = static_cast<float>(self->s.frame - FRAME_magic01) /
-		static_cast<float>(q_countof(lightning_left_hand));
+	const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
+	static_cast<float>(q_countof(fireball_left_hand));
 	constexpr float max_size = 1.5f; // Maximum size multiplier
 	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
 
@@ -480,13 +497,14 @@ mframe_t shambler_frames_fireball[] = {
 	{ ai_move, 0, ShamblerSaveLoc},
 	{ ai_move },
 	{ ai_charge },
+	{ ai_charge },
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
 	{ ai_move, 0, ShamblerCastFireballs },
 };
 
-MMOVE_T(shambler_attack_fireball) = { FRAME_magic01, FRAME_magic12, shambler_frames_fireball, shambler_run };
+MMOVE_T(shambler_attack_fireball) = { FRAME_smash01, FRAME_smash12, shambler_frames_fireball, shambler_run };
 
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
