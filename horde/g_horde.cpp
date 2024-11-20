@@ -3702,7 +3702,7 @@ gtime_t GetWaveTimer() {
 	}
 
 	// Calcular tiempo independiente
-	gtime_t independentRemaining = g_independent_timer_start + g_lastParams.independentTimeThreshold - currentTime;
+	const gtime_t independentRemaining = g_independent_timer_start + g_lastParams.independentTimeThreshold - currentTime;
 
 	// Siempre retornar el menor tiempo entre ambos si son válidos
 	if (independentRemaining > 0_sec) {

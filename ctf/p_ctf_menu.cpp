@@ -143,9 +143,9 @@ void PMenu_Do_Update(edict_t* ent)
 	statusbar_t sb;
 
 	// Posiciones base y espaciado usando vec3_t
-	vec3_t menu_base = { 32, 8, 0 };  // Posición base del menú
-	vec3_t title_offset = { 0, 24, 0 };  // Offset para el título
-	vec3_t item_spacing = { 0, 8, 0 };  // Espaciado entre items
+	const vec3_t menu_base = { 32, 8, 0 };  // Posición base del menú
+	const vec3_t title_offset = { 0, 24, 0 };  // Offset para el título
+	const vec3_t item_spacing = { 0, 8, 0 };  // Espaciado entre items
 
 	// Draw menu background
 	sb.xv(menu_base.x).yv(menu_base.y).picn("inventory");
@@ -166,7 +166,7 @@ void PMenu_Do_Update(edict_t* ent)
 		}
 
 		// Calcular posición del item actual
-		vec3_t item_pos = menu_base + title_offset + (item_spacing * static_cast<float>(i));
+		const vec3_t item_pos = menu_base + title_offset + (item_spacing * static_cast<float>(i));
 		sb.yv(item_pos.y);
 
 		const char* loc_func = "loc_string";
