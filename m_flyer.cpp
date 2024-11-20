@@ -851,7 +851,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	const float attack_chance = frandom();
 
 	// Ataque láser a media distancia
-	if (self && self->enemy && self->enemy->health <= 65 && range > 100 && range < 1400 && attack_chance < 0.75f) {
+	if (self && self->enemy && self->enemy->health < self->enemy->max_health * 0.65f && range > 100 && range < 1400 && attack_chance < 0.75f) {
 		M_SetAnimation(self, &flyer_move_laser_right);
 		return;
 	}

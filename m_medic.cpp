@@ -263,28 +263,37 @@ bool finishHeal(edict_t* self)
 		return false;
 	}
 
-	bool isBodyque = healee->classname && !strcmp(healee->classname, "bodyque");
+	const bool isBodyque = healee->classname && !strcmp(healee->classname, "bodyque");
+	const bool insaneDead = healee->classname && !strcmp(healee->classname, "misc_insane");
 
 	// Bodyque resurrection handling
 	if (isBodyque) {
 		vec3_t position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
 
-		edict_t* soldier = G_Spawn();
-		if (!soldier) {
+		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
+		angles[ROLL] = 0;   // Eliminar rotación lateral
+
+		edict_t* insane = G_Spawn();
+		if (!insane) {
 			abortHeal(self, false, false);
 			return false;
 		}
 
-		soldier->s.origin = position;
-		soldier->s.angles = angles;
-		soldier->classname = "monster_soldier_ss";
+		insane->s.origin = position;
+		insane->s.angles = angles;
+		frandom() < 7 ?
+			insane->classname = "misc_insane"
+			: insane->classname = "monster_soldier_lasergun";
+
+		if (g_horde->integer)
+			insane->item = brandom() ? G_HordePickItem() : nullptr;
 
 		spawn_temp_t st{};
-		ED_CallSpawn(soldier, st);
+		ED_CallSpawn(insane, st);
 
-		if (!soldier->inuse) {
-			G_FreeEdict(soldier);
+		if (!insane->inuse) {
+			G_FreeEdict(insane);
 			abortHeal(self, false, false);
 			return false;
 		}
@@ -307,9 +316,61 @@ bool finishHeal(edict_t* self)
 			G_FreeEdict(healee);
 		}
 
-		self->enemy = healee = soldier;
+		self->enemy = healee = insane;
 	}
 
+	// insane  resurrection handling
+	if (insaneDead) {
+		vec3_t position = healee->s.origin;
+		vec3_t angles = healee->s.angles;
+
+		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
+		angles[ROLL] = 0;   // Eliminar rotación lateral
+
+		edict_t* insane = G_Spawn();
+		if (!insane) {
+			abortHeal(self, false, false);
+			return false;
+		}
+
+		insane->s.origin = position;
+		insane->s.angles = angles;
+		insane->classname = "monster_soldier_lasergun";
+
+		if (g_horde->integer)
+			insane->item = brandom() ? G_HordePickItem() : nullptr;
+
+		spawn_temp_t st{};
+		ED_CallSpawn(insane, st);
+
+		if (!insane->inuse) {
+			G_FreeEdict(insane);
+			abortHeal(self, false, false);
+			return false;
+		}
+
+		// Handle original healee cleanup
+		if (healee) {
+			gi.sound(healee, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+
+			ThrowGibs(healee, 50, {
+				{ 2, "models/objects/gibs/bone/tris.md2" },
+				{ 4, "models/objects/gibs/sm_meat/tris.md2" },
+				{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
+				});
+
+			healee->s.modelindex = 0;
+			healee->solid = SOLID_NOT;
+			healee->takedamage = false;
+			healee->svflags |= SVF_NOCLIENT;
+			healee->deadflag = true;
+			G_FreeEdict(healee);
+		}
+
+		self->enemy = healee = insane;
+	}
+
+	// Rest of original finishHeal code...
 	// Verify healee is still valid after potential bodyque handling
 	if (!healee) {
 		abortHeal(self, false, false);
@@ -400,6 +461,10 @@ bool finishHeal(edict_t* self)
 
 	cleanupHeal(self);
 	return true;
+
+	healee->monsterinfo.react_to_damage_time = level.time;
+	healee->monsterinfo.was_stuck = false;
+	healee->monsterinfo.stuck_check_time = 0_sec;
 }
 
 bool canReach(edict_t* self, edict_t* other)
@@ -426,7 +491,7 @@ edict_t* healFindMonster(edict_t* self, float radius)
 		if (ent == self)
 			continue;
 		// Check for both monsters and bodyque entities
-		if (!(ent->svflags & SVF_MONSTER)/* && strcmp(ent->classname, "bodyque") != 0*/)	
+		if (!(ent->svflags & SVF_MONSTER) && strcmp(ent->classname, "bodyque") != 0)	
 			continue;
 		if (ent->monsterinfo.aiflags & AI_GOOD_GUY)
 			continue;

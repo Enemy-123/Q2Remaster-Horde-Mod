@@ -3100,6 +3100,9 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
 		return false;
 
+	if (!strcmp(self->classname, "misc_insane"))
+		return false;
+
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
 
