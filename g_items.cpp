@@ -950,7 +950,7 @@ bool Entity_IsVisibleToPlayer(edict_t* ent, edict_t* player)
 {
 	// Q2Eaks make eyecam chase target invisible, but keep other client visible
 	if (player->client->use_eyecam && ent == player->client->chase_target)
-		return false; 
+		return false;
 	else if (ent->client)
 		return true;
 
@@ -1658,7 +1658,7 @@ void Compass_Update(edict_t* ent, bool first)
 	ent->client->help_draw_time = level.time + 200_ms;
 }
 
-static void Use_Compass(edict_t* ent, gitem_t* inv)
+static void Use_HordeMenu(edict_t* ent, gitem_t* inv)
 {
 	if (g_horde->integer) {
 
@@ -1668,8 +1668,11 @@ static void Use_Compass(edict_t* ent, gitem_t* inv)
 			return;
 		}
 	}
-	else
+}
 
+
+static void Use_Compass(edict_t* ent, gitem_t* inv)
+{
 	if (!level.valid_poi)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "$no_valid_poi");
@@ -3288,35 +3291,9 @@ always owned, never in the world
 			/* precaches */ "models/objects/laser/tris.md2 models/items/shell/tris.md2 spheres/d_idle.wav"
 		},
 
-		/*QUAKED item_sentrygun (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
-*/
-		{
-			/* id */ IT_ITEM_SENTRYGUN,
-			/* classname */ "item_sentrygun",
-			/* pickup */ Pickup_SentryGun,
-			/* use */ Use_SentryGun,
-			/* drop */ Drop_General,
-			/* weaponthink */ nullptr,
-			/* pickup_sound */ "gunner/gunidle1.wav",
-			/* world_model */ "models/monsters/turret/tris.md2",
-			/* world_model_flags */ EF_ROTATE,
-			/* view_model */ nullptr,
-			/* icon */ "i_tagtoken",
-			/* use_name */  "Sentry Gun",
-			/* pickup_name */  "Sentry Gun\n",
-			/* pickup_name_definite */ "Sentry Gun\n",
-			/* quantity */ 90,
-			/* ammo */ IT_NULL,
-			/* chain */ IT_NULL,
-			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
-			/* vwep_model */ nullptr,
-			/* armor_info */ nullptr,
-			/* tag */ POWERUP_DOUBLE,
-			/* precaches */ "models/monsters/turret/tris.md2 gunner/gunidle1.wav turret/moving.wav",
-		},
 
 
-		/*QUAKED item_doppleganger (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
+	/*QUAKED item_doppleganger (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
 */
 	{
 		/* id */ IT_ITEM_DOPPELGANGER,
@@ -3424,175 +3401,150 @@ always owned, never in the world
 	*/
 		{
 			/* id */ IT_KEY_EXPLOSIVE_CHARGES,
-				/* classname */ "key_explosive_charges",
-				/* pickup */ Pickup_Key,
-				/* use */ nullptr,
-				/* drop */ Drop_General,
-				/* weaponthink */ nullptr,
-				/* pickup_sound */ "items/pkup.wav",
-				/* world_model */ "models/items/n64/charge/tris.md2",
-				/* world_model_flags */ EF_ROTATE | EF_BOB,
-				/* view_model */ nullptr,
-				/* icon */ "n64/i_charges",
-				/* use_name */  "Explosive Charges",
-				/* pickup_name */  "$item_explosive_charges",
-				/* pickup_name_definite */ "$item_explosive_charges_def",
-				/* quantity */ 0,
-				/* ammo */ IT_NULL,
-				/* chain */ IT_NULL,
-				/* flags */ IF_STAY_COOP | IF_KEY
-		},
-
-			/*QUAKED key_yellow_key (0 .5 .8) (-16 -16 -16) (16 16 16)
-			normal door key - yellow
-			[Sam-KEX] New key type for Q2 N64
-			*/
-		{
-			/* id */ IT_KEY_YELLOW,
-			/* classname */ "key_yellow_key",
+			/* classname */ "key_explosive_charges",
 			/* pickup */ Pickup_Key,
 			/* use */ nullptr,
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "items/pkup.wav",
-			/* world_model */ "models/items/n64/yellow_key/tris.md2",
+			/* world_model */ "models/items/n64/charge/tris.md2",
 			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
-			/* icon */ "n64/i_yellow_key",
-			/* use_name */  "Yellow Key",
-			/* pickup_name */  "$item_yellow_key",
-			/* pickup_name_definite */ "$item_yellow_key_def",
+			/* icon */ "n64/i_charges",
+			/* use_name */  "Explosive Charges",
+			/* pickup_name */  "$item_explosive_charges",
+			/* pickup_name_definite */ "$item_explosive_charges_def",
 			/* quantity */ 0,
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
 			/* flags */ IF_STAY_COOP | IF_KEY
-		},
+	},
 
-			/*QUAKED key_power_core (0 .5 .8) (-16 -16 -16) (16 16 16)
-			key for N64
-			*/
-		{
-			/* id */ IT_KEY_POWER_CORE,
-			/* classname */ "key_power_core",
-			/* pickup */ Pickup_Key,
-			/* use */ nullptr,
-			/* drop */ Drop_General,
-			/* weaponthink */ nullptr,
-			/* pickup_sound */ "items/pkup.wav",
-			/* world_model */ "models/items/n64/power_core/tris.md2",
-			/* world_model_flags */ EF_ROTATE | EF_BOB,
-			/* view_model */ nullptr,
-			/* icon */ "k_pyramid",
-			/* use_name */  "Power Core",
-			/* pickup_name */  "$item_power_core",
-			/* pickup_name_definite */ "$item_power_core_def",
-			/* quantity */ 0,
-			/* ammo */ IT_NULL,
-			/* chain */ IT_NULL,
-			/* flags */ IF_STAY_COOP | IF_KEY
-		},
-
-			/*QUAKED key_pyramid (0 .5 .8) (-16 -16 -16) (16 16 16)
-			key for the entrance of jail3
-			*/
-		{
-			/* id */ IT_KEY_PYRAMID,
-			/* classname */ "key_pyramid",
-			/* pickup */ Pickup_Key,
-			/* use */ nullptr,
-			/* drop */ Drop_General,
-			/* weaponthink */ nullptr,
-			/* pickup_sound */ "items/pkup.wav",
-			/* world_model */ "models/items/keys/pyramid/tris.md2",
-			/* world_model_flags */ EF_ROTATE | EF_BOB,
-			/* view_model */ nullptr,
-			/* icon */ "k_pyramid",
-			/* use_name */  "Pyramid Key",
-			/* pickup_name */  "$item_pyramid_key",
-			/* pickup_name_definite */ "$item_pyramid_key_def",
-			/* quantity */ 0,
-			/* ammo */ IT_NULL,
-			/* chain */ IT_NULL,
-			/* flags */ IF_STAY_COOP | IF_KEY
-		},
-
-
-			/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
-			key for the city computer
-			model="models/items/keys/spinner/tris.md2"
-			*/
-		{
-			/* id */ IT_ITEM_TELEPORT,
-			/* classname */ "item_teleport_device",
-			/* pickup */ Pickup_Teleport,
-			/* use */ Use_TeleportSelf,
-			/* drop */ Drop_General,
-			/* weaponthink */ nullptr,
-			/* pickup_sound */ "world/scan1.wav",
-			/* world_model */ "models/items/n64/yellow_key/tris.md2",
-			/* world_model_flags */ EF_ROTATE | EF_BOB,
-			/* view_model */ nullptr,
-			/* icon */ "n64/i_yellow_key",
-			/* use_name */  "Teleport Device",
-			/* pickup_name */  "Teleport Device\n",
-			/* pickup_name_definite */ "Teleport Device\n",
-			/* quantity */ 90,
-			/* ammo */ IT_NULL,
-			/* chain */ IT_NULL,
-			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
-		},
-
-
-		/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
-		key for the city computer
-		model="models/items/keys/spinner/tris.md2"
-		*/
-		{
-			/* id */ IT_KEY_DATA_SPINNER,
-			/* classname */ "key_data_spinner",
-			/* pickup */ Pickup_Key,
-			/* use */ nullptr,
-			/* drop */ Drop_General,
-			/* weaponthink */ nullptr,
-			/* pickup_sound */ "items/pkup.wav",
-			/* world_model */ "models/items/keys/spinner/tris.md2",
-			/* world_model_flags */ EF_ROTATE | EF_BOB,
-			/* view_model */ nullptr,
-			/* icon */ "k_dataspin",
-			/* use_name */  "Data Spinner",
-			/* pickup_name */  "$item_data_spinner",
-			/* pickup_name_definite */ "$item_data_spinner_def",
-			/* quantity */ 0,
-			/* ammo */ IT_NULL,
-			/* chain */ IT_NULL,
-			/* flags */ IF_STAY_COOP
-		},
-
-
-	/*QUAKED key_pass (0 .5 .8) (-16 -16 -16) (16 16 16)
-	security pass for the security level
-	model="models/items/keys/pass/tris.md2"
+	/*QUAKED key_yellow_key (0 .5 .8) (-16 -16 -16) (16 16 16)
+	normal door key - yellow
+	[Sam-KEX] New key type for Q2 N64
 	*/
-		{
-			/* id */ IT_KEY_PASS,
-			/* classname */ "key_pass",
-			/* pickup */ Pickup_Key,
-			/* use */ nullptr,
-			/* drop */ Drop_General,
-			/* weaponthink */ nullptr,
-			/* pickup_sound */ "items/pkup.wav",
-			/* world_model */ "models/items/keys/pass/tris.md2",
-			/* world_model_flags */ EF_ROTATE | EF_BOB,
-			/* view_model */ nullptr,
-			/* icon */ "k_security",
-			/* use_name */  "Security Pass",
-			/* pickup_name */  "$item_security_pass",
-			/* pickup_name_definite */ "$item_security_pass_def",
-			/* quantity */ 0,
-			/* ammo */ IT_NULL,
-			/* chain */ IT_NULL,
-			/* flags */ IF_STAY_COOP | IF_KEY
-		},
+{
+	/* id */ IT_KEY_YELLOW,
+	/* classname */ "key_yellow_key",
+	/* pickup */ Pickup_Key,
+	/* use */ nullptr,
+	/* drop */ Drop_General,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "items/pkup.wav",
+	/* world_model */ "models/items/n64/yellow_key/tris.md2",
+	/* world_model_flags */ EF_ROTATE | EF_BOB,
+	/* view_model */ nullptr,
+	/* icon */ "n64/i_yellow_key",
+	/* use_name */  "Yellow Key",
+	/* pickup_name */  "$item_yellow_key",
+	/* pickup_name_definite */ "$item_yellow_key_def",
+	/* quantity */ 0,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_STAY_COOP | IF_KEY
+},
+
+/*QUAKED key_power_core (0 .5 .8) (-16 -16 -16) (16 16 16)
+key for N64
+*/
+{
+	/* id */ IT_KEY_POWER_CORE,
+	/* classname */ "key_power_core",
+	/* pickup */ Pickup_Key,
+	/* use */ nullptr,
+	/* drop */ Drop_General,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "items/pkup.wav",
+	/* world_model */ "models/items/n64/power_core/tris.md2",
+	/* world_model_flags */ EF_ROTATE | EF_BOB,
+	/* view_model */ nullptr,
+	/* icon */ "k_pyramid",
+	/* use_name */  "Power Core",
+	/* pickup_name */  "$item_power_core",
+	/* pickup_name_definite */ "$item_power_core_def",
+	/* quantity */ 0,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_STAY_COOP | IF_KEY
+},
+
+/*QUAKED key_pyramid (0 .5 .8) (-16 -16 -16) (16 16 16)
+key for the entrance of jail3
+*/
+{
+	/* id */ IT_KEY_PYRAMID,
+	/* classname */ "key_pyramid",
+	/* pickup */ Pickup_Key,
+	/* use */ nullptr,
+	/* drop */ Drop_General,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "items/pkup.wav",
+	/* world_model */ "models/items/keys/pyramid/tris.md2",
+	/* world_model_flags */ EF_ROTATE | EF_BOB,
+	/* view_model */ nullptr,
+	/* icon */ "k_pyramid",
+	/* use_name */  "Pyramid Key",
+	/* pickup_name */  "$item_pyramid_key",
+	/* pickup_name_definite */ "$item_pyramid_key_def",
+	/* quantity */ 0,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_STAY_COOP | IF_KEY
+},
+
+
+
+/*QUAKED key_data_spinner (0 .5 .8) (-16 -16 -16) (16 16 16)
+key for the city computer
+model="models/items/keys/spinner/tris.md2"
+*/
+{
+	/* id */ IT_KEY_DATA_SPINNER,
+	/* classname */ "key_data_spinner",
+	/* pickup */ Pickup_Key,
+	/* use */ nullptr,
+	/* drop */ Drop_General,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "items/pkup.wav",
+	/* world_model */ "models/items/keys/spinner/tris.md2",
+	/* world_model_flags */ EF_ROTATE | EF_BOB,
+	/* view_model */ nullptr,
+	/* icon */ "k_dataspin",
+	/* use_name */  "Data Spinner",
+	/* pickup_name */  "$item_data_spinner",
+	/* pickup_name_definite */ "$item_data_spinner_def",
+	/* quantity */ 0,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_STAY_COOP
+},
+
+
+/*QUAKED key_pass (0 .5 .8) (-16 -16 -16) (16 16 16)
+security pass for the security level
+model="models/items/keys/pass/tris.md2"
+*/
+	{
+		/* id */ IT_KEY_PASS,
+		/* classname */ "key_pass",
+		/* pickup */ Pickup_Key,
+		/* use */ nullptr,
+		/* drop */ Drop_General,
+		/* weaponthink */ nullptr,
+		/* pickup_sound */ "items/pkup.wav",
+		/* world_model */ "models/items/keys/pass/tris.md2",
+		/* world_model_flags */ EF_ROTATE | EF_BOB,
+		/* view_model */ nullptr,
+		/* icon */ "k_security",
+		/* use_name */  "Security Pass",
+		/* pickup_name */  "$item_security_pass",
+		/* pickup_name_definite */ "$item_security_pass_def",
+		/* quantity */ 0,
+		/* ammo */ IT_NULL,
+		/* chain */ IT_NULL,
+		/* flags */ IF_STAY_COOP | IF_KEY
+	},
 
 	/*QUAKED key_blue_key (0 .5 .8) (-16 -16 -16) (16 16 16)
 	normal door key - blue
@@ -4066,7 +4018,7 @@ always owned, never in the world
 			/* world_model */ nullptr,
 			/* world_model_flags */ EF_NONE,
 			/* view_model */ nullptr,
-			/* icon */ "turtle",
+			/* icon */ "p_compass",
 			/* use_name */  "Compass",
 			/* pickup_name */  "$item_compass",
 			/* pickup_name_definite */ "$item_compass_def",
@@ -4079,7 +4031,83 @@ always owned, never in the world
 			/* tag */ POWERUP_COMPASS,
 			/* precaches */ "misc/help_marker.wav",
 			/* sort_id */ -2
-		}
+		},
+
+		{
+			/* id */ IT_ITEM_MENU,
+			/* classname */ "item_menu",
+			/* pickup */ nullptr,
+			/* use */ Use_HordeMenu,
+			/* drop */ nullptr,
+			/* weaponthink */ nullptr,
+			/* pickup_sound */ nullptr,
+			/* world_model */ nullptr,
+			/* world_model_flags */ EF_NONE,
+			/* view_model */ nullptr,
+			/* icon */ "turtle",
+			/* use_name */  "Horde Menu",
+			/* pickup_name */  "Horde Menu",
+			/* pickup_name_definite */ "Horde Menu",
+			/* quantity */ 0,
+			/* ammo */ IT_NULL,
+			/* chain */ IT_NULL,
+			/* flags */ IF_POWERUP_WHEEL | IF_POWERUP_ONOFF,
+			/* vwep_model */ nullptr,
+			/* armor_info */ nullptr,
+			/* tag */ POWERUP_MENU,  // Cambiar a un tag único
+			/* precaches */ nullptr,  // Cambiar si no necesita precaches específicos
+			/* sort_id */ -3         // Asignar un sort_id único
+		},
+
+	//QUAKED item_teleport_device (0 .5 .8) (-16 -16 -16) (16 16 16)
+		{
+			/* id */ IT_ITEM_TELEPORT,
+			/* classname */ "item_teleport_device",
+			/* pickup */ Pickup_Teleport,
+			/* use */ Use_TeleportSelf,
+			/* drop */ Drop_General,
+			/* weaponthink */ nullptr,
+			/* pickup_sound */ "world/scan1.wav",
+			/* world_model */ "models/items/n64/yellow_key/tris.md2",
+			/* world_model_flags */ EF_ROTATE | EF_BOB,
+			/* view_model */ nullptr,
+			/* icon */ "n64/i_yellow_key",
+			/* use_name */  "Teleport Device",
+			/* pickup_name */  "Teleport Device\n",
+			/* pickup_name_definite */ "Teleport Device\n",
+			/* quantity */ 90,
+			/* ammo */ IT_NULL,
+			/* chain */ IT_NULL,
+			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
+			/* precaches */ "world/scan1.wav",
+		},
+
+	//QUAKED item_sentrygun (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
+		{
+			/* id */ IT_ITEM_SENTRYGUN,
+			/* classname */ "item_sentrygun",
+			/* pickup */ Pickup_SentryGun,
+			/* use */ Use_SentryGun,
+			/* drop */ Drop_General,
+			/* weaponthink */ nullptr,
+			/* pickup_sound */ "gunner/gunidle1.wav",
+			/* world_model */ "models/monsters/turret/tris.md2",
+			/* world_model_flags */ EF_ROTATE,
+			/* view_model */ nullptr,
+			/* icon */ "i_tagtoken",
+			/* use_name */  "Sentry Gun",
+			/* pickup_name */  "Sentry Gun\n",
+			/* pickup_name_definite */ "Sentry Gun\n",
+			/* quantity */ 90,
+			/* ammo */ IT_NULL,
+			/* chain */ IT_NULL,
+			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
+			/* vwep_model */ nullptr,
+			/* armor_info */ nullptr,
+			/* tag */ POWERUP_DOUBLE,
+			/* precaches */ "models/monsters/turret/tris.md2 gunner/gunidle1.wav turret/moving.wav",
+		},
+
 };
 // clang-format on
 

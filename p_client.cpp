@@ -936,7 +936,6 @@ but is called after each death and level change in deathmatch
 ==============
 */
 // Calcula la salud máxima basada en el nivel de oleada actual +25 hp
-// Calcula la salud máxima basada en el nivel de oleada actual +25 hp
 int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr)
 {
 	if (!g_horde->integer)
@@ -970,31 +969,6 @@ int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr
 	return calculated_max_health;
 }
 
-//int CalculateWaveBasedMaxHealth(int base_max_health)
-//{
-//	if (!g_horde->integer)
-//		return max(100, base_max_health);
-//
-//	int calculated_max_health = base_max_health;
-//
-//	// Ajustar health y max_health basado en el número de oleadas actuales
-//	if (current_wave_level >= 25 && current_wave_level <= 200)
-//		calculated_max_health = max(200, calculated_max_health);
-//	else if (current_wave_level >= 20 && current_wave_level <= 24)
-//		calculated_max_health = max(180, calculated_max_health);
-//	else if (current_wave_level >= 15 && current_wave_level <= 19)
-//		calculated_max_health = max(160, calculated_max_health);
-//	else if (current_wave_level >= 10 && current_wave_level <= 14)
-//		calculated_max_health = max(140, calculated_max_health);
-//	else if (current_wave_level >= 5 && current_wave_level <= 9)
-//		calculated_max_health = max(120, calculated_max_health);
-//	else if (current_wave_level >= 1 && current_wave_level <= 4)
-//		calculated_max_health = max(100, calculated_max_health);
-//	else
-//		calculated_max_health = max(100, calculated_max_health); // default, and wave 0
-//
-//	return calculated_max_health;
-//}
 
 // Modificación de InitClientPersistant
 // Modificación de InitClientPersistant
@@ -1096,11 +1070,17 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		// power armor from start items
 		G_CheckPowerArmor(ent);
 
-		if (!deathmatch->integer && !g_horde->integer || g_horde->integer) {
+		if (!deathmatch->integer || coop->integer) {
 			client->pers.inventory[IT_ITEM_COMPASS] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
-			// Restaurar TECHs
+
+		}
+		if (g_horde->integer) {
+			client->pers.inventory[IT_ITEM_MENU] = 1;
+			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+
+			// Forcing  TECHs on bots
 			for (int i = 0; i < MAX_ITEMS; i++) {
 				gitem_t* item = &itemlist[i];
 				if (item->flags & IF_TECH && ent->client->pers.inventory[i] == 0 &&
@@ -1111,10 +1091,10 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 					client->pers.inventory[IT_TECH_STRENGTH] = 0;
 			}
 		}
-
-		// Starting items for horde mode
+		
+				// Starting items for horde mode
 		if (G_IsDeathmatch() && g_horde->integer && current_wave_level >= 5 && current_wave_level <= 12) {
-			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+		client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
 			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
 			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
@@ -1144,17 +1124,15 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 		// ZOID
 		bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
-			(ctf->integer ? !level.no_grapple : 0) : g_allow_grapple->integer;
+			(ctf->integer ? !level.no_grapple : 0) :
+			g_allow_grapple->integer;
+
 		if (give_grapple)
 			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
+		// ZOID
 	}
 
-	//// Restaurar el arma que el jugador estaba usando antes de morir
-	//if (client->resp.weapon && client->pers.inventory[client->resp.weapon->id] > 0) {
-	//	client->pers.weapon = client->resp.weapon;
-	//	client->pers.selected_item = client->resp.weapon->id;
-/*	}
-	else*/ if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
+	if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
 		client->pers.weapon = client->pers.lastweapon;
 		client->pers.selected_item = client->pers.lastweapon->id;
 	}
@@ -1172,9 +1150,6 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		}
 	}
 
-	// Actualiza las variables de armas
-	client->newweapon = client->pers.weapon;
-	client->pers.lastweapon = client->pers.weapon;
 
 	if (G_IsCooperative() && g_coop_enable_lives->integer)
 		client->pers.lives = g_coop_num_lives->integer + 1;
