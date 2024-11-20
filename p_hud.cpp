@@ -196,7 +196,7 @@ void G_ReportMatchDetails(bool is_end)
 		CTFCalcRankings(player_ranks);
 
 		gi.WriteByte(2);
-		gi.WriteString("STROGG Slaughter"); // team 0
+		gi.WriteString("Stroggiciders"); // team 0
 		gi.WriteString("BLUE TEAM"); // team 1
 	}
 	else
