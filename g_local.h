@@ -3420,7 +3420,6 @@ struct edict_t
 	// in g_save.cpp too!
 
 		//Horde stuff
-	int initial_max_health; // healthbar max health fix
 	gtime_t safety_time;
 	edict_t* laser;
 	gtime_t hook_time;

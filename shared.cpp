@@ -257,7 +257,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 
-	monster->initial_max_health = monster->health;
+	monster->max_health = monster->health;
 	monster->s.renderfx |= RF_IR_VISIBLE;
 }
 
@@ -425,7 +425,6 @@ void ApplyBossEffects(edict_t* boss)
 	// Aplicar multiplicadores de salud y armadura
 	boss->health = std::max(static_cast<int>(boss->health * health_multiplier), health_min);
 	boss->max_health = boss->health;
-	boss->initial_max_health = boss->health;
 
 	if (boss->monsterinfo.power_armor_power > 0)
 	{
@@ -458,7 +457,6 @@ void ApplyBossEffects(edict_t* boss)
 		boss->monsterinfo.power_armor_power = std::max(boss->monsterinfo.power_armor_power, power_armor_min);
 
 	boss->max_health = boss->health;
-	boss->initial_max_health = boss->health;
 
 	// Marcar que los efectos ya fueron aplicados para evitar escalados acumulativos
 	boss->effects_applied = true;

@@ -1410,10 +1410,10 @@ void Horde_PreInit() {
 	}
 
 	if (deathmatch->integer && !g_horde->integer)
-		gi.cvar_set("g_coop_player_collision", "0");
-		gi.cvar_set("g_coop_squad_respawn", "0");
-		gi.cvar_set("g_coop_instanced_items", "0");
-		gi.cvar_set("g_disable_player_collision", "0");
+	gi.cvar_set("g_coop_player_collision", "0");
+	gi.cvar_set("g_coop_squad_respawn", "0");
+	gi.cvar_set("g_coop_instanced_items", "0");
+	gi.cvar_set("g_disable_player_collision", "0");
 
 	// Configuración automática cuando horde está activo
 	if (g_horde->integer) {
@@ -1437,8 +1437,8 @@ void Horde_PreInit() {
 		gi.cvar_set("g_allow_techs", "1");
 
 		// Configuración de physics
-		gi.cvar_set("g_override_physics_flags", "-1");	
-		
+		gi.cvar_set("g_override_physics_flags", "-1");
+
 		// Configuración de armas y daño
 		gi.cvar_set("g_no_nukes", "0");
 		gi.cvar_set("g_instant_weapon_switch", "1");
@@ -2481,7 +2481,6 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 
 	// Configuración inicial del boss
 	self->monsterinfo.IS_BOSS = true;
-	//self->monsterinfo.BOSS_DEATH_HANDLED = false;
 
 	self->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 	self->monsterinfo.last_sentrygun_target_time = 0_ms;
@@ -2532,16 +2531,28 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 	gi.Com_PrintFmt("PRINT: Boss of type {} spawned successfully with {} health and {} power armor\n",
 		self->classname, self->health, self->monsterinfo.power_armor_power);
 }
-// En SetHealthBarName
 void SetHealthBarName(edict_t* boss) {
 	static char buffer[MAX_STRING_CHARS];
+
+	if (!boss || !boss->inuse) {
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+		return;
+	}
+
 	const std::string_view display_name = GetDisplayName(boss);
+	if (display_name.empty()) {
+		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+		return;
+	}
 
 	const size_t name_len = std::min(display_name.length(), sizeof(buffer) - 1);
 	memcpy(buffer, display_name.data(), name_len);
 	buffer[name_len] = '\0';
 
+	// Actualizar configstring de manera segura
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, buffer);
+
+	// Enviar actualización a todos los clientes
 	gi.WriteByte(svc_configstring);
 	gi.WriteShort(CONFIG_HEALTH_BAR_NAME);
 	gi.WriteString(buffer);
@@ -2744,8 +2755,10 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	return false;
 }
-/// ///
-/// game reset
+//
+// game resetting
+//
+
 void ResetGame() {
 
 	// Si ya se ha ejecutado una vez, retornar inmediatamente
@@ -2770,7 +2783,6 @@ void ResetGame() {
 	}
 
 	// Resetear todas las variables globales
-//	last_wave_number = 0;
 	horde_message_end_time = 0_sec;
 	g_totalMonstersInWave = 0;
 
@@ -2832,7 +2844,7 @@ void ResetGame() {
 	gi.cvar_set("g_insane", "0");
 	gi.cvar_set("g_hardcoop", "0");
 	gi.cvar_set("dm_monsters", "0");
-	gi.cvar_set("timelimit", "50");
+	gi.cvar_set("timelimit", "60");
 	gi.cvar_set("bot_pause", "0");
 	gi.cvar_set("set cheats 0 s", "");
 	gi.cvar_set("ai_damage_scale", "1");
