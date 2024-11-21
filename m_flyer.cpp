@@ -747,7 +747,7 @@ PRETHINK(flyer_right_laser_update) (edict_t* laser) -> void
 	// Predicción de objetivo con ligera dispersión para efecto de abanico
 	if (self->enemy)
 	{
-		float spread = sinf(level.time.seconds() * 15.0f + PIf) * 0.02f; // Desfasado del izquierdo
+		float spread = sinf(level.time.seconds() * 5.0f + PIf) * 0.02f; // Desfasado del izquierdo
 		vec3_t target = self->enemy->s.origin;
 		target += right * spread * 32.0f;
 
@@ -773,8 +773,8 @@ void flyer_laser_on(edict_t* self)
 	gi.sound(self, CHAN_WEAPON, sound_laser, 1, ATTN_NORM, 0);
 
 	// Disparar ambos láseres
-	monster_fire_dabeam(self, 8, false, flyer_left_laser_update);
-	monster_fire_dabeam(self, 8, true, flyer_right_laser_update);
+	monster_fire_dabeam(self, 3, false, flyer_left_laser_update);
+	monster_fire_dabeam(self, 3, true, flyer_right_laser_update);
 }
 
 void flyer_laser_off(edict_t* self)
@@ -850,11 +850,7 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	const float range = range_to(self, self->enemy);
 	const float attack_chance = frandom();
 
-	// Ataque láser a media distancia
-	if (self && self->enemy && self->enemy->health < self->enemy->max_health * 0.65f && range > 100 && range < 1400 && attack_chance < 0.75f) {
-		M_SetAnimation(self, &flyer_move_laser_right);
-		return;
-	}
+
 
 	if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
 	{
@@ -883,6 +879,11 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 			{
 				M_SetAnimation(self, &flyer_move_rollright);
 			}
+		}
+		// Ataque láser a media distancia
+		if (self && self->enemy && self->enemy->health < self->enemy->max_health * 0.65f && range > 100 && range < 250 && attack_chance < 0.85f) {
+			M_SetAnimation(self, &flyer_move_laser_right);
+			return;
 		}
 	}
 
