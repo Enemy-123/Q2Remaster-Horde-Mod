@@ -24,7 +24,7 @@ static cached_soundindex sound_laser;
 
 void flyer_check_melee(edict_t* self);
 void flyer_loop_melee(edict_t* self);
-void flyer_setstart(edict_t* self);
+//void flyer_setstart(edict_t* self);
 
 // ROGUE - kamikaze stuff
 void flyer_kamikaze(edict_t* self);
@@ -241,7 +241,7 @@ void flyer_kamikaze_explode(edict_t* self)
 	if (self->enemy)
 	{
 		dir = self->enemy->s.origin - self->s.origin;
-		T_Damage(self->enemy, self, self, dir, self->s.origin, vec3_origin, (int)50, (int)50, DAMAGE_RADIUS, MOD_UNKNOWN);
+		T_Damage(self->enemy, self, self, dir, self->s.origin, vec3_origin, 50, 50, DAMAGE_RADIUS, MOD_UNKNOWN);
 	}
 
 	flyer_die(self, nullptr, nullptr, 0, dir, MOD_EXPLOSIVE);
@@ -278,7 +278,7 @@ void flyer_kamikaze_check(edict_t* self)
 		flyer_kamikaze_explode(self);
 }
 
-void flyer_checkstrafe(edict_t* self)
+static void flyer_checkstrafe(edict_t* self)
 {
 	// Validate enemy exists and is visible 
 	if (!self->enemy || !visible(self, self->enemy))
@@ -362,7 +362,7 @@ void flyer_rocket(edict_t* self)
 		if (!(self->monsterinfo.aiflags & AI_LOST_SIGHT))
 		{
 
-			PredictAim(self, self->enemy, start, (float)rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
+			PredictAim(self, self->enemy, start, rocketSpeed, true, (frandom(3.f - skill->integer) / 3.f) - frandom(0.05f * (3.f - skill->integer)), &dir, nullptr);
 		}
 
 		dir.normalize();
@@ -594,7 +594,7 @@ MMOVE_T(flyer_move_attack3) = { FRAME_attak201, FRAME_attak217, flyer_frames_att
 
 void flyer_slash_left(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
+	const vec3_t aim = { MELEE_DISTANCE, self->mins[0], 0 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -615,7 +615,7 @@ void flyer_slash_left(edict_t* self)
 
 void flyer_slash_right(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
+	const	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 0 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -714,7 +714,7 @@ PRETHINK(flyer_left_laser_update) (edict_t* laser) -> void
 	// Predicción de objetivo con ligera dispersión para efecto de abanico
 	if (self->enemy)
 	{
-		float spread = sinf(level.time.seconds() * 15.0f) * 0.2f; // Oscilación suave
+		const	float spread = sinf(level.time.seconds() * 15.0f) * 0.2f; // Oscilación suave
 		vec3_t target = self->enemy->s.origin;
 		target += right * spread * 32.0f;
 
@@ -747,7 +747,7 @@ PRETHINK(flyer_right_laser_update) (edict_t* laser) -> void
 	// Predicción de objetivo con ligera dispersión para efecto de abanico
 	if (self->enemy)
 	{
-		float spread = sinf(level.time.seconds() * 5.0f + PIf) * 0.02f; // Desfasado del izquierdo
+		const	float spread = sinf(level.time.seconds() * 5.0f + PIf) * 0.02f; // Desfasado del izquierdo
 		vec3_t target = self->enemy->s.origin;
 		target += right * spread * 32.0f;
 
@@ -839,18 +839,24 @@ void flyer_recharge(edict_t* self)
 {
 	M_SetAnimation(self, &flyer_move_laser_recharge);
 }
-MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
+MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 {
+	// Early return if self is null
+	if (!self)
+		return;
+
 	if (self->mass > 50)
 	{
 		flyer_run(self);
 		return;
 	}
 
+	// Early return if enemy is null before calculating range
+	if (!self->enemy)
+		return;
+
 	const float range = range_to(self, self->enemy);
 	const float attack_chance = frandom();
-
-
 
 	if (self->enemy && visible(self, self->enemy) && range <= 225.f && frandom() > (range / 225.f) * 0.35f)
 	{
@@ -862,7 +868,6 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 	else
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
-
 		if (first3waves)
 		{
 			frandom() > 0.2f ?
@@ -880,28 +885,27 @@ MONSTERINFO_ATTACK(flyer_attack) (edict_t* self) -> void
 				M_SetAnimation(self, &flyer_move_rollright);
 			}
 		}
-		// Ataque láser a media distancia
-		if (self && self->enemy && self->enemy->health < self->enemy->max_health * 0.65f && range > 100 && range < 250 && attack_chance < 0.85f) {
+
+		// Laser attack at medium range - added null checks
+		if (self->enemy && self->enemy->health < self->enemy->max_health * 0.65f &&
+			range > 100 && range < 250 && attack_chance < 0.85f)
+		{
 			M_SetAnimation(self, &flyer_move_laser_right);
 			return;
 		}
 	}
 
-
-	// [Paril-KEX] for alternate fly mode, sometimes we'll pin us
-	// down, kind of like a pseudo-stand ground
+	// Pin down behavior - added null check for enemy
 	if (!self->monsterinfo.fly_pinned && brandom() && self->enemy && visible(self, self->enemy))
 	{
 		self->monsterinfo.fly_pinned = true;
-		self->monsterinfo.fly_position_time = max(self->monsterinfo.fly_position_time, self->monsterinfo.fly_position_time + 1.7_sec); // make sure there's enough time for attack2/3
-
+		self->monsterinfo.fly_position_time = max(self->monsterinfo.fly_position_time,
+			self->monsterinfo.fly_position_time + 1.7_sec);
 		if (brandom())
-			self->monsterinfo.fly_ideal_position = self->s.origin + (self->velocity * frandom()); // pin to our current position
+			self->monsterinfo.fly_ideal_position = self->s.origin + (self->velocity * frandom());
 		else
-			self->monsterinfo.fly_ideal_position += self->enemy->s.origin; // make un-relative
+			self->monsterinfo.fly_ideal_position += self->enemy->s.origin;
 	}
-
-	// if we're currently pinned, fly_position_time will unpin us eventually
 }
 
 MONSTERINFO_MELEE(flyer_melee) (edict_t* self) -> void
@@ -1028,7 +1032,7 @@ TOUCH(flyer_touch) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_
 		ent->monsterinfo.duck_wait_time = level.time + 1_sec;
 		ent->monsterinfo.fly_thrusters = false;
 
-		vec3_t dir = (ent->s.origin - other->s.origin).normalized();
+		const	vec3_t dir = (ent->s.origin - other->s.origin).normalized();
 		ent->velocity = dir * 500.f;
 
 		gi.WriteByte(svc_temp_entity);
@@ -1048,7 +1052,7 @@ void SP_monster_flyer(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (g_horde->integer && current_wave_level <= 18) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		const	float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.32f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
