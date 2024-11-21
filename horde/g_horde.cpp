@@ -2983,6 +2983,9 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 }
 
 static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reason) noexcept {
+	// Obtener el número de jugadores humanos
+	const int8_t numHumanPlayers = GetNumHumanPlayers();
+
 	// Si la ola terminó con todos los monstruos muertos, aplicar reglas normales
 	if (reason == WaveEndReason::AllMonstersDead) {
 		if (current_wave_level >= 15 && current_wave_level <= 26) {
@@ -2995,7 +2998,8 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 		}
 		else if (current_wave_level <= 14) {
 			gi.cvar_set("g_insane", "0");
-			gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
+			// Activar chaotic2 si es mapa pequeño Y hay 2+ jugadores, sino chaotic1
+			gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 2) ? "2" : "1");
 		}
 	}
 	else {
@@ -3014,7 +3018,8 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 			}
 			else if (current_wave_level <= 14) {
 				gi.cvar_set("g_insane", "0");
-				gi.cvar_set("g_chaotic", mapSize.isSmallMap ? "2" : "1");
+				// Activar chaotic2 si es mapa pequeño Y hay 2+ jugadores, sino chaotic1
+				gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 2) ? "2" : "1");
 			}
 		}
 		else {
