@@ -35,7 +35,7 @@ edict_t* AI_GetSightClient(edict_t* self)
 
 	// Usar stack array en lugar de malloc para pequeñas cantidades
 	constexpr size_t MAX_STACK_CLIENTS = 32;
-	edict_t* stack_players[MAX_STACK_CLIENTS];
+	edict_t* stack_players[MAX_STACK_CLIENTS] = {};
 	edict_t** visible_players = stack_players;
 	size_t num_visible = 0;
 

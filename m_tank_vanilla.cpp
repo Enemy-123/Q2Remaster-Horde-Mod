@@ -529,7 +529,7 @@ void tank_vanillaRocket(edict_t* self)
 
 void tank_vanillaMachineGun(edict_t* self)
 {
-	vec3_t					 dir;
+	vec3_t					 dir{};
 	vec3_t					 vec;
 	vec3_t					 start;
 	vec3_t					 forward, right;
