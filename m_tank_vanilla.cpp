@@ -980,7 +980,7 @@ void tank_vanilla_spawn_finished(edict_t* self)
 mframe_t tank_frames_spawn[] =
 {
 	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
+	//{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
@@ -1000,7 +1000,7 @@ mframe_t tank_frames_spawn[] =
 	{ai_charge, 0, nullptr}
 };
 // Actualiza la definición de tank_move_spawn para usar la nueva función
-MMOVE_T(tank_move_spawn) = { FRAME_attak220, FRAME_attak238, tank_frames_spawn, tank_vanilla_spawn_finished };
+MMOVE_T(tank_move_spawn) = { FRAME_attak221, FRAME_attak238, tank_frames_spawn, tank_vanilla_spawn_finished };
 
 
 
