@@ -392,7 +392,7 @@ TOUCH(blaster_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool oth
 
 		//if someday this is a rpg mod, this will be useful!
 		// Check if the owner is a monster and if it's on easy difficulty
-		//if ((self->owner->svflags & SVF_MONSTER) && first3waves)
+		//if ((self->owner->svflags & SVF_MONSTER) && IsFirstThreeWaves(current_wave_level))
 		if (!strcmp(self->owner->classname, "monster_flyer") ||  //no bounce for these!
 			(!strcmp(self->owner->classname, "monster_hover_vanilla") ||  //no bounce for these!
 				!strcmp(self->owner->classname, "monster_medic")))

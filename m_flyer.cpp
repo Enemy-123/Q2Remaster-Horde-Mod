@@ -868,7 +868,7 @@ MONSTERINFO_ATTACK(flyer_attack)(edict_t* self) -> void
 	else
 	{
 		self->monsterinfo.attack_state = AS_STRAIGHT;
-		if (first3waves)
+		if (IsFirstThreeWaves(current_wave_level))
 		{
 			frandom() > 0.2f ?
 				M_SetAnimation(self, &flyer_move_attack2normal) :

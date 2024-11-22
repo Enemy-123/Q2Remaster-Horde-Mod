@@ -1095,7 +1095,7 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 	{
 		if (r >= RANGE_MID) {
 			if (frandom() > 0.4f) {
-				first3waves ? 
+				IsFirstThreeWaves(current_wave_level) ? 
 					M_SetAnimation(self, &gekk_move_spit) :
 					M_SetAnimation(self, &gekk_move_spitharder);
 			}
@@ -1105,7 +1105,7 @@ MONSTERINFO_ATTACK(gekk_attack) (edict_t* self) -> void
 			}
 		}
 		else if (frandom() > 0.7f) {
-			first3waves ? 
+			IsFirstThreeWaves(current_wave_level) ? 
 				M_SetAnimation(self, &gekk_move_spit) : 
 				M_SetAnimation(self, &gekk_move_spitharder);
 		}

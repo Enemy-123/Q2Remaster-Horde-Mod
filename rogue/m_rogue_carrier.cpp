@@ -395,7 +395,7 @@ void CarrierSpawn(edict_t *self)
 				{
 					ent->monsterinfo.lefty = false;
 					ent->monsterinfo.attack_state = AS_SLIDING;
-					first3waves ? 
+					IsFirstThreeWaves(current_wave_level) ? 
 					M_SetAnimation(ent, &flyer_move_attack3normal) :
 					M_SetAnimation(ent, &flyer_move_attack3);
 				}
@@ -403,7 +403,7 @@ void CarrierSpawn(edict_t *self)
 				{
 					ent->monsterinfo.lefty = true;
 					ent->monsterinfo.attack_state = AS_SLIDING;
-					first3waves ?
+					IsFirstThreeWaves(current_wave_level) ?
 						M_SetAnimation(ent, &flyer_move_attack3normal) :
 						M_SetAnimation(ent, &flyer_move_attack3);
 				}

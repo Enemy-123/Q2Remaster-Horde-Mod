@@ -7,7 +7,11 @@
 
 constexpr int ADRENALINE_HEALTH_BONUS = 5;
 #include <string>
-#define first3waves current_wave_level <= 3
+
+// Replace the macro with a constexpr function for better type safety and debugging
+[[nodiscard]] constexpr bool IsFirstThreeWaves(int32_t wave_level) noexcept {
+    return wave_level <= 3;
+}
 // Define los flags de bonus
 #define BF_CHAMPION   0x00000001
 #define BF_CORRUPTED  0x00000002

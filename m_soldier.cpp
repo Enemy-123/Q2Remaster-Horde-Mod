@@ -544,7 +544,7 @@ PRETHINK(soldierh_laser_update) (edict_t* laser) -> void
 void soldierh_laserbeam(edict_t* self, int flash_index)
 {
 	self->radius_dmg = flash_index;
-	monster_fire_dabeam(self, first3waves ? 1 : 2, false, soldierh_laser_update);
+	monster_fire_dabeam(self, IsFirstThreeWaves(current_wave_level) ? 1 : 2, false, soldierh_laser_update);
 }
 
 constexpr monster_muzzleflash_id_t ripper_flash[] = { MZ2_SOLDIER_RIPPER_1, MZ2_SOLDIER_RIPPER_2, MZ2_SOLDIER_RIPPER_3, MZ2_SOLDIER_RIPPER_4, MZ2_SOLDIER_RIPPER_5, MZ2_SOLDIER_RIPPER_6, MZ2_SOLDIER_RIPPER_7, MZ2_SOLDIER_RIPPER_8, MZ2_SOLDIER_RIPPER_9 };
@@ -657,13 +657,13 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	}
 	else if (style.has_bluehyper())
 	{
-		first3waves ?
+		IsFirstThreeWaves(current_wave_level) ?
 			monster_fire_blueblaster(self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER) :
 			monster_fire_blaster2(self, start, aim, 3, 975, flash_index, EF_BLUEHYPERBLASTER);
 	}
 	else if (style.has_blaster())
 	{
-		monster_fire_blaster(self, start, aim, first3waves ? 5 : 8, first3waves ? 600 : 1200, flash_index, EF_BLASTER);
+		monster_fire_blaster(self, start, aim, IsFirstThreeWaves(current_wave_level) ? 5 : 8, IsFirstThreeWaves(current_wave_level) ? 600 : 1200, flash_index, EF_BLASTER);
 	}
 	else if (style.has_shotgun())
 	{
@@ -1183,11 +1183,11 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 
 		// RAFAEL
 		if (style.is_xatrix())
-			first3waves ? M_SetAnimation(self, &soldierh_move_attack1) :
+			IsFirstThreeWaves(current_wave_level) ? M_SetAnimation(self, &soldierh_move_attack1) :
 			M_SetAnimation(self, &soldierh_move_attack1hard);
 		else
 			// RAFAEL
-			first3waves ? M_SetAnimation(self, &soldier_move_attack1) :
+			IsFirstThreeWaves(current_wave_level) ? M_SetAnimation(self, &soldier_move_attack1) :
 			M_SetAnimation(self, &soldier_move_attack1hard);
 		self->monsterinfo.attack_finished = level.time + random_time(1.5_sec, 2.5_sec);
 		return;
@@ -2202,7 +2202,7 @@ void SP_monster_soldier_ripper(edict_t* self)
 	gi.soundindex("soldier/solatck2.wav");
 
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = ((first3waves) ? 35 : (g_hardcoop->integer ? 25 : 0));
+		self->monsterinfo.power_armor_power = ((IsFirstThreeWaves(current_wave_level)) ? 35 : (g_hardcoop->integer ? 25 : 0));
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 
