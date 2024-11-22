@@ -64,24 +64,32 @@ static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 	if (lvl <= 10)
 		return 1.0f;
+
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
-	// Usar constantes para mejor mantenimiento y rendimiento
-	constexpr float lvl_SCALE_FACTOR = 0.02f;
-	constexpr float PLAYER_REDUCTION_FACTOR = 0.08f;
-	constexpr float MAX_PLAYER_REDUCTION = 0.45f;
-	// Combinar cálculos para reducir operaciones
-	float scale = 1.0f + ((lvl - 10) * lvl_SCALE_FACTOR);
+
+	// Factores de ajuste constantes
+	constexpr float LVL_SCALE = 0.02f;
+	constexpr float PLAYER_REDUCTION = 0.08f;
+	constexpr float MAX_REDUCTION = 0.45f;
+
+	// Escala base por nivel
+	float scale = 1.0f + ((lvl - 10) * LVL_SCALE);
+
+	// Ajuste por número de jugadores
 	if (numHumanPlayers > 1) {
-		scale *= (1.0f - std::min((numHumanPlayers - 1) * PLAYER_REDUCTION_FACTOR, MAX_PLAYER_REDUCTION));
+		scale *= (1.0f - std::min((numHumanPlayers - 1) * PLAYER_REDUCTION, MAX_REDUCTION));
 	}
-	// Ajustes por tamaño de mapa usando lookup en vez de condicionales
-	constexpr std::array<std::pair<float, float>, 3> MAP_ADJUSTMENTS = { {
+
+	// Ajustes por tamaño de mapa usando array constante
+	static constexpr std::array<std::pair<float, float>, 3> MAP_ADJUSTMENTS = { {
 		{0.7f, 1.3f},  // Small maps
 		{0.80f, 1.5f}, // Medium maps
 		{0.85f, 1.75f} // Big maps
 	} };
+
 	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-	const auto& [multiplier, maxScale] = MAP_ADJUSTMENTS[mapIndex];  // Agregado & después de auto
+	const auto& [multiplier, maxScale] = MAP_ADJUSTMENTS[mapIndex];
+
 	return std::min(scale * multiplier, maxScale);
 }
 
@@ -231,22 +239,28 @@ inline static void ClampNumToSpawn(const MapSize& mapSize) {
 }
 
 static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool isHardMode) noexcept {
-	if (lvl <= 3) return 0;
-	// Base más agresiva
+	if (lvl <= 3)
+		return 0;
+
+	// Base más agresiva con mejor cálculo matemático
 	float baseQueued = std::sqrt(static_cast<float>(lvl)) * 3.0f;
 	baseQueued *= (1.0f + (lvl) * 0.18f);
-	// Mejores multiplicadores por tamaño de mapa
+
+	// Multiplicadores optimizados por tamaño de mapa
 	const float mapSizeMultiplier = mapSize.isSmallMap ? 1.3f :
 		mapSize.isBigMap ? 1.5f : 1.4f;
+
 	const int32_t maxQueued = mapSize.isSmallMap ? 30 :
 		mapSize.isBigMap ? 45 : 35;
+
 	baseQueued *= mapSizeMultiplier;
-	// Bonus exponencial mejorado
+
+	// Bonus exponencial mejorado para niveles altos
 	if (lvl > 20) {
-		const	float highLevelBonus = std::pow(1.15f, std::min(lvl - 20, 18));
-		baseQueued *= highLevelBonus;
+		baseQueued *= std::pow(1.15f, std::min(lvl - 20, 18));
 	}
-	// Mejor bonus por dificultad
+
+	// Ajuste de dificultad mejorado
 	if (isHardMode) {
 		float difficultyMultiplier = 1.25f;
 		if (lvl > 25) {
@@ -256,7 +270,7 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 		baseQueued *= difficultyMultiplier;
 	}
 
-	// Aplicamos el factor de reducción de 0.75 antes del clamp final
+	// Factor de reducción final
 	baseQueued *= 0.85f;
 
 	return std::min(static_cast<int32_t>(baseQueued), maxQueued);
@@ -2920,11 +2934,11 @@ void fastNextWave() noexcept {
 	Horde_InitLevel(g_horde_local.level + 1);
 }
 inline int8_t GetNumActivePlayers() {
-	const auto& players = active_players();
-	return std::count_if(players.begin(), players.end(),
-		[](const edict_t* const player) {
-			return player->client->resp.ctf_team == CTF_TEAM1;
-		});
+    const auto& players = active_players();
+    return std::count_if(players.begin(), players.end(),
+        [](const edict_t* const player) {
+            return player->client && player->client->resp.ctf_team == CTF_TEAM1;
+        });
 }
 
 inline int8_t GetNumHumanPlayers() {
@@ -3385,12 +3399,16 @@ static void SetMonsterArmor(edict_t* monster) {
 }
 
 static void SetNextMonsterSpawnTime(const MapSize& mapSize) {
-	g_horde_local.monster_spawn_time = level.time + random_time(
-		mapSize.isSmallMap ? 0.6_sec :
-		mapSize.isBigMap ? 0.4_sec : 0.8_sec,
-		mapSize.isSmallMap ? 0.8_sec :
-		mapSize.isBigMap ? 0.6_sec : 1.0_sec
-	);
+	constexpr std::array<std::pair<gtime_t, gtime_t>, 3> SPAWN_TIMES = { {
+		{0.6_sec, 0.8_sec},  // Small maps
+		{0.8_sec, 1.0_sec},  // Medium maps
+		{0.4_sec, 0.6_sec}   // Big maps
+	} };
+
+	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
+	const auto& [min_time, max_time] = SPAWN_TIMES[mapIndex];
+
+	g_horde_local.monster_spawn_time = level.time + random_time(min_time, max_time);
 }
 
 // Usar enum class para mejorar la seguridad de tipos
