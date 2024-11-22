@@ -2919,25 +2919,27 @@ void fastNextWave() noexcept {
 	g_horde_local.state = horde_state_t::spawning;
 	Horde_InitLevel(g_horde_local.level + 1);
 }
-
 inline int8_t GetNumActivePlayers() {
-	return std::count_if(active_players().begin(), active_players().end(),
-		[](const edict_t* p) {
-			return p->client->resp.ctf_team == CTF_TEAM1;
+	const auto& players = active_players();
+	return std::count_if(players.begin(), players.end(),
+		[](const edict_t* const player) {
+			return player->client->resp.ctf_team == CTF_TEAM1;
 		});
 }
 
 inline int8_t GetNumHumanPlayers() {
-	return std::count_if(active_players_no_spect().begin(), active_players_no_spect().end(),
-		[](const edict_t* p) {
-			return !(p->svflags & SVF_BOT);
+	const auto& players = active_players_no_spect();
+	return std::count_if(players.begin(), players.end(),
+		[](const edict_t* const player) {
+			return !(player->svflags & SVF_BOT);
 		});
 }
 
 inline int8_t GetNumSpectPlayers() {
-	return std::count_if(active_players().begin(), active_players().end(),
-		[](const edict_t* p) {
-			return ClientIsSpectating(p->client);
+	const auto& players = active_players();
+	return std::count_if(players.begin(), players.end(),
+		[](const edict_t* const player) {
+			return ClientIsSpectating(player->client);
 		});
 }
 
