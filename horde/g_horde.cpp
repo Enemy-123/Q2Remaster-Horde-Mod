@@ -2766,6 +2766,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	return false;
 }
+
 //
 // game resetting
 //

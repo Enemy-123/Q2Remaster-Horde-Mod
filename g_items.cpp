@@ -4092,11 +4092,12 @@ model="models/items/keys/pass/tris.md2"
 			/* quantity */ 0,
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
-			/* flags */ IF_TECH | IF_POWERUP_WHEEL,
+			/* flags */ IF_POWERUP_WHEEL,
 			/* vwep_model */ nullptr,
 			/* armor_info */ nullptr,
-			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
+			/* tag */ POWERUP_TELEPORT,  // Cambiar a un tag único
 			/* precaches */ "world/scan1.wav",
+			/* sort_id */ 0         // Asignar un sort_id único
 		},
 
 	//QUAKED item_sentrygun (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
