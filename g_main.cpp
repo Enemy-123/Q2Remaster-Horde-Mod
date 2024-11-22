@@ -192,10 +192,10 @@ void InitSave();
 #include <chrono>
 #include "shared.h"
 
-// Implementación de la función auxiliar en el archivo apropiado (por ejemplo, g_main.c)
-bool PM_IsQ64Map() {
-	return strncmp(level.mapname, "q64/", 4) == 0;
-}
+//// Implementación de la función auxiliar en el archivo apropiado (por ejemplo, g_main.c)
+//bool PM_IsQ64Map() {
+//	return strncmp(level.mapname, "q64/", 4) == 0;
+//}
 
 /*
 ============

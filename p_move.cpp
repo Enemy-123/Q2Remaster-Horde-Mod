@@ -254,10 +254,10 @@ trace_t PM_Clip(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, con
 	return pm->clip(start, &mins, &maxs, end, mask);
 }
 // Declaración de la función auxiliar
-bool PM_IsQ64Map();
+//bool PM_IsQ64Map();
 
 static trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& maxs, const vec3_t& end, contents_t mask = CONTENTS_NONE) {
-	extern cvar_t* g_horde;
+//	extern cvar_t* g_horde;
 	if (pm->s.pm_type == PM_SPECTATOR)
 		return PM_Clip(start, mins, maxs, end, MASK_SOLID);
 	if (mask == CONTENTS_NONE) {
@@ -270,10 +270,10 @@ static trace_t PM_Trace(const vec3_t& start, const vec3_t& mins, const vec3_t& m
 		if (pm->s.pm_flags & PMF_IGNORE_PLAYER_COLLISION)
 			mask &= ~CONTENTS_PLAYER;
 
-		// Modificación para el modo horda y mapas q64/*
-		if ((g_horde && g_horde->integer) && PM_IsQ64Map()) {
-			mask &= ~CONTENTS_PLAYERCLIP;
-		}
+		//// Modificación para el modo horda y mapas q64/*
+		//if ((g_horde && g_horde->integer) && PM_IsQ64Map()) {
+		//	mask &= ~CONTENTS_PLAYERCLIP;
+		//}
 	}
 	return pm->trace(start, &mins, &maxs, end, pm->player, mask);
 }
