@@ -2679,35 +2679,31 @@ static void ResetRecentBosses() noexcept {
 void ResetWaveAdvanceState() noexcept;
 
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+	// Cache valores usados frecuentemente
 	const gtime_t currentTime = level.time;
 	const int32_t remainingMonsters = CalculateRemainingMonsters();
-	const float percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
 
-	// Check independent time limit first
+	// Usar shortcuts para condiciones comunes
 	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
 		reason = WaveEndReason::TimeLimitReached;
 		return true;
 	}
 
-	// Check manual wave advance
-	if (allowWaveAdvance) {
+	if (allowWaveAdvance || Horde_AllMonstersDead()) {
+		reason = WaveEndReason::AllMonstersDead;
 		ResetWaveAdvanceState();
-		reason = WaveEndReason::AllMonstersDead;
 		return true;
 	}
 
-	// Check if all monsters are dead
-	if (Horde_AllMonstersDead()) {
-		reason = WaveEndReason::AllMonstersDead;
-		return true;
-	}
+	// Calcular porcentaje una sola vez si se necesita
+	const float percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
 
-	// Initialize wave end time if not set
+	// Inicializar tiempo final si es necesario
 	if (g_horde_local.waveEndTime == 0_sec) {
 		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 	}
 
-	// Check for condition triggers
+	// Combinar condiciones de trigger
 	if (!g_horde_local.conditionTriggered) {
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
 		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
@@ -2716,50 +2712,54 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Select shortest time threshold based on conditions
+			// Usar operador ternario para simplificar la selección del threshold
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
 				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
-				maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
+				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
 
 			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
 
-			// Aggressive time reduction for very few monsters
+			// Aplicar reducción de tiempo agresiva si quedan muy pocos monstruos
 			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-				g_horde_local.waveEndTime = std::min(g_horde_local.waveEndTime, currentTime + reduction);
-				gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
+				g_horde_local.waveEndTime = std::min(
+					g_horde_local.waveEndTime,
+					currentTime + (AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
+						(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters))
+				);
 			}
 		}
 	}
 
-	// Handle warnings and time checks
+	// Manejar advertencias de tiempo
 	if (g_horde_local.conditionTriggered) {
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 
-		// Issue warnings at predefined intervals
+		// Usar array estático para tiempos de advertencia
+		static constexpr std::array<float, WARNING_TIMES.size()> WARNING_FRAMES = {
+			0.0f, 1.0f, 2.0f
+		};
+
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] &&
 				remainingTime <= warningTime &&
-				remainingTime > (warningTime - 1_sec)) {
+				remainingTime > warningTime - 1_sec) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
 					static_cast<int>(WARNING_TIMES[i]));
 				g_horde_local.warningIssued[i] = true;
 			}
 		}
 
-		// Check for wave completion
 		if (currentTime >= g_horde_local.waveEndTime) {
 			reason = WaveEndReason::MonstersRemaining;
 			return true;
 		}
 	}
 
-	// Update debug info periodically
+	// Actualizar información de debug con menos frecuencia
 	if (currentTime - g_horde_local.lastPrintTime >= 10_sec) {
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
-		gi.Com_PrintFmt("PRINT: Wave status: {} monsters remaining. {:.2f} seconds left.\n",
+		gi.Com_PrintFmt("Wave status: {} monsters remaining. {:.2f} seconds left.\n",
 			remainingMonsters, remainingTime.seconds());
 		g_horde_local.lastPrintTime = currentTime;
 	}
@@ -2905,8 +2905,6 @@ void ResetWaveAdvanceState() noexcept {
 	g_lastNumHumanPlayers = -1;
 
 	g_horde_local.waveEndTime = 0_sec;
-	// Reiniciar las advertencias
-//	std::fill(warningIssued.begin(), warningIssued.end(), false);
 }
 
 void AllowNextWaveAdvance() noexcept {
@@ -3229,99 +3227,105 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
+	// Usar array estático para spawns disponibles
 	static std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns;
 	size_t spawn_count = 0;
 
-	// Recolección de spawns optimizada usando array estático
+	// Cache de valores frecuentemente usados
+	const auto currentTime = level.time;
+
+	// Recolección optimizada de spawns
 	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
 		edict_t* e = &g_edicts[i];
-		if (!e->inuse || !e->classname ||
-			strcmp(e->classname, "info_player_deathmatch") != 0 ||
-			e->monsterinfo.IS_BOSS)
+		if (!e->inuse || !e->classname || e->monsterinfo.IS_BOSS ||
+			strcmp(e->classname, "info_player_deathmatch") != 0)
 			continue;
 
-		const auto it = spawnPointsData.find(e);
+		// Verificación rápida de spawn point deshabilitado
+		auto it = spawnPointsData.find(e);
 		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
-			if (level.time < it->second.cooldownEndsAt)
+			if (currentTime < it->second.cooldownEndsAt)
 				continue;
+			it->second.isTemporarilyDisabled = false;
 		}
 
 		available_spawns[spawn_count++] = e;
 	}
 
-// Shuffle spawns using mt_rand
+	// Early return si no hay spawns disponibles
+	if (spawn_count == 0)
+		return nullptr;
+
+	// Shuffle optimizado usando Fisher-Yates
 	if (spawn_count > 1) {
 		for (size_t i = spawn_count - 1; i > 0; --i) {
-			size_t j = irandom(1 + i);  // Addition is now performed after the cast to size_t
-			if (i != j) {
+			const size_t j = irandom(i + 1);
+			if (i != j)
 				std::swap(available_spawns[i], available_spawns[j]);
-			}
 		}
 	}
 
+	// Cache de valores del mapa
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
+	// Cálculos de spawn optimizados
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
-
-	// Usar irandom en lugar de distribution
 	const int32_t min_spawn = std::min(g_horde_local.queued_monsters, base_spawn);
-	const int32_t max_spawn = std::min(base_spawn + 1, 6);
-	const int32_t monsters_per_spawn = irandom(min_spawn, max_spawn);
-
+	const int32_t monsters_per_spawn = irandom(min_spawn, std::min(base_spawn + 1, 6));
 	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
 
-	if (spawnable <= 0 || spawn_count == 0)
+	if (spawnable <= 0)
 		return nullptr;
 
 	edict_t* last_spawned = nullptr;
+	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
+		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	for (size_t i = 0; i < spawn_count && i < static_cast<size_t>(spawnable) && g_horde_local.num_to_spawn > 0; ++i) {
+	// Spawn loop optimizado
+	for (size_t i = 0; i < spawn_count && i < static_cast<size_t>(spawnable) &&
+		g_horde_local.num_to_spawn > 0; ++i) {
+
 		edict_t* spawn_point = available_spawns[i];
 		const char* monster_classname = G_HordePickMonster(spawn_point);
 
 		if (!monster_classname)
 			continue;
 
-		edict_t* monster = G_Spawn();
-		if (!monster)
-			continue;
+		if (edict_t* monster = G_Spawn()) {
+			monster->classname = monster_classname;
+			monster->s.origin = spawn_point->s.origin;
+			monster->s.angles = spawn_point->s.angles;
+			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
+			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
+			monster->monsterinfo.last_sentrygun_target_time = 0_ms;
 
-		monster->classname = monster_classname;
-		monster->s.origin = spawn_point->s.origin;
-		monster->s.angles = spawn_point->s.angles;
-		monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-		monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-		monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+			ED_CallSpawn(monster);
 
-		ED_CallSpawn(monster, spawn_temp_t::empty);
+			if (monster->inuse) {
+				if (g_horde_local.level >= 14)
+					SetMonsterArmor(monster);
 
-		if (!monster->inuse) {
-			G_FreeEdict(monster);
-			continue;
+				if (frandom() < drop_chance)
+					monster->item = G_HordePickItem();
+
+				SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+
+				--g_horde_local.num_to_spawn;
+				--g_horde_local.queued_monsters;
+				++g_totalMonstersInWave;
+				last_spawned = monster;
+			}
+			else {
+				G_FreeEdict(monster);
+			}
 		}
-
-		if (g_horde_local.level >= 14)
-			SetMonsterArmor(monster);
-
-		const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
-			g_horde_local.level <= 7 ? 0.6f : 0.45f;
-
-		// Usar frandom en lugar de distribution
-		if (frandom() < drop_chance)
-			monster->item = G_HordePickItem();
-
-		SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
-		gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-
-		g_horde_local.num_to_spawn = std::max(0, g_horde_local.num_to_spawn - 1);
-		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - 1);
-		g_totalMonstersInWave++;
-		last_spawned = monster;
 	}
 
+	// Gestión optimizada de monstruos en cola
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
@@ -3332,6 +3336,7 @@ static edict_t* SpawnMonsters() {
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned;
 }
+
 static void SetMonsterArmor(edict_t* monster) {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 	if (!st.was_key_specified("power_armor_power")) {

@@ -4121,7 +4121,7 @@ model="models/items/keys/pass/tris.md2"
 			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
 			/* vwep_model */ nullptr,
 			/* armor_info */ nullptr,
-			/* tag */ POWERUP_DOUBLE,
+			/* tag */ POWERUP_SENTRYGUN,
 			/* precaches */ "models/monsters/turret/tris.md2 gunner/gunidle1.wav turret/moving.wav",
 		},
 
