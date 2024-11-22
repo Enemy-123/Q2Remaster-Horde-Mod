@@ -198,7 +198,7 @@ const std::unordered_set<std::string> smallMaps = {
 };
 
 const std::unordered_set<std::string> bigMaps = {
-	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "xdm3", "rdm6", "rdm8", "xdm1", "waste2", "rdm5", "rdm9"
+	"q2ctf5", "old/kmdm3", "xdm2", "xdm6", "xdm3", "rdm6", "rdm8", "xdm1", "waste2", "rdm5", "rdm9", "rdm12"
 };
 
 MapSize GetMapSize(const std::string& mapname) {
@@ -2286,6 +2286,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"rdm4", {-336, 2456, -288}},
 	{"rdm8", {-1516, 976, -156}},
 	{"rdm9", {-984, -80, 232}},
+	{"rdm12", {32, -1888, 120}},
 	{"rdm14", {1248, 664, 896}},
 	{"q2dm2", {128, -960, 704}},
 	{"q2dm3", {192, -136, 72}},
@@ -2301,6 +2302,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 	{"xdm1", {-312, 600, 144}},
 	{"xdm2", {-232, 472, 424}},
 	{"xdm3", {96, -96, 360}},
+	{"xdm4", {-160, -368, 360}},
 	{"xdm6", {-1088, -128, 528}},
 	{"rdm5", {1088, 592, -568}},
 	{"rdm6", {712, 1328, 48}},
