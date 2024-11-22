@@ -2921,28 +2921,24 @@ void fastNextWave() noexcept {
 }
 
 inline int8_t GetNumActivePlayers() {
-	const auto& players = active_players();
-	return std::count_if(players.begin(), players.end(),
-		[](const edict_t* const player) {
-			return player->client && player->client->resp.ctf_team == CTF_TEAM1;
+	return std::count_if(active_players().begin(), active_players().end(),
+		[](const edict_t* p) {
+			return p->client->resp.ctf_team == CTF_TEAM1;
 		});
 }
 
 inline int8_t GetNumHumanPlayers() {
-    const auto& players = active_players();
-    return std::count_if(players.begin(), players.end(),
-        [](const edict_t* const player) {
-            return player->client->resp.ctf_team == CTF_TEAM1 && 
-                   !(player->svflags & SVF_BOT);
-        });
+	return std::count_if(active_players_no_spect().begin(), active_players_no_spect().end(),
+		[](const edict_t* p) {
+			return !(p->svflags & SVF_BOT);
+		});
 }
 
 inline int8_t GetNumSpectPlayers() {
-    const auto& players = active_players();
-    return std::count_if(players.begin(), players.end(),
-        [](const edict_t* const player) {
-            return player->client->resp.ctf_team != CTF_TEAM1;
-        });
+	return std::count_if(active_players().begin(), active_players().end(),
+		[](const edict_t* p) {
+			return ClientIsSpectating(p->client);
+		});
 }
 
 static void PlayWaveStartSound() {
