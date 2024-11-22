@@ -47,7 +47,7 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int8_t last_wave_number = 0;              // Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 
-gtime_t horde_message_end_time = 0_sec;
+gtime_t horde_message_end_time = level.time;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown 
 
 // Añadir cerca de las otras constexpr al inicio del archivo
@@ -2172,7 +2172,7 @@ static bool Horde_AllMonstersDead() {
 	return true;
 }
 
-static void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
+void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
 	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
 		return;
 	}
@@ -3553,7 +3553,7 @@ static void SendCleanupMessage(WaveEndReason reason) {
 }
 
 // Add this function in the appropriate source file that deals with spawn management.
-static void CheckAndResetDisabledSpawnPoints() {
+void CheckAndResetDisabledSpawnPoints() {
 	const gtime_t currentTime = level.time;
 	for (auto& [spawn_point, data] : spawnPointsData) {
 		if (data.isTemporarilyDisabled && currentTime >= data.cooldownEndsAt) {
@@ -3569,7 +3569,6 @@ void Horde_RunFrame() {
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t currentLevel = g_horde_local.level;
 	static WaveEndReason currentWaveEndReason;  // Agregar esta declaración
-	CheckAndResetDisabledSpawnPoints();
 
 	// Manejo de monstruos personalizados
 	if (dm_monsters->integer >= 1) {
@@ -3580,17 +3579,6 @@ void Horde_RunFrame() {
 
 	// Obtener contadores de jugadores
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
-//	const int32_t numSpectPlayers = GetNumSpectPlayers();
-
-	// Ajustes de cooperación
-	level.coop_scale_players = 1 + numHumanPlayers;
-	G_Monster_CheckCoopHealthScaling();
-
-	// Verificaciones constantes
-	for (auto ent : active_monsters()) {
-		CheckAndRestoreMonsterAlpha(ent);
-	}
-	CleanupInvalidEntities();
 
 	switch (g_horde_local.state) {
 	case horde_state_t::warmup:
@@ -3695,12 +3683,6 @@ void Horde_RunFrame() {
 		}
 		break;
 	}
-
-	// Actualizar mensajes y HUD
-	if (horde_message_end_time && level.time >= horde_message_end_time) {
-		ClearHordeMessage();
-	}
-	UpdateHordeHUD();
 }
 
 // Función para manejar el evento de reinicio

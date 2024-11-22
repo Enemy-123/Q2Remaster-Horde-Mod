@@ -169,7 +169,6 @@ cvar_t* g_bfgpull;
 cvar_t* g_bfgslide;
 cvar_t* g_startarmor;
 cvar_t* g_vampire;
-//cvar_t* g_vampire_health_max;
 
 static cvar_t* g_frames_per_frame;
 
@@ -191,6 +190,7 @@ void G_PrepFrame();
 void InitSave();
 
 #include <chrono>
+#include "shared.h"
 
 // Implementación de la función auxiliar en el archivo apropiado (por ejemplo, g_main.c)
 bool PM_IsQ64Map() {
@@ -944,11 +944,58 @@ Advances the world by 0.1 seconds
 
 inline void G_RunFrame_(bool main_loop)
 {
+	if (g_horde->integer) {
 
-	void CheckAndUpdateMenus();
+		CheckAndUpdateMenus();
 
-	CheckAndUpdateMenus();
+		// Verificaciones constantes de alto rendimiento 
+		// Cache map size check - solo actualizar si cambia el mapa
+		static std::string last_mapname;
+		static MapSize cached_mapSize;
+		if (last_mapname != level.mapname) {
+			cached_mapSize = GetMapSize(level.mapname);
+			last_mapname = level.mapname;
+		}
 
+		// Configuración de escala de jugadores
+		level.coop_scale_players = 1 + GetNumHumanPlayers();
+		G_Monster_CheckCoopHealthScaling();
+
+		// Verificaciones de estado de monstruos/cleanup
+		// Procesamiento rotativo de monstruos
+		static uint32_t start_index = 0;
+		const uint32_t BATCH_SIZE = 32;
+		uint32_t processed = 0;
+
+		// Procesar un número limitado de monstruos por frame
+		for (auto ent : active_monsters()) {
+			if (processed >= BATCH_SIZE)
+				break;
+
+			CheckAndRestoreMonsterAlpha(ent);
+			if (!ent->monsterinfo.IS_BOSS)
+				CheckAndTeleportStuckMonster(ent);
+
+			processed++;
+		}
+
+		// Limpieza periódica
+		static gtime_t next_cleanup = 0_ms;
+		if (level.time >= next_cleanup) {
+			CleanupInvalidEntities();
+			CheckAndResetDisabledSpawnPoints();
+			next_cleanup = level.time + 1_sec;
+		}
+
+		// HUD y mensajes
+		static gtime_t next_hud_update = 0_ms;
+		if (level.time >= next_hud_update) {
+			if (horde_message_end_time && level.time >= horde_message_end_time)
+				ClearHordeMessage();
+			UpdateHordeHUD();
+			next_hud_update = level.time + 50_ms; // 20 fps para el HUD es suficiente
+		}
+	}
 
 	level.in_frame = true;
 
@@ -961,6 +1008,8 @@ inline void G_RunFrame_(bool main_loop)
 	// Manejar la intermisión
 	if (level.intermissiontime)
 	{
+
+		level.intermission_fade = true;
 		constexpr gtime_t INTERMISSION_DURATION = 30_sec;
 
 		if (level.intermissiontime == level.time)

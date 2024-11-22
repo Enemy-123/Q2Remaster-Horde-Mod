@@ -66,5 +66,12 @@ void AllowReset();
 bool CheckAndTeleportStuckMonster(edict_t* self);
 bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);
 
+extern gtime_t horde_message_end_time;
+void CheckAndUpdateMenus();
+void CheckAndResetDisabledSpawnPoints();
+void CheckAndRestoreMonsterAlpha(edict_t* const ent);
+
+//void UpdateHordeMessage(std::string_view message, gtime_t duration);
+
 
 #endif // SHARED_H

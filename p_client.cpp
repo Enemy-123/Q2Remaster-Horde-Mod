@@ -922,11 +922,7 @@ bool IsTechItem(int item_id)
 	}
 	return false;
 }
-//void SaveClientWeaponBeforeDeath(gclient_t* client)
-//{
-//	client->resp.weapon = client->pers.weapon;
-//	client->pers.lastweapon = client->pers.weapon;
-//}
+
 /*
 ==============
 InitClientPersistant
