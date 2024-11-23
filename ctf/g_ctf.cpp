@@ -3288,10 +3288,6 @@ void OpenHordeMenu(edict_t* ent)
 	CreateHordeMenu(ent);
 }
 
-void OpenHUDMenu(edict_t* ent)
-{
-	CreateHUDMenu(ent);
-}
 
 //Tech Menus
 void OpenTechMenu(edict_t* ent);
@@ -3401,19 +3397,48 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 
 	PMenu_Close(ent); // Cerrar el menú de TECHS
 }
-//HUD MENU
-void UpdateHUDMenuLayout(edict_t* ent);
+
+// HUD Menu forward declarations
+void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p);
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p);
 
+// Menu structure definition
 static pmenu_t hud_menu[] = {
 	{ "*HUD Options", PMENU_ALIGN_CENTER, nullptr },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
-	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },
-	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },
-	{ "", PMENU_ALIGN_CENTER, nullptr }, // Línea en blanco
+	{ "", PMENU_ALIGN_CENTER, nullptr },
+	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },  // ID Toggle
+	{ "", PMENU_ALIGN_LEFT, HUDMenuHandler },  // ID-DMG Toggle
+	{ "", PMENU_ALIGN_CENTER, nullptr },
 	{ "Back to Horde Menu", PMENU_ALIGN_LEFT, HUDMenuHandler },
 	{ "Close", PMENU_ALIGN_LEFT, HUDMenuHandler }
 };
+
+void OpenHUDMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	auto p = PMenu_Open(ent, hud_menu, -1, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
+	if (p) {
+		UpdateHUDMenu(ent, p);
+	}
+}
+
+void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p) {
+	// Update ID toggle entry
+	PMenu_UpdateEntry(p->entries + 2,
+		G_Fmt("Enable/Disable ID [{}]", ent->client->pers.id_state ? "ON" : "OFF").data(),
+		PMENU_ALIGN_LEFT,
+		HUDMenuHandler);
+
+	// Update ID-DMG toggle entry
+	PMenu_UpdateEntry(p->entries + 3,
+		G_Fmt("Enable/Disable ID-DMG [{}]", ent->client->pers.iddmg_state ? "ON" : "OFF").data(),
+		PMENU_ALIGN_LEFT,
+		HUDMenuHandler);
+
+	PMenu_Update(ent);
+}
 
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	if (!ent || !ent->client || !p) {
@@ -3421,7 +3446,6 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	}
 
 	const int option = p->cur;
-	bool should_reopen = true;
 
 	switch (option) {
 	case 2: // Toggle ID
@@ -3431,74 +3455,39 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		gi.LocCenter_Print(ent, "\n\n\n{} state toggled to {}\n",
 			(option == 2) ? "ID" : "ID-DMG",
 			state ? "ON" : "OFF");
+		UpdateHUDMenu(ent, p);
 		break;
 	}
 	case 5: // Back to Horde Menu
-		should_reopen = false;
 		PMenu_Close(ent);
 		OpenHordeMenu(ent);
-		return;
+		break;
 	case 6: // Close
-		should_reopen = false;
 		PMenu_Close(ent);
-		return;
+		break;
 	default:
 		gi.Com_PrintFmt("Invalid menu option {} for player {}\n",
 			option, ent->client->pers.netname);
-		should_reopen = false;
 		PMenu_Close(ent);
-		return;
-	}
-
-	if (should_reopen) {
-		// Actualizar textos del menú
-		snprintf(hud_menu[2].text, sizeof(hud_menu[2].text), "Enable/Disable ID [%s]",
-			ent->client->pers.id_state ? "ON" : "OFF");
-		snprintf(hud_menu[3].text, sizeof(hud_menu[3].text), "Enable/Disable ID-DMG [%s]",
-			ent->client->pers.iddmg_state ? "ON" : "OFF");
-
-		PMenu_Open(ent, hud_menu, option, sizeof(hud_menu) / sizeof(pmenu_t), nullptr, nullptr);
+		break;
 	}
 }
 
 void CheckAndUpdateMenus() {
 	for (auto player : active_players()) {
-		if (!player->client || !player->client->menudirty) {
+		if (!player->client || !player->client->menu) {
 			continue;
 		}
 
-		if (player->client->menu) {
-			snprintf(hud_menu[2].text, sizeof(hud_menu[2].text),
-				"Enable/Disable ID [%s]", player->client->pers.id_state ? "ON" : "OFF");
-			snprintf(hud_menu[3].text, sizeof(hud_menu[3].text),
-				"Enable/Disable ID-DMG [%s]", player->client->pers.iddmg_state ? "ON" : "OFF");
+		// Verificar si el jugador está en el menú HUD comparando con el primer elemento
+		bool isInHUDMenu = (player->client->menu->entries[0].text == std::string("*HUD Options"));
 
-			PMenu_Do_Update(player);
+		if (isInHUDMenu) {
+			UpdateHUDMenu(player, player->client->menu);
 			gi.unicast(player, true);
 		}
-		player->client->menudirty = false;
 	}
 }
-
-void UpdateHUDMenuLayout(edict_t* ent) {
-	char layout[256];
-
-	snprintf(layout, sizeof(layout),
-		"xv 32 yv 8 picn \"inventory\" "
-		"xv 64 yv 32 string2 \"*HUD Options\" "
-		"xv 64 yv 40 string \"Enable/Disable ID [%s]\" "
-		"xv 64 yv 48 string \"Enable/Disable ID-DMG [%s]\" "
-		"xv 64 yv 64 string \"Back to Horde Menu\" "
-		"xv 64 yv 72 string \"Close\" ",
-		ent->client->pers.id_state ? "ON" : "OFF",
-		ent->client->pers.iddmg_state ? "ON" : "OFF"
-	);
-
-	gi.WriteByte(svc_layout);
-	gi.WriteString(layout);
-	gi.unicast(ent, true);
-}
-
 
 // Saving VOTE INFO
 
