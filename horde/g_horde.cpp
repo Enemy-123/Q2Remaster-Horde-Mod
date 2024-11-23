@@ -2545,14 +2545,14 @@ void SetHealthBarName(const edict_t* boss) {
 //CS HORDE
 
 void UpdateHordeHUD() {
-	// Check if message has expired
-	if (horde_message_end_time && level.time >= horde_message_end_time) {
-		ClearHordeMessage();
+	// Si no hay mensaje activo o el tiempo ha expirado, no hacer nada
+	if (horde_message_end_time == 0_sec || level.time >= horde_message_end_time) {
 		return;
 	}
 
-	// Only update if we have an active message
-	if (gi.get_configstring(CONFIG_HORDEMSG)[0] != '\0') {
+	// Solo actualizar si tenemos un mensaje activo
+	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+	if (current_msg && current_msg[0] != '\0') {
 		for (auto player : active_players()) {
 			if (player->inuse && player->client && !player->client->voted_map[0]) {
 				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
@@ -2580,22 +2580,32 @@ void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
 }
 
 
-// Implementación de ClearHordeMessage
 void ClearHordeMessage() {
-	// Only clear if there's actually a message
-	if (gi.get_configstring(CONFIG_HORDEMSG)[0] != '\0') {
+	// Obtener el mensaje actual una sola vez
+	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+
+	// Solo proceder si hay un mensaje que limpiar
+	if (current_msg && current_msg[0] != '\0') {
+		// Limpiar el configstring
 		gi.configstring(CONFIG_HORDEMSG, "");
-	}
 
-	horde_message_end_time = 0_sec;
-
-	// Reset player stats
-	for (auto player : active_players()) {
-		if (player->inuse && player->client) {
-			player->client->ps.stats[STAT_HORDEMSG] = 0;
+		// Resetear stats de jugadores inmediatamente
+		for (auto player : active_players()) {
+			if (player && player->inuse && player->client) {
+				player->client->ps.stats[STAT_HORDEMSG] = 0;
+			}
 		}
 	}
+
+	// Resetear el tiempo del mensaje
+	horde_message_end_time = 0_sec;
+
+	// Debug opcional
+	if (developer->integer) {
+		gi.Com_PrintFmt("PRINT: Horde message cleared at time {}\n", level.time.seconds());
+	}
 }
+
 
 // reset cooldowns, fixed no monster spawning on next map
 // En UnifiedAdjustSpawnRate y ResetCooldowns:

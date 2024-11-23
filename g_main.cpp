@@ -987,13 +987,17 @@ inline void G_RunFrame_(bool main_loop)
 			next_cleanup = level.time + 1_sec;
 		}
 
-		// HUD y mensajes
+		// HUD y mensajes - Modificar esta parte
 		static gtime_t next_hud_update = 0_ms;
 		if (level.time >= next_hud_update) {
-			if (horde_message_end_time && level.time >= horde_message_end_time)
+			// Verificar y limpiar mensajes expirados primero
+			if (horde_message_end_time > 0_sec && level.time >= horde_message_end_time) {
 				ClearHordeMessage();
-			UpdateHordeHUD();
-			next_hud_update = level.time + 50_ms; // 20 fps para el HUD es suficiente
+			}
+			else {
+				UpdateHordeHUD();
+			}
+			next_hud_update = level.time + 50_ms; // 20 fps para el HUD
 		}
 	}
 
