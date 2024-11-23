@@ -947,10 +947,6 @@ static void AddRecentBoss(const char* classname) {
 	recent_bosses.add(classname);
 }
 
-
-
-
-// Modifica G_HordePickBOSS para usar arrays estáticos
 static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
 	static EligibleBosses eligible_bosses;
 	static double cumulative_weights[MAX_ELIGIBLE_BOSSES];
@@ -963,38 +959,39 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 	const size_t boss_list_size = boss_list.size();
 	if (boss_list_size == 0) return nullptr;
 
-	// Recolectar bosses elegibles y calcular pesos acumulativos
-	for (const auto& boss : boss_list) {
+	// Recolectar bosses elegibles usando span
+	std::span<const boss_t> boss_view{ boss_list };
+	for (const auto& boss : boss_view) {
 		if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 			(waveNumber <= boss.max_level || boss.max_level == -1) &&
 			!recent_bosses.contains(boss.classname)) {
-			// Ajustar peso base según nivel y dificultad
+
 			float adjusted_weight = boss.weight;
-			// Boost para bosses apropiados al nivel
 			if (waveNumber >= boss.min_level && waveNumber <= boss.min_level + 5) {
 				adjusted_weight *= 1.3f;
 			}
-			// Ajuste por dificultad
+
 			if (g_insane->integer || g_chaotic->integer) {
 				if (boss.sizeCategory == BossSizeCategory::Large) {
 					adjusted_weight *= 1.2f;
 				}
 			}
-			// Penalización suave para bosses de nivel muy bajo
+
 			if (boss.min_level != -1 && waveNumber > boss.min_level + 10) {
 				adjusted_weight *= 0.8f;
 			}
+
 			total_weight += adjusted_weight;
 			cumulative_weights[eligible_bosses.count] = total_weight;
 			eligible_bosses.add(&boss);
 		}
 	}
 
-	// Si no hay bosses elegibles, limpiar historial y reintentar
 	if (eligible_bosses.count == 0) {
 		recent_bosses.clear();
 		total_weight = 0.0;
-		for (const auto& boss : boss_list) {
+
+		for (const auto& boss : boss_view) {
 			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 				(waveNumber <= boss.max_level || boss.max_level == -1)) {
 				const float adjusted_weight = boss.weight;
@@ -1065,8 +1062,10 @@ gitem_t* G_HordePickItem() {
 	// Reset cache
 	item_cache.clear();
 
-	// Recolectar items elegibles con mejor localidad de caché
-	for (const auto& item : items) {
+	// Recolectar items elegibles con mejor localidad de caché usando span
+	std::span<const weighted_item_t> items_view{ items };
+
+	for (const auto& item : items_view) {
 		if (item_cache.count >= SelectionCache::MAX_ENTRIES)
 			break;
 
@@ -1095,7 +1094,7 @@ gitem_t* G_HordePickItem() {
 	// Generar valor aleatorio una sola vez
 	const float random_value = frandom() * item_cache.total_weight;
 
-	// Búsqueda binaria optimizada con mejor predicción de rama
+	// Búsqueda binaria optimizada usando span
 	size_t left = 0;
 	size_t right = item_cache.count - 1;
 
@@ -1281,9 +1280,23 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 	// Factor de multiplicación para garantizar espacio adicional 
 	constexpr float space_multiplier = 2.5f;
 
-	// Default bounding box for player size
-	mins = spawn_point->s.origin + vec3_t{ -16 * space_multiplier, -16 * space_multiplier, -24 * space_multiplier };
-	maxs = spawn_point->s.origin + vec3_t{ 16 * space_multiplier, 16 * space_multiplier, 32 * space_multiplier };
+	// Define los bounds usando array y span
+	std::array<vec3_t, 2> bounds = {
+		vec3_t{
+			spawn_point->s.origin[0] - 16 * space_multiplier,
+			spawn_point->s.origin[1] - 16 * space_multiplier,
+			spawn_point->s.origin[2] - 24 * space_multiplier
+		},
+		vec3_t{
+			spawn_point->s.origin[0] + 16 * space_multiplier,
+			spawn_point->s.origin[1] + 16 * space_multiplier,
+			spawn_point->s.origin[2] + 32 * space_multiplier
+		}
+	};
+
+	std::span<const vec3_t> bounds_view{ bounds };
+	mins = bounds_view[0];
+	maxs = bounds_view[1];
 
 	// Data structure to hold information for filtering entities
 	FilterData filter_data = { ignore_ent, 0 };
