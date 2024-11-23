@@ -1008,6 +1008,7 @@ void DMGID_f(edict_t* ent)
 #include "../shared.h"
 #include <queue>
 #include <sstream>
+#include <span>
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 
@@ -1351,34 +1352,25 @@ void CTFSetIDView(edict_t* ent) {
 //void MonsterDied(const edict_t* monster);
 
 void OnEntityDeath(const edict_t* self) {
-	//if ((g_horde->integer && self->svflags & SVF_MONSTER) && !(self->monsterinfo.aiflags & AI_DO_NOT_COUNT)) {
-	//	MonsterDied(self);
-	//}
-
-	// Verificar si el comandante es un tanque
-	if (self->monsterinfo.aiflags & AI_SPAWNED_COMMANDER && strcmp(self->classname, "monster_tank_spawner_commander") == 0) {
-		edict_t* tank = self->owner;
-		if (tank && tank->inuse) {
-			tank->monsterinfo.monster_used = max(0, tank->monsterinfo.monster_used - 1);
-			//gi.Com_PrintFmt("Tank spawn died. Updated monster_used to {}/{}\n",
-				//tank->monsterinfo.monster_used, tank->monsterinfo.monster_slots);
-		}
+	if (!self || !self->inuse) {
+		return;
 	}
 
-	if (self && self->inuse) {
-		int const entity_index = self - g_edicts;
+	// Usando int32_t ya que sabemos que MAX_EDICTS es menor que 2^31
+	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
+	if (entity_index >= 0 && entity_index < MAX_EDICTS) {
 		g_entityInfoManager.removeEntityInfo(entity_index);
 	}
 }
 
+void OnEntityRemoved(const edict_t* self) {
+	if (!self || !self->inuse) {
+		return;
+	}
 
-// Asegúrate de llamar a esto cuando una entidad es removida del juego
-void OnEntityRemoved(const edict_t* ent) {
-	if (ent && ent->inuse) {
-		uint32_t const entity_index = static_cast<uint32_t>(ent - g_edicts);
-		if (entity_index < static_cast<uint32_t>(MAX_EDICTS)) {
-			g_entityInfoManager.removeEntityInfo(static_cast<int>(entity_index));
-		}
+	int32_t const entity_index = self - g_edicts;
+	if (entity_index >= 0 && entity_index < MAX_EDICTS) {
+		g_entityInfoManager.removeEntityInfo(static_cast<int>(entity_index));
 	}
 }
 
