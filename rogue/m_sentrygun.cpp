@@ -83,18 +83,18 @@ float ShortestAnglePath(float current, float target) {
 void AdjustTurretAngles(edict_t* self, float idealPitch, float idealYaw, float base_speed)
 {
 	// Normalizar ángulos actuales y objetivos
-	float current_pitch = NormalizeAngle(self->s.angles[PITCH]);
-	float current_yaw = NormalizeAngle(self->s.angles[YAW]);
+	const float current_pitch = NormalizeAngle(self->s.angles[PITCH]);
+	const float current_yaw = NormalizeAngle(self->s.angles[YAW]);
 	idealPitch = NormalizeAngle(idealPitch);
 	idealYaw = NormalizeAngle(idealYaw);
 
 	// Calcular el camino más corto para pitch y yaw
-	float pitch_diff = ShortestAnglePath(current_pitch, idealPitch);
-	float yaw_diff = ShortestAnglePath(current_yaw, idealYaw);
+	const float pitch_diff = ShortestAnglePath(current_pitch, idealPitch);
+	const float yaw_diff = ShortestAnglePath(current_yaw, idealYaw);
 
 	// Aplicar movimiento con límite de velocidad
-	float pitch_move = std::clamp(pitch_diff, -base_speed, base_speed);
-	float yaw_move = std::clamp(yaw_diff, -base_speed, base_speed);
+	const float pitch_move = std::clamp(pitch_diff, -base_speed, base_speed);
+	const float yaw_move = std::clamp(yaw_diff, -base_speed, base_speed);
 
 	// Actualizar ángulos
 	self->s.angles[PITCH] = NormalizeAngle(current_pitch + pitch_move);
@@ -114,7 +114,7 @@ void turret2Aim(edict_t* self)
 	TurretSparks(self);
 
 	// Verificación del enemigo con early return
-	bool enemy_valid = (self->enemy && self->enemy != world &&
+	const bool enemy_valid = (self->enemy && self->enemy != world &&
 		self->enemy->inuse && !OnSameTeam(self, self->enemy));
 
 	if (!enemy_valid) {
