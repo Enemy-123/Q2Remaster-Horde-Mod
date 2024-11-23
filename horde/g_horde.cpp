@@ -3205,7 +3205,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 static edict_t* SpawnMonsters() {
 	// Array estático para spawns disponibles
-	static std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns;
+	static edict_t* monster_spawns[MAX_SPAWN_POINTS];
 	size_t spawn_count = 0;
 
 	// Cache de valores frecuentemente usados
@@ -3226,22 +3226,22 @@ static edict_t* SpawnMonsters() {
 			it->second.isTemporarilyDisabled = false;
 		}
 
-		available_spawns[spawn_count++] = e;
+		monster_spawns[spawn_count++] = e;
 	}
 
 	// Early return si no hay spawns disponibles
 	if (spawn_count == 0)
 		return nullptr;
 
-	// Crear vista de spawns disponibles
-	std::span<edict_t*> spawns_view{ available_spawns.data(), spawn_count };
+	// Crear vista de los spawns disponibles usando span
+	std::span<edict_t*> available_spawns{ monster_spawns, spawn_count };
 
 	// Shuffle optimizado usando Fisher-Yates con span
-	if (spawns_view.size() > 1) {
-		for (size_t i = spawns_view.size() - 1; i > 0; --i) {
+	if (available_spawns.size() > 1) {
+		for (size_t i = available_spawns.size() - 1; i > 0; --i) {
 			const size_t j = irandom(i + 1);
 			if (i != j) {
-				std::swap(spawns_view[i], spawns_view[j]);
+				std::swap(available_spawns[i], available_spawns[j]);
 			}
 		}
 	}
@@ -3266,8 +3266,8 @@ static edict_t* SpawnMonsters() {
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
 	// Crear subspan para el número de spawns necesarios
-	std::span<edict_t*> spawn_subset = spawns_view.subspan(0,
-		std::min(spawns_view.size(), static_cast<size_t>(spawnable)));
+	std::span<edict_t*> spawn_subset = available_spawns.subspan(0,
+		std::min(available_spawns.size(), static_cast<size_t>(spawnable)));
 
 	// Spawn loop optimizado usando span
 	for (auto* spawn_point : spawn_subset) {
