@@ -3091,7 +3091,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (!self || !self->inuse || self->deadflag ||
 		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
 		return false;
-
 	if (!strcmp(self->classname, "misc_insane"))
 		return false;
 
@@ -3126,46 +3125,52 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (level.time < self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME)
 		return false;
 
-	static edict_t* available_spawns[MAX_SPAWN_POINTS];
+	edict_t* available_spawns[MAX_SPAWN_POINTS];
 	size_t spawn_count = 0;
 
-	// Recolección optimizada de spawn points, excluyendo style 1
-	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
-		edict_t* e = &g_edicts[i];
-		if (!e->inuse || !e->classname ||
-			strcmp(e->classname, "info_player_deathmatch") != 0 ||
-			e->style == 1)  // Excluir spawns para voladores
+	// Crear span para g_edicts empezando desde índice 1
+	std::span<edict_t> edicts_view{ &g_edicts[1], globals.num_edicts - 1 };
+
+	// Recolección optimizada de spawn points usando span
+	for (edict_t& e : edicts_view) {
+		if (spawn_count >= MAX_SPAWN_POINTS)
+			break;
+
+		if (!e.inuse || !e.classname ||
+			strcmp(e.classname, "info_player_deathmatch") != 0 ||
+			e.style == 1)  // Excluir spawns para voladores
 			continue;
 
-		auto it = spawnPointsData.find(e);
+		auto it = spawnPointsData.find(&e);
 		if (it != spawnPointsData.end()) {
 			auto& spawn_data = it->second;
 			if (level.time < spawn_data.teleport_cooldown)
 				continue;
 		}
 
-		if (!IsSpawnPointOccupied(e)) {
+		if (!IsSpawnPointOccupied(&e)) {
 			bool can_see_player = false;
 			for (const auto player : active_players()) {
 				if (!player->inuse || player->deadflag)
 					continue;
-
-				if (gi.traceline(e->s.origin, player->s.origin, self, MASK_SOLID).fraction >= 0.3f) {
+				if (gi.traceline(e.s.origin, player->s.origin, self, MASK_SOLID).fraction >= 0.3f) {
 					can_see_player = true;
 					break;
 				}
 			}
-
 			if (can_see_player)
-				available_spawns[spawn_count++] = e;
+				available_spawns[spawn_count++] = &e;
 		}
 	}
 
 	if (spawn_count == 0)
 		return false;
 
-	// Teleport optimizado
-	edict_t* spawn_point = available_spawns[std::uniform_int_distribution<size_t>(0, spawn_count - 1)(mt_rand)];
+	// Crear span para los spawns disponibles
+	std::span<edict_t* const> spawns_view{ available_spawns, spawn_count };
+
+	// Seleccionar spawn point aleatorio usando span
+	edict_t* spawn_point = spawns_view[std::uniform_int_distribution<size_t>(0, spawn_count - 1)(mt_rand)];
 
 	// Set teleport cooldown
 	auto& spawn_data = spawnPointsData[spawn_point];
@@ -3173,7 +3178,6 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	const vec3_t old_velocity = self->velocity;
 	const vec3_t old_origin = self->s.origin;
-
 	self->s.origin = spawn_point->s.origin;
 	self->s.old_origin = spawn_point->s.origin;
 	self->velocity = vec3_origin;
@@ -3186,11 +3190,9 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
 		self->monsterinfo.react_to_damage_time = level.time;
-
 		gi.linkentity(self);
 		return true;
 	}
@@ -3204,44 +3206,43 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
-	// Array estático para spawns disponibles
-	static edict_t* monster_spawns[MAX_SPAWN_POINTS];
+	edict_t* monster_spawns[MAX_SPAWN_POINTS];
 	size_t spawn_count = 0;
-
-	// Cache de valores frecuentemente usados
 	const auto currentTime = level.time;
 
-	// Recolección optimizada de spawns
-	for (uint32_t i = 1; i < globals.num_edicts && spawn_count < MAX_SPAWN_POINTS; ++i) {
-		edict_t* e = &g_edicts[i];
-		if (!e->inuse || !e->classname || e->monsterinfo.IS_BOSS ||
-			strcmp(e->classname, "info_player_deathmatch") != 0)
+	// Crear span desde el índice 1 hasta el final
+	std::span<edict_t> active_edicts{ &g_edicts[1], globals.num_edicts - 1 };
+
+	// Usando el span que ya empieza desde el índice 1
+	for (edict_t& e : active_edicts) {
+		if (spawn_count >= MAX_SPAWN_POINTS)
+			break;
+
+		if (!e.inuse || !e.classname || e.monsterinfo.IS_BOSS ||
+			strcmp(e.classname, "info_player_deathmatch") != 0)
 			continue;
 
-		// Verificación rápida de spawn point deshabilitado
-		auto it = spawnPointsData.find(e);
+		auto it = spawnPointsData.find(&e);
 		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
 			if (currentTime < it->second.cooldownEndsAt)
 				continue;
 			it->second.isTemporarilyDisabled = false;
 		}
-
-		monster_spawns[spawn_count++] = e;
+		monster_spawns[spawn_count++] = &e;
 	}
 
 	// Early return si no hay spawns disponibles
 	if (spawn_count == 0)
 		return nullptr;
 
-	// Crear vista de los spawns disponibles usando span
-	std::span<edict_t*> available_spawns{ monster_spawns, spawn_count };
-
+	// Crear vista de los spawns disponibles
+	std::span<edict_t* const> available_spawns{ monster_spawns, spawn_count };
 	// Shuffle optimizado usando Fisher-Yates con span
-	if (available_spawns.size() > 1) {
-		for (size_t i = available_spawns.size() - 1; i > 0; --i) {
+	if (spawn_count > 1) {
+		for (size_t i = spawn_count - 1; i > 0; --i) {
 			const size_t j = irandom(i + 1);
 			if (i != j) {
-				std::swap(available_spawns[i], available_spawns[j]);
+				std::swap(monster_spawns[i], monster_spawns[j]);
 			}
 		}
 	}
@@ -3265,15 +3266,15 @@ static edict_t* SpawnMonsters() {
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	// Crear subspan para el número de spawns necesarios
-	std::span<edict_t*> spawn_subset = available_spawns.subspan(0,
-		std::min(available_spawns.size(), static_cast<size_t>(spawnable)));
+	// Usar un rango directo para el número de spawns necesarios
+	const size_t spawn_limit = std::min(spawn_count, static_cast<size_t>(spawnable));
 
-	// Spawn loop optimizado usando span
-	for (auto* spawn_point : spawn_subset) {
+	// Spawn loop optimizado
+	for (size_t i = 0; i < spawn_limit; ++i) {
 		if (g_horde_local.num_to_spawn <= 0)
 			break;
 
+		edict_t* spawn_point = monster_spawns[i];
 		const char* monster_classname = G_HordePickMonster(spawn_point);
 		if (!monster_classname)
 			continue;
@@ -3287,17 +3288,14 @@ static edict_t* SpawnMonsters() {
 			monster->monsterinfo.last_sentrygun_target_time = 0_ms;
 
 			ED_CallSpawn(monster);
-
 			if (monster->inuse) {
 				if (g_horde_local.level >= 14)
 					SetMonsterArmor(monster);
-
 				if (frandom() < drop_chance)
 					monster->item = G_HordePickItem();
 
 				SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
 				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-
 				--g_horde_local.num_to_spawn;
 				--g_horde_local.queued_monsters;
 				++g_totalMonstersInWave;
