@@ -655,7 +655,7 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage);
 
 namespace VampireConfig {
-	constexpr float BASE_MULTIPLIER = 1.0f;
+	constexpr float BASE_MULTIPLIER = 0.8f;
 	constexpr float QUAD_DIVISOR = 2.7f;
 	constexpr float DOUBLE_DIVISOR = 1.5f;
 	constexpr float TECH_STRENGTH_DIVISOR = 1.6f;
@@ -691,7 +691,7 @@ static int CalculateRealDamage(const edict_t* targ, int take, int initial_health
 	return real_damage;
 }
 
-void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
+void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
 	if (!targ) return;
 	const int initial_health = targ->health;
 	const int real_damage = CalculateRealDamage(targ, take, initial_health);
@@ -707,8 +707,8 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 		return;
 	}
 
-	const bool should_reset = level.time - attacker->lastdmg > 1.75_sec ||
-		attacker->client->dmg_counter > 32767;
+	const bool should_reset = level.time - attacker->lastdmg > 1.65_sec ||
+		attacker->client->dmg_counter > 99999;
 
 	attacker->client->dmg_counter = should_reset ? real_damage :
 		attacker->client->dmg_counter + real_damage;
@@ -769,7 +769,7 @@ int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
 	return std::max(1, static_cast<int>(base_health_stolen * multiplier));
 }
 
-void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept {
+void heal_attacker_sentries(const edict_t* attacker, int health_stolen) noexcept {
 	if (!attacker || current_wave_level < 17) return;
 
 	// Usar span para iterar sobre las entidades
