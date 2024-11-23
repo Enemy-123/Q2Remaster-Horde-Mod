@@ -2534,12 +2534,6 @@ void SetHealthBarName(const edict_t* boss) {
 
 	// Actualizar configstring
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, safe_buffer);
-
-	// Enviar actualización a todos los clientes
-	gi.WriteByte(svc_configstring);
-	gi.WriteShort(CONFIG_HEALTH_BAR_NAME);
-	gi.WriteString(safe_buffer);
-	gi.multicast(vec3_origin, MULTICAST_ALL, true);
 }
 
 //CS HORDE
