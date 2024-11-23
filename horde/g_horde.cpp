@@ -1035,14 +1035,41 @@ struct picked_item_t {
 	float weight;
 };
 
-gitem_t* G_HordePickItem() {
-	static const weighted_item_t* eligible_items[MAX_ELIGIBLE_ITEMS];
-	static double cumulative_weights[MAX_ELIGIBLE_ITEMS];
-	size_t eligible_count = 0;
-	double total_weight = 0.0;
+// Estructura optimizada para mantener los datos de selección
+struct SelectionCache {
+	static constexpr size_t MAX_ENTRIES = 32;
 
-	// Recolectar items elegibles y calcular pesos
+	struct Entry {
+		union {
+			const weighted_item_t* item;
+			const char* monster_classname;
+		};
+		float weight;
+		float cumulative_weight;
+	};
+
+	std::array<Entry, MAX_ENTRIES> entries;
+	size_t count = 0;
+	float total_weight = 0.0f;
+
+	void clear() {
+		count = 0;
+		total_weight = 0.0f;
+	}
+};
+
+static SelectionCache item_cache;
+static SelectionCache monster_cache;
+
+gitem_t* G_HordePickItem() {
+	// Reset cache
+	item_cache.clear();
+
+	// Recolectar items elegibles con mejor localidad de caché
 	for (const auto& item : items) {
+		if (item_cache.count >= SelectionCache::MAX_ENTRIES)
+			break;
+
 		if ((item.min_level == -1 || g_horde_local.level >= item.min_level) &&
 			(item.max_level == -1 || g_horde_local.level <= item.max_level)) {
 
@@ -1051,29 +1078,30 @@ gitem_t* G_HordePickItem() {
 				item.adjust_weight(item, adjusted_weight);
 			}
 
-			if (adjusted_weight > 0.0f && eligible_count < MAX_ELIGIBLE_ITEMS) {
-				eligible_items[eligible_count] = &item;
-				total_weight += adjusted_weight;
-				cumulative_weights[eligible_count] = total_weight;
-				eligible_count++;
+			if (adjusted_weight > 0.0f) {
+				item_cache.total_weight += adjusted_weight;
+				auto& entry = item_cache.entries[item_cache.count];
+				entry.item = &item;
+				entry.weight = adjusted_weight;
+				entry.cumulative_weight = item_cache.total_weight;
+				item_cache.count++;
 			}
 		}
 	}
 
-	if (eligible_count == 0) {
+	if (item_cache.count == 0)
 		return nullptr;
-	}
 
-	// Generar un valor aleatorio entre 0 y el peso total
-	const double random_value = frandom() * total_weight;
+	// Generar valor aleatorio una sola vez
+	const float random_value = frandom() * item_cache.total_weight;
 
-	// Búsqueda binaria para encontrar el ítem seleccionado
+	// Búsqueda binaria optimizada con mejor predicción de rama
 	size_t left = 0;
-	size_t right = eligible_count - 1;
+	size_t right = item_cache.count - 1;
 
 	while (left < right) {
 		const size_t mid = (left + right) / 2;
-		if (cumulative_weights[mid] < random_value) {
+		if (item_cache.entries[mid].cumulative_weight < random_value) {
 			left = mid + 1;
 		}
 		else {
@@ -1081,7 +1109,7 @@ gitem_t* G_HordePickItem() {
 		}
 	}
 
-	const weighted_item_t* chosen_item = eligible_items[left];
+	const auto* chosen_item = item_cache.entries[left].item;
 	return chosen_item ? FindItemByClassname(chosen_item->classname) : nullptr;
 }
 
@@ -1266,12 +1294,11 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 	return filter_data.count > 0;
 }
 
-static const char* G_HordePickMonster(edict_t* spawn_point) {
+const char* G_HordePickMonster(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	if (data.isTemporarilyDisabled) {
-		if (level.time < data.cooldownEndsAt) {
+		if (level.time < data.cooldownEndsAt)
 			return nullptr;
-		}
 		data.isTemporarilyDisabled = false;
 		data.attempts = 0;
 	}
@@ -1281,158 +1308,122 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		return nullptr;
 	}
 
-	// Arrays estáticos para almacenar monstruos elegibles y sus pesos
-	static const weighted_item_t* eligible_monsters[MAX_ELIGIBLE_MONSTERS];
-	static double cumulative_weights[MAX_ELIGIBLE_MONSTERS];
-	size_t eligible_count = 0;
-	double total_weight = 0.0;
+	// Reset monster cache
+	monster_cache.clear();
 
-	// Factores de ajuste
-	const int32_t humanPlayers = GetNumHumanPlayers();
-	const float playerScaling = 1.0f + (humanPlayers - 1) * 0.15f;
+	// Cache valores frecuentemente usados
 	const int32_t currentLevel = g_horde_local.level;
 	const int32_t flyingSpawns = countFlyingSpawns();
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
+	const bool isSpawnPointFlying = spawn_point->style == 1;
 
-	// Calcular fase del juego
-	const bool isEarlyGame = currentLevel <= 5;
-	const bool isEarlyMidGame = currentLevel <= 10;
-	const bool isMidGame = currentLevel <= 15;
-	const bool isLateGame = currentLevel > 15;
+	// Crear vista de los monstruos usando span
+	std::span<const weighted_item_t> monsters_view{ monsters };
 
-	// Colectar monstruos elegibles y calcular pesos
-	for (const auto& monster : monsters) {
+	// Precalcular flags de fase del juego
+	const struct GamePhase {
+		bool early_game;
+		bool early_mid_game;
+		bool mid_game;
+		bool late_game;
+	} phase = {
+		currentLevel <= 5,
+		currentLevel <= 10,
+		currentLevel <= 15,
+		currentLevel > 15
+	};
+
+	// Recolectar monstruos elegibles con mejor localidad de caché
+	for (const auto& monster : monsters_view) {
+		if (monster_cache.count >= SelectionCache::MAX_ENTRIES)
+			break;
+
 		const bool isFlyingMonster = IsFlyingMonster(monster.classname);
 
-		// Verificar elegibilidad básica
-		if (!IsMonsterEligible(spawn_point, monster, isFlyingMonster, currentLevel, flyingSpawns)) {
+		// Verificaciones de elegibilidad optimizadas
+		if (!IsMonsterEligible(spawn_point, monster, isFlyingMonster, currentLevel, flyingSpawns))
 			continue;
-		}
 
-		// Verificar rango de nivel
 		if ((monster.min_level != -1 && currentLevel < monster.min_level) ||
-			(monster.max_level != -1 && currentLevel > monster.max_level)) {
+			(monster.max_level != -1 && currentLevel > monster.max_level))
 			continue;
-		}
 
-		// Base weight
-		double weight = monster.weight;
+		float weight = monster.weight;
 
-		// Ajustes progresivos por fase del juego
-		if (isEarlyGame) {
-			// Early game: Favorecer monstruos básicos
-			if (monster.min_level <= 3) {
+		// Ajustes de peso optimizados usando la estructura phase
+		if (phase.early_game) {
+			if (monster.min_level <= 3)
 				weight *= 1.4f;
-			}
 		}
-		else if (isEarlyMidGame) {
-			// Early-mid game: Transición a monstruos intermedios
-			if (monster.min_level >= 4 && monster.min_level <= 8) {
+		else if (phase.early_mid_game) {
+			if (monster.min_level >= 4 && monster.min_level <= 8)
 				weight *= 1.3f;
-			}
 		}
-		else if (isMidGame) {
-			// Mid game: Balance entre básicos y avanzados
-			if (monster.min_level >= 8 && monster.min_level <= 12) {
+		else if (phase.mid_game) {
+			if (monster.min_level >= 8 && monster.min_level <= 12)
 				weight *= 1.25f;
-			}
 		}
 		else {
-			// Late game: Favorecer monstruos avanzados
-			if (monster.min_level >= 12) {
+			if (monster.min_level >= 12)
 				weight *= 1.35f + ((currentLevel - 15) * 0.02f);
-			}
 		}
 
-		// Ajuste por modo de juego
-		if (flying_monsters_mode) {
-			if (isFlyingMonster) {
-				weight *= 2.0;
-			}
-			else {
-				weight *= 0.5;
-			}
-		}
+		// Ajustes de modo y spawn point
+		if (flying_monsters_mode)
+			weight *= isFlyingMonster ? 2.0f : 0.5f;
 
-		// Ajuste por spawn point aéreo
-		if (spawn_point->style == 1 && isFlyingMonster) {
-			weight *= 1.5;
-		}
+		if (isSpawnPointFlying && isFlyingMonster)
+			weight *= 1.5f;
 
-		// Ajuste por número de jugadores
-		weight *= playerScaling;
-
-		// Ajustes por dificultad
+		// Ajuste por dificultad
 		if (g_insane->integer || g_chaotic->integer) {
-			float difficultyScale = 1.0f;
-			if (currentLevel <= 10) {
-				difficultyScale = 1.1f;
-			}
-			else if (currentLevel <= 20) {
-				difficultyScale = 1.2f;
-			}
-			else if (currentLevel <= 30) {
-				difficultyScale = 1.3f;
-			}
-			else {
-				difficultyScale = 1.4f;
-			}
+			const float difficultyScale = currentLevel <= 10 ? 1.1f :
+				currentLevel <= 20 ? 1.2f :
+				currentLevel <= 30 ? 1.3f : 1.4f;
 
-			if (monster.min_level >= 10) {
-				difficultyScale *= 1.2f; // Bonus adicional para monstruos avanzados
-			}
-
-			weight *= difficultyScale;
+			weight *= difficultyScale * (monster.min_level >= 10 ? 1.2f : 1.0f);
 		}
 
-		// Factor de ajuste final
 		weight *= adjustmentFactor;
 
-		// Almacenar si el peso es válido
-		if (weight > 0.0 && eligible_count < MAX_ELIGIBLE_MONSTERS) {
-			eligible_monsters[eligible_count] = &monster;
-			total_weight += weight;
-			cumulative_weights[eligible_count] = total_weight;
-			eligible_count++;
+		if (weight > 0.0f) {
+			monster_cache.total_weight += weight;
+			auto& entry = monster_cache.entries[monster_cache.count];
+			entry.monster_classname = monster.classname;
+			entry.weight = weight;
+			entry.cumulative_weight = monster_cache.total_weight;
+			monster_cache.count++;
 		}
 	}
 
-	// Verificar si hay monstruos elegibles
-	if (eligible_count == 0) {
+	if (monster_cache.count == 0) {
 		IncreaseSpawnAttempts(spawn_point);
 		return nullptr;
 	}
 
-	// Selección basada en peso usando búsqueda binaria
-	const double random_value = frandom() * total_weight;
-	size_t selected_index = 0;
+	// Selección usando búsqueda binaria optimizada
+	const float random_value = frandom() * monster_cache.total_weight;
+	size_t left = 0;
+	size_t right = monster_cache.count - 1;
 
-	// Búsqueda binaria optimizada
-	{
-		size_t left = 0;
-		size_t right = eligible_count - 1;
-
-		while (left < right) {
+	while (left < right) {
 		const size_t mid = (left + right) / 2;
-			if (cumulative_weights[mid] < random_value) {
-				left = mid + 1;
-			}
-			else {
-				right = mid;
-			}
+		if (monster_cache.entries[mid].cumulative_weight < random_value) {
+			left = mid + 1;
 		}
-		selected_index = left;
+		else {
+			right = mid;
+		}
 	}
 
-	// Verificar selección válida
-	if (selected_index < eligible_count) {
-		const weighted_item_t* chosen_monster = eligible_monsters[selected_index];
-		UpdateCooldowns(spawn_point, chosen_monster->classname);
-		return chosen_monster->classname;
+	const char* chosen_monster = monster_cache.entries[left].monster_classname;
+	if (chosen_monster) {
+		UpdateCooldowns(spawn_point, chosen_monster);
 	}
 
-	return nullptr;
+	return chosen_monster;
 }
+
 void Horde_PreInit() {
 	gi.Com_Print("Horde mode must be DM set <deathmatch 1> and <horde 1>.\n");
 	gi.Com_Print("COOP requires <coop 1> and <horde 0>, optionally <g_hardcoop 1/0>.\n");
