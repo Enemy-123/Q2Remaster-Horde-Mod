@@ -1463,93 +1463,77 @@ constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
 #include <windows.h>
 #include <string>
-
 #include <format>
 #include <filesystem>
+#include <fstream>
 
-bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string& outFilename) {
+bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::string& outFilename) {
 	namespace fs = std::filesystem;
-
 	try {
-		char modulePath[MAX_PATH];
-		HMODULE hModule = NULL;
+		std::array<char, MAX_PATH> modulePath{};
 
-		// Get module handle with structured binding
-		if (auto [success, handle] = [&] {
-			HMODULE h = NULL;
+		auto [success, hModule] = [&] {
+			HMODULE h = nullptr;
 			bool s = GetModuleHandleExA(
 				GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
-				(LPCSTR)&LoadEntityFile,
+				reinterpret_cast<LPCSTR>(&LoadEntityFile),
 				&h);
-				return std::make_tuple(s, h);
-			}(); !success) {
-			gi.Com_PrintFmt("{}", std::format("Error obtaining module handle.\n"));
+			return std::make_pair(s, h);
+			}();
+
+		if (!success) {
+			gi.Com_PrintFmt("Error obtaining module handle.\n");
 			return false;
 		}
-		else {
-			hModule = handle;
-		}
 
-		// Get module path using std::format for error message
-		if (DWORD result = GetModuleFileNameA(hModule, modulePath, MAX_PATH);
+		if (DWORD result = GetModuleFileNameA(hModule, modulePath.data(), MAX_PATH);
 			result == 0 || result == MAX_PATH) {
-			gi.Com_PrintFmt("{}", std::format("Error obtaining module path.\n"));
+			gi.Com_PrintFmt("Error obtaining module path.\n");
 			return false;
 		}
 
-		// Use std::filesystem for path manipulation
-		fs::path moduledir = fs::path(modulePath).parent_path();
-		fs::path entfile = moduledir / "maps" / std::format("{}.ent", mapname);
+		const fs::path entfile = fs::path(modulePath.data()).parent_path() / "maps" /
+			std::format("{}.ent", mapname);
 		outFilename = entfile.string();
 
-		// RAII file handling
-		struct ScopedFile {
-			FILE* f;
-			ScopedFile(const char* path, const char* mode) : f(fopen(path, mode)) {}
-			~ScopedFile() { if (f) fclose(f); }
-			operator FILE* () { return f; }
-			FILE* get() { return f; }
-
-			// Delete copy operations
-			ScopedFile(const ScopedFile&) = delete;
-			ScopedFile& operator=(const ScopedFile&) = delete;
-		};
-
-		ScopedFile file(outFilename.c_str(), "rb");
-		if (!file.get()) {
-			gi.Com_PrintFmt("{}", std::format("Failed to open entity file: {}\n", outFilename));
+		FILE* fp = fopen(outFilename.c_str(), "rb");
+		if (!fp) {
+			gi.Com_PrintFmt("Failed to open entity file: {}\n", outFilename);
 			return false;
 		}
 
-		// Use std::fseek and std::ftell for better portability
-		if (std::fseek(file.get(), 0, SEEK_END) != 0) {
-			gi.Com_PrintFmt("{}", std::format("Error seeking entity file: {}\n", outFilename));
+		struct FileGuard {
+			FILE* fp;
+			FileGuard(FILE* f) : fp(f) {}
+			~FileGuard() { if (fp) fclose(fp); }
+		} guard(fp);
+
+		if (fseek(fp, 0, SEEK_END) != 0) {
+			gi.Com_PrintFmt("Error seeking entity file: {}\n", outFilename);
 			return false;
 		}
 
-		const long length = std::ftell(file.get());
-		if (length == -1) {
-			gi.Com_PrintFmt("{}", std::format("Error getting entity file size: {}\n", outFilename));
+		const long file_length = ftell(fp);
+		if (file_length < 0) {
+			gi.Com_PrintFmt("Error getting entity file size: {}\n", outFilename);
 			return false;
 		}
 
-		if (length > MAX_ENTITY_FILE_SIZE) {
-			gi.Com_PrintFmt("{}", std::format("Entity file size exceeds maximum allowed: \"{}\"\n", outFilename));
+		const size_t length = static_cast<size_t>(file_length);
+		if (length > static_cast<size_t>(MAX_ENTITY_FILE_SIZE)) {
+			gi.Com_PrintFmt("Entity file size exceeds maximum allowed: \"{}\"\n", outFilename);
 			return false;
 		}
 
-		if (std::fseek(file.get(), 0, SEEK_SET) != 0) {
-			gi.Com_PrintFmt("{}", std::format("Error seeking entity file: {}\n", outFilename));
+		if (fseek(fp, 0, SEEK_SET) != 0) {
+			gi.Com_PrintFmt("Error seeking entity file: {}\n", outFilename);
 			return false;
 		}
 
-		// Reserve buffer space
 		buffer.resize(length + 1);
 
-		// Read file content
-		size_t read_length = std::fread(buffer.data(), 1, length, file.get());
-		if (length != read_length) {
-			gi.Com_PrintFmt("{}", std::format("Error reading entity file: \"{}\"\n", outFilename));
+		if (fread(buffer.data(), 1, length, fp) != length) {
+			gi.Com_PrintFmt("Error reading entity file: \"{}\"\n", outFilename);
 			return false;
 		}
 
@@ -1557,7 +1541,7 @@ bool LoadEntityFile(const char* mapname, std::vector<char>& buffer, std::string&
 		return true;
 	}
 	catch (const std::exception& e) {
-		gi.Com_PrintFmt("{}", std::format("Unexpected error loading entity file: {}\n", e.what()));
+		gi.Com_PrintFmt("Unexpected error loading entity file: {}\n", e.what());
 		return false;
 	}
 }
