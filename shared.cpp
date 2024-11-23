@@ -2,6 +2,7 @@
 #include "horde/g_horde.h"
 #include <unordered_map>
 #include <algorithm>  // For std::max
+#include <span>
 
 bool IsRemovableEntity(const edict_t* ent);
 void RemoveEntity(edict_t* ent);
@@ -18,13 +19,15 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	if (!player)
 		return;
 
-	for (unsigned int i = 0; i < globals.num_edicts; i++)
+	std::span<edict_t> edicts(g_edicts, static_cast<size_t>(globals.num_edicts));
+
+	for (size_t i = 0; i < edicts.size(); i++)
 	{
-		edict_t* ent = &g_edicts[i];
+		edict_t* ent = &edicts[i];
 		if (!ent->inuse)
 			continue;
 
-		bool shouldRemove = (ent->owner == player ||
+		const bool shouldRemove = (ent->owner == player ||
 			(ent->owner && ent->owner->owner == player) ||
 			ent->teammaster == player ||
 			(ent->teammaster && ent->teammaster->teammaster == player));
@@ -32,7 +35,6 @@ void RemovePlayerOwnedEntities(edict_t* player)
 		if (shouldRemove)
 		{
 			OnEntityDeath(ent);
-
 			if (IsRemovableEntity(ent))
 			{
 				RemoveEntity(ent);
@@ -40,7 +42,6 @@ void RemovePlayerOwnedEntities(edict_t* player)
 		}
 	}
 
-	// Reset the player's laser counter
 	if (player->client)
 	{
 		player->client->num_lasers = 0;
@@ -99,7 +100,7 @@ void UpdatePowerUpTimes(edict_t* monster) {
 	}
 }
 
-[[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept {
+constexpr float M_DamageModifier(edict_t* monster) noexcept {
 	if (monster->monsterinfo.damage_modifier_applied)
 		return 1.0f;
 
@@ -121,7 +122,10 @@ std::string GetTitleFromFlags(int bonus_flags)
 	std::string title;
 	title.reserve(100); // Reservar espacio anticipadamente
 
-	static const std::pair<int, std::string_view> flagTitles[] = {
+	static const struct {
+		int flag;
+		std::string_view name;
+	} flagTitles[] = {
 		{BF_CHAMPION, "Champion "},
 		{BF_CORRUPTED, "Corrupted "},
 		{BF_RAGEQUITTER, "Ragequitter "},
@@ -130,9 +134,11 @@ std::string GetTitleFromFlags(int bonus_flags)
 		{BF_STYGIAN, "Stygian "}
 	};
 
-	for (const auto& [flag, name] : flagTitles)
-		if (bonus_flags & flag)
+	for (auto [flag, name] : flagTitles) {
+		if (bonus_flags & flag) {
 			title += name;
+		}
+	}
 
 	return title;
 }
@@ -277,7 +283,7 @@ void ApplyBossEffects(edict_t* boss)
 		return;
 
 	// Obtener la categoría de tamaño del jefe
-	BossSizeCategory sizeCategory = boss->bossSizeCategory;
+	const BossSizeCategory sizeCategory = boss->bossSizeCategory;
 
 	// Generar un flag aleatorio
 	const int32_t random_flag = 1 << (rand() % 6);

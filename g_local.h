@@ -3923,7 +3923,7 @@ extern cached_soundindex snd_fry;
 
 extern void OnEntityDeath(const edict_t* ent);
 
-extern [[nodiscard]] constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
+extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
@@ -3942,4 +3942,4 @@ extern void UpdateVoteHUD();
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
 extern std::string GetDisplayName(const edict_t* ent); 
 extern std::string GetTitleFromFlags(int bonus_flags);
-extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
+extern constexpr float M_DamageModifier(edict_t* monster) noexcept;

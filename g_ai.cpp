@@ -16,7 +16,7 @@ constexpr float MAX_SIDESTEP = 8.0f;
 // ROGUE
 
 //============================================================================
-[[nodiscard]] constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
+constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
 	return (v1 - v2).lengthSquared();
 }
 /*
