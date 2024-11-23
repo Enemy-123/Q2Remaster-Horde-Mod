@@ -622,61 +622,47 @@ bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
 	return OnSameTeam(targ, attacker);
 }
 
-// Calculate DMG
-static int CalculateRealDamage(edict_t* targ, int take, int initial_health) {
-	if (!targ) {
-		return take;
-	}
+#include <span>
 
-	if (targ->svflags & SVF_DEADMONSTER) {
-		return std::min(take, 5);
-	}
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage);
 
-	if (initial_health <= 0) {
-		return std::min(take, 10);
-	}
+namespace VampireConfig {
+	constexpr float BASE_MULTIPLIER = 1.0f;
+	constexpr float QUAD_DIVISOR = 2.7f;
+	constexpr float DOUBLE_DIVISOR = 1.5f;
+	constexpr float TECH_STRENGTH_DIVISOR = 1.6f;
+	constexpr int MAX_ARMOR = 200;
+	constexpr float ARMOR_STEAL_RATIO = 0.45f;
+}
+
+struct WeaponMultiplier {
+	item_id_t weapon_id;
+	float multiplier;
+};
+
+static constexpr std::array<WeaponMultiplier, 8> WEAPON_MULTIPLIERS = { {
+	{IT_WEAPON_SHOTGUN, 1.0f / DEFAULT_SHOTGUN_COUNT},
+	{IT_WEAPON_SSHOTGUN, 0.5f},
+	{IT_WEAPON_RLAUNCHER, 0.5f},
+	{IT_WEAPON_HYPERBLASTER, 0.5f},
+	{IT_WEAPON_PHALANX, 0.5f},
+	{IT_WEAPON_RAILGUN, 0.5f},
+	{IT_WEAPON_IONRIPPER, 1.0f / 3.0f},
+	{IT_WEAPON_GLAUNCHER, 0.5f}
+} };
+
+static int CalculateRealDamage(const edict_t* targ, int take, int initial_health) {
+	if (!targ) return take;
+	if (targ->svflags & SVF_DEADMONSTER) return std::min(take, 5);
+	if (initial_health <= 0) return std::min(take, 10);
 
 	int real_damage = std::min(take, initial_health);
 	if (targ->health <= 0) {
 		real_damage += std::min(abs(targ->gib_health), initial_health);
 	}
-
 	return real_damage;
 }
 
-
-// IDDMG
-static void HandleIDDamage(edict_t* attacker, edict_t* targ, int real_damage) {
-	if (!attacker || !attacker->client || !g_iddmg || !targ ||
-		!g_iddmg->integer || !attacker->client->pers.iddmg_state) {
-		return;
-	}
-
-	// Ignorar daño si el objetivo es invulnerable
-	if (targ->monsterinfo.invincible_time && targ->monsterinfo.invincible_time > level.time) {
-		return;
-	}
-
-	// Acumular daño para el contador de daño instantáneo (IDDMG)
-	if (level.time - attacker->lastdmg <= 1.75_sec && attacker->client->dmg_counter <= 32767) {
-		attacker->client->dmg_counter += real_damage;
-	}
-	else {
-		attacker->client->dmg_counter = real_damage;
-	}
-
-	// Actualizar el stat de IDDMG
-	attacker->client->ps.stats[STAT_ID_DAMAGE] = attacker->client->dmg_counter;
-	attacker->lastdmg = level.time;
-
-	// Acumular daño total para la ola actual
-	// Solo acumular daño contra monstruos
-	if (targ->svflags & SVF_MONSTER && targ->health >= 1) {
-		attacker->client->total_damage += real_damage;
-	}
-}
-
-// This function should be called in T_Damage
 void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
 	if (!targ) return;
 	const int initial_health = targ->health;
@@ -686,42 +672,125 @@ void ProcessDamage(edict_t* targ, edict_t* attacker, int take) {
 	}
 }
 
-// AUTO HASTE
-static void HandleAutoHaste(edict_t* attacker, edict_t* targ, int damage) {
-	if (!g_autohaste || !attacker || !attacker->client || !targ ||
-		!g_autohaste->integer || attacker->client->quadfire_time >= level.time) {
+static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
+	if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
+		!attacker->client->pers.iddmg_state || !targ ||
+		(targ->monsterinfo.invincible_time > level.time)) {
 		return;
 	}
 
-	if (damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
-		return;
-	}
+	const bool should_reset = level.time - attacker->lastdmg > 1.75_sec ||
+		attacker->client->dmg_counter > 32767;
 
-	const float probability = damage / 1150.0f;
-	if (frandom() <= probability) {
-		attacker->client->quadfire_time = level.time + gtime_t::from_sec(5);
+	attacker->client->dmg_counter = should_reset ? real_damage :
+		attacker->client->dmg_counter + real_damage;
+
+	attacker->client->ps.stats[STAT_ID_DAMAGE] = attacker->client->dmg_counter;
+	attacker->lastdmg = level.time;
+
+	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
+		attacker->client->total_damage += real_damage;
 	}
 }
 
+static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
+	if (!g_autohaste || !attacker || !attacker->client ||
+		attacker->client->quadfire_time >= level.time ||
+		damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
+		return;
+	}
 
-int calculate_health_stolen(edict_t* attacker, int base_health_stolen);
-void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept;
-void apply_armor_vampire(edict_t* attacker, int damage);
-// VAMPIRE
-static bool CanUseVampireEffect(edict_t* attacker) {
+	constexpr float DAMAGE_FACTOR = 1.0f / 1150.0f;
+	if (frandom() <= damage * DAMAGE_FACTOR) {
+		attacker->client->quadfire_time = level.time + 5_sec;
+	}
+}
+
+int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
+	if (!attacker || !attacker->client || !attacker->client->pers.weapon) {
+		return base_health_stolen;
+	}
+
+	float multiplier = VampireConfig::BASE_MULTIPLIER;
+	const item_id_t weapon_id = attacker->client->pers.weapon->id;
+
+	// Usar span para acceder al array de multiplicadores
+	std::span<const WeaponMultiplier> multipliers_view{ WEAPON_MULTIPLIERS };
+	auto it = std::find_if(multipliers_view.begin(), multipliers_view.end(),
+		[weapon_id](const WeaponMultiplier& wm) { return wm.weapon_id == weapon_id; });
+
+	if (it != multipliers_view.end()) {
+		multiplier = it->multiplier;
+
+		if (weapon_id == IT_WEAPON_MACHINEGUN && g_tracedbullets->integer) {
+			multiplier = 0.5f;
+		}
+		else if (weapon_id == IT_WEAPON_GLAUNCHER && g_bouncygl->integer) {
+			multiplier *= 0.5f;
+		}
+	}
+
+	// Aplicar modificadores de poder
+	if (attacker->client->quad_time > level.time)
+		multiplier /= VampireConfig::QUAD_DIVISOR;
+	if (attacker->client->double_time > level.time)
+		multiplier /= VampireConfig::DOUBLE_DIVISOR;
+	if (attacker->client->pers.inventory[IT_TECH_STRENGTH])
+		multiplier /= VampireConfig::TECH_STRENGTH_DIVISOR;
+
+	return std::max(1, static_cast<int>(base_health_stolen * multiplier));
+}
+
+void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept {
+	if (!attacker || current_wave_level < 17) return;
+
+	// Usar span para iterar sobre las entidades
+	std::span entities_view{ g_edicts, globals.num_edicts };
+	for (auto& ent : entities_view) {
+		if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
+			strcmp(ent.classname, "monster_sentrygun") != 0) {
+			continue;
+		}
+
+		ent.health = std::min(ent.health + health_stolen, ent.max_health);
+	}
+}
+
+void apply_armor_vampire(edict_t* attacker, int damage) {
+	if (!attacker || !attacker->client) return;
+
+	const int index = ArmorIndex(attacker);
+	if (!index || attacker->client->pers.inventory[index] <= 0) return;
+
+	const int current_armor = attacker->client->pers.inventory[index];
+	const int armor_stolen = std::min(
+		std::max(1, static_cast<int>(VampireConfig::ARMOR_STEAL_RATIO * (damage / 4))),
+		VampireConfig::MAX_ARMOR - current_armor
+	);
+
+	attacker->client->pers.inventory[index] += armor_stolen;
+}
+
+
+static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // Agregar const y noexcept
+	// Early returns para casos negativos
 	if (!attacker || attacker->health <= 0 || attacker->deadflag) {
 		return false;
 	}
 
-	if (!(attacker->svflags & SVF_MONSTER)) {
-		return true;  // Players can use vampire
-	}
-
+	// Verificar primero el caso de la sentrygun ya que es una comparación específica
 	if (strcmp(attacker->classname, "monster_sentrygun") == 0) {
 		return true;
 	}
 
-	return (attacker->monsterinfo.bonus_flags & (BF_STYGIAN | BF_POSSESSED)) &&
+	// Si no es un monstruo, es un jugador
+	if (!(attacker->svflags & SVF_MONSTER)) {
+		return true;  // Players can use vampire
+	}
+
+	// Verificación final para monstruos especiales
+	constexpr uint32_t VALID_BONUS_FLAGS = (BF_STYGIAN | BF_POSSESSED);
+	return (attacker->monsterinfo.bonus_flags & VALID_BONUS_FLAGS) &&
 		!attacker->monsterinfo.IS_BOSS;
 }
 
@@ -758,80 +827,6 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 	}
 }
 
-int calculate_health_stolen(edict_t* attacker, int base_health_stolen) {
-	if (!attacker || !attacker->client || !attacker->client->pers.weapon) {
-		return base_health_stolen;
-	}
-
-	float multiplier = 1.0f;
-	const int weapon_id = attacker->client->pers.weapon->id;
-
-	switch (weapon_id) {
-	case IT_WEAPON_SHOTGUN:
-		multiplier = 1.0f / DEFAULT_SHOTGUN_COUNT;
-		break;
-	case IT_WEAPON_SSHOTGUN:
-	case IT_WEAPON_RLAUNCHER:
-	case IT_WEAPON_HYPERBLASTER:
-	case IT_WEAPON_PHALANX:
-	case IT_WEAPON_RAILGUN:
-		multiplier = 0.5f;
-		break;
-	case IT_WEAPON_IONRIPPER:
-		multiplier = 1.0f / 3.0f;
-		break;
-	case IT_WEAPON_MACHINEGUN:
-		if (g_tracedbullets->integer) multiplier = 0.5f;
-		break;
-	case IT_WEAPON_GLAUNCHER:
-		multiplier = g_bouncygl->integer ? 0.25f : 0.5f;
-		break;
-	}
-
-	if (attacker->client->quad_time > level.time) multiplier /= 2.6f;
-	if (attacker->client->double_time > level.time) multiplier /= 1.5f;
-	if (attacker->client->pers.inventory[IT_TECH_STRENGTH]) multiplier /= 1.5f;
-
-	return std::max(1, static_cast<int>(base_health_stolen * multiplier));
-}
-
-void heal_attacker_sentries(edict_t* attacker, int health_stolen) noexcept {
-	if (!attacker || current_wave_level < 17) {
-		return;
-	}
-
-	for (unsigned int i = 0; i < globals.num_edicts; i++) {
-		edict_t* ent = &g_edicts[i];
-
-		if (!ent->inuse ||
-			strcmp(ent->classname, "monster_sentrygun") != 0 ||
-			ent->owner != attacker ||
-			ent->health <= 0) {
-			continue;
-		}
-
-		ent->health = std::min(ent->health + health_stolen, ent->max_health);
-	}
-}
-
-void apply_armor_vampire(edict_t* attacker, int damage) {
-	if (!attacker || !attacker->client) {
-		return;
-	}
-
-	const int index = ArmorIndex(attacker);
-	if (!index || attacker->client->pers.inventory[index] <= 0) {
-		return;
-	}
-
-	const int max_armor = 200;
-	const int armor_stolen = std::min(
-		std::max(1, static_cast<int>(0.7f * (damage / 4))),
-		max_armor - attacker->client->pers.inventory[index]
-	);
-
-	attacker->client->pers.inventory[index] += armor_stolen;
-}
 //t_damage
 void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t& dir, const vec3_t& point,
 	const vec3_t& normal, int damage, int knockback, damageflags_t dflags, mod_t mod)
@@ -897,7 +892,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	{
 		// if we're not a nuke & self damage is disabled, just kill the damage
 				//if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) && (mod.id != MOD_NUKE) && (mod.id != MOD_TRAP) && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
-		if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) /*&& (mod.id != MOD_NUKE)*/ && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) && (mod.id != MOD_DOPPLE_EXPLODE))
+		if (g_no_self_damage->integer && (mod.id != MOD_TARGET_LASER) /*&& (mod.id != MOD_NUKE)*/ && (mod.id != MOD_BARREL) && (mod.id != MOD_EXPLOSIVE) /*&& (mod.id != MOD_DOPPLE_EXPLODE)*/)
 			damage = 0;
 	}
 	//
