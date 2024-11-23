@@ -3420,9 +3420,14 @@ struct edict_t
 	// in g_save.cpp too!
 
 		//Horde stuff
+
+	BossSizeCategory bossSizeCategory;
+
 	gtime_t safety_time;
-	edict_t* laser;
 	gtime_t hook_time;
+
+	edict_t* laser;
+
 	// Kyper
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 	gtime_t lastdmg; // ID DMG
@@ -3431,13 +3436,14 @@ struct edict_t
 	int configstringIndex; // cs
 	gtime_t expire_time;
 	gtime_t spawn_time;
-	BossSizeCategory bossSizeCategory;
+
 	bool effects_applied = false;
 	bool is_fading_out = false; // corpse cleaning management
 	//	gtime_t	regentime = 0.25_sec;
 };
-#define TEAM1 "team1"
-#define TEAM2 "team2"
+
+static constexpr const char* TEAM1 = "team1";
+static constexpr const char* TEAM2 = "team2";
 
 //=============
 // ROGUE

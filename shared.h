@@ -12,13 +12,18 @@ constexpr int ADRENALINE_HEALTH_BONUS = 5;
 [[nodiscard]] constexpr bool IsFirstThreeWaves(int32_t wave_level) noexcept {
     return wave_level <= 3;
 }
-// Define los flags de bonus
-#define BF_CHAMPION   0x00000001
-#define BF_CORRUPTED  0x00000002
-#define BF_RAGEQUITTER 0x00000004
-#define BF_BERSERKING 0x00000008
-#define BF_POSSESSED  0x00000010
-#define BF_STYGIAN    0x00000020
+
+enum bonus_flags_t : uint32_t {
+    BF_NONE = 0,
+    BF_CHAMPION = bit_v<0>,      // 1 << 0
+    BF_CORRUPTED = bit_v<1>,     // 1 << 1
+    BF_RAGEQUITTER = bit_v<2>,   // 1 << 2
+    BF_BERSERKING = bit_v<3>,    // 1 << 3
+    BF_POSSESSED = bit_v<4>,      // 1 << 4
+    BF_STYGIAN = bit_v<5>        // 1 << 5
+};
+
+MAKE_ENUM_BITFLAGS(bonus_flags_t);
 
 // boss stuff
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
