@@ -94,6 +94,7 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 }
 
 cvar_t* g_horde;
+#include <span>
 
 enum class horde_state_t {
 	warmup,
@@ -123,52 +124,119 @@ struct HordeState {
 
 // Clase de selección genérica usando templates
 // Nueva implementación de WeightedSelection usando arrays estáticos
+// Implementación optimizada de WeightedSelection usando std::span
 template <typename T>
 struct WeightedSelection {
-	static constexpr size_t MAX_ITEMS = 32; // Reducido de 64
-	const T* items[MAX_ITEMS];
-	float cumulative_weights[MAX_ITEMS]; // Cambiado de double a float
+	static constexpr size_t MAX_ITEMS = 32;
+
+	struct ItemEntry {
+		const T* item;
+		float weight;
+	};
+
+	std::array<ItemEntry, MAX_ITEMS> items;
 	size_t item_count = 0;
-	float total_weight = 0.0f; // Cambiado de double a float
+	float total_weight = 0.0f;
 
 	void clear() {
 		item_count = 0;
-		total_weight = 0.0;
+		total_weight = 0.0f;
 	}
 
-	void add(const T* item, double weight) {
-		if (item_count < MAX_ITEMS) {
-			items[item_count] = item;
-			total_weight += weight;
-			cumulative_weights[item_count] = total_weight;
-			item_count++;
-		}
+	bool add(const T* item, float weight) {
+		if (!item || item_count >= MAX_ITEMS || weight <= 0.0f)
+			return false;
+
+		items[item_count] = { item, weight };
+		total_weight += weight;
+		item_count++;
+		return true;
 	}
 
 	const T* select() const {
-		if (item_count == 0) return nullptr;
+		if (item_count == 0 || total_weight <= 0.0f)
+			return nullptr;
 
-		std::uniform_real_distribution<double> dist(0.0, total_weight);
-		double random_weight = dist(mt_rand);
+		// Crear vista de los items actuales usando span
+		std::span<const ItemEntry> items_view{ items.data(), item_count };
 
-		// Búsqueda binaria en el array de pesos acumulativos
+		// Generar valor aleatorio
+		std::uniform_real_distribution<float> dist(0.0f, total_weight);
+		const float random_weight = dist(mt_rand);
+
+		// Búsqueda binaria optimizada usando span
+		float cumulative = 0.0f;
 		size_t left = 0;
 		size_t right = item_count - 1;
 
-		while (left < right) {
-			size_t mid = (left + right) / 2;
-			if (cumulative_weights[mid] < random_weight) {
+		while (left <= right) {
+			const size_t mid = (left + right) / 2;
+			cumulative += items_view[mid].weight;
+
+			if (cumulative >= random_weight) {
+				// Encontrado el item
+				return items_view[mid].item;
+			}
+			else if (mid == right) {
+				// Caso especial: último elemento
+				return items_view[right].item;
+			}
+
+			if (cumulative < random_weight) {
 				left = mid + 1;
+				if (left > right) break;
 			}
 			else {
-				right = mid;
+				if (mid == 0) break;
+				right = mid - 1;
 			}
 		}
 
-		return items[left];
+		// Fallback al último item si algo sale mal
+		return items_view[item_count - 1].item;
+	}
+
+	// Método helper para selección por rango
+	const T* select_range(float min_weight, float max_weight) const {
+		if (item_count == 0 || total_weight <= 0.0f)
+			return nullptr;
+
+		std::span<const ItemEntry> items_view{ items.data(), item_count };
+
+		// Filtrar items por rango de peso
+		std::array<const ItemEntry*, MAX_ITEMS> eligible_items;
+		size_t eligible_count = 0;
+		float eligible_total = 0.0f;
+
+		for (const auto& entry : items_view) {
+			if (entry.weight >= min_weight && entry.weight <= max_weight) {
+				eligible_items[eligible_count++] = &entry;
+				eligible_total += entry.weight;
+			}
+		}
+
+		if (eligible_count == 0)
+			return nullptr;
+
+		// Selección aleatoria solo de items elegibles
+		std::uniform_real_distribution<float> dist(0.0f, eligible_total);
+		const float random_weight = dist(mt_rand);
+
+		float cumulative = 0.0f;
+		for (size_t i = 0; i < eligible_count; ++i) {
+			cumulative += eligible_items[i]->weight;
+			if (cumulative >= random_weight)
+				return eligible_items[i]->item;
+		}
+
+		return eligible_items[eligible_count - 1]->item;
+	}
+
+	// Iterador para span de items activos
+	std::span<const ItemEntry> items_view() const {
+		return std::span<const ItemEntry>{items.data(), item_count};
 	}
 };
-
 
 int8_t current_wave_level = g_horde_local.level;
 bool next_wave_message_sent = false;
@@ -710,7 +778,7 @@ constexpr weighted_item_t monsters[] = {
 #include <unordered_set>
 #include <random>
 #include <deque>
-#include <span>
+
 
 // Definición de jefes por tamaño de mapa
 struct boss_t {
