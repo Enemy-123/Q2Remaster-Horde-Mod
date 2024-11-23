@@ -710,6 +710,7 @@ constexpr weighted_item_t monsters[] = {
 #include <unordered_set>
 #include <random>
 #include <deque>
+#include <span>
 
 // Definición de jefes por tamaño de mapa
 struct boss_t {
@@ -768,7 +769,7 @@ constexpr size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
 constexpr size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
 constexpr size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
 
-static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapname) {
+std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
 		return BOSS_SMALL;
 	}
@@ -777,66 +778,45 @@ static const boss_t* GetBossList(const MapSize& mapSize, const std::string& mapn
 		if (mapname == "mgu6m3" || mapname == "rboss") {
 			static std::vector<boss_t> filteredMediumBossList;
 			if (filteredMediumBossList.empty()) {
-				for (const auto& boss : BOSS_MEDIUM) {
-					if (std::strcmp(boss.classname, "monster_guardian") != 0 &&
-						std::strcmp(boss.classname, "monster_psxguardian") != 0) {
-						filteredMediumBossList.emplace_back(boss);
-					}
-				}
+				filteredMediumBossList.reserve(std::size(BOSS_MEDIUM));
+				std::copy_if(std::begin(BOSS_MEDIUM), std::end(BOSS_MEDIUM),
+					std::back_inserter(filteredMediumBossList),
+					[](const boss_t& boss) {
+						return std::strcmp(boss.classname, "monster_guardian") != 0 &&
+							std::strcmp(boss.classname, "monster_psxguardian") != 0;
+					});
 			}
-			return filteredMediumBossList.empty() ? nullptr : filteredMediumBossList.data();
+			return std::span<const boss_t>{filteredMediumBossList};
 		}
-		return BOSS_MEDIUM;
+		return std::span<const boss_t>{BOSS_MEDIUM};
 	}
 
 	if (mapSize.isBigMap || mapname == "test/spbox" || mapname == "q2ctf4") {
 		if (mapname == "test/spbox" || mapname == "q2ctf4") {
 			static std::vector<boss_t> filteredLargeBossList;
 			if (filteredLargeBossList.empty()) {
-				for (const auto& boss : BOSS_LARGE) {
-					if (std::strcmp(boss.classname, "monster_boss5") != 0) {
-						filteredLargeBossList.emplace_back(boss);
-					}
-				}
+				filteredLargeBossList.reserve(std::size(BOSS_LARGE));
+				std::copy_if(std::begin(BOSS_LARGE), std::end(BOSS_LARGE),
+					std::back_inserter(filteredLargeBossList),
+					[](const boss_t& boss) {
+						return std::strcmp(boss.classname, "monster_boss5") != 0;
+					});
 			}
-			return filteredLargeBossList.empty() ? nullptr : filteredLargeBossList.data();
+			return std::span<const boss_t>{filteredLargeBossList};
 		}
-		return BOSS_LARGE;
+		return std::span<const boss_t>{BOSS_LARGE};
 	}
 
-	return nullptr;
+	return std::span<const boss_t>{};
 }
 
-static size_t GetBossListSize(const MapSize& mapSize, const std::string& mapname, const boss_t* boss_list) {
-	if (boss_list == BOSS_SMALL) return BOSS_SMALL_SIZE;
-	if (boss_list == BOSS_MEDIUM) return BOSS_MEDIUM_SIZE;
-	if (boss_list == BOSS_LARGE) return BOSS_LARGE_SIZE;
-
-	if ((mapname == "mgu6m3" || mapname == "rboss") && boss_list) {
-		size_t size = 0;
-		for (const auto& boss : BOSS_MEDIUM) {
-			if (std::strcmp(boss.classname, "monster_guardian") != 0 &&
-				std::strcmp(boss.classname, "monster_psxguardian") != 0) {
-				size++;
-			}
-		}
-		return size;
-	}
-
-	if ((mapname == "test/spbox" || mapname == "q2ctf4") && boss_list) {
-		size_t size = 0;
-		for (const auto& boss : BOSS_LARGE) {
-			if (std::strcmp(boss.classname, "monster_boss5") != 0) {
-				size++;
-			}
-		}
-		return size;
-	}
-
-	return 0;
+static size_t GetBossListSize(const MapSize& mapSize, std::string_view mapname, std::span<const boss_t> boss_list) {
+	if (boss_list.data() == BOSS_SMALL) return BOSS_SMALL_SIZE;
+	if (boss_list.data() == BOSS_MEDIUM) return BOSS_MEDIUM_SIZE;
+	if (boss_list.data() == BOSS_LARGE) return BOSS_LARGE_SIZE;
+	// Para las listas filtradas, simplemente devolvemos el tamaño del span
+	return boss_list.size();
 }
-
-
 
 // Estructuras de arrays estáticos para reemplazar std::vectors
 struct EligibleBosses {
@@ -903,45 +883,39 @@ static void AddRecentBoss(const char* classname) {
 
 
 // Modifica G_HordePickBOSS para usar arrays estáticos
-static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& mapname, int32_t waveNumber, edict_t* bossEntity) {
+static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
 	static EligibleBosses eligible_bosses;
 	static double cumulative_weights[MAX_ELIGIBLE_BOSSES];
 	eligible_bosses.clear();
 	double total_weight = 0.0;
 
-	const boss_t* boss_list = GetBossList(mapSize, mapname);
-	if (!boss_list) return nullptr;
+	auto boss_list = GetBossList(mapSize, mapname);
+	if (boss_list.empty()) return nullptr;
 
-	const size_t boss_list_size = GetBossListSize(mapSize, mapname, boss_list);
+	const size_t boss_list_size = boss_list.size();
 	if (boss_list_size == 0) return nullptr;
 
 	// Recolectar bosses elegibles y calcular pesos acumulativos
-	for (size_t i = 0; i < boss_list_size; ++i) {
-		const boss_t& boss = boss_list[i];
+	for (const auto& boss : boss_list) {
 		if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 			(waveNumber <= boss.max_level || boss.max_level == -1) &&
 			!recent_bosses.contains(boss.classname)) {
-
 			// Ajustar peso base según nivel y dificultad
 			float adjusted_weight = boss.weight;
-
 			// Boost para bosses apropiados al nivel
 			if (waveNumber >= boss.min_level && waveNumber <= boss.min_level + 5) {
 				adjusted_weight *= 1.3f;
 			}
-
 			// Ajuste por dificultad
 			if (g_insane->integer || g_chaotic->integer) {
 				if (boss.sizeCategory == BossSizeCategory::Large) {
 					adjusted_weight *= 1.2f;
 				}
 			}
-
 			// Penalización suave para bosses de nivel muy bajo
 			if (boss.min_level != -1 && waveNumber > boss.min_level + 10) {
 				adjusted_weight *= 0.8f;
 			}
-
 			total_weight += adjusted_weight;
 			cumulative_weights[eligible_bosses.count] = total_weight;
 			eligible_bosses.add(&boss);
@@ -952,9 +926,7 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 	if (eligible_bosses.count == 0) {
 		recent_bosses.clear();
 		total_weight = 0.0;
-
-		for (size_t i = 0; i < boss_list_size; ++i) {
-			const boss_t& boss = boss_list[i];
+		for (const auto& boss : boss_list) {
 			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 				(waveNumber <= boss.max_level || boss.max_level == -1)) {
 				const float adjusted_weight = boss.weight;
@@ -967,13 +939,12 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 
 	if (eligible_bosses.count == 0) return nullptr;
 
-// Usar el rango completo de la distribución en lugar de multiplicar posteriormente
 	const double random_value = std::uniform_real_distribution<double>(0.0, total_weight)(mt_rand);
 	size_t left = 0;
 	size_t right = eligible_bosses.count - 1;
 
 	while (left < right) {
-	const size_t mid = (left + right) / 2;
+		const size_t mid = (left + right) / 2;
 		if (cumulative_weights[mid] < random_value) {
 			left = mid + 1;
 		}
@@ -988,7 +959,6 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, const std::string& ma
 		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
 		return chosen_boss->classname;
 	}
-
 	return nullptr;
 }
 
