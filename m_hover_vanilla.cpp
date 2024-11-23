@@ -394,8 +394,8 @@ void hover_vanilla_fire_blaster(edict_t* self)
 	const bool is_daedalus = (strcmp(self->classname, "monster_daedalus_bomber") == 0);
 	const bool is_left_weapon = (self->s.frame & 1);
 
-	vec3_t offset;
-	monster_muzzleflash_id_t flash_number;
+	vec3_t offset{};
+	monster_muzzleflash_id_t flash_number{};
 
 	// Para granadas (daedalus pesado), usamos siempre el mismo flash y offset
 	if (is_daedalus && self->mass >= 200)
@@ -437,7 +437,7 @@ void hover_vanilla_fire_blaster(edict_t* self)
 			vec3_t aim = aim_dir;
 			if (dist > 200)
 			{
-				float spread_factor = std::min(dist / 1000.0f, 0.15f);
+				const	float spread_factor = std::min(dist / 1000.0f, 0.15f);
 				aim += right * (crandom_open() * spread_factor);
 				aim += up * (crandom_open() * spread_factor);
 				aim.normalize();
@@ -671,7 +671,7 @@ void SP_monster_hover_vanilla(edict_t* self)
 	{
 		if (strcmp(self->classname, "monster_daedalus_bomber"))
 		{
-			float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+			const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 			if (randomsearch < 0.12f)
 				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
@@ -684,7 +684,7 @@ void SP_monster_hover_vanilla(edict_t* self)
 		{
 			if (!strcmp(self->classname, "monster_daedalus_bomber"))
 			{
-				float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+				const	float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 				if (randomsearch < 0.12f)
 					gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);

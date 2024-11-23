@@ -798,7 +798,7 @@ MONSTERINFO_BLOCKED(gunner_vanilla_blocked) (edict_t* self, float dist) -> bool
 	if (blocked_checkplat(self, dist))
 		return true;
 
-	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	if (const auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
 			gunner_vanilla_jump(self, result);
@@ -869,7 +869,7 @@ void SP_monster_gunner_vanilla(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
+		const float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
