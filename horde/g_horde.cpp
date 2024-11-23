@@ -2930,25 +2930,29 @@ inline int8_t GetNumSpectPlayers() {
 
 static void PlayWaveStartSound() {
 	static std::array<int, 5> cached_sound_indices = { -1, -1, -1, -1, -1 };
+	static const std::array<const char*, 5> sound_files = {
+		"misc/r_tele3.wav",
+		"world/klaxon2.wav",
+		"misc/tele_up.wav",
+		"world/incoming.wav",
+		"world/yelforce.wav"
+	};
+
 	static bool indices_initialized = false;
-
 	if (!indices_initialized) {
-		const std::array<const char*, 5> sound_files = {
-			"misc/r_tele3.wav",
-			"world/klaxon2.wav",
-			"misc/tele_up.wav",
-			"world/incoming.wav",
-			"world/yelforce.wav"
-		};
+		std::span<const char* const> sound_files_view{ sound_files };
+		std::span<int> indices_view{ cached_sound_indices };
 
-		for (size_t i = 0; i < sound_files.size(); ++i) {
-			cached_sound_indices[i] = gi.soundindex(sound_files[i]);
+		for (size_t i = 0; i < sound_files_view.size(); ++i) {
+			indices_view[i] = gi.soundindex(sound_files_view[i]);
 		}
 		indices_initialized = true;
 	}
 
-	const int32_t sound_index = static_cast<int32_t>(frandom() * cached_sound_indices.size());
-	gi.sound(world, CHAN_VOICE, cached_sound_indices[sound_index], 1, ATTN_NONE, 0);
+	// Usar span para el acceso seguro
+	std::span<const int> sound_indices_view{ cached_sound_indices };
+	const int32_t sound_index = static_cast<int32_t>(frandom() * sound_indices_view.size());
+	gi.sound(world, CHAN_VOICE, sound_indices_view[sound_index], 1, ATTN_NONE, 0);
 }
 
 // Implementación de DisplayWaveMessage
@@ -3200,7 +3204,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
-	// Usar array estático para spawns disponibles
+	// Array estático para spawns disponibles
 	static std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns;
 	size_t spawn_count = 0;
 
@@ -3229,12 +3233,16 @@ static edict_t* SpawnMonsters() {
 	if (spawn_count == 0)
 		return nullptr;
 
-	// Shuffle optimizado usando Fisher-Yates
-	if (spawn_count > 1) {
-		for (size_t i = spawn_count - 1; i > 0; --i) {
+	// Crear vista de spawns disponibles
+	std::span<edict_t*> spawns_view{ available_spawns.data(), spawn_count };
+
+	// Shuffle optimizado usando Fisher-Yates con span
+	if (spawns_view.size() > 1) {
+		for (size_t i = spawns_view.size() - 1; i > 0; --i) {
 			const size_t j = irandom(i + 1);
-			if (i != j)
-				std::swap(available_spawns[i], available_spawns[j]);
+			if (i != j) {
+				std::swap(spawns_view[i], spawns_view[j]);
+			}
 		}
 	}
 
@@ -3257,13 +3265,16 @@ static edict_t* SpawnMonsters() {
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	// Spawn loop optimizado
-	for (size_t i = 0; i < spawn_count && i < static_cast<size_t>(spawnable) &&
-		g_horde_local.num_to_spawn > 0; ++i) {
+	// Crear subspan para el número de spawns necesarios
+	std::span<edict_t*> spawn_subset = spawns_view.subspan(0,
+		std::min(spawns_view.size(), static_cast<size_t>(spawnable)));
 
-		edict_t* spawn_point = available_spawns[i];
+	// Spawn loop optimizado usando span
+	for (auto* spawn_point : spawn_subset) {
+		if (g_horde_local.num_to_spawn <= 0)
+			break;
+
 		const char* monster_classname = G_HordePickMonster(spawn_point);
-
 		if (!monster_classname)
 			continue;
 
