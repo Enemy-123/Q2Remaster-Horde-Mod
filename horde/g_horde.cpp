@@ -281,7 +281,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = { {
 		{{6, 8, 10, 12}},  // Small maps
 		{{8, 12, 14, 16}}, // Medium maps
-		{{12, 16, 20, 24}} // Large maps
+		{{15, 18, 23, 26}} // Large maps
 	} };
 
 	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
