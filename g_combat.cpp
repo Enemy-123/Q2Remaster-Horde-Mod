@@ -515,112 +515,140 @@ void AssignMonsterTeam(edict_t* ent) {
 		ent->monsterinfo.team = CTF_TEAM2;
 	}
 }
+
+// Funciones auxiliares
+bool CheckEntityClass(edict_t* ent, const char* className) {
+	return ent->classname && !strcmp(ent->classname, className);
+}
+
+bool IsLaserEntity(edict_t* ent) {
+	return ent->classname &&
+		(!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"));
+}
+
+bool CheckTeslaMineTeam(edict_t* mine, edict_t* other) {
+	if (!mine->team)
+		return false;
+
+	const char* otherTeam;
+	if (other->client)
+		otherTeam = other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2;
+	else if (other->svflags & SVF_MONSTER)
+		otherTeam = other->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2;
+	else
+		return false;
+
+	return !strcmp(mine->team, otherTeam);
+}
+
+bool CheckTrapTeam(edict_t* trap, edict_t* other) {
+	const char* otherTeam = other->client ?
+		(other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
+		(other->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
+
+	return !strcmp(trap->team, otherTeam);
+}
+
+bool CheckLaserTeam(edict_t* laser, edict_t* other) {
+	const char* otherTeam = other->client ?
+		(other->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
+		(other->team ? other->team : "neutral");
+
+	return !strcmp(laser->team, otherTeam);
+}
+
+bool CheckTeamDamage(edict_t* targ, edict_t* attacker) {
+	return !g_friendly_fire->integer && OnSameTeam(targ, attacker);
+}
+
 bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 {
-	if (!ent1 || !ent2)
+	// Validaciones iniciales
+	if (!ent1 || !ent2 || ent1 == ent2)
 		return false;
 
-	// No podemos estar en el mismo equipo con nosotros mismos
-	if (ent1 == ent2)
-		return false;
+	// Determinar el modo de juego
+	enum GameMode {
+		MODE_COOPERATIVE,
+		MODE_TEAMPLAY,
+		MODE_HORDE,
+		MODE_OTHER
+	};
+
+	GameMode currentMode;
 
 	if (G_IsCooperative())
-	{
-		// En modo cooperativo, los jugadores están en el mismo equipo
-		if (ent1->client && ent2->client)
-			return true;
-		else
-			return false; // Los demás entidades no están en el mismo equipo
-	}
+		currentMode = MODE_COOPERATIVE;
 	else if (G_TeamplayEnabled() && !g_horde->integer)
-	{
-		// En modo de juego en equipo, verificamos si están en el mismo equipo
-		if (ent1->client && ent2->client)
-		{
-			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
-		}
-		else if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER) && !g_horde->integer)
-		{
-			// Lógica para monstruos en equipo
-			AssignMonsterTeam(ent1);
-			AssignMonsterTeam(ent2);
-			return ent1->monsterinfo.team == ent2->monsterinfo.team;
-		}
-		// Aquí puedes agregar lógica adicional para otras entidades (e.g., trampas, láseres)
-	}
+		currentMode = MODE_TEAMPLAY;
 	else if (g_horde->integer)
-	{
+		currentMode = MODE_HORDE;
+	else
+		currentMode = MODE_OTHER;
+
+	switch (currentMode) {
+	case MODE_COOPERATIVE:
+		return (ent1->client && ent2->client);
+
+	case MODE_TEAMPLAY:
 		if (ent1->client && ent2->client)
-		{
-			if (G_IsCooperative() || G_TeamplayEnabled())
-			{
-				return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
-			}
-		}
-		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER))
-		{
+			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+
+		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
 			AssignMonsterTeam(ent1);
 			AssignMonsterTeam(ent2);
 			return ent1->monsterinfo.team == ent2->monsterinfo.team;
 		}
-		if (ent1->client && (ent2->svflags & SVF_MONSTER))
-		{
-			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
-		}
-		if (ent2->client && (ent1->svflags & SVF_MONSTER))
-		{
-			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
+		return false;
+
+	case MODE_HORDE:
+		// Verificar jugadores
+		if (ent1->client && ent2->client)
+			return ent1->client->resp.ctf_team == ent2->client->resp.ctf_team;
+
+		// Verificar monstruos
+		if ((ent1->svflags & SVF_MONSTER) && (ent2->svflags & SVF_MONSTER)) {
+			AssignMonsterTeam(ent1);
+			AssignMonsterTeam(ent2);
+			return ent1->monsterinfo.team == ent2->monsterinfo.team;
 		}
 
-// For tesla_mine check section: this will be useful for converting teslas, possibly monsters to our team and viceversa
-		if (ent1->classname && !strcmp(ent1->classname, "tesla_mine"))
-		{
-			if (ent2->client)
-				return ent1->team && !strcmp(ent1->team, ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2);
-			else if (ent2->svflags & SVF_MONSTER)
-				return ent1->team && !strcmp(ent1->team, ent2->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
-			return false;
-		}
-		if (ent2->classname && !strcmp(ent2->classname, "tesla_mine"))
-		{
-			const char* team1 = ent1->client ?
-				(ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) :
-				(ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2);
-			return ent2->team && !strcmp(ent2->team, team1);
-		}
-		// Verifica si uno de los entes es una trampa
-		if (ent1->classname && !strcmp(ent1->classname, "food_cube_trap"))
-		{
-			return !strcmp(ent1->team, ent2->client ? (ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent2->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2));
-		}
-		if (ent2->classname && !strcmp(ent2->classname, "food_cube_trap"))
-		{
-			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent1->monsterinfo.team == CTF_TEAM1 ? TEAM1 : TEAM2));
-		}
-		// Verifica si uno de los entes es un emisor de láser o un láser
-		if (ent1->classname && (!strcmp(ent1->classname, "emitter") || !strcmp(ent1->classname, "laser")))
-		{
-			return !strcmp(ent1->team, ent2->client ? (ent2->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent2->team ? ent2->team : "neutral"));
-		}
-		if (ent2->classname && (!strcmp(ent2->classname, "emitter") || !strcmp(ent2->classname, "laser")))
-		{
-			return !strcmp(ent2->team, ent1->client ? (ent1->client->resp.ctf_team == CTF_TEAM1 ? TEAM1 : TEAM2) : (ent1->team ? ent1->team : "neutral"));
-		}
+		// Verificar jugador vs monstruo
+		if (ent1->client && (ent2->svflags & SVF_MONSTER))
+			return ent1->client->resp.ctf_team == ent2->monsterinfo.team;
+
+		if (ent2->client && (ent1->svflags & SVF_MONSTER))
+			return ent2->client->resp.ctf_team == ent1->monsterinfo.team;
+
+		// Verificar minas tesla
+		if (CheckEntityClass(ent1, "tesla_mine"))
+			return CheckTeslaMineTeam(ent1, ent2);
+
+		if (CheckEntityClass(ent2, "tesla_mine"))
+			return CheckTeslaMineTeam(ent2, ent1);
+
+		// Verificar trampas
+		if (CheckEntityClass(ent1, "food_cube_trap"))
+			return CheckTrapTeam(ent1, ent2);
+
+		if (CheckEntityClass(ent2, "food_cube_trap"))
+			return CheckTrapTeam(ent2, ent1);
+
+		// Verificar láseres y emisores
+		if (IsLaserEntity(ent1))
+			return CheckLaserTeam(ent1, ent2);
+
+		if (IsLaserEntity(ent2))
+			return CheckLaserTeam(ent2, ent1);
+
+		return false;
+
+	default:
 		return false;
 	}
-	return false;
 }
 
-// check if the two entities are on a team and that
-// they wouldn't damage each other
-bool CheckTeamDamage(edict_t* targ, edict_t* attacker)
-{
-	// always damage teammates if friendly fire is enabled
-	if (g_friendly_fire->integer)
-		return false;
 
-	return OnSameTeam(targ, attacker);
-}
 
 #include <span>
 
