@@ -684,12 +684,10 @@ void SP_monster_floater_tracker(edict_t* self)
 
 	if (g_horde->integer && current_wave_level <= 18)
 	{
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.12f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-		else
-			nullptr;
 	}
 
 	if (!M_AllowSpawn(self)) {

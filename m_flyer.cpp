@@ -1056,8 +1056,6 @@ void SP_monster_flyer(edict_t* self)
 
 		if (randomsearch < 0.32f)
 			gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
-		else
-			nullptr;
 	}
 
 	if (!M_AllowSpawn(self)) {

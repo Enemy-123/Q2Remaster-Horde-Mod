@@ -583,30 +583,22 @@ void SP_monster_hover(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer && current_wave_level <= 18)
-	{
-		if (strcmp(self->classname, "monster_daedalus"))
-		{
-			const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+	if (g_horde->integer && current_wave_level <= 18) {
+		const bool isDaedalus = !strcmp(self->classname, "monster_daedalus");
+		const float randomChance = frandom();
 
-			if (randomsearch < 0.23f)
-				gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-			else if (randomsearch < 0.46f)
-				gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
-			else
-				nullptr;
-		}
+		// Definimos las constantes para mejor legibilidad y mantenimiento
+		constexpr float FIRST_SOUND_CHANCE = 0.23f;
+		constexpr float SECOND_SOUND_CHANCE = 0.46f;
 
-		else if (!strcmp(self->classname, "monster_daedalus")) {
+		const int currentSound = (randomChance < FIRST_SOUND_CHANCE)
+			? (isDaedalus ? daed_sound_search1 : sound_search1)
+			: (randomChance < SECOND_SOUND_CHANCE)
+			? (isDaedalus ? daed_sound_search2 : sound_search2)
+			: 0;  // No sound
 
-			const float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
-
-			if (randomsearch < 0.23f)
-				gi.sound(self, CHAN_VOICE, daed_sound_search1, 1, ATTN_NORM, 0);
-			else if (randomsearch < 0.46f)
-				gi.sound(self, CHAN_VOICE, daed_sound_search2, 1, ATTN_NORM, 0);
-			else
-				nullptr;
+		if (currentSound) {
+			gi.sound(self, CHAN_VOICE, currentSound, 1, ATTN_NORM, 0);
 		}
 	}
 

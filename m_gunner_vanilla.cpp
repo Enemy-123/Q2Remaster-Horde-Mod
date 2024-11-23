@@ -868,14 +868,9 @@ void SP_monster_gunner_vanilla(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	if (g_horde->integer) {
-		const float randomsearch = frandom(); // Generar un n√∫mero aleatorio entre 0 y 1
-
-		if (randomsearch < 0.23f)
-			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-		else
-			nullptr;
-	}
+    if (g_horde->integer && frandom() < 0.23f) {
+        gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
+    }
 
 	if (!M_AllowSpawn(self)) {
 		G_FreeEdict(self);

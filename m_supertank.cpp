@@ -661,34 +661,29 @@ void SP_monster_supertank(edict_t* self)
 	}
 
 	if (g_horde->integer && current_wave_level <= 18) {
+		const float randomChance = frandom();
 
 		if (self->monsterinfo.IS_BOSS) {
-			{
-				const float randomsearch = frandom(); // Generate search sounds
-
-				if (randomsearch < 0.5f)
-
-					gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NONE, 0);
-				else
-					gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NONE, 0);
-			}
+			const int soundToPlay = (randomChance < 0.5f) ? sound_search2 : sound_search1;
+			gi.sound(self, CHAN_VOICE, soundToPlay, 1, ATTN_NONE, 0);
 			self->health = 3300 * st.health_multiplier;
 		}
-		else
-		{
-			{
-				const float randomsearch = frandom(); // Generate Search sounds
+		else {
+			constexpr float FIRST_SOUND_CHANCE = 0.2f;
+			constexpr float SECOND_SOUND_CHANCE = 0.4f;
 
-				if (randomsearch < 0.2f)
+			const int soundToPlay = (randomChance < FIRST_SOUND_CHANCE)
+				? sound_search2
+				: (randomChance < SECOND_SOUND_CHANCE)
+				? sound_search1
+				: 0;
 
-					gi.sound(self, CHAN_VOICE, sound_search2, 1, ATTN_NORM, 0);
-				else  if (randomsearch < 0.4f)
-					gi.sound(self, CHAN_VOICE, sound_search1, 1, ATTN_NORM, 0);
-				else
-					nullptr;
+			if (soundToPlay) {
+				gi.sound(self, CHAN_VOICE, soundToPlay, 1, ATTN_NORM, 0);
 			}
 		}
 	}
+
 	sound_pain1.assign("bosstank/btkpain1.wav");
 	sound_pain2.assign("bosstank/btkpain2.wav");
 	sound_pain3.assign("bosstank/btkpain3.wav");
