@@ -1037,21 +1037,37 @@ struct SelectionCache {
 	static constexpr size_t MAX_ENTRIES = 32;
 
 	struct Entry {
-		union {
-			const weighted_item_t* item;
-			const char* monster_classname;
-		};
+		const weighted_item_t* item;
+		const char* monster_classname;  // For monsters
 		float weight;
 		float cumulative_weight;
 	};
 
-	std::array<Entry, MAX_ENTRIES> entries;
-	size_t count = 0;
+	_Field_range_(0, MAX_ENTRIES) size_t count = 0;
 	float total_weight = 0.0f;
+	_Field_size_(MAX_ENTRIES) Entry entries[MAX_ENTRIES];
 
-	void clear() {
+	void clear() noexcept {
 		count = 0;
 		total_weight = 0.0f;
+	}
+
+	_Success_(return != false)
+		bool add_entry(_In_ const Entry& new_entry) noexcept {
+		if (count >= MAX_ENTRIES) {
+			return false;
+		}
+		entries[count] = new_entry;
+		count++;
+		return true;
+	}
+
+	_Ret_maybenull_
+		const Entry* get_entry(_In_range_(0, count) size_t index) const noexcept {
+		if (index >= count) {
+			return nullptr;
+		}
+		return &entries[index];
 	}
 };
 
