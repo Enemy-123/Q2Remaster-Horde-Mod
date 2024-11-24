@@ -1360,6 +1360,7 @@ void SP_monster_sentrygun(edict_t* self)
 	else
 	{
 		stationarymonster_start(self, spawn_temp_t::empty);
+		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 	}
 
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
@@ -1414,4 +1415,6 @@ void SP_monster_sentrygun(edict_t* self)
 	if (self->monsterinfo.quadfire_time > level.time) {
 		self->yaw_speed *= 2.0f;
 	}
+
+	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 }

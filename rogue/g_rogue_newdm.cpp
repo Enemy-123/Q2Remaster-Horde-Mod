@@ -318,7 +318,7 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	// Mantener solo el yaw (rotación horizontal), resetear pitch y roll
 	angles = vec3_t{ 0, angles.y, 0 };  // Solo preservamos el yaw
 
-	vec3_t end = start + (aimdir * distance);
+	const vec3_t end = start + (aimdir * distance);
 
 	// Verificar espacio para la torreta
 	trace_t tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
@@ -339,6 +339,7 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 	turret->s.origin = new_start;
 	turret->s.angles = angles;  // Usamos los ángulos modificados
 	turret->owner = ent;
+	turret->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
 
 	ApplyMonsterBonusFlags(turret);
