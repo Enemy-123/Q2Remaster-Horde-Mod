@@ -2610,6 +2610,124 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 		self->classname, self->health, self->monsterinfo.power_armor_power);
 }
 
+
+bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
+	// Verificaciones iniciales
+	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS ||
+		level.intermissiontime || !g_horde->integer)
+		return false;
+
+	// Obtener el punto de inicio del mapa
+	const auto it = mapOrigins.find(level.mapname);
+	if (it == mapOrigins.end())
+		return false;
+
+	// Cooldowns diferentes según la razón
+	constexpr gtime_t DROWNING_COOLDOWN = 1_sec;
+	constexpr gtime_t TRIGGER_COOLDOWN = 3_sec;
+	// constexpr gtime_t STUCK_COOLDOWN = 2_sec;
+
+	// Seleccionar el cooldown apropiado
+	const gtime_t selected_cooldown = [reason]() {
+		switch (reason) {
+		case BossTeleportReason::DROWNING:
+			return DROWNING_COOLDOWN;
+		case BossTeleportReason::TRIGGER_HURT:
+			return TRIGGER_COOLDOWN;
+		//case BossTeleportReason::STUCK:
+		//	return STUCK_COOLDOWN;
+		}
+		return TRIGGER_COOLDOWN;
+		}();
+
+	// Verificar si ya se teletransportó recientemente
+	if (self->teleport_time && level.time < self->teleport_time + selected_cooldown)
+		return false;
+
+	// Convertir el punto de inicio a vec3_t
+	const vec3_t spawn_origin{
+		static_cast<float>(it->second[0]),
+		static_cast<float>(it->second[1]),
+		static_cast<float>(it->second[2])
+	};
+
+	// Verificar si el punto de inicio es válido
+	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin)
+		return false;
+
+	// Guardar velocidad y origen actuales
+	const vec3_t old_velocity = self->velocity;
+	const vec3_t old_origin = self->s.origin;
+
+	// Intentar teletransporte
+	self->s.origin = spawn_origin;
+	self->s.old_origin = spawn_origin;
+	self->velocity = vec3_origin;
+
+	// Verificar si la nueva posición es válida
+	bool teleport_success = true;
+	if (!(self->flags & (FL_FLY | FL_SWIM))) {
+		teleport_success = M_droptofloor(self);
+	}
+
+	// Verificar colisiones en la nueva posición
+	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
+		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
+
+		// Efectos visuales y sonoros diferenciados por razón
+		switch (reason) {
+		case BossTeleportReason::DROWNING:
+			gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} emerges from the depths!\n",
+				GetDisplayName(self).c_str());
+			break;
+		case BossTeleportReason::TRIGGER_HURT:
+			gi.sound(self, CHAN_AUTO, sound_tele_up, 1, ATTN_NORM, 0);
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n",
+				GetDisplayName(self).c_str());
+			break;
+		//case BossTeleportReason::STUCK:
+		//	gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+		//	gi.LocBroadcast_Print(PRINT_HIGH, "{} repositions for battle!\n",
+		//		GetDisplayName(self).c_str());
+		//	break;
+		}
+
+		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+
+		// Actualizar tiempo de último teletransporte
+		self->teleport_time = level.time;
+
+		// Empujar otras entidades cercanas
+		PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
+
+		// Restaurar algo de salud si estaba muy dañado (solo para drowning y trigger_hurt)
+		if (/*reason != BossTeleportReason::STUCK && */self->health < self->max_health * 0.25f) {
+			self->health = static_cast<int32_t>(self->max_health * 0.25f);
+		}
+
+		// Actualizar la entidad
+		gi.linkentity(self);
+
+		if (developer->integer) {
+			const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" :
+		/*		reason == BossTeleportReason::TRIGGER_HURT ?*/ "trigger_hurt" /*: "stuck"*/;
+			gi.Com_PrintFmt("Boss teleported due to {} to: {}\n", reason_str, self->s.origin);
+		}
+
+		return true;
+	}
+
+	// Si falló el teletransporte, restaurar posición original
+	self->s.origin = old_origin;
+	self->s.old_origin = old_origin;
+	self->velocity = old_velocity;
+	gi.linkentity(self);
+
+	return false;
+}
+
+
 void SetHealthBarName(const edict_t* boss) {
 	// Declarar buffer con tamaño explícito y asegurar inicialización
 	static char buffer[MAX_STRING_CHARS] = {};

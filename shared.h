@@ -26,6 +26,16 @@ enum bonus_flags_t : uint32_t {
 MAKE_ENUM_BITFLAGS(bonus_flags_t);
 
 // boss stuff
+
+enum class BossTeleportReason {
+    DROWNING,
+    TRIGGER_HURT,
+//    STUCK
+};
+
+bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason);
+
+
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
 extern void SetHealthBarName(const edict_t* boss);

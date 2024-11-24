@@ -272,17 +272,23 @@ void M_WorldEffects(edict_t* ent)
 				ent->air_finished = level.time + 6_sec;
 			else if (ent->air_finished < level.time)
 			{
-				if (g_horde->integer && !ent->monsterinfo.IS_BOSS) {
-					// Intentar teletransportar si es un monstruo que se está ahogando
-					if ((ent->svflags & SVF_MONSTER))
-					{
-						CheckAndTeleportStuckMonster(ent);
-						// Si el teletransporte fue exitoso, resetear air_finished
-						ent->air_finished = level.time + 6_sec;
+				if (g_horde->integer) {
+					if (ent->monsterinfo.IS_BOSS) {
+						// Usar la nueva función unificada
+						if (CheckAndTeleportBoss(ent, BossTeleportReason::DROWNING)) {
+							ent->air_finished = level.time + 6_sec;
+						}
+						else {
+							take_drown_damage = true;
+						}
+					}
+					else if (ent->svflags & SVF_MONSTER) {
+						if (CheckAndTeleportStuckMonster(ent)) {
+							ent->air_finished = level.time + 6_sec;
+						}
 					}
 				}
-				else
-				{
+				else {
 					take_drown_damage = true;
 				}
 			}
