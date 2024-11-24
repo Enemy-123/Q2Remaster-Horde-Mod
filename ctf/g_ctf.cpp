@@ -1177,103 +1177,122 @@ std::string FormatEntityInfo(edict_t* ent) {
 	return info;
 }
 
-extern std::string FormatEntityInfo(edict_t* ent);
 // En g_local.h o donde tengas definidas tus estructuras globales
 class OptimizedEntityInfoManager {
+public:
+	static constexpr size_t MAX_ENTITY_INFOS = 80;
+	using ConfigStringSpan = std::span<const char>;
+
 private:
-	static constexpr size_t MAX_ENTITY_INFOS = 80; // Ajusta según sea necesario
-	std::array<std::string, MAX_ENTITY_INFOS> activeConfigStrings;
-	std::unordered_map<int, int> entityToConfigStringIndex;
-	std::queue<int> availableIndices;
-	std::vector<int> recentlyUsedIndices;
+	// Usando string_view para referencias ligeras a strings
+	struct EntityInfo {
+		std::array<char, 256> data{}; // Buffer fijo para evitar allocaciones
+		size_t length{ 0 };
+	};
+
+	std::array<EntityInfo, MAX_ENTITY_INFOS> m_activeConfigStrings;
+	std::unordered_map<int, int> m_entityToConfigIndex;
+	std::vector<int> m_lruCache; // Vector más eficiente que queue para nuestro caso
+	size_t m_activeCount{ 0 };
 
 public:
 	OptimizedEntityInfoManager() noexcept {
-		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
-			availableIndices.push(i);
-		}
+		m_lruCache.reserve(MAX_ENTITY_INFOS);
 	}
 
-	void updateEntityInfo(int entityIndex, const std::string& info) {
-		int configStringIndex;
-		auto const it = entityToConfigStringIndex.find(entityIndex);
+	void updateEntityInfo(int entityIndex, std::string_view info) noexcept {
+		if (info.length() >= 256) return; // Protección contra desbordamiento
 
-		if (it == entityToConfigStringIndex.end()) {
-			if (availableIndices.empty()) {
-				configStringIndex = findLeastRecentlyUsedIndex();
+		int configIndex;
+		auto it = m_entityToConfigIndex.find(entityIndex);
+
+		if (it == m_entityToConfigIndex.end()) {
+			if (m_activeCount >= MAX_ENTITY_INFOS) {
+				configIndex = evictLRU();
 			}
 			else {
-				configStringIndex = availableIndices.front();
-				availableIndices.pop();
+				configIndex = m_activeCount++;
 			}
-			entityToConfigStringIndex[entityIndex] = configStringIndex;
+			m_entityToConfigIndex[entityIndex] = configIndex;
 		}
 		else {
-			configStringIndex = it->second;
+			configIndex = it->second;
 		}
 
-		activeConfigStrings[configStringIndex] = info;
-		gi.configstring(CONFIG_ENTITY_INFO_START + configStringIndex, info.c_str());
+		// Copiar datos de forma segura
+		auto& entityInfo = m_activeConfigStrings[configIndex];
+		std::copy_n(info.data(), info.length(), entityInfo.data.data());
+		entityInfo.length = info.length();
+		entityInfo.data[info.length()] = '\0';
 
-		updateRecentlyUsed(configStringIndex);
+		// Actualizar configstring del engine
+		gi.configstring(CONFIG_ENTITY_INFO_START + configIndex, entityInfo.data.data());
+		updateLRU(configIndex);
 	}
 
-	void removeEntityInfo(int entityIndex) {
-		auto const it = entityToConfigStringIndex.find(entityIndex);
-		if (it != entityToConfigStringIndex.end()) {
-			int const configStringIndex = it->second;
-			gi.configstring(CONFIG_ENTITY_INFO_START + configStringIndex, "");
-			activeConfigStrings[configStringIndex] = "";
-			entityToConfigStringIndex.erase(it);
-			availableIndices.push(configStringIndex);
-			removeFromRecentlyUsed(configStringIndex);
+	void removeEntityInfo(int entityIndex) noexcept {
+		auto it = m_entityToConfigIndex.find(entityIndex);
+		if (it != m_entityToConfigIndex.end()) {
+			int configIndex = it->second;
+			m_activeConfigStrings[configIndex].length = 0;
+			m_activeConfigStrings[configIndex].data[0] = '\0';
+			gi.configstring(CONFIG_ENTITY_INFO_START + configIndex, "");
+
+			removeLRU(configIndex);
+			m_entityToConfigIndex.erase(it);
+			--m_activeCount;
 		}
 	}
 
-	int getConfigStringIndex(int entityIndex) {
-		auto const it = entityToConfigStringIndex.find(entityIndex);
-		if (it != entityToConfigStringIndex.end()) {
-			return CONFIG_ENTITY_INFO_START + it->second;
+	[[nodiscard]] ConfigStringSpan getConfigString(int entityIndex) const noexcept {
+		auto it = m_entityToConfigIndex.find(entityIndex);
+		if (it != m_entityToConfigIndex.end()) {
+			const auto& info = m_activeConfigStrings[it->second];
+			return ConfigStringSpan(info.data.data(), info.length);
 		}
-		return -1;
+		return ConfigStringSpan();
+	}
+
+	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
+		auto it = m_entityToConfigIndex.find(entityIndex);
+		return it != m_entityToConfigIndex.end() ?
+			CONFIG_ENTITY_INFO_START + it->second : -1;
 	}
 
 private:
-	int findLeastRecentlyUsedIndex() {
-		if (!recentlyUsedIndices.empty()) {
-			int const leastRecentIndex = recentlyUsedIndices.front();
-			recentlyUsedIndices.erase(recentlyUsedIndices.begin());
-			return leastRecentIndex;
-		}
-		return 0; // Fallback, no debería ocurrir
+	int evictLRU() noexcept {
+		if (m_lruCache.empty()) return 0;
+		int index = m_lruCache.front();
+		m_lruCache.erase(m_lruCache.begin());
+		return index;
 	}
 
-	void updateRecentlyUsed(int index) {
-		removeFromRecentlyUsed(index);
-		recentlyUsedIndices.push_back(index);
-		if (recentlyUsedIndices.size() > MAX_ENTITY_INFOS) {
-			recentlyUsedIndices.erase(recentlyUsedIndices.begin());
-		}
+	void updateLRU(int index) noexcept {
+		removeLRU(index);
+		m_lruCache.push_back(index);
 	}
 
-	void removeFromRecentlyUsed(int index) {
-		auto it = std::find(recentlyUsedIndices.begin(), recentlyUsedIndices.end(), index);
-		if (it != recentlyUsedIndices.end()) {
-			recentlyUsedIndices.erase(it);
+	void removeLRU(int index) noexcept {
+		auto it = std::find(m_lruCache.begin(), m_lruCache.end(), index);
+		if (it != m_lruCache.end()) {
+			m_lruCache.erase(it);
 		}
 	}
 };
+// Variable global
+inline OptimizedEntityInfoManager g_entityInfoManager;
 
 
-//// Función auxiliar para actualizar el configstring de una entidad
-//inline void UpdateEntityConfigString(edict_t* self) {
-//	unsigned int entity_index = self - g_edicts;
-//	if (entity_index >= 0 && entity_index < globals.num_edicts) {
-//		std::string info_string = FormatEntityInfo(self);
-//		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+//// Función auxiliar optimizada
+//inline void UpdateEntityConfigString(edict_t* self) noexcept {
+//	if (!self) return;
+//
+//	const unsigned int entityIndex = self - g_edicts;
+//	if (entityIndex < globals.num_edicts) {
+//		std::string_view infoString = FormatEntityInfo(self);
+//		g_entityInfoManager.updateEntityInfo(entityIndex, infoString);
 //	}
 //}
-OptimizedEntityInfoManager g_entityInfoManager;
 
 
 // En el archivo donde tienes la función CTFSetIDView
