@@ -220,7 +220,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
 		monster->s.alpha = 0.6f;
 		monster->monsterinfo.power_armor_power *= 4.0f;
-		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 15_sec;
+		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
 		monster->s.effects |= EF_GIB | EF_FLAG2;

@@ -2436,6 +2436,36 @@ void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 void SP_target_orb(edict_t* ent);
 static void SpawnBossAutomatically() {
 	const auto mapSize = GetMapSize(level.mapname);
+
+	//IF THERE'S A BOSS BEFORE THE NEW SPAWNING: remove him!
+	// Primero, eliminar cualquier boss existente
+	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); ) {
+		edict_t* existing_boss = *it;
+		if (existing_boss && existing_boss->inuse) {
+			// Marcar como manejado antes de eliminar
+			existing_boss->monsterinfo.BOSS_DEATH_HANDLED = true;
+			OnEntityRemoved(existing_boss);
+			G_FreeEdict(existing_boss);
+			it = auto_spawned_bosses.erase(it);
+		}
+		else {
+			++it;
+		}
+	}
+
+	// Limpiar la barra de salud existente
+	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
+		if (level.health_bar_entities[i]) {
+			G_FreeEdict(level.health_bar_entities[i]);
+			level.health_bar_entities[i] = nullptr;
+		}
+	}
+
+	// Limpiar el configstring del nombre de la barra de salud
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+
+	// removed previous boss, ready to spawn new
+
 	if (g_horde_local.level < 10 || g_horde_local.level % 5 != 0) {
 		return;
 	}
