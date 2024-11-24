@@ -1232,13 +1232,37 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	data.attempts++;
 
-	if (data.attempts >= 3) {  // Reducido de 4
-		if (developer->integer)		gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated for 10 seconds.\n", spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
-		data.isTemporarilyDisabled = true; // Temporarily deactivate
-		data.cooldownEndsAt = level.time + 5_sec;  // Reducido de 10_sec
+	// Verificar si hay jugadores cerca antes de desactivar
+	bool players_nearby = false;
+	for (auto player : active_players()) {
+		if ((spawn_point->s.origin - player->s.origin).length() < 300.0f) {
+			players_nearby = true;
+			break;
+		}
+	}
+
+	// Si hay jugadores cerca, ser más tolerante con los reintentos
+	const int max_attempts = players_nearby ? 5 : 4;
+
+	if (data.attempts >= max_attempts) {
+		if (developer->integer)
+			gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated.\n",
+				spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
+
+		data.isTemporarilyDisabled = true;
+
+		// Tiempo de desactivación más corto si hay jugadores cerca
+		const gtime_t cooldown = players_nearby ? 2_sec : 3_sec;
+		data.cooldownEndsAt = level.time + cooldown;
 	}
 	else if (data.attempts % 3 == 0) {
-		data.cooldownEndsAt = std::max(data.cooldownEndsAt + (data.cooldownEndsAt / 2), 2.5_sec);
+		// Incremento más gradual del cooldown
+		data.cooldownEndsAt = std::max(data.cooldownEndsAt + 1_sec, 2_sec);
+	}
+
+	// Resetear intentos si ha pasado suficiente tiempo
+	if (level.time - data.lastSpawnTime > 5_sec) {
+		data.attempts = 0;
 	}
 }
 
