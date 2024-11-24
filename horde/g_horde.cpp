@@ -3755,24 +3755,30 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 //debugging
 
 static void PrintRemainingMonsterCounts() {
-	// Crear un mapa para contar los tipos de monstruos
 	std::unordered_map<std::string, int> monster_counts;
 
 	for (const auto ent : active_monsters()) {
-		// Solo contar monstruos que el juego considera vivos pero no deberían estarlo
+		// Ignorar monstruos con AI_DO_NOT_COUNT
+		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
+			continue;
+
+		// Solo contar monstruos activos y vivos
 		if (ent->inuse && !ent->deadflag && ent->health > 0) {
 			monster_counts[ent->classname]++;
 		}
 	}
 
-	// Si hay discrepancia entre los contadores
-	if (level.total_monsters > 0) {
+	// Solo mostrar advertencia si hay una discrepancia real
+	const bool has_discrepancy = (level.total_monsters != level.killed_monsters);
+	const bool has_remaining = !monster_counts.empty();
+
+	if (has_discrepancy || has_remaining) {
 		gi.Com_PrintFmt("WARNING: Monster count discrepancy detected:\n");
 		gi.Com_PrintFmt("Total monsters according to level: {}\n", level.total_monsters);
 		gi.Com_PrintFmt("Killed monsters: {}\n", level.killed_monsters);
 
-		if (!monster_counts.empty()) {
-			gi.Com_PrintFmt("Remaining monster types:\n");
+		if (has_remaining) {
+			gi.Com_PrintFmt("Remaining monster types (excluding AI_DO_NOT_COUNT):\n");
 			for (const auto& [classname, count] : monster_counts) {
 				gi.Com_PrintFmt("- {} : {}\n", classname, count);
 			}
