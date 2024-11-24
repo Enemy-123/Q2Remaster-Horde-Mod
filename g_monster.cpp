@@ -274,7 +274,6 @@ void M_WorldEffects(edict_t* ent)
 			{
 				if (g_horde->integer) {
 					if (ent->monsterinfo.IS_BOSS) {
-						// Usar la nueva función unificada
 						if (CheckAndTeleportBoss(ent, BossTeleportReason::DROWNING)) {
 							ent->air_finished = level.time + 6_sec;
 						}
@@ -285,6 +284,9 @@ void M_WorldEffects(edict_t* ent)
 					else if (ent->svflags & SVF_MONSTER) {
 						if (CheckAndTeleportStuckMonster(ent)) {
 							ent->air_finished = level.time + 6_sec;
+						}
+						else {
+							take_drown_damage = true;
 						}
 					}
 				}
@@ -300,6 +302,8 @@ void M_WorldEffects(edict_t* ent)
 			else if (ent->air_finished < level.time)
 				take_drown_damage = true;
 		}
+
+		// Aplicar daño por ahogamiento si corresponde
 		if (take_drown_damage && ent->pain_debounce_time < level.time)
 		{
 			dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));
@@ -1384,7 +1388,7 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	self->nextthink = level.time + FRAME_TIME_S;
 	self->svflags |= SVF_MONSTER;
 	self->takedamage = true;
-	self->air_finished = level.time + 12_sec;
+	self->air_finished = level.time + 6_sec;
 	self->use = monster_use;
 	self->max_health = self->health;
 	self->clipmask = MASK_MONSTERSOLID;
