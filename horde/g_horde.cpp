@@ -47,7 +47,7 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int8_t last_wave_number = 0;              // Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 
-gtime_t horde_message_end_time = level.time;
+gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown 
 
 // Añadir cerca de las otras constexpr al inicio del archivo
@@ -2661,7 +2661,7 @@ void UpdateHordeHUD() {
 // Implementación de UpdateHordeMessage
 void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
 	// Ensure message isn't empty and duration is valid
-	if (message.empty() || duration <= 0_sec) {
+	if (message.empty() || duration <= 0_ms) {
 		ClearHordeMessage();
 		return;
 	}

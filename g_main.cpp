@@ -997,7 +997,7 @@ inline void G_RunFrame_(bool main_loop)
 			else {
 				UpdateHordeHUD();
 			}
-			next_hud_update = level.time + 50_ms; // 20 fps para el HUD
+			next_hud_update = level.time + 50_ms; // 20 fps para el HU
 		}
 	}
 
