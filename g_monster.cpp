@@ -417,8 +417,6 @@ bool M_droptofloor(edict_t* ent)
 	return true;
 }
 
-void medic_restore_takedamage(edict_t* ent);
-
 void M_SetEffects(edict_t* ent)
 {
 	ent->s.effects &= ~(EF_COLOR_SHELL | EF_POWERSCREEN | EF_DOUBLE | EF_QUAD | EF_PENT | EF_FLIES);
