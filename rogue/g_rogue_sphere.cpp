@@ -279,7 +279,7 @@ void sphere_touch(edict_t *self, edict_t *other, const trace_t &tr, mod_t mod)
 		if (other->takedamage)
 		{
 			T_Damage(other, self, self->owner, self->velocity, self->s.origin, tr.plane.normal,
-					 10000, 1, DAMAGE_DESTROY_ARMOR, mod);
+					 other->monsterinfo.IS_BOSS ? other->max_health / 3 : 10000, 1, DAMAGE_DESTROY_ARMOR, mod);
 		}
 		else
 		{
