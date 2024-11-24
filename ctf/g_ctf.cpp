@@ -1295,102 +1295,136 @@ inline OptimizedEntityInfoManager g_entityInfoManager;
 //}
 
 
+// Constantes para evitar magic numbers
+struct CTFIDViewConfig {
+	static constexpr gtime_t UPDATE_INTERVAL = 97_ms;
+	static constexpr float MAX_DISTANCE = 2048.0f;
+	static constexpr float MIN_DOT = 0.98f;
+	static constexpr float CLOSE_DISTANCE = 100.0f;
+	static constexpr float CLOSE_MIN_DOT = 0.5f;
+};
+
+// Estructura para mantener los resultados de la búsqueda
+struct TargetSearchResult {
+	edict_t* target{ nullptr };
+	float distance{ CTFIDViewConfig::MAX_DISTANCE };
+};
+
 // En el archivo donde tienes la función CTFSetIDView
+// Función auxiliar para verificar si una entidad está en el campo de visión
+[[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
+	const vec3_t& target_pos, float min_dot, float max_distance) noexcept {
+	vec3_t dir = target_pos - viewer_pos;
+	float const dist = dir.normalize();
+
+	return dist < max_distance && viewer_forward.dot(dir) > min_dot;
+}
+
+// Función auxiliar para realizar el trace
+[[nodiscard]] bool CanSeeTarget(const edict_t* viewer, const vec3_t& start,
+	const edict_t* target, const vec3_t& end) noexcept {
+	trace_t const tr = gi.traceline(start, end, viewer, MASK_SOLID);
+	return tr.fraction == 1.0f || tr.ent == target;
+}
+
+// Función optimizada para buscar el mejor objetivo
+[[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent,
+	std::span<edict_t> edicts,
+	const vec3_t& forward) noexcept {
+	TargetSearchResult result;
+	vec3_t const& viewer_pos = ent->s.origin;
+
+	for (auto& who : edicts) {
+		if (!IsValidTarget(ent, &who, false)) {
+			continue;
+		}
+
+		vec3_t const& target_pos = who.s.origin;
+		vec3_t dir = target_pos - viewer_pos;
+		float const dist = dir.normalize();
+
+		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+			? CTFIDViewConfig::CLOSE_MIN_DOT
+			: CTFIDViewConfig::MIN_DOT;
+
+		if (dist >= result.distance || forward.dot(dir) <= min_dot) {
+			continue;
+		}
+
+		if (!CanSeeTarget(ent, viewer_pos, &who, target_pos)) {
+			continue;
+		}
+
+		result.distance = dist;
+		result.target = &who;
+	}
+
+	return result;
+}
+
 void CTFSetIDView(edict_t* ent) {
-	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
+	if (!ent || !ent->client) {
 		return;
 	}
+
+	if (level.intermissiontime ||
+		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
+		return;
+	}
+
+	// Reset stats
 	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
+	// Calculate view direction
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
-	edict_t* best = nullptr;
-	float closest_dist = 2048;
-	constexpr float min_dot = 0.98f;
-	constexpr float very_close_distance = 100.0f; // Ajusta este valor según sea necesario
-	constexpr float close_min_dot = 0.5f; // Menos restrictivo para entidades cercanas
+	// Create span for safe iteration over edicts
+	std::span edicts_span(g_edicts + 1, globals.num_edicts - 1);
 
-	for (uint32_t i = 1; i < globals.num_edicts; i++) {
-		edict_t* who = g_edicts + i;
-		if (!IsValidTarget(ent, who, false)) continue;
+	// Find best target
+	auto result = FindBestTarget(ent, edicts_span, forward);
+	edict_t* best = result.target;
 
-		vec3_t dir = who->s.origin - ent->s.origin;
-		float const dist = dir.normalize();
-		float const d = forward.dot(dir);
-
-		bool is_valid_target = false;
-
-		if (dist < very_close_distance) {
-			// Para entidades muy cercanas, usamos un criterio menos estricto
-			is_valid_target = (d > close_min_dot);
-		}
-		else {
-			// Para entidades más lejanas, mantenemos el criterio original
-			is_valid_target = (d > min_dot);
-		}
-
-		if (is_valid_target && dist < closest_dist) {
-			vec3_t const start = ent->s.origin;
-			vec3_t const end = who->s.origin;
-			trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
-
-			if (tr.fraction == 1.0 || tr.ent == who) {
-				closest_dist = dist;
-				best = who;
-			}
-		}
-	}
-
+	// Check previous target if no new target found
 	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
 		best = ent->client->idtarget;
 	}
 
+	// Update target information
 	if (best) {
 		ent->client->idtarget = best;
-		std::string info_string = FormatEntityInfo(best);
-		int const entity_index = best - g_edicts;
+		int32_t const entity_index = static_cast<int32_t>(best - g_edicts);
+
+		// Usar string_view para evitar copia
+		std::string_view info_string = FormatEntityInfo(best);
 		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-		int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
-		if (configStringIndex != -1) {
+
+		if (int const configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
+			configStringIndex != -1) {
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
-		}
-		else {
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 		}
 	}
 	else {
 		ent->client->idtarget = nullptr;
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 }
 
-// En el archivo donde manejas la muerte de entidades
-//void MonsterDied(const edict_t* monster);
-
-void OnEntityDeath(const edict_t* self) {
+void OnEntityDeath(const edict_t* self) noexcept {
 	if (!self || !self->inuse) {
 		return;
 	}
 
-	// Usando int32_t ya que sabemos que MAX_EDICTS es menor que 2^31
 	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
-	if (entity_index >= 0 && entity_index < MAX_EDICTS) {
+	if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
 		g_entityInfoManager.removeEntityInfo(entity_index);
 	}
 }
 
-void OnEntityRemoved(const edict_t* self) {
-	if (!self || !self->inuse) {
-		return;
-	}
-
-	int32_t const entity_index = self - g_edicts;
-	if (entity_index >= 0 && entity_index < MAX_EDICTS) {
-		g_entityInfoManager.removeEntityInfo(static_cast<int>(entity_index));
-	}
+inline void OnEntityRemoved(const edict_t* self) noexcept {
+	OnEntityDeath(self); // Reutilizar la lógica es más eficiente
 }
 
 void CleanupInvalidEntities() {

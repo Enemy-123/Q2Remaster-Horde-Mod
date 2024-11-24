@@ -3202,8 +3202,9 @@ enum plat2flags_t
 MAKE_ENUM_BITFLAGS(plat2flags_t);
 
 #include <bitset>
-void OnEntityDeath(const edict_t* ent);
-void OnEntityRemoved(const edict_t* ent);
+extern inline void OnEntityRemoved(const edict_t* self) noexcept;
+extern void OnEntityDeath(const edict_t* self) noexcept;
+
 struct edict_t
 {
 	edict_t() = delete;
@@ -3921,7 +3922,7 @@ extern cached_soundindex snd_fry;
 }
 
 
-extern void OnEntityDeath(const edict_t* ent);
+extern void OnEntityDeath(const edict_t* self) noexcept;
 
 extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
