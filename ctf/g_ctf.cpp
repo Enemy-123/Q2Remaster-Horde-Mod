@@ -1012,168 +1012,205 @@ void DMGID_f(edict_t* ent)
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 
-struct ConfigStringManager {
-	std::unordered_map<int, int> entityToConfigString;
-	std::queue<int> availableConfigStrings;
 
+class ConfigStringManager {
+private:
+	static constexpr size_t MAX_CONFIG_STRINGS = CONFIG_ENTITY_INFO_END - CONFIG_ENTITY_INFO_START + 1;
+	std::vector<int> m_availableIndices;
+	std::unordered_map<int, int> m_entityToConfig;
+
+public:
 	ConfigStringManager() noexcept {
+		m_availableIndices.reserve(MAX_CONFIG_STRINGS);
 		for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
-			availableConfigStrings.push(i);
+			m_availableIndices.push_back(i);
 		}
 	}
 
 	int getConfigString(int entity_index) {
-		auto const it = entityToConfigString.find(entity_index);
-		if (it != entityToConfigString.end()) {
+		if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
 			return it->second;
 		}
 
-		if (!availableConfigStrings.empty()) {
-			int cs_index = availableConfigStrings.front();
-			availableConfigStrings.pop();
-			entityToConfigString[entity_index] = cs_index;
+		if (!m_availableIndices.empty()) {
+			int cs_index = m_availableIndices.back();
+			m_availableIndices.pop_back();
+			m_entityToConfig[entity_index] = cs_index;
 			return cs_index;
 		}
 
-		return -1; // No hay ConfigStrings disponibles
+		return -1;
 	}
 
 	void freeConfigString(int entity_index) {
-		auto const it = entityToConfigString.find(entity_index);
-		if (it != entityToConfigString.end()) {
-			availableConfigStrings.push(it->second);
+		if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
+			m_availableIndices.push_back(it->second);
 			gi.configstring(it->second, "");
-			entityToConfigString.erase(it);
+			m_entityToConfig.erase(it);
 		}
 	}
 
 	void updateConfigString(int entity_index, const std::string& value) {
-		int const cs_index = getConfigString(entity_index);
-		if (cs_index != -1) {
+		if (int const cs_index = getConfigString(entity_index); cs_index != -1) {
 			gi.configstring(cs_index, value.c_str());
 		}
 	}
 };
 
-ConfigStringManager configStringManager;
+// Lista de prefijos válidos para IsValidClassname
+static constexpr std::array<std::string_view, 5> ALLOWED_PREFIXES = { {
+	"monster_",
+	"misc_insane",
+	"tesla_mine",
+	"food_cube_trap",
+	"emitter"
+} };
 
 std::string GetDisplayName(const char* classname) {
 	if (!classname) return "Unknown";
-
 	auto it = name_replacements.find(classname);
 	return std::string(it != name_replacements.end() ? it->second : classname);
 }
 
 std::string FormatClassname(const std::string& classname) {
+	std::string result;
+	result.reserve(classname.length());
+
 	std::stringstream ss(classname);
-	std::string segment, formatted_name;
+	std::string segment;
 	bool first_word = true;
+
 	while (std::getline(ss, segment, '_')) {
-		if (!first_word) formatted_name += " ";
-		segment[0] = toupper(segment[0]);
-		formatted_name += segment;
+		if (!first_word) result += ' ';
+		if (!segment.empty()) {
+			segment[0] = toupper(segment[0]);
+			result += segment;
+		}
 		first_word = false;
 	}
-	return formatted_name;
+
+	return result;
 }
 
-static bool IsValidClassname(const char* classname) noexcept {
+bool IsValidClassname(const char* classname) noexcept {
 	if (!classname) return false;
-	const char* allowed_prefixes[] = {
-		"monster_", "misc_insane", "tesla_mine", "food_cube_trap", "emitter", nullptr
-	};
-	for (const char** prefix = allowed_prefixes; *prefix; ++prefix) {
-		if (strncmp(classname, *prefix, strlen(*prefix)) == 0) {
+
+	for (const auto& prefix : ALLOWED_PREFIXES) {
+		if (strncmp(classname, prefix.data(), prefix.length()) == 0) {
 			return true;
 		}
 	}
+
 	return false;
 }
 
 bool IsValidTarget(edict_t* ent, edict_t* other, bool vis) {
-	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT)
+	if (!other || !other->inuse || !other->takedamage || other->solid == SOLID_NOT) {
 		return false;
-	if (other == ent || other->svflags & SVF_DEADMONSTER)
+	}
+
+	if (other == ent || other->svflags & SVF_DEADMONSTER) {
 		return false;
-	if (vis && ent && !visible(ent, other))
+	}
+
+	if (vis && ent && !visible(ent, other)) {
 		return false;
-	if (!IsValidClassname(other->classname) && (!(other->client)))
-		return false;
-	return true;
+	}
+
+	return other->client || IsValidClassname(other->classname);
 }
 
 int GetArmorInfo(edict_t* ent) {
 	if (ent->svflags & SVF_MONSTER) {
 		return ent->monsterinfo.power_armor_power;
 	}
+
+	if (!ent->client) {
+		return 0;
+	}
+
 	int const index = ArmorIndex(ent);
-	return (ent->client && index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
+	return (index != IT_NULL) ? ent->client->pers.inventory[index] : 0;
+}
+
+template<typename Duration>
+int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
+	return std::max(0, static_cast<int>((end_time - current_time).template seconds<float>()));
 }
 
 std::string FormatEntityInfo(edict_t* ent) {
+	if (!ent) {
+		return "";
+	}
+
 	std::string info;
+	info.reserve(256);
 
 	if (ent->svflags & SVF_MONSTER) {
 		std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
-		std::string name = title + FormatClassname(GetDisplayName(ent->classname ? ent->classname : "Unknown Monster"));
-		info = fmt::format("{}\nH: {}", name, ent->health);
+		std::string name = GetDisplayName(ent->classname ? ent->classname : "Unknown Monster");
+		fmt::format_to(std::back_inserter(info), "{}{}\nH: {}",
+			title, FormatClassname(name), ent->health);
 
 		if (ent->monsterinfo.armor_power >= 1) {
-			info += fmt::format(" A: {}", ent->monsterinfo.armor_power);
-		}
-		if (ent->monsterinfo.power_armor_power >= 1) {
-			info += fmt::format(" PA: {}", ent->monsterinfo.power_armor_power);
+			fmt::format_to(std::back_inserter(info), " A: {}", ent->monsterinfo.armor_power);
 		}
 
-		// Añadir información de powerups
-		if (ent->monsterinfo.quad_time > level.time) {
-			int remaining_quad_time = static_cast<int>((ent->monsterinfo.quad_time - level.time).seconds<float>());
-			info += fmt::format("\nQuad: {}s", remaining_quad_time);
+		if (ent->monsterinfo.power_armor_power >= 1) {
+			fmt::format_to(std::back_inserter(info), " PA: {}", ent->monsterinfo.power_armor_power);
 		}
-		if (ent->monsterinfo.double_time > level.time) {
-			int remaining_double_time = static_cast<int>((ent->monsterinfo.double_time - level.time).seconds<float>());
-			info += fmt::format("\nDouble: {}s", remaining_double_time);
-		}
-		if (ent->monsterinfo.invincible_time > level.time) {
-			int remaining_invincible_time = static_cast<int>((ent->monsterinfo.invincible_time - level.time).seconds<float>());
-			info += fmt::format("\nInvuln: {}s", remaining_invincible_time);
-		}
-		if (ent->monsterinfo.quadfire_time > level.time) {
-			int remaining_quadfire_time = static_cast<int>((ent->monsterinfo.quadfire_time - level.time).seconds<float>());
-			info += fmt::format("\nAccel: {}s", remaining_quadfire_time);
+
+		struct PowerupInfo {
+			gtime_t time;
+			const char* label;
+		};
+
+		std::array<PowerupInfo, 4> powerups{ {
+			{ent->monsterinfo.quad_time, "Quad"},
+			{ent->monsterinfo.double_time, "Double"},
+			{ent->monsterinfo.invincible_time, "Invuln"},
+			{ent->monsterinfo.quadfire_time, "Accel"}
+		} };
+
+		for (const auto& powerup : powerups) {
+			if (powerup.time > level.time) {
+				fmt::format_to(std::back_inserter(info), "\n{}: {}s",
+					powerup.label, GetRemainingTime<float>(level.time, powerup.time));
+			}
 		}
 	}
 	else if (ent->client) {
 		std::string playerName = GetPlayerName(ent);
-		info = fmt::format("{}\nH: {}", playerName, ent->health);
-		int armor_value = GetArmorInfo(ent);
-		if (armor_value > 0) {
-			info += fmt::format(" A: {}", armor_value);
+		fmt::format_to(std::back_inserter(info), "{}\nH: {}", playerName, ent->health);
+
+		if (int armor = GetArmorInfo(ent); armor > 0) {
+			fmt::format_to(std::back_inserter(info), " A: {}", armor);
 		}
 	}
-	else if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap") || !strcmp(ent->classname, "prox_mine")) {
-		std::string name = GetDisplayName(ent->classname);
-		info = fmt::format("{}H: {}", name, ent->health);
-		if (!strcmp(ent->classname, "tesla_mine") || !strcmp(ent->classname, "food_cube_trap")) {
+	else if (const char* classname = ent->classname) {
+		std::string name = GetDisplayName(classname);
+		fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, ent->health);
+
+		if (strcmp(classname, "tesla_mine") == 0 || strcmp(classname, "food_cube_trap") == 0) {
 			gtime_t const time_active = level.time - ent->timestamp;
-			gtime_t const time_remaining = (!strcmp(ent->classname, "tesla_mine")) ? TESLA_TIME_TO_LIVE - time_active : -time_active;
-			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-			info += fmt::format(" T: {}s", remaining_time);
+			gtime_t const time_remaining = (strcmp(classname, "tesla_mine") == 0)
+				? TESLA_TIME_TO_LIVE - time_active
+				: -time_active;
+
+			fmt::format_to(std::back_inserter(info), " T: {}s",
+				GetRemainingTime<float>(gtime_t{}, time_remaining));
 		}
-	}
-	else if (!strcmp(ent->classname, "emitter")) {
-		std::string name = "Laser Emitter";
-		info = fmt::format("{}\nH: {}", name, ent->health);
-		// Agregar información sobre el láser
-		if (ent->owner && ent->owner->inuse) {
-			info += fmt::format(" DMG: {}", ent->owner->health);
-			// Calcular tiempo restante
+		else if (strcmp(classname, "emitter") == 0 && ent->owner && ent->owner->inuse) {
+			fmt::format_to(std::back_inserter(info), " DMG: {}", ent->owner->health);
+
 			gtime_t const time_active = level.time - ent->owner->timestamp;
 			gtime_t const time_remaining = ent->timestamp - time_active;
-			int remaining_time = std::max(0, static_cast<int>(time_remaining.seconds<float>()));
-			info += fmt::format(" T: {}s", remaining_time);
+
+			fmt::format_to(std::back_inserter(info), " T: {}s",
+				GetRemainingTime<float>(gtime_t{}, time_remaining));
 		}
 	}
+
 	return info;
 }
 
