@@ -263,18 +263,27 @@ bool M_ShouldReactToPain(edict_t* self, const mod_t& mod)
 void M_WorldEffects(edict_t* ent)
 {
 	int dmg;
-
 	if (ent->health > 0)
 	{
 		bool take_drown_damage = false;
-
 		if (!(ent->flags & FL_SWIM))
 		{
 			if (ent->waterlevel < WATER_UNDER)
 				ent->air_finished = level.time + 6_sec;
 			else if (ent->air_finished < level.time)
-				take_drown_damage = true;
-
+			{
+				// Intentar teletransportar si es un monstruo que se está ahogando
+				if ((ent->svflags & SVF_MONSTER))
+				{
+					CheckAndTeleportStuckMonster(ent);
+					// Si el teletransporte fue exitoso, resetear air_finished
+					ent->air_finished = level.time + 6_sec;
+				}
+				else
+				{
+					take_drown_damage = true;
+				}
+			}
 		}
 		else
 		{
@@ -283,7 +292,6 @@ void M_WorldEffects(edict_t* ent)
 			else if (ent->air_finished < level.time)
 				take_drown_damage = true;
 		}
-
 		if (take_drown_damage && ent->pain_debounce_time < level.time)
 		{
 			dmg = 2 + (int)(2 * floorf((level.time - ent->air_finished).seconds()));

@@ -2611,20 +2611,21 @@ void SetHealthBarName(const edict_t* boss) {
 //CS HORDE
 
 void UpdateHordeHUD() {
-	// Si no hay mensaje activo o el tiempo ha expirado, no hacer nada
-	if (horde_message_end_time == 0_sec || level.time >= horde_message_end_time) {
-		return;
-	}
+    // Si el tiempo ha expirado, limpiar el mensaje
+    if (horde_message_end_time != 0_sec && level.time >= horde_message_end_time) {
+        ClearHordeMessage();
+        return;
+    }
 
-	// Solo actualizar si tenemos un mensaje activo
-	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-	if (current_msg && current_msg[0] != '\0') {
-		for (auto player : active_players()) {
-			if (player->inuse && player->client && !player->client->voted_map[0]) {
-				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-			}
-		}
-	}
+    // Solo actualizar si tenemos un mensaje activo
+    const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+    if (current_msg && current_msg[0] != '\0') {
+        for (auto player : active_players()) {
+            if (player->inuse && player->client && !player->client->voted_map[0]) {
+                player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+            }
+        }
+    }
 }
 
 // Implementación de UpdateHordeMessage
