@@ -272,12 +272,14 @@ void M_WorldEffects(edict_t* ent)
 				ent->air_finished = level.time + 6_sec;
 			else if (ent->air_finished < level.time)
 			{
-				// Intentar teletransportar si es un monstruo que se está ahogando
-				if ((ent->svflags & SVF_MONSTER))
-				{
-					CheckAndTeleportStuckMonster(ent);
-					// Si el teletransporte fue exitoso, resetear air_finished
-					ent->air_finished = level.time + 6_sec;
+				if (g_horde->integer && !ent->monsterinfo.IS_BOSS) {
+					// Intentar teletransportar si es un monstruo que se está ahogando
+					if ((ent->svflags & SVF_MONSTER))
+					{
+						CheckAndTeleportStuckMonster(ent);
+						// Si el teletransporte fue exitoso, resetear air_finished
+						ent->air_finished = level.time + 6_sec;
+					}
 				}
 				else
 				{
@@ -682,12 +684,12 @@ void G_MonsterKilled(edict_t* self)
 			{
 				if (self->enemy->client->quadfire_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(1.05); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
 					self->enemy->client->quadfire_time += extra_time;
 				}
 				if (self->enemy->client->quad_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.55); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
 					self->enemy->client->quad_time += extra_time;
 				}
 			}
@@ -706,19 +708,19 @@ void G_MonsterKilled(edict_t* self)
 			{
 				if (self->enemy->owner->client->quadfire_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.8); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(0.75); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->quadfire_time += extra_time;
 				}
 
 				if (self->enemy->owner->client->double_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.8); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->double_time += extra_time;
 				}
 
 				if (self->enemy->owner->client->quad_time > level.time)
 				{
-					const	gtime_t extra_time = gtime_t::from_sec(0.8); // Ajusta este valor según sea necesario
+					const	gtime_t extra_time = gtime_t::from_sec(0.5); // Ajusta este valor según sea necesario
 					self->enemy->owner->client->quad_time += extra_time;
 				}
 			}
