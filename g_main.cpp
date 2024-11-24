@@ -958,7 +958,7 @@ inline void G_RunFrame_(bool main_loop)
 		}
 
 		// Configuración de escala de jugadores
-		level.coop_scale_players = 1 + GetNumHumanPlayers();
+		level.coop_scale_players = 2 + GetNumHumanPlayers();
 		G_Monster_CheckCoopHealthScaling();
 
 		// Verificaciones de estado de monstruos/cleanup

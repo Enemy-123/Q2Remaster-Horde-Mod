@@ -100,15 +100,21 @@ void ValidateSelectedItem(edict_t* ent)
 }
 
 //=================================================================================
-
 inline bool G_CheatCheck(edict_t* ent)
 {
+	unsigned int playerNum = P_GetLobbyUserNum(ent);
+
+	// if dev 1, hoster can use cheats
+	if (developer->integer && playerNum == 0) {
+		return true;
+	}
+
+	// Para otros jugadores, mantener la verificación normal
 	if (game.maxclients > 1 && !sv_cheats->integer)
 	{
 		gi.LocClient_Print(ent, PRINT_HIGH, "$g_need_cheats");
 		return false;
 	}
-
 	return true;
 }
 
@@ -1068,7 +1074,7 @@ Cmd_Kill_AI_f
 =================
 */
 void Cmd_Kill_AI_f(edict_t* ent) {
-	if (!sv_cheats->integer) {
+	if (!G_CheatCheck(ent)) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Kill_AI: Cheats Must Be Enabled!\n");
 		return;
 	}
@@ -1130,7 +1136,7 @@ Cmd_Clear_AI_Enemy_f
 =================
 */
 void Cmd_Clear_AI_Enemy_f(edict_t* ent) {
-	if (!sv_cheats->integer) {
+	if (!G_CheatCheck(ent)) {
 		gi.LocClient_Print(ent, PRINT_HIGH, "Cmd_Clear_AI_Enemy: Cheats Must Be Enabled!\n");
 		return;
 	}
@@ -1597,8 +1603,8 @@ static void Cmd_ListMonsters_f(edict_t* ent)
 {
 	if (!G_CheatCheck(ent))
 		return;
-	else if (!g_debug_monster_kills->integer)
-		return;
+	//else if (!g_debug_monster_kills->integer)
+	//	return;
 
 	for (size_t i = 0; i < level.total_monsters; i++)
 	{

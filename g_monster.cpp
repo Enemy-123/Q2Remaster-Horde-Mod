@@ -1303,8 +1303,6 @@ void monster_death_use(edict_t* self)
 // many active players we have
 void G_Monster_ScaleCoopHealth(edict_t* self)
 {
-
-
 	// No escalar si es un jefe
 	if (self->monsterinfo.IS_BOSS)
 		return;;

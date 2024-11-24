@@ -3728,6 +3728,34 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 	return false;
 }
 
+//debugging
+
+static void PrintRemainingMonsterCounts() {
+	// Crear un mapa para contar los tipos de monstruos
+	std::unordered_map<std::string, int> monster_counts;
+
+	for (const auto ent : active_monsters()) {
+		// Solo contar monstruos que el juego considera vivos pero no deberían estarlo
+		if (ent->inuse && !ent->deadflag && ent->health > 0) {
+			monster_counts[ent->classname]++;
+		}
+	}
+
+	// Si hay discrepancia entre los contadores
+	if (level.total_monsters > 0) {
+		gi.Com_PrintFmt("WARNING: Monster count discrepancy detected:\n");
+		gi.Com_PrintFmt("Total monsters according to level: {}\n", level.total_monsters);
+		gi.Com_PrintFmt("Killed monsters: {}\n", level.killed_monsters);
+
+		if (!monster_counts.empty()) {
+			gi.Com_PrintFmt("Remaining monster types:\n");
+			for (const auto& [classname, count] : monster_counts) {
+				gi.Com_PrintFmt("- {} : {}\n", classname, count);
+			}
+		}
+	}
+}
+
 static void SendCleanupMessage(WaveEndReason reason) {
 	gtime_t duration = 2_sec;
 	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
@@ -3743,6 +3771,7 @@ static void SendCleanupMessage(WaveEndReason reason) {
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
+		PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);

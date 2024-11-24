@@ -722,7 +722,7 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 }
 
 static void HandleAutoHaste(edict_t* attacker, const edict_t* targ, int damage) {
-	if (!g_autohaste || !attacker || !attacker->client ||
+	if (!g_autohaste->integer || !attacker || !attacker->client ||
 		attacker->client->quadfire_time >= level.time ||
 		damage <= 0 || (attacker->health < 1 && targ->health < 1)) {
 		return;
