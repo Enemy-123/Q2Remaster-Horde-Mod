@@ -47,7 +47,7 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int8_t last_wave_number = 0;              // Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 
-gtime_t horde_message_end_time = 0_sec;
+gtime_t horde_message_end_time = level.time;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown 
 
 // Añadir cerca de las otras constexpr al inicio del archivo
@@ -578,16 +578,16 @@ static void Horde_InitLevel(const int32_t lvl) {
 	// Ajustar la escala de daño según el nivel
 	switch (lvl) {
 	case 15:
-		gi.cvar_set("g_damage_scale", "1.75");
+		gi.cvar_set("g_damage_scale", "1.5");
 		break;
 	case 25:
-		gi.cvar_set("g_damage_scale", "2.25");
+		gi.cvar_set("g_damage_scale", "2.0");
 		break;
 	case 35:
-		gi.cvar_set("g_damage_scale", "3.5");
+		gi.cvar_set("g_damage_scale", "3.0");
 		break;
 	case 45:
-		gi.cvar_set("g_damage_scale", "4");
+		gi.cvar_set("g_damage_scale", "3.75");
 		break;
 	default:
 		break;

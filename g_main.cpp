@@ -988,11 +988,6 @@ inline void G_RunFrame_(bool main_loop)
 		}
 
 		// En la sección de HUD y mensajes
-		static gtime_t next_hud_update = 0_ms;
-		if (level.time >= next_hud_update) {
-			// Usar un intervalo más conservador (10 FPS es suficiente para mensajes)
-			constexpr gtime_t HUD_UPDATE_INTERVAL = 100_ms;
-
 			// Verificar mensajes expirados primero
 			if (horde_message_end_time > 0_sec) {
 				if (level.time >= horde_message_end_time) {
@@ -1007,9 +1002,6 @@ inline void G_RunFrame_(bool main_loop)
 				}
 			}
 
-			// Programar siguiente actualización
-			next_hud_update = level.time + HUD_UPDATE_INTERVAL;
-
 			// Verificar estado de jugadores
 			for (auto player : active_players()) {
 				if (player->client && !player->client->ps.stats[STAT_HORDEMSG] &&
@@ -1018,7 +1010,7 @@ inline void G_RunFrame_(bool main_loop)
 					player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
 				}
 			}
-		}
+		
 	}
 
 	level.in_frame = true;
