@@ -416,13 +416,31 @@ void tank_vanillaStrike(edict_t* self)
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
 	void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
 	// Daño radial
-	T_SlamRadiusDamage(tr.endpos, self, self, 60, 450.f, self, 165, MOD_TANK_PUNCH);
+	T_SlamRadiusDamage(tr.endpos, self, self, 75, 450.f, self, 165, MOD_TANK_PUNCH);
 
 	// Check if we have slots left to spawn monsters
 	if (self->monsterinfo.monster_used <= 3)
 		return;
 
 }
+
+mframe_t tank_vanilla_frames_punch[] =
+{
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, tank_vanillaStrike},  // FRAME_attak225 - Añadir footstep aquí
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr}   // FRAME_attak229
+};
+MMOVE_T(tank_vanilla_move_punch) = { FRAME_attak224, FRAME_attak235, tank_vanilla_frames_punch, tank_vanilla_run };
+
 
 void tank_vanillaRocket(edict_t* self)
 {
@@ -988,14 +1006,23 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 		return;
 	}
 
+	const int to_enemy = range_to(self, self->enemy);
+	const float range = to_enemy;
+
+	if (self && self->enemy && range <= RANGE_MELEE * 2)
+	{
+		M_SetAnimation(self, &tank_vanilla_move_punch);
+		return;
+	}
+
 	constexpr float CLOSE_RANGE = 125.0f;
 	constexpr float MID_RANGE = 250.0f;
 	constexpr gtime_t PAIN_IMMUNITY = 5_sec;
 	constexpr gtime_t SPAWN_COOLDOWN = 10_sec;
 
 	// Get range to enemy
-	const vec3_t to_enemy = self->enemy->s.origin - self->s.origin;
-	const float range = to_enemy.length();
+
+
 
 	// Handle monster spawning logic
 	const bool can_spawn = M_SlotsLeft(self) > 0;
@@ -1003,8 +1030,7 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	const bool spawn_cooldown_ready = level.time >= self->monsterinfo.spawn_cooldown;  // Nueva verificación
 
 	if (self->monsterinfo.monster_used <= 3 && can_spawn && has_clear_path && spawn_cooldown_ready &&
-		(visible(self, self->enemy) && infront(self, self->enemy) ||
-			range <= RANGE_MELEE * 2))
+		(visible(self, self->enemy) && infront(self, self->enemy)))
 	{
 		M_SetAnimation(self, &tank_move_spawn);
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;

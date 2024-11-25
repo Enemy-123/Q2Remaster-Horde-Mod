@@ -496,11 +496,17 @@ mframe_t tank_frames_punch[] =
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, nullptr},
 	{ai_charge, 0, TankStrike},  // FRAME_attak225 - Añadir footstep aquí
-	{ai_charge, -1, nullptr}, 
 	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
 	{ai_charge, -2, nullptr}   // FRAME_attak229
 };
-MMOVE_T(tank_move_punch) = { FRAME_attak224, FRAME_attak229, tank_frames_punch, tank_run };
+MMOVE_T(tank_move_punch) = { FRAME_attak224, FRAME_attak235, tank_frames_punch, tank_run };
 
 
 

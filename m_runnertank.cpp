@@ -500,9 +500,15 @@ mframe_t tank_frames_punch_attack[] =
 	{ai_charge, 0, runnertankStrike},  // FRAME_attak225 - Añadir footstep aquí
 	{ai_charge, 0, nullptr},  // FRAME_attak226 - Engendrar monstruo aquí
 	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
 	{ai_charge, -2, nullptr}   // FRAME_attak229
 };
-MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak229, tank_frames_punch_attack, runnertank_run };
+MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak235, tank_frames_punch_attack, runnertank_run };
 
 
 void runnertankRocket(edict_t* self) {
@@ -834,9 +840,9 @@ void runnertank_consider_strafe(edict_t* self)
 	float strafe_chance = 0.3f; // Base chance más baja para no ser tan errático
 	// Aumentar probabilidad en situaciones críticas
 	if (self->enemy->client && (self->enemy->client->buttons & BUTTON_ATTACK))
-		strafe_chance += 0.2f;
+		strafe_chance += 0.4f;
 	if (self->health < self->max_health * 0.5f)
-		strafe_chance += 0.15f;
+		strafe_chance += 0.35f;
 
 	// Solo strafear si tenemos una buena razón
 	if (frandom() < strafe_chance)
@@ -847,17 +853,17 @@ void runnertank_consider_strafe(edict_t* self)
 		// Calcular velocidad de strafe
 		vec3_t right;
 		AngleVectors(self->s.angles, nullptr, right, nullptr);
-		float strafe_speed = 150.0f; // Velocidad base más controlada
+		float strafe_speed = 180.0f; // Velocidad base más controlada
 
 		// Ajustar velocidad según la situación
 		if (self->health < self->max_health * 0.5f)
-			strafe_speed *= 1.2f; // Más rápido si está herido
+			strafe_speed *= 1.6f; // Más rápido si está herido
 
 		// Aplicar el strafe directamente usando los operadores de vec3_t
 		self->velocity = self->velocity + (right * (strafe_speed * self->monsterinfo.lefty));
 
 		// Tiempo más corto de strafe para mayor control
-		self->monsterinfo.pausetime = level.time + random_time(0.5_sec, 1.0_sec);
+		self->monsterinfo.pausetime = level.time + random_time(0.8_sec, 1.2_sec);
 	}
 }
 
@@ -871,8 +877,8 @@ void runnertank_consider_attack(edict_t* self)
 		return;
 
 	// Agregar verificación de línea de visión
-	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
-	if (!has_clear_path && !visible(self, self->enemy))
+	//const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	if (!visible(self, self->enemy))
 		return;
 
 	const float range = range_to(self, self->enemy);
@@ -894,7 +900,7 @@ void runnertank_consider_attack(edict_t* self)
 	// Para rango cercano, priorizar diferentes ataques
 	if (range <= RANGE_NEAR)
 	{
-		if (can_chain && self->health < self->max_health * 0.7)
+		if (can_chain && self->health < self->max_health * 0.7f)
 		{
 			// Usar plasma más en situaciones defensivas
 			M_SetAnimation(self, &runnertank_move_attack_chain);
