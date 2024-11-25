@@ -120,6 +120,14 @@ struct HordeState {
 	bool            timeWarningIssued = false;
 	gtime_t         waveEndTime = 0_sec;
 	bool            warningIssued[4] = { false, false, false, false }; // Array estático en lugar de vector
+
+	gtime_t last_successful_hud_update = 0_sec;
+	uint32_t failed_updates_count = 0;
+
+	void reset_hud_state() {
+		last_successful_hud_update = 0_sec;
+		failed_updates_count = 0;
+	}
 }g_horde_local;
 
 // Clase de selección genérica usando templates
@@ -1315,34 +1323,13 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Define the bounding box for checking occupation
-	vec3_t mins, maxs;
-	// Factor de multiplicación para garantizar espacio adicional 
-	constexpr float space_multiplier = 2.5f;
+	// Define el espacio adicional usando vec3_t
+	const vec3_t space_multiplier{ 2.5f, 2.5f, 2.5f };
+	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
+	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
 
-	// Define los bounds usando array y span
-	std::array<vec3_t, 2> bounds = {
-		vec3_t{
-			spawn_point->s.origin[0] - 16 * space_multiplier,
-			spawn_point->s.origin[1] - 16 * space_multiplier,
-			spawn_point->s.origin[2] - 24 * space_multiplier
-		},
-		vec3_t{
-			spawn_point->s.origin[0] + 16 * space_multiplier,
-			spawn_point->s.origin[1] + 16 * space_multiplier,
-			spawn_point->s.origin[2] + 32 * space_multiplier
-		}
-	};
-
-	std::span<const vec3_t> bounds_view{ bounds };
-	mins = bounds_view[0];
-	maxs = bounds_view[1];
-
-	// Data structure to hold information for filtering entities
 	FilterData filter_data = { ignore_ent, 0 };
-
-	// Use BoxEdicts to check for any relevant entities in the area
-	gi.BoxEdicts(mins, maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
 	return filter_data.count > 0;
 }
@@ -2033,13 +2020,18 @@ static void OldBossDeathHandler(edict_t* boss)
 	// Dropear un arma especial de nivel superior
 	if (const char* weapon_classname = SelectBossWeaponDrop(current_wave_level)) {
 		if (edict_t* weapon = Drop_Item(boss, FindItemByClassname(weapon_classname))) {
-			// Generar velocidad aleatoria usando vec3_t
-			const vec3_t weaponVelocity = {
-				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
-				static_cast<float>(std::uniform_int_distribution<>(MIN_VELOCITY, MAX_VELOCITY)(mt_rand)),
-				static_cast<float>(std::uniform_int_distribution<>(MIN_VERTICAL_VELOCITY, MAX_VERTICAL_VELOCITY)(mt_rand))
-			};
 
+			const vec3_t base_velocity = vec3_t{
+				static_cast<float>(MIN_VELOCITY),
+				static_cast<float>(MIN_VELOCITY),
+				static_cast<float>(MIN_VERTICAL_VELOCITY)
+			};
+			const vec3_t velocity_range = vec3_t{
+				static_cast<float>(MAX_VELOCITY - MIN_VELOCITY),
+				static_cast<float>(MAX_VELOCITY - MIN_VELOCITY),
+				static_cast<float>(MAX_VERTICAL_VELOCITY - MIN_VERTICAL_VELOCITY)
+			};
+			const vec3_t weaponVelocity = base_velocity + velocity_range.scaled(vec3_t{ frandom(), frandom(), frandom() });
 			weapon->s.origin = boss->s.origin;
 			weapon->velocity = weaponVelocity;
 			weapon->movetype = MOVETYPE_BOUNCE;
@@ -2799,21 +2791,33 @@ void SetHealthBarName(const edict_t* boss) {
 //CS HORDE
 
 void UpdateHordeHUD() {
-    // Si el tiempo ha expirado, limpiar el mensaje
-    if (horde_message_end_time != 0_sec && level.time >= horde_message_end_time) {
-        ClearHordeMessage();
-        return;
-    }
+	bool update_successful = false;
 
-    // Solo actualizar si tenemos un mensaje activo
-    const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-    if (current_msg && current_msg[0] != '\0') {
-        for (auto player : active_players()) {
-            if (player->inuse && player->client && !player->client->voted_map[0]) {
-                player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-            }
-        }
-    }
+	// Intentar actualizar el HUD
+	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+	if (current_msg && current_msg[0] != '\0') {
+		for (auto player : active_players()) {
+			if (player->inuse && player->client && !player->client->voted_map[0]) {
+				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+				update_successful = true;
+			}
+		}
+	}
+
+	// Manejar resultado
+	if (update_successful) {
+		g_horde_local.last_successful_hud_update = level.time;
+		g_horde_local.failed_updates_count = 0;
+	}
+	else {
+		g_horde_local.failed_updates_count++;
+
+		// Si hay demasiados fallos seguidos, forzar un reset
+		if (g_horde_local.failed_updates_count > 5) {
+			ClearHordeMessage();
+			g_horde_local.reset_hud_state();
+		}
+	}
 }
 
 // Implementación de UpdateHordeMessage

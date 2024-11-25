@@ -987,17 +987,37 @@ inline void G_RunFrame_(bool main_loop)
 			next_cleanup = level.time + 1_sec;
 		}
 
-		// HUD y mensajes - Modificar esta parte
+		// En la sección de HUD y mensajes
 		static gtime_t next_hud_update = 0_ms;
 		if (level.time >= next_hud_update) {
-			// Verificar y limpiar mensajes expirados primero
-			if (horde_message_end_time > 0_sec && level.time >= horde_message_end_time) {
-				ClearHordeMessage();
+			// Usar un intervalo más conservador (10 FPS es suficiente para mensajes)
+			constexpr gtime_t HUD_UPDATE_INTERVAL = 100_ms;
+
+			// Verificar mensajes expirados primero
+			if (horde_message_end_time > 0_sec) {
+				if (level.time >= horde_message_end_time) {
+					ClearHordeMessage();
+				}
+				else {
+					// Asegurarse de que el mensaje siga siendo visible
+					const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+					if (!current_msg || !current_msg[0]) {
+						UpdateHordeHUD(); // Re-mostrar mensaje si se perdió
+					}
+				}
 			}
-			else {
-				UpdateHordeHUD();
+
+			// Programar siguiente actualización
+			next_hud_update = level.time + HUD_UPDATE_INTERVAL;
+
+			// Verificar estado de jugadores
+			for (auto player : active_players()) {
+				if (player->client && !player->client->ps.stats[STAT_HORDEMSG] &&
+					gi.get_configstring(CONFIG_HORDEMSG)[0]) {
+					// Restaurar mensaje si se perdió para algún jugador
+					player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
+				}
 			}
-			next_hud_update = level.time + 50_ms; // 20 fps para el HU
 		}
 	}
 
