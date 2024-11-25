@@ -1214,22 +1214,22 @@ std::string FormatEntityInfo(edict_t* ent) {
 	return info;
 }
 
-// En g_local.h o donde tengas definidas tus estructuras globales
 class OptimizedEntityInfoManager {
 public:
 	static constexpr size_t MAX_ENTITY_INFOS = 80;
 	using ConfigStringSpan = std::span<const char>;
 
 private:
-	// Usando string_view para referencias ligeras a strings
 	struct EntityInfo {
-		std::array<char, 256> data{}; // Buffer fijo para evitar allocaciones
+		std::array<char, 256> data{};
 		size_t length{ 0 };
+		std::unordered_set<int> viewing_players;
+		gtime_t last_update{ 0_sec };
 	};
 
 	std::array<EntityInfo, MAX_ENTITY_INFOS> m_activeConfigStrings;
 	std::unordered_map<int, int> m_entityToConfigIndex;
-	std::vector<int> m_lruCache; // Vector más eficiente que queue para nuestro caso
+	std::vector<int> m_lruCache;
 	size_t m_activeCount{ 0 };
 
 public:
@@ -1237,8 +1237,8 @@ public:
 		m_lruCache.reserve(MAX_ENTITY_INFOS);
 	}
 
-	void updateEntityInfo(int entityIndex, std::string_view info) noexcept {
-		if (info.length() >= 256) return; // Protección contra desbordamiento
+	void updateEntityInfo(int entityIndex, std::string_view info, edict_t* viewer = nullptr) noexcept {
+		if (info.length() >= 256) return;
 
 		int configIndex;
 		auto it = m_entityToConfigIndex.find(entityIndex);
@@ -1256,14 +1256,29 @@ public:
 			configIndex = it->second;
 		}
 
-		// Copiar datos de forma segura
 		auto& entityInfo = m_activeConfigStrings[configIndex];
-		std::copy_n(info.data(), info.length(), entityInfo.data.data());
-		entityInfo.length = info.length();
-		entityInfo.data[info.length()] = '\0';
 
-		// Actualizar configstring del engine
-		gi.configstring(CONFIG_ENTITY_INFO_START + configIndex, entityInfo.data.data());
+		// Solo actualizar si el contenido es diferente o ha pasado suficiente tiempo
+		if (entityInfo.length != info.length() ||
+			std::memcmp(entityInfo.data.data(), info.data(), info.length()) != 0 ||
+			level.time - entityInfo.last_update > 250_ms) {
+
+			std::copy_n(info.data(), info.length(), entityInfo.data.data());
+			entityInfo.length = info.length();
+			entityInfo.data[info.length()] = '\0';
+			entityInfo.last_update = level.time;
+
+			// Actualizar configstring del engine
+			gi.configstring(CONFIG_ENTITY_INFO_START + configIndex, entityInfo.data.data());
+		}
+
+		if (viewer) {
+			int playerIndex = P_GetLobbyUserNum(viewer);
+			entityInfo.viewing_players.insert(playerIndex);
+
+			gi.unicast(viewer, true);
+		}
+
 		updateLRU(configIndex);
 	}
 
@@ -1271,13 +1286,33 @@ public:
 		auto it = m_entityToConfigIndex.find(entityIndex);
 		if (it != m_entityToConfigIndex.end()) {
 			int configIndex = it->second;
-			m_activeConfigStrings[configIndex].length = 0;
-			m_activeConfigStrings[configIndex].data[0] = '\0';
+			auto& entityInfo = m_activeConfigStrings[configIndex];
+
+			// Limpiar el configstring
+			entityInfo.length = 0;
+			entityInfo.data[0] = '\0';
+			entityInfo.viewing_players.clear();
 			gi.configstring(CONFIG_ENTITY_INFO_START + configIndex, "");
 
 			removeLRU(configIndex);
 			m_entityToConfigIndex.erase(it);
 			--m_activeCount;
+		}
+	}
+
+	void removeViewer(int entityIndex, edict_t* viewer) noexcept {
+		if (!viewer) return;
+
+		auto it = m_entityToConfigIndex.find(entityIndex);
+		if (it != m_entityToConfigIndex.end()) {
+			int playerIndex = P_GetLobbyUserNum(viewer);
+			auto& entityInfo = m_activeConfigStrings[it->second];
+			entityInfo.viewing_players.erase(playerIndex);
+
+			// Si nadie está viendo esta entidad, considerar liberarla
+			if (entityInfo.viewing_players.empty()) {
+				considerCleanup(entityIndex);
+			}
 		}
 	}
 
@@ -1296,17 +1331,47 @@ public:
 			CONFIG_ENTITY_INFO_START + it->second : -1;
 	}
 
+	void cleanupStaleEntries() noexcept {
+		constexpr gtime_t STALE_THRESHOLD = 5000_ms;
+
+		for (auto it = m_entityToConfigIndex.begin(); it != m_entityToConfigIndex.end();) {
+			auto& entityInfo = m_activeConfigStrings[it->second];
+
+			if (entityInfo.viewing_players.empty() &&
+				level.time - entityInfo.last_update > STALE_THRESHOLD) {
+				removeEntityInfo(it->first);
+				it = m_entityToConfigIndex.begin(); // Reiniciar iteración ya que removeEntityInfo modifica el map
+			}
+			else {
+				++it;
+			}
+		}
+	}
+
 private:
 	int evictLRU() noexcept {
-		if (m_lruCache.empty()) return 0;
-		int index = m_lruCache.front();
-		m_lruCache.erase(m_lruCache.begin());
-		return index;
+		while (!m_lruCache.empty()) {
+			int index = m_lruCache.front();
+			auto& entityInfo = m_activeConfigStrings[index];
+
+			// Solo evictar si nadie está viendo la entidad
+			if (entityInfo.viewing_players.empty()) {
+				m_lruCache.erase(m_lruCache.begin());
+				return index;
+			}
+			// Mover al final si está en uso
+			updateLRU(index);
+		}
+		// Fallback: usar el primer índice si no hay mejor opción
+		return 0;
 	}
 
 	void updateLRU(int index) noexcept {
 		removeLRU(index);
 		m_lruCache.push_back(index);
+		if (m_lruCache.size() > MAX_ENTITY_INFOS) {
+			m_lruCache.erase(m_lruCache.begin());
+		}
 	}
 
 	void removeLRU(int index) noexcept {
@@ -1315,10 +1380,25 @@ private:
 			m_lruCache.erase(it);
 		}
 	}
+
+	void considerCleanup(int entityIndex) noexcept {
+		constexpr gtime_t IMMEDIATE_CLEANUP_THRESHOLD = 1000_ms;
+
+		auto it = m_entityToConfigIndex.find(entityIndex);
+		if (it != m_entityToConfigIndex.end()) {
+			auto& entityInfo = m_activeConfigStrings[it->second];
+
+			// Si la entidad lleva sin actualizarse más del umbral, limpiarla inmediatamente
+			if (level.time - entityInfo.last_update > IMMEDIATE_CLEANUP_THRESHOLD) {
+				removeEntityInfo(entityIndex);
+			}
+			// De lo contrario, se limpiará en la próxima pasada de cleanupStaleEntries
+		}
+	}
 };
+
 // Variable global
 inline OptimizedEntityInfoManager g_entityInfoManager;
-
 
 //// Función auxiliar optimizada
 //inline void UpdateEntityConfigString(edict_t* self) noexcept {
@@ -1400,52 +1480,77 @@ struct TargetSearchResult {
 }
 
 void CTFSetIDView(edict_t* ent) {
-	if (!ent || !ent->client) {
+	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
 	}
 
-	if (level.intermissiontime ||
-		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
-		return;
-	}
-
-	// Reset stats
 	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
-	// Calculate view direction
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
-	// Create span for safe iteration over edicts
-	std::span edicts_span(g_edicts + 1, globals.num_edicts - 1);
+	edict_t* best = nullptr;
+	float closest_dist = 2048;
+	constexpr float min_dot = 0.98f;
+	constexpr float very_close_distance = 100.0f;
+	constexpr float close_min_dot = 0.5f;
 
-	// Find best target
-	auto result = FindBestTarget(ent, edicts_span, forward);
-	edict_t* best = result.target;
+	for (uint32_t i = 1; i < globals.num_edicts; i++) {
+		edict_t* who = g_edicts + i;
+		if (!IsValidTarget(ent, who, false)) continue;
 
-	// Check previous target if no new target found
+		vec3_t dir = who->s.origin - ent->s.origin;
+		float const dist = dir.normalize();
+		float const d = forward.dot(dir);
+
+		bool is_valid_target = false;
+
+		if (dist < very_close_distance) {
+			is_valid_target = (d > close_min_dot);
+		}
+		else {
+			is_valid_target = (d > min_dot);
+		}
+
+		if (is_valid_target && dist < closest_dist) {
+			vec3_t const start = ent->s.origin;
+			vec3_t const end = who->s.origin;
+			trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
+
+			if (tr.fraction == 1.0 || tr.ent == who) {
+				closest_dist = dist;
+				best = who;
+			}
+		}
+	}
+
 	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
 		best = ent->client->idtarget;
 	}
 
-	// Update target information
 	if (best) {
 		ent->client->idtarget = best;
-		int32_t const entity_index = static_cast<int32_t>(best - g_edicts);
+		std::string info_string = FormatEntityInfo(best);
+		int const entity_index = best - g_edicts;
 
-		// Usar string_view para evitar copia
-		std::string_view info_string = FormatEntityInfo(best);
+		// Actualizar el configstring
 		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+		int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
 
-		if (int const configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
-			configStringIndex != -1) {
+		if (configStringIndex != -1) {
+			// Enviar la actualización solo a este jugador
+			gi.unicast(ent, true);
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
+		}
+		else {
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 		}
 	}
 	else {
 		ent->client->idtarget = nullptr;
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 }
 
