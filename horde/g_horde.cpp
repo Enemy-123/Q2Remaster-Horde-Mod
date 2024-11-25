@@ -2865,10 +2865,6 @@ void ClearHordeMessage() {
 	// Resetear el tiempo del mensaje
 	horde_message_end_time = 0_sec;
 
-	// Debug opcional
-	if (developer->integer) {
-		gi.Com_PrintFmt("PRINT: Horde message cleared at time {}\n", level.time.seconds());
-	}
 }
 
 
