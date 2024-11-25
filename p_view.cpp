@@ -800,11 +800,11 @@ static void P_WorldEffects(edict_t* ent, const step_parameters_t& step)
 		{
 			if (ent->client->next_drown_time < level.time)
 			{
-#ifdef PSX_ASSETS
-				gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("player/breathout{}.wav", 1 + ((int32_t)level.time.seconds() % 3)).data()), 1, ATTN_NORM, 0);
-#else
+//#ifdef PSX_ASSETS
+//				gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("player/breathout{}.wav", 1 + ((int32_t)level.time.seconds() % 3)).data()), 1, ATTN_NORM, 0);
+//#else
 				gi.sound(ent, CHAN_VOICE, gi.soundindex(G_Fmt("player/wade{}.wav", 1 + ((int32_t)level.time.seconds() % 3)).data()), 1, ATTN_NORM, 0);
-#endif
+//#endif
 				ent->client->next_drown_time = level.time + 1_sec;
 			}
 		}
