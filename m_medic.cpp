@@ -282,7 +282,7 @@ bool finishHeal(edict_t* self)
 
 		insane->s.origin = position;
 		insane->s.angles = angles;
-		frandom() < 7 ?
+		frandom() > 0.7f ?
 			insane->classname = "misc_insane"
 			: insane->classname = "monster_soldier_lasergun";
 
