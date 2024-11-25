@@ -1034,7 +1034,7 @@ void HORDE_ApplyAmmoRegen(edict_t* ent) {
 		   // Cells (Energy weapons)
 		   {(client->pers.inventory[IT_WEAPON_HYPERBLASTER] || client->pers.inventory[IT_WEAPON_BFG] ||
 			 client->pers.inventory[IT_WEAPON_IONRIPPER] || client->pers.inventory[IT_WEAPON_PLASMABEAM]),
-			IT_AMMO_CELLS, AMMO_CELLS, 25},
+			IT_AMMO_CELLS, AMMO_CELLS, g_bfgpull->integer ? 75 : 25},
 
 		// Slugs
 		{client->pers.inventory[IT_WEAPON_RAILGUN],
