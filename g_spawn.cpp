@@ -2176,11 +2176,11 @@ void SP_worldspawn(edict_t* ent)
 	gi.soundindex("player/wade2.wav");
 	gi.soundindex("player/wade3.wav");
 
-#ifdef PSX_ASSETS
-	gi.soundindex("player/breathout1.wav");
-	gi.soundindex("player/breathout2.wav");
-	gi.soundindex("player/breathout3.wav");
-#endif
+//#ifdef PSX_ASSETS
+//	gi.soundindex("player/breathout1.wav");
+//	gi.soundindex("player/breathout2.wav");
+//	gi.soundindex("player/breathout3.wav");
+//#endif
 
 	gi.soundindex("items/pkup.wav");   // bonus item pickup
 	gi.soundindex("world/land.wav");   // landing thud

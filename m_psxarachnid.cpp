@@ -638,15 +638,6 @@ void SP_monster_psxarachnid(edict_t* self)
 	sound_sight.assign("arachnid/sight.wav");
 	sound_pissed.assign("guncmdr/gcdrsrch1.wav");
 
-#ifdef PSX_ASSETS
-	gi.modelindex("models/monsters/arachnid/gibs/head.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/chest.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/stomach.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/leg.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/l_rail.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/r_rail.md2");
-#endif
-
 	const char* reinforcements = nullptr; // Declare outside if blocks
 
 	

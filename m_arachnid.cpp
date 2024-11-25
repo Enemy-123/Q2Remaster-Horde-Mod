@@ -395,14 +395,14 @@ void SP_monster_arachnid(edict_t* self)
 	sound_death.assign("arachnid/death.wav");
 	sound_sight.assign("arachnid/sight.wav");
 
-#ifdef PSX_ASSETS
-	gi.modelindex("models/monsters/arachnid/gibs/head.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/chest.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/stomach.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/leg.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/l_rail.md2");
-	gi.modelindex("models/monsters/arachnid/gibs/r_rail.md2");
-#endif
+//#ifdef PSX_ASSETS
+//	gi.modelindex("models/monsters/arachnid/gibs/head.md2");
+//	gi.modelindex("models/monsters/arachnid/gibs/chest.md2");
+//	gi.modelindex("models/monsters/arachnid/gibs/stomach.md2");
+//	gi.modelindex("models/monsters/arachnid/gibs/leg.md2");
+//	gi.modelindex("models/monsters/arachnid/gibs/l_rail.md2");
+//	gi.modelindex("models/monsters/arachnid/gibs/r_rail.md2");
+//#endif
 
 	self->s.modelindex = gi.modelindex("models/monsters/arachnid/tris.md2");
 	self->mins = { -48, -48, -20 };
