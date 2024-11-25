@@ -1429,9 +1429,9 @@ void SP_monster_tank(edict_t* self)
 				self->health *= 2.6;
 
 				if (!st.was_key_specified("power_armor_type"))
-					self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+					self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
 				if (!st.was_key_specified("power_armor_power"))
-					self->monsterinfo.power_armor_power = 1250;
+					self->monsterinfo.power_armor_power = 3250;
 			}
 		}
 		if (G_IsCooperative()) {
