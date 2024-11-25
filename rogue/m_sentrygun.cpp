@@ -56,54 +56,9 @@ void UpdateSmokePosition(edict_t* self) {
 	gi.linkentity(self->target_hint_chain);
 }
 
-
-// Función auxiliar para normalizar ángulos de manera más eficiente
-float NormalizeAngle(float angle) {
-	while (angle > 360)
-		angle -= 360;
-	while (angle < 0)
-		angle += 360;
-	return angle;
-}
-
-// Función auxiliar para encontrar la ruta más corta entre dos ángulos
-float ShortestAnglePath(float current, float target) {
-	float diff = target - current;
-
-	// Normalizar la diferencia al rango -180 a 180
-	if (diff > 180)
-		diff -= 360;
-	else if (diff < -180)
-		diff += 360;
-
-	return diff;
-}
-
-// Reemplazar la sección de ajuste de pitch y yaw con esto:
-void AdjustTurretAngles(edict_t* self, float idealPitch, float idealYaw, float base_speed)
-{
-	// Normalizar ángulos actuales y objetivos
-	const float current_pitch = NormalizeAngle(self->s.angles[PITCH]);
-	const float current_yaw = NormalizeAngle(self->s.angles[YAW]);
-	idealPitch = NormalizeAngle(idealPitch);
-	idealYaw = NormalizeAngle(idealYaw);
-
-	// Calcular el camino más corto para pitch y yaw
-	const float pitch_diff = ShortestAnglePath(current_pitch, idealPitch);
-	const float yaw_diff = ShortestAnglePath(current_yaw, idealYaw);
-
-	// Aplicar movimiento con límite de velocidad
-	const float pitch_move = std::clamp(pitch_diff, -base_speed, base_speed);
-	const float yaw_move = std::clamp(yaw_diff, -base_speed, base_speed);
-
-	// Actualizar ángulos
-	self->s.angles[PITCH] = NormalizeAngle(current_pitch + pitch_move);
-	self->s.angles[YAW] = NormalizeAngle(current_yaw + yaw_move);
-}
-
-
 void turret2Aim(edict_t* self)
 {
+
 	// Validaciones iniciales críticas
 	if (!self || !self->inuse)
 		return;
@@ -113,143 +68,256 @@ void turret2Aim(edict_t* self)
 
 	TurretSparks(self);
 
-	// Verificación del enemigo con early return
-	const bool enemy_valid = (self->enemy && self->enemy != world &&
-		self->enemy->inuse && !OnSameTeam(self, self->enemy));
+	vec3_t end, dir;
+	vec3_t ang;
+	float  move, idealPitch, idealYaw, current, speed;
+	int	   orientation;
 
-	if (!enemy_valid) {
+	if (!self->enemy || self->enemy == world)
+	{
 		if (!FindMTarget(self))
-			return;
-		// Re-verificar después de encontrar objetivo
-		if (!self->enemy || self->enemy == world)
 			return;
 	}
 
-	// Manejo de estados de la torreta
-	if (self->s.frame < FRAME_active01) {
+	// if turret is still in inactive mode, ready the gun, but don't aim
+	if (self->s.frame < FRAME_active01)
+	{
 		turret2_ready_gun(self);
 		return;
 	}
+	// if turret is still readying, don't aim.
 	if (self->s.frame < FRAME_run01)
 		return;
 
-	// Calcular punto de destino
-	vec3_t end;
-	if (self->monsterinfo.active_move == &turret2_move_fire_blind) {
+	// PMM - blindfire aiming here
+	if (self->monsterinfo.active_move == &turret2_move_fire_blind)
+	{
 		end = self->monsterinfo.blind_fire_target;
-		end[2] += (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
-			? self->enemy->viewheight + 10
-			: self->enemy->mins[2] - 10;
+		if (self->enemy->s.origin[2] < self->monsterinfo.blind_fire_target[2])
+			end[2] += self->enemy->viewheight + 10;
+		else
+			end[2] += self->enemy->mins[2] - 10;
 	}
-	else {
+	else
+	{
 		end = self->enemy->s.origin;
 		if (self->enemy->client)
 			end[2] += self->enemy->viewheight;
-		else
-			end[2] += (self->enemy->mins[2] + self->enemy->maxs[2]) * 0.5f;
 	}
 
-	// Calcular dirección y ángulos
-	vec3_t dir = end - self->s.origin;
-	if (!is_valid_vector(dir))
-		return;
+	dir = end - self->s.origin;
+	ang = vectoangles(dir);
 
-	dir.normalize();
-	vec3_t ang = vectoangles(dir);
+	//
+	// Clamp first
+	//
 
-	// Ajustar ángulos ideales
-	float idealPitch = ang[PITCH];
-	float idealYaw = ang[YAW];
+	idealPitch = ang[PITCH];
+	idealYaw = ang[YAW];
 
-	// Procesar según orientación
-	const int orientation = static_cast<int>(self->offset[1]);
-	switch (orientation) {
-	case -1: // up
+	orientation = (int)self->offset[1];
+	switch (orientation)
+	{
+	case -1: // up		pitch: 0 to 90
 		if (idealPitch < -90)
 			idealPitch += 360;
-		idealPitch = std::clamp(idealPitch, -90.0f, -5.0f);
+		if (idealPitch > -5)
+			idealPitch = -5;
 		break;
-	case -2: // down
+	case -2: // down		pitch: -180 to -360
 		if (idealPitch > -90)
 			idealPitch -= 360;
-		idealPitch = std::clamp(idealPitch, -355.0f, -185.0f);
+		if (idealPitch < -355)
+			idealPitch = -355;
+		else if (idealPitch > -185)
+			idealPitch = -185;
 		break;
-	case 0: // +X
+	case 0: // +X		pitch: 0 to -90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
 			idealPitch += 360;
-		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
+
+		if (idealPitch > 85)
+			idealPitch = 85;
+		else if (idealPitch < -85)
+			idealPitch = -85;
+
+		//			yaw: 270 to 360, 0 to 90
+		//			yaw: -90 to 90 (270-360 == -90-0)
 		if (idealYaw > 180)
 			idealYaw -= 360;
-		idealYaw = std::clamp(idealYaw, -85.0f, 85.0f);
+		if (idealYaw > 85)
+			idealYaw = 85;
+		else if (idealYaw < -85)
+			idealYaw = -85;
 		break;
-	case 90: // +Y
+	case 90: // +Y	pitch: 0 to 90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
 			idealPitch += 360;
-		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
+
+		if (idealPitch > 85)
+			idealPitch = 85;
+		else if (idealPitch < -85)
+			idealPitch = -85;
+
+		//			yaw: 0 to 180
 		if (idealYaw > 270)
 			idealYaw -= 360;
-		idealYaw = std::clamp(idealYaw, 5.0f, 175.0f);
+		if (idealYaw > 175)
+			idealYaw = 175;
+		else if (idealYaw < 5)
+			idealYaw = 5;
+
 		break;
-	case 180: // -X
+	case 180: // -X	pitch: 0 to 90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
 			idealPitch += 360;
-		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
-		idealYaw = std::clamp(idealYaw, 95.0f, 265.0f);
+
+		if (idealPitch > 85)
+			idealPitch = 85;
+		else if (idealPitch < -85)
+			idealPitch = -85;
+
+		//			yaw: 90 to 270
+		if (idealYaw > 265)
+			idealYaw = 265;
+		else if (idealYaw < 95)
+			idealYaw = 95;
+
 		break;
-	case 270: // -Y
+	case 270: // -Y	pitch: 0 to 90, -270 to -360 (or 0 to 90)
 		if (idealPitch < -180)
 			idealPitch += 360;
-		idealPitch = std::clamp(idealPitch, -85.0f, 85.0f);
+
+		if (idealPitch > 85)
+			idealPitch = 85;
+		else if (idealPitch < -85)
+			idealPitch = -85;
+
+		//			yaw: 180 to 360
 		if (idealYaw < 90)
 			idealYaw += 360;
-		idealYaw = std::clamp(idealYaw, 185.0f, 355.0f);
+		if (idealYaw > 355)
+			idealYaw = 355;
+		else if (idealYaw < 185)
+			idealYaw = 185;
 		break;
 	}
 
-	// Calcular velocidad base
-	float base_speed = self->yaw_speed / (gi.tick_rate / 10);
-	if (self->monsterinfo.quadfire_time > level.time)
-		base_speed *= 1.5f;
+	//
+	// adjust pitch
+	//
+	current = self->s.angles[PITCH];
+	speed = self->yaw_speed / (gi.tick_rate / 10);
 
-	// Ajustar ángulos
-	AdjustTurretAngles(self, idealPitch, idealYaw, base_speed);
+	if (idealPitch != current)
+	{
+		move = idealPitch - current;
 
-	// Manejar laser sight
-	if (!self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT)) {
-		if (!self->target_ent) {
-			self->target_ent = G_Spawn();
-			self->target_ent->s.modelindex = MODELINDEX_WORLD;
-			self->target_ent->s.renderfx = RF_BEAM;
-			self->target_ent->s.frame = 1.8;
-			self->target_ent->s.skinnum = 0xf0f0f0f0;
-			self->target_ent->classname = "turret2_lasersight";
-			self->target_ent->s.effects = EF_BOB;
-			self->target_ent->s.origin = self->s.origin;
-			self->target_ent->owner = self;
+		while (move >= 360)
+			move -= 360;
+		if (move >= 90)
+		{
+			move = move - 360;
 		}
 
-		vec3_t forward;
-		AngleVectors(self->s.angles, forward, nullptr, nullptr);
-
-		float scan_range = visible(self, self->enemy) ? 12.f : 64.f;
-		vec3_t laser_end = self->s.origin + (forward * 8192);
-		trace_t tr = gi.traceline(self->s.origin, laser_end, self, MASK_SOLID);
-
-		// Efecto de ondulación del láser
-		tr.endpos[0] += sinf(level.time.seconds() + self->s.number) * scan_range;
-		tr.endpos[1] += cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range;
-		tr.endpos[2] += sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range;
-
-		forward = tr.endpos - self->s.origin;
-		if (is_valid_vector(forward)) {
-			forward.normalize();
-			laser_end = self->s.origin + (forward * 8192);
-			tr = gi.traceline(self->s.origin, laser_end, self, MASK_SOLID);
-			self->target_ent->s.old_origin = tr.endpos;
-			gi.linkentity(self->target_ent);
+		while (move <= -360)
+			move += 360;
+		if (move <= -90)
+		{
+			move = move + 360;
 		}
+
+		if (move > 0)
+		{
+			if (move > speed)
+				move = speed;
+		}
+		else
+		{
+			if (move < -speed)
+				move = -speed;
+		}
+
+		self->s.angles[PITCH] = anglemod(current + move);
 	}
+
+	//
+	// adjust yaw
+	//
+	current = self->s.angles[YAW];
+
+	if (idealYaw != current)
+	{
+		move = idealYaw - current;
+
+		//		while(move >= 360)
+		//			move -= 360;
+		if (move >= 180)
+		{
+			move = move - 360;
+		}
+
+		//		while(move <= -360)
+		//			move += 360;
+		if (move <= -180)
+		{
+			move = move + 360;
+		}
+
+		if (move > 0)
+		{
+			if (move > speed)
+				move = speed;
+		}
+		else
+		{
+			if (move < -speed)
+				move = -speed;
+		}
+
+		self->s.angles[YAW] = anglemod(current + move);
+	}
+
+	if (self->spawnflags.has(SPAWNFLAG_TURRET2_NO_LASERSIGHT))
+		return;
+
+	// Paril: improved turrets; draw lasersight
+	if (!self->target_ent)
+	{
+		self->target_ent = G_Spawn();
+		self->target_ent->s.modelindex = MODELINDEX_WORLD;
+		self->target_ent->s.renderfx = RF_BEAM;
+		self->target_ent->s.frame = 1.8;
+		self->target_ent->s.skinnum = 0xf0f0f0f0;
+		self->target_ent->classname = "turret_lasersight";
+		self->target_ent->s.effects = EF_BOB;
+		self->target_ent->s.origin = self->s.origin;
+	}
+
+	vec3_t forward;
+	AngleVectors(self->s.angles, forward, nullptr, nullptr);
+	end = self->s.origin + (forward * 8192);
+	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
+
+	float scan_range = 64.f;
+
+	if (visible(self, self->enemy))
+		scan_range = 12.f;
+
+	tr.endpos[0] += sinf(level.time.seconds() + self->s.number) * scan_range;
+	tr.endpos[1] += cosf((level.time.seconds() - self->s.number) * 3.f) * scan_range;
+	tr.endpos[2] += sinf((level.time.seconds() - self->s.number) * 2.5f) * scan_range;
+
+	forward = tr.endpos - self->s.origin;
+	forward.normalize();
+
+	end = self->s.origin + (forward * 8192);
+	tr = gi.traceline(self->s.origin, end, self, MASK_SOLID);
+
+	self->target_ent->s.old_origin = tr.endpos;
+	gi.linkentity(self->target_ent);
 }
+
 
 MONSTERINFO_SIGHT(turret2_sight) (edict_t* self, edict_t* other) -> void
 {
