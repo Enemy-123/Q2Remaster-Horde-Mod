@@ -54,7 +54,7 @@ void ApplyBossEffects(edict_t* boss);
 //extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
 void UpdatePowerUpTimes(edict_t* monster);
 
-std::string GetPlayerName(edict_t* player);
+std::string GetPlayerName(const edict_t* player);
 // healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);

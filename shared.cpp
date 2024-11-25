@@ -19,7 +19,7 @@ void RemovePlayerOwnedEntities(edict_t* player)
 	if (!player)
 		return;
 
-	std::span<edict_t> edicts(g_edicts, static_cast<size_t>(globals.num_edicts));
+	const std::span<edict_t> edicts(g_edicts, static_cast<size_t>(globals.num_edicts));
 
 	for (size_t i = 0; i < edicts.size(); i++)
 	{
@@ -452,7 +452,7 @@ void ApplyBossEffects(edict_t* boss)
 
 
 //getting real name
-std::string GetPlayerName(edict_t* player) {
+std::string GetPlayerName(const edict_t* player) {
 	if (player && player->client) {
 		char playerName[MAX_INFO_VALUE] = { 0 };
 		gi.Info_ValueForKey(player->client->pers.userinfo, "name", playerName, sizeof(playerName));
@@ -593,7 +593,7 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 
-bool EntitiesOverlap(edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs) {
+bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs) {
 	// Calculate bounds using vec3_t operations
 	const vec3_t ent_mins = ent->s.origin + ent->mins;
 	const vec3_t ent_maxs = ent->s.origin + ent->maxs;
@@ -1034,7 +1034,7 @@ bool TeleportSelf(edict_t* ent)
 	}
 
 	// If no clear points found, use a random one
-	size_t random_index = rand() % spawn_points.size();
+	const size_t random_index = rand() % spawn_points.size();
 	TeleportEntity(ent, spawn_points[random_index].point);
 	gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
