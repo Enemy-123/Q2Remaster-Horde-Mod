@@ -518,12 +518,26 @@ void SP_monster_gladiator(edict_t* self)
 		sound_gunb.assign("weapons/disrupt.wav");
 		self->health = 280 * st.health_multiplier;
 		self->mass = 350;
-		if (!st.was_key_specified("power_armor_type") &&
-			self->monsterinfo.power_armor_type != IT_ARMOR_COMBAT)
+
+		if (!self->monsterinfo.power_armor_type != IT_NULL || (!st.was_key_specified("armor_type")))
 		{
-			self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
-			self->monsterinfo.power_armor_power = 250;
+			float r = frandom();
+			if (r < 0.7f) // 70% de probabilidad de tener armadura
+			{
+				self->monsterinfo.power_armor_type = IT_NULL;
+				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+				if (!st.was_key_specified("armor_power"))
+				{
+					self->monsterinfo.armor_power = 200 + (int)(frandom() * 100); // 200-300
+				}
+			}
+			else
+			{
+				self->monsterinfo.armor_type = IT_NULL;
+				self->monsterinfo.power_armor_type = IT_NULL;
+			}
 		}
+
 		self->s.skinnum = 2;
 		self->s.effects = EF_TRACKER;
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
@@ -533,10 +547,17 @@ void SP_monster_gladiator(edict_t* self)
 		sound_gunc.assign("weapons/plasshot.wav");
 		self->health = 250 * st.health_multiplier;
 		self->mass = 350;
-		if (!st.was_key_specified("power_armor_type")) {
-			self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
-			self->monsterinfo.power_armor_power = 100;
+
+		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
+		{
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+			self->monsterinfo.armor_type = IT_NULL;
+			if (!st.was_key_specified("power_armor_power"))
+			{
+				self->monsterinfo.power_armor_power = 250;
+			}
 		}
+
 		self->s.skinnum = 2;
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/phaloop.wav");
 		break;
@@ -545,10 +566,15 @@ void SP_monster_gladiator(edict_t* self)
 		sound_gun.assign("gladiator/railgun.wav");
 		self->health = 320 * st.health_multiplier;
 		self->mass = 400;
-		if (!st.was_key_specified("power_armor_type")) {
+
+		if (!st.was_key_specified("power_armor_type") || (!st.was_key_specified("armor_type")))
+		{
 			self->monsterinfo.power_armor_type = IT_NULL;
+			self->monsterinfo.armor_type = IT_NULL;
 			self->monsterinfo.power_armor_power = 0;
+			self->monsterinfo.armor_power = 0;
 		}
+
 		self->monsterinfo.weapon_sound = gi.soundindex("weapons/rg_hum.wav");
 		break;
 	}
@@ -582,6 +608,7 @@ void SP_monster_gladiator(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 }
 
+
 /*QUAKED monster_gladb (1 .5 0) (-32 -32 -24) (32 32 64) Ambush Trigger_Spawn Sight
 */
 void SP_monster_gladb(edict_t* self)
@@ -590,17 +617,7 @@ void SP_monster_gladb(edict_t* self)
 
 
 	self->style = 1;
-	// Forzar el tipo de armadura antes de llamar a SP_monster_gladiator
-	self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
-	self->monsterinfo.power_armor_power = 180;
 	SP_monster_gladiator(self);
-
-	// Asegurar que el tipo de armadura se mantenga después de SP_monster_gladiator
-	if (!st.was_key_specified("power_armor_type"))
-	{
-		self->monsterinfo.power_armor_type = IT_ARMOR_COMBAT;
-		self->monsterinfo.power_armor_power = 180;
-	}
 }
 
 void SP_monster_gladc(edict_t* self)
