@@ -256,12 +256,16 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 // Función auxiliar para calcular los valores mínimos de salud y armadura
 static constexpr void CalculateBossMinimums(int wave_number, int& health_min, int& power_armor_min) noexcept
 {
+	// Definimos los límites absolutos
+	constexpr int HEALTH_MAX_LIMIT = 16500;
+	constexpr int POWER_ARMOR_MAX_LIMIT = 15000;
+
 	if (wave_number >= 25) {
-		health_min = 16500;
-		power_armor_min = std::min(13550, 15000);
+		health_min = HEALTH_MAX_LIMIT;  // Ya estamos al límite máximo
+		power_armor_min = std::min(13550, POWER_ARMOR_MAX_LIMIT);
 	}
 	else if (wave_number >= 20) {
-		health_min = std::min(13000, 16500);
+		health_min = std::min(13000, HEALTH_MAX_LIMIT);
 		power_armor_min = std::min(9000, 12000);
 	}
 	else if (wave_number >= 15) {
@@ -273,17 +277,21 @@ static constexpr void CalculateBossMinimums(int wave_number, int& health_min, in
 		power_armor_min = std::min(5475, 8000);
 	}
 	else if (wave_number >= 5) {
-		health_min = std::min(10000, 2500);
+		health_min = std::min(2500, 10000);  // Invertidos los números para que tenga más sentido
 		power_armor_min = std::min(5475, 8000);
 	}
 	else {
+		// Valores base para las primeras oleadas
 		health_min = 5000;
 		power_armor_min = 1500;
 	}
+
+	// Aseguramos que los valores nunca excedan los límites absolutos
+	health_min = std::min(health_min, HEALTH_MAX_LIMIT);
+	power_armor_min = std::min(power_armor_min, POWER_ARMOR_MAX_LIMIT);
 }
 
 constexpr float REGULAR_ARMOR_FACTOR = 0.75f;  // 75% del power armor mínimo
-
 // Función auxiliar para manejar la armadura del boss
 void ConfigureBossArmor(edict_t* self) {
 	if (!self || !self->inuse || !self->monsterinfo.IS_BOSS)
@@ -347,18 +355,18 @@ void ApplyBossEffects(edict_t* boss)
 		switch (sizeCategory) {
 		case BossSizeCategory::Small:
 			ScaleEntity(1.1f);
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.25f;
+			health_multiplier *= 1.13f;
+			power_armor_multiplier *= 1.1f;
 			break;
 		case BossSizeCategory::Medium:
 			ScaleEntity(1.25f);
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.25f;
+			health_multiplier *= 1.24f;
+			power_armor_multiplier *= 1.08f;
 			break;
 		case BossSizeCategory::Large:
 			ScaleEntity(1.5f);
-			health_multiplier *= 1.5f;
-			power_armor_multiplier *= 1.25f;
+			health_multiplier *= 1.35f;
+			power_armor_multiplier *= 1.05f;
 			break;
 		}
 
@@ -373,18 +381,18 @@ void ApplyBossEffects(edict_t* boss)
 		switch (sizeCategory) {
 		case BossSizeCategory::Small:
 			ScaleEntity(1.1f);
-			health_multiplier *= 1.4f;
-			power_armor_multiplier *= 1.4f;
+			health_multiplier *= 1.24f;
+			power_armor_multiplier *= 1.04f;
 			break;
 		case BossSizeCategory::Medium:
 			ScaleEntity(1.2f);
-			health_multiplier *= 1.2f;
-			power_armor_multiplier *= 1.4f;
+			health_multiplier *= 1.12f;
+			power_armor_multiplier *= 1.15f;
 			break;
 		case BossSizeCategory::Large:
 			ScaleEntity(1.2f);
 			health_multiplier *= 1.4f;
-			power_armor_multiplier *= 1.4f;
+			power_armor_multiplier *= 1.2f;
 			break;
 		}
 
@@ -395,14 +403,14 @@ void ApplyBossEffects(edict_t* boss)
 	if (boss->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		boss->s.effects |= EF_BLUEHYPERBLASTER;
 		boss->s.alpha = 0.6f;
-		power_armor_multiplier *= 1.4f;
+		power_armor_multiplier *= 1.2f;
 		boss->monsterinfo.invincible_time = std::max(level.time, boss->monsterinfo.invincible_time) + 12_sec;
 	}
 
 	if (boss->monsterinfo.bonus_flags & BF_BERSERKING) {
 		boss->s.effects |= EF_GIB | EF_FLAG2;
-		health_multiplier *= 1.5f;
-		power_armor_multiplier *= 1.5f;
+		health_multiplier *= 1.22f;
+		power_armor_multiplier *= 1.32f;
 		boss->monsterinfo.quad_time = std::max(level.time, boss->monsterinfo.quad_time) + 475_sec;
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
@@ -410,8 +418,8 @@ void ApplyBossEffects(edict_t* boss)
 	if (boss->monsterinfo.bonus_flags & BF_POSSESSED) {
 		boss->s.effects |= EF_BLASTER | EF_GREENGIB | EF_HALF_DAMAGE;
 		boss->s.alpha = 0.6f;
-		health_multiplier *= 1.4f;
-		power_armor_multiplier *= 1.4f;
+		health_multiplier *= 1.2f;
+		power_armor_multiplier *= 1.25f;
 		boss->monsterinfo.attack_state = AS_BLIND;
 	}
 
@@ -420,7 +428,7 @@ void ApplyBossEffects(edict_t* boss)
 		switch (sizeCategory) {
 		case BossSizeCategory::Small:
 			ScaleEntity(1.1f);
-			health_multiplier *= 1.5f;
+			health_multiplier *= 1.2f;
 			power_armor_multiplier *= 1.1f;
 			break;
 		case BossSizeCategory::Medium:
