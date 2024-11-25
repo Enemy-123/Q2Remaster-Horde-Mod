@@ -802,7 +802,7 @@ constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_tank_64", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
+	{"monster_tank_64", -1, 20, 0.25f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
 	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
 	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
@@ -816,7 +816,7 @@ constexpr boss_t BOSS_SMALL[] = {
 constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_tank_64", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
+	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
 	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
 	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Medium},  // Normal después del nivel 20
@@ -832,7 +832,7 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_tank_64", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
+	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
 	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
 	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Large},  // Normal después del nivel 20
