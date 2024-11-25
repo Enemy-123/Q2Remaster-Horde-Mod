@@ -1701,58 +1701,58 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 
 	setup_shadow_lights();
 
-	if (gi.cvar("g_print_spawned_entities", "0", CVAR_NOFLAGS)->integer)
-	{
-		std::map<std::string, int> entities;
-		int total_monster_health = 0;
+	//if (gi.cvar("g_print_spawned_entities", "0", CVAR_NOFLAGS)->integer)
+	//{
+	//	std::map<std::string, int> entities;
+	//	int total_monster_health = 0;
 
-		for (size_t i = 0; i < globals.num_edicts; i++)
-		{
-			edict_t* e = &globals.edicts[i];
+	//	for (size_t i = 0; i < globals.num_edicts; i++)
+	//	{
+	//		edict_t* e = &globals.edicts[i];
 
-			if (!e->inuse)
-				continue;
-			else if (!e->item && !e->monsterinfo.stand)
-				continue;
+	//		if (!e->inuse)
+	//			continue;
+	//		else if (!e->item && !e->monsterinfo.stand)
+	//			continue;
 
-			const char* cn = e->classname ? e->classname : "noclass";
+	//		const char* cn = e->classname ? e->classname : "noclass";
 
-			if (auto f = entities.find(cn); f != entities.end())
-			{
-				f->second++;
-			}
-			else
-			{
-				entities.insert({ cn, 1 });
-			}
+	//		if (auto f = entities.find(cn); f != entities.end())
+	//		{
+	//			f->second++;
+	//		}
+	//		else
+	//		{
+	//			entities.insert({ cn, 1 });
+	//		}
 
-			if (e->monsterinfo.stand)
-			{
-				total_monster_health += e->health;
-			}
+	//		if (e->monsterinfo.stand)
+	//		{
+	//			total_monster_health += e->health;
+	//		}
 
-			if (e->item && e->classname && e->item->classname && strcmp(e->classname, e->item->classname))
-			{
-				cn = e->item->classname ? e->item->classname : "noclass";
+	//		if (e->item && e->classname && e->item->classname && strcmp(e->classname, e->item->classname))
+	//		{
+	//			cn = e->item->classname ? e->item->classname : "noclass";
 
-				if (auto f = entities.find(cn); f != entities.end())
-				{
-					f->second++;
-				}
-				else
-				{
-					entities.insert({ cn, 1 });
-				}
-			}
-		}
+	//			if (auto f = entities.find(cn); f != entities.end())
+	//			{
+	//				f->second++;
+	//			}
+	//			else
+	//			{
+	//				entities.insert({ cn, 1 });
+	//			}
+	//		}
+	//	}
 
-		gi.Com_PrintFmt("total monster health: {}\n", total_monster_health);
+	//	gi.Com_PrintFmt("total monster health: {}\n", total_monster_health);
 
-		for (auto& e : entities)
-		{
-			gi.Com_PrintFmt("{}: {}\n", e.first, e.second);
-		}
-	}
+	//	for (auto& e : entities)
+	//	{
+	//		gi.Com_PrintFmt("{}: {}\n", e.first, e.second);
+	//	}
+	//}
 
 	level.is_spawning = false;
 }
