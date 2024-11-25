@@ -1058,12 +1058,13 @@ public:
 };
 
 // Lista de prefijos válidos para IsValidClassname
-static constexpr std::array<std::string_view, 5> ALLOWED_PREFIXES = { {
+static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 	"monster_",
 	"misc_insane",
 	"tesla_mine",
 	"food_cube_trap",
-	"emitter"
+	"emitter",
+	"doppleganger"
 } };
 
 std::string GetDisplayName(const char* classname) {

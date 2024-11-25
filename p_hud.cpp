@@ -10,7 +10,7 @@
 INTERMISSION
 
 ======================================================================
-*/
+*///
 
 void DeathmatchScoreboard(edict_t* ent);
 
@@ -1220,7 +1220,8 @@ void G_SetStats(edict_t* ent)
 void CTFSetIDView(edict_t * ent);
 	//ID DMG and CTFIDVIEW
 
-	if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
+//if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
+	if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER))
 		CTFSetIDView(ent);
 
 	else

@@ -1012,7 +1012,8 @@ const std::unordered_map<std::string_view, std::string_view> name_replacements =
 		{ "misc_insane", "Insane Grunt" },
 		{ "food_cube_trap", "Stroggonoff Maker" },
 		{ "tesla_mine", " Tesla Mine" },
-		{ "emitter", "Laser Emitter" }
+		{ "emitter", "Laser Emitter" },
+		{ "doppleganger", "Doppelganger" }
 };
 
 bool SpawnPointClear(edict_t* spot);
