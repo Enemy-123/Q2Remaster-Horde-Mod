@@ -1676,6 +1676,11 @@ static void Use_HordeMenu(edict_t* ent, gitem_t* inv)
 {
 	if (g_horde->integer) {
 
+		if (ent->client->resp.ctf_team == CTF_NOTEAM)
+		{
+			gi.LocClient_Print(ent, PRINT_HIGH, "You must not be a spectator to use the Horde Menu.");
+			return;
+		}
 		if (G_TeamplayEnabled() && ent->client->resp.ctf_team == CTF_TEAM1)
 		{
 			OpenHordeMenu(ent);
@@ -1683,7 +1688,6 @@ static void Use_HordeMenu(edict_t* ent, gitem_t* inv)
 		}
 	}
 }
-
 
 static void Use_Compass(edict_t* ent, gitem_t* inv)
 {
