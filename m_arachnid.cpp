@@ -343,26 +343,16 @@ DIE(arachnid_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	if (M_CheckGib(self, mod))
 	{
 		gi.sound(self, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-#ifdef PSX_ASSETS
-		ThrowGibs(self, damage, {
-			{ "models/monsters/arachnid/gibs/chest.md2" },
-			{ "models/monsters/arachnid/gibs/stomach.md2" },
-			(gib_def_t { 3, "models/monsters/arachnid/gibs/leg.md2", GIB_UPRIGHT }).frame(0),
-			(gib_def_t { 3, "models/monsters/arachnid/gibs/leg.md2", GIB_UPRIGHT }).frame(1),
-			(gib_def_t { "models/monsters/arachnid/gibs/l_rail.md2", GIB_UPRIGHT }).frame(brandom() ? 1 : 0),
-			(gib_def_t { "models/monsters/arachnid/gibs/r_rail.md2", GIB_UPRIGHT }).frame(brandom() ? 1 : 0),
-			{ 2, "models/objects/gibs/bone/tris.md2" },
-			{ 3, "models/objects/gibs/sm_meat/tris.md2" },
-			{ 2, "models/objects/gibs/gear/tris.md2", GIB_METALLIC },
-			{ "models/monsters/arachnid/gibs/head.md2", GIB_HEAD }
-			});
-#else
+
 		ThrowGibs(self, damage, {
 			{ 2, "models/objects/gibs/bone/tris.md2" },
-			{ 4, "models/objects/gibs/sm_meat/tris.md2" },
-			{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
-			});
-#endif
+			{ 2, "models/objects/gibs/sm_meat/tris.md2" },
+			{ "models/monsters/gunner/gibs/chest.md2", GIB_METALLIC },
+			{ "models/monsters/gunner/gibs/garm.md2", GIB_METALLIC | GIB_UPRIGHT },
+			{ "models/monsters/gladiatr/gibs/rarm.md2", GIB_METALLIC | GIB_UPRIGHT },
+			{ "models/monsters/gunner/gibs/foot.md2", GIB_METALLIC },
+			{ "models/monsters/gunner/gibs/head.md2", GIB_METALLIC | GIB_HEAD }
+	});
 		self->deadflag = true;
 		return;
 	}
