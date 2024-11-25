@@ -1295,12 +1295,6 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	}
 }
 
-// Estructura para pasar datos adicionales a la función de filtro
-struct FilterData {
-	const edict_t* ignore_ent;
-	int count;
-};
-
 // Función de filtro optimizada
 // Modified SpawnPointFilter function
 static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {

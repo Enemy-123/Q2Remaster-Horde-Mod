@@ -90,6 +90,12 @@ extern void CheckAndUpdateMenus();
 extern void CheckAndResetDisabledSpawnPoints();
 extern void CheckAndRestoreMonsterAlpha(edict_t* const ent);
 
+// Estructura para pasar datos adicionales a la función de filtro
+struct FilterData {
+    const edict_t* ignore_ent;
+    int count;
+};
+
 //void UpdateHordeMessage(std::string_view message, gtime_t duration);
 
 

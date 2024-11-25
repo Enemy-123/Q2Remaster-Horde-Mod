@@ -95,6 +95,10 @@ void Use_TeleportSelf(edict_t* ent, gitem_t* item)
 		return;
 	}
 
+	if (ent->client && ent->health <= 0) // do nothing if dead
+		return;
+
+
 	if (ClientIsSpectating(ent->client)) {
 		gi.Client_Print(ent, PRINT_HIGH, "Need to be Non-Spect to Teleport\n");
 		return;

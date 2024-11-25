@@ -4064,6 +4064,26 @@ bool IsInsideTriggerHurt(const vec3_t& point) {
 	return false;
 }
 
+static BoxEdictsResult_t MonsterOnlyFilter(edict_t* ent, void* data) {
+	FilterData* filter_data = static_cast<FilterData*>(data);
+	if (ent == filter_data->ignore_ent)
+		return BoxEdictsResult_t::Skip;
+
+	if (ent->svflags & SVF_MONSTER) {
+		filter_data->count++;
+		return BoxEdictsResult_t::End;
+	}
+	return BoxEdictsResult_t::Skip;
+}
+
+bool HasMonsterAtPoint(const vec3_t& point) {
+	const vec3_t spawn_mins = point + PLAYER_MINS;
+	const vec3_t spawn_maxs = point + PLAYER_MAXS;
+	FilterData filter_data = { nullptr, 0 };
+	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, MonsterOnlyFilter, &filter_data);
+	return filter_data.count > 0;
+}
+
 // [Paril-KEX] from the given player, find a good spot to spawn a player
 inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 {
@@ -4133,6 +4153,9 @@ inline bool G_FindRespawnSpot(edict_t* player, vec3_t& spot)
 
 		// Check if the spot is inside a trigger_hurt
 		if (IsInsideTriggerHurt(tr.endpos))
+			continue;
+
+		if (HasMonsterAtPoint(tr.endpos))
 			continue;
 
 		spot = tr.endpos;
