@@ -393,7 +393,7 @@ void ApplyBossEffects(edict_t* boss)
 			power_armor_multiplier *= 1.1f;
 			break;
 		case BossSizeCategory::Large:
-			ScaleEntity(1.4f);
+			ScaleEntity(1.2f);
 			health_multiplier *= 1.5f;
 			power_armor_multiplier *= 1.1f;
 			break;

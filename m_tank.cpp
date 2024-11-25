@@ -717,7 +717,7 @@ void TankRocket(edict_t* self)
 		// blindfire has different fail criteria for the trace
 		if (M_AdjustBlindfireTarget(self, start, vec, right, dir))
 		{
-			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
+			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
 				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
 			else
 				monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
@@ -729,7 +729,7 @@ void TankRocket(edict_t* self)
 
 		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
 		{
-			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING))
+			if (self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS)
 				monster_fire_heat(self, start, dir, 50, rocketSpeed, flash_number, self->accel);
 			else
 				monster_fire_rocket(self, start, dir, 50, (!strcmp(self->classname, "monster_tank_commander")) ? rocketSpeed * 1.5f : rocketSpeed, flash_number);
