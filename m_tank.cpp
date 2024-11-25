@@ -18,6 +18,75 @@ void tank_doattack_rocket(edict_t* self);
 void tank_reattack_blaster(edict_t* self);
 void tank_reattack_grenades(edict_t* self);
 
+float entdist(const edict_t* ent1, const edict_t* ent2)
+{
+	return (ent1->s.origin - ent2->s.origin).length();
+}
+
+[[nodiscard]] bool TeleportNearTarget(edict_t* self, edict_t* target, float dist, bool effect)
+{
+	// Utilizamos DEG2RAD para el incremento de 45 grados
+	constexpr float ANGLE_INCREMENT = 45.0f;
+
+	// check 8 angles at 45 degree intervals
+	for (int i = 0; i < 8; i++)
+	{
+		float yaw = anglemod(i * ANGLE_INCREMENT);
+		float rad_yaw = DEG2RAD(yaw);
+
+		vec3_t forward = {
+			cosf(rad_yaw),
+			sinf(rad_yaw),
+			0.0f
+		};
+
+		// trace from target - using vector math instead of VectorMA
+		vec3_t end = target->s.origin + (forward * (target->maxs[0] + self->maxs[0] + dist));
+
+		// First trace to check path
+		trace_t tr = gi.traceline(target->s.origin, end, target, MASK_MONSTERSOLID);
+
+		// Store trace endpoint for floor check
+		vec3_t start = tr.endpos;
+		end = tr.endpos;
+		end.z -= fabsf(self->mins[2]) + 32.0f;
+
+		// Trace to floor
+		tr = gi.traceline(start, end, nullptr, MASK_MONSTERSOLID);
+
+		// Don't teleport off ledges unless we can fly
+		if (tr.fraction == 1.0f && !(self->flags & FL_FLY))
+			continue;
+
+		// Set up final position
+		start = tr.endpos;
+		start.z += fabsf(self->mins[2]) + 1.0f;
+
+		// Check if position is valid
+		tr = gi.trace(start, self->mins, self->maxs, start, nullptr, MASK_MONSTERSOLID);
+		if (!(tr.contents & MASK_MONSTERSOLID))
+		{
+			if (effect)
+			{
+				// Teleport effect at both positions
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte(TE_BOSSTPORT);
+				gi.WritePosition(self->s.origin);
+				gi.multicast(self->s.origin, MULTICAST_PVS, false);
+
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte(TE_BOSSTPORT);
+				gi.WritePosition(start);
+				gi.multicast(start, MULTICAST_PVS, false);
+			}
+
+			self->s.origin = start;
+			gi.linkentity(self);
+			return true;
+		}
+	}
+	return false;
+}
 static cached_soundindex sound_thud;
 static cached_soundindex sound_pain, sound_pain2;
 static cached_soundindex sound_idle;
@@ -205,7 +274,7 @@ MONSTERINFO_RUN(tank_run) (edict_t* self) -> void
 	//if (self->enemy && self->enemy->client)
 	//	self->monsterinfo.aiflags |= AI_BRUTAL;
 	//else
-		self->monsterinfo.aiflags &= ~AI_BRUTAL;    //trying to unable tank brutal, so he don't lose time after killing a player and its being attacked by another
+	self->monsterinfo.aiflags &= ~AI_BRUTAL;    //trying to unable tank brutal, so he don't lose time after killing a player and its being attacked by another
 
 	if (self->monsterinfo.aiflags & AI_STAND_GROUND)
 	{
@@ -400,6 +469,7 @@ void TankGrenades(edict_t* self)
 
 	gi.sound(self, CHAN_WEAPON, sound_grenade, 1, ATTN_NORM, 0);
 }
+
 void TankBlaster(edict_t* self)
 {
 	vec3_t forward, right;
@@ -419,9 +489,9 @@ void TankBlaster(edict_t* self)
 		flash_number = MZ2_TANK_BLASTER_3;
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-
 	const vec3_t start = G_ProjectSource(self->s.origin, monster_flash_offset[flash_number], forward, right);
 
+	// Base offsets
 	vec3_t bullet_offset;
 	if (self->s.frame == FRAME_attak110) {
 		bullet_offset = vec3_t{ 28.7f, -18.5f, 28.7f };
@@ -432,6 +502,10 @@ void TankBlaster(edict_t* self)
 	else { // FRAME_attak116
 		bullet_offset = vec3_t{ 19.8f, -23.9f, 32.1f };
 	}
+
+	// Ajustar offset según el scale
+	bullet_offset = bullet_offset * self->s.scale;
+
 	const vec3_t bullet_start = G_ProjectSource(self->s.origin, bullet_offset, forward, right);
 
 	if (blindfire) {
@@ -443,7 +517,6 @@ void TankBlaster(edict_t* self)
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 
 	const bool isBoss = !strcmp(self->classname, "monster_tank_64") || g_hardcoop->integer || self->monsterinfo.IS_BOSS;
-
 	if (isBoss) {
 		PredictAim(self, self->enemy, bullet_start, 0, false, 0.075f, &dir, nullptr);
 		const vec3_t end = bullet_start + (dir * 8192);
@@ -465,29 +538,29 @@ void TankBlaster(edict_t* self)
 
 void TankStrike(edict_t* self)
 {
+	gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
+
+	{
 		gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
 
-		{
-			gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
 
+		// Efecto visual similar al berserker
+		gi.WriteByte(svc_temp_entity);
+		gi.WriteByte(TE_BERSERK_SLAM);
 
-			// Efecto visual similar al berserker
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(TE_BERSERK_SLAM);
+		vec3_t f, r, start;
+		AngleVectors(self->s.angles, f, r, nullptr);
+		start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
+		const trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
 
-			vec3_t f, r, start;
-			AngleVectors(self->s.angles, f, r, nullptr);
-			start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
-			const trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+		gi.WritePosition(tr.endpos);
+		gi.WriteDir({ 0.f, 0.f, 1.f });
+		gi.multicast(tr.endpos, MULTICAST_PHS, false);
+		void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
+		// Daño radial
+		T_SlamRadiusDamage(tr.endpos, self, self, self->monsterinfo.IS_BOSS ? 175 : 75, 450.f, self, 185, MOD_TANK_PUNCH);
 
-			gi.WritePosition(tr.endpos);
-			gi.WriteDir({ 0.f, 0.f, 1.f });
-			gi.multicast(tr.endpos, MULTICAST_PHS, false);
-			void T_SlamRadiusDamage(vec3_t point, edict_t * inflictor, edict_t * attacker, float damage, float kick, edict_t * ignore, float radius, mod_t mod);
-			// Daño radial
-			T_SlamRadiusDamage(tr.endpos, self, self, self->monsterinfo.IS_BOSS ? 150 : 75, 450.f, self, 165, MOD_TANK_PUNCH);
-
-		}
+	}
 }
 
 
@@ -508,6 +581,58 @@ mframe_t tank_frames_punch[] =
 };
 MMOVE_T(tank_move_punch) = { FRAME_attak224, FRAME_attak235, tank_frames_punch, tank_run };
 
+void commander_punch(edict_t* self);
+mframe_t tank_frames_commander_punch[] =
+{
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, commander_punch},  // FRAME_attak225 - Añadir footstep aquí
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr},   // FRAME_attak229
+	{ai_charge, -2, nullptr}   // FRAME_attak229
+};
+MMOVE_T(tank_move_commander_punch) = { FRAME_attak224, FRAME_attak235, tank_frames_commander_punch, tank_run };
+
+
+void commander_punch(edict_t* self)
+{
+	if (!self->enemy || !self->enemy->inuse)
+		return;
+
+	// Verificar cooldown de teleport
+	constexpr gtime_t TELEPORT_COOLDOWN = 2_sec;
+	if (level.time < self->monsterinfo.spawn_cooldown)
+		return;
+
+	float range = (self->s.origin - self->enemy->s.origin).length();
+	float r = frandom();
+
+	// Intento de teleportación si no está en modo estático
+	if (!(self->monsterinfo.aiflags & AI_STAND_GROUND))
+	{
+		if (TeleportNearTarget(self, self->enemy, 16.0f, true))
+		{
+			// Establecer el cooldown después de un teleport exitoso
+			self->monsterinfo.spawn_cooldown = level.time + TELEPORT_COOLDOWN;
+
+			//if (r <= 0.5f)
+			{
+				M_SetAnimation(self, &tank_move_commander_punch);
+				TankStrike(self);
+				self->monsterinfo.attack_finished = level.time + 0.5_sec;
+				return;
+			}
+			// Recalcular distancia después del teleport
+			range = (self->s.origin - self->enemy->s.origin).length();
+		}
+	}
+}
 
 
 void TankRocket(edict_t* self)
@@ -978,6 +1103,11 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
+	if (self->enemy->client && self->monsterinfo.IS_BOSS && self->s.skinnum == 2 && frandom() < 0.4f) {
+		commander_punch(self);
+		return;
+	}
+
 	if (range_to(self, self->enemy) <= RANGE_MELEE * 2)
 	{
 		// Ataque melee (punch)
@@ -1024,7 +1154,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 		else
 		{
 			self->s.skinnum == 2 && strcmp(self->enemy->classname, "monster_tank_64") ?
-				M_SetAnimation(self, &tank_move_attack_grenade):
+				M_SetAnimation(self, &tank_move_attack_grenade) :
 				M_SetAnimation(self, &tank_move_attack_blast);
 			self->monsterinfo.nextframe = FRAME_attak108;
 		}
@@ -1173,7 +1303,7 @@ DIE(tank_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 		auto [fwd, rgt, up] = AngleVectors(self->s.angles);
 
 		edict_t* arm_gib = ThrowGib(self, "models/monsters/tank/gibs/barm.md2", damage, GIB_SKINNED | GIB_UPRIGHT, self->s.scale);
-		
+
 		if (!arm_gib) {
 			return;
 		}
@@ -1292,11 +1422,10 @@ void SP_monster_tank(edict_t* self)
 		self->accel = 0.075f;
 		if (g_horde->integer) {
 			if (!self->s.scale)
-				self->s.scale = 1.25f;
+				self->s.scale = 1.1f;
 
 			self->health = 1750 + (1.005 * current_wave_level);
 			if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-				self->gib_health = -999777;
 				self->health *= 2.3;
 
 			}
@@ -1394,8 +1523,8 @@ void SP_monster_tank_stand(edict_t* self)
 void SP_monster_tank_64(edict_t* self)
 {
 	brandom() ?
-	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN :
-	self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING;
+		self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_GUARDIAN :
+		self->spawnflags |= SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING;
 	SP_monster_tank(self);
 	self->s.skinnum = 2;
 

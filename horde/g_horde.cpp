@@ -797,16 +797,18 @@ struct boss_t {
 	BossSizeCategory sizeCategory; // Si decides extender la estructura
 };
 
-// Listas de jefes con la categoría de tamaño asignada
+// Listas de jefes con probabilidades modificadas
 constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_tank_64", -1, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_shamblerkl", -1, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_guncmdrkl", -1, 19, 0.1f, BossSizeCategory::Small},
+	{"monster_tank_64", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
 	{"monster_makronkl", 36, -1, 0.1f, BossSizeCategory::Small},
-	// {"monster_gm_arachnid", -1, 19, 0.1f, BossSizeCategory::Small},
 	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small}
 };
@@ -814,13 +816,14 @@ constexpr boss_t BOSS_SMALL[] = {
 constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_tank_64", -1, 24, 0.1f, BossSizeCategory::Medium},
-	// {"monster_guardian", -1, 24, 0.1f, BossSizeCategory::Medium},
+	{"monster_tank_64", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Medium},  // Normal después del nivel 20
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Medium},  // Normal después del nivel 20
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Medium},  // Normal después del nivel 20
 	{"monster_psxguardian", -1, 24, 0.1f, BossSizeCategory::Medium},
-	{"monster_shamblerkl", -1, 24, 0.1f, BossSizeCategory::Medium},
-	{"monster_guncmdrkl", -1, 24, 0.1f, BossSizeCategory::Medium},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium},
-	// {"monster_gm_arachnid", -1, 24, 0.1f, BossSizeCategory::Medium},
 	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_makronkl", 26, -1, 0.1f, BossSizeCategory::Medium}
 };
@@ -829,16 +832,18 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_tank_64", -1, 24, 0.1f, BossSizeCategory::Large},
+	{"monster_tank_64", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Large},  // Normal después del nivel 20
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Large},  // Normal después del nivel 20
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Large},  // Normal después del nivel 20
 	{"monster_psxarachnid", 14, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_widow", -1, -1, 0.1f, BossSizeCategory::Large},
-	// {"monster_guardian", -1, 24, 0.1f, BossSizeCategory::Large},
 	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_shamblerkl", -1, 24, 0.1f, BossSizeCategory::Large},
 	{"monster_boss5", -1, 24, 0.1f, BossSizeCategory::Large},
 	{"monster_jorg", 30, -1, 0.1f, BossSizeCategory::Large}
 };
-
 
 // Definir constantes de tamaño para cada arreglo de jefes
 constexpr size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
@@ -2726,6 +2731,13 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 		}
 
 		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+
+
+		//TPORT effect
+		//gi.WriteByte(svc_temp_entity);
+		//gi.WriteByte(TE_BOSSTPORT);
+		//gi.WritePosition(self->s.origin);
+		//gi.multicast(self->s.origin, MULTICAST_PHS, false);
 
 		// Actualizar tiempo de último teletransporte
 		self->teleport_time = level.time;

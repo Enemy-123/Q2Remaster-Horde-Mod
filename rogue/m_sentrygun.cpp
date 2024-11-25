@@ -780,10 +780,6 @@ MONSTERINFO_ATTACK(turret2_attack) (edict_t* self) -> void
 
 	// pmm
 }
-float entdist(const edict_t* ent1, const edict_t* ent2)
-{
-	return (ent1->s.origin - ent2->s.origin).length();
-}
 
 void TurretSparks(edict_t* self)
 {
