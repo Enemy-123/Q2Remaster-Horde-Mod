@@ -739,14 +739,14 @@ void SP_monster_supertank(edict_t* self)
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 1500;
+		self->monsterinfo.power_armor_power = 1300;
 
 	if (self->spawnflags.has(SPAWNFLAG_SUPERTANK_POWERSHIELD))
 	{
 		if (!st.was_key_specified("power_armor_type"))
 			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 		if (!st.was_key_specified("power_armor_power"))
-			self->monsterinfo.power_armor_power = 3300;
+			self->monsterinfo.power_armor_power = 3100;
 	}
 	// RAFAEL
 

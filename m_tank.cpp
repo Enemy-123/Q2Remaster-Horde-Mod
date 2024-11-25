@@ -1424,10 +1424,14 @@ void SP_monster_tank(edict_t* self)
 			if (!self->s.scale)
 				self->s.scale = 1.1f;
 
-			self->health = 1750 + (1.005 * current_wave_level);
+			self->health = 1750 + (1.009 * current_wave_level);
 			if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED) {
-				self->health *= 2.3;
+				self->health *= 2.6;
 
+				if (!st.was_key_specified("power_armor_type"))
+					self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+				if (!st.was_key_specified("power_armor_power"))
+					self->monsterinfo.power_armor_power = 1250;
 			}
 		}
 		if (G_IsCooperative()) {

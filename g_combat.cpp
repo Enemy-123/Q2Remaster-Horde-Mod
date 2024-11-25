@@ -872,6 +872,13 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	if (!targ->takedamage)
 		return;
 
+	// Handle telefrag teleport before damage
+	if (mod.id == MOD_TELEFRAG && (targ->svflags & SVF_MONSTER) && targ->monsterinfo.IS_BOSS) {
+		if (CheckAndTeleportBoss(targ, BossTeleportReason::TRIGGER_HURT)) {
+			return; // Prevent damage if teleport was successful
+		}
+	}
+
 	// Actualizar react_to_damage_time para cualquier daño excepto agua
 	if (mod.id != MOD_WATER && (targ->svflags & SVF_MONSTER)) {
 		targ->monsterinfo.react_to_damage_time = level.time;
