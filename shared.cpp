@@ -208,6 +208,7 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.renderfx |= RF_SHELL_RED;
 		monster->health *= 2.0f;
 		monster->monsterinfo.power_armor_power *= 1.25f;
+		monster->monsterinfo.armor_power *= 1.25f;
 		monster->monsterinfo.double_time = std::max(level.time, monster->monsterinfo.double_time) + 475_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_CORRUPTED)
@@ -215,17 +216,20 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.effects |= EF_PLASMA | EF_TAGTRAIL;
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.4f;
+		monster->monsterinfo.armor_power *= 1.4f;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_RAGEQUITTER) {
 		monster->s.effects |= EF_BLUEHYPERBLASTER;
 		monster->s.alpha = 0.6f;
 		monster->monsterinfo.power_armor_power *= 4.0f;
+		monster->monsterinfo.armor_power *= 4.0f;
 		monster->monsterinfo.invincible_time = max(level.time, monster->monsterinfo.invincible_time) + 7_sec;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_BERSERKING) {
 		monster->s.effects |= EF_GIB | EF_FLAG2;
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.3f;
+		monster->monsterinfo.armor_power *= 1.3f;
 		monster->monsterinfo.quad_time = max(level.time, monster->monsterinfo.quad_time) + 475_sec;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
@@ -234,12 +238,14 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->s.alpha = 0.5f;
 		monster->health *= 1.7f;
 		monster->monsterinfo.power_armor_power *= 1.7f;
+		monster->monsterinfo.armor_power *= 1.7f;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 	if (monster->monsterinfo.bonus_flags & BF_STYGIAN) {
 		monster->s.effects |= EF_TRACKER | EF_FLAG1;
 		monster->health *= 1.5f;
 		monster->monsterinfo.power_armor_power *= 1.1f;
+		monster->monsterinfo.armor_power *= 1.1f;
 		monster->monsterinfo.attack_state = AS_BLIND;
 	}
 
@@ -276,6 +282,36 @@ static constexpr void CalculateBossMinimums(int wave_number, int& health_min, in
 	}
 }
 
+constexpr float REGULAR_ARMOR_FACTOR = 0.75f;  // 75% del power armor mínimo
+
+// Función auxiliar para manejar la armadura del boss
+void ConfigureBossArmor(edict_t* self) {
+	if (!self || !self->inuse || !self->monsterinfo.IS_BOSS)
+		return;
+
+	// Calcular valores mínimos basados en el número de ola
+	int health_min, power_armor_min;
+	CalculateBossMinimums(current_wave_level, health_min, power_armor_min);
+
+	// Manejar Power Armor (Shield/Screen)
+	if (self->monsterinfo.power_armor_power > 0) {
+		self->monsterinfo.power_armor_power = std::max(
+			static_cast<int>(self->monsterinfo.power_armor_power),
+			power_armor_min
+		);
+	}
+
+	// Manejar Armor regular
+	// Verificar si tiene armor sin depender del tipo
+	if (self->monsterinfo.armor_power > 0) {
+		const int min_regular_armor = static_cast<int>(power_armor_min * REGULAR_ARMOR_FACTOR);
+
+		self->monsterinfo.armor_power = std::max(
+			static_cast<int>(self->monsterinfo.armor_power),
+			min_regular_armor
+		);
+	}
+}
 void ApplyBossEffects(edict_t* boss)
 {
 	// Verificar si es un jefe y si ya se han aplicado los efectos
@@ -412,35 +448,54 @@ void ApplyBossEffects(edict_t* boss)
 	boss->health = std::max(static_cast<int>(boss->health * health_multiplier), health_min);
 	boss->max_health = boss->health;
 
+	// Manejar Power Armor
 	if (boss->monsterinfo.power_armor_power > 0)
 	{
 		boss->monsterinfo.power_armor_power = std::max(
-			static_cast<int>(boss->monsterinfo.base_power_armor * power_armor_multiplier),
+			static_cast<int>(boss->monsterinfo.power_armor_power * power_armor_multiplier),
 			power_armor_min
 		);
 	}
 
-	// Aplicar escalado de salud y armadura basado en la categoría de tamaño
+	// Manejar Armor regular
+	if (boss->monsterinfo.armor_power > 0)
+	{
+		const int min_regular_armor = static_cast<int>(power_armor_min * REGULAR_ARMOR_FACTOR);
+
+		boss->monsterinfo.armor_power = std::max(
+			static_cast<int>(boss->monsterinfo.armor_power * power_armor_multiplier),
+			min_regular_armor
+		);
+	}
+
+	// En la parte del escalado por tamaño:
 	switch (sizeCategory) {
 	case BossSizeCategory::Small:
 		boss->health = static_cast<int>(boss->health * 0.8f);
 		if (boss->monsterinfo.power_armor_power > 0)
 			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * 0.9f);
+		if (boss->monsterinfo.armor_power > 0)
+			boss->monsterinfo.armor_power = static_cast<int>(boss->monsterinfo.armor_power * 0.9f);
 		break;
 	case BossSizeCategory::Large:
 		boss->health = static_cast<int>(boss->health * 1.2f);
 		if (boss->monsterinfo.power_armor_power > 0)
 			boss->monsterinfo.power_armor_power = static_cast<int>(boss->monsterinfo.power_armor_power * 1.2f);
+		if (boss->monsterinfo.armor_power > 0)
+			boss->monsterinfo.armor_power = static_cast<int>(boss->monsterinfo.armor_power * 1.2f);
 		break;
 	case BossSizeCategory::Medium:
-		// Opcional: Puedes aplicar un escalado diferente o ninguno para categorías medias
 		break;
 	}
 
-	// Asegurar que la salud y la armadura no caigan por debajo de los valores mínimos después de los ajustes
+	// Asegurar mínimos después de ajustes
 	boss->health = std::max(boss->health, health_min);
 	if (boss->monsterinfo.power_armor_power > 0)
 		boss->monsterinfo.power_armor_power = std::max(boss->monsterinfo.power_armor_power, power_armor_min);
+	if (boss->monsterinfo.armor_power > 0) {
+		const int min_regular_armor = static_cast<int>(power_armor_min * REGULAR_ARMOR_FACTOR);
+		boss->monsterinfo.armor_power = std::max(boss->monsterinfo.armor_power, min_regular_armor);
+	}
 
 	boss->max_health = boss->health;
 
@@ -449,7 +504,6 @@ void ApplyBossEffects(edict_t* boss)
 
 	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
-
 
 //getting real name
 std::string GetPlayerName(const edict_t* player) {
@@ -523,15 +577,6 @@ bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, 
 	const trace_t tr = gi.traceline(spot1, spot2, ignore, mask);
 	return (tr.fraction == 1.0f);
 }
-
-inline float AngleNormalize360(float angle)
-{
-	angle = fmodf(angle, 360.0f);
-	if (angle < 0.0f)
-		angle += 360.0f;
-	return angle;
-}
-
 
 void TeleportEntity(edict_t* ent, edict_t* dest) {
 	if (!ent || !ent->inuse || !dest || !dest->inuse)
@@ -1041,4 +1086,5 @@ bool TeleportSelf(edict_t* ent)
 	if (developer->integer) gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
 	return true;
 }
+
 

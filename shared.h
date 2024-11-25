@@ -61,6 +61,7 @@ extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activat
 extern void check_target_healthbar(edict_t* self);
 
 void Monster_MoveSpawn(edict_t* self); 
+void ConfigureBossArmor(edict_t* self);
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength);
 struct MapSize {
     bool isSmallMap = false;
