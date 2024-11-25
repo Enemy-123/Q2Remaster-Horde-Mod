@@ -739,9 +739,9 @@ mframe_t infantry_frames_grenade[] = {
 	{ ai_charge, 6 },
 	{ ai_charge, 0, infantry_swing },
 	{ ai_charge, 5 },
+	{ ai_charge, 8 },
 	{ ai_charge, 8, infantry_grenade },
 	{ ai_charge, 8, monster_footstep },
-	{ ai_charge, 8 },
 	{ ai_charge, 3 }
 };
 MMOVE_T(infantry_move_grenade) = { FRAME_attak201, FRAME_attak208, infantry_frames_grenade, infantry_run };
