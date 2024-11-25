@@ -3361,8 +3361,9 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
+	constexpr gtime_t TELEPORT_COOLDOWN = 2_sec;
 
-	// Check rápido para condiciones que resetean el estado stuck
+	// Si puede ver al enemigo, no teleportar
 	if (self->monsterinfo.issummoned ||
 		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
 		self->monsterinfo.was_stuck = false;
@@ -3370,25 +3371,31 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false;
 	}
 
-	const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
-		self->s.origin, self, MASK_MONSTERSOLID).startsolid;
-	const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >=
-		NO_DAMAGE_TIMEOUT;
-
-	// Early return si no hay condiciones de stuck
-	if (!is_stuck && !no_damage_timeout)
+	// Verificar cooldown general de teleport
+	if (self->teleport_time && level.time < self->teleport_time + TELEPORT_COOLDOWN)
 		return false;
 
-	// Inicializar stuck check si es necesario
-	if (!self->monsterinfo.was_stuck) {
-		self->monsterinfo.stuck_check_time = level.time;
-		self->monsterinfo.was_stuck = true;
-		return false;
+	// Para daño no-agua, verificar condiciones normales de stuck
+	if (!self->waterlevel) {
+		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
+			self->s.origin, self, MASK_MONSTERSOLID).startsolid;
+		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >=
+			NO_DAMAGE_TIMEOUT;
+
+		if (!is_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck)
+			return false;
+
+		// Inicializar stuck check si es necesario
+		if (!self->monsterinfo.was_stuck) {
+			self->monsterinfo.stuck_check_time = level.time;
+			self->monsterinfo.was_stuck = true;
+			return false;
+		}
+
+		// Verificar tiempo de stuck
+		if (level.time < self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME)
+			return false;
 	}
-
-	// Early return si no ha pasado suficiente tiempo
-	if (level.time < self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME)
-		return false;
 
 	edict_t* available_spawns[MAX_SPAWN_POINTS];
 	size_t spawn_count = 0;

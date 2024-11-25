@@ -865,31 +865,32 @@ void Monster_MoveSpawn(edict_t* self) {
 	constexpr float HEIGHT_OFFSET = 8.0f;
 	constexpr vec3_t MINS = { -16.0f, -16.0f, -24.0f };
 	constexpr vec3_t MAXS = { 16.0f, 16.0f, 32.0f };
+	constexpr int MAX_ATTEMPTS = 8;  // Número máximo de intentos para encontrar posición
 
-	// Try to spawn a single monster
-	vec3_t spawn_origin, spawn_angles;
-	const float spawn_angle = frandom(2.0f * PIf);
-	const float radius = frandom(RADIUS_MIN, RADIUS_MAX);
+	// Función auxiliar para verificar si una posición es válida
+	auto trySpawnPosition = [&](const vec3_t& spawn_origin, const vec3_t& spawn_angles) -> bool {
+		// Verificar espacio libre en diferentes alturas
+		for (float height_test : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
+			vec3_t test_origin = spawn_origin;
+			test_origin.z += height_test;
 
-	vec3_t offset{
-		cosf(spawn_angle) * radius,
-		sinf(spawn_angle) * radius,
-		HEIGHT_OFFSET
-	};
+			// Trazar línea desde el spawner hasta la posición de spawn
+			trace_t trace = gi.traceline(self->s.origin, test_origin, self, MASK_SOLID);
+			if (trace.fraction < 1.0f)
+				continue;
 
-	spawn_origin = self->s.origin + offset;
-	spawn_angles = self->s.angles;
-	spawn_angles[YAW] = spawn_angle * (180.0f / PIf);
+			// Verificar espacio suficiente
+			if (!CheckSpawnPoint(test_origin, MINS, MAXS))
+				continue;
 
-	const trace_t trace = gi.traceline(self->s.origin, spawn_origin, self, MASK_SOLID);
-	if (trace.fraction == 1.0f && CheckSpawnPoint(spawn_origin, MINS, MAXS)) {
-		// Get current reinforcement based on used slots
-		reinforcement_t& reinf = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.monster_used];
-		edict_t* monster = G_Spawn();
+			// Si llegamos aquí, encontramos una posición válida
+			reinforcement_t& reinf = self->monsterinfo.reinforcements.reinforcements[self->monsterinfo.monster_used];
+			edict_t* monster = G_Spawn();
+			if (!monster)
+				return false;
 
-		if (monster) {
 			monster->classname = reinf.classname;
-			monster->s.origin = spawn_origin;
+			monster->s.origin = test_origin;
 			monster->s.angles = spawn_angles;
 			monster->spawnflags = SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags = AI_IGNORE_SHOTS | AI_DO_NOT_COUNT | AI_SPAWNED_COMMANDER;
@@ -900,22 +901,47 @@ void Monster_MoveSpawn(edict_t* self) {
 			monster->owner = self;
 
 			ED_CallSpawn(monster, spawn_temp_t::empty);
-
 			if (monster->inuse) {
 				if (g_horde->integer)
 					monster->item = brandom() ? G_HordePickItem() : nullptr;
-
 				ApplyMonsterBonusFlags(monster);
-
 				float size = (monster->maxs - monster->mins).length() * 0.5f;
-				SpawnGrow_Spawn(spawn_origin, size * 2.0f, size * 0.5f);
-
+				SpawnGrow_Spawn(test_origin, size * 2.0f, size * 0.5f);
 				self->monsterinfo.monster_used += reinf.strength;
+				return true;
 			}
-			else {
-				G_FreeEdict(monster);
-			}
+			G_FreeEdict(monster);
+			return false;
 		}
+		return false;
+		};
+
+	// Primero intentar las posiciones predefinidas
+	for (const auto& pos : tank_vanilla_reinforcement_position) {
+		vec3_t spawn_origin = self->s.origin + pos;
+		vec3_t spawn_angles = self->s.angles;
+		spawn_angles[YAW] = atan2f(pos.y, pos.x) * (180.0f / PIf);
+
+		if (trySpawnPosition(spawn_origin, spawn_angles))
+			return;
+	}
+
+	// Si las posiciones predefinidas fallan, intentar posiciones aleatorias
+	for (int i = 0; i < MAX_ATTEMPTS; i++) {
+		float spawn_angle = frandom(2.0f * PIf);
+		float radius = frandom(RADIUS_MIN, RADIUS_MAX);
+		vec3_t offset{
+			cosf(spawn_angle) * radius,
+			sinf(spawn_angle) * radius,
+			HEIGHT_OFFSET
+		};
+
+		vec3_t spawn_origin = self->s.origin + offset;
+		vec3_t spawn_angles = self->s.angles;
+		spawn_angles[YAW] = spawn_angle * (180.0f / PIf);
+
+		if (trySpawnPosition(spawn_origin, spawn_angles))
+			return;
 	}
 }
 
@@ -965,6 +991,7 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	constexpr float CLOSE_RANGE = 125.0f;
 	constexpr float MID_RANGE = 250.0f;
 	constexpr gtime_t PAIN_IMMUNITY = 5_sec;
+	constexpr gtime_t SPAWN_COOLDOWN = 10_sec;
 
 	// Get range to enemy
 	const vec3_t to_enemy = self->enemy->s.origin - self->s.origin;
@@ -973,13 +1000,15 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	// Handle monster spawning logic
 	const bool can_spawn = M_SlotsLeft(self) > 0;
 	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
+	const bool spawn_cooldown_ready = level.time >= self->monsterinfo.spawn_cooldown;  // Nueva verificación
 
-	if (self->monsterinfo.monster_used <= 3 && can_spawn && has_clear_path &&
+	if (self->monsterinfo.monster_used <= 3 && can_spawn && has_clear_path && spawn_cooldown_ready &&
 		(visible(self, self->enemy) && infront(self, self->enemy) ||
 			range <= RANGE_MELEE * 2))
 	{
 		M_SetAnimation(self, &tank_move_spawn);
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		self->monsterinfo.spawn_cooldown = level.time + SPAWN_COOLDOWN;  // Actualiza el tiempo de cooldown
 		self->monsterinfo.has_spawned_initially = true;
 		self->monsterinfo.spawning_in_progress = true;
 		return;

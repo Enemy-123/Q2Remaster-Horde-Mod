@@ -1350,12 +1350,12 @@ void SP_monster_sentrygun(edict_t* self)
 		self->takedamage = false;
 		self->use = turret2_activate;
 		turret2_wall_spawn(self);
-		if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
-		{
-			if (g_debug_monster_kills->integer)
-				level.monsters_registered[level.total_monsters] = self;
-			level.total_monsters++;
-		}
+		//if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT))
+		//{
+		//	if (g_debug_monster_kills->integer)
+		//		level.monsters_registered[level.total_monsters] = self;
+		//	level.total_monsters++;
+		//}
 	}
 	else
 	{
