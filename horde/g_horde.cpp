@@ -3379,24 +3379,21 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (self->teleport_time && level.time < self->teleport_time + TELEPORT_COOLDOWN)
 		return false;
 
-	// Para daño no-agua, verificar condiciones normales de stuck
+	// Para daño no-agua, verificar condiciones de stuck
 	if (!self->waterlevel) {
 		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
 			self->s.origin, self, MASK_MONSTERSOLID).startsolid;
-		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >=
-			NO_DAMAGE_TIMEOUT;
+		const bool no_damage_timeout = (level.time - self->monsterinfo.react_to_damage_time) >= NO_DAMAGE_TIMEOUT;
 
 		if (!is_stuck && !no_damage_timeout && !self->monsterinfo.was_stuck)
 			return false;
 
-		// Inicializar stuck check si es necesario
 		if (!self->monsterinfo.was_stuck) {
 			self->monsterinfo.stuck_check_time = level.time;
 			self->monsterinfo.was_stuck = true;
 			return false;
 		}
 
-		// Verificar tiempo de stuck
 		if (level.time < self->monsterinfo.stuck_check_time + STUCK_CHECK_TIME)
 			return false;
 	}
@@ -3404,7 +3401,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	edict_t* available_spawns[MAX_SPAWN_POINTS];
 	size_t spawn_count = 0;
 
-	// Crear span para g_edicts empezando desde índice 1
+	// Crear span desde el índice 1 hasta el final
 	std::span<edict_t> edicts_view{ &g_edicts[1], globals.num_edicts - 1 };
 
 	// Recolección optimizada de spawn points usando span
@@ -3419,8 +3416,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 		auto it = spawnPointsData.find(&e);
 		if (it != spawnPointsData.end()) {
-			auto& spawn_data = it->second;
-			if (level.time < spawn_data.teleport_cooldown)
+			if (level.time < it->second.teleport_cooldown)
 				continue;
 		}
 
@@ -3429,7 +3425,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			for (const auto player : active_players()) {
 				if (!player->inuse || player->deadflag)
 					continue;
-				if (gi.traceline(e.s.origin, player->s.origin, self, MASK_SOLID).fraction >= 0.3f) {
+				if (G_IsClearPath(player, MASK_SOLID, e.s.origin, player->s.origin)) {
 					can_see_player = true;
 					break;
 				}
@@ -3442,11 +3438,11 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (spawn_count == 0)
 		return false;
 
-	// Crear span para los spawns disponibles
+	// Crear vista de los spawns disponibles
 	std::span<edict_t* const> spawns_view{ available_spawns, spawn_count };
 
 	// Seleccionar spawn point aleatorio usando span
-	edict_t* spawn_point = spawns_view[std::uniform_int_distribution<size_t>(0, spawn_count - 1)(mt_rand)];
+	edict_t* spawn_point = spawns_view[irandom(spawn_count)];
 
 	// Set teleport cooldown
 	auto& spawn_data = spawnPointsData[spawn_point];
@@ -3473,7 +3469,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return true;
 	}
 
-	// Restaurar posición si falló el teleport
+	// Restaurar posición si falló
 	self->s.origin = old_origin;
 	self->s.old_origin = old_origin;
 	self->velocity = old_velocity;
@@ -3489,7 +3485,7 @@ static edict_t* SpawnMonsters() {
 	// Crear span desde el índice 1 hasta el final
 	std::span<edict_t> active_edicts{ &g_edicts[1], globals.num_edicts - 1 };
 
-	// Usando el span que ya empieza desde el índice 1
+	// Recolección de spawn points con validación temprana
 	for (edict_t& e : active_edicts) {
 		if (spawn_count >= MAX_SPAWN_POINTS)
 			break;
@@ -3504,15 +3500,20 @@ static edict_t* SpawnMonsters() {
 				continue;
 			it->second.isTemporarilyDisabled = false;
 		}
+
+		// Verificar si el punto de spawn es válido usando vec3_t
+		if (!is_valid_vector(e.s.origin))
+			continue;
+
 		monster_spawns[spawn_count++] = &e;
 	}
 
-	// Early return si no hay spawns disponibles
 	if (spawn_count == 0)
 		return nullptr;
 
 	// Crear vista de los spawns disponibles
 	std::span<edict_t* const> available_spawns{ monster_spawns, spawn_count };
+
 	// Shuffle optimizado usando Fisher-Yates con span
 	if (spawn_count > 1) {
 		for (size_t i = spawn_count - 1; i > 0; --i) {
@@ -3523,7 +3524,7 @@ static edict_t* SpawnMonsters() {
 		}
 	}
 
-	// Cache de valores del mapa
+	// Cache de valores del mapa y límites
 	const MapSize& mapSize = GetMapSize(level.mapname);
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
@@ -3542,10 +3543,9 @@ static edict_t* SpawnMonsters() {
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	// Usar un rango directo para el número de spawns necesarios
 	const size_t spawn_limit = std::min(spawn_count, static_cast<size_t>(spawnable));
 
-	// Spawn loop optimizado
+	// Spawn loop optimizado usando operaciones vec3_t
 	for (size_t i = 0; i < spawn_limit; ++i) {
 		if (g_horde_local.num_to_spawn <= 0)
 			break;
@@ -3557,7 +3557,13 @@ static edict_t* SpawnMonsters() {
 
 		if (edict_t* monster = G_Spawn()) {
 			monster->classname = monster_classname;
-			monster->s.origin = spawn_point->s.origin;
+
+			// Usar ProjectSource para posición más precisa con offset vertical
+			monster->s.origin = G_ProjectSource(spawn_point->s.origin,
+				vec3_t{ 0, 0, 8 },  // Pequeño offset vertical
+				vec3_t{ 1,0,0 },
+				vec3_t{ 0,1,0 });
+
 			monster->s.angles = spawn_point->s.angles;
 			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
@@ -3567,11 +3573,15 @@ static edict_t* SpawnMonsters() {
 			if (monster->inuse) {
 				if (g_horde_local.level >= 14)
 					SetMonsterArmor(monster);
+
 				if (frandom() < drop_chance)
 					monster->item = G_HordePickItem();
 
-				SpawnGrow_Spawn(monster->s.origin, 80.0f, 10.0f);
+				// Usar vec3_t para los efectos visuales
+				const vec3_t spawn_pos = monster->s.origin + vec3_t{ 0, 0, monster->mins[2] };
+				SpawnGrow_Spawn(spawn_pos, 80.0f, 10.0f);
 				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+
 				--g_horde_local.num_to_spawn;
 				--g_horde_local.queued_monsters;
 				++g_totalMonstersInWave;
