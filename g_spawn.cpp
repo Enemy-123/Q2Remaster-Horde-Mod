@@ -2075,6 +2075,8 @@ void SP_worldspawn(edict_t* ent)
 
 	// help icon for statusbar
 	gi.imageindex("i_help");
+	//level.pic_health = brandom() ? gi.imageindex("i_health") : gi.imageindex("i_disguise");
+	//level.pic_health = gi.imageindex("i_disguise");
 	level.pic_health = gi.imageindex("i_health");
 	gi.imageindex("help");
 	gi.imageindex("field_3");

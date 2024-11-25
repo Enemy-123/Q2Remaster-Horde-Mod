@@ -3422,7 +3422,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 		if (!IsSpawnPointOccupied(&e)) {
 			bool can_see_player = false;
-			for (const auto player : active_players()) {
+			for (const auto player : active_players_no_spect()) { 
 				if (!player->inuse || player->deadflag)
 					continue;
 				if (G_IsClearPath(player, MASK_SOLID, e.s.origin, player->s.origin)) {
