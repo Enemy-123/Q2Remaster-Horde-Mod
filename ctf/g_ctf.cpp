@@ -1217,28 +1217,26 @@ std::string FormatEntityInfo(edict_t* ent) {
 class OptimizedEntityInfoManager {
 public:
 	static constexpr size_t MAX_ENTITY_INFOS = 80;
-	using ConfigStringSpan = std::span<const char>;
+	static constexpr size_t MAX_STRING_LENGTH = 256;
 
 private:
 	struct EntityInfo {
-		std::array<char, 256> data{};
-		size_t length{ 0 };
-		std::unordered_set<int> viewing_players;
-		gtime_t last_update{ 0_sec };
+		std::array<char, MAX_STRING_LENGTH> data{};
+		uint16_t length{ 0 };
+		gtime_t last_update{ 0_ms };
 	};
 
 	std::array<EntityInfo, MAX_ENTITY_INFOS> m_activeConfigStrings;
 	std::unordered_map<int, int> m_entityToConfigIndex;
-	std::vector<int> m_lruCache;
-	size_t m_activeCount{ 0 };
+	std::array<int, MAX_ENTITY_INFOS> m_lruOrder;
+	uint16_t m_activeCount{ 0 };
+	uint16_t m_lruSize{ 0 };
 
 public:
-	OptimizedEntityInfoManager() noexcept {
-		m_lruCache.reserve(MAX_ENTITY_INFOS);
-	}
+	OptimizedEntityInfoManager() noexcept = default;
 
-	void updateEntityInfo(int entityIndex, std::string_view info, edict_t* viewer = nullptr) noexcept {
-		if (info.length() >= 256) return;
+	void updateEntityInfo(int entityIndex, std::string_view info) noexcept {
+		if (info.length() >= MAX_STRING_LENGTH) return;
 
 		int configIndex;
 		auto it = m_entityToConfigIndex.find(entityIndex);
@@ -1258,25 +1256,17 @@ public:
 
 		auto& entityInfo = m_activeConfigStrings[configIndex];
 
-		// Solo actualizar si el contenido es diferente o ha pasado suficiente tiempo
+		// Solo actualizar si el contenido cambió o pasó suficiente tiempo
 		if (entityInfo.length != info.length() ||
 			std::memcmp(entityInfo.data.data(), info.data(), info.length()) != 0 ||
-			level.time - entityInfo.last_update > 250_ms) {
+			level.time - entityInfo.last_update > 100_ms) {
 
-			std::copy_n(info.data(), info.length(), entityInfo.data.data());
-			entityInfo.length = info.length();
+			std::memcpy(entityInfo.data.data(), info.data(), info.length());
+			entityInfo.length = static_cast<uint16_t>(info.length());
 			entityInfo.data[info.length()] = '\0';
 			entityInfo.last_update = level.time;
 
-			// Actualizar configstring del engine
 			gi.configstring(CONFIG_ENTITY_INFO_START + configIndex, entityInfo.data.data());
-		}
-
-		if (viewer) {
-			int playerIndex = P_GetLobbyUserNum(viewer);
-			entityInfo.viewing_players.insert(playerIndex);
-
-			gi.unicast(viewer, true);
 		}
 
 		updateLRU(configIndex);
@@ -1286,43 +1276,17 @@ public:
 		auto it = m_entityToConfigIndex.find(entityIndex);
 		if (it != m_entityToConfigIndex.end()) {
 			int configIndex = it->second;
-			auto& entityInfo = m_activeConfigStrings[configIndex];
 
-			// Limpiar el configstring
-			entityInfo.length = 0;
-			entityInfo.data[0] = '\0';
-			entityInfo.viewing_players.clear();
+			// Limpiar configstring
+			m_activeConfigStrings[configIndex].length = 0;
+			m_activeConfigStrings[configIndex].data[0] = '\0';
 			gi.configstring(CONFIG_ENTITY_INFO_START + configIndex, "");
 
+			// Actualizar estructuras de datos
 			removeLRU(configIndex);
 			m_entityToConfigIndex.erase(it);
 			--m_activeCount;
 		}
-	}
-
-	void removeViewer(int entityIndex, edict_t* viewer) noexcept {
-		if (!viewer) return;
-
-		auto it = m_entityToConfigIndex.find(entityIndex);
-		if (it != m_entityToConfigIndex.end()) {
-			int playerIndex = P_GetLobbyUserNum(viewer);
-			auto& entityInfo = m_activeConfigStrings[it->second];
-			entityInfo.viewing_players.erase(playerIndex);
-
-			// Si nadie está viendo esta entidad, considerar liberarla
-			if (entityInfo.viewing_players.empty()) {
-				considerCleanup(entityIndex);
-			}
-		}
-	}
-
-	[[nodiscard]] ConfigStringSpan getConfigString(int entityIndex) const noexcept {
-		auto it = m_entityToConfigIndex.find(entityIndex);
-		if (it != m_entityToConfigIndex.end()) {
-			const auto& info = m_activeConfigStrings[it->second];
-			return ConfigStringSpan(info.data.data(), info.length);
-		}
-		return ConfigStringSpan();
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
@@ -1334,70 +1298,50 @@ public:
 	void cleanupStaleEntries() noexcept {
 		constexpr gtime_t STALE_THRESHOLD = 5000_ms;
 
-		for (auto it = m_entityToConfigIndex.begin(); it != m_entityToConfigIndex.end();) {
-			auto& entityInfo = m_activeConfigStrings[it->second];
+		for (int i = 0; i < m_lruSize; ++i) {
+			int configIndex = m_lruOrder[i];
+			auto& entityInfo = m_activeConfigStrings[configIndex];
 
-			if (entityInfo.viewing_players.empty() &&
-				level.time - entityInfo.last_update > STALE_THRESHOLD) {
-				removeEntityInfo(it->first);
-				it = m_entityToConfigIndex.begin(); // Reiniciar iteración ya que removeEntityInfo modifica el map
-			}
-			else {
-				++it;
+			if (level.time - entityInfo.last_update > STALE_THRESHOLD) {
+				// Encontrar y eliminar la entidad asociada
+				for (auto it = m_entityToConfigIndex.begin(); it != m_entityToConfigIndex.end(); ++it) {
+					if (it->second == configIndex) {
+						removeEntityInfo(it->first);
+						break;
+					}
+				}
 			}
 		}
 	}
 
 private:
-	int evictLRU() noexcept {
-		while (!m_lruCache.empty()) {
-			int index = m_lruCache.front();
-			auto& entityInfo = m_activeConfigStrings[index];
-
-			// Solo evictar si nadie está viendo la entidad
-			if (entityInfo.viewing_players.empty()) {
-				m_lruCache.erase(m_lruCache.begin());
-				return index;
-			}
-			// Mover al final si está en uso
-			updateLRU(index);
+	[[nodiscard]] int evictLRU() noexcept {
+		if (m_lruSize > 0) {
+			int index = m_lruOrder[0];
+			std::memmove(&m_lruOrder[0], &m_lruOrder[1], (m_lruSize - 1) * sizeof(int));
+			--m_lruSize;
+			return index;
 		}
-		// Fallback: usar el primer índice si no hay mejor opción
 		return 0;
 	}
 
 	void updateLRU(int index) noexcept {
 		removeLRU(index);
-		m_lruCache.push_back(index);
-		if (m_lruCache.size() > MAX_ENTITY_INFOS) {
-			m_lruCache.erase(m_lruCache.begin());
-		}
+		m_lruOrder[m_lruSize++] = index;
 	}
 
 	void removeLRU(int index) noexcept {
-		auto it = std::find(m_lruCache.begin(), m_lruCache.end(), index);
-		if (it != m_lruCache.end()) {
-			m_lruCache.erase(it);
-		}
-	}
-
-	void considerCleanup(int entityIndex) noexcept {
-		constexpr gtime_t IMMEDIATE_CLEANUP_THRESHOLD = 1000_ms;
-
-		auto it = m_entityToConfigIndex.find(entityIndex);
-		if (it != m_entityToConfigIndex.end()) {
-			auto& entityInfo = m_activeConfigStrings[it->second];
-
-			// Si la entidad lleva sin actualizarse más del umbral, limpiarla inmediatamente
-			if (level.time - entityInfo.last_update > IMMEDIATE_CLEANUP_THRESHOLD) {
-				removeEntityInfo(entityIndex);
+		for (uint16_t i = 0; i < m_lruSize; ++i) {
+			if (m_lruOrder[i] == index) {
+				std::memmove(&m_lruOrder[i], &m_lruOrder[i + 1],
+					(m_lruSize - i - 1) * sizeof(int));
+				--m_lruSize;
+				break;
 			}
-			// De lo contrario, se limpiará en la próxima pasada de cleanupStaleEntries
 		}
 	}
 };
 
-// Variable global
 inline OptimizedEntityInfoManager g_entityInfoManager;
 
 //// Función auxiliar optimizada
