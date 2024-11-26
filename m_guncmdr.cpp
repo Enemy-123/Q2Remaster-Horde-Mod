@@ -491,7 +491,7 @@ PAIN(guncmdr_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 	// small pain
 	if (damage < 35)
 	{
-		int r = irandom(0, 4);
+		int const r = irandom(0, 4);
 
 		if (r == 0)
 			M_SetAnimation(self, &guncmdr_move_pain3);
@@ -735,7 +735,7 @@ DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 		{
 			head->s.angles = self->s.angles;
 			head->s.origin = self->s.origin + vec3_t{ 0, 0, 24.f };
-			vec3_t headDir = (self->s.origin - inflictor->s.origin);
+			vec3_t const headDir = (self->s.origin - inflictor->s.origin);
 			head->velocity = headDir / headDir.length() * 100.0f;
 			head->velocity[2] = 200.0f;
 			head->avelocity *= 0.15f;
@@ -745,7 +745,7 @@ DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	// damage came from behind; use backwards death
 	else if (dif.dot(forward) < -0.40f)
 	{
-		int r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain6 ? 2 : 3);
+		int const r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain6 ? 2 : 3);
 
 		if (r == 0)
 			M_SetAnimation(self, &guncmdr_move_death3);
@@ -756,7 +756,7 @@ DIE(guncmdr_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	}
 	else
 	{
-		int r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain5 ? 1 : 2);
+		int const r = irandom(0, self->monsterinfo.active_move == &guncmdr_move_pain5 ? 1 : 2);
 
 		if (r == 0)
 			M_SetAnimation(self, &guncmdr_move_death4);
@@ -781,7 +781,7 @@ void GunnerCmdrFire(edict_t* self)
 	vec3_t					 aim;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self && self->enemy || !self && !self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
+	if (!self || !self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
 		return;								 // PGM
 
 	if (self->s.frame >= FRAME_c_attack401 && self->s.frame <= FRAME_c_attack505)
@@ -1192,7 +1192,7 @@ mframe_t guncmdr_frames_attack_kick[] = {
 MMOVE_T(guncmdr_move_attack_kick) = { FRAME_c_attack801, FRAME_c_attack808, guncmdr_frames_attack_kick, guncmdr_kick_finished };
 
 // don't ever try grenades if we get this close
-constexpr float RANGE_GRENADE = 100.f;
+//constexpr float RANGE_GRENADE = 100.f;
 
 // always use mortar at this range
 constexpr float RANGE_GRENADE_MORTAR = 525.f;
@@ -1214,7 +1214,7 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
 		return; // Salir para evitar cambios adicionales de animación
 	}
 
-	float d = range_to(self, self->enemy);
+	float  const d = range_to(self, self->enemy);
 
 	vec3_t forward, right, aim;
 	AngleVectors(self->s.angles, forward, right, nullptr); // PGM
@@ -1367,7 +1367,7 @@ static void GunnerCmdrCounter(edict_t* self)
 	vec3_t f, r, start;
 	AngleVectors(self->s.angles, f, r, nullptr);
 	start = M_ProjectFlashSource(self, { 20.f, 0.f, 14.f }, f, r);
-	trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+	trace_t const tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir(f);
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
@@ -1470,7 +1470,7 @@ MONSTERINFO_BLOCKED(guncmdr_blocked) (edict_t* self, float dist) -> bool
 	if (blocked_checkplat(self, dist))
 		return true;
 
-	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
 			guncmdr_jump(self, result);
@@ -1492,7 +1492,7 @@ void SP_monster_guncmdr(edict_t* self)
 
 
 	if (g_horde->integer) {
-		float randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
+		float const randomsearch = frandom(); // Generar un número aleatorio entre 0 y 1
 
 		if (randomsearch < 0.23f)
 			gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);

@@ -392,7 +392,7 @@ void hover_fire_blaster(edict_t* self)
 	// PGM
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	vec3_t o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
+	vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
 	start = M_ProjectFlashSource(self, o, forward, right);
 
 	end = self->enemy->s.origin;

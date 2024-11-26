@@ -286,7 +286,7 @@ void InfantryMachineGun(edict_t* self)
 	if (self->health <= 0 && self->s.frame >= FRAME_death211 && self->s.frame <= FRAME_death225)
 	{
 		// Usar los offsets precisos del machinegun durante la muerte
-		monster_muzzleflash_id_t flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_INFANTRY_MACHINEGUN_2 + (self->s.frame - FRAME_death211));
+		monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_INFANTRY_MACHINEGUN_2 + (self->s.frame - FRAME_death211));
 
 		// Obtener vectores de dirección
 		AngleVectors(self->s.angles, forward, right, nullptr);
@@ -295,7 +295,7 @@ void InfantryMachineGun(edict_t* self)
 		start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
 		// Calcular dirección usando los ángulos predefinidos
-		vec3_t vec = self->s.angles - aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2];
+		vec3_t const vec = self->s.angles - aimangles[flash_number - MZ2_INFANTRY_MACHINEGUN_2];
 		AngleVectors(vec, forward, nullptr, nullptr);
 
 		// Disparar usando el efecto y sonido del hyperblaster
@@ -304,7 +304,7 @@ void InfantryMachineGun(edict_t* self)
 	else
 	{
 		// Comportamiento normal cuando no está muriendo
-		vec3_t offset = { 26.6f, 6.1f, 10.1f };
+		vec3_t  const offset = { 26.6f, 6.1f, 10.1f };
 		AngleVectors(self->s.angles, forward, right, up);
 		start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
@@ -315,7 +315,7 @@ void InfantryMachineGun(edict_t* self)
 		else
 			end = self->enemy->s.origin;
 
-		trace_t trace = gi.traceline(start, end, self, MASK_PROJECTILE);
+		trace_t const trace = gi.traceline(start, end, self, MASK_PROJECTILE);
 
 		if (trace.ent == self->enemy || trace.ent == world)
 		{
@@ -476,7 +476,7 @@ DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 		{
 			head->s.angles = self->s.angles;
 			head->s.origin = self->s.origin + vec3_t{ 0, 0, 32.f };
-			vec3_t headDir = (self->s.origin - inflictor->s.origin);
+			vec3_t  const headDir = (self->s.origin - inflictor->s.origin);
 			head->velocity = headDir / headDir.length() * 100.0f;
 			head->velocity[2] = 200.0f;
 			head->avelocity *= 0.15f;
@@ -641,7 +641,7 @@ void infantry_swing(edict_t *self)
 
 void infantry_smack(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
+	vec3_t const aim = { MELEE_DISTANCE, 0, 0 };
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		// Llamar a fire_hit solo si self->enemy está inicializado
@@ -680,7 +680,7 @@ static void infantry_grenade(edict_t* self)
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
 	const vec3_t offset = { 24, 10, 10 }; 
-	const float speed = GRENADE_SPEED;
+	constexpr float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
@@ -722,7 +722,7 @@ static void infantry_grenade(edict_t* self)
 		aim.normalize();
 	}
 
-	// Compensate for the upward velocity in fire_grenade2
+	// Comconst pensate for the upward velocity in fire_grenade2
 	const float gravityAdjustment = level.gravity / 800.f;
 	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
 	aim[2] += downwardAdjustment;
@@ -787,7 +787,7 @@ MONSTERINFO_ATTACK(infantry_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
-	float r = range_to(self, self->enemy);
+	float  const r = range_to(self, self->enemy);
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
 	{
@@ -886,7 +886,7 @@ void infantry_jump(edict_t *self, blocked_jump_result_t result)
 
 MONSTERINFO_BLOCKED(infantry_blocked) (edict_t *self, float dist) -> bool
 {
-	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	if (auto  const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
 			infantry_jump(self, result);

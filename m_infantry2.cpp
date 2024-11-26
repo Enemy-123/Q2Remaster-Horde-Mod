@@ -285,7 +285,7 @@ void infantry_vanillaMachineGun(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
-	bool is_run_attack = (self->s.frame >= FRAME_run201 && self->s.frame <= FRAME_run208);
+	bool const is_run_attack = (self->s.frame >= FRAME_run201 && self->s.frame <= FRAME_run208);
 
 	if (self->s.frame == FRAME_attak103 || self->s.frame == FRAME_attak311 || is_run_attack || self->s.frame == FRAME_attak416)
 	{
@@ -469,7 +469,7 @@ DIE(infantry_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker,
 		{
 			head->s.angles = self->s.angles;
 			head->s.origin = self->s.origin + vec3_t{ 0, 0, 32.f };
-			vec3_t headDir = (self->s.origin - inflictor->s.origin);
+			vec3_t const headDir = (self->s.origin - inflictor->s.origin);
 			head->velocity = headDir / headDir.length() * 100.0f;
 			head->velocity[2] = 200.0f;
 			head->avelocity *= 0.15f;
@@ -635,7 +635,7 @@ void infantry_vanilla_swing(edict_t* self)
 
 void infantry_vanilla_smack(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
+	vec3_t const aim = { MELEE_DISTANCE, 0, 0 };
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
 		// Llamar a fire_hit solo si self->enemy está inicializado
@@ -713,7 +713,7 @@ static void infantry_vanilla_grenade(edict_t* self)
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
 	const vec3_t offset = { 24, 10, 10 }; 
-	const float speed = GRENADE_SPEED;
+	constexpr float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
@@ -785,7 +785,7 @@ MONSTERINFO_ATTACK(infantry_vanilla_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
-	float r = range_to(self, self->enemy);
+	float const r = range_to(self, self->enemy);
 
 	if (r <= RANGE_MELEE && self->monsterinfo.melee_debounce_time <= level.time)
 	{
@@ -885,7 +885,7 @@ void infantry_vanilla_jump(edict_t* self, blocked_jump_result_t result)
 
 MONSTERINFO_BLOCKED(infantry_vanilla_blocked) (edict_t* self, float dist) -> bool
 {
-	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
 			infantry_vanilla_jump(self, result);

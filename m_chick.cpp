@@ -403,7 +403,7 @@ MMOVE_T(chick_move_duck) = { FRAME_duck01, FRAME_duck07, chick_frames_duck, chic
 
 void ChickSlash(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 10 };
+	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 10 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -560,7 +560,7 @@ void Chick_PreAttack1(edict_t* self)
 
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
@@ -828,7 +828,7 @@ MONSTERINFO_BLOCKED(chick_blocked) (edict_t* self, float dist) -> bool
 {
 	if (self->monsterinfo.can_jump)
 	{
-		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 		{
 			chick_jump(self, result);
 			return true;

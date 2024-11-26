@@ -558,7 +558,7 @@ void floater_zap(edict_t* self)
 
 MONSTERINFO_ATTACK(floater_attack) (edict_t* self) -> void
 {
-	float chance = 0.5f;
+	float const chance = 0.5f;
 
 	if (frandom() > chance)
 	{

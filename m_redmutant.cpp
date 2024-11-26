@@ -34,7 +34,7 @@ static cached_soundindex sound_thud;
 
 void redmutant_step(edict_t* self)
 {
-	int n = irandom(3);
+	int const n = irandom(3);
 	if (n == 0)
 		gi.sound(self, CHAN_BODY, sound_step1, 1, ATTN_NORM, 0);
 	else if (n == 1)
@@ -196,7 +196,7 @@ MONSTERINFO_RUN(redmutant_run) (edict_t* self) -> void
 
 void redmutant_hit_left(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
+	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -222,7 +222,7 @@ void redmutant_hit_left(edict_t* self)
 
 void redmutant_hit_right(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
+	vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -659,7 +659,7 @@ Blocked
 */
 MONSTERINFO_BLOCKED(redmutant_blocked) (edict_t* self, float dist) -> bool
 {
-	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
 			redmutant_jump_updown(self, result);

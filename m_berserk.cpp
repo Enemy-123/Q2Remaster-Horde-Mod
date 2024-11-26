@@ -195,7 +195,7 @@ MMOVE_T(berserk_move_attack_spike) = { FRAME_att_c1, FRAME_att_c8, berserk_frame
 
 void berserk_attack_club(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
+	vec3_t  const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -288,7 +288,7 @@ static void berserk_attack_slam(edict_t* self)
 	vec3_t f, r, start;
 	AngleVectors(self->s.angles, f, r, nullptr);
 	start = M_ProjectFlashSource(self, { 20.f, -14.3f, -21.f }, f, r);
-	trace_t tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
+	trace_t const tr = gi.traceline(self->s.origin, start, self, MASK_SOLID);
 	gi.WritePosition(tr.endpos);
 	gi.WriteDir({ 0.f, 0.f, 1.f });
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
@@ -320,7 +320,7 @@ TOUCH(berserk_jump_touch) (edict_t* self, edict_t* other, const trace_t& tr, boo
 
 static void berserk_high_gravity(edict_t* self)
 {
-	float gravity_scale = (800.f / level.gravity);
+	float  const gravity_scale = (800.f / level.gravity);
 
 	if (self->velocity[2] < 0)
 		self->gravity = 2.25f;
@@ -338,8 +338,8 @@ void berserk_jump_takeoff(edict_t* self)
 		return;
 
 	// immediately turn to where we need to go
-	float length = (self->s.origin - self->enemy->s.origin).length();
-	float fwd_speed = length * 1.95f;
+	float  const length = (self->s.origin - self->enemy->s.origin).length();
+	float  const fwd_speed = length * 1.95f;
 	vec3_t dir;
 	PredictAim(self, self->enemy, self->s.origin, fwd_speed, false, 0.f, &dir, nullptr);
 	self->s.angles[1] = vectoyaw(dir);
@@ -718,7 +718,7 @@ void berserk_jump(edict_t* self, blocked_jump_result_t result)
 
 MONSTERINFO_BLOCKED(berserk_blocked) (edict_t* self, float dist) -> bool
 {
-	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
 			berserk_jump(self, result);

@@ -12,7 +12,6 @@ GUARDIAN
 #include "m_guardian.h"
 #include "m_flash.h"
 #include "shared.h"
-constexpr spawnflags_t SPAWNFLAG_GUARDIAN_JANITOR = 8_spawnflag;
 static cached_soundindex sound_sight;
 //static cached_soundindex sound_pain1;
 //static cached_soundindex sound_pain2;
@@ -292,7 +291,7 @@ void guardianpsx_fire_blaster(edict_t* self)
 {
 	vec3_t forward, right, up;
 	vec3_t start;
-	monster_muzzleflash_id_t id = MZ2_GUARDIAN_BLASTER;
+	monster_muzzleflash_id_t const id = MZ2_GUARDIAN_BLASTER;
 
 	if (!self->enemy || !self->enemy->inuse)
 	{
@@ -458,7 +457,7 @@ MMOVE_T(guardianpsx_move_kick) = { FRAME_kick_in1, FRAME_kick_in13, guardianpsx_
 fire_heat
 */
 
-static inline vec3_t heat_guardianpsx_get_dist_vec(edict_t* heat, edict_t* target, float dist_to_target)
+static inline vec3_t heat_guardianpsx_get_dist_vec(const edict_t* heat, const edict_t* target, float dist_to_target)
 {
 	return (((target->s.origin + vec3_t{ 0.f, 0.f, target->mins.z }) + (target->velocity * (clamp(dist_to_target / 500.f, 0.f, 1.f)) * 0.5f)) - heat->s.origin).normalized();
 }
@@ -471,7 +470,7 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 
 	if (self->timestamp < level.time)
 	{
-		vec3_t fwd = AngleVectors(self->s.angles).forward;
+		vec3_t const fwd = AngleVectors(self->s.angles).forward;
 
 		if (self->oldenemy)
 		{
@@ -490,7 +489,7 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 			}
 			else
 			{
-				float dist_to_target = (self->s.origin - acquire->s.origin).normalize();
+				float const dist_to_target = (self->s.origin - acquire->s.origin).normalize();
 				self->pos1 = heat_guardianpsx_get_dist_vec(self, acquire, dist_to_target);
 			}
 		}
@@ -511,11 +510,11 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 				if (!visible(self, target))
 					continue;
 
-				float dist_to_target = (self->s.origin - target->s.origin).normalize();
+				float const dist_to_target = (self->s.origin - target->s.origin).normalize();
 				vec3_t vec = heat_guardianpsx_get_dist_vec(self, target, dist_to_target);
 
-				float len = vec.normalize();
-				float dot = vec.dot(fwd);
+				float const len = vec.normalize();
+				float const dot = vec.dot(fwd);
 
 				// targets that require us to turn less are preferred
 				if (dot >= olddot)
@@ -532,7 +531,7 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 		}
 	}
 
-	vec3_t preferred_dir = self->pos1;
+	vec3_t const preferred_dir = self->pos1;
 
 	if (acquire != nullptr)
 	{
@@ -550,7 +549,7 @@ THINK(heat_guardianpsx_think) (edict_t* self) -> void
 	if (self->enemy)
 		t *= 0.85f;
 
-	float d = self->movedir.dot(preferred_dir);
+	//float d = self->movedir.dot(preferred_dir);
 
 	self->movedir = slerp(self->movedir, preferred_dir, t).normalized();
 	self->s.angles = vectoangles(self->movedir);
@@ -649,7 +648,7 @@ static void guardianpsx_blind_fire_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
@@ -697,7 +696,7 @@ MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 		else
 			chance = 0.1f;
 
-		float r = frandom();
+		float const r = frandom();
 
 		self->monsterinfo.blind_fire_delay += random_time(8.5_sec, 15.5_sec);
 
@@ -728,7 +727,7 @@ MONSTERINFO_ATTACK(guardianpsx_attack) (edict_t* self) -> void
 		return;
 	}
 
-	float r = range_to(self, self->enemy);
+	float const r = range_to(self, self->enemy);
 	bool changedAttack = false;
 
 	if (self->monsterinfo.melee_debounce_time < level.time && r < 160.f)

@@ -357,8 +357,8 @@ static void guardian_grenade(edict_t* self)
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
-	const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
-	const float speed = GRENADE_SPEED;
+	//const monster_muzzleflash_id_t flash_number = MZ2_GUNNER_GRENADE2_4;
+	constexpr float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
 		return;
@@ -366,15 +366,15 @@ static void guardian_grenade(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 
 	// Seleccionar la posición de la granada basada en el contador
-	int pos_index = self->count % 2; // Alterna entre 0 y 1
+	//int pos_index = self->count % 2; // Alterna entre 0 y 1
 	start = M_ProjectFlashSource(self, laser_positions[1 - (self->s.frame & 1)], forward, right);
 
 	// Incrementar el contador para la próxima granada
 	self->count++;
 
 	// Predecir la posición del objetivo
-	float time_to_target = (self->enemy->s.origin - start).length() / speed;
-	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+	float const time_to_target = (self->enemy->s.origin - start).length() / speed;
+	vec3_t  const predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
 
 	aim = predicted_pos - start;
 	const float dist = aim.length();
@@ -405,7 +405,7 @@ static void guardian_grenade(edict_t* self)
 	}
 
 	// Compensar la velocidad ascendente en fire_grenade2
-	float gravityAdjustment = level.gravity / 800.f;
+	float const gravityAdjustment = level.gravity / 800.f;
 	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
 	aim[2] += downwardAdjustment;
 	aim.normalize();

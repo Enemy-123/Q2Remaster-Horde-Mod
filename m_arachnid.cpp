@@ -142,7 +142,7 @@ PAIN(arachnid_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
-	float r = frandom();
+	float const r = frandom();
 
 	if (r < 0.5f)
 		M_SetAnimation(self, &arachnid_move_pain1);

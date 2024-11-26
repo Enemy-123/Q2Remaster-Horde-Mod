@@ -47,7 +47,7 @@ void floater_tracker_fire_blaster(edict_t* self)
 	constexpr vec3_t custom_offset = { 32.5f, -0.8f, 10.f };
 
 	// Obtenemos los vectores usando la estructura
-	angle_vectors_t vectors = AngleVectors(self->s.angles);
+	angle_vectors_t const vectors = AngleVectors(self->s.angles);
 
 	// Usamos G_ProjectSourceWithOffset con vec3_origin
 	start = G_ProjectSourceWithOffset(self->s.origin, custom_offset, vectors.forward, vectors.right, vectors.up, vec3_origin);
@@ -569,7 +569,7 @@ void floater_tracker_zap(edict_t* self)
 
 MONSTERINFO_ATTACK(floater_tracker_attack) (edict_t* self) -> void
 {
-	float chance = 0.5f;
+	float const chance = 0.5f;
 
 	if (frandom() > chance)
 	{

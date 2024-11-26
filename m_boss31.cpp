@@ -514,8 +514,8 @@ void jorg_firebullet_right(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int damage = 35;
-	int radius_damage = 45;
+	int const damage = 35;
+	int const radius_damage = 45;
 
 
 	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
@@ -538,8 +538,8 @@ void jorg_firebullet_left(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int damage = 35;
-	int radius_damage = 45;
+	int const damage = 35;
+	int const radius_damage = 45;
 
 	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
 
@@ -689,7 +689,7 @@ void SP_monster_jorg(edict_t* self)
 	self->mins = { -80, -80, 0 };
 	self->maxs = { 80, 80, 140 };
 
-	self->health = 6500 + (1.08 * current_wave_level);
+	self->health = 6500 * st.health_multiplier + (1.08 * current_wave_level);
 	self->gib_health = -2000;
 	self->mass = 1000;
 

@@ -482,9 +482,9 @@ THINK(proboscis_think) (edict_t* self) -> void
             return;
         }
 
-        vec3_t start = parasite_get_proboscis_start(self->owner);
+        vec3_t const start = parasite_get_proboscis_start(self->owner);
         vec3_t dir = (self->s.origin - start);
-        float dist = dir.normalize();
+        float const dist = dir.normalize();
         if (dist <= (self->speed * 2) * gi.frame_time_s)
         {
             // reached target; free self on next frame, let parasite know
@@ -517,11 +517,11 @@ THINK(proboscis_think) (edict_t* self) -> void
 
         // update our position
         self->s.origin = self->enemy->s.origin + self->move_origin;
-        vec3_t start = parasite_get_proboscis_start(self->owner);
+        vec3_t const start = parasite_get_proboscis_start(self->owner);
         self->s.angles = vectoangles((self->s.origin - start).normalized());
         
         // see if we got cut by the world
-        trace_t tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
+        trace_t const tr = gi.traceline(start, self->s.origin, nullptr, MASK_SOLID);
         if (tr.fraction != 1.0f)
         {
             // blocked, so retract
@@ -559,11 +559,11 @@ THINK(proboscis_think) (edict_t* self) -> void
         // if we're well behind our target and missed by 2x velocity,
         // be smart enough to pull in automatically
         vec3_t to_target = (self->s.origin - self->owner->enemy->s.origin);
-        float dist_to_target = to_target.normalize();
+        float const dist_to_target = to_target.normalize();
         if (dist_to_target > (self->speed * 2) / 15.f)
         {
-            vec3_t from_owner = (self->s.origin - self->owner->s.origin).normalized();
-            float dot = to_target.dot(from_owner);
+            vec3_t const from_owner = (self->s.origin - self->owner->s.origin).normalized();
+            float const dot = to_target.dot(from_owner);
             if (dot > 0.f)
             {
                 proboscis_retract(self);
@@ -582,7 +582,7 @@ PRETHINK(proboscis_segment_draw) (edict_t* self) -> void
 		return;
 	}
 
-	vec3_t start = parasite_get_proboscis_start(self->owner->owner);
+	vec3_t const start = parasite_get_proboscis_start(self->owner->owner);
 
 	self->s.origin = start;
 	self->s.old_origin = self->owner->s.origin - ((self->owner->s.origin - start).normalized() * 8.f);
@@ -640,7 +640,7 @@ static void parasite_fire_proboscis(edict_t* self)
 	if (self->proboscus && self->proboscus->style != 2)
 		proboscis_reset(self->proboscus);
 
-	vec3_t start = parasite_get_proboscis_start(self);
+	vec3_t const start = parasite_get_proboscis_start(self);
 
 	vec3_t dir;
 	PredictAim(self, self->enemy, start, g_athena_parasite_proboscis_speed, false, crandom_open() * g_athena_parasite_miss_chance, &dir, nullptr);
@@ -795,7 +795,7 @@ Blocked
 */
 MONSTERINFO_BLOCKED(parasite_blocked) (edict_t* self, float dist) -> bool
 {
-	if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+	if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 	{
 		if (result != blocked_jump_result_t::JUMP_TURN)
 			parasite_jump(self, result);

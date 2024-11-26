@@ -287,7 +287,7 @@ void turret2Aim(edict_t* self)
 		self->target_ent = G_Spawn();
 		self->target_ent->s.modelindex = MODELINDEX_WORLD;
 		self->target_ent->s.renderfx = RF_BEAM;
-		self->target_ent->s.frame = 1.8;
+		self->target_ent->s.frame = 1.8f;
 		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->classname = "turret_lasersight";
 		self->target_ent->s.effects = EF_BOB;
@@ -1320,7 +1320,7 @@ void SP_monster_sentrygun(edict_t* self)
 
 	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	self->monsterinfo.power_armor_power = 100;
-	self->health = 80;
+	self->health = 80 * st.health_multiplier;;
 	self->gib_health = -100;
 	self->mass = 100;
 	self->yaw_speed = 16;

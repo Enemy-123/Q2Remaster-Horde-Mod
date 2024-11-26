@@ -141,7 +141,7 @@ PAIN(arachnid2_pain) (edict_t* self, edict_t* other, float kick, int damage, con
 	if (!M_ShouldReactToPain(self, mod))
 		return; // no pain anims in nightmare
 
-	float r = frandom();
+	float const r = frandom();
 
 	if (r < 0.5f)
 		M_SetAnimation(self, &arachnid2_move_pain1);
@@ -207,7 +207,7 @@ static void gm_arachnid_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
@@ -221,7 +221,7 @@ void gm_arachnid_rockets(edict_t* self)
 	monster_muzzleflash_id_t	id;
 	int							rocketSpeed;
 	vec3_t						target;
-	bool						blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+	bool						const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
 	switch (self->s.frame)
 	{
@@ -572,8 +572,8 @@ void SP_monster_arachnid2(edict_t* self)
 	self->monsterinfo.scale = MODEL_SCALE;
 
 
-	 if (!strcmp(self->classname, "monster_arachnid2") && !self->monsterinfo.IS_BOSS) {
-	 if (g_horde->integer)
+	 if (!strcmp(self->classname, "monster_arachnid2") && !self->monsterinfo.IS_BOSS)
+	 {
 		self->s.scale = 0.85f;
 		self->mins = { -41, -41, -17 };
 		self->maxs = { 41, 41, 41 };

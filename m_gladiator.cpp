@@ -109,7 +109,7 @@ MONSTERINFO_RUN(gladiator_run) (edict_t* self) -> void
 
 void GladiatorMelee(edict_t* self)
 {
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
+	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
@@ -255,7 +255,7 @@ void gladcGun(edict_t* self)
 		damage /= 2;
 		radius_damage /= 2;
 	}
-	float r = frandom();
+	float const r = frandom();
 	fire_plasma(self, start, dir, damage, 925, radius_damage, radius_damage);
 	if (r < 0.5f && current_wave_level >= 18) {
 		fire_plasma(self, start, dir, damage, 1225, radius_damage, radius_damage);
@@ -521,14 +521,14 @@ void SP_monster_gladiator(edict_t* self)
 
 		if (!self->monsterinfo.power_armor_type != IT_NULL || (!st.was_key_specified("armor_type")))
 		{
-			float r = frandom();
+			float const r = frandom();
 			if (r < 0.7f) // 70% de probabilidad de tener armadura
 			{
 				self->monsterinfo.power_armor_type = IT_NULL;
 				self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
 				if (!st.was_key_specified("armor_power"))
 				{
-					self->monsterinfo.armor_power = 200 + (int)(frandom() * 100); // 200-300
+					self->monsterinfo.armor_power = 200 + (frandom() * 100); // 200-300
 				}
 			}
 			else
@@ -613,9 +613,6 @@ void SP_monster_gladiator(edict_t* self)
 */
 void SP_monster_gladb(edict_t* self)
 {
-	const spawn_temp_t& st = ED_GetSpawnTemp();
-
-
 	self->style = 1;
 	SP_monster_gladiator(self);
 }

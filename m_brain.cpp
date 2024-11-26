@@ -281,7 +281,7 @@ void brain_hit_right(edict_t* self)
 {
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		vec3_t aim = { MELEE_DISTANCE, self->maxs[0], 8 };
+		vec3_t const aim = { MELEE_DISTANCE, self->maxs[0], 8 };
 		if (fire_hit(self, aim, irandom(15, 20), 40))
 			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
 		else
@@ -306,7 +306,7 @@ void brain_hit_left(edict_t* self)
 {
 	// Verificar si self->enemy está correctamente inicializado
 	if (self->enemy) {
-		vec3_t aim = { MELEE_DISTANCE, self->mins[0], 8 };
+		vec3_t const aim = { MELEE_DISTANCE, self->mins[0], 8 };
 		if (fire_hit(self, aim, irandom(15, 20), 40))
 			gi.sound(self, CHAN_WEAPON, sound_melee3, 1, ATTN_NORM, 0);
 		else
@@ -354,7 +354,7 @@ void brain_chest_open(edict_t* self)
 void brain_tentacle_attack(edict_t* self)
 {
 	if (self->enemy) {
-		vec3_t aim = { MELEE_DISTANCE, 0, 8 };
+		vec3_t  const aim = { MELEE_DISTANCE, 0, 8 };
 		if (fire_hit(self, aim, irandom(10, 15), -600))
 			self->count = 1;
 		else
@@ -420,8 +420,8 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 	constexpr float MIN_CLEARANCE = 16.0f;
 
 	// Usar operadores de vec3_t para el cálculo de dirección y distancia
-	vec3_t dir = start - end;
-	float dist = dir.length();
+	vec3_t  const dir = start - end;
+	float  const dist = dir.length();
 
 	// Check de distancia
 	if (dist > MAX_ATTACK_DISTANCE)
@@ -445,8 +445,8 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 		return false;
 
 	// Box trace usando vec3_t para los bounds
-	vec3_t mins = { -MIN_CLEARANCE, -MIN_CLEARANCE, -MIN_CLEARANCE };
-	vec3_t maxs = { MIN_CLEARANCE, MIN_CLEARANCE, MIN_CLEARANCE };
+	vec3_t const mins = { -MIN_CLEARANCE, -MIN_CLEARANCE, -MIN_CLEARANCE };
+	vec3_t const maxs = { MIN_CLEARANCE, MIN_CLEARANCE, MIN_CLEARANCE };
 
 	tr = gi.trace(start, mins, maxs, end, nullptr, MASK_SOLID);
 
@@ -458,7 +458,7 @@ void brain_tounge_attack(edict_t* self)
 	if (!self || !self->enemy)
 		return;
 	constexpr float CLOSE_RANGE = 64.0f;
-	vec3_t offset{ 24, 0, 16 };
+	vec3_t const offset{ 24, 0, 16 };
 	int damage = 5;
 
 	// Check distance to enemy
@@ -466,9 +466,9 @@ void brain_tounge_attack(edict_t* self)
 
 	// Close range attack
 	if (dist <= CLOSE_RANGE) {
-		vec3_t dir = (self->enemy->s.origin - self->s.origin).normalized();
+		vec3_t const dir = (self->enemy->s.origin - self->s.origin).normalized();
 
-		if (float modifier = M_DamageModifier(self); modifier != 1.0f) {
+		if (float const modifier = M_DamageModifier(self); modifier != 1.0f) {
 			damage *= modifier;
 		}
 
@@ -492,7 +492,7 @@ void brain_tounge_attack(edict_t* self)
 
 	// Long range attack
 	auto [f, r, up] = AngleVectors(self->s.angles);
-	vec3_t start = M_ProjectFlashSource(self, offset, f, r);
+	vec3_t const start = M_ProjectFlashSource(self, offset, f, r);
 	vec3_t end = self->enemy->s.origin;
 
 	// Try different vertical positions if initial attack path is blocked
@@ -508,12 +508,10 @@ void brain_tounge_attack(edict_t* self)
 	}
 
 	// Check if we can hit the enemy
-	trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE);
+	trace_t const tr = gi.traceline(start, end, self, MASK_PROJECTILE);
 	if (tr.ent != self->enemy) {
 		return;
 	}
-
-	vec3_t dir = start - end;
 
 	// Pull the enemy in with vertical component
 	auto [forward, right, dummy] = AngleVectors(self->s.angles);
@@ -572,11 +570,11 @@ void brain_tounge_attack_continue(edict_t* self)
 	// Handle close range attack
 	if (dist <= ATTACK_RANGE) {
 		// Calculate normalized direction vector using vec3_t operators
-		vec3_t dir = (self->enemy->s.origin - self->s.origin).normalized();
+		vec3_t const dir = (self->enemy->s.origin - self->s.origin).normalized();
 
 		// Calculate damage with modifier
 		int damage = BASE_DAMAGE;
-		if (float modifier = M_DamageModifier(self); modifier != 1.0f) {
+		if (float const modifier = M_DamageModifier(self); modifier != 1.0f) {
 			damage *= modifier;
 		}
 
@@ -697,7 +695,7 @@ void brain_laserbeam(edict_t* self)
 }
 
 // Función auxiliar para validar frames
-bool IsValidFrame(edict_t* self, int frame)
+bool IsValidFrame(const edict_t* self, int frame)
 {
 	if (!self || !self->monsterinfo.active_move.pointer())
 		return false;
@@ -786,7 +784,7 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 		return;
 
 	const float r = range_to(self, self->enemy);
-	constexpr float MELEE_DISTANCE = 80.0f;
+	constexpr float closeEnought = 80.0f;
 	constexpr float JUMP_MIN_DISTANCE = MELEE_DISTANCE * 2;
 	constexpr float JUMP_MAX_DISTANCE = MELEE_DISTANCE * 6;
 
@@ -806,11 +804,11 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 	}
 
 	// Verificar línea de visión y altura relativa
-	bool has_los = visible(self, self->enemy);
-	float height_diff = fabs(self->s.origin[2] - self->enemy->s.origin[2]);
+	bool  const has_los = visible(self, self->enemy);
+	float const height_diff = fabs(self->s.origin[2] - self->enemy->s.origin[2]);
 
 	// Si estamos muy cerca, priorizar el pull/melee
-	if (r <= MELEE_DISTANCE && has_los)
+	if (r <= closeEnought && has_los)
 	{
 		// Intentar hacer pull directamente
 		M_SetAnimation(self, &brain_move_attack3);
@@ -820,7 +818,7 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 	// Para rango medio/cercano, mezclar ataques
 	if (r <= JUMP_MIN_DISTANCE)
 	{
-		float attack_chance = frandom();
+		float const attack_chance = frandom();
 
 		if (attack_chance < 0.4f && !self->spawnflags.has(SPAWNFLAG_BRAIN_NO_LASERS))
 			M_SetAnimation(self, &brain_move_attack4); // Laser
@@ -836,10 +834,10 @@ MONSTERINFO_ATTACK(brain_attack) (edict_t* self) -> void
 	if (r <= JUMP_MAX_DISTANCE && has_los && height_diff < 120.0f)
 	{
 		// Calcular punto medio entre brain y enemigo
-		vec3_t midpoint = (self->s.origin + self->enemy->s.origin) * 0.5f;
+		vec3_t const midpoint = (self->s.origin + self->enemy->s.origin) * 0.5f;
 
 		// Verificar si hay espacio para saltar
-		trace_t tr = gi.trace(self->s.origin, self->mins, self->maxs,
+		trace_t const tr = gi.trace(self->s.origin, self->mins, self->maxs,
 			midpoint, self, MASK_MONSTERSOLID);
 
 		if (tr.fraction >= 0.8f) // Si hay suficiente espacio libre
@@ -1023,7 +1021,7 @@ void brain_jump_attack(edict_t* self)
 	self->s.angles[YAW] = vectoyaw(aim_dir);
 
 	// Calculate velocity using angle_vectors_t struct
-	auto vectors = AngleVectors(self->s.angles);  // Obtiene forward, right, up de una vez
+	auto const vectors = AngleVectors(self->s.angles);  // Obtiene forward, right, up de una vez
 
 	// Construir el vector de velocidad usando operadores de vec3_t
 	self->velocity = vectors.forward * fwd_speed + vectors.up * 125.0f;
@@ -1121,7 +1119,7 @@ MONSTERINFO_BLOCKED(brain_blocked) (edict_t* self, float dist) -> bool
 {
 	if (self->monsterinfo.can_jump)
 	{
-		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 		{
 			brain_jump(self, result);
 			return true;
@@ -1144,8 +1142,6 @@ void SP_monster_brain(edict_t* self)
 		{
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_search, 1, ATTN_NORM, 0);
-			else
-				nullptr;
 		}
 	}
 

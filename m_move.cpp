@@ -42,7 +42,7 @@ bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const 
 	const vec3_t half_step_quadrant_mins = -half_step_quadrant;
 
 	// Optimizar trazas iniciales
-	vec3_t start = origin;
+	vec3_t const start = origin;
 	vec3_t stop = origin;
 	stop.z = ceiling ?
 		(origin.z + maxs.z + STEPSIZE * 2) :
@@ -57,7 +57,7 @@ bool M_CheckBottom_Slow_Generic(const vec3_t& origin, const vec3_t& mins, const 
 		return true;
 
 	const float mid = trace.endpos[2];
-	const float step_threshold = STEPSIZE;
+	constexpr  float step_threshold = STEPSIZE;
 	vec3_t quadrant_start, quadrant_end;
 
 	// Optimizar bucle de verificación de esquinas
@@ -90,7 +90,7 @@ bool M_CheckBottom(edict_t* ent)
 	if (M_CheckBottom_Fast_Generic(ent->s.origin + ent->mins, ent->s.origin + ent->maxs, ent->gravityVector[2] > 0))
 		return true; // we got out easy
 
-	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+	contents_t const mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 	return M_CheckBottom_Slow_Generic(ent->s.origin, ent->mins, ent->maxs, ent, mask, ent->gravityVector[2] > 0, ent->spawnflags.has(SPAWNFLAG_MONSTER_SUPER_STEP));
 }
 
@@ -252,23 +252,23 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	tr = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin + (wanted_dir * ent->monsterinfo.fly_acceleration), ent, MASK_SOLID | CONTENTS_MONSTERCLIP);
 
 	vec3_t aim_fwd, aim_rgt, aim_up;
-	vec3_t yaw_angles = { 0, ent->s.angles.y, 0 };
+	vec3_t const yaw_angles = { 0, ent->s.angles.y, 0 };
 
 	AngleVectors(yaw_angles, aim_fwd, aim_rgt, aim_up);
 
 	// it's a fairly close block, so we may want to shift more dramatically
 	if (tr.fraction < 0.25f)
 	{
-		bool bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
+		bool const bottom_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->mins.z }, wanted_pos,
 			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->mins.z - ent->monsterinfo.fly_acceleration }, ent);
-		bool top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
+		bool const top_visible = SV_flystep_testvisposition(ent->s.origin + vec3_t{ 0, 0, ent->maxs.z }, wanted_pos,
 			ent->s.origin, ent->s.origin + vec3_t{ 0, 0, ent->maxs.z + ent->monsterinfo.fly_acceleration }, ent);
 
 		// top & bottom are same, so we need to try right/left
 		if (bottom_visible == top_visible)
 		{
-			bool left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
-			bool right_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) + aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+			bool const left_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) - aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
+			bool const right_visible = gi.traceline(ent->s.origin + aim_fwd.scaled(ent->maxs) + aim_rgt.scaled(ent->maxs), wanted_pos, ent, MASK_SOLID | CONTENTS_MONSTERCLIP).fraction == 1.0f;
 
 			if (left_visible != right_visible)
 			{
@@ -295,7 +295,7 @@ static bool SV_alternate_flystep(edict_t* ent, vec3_t move, bool relink, edict_t
 	// the closer we are to zero, the more we can change dir.
 	// if we're pushed past our max speed we shouldn't
 	// turn at all.
-	bool following_paths = ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT);
+	bool const following_paths = ent->monsterinfo.aiflags & (AI_PATHING | AI_COMBAT_POINT | AI_LOST_SIGHT);
 	float turn_factor;
 
 	if (((ent->monsterinfo.fly_thrusters && !ent->monsterinfo.fly_pinned) || following_paths) && dir.dot(wanted_dir) > 0.0f)
@@ -415,7 +415,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 	}
 
 	// try the move
-	vec3_t oldorg = ent->s.origin;
+	vec3_t const oldorg = ent->s.origin;
 	vec3_t neworg = ent->s.origin + move;
 
 	// fixme: move to monsterinfo
@@ -440,7 +440,7 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 
 			vec3_t& goal_position = (ent->monsterinfo.aiflags & AI_PATHING) ? ent->monsterinfo.nav_path.firstMovePoint : ent->goalentity->s.origin;
 
-			float dz = ent->s.origin[2] - goal_position[2];
+			float const dz = ent->s.origin[2] - goal_position[2];
 			float dist = move.length();
 
 			if (ent->goalentity->client)
@@ -513,8 +513,8 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 		{
 			if (!ent->waterlevel)
 			{
-				vec3_t test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
-				contents_t contents = gi.pointcontents(test);
+				vec3_t  const test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
+				contents_t const contents = gi.pointcontents(test);
 				if (contents & MASK_WATER)
 					return false;
 			}
@@ -525,8 +525,8 @@ static bool SV_flystep(edict_t* ent, vec3_t move, bool relink, edict_t* current_
 		{
 			if (ent->waterlevel < WATER_WAIST)
 			{
-				vec3_t test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
-				contents_t contents = gi.pointcontents(test);
+				vec3_t const test{ trace.endpos[0], trace.endpos[1], trace.endpos[2] + ent->mins[2] + 1 };
+				contents_t const contents = gi.pointcontents(test);
 				if (!(contents & MASK_WATER))
 					return false;
 			}
@@ -617,7 +617,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		return SV_flystep(ent, move, relink, current_bad);
 
 	// try the move
-	vec3_t oldorg = ent->s.origin;
+	vec3_t const oldorg = ent->s.origin;
 
 	float stepsize;
 
@@ -634,14 +634,14 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 	contents_t mask = (ent->svflags & SVF_MONSTER) ? MASK_MONSTERSOLID : (MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	// Paril: horde
-	if (g_horde->integer && strcmp(ent->classname, "monster_sentrygun") || ent->svflags & SVF_PLAYER && EntIsSpectating(ent))
+	if ((g_horde->integer && strcmp(ent->classname, "monster_sentrygun")) || (ent->svflags & SVF_PLAYER && EntIsSpectating(ent)))
 		mask &= ~CONTENTS_MONSTER;
 
 	vec3_t start_up = oldorg + ent->gravityVector * (-1 * stepsize);
 
 	start_up = gi.trace(oldorg, ent->mins, ent->maxs, start_up, ent, mask).endpos;
 
-	vec3_t end_up = start_up + move;
+	vec3_t const end_up = start_up + move;
 
 	trace_t up_trace = gi.trace(start_up, ent->mins, ent->maxs, end_up, ent, mask);
 
@@ -651,8 +651,8 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		up_trace = gi.trace(start_up, ent->mins, ent->maxs, end_up, ent, mask);
 	}
 
-	vec3_t start_fwd = oldorg;
-	vec3_t end_fwd = start_fwd + move;
+	vec3_t const start_fwd = oldorg;
+	vec3_t const end_fwd = start_fwd + move;
 
 	trace_t fwd_trace = gi.trace(start_fwd, ent->mins, ent->maxs, end_fwd, ent, mask);
 
@@ -675,7 +675,7 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		steps = 2;
 
 	// step us down
-	vec3_t end = chosen_forward.endpos + (ent->gravityVector * (steps * stepsize));
+	vec3_t const end = chosen_forward.endpos + (ent->gravityVector * (steps * stepsize));
 	trace_t trace = gi.trace(chosen_forward.endpos, ent->mins, ent->maxs, end, ent, mask);
 
 	if (fabsf(ent->s.origin.z - trace.endpos.z) > 8.f)
@@ -725,8 +725,8 @@ bool SV_movestep(edict_t* ent, vec3_t move, bool relink)
 		if (ent->monsterinfo.bump_time < level.time && chosen_forward.fraction < 1.0f)
 		{
 			// adjust ideal_yaw to move against the object we hit and try again
-			vec3_t dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
-			float new_yaw = vectoyaw(dir);
+			vec3_t const dir = SlideClipVelocity(AngleVectors(vec3_t{ 0.f, ent->ideal_yaw, 0.f }).forward, chosen_forward.plane.normal, 1.0f);
+			float const new_yaw = vectoyaw(dir);
 
 			if (dir.lengthSquared() > 0.1f && ent->ideal_yaw != new_yaw)
 			{
@@ -866,14 +866,14 @@ bool ai_check_move(edict_t* self, float dist)
 		return false;
 	}
 
-	float yaw = self->s.angles[YAW] * PIf * 2 / 360;
-	vec3_t move = {
+	float const yaw = self->s.angles[YAW] * PIf * 2 / 360;
+	vec3_t const move = {
 		cosf(yaw) * dist,
 		sinf(yaw) * dist,
 		0
 	};
 
-	vec3_t old_origin = self->s.origin;
+	vec3_t const old_origin = self->s.origin;
 
 	if (!SV_movestep(self, move, false))
 		return false;
@@ -955,7 +955,7 @@ bool SV_StepDirection(edict_t* ent, float yaw, float dist, bool allow_no_turns)
 
 	// Calculate movement vector
 	const float rad_yaw = DEG2RAD(yaw);
-	vec3_t move = {
+	vec3_t const move = {
 		cosf(rad_yaw) * dist,
 		sinf(rad_yaw) * dist,
 		0
@@ -1175,9 +1175,9 @@ static bool M_NavPathToGoal(edict_t* self, float dist, const vec3_t& goal)
 	const float width = std::max(self->maxs[0] - self->mins[0], self->maxs[1] - self->mins[1]);
 	const float ground_offset = self->mins[2] - PLAYER_MINS[2];
 
-	vec3_t ground_origin = self->s.origin + vec3_t{ 0.f, 0.f, ground_offset };
-	vec3_t mon_mins = ground_origin + PLAYER_MINS;
-	vec3_t mon_maxs = ground_origin + PLAYER_MAXS;
+	vec3_t const ground_origin = self->s.origin + vec3_t{ 0.f, 0.f, ground_offset };
+	vec3_t const mon_mins = ground_origin + PLAYER_MINS;
+	vec3_t const mon_maxs = ground_origin + PLAYER_MAXS;
 
 	// Check if we need to recalculate path
 	const bool path_expired = self->monsterinfo.nav_path_cache_time <= level.time;
@@ -1353,9 +1353,9 @@ static bool M_MoveToPath(edict_t* self, float dist)
 
 	// 2. Mejorar la lógica de visibilidad y rango
 	if (visible(self, self->enemy, false)) {
-		float dist_to_enemy = range_to(self, self->enemy);
-		float height_diff = fabs(self->s.origin.z - self->enemy->s.origin.z);
-		float max_step_height = max(self->maxs.z, -self->mins.z);
+		float const dist_to_enemy = range_to(self, self->enemy);
+		float const height_diff = fabs(self->s.origin.z - self->enemy->s.origin.z);
+		float const max_step_height = max(self->maxs.z, -self->mins.z);
 
 		if ((self->flags & (FL_SWIM | FL_FLY)) || style == COMBAT_RANGED) {
 			return false;  // Mantener comportamiento normal para voladores/nadadores
@@ -1487,7 +1487,7 @@ void M_MoveToGoal(edict_t* ent, float dist)
 			return;
 		}
 
-		trace_t tr = gi.traceline(ent->s.origin, goal->s.origin, ent, MASK_MONSTERSOLID);
+		trace_t const tr = gi.traceline(ent->s.origin, goal->s.origin, ent, MASK_MONSTERSOLID);
 
 		if (tr.fraction == 1.0f || tr.ent == goal)
 		{

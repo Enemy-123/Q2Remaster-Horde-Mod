@@ -145,7 +145,7 @@ PAIN(arachnid_psx_pain) (edict_t* self, edict_t* other, float kick, int damage, 
 
 	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
 
-	float r = frandom();
+	float const r = frandom();
 
 	if (r < 0.5f)
 		M_SetAnimation(self, &arachnid_psx_move_pain1);
@@ -248,7 +248,7 @@ void arachnid_psx_rail_real(edict_t* self, monster_muzzleflash_id_t id)
 		dmg = 50;
 	}
 
-	bool hit = monster_fire_railgun(self, start, dir, dmg, dmg * 2.0f, id);
+	bool const hit = monster_fire_railgun(self, start, dir, dmg, dmg * 2.0f, id);
 
 	if (dmg == 50)
 	{
@@ -377,25 +377,25 @@ mframe_t arachnid_psx_frames_melee_in[] = {
 };
 MMOVE_T(arachnid_psx_melee_in) = { FRAME_melee_in1, FRAME_melee_in3, arachnid_psx_frames_melee_in, arachnid_psx_to_melee };
 
-static void arachnid_psx_stop_rails(edict_t* self)
-{
-	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
-	arachnid_psx_run(self);
-}
-
-static void arachnid_psx_rail_left(edict_t* self)
-{
-	arachnid_psx_rail_real(self, MZ2_ARACHNID_RAIL1);
-}
-
-static void arachnid_psx_rail_right(edict_t* self)
-{
-	arachnid_psx_rail_real(self, MZ2_ARACHNID_RAIL2);
-}
+//static void arachnid_psx_stop_rails(edict_t* self)
+//{
+//	self->monsterinfo.aiflags &= ~AI_MANUAL_STEERING;
+//	arachnid_psx_run(self);
+//}
+//
+//static void arachnid_psx_rail_left(edict_t* self)
+//{
+//	arachnid_psx_rail_real(self, MZ2_ARACHNID_RAIL1);
+//}
+//
+//static void arachnid_psx_rail_right(edict_t* self)
+//{
+//	arachnid_psx_rail_real(self, MZ2_ARACHNID_RAIL2);
+//}
 
 static void arachnid_psx_rail_rapid(edict_t* self)
 {
-	bool left_shot = self->s.frame == FRAME_melee_in9; //((self->s.frame - FRAME_melee_in5) / 2) % 2;
+	bool const left_shot = self->s.frame == FRAME_melee_in9; //((self->s.frame - FRAME_melee_in5) / 2) % 2;
 
 	arachnid_psx_rail_real(self, left_shot ? MZ2_ARACHNID_RAIL1 : MZ2_ARACHNID_RAIL2);
 }
@@ -475,7 +475,7 @@ static void arachnid_psx_spawn(edict_t* self)
 					FoundTarget(ent);
 				}
 
-				float radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
+				float const radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
 				SpawnGrow_Spawn(spawnpoint + (reinforcement.mins + reinforcement.maxs), radius, radius * 2.f);
 			}
 		}

@@ -161,7 +161,7 @@ void flipper_bite(edict_t* self)
 		return;
 	}
 
-	vec3_t aim = { MELEE_DISTANCE, 0, 0 };
+	vec3_t const aim = { MELEE_DISTANCE, 0, 0 };
 	fire_hit(self, aim, 5, 0);
 }
 

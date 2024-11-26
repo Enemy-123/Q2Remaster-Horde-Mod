@@ -863,14 +863,13 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	edict_t* player;
 
 
-	if (g_horde->integer && current_wave_level <= 20 || !g_horde->integer) {
-
-		SP_monster_makron(self);
-
-	}
-	else if (g_horde->integer && current_wave_level >= 21) {
-
+	if (g_horde->integer && current_wave_level >= 21) {
+		// Spawn Makronkl when in horde mode and wave level is 21 or higher
 		SP_monster_makronkl(self);
+	}
+	else if (g_horde->integer || !deathmatch->integer) {
+		// Spawn Makron when in horde mode or not in deathmatch
+		SP_monster_makron(self);
 	}
 
 	self->think(self);
@@ -894,7 +893,9 @@ THINK(MakronSpawn) (edict_t* self) -> void
 	FoundTarget(self);
 	self->monsterinfo.sight(self, self->enemy);
 	self->s.frame = self->monsterinfo.nextframe = FRAME_active01; // FIXME: why????
-	self->monsterinfo.IS_BOSS;
+
+	if (g_horde->integer)
+	self->monsterinfo.IS_BOSS = true;
 }
 
 /*
@@ -923,23 +924,30 @@ void MakronToss(edict_t* self)
 		self->monsterinfo.aiflags &= ~AI_DOUBLE_TROUBLE;
 		return;
 	}
-	if (g_horde->integer && current_wave_level <= 20 && !self->monsterinfo.IS_BOSS || !g_horde->integer) {
+	// Determine if we should spawn a non-boss Makron
+	bool shouldSpawnMakron = (g_horde->integer && current_wave_level <= 20 && !self->monsterinfo.IS_BOSS) ||
+		(!g_horde->integer);
 
+	// Determine if we should spawn a Makronkl
+	bool shouldSpawnMakronkl = (g_horde->integer && current_wave_level >= 21 && !self->monsterinfo.IS_BOSS);
+
+	if (shouldSpawnMakron) {
 		ent->classname = "monster_makron";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	else if (g_horde->integer && current_wave_level >= 21 && !self->monsterinfo.IS_BOSS)
-	{
+	else if (shouldSpawnMakronkl) {
 		ent->classname = "monster_makronkl";
 		ent->target = self->target;
 		ent->s.origin = self->s.origin;
 		ent->enemy = self->enemy;
 	}
-	if (!g_horde->integer || g_horde->integer && !self->monsterinfo.IS_BOSS)
-		MakronSpawn(ent);
 
+	// Decide whether to spawn based on horde settings and boss status
+	if (!g_horde->integer || (g_horde->integer && !self->monsterinfo.IS_BOSS)) {
+		MakronSpawn(ent);
+	}
 
 	// [Paril-KEX] set health bar over to Makron when we throw him out
 	for (size_t i = 0; i < 2; i++)

@@ -521,7 +521,7 @@ bool CheckEntityClass(edict_t* ent, const char* className) {
 	return ent->classname && !strcmp(ent->classname, className);
 }
 
-bool IsLaserEntity(edict_t* ent) {
+bool IsLaserEntity(const edict_t* ent) {
 	return ent->classname &&
 		(!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"));
 }

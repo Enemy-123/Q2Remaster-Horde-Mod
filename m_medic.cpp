@@ -91,7 +91,7 @@ std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t* self, int3
 	// decide how many things we want to spawn;
 	// this is on a logarithmic scale
 	// so we don't spawn too much too often.
-	int32_t num_slots = max(1, (int32_t)log2(frandom(inverse_log_slots)));
+	int32_t const num_slots = max(1, (int32_t)log2(frandom(inverse_log_slots)));
 
 	// we only have this many slots left to use
 	int32_t remaining = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
@@ -268,7 +268,7 @@ bool finishHeal(edict_t* self)
 
 	// Bodyque resurrection handling
 	if (isBodyque) {
-		vec3_t position = healee->s.origin;
+		vec3_t const position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
 
 		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
@@ -321,7 +321,7 @@ bool finishHeal(edict_t* self)
 
 	// insane  resurrection handling
 	if (insaneDead) {
-		vec3_t position = healee->s.origin;
+		vec3_t const position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
 
 		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
@@ -380,7 +380,7 @@ bool finishHeal(edict_t* self)
 	vec3_t maxs = healee->maxs;
 	maxs[2] += 48; // compensate for change when they die
 
-	trace_t tr = gi.trace(healee->s.origin, healee->mins, maxs, healee->s.origin, healee, MASK_MONSTERSOLID);
+	trace_t const tr = gi.trace(healee->s.origin, healee->mins, maxs, healee->s.origin, healee, MASK_MONSTERSOLID);
 
 	if (tr.startsolid || tr.allsolid)
 	{
@@ -396,16 +396,16 @@ bool finishHeal(edict_t* self)
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
 
 	// backup & restore health stuff, because of multipliers
-	int32_t old_max_health = healee->max_health;
-	item_id_t old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
-	int32_t old_power_armor_power = healee->monsterinfo.max_power_armor_power;
-	int32_t old_base_health = healee->monsterinfo.base_health;
-	int32_t old_health_scaling = healee->monsterinfo.health_scaling;
-	auto reinforcements = healee->monsterinfo.reinforcements;
-	int32_t slots_from_commander = healee->monsterinfo.slots_from_commander;
-	int32_t monster_slots = healee->monsterinfo.monster_slots;
-	int32_t monster_used = healee->monsterinfo.monster_used;
-	int32_t old_gib_health = healee->gib_health;
+	int32_t const old_max_health = healee->max_health;
+	item_id_t const old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
+	int32_t const old_power_armor_power = healee->monsterinfo.max_power_armor_power;
+	int32_t const old_base_health = healee->monsterinfo.base_health;
+	int32_t const old_health_scaling = healee->monsterinfo.health_scaling;
+	auto const reinforcements = healee->monsterinfo.reinforcements;
+	int32_t const slots_from_commander = healee->monsterinfo.slots_from_commander;
+	int32_t const monster_slots = healee->monsterinfo.monster_slots;
+	int32_t const monster_used = healee->monsterinfo.monster_used;
+	int32_t const old_gib_health = healee->gib_health;
 
 	spawn_temp_t st{};
 	st.keys_specified.emplace("reinforcements");
@@ -797,7 +797,7 @@ PAIN(medic_pain) (edict_t* self, edict_t* other, float kick, int damage, const m
 
 	self->pain_debounce_time = level.time + 3_sec;
 
-	float r = frandom();
+	float const r = frandom();
 
 	if (self->mass > 400)
 	{
@@ -1470,7 +1470,7 @@ void medic_spawngrows(edict_t* self)
 			if (CheckGroundSpawnPoint(spawnpoint, reinforcement.mins, reinforcement.maxs, 256, -1))
 			{
 				num_success++;
-				float radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
+				float const radius = (reinforcement.maxs - reinforcement.mins).length() * 0.5f;
 				SpawnGrow_Spawn(spawnpoint + (reinforcement.mins + reinforcement.maxs), radius, radius * 2.f);
 			}
 		}
@@ -1639,7 +1639,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 {
 	monster_done_dodge(self);
 
-	float enemy_range = range_to(self, self->enemy);
+	float const enemy_range = range_to(self, self->enemy);
 
 	//// Check for tesla mines to convert
 	//edict_t* tesla = nullptr;
@@ -1660,7 +1660,7 @@ MONSTERINFO_ATTACK(medic_attack) (edict_t* self) -> void
 		self->monsterinfo.aiflags &= ~AI_BLOCKED;
 	}
 
-	float r = frandom();
+	float const r = frandom();
 	if (self->monsterinfo.aiflags & AI_MEDIC)
 	{
 		if ((self->mass > 400) && (r > 0.8f) && M_SlotsLeft(self))
