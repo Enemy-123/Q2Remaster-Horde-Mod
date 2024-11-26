@@ -714,7 +714,7 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 			if ((g_insane->integer == 2 && current_wave_level >= 4) ||
 				(g_insane->integer == 1 && current_wave_level >= 7)) {
 				perform_replacement(ent, std::span(insane_replacements),
-					g_insane->integer == 2 ? 0.33f : 0.04f);
+					g_insane->integer == 2 ? 0.37f : 0.04f);
 			}
 		}
 	}

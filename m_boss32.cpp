@@ -123,16 +123,16 @@ MONSTERINFO_STAND(makron_stand) (edict_t *self) -> void
 }
 
 mframe_t makron_frames_run[] = {
-	{ ai_run, 3, makron_step_left },
-	{ ai_run, 12 },
-	{ ai_run, 8 },
-	{ ai_run, 8 },
-	{ ai_run, 8, makron_step_right },
-	{ ai_run, 6 },
-	{ ai_run, 12 },
+	{ ai_run, 5, makron_step_left },
+	{ ai_run, 15 },
+	{ ai_run, 11 },
+	{ ai_run, 11 },
+	{ ai_run, 11, makron_step_right },
 	{ ai_run, 9 },
-	{ ai_run, 6 },
-	{ ai_run, 12 }
+	{ ai_run, 15 },
+	{ ai_run, 13 },
+	{ ai_run, 9 },
+	{ ai_run, 15 }
 };
 MMOVE_T(makron_move_run) = { FRAME_walk204, FRAME_walk213, makron_frames_run, nullptr };
 

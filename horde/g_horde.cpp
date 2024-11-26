@@ -12,24 +12,44 @@ constexpr size_t MAX_ELIGIBLE_ITEMS = 32;
 constexpr size_t MAX_RECENT_BOSSES = 3;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
+static constexpr size_t NUM_WAVE_SOUNDS = 12;
+static constexpr size_t NUM_START_SOUNDS = 9;
 
 //precache//
-static cached_soundindex sound_tele3;
-static cached_soundindex sound_klaxon2;
-static cached_soundindex sound_tele_up;
-static cached_soundindex sound_incoming;
-static cached_soundindex sound_yelforce;
-static cached_soundindex sound_action_fail;
-static cached_soundindex sound_roar1;
-static cached_soundindex sound_ack;
-static cached_soundindex sound_spawn1;
-static cached_soundindex sound_voice3;
-static cached_soundindex sound_v_fac3;
-static cached_soundindex sound_bt1;
-static cached_soundindex sound_bt2;
-static cached_soundindex sound_bt3;
-static cached_soundindex sound_bt4;
-static cached_soundindex sound_bt5;
+// Arrays estáticos de cached_soundindex
+static cached_soundindex wave_sounds[NUM_WAVE_SOUNDS];
+static cached_soundindex start_sounds[NUM_START_SOUNDS];
+static cached_soundindex sound_tele3;      // Para teleport
+static cached_soundindex sound_tele_up;     // Para teleport escape
+static cached_soundindex sound_spawn1;      // Para spawn de monstruos
+
+// Arrays de strings con los nombres de los sonidos
+static constexpr const char* WAVE_SOUND_PATHS[NUM_WAVE_SOUNDS] = {
+	"nav_editor/action_fail.wav",
+	"nav_editor/clear_test_node.wav",
+	"makron/roar1.wav",
+	"zortemp/ack.wav",
+	"makron/voice3.wav",
+	"world/v_fac3.wav",
+	"makron/voice4.wav",
+	"world/battle2.wav",
+	"world/battle3.wav",
+	"world/battle4.wav",
+	"world/battle5.wav",
+	"misc/alarm.wav"
+};
+
+static constexpr const char* START_SOUND_PATHS[NUM_START_SOUNDS] = {
+	"misc/r_tele3.wav",
+	"world/fish.wav",
+	"world/klaxon2.wav",
+	"world/klaxon3.wav",
+	"misc/tele_up.wav",
+	"world/incoming.wav",
+	"world/redforceact.wav",
+	"makron/voice2.wav",
+	"makron/voice.wav"
+};
 
 static const char* GetCurrentMapName() noexcept {
 	return static_cast<const char*>(level.mapname);
@@ -750,7 +770,7 @@ constexpr weighted_item_t monsters[] = {
 	// Voladores básicos y early challengers
 	{ "monster_flyer", -1, 4, 0.1f },
 	{ "monster_flyer", 5, -1, 0.14f },
-	{ "monster_hover_vanilla", 7, 25, 0.15f },        // Adelantado a ola 7
+	{ "monster_hover_vanilla", 7, 25, 0.14f },        // Adelantado a ola 7
 	{ "monster_hover", 17, -1, 0.16f },
 	{ "monster_gekk", 3, 5, 0.12f },                  // Cambiado a olas 3-5
 	{ "monster_gekk", 7, 23, 0.13f },
@@ -789,7 +809,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_mutant", 13, -1, 0.25f },
 	{ "monster_redmutant", 14, 21, 0.03f },
 	{ "monster_redmutant", 22, -1, 0.14f },
-	{ "monster_berserk", 8, -1, 0.25f },              // Retrasado a ola 8
+	{ "monster_berserk", 7, -1, 0.25f },              // Retrasado a ola 8
 
 	// Gladiators (mejor espaciados)
 	{ "monster_gladiator", 11, -1, 0.35f },
@@ -809,13 +829,22 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_shambler", 26, -1, 0.25f },
 	{ "monster_tank_64", 28, -1, 0.13f },
 	{ "monster_janitor", 21, -1, 0.12f },
-	{ "monster_janitor2", 26, -1, 0.1f },
-	{ "monster_makron", 16, 40, 0.015f },
-	{ "monster_makronkl", 41, 21, 0.015f },
+	{ "monster_janitor2", 26, 34, 0.1f },
+	{ "monster_janitor2", 35, -1, 0.25f },
+
 	{ "monster_boss2_64", 19, -1, 0.09f },
 	{ "monster_carrier_mini", 27, -1, 0.09f },
+
+	//last waves
+	{ "monster_boss2kl", 46, -1, 0.2f },
+	{ "monster_shamblerkl", 33, -1, 0.15f },
+	{ "monster_makron", 16, 32, 0.015f },
+	{ "monster_makron", 36, -1, 0.04f },
+	{ "monster_guncmdrkl", 33, -1, 0.04f },
+	{ "monster_makronkl", 41, -1, 0.015f },
 	{ "monster_perrokl", 20, -1, 0.25f },
-	{ "monster_widow1", 35, -1, 0.1f }
+	{ "monster_widow1", 29, 34, 0.1f },
+	{ "monster_widow1", 35, -1, 0.25f }
 }; 
 #include <array>
 #include <unordered_set>
@@ -1657,54 +1686,67 @@ static void PrecacheAllMonsters() noexcept {
 	}
 }
 
-static void PrecacheAllSounds() noexcept {
-	sound_tele3.assign("misc/r_tele3.wav");
-	sound_klaxon2.assign("world/klaxon2.wav");
-	sound_tele_up.assign("misc/tele_up.wav");
-	sound_incoming.assign("world/incoming.wav");
-	sound_yelforce.assign("world/yelforce.wav");
-
-	sound_action_fail.assign("nav_editor/action_fail.wav");
-	sound_roar1.assign("makron/roar1.wav");
-	sound_ack.assign("zortemp/ack.wav");
-	sound_spawn1.assign("misc/spawn1.wav");
-	sound_voice3.assign("makron/voice3.wav");
-	sound_v_fac3.assign("world/v_fac3.wav");
-	sound_bt1.assign("world/battle1.wav");
-	sound_bt2.assign("world/battle2.wav");
-	sound_bt3.assign("world/battle3.wav");
-	sound_bt4.assign("world/battle4.wav");
-	sound_bt5.assign("world/battle5.wav");
-}
-
-
-// Array de sonidos constante
-constexpr std::array<std::string_view, 10> WAVE_SOUNDS = {
-	"nav_editor/action_fail.wav",
-	"makron/roar1.wav",
-	"zortemp/ack.wav",
-	"makron/voice3.wav",
-	"world/v_fac3.wav",
-	"world/battle1.wav",
-	"world/battle2.wav",
-	"world/battle3.wav",
-	"world/battle4.wav",
-	"world/battle5.wav"
-};
 
 // Función para precarga de sonidos
 static void PrecacheWaveSounds() noexcept {
-	for (std::string_view const sound : WAVE_SOUNDS) {  // Removido el '&'
-		gi.soundindex(sound.data());
+	// Precachear sonidos individuales
+	sound_tele3.assign("misc/r_tele3.wav");
+	sound_tele_up.assign("misc/tele_up.wav");
+	sound_spawn1.assign("misc/spawn1.wav");
+
+	// Precachear arrays de sonidos
+	for (size_t i = 0; i < NUM_WAVE_SOUNDS; ++i) {
+		wave_sounds[i].assign(WAVE_SOUND_PATHS[i]);
+	}
+
+	for (size_t i = 0; i < NUM_START_SOUNDS; ++i) {
+		start_sounds[i].assign(START_SOUND_PATHS[i]);
 	}
 }
 
-// Función para obtener un sonido aleatorio
-static const char* GetRandomWaveSound() {
-	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
-	return WAVE_SOUNDS[dist(mt_rand)].data(); // Usar .data() para obtener const char*
+// Agregar un nuevo array para tracking
+static std::array<bool, NUM_WAVE_SOUNDS> used_wave_sounds = {};
+static size_t remaining_wave_sounds = NUM_WAVE_SOUNDS;
+
+static int GetRandomWaveSound() {
+	// Si todos los sonidos han sido usados, resetear
+	if (remaining_wave_sounds == 0) {
+		std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
+		remaining_wave_sounds = NUM_WAVE_SOUNDS;
+	}
+
+	// Seleccionar un sonido no usado
+	while (true) {
+		size_t index = irandom(NUM_WAVE_SOUNDS);
+		if (!used_wave_sounds[index]) {
+			used_wave_sounds[index] = true;
+			remaining_wave_sounds--;
+			return wave_sounds[index];
+		}
+	}
 }
 
+static std::array<bool, NUM_START_SOUNDS> used_start_sounds = {};
+static size_t remaining_start_sounds = NUM_START_SOUNDS;
+
+static void PlayWaveStartSound() {
+	// Si todos los sonidos han sido usados, resetear
+	if (remaining_start_sounds == 0) {
+		std::fill(used_start_sounds.begin(), used_start_sounds.end(), false);
+		remaining_start_sounds = NUM_START_SOUNDS;
+	}
+
+	// Seleccionar un sonido no usado
+	while (true) {
+		size_t index = irandom(NUM_START_SOUNDS);
+		if (!used_start_sounds[index]) {
+			used_start_sounds[index] = true;
+			remaining_start_sounds--;
+			gi.sound(world, CHAN_VOICE, start_sounds[index], 1, ATTN_NONE, 0);
+			break;
+		}
+	}
+}
 //Capping resets on map end
 
 static bool hasBeenReset = false;
@@ -1728,7 +1770,6 @@ void Horde_Init() {
 	// Precache items, bosses, monsters, and sounds
 	PrecacheItemsAndBosses();
 	PrecacheAllMonsters();
-	PrecacheAllSounds();
 	PrecacheWaveSounds();
 
 	// Inicializar otros sistemas de la horda (e.g., sistema de oleadas)
@@ -3145,6 +3186,12 @@ void ResetGame() {
 	gi.cvar_set("g_bfgslide", "1");
 	gi.cvar_set("g_autohaste", "0");
 
+	// Reset sound tracking
+	std::fill(used_wave_sounds.begin(), used_wave_sounds.end(), false);
+	remaining_wave_sounds = NUM_WAVE_SOUNDS;
+	std::fill(used_start_sounds.begin(), used_start_sounds.end(), false);
+	remaining_start_sounds = NUM_START_SOUNDS;
+
 	// Registrar el reinicio
 	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
 }
@@ -3225,33 +3272,6 @@ inline int8_t GetNumSpectPlayers() {
 		[](const edict_t* const player) {
 			return ClientIsSpectating(player->client);
 		});
-}
-
-static void PlayWaveStartSound() {
-	static std::array<int, 5> cached_sound_indices = { -1, -1, -1, -1, -1 };
-	static const std::array<const char*, 5> sound_files = {
-		"misc/r_tele3.wav",
-		"world/klaxon2.wav",
-		"misc/tele_up.wav",
-		"world/incoming.wav",
-		"world/yelforce.wav"
-	};
-
-	static bool indices_initialized = false;
-	if (!indices_initialized) {
-		std::span<const char* const> const sound_files_view{ sound_files };
-		std::span<int> const indices_view{ cached_sound_indices };
-
-		for (size_t i = 0; i < sound_files_view.size(); ++i) {
-			indices_view[i] = gi.soundindex(sound_files_view[i]);
-		}
-		indices_initialized = true;
-	}
-
-	// Usar span para el acceso seguro
-	const	std::span<const int> sound_indices_view{ cached_sound_indices };
-	const int32_t sound_index = static_cast<int32_t>(frandom() * sound_indices_view.size());
-	gi.sound(world, CHAN_VOICE, sound_indices_view[sound_index], 1, ATTN_NONE, 0);
 }
 
 // Implementación de DisplayWaveMessage
@@ -3369,7 +3389,7 @@ static void HandleWaveRestMessage(gtime_t duration = 3_sec) {
 		g_horde_local.warningIssued[i] = false;
 	}
 
-	gi.sound(world, CHAN_VOICE, gi.soundindex(GetRandomWaveSound()), 1, ATTN_NONE, 0);
+	gi.sound(world, CHAN_VOICE, GetRandomWaveSound(), 1, ATTN_NONE, 0);
 }
 
 // Llamar a esta función durante la inicialización del juego
