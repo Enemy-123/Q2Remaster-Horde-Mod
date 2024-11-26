@@ -27,6 +27,7 @@ static cached_soundindex sound_punch_hit;
 static cached_soundindex sound_sight;
 static cached_soundindex sound_search;
 static cached_soundindex sound_idle;
+static cached_soundindex sound_handgrenade;
 
 // range at which we'll try to initiate a run-attack to close distance
 constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.75f;
@@ -687,8 +688,8 @@ static void infantry_grenade(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, up);
 	start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 	// Predict target position
-	float time_to_target = (self->enemy->s.origin - start).length() / speed;
-	vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+	const float time_to_target = (self->enemy->s.origin - start).length() / speed;
+	const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
 
 	aim = predicted_pos - start;
 	const float dist = aim.length();
@@ -722,14 +723,14 @@ static void infantry_grenade(edict_t* self)
 	}
 
 	// Compensate for the upward velocity in fire_grenade2
-	float gravityAdjustment = level.gravity / 800.f;
+	const float gravityAdjustment = level.gravity / 800.f;
 	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
 	aim[2] += downwardAdjustment;
 	aim.normalize();
 
 	// Fire the grenade
 	fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
-	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 
 
@@ -968,6 +969,7 @@ void InfantryPrecache()
 	sound_sight.assign("infantry/infsght1.wav");
 	sound_search.assign("infantry/infsrch1.wav");
 	sound_idle.assign("infantry/infidle1.wav");
+	sound_handgrenade.assign("weapons/hgrent1a.wav");
 }
 
 constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;

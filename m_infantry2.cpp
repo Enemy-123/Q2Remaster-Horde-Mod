@@ -27,6 +27,7 @@ static cached_soundindex sound_punch_hit;
 static cached_soundindex sound_sight;
 static cached_soundindex sound_search;
 static cached_soundindex sound_idle;
+static cached_soundindex sound_handgrenade;
 
 // range at which we'll try to initiate a run-attack to close distance
 constexpr float RANGE_RUN_ATTACK = RANGE_NEAR * 0.75f;
@@ -763,7 +764,7 @@ static void infantry_vanilla_grenade(edict_t* self)
 
 	// Fire the grenade
 	fire_grenade2(self, start, aim, 55, speed, 2.5_sec, 95, false);
-	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/hgrent1a.wav"), 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
 
 
@@ -965,6 +966,7 @@ void infantry_vanillaPrecache()
 	sound_sight.assign("infantry/infsght1.wav");
 	sound_search.assign("infantry/infsrch1.wav");
 	sound_idle.assign("infantry/infidle1.wav");
+	sound_handgrenade.assign("weapons/hgrent1a.wav");
 }
 
 constexpr spawnflags_t SPAWNFLAG_INFANTRY_NOJUMPING = 8_spawnflag;
