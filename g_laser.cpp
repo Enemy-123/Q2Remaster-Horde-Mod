@@ -26,7 +26,7 @@ namespace LaserConstants {
     constexpr int32_t MAX_LASER_HEALTH = 1750;
     constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
     constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
-    constexpr gtime_t TRACE_UPDATE_INTERVAL = 50_ms;
+  //  constexpr gtime_t TRACE_UPDATE_INTERVAL = 50_ms;
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;   // Aumentado para mejor daño PvE
@@ -80,7 +80,7 @@ public:
         }
     }
 
-    void remove_laser(edict_t* entity) {
+    void remove_laser(const edict_t* entity) {
         for (auto& entry : lasers) {
             if (entry.active && (entry.emitter == entity || entry.beam == entity)) {
                 entry.active = false;
@@ -168,10 +168,10 @@ namespace LaserHelpers {
             return 0.0f;
         }
 
-        vec3_t normalized_v1 = safe_normalized(v1);
-        vec3_t normalized_v2 = safe_normalized(v2);
+        vec3_t const normalized_v1 = safe_normalized(v1);
+        vec3_t const normalized_v2 = safe_normalized(v2);
 
-        float dot = normalized_v1.dot(normalized_v2);
+        float const dot = normalized_v1.dot(normalized_v2);
         return acosf(std::clamp(dot, -1.0f, 1.0f)) * (180.0f / PIf);
     }
 
@@ -253,7 +253,6 @@ THINK(laser_beam_think)(edict_t* self) -> void {
 
     // Damage calculation and application
     const int damage = (size) ? std::min(self->dmg, self->health) : 0;
-    bool hit_valid_target = false;
 
     if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
         if (LaserHelpers::is_valid_target(tr.ent) && !LaserHelpers::is_same_team(self->teammaster, tr.ent)) {
@@ -266,8 +265,7 @@ THINK(laser_beam_think)(edict_t* self) -> void {
                 damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
 
             if (tr.ent->health > 0) {
-                hit_valid_target = true;
-                float damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
+                float const damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
                 self->health -= damage * damageMult;
             }
         }
@@ -300,7 +298,7 @@ THINK(emitter_think)(edict_t* self) -> void {
         return;
     }
 
-    bool should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
+    bool const should_warn = level.time >= self->timestamp - LaserConstants::WARNING_TIME;
     if (should_warn != state.is_warning_phase) {
         state.is_warning_phase = should_warn;
         state.last_blink_time = 0_ms;
@@ -336,7 +334,7 @@ void create_laser(edict_t* ent) {
         ent->client->laser_manager = reinterpret_cast<void*>(holder);
     }
 
-    auto* manager = LaserHelpers::get_laser_manager(ent);
+    auto* const manager = LaserHelpers::get_laser_manager(ent);
     if (!manager || !manager->can_add_laser()) {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
         return;
@@ -351,11 +349,11 @@ void create_laser(edict_t* ent) {
     vec3_t forward, right;
     AngleVectors(ent->client->v_angle, &forward, &right, nullptr);
 
-    vec3_t offset{ 0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f };
-    vec3_t start = G_ProjectSource(ent->s.origin, offset, forward, right);
-    vec3_t end = start + forward * 64;
+    vec3_t const offset{ 0.0f, 8.0f, static_cast<float>(ent->viewheight) - 8.0f };
+    vec3_t const start = G_ProjectSource(ent->s.origin, offset, forward, right);
+    vec3_t const end = start + forward * 64;
 
-    trace_t tr = gi.traceline(start, end, ent, MASK_SOLID);
+    trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
 
     if (tr.fraction == 1.0f) {
         gi.LocClient_Print(ent, PRINT_HIGH, "Too far from wall.\n");
