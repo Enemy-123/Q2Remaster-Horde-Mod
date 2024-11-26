@@ -82,7 +82,7 @@ template<typename S, typename... Args>
 {
 	g_fmt_data.istr ^= 1;
 
-	size_t len = G_FmtTo_(g_fmt_data.string[g_fmt_data.istr], format_str, std::forward<Args>(args)...);
+	size_t const len = G_FmtTo_(g_fmt_data.string[g_fmt_data.istr], format_str, std::forward<Args>(args)...);
 
 	return std::string_view(g_fmt_data.string[g_fmt_data.istr], len);
 }

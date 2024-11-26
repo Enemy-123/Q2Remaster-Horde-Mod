@@ -221,7 +221,7 @@ constexpr uint16_t get_compressed_integer(uint16_t* start, uint8_t id)
 	uint16_t byte = bit_offset / 8;
 	uint16_t const bit_shift = bit_offset % 8;
 	uint16_t const mask = (bit_v<bits_per_value> -1) << bit_shift;
-	uint16_t* const base = (uint16_t*)((uint8_t*)start + byte);
+	const uint16_t* const base = (uint16_t*)((uint8_t*)start + byte);
 	return (*base & mask) >> bit_shift;
 }
 

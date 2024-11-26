@@ -803,7 +803,7 @@ void G_SetStats(edict_t* ent)
 	// Verificar y mantener el target_health_str
 	if (ent->client->ps.stats[STAT_CTF_ID_VIEW] != 0) {
 		int target_index = ent->client->ps.stats[STAT_CTF_ID_VIEW];
-		edict_t* const target = &g_edicts[target_index];
+		const edict_t* const target = &g_edicts[target_index];
 
 		if (target->inuse && target->client) {
 			ent->client->target_health_str = "Health: " + std::to_string(target->health);
@@ -917,7 +917,7 @@ void G_SetStats(edict_t* ent)
 	memset(&ent->client->ps.stats[STAT_POWERUP_INFO_START], 0, sizeof(uint16_t) * NUM_POWERUP_STATS);
 	for (unsigned int powerupIndex = POWERUP_SCREEN; powerupIndex < POWERUP_MAX; ++powerupIndex)
 	{
-		gitem_t* const powerup = GetItemByPowerup((powerup_t)powerupIndex);
+		const gitem_t* const powerup = GetItemByPowerup((powerup_t)powerupIndex);
 		if (!powerup) {
 			gi.Com_PrintFmt("PRINT: Warning: Invalid powerup index {}\n", powerupIndex);
 			continue;
@@ -1005,8 +1005,8 @@ void G_SetStats(edict_t* ent)
 		// Ordenar power-ups por tiempo restante
 		std::sort(active_powerups.begin(), active_powerups.end(), compare_powerups);
 
-		powerup_info_t* const best_powerup = !active_powerups.empty() ? active_powerups.front() : nullptr;
-		powerup_info_t* const next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
+		const powerup_info_t* const best_powerup = !active_powerups.empty() ? active_powerups.front() : nullptr;
+		const powerup_info_t* const next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
 
 		int16_t timer_value = 0;
 		const char* icon = nullptr;
@@ -1024,7 +1024,7 @@ void G_SetStats(edict_t* ent)
 			else if (best_powerup->time_ptr)
 				timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
 
-			gitem_t* const item = GetItemByIndex(best_powerup->item);
+			const gitem_t* const item = GetItemByIndex(best_powerup->item);
 			if (item)
 				icon = item->icon;
 		}
@@ -1035,7 +1035,7 @@ void G_SetStats(edict_t* ent)
 			if (active_sphere && best_powerup && icon == active_sphere->icon)
 			{
 				// Alternar entre la esfera y el mejor power-up
-				gitem_t* const item = GetItemByIndex(best_powerup->item);
+				const gitem_t* const item = GetItemByIndex(best_powerup->item);
 				if (item)
 					icon = item->icon;
 				if (best_powerup->count_ptr)
@@ -1046,7 +1046,7 @@ void G_SetStats(edict_t* ent)
 			else if (next_best_powerup)
 			{
 				// Alternar entre los dos mejores power-ups
-				gitem_t* const item = GetItemByIndex(next_best_powerup->item);
+				const gitem_t* const item = GetItemByIndex(next_best_powerup->item);
 				if (item)
 					icon = item->icon;
 				if (next_best_powerup->count_ptr)
