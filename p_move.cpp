@@ -523,7 +523,7 @@ void PM_StepSlideMove()
 	// [Paril-KEX] jitspoe suggestion for stair clip fix; store
 	// the old down position, and pick a better spot for downwards
 	// trace if the start origin's Z position is lower than the down end pt.
-	vec3_t original_down = down;
+	vec3_t const original_down = down;
 
 	if (start_o[2] < down[2])
 		down[2] = start_o[2] - 1.f;
@@ -532,7 +532,7 @@ void PM_StepSlideMove()
 	if (!trace.allsolid)
 	{
 		// [Paril-KEX] from above, do the proper trace now
-		trace_t real_trace = PM_Trace(pml.origin, pm->mins, pm->maxs, original_down);
+		trace_t const real_trace = PM_Trace(pml.origin, pm->mins, pm->maxs, original_down);
 		pml.origin = real_trace.endpos;
 
 		// only an upwards jump is a stair clip
@@ -639,8 +639,8 @@ void PM_Accelerate(const vec3_t& wishdir, float wishspeed, float accel)
 	wishspeed = PM_ApplyPSXScalar(wishspeed);
 	accel = PM_ApplyPSXScalar(accel);
 
-	float currentspeed = pml.velocity.dot(wishdir);
-	float addspeed = wishspeed - currentspeed;
+	float const currentspeed = pml.velocity.dot(wishdir);
+	float const addspeed = wishspeed - currentspeed;
 	if (addspeed <= 0)
 		return;
 	float accelspeed = accel * pml.frametime * wishspeed;
@@ -656,8 +656,8 @@ void PM_AirAccelerate(const vec3_t& wishdir, float wishspeed, float accel)
 	float wishspd = wishspeed;
 	if (wishspd > 30)
 		wishspd = 30;
-	float currentspeed = pml.velocity.dot(wishdir);
-	float addspeed = wishspd - currentspeed;
+	float const currentspeed = pml.velocity.dot(wishdir);
+	float const addspeed = wishspd - currentspeed;
 	if (addspeed <= 0)
 		return;
 	float accelspeed = accel * wishspeed * pml.frametime;
@@ -742,11 +742,11 @@ void PM_AddCurrents(vec3_t& wishvel)
 				flatforward.normalize();
 
 				spot = pml.origin + (flatforward * 1);
-				trace_t trace = PM_Trace(pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER);
+				trace_t const trace = PM_Trace(pml.origin, pm->mins, pm->maxs, spot, CONTENTS_LADDER);
 
 				if (trace.fraction != 1.f && (trace.contents & CONTENTS_LADDER))
 				{
-					vec3_t right = trace.plane.normal.cross({ 0, 0, 1 });
+					vec3_t const right = trace.plane.normal.cross({ 0, 0, 1 });
 
 					wishvel[0] = wishvel[1] = 0;
 					wishvel += (right * -ladder_speed);
@@ -865,7 +865,7 @@ void PM_WaterMove()
 	}
 	wishspeed *= 0.5f;
 
-	float duckspeed = PM_ApplyPSXScalar(pm_duckspeed, 1.25f);
+	float const duckspeed = PM_ApplyPSXScalar(pm_duckspeed, 1.25f);
 
 	if ((pm->s.pm_flags & PMF_DUCKED) && wishspeed > duckspeed)
 	{
@@ -905,7 +905,7 @@ void PM_AirMove()
 	wishdir = wishvel;
 	wishspeed = wishdir.normalize();
 
-	float duckspeed = PM_ApplyPSXScalar(pm_duckspeed, 1.25f);
+	float const duckspeed = PM_ApplyPSXScalar(pm_duckspeed, 1.25f);
 
 	//
 	// clamp to server defined max speed
@@ -1042,7 +1042,7 @@ void PM_CatagorizePosition()
 
 		if (slanted_ground)
 		{
-			trace_t slant = PM_Trace(pml.origin, pm->mins, pm->maxs, pml.origin + trace.plane.normal);
+			trace_t const slant = PM_Trace(pml.origin, pm->mins, pm->maxs, pml.origin + trace.plane.normal);
 
 			if (slant.fraction < 1.0f && !slant.startsolid)
 				slanted_ground = false;
@@ -1385,12 +1385,12 @@ inline bool PM_AboveWater()
 {
 	const vec3_t below = pml.origin - vec3_t{ 0, 0, 8 };
 
-	bool solid_below = pm->trace(pml.origin, &pm->mins, &pm->maxs, below, pm->player, MASK_SOLID).fraction < 1.0f;
+	bool const solid_below = pm->trace(pml.origin, &pm->mins, &pm->maxs, below, pm->player, MASK_SOLID).fraction < 1.0f;
 
 	if (solid_below)
 		return false;
 
-	bool water_below = pm->trace(pml.origin, &pm->mins, &pm->maxs, below, pm->player, MASK_WATER).fraction < 1.0f;
+	bool const water_below = pm->trace(pml.origin, &pm->mins, &pm->maxs, below, pm->player, MASK_WATER).fraction < 1.0f;
 
 	if (water_below)
 		return true;
@@ -1430,7 +1430,7 @@ bool PM_CheckDuck()
 		if (!(pm->s.pm_flags & PMF_DUCKED))
 		{
 			// check that duck won't be blocked
-			vec3_t check_maxs = { pm->maxs[0], pm->maxs[1], 4 };
+			vec3_t const check_maxs = { pm->maxs[0], pm->maxs[1], 4 };
 			trace = PM_Trace(pml.origin, pm->mins, check_maxs, pml.origin);
 			if (!trace.allsolid)
 			{
@@ -1444,7 +1444,7 @@ bool PM_CheckDuck()
 		if (pm->s.pm_flags & PMF_DUCKED)
 		{
 			// try to stand up
-			vec3_t check_maxs = { pm->maxs[0], pm->maxs[1], 32 };
+			vec3_t const check_maxs = { pm->maxs[0], pm->maxs[1], 32 };
 			trace = PM_Trace(pml.origin, pm->mins, check_maxs, pml.origin);
 			if (!trace.allsolid)
 			{
@@ -1493,7 +1493,7 @@ bool PM_GoodPosition()
 	if (pm->s.pm_type == PM_NOCLIP)
 		return true;
 
-	trace_t trace = PM_Trace(pm->s.origin, pm->mins, pm->maxs, pm->s.origin);
+	trace_t  const trace = PM_Trace(pm->s.origin, pm->mins, pm->maxs, pm->s.origin);
 
 	return !trace.allsolid;
 }
@@ -1586,8 +1586,8 @@ void PM_ClampAngles()
 static void PM_ScreenEffects()
 {
 	// add for contents
-	vec3_t vieworg = pml.origin + pm->viewoffset + vec3_t{ 0, 0, (float)pm->s.viewheight };
-	contents_t contents = pm->pointcontents(vieworg);
+	vec3_t const vieworg = pml.origin + pm->viewoffset + vec3_t{ 0, 0, (float)pm->s.viewheight };
+	contents_t const contents = pm->pointcontents(vieworg);
 
 	if (contents & (CONTENTS_LAVA | CONTENTS_SLIME | CONTENTS_WATER))
 		pm->rdflags |= RDF_UNDERWATER;

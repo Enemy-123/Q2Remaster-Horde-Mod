@@ -65,7 +65,7 @@ inline float P_CurrentKickFactor(edict_t* ent)
 	if (ent->client->kick.time < level.time)
 		return 0.f;
 
-	float f = (ent->client->kick.time - level.time).seconds() / ent->client->kick.total.seconds();
+	float const f = (ent->client->kick.time - level.time).seconds() / ent->client->kick.total.seconds();
 	return f;
 }
 
@@ -95,7 +95,7 @@ void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t
 		distance[1] = 0;
 
 	vec3_t forward, right, up;
-	vec3_t eye_position = (ent->s.origin + vec3_t{ 0, 0, (float)ent->viewheight });
+	vec3_t const eye_position = (ent->s.origin + vec3_t{ 0, 0, (float)ent->viewheight });
 
 	AngleVectors(angles, forward, right, up);
 
@@ -108,7 +108,7 @@ void P_ProjectSource(edict_t* ent, const vec3_t& angles, vec3_t distance, vec3_t
 	if (!G_ShouldPlayersCollide(true))
 		mask &= ~CONTENTS_PLAYER;
 
-	trace_t tr = gi.traceline(eye_position, end, ent, mask);
+	trace_t  const tr = gi.traceline(eye_position, end, ent, mask);
 
 	// if the point was damageable, use raw forward
 	// so railgun pierces properly
@@ -254,7 +254,7 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 		if (!(ent->spawnflags & (SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER)))
 			return false;
 	}
-	bool is_new = !other->client->pers.inventory[index];
+	bool const is_new = !other->client->pers.inventory[index];
 	other->client->pers.inventory[index]++;
 
 	if (!(ent->spawnflags & SPAWNFLAG_ITEM_DROPPED) || g_horde->integer)
@@ -277,7 +277,7 @@ bool Pickup_Weapon(edict_t* ent, edict_t* other)
 				if (g_horde->integer)
 				{
 					// Usar frandom para obtener un valor entre 0.7 y 1.3
-					float multiplier = frandom(0.7f, 1.3f);
+					float const multiplier = frandom(0.7f, 1.3f);
 					given_quantity = (int)(given_quantity * multiplier);
 				}
 
@@ -450,12 +450,12 @@ void G_RemoveAmmo(edict_t* ent, int32_t quantity)
 	if (G_CheckInfiniteAmmo(ent->client->pers.weapon))
 		return;
 
-	bool pre_warning = ent->client->pers.inventory[ent->client->pers.weapon->ammo] <=
+	bool const pre_warning = ent->client->pers.inventory[ent->client->pers.weapon->ammo] <=
 		ent->client->pers.weapon->quantity_warn;
 
 	ent->client->pers.inventory[ent->client->pers.weapon->ammo] -= quantity;
 
-	bool post_warning = ent->client->pers.inventory[ent->client->pers.weapon->ammo] <=
+	bool const post_warning = ent->client->pers.inventory[ent->client->pers.weapon->ammo] <=
 		ent->client->pers.weapon->quantity_warn;
 
 	if (!pre_warning && post_warning)
@@ -483,16 +483,16 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 	{
 		const bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
 		const bool using_shotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SHOTGUN;
-		const bool using_sshotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
+		//const bool using_sshotgun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_SSHOTGUN;
 		const bool using_glauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_GLAUNCHER;
 		const bool using_proxlauncher = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_PROXLAUNCHER;
 		const bool using_etfrifle = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_ETF_RIFLE;
-		const bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
-		const bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
-		const bool using_hyperblaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
-		const bool using_ripper = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
+		//const bool using_machinegun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_MACHINEGUN;
+		//const bool using_chaingun = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_CHAINGUN;
+		//const bool using_hyperblaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_HYPERBLASTER;
+		//const bool using_ripper = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_IONRIPPER;
 		const bool using_rail = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RAILGUN;
-		const bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
+		//const bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
 		const bool using_trap = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TRAP;
 
 		float final_multiplier = 1.0f;
@@ -570,12 +570,12 @@ void Think_Weapon(edict_t* ent)
 	// so we have to run them now.
 	if (33_ms < FRAME_TIME_MS)
 	{
-		gtime_t relative_time = Weapon_AnimationTime(ent);
+		gtime_t const relative_time = Weapon_AnimationTime(ent);
 
 		if (relative_time < FRAME_TIME_MS)
 		{
 			// check how many we can't run before the next server tick
-			gtime_t next_frame = level.time + FRAME_TIME_S;
+			gtime_t const next_frame = level.time + FRAME_TIME_S;
 			int64_t remaining_ms = (next_frame - ent->client->weapon_think_time).milliseconds();
 
 			while (remaining_ms > 0)
@@ -626,7 +626,7 @@ weap_switch_t Weapon_AttemptSwitch(edict_t* ent, gitem_t* item, bool silent)
 	return WEAP_SWITCH_VALID;
 }
 
-inline bool Weapon_IsPartOfChain(gitem_t* item, gitem_t* other)
+inline bool Weapon_IsPartOfChain(const gitem_t* item, const gitem_t* other)
 {
 	return other && other->chain && item->chain && other->chain == item->chain;
 }
@@ -695,7 +695,7 @@ void Drop_Weapon(edict_t* ent, gitem_t* item)
 	if (G_IsDeathmatch() && g_dm_weapons_stay->integer)
 		return;
 
-	item_id_t index = item->id;
+	item_id_t const index = item->id;
 	// see if we're already using it
 	if (((item == ent->client->pers.weapon) || (item == ent->client->newweapon)) && (ent->client->pers.inventory[index] == 1))
 	{
@@ -866,7 +866,7 @@ inline weapon_ready_state_t Weapon_HandleReady(edict_t* ent, int FRAME_FIRE_FIRS
 {
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
-		bool request_firing = ent->client->weapon_fire_buffered || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK);
+		bool const request_firing = ent->client->weapon_fire_buffered || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK);
 
 		if (request_firing && ent->client->weapon_fire_finished <= level.time)
 		{
@@ -933,9 +933,9 @@ inline void Weapon_HandleFiring(edict_t* ent, int32_t FRAME_IDLE_FIRST, std::fun
 
 void Weapon_Generic(edict_t* ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, const int* pause_frames, const int* fire_frames, void (*fire)(edict_t* ent))
 {
-	int FRAME_FIRE_FIRST = (FRAME_ACTIVATE_LAST + 1);
-	int FRAME_IDLE_FIRST = (FRAME_FIRE_LAST + 1);
-	int FRAME_DEACTIVATE_FIRST = (FRAME_IDLE_LAST + 1);
+	int const FRAME_FIRE_FIRST = (FRAME_ACTIVATE_LAST + 1);
+	int const FRAME_IDLE_FIRST = (FRAME_FIRE_LAST + 1);
+	int const FRAME_DEACTIVATE_FIRST = (FRAME_IDLE_LAST + 1);
 
 	if (!Weapon_CanAnimate(ent))
 		return;
@@ -946,7 +946,7 @@ void Weapon_Generic(edict_t* ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, 
 		return;
 	else if (Weapon_HandleNewWeapon(ent, FRAME_DEACTIVATE_FIRST, FRAME_DEACTIVATE_LAST))
 		return;
-	else if (auto state = Weapon_HandleReady(ent, FRAME_FIRE_FIRST, FRAME_IDLE_FIRST, FRAME_IDLE_LAST, pause_frames))
+	else if (auto const state = Weapon_HandleReady(ent, FRAME_FIRE_FIRST, FRAME_IDLE_FIRST, FRAME_IDLE_LAST, pause_frames))
 	{
 		if (state == READY_FIRING)
 		{
@@ -1007,9 +1007,9 @@ void Weapon_Generic(edict_t* ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, 
 
 void Weapon_Repeating(edict_t* ent, int FRAME_ACTIVATE_LAST, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int FRAME_DEACTIVATE_LAST, const int* pause_frames, void (*fire)(edict_t* ent))
 {
-	int FRAME_FIRE_FIRST = (FRAME_ACTIVATE_LAST + 1);
-	int FRAME_IDLE_FIRST = (FRAME_FIRE_LAST + 1);
-	int FRAME_DEACTIVATE_FIRST = (FRAME_IDLE_LAST + 1);
+	int const FRAME_FIRE_FIRST = (FRAME_ACTIVATE_LAST + 1);
+	int const FRAME_IDLE_FIRST = (FRAME_FIRE_LAST + 1);
+	int const FRAME_DEACTIVATE_FIRST = (FRAME_IDLE_LAST + 1);
 
 	if (!Weapon_CanAnimate(ent))
 		return;
@@ -1056,7 +1056,7 @@ void weapon_grenade_fire(edict_t* ent, bool held)
 	// limit upwards angle so you don't throw behind you
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 2, 0, -14 }, start, dir);
 
-	gtime_t timer = ent->client->grenade_time - level.time;
+	gtime_t const timer = ent->client->grenade_time - level.time;
 	speed = (int)(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
 
 	ent->client->grenade_time = 0_ms;
@@ -1080,7 +1080,7 @@ void Throw_Generic(edict_t* ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int F
 	}
 
 	int n;
-	int FRAME_IDLE_FIRST = (FRAME_FIRE_LAST + 1);
+	int const FRAME_IDLE_FIRST = (FRAME_FIRE_LAST + 1);
 
 	if (ent->client->newweapon && (ent->client->weaponstate == WEAPON_READY))
 	{
@@ -1109,7 +1109,7 @@ void Throw_Generic(edict_t* ent, int FRAME_FIRE_LAST, int FRAME_IDLE_LAST, int F
 
 	if (ent->client->weaponstate == WEAPON_READY)
 	{
-		bool request_firing = ent->client->weapon_fire_buffered || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK);
+		bool const request_firing = ent->client->weapon_fire_buffered || ((ent->client->latched_buttons | ent->client->buttons) & BUTTON_ATTACK);
 
 		if (request_firing && ent->client->weapon_fire_finished <= level.time)
 		{
@@ -1396,7 +1396,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 		P_AddWeaponKick(ent, ent->client->v_forward * -2, { -1.f, 0.f, 0.f });
 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
-	int speed = hyper ? 1700 : 1300;
+	int const speed = hyper ? 1700 : 1300;
 	//left hb / right blaster
 	fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER);
 
@@ -1415,7 +1415,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 void Weapon_Blaster_Fire(edict_t* ent)
 {
 	// give the blaster 15 across the board instead of just in dm
-	int damage = irandom(14, 18);
+	int const damage = irandom(14, 18);
 	Blaster_Fire(ent, vec3_origin, damage, false, EF_BLASTER);
 }
 
@@ -1554,7 +1554,7 @@ void Machinegun_Fire(edict_t* ent)
 	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
 
 	// Offset del arma usando inicialización directa
-	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
+	vec3_t const offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
 
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
 	start[2] -= 5.0f;  // Ajuste de altura
@@ -1584,7 +1584,7 @@ void Machinegun_Fire(edict_t* ent)
 			const vec3_t tracer_forward = forward;
 
 			// Offset del trazador usando inicialización condicional
-			vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
+			vec3_t const tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 				? vec3_t{ 0.0f, 8.0f, -6.0f }
 			: vec3_t{ 0.0f, 10.5f, -11.0f };
 
@@ -1676,7 +1676,7 @@ void Chaingun_Fire(edict_t* ent)
 			ent->client->weapon_sound = gi.soundindex("weapons/chngnl1a.wav");
 			ent->client->quake_time = level.time + 100_ms;
 
-			float shake_intensity = 1.6f;
+			float const shake_intensity = 1.6f;
 			ent->client->v_dmg_pitch = crandom() * shake_intensity;
 			ent->client->v_dmg_roll = crandom() * shake_intensity;
 			ent->client->v_dmg_time = level.time + DAMAGE_TIME();
@@ -1782,7 +1782,7 @@ void Chaingun_Fire(edict_t* ent)
 	// Firing vectors calculation
 	vec3_t start;
 	auto [forward, right, up] = AngleVectors(ent->client->v_angle);
-	vec3_t offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
+	vec3_t const offset{ 0.0f, 8.0f, ent->viewheight - 8.0f };
 	P_ProjectSource(ent, ent->client->v_angle, offset, start, forward, true);
 	start[2] -= 5.0f;
 
@@ -2006,7 +2006,7 @@ float P_CurrentBFGKickFactor(edict_t* ent)
 {
 	if (ent->client->kick.time < level.time)
 		return 0.f;
-	float f = (ent->client->kick.time - level.time).seconds() / ent->client->kick.total.seconds();
+	float const f = (ent->client->kick.time - level.time).seconds() / ent->client->kick.total.seconds();
 	// Add easing function for smoother kick
 	return sinf((1.0f - f) * (PIf * 0.5f));
 }
@@ -2015,7 +2015,7 @@ void P_ApplyContinuousKick(edict_t* ent, float dt)
 {
 	if (ent->client->kick.time >= level.time)
 	{
-		float factor = P_CurrentBFGKickFactor(ent);
+		float const factor = P_CurrentBFGKickFactor(ent);
 		ent->client->kick_origin = ent->client->kick.origin * factor;
 		ent->client->v_dmg_roll = ent->client->kick.angles[ROLL] * factor;
 		ent->client->v_dmg_pitch = ent->client->kick.angles[PITCH] * factor;
@@ -2031,7 +2031,7 @@ void P_ApplyContinuousKick(edict_t* ent, float dt)
 void weapon_bfg_fire(edict_t* ent)
 {
 	int   damage;
-	float damage_radius = 1000;
+	float const damage_radius = 1000;
 
 	if (G_IsDeathmatch())
 		damage = 700;
@@ -2050,7 +2050,7 @@ void weapon_bfg_fire(edict_t* ent)
 	}
 
 	// Check ammo
-	int required_ammo = g_bfgslide->integer ? 25 : 50;
+	int const required_ammo = g_bfgslide->integer ? 25 : 50;
 	if (ent->client->pers.inventory[ent->client->pers.weapon->ammo] < required_ammo)
 		return;
 

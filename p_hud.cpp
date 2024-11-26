@@ -118,8 +118,8 @@ void G_EndOfUnitMessage()
 
 	// sort entries
 	std::sort(game.level_entries.begin(), game.level_entries.end(), [](const level_entry_t& a, const level_entry_t& b) {
-		int32_t a_order = a.visit_order ? a.visit_order : (*a.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
-		int32_t b_order = b.visit_order ? b.visit_order : (*b.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
+		int32_t const a_order = a.visit_order ? a.visit_order : (*a.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
+		int32_t const b_order = b.visit_order ? b.visit_order : (*b.pretty_name ? (MAX_LEVELS_PER_UNIT + 1) : (MAX_LEVELS_PER_UNIT + 2));
 
 		return a_order < b_order;
 		});
@@ -230,7 +230,7 @@ void G_ReportMatchDetails(bool is_end)
 
 	uint8_t num_players = 0;
 
-	for (auto player : active_players())
+	for (const auto* const player : active_players())
 	{
 		// leave spectators out of this data, they don't need to be seen.
 		if (player->client->pers.spawned && !player->client->resp.spectator)
@@ -245,7 +245,7 @@ void G_ReportMatchDetails(bool is_end)
 
 	gi.WriteByte(num_players);
 
-	for (auto player : active_players())
+	for (const auto* const player : active_players())
 	{
 		// leave spectators out of this data, they don't need to be seen.
 		if (player->client->pers.spawned && !player->client->resp.spectator)
@@ -803,7 +803,7 @@ void G_SetStats(edict_t* ent)
 	// Verificar y mantener el target_health_str
 	if (ent->client->ps.stats[STAT_CTF_ID_VIEW] != 0) {
 		int target_index = ent->client->ps.stats[STAT_CTF_ID_VIEW];
-		edict_t* target = &g_edicts[target_index];
+		edict_t* const target = &g_edicts[target_index];
 
 		if (target->inuse && target->client) {
 			ent->client->target_health_str = "Health: " + std::to_string(target->health);
@@ -875,7 +875,7 @@ void G_SetStats(edict_t* ent)
 	for (unsigned int ammoIndex = AMMO_BULLETS; ammoIndex < AMMO_MAX; ++ammoIndex)
 	{
 		gitem_t* ammo = GetItemByAmmo((ammo_t)ammoIndex);
-		uint16_t val = G_CheckInfiniteAmmo(ammo) ? AMMO_VALUE_INFINITE : clamp(ent->client->pers.inventory[ammo->id], 0, AMMO_VALUE_INFINITE - 1);
+		uint16_t const val = G_CheckInfiniteAmmo(ammo) ? AMMO_VALUE_INFINITE : clamp(ent->client->pers.inventory[ammo->id], 0, AMMO_VALUE_INFINITE - 1);
 		G_SetAmmoStat((uint16_t*)&ent->client->ps.stats[STAT_AMMO_INFO_START], ammo->ammo_wheel_index, val);
 	}
 
@@ -917,7 +917,7 @@ void G_SetStats(edict_t* ent)
 	memset(&ent->client->ps.stats[STAT_POWERUP_INFO_START], 0, sizeof(uint16_t) * NUM_POWERUP_STATS);
 	for (unsigned int powerupIndex = POWERUP_SCREEN; powerupIndex < POWERUP_MAX; ++powerupIndex)
 	{
-		gitem_t* powerup = GetItemByPowerup((powerup_t)powerupIndex);
+		gitem_t* const powerup = GetItemByPowerup((powerup_t)powerupIndex);
 		if (!powerup) {
 			gi.Com_PrintFmt("PRINT: Warning: Invalid powerup index {}\n", powerupIndex);
 			continue;
@@ -985,8 +985,8 @@ void G_SetStats(edict_t* ent)
 	// Recopilar power-ups activos
 	for (auto& powerup : powerup_table)
 	{
-		auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
-		auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
+		const auto* const powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
+		const auto* const powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
 		if ((powerup_time && *powerup_time > level.time) || (powerup_count && *powerup_count > 0))
 		{
 			active_powerups.push_back(&powerup);
@@ -1005,8 +1005,8 @@ void G_SetStats(edict_t* ent)
 		// Ordenar power-ups por tiempo restante
 		std::sort(active_powerups.begin(), active_powerups.end(), compare_powerups);
 
-		powerup_info_t* best_powerup = !active_powerups.empty() ? active_powerups.front() : nullptr;
-		powerup_info_t* next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
+		powerup_info_t* const best_powerup = !active_powerups.empty() ? active_powerups.front() : nullptr;
+		powerup_info_t* const next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
 
 		int16_t timer_value = 0;
 		const char* icon = nullptr;
@@ -1024,7 +1024,7 @@ void G_SetStats(edict_t* ent)
 			else if (best_powerup->time_ptr)
 				timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
 
-			gitem_t* item = GetItemByIndex(best_powerup->item);
+			gitem_t* const item = GetItemByIndex(best_powerup->item);
 			if (item)
 				icon = item->icon;
 		}
@@ -1035,7 +1035,7 @@ void G_SetStats(edict_t* ent)
 			if (active_sphere && best_powerup && icon == active_sphere->icon)
 			{
 				// Alternar entre la esfera y el mejor power-up
-				gitem_t* item = GetItemByIndex(best_powerup->item);
+				gitem_t* const item = GetItemByIndex(best_powerup->item);
 				if (item)
 					icon = item->icon;
 				if (best_powerup->count_ptr)
@@ -1046,7 +1046,7 @@ void G_SetStats(edict_t* ent)
 			else if (next_best_powerup)
 			{
 				// Alternar entre los dos mejores power-ups
-				gitem_t* item = GetItemByIndex(next_best_powerup->item);
+				gitem_t* const item = GetItemByIndex(next_best_powerup->item);
 				if (item)
 					icon = item->icon;
 				if (next_best_powerup->count_ptr)

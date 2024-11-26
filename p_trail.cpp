@@ -124,7 +124,7 @@ edict_t* PlayerTrail_Pick(edict_t* self, bool next)
 
 		for (edict_t* m2 = marker; m2; m2 = m2->enemy)
 		{
-			float len = (m2->s.origin - self->s.origin).lengthSquared();
+			float const len = (m2->s.origin - self->s.origin).lengthSquared();
 
 			if (len < closest_dist)
 			{
