@@ -274,7 +274,7 @@ const std::unordered_set<std::string> smallMaps = {
 };
 
 const std::unordered_set<std::string> bigMaps = {
-	"q2ctf5", "old/kmdm3", "xdm2", "xdm4", "xdm6", "xdm3", "rdm6", "rdm8", "xdm1", "waste2", "rdm5", "rdm9", "rdm12"
+	"q2ctf5", "old/kmdm3", "xdm2", "xdm4", "xdm6", "xdm3", "rdm6", "rdm8", "xdm1", "waste2", "rdm5", "rdm9", "rdm12", "sewer64", "base64", "city64"
 };
 
 MapSize GetMapSize(const std::string& mapname) {
