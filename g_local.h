@@ -1950,7 +1950,6 @@ extern cvar_t* filterban;
 extern cvar_t* g_dm_spawns;
 extern cvar_t* sv_eyecam;
 extern cvar_t* sv_target_id;
-extern cvar_t* sv_centerprint_frags;
 extern cvar_t* sv_gravity;
 extern cvar_t* sv_maxvelocity;
 
