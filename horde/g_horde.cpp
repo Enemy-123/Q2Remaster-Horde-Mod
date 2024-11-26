@@ -402,7 +402,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 
 	// Apply final limits
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
-	g_horde_local.num_to_spawn = baseCount + int32_t{ additionalSpawn };
+	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
 	ClampNumToSpawn(mapSize);
 
 	// Actualizar cola con sistema optimizado
@@ -3898,9 +3898,6 @@ void Horde_RunFrame() {
 		g_horde_local.queued_monsters = 0;
 		ClampNumToSpawn(mapSize);
 	}
-
-	// Obtener contadores de jugadores
-	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
 	switch (g_horde_local.state) {
 	case horde_state_t::warmup:
