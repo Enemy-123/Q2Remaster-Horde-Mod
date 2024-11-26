@@ -105,10 +105,6 @@ bool P_UseCoopInstancedItems()
 
 void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t mod)
 {
-
-	if (!attacker || !attacker->client)
-		return;
-
 	const char* base = nullptr;
 
 	if (G_IsCooperative() && attacker->client || deathmatch->integer)
