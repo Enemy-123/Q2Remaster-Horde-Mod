@@ -25,6 +25,11 @@ static cached_soundindex sound_ack;
 static cached_soundindex sound_spawn1;
 static cached_soundindex sound_voice3;
 static cached_soundindex sound_v_fac3;
+static cached_soundindex sound_bt1;
+static cached_soundindex sound_bt2;
+static cached_soundindex sound_bt3;
+static cached_soundindex sound_bt4;
+static cached_soundindex sound_bt5;
 
 static const char* GetCurrentMapName() noexcept {
 	return static_cast<const char*>(level.mapname);
@@ -1637,21 +1642,6 @@ static void PrecacheItemsAndBosses() noexcept {
 	}
 }
 
-static void PrecacheAllSounds() noexcept {
-	sound_tele3.assign("misc/r_tele3.wav");
-	sound_klaxon2.assign("world/klaxon2.wav");
-	sound_tele_up.assign("misc/tele_up.wav");
-	sound_incoming.assign("world/incoming.wav");
-	sound_yelforce.assign("world/yelforce.wav");
-
-	sound_action_fail.assign("nav_editor/action_fail.wav");
-	sound_roar1.assign("makron/roar1.wav");
-	sound_ack.assign("zortemp/ack.wav");
-	sound_spawn1.assign("misc/spawn1.wav");
-	sound_voice3.assign("makron/voice3.wav");
-	sound_v_fac3.assign("world/v_fac3.wav");
-}
-
 static void PrecacheAllMonsters() noexcept {
 	for (const auto& monster : monsters) {
 		edict_t* e = G_Spawn();
@@ -1667,14 +1657,39 @@ static void PrecacheAllMonsters() noexcept {
 	}
 }
 
+static void PrecacheAllSounds() noexcept {
+	sound_tele3.assign("misc/r_tele3.wav");
+	sound_klaxon2.assign("world/klaxon2.wav");
+	sound_tele_up.assign("misc/tele_up.wav");
+	sound_incoming.assign("world/incoming.wav");
+	sound_yelforce.assign("world/yelforce.wav");
+
+	sound_action_fail.assign("nav_editor/action_fail.wav");
+	sound_roar1.assign("makron/roar1.wav");
+	sound_ack.assign("zortemp/ack.wav");
+	sound_spawn1.assign("misc/spawn1.wav");
+	sound_voice3.assign("makron/voice3.wav");
+	sound_v_fac3.assign("world/v_fac3.wav");
+	sound_bt1.assign("world/battle1.wav");
+	sound_bt2.assign("world/battle2.wav");
+	sound_bt3.assign("world/battle3.wav");
+	sound_bt4.assign("world/battle4.wav");
+	sound_bt5.assign("world/battle5.wav");
+}
+
+
 // Array de sonidos constante
-constexpr std::array<std::string_view, 6> WAVE_SOUNDS = {
+constexpr std::array<std::string_view, 10> WAVE_SOUNDS = {
 	"nav_editor/action_fail.wav",
 	"makron/roar1.wav",
 	"zortemp/ack.wav",
-	"misc/spawn1.wav",
 	"makron/voice3.wav",
-	"world/v_fac3.wav"
+	"world/v_fac3.wav",
+	"world/battle1.wav",
+	"world/battle2.wav",
+	"world/battle3.wav",
+	"world/battle4.wav",
+	"world/battle5.wav"
 };
 
 // Función para precarga de sonidos
@@ -1682,6 +1697,12 @@ static void PrecacheWaveSounds() noexcept {
 	for (std::string_view const sound : WAVE_SOUNDS) {  // Removido el '&'
 		gi.soundindex(sound.data());
 	}
+}
+
+// Función para obtener un sonido aleatorio
+static const char* GetRandomWaveSound() {
+	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
+	return WAVE_SOUNDS[dist(mt_rand)].data(); // Usar .data() para obtener const char*
 }
 
 //Capping resets on map end
@@ -3294,11 +3315,6 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 		}
 	}
 	g_horde_local.state = horde_state_t::rest;
-}
-// Función para obtener un sonido aleatorio
-static const char* GetRandomWaveSound() {
-	std::uniform_int_distribution<size_t> dist(0, WAVE_SOUNDS.size() - 1);
-	return WAVE_SOUNDS[dist(mt_rand)].data(); // Usar .data() para obtener const char*
 }
 
 static void HandleWaveRestMessage(gtime_t duration = 3_sec) {

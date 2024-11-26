@@ -637,7 +637,15 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	}
 	else
 	{
-		gi.sound(self, CHAN_VOICE, sound_death, 1, ATTN_NONE, 0);
+		float attenuation;
+		if (self->monsterinfo.IS_BOSS) {
+			attenuation = ATTN_NONE;
+		}
+		else {
+			attenuation = ATTN_NORM;
+		}
+
+		gi.sound(self, CHAN_VOICE, sound_death, 1, attenuation, 0);
 		self->deadflag = true;
 		self->takedamage = false;
 		self->count = 0;
