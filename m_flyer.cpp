@@ -339,8 +339,6 @@ void flyer_rocket(edict_t* self)
 	if (chance < 0.98f)
 		return;
 
-	chance = frandom();
-
 	if (visible(self, self->enemy))
 	{
 		start = self->s.origin;
