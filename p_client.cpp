@@ -853,6 +853,9 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 // [Paril-KEX]
 static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 {
+	if (!ent || !ptr)
+		return;
+
 	char token_copy[MAX_TOKEN_CHARS];
 	const char* token;
 
@@ -860,15 +863,31 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 	{
 		Q_strlcpy(token_copy, token, sizeof(token_copy));
 		const char* ptr_copy = token_copy;
-
 		const char* item_name = COM_Parse(&ptr_copy);
+
+		// Early validation of item_name
+		if (!item_name || !*item_name)
+		{
+			gi.Com_ErrorFmt("Empty item name in g_start_item\n");
+			continue;
+		}
+
 		gitem_t* item = FindItemByClassname(item_name);
 
-		if (!item || !item->pickup)
+		// Comprehensive null check for item and its pickup function
+		if (!item)
+		{
 			gi.Com_ErrorFmt("Invalid g_start_item entry: {}\n", item_name);
+			continue;
+		}
+
+		if (!item->pickup)
+		{
+			gi.Com_ErrorFmt("Item {} has no pickup function\n", item_name);
+			continue;
+		}
 
 		int32_t count = 1;
-
 		if (*ptr_copy)
 			count = atoi(COM_Parse(&ptr_copy));
 
@@ -879,6 +898,12 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 		}
 
 		edict_t* dummy = G_Spawn();
+		if (!dummy)
+		{
+			gi.Com_ErrorFmt("Failed to spawn dummy entity for item {}\n", item_name);
+			continue;
+		}
+
 		dummy->item = item;
 		dummy->count = count;
 		dummy->spawnflags |= SPAWNFLAG_ITEM_DROPPED;
@@ -886,6 +911,7 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 		G_FreeEdict(dummy);
 	}
 }
+
 constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
 bool IsTechItem(int item_id);
 void InitClientPt(const edict_t* ent, gclient_t* client)
@@ -2255,8 +2281,15 @@ void PutClientInServer(edict_t* ent)
 	int index;
 	vec3_t spawn_origin, spawn_angles;
 	gclient_t* client;
-	client_persistant_t saved;
-	client_respawn_t resp;
+
+	// Mover estructuras grandes al heap
+	std::unique_ptr<client_persistant_t> saved = std::make_unique<client_persistant_t>();
+	std::unique_ptr<client_respawn_t> resp = std::make_unique<client_respawn_t>();
+
+	// Mover buffers grandes al heap
+	std::unique_ptr<char[]> userinfo = std::make_unique<char[]>(MAX_INFO_STRING);
+	std::unique_ptr<char[]> social_id = std::make_unique<char[]>(MAX_INFO_VALUE);
+	std::unique_ptr<char[]> val = std::make_unique<char[]>(MAX_INFO_VALUE);
 
 	index = ent - g_edicts - 1;
 	client = ent->client;
@@ -2282,9 +2315,9 @@ void PutClientInServer(edict_t* ent)
 		spawn_angles = squad_respawn_angles;
 		valid_spawn = true;
 	}
-	else if (gamerules->integer && DMGame.SelectSpawnPoint) // PGM
+	else if (gamerules->integer && DMGame.SelectSpawnPoint)
 	{
-		valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn); // PGM
+		valid_spawn = DMGame.SelectSpawnPoint(ent, spawn_origin, spawn_angles, force_spawn);
 	}
 	else // PGM
 	{
@@ -2298,21 +2331,18 @@ void PutClientInServer(edict_t* ent)
 		// Only do this once per spawn
 		if (!client->awaiting_respawn)
 		{
-			char userinfo[MAX_INFO_STRING];
-			memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
-			ClientUserinfoChanged(ent, userinfo);
+			memcpy(userinfo.get(), client->pers.userinfo, MAX_INFO_STRING);
+			ClientUserinfoChanged(ent, userinfo.get());
 
-			// Ajuste: Añadido un pequeño retardo antes de permitir otro intento de reaparición
 			client->respawn_timeout = level.time + 3_sec;
 		}
 
 		// Find a spot to place us
 		if (!level.respawn_intermission)
 		{
-			// Find an intermission spot
 			edict_t* pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_intermission");
 			if (!pt)
-			{ // El creador del mapa olvidó poner un punto de intermission...
+			{	// Mapper forgot to put an intermission
 				pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
 				if (!pt)
 					pt = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
@@ -2328,7 +2358,6 @@ void PutClientInServer(edict_t* ent)
 				}
 			}
 
-			// Check if pt is valid before accessing its members
 			if (pt != nullptr)
 			{
 				level.intermission_origin = pt->s.origin;
@@ -2338,9 +2367,9 @@ void PutClientInServer(edict_t* ent)
 			else
 			{
 				// If pt is nullptr, no valid intermission point found
-				// Log a warning and prevent the player from spawning
-				vec3_t default_origin = vec3_origin; // Puedes cambiar esto a un valor más apropiado
-				vec3_t default_angles = vec3_origin; // Ángulos por defecto
+// Log a warning and prevent the player from spawning
+				vec3_t default_origin = vec3_origin;
+				vec3_t default_angles = vec3_origin;
 				level.intermission_origin = default_origin;
 				level.intermission_angle = default_angles;
 				level.respawn_intermission = true;
@@ -2377,59 +2406,56 @@ void PutClientInServer(edict_t* ent)
 	client->awaiting_respawn = false;
 	client->respawn_timeout = 0_ms;
 
-	char social_id[MAX_INFO_VALUE];
-	Q_strlcpy(social_id, ent->client->pers.social_id, sizeof(social_id));
+	Q_strlcpy(social_id.get(), ent->client->pers.social_id, MAX_INFO_VALUE);
 
 	// Deathmatch wipes most client data every spawn
 	if (deathmatch->integer)
 	{
-		client->resp.inactivity_time = 0_sec; // Inicializa a 0 o a un valor apropiado
+		client->resp.inactivity_time = 0_sec;
 		client->resp.inactivity_warning = false;
 		client->resp.inactive = false;
 		client->pers.health = 0;
-		resp = client->resp;
+		*resp = client->resp;
 	}
 	else
 	{
 		// [Kex] Maintain user info in singleplayer to keep the player skin.
-		char userinfo[MAX_INFO_STRING];
-		memcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
+		memcpy(userinfo.get(), client->pers.userinfo, MAX_INFO_STRING);
 
 		if (G_IsCooperative() || deathmatch->integer && g_horde->integer)
 		{
-			resp = client->resp;
+			*resp = client->resp;
 
 			if (!P_UseCoopInstancedItems())
 			{
-				resp.coop_respawn.game_help1changed = client->pers.game_help1changed;
-				resp.coop_respawn.game_help2changed = client->pers.game_help2changed;
-				resp.coop_respawn.helpchanged = client->pers.helpchanged;
-				client->pers = resp.coop_respawn;
+				resp->coop_respawn.game_help1changed = client->pers.game_help1changed;
+				resp->coop_respawn.game_help2changed = client->pers.game_help2changed;
+				resp->coop_respawn.helpchanged = client->pers.helpchanged;
+				client->pers = resp->coop_respawn;
 			}
 			else
 			{
-				// Fix weapon
 				if (!client->pers.weapon)
 					client->pers.weapon = client->pers.lastweapon;
 			}
 		}
 
-		ClientUserinfoChanged(ent, userinfo);
+		ClientUserinfoChanged(ent, userinfo.get());
 
 		if (G_IsCooperative())
 		{
-			if (resp.score > client->pers.score)
-				client->pers.score = resp.score;
+			if (resp->score > client->pers.score)
+				client->pers.score = resp->score;
 		}
 		else
-			memset(&resp, 0, sizeof(resp));
+			memset(resp.get(), 0, sizeof(client_respawn_t));
 	}
 
 	// Clear everything but the persistent data
-	saved = client->pers;
+	*saved = client->pers;
 	memset(client, 0, sizeof(*client));
-	client->pers = saved;
-	client->resp = resp;
+	client->pers = *saved;
+	client->resp = *resp;
 
 	// On a new, fresh spawn (always in DM, clear inventory
 	// or new spawns in SP/coop)
@@ -2437,7 +2463,7 @@ void PutClientInServer(edict_t* ent)
 		InitClientPersistant(ent, client);
 
 	// Restore social ID
-	Q_strlcpy(ent->client->pers.social_id, social_id, sizeof(social_id));
+	Q_strlcpy(ent->client->pers.social_id, social_id.get(), MAX_INFO_VALUE);
 
 	// Fix level switch issue
 	ent->client->pers.connected = true;
@@ -2469,7 +2495,7 @@ void PutClientInServer(edict_t* ent)
 	ent->svflags &= ~SVF_DEADMONSTER;
 	ent->svflags |= SVF_PLAYER;
 
-	ent->flags &= ~FL_SAM_RAIMI; // PGM - turn off sam raimi flag
+	ent->flags &= ~FL_SAM_RAIMI;  // PGM - turn off sam raimi flag
 
 	ent->mins = PLAYER_MINS;
 	ent->maxs = PLAYER_MAXS;
@@ -2477,9 +2503,8 @@ void PutClientInServer(edict_t* ent)
 	// Clear playerstate values
 	memset(&ent->client->ps, 0, sizeof(client->ps));
 
-	char val[MAX_INFO_VALUE] = { 0 };
-	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val, sizeof(val));
-	ent->client->ps.fov = clamp((float)atoi(val), 1.f, 160.f);
+	gi.Info_ValueForKey(ent->client->pers.userinfo, "fov", val.get(), MAX_INFO_VALUE);
+	ent->client->ps.fov = clamp((float)atoi(val.get()), 1.f, 160.f);
 
 	ent->client->ps.pmove.viewheight = ent->viewheight;
 	ent->client->ps.team_id = ent->client->resp.ctf_team;
@@ -2487,13 +2512,11 @@ void PutClientInServer(edict_t* ent)
 	if (!G_ShouldPlayersCollide(false))
 		ent->clipmask &= ~CONTENTS_PLAYER;
 
-	// PGM
 	if (client->pers.weapon)
 		client->ps.gunindex = gi.modelindex(client->pers.weapon->view_model);
 	else
 		client->ps.gunindex = 0;
 	client->ps.gunskin = 0;
-	// PGM
 
 	// Clear entity state values
 	ent->s.effects = EF_NONE;
@@ -2501,6 +2524,7 @@ void PutClientInServer(edict_t* ent)
 	ent->s.modelindex2 = MODELINDEX_PLAYER; // Custom gun model
 	// sknum is player num and weapon number
 	// weapon number will be added in changeweapon
+
 	P_AssignClientSkinnum(ent);
 
 	ent->s.frame = 0;
@@ -2523,18 +2547,14 @@ void PutClientInServer(edict_t* ent)
 	};
 	P_ForceFogTransition(ent, true);
 
-	// ZOID
 	if (CTFStartClient(ent))
 		return;
-	// ZOID
 
 	// Spawn a spectator
 	if (client->pers.spectator)
 	{
 		client->chase_target = nullptr;
-
 		client->resp.spectator = true;
-
 		ent->movetype = MOVETYPE_NOCLIP;
 		ent->solid = SOLID_NOT;
 		ent->svflags |= SVF_NOCLIENT;
@@ -2559,31 +2579,26 @@ void PutClientInServer(edict_t* ent)
 
 				if (collision->client)
 				{
-					// We spawned on somebody else, so change their spawn position
 					bool lm = false;
 					SelectSpawnPoint(collision, spawn_origin, spawn_angles, true, lm);
 					PutClientOnSpawnPoint(collision, spawn_origin, spawn_angles);
 				}
-				// Else, no choice but to accept where ever we spawned :(
 			}
 		}
 
-		// Give one (1) free fall ticket even if we didn't spawn from landmark
 		ent->client->landmark_free_fall = true;
 	}
 
 	gi.linkentity(ent);
 
 	if (!KillBox(ent, true, MOD_TELEFRAG_SPAWN))
-	{ // Couldn't spawn in?
-		// Aquí puedes manejar el caso en que KillBox falle, por ejemplo, teletransportar al jugador a otro lugar
+	{
+		// Handle KillBox failure if needed
 	}
 
 	// Tribute to cash's level-specific hacks
 	if (Q_strcasecmp(level.mapname, "rboss") == 0)
 	{
-		// If you get on to rboss in single player or coop, ensure
-		// the player has the nuke key. (not in DM)
 		if (!deathmatch->integer)
 			client->pers.inventory[IT_KEY_NUKE] = 1;
 	}
@@ -2595,7 +2610,6 @@ void PutClientInServer(edict_t* ent)
 	if (was_waiting_for_respawn)
 		G_PostRespawn(ent);
 }
-
 /*
 =====================
 ClientBeginDeathmatch
