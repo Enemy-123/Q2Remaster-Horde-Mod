@@ -69,7 +69,7 @@ struct MapSize {
     bool isBigMap = false;
 };
 
-MapSize GetMapSize(const std::string& mapname) ;
+MapSize GetMapSize(const char* mapname);
 
 extern gtime_t GetWaveTimer();
 bool TeleportSelf(edict_t* ent);

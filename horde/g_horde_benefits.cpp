@@ -182,7 +182,7 @@ void CheckAndApplyBenefit(const int32_t wave) {
 		return;
 
 	// Seleccionar beneficio basado en peso
-	float random_value = frandom() * total_weight;
+	float const random_value = frandom() * total_weight;
 	float cumulative_weight = 0.0f;
 	size_t selected_index = eligible_benefits[0].index;
 

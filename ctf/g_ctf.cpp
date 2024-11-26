@@ -3637,7 +3637,7 @@ void CategorizeMapList() {
 	char* token;
 
 	while (*(token = COM_Parse(&mlist)) != '\0') {
-		std::string map_name = token;
+		const char* map_name = token;
 		MapSize mapSize = GetMapSize(map_name);
 
 		if (mapSize.isBigMap) {

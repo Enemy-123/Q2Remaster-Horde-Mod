@@ -277,20 +277,20 @@ const std::unordered_set<std::string> bigMaps = {
 	"q2ctf5", "old/kmdm3", "xdm2", "xdm4", "xdm6", "xdm3", "rdm6", "rdm8", "xdm1", "waste2", "rdm5", "rdm9", "rdm12", "sewer64", "base64", "city64"
 };
 
-MapSize GetMapSize(const std::string& mapname) {
-	static std::unordered_map<std::string, MapSize> cache;
+MapSize GetMapSize(const char* mapname) {
+    static std::unordered_map<std::string, MapSize> cache;
+    
+    const auto it = cache.find(mapname);
+    if (it != cache.end())
+        return it->second;
 
-	const auto it = cache.find(mapname);
-	if (it != cache.end())
-		return it->second;
+    MapSize size;
+    size.isSmallMap = smallMaps.count(mapname) > 0;
+    size.isBigMap = bigMaps.count(mapname) > 0;
+    size.isMediumMap = !size.isSmallMap && !size.isBigMap;
 
-	MapSize size;
-	size.isSmallMap = smallMaps.count(mapname) > 0;
-	size.isBigMap = bigMaps.count(mapname) > 0;
-	size.isMediumMap = !size.isSmallMap && !size.isBigMap;
-
-	cache[mapname] = size;
-	return size;
+    cache[mapname] = size;
+    return size;
 }
 
 // Función para calcular el bono de locura y caos
@@ -850,7 +850,7 @@ constexpr size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
 constexpr size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
 constexpr size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
 
-std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
+static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
 		return BOSS_SMALL;
 	}
@@ -892,11 +892,12 @@ std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view map
 }
 
 static size_t GetBossListSize(const MapSize& mapSize, std::string_view mapname, std::span<const boss_t> boss_list) {
-	if (boss_list.data() == BOSS_SMALL) return BOSS_SMALL_SIZE;
-	if (boss_list.data() == BOSS_MEDIUM) return BOSS_MEDIUM_SIZE;
-	if (boss_list.data() == BOSS_LARGE) return BOSS_LARGE_SIZE;
-	// Para las listas filtradas, simplemente devolvemos el tamaño del span
-	return boss_list.size();
+    const boss_t* list_data = boss_list.data();
+    if (list_data == &BOSS_SMALL[0]) return BOSS_SMALL_SIZE;
+    if (list_data == &BOSS_MEDIUM[0]) return BOSS_MEDIUM_SIZE;
+    if (list_data == &BOSS_LARGE[0]) return BOSS_LARGE_SIZE;
+    // Para las listas filtradas, simplemente devolvemos el tamaño del span
+    return boss_list.size();
 }
 
 // Estructuras de arrays estáticos para reemplazar std::vectors
@@ -1328,7 +1329,7 @@ static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* igno
 	return filter_data.count > 0;
 }
 
-const char* G_HordePickMonster(edict_t* spawn_point) {
+static const char* G_HordePickMonster(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	if (data.isTemporarilyDisabled) {
 		if (level.time < data.cooldownEndsAt)
@@ -1561,7 +1562,7 @@ void Horde_PreInit() {
 }
 
 void VerifyAndAdjustBots() {
-	const MapSize mapSize = GetMapSize(level.mapname);
+	const MapSize mapSize = GetMapSize(static_cast<const char*>(level.mapname));
 	const int32_t spectPlayers = GetNumSpectPlayers();  // Solo necesitamos spectPlayers
 	const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
 	const int32_t requiredBots = std::max(baseBots + spectPlayers, baseBots);
@@ -1575,21 +1576,39 @@ void InitializeWaveSystem() noexcept;
 // Función para precargar todos los ítems y jefes
 static void PrecacheItemsAndBosses() noexcept {
 	std::unordered_set<std::string_view> unique_classnames;
-	unique_classnames.reserve(sizeof(items) / sizeof(items[0]) + sizeof(monsters) / sizeof(monsters[0]) +
-		sizeof(BOSS_SMALL) / sizeof(BOSS_SMALL[0]) + sizeof(BOSS_MEDIUM) / sizeof(BOSS_MEDIUM[0]) +
-		sizeof(BOSS_LARGE) / sizeof(BOSS_LARGE[0]));
+	constexpr size_t total_items = std::size(items) + std::size(monsters) +
+		std::size(BOSS_SMALL) + std::size(BOSS_MEDIUM) + std::size(BOSS_LARGE);
 
-	// Usando referencias constantes para evitar copias
-	for (const auto& item : items) unique_classnames.emplace(item.classname);
-	for (const auto& monster : monsters) unique_classnames.emplace(monster.classname);
-	for (const auto& boss : BOSS_SMALL) unique_classnames.emplace(boss.classname);
-	for (const auto& boss : BOSS_MEDIUM) unique_classnames.emplace(boss.classname);
-	for (const auto& boss : BOSS_LARGE) unique_classnames.emplace(boss.classname);
-	for (const std::string_view& classname : unique_classnames) {
+	unique_classnames.reserve(total_items);
+
+	// Crear vistas span para cada array
+	std::span<const weighted_item_t> items_view{ items };
+	std::span<const weighted_item_t> monsters_view{ monsters };
+	std::span<const boss_t> small_boss_view{ BOSS_SMALL };
+	std::span<const boss_t> medium_boss_view{ BOSS_MEDIUM };
+	std::span<const boss_t> large_boss_view{ BOSS_LARGE };
+
+	// Llenar el set con los classnames únicos
+	for (const auto& item : items_view)
+		unique_classnames.emplace(item.classname);
+
+	for (const auto& monster : monsters_view)
+		unique_classnames.emplace(monster.classname);
+
+	for (const auto& boss : small_boss_view)
+		unique_classnames.emplace(boss.classname);
+
+	for (const auto& boss : medium_boss_view)
+		unique_classnames.emplace(boss.classname);
+
+	for (const auto& boss : large_boss_view)
+		unique_classnames.emplace(boss.classname);
+
+	// Precargar cada item único
+	for (const std::string_view classname : unique_classnames) {
 		PrecacheItem(FindItemByClassname(classname.data()));
 	}
 }
-
 
 static void PrecacheAllSounds() noexcept {
 	sound_tele3.assign("misc/r_tele3.wav");
@@ -2754,17 +2773,17 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 
 
 void SetHealthBarName(const edict_t* boss) {
+	// Buffer estático en el scope de la función
 	static char buffer[MAX_STRING_CHARS] = {};
 
 	if (!boss || !boss->inuse) {
-		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+		gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
 	const std::string display_name = GetDisplayName(boss);
-
 	if (display_name.empty()) {
-		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
+		gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
@@ -2772,8 +2791,7 @@ void SetHealthBarName(const edict_t* boss) {
 	std::memcpy(buffer, display_name.data(), name_len);
 	buffer[name_len] = '\0';
 
-	const char* safe_buffer = buffer;
-	gi.configstring(CONFIG_HEALTH_BAR_NAME, safe_buffer);
+	gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, buffer);
 }
 
 //CS HORDE
@@ -3375,7 +3393,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
-	edict_t* available_spawns[MAX_SPAWN_POINTS];
+	edict_t* available_spawns[MAX_SPAWN_POINTS] = {};
 	size_t spawn_count = 0;
 
 	// Crear span desde el índice 1 hasta el final
@@ -3455,7 +3473,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
-	edict_t* monster_spawns[MAX_SPAWN_POINTS];
+	edict_t* monster_spawns[MAX_SPAWN_POINTS] = {};
 	size_t spawn_count = 0;
 	const auto currentTime = level.time;
 
