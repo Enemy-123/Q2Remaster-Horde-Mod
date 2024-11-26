@@ -1263,7 +1263,7 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 
 	// Verificar si hay jugadores cerca antes de desactivar
 	bool players_nearby = false;
-	for (auto player : active_players()) {
+	for (auto const player : active_players()) {
 		if ((spawn_point->s.origin - player->s.origin).length() < 300.0f) {
 			players_nearby = true;
 			break;
@@ -1579,20 +1579,20 @@ void InitializeWaveSystem() noexcept;
 
 // Función para precargar todos los ítems y jefes
 static void PrecacheItemsAndBosses() noexcept {
-    std::unordered_set<std::string_view> unique_classnames;
-    unique_classnames.reserve(sizeof(items) / sizeof(items[0]) + sizeof(monsters) / sizeof(monsters[0]) +
-        sizeof(BOSS_SMALL) / sizeof(BOSS_SMALL[0]) + sizeof(BOSS_MEDIUM) / sizeof(BOSS_MEDIUM[0]) +
-        sizeof(BOSS_LARGE) / sizeof(BOSS_LARGE[0]));
+	std::unordered_set<std::string_view> unique_classnames;
+	unique_classnames.reserve(sizeof(items) / sizeof(items[0]) + sizeof(monsters) / sizeof(monsters[0]) +
+		sizeof(BOSS_SMALL) / sizeof(BOSS_SMALL[0]) + sizeof(BOSS_MEDIUM) / sizeof(BOSS_MEDIUM[0]) +
+		sizeof(BOSS_LARGE) / sizeof(BOSS_LARGE[0]));
 
-    // Remover referencias en los bucles for
-    for (const auto item : items) unique_classnames.emplace(item.classname);
-    for (const auto monster : monsters) unique_classnames.emplace(monster.classname);
-    for (const auto boss : BOSS_SMALL) unique_classnames.emplace(boss.classname);
-    for (const auto boss : BOSS_MEDIUM) unique_classnames.emplace(boss.classname);
-    for (const auto boss : BOSS_LARGE) unique_classnames.emplace(boss.classname);
-    for (std::string_view classname : unique_classnames) {
-        PrecacheItem(FindItemByClassname(classname.data()));
-    }
+	// Usando referencias constantes para evitar copias
+	for (const auto& item : items) unique_classnames.emplace(item.classname);
+	for (const auto& monster : monsters) unique_classnames.emplace(monster.classname);
+	for (const auto& boss : BOSS_SMALL) unique_classnames.emplace(boss.classname);
+	for (const auto& boss : BOSS_MEDIUM) unique_classnames.emplace(boss.classname);
+	for (const auto& boss : BOSS_LARGE) unique_classnames.emplace(boss.classname);
+	for (const std::string_view& classname : unique_classnames) {
+		PrecacheItem(FindItemByClassname(classname.data()));
+	}
 }
 
 
@@ -1638,7 +1638,7 @@ constexpr std::array<std::string_view, 6> WAVE_SOUNDS = {
 
 // Función para precarga de sonidos
 static void PrecacheWaveSounds() noexcept {
-	for (std::string_view sound : WAVE_SOUNDS) {  // Removido el '&'
+	for (std::string_view const sound : WAVE_SOUNDS) {  // Removido el '&'
 		gi.soundindex(sound.data());
 	}
 }
@@ -2597,8 +2597,6 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 
 	// Proceso de spawn seguro
 	{
-		// Temporalmente no sólido durante el spawn
-		const auto original_solid = self->solid;
 		self->solid = SOLID_NOT;
 
 		ED_CallSpawn(self);
@@ -3198,8 +3196,8 @@ static void PlayWaveStartSound() {
 
 	static bool indices_initialized = false;
 	if (!indices_initialized) {
-		std::span<const char* const> sound_files_view{ sound_files };
-		std::span<int> indices_view{ cached_sound_indices };
+		std::span<const char* const> const sound_files_view{ sound_files };
+		std::span<int> const indices_view{ cached_sound_indices };
 
 		for (size_t i = 0; i < sound_files_view.size(); ++i) {
 			indices_view[i] = gi.soundindex(sound_files_view[i]);
@@ -3208,7 +3206,7 @@ static void PlayWaveStartSound() {
 	}
 
 	// Usar span para el acceso seguro
-	std::span<const int> sound_indices_view{ cached_sound_indices };
+	const	std::span<const int> sound_indices_view{ cached_sound_indices };
 	const int32_t sound_index = static_cast<int32_t>(frandom() * sound_indices_view.size());
 	gi.sound(world, CHAN_VOICE, sound_indices_view[sound_index], 1, ATTN_NONE, 0);
 }
@@ -3403,7 +3401,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			e.style == 1)  // Excluir spawns para voladores
 			continue;
 
-		auto it = spawnPointsData.find(&e);
+		auto const it = spawnPointsData.find(&e);
 		if (it != spawnPointsData.end()) {
 			if (level.time < it->second.teleport_cooldown)
 				continue;
@@ -3428,7 +3426,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false;
 
 	// Crear vista de los spawns disponibles
-	std::span<edict_t* const> spawns_view{ available_spawns, spawn_count };
+	const std::span<edict_t* const> spawns_view{ available_spawns, spawn_count };
 
 	// Seleccionar spawn point aleatorio usando span
 	edict_t* spawn_point = spawns_view[irandom(spawn_count)];
@@ -3483,7 +3481,7 @@ static edict_t* SpawnMonsters() {
 			strcmp(e.classname, "info_player_deathmatch") != 0)
 			continue;
 
-		auto it = spawnPointsData.find(&e);
+		auto const it = spawnPointsData.find(&e);
 		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
 			if (currentTime < it->second.cooldownEndsAt)
 				continue;
@@ -3792,7 +3790,7 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 static void PrintRemainingMonsterCounts() {
 	std::unordered_map<std::string, int> monster_counts;
 
-	for (const auto ent : active_monsters()) {
+	for (auto const ent : active_monsters()) {
 		// Ignorar monstruos con AI_DO_NOT_COUNT
 		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
 			continue;
