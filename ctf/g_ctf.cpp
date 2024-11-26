@@ -947,9 +947,9 @@ void CTFCalcRankings(std::array<uint32_t, MAX_CLIENTS>& player_ranks)
 		return;
 	}
 
-	ctfteam_t winning_team = (ctfgame.total1 > ctfgame.total2) ? CTF_TEAM1 : CTF_TEAM2;
+	ctfteam_t const winning_team = (ctfgame.total1 > ctfgame.total2) ? CTF_TEAM1 : CTF_TEAM2;
 
-	for (auto const player : active_players())
+	for (const auto* const player : active_players())
 		if (player->client->pers.spawned && player->client->resp.ctf_team != CTF_NOTEAM)
 			player_ranks[player->s.number - 1] = player->client->resp.ctf_team == winning_team ? 1 : 2;
 }
@@ -1028,7 +1028,7 @@ public:
 	}
 
 	int getConfigString(int entity_index) {
-		if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
+		if (auto const it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
 			return it->second;
 		}
 
@@ -1043,7 +1043,7 @@ public:
 	}
 
 	void freeConfigString(int entity_index) {
-		if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
+		if (auto const it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
 			m_availableIndices.push_back(it->second);
 			gi.configstring(it->second, "");
 			m_entityToConfig.erase(it);
@@ -1069,7 +1069,7 @@ static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 
 std::string GetDisplayName(const char* classname) {
 	if (!classname) return "Unknown";
-	auto it = name_replacements.find(classname);
+	const auto it = name_replacements.find(classname);
 	return std::string(it != name_replacements.end() ? it->second : classname);
 }
 
@@ -1247,7 +1247,7 @@ public:
 		if (info.length() >= MAX_STRING_LENGTH)
 			return;
 
-		auto it = m_entityToSlot.find(entityIndex);
+		auto const it = m_entityToSlot.find(entityIndex);
 		int slotIndex;
 
 		if (it == m_entityToSlot.end()) {
@@ -1282,9 +1282,9 @@ public:
 	}
 
 	void removeEntityInfo(int entityIndex) noexcept {
-		auto it = m_entityToSlot.find(entityIndex);
+		auto const it = m_entityToSlot.find(entityIndex);
 		if (it != m_entityToSlot.end()) {
-			int slotIndex = it->second;
+			int const slotIndex = it->second;
 			auto& entity = m_entities[slotIndex];
 
 			// Limpiar el configstring
@@ -1300,7 +1300,7 @@ public:
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
-		auto it = m_entityToSlot.find(entityIndex);
+		auto const it = m_entityToSlot.find(entityIndex);
 		if (it != m_entityToSlot.end()) {
 			return m_entities[it->second].config_string_id;
 		}
@@ -1554,7 +1554,7 @@ void SetCTFStats(edict_t* ent)
 	ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_ctfsb2;
 
 
-	bool blink = 0;
+	bool const blink = 0;
 
 	// if during intermission, we must blink the team header of the winning team
 /*	if (level.intermissiontime && blink)
@@ -1910,7 +1910,7 @@ bool CTFFireGrapple(edict_t* self, const vec3_t& start, const vec3_t& dir, int d
 
 	edict_t* grapple;
 	trace_t  tr;
-	vec3_t   normalized = dir.normalized();
+	vec3_t   const normalized = dir.normalized();
 
 	grapple = G_Spawn();
 	grapple->s.origin = start;
@@ -2204,11 +2204,11 @@ void CTFScoreboardMessage(edict_t* ent, edict_t* killer) {
 
 	// Sort players
 	for (unsigned int i = 0; i < game.maxclients; i++) {
-		edict_t* cl_ent = g_edicts + 1 + i;
+		const edict_t* const cl_ent = g_edicts + 1 + i;
 		if (!cl_ent->inuse)
 			continue;
-		gclient_t* cl = &game.clients[i];
-		PlayerScore player = {
+		const gclient_t* const cl = &game.clients[i];
+		PlayerScore const player = {
 			i,
 			cl->resp.score,
 			std::min(cl->ping, 999),
@@ -2362,11 +2362,11 @@ static edict_t* FindTechSpawn() {
 		if (!spot) continue;
 
 		// Usar el origen del spot para start y ajustar end hacia abajo
-		vec3_t start = spot->s.origin;
-		vec3_t end = spot->s.origin + vec3_t{ 0, 0, -128 };
+		vec3_t const start = spot->s.origin;
+		vec3_t const end = spot->s.origin + vec3_t{ 0, 0, -128 };
 
 		// Realizar el trace para verificar que el punto está sobre suelo sólido
-		trace_t tr = gi.trace(start, mins, maxs, end, spot, MASK_SOLID);
+		trace_t const tr = gi.trace(start, mins, maxs, end, spot, MASK_SOLID);
 
 		if (tr.fraction < 1.0 && !tr.startsolid && !tr.allsolid) {
 			return spot;
@@ -2484,7 +2484,7 @@ static void SpawnTech(gitem_t* item, edict_t* spot)
 	ent->touch = Touch_Item;
 	ent->owner = ent;
 
-	vec3_t angles = { 0, (float)irandom(360), 0 };
+	vec3_t const angles = { 0, (float)irandom(360), 0 };
 	vec3_t forward, right;
 	AngleVectors(angles, forward, right, nullptr);
 
@@ -2810,7 +2810,7 @@ std::string TruncateMessage(const std::string& message, size_t max_length) {
 	}
 
 	std::string truncated = message.substr(0, max_length - 3) + "...";
-	size_t last_space = truncated.find_last_of(' ');
+	size_t const last_space = truncated.find_last_of(' ');
 
 	if (last_space != std::string::npos && last_space > truncated.length() - 10) {
 		truncated = truncated.substr(0, last_space) + "...";
@@ -3316,7 +3316,7 @@ bool CTFMatchOn()
 void RemoveTech(edict_t* ent) {
 	// Recorrer los TECHS específicos
 	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
-		int tech_index = tech_ids[i];
+		int const tech_index = tech_ids[i];
 		if (ent->client->pers.inventory[tech_index] > 0) {
 			// Eliminar el TECH item del inventario del jugador
 			ent->client->pers.inventory[tech_index] = 0;
@@ -3592,7 +3592,7 @@ void CheckAndUpdateMenus() {
 		}
 
 		// Verificar si el jugador está en el menú HUD comparando con el primer elemento
-		bool isInHUDMenu = (player->client->menu->entries[0].text == std::string("*HUD Options"));
+		bool const isInHUDMenu = (player->client->menu->entries[0].text == std::string("*HUD Options"));
 
 		if (isInHUDMenu) {
 			UpdateHUDMenu(player, player->client->menu);
@@ -3638,7 +3638,7 @@ void CategorizeMapList() {
 
 	while (*(token = COM_Parse(&mlist)) != '\0') {
 		const char* map_name = token;
-		MapSize mapSize = GetMapSize(map_name);
+		MapSize const mapSize = GetMapSize(map_name);
 
 		if (mapSize.isBigMap) {
 			categorized_maps.big_maps.push_back(map_name);
@@ -4068,7 +4068,7 @@ void CTFJoinTeam(edict_t* ent, ctfteam_t desired_team)
 	ent->svflags &= ~SVF_NOCLIENT;
 	ent->client->resp.ctf_team = desired_team;
 	ent->client->resp.ctf_state = 0;
-	char value[MAX_INFO_VALUE] = { 0 };
+	char const value[MAX_INFO_VALUE] = { 0 };
 	//	gi.Info_ValueForKey(ent->client->pers.userinfo, "skin", value, sizeof(value));
 	//	CTFAssignSkin(ent, value);
 
@@ -4362,7 +4362,7 @@ void RemoveAllTechItems(edict_t* ent)
 	// Iterate through the inventory up to our known safe limit
 	for (int i = 0; i < SAFE_MAX_ITEMS; i++)
 	{
-		gitem_t* item = &itemlist[i];
+		const gitem_t* const item = &itemlist[i];
 
 		// Skip if item is null or inventory slot is empty
 		if (!item || ent->client->pers.inventory[i] <= 0)
@@ -5127,7 +5127,7 @@ void CTFStats(edict_t* ent)
 				continue;
 			if (!e2->client->resp.ready && e2->client->resp.ctf_team != CTF_NOTEAM)
 			{
-				std::string_view str = G_Fmt("{} is not ready.\n", e2->client->pers.netname);
+				std::string_view const str = G_Fmt("{} is not ready.\n", e2->client->pers.netname);
 
 				if (text.length() + str.length() < MAX_CTF_STAT_LENGTH - 50)
 					text += str;
@@ -5162,7 +5162,7 @@ void CTFStats(edict_t* ent)
 			e = 50;
 		else
 			e = g->kills * 100 / (g->kills + g->deaths);
-		std::string_view str = G_Fmt("{:3}|{:<16.16}|{:5}|{:5}|{:5}|{:5}|{:5}|{:4}%|\n",
+		std::string_view const str = G_Fmt("{:3}|{:<16.16}|{:5}|{:5}|{:5}|{:5}|{:5}|{:4}%|\n",
 			g->number,
 			g->netname,
 			g->score,
@@ -5198,7 +5198,7 @@ void CTFPlayerList(edict_t* ent)
 		if (!e2->inuse)
 			continue;
 
-		std::string_view str = G_Fmt("{:3} {:<16.16} {:02}:{:02} {:4} {:3}{}{}\n",
+		std::string_view const str = G_Fmt("{:3} {:<16.16} {:02}:{:02} {:4} {:3}{}{}\n",
 			i,
 			e2->client->pers.netname,
 			(level.time - e2->client->resp.entertime).milliseconds() / 60000,
