@@ -770,8 +770,8 @@ static void infantry_vanilla_grenade(edict_t* self)
 mframe_t infantry_vanilla_frames_grenade[] = {
 	{ ai_charge, 3 },
 	{ ai_charge, 6 },
-	{ ai_charge, 0, infantry_vanilla_swing },
 	{ ai_charge, 5 },
+	{ ai_charge, 0, infantry_vanilla_swing },
 	{ ai_charge, 8 },
 	{ ai_charge, 8, infantry_vanilla_grenade },
 	{ ai_charge, 8, monster_footstep },
