@@ -84,18 +84,32 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 		scale *= (1.0f - std::min((numHumanPlayers - 1) * PLAYER_REDUCTION, MAX_REDUCTION));
 	}
 
-	// Ajustes por tamaño de mapa usando array constante
-	static constexpr std::array<std::pair<float, float>, 3> MAP_ADJUSTMENTS = { {
-		{0.7f, 1.3f},  // Small maps
-		{0.80f, 1.5f}, // Medium maps
-		{0.85f, 1.75f} // Big maps
-	} };
+	// Ajustes por tamaño de mapa usando constexpr
+	constexpr float SMALL_MAP_MULTIPLIER = 0.7f;
+	constexpr float SMALL_MAP_MAX_SCALE = 1.3f;
+	constexpr float MEDIUM_MAP_MULTIPLIER = 0.80f;
+	constexpr float MEDIUM_MAP_MAX_SCALE = 1.5f;
+	constexpr float BIG_MAP_MULTIPLIER = 0.85f;
+	constexpr float BIG_MAP_MAX_SCALE = 1.75f;
 
-	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-	const auto& [multiplier, maxScale] = MAP_ADJUSTMENTS[mapIndex];
+	// Seleccionar valores basados en el tamaño del mapa usando if-else
+	float multiplier, maxScale;
+	if (mapSize.isSmallMap) {
+		multiplier = SMALL_MAP_MULTIPLIER;
+		maxScale = SMALL_MAP_MAX_SCALE;
+	}
+	else if (mapSize.isBigMap) {
+		multiplier = BIG_MAP_MULTIPLIER;
+		maxScale = BIG_MAP_MAX_SCALE;
+	}
+	else {
+		multiplier = MEDIUM_MAP_MULTIPLIER;
+		maxScale = MEDIUM_MAP_MAX_SCALE;
+	}
 
 	return std::min(scale * multiplier, maxScale);
 }
+
 cvar_t* g_horde;
 #include <span>
 
@@ -1173,14 +1187,12 @@ static const std::unordered_set<std::string> flying_monsters_set(
 
 
 static int32_t countFlyingSpawns() noexcept {
-	int32_t count = 0;
-	for (size_t i = 0; i < globals.num_edicts; i++) {
-		const auto& ent = g_edicts[i];
-		if (ent.inuse && strcmp(ent.classname, "info_player_deathmatch") == 0 && ent.style == 1) {
-			count++;
-		}
-	}
-	return count;
+	return std::count_if(g_edicts + 1, g_edicts + globals.num_edicts,
+		[](const edict_t& ent) {
+			return ent.inuse &&
+				strcmp(ent.classname, "info_player_deathmatch") == 0 &&
+				ent.style == 1;
+		});
 }
 
 static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
@@ -2331,7 +2343,7 @@ static THINK(fade_out_think)(edict_t* self) -> void {
 
 static void StartFadeOut(edict_t* ent) {
 	// No iniciar fade out si el monstruo está vivo o ya está en fade
-	if (ent->health > 0 && !ent->deadflag || ent->is_fading_out) {
+	if ((ent->health > 0 && !ent->deadflag) || ent->is_fading_out) {
 		return;
 	}
 
@@ -2785,10 +2797,8 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 	return false;
 }
 
-
 void SetHealthBarName(const edict_t* boss) {
-	// Buffer estático en el scope de la función
-	static char buffer[MAX_STRING_CHARS] = {};
+	static std::array<char, MAX_STRING_CHARS> buffer = {};
 
 	if (!boss || !boss->inuse) {
 		gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, "");
@@ -2801,11 +2811,16 @@ void SetHealthBarName(const edict_t* boss) {
 		return;
 	}
 
-	const size_t name_len = std::min(display_name.length(), MAX_STRING_CHARS - 1);
-	std::memcpy(buffer, display_name.data(), name_len);
+	// Usar una constante para el null terminator
+	constexpr size_t null_terminator_space = 1;
+	const size_t name_len = std::min(display_name.length(),
+		MAX_STRING_CHARS - null_terminator_space);
+
+	// Copiar el string directamente al array
+	std::copy_n(display_name.begin(), name_len, buffer.begin());
 	buffer[name_len] = '\0';
 
-	gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, buffer);
+	gi.game_import_t::configstring(CONFIG_HEALTH_BAR_NAME, buffer.data());
 }
 
 //CS HORDE
@@ -2813,26 +2828,24 @@ void SetHealthBarName(const edict_t* boss) {
 void UpdateHordeHUD() {
 	bool update_successful = false;
 
-	// Intentar actualizar el HUD
-	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-	if (current_msg && current_msg[0] != '\0') {
-		for (auto player : active_players()) {
-			if (player->inuse && player->client && !player->client->voted_map[0]) {
+	const std::string_view current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+	if (!current_msg.empty()) {
+		// Usar active_players() en lugar de iterar manualmente
+		for (auto* player : active_players()) {
+			const std::span voted_map(player->client->voted_map);
+			if (voted_map.empty() || voted_map[0] == '\0') {
 				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
 				update_successful = true;
 			}
 		}
 	}
 
-	// Manejar resultado
 	if (update_successful) {
 		g_horde_local.last_successful_hud_update = level.time;
 		g_horde_local.failed_updates_count = 0;
 	}
 	else {
 		g_horde_local.failed_updates_count++;
-
-		// Si hay demasiados fallos seguidos, forzar un reset
 		if (g_horde_local.failed_updates_count > 5) {
 			ClearHordeMessage();
 			g_horde_local.reset_hud_state();
@@ -2858,29 +2871,17 @@ void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
 	horde_message_end_time = level.time + duration;
 }
 
-
 void ClearHordeMessage() {
-	// Obtener el mensaje actual una sola vez
-	const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-
-	// Solo proceder si hay un mensaje que limpiar
-	if (current_msg && current_msg[0] != '\0') {
-		// Limpiar el configstring
+	std::string_view current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+	if (!current_msg.empty()) {
 		gi.configstring(CONFIG_HORDEMSG, "");
-
-		// Resetear stats de jugadores inmediatamente
-		for (auto player : active_players()) {
-			if (player && player->inuse && player->client) {
-				player->client->ps.stats[STAT_HORDEMSG] = 0;
-			}
+		// Usar active_players() para resetear stats
+		for (auto* player : active_players()) {
+			player->client->ps.stats[STAT_HORDEMSG] = 0;
 		}
 	}
-
-	// Resetear el tiempo del mensaje
 	horde_message_end_time = 0_sec;
-
 }
-
 
 // reset cooldowns, fixed no monster spawning on next map
 // En UnifiedAdjustSpawnRate y ResetCooldowns:
@@ -3406,11 +3407,13 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
-	edict_t* available_spawns[MAX_SPAWN_POINTS] = {};
+	std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns = {};
 	size_t spawn_count = 0;
 
-	// Crear span desde el índice 1 hasta el final
-	std::span<edict_t> edicts_view{ &g_edicts[1], globals.num_edicts - 1 };
+	// Crear span de forma más segura
+	std::span<edict_t> all_edicts(g_edicts, globals.num_edicts);
+	// Crear subspan excluyendo el primer elemento
+	std::span<edict_t> edicts_view = all_edicts.subspan(1);
 
 	// Recolección optimizada de spawn points usando span
 	for (edict_t& e : edicts_view) {
@@ -3445,9 +3448,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	if (spawn_count == 0)
 		return false;
-
-	// Crear vista de los spawns disponibles
-	const std::span<edict_t* const> spawns_view{ available_spawns, spawn_count };
+	// Crear vista de los spawns disponibles usando std::array
+	std::span<edict_t* const> spawns_view(available_spawns.data(), spawn_count);
 
 	// Seleccionar spawn point aleatorio usando span
 	edict_t* spawn_point = spawns_view[irandom(spawn_count)];
@@ -3490,8 +3492,10 @@ static edict_t* SpawnMonsters() {
 	size_t spawn_count = 0;
 	const auto currentTime = level.time;
 
-	// Crear span desde el índice 1 hasta el final
-	std::span<edict_t> active_edicts{ &g_edicts[1], globals.num_edicts - 1 };
+	// Crear span desde g_edicts de forma más segura
+	std::span<edict_t> all_edicts(g_edicts, globals.num_edicts);
+	// Crear subspan excluyendo el primer elemento (índice 0)
+	std::span<edict_t> active_edicts = all_edicts.subspan(1);
 
 	// Recolección de spawn points con validación temprana
 	for (edict_t& e : active_edicts) {
@@ -3518,9 +3522,6 @@ static edict_t* SpawnMonsters() {
 
 	if (spawn_count == 0)
 		return nullptr;
-
-	// Crear vista de los spawns disponibles
-	const std::span<edict_t* const> available_spawns{ monster_spawns, spawn_count };
 
 	// Shuffle optimizado usando Fisher-Yates con span
 	if (spawn_count > 1) {
