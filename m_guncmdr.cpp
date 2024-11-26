@@ -776,14 +776,19 @@ void guncmdr_opengun(edict_t* self)
 
 void GunnerCmdrFire(edict_t* self)
 {
-	vec3_t					 start;
-	vec3_t					 forward, right;
-	vec3_t					 aim;
-	monster_muzzleflash_id_t flash_number;
+	// First verify both self and self->enemy are valid before accessing any members
+	if (!self || !self->enemy)  // Check self->enemy before accessing its members
+		return;
 
-	if (!self || !self->enemy->inuse) // PGM // add ! !self, to add flechette mode again
-		return;								 // PGM
+	if (!self->enemy->inuse)    // Now safe to check inuse
+		return;
 
+	vec3_t                     start;
+	vec3_t                     forward, right;
+	vec3_t                     aim;
+	monster_muzzleflash_id_t   flash_number;
+
+	// Rest of the function remains the same
 	if (self->s.frame >= FRAME_c_attack401 && self->s.frame <= FRAME_c_attack505)
 		flash_number = MZ2_GUNCMDR_CHAINGUN_2;
 	else
@@ -792,8 +797,10 @@ void GunnerCmdrFire(edict_t* self)
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 	PredictAim(self, self->enemy, start, 1200, false, frandom() * 0.3f, &aim, nullptr);
+
 	for (int i = 0; i < 3; i++)
 		aim[i] += crandom_open() * 0.025f;
+
 	monster_fire_flechette(self, start, aim, 8, 1200, flash_number);
 }
 
