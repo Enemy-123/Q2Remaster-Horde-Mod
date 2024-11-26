@@ -966,7 +966,7 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 	eligible_bosses.clear();
 	double total_weight = 0.0;
 
-	auto boss_list = GetBossList(mapSize, mapname);
+	auto const boss_list = GetBossList(mapSize, mapname);
 	if (boss_list.empty()) return nullptr;
 
 	const size_t boss_list_size = boss_list.size();
@@ -1048,23 +1048,20 @@ struct picked_item_t {
 // Estructura optimizada para mantener los datos de selección
 struct SelectionCache {
 	static constexpr size_t MAX_ENTRIES = 32;
-
 	struct Entry {
 		const weighted_item_t* item;
-		const char* monster_classname;  // For monsters
+		const char* monster_classname;
 		float weight;
 		float cumulative_weight;
 	};
-
 	_Field_range_(0, MAX_ENTRIES) size_t count = 0;
 	float total_weight = 0.0f;
-	_Field_size_(MAX_ENTRIES) Entry entries[MAX_ENTRIES];
+	_Field_size_(MAX_ENTRIES) Entry entries[MAX_ENTRIES] = { 0 };  // Inicializar array
 
 	void clear() noexcept {
 		count = 0;
 		total_weight = 0.0f;
 	}
-
 	_Success_(return != false)
 		bool add_entry(_In_ const Entry& new_entry) noexcept {
 		if (count >= MAX_ENTRIES) {
@@ -1074,7 +1071,6 @@ struct SelectionCache {
 		count++;
 		return true;
 	}
-
 	_Ret_maybenull_
 		const Entry* get_entry(_In_range_(0, count) size_t index) const noexcept {
 		if (index >= count) {
@@ -1083,7 +1079,6 @@ struct SelectionCache {
 		return &entries[index];
 	}
 };
-
 static SelectionCache item_cache;
 static SelectionCache monster_cache;
 
@@ -1263,7 +1258,7 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 
 	// Verificar si hay jugadores cerca antes de desactivar
 	bool players_nearby = false;
-	for (auto const player : active_players()) {
+	for (const auto* const player : active_players()) {
 		if ((spawn_point->s.origin - player->s.origin).length() < 300.0f) {
 			players_nearby = true;
 			break;
@@ -2336,7 +2331,7 @@ void Horde_CleanBodies() {
 		if (ent->deadflag || ent->health <= 0) {
 			// Remover inmediatamente sin fade si está muy lejos de los jugadores
 			bool far_from_players = true;
-			for (auto const player : active_players_no_spect()) {
+			for (const auto* const player : active_players_no_spect()) {
 				if ((ent->s.origin - player->s.origin).length() < 1000) {
 					far_from_players = false;
 					break;
@@ -2759,30 +2754,25 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 
 
 void SetHealthBarName(const edict_t* boss) {
-	// Declarar buffer con tamaño explícito y asegurar inicialización
 	static char buffer[MAX_STRING_CHARS] = {};
 
-	// Si no hay boss válido, limpiar el nombre
 	if (!boss || !boss->inuse) {
 		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
-	const std::string_view display_name = GetDisplayName(boss);
+	const std::string display_name = GetDisplayName(boss);
+
 	if (display_name.empty()) {
 		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 		return;
 	}
 
-	// Calcular longitud segura y copiar
 	const size_t name_len = std::min(display_name.length(), MAX_STRING_CHARS - 1);
 	std::memcpy(buffer, display_name.data(), name_len);
 	buffer[name_len] = '\0';
 
-	// Usar el buffer de manera segura para las operaciones de red
-	const char* safe_buffer = buffer;  // Conversión explícita a puntero
-
-	// Actualizar configstring
+	const char* safe_buffer = buffer;
 	gi.configstring(CONFIG_HEALTH_BAR_NAME, safe_buffer);
 }
 
@@ -3409,7 +3399,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 		if (!IsSpawnPointOccupied(&e)) {
 			bool can_see_player = false;
-			for (const auto player : active_players_no_spect()) { 
+			for (const auto* const player : active_players_no_spect()) {
 				if (!player->inuse || player->deadflag)
 					continue;
 				if (G_IsClearPath(player, MASK_SOLID, e.s.origin, player->s.origin)) {
@@ -3499,7 +3489,7 @@ static edict_t* SpawnMonsters() {
 		return nullptr;
 
 	// Crear vista de los spawns disponibles
-	std::span<edict_t* const> available_spawns{ monster_spawns, spawn_count };
+	const std::span<edict_t* const> available_spawns{ monster_spawns, spawn_count };
 
 	// Shuffle optimizado usando Fisher-Yates con span
 	if (spawn_count > 1) {
@@ -3790,7 +3780,7 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 static void PrintRemainingMonsterCounts() {
 	std::unordered_map<std::string, int> monster_counts;
 
-	for (auto const ent : active_monsters()) {
+	for (const auto* const ent : active_monsters()) {
 		// Ignorar monstruos con AI_DO_NOT_COUNT
 		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
 			continue;
