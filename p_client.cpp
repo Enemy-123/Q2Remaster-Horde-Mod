@@ -480,8 +480,8 @@ void TossClientWeapon(edict_t* self)
 		return;
 
 	item = self->client->pers.weapon;
-		if (item && g_instagib->integer)
-			item = nullptr;
+	if (item && g_instagib->integer)
+		item = nullptr;
 	if (item && !self->client->pers.inventory[self->client->pers.weapon->ammo])
 		item = nullptr;
 	if (item && !item->drop)
@@ -801,7 +801,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 					// Horde mode
 					for (auto player : active_players_no_spect())
 						gi.LocCenter_Print(player, "$g_coop_lose");
-						AllowReset();
+					AllowReset();
 					gi.cvar_set("timelimit", "0.01");
 				}
 				// Set respawn time if level restart is not scheduled
@@ -935,39 +935,38 @@ but is called after each death and level change in deathmatch
 // Calcula la salud máxima basada en el nivel de oleada actual +25 hp
 int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr)
 {
-    if (!g_horde->integer)
-        return max(100, base_max_health);
+	if (!g_horde->integer)
+		return max(100, base_max_health);
 
-    int calculated_max_health = base_max_health;
+	int calculated_max_health = base_max_health;
 
-    // Ajustar health y max_health basado en el número de oleadas actuales
-    // Usar rangos apropiados para int8_t (-128 a 127)
-    if (current_wave_level >= 30)
-        calculated_max_health = max(250, calculated_max_health);
-    else if (current_wave_level >= 25)
-        calculated_max_health = max(225, calculated_max_health);
-    else if (current_wave_level >= 20)
-        calculated_max_health = max(200, calculated_max_health);
-    else if (current_wave_level >= 15)
-        calculated_max_health = max(175, calculated_max_health);
-    else if (current_wave_level >= 10)
-        calculated_max_health = max(150, calculated_max_health);
-    else if (current_wave_level >= 5)
-        calculated_max_health = max(125, calculated_max_health);
-    else if (current_wave_level >= 1)
-        calculated_max_health = max(100, calculated_max_health);
-    else
-        calculated_max_health = max(100, calculated_max_health);
+	// Ajustar health y max_health basado en el número de oleadas actuales
+	// Usar rangos apropiados para int8_t (-128 a 127)
+	if (current_wave_level >= 30)
+		calculated_max_health = max(250, calculated_max_health);
+	else if (current_wave_level >= 25)
+		calculated_max_health = max(225, calculated_max_health);
+	else if (current_wave_level >= 20)
+		calculated_max_health = max(200, calculated_max_health);
+	else if (current_wave_level >= 15)
+		calculated_max_health = max(175, calculated_max_health);
+	else if (current_wave_level >= 10)
+		calculated_max_health = max(150, calculated_max_health);
+	else if (current_wave_level >= 5)
+		calculated_max_health = max(125, calculated_max_health);
+	else if (current_wave_level >= 1)
+		calculated_max_health = max(100, calculated_max_health);
+	else
+		calculated_max_health = max(100, calculated_max_health);
 
-    // Si se proporciona el cliente, incluir el bonus de adrenalina
-    if (client) {
-        calculated_max_health += (client->resp.adrenaline_count * ADRENALINE_HEALTH_BONUS);
-    }
+	// Si se proporciona el cliente, incluir el bonus de adrenalina
+	if (client) {
+		calculated_max_health += (client->resp.adrenaline_count * ADRENALINE_HEALTH_BONUS);
+	}
 
-    return calculated_max_health;
+	return calculated_max_health;
 }
 
-// Modificación de InitClientPersistant
 // Modificación de InitClientPersistant
 void InitClientPersistant(edict_t* ent, gclient_t* client)
 {
@@ -976,40 +975,40 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 	ClientUserinfoChanged(ent, userinfo);
 
-	// Base health initialization preservando adrenaline bonus
+	//
+	// HEALTH INITIALIZATION
+	//
 	if (g_horde->integer) {
-		// Usar CalculateWaveBasedMaxHealth con el cliente para incluir bonus de adrenalina
 		const int new_max_health = CalculateWaveBasedMaxHealth(100, client);
-
-		// Preservar el contador de adrenalina antes de la inicialización
 		const int saved_adrenaline = client->resp.adrenaline_count;
-
-		client->pers.max_health = new_max_health;
-		client->resp.max_health = new_max_health;
+		client->pers.max_health = client->resp.max_health = ent->max_health = new_max_health;
 		client->pers.health = new_max_health;
-		ent->max_health = new_max_health;
-
-		// Restaurar el contador de adrenalina
 		client->resp.adrenaline_count = saved_adrenaline;
 	}
 	else {
-		client->pers.health = 100;
-		client->pers.max_health = 100;
+		client->pers.health = client->pers.max_health = 100;
 	}
 
+	//
+	// ARMOR INITIALIZATION
+	//
+	client->pers.inventory[IT_ARMOR_BODY] =
+		client->pers.inventory[IT_ARMOR_COMBAT] =
+		client->pers.inventory[IT_ARMOR_JACKET] =
+		client->pers.inventory[IT_ARMOR_SHARD] = 0;
 
-	// Armadura inicial
-	client->pers.inventory[IT_ARMOR_BODY] = 0;
-	client->pers.inventory[IT_ARMOR_COMBAT] = 0;
-	client->pers.inventory[IT_ARMOR_JACKET] = 0;
-	client->pers.inventory[IT_ARMOR_SHARD] = 0;
-
-	// Lógica específica para modos Coop & Horde
+	//
+	// INVENTORY & AMMO INITIALIZATION
+	//
 	bool taken_loadout = false;
+
+	// Check for coop inheritance
 	if (G_IsCooperative()) {
 		for (auto player : active_players()) {
-			if (player == ent || !player->client->pers.spawned || player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
+			if (player == ent || !player->client->pers.spawned ||
+				player->client->resp.spectator || player->movetype == MOVETYPE_NOCLIP)
 				continue;
+
 			client->pers.inventory = player->client->pers.inventory;
 			client->pers.max_ammo = player->client->pers.max_ammo;
 			client->pers.power_cubes = player->client->pers.power_cubes;
@@ -1019,10 +1018,15 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 	}
 
 	if (!taken_loadout) {
-		// Inicialización base de munición
+		// Base ammo initialization
 		client->pers.max_ammo.fill(50);
 
-		if (g_horde->integer && current_wave_level >= 15) {
+		// Set ammo based on game mode and wave level
+		const bool is_horde = g_horde->integer != 0;
+		const bool is_high_level = current_wave_level >= 15;
+
+		if (is_horde && is_high_level) {
+			// High level horde ammo
 			client->pers.max_ammo[AMMO_BULLETS] = 400;
 			client->pers.max_ammo[AMMO_SHELLS] = 175;
 			client->pers.max_ammo[AMMO_CELLS] = 400;
@@ -1036,7 +1040,8 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.max_ammo[AMMO_PROX] = 125;
 			client->pers.max_ammo[AMMO_TRAP] = 8;
 		}
-		else if (g_horde->integer) {
+		else if (is_horde) {
+			// Basic horde ammo
 			client->pers.max_ammo[AMMO_BULLETS] = 250;
 			client->pers.max_ammo[AMMO_SHELLS] = 100;
 			client->pers.max_ammo[AMMO_CELLS] = 250;
@@ -1046,89 +1051,88 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 			client->pers.max_ammo[AMMO_TRAP] = 5;
 		}
 		else {
+			// Standard ammo
 			client->pers.max_ammo[AMMO_BULLETS] = 200;
 			client->pers.max_ammo[AMMO_SHELLS] = 100;
 			client->pers.max_ammo[AMMO_CELLS] = 200;
-			client->pers.max_ammo[AMMO_TRAP] = 5;
 			client->pers.max_ammo[AMMO_FLECHETTES] = 200;
 			client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
 			client->pers.max_ammo[AMMO_TESLA] = 5;
+			client->pers.max_ammo[AMMO_TRAP] = 5;
 		}
 
+		// Give blaster in deathmatch
 		if (deathmatch->integer)
 			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
+		// Process start items
 		if (*g_start_items->string)
 			Player_GiveStartItems(ent, g_start_items->string);
-
 		if (level.start_items && *level.start_items)
 			Player_GiveStartItems(ent, level.start_items);
 
-		// power armor from start items
 		G_CheckPowerArmor(ent);
 
+		// Standard items for non-deathmatch/coop
 		if (!deathmatch->integer || coop->integer) {
 			client->pers.inventory[IT_ITEM_COMPASS] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
-
-
 		}
+
+		//
+		// HORDE MODE SPECIFICS
+		//
 		if (g_horde->integer) {
 			client->pers.inventory[IT_ITEM_MENU] = 1;
 			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
 
-			// Forcing  TECHs on bots
-			for (int i = 0; i < MAX_ITEMS; i++) {
-				gitem_t* item = &itemlist[i];
-				if (item->flags & IF_TECH && ent->client->pers.inventory[i] == 0 &&
-					ent->client->resp.ctf_team != CTF_NOTEAM && ent->svflags & SVF_BOT)
-					client->pers.inventory[IT_TECH_STRENGTH] = 1;
-				else if (ent->client->resp.ctf_team == CTF_NOTEAM &&
-					item->flags & IF_TECH && ent->client->pers.inventory[i] > 1)
-					client->pers.inventory[IT_TECH_STRENGTH] = 0;
+			// Force TECHs on bots
+			if (ent->svflags & SVF_BOT && ent->client->resp.ctf_team != CTF_NOTEAM) {
+				for (int i = 0; i < MAX_ITEMS; i++) {
+					if (itemlist[i].flags & IF_TECH) {
+						client->pers.inventory[IT_TECH_STRENGTH] =
+							(ent->client->pers.inventory[i] == 0) ? 1 : 0;
+					}
+				}
 			}
-		}
-		
-				// Starting items for horde mode
-		if (G_IsDeathmatch() && g_horde->integer && current_wave_level >= 5 && current_wave_level <= 12) {
-		client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-			client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
-			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
-		}
-		else if (G_IsDeathmatch() && g_horde->integer && current_wave_level >= 13) {
-			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
-			client->pers.inventory[IT_WEAPON_CHAINFIST] = 1;
-			client->pers.inventory[IT_WEAPON_SHOTGUN] = 1;
-			client->pers.inventory[IT_WEAPON_SSHOTGUN] = 1;
-			client->pers.inventory[IT_WEAPON_MACHINEGUN] = 1;
-			client->pers.inventory[IT_WEAPON_ETF_RIFLE] = 1;
-			client->pers.inventory[IT_WEAPON_CHAINGUN] = 1;
-			client->pers.inventory[IT_WEAPON_GLAUNCHER] = 1;
-			client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
-			client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
 
-			if (g_upgradeproxs->integer && g_horde->integer) {
-				client->pers.inventory[IT_AMMO_PROX] += 3;
-				if (client->pers.inventory[IT_AMMO_PROX] > client->pers.max_ammo[AMMO_PROX]) {
-					client->pers.inventory[IT_AMMO_PROX] = client->pers.max_ammo[AMMO_PROX];
+			// Horde mode weapons based on wave level
+			if (G_IsDeathmatch()) {
+				const bool give_advanced = current_wave_level >= 13;
+				const bool give_basic = current_wave_level >= 5;
+
+				if (give_advanced || give_basic) {
+					// Common weapons for both loadouts
+					client->pers.inventory[IT_WEAPON_BLASTER] =
+						client->pers.inventory[IT_WEAPON_CHAINFIST] =
+						client->pers.inventory[IT_WEAPON_SHOTGUN] =
+						client->pers.inventory[IT_WEAPON_SSHOTGUN] =
+						client->pers.inventory[IT_WEAPON_MACHINEGUN] =
+						client->pers.inventory[IT_WEAPON_ETF_RIFLE] =
+						client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+
+					// Additional weapons for advanced loadout
+					if (give_advanced) {
+						client->pers.inventory[IT_WEAPON_CHAINGUN] =
+							client->pers.inventory[IT_WEAPON_GLAUNCHER] =
+							client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
+					}
 				}
 			}
 		}
 
-		// ZOID
-		bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
+		// Handle grapple
+		const bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
 			(ctf->integer ? !level.no_grapple : 0) :
 			g_allow_grapple->integer;
 
 		if (give_grapple)
 			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
-		// ZOID
 	}
 
+	//
+	// WEAPON SELECTION
+	//
 	if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
 		client->pers.weapon = client->pers.lastweapon;
 		client->pers.selected_item = client->pers.lastweapon->id;
@@ -1147,19 +1151,20 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		}
 	}
 
-
+	//
+	// FINAL SETUP
+	//
 	if (G_IsCooperative() && g_coop_enable_lives->integer)
 		client->pers.lives = g_coop_num_lives->integer + 1;
 
 	if (ent->client->pers.autoshield >= AUTO_SHIELD_AUTO)
 		client->pers.savedFlags |= FL_WANTS_POWER_ARMOR;
 
+	if (g_startarmor->integer)
+		client->pers.inventory[IT_ARMOR_BODY] = 100;
+
 	client->pers.connected = true;
 	client->pers.spawned = true;
-
-	if (g_startarmor->integer) {
-		client->pers.inventory[IT_ARMOR_BODY] = 100;
-	}
 }
 
 void InitClientResp(gclient_t* client)
@@ -1887,7 +1892,7 @@ void respawn(edict_t* self)
 	{
 		// Guardar el arma y la salud m�xima antes de la muerte
 		if (g_horde->integer) {
-		//	SaveClientWeaponBeforeDeath(self->client);
+			//	SaveClientWeaponBeforeDeath(self->client);
 		}
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
@@ -3180,7 +3185,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		// clear the respawning variables
 		// ZOID -- force team join
 		ent->client->resp.ctf_team = CTF_NOTEAM;
-		ent->client->pers.id_state =  true;
+		ent->client->pers.id_state = true;
 		ent->client->pers.iddmg_state = true;
 		// ZOID
 		InitClientResp(ent->client);
@@ -3188,7 +3193,7 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 			InitClientPersistant(ent, ent->client);
 	}
 	if (!g_horde->integer) {
-		ent->client->pers.id_state =  true;
+		ent->client->pers.id_state = true;
 		ent->client->pers.iddmg_state = true;
 	}
 	// make sure we start with known default(s)
