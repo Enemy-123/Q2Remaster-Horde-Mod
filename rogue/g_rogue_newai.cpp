@@ -140,7 +140,7 @@ blocked_jump_result_t blocked_checkjump(edict_t *self, float dist)
 		if (self->monsterinfo.nav_path.returnCode != PathReturnCode::TraversalPending)
 			return blocked_jump_result_t::NO_JUMP;
 
-		float yaw = vectoyaw((self->monsterinfo.nav_path.firstMovePoint - self->monsterinfo.nav_path.secondMovePoint).normalized());
+		float const yaw = vectoyaw((self->monsterinfo.nav_path.firstMovePoint - self->monsterinfo.nav_path.secondMovePoint).normalized());
 		self->ideal_yaw = yaw + 180;
 		if (self->ideal_yaw > 360)
 			self->ideal_yaw -= 360;
@@ -202,7 +202,7 @@ blocked_jump_result_t blocked_checkjump(edict_t *self, float dist)
 			// check how deep the water is
 			if (trace.contents & CONTENTS_WATER) 
 			{
-				trace_t deep = gi.traceline(trace.endpos, pt2, self, MASK_MONSTERSOLID);
+				trace_t const deep = gi.traceline(trace.endpos, pt2, self, MASK_MONSTERSOLID);
 
 				water_level_t waterlevel;
 				contents_t watertype;
@@ -1100,7 +1100,7 @@ void PredictAim(edict_t* self, edict_t* target, const vec3_t& start, float bolt_
 	dist = dir.length();
 
 	// [Paril-KEX] if our current attempt is blocked, try the opposite one
-	trace_t tr = gi.traceline(start, start + dir, self, MASK_PROJECTILE);
+	trace_t const tr = gi.traceline(start, start + dir, self, MASK_PROJECTILE);
 
 	if (tr.ent != target)
 	{
@@ -1223,14 +1223,14 @@ bool below(edict_t *self, edict_t *other)
 
 void drawbbox(edict_t *self)
 {
-	int lines[4][3] = {
+	int const lines[4][3] = {
 		{ 1, 2, 4 },
 		{ 1, 2, 7 },
 		{ 1, 4, 5 },
 		{ 2, 4, 7 }
 	};
 
-	int starts[4] = { 0, 3, 5, 6 };
+	int const starts[4] = { 0, 3, 5, 6 };
 
 	vec3_t pt[8];
 	int	   i, j, k;
@@ -1306,7 +1306,7 @@ inline bool G_SkillCheck(const std::initializer_list<float> &skills)
 //
 MONSTERINFO_DODGE(M_MonsterDodge) (edict_t *self, edict_t *attacker, gtime_t eta, trace_t *tr, bool gravity) -> void
 {
-	float r = frandom();
+	float const r = frandom();
 	float height;
 	bool  ducker = false, dodger = false;
 
@@ -1516,17 +1516,20 @@ void TargetTesla(edict_t* self, edict_t* inflictor)
 // this returns a randomly selected coop player who is visible to self
 // returns nullptr if bad
 
-edict_t *PickCoopTarget(edict_t *self)
+edict_t* PickCoopTarget(edict_t* self)
 {
 	edict_t** targets;
-	int		 num_targets = 0, targetID;
+	int       num_targets = 0, targetID;
 	edict_t* ent;
+	edict_t* result = nullptr;
 
 	// if we're not in coop, this is a noop
 	if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
 		return nullptr;
 
-	targets = (edict_t**)_malloca(sizeof(edict_t*) * game.maxclients);
+	targets = new(std::nothrow) edict_t * [game.maxclients];
+	if (!targets)
+		return nullptr;
 
 	for (uint32_t player = 1; player <= game.maxclients; player++)
 	{
@@ -1539,13 +1542,15 @@ edict_t *PickCoopTarget(edict_t *self)
 			targets[num_targets++] = ent;
 	}
 
-	if (!num_targets)
-		return nullptr;
+	if (num_targets > 0)
+	{
+		// get a number from 0 to (num_targets-1)
+		targetID = irandom(num_targets);
+		result = targets[targetID];
+	}
 
-	// get a number from 0 to (num_targets-1)
-	targetID = irandom(num_targets);
-
-	return targets[targetID];
+	delete[] targets;
+	return result;
 }
 
 // only meant to be used in coop

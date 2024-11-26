@@ -49,7 +49,7 @@ inline item_id_t FindSubstituteItem(edict_t* ent)
 	if (ent->item->id == IT_HEALTH_MEDIUM ||
 		ent->item->id == IT_HEALTH_LARGE)
 	{
-		float rnd = frandom();
+		float const rnd = frandom();
 
 		if (rnd < 0.6f)
 			return IT_HEALTH_MEDIUM;
@@ -63,7 +63,7 @@ inline item_id_t FindSubstituteItem(edict_t* ent)
 		ent->item->id == IT_ITEM_POWER_SCREEN ||
 		ent->item->id == IT_ITEM_POWER_SHIELD)
 	{
-		float rnd = frandom();
+		float const rnd = frandom();
 
 		if (rnd < 0.4f)
 			return IT_ARMOR_JACKET;
@@ -77,7 +77,7 @@ inline item_id_t FindSubstituteItem(edict_t* ent)
 			return IT_ITEM_POWER_SHIELD;
 	}
 
-	item_flags_t myflags = GetSubstituteItemFlags(ent->item->id);
+	item_flags_t const myflags = GetSubstituteItemFlags(ent->item->id);
 
 	std::array<item_id_t, MAX_ITEMS> possible_items;
 	size_t possible_item_count = 0;
@@ -128,7 +128,7 @@ item_id_t DoRandomRespawn(edict_t* ent)
 	if (!ent->item)
 		return IT_NULL; // why
 
-	item_id_t id = FindSubstituteItem(ent);
+	item_id_t const id = FindSubstituteItem(ent);
 
 	if (id == IT_NULL)
 		return IT_NULL;

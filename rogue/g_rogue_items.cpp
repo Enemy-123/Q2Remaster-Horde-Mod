@@ -75,7 +75,7 @@ static bool TryBotTeleport(const edict_t* ent)
 		if ((level.time - last_bot_teleport_time) < BOT_TELEPORT_COOLDOWN)
 		{
 			// No ha pasado suficiente tiempo - mostrar tiempo restante
-			float remaining = (BOT_TELEPORT_COOLDOWN - (level.time - last_bot_teleport_time)).seconds();
+			float const remaining = (BOT_TELEPORT_COOLDOWN - (level.time - last_bot_teleport_time)).seconds();
 //			gi.Client_Print(ent, PRINT_HIGH, "Bot teleport on cooldown. Please wait %.1f seconds.\n", remaining);
 			return false;
 		}
@@ -130,7 +130,7 @@ static bool TryBotSentry(const edict_t* ent)
 		if ((level.time - last_bot_sentry_time) < BOT_SENTRY_COOLDOWN)
 		{
 			// No ha pasado suficiente tiempo - mostrar tiempo restante
-			float remaining = (BOT_SENTRY_COOLDOWN - (level.time - last_bot_sentry_time)).seconds();
+			float const remaining = (BOT_SENTRY_COOLDOWN - (level.time - last_bot_sentry_time)).seconds();
 //			gi.Client_Print(ent, PRINT_HIGH, "Bot sentry on cooldown. Please wait %.1f seconds.\n", remaining);
 			return false;
 		}

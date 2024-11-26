@@ -119,7 +119,7 @@ static void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_
 	const ClusterConfig& config = DEFAULT_CLUSTER_CONFIG;
 
 	// Calcular el daño para cada granada fragmentaria
-	int fragment_damage = static_cast<int>(base_damage * config.damage_multiplier);
+	int const fragment_damage = static_cast<int>(base_damage * config.damage_multiplier);
 
 	for (int n = 0; n < config.num_grenades; n++) {
 		vec3_t forward;
@@ -130,12 +130,12 @@ static void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_
 		}
 		else {
 			// Granadas con dispersión radial
-			float pitch = -config.spread_angle + (frandom() - 0.5f) * 30.0f;
+			float const pitch = -config.spread_angle + (frandom() - 0.5f) * 30.0f;
 			float yaw = (n - config.direct_grenades) * (360.0f / (config.num_grenades - config.direct_grenades));
 			// Añadir una pequeña variación al yaw para más naturalidad
 			yaw += (frandom() - 0.5f) * 10.0f;
 
-			vec3_t angles{ pitch, yaw, 0 };
+			vec3_t const angles{ pitch, yaw, 0 };
 			auto [fwd, right, up] = AngleVectors(angles);
 			forward = fwd;
 		}
@@ -144,7 +144,7 @@ static void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_
 		float const velocity = config.min_velocity + frandom() * (config.max_velocity - config.min_velocity);
 
 		// Tiempo de explosión aleatorio
-		float explode_time = config.min_fuse_time + frandom() * (config.max_fuse_time - config.min_fuse_time);
+		float const explode_time = config.min_fuse_time + frandom() * (config.max_fuse_time - config.min_fuse_time);
 
 		// Lanzar la granada con los parámetros calculados
 		fire_grenade2(owner, origin, forward, fragment_damage, velocity,
@@ -169,7 +169,7 @@ static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
 
 	// Direct damage to triggering entity
 	if (other) {
-		vec3_t dir = other->s.origin - ent->s.origin;
+		vec3_t const dir = other->s.origin - ent->s.origin;
 		T_Damage(other, ent, owner, dir, ent->s.origin, normal,
 			ent->dmg, ent->dmg, DAMAGE_NONE, MOD_PROX);
 	}
@@ -181,7 +181,7 @@ static void Prox_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal) {
 
 	// Prepare for explosion
 	ent->takedamage = false;
-	vec3_t origin = ent->s.origin + normal;
+	vec3_t const origin = ent->s.origin + normal;
 
 	// Apply radius damage
 	T_RadiusDamage(ent, owner, static_cast<float>(ent->dmg), other,
@@ -337,11 +337,15 @@ THINK(prox_open) (edict_t* ent) -> void
 			if (
 				search != ent &&
 				(
-					(((search->svflags & SVF_MONSTER) || (G_IsDeathmatch() && !g_horde->integer && (search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) && (search->health > 0)) ||
+					(((search->svflags & SVF_MONSTER) ||
+						(G_IsDeathmatch() && !g_horde->integer &&
+							(search->client || (search->classname && !strcmp(search->classname, "prox_mine"))))) &&
+						(search->health > 0)) ||
 					(G_IsDeathmatch() && !g_horde->integer &&
-						((!strncmp(search->classname, "info_player_", 12)) ||
-							(!strcmp(search->classname, "misc_teleporter_dest")) ||
-							(!strncmp(search->classname, "item_flag_", 10))))) &&
+						search->classname && // Added null check here
+						((!strcmp(search->classname, "misc_teleporter_dest")) ||
+							(!strncmp(search->classname, "item_flag_", 10))))
+					) &&
 				(visible(search, ent)))
 			{
 				gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/proxwarn.wav"), 1, ATTN_NORM, 0);
@@ -546,7 +550,7 @@ void fire_prox(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int pro
 	prox->s.origin = start;
 	prox->velocity = aimdir * speed;
 
-	float gravityAdjustment = level.gravity / 800.f;
+	float const gravityAdjustment = level.gravity / 800.f;
 
 	prox->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
 	prox->velocity += right * (crandom() * 10.0f);
@@ -622,11 +626,11 @@ static BoxEdictsResult_t fire_player_melee_BoxFilter(edict_t* check, void* data_
 		return BoxEdictsResult_t::Skip;
 
 	// check distance
-	vec3_t closest_point_to_check = closest_point_to_box(data->start, check->s.origin + check->mins, check->s.origin + check->maxs);
-	vec3_t closest_point_to_self = closest_point_to_box(closest_point_to_check, data->self->s.origin + data->self->mins, data->self->s.origin + data->self->maxs);
+	vec3_t const closest_point_to_check = closest_point_to_box(data->start, check->s.origin + check->mins, check->s.origin + check->maxs);
+	vec3_t const closest_point_to_self = closest_point_to_box(closest_point_to_check, data->self->s.origin + data->self->mins, data->self->s.origin + data->self->maxs);
 
 	vec3_t dir = (closest_point_to_check - closest_point_to_self);
-	float len = dir.normalize();
+	float const len = dir.normalize();
 
 	if (len > data->reach)
 		return BoxEdictsResult_t::Skip;
@@ -659,7 +663,7 @@ bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, in
 	};
 
 	// find all the things we could maybe hit
-	size_t num = gi.BoxEdicts(self->absmin - reach_vec, self->absmax + reach_vec, targets, q_countof(targets), AREA_SOLID, fire_player_melee_BoxFilter, &data);
+	size_t const num = gi.BoxEdicts(self->absmin - reach_vec, self->absmax + reach_vec, targets, q_countof(targets), AREA_SOLID, fire_player_melee_BoxFilter, &data);
 
 	if (!num)
 		return false;
@@ -676,7 +680,7 @@ bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, in
 			continue;
 
 		// do the damage
-		vec3_t closest_point_to_check = closest_point_to_box(start, hit->s.origin + hit->mins, hit->s.origin + hit->maxs);
+		vec3_t const closest_point_to_check = closest_point_to_box(start, hit->s.origin + hit->mins, hit->s.origin + hit->maxs);
 
 		if (hit->svflags & SVF_MONSTER)
 			hit->pain_debounce_time -= random_time(5_ms, 75_ms);
@@ -782,7 +786,8 @@ DIE(nuke_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 
 THINK(Nuke_Think) (edict_t* ent) -> void
 {
-	float			attenuation, default_atten = 1.8f;
+	float			attenuation;
+	float const default_atten = 1.8f;
 	int				nuke_damage_multiplier;
 	player_muzzle_t muzzleflash;
 
@@ -877,7 +882,7 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	edict_t* nuke;
 	vec3_t	 dir;
 	vec3_t	 forward, right, up;
-	int		 damage_modifier = P_DamageModifier(self);
+	int		 const damage_modifier = P_DamageModifier(self);
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -1120,8 +1125,8 @@ vec3_t calculate_tesla_ray_target(const edict_t* self, const edict_t* target) {
 
 // Función mejorada para la detección de colisiones del rayo
 bool tesla_ray_trace(const edict_t* self, const edict_t* target, trace_t& tr) {
-	vec3_t ray_start = calculate_tesla_ray_origin(self);
-	vec3_t ray_end = calculate_tesla_ray_target(self, target);
+	vec3_t const ray_start = calculate_tesla_ray_origin(self);
+	vec3_t const ray_end = calculate_tesla_ray_target(self, target);
 
 	// Realizar el trace
 	tr = gi.traceline(ray_start, ray_end, self, MASK_PROJECTILE);
@@ -1136,7 +1141,8 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	if (!self)
 		return;
 
-	int i, num, max_targets = 3;
+	int i, num;
+	constexpr int max_targets = 3;
 	edict_t** touch = nullptr;
 	edict_t* hit;
 	vec3_t start;
@@ -1168,7 +1174,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	start = self->s.origin;
 
 	// Determinar si está en una pared por el PITCH
-	bool is_on_wall = fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135;
+	const bool is_on_wall = fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135;
 
 	// Obtener los vectores de dirección según la orientación
 	vec3_t forward, right, up;
@@ -1200,7 +1206,7 @@ THINK(tesla_think_active) (edict_t* self) -> void
 	// Ajustar el área de detección según la orientación
 	if (is_on_wall) {
 		// Para teslas en pared, área de detección más amplia
-		float radius = TESLA_DAMAGE_RADIUS * 1.5f;
+		float constexpr radius = TESLA_DAMAGE_RADIUS * 1.5f;
 		self->teamchain->mins = { -radius / 2, -radius, -radius };
 		self->teamchain->maxs = { radius, radius, radius };
 
@@ -1234,8 +1240,8 @@ THINK(tesla_think_active) (edict_t* self) -> void
 
 		trace_t tr;
 		if (tesla_ray_trace(self, hit, tr)) {
-			vec3_t ray_start = calculate_tesla_ray_origin(self);
-			vec3_t ray_end = tr.endpos;
+			vec3_t const ray_start = calculate_tesla_ray_origin(self);
+			vec3_t const ray_end = tr.endpos;
 
 			// Calcular la dirección del daño
 			vec3_t dir = ray_end - ray_start;
@@ -1376,7 +1382,7 @@ constexpr float TESLA_VERTICAL_BOOST = 150.0f;      // Impulso vertical adiciona
 TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	vec3_t dir;
-	movetype_t movetype = MOVETYPE_NONE;
+	movetype_t const movetype = MOVETYPE_NONE;
 	// Don't stick to non-world entities
 	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client)) {
 		// Always bounce off non-world entities
@@ -1521,7 +1527,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 	tesla->s.origin = start;
 	tesla->velocity = aimdir * speed;
 
-	float gravityAdjustment = level.gravity / 800.f;
+	const float gravityAdjustment = level.gravity / 800.f;
 
 	tesla->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
 	tesla->velocity += right * (crandom() * 10.0f);
@@ -1874,7 +1880,7 @@ THINK(tracker_pain_daemon_think) (edict_t* self) -> void
 	{
 		if (self->enemy->health > 0)
 		{
-			vec3_t center = (self->enemy->absmax + self->enemy->absmin) * 0.5f;
+			vec3_t  const center = (self->enemy->absmax + self->enemy->absmin) * 0.5f;
 
 			T_Damage(self->enemy, self, self->owner, vec3_origin, center, pain_normal,
 				self->dmg, 0, TRACKER_DAMAGE_FLAGS, MOD_TRACKER);
