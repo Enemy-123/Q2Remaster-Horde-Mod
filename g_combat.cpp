@@ -669,43 +669,42 @@ namespace VampireConfig {
 	constexpr float SENTRY_HEALING_FACTOR = 0.4f;  // Factor de reducción para sentries
 	constexpr int MAX_STORED_HEALING = 35;  // Máximo de curación almacenada
 
-	constexpr float ARMOR_STEAL_RATIO = 0.1666f;
+	constexpr float ARMOR_STEAL_RATIO = 0.166f;
 	constexpr int MAX_STORED_ARMOR = 25;  // Máximo de armor almacenado
 	constexpr float ARMOR_REGEN_AMOUNT = 1.0f;  // Cantidad de armor regenerado por tick
 }
 
 void ApplyGradualHealing(edict_t* ent) {
-	if (!ent || ent->health <= 0 || ent->health >= ent->max_health)
-		return;
+    if (!ent || ent->health <= 0)
+        return;
 
-	if (level.time < ent->regen_info.next_regen_time)
-		return;
+    if (level.time < ent->regen_info.next_regen_time)
+        return;
 
-	// Aplicar health regeneration
-	if (ent->regen_info.stored_healing > 0) {
-		float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
-		int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
-		int actual_healed = new_health - ent->health;
+    // Aplicar health regeneration solo si no estamos al máximo
+    if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
+        float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
+        int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
+        int actual_healed = new_health - ent->health;
 
-		if (actual_healed > 0) {
-			ent->health = new_health;
-			ent->regen_info.stored_healing -= actual_healed;
-		}
-	}
+        if (actual_healed > 0) {
+            ent->health = new_health;
+            ent->regen_info.stored_healing -= actual_healed;
+        }
+    }
 
-	// Aplicar armor regeneration
-	if (ent->client)
-		ApplyGradualArmor(ent);
+    // Aplicar armor regeneration independientemente del health
+    if (ent->client)
+        ApplyGradualArmor(ent);
 
-	// Establecer el próximo tiempo de regeneración
-	ent->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
+    // Establecer el próximo tiempo de regeneración
+    ent->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
 }
 
 void ApplyGradualArmor(edict_t* ent) {
 	if (!ent || !ent->client)
 		return;
 
-	// Obtener el índice del armor y verificaciones
 	const int index = ArmorIndex(ent);
 	if (!index) {
 		ent->regen_info.stored_armor = 0;
@@ -714,38 +713,39 @@ void ApplyGradualArmor(edict_t* ent) {
 
 	int current_armor = ent->client->pers.inventory[index];
 
-	// Si el armor está en 0 o menos, limpiar almacenamiento
+	// Reset stored si no hay armor equipado
 	if (current_armor <= 0) {
 		ent->regen_info.stored_armor = 0;
 		return;
 	}
 
-	// Si no hay nada almacenado o no es tiempo de regenerar, salir
-	if (ent->regen_info.stored_armor <= 0 || level.time < ent->regen_info.next_regen_time)
-		return;
-
-	// Si ya estamos en el máximo, limpiar almacenamiento
+	// Si estamos al máximo, no regenerar
 	if (current_armor >= VampireConfig::MAX_ARMOR) {
 		ent->regen_info.stored_armor = 0;
 		return;
 	}
 
-	// Calcular cuánto armor regenerar
-	float armor_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
+	// Si no hay nada que regenerar o no es tiempo
+	if (ent->regen_info.stored_armor <= 0 || level.time < ent->regen_info.next_regen_time)
+		return;
 
-	// Aplicar el armor
+	// Calcular y aplicar la regeneración
+	float regen_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
 	int new_armor = std::min(
-		current_armor + static_cast<int>(armor_amount),
+		current_armor + static_cast<int>(regen_amount),
 		VampireConfig::MAX_ARMOR
 	);
-	int actual_added = new_armor - current_armor;
 
+	int actual_added = new_armor - current_armor;
 	if (actual_added > 0) {
 		ent->client->pers.inventory[index] = new_armor;
 		ent->regen_info.stored_armor -= actual_added;
+
+		// Si llegamos al máximo después de aplicar, limpiar stored
+		if (new_armor >= VampireConfig::MAX_ARMOR)
+			ent->regen_info.stored_armor = 0;
 	}
 }
-
 
 struct WeaponMultiplier {
 	item_id_t weapon_id;
@@ -872,26 +872,23 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 	if (!attacker || !attacker->client)
 		return;
 
-	// Obtener el índice y verificación del armor
 	const int index = ArmorIndex(attacker);
 	if (!index) {
-		attacker->regen_info.stored_armor = 0; // Limpiar si no hay armor equipado
+		attacker->regen_info.stored_armor = 0;
 		return;
 	}
 
 	int current_armor = attacker->client->pers.inventory[index];
 
-	// Si el armor está en 0 o menos, no almacenar nada
 	if (current_armor <= 0) {
 		attacker->regen_info.stored_armor = 0;
 		return;
 	}
 
-	// No almacenar más si ya estamos en el máximo
 	if (current_armor >= VampireConfig::MAX_ARMOR)
 		return;
 
-	// Calcular cuánto armor robar
+	// Calculamos el armor directamente del daño, sin considerar el health
 	float armor_stolen = VampireConfig::ARMOR_STEAL_RATIO * (damage / 4.0f);
 
 	// Almacenar el armor hasta el límite de almacenamiento
@@ -900,6 +897,8 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 		static_cast<float>(VampireConfig::MAX_STORED_ARMOR)
 	);
 }
+
+
 static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // Agregar const y noexcept
 	// Early returns para casos negativos
 	if (!attacker || attacker->health <= 0 || attacker->deadflag) {
@@ -941,19 +940,19 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 		1 * VampireConfig::SENTRY_HEALING_FACTOR :
 		damage / 4.0f;
 
+	// Aplicar stored healing solo si necesitamos curación
 	if (attacker->health < attacker->max_health) {
 		if (!isSentrygun) {
 			health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
 		}
 
-		// En lugar de curar instantáneamente, almacenamos la curación
 		attacker->regen_info.stored_healing = std::min(
 			attacker->regen_info.stored_healing + health_stolen,
 			static_cast<float>(VampireConfig::MAX_STORED_HEALING)
 		);
 	}
 
-	// Para las sentries, también usamos el sistema gradual
+	// Para las sentries
 	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
 		std::span entities_view{ g_edicts, globals.num_edicts };
 		for (auto& ent : entities_view) {
