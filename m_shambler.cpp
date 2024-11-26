@@ -22,6 +22,7 @@ static cached_soundindex sound_melee1;
 static cached_soundindex sound_melee2;
 static cached_soundindex sound_smack;
 static cached_soundindex sound_boom;
+static cached_soundindex sound_fireball;
 
 //
 // misc
@@ -435,26 +436,36 @@ void ShamblerCastFireballs(edict_t* self)
 	if (!self->enemy)
 		return;
 
-	vec3_t start, dir, forward, right;
-	const vec3_t offset = FindShamblerOffset(self);
-	AngleVectors(self->s.angles, forward, right, nullptr);
-	start = M_ProjectFlashSource(self, offset, forward, right);
+	vec3_t f, r;
+	AngleVectors(self->s.angles, f, r, nullptr);
+
+	// Calculate positions for both hands using the same method as in fireball_update
+	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
+	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
+
+	// Calculate the midpoint between hands - same as where SpawnGrow appears
+	const vec3_t start = (left_pos + right_pos) * 0.5f;
 
 	// Number of fireballs to launch
 	constexpr int num_fireballs = 1;
 	const int speed = irandom(1120, 1280);
 
+	// Calculate size based on frame - similar to the visual effect
+	const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
+		static_cast<float>(q_countof(fireball_left_hand));
+	constexpr float max_size = 1.5f;
+	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
+
 	for (int i = 0; i < num_fireballs; i++)
 	{
-		// Calculate spread
+		// Calculate spread based on difficulty
 		float spread = 0.6f;
 		if (g_hardcoop->integer || current_wave_level >= 22 || self->monsterinfo.IS_BOSS)
 			spread = 0.3f;
 
-		// Calculate direction with some spread
-		PredictAim(self, self->enemy, start, 1220, false, spread, &dir, nullptr);
+		vec3_t dir;
+		PredictAim(self, self->enemy, start, 1320, false, spread, &dir, nullptr);
 
-		// Create and launch fireball-rocket
 		edict_t* fireball = G_Spawn();
 		if (fireball)
 		{
@@ -465,27 +476,31 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->svflags |= SVF_PROJECTILE;
 			fireball->flags |= FL_DODGE;
 			fireball->clipmask = MASK_PROJECTILE;
-			//if (self->client && !G_ShouldPlayersCollide(true))
-			//	fireball->clipmask &= ~CONTENTS_PLAYER;
 			fireball->solid = SOLID_BBOX;
-			fireball->s.effects = EF_FIREBALL; // fireball effects
+			fireball->s.effects = EF_FIREBALL;
 			fireball->s.renderfx = RF_MINLIGHT;
-			fireball->s.modelindex = frandom() < 0.1f ? gi.modelindex("models/objects/fire/tris.md2") : gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->s.modelindex = frandom() < 0.1f ?
+				gi.modelindex("models/objects/fire/tris.md2") :
+				gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
-			fireball->touch = fireball_touch; // Use rocket touch function
+			fireball->touch = fireball_touch;
 			fireball->nextthink = level.time + 7_sec;
 			fireball->think = G_FreeEdict;
-			fireball->dmg = irandom(22, 24) * M_DamageModifier(self);
-			fireball->radius_dmg = 35 * M_DamageModifier(self);
-			fireball->dmg_radius = 100;
+			fireball->dmg = irandom(22, 34) * M_DamageModifier(self);
+			fireball->radius_dmg = 45 * M_DamageModifier(self);
+			fireball->dmg_radius = 120;
 			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
 			fireball->classname = "shambler_fireball";
+
+			// Scale the fireball based on the charging animation
+			fireball->s.scale = current_size;
+
 			gi.linkentity(fireball);
 		}
 	}
 
 	// Play sound effect
-	gi.sound(self, CHAN_WEAPON, gi.soundindex("weapons/rocklx1a.wav"), 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
 }
 
 mframe_t shambler_frames_fireball[] = {
@@ -766,6 +781,7 @@ void SP_monster_shambler(edict_t* self)
 	sound_sight.assign("shambler/ssight.wav");
 	sound_smack.assign("shambler/smack.wav");
 	sound_boom.assign("shambler/sboom.wav");
+	sound_fireball.assign("weapons/rocklx1a.wav");
 
 	if (!strcmp(self->classname, "monster_shambler")) {
 		self->health = 650 * st.health_multiplier;
