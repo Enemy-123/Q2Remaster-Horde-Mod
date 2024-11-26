@@ -787,7 +787,7 @@ DIE(nuke_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 THINK(Nuke_Think) (edict_t* ent) -> void
 {
 	float			attenuation;
-	float const default_atten = 1.8f;
+	float constexpr default_atten = 1.8f;
 	int				nuke_damage_multiplier;
 	player_muzzle_t muzzleflash;
 
@@ -1136,92 +1136,60 @@ bool tesla_ray_trace(const edict_t* self, const edict_t* target, trace_t& tr) {
 }
 
 
-THINK(tesla_think_active) (edict_t* self) -> void
+THINK(tesla_think_active)(edict_t* self) -> void
 {
 	if (!self)
 		return;
-
-	int i, num;
+	int num;
 	constexpr int max_targets = 3;
-	edict_t** touch = nullptr;
-	edict_t* hit;
 	vec3_t start;
-	//trace_t tr{};
 
-	try {
-		touch = new edict_t * [MAX_TOUCH_ENTITIES];
-	}
-	catch (const std::bad_alloc&) {
-		gi.Com_Print("Error: tesla_think_active no pudo asignar memoria para el array touch\n");
-		tesla_remove(self);
-		return;
-	}
-
-	if (!touch) {
-		gi.Com_Print("Error: tesla_think_active recibió un puntero touch nulo después de la asignación\n");
-		tesla_remove(self);
-		return;
-	}
+	// Use fixed-size array on the stack instead of dynamic allocation
+	std::array<edict_t*, MAX_TOUCH_ENTITIES> touch_array = {};
+	edict_t** touch = touch_array.data();
 
 	if (level.time > self->air_finished)
 	{
 		tesla_remove(self);
-		delete[] touch;
 		return;
 	}
 
-	// Ajustar el punto de inicio del rayo según la orientación
 	start = self->s.origin;
-
-	// Determinar si está en una pared por el PITCH
 	const bool is_on_wall = fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135;
 
-	// Obtener los vectores de dirección según la orientación
 	vec3_t forward, right, up;
 	AngleVectors(self->s.angles, forward, right, up);
 
 	if (is_on_wall) {
-		// En pared, ajustar el inicio según la orientación
-		start = start + (forward * 16); // Reemplaza VectorMA
+		start = start + (forward * 16);
 	}
 	else {
-		// En suelo o techo
 		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
-			// En techo
-			start = start + (up * -16); // Reemplaza VectorMA
+			start = start + (up * -16);
 		}
 		else {
-			// En suelo
-			start = start + (up * 16); // Reemplaza VectorMA
+			start = start + (up * 16);
 		}
 	}
 
 	if (!self->teamchain)
 	{
-		gi.Com_Print("Warning: tesla_think_active llamado con teamchain nulo\n");
-		delete[] touch;
+		gi.Com_Print("Warning: tesla_think_active called with null teamchain\n");
 		return;
 	}
 
-	// Ajustar el área de detección según la orientación
 	if (is_on_wall) {
-		// Para teslas en pared, área de detección más amplia
 		float constexpr radius = TESLA_DAMAGE_RADIUS * 1.5f;
 		self->teamchain->mins = { -radius / 2, -radius, -radius };
 		self->teamchain->maxs = { radius, radius, radius };
-
-		// Desplazar el centro del área de detección hacia adelante
-		self->teamchain->s.origin = self->s.origin + (forward * (radius / 2)); // Reemplaza VectorMA
+		self->teamchain->s.origin = self->s.origin + (forward * (radius / 2));
 	}
 	else {
-		// Para teslas en suelo o techo
 		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
-			// En techo, invertir el área de detección
 			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS };
 			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, 0 };
 		}
 		else {
-			// En suelo, área normal
 			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, 0 };
 			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS };
 		}
@@ -1229,12 +1197,13 @@ THINK(tesla_think_active) (edict_t* self) -> void
 
 	gi.linkentity(self->teamchain);
 
-	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch, MAX_TOUCH_ENTITIES, AREA_SOLID, tesla_think_active_BoxFilter, self);
+	// Use raw pointer from array
+	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch,
+		MAX_TOUCH_ENTITIES, AREA_SOLID, tesla_think_active_BoxFilter, self);
 
-	// Mejorar la lógica de selección de objetivos
 	int targets_attacked = 0;
-	for (i = 0; i < num && targets_attacked < max_targets; i++) {
-		hit = touch[i];
+	for (int i = 0; i < num && targets_attacked < max_targets; i++) {
+		edict_t* hit = touch[i];
 		if (!hit->inuse || hit == self || hit->health < 1)
 			continue;
 
@@ -1243,15 +1212,12 @@ THINK(tesla_think_active) (edict_t* self) -> void
 			vec3_t const ray_start = calculate_tesla_ray_origin(self);
 			vec3_t const ray_end = tr.endpos;
 
-			// Calcular la dirección del daño
 			vec3_t dir = ray_end - ray_start;
 			dir.normalize();
 
-			// Aplicar el daño
 			T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-			// Efecto visual del rayo mejorado
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LIGHTNING);
 			gi.WriteEntity(self);
@@ -1264,15 +1230,12 @@ THINK(tesla_think_active) (edict_t* self) -> void
 		}
 	}
 
-	delete[] touch;
-
 	if (self->inuse)
 	{
 		self->think = tesla_think_active;
 		self->nextthink = level.time + 10_hz;
 	}
 }
-
 THINK(tesla_activate) (edict_t* self) -> void
 {
 	edict_t* trigger;
@@ -1388,7 +1351,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 		// Always bounce off non-world entities
 		if (tr.plane.normal) {
 			vec3_t out;
-			float backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
+			float const backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
 
 			for (int i = 0; i < 3; i++) {
 				float change = tr.plane.normal[i] * backoff;
