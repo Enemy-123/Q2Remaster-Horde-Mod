@@ -139,7 +139,7 @@ struct vec3_t
 	}
 	[[nodiscard]] inline vec3_t normalized() const
 	{
-		float len = length();
+		float const len = length();
 		return len ? (*this * (1.f / len)) : *this;
 	}
 	[[nodiscard]] inline vec3_t normalized(float& len) const
@@ -149,7 +149,7 @@ struct vec3_t
 	}
 	inline float normalize()
 	{
-		float len = length();
+		float const len = length();
 
 		if (len)
 			*this *= (1.f / len);
@@ -173,7 +173,7 @@ constexpr vec3_t vec3_origin{};
 }
 
 [[nodiscard]] inline vec3_t safe_normalized(const vec3_t& vec) {
-	float len = vec.length();
+	float const len = vec.length();
 	if (len == 0.0f || std::isnan(len)) {
 		return vec3_origin;  // Retorna un vector de origen como valor seguro
 	}
@@ -184,14 +184,14 @@ constexpr vec3_t vec3_origin{};
 inline void AngleVectors(const vec3_t& angles, vec3_t* forward, vec3_t* right, vec3_t* up)
 {
 	float angle = angles[YAW] * (PIf * 2 / 360);
-	float sy = sinf(angle);
-	float cy = cosf(angle);
+	float const sy = sinf(angle);
+	float const cy = cosf(angle);
 	angle = angles[PITCH] * (PIf * 2 / 360);
-	float sp = sinf(angle);
-	float cp = cosf(angle);
+	float const sp = sinf(angle);
+	float const cp = cosf(angle);
 	angle = angles[ROLL] * (PIf * 2 / 360);
-	float sr = sinf(angle);
-	float cr = cosf(angle);
+	float const sr = sinf(angle);
+	float const cr = cosf(angle);
 
 	if (forward)
 	{
@@ -220,7 +220,7 @@ struct angle_vectors_t {
 // for destructuring
 inline angle_vectors_t AngleVectors(const vec3_t& angles)
 {
-	angle_vectors_t v;
+	angle_vectors_t v{};
 	AngleVectors(angles, &v.forward, &v.right, &v.up);
 	return v;
 }
@@ -271,8 +271,8 @@ inline void AddPointToBounds(const vec3_t& v, vec3_t& mins, vec3_t& maxs)
 
 [[nodiscard]] constexpr vec3_t ProjectPointOnPlane(const vec3_t& p, const vec3_t& normal)
 {
-	float inv_denom = 1.0f / normal.dot(normal);
-	float d = normal.dot(p) * inv_denom;
+	float const inv_denom = 1.0f / normal.dot(normal);
+	float const d = normal.dot(p) * inv_denom;
 	return p - ((normal * inv_denom) * d);
 }
 
@@ -284,7 +284,7 @@ inline void AddPointToBounds(const vec3_t& v, vec3_t& mins, vec3_t& maxs)
 	int	   pos;
 	int	   i;
 	float  minelem = 1.0F;
-	vec3_t tempvec;
+	vec3_t tempvec{};
 
 	/*
 	** find the smallest magnitude axially aligned vector
@@ -336,7 +336,7 @@ R_ConcatRotations
 
 [[nodiscard]] inline vec3_t RotatePointAroundVector(const vec3_t& dir, const vec3_t& point, float degrees)
 {
-	mat3_t	m;
+	mat3_t	m{};
 	mat3_t  im;
 	mat3_t  zrot;
 	mat3_t  rot;
@@ -455,7 +455,7 @@ constexpr float STOP_EPSILON = 0.1f;
 
 [[nodiscard]] constexpr vec3_t ClipVelocity(const vec3_t& in, const vec3_t& normal, float overbounce)
 {
-	float dot = in.dot(normal);
+	float const dot = in.dot(normal);
 	vec3_t out = in + (normal * (-2 * dot));
 	out *= overbounce - 1.f;
 
@@ -467,7 +467,7 @@ constexpr float STOP_EPSILON = 0.1f;
 
 [[nodiscard]] constexpr vec3_t SlideClipVelocity(const vec3_t& in, const vec3_t& normal, float overbounce)
 {
-	float backoff = in.dot(normal) * overbounce;
+	float const backoff = in.dot(normal) * overbounce;
 	vec3_t out = in - (normal * backoff);
 
 	for (int i = 0; i < 3; i++)
@@ -548,7 +548,7 @@ constexpr float STOP_EPSILON = 0.1f;
 
 [[nodiscard]] inline vec3_t slerp(const vec3_t& from, const vec3_t& to, float t)
 {
-	float dot = from.dot(to);
+	float const dot = from.dot(to);
 	float aFactor;
 	float bFactor;
 	if (dot >= 0.9995f)
@@ -558,7 +558,7 @@ constexpr float STOP_EPSILON = 0.1f;
 	}
 	else if (dot <= -0.9995f)
 	{
-		vec3_t c = vec3_t{ 1.0f, 0.0f, 0.0f }.cross(to);
+		vec3_t const c = vec3_t{ 1.0f, 0.0f, 0.0f }.cross(to);
 
 		if (t <= 0.5f)
 			return lerp(from, c, t * 2);
@@ -567,10 +567,10 @@ constexpr float STOP_EPSILON = 0.1f;
 	}
 	else
 	{
-		float ang = acos(dot);
-		float sinOmega = sin(ang);
-		float sinAOmega = sin((1.0f - t) * ang);
-		float sinBOmega = sin(t * ang);
+		float const ang = acos(dot);
+		float const sinOmega = sin(ang);
+		float const sinAOmega = sin((1.0f - t) * ang);
+		float const sinBOmega = sin(t * ang);
 		aFactor = sinAOmega / sinOmega;
 		bFactor = sinBOmega / sinOmega;
 	}

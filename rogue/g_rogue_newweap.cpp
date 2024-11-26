@@ -439,7 +439,7 @@ TOUCH(prox_land) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 		// Note that plane can be nullptr
 
 		// PMM - code stolen from g_phys (ClipVelocity)
-		vec3_t out;
+		vec3_t out{};
 		float  backoff, change;
 		int	   i;
 
@@ -1350,7 +1350,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client)) {
 		// Always bounce off non-world entities
 		if (tr.plane.normal) {
-			vec3_t out;
+			vec3_t out{};
 			float const backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
 
 			for (int i = 0; i < 3; i++) {

@@ -206,7 +206,7 @@ constexpr size_t num_of_type_for_bits(size_t num_bits)
 template<size_t bits_per_value>
 constexpr void set_compressed_integer(uint16_t* start, uint8_t id, uint16_t count)
 {
-	uint16_t bit_offset = bits_per_value * id;
+	uint16_t const bit_offset = bits_per_value * id;
 	uint16_t byte = bit_offset / 8;
 	uint16_t bit_shift = bit_offset % 8;
 	uint16_t mask = (bit_v<bits_per_value> -1) << bit_shift;
@@ -217,11 +217,11 @@ constexpr void set_compressed_integer(uint16_t* start, uint8_t id, uint16_t coun
 template<size_t bits_per_value>
 constexpr uint16_t get_compressed_integer(uint16_t* start, uint8_t id)
 {
-	uint16_t bit_offset = bits_per_value * id;
+	uint16_t const bit_offset = bits_per_value * id;
 	uint16_t byte = bit_offset / 8;
-	uint16_t bit_shift = bit_offset % 8;
-	uint16_t mask = (bit_v<bits_per_value> -1) << bit_shift;
-	uint16_t* base = (uint16_t*)((uint8_t*)start + byte);
+	uint16_t const bit_shift = bit_offset % 8;
+	uint16_t const mask = (bit_v<bits_per_value> -1) << bit_shift;
+	uint16_t* const base = (uint16_t*)((uint8_t*)start + byte);
 	return (*base & mask) >> bit_shift;
 }
 

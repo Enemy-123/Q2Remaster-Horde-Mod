@@ -184,7 +184,7 @@ LerpAngle
 
 [[nodiscard]] inline float anglemod(float a)
 {
-	float v = fmod(a, 360.0f);
+	float const v = fmod(a, 360.0f);
 
 	if (v < 0)
 		return 360.f + v;
