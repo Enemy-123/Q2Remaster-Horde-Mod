@@ -653,6 +653,9 @@ bool OnSameTeam(edict_t* ent1, edict_t* ent2)
 #include <span>
 
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage);
+void ApplyGradualArmor(edict_t* ent);
+// Nueva estructura para manejar la regeneración gradual
+
 
 namespace VampireConfig {
 	constexpr float BASE_MULTIPLIER = 0.8f;
@@ -660,8 +663,89 @@ namespace VampireConfig {
 	constexpr float DOUBLE_DIVISOR = 1.5f;
 	constexpr float TECH_STRENGTH_DIVISOR = 1.6f;
 	constexpr int MAX_ARMOR = 200;
-	constexpr float ARMOR_STEAL_RATIO = 0.45f;
+
+	// Nuevos parámetros para el sistema de regeneración gradual
+	constexpr gtime_t REGEN_INTERVAL = 80_ms;  // Intervalo de regeneración en segundos
+	constexpr float SENTRY_HEALING_FACTOR = 0.4f;  // Factor de reducción para sentries
+	constexpr int MAX_STORED_HEALING = 35;  // Máximo de curación almacenada
+
+	constexpr float ARMOR_STEAL_RATIO = 0.1666f;
+	constexpr int MAX_STORED_ARMOR = 25;  // Máximo de armor almacenado
+	constexpr float ARMOR_REGEN_AMOUNT = 1.0f;  // Cantidad de armor regenerado por tick
 }
+
+void ApplyGradualHealing(edict_t* ent) {
+	if (!ent || ent->health <= 0 || ent->health >= ent->max_health)
+		return;
+
+	if (level.time < ent->regen_info.next_regen_time)
+		return;
+
+	// Aplicar health regeneration
+	if (ent->regen_info.stored_healing > 0) {
+		float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
+		int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
+		int actual_healed = new_health - ent->health;
+
+		if (actual_healed > 0) {
+			ent->health = new_health;
+			ent->regen_info.stored_healing -= actual_healed;
+		}
+	}
+
+	// Aplicar armor regeneration
+	if (ent->client)
+		ApplyGradualArmor(ent);
+
+	// Establecer el próximo tiempo de regeneración
+	ent->regen_info.next_regen_time = level.time + VampireConfig::REGEN_INTERVAL;
+}
+
+void ApplyGradualArmor(edict_t* ent) {
+	if (!ent || !ent->client)
+		return;
+
+	// Obtener el índice del armor y verificaciones
+	const int index = ArmorIndex(ent);
+	if (!index) {
+		ent->regen_info.stored_armor = 0;
+		return;
+	}
+
+	int current_armor = ent->client->pers.inventory[index];
+
+	// Si el armor está en 0 o menos, limpiar almacenamiento
+	if (current_armor <= 0) {
+		ent->regen_info.stored_armor = 0;
+		return;
+	}
+
+	// Si no hay nada almacenado o no es tiempo de regenerar, salir
+	if (ent->regen_info.stored_armor <= 0 || level.time < ent->regen_info.next_regen_time)
+		return;
+
+	// Si ya estamos en el máximo, limpiar almacenamiento
+	if (current_armor >= VampireConfig::MAX_ARMOR) {
+		ent->regen_info.stored_armor = 0;
+		return;
+	}
+
+	// Calcular cuánto armor regenerar
+	float armor_amount = std::min(VampireConfig::ARMOR_REGEN_AMOUNT, ent->regen_info.stored_armor);
+
+	// Aplicar el armor
+	int new_armor = std::min(
+		current_armor + static_cast<int>(armor_amount),
+		VampireConfig::MAX_ARMOR
+	);
+	int actual_added = new_armor - current_armor;
+
+	if (actual_added > 0) {
+		ent->client->pers.inventory[index] = new_armor;
+		ent->regen_info.stored_armor -= actual_added;
+	}
+}
+
 
 struct WeaponMultiplier {
 	item_id_t weapon_id;
@@ -785,21 +869,37 @@ void heal_attacker_sentries(const edict_t* attacker, int health_stolen) noexcept
 }
 
 void apply_armor_vampire(edict_t* attacker, int damage) {
-	if (!attacker || !attacker->client) return;
+	if (!attacker || !attacker->client)
+		return;
 
+	// Obtener el índice y verificación del armor
 	const int index = ArmorIndex(attacker);
-	if (!index || attacker->client->pers.inventory[index] <= 0) return;
+	if (!index) {
+		attacker->regen_info.stored_armor = 0; // Limpiar si no hay armor equipado
+		return;
+	}
 
-	const int current_armor = attacker->client->pers.inventory[index];
-	const int armor_stolen = std::min(
-		std::max(1, static_cast<int>(VampireConfig::ARMOR_STEAL_RATIO * (damage / 4))),
-		VampireConfig::MAX_ARMOR - current_armor
+	int current_armor = attacker->client->pers.inventory[index];
+
+	// Si el armor está en 0 o menos, no almacenar nada
+	if (current_armor <= 0) {
+		attacker->regen_info.stored_armor = 0;
+		return;
+	}
+
+	// No almacenar más si ya estamos en el máximo
+	if (current_armor >= VampireConfig::MAX_ARMOR)
+		return;
+
+	// Calcular cuánto armor robar
+	float armor_stolen = VampireConfig::ARMOR_STEAL_RATIO * (damage / 4.0f);
+
+	// Almacenar el armor hasta el límite de almacenamiento
+	attacker->regen_info.stored_armor = std::min(
+		attacker->regen_info.stored_armor + armor_stolen,
+		static_cast<float>(VampireConfig::MAX_STORED_ARMOR)
 	);
-
-	attacker->client->pers.inventory[index] += armor_stolen;
 }
-
-
 static bool CanUseVampireEffect(const edict_t* attacker) noexcept {  // Agregar const y noexcept
 	// Early returns para casos negativos
 	if (!attacker || attacker->health <= 0 || attacker->deadflag) {
@@ -837,17 +937,37 @@ void HandleVampireEffect(edict_t* attacker, edict_t* targ, int damage) {
 	}
 
 	const bool isSentrygun = strcmp(attacker->classname, "monster_sentrygun") == 0;
-	int health_stolen = isSentrygun ? 1 : damage / 4;
+	float health_stolen = isSentrygun ?
+		1 * VampireConfig::SENTRY_HEALING_FACTOR :
+		damage / 4.0f;
 
 	if (attacker->health < attacker->max_health) {
 		if (!isSentrygun) {
-			health_stolen = calculate_health_stolen(attacker, health_stolen);
+			health_stolen = calculate_health_stolen(attacker, static_cast<int>(health_stolen));
 		}
-		attacker->health = std::min(attacker->health + health_stolen, attacker->max_health);
+
+		// En lugar de curar instantáneamente, almacenamos la curación
+		attacker->regen_info.stored_healing = std::min(
+			attacker->regen_info.stored_healing + health_stolen,
+			static_cast<float>(VampireConfig::MAX_STORED_HEALING)
+		);
 	}
 
+	// Para las sentries, también usamos el sistema gradual
 	if ((attacker->svflags & SVF_PLAYER) && current_wave_level >= 10) {
-		heal_attacker_sentries(attacker, health_stolen);
+		std::span entities_view{ g_edicts, globals.num_edicts };
+		for (auto& ent : entities_view) {
+			if (!ent.inuse || ent.health <= 0 || ent.owner != attacker ||
+				strcmp(ent.classname, "monster_sentrygun") != 0) {
+				continue;
+			}
+
+			float sentry_heal = health_stolen * VampireConfig::SENTRY_HEALING_FACTOR;
+			ent.regen_info.stored_healing = std::min(
+				ent.regen_info.stored_healing + sentry_heal,
+				static_cast<float>(VampireConfig::MAX_STORED_HEALING)
+			);
+		}
 	}
 
 	if (g_vampire->integer == 2) {

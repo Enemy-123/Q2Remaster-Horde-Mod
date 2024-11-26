@@ -190,6 +190,7 @@ void InitSave();
 
 #include <chrono>
 #include "shared.h"
+#include <span>
 
 //// Implementación de la función auxiliar en el archivo apropiado (por ejemplo, g_main.c)
 //bool PM_IsQ64Map() {
@@ -942,6 +943,14 @@ Advances the world by 0.1 seconds
 
 inline void G_RunFrame_(bool main_loop)
 {
+
+	std::span entities_view{ g_edicts, globals.num_edicts };
+	for (auto& ent : entities_view) {
+		if (ent.inuse) {
+			ApplyGradualHealing(&ent);
+		}
+	}
+
 	if (g_horde->integer) {
 
 		CheckAndUpdateMenus();

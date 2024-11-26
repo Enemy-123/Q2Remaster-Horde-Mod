@@ -81,6 +81,8 @@ struct PlayerStats {
     int32_t total_damage = 0;
 };
 
+void ApplyGradualHealing(edict_t* ent);
+
 void AllowReset();
 
 bool CheckAndTeleportStuckMonster(edict_t* self);

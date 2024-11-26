@@ -2768,6 +2768,18 @@ constexpr spawnflags_t SPAWNFLAG_LANDMARK_KEEP_Z = 1_spawnflag;
 // Paril
 #include "horde/g_horde.h"
 
+struct regeneration_info_t {
+	float stored_healing;
+	float stored_armor;
+	gtime_t next_regen_time;
+
+	void clear() {
+		stored_healing = 0;
+		stored_armor = 0;
+		next_regen_time = 0_sec;
+	}
+};
+
 
 // Define esta enumeración antes de la estructura edict_t
 enum class BossSizeCategory {
@@ -3421,6 +3433,7 @@ struct edict_t
 		//Horde stuff
 
 	BossSizeCategory bossSizeCategory;
+	regeneration_info_t regen_info;
 
 	gtime_t safety_time;
 	gtime_t hook_time;
