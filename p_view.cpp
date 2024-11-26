@@ -993,7 +993,7 @@ static void G_SetClientEffects(edict_t* ent)
 #endif
 }
 void HORDE_ApplyAmmoRegen(edict_t* ent) {
-	if (!g_ammoregen->integer || !ent->client || g_horde->integer && ClientIsSpectating(ent->client))
+	if (!g_ammoregen->integer || !ent->client || (g_horde->integer && ClientIsSpectating(ent->client)))
 		return;
 
 	gclient_t* client = ent->client;
