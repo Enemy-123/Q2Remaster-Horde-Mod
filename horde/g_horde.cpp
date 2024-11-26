@@ -26,6 +26,10 @@ static cached_soundindex sound_spawn1;
 static cached_soundindex sound_voice3;
 static cached_soundindex sound_v_fac3;
 
+static const char* GetCurrentMapName() noexcept {
+	return static_cast<const char*>(level.mapname);
+}
+
 enum class WaveEndReason {
 	AllMonstersDead,
 	MonstersRemaining,
@@ -47,7 +51,7 @@ bool flying_monsters_mode = false; // Variable de control para el jefe volador
 int8_t last_wave_number = 0;              // Reducido de uint64_t
 uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 
-gtime_t horde_message_end_time = level.time;
+gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown 
 
 // Añadir cerca de las otras constexpr al inicio del archivo
@@ -92,7 +96,6 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 
 	return std::min(scale * multiplier, maxScale);
 }
-
 cvar_t* g_horde;
 #include <span>
 
@@ -106,29 +109,43 @@ enum class horde_state_t {
 
 // En HordeState, reemplazar el vector con array estático
 struct HordeState {
-	gtime_t         warm_time = 4_sec;
-	horde_state_t   state = horde_state_t::warmup;
-	gtime_t         monster_spawn_time;
-	int32_t         num_to_spawn = 0;
-	int32_t         level = 0;
-	int32_t         queued_monsters = 0;
-	gtime_t         lastPrintTime = 0_sec;
+    gtime_t         warm_time = 4_sec;
+    horde_state_t   state = horde_state_t::warmup;
+    gtime_t         monster_spawn_time;
+    int32_t         num_to_spawn = 0;
+    int32_t         level = 0;
+    int32_t         queued_monsters = 0;
+    gtime_t         lastPrintTime = 0_sec;
 
-	bool            conditionTriggered = false;
-	gtime_t         conditionStartTime = 0_sec;
-	gtime_t         conditionTimeThreshold = 0_sec;
-	bool            timeWarningIssued = false;
-	gtime_t         waveEndTime = 0_sec;
-	bool            warningIssued[4] = { false, false, false, false }; // Array estático en lugar de vector
+    bool            conditionTriggered = false;
+    gtime_t         conditionStartTime = 0_sec;
+    gtime_t         conditionTimeThreshold = 0_sec;
+    bool            timeWarningIssued = false;
+    gtime_t         waveEndTime = 0_sec;
+    bool            warningIssued[4] = { false, false, false, false };
 
-	gtime_t last_successful_hud_update = 0_sec;
-	uint32_t failed_updates_count = 0;
+    gtime_t         last_successful_hud_update = 0_sec;
+    uint32_t        failed_updates_count = 0;
 
-	void reset_hud_state() {
-		last_successful_hud_update = 0_sec;
-		failed_updates_count = 0;
+	MapSize current_map_size;
+	int32_t max_monsters;  // Cacheado basado en map_size
+	gtime_t base_spawn_cooldown;  // Cacheado basado en map_size
+
+	void update_map_size(const char* mapname) {
+		current_map_size = GetMapSize(mapname);
+		max_monsters = current_map_size.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+			(current_map_size.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+		base_spawn_cooldown = GetBaseSpawnCooldown(
+			current_map_size.isSmallMap,
+			current_map_size.isBigMap
+		);
 	}
-}g_horde_local;
+
+    void reset_hud_state() {
+        last_successful_hud_update = 0_sec;
+        failed_updates_count = 0;
+    }
+} g_horde_local;
 
 // Clase de selección genérica usando templates
 // Nueva implementación de WeightedSelection usando arrays estáticos
@@ -551,8 +568,7 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 
 static void Horde_InitLevel(const int32_t lvl) {
-	const MapSize& mapSize = GetMapSize(level.mapname);
-
+	g_horde_local.update_map_size(GetCurrentMapName());
 	g_independent_timer_start = level.time;
 
 	// Configuración de variables iniciales para el nivel
@@ -573,7 +589,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_horde_local.waveEndTime = 0_sec;
 	g_horde_local.lastPrintTime = 0_sec;
 
-	g_lastParams = GetConditionParams(mapSize, GetNumHumanPlayers(), lvl);
+	g_lastParams = GetConditionParams(g_horde_local.current_map_size, GetNumHumanPlayers(), lvl);
 
 	// Ajustar la escala de daño según el nivel
 	switch (lvl) {
@@ -593,7 +609,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 		break;
 	}
 
-	UnifiedAdjustSpawnRate(mapSize, lvl, GetNumHumanPlayers());
+	UnifiedAdjustSpawnRate(g_horde_local.current_map_size, lvl, GetNumHumanPlayers());
 
 	CheckAndApplyBenefit(lvl);
 	ResetAllSpawnAttempts();
@@ -1487,7 +1503,6 @@ void Horde_PreInit() {
 
 	// Configuración automática cuando horde está activo
 	if (g_horde->integer) {
-
 		dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 
 		gi.Com_Print("Initializing Horde mode settings...\n");
@@ -2480,7 +2495,6 @@ static void AttachHealthBar(edict_t* boss) {
 void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 void SP_target_orb(edict_t* ent);
 static void SpawnBossAutomatically() {
-	const auto mapSize = GetMapSize(level.mapname);
 
 	//IF THERE'S A BOSS BEFORE THE NEW SPAWNING: remove him!
 	// Primero, eliminar cualquier boss existente
@@ -2515,7 +2529,7 @@ static void SpawnBossAutomatically() {
 		return;
 	}
 
-	const auto it = mapOrigins.find(level.mapname);
+	const auto it = mapOrigins.find(GetCurrentMapName());
 	if (it == mapOrigins.end()) {
 		gi.Com_PrintFmt("PRINT: Error: No spawn origin found for map {}\n", level.mapname);
 		return;
@@ -2549,7 +2563,7 @@ static void SpawnBossAutomatically() {
 		return;
 	}
 
-	const char* desired_boss = G_HordePickBOSS(mapSize, level.mapname, g_horde_local.level, boss);
+	const char* desired_boss = G_HordePickBOSS(g_horde_local.current_map_size, GetCurrentMapName(), g_horde_local.level, boss);
 	if (!desired_boss) {
 		if (orb) G_FreeEdict(orb);
 		G_FreeEdict(boss);
@@ -2655,7 +2669,7 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 		return false;
 
 	// Obtener el punto de inicio del mapa
-	const auto it = mapOrigins.find(level.mapname);
+	const auto it = mapOrigins.find(GetCurrentMapName());
 	if (it == mapOrigins.end())
 		return false;
 
@@ -2875,7 +2889,7 @@ void ResetCooldowns() noexcept {
 	lastSpawnPointTime.clear();
 	lastMonsterSpawnTime.clear();
 
-	const MapSize& mapSize = GetMapSize(level.mapname);
+	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 	const int32_t humanPlayers = GetNumHumanPlayers();
 
@@ -3018,7 +3032,6 @@ void ResetGame() {
 	// Establecer el flag al inicio de la ejecución
 	hasBeenReset = true;
 
-	// Añadir limpieza explícita de bosses
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
 		edict_t* boss = *it;
 		if (boss && boss->inuse) {
@@ -3520,7 +3533,7 @@ static edict_t* SpawnMonsters() {
 	}
 
 	// Cache de valores del mapa y límites
-	const MapSize& mapSize = GetMapSize(level.mapname);
+	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 		(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
@@ -3894,8 +3907,7 @@ void CheckAndResetDisabledSpawnPoints() {
 }
 
 void Horde_RunFrame() {
-	const MapSize& mapSize = GetMapSize(level.mapname);
-	const int32_t currentLevel = g_horde_local.level;
+	const MapSize& mapSize = g_horde_local.current_map_size;	const int32_t currentLevel = g_horde_local.level;
 	static WaveEndReason currentWaveEndReason;  // Agregar esta declaración
 
 	// Manejo de monstruos personalizados
