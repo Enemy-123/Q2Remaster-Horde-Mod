@@ -128,7 +128,7 @@ struct HordeState {
     uint32_t        failed_updates_count = 0;
 
 	MapSize current_map_size;
-	int32_t max_monsters;  // Cacheado basado en map_size
+	int32_t max_monsters{};  // Cacheado basado en map_size
 	gtime_t base_spawn_cooldown;  // Cacheado basado en map_size
 
 	void update_map_size(const char* mapname) {
@@ -878,7 +878,7 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 				filteredMediumBossList.reserve(std::size(BOSS_MEDIUM));
 				std::copy_if(std::begin(BOSS_MEDIUM), std::end(BOSS_MEDIUM),
 					std::back_inserter(filteredMediumBossList),
-					[](const boss_t& boss) {
+					[](const boss_t& boss) noexcept {
 						return std::strcmp(boss.classname, "monster_guardian") != 0 &&
 							std::strcmp(boss.classname, "monster_psxguardian") != 0;
 					});
@@ -895,7 +895,7 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 				filteredLargeBossList.reserve(std::size(BOSS_LARGE));
 				std::copy_if(std::begin(BOSS_LARGE), std::end(BOSS_LARGE),
 					std::back_inserter(filteredLargeBossList),
-					[](const boss_t& boss) {
+					[](const boss_t& boss) noexcept {
 						return std::strcmp(boss.classname, "monster_boss5") != 0;
 					});
 			}
@@ -907,7 +907,7 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 	return std::span<const boss_t>{};
 }
 
-static size_t GetBossListSize(const MapSize& mapSize, std::string_view mapname, std::span<const boss_t> boss_list) {
+static size_t GetBossListSize(const MapSize& mapSize, std::string_view mapname, std::span<const boss_t> boss_list) noexcept {
     const boss_t* list_data = boss_list.data();
     if (list_data == &BOSS_SMALL[0]) return BOSS_SMALL_SIZE;
     if (list_data == &BOSS_MEDIUM[0]) return BOSS_MEDIUM_SIZE;
@@ -921,8 +921,8 @@ struct EligibleBosses {
 	const boss_t* items[MAX_ELIGIBLE_BOSSES] = {};
 	size_t count = 0;
 
-	void clear() { count = 0; }
-	void add(const boss_t* boss) {
+	void clear() noexcept { count = 0; }
+	void add(const boss_t* boss) noexcept {
 		if (count < MAX_ELIGIBLE_BOSSES) {
 			items[count++] = boss;
 		}
@@ -934,7 +934,7 @@ struct RecentBosses {
 	const char* items[MAX_RECENT_BOSSES] = {};
 	size_t count = 0;
 
-	void add(const char* boss) {
+	void add(const char* boss) noexcept {
 		if (count < MAX_RECENT_BOSSES) {
 			items[count++] = boss;
 		}
