@@ -934,37 +934,37 @@ but is called after each death and level change in deathmatch
 // Calcula la salud máxima basada en el nivel de oleada actual +25 hp
 int CalculateWaveBasedMaxHealth(int base_max_health, gclient_t* client = nullptr)
 {
-	if (!g_horde->integer)
-		return max(100, base_max_health);
+    if (!g_horde->integer)
+        return max(100, base_max_health);
 
-	int calculated_max_health = base_max_health;
+    int calculated_max_health = base_max_health;
 
-	// Ajustar health y max_health basado en el número de oleadas actuales
-	if (current_wave_level >= 30 && current_wave_level <= 200)
-		calculated_max_health = max(250, calculated_max_health);
-	else if (current_wave_level >= 25 && current_wave_level <= 29)
-		calculated_max_health = max(225, calculated_max_health);
-	else if (current_wave_level >= 20 && current_wave_level <= 24)
-		calculated_max_health = max(200, calculated_max_health);
-	else if (current_wave_level >= 15 && current_wave_level <= 19)
-		calculated_max_health = max(175, calculated_max_health);
-	else if (current_wave_level >= 10 && current_wave_level <= 14)
-		calculated_max_health = max(150, calculated_max_health);
-	else if (current_wave_level >= 5 && current_wave_level <= 9)
-		calculated_max_health = max(125, calculated_max_health);
-	else if (current_wave_level >= 1 && current_wave_level <= 4)
-		calculated_max_health = max(100, calculated_max_health);
-	else
-		calculated_max_health = max(100, calculated_max_health);
+    // Ajustar health y max_health basado en el número de oleadas actuales
+    // Usar rangos apropiados para int8_t (-128 a 127)
+    if (current_wave_level >= 30)
+        calculated_max_health = max(250, calculated_max_health);
+    else if (current_wave_level >= 25)
+        calculated_max_health = max(225, calculated_max_health);
+    else if (current_wave_level >= 20)
+        calculated_max_health = max(200, calculated_max_health);
+    else if (current_wave_level >= 15)
+        calculated_max_health = max(175, calculated_max_health);
+    else if (current_wave_level >= 10)
+        calculated_max_health = max(150, calculated_max_health);
+    else if (current_wave_level >= 5)
+        calculated_max_health = max(125, calculated_max_health);
+    else if (current_wave_level >= 1)
+        calculated_max_health = max(100, calculated_max_health);
+    else
+        calculated_max_health = max(100, calculated_max_health);
 
-	// Si se proporciona el cliente, incluir el bonus de adrenalina
-	if (client) {
-		calculated_max_health += (client->resp.adrenaline_count * ADRENALINE_HEALTH_BONUS);
-	}
+    // Si se proporciona el cliente, incluir el bonus de adrenalina
+    if (client) {
+        calculated_max_health += (client->resp.adrenaline_count * ADRENALINE_HEALTH_BONUS);
+    }
 
-	return calculated_max_health;
+    return calculated_max_health;
 }
-
 
 // Modificación de InitClientPersistant
 // Modificación de InitClientPersistant
@@ -2371,7 +2371,7 @@ void PutClientInServer(edict_t* ent)
 
 	client->resp.ctf_state++;
 
-	bool was_waiting_for_respawn = client->awaiting_respawn;
+	bool const was_waiting_for_respawn = client->awaiting_respawn;
 
 	if (client->awaiting_respawn)
 		ent->svflags &= ~SVF_NOCLIENT;
@@ -2859,7 +2859,7 @@ Gets a token version of the players "name" to be decoded on the client.
 */
 std::string G_EncodedPlayerName(edict_t* player)
 {
-	unsigned int playernum = P_GetLobbyUserNum(player);
+	unsigned int const playernum = P_GetLobbyUserNum(player);
 	return std::string("##P") + std::to_string(playernum);
 }
 
@@ -2890,7 +2890,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 	if (!gi.Info_ValueForKey(userinfo, "skin", val, sizeof(val)))
 		Q_strlcpy(val, "male/grunt", sizeof(val));
 
-	int playernum = ent - g_edicts - 1;
+	int const playernum = ent - g_edicts - 1;
 
 	// combine name and skin into a configstring
 	// ZOID
@@ -3025,10 +3025,10 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 		char check_name[MAX_INFO_VALUE] = { 0 };
 		gi.Info_ValueForKey(game.clients[i].pers.userinfo, "name", check_name, sizeof(check_name));
 
-		bool username_match = game.clients[i].pers.userinfo[0] &&
+		bool const username_match = game.clients[i].pers.userinfo[0] &&
 			!strcmp(check_name, name);
 
-		bool social_match = social_id && game.clients[i].pers.social_id[0] &&
+		bool const social_match = social_id && game.clients[i].pers.social_id[0] &&
 			!strcmp(game.clients[i].pers.social_id, social_id);
 
 		match_type_t type = (match_type_t)0;
@@ -3809,7 +3809,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 
 		if (pm.groundentity && ent->groundentity)
 		{
-			float stepsize = fabs(ent->s.origin[2] - pm.s.origin[2]);
+			float const stepsize = fabs(ent->s.origin[2] - pm.s.origin[2]);
 
 			if (stepsize > 4.f && stepsize < STEPSIZE)
 			{
@@ -3827,7 +3827,7 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		}
 
 		// [Paril-KEX] save old position for G_TouchProjectiles
-		vec3_t old_origin = ent->s.origin;
+		vec3_t const old_origin = ent->s.origin;
 
 		ent->s.origin = pm.s.origin;
 		ent->velocity = pm.s.velocity;
@@ -3996,47 +3996,42 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 	}
 }
 
-static inline bool G_MonstersSearchingFor(const edict_t* player)
-{
-	for (auto const* ent : active_monsters())
-	{
-		// check for *any* player target
-		if (player == nullptr && ent->enemy && !ent->enemy->client)
-			continue;
-		// they're not targeting us, so who cares
-		else if (player != nullptr && ent->enemy != player)
-			continue;
-
-		// they lost sight of us
-		if ((ent->monsterinfo.aiflags & AI_LOST_SIGHT) && level.time > ent->monsterinfo.trail_time + 5_sec)
-			continue;
-
-		// no sir
-		return true;
-	}
-
-	// yes sir
-	return false;
-}
+//static inline bool G_MonstersSearchingFor(const edict_t* player)
+//{
+//	for (auto const* ent : active_monsters())
+//	{
+//		// check for *any* player target
+//		if (player == nullptr && ent->enemy && !ent->enemy->client)
+//			continue;
+//		// they're not targeting us, so who cares
+//		else if (player != nullptr && ent->enemy != player)
+//			continue;
+//
+//		// they lost sight of us
+//		if ((ent->monsterinfo.aiflags & AI_LOST_SIGHT) && level.time > ent->monsterinfo.trail_time + 5_sec)
+//			continue;
+//
+//		// no sir
+//		return true;
+//	}
+//
+//	// yes sir
+//	return false;
+//}
 
 // [Paril-KEX] from the given player, find a good spot to
 // spawn a player
 
 // Spawnflags for trigger_hurt
 constexpr spawnflags_t SPAWNFLAG_HURT_START_OFF = 1_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_HURT_TOGGLE = 2_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_HURT_SILENT = 4_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_HURT_NO_PROTECTION = 8_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_HURT_SLOW = 16_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_HURT_NO_PLAYERS = 32_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_HURT_NO_MONSTERS = 64_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_HURT_CLIPPED = 128_spawnflag;
 
 // Function to check if a point is inside a trigger_hurt
 bool IsInsideTriggerHurt(const vec3_t& point) {
 	for (size_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* ent = &g_edicts[i];
-		if (!ent->inuse || ent->classname != "trigger_hurt")
+		if (!ent->inuse || strcmp(ent->classname, "trigger_hurt") != 0)
 			continue;
 
 		// Skip if the trigger_hurt is not solid (START_OFF flag is set)
@@ -4063,7 +4058,6 @@ bool IsInsideTriggerHurt(const vec3_t& point) {
 	}
 	return false;
 }
-
 static BoxEdictsResult_t MonsterOnlyFilter(edict_t* ent, void* data) {
 	FilterData* filter_data = static_cast<FilterData*>(data);
 	if (ent == filter_data->ignore_ent)
@@ -4252,13 +4246,13 @@ inline std::tuple<edict_t*, vec3_t> G_FindSquadRespawnTarget() {
 
 	// Actualizar strings de configuración usando fmt
 	if (combat_state_exists) {
-		std::string_view message = fmt::format("In Combat! Reviving in: {:.1f}(s)",
+		std::string_view const message = fmt::format("In Combat! Reviving in: {:.1f}(s)",
 			min_combat_time_left.seconds<float>());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, message.data());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, "");
 	}
 	else if (bad_area_state_exists) {
-		std::string_view message = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)",
+		std::string_view const message = fmt::format("Bad/Blocked Area! Forcing Respawn in: {:.1f}(s)",
 			min_bad_area_time_left.seconds<float>());
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 0, "");
 		gi.configstring(CONFIG_COOP_RESPAWN_STRING + 1, message.data());

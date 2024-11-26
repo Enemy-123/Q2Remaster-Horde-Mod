@@ -264,7 +264,6 @@
     <ClCompile Include="m_gunner_vanilla.cpp" />
     <ClCompile Include="m_float_vanilla.cpp" />
     <ClCompile Include="m_redmutant.cpp" />
-    <ClCompile Include="m_tank_vanilla.cpp" />
     <ClCompile Include="rogue\m_sentrygun.cpp">
       <Filter>rogue</Filter>
     </ClCompile>
@@ -278,6 +277,7 @@
     <ClCompile Include="m_psxarachnid.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="m_hover_vanilla.cpp" />
+    <ClCompile Include="m_tank_spawner.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="bots">

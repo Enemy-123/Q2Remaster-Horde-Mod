@@ -384,7 +384,7 @@ void ShamblerCastLightning(edict_t* self)
 	vec3_t start;
 	vec3_t dir;
 	vec3_t forward, right;
-	vec3_t offset = FindShamblerOffset(self);
+	vec3_t const offset = FindShamblerOffset(self);
 
 	AngleVectors(self->s.angles, forward, right, nullptr);
 	start = M_ProjectFlashSource(self, offset, forward, right);
@@ -397,8 +397,8 @@ void ShamblerCastLightning(edict_t* self)
 	else
 		PredictAim(self, self->enemy, start, 0, false, self->spawnflags.has(SPAWNFLAG_SHAMBLER_PRECISE) ? 0.f : 0.1f, &dir, nullptr);
 
-	vec3_t end = start + (dir * 8192);
-	trace_t tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
+	vec3_t const end = start + (dir * 8192);
+	trace_t const tr = gi.traceline(start, end, self, MASK_PROJECTILE | CONTENTS_SLIME | CONTENTS_LAVA);
 
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_LIGHTNING);
@@ -547,7 +547,7 @@ void sham_smash10(edict_t* self)
 	if (!CanDamage(self->enemy, self))
 		return;
 
-	vec3_t aim = { MELEE_DISTANCE, self->mins[0], -4 };
+	vec3_t const aim = { MELEE_DISTANCE, self->mins[0], -4 };
 	const bool hit = fire_hit(self, aim, irandom(110, 120), 120); // Slower attack
 
 	if (hit)
@@ -652,7 +652,7 @@ void sham_swingr9(edict_t* self)
 
 MONSTERINFO_MELEE(shambler_melee) (edict_t* self) -> void
 {
-	float chance = frandom();
+	float  const chance = frandom();
 	if (chance > 0.6 || self->health == 600)
 		M_SetAnimation(self, &shambler_attack_smash);
 	else if (chance > 0.3)

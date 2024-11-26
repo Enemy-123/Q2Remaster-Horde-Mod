@@ -1127,52 +1127,38 @@ void runnertank_jump(edict_t* self, blocked_jump_result_t result)
 //===========
 // PGM
 
-
-// Función DotProduct si no está definida
-constexpr float DotProduct(const vec3_t v1, const vec3_t v2) {
-	return v1[0] * v2[0] + v1[1] * v2[1] + v1[2] * v2[2];
-}
-
-// Función para calcular la diferencia angular
-constexpr float AngleDifference(float angle1, float angle2) {
-	float diff = angle1 - angle2;
-	while (diff > 180.0f) diff -= 360.0f;
-	while (diff < -180.0f) diff += 360.0f;
-	return diff;
-}
-
-bool runnertank_check_wall(edict_t* self, float dist)
-{
-	auto [forward, right, up] = AngleVectors(self->s.angles);
-
-	// Usar operador + de vec3_t para punto de verificación
-	vec3_t const check_point = self->s.origin + (forward * (dist + 10.0f));
-
-	trace_t const tr = gi.trace(self->s.origin, self->mins, self->maxs,
-		check_point, self, MASK_MONSTERSOLID);
-
-	if (tr.fraction < 1.0f) {
-		// Usar dot() de vec3_t
-		float const dot = forward.dot(tr.plane.normal);
-		float const turn_angle = 90.0f * (1.0f - std::abs(dot));
-
-		// Actualizar orientación usando el resultado
-		float new_yaw = self->s.angles[YAW] + (dot < 0 ? turn_angle : -turn_angle);
-		float const yaw_diff = AngleDifference(new_yaw, self->ideal_yaw);
-
-		if (std::abs(yaw_diff) > 30.0f)
-			new_yaw = self->s.angles[YAW] + (yaw_diff > 0 ? 30.0f : -30.0f);
-
-		self->ideal_yaw = anglemod(new_yaw);
-		M_ChangeYaw(self);
-
-		// Ajustar velocidad usando operador * de vec3_t
-		self->velocity = self->velocity * (tr.fraction * 0.8f);
-
-		return true;
-	}
-	return false;
-}
+//bool runnertank_check_wall(edict_t* self, float dist)
+//{
+//	auto [forward, right, up] = AngleVectors(self->s.angles);
+//
+//	// Usar operador + de vec3_t para punto de verificación
+//	vec3_t const check_point = self->s.origin + (forward * (dist + 10.0f));
+//
+//	trace_t const tr = gi.trace(self->s.origin, self->mins, self->maxs,
+//		check_point, self, MASK_MONSTERSOLID);
+//
+//	if (tr.fraction < 1.0f) {
+//		// Usar dot() de vec3_t
+//		float const dot = forward.dot(tr.plane.normal);
+//		float const turn_angle = 90.0f * (1.0f - std::abs(dot));
+//
+//		// Actualizar orientación usando el resultado
+//		float new_yaw = self->s.angles[YAW] + (dot < 0 ? turn_angle : -turn_angle);
+//		float const yaw_diff = AngleDifference(new_yaw, self->ideal_yaw);
+//
+//		if (std::abs(yaw_diff) > 30.0f)
+//			new_yaw = self->s.angles[YAW] + (yaw_diff > 0 ? 30.0f : -30.0f);
+//
+//		self->ideal_yaw = anglemod(new_yaw);
+//		M_ChangeYaw(self);
+//
+//		// Ajustar velocidad usando operador * de vec3_t
+//		self->velocity = self->velocity * (tr.fraction * 0.8f);
+//
+//		return true;
+//	}
+//	return false;
+//}
 
 MONSTERINFO_BLOCKED(runnertank_blocked) (edict_t* self, float dist) -> bool
 {

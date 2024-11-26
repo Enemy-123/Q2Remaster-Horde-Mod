@@ -268,12 +268,12 @@ static void BossLoop(edict_t* self)
 
 static void supertankGrenade(edict_t* self)
 {
-	vec3_t					 forward, right;
-	vec3_t					 start;
+	vec3_t forward, right;
+	vec3_t start;
 	monster_muzzleflash_id_t flash_number;
 
-	if (!self->enemy || !self->enemy->inuse) // PGM
-		return;								 // PGM
+	if (!self->enemy || !self->enemy->inuse)
+		return;
 
 	if (self->s.frame == FRAME_attak4_1)
 		flash_number = MZ2_SUPERTANK_GRENADE_1;
@@ -286,8 +286,11 @@ static void supertankGrenade(edict_t* self)
 	vec3_t aim_point;
 	PredictAim(self, self->enemy, start, 0, false, crandom_open() * 0.1f, &forward, &aim_point);
 
-	for (float speed = 500.f; speed < 1000.f; speed += 100.f)
+	// Usar un entero como contador y convertir a float cuando sea necesario
+	for (int i = 0; i < 5; i++) // 5 iteraciones para cubrir el rango 500-900
 	{
+		float const speed = 500.0f + (i * 100.0f);
+
 		if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
 			continue;
 

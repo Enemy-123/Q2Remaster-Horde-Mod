@@ -330,7 +330,7 @@ bool M_AdjustBlindfireTarget2(edict_t* self, const vec3_t& start, const vec3_t& 
 	}
 
 	// try shifting the target to the left a little (to help counter large offset)
-	vec3_t left_target = target + (right * -20);
+	vec3_t const left_target = target + (right * -20);
 	trace = gi.traceline(start, left_target, self, MASK_PROJECTILE);
 
 	if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
@@ -341,7 +341,7 @@ bool M_AdjustBlindfireTarget2(edict_t* self, const vec3_t& start, const vec3_t& 
 	}
 
 	// ok, that failed.  try to the right
-	vec3_t right_target = target + (right * 20);
+	vec3_t const right_target = target + (right * 20);
 	trace = gi.traceline(start, right_target, self, MASK_PROJECTILE);
 	if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
 	{
@@ -456,7 +456,7 @@ void tank_vanillaRocket(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;								 // PGM
 
-	bool   blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
+	bool   const blindfire = self->monsterinfo.aiflags & AI_MANUAL_STEERING;
 
 	if (self->s.frame == FRAME_attak324)
 		flash_number = MZ2_TANK_ROCKET_1;
@@ -532,7 +532,7 @@ void tank_vanillaRocket(edict_t* self)
 	}
 	else
 	{
-		trace_t trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
+		trace_t const trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
 
 		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
 		{
@@ -589,7 +589,7 @@ static void tank_vanilla_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
@@ -873,7 +873,7 @@ void Monster_MoveSpawn(edict_t* self) {
 		self->monsterinfo.monster_slots <= 0)
 		return;
 
-	int available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
+	int const available_slots = self->monsterinfo.monster_slots - self->monsterinfo.monster_used;
 	if (available_slots <= 0)
 		return;
 
@@ -888,12 +888,12 @@ void Monster_MoveSpawn(edict_t* self) {
 	// Función auxiliar para verificar si una posición es válida
 	auto trySpawnPosition = [&](const vec3_t& spawn_origin, const vec3_t& spawn_angles) -> bool {
 		// Verificar espacio libre en diferentes alturas
-		for (float height_test : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
+		for (float const height_test : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
 			vec3_t test_origin = spawn_origin;
 			test_origin.z += height_test;
 
 			// Trazar línea desde el spawner hasta la posición de spawn
-			trace_t trace = gi.traceline(self->s.origin, test_origin, self, MASK_SOLID);
+			trace_t const trace = gi.traceline(self->s.origin, test_origin, self, MASK_SOLID);
 			if (trace.fraction < 1.0f)
 				continue;
 
@@ -923,7 +923,7 @@ void Monster_MoveSpawn(edict_t* self) {
 				if (g_horde->integer)
 					monster->item = brandom() ? G_HordePickItem() : nullptr;
 				ApplyMonsterBonusFlags(monster);
-				float size = (monster->maxs - monster->mins).length() * 0.5f;
+				float const size = (monster->maxs - monster->mins).length() * 0.5f;
 				SpawnGrow_Spawn(test_origin, size * 2.0f, size * 0.5f);
 				self->monsterinfo.monster_used += reinf.strength;
 				return true;
@@ -936,7 +936,7 @@ void Monster_MoveSpawn(edict_t* self) {
 
 	// Primero intentar las posiciones predefinidas
 	for (const auto& pos : tank_vanilla_reinforcement_position) {
-		vec3_t spawn_origin = self->s.origin + pos;
+		vec3_t const spawn_origin = self->s.origin + pos;
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = atan2f(pos.y, pos.x) * (180.0f / PIf);
 
@@ -947,14 +947,14 @@ void Monster_MoveSpawn(edict_t* self) {
 	// Si las posiciones predefinidas fallan, intentar posiciones aleatorias
 	for (int i = 0; i < MAX_ATTEMPTS; i++) {
 		float spawn_angle = frandom(2.0f * PIf);
-		float radius = frandom(RADIUS_MIN, RADIUS_MAX);
-		vec3_t offset{
+		float const radius = frandom(RADIUS_MIN, RADIUS_MAX);
+		vec3_t const offset{
 			cosf(spawn_angle) * radius,
 			sinf(spawn_angle) * radius,
 			HEIGHT_OFFSET
 		};
 
-		vec3_t spawn_origin = self->s.origin + offset;
+		vec3_t const spawn_origin = self->s.origin + offset;
 		vec3_t spawn_angles = self->s.angles;
 		spawn_angles[YAW] = spawn_angle * (180.0f / PIf);
 

@@ -31,10 +31,10 @@ float entdist(const edict_t* ent1, const edict_t* ent2)
 	// check 8 angles at 45 degree intervals
 	for (int i = 0; i < 8; i++)
 	{
-		float yaw = anglemod(i * ANGLE_INCREMENT);
-		float rad_yaw = DEG2RAD(yaw);
+		float const yaw = anglemod(i * ANGLE_INCREMENT);
+		float const rad_yaw = DEG2RAD(yaw);
 
-		vec3_t forward = {
+		vec3_t const forward = {
 			cosf(rad_yaw),
 			sinf(rad_yaw),
 			0.0f
@@ -447,7 +447,7 @@ void TankGrenades(edict_t* self)
 		offset = { 19.8f, -23.9f, 32.1f };
 
 	// Calcular punto de inicio usando M_ProjectFlashSource
-	vec3_t start = M_ProjectFlashSource(self, offset, forward, right);
+	vec3_t const start = M_ProjectFlashSource(self, offset, forward, right);
 
 	// Determinar si es disparo de mortero
 	const bool is_mortar = (self->s.frame == FRAME_attak110);
@@ -509,7 +509,7 @@ void TankBlaster(edict_t* self)
 	const vec3_t bullet_start = G_ProjectSource(self->s.origin, bullet_offset, forward, right);
 
 	if (blindfire) {
-		vec3_t target = self->monsterinfo.blind_fire_target;
+		vec3_t const target = self->monsterinfo.blind_fire_target;
 		if (!M_AdjustBlindfireTarget(self, start, target, right, dir))
 			return;
 	}
@@ -610,9 +610,6 @@ void commander_punch(edict_t* self)
 	if (level.time < self->monsterinfo.spawn_cooldown)
 		return;
 
-	float range = (self->s.origin - self->enemy->s.origin).length();
-	float r = frandom();
-
 	// Intento de teleportación si no está en modo estático
 	if (!(self->monsterinfo.aiflags & AI_STAND_GROUND))
 	{
@@ -621,19 +618,13 @@ void commander_punch(edict_t* self)
 			// Establecer el cooldown después de un teleport exitoso
 			self->monsterinfo.spawn_cooldown = level.time + TELEPORT_COOLDOWN;
 
-			//if (r <= 0.5f)
-			{
-				M_SetAnimation(self, &tank_move_commander_punch);
-				TankStrike(self);
-				self->monsterinfo.attack_finished = level.time + 0.5_sec;
-				return;
-			}
-			// Recalcular distancia después del teleport
-			range = (self->s.origin - self->enemy->s.origin).length();
+			M_SetAnimation(self, &tank_move_commander_punch);
+			TankStrike(self);
+			self->monsterinfo.attack_finished = level.time + 0.5_sec;
+			return;
 		}
 	}
 }
-
 
 void TankRocket(edict_t* self)
 {
@@ -750,10 +741,10 @@ void TankMachineGun(edict_t* self)
 	M_ChangeYaw(self);
 
 	// Resto del código igual...
-	monster_muzzleflash_id_t flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
+	monster_muzzleflash_id_t const flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_TANK_MACHINEGUN_1 + (self->s.frame - FRAME_attak406));
 	vec3_t forward, right;
 	AngleVectors(self->s.angles, forward, right, nullptr);
-	vec3_t start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
+	vec3_t const start = M_ProjectFlashSource(self, monster_flash_offset[flash_number], forward, right);
 
 	if (self->enemy) {
 		vec3_t vec = self->enemy->s.origin;

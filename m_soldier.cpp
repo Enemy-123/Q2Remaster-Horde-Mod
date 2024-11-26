@@ -244,7 +244,7 @@ MMOVE_T(soldier_move_stand3) = { FRAME_stand301, FRAME_stand339, soldier_frames_
 
 MONSTERINFO_STAND(soldier_stand) (edict_t* self) -> void
 {
-	float r = frandom();
+	float const r = frandom();
 
 	if ((self->monsterinfo.active_move != &soldier_move_stand1) || (r < 0.6f))
 		M_SetAnimation(self, &soldier_move_stand1);
@@ -764,7 +764,7 @@ static void soldier_blind_check(edict_t* self)
 {
 	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
 	{
-		vec3_t aim = self->monsterinfo.blind_fire_target - self->s.origin;
+		vec3_t const aim = self->monsterinfo.blind_fire_target - self->s.origin;
 		self->ideal_yaw = vectoyaw(aim);
 	}
 }
@@ -1219,7 +1219,7 @@ MONSTERINFO_ATTACK(soldier_attack) (edict_t* self) -> void
 			if (!style.has_shotgun() || range_to(self, self->enemy) > (RANGE_NEAR * 0.65f))
 				attack1_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_1]);
 
-			bool attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
+			bool const attack2_possible = M_CheckClearShot(self, monster_flash_offset[MZ2_SOLDIER_BLASTER_2]);
 
 			if (attack1_possible && (!attack2_possible || frandom() < 0.5f))
 			{
@@ -1299,7 +1299,7 @@ static void soldier_stand_up(edict_t* self)
 	self->monsterinfo.nextframe = FRAME_runt08;
 }
 
-static bool soldier_prone_shoot_ok(edict_t* self)
+static bool soldier_prone_shoot_ok(const edict_t* self)
 {
 	if (!self->enemy || !self->enemy->inuse)
 		return false;
@@ -1311,7 +1311,7 @@ static bool soldier_prone_shoot_ok(edict_t* self)
 	diff.z = 0;
 	diff.normalize();
 
-	float v = fwd.dot(diff);
+	float const v = fwd.dot(diff);
 
 	if (v < 0.80f)
 		return false;
@@ -1335,11 +1335,11 @@ static void ai_soldier_move(edict_t* self, float dist)
 	}
 
 	// Calcular dirección al enemigo
-	vec3_t dir = self->enemy->s.origin - self->s.origin;
+	vec3_t const dir = self->enemy->s.origin - self->s.origin;
 	float ideal_yaw = vectoyaw(dir);
 
 	// Limitar el ángulo de rotación mientras está tendido
-	float current_yaw = anglemod(self->s.angles[YAW]);
+	float const current_yaw = anglemod(self->s.angles[YAW]);
 	float delta_yaw = anglemod(ideal_yaw - current_yaw);
 
 	// Permitir rotación solo dentro de un cono de ~120 grados (60 a cada lado)
@@ -1354,7 +1354,7 @@ static void ai_soldier_move(edict_t* self, float dist)
 	}
 
 	// Actualizar la orientación del soldier suavemente
-	float yaw_speed = 3.0f; // Velocidad de rotación más lenta mientras está tendido
+	float const yaw_speed = 3.0f; // Velocidad de rotación más lenta mientras está tendido
 	if (delta_yaw > yaw_speed)
 		self->s.angles[YAW] = anglemod(current_yaw + yaw_speed);
 	else if (delta_yaw < -yaw_speed)
@@ -1428,7 +1428,7 @@ MMOVE_T(soldier_move_trip) = { FRAME_runt01, FRAME_runt19, soldier_frames_trip, 
 
 static void soldier_high_gravity(edict_t* self)
 {
-	float gravity_scale = (800.f / level.gravity);
+	float const gravity_scale = (800.f / level.gravity);
 
 	if (self->velocity[2] < 0)
 		self->gravity = 2.0f;  // Aumentado de 1.75f para una caída más notable
@@ -1527,7 +1527,7 @@ MONSTERINFO_BLOCKED(soldier_blocked) (edict_t* self, float dist) -> bool
 {
 	if (self->monsterinfo.can_jump)
 	{
-		if (auto result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
+		if (auto const result = blocked_checkjump(self, dist); result != blocked_jump_result_t::NO_JUMP)
 		{
 			soldier_jump(self, result);
 			return true;
