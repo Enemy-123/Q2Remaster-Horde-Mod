@@ -44,8 +44,8 @@ void weapon_tesla_fire(edict_t* ent, bool held)
 	// limit upwards angle so you don't throw behind you
 	P_ProjectSource(ent, { max(-62.5f, ent->client->v_angle[0]), ent->client->v_angle[1], ent->client->v_angle[2] }, { 0, 0, -22 }, start, dir);
 
-	gtime_t timer = ent->client->grenade_time - level.time;
-	int	  speed = (int)(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
+	gtime_t const timer = ent->client->grenade_time - level.time;
+	int	  const speed = (int)(ent->health <= 0 ? GRENADE_MINSPEED : min(GRENADE_MINSPEED + (GRENADE_TIMER - timer).seconds() * ((GRENADE_MAXSPEED - GRENADE_MINSPEED) / GRENADE_TIMER.seconds()), GRENADE_MAXSPEED));
 
 	ent->client->grenade_time = 0_ms;
 
@@ -360,8 +360,8 @@ constexpr int32_t HEATBEAM_SP_DMG = 15;
 
 void Heatbeam_Fire(edict_t* ent)
 {
-	bool firing = (ent->client->buttons & BUTTON_ATTACK);
-	bool has_ammo = ent->client->pers.inventory[ent->client->pers.weapon->ammo] >= ent->client->pers.weapon->quantity;
+	bool const firing = (ent->client->buttons & BUTTON_ATTACK);
+	bool const has_ammo = ent->client->pers.inventory[ent->client->pers.weapon->ammo] >= ent->client->pers.weapon->quantity;
 
 	if (!firing || !has_ammo)
 	{

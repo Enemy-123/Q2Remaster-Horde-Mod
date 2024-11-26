@@ -141,7 +141,7 @@ static void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_
 		}
 
 		// Velocidad aleatoria para cada granada
-		float velocity = config.min_velocity + frandom() * (config.max_velocity - config.min_velocity);
+		float const velocity = config.min_velocity + frandom() * (config.max_velocity - config.min_velocity);
 
 		// Tiempo de explosión aleatorio
 		float explode_time = config.min_fuse_time + frandom() * (config.max_fuse_time - config.min_fuse_time);
@@ -632,7 +632,7 @@ static BoxEdictsResult_t fire_player_melee_BoxFilter(edict_t* check, void* data_
 		return BoxEdictsResult_t::Skip;
 
 	// check angle if we aren't intersecting
-	vec3_t shrink{ 2, 2, 2 };
+	vec3_t const shrink{ 2, 2, 2 };
 	if (!boxes_intersect(check->absmin + shrink, check->absmax - shrink, data->self->absmin + shrink, data->self->absmax - shrink))
 	{
 		dir = (((check->absmin + check->absmax) / 2) - data->start).normalized();
@@ -648,7 +648,7 @@ bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, in
 {
 	constexpr size_t MAX_HIT = 4;
 
-	vec3_t reach_vec{ float(reach - 1), float(reach - 1), float(reach - 1) };
+	vec3_t const reach_vec{ float(reach - 1), float(reach - 1), float(reach - 1) };
 	edict_t* targets[MAX_HIT];
 
 	player_melee_data_t data{
@@ -1032,7 +1032,8 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 	if (!classname)
 		return BoxEdictsResult_t::Keep;
 
-	if ((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP) || check->monsterinfo.invincible_time > level.time)
+	if (((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP)) ||
+		check->monsterinfo.invincible_time > level.time)
 		return BoxEdictsResult_t::Skip;
 
 	if (strcmp(classname, "monster_sentrygun") == 0 ||
@@ -1062,7 +1063,7 @@ vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 	// En pared
 	if (fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135) {
 		// Obtener el YAW normalizado
-		float yaw = fmod(self->s.angles[YAW] + 360.0f, 360.0f);
+		float const yaw = fmod(self->s.angles[YAW] + 360.0f, 360.0f);
 
 		// Cálculo base del punto de origen
 		ray_origin = ray_origin + (forward * 8.0f);  // Mover hacia adelante

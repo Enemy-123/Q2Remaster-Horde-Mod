@@ -197,8 +197,8 @@ struct fire_lead_pierce_t : pierce_args_t
 				dir = end - start;
 				dir = vectoangles(dir);
 				AngleVectors(dir, forward, right, up);
-				float r = crandom() * hspread * 2;
-				float u = crandom() * vspread * 2;
+				float const r = crandom() * hspread * 2;
+				float const u = crandom() * vspread * 2;
 				end = water_start + (forward * 8192);
 				end += (right * r);
 				end += (up * u);
@@ -294,8 +294,8 @@ static void fire_lead(edict_t* self, const vec3_t& start, const vec3_t& aimdir, 
 		dir = vectoangles(aimdir);
 		AngleVectors(dir, forward, right, up);
 
-		float r = crandom() * hspread;
-		float u = crandom() * vspread;
+		float const r = crandom() * hspread;
+		float const u = crandom() * vspread;
 		end = start + (forward * 8192);
 		end += (right * r);
 		end += (up * u);
@@ -457,7 +457,7 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	gi.linkentity(bolt);
 
 	if (self->svflags & SVF_MONSTER) {
-		damage *= M_DamageModifier(self);
+		bolt->dmg *= M_DamageModifier(self);
 	}
 
 
@@ -491,7 +491,7 @@ static void Grenade_ExplodeReal(edict_t* ent, edict_t* other, vec3_t normal)
 	// FIXME: if we are onground then raise our Z just a bit since we are a point?
 	if (other)
 	{
-		vec3_t dir = other->s.origin - ent->s.origin;
+		vec3_t const dir = other->s.origin - ent->s.origin;
 		if (ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND))
 			mod = MOD_HANDGRENADE;
 		else
@@ -607,8 +607,8 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 	// Daño directo si impacta con algo
 	if (other)
 	{
-		vec3_t dir = other->s.origin - ent->s.origin;
-		mod_t mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND) ?
+		vec3_t const dir = other->s.origin - ent->s.origin;
+		mod_t const mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND) ?
 			MOD_HANDGRENADE : MOD_GRENADE;
 
 		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal,
@@ -618,7 +618,7 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 	}
 
 	// Daño de radio
-	mod_t splash_mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD) ? MOD_HELD_GRENADE :
+	mod_t const splash_mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HELD) ? MOD_HELD_GRENADE :
 		ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND) ? MOD_HG_SPLASH :
 		MOD_G_SPLASH;
 
@@ -626,7 +626,7 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 		ent->dmg_radius, DAMAGE_NONE, splash_mod);
 
 	// Efectos visuales
-	vec3_t origin = ent->s.origin + normal;
+	vec3_t const origin = ent->s.origin + normal;
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(ent->waterlevel ?
 		(ent->groundentity ? TE_GRENADE_EXPLOSION_WATER : TE_ROCKET_EXPLOSION_WATER) :
@@ -640,7 +640,7 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 		// Nueva dirección aleatoria si está en el suelo
 		if (ent->groundentity)
 		{
-			vec3_t dir = {
+			vec3_t const dir = {
 				crandom() * BOUNCY_CONFIG.random_dir_scale,
 				crandom() * BOUNCY_CONFIG.random_dir_scale,
 				crandom() * BOUNCY_CONFIG.random_dir_scale
@@ -670,7 +670,7 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 
 THINK(BouncyGrenade_Explode)(edict_t* ent) -> void
 {
-	vec3_t normal = -ent->velocity;
+	vec3_t const normal = -ent->velocity;
 	BouncyGrenade_ExplodeReal(ent, ent->groundentity, normal);
 }
 
@@ -695,7 +695,7 @@ THINK(BouncyGrenade_Think)(edict_t* ent) -> void
 {
 	if (ent->groundentity || !ent->velocity[2])
 	{
-		vec3_t normal = -ent->velocity;
+		vec3_t const normal = -ent->velocity;
 		BouncyGrenade_ExplodeReal(ent, ent->groundentity, normal);
 	}
 	else
@@ -718,7 +718,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 
 	if (up_adjust)
 	{
-		float gravityAdjustment = level.gravity / 800.f;
+		float const gravityAdjustment = level.gravity / 800.f;
 		grenade->velocity += up * up_adjust * gravityAdjustment;
 	}
 
@@ -796,7 +796,7 @@ void fire_grenade2(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int
 	grenade->s.origin = start;
 	grenade->velocity = aimdir * speed;
 
-	float gravityAdjustment = level.gravity / 800.f;
+	float const gravityAdjustment = level.gravity / 800.f;
 
 	grenade->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
 	grenade->velocity += right * (crandom() * 10.0f);
@@ -980,7 +980,7 @@ using search_callback_t = decltype(game_import_t::inPVS);
 bool binary_positional_search_r(const vec3_t& viewer, const vec3_t& start, const vec3_t& end, search_callback_t cb, int32_t split_num)
 {
 	// check half-way point
-	vec3_t mid = (start + end) * 0.5f;
+	vec3_t const mid = (start + end) * 0.5f;
 
 	if (cb(viewer, mid, true))
 		return true;
@@ -1091,18 +1091,18 @@ bool fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int dam
 	if (self->client && !G_ShouldPlayersCollide(true))
 		mask &= ~CONTENTS_PLAYER;
 
-	vec3_t end = start + (aimdir * 8192);
+	vec3_t const end = start + (aimdir * 8192);
 
 	pierce_trace(start, end, self, args, mask);
 
-	uint32_t unicast_key = GetUnicastKey();
+	uint32_t const unicast_key = GetUnicastKey();
 
 	// send gun puff / flash
 	// [Paril-KEX] this often makes double noise, so trying
 	// a slightly different approach...
 	for (auto player : active_players())
 	{
-		vec3_t org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
+		vec3_t const org = player->s.origin + player->client->ps.viewoffset + vec3_t{ 0, 0, (float)player->client->ps.pmove.viewheight };
 
 		if (binary_positional_search(org, start, args.tr.endpos, gi.inPHS, 3))
 		{
@@ -1177,10 +1177,8 @@ fire_bfg
 =================
 */
 
-#include <algorithm>
-
 constexpr float BFG10K_INITIAL_SPEED = 400.0f;
-constexpr gtime_t BFG_EXPIRE_TIME = 10_sec;
+//constexpr gtime_t BFG_EXPIRE_TIME = 10_sec;
 constexpr gtime_t BFG_WALL_EXPIRE_TIME = 2_sec;
 constexpr gtime_t BFG_MAX_LIFETIME = 8_sec;
 
@@ -1234,7 +1232,7 @@ THINK(bfg_explode) (edict_t* self) -> void
 		self->think = G_FreeEdict;
 }
 
-int calculate_bfg_range(edict_t* self)
+int calculate_bfg_range(const edict_t* self)
 {
 	if (self->owner->svflags & SVF_MONSTER)
 	{
@@ -1329,7 +1327,7 @@ THINK(bfg_think) (edict_t* self) -> void
 
 		point = (ent->absmin + ent->absmax) * 0.5f;
 		dir = self->s.origin - point;
-		float const distance = dir.length();
+		//float const distance = dir.length();
 		dir.normalize();
 
 		start = self->s.origin;
