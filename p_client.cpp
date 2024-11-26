@@ -1034,140 +1034,145 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		}
 	}
 
-	if (!taken_loadout) {
-		// Base ammo initialization
-		client->pers.max_ammo.fill(50);
+	// don't give us weapons if we shouldn't have any
+	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
+		(!G_TeamplayEnabled() && !client->resp.spectator))
+	{
 
-		// Set ammo based on game mode and wave level
-		const bool is_horde = g_horde->integer != 0;
-		const bool is_high_level = current_wave_level >= 15;
+		if (!taken_loadout) {
+			// Base ammo initialization
+			client->pers.max_ammo.fill(50);
 
-		if (is_horde && is_high_level) {
-			// High level horde ammo
-			client->pers.max_ammo[AMMO_BULLETS] = 400;
-			client->pers.max_ammo[AMMO_SHELLS] = 175;
-			client->pers.max_ammo[AMMO_CELLS] = 400;
-			client->pers.max_ammo[AMMO_FLECHETTES] = 400;
-			client->pers.max_ammo[AMMO_GRENADES] = 125;
-			client->pers.max_ammo[AMMO_ROCKETS] = 100;
-			client->pers.max_ammo[AMMO_SLUGS] = 75;
-			client->pers.max_ammo[AMMO_MAGSLUG] = 125;
-			client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
-			client->pers.max_ammo[AMMO_TESLA] = 12;
-			client->pers.max_ammo[AMMO_PROX] = 125;
-			client->pers.max_ammo[AMMO_TRAP] = 8;
-		}
-		else if (is_horde) {
-			// Basic horde ammo
-			client->pers.max_ammo[AMMO_BULLETS] = 250;
-			client->pers.max_ammo[AMMO_SHELLS] = 100;
-			client->pers.max_ammo[AMMO_CELLS] = 250;
-			client->pers.max_ammo[AMMO_FLECHETTES] = 250;
-			client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-			client->pers.max_ammo[AMMO_TESLA] = 5;
-			client->pers.max_ammo[AMMO_TRAP] = 5;
-		}
-		else {
-			// Standard ammo
-			client->pers.max_ammo[AMMO_BULLETS] = 200;
-			client->pers.max_ammo[AMMO_SHELLS] = 100;
-			client->pers.max_ammo[AMMO_CELLS] = 200;
-			client->pers.max_ammo[AMMO_FLECHETTES] = 200;
-			client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
-			client->pers.max_ammo[AMMO_TESLA] = 5;
-			client->pers.max_ammo[AMMO_TRAP] = 5;
-		}
+			// Set ammo based on game mode and wave level
+			const bool is_horde = g_horde->integer != 0;
+			const bool is_high_level = current_wave_level >= 15;
 
-		// Give blaster in deathmatch
-		if (deathmatch->integer)
-			client->pers.inventory[IT_WEAPON_BLASTER] = 1;
+			if (is_horde && is_high_level) {
+				// High level horde ammo
+				client->pers.max_ammo[AMMO_BULLETS] = 400;
+				client->pers.max_ammo[AMMO_SHELLS] = 175;
+				client->pers.max_ammo[AMMO_CELLS] = 400;
+				client->pers.max_ammo[AMMO_FLECHETTES] = 400;
+				client->pers.max_ammo[AMMO_GRENADES] = 125;
+				client->pers.max_ammo[AMMO_ROCKETS] = 100;
+				client->pers.max_ammo[AMMO_SLUGS] = 75;
+				client->pers.max_ammo[AMMO_MAGSLUG] = 125;
+				client->pers.max_ammo[AMMO_DISRUPTOR] = 30;
+				client->pers.max_ammo[AMMO_TESLA] = 12;
+				client->pers.max_ammo[AMMO_PROX] = 125;
+				client->pers.max_ammo[AMMO_TRAP] = 8;
+			}
+			else if (is_horde) {
+				// Basic horde ammo
+				client->pers.max_ammo[AMMO_BULLETS] = 250;
+				client->pers.max_ammo[AMMO_SHELLS] = 100;
+				client->pers.max_ammo[AMMO_CELLS] = 250;
+				client->pers.max_ammo[AMMO_FLECHETTES] = 250;
+				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+				client->pers.max_ammo[AMMO_TESLA] = 5;
+				client->pers.max_ammo[AMMO_TRAP] = 5;
+			}
+			else {
+				// Standard ammo
+				client->pers.max_ammo[AMMO_BULLETS] = 200;
+				client->pers.max_ammo[AMMO_SHELLS] = 100;
+				client->pers.max_ammo[AMMO_CELLS] = 200;
+				client->pers.max_ammo[AMMO_FLECHETTES] = 200;
+				client->pers.max_ammo[AMMO_DISRUPTOR] = 12;
+				client->pers.max_ammo[AMMO_TESLA] = 5;
+				client->pers.max_ammo[AMMO_TRAP] = 5;
+			}
 
-		// Process start items
-		if (*g_start_items->string)
-			Player_GiveStartItems(ent, g_start_items->string);
-		if (level.start_items && *level.start_items)
-			Player_GiveStartItems(ent, level.start_items);
+			// Give blaster in deathmatch
+			if (deathmatch->integer)
+				client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
-		G_CheckPowerArmor(ent);
+			// Process start items
+			if (*g_start_items->string)
+				Player_GiveStartItems(ent, g_start_items->string);
+			if (level.start_items && *level.start_items)
+				Player_GiveStartItems(ent, level.start_items);
 
-		// Standard items for non-deathmatch/coop
-		if (!deathmatch->integer || coop->integer) {
-			client->pers.inventory[IT_ITEM_COMPASS] = 1;
-			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
-		}
+			G_CheckPowerArmor(ent);
 
-		//
-		// HORDE MODE SPECIFICS
-		//
-		if (g_horde->integer) {
-			client->pers.inventory[IT_ITEM_MENU] = 1;
-			client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			// Standard items for non-deathmatch/coop
+			if (!deathmatch->integer || coop->integer) {
+				client->pers.inventory[IT_ITEM_COMPASS] = 1;
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+			}
 
-			// Force TECHs on bots
-			if (ent->svflags & SVF_BOT && ent->client->resp.ctf_team != CTF_NOTEAM) {
-				for (int i = 0; i < MAX_ITEMS; i++) {
-					if (itemlist[i].flags & IF_TECH) {
-						client->pers.inventory[IT_TECH_STRENGTH] =
-							(ent->client->pers.inventory[i] == 0) ? 1 : 0;
+			//
+			// HORDE MODE SPECIFICS
+			//
+			if (g_horde->integer) {
+				client->pers.inventory[IT_ITEM_MENU] = 1;
+				client->pers.inventory[IT_ITEM_FLASHLIGHT] = 1;
+
+				// Force TECHs on bots
+				if (ent->svflags & SVF_BOT && ent->client->resp.ctf_team != CTF_NOTEAM) {
+					for (int i = 0; i < MAX_ITEMS; i++) {
+						if (itemlist[i].flags & IF_TECH) {
+							client->pers.inventory[IT_TECH_STRENGTH] =
+								(ent->client->pers.inventory[i] == 0) ? 1 : 0;
+						}
+					}
+				}
+
+				// Horde mode weapons based on wave level
+				if (G_IsDeathmatch()) {
+					const bool give_advanced = current_wave_level >= 13;
+					const bool give_basic = current_wave_level >= 5;
+
+					if (give_advanced || give_basic) {
+						// Common weapons for both loadouts
+						client->pers.inventory[IT_WEAPON_BLASTER] =
+							client->pers.inventory[IT_WEAPON_CHAINFIST] =
+							client->pers.inventory[IT_WEAPON_SHOTGUN] =
+							client->pers.inventory[IT_WEAPON_SSHOTGUN] =
+							client->pers.inventory[IT_WEAPON_MACHINEGUN] =
+							client->pers.inventory[IT_WEAPON_ETF_RIFLE] =
+							client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
+
+						// Additional weapons for advanced loadout
+						if (give_advanced) {
+							client->pers.inventory[IT_WEAPON_CHAINGUN] =
+								client->pers.inventory[IT_WEAPON_GLAUNCHER] =
+								client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
+						}
 					}
 				}
 			}
 
-			// Horde mode weapons based on wave level
-			if (G_IsDeathmatch()) {
-				const bool give_advanced = current_wave_level >= 13;
-				const bool give_basic = current_wave_level >= 5;
+			// Handle grapple
+			const bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
+				(ctf->integer ? !level.no_grapple : 0) :
+				g_allow_grapple->integer;
 
-				if (give_advanced || give_basic) {
-					// Common weapons for both loadouts
-					client->pers.inventory[IT_WEAPON_BLASTER] =
-						client->pers.inventory[IT_WEAPON_CHAINFIST] =
-						client->pers.inventory[IT_WEAPON_SHOTGUN] =
-						client->pers.inventory[IT_WEAPON_SSHOTGUN] =
-						client->pers.inventory[IT_WEAPON_MACHINEGUN] =
-						client->pers.inventory[IT_WEAPON_ETF_RIFLE] =
-						client->pers.inventory[IT_WEAPON_PROXLAUNCHER] = 1;
-
-					// Additional weapons for advanced loadout
-					if (give_advanced) {
-						client->pers.inventory[IT_WEAPON_CHAINGUN] =
-							client->pers.inventory[IT_WEAPON_GLAUNCHER] =
-							client->pers.inventory[IT_WEAPON_RLAUNCHER] = 1;
-					}
-				}
-			}
+			if (give_grapple)
+				client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
 		}
 
-		// Handle grapple
-		const bool give_grapple = (!strcmp(g_allow_grapple->string, "auto")) ?
-			(ctf->integer ? !level.no_grapple : 0) :
-			g_allow_grapple->integer;
-
-		if (give_grapple)
-			client->pers.inventory[IT_WEAPON_GRAPPLE] = 1;
-	}
-
-	//
-	// WEAPON SELECTION
-	//
-	if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
-		client->pers.weapon = client->pers.lastweapon;
-		client->pers.selected_item = client->pers.lastweapon->id;
-	}
-	else {
-		NoAmmoWeaponChange(ent, false);
-		if (client->newweapon) {
-			client->pers.weapon = client->newweapon;
-			client->pers.selected_item = client->newweapon->id;
+		//
+		// WEAPON SELECTION
+		//
+		if (client->pers.lastweapon && client->pers.inventory[client->pers.lastweapon->id] > 0) {
+			client->pers.weapon = client->pers.lastweapon;
+			client->pers.selected_item = client->pers.lastweapon->id;
 		}
 		else {
-			gitem_t* item = FindItem("Blaster");
-			client->pers.selected_item = item->id;
-			client->pers.inventory[item->id] = 1;
-			client->pers.weapon = item;
+			NoAmmoWeaponChange(ent, false);
+			if (client->newweapon) {
+				client->pers.weapon = client->newweapon;
+				client->pers.selected_item = client->newweapon->id;
+			}
+			else {
+				gitem_t* item = FindItem("Blaster");
+				client->pers.selected_item = item->id;
+				client->pers.inventory[item->id] = 1;
+				client->pers.weapon = item;
+			}
 		}
 	}
-
 	//
 	// FINAL SETUP
 	//
