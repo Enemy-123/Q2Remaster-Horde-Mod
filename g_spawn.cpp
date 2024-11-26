@@ -1556,7 +1556,9 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	cached_modelindex::clear_all();
 	cached_imageindex::clear_all();
 
-	edict_t* ent;
+	edict_t* ent = nullptr;
+
+
 	int		 inhibit;
 	const char* com_token;
 

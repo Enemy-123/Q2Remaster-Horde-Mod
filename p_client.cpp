@@ -891,7 +891,7 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
 	if (g_horde->integer) {
-		if (!(ent->svflags & SVF_BOT) && client->resp.score <= 5) {
+		if (!(ent->svflags & SVF_BOT) && client->resp.score <= 2) {
 			// Cambiar a CTF_NOTEAM solo si el score es <= 5
 			client->resp.ctf_team = CTF_NOTEAM;
 		}
@@ -903,9 +903,6 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 			client->pers.inventory[i] = 0;
 		}
 	}
-
-	// Asegurarse de que el jugador tenga un blaster
-	client->pers.inventory[IT_WEAPON_BLASTER] = 1;
 
 	// Restablecer la salud
 	client->pers.health = 100;
@@ -2236,14 +2233,6 @@ inline void PutClientOnSpawnPoint(edict_t* ent, const vec3_t& spawn_origin, cons
 	AngleVectors(client->v_angle, client->v_forward, nullptr, nullptr);
 }
 
-/*
-===========
-PutClientInServer
-
-Called when a player connects to a server or respawns in
-a deathmatch.
-============
-*/
 /*
 ===========
 PutClientInServer

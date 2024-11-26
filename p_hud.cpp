@@ -791,6 +791,9 @@ void G_SetStats(edict_t* ent)
 	item_id_t power_armor_type;
 	unsigned int invIndex;
 
+	if (!ent || !ent->client)
+		return;
+
 	//
 	// health
 	//
@@ -802,7 +805,7 @@ void G_SetStats(edict_t* ent)
 
 	// Verificar y mantener el target_health_str
 	if (ent->client->ps.stats[STAT_CTF_ID_VIEW] != 0) {
-		int target_index = ent->client->ps.stats[STAT_CTF_ID_VIEW];
+		int const target_index = ent->client->ps.stats[STAT_CTF_ID_VIEW];
 		const edict_t* const target = &g_edicts[target_index];
 
 		if (target->inuse && target->client) {
