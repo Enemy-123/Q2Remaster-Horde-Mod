@@ -268,46 +268,38 @@ bool finishHeal(edict_t* self)
 
 	// Bodyque resurrection handling
 	if (isBodyque) {
+		// Validate position/angles before using
+		if (!healee->s.origin || !healee->s.angles) {
+			abortHeal(self, false, false);
+			return false;
+		}
+
 		vec3_t const position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
 
-		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
-		angles[ROLL] = 0;   // Eliminar rotación lateral
-
-		edict_t* insane = G_Spawn();
-		if (!insane) {
+		// Create new entity with validation
+		edict_t* new_ent = G_Spawn();
+		if (!new_ent) {
 			abortHeal(self, false, false);
 			return false;
 		}
 
-		insane->s.origin = position;
-		insane->s.angles = angles;
-		frandom() > 0.6f ?
-			insane->classname = "misc_insane"
-			: insane->classname = "monster_soldier_lasergun";
+		// Set position/angles
+		new_ent->s.origin = position;
+		new_ent->s.angles = angles;
 
-		if (g_horde->integer)
-			insane->item = brandom() ? G_HordePickItem() : nullptr;
-
+		// Ensure proper spawn
 		spawn_temp_t st{};
-		ED_CallSpawn(insane, st);
+		ED_CallSpawn(new_ent, st);
 
-		if (!insane->inuse) {
-			G_FreeEdict(insane);
+		if (!new_ent->inuse) {
+			G_FreeEdict(new_ent);
 			abortHeal(self, false, false);
 			return false;
 		}
 
-		// Handle original healee cleanup
+		// Handle original healee cleanup safely
 		if (healee) {
-			gi.sound(healee, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-
-			ThrowGibs(healee, 50, {
-				{ 2, "models/objects/gibs/bone/tris.md2" },
-				{ 4, "models/objects/gibs/sm_meat/tris.md2" },
-				{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
-				});
-
 			healee->s.modelindex = 0;
 			healee->solid = SOLID_NOT;
 			healee->takedamage = false;
@@ -316,7 +308,7 @@ bool finishHeal(edict_t* self)
 			G_FreeEdict(healee);
 		}
 
-		self->enemy = healee = insane;
+		self->enemy = healee = new_ent;
 	}
 
 	// insane  resurrection handling
