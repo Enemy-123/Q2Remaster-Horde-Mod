@@ -936,7 +936,7 @@ constexpr gtime_t TESLA_ACTIVATE_TIME = 1.2_sec;
 constexpr int32_t TESLA_EXPLOSION_DAMAGE_MULT = 50; // this is the amount the damage is multiplied by for underwater explosions
 constexpr float	  TESLA_EXPLOSION_RADIUS = 200;
 
-constexpr int MAX_TESLAS = 10; // Define el máximo de teslas permitidas por jugador
+constexpr int MAX_TESLAS = 12; // Define el máximo de teslas permitidas por jugador
 
 void tesla_remove(edict_t* self)
 {
