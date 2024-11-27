@@ -322,7 +322,7 @@ std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
 
 const std::unordered_set<std::string> smallMaps = {
 	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
-	"q64/dm9", "q64/dm7", "q64\\dm7", "q64/dm2", "test/spbox",
+	"q64/dm9", "q64/dm7", "q64/dm2", "test/spbox",
 	"q64/dm1", "fact3", "q2ctf4", "rdm4", "q64/command","mgu3m4",
 	"mgu4trial", "mgu6trial", "ec/base_ec", "mgdm1", "ndctf0", "q64/dm6",
 	"q64/dm8", "q64/dm4", "q64/dm3", "industry", "e3/jail_e3"
