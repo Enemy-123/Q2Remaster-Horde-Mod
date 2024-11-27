@@ -3966,56 +3966,52 @@ pmenuhnd_t* CreateHordeMenu(edict_t* ent)
 
 
 
-// Helper function para crear menú HUD
 pmenuhnd_t* CreateHUDMenu(edict_t* ent)
 {
-	static pmenu_t entries[8];  // Tamaño fijo para el menú HUD
+	// Uso de constexpr para tamaños fijos
+	static constexpr size_t MAX_ENTRIES = 8;
+	static constexpr size_t TEXT_BUFFER_SIZE = 64;
+	static pmenu_t entries[MAX_ENTRIES];
+
 	int count = 0;
 
+	// Struct helper para reducir repetición
+	struct MenuEntry {
+		const char* text;
+		int align;
+		SelectFunc_t func;
+	};
+
+	// Helper para añadir entradas
+	auto add_entry = [&](const char* text, int align, SelectFunc_t func = nullptr) {
+		if (count < MAX_ENTRIES) {
+			Q_strlcpy(entries[count].text, text, sizeof(entries[count].text));
+			entries[count].align = align;
+			entries[count].SelectFunc = func;
+			count++;
+		}
+		};
+
 	// Título y espaciado
-	Q_strlcpy(entries[count].text, "*HUD Options", sizeof(entries[count].text));
-	entries[count].align = PMENU_ALIGN_CENTER;
-	entries[count].SelectFunc = nullptr;
-	count++;
+	add_entry("*HUD Options", PMENU_ALIGN_CENTER);
+	add_entry("", PMENU_ALIGN_CENTER);
 
-	Q_strlcpy(entries[count].text, "", sizeof(entries[count].text));
-	entries[count].align = PMENU_ALIGN_CENTER;
-	entries[count].SelectFunc = nullptr;
-	count++;
+	// Buffer para los textos formateados
+	char id_text[TEXT_BUFFER_SIZE];
+	char dmg_text[TEXT_BUFFER_SIZE];
 
-	// Opciones de ID con estado actual
-	char id_text[64];
-	char dmg_text[64];
+	// Los snprintf están bien aquí
 	snprintf(id_text, sizeof(id_text), "Enable/Disable ID [%s]",
 		ent->client->pers.id_state ? "ON" : "OFF");
 	snprintf(dmg_text, sizeof(dmg_text), "Enable/Disable ID-DMG [%s]",
 		ent->client->pers.iddmg_state ? "ON" : "OFF");
 
-	// Copiar los textos generados a las entradas del menú
-	Q_strlcpy(entries[count].text, id_text, sizeof(entries[count].text));
-	entries[count].align = PMENU_ALIGN_LEFT;
-	entries[count].SelectFunc = HUDMenuHandler;
-	count++;
-
-	Q_strlcpy(entries[count].text, dmg_text, sizeof(entries[count].text));
-	entries[count].align = PMENU_ALIGN_LEFT;
-	entries[count].SelectFunc = HUDMenuHandler;
-	count++;
-
-	Q_strlcpy(entries[count].text, "", sizeof(entries[count].text));
-	entries[count].align = PMENU_ALIGN_CENTER;
-	entries[count].SelectFunc = nullptr;
-	count++;
-
-	Q_strlcpy(entries[count].text, "Back to Horde Menu", sizeof(entries[count].text));
-	entries[count].align = PMENU_ALIGN_LEFT;
-	entries[count].SelectFunc = HUDMenuHandler;
-	count++;
-
-	Q_strlcpy(entries[count].text, "Close", sizeof(entries[count].text));
-	entries[count].align = PMENU_ALIGN_LEFT;
-	entries[count].SelectFunc = HUDMenuHandler;
-	count++;
+	// Opciones del menú
+	add_entry(id_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
+	add_entry(dmg_text, PMENU_ALIGN_LEFT, HUDMenuHandler);
+	add_entry("", PMENU_ALIGN_CENTER);
+	add_entry("Back to Horde Menu", PMENU_ALIGN_LEFT, HUDMenuHandler);
+	add_entry("Close", PMENU_ALIGN_LEFT, HUDMenuHandler);
 
 	return PMenu_Open(ent, entries, -1, count, nullptr, nullptr);
 }
