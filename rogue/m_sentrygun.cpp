@@ -30,7 +30,7 @@ extern const mmove_t turret2_move_fire_blind;
 static cached_soundindex sound_moved, sound_moving, sound_pew;
 
 // Actualizar la posición del efecto
-void UpdateSmokePosition(edict_t* self) {
+static void UpdateSmokePosition(edict_t* self) {
 	if (!self || !self->inuse || !self->target_hint_chain || !self->target_hint_chain->inuse)
 		return;
 
@@ -412,7 +412,7 @@ MONSTERINFO_RUN(turret2_run) (edict_t* self) -> void
 
 //Powerups
 
-void TurretRespondPowerup(edict_t* turret, edict_t* owner) {
+static void TurretRespondPowerup(edict_t* turret, edict_t* owner) {
 	if (!turret || !owner || !owner->client)
 		return;
 
@@ -433,7 +433,7 @@ void TurretRespondPowerup(edict_t* turret, edict_t* owner) {
 }
 
 
-void TurretCheckPowerups(edict_t* turret) {
+static void TurretCheckPowerups(edict_t* turret) {
 	if (!turret || !turret->owner || !turret->owner->client)
 		return;
 
@@ -1097,7 +1097,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		}
 		dir.normalize();
 
-		float dot = dir.dot(forward);
+		float const dot = dir.dot(forward);
 		if (dot < 0.98f) // Asegurar que estamos bien alineados
 			return false;
 
@@ -1178,7 +1178,7 @@ Default weapon is blaster.
 When activated, wall units move 32 units in the direction they're facing.
 */
 
-THINK(EmitSmokeEffect)(edict_t* ent) -> void {
+static THINK(EmitSmokeEffect)(edict_t* ent) -> void {
 	if (!ent || !ent->owner || !ent->owner->inuse) {
 		G_FreeEdict(ent);
 		return;
