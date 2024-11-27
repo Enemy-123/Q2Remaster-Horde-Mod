@@ -49,7 +49,7 @@
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
+    <OutDir>..\..\..\..\..\Program Files %28x86%29\GOG Galaxy\Games\Quake II Enhanced\hordemod</OutDir>
     <TargetName>$(projectname)_x64</TargetName>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
@@ -94,7 +94,7 @@
       <RuntimeLibrary>MultiThreaded</RuntimeLibrary>
       <EnablePREfast>true</EnablePREfast>
       <Optimization>Disabled</Optimization>
-      <AdditionalOptions>/wd6285 /utf-8 %(AdditionalOptions)</AdditionalOptions>
+      <AdditionalOptions>/wd6285 /wd26821 /wd6246 /utf-8 %(AdditionalOptions)</AdditionalOptions>
       <AdditionalIncludeDirectories>$(VcpkgRoot)\installed\x64-windows-static\include</AdditionalIncludeDirectories>
       <LanguageStandard_C>Default</LanguageStandard_C>
     </ClCompile>

@@ -107,7 +107,7 @@ void ClientObituary(edict_t* self, edict_t* inflictor, edict_t* attacker, mod_t 
 {
 	const char* base = nullptr;
 
-	if (G_IsCooperative() && attacker->client || deathmatch->integer)
+	if ((G_IsCooperative() && attacker->client) || (deathmatch->integer))
 		mod.friendly_fire = true;
 
 	switch (mod.id)
@@ -624,7 +624,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 		if (deathmatch->integer && !self->client->showscores)
 			Cmd_Help_f(self); // show scores
 
-		if (deathmatch->integer && g_horde->integer && !P_UseCoopInstancedItems() || G_IsCooperative() && !P_UseCoopInstancedItems())
+		if ((deathmatch->integer && g_horde->integer && !P_UseCoopInstancedItems()) || (G_IsCooperative() && !P_UseCoopInstancedItems()))
 		{
 			// clear inventory
 			// this is kind of ugly, but it's how we want to handle keys in coop
@@ -796,7 +796,7 @@ DIE(player_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 					self->client->respawn_time = level.time + 2_sec;
 			}
 		}
-		else if (G_IsCooperative() && (g_coop_squad_respawn->integer || G_IsCooperative() && g_coop_enable_lives->integer))
+		else if (G_IsCooperative() && (g_coop_squad_respawn->integer || (G_IsCooperative() && g_coop_enable_lives->integer)))
 		{
 			if (g_coop_enable_lives->integer && self->client->pers.lives)
 			{
@@ -2414,7 +2414,7 @@ void PutClientInServer(edict_t* ent)
 		// [Kex] Maintain user info in singleplayer to keep the player skin.
 		memcpy(userinfo.get(), client->pers.userinfo, MAX_INFO_STRING);
 
-		if (G_IsCooperative() || deathmatch->integer && g_horde->integer)
+		if (G_IsCooperative() || (deathmatch->integer && g_horde->integer))
 		{
 			*resp = client->resp;
 
@@ -3108,7 +3108,7 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBot, edict_t** ignore, size_t num_ignore, bool cinematic)
 {
 	// coop and non-bots is the only thing that we need to do special behavior on
-	if (!cinematic && G_IsCooperative() && !isBot || !cinematic && g_horde->integer && !isBot)
+	if ((!cinematic && G_IsCooperative() && !isBot) || (!cinematic && g_horde->integer && !isBot))
 		return ClientChooseSlot_Coop(userinfo, social_id, isBot, ignore, num_ignore);
 
 	// just find any free slot

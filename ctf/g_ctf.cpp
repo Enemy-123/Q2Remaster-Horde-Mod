@@ -1095,13 +1095,11 @@ std::string FormatClassname(const std::string& classname) {
 
 bool IsValidClassname(const char* classname) noexcept {
 	if (!classname) return false;
-
-	for (const auto& prefix : ALLOWED_PREFIXES) {
+	for (const auto prefix : ALLOWED_PREFIXES) {  // Removido el & 
 		if (strncmp(classname, prefix.data(), prefix.length()) == 0) {
 			return true;
 		}
 	}
-
 	return false;
 }
 
@@ -3712,13 +3710,8 @@ void MapCategoryHandler(edict_t* ent, pmenuhnd_t* p) {
 //	}
 //}
 
-inline const char* format_string(const char* fmt, ...) {
-	static char buffer[1024];
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(buffer, sizeof(buffer), fmt, args);
-	va_end(args);
-	return buffer;
+std::string format_string(std::string_view fmt, auto&&... args) {
+	return fmt::format(fmt, std::forward<decltype(args)>(args)...);
 }
 
 // Modificar UpdateVoteMenu para usar format_string en lugar de va
@@ -3746,7 +3739,8 @@ void UpdateVoteMenu() {
 	// Actualizar título según la categoría
 	const char* category_name = categorized_maps.current_category.isBigMap ? "Big Maps" :
 		categorized_maps.current_category.isSmallMap ? "Small Maps" : "Medium Maps";
-	Q_strlcpy(vote_menu[0].text, format_string("*%s", category_name), sizeof(vote_menu[0].text));
+	std::string category_title = "*" + std::string(category_name);
+	Q_strlcpy(vote_menu[0].text, category_title.c_str(), sizeof(vote_menu[0].text));
 
 	for (int i = 2; i < 2 + MAX_MAPS_PER_PAGE; i++) {
 		if (start < end) {
