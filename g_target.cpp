@@ -1122,7 +1122,7 @@ USE(target_earthquake_use) (edict_t* self, edict_t* other, edict_t* activator) -
 
 void SP_target_earthquake(edict_t* self)
 {
-	if (!self->targetname)
+	if (!self->targetname && !g_horde->integer)
 		gi.Com_PrintFmt("{}: untargeted\n", *self);
 
 	if (level.is_n64)
@@ -2027,6 +2027,7 @@ void SP_target_healthbar(edict_t* self)
 
 	if (!self->target || !*self->target)
 	{
+		if (!g_horde->integer)
 		gi.Com_PrintFmt("{}: missing target\n", *self);
 		if (!g_horde->integer) G_FreeEdict(self);
 		return;

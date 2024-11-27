@@ -83,7 +83,7 @@ struct PlayerStats {
 
 void ApplyGradualHealing(edict_t* ent);
 
-void AllowReset();
+void AllowReset() noexcept;
 
 bool CheckAndTeleportStuckMonster(edict_t* self);
 bool G_IsClearPath(const edict_t* ignore, contents_t mask, const vec3_t& spot1, const vec3_t& spot2);

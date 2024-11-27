@@ -510,7 +510,7 @@ void ApplyBossEffects(edict_t* boss)
 	// Marcar que los efectos ya fueron aplicados para evitar escalados acumulativos
 	boss->effects_applied = true;
 
-	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
+//	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
 
 //getting real name

@@ -22,7 +22,7 @@ static cached_soundindex sound_sight;
 static cached_soundindex sound_windup;
 static cached_soundindex sound_strike;
 static cached_soundindex sound_grenade;
-static cached_soundindex sound_bigtele;
+//static cached_soundindex sound_bigtele;
 
 constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_GUARDIAN = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING = 16_spawnflag;
@@ -34,7 +34,7 @@ void tank_reattack_blaster(edict_t* self);
 void tank_reattack_grenades(edict_t* self);
 
 
-float entdist(const edict_t* ent1, const edict_t* ent2)
+static float entdist(const edict_t* ent1, const edict_t* ent2)
 {
 	return (ent1->s.origin - ent2->s.origin).length();
 }
@@ -85,11 +85,11 @@ float entdist(const edict_t* ent1, const edict_t* ent2)
 			if (effect)
 			{
 
-				gi.sound(self, CHAN_VOICE, sound_bigtele, 1, ATTN_NONE, 0);
+			//	gi.sound(self, CHAN_VOICE, sound_bigtele, 1, ATTN_NONE, 0);
 
 				// Teleport effect at both positions
 				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_BFG_BIGEXPLOSION);
+				gi.WriteByte(TE_BOSSTPORT);
 				gi.WritePosition(self->s.origin);
 				gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
@@ -1425,7 +1425,7 @@ void SP_monster_tank(edict_t* self)
 	sound_strike.assign("tank/tnkatck5.wav");
 	sound_sight.assign("tank/sight1.wav");
 	sound_grenade.assign("guncmdr/gcdratck3.wav");
-	sound_bigtele.assign("misc/bigtele.wav");
+	//sound_bigtele.assign("misc/bigtele.wav");
 
 	gi.soundindex("tank/tnkatck1.wav");
 	gi.soundindex("tank/tnkatk2a.wav");

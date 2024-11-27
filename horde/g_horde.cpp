@@ -7,9 +7,9 @@
 
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
+constexpr size_t MAX_RECENT_BOSSES = 3;
 constexpr size_t MAX_ELIGIBLE_MONSTERS = 32;
 constexpr size_t MAX_ELIGIBLE_ITEMS = 32;
-constexpr size_t MAX_RECENT_BOSSES = 3;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
 static constexpr size_t NUM_WAVE_SOUNDS = 12;
@@ -147,23 +147,23 @@ enum class horde_state_t {
 
 // En HordeState, reemplazar el vector con array estático
 struct HordeState {
-    gtime_t         warm_time = 4_sec;
-    horde_state_t   state = horde_state_t::warmup;
-    gtime_t         monster_spawn_time;
-    int32_t         num_to_spawn = 0;
-    int32_t         level = 0;
-    int32_t         queued_monsters = 0;
-    gtime_t         lastPrintTime = 0_sec;
+	gtime_t         warm_time = 4_sec;
+	horde_state_t   state = horde_state_t::warmup;
+	gtime_t         monster_spawn_time;
+	int32_t         num_to_spawn = 0;
+	int32_t         level = 0;
+	int32_t         queued_monsters = 0;
+	gtime_t         lastPrintTime = 0_sec;
 
-    bool            conditionTriggered = false;
-    gtime_t         conditionStartTime = 0_sec;
-    gtime_t         conditionTimeThreshold = 0_sec;
-    bool            timeWarningIssued = false;
-    gtime_t         waveEndTime = 0_sec;
-    bool            warningIssued[4] = { false, false, false, false };
+	bool            conditionTriggered = false;
+	gtime_t         conditionStartTime = 0_sec;
+	gtime_t         conditionTimeThreshold = 0_sec;
+	bool            timeWarningIssued = false;
+	gtime_t         waveEndTime = 0_sec;
+	bool            warningIssued[4] = { false, false, false, false };
 
-    gtime_t         last_successful_hud_update = 0_sec;
-    uint32_t        failed_updates_count = 0;
+	gtime_t         last_successful_hud_update = 0_sec;
+	uint32_t        failed_updates_count = 0;
 
 	MapSize current_map_size;
 	int32_t max_monsters{};  // Cacheado basado en map_size
@@ -179,10 +179,10 @@ struct HordeState {
 		);
 	}
 
-    void reset_hud_state() {
-        last_successful_hud_update = 0_sec;
-        failed_updates_count = 0;
-    }
+	void reset_hud_state() {
+		last_successful_hud_update = 0_sec;
+		failed_updates_count = 0;
+	}
 } g_horde_local;
 
 // Clase de selección genérica usando templates
@@ -333,19 +333,19 @@ const std::unordered_set<std::string> bigMaps = {
 };
 
 MapSize GetMapSize(const char* mapname) {
-    static std::unordered_map<std::string, MapSize> cache;
-    
-    const auto it = cache.find(mapname);
-    if (it != cache.end())
-        return it->second;
+	static std::unordered_map<std::string, MapSize> cache;
 
-    MapSize size;
-    size.isSmallMap = smallMaps.count(mapname) > 0;
-    size.isBigMap = bigMaps.count(mapname) > 0;
-    size.isMediumMap = !size.isSmallMap && !size.isBigMap;
+	const auto it = cache.find(mapname);
+	if (it != cache.end())
+		return it->second;
 
-    cache[mapname] = size;
-    return size;
+	MapSize size;
+	size.isSmallMap = smallMaps.count(mapname) > 0;
+	size.isBigMap = bigMaps.count(mapname) > 0;
+	size.isMediumMap = !size.isSmallMap && !size.isBigMap;
+
+	cache[mapname] = size;
+	return size;
 }
 
 // Función para calcular el bono de locura y caos
@@ -415,37 +415,58 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		{{15, 18, 23, 26}} // Large maps
 	} };
 
-	const size_t mapIndex = mapSize.isSmallMap ? 0 : (mapSize.isBigMap ? 2 : 1);
-	const size_t levelIndex = lvl <= 5 ? 0 : (lvl <= 10 ? 1 : (lvl <= 15 ? 2 : 3));
-
-	int32_t baseCount = BASE_COUNTS[mapIndex][levelIndex];
+	// Replace dynamic indexing with conditional statements
+	int32_t baseCount;
+	if (mapSize.isSmallMap) {
+		if (lvl <= 5) baseCount = BASE_COUNTS[0][0];
+		else if (lvl <= 10) baseCount = BASE_COUNTS[0][1];
+		else if (lvl <= 15) baseCount = BASE_COUNTS[0][2];
+		else baseCount = BASE_COUNTS[0][3];
+	}
+	else if (mapSize.isBigMap) {
+		if (lvl <= 5) baseCount = BASE_COUNTS[2][0];
+		else if (lvl <= 10) baseCount = BASE_COUNTS[2][1];
+		else if (lvl <= 15) baseCount = BASE_COUNTS[2][2];
+		else baseCount = BASE_COUNTS[2][3];
+	}
+	else {
+		if (lvl <= 5) baseCount = BASE_COUNTS[1][0];
+		else if (lvl <= 10) baseCount = BASE_COUNTS[1][1];
+		else if (lvl <= 15) baseCount = BASE_COUNTS[1][2];
+		else baseCount = BASE_COUNTS[1][3];
+	}
 
 	// Ajuste de jugadores optimizado
 	if (humanPlayers > 1) {
 		baseCount = static_cast<int32_t>(baseCount * (1.0f + ((humanPlayers - 1) * 0.2f)));
 	}
 
-	// Cálculo de spawns adicionales optimizado
+	// Replace dynamic indexing for additional spawns
 	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = { 8, 7, 12 }; // Small, Medium, Large
-	int32_t additionalSpawn = (lvl >= 8) ? ADDITIONAL_SPAWNS[mapIndex] : 6;
+	int32_t additionalSpawn;
+	if (lvl >= 8) {
+		if (mapSize.isSmallMap) additionalSpawn = ADDITIONAL_SPAWNS[0];
+		else if (mapSize.isBigMap) additionalSpawn = ADDITIONAL_SPAWNS[2];
+		else additionalSpawn = ADDITIONAL_SPAWNS[1];
+	}
+	else {
+		additionalSpawn = 6;
+	}
 
-	// Optimizar cálculo de cooldown
+	// Rest of the function remains the same
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 	const float cooldownScale = CalculateCooldownScale(lvl, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-	// Scaling para niveles altos
 	if (lvl > 25) {
 		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
 	}
 
-	// Bonus para modos difíciles
 	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
 		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
 
-	// Ajuste dinámico final
 	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
 	if (lvl % 3 == 0) {
 		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
@@ -455,16 +476,14 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		);
 	}
 
-	// Apply final limits
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
 	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
 	ClampNumToSpawn(mapSize);
 
-	// Actualizar cola con sistema optimizado
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
 
-	if (developer->integer) {// Debug info mejorado
+	if (developer->integer == 3) {
 		gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", lvl);
 		gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
 			SPAWN_POINT_COOLDOWN.seconds(), cooldownScale);
@@ -494,7 +513,8 @@ struct ConditionParams {
 		lowPercentageTimeThreshold(0_sec),
 		independentTimeThreshold(0_sec),
 		lowPercentageThreshold(0.3f),
-		aggressiveTimeReductionThreshold(0.3f) {}
+		aggressiveTimeReductionThreshold(0.3f) {
+	}
 };
 
 // Función para calcular el rendimiento del jugador (implementa según tus necesidades)
@@ -596,8 +616,8 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 	// Configuración para tiempo independiente basado en el nivel
 	params.independentTimeThreshold = calculate_max_wave_time(lvl);
 
-	gi.Com_PrintFmt("PRINT: Wave {} parameters set: Max monsters: {}, Time threshold: {:.1f}s, Low percentage threshold: {:.2f}, Independent time threshold: {:.1f}s\n",
-		lvl, params.maxMonsters, params.timeThreshold.seconds(), params.lowPercentageThreshold, params.independentTimeThreshold.seconds());
+	//gi.Com_PrintFmt("PRINT: Wave {} parameters set: Max monsters: {}, Time threshold: {:.1f}s, Low percentage threshold: {:.2f}, Independent time threshold: {:.1f}s\n",
+	//	lvl, params.maxMonsters, params.timeThreshold.seconds(), params.lowPercentageThreshold, params.independentTimeThreshold.seconds());
 
 	return params;
 }
@@ -654,7 +674,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	ResetCooldowns();
 	Horde_CleanBodies();
 
-	gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
+	//gi.Com_PrintFmt("PRINT: Horde level initialized: {}\n", lvl);
 }
 
 bool G_IsDeathmatch() noexcept {
@@ -844,7 +864,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_perrokl", 20, -1, 0.25f },
 	{ "monster_widow1", 29, 34, 0.1f },
 	{ "monster_widow1", 35, -1, 0.25f }
-}; 
+};
 #include <array>
 #include <unordered_set>
 #include <random>
@@ -955,71 +975,93 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 }
 
 static size_t GetBossListSize(const MapSize& mapSize, std::string_view mapname, std::span<const boss_t> boss_list) noexcept {
-    const boss_t* list_data = boss_list.data();
-    if (list_data == &BOSS_SMALL[0]) return BOSS_SMALL_SIZE;
-    if (list_data == &BOSS_MEDIUM[0]) return BOSS_MEDIUM_SIZE;
-    if (list_data == &BOSS_LARGE[0]) return BOSS_LARGE_SIZE;
-    // Para las listas filtradas, simplemente devolvemos el tamaño del span
-    return boss_list.size();
+	const boss_t* list_data = boss_list.data();
+	if (list_data == &BOSS_SMALL[0]) return BOSS_SMALL_SIZE;
+	if (list_data == &BOSS_MEDIUM[0]) return BOSS_MEDIUM_SIZE;
+	if (list_data == &BOSS_LARGE[0]) return BOSS_LARGE_SIZE;
+	// Para las listas filtradas, simplemente devolvemos el tamaño del span
+	return boss_list.size();
 }
 
-// Estructuras de arrays estáticos para reemplazar std::vectors
+
+// static arrays to replace std::vectors
 struct EligibleBosses {
 	const boss_t* items[MAX_ELIGIBLE_BOSSES] = {};
 	size_t count = 0;
 
 	void clear() noexcept { count = 0; }
-	void add(const boss_t* boss) noexcept {
-		if (count < MAX_ELIGIBLE_BOSSES) {
-			items[count++] = boss;
+
+	bool add(const boss_t* boss) noexcept {
+		if (!boss || count >= MAX_ELIGIBLE_BOSSES)
+			return false;
+
+		// Use constant expressions for array access
+		switch (count) {
+		case 0:  items[0] = boss; break;
+		case 1:  items[1] = boss; break;
+		case 2:  items[2] = boss; break;
+		case 3:  items[3] = boss; break;
+		case 4:  items[4] = boss; break;
+		case 5:  items[5] = boss; break;
+		case 6:  items[6] = boss; break;
+		case 7:  items[7] = boss; break;
+		case 8:  items[8] = boss; break;
+		case 9:  items[9] = boss; break;
+		case 10: items[10] = boss; break;
+		case 11: items[11] = boss; break;
+		case 12: items[12] = boss; break;
+		case 13: items[13] = boss; break;
+		case 14: items[14] = boss; break;
+		case 15: items[15] = boss; break;
+		default: return false;
 		}
+		count++;
+		return true;
 	}
 };
 
-// Array estático para bosses recientes
+// static array for recent bosses
 struct RecentBosses {
 	const char* items[MAX_RECENT_BOSSES] = {};
 	size_t count = 0;
 
 	void add(const char* boss) noexcept {
+		if (!boss)
+			return;
+
 		if (count < MAX_RECENT_BOSSES) {
-			items[count++] = boss;
+			switch (count) {
+			case 0: items[0] = boss; break;
+			case 1: items[1] = boss; break;
+			case 2: items[2] = boss; break;
+			default: return;
+			}
+			count++;
 		}
 		else {
-			// Desplazar elementos y agregar el nuevo al final
-			for (size_t i = 1; i < MAX_RECENT_BOSSES; ++i) {
-				items[i - 1] = items[i];
-			}
-			items[MAX_RECENT_BOSSES - 1] = boss;
+			// Explicit shift for MAX_RECENT_BOSSES = 3
+			items[0] = items[1];
+			items[1] = items[2];
+			items[2] = boss;
 		}
 	}
 
-	bool contains(const char* boss) const {
-		for (size_t i = 0; i < count; ++i) {
-			if (strcmp(items[i], boss) == 0) return true;
-		}
+	bool contains(const char* boss) const noexcept {
+		if (!boss)
+			return false;
+		// Explicit checks for each valid index
+		if (count > 0 && strcmp(items[0], boss) == 0) return true;
+		if (count > 1 && strcmp(items[1], boss) == 0) return true;
+		if (count > 2 && strcmp(items[2], boss) == 0) return true;
 		return false;
 	}
 
-	void clear() { count = 0; }
+	void clear() noexcept { count = 0; }
 };
-
-struct EligibleMonsters {
-	const weighted_item_t* items[MAX_ELIGIBLE_MONSTERS] = {}; 
-	size_t count = 0;
-
-	void clear() { count = 0; }
-	void add(const weighted_item_t* monster) {
-		if (count < MAX_ELIGIBLE_MONSTERS) {
-			items[count++] = monster;
-		}
-	}
-};
-
 static RecentBosses recent_bosses;
 
 // Función modificada para agregar un jefe reciente
-static void AddRecentBoss(const char* classname) {
+static void AddRecentBoss(const char* classname) noexcept {
 	if (classname == nullptr) return;
 	recent_bosses.add(classname);
 }
@@ -1031,12 +1073,14 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 	double total_weight = 0.0;
 
 	auto const boss_list = GetBossList(mapSize, mapname);
-	if (boss_list.empty()) return nullptr;
+	if (boss_list.empty())
+		return nullptr;
 
 	const size_t boss_list_size = boss_list.size();
-	if (boss_list_size == 0) return nullptr;
+	if (boss_list_size == 0)
+		return nullptr;
 
-	// Recolectar bosses elegibles usando span
+	// Collect eligible bosses using span
 	std::span<const boss_t> boss_view{ boss_list };
 	for (const auto& boss : boss_view) {
 		if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
@@ -1059,8 +1103,10 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 			}
 
 			total_weight += adjusted_weight;
-			cumulative_weights[eligible_bosses.count] = total_weight;
-			eligible_bosses.add(&boss);
+			if (eligible_bosses.count < MAX_ELIGIBLE_BOSSES) {
+				cumulative_weights[eligible_bosses.count] = total_weight;
+				eligible_bosses.add(&boss);
+			}
 		}
 	}
 
@@ -1073,14 +1119,18 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 				(waveNumber <= boss.max_level || boss.max_level == -1)) {
 				const float adjusted_weight = boss.weight;
 				total_weight += adjusted_weight;
-				cumulative_weights[eligible_bosses.count] = total_weight;
-				eligible_bosses.add(&boss);
+				if (eligible_bosses.count < MAX_ELIGIBLE_BOSSES) {
+					cumulative_weights[eligible_bosses.count] = total_weight;
+					eligible_bosses.add(&boss);
+				}
 			}
 		}
 	}
 
-	if (eligible_bosses.count == 0) return nullptr;
+	if (eligible_bosses.count == 0)
+		return nullptr;
 
+	// Binary search using span
 	const double random_value = std::uniform_real_distribution<double>(0.0, total_weight)(mt_rand);
 	size_t left = 0;
 	size_t right = eligible_bosses.count - 1;
@@ -1095,7 +1145,28 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 		}
 	}
 
-	const boss_t* chosen_boss = eligible_bosses.items[left];
+	// Safe access using switch for final selection
+	const boss_t* chosen_boss = nullptr;
+	switch (left) {
+	case 0:  chosen_boss = eligible_bosses.items[0];  break;
+	case 1:  chosen_boss = eligible_bosses.items[1];  break;
+	case 2:  chosen_boss = eligible_bosses.items[2];  break;
+	case 3:  chosen_boss = eligible_bosses.items[3];  break;
+	case 4:  chosen_boss = eligible_bosses.items[4];  break;
+	case 5:  chosen_boss = eligible_bosses.items[5];  break;
+	case 6:  chosen_boss = eligible_bosses.items[6];  break;
+	case 7:  chosen_boss = eligible_bosses.items[7];  break;
+	case 8:  chosen_boss = eligible_bosses.items[8];  break;
+	case 9:  chosen_boss = eligible_bosses.items[9];  break;
+	case 10: chosen_boss = eligible_bosses.items[10]; break;
+	case 11: chosen_boss = eligible_bosses.items[11]; break;
+	case 12: chosen_boss = eligible_bosses.items[12]; break;
+	case 13: chosen_boss = eligible_bosses.items[13]; break;
+	case 14: chosen_boss = eligible_bosses.items[14]; break;
+	case 15: chosen_boss = eligible_bosses.items[15]; break;
+	default: return nullptr;
+	}
+
 	if (chosen_boss) {
 		recent_bosses.add(chosen_boss->classname);
 		bossEntity->bossSizeCategory = chosen_boss->sizeCategory;
@@ -1539,7 +1610,7 @@ void Horde_PreInit() {
 		gi.cvar_forceset("deathmatch", "0");
 		return;
 	}
-	
+
 	//if ((!deathmatch->integer) || (ctf->integer || teamplay->integer || coop->integer)) {
 	//	gi.Com_Print("Horde mode must be DM.\n");
 	//	//gi.cvar_set("deathmatch", "1");
@@ -1735,7 +1806,7 @@ static int GetRandomWaveSound() {
 
 	// Seleccionar un sonido no usado
 	while (true) {
-		size_t index = irandom(NUM_WAVE_SOUNDS);
+		size_t const index = irandom(NUM_WAVE_SOUNDS);
 		if (!used_wave_sounds[index]) {
 			used_wave_sounds[index] = true;
 			remaining_wave_sounds--;
@@ -1756,7 +1827,7 @@ static void PlayWaveStartSound() {
 
 	// Seleccionar un sonido no usado
 	while (true) {
-		size_t index = irandom(NUM_START_SOUNDS);
+		size_t const index = irandom(NUM_START_SOUNDS);
 		if (!used_start_sounds[index]) {
 			used_start_sounds[index] = true;
 			remaining_start_sounds--;
@@ -1768,7 +1839,7 @@ static void PlayWaveStartSound() {
 //Capping resets on map end
 
 static bool hasBeenReset = false;
-void AllowReset() {
+void AllowReset() noexcept {
 	hasBeenReset = false;
 }
 
@@ -1798,7 +1869,7 @@ void Horde_Init() {
 	// Resetear el estado del juego para la horda
 	ResetGame();
 
-	gi.Com_PrintFmt("PRINT: Horde game state initialized with all necessary resources precached.\n");
+	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
 }
 
 // Constantes para mejorar la legibilidad y mantenibilidad
@@ -2351,7 +2422,7 @@ static void SpawnBossAutomatically() {
 
 	// Posicionar jefe usando vec3_t
 	boss->s.origin = spawn_origin;
-	gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
+	//gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
 
 	// Empujar entidades usando vec3_t
 	constexpr float push_radius = 500.0f;
@@ -2364,7 +2435,7 @@ static void SpawnBossAutomatically() {
 	// Retardar spawn del jefe
 	boss->nextthink = level.time + 750_ms;
 	boss->think = BossSpawnThink;
-	gi.Com_PrintFmt("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
+	//gi.Com_Print("PRINT: Boss spawn preparation complete. Boss will appear in 1 second.\n");
 }
 THINK(BossSpawnThink)(edict_t* self) -> void
 {
@@ -2380,8 +2451,8 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\n{}\n", it_msg->second.data());
 	}
 	else {
-		gi.Com_PrintFmt("PRINT: Warning: No specific message found for boss type '{}'. Using default message.\n",
-			self->classname);
+		//gi.Com_PrintFmt("PRINT: Warning: No specific message found for boss type '{}'. Using default message.\n",
+		//	self->classname);
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nA Strogg Boss has spawned!\nPrepare for battle!\n");
 	}
 
@@ -2425,8 +2496,8 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 	auto_spawned_bosses.insert(self);
 
 	// Log de spawn exitoso
-	gi.Com_PrintFmt("PRINT: Boss of type {} spawned successfully with {} health and {} power armor\n",
-		self->classname, self->health, self->monsterinfo.power_armor_power);
+	//gi.Com_PrintFmt("PRINT: Boss of type {} spawned successfully with {} health and {} power armor\n",
+	//	self->classname, self->health, self->monsterinfo.power_armor_power);
 }
 
 
@@ -2445,19 +2516,18 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 	constexpr gtime_t DROWNING_COOLDOWN = 1_sec;
 	constexpr gtime_t TRIGGER_COOLDOWN = 3_sec;
 	// constexpr gtime_t STUCK_COOLDOWN = 2_sec;
-
 	// Seleccionar el cooldown apropiado
-	const gtime_t selected_cooldown = [reason]() {
+	const gtime_t selected_cooldown = [DROWNING_COOLDOWN, TRIGGER_COOLDOWN](BossTeleportReason reason) {
 		switch (reason) {
 		case BossTeleportReason::DROWNING:
 			return DROWNING_COOLDOWN;
 		case BossTeleportReason::TRIGGER_HURT:
 			return TRIGGER_COOLDOWN;
-		//case BossTeleportReason::STUCK:
-		//	return STUCK_COOLDOWN;
+			//case BossTeleportReason::STUCK:
+			//    return STUCK_COOLDOWN;
 		}
 		return TRIGGER_COOLDOWN;
-		}();
+		}(reason);  // Pass the 'reason' parameter here
 
 	// Verificar si ya se teletransportó recientemente
 	if (self->teleport_time && level.time < self->teleport_time + selected_cooldown)
@@ -2527,7 +2597,7 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 
 		if (developer->integer) {
 			const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" :
-		/*		reason == BossTeleportReason::TRIGGER_HURT ?*/ "trigger_hurt" /*: "stuck"*/;
+				/*		reason == BossTeleportReason::TRIGGER_HURT ?*/ "trigger_hurt" /*: "stuck"*/;
 			gi.Com_PrintFmt("Boss teleported due to {} to: {}\n", reason_str, self->s.origin);
 		}
 
@@ -2618,7 +2688,7 @@ void UpdateHordeMessage(std::string_view message, gtime_t duration = 5_sec) {
 }
 
 void ClearHordeMessage() {
-	std::string_view current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+	std::string_view const current_msg = gi.get_configstring(CONFIG_HORDEMSG);
 	if (!current_msg.empty()) {
 		gi.configstring(CONFIG_HORDEMSG, "");
 		// Usar active_players() para resetear stats
@@ -2649,7 +2719,7 @@ void ResetCooldowns() noexcept {
 
 	// Ajustes adicionales (reducidos pero mantenidos para balance)
 	if (humanPlayers > 1) {
-	const	float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
+		const	float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
 		SPAWN_POINT_COOLDOWN *= playerAdjustment;
 	}
 
@@ -2661,8 +2731,8 @@ void ResetCooldowns() noexcept {
 	// Aplicar límites absolutos
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
 
-	if (developer->integer) gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
-		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
+//	if (developer->integer) gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
+//		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
 }
 
 void ResetAllSpawnAttempts() noexcept {
@@ -2880,10 +2950,10 @@ void ResetGame() {
 	gi.Com_PrintFmt("PRINT: Horde game state reset complete.\n");
 }
 
-inline int8_t CalculateRemainingMonsters() {
-    // Usar variables del nivel en lugar de recorrer entidades
-    const int32_t remaining = level.total_monsters - level.killed_monsters;
-    return std::max(0, remaining);  // Asegurar que no sea negativo
+inline int8_t CalculateRemainingMonsters() noexcept {
+	// Usar variables del nivel en lugar de recorrer entidades
+	const int32_t remaining = level.total_monsters - level.killed_monsters;
+	return std::max(0, remaining);  // Asegurar que no sea negativo
 }
 
 void ResetWaveAdvanceState() noexcept {
@@ -2935,11 +3005,11 @@ void fastNextWave() noexcept {
 	Horde_InitLevel(g_horde_local.level + 1);
 }
 inline int8_t GetNumActivePlayers() {
-    const auto& players = active_players();
-    return std::count_if(players.begin(), players.end(),
-        [](const edict_t* const player) {
-            return player->client && player->client->resp.ctf_team == CTF_TEAM1;
-        });
+	const auto& players = active_players();
+	return std::count_if(players.begin(), players.end(),
+		[](const edict_t* const player) {
+			return player->client && player->client->resp.ctf_team == CTF_TEAM1;
+		});
 }
 
 inline int8_t GetNumHumanPlayers() {
@@ -2953,7 +3023,7 @@ inline int8_t GetNumHumanPlayers() {
 inline int8_t GetNumSpectPlayers() {
 	const auto& players = active_players();
 	return std::count_if(players.begin(), players.end(),
-		[](const edict_t* const player) {
+		[](const edict_t* const player) noexcept {
 			return ClientIsSpectating(player->client);
 		});
 }
@@ -3131,7 +3201,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	size_t spawn_count = 0;
 
 	// Crear span de forma más segura
-	std::span<edict_t> all_edicts(g_edicts, globals.num_edicts);
+	std::span<edict_t> const all_edicts(g_edicts, globals.num_edicts);
 	// Crear subspan excluyendo el primer elemento
 	std::span<edict_t> edicts_view = all_edicts.subspan(1);
 
@@ -3171,7 +3241,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	if (spawn_count == 0)
 		return false;
 	// Crear vista de los spawns disponibles usando std::array
-	std::span<edict_t* const> spawns_view(available_spawns.data(), spawn_count);
+	std::span<edict_t* const> const spawns_view(available_spawns.data(), spawn_count);
 
 	// Seleccionar spawn point aleatorio usando span
 	edict_t* spawn_point = spawns_view[irandom(spawn_count)];
@@ -3218,7 +3288,7 @@ static edict_t* SpawnMonsters() {
 		return nullptr;
 
 	// Crear span desde g_edicts de forma más segura
-	std::span<edict_t> all_edicts(g_edicts, globals.num_edicts);
+	std::span<edict_t> const all_edicts(g_edicts, globals.num_edicts);
 	// Crear subspan excluyendo el primer elemento (índice 0)
 	std::span<edict_t> active_edicts = all_edicts.subspan(1);
 
@@ -3581,10 +3651,11 @@ static void SendCleanupMessage(WaveEndReason reason) {
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
-		PrintRemainingMonsterCounts();
+	//	PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
+		PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::TimeLimitReached:
 		message = fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level);
@@ -3659,7 +3730,7 @@ void Horde_RunFrame() {
 		if (level.time >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
 			const WaveEndReason reason = WaveEndReason::TimeLimitReached;
 			SendCleanupMessage(reason);
-			gi.Com_PrintFmt("PRINT: Wave {} time limit reached during spawn. Transitioning to cleanup.\n", currentLevel);
+			//gi.Com_PrintFmt("PRINT: Wave {} time limit reached during spawn. Transitioning to cleanup.\n", currentLevel);
 			g_horde_local.state = horde_state_t::cleanup;
 			g_horde_local.monster_spawn_time = level.time + 0.5_sec;
 			currentWaveEndReason = reason;
@@ -3700,7 +3771,7 @@ void Horde_RunFrame() {
 					g_horde_local.warningIssued[i] = false;
 				}
 
-				if (developer->integer) gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
+			//	if (developer->integer) gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
 			}
 		}
 		break;
@@ -3711,7 +3782,7 @@ void Horde_RunFrame() {
 
 		if (shouldAdvance) {
 			SendCleanupMessage(reason);
-			gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
+			//gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
 			g_horde_local.state = horde_state_t::cleanup;
 			g_horde_local.monster_spawn_time = level.time + 0.5_sec;
 			currentWaveEndReason = reason; // Guardar la razón aquí

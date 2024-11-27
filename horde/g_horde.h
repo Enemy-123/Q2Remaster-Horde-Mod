@@ -34,7 +34,7 @@ extern void UpdateHordeHUD();
 extern void CleanupInvalidEntities();
 
 extern uint16_t g_totalMonstersInWave;
-extern inline int8_t CalculateRemainingMonsters();
+extern inline int8_t CalculateRemainingMonsters() noexcept;
 
 
 // Forzar limpieza de cuerpos
