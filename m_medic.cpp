@@ -267,7 +267,9 @@ bool finishHeal(edict_t* self)
 	const bool insaneDead = healee->classname && !strcmp(healee->classname, "misc_insane");
 
 	// Bodyque resurrection handling
+		// Bodyque resurrection handling
 	if (isBodyque) {
+
 		// Validate position/angles before using
 		if (!healee->s.origin || !healee->s.angles) {
 			abortHeal(self, false, false);
@@ -277,29 +279,43 @@ bool finishHeal(edict_t* self)
 		vec3_t const position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
 
-		// Create new entity with validation
-		edict_t* new_ent = G_Spawn();
-		if (!new_ent) {
+		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
+		angles[ROLL] = 0;   // Eliminar rotación lateral
+
+		edict_t* insane = G_Spawn();
+		if (!insane) {
 			abortHeal(self, false, false);
 			return false;
 		}
 
-		// Set position/angles
-		new_ent->s.origin = position;
-		new_ent->s.angles = angles;
+		insane->s.origin = position;
+		insane->s.angles = angles;
+		frandom() > 0.6f ?
+			insane->classname = "misc_insane"
+			: insane->classname = "monster_soldier_lasergun";
 
-		// Ensure proper spawn
+		if (g_horde->integer)
+			insane->item = brandom() ? G_HordePickItem() : nullptr;
+
 		spawn_temp_t st{};
-		ED_CallSpawn(new_ent, st);
+		ED_CallSpawn(insane, st);
 
-		if (!new_ent->inuse) {
-			G_FreeEdict(new_ent);
+		if (!insane->inuse) {
+			G_FreeEdict(insane);
 			abortHeal(self, false, false);
 			return false;
 		}
 
-		// Handle original healee cleanup safely
+		// Handle original healee cleanup
 		if (healee) {
+			gi.sound(healee, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
+
+			ThrowGibs(healee, 50, {
+				{ 2, "models/objects/gibs/bone/tris.md2" },
+				{ 4, "models/objects/gibs/sm_meat/tris.md2" },
+				{ "models/objects/gibs/head2/tris.md2", GIB_HEAD }
+				});
+
 			healee->s.modelindex = 0;
 			healee->solid = SOLID_NOT;
 			healee->takedamage = false;
@@ -308,7 +324,7 @@ bool finishHeal(edict_t* self)
 			G_FreeEdict(healee);
 		}
 
-		self->enemy = healee = new_ent;
+		self->enemy = healee = insane;
 	}
 
 	// insane  resurrection handling
