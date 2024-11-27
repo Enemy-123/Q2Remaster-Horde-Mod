@@ -2495,21 +2495,9 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 			gi.LocBroadcast_Print(PRINT_HIGH, "{} escapes certain death!\n",
 				GetDisplayName(self).c_str());
 			break;
-		//case BossTeleportReason::STUCK:
-		//	gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-		//	gi.LocBroadcast_Print(PRINT_HIGH, "{} repositions for battle!\n",
-		//		GetDisplayName(self).c_str());
-		//	break;
 		}
 
 		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-
-
-		//TPORT effect
-		//gi.WriteByte(svc_temp_entity);
-		//gi.WriteByte(TE_BOSSTPORT);
-		//gi.WritePosition(self->s.origin);
-		//gi.multicast(self->s.origin, MULTICAST_PHS, false);
 
 		// Actualizar tiempo de último teletransporte
 		self->teleport_time = level.time;
@@ -2518,7 +2506,7 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 		PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
 
 		// Restaurar algo de salud si estaba muy dañado (solo para drowning y trigger_hurt)
-		if (/*reason != BossTeleportReason::STUCK && */self->health < self->max_health * 0.25f) {
+		if (self->health < self->max_health * 0.25f) {
 			self->health = static_cast<int32_t>(self->max_health * 0.25f);
 		}
 
