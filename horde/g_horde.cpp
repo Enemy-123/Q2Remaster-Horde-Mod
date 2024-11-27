@@ -1521,97 +1521,105 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 }
 
 void Horde_PreInit() {
-	gi.Com_Print("Horde mode must be DM set <deathmatch 1> and <horde 1>.\n");
+	gi.Com_Print("Horde mode must be DM. Set <deathmatch 1> and <horde 1>, then <map mapname>.\n");
 	gi.Com_Print("COOP requires <coop 1> and <horde 0>, optionally <g_hardcoop 1/0>.\n");
 
 	g_horde = gi.cvar("horde", "0", CVAR_LATCH);
 	//gi.Com_Print("After starting a normal server type: starthorde to start a game.\n");
 
 
-	if (!g_horde->integer) return;
-
-	if (!deathmatch->integer || ctf->integer || teamplay->integer || coop->integer) {
-		gi.Com_Print("Horde mode must be DM.\n");
-		//gi.cvar_set("deathmatch", "1");
-		//gi.cvar_set("ctf", "0");
-		//gi.cvar_set("teamplay", "0");
-		//gi.cvar_set("coop", "0");
-		//gi.cvar_set("timelimit", "20");
-		//gi.cvar_set("fraglimit", "0");
+	if (!g_horde->integer) {
+		//deathmatch->integer == 0;
+		gi.cvar_forceset("deathmatch", "0");
+		return;
 	}
+	
+	//if ((!deathmatch->integer) || (ctf->integer || teamplay->integer || coop->integer)) {
+	//	gi.Com_Print("Horde mode must be DM.\n");
+	//	//gi.cvar_set("deathmatch", "1");
+	//	//gi.cvar_set("ctf", "0");
+	//	//gi.cvar_set("teamplay", "0");
+	//	//gi.cvar_set("coop", "0");
+	//	//gi.cvar_set("timelimit", "20");
+	//	//gi.cvar_set("fraglimit", "0");
+	//}
 
-	if (deathmatch->integer && !g_horde->integer)
-	gi.cvar_set("g_coop_player_collision", "0");
-	gi.cvar_set("g_coop_squad_respawn", "0");
-	gi.cvar_set("g_coop_instanced_items", "0");
-	gi.cvar_set("g_disable_player_collision", "0");
+	//if (deathmatch->integer && !g_horde->integer)
+	//gi.cvar_set("g_coop_player_collision", "0");
+	//gi.cvar_set("g_coop_squad_respawn", "0");
+	//gi.cvar_set("g_coop_instanced_items", "0");
+	//gi.cvar_set("g_disable_player_collision", "0");
 
 	// Configuración automática cuando horde está activo
 	if (g_horde->integer) {
+		//deathmatch->integer == 1;
 		dm_monsters = gi.cvar("dm_monsters", "0", CVAR_SERVERINFO);
 
 		gi.Com_Print("Initializing Horde mode settings...\n");
 
 		// Configuración de tiempo y límites
-		gi.cvar_set("timelimit", "50");
-		gi.cvar_set("fraglimit", "0");
-		gi.cvar_set("capturelimit", "0");
+		gi.cvar_forceset("deathmatch", "1");
+		gi.cvar_forceset("coop", "0");
+		gi.cvar_forceset("g_teamplay_force_join", "0");
+		gi.cvar_forceset("timelimit", "50");
+		gi.cvar_forceset("fraglimit", "0");
+		gi.cvar_forceset("capturelimit", "0");
 
 		// Configuración de jugabilidad
-		gi.cvar_set("sv_target_id", "1");
-		gi.cvar_set("g_speedstuff", "2.3f");
-		gi.cvar_set("sv_eyecam", "1");
-		gi.cvar_set("g_dm_instant_items", "1");
-		gi.cvar_set("g_disable_player_collision", "1");
-		gi.cvar_set("g_dm_no_self_damage", "1");
-		gi.cvar_set("g_allow_techs", "1");
+		gi.cvar_forceset("sv_target_id", "1");
+		gi.cvar_forceset("g_speedstuff", "1.8f");
+		gi.cvar_forceset("sv_eyecam", "1");
+		gi.cvar_forceset("g_dm_instant_items", "1");
+		gi.cvar_forceset("g_disable_player_collision", "1");
+		gi.cvar_forceset("g_dm_no_self_damage", "1");
+		gi.cvar_forceset("g_allow_techs", "1");
 
 		// Configuración de physics
-		gi.cvar_set("g_override_physics_flags", "-1");
+		gi.cvar_forceset("g_override_physics_flags", "-1");
 
 		// Configuración de armas y daño
-		gi.cvar_set("g_no_nukes", "0");
-		gi.cvar_set("g_instant_weapon_switch", "1");
-		gi.cvar_set("g_dm_no_quad_drop", "0");
-		gi.cvar_set("g_dm_no_quadfire_drop", "0");
+		gi.cvar_forceset("g_no_nukes", "0");
+		gi.cvar_forceset("g_instant_weapon_switch", "1");
+		gi.cvar_forceset("g_dm_no_quad_drop", "0");
+		gi.cvar_forceset("g_dm_no_quadfire_drop", "0");
 
 		// Configuración del hook/grapple
-		gi.cvar_set("g_use_hook", "1");
-		gi.cvar_set("g_hook_wave", "1");
-		gi.cvar_set("hook_pullspeed", "1200");
-		gi.cvar_set("hook_speed", "3000");
-		gi.cvar_set("hook_sky", "1");
-		gi.cvar_set("g_allow_grapple", "1");
-		gi.cvar_set("g_grapple_fly_speed", "3000");
-		gi.cvar_set("g_grapple_pull_speed", "1200");
+		gi.cvar_forceset("g_use_hook", "1");
+		gi.cvar_forceset("g_hook_wave", "1");
+		gi.cvar_forceset("hook_pullspeed", "1200");
+		gi.cvar_forceset("hook_speed", "3000");
+		gi.cvar_forceset("hook_sky", "1");
+		gi.cvar_forceset("g_allow_grapple", "1");
+		gi.cvar_forceset("g_grapple_fly_speed", "3000");
+		gi.cvar_forceset("g_grapple_pull_speed", "1200");
 
 		// Configuración de gameplay específica
-		gi.cvar_set("g_startarmor", "0");
-		gi.cvar_set("g_vampire", "0");
-		gi.cvar_set("g_ammoregen", "0");
-		gi.cvar_set("g_tracedbullets", "0");
-		gi.cvar_set("g_bouncygl", "0");
-		gi.cvar_set("g_bfgpull", "0");
-		gi.cvar_set("g_bfgslide", "1");
-		gi.cvar_set("g_improvedchaingun", "0");
-		gi.cvar_set("g_autohaste", "0");
-		gi.cvar_set("g_chaotic", "0");
-		gi.cvar_set("g_insane", "0");
-		gi.cvar_set("g_hardcoop", "0");
+		gi.cvar_forceset("g_startarmor", "0");
+		gi.cvar_forceset("g_vampire", "0");
+		gi.cvar_forceset("g_ammoregen", "0");
+		gi.cvar_forceset("g_tracedbullets", "0");
+		gi.cvar_forceset("g_bouncygl", "0");
+		gi.cvar_forceset("g_bfgpull", "0");
+		gi.cvar_forceset("g_bfgslide", "1");
+		gi.cvar_forceset("g_improvedchaingun", "0");
+		gi.cvar_forceset("g_autohaste", "0");
+		gi.cvar_forceset("g_chaotic", "0");
+		gi.cvar_forceset("g_insane", "0");
+		gi.cvar_forceset("g_hardcoop", "0");
 
 		// Configuración de IA y bots
-		gi.cvar_set("g_dm_spawns", "0");
-		gi.cvar_set("g_damage_scale", "1");
-		gi.cvar_set("ai_allow_dm_spawn", "1");
-		gi.cvar_set("ai_damage_scale", "1");
-		gi.cvar_set("g_loadent", "1");
-		gi.cvar_set("bot_chat_enable", "0");
-		gi.cvar_set("bot_skill", "5");
-		gi.cvar_set("g_coop_squad_respawn", "1");
-		gi.cvar_set("g_iddmg", "1");
+		gi.cvar_forceset("g_dm_spawns", "0");
+		gi.cvar_forceset("g_damage_scale", "1");
+		gi.cvar_forceset("ai_allow_dm_spawn", "1");
+		gi.cvar_forceset("ai_damage_scale", "1");
+		gi.cvar_forceset("g_loadent", "1");
+		gi.cvar_forceset("bot_chat_enable", "0");
+		gi.cvar_forceset("bot_skill", "5");
+		gi.cvar_forceset("g_coop_squad_respawn", "1");
+		gi.cvar_forceset("g_iddmg", "1");
 
 		// Activar monstruos automáticamente
-		gi.cvar_set("dm_monsters", "0");
+		gi.cvar_forceset("dm_monsters", "0");
 
 		// Resetear el estado del juego
 		HandleResetEvent();
@@ -1860,238 +1868,6 @@ static const char* SelectBossWeaponDrop(int32_t wave_level) {
 	return eligible_weapons[random_index];
 }
 
-////CRAZY BOSS ANIMATION DROP ITEMS
-//constexpr float ITEM_ROTATION_SPEED = 550.0f;
-//constexpr float ITEM_ORBIT_RADIUS = 254.0f;
-//constexpr float ITEM_VERTICAL_OFFSET = 12.0f;
-//constexpr float SCATTER_SPEED = 650.0f;
-//constexpr float RISE_SPEED_BASE = 70.0f;            // Velocidad base de elevación
-//constexpr float RISE_SPEED_VARIANCE = 30.0f;        // Variación de velocidad
-//constexpr float MAX_HEIGHT_BASE = 150.0f;           // Altura base máxima
-//constexpr float MAX_HEIGHT_VARIANCE = 50.0f;        // Variación de altura
-//constexpr float ABSOLUTE_MAX_HEIGHT = 256.0f;
-//
-//// Estado de la rotación
-//enum class ItemState {
-//	RISING,
-//	ORBITING,
-//	SCATTERING,
-//	SCATTERED
-//};
-//
-//// Declarar el think function antes de usarlo
-//void(Item_Scatter_Think)(edict_t* ent);
-//
-//THINK(Item_Orbit_Think) (edict_t* ent) -> void {
-//	if (!ent || !ent->owner) {
-//		G_FreeEdict(ent);
-//		return;
-//	}
-//
-//	// Control de estado basado en altura
-//	float height_diff = ent->s.origin[2] - ent->owner->s.origin[2];
-//	ItemState current_state = static_cast<ItemState>(ent->count);
-//
-//	// Usamos pos2 para almacenar valores únicos por item
-//	if (ent->pos2[0] == 0) { // Si no está inicializado
-//		ent->pos2[0] = RISE_SPEED_BASE + (crandom() * RISE_SPEED_VARIANCE);  // Velocidad única
-//		ent->pos2[1] = MAX_HEIGHT_BASE + (crandom() * MAX_HEIGHT_VARIANCE);  // Altura máxima única
-//	}
-//
-//	switch (current_state) {
-//	case ItemState::RISING: {
-//		// Fase de elevación con límite personalizado
-//		if (height_diff < ent->pos2[1]) {
-//			float rise_amount = std::min(ent->pos2[0] * gi.frame_time_s,
-//				ent->pos2[1] - height_diff);
-//			ent->s.origin[2] += rise_amount;
-//
-//			// Añadir pequeña oscilación vertical durante la subida
-//			ent->s.origin[2] += sinf(level.time.seconds() * 3.0f + ent->s.number) * 2.0f;
-//		}
-//		else {
-//			ent->count = static_cast<int>(ItemState::ORBITING);
-//		}
-//		break;
-//	}
-//
-//
-//	case ItemState::ORBITING: {
-//		// Verificar si es tiempo de dispersar
-//		if (level.time >= ent->owner->timestamp) {
-//			vec3_t scatter_dir = ent->s.origin - ent->owner->s.origin;
-//			scatter_dir.normalize();
-//
-//			// Añadir más variación vertical en la dispersión
-//			scatter_dir[2] *= 0.2f + (crandom() * 0.3f); // 0.2 ± 0.3
-//			scatter_dir.normalize();
-//
-//			// Variación horizontal con componente vertical aleatorio
-//			scatter_dir += vec3_t{
-//				crandom() * 0.15f,
-//				crandom() * 0.15f,
-//				crandom() * 0.55f  // Añadido componente vertical aleatorio
-//			};
-//			scatter_dir.normalize();
-//
-//			ent->velocity = scatter_dir * (SCATTER_SPEED + (crandom() * 100.0f));
-//
-//			ent->pos1[2] = ent->owner->s.origin[2];
-//			ent->owner = nullptr;
-//			ent->think = Item_Scatter_Think;
-//			ent->nextthink = level.time + FRAME_TIME_S;
-//			return;
-//		}
-//
-//		// Altura objetivo con oscilación suave
-//		vec3_t target_pos = ent->owner->s.origin;
-//		target_pos[2] += ent->pos2[1] + (sinf(level.time.seconds() * 2.0f + ent->s.number) * 15.0f);
-//
-//		float height_diff = target_pos[2] - ent->s.origin[2];
-//		ent->s.origin[2] += height_diff * 0.1f;
-//
-//		// Resto del código de órbita igual...
-//		vec3_t forward, right, up;
-//		AngleVectors(ent->owner->s.angles, forward, right, up);
-//
-//		float degrees = (ITEM_ROTATION_SPEED * gi.frame_time_s) + ent->owner->delay;
-//		vec3_t diff = ent->owner->s.origin - ent->s.origin;
-//		diff[2] = 0;
-//
-//		vec3_t vec = RotatePointAroundVector(up, diff, degrees);
-//		ent->s.angles[1] += degrees;
-//
-//		vec3_t new_origin = ent->owner->s.origin - vec;
-//		new_origin[2] = ent->s.origin[2];
-//
-//		trace_t tr = gi.traceline(ent->s.origin, new_origin, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-//		if (tr.fraction == 1.0f) {
-//			ent->s.origin = new_origin;
-//		}
-//		break;
-//	}
-//	}
-//
-//	// Comprobar agua
-//	ent->watertype = gi.pointcontents(ent->s.origin);
-//	if (ent->watertype & MASK_WATER)
-//		ent->waterlevel = WATER_FEET;
-//
-//	ent->nextthink = level.time + FRAME_TIME_S;
-//	gi.linkentity(ent);
-//}
-//
-//THINK(Item_Scatter_Think) (edict_t* ent) -> void {
-//	if (!ent) {
-//		G_FreeEdict(ent);
-//		return;
-//	}
-//
-//	// Limitar la velocidad vertical para evitar que suban demasiado
-//	if (ent->velocity[2] > 100.0f) {
-//		ent->velocity[2] = 100.0f;
-//	}
-//
-//	// Comprobar altura máxima absoluta usando pos1.z como referencia
-//	if (ent->s.origin[2] > ent->pos1[2] + ABSOLUTE_MAX_HEIGHT) {
-//		ent->s.origin[2] = ent->pos1[2] + ABSOLUTE_MAX_HEIGHT;
-//		ent->velocity[2] = 0; // Detener movimiento vertical
-//	}
-//
-//	// Velocidad mínima para evitar que se peguen
-//	constexpr float MIN_VELOCITY = 60.0f;
-//
-//	// Comprobar colisiones antes de mover
-//	vec3_t next_pos = ent->s.origin + (ent->velocity * gi.frame_time_s);
-//	trace_t tr = gi.traceline(ent->s.origin, next_pos, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-//
-//	if (tr.fraction < 1.0f) {
-//		// Si estamos empezando en sólido, intentar "empujar" hacia afuera
-//		if (tr.startsolid || tr.allsolid) {
-//			// Intentar mover en dirección opuesta
-//			ent->velocity = -ent->velocity;
-//			ent->velocity *= 1.5f; // Dar un empujón extra
-//			return;
-//		}
-//
-//		// Calcular rebote con más energía para evitar pegarse
-//		vec3_t bounce_vel = SlideClipVelocity(ent->velocity, tr.plane.normal, 1.5f);
-//
-//		// Si el rebote es muy vertical, agregar componente horizontal
-//		if (fabs(tr.plane.normal[2]) > 0.7f) {
-//			bounce_vel[0] += crandom() * 100.0f;
-//			bounce_vel[1] += crandom() * 100.0f;
-//		}
-//
-//		// Si la velocidad es muy baja, dar un empujón en dirección aleatoria
-//		if (bounce_vel.length() < MIN_VELOCITY) {
-//			bounce_vel[0] += crandom() * MIN_VELOCITY;
-//			bounce_vel[1] += crandom() * MIN_VELOCITY;
-//			if (bounce_vel[2] < MIN_VELOCITY * 0.5f)
-//				bounce_vel[2] += MIN_VELOCITY * 0.5f;
-//		}
-//
-//		ent->velocity = bounce_vel;
-//
-//		// Movernos un poco más lejos de la superficie de colisión
-//		ent->s.origin = tr.endpos + (tr.plane.normal * 8.0f);
-//	}
-//	else {
-//		ent->s.origin = next_pos;
-//	}
-//
-//	// Reducir velocidad más gradualmente
-//	float speed = ent->velocity.length();
-//	if (speed > MIN_VELOCITY) {
-//		ent->velocity[0] *= 0.99f;
-//		ent->velocity[1] *= 0.99f;
-//		ent->velocity[2] *= 0.97f; // Más fricción vertical
-//	}
-//
-//	// Gravedad más suave, pero asegurándonos de mantener velocidad mínima
-//	ent->velocity[2] -= 175.0f * gi.frame_time_s;
-//
-//	// Verificar si la velocidad es muy baja y el item está cerca de una pared
-//	if (speed < MIN_VELOCITY) {
-//		trace_t side_traces[4];
-//		vec3_t check_dirs[4] = {
-//			{1, 0, 0}, {-1, 0, 0},
-//			{0, 1, 0}, {0, -1, 0}
-//		};
-//
-//		bool near_wall = false;
-//		for (int i = 0; i < 4; i++) {
-//			vec3_t check_pos = ent->s.origin + (check_dirs[i] * 10.0f);
-//			side_traces[i] = gi.traceline(ent->s.origin, check_pos, ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-//			if (side_traces[i].fraction < 1.0f) {
-//				near_wall = true;
-//				break;
-//			}
-//		}
-//
-//		if (near_wall) {
-//			// Dar un empujón aleatorio si estamos cerca de una pared
-//			ent->velocity[0] += crandom() * MIN_VELOCITY * 2.0f;
-//			ent->velocity[1] += crandom() * MIN_VELOCITY * 2.0f;
-//			ent->velocity[2] += MIN_VELOCITY;
-//		}
-//	}
-//
-//	// Solo detenerse si realmente tiene poca velocidad y no está cerca de paredes
-//	if (ent->velocity.length() < 5.0f) {
-//		trace_t ground_tr = gi.traceline(ent->s.origin, ent->s.origin + vec3_t{ 0, 0, -16.0f },
-//			ent, MASK_SOLID | CONTENTS_PLAYERCLIP);
-//		if (ground_tr.fraction < 1.0f) {
-//			ent->think = nullptr;
-//			ent->nextthink = {};
-//			ent->movetype = MOVETYPE_TOSS;
-//			return;
-//		}
-//	}
-//
-//	ent->nextthink = level.time + FRAME_TIME_S;
-//	gi.linkentity(ent);
-//}
 static void OldBossDeathHandler(edict_t* boss)
 {
 	// Verificación más estricta para el manejo de muerte del boss
