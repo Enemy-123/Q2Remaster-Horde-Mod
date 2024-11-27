@@ -13,10 +13,26 @@ TANK
 #include "m_flash.h"
 #include "shared.h"
 
+static cached_soundindex sound_thud;
+static cached_soundindex sound_pain, sound_pain2;
+static cached_soundindex sound_idle;
+static cached_soundindex sound_die;
+static cached_soundindex sound_step;
+static cached_soundindex sound_sight;
+static cached_soundindex sound_windup;
+static cached_soundindex sound_strike;
+static cached_soundindex sound_grenade;
+static cached_soundindex sound_bigtele;
+
+constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_GUARDIAN = 8_spawnflag;
+constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING = 16_spawnflag;
+
+
 void tank_refire_rocket(edict_t* self);
 void tank_doattack_rocket(edict_t* self);
 void tank_reattack_blaster(edict_t* self);
 void tank_reattack_grenades(edict_t* self);
+
 
 float entdist(const edict_t* ent1, const edict_t* ent2)
 {
@@ -68,14 +84,19 @@ float entdist(const edict_t* ent1, const edict_t* ent2)
 		{
 			if (effect)
 			{
+
+				gi.sound(self, CHAN_VOICE, sound_bigtele, 1, ATTN_NONE, 0);
+
 				// Teleport effect at both positions
 				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_BOSSTPORT);
+				gi.WriteByte(TE_BFG_BIGEXPLOSION);
 				gi.WritePosition(self->s.origin);
 				gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
+				gi.unlinkentity(self);
+
 				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_BOSSTPORT);
+				gi.WriteByte(TE_BFG_BIGEXPLOSION);
 				gi.WritePosition(start);
 				gi.multicast(start, MULTICAST_PVS, false);
 			}
@@ -87,18 +108,6 @@ float entdist(const edict_t* ent1, const edict_t* ent2)
 	}
 	return false;
 }
-static cached_soundindex sound_thud;
-static cached_soundindex sound_pain, sound_pain2;
-static cached_soundindex sound_idle;
-static cached_soundindex sound_die;
-static cached_soundindex sound_step;
-static cached_soundindex sound_sight;
-static cached_soundindex sound_windup;
-static cached_soundindex sound_strike;
-static cached_soundindex sound_grenade;
-
-constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_GUARDIAN = 8_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING = 16_spawnflag;
 
 //
 // misc
@@ -516,7 +525,7 @@ void TankBlaster(edict_t* self)
 	else
 		PredictAim(self, self->enemy, start, 0, false, 0.f, &dir, nullptr);
 
-	const bool isBoss = !strcmp(self->classname, "monster_tank_64") || g_hardcoop->integer || self->monsterinfo.IS_BOSS;
+	const bool isBoss = ((!strcmp(self->classname, "monster_tank_64") && self->monsterinfo.IS_BOSS) || (g_hardcoop->integer && !strcmp(self->classname, "monster_tank_64")));
 	if (isBoss) {
 		PredictAim(self, self->enemy, bullet_start, 0, false, 0.075f, &dir, nullptr);
 		const vec3_t end = bullet_start + (dir * 8192);
@@ -530,7 +539,7 @@ void TankBlaster(edict_t* self)
 		gi.WritePosition(tr.endpos);
 		gi.multicast(bullet_start, MULTICAST_PVS, false);
 
-		fire_bullet(self, bullet_start, dir, irandom(8, 12), 15, 0, 0, MOD_TESLA);
+		fire_bullet(self, bullet_start, dir, irandom(12, 17), 18, 0, 0, MOD_TESLA);
 	}
 	else
 		monster_fire_blaster2(self, start, dir, 30, 950, flash_number, EF_BLASTER);
@@ -542,7 +551,6 @@ void TankStrike(edict_t* self)
 
 	{
 		gi.sound(self, CHAN_WEAPON, sound_strike, 1, ATTN_NORM, 0);
-
 
 		// Efecto visual similar al berserker
 		gi.WriteByte(svc_temp_entity);
@@ -599,15 +607,10 @@ mframe_t tank_frames_commander_punch[] =
 };
 MMOVE_T(tank_move_commander_punch) = { FRAME_attak224, FRAME_attak235, tank_frames_commander_punch, tank_run };
 
-
+constexpr gtime_t TELEPORT_COOLDOWN = 3_sec;
 void commander_punch(edict_t* self)
 {
 	if (!self->enemy || !self->enemy->inuse)
-		return;
-
-	// Verificar cooldown de teleport
-	constexpr gtime_t TELEPORT_COOLDOWN = 2_sec;
-	if (level.time < self->monsterinfo.spawn_cooldown)
 		return;
 
 	// Intento de teleportación si no está en modo estático
@@ -619,7 +622,6 @@ void commander_punch(edict_t* self)
 			self->monsterinfo.spawn_cooldown = level.time + TELEPORT_COOLDOWN;
 
 			M_SetAnimation(self, &tank_move_commander_punch);
-			TankStrike(self);
 			self->monsterinfo.attack_finished = level.time + 0.5_sec;
 			return;
 		}
@@ -734,9 +736,10 @@ void TankMachineGun(edict_t* self)
 		return;
 
 	// Aumenta velocidad de giro
-	self->yaw_speed = 45; // Valor original era más bajo
 
 	vec3_t dir = self->enemy->s.origin - self->s.origin;
+
+	self->yaw_speed = 45;
 	self->ideal_yaw = vectoyaw(dir);
 	M_ChangeYaw(self);
 
@@ -765,7 +768,7 @@ void TankMachineGun(edict_t* self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	if (!strcmp(self->classname, "monster_tank_commander") || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING)) {
+	if (!strcmp(self->classname, "monster_tank_commander") || self->spawnflags.has(SPAWNFLAG_TANK_COMMANDER_HEAT_SEEKING) || self->monsterinfo.IS_BOSS) {
 		monster_fire_flechette(self, start, forward, 20,
 			self->monsterinfo.IS_BOSS ? 1150 : 700,
 			flash_number);
@@ -1087,26 +1090,28 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 	vec3_t vec;
 	float  range{};
 	float  r;
-	// PMM
 	float chance;
 
-	// PMM
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
-	if (self->enemy->client && self->monsterinfo.IS_BOSS && self->s.skinnum == 2 && frandom() < 0.4f) {
+	if (self->enemy->client && self->monsterinfo.IS_BOSS && self->s.skinnum == 2 && frandom() < 0.6f) {
+		// Verificar cooldown de teleport
+		if (level.time < self->monsterinfo.spawn_cooldown)
+			return;
+
 		commander_punch(self);
-		return;
+		M_SetAnimation(self, &tank_move_punch);
 	}
 
 	if (range_to(self, self->enemy) <= RANGE_MELEE * 2)
 	{
 		// Ataque melee (punch)
 		M_SetAnimation(self, &tank_move_punch);
-		self->monsterinfo.attack_finished = level.time + 0.2_sec;
+		self->monsterinfo.attack_finished = level.time + 0.6_sec;
 		return;
 	}
-	// PMM
+
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
 		// setup shot probabilities
@@ -1144,9 +1149,18 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &tank_move_attack_fire_rocket);
 		else
 		{
-			self->s.skinnum == 2 && strcmp(self->enemy->classname, "monster_tank_64") ?
-				M_SetAnimation(self, &tank_move_attack_grenade) :
+			if (self->s.skinnum == 2) {
+				float attack_choice = frandom();
+				if (attack_choice <= 0.7f) {
+					M_SetAnimation(self, &tank_move_attack_grenade);
+				}
+				else {
+					M_SetAnimation(self, &tank_move_attack_blast);
+				}
+			}
+			else {
 				M_SetAnimation(self, &tank_move_attack_blast);
+			}
 			self->monsterinfo.nextframe = FRAME_attak108;
 		}
 
@@ -1154,7 +1168,6 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 		self->pain_debounce_time = level.time + 5_sec; // no pain for a while
 		return;
 	}
-	// pmm
 
 	vec = self->enemy->s.origin - self->s.origin;
 	range = vec.length();
@@ -1167,10 +1180,20 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 
 		if (can_machinegun && r < 0.5f)
 			M_SetAnimation(self, &tank_move_attack_chain);
-		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			self->s.skinnum == 2 && strcmp(self->classname, "monster_tank_64") ?
-			M_SetAnimation(self, &tank_move_attack_grenade) :
-			M_SetAnimation(self, &tank_move_attack_blast);
+		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1])) {
+			if (self->s.skinnum == 2) {
+				float attack_choice = frandom();
+				if (attack_choice <= 0.7f) {
+					M_SetAnimation(self, &tank_move_attack_grenade);
+				}
+				else {
+					M_SetAnimation(self, &tank_move_attack_blast);
+				}
+			}
+			else {
+				M_SetAnimation(self, &tank_move_attack_blast);
+			}
+		}
 	}
 	else if (range <= 250)
 	{
@@ -1178,10 +1201,20 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 
 		if (can_machinegun && r < 0.25f)
 			M_SetAnimation(self, &tank_move_attack_chain);
-		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			self->s.skinnum == 2 && strcmp(self->classname, "monster_tank_64") ?
-			M_SetAnimation(self, &tank_move_attack_grenade) :
-			M_SetAnimation(self, &tank_move_attack_blast);
+		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1])) {
+			if (self->s.skinnum == 2) {
+				float attack_choice = frandom();
+				if (attack_choice <= 0.5f) {
+					M_SetAnimation(self, &tank_move_attack_grenade);
+				}
+				else {
+					M_SetAnimation(self, &tank_move_attack_blast);
+				}
+			}
+			else {
+				M_SetAnimation(self, &tank_move_attack_blast);
+			}
+		}
 	}
 	else
 	{
@@ -1195,10 +1228,20 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &tank_move_attack_pre_rocket);
 			self->pain_debounce_time = level.time + 5_sec; // no pain for a while
 		}
-		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1]))
-			self->s.skinnum == 2 && strcmp(self->classname, "monster_tank_64") ?
-			M_SetAnimation(self, &tank_move_attack_grenade) :
-			M_SetAnimation(self, &tank_move_attack_blast);
+		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1])) {
+			if (self->s.skinnum == 2) {
+				float attack_choice = frandom();
+				if (attack_choice <= 0.5f) {
+					M_SetAnimation(self, &tank_move_attack_grenade);
+				}
+				else {
+					M_SetAnimation(self, &tank_move_attack_blast);
+				}
+			}
+			else {
+				M_SetAnimation(self, &tank_move_attack_blast);
+			}
+		}
 	}
 }
 
@@ -1382,6 +1425,7 @@ void SP_monster_tank(edict_t* self)
 	sound_strike.assign("tank/tnkatck5.wav");
 	sound_sight.assign("tank/sight1.wav");
 	sound_grenade.assign("guncmdr/gcdratck3.wav");
+	sound_bigtele.assign("misc/bigtele.wav");
 
 	gi.soundindex("tank/tnkatck1.wav");
 	gi.soundindex("tank/tnkatk2a.wav");
