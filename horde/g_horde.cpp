@@ -2779,6 +2779,8 @@ bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
 	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin)
 		return false;
 
+	gi.unlinkentity(self);
+
 	// Guardar velocidad y origen actuales
 	const vec3_t old_velocity = self->velocity;
 	const vec3_t old_origin = self->s.origin;
@@ -3450,6 +3452,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Crear subspan excluyendo el primer elemento
 	std::span<edict_t> edicts_view = all_edicts.subspan(1);
 
+	gi.unlinkentity(self);
+
 	// Recolección optimizada de spawn points usando span
 	for (edict_t& e : edicts_view) {
 		if (spawn_count >= MAX_SPAWN_POINTS)
@@ -3526,6 +3530,9 @@ static edict_t* SpawnMonsters() {
 	edict_t* monster_spawns[MAX_SPAWN_POINTS] = {};
 	size_t spawn_count = 0;
 	const auto currentTime = level.time;
+
+	if (developer->integer == 2)
+		return nullptr;
 
 	// Crear span desde g_edicts de forma más segura
 	std::span<edict_t> all_edicts(g_edicts, globals.num_edicts);

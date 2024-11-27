@@ -593,11 +593,14 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 	// Store original position for effect
 	const vec3_t old_origin = ent->s.origin;
 
+
 	// Teleport effect at source
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_TELEPORT_EFFECT);
 	gi.WritePosition(old_origin);
 	gi.multicast(old_origin, MULTICAST_PVS, false);
+
+	gi.unlinkentity(ent);
 
 	// Move entity using vec3_t operations
 	ent->s.origin = dest->s.origin;
@@ -629,7 +632,7 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 		ent->s.angles = dest->s.angles;
 	}
 
-	gi.unlinkentity(ent);
+
 	gi.linkentity(ent);
 
 	// Prevent telefrag
