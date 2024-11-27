@@ -115,7 +115,7 @@ static const ClusterConfig DEFAULT_CLUSTER_CONFIG = {
 };
 
 // Función separada para el manejo de granadas fragmentarias
-static void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage) {
+void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage) {
 	const ClusterConfig& config = DEFAULT_CLUSTER_CONFIG;
 
 	// Calcular el daño para cada granada fragmentaria

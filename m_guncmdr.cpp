@@ -1215,8 +1215,13 @@ MONSTERINFO_ATTACK(guncmdr_attack) (edict_t* self) -> void {
 	//assert(self->enemy != nullptr);
 	monster_done_dodge(self);
 
-	if (!strcmp(self->enemy->classname, "tesla_mine") || !strcmp(self->enemy->classname, "monster_sentrygun"))
+	if (!strcmp(self->enemy->classname, "tesla_mine"))
 	{
+		M_SetAnimation(self, range_to(self, self->enemy) >= RANGE_MELEE * 2 ? &guncmdr_move_attack_chain : &guncmdr_move_attack_kick);
+		return; // Salir para evitar cambios adicionales de animación
+	}
+
+	if (!strcmp(self->enemy->classname, "monster_sentrygun")) {
 		M_SetAnimation(self, &guncmdr_move_attack_chain);
 		return; // Salir para evitar cambios adicionales de animación
 	}
@@ -1379,7 +1384,10 @@ static void GunnerCmdrCounter(edict_t* self)
 	gi.WriteDir(f);
 	gi.multicast(tr.endpos, MULTICAST_PHS, false);
 
-	T_SlamRadiusDamage(tr.endpos, self, self, 15, 250.f, self, 200.f, MOD_UNKNOWN);
+	T_SlamRadiusDamage(tr.endpos, self, self, 45, 250.f, self, 200.f, MOD_UNKNOWN);
+
+	if (self->monsterinfo.IS_BOSS || frandom() < 0.3f)
+		SpawnClusterGrenades(self, self->s.origin, 125);
 }
 
 //===========

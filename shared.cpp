@@ -1098,5 +1098,3 @@ bool TeleportSelf(edict_t* ent)
 	if (developer->integer) gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
 	return true;
 }
-
-
