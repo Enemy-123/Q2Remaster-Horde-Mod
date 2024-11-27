@@ -1150,7 +1150,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 		else
 		{
 			if (self->s.skinnum == 2) {
-				float attack_choice = frandom();
+				const float attack_choice = frandom();
 				if (attack_choice <= 0.7f) {
 					M_SetAnimation(self, &tank_move_attack_grenade);
 				}
@@ -1182,7 +1182,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &tank_move_attack_chain);
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1])) {
 			if (self->s.skinnum == 2) {
-				float attack_choice = frandom();
+				const float attack_choice = frandom();
 				if (attack_choice <= 0.7f) {
 					M_SetAnimation(self, &tank_move_attack_grenade);
 				}
@@ -1203,7 +1203,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 			M_SetAnimation(self, &tank_move_attack_chain);
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1])) {
 			if (self->s.skinnum == 2) {
-				float attack_choice = frandom();
+				const float attack_choice = frandom();
 				if (attack_choice <= 0.5f) {
 					M_SetAnimation(self, &tank_move_attack_grenade);
 				}
@@ -1230,7 +1230,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 		}
 		else if (M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_BLASTER_1])) {
 			if (self->s.skinnum == 2) {
-				float attack_choice = frandom();
+				const float attack_choice = frandom();
 				if (attack_choice <= 0.5f) {
 					M_SetAnimation(self, &tank_move_attack_grenade);
 				}
