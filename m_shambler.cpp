@@ -454,7 +454,7 @@ void ShamblerCastFireballs(edict_t* self)
 	const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
 		static_cast<float>(q_countof(fireball_left_hand));
 	constexpr float max_size = 1.5f;
-	const float current_size = 0.1f + (max_size - 0.1f) * size_factor;
+	const float current_size = 0.1f + (max_size - 0.1f) * size_factor / 3;
 
 	for (int i = 0; i < num_fireballs; i++)
 	{
@@ -477,11 +477,12 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->flags |= FL_DODGE;
 			fireball->clipmask = MASK_PROJECTILE;
 			fireball->solid = SOLID_BBOX;
-			fireball->s.effects = EF_FIREBALL;
+			fireball->s.effects = EF_FIREBALL | EF_TELEPORTER;
 			fireball->s.renderfx = RF_MINLIGHT;
-			fireball->s.modelindex = frandom() < 0.1f ?
-				gi.modelindex("models/objects/fire/tris.md2") :
-				gi.modelindex("models/objects/gibs/skull/tris.md2");
+			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
+			//fireball->s.modelindex = frandom() < 0.1f ?
+			//	gi.modelindex("models/objects/fire/tris.md2") :
+			//	gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
 			fireball->touch = fireball_touch;
 			fireball->nextthink = level.time + 7_sec;
