@@ -1228,8 +1228,14 @@ static int32_t countFlyingSpawns() noexcept {
 		});
 }
 
-static constexpr float adjustFlyingSpawnProbability(int32_t flyingSpawns) {
-	return (flyingSpawns > 0) ? 0.25f : 1.0f;
+static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
+	switch (flyingSpawns) {
+	case 0: return 1.0f;
+	case 1: return 0.9f;
+	case 2: return 0.8f;
+	case 3: return 0.6f;
+	default: return 0.5f;
+	}
 }
 
 
