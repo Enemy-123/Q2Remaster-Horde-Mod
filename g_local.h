@@ -3430,8 +3430,8 @@ struct edict_t
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 
-		//Horde stuff
 
+	//Horde stuff
 	BossSizeCategory bossSizeCategory;
 	regeneration_info_t regen_info;
 
@@ -3447,11 +3447,9 @@ struct edict_t
 	float original_dmg; // original dmg on bouncy gl, so it will reduce over bounces
 	int configstringIndex; // cs
 	gtime_t expire_time;
-	gtime_t spawn_time;
 
-	bool effects_applied = false;
+	bool effects_applied = false; // prevention for applying more that 1 time effect for bosses
 	bool is_fading_out = false; // corpse cleaning management
-	//	gtime_t	regentime = 0.25_sec;
 };
 
 static constexpr const char* TEAM1 = "team1";

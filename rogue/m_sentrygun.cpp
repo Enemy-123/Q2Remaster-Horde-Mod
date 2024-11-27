@@ -287,7 +287,7 @@ void turret2Aim(edict_t* self)
 		self->target_ent = G_Spawn();
 		self->target_ent->s.modelindex = MODELINDEX_WORLD;
 		self->target_ent->s.renderfx = RF_BEAM;
-		self->target_ent->s.frame = 1.8f;
+		self->target_ent->s.frame = 1;
 		self->target_ent->s.skinnum = 0xf0f0f0f0;
 		self->target_ent->classname = "turret_lasersight";
 		self->target_ent->s.effects = EF_BOB;

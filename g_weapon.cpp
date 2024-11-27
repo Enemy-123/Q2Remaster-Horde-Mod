@@ -1178,7 +1178,6 @@ fire_bfg
 */
 
 constexpr float BFG10K_INITIAL_SPEED = 400.0f;
-//constexpr gtime_t BFG_EXPIRE_TIME = 10_sec;
 constexpr gtime_t BFG_WALL_EXPIRE_TIME = 2_sec;
 constexpr gtime_t BFG_MAX_LIFETIME = 8_sec;
 
@@ -1302,7 +1301,7 @@ THINK(bfg_think) (edict_t* self) -> void
 	trace_t  tr;
 
 	if ((self->timestamp != 0_ms && level.time >= self->expire_time) ||
-		(self->timestamp == 0_ms && level.time >= self->spawn_time + BFG_MAX_LIFETIME))
+		(self->timestamp == 0_ms && level.time >= self->air_finished + BFG_MAX_LIFETIME))
 	{
 		G_FreeEdict(self);
 		return;
@@ -1452,7 +1451,7 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->classname = "bfg blast";
 	bfg->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
 	bfg->timestamp = 0_ms;
-	bfg->spawn_time = level.time;
+	bfg->air_finished = level.time;
 	bfg->expire_time = level.time + BFG_MAX_LIFETIME;
 	bfg->teammaster = bfg;
 	bfg->teamchain = nullptr;
