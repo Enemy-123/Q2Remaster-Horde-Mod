@@ -1067,34 +1067,14 @@ vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 
 	// En pared
 	if (fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135) {
-		// Obtener el YAW normalizado
-		float const yaw = fmod(self->s.angles[YAW] + 360.0f, 360.0f);
+		// Primero, mover hacia afuera de la pared
+		ray_origin = ray_origin + (forward * TESLA_WALL_OFFSET);
 
-		// Cálculo base del punto de origen
-		ray_origin = ray_origin + (forward * 8.0f);  // Mover hacia adelante
+		// Ajustar la altura de manera consistente
+		ray_origin = ray_origin + (up * 16.0f);
 
-		// Calculamos un vector compuesto para la altura
-		vec3_t height_vector;
-		if (yaw >= 90 && yaw < 270) {
-			// Para un lado
-			height_vector = up + (forward * 0.25f);  // Combinar up con un poco de forward
-		}
-		else {
-			// Para el otro lado
-			height_vector = up - (forward * 0.25f);  // Combinar up con forward negativo
-		}
-
-		// Normalizar el vector de altura y aplicarlo
-		height_vector.normalize();
-		ray_origin = ray_origin + (height_vector * 16.0f);
-
-		// Pequeño ajuste final según la orientación
-		if (yaw >= 90 && yaw < 270) {
-			ray_origin = ray_origin + (forward * 2.0f);
-		}
-		else {
-			ray_origin = ray_origin - (forward * 2.0f);
-		}
+		// No necesitamos ajustes basados en yaw ya que queremos
+		// que la posición sea simétrica en ambos lados
 	}
 	// En techo
 	else if (fabs(self->s.angles[PITCH]) > 150 || fabs(self->s.angles[PITCH]) < -150) {
