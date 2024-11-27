@@ -13,7 +13,7 @@ constexpr size_t MAX_RECENT_BOSSES = 3;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
 static constexpr size_t NUM_WAVE_SOUNDS = 12;
-static constexpr size_t NUM_START_SOUNDS = 9;
+static constexpr size_t NUM_START_SOUNDS = 8;
 
 //precache//
 // Arrays estáticos de cached_soundindex
@@ -43,7 +43,6 @@ static constexpr const char* START_SOUND_PATHS[NUM_START_SOUNDS] = {
 	"misc/r_tele3.wav",
 	"world/fish.wav",
 	"world/klaxon2.wav",
-	"world/klaxon3.wav",
 	"misc/tele_up.wav",
 	"world/incoming.wav",
 	"world/redforceact.wav",
