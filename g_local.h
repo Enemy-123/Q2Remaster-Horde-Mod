@@ -2013,6 +2013,7 @@ extern cvar_t* g_autohaste;
 extern cvar_t* wavenext;
 extern cvar_t* dm_monsters;
 extern cvar_t* g_upgradeproxs;
+extern cvar_t* g_piercingbeam;
 
 
 extern cvar_t* g_no_self_damage;

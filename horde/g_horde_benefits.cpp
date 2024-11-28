@@ -67,6 +67,13 @@ const benefit_t BENEFITS[MAX_BENEFITS] = { {
 	//	"g_improvedchaingun", "1",
 	//	25, -1, 0.2f
 	//},
+	 	{
+		"Piercing Plasma-Beam",
+		"\n\n\n\Plasma-Beam is ready to pierce some stroggs.\n",
+		"IMPROVED Plasma-Beam!\n",
+		"g_piercingbeam", "1",
+		25, -1, 0.2f
+	},
 	{
 		"Napalm-Grenade Launcher",
 		"\n\n\n\nIMPROVED GRENADE LAUNCHER!\n",

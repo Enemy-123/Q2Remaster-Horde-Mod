@@ -110,6 +110,7 @@ cvar_t* g_autohaste;
 cvar_t* wavenext;
 cvar_t* dm_monsters;
 cvar_t* g_upgradeproxs;
+cvar_t* g_piercingbeam;
 cvar_t* g_dm_spawns;
 cvar_t* sv_eyecam;
 cvar_t* sv_target_id;
@@ -421,6 +422,7 @@ void InitGame()
 	g_bfgslide = gi.cvar("g_bfgslide", "1", CVAR_NOFLAGS);
 	g_startarmor = gi.cvar("g_startarmor", "0", CVAR_NOFLAGS);
 	g_upgradeproxs = gi.cvar("g_upgradeproxs", "0", CVAR_NOFLAGS);
+	g_piercingbeam = gi.cvar("g_piercingbeam", "0", CVAR_NOFLAGS);
 	g_dm_spawns = gi.cvar("g_dm_spawns", "1", CVAR_NOFLAGS);
 	g_vampire = gi.cvar("g_vampire", "0", CVAR_NOFLAGS);
 	g_autohaste = gi.cvar("g_autohaste", "0", CVAR_NOFLAGS);

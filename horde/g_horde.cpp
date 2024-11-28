@@ -2934,6 +2934,7 @@ void ResetGame() {
 	gi.cvar_set("g_startarmor", "0");
 	gi.cvar_set("g_ammoregen", "0");
 	gi.cvar_set("g_upgradeproxs", "0");
+	gi.cvar_set("g_piercingbeam", "0");
 	gi.cvar_set("g_tracedbullets", "0");
 	gi.cvar_set("g_bouncygl", "0");
 	gi.cvar_set("g_bfgpull", "0");
