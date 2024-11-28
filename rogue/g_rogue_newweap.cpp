@@ -121,6 +121,8 @@ struct ClusterConfig {
 	float min_fuse_time;       // Tiempo mínimo de explosión
 	float max_fuse_time;       // Tiempo máximo de explosión
 	float damage_multiplier;   // Multiplicador de daño para fragmentos
+	float homing_bias;         // Influencia del direcionamiento hacia enemigos (0-1)
+	float search_radius;       // Radio de búsqueda de enemigos
 };
 
 // Configuración por defecto para el clustering
@@ -132,12 +134,60 @@ static const ClusterConfig DEFAULT_CLUSTER_CONFIG = {
 	600.0f, // max_velocity
 	0.5f,   // min_fuse_time
 	2.0f,   // max_fuse_time
-	0.5f    // damage_multiplier
+	0.5f,   // damage_multiplier
+	0.3f,   // homing_bias (30% de influencia)
+	384.0f  // search_radius (2x PROX_DAMAGE_RADIUS)
 };
+
+// Función para encontrar el enemigo más cercano
+edict_t* FindNearestEnemy(edict_t* owner, const vec3_t& origin, float search_radius) {
+	edict_t* nearest = nullptr;
+	float nearest_dist = search_radius * search_radius;
+	edict_t* current = nullptr;
+
+	while ((current = findradius(current, origin, search_radius)) != nullptr) {
+		// Ignorar entidades no válidas o muertas
+		if (!current->inuse || current->health <= 0 || !current->classname) {
+			continue;
+		}
+
+		// Verificar si es un objetivo válido (monstruo o jugador enemigo)
+		if (!(current->svflags & SVF_MONSTER) && !current->client) {
+			continue;
+		}
+
+		// Evitar dañar a compañeros de equipo
+		if (CheckTeamDamage(current, owner)) {
+			continue;
+		}
+
+		// Calcular distancia usando el vec3_t moderno
+		vec3_t const diff = current->s.origin - origin;
+		float const dist = diff.lengthSquared();
+
+		// Actualizar si encontramos uno más cercano
+		if (dist < nearest_dist) {
+			nearest = current;
+			nearest_dist = dist;
+		}
+	}
+
+	return nearest;
+}
 
 // Función separada para el manejo de granadas fragmentarias
 void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage) {
 	const ClusterConfig& config = DEFAULT_CLUSTER_CONFIG;
+
+	// Buscar el enemigo más cercano para influenciar la dirección
+	edict_t* nearest_enemy = FindNearestEnemy(owner, origin, config.search_radius);
+
+	// Calcular dirección base hacia el enemigo si existe
+	vec3_t enemy_dir{};
+	if (nearest_enemy) {
+		enemy_dir = nearest_enemy->s.origin - origin;
+		enemy_dir = safe_normalized(enemy_dir); // Uso de safe_normalized
+	}
 
 	// Calcular el daño para cada granada fragmentaria
 	int const fragment_damage = static_cast<int>(base_damage * config.damage_multiplier);
@@ -159,6 +209,17 @@ void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage)
 			vec3_t const angles{ pitch, yaw, 0 };
 			auto [fwd, right, up] = AngleVectors(angles);
 			forward = fwd;
+
+			// Si hay un enemigo cercano, influenciar la dirección usando operadores de vec3_t
+			if (nearest_enemy && enemy_dir) {
+				// Aplicar una influencia más fuerte hacia el enemigo
+				float const distance_factor = 1.0f - (nearest_enemy->s.origin - origin).length() / config.search_radius;
+				float const adjusted_bias = config.homing_bias * (1.0f + distance_factor * 0.5f);
+
+				// Interpolar entre la dirección aleatoria y la dirección al enemigo
+				forward = forward * (1.0f - adjusted_bias) + enemy_dir * adjusted_bias;
+				forward = safe_normalized(forward);
+			}
 		}
 
 		// Velocidad aleatoria para cada granada

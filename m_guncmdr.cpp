@@ -1386,7 +1386,7 @@ static void GunnerCmdrCounter(edict_t* self)
 
 	T_SlamRadiusDamage(tr.endpos, self, self, 45, 250.f, self, 200.f, MOD_UNKNOWN);
 
-	if (self->monsterinfo.IS_BOSS || frandom() < 0.3f)
+	if (self->monsterinfo.IS_BOSS || frandom() < 0.4f)
 		SpawnClusterGrenades(self, self->s.origin, 125);
 }
 

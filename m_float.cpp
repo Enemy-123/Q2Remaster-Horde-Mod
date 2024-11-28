@@ -662,6 +662,9 @@ DIE(floater_tracker_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, 
 		{ "models/monsters/float/gibs/base.md2", GIB_SKINNED },
 		{ "models/monsters/float/gibs/jar.md2", GIB_SKINNED | GIB_HEAD }
 		});
+
+	if (frandom() < 0.5f)
+		SpawnClusterGrenades(self, self->s.origin, 125);
 }
 
 static void float_set_fly_parameters(edict_t* self)
