@@ -437,6 +437,26 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
 	if (other->takedamage) {
+		// Verificar si es un blaster normal
+		const bool useblaster = self->owner->client &&
+			self->owner->client->pers.weapon &&
+			self->owner->client->pers.weapon->id == IT_WEAPON_BLASTER;
+
+		// Solo aplicar radio damage si NO es un blaster normal
+		if (!useblaster && self->dmg >= 5) {
+			int damagestat = 0;
+			if (self->owner) {
+				damagestat = self->owner->takedamage;
+				self->owner->takedamage = false;
+				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+				self->owner->takedamage = damagestat;
+			}
+			else {
+				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
+			}
+		}
+
+		// Daño directo
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin,
 			tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
 		G_FreeEdict(self);
