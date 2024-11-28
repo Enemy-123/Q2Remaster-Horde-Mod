@@ -1161,11 +1161,13 @@ void SP_monster_carrier(edict_t* self)
 		self->monsterinfo.power_armor_power = 155;
 
 	// 2000 - 4000 health
-	self->health = max(2000, 2000 + 700 * (skill->integer - 1)) * st.health_multiplier;
+	self->health = max(2000, 2000 + 1000 * (skill->integer - 1)) * st.health_multiplier;
 	// add health in coop (500 * skill)
+	if (coop->integer)
+		self->health += 500 * skill->integer;
 
 	if (self->monsterinfo.IS_BOSS && !strcmp(self->classname, "monster_carrier"))
-		self->health *= 2.9f;
+		self->health *= 2.6f;
 
 	self->gib_health = -200;
 	self->mass = 1000;

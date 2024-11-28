@@ -716,7 +716,12 @@ void SP_monster_supertank(edict_t* self)
 	self->mins = { -64, -64, 0 };
 	self->maxs = { 64, 64, 112 };
 
+	if (g_horde->integer)
 	self->health = 3300 * st.health_multiplier;
+
+	if (!g_horde->integer)
+	self->health = 2000 * st.health_multiplier;
+
 	self->gib_health = -500;
 	self->mass = 800;
 

@@ -948,7 +948,11 @@ void SP_monster_psxguardian(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
+	if (g_horde->integer)
 	self->health = 6500 * st.health_multiplier;
+	if (!g_horde->integer)
+	self->health = 2500 * st.health_multiplier;
+
 	self->gib_health = -200;
 
 	if (!st.was_key_specified("power_armor_power"))
