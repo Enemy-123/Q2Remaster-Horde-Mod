@@ -68,8 +68,8 @@ const benefit_t BENEFITS[MAX_BENEFITS] = { {
 	//	25, -1, 0.2f
 	//},
 	 	{
-		"Piercing Plasma-Beam",
-		"\n\n\n\Plasma-Beam is ready to pierce some stroggs.\n",
+		"Piercing Plasma",
+		"\n\n\n\nPlasma-Beam is ready to pierce some strogg flesh\n",
 		"IMPROVED Plasma-Beam!\n",
 		"g_piercingbeam", "1",
 		25, -1, 0.2f

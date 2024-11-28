@@ -3462,6 +3462,7 @@ struct edict_t
 
 	bool effects_applied = false; // prevention for applying more that 1 time effect for bosses
 	bool is_fading_out = false; // corpse cleaning management
+	gtime_t beam_hit_time; // heatbeam piercing balance
 };
 
 static constexpr const char* TEAM1 = "team1";
@@ -3851,30 +3852,27 @@ inline bool pierce_args_t::mark(edict_t* ent)
 	if (num_pierced == MAX_PIERCE)
 		return false;
 
+	// Solo registramos la entidad sin modificar su solidez
 	pierced[num_pierced] = ent;
-	pierce_solidities[num_pierced] = ent->solid;
+	pierce_solidities[num_pierced] = ent->solid; // mantenemos esto por compatibilidad
 	num_pierced++;
 
-	ent->solid = SOLID_NOT;
-	gi.linkentity(ent);
+	// Ya no modificamos la solidez
+	// ent->solid = SOLID_NOT;  // eliminado
+	// gi.linkentity(ent);      // eliminado
 
 	return true;
 }
-extern int8_t current_wave_level;
-extern int8_t last_wave_number;
-
+// implementation of pierce stuff
 // implementation of pierce stuff
 inline void pierce_args_t::restore()
 {
-	for (size_t i = 0; i < num_pierced; i++)
-	{
-		auto& ent = pierced[i];
-		ent->solid = pierce_solidities[i];
-		gi.linkentity(ent);
-	}
-
+	// Ya no necesitamos restaurar nada, solo reseteamos el contador
 	num_pierced = 0;
 }
+
+extern int8_t current_wave_level;
+extern int8_t last_wave_number;
 
 // [Paril-KEX] these are to fix a legacy bug with cached indices
 // in save games. these can *only* be static/globals!
