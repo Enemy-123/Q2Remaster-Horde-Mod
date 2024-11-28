@@ -42,41 +42,49 @@ contents_t G_GetClipMask(edict_t* ent)
 			mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
 	}
 
-	// non-solid objects (items, etc) shouldn't try to clip
-	// against players/monsters
+	// non-solid objects
 	if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// monsters/players that are also dead shouldn't clip
-	// against players/monsters
+	// dead monsters/players
 	if ((ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER))
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
-	// remove special mask value
 	mask &= ~CONTENTS_AREAPORTAL;
 
 	// horde mode
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) &&
-		strcmp(ent->classname, "monster_flyer") &&
-		strcmp(ent->classname, "monster_brain") &&
-		//   strcmp(ent->classname, "monster_berserk") &&
-		 //  strcmp(ent->classname, "monster_mutant") &&
-		strcmp(ent->classname, "monster_makron") &&
-		strcmp(ent->classname, "monster_widow") &&
-		strcmp(ent->classname, "monster_widow1") &&
-		strcmp(ent->classname, "monster_widow2") &&
-		strcmp(ent->classname, "monster_carrier") &&
-		strcmp(ent->classname, "monster_boss2") &&
-		//strcmp(ent->classname, "monster_runnertank") &&
-	   // strcmp(ent->classname, "monster_carrier_mini") &&
-		strcmp(ent->classname, "monster_sentrygun") &&
-		strcmp(ent->classname, "monster_tank_spawner_stand") &&
-		strcmp(ent->classname, "monster_boss2kl")) {
-		mask &= (~CONTENTS_MONSTER);
-	}
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER))
+	{
+		// Al hacer trace contra otro monstruo, ambos se tratan como owner temporalmente
+		edict_t* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
+		if (other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
+		{
+			// Guardar owner original
+			edict_t* old_owner = ent->owner;
+			edict_t* other_old_owner = other->owner;
 
+			// Hacer que se traten como owners mutuamente
+			ent->owner = other;
+			other->owner = ent;
+
+			// Quitar CONTENTS_MONSTER para que se atraviesen
+			mask &= ~CONTENTS_MONSTER;
+
+			// Restaurar owners originales
+			ent->owner = old_owner;
+			other->owner = other_old_owner;
+		}
+		else
+		{
+			// Si no hay colisión con otro monstruo, mantener CONTENTS_MONSTER
+			mask |= CONTENTS_MONSTER;
+		}
+
+	}
 	return mask;
 }
+
+
 
 /*
 ============
@@ -843,8 +851,8 @@ void SV_Physics_Step(edict_t* ent)
 		// [Paril-KEX] this is something N64 does to avoid doors opening
 		// at the start of a level, which triggers some monsters to spawn.
 		if (!g_horde->integer) // Paril
-		if (!level.is_n64 || level.time > FRAME_TIME_S)
-			G_TouchTriggers(ent);
+			if (!level.is_n64 || level.time > FRAME_TIME_S)
+				G_TouchTriggers(ent);
 
 		if (!ent->inuse)
 			return;
