@@ -30,7 +30,6 @@ void SV_Physics_NewToss(edict_t* ent); // PGM
 contents_t G_GetClipMask(edict_t* ent)
 {
 	contents_t mask = ent->clipmask;
-
 	// default masks
 	if (!mask)
 	{
@@ -42,49 +41,29 @@ contents_t G_GetClipMask(edict_t* ent)
 			mask = MASK_SHOT & ~CONTENTS_DEADMONSTER;
 	}
 
-	// non-solid objects
-	if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
-		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
+	// Optimización: Hacer estos checks una sola vez usando bool
+	bool const is_nonsolid = (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER);
+	bool const is_dead = (ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER);
 
-	// dead monsters/players
-	if ((ent->svflags & (SVF_MONSTER | SVF_PLAYER)) && (ent->svflags & SVF_DEADMONSTER))
+	if (is_nonsolid || is_dead)
 		mask &= ~(CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 	mask &= ~CONTENTS_AREAPORTAL;
 
-	// horde mode
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER))
+	// horde mode - Solo proceder si es necesario
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
 	{
-		// Al hacer trace contra otro monstruo, ambos se tratan como owner temporalmente
-		edict_t* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
-		if (other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
+		// Usando std::span podríamos optimizar el trace si tuviéramos acceso a los arrays internos
+		// Por ahora optimizamos el trace existente
+		if (auto* other = gi.trace(ent->s.origin, ent->mins, ent->maxs, ent->s.origin, ent, mask).ent;
+			other && (other->svflags & SVF_MONSTER) && OnSameTeam(ent, other))
 		{
-			// Guardar owner original
-			edict_t* old_owner = ent->owner;
-			edict_t* other_old_owner = other->owner;
-
-			// Hacer que se traten como owners mutuamente
-			ent->owner = other;
-			other->owner = ent;
-
-			// Quitar CONTENTS_MONSTER para que se atraviesen
 			mask &= ~CONTENTS_MONSTER;
-
-			// Restaurar owners originales
-			ent->owner = old_owner;
-			other->owner = other_old_owner;
 		}
-		else
-		{
-			// Si no hay colisión con otro monstruo, mantener CONTENTS_MONSTER
-			mask |= CONTENTS_MONSTER;
-		}
-
 	}
+
 	return mask;
 }
-
-
 
 /*
 ============
