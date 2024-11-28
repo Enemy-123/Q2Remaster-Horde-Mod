@@ -237,7 +237,7 @@ static void P_DamageFeedback(edict_t* player, const vec3_t& forward, const vec3_
 
 		for (uint8_t i = 0; i < client->num_damage_indicators; i++)
 		{
-			auto& indicator = client->damage_indicators[i];
+			const auto& indicator = client->damage_indicators[i];
 
 			// encode total damage into 5 bits
 			uint8_t encoded = std::clamp((indicator.health + indicator.power + indicator.armor) / 3, 1, 0x1F);
@@ -322,7 +322,7 @@ static void SV_CalcViewOffset(edict_t* ent, const vec3_t& forward, const vec3_t&
 		{
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			gtime_t diff = ent->client->v_dmg_time - level.time;
+			gtime_t const diff = ent->client->v_dmg_time - level.time;
 
 			// slack time remaining
 			if (DAMAGE_TIME_SLACK())
@@ -344,7 +344,7 @@ static void SV_CalcViewOffset(edict_t* ent, const vec3_t& forward, const vec3_t&
 		{
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			gtime_t diff = ent->client->fall_time - level.time;
+			gtime_t const diff = ent->client->fall_time - level.time;
 
 			// slack time remaining
 			if (DAMAGE_TIME_SLACK())
@@ -386,7 +386,7 @@ static void SV_CalcViewOffset(edict_t* ent, const vec3_t& forward, const vec3_t&
 		// add earthquake angles
 		if (ent->client->quake_time > level.time)
 		{
-			float factor = min(1.0f, (ent->client->quake_time.seconds() / level.time.seconds()) * 0.25f);
+			float const factor = min(1.0f, (ent->client->quake_time.seconds() / level.time.seconds()) * 0.25f);
 
 			angles.x += crandom_open() * factor;
 			angles.z += crandom_open() * factor;
@@ -412,7 +412,7 @@ static void SV_CalcViewOffset(edict_t* ent, const vec3_t& forward, const vec3_t&
 		{
 			// [Paril-KEX] 100ms of slack is added to account for
 			// visual difference in higher tickrates
-			gtime_t diff = ent->client->fall_time - level.time;
+			gtime_t const diff = ent->client->fall_time - level.time;
 
 			// slack time remaining
 			if (DAMAGE_TIME_SLACK())
@@ -514,7 +514,7 @@ static void SV_CalcGunOffset(edict_t* ent, const vec3_t& forward, const vec3_t& 
 			else
 				ent->client->ps.gunangles[i] += (0.2f * d) * 0.5f;
 
-			float reduction_factor = viewangles_delta[i] ? 0.05f : 0.15f;
+			float const reduction_factor = viewangles_delta[i] ? 0.05f : 0.15f;
 
 			if (d > 0)
 				d = max(0.f, d - gi.frame_time_ms * reduction_factor);
@@ -621,7 +621,7 @@ static void SV_CalcBlend(edict_t* ent)
 	// PGM
 	if (ent->client->nuke_time > level.time)
 	{
-		float brightness = (ent->client->nuke_time - level.time).seconds() / 2.0f;
+		float const brightness = (ent->client->nuke_time - level.time).seconds() / 2.0f;
 		G_AddBlend(1, 1, 1, brightness, ent->client->ps.screen_blend);
 	}
 	if (ent->client->ir_time > level.time)
@@ -650,7 +650,7 @@ static void SV_CalcBlend(edict_t* ent)
 	{
 		constexpr vec3_t drown_color = { 0.1f, 0.1f, 0.2f };
 		constexpr float max_drown_alpha = 0.75f;
-		float alpha = (ent->air_finished < level.time) ? 1 : (1.f - ((ent->air_finished - level.time).seconds() / 9.0f));
+		float const alpha = (ent->air_finished < level.time) ? 1 : (1.f - ((ent->air_finished - level.time).seconds() / 9.0f));
 		G_AddBlend(drown_color[0], drown_color[1], drown_color[2], min(alpha, max_drown_alpha), ent->client->ps.damage_blend);
 	}
 
@@ -840,7 +840,7 @@ static void P_WorldEffects(edict_t* ent, const step_parameters_t& step)
 				ent->pain_debounce_time = level.time + 1_sec;
 			}
 
-			int dmg = (envirosuit ? 1 : 3) * waterlevel; // take 1/3 damage with envirosuit
+			int const dmg = (envirosuit ? 1 : 3) * waterlevel; // take 1/3 damage with envirosuit
 
 			T_Damage(ent, world, world, vec3_origin, ent->s.origin, vec3_origin, dmg, 0, DAMAGE_NONE, MOD_LAVA);
 			ent->slime_debounce_time = level.time + 10_hz;
@@ -943,7 +943,7 @@ static void G_SetClientEffects(edict_t* ent)
 			ent->s.alpha = 0.1f;
 		else
 		{
-			float x = (ent->client->invisibility_fade_time - level.time).seconds() / INVISIBILITY_TIME.seconds();
+			float const x = (ent->client->invisibility_fade_time - level.time).seconds() / INVISIBILITY_TIME.seconds();
 			ent->s.alpha = std::clamp(x, 0.1f, 1.0f);
 		}
 	}
@@ -992,7 +992,7 @@ static void G_SetClientEffects(edict_t* ent)
 	}
 #endif
 }
-void HORDE_ApplyAmmoRegen(edict_t* ent) {
+static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	if (!g_ammoregen->integer || !ent->client || (g_horde->integer && ClientIsSpectating(ent->client)))
 		return;
 
@@ -1172,69 +1172,130 @@ G_SetClientFrame
 */
 void G_SetClientFrame(edict_t* ent, const step_parameters_t& step)
 {
-	gclient_t* client;
-	bool	   duck, run;
-
 	if (ent->s.modelindex != MODELINDEX_PLAYER)
 		return; // not in the player model
 
-	client = ent->client;
+	gclient_t* client = ent->client;
+	bool duck = (client->ps.pmove.pm_flags & PMF_DUCKED) != 0;
+	bool run = step.xyspeed != 0;
 
-	if (client->ps.pmove.pm_flags & PMF_DUCKED)
-		duck = true;
-	else
-		duck = false;
-	if (step.xyspeed)
-		run = true;
-	else
-		run = false;
+	// Function to handle new animation state
+	auto setNewAnimationState = [&]() {
+		client->anim_priority = ANIM_BASIC;
+		client->anim_duck = duck;
+		client->anim_run = run;
+		client->anim_time = level.time + 10_hz;
 
-	// check for stand/duck and stop/go transitions
-	if (duck != client->anim_duck && client->anim_priority < ANIM_DEATH)
-		goto newanim;
-	if (run != client->anim_run && client->anim_priority == ANIM_BASIC)
-		goto newanim;
-	if (!ent->groundentity && client->anim_priority <= ANIM_WAVE)
-		goto newanim;
+		if (!ent->groundentity) {
+			if (client->ctf_grapple) {
+				// Handle grapple state
+				if (duck) {
+					ent->s.frame = FRAME_crstnd01;
+					client->anim_end = FRAME_crstnd19;
+				}
+				else {
+					ent->s.frame = FRAME_stand01;
+					client->anim_end = FRAME_stand40;
+				}
+			}
+			else {
+				// Handle jump state
+				client->anim_priority = ANIM_JUMP;
+				if (duck) {
+					if (ent->s.frame != FRAME_crwalk2)
+						ent->s.frame = FRAME_crwalk1;
+					client->anim_end = FRAME_crwalk2;
+				}
+				else {
+					if (ent->s.frame != FRAME_jump2)
+						ent->s.frame = FRAME_jump1;
+					client->anim_end = FRAME_jump2;
+				}
+			}
+			return;
+		}
+
+		// Handle running state
+		if (run) {
+			if (duck) {
+				ent->s.frame = FRAME_crwalk1;
+				client->anim_end = FRAME_crwalk6;
+			}
+			else {
+				ent->s.frame = FRAME_run1;
+				client->anim_end = FRAME_run6;
+			}
+			return;
+		}
+
+		// Handle standing state
+		if (duck) {
+			ent->s.frame = FRAME_crstnd01;
+			client->anim_end = FRAME_crstnd19;
+		}
+		else {
+			ent->s.frame = FRAME_stand01;
+			client->anim_end = FRAME_stand40;
+		}
+		};
+
+	// Check if we need to transition to a new animation
+	bool needNewAnimation = false;
+
+	if (duck != client->anim_duck && client->anim_priority < ANIM_DEATH) {
+		needNewAnimation = true;
+	}
+	else if (run != client->anim_run && client->anim_priority == ANIM_BASIC) {
+		needNewAnimation = true;
+	}
+	else if (!ent->groundentity && client->anim_priority <= ANIM_WAVE) {
+		needNewAnimation = true;
+	}
+
+	if (needNewAnimation) {
+		setNewAnimationState();
+		return;
+	}
 
 	if (client->anim_time > level.time)
 		return;
-	else if ((client->anim_priority & ANIM_REVERSED) && (ent->s.frame > client->anim_end))
-	{
-		if (client->anim_time <= level.time)
-		{
-			ent->s.frame--;
-			client->anim_time = level.time + 10_hz;
+
+	// Handle animation reversal
+	if (client->anim_priority & ANIM_REVERSED) {
+		if (ent->s.frame > client->anim_end) {
+			if (client->anim_time <= level.time) {
+				ent->s.frame--;
+				client->anim_time = level.time + 10_hz;
+			}
+			return;
 		}
-		return;
 	}
-	else if (!(client->anim_priority & ANIM_REVERSED) && (ent->s.frame < client->anim_end))
-	{
-		// continue an animation
-		if (client->anim_time <= level.time)
-		{
-			ent->s.frame++;
-			client->anim_time = level.time + 10_hz;
+	else {
+		if (ent->s.frame < client->anim_end) {
+			if (client->anim_time <= level.time) {
+				ent->s.frame++;
+				client->anim_time = level.time + 10_hz;
+			}
+			return;
 		}
-		return;
 	}
 
+	// Handle death animation
 	if (client->anim_priority == ANIM_DEATH)
-		return; // stay there
-	if (client->anim_priority == ANIM_JUMP)
-	{
-		if (!ent->groundentity)
-			return; // stay there
-		ent->client->anim_priority = ANIM_WAVE;
+		return;
 
-		if (duck)
-		{
+	// Handle jump animation
+	if (client->anim_priority == ANIM_JUMP) {
+		if (!ent->groundentity)
+			return;
+
+		ent->client->anim_priority = ANIM_WAVE;
+		if (duck) {
 			ent->s.frame = FRAME_jump6;
 			ent->client->anim_end = FRAME_jump4;
 			ent->client->anim_priority |= ANIM_REVERSED;
 		}
-		else
-		{
+		else {
 			ent->s.frame = FRAME_jump3;
 			ent->client->anim_end = FRAME_jump6;
 		}
@@ -1242,75 +1303,8 @@ void G_SetClientFrame(edict_t* ent, const step_parameters_t& step)
 		return;
 	}
 
-newanim:
-	// return to either a running or standing frame
-	client->anim_priority = ANIM_BASIC;
-	client->anim_duck = duck;
-	client->anim_run = run;
-	client->anim_time = level.time + 10_hz;
-
-	if (!ent->groundentity)
-	{
-		// ZOID: if on grapple, don't go into jump frame, go into standing
-		// frame
-		if (client->ctf_grapple)
-		{
-			if (duck)
-			{
-				ent->s.frame = FRAME_crstnd01;
-				client->anim_end = FRAME_crstnd19;
-			}
-			else
-			{
-				ent->s.frame = FRAME_stand01;
-				client->anim_end = FRAME_stand40;
-			}
-		}
-		else
-		{
-			// ZOID
-			client->anim_priority = ANIM_JUMP;
-
-			if (duck)
-			{
-				if (ent->s.frame != FRAME_crwalk2)
-					ent->s.frame = FRAME_crwalk1;
-				client->anim_end = FRAME_crwalk2;
-			}
-			else
-			{
-				if (ent->s.frame != FRAME_jump2)
-					ent->s.frame = FRAME_jump1;
-				client->anim_end = FRAME_jump2;
-			}
-		}
-	}
-	else if (run)
-	{ // running
-		if (duck)
-		{
-			ent->s.frame = FRAME_crwalk1;
-			client->anim_end = FRAME_crwalk6;
-		}
-		else
-		{
-			ent->s.frame = FRAME_run1;
-			client->anim_end = FRAME_run6;
-		}
-	}
-	else
-	{ // standing
-		if (duck)
-		{
-			ent->s.frame = FRAME_crstnd01;
-			client->anim_end = FRAME_crstnd19;
-		}
-		else
-		{
-			ent->s.frame = FRAME_stand01;
-			client->anim_end = FRAME_stand40;
-		}
-	}
+	// If we reach here, we need a new animation
+	setNewAnimationState();
 }
 
 // [Paril-KEX]
@@ -1340,7 +1334,7 @@ static void P_RunMegaHealth(edict_t* ent)
 // [Paril-KEX] push all players' origins back to match their lag compensation
 void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& dir)
 {
-	uint32_t current_frame = gi.ServerFrame();
+	uint32_t const current_frame = gi.ServerFrame();
 
 	// if you need this to fight monsters, you need help
 	if (!deathmatch->integer)
@@ -1352,7 +1346,7 @@ void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& di
 		(from_player->svflags & SVF_BOT))
 		return;
 
-	int32_t frame_delta = (current_frame - from_player->client->cmd.server_frame) + 1;
+	int32_t const frame_delta = (current_frame - from_player->client->cmd.server_frame) + 1;
 
 	for (auto player : active_players())
 	{
@@ -1530,7 +1524,7 @@ void ClientEndServerFrame(edict_t* ent)
 	}
 
 	float bobtime = (client->bobtime += step.bobmove);
-	float bobtime_run = bobtime;
+	float const bobtime_run = bobtime;
 
 	if ((client->ps.pmove.pm_flags & PMF_DUCKED) && ent->groundentity)
 		bobtime *= 4;
@@ -1621,7 +1615,7 @@ void ClientEndServerFrame(edict_t* ent)
 	// [Paril-KEX] in coop, if player collision is enabled and
 	// we are currently in no-player-collision mode, check if
 	// it's safe.
-	if (/*coop->integer && */G_ShouldPlayersCollide(false) && !(ent->clipmask & CONTENTS_PLAYER) && ent->takedamage) // disabled coop check so horde ( is safer??) 
+	if ((g_horde->integer && G_ShouldPlayersCollide(false) && !(ent->clipmask & CONTENTS_PLAYER) && ent->takedamage) || (coop->integer && G_ShouldPlayersCollide(false) && !(ent->clipmask & CONTENTS_PLAYER) && ent->takedamage)) // disabled coop check so horde ( is safer??) 
 	{
 		bool clipped_player = false;
 
@@ -1630,7 +1624,7 @@ void ClientEndServerFrame(edict_t* ent)
 			if (player == ent)
 				continue;
 
-			trace_t clip = gi.clip(player, ent->s.origin, ent->mins, ent->maxs, ent->s.origin, CONTENTS_MONSTER | CONTENTS_PLAYER);
+			trace_t const clip = gi.clip(player, ent->s.origin, ent->mins, ent->maxs, ent->s.origin, CONTENTS_MONSTER | CONTENTS_PLAYER);
 
 			if (clip.startsolid || clip.allsolid)
 			{
