@@ -2280,6 +2280,8 @@ void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimd
 	int vspread, int count, monster_muzzleflash_id_t flashtype);
 edict_t* monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype, effects_t effect);
+edict_t* monster_fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
+	monster_muzzleflash_id_t flashtype, effects_t effect);
 void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype);
 void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed,

@@ -657,9 +657,12 @@ void soldier_fire(edict_t* self, int flash_number, bool angle_limited)
 	}
 	else if (style.has_bluehyper())
 	{
-		IsFirstThreeWaves(current_wave_level) ?
-			monster_fire_blueblaster(self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER) :
-			monster_fire_blaster2(self, start, aim, 3, 975, flash_index, EF_BLUEHYPERBLASTER);
+		if (IsFirstThreeWaves(current_wave_level)) {
+			monster_fire_blueblaster(self, start, aim, 1, 600, flash_index, EF_BLUEHYPERBLASTER);
+		}
+		else {
+			monster_fire_blaster_bolt(self, start, forward, 4, 1150, flash_index, EF_BLUEHYPERBLASTER);
+		}
 	}
 	else if (style.has_blaster())
 	{

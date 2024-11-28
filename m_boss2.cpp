@@ -307,7 +307,12 @@ void Boss2HyperBlaster(edict_t* self)
 	forward = target - start;
 	forward.normalize();
 
-	monster_fire_blaster(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 4, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+	if (!self->monsterinfo.IS_BOSS) {
+		monster_fire_blaster(self, start, forward, 5, 1350, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+	}
+	else {
+		monster_fire_blaster_bolt(self, start, forward, 8, 1150, id, (self->s.frame % 4) ? EF_PENT : EF_DUALFIRE);
+	}
 }
 
 mframe_t boss2_frames_attack_hb[] = {

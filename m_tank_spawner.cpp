@@ -582,7 +582,9 @@ void tank_vanillaMachineGun(edict_t* self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	monster_fire_bullet(self, start, forward, 20, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+	//monster_fire_bullet(self, start, forward, 20, 4, DEFAULT_BULLET_HSPREAD, DEFAULT_BULLET_VSPREAD, flash_number);
+	monster_fire_blaster_bolt(self, start, forward, 20, 1150, flash_number, EF_BLUEHYPERBLASTER);
+
 }
 
 static void tank_vanilla_blind_check(edict_t* self)

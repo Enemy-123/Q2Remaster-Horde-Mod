@@ -886,7 +886,7 @@ void medic_fire_blaster_bolt(edict_t* self)
 	if (!strcmp(self->enemy->classname, "tesla_mine"))
 		damage = 60;
 
-	fire_blaster_bolt(self, start, dir, damage, 1500, EF_BLUEHYPERBLASTER, MOD_HYPERBLASTER);
+	monster_fire_blaster_bolt(self, start, forward, self->monsterinfo.IS_BOSS ? 6 : 4, 1150, mz, EF_BLUEHYPERBLASTER);
 }
 
 void medic_fire_blaster(edict_t* self)
@@ -932,9 +932,7 @@ void medic_fire_blaster(edict_t* self)
 		monster_fire_blaster2(self, start, dir, damage, 1000, mz, effect);
 	else
 	{
-		edict_t* bolt = monster_fire_blaster(self, start, dir, damage, 1000, mz, effect);
-		if (bolt)
-			bolt->movetype = MOVETYPE_FLYMISSILE; // Override to prevent bouncing
+		monster_fire_blaster(self, start, dir, damage, 1000, mz, effect);
 	}
 }
 

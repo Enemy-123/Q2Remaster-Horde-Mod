@@ -443,7 +443,7 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 			self->owner->client->pers.weapon->id == IT_WEAPON_BLASTER;
 
 		// Solo aplicar radio damage si NO es un blaster normal
-		if (!useblaster && self->dmg >= 5) {
+		if (!useblaster && self->dmg >= 5 || self->owner->svflags & SVF_MONSTER) {
 			int damagestat = 0;
 			if (self->owner) {
 				damagestat = self->owner->takedamage;
@@ -472,7 +472,7 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 					self->owner->client->pers.weapon->id == IT_WEAPON_BLASTER;
 
 				// Solo mostrar efecto de rebote si NO es un blaster normal
-				if (!useblaster)
+				if (!useblaster || self->owner->svflags & SVF_MONSTER)
 				{
 					// Agregar radio damage al impactar
 					if (self->dmg >= 5)
