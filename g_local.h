@@ -2140,7 +2140,7 @@ edict_t* G_Find(edict_t* from, std::function<bool(edict_t* e)> matcher);
 
 // utility template for getting the type of a field
 template<typename>
-struct member_object_type { };
+struct member_object_type {};
 template<typename T1, typename T2>
 struct member_object_type<T1 T2::*> { using type = T1; };
 template<typename T>
@@ -2287,7 +2287,7 @@ void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimd
 void monster_fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype);
 bool monster_fire_railgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick,
-	monster_muzzleflash_id_t flashtype); 
+	monster_muzzleflash_id_t flashtype);
 void monster_fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, int kick,
 	float damage_radius, monster_muzzleflash_id_t flashtype);
 bool M_CheckClearShot(edict_t* self, const vec3_t& offset);
@@ -2435,7 +2435,7 @@ void rocket_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_to
 void fireball_touch(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_rocket(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius,
 	int radius_damage);
-bool fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick); 
+bool fire_rail(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int kick);
 void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, float damage_radius);
 // RAFAEL
 void fire_ionripper(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect);
@@ -3185,7 +3185,7 @@ struct gclient_t
 	edict_t* hook;
 	float		last_hook_time;
 	int			hook_damage;
-// HORDE STUFF
+	// HORDE STUFF
 	std::string target_health_str;  // Cadena para mostrar la salud del objetivo
 	std::string last_statusbar;  // último statusbar para comparar cambios
 
@@ -3463,6 +3463,7 @@ struct edict_t
 	bool effects_applied = false; // prevention for applying more that 1 time effect for bosses
 	bool is_fading_out = false; // corpse cleaning management
 	gtime_t beam_hit_time; // heatbeam piercing balance
+
 };
 
 static constexpr const char* TEAM1 = "team1";
@@ -3563,7 +3564,7 @@ private:
 public:
 	// note: index is not affected by filter. it is up to
 	// the caller to ensure this index is filtered.
-	constexpr entity_iterator_t(uint32_t i, uint32_t end_index = -1) : index(i), end_index((end_index >= globals.num_edicts) ? globals.num_edicts : end_index) { }
+	constexpr entity_iterator_t(uint32_t i, uint32_t end_index = -1) : index(i), end_index((end_index >= globals.num_edicts) ? globals.num_edicts : end_index) {}
 
 	inline reference operator*() { throw_if_out_of_range(); return &g_edicts[index]; }
 	inline pointer operator->() { throw_if_out_of_range(); return &g_edicts[index]; }
@@ -3636,10 +3637,10 @@ private:
 public:
 	// iterate all allocated entities that match the filter,
 	// including ones allocated after this iterator is constructed
-	inline entity_iterable_t<TFilter>() : begin_index(find_matched_index(0, 1)), end_index(game.maxentities) { }
+	inline entity_iterable_t<TFilter>() : begin_index(find_matched_index(0, 1)), end_index(game.maxentities) {}
 	// iterate all allocated entities that match the filter from the specified begin offset
 	// including ones allocated after this iterator is constructed
-	inline entity_iterable_t<TFilter>(uint32_t start) : begin_index(find_matched_index(start, 1)), end_index(game.maxentities) { }
+	inline entity_iterable_t<TFilter>(uint32_t start) : begin_index(find_matched_index(start, 1)), end_index(game.maxentities) {}
 	// iterate all allocated entities that match the filter from the specified begin offset
 	// to the specified INCLUSIVE end offset (or the first entity that matches before it),
 	// including end itself but not ones that may appear after this iterator is done
@@ -3852,27 +3853,30 @@ inline bool pierce_args_t::mark(edict_t* ent)
 	if (num_pierced == MAX_PIERCE)
 		return false;
 
-	// Solo registramos la entidad sin modificar su solidez
 	pierced[num_pierced] = ent;
-	pierce_solidities[num_pierced] = ent->solid; // mantenemos esto por compatibilidad
+	pierce_solidities[num_pierced] = ent->solid;
 	num_pierced++;
 
-	// Ya no modificamos la solidez
-	// ent->solid = SOLID_NOT;  // eliminado
-	// gi.linkentity(ent);      // eliminado
+	ent->solid = SOLID_NOT;
+	gi.linkentity(ent);
 
 	return true;
 }
-// implementation of pierce stuff
+extern int8_t current_wave_level;
+extern int8_t last_wave_number;
+
 // implementation of pierce stuff
 inline void pierce_args_t::restore()
 {
-	// Ya no necesitamos restaurar nada, solo reseteamos el contador
+	for (size_t i = 0; i < num_pierced; i++)
+	{
+		auto& ent = pierced[i];
+		ent->solid = pierce_solidities[i];
+		gi.linkentity(ent);
+	}
+
 	num_pierced = 0;
 }
-
-extern int8_t current_wave_level;
-extern int8_t last_wave_number;
 
 // [Paril-KEX] these are to fix a legacy bug with cached indices
 // in save games. these can *only* be static/globals!
@@ -3960,7 +3964,7 @@ extern void UpdateVoteHUD();
 
 
 // Declarar la funci�n GetDisplayName y GetTitleFromFlags
-extern std::string GetDisplayName(const edict_t* ent); 
+extern std::string GetDisplayName(const edict_t* ent);
 extern std::string GetTitleFromFlags(int bonus_flags);
 extern constexpr float M_DamageModifier(edict_t* monster) noexcept;
 extern inline bool G_CheatCheck(edict_t* ent);
