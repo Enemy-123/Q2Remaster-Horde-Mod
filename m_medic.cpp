@@ -886,22 +886,7 @@ void medic_fire_blaster_bolt(edict_t* self)
 	if (!strcmp(self->enemy->classname, "tesla_mine"))
 		damage = 60;
 
-	// Cambiar la flag del SVF del self temporalmente para permitir rebote
-   // self->svflags &= ~SVF_MONSTER;  // Esto evitará que se active la excepción de no-rebote
-
-	// Crear el bolt
-	edict_t* bolt = fire_blaster(self, start, dir, damage, 1500,
-		(brandom()) ? EF_TRACKER : EF_TRACKER | EF_BLUEHYPERBLASTER, MOD_BLASTER);
-
-	// Restaurar la flag
-   // self->svflags |= SVF_MONSTER;
-
-	// Configurar propiedades especiales del bolt
-	if (bolt) {
-		bolt->bounce_count = 3;  // Número de rebotes
-		bolt->s.scale = 0.5f;
-		bolt->s.renderfx = RF_SHELL_HALF_DAM;
-	}
+	fire_blaster_bolt(self, start, dir, damage, 1500, EF_BLUEHYPERBLASTER, MOD_HYPERBLASTER);
 }
 
 void medic_fire_blaster(edict_t* self)

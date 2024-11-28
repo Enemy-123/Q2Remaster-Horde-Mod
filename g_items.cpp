@@ -634,7 +634,7 @@ void G_CheckAutoSwitch(edict_t* ent, gitem_t* item, bool is_new)
 		return;
 	else if (ent->client->pers.autoswitch == auto_switch_t::SMART)
 	{
-		bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
+		const bool using_blaster = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_BLASTER;
 
 		// smartness algorithm: in DM, we will always switch if we have the blaster out
 		// otherwise leave our active weapon alone

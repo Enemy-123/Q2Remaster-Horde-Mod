@@ -1398,7 +1398,8 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 	// let the regular blaster projectiles travel a bit faster because it is a completely useless gun
 	int const speed = hyper ? 1700 : 1300;
 	//left hb / right blaster
-	fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER);
+	!hyper ? fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, 5)
+	: fire_blaster_bolt(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER);
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);
