@@ -7,6 +7,27 @@
 fire_flechette
 ========================
 */
+//explosive flechettes!
+//THINK(delayed_flechette_explode)(edict_t* self) -> void {
+//	T_RadiusDamage(self, self->owner, 40, nullptr, 100, DAMAGE_NO_REG_ARMOR, MOD_ETF_RIFLE);
+//
+//	gi.WriteByte(svc_temp_entity);
+//	gi.WriteByte(TE_EXPLOSION1);
+//	gi.WritePosition(self->s.origin);
+//	gi.multicast(self->s.origin, MULTICAST_PHS, false);
+//
+//	G_FreeEdict(self);
+//}
+//
+//// En flechette_touch:
+//if (!other->takedamage) {
+//	self->movetype = MOVETYPE_NONE;
+//	self->think = delayed_flechette_explode;
+//	self->nextthink = level.time + 1_sec;
+//	return;
+//}
+///
+
 TOUCH(flechette_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other == self->owner)
@@ -1060,7 +1081,7 @@ constexpr float TESLA_ORB_OFFSET = 12.0f;      // Altura de la esfera normal
 constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f;  // Altura de la esfera cuando está en techo
 
 // Función modificada para el origen del rayo
-vec3_t calculate_tesla_ray_origin(const edict_t* self) {
+static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 	vec3_t ray_origin = self->s.origin;
 	vec3_t forward, right, up;
 	AngleVectors(self->s.angles, forward, right, up);
