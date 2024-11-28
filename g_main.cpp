@@ -989,12 +989,8 @@ inline void G_RunFrame_(bool main_loop)
 		}
 
 		// Limpieza periódica
-		static gtime_t next_cleanup = 0_ms;
-		if (level.time >= next_cleanup) {
 			CleanupInvalidEntities();
 			CheckAndResetDisabledSpawnPoints();
-			next_cleanup = level.time + 1_sec;
-		}
 
 		// En la sección de HUD y mensajes
 			// Verificar mensajes expirados primero

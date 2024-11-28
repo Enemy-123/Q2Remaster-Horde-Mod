@@ -737,14 +737,14 @@ constexpr struct weighted_item_t {
 	{ "weapon_chaingun", 9, -1, 0.17f, adjust_weight_weapon },
 	{ "weapon_grenadelauncher", 10, -1, 0.17f, adjust_weight_weapon },
 	{ "weapon_proxlauncher", 4, -1, 0.1f, adjust_weight_weapon },
-	{ "weapon_boomer", 14, -1, 0.17f, adjust_weight_weapon },
+	{ "weapon_boomer", 17, -1, 0.17f, adjust_weight_weapon },
 	{ "weapon_hyperblaster", 12, -1, 0.2f, adjust_weight_weapon },
 	{ "weapon_rocketlauncher", 14, -1, 0.19f, adjust_weight_weapon },
 	{ "weapon_railgun", 24, -1, 0.17f, adjust_weight_weapon },
-	{ "weapon_phalanx", 16, -1, 0.19f, adjust_weight_weapon },
-	{ "weapon_plasmabeam", 17, -1, 0.25f, adjust_weight_weapon },
-	{ "weapon_disintegrator", 28, -1, 0.15f, adjust_weight_weapon },
-	{ "weapon_bfg", 24, -1, 0.17f, adjust_weight_weapon },
+	{ "weapon_phalanx", 20, -1, 0.19f, adjust_weight_weapon },
+	{ "weapon_plasmabeam", 16, -1, 0.25f, adjust_weight_weapon },
+	{ "weapon_disintegrator", 31, -1, 0.15f, adjust_weight_weapon },
+	{ "weapon_bfg", 26, -1, 0.17f, adjust_weight_weapon },
 
 
 	{ "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },
@@ -868,7 +868,6 @@ constexpr weighted_item_t monsters[] = {
 #include <array>
 #include <unordered_set>
 #include <random>
-#include <deque>
 
 
 // Definición de jefes por tamaño de mapa
