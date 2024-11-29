@@ -3080,8 +3080,8 @@ static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reaso
 			}
 			else if (current_wave_level <= 14) {
 				gi.cvar_set("g_insane", "0");
-				// Activar chaotic2 si es mapa pequeño Y hay 2+ jugadores, sino chaotic1
-				gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 2) ? "2" : "1");
+				// Activar chaotic2 si es mapa pequeño Y hay 3+ jugadores, sino chaotic1
+				gi.cvar_set("g_chaotic", (mapSize.isSmallMap && numHumanPlayers >= 3) ? "2" : "1");
 			}
 		}
 		else {
