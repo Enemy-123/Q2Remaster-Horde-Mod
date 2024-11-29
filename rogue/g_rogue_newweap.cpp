@@ -830,6 +830,18 @@ static void Nuke_Explode(edict_t* ent)
 
 	T_RadiusNukeDamage(ent, ent->teammaster, (float)ent->dmg, ent, ent->dmg_radius, MOD_NUKE);
 
+	edict_t* check = nullptr;
+	float radius = ent->dmg_radius * 1.5f; // Un poco más de radio que el daño para estar seguros
+
+	while ((check = findradius(check, ent->s.origin, radius)) != nullptr)
+	{
+		if (!check->client || !check->inuse)
+			continue;
+
+		// Marcar protección contra daño de caída
+		check->client->landmark_free_fall = true;
+	}
+
 	if (ent->dmg > NUKE_DAMAGE)
 		gi.sound(ent, CHAN_ITEM, gi.soundindex("items/damage3.wav"), 1, ATTN_NORM, 0);
 
