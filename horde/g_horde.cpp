@@ -2916,13 +2916,15 @@ void ResetGame() {
 	g_horde_local.num_to_spawn = 0;
 	g_horde_local.queued_monsters = 0;
 
+	if (!developer->integer)
+	gi.cvar_set("bot_pause", "0");
+
 	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
 	gi.cvar_set("g_insane", "0");
 	gi.cvar_set("g_hardcoop", "0");
 	gi.cvar_set("dm_monsters", "0");
 	gi.cvar_set("timelimit", "60");
-	gi.cvar_set("bot_pause", "0");
 	gi.cvar_set("set cheats 0 s", "");
 	gi.cvar_set("ai_damage_scale", "1");
 	gi.cvar_set("ai_allow_dm_spawn", "1");
