@@ -1775,7 +1775,7 @@ struct monsterinfo_t
 
 	bool has_spawned_initially = false;
 	bool spawning_in_progress = false;
-
+	bool death_processed = false; // death management for onentitydeath
 
 	float damage_quad; // trying to multiply dmg based on powerup
 
@@ -3225,9 +3225,6 @@ enum plat2flags_t
 MAKE_ENUM_BITFLAGS(plat2flags_t);
 
 #include <bitset>
-extern inline void OnEntityRemoved(const edict_t* self) noexcept;
-extern void OnEntityDeath(const edict_t* self) noexcept;
-
 struct edict_t
 {
 	edict_t() = delete;
@@ -3946,7 +3943,8 @@ extern cached_soundindex snd_fry;
 }
 
 
-extern void OnEntityDeath(const edict_t* self) noexcept;
+extern void OnEntityDeath(edict_t* self) noexcept;
+extern inline void OnEntityRemoved(edict_t* self) noexcept;
 
 extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 

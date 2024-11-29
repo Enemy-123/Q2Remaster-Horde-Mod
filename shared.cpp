@@ -161,22 +161,20 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 	if (monster->monsterinfo.issummoned) {
 
 		FindMTarget(monster);
-
 		if (monster->svflags & SVF_MONSTER)
-		monster->svflags & ~SVF_MONSTER;
-
+			monster->svflags & ~SVF_MONSTER;
 		monster->svflags |= SVF_PLAYER;
 
 		monster->monsterinfo.team = CTF_TEAM1;
-
-
 		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
-			// Configurar equipo
-			if (monster->owner->client->resp.ctf_team == CTF_TEAM1)
-				monster->monsterinfo.team = CTF_TEAM1;
-			else if (monster->owner->client->resp.ctf_team == CTF_TEAM2)
-				monster->monsterinfo.team = CTF_TEAM2;
+		monster->s.renderfx &= ~RF_DOT_SHADOW;
+
+		// Configurar equipo
+		if (monster->owner->client->resp.ctf_team == CTF_TEAM1)
+			monster->monsterinfo.team = CTF_TEAM1;
+		else if (monster->owner->client->resp.ctf_team == CTF_TEAM2)
+			monster->monsterinfo.team = CTF_TEAM2;
 
 		// Establecer equipo basado en CTF
 		if (monster->owner->client->resp.ctf_team == CTF_TEAM1) {
@@ -510,7 +508,7 @@ void ApplyBossEffects(edict_t* boss)
 	// Marcar que los efectos ya fueron aplicados para evitar escalados acumulativos
 	boss->effects_applied = true;
 
-//	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
+	//	gi.Com_PrintFmt("PRINT: Boss health set to: {}/{}\n", boss->health, boss->max_health);
 }
 
 //getting real name

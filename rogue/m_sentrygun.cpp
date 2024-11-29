@@ -825,11 +825,6 @@ DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 	vec3_t forward;
 	edict_t* base;
 
-	if (self->owner && self->owner->client) {
-		gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
-		self->owner->client->num_sentries--;
-	}
-
 	AngleVectors(self->s.angles, forward, nullptr, nullptr);
 	self->s.origin += (forward * 1);
 
@@ -1081,7 +1076,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 	trace_t tr = gi.traceline(spot1, spot2, self, mask);
 
 	// Verificación de línea de visión y condiciones de ataque
-	if (tr.fraction == 1.0 || tr.ent == self->enemy ||
+	if (tr.fraction == 1.0 ||
 		(tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent)))
 	{
 		if (level.time < self->monsterinfo.attack_finished)
@@ -1250,7 +1245,6 @@ void SP_monster_sentrygun(edict_t* self)
 	int angle;
 
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-//	self->monsterinfo.team = CTF_TEAM1;
 	self->monsterinfo.attack_state = AS_BLIND;
 
 	//test EF grenade

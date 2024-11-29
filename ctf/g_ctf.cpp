@@ -1477,9 +1477,24 @@ void CTFSetIDView(edict_t* ent) {
 	}
 }
 
-void OnEntityDeath(const edict_t* self) noexcept {
-	if (!self || !self->inuse) {
+void OnEntityDeath(edict_t* self) noexcept {
+	if (!self || !self->inuse || self->monsterinfo.death_processed) {  // verificar el flag
 		return;
+	}
+
+	self->monsterinfo.death_processed = true;  // marcar como procesado
+
+	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
+		// Caso específico para sentry gun
+		if (!strcmp(self->classname, "monster_sentrygun")) {
+			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
+			self->owner->client->num_sentries--;
+		}
+		// Caso para otros monstruos invocados excluyendo sentry guns
+		else if (strstr(self->classname, "monster_") && strcmp(self->classname, "monster_sentrygun") != 0) {
+			gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!.\n");
+			self->owner->client->num_sentries--;
+		}
 	}
 
 	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
@@ -1488,7 +1503,7 @@ void OnEntityDeath(const edict_t* self) noexcept {
 	}
 }
 
-inline void OnEntityRemoved(const edict_t* self) noexcept {
+inline void OnEntityRemoved(edict_t* self) noexcept {
 	OnEntityDeath(self); // Reutilizar la lógica es más eficiente
 }
 
