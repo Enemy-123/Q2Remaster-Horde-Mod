@@ -475,7 +475,7 @@ void tank_vanillaRocket(edict_t* self)
 	else if (self->spawnflags.has(SPAWNFLAG_tank_vanilla_COMMANDER_HEAT_SEEKING))
 		rocketSpeed = 500;
 	else
-		rocketSpeed = 650;
+		rocketSpeed = 850;
 
 	// PMM
 	if (blindfire)
@@ -820,7 +820,7 @@ void tank_vanilla_refire_rocket(edict_t* self)
 
 	if (self->enemy->health > 0)
 		if (visible(self, self->enemy))
-			if (frandom() <= 0.4f)
+			if (frandom() <= 0.7f)
 			{
 				M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
 				return;
