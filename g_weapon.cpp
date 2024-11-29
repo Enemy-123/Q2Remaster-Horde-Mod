@@ -851,7 +851,7 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->timestamp = level.time + timer;
 		grenade->think = BouncyGrenade_Think;  // Función de pensamiento específica para el comportamiento de rebote
 		grenade->s.renderfx |= RF_MINLIGHT;
-		grenade->s.effects |= EF_GRENADE | EF_SPINNINGLIGHTS; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
+		grenade->s.effects |= EF_GRENADE; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
 		grenade->count = 4;  // Número de rebotes/explosiones
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;
@@ -1459,8 +1459,7 @@ THINK(bfg_think) (edict_t* self) -> void
 		{
 			if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
 			{
-				constexpr float pull_strength = 600.0f;
-				ent->velocity = dir * pull_strength;
+				T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0, 10, DAMAGE_ENERGY, MOD_BFG_LASER);
 			}
 		}
 

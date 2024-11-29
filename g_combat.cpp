@@ -1116,17 +1116,23 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		{
 			vec3_t normalized = dir.normalized();
 			vec3_t kvel;
-			float  mass;
 
-			if (targ->mass < 50)
-				mass = 50;
-			else
-				mass = (float)targ->mass;
+			// Skip mass calculation for BFG pull
+			if (g_bfgpull->integer && mod.id == MOD_BFG_LASER) {
+				kvel = normalized * (500.0f * knockback / 50);
+			}
+			else {
+				float mass;
+				if (targ->mass < 50)
+					mass = 50;
+				else
+					mass = (float)targ->mass;
 
-			if (targ->client && attacker == targ)
-				kvel = normalized * (1600.0f * knockback / mass); // the rocket jump hack...
-			else
-				kvel = normalized * (500.0f * knockback / mass);
+				if (targ->client && attacker == targ)
+					kvel = normalized * (1600.0f * knockback / mass);
+				else
+					kvel = normalized * (500.0f * knockback / mass);
+			}
 
 			targ->velocity += kvel;
 		}
@@ -1163,7 +1169,7 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 
 	// Handle Horde Bonus Stuff
-	if (g_horde->integer && attacker && attacker->client && !ClientIsSpectating(attacker->client) || !g_horde->integer) {
+	if ((attacker && attacker->client && g_horde->integer &&  !ClientIsSpectating(attacker->client) || (!g_horde->integer))) {
 		HandleAutoHaste(attacker, targ, damage);
 		HandleVampireEffect(attacker, targ, damage);
 		HandleIDDamage(attacker, targ, real_damage);
