@@ -785,8 +785,8 @@ bool fire_player_melee(edict_t* self, const vec3_t& start, const vec3_t& aim, in
 
 constexpr gtime_t NUKE_DELAY = 4_sec;
 constexpr gtime_t NUKE_TIME_TO_LIVE = 6_sec;
-constexpr float	  NUKE_RADIUS = 512;
-constexpr int32_t NUKE_DAMAGE = 400;
+constexpr float	  NUKE_RADIUS = 1024;
+constexpr int32_t NUKE_DAMAGE = 800;
 constexpr gtime_t NUKE_QUAKE_TIME = 3_sec;
 constexpr float	  NUKE_QUAKE_STRENGTH = 100;
 
