@@ -413,45 +413,6 @@ MONSTERINFO_MELEE(brain_melee) (edict_t* self) -> void
 }
 
 // RAFAEL
-static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
-{
-	constexpr float MAX_ATTACK_DISTANCE = 512.0f;
-	constexpr float MAX_PITCH_ANGLE = 30.0f;
-	constexpr float MIN_CLEARANCE = 16.0f;
-
-	// Usar operadores de vec3_t para el cálculo de dirección y distancia
-	vec3_t  const dir = start - end;
-	float  const dist = dir.length();
-
-	// Check de distancia
-	if (dist > MAX_ATTACK_DISTANCE)
-		return false;
-
-	// Obtener ángulos usando vectoangles que ya trabaja con vec3_t
-	vec3_t angles = vectoangles(dir);
-
-	// Verificar el pitch - no necesitamos normalización manual ya que
-	// vectoangles nos da el ángulo ya normalizado
-	if (fabsf(angles[PITCH]) > MAX_PITCH_ANGLE)
-		return false;
-
-	// Verificación de línea de visión
-	trace_t tr = gi.traceline(start, end, nullptr, MASK_SOLID);
-
-	if (tr.fraction == 1.0f)
-		return true;
-
-	if (tr.fraction < 0.5f)
-		return false;
-
-	// Box trace usando vec3_t para los bounds
-	vec3_t const mins = { -MIN_CLEARANCE, -MIN_CLEARANCE, -MIN_CLEARANCE };
-	vec3_t const maxs = { MIN_CLEARANCE, MIN_CLEARANCE, MIN_CLEARANCE };
-
-	tr = gi.trace(start, mins, maxs, end, nullptr, MASK_SOLID);
-
-	return (tr.fraction >= 0.9f);
-}
 bool G_EntExists(const edict_t* ent) {
 	return (ent && ent->inuse && ent->takedamage && ent->solid != SOLID_NOT);
 }
@@ -507,7 +468,6 @@ void brain_tounge_attack(edict_t* self)
 
 	}
 }
-
 
 mframe_t brain_frames_run[] = {
 	{ ai_run, 12 },
