@@ -7,9 +7,7 @@
 
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
-constexpr size_t MAX_RECENT_BOSSES = 3;
-constexpr size_t MAX_ELIGIBLE_MONSTERS = 32;
-constexpr size_t MAX_ELIGIBLE_ITEMS = 32;
+constexpr size_t MAX_RECENT_BOSSES = 4;
 constexpr size_t MAX_SPAWN_POINTS = 32;
 
 static constexpr size_t NUM_WAVE_SOUNDS = 12;
@@ -547,7 +545,6 @@ static constexpr gtime_t calculate_max_wave_time(int32_t wave_level) {
 }
 
 // Variables globales
-static gtime_t g_condition_start_time;
 static gtime_t g_independent_timer_start;
 static ConditionParams g_lastParams;
 static int32_t g_lastWaveNumber = -1;
@@ -973,16 +970,6 @@ static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_v
 	return std::span<const boss_t>{};
 }
 
-static size_t GetBossListSize(const MapSize& mapSize, std::string_view mapname, std::span<const boss_t> boss_list) noexcept {
-	const boss_t* list_data = boss_list.data();
-	if (list_data == &BOSS_SMALL[0]) return BOSS_SMALL_SIZE;
-	if (list_data == &BOSS_MEDIUM[0]) return BOSS_MEDIUM_SIZE;
-	if (list_data == &BOSS_LARGE[0]) return BOSS_LARGE_SIZE;
-	// Para las listas filtradas, simplemente devolvemos el tamaño del span
-	return boss_list.size();
-}
-
-
 // static arrays to replace std::vectors
 struct EligibleBosses {
 	const boss_t* items[MAX_ELIGIBLE_BOSSES] = {};
@@ -1020,6 +1007,7 @@ struct EligibleBosses {
 };
 
 // static array for recent bosses
+// static array for recent bosses
 struct RecentBosses {
 	const char* items[MAX_RECENT_BOSSES] = {};
 	size_t count = 0;
@@ -1033,37 +1021,34 @@ struct RecentBosses {
 			case 0: items[0] = boss; break;
 			case 1: items[1] = boss; break;
 			case 2: items[2] = boss; break;
+			case 3: items[3] = boss; break;
 			default: return;
 			}
 			count++;
 		}
 		else {
-			// Explicit shift for MAX_RECENT_BOSSES = 3
+			// Explicit shift for MAX_RECENT_BOSSES = 4
 			items[0] = items[1];
 			items[1] = items[2];
-			items[2] = boss;
+			items[2] = items[3];
+			items[3] = boss;
 		}
 	}
 
 	bool contains(const char* boss) const noexcept {
 		if (!boss)
 			return false;
-		// Explicit checks for each valid index
+		// Explicit checks for each valid index  
 		if (count > 0 && strcmp(items[0], boss) == 0) return true;
 		if (count > 1 && strcmp(items[1], boss) == 0) return true;
 		if (count > 2 && strcmp(items[2], boss) == 0) return true;
+		if (count > 3 && strcmp(items[3], boss) == 0) return true;
 		return false;
 	}
 
 	void clear() noexcept { count = 0; }
 };
 static RecentBosses recent_bosses;
-
-// Función modificada para agregar un jefe reciente
-static void AddRecentBoss(const char* classname) noexcept {
-	if (classname == nullptr) return;
-	recent_bosses.add(classname);
-}
 
 static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapname, int32_t waveNumber, edict_t* bossEntity) {
 	static EligibleBosses eligible_bosses;
@@ -1719,7 +1704,6 @@ void VerifyAndAdjustBots() {
 	}
 }
 
-#include <chrono>
 void InitializeWaveSystem() noexcept;
 
 // Función para precargar todos los ítems y jefes
@@ -1876,31 +1860,6 @@ constexpr int MIN_VELOCITY = -800;
 constexpr int MAX_VELOCITY = 800;
 constexpr int MIN_VERTICAL_VELOCITY = 400;
 constexpr int MAX_VERTICAL_VELOCITY = 950;
-constexpr int VERTICAL_VELOCITY_RANDOM_RANGE = 300;
-
-// Función auxiliar para generar velocidad aleatoria
-static vec3_t GenerateRandomVelocity(int minHorizontal, int maxHorizontal, int minVertical, int maxVertical) {
-	return {
-		static_cast<float>(std::uniform_int_distribution<>(minHorizontal, maxHorizontal)(mt_rand)),
-		static_cast<float>(std::uniform_int_distribution<>(minHorizontal, maxHorizontal)(mt_rand)),
-		static_cast<float>(std::uniform_int_distribution<>(minVertical, maxVertical)(mt_rand))
-	};
-}
-
-// Función auxiliar para configurar un ítem soltado
-static void SetupDroppedItem(edict_t* item, const vec3_t& origin, const vec3_t& velocity, bool applyFlags) {
-	item->s.origin = origin;
-	item->velocity = velocity;
-
-	if (applyFlags) {
-		item->spawnflags &= ~SPAWNFLAG_ITEM_DROPPED;
-		item->spawnflags |= SPAWNFLAG_ITEM_DROPPED_PLAYER;
-	}
-
-	item->movetype = MOVETYPE_BOUNCE;
-	item->s.effects |= EF_GIB;
-	item->flags &= ~FL_RESPAWN;
-}
 
 // Función auxiliar para seleccionar un arma apropiada según el nivel
 static const char* SelectBossWeaponDrop(int32_t wave_level) {
@@ -3322,7 +3281,7 @@ static edict_t* SpawnMonsters() {
 	// Shuffle optimizado usando Fisher-Yates con span
 	if (spawn_count > 1) {
 		for (size_t i = spawn_count - 1; i > 0; --i) {
-			const size_t j = irandom(i + 1);
+			const size_t j = irandom(static_cast<size_t>(static_cast<size_t>(i)) + 1);
 			if (i != j) {
 				std::swap(monster_spawns[i], monster_spawns[j]);
 			}
