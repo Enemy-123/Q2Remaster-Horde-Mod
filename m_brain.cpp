@@ -452,74 +452,60 @@ static bool brain_tounge_attack_ok(const vec3_t& start, const vec3_t& end)
 
 	return (tr.fraction >= 0.9f);
 }
+bool G_EntExists(const edict_t* ent) {
+	return (ent && ent->inuse && ent->takedamage && ent->solid != SOLID_NOT);
+}
+
+inline void G_EntMidPoint(const edict_t* ent, vec3_t& point)
+{
+	// Asignar el origen usando asignación directa de vec3_t
+	point = ent->s.origin;
+
+	// Calcular la altura media usando el bbox absoluto
+	float const midheight = 0.5f * (ent->absmax[2] - ent->absmin[2]);
+
+	// Ajustar la coordenada Z al punto medio
+	point[2] = ent->absmin[2] + midheight;
+}
 
 void brain_tounge_attack(edict_t* self)
 {
-	if (!self || !self->enemy)
+	if (!self || !self->enemy || !self->enemy->inuse)
 		return;
-	constexpr float CLOSE_RANGE = 64.0f;
-	vec3_t const offset{ 24, 0, 16 };
-	int damage = 5;
 
-	// Check distance to enemy
-	const float dist = range_to(self, self->enemy);
+	// Calcular punto medio del enemigo y dirección
+	vec3_t start;
+	G_EntMidPoint(self->enemy, start);
+	vec3_t const dir = start - self->s.origin;
+	float const range = dir.length();
+	vec3_t const normalized_dir = dir.normalized();
 
-	// Close range attack
-	if (dist <= CLOSE_RANGE) {
-		vec3_t const dir = (self->enemy->s.origin - self->s.origin).normalized();
+	// Ajustar yaw para mirar al enemigo
+	self->ideal_yaw = vectoyaw(dir);
+	M_ChangeYaw(self);
 
-		if (float const modifier = M_DamageModifier(self); modifier != 1.0f) {
-			damage *= modifier;
-		}
+	// Verificar rango de pull (512 unidades como en suxor)
+	vec3_t end = self->s.origin + (normalized_dir * 512);
+	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
 
-		// Apply damage directly, without knockback
+	if (G_EntExists(tr.ent) && (tr.ent == self->enemy))
+	{
+		int damage = 0;
+		int pull =175; // Base pull force
+
+		// Si está en el suelo, duplicar la fuerza de pull
+		if (self->enemy->groundentity)
+			pull *= 2;
+
+		// Aplicar daño solo si está cerca
+		if (range <= 64)
+			damage = 5;
+
+		// Aplicar daño y pull
 		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin, vec3_origin,
-			damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+			damage, -pull, DAMAGE_RADIUS, MOD_BRAINTENTACLE);
 
-		// Heal the brain
-		self->health = std::min(self->health + damage, self->max_health);
-
-		// Pull the enemy in with vertical component
-		auto [forward, right, up] = AngleVectors(self->s.angles);
-		self->enemy->velocity = forward * -800;
-
-		// Calculate height difference and add appropriate vertical velocity
-		float height_diff = self->s.origin[2] - self->enemy->s.origin[2];
-		self->enemy->velocity[2] = height_diff * 2;  // Velocidad vertical proporcional a la diferencia de altura
-
-		return;
 	}
-
-	// Long range attack
-	auto [f, r, up] = AngleVectors(self->s.angles);
-	vec3_t const start = M_ProjectFlashSource(self, offset, f, r);
-	vec3_t end = self->enemy->s.origin;
-
-	// Try different vertical positions if initial attack path is blocked
-	if (!brain_tounge_attack_ok(start, end)) {
-		end = self->enemy->s.origin;
-		end.z = self->enemy->s.origin[2] + self->enemy->maxs[2] - 8;
-		if (!brain_tounge_attack_ok(start, end)) {
-			end.z = self->enemy->s.origin[2] + self->enemy->mins[2] + 8;
-			if (!brain_tounge_attack_ok(start, end)) {
-				return;
-			}
-		}
-	}
-
-	// Check if we can hit the enemy
-	trace_t const tr = gi.traceline(start, end, self, MASK_PROJECTILE);
-	if (tr.ent != self->enemy) {
-		return;
-	}
-
-	// Pull the enemy in with vertical component
-	auto [forward, right, dummy] = AngleVectors(self->s.angles);
-	self->enemy->velocity = forward * -800;
-
-	// Calculate height difference and add appropriate vertical velocity
-	float height_diff = self->s.origin[2] - self->enemy->s.origin[2];
-	self->enemy->velocity[2] = height_diff * 2;  // Velocidad vertical proporcional a la diferencia de altura
 }
 
 
@@ -550,61 +536,45 @@ MMOVE_T(brain_move_continue) = { FRAME_attak206, FRAME_attak210, brain_frames_co
 
 void brain_tounge_attack_continue(edict_t* self)
 {
-	constexpr float ATTACK_RANGE = 64.0f;
-	constexpr int BASE_DAMAGE = 5;
-	constexpr float PULL_FORCE = -800.0f;
-
-	// Early exit if enemy is invalid
-	if (!self->enemy ||
-		!self->enemy->inuse ||
-		self->enemy->health <= 0 ||
-		!self->enemy->takedamage)
+	if (!self->enemy || !self->enemy->inuse ||
+		self->enemy->health <= 0 || !self->enemy->takedamage)
 	{
 		M_SetAnimation(self, &brain_move_run);
 		return;
 	}
 
-	// Check distance to enemy
-	const float dist = range_to(self, self->enemy);
+	// Obtener punto medio y calcular distancia
+	vec3_t start;
+	G_EntMidPoint(self->enemy, start);
+	vec3_t const diff = start - self->s.origin;
+	float const dist = diff.length();
 
-	// Handle close range attack
-	if (dist <= ATTACK_RANGE) {
-		// Calculate normalized direction vector using vec3_t operators
-		vec3_t const dir = (self->enemy->s.origin - self->s.origin).normalized();
+	// Si está fuera de rango, dejar de atacar
+	if (dist > 512) {
+		M_SetAnimation(self, &brain_move_run);
+		self->monsterinfo.attack_finished = level.time + 1_hz;
+		return;
+	}
 
-		// Calculate damage with modifier
-		int damage = BASE_DAMAGE;
-		if (float const modifier = M_DamageModifier(self); modifier != 1.0f) {
-			damage *= modifier;
-		}
+	// Calcular pull y daño
+	vec3_t dir = diff.normalized();
+	int pull = 100;
+	int damage = 5;
 
-		// Apply damage directly, without knockback
+	// Aumentar pull si está en el suelo
+	if (self->enemy->groundentity)
+		pull *= 2;
+
+	// Aplicar daño y pull si está en rango cercano
+	if (dist <= 64) {
 		T_Damage(self->enemy, self, self, dir, self->enemy->s.origin,
-			vec3_origin, damage, 0, DAMAGE_NO_KNOCKBACK, MOD_BRAINTENTACLE);
+			vec3_origin, damage, -pull, DAMAGE_RADIUS, MOD_BRAINTENTACLE);
 
-		// Heal the brain
-		self->health = std::min(self->health + damage, self->max_health);
-
-		// Update visual appearance if possible
-		if (self->monsterinfo.setskin) {
-			self->monsterinfo.setskin(self);
-		}
-
-		// Pull enemy towards brain with vertical component
-		auto [forward, right, up] = AngleVectors(self->s.angles);
-		self->enemy->velocity = forward * PULL_FORCE;
-
-		// Calculate height difference and add appropriate vertical velocity
-		float height_diff = self->s.origin[2] - self->enemy->s.origin[2];
-		self->enemy->velocity[2] = height_diff * 2;  // Velocidad vertical proporcional a la diferencia de altura
+		// Efectos visuales
+		gi.sound(self, CHAN_WEAPON, sound_tentacles_retract, 1, ATTN_NORM, 0);
 
 		// Continue attack animation
 		self->monsterinfo.nextframe = FRAME_attak206;
-	}
-	else {
-		// Switch to run animation if enemy is out of range
-		M_SetAnimation(self, &brain_move_run);
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
 	}
 
 	// Set next attack and think times
