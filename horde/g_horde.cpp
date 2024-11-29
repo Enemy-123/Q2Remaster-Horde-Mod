@@ -2423,10 +2423,9 @@ static void SpawnBossAutomatically() {
 	boss->s.origin = spawn_origin;
 	//gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
 
-	// Empujar entidades usando vec3_t
 	constexpr float push_radius = 500.0f;
-	constexpr float push_force = 1000.0f;
-	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 3750.0f, 1600.0f);
+	constexpr float push_force = 600.0f;
+	PushEntitiesAway(spawn_origin, 3, push_radius, push_force, 750.0f, 75.0f); // Reducido aún más vertical_push_strength
 
 	// Almacenar entidad orbe en el jefe
 	boss->owner = orb;

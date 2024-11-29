@@ -721,30 +721,18 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		}
 	}
 }
+
 void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, float push_strength, float horizontal_push_strength, float vertical_push_strength)
 {
-	// Constantes optimizadas
-	static constexpr float MIN_VELOCITY = 400.0f;
-	static constexpr float MAX_FORCE = 4000.0f;
-	static constexpr float BASE_FORCE = 500.0f;
-	static constexpr int MAX_ATTEMPTS = 5;
-	static constexpr float DAMPING_FACTOR = 0.85f;
-	static constexpr float MASS_SCALING = 0.75f;
-	static constexpr float MIN_DISTANCE_CHECK = 0.01f;
-	static constexpr float SIZE_INFLUENCE = 0.3f;
-	static constexpr float VERTICAL_BOOST_FIRST = 800.0f;
-	static constexpr float VERTICAL_BOOST_SECOND = 600.0f;
-	static constexpr float ROTATION_FACTOR = 0.15f;
+	// Radio mínimo y búsqueda
+	push_radius = std::max(push_radius, 1.0f);
+	const float search_radius = push_radius * 1.5f;
 
 	// Arrays estáticos para entidades
 	static edict_t* entities_to_process[MAX_ENTITIES];
 	static edict_t* entities_to_remove[MAX_ENTITIES];
 	size_t process_count = 0;
 	size_t remove_count = 0;
-
-	// Radio mínimo y búsqueda
-	push_radius = std::max(push_radius, 1.0f);
-	const float search_radius = push_radius * 1.5f;
 
 	// Recolectar entidades
 	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
@@ -753,13 +741,6 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 
 		// Verificar PVS y línea de visión
 		if (!gi.inPVS(center, ent->s.origin, false))
-			continue;
-
-		vec3_t check_point = ent->s.origin;
-		check_point.z += (ent->maxs.z + ent->mins.z) * 0.5f;
-
-		const trace_t tr = gi.traceline(center, check_point, nullptr, MASK_SOLID);
-		if (tr.fraction < 1.0f && tr.ent != ent)
 			continue;
 
 		// Clasificar entidades
@@ -800,135 +781,62 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 
 		// Procesar entidades
 		for (size_t entity_idx = 0; entity_idx < process_count; entity_idx++) {
-			edict_t* entity = entities_to_process[entity_idx];
+			edict_t* ent = entities_to_process[entity_idx];
 
-			if (!entity || !entity->inuse)
+			if (!ent || !ent->inuse)
 				continue;
 
-			if (!gi.inPVS(center, entity->s.origin, false))
+			if (!gi.inPVS(center, ent->s.origin, false))
 				continue;
 
-			bool pushed = false;
-			int attempts = 0;
+			// Calcular dirección y distancia
+			vec3_t push_dir = ent->s.origin - center;
+			float dist = push_dir.length(); // Usar length() directamente en vez de sqrt(lengthSquared())
 
-			while (!pushed && attempts < MAX_ATTEMPTS) {
-				// Verificar línea de visión
-				const trace_t vis_tr = gi.traceline(center, entity->s.origin, nullptr, MASK_SOLID);
-				if (vis_tr.fraction < 1.0f && vis_tr.ent != entity) {
-					attempts++;
-					continue;
-				}
+			if (dist < 0.01f) {
+				push_dir = vec3_t{ crandom(), crandom(), 0.1f };
+			}
 
-				// Calcular dirección y fuerza
-				vec3_t push_dir = entity->s.origin - center;
-				const float distance_squared = push_dir.lengthSquared();
+			push_dir.normalize();
 
-				if (distance_squared > MIN_DISTANCE_CHECK) {
-					push_dir = push_dir.normalized();
-				}
-				else {
-					push_dir = vec3_t{ crandom(), crandom(), 0.3f }.normalized();
-				}
+			// Calcular factor de distancia (1.0 cerca, 0.0 lejos)
+			float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
 
-				const float distance = std::sqrt(distance_squared);
-				const float distance_factor = std::max(0.3f, 1.0f - (distance / size));
+			// Calcular fuerza base del knockback
+			int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
+			if (ent->groundentity)
+				base_push *= 2;
 
-				// Fuerza base mejorada con curva sinusoidal
-				float wave_push_strength = push_strength * distance_factor *
-					(0.5f + 0.5f * std::cos(distance_factor * PI)) *
-					std::pow(1.0f - wave_progress, 0.5f);
+			// Aplicar el factor de distancia al knockback
+			base_push = static_cast<int>(base_push * dist_factor);
 
-				// Escalar por masa y tamaño
-				if (entity->mass > 0) {
-					wave_push_strength *= std::pow(static_cast<float>(entity->mass), -MASS_SCALING);
-				}
+			// Marcar la protección contra daño de caída
+			if (ent->client) {
+				ent->client->landmark_free_fall = true;
+			}
 
-				// Factor de tamaño
-				const float size_factor = (entity->maxs - entity->mins).length() * SIZE_INFLUENCE;
-				wave_push_strength *= (1.0f / (1.0f + size_factor));
+			// Usar T_Damage con knockback positivo 
+			T_Damage(ent, ent, ent, push_dir, ent->s.origin, vec3_origin,
+				0,  // sin daño 
+				base_push,  // knockback escalado por distancia
+				DAMAGE_RADIUS,  // flags 
+				MOD_UNKNOWN);
 
-				// Ajustar por intentos
-				wave_push_strength *= (1.0f + (attempts * 0.25f));
-				wave_push_strength = std::min(wave_push_strength, MAX_FORCE);
+			// Añadir componente vertical si es necesario
+			if (vertical_push_strength > 0 && wave <= 1) {
+				const float boost = (wave == 0) ? 100.0f : 75.0f;
+				ent->velocity.z += boost;
+			}
 
-				// Calcular nueva posición
-				const vec3_t new_pos = entity->s.origin + (push_dir * (wave_push_strength / BASE_FORCE));
-
-				// Verificar colisión
-				const trace_t tr = gi.trace(entity->s.origin, entity->mins, entity->maxs,
-					new_pos, entity, MASK_SOLID);
-
-				if (!tr.allsolid && !tr.startsolid) {
-					// Velocidad final con componentes mejorados
-					const float tr_scale = tr.fraction < 1.0f ? tr.fraction : 1.0f;
-					vec3_t final_velocity = push_dir * (wave_push_strength * tr_scale);
-
-					// Componente horizontal mejorado
-					const float horizontal_factor = std::sin(DEG2RAD(90.0f * distance_factor));
-					final_velocity += push_dir * (horizontal_push_strength * horizontal_factor);
-
-					// Componente vertical con variación por ola
-					const float vertical_factor = std::sin(DEG2RAD(90.0f * distance_factor));
-					float vertical_boost = vertical_push_strength * vertical_factor;
-
-					if (wave <= 1) {
-						vertical_boost += (wave == 0) ? VERTICAL_BOOST_FIRST : VERTICAL_BOOST_SECOND;
-					}
-
-					final_velocity.z += vertical_boost;
-
-					// Asegurar velocidad mínima
-					for (int axis = 0; axis < 3; axis++) {
-						if (std::abs(final_velocity[axis]) < MIN_VELOCITY) {
-							final_velocity[axis] = (final_velocity[axis] >= 0 ? MIN_VELOCITY : -MIN_VELOCITY);
-						}
-					}
-
-					// Aplicar damping y escala final
-					final_velocity *= DAMPING_FACTOR;
-
-					// Rotación para entidades no jugador
-					if (!entity->client) {
-						entity->avelocity = {
-							crandom() * wave_push_strength * ROTATION_FACTOR,
-							crandom() * wave_push_strength * ROTATION_FACTOR,
-							crandom() * wave_push_strength * ROTATION_FACTOR
-						};
-					}
-
-					// Aplicar velocidad
-					entity->velocity = final_velocity;
-					entity->groundentity = nullptr;
-
-					// Actualizar cliente
-					if (entity->client) {
-						entity->client->oldvelocity = final_velocity;
-						entity->client->oldgroundentity = nullptr;
-						entity->client->ps.pmove.velocity = final_velocity;
-
-						// Efecto de pantalla para jugadores usando flags existentes
-						if (wave == 0) {
-							// Usar TIME_TELEPORT para el efecto de knockback
-							entity->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
-							entity->client->ps.pmove.pm_time = 100;
-
-							// Deshabilitar predicción temporal para un efecto más suave
-							//entity->client->ps.pmove.pm_flags |= PMF_NO_POSITIONAL_PREDICTION;
-
-							// Opcional: también podemos deshabilitar la predicción angular
-							//entity->client->ps.pmove.pm_flags |= PMF_NO_ANGULAR_PREDICTION;
-
-						}
-					}
-
-					pushed = true;
-				}
-
-				attempts++;
+			// Actualizar cliente para efectos visuales
+			if (ent->client && wave == 0) {
+				ent->client->ps.pmove.pm_flags |= PMF_TIME_TELEPORT;
+				ent->client->ps.pmove.pm_time = 100;
 			}
 		}
 	}
 }
+
 
 [[nodiscard]] constexpr bool string_equals(const char* str1, const std::string_view& str2) noexcept {
 	return str1 && str2.length() == strlen(str1) && !Q_strncasecmp(str1, str2.data(), str2.length());
