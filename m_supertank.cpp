@@ -289,13 +289,35 @@ static void supertankGrenade(edict_t* self)
 	// Usar un entero como contador y convertir a float cuando sea necesario
 	for (int i = 0; i < 5; i++) // 5 iteraciones para cubrir el rango 500-900
 	{
-		float const speed = 500.0f + (i * 100.0f);
+		// Ajustar la velocidad y trayectoria para teslas
+		if (!strcmp(self->enemy->classname, "tesla_mine")) {
+			float const speed = 400.0f;
+			vec3_t target = self->enemy->s.origin;
 
-		if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
-			continue;
+			// Si la tesla está en el suelo, ajustar el punto de impacto
+			if (self->enemy->movedir[2] > 0.7) {
+				vec3_t forward;
+				AngleVectors(self->s.angles, forward, nullptr, nullptr);
+				// En lugar de VectorMA usamos la suma de vectores
+				target = target - (forward * 32); // Apuntar 32 unidades antes de la tesla
+				target[2] += 8; // Altura ajustada para mejor rebote
+			}
 
-		monster_fire_grenade(self, start, forward, 50, speed, flash_number, 0.f, 0.f);
-		break;
+			vec3_t dir = target - start;
+			dir.normalize();
+
+			monster_fire_grenade(self, start, dir, 50, speed, flash_number, 0.f, 2.f);
+			return;
+		}
+		else {
+			float const speed = 500.0f + (i * 100.0f);
+
+			if (!M_CalculatePitchToFire(self, aim_point, start, forward, speed, 2.5f, true))
+				continue;
+
+			monster_fire_grenade(self, start, forward, 50, speed, flash_number, 0.f, 0.f);
+			break;
+		}
 	}
 }
 
@@ -544,9 +566,21 @@ MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 	const bool isTesla = (!strcmp(self->enemy->classname, "tesla_mine"));
 
 	if (isTesla) {
-	M_SetAnimation(self, &supertank_move_attack2);
-	return;
-}
+		// Si la tesla está en una pared o techo (normal no apunta hacia arriba)
+		if (vec.z > 8) {
+			if (rocket_good)
+				M_SetAnimation(self, &supertank_move_attack2);
+		}
+		else {
+			// Tesla en el suelo, usar granadas
+			if (grenade_good)
+				M_SetAnimation(self, &supertank_move_attack4);
+			else if (rocket_good) // Fallback a cohetes si no podemos usar granadas
+				M_SetAnimation(self, &supertank_move_attack2);
+		}
+		return;
+	}
+
 	// fire rockets more often at distance
 	if (chaingun_good && (!rocket_good || range <= 540 || frandom() < 0.3f))
 	{
