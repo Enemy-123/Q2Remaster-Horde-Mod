@@ -1908,10 +1908,6 @@ void respawn(edict_t* self)
 {
 	if (deathmatch->integer || coop->integer)
 	{
-		// Guardar el arma y la salud m�xima antes de la muerte
-		if (g_horde->integer) {
-			//	SaveClientWeaponBeforeDeath(self->client);
-		}
 		// spectators don't leave bodies
 		if (!self->client->resp.spectator)
 			CopyToBodyQue(self);
