@@ -513,7 +513,13 @@ mframe_t makron_frames_attack4[] = {
 };
 MMOVE_T(makron_move_attack4) = { FRAME_attak401, FRAME_attak426, makron_frames_attack4, makron_run };
 
-mframe_t makron_frames_attack5[] = {
+void MakronSaveloc(edict_t* self)
+{
+	self->pos1 = self->enemy->s.origin; // save for aiming the shot
+	self->pos1[2] += self->enemy->viewheight;
+};
+
+mframe_t makron_frames_attack_rail[] = {
 	{ ai_charge, 0, makron_prerailgun },
 	{ ai_charge },
 	{ ai_charge },
@@ -531,15 +537,46 @@ mframe_t makron_frames_attack5[] = {
 	{ ai_move, 0, MakronRailgun }, // Fire railgun
 	{ ai_move, 0, MakronRailgun }, // Fire railgun
 };
+MMOVE_T(makron_move_attack_rail) = { FRAME_attak501, FRAME_attak516, makron_frames_attack_rail, makron_run };
+
+void makron_reattack_railgun(edict_t* self);
+
+mframe_t makron_frames_attack5[] = {
+	{ ai_charge, 0, makron_prerailgun },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge },
+	{ ai_charge, 0, MakronSaveloc },
+	{ ai_move, 0, MakronRailgun }, // Fire railgun
+	{ ai_move, 0, makron_reattack_railgun},
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move },
+	{ ai_move }
+};
 MMOVE_T(makron_move_attack5) = { FRAME_attak501, FRAME_attak516, makron_frames_attack5, makron_run };
 
-
-
-void MakronSaveloc(edict_t *self)
+void makron_reattack_railgun(edict_t* self)
 {
-	self->pos1 = self->enemy->s.origin; // save for aiming the shot
-	self->pos1[2] += self->enemy->viewheight;
-};
+	// if our enemy is still valid, then continue firing
+	if (self->enemy && frandom() < 0.8f && !level.intermissiontime)
+	{
+		if (frandom() < 0.7f)
+		MakronSaveloc(self);
+
+		MakronRailgun(self);
+		self->monsterinfo.nextframe = FRAME_attak509;
+		return;
+	}
+
+	// end attack
+	self->monsterinfo.attack_finished = level.time + 1.0_sec;
+}
 
 void MakronRailgun(edict_t *self)
 {
@@ -555,8 +592,6 @@ void MakronRailgun(edict_t *self)
 	dir.normalize();
 
 	monster_fire_railgun(self, start, dir, 50, 100, MZ2_MAKRON_RAILGUN_1);
-
-
 }
 
 
@@ -592,8 +627,10 @@ void MakronHyperblaster(edict_t *self)
 
 	AngleVectors(dir, forward, nullptr, nullptr);
 
-	!strcmp(self->classname, "monster_makron") ?  monster_fire_blaster2(self, start, forward, 35, 2300, flash_number, EF_BLASTER) :
-	monster_fire_heatbeam(self, start, forward, vec3_origin, 18, 60, flash_number);
+	if (!strcmp(self->classname, "monster_makron"))
+		monster_fire_blaster2(self, start, forward, 35, 1300, flash_number, EF_BLASTER);
+	else
+		monster_fire_blaster_bolt(self, start, forward, 35, 2300, flash_number, EF_HYPERBLASTER);
 }
 
 PAIN(makron_pain) (edict_t *self, edict_t *other, float kick, int damage, const mod_t &mod) -> void
@@ -668,16 +705,25 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 
 
 	r = frandom();
-
-	if (r <= 0.3f)
-		!strcmp(self->classname, "monster_makronkl") ? M_SetAnimation(self, &makron_move_attack3boss) :
-		M_SetAnimation(self, &makron_move_attack3);
-	else if (r <= 0.6f)
+	if (r <= 0.3f) {
+		if (!strcmp(self->classname, "monster_makronkl")) {
+			M_SetAnimation(self, &makron_move_attack3boss);
+		}
+		else {
+			M_SetAnimation(self, &makron_move_attack3);
+		}
+	}
+	else if (r <= 0.6f) {
 		M_SetAnimation(self, &makron_move_attack4);
-	else
-		M_SetAnimation(self, &makron_move_attack5);
-
-
+	}
+	else {
+		if (self->health <= (self->max_health / 2)) {  // Cambiado a <=
+			M_SetAnimation(self, &makron_move_attack5);
+		}
+		else {
+			M_SetAnimation(self, &makron_move_attack_rail);
+		}
+	}
 }
 
 //
