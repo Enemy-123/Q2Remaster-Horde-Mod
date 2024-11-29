@@ -50,11 +50,11 @@ edict_t* monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& 
 }
 
 edict_t* monster_fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
-	monster_muzzleflash_id_t flashtype, effects_t effect)
+	monster_muzzleflash_id_t flashtype, effects_t effect, int bounces)
 {
 	// Call fire_blaster_bolt instead of fire_blaster
-	// We'll use the default 3 bounces as established in fire_blaster_bolt
-	edict_t* e = fire_blaster_bolt(self, start, dir, damage, speed, effect, MOD_BLASTER);
+	// We'll use the default 2 bounces as established in monster_fire_blaster_bolt in g_local.h
+	edict_t* e = fire_blaster_bolt(self, start, dir, damage, speed, effect, MOD_BLASTER, bounces);
 
 	// Add the muzzle flash effect, keeping it consistent with monster_fire_blaster
 	monster_muzzleflash(self, start, flashtype);

@@ -2281,7 +2281,7 @@ void monster_fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimd
 edict_t* monster_fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype, effects_t effect);
 edict_t* monster_fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
-	monster_muzzleflash_id_t flashtype, effects_t effect);
+	monster_muzzleflash_id_t flashtype, effects_t effect, int bounces = 2);
 void monster_fire_flechette(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed,
 	monster_muzzleflash_id_t flashtype);
 void monster_fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed,
@@ -2426,8 +2426,7 @@ void fire_shotgun(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 void blaster_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self);
 edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, effects_t effect,
 	mod_t mod, int bounces = 0);
-edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect,
-	mod_t mod);
+edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod, int bounces);
 void Grenade_Explode(edict_t* ent);
 void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int damage, int speed, gtime_t timer,
 	float damage_radius, float right_adjust, float up_adjust, bool monster);

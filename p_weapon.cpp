@@ -1399,7 +1399,7 @@ void Blaster_Fire(edict_t* ent, const vec3_t& g_offset, int damage, bool hyper, 
 	int const speed = hyper ? 1700 : 1300;
 	//left hb / right blaster
 	!hyper ? fire_blaster(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, 5)
-	: fire_blaster_bolt(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER);
+	: fire_blaster_bolt(ent, start, dir, damage, speed, effect, hyper ? MOD_HYPERBLASTER : MOD_BLASTER, 3);
 
 	// send muzzle flash
 	gi.WriteByte(svc_muzzleflash);

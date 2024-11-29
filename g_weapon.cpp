@@ -512,10 +512,11 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 	}
 }
 
-edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod)
+edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, effects_t effect, mod_t mod, int bounces )
 {
-	edict_t* bolt = fire_blaster(self, start, dir, damage, speed, effect, mod, 3); // 3 rebotes por defecto
+	edict_t* bolt = fire_blaster(self, start, dir, damage, speed, effect, mod, bounces);
 
+	// unlike monster_fire_blaster_bolt, there's no default bouncing. set it on arguments
 	if (bolt)
 	{
 		// Si es un blaster normal, dejamos el bolt como está
@@ -528,6 +529,7 @@ edict_t* fire_blaster_bolt(edict_t* self, const vec3_t& start, const vec3_t& dir
 			bolt->s.scale = 0.5f;                 // Escala visual más pequeña
 			bolt->s.renderfx = RF_SHELL_HALF_DAM; // Efecto visual especial
 			bolt->dmg_radius = 128; //radius for HB
+			bolt->bounce_count = bounces;
 		}
 	}
 	return bolt;
@@ -563,13 +565,6 @@ edict_t* fire_blaster(edict_t* self, const vec3_t& start, const vec3_t& dir, int
 	bolt->dmg = damage;
 	bolt->classname = "bolt";
 	bolt->style = mod.id;
-
-
-	//// Efectos visuales especiales para proyectiles que rebotan
-	//if (bounces > 0) {
-	//	bolt->s.scale = 0.5f;
-	//	bolt->s.renderfx = RF_SHELL_HALF_DAM;
-	//}
 
 	gi.linkentity(bolt);
 
