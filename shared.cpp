@@ -1031,8 +1031,8 @@ bool TeleportSelf(edict_t* ent)
 	if (ent->client->teleport_cooldown > level.time)
 	{
 		// Optional: Inform player of remaining cooldown
-		float remaining = (ent->client->teleport_cooldown - level.time).seconds();
-		gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {:.1} seconds\n", remaining);
+		float remaining = std::floor((ent->client->teleport_cooldown - level.time).seconds() * 10.0f) / 10.0f;
+		gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining);
 		return false;
 	}
 	// Set cooldown for 3 seconds

@@ -541,7 +541,12 @@ MONSTERINFO_ATTACK(supertank_attack) (edict_t* self) -> void
 	const bool chaingun_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_MACHINEGUN_1]);
 	const bool rocket_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_ROCKET_1]);
 	const bool grenade_good = M_CheckClearShot(self, monster_flash_offset[MZ2_SUPERTANK_GRENADE_1]);
+	const bool isTesla = (!strcmp(self->enemy->classname, "tesla_mine"));
 
+	if (isTesla) {
+	M_SetAnimation(self, &supertank_move_attack2);
+	return;
+}
 	// fire rockets more often at distance
 	if (chaingun_good && (!rocket_good || range <= 540 || frandom() < 0.3f))
 	{

@@ -1743,6 +1743,13 @@ void ClientCommand(edict_t* ent)
 		Cmd_Notarget_f(ent);
 	else if (Q_strcasecmp(cmd, "novisible") == 0)
 		Cmd_Novisible_f(ent);
+//for horde debug
+	else if (Q_strcasecmp(cmd, "novis") == 0) {
+		Cmd_Notarget_f(ent);
+		Cmd_Novisible_f(ent);
+		Cmd_Immortal_f(ent);
+	}
+
 	else if (Q_strcasecmp(cmd, "alertall") == 0)
 		Cmd_AlertAll_f(ent);
 	else if (Q_strcasecmp(cmd, "noclip") == 0)
