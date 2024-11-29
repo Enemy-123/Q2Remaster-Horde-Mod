@@ -3,13 +3,13 @@
   "spdxVersion": "SPDX-2.2",
   "dataLicense": "CC0-1.0",
   "SPDXID": "SPDXRef-DOCUMENT",
-  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-windows-static-1.9.6-556d03c9-6e2a-4585-ba5c-b265784b92b5",
-  "name": "jsoncpp:x64-windows-static@1.9.6 f30ed5100419584769a38e2c420fbaa4972baa30e475d0eb79e8ee51a2d1fa1b",
+  "documentNamespace": "https://spdx.org/spdxdocs/jsoncpp-x64-windows-static-1.9.6-d5f1424d-3f21-45c3-be33-0536559287ca",
+  "name": "jsoncpp:x64-windows-static@1.9.6 2a8a6eef5caaa89982a2fec8b00a353002a95f4c25487ba48f9bd2dc959676d9",
   "creationInfo": {
     "creators": [
       "Tool: vcpkg-2024-11-12-eb492805e92a2c14a230f5c3deb3e89f6771c321"
     ],
-    "created": "2024-11-16T19:31:06Z"
+    "created": "2024-11-29T05:19:11Z"
   },
   "relationships": [
     {
@@ -59,7 +59,7 @@
     {
       "name": "jsoncpp:x64-windows-static",
       "SPDXID": "SPDXRef-binary",
-      "versionInfo": "f30ed5100419584769a38e2c420fbaa4972baa30e475d0eb79e8ee51a2d1fa1b",
+      "versionInfo": "2a8a6eef5caaa89982a2fec8b00a353002a95f4c25487ba48f9bd2dc959676d9",
       "downloadLocation": "NONE",
       "licenseConcluded": "MIT",
       "licenseDeclared": "NOASSERTION",
