@@ -854,7 +854,7 @@ constexpr weighted_item_t monsters[] = {
 	//last waves
 	{ "monster_boss2kl", 46, -1, 0.2f },
 	{ "monster_shamblerkl", 33, -1, 0.15f },
-	{ "monster_makron", 16, 32, 0.015f },
+	{ "monster_makron", 16, 32, 0.018f },
 	{ "monster_makron", 36, -1, 0.04f },
 	{ "monster_guncmdrkl", 33, -1, 0.04f },
 	{ "monster_makronkl", 41, -1, 0.015f },
