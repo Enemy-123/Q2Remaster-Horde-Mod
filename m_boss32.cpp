@@ -717,8 +717,13 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 		M_SetAnimation(self, &makron_move_attack4);
 	}
 	else {
-		if (self->health <= (self->max_health / 2)) {  // Cambiado a <=
+		if (self->health <= (self->max_health / 1.5)) {  // Cambiado a <= 
+			gi.sound(self, CHAN_VOICE, sound_taunt1, 1, ATTN_NORM, 0);
+			self->health += 300;
 			M_SetAnimation(self, &makron_move_attack5);
+
+			if (self->monsterinfo.IS_BOSS)
+				self->health += 500;
 		}
 		else {
 			M_SetAnimation(self, &makron_move_attack_rail);
