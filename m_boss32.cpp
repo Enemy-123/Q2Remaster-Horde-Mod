@@ -857,13 +857,19 @@ void SP_monster_makron(edict_t* self)
 	self->s.modelindex = gi.modelindex("models/monsters/boss3/rider/tris.md2");
 	self->mins = { -30, -30, 0 };
 	self->maxs = { 30, 30, 90 };
+	self->health = 2300 * st.health_multiplier;
 
 	if (!st.was_key_specified("power_armor_type"))
 		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
 	if (!st.was_key_specified("power_armor_power"))
 		self->monsterinfo.power_armor_power = 700;
 
-	self->health = 2300 * st.health_multiplier;
+	if (g_horde->integer && !self->monsterinfo.IS_BOSS) {
+		self->health = 3500 + (1.08 * current_wave_level);
+		if (self->health >= 6500)
+			self->health = 6500;
+	}
+
 	self->gib_health = -800;
 	self->mass = 500;
 
@@ -971,11 +977,11 @@ void MakronToss(edict_t* self)
 		return;
 	}
 	// Determine if we should spawn a non-boss Makron
-	bool shouldSpawnMakron = (g_horde->integer && current_wave_level <= 20 && !self->monsterinfo.IS_BOSS) ||
+	const bool shouldSpawnMakron = (g_horde->integer && current_wave_level <= 20 && !self->monsterinfo.IS_BOSS) ||
 		(!g_horde->integer);
 
 	// Determine if we should spawn a Makronkl
-	bool shouldSpawnMakronkl = (g_horde->integer && current_wave_level >= 21 && !self->monsterinfo.IS_BOSS);
+	const bool shouldSpawnMakronkl = (g_horde->integer && current_wave_level >= 21 && !self->monsterinfo.IS_BOSS);
 
 	if (shouldSpawnMakron) {
 		ent->classname = "monster_makron";
