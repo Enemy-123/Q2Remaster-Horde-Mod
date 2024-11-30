@@ -734,13 +734,15 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 	size_t process_count = 0;
 	size_t remove_count = 0;
 
+
+
 	// Recolectar entidades
 	for (edict_t* ent = nullptr; (ent = findradius(ent, center, search_radius)) != nullptr;) {
 		if (!ent || !ent->inuse)
 			continue;
 
 		// Verificar PVS y línea de visión
-		if (!gi.inPVS(center, ent->s.origin, false))
+		if (gi.traceline(center, ent->s.origin, nullptr, MASK_SOLID).fraction < 1.0f)
 			continue;
 
 		// Clasificar entidades
