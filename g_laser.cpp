@@ -26,7 +26,7 @@ namespace LaserConstants {
     constexpr int32_t MAX_LASER_HEALTH = 1750;
     constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
     constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
-  //  constexpr gtime_t TRACE_UPDATE_INTERVAL = 50_ms;
+    //  constexpr gtime_t TRACE_UPDATE_INTERVAL = 50_ms;
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;   // Aumentado para mejor daño PvE
@@ -245,7 +245,7 @@ THINK(laser_beam_think)(edict_t* self) -> void {
     const vec3_t start = self->pos1;
     const vec3_t end = start + forward * 8192;
 
-    trace_t tr = gi.traceline(start, end, self->owner, CONTENTS_MONSTER);
+    trace_t tr = gi.traceline(start, end, self->owner, MASK_SHOT);
 
     // Update positions like in original
     self->s.origin = tr.endpos;
@@ -406,7 +406,7 @@ void create_laser(edict_t* ent) {
     grenade->s.origin = tr.endpos;
     grenade->s.angles = vectoangles(tr.plane.normal);  // Keep original angle calculation
     grenade->movetype = MOVETYPE_NONE;
-    grenade->clipmask = CONTENTS_PROJECTILECLIP;
+    grenade->clipmask = MASK_SHOT;
     grenade->solid = SOLID_BBOX;
     grenade->mins = vec3_t{ -3, -3, 0 };
     grenade->maxs = vec3_t{ 3, 3, 6 };
@@ -440,11 +440,11 @@ void create_laser(edict_t* ent) {
             current_manager->get_active_count(), LaserConstants::MAX_LASERS);
     }
 }
-    void remove_lasers(edict_t * ent) noexcept {
-        if (!ent) return;
+void remove_lasers(edict_t* ent) noexcept {
+    if (!ent) return;
 
-        // Usar el manager para remover todos los láseres
-        if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
-            manager->remove_all_lasers();
-        }
+    // Usar el manager para remover todos los láseres
+    if (auto* manager = LaserHelpers::get_laser_manager(ent)) {
+        manager->remove_all_lasers();
     }
+}
