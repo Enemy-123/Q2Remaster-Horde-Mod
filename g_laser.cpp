@@ -245,7 +245,7 @@ THINK(laser_beam_think)(edict_t* self) -> void {
     const vec3_t start = self->pos1;
     const vec3_t end = start + forward * 8192;
 
-    trace_t tr = gi.traceline(start, end, self->owner, MASK_SHOT);
+    trace_t tr = gi.traceline(start, end, self->owner, CONTENTS_MONSTER);
 
     // Update positions like in original
     self->s.origin = tr.endpos;
@@ -406,7 +406,7 @@ void create_laser(edict_t* ent) {
     grenade->s.origin = tr.endpos;
     grenade->s.angles = vectoangles(tr.plane.normal);  // Keep original angle calculation
     grenade->movetype = MOVETYPE_NONE;
-    grenade->clipmask = MASK_SHOT;
+    grenade->clipmask = CONTENTS_PROJECTILECLIP;
     grenade->solid = SOLID_BBOX;
     grenade->mins = vec3_t{ -3, -3, 0 };
     grenade->maxs = vec3_t{ 3, 3, 6 };
