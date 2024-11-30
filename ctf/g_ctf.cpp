@@ -402,7 +402,10 @@ edict_t* SelectCTFSpawnPoint(edict_t* ent, bool force_spawn)
 	switch (ent->client->resp.ctf_team)
 	{
 	case CTF_TEAM1:
-		if (current_wave_level == 0 && count_ground_spawns() > 0) {
+		if (strcmp(level.mapname, "mgu4trial") == 0) {
+			cname = "info_player_start";
+		}
+		else if (current_wave_level == 0 && count_ground_spawns() > 0) {
 			cname = "info_player_deathmatch";
 			use_ground_spawns = true;
 		}
