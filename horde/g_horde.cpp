@@ -515,13 +515,6 @@ struct ConditionParams {
 	}
 };
 
-// Función para calcular el rendimiento del jugador (implementa según tus necesidades)
-static float CalculatePlayerPerformance() {
-	// Implementación de ejemplo. Ajusta según tus necesidades.
-	const float killRate = static_cast<float>(level.killed_monsters) / std::max(1.0f, static_cast<float>(g_totalMonstersInWave));
-	return std::clamp(killRate, 0.5f, 2.0f);  // Limita el factor entre 0.5 y 2
-}
-
 // Constantes y funciones auxiliares
 constexpr gtime_t BASE_MAX_WAVE_TIME = 85_sec;
 constexpr gtime_t TIME_INCREASE_PER_LEVEL = 1.5_sec;
@@ -924,11 +917,6 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_jorg", 30, -1, 0.1f, BossSizeCategory::Large}
 };
 
-// Definir constantes de tamaño para cada arreglo de jefes
-constexpr size_t BOSS_SMALL_SIZE = std::size(BOSS_SMALL);
-constexpr size_t BOSS_MEDIUM_SIZE = std::size(BOSS_MEDIUM);
-constexpr size_t BOSS_LARGE_SIZE = std::size(BOSS_LARGE);
-
 static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
 		return BOSS_SMALL;
@@ -1310,61 +1298,8 @@ inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_
 	}
 }
 
-inline static double CalculateMonsterWeight(const weighted_item_t& item, bool isFlyingMonster, float adjustmentFactor) noexcept {
-	if (flying_monsters_mode && isFlyingMonster) {
-		return item.weight * 1.5; // Aumentar el peso para preferir monstruos voladores
-	}
-	return item.weight;
-}
-
-
-// Function to reset spawn point attempts and cooldown
-static void ResetSingleSpawnPointAttempts(edict_t* spawn_point) noexcept {
-	auto& data = spawnPointsData[spawn_point];
-	data.attempts = 0;
-	data.spawn_cooldown = level.time;
-	data.teleport_cooldown = level.time;
-	data.isTemporarilyDisabled = false;
-}
-
 constexpr gtime_t CLEANUP_THRESHOLD = 2_sec;
-
-// Función modificada sin lanzar excepciones
-static SpawnPointData& EnsureSpawnPointDataExists(edict_t* spawn_point) {
-	if (!spawn_point) {
-		gi.Com_PrintFmt("Warning: Attempted to ensure spawn point data for a nullptr.\n");
-		// Manejar el caso de manera segura sin retornar una referencia a un objeto estático
-		static SpawnPointData dummy;
-		return dummy;
-	}
-
-	auto [insert_it, inserted] = spawnPointsData.emplace(spawn_point, SpawnPointData());
-	return insert_it->second;
-}
-
 constexpr size_t MAX_SPAWN_POINTS_DATA = 16; // Define un límite razonable
-
-static void CleanUpSpawnPointsData() {
-	const gtime_t currentTime = level.time;
-
-	// Remove spawn points that are temporarily disabled and past cooldown
-	for (auto it = spawnPointsData.begin(); it != spawnPointsData.end(); ) {
-		if (it->second.isTemporarilyDisabled && currentTime > it->second.cooldownEndsAt + CLEANUP_THRESHOLD) {
-			if (developer->integer)	gi.Com_PrintFmt("Removed spawn_point at address {} due to extended inactivity.\n", static_cast<void*>(it->first));
-			it = spawnPointsData.erase(it);
-		}
-		else {
-			++it;
-		}
-	}
-
-	// Limit the size of the container
-	if (spawnPointsData.size() > MAX_SPAWN_POINTS_DATA) {
-		if (developer->integer)	gi.Com_Print("WARNING: spawnPointsData exceeded maximum size. Clearing data.\n");
-		spawnPointsData.clear();
-	}
-}
-
 
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
