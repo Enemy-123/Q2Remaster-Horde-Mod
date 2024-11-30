@@ -121,10 +121,10 @@ LaserManagerHolder::~LaserManagerHolder() {
 namespace LaserHelpers {
     bool is_valid_target(const edict_t* ent) {
         return ent && ent->inuse &&
-            ((ent->svflags & SVF_MONSTER) || ent->client || ent->takedamage);
+            ((ent->svflags & SVF_MONSTER));
     }
 
-    bool is_same_team(const edict_t* ent1, const edict_t* ent2) {
+    static bool is_same_team(const edict_t* ent1, const edict_t* ent2) {
         return ent1 && ent2 && ent1->team && ent2->team &&
             strcmp(ent1->team, ent2->team) == 0;
     }
