@@ -3523,7 +3523,6 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 			}
 		}
 	}
-
 	PMenu_Close(ent); // Cerrar el menú de TECHS
 }
 

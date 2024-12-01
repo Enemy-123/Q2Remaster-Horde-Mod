@@ -1902,6 +1902,9 @@ void G_PostRespawn(edict_t* self)
 	self->client->ps.pmove.pm_time = 112;
 
 	self->client->respawn_time = level.time;
+
+	if (g_horde->integer)
+		self->client->invincible_time = max(level.time, self->client->invincible_time) + 2_sec;    // RESPAWN INVULNERABILITY EACH RESPAWN EVERY MODE
 }
 
 void respawn(edict_t* self)
