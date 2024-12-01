@@ -1784,6 +1784,9 @@ The monster has an enemy it is trying to kill
 */
 void ai_run(edict_t* self, float dist)
 {
+	if (level.intermissiontime)
+		self->monsterinfo.walk(self);
+
 	// Si es una unidad invocada y el enemigo es un player, olvidarlo
 	if (self->monsterinfo.issummoned && self->enemy && self->enemy->client) {
 		self->enemy = nullptr;
