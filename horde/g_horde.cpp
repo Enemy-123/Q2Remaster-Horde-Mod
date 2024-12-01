@@ -1626,17 +1626,20 @@ void Horde_PreInit() {
 }
 
 void VerifyAndAdjustBots() {
-
-	if (developer->integer == 2)
-		gi.cvar_set("bot_minClients", "-1");
-	else {
-		const MapSize mapSize = GetMapSize(static_cast<const char*>(level.mapname));
-		const int32_t spectPlayers = GetNumSpectPlayers();  // Solo necesitamos spectPlayers
-		const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
-		const int32_t requiredBots = std::max(baseBots + spectPlayers, baseBots);
-
-		gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
-	}
+    if (developer->integer == 2) {
+        gi.cvar_set("bot_minClients", "-1");
+    }
+    else {
+        const MapSize mapSize = GetMapSize(static_cast<const char*>(level.mapname));
+        const int32_t spectPlayers = GetNumSpectPlayers();
+        const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+        
+        // Agregar bot extra si current_wave_level >= 20
+        const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
+        const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
+        
+        gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+    }
 }
 
 void InitializeWaveSystem() noexcept;
