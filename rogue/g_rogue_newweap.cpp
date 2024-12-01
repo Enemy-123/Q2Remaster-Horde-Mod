@@ -1146,14 +1146,12 @@ static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data
 constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array touch
 
 
-// Diferentes offsets según la superficie
-constexpr float TESLA_WALL_OFFSET = 4.00f;      // Offset para paredes
+constexpr float TESLA_WALL_OFFSET = 3.0f;      // Offset para paredes
 constexpr float TESLA_CEILING_OFFSET = -20.4f;   // Offset optimizado para techos
 
 constexpr float TESLA_FLOOR_OFFSET = -12.0f;     // Offset para suelo
 constexpr float TESLA_ORB_OFFSET = 12.0f;      // Altura de la esfera normal
 constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f;  // Altura de la esfera cuando está en techo
-
 // Función modificada para el origen del rayo
 static vec3_t calculate_tesla_ray_origin(const edict_t* self) {
 	vec3_t ray_origin = self->s.origin;
@@ -1415,46 +1413,12 @@ constexpr float TESLA_MIN_BOUNCE_SPEED = 100.0f;    // Velocidad mínima despué
 constexpr float TESLA_BOUNCE_RANDOM = 40.0f;        // Factor de aleatoriedad en el rebote
 constexpr float TESLA_VERTICAL_BOOST = 150.0f;      // Impulso vertical adicional
 
-
-TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
-{
-	if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH)) {
+TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void {
+	if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH))
 		return;
-	}
-
-	// Bounce logic for non-world entities
-	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client)) {
-		if (tr.plane.normal) {
-			vec3_t out{};
-			float const backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
-			for (int i = 0; i < 3; i++) {
-				float change = tr.plane.normal[i] * backoff;
-				out[i] = ent->velocity[i] - change;
-				out[i] += crandom() * TESLA_BOUNCE_RANDOM;
-				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0) {
-					out[i] = (out[i] < 0 ? -TESLA_MIN_BOUNCE_SPEED : TESLA_MIN_BOUNCE_SPEED);
-				}
-			}
-			if (tr.plane.normal[2] > 0) {
-				out[2] += TESLA_VERTICAL_BOOST;
-			}
-			if (out.length() < TESLA_MIN_BOUNCE_SPEED) {
-				out.normalize();
-				out = out * TESLA_MIN_BOUNCE_SPEED;
-			}
-			ent->velocity = out;
-			ent->avelocity = { crandom() * 200, crandom() * 200, crandom() * 200 };
-			if (ent->velocity.length() > 0) {
-				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
-					"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
-			}
-		}
-		return;
-	}
 
 	if (tr.plane.normal) {
 		float slope = fabs(tr.plane.normal[2]);
-
 		if (slope > 0.85f) {
 			if (tr.plane.normal[2] > 0) {
 				// Suelo
@@ -1478,28 +1442,34 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			vec3_t forward;
 			AngleVectors(dir, &forward, nullptr, nullptr);
 
-			float wall_offset = TESLA_WALL_OFFSET;
-			if (slope > 0.15f) {
-				float t = (slope - 0.15f) / 0.7f;
-				wall_offset = TESLA_WALL_OFFSET + (t * (TESLA_FLOOR_OFFSET - TESLA_WALL_OFFSET));
-			}
+			// Detectar si es una pared "plana" basándonos en los componentes X/Y de la normal
+			bool is_flat_wall = (fabs(tr.plane.normal[0]) > 0.95f || fabs(tr.plane.normal[1]) > 0.95f);
 
-			ent->s.angles[PITCH] = dir[PITCH] + 90;
-			ent->s.angles[YAW] = dir[YAW];
-			ent->s.angles[ROLL] = 0;
-			ent->mins = { 0, -4, -4 };
-			ent->maxs = { 8, 4, 4 };
-			ent->s.origin = ent->s.origin + (forward * -wall_offset);
+			if (is_flat_wall) {
+				// Usar el comportamiento original para paredes planas
+				ent->s.angles[PITCH] = dir[PITCH] + 90;
+				ent->s.angles[YAW] = dir[YAW];
+				ent->s.angles[ROLL] = 0;
+				ent->mins = { 0, -4, -4 };
+				ent->maxs = { 8, 4, 4 };
+				ent->s.origin = ent->s.origin + (forward * -TESLA_WALL_OFFSET);
+			}
+			else {
+				// Usar el comportamiento nuevo para superficies curvas/inclinadas
+				ent->s.angles = dir;
+				ent->s.angles[PITCH] += 90;
+				ent->mins = { -4, -4, -4 };
+				ent->maxs = { 4, 4, 4 };
+				ent->s.origin = ent->s.origin + (forward * -TESLA_WALL_OFFSET);
+			}
 		}
 	}
 
-	// Rest of function remains the same
 	if (gi.pointcontents(ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME)) {
 		tesla_blow(ent);
 		return;
 	}
 
-	ent->svflags &= ~SVF_PROJECTILE;
 	ent->velocity = {};
 	ent->avelocity = {};
 	ent->takedamage = true;
@@ -1509,7 +1479,6 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	ent->solid = SOLID_BBOX;
 	ent->think = tesla_think;
 	ent->nextthink = level.time;
-
 	gi.linkentity(ent);
 }
 // Función para contar y manejar el número de teslas de un jugador
