@@ -699,7 +699,7 @@ MONSTERINFO_SIGHT(makron_sight) (edict_t *self, edict_t *other) -> void
 }
 
 
-MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
+MONSTERINFO_ATTACK(makron_attack) (edict_t* self) -> void
 {
 	float r;
 
@@ -717,11 +717,10 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 		M_SetAnimation(self, &makron_move_attack4);
 	}
 	else {
-		if (self->health <= (self->max_health / 1.5)) {  // Cambiado a <= 
+		if (self->health <= (self->max_health / 1.5) || frandom() <= 0.3f) {
 			gi.sound(self, CHAN_VOICE, sound_taunt1, 1, ATTN_NORM, 0);
 			self->health += 300;
 			M_SetAnimation(self, &makron_move_attack5);
-
 			if (self->monsterinfo.IS_BOSS)
 				self->health += 500;
 		}
@@ -730,7 +729,6 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t *self) -> void
 		}
 	}
 }
-
 //
 // death
 //
