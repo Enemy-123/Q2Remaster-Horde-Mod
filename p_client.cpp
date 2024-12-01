@@ -3522,6 +3522,14 @@ static bool IsBotStuckAtOrigin(const edict_t* ent) {
 		ent->client->old_origin == ent->s.origin;
 }
 
+static bool BotIsOnLava(const edict_t* ent)
+{
+
+	if (ent->waterlevel >= WATER_WAIST && ((ent->watertype & CONTENTS_SLIME || ent->watertype & CONTENTS_LAVA) || (ent->air_finished == level.time))) {
+		return true;
+	}
+}
+
 static bool ClientInactivityTimer(edict_t* ent) {
 	// Verificación de precondiciones
 	if (!ent || !ent->client) {
@@ -3544,6 +3552,12 @@ static bool ClientInactivityTimer(edict_t* ent) {
 			ent->client->old_origin = ent->s.origin;
 			return true;
 		}
+
+		if (BotIsOnLava(ent)) {
+		ent->client->teleport_cooldown = level.time;
+		ent->client->emergency_teleport = true;
+		TeleportSelf(ent);
+	}
 
 		// Si el bot está atascado en su origen
 		if (IsBotStuckAtOrigin(ent)) {

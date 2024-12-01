@@ -3207,6 +3207,7 @@ struct gclient_t
 	int last_wave_timer_horde_update; //eaks hud timer
 	char voted_map[128];
 	gtime_t teleport_cooldown = 3_sec;
+	bool emergency_teleport = false;
 };
 
 

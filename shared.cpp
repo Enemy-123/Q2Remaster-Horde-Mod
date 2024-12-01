@@ -977,7 +977,9 @@ bool TeleportSelf(edict_t* ent)
 				sphere->s.angles[YAW] = ent->s.angles[YAW];
 				gi.linkentity(sphere);
 			}
-			gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+			if (!ent->client->emergency_teleport) {
+				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+			}
 			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 			return true;
 		}
@@ -1002,7 +1004,9 @@ bool TeleportSelf(edict_t* ent)
 				sphere->s.angles[YAW] = ent->s.angles[YAW];
 				gi.linkentity(sphere);
 			}
-			gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+			if (!ent->client->emergency_teleport) {
+				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+			}
 			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 			return true;
 		}
@@ -1019,8 +1023,13 @@ bool TeleportSelf(edict_t* ent)
 		sphere->s.angles[YAW] = ent->s.angles[YAW];
 		gi.linkentity(sphere);
 	}
-	gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+	if (!ent->client->emergency_teleport) {
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
+	}
 	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
+
+	ent->client->emergency_teleport = false;
+
 	if (developer->integer) gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
 	return true;
 }
