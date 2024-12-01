@@ -587,27 +587,12 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
 	}
 
-	//// Ajuste basado en el rendimiento del jugador
-	//const float playerPerformanceFactor = CalculatePlayerPerformance();
-	//params.maxMonsters = static_cast<int32_t>(params.maxMonsters * playerPerformanceFactor);
-
-	//// Aplicar un factor de reducción adicional si el rendimiento es alto
-	//if (playerPerformanceFactor > 1.0f) {
-	//	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() / playerPerformanceFactor);
-	//}
-	//else {
-	//	params.timeThreshold = gtime_t::from_sec(params.timeThreshold.seconds() * playerPerformanceFactor);
-	//}
-
 	// Configuración para el porcentaje bajo de monstruos restantes
 	params.lowPercentageTimeThreshold = random_time(8_sec, 17_sec);
 	params.lowPercentageThreshold = 0.3f;
 
 	// Configuración para tiempo independiente basado en el nivel
 	params.independentTimeThreshold = calculate_max_wave_time(lvl);
-
-	//gi.Com_PrintFmt("PRINT: Wave {} parameters set: Max monsters: {}, Time threshold: {:.1f}s, Low percentage threshold: {:.2f}, Independent time threshold: {:.1f}s\n",
-	//	lvl, params.maxMonsters, params.timeThreshold.seconds(), params.lowPercentageThreshold, params.independentTimeThreshold.seconds());
 
 	return params;
 }
