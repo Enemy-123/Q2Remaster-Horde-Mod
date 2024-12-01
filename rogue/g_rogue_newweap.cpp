@@ -1147,9 +1147,10 @@ constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array to
 
 
 // Diferentes offsets según la superficie
-constexpr float TESLA_WALL_OFFSET = 4.51f;      // Offset para paredes
-constexpr float TESLA_CEILING_OFFSET = 6.4f;   // Offset optimizado para techos
-constexpr float TESLA_FLOOR_OFFSET = 0.0f;     // Offset para suelo
+constexpr float TESLA_WALL_OFFSET = 4.00f;      // Offset para paredes
+constexpr float TESLA_CEILING_OFFSET = -20.4f;   // Offset optimizado para techos
+
+constexpr float TESLA_FLOOR_OFFSET = -12.0f;     // Offset para suelo
 constexpr float TESLA_ORB_OFFSET = 12.0f;      // Altura de la esfera normal
 constexpr float TESLA_ORB_OFFSET_CEIL = -18.0f;  // Altura de la esfera cuando está en techo
 
@@ -1415,40 +1416,34 @@ constexpr float TESLA_BOUNCE_RANDOM = 40.0f;        // Factor de aleatoriedad en
 constexpr float TESLA_VERTICAL_BOOST = 150.0f;      // Impulso vertical adicional
 
 
-// Modificamos la función tesla_lava para que maneje la adhesión como prox_land
 TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	vec3_t dir;
-	movetype_t const movetype = MOVETYPE_NONE;
-	// Don't stick to non-world entities
+	if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH)) {
+		return;
+	}
+
+	// Bounce logic for non-world entities
 	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client)) {
-		// Always bounce off non-world entities
 		if (tr.plane.normal) {
 			vec3_t out{};
 			float const backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
-
 			for (int i = 0; i < 3; i++) {
 				float change = tr.plane.normal[i] * backoff;
 				out[i] = ent->velocity[i] - change;
 				out[i] += crandom() * TESLA_BOUNCE_RANDOM;
-
 				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0) {
 					out[i] = (out[i] < 0 ? -TESLA_MIN_BOUNCE_SPEED : TESLA_MIN_BOUNCE_SPEED);
 				}
 			}
-
 			if (tr.plane.normal[2] > 0) {
 				out[2] += TESLA_VERTICAL_BOOST;
 			}
-
 			if (out.length() < TESLA_MIN_BOUNCE_SPEED) {
 				out.normalize();
 				out = out * TESLA_MIN_BOUNCE_SPEED;
 			}
-
 			ent->velocity = out;
 			ent->avelocity = { crandom() * 200, crandom() * 200, crandom() * 200 };
-
 			if (ent->velocity.length() > 0) {
 				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
 					"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
@@ -1458,64 +1453,65 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 	}
 
 	if (tr.plane.normal) {
-		float offset;
+		float slope = fabs(tr.plane.normal[2]);
 
-		// Determinar offset según la superficie
-		if (fabs(tr.plane.normal[2]) > 0.7f) {
-			offset = (tr.plane.normal[2] > 0) ? TESLA_FLOOR_OFFSET : TESLA_CEILING_OFFSET;
+		if (slope > 0.85f) {
+			if (tr.plane.normal[2] > 0) {
+				// Suelo
+				ent->s.angles = {};
+				ent->mins = { -4, -4, 0 };
+				ent->maxs = { 4, 4, 8 };
+				ent->s.origin = ent->s.origin + (tr.plane.normal * TESLA_FLOOR_OFFSET);
+				ent->s.origin[2] += TESLA_ORB_OFFSET;
+			}
+			else {
+				// Techo
+				ent->s.angles = { 180, 0, 0 };
+				ent->mins = { -4, -4, -8 };
+				ent->maxs = { 4, 4, 0 };
+				ent->s.origin = ent->s.origin + (tr.plane.normal * TESLA_CEILING_OFFSET);
+				ent->s.origin[2] += TESLA_ORB_OFFSET_CEIL;
+			}
 		}
 		else {
-			offset = TESLA_WALL_OFFSET;
-		}
+			vec3_t dir = vectoangles(tr.plane.normal);
+			vec3_t forward;
+			AngleVectors(dir, &forward, nullptr, nullptr);
 
-		ent->s.origin = ent->s.origin + (tr.plane.normal * -offset);
+			float wall_offset = TESLA_WALL_OFFSET;
+			if (slope > 0.15f) {
+				float t = (slope - 0.15f) / 0.7f;
+				wall_offset = TESLA_WALL_OFFSET + (t * (TESLA_FLOOR_OFFSET - TESLA_WALL_OFFSET));
+			}
+
+			ent->s.angles[PITCH] = dir[PITCH] + 90;
+			ent->s.angles[YAW] = dir[YAW];
+			ent->s.angles[ROLL] = 0;
+			ent->mins = { 0, -4, -4 };
+			ent->maxs = { 8, 4, 4 };
+			ent->s.origin = ent->s.origin + (forward * -wall_offset);
+		}
 	}
 
-	// Si está en lava o slime, explotar
+	// Rest of function remains the same
 	if (gi.pointcontents(ent->s.origin) & (CONTENTS_LAVA | CONTENTS_SLIME)) {
 		tesla_blow(ent);
 		return;
 	}
 
-	// Configurar la tesla para su activación
 	ent->svflags &= ~SVF_PROJECTILE;
 	ent->velocity = {};
 	ent->avelocity = {};
-
-	// Ajustar orientación según la superficie
-	if (fabs(tr.plane.normal[2]) > 0.7f) {
-		ent->s.angles = (tr.plane.normal[2] > 0) ? vec3_t{} : vec3_t{ 180, 0, 0 };
-	}
-	else {
-		dir = vectoangles(tr.plane.normal);
-		ent->s.angles[PITCH] = dir[PITCH] + 90;
-		ent->s.angles[YAW] = dir[YAW];
-		ent->s.angles[ROLL] = 0;
-	}
-
-	// Configuración final
 	ent->takedamage = true;
-	ent->movetype = movetype;
+	ent->movetype = MOVETYPE_NONE;
 	ent->die = tesla_die;
 	ent->touch = nullptr;
 	ent->solid = SOLID_BBOX;
-
-	// Ajustar área de colisión
-	if (fabs(tr.plane.normal[2]) > 0.7f) {
-		ent->mins = { -4, -4, 0 };
-		ent->maxs = { 4, 4, 8 };
-	}
-	else {
-		ent->mins = { 0, -4, -4 };
-		ent->maxs = { 8, 4, 4 };
-	}
-
 	ent->think = tesla_think;
 	ent->nextthink = level.time;
 
 	gi.linkentity(ent);
 }
-
 // Función para contar y manejar el número de teslas de un jugador
 void check_player_tesla_limit(edict_t* self)
 {
