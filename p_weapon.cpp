@@ -494,6 +494,7 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		//const bool using_rail = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RAILGUN;
 		//const bool using_rocketl = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_WEAPON_RLAUNCHER;
 		const bool using_trap = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TRAP;
+		const bool using_tesla = ent->client->pers.weapon && ent->client->pers.weapon->id == IT_AMMO_TESLA;
 
 		float final_multiplier = 1.0f;
 
@@ -512,8 +513,12 @@ inline gtime_t Weapon_AnimationTime(edict_t* ent)
 		if (using_blaster || using_glauncher || using_etfrifle || using_proxlauncher) {
 			final_multiplier *= 1.4f;
 		}
-		if (using_shotgun || using_trap) {
+		if (using_shotgun || using_tesla) {
 			final_multiplier *= 1.5f;
+		}
+
+		if (using_trap) {
+			final_multiplier *= 2.0f;
 		}
 
 		//// Special handling for chaingun (improved)
