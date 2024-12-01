@@ -1408,14 +1408,45 @@ THINK(tesla_think) (edict_t* ent) -> void
 }
 
 // Constantes para ajustar el comportamiento del rebote
-constexpr float TESLA_BOUNCE_MULTIPLIER = 1.25f;    // Multiplicador base del rebote
-constexpr float TESLA_MIN_BOUNCE_SPEED = 100.0f;    // Velocidad mínima después de un rebote
-constexpr float TESLA_BOUNCE_RANDOM = 40.0f;        // Factor de aleatoriedad en el rebote
-constexpr float TESLA_VERTICAL_BOOST = 150.0f;      // Impulso vertical adicional
+constexpr float TESLA_BOUNCE_MULTIPLIER = 1.35f;    // Multiplicador base del rebote
+constexpr float TESLA_MIN_BOUNCE_SPEED = 120.0f;    // Velocidad mínima después de un rebote
+constexpr float TESLA_BOUNCE_RANDOM = 70.0f;        // Factor de aleatoriedad en el rebote
+constexpr float TESLA_VERTICAL_BOOST = 180.0f;      // Impulso vertical adicional
 
 TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void {
 	if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH))
 		return;
+
+	// Bounce logic for non-world entities
+	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client)) {
+		if (tr.plane.normal) {
+			vec3_t out{};
+			float const backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
+			for (int i = 0; i < 3; i++) {
+				float change = tr.plane.normal[i] * backoff;
+				out[i] = ent->velocity[i] - change;
+				out[i] += crandom() * TESLA_BOUNCE_RANDOM;
+				if (fabs(out[i]) < TESLA_MIN_BOUNCE_SPEED && out[i] != 0) {
+					out[i] = (out[i] < 0 ? -TESLA_MIN_BOUNCE_SPEED : TESLA_MIN_BOUNCE_SPEED);
+				}
+			}
+			if (tr.plane.normal[2] > 0) {
+				out[2] += TESLA_VERTICAL_BOOST;
+			}
+			if (out.length() < TESLA_MIN_BOUNCE_SPEED) {
+				out.normalize();
+				out = out * TESLA_MIN_BOUNCE_SPEED;
+			}
+			ent->velocity = out;
+			ent->avelocity = { crandom() * 240, crandom() * 240, crandom() * 240 };
+			if (ent->velocity.length() > 0) {
+				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
+					"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
+			}
+		}
+		return;
+	}
+
 
 	if (tr.plane.normal) {
 		float slope = fabs(tr.plane.normal[2]);
@@ -1533,6 +1564,7 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 
 	tesla->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
 	tesla->velocity += right * (crandom() * 10.0f);
+	tesla->avelocity = { crandom() * 90, crandom() * 90, crandom() * 120 };
 
 	tesla->s.angles = {};
 	tesla->movetype = MOVETYPE_BOUNCE;
