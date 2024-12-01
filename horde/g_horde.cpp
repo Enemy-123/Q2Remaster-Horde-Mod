@@ -1298,9 +1298,6 @@ inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_
 	}
 }
 
-constexpr gtime_t CLEANUP_THRESHOLD = 2_sec;
-constexpr size_t MAX_SPAWN_POINTS_DATA = 16; // Define un límite razonable
-
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
 	data.lastSpawnTime = level.time;
