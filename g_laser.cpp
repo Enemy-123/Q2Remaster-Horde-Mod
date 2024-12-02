@@ -480,7 +480,7 @@ void create_laser(edict_t* ent) {
     laser->s.skinnum = health_state.laser_color;
     flare->s.skinnum = health_state.flare_color;
     spawn_temp_t st{};
-    st.radius = 0.4f;
+    st.radius = 0.5f;
     ED_CallSpawn(flare, st);
 
     // Proper entity linking
