@@ -30,7 +30,7 @@ static cached_soundindex sound_fireball;
 
 MONSTERINFO_SIGHT(shambler_sight) (edict_t* self, edict_t* other) -> void
 {
-	gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_VOICE, sound_sight, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 }
 
 constexpr vec3_t lightning_left_hand[] = {
@@ -128,7 +128,7 @@ static void shambler_fireball_update(edict_t* self)
 }
 void shambler_windupFire(edict_t* self)
 {
-	gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, sound_windup, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 	// We don't need to spawn a beam entity here anymore
 	// The fireball effect will be created in shambler_lightning_update
 	self->beam = nullptr;
@@ -160,7 +160,7 @@ static void shambler_lightning_update(edict_t* self)
 
 void shambler_windup(edict_t* self)
 {
-	gi.sound(self, CHAN_WEAPON, sound_windup, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, sound_windup, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 
 	edict_t* lightning = self->beam = G_Spawn();
 	lightning->s.modelindex = gi.modelindex("models/proj/lightning/tris.md2");
@@ -291,7 +291,7 @@ PAIN(shambler_pain) (edict_t* self, edict_t* other, float kick, int damage, cons
 		return;
 
 	self->timestamp = level.time + 1.5_sec;
-	gi.sound(self, CHAN_AUTO, sound_pain, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_AUTO, sound_pain, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 
 	if (mod.id != MOD_CHAINFIST && damage <= 30 && frandom() > 0.2f)
 		return;
@@ -356,7 +356,7 @@ void ShamblerSaveLoc(edict_t* self)
 	self->pos1[2] += self->enemy->viewheight;
 	self->monsterinfo.nextframe = FRAME_magic09;
 
-	gi.sound(self, CHAN_WEAPON, sound_boom, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_WEAPON, sound_boom, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 	shambler_lightning_update(self);
 }
 
@@ -750,7 +750,7 @@ DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 		return;
 
 	// regular death
-	gi.sound(self, CHAN_VOICE, sound_die, 1, ATTN_NORM, 0);
+	gi.sound(self, CHAN_VOICE, sound_die, 1, self->monsterinfo.IS_BOSS ? ATTN_NONE : ATTN_NORM, 0);
 	self->deadflag = true;
 	self->takedamage = true;
 
