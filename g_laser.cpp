@@ -188,20 +188,17 @@ void laser_remove(edict_t* self) {
     self->think = BecomeExplosion1;
     self->nextthink = level.time + FRAME_TIME_MS;
 
-    if (self->owner && self->owner->inuse) {
-        self->owner->think = G_FreeEdict;
-        self->owner->nextthink = level.time + FRAME_TIME_MS;
-    }
-
-    // Also clean up the flare:
+    // Fixed version:
     if (self->owner && self->owner->inuse) {
         G_FreeEdict(self->owner);
         if (self->owner->owner) // This is the flare
             G_FreeEdict(self->owner->owner);
     }
 
-    if (self->teammaster && self->teammaster->inuse && self->teammaster->client) {
-        if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
+
+
+	if (self->teammaster && self->teammaster->inuse && self->teammaster->client) {
+		if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
             manager->remove_laser(self);
             gi.LocClient_Print(self->teammaster, PRINT_HIGH, "Laser destroyed. {}/{} remaining.\n",
                 manager->get_active_count(), LaserConstants::MAX_LASERS);
@@ -214,10 +211,21 @@ DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 
     OnEntityDeath(self);
 
-    // Asegurarse de que el manager actualice el contador
+    // Update manager
     if (self->teammaster && self->teammaster->client) {
         if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
             manager->remove_laser(self);
+        }
+    }
+
+    // Clean up flares
+    for (int i = 1; i <= globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+        if (!ent->inuse || !ent->classname || strcmp(ent->classname, "misc_flare") != 0)
+            continue;
+
+        if (ent->owner == self || (self->owner && ent->owner == self->owner)) {
+            G_FreeEdict(ent);
         }
     }
 
@@ -438,11 +446,12 @@ void create_laser(edict_t* ent) {
     flare->classname = "misc_flare";
     flare->s.origin = tr.endpos;
     flare->s.angles = { 90, 0, 0 };
-    flare->owner = laser;
+    flare->owner = grenade;
     flare->spawnflags = 9_spawnflag;  // Establecer antes de ED_CallSpawn
     spawn_temp_t st{};
     st.radius = 0.4f;
     ED_CallSpawn(flare, st);
+
     gi.linkentity(flare);
 
     // Proper entity linking
