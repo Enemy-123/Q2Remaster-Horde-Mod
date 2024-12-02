@@ -196,6 +196,51 @@ namespace LaserHelpers {
     }
 }
 
+struct laser_pierce_t : pierce_args_t {
+    edict_t* self;
+    bool damaged_thing = false;
+
+    inline laser_pierce_t(edict_t* self) :
+        pierce_args_t(),
+        self(self)
+    {
+    }
+
+    virtual bool hit(contents_t& mask, vec3_t& end) override {
+        if (self->health <= 0) // Early exit si ya no tiene salud
+            return false;
+
+        if (self->dmg > 0 && (tr.ent->takedamage) &&
+            !(tr.ent->flags & FL_IMMUNE_LASER) &&
+            tr.ent != self->teammaster)
+        {
+            damaged_thing = true;
+
+            if (tr.ent->svflags & SVF_MONSTER && tr.ent->health <= 100) {
+                tr.ent->gib_health = 10;
+            }
+
+            vec3_t forward;
+            AngleVectors(self->s.angles, &forward, nullptr, nullptr);
+
+            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
+                self->dmg, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
+
+            float const damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
+            self->health -= self->dmg * damageMult;
+
+            if (self->health <= 0) // Si el láser se quedó sin salud, terminamos
+                if (self->health <= 0)
+                    return laser_die(self, self, self->teammaster, self->dmg, tr.endpos, MOD_PLAYER_LASER), false;
+        }
+
+        if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
+            return false;
+
+        return mark(tr.ent);
+    }
+};
+
 // Funciones principales optimizadas
 void laser_remove(edict_t* self) {
     if (!self) return;
@@ -263,13 +308,15 @@ THINK(laser_beam_think)(edict_t* self) -> void {
         return;
     }
 
+    // Actualizar tamaño del láser basado en salud
     const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
     self->s.frame = size;
 
+    // Obtener estado de salud y actualizar colores
     const auto health_state = LaserHelpers::get_laser_health_state(self);
     self->s.skinnum = health_state.laser_color;
 
-    // Find and update flare color
+    // Actualizar color del flare
     for (unsigned int i = 1; i <= globals.num_edicts; i++) {
         edict_t* ent = &g_edicts[i];
         if (!ent->inuse || !ent->classname || strcmp(ent->classname, "misc_flare") != 0)
@@ -281,45 +328,32 @@ THINK(laser_beam_think)(edict_t* self) -> void {
         }
     }
 
-
     vec3_t forward;
     AngleVectors(self->s.angles, &forward, nullptr, nullptr);
 
     const vec3_t start = self->pos1;
     const vec3_t end = start + forward * 8192;
 
-    trace_t tr = gi.traceline(start, end, self->owner, MASK_SHOT);
+    laser_pierce_t args(self);
+    pierce_trace(start, end, self, args, MASK_SHOT);
 
-    self->s.origin = tr.endpos;
+    self->s.origin = args.tr.endpos;
     self->s.old_origin = self->pos1;
 
     const int damage = (size) ? std::min(self->dmg, self->health) : 0;
 
-    if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
-        if (LaserHelpers::is_valid_target(tr.ent) && !LaserHelpers::is_same_team(self->teammaster, tr.ent)) {
-            if (tr.ent->svflags & SVF_MONSTER && tr.ent->health <= 100) {
-                tr.ent->gib_health = 10;
+    if (args.damaged_thing && damage > 0) {
+            
+        if (self->health <= 0) {
+            if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
+                manager->remove_laser(self);
+                gi.LocClient_Print(self->teammaster, PRINT_HIGH,
+                    "Laser emitter burned out and exploded. {}/{} remaining.\n",
+                    manager->get_active_count(), LaserConstants::MAX_LASERS);
             }
-
-            T_Damage(tr.ent, self, self->teammaster, forward, tr.endpos, vec3_origin,
-                damage, 0, DAMAGE_ENERGY, MOD_PLAYER_LASER);
-
-            if (tr.ent->health > 0) {
-                float const damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
-                self->health -= damage * damageMult;
-            }
+            laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_PLAYER_LASER);
+            return;
         }
-    }
-
-    if (self->health <= 0) {
-        if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
-            manager->remove_laser(self);
-            gi.LocClient_Print(self->teammaster, PRINT_HIGH,
-                "Laser emitter burned out and exploded. {}/{} remaining.\n",
-                manager->get_active_count(), LaserConstants::MAX_LASERS);
-        }
-        laser_die(self, self, self->teammaster, self->dmg, self->s.origin, MOD_PLAYER_LASER);
-        return;
     }
 
     self->nextthink = level.time + FRAME_TIME_MS;
