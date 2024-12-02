@@ -125,7 +125,7 @@ namespace LaserHelpers {
         uint32_t flare_color;
     };
 
-    [[nodiscard]] LaserHealth get_laser_health_state(const edict_t* laser) {
+    [[nodiscard]] static LaserHealth get_laser_health_state(const edict_t* laser) {
        const bool healthy = laser->health > laser->max_health * 0.20f;
         return {
             healthy,
@@ -134,7 +134,7 @@ namespace LaserHelpers {
         };
     }
 
-    bool is_valid_target(const edict_t* ent) {
+    static bool is_valid_target(const edict_t* ent) {
         return ent && ent->inuse &&
             ((ent->svflags & SVF_MONSTER));
     }
@@ -144,7 +144,7 @@ namespace LaserHelpers {
             strcmp(ent1->team, ent2->team) == 0;
     }
 
-    float calculate_damage_multiplier(const edict_t* target) {
+    static float calculate_damage_multiplier(const edict_t* target) {
         if (!target) return 0.0f;
 
         if (target->client) {
@@ -160,7 +160,7 @@ namespace LaserHelpers {
         return LaserConstants::LASER_NONCLIENT_MOD;
     }
 
-    void update_visual_state(edict_t* ent, bool warning_state, bool blink_state) {
+    static void update_visual_state(edict_t* ent, bool warning_state, bool blink_state) {
         if (warning_state && blink_state) {
             ent->s.renderfx |= RF_SHELL_GREEN;
             ent->s.effects |= EF_COLOR_SHELL;
@@ -171,14 +171,14 @@ namespace LaserHelpers {
         }
     }
 
-    PlayerLaserManager* get_laser_manager(edict_t* ent) {
+    static PlayerLaserManager* get_laser_manager(edict_t* ent) {
         if (!ent || !ent->client) return nullptr;
         auto* holder = reinterpret_cast<LaserManagerHolder*>(ent->client->laser_manager);
         return holder ? static_cast<PlayerLaserManager*>(holder->manager_ptr) : nullptr;
     }
 
     // Función helper para obtener el ángulo entre dos vectores
-    [[nodiscard]] float get_angle_between_vectors(const vec3_t& v1, const vec3_t& v2) {
+    [[nodiscard]] static float get_angle_between_vectors(const vec3_t& v1, const vec3_t& v2) {
         if (!is_valid_vector(v1) || !is_valid_vector(v2)) {
             return 0.0f;
         }
@@ -191,7 +191,7 @@ namespace LaserHelpers {
     }
 
     // Función helper para verificar si un vector está dentro de un rango angular
-    [[nodiscard]] bool is_vector_within_angle(const vec3_t& vec, const vec3_t& reference, float max_angle) {
+    [[nodiscard]] static bool is_vector_within_angle(const vec3_t& vec, const vec3_t& reference, float max_angle) {
         return get_angle_between_vectors(vec, reference) <= max_angle;
     }
 }
