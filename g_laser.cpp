@@ -27,7 +27,6 @@ namespace LaserConstants {
     constexpr int32_t MAX_LASER_HEALTH = 1750;
     constexpr gtime_t LASER_SPAWN_DELAY = 1_sec;
     constexpr gtime_t LASER_TIMEOUT_DELAY = 150_sec;
-    //  constexpr gtime_t TRACE_UPDATE_INTERVAL = 50_ms;
     constexpr gtime_t BLINK_INTERVAL = 500_ms;
     constexpr gtime_t WARNING_TIME = 10_sec;
     constexpr float LASER_NONCLIENT_MOD = 1.0f;   // Aumentado para mejor daño PvE
@@ -127,7 +126,7 @@ namespace LaserHelpers {
     };
 
     [[nodiscard]] LaserHealth get_laser_health_state(const edict_t* laser) {
-        bool healthy = laser->health > laser->max_health * 0.20f;
+       const bool healthy = laser->health > laser->max_health * 0.20f;
         return {
             healthy,
             healthy ? 0xf2f2f0f0 : 0xd0d1d2d3,  // Laser color
