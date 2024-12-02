@@ -929,7 +929,10 @@ void SP_target_laser(edict_t* self)
 	*/
 
 	// [Paril-KEX] moved this here because st
-	if (!st.was_key_specified("dmg"))
+	if (!st.was_key_specified("dmg") && g_horde->integer)
+		self->dmg = 10;
+
+	if (!st.was_key_specified("dmg") && !g_horde->integer)
 		self->dmg = 1;
 
 	// let everything else get spawned before we start firing

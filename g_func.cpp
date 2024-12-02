@@ -592,7 +592,7 @@ MOVEINFO_BLOCKED(plat_blocked) (edict_t* self, edict_t* other) -> void
 	// PGM
 	//  gib dead things
 	if (other->health < 1)
-		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 100, 1, DAMAGE_NONE, MOD_CRUSH);
+		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 1000, 1, DAMAGE_NONE, MOD_CRUSH);
 	// PGM
 
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
@@ -2201,8 +2201,12 @@ MOVEINFO_BLOCKED(train_blocked) (edict_t* self, edict_t* other) -> void
 	if (level.time < self->touch_debounce_time)
 		return;
 
-	if (!self->dmg)
-		return;
+	if (!self->dmg && g_horde->integer)
+		self->dmg = 50;	
+	
+	if (!self->dmg && !g_horde->integer)
+	return;
+
 	self->touch_debounce_time = level.time + 500_ms;
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
 }
