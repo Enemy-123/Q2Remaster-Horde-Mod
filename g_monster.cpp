@@ -1387,6 +1387,10 @@ bool monster_start(edict_t* self, const spawn_temp_t& st)
 	if (self->monsterinfo.aiflags & AI_GOOD_GUY)
 		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
+	//summoned monsters won't have count // Horde
+	if (self->monsterinfo.issummoned)
+		self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
 	// ROGUE
 	if (!(self->monsterinfo.aiflags & AI_DO_NOT_COUNT) && !self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
 	{

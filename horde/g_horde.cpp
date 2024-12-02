@@ -767,6 +767,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_infantry", 8, 15, 0.20f },
 	{ "monster_fixbot", 9, 19, 0.11f },
 	{ "monster_tank_spawner", 7, 12, 0.06f },
+	{ "monster_daedalus_bomber", 6, 26, 0.02f },
 
 	// Olas 10-12: Amenazas mayores
 	{ "monster_soldier_lasergun", 10, -1, 0.20f },
@@ -803,6 +804,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_redmutant", 22, -1, 0.14f },
 	{ "monster_floater_tracker", 22, -1, 0.16f },
 	{ "monster_arachnid", 23, 31, 0.25f },
+	{ "monster_widow1", 20, 34, 0.02f },
 
 	// Enemigos de alto nivel
 	{ "monster_tank_spawner", 26, -1, 0.2f },
@@ -3477,8 +3479,8 @@ static void PrintRemainingMonsterCounts() {
 
 	for (const auto* const ent : active_monsters()) {
 		// Ignorar monstruos con AI_DO_NOT_COUNT
-		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
-			continue;
+		//if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
+		//	continue;
 
 		// Solo contar monstruos activos y vivos
 		if (ent->inuse && !ent->deadflag && ent->health > 0) {
@@ -3496,7 +3498,7 @@ static void PrintRemainingMonsterCounts() {
 		gi.Com_PrintFmt("Killed monsters: {}\n", level.killed_monsters);
 
 		if (has_remaining) {
-			gi.Com_PrintFmt("Remaining monster types (excluding AI_DO_NOT_COUNT):\n");
+			gi.Com_PrintFmt("Remaining monster types:\n");
 			for (const auto& [classname, count] : monster_counts) {
 				gi.Com_PrintFmt("- {} : {}\n", classname, count);
 			}

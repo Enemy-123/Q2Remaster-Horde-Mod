@@ -886,7 +886,7 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 	// Agregar verificación de línea de visión
 	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
 	if (!has_clear_path && !visible(self, self->enemy))
-		return M_SetAnimation(self, &widow_move_run);
+		return;
 
 
 	// Si se ha alcanzado el máximo, proceder con la animación de ataque mejorada

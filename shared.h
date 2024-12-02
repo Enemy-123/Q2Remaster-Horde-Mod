@@ -20,7 +20,8 @@ enum bonus_flags_t : uint32_t {
     BF_RAGEQUITTER = bit_v<2>,   // 1 << 2
     BF_BERSERKING = bit_v<3>,    // 1 << 3
     BF_POSSESSED = bit_v<4>,      // 1 << 4
-    BF_STYGIAN = bit_v<5>        // 1 << 5
+    BF_STYGIAN = bit_v<5>,        // 1 << 5
+    BF_FRIENDLY = bit_v<6>        // 1 << 6
 };
 
 MAKE_ENUM_BITFLAGS(bonus_flags_t);

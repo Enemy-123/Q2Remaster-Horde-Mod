@@ -131,7 +131,8 @@ std::string GetTitleFromFlags(int bonus_flags)
 		{BF_RAGEQUITTER, "Ragequitter "},
 		{BF_BERSERKING, "Berserking "},
 		{BF_POSSESSED, "Possessed "},
-		{BF_STYGIAN, "Stygian "}
+		{BF_STYGIAN, "Stygian "},
+		{BF_FRIENDLY, "Friendly "}
 	};
 
 	for (auto [flag, name] : flagTitles) {
@@ -157,17 +158,19 @@ std::string GetDisplayName(const edict_t* ent) {
 
 void ApplyMonsterBonusFlags(edict_t* monster)
 {
+	if (monster->monsterinfo.IS_BOSS)
+		return;
 
 	if (monster->monsterinfo.issummoned) {
+
+		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
 		FindMTarget(monster);
 		if (monster->svflags & SVF_MONSTER)
 			monster->svflags & ~SVF_MONSTER;
-		monster->svflags |= SVF_PLAYER;
 
+		monster->svflags |= SVF_PLAYER;		
 		monster->monsterinfo.team = CTF_TEAM1;
-		monster->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-
 		monster->s.renderfx &= ~RF_DOT_SHADOW;
 
 		// Configurar equipo
@@ -196,9 +199,6 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 
 	if (monster->gib_health <= -200)
 		monster->gib_health = -200;
-
-	if (monster->monsterinfo.IS_BOSS)
-		return;
 
 	if (monster->monsterinfo.bonus_flags & BF_CHAMPION)
 	{
@@ -913,7 +913,7 @@ const std::unordered_map<std::string_view, std::string_view> name_replacements =
 		{ "monster_supertank", "Super-Tank" },
 		{ "monster_supertankkl", "Super-Tank" },
 		{ "monster_boss5", "Super-Tank" },
-		{ "monster_sentrygun", "Friendly Sentry-Gun" },
+		{ "monster_sentrygun", "Sentry-Gun" },
 		{ "monster_turret", "TurretGun" },
 		{ "monster_turretkl", "TurretGun" },
 		{ "monster_gnorta", "Gnorta" },
