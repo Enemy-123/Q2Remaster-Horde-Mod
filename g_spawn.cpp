@@ -734,14 +734,17 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 	if (!strcmp(ent->classname, "ammo_nails"))
 		ent->classname = GetItemByIndex(IT_AMMO_FLECHETTES)->classname;
 	if (!strcmp(ent->classname, "weapon_heatbeam"))
-
-		//horde items variety
 		ent->classname = GetItemByIndex(IT_WEAPON_PLASMABEAM)->classname;
-	if (!strcmp(ent->classname, "item_sphere_vengeance"))
-		ent->classname = GetItemByIndex(IT_ITEM_TELEPORT)->classname;
-	if (!strcmp(ent->classname, "item_doppleganger")) {	brandom() ?
-		ent->classname = GetItemByIndex(IT_ITEM_SENTRYGUN)->classname :
-		ent->classname = GetItemByIndex(IT_ITEM_DOPPELGANGER)->classname;
+
+	//horde items variety
+	if (g_horde->integer) {
+		if (!strcmp(ent->classname, "item_sphere_vengeance"))
+			ent->classname = GetItemByIndex(IT_ITEM_TELEPORT)->classname;
+		if (!strcmp(ent->classname, "item_doppleganger")) {
+			brandom() ?
+				ent->classname = GetItemByIndex(IT_ITEM_SENTRYGUN)->classname :
+				ent->classname = GetItemByIndex(IT_ITEM_DOPPELGANGER)->classname;
+		}
 	}
 
 	// Check item spawn functions
