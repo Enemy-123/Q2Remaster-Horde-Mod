@@ -779,7 +779,6 @@ constexpr weighted_item_t monsters[] = {
 	// Olas 13-15: Mini-bosses tempranos
 	{ "monster_medic", 13, -1, 0.09f },
 	{ "monster_mutant", 13, -1, 0.25f },
-	{ "monster_gladb", 13, -1, 0.25f },
 	{ "monster_tank_spawner", 13, 25, 0.15f },
 	{ "monster_chick", 14, 20, 0.20f },
 	{ "monster_guncmdr", 14, -1, 0.25f },
@@ -791,6 +790,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_shambler", 15, 25, 0.08f },
 
 	// Olas 16+: Enemigos avanzados
+	{ "monster_gladb", 18, -1, 0.25f },
 	{ "monster_runnertank", 16, -1, 0.22f },
 	{ "monster_makron", 16, 32, 0.018f },
 	{ "monster_hover", 17, -1, 0.16f },
@@ -3031,7 +3031,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
 	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
-	constexpr gtime_t TELEPORT_COOLDOWN = 2_sec;
+	constexpr gtime_t TELEPORT_COOLDOWN = 4_sec;
 
 	// Si puede ver al enemigo, no teleportar
 	if (self->monsterinfo.issummoned ||
@@ -3518,7 +3518,7 @@ static void SendCleanupMessage(WaveEndReason reason) {
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
-	//	PrintRemainingMonsterCounts();
+		PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);

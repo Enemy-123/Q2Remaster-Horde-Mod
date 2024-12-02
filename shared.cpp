@@ -933,7 +933,7 @@ float PlayersRangeFromSpot(edict_t* spot);
 
 bool TeleportSelf(edict_t* ent)
 {
-	if (!ent || !ent->inuse || !ent->client || !ent->solid)
+	if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag)
 		return false;
 	// Check cooldown
 	if (ent->client->teleport_cooldown > level.time)
