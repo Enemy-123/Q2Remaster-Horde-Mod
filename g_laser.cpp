@@ -234,7 +234,7 @@ DIE(laser_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
     }
 
     // Clean up flares
-    for (int i = 1; i <= globals.num_edicts; i++) {
+    for (unsigned int i = 1; i <= globals.num_edicts; i++) {
         edict_t* ent = &g_edicts[i];
         if (!ent->inuse || !ent->classname || strcmp(ent->classname, "misc_flare") != 0)
             continue;
@@ -270,7 +270,7 @@ THINK(laser_beam_think)(edict_t* self) -> void {
     self->s.skinnum = health_state.laser_color;
 
     // Find and update flare color
-    for (int i = 1; i <= globals.num_edicts; i++) {
+    for (unsigned int i = 1; i <= globals.num_edicts; i++) {
         edict_t* ent = &g_edicts[i];
         if (!ent->inuse || !ent->classname || strcmp(ent->classname, "misc_flare") != 0)
             continue;
