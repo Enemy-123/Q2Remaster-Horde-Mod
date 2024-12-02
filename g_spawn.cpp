@@ -547,17 +547,17 @@ static constexpr MonsterReplacement chaotic_replacements[] = {
 	{"monster_parasite", {"monster_parasite", "monster_stalker", "monster_gekk"}},
 
 	// Mid-early game (Olas 6-10)
-	{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr_vanilla", "monster_brain"}},
-	{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr", "monster_brain"}},
-	{"monster_medic", {"monster_medic", "monster_gunner", "monster_brain"}},
+	{"monster_gunner_vanilla", {"monster_gunner_vanilla", "monster_guncmdr_vanilla", "monster_brain"}},
+	{"monster_guncmdr_vanilla", {"monster_gunner_vanilla", "monster_guncmdr", "monster_brain"}},
+	{"monster_medic", {"monster_medic", "monster_gunner_vanilla", "monster_brain", "monster_gunner"}},
 	{"monster_flyer", {"monster_hover_vanilla", "monster_flyer", "monster_fixbot"}},
 
 	// Mid game (Olas 11-14)
 	{"monster_tank", {"monster_tank_commander", "monster_shambler", "monster_tank_spawner", "monster_runnertank"}},
-	{"monster_brain", {"monster_brain", "monster_gunner", "monster_berserk", "monster_mutant"}},
-	{"monster_gladiator", {"monster_gladc", "monster_tank", "monster_gladiator", "monster_gladb"}},
-	{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_daedalus"}},
-	{"monster_floater", {"monster_daedalus", "monster_hover", "monster_floater_tracker"}},
+	{"monster_brain", {"monster_brain", "monster_gunner_vanilla", "monster_berserk", "monster_brain"}},
+	{"monster_gladiator", {"monster_gladc", "monster_gladiator", ""}},
+	{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_hover_vanilla", "monster_hover_vanilla"}},
+	{"monster_floater", {"monster_daedalus", "monster_floater", "monster_floater"}},
 
 	// Special spawns
 	{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}},
@@ -565,8 +565,8 @@ static constexpr MonsterReplacement chaotic_replacements[] = {
 	{"monster_gekk", {"monster_gekk", "monster_stalker", "monster_parasite"}},
 
 	// Mini-boss replacements
-	{"monster_tank_commander", {"monster_tank_64", "monster_shambler", "monster_boss2_64"}},
-	{"monster_shambler", {"monster_tank_commander", "monster_boss2_64", "monster_tank_64"}}
+	{"monster_tank_commander", {"monster_tank_commander", "monster_tank_64", "monster_shambler", "monster_boss2_64"}},
+	{"monster_shambler", {"monster_shambler", "monster_tank_commander", "monster_boss2_64", "monster_tank_64"}}
 };
 
 static constexpr MonsterReplacement insane_replacements[] = {
@@ -578,19 +578,19 @@ static constexpr MonsterReplacement insane_replacements[] = {
 	{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr"}},
 
 	// Mid game
-	{"monster_brain", {"monster_tank", "monster_shambler", "monster_gladiator"}},
-	{"monster_tank", {"monster_tank_commander", "monster_shambler"}},
+	{"monster_brain", {"monster_brain", "monster_shambler", "monster_gladiator"}},
+	{"monster_tank", {"monster_tank", "monster_tank_commander", "monster_shambler"}},
 	{"monster_gunner", {"monster_guncmdr", "monster_gladb"}},
 
 	// Flying enemies
-	{"monster_flyer", {"monster_hover", "monster_daedalus"}},
-	{"monster_floater", {"monster_floater_tracker", "monster_daedalus_bomber"}},
+	{"monster_flyer", {"monster_flyer","monster_hover", "monster_daedalus"}},
+	{"monster_floater", {"monster_floater","monster_floater_tracker", "monster_daedalus_bomber", "monster_daedalus"}},
 
 	// Late game elite
 	{"monster_spider", {"monster_gm_arachnid", "monster_arachnid2"}},
 	{"monster_arachnid2", {"monster_gm_arachnid", "monster_arachnid2", "monster_arachnid"}},
 	{"monster_arachnid", {"monster_tank_commander", "monster_psxarachnid", "monster_arachnid", "monster_gm_arachnid"}},
-	{"monster_shambler", {"monster_tank_64", "monster_boss2_64"}},
+	{"monster_shambler", {"monster_shambler", "monster_tank_64", "monster_boss2_64", "monster_redmutant"}},
 
 	// Special enemies
 	{"monster_medic", {"monster_medic_commander", "monster_brain"}},
