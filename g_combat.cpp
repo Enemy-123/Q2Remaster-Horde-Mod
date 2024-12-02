@@ -779,6 +779,7 @@ void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
 	if (!targ) return;
 	const int initial_health = targ->health;
 	const int real_damage = CalculateRealDamage(targ, take, initial_health);
+
 	if (real_damage > 0 && attacker && attacker->client) {
 		HandleIDDamage(attacker, targ, real_damage);
 	}
@@ -787,21 +788,20 @@ void ProcessDamage(const edict_t* targ, edict_t* attacker, int take) {
 static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_damage) {
 	if (!attacker || !attacker->client || !g_iddmg || !g_iddmg->integer ||
 		!attacker->client->pers.iddmg_state || !targ ||
-		(targ->monsterinfo.invincible_time > level.time)) {
+		targ->monsterinfo.invincible_time > level.time) {
 		return;
 	}
 
+	auto& client = *attacker->client;
 	const bool should_reset = level.time - attacker->lastdmg > 1.65_sec ||
-		attacker->client->dmg_counter > 99999;
+		client.dmg_counter > 99999;
 
-	attacker->client->dmg_counter = should_reset ? real_damage :
-		attacker->client->dmg_counter + real_damage;
-
-	attacker->client->ps.stats[STAT_ID_DAMAGE] = attacker->client->dmg_counter;
+	client.dmg_counter = should_reset ? real_damage : client.dmg_counter + real_damage;
+	client.ps.stats[STAT_ID_DAMAGE] = client.dmg_counter;
 	attacker->lastdmg = level.time;
 
 	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
-		attacker->client->total_damage += real_damage;
+		client.total_damage += real_damage;
 	}
 }
 
