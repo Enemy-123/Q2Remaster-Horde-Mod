@@ -374,7 +374,7 @@ void create_laser(edict_t* ent) {
         ent->client->laser_manager = reinterpret_cast<void*>(holder);
     }
 
-    auto* const manager = LaserHelpers::get_laser_manager(ent);
+   const auto* const manager = LaserHelpers::get_laser_manager(ent);
     if (!manager || !manager->can_add_laser()) {
         gi.LocClient_Print(ent, PRINT_HIGH, "Can't build any more lasers.\n");
         return;
@@ -476,7 +476,7 @@ void create_laser(edict_t* ent) {
     flare->owner = grenade;
     flare->spawnflags = 9_spawnflag; 
 
-    auto health_state = LaserHelpers::get_laser_health_state(laser);
+    const auto health_state = LaserHelpers::get_laser_health_state(laser);
     laser->s.skinnum = health_state.laser_color;
     flare->s.skinnum = health_state.flare_color;
     spawn_temp_t st{};
