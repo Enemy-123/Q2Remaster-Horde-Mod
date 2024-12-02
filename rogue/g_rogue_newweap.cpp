@@ -1418,7 +1418,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 		return;
 
 	// Bounce logic for non-world entities
-	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client)) {
+	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER || other->client || strcmp(other->classname, "func_train") == 0)) {
 		if (tr.plane.normal) {
 			vec3_t out{};
 			float const backoff = ent->velocity.dot(tr.plane.normal) * TESLA_BOUNCE_MULTIPLIER;
@@ -1439,7 +1439,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 			}
 			ent->velocity = out;
 			ent->avelocity = { crandom() * 240, crandom() * 240, crandom() * 240 };
-			if (ent->velocity.length() > 0) {
+			if (ent->velocity.length() > 0 && strcmp(other->classname, "func_train")) {
 				gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
 					"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
 			}
