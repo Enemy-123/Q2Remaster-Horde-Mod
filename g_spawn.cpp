@@ -2219,6 +2219,13 @@ void SP_worldspawn(edict_t* ent)
 	gi.modelindex("models/objects/gibs/head2/tris.md2");
 	gi.modelindex("models/objects/gibs/sm_metal/tris.md2");
 
+	// Precache small ammo models // horde
+	gi.modelindex("models/vault/items/ammo/shells/small/tris.md2");
+	gi.modelindex("models/vault/items/ammo/bullets/small/tris.md2");
+	gi.modelindex("models/vault/items/ammo/rockets/small/tris.md2");
+	gi.modelindex("models/vault/items/ammo/cells/small/tris.md2");
+	gi.modelindex("models/vault/items/ammo/slugs/small/tris.md2");
+
 	level.pic_ping = gi.imageindex("loc_ping");
 
 	//
