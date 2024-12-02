@@ -903,29 +903,35 @@ constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH
 bool IsTechItem(int item_id);
 void InitClientPt(const edict_t* ent, gclient_t* client)
 {
-	// backup & restore userinfo
+	// backup userinfo and states
 	char userinfo[MAX_INFO_STRING];
+	bool saved_id_state = client->pers.id_state;
+	bool saved_iddmg_state = client->pers.iddmg_state;
 	Q_strlcpy(userinfo, client->pers.userinfo, sizeof(userinfo));
 
+	// For Horde mode, check score to maybe reset team
 	if (g_horde->integer) {
 		if (!(ent->svflags & SVF_BOT) && client->resp.score <= 2) {
-			// Cambiar a CTF_NOTEAM solo si el score es <= 5
 			client->resp.ctf_team = CTF_NOTEAM;
 		}
 	}
 
-	// Limpiar el inventario para todos los jugadores, conservando solo el blaster y los TECH items
+	// Clear inventory except blaster and tech items
 	for (int i = 0; i < MAX_ITEMS; i++) {
 		if (i != IT_WEAPON_BLASTER && !IsTechItem(i)) {
 			client->pers.inventory[i] = 0;
 		}
 	}
 
-	// Restablecer la salud
+	// Restore userinfo and states
+	Q_strlcpy(client->pers.userinfo, userinfo, sizeof(client->pers.userinfo));
+	client->pers.id_state = saved_id_state;
+	client->pers.iddmg_state = saved_iddmg_state;
+
+	// Reset health values
 	client->pers.health = 100;
 	client->pers.max_health = 100;
 }
-
 // Función auxiliar para verificar si un ítem es un TECH
 bool IsTechItem(int item_id)
 {
@@ -1187,19 +1193,15 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 
 void InitClientResp(gclient_t* client)
 {
-	// ZOID
 	const ctfteam_t ctf_team = client->resp.ctf_team;
-	const bool id_state = client->pers.id_state = true;
-	const bool iddmg_state = client->pers.iddmg_state = true;
-	// ZOID
+	const bool id_state = client->pers.id_state;      // just save current state
+	const bool iddmg_state = client->pers.iddmg_state; // just save current state
 
 	memset(&client->resp, 0, sizeof(client->resp));
 
-	// ZOID
 	client->resp.ctf_team = ctf_team;
 	client->pers.id_state = id_state;
 	client->pers.iddmg_state = iddmg_state;
-	// ZOID
 
 	client->resp.entertime = level.time;
 	client->resp.coop_respawn = client->pers;
@@ -3190,16 +3192,12 @@ bool ClientConnect(edict_t* ent, char* userinfo, const char* social_id, bool isB
 		// clear the respawning variables
 		// ZOID -- force team join
 		ent->client->resp.ctf_team = CTF_NOTEAM;
-		ent->client->pers.id_state = true;
-		ent->client->pers.iddmg_state = true;
+		ent->client->pers.id_state = true; // here we set ID or IDDMG enabled or not by default
+		ent->client->pers.iddmg_state = g_horde->integer ? true : false;
 		// ZOID
 		InitClientResp(ent->client);
 		if (!game.autosaved || !ent->client->pers.weapon)
 			InitClientPersistant(ent, ent->client);
-	}
-	if (!g_horde->integer) {
-		ent->client->pers.id_state = true;
-		ent->client->pers.iddmg_state = true;
 	}
 	// make sure we start with known default(s)
 	ent->svflags = SVF_PLAYER;
