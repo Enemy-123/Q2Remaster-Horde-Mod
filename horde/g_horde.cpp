@@ -858,7 +858,7 @@ constexpr boss_t BOSS_SMALL[] = {
 	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
 	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
 	{"monster_makronkl", 36, -1, 0.2f, BossSizeCategory::Small},
-	{"monster_makron", 14, 26, 0.2f, BossSizeCategory::Small},
+	{"monster_makron", 16, 26, 0.1f, BossSizeCategory::Small},
 	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small}
 };
@@ -876,7 +876,7 @@ constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_makronkl", 26, -1, 0.2f, BossSizeCategory::Medium},
-	{"monster_makron", 14, 25, 0.2f, BossSizeCategory::Medium}
+	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium}
 };
 
 constexpr boss_t BOSS_LARGE[] = {
