@@ -651,9 +651,34 @@ void G_CheckAutoSwitch(edict_t* ent, gitem_t* item, bool is_new)
 
 bool Pickup_Ammo(edict_t* ent, edict_t* other)
 {
-	int	 oldcount;
-	int	 count;
+	int oldcount;
+	int count;
 	bool weapon;
+
+	// Determinar si es munición small
+	bool is_small_ammo = false;
+	item_id_t main_ammo = IT_NULL;
+
+	if (ent->item->id == IT_AMMO_SMALL_BULLETS) {
+		is_small_ammo = true;
+		main_ammo = IT_AMMO_BULLETS;
+	}
+	else if (ent->item->id == IT_AMMO_SMALL_SHELLS) {
+		is_small_ammo = true;
+		main_ammo = IT_AMMO_SHELLS;
+	}
+	else if (ent->item->id == IT_AMMO_SMALL_ROCKETS) {
+		is_small_ammo = true;
+		main_ammo = IT_AMMO_ROCKETS;
+	}
+	else if (ent->item->id == IT_AMMO_SMALL_CELLS) {
+		is_small_ammo = true;
+		main_ammo = IT_AMMO_CELLS;
+	}
+	else if (ent->item->id == IT_AMMO_SMALL_SLUGS) {
+		is_small_ammo = true;
+		main_ammo = IT_AMMO_SLUGS;
+	}
 
 	weapon = (ent->item->flags & IF_WEAPON);
 	if (weapon && G_CheckInfiniteAmmo(ent->item))
@@ -663,16 +688,24 @@ bool Pickup_Ammo(edict_t* ent, edict_t* other)
 	else
 		count = ent->item->quantity;
 
-	oldcount = other->client->pers.inventory[ent->item->id];
+	// Si es small ammo, usar el ammo principal
+	if (is_small_ammo) {
+		oldcount = other->client->pers.inventory[main_ammo];
+		if (!Add_Ammo(other, GetItemByIndex(main_ammo), count))
+			return false;
+	}
+	else {
+		oldcount = other->client->pers.inventory[ent->item->id];
+		if (!Add_Ammo(other, ent->item, count))
+			return false;
+	}
 
-	if (!Add_Ammo(other, ent->item, count))
-		return false;
-
-	if (weapon)
-		G_CheckAutoSwitch(other, ent->item, !oldcount);
+	if (weapon && !oldcount)
+		G_CheckAutoSwitch(other, ent->item, true);
 
 	if (!(ent->spawnflags & (SPAWNFLAG_ITEM_DROPPED | SPAWNFLAG_ITEM_DROPPED_PLAYER)) && G_IsDeathmatch())
 		SetRespawn(ent, 30_sec);
+
 	return true;
 }
 
@@ -2589,6 +2622,134 @@ always owned, never in the world
 	//
 	// AMMO ITEMS
 	//
+
+	// SMALL AMMO
+
+	{
+		/* id */ IT_AMMO_SMALL_SHELLS, 
+		/* classname */ "ammo_small_shells",
+		/* pickup */ Pickup_Ammo,
+		/* use */ nullptr,
+		/* drop */ Drop_Ammo,
+		/* weaponthink */ nullptr,
+		/* pickup_sound */ "misc/am_pkup.wav",
+		/* world_model */ "models/vault/items/ammo/shells/small/tris.md2",
+		/* world_model_flags */ EF_NONE,
+		/* view_model */ nullptr,
+		/* icon */ "a_shells",
+		/* use_name */ "Small Shells",
+		/* pickup_name */ "$item_shells",
+		/* pickup_name_definite */ "$item_shells_def",
+		/* quantity */ 5,
+		/* ammo */ IT_NULL,
+		/* chain */ IT_NULL,
+		/* flags */ IF_AMMO,
+		/* vwep_model */ nullptr,
+		/* armor_info */ nullptr,
+		/* tag */ AMMO_SHELLS
+},
+
+// Small Bullets
+{
+	/* id */ IT_AMMO_SMALL_BULLETS,
+	/* classname */ "ammo_small_bullets",
+	/* pickup */ Pickup_Ammo,
+	/* use */ nullptr,
+	/* drop */ Drop_Ammo,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "misc/am_pkup.wav",
+	/* world_model */ "models/vault/items/ammo/bullets/small/tris.md2",
+	/* world_model_flags */ EF_NONE,
+	/* view_model */ nullptr,
+	/* icon */ "a_bullets",
+	/* use_name */ "Small Bullets",
+	/* pickup_name */ "$item_bullets",
+	/* pickup_name_definite */ "$item_bullets_def",
+	/* quantity */ 25,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_AMMO,
+	/* vwep_model */ nullptr,
+	/* armor_info */ nullptr,
+	/* tag */ AMMO_BULLETS
+},
+
+// Small Rockets
+{
+	/* id */ IT_AMMO_SMALL_ROCKETS,
+	/* classname */ "ammo_small_rockets",
+	/* pickup */ Pickup_Ammo,
+	/* use */ nullptr,
+	/* drop */ Drop_Ammo,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "misc/am_pkup.wav",
+	/* world_model */ "models/vault/items/ammo/rockets/small/tris.md2",
+	/* world_model_flags */ EF_NONE,
+	/* view_model */ nullptr,
+	/* icon */ "a_rockets",
+	/* use_name */ "Small Rockets",
+	/* pickup_name */ "$item_rockets",
+	/* pickup_name_definite */ "$item_rockets_def",
+	/* quantity */ 2,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_AMMO,
+	/* vwep_model */ nullptr,
+	/* armor_info */ nullptr,
+	/* tag */ AMMO_ROCKETS
+},
+
+// Small Cells
+{
+	/* id */ IT_AMMO_SMALL_CELLS,
+	/* classname */ "ammo_small_cells",
+	/* pickup */ Pickup_Ammo,
+	/* use */ nullptr,
+	/* drop */ Drop_Ammo,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "misc/am_pkup.wav",
+	/* world_model */ "models/vault/items/ammo/cells/small/tris.md2",
+	/* world_model_flags */ EF_NONE,
+	/* view_model */ nullptr,
+	/* icon */ "a_cells",
+	/* use_name */ "Small Cells",
+	/* pickup_name */ "$item_cells",
+	/* pickup_name_definite */ "$item_cells_def",
+	/* quantity */ 25,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_AMMO,
+	/* vwep_model */ nullptr,
+	/* armor_info */ nullptr,
+	/* tag */ AMMO_CELLS
+},
+
+// Small Slugs
+{
+	/* id */ IT_AMMO_SMALL_SLUGS,
+	/* classname */ "ammo_small_slugs",
+	/* pickup */ Pickup_Ammo,
+	/* use */ nullptr,
+	/* drop */ Drop_Ammo,
+	/* weaponthink */ nullptr,
+	/* pickup_sound */ "misc/am_pkup.wav",
+	/* world_model */ "models/vault/items/ammo/slugs/small/tris.md2",
+	/* world_model_flags */ EF_NONE,
+	/* view_model */ nullptr,
+	/* icon */ "a_slugs",
+	/* use_name */ "Small Slugs",
+	/* pickup_name */ "$item_slugs",
+	/* pickup_name_definite */ "$item_slugs_def",
+	/* quantity */ 3,
+	/* ammo */ IT_NULL,
+	/* chain */ IT_NULL,
+	/* flags */ IF_AMMO,
+	/* vwep_model */ nullptr,
+	/* armor_info */ nullptr,
+	/* tag */ AMMO_SLUGS
+},
+
+	//NORMAL AMMO
 
 /*QUAKED ammo_shells (.3 .3 1) (-16 -16 -16) (16 16 16)
 */

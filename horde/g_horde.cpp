@@ -721,6 +721,12 @@ constexpr struct weighted_item_t {
 	{ "weapon_disintegrator", 31, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_bfg", 26, -1, 0.17f, adjust_weight_weapon },
 
+	{ "ammo_small_shells", -1, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_small_bullets", -1, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_small_rockets", -1, -1, 0.20f, adjust_weight_ammo },
+	{ "ammo_small_cells", -1, -1, 0.25f, adjust_weight_ammo },
+	{ "ammo_small_slugs", -1, -1, 0.20f, adjust_weight_ammo },
+
 
 	{ "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.25f, adjust_weight_ammo },
@@ -1598,20 +1604,20 @@ void Horde_PreInit() {
 }
 
 void VerifyAndAdjustBots() {
-    if (developer->integer == 2) {
-        gi.cvar_set("bot_minClients", "-1");
-    }
-    else {
-        const MapSize mapSize = GetMapSize(static_cast<const char*>(level.mapname));
-        const int32_t spectPlayers = GetNumSpectPlayers();
-        const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
-        
-        // Agregar bot extra si current_wave_level >= 20
-        const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
-        const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
-        
-        gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
-    }
+	if (developer->integer == 2) {
+		gi.cvar_set("bot_minClients", "-1");
+	}
+	else {
+		const MapSize mapSize = GetMapSize(static_cast<const char*>(level.mapname));
+		const int32_t spectPlayers = GetNumSpectPlayers();
+		const int32_t baseBots = mapSize.isBigMap ? 6 : 4;
+
+		// Agregar bot extra si current_wave_level >= 20
+		const int32_t extraBot = (current_wave_level >= 20) ? 1 : 0;
+		const int32_t requiredBots = std::max(baseBots + spectPlayers + extraBot, baseBots);
+
+		gi.cvar_set("bot_minClients", std::to_string(requiredBots).c_str());
+	}
 }
 
 void InitializeWaveSystem() noexcept;
@@ -2598,8 +2604,8 @@ void ResetCooldowns() noexcept {
 	// Aplicar límites absolutos
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
 
-//	if (developer->integer) gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
-//		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
+	//	if (developer->integer) gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
+	//		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
 }
 
 void ResetAllSpawnAttempts() noexcept {
@@ -2785,7 +2791,7 @@ void ResetGame() {
 	g_horde_local.queued_monsters = 0;
 
 	if (!developer->integer)
-	gi.cvar_set("bot_pause", "0");
+		gi.cvar_set("bot_pause", "0");
 
 	// Reset gameplay configuration variables
 	gi.cvar_set("g_chaotic", "0");
@@ -3641,7 +3647,7 @@ void Horde_RunFrame() {
 					g_horde_local.warningIssued[i] = false;
 				}
 
-			//	if (developer->integer) gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
+				//	if (developer->integer) gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
 			}
 		}
 		break;
