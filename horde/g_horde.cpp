@@ -764,6 +764,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_hover_vanilla", 8, 25, 0.14f },
 	{ "monster_gekk", 7, 23, 0.13f },
 	{ "monster_gunner_vanilla", 8, 15, 0.20f },
+	{ "monster_infantry", 8, 15, 0.20f },
 	{ "monster_fixbot", 9, 19, 0.11f },
 	{ "monster_tank_spawner", 7, 12, 0.06f },
 

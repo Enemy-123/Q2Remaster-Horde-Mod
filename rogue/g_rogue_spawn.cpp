@@ -246,6 +246,7 @@ void SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size)
 	beam->s.modelindex = MODELINDEX_WORLD;
 	beam->s.renderfx = RF_BEAM_LIGHTNING | RF_NO_ORIGIN_LERP;
 	beam->s.frame = 1;
+	//beam->s.skinnum = 0x30303030;
 	beam->s.skinnum = 0xf0f0f0f0;
 	beam->classname = "spawngro_beam";
 	beam->angle = end_size;
