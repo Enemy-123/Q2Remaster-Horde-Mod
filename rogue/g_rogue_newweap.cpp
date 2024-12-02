@@ -1626,204 +1626,94 @@ void fire_tesla(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int te
 //  HEATBEAM
 // *************************
 
-struct heatbeam_trace_t {
+struct heatbeam_pierce_t : pierce_args_t {
 	edict_t* self;
 	vec3_t aimdir;
 	int damage;
 	int kick;
-	int pierce_count;
-	static const int MAX_PIERCES = 10;
-	bool water;
-	trace_t last_trace;
+	mod_t mod;
+	bool water_hit;
 	static constexpr gtime_t HIT_DELAY = 100_ms;
 
-	heatbeam_trace_t(edict_t* self, vec3_t aimdir, int damage, int kick) :
-		self(self),
-		aimdir(aimdir),
-		damage(damage),
-		kick(kick),
-		pierce_count(0),
-		water(false)
+	heatbeam_pierce_t(edict_t* self, const vec3_t& aimdir, int damage, int kick, mod_t mod) :
+		self(self), aimdir(aimdir), damage(damage), kick(kick), mod(mod), water_hit(false)
 	{
 	}
 
-	void trace_and_damage(const vec3_t& start, const vec3_t& end, contents_t mask) {
-		vec3_t current_start = start;
-		vec3_t current_end = end;
-		int hits_this_trace = 0;
+	bool hit(contents_t& mask, vec3_t& end) override {
+		if (tr.contents & MASK_WATER) {
+			water_hit = true;
+			mask &= ~MASK_WATER;
 
-		while (pierce_count < MAX_PIERCES && hits_this_trace < 50) {
-			trace_t tr = gi.traceline(current_start, current_end, self, mask);
-			last_trace = tr;
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_HEATBEAM_SPARKS);
+			gi.WritePosition(tr.endpos);
+			gi.WriteDir(tr.plane.normal);
+			gi.multicast(tr.endpos, MULTICAST_PVS, false);
 
-			// Check for water hits
-			if (tr.contents & MASK_WATER) {
-				water = true;
-				mask &= ~MASK_WATER;
+			return true;
+		}
 
-				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_HEATBEAM_SPARKS);
-				gi.WritePosition(tr.endpos);
-				gi.WriteDir(tr.plane.normal);
-				gi.multicast(tr.endpos, MULTICAST_PVS, false);
+		if (tr.ent && tr.ent->takedamage) {
+			if (!tr.ent->beam_hit_time || level.time >= tr.ent->beam_hit_time + HIT_DELAY) {
+				int current_damage = water_hit ? damage / 2 : damage;
 
-				current_start = tr.endpos;
-				continue;
-			}
+				T_Damage(tr.ent, self, self->owner, aimdir, tr.endpos, vec3_origin,
+					current_damage, kick, DAMAGE_ENERGY, mod);
 
-			// Si golpeamos algo que puede recibir daño
-			if (tr.ent && tr.ent->takedamage) {
-				bool can_damage = (!tr.ent->beam_hit_time || level.time >= tr.ent->beam_hit_time + HIT_DELAY);
+				tr.ent->beam_hit_time = level.time;
+				damage *= 0.98f;
 
-				if (can_damage) {
-					int current_damage = water ? damage / 2 : damage;
-
-					T_Damage(tr.ent, self, self->owner, aimdir, tr.endpos, vec3_origin,
-						current_damage, kick, DAMAGE_ENERGY, MOD_HEATBEAM);
-
-					tr.ent->beam_hit_time = level.time;
-					pierce_count++;
-					damage *= 0.98f;
-
-					gi.WriteByte(svc_temp_entity);
-					gi.WriteByte(TE_HEATBEAM_STEAM);
-					gi.WritePosition(tr.endpos);
-					gi.WriteDir(aimdir);
-					gi.multicast(tr.endpos, MULTICAST_PVS, false);
-				}
-
-				current_start = tr.endpos + (aimdir * 1);
-				hits_this_trace++;
-			}
-			else {
 				gi.WriteByte(svc_temp_entity);
 				gi.WriteByte(TE_HEATBEAM_STEAM);
 				gi.WritePosition(tr.endpos);
 				gi.WriteDir(tr.plane.normal);
 				gi.multicast(tr.endpos, MULTICAST_PVS, false);
-				break;
 			}
+
+			return mark(tr.ent);
 		}
 
-		// Draw beam
 		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_HEATBEAM);
-		gi.WriteEntity(self);
-		gi.WritePosition(start);
-		gi.WritePosition(last_trace.endpos);
-		gi.multicast(self->s.origin, MULTICAST_ALL, false);
+		gi.WriteByte(TE_HEATBEAM_STEAM);
+		gi.WritePosition(tr.endpos);
+		gi.WriteDir(tr.plane.normal);
+		gi.multicast(tr.endpos, MULTICAST_PVS, false);
+
+		return false;
 	}
 };
-static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset, int damage, int kick, int te_beam, int te_impact, mod_t mod)
+
+static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset,
+	int damage, int kick, int te_beam, int te_impact, mod_t mod)
 {
-	if (g_piercingbeam->integer) {
-		vec3_t end = start + (aimdir * 8192);
-		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
+	vec3_t end = start + (aimdir * 8192);
+	contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
 
-		if (self->client && !G_ShouldPlayersCollide(true))
-			content_mask &= ~CONTENTS_PLAYER;
+	if (self->client && !G_ShouldPlayersCollide(true))
+		content_mask &= ~CONTENTS_PLAYER;
 
-		heatbeam_trace_t beam(self, aimdir, damage, kick);
-		beam.trace_and_damage(start, end, content_mask);
-	}
-	else {
-		trace_t    tr;
-		vec3_t     dir;
-		vec3_t     forward, right, up;
-		vec3_t     end;
-		vec3_t     water_start, endpoint;
-		bool       water = false, underwater = false;
-		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
+	heatbeam_pierce_t pierce(self, aimdir, damage, kick, mod);
+	pierce_trace(start, end, self, pierce, content_mask);
 
-		if (self->client && !G_ShouldPlayersCollide(true))
-			content_mask &= ~CONTENTS_PLAYER;
+	// Draw beam effect
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(te_beam);
+	gi.WriteEntity(self);
+	gi.WritePosition(start);
+	gi.WritePosition(pierce.tr.endpos);
+	gi.multicast(self->s.origin, MULTICAST_ALL, false);
 
-		vec3_t beam_endpt;
-
-		dir = vectoangles(aimdir);
-		AngleVectors(dir, forward, right, up);
-		end = start + (forward * 8192);
-
-		if (gi.pointcontents(start) & MASK_WATER) {
-			underwater = true;
-			water_start = start;
-			content_mask &= ~MASK_WATER;
-		}
-
-		tr = gi.traceline(start, end, self, content_mask);
-
-		if (tr.contents & MASK_WATER) {
-			water = true;
-			water_start = tr.endpos;
-
-			if (start != tr.endpos) {
-				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_HEATBEAM_SPARKS);
-				gi.WritePosition(water_start);
-				gi.WriteDir(tr.plane.normal);
-				gi.multicast(tr.endpos, MULTICAST_PVS, false);
-			}
-
-			tr = gi.traceline(water_start, end, self, content_mask & ~MASK_WATER);
-		}
-
-		endpoint = tr.endpos;
-
-		if (water)
-			damage = damage / 2;
-
-		if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
-			if (tr.fraction < 1.0f) {
-				if (tr.ent->takedamage) {
-					T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_ENERGY, mod);
-				}
-				else {
-					if ((!water) && !(tr.surface && (tr.surface->flags & SURF_SKY))) {
-						gi.WriteByte(svc_temp_entity);
-						gi.WriteByte(TE_HEATBEAM_STEAM);
-						gi.WritePosition(tr.endpos);
-						gi.WriteDir(tr.plane.normal);
-						gi.multicast(tr.endpos, MULTICAST_PVS, false);
-
-						if (self->client)
-							PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
-					}
-				}
-			}
-		}
-
-		if ((water) || (underwater)) {
-			vec3_t pos;
-			dir = tr.endpos - water_start;
-			dir.normalize();
-			pos = tr.endpos + (dir * -2);
-
-			if (gi.pointcontents(pos) & MASK_WATER)
-				tr.endpos = pos;
-			else
-				tr = gi.traceline(pos, water_start, tr.ent != world ? tr.ent : nullptr, MASK_WATER);
-
-			pos = water_start + tr.endpos;
-			pos *= 0.5f;
-
-			gi.WriteByte(svc_temp_entity);
-			gi.WriteByte(TE_BUBBLETRAIL2);
-			gi.WritePosition(water_start);
-			gi.WritePosition(tr.endpos);
-			gi.multicast(pos, MULTICAST_PVS, false);
-		}
-
-		beam_endpt = (!underwater && !water) ? tr.endpos : endpoint;
+	if (pierce.water_hit) {
+		vec3_t pos = pierce.tr.endpos + (aimdir * -2);
 
 		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(te_beam);
-		gi.WriteEntity(self);
+		gi.WriteByte(TE_BUBBLETRAIL2);
 		gi.WritePosition(start);
-		gi.WritePosition(beam_endpt);
-		gi.multicast(self->s.origin, MULTICAST_ALL, false);
+		gi.WritePosition(pierce.tr.endpos);
+		gi.multicast(pos, MULTICAST_PVS, false);
 	}
 }
-
 /*
 =================
 fire_heat
