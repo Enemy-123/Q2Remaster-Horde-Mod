@@ -3,6 +3,7 @@
 #include <array>
 #include <unordered_map>
 
+
 // Forward declarations
 void laser_die(edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod);
 class PlayerLaserManager;
@@ -62,7 +63,7 @@ private:
 public:
     explicit PlayerLaserManager(edict_t* player) : owner(player) {}
 
-    bool can_add_laser() const {
+   bool can_add_laser() const {
         return active_count < LaserConstants::MAX_LASERS;
     }
 
@@ -119,6 +120,21 @@ LaserManagerHolder::~LaserManagerHolder() {
 
 
 namespace LaserHelpers {
+    struct LaserHealth {
+        bool healthy;
+        uint32_t laser_color;
+        uint32_t flare_color;
+    };
+
+    [[nodiscard]] LaserHealth get_laser_health_state(const edict_t* laser) {
+        bool healthy = laser->health > laser->max_health * 0.20f;
+        return {
+            healthy,
+            healthy ? 0xf2f2f0f0 : 0xd0d1d2d3,  // Laser color
+            healthy ? 0xFF0000FF : 0x00FF00FF   // Flare color
+        };
+    }
+
     bool is_valid_target(const edict_t* ent) {
         return ent && ent->inuse &&
             ((ent->svflags & SVF_MONSTER));
@@ -248,12 +264,25 @@ THINK(laser_beam_think)(edict_t* self) -> void {
         return;
     }
 
-    // Size calculation
     const int size = (self->health < 1) ? 0 : (self->health >= 1000) ? 4 : 2;
     self->s.frame = size;
-    self->s.skinnum = (self->health > self->max_health * 0.20f) ? 0xf2f2f0f0 : 0xd0d1d2d3;
 
-    // Calculate like in original version
+    const auto health_state = LaserHelpers::get_laser_health_state(self);
+    self->s.skinnum = health_state.laser_color;
+
+    // Find and update flare color
+    for (int i = 1; i <= globals.num_edicts; i++) {
+        edict_t* ent = &g_edicts[i];
+        if (!ent->inuse || !ent->classname || strcmp(ent->classname, "misc_flare") != 0)
+            continue;
+
+        if (ent->owner == self->owner) {
+            ent->s.skinnum = health_state.flare_color;
+            break;
+        }
+    }
+
+
     vec3_t forward;
     AngleVectors(self->s.angles, &forward, nullptr, nullptr);
 
@@ -262,16 +291,13 @@ THINK(laser_beam_think)(edict_t* self) -> void {
 
     trace_t tr = gi.traceline(start, end, self->owner, MASK_SHOT);
 
-    // Update positions like in original
     self->s.origin = tr.endpos;
     self->s.old_origin = self->pos1;
 
-    // Damage calculation and application
     const int damage = (size) ? std::min(self->dmg, self->health) : 0;
 
     if (damage && tr.ent && tr.ent->inuse && tr.ent != self->teammaster) {
         if (LaserHelpers::is_valid_target(tr.ent) && !LaserHelpers::is_same_team(self->teammaster, tr.ent)) {
-            // Modify gib health for monsters like in original
             if (tr.ent->svflags & SVF_MONSTER && tr.ent->health <= 100) {
                 tr.ent->gib_health = 10;
             }
@@ -377,6 +403,7 @@ void create_laser(edict_t* ent) {
 
     edict_t* laser = G_Spawn();
     edict_t* grenade = G_Spawn();
+    edict_t* flare = G_Spawn();
 
     // Configure laser - keep original positioning logic
     laser->dmg = LaserConstants::LASER_INITIAL_DAMAGE +
@@ -441,20 +468,25 @@ void create_laser(edict_t* ent) {
     grenade->flags |= FL_NO_KNOCKBACK;
     grenade->team = laser->team;
 
-    // Add after grenade configuration and before gi.linkentity calls:
-    edict_t* flare = G_Spawn();
+    // Flare:
+
+
     flare->classname = "misc_flare";
     flare->s.origin = tr.endpos;
     flare->s.angles = { 90, 0, 0 };
     flare->owner = grenade;
-    flare->spawnflags = 9_spawnflag;  // Establecer antes de ED_CallSpawn
+    flare->spawnflags = 9_spawnflag; 
+
+    auto health_state = LaserHelpers::get_laser_health_state(laser);
+    laser->s.skinnum = health_state.laser_color;
+    flare->s.skinnum = health_state.flare_color;
     spawn_temp_t st{};
     st.radius = 0.4f;
     ED_CallSpawn(flare, st);
 
-    gi.linkentity(flare);
-
     // Proper entity linking
+
+    gi.linkentity(flare);
     gi.linkentity(laser);
     gi.linkentity(grenade);
 
