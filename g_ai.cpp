@@ -537,6 +537,9 @@ bool FindMTarget(edict_t* self) {
 	if (!self)
 		return false;
 
+	if (self && self->enemy && self->enemy->monsterinfo.issummoned)
+		return false;
+
 	// Cache valores frecuentemente usados
 	const vec3_t& self_origin = self->s.origin;
 	edict_t* current_enemy = self->enemy;
@@ -559,6 +562,9 @@ bool FindMTarget(edict_t* self) {
 		// Ignorar players
 		if (!ent || ent->client || !(ent->svflags & SVF_MONSTER))
 			continue;
+
+		if (ent->monsterinfo.issummoned)
+			continue; // Skip other summoned units immediately
 
 		// Verificar si es un objetivo válido
 		if (!IsValidTarget(self, ent))
@@ -731,7 +737,7 @@ void HuntTarget(edict_t* self, bool animate_state)
 void FoundTarget(edict_t* self)
 {
 	// Verificar si somos una unidad invocada y el enemigo es un player
-	if (self->monsterinfo.issummoned && self->enemy && self->enemy->client) {
+	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
 		self->enemy = nullptr;
 		if (FindMTarget(self))
 			return;
@@ -992,7 +998,7 @@ bool FindTarget(edict_t* self)
 {
 
 	// Primero verificamos si es una unidad invocada que tiene un player como enemigo
-	if (self->monsterinfo.issummoned && self->enemy && self->enemy->client) {
+	if ((self->monsterinfo.issummoned && !self->enemy) || (self->monsterinfo.issummoned && self->enemy && self->enemy->client)) {
 		self->enemy = nullptr;
 		return FindMTarget(self);
 	}
@@ -1079,7 +1085,7 @@ bool FindTarget(edict_t* self)
 	}
 
 	// Apply cooldown logic only for horde mode
-	if (g_horde->integer && heardit)
+	if (g_horde->integer && heardit && !self->monsterinfo.issummoned)
 	{
 		if (self->monsterinfo.lastnoisecooldown > level.time)
 		{
@@ -1130,7 +1136,7 @@ bool FindTarget(edict_t* self)
 	}
 
 	// ROGUE - hintpath coop fix
-	if ((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative() || (self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsDeathmatch() && g_horde->integer)
+	if (((self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsCooperative()) || (self->monsterinfo.aiflags & AI_HINT_PATH) && G_IsDeathmatch() && g_horde->integer)
 		heardit = false;
 	// ROGUE
 
@@ -1279,7 +1285,8 @@ bool M_CheckAttack_Base(edict_t* self, float stand_ground_chance, float melee_ch
 
 	//// Validar enemigo
 	if (!self->enemy || !self->enemy->inuse ||
-		OnSameTeam(self, self->enemy) || self->enemy->deadflag)
+		OnSameTeam(self, self->enemy) || self->enemy->deadflag ||
+		(self->monsterinfo.issummoned && self->enemy->monsterinfo.issummoned)) 
 	{
 		return false;
 	}

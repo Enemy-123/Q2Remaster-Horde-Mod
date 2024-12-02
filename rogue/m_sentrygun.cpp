@@ -13,9 +13,9 @@ TURRET
 #include "../shared.h"
 constexpr spawnflags_t SPAWNFLAG_TURRET2_BLASTER = 0x0008_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_MACHINEGUN = 0x0010_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = 0x0020_spawnflag;
+//constexpr spawnflags_t SPAWNFLAG_TURRET2_ROCKET = 0x0020_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_HEATBEAM = 0x0040_spawnflag;
-constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_ROCKET | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER;
+constexpr spawnflags_t SPAWNFLAG_TURRET2_WEAPONCHOICE = SPAWNFLAG_TURRET2_HEATBEAM | SPAWNFLAG_TURRET2_MACHINEGUN | SPAWNFLAG_TURRET2_BLASTER;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_WALL_UNIT = 0x0080_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_TURRET2_NO_LASERSIGHT = 18_spawnflag_bit;
 
@@ -658,7 +658,7 @@ void turret2FireBlind(edict_t* self)
 	vec3_t forward;
 	vec3_t start, end, dir;
 	float  chance;
-	int	   rocketSpeed = 550;
+	//int	   rocketSpeed = 550;
 
 	turret2Aim(self);
 
@@ -672,12 +672,10 @@ void turret2FireBlind(edict_t* self)
 	if (chance < 0.98f)
 		return;
 
-	if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
-		rocketSpeed = 650;
-	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
-		rocketSpeed = 800;
-	else
-		rocketSpeed = 0;
+	//if (self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER))
+	//	rocketSpeed = 800;
+	//else
+	//	rocketSpeed = 0;
 
 	start = self->s.origin;
 	end = self->monsterinfo.blind_fire_target;
@@ -696,8 +694,6 @@ void turret2FireBlind(edict_t* self)
 		// Aplica el daño con el mod_t configurado
 		monster_fire_heatbeam(self, start, forward, vec3_origin, 1, 50, MZ2_TURRET_BLASTER);
 	}
-	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
-		monster_fire_rocket(self, start, dir, 40, rocketSpeed, MZ2_TURRET_ROCKET);
 }
 // pmm
 
@@ -979,13 +975,6 @@ MOVEINFO_ENDFUNC(turret2_wake) (edict_t* ent) -> void
 	{
 		ent->s.skinnum = 1;
 	}
-	else if (ent->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
-	{
-		ent->s.skinnum = 2;
-	}
-
-	// but we do want the death to count
-	//ent->monsterinfo.aiflags &= ~AI_DO_NOT_COUNT;
 }
 
 USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> void
@@ -1055,102 +1044,116 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 		return false;
 	}
 
-	// Si ya estamos en el frame de ataque, permitir que termine
+	// If already in attack frame, let it finish
 	if (self->s.frame >= FRAME_pow01 && self->s.frame <= FRAME_pow04) {
 		return true;
 	}
+
+	// Fast targeting for instant weapons
+	bool needsFastTracking = self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) ||
+		(self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) &&
+			!(self->monsterinfo.aiflags & AI_HOLD_FRAME));
 
 	vec3_t spot1 = self->s.origin;
 	spot1.z += self->viewheight;
 
 	vec3_t spot2 = self->enemy->s.origin;
-	if (self->enemy->client) {
-		spot2.z += self->enemy->viewheight;
-	}
-	else {
-		const float enemy_height = (self->enemy->maxs[2] - self->enemy->mins[2]) * self->enemy->s.scale;
-		spot2.z += enemy_height * 0.5f;
-	}
+	spot2.z += self->enemy->client ? self->enemy->viewheight :
+		(self->enemy->maxs[2] - self->enemy->mins[2]) * self->enemy->s.scale * 0.5f;
 
 	const contents_t mask = static_cast<contents_t>(CONTENTS_SOLID | CONTENTS_SLIME | CONTENTS_LAVA | CONTENTS_WINDOW) & ~CONTENTS_MONSTER;
 	trace_t tr = gi.traceline(spot1, spot2, self, mask);
 
-	// Verificación de línea de visión y condiciones de ataque
-	if (tr.fraction == 1.0 ||
-		(tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent)))
+	// Direct line of sight check
+	if (tr.fraction == 1.0 || (tr.ent && tr.ent->svflags & SVF_MONSTER && !OnSameTeam(self, tr.ent)))
 	{
 		if (level.time < self->monsterinfo.attack_finished)
 			return false;
 
-		// Verificar si podemos disparar antes de permitir la animación
 		vec3_t forward;
 		AngleVectors(self->s.angles, forward, nullptr, nullptr);
 		vec3_t dir = spot2 - spot1;
 
-		if (!is_valid_vector(dir)) {
+		if (!is_valid_vector(dir))
 			return false;
-		}
+
 		dir.normalize();
 
-		float const dot = dir.dot(forward);
-		if (dot < 0.98f) // Asegurar que estamos bien alineados
+		// Strict aim alignment check
+		if (dir.dot(forward) < 0.98f)
 			return false;
 
-		float chance = self->spawnflags.has(SPAWNFLAG_TURRET2_BLASTER) ? 0.9f :
-			self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) ? 0.8f : 0.7f;
+		// Base accuracy for instant weapons
+		float chance = 0.95f;
 
-		const float scale_factor = self->enemy->s.scale;
-		chance += (scale_factor > 1.0f) ? 0.1f : (scale_factor < 1.0f) ? -0.1f : 0.0f;
-
-		const float range = range_to(self, self->enemy) / scale_factor;
-		if (range <= RANGE_MELEE) {
-			chance = 1.0f;
+		// Special handling for machinegun during rocket prep
+		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) &&
+			level.time < self->monsterinfo.last_rocket_fire_time + 1.5_sec)
+		{
+			chance = 0.8f;
 		}
-		else if (range <= RANGE_NEAR) {
-			chance += 0.15f;
+
+		// Range and scale modifiers
+		const float range = range_to(self, self->enemy);
+		const float scale_factor = self->enemy->s.scale;
+
+		// Immediate attack at close range for instant weapons
+		if (range <= RANGE_MELEE && needsFastTracking) {
+			self->monsterinfo.attack_state = AS_MISSILE;
+			self->monsterinfo.attack_finished = level.time + 30_ms;
+			return true;
+		}
+
+		// Adjust chance based on range and target size
+		if (range <= RANGE_NEAR) {
+			chance += 0.25f;
 		}
 		else if (range <= RANGE_MID) {
-			chance += 0.05f;
+			chance += 0.25f;
 		}
+
+		chance += (scale_factor > 1.0f) ? 0.1f : (scale_factor < 1.0f) ? -0.1f : 0.0f;
 
 		if (frandom() > chance)
 			return false;
 
-		// Si llegamos aquí, es seguro que podemos disparar
+		// Quick response for instant weapons
 		self->monsterinfo.attack_state = AS_MISSILE;
-		self->monsterinfo.attack_finished = level.time + 150_ms;
+		self->monsterinfo.attack_finished = needsFastTracking ?
+			level.time + 30_ms : level.time + 100_ms;
 		return true;
 	}
 
-	// Fuego ciego mejorado
+	// Enhanced blind fire
 	if (self->monsterinfo.blindfire && level.time > self->monsterinfo.blind_fire_delay)
 	{
 		vec3_t aim_point = self->monsterinfo.last_sighting;
 
+		// Lead target if moving
 		if (self->enemy->client || self->enemy->velocity != vec3_origin) {
 			aim_point += self->enemy->velocity * (0.2f * self->enemy->s.scale);
 		}
 
+		// Adaptive spread based on target size
 		const float spread = 100.0f / self->enemy->s.scale;
-		const vec3_t random_spread{
+		aim_point += vec3_t{
 			crandom() * spread,
 			crandom() * spread,
 			crandom() * spread
 		};
-		aim_point += random_spread;
 
 		tr = gi.traceline(spot1, aim_point, self, mask);
 		if (tr.fraction >= 0.3f) {
-			// Verificar alineación antes de permitir fuego ciego
 			vec3_t blind_dir = aim_point - spot1;
 
-			if (!is_valid_vector(blind_dir)) {
+			if (!is_valid_vector(blind_dir))
 				return false;
-			}
+
 			blind_dir.normalize();
 
 			vec3_t forward;
 			AngleVectors(self->s.angles, forward, nullptr, nullptr);
+
 			if (blind_dir.dot(forward) >= 0.98f) {
 				self->monsterinfo.attack_state = AS_BLIND;
 				self->monsterinfo.blind_fire_delay = level.time + 1.5_sec;
@@ -1401,19 +1404,7 @@ void SP_monster_sentrygun(edict_t* self)
 		self->spawnflags &= ~SPAWNFLAG_TURRET2_WEAPONCHOICE;
 		self->spawnflags |= SPAWNFLAG_TURRET2_MACHINEGUN;
 	}
-	else if (self->spawnflags.has(SPAWNFLAG_TURRET2_ROCKET))
-	{
-		gi.soundindex("weapons/rockfly.wav");
-		gi.modelindex("models/objects/rocket/tris.md2");
-		gi.soundindex("chick/chkatck2.wav");
-		gi.soundindex("tank/tnkpain2.wav");
-		gi.soundindex("makron/blaster.wav");
-		gi.soundindex("gunner/gunidle1.wav");
-		self->s.skinnum = 2;
 
-		self->spawnflags &= ~SPAWNFLAG_TURRET2_WEAPONCHOICE;
-		self->spawnflags |= SPAWNFLAG_TURRET2_ROCKET;
-	}
 	else
 	{
 		gi.modelindex("models/objects/laser/tris.md2");
