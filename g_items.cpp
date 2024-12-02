@@ -3336,7 +3336,7 @@ always owned, never in the world
 		/* use_name */  "Doppelganger",
 		/* pickup_name */  "$item_doppleganger",
 		/* pickup_name_definite */ "$item_doppleganger_def",
-		/* quantity */ 90,
+		/* quantity */ 40,
 		/* ammo */ IT_NULL,
 		/* chain */ IT_NULL,
 		/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,
@@ -4094,14 +4094,14 @@ model="models/items/keys/pass/tris.md2"
 			/* drop */ Drop_General,
 			/* weaponthink */ nullptr,
 			/* pickup_sound */ "world/scan1.wav",
-			/* world_model */ "models/items/n64/yellow_key/tris.md2",
+			/* world_model */ "models/items/vengnce/tris.md2",
 			/* world_model_flags */ EF_ROTATE | EF_BOB,
 			/* view_model */ nullptr,
-			/* icon */ "n64/i_yellow_key",
+			/* icon */ "p_vengeance",
 			/* use_name */  "Teleport Device",
 			/* pickup_name */  "Teleport Device\n",
 			/* pickup_name_definite */ "Teleport Device\n",
-			/* quantity */ 0,
+			/* quantity */ 90,
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
 			/* flags */ IF_POWERUP_WHEEL,
@@ -4109,7 +4109,6 @@ model="models/items/keys/pass/tris.md2"
 			/* armor_info */ nullptr,
 			/* tag */ POWERUP_TELEPORT,  // Cambiar a un tag único
 			/* precaches */ "world/scan1.wav",
-			/* sort_id */ 0         // Asignar un sort_id único
 		},
 
 	//QUAKED item_sentrygun (.3 .3 1) (-16 -16 -16) (16 16 16) TRIGGER_SPAWN
@@ -4128,7 +4127,7 @@ model="models/items/keys/pass/tris.md2"
 			/* use_name */  "Sentry Gun",
 			/* pickup_name */  "Sentry Gun\n",
 			/* pickup_name_definite */ "Sentry Gun\n",
-			/* quantity */ 90,
+			/* quantity */ 40,
 			/* ammo */ IT_NULL,
 			/* chain */ IT_NULL,
 			/* flags */ IF_POWERUP | IF_POWERUP_WHEEL,

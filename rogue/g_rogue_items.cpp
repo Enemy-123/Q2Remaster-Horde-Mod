@@ -240,7 +240,7 @@ bool Pickup_Teleport(edict_t* ent, edict_t* other)
 	if (!G_IsDeathmatch()) // item is DM only
 		return false;
 	quantity = other->client->pers.inventory[ent->item->id];
-	if (quantity >= 2)
+	if (quantity >= 3)
 		return false;
 
 	other->client->pers.inventory[ent->item->id]++;
