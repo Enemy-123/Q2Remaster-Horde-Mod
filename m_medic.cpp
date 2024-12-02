@@ -243,8 +243,14 @@ void abortHeal(edict_t* self, bool gib, bool mark)
 
 bool finishHeal(edict_t* self)
 {
+	// Initial null check before any operations
+	if (!self || !self->enemy) {
+		return false;
+	}
+
 	edict_t* healee = self->enemy;
 
+	// Initialize healee state
 	healee->spawnflags = SPAWNFLAG_NONE;
 	healee->monsterinfo.aiflags &= AI_RESPAWN_MASK;
 	healee->target = nullptr;
@@ -255,22 +261,11 @@ bool finishHeal(edict_t* self)
 	healee->itemtarget = nullptr;
 	healee->monsterinfo.healer = self;
 
-	// Initial null checks
-	if (!self) {
-		return false;
-	}
-	if (!healee) {
-		return false;
-	}
-
 	const bool isBodyque = healee->classname && !strcmp(healee->classname, "bodyque");
 	const bool insaneDead = healee->classname && !strcmp(healee->classname, "misc_insane");
 
-	// Bodyque resurrection handling
-		// Bodyque resurrection handling
+	// Handle bodyque resurrection
 	if (isBodyque) {
-
-		// Validate position/angles before using
 		if (!healee->s.origin || !healee->s.angles) {
 			abortHeal(self, false, false);
 			return false;
@@ -278,9 +273,8 @@ bool finishHeal(edict_t* self)
 
 		vec3_t const position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
-
-		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
-		angles[ROLL] = 0;   // Eliminar rotación lateral
+		angles[PITCH] = 0;
+		angles[ROLL] = 0;
 
 		edict_t* insane = G_Spawn();
 		if (!insane) {
@@ -290,12 +284,11 @@ bool finishHeal(edict_t* self)
 
 		insane->s.origin = position;
 		insane->s.angles = angles;
-		frandom() > 0.6f ?
-			insane->classname = "misc_insane"
-			: insane->classname = "monster_soldier_lasergun";
+		insane->classname = (frandom() > 0.6f) ? "misc_insane" : "monster_soldier_lasergun";
 
-		if (g_horde->integer)
+		if (g_horde->integer) {
 			insane->item = brandom() ? G_HordePickItem() : nullptr;
+		}
 
 		spawn_temp_t st{};
 		ED_CallSpawn(insane, st);
@@ -306,10 +299,9 @@ bool finishHeal(edict_t* self)
 			return false;
 		}
 
-		// Handle original healee cleanup
+		// Clean up original healee
 		if (healee) {
 			gi.sound(healee, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-
 			ThrowGibs(healee, 50, {
 				{ 2, "models/objects/gibs/bone/tris.md2" },
 				{ 4, "models/objects/gibs/sm_meat/tris.md2" },
@@ -327,13 +319,12 @@ bool finishHeal(edict_t* self)
 		self->enemy = healee = insane;
 	}
 
-	// insane  resurrection handling
+	// Handle insane resurrection
 	if (insaneDead) {
 		vec3_t const position = healee->s.origin;
 		vec3_t angles = healee->s.angles;
-
-		angles[PITCH] = 0;  // Eliminar inclinación hacia arriba/abajo
-		angles[ROLL] = 0;   // Eliminar rotación lateral
+		angles[PITCH] = 0;
+		angles[ROLL] = 0;
 
 		edict_t* insane = G_Spawn();
 		if (!insane) {
@@ -345,8 +336,9 @@ bool finishHeal(edict_t* self)
 		insane->s.angles = angles;
 		insane->classname = "monster_soldier_lasergun";
 
-		if (g_horde->integer)
+		if (g_horde->integer) {
 			insane->item = brandom() ? G_HordePickItem() : nullptr;
+		}
 
 		spawn_temp_t st{};
 		ED_CallSpawn(insane, st);
@@ -357,10 +349,9 @@ bool finishHeal(edict_t* self)
 			return false;
 		}
 
-		// Handle original healee cleanup
+		// Clean up original healee
 		if (healee) {
 			gi.sound(healee, CHAN_VOICE, gi.soundindex("misc/udeath.wav"), 1, ATTN_NORM, 0);
-
 			ThrowGibs(healee, 50, {
 				{ 2, "models/objects/gibs/bone/tris.md2" },
 				{ 4, "models/objects/gibs/sm_meat/tris.md2" },
@@ -378,32 +369,25 @@ bool finishHeal(edict_t* self)
 		self->enemy = healee = insane;
 	}
 
-	// Rest of original finishHeal code...
-	// Verify healee is still valid after potential bodyque handling
-	if (!healee) {
+	// Verify healee after potential transformations
+	if (!healee || !healee->inuse) {
 		abortHeal(self, false, false);
 		return false;
 	}
 
+	// Check spatial constraints
 	vec3_t maxs = healee->maxs;
-	maxs[2] += 48; // compensate for change when they die
-
+	maxs[2] += 48;
 	trace_t const tr = gi.trace(healee->s.origin, healee->mins, maxs, healee->s.origin, healee, MASK_MONSTERSOLID);
 
-	if (tr.startsolid || tr.allsolid)
-	{
-		abortHeal(self, true, false);
-		return false;
-	}
-	else if (tr.ent != world)
-	{
+	if (tr.startsolid || tr.allsolid || tr.ent != world) {
 		abortHeal(self, true, false);
 		return false;
 	}
 
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
 
-	// backup & restore health stuff, because of multipliers
+	// Backup health and armor state
 	int32_t const old_max_health = healee->max_health;
 	item_id_t const old_power_armor_type = healee->monsterinfo.initial_power_armor_type;
 	int32_t const old_power_armor_power = healee->monsterinfo.max_power_armor_power;
@@ -415,17 +399,17 @@ bool finishHeal(edict_t* self)
 	int32_t const monster_used = healee->monsterinfo.monster_used;
 	int32_t const old_gib_health = healee->gib_health;
 
+	// Respawn with preserved state
 	spawn_temp_t st{};
 	st.keys_specified.emplace("reinforcements");
 	st.reinforcements = "";
-
 	ED_CallSpawn(healee, st);
 
+	// Restore preserved state
 	healee->monsterinfo.slots_from_commander = slots_from_commander;
 	healee->monsterinfo.reinforcements = reinforcements;
 	healee->monsterinfo.monster_slots = monster_slots;
 	healee->monsterinfo.monster_used = monster_used;
-
 	healee->gib_health = old_gib_health / 2;
 	healee->health = healee->max_health = old_max_health;
 	healee->monsterinfo.power_armor_power = healee->monsterinfo.max_power_armor_power = old_power_armor_power;
@@ -433,46 +417,50 @@ bool finishHeal(edict_t* self)
 	healee->monsterinfo.base_health = old_base_health;
 	healee->monsterinfo.health_scaling = old_health_scaling;
 
-	if (healee->monsterinfo.setskin)
+	// Apply visual updates
+	if (healee->monsterinfo.setskin) {
 		healee->monsterinfo.setskin(healee);
+	}
 
-	if (healee->think)
-	{
+	// Initialize AI state
+	if (healee->think) {
 		healee->nextthink = level.time;
 		healee->think(healee);
 	}
+
+	// Update AI flags
 	healee->monsterinfo.aiflags &= ~AI_RESURRECTING;
 	healee->monsterinfo.aiflags |= AI_IGNORE_SHOTS | AI_DO_NOT_COUNT;
-	// turn off flies
 	healee->s.effects &= ~EF_FLIES;
 	healee->monsterinfo.healer = nullptr;
 
-	// switch our enemy
-	fixHealerEnemy(self);
-
-	// switch revivee's enemy
+	// Handle targeting
+	edict_t* new_enemy = self->enemy;
 	healee->oldenemy = nullptr;
-	healee->enemy = self->enemy;
+	healee->enemy = new_enemy;
 
-	if (healee->enemy && !g_horde->integer)
+	if (new_enemy && !g_horde->integer && healee->inuse) {
 		FoundTarget(healee);
-	else
-	{
+	}
+	else {
 		healee->enemy = nullptr;
-		if (!FindTarget(healee))
-		{
-			// no valid enemy, so stop acting
-			healee->monsterinfo.pausetime = HOLD_FOREVER;
-			healee->monsterinfo.stand(healee);
+		if (healee->inuse && !FindTarget(healee)) {
+			if (healee->inuse) {
+				healee->monsterinfo.pausetime = HOLD_FOREVER;
+				if (healee->monsterinfo.stand) {
+					healee->monsterinfo.stand(healee);
+				}
+			}
 		}
 	}
 
-	cleanupHeal(self);
-	return true;
-
+	// Update final state
 	healee->monsterinfo.react_to_damage_time = level.time;
 	healee->monsterinfo.was_stuck = false;
 	healee->monsterinfo.stuck_check_time = 0_sec;
+
+	cleanupHeal(self);
+	return true;
 }
 
 bool canReach(edict_t* self, edict_t* other)
