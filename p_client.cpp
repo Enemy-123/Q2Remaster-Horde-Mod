@@ -3528,7 +3528,7 @@ static bool IsBotStuckAtOrigin(const edict_t* ent) {
 static bool BotIsOnLava(const edict_t* ent)
 {
 
-	if (ent->waterlevel >= WATER_WAIST && ((ent->watertype & CONTENTS_SLIME || ent->watertype & CONTENTS_LAVA) || (ent->air_finished == level.time))) {
+	if (ent->flags & FL_INWATER && ((ent->watertype & CONTENTS_SLIME || ent->watertype & CONTENTS_LAVA) || (ent->air_finished == level.time))) {
 		return true;
 	}
 }
