@@ -717,7 +717,7 @@ MONSTERINFO_ATTACK(makron_attack) (edict_t* self) -> void
 		M_SetAnimation(self, &makron_move_attack4);
 	}
 	else {
-		if (self->health <= (self->max_health / 1.5) || frandom() <= 0.3f) {
+		if (self->health <= (self->max_health / 1.5) || frandom() <= 0.3f || self->monsterinfo.IS_BOSS) {
 			gi.sound(self, CHAN_VOICE, sound_taunt1, 1, ATTN_NORM, 0);
 			self->health += 300;
 			M_SetAnimation(self, &makron_move_attack5);
@@ -862,11 +862,18 @@ void SP_monster_makron(edict_t* self)
 	self->maxs = { 30, 30, 90 };
 	self->health = 2300 * st.health_multiplier;
 
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 700;
-
+	if (!strcmp(self->classname, "monster_makronkl")) {
+		if (!st.was_key_specified("power_armor_type"))
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = 700;
+	}
+	if (!strcmp(self->classname, "monster_makron")) {
+		if (!st.was_key_specified("power_armor_type"))
+			self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.armor_power = 700;
+	}
 	if (g_horde->integer && !self->monsterinfo.IS_BOSS) {
 		self->health = 3500 + (1.08 * current_wave_level);
 		if (self->health >= 6500)
