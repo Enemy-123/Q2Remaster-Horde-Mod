@@ -207,7 +207,10 @@ struct laser_pierce_t : pierce_args_t {
     }
 
     virtual bool hit(contents_t& mask, vec3_t& end) override {
-        if (self->health <= 0) // Early exit si ya no tiene salud
+        if (self->health <= 0)
+            return false;
+
+        if (OnSameTeam(self->teammaster, tr.ent))
             return false;
 
         if (self->dmg > 0 && (tr.ent->takedamage) &&
@@ -229,9 +232,8 @@ struct laser_pierce_t : pierce_args_t {
             float const damageMult = LaserHelpers::calculate_damage_multiplier(tr.ent);
             self->health -= self->dmg * damageMult;
 
-            if (self->health <= 0) // Si el láser se quedó sin salud, terminamos
-                if (self->health <= 0)
-                    return laser_die(self, self, self->teammaster, self->dmg, tr.endpos, MOD_PLAYER_LASER), false;
+            if (self->health <= 0)
+                return laser_die(self, self, self->teammaster, self->dmg, tr.endpos, MOD_PLAYER_LASER), false;
         }
 
         if (!(tr.ent->svflags & SVF_MONSTER) && (!tr.ent->client))
@@ -240,7 +242,6 @@ struct laser_pierce_t : pierce_args_t {
         return mark(tr.ent);
     }
 };
-
 // Funciones principales optimizadas
 void laser_remove(edict_t* self) {
     if (!self) return;
