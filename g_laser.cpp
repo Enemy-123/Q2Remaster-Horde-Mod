@@ -193,6 +193,13 @@ void laser_remove(edict_t* self) {
         self->owner->nextthink = level.time + FRAME_TIME_MS;
     }
 
+    // Also clean up the flare:
+    if (self->owner && self->owner->inuse) {
+        G_FreeEdict(self->owner);
+        if (self->owner->owner) // This is the flare
+            G_FreeEdict(self->owner->owner);
+    }
+
     if (self->teammaster && self->teammaster->inuse && self->teammaster->client) {
         if (auto* manager = LaserHelpers::get_laser_manager(self->teammaster)) {
             manager->remove_laser(self);
@@ -425,6 +432,18 @@ void create_laser(edict_t* ent) {
     grenade->timestamp = level.time + LaserConstants::LASER_TIMEOUT_DELAY;
     grenade->flags |= FL_NO_KNOCKBACK;
     grenade->team = laser->team;
+
+    // Add after grenade configuration and before gi.linkentity calls:
+    edict_t* flare = G_Spawn();
+    flare->classname = "misc_flare";
+    flare->s.origin = tr.endpos;
+    flare->s.angles = { 90, 0, 0 };
+    flare->owner = laser;
+    flare->spawnflags = 9_spawnflag;  // Establecer antes de ED_CallSpawn
+    spawn_temp_t st{};
+    st.radius = 0.4f;
+    ED_CallSpawn(flare, st);
+    gi.linkentity(flare);
 
     // Proper entity linking
     gi.linkentity(laser);
