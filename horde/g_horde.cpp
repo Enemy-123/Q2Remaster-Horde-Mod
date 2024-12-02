@@ -721,12 +721,11 @@ constexpr struct weighted_item_t {
 	{ "weapon_disintegrator", 31, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_bfg", 26, -1, 0.17f, adjust_weight_weapon },
 
-	{ "ammo_small_shells", -1, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_small_bullets", -1, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_small_rockets", -1, -1, 0.20f, adjust_weight_ammo },
-	{ "ammo_small_cells", -1, -1, 0.25f, adjust_weight_ammo },
-	{ "ammo_small_slugs", -1, -1, 0.20f, adjust_weight_ammo },
-
+	//{ "ammo_small_shells", -1, -1, 0.25f, adjust_weight_ammo },
+	//{ "ammo_small_bullets", -1, -1, 0.25f, adjust_weight_ammo },
+	//{ "ammo_small_rockets", -1, -1, 0.20f, adjust_weight_ammo },
+	//{ "ammo_small_cells", -1, -1, 0.25f, adjust_weight_ammo },
+	//{ "ammo_small_slugs", -1, -1, 0.20f, adjust_weight_ammo },
 
 	{ "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.25f, adjust_weight_ammo },
