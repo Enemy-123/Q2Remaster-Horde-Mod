@@ -2932,28 +2932,30 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	return true;
 }
 void UpdateVoteHUD() {
-		if (ctfgame.election != ELECT_NONE) {
-			const std::string vote_info = fmt::format("{} Time left: {}s\n",
-				ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
+	if (ctfgame.election != ELECT_NONE) {
+		// Format the vote message
+		const std::string vote_info = fmt::format("{} Time left: {}s\n",
+			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
 
-			gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
-			ClearHordeMessage();
+		// Set the configstring once for all clients
+		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
+		ClearHordeMessage();
 
+		// Update all players' stats to show the vote string
 		for (auto player : active_players()) {
 			if (player->client) {
-				if (IsValidVoteString(vote_info.c_str(), VoteConstants::MAX_VOTE_MAP_LENGTH)) {
-					Q_strlcpy(player->client->voted_map, vote_info.c_str(), VoteConstants::MAX_VOTE_MAP_LENGTH);
-					player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
-				}
+				// Just set the stat to point to the configstring
+				player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
 			}
 		}
 	}
 	else {
+		// Clear the vote info
 		gi.configstring(CONFIG_VOTE_INFO, "");
 
+		// Clear all players' vote stats
 		for (auto player : active_players()) {
 			if (player->client) {
-				player->client->voted_map[0] = '\0';
 				player->client->ps.stats[STAT_VOTESTRING] = 0;
 			}
 		}
