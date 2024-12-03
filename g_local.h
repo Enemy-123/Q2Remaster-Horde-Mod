@@ -3461,8 +3461,6 @@ struct edict_t
 
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
 	int configstringIndex; // cs
-
-	float original_dmg; // original dmg on bouncy gl, so it will reduce over bounces, needed???
 };
 
 static constexpr const char* TEAM1 = "team1";

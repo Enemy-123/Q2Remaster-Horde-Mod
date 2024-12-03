@@ -705,7 +705,7 @@ static const BouncyGrenadeConfig BOUNCY_CONFIG;
 
 void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal)
 {
-	// Notificar ruido al dueño
+	// Notificar ruido al dueño  
 	if (ent->owner->client)
 		PlayerNoise(ent->owner, ent->s.origin, PNOISE_IMPACT);
 
@@ -715,7 +715,6 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 		vec3_t const dir = other->s.origin - ent->s.origin;
 		mod_t const mod = ent->spawnflags.has(SPAWNFLAG_GRENADE_HAND) ?
 			MOD_HANDGRENADE : MOD_GRENADE;
-
 		T_Damage(other, ent, ent->owner, dir, ent->s.origin, normal,
 			ent->dmg, ent->dmg,
 			mod.id == MOD_HANDGRENADE ? DAMAGE_RADIUS : DAMAGE_RADIUS,
@@ -750,19 +749,13 @@ void BouncyGrenade_ExplodeReal(edict_t* ent, edict_t* other, const vec3_t normal
 				crandom() * BOUNCY_CONFIG.random_dir_scale,
 				crandom() * BOUNCY_CONFIG.random_dir_scale
 			};
-
 			AngleVectors(dir, ent->velocity, nullptr, nullptr);
 			ent->velocity *= BOUNCY_CONFIG.bounce_scale;
 		}
 
-		// Reducir daño gradualmente
-		const float min_dmg = ent->original_dmg * BOUNCY_CONFIG.min_damage_fraction;
-		if (ent->dmg > min_dmg)
-		{
-			ent->dmg *= BOUNCY_CONFIG.damage_decay;
-			if (ent->dmg < min_dmg)
-				ent->dmg = min_dmg;
-		}
+		// Reducir daño gradualmente, manteniendo un mínimo del 35%
+		const float min_damage = ent->dmg * BOUNCY_CONFIG.min_damage_fraction;
+		ent->dmg = std::max(min_damage, ent->dmg * BOUNCY_CONFIG.damage_decay);
 
 		ent->count--;
 		ent->nextthink = level.time + BOUNCY_CONFIG.think_time;
@@ -852,12 +845,11 @@ void fire_grenade(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int 
 		grenade->think = BouncyGrenade_Think;  // Función de pensamiento específica para el comportamiento de rebote
 		grenade->s.renderfx |= RF_MINLIGHT;
 		grenade->s.effects |= EF_GRENADE; // Asegurarse de que la granada sea visible y tenga el efecto QUAD
-		grenade->count = 4;  // Número de rebotes/explosiones
+		grenade->count = BOUNCY_CONFIG.max_bounces;
 		grenade->touch = BouncyGrenade_Touch;
 		grenade->speed = speed * 1.5f;
 		grenade->dmg *= 1.3f; // Establecer el daño original
 		grenade->dmg_radius *= 1.5f;
-		grenade->original_dmg = damage; // Establecer el daño original
 	}
 	else if (monster)
 	{
