@@ -373,6 +373,25 @@ void flyer_rocket(edict_t* self)
 	}
 }
 
+void flyer_reattack_rocket(edict_t* self)
+{
+	//if (g_horde->integer && current_wave_level >= 10)
+	// if our enemy is still valid, then continue firing
+	if (self->enemy && frandom() < 0.8f && !level.intermissiontime)
+	{
+		if (frandom() < 0.3f) {
+			flyer_rocket(self);
+
+			self->monsterinfo.nextframe = FRAME_rollr03;
+		}
+		return;
+	}
+
+	// end attack
+	self->monsterinfo.attack_finished = level.time + 1.0_sec;
+}
+
+
 
 mframe_t flyer_frames_rollright[] = {
 	{ ai_charge, 3,flyer_checkstrafe },
@@ -383,7 +402,7 @@ mframe_t flyer_frames_rollright[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge }
+	{ ai_charge, 3, flyer_reattack_rocket }
 };
 MMOVE_T(flyer_move_rollright) = { FRAME_rollr01, FRAME_rollr09, flyer_frames_rollright, flyer_run };
 
