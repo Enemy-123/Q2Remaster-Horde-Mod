@@ -135,7 +135,7 @@ static const ClusterConfig DEFAULT_CLUSTER_CONFIG = {
 	0.5f,   // min_fuse_time
 	2.0f,   // max_fuse_time
 	0.5f,   // damage_multiplier
-	0.3f,   // homing_bias (30% de influencia)
+	0.5f,   // homing_bias (50% de influencia)
 	384.0f  // search_radius (2x PROX_DAMAGE_RADIUS)
 };
 
@@ -180,7 +180,7 @@ void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage)
 	const ClusterConfig& config = DEFAULT_CLUSTER_CONFIG;
 
 	// Buscar el enemigo más cercano para influenciar la dirección
-	edict_t* nearest_enemy = FindNearestEnemy(owner, origin, config.search_radius);
+	const edict_t* nearest_enemy = FindNearestEnemy(owner, origin, config.search_radius);
 
 	// Calcular dirección base hacia el enemigo si existe
 	vec3_t enemy_dir{};
