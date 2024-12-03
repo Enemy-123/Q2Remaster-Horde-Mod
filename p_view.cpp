@@ -1006,7 +1006,7 @@ static void HORDE_ApplyAmmoRegen(edict_t* ent) {
 	if (client->ammoregentime >= level.time)
 		return;
 
-	client->ammoregentime = level.time + 11000_ms;
+	client->ammoregentime = client->resp.spree >= 50 ? level.time + 5_sec : level.time + 10_sec; //testing doubled ammo regen if spree > 50
 
 	// Estructura para definir reglas de regeneración de munición
 	struct {
