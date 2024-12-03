@@ -443,7 +443,7 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 			self->owner->client->pers.weapon->id == IT_WEAPON_BLASTER;
 
 		// Solo aplicar radio damage si NO es un blaster normal
-		if (!useblaster && self->dmg >= 5 || self->owner->svflags & SVF_MONSTER) {
+		if ((!useblaster && self->dmg >= 5) || self->owner->svflags & SVF_MONSTER) {
 			int damagestat = 0;
 			if (self->owner) {
 				damagestat = self->owner->takedamage;
@@ -1405,12 +1405,12 @@ THINK(bfg_think) (edict_t* self) -> void
 	int      dmg;
 	trace_t  tr;
 
-	if ((self->timestamp != 0_ms && level.time >= self->expire_time) ||
-		(self->timestamp == 0_ms && level.time >= self->air_finished + BFG_MAX_LIFETIME))
-	{
-		G_FreeEdict(self);
-		return;
-	}
+if ((self->timestamp != 0_ms && level.time >= self->timestamp) || 
+    (self->timestamp == 0_ms && level.time >= self->air_finished + BFG_MAX_LIFETIME)) 
+{
+    G_FreeEdict(self);
+    return;
+}
 
 	dmg = deathmatch->integer ? 5 : 10;
 
@@ -1490,12 +1490,9 @@ TOUCH(bfg_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	if (self->owner->client)
 		PlayerNoise(self->owner, self->s.origin, PNOISE_IMPACT);
 
-	if (g_bfgslide->integer)
-	{
-		if (self->timestamp == 0_ms)
-		{
-			self->timestamp = level.time;
-			self->expire_time = level.time + BFG_WALL_EXPIRE_TIME;
+	if (g_bfgslide->integer) {
+		if (self->timestamp == 0_ms) {
+			self->timestamp = level.time + BFG_WALL_EXPIRE_TIME;
 		}
 
 		const float oldVelocity = self->velocity.length();
@@ -1556,7 +1553,6 @@ void fire_bfg(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage,
 	bfg->s.sound = gi.soundindex("weapons/bfg__l1a.wav");
 	bfg->timestamp = 0_ms;
 	bfg->air_finished = level.time;
-	bfg->expire_time = level.time + BFG_MAX_LIFETIME;
 	bfg->teammaster = bfg;
 	bfg->teamchain = nullptr;
 

@@ -3177,6 +3177,7 @@ struct gclient_t
 	// saved - for coop; last time we were in a firing state
 	gtime_t	 last_firing_time;
 
+	// HORDE STUFF
 
 	bool    hook_out;
 	bool    hook_on;
@@ -3184,7 +3185,8 @@ struct gclient_t
 	edict_t* hook;
 	float		last_hook_time;
 	int			hook_damage;
-	// HORDE STUFF
+
+
 	std::string target_health_str;  // Cadena para mostrar la salud del objetivo
 	std::string last_statusbar;  // último statusbar para comparar cambios
 
@@ -3455,7 +3457,6 @@ struct edict_t
 	// Kyper
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
 	gtime_t lastdmg; // ID DMG
-	gtime_t expire_time; // bfg stuff
 	gtime_t beam_hit_time; // heatbeam piercing balance
 
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
