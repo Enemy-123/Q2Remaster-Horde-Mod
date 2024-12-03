@@ -191,11 +191,17 @@ void Monster_UpdateState(edict_t* monster) {
 		monster->sv.ent_flags |= SVFL_IN_WATER;
 	}
 
-	if (G_IsCooperative() || g_horde->integer) {
-		monster->sv.team = Team_Coop_Monster;
+	if (G_IsCooperative() || g_horde->integer) { //instead of removing the SVF_MONSTER BIT on ApplyMonsterBonusFlags, this works for bots!
+		if (monster->monsterinfo.issummoned) {
+			// For summoned monsters, use their assigned team
+			monster->sv.team = monster->monsterinfo.team;
+		}
+		else {
+			monster->sv.team = Team_Coop_Monster;
+		}
 	}
 	else {
-		monster->sv.team = Team_None; // TODO: CTF/TDM/etc...
+		monster->sv.team = Team_None;
 	}
 
 	monster->sv.health = (monster->deadflag != true) ? monster->health : -1;

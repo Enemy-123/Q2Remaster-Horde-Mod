@@ -166,8 +166,8 @@ void ApplyMonsterBonusFlags(edict_t* monster)
 		monster->monsterinfo.bonus_flags |= BF_FRIENDLY;
 
 		FindMTarget(monster);
-		if (monster->svflags & SVF_MONSTER)
-			monster->svflags & ~SVF_MONSTER;
+	//	if (monster->svflags & SVF_MONSTER) // this needs &= ~ to work properly, 
+	//		monster->svflags & ~SVF_MONSTER; // but got the desired effect on Monster_UpdateState so bots see these as friends! ( in case of summoned monster)
 
 		monster->svflags |= SVF_PLAYER;		
 		monster->monsterinfo.team = CTF_TEAM1;
