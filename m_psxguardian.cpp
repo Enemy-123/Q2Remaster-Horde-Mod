@@ -628,9 +628,18 @@ static void guardianpsx_fire_rocket(edict_t* self, float offset)
 	start += right * offset;
 	start += up * 50.f;
 
-	AngleVectors({ 20.0f, self->s.angles[1] - offset, 0.f }, forward, nullptr, nullptr);
+	// Crear un vector de dirección inicial que apunte en un ángulo de 45 grados hacia arriba
+	vec3_t dir;
+	dir = forward + (up * 0.5f); // Mezcla el vector forward y up para un ángulo de ~45 grados
+	dir.normalize();
 
-	fire_guardianpsx_heat(self, start, up, forward, 20, 250, 150, 35, 0.085f);
+	// Reducir la velocidad inicial para dar más tiempo de maniobra
+	const float speed = 200;
+
+	// Aumentar el turn_fraction para mejor maniobrabilidad
+	const float turn_fraction = 0.12f;
+
+	fire_guardianpsx_heat(self, start, dir, forward, 20, speed, 150, 35, turn_fraction);
 	gi.sound(self, CHAN_WEAPON, sound_pew, 1.f, 0.5f, 0.0f);
 }
 

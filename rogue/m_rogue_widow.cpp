@@ -613,7 +613,7 @@ mframe_t widow_frames_attack_rail[] = {
 	{ ai_charge },
 	{ ai_charge, 0, WidowSaveLoc },
 	{ ai_charge, -10, WidowRail },
-	{ ai_charge, -10, WidowRail },
+	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
