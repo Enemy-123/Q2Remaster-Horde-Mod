@@ -1285,7 +1285,7 @@ void SP_monster_sentrygun(edict_t* self)
 	self->mass = 100;
 	self->yaw_speed = 16;
 	self->solid = SOLID_BBOX;
-	self->svflags = SVF_PLAYER;
+	//self->svflags = SVF_PLAYER;
 	self->flags |= FL_MECHANICAL;
 	self->pain = turret2_pain;
 	self->die = turret2_die;

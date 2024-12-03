@@ -799,7 +799,7 @@ constexpr weighted_item_t monsters[] = {
 	// Olas 16+: Enemigos avanzados
 	{ "monster_gladb", 18, -1, 0.25f },
 	{ "monster_runnertank", 16, -1, 0.22f },
-	{ "monster_makron", 16, 32, 0.018f },
+	{ "monster_makron", 16, 32, 0.011f },
 	{ "monster_hover", 17, -1, 0.16f },
 	{ "monster_gladc", 18, -1, 0.28f },
 	{ "monster_daedalus", 18, -1, 0.12f },
