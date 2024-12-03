@@ -14,12 +14,11 @@ enum match_t
 	MATCH_POST
 };
 
-enum elect_t
+enum elect_t 
 {
 	ELECT_NONE,
-	//	ELECT_MATCH,
-	//	ELECT_ADMIN,
-	ELECT_MAP
+	ELECT_MAP,
+	ELECT_TIME // Add this for time extension vote
 };
 
 struct ctfgame_t
@@ -2817,33 +2816,54 @@ struct VoteConstants {
 };
 
 // Helper function para verificar longitud de strings de votación
-[[nodiscard]] inline bool IsValidVoteString(const char* str, size_t max_length) {
+[[nodiscard]] inline static bool IsValidVoteString(const char* str, size_t max_length) {
 	return str && strlen(str) < max_length - 1;
 }
 
-std::string TruncateMessage(const std::string& message, size_t max_length) {
-	if (message.length() <= max_length) {
-		return message;
+
+bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg);
+bool CTFCheckTimeExtensionVote()
+{
+	if (!timelimit->value || ctfgame.election != ELECT_NONE)
+		return false;
+
+	const gtime_t time_remaining = gtime_t::from_min(timelimit->value) - level.time;
+	const int mins_remaining = time_remaining.seconds<int>() / 60;
+
+	// Start vote at 5 minutes remaining
+	if (mins_remaining == 5)
+	{
+		// Find first active human player to initiate vote
+		for (auto player : active_players())
+		{
+			if (player->client && !(player->svflags & SVF_BOT))
+			{
+				return CTFBeginElection(player, ELECT_TIME, "Extend map time by 30 minutes?");
+			}
+		}
 	}
 
-	std::string truncated = message.substr(0, max_length - 3) + "...";
-	size_t const last_space = truncated.find_last_of(' ');
-
-	if (last_space != std::string::npos && last_space > truncated.length() - 10) {
-		truncated = truncated.substr(0, last_space) + "...";
-	}
-	return truncated;
+	return false;
 }
 
 bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
-	// Validaciones iniciales
+	// Initial validations
 	if (!ent || !ent->client || !msg) {
 		return false;
 	}
 
-	if (electpercentage->value == 0) {
-		gi.LocClient_Print(ent, PRINT_HIGH, "Elections are disabled, only an admin can process this action.\n");
-		return false;
+	// Special case for time extension vote - bypass some restrictions
+	const bool is_time_vote = (type == ELECT_TIME);
+
+	if (!is_time_vote) {
+		//if (electpercentage->value == 0) {
+		//	gi.LocClient_Print(ent, PRINT_HIGH, "Elections are disabled, only an admin can process this action.\n");
+		//	return false;
+		//}
+		if (ent->client->resp.ctf_team == CTF_NOTEAM) {
+			gi.LocClient_Print(ent, PRINT_HIGH, "You have to be in the game to start a vote.\n");
+			return false;
+		}
 	}
 
 	if (ctfgame.election != ELECT_NONE) {
@@ -2851,44 +2871,56 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 		return false;
 	}
 
-	if (ent->client->resp.ctf_team == CTF_NOTEAM) {
-		gi.LocClient_Print(ent, PRINT_HIGH, "You have to be in the game to start a vote.\n");
-		return false;
-	}
-
-	// Conteo de jugadores y limpieza de votos
+	// Count players and clear votes
 	int count = 0;
 	ctfgame.evotes = 0;
-
 	for (auto player : active_players()) {
 		if (player->client) {
 			player->client->resp.voted = false;
-			if (!(player->svflags & SVF_BOT) && player->client->resp.ctf_team == CTF_TEAM1) {
+			if (!(player->svflags & SVF_BOT) &&
+				(player->client->resp.ctf_team == CTF_TEAM1)) {
 				count++;
 			}
 		}
 	}
 
-	// Configuración de la votación
+	// Election setup
 	ctfgame.etarget = ent;
 	ctfgame.election = type;
 	ctfgame.needvotes = static_cast<int>((count * electpercentage->value) / 100);
-	ctfgame.electtime = level.time + VoteConstants::VOTE_DURATION;
+	ctfgame.electtime = level.time + (is_time_vote ? 30_sec : VoteConstants::VOTE_DURATION);
 
-	// Preparación de mensajes
+	// Message preparation
 	if (IsValidVoteString(msg, sizeof(ctfgame.emsg))) {
 		Q_strlcpy(ctfgame.emsg, msg, sizeof(ctfgame.emsg));
 	}
 	else {
-		Q_strlcpy(ctfgame.emsg, "Vote in progress", sizeof(ctfgame.emsg));
+		Q_strlcpy(ctfgame.emsg, is_time_vote ? "Extend map time" : "Vote in progress",
+			sizeof(ctfgame.emsg));
 	}
 
-	// Actualización del HUD y mensajes
-	UpdateVoteHUD();  // Esta función ya maneja la actualización del configstring y voted_map
+	// HUD update and messages
+	UpdateVoteHUD();
 
-	// Mensajes broadcast adicionales
-	gi.LocBroadcast_Print(PRINT_HIGH, "Use Horde Menu (TURTLE) on POWERUP WHEEL to vote, or type YES/NO in console.\n");
-	gi.LocBroadcast_Print(PRINT_HIGH, fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
+	// For time extension in single player, directly extend time
+	if (is_time_vote && count == 1) {
+		gi.cvar_set("timelimit", G_Fmt("{}", timelimit->value + 30).data());
+		gi.LocBroadcast_Print(PRINT_HIGH, "Time extended by 30 minutes.\n");
+		ctfgame.election = ELECT_NONE; // Reset election state
+		return false;
+	}
+
+	// Broadcast messages
+	if (is_time_vote) {
+		gi.LocBroadcast_Print(PRINT_HIGH, "Vote to extend map time by 30 minutes\n");
+	}
+	else {
+		gi.LocBroadcast_Print(PRINT_HIGH,
+			"Use Horde Menu (TURTLE) on POWERUP WHEEL to vote, or type YES/NO in console.\n");
+	}
+
+	gi.LocBroadcast_Print(PRINT_HIGH,
+		fmt::format("Votes: {}  Needed: {}\n", ctfgame.evotes, ctfgame.needvotes).c_str());
 
 	// Auto-aprobación para un solo jugador
 	if (count == 1) {
@@ -2899,7 +2931,6 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 
 	return true;
 }
-
 void UpdateVoteHUD() {
 		if (ctfgame.election != ELECT_NONE) {
 			const std::string vote_info = fmt::format("{} Time left: {}s\n",
@@ -3099,8 +3130,8 @@ void CTFWinElection() {
 	edict_t* CreateTargetChangeLevel(const char* map);
 	switch (ctfgame.election) {
 	case ELECT_MAP:
-		gi.LocBroadcast_Print(PRINT_HIGH, "{}'s vote succeeded! Changing level to {}.\n",
-			ctfgame.etarget->client->pers.netname, ctfgame.elevel);
+		gi.LocBroadcast_Print(PRINT_HIGH, "vote succeeded! Changing level to {}.\n",
+			ctfgame.elevel);
 		if (g_horde->integer) {
 			HandleResetEvent();
 			for (unsigned int i = 0; i < game.maxclients; i++) {
@@ -3114,15 +3145,17 @@ void CTFWinElection() {
 			ctfgame.elevel[0] = '\0';
 		}
 		break;
-
+	case ELECT_TIME:
+		// Extend the timelimit by 30 minutes
+		gi.cvar_set("timelimit", G_Fmt("{}", timelimit->value + 30).data());
+		gi.LocBroadcast_Print(PRINT_HIGH, "Vote succeeded! Time extended by 30 minutes.\n");
+		break;
 	default:
 		break;
 	}
-
 	// Resetear el estado de la elección
 	ctfgame.election = ELECT_NONE;
 	ctfgame.electtime = 0_sec;
-
 	// Llamar a UpdateVoteHUD para limpiar el configstring y el voted_map de los jugadores
 	UpdateVoteHUD();
 }

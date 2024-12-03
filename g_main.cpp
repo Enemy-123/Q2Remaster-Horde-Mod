@@ -736,6 +736,7 @@ void CheckNeedPass()
 CheckDMRules
 =================
 */
+bool CTFCheckTimeExtensionVote();
 void CheckDMRules()
 {
 	gclient_t* cl;
@@ -747,10 +748,10 @@ void CheckDMRules()
 	if (g_horde->integer)
 	{
 		Horde_RunFrame();
-	}
-	if (timelimit->value)
-	{
-		if (level.time >= gtime_t::from_min(timelimit->value))
+
+		CTFCheckTimeExtensionVote();
+		// Check if time is up
+		if (timelimit->value && level.time >= gtime_t::from_min(timelimit->value))
 		{
 			gi.LocBroadcast_Print(PRINT_HIGH, "$g_timelimit_hit");
 			for (int i = 0; i < maxclients->integer; i++)
@@ -775,9 +776,9 @@ void CheckDMRules()
 		}
 	}
 
+	// Rest of the original code...
 	if (!deathmatch->integer)
 		return;
-
 	// ZOID
 	if (ctf->integer && CTFCheckRules())
 	{
