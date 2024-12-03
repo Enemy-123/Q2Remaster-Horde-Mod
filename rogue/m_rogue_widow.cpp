@@ -282,7 +282,7 @@ void WidowSpawn(edict_t* self) {
 	}
 
 	// Check stalker limits
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots) {
 		return;
 	}
 
@@ -299,7 +299,7 @@ void WidowSpawn(edict_t* self) {
 
 	for (int i = 0; i < 2; i++) {
 		// Recheck stalker limit inside loop
-		if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+		if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots) {
 			break;
 		}
 
@@ -318,7 +318,6 @@ void WidowSpawn(edict_t* self) {
 
 		// Initialize new stalker
 		self->monsterinfo.monster_used++;
-		self->monsterinfo.active_stalkers++;
 		ent->monsterinfo.commander = self;
 		ent->monsterinfo.slots_from_commander = 1;
 		ent->nextthink = level.time;
@@ -868,7 +867,7 @@ MONSTERINFO_WALK(widow_walk) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &widow_move_walk);
 }
-//// Definir una nueva animación mejorada para cuando se alcanzan los max_stalkers
+//// Definir una nueva animación mejorada para cuando se alcanzan los monster_slots
 //mframe_t widow_frames_attack_improved[] = {
 //	{ ai_charge, 10, WidowBlaster },
 //	{ ai_charge, 12, WidowBlaster },
@@ -890,7 +889,7 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 
 
 	// Si se ha alcanzado el máximo, proceder con la animación de ataque mejorada
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers && visible(self, self->enemy)) {
+	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots && visible(self, self->enemy)) {
 		brandom() ? M_SetAnimation(self, &widow_move_attack_pre_rail) : M_SetAnimation(self, &widow_move_attack_pre_blaster);
 		return;
 	}
@@ -935,15 +934,15 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 		return;
 	}
 
-	// Decidir si spawnar basado en active_stalkers
-	if (self->monsterinfo.active_stalkers < self->monsterinfo.max_stalkers && M_SlotsLeft(self) >= 2 && realrange(self, self->enemy) > 150) {
+	// Decidir si spawnar basado en monster_used
+	if (self->monsterinfo.monster_used < self->monsterinfo.monster_slots && M_SlotsLeft(self) >= 2 && realrange(self, self->enemy) > 150) {
 		M_SetAnimation(self, &widow_move_spawn);
 		return;
 	}
 
 	// Continuar con la lógica de ataque existente
 	if (blaster_frames) {
-		if (self->monsterinfo.active_stalkers < self->monsterinfo.max_stalkers && M_SlotsLeft(self) >= 2) {
+		if (self->monsterinfo.monster_used < self->monsterinfo.monster_slots && M_SlotsLeft(self) >= 2) {
 			M_SetAnimation(self, &widow_move_spawn);
 			return;
 		}
@@ -964,7 +963,7 @@ MONSTERINFO_ATTACK(widow_attack) (edict_t* self) -> void {
 		return;
 
 	luck = frandom();
-	if (self->monsterinfo.active_stalkers < self->monsterinfo.max_stalkers && M_SlotsLeft(self) >= 2) {
+	if (self->monsterinfo.monster_used < self->monsterinfo.monster_slots && M_SlotsLeft(self) >= 2) {
 		if ((luck <= 0.40f) && (self->monsterinfo.fire_wait + BLASTER_TIME <= level.time))
 			M_SetAnimation(self, &widow_move_attack_pre_blaster);
 		else if ((luck <= 0.7f) && !(level.time < self->timestamp)) {
@@ -1429,8 +1428,8 @@ void SP_monster_widow(edict_t* self) {
 		widow_damage_multiplier = 1;
 
 		// Inicializar contadores de stalkers
-		self->monsterinfo.active_stalkers = 0;
-		self->monsterinfo.max_stalkers = 4; // Número máximo de stalkers permitidos
+		self->monsterinfo.monster_used = 0;
+		self->monsterinfo.monster_slots = 4; // Número máximo de stalkers permitidos
 		self->monsterinfo.spawn_cooldown = 0_sec;
 
 		walkmonster_start(self);
@@ -1506,8 +1505,8 @@ void SP_monster_widow1(edict_t* self) {
 		widow_damage_multiplier = 1;
 
 		// Inicializar contadores de stalkers
-		self->monsterinfo.active_stalkers = 0;
-		self->monsterinfo.max_stalkers = 4; // Número máximo de stalkers permitidos
+		self->monsterinfo.monster_used = 0;
+		self->monsterinfo.monster_slots = 4; // Número máximo de stalkers permitidos
 		self->monsterinfo.spawn_cooldown = 0_sec;
 
 		walkmonster_start(self);

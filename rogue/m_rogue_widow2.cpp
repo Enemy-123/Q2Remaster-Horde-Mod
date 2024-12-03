@@ -156,7 +156,7 @@ void Widow2Spawn(edict_t* self)
 	}
 
 	// Check stalker limits
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots) {
 		return;
 	}
 
@@ -174,7 +174,7 @@ void Widow2Spawn(edict_t* self)
 
 	for (int i = 0; i < 2; i++) {
 		// Recheck stalker limit inside loop
-		if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers) {
+		if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots) {
 			break;
 		}
 
@@ -195,7 +195,7 @@ void Widow2Spawn(edict_t* self)
 
 		// Initialize new stalker
 		self->monsterinfo.monster_used++;
-		self->monsterinfo.active_stalkers++;
+		self->monsterinfo.monster_used++;
 
 		// Setup monster properties
 		ent->monsterinfo.commander = self;
@@ -768,7 +768,7 @@ MONSTERINFO_ATTACK(widow2_attack) (edict_t* self) -> void {
 
 
 	// Si se ha alcanzado el máximo de stalkers, usar animación de ataque mejorada
-	if (self->monsterinfo.active_stalkers >= self->monsterinfo.max_stalkers && visible(self, self->enemy)) {
+	if (self->monsterinfo.monster_used >= self->monsterinfo.monster_slots && visible(self, self->enemy)) {
 		brandom() ? M_SetAnimation(self, &widow2_move_attack_disrupt) : M_SetAnimation(self, &widow2_move_tongs);
 		return;
 	}
@@ -1161,8 +1161,8 @@ void SP_monster_widow2(edict_t* self)
 	ApplyMonsterBonusFlags(self);
 
 	// Inicializar contadores de stalkers
-	self->monsterinfo.active_stalkers = 0;
-	self->monsterinfo.max_stalkers = 4; // Puedes ajustar este valor según sea necesario
+	self->monsterinfo.monster_used = 0;
+	self->monsterinfo.monster_slots = 4; // Puedes ajustar este valor según sea necesario
 	self->monsterinfo.spawn_cooldown = 0_sec;
 }
 

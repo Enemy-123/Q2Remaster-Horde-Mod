@@ -1729,7 +1729,7 @@ bool ai_checkattack(edict_t* self, float dist)
 			if (self->monsterinfo.move_block_change_time < level.time)
 				self->monsterinfo.aiflags &= ~AI_TEMP_MELEE_COMBAT;
 
-			self->monsterinfo.checkattack_time = level.time + random_time(50_ms, 200_ms);
+			self->monsterinfo.checkattack_time = self->monsterinfo.issummoned ? level.time + 30_ms : level.time + random_time(50_ms, 200_ms);
 		}
 		self->monsterinfo.trail_time = level.time;
 		self->monsterinfo.blind_fire_target = self->monsterinfo.last_sighting + (self->enemy->velocity * -0.1f);

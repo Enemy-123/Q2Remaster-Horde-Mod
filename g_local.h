@@ -1766,8 +1766,7 @@ struct monsterinfo_t
 	// in g_save.cpp too!
 
 	//Horde Stuff
-	gtime_t last_rocket_fire_time;
-	gtime_t last_plasma_fire_time;
+	gtime_t last_sentry_missile_fire_time;
 	gtime_t last_sentrygun_target_time;
 	gtime_t lastnoisecooldown;
 	gtime_t spawn_cooldown; // Tiempo de espera entre spawns
@@ -1777,16 +1776,9 @@ struct monsterinfo_t
 	bool issummoned = false; // corpse cleaning management
 	bool IS_BOSS = false; // Is monster a boss?
 	bool BOSS_DEATH_HANDLED = false; // is dead?
-	bool damage_modifier_applied;
-
-	bool has_spawned_initially = false;
-	bool spawning_in_progress = false;
+	bool damage_modifier_applied = false;
 	bool death_processed = false; // death management for onentitydeath
 
-	float damage_quad; // trying to multiply dmg based on powerup
-
-	int active_stalkers;   // Contador de stalkers activos
-	int max_stalkers;      // Número máximo de stalkers permitidos
 	int bonus_flags; //Powerups or Special Flags for horde
 	int team; // Setting a team, test
 

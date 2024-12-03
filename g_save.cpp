@@ -866,9 +866,6 @@ FIELD_AUTO(resp.entertime),
 FIELD_AUTO(resp.score),
 FIELD_AUTO(resp.cmd_angles),
 FIELD_AUTO(resp.spectator),
-//horde stuff
-FIELD_AUTO(resp.spree),
-FIELD_AUTO(resp.adrenaline_count),
 // old_pmove is not necessary to persist
 
 // showscores, showinventory, showhelp not necessary
@@ -1275,31 +1272,6 @@ FIELD_AUTO(monsterinfo.jump_time),
 
 FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),
 FIELD_AUTO(monsterinfo.chosen_reinforcements),
-
-//horde stuff
-FIELD_AUTO(monsterinfo.last_rocket_fire_time),
-FIELD_AUTO(monsterinfo.last_plasma_fire_time),
-FIELD_AUTO(monsterinfo.last_sentrygun_target_time),
-FIELD_AUTO(monsterinfo.lastnoisecooldown),
-FIELD_AUTO(monsterinfo.spawn_cooldown),
-FIELD_AUTO(monsterinfo.stuck_check_time),
-
-FIELD_AUTO(monsterinfo.was_stuck),
-FIELD_AUTO(monsterinfo.issummoned),
-FIELD_AUTO(monsterinfo.IS_BOSS),
-FIELD_AUTO(monsterinfo.BOSS_DEATH_HANDLED),
-FIELD_AUTO(monsterinfo.damage_modifier_applied),
-
-FIELD_AUTO(monsterinfo.has_spawned_initially),
-FIELD_AUTO(monsterinfo.spawning_in_progress),
-FIELD_AUTO(monsterinfo.death_processed),
-
-FIELD_AUTO(monsterinfo.damage_quad),
-
-FIELD_AUTO(monsterinfo.active_stalkers),
-FIELD_AUTO(monsterinfo.max_stalkers),
-FIELD_AUTO(monsterinfo.bonus_flags),
-FIELD_AUTO(monsterinfo.team),
 
 // back to edict_t
 FIELD_AUTO(plat2flags),
@@ -2419,49 +2391,19 @@ void read_save_struct_json(const Json::Value& json, void* data, const save_struc
 
 static Json::Value parseJson(const char* jsonString)
 {
-	try {
-		Json::CharReaderBuilder reader;
-		reader["allowSpecialFloats"] = true;
-		Json::Value json;
-		JSONCPP_STRING errs;
-		std::stringstream ss(jsonString, std::ios_base::in | std::ios_base::binary);
+	Json::CharReaderBuilder reader;
+	reader["allowSpecialFloats"] = true;
+	Json::Value		  json;
+	JSONCPP_STRING	  errs;
+	std::stringstream ss(jsonString, std::ios_base::in | std::ios_base::binary);
 
-		if (!Json::parseFromStream(reader, ss, &json, &errs)) {
-			// Imprime más detalles sobre el error
-			gi.Com_PrintFmt("Error de parsing JSON:\n");
-			gi.Com_PrintFmt("Detalles: {}\n", errs.c_str());
+	if (!Json::parseFromStream(reader, ss, &json, &errs))
+		gi.Com_ErrorFmt("Couldn't decode JSON: {}", errs.c_str());
 
-			// Intentar identificar la línea problemática
-			std::string jsonStr(jsonString);
-			size_t lineCount = 1;
-			size_t pos = 0;
-			std::string line;
-			std::istringstream jsonStream(jsonStr);
+	if (!json.isObject())
+		gi.Com_Error("expected object at root");
 
-			while (std::getline(jsonStream, line) && lineCount < 8093) {
-				if (lineCount == 8092) {
-					gi.Com_PrintFmt("Línea problemática (8092): {}\n", line);
-					break;
-				}
-				lineCount++;
-			}
-
-			gi.Com_ErrorFmt("Couldn't decode JSON: {}", errs.c_str());
-			return Json::Value();
-		}
-
-		if (!json.isObject()) {
-			gi.Com_Error("expected object at root");
-			return Json::Value(); // Nunca se alcanzará por el Com_Error, pero evita warning
-		}
-
-		return json;
-	}
-	catch (const Json::Exception& e) {
-		gi.Com_PrintFmt("Error al parsear JSON: {}\n", e.what());
-		gi.Com_Error(e.what());
-		return Json::Value(); // Nunca se alcanzará por el Com_Error, pero evita warning 
-	}
+	return json;
 }
 
 static char* saveJson(const Json::Value& json, size_t* out_size)

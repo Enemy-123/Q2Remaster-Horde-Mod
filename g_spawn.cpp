@@ -697,10 +697,6 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 		return;
 	}
 
-	if (ent->svflags & SVF_MONSTER) {
-		ent->monsterinfo.damage_quad = 1.0f;
-	}
-
 	if (g_horde->integer && current_wave_level > 0) {
 		if (g_chaotic->integer) {
 			if ((g_chaotic->integer == 2 && current_wave_level >= 4) ||

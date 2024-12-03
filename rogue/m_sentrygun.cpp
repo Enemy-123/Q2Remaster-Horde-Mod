@@ -551,7 +551,7 @@ void turret2Fire(edict_t* self)
 	if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN))
 	{
 		// Sistema de cohetes
-		if (level.time > self->monsterinfo.last_rocket_fire_time + ROCKET_FIRE_INTERVAL &&
+		if (level.time > self->monsterinfo.last_sentry_missile_fire_time + ROCKET_FIRE_INTERVAL &&
 			dist * tr.fraction > 72)
 		{
 			vec3_t rocketDir;
@@ -563,7 +563,7 @@ void turret2Fire(edict_t* self)
 				fire_rocket(self->owner, start, rocketDir, modifiedDamage,
 					self->monsterinfo.quadfire_time > level.time ? 1600 : 1420,
 					120, modifiedDamage);
-				self->monsterinfo.last_rocket_fire_time = level.time;
+				self->monsterinfo.last_sentry_missile_fire_time = level.time;
 				gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 			}
 		}
@@ -637,14 +637,14 @@ void turret2Fire(edict_t* self)
 					10, MZ2_WIDOW2_BEAM_SWEEP_1);
 
 				// Sistema de plasma
-				if (level.time > self->monsterinfo.last_plasma_fire_time + PLASMA_FIRE_INTERVAL)
+				if (level.time > self->monsterinfo.last_sentry_missile_fire_time + PLASMA_FIRE_INTERVAL)
 				{
 					fire_plasma(self->owner, hbturretstart, predictedDir,
 						static_cast<int>(100 * quadMultiplier),
 						self->monsterinfo.quadfire_time > level.time ? 1450 : 1250,
 						120,
 						static_cast<int>(100 * quadMultiplier));
-					self->monsterinfo.last_plasma_fire_time = level.time;
+					self->monsterinfo.last_sentry_missile_fire_time = level.time;
 					gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 				}
 			}
@@ -1088,7 +1088,7 @@ MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 
 		// Special handling for machinegun during rocket prep
 		if (self->spawnflags.has(SPAWNFLAG_TURRET2_MACHINEGUN) &&
-			level.time < self->monsterinfo.last_rocket_fire_time + 1.5_sec)
+			level.time < self->monsterinfo.last_sentry_missile_fire_time + 1.5_sec)
 		{
 			chance = 0.8f;
 		}
@@ -1244,7 +1244,7 @@ void SP_monster_sentrygun(edict_t* self)
 
 
 #define playeref self->owner->s.effects;
-	self->monsterinfo.last_rocket_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
+	self->monsterinfo.last_sentry_missile_fire_time = gtime_t::from_sec(0); // Inicializa el tiempo de último disparo de cohete
 	int angle;
 
 	self->monsterinfo.aiflags |= AI_DO_NOT_COUNT;

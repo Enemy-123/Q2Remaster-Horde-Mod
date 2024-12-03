@@ -968,7 +968,6 @@ void Monster_MoveSpawn(edict_t* self) {
 void tank_vanilla_spawn_finished(edict_t* self)
 {
 	gi.sound(self, CHAN_BODY, sound_spawn_commander, 1, ATTN_NONE, 0);
-	self->monsterinfo.spawning_in_progress = false;
 	tank_vanilla_run(self);
 }
 
@@ -1002,9 +1001,7 @@ MMOVE_T(tank_move_spawn) = { FRAME_attak221, FRAME_attak238, tank_frames_spawn, 
 MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 {
 	// Early validation
-	if (!self->enemy || !self->enemy->inuse) {
-		self->monsterinfo.has_spawned_initially = false;
-		self->monsterinfo.spawning_in_progress = false;
+	if (!self || !self->enemy || !self->enemy->inuse) {
 		return;
 	}
 
@@ -1022,10 +1019,6 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 	constexpr gtime_t PAIN_IMMUNITY = 5_sec;
 	constexpr gtime_t SPAWN_COOLDOWN = 10_sec;
 
-	// Get range to enemy
-
-
-
 	// Handle monster spawning logic
 	const bool can_spawn = M_SlotsLeft(self) > 0;
 	const bool has_clear_path = G_IsClearPath(self, CONTENTS_SOLID, self->s.origin, self->enemy->s.origin);
@@ -1037,17 +1030,7 @@ MONSTERINFO_ATTACK(tank_vanilla_attack) (edict_t* self) -> void
 		M_SetAnimation(self, &tank_move_spawn);
 		self->monsterinfo.attack_finished = level.time + 0.2_sec;
 		self->monsterinfo.spawn_cooldown = level.time + SPAWN_COOLDOWN;  // Actualiza el tiempo de cooldown
-		self->monsterinfo.has_spawned_initially = true;
-		self->monsterinfo.spawning_in_progress = true;
 		return;
-	}
-
-	// Check if still spawning
-	if (self->monsterinfo.spawning_in_progress) {
-		if (level.time >= self->monsterinfo.attack_finished)
-			self->monsterinfo.spawning_in_progress = false;
-		else
-			return;
 	}
 
 	if (self->enemy->health <= 0) {

@@ -977,7 +977,7 @@ DIE(stalker_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dama
 
 	// Notificar al comandante que este stalker ha muerto
 	if (self->monsterinfo.commander && self->monsterinfo.commander->inuse) {
-		self->monsterinfo.commander->monsterinfo.active_stalkers--;
+		self->monsterinfo.commander->monsterinfo.monster_used--;
 	}
 
 
