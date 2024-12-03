@@ -900,7 +900,7 @@ static void Player_GiveStartItems(edict_t* ent, const char* ptr)
 }
 
 constexpr item_id_t tech_ids[] = { IT_TECH_RESISTANCE, IT_TECH_STRENGTH, IT_TECH_HASTE, IT_TECH_REGENERATION };
-bool IsTechItem(int item_id);
+bool IsTechItem(int item_id) noexcept;
 void InitClientPt(const edict_t* ent, gclient_t* client)
 {
 	// backup userinfo and states
@@ -933,7 +933,7 @@ void InitClientPt(const edict_t* ent, gclient_t* client)
 	client->pers.max_health = 100;
 }
 // Función auxiliar para verificar si un ítem es un TECH
-bool IsTechItem(int item_id)
+bool IsTechItem(int item_id) noexcept
 {
 	for (int i = 0; i < sizeof(tech_ids) / sizeof(tech_ids[0]); i++) {
 		if (item_id == tech_ids[i]) {

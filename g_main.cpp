@@ -749,7 +749,7 @@ void CheckDMRules()
 	{
 		Horde_RunFrame();
 
-		CTFCheckTimeExtensionVote();
+		CTFCheckTimeExtensionVote(); // add more timelimit vote
 		// Check if time is up
 		if (timelimit->value && level.time >= gtime_t::from_min(timelimit->value))
 		{
@@ -761,16 +761,11 @@ void CheckDMRules()
 				{
 					gi.LocCenter_Print(ent, "Horde Mode is being reset.");
 					gi.cvar_set("timelimit", "60");
-					if (g_horde->integer)
-					{
-						HandleResetEvent();
-					}
+					HandleResetEvent();
+
 				}
 				EndDMLevel();
-				if (g_horde->integer)
-				{
-					InitClientPt(ent, ent->client);
-				}
+				InitClientPt(ent, ent->client);
 			}
 			return;
 		}

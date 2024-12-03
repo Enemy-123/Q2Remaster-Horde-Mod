@@ -14,14 +14,14 @@ bool bfg_pull_active = false;  // New variable to track BFG pull state
 const benefit_t BENEFITS[MAX_BENEFITS] = { {
 		"vampire",
 		"\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n",
-		"RECOVERING A HEALTH PERCENTAGE OF DAMAGE DONE!\n",
+		"RECOVERING HEALTH FROM DAMAGE DONE!\n",
 		"g_vampire", "1",
 		4, -1, 0.2f
 	},
 	{
 		"vampire upgraded",
 		"\n\n\n\nIMPROVED VAMPIRE ABILITY\n",
-		"RECOVERING HEALTH & ARMOR NOW!\n",
+		"RECOVERING HEALTH & ARMOR FROM DAMAGE DONE!\n",
 		"g_vampire", "2",
 		24, -1, 0.1f
 	},
