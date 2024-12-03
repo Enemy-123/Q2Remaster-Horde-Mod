@@ -1587,7 +1587,6 @@ void Machinegun_Fire(edict_t* ent)
 		if (g_tracedbullets->integer) {
 		constexpr int tracer_damage = 40;
 			vec3_t tracer_start = start;
-			const vec3_t tracer_forward = forward;
 
 			// Offset del trazador usando inicialización condicional
 			vec3_t const tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
@@ -1598,14 +1597,14 @@ void Machinegun_Fire(edict_t* ent)
 
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir);
-			if (frandom() < 0.3f) {
+	//		if (frandom() < 0.3f) {
 				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
-			}
-			else {
-				fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
-			}
+			//}
+			//else {
+			//	fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
+			//}
 		}
-		ent->lasthbshot = level.time + 0.5_sec;
+		ent->lasthbshot = level.time + 500_ms;
 	}
 
 	// Configuración de animación
@@ -1815,21 +1814,20 @@ void Chaingun_Fire(edict_t* ent)
 		if (g_tracedbullets->integer) {
 			constexpr int tracer_damage = 20;
 			vec3_t tracer_start = start;
-			const vec3_t tracer_forward = forward;
 			const vec3_t tracer_offset = (ent->client->ps.pmove.pm_flags & PMF_DUCKED)
 				? vec3_t{ 0.0f, 8.0f, -6.0f }
 			: vec3_t{ 0.0f, 10.5f, -11.0f };
 			tracer_start = tracer_start + tracer_offset;
 			vec3_t dir;
 			P_ProjectSource(ent, ent->client->v_angle, tracer_offset, tracer_start, dir, true);
-			if (frandom() < 0.3f) {
+		//	if (frandom() < 0.3f) {
 				fire_blaster2(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE, false);
-			}
-			else {
-				fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
-			}
+			//}
+			//else {
+			//	fire_blueblaster(ent, tracer_start, dir, tracer_damage, 3150, EF_NONE);
+			//}
 		}
-		ent->lasthbshot = level.time + 0.25_sec;
+		ent->lasthbshot = level.time + 250_ms;
 	}
 }
 
