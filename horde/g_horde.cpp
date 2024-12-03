@@ -809,7 +809,6 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_redmutant", 22, -1, 0.14f },
 	{ "monster_floater_tracker", 22, -1, 0.16f },
 	{ "monster_arachnid", 23, 31, 0.25f },
-	{ "monster_widow1", 20, 34, 0.02f },
 
 	// Enemigos de alto nivel
 	{ "monster_tank_spawner", 26, -1, 0.2f },

@@ -36,7 +36,7 @@ enum class BossTeleportReason {
 
 bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason);
 
-
+bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir);
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs);
 extern void SetHealthBarName(const edict_t* boss);

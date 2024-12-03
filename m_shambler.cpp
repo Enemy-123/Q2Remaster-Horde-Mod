@@ -439,39 +439,80 @@ void ShamblerCastFireballs(edict_t* self)
 	vec3_t f, r;
 	AngleVectors(self->s.angles, f, r, nullptr);
 
-	// Calculate positions for both hands using the same method as in fireball_update
 	const vec3_t left_pos = M_ProjectFlashSource(self, fireball_left_hand[self->s.frame - FRAME_smash01], f, r);
 	const vec3_t right_pos = M_ProjectFlashSource(self, fireball_right_hand[self->s.frame - FRAME_smash01], f, r);
-
-	// Calculate the midpoint between hands - same as where SpawnGrow appears
 	const vec3_t start = (left_pos + right_pos) * 0.5f;
 
-	// Number of fireballs to launch
-	constexpr int num_fireballs = 1;
-	const int speed = irandom(1120, 1280);
+	vec3_t dir;
+	vec3_t target;
+	const float rocketSpeed = 1200;
+	const bool blindfire = (self->monsterinfo.aiflags & AI_MANUAL_STEERING) != 0;
 
-	// Calculate size based on frame - similar to the visual effect
-	const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
-		static_cast<float>(q_countof(fireball_left_hand));
-	constexpr float max_size = 1.5f;
-	const float current_size = 0.1f + (max_size - 0.1f) * size_factor / 3;
+	// Si estamos en modo blindfire, usar el target guardado
+	if (blindfire)
+	{
+		target = self->monsterinfo.blind_fire_target;
+
+		if (!M_AdjustBlindfireTarget(self, start, target, r, dir))
+			return;
+	}
+	else
+	{
+		// Smart targeting como el tank
+		if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2]))
+		{
+			target = self->enemy->s.origin;
+			target[2] += self->enemy->viewheight;
+		}
+		else
+		{
+			target = self->enemy->s.origin;
+			target[2] = self->enemy->absmin[2] + 1;
+		}
+
+		// Lead shot con probabilidad basada en dificultad
+		if (frandom() <= 0.2f + ((3 - skill->integer) * 0.15f))
+			PredictAim(self, self->enemy, start, rocketSpeed, false, 0, &dir, &target);
+		else
+		{
+			dir = target - start;
+			dir.normalize();
+		}
+
+		// Check de línea de visión
+		trace_t const trace = gi.traceline(start, target, self, MASK_PROJECTILE);
+		if (trace.fraction < 0.5f && !blindfire)
+			return;
+	}
+
+	// Guardar última posición conocida para blindfire
+	self->monsterinfo.blind_fire_target = target;
+
+	// Lanzar fireballs
+	const int num_fireballs = (g_hardcoop->integer || self->monsterinfo.IS_BOSS) ? 3 : 1;
+	const float spread_base = g_hardcoop->integer ? 0.03f : 0.06f;
 
 	for (int i = 0; i < num_fireballs; i++)
 	{
-		// Calculate spread based on difficulty
-		float spread = 0.6f;
-		if (g_hardcoop->integer || current_wave_level >= 22 || self->monsterinfo.IS_BOSS)
-			spread = 0.3f;
+		vec3_t spread_dir = dir;
+		if (i > 0)
+		{
+			float spread = spread_base;
+			if (self->monsterinfo.IS_BOSS)
+				spread *= 0.5f;
 
-		vec3_t dir;
-		PredictAim(self, self->enemy, start, 1320, false, spread, &dir, nullptr);
+			spread_dir[0] += crandom() * spread;
+			spread_dir[1] += crandom() * spread;
+			spread_dir[2] += crandom() * spread;
+			spread_dir.normalize();
+		}
 
 		edict_t* fireball = G_Spawn();
 		if (fireball)
 		{
 			fireball->s.origin = start;
-			fireball->s.angles = vectoangles(dir);
-			fireball->velocity = dir * speed;
+			fireball->s.angles = vectoangles(spread_dir);
+			fireball->velocity = spread_dir * rocketSpeed;
 			fireball->movetype = MOVETYPE_FLYMISSILE;
 			fireball->svflags |= SVF_PROJECTILE;
 			fireball->flags |= FL_DODGE;
@@ -480,9 +521,6 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->s.effects = EF_FIREBALL | EF_TELEPORTER;
 			fireball->s.renderfx = RF_MINLIGHT;
 			fireball->s.modelindex = gi.modelindex("models/objects/gibs/skull/tris.md2");
-			//fireball->s.modelindex = frandom() < 0.1f ?
-			//	gi.modelindex("models/objects/fire/tris.md2") :
-			//	gi.modelindex("models/objects/gibs/skull/tris.md2");
 			fireball->owner = self;
 			fireball->touch = fireball_touch;
 			fireball->nextthink = level.time + 7_sec;
@@ -493,17 +531,17 @@ void ShamblerCastFireballs(edict_t* self)
 			fireball->s.sound = gi.soundindex("weapons/rockfly.wav");
 			fireball->classname = "shambler_fireball";
 
-			// Scale the fireball based on the charging animation
-			fireball->s.scale = current_size;
+			// Escala basada en la animación de carga
+			const float size_factor = static_cast<float>(self->s.frame - FRAME_smash01) /
+				static_cast<float>(q_countof(fireball_left_hand));
+			fireball->s.scale = 0.1f + (1.4f - 0.1f) * size_factor / 3;
 
 			gi.linkentity(fireball);
 		}
 	}
 
-	// Play sound effect
 	gi.sound(self, CHAN_WEAPON, sound_fireball, 1, ATTN_NORM, 0);
 }
-
 mframe_t shambler_frames_fireball[] = {
 	{ ai_charge, 0, shambler_windupFire },
 	{ ai_charge, 0, shambler_fireball_update },
@@ -525,12 +563,56 @@ MMOVE_T(shambler_attack_fireball) = { FRAME_smash01, FRAME_smash12, shambler_fra
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
-	M_SetAnimation(self, 
-		brandom() ?
-		&shambler_attack_magic :
-		&shambler_attack_fireball);
-}
+	// Handle blind fire state
+	if (self->monsterinfo.attack_state == AS_BLIND)
+	{
+		float chance;
+		if (self->monsterinfo.blind_fire_delay < 1_sec)
+			chance = 1.0f;
+		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+			chance = 0.4f;
+		else
+			chance = 0.1f;
 
+		// Si tenemos un objetivo para blindfire y pasamos el check de probabilidad
+		if (frandom() <= chance && self->monsterinfo.blind_fire_target)
+		{
+			self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
+			self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+
+			M_SetAnimation(self, &shambler_attack_fireball);
+			self->monsterinfo.attack_finished = level.time + random_time(2_sec, 3_sec);
+			self->pain_debounce_time = level.time + 5_sec;
+			return;
+		}
+		return;
+	}
+
+	// Normal attack selection
+	float const r = frandom();
+	float const range = range_to(self, self->enemy);
+	constexpr float CLOSE_RANGE = 120.0f;
+	constexpr float MID_RANGE = 250.0f;
+
+	// Rango cercano: preferir ataques cuerpo a cuerpo
+	if (range <= CLOSE_RANGE) {
+			M_SetAnimation(self, &shambler_attack_magic);
+	}
+	// Rango medio: mix de ataques
+	else if (range <= MID_RANGE) {
+		if (r < 0.4f)
+			M_SetAnimation(self, &shambler_attack_magic);
+		else
+			M_SetAnimation(self, &shambler_attack_fireball);
+	}
+	// Rango largo: preferir fireballs
+	else {
+		if (r < 0.7f)
+			M_SetAnimation(self, &shambler_attack_fireball);
+		else
+			M_SetAnimation(self, &shambler_attack_magic);
+	}
+}
 //
 // melee
 //
