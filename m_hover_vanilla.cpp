@@ -400,7 +400,7 @@ void daedalus_bomber_reattack(edict_t* self)
 {
 	if (self->enemy->health > 0)
 		if (visible(self, self->enemy))
-			if (frandom() <= 0.6f)
+			if (frandom() <= 0.4f)
 			{
 				if (self->monsterinfo.attack_state == AS_STRAIGHT)
 				{
@@ -418,18 +418,14 @@ void daedalus_bomber_reattack(edict_t* self)
 	M_SetAnimation(self, &hover_vanilla_move_end_attack);
 }
 
-constexpr float MORTAR_SPEED = 1050.f;
-constexpr float GRENADE_SPEED = 760.f;
-constexpr float DAEDALUS_SPREAD = 0.2f; // Reduced spread
-constexpr float DAEDALUS_PITCH = -1.5f; // Less aggressive downward pitch
-constexpr int DAEDALUS_DAMAGE = 40;
-constexpr int HOVER_DAMAGE = 35;
-constexpr float RANDOM_ANGLE = 5.0f; // Reduced random angle
-constexpr float BASE_FUSE = 2.5f;
+
 
 void daedalus_bomber_fire_grenades(edict_t* self)
 {
-	const bool is_left_weapon = (self->s.frame & 1);
+	constexpr float MORTAR_SPEED = 1050.f;
+	constexpr float GRENADE_SPEED = 760.f;
+
+
 	vec3_t					 forward, right, up;
 	vec3_t					 aim;
 	monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
@@ -438,7 +434,7 @@ void daedalus_bomber_fire_grenades(edict_t* self)
 	// PMM
 	vec3_t target;
 	vec3_t offset{};
-	const bool blindfire = false;
+	bool blindfire = false;
 
 	if (self->s.frame == FRAME_attak104)
 		offset = { 1.7f, 7.0f, 11.3f };

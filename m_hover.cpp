@@ -379,7 +379,7 @@ void hover_reattack(edict_t* self)
 {
 	if (self->enemy->health > 0)
 		if (visible(self, self->enemy))
-			if (frandom() <= 0.6f)
+			if (frandom() <= 0.5f)
 			{
 				if (self->monsterinfo.attack_state == AS_STRAIGHT)
 				{
