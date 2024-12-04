@@ -17,7 +17,10 @@ constexpr float MAX_SIDESTEP = 8.0f;
 
 //============================================================================
 constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2) {
-	return (v1 - v2).lengthSquared();
+	float dx = v1.x - v2.x;
+	float dy = v1.y - v2.y;
+	float dz = v1.z - v2.z;
+	return dx * dx + dy * dy + dz * dz;
 }
 /*
 =================

@@ -117,8 +117,7 @@ constexpr float M_DamageModifier(edict_t* monster) noexcept {
 	return mod;
 }
 
-std::string GetTitleFromFlags(int bonus_flags)
-{
+[[nodiscard]] inline std::string GetTitleFromFlags(int bonus_flags) {
 	std::string title;
 	title.reserve(100); // Reservar espacio anticipadamente
 
@@ -145,7 +144,7 @@ std::string GetTitleFromFlags(int bonus_flags)
 }
 
 // Sobrecarga para edict_t*
-std::string GetDisplayName(const edict_t* ent) {
+[[nodiscard]] inline std::string GetDisplayName(const edict_t* ent) {
 	if (!ent) return "Unknown";
 
 	std::string base_name = GetDisplayName(ent->classname);
