@@ -1217,6 +1217,8 @@ class OptimizedEntityInfoManager {
 public:
 	static constexpr size_t MAX_ENTITY_INFOS = ENTITY_INFO_COUNT;
 	static constexpr size_t MAX_STRING_LENGTH = 256;
+	static constexpr gtime_t UPDATE_INTERVAL = 100_ms;
+	static constexpr gtime_t STALE_THRESHOLD = 5000_ms;
 
 private:
 	struct EntityInfo {
@@ -1224,6 +1226,19 @@ private:
 		uint16_t length{ 0 };
 		int32_t config_string_id{ -1 };
 		gtime_t last_update{ 0_ms };
+
+		bool needsUpdate(std::string_view newInfo, gtime_t currentTime) const noexcept {
+			return length != newInfo.length() ||
+				std::memcmp(data.data(), newInfo.data(), newInfo.length()) != 0 ||
+				currentTime - last_update > UPDATE_INTERVAL;
+		}
+
+		void update(std::string_view newInfo, gtime_t currentTime) noexcept {
+			std::memcpy(data.data(), newInfo.data(), newInfo.length());
+			length = static_cast<uint16_t>(newInfo.length());
+			data[newInfo.length()] = '\0';
+			last_update = currentTime;
+		}
 	};
 
 	std::array<EntityInfo, MAX_ENTITY_INFOS> m_entities;
@@ -1233,7 +1248,6 @@ private:
 
 public:
 	OptimizedEntityInfoManager() noexcept {
-		// Inicializar slots libres
 		m_freeSlots.reserve(MAX_ENTITY_INFOS);
 		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
 			m_freeSlots.push_back(i);
@@ -1241,17 +1255,16 @@ public:
 		}
 	}
 
-	void updateEntityInfo(int entityIndex, std::string_view info) noexcept {
+	bool updateEntityInfo(int entityIndex, std::string_view info) noexcept {
 		if (info.length() >= MAX_STRING_LENGTH)
-			return;
+			return false;
 
-		auto const it = m_entityToSlot.find(entityIndex);
 		int slotIndex;
+		auto const it = m_entityToSlot.find(entityIndex);
 
 		if (it == m_entityToSlot.end()) {
-			// No hay slot asignado, buscar uno libre
 			if (m_freeSlots.empty())
-				return;
+				return false;
 
 			slotIndex = m_freeSlots.back();
 			m_freeSlots.pop_back();
@@ -1263,20 +1276,12 @@ public:
 		}
 
 		auto& entity = m_entities[slotIndex];
-
-		// Actualizar solo si es necesario
-		if (entity.length != info.length() ||
-			std::memcmp(entity.data.data(), info.data(), info.length()) != 0 ||
-			level.time - entity.last_update > 100_ms) {
-
-			std::memcpy(entity.data.data(), info.data(), info.length());
-			entity.length = static_cast<uint16_t>(info.length());
-			entity.data[info.length()] = '\0';
-			entity.last_update = level.time;
-
-			// Actualizar el configstring
+		if (entity.needsUpdate(info, level.time)) {
+			entity.update(info, level.time);
 			gi.configstring(entity.config_string_id, entity.data.data());
 		}
+
+		return true;
 	}
 
 	void removeEntityInfo(int entityIndex) noexcept {
@@ -1285,12 +1290,15 @@ public:
 			int const slotIndex = it->second;
 			auto& entity = m_entities[slotIndex];
 
-			// Limpiar el configstring
+			// Clear configstring first
 			gi.configstring(entity.config_string_id, "");
+
+			// Clear data
 			entity.length = 0;
 			entity.data[0] = '\0';
+			entity.last_update = 0_ms;
 
-			// Devolver el slot a la lista de disponibles
+			// Return slot and cleanup map
 			m_freeSlots.push_back(slotIndex);
 			m_entityToSlot.erase(it);
 			m_activeCount--;
@@ -1298,19 +1306,16 @@ public:
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
-		auto const it = m_entityToSlot.find(entityIndex);
-		if (it != m_entityToSlot.end()) {
+		if (auto it = m_entityToSlot.find(entityIndex); it != m_entityToSlot.end()) {
 			return m_entities[it->second].config_string_id;
 		}
 		return -1;
 	}
 
 	void cleanupStaleEntries() noexcept {
-		constexpr gtime_t STALE_THRESHOLD = 5000_ms;
-
-		for (auto it = m_entityToSlot.begin(); it != m_entityToSlot.end();) {
-			auto& entity = m_entities[it->second];
-			if (level.time - entity.last_update > STALE_THRESHOLD) {
+		auto it = m_entityToSlot.begin();
+		while (it != m_entityToSlot.end()) {
+			if (level.time - m_entities[it->second].last_update > STALE_THRESHOLD) {
 				removeEntityInfo(it->first);
 				it = m_entityToSlot.begin();
 			}
@@ -1322,6 +1327,7 @@ public:
 };
 
 inline OptimizedEntityInfoManager g_entityInfoManager;
+
 
 //// Función auxiliar optimizada
 //inline void UpdateEntityConfigString(edict_t* self) noexcept {
