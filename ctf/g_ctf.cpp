@@ -1067,13 +1067,13 @@ static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 	"doppleganger"
 } };
 
-std::string GetDisplayName(const char* classname) {
+[[nodiscard]] inline std::string GetDisplayName(const char* classname) {
 	if (!classname) return "Unknown";
 	const auto it = name_replacements.find(classname);
 	return std::string(it != name_replacements.end() ? it->second : classname);
 }
 
-std::string FormatClassname(const std::string& classname) {
+[[nodiscard]] inline std::string FormatClassname(const std::string& classname) {
 	std::string result;
 	result.reserve(classname.length());
 
@@ -1137,7 +1137,7 @@ int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
 	return std::max(0, static_cast<int>((end_time - current_time).template seconds<float>()));
 }
 
-std::string FormatEntityInfo(edict_t* ent) {
+[[nodiscard]] inline std::string FormatEntityInfo(edict_t* ent) {
 	if (!ent) {
 		return "";
 	}
