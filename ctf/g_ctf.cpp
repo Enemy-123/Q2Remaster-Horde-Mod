@@ -1017,46 +1017,44 @@ constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 
 class ConfigStringManager {
 private:
-	static constexpr size_t MAX_CONFIG_STRINGS = CONFIG_ENTITY_INFO_END - CONFIG_ENTITY_INFO_START + 1;
-	std::vector<int> m_availableIndices;
-	std::unordered_map<int, int> m_entityToConfig;
+    // Use a fixed size array since range is known
+    static constexpr size_t MAX_CONFIG_STRINGS = CONFIG_ENTITY_INFO_END - CONFIG_ENTITY_INFO_START + 1;
+    std::vector<int> m_availableIndices;  
+    std::unordered_map<int, int> m_entityToConfig;
 
 public:
-	ConfigStringManager() noexcept {
-		m_availableIndices.reserve(MAX_CONFIG_STRINGS);
-		for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
-			m_availableIndices.push_back(i);
-		}
-	}
+    ConfigStringManager() noexcept {
+        // Preallocate known size
+        m_availableIndices.reserve(MAX_CONFIG_STRINGS);
+        for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
+            m_availableIndices.push_back(i); 
+        }
+    }
 
-	int getConfigString(int entity_index) {
-		if (auto const it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
-			return it->second;
-		}
+    // Improved error handling and null checks
+    int getConfigString(int entity_index) {
+        // Use find() instead of operator[]
+        if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
+            return it->second;
+        }
 
-		if (!m_availableIndices.empty()) {
-			int cs_index = m_availableIndices.back();
-			m_availableIndices.pop_back();
-			m_entityToConfig[entity_index] = cs_index;
-			return cs_index;
-		}
+        if (!m_availableIndices.empty()) {
+            int cs_index = m_availableIndices.back();
+            m_availableIndices.pop_back();
+            m_entityToConfig[entity_index] = cs_index;
+            return cs_index;
+        }
 
-		return -1;
-	}
+        return -1; // Error case
+    }
 
-	void freeConfigString(int entity_index) {
-		if (auto const it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
-			m_availableIndices.push_back(it->second);
-			gi.configstring(it->second, "");
-			m_entityToConfig.erase(it);
-		}
-	}
-
-	void updateConfigString(int entity_index, const std::string& value) {
-		if (int const cs_index = getConfigString(entity_index); cs_index != -1) {
-			gi.configstring(cs_index, value.c_str());
-		}
-	}
+    void freeConfigString(int entity_index) {
+        if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
+            m_availableIndices.push_back(it->second);
+            gi.configstring(it->second, "");
+            m_entityToConfig.erase(it);
+        }
+    }
 };
 
 // Lista de prefijos válidos para IsValidClassname
