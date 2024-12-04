@@ -666,21 +666,23 @@ void SP_light(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
-	// no targeted lights in deathmatch, because they cause global messages
-	//if ((!self->targetname || (deathmatch->integer && !(self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)))) && st.sl.data.radius == 0) // [Sam-KEX]
-	//{
-	//	G_FreeEdict(self);
-	//	return;
-	//}
+	// Allow targeted lights in mgu4trial horde mode, otherwise use normal deathmatch rules
+	if (!(g_horde->integer && strcmp(level.mapname, "mgu4trial") == 0) &&
+		(!self->targetname || !self->spawnflags.has(SPAWNFLAG_LIGHT_ALLOW_IN_DM)) &&
+		st.sl.data.radius == 0)
+	{
+		G_FreeEdict(self);
+		return;
+	}
 
 	if (self->style >= 32)
 	{
 		self->use = light_use;
-
 		if (!self->style_on || !*self->style_on)
 			self->style_on = "m";
 		else if (*self->style_on >= '0' && *self->style_on <= '9')
 			self->style_on = gi.get_configstring(CS_LIGHTS + atoi(self->style_on));
+
 		if (!self->style_off || !*self->style_off)
 			self->style_off = "a";
 		else if (*self->style_off >= '0' && *self->style_off <= '9')
