@@ -64,7 +64,9 @@ void hover_run(edict_t* self);
 void hover_dead(edict_t* self);
 void hover_attack(edict_t* self);
 void hover_reattack(edict_t* self);
-void hover_fire_blaster(edict_t* self);
+void daedalus_reattack(edict_t* self);
+void hover_fire_rocket(edict_t* self);
+void daedalus_fire_blaster(edict_t* self);
 
 mframe_t hover_frames_stand[] = {
 	{ ai_stand },
@@ -318,11 +320,19 @@ mframe_t hover_frames_start_attack[] = {
 MMOVE_T(hover_move_start_attack) = { FRAME_attak101, FRAME_attak103, hover_frames_start_attack, hover_attack };
 
 mframe_t hover_frames_attack1[] = {
-	{ ai_charge, -10, hover_fire_blaster },
-	{ ai_charge, -10, hover_fire_blaster },
+	{ ai_charge, -10, hover_fire_rocket },
+	{ ai_charge, -10, hover_fire_rocket },
 	{ ai_charge, 0, hover_reattack },
 };
 MMOVE_T(hover_move_attack1) = { FRAME_attak104, FRAME_attak106, hover_frames_attack1, nullptr };
+
+
+mframe_t daedalus_frames_attack1[] = {
+	{ ai_charge, -10, daedalus_fire_blaster },
+	{ ai_charge, -10, daedalus_fire_blaster },
+	{ ai_charge, 0, daedalus_reattack },
+};
+MMOVE_T(daedalus_move_attack1) = { FRAME_attak104, FRAME_attak106, daedalus_frames_attack1, nullptr };
 
 mframe_t hover_frames_end_attack[] = {
 	{ ai_charge, 1 },
@@ -341,11 +351,19 @@ MMOVE_T(hover_move_start_attack2) = { FRAME_attak101, FRAME_attak103, hover_fram
 #endif
 
 mframe_t hover_frames_attack2[] = {
-	{ ai_charge, 10, hover_fire_blaster },
-	{ ai_charge, 10, hover_fire_blaster },
+	{ ai_charge, 10, hover_fire_rocket },
+	{ ai_charge, 10, hover_fire_rocket },
 	{ ai_charge, 10, hover_reattack },
 };
 MMOVE_T(hover_move_attack2) = { FRAME_attak104, FRAME_attak106, hover_frames_attack2, nullptr };
+
+
+mframe_t daedalus_frames_attack2[] = {
+	{ ai_charge, 10, daedalus_fire_blaster },
+	{ ai_charge, 10, daedalus_fire_blaster },
+	{ ai_charge, 10, daedalus_reattack },
+};
+MMOVE_T(daedalus_move_attack2) = { FRAME_attak104, FRAME_attak106, daedalus_frames_attack2, nullptr };
 
 #if 0
 mframe_t hover_frames_end_attack2[] = {
@@ -379,7 +397,29 @@ void hover_reattack(edict_t* self)
 	M_SetAnimation(self, &hover_move_end_attack);
 }
 
-void hover_fire_blaster(edict_t* self)
+void daedalus_reattack(edict_t* self)
+{
+	if (self->enemy->health > 0)
+		if (visible(self, self->enemy))
+			if (frandom() <= 0.6f)
+			{
+				if (self->monsterinfo.attack_state == AS_STRAIGHT)
+				{
+					M_SetAnimation(self, &daedalus_move_attack1);
+					return;
+				}
+				else if (self->monsterinfo.attack_state == AS_SLIDING)
+				{
+					M_SetAnimation(self, &daedalus_move_attack2);
+					return;
+				}
+				else
+					gi.Com_PrintFmt("hover_reattack: unexpected state {}\n", (int32_t)self->monsterinfo.attack_state);
+			}
+	M_SetAnimation(self, &hover_move_end_attack);
+}
+
+void daedalus_fire_blaster(edict_t* self)
 {
 	vec3_t	  start;
 	vec3_t	  forward, right;
@@ -409,6 +449,121 @@ void hover_fire_blaster(edict_t* self)
 		monster_fire_blaster2(self, start, dir, 12, 1400, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 	// PGM
 }
+
+void hover_fire_rocket(edict_t* self)
+{
+	vec3_t	forward, right;
+	vec3_t	start;
+	vec3_t	dir;
+	vec3_t	vec;
+	trace_t trace; // PMM - check target
+	int		rocketSpeed;
+	// pmm - blindfire
+	vec3_t target;
+	bool   blindfire = false;
+
+	if (self->monsterinfo.aiflags & AI_MANUAL_STEERING)
+		blindfire = true;
+	else
+		blindfire = false;
+
+	if (!self->enemy || !self->enemy->inuse) // PGM
+		return;								 // PGM
+
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
+
+		rocketSpeed = 850;
+
+
+	// PMM
+	if (blindfire)
+		target = self->monsterinfo.blind_fire_target;
+	else
+		target = self->enemy->s.origin;
+	// pmm
+	// PGM
+	//  PMM - blindfire shooting
+	if (blindfire)
+	{
+		vec = target;
+		dir = vec - start;
+	}
+	// pmm
+	// don't shoot at feet if they're above where i'm shooting from.
+	else if (frandom() < 0.33f || (start[2] < self->enemy->absmin[2]))
+	{
+		vec = target;
+		vec[2] += self->enemy->viewheight;
+		dir = vec - start;
+	}
+	else
+	{
+		vec = target;
+		vec[2] = self->enemy->absmin[2] + 1;
+		dir = vec - start;
+	}
+	// PGM
+
+	//======
+	// PMM - lead target  (not when blindfiring)
+	// 20, 35, 50, 65 chance of leading
+	if ((!blindfire) && (frandom() < 0.35f))
+		PredictAim(self, self->enemy, start, rocketSpeed, false, 0.f, &dir, &vec);
+	// PMM - lead target
+	//======
+
+	dir.normalize();
+
+	// pmm blindfire doesn't check target (done in checkattack)
+	// paranoia, make sure we're not shooting a target right next to us
+	trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
+	if (blindfire)
+	{
+		// blindfire has different fail criteria for the trace
+		if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
+		{
+				monster_fire_rocket(self, start, dir, 22, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+		}
+		else
+		{
+			// geez, this is bad.  she's avoiding about 80% of her blindfires due to hitting things.
+			// hunt around for a good shot
+			// try shifting the target to the left a little (to help counter her large offset)
+			vec = target;
+			vec += (right * -10);
+			dir = vec - start;
+			dir.normalize();
+			trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
+			if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
+			{
+					monster_fire_rocket(self, start, dir, 60, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+			}
+			else
+			{
+				// ok, that failed.  try to the right
+				vec = target;
+				vec += (right * 10);
+				dir = vec - start;
+				dir.normalize();
+				trace = gi.traceline(start, vec, self, MASK_PROJECTILE);
+				if (!(trace.startsolid || trace.allsolid || (trace.fraction < 0.5f)))
+				{
+						// RAFAEL
+						monster_fire_rocket(self, start, dir, 22, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+				}
+			}
+		}
+	}
+	else
+	{
+		if (trace.fraction > 0.5f || trace.ent->solid != SOLID_BSP)
+		{
+				monster_fire_rocket(self, start, dir, 22, rocketSpeed, MZ2_BOSS2_ROCKET_3);
+		}
+	}
+}
+
 
 MONSTERINFO_STAND(hover_stand) (edict_t* self) -> void
 {
@@ -442,14 +597,21 @@ void hover_attack(edict_t* self)
 
 	if (frandom() > chance)
 	{
-		M_SetAnimation(self, &hover_move_attack1);
+		if (strcmp(self->classname, "monster_hover") == 0)
+			M_SetAnimation(self, &hover_move_attack1);
+		if (strcmp(self->classname, "monster_daedalus") == 0)
+			M_SetAnimation(self, &daedalus_move_attack1);
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
 	else // circle strafe
 	{
 		if (frandom() <= 0.5f) // switch directions
 			self->monsterinfo.lefty = !self->monsterinfo.lefty;
+		if (strcmp(self->classname, "monster_hover") == 0)
 		M_SetAnimation(self, &hover_move_attack2);
+		if (strcmp(self->classname, "monster_daedalus") == 0)
+			M_SetAnimation(self, &daedalus_move_attack2);
+
 		self->monsterinfo.attack_state = AS_SLIDING;
 	}
 }
