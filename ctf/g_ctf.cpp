@@ -1217,8 +1217,8 @@ class OptimizedEntityInfoManager {
 public:
 	static constexpr size_t MAX_ENTITY_INFOS = ENTITY_INFO_COUNT;
 	static constexpr size_t MAX_STRING_LENGTH = 256;
-	static constexpr gtime_t UPDATE_INTERVAL = 100_ms;
-	static constexpr gtime_t STALE_THRESHOLD = 5000_ms;
+	static constexpr gtime_t UPDATE_INTERVAL = 50_ms;
+	static constexpr gtime_t STALE_THRESHOLD = 3000_ms;
 
 private:
 	struct EntityInfo {
@@ -1262,9 +1262,14 @@ public:
 		int slotIndex;
 		auto const it = m_entityToSlot.find(entityIndex);
 
+		// Si no hay slot asignado
 		if (it == m_entityToSlot.end()) {
-			if (m_freeSlots.empty())
-				return false;
+			// Intentar reciclar slots obsoletos antes de fallar
+			if (m_freeSlots.empty()) {
+				cleanupStaleEntries();  // Forzar una limpieza
+				if (m_freeSlots.empty())
+					return false;
+			}
 
 			slotIndex = m_freeSlots.back();
 			m_freeSlots.pop_back();
@@ -1275,6 +1280,7 @@ public:
 			slotIndex = it->second;
 		}
 
+		// Actualizar sólo si es necesario
 		auto& entity = m_entities[slotIndex];
 		if (entity.needsUpdate(info, level.time)) {
 			entity.update(info, level.time);
@@ -1350,12 +1356,6 @@ struct CTFIDViewConfig {
 	static constexpr float CLOSE_MIN_DOT = 0.5f;
 };
 
-// Estructura para mantener los resultados de la búsqueda
-struct TargetSearchResult {
-	edict_t* target{ nullptr };
-	float distance{ CTFIDViewConfig::MAX_DISTANCE };
-};
-
 // En el archivo donde tienes la función CTFSetIDView
 // Función auxiliar para verificar si una entidad está en el campo de visión
 [[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
@@ -1373,10 +1373,13 @@ struct TargetSearchResult {
 	return tr.fraction == 1.0f || tr.ent == target;
 }
 
-// Función optimizada para buscar el mejor objetivo
-[[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent,
-	std::span<edict_t> edicts,
-	const vec3_t& forward) noexcept {
+
+struct TargetSearchResult {
+	edict_t* target{ nullptr };
+	float distance{ CTFIDViewConfig::MAX_DISTANCE };
+};
+
+[[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, std::span<edict_t> edicts, const vec3_t& forward) noexcept {
 	TargetSearchResult result;
 	vec3_t const& viewer_pos = ent->s.origin;
 
@@ -1385,8 +1388,7 @@ struct TargetSearchResult {
 			continue;
 		}
 
-		vec3_t const& target_pos = who.s.origin;
-		vec3_t dir = target_pos - viewer_pos;
+		vec3_t dir = who.s.origin - viewer_pos;
 		float const dist = dir.normalize();
 
 		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
@@ -1397,7 +1399,7 @@ struct TargetSearchResult {
 			continue;
 		}
 
-		if (!CanSeeTarget(ent, viewer_pos, &who, target_pos)) {
+		if (!CanSeeTarget(ent, viewer_pos, &who, who.s.origin)) {
 			continue;
 		}
 
@@ -1409,6 +1411,18 @@ struct TargetSearchResult {
 }
 
 void CTFSetIDView(edict_t* ent) {
+	// Si ya estamos procesando una vista de ID, salir
+	static bool processing = false;
+	if (processing)
+		return;
+
+	processing = true;
+
+	// Garantizar que processing se resetee al salir
+	struct ScopeGuard {
+		~ScopeGuard() { processing = false; }
+	} guard;
+
 	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
 		return;
 	}
@@ -1428,14 +1442,14 @@ void CTFSetIDView(edict_t* ent) {
 
 	for (uint32_t i = 1; i < globals.num_edicts; i++) {
 		edict_t* who = g_edicts + i;
-		if (!IsValidTarget(ent, who, false)) continue;
+		if (!IsValidTarget(ent, who, false))
+			continue;
 
 		vec3_t dir = who->s.origin - ent->s.origin;
 		float const dist = dir.normalize();
 		float const d = forward.dot(dir);
 
 		bool is_valid_target = false;
-
 		if (dist < very_close_distance) {
 			is_valid_target = (d > close_min_dot);
 		}
@@ -1447,7 +1461,6 @@ void CTFSetIDView(edict_t* ent) {
 			vec3_t const start = ent->s.origin;
 			vec3_t const end = who->s.origin;
 			trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
-
 			if (tr.fraction == 1.0 || tr.ent == who) {
 				closest_dist = dist;
 				best = who;
@@ -1464,18 +1477,24 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 		int const entity_index = best - g_edicts;
 
-		// Actualizar el configstring
-		g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-		int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
+		// Intentar actualizar hasta 2 veces si es necesario
+		bool update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+		if (!update_success) {
+			g_entityInfoManager.cleanupStaleEntries();
+			update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+		}
 
-		if (configStringIndex != -1) {
-			// Enviar la actualización solo a este jugador
-			gi.unicast(ent, true);
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
+		if (update_success) {
+			int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
+			if (configStringIndex != -1) {
+				gi.unicast(ent, true);
+				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
+				return;
+			}
 		}
-		else {
-			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
-		}
+
+		// Si llegamos aquí, falló la actualización
+		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 	else {
 		ent->client->idtarget = nullptr;
