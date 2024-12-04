@@ -585,7 +585,7 @@ static constexpr MonsterReplacement insane_replacements[] = {
 	{"monster_gunner", {"monster_guncmdr", "monster_gladb"}},
 
 	// Flying enemies
-	{"monster_flyer", {"monster_flyer","monster_hover", "monster_daedalus"}},
+	{"monster_flyer", {"monster_flyer","monster_hover_vanilla"}},
 	{"monster_floater", {"monster_floater","monster_floater_tracker", "monster_daedalus_bomber", "monster_daedalus"}},
 
 	// Late game elite

@@ -19,6 +19,7 @@ carrier
 
 // nb: specifying flyer multiple times so it has a higher chance
 constexpr const char *default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2";
+constexpr const char *mini_reinforcements = "monster_flyer 1;monster_flyer 2;monster_flyer 3";
 constexpr int32_t default_monster_slots_base = 3;
 constexpr spawnflags_t SPAWNFLAG_carrier_mini = 8_spawnflag;
 
@@ -1200,7 +1201,7 @@ void SP_monster_carrier(edict_t* self)
 
 	self->monsterinfo.attack_finished = 0_ms;
 
-	const char* reinforcements = default_reinforcements;
+	const char* reinforcements = (strcmp(self->classname, "monster_carrier") == 0) ? default_reinforcements : mini_reinforcements;
 
 	if (!st.was_key_specified("monster_slots"))
 		self->monsterinfo.monster_slots = default_monster_slots_base;

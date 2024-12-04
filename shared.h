@@ -34,7 +34,7 @@ enum class BossTeleportReason {
 //    STUCK
 };
 
-bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason);
+bool CheckAndTeleportBoss(edict_t* boss, const BossTeleportReason reason);
 
 bool M_AdjustBlindfireTarget(edict_t* self, const vec3_t& start, const vec3_t& target, const vec3_t& right, vec3_t& out_dir);
 void ImprovedSpawnGrow(const vec3_t& position, float start_size, float end_size, edict_t* spawned_entity);

@@ -2344,7 +2344,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void
 }
 
 
-bool CheckAndTeleportBoss(edict_t* self, BossTeleportReason reason) {
+bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
 	// Verificaciones iniciales
 	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS ||
 		level.intermissiontime || !g_horde->integer)
@@ -2888,7 +2888,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	UpdateHordeMessage(messages[choice], duration);
 }
 
-static void HandleWaveCleanupMessage(const MapSize& mapSize, WaveEndReason reason) noexcept {
+void HandleWaveCleanupMessage(const MapSize& mapSize, const WaveEndReason reason) noexcept {
 	// Obtener el número de jugadores humanos
 	const int8_t numHumanPlayers = GetNumHumanPlayers();
 
