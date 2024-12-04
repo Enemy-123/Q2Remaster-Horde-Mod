@@ -429,62 +429,99 @@ constexpr float BASE_FUSE = 2.5f;
 
 void daedalus_bomber_fire_grenades(edict_t* self)
 {
-	if (!self->enemy || !self->enemy->inuse)
-		return;
-	const bool is_daedalus = (strcmp(self->classname, "monster_daedalus_bomber") == 0);
 	const bool is_left_weapon = (self->s.frame & 1);
-
+	vec3_t					 forward, right, up;
+	vec3_t					 aim;
+	monster_muzzleflash_id_t flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+	float					 spread;
+	float					 pitch = 0;
+	// PMM
+	vec3_t target;
 	vec3_t offset{};
-	monster_muzzleflash_id_t flash_number{};
+	const bool blindfire = false;
 
-	// Para granadas (daedalus pesado), usamos siempre el mismo flash y offset
-	if (is_daedalus && self->mass >= 200)
-	{
-		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
+	if (self->s.frame == FRAME_attak104)
 		offset = { 1.7f, 7.0f, 11.3f };
-	}
+	else if (self->s.frame == FRAME_attak105)
+		offset = { 1.7f, -7.0f, 11.3f };
 
-	const auto [forward, right, up] = AngleVectors(self->s.angles);
-	const vec3_t start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
-	if (is_daedalus)
+	if (!self->enemy || !self->enemy->inuse) // PGM
+		return;
+
+	//	pmm
+	// if we're shooting blind and we still can't see our enemy
+	if ((blindfire) && (!visible(self, self->enemy)))
 	{
-		{
-			// Heavy daedalus - improved grenade/mortar logic
-			const float speed = (flash_number >= MZ2_DAEDALUS_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED;
-			vec3_t aim_dir;
-			vec3_t aim_point;
-			PredictAim(self, self->enemy, start, speed, true, 0, &aim_dir, &aim_point);
-			const float dist = (aim_point - start).length();
-			vec3_t aim = aim_dir;
-			if (dist > 200)
-			{
-				const	float spread_factor = std::min(dist / 1000.0f, 0.15f);
-				aim += right * (crandom_open() * spread_factor);
-				aim += up * (crandom_open() * spread_factor);
-				aim.normalize();
-			}
-			const float pitch_adjust = -0.15f - (dist * 0.00015f);
-			aim += up * pitch_adjust;
-			aim.normalize();
-			if (M_CalculatePitchToFire(self, aim_point, start, aim, speed, 2.5f,
-				(flash_number >= MZ2_DAEDALUS_BLASTER_2)))
-			{
-				monster_fire_grenade(self, start, aim, 30, speed, flash_number, 5.0f, 3.0f);
-			}
-			else
-			{
-				const int damage = is_daedalus ? DAEDALUS_DAMAGE : HOVER_DAMAGE;
-				float gravity_comp = (level.gravity / 800.f) * (dist / speed);
-				aim[2] += gravity_comp;
-				aim.normalize();
-				monster_fire_grenade(self, start, aim, damage, speed, flash_number,
-					crandom_open() * RANDOM_ANGLE * 0.5f,
-					BASE_FUSE + (crandom_open() * RANDOM_ANGLE * 0.5f));
-			}
-		}
+		// and we have a valid blind_fire_target
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+
+		target = self->monsterinfo.blind_fire_target;
 	}
-	
+	else
+		target = self->enemy->s.origin;
+	// pmm
+
+	AngleVectors(self->s.angles, forward, right, up); // PGM
+	const vec3_t start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
+	// PGM
+	if (self->enemy && !(flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_1))
+	{
+		float dist;
+
+		aim = target - self->s.origin;
+		dist = aim.length();
+
+		// aim up if they're on the same level as me and far away.
+		if ((dist > 512) && (aim[2] < 64) && (aim[2] > -64))
+		{
+			aim[2] += (dist - 512);
+		}
+
+		aim.normalize();
+		pitch = aim[2];
+		if (pitch > 0.4f)
+			pitch = 0.4f;
+		else if (pitch < -0.5f)
+			pitch = -0.5f;
+
+		if ((self->enemy->absmin.z - self->absmax.z) > 16.f && flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_3)
+			pitch += 0.5f;
+	}
+	// PGM
+
+	if (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_1)
+		pitch -= 0.05f;
+
+	if (!(flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_1))
+	{
+		aim = forward + (right * spread);
+		aim += (up * pitch);
+		aim.normalize();
+	}
+	else
+	{
+		PredictAim(self, self->enemy, start, 800, false, 0.f, &aim, nullptr);
+		aim += right * spread;
+		aim.normalize();
+	}
+
+
+	{
+		// mortar fires farther
+		float speed;
+
+		if (flash_number >= MZ2_GUNCMDR_GRENADE_MORTAR_1 && flash_number <= MZ2_GUNCMDR_GRENADE_MORTAR_1)
+			speed = MORTAR_SPEED;
+		else
+			speed = GRENADE_SPEED;
+
+		// try search for best pitch
+		PredictAim(self, self->enemy, start, 800, false, 0.f, &aim, nullptr);
+		monster_fire_grenade(self, start, aim, 24, speed, flash_number, (crandom_open() * 10.0f), 200.f + (crandom_open() * 10.0f));
+
+	}
 }
 
 void hover_vanilla_fire_blaster(edict_t* self)
