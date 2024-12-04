@@ -147,7 +147,7 @@ namespace LaserHelpers {
     static float calculate_damage_multiplier(const edict_t* target) {
         if (!target) return 0.0f;
 
-        if (target->client) {
+        if (target->client || target->monsterinfo.issummoned) {
             return 0.0f;
         }
 
@@ -210,12 +210,11 @@ struct laser_pierce_t : pierce_args_t {
         if (self->health <= 0)
             return false;
 
-        if (OnSameTeam(self->teammaster, tr.ent))
+        if (tr.ent->client && OnSameTeam(self->teammaster, tr.ent))
             return false;
 
         if (self->dmg > 0 && (tr.ent->takedamage) &&
-            !(tr.ent->flags & FL_IMMUNE_LASER) &&
-            tr.ent != self->teammaster)
+           tr.ent != self->teammaster)
         {
             damaged_thing = true;
 
