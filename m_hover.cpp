@@ -425,7 +425,7 @@ void daedalus_fire_blaster(edict_t* self)
 	vec3_t	  forward, right;
 	vec3_t	  end;
 	vec3_t	  dir;
-	int		rocketSpeed;
+	int		blasterSpeed;
 
 	if (!self->enemy || !self->enemy->inuse) // PGM
 		return;
@@ -440,13 +440,11 @@ void daedalus_fire_blaster(edict_t* self)
 	dir = end - start;
 	dir.normalize();
 
-	rocketSpeed = 730;
+	blasterSpeed = 1230;
 
 	// PGM	- daedalus fires blaster2
-	if (self->mass < 200)
-		monster_fire_rocket(self, start, dir, 19, rocketSpeed, MZ2_BOSS2_ROCKET_3);
-	else
-		monster_fire_blaster2(self, start, dir, 12, 1400, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
+	PredictAim(self, self->enemy, start, blasterSpeed/1.5, true, 0.f, &dir, &end);
+		monster_fire_blaster2(self, start, dir, 12, blasterSpeed, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 	// PGM
 }
 
@@ -509,7 +507,7 @@ void hover_fire_rocket(edict_t* self)
 	// PMM - lead target  (not when blindfiring)
 	// 20, 35, 50, 65 chance of leading
 	if ((!blindfire) && (frandom() < 0.35f))
-		PredictAim(self, self->enemy, start, rocketSpeed, false, 0.f, &dir, &vec);
+		PredictAim(self, self->enemy, start, rocketSpeed/1.5, false, 0.f, &dir, &vec);
 	// PMM - lead target
 	//======
 
