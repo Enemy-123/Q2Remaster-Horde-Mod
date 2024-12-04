@@ -564,7 +564,7 @@ MMOVE_T(makron_move_attack5) = { FRAME_attak501, FRAME_attak516, makron_frames_a
 void makron_reattack_railgun(edict_t* self)
 {
 	// if our enemy is still valid, then continue firing
-	if (self->enemy && frandom() < 0.8f && !level.intermissiontime)
+	if (self->enemy && frandom() < 0.8f && !level.intermissiontime && !self->enemy->deadflag)
 	{
 		if (frandom() < 0.7f)
 		MakronSaveloc(self);

@@ -766,7 +766,7 @@ constexpr weighted_item_t monsters[] = {
 	// Olas 7-9: Enemigos intermedios
 	{ "monster_soldier_ripper", 7, -1, 0.18f },
 	{ "monster_medic", 7, 12, 0.08f },
-	{ "monster_hover_vanilla", 8, 25, 0.14f },
+	{ "monster_hover_vanilla", 8, 25, 0.12f },
 	{ "monster_gekk", 7, 23, 0.13f },
 	{ "monster_gunner_vanilla", 8, 15, 0.20f },
 	{ "monster_infantry", 8, 15, 0.20f },
@@ -815,7 +815,7 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_shambler", 26, -1, 0.25f },
 	{ "monster_janitor2", 26, 34, 0.1f },
 	{ "monster_medic_commander", 27, -1, 0.08f },
-	{ "monster_daedalus_bomber", 27, -1, 0.14f },
+	{ "monster_daedalus_bomber", 27, -1, 0.09f },
 	{ "monster_carrier_mini", 27, -1, 0.09f },
 	{ "monster_tank_64", 28, -1, 0.13f },
 	{ "monster_widow1", 29, 34, 0.1f },
