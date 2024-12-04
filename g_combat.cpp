@@ -683,9 +683,9 @@ void ApplyGradualHealing(edict_t* ent) {
 
     // Aplicar health regeneration solo si no estamos al máximo
     if (ent->health < ent->max_health && ent->regen_info.stored_healing > 0) {
-        float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
-        int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
-        int actual_healed = new_health - ent->health;
+     const float heal_amount = std::min(2.0f, ent->regen_info.stored_healing);
+	 const int new_health = std::min(ent->health + static_cast<int>(heal_amount), ent->max_health);
+	 const int actual_healed = new_health - ent->health;
 
         if (actual_healed > 0) {
             ent->health = new_health;
@@ -889,7 +889,7 @@ void apply_armor_vampire(edict_t* attacker, int damage) {
 		return;
 
 	// Calculamos el armor directamente del daño, sin considerar el health
-	float armor_stolen = VampireConfig::ARMOR_STEAL_RATIO * (damage / 4.0f);
+	const float armor_stolen = VampireConfig::ARMOR_STEAL_RATIO * (damage / 4.0f);
 
 	// Almacenar el armor hasta el límite de almacenamiento
 	attacker->regen_info.stored_armor = std::min(
@@ -1165,9 +1165,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		save = damage;
 	}
 
-
-
-
 	// Handle Horde Bonus Stuff
 	if ((attacker && attacker->client && g_horde->integer &&  !ClientIsSpectating(attacker->client) || (!g_horde->integer))) {
 		HandleAutoHaste(attacker, targ, damage);
@@ -1175,8 +1172,6 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 		HandleIDDamage(attacker, targ, real_damage);
 		ProcessDamage(targ, attacker, take);
 	}
-
-
 
 	// ZOID
 	// team armor protect
