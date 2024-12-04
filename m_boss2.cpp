@@ -779,7 +779,28 @@ void SP_monster_boss2_64(edict_t* self)
 		self->maxs = { 60 * 0.6f, 60 * 0.6f, (90 + 25) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
 	}
 
-	self->health = 1100 * st.health_multiplier;
+	self->health = 900 * st.health_multiplier;
+	self->gib_health = -200;
+	self->mass = 1000;
+	self->yaw_speed = 80;
+
+	ApplyMonsterBonusFlags(self);
+}
+
+void SP_monster_boss2_mini(edict_t* self)
+{
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+	self->spawnflags &= ~SPAWNFLAG_BOSS2_N64;
+	SP_monster_boss2(self);
+	if (g_horde->integer) {
+		self->s.scale = 0.6f;
+
+		// Ajustar la caja de colisi칩n con un Z m치s elevado
+		self->mins = { -60 * 0.6f, -60 * 0.6f, 0 };
+		self->maxs = { 60 * 0.6f, 60 * 0.6f, (90 + 25) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
+	}
+
+	self->health = 1000 * st.health_multiplier;
 	self->gib_health = -200;
 	self->mass = 1000;
 	self->yaw_speed = 80;
@@ -788,10 +809,8 @@ void SP_monster_boss2_64(edict_t* self)
 }
 
 //HORDE BOSS
-constexpr spawnflags_t SPAWNFLAG_BOSS2KL = 8_spawnflag;
 void SP_monster_boss2kl(edict_t* self)
 {
-	self->spawnflags |= SPAWNFLAG_BOSS2KL;
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (g_horde->integer) {

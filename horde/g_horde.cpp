@@ -674,6 +674,7 @@ constexpr struct weighted_item_t {
 	int32_t min_level = -1, max_level = -1;
 	float weight = 1.0f;
 	weight_adjust_func_t adjust_weight = nullptr;
+	uint32_t flags = 0; 
 } items[] = {
 	{ "item_health", 3, 5, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, 4, 0.06f, adjust_weight_health },
@@ -721,12 +722,6 @@ constexpr struct weighted_item_t {
 	{ "weapon_disintegrator", 31, -1, 0.15f, adjust_weight_weapon },
 	{ "weapon_bfg", 26, -1, 0.17f, adjust_weight_weapon },
 
-	//{ "ammo_small_shells", -1, -1, 0.25f, adjust_weight_ammo },
-	//{ "ammo_small_bullets", -1, -1, 0.25f, adjust_weight_ammo },
-	//{ "ammo_small_rockets", -1, -1, 0.20f, adjust_weight_ammo },
-	//{ "ammo_small_cells", -1, -1, 0.25f, adjust_weight_ammo },
-	//{ "ammo_small_slugs", -1, -1, 0.20f, adjust_weight_ammo },
-
 	{ "ammo_trap", 4, -1, 0.18f, adjust_weight_ammo },
 	{ "ammo_bullets", -1, -1, 0.25f, adjust_weight_ammo },
 	{ "ammo_flechettes", 4, -1, 0.25f, adjust_weight_ammo },
@@ -759,27 +754,27 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_soldier_hypergun", 4, -1, 0.15f },
 	{ "monster_gekk", 4, 8, 0.12f },
 	{ "monster_parasite", 5, 10, 0.15f },
-	{ "monster_flyer", -1, 6, 0.1f },
-	{ "monster_flyer", 6, -1, 0.14f },
+	{ "monster_flyer", -1, 6, 0.1f, nullptr, FL_FLY },
+	{ "monster_flyer", 6, -1, 0.14f, nullptr, FL_FLY },
 	{ "monster_tank_spawner", 6, 10, 0.015f },
 
 	// Olas 7-9: Enemigos intermedios
 	{ "monster_soldier_ripper", 7, -1, 0.18f },
 	{ "monster_medic", 7, 12, 0.08f },
-	{ "monster_hover_vanilla", 8, 25, 0.12f },
+	{ "monster_hover_vanilla", 8, 25, 0.12f, nullptr, FL_FLY },
 	{ "monster_gekk", 7, 23, 0.13f },
 	{ "monster_gunner_vanilla", 8, 15, 0.20f },
 	{ "monster_infantry", 8, 15, 0.20f },
-	{ "monster_fixbot", 9, 19, 0.11f },
+	{ "monster_fixbot", 9, 19, 0.1f, nullptr, FL_FLY },
 	{ "monster_tank_spawner", 7, 12, 0.06f },
-	{ "monster_daedalus_bomber", 6, 26, 0.02f },
+	{ "monster_daedalus_bomber", 6, 26, 0.02f, nullptr, FL_FLY },
 
 	// Olas 10-12: Amenazas mayores
 	{ "monster_soldier_lasergun", 10, -1, 0.20f },
 	{ "monster_guncmdr_vanilla", 10, 15, 0.15f },
 	{ "monster_brain", 6, 16, 0.18f },
 	{ "monster_stalker", 11, 15, 0.14f },
-	{ "monster_floater", 11, -1, 0.22f },
+	{ "monster_floater", 11, -1, 0.15f, nullptr, FL_FLY },
 	{ "monster_gladiator", 12, -1, 0.25f },
 	{ "monster_gunner", 12, -1, 0.28f },
 
@@ -800,14 +795,15 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gladb", 18, -1, 0.25f },
 	{ "monster_runnertank", 16, -1, 0.22f },
 	{ "monster_makron", 16, 32, 0.011f },
-	{ "monster_hover", 17, -1, 0.16f },
+	{ "monster_hover", 17, -1, 0.16f, nullptr, FL_FLY },
 	{ "monster_gladc", 18, -1, 0.28f },
-	{ "monster_daedalus", 18, -1, 0.12f },
-	{ "monster_boss2_64", 19, -1, 0.09f },
+	{ "monster_daedalus", 18, -1, 0.1f, nullptr, FL_FLY },
+	{ "monster_boss2_64", 19, -1, 0.09f, nullptr, FL_FLY },
+	//{ "monster_boss2_mini", 19, -1, 0.09f, nullptr, FL_FLY },
 	{ "monster_perrokl", 20, -1, 0.25f },
 	{ "monster_janitor", 21, -1, 0.12f },
 	{ "monster_redmutant", 22, -1, 0.14f },
-	{ "monster_floater_tracker", 22, -1, 0.16f },
+	{ "monster_floater_tracker", 22, -1, 0.16f, nullptr, FL_FLY },
 	{ "monster_arachnid", 23, 31, 0.25f },
 
 	// Enemigos de alto nivel
@@ -815,8 +811,8 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_shambler", 26, -1, 0.25f },
 	{ "monster_janitor2", 26, 34, 0.1f },
 	{ "monster_medic_commander", 27, -1, 0.08f },
-	{ "monster_daedalus_bomber", 27, -1, 0.09f },
-	{ "monster_carrier_mini", 27, -1, 0.09f },
+	{ "monster_daedalus_bomber", 27, -1, 0.09f, nullptr, FL_FLY },
+	{ "monster_carrier_mini", 27, -1, 0.09f, nullptr, FL_FLY },
 	{ "monster_tank_64", 28, -1, 0.13f },
 	{ "monster_widow1", 29, 34, 0.1f },
 	{ "monster_gm_arachnid", 29, -1, 0.22f },
@@ -1222,25 +1218,6 @@ gitem_t* G_HordePickItem() {
 	return chosen_item ? FindItemByClassname(chosen_item->classname) : nullptr;
 }
 
-// Keep the existing array
-static const std::array<const char*, 10> flying_monster_classnames = {
-	"monster_boss2_64",
-	"monster_carrier_mini",
-	"monster_floater",
-	"monster_floater_tracker",
-	"monster_flyer",
-	"monster_fixbot",
-	"monster_hover",
-	"monster_hover_vanilla",
-	"monster_daedalus",
-	"monster_daedalus_bomber"
-};
-
-// Variables que no cambian después de la inicialización
-static const std::unordered_set<std::string> flying_monsters_set(
-	flying_monster_classnames.begin(), flying_monster_classnames.end());
-
-
 static int32_t countFlyingSpawns() noexcept {
 	return std::count_if(g_edicts + 1, g_edicts + globals.num_edicts,
 		[](const edict_t& ent) {
@@ -1258,11 +1235,6 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
 	case 3: return 0.6f;
 	default: return 0.5f;
 	}
-}
-
-
-static bool IsFlyingMonster(const std::string& classname) {
-	return flying_monsters_set.find(classname) != flying_monsters_set.end();
 }
 
 inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
@@ -1406,7 +1378,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		if (monster_cache.count >= SelectionCache::MAX_ENTRIES)
 			break;
 
-		const bool isFlyingMonster = IsFlyingMonster(monster.classname);
+		const bool isFlyingMonster = (monster.flags & FL_FLY);
 
 		// Verificaciones de elegibilidad optimizadas
 		if (!IsMonsterEligible(spawn_point, monster, isFlyingMonster, currentLevel, flyingSpawns))

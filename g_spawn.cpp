@@ -155,6 +155,7 @@ void SP_monster_supertankkl(edict_t* self);
 void SP_monster_boss2(edict_t* self);
 void SP_monster_boss2kl(edict_t* self);
 void SP_monster_boss2_64(edict_t* self);
+void SP_monster_boss2_mini(edict_t* self);
 void SP_monster_jorg(edict_t* self);
 void SP_monster_boss3_stand(edict_t* self);
 void SP_monster_makron(edict_t* self);
@@ -397,7 +398,8 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_supertankkl", SP_monster_supertankkl },
 	{ "monster_boss2", SP_monster_boss2 },
 	{ "monster_boss2kl", SP_monster_boss2kl },
-	{ "monster_boss2_64", SP_monster_boss2_64 }, // check later
+	{ "monster_boss2_64", SP_monster_boss2_64 }, 
+	{ "monster_boss2_mini", SP_monster_boss2_mini },
 	{ "monster_boss3_stand", SP_monster_boss3_stand },
 	{ "monster_jorg", SP_monster_jorg },
 	// Paril: allow spawning makron
@@ -565,8 +567,8 @@ static constexpr MonsterReplacement chaotic_replacements[] = {
 	{"monster_gekk", {"monster_gekk", "monster_stalker", "monster_parasite"}},
 
 	// Mini-boss replacements
-	{"monster_tank_commander", {"monster_tank_commander", "monster_tank_64", "monster_shambler", "monster_boss2_64"}},
-	{"monster_shambler", {"monster_shambler", "monster_tank_commander", "monster_boss2_64", "monster_tank_64"}}
+	{"monster_tank_commander", {"monster_tank_commander", "monster_tank_64", "monster_shambler", "monster_boss2_64", "monster_boss2_mini"}},
+	{"monster_shambler", {"monster_shambler", "monster_tank_commander", "monster_boss2_64", "monster_boss2_mini", "monster_tank_64"}}
 };
 
 static constexpr MonsterReplacement insane_replacements[] = {
@@ -590,12 +592,13 @@ static constexpr MonsterReplacement insane_replacements[] = {
 	{"monster_spider", {"monster_gm_arachnid", "monster_arachnid2"}},
 	{"monster_arachnid2", {"monster_gm_arachnid", "monster_arachnid2", "monster_arachnid"}},
 	{"monster_arachnid", {"monster_tank_commander", "monster_psxarachnid", "monster_arachnid", "monster_gm_arachnid"}},
-	{"monster_shambler", {"monster_shambler", "monster_tank_64", "monster_boss2_64", "monster_redmutant"}},
+	{"monster_shambler", {"monster_shambler", "monster_tank_64", "monster_boss2_64", "monster_boss2_mini", "monster_redmutant"}},
 
 	// Special enemies
 	{"monster_medic", {"monster_medic_commander", "monster_brain"}},
 	{"monster_gladiator", {"monster_gladc", "monster_gladb", "monster_gladiator", "monster_tank_commander"}},
-	{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64"}}
+	{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64", "monster_boss2_mini"}},
+	{"monster_boss2_mini", {"monster_boss2_64", "monster_boss2_mini"}}
 };
 
 static constexpr MonsterReplacement hardcoop_replacements[] = {
