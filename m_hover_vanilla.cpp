@@ -66,6 +66,9 @@ void hover_vanilla_attack(edict_t* self);
 void hover_vanilla_reattack(edict_t* self);
 void hover_vanilla_fire_blaster(edict_t* self);
 
+void daedalus_bomber_reattack(edict_t* self);
+void daedalus_bomber_fire_grenades(edict_t* self);
+
 mframe_t hover_vanilla_frames_stand[] = {
 	{ ai_stand },
 	{ ai_stand },
@@ -324,6 +327,13 @@ mframe_t hover_vanilla_frames_attack1[] = {
 };
 MMOVE_T(hover_vanilla_move_attack1) = { FRAME_attak104, FRAME_attak106, hover_vanilla_frames_attack1, nullptr };
 
+mframe_t daedalus_bomber_frames_attack1[] = {
+	{ ai_charge, -10, daedalus_bomber_fire_grenades },
+	{ ai_charge, -10, daedalus_bomber_fire_grenades },
+	{ ai_charge, 0, daedalus_bomber_reattack },
+};
+MMOVE_T(daedalus_bomber_move_attack1) = { FRAME_attak104, FRAME_attak106, daedalus_bomber_frames_attack1, nullptr };
+
 mframe_t hover_vanilla_frames_end_attack[] = {
 	{ ai_charge, 1 },
 	{ ai_charge, 1 }
@@ -346,6 +356,13 @@ mframe_t hover_vanilla_frames_attack2[] = {
 	{ ai_charge, 10, hover_vanilla_reattack },
 };
 MMOVE_T(hover_vanilla_move_attack2) = { FRAME_attak104, FRAME_attak106, hover_vanilla_frames_attack2, nullptr };
+
+mframe_t daedalus_bomber_frames_attack2[] = {
+	{ ai_charge, -10, daedalus_bomber_fire_grenades },
+	{ ai_charge, -10, daedalus_bomber_fire_grenades },
+	{ ai_charge, 0, daedalus_bomber_reattack },
+};
+MMOVE_T(daedalus_bomber_move_attack2) = { FRAME_attak104, FRAME_attak106, daedalus_bomber_frames_attack2, nullptr };
 
 #if 0
 mframe_t hover_vanilla_frames_end_attack2[] = {
@@ -378,6 +395,29 @@ void hover_vanilla_reattack(edict_t* self)
 			}
 	M_SetAnimation(self, &hover_vanilla_move_end_attack);
 }
+
+void daedalus_bomber_reattack(edict_t* self)
+{
+	if (self->enemy->health > 0)
+		if (visible(self, self->enemy))
+			if (frandom() <= 0.6f)
+			{
+				if (self->monsterinfo.attack_state == AS_STRAIGHT)
+				{
+					M_SetAnimation(self, &daedalus_bomber_move_attack1);
+					return;
+				}
+				else if (self->monsterinfo.attack_state == AS_SLIDING)
+				{
+					M_SetAnimation(self, &daedalus_bomber_move_attack2);
+					return;
+				}
+				else
+					gi.Com_PrintFmt("hover_reattack: unexpected state {}\n", (int32_t)self->monsterinfo.attack_state);
+			}
+	M_SetAnimation(self, &hover_vanilla_move_end_attack);
+}
+
 constexpr float MORTAR_SPEED = 1050.f;
 constexpr float GRENADE_SPEED = 760.f;
 constexpr float DAEDALUS_SPREAD = 0.2f; // Reduced spread
@@ -387,7 +427,7 @@ constexpr int HOVER_DAMAGE = 35;
 constexpr float RANDOM_ANGLE = 5.0f; // Reduced random angle
 constexpr float BASE_FUSE = 2.5f;
 
-void hover_vanilla_fire_blaster(edict_t* self)
+void daedalus_bomber_fire_grenades(edict_t* self)
 {
 	if (!self->enemy || !self->enemy->inuse)
 		return;
@@ -403,30 +443,12 @@ void hover_vanilla_fire_blaster(edict_t* self)
 		flash_number = MZ2_GUNCMDR_GRENADE_MORTAR_1;
 		offset = { 1.7f, 7.0f, 11.3f };
 	}
-	else
-	{
-		// Para el resto de casos, usamos los flash y offset normales
-		flash_number = is_left_weapon ?
-			(is_daedalus ? MZ2_DAEDALUS_BLASTER_2 : MZ2_HOVER_BLASTER_2) :
-			(is_daedalus ? MZ2_DAEDALUS_BLASTER : MZ2_HOVER_BLASTER_1);
-		offset = monster_flash_offset[is_left_weapon ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
-	}
 
 	const auto [forward, right, up] = AngleVectors(self->s.angles);
 	const vec3_t start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
 	if (is_daedalus)
 	{
-		if (self->mass < 200)
-		{
-			// Light daedalus - uses blaster
-			vec3_t aim_dir;
-			vec3_t aim_point;
-			PredictAim(self, self->enemy, start, 1000, true, 0, &aim_dir, &aim_point);
-			monster_fire_blaster(self, start, aim_dir, 3, 1000, flash_number,
-				(self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
-		}
-		else
 		{
 			// Heavy daedalus - improved grenade/mortar logic
 			const float speed = (flash_number >= MZ2_DAEDALUS_BLASTER_2) ? MORTAR_SPEED : GRENADE_SPEED;
@@ -462,24 +484,38 @@ void hover_vanilla_fire_blaster(edict_t* self)
 			}
 		}
 	}
-	else
-	{
-		// Regular hover - uses blaster with PredictAim
-		vec3_t aim_dir;
-		vec3_t aim_point;
-		PredictAim(self, self->enemy, start, 1000, true, 0, &aim_dir, &aim_point);
-		if (self->mass < 200)
-		{
-			monster_fire_blaster(self, start, aim_dir, 1, 1000, flash_number,
-				(self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
-		}
-		else
-		{
-			monster_fire_blaster2(self, start, aim_dir, 1, 1000, flash_number,
-				(self->s.frame % 4) ? EF_NONE : EF_BLASTER);
-		}
-	}
+	
 }
+
+void hover_vanilla_fire_blaster(edict_t* self)
+{
+	vec3_t	  start;
+	vec3_t	  forward, right;
+	vec3_t	  end;
+	vec3_t	  dir;
+	int		blasterSpeed;
+
+	if (!self->enemy || !self->enemy->inuse) // PGM
+		return;
+	// PGM
+
+	AngleVectors(self->s.angles, forward, right, nullptr);
+	vec3_t const o = monster_flash_offset[(self->s.frame & 1) ? MZ2_HOVER_BLASTER_2 : MZ2_HOVER_BLASTER_1];
+	start = M_ProjectFlashSource(self, o, forward, right);
+
+	end = self->enemy->s.origin;
+	end[2] += self->enemy->viewheight;
+	dir = end - start;
+	dir.normalize();
+
+	blasterSpeed = 1230;
+
+	// PGM	- daedalus fires blaster2
+	PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);
+	monster_fire_blaster2(self, start, dir, 12, blasterSpeed, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
+	// PGM
+}
+
 MONSTERINFO_STAND(hover_vanilla_stand) (edict_t* self) -> void
 {
 	M_SetAnimation(self, &hover_vanilla_move_stand);
@@ -507,23 +543,29 @@ void hover_vanilla_attack(edict_t* self)
 {
 	float chance = 0.5f;
 
-	if (self->mass > 150) // the daedalus_bomber strafes more
+	if (self->mass > 150) // the daedalus strafes more
 		chance += 0.1f;
 
 	if (frandom() > chance)
 	{
-		M_SetAnimation(self, &hover_vanilla_move_attack1);
+		if (strcmp(self->classname, "monster_hover_vanilla") == 0)
+			M_SetAnimation(self, &hover_vanilla_move_attack1);
+		if (strcmp(self->classname, "monster_daedalus_bomber") == 0)
+			M_SetAnimation(self, &daedalus_bomber_move_attack1);
 		self->monsterinfo.attack_state = AS_STRAIGHT;
 	}
 	else // circle strafe
 	{
 		if (frandom() <= 0.5f) // switch directions
 			self->monsterinfo.lefty = !self->monsterinfo.lefty;
-		M_SetAnimation(self, &hover_vanilla_move_attack2);
+		if (strcmp(self->classname, "monster_hover_vanilla") == 0)
+			M_SetAnimation(self, &hover_vanilla_move_attack2);
+		if (strcmp(self->classname, "monster_daedalus_bomber") == 0)
+			M_SetAnimation(self, &daedalus_bomber_move_attack2);
+
 		self->monsterinfo.attack_state = AS_SLIDING;
 	}
 }
-
 PAIN(hover_vanilla_pain) (edict_t* self, edict_t* other, float kick, int damage, const mod_t& mod) -> void
 {
 	if (level.time < self->pain_debounce_time)
