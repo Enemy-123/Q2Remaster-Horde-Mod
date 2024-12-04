@@ -511,7 +511,7 @@ const spawn_temp_t& ED_GetSpawnTemp()
 	if (!current_st)
 	{
 		if (developer->integer)
-		gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
+			gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
 		return spawn_temp_t::empty;
 	}
 	return *current_st;
@@ -714,10 +714,6 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 			}
 		}
 	}
-	else if (!g_horde->integer && g_hardcoop->integer) {
-		perform_replacement(ent, std::span(hardcoop_replacements),
-			g_hardcoop->integer == 3 ? 0.50f : 0.0f);
-	}
 
 	current_st = &spawntemp;
 
@@ -838,7 +834,7 @@ struct field_t
 
 // utility template for getting the type of a field
 template<typename>
-struct member_object_container_type { };
+struct member_object_container_type {};
 template<typename T1, typename T2>
 struct member_object_container_type<T1 T2::*> { using type = T2; };
 template<typename T>
@@ -1240,13 +1236,12 @@ ed should be a properly initialized empty edict.
 */
 const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 {
-	bool  init;
-	char  keyname[256];
+	bool init;
+	char keyname[256];
 	const char* com_token;
-
 	init = false;
 
-	// go through all the dictionary pairs
+	// first let's parse all entity data
 	while (1)
 	{
 		// parse key
@@ -1258,24 +1253,20 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 
 		Q_strlcpy(keyname, com_token, sizeof(keyname));
 
-		// parse value
+		// parse value  
 		com_token = COM_Parse(&data);
 		if (!data)
 			gi.Com_Error("ED_ParseEntity: EOF without closing brace");
-
 		if (com_token[0] == '}')
 			gi.Com_Error("ED_ParseEntity: closing brace without data");
 
 		init = true;
 
-		// keynames with a leading underscore are used for utility comments,
-		// and are immediately discarded by quake
+		// handle special keys
 		if (keyname[0] == '_')
 		{
-			// [Sam-KEX] Hack for setting RGBA for shadow-casting lights
 			if (!strcmp(keyname, "_color"))
 				ent->s.skinnum = ED_LoadColor(com_token);
-
 			continue;
 		}
 
@@ -1285,6 +1276,11 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 	if (!init)
 		memset(ent, 0, sizeof(*ent));
 
+
+	if (!g_horde->integer && g_hardcoop->integer && ent->classname) {
+		perform_replacement(ent, std::span(hardcoop_replacements),
+			g_hardcoop->integer == 3 ? 0.50f : 0.0f);
+	}
 	return data;
 }
 
@@ -2187,11 +2183,11 @@ void SP_worldspawn(edict_t* ent)
 	gi.soundindex("player/wade2.wav");
 	gi.soundindex("player/wade3.wav");
 
-//#ifdef PSX_ASSETS
-//	gi.soundindex("player/breathout1.wav");
-//	gi.soundindex("player/breathout2.wav");
-//	gi.soundindex("player/breathout3.wav");
-//#endif
+	//#ifdef PSX_ASSETS
+	//	gi.soundindex("player/breathout1.wav");
+	//	gi.soundindex("player/breathout2.wav");
+	//	gi.soundindex("player/breathout3.wav");
+	//#endif
 
 	gi.soundindex("items/pkup.wav");   // bonus item pickup
 	gi.soundindex("world/land.wav");   // landing thud
