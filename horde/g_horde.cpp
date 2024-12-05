@@ -1029,7 +1029,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Arachnophobic Units (Waves 8-18)
 	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 8, 0.1f},
-	{"monster_guncmdr_vanilla", MonsterWaveType::Ground /*| MonsterWaveType::Arachnophobic*/| MonsterWaveType::Heavy | MonsterWaveType::Elite, 12, 0.4f},
+	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 12, 0.4f},
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.45f},
 	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.35f},
@@ -1042,8 +1042,8 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Heavy Ground Units (Waves 12-18)
 	{"monster_gladiator", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
 	{"monster_gunner", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.8f},
-	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy, 13, 0.4f},
-	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy, 14, 0.6f},
+	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy, 13, 0.6f},
+	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy, 14, 0.4f},
 	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 16, 0.5f},
 	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 15, 0.7f},
 	{"monster_runnertank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 21, 0.5f},
@@ -1059,7 +1059,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
 	{"monster_gladc", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
 	{"monster_shambler", MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f},
-	{"monster_tank_64", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.4f},
+	{"monster_tank_64", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f},
 
 	// Special Heavy Units (Waves 20+)
 	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special, 21, 0.5f},
