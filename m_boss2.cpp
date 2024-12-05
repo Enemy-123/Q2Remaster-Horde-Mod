@@ -103,7 +103,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, 800, MZ2_BOSS2_ROCKET_1);
+	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 820, MZ2_BOSS2_ROCKET_1);
 
 	// 2
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_2], forward, right);
@@ -112,7 +112,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * 0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, 750, MZ2_BOSS2_ROCKET_2);
+	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 770, MZ2_BOSS2_ROCKET_2);
 
 	// 3
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_3], forward, right);
@@ -121,7 +121,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.025f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, 650, MZ2_BOSS2_ROCKET_3);
+	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 28, 670, MZ2_BOSS2_ROCKET_3);
 
 	// 4
 	start = M_ProjectFlashSource(self, monster_flash_offset[MZ2_BOSS2_ROCKET_4], forward, right);
@@ -131,7 +131,7 @@ void Boss2Rocket(edict_t* self)
 	dir.normalize();
 	dir += (right * -0.4f);
 	dir.normalize();
-	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 : 40, 600, MZ2_BOSS2_ROCKET_4);
+	monster_fire_rocket(self, start, dir, self->monsterinfo.IS_BOSS ? 50 :28, 620, MZ2_BOSS2_ROCKET_4);
 }
 
 void Boss2Rocket64(edict_t* self)

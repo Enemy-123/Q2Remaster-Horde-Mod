@@ -1079,6 +1079,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Boss Units
 	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
+	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
 	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 27, 0.2f}
 };
 
