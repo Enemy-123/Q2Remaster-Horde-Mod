@@ -929,7 +929,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	// Special case for flying waves
 	if (waveNumber > 5 && frandom() < 0.30f && !WasRecentlyUsed(MonsterWaveType::Flying)) {
 		selected_type = selected_type | MonsterWaveType::Flying;
-		gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
+		gi.sound(world, CHAN_VOICE, incoming, 1, ATTN_NONE, 0);
 	}
 
 	StoreWaveType(selected_type);
@@ -1008,7 +1008,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Early Flying Units (Waves 1-8)
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
 	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 8, 0.6f},
-	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Medium | MonsterWaveType::Ranged, 8, 0.6f},
+	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 8, 0.6f},
 
 	// Special Wave Units (Waves 4-9)
 	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Swimming | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
@@ -1050,10 +1050,10 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_chick_heat", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 13, 0.6f},
 
 	// Elite Flying Units (Waves 18-27)
-	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.6f},
-	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.6f},
+	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
+	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f},
 	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 27, 0.45f},
-	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 24, 0.15},
+	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 24, 0.25},
 
 	// Elite Ground Units (Waves 18+)
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
@@ -2583,7 +2583,6 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		// Store both Flying and Boss types to prevent future flying waves
 		current_wave_type = MonsterWaveType::Flying | MonsterWaveType::Boss;
 		StoreWaveType(current_wave_type);
-		gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nAerial squadron incoming!\n");
 	}
 	else if (strcmp(self->classname, "monster_tank_64") == 0 ||
