@@ -853,10 +853,10 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 		};
 
 		const SpecialWave special_waves[] = {
-			{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "\n*** Gekk invasion incoming! ***\n"},
-			{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 9, "\n*** Enraged Horde approaching! ***\n"},
-			{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.25f, 6, 8, "\n*** Aerial assault incoming! ***\n"},
-			{MonsterWaveType::Heavy, 0.15f, 12, -1, "\n*** Heavy Armored Units incoming! ***\n"}
+			{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "*** Gekk invasion incoming! ***\n"},
+			{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 9, "*** Enraged Horde approaching! ***\n"},
+			{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.25f, 6, 8, "*** Aerial assault incoming! ***\n"},
+			{MonsterWaveType::Heavy, 0.15f, 12, -1, "*** Heavy Armored Units incoming! ***\n"}
 		};
 
 		// Try each special wave type, respecting the recent usage check
