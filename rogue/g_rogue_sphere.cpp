@@ -568,10 +568,10 @@ THINK(hunter_think) (edict_t *self) -> void
 		return;
 	}
 
-	if (self->enemy->client) {
-		FindMTarget(self);
-			if (!FindMTarget(self))
-		G_FreeEdict(self);
+	if (self->enemy && self->enemy->client)
+	{
+		if (!FindMTarget(self))  // Call it only once
+			G_FreeEdict(self);
 	}
 
 	// if we are spectator and no a doppleganger, FreeEdict.
@@ -645,9 +645,9 @@ THINK(vengeance_think) (edict_t *self) -> void
 		return;
 	}
 
-	if (self->enemy->client) {
-		FindMTarget(self);
-		if (!FindMTarget(self))
+	if (self->enemy && self->enemy->client)
+	{
+		if (!FindMTarget(self))  // Call it only once
 			G_FreeEdict(self);
 	}
 
