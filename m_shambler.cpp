@@ -592,30 +592,11 @@ MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 		return;
 	}
 
-	// Normal attack selection
-	float const r = frandom();
-	float const range = range_to(self, self->enemy);
-	constexpr float CLOSE_RANGE = 120.0f;
-	constexpr float MID_RANGE = 250.0f;
-
-	// Rango cercano: preferir ataques cuerpo a cuerpo
-	if (range <= CLOSE_RANGE) {
-			M_SetAnimation(self, &shambler_attack_magic);
-	}
-	// Rango medio: mix de ataques
-	else if (range <= MID_RANGE) {
-		if (r < 0.4f)
-			M_SetAnimation(self, &shambler_attack_magic);
-		else
-			M_SetAnimation(self, &shambler_attack_fireball);
-	}
-	// Rango largo: preferir fireballs
-	else {
-		if (r < 0.7f)
-			M_SetAnimation(self, &shambler_attack_fireball);
-		else
-			M_SetAnimation(self, &shambler_attack_magic);
-	}
+	M_SetAnimation(self,
+		brandom() ?
+		&shambler_attack_magic :
+		&shambler_attack_fireball);
+	return;
 }
 //
 // melee
