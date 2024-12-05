@@ -160,7 +160,8 @@ enum class MonsterWaveType : uint32_t {
 
 	Gekk = 1 << 14,  // Gekk initial wave?
 	Shambler = 1 << 15,  // Shambler boss wave?
-	Mutant = 1 << 16  // Mutant boss wave?
+	Mutant = 1 << 16 , // Mutant boss wave?
+	Arachnophobic = 1 << 17  // Mutant boss wave?
 
 };
 
@@ -623,7 +624,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_horde_local.level = lvl;
 	InitializeWaveType(lvl);
 	current_wave_level = lvl;
-	current_wave_type = MonsterWaveType::None;
+	//current_wave_type = MonsterWaveType::None;
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 
@@ -784,9 +785,33 @@ inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck
 
 // Get recommended wave types based on wave number
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false) {
-	// If we're forcing a special wave (20% chance for waves 11+)
+	// Get number of human players
+	const int32_t numHumanPlayers = GetNumHumanPlayers();
+
+	// Surprise waves based on conditions
+	if (numHumanPlayers >= 3) {
+		// Gekk wave surprise (5-7)
+		if (waveNumber >= 5 && waveNumber <= 7 && frandom() < 0.35f) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Surprise! Gekk invasion incoming! ***\n");
+			return MonsterWaveType::Gekk;
+		}
+
+		// Could add other surprise waves here:
+		// Example: All Mutant wave (8-9)
+		if (waveNumber >= 8 && waveNumber <= 9 && frandom() < 0.30f) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Surprise wave! horde approaching! ***\n");
+			return MonsterWaveType::Mutant | MonsterWaveType::Melee;
+		}
+
+		// Example: Pure Flying wave (6-8)
+		if (waveNumber >= 6 && waveNumber <= 8 && frandom() < 0.25f) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Aerial assault incoming! ***\n");
+			return MonsterWaveType::Flying | MonsterWaveType::Fast;
+		}
+	}
+
+	// Regular special wave logic (20% chance for waves 11+)
 	if (forceSpecialWave && waveNumber >= 11) {
-		// Randomly select between different special wave types
 		const float specialType = frandom();
 		if (specialType < 0.25f)
 			return MonsterWaveType::Heavy;
@@ -798,22 +823,21 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 			return MonsterWaveType::Melee;
 	}
 
-	// Regular wave composition logic
+	// Rest of your regular wave composition logic...
 	if (waveNumber <= 5) {
 		return MonsterWaveType::Light | MonsterWaveType::Ground;
 	}
-
 	if (waveNumber <= 10) {
 		return MonsterWaveType::Light | MonsterWaveType::Ground |
 			MonsterWaveType::Small | MonsterWaveType::Flying;
 	}
 
-	// Special boss wave types
-	if (waveNumber >= 10 && waveNumber % 5 == 0) {
-		// We'll determine the wave type after the boss is chosen
-		// This will be handled in BossSpawnThink
-		return MonsterWaveType::None;
-	}
+	//// Special boss wave types
+	//if (waveNumber >= 10 && waveNumber % 5 == 0) {
+	//	// We'll determine the wave type after the boss is chosen
+	//	// This will be handled in BossSpawnThink
+	//	return MonsterWaveType::None;
+	//}
 
 	if (waveNumber <= 15) {
 		return MonsterWaveType::Light | MonsterWaveType::Medium |
@@ -851,22 +875,46 @@ inline static float GetWaveDifficultyMultiplier(int waveNumber) noexcept {
 }
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 // Example function to filter monsters by wave type
+// First the IsValidMonsterForWave function:
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
 	MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
 
-	// Special case for flying waves - must be flying type
+	// If there are no specific wave requirements, any monster is valid
+	if (waveRequirements == MonsterWaveType::None) {
+		return true;
+	}
+
+	// Special waves checks - these are strict requirements
 	if (HasWaveType(waveRequirements, MonsterWaveType::Flying)) {
 		return HasWaveType(monsterTypes, MonsterWaveType::Flying);
 	}
 
-	// For mutant/gekk/shambler waves, check for specific type match
-	if (HasWaveType(waveRequirements, MonsterWaveType::Mutant |
-		MonsterWaveType::Gekk |
-		MonsterWaveType::Shambler)) {
-		return (monsterTypes & waveRequirements) != MonsterWaveType::None;
+	if (HasWaveType(waveRequirements, MonsterWaveType::Small)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Small);
 	}
 
-	return true;
+	if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic);
+	}
+
+	if (HasWaveType(waveRequirements, MonsterWaveType::Heavy)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Heavy);
+	}
+
+	if (HasWaveType(waveRequirements, MonsterWaveType::Shambler)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Shambler);
+	}
+
+	if (HasWaveType(waveRequirements, MonsterWaveType::Mutant)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Mutant);
+	}
+
+	if (HasWaveType(waveRequirements, MonsterWaveType::Melee)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Melee);
+	}
+
+	// For mixed waves, monster should match at least one type
+	return (static_cast<uint32_t>(monsterTypes & waveRequirements) != 0);
 }
 
 // Structure to include wave level information
@@ -896,7 +944,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 7, 0.8f},
 	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 8, 0.8f},
 	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast, 11, 0.6f},
+	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 11, 0.6f},
 	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special| MonsterWaveType::Melee, 6, 0.7f},
 	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 10, 0.8f},
 
@@ -906,6 +954,11 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy, 13, 0.4f},
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
 	{"monster_gladc", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
+
+	//Arachnophobia here
+	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
+	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.45f},
+	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.35f},
 
 	// Fast Special Units (Waves 13+)
 	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee| MonsterWaveType::Mutant, 13, 0.7f},
@@ -919,6 +972,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.5f},
 	{"monster_runnertank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 16, 0.6f},
 	{"monster_tank_64", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.4f},
+	{"monster_shambler", MonsterWaveType::Shambler |MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f},
 
 	// Special Heavy Units (Waves 20+)
 	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special, 21, 0.5f},
@@ -928,7 +982,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Semi-Boss Units
 	{"monster_makron", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 16, 0.3f},
 	{"monster_makronkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
-	{"monster_shamblerkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.3f},
+	{"monster_shamblerkl", MonsterWaveType::Shambler |MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.3f},
 	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.2f},
 	{"monster_boss2kl", MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
 	{"monster_perrokl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast, 20, 0.4f},
@@ -955,26 +1009,38 @@ inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
 
 static void InitializeWaveType(int32_t lvl) {
 	// Reset wave type flags
-	current_wave_type = MonsterWaveType::None;
-	// For waves 11+, 20% chance of special wave
-	if (lvl >= 11 && frandom() < 0.2f) {
-		// Determine special wave type
-		MonsterWaveType waveType = GetWaveComposition(lvl, true);
-		const char* waveTypeName = "";
+//  current_wave_type = MonsterWaveType::None; // COMMENTED OUT - was resetting wave type unnecessarily
 
-		if (HasWaveType(waveType, MonsterWaveType::Heavy))
-			waveTypeName = "Heavy";
-		else if (HasWaveType(waveType, MonsterWaveType::Medium))
-			waveTypeName = "Medium";
-		else if (HasWaveType(waveType, MonsterWaveType::Fast))
-			waveTypeName = "Fast";
-		else if (HasWaveType(waveType, MonsterWaveType::Melee))
-			waveTypeName = "Melee";
+	// Only set special wave types for non-boss waves
+	if (!boss_spawned_for_wave) {
+		// For waves 11+, 20% chance of special wave
+		if (lvl >= 11 && frandom() < 0.2f) {
+			// Determine special wave type
+			MonsterWaveType waveType = GetWaveComposition(lvl, true);
+			const char* waveTypeName = "";
 
-		// Announce special wave
-		gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Special {} Wave is coming! ***\n", waveTypeName);
+			if (HasWaveType(waveType, MonsterWaveType::Heavy))
+				waveTypeName = "Heavy";
+			else if (HasWaveType(waveType, MonsterWaveType::Medium))
+				waveTypeName = "Medium";
+			else if (HasWaveType(waveType, MonsterWaveType::Fast))
+				waveTypeName = "Fast";
+			else if (HasWaveType(waveType, MonsterWaveType::Melee))
+				waveTypeName = "Melee";
+
+			// Set the wave type and announce it
+			current_wave_type = waveType;
+			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Special {} Wave is coming! ***\n", waveTypeName);
+		}
+		else {
+			// Set normal wave composition for non-special waves
+			current_wave_type = GetWaveComposition(lvl, false);
+		}
 	}
+	// If boss_spawned_for_wave is true, leave current_wave_type as is
+	// The boss spawn think function will set the appropriate wave type
 }
+
 #include <array>
 #include <unordered_set>
 #include <random>
@@ -1387,7 +1453,7 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
 
 inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
 	// Check for flying wave requirement
-	const bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
+	bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
 
 	// During flying waves, only allow flying monsters
 	if (isFlyingWave) {
@@ -1509,78 +1575,70 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	// Cache spawn point info
 	const bool isSpawnPointFlying = spawn_point->style == 1;
-
 	const int32_t flyingSpawns = countFlyingSpawns();
-	const bool waveRequiresFlyingMonsters = HasWaveType(current_wave_type, MonsterWaveType::Flying);
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
-	// Iterate through monsterTypes instead of monsters
+	// Iterate through monsterTypes
 	for (const auto& monster : monsterTypes) {
 		if (monster_cache.count >= SelectionCache::MAX_ENTRIES)
 			break;
 
-		// Level check
+		// Basic checks
 		if (monster.minWave > currentLevel)
 			continue;
 
-		// Wave type compatibility check
+		// Wave type validation
 		if (!IsValidMonsterForWave(monster.classname, currentWaveTypes))
 			continue;
 
-		// Flying monster checks
-		const bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
-		if (waveRequiresFlyingMonsters && !isFlyingMonster)
-			continue;
+		// Flying spawn point compatibility
+		bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
 		if (isSpawnPointFlying && !isFlyingMonster)
 			continue;
 
+		// Calculate weight based on various factors
 		float weight = monster.weight;
 
-		// Apply wave-based weight adjustments
+		// Level-based weight adjustments
 		if (currentLevel <= 5) {
-			if (HasWaveType(monster.types, MonsterWaveType::Light))
-				weight *= 1.4f;
+			if (!HasWaveType(monster.types, MonsterWaveType::Light)) {
+				weight *= 0.3f;
+			}
 		}
 		else if (currentLevel <= 10) {
-			if (HasWaveType(monster.types, MonsterWaveType::Light | MonsterWaveType::Small))
-				weight *= 1.3f;
+			if (!HasWaveType(monster.types, MonsterWaveType::Light | MonsterWaveType::Small)) {
+				weight *= 0.4f;
+			}
 		}
 		else if (currentLevel <= 15) {
-			if (HasWaveType(monster.types, MonsterWaveType::Medium))
-				weight *= 1.25f;
+			if (!HasWaveType(monster.types, MonsterWaveType::Medium)) {
+				weight *= 0.5f;
+			}
 		}
 		else {
-			if (HasWaveType(monster.types, MonsterWaveType::Heavy | MonsterWaveType::Elite))
-				weight *= 1.35f + ((currentLevel - 15) * 0.02f);
+			if (!HasWaveType(monster.types, MonsterWaveType::Heavy | MonsterWaveType::Elite)) {
+				weight *= 0.6f;
+			}
+			else {
+				weight *= 1.0f + ((currentLevel - 15) * 0.02f);
+			}
 		}
-
-		// Special wave type bonuses
-		if (HasWaveType(currentWaveTypes, MonsterWaveType::Flying))
-			weight *= isFlyingMonster ? 2.0f : 0.5f;
-
-		if (HasWaveType(currentWaveTypes, MonsterWaveType::Fast) &&
-			HasWaveType(monster.types, MonsterWaveType::Fast))
-			weight *= 1.3f;
-
-		if (HasWaveType(currentWaveTypes, MonsterWaveType::Heavy) &&
-			HasWaveType(monster.types, MonsterWaveType::Heavy))
-			weight *= 1.4f;
 
 		// Difficulty adjustments
 		if (g_insane->integer || g_chaotic->integer) {
 			const float difficultyScale = currentLevel <= 10 ? 1.1f :
 				currentLevel <= 20 ? 1.2f :
 				currentLevel <= 30 ? 1.3f : 1.4f;
-
 			weight *= difficultyScale;
 
-			// Favor elite units in hard modes
-			if (HasWaveType(monster.types, MonsterWaveType::Elite))
+			if (HasWaveType(monster.types, MonsterWaveType::Elite)) {
 				weight *= 1.2f;
+			}
 		}
 
 		weight *= adjustmentFactor;
 
+		// Add to cache if weight is valid
 		if (weight > 0.0f) {
 			monster_cache.total_weight += weight;
 			auto& entry = monster_cache.entries[monster_cache.count];
@@ -1596,7 +1654,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 		return nullptr;
 	}
 
-	// Binary search selection
+	// Select monster using binary search
 	const float random_value = frandom() * monster_cache.total_weight;
 	size_t left = 0;
 	size_t right = monster_cache.count - 1;
@@ -1618,6 +1676,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	return chosen_monster;
 }
+
 void Horde_PreInit() {
 	gi.Com_Print("Horde mode must be DM. Set <deathmatch 1> and <horde 1>, then <map mapname>.\n");
 	gi.Com_Print("COOP requires <coop 1> and <horde 0>, optionally <g_hardcoop 1/0>.\n");
@@ -2036,20 +2095,6 @@ static void OldBossDeathHandler(edict_t* boss)
 
 	// Finalizar el manejo del boss
 	boss->takedamage = false;
-
-	// Verificar si es un jefe volador (array estático)
-	static constexpr std::array<const char*, 4> flyingBossTypes = {
-		"monster_boss2", "monster_carrier",
-		"monster_carrier_mini", "monster_boss2kl"
-	};
-
-	// Búsqueda simple en el array
-	for (const auto& bossType : flyingBossTypes) {
-		if (strcmp(boss->classname, bossType) == 0) {
-			current_wave_type = MonsterWaveType::None;
-			break;
-		}
-	}
 }
 
 
@@ -2398,14 +2443,6 @@ static void SpawnBossAutomatically() {
 	boss_spawned_for_wave = true;
 	boss->classname = desired_boss;
 
-	bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
-	// Configurar modo de monstruos voladores si aplica
-	isFlyingWave = (boss->classname && (
-		strcmp(boss->classname, "monster_boss2") == 0 ||
-		strcmp(boss->classname, "monster_carrier") == 0 ||
-		strcmp(boss->classname, "monster_carrier_mini") == 0 ||
-		strcmp(boss->classname, "monster_boss2kl") == 0));
-
 	// Posicionar jefe usando vec3_t
 	boss->s.origin = spawn_origin;
 	//gi.Com_PrintFmt("PRINT: Preparing to spawn boss at position: {}\n", boss->s.origin);
@@ -2425,7 +2462,7 @@ static void SpawnBossAutomatically() {
 
 THINK(BossSpawnThink)(edict_t* self) -> void {
 	// Reset wave type to None first
-	current_wave_type = MonsterWaveType::None;
+	//current_wave_type = MonsterWaveType::None;
 
 	// Remove the black light effect if it exists
 	if (self->owner) {
@@ -2434,14 +2471,20 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 	}
 
 	// Set wave type based on boss type
-	if (strcmp(self->classname, "monster_redmutant") == 0) {
-		current_wave_type = brandom() ? MonsterWaveType::Melee : MonsterWaveType::Mutant;
+	if (strcmp(self->classname, "monster_redmutant") == 0 ||
+		strcmp(self->classname, "monster_shamblerkl") == 0) {
+		current_wave_type = brandom() ? MonsterWaveType::Shambler : MonsterWaveType::Mutant;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nMutant's invasion approaches!\n");
 	}
 	else if (strcmp(self->classname, "monster_widow") == 0 ||
 		strcmp(self->classname, "monster_widow2") == 0) {
 		current_wave_type = MonsterWaveType::Small;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nWidow's small minions incoming!\n");
+	}
+
+	else if (strcmp(self->classname, "monster_psxarachnid") == 0) {
+		current_wave_type = MonsterWaveType::Arachnophobic;
+		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nArachnophobia wave incoming!\n");
 	}
 	else if (strcmp(self->classname, "monster_boss2") == 0 ||
 		strcmp(self->classname, "monster_carrier") == 0 ||
@@ -2450,13 +2493,12 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		current_wave_type = MonsterWaveType::Flying;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nAerial squadron incoming!\n");
 	}
-	else if (strcmp(self->classname, "monster_tank_64") == 0) {
+	else if (strcmp(self->classname, "monster_tank_64") == 0 ||
+		strcmp(self->classname, "monster_supertank") == 0 ||  // Added this
+		strcmp(self->classname, "monster_boss5") == 0	 ||  // Added this
+		strcmp(self->classname, "monster_guncmdrkl") == 0) {      // Added this
 		current_wave_type = MonsterWaveType::Heavy;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nHeavy armored division incoming!\n");
-	}
-	else if (strcmp(self->classname, "monster_guncmdrkl") == 0) {
-		current_wave_type = MonsterWaveType::Ranged | MonsterWaveType::Elite;
-		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nElite strike force incoming!\n");
 	}
 
 	// Boss spawn message
@@ -2971,7 +3013,7 @@ void ResetWaveAdvanceState() noexcept {
 	g_totalMonstersInWave = 0;
 
 	boss_spawned_for_wave = false;
-	current_wave_type = MonsterWaveType::None;
+	//current_wave_type = MonsterWaveType::None;
 
 	g_lastWaveNumber = -1;
 	g_lastNumHumanPlayers = -1;
