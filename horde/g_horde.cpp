@@ -1538,7 +1538,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	}
 
 	// Check if the entity is a monster (using the SVF_MONSTER flag)
-	if (ent->svflags & SVF_MONSTER) {
+	if (ent->svflags & SVF_MONSTER && !ent->deadflag) {
 		filter_data->count++;
 		return BoxEdictsResult_t::End; // Stop searching if a monster is found
 	}

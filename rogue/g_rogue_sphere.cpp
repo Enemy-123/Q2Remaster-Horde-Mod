@@ -568,6 +568,12 @@ THINK(hunter_think) (edict_t *self) -> void
 		return;
 	}
 
+	if (self->enemy->client) {
+		FindMTarget(self);
+			if (!FindMTarget(self))
+		G_FreeEdict(self);
+	}
+
 	// if we are spectator and no a doppleganger, FreeEdict.
 	if (self->owner && self->owner->movetype == MOVETYPE_NOCLIP && !(self->spawnflags & SPHERE_DOPPLEGANGER))
 	{
@@ -637,6 +643,12 @@ THINK(vengeance_think) (edict_t *self) -> void
 	{
 		sphere_think_explode(self);
 		return;
+	}
+
+	if (self->enemy->client) {
+		FindMTarget(self);
+		if (!FindMTarget(self))
+			G_FreeEdict(self);
 	}
 
 	// if we are spectator, FreeEdict.
