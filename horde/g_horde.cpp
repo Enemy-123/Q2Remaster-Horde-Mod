@@ -926,7 +926,7 @@ inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 // Example function to filter monsters by wave type
 // First the IsValidMonsterForWave function:
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
-	MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
+	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
 
 	// If there are no specific wave requirements, any monster is valid
 	if (waveRequirements == MonsterWaveType::None) {
@@ -1486,7 +1486,7 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
 
 inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
 	// Check for flying wave requirement
-	bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
+	const bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
 
 	// During flying waves, only allow flying monsters
 	if (isFlyingWave) {
@@ -1633,7 +1633,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			continue;
 
 		// Flying spawn point compatibility
-		bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
+		const bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
 		if (isSpawnPointFlying && !isFlyingMonster)
 			continue;
 

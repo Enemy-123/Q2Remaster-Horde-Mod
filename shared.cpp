@@ -792,7 +792,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 
 			// Calcular dirección y distancia
 			vec3_t push_dir = ent->s.origin - center;
-			float dist = push_dir.length(); // Usar length() directamente en vez de sqrt(lengthSquared())
+			const float dist = push_dir.length(); // Usar length() directamente en vez de sqrt(lengthSquared())
 
 			if (dist < 0.01f) {
 				push_dir = vec3_t{ crandom(), crandom(), 0.1f };
@@ -801,7 +801,7 @@ void PushEntitiesAway(const vec3_t& center, int num_waves, float push_radius, fl
 			push_dir.normalize();
 
 			// Calcular factor de distancia (1.0 cerca, 0.0 lejos)
-			float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
+			const float dist_factor = std::max(0.0f, 1.0f - (dist / search_radius));
 
 			// Calcular fuerza base del knockback
 			int base_push = (ent->svflags & SVF_MONSTER) ? 800 : 80;
