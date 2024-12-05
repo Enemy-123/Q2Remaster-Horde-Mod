@@ -821,7 +821,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	if (numHumanPlayers >= 3) {
 		// Gekk wave surprise (5-7)
 		if (waveNumber >= 5 && waveNumber <= 7 && frandom() < 0.35f && !WasRecentlyUsed(MonsterWaveType::Gekk)) {
-			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Surprise! Gekk invasion incoming! ***\n");
+			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Gekk invasion incoming! ***\n");
 			selected_type = MonsterWaveType::Gekk;
 			StoreWaveType(selected_type);
 			return selected_type;
@@ -830,7 +830,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 		// Mutant wave (8-9)
 		const auto mutant_type = MonsterWaveType::Mutant | MonsterWaveType::Melee;
 		if (waveNumber >= 8 && waveNumber <= 9 && frandom() < 0.30f && !WasRecentlyUsed(mutant_type)) {
-			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Surprise wave! Enraged Horde approaching! ***\n");
+			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Enraged Horde approaching! ***\n");
 			selected_type = mutant_type;
 			StoreWaveType(selected_type);
 			return selected_type;
