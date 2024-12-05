@@ -721,10 +721,12 @@ void SP_monster_boss2(edict_t* self)
 	self->mins = { -60, -60, 0 };
 	self->maxs = { 60, 60, 90 };
 
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 500;
+	if (self->monsterinfo.IS_BOSS) {
+		if (!st.was_key_specified("power_armor_type"))
+			self->monsterinfo.power_armor_type = IT_ITEM_POWER_SHIELD;
+		if (!st.was_key_specified("power_armor_power"))
+			self->monsterinfo.power_armor_power = 500;
+	}
 
 	if (g_horde->integer)
 	self->health = 6500 + (1.08 * current_wave_level);
@@ -811,6 +813,7 @@ void SP_monster_boss2_mini(edict_t* self)
 //HORDE BOSS
 void SP_monster_boss2kl(edict_t* self)
 {
+//	if (brandom())
 	self->spawnflags |= SPAWNFLAG_BOSS2_N64;
 	SP_monster_boss2(self);
 	if (g_horde->integer) {
