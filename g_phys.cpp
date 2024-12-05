@@ -51,7 +51,14 @@ contents_t G_GetClipMask(edict_t* ent)
 	mask &= ~CONTENTS_AREAPORTAL;
 
 	// horde mode - Solo proceder si es necesario
-	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER))
+	if (g_horde->integer && (ent->svflags & SVF_MONSTER) && (mask & CONTENTS_MONSTER)
+		//keeping the monster "walls" solid for q2ctf4
+		&& strcmp(ent->classname, "monster_boss3_stand")
+		&& strcmp(ent->classname, "misc_eastertank")
+		&& strcmp(ent->classname, "misc_easterchick")
+		&& strcmp(ent->classname, "misc_easterchick2")
+		&& strcmp(ent->classname, "monster_commander_body")
+		&& strcmp(ent->classname, "misc_bigviper"))
 	{
 		// Usando std::span podríamos optimizar el trace si tuviéramos acceso a los arrays internos
 		// Por ahora optimizamos el trace existente
