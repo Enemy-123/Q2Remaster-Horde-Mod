@@ -615,6 +615,15 @@ constexpr std::array<float, 3> WARNING_TIMES = { 30.0f, 10.0f, 5.0f };
 static void InitializeWaveType(int32_t lvl);
 
 static void Horde_InitLevel(const int32_t lvl) {
+
+	// Only initialize wave type for non-boss waves
+	if (!(lvl >= 10 && lvl % 5 == 0)) {
+		InitializeWaveType(lvl);
+	}
+	else {
+		current_wave_type = MonsterWaveType::None;  // Reset for boss waves
+	}
+
 	g_horde_local.update_map_size(GetCurrentMapName());
 	g_independent_timer_start = level.time;
 
@@ -622,7 +631,6 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_totalMonstersInWave = g_horde_local.num_to_spawn;
 	last_wave_number++;
 	g_horde_local.level = lvl;
-	InitializeWaveType(lvl);
 	current_wave_level = lvl;
 	//current_wave_type = MonsterWaveType::None;
 	boss_spawned_for_wave = false;
@@ -935,17 +943,17 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
 
 	// Early-Mid Game Units (Waves 4-8)
-	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Swimming | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Mutant| MonsterWaveType::Gekk , 4, 0.7f},
+	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Swimming | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
 	{"monster_parasite", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f},
 	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 8, 0.6f},
 	{"monster_soldier_hypergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 4, 0.7f},
 
 	// Mid Game Units (Waves 7-12)
 	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 7, 0.8f},
-	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 8, 0.8f},
+	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 8, 0.8f},
 	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
 	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 11, 0.6f},
-	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special| MonsterWaveType::Melee, 6, 0.7f},
+	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
 	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 10, 0.8f},
 
 	// Mid-Heavy Units (Waves 10-15)
@@ -954,26 +962,28 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy, 13, 0.4f},
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
 	{"monster_gladc", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
-
+	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 12, 0.4f},
 	//Arachnophobia here
+
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.45f},
 	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.35f},
 
 	// Fast Special Units (Waves 13+)
-	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee| MonsterWaveType::Mutant, 13, 0.7f},
+	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Mutant, 9, 0.7f},
 	{"monster_redmutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Mutant, 14, 0.5f},
 	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.6f},
 	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 27, 0.4f},
 	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 22, 0.6f},
 
 	// Heavy Units (Waves 15+)
+	{"monster_shambler_small", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant| MonsterWaveType::Shambler, 9, 0.3f},
 	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy, 14, 0.6f},
 	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.5f},
 	{"monster_runnertank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 16, 0.6f},
 	{"monster_tank_64", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.4f},
 	{"monster_shambler", MonsterWaveType::Shambler |MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f},
-
+	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
 	// Special Heavy Units (Waves 20+)
 	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special, 21, 0.5f},
 	{"monster_janitor2", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special, 26, 0.4f},
@@ -1008,39 +1018,14 @@ inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
 }
 
 static void InitializeWaveType(int32_t lvl) {
-	// Reset wave type flags
-//  current_wave_type = MonsterWaveType::None; // COMMENTED OUT - was resetting wave type unnecessarily
-
-	// Only set special wave types for non-boss waves
-	if (!boss_spawned_for_wave) {
-		// For waves 11+, 20% chance of special wave
-		if (lvl >= 11 && frandom() < 0.2f) {
-			// Determine special wave type
-			MonsterWaveType waveType = GetWaveComposition(lvl, true);
-			const char* waveTypeName = "";
-
-			if (HasWaveType(waveType, MonsterWaveType::Heavy))
-				waveTypeName = "Heavy";
-			else if (HasWaveType(waveType, MonsterWaveType::Medium))
-				waveTypeName = "Medium";
-			else if (HasWaveType(waveType, MonsterWaveType::Fast))
-				waveTypeName = "Fast";
-			else if (HasWaveType(waveType, MonsterWaveType::Melee))
-				waveTypeName = "Melee";
-
-			// Set the wave type and announce it
-			current_wave_type = waveType;
-			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Special {} Wave is coming! ***\n", waveTypeName);
-		}
-		else {
-			// Set normal wave composition for non-special waves
-			current_wave_type = GetWaveComposition(lvl, false);
-		}
+	// Only initialize wave type for non-boss waves
+	if (!(lvl >= 10 && lvl % 5 == 0)) {
+		current_wave_type = GetWaveComposition(lvl);
 	}
-	// If boss_spawned_for_wave is true, leave current_wave_type as is
-	// The boss spawn think function will set the appropriate wave type
+	else {
+		current_wave_type = MonsterWaveType::None;  // Reset for boss waves
+	}
 }
-
 #include <array>
 #include <unordered_set>
 #include <random>
@@ -1569,9 +1554,17 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	// Reset monster cache
 	monster_cache.clear();
 
-	// Get current level and wave composition
+	// Get current level
 	const int32_t currentLevel = g_horde_local.level;
-	const MonsterWaveType currentWaveTypes = GetWaveComposition(currentLevel);
+
+	// Use current_wave_type directly instead of GetWaveComposition
+	const MonsterWaveType currentWaveTypes = current_wave_type;
+
+	// If it's a boss wave and no wave type is set yet, wait for boss to spawn
+	if (currentWaveTypes == MonsterWaveType::None &&
+		currentLevel >= 10 && currentLevel % 5 == 0) {
+		return nullptr;
+	}
 
 	// Cache spawn point info
 	const bool isSpawnPointFlying = spawn_point->style == 1;
@@ -1621,6 +1614,17 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			}
 			else {
 				weight *= 1.0f + ((currentLevel - 15) * 0.02f);
+			}
+		}
+
+		// Special handling for boss wave minions
+		if (currentLevel >= 10 && currentLevel % 5 == 0 && boss_spawned_for_wave) {
+			// Increase weight for monsters that match the boss's theme
+			if (HasWaveType(monster.types, currentWaveTypes)) {
+				weight *= 2.0f;  // Double the weight for thematic monsters
+			}
+			else {
+				weight *= 0.3f;  // Reduce weight for non-thematic monsters
 			}
 		}
 
@@ -2365,6 +2369,7 @@ void BossSpawnThink(edict_t* self); // Forward declaration of the think function
 void SP_target_orb(edict_t* ent);
 static void SpawnBossAutomatically() {
 
+
 	//IF THERE'S A BOSS BEFORE THE NEW SPAWNING: remove him!
 	// Primero, eliminar cualquier boss existente
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end(); ) {
@@ -2380,6 +2385,8 @@ static void SpawnBossAutomatically() {
 			++it;
 		}
 	}
+
+	current_wave_type = MonsterWaveType::None;
 
 	// Limpiar la barra de salud existente
 	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
@@ -2461,16 +2468,13 @@ static void SpawnBossAutomatically() {
 }
 
 THINK(BossSpawnThink)(edict_t* self) -> void {
-	// Reset wave type to None first
-	//current_wave_type = MonsterWaveType::None;
-
 	// Remove the black light effect if it exists
 	if (self->owner) {
 		G_FreeEdict(self->owner);
 		self->owner = nullptr;
 	}
 
-	// Set wave type based on boss type
+	// Set wave type based on boss type (using = instead of |=)
 	if (strcmp(self->classname, "monster_redmutant") == 0 ||
 		strcmp(self->classname, "monster_shamblerkl") == 0) {
 		current_wave_type = brandom() ? MonsterWaveType::Shambler : MonsterWaveType::Mutant;
@@ -2481,7 +2485,6 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		current_wave_type = MonsterWaveType::Small;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nWidow's small minions incoming!\n");
 	}
-
 	else if (strcmp(self->classname, "monster_psxarachnid") == 0) {
 		current_wave_type = MonsterWaveType::Arachnophobic;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nArachnophobia wave incoming!\n");
@@ -2494,12 +2497,19 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nAerial squadron incoming!\n");
 	}
 	else if (strcmp(self->classname, "monster_tank_64") == 0 ||
-		strcmp(self->classname, "monster_supertank") == 0 ||  // Added this
-		strcmp(self->classname, "monster_boss5") == 0	 ||  // Added this
-		strcmp(self->classname, "monster_guncmdrkl") == 0) {      // Added this
+		strcmp(self->classname, "monster_supertank") == 0 ||
+		strcmp(self->classname, "monster_boss5") == 0) 
+		{
 		current_wave_type = MonsterWaveType::Heavy;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nHeavy armored division incoming!\n");
 	}
+
+	else if (strcmp(self->classname, "monster_guncmdrkl") == 0) 
+		{
+		current_wave_type = MonsterWaveType::Medium;
+		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nPrepare bayonets! mid range/melee stroggs incoming!\n");
+	}
+
 
 	// Boss spawn message
 	const auto it_msg = bossMessagesMap.find(self->classname);

@@ -563,6 +563,10 @@ MMOVE_T(shambler_attack_fireball) = { FRAME_smash01, FRAME_smash12, shambler_fra
 
 MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 {
+	if (!strcmp(self->classname, "monster_shambler_small")) {
+	M_SetAnimation(self, &shambler_attack_magic);
+	return;
+}
 	// Handle blind fire state
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
@@ -899,10 +903,8 @@ void SP_monster_shambler(edict_t* self)
 }
 
 //HORDE BOSS
-constexpr spawnflags_t SPAWNFLAG_SHAMBLERKL = 8_spawnflag;
 void SP_monster_shamblerkl(edict_t* self)
 {
-	self->spawnflags |= SPAWNFLAG_SHAMBLERKL;
 	SP_monster_shambler(self);
 	if (!strcmp(self->classname, "monster_shamblerkl")) {
 		self->health = 6500 + (1.08 * current_wave_level);
@@ -914,5 +916,20 @@ void SP_monster_shamblerkl(edict_t* self)
 		self->yaw_speed = 65;
 		//	self->s.renderfx = RF_TRANSLUCENT;
 		//	self->s.effects = EF_FLAG1;
+	ApplyMonsterBonusFlags(self);
+}
+
+void SP_monster_shambler_small(edict_t* self)
+{
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	SP_monster_shambler(self);
+	if (!strcmp(self->classname, "monster_shambler_small")) {
+		self->health = 700 + st.health_multiplier;
+		self->gib_health = -190;
+		self->s.scale = 0.6f;
+	}
+
+		self->yaw_speed = 65;
 	ApplyMonsterBonusFlags(self);
 }

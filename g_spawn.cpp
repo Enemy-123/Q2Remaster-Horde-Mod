@@ -248,6 +248,7 @@ void SP_info_ctf_teleport_destination(edict_t* self);
 // ZOID
 
 void SP_monster_shambler(edict_t* self);
+void SP_monster_shambler_small(edict_t* self);
 void SP_monster_shamblerkl(edict_t* self);
 
 // clang-format off
@@ -500,7 +501,8 @@ static const std::initializer_list<spawn_t> spawns = {
 	// ZOID
 
 	{ "monster_shambler", SP_monster_shambler },
-	{ "monster_shamblerkl", SP_monster_shamblerkl }
+	{ "monster_shamblerkl", SP_monster_shamblerkl },
+	{ "monster_shambler_small", SP_monster_shambler_small }
 };
 
 // clang-format on
