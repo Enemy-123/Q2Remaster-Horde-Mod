@@ -816,6 +816,22 @@ static void StoreWaveType(MonsterWaveType wave_type) {
 
 // Helper function to try setting a wave type with validation
 static bool TrySetWaveType(MonsterWaveType new_type) {
+	// Make flying waves more restrictive
+	if (HasWaveType(new_type, MonsterWaveType::Flying)) {
+		// Check if any of the recent waves were flying
+		for (const auto& prev_type : previous_wave_types) {
+			if (HasWaveType(prev_type, MonsterWaveType::Flying)) {
+				return false;  // Don't allow flying waves if we had one recently
+			}
+		}
+
+		// Also check if the previous wave was a boss wave
+		if (g_horde_local.level > 0 && (g_horde_local.level - 1) >= 10 &&
+			(g_horde_local.level - 1) % 5 == 0) {
+			return false;  // Don't allow flying waves right after boss waves
+		}
+	}
+
 	if (!WasRecentlyUsed(new_type)) {
 		current_wave_type = new_type;
 		StoreWaveType(new_type);
@@ -842,7 +858,8 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 		const SpecialWave special_waves[] = {
 			{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "\n*** Gekk invasion incoming! ***\n"},
 			{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 9, "\n*** Enraged Horde approaching! ***\n"},
-			{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.25f, 6, 8, "\n*** Aerial assault incoming! ***\n"}
+			{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.25f, 6, 8, "\n*** Aerial assault incoming! ***\n"},
+			{MonsterWaveType::Heavy, 0.15f, 12, -1, "\n*** Heavy Armored Units incoming! ***\n"}
 		};
 
 		// Try each special wave type, respecting the recent usage check
@@ -851,9 +868,6 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 				!WasRecentlyUsed(wave.type) && frandom() < wave.chance) {
 				selected_type = wave.type;
 				gi.LocBroadcast_Print(PRINT_HIGH, wave.message);
-				if (static_cast<uint32_t>(wave.type & MonsterWaveType::Flying) != 0) {
-					gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
-				}
 				StoreWaveType(selected_type);
 				return selected_type;
 			}
@@ -1015,14 +1029,14 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Arachnophobic Units (Waves 8-18)
 	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 8, 0.1f},
-	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic| MonsterWaveType::Heavy | MonsterWaveType::Elite, 12, 0.4f},
+	{"monster_guncmdr_vanilla", MonsterWaveType::Ground /*| MonsterWaveType::Arachnophobic*/| MonsterWaveType::Heavy | MonsterWaveType::Elite, 12, 0.4f},
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.45f},
 	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.35f},
 
 	// Mutant Units (Waves 9-14)
 	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f},
-	{"monster_shambler_small", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 9, 0.3f},
+	{"monster_shambler_small", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.3f},
 	{"monster_redmutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f},
 
 	// Heavy Ground Units (Waves 12-18)
@@ -1036,9 +1050,10 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_chick_heat", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 13, 0.6f},
 
 	// Elite Flying Units (Waves 18-27)
-	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.6f},
+	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.6f},
+	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.6f},
 	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 27, 0.45f},
-	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.25},
+	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 24, 0.15},
 
 	// Elite Ground Units (Waves 18+)
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
@@ -2565,24 +2580,25 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		strcmp(self->classname, "monster_carrier") == 0 ||
 		strcmp(self->classname, "monster_carrier_mini") == 0 ||
 		strcmp(self->classname, "monster_boss2kl") == 0) {
-		if (TrySetWaveType(MonsterWaveType::Flying)) {
-			gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nAerial squadron incoming!\n");
-		}
+		// Store both Flying and Boss types to prevent future flying waves
+		current_wave_type = MonsterWaveType::Flying | MonsterWaveType::Boss;
+		StoreWaveType(current_wave_type);
+		gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
+		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nAerial squadron incoming!\n");
 	}
 	else if (strcmp(self->classname, "monster_tank_64") == 0 ||
 		strcmp(self->classname, "monster_supertank") == 0 ||
 		strcmp(self->classname, "monster_psxguardian") == 0 ||
 		strcmp(self->classname, "monster_boss5") == 0) {
-		if (TrySetWaveType(MonsterWaveType::Heavy)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nHeavy armored division incoming!\n");
+		if (TrySetWaveType(MonsterWaveType:: Medium)) {
+			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nHeavy/Mid armored division incoming!\n");
 		}
 	}
 	else if (strcmp(self->classname, "monster_guncmdrkl") == 0 ||
 		strcmp(self->classname, "monster_makron") == 0 ||
 		strcmp(self->classname, "monster_makronkl") == 0) {
 		if (TrySetWaveType(MonsterWaveType::Medium)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nPrepare bayonets! mid range/melee stroggs incoming!\n");
+			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nPrepare bayonets! Medium range/melee stroggs incoming!\n");
 		}
 	}
 
