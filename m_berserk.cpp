@@ -851,15 +851,15 @@ void SP_monster_berserk(edict_t* self)
 	self->movetype = MOVETYPE_STEP;
 	self->solid = SOLID_BBOX;
 
-	if (!st.was_key_specified("power_armor_type"))
-		self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
-	if (!st.was_key_specified("power_armor_power"))
-		self->monsterinfo.power_armor_power = 95;
+	//if (!st.was_key_specified("power_armor_type"))
+	//	self->monsterinfo.power_armor_type = IT_ITEM_POWER_SCREEN;
+	//if (!st.was_key_specified("power_armor_power"))
+	//	self->monsterinfo.power_armor_power = 95;
 
-	self->health = 250 * st.health_multiplier;
+	self->health = 275 * st.health_multiplier;
 	self->gib_health = -60;
 	self->mass = 250;
-	self->s.scale = 1.2f;
+	//self->s.scale = 1.2f;
 
 
 	self->pain = berserk_pain;
