@@ -218,42 +218,21 @@ struct WeightedSelection {
 		if (item_count == 0 || total_weight <= 0.0f)
 			return nullptr;
 
-		// Crear vista de los items actuales usando span
 		std::span<const ItemEntry> items_view{ items.data(), item_count };
 
 		// Generar valor aleatorio
 		std::uniform_real_distribution<float> dist(0.0f, total_weight);
-		const float random_weight = dist(mt_rand);
+		float random_weight = dist(mt_rand);
 
-		// Búsqueda binaria optimizada usando span
+		// Recorrido lineal acumulando pesos
 		float cumulative = 0.0f;
-		size_t left = 0;
-		size_t right = item_count - 1;
-
-		while (left <= right) {
-			const size_t mid = (left + right) / 2;
-			cumulative += items_view[mid].weight;
-
-			if (cumulative >= random_weight) {
-				// Encontrado el item
-				return items_view[mid].item;
-			}
-			else if (mid == right) {
-				// Caso especial: último elemento
-				return items_view[right].item;
-			}
-
-			if (cumulative < random_weight) {
-				left = mid + 1;
-				if (left > right) break;
-			}
-			else {
-				if (mid == 0) break;
-				right = mid - 1;
-			}
+		for (const auto& entry : items_view) {
+			cumulative += entry.weight;
+			if (random_weight <= cumulative)
+				return entry.item;
 		}
 
-		// Fallback al último item si algo sale mal
+		// Fallback al último item
 		return items_view[item_count - 1].item;
 	}
 
@@ -799,7 +778,6 @@ constexpr weighted_item_t monsters[] = {
 	{ "monster_gladc", 18, -1, 0.28f },
 	{ "monster_daedalus", 18, -1, 0.1f, nullptr, FL_FLY },
 	{ "monster_boss2_64", 19, -1, 0.09f, nullptr, FL_FLY },
-	//{ "monster_boss2_mini", 19, -1, 0.09f, nullptr, FL_FLY },
 	{ "monster_perrokl", 20, -1, 0.25f },
 	{ "monster_janitor", 21, -1, 0.12f },
 	{ "monster_redmutant", 22, -1, 0.14f },
