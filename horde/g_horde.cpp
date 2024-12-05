@@ -156,14 +156,10 @@ enum class MonsterWaveType : uint32_t {
 	Melee = 1 << 11, // Primarily melee attackers
 	Special = 1 << 12, // Special units (medics, commanders)
 	Elite = 1 << 13,  // Elite variants of basic units
-
-	//wtf
-
 	Gekk = 1 << 14,  // Gekk initial wave?
 	Shambler = 1 << 15,  // Shambler boss wave?
-	Mutant = 1 << 16 , // Mutant boss wave?
+	Mutant = 1 << 16, // Mutant boss wave?
 	Arachnophobic = 1 << 17  // Mutant boss wave?
-
 };
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
@@ -768,9 +764,10 @@ constexpr struct weighted_item_t {
 
 
 // Allow flag operations on MonsterWaveType
-inline MonsterWaveType operator|(MonsterWaveType a, MonsterWaveType b) {
+constexpr MonsterWaveType operator|(MonsterWaveType a, MonsterWaveType b) {
 	return static_cast<MonsterWaveType>(
-		static_cast<uint32_t>(a) | static_cast<uint32_t>(b)
+		static_cast<std::underlying_type_t<MonsterWaveType>>(a) |
+		static_cast<std::underlying_type_t<MonsterWaveType>>(b)
 		);
 }
 
@@ -992,10 +989,14 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 
 // Structure to include wave level information
 struct MonsterTypeInfo {
-	const char* classname;
-	MonsterWaveType types;
-	int minWave;    // Minimum wave level this monster appears
-	float weight;   // Base spawn weight
+    const char* classname;
+    MonsterWaveType types;
+    int minWave;
+    float weight;
+
+    // Add a constexpr constructor
+    constexpr MonsterTypeInfo(const char* n, MonsterWaveType t, int w, float wt) 
+        : classname(n), types(t), minWave(w), weight(wt) {}
 };
 
 static const MonsterTypeInfo monsterTypes[] = {
