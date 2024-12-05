@@ -951,8 +951,9 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Mid Game Units (Waves 7-12)
 	{"monster_soldier_ripper", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 7, 0.8f},
 	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 8, 0.8f},
+	{"monster_infantry", MonsterWaveType::Ground | MonsterWaveType::Medium| MonsterWaveType::Light | MonsterWaveType::Ranged, 11, 0.85f},
 	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 11, 0.6f},
+	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 9, 0.6f},
 	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
 	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 10, 0.8f},
 
@@ -965,13 +966,14 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 12, 0.4f},
 	//Arachnophobia here
 
+	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 8, 0.1f},
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.45f},
 	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.35f},
 
 	// Fast Special Units (Waves 13+)
 	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Mutant, 9, 0.7f},
-	{"monster_redmutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Mutant, 14, 0.5f},
+	{"monster_redmutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Mutant, 14, 0.35f},
 	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.6f},
 	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 27, 0.4f},
 	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 22, 0.6f},
@@ -983,7 +985,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_runnertank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 16, 0.6f},
 	{"monster_tank_64", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.4f},
 	{"monster_shambler", MonsterWaveType::Shambler |MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 22, 0.4f},
-	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
+	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 15, 0.7f},
 	// Special Heavy Units (Waves 20+)
 	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special, 21, 0.5f},
 	{"monster_janitor2", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special, 26, 0.4f},
@@ -995,7 +997,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_shamblerkl", MonsterWaveType::Shambler |MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.3f},
 	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.2f},
 	{"monster_boss2kl", MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
-	{"monster_perrokl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast, 20, 0.4f},
+	{"monster_perrokl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f},
 	{"monster_widow1", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f},
 
 	// Boss Units
@@ -2498,13 +2500,16 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 	}
 	else if (strcmp(self->classname, "monster_tank_64") == 0 ||
 		strcmp(self->classname, "monster_supertank") == 0 ||
+		strcmp(self->classname, "monster_psxguardian") == 0 ||
 		strcmp(self->classname, "monster_boss5") == 0) 
 		{
 		current_wave_type = MonsterWaveType::Heavy;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nHeavy armored division incoming!\n");
 	}
 
-	else if (strcmp(self->classname, "monster_guncmdrkl") == 0) 
+	else if (strcmp(self->classname, "monster_guncmdrkl") == 0 || 
+		strcmp(self->classname, "monster_makron") == 0 || 
+		strcmp(self->classname, "monster_makronkl") == 0)
 		{
 		current_wave_type = MonsterWaveType::Medium;
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nPrepare bayonets! mid range/melee stroggs incoming!\n");
