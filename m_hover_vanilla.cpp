@@ -545,7 +545,7 @@ void hover_vanilla_fire_blaster(edict_t* self)
 
 	// PGM	- daedalus fires blaster2
 	PredictAim(self, self->enemy, start, blasterSpeed / 1.5, true, 0.f, &dir, &end);
-	monster_fire_blaster2(self, start, dir, 12, blasterSpeed, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
+	monster_fire_blaster(self, start, dir, 12, blasterSpeed, (self->s.frame & 1) ? MZ2_DAEDALUS_BLASTER_2 : MZ2_DAEDALUS_BLASTER, (self->s.frame % 4) ? EF_NONE : EF_BLASTER);
 	// PGM
 }
 

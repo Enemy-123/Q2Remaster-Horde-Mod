@@ -540,66 +540,66 @@ struct MonsterReplacement {
 	}
 };
 
-// Arrays de reemplazos para cada modo utilizando la nueva estructura
-static constexpr MonsterReplacement chaotic_replacements[] = {
-	// Early game (Olas 1-5)
-	{"monster_soldier_light", {"monster_soldier_hypergun", "monster_soldier", "monster_soldier_ripper"}},
-	{"monster_soldier_ss", {"monster_infantry_vanilla", "monster_soldier_lasergun", "monster_soldier_hypergun"}},
-	{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_infantry", "monster_soldier_ss"}},
-	{"monster_parasite", {"monster_parasite", "monster_stalker", "monster_gekk"}},
-
-	// Mid-early game (Olas 6-10)
-	{"monster_gunner_vanilla", {"monster_gunner_vanilla", "monster_guncmdr_vanilla", "monster_brain"}},
-	{"monster_guncmdr_vanilla", {"monster_gunner_vanilla", "monster_guncmdr", "monster_brain"}},
-	{"monster_medic", {"monster_medic", "monster_gunner_vanilla", "monster_brain", "monster_gunner"}},
-	{"monster_flyer", {"monster_hover_vanilla", "monster_flyer", "monster_fixbot"}},
-
-	// Mid game (Olas 11-14)
-	{"monster_tank", {"monster_tank_commander", "monster_shambler", "monster_tank_spawner", "monster_runnertank"}},
-	{"monster_brain", {"monster_brain", "monster_gunner_vanilla", "monster_berserk", "monster_brain"}},
-	{"monster_gladiator", {"monster_gladc", "monster_gladiator", ""}},
-	{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_hover_vanilla", "monster_hover_vanilla"}},
-	{"monster_floater", {"monster_daedalus", "monster_floater", "monster_floater"}},
-
-	// Special spawns
-	{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}},
-	{"monster_chick", {"monster_chick", "monster_chick_heat", "monster_gladiator"}},
-	{"monster_gekk", {"monster_gekk", "monster_stalker", "monster_parasite"}},
-
-	// Mini-boss replacements
-	{"monster_tank_commander", {"monster_tank_commander", "monster_tank_64", "monster_shambler", "monster_boss2_64", "monster_boss2_mini"}},
-	{"monster_shambler", {"monster_shambler", "monster_tank_commander", "monster_boss2_64", "monster_boss2_mini", "monster_tank_64"}}
-};
-
-static constexpr MonsterReplacement insane_replacements[] = {
-	// Early game
-	{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}},
-	{"monster_soldier", {"monster_soldier_hypergun", "monster_gunner_vanilla"}},
-	{"monster_infantry_vanilla", {"monster_gunner", "monster_brain"}},
-	{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr_vanilla"}},
-	{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr"}},
-
-	// Mid game
-	{"monster_brain", {"monster_brain", "monster_shambler", "monster_gladiator"}},
-	{"monster_tank", {"monster_tank", "monster_tank_commander", "monster_shambler"}},
-	{"monster_gunner", {"monster_guncmdr", "monster_gladb"}},
-
-	// Flying enemies
-	{"monster_flyer", {"monster_flyer","monster_hover_vanilla"}},
-	{"monster_floater", {"monster_floater","monster_floater_tracker", "monster_daedalus_bomber", "monster_daedalus"}},
-
-	// Late game elite
-	{"monster_spider", {"monster_gm_arachnid", "monster_arachnid2"}},
-	{"monster_arachnid2", {"monster_gm_arachnid", "monster_arachnid2", "monster_arachnid"}},
-	{"monster_arachnid", {"monster_tank_commander", "monster_psxarachnid", "monster_arachnid", "monster_gm_arachnid"}},
-	{"monster_shambler", {"monster_shambler", "monster_tank_64", "monster_boss2_64", "monster_boss2_mini", "monster_redmutant"}},
-
-	// Special enemies
-	{"monster_medic", {"monster_medic_commander", "monster_brain"}},
-	{"monster_gladiator", {"monster_gladc", "monster_gladb", "monster_gladiator", "monster_tank_commander"}},
-	{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64", "monster_boss2_mini"}},
-	{"monster_boss2_mini", {"monster_boss2_64", "monster_boss2_mini"}}
-};
+//// Arrays de reemplazos para cada modo utilizando la nueva estructura
+//static constexpr MonsterReplacement chaotic_replacements[] = {
+//	// Early game (Olas 1-5)
+//	{"monster_soldier_light", {"monster_soldier_hypergun", "monster_soldier", "monster_soldier_ripper"}},
+//	{"monster_soldier_ss", {"monster_infantry_vanilla", "monster_soldier_lasergun", "monster_soldier_hypergun"}},
+//	{"monster_infantry_vanilla", {"monster_gunner_vanilla", "monster_infantry", "monster_soldier_ss"}},
+//	{"monster_parasite", {"monster_parasite", "monster_stalker", "monster_gekk"}},
+//
+//	// Mid-early game (Olas 6-10)
+//	{"monster_gunner_vanilla", {"monster_gunner_vanilla", "monster_guncmdr_vanilla", "monster_brain"}},
+//	{"monster_guncmdr_vanilla", {"monster_gunner_vanilla", "monster_guncmdr", "monster_brain"}},
+//	{"monster_medic", {"monster_medic", "monster_gunner_vanilla", "monster_brain", "monster_gunner"}},
+//	{"monster_flyer", {"monster_hover_vanilla", "monster_flyer", "monster_fixbot"}},
+//
+//	// Mid game (Olas 11-14)
+//	{"monster_tank", {"monster_tank_commander", "monster_shambler", "monster_tank_spawner", "monster_runnertank"}},
+//	{"monster_brain", {"monster_brain", "monster_gunner_vanilla", "monster_berserk", "monster_brain"}},
+//	{"monster_gladiator", {"monster_gladc", "monster_gladiator", ""}},
+//	{"monster_hover", {"monster_hover", "monster_hover_vanilla", "monster_hover_vanilla", "monster_hover_vanilla"}},
+//	{"monster_floater", {"monster_daedalus", "monster_floater", "monster_floater"}},
+//
+//	// Special spawns
+//	{"monster_mutant", {"monster_mutant", "monster_redmutant", "monster_berserk"}},
+//	{"monster_chick", {"monster_chick", "monster_chick_heat", "monster_gladiator"}},
+//	{"monster_gekk", {"monster_gekk", "monster_stalker", "monster_parasite"}},
+//
+//	// Mini-boss replacements
+//	{"monster_tank_commander", {"monster_tank_commander", "monster_tank_64", "monster_shambler", "monster_boss2_64", "monster_boss2_mini"}},
+//	{"monster_shambler", {"monster_shambler", "monster_tank_commander", "monster_boss2_64", "monster_boss2_mini", "monster_tank_64"}}
+//};
+//
+//static constexpr MonsterReplacement insane_replacements[] = {
+//	// Early game
+//	{"monster_soldier_light", {"monster_soldier_lasergun", "monster_soldier_hypergun"}},
+//	{"monster_soldier", {"monster_soldier_hypergun", "monster_gunner_vanilla"}},
+//	{"monster_infantry_vanilla", {"monster_gunner", "monster_brain"}},
+//	{"monster_gunner_vanilla", {"monster_gunner", "monster_guncmdr_vanilla"}},
+//	{"monster_guncmdr_vanilla", {"monster_gunner", "monster_guncmdr"}},
+//
+//	// Mid game
+//	{"monster_brain", {"monster_brain", "monster_shambler", "monster_gladiator"}},
+//	{"monster_tank", {"monster_tank", "monster_tank_commander", "monster_shambler"}},
+//	{"monster_gunner", {"monster_guncmdr", "monster_gladb"}},
+//
+//	// Flying enemies
+//	{"monster_flyer", {"monster_flyer","monster_hover_vanilla"}},
+//	{"monster_floater", {"monster_floater","monster_floater_tracker", "monster_daedalus_bomber", "monster_daedalus"}},
+//
+//	// Late game elite
+//	{"monster_spider", {"monster_gm_arachnid", "monster_arachnid2"}},
+//	{"monster_arachnid2", {"monster_gm_arachnid", "monster_arachnid2", "monster_arachnid"}},
+//	{"monster_arachnid", {"monster_tank_commander", "monster_psxarachnid", "monster_arachnid", "monster_gm_arachnid"}},
+//	{"monster_shambler", {"monster_shambler", "monster_tank_64", "monster_boss2_64", "monster_boss2_mini", "monster_redmutant"}},
+//
+//	// Special enemies
+//	{"monster_medic", {"monster_medic_commander", "monster_brain"}},
+//	{"monster_gladiator", {"monster_gladc", "monster_gladb", "monster_gladiator", "monster_tank_commander"}},
+//	{"monster_tank_commander", {"monster_tank_64", "monster_boss2_64", "monster_boss2_mini"}},
+//	{"monster_boss2_mini", {"monster_boss2_64", "monster_boss2_mini"}}
+//};
 
 static constexpr MonsterReplacement hardcoop_replacements[] = {
 	{"monster_soldier_light", {"monster_soldier_ripper", "monster_soldier_hypergun", "monster_soldier_lasergun", "monster_soldier", "monster_soldier_ss"}},
@@ -626,9 +626,8 @@ static constexpr MonsterReplacement hardcoop_replacements[] = {
 };
 
 // Tamaños constexpr
-static constexpr size_t CHAOTIC_COUNT = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
-static constexpr size_t INSANE_COUNT = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
-static constexpr size_t HARDCOOP_COUNT = sizeof(hardcoop_replacements) / sizeof(hardcoop_replacements[0]);
+//static constexpr size_t CHAOTIC_COUNT = sizeof(chaotic_replacements) / sizeof(chaotic_replacements[0]);
+//static constexpr size_t INSANE_COUNT = sizeof(insane_replacements) / sizeof(insane_replacements[0]);
 
 // Función modernizada para aplicar reemplazos
 static void perform_replacement(edict_t* ent, std::span<const MonsterReplacement> replacements, float prob) {
@@ -700,23 +699,23 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 		return;
 	}
 
-	if (g_horde->integer && current_wave_level > 0) {
-		if (g_chaotic->integer) {
-			if ((g_chaotic->integer == 2 && current_wave_level >= 4) ||
-				(g_chaotic->integer == 1 && current_wave_level >= 7)) {
-				perform_replacement(ent, std::span(chaotic_replacements),
-					g_chaotic->integer == 2 ? 0.08f : 0.03f);
-			}
-		}
+	//if (g_horde->integer && current_wave_level > 0) {
+	//	if (g_chaotic->integer) {
+	//		if ((g_chaotic->integer == 2 && current_wave_level >= 4) ||
+	//			(g_chaotic->integer == 1 && current_wave_level >= 7)) {
+	//			perform_replacement(ent, std::span(chaotic_replacements),
+	//				g_chaotic->integer == 2 ? 0.08f : 0.03f);
+	//		}
+	//	}
 
-		if (g_insane->integer) {
-			if ((g_insane->integer == 2 && current_wave_level >= 4) ||
-				(g_insane->integer == 1 && current_wave_level >= 7)) {
-				perform_replacement(ent, std::span(insane_replacements),
-					g_insane->integer == 2 ? 0.37f : 0.04f);
-			}
-		}
-	}
+	//	if (g_insane->integer) {
+	//		if ((g_insane->integer == 2 && current_wave_level >= 4) ||
+	//			(g_insane->integer == 1 && current_wave_level >= 7)) {
+	//			perform_replacement(ent, std::span(insane_replacements),
+	//				g_insane->integer == 2 ? 0.37f : 0.04f);
+	//		}
+	//	}
+	//}
 
 	current_st = &spawntemp;
 
