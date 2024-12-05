@@ -20,6 +20,7 @@ static cached_soundindex start_sounds[NUM_START_SOUNDS];
 static cached_soundindex sound_tele3;      // Para teleport
 static cached_soundindex sound_tele_up;     // Para teleport escape
 static cached_soundindex sound_spawn1;      // Para spawn de monstruos
+static cached_soundindex incoming;      // Para spawn de monstruos
 
 // Arrays de strings con los nombres de los sonidos
 static constexpr const char* WAVE_SOUND_PATHS[NUM_WAVE_SOUNDS] = {
@@ -791,85 +792,104 @@ inline bool HasWaveType(MonsterWaveType entityTypes, MonsterWaveType typeToCheck
 
 
 
-// Get recommended wave types based on wave number
+// First, add these at the top with other global variables
+static constexpr size_t WAVE_MEMORY_SIZE = 3;  // Remember last 3 waves
+static std::array<MonsterWaveType, WAVE_MEMORY_SIZE> previous_wave_types = {};
+static size_t wave_memory_index = 0;
+
+// Helper function to check if a wave type was recently used
+static bool WasRecentlyUsed(MonsterWaveType wave_type) {
+	for (const auto& prev_type : previous_wave_types) {
+		if (prev_type == wave_type) {
+			return true;
+		}
+	}
+	return false;
+}
+
+// Helper function to store wave type in memory
+static void StoreWaveType(MonsterWaveType wave_type) {
+	previous_wave_types[wave_memory_index] = wave_type;
+	wave_memory_index = (wave_memory_index + 1) % WAVE_MEMORY_SIZE;
+}
+
 inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave = false) {
-	// Get number of human players
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
+	MonsterWaveType selected_type;
 
 	// Surprise waves based on conditions
 	if (numHumanPlayers >= 3) {
 		// Gekk wave surprise (5-7)
-		if (waveNumber >= 5 && waveNumber <= 7 && frandom() < 0.35f) {
+		if (waveNumber >= 5 && waveNumber <= 7 && frandom() < 0.35f && !WasRecentlyUsed(MonsterWaveType::Gekk)) {
 			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Surprise! Gekk invasion incoming! ***\n");
-			return MonsterWaveType::Gekk;
+			selected_type = MonsterWaveType::Gekk;
+			StoreWaveType(selected_type);
+			return selected_type;
 		}
 
-		// Could add other surprise waves here:
-		// Example: All Mutant wave (8-9)
-		if (waveNumber >= 8 && waveNumber <= 9 && frandom() < 0.30f) {
-			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Surprise wave! horde approaching! ***\n");
-			return MonsterWaveType::Mutant | MonsterWaveType::Melee;
+		// Mutant wave (8-9)
+		const auto mutant_type = MonsterWaveType::Mutant | MonsterWaveType::Melee;
+		if (waveNumber >= 8 && waveNumber <= 9 && frandom() < 0.30f && !WasRecentlyUsed(mutant_type)) {
+			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Surprise wave! Enraged Horde approaching! ***\n");
+			selected_type = mutant_type;
+			StoreWaveType(selected_type);
+			return selected_type;
 		}
 
-		// Example: Pure Flying wave (6-8)
-		if (waveNumber >= 6 && waveNumber <= 8 && frandom() < 0.25f) {
+		// Flying wave (6-8)
+		const auto flying_type = MonsterWaveType::Flying | MonsterWaveType::Fast;
+		if (waveNumber >= 6 && waveNumber <= 8 && frandom() < 0.25f && !WasRecentlyUsed(flying_type)) {
 			gi.LocBroadcast_Print(PRINT_HIGH, "\n*** Aerial assault incoming! ***\n");
-			return MonsterWaveType::Flying | MonsterWaveType::Fast;
+			gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
+			selected_type = flying_type;
+			StoreWaveType(selected_type);
+			return selected_type;
 		}
 	}
 
-	// Regular special wave logic (20% chance for waves 11+)
-	if (forceSpecialWave && waveNumber >= 11) {
-		const float specialType = frandom();
-		if (specialType < 0.25f)
-			return MonsterWaveType::Heavy;
-		else if (specialType < 0.50f)
-			return MonsterWaveType::Medium;
-		else if (specialType < 0.75f)
-			return MonsterWaveType::Fast;
-		else
-			return MonsterWaveType::Melee;
-	}
-
-	// Rest of your regular wave composition logic...
+	// Regular wave composition logic
 	if (waveNumber <= 5) {
-		return MonsterWaveType::Light | MonsterWaveType::Ground;
+		selected_type = MonsterWaveType::Light | MonsterWaveType::Ground;
 	}
-	if (waveNumber <= 10) {
-		return MonsterWaveType::Light | MonsterWaveType::Ground |
-			MonsterWaveType::Small | MonsterWaveType::Flying;
-	}
-
-	//// Special boss wave types
-	//if (waveNumber >= 10 && waveNumber % 5 == 0) {
-	//	// We'll determine the wave type after the boss is chosen
-	//	// This will be handled in BossSpawnThink
-	//	return MonsterWaveType::None;
-	//}
-
-	if (waveNumber <= 15) {
-		return MonsterWaveType::Light | MonsterWaveType::Medium |
-			MonsterWaveType::Flying | MonsterWaveType::Special;
-	}
-
-	if (waveNumber <= 20) {
-		return MonsterWaveType::Medium | MonsterWaveType::Heavy |
+	else if (waveNumber <= 10) {
+		const auto flying_combo = MonsterWaveType::Light | MonsterWaveType::Ground |
 			MonsterWaveType::Flying | MonsterWaveType::Fast;
-	}
 
-	if (waveNumber <= 25) {
-		return MonsterWaveType::Heavy | MonsterWaveType::Elite |
+		if (frandom() < 0.15f && !WasRecentlyUsed(flying_combo)) {
+			gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
+			selected_type = flying_combo;
+		}
+		else {
+			selected_type = MonsterWaveType::Light | MonsterWaveType::Ground |
+				MonsterWaveType::Small;
+		}
+	}
+	else if (waveNumber <= 15) {
+		selected_type = MonsterWaveType::Light | MonsterWaveType::Medium |
+			MonsterWaveType::Ground | MonsterWaveType::Special;
+	}
+	else if (waveNumber <= 20) {
+		selected_type = MonsterWaveType::Medium | MonsterWaveType::Heavy |
+			MonsterWaveType::Ground | MonsterWaveType::Fast;
+	}
+	else if (waveNumber <= 25) {
+		selected_type = MonsterWaveType::Heavy | MonsterWaveType::Elite |
 			MonsterWaveType::Special | MonsterWaveType::Fast;
 	}
-
-	if (waveNumber <= 30) {
-		return MonsterWaveType::Heavy | MonsterWaveType::Elite |
+	else if (waveNumber <= 30) {
+		selected_type = MonsterWaveType::Heavy | MonsterWaveType::Elite |
 			MonsterWaveType::SemiBoss | MonsterWaveType::Special;
 	}
+	else {
+		selected_type = MonsterWaveType::Elite | MonsterWaveType::SemiBoss |
+			MonsterWaveType::Heavy | MonsterWaveType::Special;
+	}
 
-	return MonsterWaveType::Elite | MonsterWaveType::SemiBoss |
-		MonsterWaveType::Heavy | MonsterWaveType::Special;
+	StoreWaveType(selected_type);
+	return selected_type;
 }
+
+
 
 // Wave difficulty multiplier
 inline static float GetWaveDifficultyMultiplier(int waveNumber) noexcept {
@@ -943,7 +963,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
 
 	// Early-Mid Game Units (Waves 4-8)
-	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Swimming | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
+	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Swimming | MonsterWaveType::Fast | MonsterWaveType::Melee| MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
 	{"monster_parasite", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f},
 	{"monster_hover_vanilla", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 8, 0.6f},
 	{"monster_soldier_hypergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 4, 0.7f},
@@ -953,7 +973,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 8, 0.8f},
 	{"monster_infantry", MonsterWaveType::Ground | MonsterWaveType::Medium| MonsterWaveType::Light | MonsterWaveType::Ranged, 11, 0.85f},
 	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 9, 0.6f},
+	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f},
 	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
 	{"monster_soldier_lasergun", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Elite | MonsterWaveType::Ranged, 10, 0.8f},
 
@@ -1857,6 +1877,7 @@ static void PrecacheWaveSounds() noexcept {
 	sound_tele3.assign("misc/r_tele3.wav");
 	sound_tele_up.assign("misc/tele_up.wav");
 	sound_spawn1.assign("misc/spawn1.wav");
+	incoming.assign("world/incoming.wav");
 
 	// Precachear arrays de sonidos
 	for (size_t i = 0; i < NUM_WAVE_SOUNDS; ++i) {
@@ -2496,6 +2517,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		strcmp(self->classname, "monster_carrier_mini") == 0 ||
 		strcmp(self->classname, "monster_boss2kl") == 0) {
 		current_wave_type = MonsterWaveType::Flying;
+		gi.sound(world, CHAN_AUTO, incoming, 1, ATTN_NONE, 0);
 		gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nAerial squadron incoming!\n");
 	}
 	else if (strcmp(self->classname, "monster_tank_64") == 0 ||
@@ -2892,6 +2914,12 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 //
 // game resetting
 //
+// Add this to your reset functions to clear the memory when starting a new game
+void ResetWaveMemory() {
+	previous_wave_types.fill(MonsterWaveType::None);
+	wave_memory_index = 0;
+
+}
 
 void ResetGame() {
 
@@ -2903,6 +2931,8 @@ void ResetGame() {
 
 	// Establecer el flag al inicio de la ejecución
 	hasBeenReset = true;
+
+	ResetWaveMemory();
 
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
 		edict_t* boss = *it;

@@ -925,9 +925,11 @@ void SP_monster_shambler_small(edict_t* self)
 
 	SP_monster_shambler(self);
 	if (!strcmp(self->classname, "monster_shambler_small")) {
-		self->health = 700 + st.health_multiplier;
+		self->health = 350 + st.health_multiplier;
 		self->gib_health = -190;
 		self->s.scale = 0.6f;
+		self->mins *= 0.6f;
+		self->maxs *= 0.6f;
 	}
 
 		self->yaw_speed = 65;
