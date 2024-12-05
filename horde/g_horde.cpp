@@ -70,7 +70,7 @@ bool allowWaveAdvance = false; // Global variable to control wave advancement
 
 bool boss_spawned_for_wave = false; // to avoid boss spamming
 
-bool flying_monsters_mode = false;  // flying wave
+//bool flying_monsters_mode = false;  // flying wave
 bool melee_monsters_mode = false;   // For RedMutant waves
 bool small_monsters_mode = false;   // For Widow waves
 
@@ -138,6 +138,34 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 
 cvar_t* g_horde;
 #include <span>
+// Monster wave type flags
+enum class MonsterWaveType : uint32_t {
+	None = 0,
+	Flying = 1 << 0,  // Flying units
+	Swimming = 1 << 1,  // Swimming units (gekk)
+	Ground = 1 << 2,  // Basic ground units
+	Small = 1 << 3,  // Small units (parasite, stalker)
+	Light = 1 << 4,  // Light units (soldiers, basic infantry)
+	Heavy = 1 << 5,  // Heavy units (tanks, enforcers)
+	Medium = 1 << 6,  // Medium units (gladiators, medics)
+	Fast = 1 << 7,  // Fast moving units
+	SemiBoss = 1 << 8,  // Mini-boss tier units
+	Boss = 1 << 9,  // Full boss units
+	Ranged = 1 << 10, // Primarily ranged attackers
+	Melee = 1 << 11, // Primarily melee attackers
+	Special = 1 << 12, // Special units (medics, commanders)
+	Elite = 1 << 13,  // Elite variants of basic units
+
+	//wtf
+
+	Gekk = 1 << 14,  // Gekk initial wave?
+	Shambler = 1 << 15,  // Shambler boss wave?
+	Mutant = 1 << 16  // Mutant boss wave?
+
+};
+
+MonsterWaveType current_wave_type = MonsterWaveType::None;
+
 
 enum class horde_state_t {
 	warmup,
@@ -595,7 +623,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_horde_local.level = lvl;
 	InitializeWaveType(lvl);
 	current_wave_level = lvl;
-	flying_monsters_mode = false;
+	current_wave_type = MonsterWaveType::None;
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 
@@ -727,33 +755,7 @@ constexpr struct weighted_item_t {
 	{ "item_silencer", 15, -1, 0.1f, adjust_weight_ammo },
 };
 
-// Monster wave type flags
-enum class MonsterWaveType : uint32_t {
-	None = 0,
-	Flying = 1 << 0,  // Flying units
-	Swimming = 1 << 1,  // Swimming units (gekk)
-	Ground = 1 << 2,  // Basic ground units
-	Small = 1 << 3,  // Small units (parasite, stalker)
-	Light = 1 << 4,  // Light units (soldiers, basic infantry)
-	Heavy = 1 << 5,  // Heavy units (tanks, enforcers)
-	Medium = 1 << 6,  // Medium units (gladiators, medics)
-	Fast = 1 << 7,  // Fast moving units
-	SemiBoss = 1 << 8,  // Mini-boss tier units
-	Boss = 1 << 9,  // Full boss units
-	Ranged = 1 << 10, // Primarily ranged attackers
-	Melee = 1 << 11, // Primarily melee attackers
-	Special = 1 << 12, // Special units (medics, commanders)
-	Elite = 1 << 13,  // Elite variants of basic units
 
-	//wtf
-
-	Gekk = 1 << 14,  // Gekk initial wave?
-	Shambler = 1 << 15,  // Shambler boss wave?
-	Mutant = 1 << 16  // Mutant boss wave?
-
-};
-
-MonsterWaveType current_wave_type = MonsterWaveType::None;
 
 // Allow flag operations on MonsterWaveType
 inline MonsterWaveType operator|(MonsterWaveType a, MonsterWaveType b) {
@@ -953,8 +955,7 @@ inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept {
 
 static void InitializeWaveType(int32_t lvl) {
 	// Reset wave type flags
-	flying_monsters_mode = false;
-
+	current_wave_type = MonsterWaveType::None;
 	// For waves 11+, 20% chance of special wave
 	if (lvl >= 11 && frandom() < 0.2f) {
 		// Determine special wave type
@@ -1385,15 +1386,19 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
 }
 
 inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
-	if (flying_monsters_mode) {
+	// Check for flying wave requirement
+	const bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
+
+	// During flying waves, only allow flying monsters
+	if (isFlyingWave) {
 		return isFlyingMonster &&
 			!(spawn_point->style == 1 && !isFlyingMonster) &&
 			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
 	}
-	else {
-		return !(spawn_point->style == 1 && !isFlyingMonster) &&
-			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
-	}
+
+	// For non-flying waves, just check spawn point compatibility and level requirements
+	return !(spawn_point->style == 1 && !isFlyingMonster) &&
+		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
 }
 
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
@@ -1506,6 +1511,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	const bool isSpawnPointFlying = spawn_point->style == 1;
 
 	const int32_t flyingSpawns = countFlyingSpawns();
+	const bool waveRequiresFlyingMonsters = HasWaveType(current_wave_type, MonsterWaveType::Flying);
 	const float adjustmentFactor = adjustFlyingSpawnProbability(flyingSpawns);
 
 	// Iterate through monsterTypes instead of monsters
@@ -1523,7 +1529,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 		// Flying monster checks
 		const bool isFlyingMonster = HasWaveType(monster.types, MonsterWaveType::Flying);
-		if (flying_monsters_mode && !isFlyingMonster)
+		if (waveRequiresFlyingMonsters && !isFlyingMonster)
 			continue;
 		if (isSpawnPointFlying && !isFlyingMonster)
 			continue;
@@ -2040,7 +2046,7 @@ static void OldBossDeathHandler(edict_t* boss)
 	// Búsqueda simple en el array
 	for (const auto& bossType : flyingBossTypes) {
 		if (strcmp(boss->classname, bossType) == 0) {
-			flying_monsters_mode = false;
+			current_wave_type = MonsterWaveType::None;
 			break;
 		}
 	}
@@ -2392,8 +2398,9 @@ static void SpawnBossAutomatically() {
 	boss_spawned_for_wave = true;
 	boss->classname = desired_boss;
 
+	bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
 	// Configurar modo de monstruos voladores si aplica
-	flying_monsters_mode = (boss->classname && (
+	isFlyingWave = (boss->classname && (
 		strcmp(boss->classname, "monster_boss2") == 0 ||
 		strcmp(boss->classname, "monster_carrier") == 0 ||
 		strcmp(boss->classname, "monster_carrier_mini") == 0 ||
@@ -2867,13 +2874,11 @@ void ResetGame() {
 	// Reiniciar variables de estado global
 	g_horde_local = HordeState(); // Asume que HordeState tiene un constructor por defecto adecuado
 	current_wave_level = 0;
-	flying_monsters_mode = false;
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 	allowWaveAdvance = false;
 
 	// Reiniciar otras variables relevantes
-	//WAVE_TO_ALLOW_FLYING = 0;
 	SPAWN_POINT_COOLDOWN = 2.8_sec;
 
 	g_totalMonstersInWave = 0;
@@ -2887,7 +2892,7 @@ void ResetGame() {
 
 	// Resetear cualquier otro estado específico de la ola según sea necesario
 	boss_spawned_for_wave = false;
-	flying_monsters_mode = false;
+	current_wave_type = MonsterWaveType::None;
 
 	// Reset core gameplay elements
 	ResetAllSpawnAttempts();
@@ -2966,7 +2971,7 @@ void ResetWaveAdvanceState() noexcept {
 	g_totalMonstersInWave = 0;
 
 	boss_spawned_for_wave = false;
-	flying_monsters_mode = false;
+	current_wave_type = MonsterWaveType::None;
 
 	g_lastWaveNumber = -1;
 	g_lastNumHumanPlayers = -1;
