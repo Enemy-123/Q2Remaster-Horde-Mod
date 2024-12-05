@@ -450,7 +450,7 @@ static void TurretCheckPowerups(edict_t* turret) {
 
 int32_t TURRET2_BLASTER_DAMAGE = 3;
 int32_t TURRET2_BULLET_DAMAGE = 2;
-
+//bool M_CheckClearShot(edict_t* self, const vec3_t& offset, vec3_t& start);
 
 // Common helper function for damage calculation
 static float CalculateDamage(edict_t* self, int baseDamage) {
@@ -459,20 +459,7 @@ static float CalculateDamage(edict_t* self, int baseDamage) {
 	return baseDamage * damageModifier * quadMultiplier;
 }
 
-// Fire plasma projectiles
-static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& dir) {
-	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
-		(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
-		return;
-	}
 
-	const float projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1450 : 1250;
-	const int damage = static_cast<int>(CalculateDamage(self, 100));
-
-	fire_plasma(self->owner, start, dir, damage, projectileSpeed, 120, damage);
-	self->monsterinfo.last_sentry_missile_fire_time = level.time;
-	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
-}
 
 // Fire heatbeam
 static void TurretFireHeatbeam(edict_t* self, const vec3_t& start, const vec3_t& dir, trace_t& tr) {
@@ -495,7 +482,12 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 	const int damage = static_cast<int>(CalculateDamage(self, TURRET2_BULLET_DAMAGE));
 	const float spread_mult = self->monsterinfo.quadfire_time > level.time ? 0.5f : 1.0f;
 
-	monster_fire_bullet(self, start, dir, damage, 5,
+	if (frandom() < 0.7f)
+	T_Damage(self->enemy, self, self->owner, dir, self->enemy->s.origin,
+		vec3_origin, damage , damage,DAMAGE_BULLET, MOD_TURRET);
+
+
+	monster_fire_bullet(self, start, dir, 0, 5,
 		DEFAULT_BULLET_HSPREAD * spread_mult,
 		DEFAULT_BULLET_VSPREAD * spread_mult,
 		MZ2_TURRET_MACHINEGUN);
@@ -504,25 +496,99 @@ static void TurretFireMachinegun(edict_t* self, const vec3_t& start, const vec3_
 		(self->monsterinfo.quadfire_time > level.time ? 9_hz : 15_hz);
 }
 
-// Fire rocket
+//Fire plasma
+static void TurretFirePlasma(edict_t* self, const vec3_t& start, const vec3_t& dir) {
+	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
+		(self->monsterinfo.quadfire_time > level.time ? 0.8_sec : 2_sec)) {
+		return;
+	}
+
+	vec3_t offset = { 20.f, 0.f, 0.f };
+	vec3_t shot_start;
+
+	if (!M_CheckClearShot(self, offset, shot_start))
+		return;
+
+	const float projectileSpeed = self->monsterinfo.quadfire_time > level.time ? 1450 : 1250;
+	vec3_t fire_dir = dir;
+	vec3_t target_pos;
+
+	// Use predictive aiming if not in blindfire mode
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
+		if (frandom() < 0.7f) { // 70% chance to use prediction
+			PredictAim(self, self->enemy, start, projectileSpeed, true, 0, &fire_dir, &target_pos);
+		}
+		else {
+			// Regular targeting at enemy's head
+			target_pos = self->enemy->s.origin;
+			target_pos[2] += self->enemy->viewheight;
+			fire_dir = (target_pos - start).normalized();
+		}
+	}
+	else {
+		// Blindfire mode
+		fire_dir[0] += crandom() * 0.05f;
+		fire_dir[1] += crandom() * 0.05f;
+		fire_dir[2] += crandom() * 0.05f;
+		fire_dir = safe_normalized(fire_dir);
+	}
+
+	const int damage = static_cast<int>(CalculateDamage(self, 100));
+	fire_plasma(self->owner, start, fire_dir, damage, projectileSpeed, 120, damage);
+	self->monsterinfo.last_sentry_missile_fire_time = level.time;
+	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
+}
+
+//Fire rocket
 static void TurretFireRocket(edict_t* self, const vec3_t& start, const vec3_t& dir, float dist) {
 	if (level.time <= self->monsterinfo.last_sentry_missile_fire_time +
 		(self->monsterinfo.quadfire_time > level.time ? 0.75_sec : 1.5_sec)) {
 		return;
 	}
 
-	// Perform trace check
-	trace_t tr = gi.traceline(start, start + (dir * dist), self, MASK_PROJECTILE);
+	vec3_t offset = { 20.f, 0.f, 0.f };
+	vec3_t shot_start;
 
-	// Check minimum distance requirement
+	if (!M_CheckClearShot(self, offset, shot_start))
+		return;
+
+	trace_t tr = gi.traceline(start, start + (dir * dist), self, MASK_PROJECTILE);
 	if (dist * tr.fraction <= 72) {
 		return;
 	}
 
-	const int damage = static_cast<int>(CalculateDamage(self, 100));
 	const float speed = self->monsterinfo.quadfire_time > level.time ? 1600 : 1420;
+	vec3_t fire_dir = dir;
+	vec3_t target_pos;
 
-	fire_rocket(self->owner, start, dir, damage, speed, 120, damage);
+	// Use predictive aiming if not in blindfire mode
+	if (!(self->monsterinfo.aiflags & AI_MANUAL_STEERING)) {
+		if (frandom() < 0.6f) { // 60% chance to use prediction (slightly less than plasma)
+			PredictAim(self, self->enemy, start, speed, true, 0, &fire_dir, &target_pos);
+		}
+		else {
+			// Regular targeting with some variation
+			if (frandom() < 0.66f || (start[2] < self->enemy->absmin[2])) {
+				target_pos = self->enemy->s.origin;
+				target_pos[2] += self->enemy->viewheight;
+			}
+			else {
+				target_pos = self->enemy->s.origin;
+				target_pos[2] = self->enemy->absmin[2] + 1;
+			}
+			fire_dir = (target_pos - start).normalized();
+		}
+	}
+	else {
+		// Blindfire mode
+		fire_dir[0] += crandom() * 0.1f;
+		fire_dir[1] += crandom() * 0.1f;
+		fire_dir[2] += crandom() * 0.1f;
+		fire_dir = safe_normalized(fire_dir);
+	}
+
+	const int damage = static_cast<int>(CalculateDamage(self, 100));
+	fire_rocket(self->owner, start, fire_dir, damage, speed, 120, damage);
 	self->monsterinfo.last_sentry_missile_fire_time = level.time;
 	gi.sound(self, CHAN_VOICE, sound_pew, 1, ATTN_NORM, 0);
 }
