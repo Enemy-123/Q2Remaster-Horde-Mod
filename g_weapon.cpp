@@ -1451,7 +1451,7 @@ if ((self->timestamp != 0_ms && level.time >= self->timestamp) ||
 		{
 			if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
 			{
-				T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0, 10, DAMAGE_ENERGY, MOD_BFG_LASER);
+				T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0, (ent->groundentity) ? 20 : 10, DAMAGE_ENERGY, MOD_BFG_LASER);
 			}
 		}
 
