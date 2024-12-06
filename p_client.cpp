@@ -3650,12 +3650,12 @@ void UpdateIRTracking(edict_t* ent, gclient_t* client)
 }
 
 // Función para manejar el movimiento del menú
-bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
+bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 {
 	if (!ent->client->menu || ent->svflags & SVF_BOT)
 		return false;
 
-	const int32_t menu_sign = ucmd->forwardmove > 0 ? 1 : ucmd->forwardmove < 0 ? -1 : 0;
+	int32_t menu_sign = menu_ucmd->forwardmove > 0 ? 1 : menu_ucmd->forwardmove < 0 ? -1 : 0;
 	if (ent->client->menu_sign != menu_sign)
 	{
 		ent->client->menu_sign = menu_sign;
@@ -3671,13 +3671,18 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
 		}
 	}
 
-	// Use latched_buttons instead of menu_selected
-	if (ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP))
+	if ((menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->inmenu)
 	{
 		PMenu_Select(ent);
+		ent->client->inmenu = true;
+		menu_ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
 		return true;
 	}
 
+	if (!(menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
+	{
+		ent->client->inmenu = false;
+	}
 	return false;
 }
 
