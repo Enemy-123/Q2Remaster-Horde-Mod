@@ -1072,7 +1072,33 @@ USE(turret2_activate) (edict_t* self, edict_t* other, edict_t* activator) -> voi
 
 MONSTERINFO_CHECKATTACK(turret2_checkattack) (edict_t* self) -> bool
 {
-	return M_CheckAttack_Base(self, 0.4f, 0.8f, 0.8f, 0.8f, 0.f, 0.f);
+	if (!self->enemy || self->enemy->health <= 0)
+		return false;
+
+	vec3_t spot1 = self->s.origin;
+	spot1[2] += self->viewheight;
+	vec3_t spot2 = self->enemy->s.origin;
+	spot2[2] += self->enemy->client ? self->enemy->viewheight :
+		(self->enemy->maxs[2] - self->enemy->mins[2]) * self->enemy->s.scale * 0.5f;
+
+	trace_t tr = gi.traceline(spot1, spot2, self,
+		MASK_SOLID | CONTENTS_SLIME | CONTENTS_LAVA);
+
+	if (tr.fraction < 1.0f && tr.ent != self->enemy)
+		return false;
+
+	const float range = range_to(self, self->enemy);
+	float chance = range <= RANGE_NEAR ? 0.8f : 0.6f;
+	chance += (self->enemy->s.scale < 1.0f) ? 0.2f : 0.0f;
+
+	if (frandom() < chance)
+	{
+		self->monsterinfo.attack_state = AS_MISSILE;
+		self->monsterinfo.attack_finished = level.time + 50_ms;
+		return true;
+	}
+
+	return false;
 }
 // **********************
 //  SPAWN
