@@ -32,9 +32,6 @@ static cached_soundindex sound_strike;
 constexpr spawnflags_t SPAWNFLAG_runnertank_COMMANDER_GUARDIAN = 8_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_runnertank_COMMANDER_HEAT_SEEKING = 16_spawnflag;
 
-
-
-
 //
 // misc
 //
