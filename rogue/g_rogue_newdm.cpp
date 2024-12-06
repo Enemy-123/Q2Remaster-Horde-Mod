@@ -310,47 +310,98 @@ bool fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, flo
 {
 	if (!ent || !ent->client)
 		return false;
-	const vec3_t mins{ -16, -16, -24 };
-	const vec3_t maxs{ 16, 16, 32 };
 
-	// Calcular posición final
-	vec3_t angles = vectoangles(aimdir);
-	// Mantener solo el yaw (rotación horizontal), resetear pitch y roll
-	angles = vec3_t{ 0, angles.y, 0 };  // Solo preservamos el yaw
+	// Constantes
+	constexpr vec3_t MINS = { -16, -16, -24 };
+	constexpr vec3_t MAXS = { 16, 16, 32 };
+	constexpr float HEIGHT_OFFSET = 8.0f;
+	constexpr int MAX_ATTEMPTS = 8;
+	constexpr float MIN_HEIGHT = 50.0f;  // Altura mínima requerida
 
-	const vec3_t end = start + (aimdir * distance);
+	// Asegurarnos que la altura no sea menor que el mínimo
+	height = max(height, MIN_HEIGHT);
 
-	// Verificar espacio para la torreta
-	trace_t tr = gi.trace(start, mins, maxs, end, ent, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
-	vec3_t new_start = tr.endpos;
-	new_start.z += height;
+	// Función auxiliar para verificar si una posición es válida
+	auto trySpawnPosition = [&](const vec3_t& spawn_origin, const vec3_t& spawn_angles) -> bool {
+		// Verificar espacio libre en diferentes alturas
+		for (float const height_test : {0.0f, HEIGHT_OFFSET, -HEIGHT_OFFSET}) {
+			vec3_t test_origin = spawn_origin;
+			test_origin.z += height_test;
 
-	tr = gi.trace(new_start, mins, maxs, new_start, nullptr, CONTENTS_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
-	if (tr.startsolid || tr.allsolid) {
-		gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
+			// Asegurarnos que respetamos la altura mínima
+			if (test_origin.z - ent->s.origin.z < MIN_HEIGHT)
+				continue;
+
+			// Trazar línea desde el jugador hasta la posición de spawn
+			trace_t const trace = gi.traceline(ent->s.origin, test_origin, ent, MASK_SOLID | CONTENTS_MONSTER | CONTENTS_PLAYER);
+			if (trace.fraction < 1.0f)
+				continue;
+
+			// Verificar espacio suficiente
+			if (!CheckSpawnPoint(test_origin, MINS, MAXS))
+				continue;
+
+			// Si llegamos aquí, encontramos una posición válida
+			edict_t* turret = G_Spawn();
+			if (!turret)
+				return false;
+
+			turret->monsterinfo.issummoned = true;
+			//turret->classname = "monster_hover";
+			turret->classname = "monster_sentrygun";
+			turret->s.origin = test_origin;
+			turret->s.angles = spawn_angles;
+			turret->owner = ent;
+			turret->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
+
+			ApplyMonsterBonusFlags(turret);
+			ED_CallSpawn(turret);
+
+			if (turret->inuse) {
+				// Efecto visual de spawn
+				SpawnGrow_Spawn(test_origin, 24.f, 48.f);
+				return true;
+			}
+
+			G_FreeEdict(turret);
+			return false;
+		}
 		return false;
+		};
+
+	// Calcular posición final intentada
+	vec3_t angles = vectoangles(aimdir);
+	angles = vec3_t{ 0, angles.y, 0 };  // Solo preservamos el yaw
+	vec3_t end = start + (aimdir * distance);
+	end.z += height;  // Aplicar la altura deseada
+
+	// Primer intento en la posición deseada
+	if (trySpawnPosition(end, angles))
+		return true;
+
+	// Si falla, intentar posiciones alternativas en un radio
+	constexpr float RADIUS_MIN = 50.0f;
+	constexpr float RADIUS_MAX = 100.0f;
+
+	for (int i = 0; i < MAX_ATTEMPTS; i++) {
+		float spawn_angle = frandom(2.0f * PIf);
+		float const radius = frandom(RADIUS_MIN, RADIUS_MAX);
+		vec3_t const offset{
+			cosf(spawn_angle) * radius,
+			sinf(spawn_angle) * radius,
+			0  // No añadimos altura extra aquí ya que end ya tiene la altura correcta
+		};
+
+		vec3_t const spawn_origin = end + offset;
+		vec3_t spawn_angles = angles;
+		spawn_angles[YAW] += spawn_angle * (180.0f / PIf);
+
+		if (trySpawnPosition(spawn_origin, spawn_angles))
+			return true;
 	}
-	// Crear y configurar la torreta
-	edict_t* turret = G_Spawn();
-	turret->monsterinfo.issummoned = true;
-	//brandom() ? turret->classname = "monster_sentrygun" :
-	//turret->classname = "monster_hover";
-	turret->classname = "monster_sentrygun";
-	turret->s.origin = new_start;
-	turret->s.angles = angles;  // Usamos los ángulos modificados
-	turret->owner = ent;
-	turret->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
 
-
-	ApplyMonsterBonusFlags(turret);
-	// Spawner usando la lógica existente de monster_sentrygun
-	ED_CallSpawn(turret);
-
-
-	// Efecto visual de spawn
-	SpawnGrow_Spawn(turret->s.origin, 24.f, 48.f);
-
-	return true;
+	gi.Client_Print(ent, PRINT_HIGH, "Cannot place turret here.\n");
+	return false;
 }
 
 void Tag_GameInit();

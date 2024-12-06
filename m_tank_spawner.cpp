@@ -833,24 +833,6 @@ void tank_vanilla_doattack_rocket(edict_t* self)
 	M_SetAnimation(self, &tank_vanilla_move_attack_fire_rocket);
 }
 
-void VerifyTankSpawnCount(edict_t* tank)
-{
-	int actual_count = 0;
-	for (auto const* ent : active_monsters())
-	{
-		if (ent->owner == tank && (ent->monsterinfo.aiflags & AI_SPAWNED_COMMANDER)) {
-			if (!strcmp(tank->classname, "monster_tank_spawner"))
-				actual_count++;
-		}
-	}
-
-	if (tank->monsterinfo.monster_used != actual_count) {
-		gi.Com_PrintFmt("VerifyTankSpawnCount: Correcting monster_used from {} to {}\n",
-			tank->monsterinfo.monster_used, actual_count);
-		tank->monsterinfo.monster_used = actual_count;
-	}
-}
-
 constexpr int32_t MONSTER_MAX_SLOTS = 6; // Adjust this value as needed
 
 // Definición de refuerzos con fuerza 1 y separados por puntos y comas
