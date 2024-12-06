@@ -4094,12 +4094,12 @@ pmenuhnd_t* CreateHUDMenu(edict_t* ent)
 
 //TEAMS MENU & STUFF
 
-static const int jmenu_level = 1;
-static const int jmenu_match = 2;
-static const int jmenu_red = 4;
+static constexpr int jmenu_level = 1;
+static constexpr int jmenu_match = 2;
+static constexpr int jmenu_horde = 4;
 //static const int jmenu_blue = 7;
-static const int jmenu_chase = 8;
-static const int jmenu_reqmatch = 12;
+static constexpr int jmenu_chase = 8;
+static constexpr int OriginalModBy = 14;
 
 const pmenu_t joinmenu[] = {
 	{ "*$g_pc_3wctf", PMENU_ALIGN_CENTER, nullptr },
@@ -4248,43 +4248,50 @@ void CTFUpdateJoinMenu(edict_t* ent)
 
 	SetGameName(entries);
 
-	if (ctfgame.match >= MATCH_PREGAME && matchlock->integer)
-	{
-		Q_strlcpy(entries[jmenu_red].text, "MATCH IS LOCKED", sizeof(entries[jmenu_red].text));
-		entries[jmenu_red].SelectFunc = nullptr;
-		//		Q_strlcpy(entries[jmenu_blue].text, "  (entry is not permitted)", sizeof(entries[jmenu_blue].text));
-		//		entries[jmenu_blue].SelectFunc = nullptr;
-	}
-	else
-	{
-		if (ctfgame.match >= MATCH_PREGAME)
-		{
-			Q_strlcpy(entries[jmenu_red].text, "Join Red MATCH Team", sizeof(entries[jmenu_red].text));
-			//		Q_strlcpy(entries[jmenu_blue].text, "Join Blue MATCH Team", sizeof(entries[jmenu_blue].text));
-		}
-		else
-		{
-			Q_strlcpy(entries[jmenu_red].text, "Join and Fight the HORDE!", sizeof(entries[jmenu_red].text));
+	//if (ctfgame.match >= MATCH_PREGAME && matchlock->integer)
+	//{
+	//	Q_strlcpy(entries[jmenu_horde].text, "MATCH IS LOCKED", sizeof(entries[jmenu_horde].text));
+	//	entries[jmenu_horde].SelectFunc = nullptr;
+	//	//		Q_strlcpy(entries[jmenu_blue].text, "  (entry is not permitted)", sizeof(entries[jmenu_blue].text));
+	//	//		entries[jmenu_blue].SelectFunc = nullptr;
+	//}
+	//else
+	//{
+	//	if (ctfgame.match >= MATCH_PREGAME)
+	//	{
+	//		Q_strlcpy(entries[jmenu_horde].text, "Join Red MATCH Team", sizeof(entries[jmenu_horde].text));
+	//		//		Q_strlcpy(entries[jmenu_blue].text, "Join Blue MATCH Team", sizeof(entries[jmenu_blue].text));
+	//	}
+	//	else
+		//{
+			Q_strlcpy(entries[jmenu_horde].text, "Join and Fight the HORDE!", sizeof(entries[jmenu_horde].text));
 			//			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
-		}
-		entries[jmenu_red].SelectFunc = CTFJoinTeam1;
+	//	}
+		entries[jmenu_horde].SelectFunc = CTFJoinTeam1;
 		//		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
-	}
+	//}
 
-	// KEX_FIXME: what's this for?
-	if (g_teamplay_force_join->string && *g_teamplay_force_join->string)
-	{
-		if (Q_strcasecmp(g_teamplay_force_join->string, "red") == 0)
+		entries[OriginalModBy].text[0] = '\0';
+		entries[OriginalModBy].SelectFunc = nullptr;
+		if (g_horde->integer)
 		{
-			//			entries[jmenu_blue].text[0] = '\0';
-			//			entries[jmenu_blue].SelectFunc = nullptr;
+			Q_strlcpy(entries[OriginalModBy].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[OriginalModBy].text));
 		}
-		else if (Q_strcasecmp(g_teamplay_force_join->string, "blue") == 0)
-		{
-			entries[jmenu_red].text[0] = '\0';
-			entries[jmenu_red].SelectFunc = nullptr;
-		}
-	}
+
+	//// KEX_FIXME: what's this for?
+	//if (g_teamplay_force_join->string && *g_teamplay_force_join->string)
+	//{
+	//	if (Q_strcasecmp(g_teamplay_force_join->string, "red") == 0)
+	//	{
+	//		//			entries[jmenu_blue].text[0] = '\0';
+	//		//			entries[jmenu_blue].SelectFunc = nullptr;
+	//	}
+	//	else if (Q_strcasecmp(g_teamplay_force_join->string, "blue") == 0)
+	//	{
+	//		entries[jmenu_horde].text[0] = '\0';
+	//		entries[jmenu_horde].SelectFunc = nullptr;
+	//	}
+	//}
 
 	if (ent->client->chase_target)
 		Q_strlcpy(entries[jmenu_chase].text, "$g_pc_leave_chase_camera", sizeof(entries[jmenu_chase].text));
@@ -4300,42 +4307,42 @@ void CTFUpdateJoinMenu(edict_t* ent)
 			continue;
 		if (game.clients[i].resp.ctf_team == CTF_TEAM1)
 			num1++;
-		else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
-			num2++;
+		//else if (game.clients[i].resp.ctf_team == CTF_TEAM2)
+		//	num2++;
 	}
 
-	switch (ctfgame.match)
+	//switch (ctfgame.match)
+	//{
+	//case MATCH_NONE:
+	//	entries[jmenu_match].text[0] = '\0';
+	//	break;
+
+	//case MATCH_SETUP:
+	//	Q_strlcpy(entries[jmenu_match].text, "*MATCH SETUP IN PROGRESS", sizeof(entries[jmenu_match].text));
+	//	break;
+
+	//case MATCH_PREGAME:
+	//	Q_strlcpy(entries[jmenu_match].text, "*MATCH STARTING", sizeof(entries[jmenu_match].text));
+	//	break;
+
+	//case MATCH_GAME:
+	//	Q_strlcpy(entries[jmenu_match].text, "*MATCH IN PROGRESS", sizeof(entries[jmenu_match].text));
+	//	break;
+
+	//default:
+	//	break;
+	//}
+
+	if (*entries[jmenu_horde].text)
 	{
-	case MATCH_NONE:
-		entries[jmenu_match].text[0] = '\0';
-		break;
 
-	case MATCH_SETUP:
-		Q_strlcpy(entries[jmenu_match].text, "*MATCH SETUP IN PROGRESS", sizeof(entries[jmenu_match].text));
-		break;
-
-	case MATCH_PREGAME:
-		Q_strlcpy(entries[jmenu_match].text, "*MATCH STARTING", sizeof(entries[jmenu_match].text));
-		break;
-
-	case MATCH_GAME:
-		Q_strlcpy(entries[jmenu_match].text, "*MATCH IN PROGRESS", sizeof(entries[jmenu_match].text));
-		break;
-
-	default:
-		break;
-	}
-
-	if (*entries[jmenu_red].text)
-	{
-
-		Q_strlcpy(entries[jmenu_red + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_red + 1].text));
-		G_FmtTo(entries[jmenu_red + 1].text_arg1, "{}", num1);
+		Q_strlcpy(entries[jmenu_horde + 1].text, "$g_pc_playercount", sizeof(entries[jmenu_horde + 1].text));
+		G_FmtTo(entries[jmenu_horde + 1].text_arg1, "{}", num1);
 	}
 	else
 	{
-		entries[jmenu_red + 1].text[0] = '\0';
-		entries[jmenu_red + 1].text_arg1[0] = '\0';
+		entries[jmenu_horde + 1].text[0] = '\0';
+		entries[jmenu_horde + 1].text_arg1[0] = '\0';
 	}
 	//	if (*entries[jmenu_blue].text)
 	{
@@ -4348,12 +4355,7 @@ void CTFUpdateJoinMenu(edict_t* ent)
 			//	entries[jmenu_blue + 1].text_arg1[0] = '\0';
 	}
 
-	entries[jmenu_reqmatch].text[0] = '\0';
-	entries[jmenu_reqmatch].SelectFunc = nullptr;
-	if (g_horde->integer)
-	{
-		Q_strlcpy(entries[jmenu_reqmatch].text, "\n\nOriginal Mod by Paril.\nModified by Enemy.", sizeof(entries[jmenu_reqmatch].text));
-	}
+
 }
 
 void CTFOpenJoinMenu(edict_t* ent)
@@ -4443,15 +4445,6 @@ void RemoveAllTechItems(edict_t* ent)
 		if (!isTechItem && !isArmorItem && !isPowerupItem)
 			continue;
 
-		// Check for doppelganger
-		bool issentrygun = false;
-		if (item->classname && isPowerupItem) {
-			issentrygun = (strcmp(item->classname, "item_sentrygun") == 0);
-		}
-
-		// Skip doppelganger items
-		if (issentrygun)
-			continue;
 
 		// Remove item from player's inventory
 		ent->client->pers.inventory[i] = 0;
