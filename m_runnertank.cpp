@@ -14,11 +14,11 @@ runnertank
 
 #include "m_flash.h"
 #include "shared.h"
-
+void runnertankStrike(edict_t* self);
 void runnertank_refire_rocket(edict_t* self);
 //void runnetank_doattack_rocket(edict_t* self);
 void runnertank_reattack_blaster(edict_t* self);
-bool runnertank_check_wall(edict_t* self, float dist);
+//bool runnertank_check_wall(edict_t* self, float dist);
 
 static cached_soundindex sound_thud;
 static cached_soundindex sound_pain, sound_pain2;
@@ -46,7 +46,8 @@ MONSTERINFO_SIGHT(runnertank_sight) (edict_t* self, edict_t* other) -> void
 
 void runnertank_footstep(edict_t* self)
 {
-	gi.sound(self, CHAN_BODY, sound_step, 1, ATTN_NORM, 0);
+brandom() ?	gi.sound(self, CHAN_BODY, sound_step, 1.f, ATTN_NORM, 0)
+		:	gi.sound(self, CHAN_BODY, sound_step, 0.75f, ATTN_NORM, 0);
 }
 
 void runnertank_thud(edict_t* self)
@@ -222,14 +223,14 @@ void runnertank_unstuck(edict_t* self)
 //
 // Actualizar la animación de carrera
 mframe_t runnertank_frames_run[] = {
-	{ ai_run, 16, runnertank_footstep },
+	{ ai_run, 16, nullptr },
 	{ ai_run, 18, nullptr },
 	{ ai_run, 15, nullptr },
-	{ ai_run, 14, nullptr }, // Remover la llamada lambda
+	{ ai_run, 14, runnertank_footstep }, // Remover la llamada lambda
 	{ ai_run, 15, nullptr },
 	{ ai_run, 15, nullptr },
-	{ ai_run, 13, runnertank_footstep },
-	{ ai_run, 19, nullptr },
+	{ ai_run, 13, nullptr },
+	{ ai_run, 19, runnertank_footstep },
 	{ ai_run, 18, nullptr },
 	{ ai_run, 17, nullptr } // Remover la llamada lambda
 };
@@ -267,24 +268,45 @@ bool runnertank_enemy_visible(edict_t* self)
 }
 
 void runnertank_attack(edict_t* self);
-
 void runnertank_consider_strafe(edict_t* self);
 
 
-void runnertank_consider_attack(edict_t* self);
-void runnertank_combat_decisions(edict_t* self)
+mframe_t tank_frames_punch_attack[] =
 {
-	if (!self->enemy)
-		return;
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, nullptr},
+	{ai_charge, 0, runnertankStrike},  // FRAME_attak225 - Añadir footstep aquí
+	{ai_charge, 0, nullptr},  // FRAME_attak226 - Engendrar monstruo aquí
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -1, nullptr},
+	{ai_charge, -2, nullptr}   // FRAME_attak229
+};
+MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak235, tank_frames_punch_attack, runnertank_run };
 
-	float const range = range_to(self, self->enemy);
-	if (range <= RANGE_NEAR && visible(self, self->enemy))
-		runnertank_consider_attack(self);
-	else if (range <= RANGE_MID)
-		runnertank_consider_strafe(self);
 
-	self->monsterinfo.pausetime = level.time + 0.5_sec;
+
+MONSTERINFO_MELEE(runnertank_melee) (edict_t* self) -> void
+{
+	// Verificación prioritaria de distancia
+	if (self->enemy)
+	{
+		float const range = range_to(self, self->enemy);
+		if (range <= MELEE_DISTANCE * 2.4f && visible(self, self->enemy))
+		{
+			M_SetAnimation(self, &tank_move_punch_attack);
+			self->monsterinfo.attack_finished = level.time + 0.5_sec;
+			return;
+		}
+	}
 }
+
 
 MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 {
@@ -294,23 +316,11 @@ MONSTERINFO_RUN(runnertank_run) (edict_t* self) -> void
 		return;
 	}
 
-	// Mantener la animación de corrida como base
 	M_SetAnimation(self, &runnertank_move_run);
 
-	// Actualizar decisiones de combate cada cierto tiempo
 	if (self->enemy && level.time >= self->monsterinfo.pausetime)
 	{
-		float const range = range_to(self, self->enemy);
-
-		// Considerar ataque si estamos cerca
-		if (range <= RANGE_NEAR && visible(self, self->enemy))
-			runnertank_consider_attack(self);
-		// Considerar strafe si estamos a rango medio
-		else if (range <= RANGE_MID)
-			runnertank_consider_strafe(self);
-
-		// Establecer próxima actualización
-		self->monsterinfo.pausetime = level.time + 0.3_sec;
+		runnertank_attack(self);
 	}
 }
 //
@@ -491,24 +501,6 @@ void runnertankStrike(edict_t* self)
 	}
 }
 
-mframe_t tank_frames_punch_attack[] =
-{
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, nullptr},
-	{ai_charge, 0, runnertankStrike},  // FRAME_attak225 - Añadir footstep aquí
-	{ai_charge, 0, nullptr},  // FRAME_attak226 - Engendrar monstruo aquí
-	{ai_charge, -1, nullptr},
-	{ai_charge, -1, nullptr},
-	{ai_charge, -1, nullptr},
-	{ai_charge, -1, nullptr},
-	{ai_charge, -1, nullptr},
-	{ai_charge, -1, nullptr},
-	{ai_charge, -1, nullptr},
-	{ai_charge, -2, nullptr}   // FRAME_attak229
-};
-MMOVE_T(tank_move_punch_attack) = { FRAME_attak222, FRAME_attak235, tank_frames_punch_attack, runnertank_run };
 
 
 void runnertankRocket(edict_t* self) {
@@ -868,7 +860,7 @@ void runnertank_consider_strafe(edict_t* self)
 	}
 }
 
-void runnertank_consider_attack(edict_t* self)
+MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
 {
 	// Validación básica
 	if (!self->enemy || !self->enemy->inuse)
@@ -890,16 +882,8 @@ void runnertank_consider_attack(edict_t* self)
 	const bool can_rocket = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_ROCKET_1]);
 	const bool can_chain = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_1]);
 
-	// Sistema de selección de ataque priorizado
-	if (range <= MELEE_DISTANCE * 2.0f)
-	{
-		M_SetAnimation(self, &tank_move_punch_attack);
-		self->monsterinfo.attack_finished = level.time + 0.5_sec;
-		return;
-	}
-
 	// Para rango cercano, priorizar diferentes ataques
-	if (range <= RANGE_NEAR)
+	if (frandom() < 0.3f)
 	{
 		if (can_chain && self->health < self->max_health * 0.7f)
 		{
@@ -919,7 +903,7 @@ void runnertank_consider_attack(edict_t* self)
 		}
 	}
 	// Rango medio, priorizar ataques de precisión
-	else if (range <= RANGE_MID)
+	else if (frandom() < 0.3f)
 	{
 		if (can_blast && r < 0.4f)
 		{
@@ -940,15 +924,7 @@ void runnertank_consider_attack(edict_t* self)
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
-		else
-			return;
 	}
-}
-
-
-MONSTERINFO_ATTACK(runnertank_attack) (edict_t* self) -> void
-{
-	runnertank_consider_attack(self);
 }
 //
 // death
@@ -1300,7 +1276,7 @@ void SP_monster_runnertank(edict_t* self)
 	self->monsterinfo.sidestep = runnertank_sidestep;
 	self->monsterinfo.dodge = nullptr;
 	self->monsterinfo.attack = runnertank_attack;
-	self->monsterinfo.melee = nullptr;
+	self->monsterinfo.melee = runnertank_melee;
 	self->monsterinfo.sight = runnertank_sight;
 	self->monsterinfo.idle = runnertank_idle;
 	self->monsterinfo.blocked = runnertank_blocked; // PGM
