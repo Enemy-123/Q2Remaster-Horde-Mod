@@ -3447,46 +3447,6 @@ void P_FallingDamage(edict_t* ent, const pmove_t& pm)
 		PlayerNoise(ent, pm.s.origin, PNOISE_SELF);
 }
 
-
-// Función para manejar el movimiento del menú
-bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
-{
-	if (!ent->client->menu || ent->svflags & SVF_BOT)
-		return false;
-
-	int32_t menu_sign = menu_ucmd->forwardmove > 0 ? 1 : menu_ucmd->forwardmove < 0 ? -1 : 0;
-	if (ent->client->menu_sign != menu_sign)
-	{
-		ent->client->menu_sign = menu_sign;
-		if (menu_sign > 0)
-		{
-			PMenu_Prev(ent);
-			return true;
-		}
-		else if (menu_sign < 0)
-		{
-			PMenu_Next(ent);
-			return true;
-		}
-	}
-
-	if ((menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)) && !ent->client->menu_selected)
-	{
-		PMenu_Select(ent);
-		ent->client->menu_selected = true;
-		// Limpiar los botones para evitar acciones no deseadas
-		menu_ucmd->buttons &= ~(BUTTON_ATTACK | BUTTON_JUMP);
-		return true;
-	}
-
-	if (!(menu_ucmd->buttons & (BUTTON_ATTACK | BUTTON_JUMP)))
-	{
-		ent->client->menu_selected = false;
-	}
-
-	return false;
-}
-
 // Constantes
 constexpr gtime_t BOT_INACTIVITY_DURATION = 20_sec;  // Duración específica para bots
 constexpr gtime_t MIN_INACTIVITY_DURATION = 15_sec;
@@ -3689,6 +3649,38 @@ void UpdateIRTracking(edict_t* ent, gclient_t* client)
 	ir_dupe_key++;  // Incrementar la clave para el siguiente frame
 }
 
+// Función para manejar el movimiento del menú
+bool HandleMenuMovement(edict_t* ent, usercmd_t* ucmd)
+{
+	if (!ent->client->menu || ent->svflags & SVF_BOT)
+		return false;
+
+	const int32_t menu_sign = ucmd->forwardmove > 0 ? 1 : ucmd->forwardmove < 0 ? -1 : 0;
+	if (ent->client->menu_sign != menu_sign)
+	{
+		ent->client->menu_sign = menu_sign;
+		if (menu_sign > 0)
+		{
+			PMenu_Prev(ent);
+			return true;
+		}
+		else if (menu_sign < 0)
+		{
+			PMenu_Next(ent);
+			return true;
+		}
+	}
+
+	// Use latched_buttons instead of menu_selected
+	if (ent->client->latched_buttons & (BUTTON_ATTACK | BUTTON_JUMP))
+	{
+		PMenu_Select(ent);
+		return true;
+	}
+
+	return false;
+}
+
 void ClientThink(edict_t* ent, usercmd_t* ucmd)
 {
 	gclient_t* client;
@@ -3753,13 +3745,9 @@ void ClientThink(edict_t* ent, usercmd_t* ucmd)
 		// Handle menu movement if the menu is open
 		if (ent->client->menu)
 		{
-			// Crear una copia local de ucmd para el procesamiento del menú
-			usercmd_t menu_ucmd = *ucmd;
-
-			if (HandleMenuMovement(ent, &menu_ucmd))
+			// Just pass the original ucmd directly
+			if (HandleMenuMovement(ent, ucmd))
 			{
-				// Si se procesó un movimiento de menú, actualizar ucmd y salir
-				*ucmd = menu_ucmd;
 				return;
 			}
 		}
