@@ -891,7 +891,7 @@ void runnertank_consider_attack(edict_t* self)
 	const bool can_chain = M_CheckClearShot(self, monster_flash_offset[MZ2_TANK_MACHINEGUN_1]);
 
 	// Sistema de selección de ataque priorizado
-	if (range <= MELEE_DISTANCE * 1.5f)
+	if (range <= MELEE_DISTANCE * 2.0f)
 	{
 		M_SetAnimation(self, &tank_move_punch_attack);
 		self->monsterinfo.attack_finished = level.time + 0.5_sec;
@@ -940,6 +940,8 @@ void runnertank_consider_attack(edict_t* self)
 			M_SetAnimation(self, &runnertank_move_attack_blast);
 			self->monsterinfo.attack_finished = level.time + 2_sec;
 		}
+		else
+			return;
 	}
 }
 

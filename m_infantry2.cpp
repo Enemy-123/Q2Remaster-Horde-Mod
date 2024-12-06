@@ -709,10 +709,13 @@ MMOVE_T(infantry_vanilla_move_attack4) = { FRAME_run201, FRAME_run208, infantry_
 constexpr float GRENADE_SPEED = 900;
 static void infantry_vanilla_grenade(edict_t* self)
 {
+	constexpr float MORTAR_SPEED = 1050.f;
+	constexpr float GRENADE_SPEED = 760.f;
+
 	vec3_t start{};
 	vec3_t forward{}, right{}, up{};
 	vec3_t aim{};
-	const vec3_t offset = { 24, 10, 10 }; 
+	const vec3_t offset = { 24, 10, 10 };
 	constexpr float speed = GRENADE_SPEED;
 
 	if (!self->enemy || !self->enemy->inuse)
@@ -722,51 +725,35 @@ static void infantry_vanilla_grenade(edict_t* self)
 	start = G_ProjectSource2(self->s.origin, offset, forward, right, up);
 
 	// Predict target position
-	const float time_to_target = (self->enemy->s.origin - start).length() / speed;
-	const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * time_to_target);
+	const float dist = range_to(self, self->enemy);
 
-	aim = predicted_pos - start;
-	const float dist = aim.length();
-
-	// Adjust aim based on distance
-	if (dist > 200)
+	// Para distancias cortas, usar PredictAim
+	if (dist < 400) // Ajusta este valor según necesites
 	{
-		// Reduced vertical adjustment for longer distances
-		float vertical_adjust = (dist - 200) * 0.0010f;
-		aim[2] += vertical_adjust;
-	}
+		PredictAim(self, self->enemy, start, speed, false, 0.f, &aim, nullptr);
 
-	// Reduced random spread
-	aim[0] += crandom_open() * 0.03f;
-	aim[1] += crandom_open() * 0.03f;
-	aim[2] += crandom_open() * 0.03f;
-	aim.normalize();
-
-	// Adjust the pitch slightly downward to counteract the upward trajectory
-	// Increased downward adjustment
-	const float pitch_adjust = -0.15f - (dist * 0.00015f);
-	aim += up * pitch_adjust;
-	aim.normalize();
-
-	// Calculate the best pitch, but allow for some error
-	if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.5f, false))
-	{
-		// Reduced random adjustment to the calculated pitch
-		aim[2] += crandom_open() * 0.01f;
+		// Pequeño ajuste aleatorio y compensación de gravedad para corta distancia
+		aim += right * (crandom() * 0.02f);
+		aim += up * (crandom() * 0.02f - 0.01f); // Ligero ajuste hacia abajo
 		aim.normalize();
 	}
+	// Para distancias más largas, usar CalculatePitch
+	else
+	{
+		const vec3_t predicted_pos = self->enemy->s.origin + (self->enemy->velocity * (dist / speed));
+		aim = predicted_pos - start;
+		aim.normalize();
 
-	// Compensate for the upward velocity in fire_grenade2
-	const float gravityAdjustment = level.gravity / 800.f;
-	float downwardAdjustment = -200.0f * gravityAdjustment / speed;
-	aim[2] += downwardAdjustment;
-	aim.normalize();
+		if (M_CalculatePitchToFire(self, predicted_pos, start, aim, speed, 1.5f, false))
+		{
+			aim[2] += crandom_open() * 0.01f;
+			aim.normalize();
+		}
+	}
 
-	// Fire the grenade
-	fire_grenade2(self, start, aim, 55, speed, 2.5_sec, 95, false);
+	fire_grenade2(self, start, aim, 40, speed, 2.5_sec, 80, false);
 	gi.sound(self, CHAN_VOICE, sound_handgrenade, 1, ATTN_NORM, 0);
 }
-
 
 mframe_t infantry_vanilla_frames_grenade[] = {
 	{ ai_charge, 3 },

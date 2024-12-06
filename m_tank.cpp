@@ -1104,7 +1104,7 @@ MONSTERINFO_ATTACK(tank_attack) (edict_t* self) -> void
 		M_SetAnimation(self, &tank_move_punch);
 	}
 
-	if (range_to(self, self->enemy) <= RANGE_MELEE * 2)
+	if (range_to(self, self->enemy) <= RANGE_MELEE * 2.0f)
 	{
 		// Ataque melee (punch)
 		M_SetAnimation(self, &tank_move_punch);
