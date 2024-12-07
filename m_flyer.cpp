@@ -391,8 +391,6 @@ void flyer_reattack_rocket(edict_t* self)
 	self->monsterinfo.attack_finished = level.time + 1.0_sec;
 }
 
-
-
 mframe_t flyer_frames_rollright[] = {
 	{ ai_charge, 3,flyer_checkstrafe },
 	{ ai_charge, 3,flyer_checkstrafe },
@@ -504,7 +502,7 @@ void flyer_fire(edict_t* self, monster_muzzleflash_id_t flash_number)
 	dir = end - start;
 	dir.normalize();
 
-	monster_fire_blaster2(self, start, dir, 2, 1000, flash_number, (self->s.frame % 4) ? EF_NONE : EF_HYPERBLASTER);
+	monster_fire_blaster_bolt(self, start, forward, 4, 1150, flash_number, EF_HYPERBLASTER, 0);
 }
 
 void flyer_fireleft(edict_t* self)
@@ -515,6 +513,12 @@ void flyer_fireleft(edict_t* self)
 void flyer_fireright(edict_t* self)
 {
 	flyer_fire(self, MZ2_FLYER_BLASTER_2);
+}
+
+void flyer_reattack_blaster(edict_t* self)
+{
+	if (frandom() < 0.7f)
+		self->monsterinfo.nextframe = FRAME_attak204;
 }
 
 
@@ -533,9 +537,9 @@ mframe_t flyer_frames_attack2normal[] = {
 	{ ai_charge },
 	{ ai_charge },
 	{ ai_charge },
+	{ ai_charge , -15, flyer_reattack_blaster},
 	{ ai_charge },
 	{ ai_charge },
-	{ ai_charge }
 };
 MMOVE_T(flyer_move_attack2normal) = { FRAME_attak201, FRAME_attak217, flyer_frames_attack2normal, flyer_run };
 
@@ -557,7 +561,7 @@ mframe_t flyer_frames_attack3normal[] = {
 	{ ai_charge, 10 },
 	{ ai_charge, 10 },
 	{ ai_charge, 10 },
-	{ ai_charge, 10 },
+	{ ai_charge , -15, flyer_reattack_blaster},
 	{ ai_charge, 10 },
 	{ ai_charge, 10 }
 };
