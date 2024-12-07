@@ -143,23 +143,22 @@ cvar_t* g_horde;
 enum class MonsterWaveType : uint32_t {
 	None = 0,
 	Flying = 1 << 0,  // Flying units
-	Swimming = 1 << 1,  // Swimming units (gekk)
-	Ground = 1 << 2,  // Basic ground units
-	Small = 1 << 3,  // Small units (parasite, stalker)
-	Light = 1 << 4,  // Light units (soldiers, basic infantry)
-	Heavy = 1 << 5,  // Heavy units (tanks, enforcers)
-	Medium = 1 << 6,  // Medium units (gladiators, medics)
-	Fast = 1 << 7,  // Fast moving units
-	SemiBoss = 1 << 8,  // Mini-boss tier units
-	Boss = 1 << 9,  // Full boss units
-	Ranged = 1 << 10, // Primarily ranged attackers
-	Melee = 1 << 11, // Primarily melee attackers
-	Special = 1 << 12, // Special units (medics, commanders)
-	Elite = 1 << 13,  // Elite variants of basic units
-	Gekk = 1 << 14,  // Gekk initial wave?
-	Shambler = 1 << 15,  // Shambler boss wave?
-	Mutant = 1 << 16, // Mutant boss wave?
-	Arachnophobic = 1 << 17  // Mutant boss wave?
+	Ground = 1 << 1,  // Basic ground units
+	Small = 1 << 2,  // Small units (parasite, stalker)
+	Light = 1 << 3,  // Light units (soldiers, basic infantry)
+	Heavy = 1 << 4,  // Heavy units (tanks, enforcers)
+	Medium = 1 << 5,  // Medium units (gladiators, medics)
+	Fast = 1 << 6,  // Fast moving units
+	SemiBoss = 1 << 7,  // Mini-boss tier units
+	Boss = 1 << 8,  // Full boss units
+	Ranged = 1 << 9, // Primarily ranged attackers
+	Melee = 1 << 10, // Primarily melee attackers
+	Special = 1 << 11, // Special units (medics, commanders)
+	Elite = 1 << 12,  // Elite variants of basic units
+	Gekk = 1 << 13,  // Gekk initial wave?
+	Shambler = 1 << 14,  // Shambler boss wave?
+	Mutant = 1 << 15, // Mutant boss wave?
+	Arachnophobic = 1 << 16  // Mutant boss wave?
 };
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
@@ -1012,7 +1011,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_floater", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Ranged, 12, 0.5f},
 
 	// Special Wave Units (Waves 4-9)
-	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Swimming | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
+	{"monster_gekk", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Small | MonsterWaveType::Mutant | MonsterWaveType::Gekk, 4, 0.7f},
 	{"monster_parasite", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Melee, 5, 0.6f},
 	{"monster_stalker", MonsterWaveType::Ground | MonsterWaveType::Small | MonsterWaveType::Fast | MonsterWaveType::Arachnophobic, 7, 0.6f},
 	{"monster_brain", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special | MonsterWaveType::Melee | MonsterWaveType::Mutant, 6, 0.7f},
@@ -1027,7 +1026,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 8, 0.8f},
 	{"monster_infantry", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged, 11, 0.85f},
 	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee, 7, 0.4f},
+	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee, 7, 0.5f},
 
 	// Arachnophobic Units (Waves 8-18)
 	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 8, 0.1f},
@@ -1038,7 +1037,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Mutant Units (Waves 9-14)
 	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f},
-	{"monster_shambler_small", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.3f},
+	{"monster_shambler_small", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Mutant | MonsterWaveType::Shambler, 14, 0.4f},
 	{"monster_redmutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 14, 0.35f},
 
 	// Heavy Ground Units (Waves 12-18)
@@ -2592,7 +2591,7 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		strcmp(self->classname, "monster_supertank") == 0 ||
 		strcmp(self->classname, "monster_psxguardian") == 0 ||
 		strcmp(self->classname, "monster_boss5") == 0) {
-		if (TrySetWaveType(MonsterWaveType:: Medium)) {
+		if (TrySetWaveType(MonsterWaveType::Medium)) {
 			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nHeavy/Mid armored division incoming!\n");
 		}
 	}
@@ -2600,10 +2599,9 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 		strcmp(self->classname, "monster_makron") == 0 ||
 		strcmp(self->classname, "monster_makronkl") == 0) {
 		if (TrySetWaveType(MonsterWaveType::Medium)) {
-			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nPrepare bayonets! Medium range/melee stroggs incoming!\n");
+			gi.LocBroadcast_Print(PRINT_CHAT, "\n\n\nPrepare bayonets!The invaders are about to get up close and personal!\n");
 		}
 	}
-
 	// Boss spawn message
 	const auto it_msg = bossMessagesMap.find(self->classname);
 	if (it_msg != bossMessagesMap.end()) {
@@ -3802,10 +3800,12 @@ static void SendCleanupMessage(WaveEndReason reason) {
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
+		if (developer->integer == 2)
 		PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
+		if (developer->integer == 2)
 		PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::TimeLimitReached:
