@@ -57,28 +57,57 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	return filter_data.count > 0;
 }
 
+// Add this to your global state or HordeState struct
+struct SpawnPointCache {
+	static constexpr size_t MAX_SPAWN_POINTS = 64;  // Reasonable maximum
+	std::array<edict_t*, MAX_SPAWN_POINTS> points;
+	size_t count = 0;
+	gtime_t last_update = 0_sec;
+
+	void clear() {
+		count = 0;
+		last_update = 0_sec;
+	}
+
+	bool add(edict_t* spawn) {
+		if (count >= MAX_SPAWN_POINTS)
+			return false;
+		points[count++] = spawn;
+		return true;
+	}
+};
+
+static SpawnPointCache spawn_cache;
+
 // Optimized function to select a random unoccupied monster spawn point
 edict_t* SelectRandomMonsterSpawnPoint(const vec3_t& origin = vec3_origin, float radius = 0.0f) {
-	static std::vector<edict_t*> availableSpawns; // Static for better performance
-	availableSpawns.clear();
+	constexpr gtime_t CACHE_UPDATE_INTERVAL = 2_sec;  // Update cache every 2 seconds
 
-	// Create an iterable with our filter
-	auto spawnPoints = (radius > 0.0f) ?
-		monster_spawn_points_radius(origin, radius) :
-		monster_spawn_points();
+	// Check if we need to update the cache
+	if (level.time >= spawn_cache.last_update + CACHE_UPDATE_INTERVAL) {
+		spawn_cache.clear();
 
-	// Collect all valid spawn points
-	for (edict_t* spawnPoint : spawnPoints) {
-		if (!IsSpawnPointOccupied(spawnPoint)) {
-			availableSpawns.push_back(spawnPoint);
+		// Use your existing iterator to populate cache
+		auto spawnPoints = (radius > 0.0f) ?
+			monster_spawn_points_radius(origin, radius) :
+			monster_spawn_points();
+
+		for (edict_t* spawnPoint : spawnPoints) {
+			if (!IsSpawnPointOccupied(spawnPoint)) {
+				if (!spawn_cache.add(spawnPoint))
+					break;  // Cache is full
+			}
 		}
+
+		spawn_cache.last_update = level.time;
 	}
 
-	if (availableSpawns.empty()) {
+	// If no valid spawn points in cache, return nullptr
+	if (spawn_cache.count == 0)
 		return nullptr;
-	}
 
-	return availableSpawns[irandom(availableSpawns.size())];
+	// Select random point from cache
+	return spawn_cache.points[irandom(spawn_cache.count)];
 }
 
 // 1. First, modify the SelectRandomSpawnPoint declaration to be a template function
@@ -3066,6 +3095,7 @@ void ResetGame() {
 	hasBeenReset = true;
 
 	ResetWaveMemory();
+	spawn_cache.clear();
 
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
 		edict_t* boss = *it;
