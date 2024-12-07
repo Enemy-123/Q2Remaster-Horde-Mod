@@ -567,31 +567,7 @@ MONSTERINFO_ATTACK(shambler_attack) (edict_t* self) -> void
 	M_SetAnimation(self, &shambler_attack_magic);
 	return;
 }
-	// Handle blind fire state
-	if (self->monsterinfo.attack_state == AS_BLIND)
-	{
-		float chance;
-		if (self->monsterinfo.blind_fire_delay < 1_sec)
-			chance = 1.0f;
-		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
-			chance = 0.4f;
-		else
-			chance = 0.1f;
-
-		// Si tenemos un objetivo para blindfire y pasamos el check de probabilidad
-		if (frandom() <= chance && self->monsterinfo.blind_fire_target)
-		{
-			self->monsterinfo.blind_fire_delay += 5.2_sec + random_time(3_sec);
-			self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
-
-			M_SetAnimation(self, &shambler_attack_fireball);
-			self->monsterinfo.attack_finished = level.time + random_time(2_sec, 3_sec);
-			self->pain_debounce_time = level.time + 5_sec;
-			return;
-		}
-		return;
-	}
-
+	else
 	M_SetAnimation(self,
 		brandom() ?
 		&shambler_attack_magic :
