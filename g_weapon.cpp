@@ -424,7 +424,6 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 	if (!self || !self->owner) {
 		return;
 	}
-
 	if (other == self->owner)
 		return;
 
@@ -442,23 +441,16 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 			self->owner->client->pers.weapon &&
 			self->owner->client->pers.weapon->id == IT_WEAPON_BLASTER;
 
-		// Solo aplicar radio damage si NO es un blaster normal
-		if ((!useblaster && self->dmg >= 5) || self->owner->svflags & SVF_MONSTER) {
-			int damagestat = 0;
-			if (self->owner) {
-				damagestat = self->owner->takedamage;
-				self->owner->takedamage = false;
-				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-				self->owner->takedamage = damagestat;
-			}
-			else {
-				T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), other, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-			}
-		}
-
-		// Daño directo
+		// Primero aplicamos el daño directo
 		T_Damage(other, self, self->owner, self->velocity, self->s.origin,
 			tr.plane.normal, self->dmg, 1, DAMAGE_ENERGY, MOD_BLASTER);
+
+		// Luego aplicamos el radio damage si no es un blaster normal
+		if ((!useblaster && self->dmg >= 5) || self->owner->svflags & SVF_MONSTER) {
+			T_RadiusDamage(self, self->owner, (float)self->dmg, self,
+				self->dmg_radius, DAMAGE_ENERGY, MOD_HYPERBLASTER);
+		}
+
 		G_FreeEdict(self);
 	}
 	else {
@@ -477,21 +469,11 @@ TOUCH(blaster_bolt_touch)(edict_t* self, edict_t* other, const trace_t& tr, bool
 					// Agregar radio damage al impactar
 					if (self->dmg >= 5)
 					{
-						int damagestat = 0;
-						if (self->owner)
-						{
-							damagestat = self->owner->takedamage;
-							self->owner->takedamage = false;
-							T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), self->owner, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-							self->owner->takedamage = damagestat;
-						}
-						else
-						{
-							T_RadiusDamage(self, self->owner, (float)(self->dmg * 2), self->owner, self->dmg_radius, DAMAGE_ENERGY, MOD_UNKNOWN);
-						}
+						T_RadiusDamage(self, self->owner, (float)self->dmg, self,
+							self->dmg_radius, DAMAGE_ENERGY, MOD_HYPERBLASTER);
 					}
 
-					//from blaster2, adding radiusdmg
+					// Efecto visual del rebote
 					gi.WriteByte(svc_temp_entity);
 					gi.WriteByte((self->style != MOD_BLUEBLASTER) ? TE_BLASTER : TE_BLUEHYPERBLASTER);
 					gi.WritePosition(self->s.origin);

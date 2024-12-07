@@ -1687,32 +1687,131 @@ struct heatbeam_pierce_t : pierce_args_t {
 static void fire_beams(edict_t* self, const vec3_t& start, const vec3_t& aimdir, const vec3_t& offset,
 	int damage, int kick, int te_beam, int te_impact, mod_t mod)
 {
-	vec3_t end = start + (aimdir * 8192);
-	contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
+	if (g_piercingbeam->integer) {
+		vec3_t end = start + (aimdir * 8192);
+		contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
 
-	if (self->client && !G_ShouldPlayersCollide(true))
-		content_mask &= ~CONTENTS_PLAYER;
+		if (self->client && !G_ShouldPlayersCollide(true))
+			content_mask &= ~CONTENTS_PLAYER;
 
-	heatbeam_pierce_t pierce(self, aimdir, damage, kick, mod);
-	pierce_trace(start, end, self, pierce, content_mask);
+		heatbeam_pierce_t pierce(self, aimdir, damage, kick, mod);
+		pierce_trace(start, end, self, pierce, content_mask);
 
-	// Draw beam effect
-	gi.WriteByte(svc_temp_entity);
-	gi.WriteByte(te_beam);
-	gi.WriteEntity(self);
-	gi.WritePosition(start);
-	gi.WritePosition(pierce.tr.endpos);
-	gi.multicast(self->s.origin, MULTICAST_ALL, false);
-
-	if (pierce.water_hit) {
-		vec3_t pos = pierce.tr.endpos + (aimdir * -2);
-
+		// Draw beam effect
 		gi.WriteByte(svc_temp_entity);
-		gi.WriteByte(TE_BUBBLETRAIL2);
+		gi.WriteByte(te_beam);
+		gi.WriteEntity(self);
 		gi.WritePosition(start);
 		gi.WritePosition(pierce.tr.endpos);
-		gi.multicast(pos, MULTICAST_PVS, false);
+		gi.multicast(self->s.origin, MULTICAST_ALL, false);
+
+		if (pierce.water_hit) {
+			vec3_t pos = pierce.tr.endpos + (aimdir * -2);
+
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(TE_BUBBLETRAIL2);
+			gi.WritePosition(start);
+			gi.WritePosition(pierce.tr.endpos);
+			gi.multicast(pos, MULTICAST_PVS, false);
+		}
 	}
+		else {
+			trace_t    tr;
+			vec3_t     dir;
+			vec3_t     forward, right, up;
+			vec3_t     end;
+			vec3_t     water_start, endpoint;
+			bool       water = false, underwater = false;
+			contents_t content_mask = MASK_PROJECTILE | MASK_WATER;
+
+			if (self->client && !G_ShouldPlayersCollide(true))
+				content_mask &= ~CONTENTS_PLAYER;
+
+			vec3_t beam_endpt;
+
+			dir = vectoangles(aimdir);
+			AngleVectors(dir, forward, right, up);
+			end = start + (forward * 8192);
+
+			if (gi.pointcontents(start) & MASK_WATER) {
+				underwater = true;
+				water_start = start;
+				content_mask &= ~MASK_WATER;
+			}
+
+			tr = gi.traceline(start, end, self, content_mask);
+
+			if (tr.contents & MASK_WATER) {
+				water = true;
+				water_start = tr.endpos;
+
+				if (start != tr.endpos) {
+					gi.WriteByte(svc_temp_entity);
+					gi.WriteByte(TE_HEATBEAM_SPARKS);
+					gi.WritePosition(water_start);
+					gi.WriteDir(tr.plane.normal);
+					gi.multicast(tr.endpos, MULTICAST_PVS, false);
+				}
+
+				tr = gi.traceline(water_start, end, self, content_mask & ~MASK_WATER);
+			}
+
+			endpoint = tr.endpos;
+
+			if (water)
+				damage = damage / 2;
+
+			if (!((tr.surface) && (tr.surface->flags & SURF_SKY))) {
+				if (tr.fraction < 1.0f) {
+					if (tr.ent->takedamage) {
+						T_Damage(tr.ent, self, self, aimdir, tr.endpos, tr.plane.normal, damage, kick, DAMAGE_ENERGY, mod);
+					}
+					else {
+						if ((!water) && !(tr.surface && (tr.surface->flags & SURF_SKY))) {
+							gi.WriteByte(svc_temp_entity);
+							gi.WriteByte(TE_HEATBEAM_STEAM);
+							gi.WritePosition(tr.endpos);
+							gi.WriteDir(tr.plane.normal);
+							gi.multicast(tr.endpos, MULTICAST_PVS, false);
+
+							if (self->client)
+								PlayerNoise(self, tr.endpos, PNOISE_IMPACT);
+						}
+					}
+				}
+			}
+
+			if ((water) || (underwater)) {
+				vec3_t pos;
+				dir = tr.endpos - water_start;
+				dir.normalize();
+				pos = tr.endpos + (dir * -2);
+
+				if (gi.pointcontents(pos) & MASK_WATER)
+					tr.endpos = pos;
+				else
+					tr = gi.traceline(pos, water_start, tr.ent != world ? tr.ent : nullptr, MASK_WATER);
+
+				pos = water_start + tr.endpos;
+				pos *= 0.5f;
+
+				gi.WriteByte(svc_temp_entity);
+				gi.WriteByte(TE_BUBBLETRAIL2);
+				gi.WritePosition(water_start);
+				gi.WritePosition(tr.endpos);
+				gi.multicast(pos, MULTICAST_PVS, false);
+			}
+
+			beam_endpt = (!underwater && !water) ? tr.endpos : endpoint;
+
+			gi.WriteByte(svc_temp_entity);
+			gi.WriteByte(te_beam);
+			gi.WriteEntity(self);
+			gi.WritePosition(start);
+			gi.WritePosition(beam_endpt);
+			gi.multicast(self->s.origin, MULTICAST_ALL, false);
+		}
+
 }
 /*
 =================

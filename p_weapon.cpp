@@ -1482,9 +1482,9 @@ void Weapon_HyperBlaster_Fire(edict_t* ent)
 			offset[1] = 4 * cosf(rotation);
 
 			if (G_IsDeathmatch())
-				damage = 8;
+				damage = 10;
 			else
-				damage = 8;
+				damage = 10;
 			Blaster_Fire(ent, offset, damage, true, ((ent->client->ps.gunframe - 6) % 4) == 0 ? EF_HYPERBLASTER : EF_NONE);
 			Weapon_PowerupSound(ent);
 
