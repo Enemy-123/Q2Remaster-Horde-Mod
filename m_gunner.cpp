@@ -399,7 +399,7 @@ void GunnerFire(edict_t* self)
 	if (self->monsterinfo.attack_state == AS_BLIND)
 	{
 		float chance;
-		float r = frandom();
+		const float r = frandom();
 
 		// Setup shot probabilities like tank
 		if (self->monsterinfo.blind_fire_delay < 1_sec)
