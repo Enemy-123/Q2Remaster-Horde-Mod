@@ -1036,10 +1036,10 @@ inline void G_RunFrame_(bool main_loop)
 			gi.Com_PrintFmt("PRINT: Intermission started. Auto-exit scheduled in 30 seconds.\n");
 		}
 
-		gtime_t time_elapsed = level.time - level.intermissiontime;
-		gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
+		const gtime_t time_elapsed = level.time - level.intermissiontime;
+		const gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
 
-		if (time_remaining <= 0_ms)
+		if (time_remaining == 0_ms)
 		{
 			// Es hora de salir de la intermisión
 			gi.Com_PrintFmt("PRINT: Auto-exiting intermission after 30 seconds.\n");
@@ -1056,7 +1056,7 @@ inline void G_RunFrame_(bool main_loop)
 	{
 		if (level.intermission_fade_time > level.time)
 		{
-			float alpha = clamp(1.0f - (level.intermission_fade_time - level.time - 300_ms).seconds(), 0.f, 1.f);
+			const float alpha = clamp(1.0f - (level.intermission_fade_time - level.time - 300_ms).seconds(), 0.f, 1.f);
 
 			for (auto player : active_players())
 				player->client->ps.screen_blend = { 0, 0, 0, alpha };
