@@ -3855,10 +3855,11 @@ void CheckAndResetDisabledSpawnPoints() {
 }
 
 void Horde_RunFrame() {
-	const MapSize& mapSize = g_horde_local.current_map_size;	const int32_t currentLevel = g_horde_local.level;
-	static WaveEndReason currentWaveEndReason;  // Agregar esta declaración
+	const MapSize& mapSize = g_horde_local.current_map_size;
+	const int32_t currentLevel = g_horde_local.level;
+	static WaveEndReason currentWaveEndReason;
 
-	// Manejo de monstruos personalizados
+	// Handle custom monster settings (likely debug/testing)
 	if (dm_monsters->integer >= 1) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
 		g_horde_local.queued_monsters = 0;
@@ -3873,101 +3874,136 @@ void Horde_RunFrame() {
 			current_wave_level = 1;
 			PlayWaveStartSound();
 			DisplayWaveMessage();
+
+			if (developer->integer) {
+				gi.Com_PrintFmt("PRINT: Wave {} begins.\n", current_wave_level);
+				gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+				gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+				gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+				gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+			}
+
 		}
 		break;
 
-	case horde_state_t::spawning:
-		// Verificar tiempo límite independiente primero
-		if (level.time >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-			const WaveEndReason reason = WaveEndReason::TimeLimitReached;
-			SendCleanupMessage(reason);
-			//gi.Com_PrintFmt("PRINT: Wave {} time limit reached during spawn. Transitioning to cleanup.\n", currentLevel);
-			g_horde_local.state = horde_state_t::cleanup;
-			g_horde_local.monster_spawn_time = level.time + 0.5_sec;
-			currentWaveEndReason = reason;
-			break;
+	case horde_state_t::spawning: {
+		// Independent time limit check for faster exit
+		const gtime_t independentTimeLimit = g_independent_timer_start + g_lastParams.independentTimeThreshold;
+		if (level.time >= independentTimeLimit) {
+			currentWaveEndReason = WaveEndReason::TimeLimitReached;
+			goto wave_end; // Use goto for immediate cleanup
 		}
 
 		if (g_horde_local.monster_spawn_time <= level.time) {
-			// Spawn de jefe si corresponde
 			if (currentLevel >= 10 && currentLevel % 5 == 0 && !boss_spawned_for_wave) {
 				SpawnBossAutomatically();
 			}
 
 			const int32_t activeMonsters = CalculateRemainingMonsters();
-			const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
+			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
-			if (activeMonsters < maxMonsters) {
+			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
+
+				if (developer->integer == 1)
+					gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
+
 			}
 
-			// Transición a active_wave cuando se complete el spawn
-			if (g_horde_local.num_to_spawn == 0) {
+			if (g_horde_local.num_to_spawn <= 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 					next_wave_message_sent = true;
-				}
 
-				// Inicializar el estado active_wave
+				}
 				g_horde_local.state = horde_state_t::active_wave;
-				g_horde_local.conditionTriggered = false;
-				g_horde_local.conditionStartTime = 0_sec;
-				g_horde_local.waveEndTime = 0_sec;
-				g_horde_local.lastPrintTime = 0_sec;
 
-				// Resetear las warningtimes usando un bucle for simple
-				for (size_t i = 0; i < 4; i++) {
-					g_horde_local.warningIssued[i] = false;
-				}
+				//if (developer->integer) {
+				//	gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
+				//	gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+				//	gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+				//	gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+				//	gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+				//}
 
-				//	if (developer->integer) gi.Com_PrintFmt("PRINT: Transitioning to 'active_wave' state. Wave timer starting.\n");
+
+
 			}
 		}
 		break;
+	}
 
 	case horde_state_t::active_wave: {
 		WaveEndReason reason;
 		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
 
 		if (shouldAdvance) {
-			SendCleanupMessage(reason);
-			//gi.Com_PrintFmt("PRINT: Wave {} completed. Transitioning to cleanup.\n", currentLevel);
-			g_horde_local.state = horde_state_t::cleanup;
-			g_horde_local.monster_spawn_time = level.time + 0.5_sec;
-			currentWaveEndReason = reason; // Guardar la razón aquí
+			currentWaveEndReason = reason;
+			goto wave_end; // Use goto for immediate cleanup
 		}
 		else if (g_horde_local.monster_spawn_time <= level.time) {
 			const int32_t activeMonsters = CalculateRemainingMonsters();
-			const int32_t maxMonsters = (mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
-				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP));
-
-			if (activeMonsters < maxMonsters) {
+			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
+				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+			if (activeMonsters < maxMonsters && g_horde_local.queued_monsters > 0) {
+				//if (developer->integer == 1)
+				//	gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
 			}
 		}
 		break;
 	}
 
-	case horde_state_t::cleanup: {
+	case horde_state_t::cleanup:
 		if (g_horde_local.monster_spawn_time < level.time) {
-			HandleWaveCleanupMessage(mapSize, currentWaveEndReason); // Pasar la razón guardada
 
-			// Transición al estado de descanso
+			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
 			g_horde_local.warm_time = level.time + random_time(0.8_sec, 1.5_sec);
 			g_horde_local.state = horde_state_t::rest;
+
+			//if (developer->integer) {
+			//	gi.Com_PrintFmt("PRINT: Wave {} cleanup complete. Next wave in {:.2f} seconds.\n", current_wave_level, (g_horde_local.warm_time - level.time).seconds());
+			//	gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+			//	gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+			//	gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+			//	gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+			//}
+
 		}
+
 		break;
-	}
+
 	case horde_state_t::rest:
 		if (g_horde_local.warm_time < level.time) {
 			HandleWaveRestMessage(3_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
+
+
+
 		}
 		break;
 	}
+	return;
+
+wave_end: // Cleanup label for both spawning and active_wave states
+
+	SendCleanupMessage(currentWaveEndReason);
+	g_horde_local.monster_spawn_time = level.time + 0.5_sec;
+	g_horde_local.state = horde_state_t::cleanup;
+
+	//if (developer->integer) {
+	//	gi.Com_PrintFmt("PRINT: Wave {} ended due to {}. Cleanup starting.\n", current_wave_level,
+	//		(currentWaveEndReason == WaveEndReason::AllMonstersDead) ? "all monsters dead" :
+	//		(currentWaveEndReason == WaveEndReason::MonstersRemaining) ? "monsters remaining" : "time limit");
+	//	gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+	//	gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+	//	gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+	//	gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+	//}
+
 }
 
 // Función para manejar el evento de reinicio

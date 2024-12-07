@@ -1036,10 +1036,10 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 		}
 	}
 
-	// don't give us weapons if we shouldn't have any
-	if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
-		(!G_TeamplayEnabled() && !client->resp.spectator))
-	{
+	//// don't give us weapons if we shouldn't have any
+	//if ((G_TeamplayEnabled() && client->resp.ctf_team != CTF_NOTEAM) ||
+	//	(!G_TeamplayEnabled() && !client->resp.spectator))
+	//{
 
 		if (!taken_loadout) {
 			// Base ammo initialization
@@ -1123,7 +1123,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				// Horde mode weapons based on wave level
 				if (G_IsDeathmatch()) {
 					const bool give_advanced = current_wave_level >= 13;
-					const bool give_basic = current_wave_level >= 5;
+					const bool give_basic = current_wave_level >= 4;
 
 					if (give_advanced || give_basic) {
 						// Common weapons for both loadouts
@@ -1174,7 +1174,7 @@ void InitClientPersistant(edict_t* ent, gclient_t* client)
 				client->pers.weapon = item;
 			}
 		}
-	}
+	//}
 	//
 	// FINAL SETUP
 	//
