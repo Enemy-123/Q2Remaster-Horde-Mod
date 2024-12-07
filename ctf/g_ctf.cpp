@@ -1242,7 +1242,8 @@ private:
 	};
 
 	std::array<EntityInfo, MAX_ENTITY_INFOS> m_entities;
-	std::unordered_map<int, int> m_entityToSlot;
+	// std::unordered_map<int, int> m_entityToSlot; // Replaced with std::vector (assuming dense entity indices)
+	std::vector<int> m_entityToSlot;
 	std::vector<int> m_freeSlots;
 	uint16_t m_activeCount{ 0 };
 
@@ -1253,29 +1254,29 @@ public:
 			m_freeSlots.push_back(i);
 			m_entities[i].config_string_id = CONFIG_ENTITY_INFO_START + i;
 		}
+
+		// Initialize m_entityToSlot with -1 (indicating no entity in that slot)
+		m_entityToSlot.resize(MAX_EDICTS, -1);
 	}
 
 	bool updateEntityInfo(int entityIndex, std::string_view info) noexcept {
-		if (info.length() >= MAX_STRING_LENGTH)
-			return false;
-
 		// Add bounds check for entity index
-		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
+		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
 			return false;
+		}
 
-		if (info.length() >= MAX_STRING_LENGTH)
+		if (info.length() >= MAX_STRING_LENGTH) {
 			return false;
+		}
 
-		int slotIndex;
-		auto const it = m_entityToSlot.find(entityIndex);
+		int slotIndex = m_entityToSlot[entityIndex];
 
-		// Si no hay slot asignado
-		if (it == m_entityToSlot.end()) {
-			// Intentar reciclar slots obsoletos antes de fallar
+		// If no slot is assigned
+		if (slotIndex == -1) {
 			if (m_freeSlots.empty()) {
-				cleanupStaleEntries();  // Forzar una limpieza
-				if (m_freeSlots.empty())
-					return false;
+				// You could also optionally call cleanupStaleEntries() here
+				// but be mindful of the potential performance impact.
+				return false;
 			}
 
 			slotIndex = m_freeSlots.back();
@@ -1283,11 +1284,8 @@ public:
 			m_entityToSlot[entityIndex] = slotIndex;
 			m_activeCount++;
 		}
-		else {
-			slotIndex = it->second;
-		}
 
-		// Actualizar sólo si es necesario
+		// Update only if necessary
 		auto& entity = m_entities[slotIndex];
 		if (entity.needsUpdate(info, level.time)) {
 			entity.update(info, level.time);
@@ -1297,63 +1295,71 @@ public:
 		return true;
 	}
 
-
 	static constexpr bool isValidConfigStringId(int32_t id) noexcept {
 		return id >= CONFIG_ENTITY_INFO_START &&
 			id <= CONFIG_ENTITY_INFO_END;
 	}
 
 	void removeEntityInfo(int entityIndex) noexcept {
-		auto const it = m_entityToSlot.find(entityIndex);
-		if (it != m_entityToSlot.end()) {
-			int const slotIndex = it->second;
-			if (slotIndex < 0 || slotIndex >= MAX_ENTITY_INFOS)
-				return;
+		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
+			return;
 
-			auto& entity = m_entities[slotIndex];
+		int const slotIndex = m_entityToSlot[entityIndex];
+		if (slotIndex == -1)
+			return; // Entity not found or already removed
 
-			// Validate config string ID before using
-			if (isValidConfigStringId(entity.config_string_id))
-				gi.configstring(entity.config_string_id, "");
+		if (slotIndex < 0 || slotIndex >= MAX_ENTITY_INFOS)
+			return;
 
-			// Clear data
-			entity.length = 0;
-			entity.data[0] = '\0';
-			entity.last_update = 0_ms;
+		auto& entity = m_entities[slotIndex];
 
-			m_freeSlots.push_back(slotIndex);
-			m_entityToSlot.erase(it);
-			m_activeCount--;
+		// Validate config string ID before using
+		if (isValidConfigStringId(entity.config_string_id)) {
+			gi.configstring(entity.config_string_id, "");
 		}
+
+		// Clear data
+		entity.length = 0;
+		entity.data[0] = '\0';
+		entity.last_update = 0_ms;
+
+		m_freeSlots.push_back(slotIndex);
+		m_entityToSlot[entityIndex] = -1; // Mark slot as free
+		m_activeCount--;
+
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
-		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
+		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
 			return -1;
+		}
 
-		if (auto it = m_entityToSlot.find(entityIndex); it != m_entityToSlot.end()) {
-			if (it->second >= 0 && it->second < MAX_ENTITY_INFOS)
-				return m_entities[it->second].config_string_id;
+		int const slotIndex = m_entityToSlot[entityIndex];
+		if (slotIndex != -1) {
+			// Add an assertion for extra safety during development
+			assert(slotIndex >= 0 && slotIndex < MAX_ENTITY_INFOS && "Slot index out of bounds!");
+			if (slotIndex >= 0 && slotIndex < MAX_ENTITY_INFOS)
+				return m_entities[slotIndex].config_string_id;
 		}
 		return -1;
 	}
 
+	// Consider making cleanupStaleEntries a non-member function or 
+	// a static member function if it doesn't need to access private members 
+	// directly (it could receive an OptimizedEntityInfoManager* as a parameter).
 	void cleanupStaleEntries() noexcept {
-		auto it = m_entityToSlot.begin();
-		while (it != m_entityToSlot.end()) {
-			if (level.time - m_entities[it->second].last_update > STALE_THRESHOLD) {
-				removeEntityInfo(it->first);
-				it = m_entityToSlot.begin();
-			}
-			else {
-				++it;
+		for (int entityIndex = 0; entityIndex < MAX_EDICTS; ++entityIndex) {
+			int const slotIndex = m_entityToSlot[entityIndex];
+			if (slotIndex != -1) {
+				if (level.time - m_entities[slotIndex].last_update > STALE_THRESHOLD) {
+					removeEntityInfo(entityIndex);
+				}
 			}
 		}
 	}
 };
 
 inline OptimizedEntityInfoManager g_entityInfoManager;
-
 
 //// Función auxiliar optimizada
 //inline void UpdateEntityConfigString(edict_t* self) noexcept {
@@ -1431,21 +1437,18 @@ struct TargetSearchResult {
 }
 
 void CTFSetIDView(edict_t* ent) {
-	// Si ya estamos procesando una vista de ID, salir
-	static bool processing = false;
-	if (processing)
+	// Early exit if already processing or not enough time has passed
+	static bool processing = false; // Consider making this thread-local if needed
+	if (processing || level.intermissiontime || level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
 		return;
+	}
 
 	processing = true;
 
-	// Garantizar que processing se resetee al salir
+	// Ensure processing is reset to false when exiting the function
 	struct ScopeGuard {
 		~ScopeGuard() { processing = false; }
 	} guard;
-
-	if (level.intermissiontime || level.time - ent->client->resp.lastidtime < 97_ms) {
-		return;
-	}
 
 	ent->client->resp.lastidtime = level.time;
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
@@ -1454,40 +1457,11 @@ void CTFSetIDView(edict_t* ent) {
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
-	edict_t* best = nullptr;
-	float closest_dist = 2048;
-	constexpr float min_dot = 0.98f;
-	constexpr float very_close_distance = 100.0f;
-	constexpr float close_min_dot = 0.5f;
+	// Find the best target using the existing logic
+	TargetSearchResult result = FindBestTarget(ent, { g_edicts + 1, globals.num_edicts }, forward);
+	edict_t* best = result.target;
 
-	for (uint32_t i = 1; i < globals.num_edicts; i++) {
-		edict_t* who = g_edicts + i;
-		if (!IsValidTarget(ent, who, false))
-			continue;
-
-		vec3_t dir = who->s.origin - ent->s.origin;
-		float const dist = dir.normalize();
-		float const d = forward.dot(dir);
-
-		bool is_valid_target = false;
-		if (dist < very_close_distance) {
-			is_valid_target = (d > close_min_dot);
-		}
-		else {
-			is_valid_target = (d > min_dot);
-		}
-
-		if (is_valid_target && dist < closest_dist) {
-			vec3_t const start = ent->s.origin;
-			vec3_t const end = who->s.origin;
-			trace_t const tr = gi.traceline(start, end, ent, MASK_SOLID);
-			if (tr.fraction == 1.0 || tr.ent == who) {
-				closest_dist = dist;
-				best = who;
-			}
-		}
-	}
-
+	// Fallback to idtarget if no best target is found and idtarget is valid
 	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
 		best = ent->client->idtarget;
 	}
@@ -1497,19 +1471,14 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 		int const entity_index = best - g_edicts;
 
-		// More defensive update attempt
-		bool update_success = false;
-
-		// First try
-		update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-
-		// If first try fails, cleanup and try again once
+		// Update entity info - if it fails, attempt cleanup and try again once
+		bool update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
 		if (!update_success) {
 			g_entityInfoManager.cleanupStaleEntries();
 			update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
 		}
 
-		// Only update HUD if we successfully updated the entity info
+		// Update HUD only if entity info was successfully updated
 		if (update_success) {
 			int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
 			if (configStringIndex != -1) {
@@ -1519,7 +1488,7 @@ void CTFSetIDView(edict_t* ent) {
 			}
 		}
 
-		// Failed to update
+		// Failed to update - clear target health string
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 	else {
@@ -1529,56 +1498,52 @@ void CTFSetIDView(edict_t* ent) {
 }
 
 void OnEntityDeath(edict_t* self) noexcept {
-    // Basic checks
-    if (!self || !self->inuse || self->monsterinfo.death_processed) {
-        return;
-    }
+	if (!self || !self->inuse || self->monsterinfo.death_processed) {
+		return;
+	}
 
-    self->monsterinfo.death_processed = true;
-    
-    // Handle summoned entity deaths
-    if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
-        if (strcmp(self->classname, "monster_sentrygun") == 0) {
-            gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
-            self->owner->client->num_sentries--;
-        } 
-        else if (strstr(self->classname, "monster_") && 
-                 strcmp(self->classname, "monster_sentrygun") != 0) {
-            gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!\n");
-            self->owner->client->num_sentries--;
-        }
-    }
+	self->monsterinfo.death_processed = true;
 
-    // Clean up entity info
-    int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
-    if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
-        g_entityInfoManager.removeEntityInfo(entity_index);
-    }
+	// Handle summoned entity deaths
+	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
+		if (strcmp(self->classname, "monster_sentrygun") == 0) {
+			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
+			self->owner->client->num_sentries--;
+		}
+		else if (strstr(self->classname, "monster_") &&
+			strcmp(self->classname, "monster_sentrygun") != 0) {
+			gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!\n");
+			self->owner->client->num_sentries--;
+		}
+	}
+
+	// Clean up entity info
+	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
+	if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
+		g_entityInfoManager.removeEntityInfo(entity_index);
+	}
 }
 
+// OnEntityRemoved now simply calls OnEntityDeath
 inline void OnEntityRemoved(edict_t* self) noexcept {
-	OnEntityDeath(self); // Reutilizar la lógica es más eficiente
+	OnEntityDeath(self);
 }
 
+// CleanupInvalidEntities - remains largely the same
 void CleanupInvalidEntities() {
 	for (uint32_t i = 0; i < (globals.num_edicts); i++) {
 		edict_t* ent = &g_edicts[i];
 		if (ent->inuse && ent->svflags & SVF_MONSTER) {
-			// Verifica si la entidad está en un estado inválido
 			if (ent->solid == SOLID_NOT && ent->health > 0) {
-				// Esta entidad parece estar en un estado bugueado
 				gi.Com_PrintFmt("PRINT: Removing Bug/Immortal monster: {}\n", ent->classname);
-
-				// Forzar la muerte de la entidad
 				ent->health = -1;
-
-				// Asegurarse de que la entidad se libere
 				OnEntityDeath(ent);
 				G_FreeEdict(ent);
 			}
 		}
 	}
 }
+
 void SetCTFStats(edict_t* ent)
 {
 	uint32_t i;

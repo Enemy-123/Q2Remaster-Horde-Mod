@@ -3905,8 +3905,8 @@ void Horde_RunFrame() {
 
 			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
 
-				if (developer->integer == 1)
-					gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
+				//if (developer->integer == 1)
+				//	gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
 
 			}
