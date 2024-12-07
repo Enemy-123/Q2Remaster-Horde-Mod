@@ -829,7 +829,7 @@ constexpr struct weighted_item_t {
 	int32_t min_level = -1, max_level = -1;
 	float weight = 1.0f;
 	weight_adjust_func_t adjust_weight = nullptr;
-	uint32_t flags = 0; 
+	uint32_t flags = 0;
 } items[] = {
 	{ "item_health", 3, 5, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, 4, 0.06f, adjust_weight_health },
@@ -941,7 +941,7 @@ static bool WasRecentlyUsed(MonsterWaveType wave_type) noexcept {
 }
 
 // Helper function to store wave type in memory
-static void StoreWaveType(MonsterWaveType wave_type) noexcept  {
+static void StoreWaveType(MonsterWaveType wave_type) noexcept {
 	previous_wave_types[wave_memory_index] = wave_type;
 	wave_memory_index = (wave_memory_index + 1) % WAVE_MEMORY_SIZE;
 }
@@ -1124,14 +1124,15 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 
 // Structure to include wave level information
 struct MonsterTypeInfo {
-    const char* classname;
-    MonsterWaveType types;
-    int minWave;
-    float weight;
+	const char* classname;
+	MonsterWaveType types;
+	int minWave;
+	float weight;
 
-    // Add a constexpr constructor
-    constexpr MonsterTypeInfo(const char* n, MonsterWaveType t, int w, float wt) 
-        : classname(n), types(t), minWave(w), weight(wt) {}
+	// Add a constexpr constructor
+	constexpr MonsterTypeInfo(const char* n, MonsterWaveType t, int w, float wt)
+		: classname(n), types(t), minWave(w), weight(wt) {
+	}
 };
 
 static const MonsterTypeInfo monsterTypes[] = {
@@ -3833,12 +3834,12 @@ static void SendCleanupMessage(WaveEndReason reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
 		if (developer->integer == 2)
-		PrintRemainingMonsterCounts();
+			PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
 		if (developer->integer == 2)
-		PrintRemainingMonsterCounts();
+			PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::TimeLimitReached:
 		message = fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level);

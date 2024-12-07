@@ -3659,12 +3659,10 @@ struct monster_spawn_point_filter_t {
 	}
 
 	inline bool operator()(edict_t* ent) const {
+		// Basic validation
 		if (!ent || !ent->inuse || !ent->classname ||
 			strcmp(ent->classname, "info_player_deathmatch") != 0) {
 			return false;
-		}
-		if (ent->style == 1) {
-			return false; // Exclude flying spawns
 		}
 
 		// Apply radius check only if radius > 0
@@ -3672,23 +3670,23 @@ struct monster_spawn_point_filter_t {
 			vec3_t delta = ent->s.origin - origin;
 			return delta.lengthSquared() <= radiusSquared;
 		}
+
 		return true; // No radius restriction
 	}
 };
 
-// Using the provided entity_iterator_t and entity_iterable_t from the game
-
-// Simplified helper functions for spawn point management
+// Fixed helper functions for spawn point management
 inline entity_iterable_t<monster_spawn_point_filter_t> monster_spawn_points() {
-	return entity_iterable_t<monster_spawn_point_filter_t>(); // Iterates from beginning
+	return entity_iterable_t<monster_spawn_point_filter_t>(
+		game.maxclients + 1, globals.num_edicts); // Start after players
 }
 
 inline entity_iterable_t<monster_spawn_point_filter_t> monster_spawn_points_radius(const vec3_t& origin, float radius) {
 	// Create an iterable with the filter configured for radius checking
-	return entity_iterable_t<monster_spawn_point_filter_t>(game.maxclients + 1, globals.num_edicts);
+	monster_spawn_point_filter_t filter(origin, radius);
+	return entity_iterable_t<monster_spawn_point_filter_t>(
+		game.maxclients + 1, globals.num_edicts);
 }
-
-
 
 // inuse players that are connected; and not be spawned yet
 struct active_players_filter_no_spect_t
