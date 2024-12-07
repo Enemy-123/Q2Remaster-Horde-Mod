@@ -533,7 +533,7 @@ THINK(proboscis_think) (edict_t* self) -> void
             // succ & drain
             if (self->timestamp <= level.time)
             {
-                int damage = 2;
+                int damage = irandom(2, 4);
                 if (M_DamageModifier(self)) {
                     damage *= M_DamageModifier(self);
                 }
