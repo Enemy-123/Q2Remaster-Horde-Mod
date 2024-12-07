@@ -3650,6 +3650,7 @@ public:
 	inline entity_iterator_t<TFilter> end() const { return end_index; }
 };
 
+// 1. First, define the spawn point filter template
 struct monster_spawn_point_filter_t {
 	vec3_t origin;
 	float radiusSquared;
@@ -3675,18 +3676,19 @@ struct monster_spawn_point_filter_t {
 	}
 };
 
-// Fixed helper functions for spawn point management
+// 2. Helper functions for spawn point iteration
 inline entity_iterable_t<monster_spawn_point_filter_t> monster_spawn_points() {
 	return entity_iterable_t<monster_spawn_point_filter_t>(
 		game.maxclients + 1, globals.num_edicts); // Start after players
 }
 
-inline entity_iterable_t<monster_spawn_point_filter_t> monster_spawn_points_radius(const vec3_t& origin, float radius) {
-	// Create an iterable with the filter configured for radius checking
+inline entity_iterable_t<monster_spawn_point_filter_t> monster_spawn_points_radius(
+	const vec3_t& origin, float radius) {
 	monster_spawn_point_filter_t filter(origin, radius);
 	return entity_iterable_t<monster_spawn_point_filter_t>(
 		game.maxclients + 1, globals.num_edicts);
 }
+
 
 // inuse players that are connected; and not be spawned yet
 struct active_players_filter_no_spect_t

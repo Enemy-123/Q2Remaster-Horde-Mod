@@ -47,7 +47,7 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 // ¿Está el punto de spawn ocupado?
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
 	// Define el espacio adicional usando vec3_t
-	const vec3_t space_multiplier{ 2.5f, 2.5f, 2.5f };
+	const vec3_t space_multiplier{ 1.1f, 1.1f, 1.1f };
 	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
 	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
 
@@ -81,6 +81,7 @@ edict_t* SelectRandomMonsterSpawnPoint(const vec3_t& origin = vec3_origin, float
 	return availableSpawns[irandom(availableSpawns.size())];
 }
 
+// 1. First, modify the SelectRandomSpawnPoint declaration to be a template function
 template <typename TFilter>
 edict_t* SelectRandomSpawnPoint(TFilter filter, const vec3_t& origin = vec3_origin, float radius = 0.0f) {
 	static std::vector<edict_t*> availableSpawns;
@@ -121,38 +122,6 @@ struct SpawnMonsterFilter {
 		return !IsSpawnPointOccupied(spawnPoint);
 	}
 };
-
-struct TeleportStuckMonsterFilter {
-	gtime_t currentTime;
-
-	TeleportStuckMonsterFilter(gtime_t time) : currentTime(time) {}
-
-	bool operator()(edict_t* spawnPoint) const {
-		// Exclude flying spawns (as in the original code)
-		if (spawnPoint->style == 1) {
-			return false;
-		}
-
-		// Check cooldowns to prevent excessive teleporting to the same spawn point
-		const auto it = spawnPointsData.find(spawnPoint);
-		if (it != spawnPointsData.end() && currentTime < it->second.teleport_cooldown) {
-			return false;
-		}
-
-		if (IsSpawnPointOccupied(spawnPoint)) {
-			return false;
-		}
-
-		// Check visibility to players (optimized)
-		for (const edict_t* const player : active_players_no_spect()) {
-			if (G_IsClearPath(player, MASK_SOLID, spawnPoint->s.origin, player->s.origin)) {
-				return false; // Spawn point is visible, so don't use it
-			}
-		}
-		return true;
-	}
-};
-
 
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
@@ -3404,6 +3373,31 @@ void InitializeWaveSystem() noexcept {
 static void SetMonsterArmor(edict_t* monster);
 static void SetNextMonsterSpawnTime(const MapSize& mapSize);
 
+struct StuckMonsterSpawnFilter {
+	bool operator()(edict_t* ent) const {
+		if (!ent || !ent->inuse || !ent->classname ||
+			strcmp(ent->classname, "info_player_deathmatch") != 0 ||
+			ent->style == 1)  // Exclude flying spawns
+			return false;
+
+		// Cooldown check (keep this)
+		auto const it = spawnPointsData.find(ent);
+		if (it != spawnPointsData.end() && level.time < it->second.teleport_cooldown)
+			return false;
+
+		if (IsSpawnPointOccupied(ent))  // Occupancy check (keep this)
+			return false;
+
+		// Check proximity to players (NEW)
+		for (const auto* const player : active_players_no_spect()) {
+			if ((ent->s.origin - player->s.origin).length() < 512.0f) { // Adjust distance as needed
+				return true;
+			}
+		}
+		return false; // No player nearby
+	}
+};
+
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Early returns optimizados
 	if (!self || !self->inuse || self->deadflag ||
@@ -3449,15 +3443,48 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	gi.unlinkentity(self);
 
-	TeleportStuckMonsterFilter filter{ level.time };
+	// 1. First, try the efficient filter approach
+	StuckMonsterSpawnFilter filter;
 	edict_t* spawn_point = SelectRandomSpawnPoint(filter);
 
+	// 2. If the filter fails, fallback to the exhaustive search
 	if (!spawn_point) {
-		if (developer->integer)
-			gi.Com_PrintFmt("No valid spawn point found for teleporting stuck monster.\n");
-		gi.linkentity(self);
-		return false;
+		std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns = {};
+		size_t spawn_count = 0;
+
+		// Correct way to iterate through g_edicts (excluding world)
+		//std::span<edict_t> const all_edicts(g_edicts, globals.num_edicts);
+		//std::span<edict_t> edicts_view = all_edicts.subspan(1);
+		for (edict_t& e : std::span{ g_edicts + 1, globals.num_edicts - 1 }) { // iterate from g_edicts[1] to globals.num_edicts
+			if (spawn_count >= MAX_SPAWN_POINTS)
+				break;
+
+			if (!e.inuse || !e.classname ||
+				strcmp(e.classname, "info_player_deathmatch") != 0 ||
+				e.style == 1)
+				continue;
+
+			auto const it = spawnPointsData.find(&e);
+			if (it != spawnPointsData.end() && level.time < it->second.teleport_cooldown)
+				continue;
+
+			if (!IsSpawnPointOccupied(&e)) {
+				available_spawns[spawn_count++] = &e;
+			}
+		}
+
+		if (spawn_count > 0) {
+			spawn_point = available_spawns[irandom(spawn_count)];
+		}
+		else {
+			if (developer->integer)
+			//	gi.Com_PrintFmt("No fallback spawn point found either!\n");
+			gi.linkentity(self);  // Re-link the entity
+			return false;         // No spawn points available!
+		}
 	}
+
+
 
 	// Set teleport cooldown
 	spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
@@ -3523,7 +3550,7 @@ static edict_t* SpawnMonsters() {
 		edict_t* spawn_point = SelectRandomSpawnPoint(filter);
 		if (!spawn_point) {
 			if (developer->integer)
-				gi.Com_PrintFmt("No valid spawn point found for monster.\n");
+			//	gi.Com_PrintFmt("No valid spawn point found for monster.\n");
 			continue;
 		}
 
