@@ -5,6 +5,155 @@
 #include <set>
 #include "g_horde_benefits.h"
 
+
+struct SpawnPointData {
+	uint16_t attempts = 0;
+	gtime_t spawn_cooldown = 0_sec;     // Regular spawn cooldown
+	gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
+	gtime_t lastSpawnTime = 0_sec;
+	uint16_t successfulSpawns = 0;
+	bool isTemporarilyDisabled = false;
+	gtime_t cooldownEndsAt = 0_sec;
+};
+
+std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
+
+// Función de filtro optimizada
+// Modified SpawnPointFilter function
+static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
+	FilterData* filter_data = static_cast<FilterData*>(data);
+
+	// Ignore the specified entity (if exists)
+	if (ent == filter_data->ignore_ent) {
+		return BoxEdictsResult_t::Skip;
+	}
+
+	// Check if the entity is a player or bot
+	if (ent->client && ent->inuse) {
+		filter_data->count++;
+		return BoxEdictsResult_t::End; // Stop searching if a player or bot is found
+	}
+
+	// Check if the entity is a monster (using the SVF_MONSTER flag)
+	if (ent->svflags & SVF_MONSTER && !ent->deadflag) {
+		filter_data->count++;
+		return BoxEdictsResult_t::End; // Stop searching if a monster is found
+	}
+
+	return BoxEdictsResult_t::Skip;
+}
+
+
+// ¿Está el punto de spawn ocupado?
+bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
+	// Define el espacio adicional usando vec3_t
+	const vec3_t space_multiplier{ 2.5f, 2.5f, 2.5f };
+	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
+	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
+
+	FilterData filter_data = { ignore_ent, 0 };
+	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+
+	return filter_data.count > 0;
+}
+
+// Optimized function to select a random unoccupied monster spawn point
+edict_t* SelectRandomMonsterSpawnPoint(const vec3_t& origin = vec3_origin, float radius = 0.0f) {
+	static std::vector<edict_t*> availableSpawns; // Static for better performance
+	availableSpawns.clear();
+
+	// Create an iterable with our filter
+	auto spawnPoints = (radius > 0.0f) ?
+		monster_spawn_points_radius(origin, radius) :
+		monster_spawn_points();
+
+	// Collect all valid spawn points
+	for (edict_t* spawnPoint : spawnPoints) {
+		if (!IsSpawnPointOccupied(spawnPoint)) {
+			availableSpawns.push_back(spawnPoint);
+		}
+	}
+
+	if (availableSpawns.empty()) {
+		return nullptr;
+	}
+
+	return availableSpawns[irandom(availableSpawns.size())];
+}
+
+template <typename TFilter>
+edict_t* SelectRandomSpawnPoint(TFilter filter, const vec3_t& origin = vec3_origin, float radius = 0.0f) {
+	static std::vector<edict_t*> availableSpawns;
+	availableSpawns.clear();
+
+	// Use the appropriate iterable based on radius
+	auto spawnPoints = (radius > 0.0f) ?
+		monster_spawn_points_radius(origin, radius) :
+		monster_spawn_points();
+
+	// Apply the provided filter
+	for (edict_t* spawnPoint : spawnPoints) {
+		if (filter(spawnPoint)) { // Use the filter here
+			availableSpawns.push_back(spawnPoint);
+		}
+	}
+
+	if (availableSpawns.empty()) {
+		return nullptr;
+	}
+
+	return availableSpawns[irandom(availableSpawns.size())];
+}
+
+struct SpawnMonsterFilter {
+	gtime_t currentTime;
+
+	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
+
+	bool operator()(edict_t* spawnPoint) const {
+		const auto it = spawnPointsData.find(spawnPoint);
+
+		// Check cooldowns to prevent excessive teleporting to the same spawn point
+		if (it != spawnPointsData.end() && currentTime < it->second.teleport_cooldown) {
+			return false;
+		}
+
+		return !IsSpawnPointOccupied(spawnPoint);
+	}
+};
+
+struct TeleportStuckMonsterFilter {
+	gtime_t currentTime;
+
+	TeleportStuckMonsterFilter(gtime_t time) : currentTime(time) {}
+
+	bool operator()(edict_t* spawnPoint) const {
+		// Exclude flying spawns (as in the original code)
+		if (spawnPoint->style == 1) {
+			return false;
+		}
+
+		// Check cooldowns to prevent excessive teleporting to the same spawn point
+		const auto it = spawnPointsData.find(spawnPoint);
+		if (it != spawnPointsData.end() && currentTime < it->second.teleport_cooldown) {
+			return false;
+		}
+
+		if (IsSpawnPointOccupied(spawnPoint)) {
+			return false;
+		}
+
+		// Check visibility to players (optimized)
+		for (const edict_t* const player : active_players_no_spect()) {
+			if (G_IsClearPath(player, MASK_SOLID, spawnPoint->s.origin, player->s.origin)) {
+				return false; // Spawn point is visible, so don't use it
+			}
+		}
+		return true;
+	}
+};
+
+
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
 constexpr size_t MAX_RECENT_BOSSES = 4;
@@ -312,19 +461,6 @@ bool next_wave_message_sent = false;
 auto auto_spawned_bosses = std::unordered_set<edict_t*>{};
 auto lastMonsterSpawnTime = std::unordered_map<std::string, gtime_t>{};
 auto lastSpawnPointTime = std::unordered_map<edict_t*, gtime_t>{};
-struct SpawnPointData {
-	uint16_t attempts = 0;
-	gtime_t spawn_cooldown = 0_sec;     // Regular spawn cooldown
-	gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
-	gtime_t lastSpawnTime = 0_sec;
-	uint16_t successfulSpawns = 0;
-	bool isTemporarilyDisabled = false;
-	gtime_t cooldownEndsAt = 0_sec;
-};
-
-std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
-
-
 
 const std::unordered_set<std::string> smallMaps = {
 	"q2dm3", "q2dm7", "q2dm2", "q64/dm10", "test/mals_barrier_test",
@@ -770,7 +906,7 @@ constexpr MonsterWaveType operator|(MonsterWaveType a, MonsterWaveType b) {
 		);
 }
 
-inline MonsterWaveType operator&(MonsterWaveType a, MonsterWaveType b) {
+inline MonsterWaveType operator& (MonsterWaveType a, MonsterWaveType b) noexcept {
 	return static_cast<MonsterWaveType>(
 		static_cast<uint32_t>(a) & static_cast<uint32_t>(b)
 		);
@@ -795,7 +931,7 @@ static size_t wave_memory_index = 0;
 
 
 // Helper function to check if a wave type was recently used
-static bool WasRecentlyUsed(MonsterWaveType wave_type) {
+static bool WasRecentlyUsed(MonsterWaveType wave_type) noexcept {
 	for (const auto& prev_type : previous_wave_types) {
 		if (prev_type == wave_type) {
 			return true;
@@ -805,7 +941,7 @@ static bool WasRecentlyUsed(MonsterWaveType wave_type) {
 }
 
 // Helper function to store wave type in memory
-static void StoreWaveType(MonsterWaveType wave_type) {
+static void StoreWaveType(MonsterWaveType wave_type) noexcept  {
 	previous_wave_types[wave_memory_index] = wave_type;
 	wave_memory_index = (wave_memory_index + 1) % WAVE_MEMORY_SIZE;
 }
@@ -1577,44 +1713,6 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	}
 }
 
-// Función de filtro optimizada
-// Modified SpawnPointFilter function
-static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
-	FilterData* filter_data = static_cast<FilterData*>(data);
-
-	// Ignore the specified entity (if exists)
-	if (ent == filter_data->ignore_ent) {
-		return BoxEdictsResult_t::Skip;
-	}
-
-	// Check if the entity is a player or bot
-	if (ent->client && ent->inuse) {
-		filter_data->count++;
-		return BoxEdictsResult_t::End; // Stop searching if a player or bot is found
-	}
-
-	// Check if the entity is a monster (using the SVF_MONSTER flag)
-	if (ent->svflags & SVF_MONSTER && !ent->deadflag) {
-		filter_data->count++;
-		return BoxEdictsResult_t::End; // Stop searching if a monster is found
-	}
-
-	return BoxEdictsResult_t::Skip;
-}
-
-// ¿Está el punto de spawn ocupado?
-static bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Define el espacio adicional usando vec3_t
-	const vec3_t space_multiplier{ 2.5f, 2.5f, 2.5f };
-	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
-	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
-
-	FilterData filter_data = { ignore_ent, 0 };
-	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
-
-	return filter_data.count > 0;
-}
-
 static const char* G_HordePickMonster(edict_t* spawn_point) {
 	auto& data = spawnPointsData[spawn_point];
 	if (data.isTemporarilyDisabled) {
@@ -2223,20 +2321,21 @@ void boss_die(edict_t* boss) {
 		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 	}
 }
+
 static bool Horde_AllMonstersDead() {
-	for (auto ent : active_or_dead_monsters()) {
-		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Excluir monstruos con AI_DO_NOT_COUNT
+	for (edict_t* ent : active_monsters()) {
 		if (!ent->deadflag && ent->health > 0) {
-			return false;
+			return false; // A live monster exists
 		}
+		// Boss death check remains within the loop
 		if (ent->monsterinfo.IS_BOSS && ent->health <= 0) {
 			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() && !ent->monsterinfo.BOSS_DEATH_HANDLED) {
-				boss_die(ent);
+				boss_die(ent); // Handle boss death here if needed
 			}
 		}
 	}
 	if (developer->integer) gi.Com_Print("DEBUG: All monsters are dead.\n");
-	return true;
+	return true; // No live monsters found
 }
 
 void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
@@ -2311,24 +2410,25 @@ static void StartFadeOut(edict_t* ent) {
 
 // Asegúrate de limpiar entidades muertas
 void Horde_CleanBodies() {
-	for (auto ent : active_or_dead_monsters()) {
-		// Limpiar inmediatamente si está muerto
+	for (edict_t* ent : active_or_dead_monsters()) {
 		if (ent->deadflag || ent->health <= 0) {
-			// Remover inmediatamente sin fade si está muy lejos de los jugadores
 			bool far_from_players = true;
-			for (const auto* const player : active_players_no_spect()) {
+			for (edict_t* player : active_players_no_spect()) { // Assume this now uses the correct iterable
 				if ((ent->s.origin - player->s.origin).length() < 1000) {
 					far_from_players = false;
 					break;
 				}
 			}
-
 			if (far_from_players) {
-				G_FreeEdict(ent);
+				G_FreeEdict(ent); // Immediately remove if far from players
 			}
 			else {
-				StartFadeOut(ent);
+				if (!ent->is_fading_out) // Added to not start another fade
+					StartFadeOut(ent); // Start fade out if closer to players
 			}
+		}
+		else { // If the monster is alive but somehow flagged for removal:
+			CheckAndRestoreMonsterAlpha(ent); //Restore monster alpha if alive
 		}
 	}
 }
@@ -3346,58 +3446,20 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
-	std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns = {};
-	size_t spawn_count = 0;
-
-	// Crear span de forma más segura
-	std::span<edict_t> const all_edicts(g_edicts, globals.num_edicts);
-	// Crear subspan excluyendo el primer elemento
-	std::span<edict_t> edicts_view = all_edicts.subspan(1);
-
 	gi.unlinkentity(self);
 
-	// Recolección optimizada de spawn points usando span
-	for (edict_t& e : edicts_view) {
-		if (spawn_count >= MAX_SPAWN_POINTS)
-			break;
+	TeleportStuckMonsterFilter filter{ level.time };
+	edict_t* spawn_point = SelectRandomSpawnPoint(filter);
 
-		if (!e.inuse || !e.classname ||
-			strcmp(e.classname, "info_player_deathmatch") != 0 ||
-			e.style == 1)  // Excluir spawns para voladores
-			continue;
-
-		auto const it = spawnPointsData.find(&e);
-		if (it != spawnPointsData.end()) {
-			if (level.time < it->second.teleport_cooldown)
-				continue;
-		}
-
-		if (!IsSpawnPointOccupied(&e)) {
-			bool can_see_player = false;
-			for (const auto* const player : active_players_no_spect()) {
-				if (!player->inuse || player->deadflag)
-					continue;
-				if (G_IsClearPath(player, MASK_SOLID, e.s.origin, player->s.origin)) {
-					can_see_player = true;
-					break;
-				}
-			}
-			if (can_see_player)
-				available_spawns[spawn_count++] = &e;
-		}
+	if (!spawn_point) {
+		if (developer->integer)
+			gi.Com_PrintFmt("No valid spawn point found for teleporting stuck monster.\n");
+		gi.linkentity(self);
+		return false;
 	}
 
-	if (spawn_count == 0)
-		return false;
-	// Crear vista de los spawns disponibles usando std::array
-	std::span<edict_t* const> const spawns_view(available_spawns.data(), spawn_count);
-
-	// Seleccionar spawn point aleatorio usando span
-	edict_t* spawn_point = spawns_view[irandom(spawn_count)];
-
 	// Set teleport cooldown
-	auto& spawn_data = spawnPointsData[spawn_point];
-	spawn_data.teleport_cooldown = level.time + 2_sec;
+	spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
 
 	const vec3_t old_velocity = self->velocity;
 	const vec3_t old_origin = self->s.origin;
@@ -3429,53 +3491,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 }
 
 static edict_t* SpawnMonsters() {
-	edict_t* monster_spawns[MAX_SPAWN_POINTS] = {};
-	size_t spawn_count = 0;
-	const auto currentTime = level.time;
-
 	if (developer->integer == 2)
 		return nullptr;
-
-	// Crear span desde g_edicts de forma más segura
-	std::span<edict_t> const all_edicts(g_edicts, globals.num_edicts);
-	// Crear subspan excluyendo el primer elemento (índice 0)
-	std::span<edict_t> active_edicts = all_edicts.subspan(1);
-
-	// Recolección de spawn points con validación temprana
-	for (edict_t& e : active_edicts) {
-		if (spawn_count >= MAX_SPAWN_POINTS)
-			break;
-
-		if (!e.inuse || !e.classname || e.monsterinfo.IS_BOSS ||
-			strcmp(e.classname, "info_player_deathmatch") != 0)
-			continue;
-
-		auto const it = spawnPointsData.find(&e);
-		if (it != spawnPointsData.end() && it->second.isTemporarilyDisabled) {
-			if (currentTime < it->second.cooldownEndsAt)
-				continue;
-			it->second.isTemporarilyDisabled = false;
-		}
-
-		// Verificar si el punto de spawn es válido usando vec3_t
-		if (!is_valid_vector(e.s.origin))
-			continue;
-
-		monster_spawns[spawn_count++] = &e;
-	}
-
-	if (spawn_count == 0)
-		return nullptr;
-
-	// Shuffle optimizado usando Fisher-Yates con span
-	if (spawn_count > 1) {
-		for (size_t i = spawn_count - 1; i > 0; --i) {
-			const size_t j = irandom(static_cast<size_t>(static_cast<size_t>(i)) + 1);
-			if (i != j) {
-				std::swap(monster_spawns[i], monster_spawns[j]);
-			}
-		}
-	}
 
 	// Cache de valores del mapa y límites
 	const MapSize& mapSize = g_horde_local.current_map_size;
@@ -3496,14 +3513,21 @@ static edict_t* SpawnMonsters() {
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	const size_t spawn_limit = std::min(spawn_count, static_cast<size_t>(spawnable));
+	SpawnMonsterFilter filter{ level.time };
 
-	// Spawn loop optimizado usando operaciones vec3_t
-	for (size_t i = 0; i < spawn_limit; ++i) {
+	for (int32_t i = 0; i < spawnable; ++i) {
 		if (g_horde_local.num_to_spawn <= 0)
 			break;
 
-		edict_t* spawn_point = monster_spawns[i];
+		edict_t* spawn_point = SelectRandomSpawnPoint(filter);
+		if (!spawn_point) {
+			if (developer->integer)
+				gi.Com_PrintFmt("No valid spawn point found for monster.\n");
+			continue;
+		}
+
+		spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
+
 		const char* monster_classname = G_HordePickMonster(spawn_point);
 		if (!monster_classname)
 			continue;
@@ -3559,6 +3583,14 @@ static edict_t* SpawnMonsters() {
 }
 
 static void SetMonsterArmor(edict_t* monster) {
+
+	constexpr float HEALTH_RATIO_POWER = 1.1f;
+	constexpr float SIZE_FACTOR_POWER = 0.7f;
+	constexpr float MASS_FACTOR_POWER = 0.6f;
+	constexpr float BASE_ARMOR = 75.0f;
+	constexpr float MAX_HEALTH_ARMOR_FACTOR = 0.2f;
+
+
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	// Asignar tipo de armadura por defecto solo si no tiene ninguno especificado
@@ -3582,10 +3614,10 @@ static void SetMonsterArmor(edict_t* monster) {
 		level_scaling = 2.2f + ((current_wave_level - 25) * 0.08f);
 	}
 
-	float armor_power = (75 + monster->max_health * 0.15f) *
-		std::pow(health_ratio, 1.1f) *
-		std::pow(size_factor, 0.7f) *
-		std::pow(mass_factor, 0.6f) *
+	float armor_power = (BASE_ARMOR + monster->max_health * MAX_HEALTH_ARMOR_FACTOR) *
+		std::pow(health_ratio, HEALTH_RATIO_POWER) *
+		std::pow(size_factor, SIZE_FACTOR_POWER) *
+		std::pow(mass_factor, MASS_FACTOR_POWER) *
 		level_scaling;
 
 	float armor_multiplier = 1.0f;
@@ -3857,7 +3889,7 @@ void CheckAndResetDisabledSpawnPoints() {
 void Horde_RunFrame() {
 	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
-	static WaveEndReason currentWaveEndReason;
+	WaveEndReason currentWaveEndReason{};
 
 	// Handle custom monster settings (likely debug/testing)
 	if (dm_monsters->integer >= 1) {
@@ -3865,6 +3897,8 @@ void Horde_RunFrame() {
 		g_horde_local.queued_monsters = 0;
 		ClampNumToSpawn(mapSize);
 	}
+
+	bool waveEnded = false; // Flag to signal if we need to transition to cleanup
 
 	switch (g_horde_local.state) {
 	case horde_state_t::warmup:
@@ -3876,13 +3910,12 @@ void Horde_RunFrame() {
 			DisplayWaveMessage();
 
 			if (developer->integer) {
-				gi.Com_PrintFmt("PRINT: Wave {} begins.\n", current_wave_level);
-				gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-				gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-				gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-				gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+				//gi.Com_PrintFmt("PRINT: Wave {} begins.\n", current_wave_level);
+				//gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+				//gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+				//gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+				//gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
 			}
-
 		}
 		break;
 
@@ -3891,7 +3924,8 @@ void Horde_RunFrame() {
 		const gtime_t independentTimeLimit = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 		if (level.time >= independentTimeLimit) {
 			currentWaveEndReason = WaveEndReason::TimeLimitReached;
-			goto wave_end; // Use goto for immediate cleanup
+			waveEnded = true; // Set the flag
+			break;             // Exit the spawning state
 		}
 
 		if (g_horde_local.monster_spawn_time <= level.time) {
@@ -3904,11 +3938,9 @@ void Horde_RunFrame() {
 				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
 
 			if (activeMonsters < maxMonsters && g_horde_local.num_to_spawn > 0) {
-
 				//if (developer->integer == 1)
-				//	gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
+				//    gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
-
 			}
 
 			if (g_horde_local.num_to_spawn <= 0) {
@@ -3916,20 +3948,16 @@ void Horde_RunFrame() {
 					VerifyAndAdjustBots();
 					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
 					next_wave_message_sent = true;
-
 				}
 				g_horde_local.state = horde_state_t::active_wave;
 
 				//if (developer->integer) {
-				//	gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
-				//	gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-				//	gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-				//	gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-				//	gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+				//    gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
+				//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+				//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+				//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+				//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
 				//}
-
-
-
 			}
 		}
 		break;
@@ -3941,15 +3969,17 @@ void Horde_RunFrame() {
 
 		if (shouldAdvance) {
 			currentWaveEndReason = reason;
-			goto wave_end; // Use goto for immediate cleanup
+			waveEnded = true; // Set the flag
+			break;             // Exit the active_wave state
 		}
 		else if (g_horde_local.monster_spawn_time <= level.time) {
 			const int32_t activeMonsters = CalculateRemainingMonsters();
 			const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
 				(mapSize.isMediumMap ? MAX_MONSTERS_MEDIUM_MAP : MAX_MONSTERS_BIG_MAP);
+
 			if (activeMonsters < maxMonsters && g_horde_local.queued_monsters > 0) {
 				//if (developer->integer == 1)
-				//	gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
+				//    gi.Com_PrintFmt("Horde: Spawning Monsters! | Monsters to Spawn: {} | Active Monsters: {} | Total in Wave: {} | Queued Monsters: {} \n", g_horde_local.num_to_spawn, CalculateRemainingMonsters(), g_totalMonstersInWave, g_horde_local.queued_monsters);
 				SpawnMonsters();
 			}
 		}
@@ -3958,21 +3988,18 @@ void Horde_RunFrame() {
 
 	case horde_state_t::cleanup:
 		if (g_horde_local.monster_spawn_time < level.time) {
-
 			HandleWaveCleanupMessage(mapSize, currentWaveEndReason);
 			g_horde_local.warm_time = level.time + random_time(0.8_sec, 1.5_sec);
 			g_horde_local.state = horde_state_t::rest;
 
 			//if (developer->integer) {
-			//	gi.Com_PrintFmt("PRINT: Wave {} cleanup complete. Next wave in {:.2f} seconds.\n", current_wave_level, (g_horde_local.warm_time - level.time).seconds());
-			//	gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-			//	gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-			//	gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-			//	gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+			//    gi.Com_PrintFmt("PRINT: Wave {} cleanup complete. Next wave in {:.2f} seconds.\n", current_wave_level, (g_horde_local.warm_time - level.time).seconds());
+			//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+			//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+			//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+			//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
 			//}
-
 		}
-
 		break;
 
 	case horde_state_t::rest:
@@ -3980,30 +4007,26 @@ void Horde_RunFrame() {
 			HandleWaveRestMessage(3_sec);
 			g_horde_local.state = horde_state_t::spawning;
 			Horde_InitLevel(g_horde_local.level + 1);
-
-
-
 		}
 		break;
 	}
-	return;
 
-wave_end: // Cleanup label for both spawning and active_wave states
+	// Cleanup logic (moved outside the switch)
+	if (waveEnded) {
+		SendCleanupMessage(currentWaveEndReason);
+		g_horde_local.monster_spawn_time = level.time + 0.5_sec;
+		g_horde_local.state = horde_state_t::cleanup;
 
-	SendCleanupMessage(currentWaveEndReason);
-	g_horde_local.monster_spawn_time = level.time + 0.5_sec;
-	g_horde_local.state = horde_state_t::cleanup;
-
-	//if (developer->integer) {
-	//	gi.Com_PrintFmt("PRINT: Wave {} ended due to {}. Cleanup starting.\n", current_wave_level,
-	//		(currentWaveEndReason == WaveEndReason::AllMonstersDead) ? "all monsters dead" :
-	//		(currentWaveEndReason == WaveEndReason::MonstersRemaining) ? "monsters remaining" : "time limit");
-	//	gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-	//	gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-	//	gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-	//	gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
-	//}
-
+		//if (developer->integer) {
+		//    gi.Com_PrintFmt("PRINT: Wave {} ended due to {}. Cleanup starting.\n", current_wave_level,
+		//        (currentWaveEndReason == WaveEndReason::AllMonstersDead) ? "all monsters dead" :
+		//        (currentWaveEndReason == WaveEndReason::MonstersRemaining) ? "monsters remaining" : "time limit");
+		//    gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+		//    gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+		//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+		//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+		//}
+	}
 }
 
 // Función para manejar el evento de reinicio

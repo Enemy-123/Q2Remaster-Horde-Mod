@@ -40,3 +40,4 @@ extern inline int8_t CalculateRemainingMonsters() noexcept;
 // Forzar limpieza de cuerpos
 extern void Horde_CleanBodies();
 extern void ResetWaveAdvanceState() noexcept;
+

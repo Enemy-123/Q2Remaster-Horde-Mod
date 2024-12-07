@@ -3489,6 +3489,8 @@ static bool BotIsOnLava(const edict_t* ent)
 	if (ent->flags & FL_INWATER && ((ent->watertype & CONTENTS_SLIME || ent->watertype & CONTENTS_LAVA) || (ent->air_finished == level.time))) {
 		return true;
 	}
+
+	return false;
 }
 
 static bool ClientInactivityTimer(edict_t* ent) {
