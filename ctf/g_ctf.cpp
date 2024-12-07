@@ -1260,7 +1260,7 @@ public:
 			return false;
 
 		// Add bounds check for entity index
-		if (entityIndex < 0 || entityIndex >= MAX_CLIENTS)
+		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
 			return false;
 
 		if (info.length() >= MAX_STRING_LENGTH)
@@ -1328,7 +1328,7 @@ public:
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
-		if (entityIndex < 0 || entityIndex >= MAX_CLIENTS)
+		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
 			return -1;
 
 		if (auto it = m_entityToSlot.find(entityIndex); it != m_entityToSlot.end()) {
