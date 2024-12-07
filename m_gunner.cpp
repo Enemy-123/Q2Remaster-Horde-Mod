@@ -386,12 +386,42 @@ void GunnerFire(edict_t* self)
 	if (!self->enemy || !self->enemy->inuse)
 		return;
 
+	// Check if we can get a clear shot first
+	if (!M_CheckClearShot(self, offset))
+		return;
+
 	flash_number = static_cast<monster_muzzleflash_id_t>(MZ2_SOLDIER_RIPPER_1 + (self->s.frame - FRAME_attak216));
 	AngleVectors(self->s.angles, forward, right, nullptr);
-
-	// Calcular el punto de inicio usando operadores de vec3_t
 	start = self->s.origin + (forward * offset[0]) + (right * offset[1]);
 	start.z += offset[2];
+
+	// Handle blindfire similar to tank
+	if (self->monsterinfo.attack_state == AS_BLIND)
+	{
+		float chance;
+		float r = frandom();
+
+		// Setup shot probabilities like tank
+		if (self->monsterinfo.blind_fire_delay < 1_sec)
+			chance = 1.0f;
+		else if (self->monsterinfo.blind_fire_delay < 7.5_sec)
+			chance = 0.4f;
+		else
+			chance = 0.1f;
+
+		self->monsterinfo.blind_fire_delay += 3.0_sec + random_time(2_sec);
+
+		// Don't shoot at the origin
+		if (!self->monsterinfo.blind_fire_target)
+			return;
+
+		// Don't shoot if the dice say not to
+		if (r > chance)
+			return;
+
+		// Signal blindfire
+		self->monsterinfo.aiflags |= AI_MANUAL_STEERING;
+	}
 
 	if (g_hardcoop->integer <= 3) {
 		// Modo hardcoop bajo: solo ionripper
