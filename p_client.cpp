@@ -3109,7 +3109,7 @@ inline edict_t* ClientChooseSlot_Coop(const char* userinfo, const char* social_i
 edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBot, edict_t** ignore, size_t num_ignore, bool cinematic)
 {
 	// coop and non-bots is the only thing that we need to do special behavior on
-	if ((!cinematic && G_IsCooperative() && !isBot) || (!cinematic && g_horde->integer && !isBot))
+	if ((!cinematic && G_IsCooperative() && !isBot)/* || (!cinematic && g_horde->integer && !isBot)*/)
 		return ClientChooseSlot_Coop(userinfo, social_id, isBot, ignore, num_ignore);
 
 	// just find any free slot
@@ -3636,7 +3636,7 @@ void UpdateIRTracking(edict_t* ent, gclient_t* client)
 	static uint32_t ir_dupe_key = 0;  // Clave única para el IR
 
 	// Usar el iterador de monstruos activos
-	for (const auto monster : active_monsters())
+	for (const auto* const monster : active_monsters())
 	{
 		// Solo dibujar si es un monstruo "contable"
 		if (!(monster->monsterinfo.aiflags & AI_DO_NOT_COUNT))
@@ -3655,7 +3655,7 @@ bool HandleMenuMovement(edict_t* ent, usercmd_t* menu_ucmd)
 	if (!ent->client->menu || ent->svflags & SVF_BOT)
 		return false;
 
-	int32_t menu_sign = menu_ucmd->forwardmove > 0 ? 1 : menu_ucmd->forwardmove < 0 ? -1 : 0;
+	const int32_t menu_sign = menu_ucmd->forwardmove > 0 ? 1 : menu_ucmd->forwardmove < 0 ? -1 : 0;
 	if (ent->client->menu_sign != menu_sign)
 	{
 		ent->client->menu_sign = menu_sign;
