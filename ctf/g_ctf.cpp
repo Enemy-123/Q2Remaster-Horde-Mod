@@ -1259,6 +1259,13 @@ public:
 		if (info.length() >= MAX_STRING_LENGTH)
 			return false;
 
+		// Add bounds check for entity index
+		if (entityIndex < 0 || entityIndex >= MAX_CLIENTS)
+			return false;
+
+		if (info.length() >= MAX_STRING_LENGTH)
+			return false;
+
 		int slotIndex;
 		auto const it = m_entityToSlot.find(entityIndex);
 
@@ -1290,21 +1297,30 @@ public:
 		return true;
 	}
 
+
+	static constexpr bool isValidConfigStringId(int32_t id) noexcept {
+		return id >= CONFIG_ENTITY_INFO_START &&
+			id <= CONFIG_ENTITY_INFO_END;
+	}
+
 	void removeEntityInfo(int entityIndex) noexcept {
 		auto const it = m_entityToSlot.find(entityIndex);
 		if (it != m_entityToSlot.end()) {
 			int const slotIndex = it->second;
+			if (slotIndex < 0 || slotIndex >= MAX_ENTITY_INFOS)
+				return;
+
 			auto& entity = m_entities[slotIndex];
 
-			// Clear configstring first
-			gi.configstring(entity.config_string_id, "");
+			// Validate config string ID before using
+			if (isValidConfigStringId(entity.config_string_id))
+				gi.configstring(entity.config_string_id, "");
 
 			// Clear data
 			entity.length = 0;
 			entity.data[0] = '\0';
 			entity.last_update = 0_ms;
 
-			// Return slot and cleanup map
 			m_freeSlots.push_back(slotIndex);
 			m_entityToSlot.erase(it);
 			m_activeCount--;
@@ -1312,8 +1328,12 @@ public:
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
+		if (entityIndex < 0 || entityIndex >= MAX_CLIENTS)
+			return -1;
+
 		if (auto it = m_entityToSlot.find(entityIndex); it != m_entityToSlot.end()) {
-			return m_entities[it->second].config_string_id;
+			if (it->second >= 0 && it->second < MAX_ENTITY_INFOS)
+				return m_entities[it->second].config_string_id;
 		}
 		return -1;
 	}
@@ -1477,13 +1497,19 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 		int const entity_index = best - g_edicts;
 
-		// Intentar actualizar hasta 2 veces si es necesario
-		bool update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+		// More defensive update attempt
+		bool update_success = false;
+
+		// First try
+		update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
+
+		// If first try fails, cleanup and try again once
 		if (!update_success) {
 			g_entityInfoManager.cleanupStaleEntries();
 			update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
 		}
 
+		// Only update HUD if we successfully updated the entity info
 		if (update_success) {
 			int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
 			if (configStringIndex != -1) {
@@ -1493,7 +1519,7 @@ void CTFSetIDView(edict_t* ent) {
 			}
 		}
 
-		// Si llegamos aquí, falló la actualización
+		// Failed to update
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 	else {
@@ -1503,29 +1529,31 @@ void CTFSetIDView(edict_t* ent) {
 }
 
 void OnEntityDeath(edict_t* self) noexcept {
-	if (!self || !self->inuse || self->monsterinfo.death_processed) {  // verificar el flag
-		return;
-	}
+    // Basic checks
+    if (!self || !self->inuse || self->monsterinfo.death_processed) {
+        return;
+    }
 
-	self->monsterinfo.death_processed = true;  // marcar como procesado
+    self->monsterinfo.death_processed = true;
+    
+    // Handle summoned entity deaths
+    if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
+        if (strcmp(self->classname, "monster_sentrygun") == 0) {
+            gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
+            self->owner->client->num_sentries--;
+        } 
+        else if (strstr(self->classname, "monster_") && 
+                 strcmp(self->classname, "monster_sentrygun") != 0) {
+            gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!\n");
+            self->owner->client->num_sentries--;
+        }
+    }
 
-	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
-		// Caso específico para sentry gun
-		if (!strcmp(self->classname, "monster_sentrygun")) {
-			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
-			self->owner->client->num_sentries--;
-		}
-		// Caso para otros monstruos invocados excluyendo sentry guns
-		else if (strstr(self->classname, "monster_") && strcmp(self->classname, "monster_sentrygun") != 0) {
-			gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!.\n");
-			self->owner->client->num_sentries--;
-		}
-	}
-
-	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
-	if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
-		g_entityInfoManager.removeEntityInfo(entity_index);
-	}
+    // Clean up entity info
+    int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
+    if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
+        g_entityInfoManager.removeEntityInfo(entity_index);
+    }
 }
 
 inline void OnEntityRemoved(edict_t* self) noexcept {
@@ -2955,34 +2983,35 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	return true;
 }
 void UpdateVoteHUD() {
-	if (ctfgame.election != ELECT_NONE) {
-		// Format the vote message
-		const std::string vote_info = fmt::format("{} Time left: {}s\n",
-			ctfgame.emsg, (ctfgame.electtime - level.time).seconds<int>());
+    static constexpr size_t MAX_VOTE_STRING = 128;
+    
+    if (ctfgame.election != ELECT_NONE) {
+        // Format with bounds checking
+        std::string vote_info = fmt::format("{} Time left: {}s\n",
+            ctfgame.emsg,
+            static_cast<int>((ctfgame.electtime - level.time).seconds())); 
 
-		// Set the configstring once for all clients
-		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
-		ClearHordeMessage();
+        if (vote_info.length() >= MAX_VOTE_STRING) {
+            vote_info.resize(MAX_VOTE_STRING - 1);
+            vote_info += "...";
+        }
 
-		// Update all players' stats to show the vote string
-		for (auto player : active_players()) {
-			if (player->client) {
-				// Just set the stat to point to the configstring
-				player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
-			}
-		}
-	}
-	else {
-		// Clear the vote info
-		gi.configstring(CONFIG_VOTE_INFO, "");
+        gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
+        ClearHordeMessage();
 
-		// Clear all players' vote stats
-		for (auto player : active_players()) {
-			if (player->client) {
-				player->client->ps.stats[STAT_VOTESTRING] = 0;
-			}
-		}
-	}
+        for (auto player : active_players()) {
+            if (player->client) {
+                player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
+            }
+        }
+    } else {
+        gi.configstring(CONFIG_VOTE_INFO, "");
+        for (auto player : active_players()) {
+            if (player->client) {
+                player->client->ps.stats[STAT_VOTESTRING] = 0;
+            }
+        }
+    }
 }
 
 void DoRespawn(edict_t* ent);
