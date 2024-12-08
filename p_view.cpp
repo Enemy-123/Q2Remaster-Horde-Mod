@@ -1337,7 +1337,7 @@ void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& di
 	uint32_t const current_frame = gi.ServerFrame();
 
 	// if you need this to fight monsters, you need help
-	if (!deathmatch->integer/*|| g_horde->integer*/)
+	if (!deathmatch->integer || g_horde->integer)
 		return;
 	else if (!g_lag_compensation->integer)
 		return;
