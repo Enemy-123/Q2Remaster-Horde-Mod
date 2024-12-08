@@ -1588,9 +1588,9 @@ int CountPlayers()
 	return count;
 }
 
-THINK(BossExplode_think) (edict_t *self) -> void
+THINK(BossExplode_think) (edict_t* self) -> void
 {
-	// owner gone or changed
+	// If owner is invalid or changed, clean up
 	if (!self->owner->inuse || self->owner->s.modelindex != self->style || self->count != self->owner->spawn_count)
 	{
 		G_FreeEdict(self);
@@ -1598,7 +1598,7 @@ THINK(BossExplode_think) (edict_t *self) -> void
 	}
 
 	vec3_t org = self->owner->s.origin + self->owner->mins;
-	
+
 	org.x += frandom() * self->owner->size.x;
 	org.y += frandom() * self->owner->size.y;
 	org.z += frandom() * self->owner->size.z;
@@ -1610,21 +1610,35 @@ THINK(BossExplode_think) (edict_t *self) -> void
 
 	self->viewheight++;
 
+	// After sufficient explosions, properly clean up both entities
+	if (self->viewheight >= 10)  // Adjust number as needed
+	{
+		// Make sure the monster is properly marked as dead and freed
+		if (self->owner->inuse)
+		{
+			self->owner->spawnflags |= SPAWNFLAG_MONSTER_DEAD;
+			G_FreeEdict(self->owner);
+		}
+		G_FreeEdict(self);
+		return;
+	}
+
 	self->nextthink = level.time + random_time(50_ms, 200_ms);
 }
 
-void BossExplode(edict_t *self)
+void BossExplode(edict_t* self)
 {
+	// Handle boss-specific death logic first
 	if (self->monsterinfo.IS_BOSS &&
 		!self->monsterinfo.BOSS_DEATH_HANDLED)
 	{
 		BossDeathHandler(self);
 	}
-	// no blowy on deady
-	if (self->spawnflags.has(SPAWNFLAG_MONSTER_DEAD))
-		return;
 
-	edict_t *exploder = G_Spawn();
+	// Set death flag immediately
+	self->spawnflags |= SPAWNFLAG_MONSTER_DEAD;
+
+	edict_t* exploder = G_Spawn();
 	exploder->owner = self;
 	exploder->count = self->spawn_count;
 	exploder->style = self->s.modelindex;
