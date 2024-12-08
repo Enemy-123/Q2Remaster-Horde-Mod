@@ -33,16 +33,17 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-    // More generous space multiplier like in old_horde
-    const vec3_t space_multiplier{ 2.5f, 2.5f, 2.5f };
-    const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
-    const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
+	// More generous space multiplier like in old_horde
+	const vec3_t space_multiplier{ 2.5f, 2.5f, 2.5f };
+	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
+	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
 
-    FilterData filter_data = { ignore_ent, 0 };
-    gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+	FilterData filter_data = { ignore_ent, 0 };
+	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
-    return filter_data.count > 0;
+	return filter_data.count > 0;
 }
+
 
 // Optimized SpawnPointCache combining best practices from both approaches
 struct SpawnPointCache {
@@ -61,14 +62,12 @@ struct SpawnPointCache {
 	static SpawnPointCache spawn_cache;
 
 	struct SpawnPointData {
-		uint16_t attempts = 0;
 		gtime_t spawn_cooldown = 0_sec;     // Regular spawn cooldown
 		gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
 		gtime_t last_spawn_time = 0_sec;
-		uint16_t successful_spawns = 0;
+		uint16_t attempts = 0;
 		bool is_temporarily_disabled = false;
 		gtime_t cooldown_ends_at = 0_sec;
-		float last_success_rate = 1.0f;    // Track success rate for adaptive cooldowns
 	};
 
 	struct CacheEntry {
@@ -89,7 +88,7 @@ struct SpawnPointCache {
 	// Configuration constants
 	static constexpr gtime_t CACHE_UPDATE_INTERVAL = 2_sec;
 	static constexpr gtime_t BASE_COOLDOWN = 2.8_sec;
-	static constexpr uint16_t MAX_CONSECUTIVE_FAILS = 3;
+	static constexpr uint16_t MAX_CONSECUTIVE_FAILS = 3;  // Reduced from 4
 	static constexpr float MIN_SUCCESS_RATE = 0.3f;
 
 	void clear() {
@@ -102,24 +101,26 @@ struct SpawnPointCache {
 
 	_Success_(return != false)
 		bool add(_In_ edict_t * spawn, bool force = false) {
-		// Early validation
-		if (!spawn || count >= MAX_SPAWN_POINTS) {
+		// Early validation with clear error conditions
+		if (!spawn) {
 			return false;
 		}
 
-		// First check if point already exists
+		// Check for existing point first
 		for (size_t i = 0; i < count; i++) {
 			if (points[i].point == spawn) {
+				// Update existing point
 				points[i].is_active = true;
 				points[i].data.attempts = 0;
+				points[i].data.cooldown_ends_at = 0_sec;
+				points[i].data.is_temporarily_disabled = false;
 				return true;
 			}
 		}
 
-		// Add new if space available
+		// Add new point if space available
 		if (count < MAX_SPAWN_POINTS) {
-			// Explicit bounds check
-			_Analysis_assume_(count < MAX_SPAWN_POINTS);
+			points[count] = CacheEntry{};  // Initialize cleanly
 			points[count].point = spawn;
 			points[count].is_active = true;
 			count++;
@@ -128,21 +129,21 @@ struct SpawnPointCache {
 
 		// Handle force add with LRU replacement
 		if (force) {
+			// Find least recently used point
 			size_t lru_idx = 0;
 			gtime_t oldest_time = level.time;
 
-			// Find LRU point
-			for (size_t i = 0; i < count; i++) {
+			for (size_t i = 0; i < MAX_SPAWN_POINTS; i++) {
 				if (points[i].data.last_spawn_time < oldest_time) {
 					oldest_time = points[i].data.last_spawn_time;
 					lru_idx = i;
 				}
 			}
 
-			// Explicit bounds check
-			_Analysis_assume_(lru_idx < MAX_SPAWN_POINTS);
+			// Reset and reuse the LRU slot
 			points[lru_idx].reset();
 			points[lru_idx].point = spawn;
+			points[lru_idx].is_active = true;
 			return true;
 		}
 
@@ -154,42 +155,55 @@ struct SpawnPointCache {
 			return nullptr;
 		}
 
-		// Create a list of valid indices
+		const gtime_t current_time = level.time;
 		std::array<size_t, MAX_SPAWN_POINTS> valid_indices;
 		size_t valid_count = 0;
 
-		const gtime_t current_time = level.time;
-
+		// First pass: collect all potentially valid points
 		for (size_t i = 0; i < count; i++) {
 			const auto& entry = points[i];
 
-			// Skip inactive or cooling down points
-			if (!entry.is_active ||
-				entry.data.is_temporarily_disabled ||
-				current_time < entry.data.cooldown_ends_at) {
+			// Quick rejections first
+			if (!entry.is_active || !entry.point || !entry.point->inuse) {
+				continue;
+			}
+
+			// Skip points in cooldown
+			if (entry.data.is_temporarily_disabled || current_time < entry.data.cooldown_ends_at) {
 				continue;
 			}
 
 			// Check radius constraint if applicable
 			if (radius > 0.0f && desired_origin != vec3_origin) {
-				if ((entry.point->s.origin - desired_origin).length() > radius) {
+				const float dist = (entry.point->s.origin - desired_origin).length();
+				if (dist > radius) {
 					continue;
 				}
 			}
 
-			// Check occupation
+			// Check occupation last (most expensive check)
 			if (!IsSpawnPointOccupied(entry.point)) {
-				valid_indices[valid_count++] = i;
+				if (valid_count < MAX_SPAWN_POINTS) {  // Safety check
+					valid_indices[valid_count++] = i;
+				}
 			}
 		}
 
+		// If no valid points found, try to recover by resetting cooldowns
 		if (valid_count == 0) {
-			return nullptr;
+			updateCooldowns();  // This might free up some points
+			return nullptr;     // Still return nullptr for this attempt
 		}
 
 		// Select random valid point
 		const size_t selected_idx = valid_indices[irandom(valid_count)];
-		return points[selected_idx].point;
+
+		// Double check the selected point
+		if (selected_idx < count && points[selected_idx].point && points[selected_idx].point->inuse) {
+			return points[selected_idx].point;
+		}
+
+		return nullptr;
 	}
 
 	void recordSpawnAttempt(edict_t* spawn, bool success) {
@@ -198,24 +212,21 @@ struct SpawnPointCache {
 				auto& data = points[i].data;
 
 				if (success) {
-					data.successful_spawns++;
 					data.last_spawn_time = level.time;
 					data.attempts = 0;
 					data.is_temporarily_disabled = false;
-
-					// Update success rate
-					data.last_success_rate = data.last_success_rate * 0.8f + 0.2f;
+					data.teleport_cooldown = level.time + 2_sec;
 				}
 				else {
 					data.attempts++;
-					data.last_success_rate = data.last_success_rate * 0.8f;
 
-					// Check for temporary disable
-					if (data.attempts >= MAX_CONSECUTIVE_FAILS ||
-						data.last_success_rate < MIN_SUCCESS_RATE) {
+					// Simple cooldown logic like old_horde
+					if (data.attempts >= 4) {
 						data.is_temporarily_disabled = true;
-						data.cooldown_ends_at = level.time +
-							(BASE_COOLDOWN * (1.0f + data.attempts * 0.5f));
+						data.cooldown_ends_at = level.time + 3_sec;
+					}
+					else if (data.attempts % 3 == 0) {
+						data.cooldown_ends_at = level.time + 1_sec;
 					}
 				}
 				break;
@@ -229,18 +240,16 @@ struct SpawnPointCache {
 		for (size_t i = 0; i < count; i++) {
 			auto& entry = points[i];
 
-			// Re-enable points if cooldown expired
+			// Only check if point is disabled
 			if (entry.data.is_temporarily_disabled &&
 				current_time >= entry.data.cooldown_ends_at) {
 				entry.data.is_temporarily_disabled = false;
 				entry.data.attempts = 0;
 			}
 
-			// Gradually restore success rate for inactive points
-			if (!entry.data.is_temporarily_disabled &&
-				current_time >= entry.data.last_spawn_time + 5_sec) {
-				entry.data.last_success_rate =
-					std::min(1.0f, entry.data.last_success_rate + 0.1f);
+			// Reset attempts if it's been a while since last spawn attempt
+			if (current_time - entry.data.last_spawn_time > 5_sec) {
+				entry.data.attempts = 0;
 			}
 		}
 	}
@@ -442,11 +451,11 @@ gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown
 // Añadir cerca de las otras constexpr al inicio del archivo
 static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 	if (isSmallMap)
-		return 0.3_sec;
+		return 0.3_sec;  // Small maps need faster spawning
 	else if (isBigMap)
-		return 1.8_sec;
+		return 1.0_sec;  // Bigger maps can handle slower spawns
 	else
-		return 1.0_sec;
+		return 0.5_sec;  // Medium maps get middle ground
 }
 
 // Nueva función para calcular el factor de escala del cooldown basado en el nivel
