@@ -2293,19 +2293,29 @@ void boss_die(edict_t* boss) {
 }
 
 static bool Horde_AllMonstersDead() {
-	for (edict_t* ent : active_monsters()) {
+	for (auto ent : active_or_dead_monsters()) {
+		// Skip monsters flagged to not count
+		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
+			continue;
+
+		// Check for live monsters    
 		if (!ent->deadflag && ent->health > 0) {
-			return false; // A live monster exists
+			return false;
 		}
-		// Boss death check remains within the loop
+
+		// Handle dying bosses
 		if (ent->monsterinfo.IS_BOSS && ent->health <= 0) {
-			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() && !ent->monsterinfo.BOSS_DEATH_HANDLED) {
-				boss_die(ent); // Handle boss death here if needed
+			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() &&
+				!ent->monsterinfo.BOSS_DEATH_HANDLED) {
+				boss_die(ent);
 			}
 		}
 	}
-	if (developer->integer) gi.Com_Print("DEBUG: All monsters are dead.\n");
-	return true; // No live monsters found
+
+	if (developer->integer) {
+		gi.Com_Print("DEBUG: All monsters are dead.\n");
+	}
+	return true;
 }
 
 void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
