@@ -1266,32 +1266,31 @@ struct boss_t {
 	BossSizeCategory sizeCategory; // Si decides extender la estructura
 };
 
-// Listas de jefes con probabilidades modificadas
-constexpr boss_t BOSS_SMALL[] = {
+static constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_tank_64", -1, 20, 0.25f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small},  // Aumentada probabilidad hasta nivel 20
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Small},  // Normal después del nivel 20
+	{"monster_tank_64", -1, 20, 0.25f, BossSizeCategory::Small},
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small},
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small},
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small},
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small},
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_makronkl", 36, -1, 0.2f, BossSizeCategory::Small},
 	{"monster_makron", 16, 26, 0.1f, BossSizeCategory::Small},
 	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small}
 };
 
-constexpr boss_t BOSS_MEDIUM[] = {
+static constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Medium},
-	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium},  // Aumentada probabilidad hasta nivel 20
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Medium},  // Normal después del nivel 20
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Medium},  // Normal después del nivel 20
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Medium},  // Normal después del nivel 20
+	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Medium},
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Medium},
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Medium},
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Medium},
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Medium},
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_psxguardian", -1, 24, 0.1f, BossSizeCategory::Medium},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium},
@@ -1299,16 +1298,16 @@ constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium}
 };
 
-constexpr boss_t BOSS_LARGE[] = {
+static constexpr boss_t BOSS_LARGE[] = {
 	{"monster_carrier", 24, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss2", 19, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss5", -1, -1, 0.1f, BossSizeCategory::Large},
-	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
-	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
-	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Large},  // Aumentada probabilidad hasta nivel 20
-	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Large},  // Normal después del nivel 20
-	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Large},  // Normal después del nivel 20
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Large},  // Normal después del nivel 20
+	{"monster_tank_64", -1, 20, 0.45f, BossSizeCategory::Large},
+	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Large},
+	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Large},
+	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Large},
+	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_psxarachnid", 14, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_widow", -1, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large},
@@ -1317,45 +1316,46 @@ constexpr boss_t BOSS_LARGE[] = {
 	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large}
 };
 
+// Modified GetBossList function using std::span
 static std::span<const boss_t> GetBossList(const MapSize& mapSize, std::string_view mapname) {
 	if (mapSize.isSmallMap || mapname == "q2dm4" || mapname == "q64/comm" || mapname == "test/test_kaiser") {
-		return BOSS_SMALL;
+		return std::span<const boss_t>(BOSS_SMALL);
 	}
 
 	if (mapSize.isMediumMap || mapname == "rdm8" || mapname == "xdm1") {
 		if (mapname == "mgu6m3" || mapname == "rboss") {
-			static std::vector<boss_t> filteredMediumBossList;
-			if (filteredMediumBossList.empty()) {
-				filteredMediumBossList.reserve(std::size(BOSS_MEDIUM));
-				std::copy_if(std::begin(BOSS_MEDIUM), std::end(BOSS_MEDIUM),
-					std::back_inserter(filteredMediumBossList),
-					[](const boss_t& boss) noexcept {
-						return std::strcmp(boss.classname, "monster_guardian") != 0 &&
-							std::strcmp(boss.classname, "monster_psxguardian") != 0;
-					});
+			static std::array<boss_t, std::size(BOSS_MEDIUM)> filteredMediumBossList;
+			size_t count = 0;
+
+			for (const auto& boss : std::span<const boss_t>(BOSS_MEDIUM)) {
+				if (std::strcmp(boss.classname, "monster_guardian") != 0 &&
+					std::strcmp(boss.classname, "monster_psxguardian") != 0) {
+					filteredMediumBossList[count++] = boss;
+				}
 			}
-			return std::span<const boss_t>{filteredMediumBossList};
+
+			return std::span<const boss_t>(filteredMediumBossList.data(), count);
 		}
-		return std::span<const boss_t>{BOSS_MEDIUM};
+		return std::span<const boss_t>(BOSS_MEDIUM);
 	}
 
 	if (mapSize.isBigMap || mapname == "test/spbox" || mapname == "q2ctf4") {
 		if (mapname == "test/spbox" || mapname == "q2ctf4") {
-			static std::vector<boss_t> filteredLargeBossList;
-			if (filteredLargeBossList.empty()) {
-				filteredLargeBossList.reserve(std::size(BOSS_LARGE));
-				std::copy_if(std::begin(BOSS_LARGE), std::end(BOSS_LARGE),
-					std::back_inserter(filteredLargeBossList),
-					[](const boss_t& boss) noexcept {
-						return std::strcmp(boss.classname, "monster_boss5") != 0;
-					});
+			static std::array<boss_t, std::size(BOSS_LARGE)> filteredLargeBossList;
+			size_t count = 0;
+
+			for (const auto& boss : std::span<const boss_t>(BOSS_LARGE)) {
+				if (std::strcmp(boss.classname, "monster_boss5") != 0) {
+					filteredLargeBossList[count++] = boss;
+				}
 			}
-			return std::span<const boss_t>{filteredLargeBossList};
+
+			return std::span<const boss_t>(filteredLargeBossList.data(), count);
 		}
-		return std::span<const boss_t>{BOSS_LARGE};
+		return std::span<const boss_t>(BOSS_LARGE);
 	}
 
-	return std::span<const boss_t>{};
+	return std::span<const boss_t>(); // Empty span for no match
 }
 
 // static arrays to replace std::vectors
@@ -1448,13 +1448,8 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 	if (boss_list.empty())
 		return nullptr;
 
-	const size_t boss_list_size = boss_list.size();
-	if (boss_list_size == 0)
-		return nullptr;
-
 	// Collect eligible bosses using span
-	std::span<const boss_t> boss_view{ boss_list };
-	for (const auto& boss : boss_view) {
+	for (const auto& boss : boss_list) {
 		if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 			(waveNumber <= boss.max_level || boss.max_level == -1) &&
 			!recent_bosses.contains(boss.classname)) {
@@ -1486,7 +1481,7 @@ static const char* G_HordePickBOSS(const MapSize& mapSize, std::string_view mapn
 		recent_bosses.clear();
 		total_weight = 0.0;
 
-		for (const auto& boss : boss_view) {
+		for (const auto& boss : boss_list) {
 			if ((waveNumber >= boss.min_level || boss.min_level == -1) &&
 				(waveNumber <= boss.max_level || boss.max_level == -1)) {
 				const float adjusted_weight = boss.weight;
