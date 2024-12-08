@@ -46,14 +46,23 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Define el espacio adicional usando vec3_t
+	// Add validation
+	if (!spawn_point) {
+		gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
+		return true; // Consider it occupied if invalid
+	}
+
+	// Validate origin
+	if (!is_valid_vector(spawn_point->s.origin)) {
+		gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
+		return true;
+	}
+
 	const vec3_t space_multiplier{ 1.75f, 1.75f, 1.75f };  // Was 2.5f before
 	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
 	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
-
 	FilterData filter_data = { ignore_ent, 0 };
 	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
-
 	return filter_data.count > 0;
 }
 
@@ -1684,6 +1693,11 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 			return nullptr;
 		data.isTemporarilyDisabled = false;
 		data.attempts = 0;
+	}
+
+	if (!spawn_point || !spawn_point->inuse) {
+		gi.Com_PrintFmt("Warning: Invalid spawn point passed to G_HordePickMonster\n");
+		return nullptr;
 	}
 
 	if (IsSpawnPointOccupied(spawn_point)) {
