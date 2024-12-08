@@ -3660,19 +3660,16 @@ struct monster_spawn_point_filter_t {
 	}
 
 	inline bool operator()(edict_t* ent) const {
-		// Basic validation
 		if (!ent || !ent->inuse || !ent->classname ||
 			strcmp(ent->classname, "info_player_deathmatch") != 0) {
 			return false;
 		}
 
-		// Apply radius check only if radius > 0
 		if (radiusSquared > 0.0f) {
-			vec3_t delta = ent->s.origin - origin;
-			return delta.lengthSquared() <= radiusSquared;
+			return DistanceSquared(ent->s.origin, origin) <= radiusSquared;
 		}
 
-		return true; // No radius restriction
+		return true;
 	}
 };
 
