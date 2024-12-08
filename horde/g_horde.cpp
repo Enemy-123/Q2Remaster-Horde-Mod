@@ -58,16 +58,12 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 }
 
 // Optimized function to select a random unoccupied monster spawn point
-edict_t* SelectRandomMonsterSpawnPoint(const vec3_t& origin = vec3_origin, float radius = 0.0f) {
-	static std::vector<edict_t*> availableSpawns; // Static for better performance
+edict_t* SelectRandomMonsterSpawnPoint() {
+	static std::vector<edict_t*> availableSpawns;
 	availableSpawns.clear();
 
-	// Create an iterable with our filter
-	auto spawnPoints = (radius > 0.0f) ?
-		monster_spawn_points_radius(origin, radius) :
-		monster_spawn_points();
+	auto spawnPoints = monster_spawn_points();
 
-	// Collect all valid spawn points
 	for (edict_t* spawnPoint : spawnPoints) {
 		if (!IsSpawnPointOccupied(spawnPoint)) {
 			availableSpawns.push_back(spawnPoint);
@@ -83,18 +79,16 @@ edict_t* SelectRandomMonsterSpawnPoint(const vec3_t& origin = vec3_origin, float
 
 // 1. First, modify the SelectRandomSpawnPoint declaration to be a template function
 template <typename TFilter>
-edict_t* SelectRandomSpawnPoint(TFilter filter, const vec3_t& origin = vec3_origin, float radius = 0.0f) {
+edict_t* SelectRandomSpawnPoint(TFilter filter) {
 	static std::vector<edict_t*> availableSpawns;
 	availableSpawns.clear();
 
-	// Use the appropriate iterable based on radius
-	auto spawnPoints = (radius > 0.0f) ?
-		monster_spawn_points_radius(origin, radius) :
-		monster_spawn_points();
+	// Just use monster_spawn_points() since radius was removed
+	auto spawnPoints = monster_spawn_points();
 
 	// Apply the provided filter
 	for (edict_t* spawnPoint : spawnPoints) {
-		if (filter(spawnPoint)) { // Use the filter here
+		if (filter(spawnPoint)) {
 			availableSpawns.push_back(spawnPoint);
 		}
 	}

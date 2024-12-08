@@ -3655,40 +3655,17 @@ extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 // 1. First, define the spawn point filter template
 struct monster_spawn_point_filter_t {
-	vec3_t origin;
-	float radiusSquared;
-
-	monster_spawn_point_filter_t(const vec3_t& o = vec3_origin, float r = 0.0f)
-		: origin(o), radiusSquared(r* r) {
-	}
-
-	inline bool operator()(edict_t* ent) const {
-		if (!ent || !ent->inuse || !ent->classname ||
-			strcmp(ent->classname, "info_player_deathmatch") != 0) {
-			return false;
-		}
-
-		if (radiusSquared > 0.0f) {
-			return DistanceSquared(ent->s.origin, origin) <= radiusSquared;
-		}
-
-		return true;
-	}
+    bool operator()(edict_t* ent) const {
+        return (!ent || !ent->inuse || !ent->classname ||
+            strcmp(ent->classname, "info_player_deathmatch") != 0) ? false : true;
+    }
 };
 
 // 2. Helper functions for spawn point iteration
 inline entity_iterable_t<monster_spawn_point_filter_t> monster_spawn_points() {
 	return entity_iterable_t<monster_spawn_point_filter_t>(
-		game.maxclients + 1, globals.num_edicts); // Start after players
-}
-
-inline entity_iterable_t<monster_spawn_point_filter_t> monster_spawn_points_radius(
-	const vec3_t& origin, float radius) {
-	monster_spawn_point_filter_t filter(origin, radius);
-	return entity_iterable_t<monster_spawn_point_filter_t>(
 		game.maxclients + 1, globals.num_edicts);
 }
-
 
 // inuse players that are connected; and not be spawned yet
 struct active_players_filter_no_spect_t
