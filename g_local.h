@@ -3650,6 +3650,9 @@ public:
 	inline entity_iterator_t<TFilter> end() const { return end_index; }
 };
 
+
+extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
+
 // 1. First, define the spawn point filter template
 struct monster_spawn_point_filter_t {
 	vec3_t origin;
@@ -3980,8 +3983,6 @@ extern cached_soundindex snd_fry;
 
 extern void OnEntityDeath(edict_t* self) noexcept;
 extern inline void OnEntityRemoved(edict_t* self) noexcept;
-
-extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 extern void RemovePlayerOwnedEntities(edict_t* player);
 extern void RemoveAllTechItems(edict_t* ent);
