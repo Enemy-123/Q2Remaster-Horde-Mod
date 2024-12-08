@@ -278,7 +278,6 @@
     <ClCompile Include="horde\g_horde_benefits.cpp" />
     <ClCompile Include="m_hover_vanilla.cpp" />
     <ClCompile Include="m_tank_spawner.cpp" />
-    <ClCompile Include="horde\old_horde.cpp" />
   </ItemGroup>
   <ItemGroup>
     <Filter Include="bots">

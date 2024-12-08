@@ -49,7 +49,7 @@
     <TargetName>$(ProjectName)_x64</TargetName>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
-    <OutDir>..\..\..\..\..\Program Files %28x86%29\GOG Galaxy\Games\Quake II Enhanced\hordemod</OutDir>
+    <OutDir>..\..\..\..\..\Program Files %28x86%29\Steam\steamapps\common\Quake 2\rerelease\baseq2</OutDir>
     <TargetName>$(projectname)_x64</TargetName>
     <EnableClangTidyCodeAnalysis>true</EnableClangTidyCodeAnalysis>
     <CodeAnalysisRuleSet>AllRules.ruleset</CodeAnalysisRuleSet>
@@ -180,7 +180,6 @@
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
     <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
-    <ClCompile Include="horde\old_horde.cpp" />
     <ClCompile Include="m_arachnid2.cpp" />
     <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_guncmdr_vanilla.cpp" />
