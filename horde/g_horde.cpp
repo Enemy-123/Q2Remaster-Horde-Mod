@@ -6,6 +6,24 @@
 #include "g_horde_benefits.h"
 
 
+namespace HordeConstants {
+	constexpr float PLAYER_MULTIPLIER = 0.2f;
+	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
+	constexpr float DIFFICULTY_PLAYER_FACTOR = 0.075f;
+	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.0f;
+	constexpr float PLAYER_COUNT_SCALE = 0.2f;
+
+	// Base counts for different map sizes and levels
+	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = { {
+		{{6, 8, 10, 12}},  // Small maps
+		{{8, 12, 14, 16}}, // Medium maps
+		{{15, 18, 23, 26}} // Large maps
+	} };
+
+	// Additional spawn counts
+	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = { 8, 7, 12 }; // Small, Medium, Large
+}
+
 struct SpawnPointData {
 	uint16_t attempts = 0;
 	gtime_t spawn_cooldown = 0_sec;     // Regular spawn cooldown
@@ -522,14 +540,9 @@ static int32_t CalculateQueuedMonsters(const MapSize& mapSize, int32_t lvl, bool
 }
 
 static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t humanPlayers) noexcept {
-	// Lookup table para base counts
-	constexpr std::array<std::array<int32_t, 4>, 3> BASE_COUNTS = { {
-		{{6, 8, 10, 12}},  // Small maps
-		{{8, 12, 14, 16}}, // Medium maps
-		{{15, 18, 23, 26}} // Large maps
-	} };
+	using namespace HordeConstants;
 
-	// Replace dynamic indexing with conditional statements
+	// Base count determination using explicit conditions
 	int32_t baseCount;
 	if (mapSize.isSmallMap) {
 		if (lvl <= 5) baseCount = BASE_COUNTS[0][0];
@@ -550,38 +563,40 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		else baseCount = BASE_COUNTS[1][3];
 	}
 
-	// Ajuste de jugadores optimizado
+	// Player count adjustment
 	if (humanPlayers > 1) {
-		baseCount = static_cast<int32_t>(baseCount * (1.0f + ((humanPlayers - 1) * 0.2f)));
+		baseCount = static_cast<int32_t>(baseCount * (BASE_DIFFICULTY_MULTIPLIER + ((humanPlayers - 1) * PLAYER_COUNT_SCALE)));
 	}
 
-	// Replace dynamic indexing for additional spawns
-	constexpr std::array<int32_t, 3> ADDITIONAL_SPAWNS = { 8, 7, 12 }; // Small, Medium, Large
+	// Additional spawn calculation
 	int32_t additionalSpawn;
 	if (lvl >= 8) {
-		if (mapSize.isSmallMap) additionalSpawn = ADDITIONAL_SPAWNS[0];
-		else if (mapSize.isBigMap) additionalSpawn = ADDITIONAL_SPAWNS[2];
-		else additionalSpawn = ADDITIONAL_SPAWNS[1];
+		additionalSpawn = mapSize.isSmallMap ? ADDITIONAL_SPAWNS[0] :
+			mapSize.isBigMap ? ADDITIONAL_SPAWNS[2] :
+			ADDITIONAL_SPAWNS[1];
 	}
 	else {
 		additionalSpawn = 6;
 	}
 
-	// Rest of the function remains the same
+	// Cooldown calculation
 	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 	const float cooldownScale = CalculateCooldownScale(lvl, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
+	// Level-based adjustments
 	if (lvl > 25) {
 		additionalSpawn = static_cast<int32_t>(additionalSpawn * 1.6f);
 	}
 
+	// Difficulty adjustments
 	if (lvl >= 3 && (g_chaotic->integer || g_insane->integer)) {
 		additionalSpawn += CalculateChaosInsanityBonus(lvl);
-		SPAWN_POINT_COOLDOWN *= 0.95f;
+		SPAWN_POINT_COOLDOWN *= TIME_REDUCTION_MULTIPLIER;
 	}
 
-	const float difficultyMultiplier = 1.0f + (humanPlayers - 1) * 0.075f;
+	// Player count difficulty scaling
+	const float difficultyMultiplier = BASE_DIFFICULTY_MULTIPLIER + (humanPlayers - 1) * DIFFICULTY_PLAYER_FACTOR;
 	if (lvl % 3 == 0) {
 		baseCount = static_cast<int32_t>(baseCount * difficultyMultiplier);
 		SPAWN_POINT_COOLDOWN = std::max(
@@ -590,6 +605,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 		);
 	}
 
+	// Final cooldown clamping
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
 	g_horde_local.num_to_spawn = baseCount + additionalSpawn;
 	ClampNumToSpawn(mapSize);
@@ -597,6 +613,7 @@ static void UnifiedAdjustSpawnRate(const MapSize& mapSize, int32_t lvl, int32_t 
 	const bool isHardMode = g_insane->integer || g_chaotic->integer;
 	g_horde_local.queued_monsters = CalculateQueuedMonsters(mapSize, lvl, isHardMode);
 
+	// Debug output
 	if (developer->integer == 3) {
 		gi.Com_PrintFmt("DEBUG: Wave {} settings:\n", lvl);
 		gi.Com_PrintFmt("  - Spawn cooldown: {:.2f}s (Scale {:.2f}x)\n",
