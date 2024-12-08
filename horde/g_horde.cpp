@@ -287,7 +287,6 @@ bool CheckPointState(edict_t* spawn_point) {
 
 // Updated spawn point selection using the improved cache
 edict_t* SelectRandomMonsterSpawnPoint(const vec3_t& origin = vec3_origin, float radius = 0.0f) {
-	static SpawnPointCache spawn_cache;
 
 	// Update cache if needed
 	if (level.time >= spawn_cache.last_update + SpawnPointCache::CACHE_UPDATE_INTERVAL) {
@@ -3214,7 +3213,6 @@ void ClearHordeMessage() {
 
 
 void ResetAllSpawnAttempts() noexcept {
-	static SpawnPointCache spawn_cache;
 	spawn_cache.clear();  // Clearing the cache effectively resets attempts
 }
 
@@ -3319,19 +3317,20 @@ void ResetWaveMemory() {
 }
 
 void ResetGame() {
-	static SpawnPointCache spawn_cache;
-
 	// Si ya se ha ejecutado una vez, retornar inmediatamente
 	if (hasBeenReset) {
 		gi.Com_PrintFmt("PRINT: Reset already performed, skipping...\n");
 		return;
 	}
 
+	spawn_cache.clear();
+
 	// Establecer el flag al inicio de la ejecución
 	hasBeenReset = true;
 
 	ResetWaveMemory();
-	//spawn_cache.clear();
+	
+
 
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
 		edict_t* boss = *it;
@@ -3353,7 +3352,6 @@ void ResetGame() {
 	g_lowPercentageTriggered = false;
 
 	// Limpiar cachés
-	spawn_cache.clear();
 	lastMonsterSpawnTime.clear();
 	lastSpawnPointTime.clear();
 
@@ -4209,7 +4207,6 @@ static void SendCleanupMessage(WaveEndReason reason) {
 
 // Add this function in the appropriate source file that deals with spawn management.
 void CheckAndResetDisabledSpawnPoints() {
-	static SpawnPointCache spawn_cache;
 	spawn_cache.updateCooldowns();  // Use the global instance
 
 	for (size_t i = 0; i < spawn_cache.count; i++) {
