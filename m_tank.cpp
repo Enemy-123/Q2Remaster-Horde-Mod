@@ -1409,7 +1409,7 @@ void SP_monster_tank(edict_t* self)
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_idle, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 
 	}

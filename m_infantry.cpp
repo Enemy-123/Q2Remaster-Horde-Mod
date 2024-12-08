@@ -540,53 +540,53 @@ MMOVE_T(infantry_move_attack1) = { FRAME_attak101, FRAME_attak115, infantry_fram
 
 // old animation, full cock + shoot
 mframe_t infantry_frames_attack3[] = {
-	{ ai_charge, 4,  NULL },
-	{ ai_charge, -1, NULL },
-	{ ai_charge, -1, NULL },
+	{ ai_charge, 4,  nullptr },
+	{ ai_charge, -1, nullptr },
+	{ ai_charge, -1, nullptr },
 	{ ai_charge, 0,  infantry_cock_gun },
-	{ ai_charge, -1, NULL },
-	{ ai_charge, 1,  NULL },
-	{ ai_charge, 1,  NULL },
-	{ ai_charge, 2,  NULL },
-	{ ai_charge, -2, NULL },
+	{ ai_charge, -1, nullptr },
+	{ ai_charge, 1,  nullptr },
+	{ ai_charge, 1,  nullptr },
+	{ ai_charge, 2,  nullptr },
+	{ ai_charge, -2, nullptr },
 	{ ai_charge, -3, [](edict_t* self) { infantry_set_firetime(self); monster_footstep(self); }  },
 	{ ai_charge, 1,  infantry_fire },
-	{ ai_charge, 5,  NULL },
-	{ ai_charge, -1, NULL },
-	{ ai_charge, -2, NULL },
-	{ ai_charge, -3, NULL },
+	{ ai_charge, 5,  nullptr },
+	{ ai_charge, -1, nullptr },
+	{ ai_charge, -2, nullptr },
+	{ ai_charge, -3, nullptr },
 };
 MMOVE_T(infantry_move_attack3) = { FRAME_attak301, FRAME_attak315, infantry_frames_attack3, infantry_run };
 
 // even older animation, full cock + shoot
 mframe_t infantry_frames_attack5[] = {
 	// skipped frames
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
 
-	{ ai_charge, 0, NULL },
+	{ ai_charge, 0, nullptr },
 	{ ai_charge, 0, nullptr },
 	{ ai_charge, 0, monster_footstep },
 	{ ai_charge, 0, infantry_cock_gun },
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
 	{ ai_charge, 0, [](edict_t* self) { self->monsterinfo.nextframe = self->s.frame + 1; } },
-	{ ai_charge, 0, NULL }, // skipped frame
-	{ ai_charge, 0, NULL },
+	{ ai_charge, 0, nullptr }, // skipped frame
+	{ ai_charge, 0, nullptr },
 	{ ai_charge, 0, nullptr },
 	{ ai_charge, 0, infantry_set_firetime },
 	{ ai_charge, 0, infantry_fire },
 
 	// skipped frames
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
 
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
-	{ ai_charge, 0, NULL },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
+	{ ai_charge, 0, nullptr },
 	{ ai_charge, 0, monster_footstep }
 };
 MMOVE_T(infantry_move_attack5) = { FRAME_attak401, FRAME_attak423, infantry_frames_attack5, infantry_run };

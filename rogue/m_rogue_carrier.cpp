@@ -1114,7 +1114,7 @@ void SP_monster_carrier(edict_t* self)
 			if (brandom())
 				gi.sound(self, CHAN_VOICE, sound_sight, 1, ATTN_NORM, 0);
 			else
-				NULL;
+				nullptr;
 		}
 
 	}
