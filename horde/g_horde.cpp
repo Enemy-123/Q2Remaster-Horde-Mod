@@ -61,27 +61,48 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	return BoxEdictsResult_t::Skip;
 }
 
-
+struct SpawnPointCache {
+	gtime_t last_check_time;
+	bool was_occupied;
+	vec3_t last_check_origin;
+};
+static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
 // ¿Está el punto de spawn ocupado?
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Add validation
-	if (!spawn_point) {
-	//	gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
-		return true; // Consider it occupied if invalid
-	}
-
-	// Validate origin
-	if (!is_valid_vector(spawn_point->s.origin)) {
-	//	gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
+	if (!spawn_point || !is_valid_vector(spawn_point->s.origin)) {
 		return true;
 	}
 
-	const vec3_t space_multiplier{ 1.75f, 1.75f, 1.75f };  // Was 2.5f before
+	// Get or create cache entry
+	auto& cache = spawn_point_cache[spawn_point];
+
+	// Check time-based cache first
+	if (level.time - cache.last_check_time < 50_ms) {
+		// Only use cached result if position hasn't changed
+		if (cache.last_check_origin == spawn_point->s.origin) {
+			return cache.was_occupied;
+		}
+	}
+
+	// Update cache time and position
+	cache.last_check_time = level.time;
+	cache.last_check_origin = spawn_point->s.origin;
+
+	// Optimized space check
+	static constexpr vec3_t space_multiplier{ 1.75f, 1.75f, 1.75f };
 	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
 	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
+
 	FilterData filter_data = { ignore_ent, 0 };
 	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
-	return filter_data.count > 0;
+
+	// Cache and return result
+	cache.was_occupied = (filter_data.count > 0);
+	return cache.was_occupied;
+}
+
+void CleanupSpawnPointCache() {
+	spawn_point_cache.clear();
 }
 
 // Optimized function to select a random unoccupied monster spawn point
@@ -757,6 +778,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 	boss_spawned_for_wave = false;
 	next_wave_message_sent = false;
 
+	CleanupSpawnPointCache();
 	VerifyAndAdjustBots();
 
 	// Configurar tiempos iniciales
@@ -2343,15 +2365,23 @@ static bool Horde_AllMonstersDead() {
 	return true;
 }
 
+// Modify the CheckAndRestoreMonsterAlpha function to batch updates
 void CheckAndRestoreMonsterAlpha(edict_t* const ent) {
 	if (!ent || !ent->inuse || !(ent->svflags & SVF_MONSTER)) {
 		return;
 	}
 
+	// Batch multiple attribute changes before linking
+	bool needs_update = false;
 	if (ent->health > 0 && !ent->deadflag && ent->s.alpha < 1.0f) {
 		ent->s.alpha = 0.0f;
 		ent->s.renderfx &= ~RF_TRANSLUCENT;
 		ent->takedamage = true;
+		needs_update = true;
+	}
+
+	// Only link if necessary
+	if (needs_update) {
 		gi.linkentity(ent);
 	}
 }
@@ -2888,6 +2918,11 @@ void SetHealthBarName(const edict_t* boss) {
 
 void UpdateHordeHUD() {
 	bool update_successful = false;
+	static gtime_t last_update = 0_ms;
+	if (level.time - last_update < 99_ms) {
+		return;
+	}
+	last_update = level.time;
 
 	const std::string_view current_msg = gi.get_configstring(CONFIG_HORDEMSG);
 	if (!current_msg.empty()) {
@@ -3122,6 +3157,7 @@ void ResetGame() {
 	g_lowPercentageTriggered = false;
 
 	// Limpiar cachés
+	CleanupSpawnPointCache();
 	spawnPointsData.clear();
 	lastMonsterSpawnTime.clear();
 	lastSpawnPointTime.clear();
