@@ -6,18 +6,6 @@
 #include "g_horde_benefits.h"
 
 
-struct SpawnPointData {
-	uint16_t attempts = 0;
-	gtime_t spawn_cooldown = 0_sec;     // Regular spawn cooldown
-	gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
-	gtime_t lastSpawnTime = 0_sec;
-	uint16_t successfulSpawns = 0;
-	bool isTemporarilyDisabled = false;
-	gtime_t cooldownEndsAt = 0_sec;
-};
-
-std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
-
 // Función de filtro optimizada
 // Modified SpawnPointFilter function
 static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
@@ -43,7 +31,6 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 	return BoxEdictsResult_t::Skip;
 }
 
-
 // ¿Está el punto de spawn ocupado?
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
 	// Define el espacio adicional usando vec3_t
@@ -57,58 +44,284 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 	return filter_data.count > 0;
 }
 
-// Add this to your global state or HordeState struct
+// Optimized SpawnPointCache combining best practices from both approaches
 struct SpawnPointCache {
-	static constexpr size_t MAX_SPAWN_POINTS = 64;  // Reasonable maximum
-	std::array<edict_t*, MAX_SPAWN_POINTS> points;
+	static constexpr size_t MAX_SPAWN_POINTS = 64;
+
+	// Filter struct for spawn point checks
+	struct FilterData {
+		const edict_t* ignore_ent;
+		int32_t count;
+	};
+
+	// Forward declare filter function
+	static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data);
+
+	// Global instance
+	static SpawnPointCache spawn_cache;
+
+	struct SpawnPointData {
+		uint16_t attempts = 0;
+		gtime_t spawn_cooldown = 0_sec;     // Regular spawn cooldown
+		gtime_t teleport_cooldown = 0_sec;  // Teleport cooldown
+		gtime_t last_spawn_time = 0_sec;
+		uint16_t successful_spawns = 0;
+		bool is_temporarily_disabled = false;
+		gtime_t cooldown_ends_at = 0_sec;
+		float last_success_rate = 1.0f;    // Track success rate for adaptive cooldowns
+	};
+
+	struct CacheEntry {
+		edict_t* point = nullptr;
+		SpawnPointData data;
+		bool is_active = true;
+
+		void reset() {
+			data = SpawnPointData{};
+			is_active = true;
+		}
+	};
+
+	std::array<CacheEntry, MAX_SPAWN_POINTS> points;
 	size_t count = 0;
 	gtime_t last_update = 0_sec;
 
+	// Configuration constants
+	static constexpr gtime_t CACHE_UPDATE_INTERVAL = 2_sec;
+	static constexpr gtime_t BASE_COOLDOWN = 2.8_sec;
+	static constexpr uint16_t MAX_CONSECUTIVE_FAILS = 3;
+	static constexpr float MIN_SUCCESS_RATE = 0.3f;
+
 	void clear() {
+		for (auto& entry : points) {
+			entry.reset();
+		}
 		count = 0;
 		last_update = 0_sec;
 	}
 
-	bool add(edict_t* spawn) {
-		if (count >= MAX_SPAWN_POINTS)
+	_Success_(return != false)
+		bool add(_In_ edict_t * spawn, bool force = false) {
+		// Early validation
+		if (!spawn || count >= MAX_SPAWN_POINTS) {
 			return false;
-		points[count++] = spawn;
-		return true;
+		}
+
+		// First check if point already exists
+		for (size_t i = 0; i < count; i++) {
+			if (points[i].point == spawn) {
+				points[i].is_active = true;
+				points[i].data.attempts = 0;
+				return true;
+			}
+		}
+
+		// Add new if space available
+		if (count < MAX_SPAWN_POINTS) {
+			// Explicit bounds check
+			_Analysis_assume_(count < MAX_SPAWN_POINTS);
+			points[count].point = spawn;
+			points[count].is_active = true;
+			count++;
+			return true;
+		}
+
+		// Handle force add with LRU replacement
+		if (force) {
+			size_t lru_idx = 0;
+			gtime_t oldest_time = level.time;
+
+			// Find LRU point
+			for (size_t i = 0; i < count; i++) {
+				if (points[i].data.last_spawn_time < oldest_time) {
+					oldest_time = points[i].data.last_spawn_time;
+					lru_idx = i;
+				}
+			}
+
+			// Explicit bounds check
+			_Analysis_assume_(lru_idx < MAX_SPAWN_POINTS);
+			points[lru_idx].reset();
+			points[lru_idx].point = spawn;
+			return true;
+		}
+
+		return false;
+	}
+
+	edict_t* getRandomPoint(const vec3_t& desired_origin = vec3_origin, float radius = 0.0f) {
+		if (count == 0) {
+			return nullptr;
+		}
+
+		// Create a list of valid indices
+		std::array<size_t, MAX_SPAWN_POINTS> valid_indices;
+		size_t valid_count = 0;
+
+		const gtime_t current_time = level.time;
+
+		for (size_t i = 0; i < count; i++) {
+			const auto& entry = points[i];
+
+			// Skip inactive or cooling down points
+			if (!entry.is_active ||
+				entry.data.is_temporarily_disabled ||
+				current_time < entry.data.cooldown_ends_at) {
+				continue;
+			}
+
+			// Check radius constraint if applicable
+			if (radius > 0.0f && desired_origin != vec3_origin) {
+				if ((entry.point->s.origin - desired_origin).length() > radius) {
+					continue;
+				}
+			}
+
+			// Check occupation
+			if (!IsSpawnPointOccupied(entry.point)) {
+				valid_indices[valid_count++] = i;
+			}
+		}
+
+		if (valid_count == 0) {
+			return nullptr;
+		}
+
+		// Select random valid point
+		const size_t selected_idx = valid_indices[irandom(valid_count)];
+		return points[selected_idx].point;
+	}
+
+	void recordSpawnAttempt(edict_t* spawn, bool success) {
+		for (size_t i = 0; i < count; i++) {
+			if (points[i].point == spawn) {
+				auto& data = points[i].data;
+
+				if (success) {
+					data.successful_spawns++;
+					data.last_spawn_time = level.time;
+					data.attempts = 0;
+					data.is_temporarily_disabled = false;
+
+					// Update success rate
+					data.last_success_rate = data.last_success_rate * 0.8f + 0.2f;
+				}
+				else {
+					data.attempts++;
+					data.last_success_rate = data.last_success_rate * 0.8f;
+
+					// Check for temporary disable
+					if (data.attempts >= MAX_CONSECUTIVE_FAILS ||
+						data.last_success_rate < MIN_SUCCESS_RATE) {
+						data.is_temporarily_disabled = true;
+						data.cooldown_ends_at = level.time +
+							(BASE_COOLDOWN * (1.0f + data.attempts * 0.5f));
+					}
+				}
+				break;
+			}
+		}
+	}
+
+	void updateCooldowns() {
+		const gtime_t current_time = level.time;
+
+		for (size_t i = 0; i < count; i++) {
+			auto& entry = points[i];
+
+			// Re-enable points if cooldown expired
+			if (entry.data.is_temporarily_disabled &&
+				current_time >= entry.data.cooldown_ends_at) {
+				entry.data.is_temporarily_disabled = false;
+				entry.data.attempts = 0;
+			}
+
+			// Gradually restore success rate for inactive points
+			if (!entry.data.is_temporarily_disabled &&
+				current_time >= entry.data.last_spawn_time + 5_sec) {
+				entry.data.last_success_rate =
+					std::min(1.0f, entry.data.last_success_rate + 0.1f);
+			}
+		}
+	}
+
+	void validatePoints() {
+		size_t write = 0;
+		for (size_t read = 0; read < count; read++) {
+			if (points[read].point && points[read].point->inuse) {
+				if (write != read) {
+					points[write] = points[read];
+				}
+				write++;
+			}
+		}
+		count = write;
 	}
 };
 
-static SpawnPointCache spawn_cache;
+// First, define SpawnPointCache as you have it
+SpawnPointCache spawn_cache; // Global instance
 
-// Optimized function to select a random unoccupied monster spawn point
+bool CheckPointState(edict_t* spawn_point) {
+	// Find the entry in the cache
+	size_t spawn_index = SIZE_MAX;
+	for (size_t i = 0; i < spawn_cache.count; i++) {
+		if (spawn_cache.points[i].point == spawn_point) {
+			spawn_index = i;
+			break;
+		}
+	}
+
+	if (spawn_index == SIZE_MAX) {
+		if (!spawn_cache.add(spawn_point, true)) {
+			return false;
+		}
+		spawn_index = spawn_cache.count - 1;
+	}
+
+	auto& entry = spawn_cache.points[spawn_index];
+	return !entry.data.is_temporarily_disabled &&
+		level.time >= entry.data.cooldown_ends_at;
+}
+
+
+// Updated spawn point selection using the improved cache
 edict_t* SelectRandomMonsterSpawnPoint(const vec3_t& origin = vec3_origin, float radius = 0.0f) {
-	constexpr gtime_t CACHE_UPDATE_INTERVAL = 2_sec;  // Update cache every 2 seconds
+	static SpawnPointCache spawn_cache;
 
-	// Check if we need to update the cache
-	if (level.time >= spawn_cache.last_update + CACHE_UPDATE_INTERVAL) {
-		spawn_cache.clear();
+	// Update cache if needed
+	if (level.time >= spawn_cache.last_update + SpawnPointCache::CACHE_UPDATE_INTERVAL) {
+		spawn_cache.validatePoints();
+		spawn_cache.updateCooldowns();
 
-		// Use your existing iterator to populate cache
+		// Populate cache with available spawn points
 		auto spawnPoints = (radius > 0.0f) ?
 			monster_spawn_points_radius(origin, radius) :
 			monster_spawn_points();
 
 		for (edict_t* spawnPoint : spawnPoints) {
-			if (!IsSpawnPointOccupied(spawnPoint)) {
-				if (!spawn_cache.add(spawnPoint))
-					break;  // Cache is full
-			}
+			spawn_cache.add(spawnPoint);
 		}
 
 		spawn_cache.last_update = level.time;
 	}
 
-	// If no valid spawn points in cache, return nullptr
-	if (spawn_cache.count == 0)
-		return nullptr;
+	// Get and attempt to use a spawn point
+	edict_t* selected = spawn_cache.getRandomPoint(origin, radius);
 
-	// Select random point from cache
-	return spawn_cache.points[irandom(spawn_cache.count)];
+	if (selected) {
+		// Test the spawn point
+		bool spawn_success = !IsSpawnPointOccupied(selected);
+		spawn_cache.recordSpawnAttempt(selected, spawn_success);
+
+		if (!spawn_success) {
+			selected = nullptr;
+		}
+	}
+
+	return selected;
 }
+
 
 // 1. First, modify the SelectRandomSpawnPoint declaration to be a template function
 template <typename TFilter>
@@ -141,13 +354,12 @@ struct SpawnMonsterFilter {
 	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
 
 	bool operator()(edict_t* spawnPoint) const {
-		const auto it = spawnPointsData.find(spawnPoint);
-
-		// Check cooldowns to prevent excessive teleporting to the same spawn point
-		if (it != spawnPointsData.end() && currentTime < it->second.teleport_cooldown) {
-			return false;
+		// Use spawn_cache to check cooldowns
+		for (const auto& entry : spawn_cache.points) { // Iterate through spawn_cache
+			if (entry.point == spawnPoint && currentTime < entry.data.teleport_cooldown) {
+				return false;
+			}
 		}
-
 		return !IsSpawnPointOccupied(spawnPoint);
 	}
 };
@@ -1665,17 +1877,28 @@ inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_
 		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
 }
 
-static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
-	auto& data = spawnPointsData[spawn_point];
-	data.lastSpawnTime = level.time;
-	data.spawn_cooldown = level.time + SPAWN_POINT_COOLDOWN;
-	data.isTemporarilyDisabled = true;
-	data.cooldownEndsAt = level.time + SPAWN_POINT_COOLDOWN;
-}
 
 // Function to increase spawn attempts and adjust cooldown as necessary
 static void IncreaseSpawnAttempts(edict_t* spawn_point) {
-	auto& data = spawnPointsData[spawn_point];
+	// Find the entry in the cache
+	size_t spawn_index = SIZE_MAX;
+	for (size_t i = 0; i < spawn_cache.count; i++) {
+		if (spawn_cache.points[i].point == spawn_point) {
+			spawn_index = i;
+			break;
+		}
+	}
+
+	if (spawn_index == SIZE_MAX) {
+		if (!spawn_cache.add(spawn_point, true)) {
+			return;
+		}
+		spawn_index = spawn_cache.count - 1;
+	}
+
+	auto& entry = spawn_cache.points[spawn_index];
+	auto& data = entry.data;
+
 	data.attempts++;
 
 	// Verificar si hay jugadores cerca antes de desactivar
@@ -1695,34 +1918,85 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 			gi.Com_PrintFmt("PRINT: SpawnPoint at position ({}, {}, {}) inactivated.\n",
 				spawn_point->s.origin[0], spawn_point->s.origin[1], spawn_point->s.origin[2]);
 
-		data.isTemporarilyDisabled = true;
+		data.is_temporarily_disabled = true;
 
 		// Tiempo de desactivación más corto si hay jugadores cerca
 		const gtime_t cooldown = players_nearby ? 2_sec : 3_sec;
-		data.cooldownEndsAt = level.time + cooldown;
+		data.cooldown_ends_at = level.time + cooldown;
 	}
 	else if (data.attempts % 3 == 0) {
 		// Incremento más gradual del cooldown
-		data.cooldownEndsAt = std::max(data.cooldownEndsAt + 1_sec, 2_sec);
+		data.cooldown_ends_at = level.time + 1_sec;
 	}
 
 	// Resetear intentos si ha pasado suficiente tiempo
-	if (level.time - data.lastSpawnTime > 5_sec) {
+	if (level.time - data.last_spawn_time > 5_sec) {
 		data.attempts = 0;
 	}
 }
 
+void ResetCooldowns() noexcept {
+	// Use the global spawn_cache instance
+	spawn_cache.clear();
+	spawn_cache.validatePoints();
+
+	// Clear other maps
+	lastSpawnPointTime.clear();
+	lastMonsterSpawnTime.clear();
+
+	const MapSize& mapSize = g_horde_local.current_map_size;
+	const int32_t currentLevel = g_horde_local.level;
+	const int32_t humanPlayers = GetNumHumanPlayers();
+
+	// Get base cooldown based on map size
+	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+
+	// Apply level-based scaling
+	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
+	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
+
+	// Adjust for player count
+	if (humanPlayers > 1) {
+		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
+		SPAWN_POINT_COOLDOWN *= playerAdjustment;
+	}
+
+	// Difficulty adjustments
+	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
+		SPAWN_POINT_COOLDOWN *= 0.95f;
+	}
+
+	// Apply absolute limits
+	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
+}
+
 static const char* G_HordePickMonster(edict_t* spawn_point) {
-	auto& data = spawnPointsData[spawn_point];
-	if (data.isTemporarilyDisabled) {
-		if (level.time < data.cooldownEndsAt)
+	// Find spawn point in cache
+	size_t spawn_index = SIZE_MAX;
+	for (size_t i = 0; i < spawn_cache.count; i++) {
+		if (spawn_cache.points[i].point == spawn_point) {
+			spawn_index = i;
+			break;
+		}
+	}
+
+	if (spawn_index == SIZE_MAX) {
+		if (!spawn_cache.add(spawn_point, true)) {
 			return nullptr;
-		data.isTemporarilyDisabled = false;
-		data.attempts = 0;
+		}
+		spawn_index = spawn_cache.count - 1;
+	}
+
+	auto& entry = spawn_cache.points[spawn_index];
+	if (entry.data.is_temporarily_disabled) {
+		if (level.time < entry.data.cooldown_ends_at)
+			return nullptr;
+		entry.data.is_temporarily_disabled = false;
+		entry.data.attempts = 0;
 	}
 
 	if (IsSpawnPointOccupied(spawn_point)) {
-		IncreaseSpawnAttempts(spawn_point);
+		spawn_cache.recordSpawnAttempt(spawn_point, false);
 		return nullptr;
 	}
 
@@ -1794,9 +2068,8 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 		// Special handling for boss wave minions
 		if (currentLevel >= 10 && currentLevel % 5 == 0 && boss_spawned_for_wave) {
-			// Increase weight for monsters that match the boss's theme
 			if (HasWaveType(monster.types, currentWaveTypes)) {
-				weight *= 2.0f;  // Double the weight for thematic monsters
+				weight *= 2.0f;  // Double weight for thematic monsters
 			}
 			else {
 				weight *= 0.3f;  // Reduce weight for non-thematic monsters
@@ -1829,7 +2102,7 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 	}
 
 	if (monster_cache.count == 0) {
-		IncreaseSpawnAttempts(spawn_point);
+		spawn_cache.recordSpawnAttempt(spawn_point, false);
 		return nullptr;
 	}
 
@@ -1850,12 +2123,13 @@ static const char* G_HordePickMonster(edict_t* spawn_point) {
 
 	const char* chosen_monster = monster_cache.entries[left].monster_classname;
 	if (chosen_monster) {
-		UpdateCooldowns(spawn_point, chosen_monster);
+		spawn_cache.recordSpawnAttempt(spawn_point, true);
+		entry.data.last_spawn_time = level.time;
+		entry.data.teleport_cooldown = level.time + 2_sec;
 	}
 
 	return chosen_monster;
 }
-
 void Horde_PreInit() {
 	gi.Com_Print("Horde mode must be DM. Set <deathmatch 1> and <horde 1>, then <map mapname>.\n");
 	gi.Com_Print("COOP requires <coop 1> and <horde 0>, optionally <g_hardcoop 1/0>.\n");
@@ -2938,51 +3212,12 @@ void ClearHordeMessage() {
 	horde_message_end_time = 0_sec;
 }
 
-// reset cooldowns, fixed no monster spawning on next map
-// En UnifiedAdjustSpawnRate y ResetCooldowns:
-void ResetCooldowns() noexcept {
-	spawnPointsData.clear();
-	lastSpawnPointTime.clear();
-	lastMonsterSpawnTime.clear();
-
-	const MapSize& mapSize = g_horde_local.current_map_size;
-	const int32_t currentLevel = g_horde_local.level;
-	const int32_t humanPlayers = GetNumHumanPlayers();
-
-	// Obtener cooldown base según el tamaño del mapa
-	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
-
-	// Aplicar escala basada en nivel
-	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
-	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
-
-	// Ajustes adicionales (reducidos pero mantenidos para balance)
-	if (humanPlayers > 1) {
-		const	float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
-		SPAWN_POINT_COOLDOWN *= playerAdjustment;
-	}
-
-	// Ajustes por modo de dificultad (reducidos) - Con verificación de seguridad
-	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
-		SPAWN_POINT_COOLDOWN *= 0.95f;
-	}
-
-	// Aplicar límites absolutos
-	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
-
-	//	if (developer->integer) gi.Com_PrintFmt("DEBUG: Reset spawn cooldown to {:.2f} seconds (Level {})\n",
-	//		SPAWN_POINT_COOLDOWN.seconds(), currentLevel);
-}
 
 void ResetAllSpawnAttempts() noexcept {
-	for (auto& [spawn_point, data] : spawnPointsData) {
-		data.attempts = 0;
-		data.spawn_cooldown = SPAWN_POINT_COOLDOWN;
-		data.teleport_cooldown = level.time;
-		data.isTemporarilyDisabled = false;
-		data.cooldownEndsAt = 0_sec;
-	}
+	static SpawnPointCache spawn_cache;
+	spawn_cache.clear();  // Clearing the cache effectively resets attempts
 }
+
 
 // Función modificada para resetear la lista de jefes recientes
 static void ResetRecentBosses() noexcept {
@@ -3084,6 +3319,7 @@ void ResetWaveMemory() {
 }
 
 void ResetGame() {
+	static SpawnPointCache spawn_cache;
 
 	// Si ya se ha ejecutado una vez, retornar inmediatamente
 	if (hasBeenReset) {
@@ -3095,7 +3331,7 @@ void ResetGame() {
 	hasBeenReset = true;
 
 	ResetWaveMemory();
-	spawn_cache.clear();
+	//spawn_cache.clear();
 
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
 		edict_t* boss = *it;
@@ -3117,7 +3353,7 @@ void ResetGame() {
 	g_lowPercentageTriggered = false;
 
 	// Limpiar cachés
-	spawnPointsData.clear();
+	spawn_cache.clear();
 	lastMonsterSpawnTime.clear();
 	lastSpawnPointTime.clear();
 
@@ -3410,9 +3646,18 @@ struct StuckMonsterSpawnFilter {
 			ent->style == 1)  // Exclude flying spawns
 			return false;
 
-		// Cooldown check (keep this)
-		auto const it = spawnPointsData.find(ent);
-		if (it != spawnPointsData.end() && level.time < it->second.teleport_cooldown)
+		// Find the entry in the cache
+		size_t spawn_index = SIZE_MAX;
+		for (size_t i = 0; i < spawn_cache.count; i++) {
+			if (spawn_cache.points[i].point == ent) {
+				spawn_index = i;
+				break;
+			}
+		}
+
+		// Check cooldown if found in cache
+		if (spawn_index != SIZE_MAX &&
+			level.time < spawn_cache.points[spawn_index].data.teleport_cooldown)
 			return false;
 
 		if (IsSpawnPointOccupied(ent))  // Occupancy check (keep this)
@@ -3427,7 +3672,6 @@ struct StuckMonsterSpawnFilter {
 		return false; // No player nearby
 	}
 };
-
 bool CheckAndTeleportStuckMonster(edict_t* self) {
 	// Early returns optimizados
 	if (!self || !self->inuse || self->deadflag ||
@@ -3482,10 +3726,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns = {};
 		size_t spawn_count = 0;
 
-		// Correct way to iterate through g_edicts (excluding world)
-		//std::span<edict_t> const all_edicts(g_edicts, globals.num_edicts);
-		//std::span<edict_t> edicts_view = all_edicts.subspan(1);
-		for (edict_t& e : std::span{ g_edicts + 1, globals.num_edicts - 1 }) { // iterate from g_edicts[1] to globals.num_edicts
+		// Search through edicts
+		for (edict_t& e : std::span{ g_edicts + 1, globals.num_edicts - 1 }) {
 			if (spawn_count >= MAX_SPAWN_POINTS)
 				break;
 
@@ -3494,64 +3736,75 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 				e.style == 1)
 				continue;
 
-			auto const it = spawnPointsData.find(&e);
-			if (it != spawnPointsData.end() && level.time < it->second.teleport_cooldown)
-				continue;
-
-			if (!IsSpawnPointOccupied(&e)) {
-				available_spawns[spawn_count++] = &e;
-			}
+			// Add to available spawns
+			available_spawns[spawn_count++] = &e;
 		}
 
+		// Select random spawn point from available ones
 		if (spawn_count > 0) {
 			spawn_point = available_spawns[irandom(spawn_count)];
 		}
 		else {
-			if (developer->integer)
-			//	gi.Com_PrintFmt("No fallback spawn point found either!\n");
-			gi.linkentity(self);  // Re-link the entity
-			return false;         // No spawn points available!
+			gi.linkentity(self);
+			return false;
 		}
 	}
 
+	// If we have a spawn point, try to use it
+	if (spawn_point) {
+		// Set teleport cooldown in cache
+		size_t spawn_index = SIZE_MAX;
+		for (size_t i = 0; i < spawn_cache.count; i++) {
+			if (spawn_cache.points[i].point == spawn_point) {
+				spawn_index = i;
+				break;
+			}
+		}
+		if (spawn_index == SIZE_MAX) {
+			if (!spawn_cache.add(spawn_point, true)) {
+				gi.linkentity(self);
+				return false;
+			}
+			spawn_index = spawn_cache.count - 1;
+		}
+		spawn_cache.points[spawn_index].data.teleport_cooldown = level.time + 2_sec;
 
+		// Try teleporting
+		const vec3_t old_velocity = self->velocity;
+		const vec3_t old_origin = self->s.origin;
+		self->s.origin = spawn_point->s.origin;
+		self->s.old_origin = spawn_point->s.origin;
+		self->velocity = vec3_origin;
 
-	// Set teleport cooldown
-	spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
+		bool teleport_success = true;
+		if (!(self->flags & (FL_FLY | FL_SWIM)))
+			teleport_success = M_droptofloor(self);
 
-	const vec3_t old_velocity = self->velocity;
-	const vec3_t old_origin = self->s.origin;
-	self->s.origin = spawn_point->s.origin;
-	self->s.old_origin = spawn_point->s.origin;
-	self->velocity = vec3_origin;
+		if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
+			self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
+			gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
+			SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+			self->monsterinfo.was_stuck = false;
+			self->monsterinfo.stuck_check_time = 0_sec;
+			self->monsterinfo.react_to_damage_time = level.time;
+			gi.linkentity(self);
+			return true;
+		}
 
-	bool teleport_success = true;
-	if (!(self->flags & (FL_FLY | FL_SWIM)))
-		teleport_success = M_droptofloor(self);
-
-	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
-		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
-		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-		self->monsterinfo.was_stuck = false;
-		self->monsterinfo.stuck_check_time = 0_sec;
-		self->monsterinfo.react_to_damage_time = level.time;
+		// Restore position if failed
+		self->s.origin = old_origin;
+		self->s.old_origin = old_origin;
+		self->velocity = old_velocity;
 		gi.linkentity(self);
-		return true;
+		return false;
 	}
 
-	// Restaurar posición si falló
-	self->s.origin = old_origin;
-	self->s.old_origin = old_origin;
-	self->velocity = old_velocity;
+	// If we get here, no valid spawn point was found
 	gi.linkentity(self);
 	return false;
 }
 
 static edict_t* SpawnMonsters() {
-	if (developer->integer == 2)
-		return nullptr;
-
 	// Cache de valores del mapa y límites
 	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t maxMonsters = mapSize.isSmallMap ? MAX_MONSTERS_SMALL_MAP :
@@ -3560,84 +3813,107 @@ static edict_t* SpawnMonsters() {
 	// Cálculos de spawn optimizados
 	const int32_t activeMonsters = CalculateRemainingMonsters();
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
+	// Use queued monsters, but don't exceed base_spawn
 	const int32_t min_spawn = std::min(g_horde_local.queued_monsters, base_spawn);
+	// Calculate monsters to spawn per iteration, based on min_spawn and potentially a bit more
 	const int32_t monsters_per_spawn = irandom(min_spawn, std::min(base_spawn + 1, 6));
+	// Ensure we don't exceed maxMonsters and account for currently active monsters
 	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
-
-	if (spawnable <= 0)
-		return nullptr;
 
 	edict_t* last_spawned = nullptr;
 	const float drop_chance = g_horde_local.level <= 2 ? 0.8f :
 		g_horde_local.level <= 7 ? 0.6f : 0.45f;
 
-	SpawnMonsterFilter filter{ level.time };
+	SpawnMonsterFilter filter{ level.time }; // This should also use spawn_cache (see below)
 
 	for (int32_t i = 0; i < spawnable; ++i) {
-		if (g_horde_local.num_to_spawn <= 0)
-			break;
+		// No longer needed since we use spawnable based on active monsters and max limit
+		//if (g_horde_local.num_to_spawn <= 0)
+		//	break;
 
-		edict_t* spawn_point = SelectRandomSpawnPoint(filter);
-		if (!spawn_point) {
-			if (developer->integer)
-			//	gi.Com_PrintFmt("No valid spawn point found for monster.\n");
-			continue;
+		if (level.time >= spawn_cache.last_update + spawn_cache.CACHE_UPDATE_INTERVAL) {
+			spawn_cache.validatePoints();
+			spawn_cache.updateCooldowns();
 		}
 
-		spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
+		edict_t* spawn_point = spawn_cache.getRandomPoint();
 
-		const char* monster_classname = G_HordePickMonster(spawn_point);
+		if (!spawn_point) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("No valid spawn point found for monster.\n");
+			}
+			continue; // Skip to the next iteration of the loop
+		}
+
+		// Record the spawn attempt *before* picking a monster (and marking it a success)
+		spawn_cache.recordSpawnAttempt(spawn_point, false); // Initial attempt is marked false
+
+		// Instead of using spawnPointsData:
+		// spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
+		// Use the cache:
+		for (auto& entry : spawn_cache.points) {
+			if (entry.point == spawn_point) {
+				entry.data.teleport_cooldown = level.time + 2_sec;
+				break;
+			}
+		}
+
+		const char* monster_classname = G_HordePickMonster(spawn_point); //This function updates cache
 		if (!monster_classname)
 			continue;
 
 		if (edict_t* monster = G_Spawn()) {
 			monster->classname = monster_classname;
-
-			// Usar ProjectSource para posición más precisa con offset vertical
-			monster->s.origin = G_ProjectSource(spawn_point->s.origin,
-				vec3_t{ 0, 0, 8 },  // Pequeño offset vertical
-				vec3_t{ 1,0,0 },
-				vec3_t{ 0,1,0 });
-
+			// Rest of monster spawning logic
+			monster->s.origin = spawn_point->s.origin;
 			monster->s.angles = spawn_point->s.angles;
-			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
-			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
-			monster->monsterinfo.last_sentrygun_target_time = 0_ms;
+			monster->target = spawn_point->target;
+			monster->targetname = spawn_point->targetname;
+			monster->killtarget = spawn_point->killtarget;
+			monster->item = spawn_point->item;
+			monster->spawnflags = spawn_point->spawnflags;
+			monster->monsterinfo.aiflags = spawn_point->monsterinfo.aiflags;
 
 			ED_CallSpawn(monster);
+			if (!monster->inuse) {
+				gi.Com_PrintFmt("Monster spawn failed!\n");
+			}
+
 			if (monster->inuse) {
-				if (g_horde_local.level >= 14 && !monster->monsterinfo.power_armor_type != IT_NULL)
-					SetMonsterArmor(monster);
+				// Record the successful spawn *after* the monster is spawned
+				spawn_cache.recordSpawnAttempt(spawn_point, true); // Cache the success
 
-				if (frandom() < drop_chance)
-					monster->item = G_HordePickItem();
-
-				// Usar vec3_t para los efectos visuales
-				const vec3_t spawn_pos = monster->s.origin + vec3_t{ 0, 0, monster->mins[2] };
-				SpawnGrow_Spawn(spawn_pos, 80.0f, 10.0f);
-				gi.sound(monster, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
-
-				--g_horde_local.num_to_spawn;
-				--g_horde_local.queued_monsters;
-				++g_totalMonstersInWave;
+				// Handle additional spawn effects and logic
 				last_spawned = monster;
+
+				// Drop chance logic
+				if (frandom() < drop_chance) {
+					if (gitem_t* item = G_HordePickItem()) {
+						Drop_Item(monster, item);
+					}
+				}
+
+				// No longer decrement num_to_spawn here, as we're using queued_monsters
+				// g_horde_local.num_to_spawn--; 
+
+				// Decrement the queued monsters count since we spawned one successfully
+				g_horde_local.queued_monsters--;
+
 			}
 			else {
 				G_FreeEdict(monster);
+				spawn_cache.recordSpawnAttempt(spawn_point, false); // Record failure if spawn fails
 			}
+		}
+		else {
+			spawn_cache.recordSpawnAttempt(spawn_point, false); // Record failure if allocation fails
 		}
 	}
 
-	// Gestión optimizada de monstruos en cola
-	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
-		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
-		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
-		g_horde_local.num_to_spawn += additional_to_spawn;
-		g_horde_local.queued_monsters = std::max(0, g_horde_local.queued_monsters - additional_to_spawn);
-	}
-
+	// Set the next monster spawn time based on map size after spawning
 	SetNextMonsterSpawnTime(mapSize);
-	return last_spawned;
+
+	return last_spawned; // Return the last successfully spawned monster
 }
 
 static void SetMonsterArmor(edict_t* monster) {
@@ -3933,18 +4209,42 @@ static void SendCleanupMessage(WaveEndReason reason) {
 
 // Add this function in the appropriate source file that deals with spawn management.
 void CheckAndResetDisabledSpawnPoints() {
-	const gtime_t currentTime = level.time;
-	for (auto& [spawn_point, data] : spawnPointsData) {
-		if (data.isTemporarilyDisabled && currentTime >= data.cooldownEndsAt) {
-			data.isTemporarilyDisabled = false;
-			data.attempts = 0;
-			data.cooldownEndsAt = 0_sec;
-			spawn_point->nextthink = 0_sec;
+	static SpawnPointCache spawn_cache;
+	spawn_cache.updateCooldowns();  // Use the global instance
+
+	for (size_t i = 0; i < spawn_cache.count; i++) {
+		auto& entry = spawn_cache.points[i];
+		if (entry.data.is_temporarily_disabled && level.time >= entry.data.cooldown_ends_at) {
+			entry.data.is_temporarily_disabled = false;
+			entry.data.attempts = 0;
+			entry.data.cooldown_ends_at = 0_sec;
+			entry.point->nextthink = 0_sec;
 		}
 	}
 }
 
+void UpdateSpawnPointCache() {
+	if (level.time < spawn_cache.last_update + SpawnPointCache::CACHE_UPDATE_INTERVAL) {
+		return; // Don't update too frequently
+	}
+
+	spawn_cache.validatePoints(); // Remove invalid points
+	spawn_cache.updateCooldowns(); // Update cooldowns
+
+	// Populate cache with valid points
+	auto spawnPoints = monster_spawn_points(); // Get all spawn points
+
+	for (edict_t* spawnPoint : spawnPoints) {
+		spawn_cache.add(spawnPoint);
+	}
+
+	spawn_cache.last_update = level.time;
+}
+
 void Horde_RunFrame() {
+
+	UpdateSpawnPointCache();
+
 	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 	WaveEndReason currentWaveEndReason{};
@@ -3968,11 +4268,11 @@ void Horde_RunFrame() {
 			DisplayWaveMessage();
 
 			if (developer->integer) {
-				//gi.Com_PrintFmt("PRINT: Wave {} begins.\n", current_wave_level);
-				//gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
-				//gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
-				//gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
-				//gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
+				gi.Com_PrintFmt("PRINT: Wave {} begins.\n", current_wave_level);
+				gi.Com_PrintFmt("PRINT: Total Monsters: {}\n", g_totalMonstersInWave);
+				gi.Com_PrintFmt("PRINT: Max Monsters: {}\n", g_horde_local.max_monsters);
+				gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
+				gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
 			}
 		}
 		break;
