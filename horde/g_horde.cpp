@@ -33,15 +33,15 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 // ¿Está el punto de spawn ocupado?
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Define el espacio adicional usando vec3_t
-	const vec3_t space_multiplier{ 1.1f, 1.1f, 1.1f };
-	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
-	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
+    // More generous space multiplier like in old_horde
+    const vec3_t space_multiplier{ 2.5f, 2.5f, 2.5f };
+    const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
+    const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
 
-	FilterData filter_data = { ignore_ent, 0 };
-	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
+    FilterData filter_data = { ignore_ent, 0 };
+    gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
-	return filter_data.count > 0;
+    return filter_data.count > 0;
 }
 
 // Optimized SpawnPointCache combining best practices from both approaches
@@ -1935,37 +1935,34 @@ static void IncreaseSpawnAttempts(edict_t* spawn_point) {
 }
 
 void ResetCooldowns() noexcept {
-	// Use the global spawn_cache instance
 	spawn_cache.clear();
 	spawn_cache.validatePoints();
-
-	// Clear other maps
-	lastSpawnPointTime.clear();
-	lastMonsterSpawnTime.clear();
 
 	const MapSize& mapSize = g_horde_local.current_map_size;
 	const int32_t currentLevel = g_horde_local.level;
 	const int32_t humanPlayers = GetNumHumanPlayers();
 
-	// Get base cooldown based on map size
-	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+	// Special handling for wave 1
+	if (currentLevel <= 1) {
+		SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
+		// Don't apply additional scaling for wave 1
+		return;
+	}
 
-	// Apply level-based scaling
+	// Rest of the normal cooldown logic for waves > 1
+	SPAWN_POINT_COOLDOWN = GetBaseSpawnCooldown(mapSize.isSmallMap, mapSize.isBigMap);
 	const float cooldownScale = CalculateCooldownScale(currentLevel, mapSize);
 	SPAWN_POINT_COOLDOWN = gtime_t::from_sec(SPAWN_POINT_COOLDOWN.seconds() * cooldownScale);
 
-	// Adjust for player count
 	if (humanPlayers > 1) {
 		const float playerAdjustment = 1.0f - (std::min(humanPlayers - 1, 3) * 0.05f);
 		SPAWN_POINT_COOLDOWN *= playerAdjustment;
 	}
 
-	// Difficulty adjustments
 	if ((g_insane && g_insane->integer) || (g_chaotic && g_chaotic->integer)) {
 		SPAWN_POINT_COOLDOWN *= 0.95f;
 	}
 
-	// Apply absolute limits
 	SPAWN_POINT_COOLDOWN = std::clamp(SPAWN_POINT_COOLDOWN, 1.0_sec, 3.0_sec);
 }
 
