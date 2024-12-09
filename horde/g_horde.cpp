@@ -289,70 +289,41 @@ edict_t* SelectRandomSpawnPoint(TFilter filter) {
 	return nullptr; // No valid spawn points found
 }
 
+// Spawn point selection filter
 struct SpawnMonsterFilter {
 	gtime_t currentTime;
 
 	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
 
 	bool operator()(edict_t* spawnPoint) const {
-		static int failed_attempts = 0;
-
-		// Initial validation
-		if (!spawnPoint || !spawnPoint->inuse) {
-			failed_attempts++;
-			if (developer->integer) {
-				gi.Com_PrintFmt("Spawn point rejected: Invalid or not in use (attempt {})\n", failed_attempts);
-			}
-
-			// Be more lenient after multiple failures
-			if (failed_attempts > 5) {
-				failed_attempts = 0;
-				return true;  // Allow spawn attempt anyway
-			}
+		if (!spawnPoint || !spawnPoint->inuse)
 			return false;
-		}
 
-		// Reset counter on valid point
-		failed_attempts = 0;
-
-		// Cooldown check
+		// Check cooldown
 		auto it = spawnPointsData.find(spawnPoint);
 		if (it != spawnPointsData.end()) {
 			const auto& data = it->second;
-			if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("Spawn point rejected: On cooldown for {} more seconds\n",
-						(data.cooldownEndsAt - currentTime).seconds());
-				}
+			if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
 				return false;
-			}
 		}
 
-		// Proximity check to players
+		// Quick proximity check to players
 		const vec3_t& origin = spawnPoint->s.origin;
-		if (!is_valid_vector(origin)) {
-			if (developer->integer) {
-				gi.Com_PrintFmt("Spawn point rejected: Invalid origin vector\n");
-			}
+		if (!is_valid_vector(origin))
 			return false;
-		}
 
-		// Quick proximity check
 		for (const auto* const player : active_players()) {
-			if (!player || !player->inuse) continue;
+			if (!player || !player->inuse)
+				continue;
 
-			if ((origin - player->s.origin).length() < 150.0f) {
-				if (developer->integer) {
-					gi.Com_PrintFmt("Spawn point rejected: Too close to player\n");
-				}
+			if ((origin - player->s.origin).length() < 150.0f)
 				return false;
-			}
 		}
 
-		// Final occupancy check
 		return !IsSpawnPointOccupied(spawnPoint);
 	}
 };
+
 
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
@@ -3840,35 +3811,16 @@ static edict_t* SpawnMonsters() {
 	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0)
 		return nullptr;
 
-	// Pre-filter spawn points more efficiently
+	// Create spawn filter
 	SpawnMonsterFilter filter{ level.time };
-	spawn_cache.available_spawns.reserve(MAX_SPAWN_POINTS);
 
-	// Get spawn points once and do quick filtering first
-	auto spawnPoints = monster_spawn_points();
-	for (edict_t* spawnPoint : spawnPoints) {
-		if (spawnPoint && spawnPoint->inuse) {
-			auto it = spawnPointsData.find(spawnPoint);
-			if (it == spawnPointsData.end() ||
-				!(it->second.isTemporarilyDisabled && level.time < it->second.cooldownEndsAt)) {
-				spawn_cache.available_spawns.push_back(spawnPoint);
-			}
-		}
-	}
+	// Use template-based spawn point selection
+	edict_t* spawn_point = SelectRandomSpawnPoint([&filter](edict_t* point) {
+		return filter(point);
+		});
 
-	// Now do more expensive checks only on promising points
-	if (!spawn_cache.available_spawns.empty()) {
-		size_t valid_idx = 0;
-		for (size_t i = 0; i < spawn_cache.available_spawns.size(); i++) {
-			if (filter(spawn_cache.available_spawns[i])) {
-				if (valid_idx != i) {
-					spawn_cache.available_spawns[valid_idx] = spawn_cache.available_spawns[i];
-				}
-				valid_idx++;
-			}
-		}
-		spawn_cache.available_spawns.resize(valid_idx);
-	}
+	if (!spawn_point)
+		return nullptr;
 
 	// Calculate spawn counts
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
@@ -3884,17 +3836,6 @@ static edict_t* SpawnMonsters() {
 	for (int32_t i = 0; i < spawnable; ++i) {
 		if (g_horde_local.num_to_spawn <= 0)
 			break;
-
-		edict_t* spawn_point = nullptr;
-		if (!spawn_cache.available_spawns.empty()) {
-			const size_t idx = irandom(spawn_cache.available_spawns.size());
-			spawn_point = spawn_cache.available_spawns[idx];
-			spawn_cache.available_spawns[idx] = spawn_cache.available_spawns.back();
-			spawn_cache.available_spawns.pop_back();
-		}
-
-		if (!spawn_point)
-			continue;
 
 		// Update spawn point cooldown
 		spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
@@ -3932,6 +3873,14 @@ static edict_t* SpawnMonsters() {
 				--g_horde_local.queued_monsters;
 				++g_totalMonstersInWave;
 				last_spawned = monster;
+
+				// Get next spawn point for next iteration
+				spawn_point = SelectRandomSpawnPoint([&filter](edict_t* point) {
+					return filter(point);
+					});
+
+				if (!spawn_point)
+					break;
 			}
 			else {
 				G_FreeEdict(monster);
@@ -3950,6 +3899,7 @@ static edict_t* SpawnMonsters() {
 	SetNextMonsterSpawnTime(mapSize);
 	return last_spawned;
 }
+
 static void SetMonsterArmor(edict_t* monster) {
 
 	constexpr float HEALTH_RATIO_POWER = 1.1f;
