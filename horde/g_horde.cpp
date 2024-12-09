@@ -141,47 +141,55 @@ static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
 // Verify if any spawn points are occupied, using span for efficient iteration
 // Original single point check
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Add validation 
+	// Basic validation
 	if (!spawn_point) {
-		gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
+		if (developer->integer) {
+			gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
+		}
 		return true;
 	}
 
-	// Validate origin
+	// Origin validation
 	if (!is_valid_vector(spawn_point->s.origin)) {
-		gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
+		if (developer->integer) {
+			gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
+		}
 		return true;
 	}
 
-	// Get or create cache entry
+	// Cache handling
 	auto& cache = spawn_point_cache[spawn_point];
+	static constexpr auto CACHE_DURATION = 15_ms;
 
-	// Shorter cache duration
-	static constexpr auto CACHE_DURATION = 25_ms;
-
-	// Check time-based cache with frame validation
-	// Instead of frame number, check if we're still within the same frame time
-	if (level.time - cache.last_check_time < CACHE_DURATION
-		&& cache.last_check_origin == spawn_point->s.origin
-		&& (level.time - cache.frame_time) < FRAME_TIME_MS) {
+	// Check cache validity
+	if (level.time - cache.last_check_time < CACHE_DURATION &&
+		cache.last_check_origin == spawn_point->s.origin &&
+		(level.time - cache.frame_time) < FRAME_TIME_MS) {
 		return cache.was_occupied;
 	}
 
-	// Update cache
+	// Update cache timestamps
 	cache.last_check_time = level.time;
 	cache.last_check_origin = spawn_point->s.origin;
-	cache.frame_time = level.time; // Store current time as frame time
+	cache.frame_time = level.time;
 
-	// Optimized space check
-	static constexpr vec3_t space_multiplier{ 1.75f, 1.75f, 1.75f };
-	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
-	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
+	// Space check configuration
+	static constexpr vec3_t space_multiplier{ 1.5f, 1.5f, 1.5f };
+	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 12, 12, 20 }.scaled(space_multiplier));
+	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 12, 12, 28 }.scaled(space_multiplier));
 
+	// Perform entity check
 	FilterData filter_data = { ignore_ent, 0 };
 	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
-	// Cache and return result
-	cache.was_occupied = (filter_data.count > 0);
+	// Update and return result
+	cache.was_occupied = (filter_data.count > 1);
+
+	if (developer->integer && cache.was_occupied) {
+		gi.Com_PrintFmt("Spawn point at {} is occupied (count: {})\n",
+			spawn_point->s.origin, filter_data.count);
+	}
+
 	return cache.was_occupied;
 }
 
@@ -230,9 +238,6 @@ edict_t* SelectRandomMonsterSpawnPoint() {
 
 	return availableSpawns[irandom(availableSpawns.size())];
 }
-
-//void IncreaseSpawnAttempts(edict_t* spawn_point);
-//void IncreaseSpawnAttemptsBatch(std::span<edict_t*> spawn_points);
 
 // 1. First, modify the SelectRandomSpawnPoint declaration to be a template function
 template <typename TFilter>
@@ -290,29 +295,61 @@ struct SpawnMonsterFilter {
 	SpawnMonsterFilter(gtime_t time) : currentTime(time) {}
 
 	bool operator()(edict_t* spawnPoint) const {
-		// Skip invalid points early
-		if (!spawnPoint || !spawnPoint->inuse)
-			return false;
+		static int failed_attempts = 0;
 
-		// Only do map lookup once
+		// Initial validation
+		if (!spawnPoint || !spawnPoint->inuse) {
+			failed_attempts++;
+			if (developer->integer) {
+				gi.Com_PrintFmt("Spawn point rejected: Invalid or not in use (attempt {})\n", failed_attempts);
+			}
+
+			// Be more lenient after multiple failures
+			if (failed_attempts > 5) {
+				failed_attempts = 0;
+				return true;  // Allow spawn attempt anyway
+			}
+			return false;
+		}
+
+		// Reset counter on valid point
+		failed_attempts = 0;
+
+		// Cooldown check
 		auto it = spawnPointsData.find(spawnPoint);
 		if (it != spawnPointsData.end()) {
 			const auto& data = it->second;
-			// Check if point is on cooldown or disabled
-			if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt)
+			if (data.isTemporarilyDisabled && currentTime < data.cooldownEndsAt) {
+				if (developer->integer) {
+					gi.Com_PrintFmt("Spawn point rejected: On cooldown for {} more seconds\n",
+						(data.cooldownEndsAt - currentTime).seconds());
+				}
 				return false;
+			}
 		}
 
-		// Cache origin for occupancy check
+		// Proximity check to players
 		const vec3_t& origin = spawnPoint->s.origin;
-
-		// Quick proximity check first (cheaper than full occupancy)
-		for (const auto* const player : active_players()) {
-			if ((origin - player->s.origin).length() < 200.0f)
-				return false;
+		if (!is_valid_vector(origin)) {
+			if (developer->integer) {
+				gi.Com_PrintFmt("Spawn point rejected: Invalid origin vector\n");
+			}
+			return false;
 		}
 
-		// Only do full occupancy check if we pass the quick checks
+		// Quick proximity check
+		for (const auto* const player : active_players()) {
+			if (!player || !player->inuse) continue;
+
+			if ((origin - player->s.origin).length() < 150.0f) {
+				if (developer->integer) {
+					gi.Com_PrintFmt("Spawn point rejected: Too close to player\n");
+				}
+				return false;
+			}
+		}
+
+		// Final occupancy check
 		return !IsSpawnPointOccupied(spawnPoint);
 	}
 };
