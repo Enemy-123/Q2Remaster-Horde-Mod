@@ -186,51 +186,51 @@ bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent 
 }
 
 
-// New span-based batch check
-bool AreSpawnPointsOccupied(std::span<const edict_t* const> spawn_points, const edict_t* ignore_ent = nullptr) {
-	if (spawn_points.empty()) {
-		return true;
-	}
-
-	// Process spawn points in batches for better cache utilization
-	static constexpr size_t BATCH_SIZE = 8;
-	for (size_t i = 0; i < spawn_points.size(); i += BATCH_SIZE) {
-		const size_t batch_end = std::min(i + BATCH_SIZE, spawn_points.size());
-		std::span<const edict_t* const> batch = spawn_points.subspan(i, batch_end - i);
-
-		for (const edict_t* spawn_point : batch) {
-			if (IsSpawnPointOccupied(spawn_point, ignore_ent)) {
-				return true;
-			}
-		}
-	}
-
-	return false;
-}
+//// New span-based batch check
+//bool AreSpawnPointsOccupied(std::span<const edict_t* const> spawn_points, const edict_t* ignore_ent = nullptr) {
+//	if (spawn_points.empty()) {
+//		return true;
+//	}
+//
+//	// Process spawn points in batches for better cache utilization
+//	static constexpr size_t BATCH_SIZE = 8;
+//	for (size_t i = 0; i < spawn_points.size(); i += BATCH_SIZE) {
+//		const size_t batch_end = std::min(i + BATCH_SIZE, spawn_points.size());
+//		std::span<const edict_t* const> batch = spawn_points.subspan(i, batch_end - i);
+//
+//		for (const edict_t* spawn_point : batch) {
+//			if (IsSpawnPointOccupied(spawn_point, ignore_ent)) {
+//				return true;
+//			}
+//		}
+//	}
+//
+//	return false;
+//}
 
 static void CleanupSpawnPointCache() noexcept {
 	spawn_point_cache.clear();
 }
 
-// Optimized function to select a random unoccupied monster spawn point
-edict_t* SelectRandomMonsterSpawnPoint() {
-	static std::vector<edict_t*> availableSpawns;
-	availableSpawns.clear();
-
-	auto spawnPoints = monster_spawn_points();
-
-	for (edict_t* spawnPoint : spawnPoints) {
-		if (!IsSpawnPointOccupied(spawnPoint)) {
-			availableSpawns.push_back(spawnPoint);
-		}
-	}
-
-	if (availableSpawns.empty()) {
-		return nullptr;
-	}
-
-	return availableSpawns[irandom(availableSpawns.size())];
-}
+//// Optimized function to select a random unoccupied monster spawn point
+//edict_t* SelectRandomMonsterSpawnPoint() {
+//	static std::vector<edict_t*> availableSpawns;
+//	availableSpawns.clear();
+//
+//	auto spawnPoints = monster_spawn_points();
+//
+//	for (edict_t* spawnPoint : spawnPoints) {
+//		if (!IsSpawnPointOccupied(spawnPoint)) {
+//			availableSpawns.push_back(spawnPoint);
+//		}
+//	}
+//
+//	if (availableSpawns.empty()) {
+//		return nullptr;
+//	}
+//
+//	return availableSpawns[irandom(availableSpawns.size())];
+//}
 
 // 1. First, modify the SelectRandomSpawnPoint declaration to be a template function
 template <typename TFilter>
