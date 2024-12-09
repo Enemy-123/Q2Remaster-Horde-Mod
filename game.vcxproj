@@ -180,6 +180,7 @@
     <ClCompile Include="ctf\p_ctf_menu.cpp" />
     <ClCompile Include="g_laser.cpp" />
     <ClCompile Include="horde\g_horde_benefits.cpp" />
+    <ClCompile Include="horde\old_horde.cpp" />
     <ClCompile Include="m_arachnid2.cpp" />
     <ClCompile Include="m_gnorta.cpp" />
     <ClCompile Include="m_guncmdr_vanilla.cpp" />
