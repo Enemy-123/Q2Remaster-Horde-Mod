@@ -1281,7 +1281,7 @@ void SP_monster_tank_spawner(edict_t* self)
 
 
 	// Single reinforcements setup
-	const char* reinforcements = (g_horde->integer && current_wave_level >= 30) ? tank_vanilla_insane_reinforcements : tank_vanilla_hard_reinforcements;
+	const char* reinforcements = current_wave_level >= 30 ? tank_vanilla_insane_reinforcements : tank_vanilla_hard_reinforcements;
 	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
 
 
