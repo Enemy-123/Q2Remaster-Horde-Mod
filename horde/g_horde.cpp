@@ -51,7 +51,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 	const gtime_t current_time = level.time;
 
 	// Reset attempts if enough time has passed
-	if (current_time - data.lastSpawnTime > 3_sec) {
+	if (current_time - data.lastSpawnTime > 6_sec) {
 		data.attempts = 0;
 		data.isTemporarilyDisabled = false;
 		data.cooldownEndsAt = current_time;
@@ -79,7 +79,7 @@ void IncreaseSpawnAttempts(edict_t* spawn_point) {
 		data.cooldownEndsAt = current_time + gtime_t::from_sec(base_cooldown * attempt_multiplier);
 	}
 	else if (data.attempts % 2 == 0) { // Small incremental cooldown every 2 attempts
-		data.cooldownEndsAt = current_time + gtime_t::from_sec(0.1f * data.attempts);
+		data.cooldownEndsAt = current_time + gtime_t::from_sec(0.2f * data.attempts);
 	}
 }
 
@@ -448,26 +448,32 @@ static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
 }
 
 static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
+
+	// Aplicar reducción adicional para niveles bajos
+	if (lvl <= 10) {
+		return 1.0f;
+	}
+
 	// Quitar la condición de nivel <= 10 para que escale desde el principio
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
 	// Ajustar escala base para que sea más agresiva al inicio
-	float scale = 1.0f + (lvl * 0.015f); // Cambiado de 0.02f a 0.015f y aplicado desde nivel 1
+	float scale = 1.0f + (lvl * 0.02f); // Cambiado de 0.02f a 0.015f y aplicado desde nivel 1
 
 	// Ajustes por número de jugadores más agresivos al inicio
 	if (numHumanPlayers > 1) {
-		constexpr float PLAYER_REDUCTION = 0.12f; // Aumentado de 0.08f a 0.12f
-		constexpr float MAX_REDUCTION = 0.55f;    // Aumentado de 0.45f a 0.55f
+		constexpr float PLAYER_REDUCTION = 0.1f; // Aumentado de 0.08f a 0.12f
+		constexpr float MAX_REDUCTION = 0.45f;    // Aumentado de 0.45f a 0.55f
 		scale *= (1.0f - std::min((numHumanPlayers - 1) * PLAYER_REDUCTION, MAX_REDUCTION));
 	}
 
 	// Ajustar multiplicadores para mapas pequeños/medianos
-	constexpr float SMALL_MAP_MULTIPLIER = 0.6f;  // Reducido de 0.7f a 0.6f
-	constexpr float SMALL_MAP_MAX_SCALE = 1.2f;   // Reducido de 1.3f a 1.2f
-	constexpr float MEDIUM_MAP_MULTIPLIER = 0.7f; // Reducido de 0.80f a 0.7f
-	constexpr float MEDIUM_MAP_MAX_SCALE = 1.3f;  // Reducido de 1.5f a 1.3f
-	constexpr float BIG_MAP_MULTIPLIER = 0.75f;   // Reducido de 0.85f a 0.75f
-	constexpr float BIG_MAP_MAX_SCALE = 1.5f;     // Reducido de 1.75f a 1.5f
+	constexpr float SMALL_MAP_MULTIPLIER = 0.7f;  // Reducido de 0.7f a 0.6f
+	constexpr float SMALL_MAP_MAX_SCALE = 1.3f;   // Reducido de 1.3f a 1.2f
+	constexpr float MEDIUM_MAP_MULTIPLIER = 0.8f; // Reducido de 0.80f a 0.7f
+	constexpr float MEDIUM_MAP_MAX_SCALE = 1.5f;  // Reducido de 1.5f a 1.3f
+	constexpr float BIG_MAP_MULTIPLIER = 0.85f;   // Reducido de 0.85f a 0.75f
+	constexpr float BIG_MAP_MAX_SCALE = 1.75f;     // Reducido de 1.75f a 1.5f
 
 	float multiplier, maxScale;
 	if (mapSize.isSmallMap) {
@@ -483,10 +489,7 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 		maxScale = MEDIUM_MAP_MAX_SCALE;
 	}
 
-	// Aplicar reducción adicional para niveles bajos
-	if (lvl <= 5) {
-		multiplier *= 0.85f; // 15% más rápido en niveles iniciales
-	}
+
 
 	return std::min(scale * multiplier, maxScale);
 }
@@ -1384,7 +1387,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Heavy Ground Units (Waves 12-18)
 	{"monster_gladiator", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
 	{"monster_gunner", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.8f},
-	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy, 13, 0.6f},
+	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium, 13, 0.6f},
 	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy, 14, 0.4f},
 	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 16, 0.5f},
 	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 15, 0.7f},

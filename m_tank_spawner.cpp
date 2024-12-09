@@ -1247,6 +1247,15 @@ constexpr const char* tank_vanilla_hard_reinforcements =
 "monster_soldier_ss 1;"
 "monster_soldier_ss 1;";
 
+constexpr const char* tank_vanilla_insane_reinforcements =
+"monster_berserk 1;"
+"monster_berserk 1;"
+"monster_berserk 1;"
+"monster_soldier_lasergun 1;"
+"monster_soldier_lasergun 1;"
+"monster_gunner_vanilla 1;"
+"monster_gunner_vanilla 1;";
+
 void SP_monster_tank_spawner(edict_t* self)
 {
 	const spawn_temp_t& st = ED_GetSpawnTemp();
@@ -1272,7 +1281,7 @@ void SP_monster_tank_spawner(edict_t* self)
 
 
 	// Single reinforcements setup
-	const char* reinforcements = tank_vanilla_hard_reinforcements;
+	const char* reinforcements = (g_horde->integer && current_wave_level >= 30) ? tank_vanilla_insane_reinforcements : tank_vanilla_hard_reinforcements;
 	M_SetupReinforcements(reinforcements, self->monsterinfo.reinforcements);
 
 
