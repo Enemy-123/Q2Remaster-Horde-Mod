@@ -73,6 +73,9 @@ struct MapSize {
 MapSize GetMapSize(const char* mapname);
 
 extern gtime_t GetWaveTimer();
+extern int32_t GetStroggsNum() noexcept;
+extern inline bool IsBossWave() noexcept;
+
 bool TeleportSelf(edict_t* ent);
 inline int8_t GetNumHumanPlayers();
 

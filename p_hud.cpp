@@ -724,7 +724,7 @@ void G_SetCoopStats(edict_t* ent) {
 		ent->client->ps.stats[STAT_WAVE_NUMBER] = last_wave_number;
 	}
 
-	ent->client->ps.stats[STAT_REMAINING_MONSTERS] = level.total_monsters - level.killed_monsters;
+	ent->client->ps.stats[STAT_REMAINING_MONSTERS] = GetStroggsNum();
 
 	// stat for text on what we're doing for respawn
 	if (ent->client->coop_respawn_state)

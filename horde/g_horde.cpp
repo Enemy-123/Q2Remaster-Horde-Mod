@@ -393,45 +393,81 @@ uint16_t g_totalMonstersInWave = 0;         // Reducido de uint32_t
 gtime_t horde_message_end_time = 0_sec;
 gtime_t SPAWN_POINT_COOLDOWN = 2.8_sec; //spawns Cooldown 
 
-// Añadir cerca de las otras constexpr al inicio del archivo
-static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
-	if (isSmallMap)
-		return 0.3_sec;
-	else if (isBigMap)
-		return 1.8_sec;
-	else
-		return 1.0_sec;
+// Function to check and reduce spawn cooldowns when few monsters remain
+void CheckAndReduceSpawnCooldowns() {
+	// Only proceed if we have monsters left to spawn but are waiting on cooldown
+	const int32_t remaining_stroggs = GetStroggsNum();
+
+	// If 4 or fewer monsters left and we're not in a boss wave
+	if (remaining_stroggs <= 6 && !IsBossWave()) {
+		// Check if any spawn points are on cooldown
+		bool spawn_points_on_cooldown = false;
+
+		// First pass - check if we have valid spawn points on cooldown
+		for (auto& [spawn_point, data] : spawnPointsData) {
+			if (!spawn_point || !spawn_point->inuse) continue;
+
+			if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) {
+				spawn_points_on_cooldown = true;
+				break;
+			}
+		}
+
+		// Only proceed with reductions if we found cooldowns
+		if (spawn_points_on_cooldown) {
+			// Reduce cooldowns for all valid spawn points
+			for (auto& [spawn_point, data] : spawnPointsData) {
+				if (!spawn_point || !spawn_point->inuse) continue;
+				if (data.isTemporarilyDisabled && level.time < data.cooldownEndsAt) {
+					// Reduce cooldown by 85%
+					gtime_t const remaining_time = data.cooldownEndsAt - level.time;
+					data.cooldownEndsAt = level.time + (remaining_time * 0.15f);
+					data.attempts = 0;
+					// Reset attempt counter to allow fresh spawns
+					if (developer->integer) {
+						gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n",
+							spawn_point->s.origin);
+					}
+				}
+			}
+
+			// Also reduce the global spawn cooldown
+			SPAWN_POINT_COOLDOWN *= 0.15f;
+		}
+	}
 }
 
-// Nueva función para calcular el factor de escala del cooldown basado en el nivel
-static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
-	if (lvl <= 10)
-		return 1.0f;
+static constexpr gtime_t GetBaseSpawnCooldown(bool isSmallMap, bool isBigMap) {
+	if (isSmallMap)
+		return 0.2_sec;  // Reduced from 0.3 to 0.2
+	else if (isBigMap)
+		return 1.4_sec;  // Reduced from 1.8 to 1.4
+	else
+		return 0.8_sec;  // Reduced from 1.0 to 0.8
+}
 
+static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
+	// Quitar la condición de nivel <= 10 para que escale desde el principio
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 
-	// Factores de ajuste constantes
-	constexpr float LVL_SCALE = 0.02f;
-	constexpr float PLAYER_REDUCTION = 0.08f;
-	constexpr float MAX_REDUCTION = 0.45f;
+	// Ajustar escala base para que sea más agresiva al inicio
+	float scale = 1.0f + (lvl * 0.015f); // Cambiado de 0.02f a 0.015f y aplicado desde nivel 1
 
-	// Escala base por nivel
-	float scale = 1.0f + ((lvl - 10) * LVL_SCALE);
-
-	// Ajuste por número de jugadores
+	// Ajustes por número de jugadores más agresivos al inicio
 	if (numHumanPlayers > 1) {
+		constexpr float PLAYER_REDUCTION = 0.12f; // Aumentado de 0.08f a 0.12f
+		constexpr float MAX_REDUCTION = 0.55f;    // Aumentado de 0.45f a 0.55f
 		scale *= (1.0f - std::min((numHumanPlayers - 1) * PLAYER_REDUCTION, MAX_REDUCTION));
 	}
 
-	// Ajustes por tamaño de mapa usando constexpr
-	constexpr float SMALL_MAP_MULTIPLIER = 0.7f;
-	constexpr float SMALL_MAP_MAX_SCALE = 1.3f;
-	constexpr float MEDIUM_MAP_MULTIPLIER = 0.80f;
-	constexpr float MEDIUM_MAP_MAX_SCALE = 1.5f;
-	constexpr float BIG_MAP_MULTIPLIER = 0.85f;
-	constexpr float BIG_MAP_MAX_SCALE = 1.75f;
+	// Ajustar multiplicadores para mapas pequeños/medianos
+	constexpr float SMALL_MAP_MULTIPLIER = 0.6f;  // Reducido de 0.7f a 0.6f
+	constexpr float SMALL_MAP_MAX_SCALE = 1.2f;   // Reducido de 1.3f a 1.2f
+	constexpr float MEDIUM_MAP_MULTIPLIER = 0.7f; // Reducido de 0.80f a 0.7f
+	constexpr float MEDIUM_MAP_MAX_SCALE = 1.3f;  // Reducido de 1.5f a 1.3f
+	constexpr float BIG_MAP_MULTIPLIER = 0.75f;   // Reducido de 0.85f a 0.75f
+	constexpr float BIG_MAP_MAX_SCALE = 1.5f;     // Reducido de 1.75f a 1.5f
 
-	// Seleccionar valores basados en el tamaño del mapa usando if-else
 	float multiplier, maxScale;
 	if (mapSize.isSmallMap) {
 		multiplier = SMALL_MAP_MULTIPLIER;
@@ -446,9 +482,13 @@ static float CalculateCooldownScale(int32_t lvl, const MapSize& mapSize) {
 		maxScale = MEDIUM_MAP_MAX_SCALE;
 	}
 
+	// Aplicar reducción adicional para niveles bajos
+	if (lvl <= 5) {
+		multiplier *= 0.85f; // 15% más rápido en niveles iniciales
+	}
+
 	return std::min(scale * multiplier, maxScale);
 }
-
 cvar_t* g_horde;
 
 // Monster wave type flags
@@ -4223,6 +4263,7 @@ void Horde_RunFrame() {
 	WaveEndReason currentWaveEndReason{};
 
 	CleanupSpawnPointCache();
+	CheckAndReduceSpawnCooldowns();
 
 
 	// Handle custom monster settings (likely debug/testing)
@@ -4396,3 +4437,13 @@ gtime_t GetWaveTimer() {
 
 	return remainingTime;
 }
+
+inline int32_t GetStroggsNum() noexcept {
+	return level.total_monsters - level.killed_monsters;
+}
+
+// Helper function to check if it's a boss wave
+inline bool IsBossWave() noexcept  {
+	return g_horde_local.level >= 10 && g_horde_local.level % 5 == 0;
+}
+
