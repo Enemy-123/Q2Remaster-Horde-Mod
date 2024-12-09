@@ -63,8 +63,9 @@ static BoxEdictsResult_t SpawnPointFilter(edict_t* ent, void* data) {
 
 struct SpawnPointCache {
 	gtime_t last_check_time;
-	bool was_occupied;
 	vec3_t last_check_origin;
+	gtime_t frame_time;  // Changed from frame_number to frame_time
+	bool was_occupied = false;
 };
 static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
 
@@ -72,24 +73,36 @@ static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
 // Verify if any spawn points are occupied, using span for efficient iteration
 // Original single point check
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	if (!spawn_point || !is_valid_vector(spawn_point->s.origin)) {
+	// Add validation 
+	if (!spawn_point) {
+		gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
+		return true;
+	}
+
+	// Validate origin
+	if (!is_valid_vector(spawn_point->s.origin)) {
+		gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
 		return true;
 	}
 
 	// Get or create cache entry
 	auto& cache = spawn_point_cache[spawn_point];
 
-	// Check time-based cache first
-	if (level.time - cache.last_check_time < 50_ms) {
-		// Only use cached result if position hasn't changed
-		if (cache.last_check_origin == spawn_point->s.origin) {
-			return cache.was_occupied;
-		}
+	// Shorter cache duration
+	static constexpr auto CACHE_DURATION = 25_ms;
+
+	// Check time-based cache with frame validation
+	// Instead of frame number, check if we're still within the same frame time
+	if (level.time - cache.last_check_time < CACHE_DURATION
+		&& cache.last_check_origin == spawn_point->s.origin
+		&& (level.time - cache.frame_time) < FRAME_TIME_MS) {
+		return cache.was_occupied;
 	}
 
-	// Update cache time and position
+	// Update cache
 	cache.last_check_time = level.time;
 	cache.last_check_origin = spawn_point->s.origin;
+	cache.frame_time = level.time; // Store current time as frame time
 
 	// Optimized space check
 	static constexpr vec3_t space_multiplier{ 1.75f, 1.75f, 1.75f };
@@ -3111,42 +3124,64 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		return true;
 	}
 
-	// Initialize wave end time if not set
-	if (g_horde_local.waveEndTime == 0_sec) {
-		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
-	}
-
-	// Check for condition triggers
+	// First check: Has the condition been triggered yet?
 	if (!g_horde_local.conditionTriggered) {
-		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
-		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
-
-		if (maxMonstersReached || lowPercentageReached) {
-			g_horde_local.conditionTriggered = true;
+		// Original logic: Trigger when we EXCEED max monsters (not when below)
+		if (remainingMonsters >= g_lastParams.maxMonsters) {
 			g_horde_local.conditionStartTime = currentTime;
+			g_horde_local.conditionTriggered = true;
+			g_maxMonstersReached = true;
 
-			// Select shortest time threshold based on conditions
-			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
-				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
-				maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
-
-			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
-
-			// Aggressive time reduction for very few monsters
-			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-				g_horde_local.waveEndTime = std::min(g_horde_local.waveEndTime, currentTime + reduction);
-				gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
+			if (developer->integer) {
+				gi.Com_PrintFmt("Max monsters condition triggered at {} monsters\n", remainingMonsters);
 			}
 		}
 	}
 
-	// Handle warnings and time checks
+	// Second check: Has the time threshold been exceeded after condition was triggered?
 	if (g_horde_local.conditionTriggered) {
-		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
+		// Time threshold check only happens after condition is triggered
+		if (currentTime >= g_horde_local.conditionStartTime + g_lastParams.timeThreshold) {
+			reason = WaveEndReason::MonstersRemaining;
+			return true;
+		}
+	}
 
-		// Issue warnings at predefined intervals
+	// Third check: Independent time limit (separate from condition timer)
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
+	}
+
+	// Fourth check: All monsters dead or wave advance allowed
+	if (allowWaveAdvance || Horde_AllMonstersDead()) {
+		reason = WaveEndReason::AllMonstersDead;
+		ResetWaveAdvanceState();
+		return true;
+	}
+
+	// If low percentage of monsters remaining after condition triggered
+	if (g_horde_local.conditionTriggered &&
+		percentageRemaining <= g_lastParams.lowPercentageThreshold &&
+		!g_lowPercentageTriggered) {
+
+		g_lowPercentageTriggered = true;
+
+		// Reduce time threshold
+		if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
+			const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
+				(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
+			g_horde_local.conditionTimeThreshold = std::min(
+				g_lastParams.timeThreshold,
+				reduction);
+		}
+	}
+
+	// Handle warnings
+	if (g_horde_local.conditionTriggered) {
+		const gtime_t remainingTime = (g_horde_local.conditionStartTime +
+			g_lastParams.timeThreshold) - currentTime;
+
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] &&
@@ -3157,19 +3192,14 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 				g_horde_local.warningIssued[i] = true;
 			}
 		}
-
-		// Check for wave completion
-		if (currentTime >= g_horde_local.waveEndTime) {
-			reason = WaveEndReason::MonstersRemaining;
-			return true;
-		}
 	}
 
-	// Update debug info periodically
-	if (currentTime - g_horde_local.lastPrintTime >= 10_sec) {
-		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
-		gi.Com_PrintFmt("Wave status: {} monsters remaining. {:.2f} seconds left.\n",
-			remainingMonsters, remainingTime.seconds());
+	// Debug output
+	if (developer->integer && currentTime - g_horde_local.lastPrintTime >= 10_sec) {
+		gi.Com_PrintFmt("Wave status: {} monsters remaining ({}%). Condition {}\n",
+			remainingMonsters,
+			(percentageRemaining * 100.0f),
+			g_horde_local.conditionTriggered ? "triggered" : "not triggered");
 		g_horde_local.lastPrintTime = currentTime;
 	}
 
@@ -4165,6 +4195,12 @@ void Horde_RunFrame() {
 	case horde_state_t::active_wave: {
 		WaveEndReason reason;
 		const bool shouldAdvance = CheckRemainingMonstersCondition(mapSize, reason);
+
+		if (Horde_AllMonstersDead()) {
+			currentWaveEndReason = WaveEndReason::AllMonstersDead;
+			waveEnded = true;
+			break;
+		}
 
 		if (shouldAdvance) {
 			currentWaveEndReason = reason;
