@@ -3708,19 +3708,16 @@ struct StuckMonsterSpawnFilter {
 			strcmp(ent->classname, "info_player_deathmatch") != 0 ||
 			ent->style == 1)  // Exclude flying spawns
 			return false;
-
-		// Cooldown check (keep this)
+		// Cooldown check
 		auto const it = spawnPointsData.find(ent);
 		if (it != spawnPointsData.end() && level.time < it->second.teleport_cooldown)
 			return false;
-
-		if (IsSpawnPointOccupied(ent))  // Occupancy check (keep this)
+		if (IsSpawnPointOccupied(ent))
 			return false;
-
-		// Check proximity to players (NEW)
+		// Check proximity to players
 		for (const auto* const player : active_players_no_spect()) {
-			if ((ent->s.origin - player->s.origin).length() < 512.0f) { // Adjust distance as needed
-				return true;
+			if ((ent->s.origin - player->s.origin).length() < 512.0f) {
+				return true;  // Accept spawn points near players
 			}
 		}
 		return false; // No player nearby
@@ -3728,10 +3725,11 @@ struct StuckMonsterSpawnFilter {
 };
 
 bool CheckAndTeleportStuckMonster(edict_t* self) {
-	// Early returns optimizados
+	// Early returns
 	if (!self || !self->inuse || self->deadflag ||
 		self->monsterinfo.IS_BOSS || level.intermissiontime || !g_horde->integer)
 		return false;
+
 	if (!strcmp(self->classname, "misc_insane"))
 		return false;
 
@@ -3739,7 +3737,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
 	constexpr gtime_t TELEPORT_COOLDOWN = 4_sec;
 
-	// Si puede ver al enemigo, no teleportar
+	// If can see enemy, don't teleport
 	if (self->monsterinfo.issummoned ||
 		(self->enemy && self->enemy->inuse && visible(self, self->enemy, false))) {
 		self->monsterinfo.was_stuck = false;
@@ -3747,11 +3745,11 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false;
 	}
 
-	// Verificar cooldown general de teleport
+	// Check general teleport cooldown
 	if (self->teleport_time && level.time < self->teleport_time + TELEPORT_COOLDOWN)
 		return false;
 
-	// Para daño no-agua, verificar condiciones de stuck
+	// For non-water damage, check stuck conditions
 	if (!self->waterlevel) {
 		const bool is_stuck = gi.trace(self->s.origin, self->mins, self->maxs,
 			self->s.origin, self, MASK_MONSTERSOLID).startsolid;
@@ -3772,64 +3770,32 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	gi.unlinkentity(self);
 
-	// 1. First, try the efficient filter approach
+	// Use StuckMonsterSpawnFilter with SelectRandomSpawnPoint
 	StuckMonsterSpawnFilter filter;
 	edict_t* spawn_point = SelectRandomSpawnPoint(filter);
 
-	// 2. If the filter fails, fallback to the exhaustive search
 	if (!spawn_point) {
-		std::array<edict_t*, MAX_SPAWN_POINTS> available_spawns = {};
-		size_t spawn_count = 0;
-
-		// Correct way to iterate through g_edicts (excluding world)
-		//std::span<edict_t> const all_edicts(g_edicts, globals.num_edicts);
-		//std::span<edict_t> edicts_view = all_edicts.subspan(1);
-		for (edict_t& e : std::span{ g_edicts + 1, globals.num_edicts - 1 }) { // iterate from g_edicts[1] to globals.num_edicts
-			if (spawn_count >= MAX_SPAWN_POINTS)
-				break;
-
-			if (!e.inuse || !e.classname ||
-				strcmp(e.classname, "info_player_deathmatch") != 0 ||
-				e.style == 1)
-				continue;
-
-			auto const it = spawnPointsData.find(&e);
-			if (it != spawnPointsData.end() && level.time < it->second.teleport_cooldown)
-				continue;
-
-			if (!IsSpawnPointOccupied(&e)) {
-				available_spawns[spawn_count++] = &e;
-			}
-		}
-
-		if (spawn_count > 0) {
-			spawn_point = available_spawns[irandom(spawn_count)];
-		}
-		else {
-			if (developer->integer)
-				//	gi.Com_PrintFmt("No fallback spawn point found either!\n");
-				gi.linkentity(self);  // Re-link the entity
-			return false;         // No spawn points available!
-		}
+		gi.linkentity(self);
+		return false;
 	}
 
-
-
-	// Set teleport cooldown
-	spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
-
+	// Store old values before teleport attempt
 	const vec3_t old_velocity = self->velocity;
 	const vec3_t old_origin = self->s.origin;
+
+	// Set new position
 	self->s.origin = spawn_point->s.origin;
 	self->s.old_origin = spawn_point->s.origin;
 	self->velocity = vec3_origin;
 
+	// Check if teleport succeeded
 	bool teleport_success = true;
 	if (!(self->flags & (FL_FLY | FL_SWIM)))
 		teleport_success = M_droptofloor(self);
 
 	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
+		// Teleport successful
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
 		self->monsterinfo.was_stuck = false;
@@ -3839,7 +3805,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return true;
 	}
 
-	// Restaurar posición si falló
+	// Restore position if teleport failed
 	self->s.origin = old_origin;
 	self->s.old_origin = old_origin;
 	self->velocity = old_velocity;
