@@ -1202,7 +1202,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 
 			 // Waves 31+
 			 {MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special,
-			  MonsterWaveType::SemiBoss, 0.6f}
+			  MonsterWaveType::SemiBoss, 0.6f}	
 	};
 
 	// Select appropriate wave composition based on wave number
@@ -1354,7 +1354,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
 	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f},
 	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 27, 0.45f},
-	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 24, 0.35},
+	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 24, 0.35f},
 
 	// Elite Ground Units (Waves 18+)
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
@@ -3290,8 +3290,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	// Handle warnings
 	if (g_horde_local.conditionTriggered) {
-		const gtime_t remainingTime = (g_horde_local.conditionStartTime +
-			g_lastParams.timeThreshold) - currentTime;
+		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;  // Use waveEndTime instead
 
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
