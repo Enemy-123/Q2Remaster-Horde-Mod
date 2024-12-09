@@ -43,58 +43,58 @@ struct SpawnPointData {
 std::unordered_map<edict_t*, SpawnPointData> spawnPointsData;
 
 void IncreaseSpawnAttempts(edict_t* spawn_point) {
-    if (!spawn_point || !spawn_point->inuse) {
-        return;
-    }
-    
-    auto& data = spawnPointsData[spawn_point];
-    const gtime_t current_time = level.time;
-    
-    // Reset attempts if enough time has passed
-    if (current_time - data.lastSpawnTime > 3_sec) {
-        data.attempts = 0;
-        data.isTemporarilyDisabled = false;
-        data.cooldownEndsAt = current_time;
-        return;
-    }
-    
-    data.attempts++;
-    
-    // Dynamic attempt limit based on current success rate
-    const float success_rate = data.getSuccessRate(current_time);
-    const int max_attempts = 4 + static_cast<int>(success_rate * 2); // 4-6 attempts max
-    
-    // Adaptive cooldown duration
-    if (data.attempts >= max_attempts) {
-        if (developer->integer) {
-            gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n",
-                spawn_point->s.origin);
-        }
-        
-        data.isTemporarilyDisabled = true;
-        
-        // Progressive cooldown based on attempts and success rate
-        const float base_cooldown = success_rate < 0.3f ? 1.5f : 0.75f;
-        const float attempt_multiplier = std::min(data.attempts / 4.0f, 2.0f);
-        data.cooldownEndsAt = current_time + gtime_t::from_sec(base_cooldown * attempt_multiplier);
-    }
-    else if (data.attempts % 2 == 0) { // Small incremental cooldown every 2 attempts
-        data.cooldownEndsAt = current_time + gtime_t::from_sec(0.1f * data.attempts);
-    }
+	if (!spawn_point || !spawn_point->inuse) {
+		return;
+	}
+
+	auto& data = spawnPointsData[spawn_point];
+	const gtime_t current_time = level.time;
+
+	// Reset attempts if enough time has passed
+	if (current_time - data.lastSpawnTime > 3_sec) {
+		data.attempts = 0;
+		data.isTemporarilyDisabled = false;
+		data.cooldownEndsAt = current_time;
+		return;
+	}
+
+	data.attempts++;
+
+	// Dynamic attempt limit based on current success rate
+	const float success_rate = data.getSuccessRate(current_time);
+	const int max_attempts = 4 + static_cast<int>(success_rate * 2); // 4-6 attempts max
+
+	// Adaptive cooldown duration
+	if (data.attempts >= max_attempts) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("SpawnPoint at {} inactivated for adaptive cooldown.\n",
+				spawn_point->s.origin);
+		}
+
+		data.isTemporarilyDisabled = true;
+
+		// Progressive cooldown based on attempts and success rate
+		const float base_cooldown = success_rate < 0.3f ? 1.5f : 0.75f;
+		const float attempt_multiplier = std::min(data.attempts / 4.0f, 2.0f);
+		data.cooldownEndsAt = current_time + gtime_t::from_sec(base_cooldown * attempt_multiplier);
+	}
+	else if (data.attempts % 2 == 0) { // Small incremental cooldown every 2 attempts
+		data.cooldownEndsAt = current_time + gtime_t::from_sec(0.1f * data.attempts);
+	}
 }
 
 // When a spawn is successful:
 void OnSuccessfulSpawn(edict_t* spawn_point) {
-    if (!spawn_point) return;
-    
-    auto& data = spawnPointsData[spawn_point];
-    data.successfulSpawns++;
-    data.lastSpawnTime = level.time;
-    data.attempts = 0; // Reset attempts after success
-    data.isTemporarilyDisabled = false;
-    
-    // Short cooldown after successful spawn to prevent instant respawn
-    data.cooldownEndsAt = level.time + 0.5_sec;
+	if (!spawn_point) return;
+
+	auto& data = spawnPointsData[spawn_point];
+	data.successfulSpawns++;
+	data.lastSpawnTime = level.time;
+	data.attempts = 0; // Reset attempts after success
+	data.isTemporarilyDisabled = false;
+
+	// Short cooldown after successful spawn to prevent instant respawn
+	data.cooldownEndsAt = level.time + 0.5_sec;
 }
 //
 //// Batch version for multiple spawn points
@@ -1202,7 +1202,7 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 
 			 // Waves 31+
 			 {MonsterWaveType::Elite | MonsterWaveType::Heavy | MonsterWaveType::Special,
-			  MonsterWaveType::SemiBoss, 0.6f}	
+			  MonsterWaveType::SemiBoss, 0.6f}
 	};
 
 	// Select appropriate wave composition based on wave number
@@ -2486,57 +2486,47 @@ void BossDeathHandler(edict_t* boss) {
 }
 
 void boss_die(edict_t* boss) {
-	if (!boss || !boss->inuse) {
+	if (!boss || !boss->inuse || !g_horde->integer ||
+		!boss->monsterinfo.IS_BOSS || boss->health > 0 ||
+		boss->monsterinfo.BOSS_DEATH_HANDLED ||
+		auto_spawned_bosses.find(boss) == auto_spawned_bosses.end()) {
 		return;
 	}
 
-	// Verificación más estricta para la muerte del boss
-	if (g_horde->integer &&
-		boss->monsterinfo.IS_BOSS &&
-		boss->health <= 0 &&
-		auto_spawned_bosses.find(boss) != auto_spawned_bosses.end() &&
-		!boss->monsterinfo.BOSS_DEATH_HANDLED) {
+	BossDeathHandler(boss);
 
-		BossDeathHandler(boss);
-
-		// Limpiar la barra de salud
-		for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
-			if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == boss) {
-				G_FreeEdict(level.health_bar_entities[i]);
-				level.health_bar_entities[i] = nullptr;
-				break;
-			}
+	// Limpiar la barra de salud
+	for (size_t i = 0; i < MAX_HEALTH_BARS; ++i) {
+		if (level.health_bar_entities[i] && level.health_bar_entities[i]->enemy == boss) {
+			G_FreeEdict(level.health_bar_entities[i]);
+			level.health_bar_entities[i] = nullptr;
+			break;
 		}
-
-		// Limpiar el configstring del nombre de la barra de salud
-		gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 	}
+
+	// Limpiar el configstring del nombre de la barra de salud
+	gi.configstring(CONFIG_HEALTH_BAR_NAME, "");
 }
 
 static bool Horde_AllMonstersDead() {
 	for (auto ent : active_or_dead_monsters()) {
-		// Skip monsters flagged to not count
-		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
-			continue;
+		if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT) continue; // Skip ignored
 
-		// Check for live monsters    
-		if (!ent->deadflag && ent->health > 0) {
-			return false;
-		}
+		if (!ent->deadflag && ent->health > 0) return false; // Found a live one
 
-		// Handle dying bosses
-		if (ent->monsterinfo.IS_BOSS && ent->health <= 0) {
-			if (auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() &&
-				!ent->monsterinfo.BOSS_DEATH_HANDLED) {
-				boss_die(ent);
-			}
+		// Boss cleanup in the same loop
+		if (ent->monsterinfo.IS_BOSS && ent->health <= 0 &&
+			auto_spawned_bosses.find(ent) != auto_spawned_bosses.end() &&
+			!ent->monsterinfo.BOSS_DEATH_HANDLED) {
+			boss_die(ent); // Call boss_die directly here
 		}
 	}
 
 	if (developer->integer) {
 		gi.Com_Print("DEBUG: All monsters are dead.\n");
 	}
-	return true;
+
+	return true; // All checked and all are dead
 }
 
 // Modify the CheckAndRestoreMonsterAlpha function to batch updates
@@ -2621,23 +2611,12 @@ static void StartFadeOut(edict_t* ent) {
 void Horde_CleanBodies() {
 	for (edict_t* ent : active_or_dead_monsters()) {
 		if (ent->deadflag || ent->health <= 0) {
-			bool far_from_players = true;
-			for (edict_t* player : active_players_no_spect()) { // Assume this now uses the correct iterable
-				if ((ent->s.origin - player->s.origin).length() < 1000) {
-					far_from_players = false;
-					break;
-				}
-			}
-			if (far_from_players) {
-				G_FreeEdict(ent); // Immediately remove if far from players
-			}
-			else {
-				if (!ent->is_fading_out) // Added to not start another fade
-					StartFadeOut(ent); // Start fade out if closer to players
+			if (!ent->is_fading_out) { // Only check once before starting fade
+				StartFadeOut(ent);
 			}
 		}
 		else { // If the monster is alive but somehow flagged for removal:
-			CheckAndRestoreMonsterAlpha(ent); //Restore monster alpha if alive
+			CheckAndRestoreMonsterAlpha(ent); // Restore alpha for live monsters
 		}
 	}
 }
@@ -3192,8 +3171,8 @@ void ResetCooldowns() noexcept {
 void ResetAllSpawnAttempts() noexcept {
 	for (auto& [spawn_point, data] : spawnPointsData) {
 		data.attempts = 0;
-	//	data.spawn_cooldown = SPAWN_POINT_COOLDOWN;
-	//	data.teleport_cooldown = level.time;
+		//	data.spawn_cooldown = SPAWN_POINT_COOLDOWN;
+		//	data.teleport_cooldown = level.time;
 		data.isTemporarilyDisabled = false;
 		data.cooldownEndsAt = 0_sec;
 	}
@@ -4243,9 +4222,9 @@ void Horde_RunFrame() {
 	const int32_t currentLevel = g_horde_local.level;
 	WaveEndReason currentWaveEndReason{};
 
-			CleanupSpawnPointCache();
+	CleanupSpawnPointCache();
 
-		
+
 	// Handle custom monster settings (likely debug/testing)
 	if (dm_monsters->integer >= 1) {
 		g_horde_local.num_to_spawn = dm_monsters->integer;
