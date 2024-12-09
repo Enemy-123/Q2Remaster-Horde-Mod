@@ -141,57 +141,50 @@ static std::unordered_map<const edict_t*, SpawnPointCache> spawn_point_cache;
 // Verify if any spawn points are occupied, using span for efficient iteration
 // Original single point check
 bool IsSpawnPointOccupied(const edict_t* spawn_point, const edict_t* ignore_ent = nullptr) {
-	// Basic validation
+	// Add validation 
 	if (!spawn_point) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
-		}
+		gi.Com_PrintFmt("Warning: Null spawn_point passed to IsSpawnPointOccupied\n");
 		return true;
 	}
 
-	// Origin validation
+	// Validate origin
 	if (!is_valid_vector(spawn_point->s.origin)) {
-		if (developer->integer) {
-			gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
-		}
+		gi.Com_PrintFmt("Warning: Invalid origin vector in spawn point\n");
 		return true;
 	}
 
-	// Cache handling
+	// Get or create cache entry
 	auto& cache = spawn_point_cache[spawn_point];
-	static constexpr auto CACHE_DURATION = 15_ms;
 
-	// Check cache validity
-	if (level.time - cache.last_check_time < CACHE_DURATION &&
-		cache.last_check_origin == spawn_point->s.origin &&
-		(level.time - cache.frame_time) < FRAME_TIME_MS) {
+	// Shorter cache duration
+	static constexpr auto CACHE_DURATION = 25_ms;
+
+	// Check time-based cache with frame validation
+	// Instead of frame number, check if we're still within the same frame time
+	if (level.time - cache.last_check_time < CACHE_DURATION
+		&& cache.last_check_origin == spawn_point->s.origin
+		&& (level.time - cache.frame_time) < FRAME_TIME_MS) {
 		return cache.was_occupied;
 	}
 
-	// Update cache timestamps
+	// Update cache
 	cache.last_check_time = level.time;
 	cache.last_check_origin = spawn_point->s.origin;
-	cache.frame_time = level.time;
+	cache.frame_time = level.time; // Store current time as frame time
 
-	// Space check configuration
-	static constexpr vec3_t space_multiplier{ 1.5f, 1.5f, 1.5f };
-	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 12, 12, 20 }.scaled(space_multiplier));
-	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 12, 12, 28 }.scaled(space_multiplier));
+	// Optimized space check
+	static constexpr vec3_t space_multiplier{ 1.75f, 1.75f, 1.75f };
+	const vec3_t spawn_mins = spawn_point->s.origin - (vec3_t{ 16, 16, 24 }.scaled(space_multiplier));
+	const vec3_t spawn_maxs = spawn_point->s.origin + (vec3_t{ 16, 16, 32 }.scaled(space_multiplier));
 
-	// Perform entity check
 	FilterData filter_data = { ignore_ent, 0 };
 	gi.BoxEdicts(spawn_mins, spawn_maxs, nullptr, 0, AREA_SOLID, SpawnPointFilter, &filter_data);
 
-	// Update and return result
-	cache.was_occupied = (filter_data.count > 1);
-
-	if (developer->integer && cache.was_occupied) {
-		gi.Com_PrintFmt("Spawn point at {} is occupied (count: {})\n",
-			spawn_point->s.origin, filter_data.count);
-	}
-
+	// Cache and return result
+	cache.was_occupied = (filter_data.count > 0);
 	return cache.was_occupied;
 }
+
 
 // New span-based batch check
 bool AreSpawnPointsOccupied(std::span<const edict_t* const> spawn_points, const edict_t* ignore_ent = nullptr) {
@@ -3788,18 +3781,13 @@ static edict_t* SpawnMonsters() {
 	if (developer->integer == 2)
 		return nullptr;
 
-	// Static cache for spawn data
+	// Keep static cache but simplify it
 	static struct {
 		std::vector<edict_t*> available_spawns;
-		std::vector<edict_t*> active_spawns;
-		std::array<edict_t*, MAX_SPAWN_POINTS> batch_spawns;
 		size_t batch_count = 0;
 	} spawn_cache;
 
-	// Clear caches
 	spawn_cache.available_spawns.clear();
-	spawn_cache.active_spawns.clear();
-	spawn_cache.batch_count = 0;
 
 	// Cache map constraints
 	const MapSize& mapSize = g_horde_local.current_map_size;
@@ -3811,22 +3799,27 @@ static edict_t* SpawnMonsters() {
 	if (activeMonsters >= maxMonsters || g_horde_local.num_to_spawn <= 0)
 		return nullptr;
 
-	// Create spawn filter
-	SpawnMonsterFilter filter{ level.time };
-
-	// Use template-based spawn point selection
-	edict_t* spawn_point = SelectRandomSpawnPoint([&filter](edict_t* point) {
-		return filter(point);
-		});
-
-	if (!spawn_point)
-		return nullptr;
-
-	// Calculate spawn counts
+	// Calculate spawn counts - keeping the original logic
 	const int32_t base_spawn = mapSize.isSmallMap ? 4 : (mapSize.isBigMap ? 6 : 5);
 	const int32_t min_spawn = std::min(g_horde_local.queued_monsters, base_spawn);
 	const int32_t monsters_per_spawn = irandom(min_spawn, std::min(base_spawn + 1, 6));
 	const int32_t spawnable = std::clamp(monsters_per_spawn, 0, maxMonsters - activeMonsters);
+
+	if (spawnable <= 0)
+		return nullptr;
+
+	// Pre-collect valid spawn points
+	SpawnMonsterFilter filter{ level.time };
+	auto spawnPoints = monster_spawn_points();
+
+	for (edict_t* point : spawnPoints) {
+		if (filter(point)) {
+			spawn_cache.available_spawns.push_back(point);
+		}
+	}
+
+	if (spawn_cache.available_spawns.empty())
+		return nullptr;
 
 	// Spawn logic
 	edict_t* last_spawned = nullptr;
@@ -3837,10 +3830,19 @@ static edict_t* SpawnMonsters() {
 		if (g_horde_local.num_to_spawn <= 0)
 			break;
 
-		// Update spawn point cooldown
-		spawnPointsData[spawn_point].teleport_cooldown = level.time + 2_sec;
+		// Get random spawn point from pre-collected points
+		if (spawn_cache.available_spawns.empty())
+			break;
 
-		// Get monster type and spawn
+		size_t spawn_idx = irandom(spawn_cache.available_spawns.size());
+		edict_t* spawn_point = spawn_cache.available_spawns[spawn_idx];
+
+		// Remove used spawn point and update cooldown
+		spawn_cache.available_spawns[spawn_idx] = spawn_cache.available_spawns.back();
+		spawn_cache.available_spawns.pop_back();
+
+		spawnPointsData[spawn_point].teleport_cooldown = level.time + 1.5_sec; // Reduced from 2sec
+
 		const char* monster_classname = G_HordePickMonster(spawn_point);
 		if (!monster_classname)
 			continue;
@@ -3851,17 +3853,16 @@ static edict_t* SpawnMonsters() {
 				vec3_t{ 0, 0, 8 },
 				vec3_t{ 1,0,0 },
 				vec3_t{ 0,1,0 });
-
 			monster->s.angles = spawn_point->s.angles;
 			monster->spawnflags |= SPAWNFLAG_MONSTER_SUPER_STEP;
 			monster->monsterinfo.aiflags |= AI_IGNORE_SHOTS;
 			monster->monsterinfo.last_sentrygun_target_time = 0_ms;
 
 			ED_CallSpawn(monster);
+
 			if (monster->inuse) {
 				if (g_horde_local.level >= 14 && !monster->monsterinfo.power_armor_type != IT_NULL)
 					SetMonsterArmor(monster);
-
 				if (frandom() < drop_chance)
 					monster->item = G_HordePickItem();
 
@@ -3873,14 +3874,6 @@ static edict_t* SpawnMonsters() {
 				--g_horde_local.queued_monsters;
 				++g_totalMonstersInWave;
 				last_spawned = monster;
-
-				// Get next spawn point for next iteration
-				spawn_point = SelectRandomSpawnPoint([&filter](edict_t* point) {
-					return filter(point);
-					});
-
-				if (!spawn_point)
-					break;
 			}
 			else {
 				G_FreeEdict(monster);
@@ -3888,7 +3881,7 @@ static edict_t* SpawnMonsters() {
 		}
 	}
 
-	// Update queued monsters
+	// Keep queued monsters logic
 	if (g_horde_local.queued_monsters > 0 && g_horde_local.num_to_spawn > 0) {
 		const int32_t additional_spawnable = maxMonsters - CalculateRemainingMonsters();
 		const int32_t additional_to_spawn = std::min(g_horde_local.queued_monsters, additional_spawnable);
