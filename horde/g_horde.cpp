@@ -425,8 +425,8 @@ void CheckAndReduceSpawnCooldowns() {
 					data.attempts = 0;
 					// Reset attempt counter to allow fresh spawns
 					if (developer->integer) {
-						gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n",
-							spawn_point->s.origin);
+						//gi.Com_PrintFmt("Reduced spawn cooldown for point at {}\n",
+						//	spawn_point->s.origin);
 					}
 				}
 			}
