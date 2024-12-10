@@ -898,6 +898,7 @@ const std::unordered_map<std::string_view, std::string_view> name_replacements =
 		{ "monster_psxguardian", "Enhanced Guardian" },
 		{ "monster_makron", "Makron" },
 		{ "monster_jorg", "Jorg" },
+		{ "monster_jorg_small", "Mini Jorg" },
 		{ "monster_gladb", "DarkMatter Gladiator" },
 		{ "monster_boss2_64", "N64 Mini Hornet" },
 		{ "monster_boss2_mini", "Mini Hornet" },
