@@ -400,7 +400,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_supertankkl", SP_monster_supertankkl },
 	{ "monster_boss2", SP_monster_boss2 },
 	{ "monster_boss2kl", SP_monster_boss2kl },
-	{ "monster_boss2_64", SP_monster_boss2_64 }, 
+	{ "monster_boss2_64", SP_monster_boss2_64 },
 	{ "monster_boss2_mini", SP_monster_boss2_mini },
 	{ "monster_boss3_stand", SP_monster_boss3_stand },
 	{ "monster_jorg", SP_monster_jorg },
@@ -506,7 +506,6 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_shamblerkl", SP_monster_shamblerkl },
 	{ "monster_shambler_small", SP_monster_shambler_small }
 };
-
 // clang-format on
 
 static const spawn_temp_t* current_st;
@@ -516,19 +515,18 @@ const spawn_temp_t& ED_GetSpawnTemp()
 {
 	if (!current_st)
 	{
-		if (developer->integer)
-			gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
+		//if (developer->integer)
+		//	gi.Com_Print("WARNING: empty spawntemp accessed; this is probably a code bug.\n");
 		return spawn_temp_t::empty;
 	}
+
 	return *current_st;
 }
 
-#include <stdlib.h>
-#include "shared.h"
-#include <cstdlib>
-#include <string.h>
+
 
 #include <span>
+#include "shared.h"
 
 
 // Estructura modernizada para reemplazos
@@ -691,6 +689,14 @@ static void perform_replacement(edict_t* ent, std::span<const MonsterReplacement
 	}
 }
 
+
+/*
+===============
+ED_CallSpawn
+
+Finds the spawn function for the entity and calls it
+===============
+*/
 void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::empty) {
 	if (!ent) {
 		gi.Com_Print("ED_CallSpawn: null entity\n");
@@ -789,11 +795,13 @@ void ED_CallSpawn(edict_t* ent, const spawn_temp_t& spawntemp = spawn_temp_t::em
 	G_FreeEdict(ent);
 	current_st = nullptr;
 }
+
 // Quick redirect to use empty spawntemp
 void  ED_CallSpawn(edict_t* ent)
 {
 	ED_CallSpawn(ent, spawn_temp_t::empty);
 }
+
 /*
 =============
 ED_NewString
@@ -1117,7 +1125,6 @@ static const std::initializer_list<temp_field_t> temp_fields = {
 	FIELD_AUTO(start_items),
 	FIELD_AUTO(no_grapple),
 	FIELD_AUTO(health_multiplier),
-
 	FIELD_AUTO(physics_flags_sp),
 	FIELD_AUTO(physics_flags_dm),
 
@@ -1135,7 +1142,6 @@ static const std::initializer_list<temp_field_t> temp_fields = {
 	FIELD_AUTO(secondary_objective_title)
 };
 // clang-format on
-
 
 /*
 ==============
@@ -1231,7 +1237,6 @@ void ED_ParseField(const char* key, const char* value, edict_t* ent, spawn_temp_
 	gi.Com_PrintFmt("{} is not a valid field\n", key);
 }
 
-
 /*
 ====================
 ED_ParseEdict
@@ -1242,12 +1247,13 @@ ed should be a properly initialized empty edict.
 */
 const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 {
-	bool init;
-	char keyname[256];
+	bool  init;
+	char  keyname[256];
 	const char* com_token;
+
 	init = false;
 
-	// first let's parse all entity data
+	// go through all the dictionary pairs
 	while (1)
 	{
 		// parse key
@@ -1259,20 +1265,24 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 
 		Q_strlcpy(keyname, com_token, sizeof(keyname));
 
-		// parse value  
+		// parse value
 		com_token = COM_Parse(&data);
 		if (!data)
 			gi.Com_Error("ED_ParseEntity: EOF without closing brace");
+
 		if (com_token[0] == '}')
 			gi.Com_Error("ED_ParseEntity: closing brace without data");
 
 		init = true;
 
-		// handle special keys
+		// keynames with a leading underscore are used for utility comments,
+		// and are immediately discarded by quake
 		if (keyname[0] == '_')
 		{
+			// [Sam-KEX] Hack for setting RGBA for shadow-casting lights
 			if (!strcmp(keyname, "_color"))
 				ent->s.skinnum = ED_LoadColor(com_token);
+
 			continue;
 		}
 
@@ -1281,7 +1291,6 @@ const char* ED_ParseEdict(const char* data, edict_t* ent, spawn_temp_t& st)
 
 	if (!init)
 		memset(ent, 0, sizeof(*ent));
-
 
 	if (!g_horde->integer && g_hardcoop->integer && ent->classname) {
 		perform_replacement(ent, std::span(hardcoop_replacements),
@@ -1350,7 +1359,7 @@ void G_FixTeams()
 		}
 	}
 
-	gi.Com_PrintFmt("PRINT: {} teams repaired\n", c);
+	gi.Com_PrintFmt("{} teams repaired\n", c);
 }
 
 void G_FindTeams()
@@ -1397,14 +1406,14 @@ void G_FindTeams()
 	G_FixTeams();
 	// ROGUE
 
-	gi.Com_PrintFmt("PRINT: {} teams with {} entities\n", c, c2);
+	gi.Com_PrintFmt("{} teams with {} entities\n", c, c2);
 }
 
 // inhibit entities from game based on cvars & spawnflags
 inline bool G_InhibitEntity(edict_t* ent)
 {
 	// dm-only
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 		return ent->spawnflags.has(SPAWNFLAG_NOT_DEATHMATCH);
 
 	// coop flags
@@ -1424,8 +1433,7 @@ void setup_shadow_lights();
 // [Paril-KEX]
 void G_PrecacheInventoryItems()
 {
-
-	if (G_IsDeathmatch())
+	if (G_IsDeathmatch() && !g_horde->integer)
 		return;
 
 	for (size_t i = 0; i < game.maxclients; i++)
@@ -1468,6 +1476,17 @@ static void G_PrecacheStartItems()
 		PrecacheItem(item);
 	}
 }
+
+//#include <map>
+
+/*
+==============
+SpawnEntities
+
+Creates a server's entity / program execution context by
+parsing textual entity definitions out of an ent file.
+==============
+*/
 constexpr size_t MAX_ENTITY_FILE_SIZE = 0x40000; // 256 KB
 
 #include <windows.h>
@@ -1553,7 +1572,8 @@ bool LoadEntityFile(std::string_view mapname, std::vector<char>& buffer, std::st
 		return false;
 	}
 }
-#include <map>
+
+//#include <map>
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint)
 {
 	level.is_spawning = true;
@@ -1564,8 +1584,6 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	cached_imageindex::clear_all();
 
 	edict_t* ent = nullptr;
-
-
 	int		 inhibit;
 	const char* com_token;
 
@@ -1627,7 +1645,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 			gi.Com_PrintFmt("PRINT: Entity override file verified and loaded: \"{}\"\n", ent_filename);
 		}
 	}
-
+	
 	// parse ents
 	while (1)
 	{
@@ -1740,7 +1758,7 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 	//			total_monster_health += e->health;
 	//		}
 
-	//		if (e->item && e->classname && e->item->classname && strcmp(e->classname, e->item->classname))
+	//		if (e->item && strcmp(e->classname, e->item->classname))
 	//		{
 	//			cn = e->item->classname ? e->item->classname : "noclass";
 
@@ -1767,13 +1785,16 @@ void SpawnEntities(const char* mapname, const char* entities, const char* spawnp
 }
 
 //===================================================================
+
 #include "g_statusbar.h"
 
+// create & set the statusbar string for the current gamemode
 static void G_InitStatusbar()
 {
 	statusbar_t sb;
+
 	// ---- shared stuff that every gamemode uses ----
-	// spectator
+		// spectator
 	sb.ifstat(STAT_SPECTATOR).xv(-110).yb(-68).string2("SPECTATOR MODE").endifstat();
 
 	// chase cam
@@ -1806,6 +1827,9 @@ static void G_InitStatusbar()
 
 	sb.yb(-50);
 
+	// help / weapon icon
+	sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
+
 	// ---- gamemode-specific stuff ----
 
 	if (G_IsCooperative() || !G_IsDeathmatch())
@@ -1822,9 +1846,6 @@ static void G_InitStatusbar()
 		sb.ifstat(STAT_KEY_A).xv(296).pic(STAT_KEY_A).endifstat();
 		sb.ifstat(STAT_KEY_B).xv(272).pic(STAT_KEY_B).endifstat();
 		sb.ifstat(STAT_KEY_C).xv(248).pic(STAT_KEY_C).endifstat();
-
-		// help / weapon icon
-		sb.ifstat(STAT_HELPICON).xv(150).pic(STAT_HELPICON).endifstat();
 
 		sb.xl(2).yb(-23).string2("\nINSANE COOP");
 
@@ -1964,10 +1985,10 @@ void SP_worldspawn(edict_t* ent)
 		Q_strlcpy(level.level_name, level.mapname, sizeof(level.level_name));
 
 	//if (st.sky && st.sky[0]) 
-	//	gi.configstring(CS_SKY, st.sky);
-	//else
+//	gi.configstring(CS_SKY, st.sky);
+//else
 
-	float r = frandom();
+	float const r = frandom();
 
 	if (r < 0.4f) {
 		gi.configstring(CS_SKY, "hub_");
@@ -1983,6 +2004,16 @@ void SP_worldspawn(edict_t* ent)
 
 	gi.configstring(CS_SKYROTATE, G_Fmt("1 1", st.skyrotate, st.skyautorotate).data());
 	gi.configstring(CS_SKYAXIS, G_Fmt("2 2 2", st.skyaxis).data());
+
+
+	//if (st.sky && st.sky[0])
+	//	gi.configstring(CS_SKY, st.sky);
+	//else
+	//	gi.configstring(CS_SKY, "unit1_");
+
+	//gi.configstring(CS_SKYROTATE, G_Fmt("{} {}", st.skyrotate, st.skyautorotate).data());
+
+	//gi.configstring(CS_SKYAXIS, G_Fmt("{}", st.skyaxis).data());
 
 	if (st.music && st.music[0])
 	{
@@ -2084,8 +2115,8 @@ void SP_worldspawn(edict_t* ent)
 
 	// help icon for statusbar
 	gi.imageindex("i_help");
-	//level.pic_health = brandom() ? gi.imageindex("i_health") : gi.imageindex("i_disguise");
-	//level.pic_health = gi.imageindex("i_disguise");
+//level.pic_health = brandom() ? gi.imageindex("i_health") : gi.imageindex("i_disguise");
+//level.pic_health = gi.imageindex("i_disguise");
 	level.pic_health = gi.imageindex("i_health");
 	gi.imageindex("help");
 	gi.imageindex("field_3");
@@ -2187,11 +2218,11 @@ void SP_worldspawn(edict_t* ent)
 	gi.soundindex("player/wade2.wav");
 	gi.soundindex("player/wade3.wav");
 
-	//#ifdef PSX_ASSETS
-	//	gi.soundindex("player/breathout1.wav");
-	//	gi.soundindex("player/breathout2.wav");
-	//	gi.soundindex("player/breathout3.wav");
-	//#endif
+//#ifdef PSX_ASSETS
+//	gi.soundindex("player/breathout1.wav");
+//	gi.soundindex("player/breathout2.wav");
+//	gi.soundindex("player/breathout3.wav");
+//#endif
 
 	gi.soundindex("items/pkup.wav");   // bonus item pickup
 	gi.soundindex("world/land.wav");   // landing thud
@@ -2214,13 +2245,6 @@ void SP_worldspawn(edict_t* ent)
 	gi.modelindex("models/objects/gibs/skull/tris.md2");
 	gi.modelindex("models/objects/gibs/head2/tris.md2");
 	gi.modelindex("models/objects/gibs/sm_metal/tris.md2");
-
-	// Precache small ammo models // horde
-	gi.modelindex("models/vault/items/ammo/shells/small/tris.md2");
-	gi.modelindex("models/vault/items/ammo/bullets/small/tris.md2");
-	gi.modelindex("models/vault/items/ammo/rockets/small/tris.md2");
-	gi.modelindex("models/vault/items/ammo/cells/small/tris.md2");
-	gi.modelindex("models/vault/items/ammo/slugs/small/tris.md2");
 
 	level.pic_ping = gi.imageindex("loc_ping");
 
