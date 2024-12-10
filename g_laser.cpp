@@ -405,7 +405,7 @@ void create_laser(edict_t* ent) {
     if (!ent->client->laser_manager) {
         auto* holder = new LaserManagerHolder();
         holder->manager_ptr = new PlayerLaserManager(ent);
-        ent->client->laser_manager = reinterpret_cast<void*>(holder);
+        ent->client->laser_manager = holder;  // Now we can assign directly
     }
 
    const auto* const manager = LaserHelpers::get_laser_manager(ent);

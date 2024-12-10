@@ -2957,6 +2957,7 @@ constexpr gtime_t COOP_DAMAGE_RESPAWN_TIME = 4700_ms;
 // time after firing that we can't respawn on a player for
 constexpr gtime_t COOP_DAMAGE_FIRING_TIME = 500_ms;
 
+class LaserManagerHolder; 
 // this structure is cleared on each PutClientInServer(),
 // except for 'client->pers'
 struct gclient_t
@@ -3166,8 +3167,6 @@ struct gclient_t
 	edict_t* idtarget;
 	int dmg_counter; // ID DMG
 	int total_damage; // Total damage dealt by this player
-	//	pmtype_t prev_pm_type;
-	void* laser_manager;
 	int num_lasers = 0;
 	int num_teslas = 0; // max teslas per client
 	//int num_traps; //foodcube trap per client
@@ -3181,6 +3180,8 @@ struct gclient_t
 	gtime_t		ammoregentime;
 	bool ir_tracking_active; //horde tracking
 	int ir_frame_count;
+
+	LaserManagerHolder* laser_manager;  // In gclient_t
 };
 
 // ==========================================
