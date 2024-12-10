@@ -104,6 +104,7 @@ edict_t* G_PickTarget(const char* targetname)
 
 	if (!num_choices)
 	{
+		if (developer->integer)
 		gi.Com_PrintFmt("G_PickTarget: target {} not found\n", targetname);
 		return nullptr;
 	}

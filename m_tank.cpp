@@ -87,16 +87,17 @@ static float entdist(const edict_t* ent1, const edict_t* ent2)
 
 			//	gi.sound(self, CHAN_VOICE, sound_bigtele, 1, ATTN_NONE, 0);
 
+
 				// Teleport effect at both positions
 				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_BOSSTPORT);
+				gi.WriteByte(TE_BFG_BIGEXPLOSION);
 				gi.WritePosition(self->s.origin);
 				gi.multicast(self->s.origin, MULTICAST_PVS, false);
 
 				gi.unlinkentity(self);
 
 				gi.WriteByte(svc_temp_entity);
-				gi.WriteByte(TE_BFG_BIGEXPLOSION);
+				gi.WriteByte(TE_BOSSTPORT);
 				gi.WritePosition(start);
 				gi.multicast(start, MULTICAST_PVS, false);
 			}
