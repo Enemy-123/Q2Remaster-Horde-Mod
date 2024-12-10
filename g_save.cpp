@@ -1273,6 +1273,25 @@ FIELD_AUTO(monsterinfo.jump_time),
 FIELD_SIMPLE(monsterinfo.reinforcements, ST_REINFORCEMENTS),
 FIELD_AUTO(monsterinfo.chosen_reinforcements),
 
+//Horde Stuff monsterinfo
+FIELD_AUTO(monsterinfo.quadfire_time), // Horde
+
+FIELD_AUTO(monsterinfo.last_sentry_missile_fire_time),
+FIELD_AUTO(monsterinfo.last_sentrygun_target_time),
+FIELD_AUTO(monsterinfo.lastnoisecooldown),
+FIELD_AUTO(monsterinfo.spawn_cooldown), 
+FIELD_AUTO(monsterinfo.stuck_check_time),
+
+FIELD_AUTO(monsterinfo.was_stuck),
+FIELD_AUTO(monsterinfo.issummoned), // corpse cleaning management
+FIELD_AUTO(monsterinfo.IS_BOSS), // Is monster a boss?
+FIELD_AUTO(monsterinfo.BOSS_DEATH_HANDLED), // is dead?
+FIELD_AUTO(monsterinfo.damage_modifier_applied),
+FIELD_AUTO(monsterinfo.death_processed), // death management for onentitydeath
+
+FIELD_AUTO(monsterinfo.bonus_flags), //Powerups or Special Flags for horde
+FIELD_AUTO(monsterinfo.team), // Setting a team, test
+
 // back to edict_t
 FIELD_AUTO(plat2flags),
 FIELD_AUTO(offset),
