@@ -6,7 +6,6 @@
 
 #include "bg_local.h"
 
-
 // the "gameversion" client command will print this plus compile date
 constexpr const char* GAMEVERSION = "baseq2";
 
@@ -897,12 +896,6 @@ enum item_id_t : int32_t {
 	IT_WEAPON_DISINTEGRATOR,
 #endif
 
-	//IT_AMMO_SMALL_SHELLS,
-	//IT_AMMO_SMALL_BULLETS,
-	//IT_AMMO_SMALL_ROCKETS,
-	//IT_AMMO_SMALL_CELLS,
-	//IT_AMMO_SMALL_SLUGS,
-
 	IT_AMMO_SHELLS,
 	IT_AMMO_BULLETS,
 	IT_AMMO_CELLS,
@@ -1017,7 +1010,6 @@ struct gitem_t
 	int32_t ammo_wheel_index = -1;
 	int32_t weapon_wheel_index = -1;
 	int32_t powerup_wheel_index = -1;
-	float* time_ptr;  // Añadir un puntero a tiempo si es necesario
 };
 
 // means of death
@@ -1091,10 +1083,10 @@ enum mod_id_t : uint8_t
 	MOD_BLUEBLASTER,
 	// Kyper - Lithium port
 	MOD_HOOK,
+	//Horde
 	MOD_TURRET,
 	MOD_PLAYER_LASER,
 	MOD_TANK_PUNCH
-	// Kyper
 };
 
 struct mod_t
@@ -1163,6 +1155,7 @@ struct game_locals_t
 
 constexpr size_t MAX_HEALTH_BARS = 2;
 
+//
 // this structure is cleared as each map is entered
 // it is read/written to the level.sav file for savegames
 //
@@ -1374,27 +1367,27 @@ DEFINE_DATA_FUNC(moveinfo_blocked, MOVEINFO_BLOCKED, void, edict_t* self, edict_
 #define MOVEINFO_BLOCKED(n) \
 	SAVE_DATA_FUNC(n, MOVEINFO_BLOCKED, void, edict_t *self, edict_t *other)
 
+
 // a struct that can store type-safe allocations
 // of a fixed amount of data. it self-destructs when
 // re-assigned. TODO: because edicts are still kind of
 // managed like C memory, the destructor may not be
 // called for a freed entity if this is stored as a member.
 template<typename T, int32_t tag>
-struct savable_allocated_memory_t
-{
-	T* ptr = nullptr;  // Inicialización por defecto
-	size_t count = 0;  // Inicialización por defecto
+class savable_allocated_memory_t {
+public:
+	T* ptr = nullptr;
+	size_t count = 0;
 
-	// Constructor
-	constexpr savable_allocated_memory_t(T* ptr = nullptr, size_t count = 0) noexcept :
-		ptr(ptr),
-		count(count)
+	constexpr savable_allocated_memory_t() noexcept = default;
+
+	constexpr savable_allocated_memory_t(T* ptr_, size_t count_) noexcept :
+		ptr(ptr_),
+		count(count_)
 	{
 	}
 
-	// Destructor
-	inline ~savable_allocated_memory_t() noexcept
-	{
+	~savable_allocated_memory_t() noexcept {
 		release();
 	}
 
@@ -1402,65 +1395,56 @@ struct savable_allocated_memory_t
 	savable_allocated_memory_t(const savable_allocated_memory_t&) = delete;
 	savable_allocated_memory_t& operator=(const savable_allocated_memory_t&) = delete;
 
-	// move semantics mejorado con std::exchange
-	constexpr savable_allocated_memory_t(savable_allocated_memory_t&& move) noexcept :
-		ptr(std::exchange(move.ptr, nullptr)),
-		count(std::exchange(move.count, 0))
+	// move operations with std::exchange for safety
+	constexpr savable_allocated_memory_t(savable_allocated_memory_t&& other) noexcept :
+		ptr(std::exchange(other.ptr, nullptr)),
+		count(std::exchange(other.count, 0))
 	{
 	}
 
-	constexpr savable_allocated_memory_t& operator=(savable_allocated_memory_t&& move) noexcept
-	{
-		if (this != &move) {  // Protección contra auto-asignación
+	constexpr savable_allocated_memory_t& operator=(savable_allocated_memory_t&& other) noexcept {
+		if (this != &other) {
 			release();
-			ptr = std::exchange(move.ptr, nullptr);
-			count = std::exchange(move.count, 0);
+			ptr = std::exchange(other.ptr, nullptr);
+			count = std::exchange(other.count, 0);
 		}
 		return *this;
 	}
 
-	// Liberación de memoria
-	inline void release() noexcept
-	{
-		if (ptr)
-		{
+	void release() noexcept {
+		if (ptr) {
 			gi.TagFree(ptr);
-			count = 0;
 			ptr = nullptr;
+			count = 0;
 		}
 	}
 
-	// Operadores de conversión
+	// Keeping the original reference handling
+	[[nodiscard]] constexpr std::add_lvalue_reference_t<T> operator[](const size_t index) {
+		return ptr[index];
+	}
+	[[nodiscard]] constexpr const std::add_lvalue_reference_t<T> operator[](const size_t index) const {
+		return ptr[index];
+	}
+
+	// Conversion operators
 	[[nodiscard]] constexpr explicit operator T* () noexcept { return ptr; }
 	[[nodiscard]] constexpr explicit operator const T* () const noexcept { return ptr; }
+	[[nodiscard]] constexpr operator bool() const noexcept { return ptr != nullptr; }
 
-	// Acceso a elementos con SFINAE para evitar referencias a void
-	template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
-	[[nodiscard]] constexpr U& operator[](const size_t index)
-	{
-		return ptr[index];
-	}
-
-	template<typename U = T, typename = std::enable_if_t<!std::is_void_v<U>>>
-	[[nodiscard]] constexpr const U& operator[](const size_t index) const
-	{
-		return ptr[index];
-	}
-
-	// Getters
+	// Size methods from original
 	[[nodiscard]] constexpr size_t size() const noexcept { return count * sizeof(T); }
 	[[nodiscard]] constexpr size_t length() const noexcept { return count; }
-	[[nodiscard]] constexpr explicit operator bool() const noexcept { return ptr != nullptr; }
 };
 
-// Helper function sin cambios
 template<typename T, int32_t tag>
-[[nodiscard]] inline savable_allocated_memory_t<T, tag> make_savable_memory(size_t count)
-{
-	if (!count)
-		return { nullptr, 0 };
+[[nodiscard]] savable_allocated_memory_t<T, tag> make_savable_memory(size_t count) {
+	if (count == 0) {
+		return {};
+	}
 	return { reinterpret_cast<T*>(gi.TagMalloc(sizeof(T) * count, tag)), count };
 }
+
 struct moveinfo_t
 {
 	// fixed data
@@ -1634,7 +1618,6 @@ std::array<uint8_t, MAX_REINFORCEMENTS> M_PickReinforcements(edict_t* self, int3
 
 constexpr gtime_t HOLD_FOREVER = gtime_t::from_ms(std::numeric_limits<int64_t>::max());
 
-
 struct monsterinfo_t
 {
 	// [Paril-KEX] allow some moves to be done instantaneously, but
@@ -1708,7 +1691,6 @@ struct monsterinfo_t
 	edict_t* commander;
 	// powerup timers, used by widow, our friend
 	gtime_t quad_time;
-	gtime_t quadfire_time;
 	gtime_t invincible_time;
 	gtime_t double_time;
 	// ROGUE
@@ -1765,7 +1747,9 @@ struct monsterinfo_t
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 
-	//Horde Stuff
+		//Horde Stuff
+	gtime_t quadfire_time; // Horde
+
 	gtime_t last_sentry_missile_fire_time;
 	gtime_t last_sentrygun_target_time;
 	gtime_t lastnoisecooldown;
@@ -1781,11 +1765,6 @@ struct monsterinfo_t
 
 	int bonus_flags; //Powerups or Special Flags for horde
 	int team; // Setting a team, test
-
-
-	//widow
-
-
 
 };
 
@@ -1954,9 +1933,6 @@ extern cvar_t* sv_dedicated;
 
 extern cvar_t* filterban;
 
-extern cvar_t* g_dm_spawns;
-extern cvar_t* sv_eyecam;
-extern cvar_t* sv_target_id;
 extern cvar_t* sv_gravity;
 extern cvar_t* sv_maxvelocity;
 
@@ -1973,7 +1949,7 @@ extern cvar_t* bob_roll;
 extern cvar_t* sv_cheats;
 extern cvar_t* g_debug_monster_paths;
 extern cvar_t* g_debug_monster_kills;
-extern cvar_t* g_debug_poi;;
+extern cvar_t* g_debug_poi;
 extern cvar_t* maxspectators;
 
 extern cvar_t* bot_debug_follow_actor;
@@ -1993,7 +1969,16 @@ extern cvar_t* g_strict_saves;
 extern cvar_t* g_coop_health_scaling;
 extern cvar_t* g_weapon_respawn_time;
 
-extern cvar_t* g_easymonsters;
+extern cvar_t* g_dm_spawns;
+extern cvar_t* sv_eyecam;
+extern cvar_t* sv_target_id;
+
+extern cvar_t* g_use_hook;
+extern cvar_t* g_hook_wave;
+
+extern cvar_t* g_speedstuff;
+extern cvar_t* g_mover_debug;
+
 extern cvar_t* g_chaotic;
 extern cvar_t* g_insane;
 extern cvar_t* g_hardcoop;
@@ -2047,8 +2032,8 @@ extern cvar_t* gamerules;
 extern cvar_t* huntercam;
 extern cvar_t* g_dm_strong_mines;
 extern cvar_t* g_dm_random_items;
-// ROGUE copy paste
-//extern cvar_t* sv_motd;
+// ROGUE
+
 // [Kex]
 extern cvar_t* g_instagib;
 extern cvar_t* g_coop_player_collision;
@@ -2069,15 +2054,6 @@ extern cvar_t* ai_damage_scale;
 extern cvar_t* ai_model_scale;
 extern cvar_t* ai_allow_dm_spawn;
 extern cvar_t* ai_movement_disabled;
-
-
-
-// Kyper - Lithium port
-extern cvar_t* g_use_hook;
-extern cvar_t* g_hook_wave;
-
-extern cvar_t* g_speedstuff;
-extern cvar_t* g_mover_debug;
 
 #define world (&g_edicts[0])
 
@@ -2174,7 +2150,6 @@ char* G_CopyString(const char* in, size_t len, int32_t tag);
 edict_t* findradius2(edict_t* from, const vec3_t& org, float rad);
 // ROGUE
 
-
 void G_PlayerNotifyGoal(edict_t* player);
 
 //
@@ -2223,6 +2198,7 @@ enum damageflags_t
 	// ROGUE
 	DAMAGE_NO_INDICATOR = 0x00000200   // for clients: no damage indicators
 };
+
 MAKE_ENUM_BITFLAGS(damageflags_t);
 
 //
@@ -2243,12 +2219,12 @@ void T_RadiusClassDamage(edict_t* inflictor, edict_t* attacker, float damage, ch
 void cleanupHealTarget(edict_t* ent);
 // ROGUE
 
-constexpr int32_t DEFAULT_BULLET_HSPREAD = 250;
-constexpr int32_t DEFAULT_BULLET_VSPREAD = 400;
+constexpr int32_t DEFAULT_BULLET_HSPREAD = 300; //horde was 250
+constexpr int32_t DEFAULT_BULLET_VSPREAD = 500; //horde was 400
 constexpr int32_t DEFAULT_SHOTGUN_HSPREAD = 1000;
 constexpr int32_t DEFAULT_SHOTGUN_VSPREAD = 500;
 constexpr int32_t DEFAULT_DEATHMATCH_SHOTGUN_COUNT = 12;
-constexpr int32_t DEFAULT_SHOTGUN_COUNT = 14;
+constexpr int32_t DEFAULT_SHOTGUN_COUNT = 12; //horde mod was 14
 constexpr int32_t DEFAULT_SSHOTGUN_COUNT = 20;
 
 //
@@ -2357,6 +2333,7 @@ constexpr spawnflags_t SPAWNFLAG_MONSTER_SUPER_STEP = 17_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_NO_DROP = 18_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_SCENIC = 19_spawnflag_bit;
 constexpr spawnflags_t SPAWNFLAG_MONSTER_NO_IDLE_DOORS = 20_spawnflag_bit;
+
 // fixbot spawnflags
 constexpr spawnflags_t SPAWNFLAG_FIXBOT_FIXIT = 4_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_FIXBOT_TAKEOFF = 8_spawnflag;
@@ -2551,7 +2528,6 @@ void ClientEndServerFrame(edict_t* ent);
 void G_LagCompensate(edict_t* from_player, const vec3_t& start, const vec3_t& dir);
 void G_UnLagCompensate();
 
-
 //
 // p_hud.c
 //
@@ -2655,7 +2631,6 @@ void fire_heatbeam(edict_t* self, const vec3_t& start, const vec3_t& aimdir, con
 	bool monster);
 void fire_tracker(edict_t* self, const vec3_t& start, const vec3_t& dir, int damage, int speed, edict_t* enemy);
 
-
 //
 // g_newai.c
 //
@@ -2712,18 +2687,18 @@ bool	 CheckGroundSpawnPoint(const vec3_t& origin, const vec3_t& entMins, const v
 void	 SpawnGrow_Spawn(const vec3_t& startpos, float start_size, float end_size);
 void Widowlegs_Spawn(const vec3_t& startpos, const vec3_t& angles, edict_t* monster);
 // g_rogue_items
+
+void Use_SentryGun(edict_t* ent, gitem_t* item);
+bool Pickup_SentryGun(edict_t* ent, edict_t* other);
+void Use_TeleportSelf(edict_t* ent, gitem_t* item);
+bool Pickup_Teleport(edict_t* ent, edict_t* other);
+
 bool Pickup_Nuke(edict_t* ent, edict_t* other);
 void Use_IR(edict_t* ent, gitem_t* item);
 void Use_Double(edict_t* ent, gitem_t* item);
 void Use_Nuke(edict_t* ent, gitem_t* item);
 void Use_Doppleganger(edict_t* ent, gitem_t* item);
 bool Pickup_Doppleganger(edict_t* ent, edict_t* other);
-void Use_SentryGun(edict_t* ent, gitem_t* item);
-bool Pickup_SentryGun(edict_t* ent, edict_t* other);
-
-void Use_TeleportSelf(edict_t* ent, gitem_t* item);
-bool Pickup_Teleport(edict_t* ent, edict_t* other);
-
 bool Pickup_Sphere(edict_t* ent, edict_t* other);
 void Use_Defender(edict_t* ent, gitem_t* item);
 void Use_Hunter(edict_t* ent, gitem_t* item);
@@ -2747,6 +2722,7 @@ void	 PrecacheForRandomRespawn();
 bool	 Tag_PickupToken(edict_t* ent, edict_t* other);
 void	 Tag_DropToken(edict_t* ent, gitem_t* item);
 void	 fire_doppleganger(edict_t* ent, const vec3_t& start, const vec3_t& aimdir);
+
 bool	 fire_sentrygun(edict_t* ent, const vec3_t& start, const vec3_t& aimdir, float distance, float height);
 
 //
@@ -2776,7 +2752,7 @@ constexpr spawnflags_t SPAWNFLAG_LANDMARK_KEEP_Z = 1_spawnflag;
 #include "ctf/p_ctf_menu.h"
 // ZOID
 // 
-// Paril
+// // Paril
 #include "horde/g_horde.h"
 
 struct regeneration_info_t {
@@ -2800,8 +2776,6 @@ enum class BossSizeCategory {
 };
 
 //============================================================================
-
-
 
 // client_t->anim_priority
 enum anim_priority_t
@@ -2918,6 +2892,7 @@ struct client_persistant_t
 	int32_t lives; // player lives left (1 = no respawns remaining)
 	uint8_t n64_crouch_warn_times;
 	gtime_t n64_crouch_warning;
+	//horde
 	bool	 id_state;
 	bool	 iddmg_state;
 };
@@ -2929,9 +2904,11 @@ struct client_respawn_t
 	gtime_t				entertime;	  // level.time the client entered the game
 	int32_t				score;		  // frags, etc
 	vec3_t				cmd_angles;	  // angles sent over in the last command
+
 	int max_health; // Agrega este miembro si no está presente
 	client_persistant_t weapon; // for horde, this will keep us  the smae weapon after die
 	client_persistant_t lastweapon; //for horde, this will keep us  the smae weapon after die
+
 	bool spectator; // client is a spectator
 
 	// ZOID
@@ -2941,12 +2918,16 @@ struct client_respawn_t
 	gtime_t	 ctf_lastreturnedflag;
 	gtime_t	 ctf_flagsince;
 	gtime_t	 ctf_lastfraggedcarrier;
+	//bool	 id_state;
 	gtime_t	 lastidtime;
 	bool	 voted; // for elections
 	bool	 ready;
 	bool	 admin;
 	ghost_t* ghost; // for ghost codes
 	// ZOID
+
+
+	//Horde
 	bool inactivity_warning;
 	gtime_t inactivity_time;
 	bool inactive;
@@ -2983,18 +2964,16 @@ struct gclient_t
 	// shared with server; do not touch members until the "private" section
 	player_state_t ps; // communicated by server to clients
 	int32_t		   ping;
+
 	// private to game
 	client_persistant_t pers;
 	client_respawn_t	resp;
 	pmove_state_t		old_pmove; // for detecting out-of-pmove changes
 
-
-
 	bool showscores;	// set layout stat
 	bool showeou;       // end of unit screen
 	bool showinventory; // set layout stat
 	bool showhelp;
-
 
 	button_t buttons;
 	button_t oldbuttons;
@@ -3067,7 +3046,6 @@ struct gclient_t
 	gtime_t enviro_time;
 	gtime_t invisible_time;
 
-
 	bool	grenade_blew_up;
 	gtime_t grenade_time, grenade_finished_time;
 	// RAFAEL
@@ -3088,7 +3066,6 @@ struct gclient_t
 	bool	 update_chase; // need to update chase info?
 	// Q2Eaks are we in eyecam mode?
 	bool use_eyecam;
-
 	//=======
 	// ROGUE
 	gtime_t double_time;
@@ -3096,11 +3073,7 @@ struct gclient_t
 	gtime_t nuke_time;
 	gtime_t tracker_pain_time;
 
-	bool ir_tracking_active; //horde tracking
-	int ir_frame_count;
-
 	edict_t* owned_sphere; // this points to the player's sphere
-
 	// ROGUE
 //=======
 
@@ -3111,16 +3084,15 @@ struct gclient_t
 	pmenuhnd_t* menu;	  // current menu
 	gtime_t		menutime; // time to update menu
 	bool		menudirty;
-	float hook_release_time;
 	edict_t* ctf_grapple;			// entity of grapple
 	int32_t		ctf_grapplestate;		// true if pulling
 	gtime_t		ctf_grapplereleasetime; // time of grapple release
 	gtime_t		ctf_regentime;			// regen tech
 	gtime_t		ctf_techsndtime;
-	int ctf_lasttechmsg_count;
+//	gtime_t		ctf_lasttechmsg;
 	// ZOID
 
-	gtime_t		ammoregentime;
+
 
 	// used for player trails.
 	edict_t* trail_head, * trail_tail;
@@ -3179,6 +3151,7 @@ struct gclient_t
 
 	// HORDE STUFF
 
+	float hook_release_time;
 	bool    hook_out;
 	bool    hook_on;
 	bool    hook_toggle;      // Kyper - Lithium port - added for remaster
@@ -3207,9 +3180,12 @@ struct gclient_t
 	char voted_map[128];
 	gtime_t teleport_cooldown = 3_sec;
 	bool emergency_teleport = false;
+
+	int ctf_lasttechmsg_count;
+	gtime_t		ammoregentime;
+	bool ir_tracking_active; //horde tracking
+	int ir_frame_count;
 };
-
-
 
 // ==========================================
 // PLAT 2
@@ -3225,6 +3201,7 @@ enum plat2flags_t
 MAKE_ENUM_BITFLAGS(plat2flags_t);
 
 #include <bitset>
+
 struct edict_t
 {
 	edict_t() = delete;
@@ -3440,7 +3417,6 @@ struct edict_t
 	// NOTE: if adding new elements, make sure to add them
 	// in g_save.cpp too!
 
-
 	//Horde stuff
 	edict_t* laser;
 
@@ -3650,15 +3626,14 @@ public:
 	inline entity_iterator_t<TFilter> end() const { return end_index; }
 };
 
-
 extern constexpr float DistanceSquared(const vec3_t& v1, const vec3_t& v2);
 
 // 1. First, define the spawn point filter template
 struct monster_spawn_point_filter_t {
-    bool operator()(edict_t* ent) const {
-        return (!ent || !ent->inuse || !ent->classname ||
-            strcmp(ent->classname, "info_player_deathmatch") != 0) ? false : true;
-    }
+	bool operator()(edict_t* ent) const {
+		return (!ent || !ent->inuse || !ent->classname ||
+			strcmp(ent->classname, "info_player_deathmatch") != 0) ? false : true;
+	}
 };
 
 // 2. Helper functions for spawn point iteration
@@ -3807,7 +3782,6 @@ struct gib_def_t
 // convenience function to throw different gib types
 // NOTE: always throw the head gib *last* since self's size is used
 // to position the gibs!
-
 inline void ThrowGibs(edict_t* self, int32_t damage, std::initializer_list<gib_def_t> gibs)
 {
 	for (auto& gib : gibs)
@@ -3875,6 +3849,7 @@ inline bool pierce_args_t::mark(edict_t* ent)
 
 	return true;
 }
+
 extern int8_t current_wave_level;
 extern int8_t last_wave_number;
 
@@ -3950,7 +3925,6 @@ template<> cached_imageindex* cached_imageindex::head;
 
 extern cached_modelindex sm_meat_index;
 extern cached_soundindex snd_fry;
-
 
 [[nodiscard]] constexpr vec3_t GetScaledFlashOffset(edict_t* self, const vec3_t& original_offset)
 {

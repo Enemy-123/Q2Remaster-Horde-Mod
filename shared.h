@@ -107,5 +107,5 @@ void SpawnClusterGrenades(edict_t* owner, const vec3_t& origin, int base_damage)
 
 //void UpdateHordeMessage(std::string_view message, gtime_t duration);
 
-
+extern bool CTFCheckTimeExtensionVote();
 #endif // SHARED_H

@@ -3,7 +3,6 @@
 // g_misc.c
 
 #include "g_local.h"
-#include "shared.h"
 
 /*QUAKED func_group (0 0 0) ?
 Used to group brushes together just for editor convenience.
@@ -450,7 +449,7 @@ TOUCH(point_combat_touch) (edict_t* self, edict_t* other, const trace_t& tr, boo
 
 void SP_point_combat(edict_t* self)
 {
-	if (G_IsDeathmatch() && !g_horde->integer)
+	if (deathmatch->integer)
 	{
 		G_FreeEdict(self);
 		return;
@@ -678,11 +677,11 @@ void SP_light(edict_t* self)
 	if (self->style >= 32)
 	{
 		self->use = light_use;
+
 		if (!self->style_on || !*self->style_on)
 			self->style_on = "m";
 		else if (*self->style_on >= '0' && *self->style_on <= '9')
 			self->style_on = gi.get_configstring(CS_LIGHTS + atoi(self->style_on));
-
 		if (!self->style_off || !*self->style_off)
 			self->style_off = "a";
 		else if (*self->style_off >= '0' && *self->style_off <= '9')
@@ -2214,7 +2213,6 @@ probably did too.
 */
 
 constexpr spawnflags_t SPAWNFLAG_LAVABALL_NO_EXPLODE = 1_spawnflag;
-
 TOUCH(fire_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_LAVABALL_NO_EXPLODE))

@@ -9,7 +9,7 @@
 /*QUAKED info_teleport_destination (.5 .5 .5) (-16 -16 -24) (16 16 32)
 Destination marker for a teleporter.
 */
-void SP_info_teleport_destination(edict_t *self)
+void SP_info_teleport_destination(edict_t* self)
 {
 }
 
@@ -34,9 +34,9 @@ silent: <not used right now>
 ctf_only: <not used right now>
 start_on: when trigger has targetname, start active, deactivate when used.
 */
-TOUCH(trigger_teleport_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(trigger_teleport_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	edict_t *dest;
+	edict_t* dest;
 
 	if (/*(self->spawnflags & SPAWNFLAG_TELEPORT_PLAYER_ONLY) &&*/ !(other->client))
 		return;
@@ -88,7 +88,7 @@ TOUCH(trigger_teleport_touch) (edict_t *self, edict_t *other, const trace_t &tr,
 	// [Paril-KEX] move sphere, if we own it
 	if (other->client && other->client->owned_sphere)
 	{
-		edict_t *sphere = other->client->owned_sphere;
+		edict_t* sphere = other->client->owned_sphere;
 		sphere->s.origin = other->s.origin;
 		sphere->s.origin[2] = other->absmax[2];
 		sphere->s.angles[YAW] = other->s.angles[YAW];
@@ -96,7 +96,7 @@ TOUCH(trigger_teleport_touch) (edict_t *self, edict_t *other, const trace_t &tr,
 	}
 }
 
-USE(trigger_teleport_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_teleport_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->delay)
 		self->delay = 0;
@@ -104,7 +104,7 @@ USE(trigger_teleport_use) (edict_t *self, edict_t *other, edict_t *activator) ->
 		self->delay = 1;
 }
 
-void SP_trigger_teleport(edict_t *self)
+void SP_trigger_teleport(edict_t* self)
 {
 	if (!self->wait)
 		self->wait = 0.2f;
@@ -148,7 +148,7 @@ REMOVE - field removes the disguise
 constexpr spawnflags_t SPAWNFLAG_DISGUISE_START_ON = 2_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_DISGUISE_REMOVE = 4_spawnflag;
 
-TOUCH(trigger_disguise_touch) (edict_t *self, edict_t *other, const trace_t &tr, bool other_touching_self) -> void
+TOUCH(trigger_disguise_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
 	if (other->client)
 	{
@@ -159,7 +159,7 @@ TOUCH(trigger_disguise_touch) (edict_t *self, edict_t *other, const trace_t &tr,
 	}
 }
 
-USE(trigger_disguise_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(trigger_disguise_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->solid == SOLID_NOT)
 		self->solid = SOLID_TRIGGER;
@@ -169,7 +169,7 @@ USE(trigger_disguise_use) (edict_t *self, edict_t *other, edict_t *activator) ->
 	gi.linkentity(self);
 }
 
-void SP_trigger_disguise(edict_t *self)
+void SP_trigger_disguise(edict_t* self)
 {
 	if (!level.disguise_icon)
 		level.disguise_icon = gi.imageindex("i_disguise");

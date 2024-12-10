@@ -1,7 +1,6 @@
 // Copyright (c) ZeniMax Media Inc.
 // Licensed under the GNU General Public License 2.0.
 #include "g_local.h"
-#include "shared.h"
 
 // PGM - some of these are mine, some id's. I added the define's.
 constexpr spawnflags_t SPAWNFLAG_TRIGGER_MONSTER = 0x01_spawnflag;
@@ -790,13 +789,6 @@ THINK(hurt_think) (edict_t* self) -> void
 
 TOUCH(hurt_touch) (edict_t* self, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
 {
-	// Si es un boss en modo horda, intentar teletransportar
-	if (g_horde->integer && other->monsterinfo.IS_BOSS) {
-		if (CheckAndTeleportBoss(other, BossTeleportReason::TRIGGER_HURT)) {
-			return;
-		}
-	}
-
 	if (!other->takedamage)
 		return;
 	else if (!(other->svflags & SVF_MONSTER) && !(other->flags & FL_DAMAGEABLE) && (!other->client) && (strcmp(other->classname, "misc_explobox") != 0))

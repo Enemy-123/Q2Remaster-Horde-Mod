@@ -93,7 +93,7 @@ Returns a pointer to the structure with all entry points
 and global variables
 =================
 */
-Q2GAME_API cgame_export_t * GetCGameAPI(cgame_import_t * import)
+Q2GAME_API cgame_export_t* GetCGameAPI(cgame_import_t* import)
 {
 	cgi = *import;
 

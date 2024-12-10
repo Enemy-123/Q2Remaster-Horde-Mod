@@ -592,7 +592,7 @@ MOVEINFO_BLOCKED(plat_blocked) (edict_t* self, edict_t* other) -> void
 	// PGM
 	//  gib dead things
 	if (other->health < 1)
-		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, 1000, 1, DAMAGE_NONE, MOD_CRUSH);
+		T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, g_horde->integer ? 1000 : 100, 1, DAMAGE_NONE, MOD_CRUSH);
 	// PGM
 
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
@@ -671,7 +671,6 @@ edict_t* plat_spawn_inside_trigger(edict_t* ent)
 	tmax[0] = ent->maxs[0] - 25;
 	tmax[1] = ent->maxs[1] - 25;
 	tmax[2] = ent->maxs[2] + 8;
-
 
 	tmin[2] = tmax[2] - (ent->pos1[2] - ent->pos2[2] + st.lip);
 
@@ -963,6 +962,7 @@ void SP_func_rotating(edict_t* ent)
 		ent->accel *= g_speedstuff->value;
 		ent->decel *= g_speedstuff->value;
 	}
+
 	if (!st.was_key_specified("dmg"))
 		ent->dmg = 2;
 
@@ -1772,7 +1772,6 @@ void SP_func_door(edict_t* ent)
 	if (!ent->decel)
 		ent->decel = ent->speed;
 
-
 	if (g_speedstuff->value != 1.0f) {
 		ent->speed *= g_speedstuff->value;
 		ent->accel *= g_speedstuff->value;
@@ -2202,11 +2201,10 @@ MOVEINFO_BLOCKED(train_blocked) (edict_t* self, edict_t* other) -> void
 		return;
 
 	if (!self->dmg && g_horde->integer)
-		self->dmg = 50;	
-	
-	if (!self->dmg && !g_horde->integer)
-	return;
+		self->dmg = 50;
 
+	if (!self->dmg && !g_horde->integer)
+		return;
 	self->touch_debounce_time = level.time + 500_ms;
 	T_Damage(other, self, self, vec3_origin, other->s.origin, vec3_origin, self->dmg, 1, DAMAGE_NONE, MOD_CRUSH);
 }
@@ -2535,6 +2533,7 @@ void SP_func_train(edict_t* self)
 		self->accel *= g_speedstuff->value;
 		self->decel *= g_speedstuff->value;
 	}
+
 	self->moveinfo.speed = self->speed;
 	self->moveinfo.accel = self->moveinfo.decel = self->moveinfo.speed;
 

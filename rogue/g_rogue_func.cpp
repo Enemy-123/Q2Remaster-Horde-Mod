@@ -294,8 +294,6 @@ USE(Use_Plat2) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 
 USE(plat2_activate) (edict_t* ent, edict_t* other, edict_t* activator) -> void
 {
-
-
 	edict_t* trigger;
 
 	//	if(ent->targetname)

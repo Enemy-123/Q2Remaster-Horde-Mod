@@ -103,7 +103,7 @@ cvar_t* g_grapple_damage;
 cvar_t* g_coop_health_scaling;
 cvar_t* g_weapon_respawn_time;
 
-// dm"flags"
+// Horde"flags"
 cvar_t* g_easymonsters;
 cvar_t* g_iddmg;
 cvar_t* g_autohaste;
@@ -115,6 +115,7 @@ cvar_t* g_dm_spawns;
 cvar_t* sv_eyecam;
 cvar_t* sv_target_id;
 cvar_t* g_no_self_damage;
+//dm"flags"
 cvar_t* g_no_health;
 cvar_t* g_no_items;
 cvar_t* g_dm_weapons_stay;
@@ -140,7 +141,6 @@ cvar_t* g_start_items;
 cvar_t* g_map_list;
 cvar_t* g_map_list_shuffle;
 cvar_t* g_lag_compensation;
-
 
 cvar_t* g_speedstuff;
 cvar_t* g_mover_debug;
@@ -172,7 +172,6 @@ cvar_t* g_vampire;
 
 static cvar_t* g_frames_per_frame;
 
-
 void SpawnEntities(const char* mapname, const char* entities, const char* spawnpoint);
 void ClientThink(edict_t* ent, usercmd_t* cmd);
 edict_t* ClientChooseSlot(const char* userinfo, const char* social_id, bool isBot, edict_t** ignore, size_t num_ignore, bool cinematic);
@@ -192,11 +191,6 @@ void InitSave();
 #include <chrono>
 #include "shared.h"
 #include <span>
-
-//// Implementación de la función auxiliar en el archivo apropiado (por ejemplo, g_main.c)
-//bool PM_IsQ64Map() {
-//	return strncmp(level.mapname, "q64/", 4) == 0;
-//}
 
 /*
 ============
@@ -219,9 +213,9 @@ void PreInitGame()
 	CTFInit();
 	// ZOID
 
-	// Paril
+		// Paril
 	Horde_PreInit();
-	//UpdateAllClients();
+
 	// ZOID
 	// This gamemode only supports deathmatch
 	if (ctf->integer)
@@ -300,11 +294,13 @@ void InitGame()
 	// [Kex] Instagib
 	g_instagib = gi.cvar("g_instagib", "0", CVAR_NOFLAGS);
 
-	// [Paril-KEX]
 	sv_eyecam = gi.cvar("sv_eyecam", "1", CVAR_NOFLAGS);
 	g_no_self_damage = gi.cvar("g_no_self_damage", "0", CVAR_NOFLAGS);
 	sv_target_id = gi.cvar("sv_target_id", "0", CVAR_NOFLAGS);
+
+	// [Paril-KEX]
 	g_coop_player_collision = gi.cvar("g_coop_player_collision", "0", CVAR_LATCH);
+	g_coop_squad_respawn = gi.cvar("g_coop_squad_respawn", "1", CVAR_LATCH);
 	g_coop_enable_lives = gi.cvar("g_coop_enable_lives", "0", CVAR_LATCH);
 	g_coop_num_lives = gi.cvar("g_coop_num_lives", "2", CVAR_LATCH);
 	g_coop_instanced_items = gi.cvar("g_coop_instanced_items", "1", CVAR_LATCH);
@@ -345,7 +341,6 @@ void InitGame()
 	// change anytime vars
 	fraglimit = gi.cvar("fraglimit", "0", CVAR_SERVERINFO);
 	timelimit = gi.cvar("timelimit", "0", CVAR_SERVERINFO);
-
 	// ZOID
 	capturelimit = gi.cvar("capturelimit", "0", CVAR_SERVERINFO);
 	g_quick_weapon_switch = gi.cvar("g_quick_weapon_switch", "1", CVAR_LATCH);
@@ -493,7 +488,7 @@ Returns a pointer to the structure with all entry points
 and global variables
 =================
 */
-Q2GAME_API game_export_t * GetGameAPI(game_import_t * import)
+Q2GAME_API game_export_t* GetGameAPI(game_import_t* import)
 {
 	gi = *import;
 
@@ -595,6 +590,7 @@ inline std::vector<std::string> str_split(const std::string_view& str, char by)
 
 	return out;
 }
+
 /*
 =================
 EndDMLevel
@@ -705,7 +701,6 @@ void EndDMLevel()
 	BeginIntermission(ent);
 }
 
-
 /*
 =================
 CheckNeedPass
@@ -736,7 +731,6 @@ void CheckNeedPass()
 CheckDMRules
 =================
 */
-bool CTFCheckTimeExtensionVote();
 void CheckDMRules()
 {
 	gclient_t* cl;
@@ -771,9 +765,9 @@ void CheckDMRules()
 		}
 	}
 
-	// Rest of the original code...
 	if (!deathmatch->integer)
 		return;
+
 	// ZOID
 	if (ctf->integer && CTFCheckRules())
 	{
@@ -784,19 +778,19 @@ void CheckDMRules()
 		return; // no checking in match mode
 	// ZOID
 
-	// Añadir verificación de reglas de elección
 	if (CTFCheckRules())
 	{
 		return;
 	}
-
-	//======= ROGUE
+//=======
+// ROGUE
 	if (gamerules->integer && DMGame.CheckDMRules)
 	{
 		if (DMGame.CheckDMRules())
 			return;
 	}
-	// ROGUE =======
+	// ROGUE
+	//=======
 
 	if (timelimit->value)
 	{
@@ -930,7 +924,6 @@ static bool G_AnyDeadPlayersWithoutLives()
 	return false;
 }
 
-
 /*
 ================
 G_RunFrame
@@ -938,7 +931,6 @@ G_RunFrame
 Advances the world by 0.1 seconds
 ================
 */
-
 inline void G_RunFrame_(bool main_loop)
 {
 
@@ -985,33 +977,33 @@ inline void G_RunFrame_(bool main_loop)
 		}
 
 		// Limpieza periódica
-			CleanupInvalidEntities();
-			CheckAndResetDisabledSpawnPoints();
+		CleanupInvalidEntities();
+		CheckAndResetDisabledSpawnPoints();
 
 		// En la sección de HUD y mensajes
 			// Verificar mensajes expirados primero
-			if (horde_message_end_time > 0_sec) {
-				if (level.time >= horde_message_end_time) {
-					ClearHordeMessage();
-				}
-				else {
-					// Asegurarse de que el mensaje siga siendo visible
-					const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
-					if (!current_msg || !current_msg[0]) {
-						UpdateHordeHUD(); // Re-mostrar mensaje si se perdió
-					}
+		if (horde_message_end_time > 0_sec) {
+			if (level.time >= horde_message_end_time) {
+				ClearHordeMessage();
+			}
+			else {
+				// Asegurarse de que el mensaje siga siendo visible
+				const char* current_msg = gi.get_configstring(CONFIG_HORDEMSG);
+				if (!current_msg || !current_msg[0]) {
+					UpdateHordeHUD(); // Re-mostrar mensaje si se perdió
 				}
 			}
+		}
 
-			// Verificar estado de jugadores
-			for (auto player : active_players()) {
-				if (player->client && !player->client->ps.stats[STAT_HORDEMSG] &&
-					gi.get_configstring(CONFIG_HORDEMSG)[0]) {
-					// Restaurar mensaje si se perdió para algún jugador
-					player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
-				}
+		// Verificar estado de jugadores
+		for (auto player : active_players()) {
+			if (player->client && !player->client->ps.stats[STAT_HORDEMSG] &&
+				gi.get_configstring(CONFIG_HORDEMSG)[0]) {
+				// Restaurar mensaje si se perdió para algún jugador
+				player->client->ps.stats[STAT_HORDEMSG] = CONFIG_HORDEMSG;
 			}
-		
+		}
+
 	}
 
 	level.in_frame = true;
@@ -1022,12 +1014,12 @@ inline void G_RunFrame_(bool main_loop)
 
 	level.time += FRAME_TIME_MS;
 
-	// Manejar la intermisión
+	// auto aexit intermission
 	if (level.intermissiontime)
 	{
 
-	if (g_horde->integer)
-		level.intermission_fade = true;
+		if (g_horde->integer)
+			level.intermission_fade = true;
 		constexpr gtime_t INTERMISSION_DURATION = 30_sec;
 
 		if (level.intermissiontime == level.time)
@@ -1080,7 +1072,6 @@ inline void G_RunFrame_(bool main_loop)
 	{
 		ExitLevel();
 		level.in_frame = false;
-		last_wave_number = 0;
 		return;
 	}
 
@@ -1175,7 +1166,7 @@ inline void G_RunFrame_(bool main_loop)
 	CheckDMRules();
 
 	// see if needpass needs updated
-//	CheckNeedPass();
+	CheckNeedPass();
 
 	if (G_IsCooperative() && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer) || G_IsDeathmatch() && g_horde->integer && (g_coop_enable_lives->integer || g_coop_squad_respawn->integer))
 	{

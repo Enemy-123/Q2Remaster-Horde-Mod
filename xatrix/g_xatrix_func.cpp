@@ -15,7 +15,7 @@
 constexpr spawnflags_t SPAWNFLAG_ROTATING_LIGHT_START_OFF = 1_spawnflag;
 constexpr spawnflags_t SPAWNFLAG_ROTATING_LIGHT_ALARM = 2_spawnflag;
 
-THINK(rotating_light_alarm) (edict_t *self) -> void
+THINK(rotating_light_alarm) (edict_t* self) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_ROTATING_LIGHT_START_OFF))
 	{
@@ -29,7 +29,7 @@ THINK(rotating_light_alarm) (edict_t *self) -> void
 	}
 }
 
-DIE(rotating_light_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
+DIE(rotating_light_killed) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_WELDING_SPARKS);
@@ -46,7 +46,7 @@ DIE(rotating_light_killed) (edict_t *self, edict_t *inflictor, edict_t *attacker
 	self->nextthink = level.time + FRAME_TIME_S;
 }
 
-USE(rotating_light_use) (edict_t *self, edict_t *other, edict_t *activator) -> void
+USE(rotating_light_use) (edict_t* self, edict_t* other, edict_t* activator) -> void
 {
 	if (self->spawnflags.has(SPAWNFLAG_ROTATING_LIGHT_START_OFF))
 	{
@@ -66,7 +66,7 @@ USE(rotating_light_use) (edict_t *self, edict_t *other, edict_t *activator) -> v
 	}
 }
 
-void SP_rotating_light(edict_t *self)
+void SP_rotating_light(edict_t* self)
 {
 	self->movetype = MOVETYPE_STOP;
 	self->solid = SOLID_BBOX;
@@ -118,7 +118,7 @@ The default delay is 1 second
 "delay" the delay in seconds for spark to occur
 */
 
-THINK(object_repair_fx) (edict_t *ent) -> void
+THINK(object_repair_fx) (edict_t* ent) -> void
 {
 	ent->nextthink = level.time + gtime_t::from_sec(ent->delay);
 
@@ -136,14 +136,14 @@ THINK(object_repair_fx) (edict_t *ent) -> void
 	}
 }
 
-THINK(object_repair_dead) (edict_t *ent) -> void
+THINK(object_repair_dead) (edict_t* ent) -> void
 {
 	G_UseTargets(ent, ent);
 	ent->nextthink = level.time + 10_hz;
 	ent->think = object_repair_fx;
 }
 
-THINK(object_repair_sparks) (edict_t *ent) -> void
+THINK(object_repair_sparks) (edict_t* ent) -> void
 {
 	if (ent->health <= 0)
 	{
@@ -163,7 +163,7 @@ THINK(object_repair_sparks) (edict_t *ent) -> void
 	gi.multicast(ent->s.origin, MULTICAST_PVS, false);
 }
 
-void SP_object_repair(edict_t *ent)
+void SP_object_repair(edict_t* ent)
 {
 	ent->movetype = MOVETYPE_NONE;
 	ent->solid = SOLID_BBOX;
