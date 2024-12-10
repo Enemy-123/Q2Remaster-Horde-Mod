@@ -590,13 +590,14 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 	// Store original position for effect
 	const vec3_t old_origin = ent->s.origin;
 
-
 	// Teleport effect at source
 	gi.WriteByte(svc_temp_entity);
 	gi.WriteByte(TE_TELEPORT_EFFECT);
 	gi.WritePosition(old_origin);
 	gi.multicast(old_origin, MULTICAST_PVS, false);
 
+	// Hide entity during teleport
+	ent->svflags |= SVF_NOCLIENT;
 	gi.unlinkentity(ent);
 
 	// Move entity using vec3_t operations
@@ -622,14 +623,14 @@ void TeleportEntity(edict_t* ent, edict_t* dest) {
 			float angle_diff = anglemod(dest->s.angles[i] - ent->client->resp.cmd_angles[i]);
 			ent->client->ps.pmove.delta_angles[i] = angle_diff;
 		}
-
 		ent->client->ps.pmove.velocity = vec3_origin;
 	}
 	else {
 		ent->s.angles = dest->s.angles;
 	}
 
-
+	// Make entity visible again
+	ent->svflags &= ~SVF_NOCLIENT;
 	gi.linkentity(ent);
 
 	// Prevent telefrag
@@ -937,6 +938,7 @@ bool TeleportSelf(edict_t* ent)
 {
 	if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag)
 		return false;
+
 	// Check cooldown
 	if (ent->client->teleport_cooldown > level.time)
 	{
@@ -945,15 +947,18 @@ bool TeleportSelf(edict_t* ent)
 		gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining);
 		return false;
 	}
+
 	// Set cooldown for 3 seconds
 	ent->client->teleport_cooldown = level.time + 3_sec;
 	std::string playerName = GetPlayerName(ent);
+
 	struct spawn_point_t
 	{
 		edict_t* point;
 		float dist;
 	};
 	std::vector<spawn_point_t> spawn_points;
+
 	// Gather all valid deathmatch spawn points with style == 0
 	edict_t* spot = nullptr;
 	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
@@ -961,15 +966,21 @@ bool TeleportSelf(edict_t* ent)
 			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
 		}
 	}
+
 	// No valid spawn points found
 	if (spawn_points.size() == 0) {
 		if (developer->integer) gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
 		return false;
 	}
+
 	// If there's only one spawn point, use it if clear
 	if (spawn_points.size() == 1) {
 		if (SpawnPointClear(spawn_points[0].point)) {
+			// Hide entity temporarily
+			ent->svflags |= SVF_NOCLIENT;
+
 			TeleportEntity(ent, spawn_points[0].point);
+
 			// [Paril-KEX] move sphere, if we own it
 			if (ent->client->owned_sphere)
 			{
@@ -979,6 +990,10 @@ bool TeleportSelf(edict_t* ent)
 				sphere->s.angles[YAW] = ent->s.angles[YAW];
 				gi.linkentity(sphere);
 			}
+
+			// Make entity visible again
+			ent->svflags &= ~SVF_NOCLIENT;
+
 			if (!ent->client->emergency_teleport) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 			}
@@ -988,15 +1003,21 @@ bool TeleportSelf(edict_t* ent)
 		if (developer->integer) gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
 		return false;
 	}
+
 	// Sort spawn points by distance (ascending)
 	std::sort(spawn_points.begin(), spawn_points.end(),
 		[](const spawn_point_t& a, const spawn_point_t& b) {
 			return a.dist < b.dist;
 		});
+
 	// Try to find the farthest clear spawn point
 	for (int32_t i = spawn_points.size() - 1; i >= 0; --i) {
 		if (SpawnPointClear(spawn_points[i].point)) {
+			// Hide entity temporarily
+			ent->svflags |= SVF_NOCLIENT;
+
 			TeleportEntity(ent, spawn_points[i].point);
+
 			// [Paril-KEX] move sphere, if we own it
 			if (ent->client->owned_sphere)
 			{
@@ -1006,6 +1027,10 @@ bool TeleportSelf(edict_t* ent)
 				sphere->s.angles[YAW] = ent->s.angles[YAW];
 				gi.linkentity(sphere);
 			}
+
+			// Make entity visible again
+			ent->svflags &= ~SVF_NOCLIENT;
+
 			if (!ent->client->emergency_teleport) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 			}
@@ -1013,9 +1038,15 @@ bool TeleportSelf(edict_t* ent)
 			return true;
 		}
 	}
+
 	// If no clear points found, use a random one
 	const size_t random_index = rand() % spawn_points.size();
+
+	// Hide entity temporarily
+	ent->svflags |= SVF_NOCLIENT;
+
 	TeleportEntity(ent, spawn_points[random_index].point);
+
 	// [Paril-KEX] move sphere, if we own it
 	if (ent->client->owned_sphere)
 	{
@@ -1025,13 +1056,15 @@ bool TeleportSelf(edict_t* ent)
 		sphere->s.angles[YAW] = ent->s.angles[YAW];
 		gi.linkentity(sphere);
 	}
+
+	// Make entity visible again
+	ent->svflags &= ~SVF_NOCLIENT;
+
 	if (!ent->client->emergency_teleport) {
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 	}
 	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
-
 	ent->client->emergency_teleport = false;
-
 	if (developer->integer) gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
 	return true;
 }

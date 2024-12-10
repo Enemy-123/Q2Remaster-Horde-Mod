@@ -88,7 +88,7 @@ edict_t* G_PickTarget(const char* targetname)
 
 	if (!targetname)
 	{
-//		gi.Com_Print("G_PickTarget called with nullptr targetname\n");
+		gi.Com_Print("G_PickTarget called with nullptr targetname\n");
 		return nullptr;
 	}
 
@@ -104,7 +104,7 @@ edict_t* G_PickTarget(const char* targetname)
 
 	if (!num_choices)
 	{
-		gi.Com_PrintFmt("PRINT: G_PickTarget: target {} not found\n", targetname);
+		gi.Com_PrintFmt("G_PickTarget: target {} not found\n", targetname);
 		return nullptr;
 	}
 
@@ -124,7 +124,7 @@ void G_PrintActivationMessage(edict_t* ent, edict_t* activator, bool coop_global
 	//
 	if ((ent->message) && !(activator->svflags & SVF_MONSTER))
 	{
-		if (coop_global && G_IsCooperative())
+		if (coop_global && coop->integer)
 			gi.LocBroadcast_Print(PRINT_CENTER, "{}", ent->message);
 		else
 			gi.LocCenter_Print(activator, "{}", ent->message);
@@ -369,7 +369,6 @@ edict_t* G_Spawn()
 	return e;
 }
 
-
 /*
 =================
 G_FreeEdict
@@ -379,14 +378,12 @@ Marks the edict as free
 */
 THINK(G_FreeEdict) (edict_t* ed) -> void
 {
-	// Ya liberado
+	// already freed
 	if (!ed->inuse)
 		return;
 
-	// Llamar a OnEntityRemoved antes de limpiar la entidad
 	OnEntityRemoved(ed);
-
-	gi.unlinkentity(ed); // Desenlazar del mundo
+	gi.unlinkentity(ed); // unlink from world
 
 	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE))
 	{
@@ -428,9 +425,8 @@ void G_TouchTriggers(edict_t* ent)
 	static edict_t* touch[MAX_EDICTS];
 	edict_t* hit;
 
-	if (!ent) // Comprobación de nulidad
+	if (!ent) // null check
 		return;
-
 	// dead things don't activate triggers!
 	if ((ent->client || (ent->svflags & SVF_MONSTER)) && (ent->health <= 0))
 		return;
@@ -439,15 +435,15 @@ void G_TouchTriggers(edict_t* ent)
 
 	// be careful, it is possible to have an entity in this
 	// list removed before we get to it (killtriggered)
-    for (i = 0; i < num; i++)
-    {
-        hit = touch[i];
-        if (!hit || !hit->inuse)
-            continue;
-        if (!hit->touch)
-            continue;
-        hit->touch(hit, ent, null_trace, true);
-    }
+	for (i = 0; i < num; i++)
+	{
+		hit = touch[i];
+		if (!hit || !hit->inuse)
+			continue;
+		if (!hit->touch)
+			continue;
+		hit->touch(hit, ent, null_trace, true);
+	}
 }
 
 // [Paril-KEX] scan for projectiles between our movement positions
@@ -462,18 +458,17 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 	// a bit ugly, but we'll store projectiles we are ignoring here.
 	static std::vector<skipped_projectile> skipped;
 
-	if (!ent) // Comprobación de nulidad
+	if (!ent) 
 		return;
-
 	while (true)
 	{
 		trace_t tr = gi.trace(previous_origin, ent->mins, ent->maxs, ent->s.origin, ent, ent->clipmask | CONTENTS_PROJECTILE);
 
 		if (tr.fraction == 1.0f)
 			break;
-		if (!tr.ent) // Comprobación de nulidad
+		if (!tr.ent)
 			break;
-	    if (!(tr.ent->svflags & SVF_PROJECTILE))
+		if (!(tr.ent->svflags & SVF_PROJECTILE))
 			break;
 
 		// always skip this projectile since certain conditions may cause the projectile
@@ -494,7 +489,6 @@ void G_TouchProjectiles(edict_t* ent, vec3_t previous_origin)
 
 	skipped.clear();
 }
-
 
 /*
 ==============================================================================

@@ -3003,70 +3003,74 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 }
 
 bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
-	// Verificaciones iniciales
+	// Initial checks
 	if (!self || !self->inuse || self->deadflag || !self->monsterinfo.IS_BOSS ||
 		level.intermissiontime || !g_horde->integer)
 		return false;
 
-	// Obtener el punto de inicio del mapa
+	// Get map's starting point
 	const auto it = mapOrigins.find(GetCurrentMapName());
 	if (it == mapOrigins.end())
 		return false;
 
-	// Cooldowns diferentes según la razón
+	// Different cooldowns based on reason
 	constexpr gtime_t DROWNING_COOLDOWN = 1_sec;
 	constexpr gtime_t TRIGGER_COOLDOWN = 3_sec;
-	// constexpr gtime_t STUCK_COOLDOWN = 2_sec;
-	// Seleccionar el cooldown apropiado
+
+	// Select appropriate cooldown
 	const gtime_t selected_cooldown = [DROWNING_COOLDOWN, TRIGGER_COOLDOWN](BossTeleportReason reason) {
 		switch (reason) {
 		case BossTeleportReason::DROWNING:
 			return DROWNING_COOLDOWN;
 		case BossTeleportReason::TRIGGER_HURT:
 			return TRIGGER_COOLDOWN;
-			//case BossTeleportReason::STUCK:
-			//    return STUCK_COOLDOWN;
 		}
 		return TRIGGER_COOLDOWN;
-		}(reason);  // Pass the 'reason' parameter here
+		}(reason);
 
-	// Verificar si ya se teletransportó recientemente
+	// Check if recently teleported
 	if (self->teleport_time && level.time < self->teleport_time + selected_cooldown)
 		return false;
 
-	// Convertir el punto de inicio a vec3_t
+	// Convert spawn point to vec3_t
 	const vec3_t spawn_origin{
 		static_cast<float>(it->second[0]),
 		static_cast<float>(it->second[1]),
 		static_cast<float>(it->second[2])
 	};
 
-	// Verificar si el punto de inicio es válido
+	// Verify spawn point validity
 	if (!is_valid_vector(spawn_origin) || spawn_origin == vec3_origin)
 		return false;
 
+	// Hide from clients before teleport attempt
+	self->svflags |= SVF_NOCLIENT;
 	gi.unlinkentity(self);
 
-	// Guardar velocidad y origen actuales
+	// Store current velocity and origin
 	const vec3_t old_velocity = self->velocity;
 	const vec3_t old_origin = self->s.origin;
 
-	// Intentar teletransporte
+	// Attempt teleport
 	self->s.origin = spawn_origin;
 	self->s.old_origin = spawn_origin;
 	self->velocity = vec3_origin;
 
-	// Verificar si la nueva posición es válida
+	// Check if new position is valid
 	bool teleport_success = true;
 	if (!(self->flags & (FL_FLY | FL_SWIM))) {
 		teleport_success = M_droptofloor(self);
 	}
 
-	// Verificar colisiones en la nueva posición
+	// Check collisions at new position
 	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
 
-		// Efectos visuales y sonoros diferenciados por razón
+		// Make visible again before effects
+		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity(self);
+
+		// Visual and sound effects based on reason
 		switch (reason) {
 		case BossTeleportReason::DROWNING:
 			gi.sound(self, CHAN_AUTO, sound_tele3, 1, ATTN_NORM, 0);
@@ -3081,36 +3085,32 @@ bool CheckAndTeleportBoss(edict_t* self, const BossTeleportReason reason) {
 		}
 
 		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
-
-		// Actualizar tiempo de último teletransporte
 		self->teleport_time = level.time;
 
-		// Empujar otras entidades cercanas
+		// Push away nearby entities
 		PushEntitiesAway(spawn_origin, 3, 500.0f, 1000.0f, 3750.0f, 1600.0f);
 
-		// Restaurar algo de salud si estaba muy dañado (solo para drowning y trigger_hurt)
+		// Restore some health if heavily damaged
 		if (self->health < self->max_health * 0.25f) {
 			self->health = static_cast<int32_t>(self->max_health * 0.25f);
 		}
 
-		// Actualizar la entidad
-		gi.linkentity(self);
-
 		if (developer->integer) {
-			const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" :
-				/*		reason == BossTeleportReason::TRIGGER_HURT ?*/ "trigger_hurt" /*: "stuck"*/;
+			const char* reason_str = reason == BossTeleportReason::DROWNING ? "drowning" : "trigger_hurt";
 			gi.Com_PrintFmt("Boss teleported due to {} to: {}\n", reason_str, self->s.origin);
 		}
 
 		return true;
 	}
 
-	// Si falló el teletransporte, restaurar posición original
+	// If teleport failed, restore original position
 	self->s.origin = old_origin;
 	self->s.old_origin = old_origin;
 	self->velocity = old_velocity;
-	gi.linkentity(self);
 
+	// Make visible again before final link on failure
+	self->svflags &= ~SVF_NOCLIENT;
+	gi.linkentity(self);
 	return false;
 }
 
@@ -3764,22 +3764,25 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 			return false;
 	}
 
+	// Hide from clients before unlinking
+	self->svflags |= SVF_NOCLIENT;
 	gi.unlinkentity(self);
 
 	// Use StuckMonsterSpawnFilter with SelectRandomSpawnPoint
 	StuckMonsterSpawnFilter filter;
 	edict_t* spawn_point = SelectRandomSpawnPoint(filter);
-
 	if (!spawn_point) {
+		// Show entity again if we fail early
+		self->svflags &= ~SVF_NOCLIENT;
 		gi.linkentity(self);
 		return false;
 	}
 
-	// Store old values before teleport attempt
+	// Store old values and attempt teleport...
 	const vec3_t old_velocity = self->velocity;
 	const vec3_t old_origin = self->s.origin;
 
-	// Set new position
+	// Set new position...
 	self->s.origin = spawn_point->s.origin;
 	self->s.old_origin = spawn_point->s.origin;
 	self->velocity = vec3_origin;
@@ -3791,13 +3794,17 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	if (teleport_success && !gi.trace(self->s.origin, self->mins, self->maxs,
 		self->s.origin, self, MASK_MONSTERSOLID).startsolid) {
-		// Teleport successful
+		// Make visible again only after successful teleport
+		self->svflags &= ~SVF_NOCLIENT;
+		gi.linkentity(self);
+
+		// Effects after we're visible
 		gi.sound(self, CHAN_AUTO, sound_spawn1, 1, ATTN_NORM, 0);
 		SpawnGrow_Spawn(self->s.origin, 80.0f, 10.0f);
+
 		self->monsterinfo.was_stuck = false;
 		self->monsterinfo.stuck_check_time = 0_sec;
 		self->monsterinfo.react_to_damage_time = level.time;
-		gi.linkentity(self);
 		return true;
 	}
 
@@ -3805,6 +3812,9 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 	self->s.origin = old_origin;
 	self->s.old_origin = old_origin;
 	self->velocity = old_velocity;
+
+	// Make visible again before final link
+	self->svflags &= ~SVF_NOCLIENT;
 	gi.linkentity(self);
 	return false;
 }
