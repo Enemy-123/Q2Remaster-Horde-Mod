@@ -1187,30 +1187,39 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	const int32_t numHumanPlayers = GetNumHumanPlayers();
 	MonsterWaveType selected_type = MonsterWaveType::None;
 
-	// Special waves check (5-9)
-	if (waveNumber >= 5 && waveNumber <= 9 && !forceSpecialWave) {
-		struct SpecialWave {
-			MonsterWaveType type;
-			float chance;
-			int min_wave;
-			int max_wave;
-			const char* message;
-		};
+	// Special waves check - removed the wave 5-9 restriction
+	struct SpecialWave {
+		MonsterWaveType type;
+		float chance;
+		int min_wave;
+		int max_wave;
+		const char* message;
+	};
 
-		const SpecialWave special_waves[] = {
-			{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "*** Gekk invasion incoming! ***\n"},
-			{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 9, "*** Enraged Horde approaching! ***\n"},
-			{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.25f, 6, 8, "*** Aerial assault incoming! ***\n"},
-			{MonsterWaveType::Heavy, 0.15f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
-			{MonsterWaveType::Berserk, 0.15f, 17, -1, "*** Berserkers incoming! ***\n"},
-			{MonsterWaveType::Bomber, 0.15f, 17, -1, "*** Strogg Bombers Arrived! ***\n"},
-			{MonsterWaveType::Spawner, 0.15f, 38, -1, "*** Spawners Deployed!  ***\n"}
-		};
+	// Define special waves that can occur throughout the game
+	const SpecialWave special_waves[] = {
+		// Early game special waves (waves 5-15)
+		{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "*** Gekk invasion incoming! ***\n"},
+		{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, -1, "*** Enraged Horde approaching! ***\n"},
+		{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.3f, 6, -1, "*** Aerial assault incoming! ***\n"},
 
-		// Try each special wave type, respecting the recent usage check
+		// Mid game special waves (waves 8+)
+		{MonsterWaveType::Berserk, 0.25f, 8, -1, "*** Berserkers incoming! ***\n"},
+		{MonsterWaveType::Bomber, 0.35f, 10, -1, "*** Strogg Bomber Units Arrived! ***\n"},
+
+		// Late game special waves
+		{MonsterWaveType::Heavy, 0.2f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
+		{MonsterWaveType::Spawner, 0.75f, 25, -1, "*** Spawners Deployed! ***\n"}
+	};
+
+	// Try special waves first regardless of wave number
+	if (!forceSpecialWave) {
 		for (const auto& wave : special_waves) {
-			if (waveNumber >= wave.min_wave && waveNumber <= wave.max_wave &&
-				!WasRecentlyUsed(wave.type) && frandom() < wave.chance) {
+			// Check if wave is eligible (within min/max range)
+			if (waveNumber >= wave.min_wave &&
+				(wave.max_wave == -1 || waveNumber <= wave.max_wave) &&
+				!WasRecentlyUsed(wave.type) &&
+				frandom() < wave.chance) {
 				selected_type = wave.type;
 				gi.LocBroadcast_Print(PRINT_HIGH, wave.message);
 				StoreWaveType(selected_type);
@@ -1219,13 +1228,13 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 		}
 	}
 
-	// Regular wave composition with randomization
+	// If no special wave was selected, fall back to regular wave composition
+	// [Rest of the existing wave composition code remains the same]
 	struct WaveComposition {
 		MonsterWaveType base_type;
 		MonsterWaveType optional_type;
 		float optional_chance;
 	};
-
 	const WaveComposition wave_types[] = {
 		// Waves 1-5
 		{MonsterWaveType::Light | MonsterWaveType::Ground, MonsterWaveType::None, 0.0f},
@@ -1295,57 +1304,57 @@ inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 // Example function to filter monsters by wave type
 // First the IsValidMonsterForWave function:
 inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveRequirements) {
-	const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
+    const MonsterWaveType monsterTypes = GetMonsterWaveTypes(classname);
 
-	// If there are no specific wave requirements, any monster is valid
-	if (waveRequirements == MonsterWaveType::None) {
-		return true;
-	}
+    // If there are no specific wave requirements, any monster is valid
+    if (waveRequirements == MonsterWaveType::None) {
+        return true;
+    }
 
-	// Special waves checks - these are strict requirements 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Flying)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Flying);
-	}
+    // Special waves checks - these are strict requirements 
+    if (HasWaveType(waveRequirements, MonsterWaveType::Flying)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Flying);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Small)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Small);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Small)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Small);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Arachnophobic)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Arachnophobic);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Heavy)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Heavy);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Heavy)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Heavy);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Shambler)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Shambler);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Shambler)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Shambler);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Mutant)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Mutant);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Mutant)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Mutant);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Melee)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Melee);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Melee)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Melee);
+    }
 
-	// Add checks for Berserk, Bomber and Spawner flags
-	if (HasWaveType(waveRequirements, MonsterWaveType::Berserk)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Berserk);
-	}
+    // Add checks for Berserk, Bomber and Spawner flags
+    if (HasWaveType(waveRequirements, MonsterWaveType::Berserk)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Berserk);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Bomber)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Bomber);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Bomber)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Bomber);
+    }
 
-	if (HasWaveType(waveRequirements, MonsterWaveType::Spawner)) {
-		return HasWaveType(monsterTypes, MonsterWaveType::Spawner);
-	}
+    if (HasWaveType(waveRequirements, MonsterWaveType::Spawner)) {
+        return HasWaveType(monsterTypes, MonsterWaveType::Spawner);
+    }
 
-	// For mixed waves, monster should match at least one type
-	return (static_cast<uint32_t>(monsterTypes & waveRequirements) != 0);
+    // For mixed waves, monster should match at least one type
+    return (static_cast<uint32_t>(monsterTypes & waveRequirements) != 0);
 }
 
 // Structure to include wave level information
@@ -1406,7 +1415,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	// Heavy Ground Units (Waves 12-18)
 	{"monster_gladiator", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
 	{"monster_gunner", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f},
-	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium, 13, 0.6f},
+	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Spawner | MonsterWaveType::Heavy | MonsterWaveType::Medium, 13, 0.6f},
 	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f},
 	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f},
 	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f},
