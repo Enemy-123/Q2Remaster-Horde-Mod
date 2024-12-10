@@ -1433,14 +1433,51 @@ void CTFSetIDView(edict_t* ent) {
 	}
 }
 
+static THINK(delayed_fade_think)(edict_t* self) -> void {
+	if (!self || !self->inuse) {
+		return;
+	}
+
+	// If we haven't reached fade start time yet
+	if (level.time < self->teleport_time) {
+		self->nextthink = level.time + FRAME_TIME_MS;
+		return;
+	}
+
+	// If we're in the fade period
+	if (level.time >= self->teleport_time) {
+		// Calculate fade progress (0.0 to 1.0)
+		const float elapsed = (level.time - self->teleport_time).seconds();
+		const float t = 1.0f - (elapsed / self->wait);
+		// Square the value for smoother fade
+		self->s.alpha = t * t;
+
+		// Free the entity as soon as alpha is nearly transparent
+		if (self->s.alpha <= 0.05f) {
+			G_FreeEdict(self);
+			return;
+		}
+
+		// Setup rendering parameters if we just started fading
+		if (!self->is_fading_out) {
+			self->is_fading_out = true;
+			self->svflags &= ~SVF_NOCLIENT;
+			self->s.renderfx &= ~RF_DOT_SHADOW;
+			gi.linkentity(self);
+		}
+	}
+
+	self->nextthink = level.time + FRAME_TIME_MS;
+}
+
 void OnEntityDeath(edict_t* self) noexcept {
 	if (!self || !self->inuse || self->monsterinfo.death_processed) {
 		return;
 	}
-
 	self->monsterinfo.death_processed = true;
+
 	if (self->monsterinfo.IS_BOSS)
-	self->monsterinfo.IS_BOSS = false;
+		self->monsterinfo.IS_BOSS = false;
 
 	// Handle summoned entity deaths
 	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
@@ -1454,6 +1491,19 @@ void OnEntityDeath(edict_t* self) noexcept {
 			self->owner->client->num_sentries--;
 		}
 	}
+
+	// Faster fade settings
+	constexpr gtime_t FADE_START_DELAY = 3_sec;    // Start fade after 2 seconds
+	constexpr gtime_t FADE_DURATION = 1_sec;       // Complete fade in 1 second
+
+	// Setup fade out parameters
+	self->teleport_time = level.time + FADE_START_DELAY;
+	self->timestamp = level.time + FADE_START_DELAY + FADE_DURATION;
+	self->wait = FADE_DURATION.seconds();
+
+	// Set think function to handle fade
+	self->think = delayed_fade_think;
+	self->nextthink = level.time + FRAME_TIME_MS;
 
 	// Clean up entity info
 	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
