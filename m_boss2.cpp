@@ -777,8 +777,8 @@ void SP_monster_boss2_64(edict_t* self)
 		self->s.scale = 0.6f;
 
 		// Ajustar la caja de colisi칩n con un Z m치s elevado
-		self->mins = { -60 * 0.6f, -60 * 0.6f, 0 };
-		self->maxs = { 60 * 0.6f, 60 * 0.6f, (90 + 25) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
+		self->mins *= 0.6f;
+		self->mins *= 0.6f;
 	}
 
 	self->health = 900 * st.health_multiplier;
@@ -798,8 +798,8 @@ void SP_monster_boss2_mini(edict_t* self)
 		self->s.scale = 0.6f;
 
 		// Ajustar la caja de colisi칩n con un Z m치s elevado
-		self->mins = { -60 * 0.6f, -60 * 0.6f, 0 };
-		self->maxs = { 60 * 0.6f, 60 * 0.6f, (90 + 25) * 0.6f };  // Incrementa Z en 20 unidades antes de escalar
+		self->mins *= 0.6f;
+		self->mins *= 0.6f;
 	}
 
 	self->health = 1000 * st.health_multiplier;

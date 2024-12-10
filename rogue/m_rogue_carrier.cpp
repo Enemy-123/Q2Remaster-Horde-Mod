@@ -21,7 +21,6 @@ carrier
 constexpr const char *default_reinforcements = "monster_daedalus_bomber 2;monster_floater 2;monster_floater_tracker 3;monster_kamikaze 1;monster_hover_vanilla 4;monster_daedalus 2";
 constexpr const char *mini_reinforcements = "monster_flyer 1;monster_flyer 2;monster_flyer 3";
 constexpr int32_t default_monster_slots_base = 3;
-constexpr spawnflags_t SPAWNFLAG_carrier_mini = 8_spawnflag;
 
 constexpr gtime_t CARRIER_ROCKET_TIME = 3_sec; // number of seconds between rocket shots
 constexpr int32_t CARRIER_ROCKET_SPEED = 1150;
@@ -1231,14 +1230,13 @@ void SP_monster_carrier_mini(edict_t* self)
 	const spawn_temp_t& st = ED_GetSpawnTemp();
 
 	if (!strcmp(self->classname, "monster_carrier_mini")) {
-		self->spawnflags |= SPAWNFLAG_carrier_mini;
 		SP_monster_carrier(self);
 
 		self->s.scale = 0.6f;
 
 		// Aplicar la escala a mins y maxs
-		self->mins = { -56 * 0.6f, -56 * 0.6f, (-44 + 20) * 0.6f };
-		self->maxs = { 56 * 0.6f, 56 * 0.6f, (44 + 20) * 0.6f };    
+		self->mins *= 0.6f;
+		self->mins *= 0.6f;
 
 		self->health = 1060 * st.health_multiplier;
 		self->mass = 1000;
