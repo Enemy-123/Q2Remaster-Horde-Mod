@@ -441,10 +441,11 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			best->s.angles[YAW] = frandom() * 360;
 			best->velocity[2] = 400;
 			best->think(best);
-			best->nextthink = 0_ms;
+			best->nextthink = level.time + 30_sec;  // Set 30 second timeout
+			best->think = G_FreeEdict;  // Will remove the foodcube after timeout
+			best->svflags &= ~SVF_INSTANCED;  // Make sure it's not instanced
 			best->s.old_origin = best->s.origin;
 			gi.linkentity(best);
-
 			gi.sound(best, CHAN_AUTO, gi.soundindex("misc/fhit3.wav"), 1.f, ATTN_NORM, 0.f);
 
 			return;
