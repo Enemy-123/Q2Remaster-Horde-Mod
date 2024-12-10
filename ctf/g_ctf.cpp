@@ -1014,49 +1014,6 @@ void DMGID_f(edict_t* ent)
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = gtime_t::from_sec(60);
 
-
-class ConfigStringManager {
-private:
-    // Use a fixed size array since range is known
-    static constexpr size_t MAX_CONFIG_STRINGS = CONFIG_ENTITY_INFO_END - CONFIG_ENTITY_INFO_START + 1;
-    std::vector<int> m_availableIndices;  
-    std::unordered_map<int, int> m_entityToConfig;
-
-public:
-    ConfigStringManager() noexcept {
-        // Preallocate known size
-        m_availableIndices.reserve(MAX_CONFIG_STRINGS);
-        for (int i = CONFIG_ENTITY_INFO_START; i <= CONFIG_ENTITY_INFO_END; ++i) {
-            m_availableIndices.push_back(i); 
-        }
-    }
-
-    // Improved error handling and null checks
-    int getConfigString(int entity_index) {
-        // Use find() instead of operator[]
-        if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
-            return it->second;
-        }
-
-        if (!m_availableIndices.empty()) {
-            int cs_index = m_availableIndices.back();
-            m_availableIndices.pop_back();
-            m_entityToConfig[entity_index] = cs_index;
-            return cs_index;
-        }
-
-        return -1; // Error case
-    }
-
-    void freeConfigString(int entity_index) {
-        if (auto it = m_entityToConfig.find(entity_index); it != m_entityToConfig.end()) {
-            m_availableIndices.push_back(it->second);
-            gi.configstring(it->second, "");
-            m_entityToConfig.erase(it);
-        }
-    }
-};
-
 // Lista de prefijos válidos para IsValidClassname
 static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 	"monster_",
@@ -1095,7 +1052,7 @@ static constexpr std::array<std::string_view, 6> ALLOWED_PREFIXES = { {
 
 bool IsValidClassname(const char* classname) noexcept {
 	if (!classname) return false;
-	for (const auto prefix : ALLOWED_PREFIXES) {  // Removido el & 
+	for (const auto prefix : ALLOWED_PREFIXES) {
 		if (strncmp(classname, prefix.data(), prefix.length()) == 0) {
 			return true;
 		}
@@ -1213,7 +1170,7 @@ int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
 	return info;
 }
 
-class OptimizedEntityInfoManager {
+class EntityInfoManager {
 public:
 	static constexpr size_t MAX_ENTITY_INFOS = ENTITY_INFO_COUNT;
 	static constexpr size_t MAX_STRING_LENGTH = 256;
@@ -1242,13 +1199,12 @@ private:
 	};
 
 	std::array<EntityInfo, MAX_ENTITY_INFOS> m_entities;
-	// std::unordered_map<int, int> m_entityToSlot; // Replaced with std::vector (assuming dense entity indices)
 	std::vector<int> m_entityToSlot;
 	std::vector<int> m_freeSlots;
 	uint16_t m_activeCount{ 0 };
 
 public:
-	OptimizedEntityInfoManager() noexcept {
+	EntityInfoManager() noexcept {
 		m_freeSlots.reserve(MAX_ENTITY_INFOS);
 		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
 			m_freeSlots.push_back(i);
@@ -1296,8 +1252,7 @@ public:
 	}
 
 	static constexpr bool isValidConfigStringId(int32_t id) noexcept {
-		return id >= CONFIG_ENTITY_INFO_START &&
-			id <= CONFIG_ENTITY_INFO_END;
+		return id >= CONFIG_ENTITY_INFO_START && id <= CONFIG_ENTITY_INFO_END;
 	}
 
 	void removeEntityInfo(int entityIndex) noexcept {
@@ -1313,20 +1268,16 @@ public:
 
 		auto& entity = m_entities[slotIndex];
 
-		// Validate config string ID before using
 		if (isValidConfigStringId(entity.config_string_id)) {
 			gi.configstring(entity.config_string_id, "");
 		}
 
-		// Clear data
 		entity.length = 0;
 		entity.data[0] = '\0';
 		entity.last_update = 0_ms;
 
 		m_freeSlots.push_back(slotIndex);
-		m_entityToSlot[entityIndex] = -1; // Mark slot as free
-		m_activeCount--;
-
+		m_entityToSlot[entityIndex] = -1; // Mark slot as free		m_activeCount--;
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
@@ -1344,9 +1295,20 @@ public:
 		return -1;
 	}
 
-	// Consider making cleanupStaleEntries a non-member function or 
-	// a static member function if it doesn't need to access private members 
-	// directly (it could receive an OptimizedEntityInfoManager* as a parameter).
+	[[nodiscard]] bool hasEntityInfo(int entityIndex) const noexcept {
+		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
+			return false;
+		return m_entityToSlot[entityIndex] != -1;
+	}
+
+	[[nodiscard]] size_t getActiveCount() const noexcept {
+		return m_activeCount;
+	}
+
+	[[nodiscard]] size_t getAvailableSlots() const noexcept {
+		return m_freeSlots.size();
+	}
+
 	void cleanupStaleEntries() noexcept {
 		for (int entityIndex = 0; entityIndex < MAX_EDICTS; ++entityIndex) {
 			int const slotIndex = m_entityToSlot[entityIndex];
@@ -1359,21 +1321,7 @@ public:
 	}
 };
 
-inline OptimizedEntityInfoManager g_entityInfoManager;
-
-//// Función auxiliar optimizada
-//inline void UpdateEntityConfigString(edict_t* self) noexcept {
-//	if (!self) return;
-//
-//	const unsigned int entityIndex = self - g_edicts;
-//	if (entityIndex < globals.num_edicts) {
-//		std::string_view infoString = FormatEntityInfo(self);
-//		g_entityInfoManager.updateEntityInfo(entityIndex, infoString);
-//	}
-//}
-
-
-// Constantes para evitar magic numbers
+inline EntityInfoManager g_entityInfoManager;
 struct CTFIDViewConfig {
 	static constexpr gtime_t UPDATE_INTERVAL = 97_ms;
 	static constexpr float MAX_DISTANCE = 2048.0f;
@@ -1382,8 +1330,6 @@ struct CTFIDViewConfig {
 	static constexpr float CLOSE_MIN_DOT = 0.5f;
 };
 
-// En el archivo donde tienes la función CTFSetIDView
-// Función auxiliar para verificar si una entidad está en el campo de visión
 [[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
 	const vec3_t& target_pos, float min_dot, float max_distance) noexcept {
 	vec3_t dir = target_pos - viewer_pos;
@@ -1392,13 +1338,11 @@ struct CTFIDViewConfig {
 	return dist < max_distance && viewer_forward.dot(dir) > min_dot;
 }
 
-// Función auxiliar para realizar el trace
 [[nodiscard]] bool CanSeeTarget(const edict_t* viewer, const vec3_t& start,
 	const edict_t* target, const vec3_t& end) noexcept {
 	trace_t const tr = gi.traceline(start, end, viewer, MASK_SOLID);
 	return tr.fraction == 1.0f || tr.ent == target;
 }
-
 
 struct TargetSearchResult {
 	edict_t* target{ nullptr };
