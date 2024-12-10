@@ -1439,6 +1439,8 @@ void OnEntityDeath(edict_t* self) noexcept {
 	}
 
 	self->monsterinfo.death_processed = true;
+	if (self->monsterinfo.IS_BOSS)
+	self->monsterinfo.IS_BOSS = false;
 
 	// Handle summoned entity deaths
 	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
