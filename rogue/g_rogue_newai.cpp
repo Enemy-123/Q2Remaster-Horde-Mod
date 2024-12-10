@@ -1524,7 +1524,7 @@ edict_t* PickCoopTarget(edict_t* self)
 	edict_t* result = nullptr;
 
 	// if we're not in coop, this is a noop
-	if (!G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
+	if (G_IsDeathmatch() && !g_horde->integer || !G_IsCooperative())
 		return nullptr;
 
 	targets = new(std::nothrow) edict_t * [game.maxclients];
