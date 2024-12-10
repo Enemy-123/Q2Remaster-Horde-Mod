@@ -932,72 +932,111 @@ void G_SetStats(edict_t* ent)
 			break;
 		}
 
-		G_SetPowerupStat((uint16_t*)&ent->client->ps.stats[STAT_POWERUP_INFO_START], powerup->powerup_wheel_index, val);
+		G_SetPowerupStat((uint16_t*)&ent->client->ps.stats[STAT_POWERUP_INFO_START],
+			powerup->powerup_wheel_index, val);
 	}
 
 	ent->client->ps.stats[STAT_TIMER_ICON] = 0;
 	ent->client->ps.stats[STAT_TIMER] = 0;
 
-	//
-	// timers
-	//
-	// PGM
+	// Improved powerup and sphere timer management
+	struct active_powerup_t {
+		const powerup_info_t* info;
+		int16_t timer_value;
+		const char* icon;
+		bool is_sphere;
+	};
+
+	std::vector<active_powerup_t> active_powerups;
+	active_powerup_t sphere_powerup = {};
+
+	// Check for active sphere first
 	if (ent->client->owned_sphere)
 	{
-		if (ent->client->owned_sphere->spawnflags == SPHERE_DEFENDER) // defender
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_defender");
-		else if (ent->client->owned_sphere->spawnflags == SPHERE_HUNTER) // hunter
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_hunter");
-		else if (ent->client->owned_sphere->spawnflags == SPHERE_VENGEANCE) // vengeance
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_vengeance");
-		else // error case
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("i_fixme");
+		sphere_powerup.is_sphere = true;
+		sphere_powerup.timer_value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
 
-		ent->client->ps.stats[STAT_TIMER] = ceil(ent->client->owned_sphere->wait - level.time.seconds());
+		if (ent->client->owned_sphere->spawnflags.has(SPHERE_DEFENDER))
+			sphere_powerup.icon = "p_defender";
+		else if (ent->client->owned_sphere->spawnflags.has(SPHERE_HUNTER))
+			sphere_powerup.icon = "p_hunter";
+		else if (ent->client->owned_sphere->spawnflags.has(SPHERE_VENGEANCE))
+			sphere_powerup.icon = "p_vengeance";
+		else {
+			sphere_powerup.icon = "i_fixme";
+			gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n",
+				SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
+		}
 	}
-	else
+
+	// Collect active powerups
+	for (auto& powerup : powerup_table)
 	{
-		powerup_info_t* best_powerup = nullptr;
+		auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
+		auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
 
-		for (auto& powerup : powerup_table)
+		if ((powerup_time && *powerup_time > level.time) ||
+			(powerup_count && *powerup_count > 0))
 		{
-			auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
-			auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
+			active_powerup_t ap = {};
+			ap.info = &powerup;
 
-			if (powerup_time && *powerup_time <= level.time)
-				continue;
-			else if (powerup_count && !*powerup_count)
-				continue;
+			// Calculate timer value
+			if (powerup.count_ptr)
+				ap.timer_value = (ent->client->*powerup.count_ptr);
+			else
+				ap.timer_value = ceil((ent->client->*powerup.time_ptr - level.time).seconds());
 
-			if (!best_powerup)
-			{
-				best_powerup = &powerup;
-				continue;
-			}
+			const gitem_t* const item = GetItemByIndex(powerup.item);
+			if (item)
+				ap.icon = item->icon;
 
-			if (powerup_time && *powerup_time < ent->client->*best_powerup->time_ptr)
-			{
-				best_powerup = &powerup;
-				continue;
-			}
-			else if (powerup_count && !best_powerup->time_ptr)
-			{
-				best_powerup = &powerup;
-				continue;
-			}
+			active_powerups.push_back(ap);
+		}
+	}
+
+	// Sort powerups by remaining time (lower times first)
+	if (!active_powerups.empty())
+	{
+		std::sort(active_powerups.begin(), active_powerups.end(),
+			[](const active_powerup_t& a, const active_powerup_t& b) {
+				if (!a.info || !b.info) return a.info != nullptr;
+				if (a.info->time_ptr && b.info->time_ptr)
+					return a.timer_value < b.timer_value;
+				return a.info->time_ptr != nullptr;
+			});
+	}
+
+	// Handle display logic with alternation
+	const gtime_t blink_period = 3_sec;
+	if (!active_powerups.empty() || sphere_powerup.icon)
+	{
+		const bool should_alternate = (level.time.milliseconds() % blink_period.milliseconds()) < (blink_period.milliseconds() / 2);
+		const active_powerup_t* display_powerup = nullptr;
+
+		if (sphere_powerup.icon && !active_powerups.empty())
+		{
+			// Alternate between sphere and most urgent powerup
+			display_powerup = should_alternate ? &active_powerups[0] : &sphere_powerup;
+		}
+		else if (active_powerups.size() > 1)
+		{
+			// Alternate between two most urgent powerups
+			display_powerup = should_alternate ? &active_powerups[1] : &active_powerups[0];
+		}
+		else if (!active_powerups.empty())
+		{
+			display_powerup = &active_powerups[0];
+		}
+		else if (sphere_powerup.icon)
+		{
+			display_powerup = &sphere_powerup;
 		}
 
-		if (best_powerup)
+		if (display_powerup && display_powerup->icon)
 		{
-			int16_t value;
-
-			if (best_powerup->count_ptr)
-				value = (ent->client->*best_powerup->count_ptr);
-			else
-				value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
-
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(GetItemByIndex(best_powerup->item)->icon);
-			ent->client->ps.stats[STAT_TIMER] = value;
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(display_powerup->icon);
+			ent->client->ps.stats[STAT_TIMER] = display_powerup->timer_value;
 		}
 	}
 	// PGM
