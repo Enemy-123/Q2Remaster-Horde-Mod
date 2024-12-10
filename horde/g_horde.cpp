@@ -3263,19 +3263,25 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	const int32_t remainingMonsters = CalculateRemainingMonsters();
 	const float percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
 
-	// Check independent time limit first
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
+	// Initialize wave end time if not set
+	if (g_horde_local.waveEndTime == 0_sec) {
+		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 	}
 
+	// Priority 1: Check for instant win conditions
 	if (allowWaveAdvance || Horde_AllMonstersDead()) {
 		reason = WaveEndReason::AllMonstersDead;
 		ResetWaveAdvanceState();
 		return true;
 	}
 
-	// First check: Has the condition been triggered yet?
+	// Priority 2: Check global time limit
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
+	}
+
+	// Priority 3: Check and handle condition triggers
 	if (!g_horde_local.conditionTriggered) {
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
 		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
@@ -3284,14 +3290,15 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Select shortest time threshold based on conditions
+			// Select appropriate time threshold
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
 				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
 				maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
 
+			// Set initial wave end time
 			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
 
-			// Aggressive time reduction for very few monsters
+			// Apply aggressive time reduction if very few monsters remain
 			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
 				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
 					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
@@ -3301,49 +3308,34 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
-	// Second check: Has the time threshold been exceeded after condition was triggered?
+	// Priority 4: Handle active condition state
 	if (g_horde_local.conditionTriggered) {
-		// Time threshold check only happens after condition is triggered
-		if (currentTime >= g_horde_local.conditionStartTime + g_lastParams.timeThreshold) {
+		// Check for condition expiration
+		if (currentTime >= g_horde_local.waveEndTime) {
 			reason = WaveEndReason::MonstersRemaining;
 			return true;
 		}
-	}
 
-	// Third check: Independent time limit (separate from condition timer)
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
-	}
+		// Handle dynamic time adjustments for low monster counts
+		if (!g_lowPercentageTriggered &&
+			percentageRemaining <= g_lastParams.lowPercentageThreshold) {
 
-	// Fourth check: All monsters dead or wave advance allowed
-	if (allowWaveAdvance || Horde_AllMonstersDead()) {
-		reason = WaveEndReason::AllMonstersDead;
-		ResetWaveAdvanceState();
-		return true;
-	}
+			g_lowPercentageTriggered = true;
 
-	// If low percentage of monsters remaining after condition triggered
-	if (g_horde_local.conditionTriggered &&
-		percentageRemaining <= g_lastParams.lowPercentageThreshold &&
-		!g_lowPercentageTriggered) {
+			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
+				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
+					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
+				const gtime_t newEndTime = currentTime + reduction;
 
-		g_lowPercentageTriggered = true;
-
-		// Reduce time threshold
-		if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-			const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-				(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-			g_horde_local.conditionTimeThreshold = std::min(
-				g_lastParams.timeThreshold,
-				reduction);
+				if (newEndTime < g_horde_local.waveEndTime) {
+					g_horde_local.waveEndTime = newEndTime;
+				//	gi.LocBroadcast_Print(PRINT_HIGH, "Time reduced due to few remaining monsters!\n");
+				}
+			}
 		}
-	}
 
-	// Handle warnings
-	if (g_horde_local.conditionTriggered) {
-		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;  // Use waveEndTime instead
-
+		// Handle warning messages
+		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] &&
@@ -3358,16 +3350,17 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 
 	// Debug output
 	if (developer->integer && currentTime - g_horde_local.lastPrintTime >= 10_sec) {
-		gi.Com_PrintFmt("Wave status: {} monsters remaining ({}%). Condition {}\n",
+		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
+		gi.Com_PrintFmt("Wave status: {} monsters remaining ({:.2f}%). Time remaining: {:.1f}s. Condition {}\n",
 			remainingMonsters,
-			(percentageRemaining * 100.0f),
+			(percentageRemaining * 100.0f),  // no change needed to the value itself
+			remainingTime.seconds(),
 			g_horde_local.conditionTriggered ? "triggered" : "not triggered");
 		g_horde_local.lastPrintTime = currentTime;
 	}
 
 	return false;
 }
-
 //
 // game resetting
 //
@@ -4185,13 +4178,13 @@ static void SendCleanupMessage(WaveEndReason reason) {
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
-		if (developer->integer == 2)
+		if (developer->integer)
 			PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
-		if (developer->integer == 2)
-			PrintRemainingMonsterCounts();
+		if (developer->integer)
+	//		PrintRemainingMonsterCounts();
 		break;
 	case WaveEndReason::TimeLimitReached:
 		message = fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level);
@@ -4426,6 +4419,7 @@ gtime_t GetWaveTimer() {
 	return remainingTime;
 }
 
+// Helper functionget stroggs alive on the map
 inline int32_t GetStroggsNum() noexcept {
 	return level.total_monsters - level.killed_monsters;
 }
