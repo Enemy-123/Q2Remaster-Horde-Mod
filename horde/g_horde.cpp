@@ -3723,8 +3723,8 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 		return false;
 
 	constexpr gtime_t NO_DAMAGE_TIMEOUT = 25_sec;
-	constexpr gtime_t STUCK_CHECK_TIME = 5_sec;
-	constexpr gtime_t TELEPORT_COOLDOWN = 4_sec;
+	constexpr gtime_t STUCK_CHECK_TIME = 10_sec;
+	constexpr gtime_t TELEPORT_COOLDOWN = 15_sec;
 
 	// If can see enemy, don't teleport
 	if (self->monsterinfo.issummoned ||
@@ -3763,7 +3763,7 @@ bool CheckAndTeleportStuckMonster(edict_t* self) {
 
 	// Use StuckMonsterSpawnFilter with SelectRandomSpawnPoint
 	StuckMonsterSpawnFilter filter;
-	edict_t* spawn_point = SelectRandomSpawnPoint(filter);
+	const edict_t* const spawn_point = SelectRandomSpawnPoint(filter);
 	if (!spawn_point) {
 		// Show entity again if we fail early
 		self->svflags &= ~SVF_NOCLIENT;
