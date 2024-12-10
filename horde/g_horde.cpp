@@ -1200,11 +1200,11 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 	const SpecialWave special_waves[] = {
 		// Early game special waves (waves 5-15)
 		{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "*** Gekk invasion incoming! ***\n"},
-		{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, -1, "*** Enraged Horde approaching! ***\n"},
+		{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 25, "*** Enraged Horde approaching! ***\n"},
 		{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.3f, 6, -1, "*** Aerial assault incoming! ***\n"},
 
 		// Mid game special waves (waves 8+)
-		{MonsterWaveType::Berserk, 0.25f, 8, -1, "*** Berserkers incoming! ***\n"},
+		{MonsterWaveType::Berserk, 0.25f, 8, 16, "*** Berserkers incoming! ***\n"},
 		{MonsterWaveType::Bomber, 0.35f, 10, -1, "*** Strogg Bomber Units Arrived! ***\n"},
 
 		// Late game special waves
