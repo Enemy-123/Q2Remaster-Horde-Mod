@@ -482,7 +482,9 @@ void jorgBFG(edict_t* self)
 	dir = vec - start;
 	dir.normalize();
 	gi.sound(self, CHAN_WEAPON, sound_bfg_fire, 1, ATTN_NORM, 0);
-	monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG);
+	(strcmp(self->classname, "monster_jorg") == 0) ?
+		monster_fire_bfg(self, start, dir, 50, 300, 100, 300, MZ2_MAKRON_BFG) :
+		monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
 }
 
 void jorg_firebullet_right(edict_t* self)
@@ -514,11 +516,15 @@ void jorg_firebullet_right(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int const damage = 35;
-	int const radius_damage = 45;
+	int constexpr damage = 35;
+	int constexpr radius_damage = 45;
 
-
-	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+	if (strcmp(self->classname, "monster_jorg") == 0) {
+		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+	}
+	else
+		//	monster_fire_tracker(self, start, dir, 13, 950, self->enemy, MZ2_MAKRON_BFG);
+		fire_blaster_bolt(self, start, dir, damage, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;
@@ -538,10 +544,14 @@ void jorg_firebullet_left(edict_t* self)
 	dir = self->pos1 - start;
 	dir.normalize();
 
-	int const damage = 35;
-	int const radius_damage = 45;
+	int constexpr damage = 35;
+	int constexpr radius_damage = 45;
 
-	fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+	if (strcmp(self->classname, "monster_jorg") == 0) {
+		fire_plasma(self, start, dir, damage, 725, radius_damage, radius_damage);
+	}
+	else
+		fire_blaster_bolt(self, start, dir, damage, 650, EF_HYPERBLASTER, MOD_HYPERBLASTER, 3);
 
 	// save for aiming the shot
 	self->pos1 = self->enemy->s.origin;
@@ -716,5 +726,21 @@ void SP_monster_jorg(edict_t* self)
 	// pmm
 	self->monsterinfo.aiflags |= AI_DOUBLE_TROUBLE;
 
+	ApplyMonsterBonusFlags(self);
+}
+
+void SP_monster_jorg_small(edict_t* self)
+{
+	const spawn_temp_t& st = ED_GetSpawnTemp();
+
+	SP_monster_jorg(self);
+
+	self->monsterinfo.armor_type = IT_ARMOR_COMBAT;
+	self->monsterinfo.armor_power = 500;
+	self->health = 1000 * st.health_multiplier;
+
+		self->s.scale = 0.35f;
+		self->mins *= 0.35f;
+		self->maxs *= 0.35f;
 	ApplyMonsterBonusFlags(self);
 }

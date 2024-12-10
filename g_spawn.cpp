@@ -157,6 +157,7 @@ void SP_monster_boss2kl(edict_t* self);
 void SP_monster_boss2_64(edict_t* self);
 void SP_monster_boss2_mini(edict_t* self);
 void SP_monster_jorg(edict_t* self);
+void SP_monster_jorg_small(edict_t* self);
 void SP_monster_boss3_stand(edict_t* self);
 void SP_monster_makron(edict_t* self);
 void SP_monster_makronkl(edict_t* self);
@@ -403,6 +404,7 @@ static const std::initializer_list<spawn_t> spawns = {
 	{ "monster_boss2_mini", SP_monster_boss2_mini },
 	{ "monster_boss3_stand", SP_monster_boss3_stand },
 	{ "monster_jorg", SP_monster_jorg },
+	{ "monster_jorg_small", SP_monster_jorg_small },
 	// Paril: allow spawning makron
 	{ "monster_makron", SP_monster_makron },
 	{ "monster_makronkl", SP_monster_makronkl },

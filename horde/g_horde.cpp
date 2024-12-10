@@ -514,7 +514,10 @@ enum class MonsterWaveType : uint32_t {
 	Gekk = 1 << 13,  // Gekk initial wave?
 	Shambler = 1 << 14,  // Shambler boss wave?
 	Mutant = 1 << 15, // Mutant boss wave?
-	Arachnophobic = 1 << 16  // Mutant boss wave?
+	Arachnophobic = 1 << 16,  // Mutant boss wave?
+	Berserk = 1 << 17,  // Berserk  wave
+	Bomber = 1 << 18,  // Grenade users wave?
+	Spawner = 1 << 19  // Spawning reinforcements users wave
 };
 
 MonsterWaveType current_wave_type = MonsterWaveType::None;
@@ -1198,7 +1201,10 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 			{MonsterWaveType::Gekk, (numHumanPlayers <= 2 ? 0.35f : 0.20f), 5, 7, "*** Gekk invasion incoming! ***\n"},
 			{MonsterWaveType::Mutant | MonsterWaveType::Melee, 0.30f, 8, 9, "*** Enraged Horde approaching! ***\n"},
 			{MonsterWaveType::Flying | MonsterWaveType::Fast, 0.25f, 6, 8, "*** Aerial assault incoming! ***\n"},
-			{MonsterWaveType::Heavy, 0.15f, 12, -1, "*** Heavy Armored Units incoming! ***\n"}
+			{MonsterWaveType::Heavy, 0.15f, 12, -1, "*** Heavy Armored Units incoming! ***\n"},
+			{MonsterWaveType::Berserk, 0.15f, 17, -1, "*** Berserkers incoming! ***\n"},
+			{MonsterWaveType::Bomber, 0.15f, 17, -1, "*** Strogg Bombers Arrived! ***\n"},
+			{MonsterWaveType::Spawner, 0.15f, 38, -1, "*** Spawners Deployed!  ***\n"}
 		};
 
 		// Try each special wave type, respecting the recent usage check
@@ -1296,7 +1302,7 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 		return true;
 	}
 
-	// Special waves checks - these are strict requirements
+	// Special waves checks - these are strict requirements 
 	if (HasWaveType(waveRequirements, MonsterWaveType::Flying)) {
 		return HasWaveType(monsterTypes, MonsterWaveType::Flying);
 	}
@@ -1325,6 +1331,19 @@ inline bool IsValidMonsterForWave(const char* classname, MonsterWaveType waveReq
 		return HasWaveType(monsterTypes, MonsterWaveType::Melee);
 	}
 
+	// Add checks for Berserk, Bomber and Spawner flags
+	if (HasWaveType(waveRequirements, MonsterWaveType::Berserk)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Berserk);
+	}
+
+	if (HasWaveType(waveRequirements, MonsterWaveType::Bomber)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Bomber);
+	}
+
+	if (HasWaveType(waveRequirements, MonsterWaveType::Spawner)) {
+		return HasWaveType(monsterTypes, MonsterWaveType::Spawner);
+	}
+
 	// For mixed waves, monster should match at least one type
 	return (static_cast<uint32_t>(monsterTypes & waveRequirements) != 0);
 }
@@ -1347,7 +1366,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_soldier_light", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 1.0f},
 	{"monster_soldier", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 1, 0.9f},
 	{"monster_soldier_ss", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 2, 0.8f},
-	{"monster_infantry_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged, 3, 0.85f},
+	{"monster_infantry_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 3, 0.85f},
 
 	// Early Flying Units (Waves 1-8)
 	{"monster_flyer", MonsterWaveType::Flying | MonsterWaveType::Light | MonsterWaveType::Fast, 1, 0.7f},
@@ -1367,17 +1386,17 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_chick", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 7, 0.6f},
 
 	// Medium Units (Waves 7-12)
-	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged, 8, 0.8f},
-	{"monster_infantry", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged, 11, 0.85f},
+	{"monster_gunner_vanilla", MonsterWaveType::Ground | MonsterWaveType::Light | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 8, 0.8f},
+	{"monster_infantry", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Heavy | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 11, 0.85f},
 	{"monster_medic", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Special, 7, 0.5f},
-	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee, 7, 0.5f},
+	{"monster_berserk", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Melee| MonsterWaveType::Berserk , 6, 0.5f},
 
 	// Arachnophobic Units (Waves 8-18)
 	{"monster_spider", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 8, 0.1f},
-	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 12, 0.4f},
+	{"monster_guncmdr_vanilla", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 12, 0.4f},
 	{"monster_arachnid2", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 18, 0.4f},
 	{"monster_gm_arachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Heavy | MonsterWaveType::Elite, 15, 0.45f},
-	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite, 25, 0.35f},
+	{"monster_psxarachnid", MonsterWaveType::Ground | MonsterWaveType::Arachnophobic | MonsterWaveType::Elite| MonsterWaveType::Spawner, 25, 0.35f},
 
 	// Mutant Units (Waves 9-14)
 	{"monster_mutant", MonsterWaveType::Ground | MonsterWaveType::Fast | MonsterWaveType::Melee | MonsterWaveType::Shambler | MonsterWaveType::Mutant, 9, 0.7f},
@@ -1386,11 +1405,11 @@ static const MonsterTypeInfo monsterTypes[] = {
 
 	// Heavy Ground Units (Waves 12-18)
 	{"monster_gladiator", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.7f},
-	{"monster_gunner", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged, 12, 0.8f},
+	{"monster_gunner", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Ranged | MonsterWaveType::Bomber, 12, 0.8f},
 	{"monster_tank_spawner", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Medium, 13, 0.6f},
-	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy, 14, 0.4f},
-	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 16, 0.5f},
-	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 15, 0.7f},
+	{"monster_tank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 14, 0.4f},
+	{"monster_tank_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Bomber, 16, 0.5f},
+	{"monster_guncmdr", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite | MonsterWaveType::Bomber, 15, 0.7f},
 	{"monster_runnertank", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 21, 0.5f},
 	{"monster_chick_heat", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Fast, 13, 0.6f},
 
@@ -1398,7 +1417,7 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_hover", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 18, 0.5f},
 	{"monster_daedalus", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 21, 0.4f},
 	{"monster_floater_tracker", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 27, 0.45f},
-	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite, 24, 0.35f},
+	{"monster_daedalus_bomber", MonsterWaveType::Flying | MonsterWaveType::Fast | MonsterWaveType::Elite | MonsterWaveType::Bomber, 24, 0.35f},
 
 	// Elite Ground Units (Waves 18+)
 	{"monster_gladb", MonsterWaveType::Ground | MonsterWaveType::Medium | MonsterWaveType::Elite, 18, 0.7f},
@@ -1407,23 +1426,24 @@ static const MonsterTypeInfo monsterTypes[] = {
 	{"monster_tank_64", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite, 28, 0.3f},
 
 	// Special Heavy Units (Waves 20+)
-	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special, 21, 0.5f},
-	{"monster_janitor2", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special, 26, 0.4f},
-	{"monster_medic_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite, 27, 0.3f},
+	{"monster_janitor", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Bomber, 21, 0.5f},
+	{"monster_janitor2", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Elite | MonsterWaveType::Special | MonsterWaveType::Bomber, 26, 0.4f},
+	{"monster_medic_commander", MonsterWaveType::Ground | MonsterWaveType::Heavy | MonsterWaveType::Special | MonsterWaveType::Elite| MonsterWaveType::Spawner, 27, 0.3f},
 
 	// Semi-Boss Units (Waves 16+)
 	{"monster_makron", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 23, 0.02f},
 	{"monster_perrokl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Fast | MonsterWaveType::Small, 20, 0.4f},
 	{"monster_widow1", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 29, 0.3f},
 	{"monster_shamblerkl", MonsterWaveType::Shambler | MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.3f},
-	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 33, 0.2f},
+	{"monster_guncmdrkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Bomber, 33, 0.2f},
 	{"monster_makronkl", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy | MonsterWaveType::Elite, 41, 0.2f},
 	{"monster_boss2kl", MonsterWaveType::Flying | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy, 46, 0.2f},
+	{"monster_jorg_small", MonsterWaveType::Ground | MonsterWaveType::SemiBoss | MonsterWaveType::Heavy| MonsterWaveType::Medium, 33, 0.2f},
 
 	// Boss Units
 	{"monster_boss2_64", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
 	{"monster_boss2_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 19, 0.2f},
-	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy, 27, 0.2f}
+	{"monster_carrier_mini", MonsterWaveType::Flying | MonsterWaveType::Boss | MonsterWaveType::Heavy| MonsterWaveType::Spawner, 27, 0.2f}
 };
 
 // Function to get wave types for a monster based on its classname
