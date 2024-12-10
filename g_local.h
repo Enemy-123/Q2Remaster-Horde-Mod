@@ -3159,10 +3159,6 @@ struct gclient_t
 	float		last_hook_time;
 	int			hook_damage;
 
-
-	std::string target_health_str;  // Cadena para mostrar la salud del objetivo
-	std::string last_statusbar;  // último statusbar para comparar cambios
-
 	vec3_t old_origin; // Agregar para almacenar la posición anterior del jugador
 	vec3_t old_angles; // Agregar para almacenar los ángulos anteriores del jugador
 	bool techItemsRemoved;

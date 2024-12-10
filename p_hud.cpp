@@ -10,7 +10,7 @@
 INTERMISSION
 
 ======================================================================
-*///
+*/
 
 void DeathmatchScoreboard(edict_t* ent);
 
@@ -19,7 +19,7 @@ void MoveClientToIntermission(edict_t* ent)
 	// [Paril-KEX]
 	if (ent->client->ps.pmove.pm_type != PM_FREEZE)
 		ent->s.event = EV_OTHER_TELEPORT;
-	if (G_IsDeathmatch())
+	if (deathmatch->integer)
 		ent->client->showscores = true;
 	ent->s.origin = level.intermission_origin;
 	ent->client->ps.pmove.origin = level.intermission_origin;
@@ -68,7 +68,7 @@ void MoveClientToIntermission(edict_t* ent)
 
 	// add the layout
 
-	if (g_horde->integer || G_IsDeathmatch())
+	if (deathmatch->integer)
 	{
 		DeathmatchScoreboard(ent);
 		ent->client->showscores = true;
@@ -340,7 +340,7 @@ void BeginIntermission(edict_t* targ)
 		// "no end of unit" maps handle intermission differently
 		if (!targ->spawnflags.has(SPAWNFLAG_CHANGELEVEL_NO_END_OF_UNIT))
 			G_EndOfUnitMessage();
-		else if (targ->spawnflags.has(SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE) && !G_IsDeathmatch())
+		else if (targ->spawnflags.has(SPAWNFLAG_CHANGELEVEL_IMMEDIATE_LEAVE) && !G_IsDeathmatch()) 
 		{
 			// Need to call this now
 			G_ReportMatchDetails(true);
@@ -350,7 +350,7 @@ void BeginIntermission(edict_t* targ)
 	}
 	else
 	{
-		if (!G_IsDeathmatch())
+		if (!G_IsDeathmatch()) 
 		{
 			level.exitintermission = 1; // go immediately to the next level
 			return;
@@ -366,11 +366,19 @@ void BeginIntermission(edict_t* targ)
 	{
 		// find an intermission spot
 		ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_intermission");
+
+		//if (!ent)
+		//{ // the map creator forgot to put in an intermission point...
+		//	ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
+		//	if (!ent)
+		//		ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+		//}
+
 		if (!ent)
 		{ // the map creator forgot to put in an intermission point...
-			ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
+			ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
 			if (!ent)
-				ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_start");
+				ent = G_FindByString<&edict_t::classname>(nullptr, "info_player_deathmatch");
 		}
 		else
 		{ // choose one of four spots
@@ -562,7 +570,7 @@ void Cmd_Score_f(edict_t* ent)
 
 	// ZOID
 	if (ent->client->menu)
-		PMenu_Close(ent); // crash debugger
+		PMenu_Close(ent); 
 	// ZOID
 
 	if (!G_IsDeathmatch() && !G_IsCooperative())
@@ -743,7 +751,7 @@ void G_SetCoopStats(edict_t* ent) {
 			const gtime_t waveTime = GetWaveTimer();
 			t = waveTime.seconds<int>();
 		}
-	// Only update if the time has changed
+		// Only update if the time has changed
 		if (t != ent->client->last_wave_timer_horde_update)
 		{
 			ent->client->last_wave_timer_horde_update = t;
@@ -760,7 +768,6 @@ void G_SetCoopStats(edict_t* ent) {
 inline int SafeConvertSpawnflags(const spawnflags_t& flags) {
 	return static_cast<int>(static_cast<uint32_t>(flags));
 }
-
 struct powerup_info_t
 {
 	item_id_t item;
@@ -791,9 +798,6 @@ void G_SetStats(edict_t* ent)
 	item_id_t power_armor_type;
 	unsigned int invIndex;
 
-	if (!ent || !ent->client)
-		return;
-
 	//
 	// health
 	//
@@ -802,22 +806,6 @@ void G_SetStats(edict_t* ent)
 	else
 		ent->client->ps.stats[STAT_HEALTH_ICON] = level.pic_health;
 	ent->client->ps.stats[STAT_HEALTH] = ent->health;
-
-	// Verificar y mantener el target_health_str
-	if (ent->client->ps.stats[STAT_CTF_ID_VIEW] != 0) {
-		int const target_index = ent->client->ps.stats[STAT_CTF_ID_VIEW];
-		const edict_t* const target = &g_edicts[target_index];
-
-		if (target->inuse && target->client) {
-			ent->client->target_health_str = "Health: " + std::to_string(target->health);
-		}
-		else {
-			ent->client->target_health_str.clear();
-		}
-	}
-	else {
-		ent->client->target_health_str.clear();
-	}
 
 	if (ent->client->voted_map[0]) {
 		ent->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
@@ -833,9 +821,6 @@ void G_SetStats(edict_t* ent)
 	else {
 		ent->client->ps.stats[STAT_HORDEMSG] = 0;
 	}
-
-
-
 	//
 	// weapons
 	//
@@ -920,23 +905,27 @@ void G_SetStats(edict_t* ent)
 	memset(&ent->client->ps.stats[STAT_POWERUP_INFO_START], 0, sizeof(uint16_t) * NUM_POWERUP_STATS);
 	for (unsigned int powerupIndex = POWERUP_SCREEN; powerupIndex < POWERUP_MAX; ++powerupIndex)
 	{
-		const gitem_t* const powerup = GetItemByPowerup((powerup_t)powerupIndex);
-		if (!powerup) {
-			gi.Com_PrintFmt("PRINT: Warning: Invalid powerup index {}\n", powerupIndex);
-			continue;
-		}
-
+		gitem_t* powerup = GetItemByPowerup((powerup_t)powerupIndex);
 		uint16_t val;
+
 		switch (powerup->id)
 		{
 		case IT_ITEM_POWER_SCREEN:
 		case IT_ITEM_POWER_SHIELD:
-			val = (!ent->client->pers.inventory[powerup->id]) ? 0 :
-				((ent->flags & FL_POWER_ARMOR) ? 2 : 1);
+			if (!ent->client->pers.inventory[powerup->id])
+				val = 0;
+			else if (ent->flags & FL_POWER_ARMOR)
+				val = 2;
+			else
+				val = 1;
 			break;
 		case IT_ITEM_FLASHLIGHT:
-			val = (!ent->client->pers.inventory[powerup->id]) ? 0 :
-				((ent->flags & FL_FLASHLIGHT) ? 2 : 1);
+			if (!ent->client->pers.inventory[powerup->id])
+				val = 0;
+			else if (ent->flags & FL_FLASHLIGHT)
+				val = 2;
+			else
+				val = 1;
 			break;
 		default:
 			val = clamp(ent->client->pers.inventory[powerup->id], 0, 3);
@@ -949,124 +938,67 @@ void G_SetStats(edict_t* ent)
 	ent->client->ps.stats[STAT_TIMER_ICON] = 0;
 	ent->client->ps.stats[STAT_TIMER] = 0;
 
-	// Estructura para manejar la información de las esferas
-	struct sphere_info_t {
-		spawnflags_t spawnflags;
-		const char* icon;
-	};
-
-	// Array de información de esferas
-	const sphere_info_t sphere_table[] = {
-		{ SPHERE_DEFENDER, "p_defender" },
-		{ SPHERE_HUNTER, "p_hunter" },
-		{ SPHERE_VENGEANCE, "p_vengeance" },
-	};
-
 	//
 	// timers
 	//
-	std::vector<powerup_info_t*> active_powerups;
-	const sphere_info_t* active_sphere = nullptr;
-
-	// Verificar esferas activas
-	if (ent->client && ent->client->owned_sphere)
+	// PGM
+	if (ent->client->owned_sphere)
 	{
-		for (const auto& sphere : sphere_table)
-		{
-			if (ent->client->owned_sphere->spawnflags.has(sphere.spawnflags))
-			{
-				active_sphere = &sphere;
-				break;
-			}
-		}
-		if (!active_sphere) {
-			gi.Com_PrintFmt("PRINT: Warning: Unknown sphere spawnflags {}\n",
-				SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
-		}
-	}
+		if (ent->client->owned_sphere->spawnflags == SPHERE_DEFENDER) // defender
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_defender");
+		else if (ent->client->owned_sphere->spawnflags == SPHERE_HUNTER) // hunter
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_hunter");
+		else if (ent->client->owned_sphere->spawnflags == SPHERE_VENGEANCE) // vengeance
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("p_vengeance");
+		else // error case
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex("i_fixme");
 
-	// Recopilar power-ups activos
-	for (auto& powerup : powerup_table)
-	{
-		const auto* const powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
-		const auto* const powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
-		if ((powerup_time && *powerup_time > level.time) || (powerup_count && *powerup_count > 0))
-		{
-			active_powerups.push_back(&powerup);
-		}
-	}
-
-	if (!active_powerups.empty() || active_sphere)
-	{
-		// Función de comparación para ordenar
-		auto compare_powerups = [&ent](powerup_info_t* a, powerup_info_t* b) {
-			if (a->time_ptr && b->time_ptr)
-				return (ent->client->*a->time_ptr) < (ent->client->*b->time_ptr);
-			return a->time_ptr != nullptr;
-			};
-
-		// Ordenar power-ups por tiempo restante
-		std::sort(active_powerups.begin(), active_powerups.end(), compare_powerups);
-
-		const powerup_info_t* const best_powerup = !active_powerups.empty() ? active_powerups.front() : nullptr;
-		const powerup_info_t* const next_best_powerup = (active_powerups.size() > 1) ? active_powerups[1] : nullptr;
-
-		int16_t timer_value = 0;
-		const char* icon = nullptr;
-
-		// Determinar el mejor power-up (incluyendo la esfera si está activa)
-		if (active_sphere && ent->client->owned_sphere)
-		{
-			timer_value = ceil(ent->client->owned_sphere->wait - level.time.seconds());
-			icon = active_sphere->icon;
-		}
-		else if (best_powerup)
-		{
-			if (best_powerup->count_ptr)
-				timer_value = (ent->client->*best_powerup->count_ptr);
-			else if (best_powerup->time_ptr)
-				timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
-
-			const gitem_t* const item = GetItemByIndex(best_powerup->item);
-			if (item)
-				icon = item->icon;
-		}
-
-		// Implementar lógica de parpadeo
-		if ((next_best_powerup || (active_sphere && best_powerup)) && ((level.time.milliseconds() % 3000) < 1500))
-		{
-			if (active_sphere && best_powerup && icon == active_sphere->icon)
-			{
-				// Alternar entre la esfera y el mejor power-up
-				const gitem_t* const item = GetItemByIndex(best_powerup->item);
-				if (item)
-					icon = item->icon;
-				if (best_powerup->count_ptr)
-					timer_value = (ent->client->*best_powerup->count_ptr);
-				else if (best_powerup->time_ptr)
-					timer_value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
-			}
-			else if (next_best_powerup)
-			{
-				// Alternar entre los dos mejores power-ups
-				const gitem_t* const item = GetItemByIndex(next_best_powerup->item);
-				if (item)
-					icon = item->icon;
-				if (next_best_powerup->count_ptr)
-					timer_value = (ent->client->*next_best_powerup->count_ptr);
-				else if (next_best_powerup->time_ptr)
-					timer_value = ceil((ent->client->*next_best_powerup->time_ptr - level.time).seconds());
-			}
-		}
-
-		if (icon)
-			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(icon);
-		ent->client->ps.stats[STAT_TIMER] = timer_value;
+		ent->client->ps.stats[STAT_TIMER] = ceil(ent->client->owned_sphere->wait - level.time.seconds());
 	}
 	else
 	{
-		ent->client->ps.stats[STAT_TIMER_ICON] = 0;
-		ent->client->ps.stats[STAT_TIMER] = 0;
+		powerup_info_t* best_powerup = nullptr;
+
+		for (auto& powerup : powerup_table)
+		{
+			auto* powerup_time = powerup.time_ptr ? &(ent->client->*powerup.time_ptr) : nullptr;
+			auto* powerup_count = powerup.count_ptr ? &(ent->client->*powerup.count_ptr) : nullptr;
+
+			if (powerup_time && *powerup_time <= level.time)
+				continue;
+			else if (powerup_count && !*powerup_count)
+				continue;
+
+			if (!best_powerup)
+			{
+				best_powerup = &powerup;
+				continue;
+			}
+
+			if (powerup_time && *powerup_time < ent->client->*best_powerup->time_ptr)
+			{
+				best_powerup = &powerup;
+				continue;
+			}
+			else if (powerup_count && !best_powerup->time_ptr)
+			{
+				best_powerup = &powerup;
+				continue;
+			}
+		}
+
+		if (best_powerup)
+		{
+			int16_t value;
+
+			if (best_powerup->count_ptr)
+				value = (ent->client->*best_powerup->count_ptr);
+			else
+				value = ceil((ent->client->*best_powerup->time_ptr - level.time).seconds());
+
+			ent->client->ps.stats[STAT_TIMER_ICON] = gi.imageindex(GetItemByIndex(best_powerup->item)->icon);
+			ent->client->ps.stats[STAT_TIMER] = value;
+		}
 	}
 	// PGM
 
@@ -1116,6 +1048,7 @@ void G_SetStats(edict_t* ent)
 		// N64 always merges into one screen on level ends
 		if (level.intermission_eou || level.is_n64 || (G_IsDeathmatch() && level.intermissiontime))
 			ent->client->ps.stats[STAT_LAYOUTS] |= LAYOUTS_INTERMISSION;
+
 	}
 
 	if (level.story_active)
@@ -1154,6 +1087,11 @@ void G_SetStats(edict_t* ent)
 		for (int32_t i = 0; i < min(num_keys_held, (size_t)3); i++, stat = (player_stat_t)(stat + 1))
 			ent->client->ps.stats[stat] = gi.imageindex(GetItemByIndex(keys_held[(i + key_offset) % num_keys_held])->icon);
 	}
+
+	//
+	// frags
+	//
+	ent->client->ps.stats[STAT_FRAGS] = ent->client->resp.score;
 
 	//
 	// help icon / current weapon if not shown
@@ -1219,29 +1157,28 @@ void G_SetStats(edict_t* ent)
 			float health_remaining = ((float)level.health_bar_entities[i]->enemy->health) / level.health_bar_entities[i]->enemy->max_health;
 			*health_byte = ((byte)(health_remaining * 0b01111111)) | 0b10000000;
 		}
+		void CTFSetIDView(edict_t * ent);
+		//ID DMG and CTFIDVIEW
+
+	//if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
+		if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER))
+			CTFSetIDView(ent);
+
+		else
+		{
+			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+		}
+
+
+		// DMG ID
+		if (level.time > ent->lastdmg + 1.75_sec || !g_iddmg->integer) {
+			ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
+		}
+		else if (ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
+			ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
+		}
 	}
-void CTFSetIDView(edict_t * ent);
-	//ID DMG and CTFIDVIEW
-
-//if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT))
-	if (ent->client->pers.id_state && (ent->svflags & SVF_PLAYER))
-		CTFSetIDView(ent);
-
-	else
-	{
-		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
-	}
-
-
-	// DMG ID
-	if (level.time > ent->lastdmg + 1.75_sec || !g_iddmg->integer) {
-		ent->client->ps.stats[STAT_ID_DAMAGE] = 0;
-	}
-	else if (ent->client->pers.iddmg_state && (ent->svflags & SVF_PLAYER) && !(ent->svflags & SVF_BOT)) {
-		ent->client->ps.stats[STAT_ID_DAMAGE] = ent->client->dmg_counter;
-	}
-
 
 	// ZOID
 	SetCTFStats(ent);
