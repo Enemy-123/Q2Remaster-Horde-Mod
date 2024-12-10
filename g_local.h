@@ -3431,7 +3431,6 @@ struct edict_t
 	gtime_t beam_hit_time; // heatbeam piercing balance
 
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow
-	int configstringIndex; // cs
 };
 
 static constexpr const char* TEAM1 = "team1";

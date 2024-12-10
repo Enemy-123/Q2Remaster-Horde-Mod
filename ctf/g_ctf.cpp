@@ -1437,17 +1437,18 @@ struct TargetSearchResult {
 }
 
 void CTFSetIDView(edict_t* ent) {
-	// Early exit if already processing or not enough time has passed
-	static bool processing = false; // Consider making this thread-local if needed
-	if (processing || level.intermissiontime || level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
+	// Make processing static within the function
+	static bool is_processing = false;
+
+	// Early exit checks
+	if (is_processing || level.intermissiontime ||
+		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
 		return;
 	}
 
-	processing = true;
-
-	// Ensure processing is reset to false when exiting the function
+	is_processing = true;
 	struct ScopeGuard {
-		~ScopeGuard() { processing = false; }
+		~ScopeGuard() { is_processing = false; }
 	} guard;
 
 	ent->client->resp.lastidtime = level.time;
@@ -1457,11 +1458,9 @@ void CTFSetIDView(edict_t* ent) {
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
-	// Find the best target using the existing logic
 	TargetSearchResult result = FindBestTarget(ent, { g_edicts + 1, globals.num_edicts }, forward);
 	edict_t* best = result.target;
 
-	// Fallback to idtarget if no best target is found and idtarget is valid
 	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
 		best = ent->client->idtarget;
 	}
@@ -1471,24 +1470,17 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 		int const entity_index = best - g_edicts;
 
-		// Update entity info - if it fails, attempt cleanup and try again once
-		bool update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-		if (!update_success) {
-			g_entityInfoManager.cleanupStaleEntries();
-			update_success = g_entityInfoManager.updateEntityInfo(entity_index, info_string);
-		}
-
-		// Update HUD only if entity info was successfully updated
-		if (update_success) {
-			int configStringIndex = g_entityInfoManager.getConfigStringIndex(entity_index);
-			if (configStringIndex != -1) {
+		// Update entity info and get config string index in one step
+		if (g_entityInfoManager.updateEntityInfo(entity_index, info_string)) {
+			int const config_string_id = g_entityInfoManager.getConfigStringIndex(entity_index);
+			if (config_string_id != -1) {
 				gi.unicast(ent, true);
-				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = configStringIndex;
+				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = config_string_id;
 				return;
 			}
 		}
 
-		// Failed to update - clear target health string
+		// If we get here, something failed - clear the stat
 		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 	}
 	else {
