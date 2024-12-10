@@ -310,7 +310,7 @@ MONSTERINFO_SIGHT(flipper_sight) (edict_t *self, edict_t *other) -> void
 
 DIE(flipper_die) (edict_t *self, edict_t *inflictor, edict_t *attacker, int damage, const vec3_t &point, const mod_t &mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{

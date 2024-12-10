@@ -1028,7 +1028,7 @@ void carrier_dead(edict_t *self)
 
 DIE(carrier_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	// Determine attenuation based on the monster type and spawnflags
 	float attenuation;
 	if (!(g_horde->integer && self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)) {

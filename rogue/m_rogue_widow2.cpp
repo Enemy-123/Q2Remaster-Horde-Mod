@@ -974,7 +974,7 @@ DIE(widow2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damag
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	int n;
 	int clipped;
 

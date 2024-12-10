@@ -674,7 +674,7 @@ void hover_vanilla_dead(edict_t* self)
 
 DIE(hover_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	self->s.effects = EF_NONE;
 	self->monsterinfo.power_armor_type = IT_NULL;
 

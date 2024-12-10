@@ -869,7 +869,6 @@ void M_ProcessPain(edict_t* e)
 //
 THINK(monster_dead_think) (edict_t* self) -> void
 {
-	OnEntityDeath(self);
 	// flies
 	if ((self->monsterinfo.aiflags & AI_STINKY) && !(self->monsterinfo.aiflags & AI_STUNK))
 	{
@@ -892,10 +891,14 @@ THINK(monster_dead_think) (edict_t* self) -> void
 		}
 	}
 
-	if (!self->monsterinfo.damage_blood)
+	// Advance animation frame
+	if (self->s.frame != self->monsterinfo.active_move->lastframe)
 	{
-		if (self->s.frame != self->monsterinfo.active_move->lastframe)
-			self->s.frame++;
+		self->s.frame++;
+	}
+	else if (!self->monsterinfo.death_processed)  // Si llegamos al último frame y no se ha procesado la muerte
+	{
+		OnEntityDeath(self);  // Ahora procesamos la muerte cuando la animación termina
 	}
 
 	self->nextthink = level.time + 10_hz;

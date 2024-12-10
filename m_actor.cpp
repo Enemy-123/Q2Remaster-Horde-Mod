@@ -302,7 +302,7 @@ DIE(actor_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	if (self->deadflag)
 		return;
 
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	self->deadflag = true;
 
 	// check for gib

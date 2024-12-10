@@ -417,7 +417,7 @@ MMOVE_T(infantry_move_death3) = { FRAME_death301, FRAME_death309, infantry_frame
 
 DIE(infantry_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	int n;
 
 	// check for gib

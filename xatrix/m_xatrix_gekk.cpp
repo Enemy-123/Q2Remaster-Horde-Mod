@@ -1367,7 +1367,7 @@ MMOVE_T(gekk_move_wdeath) = { FRAME_wdeath_01, FRAME_wdeath_45, gekk_frames_wdea
 
 DIE(gekk_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	float r;
 
 	if (M_CheckGib(self, mod))

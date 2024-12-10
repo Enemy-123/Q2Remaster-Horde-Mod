@@ -1492,18 +1492,20 @@ void OnEntityDeath(edict_t* self) noexcept {
 		}
 	}
 
-	// Faster fade settings
-	constexpr gtime_t FADE_START_DELAY = 3_sec;    // Start fade after 2 seconds
-	constexpr gtime_t FADE_DURATION = 1_sec;       // Complete fade in 1 second
+	if (g_horde->integer) {
+		// Faster fade settings
+		constexpr gtime_t FADE_START_DELAY = 7_sec;    // Start fade after 2 seconds
+		constexpr gtime_t FADE_DURATION = 3_sec;       // Complete fade in 1 second
 
-	// Setup fade out parameters
-	self->teleport_time = level.time + FADE_START_DELAY;
-	self->timestamp = level.time + FADE_START_DELAY + FADE_DURATION;
-	self->wait = FADE_DURATION.seconds();
+		// Setup fade out parameters
+		self->teleport_time = level.time + FADE_START_DELAY;
+		self->timestamp = level.time + FADE_START_DELAY + FADE_DURATION;
+		self->wait = FADE_DURATION.seconds();
 
-	// Set think function to handle fade
-	self->think = delayed_fade_think;
-	self->nextthink = level.time + FRAME_TIME_MS;
+		// Set think function to handle fade
+		self->think = delayed_fade_think;
+		self->nextthink = level.time + FRAME_TIME_MS;
+	}
 
 	// Clean up entity info
 	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);

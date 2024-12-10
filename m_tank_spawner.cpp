@@ -1144,7 +1144,7 @@ MMOVE_T(tank_vanilla_move_death) = { FRAME_death101, FRAME_death132, tank_vanill
 //
 DIE(tank_vanilla_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 
 	// Liberar slots de monstruos spawneados
 	for (unsigned int i = 0; i < globals.num_edicts; i++) {

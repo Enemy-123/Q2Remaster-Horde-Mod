@@ -973,7 +973,7 @@ MMOVE_T(medic_move_death) = { FRAME_death2, FRAME_death30, medic_frames_death, m
 
 DIE(medic_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	// if we had a pending patient, he was already freed up in Killed
 
 	// check for gib

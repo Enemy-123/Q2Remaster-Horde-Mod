@@ -758,7 +758,7 @@ DIE(shambler_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int dam
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	if (self->beam)
 	{
 		G_FreeEdict(self->beam);

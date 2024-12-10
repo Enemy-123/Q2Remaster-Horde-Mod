@@ -884,7 +884,7 @@ PAIN(turret2_pain) (edict_t* self, edict_t* other, float kick, int damage, const
 
 DIE(turret2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	vec3_t forward;
 	edict_t* base;
 

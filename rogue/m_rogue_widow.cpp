@@ -1083,7 +1083,7 @@ DIE(widow_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 	if (self->monsterinfo.IS_BOSS && !self->monsterinfo.BOSS_DEATH_HANDLED)
 		boss_die(self);
 
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	if (strcmp(self->classname, "monster_widow") == 0 || strcmp(self->classname, "monster_widow2") == 0) {
 		self->deadflag = true;
 		self->takedamage = false;

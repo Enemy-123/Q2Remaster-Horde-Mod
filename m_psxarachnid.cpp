@@ -569,7 +569,7 @@ MMOVE_T(arachnid_psx_move_death) = { FRAME_death1, FRAME_death20, arachnid_psx_f
 
 DIE(arachnid_psx_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, const mod_t& mod) -> void
 {
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	// check for gib
 	if (M_CheckGib(self, mod))
 	{

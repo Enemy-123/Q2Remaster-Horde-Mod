@@ -657,7 +657,7 @@ DIE(boss2_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage
 		self->velocity = {};
 		self->gravityVector.z *= 0.30f;
 	}
-	OnEntityDeath(self);
+	//OnEntityDeath(self);
 	self->monsterinfo.IS_BOSS ?
 		M_SetAnimation(self, &boss2_move_deathboss) :
 		M_SetAnimation(self, &boss2_move_death);
