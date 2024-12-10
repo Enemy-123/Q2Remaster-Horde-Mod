@@ -3494,7 +3494,7 @@ void TechMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 		// Añadir el nuevo TECH seleccionado
 		if (tech_index != -1) {
 			ent->client->pers.inventory[tech_index] = 1;
-			gi.LocCenter_Print(ent, "Selected Tech: {}\n", tech_names[option]);
+			gi.LocCenter_Print(ent, "\n\n\n\nSelected Tech: {}\n", tech_names[option]);
 
 			// Ejecutar el sonido correspondiente al TECH seleccionado
 			switch (tech_index) {

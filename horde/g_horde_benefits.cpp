@@ -12,7 +12,7 @@ bool bfg_pull_active = false;
 const benefit_t BENEFITS[MAX_BENEFITS] = {
     {
         "vampire",
-        "\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n",
+        "\n\n\n\nYou're covered in blood!\n\nVampire Ability\nENABLED!\n",
         "RECOVERING HEALTH FROM DAMAGE DONE!\n",
         "g_vampire", "1",
         4, -1, 0.2f
@@ -26,21 +26,21 @@ const benefit_t BENEFITS[MAX_BENEFITS] = {
     },
     {
         "ammo regen",
-        "AMMO REGEN\n\nENABLED!\n",
+        "\n\n\n\n\nAMMO REGEN\n\nENABLED!\n",
         "AMMO REGEN IS NOW ENABLED!\n",
         "g_ammoregen", "1",
         8, -1, 0.15f
     },
     {
         "auto haste",
-        "\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n",
+        "\n\n\n\nDUAL-FIRE IS RUNNING THROUGH YOUR VEINS\nFRAGGING WHILE HASTE\nWILL EXTEND QUAD DMG AND DUAL-FIRE TIME!\n",
         "AUTO-HASTE ENABLED!\n",
         "g_autohaste", "1",
         9, -1, 0.15f
     },
     {
         "start armor",
-        "\n\n\nSTARTING ARMOR\nENABLED!\n",
+        "\n\n\n\nSTARTING ARMOR\nENABLED!\n",
         "STARTING WITH 100 BODY-ARMOR!\n",
         "g_startarmor", "1",
         9, -1, 0.1f
