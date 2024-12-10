@@ -14,7 +14,7 @@ enum match_t
 	MATCH_POST
 };
 
-enum elect_t 
+enum elect_t
 {
 	ELECT_NONE,
 	ELECT_MAP,
@@ -1433,53 +1433,55 @@ void CTFSetIDView(edict_t* ent) {
 	}
 }
 
-static THINK(delayed_fade_think)(edict_t* self) -> void {
+THINK(delayed_fade_think) (edict_t* self) -> void {
 	if (!self || !self->inuse) {
 		return;
 	}
 
-	// If we haven't reached fade start time yet
-	if (level.time < self->teleport_time) {
-		self->nextthink = level.time + FRAME_TIME_MS;
+	// Calculate fade based on time
+	if (level.time >= self->timestamp) {
+		// Fully faded, perform final cleanup
+		G_FreeEdict(self);
 		return;
 	}
 
-	// If we're in the fade period
 	if (level.time >= self->teleport_time) {
-		// Calculate fade progress (0.0 to 1.0)
-		const float elapsed = (level.time - self->teleport_time).seconds();
-		const float t = 1.0f - (elapsed / self->wait);
-		// Square the value for smoother fade
-		self->s.alpha = t * t;
+		// Calculate alpha for fade
+		float const progress = (level.time - self->teleport_time).seconds() / self->wait;
+		float const alpha = 1.0f - progress;
 
-		// Free the entity as soon as alpha is nearly transparent
-		if (self->s.alpha <= 0.05f) {
-			G_FreeEdict(self);
-			return;
-		}
-
-		// Setup rendering parameters if we just started fading
-		if (!self->is_fading_out) {
-			self->is_fading_out = true;
-			self->svflags &= ~SVF_NOCLIENT;
-			self->s.renderfx &= ~RF_DOT_SHADOW;
-			gi.linkentity(self);
-		}
+		// Apply fade effect
+		self->s.alpha = std::max(0.1f, alpha);
 	}
 
+	// Continue fading
 	self->nextthink = level.time + FRAME_TIME_MS;
 }
 
+THINK(delayed_cleanup_think) (edict_t* self) -> void {
+	// Ensure entity is still valid
+	if (!self || !self->inuse) {
+		return;
+	}
+
+	// Final cleanup and free
+	G_FreeEdict(self);
+}
+
 void OnEntityDeath(edict_t* self) noexcept {
+	// Early exit checks
 	if (!self || !self->inuse || self->monsterinfo.death_processed) {
 		return;
 	}
+
 	self->monsterinfo.death_processed = true;
 
-	if (self->monsterinfo.IS_BOSS)
+	// Clear boss status if needed
+	if (self->monsterinfo.IS_BOSS) {
 		self->monsterinfo.IS_BOSS = false;
+	}
 
-	// Handle summoned entity deaths
+	// Handle summoned entity notifications
 	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
 		if (strcmp(self->classname, "monster_sentrygun") == 0) {
 			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
@@ -1492,22 +1494,26 @@ void OnEntityDeath(edict_t* self) noexcept {
 		}
 	}
 
+	// Horde mode specific handling
 	if (g_horde->integer) {
-		// Faster fade settings
-		constexpr gtime_t FADE_START_DELAY = 7_sec;    // Start fade after 2 seconds
-		constexpr gtime_t FADE_DURATION = 3_sec;       // Complete fade in 1 second
+		constexpr gtime_t FADE_START_DELAY = 7_sec;
+		constexpr gtime_t FADE_DURATION = 3_sec;
 
-		// Setup fade out parameters
 		self->teleport_time = level.time + FADE_START_DELAY;
 		self->timestamp = level.time + FADE_START_DELAY + FADE_DURATION;
 		self->wait = FADE_DURATION.seconds();
 
-		// Set think function to handle fade
+		// Set delayed removal
 		self->think = delayed_fade_think;
 		self->nextthink = level.time + FRAME_TIME_MS;
 	}
+	else {
+		// For non-horde mode, schedule cleanup after a short delay
+		self->think = delayed_cleanup_think;
+		self->nextthink = level.time + 2_sec;  // Give time for death animations/effects
+	}
 
-	// Clean up entity info
+	// Mark for EntityInfoManager cleanup
 	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
 	if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
 		g_entityInfoManager.removeEntityInfo(entity_index);
@@ -2938,35 +2944,36 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	return true;
 }
 void UpdateVoteHUD() {
-    static constexpr size_t MAX_VOTE_STRING = 128;
-    
-    if (ctfgame.election != ELECT_NONE) {
-        // Format with bounds checking
-        std::string vote_info = fmt::format("{} Time left: {}s\n",
-            ctfgame.emsg,
-            static_cast<int>((ctfgame.electtime - level.time).seconds())); 
+	static constexpr size_t MAX_VOTE_STRING = 128;
 
-        if (vote_info.length() >= MAX_VOTE_STRING) {
-            vote_info.resize(MAX_VOTE_STRING - 1);
-            vote_info += "...";
-        }
+	if (ctfgame.election != ELECT_NONE) {
+		// Format with bounds checking
+		std::string vote_info = fmt::format("{} Time left: {}s\n",
+			ctfgame.emsg,
+			static_cast<int>((ctfgame.electtime - level.time).seconds()));
 
-        gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
-        ClearHordeMessage();
+		if (vote_info.length() >= MAX_VOTE_STRING) {
+			vote_info.resize(MAX_VOTE_STRING - 1);
+			vote_info += "...";
+		}
 
-        for (auto player : active_players()) {
-            if (player->client) {
-                player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
-            }
-        }
-    } else {
-        gi.configstring(CONFIG_VOTE_INFO, "");
-        for (auto player : active_players()) {
-            if (player->client) {
-                player->client->ps.stats[STAT_VOTESTRING] = 0;
-            }
-        }
-    }
+		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
+		ClearHordeMessage();
+
+		for (auto player : active_players()) {
+			if (player->client) {
+				player->client->ps.stats[STAT_VOTESTRING] = CONFIG_VOTE_INFO;
+			}
+		}
+	}
+	else {
+		gi.configstring(CONFIG_VOTE_INFO, "");
+		for (auto player : active_players()) {
+			if (player->client) {
+				player->client->ps.stats[STAT_VOTESTRING] = 0;
+			}
+		}
+	}
 }
 
 void DoRespawn(edict_t* ent);
@@ -4248,19 +4255,19 @@ void CTFUpdateJoinMenu(edict_t* ent)
 	//	}
 	//	else
 		//{
-			Q_strlcpy(entries[jmenu_horde].text, "Join and Fight the HORDE!", sizeof(entries[jmenu_horde].text));
-			//			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
-	//	}
-		entries[jmenu_horde].SelectFunc = CTFJoinTeam1;
-		//		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
-	//}
+	Q_strlcpy(entries[jmenu_horde].text, "Join and Fight the HORDE!", sizeof(entries[jmenu_horde].text));
+	//			Q_strlcpy(entries[jmenu_blue].text, "$g_pc_join_blue_team", sizeof(entries[jmenu_blue].text));
+//	}
+	entries[jmenu_horde].SelectFunc = CTFJoinTeam1;
+	//		entries[jmenu_blue].SelectFunc = CTFJoinTeam2;
+//}
 
-		entries[OriginalModBy].text[0] = '\0';
-		entries[OriginalModBy].SelectFunc = nullptr;
-		if (g_horde->integer)
-		{
-			Q_strlcpy(entries[OriginalModBy].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[OriginalModBy].text));
-		}
+	entries[OriginalModBy].text[0] = '\0';
+	entries[OriginalModBy].SelectFunc = nullptr;
+	if (g_horde->integer)
+	{
+		Q_strlcpy(entries[OriginalModBy].text, "Original Mod by Paril.\nModified by Enemy.", sizeof(entries[OriginalModBy].text));
+	}
 
 	//// KEX_FIXME: what's this for?
 	//if (g_teamplay_force_join->string && *g_teamplay_force_join->string)

@@ -990,8 +990,8 @@ void G_SetStats(edict_t* ent)
 			sphere.icon = "p_vengeance";
 		else {
 			sphere.icon = "i_fixme";
-			gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n",
-				SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
+		//	gi.Com_PrintFmt("Warning: Unknown sphere spawnflags {}\n",
+		//		SafeConvertSpawnflags(ent->client->owned_sphere->spawnflags));
 		}
 
 		active_powerups.push_back(sphere);

@@ -88,7 +88,7 @@ edict_t* G_PickTarget(const char* targetname)
 
 	if (!targetname)
 	{
-		gi.Com_Print("G_PickTarget called with nullptr targetname\n");
+	//	gi.Com_Print("G_PickTarget called with nullptr targetname\n");
 		return nullptr;
 	}
 
@@ -105,7 +105,7 @@ edict_t* G_PickTarget(const char* targetname)
 	if (!num_choices)
 	{
 		if (developer->integer)
-		gi.Com_PrintFmt("G_PickTarget: target {} not found\n", targetname);
+	//	gi.Com_PrintFmt("G_PickTarget: target {} not found\n", targetname);
 		return nullptr;
 	}
 
@@ -377,27 +377,35 @@ G_FreeEdict
 Marks the edict as free
 =================
 */
-THINK(G_FreeEdict) (edict_t* ed) -> void
-{
-	// already freed
+THINK(G_FreeEdict) (edict_t* ed) -> void {
+	// Already freed check
 	if (!ed->inuse)
 		return;
 
+	// Handle cleanup through OnEntityRemoved
 	OnEntityRemoved(ed);
-	gi.unlinkentity(ed); // unlink from world
 
-	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE))
-	{
+	// Unlink from world
+	gi.unlinkentity(ed);
+
+	// Protected entity check
+	if ((ed - g_edicts) <= (ptrdiff_t)(game.maxclients + BODY_QUEUE_SIZE)) {
 #ifdef _DEBUG
 		gi.Com_Print("tried to free special edict\n");
 #endif
 		return;
 	}
 
+	// Unregister from bot system
 	gi.Bot_UnRegisterEdict(ed);
 
+	// Preserve and increment spawn count
 	int32_t id = ed->spawn_count + 1;
+
+	// Clear entity data
 	memset(ed, 0, sizeof(*ed));
+
+	// Restore essential fields
 	ed->s.number = ed - g_edicts;
 	ed->classname = "freed";
 	ed->freetime = level.time;
@@ -405,7 +413,6 @@ THINK(G_FreeEdict) (edict_t* ed) -> void
 	ed->spawn_count = id;
 	ed->sv.init = false;
 }
-
 BoxEdictsResult_t G_TouchTriggers_BoxFilter(edict_t* hit, void*)
 {
 	if (!hit->touch)
