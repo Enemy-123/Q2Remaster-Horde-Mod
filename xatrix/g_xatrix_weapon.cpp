@@ -538,7 +538,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		{
 			ent->nextthink = level.time + 1_sec;
 			ent->think = G_FreeEdict;
-			ent->s.effects &= ~EF_TRAP;
+			ent->s.effects &= ~EF_BLUEHYPERBLASTER;
 
 			best = G_Spawn();
 			best->count = ent->mass;
@@ -561,10 +561,10 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		return;
 	}
 
-	ent->s.effects &= ~EF_TRAP;
+	ent->s.effects &= ~EF_BLUEHYPERBLASTER;
 	if (ent->s.frame >= 4)
 	{
-		ent->s.effects |= EF_TRAP;
+		ent->s.effects |= EF_BLUEHYPERBLASTER;
 		// clear the owner if in deathmatch
 		if (G_IsDeathmatch())
 			ent->owner = nullptr;
