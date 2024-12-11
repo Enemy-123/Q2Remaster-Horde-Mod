@@ -693,11 +693,14 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
 
+	const float gravityAdjustment = level.gravity / 800.f;
+
 	trap = G_Spawn();
 	trap->s.origin = start;
-	trap->velocity = aimdir * speed;
+	trap->velocity += aimdir * (speed + crandom() * 10.0f) * gravityAdjustment;
+	trap->velocity += right * (crandom() * 10.0f);
+	trap->avelocity = { crandom() * 90, crandom() * 90, crandom() * 120 };
 
-	float gravityAdjustment = level.gravity / 800.f;
 
 	trap->velocity += up * (200 + crandom() * 10.0f) * gravityAdjustment;
 	trap->velocity += right * (crandom() * 10.0f);
