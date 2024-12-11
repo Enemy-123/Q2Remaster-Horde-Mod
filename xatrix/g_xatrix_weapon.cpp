@@ -462,40 +462,46 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			ent->owner = nullptr;
 	}
 
-	if (ent->s.frame < 4)
-	{
-		ent->s.frame++;
-		return;
-	}
+ if (ent->s.frame < 4)
+    {
+        ent->s.frame++;
+        return;
+    }
 
-	while ((target = findradius(target, ent->s.origin, 256)) != nullptr)
-	{
-		if (target == ent)
-			continue;
+    constexpr float TRAP_RADIUS = 350.0f;
+    constexpr float TRAP_RADIUS_SQUARED = TRAP_RADIUS * TRAP_RADIUS;
 
-		if (!(target->svflags & SVF_MONSTER))
-			continue;
-		if (target != ent->teammaster && CheckTeamDamage(target, ent->teammaster))
-			continue;
-		if (target->health <= 0)
-			continue;
-		// Update visibility check to handle windows
-		if (!visible(ent, target, false))
-			continue;
-		vec = ent->s.origin - target->s.origin;
-		len = vec.length();
-		if (!best)
-		{
-			best = target;
-			oldlen = len;
-			continue;
-		}
-		if (len < oldlen)
-		{
-			oldlen = len;
-			best = target;
-		}
-	}
+    // Replace findradius with active_monsters()
+    for (auto target : active_monsters())
+    {
+        if (target == ent)
+            continue;
+
+        if (target != ent->teammaster && CheckTeamDamage(target, ent->teammaster))
+            continue;
+
+        // Quick distance check before more expensive operations
+		const   float len_squared = DistanceSquared(ent->s.origin, target->s.origin);
+        if (len_squared > TRAP_RADIUS_SQUARED)
+            continue;
+
+        // Update visibility check to handle windows
+        if (!visible(ent, target, false))
+            continue;
+
+       const float len = sqrtf(len_squared); // Only calculate actual length if needed
+        if (!best)
+        {
+            best = target;
+            oldlen = len;
+            continue;
+        }
+        if (len < oldlen)
+        {
+            oldlen = len;
+            best = target;
+        }
+    }
 
 	// pull the enemy in
 	if (best)
@@ -508,7 +514,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 		vec = ent->s.origin - best->s.origin;
 		len = vec.normalize();
 
-		float max_speed = best->client ? 290.f : 150.f;
+		const	float max_speed = best->client ? 290.f : 190.f;
 
 		best->velocity += (vec * clamp(max_speed - len, 64.f, max_speed));
 

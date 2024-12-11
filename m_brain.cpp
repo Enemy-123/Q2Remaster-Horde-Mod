@@ -446,8 +446,8 @@ void brain_tounge_attack(edict_t* self)
 	M_ChangeYaw(self);
 
 	// Verificar rango de pull (512 unidades como en suxor)
-	vec3_t end = self->s.origin + (normalized_dir * 512);
-	trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
+	const vec3_t end = self->s.origin + (normalized_dir * 512);
+	const trace_t tr = gi.traceline(self->s.origin, end, self, MASK_SHOT);
 
 	if (G_EntExists(tr.ent) && (tr.ent == self->enemy))
 	{
@@ -517,9 +517,9 @@ void brain_tounge_attack_continue(edict_t* self)
 	}
 
 	// Calcular pull y daño
-	vec3_t dir = diff.normalized();
-	int pull = 100;
-	int damage = 5;
+	const vec3_t dir = diff.normalized();
+	int pull = 70;
+	constexpr int damage = 5;
 
 	// Aumentar pull si está en el suelo
 	if (self->enemy->groundentity)

@@ -1021,7 +1021,7 @@ void fire_nuke(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 // *************************
 
 constexpr gtime_t TESLA_TIME_TO_LIVE = 60_sec;
-constexpr float	  TESLA_DAMAGE_RADIUS = 162;
+constexpr float	  TESLA_DAMAGE_RADIUS = 200;
 constexpr int32_t TESLA_DAMAGE = 4;
 constexpr int32_t TESLA_KNOCKBACK = 8;
 
@@ -1252,14 +1252,63 @@ float CalculateTeslaPriority(edict_t* self, edict_t* target, float dist_squared)
 }
 
 THINK(tesla_think_active)(edict_t* self) -> void {
-	if (!self || level.time > self->air_finished) {
+	if (!self)
+		return;
+
+	if (level.time > self->air_finished) {
 		tesla_remove(self);
 		return;
 	}
 
+	// Setup positioning and bounds
+	vec3_t start = self->s.origin;
+	const bool is_on_wall = fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135;
+
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+
+	if (is_on_wall) {
+		start = start + (forward * 16);
+	}
+	else {
+		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
+			start = start + (up * -16);
+		}
+		else {
+			start = start + (up * 16);
+		}
+	}
+
+	if (!self->teamchain) {
+		gi.Com_Print("Warning: tesla_think_active called with null teamchain\n");
+		return;
+	}
+
+	// Setup teamchain bounds
+	if (is_on_wall) {
+		float constexpr radius = TESLA_DAMAGE_RADIUS * 1.5f;
+		self->teamchain->mins = { -radius / 2, -radius, -radius };
+		self->teamchain->maxs = { radius, radius, radius };
+		self->teamchain->s.origin = self->s.origin + (forward * (radius / 2));
+	}
+	else {
+		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
+			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS };
+			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, 0 };
+		}
+		else {
+			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, 0 };
+			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS };
+		}
+	}
+	gi.linkentity(self->teamchain);
+
+	// Target acquisition with priority
 	constexpr int max_targets = 3;
-	std::vector<TeslaTarget> potential_targets;
 	const float max_range_squared = TESLA_DAMAGE_RADIUS * TESLA_DAMAGE_RADIUS;
+
+	std::vector<TeslaTarget> potential_targets;
+	potential_targets.reserve(max_targets); // Pre-allocate space for efficiency
 
 	// Find potential targets using active_monsters()
 	for (auto ent : active_monsters()) {
@@ -1288,7 +1337,7 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 			return a.priority > b.priority;
 		});
 
-	// Attack up to max_targets
+	// Attack phase
 	int targets_attacked = 0;
 	for (const auto& target : potential_targets) {
 		if (targets_attacked >= max_targets)
@@ -1298,14 +1347,12 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 		if (tesla_ray_trace(self, target.ent, tr)) {
 			vec3_t const ray_start = calculate_tesla_ray_origin(self);
 			vec3_t const ray_end = tr.endpos;
-
 			vec3_t dir = ray_end - ray_start;
 			dir.normalize();
 
 			T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
-			// Visual effect
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LIGHTNING);
 			gi.WriteEntity(self);
@@ -1323,6 +1370,7 @@ THINK(tesla_think_active)(edict_t* self) -> void {
 		self->nextthink = level.time + 10_hz;
 	}
 }
+
 THINK(tesla_activate) (edict_t* self) -> void
 {
 	edict_t* trigger;
