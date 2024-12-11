@@ -703,10 +703,6 @@ mframe_t infantry_vanilla_frames_attack4[] = {
 };
 MMOVE_T(infantry_vanilla_move_attack4) = { FRAME_run201, FRAME_run208, infantry_vanilla_frames_attack4, infantry_vanilla_run, 0.5f };
 
-
-
-
-constexpr float GRENADE_SPEED = 900;
 static void infantry_vanilla_grenade(edict_t* self)
 {
 	constexpr float MORTAR_SPEED = 1050.f;
