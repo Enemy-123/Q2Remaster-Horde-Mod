@@ -1089,61 +1089,61 @@ TOUCH(tesla_zap) (edict_t* self, edict_t* other, const trace_t& tr, bool other_t
 	// Código existente para manejar el contacto aquí
 }
 
-static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
-{
-	edict_t* self = (edict_t*)data;
+//static BoxEdictsResult_t tesla_think_active_BoxFilter(edict_t* check, void* data)
+//{
+//	edict_t* self = (edict_t*)data;
+//
+//	if (!check->inuse)
+//		return BoxEdictsResult_t::Skip;
+//	if (check == self)
+//		return BoxEdictsResult_t::Skip;
+//	if (check->health < -40)
+//		return BoxEdictsResult_t::Skip;
+//
+//	// Monster-owned tesla checks, later will be useful for monster's teslas
+//	if (self->owner && (self->owner->svflags & SVF_MONSTER)) {
+//		// Don't attack owner
+//		if (check == self->owner)
+//			return BoxEdictsResult_t::Skip;
+//
+//		// Don't attack teammates of owner
+//		if (check->svflags & SVF_MONSTER && OnSameTeam(check, self->owner))
+//			return BoxEdictsResult_t::Skip;
+//
+//		// Attack players and non-team monsters
+//		if ((check->client && !OnSameTeam(check, self->owner)) ||
+//			(check->svflags & SVF_MONSTER && !OnSameTeam(check, self->owner)))
+//			return BoxEdictsResult_t::Keep;
+//	}
+//
+//	// Regular tesla checks
+//	if (check->client) {
+//		if (!G_IsDeathmatch() && !g_horde->integer)
+//			return BoxEdictsResult_t::Skip;
+//		else if (CheckTeamDamage(check, self->teammaster))
+//			return BoxEdictsResult_t::Skip;
+//	}
+//
+//	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->client)
+//		return BoxEdictsResult_t::Skip;
+//
+//	const char* classname = check->classname;
+//	if (!classname)
+//		return BoxEdictsResult_t::Keep;
+//
+//	if (((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP)) ||
+//		check->monsterinfo.invincible_time > level.time)
+//		return BoxEdictsResult_t::Skip;
+//
+//	if (strcmp(classname, "monster_sentrygun") == 0 ||
+//		strcmp(classname, "emitter") == 0 ||
+//		strcmp(classname, "nuke") == 0)
+//		return BoxEdictsResult_t::Skip;
+//
+//	return BoxEdictsResult_t::Keep;
+//}
 
-	if (!check->inuse)
-		return BoxEdictsResult_t::Skip;
-	if (check == self)
-		return BoxEdictsResult_t::Skip;
-	if (check->health < -40)
-		return BoxEdictsResult_t::Skip;
-
-	// Monster-owned tesla checks, later will be useful for monster's teslas
-	if (self->owner && (self->owner->svflags & SVF_MONSTER)) {
-		// Don't attack owner
-		if (check == self->owner)
-			return BoxEdictsResult_t::Skip;
-
-		// Don't attack teammates of owner
-		if (check->svflags & SVF_MONSTER && OnSameTeam(check, self->owner))
-			return BoxEdictsResult_t::Skip;
-
-		// Attack players and non-team monsters
-		if ((check->client && !OnSameTeam(check, self->owner)) ||
-			(check->svflags & SVF_MONSTER && !OnSameTeam(check, self->owner)))
-			return BoxEdictsResult_t::Keep;
-	}
-
-	// Regular tesla checks
-	if (check->client) {
-		if (!G_IsDeathmatch() && !g_horde->integer)
-			return BoxEdictsResult_t::Skip;
-		else if (CheckTeamDamage(check, self->teammaster))
-			return BoxEdictsResult_t::Skip;
-	}
-
-	if (!(check->svflags & SVF_MONSTER) && !(check->flags & FL_DAMAGEABLE) && check->client)
-		return BoxEdictsResult_t::Skip;
-
-	const char* classname = check->classname;
-	if (!classname)
-		return BoxEdictsResult_t::Keep;
-
-	if (((!G_IsDeathmatch() || g_horde->integer) && (check->flags & FL_TRAP)) ||
-		check->monsterinfo.invincible_time > level.time)
-		return BoxEdictsResult_t::Skip;
-
-	if (strcmp(classname, "monster_sentrygun") == 0 ||
-		strcmp(classname, "emitter") == 0 ||
-		strcmp(classname, "nuke") == 0)
-		return BoxEdictsResult_t::Skip;
-
-	return BoxEdictsResult_t::Keep;
-}
-
-constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array touch
+//constexpr size_t MAX_TOUCH_ENTITIES = 1024; // Tamaño reducido para el array touch
 
 
 constexpr float TESLA_WALL_OFFSET = 3.0f;      // Offset para paredes
@@ -1208,93 +1208,108 @@ bool tesla_ray_trace(const edict_t* self, const edict_t* target, trace_t& tr) {
 	return tr.fraction == 1.0f || tr.ent == target;
 }
 
+// New helper function to adapt FindMTarget logic for tesla
+struct TeslaTarget {
+	edict_t* ent;
+	float priority;
+	float dist_squared;
+};
 
-THINK(tesla_think_active)(edict_t* self) -> void
-{
-	if (!self)
-		return;
-	int num;
-	constexpr int max_targets = 3;
-	vec3_t start;
+bool IsValidTeslaTarget(edict_t* self, edict_t* ent) {
+	if (!ent || !ent->inuse || ent == self ||
+		ent->health <= 0 || ent->deadflag ||
+		ent->solid == SOLID_NOT)
+		return false;
 
-	// Use fixed-size array on the stack instead of dynamic allocation
-	std::array<edict_t*, MAX_TOUCH_ENTITIES> touch_array = {};
-	edict_t** touch = touch_array.data();
+	// Tesla specific checks
+	if (ent->monsterinfo.invincible_time > level.time)
+		return false;
 
-	if (level.time > self->air_finished)
-	{
+	// Skip sentries, emitters, nukes
+	if (!strcmp(ent->classname, "monster_sentrygun") ||
+		!strcmp(ent->classname, "emitter") ||
+		!strcmp(ent->classname, "nuke"))
+		return false;
+
+	// Owner team check for monsters
+	if (self->owner && (self->owner->svflags & SVF_MONSTER)) {
+		if (ent == self->owner ||
+			(ent->svflags & SVF_MONSTER && OnSameTeam(ent, self->owner)))
+			return false;
+	}
+
+	return true;
+}
+
+float CalculateTeslaPriority(edict_t* self, edict_t* target, float dist_squared) {
+	float priority = 1.0f / (dist_squared + 1.0f);
+
+	// Prioritize monsters slightly higher
+	if (target->svflags & SVF_MONSTER)
+		priority *= 1.2f;
+
+	return priority;
+}
+
+THINK(tesla_think_active)(edict_t* self) -> void {
+	if (!self || level.time > self->air_finished) {
 		tesla_remove(self);
 		return;
 	}
 
-	start = self->s.origin;
-	const bool is_on_wall = fabs(self->s.angles[PITCH]) > 45 && fabs(self->s.angles[PITCH]) < 135;
+	constexpr int max_targets = 3;
+	std::vector<TeslaTarget> potential_targets;
+	const float max_range_squared = TESLA_DAMAGE_RADIUS * TESLA_DAMAGE_RADIUS;
 
-	vec3_t forward, right, up;
-	AngleVectors(self->s.angles, forward, right, up);
+	// Find potential targets using active_monsters()
+	for (auto ent : active_monsters()) {
+		if (!IsValidTeslaTarget(self, ent))
+			continue;
 
-	if (is_on_wall) {
-		start = start + (forward * 16);
-	}
-	else {
-		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
-			start = start + (up * -16);
-		}
-		else {
-			start = start + (up * 16);
-		}
-	}
-
-	if (!self->teamchain)
-	{
-		gi.Com_Print("Warning: tesla_think_active called with null teamchain\n");
-		return;
-	}
-
-	if (is_on_wall) {
-		float constexpr radius = TESLA_DAMAGE_RADIUS * 1.5f;
-		self->teamchain->mins = { -radius / 2, -radius, -radius };
-		self->teamchain->maxs = { radius, radius, radius };
-		self->teamchain->s.origin = self->s.origin + (forward * (radius / 2));
-	}
-	else {
-		if (self->s.angles[PITCH] > 150 || self->s.angles[PITCH] < -150) {
-			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS };
-			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, 0 };
-		}
-		else {
-			self->teamchain->mins = { -TESLA_DAMAGE_RADIUS, -TESLA_DAMAGE_RADIUS, 0 };
-			self->teamchain->maxs = { TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS, TESLA_DAMAGE_RADIUS };
-		}
-	}
-
-	gi.linkentity(self->teamchain);
-
-	// Use raw pointer from array
-	num = gi.BoxEdicts(self->teamchain->absmin, self->teamchain->absmax, touch,
-		MAX_TOUCH_ENTITIES, AREA_SOLID, tesla_think_active_BoxFilter, self);
-
-	int targets_attacked = 0;
-	for (int i = 0; i < num && targets_attacked < max_targets; i++) {
-		edict_t* hit = touch[i];
-		if (!hit->inuse || hit == self || hit->health < 1)
+		float dist_squared = DistanceSquared(self->s.origin, ent->s.origin);
+		if (dist_squared > max_range_squared)
 			continue;
 
 		trace_t tr;
-		if (tesla_ray_trace(self, hit, tr)) {
+		if (!tesla_ray_trace(self, ent, tr))
+			continue;
+
+		TeslaTarget target{
+			ent,
+			CalculateTeslaPriority(self, ent, dist_squared),
+			dist_squared
+		};
+		potential_targets.push_back(target);
+	}
+
+	// Sort by priority
+	std::sort(potential_targets.begin(), potential_targets.end(),
+		[](const TeslaTarget& a, const TeslaTarget& b) {
+			return a.priority > b.priority;
+		});
+
+	// Attack up to max_targets
+	int targets_attacked = 0;
+	for (const auto& target : potential_targets) {
+		if (targets_attacked >= max_targets)
+			break;
+
+		trace_t tr;
+		if (tesla_ray_trace(self, target.ent, tr)) {
 			vec3_t const ray_start = calculate_tesla_ray_origin(self);
 			vec3_t const ray_end = tr.endpos;
 
 			vec3_t dir = ray_end - ray_start;
 			dir.normalize();
 
-			T_Damage(hit, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
+			T_Damage(target.ent, self, self->teammaster, dir, tr.endpos, tr.plane.normal,
 				self->dmg, TESLA_KNOCKBACK, DAMAGE_NO_ARMOR, MOD_TESLA);
 
+			// Visual effect
 			gi.WriteByte(svc_temp_entity);
 			gi.WriteByte(TE_LIGHTNING);
 			gi.WriteEntity(self);
-			gi.WriteEntity(hit);
+			gi.WriteEntity(target.ent);
 			gi.WritePosition(ray_start);
 			gi.WritePosition(ray_end);
 			gi.multicast(ray_start, MULTICAST_PVS, false);
@@ -1303,8 +1318,7 @@ THINK(tesla_think_active)(edict_t* self) -> void
 		}
 	}
 
-	if (self->inuse)
-	{
+	if (self->inuse) {
 		self->think = tesla_think_active;
 		self->nextthink = level.time + 10_hz;
 	}
