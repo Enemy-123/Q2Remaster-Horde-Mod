@@ -917,7 +917,7 @@ static void G_CheckCvars()
 
 static bool G_AnyDeadPlayersWithoutLives()
 {
-	for (auto player : active_players())
+	for (auto const player : active_players())
 		if (player->health <= 0 && !player->client->pers.lives)
 			return true;
 
@@ -1031,7 +1031,7 @@ inline void G_RunFrame_(bool main_loop)
 		const gtime_t time_elapsed = level.time - level.intermissiontime;
 		const gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
 
-		if (time_remaining == 30_ms)
+		if (time_remaining == 0_ms)
 		{
 			// Es hora de salir de la intermisión
 			gi.Com_PrintFmt("PRINT: Auto-exiting intermission after 30 seconds.\n");
@@ -1114,7 +1114,7 @@ inline void G_RunFrame_(bool main_loop)
 			{
 				if (ent->timestamp && level.time < ent->timestamp)
 				{
-					const int32_t const playernum = ent - g_edicts - 1;
+					const int32_t playernum = ent - g_edicts - 1;
 					gi.configstring(CS_PLAYERSKINS + playernum, "");
 					ent->timestamp = 0_sec;
 				}
@@ -1175,7 +1175,7 @@ inline void G_RunFrame_(bool main_loop)
 		// back to empty
 		bool reset_coop_respawn = true;
 
-		for (auto player : active_players())
+		for (auto const player : active_players())
 		{
 			if (player->health > 0)
 			{
@@ -1186,7 +1186,7 @@ inline void G_RunFrame_(bool main_loop)
 
 		if (reset_coop_respawn)
 		{
-			for (auto player : active_players())
+			for (auto const player : active_players())
 				player->client->coop_respawn_state = COOP_RESPAWN_NONE;
 		}
 	}
@@ -1215,7 +1215,7 @@ inline void G_RunFrame_(bool main_loop)
 
 inline bool G_AnyPlayerSpawned()
 {
-	for (auto player : active_players())
+	for (auto const player : active_players())
 		if (player->client && player->client->pers.spawned)
 			return true;
 

@@ -3617,7 +3617,7 @@ void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 }
 
 void CheckAndUpdateMenus() {
-	for (auto player : active_players()) {
+	for (auto const player : active_players()) {
 		if (!player->client || !player->client->menu) {
 			continue;
 		}
