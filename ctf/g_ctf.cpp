@@ -1224,12 +1224,6 @@ public:
 			return false;
 		}
 
-		// Add rate limiting
-		static gtime_t last_global_update = 0_ms;
-		if (level.time - last_global_update < 100_ms) {  // Global rate limit
-			return false;
-		}
-		last_global_update = level.time;
 		if (info.length() >= MAX_STRING_LENGTH) {
 			return false;
 		}
