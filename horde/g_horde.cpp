@@ -1520,7 +1520,7 @@ static constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_makronkl", 26, -1, 0.2f, BossSizeCategory::Medium},
 	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium},
-	{ "monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
+	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
 };
 
 static constexpr boss_t BOSS_LARGE[] = {
@@ -1539,7 +1539,7 @@ static constexpr boss_t BOSS_LARGE[] = {
 	{"monster_boss5", -1, 24, 0.1f, BossSizeCategory::Large},
 	{"monster_jorg", 30, -1, 0.15f, BossSizeCategory::Large},
 	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large},
-	{ "monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
+	{"monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
 };
 
 // Modified GetBossList function using std::span
