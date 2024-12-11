@@ -842,6 +842,9 @@ FIELD_AUTO(helpchanged),
 FIELD_AUTO(help_time),
 
 FIELD_AUTO(spectator),
+//horde-coop IDs
+FIELD_AUTO(id_state),
+FIELD_AUTO(iddmg_state),
 
 // save the wanted fog, but not the current fog
 // or transition time so it sends immediately
