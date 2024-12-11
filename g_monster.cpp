@@ -895,10 +895,38 @@ THINK(monster_dead_think) (edict_t* self) -> void
 	if (self->s.frame != self->monsterinfo.active_move->lastframe)
 	{
 		self->s.frame++;
+		self->nextthink = level.time + 10_hz;
+		return;
 	}
-	else if (!self->monsterinfo.death_processed)  // Si llegamos al último frame y no se ha procesado la muerte
+
+	// Ensure we're exactly at last frame
+	if (self->s.frame != self->monsterinfo.active_move->lastframe)
+		self->s.frame = self->monsterinfo.active_move->lastframe;
+
+
+	// If we reached the last frame and death hasn't been processed
+	if (!self->monsterinfo.death_processed)
 	{
-		OnEntityDeath(self);  // Ahora procesamos la muerte cuando la animación termina
+		OnEntityDeath(self);  // Process death when animation completes
+		self->nextthink = level.time + 10_hz;
+		return;
+	}
+
+	// If we're here, animation is done and death is processed
+	// Check if we have fade effect active
+	if ((self->monsterinfo.aiflags & AI_CLEANUP_FADE) &&
+		self->teleport_time && level.time >= self->teleport_time)
+	{
+		float const progress = (level.time - self->teleport_time).seconds() / self->wait;
+		float const alpha = 1.0f - progress;
+		self->s.alpha = std::max(0.1f, alpha);
+	}
+
+	// Check for cleanup time
+	if (self->timestamp && level.time >= self->timestamp)
+	{
+		G_FreeEdict(self);
+		return;
 	}
 
 	self->nextthink = level.time + 10_hz;

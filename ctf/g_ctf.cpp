@@ -1436,46 +1436,15 @@ void CTFSetIDView(edict_t* ent) {
 	}
 }
 
-THINK(delayed_fade_think) (edict_t* self) -> void {
-	if (!self || !self->inuse) {
-		return;
-	}
-
-	// Calculate fade based on time
-	if (level.time >= self->timestamp) {
-		// Fully faded, perform final cleanup
-		G_FreeEdict(self);
-		return;
-	}
-
-	if (level.time >= self->teleport_time) {
-		// Calculate alpha for fade
-		float const progress = (level.time - self->teleport_time).seconds() / self->wait;
-		float const alpha = 1.0f - progress;
-
-		// Apply fade effect
-		self->s.alpha = std::max(0.1f, alpha);
-	}
-
-	// Continue fading
-	self->nextthink = level.time + FRAME_TIME_MS;
-}
-
-THINK(delayed_cleanup_think) (edict_t* self) -> void {
-	// Ensure entity is still valid
-	if (!self || !self->inuse) {
-		return;
-	}
-
-	// Final cleanup and free
-	G_FreeEdict(self);
-}
-
-void OnEntityDeath(edict_t* self) noexcept {
+void OnEntityDeath(edict_t* self) noexcept
+{
 	// Early exit checks
 	if (!self || !self->inuse || self->monsterinfo.death_processed) {
 		return;
 	}
+
+	if (self->is_fading_out)
+		return;
 
 	self->monsterinfo.death_processed = true;
 
@@ -1497,33 +1466,27 @@ void OnEntityDeath(edict_t* self) noexcept {
 		}
 	}
 
-	// Horde mode specific handling
-	if (g_horde->integer) {
-		constexpr gtime_t FADE_START_DELAY = 7_sec;
-		constexpr gtime_t FADE_DURATION = 3_sec;
-
-		self->teleport_time = level.time + FADE_START_DELAY;
-		self->timestamp = level.time + FADE_START_DELAY + FADE_DURATION;
-		self->wait = FADE_DURATION.seconds();
-
-		// Set delayed removal
-		self->think = delayed_fade_think;
-		self->nextthink = level.time + FRAME_TIME_MS;
-	}
-	else {
-		// For non-horde mode, schedule cleanup after a short delay
-		self->think = delayed_cleanup_think;
-		self->nextthink = level.time + 2_sec;  // Give time for death animations/effects
-	}
-
 	// Mark for EntityInfoManager cleanup
 	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
 	if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
 		g_entityInfoManager.removeEntityInfo(entity_index);
 	}
-}
 
-// OnEntityRemoved now simply calls OnEntityDeath
+	// Setup cleanup timing and flags
+	if (g_horde->integer) {
+		constexpr gtime_t FADE_START_DELAY = 4_sec;
+		constexpr gtime_t FADE_DURATION = 3_sec;
+		self->teleport_time = level.time + FADE_START_DELAY;
+		self->timestamp = level.time + FADE_START_DELAY + FADE_DURATION;
+		self->wait = FADE_DURATION.seconds();
+		self->monsterinfo.aiflags |= AI_CLEANUP_FADE;
+		self->s.renderfx &= ~RF_DOT_SHADOW;
+	}
+	else {
+		self->timestamp = level.time + 2_sec;
+		self->monsterinfo.aiflags |= AI_CLEANUP_NORMAL;
+	}
+}// OnEntityRemoved now simply calls OnEntityDeath
 inline void OnEntityRemoved(edict_t* self) noexcept {
 	OnEntityDeath(self);
 }

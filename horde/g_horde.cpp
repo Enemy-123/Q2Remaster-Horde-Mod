@@ -2653,7 +2653,9 @@ static THINK(fade_out_think)(edict_t* self) -> void {
 
 static void StartFadeOut(edict_t* ent) {
 	// No iniciar fade out si el monstruo está vivo o ya está en fade
-	if ((ent->health > 0 && !ent->deadflag) || ent->is_fading_out) {
+	if ((ent->health > 0 && !ent->deadflag) ||
+		ent->is_fading_out ||
+		(ent->monsterinfo.aiflags & (AI_CLEANUP_FADE | AI_CLEANUP_NORMAL))) {
 		return;
 	}
 

@@ -105,8 +105,8 @@ enum
 // Original assertion
 static_assert(CONFIG_LAST <= CS_GENERAL + MAX_GENERAL, "Exceeded maximum allowed general configstrings");
 
-// Your custom configstrings - added after CONFIG_LAST
-constexpr int ENTITY_INFO_COUNT = 80; // Increased to 80 for safety, adjust as needed
+// custom configstrings - added after CONFIG_LAST, for horde mod
+constexpr int ENTITY_INFO_COUNT = 80; // CTFIDVIEW CS HERE: Increased to 80 for safety, adjust as needed
 
 enum
 {
