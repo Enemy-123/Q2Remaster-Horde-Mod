@@ -1031,7 +1031,7 @@ inline void G_RunFrame_(bool main_loop)
 		const gtime_t time_elapsed = level.time - level.intermissiontime;
 		const gtime_t time_remaining = INTERMISSION_DURATION - time_elapsed;
 
-		if (time_remaining == 0_ms)
+		if (time_remaining == 30_ms)
 		{
 			// Es hora de salir de la intermisión
 			gi.Com_PrintFmt("PRINT: Auto-exiting intermission after 30 seconds.\n");
@@ -1114,7 +1114,7 @@ inline void G_RunFrame_(bool main_loop)
 			{
 				if (ent->timestamp && level.time < ent->timestamp)
 				{
-					int32_t playernum = ent - g_edicts - 1;
+					const int32_t const playernum = ent - g_edicts - 1;
 					gi.configstring(CS_PLAYERSKINS + playernum, "");
 					ent->timestamp = 0_sec;
 				}

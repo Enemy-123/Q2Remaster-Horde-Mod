@@ -1174,7 +1174,7 @@ class EntityInfoManager {
 public:
 	static constexpr size_t MAX_ENTITY_INFOS = ENTITY_INFO_COUNT;
 	static constexpr size_t MAX_STRING_LENGTH = 256;
-	static constexpr gtime_t UPDATE_INTERVAL = 50_ms;
+	static constexpr gtime_t UPDATE_INTERVAL = 107_ms;
 	static constexpr gtime_t STALE_THRESHOLD = 3000_ms;
 
 private:
@@ -1185,9 +1185,12 @@ private:
 		gtime_t last_update{ 0_ms };
 
 		bool needsUpdate(std::string_view newInfo, gtime_t currentTime) const noexcept {
-			return length != newInfo.length() ||
-				std::memcmp(data.data(), newInfo.data(), newInfo.length()) != 0 ||
-				currentTime - last_update > UPDATE_INTERVAL;
+			// Only update if the content actually changed AND enough time has passed
+			bool content_changed = length != newInfo.length() ||
+				std::memcmp(data.data(), newInfo.data(), newInfo.length()) != 0;
+
+			return content_changed &&
+				(currentTime - last_update > UPDATE_INTERVAL);
 		}
 
 		void update(std::string_view newInfo, gtime_t currentTime) noexcept {
@@ -1221,6 +1224,12 @@ public:
 			return false;
 		}
 
+		// Add rate limiting
+		static gtime_t last_global_update = 0_ms;
+		if (level.time - last_global_update < 100_ms) {  // Global rate limit
+			return false;
+		}
+		last_global_update = level.time;
 		if (info.length() >= MAX_STRING_LENGTH) {
 			return false;
 		}
@@ -1323,7 +1332,7 @@ public:
 
 inline EntityInfoManager g_entityInfoManager;
 struct CTFIDViewConfig {
-	static constexpr gtime_t UPDATE_INTERVAL = 97_ms;
+	static constexpr gtime_t UPDATE_INTERVAL = 107_ms;
 	static constexpr float MAX_DISTANCE = 2048.0f;
 	static constexpr float MIN_DOT = 0.98f;
 	static constexpr float CLOSE_DISTANCE = 100.0f;
@@ -1418,7 +1427,7 @@ void CTFSetIDView(edict_t* ent) {
 		if (g_entityInfoManager.updateEntityInfo(entity_index, info_string)) {
 			int const config_string_id = g_entityInfoManager.getConfigStringIndex(entity_index);
 			if (config_string_id != -1) {
-				gi.unicast(ent, true);
+			//	gi.unicast(ent, true);
 				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = config_string_id;
 				return;
 			}
