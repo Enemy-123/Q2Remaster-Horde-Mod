@@ -156,9 +156,9 @@ void SP_monster_boss2(edict_t* self);
 void SP_monster_boss2kl(edict_t* self);
 void SP_monster_boss2_64(edict_t* self);
 void SP_monster_boss2_mini(edict_t* self);
+void SP_monster_boss3_stand(edict_t* self);
 void SP_monster_jorg(edict_t* self);
 void SP_monster_jorg_small(edict_t* self);
-void SP_monster_boss3_stand(edict_t* self);
 void SP_monster_makron(edict_t* self);
 void SP_monster_makronkl(edict_t* self);
 // Paril

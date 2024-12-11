@@ -2249,62 +2249,91 @@ void VerifyAndAdjustBots() {
 
 void InitializeWaveSystem() noexcept;
 
-// Función para precargar todos los ítems y jefes
-static void PrecacheItemsAndBosses() noexcept {
-	std::unordered_set<std::string_view> unique_classnames;
+static bool items_precached = false;
 
-	// Create spans with correct types
+static void PrecacheItemsAndBosses() noexcept {
+	// Only precache once
+	if (items_precached)
+		return;
+
 	std::span<const weighted_item_t> items_view{ items };
 	std::span<const MonsterTypeInfo> monsters_view{ monsterTypes };
-	//std::span<const boss_t> small_boss_view{ BOSS_SMALL };
-	//std::span<const boss_t> medium_boss_view{ BOSS_MEDIUM };
-	//std::span<const boss_t> large_boss_view{ BOSS_LARGE };
 
-	// Add classnames to set
+	// Size hint for better performance
+	std::unordered_set<std::string_view> unique_classnames;
+	unique_classnames.reserve(items_view.size() + monsters_view.size());
+
+	// Add classnames using spans
 	for (const auto& item : items_view)
-		unique_classnames.emplace(item.classname);
+		if (item.classname)  // Safety check
+			unique_classnames.emplace(item.classname);
 
 	for (const auto& monster : monsters_view)
-		unique_classnames.emplace(monster.classname);
+		if (monster.classname)  // Safety check
+			unique_classnames.emplace(monster.classname);
 
-	// Precargar cada item único
-	for (const std::string_view classname : unique_classnames) {
-		PrecacheItem(FindItemByClassname(classname.data()));
-	}
+	// Precache items
+	for (const auto& classname : unique_classnames)
+		if (gitem_t* item = FindItemByClassname(classname.data()))
+			PrecacheItem(item);
+
+	items_precached = true;
 }
 
+static bool monsters_precached = false;
+
+// Modified precache function with safety check
 static void PrecacheAllMonsters() noexcept {
+	// Only precache once
+	if (monsters_precached)
+		return;
+
 	for (const auto& monster : monsterTypes) {
-		edict_t* e = G_Spawn();
-		if (!e) {
-			gi.Com_Print("Error: Failed to spawn monster for precaching.\n");
-			continue;
+		// Instead of spawning entities, just precache the models and sounds directly
+		if (gitem_t* item = FindItemByClassname(monster.classname)) {
+			PrecacheItem(item);
 		}
-		e->classname = monster.classname;
-		e->monsterinfo.aiflags |= AI_DO_NOT_COUNT;
-		ED_CallSpawn(e);
-		PrecacheItem(FindItemByClassname(monster.classname));
-		G_FreeEdict(e);
 	}
+
+	monsters_precached = true;
 }
 
 
 // Función para precarga de sonidos
+static bool sounds_precached = false;
+
 static void PrecacheWaveSounds() noexcept {
-	// Precachear sonidos individuales
-	sound_tele3.assign("misc/r_tele3.wav");
-	sound_tele_up.assign("misc/tele_up.wav");
-	sound_spawn1.assign("misc/spawn1.wav");
-	incoming.assign("world/incoming.wav");
+	// Only precache once
+	if (sounds_precached)
+		return;
 
-	// Precachear arrays de sonidos
+	// Individual sounds - using an array for better organization
+	static const std::array<std::pair<cached_soundindex*, const char*>, 4> individual_sounds = { {
+		{&sound_tele3, "misc/r_tele3.wav"},
+		{&sound_tele_up, "misc/tele_up.wav"},
+		{&sound_spawn1, "misc/spawn1.wav"},
+		{&incoming, "world/incoming.wav"}
+	} };
+
+	// Precache individual sounds using span
+	std::span individual_view{ individual_sounds };
+	for (const auto& [sound_index, path] : individual_view) {
+		sound_index->assign(path);
+	}
+
+	// Precache wave sounds using span
+	std::span wave_view{ WAVE_SOUND_PATHS };
 	for (size_t i = 0; i < NUM_WAVE_SOUNDS; ++i) {
-		wave_sounds[i].assign(WAVE_SOUND_PATHS[i]);
+		wave_sounds[i].assign(wave_view[i]);
 	}
 
+	// Precache start sounds using span
+	std::span start_view{ START_SOUND_PATHS };
 	for (size_t i = 0; i < NUM_START_SOUNDS; ++i) {
-		start_sounds[i].assign(START_SOUND_PATHS[i]);
+		start_sounds[i].assign(start_view[i]);
 	}
+
+	sounds_precached = true;
 }
 
 // Agregar un nuevo array para tracking
@@ -2358,11 +2387,15 @@ void AllowReset() noexcept {
 }
 
 void Horde_Init() {
+	// Reset precache state
+	sounds_precached = false;
+	items_precached = false;
+	monsters_precached = false;
 
+	// Clear existing bosses
 	for (auto it = auto_spawned_bosses.begin(); it != auto_spawned_bosses.end();) {
 		edict_t* boss = *it;
 		if (boss && boss->inuse) {
-			// Asegurar que el boss está marcado como manejado
 			boss->monsterinfo.BOSS_DEATH_HANDLED = true;
 			OnEntityRemoved(boss);
 		}
@@ -2370,17 +2403,16 @@ void Horde_Init() {
 	}
 	auto_spawned_bosses.clear();
 
-	// Precache items, bosses, monsters, and sounds
-	PrecacheItemsAndBosses();
+	// Do precaching
 	PrecacheAllMonsters();
+	PrecacheItemsAndBosses();
 	PrecacheWaveSounds();
 
-	// Inicializar otros sistemas de la horda (e.g., sistema de oleadas)
+	// Initialize other systems
 	InitializeWaveSystem();
 	last_wave_number = 0;
 
 	AllowReset();
-	// Resetear el estado del juego para la horda
 	ResetGame();
 
 	gi.Com_Print("PRINT: Horde game state initialized with all necessary resources precached.\n");
