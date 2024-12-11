@@ -1495,12 +1495,11 @@ static constexpr boss_t BOSS_SMALL[] = {
 	{"monster_carrier_mini", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_boss2kl", 24, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_tank_64", -1, 20, 0.25f, BossSizeCategory::Small},
+	{"monster_tank_64", -1, -1, 0.25f, BossSizeCategory::Small},
 	{"monster_shamblerkl", -1, 20, 0.3f, BossSizeCategory::Small},
 	{"monster_guncmdrkl", -1, 20, 0.3f, BossSizeCategory::Small},
 	{"monster_tank_64", 21, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_shamblerkl", 21, -1, 0.1f, BossSizeCategory::Small},
-	{"monster_guncmdrkl", 21, -1, 0.1f, BossSizeCategory::Small},
 	{"monster_makronkl", 36, -1, 0.2f, BossSizeCategory::Small},
 	{"monster_makron", 16, 26, 0.1f, BossSizeCategory::Small},
 	{"monster_psxarachnid", 15, -1, 0.1f, BossSizeCategory::Small},
@@ -1520,7 +1519,8 @@ static constexpr boss_t BOSS_MEDIUM[] = {
 	{"monster_widow2", 19, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_psxarachnid", -14, -1, 0.1f, BossSizeCategory::Medium},
 	{"monster_makronkl", 26, -1, 0.2f, BossSizeCategory::Medium},
-	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium}
+	{"monster_makron", 16, 25, 0.1f, BossSizeCategory::Medium},
+	{ "monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
 };
 
 static constexpr boss_t BOSS_LARGE[] = {
@@ -1538,7 +1538,8 @@ static constexpr boss_t BOSS_LARGE[] = {
 	{"monster_psxguardian", -1, -1, 0.1f, BossSizeCategory::Large},
 	{"monster_boss5", -1, 24, 0.1f, BossSizeCategory::Large},
 	{"monster_jorg", 30, -1, 0.15f, BossSizeCategory::Large},
-	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large}
+	{"monster_makronkl", 30, -1, 0.2f, BossSizeCategory::Large},
+	{ "monster_redmutant", -1, 24, 0.1f, BossSizeCategory::Small }
 };
 
 // Modified GetBossList function using std::span
