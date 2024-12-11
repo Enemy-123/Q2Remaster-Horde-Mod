@@ -1453,19 +1453,6 @@ void OnEntityDeath(edict_t* self) noexcept
 		self->monsterinfo.IS_BOSS = false;
 	}
 
-	// Handle summoned entity notifications
-	if (self->monsterinfo.issummoned && self->owner && self->owner->client) {
-		if (strcmp(self->classname, "monster_sentrygun") == 0) {
-			gi.Client_Print(self->owner, PRINT_HIGH, "Your sentry gun was destroyed.\n");
-			self->owner->client->num_sentries--;
-		}
-		else if (strstr(self->classname, "monster_") &&
-			strcmp(self->classname, "monster_sentrygun") != 0) {
-			gi.Client_Print(self->owner, PRINT_HIGH, "Your Summoned Strogg was defeated!\n");
-			self->owner->client->num_sentries--;
-		}
-	}
-
 	// Mark for EntityInfoManager cleanup
 	int32_t const entity_index = static_cast<int32_t>(self - g_edicts);
 	if (static_cast<uint32_t>(entity_index) < MAX_EDICTS) {
