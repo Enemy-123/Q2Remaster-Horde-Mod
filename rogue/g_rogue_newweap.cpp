@@ -1511,7 +1511,7 @@ TOUCH(tesla_lava) (edict_t* ent, edict_t* other, const trace_t& tr, bool other_t
 
 
 	if (tr.plane.normal) {
-		float slope = fabs(tr.plane.normal[2]);
+		const float slope = fabs(tr.plane.normal[2]);
 		if (slope > 0.85f) {
 			if (tr.plane.normal[2] > 0) {
 				// Suelo

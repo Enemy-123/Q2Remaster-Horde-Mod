@@ -382,8 +382,116 @@ DIE(trap_die) (edict_t* self, edict_t* inflictor, edict_t* attacker, int damage,
 }
 
 // RAFAEL
+
+void Trap_Think(edict_t* ent);
 void SP_item_foodcube(edict_t* best);
 void SpawnDamage(int type, const vec3_t& origin, const vec3_t& normal, int damage);
+
+constexpr float TRAP_WALL_OFFSET = 3.0f;       // Offset for walls
+constexpr float TRAP_CEILING_OFFSET = -20.4f;  // Offset for ceilings
+constexpr float TRAP_FLOOR_OFFSET = -12.0f;    // Offset for floor
+constexpr float TRAP_ORB_OFFSET = 12.0f;       // Normal sphere height
+constexpr float TRAP_ORB_OFFSET_CEIL = -18.0f; // Ceiling sphere height
+
+// New touch function for trap sticking behavior
+TOUCH(trap_stick)(edict_t* ent, edict_t* other, const trace_t& tr, bool other_touching_self) -> void
+{
+	if (!other->inuse || !(other->solid == SOLID_BSP || other->movetype == MOVETYPE_PUSH))
+		return;
+
+	// Handle non-world entities (similar to tesla)
+	if (other != world && (other->movetype != MOVETYPE_PUSH || other->svflags & SVF_MONSTER ||
+		other->client || strcmp(other->classname, "func_train") == 0))
+	{
+		if (tr.plane.normal) {
+			vec3_t out{};
+			float const backoff = ent->velocity.dot(tr.plane.normal) * 1.35f;
+			for (int i = 0; i < 3; i++) {
+				float change = tr.plane.normal[i] * backoff;
+				out[i] = ent->velocity[i] - change;
+				out[i] += crandom() * 70.0f;
+				if (fabs(out[i]) < 120.0f && out[i] != 0) {
+					out[i] = (out[i] < 0 ? -120.0f : 120.0f);
+				}
+			}
+			if (tr.plane.normal[2] > 0) {
+				out[2] += 180.0f;
+			}
+			if (out.length() < 120.0f) {
+				out.normalize();
+				out = out * 120.0f;
+			}
+			ent->velocity = out;
+			ent->avelocity = { crandom() * 240, crandom() * 240, crandom() * 240 };
+			gi.sound(ent, CHAN_VOICE, gi.soundindex(frandom() > 0.5f ?
+				"weapons/hgrenb1a.wav" : "weapons/hgrenb2a.wav"), 1, ATTN_NORM, 0);
+			return;
+		}
+	}
+
+	// Surface sticking logic
+	if (tr.plane.normal) {
+		const float slope = fabs(tr.plane.normal[2]);
+		if (slope > 0.85f) {
+			if (tr.plane.normal[2] > 0) {
+				// Floor
+				ent->s.angles = {};
+				ent->mins = { -4, -4, 0 };
+				ent->maxs = { 4, 4, 8 };
+				ent->s.origin = ent->s.origin + (tr.plane.normal * TRAP_FLOOR_OFFSET);
+				ent->s.origin[2] += TRAP_ORB_OFFSET;
+			}
+			else {
+				// Ceiling
+				ent->s.angles = { 180, 0, 0 };
+				ent->mins = { -4, -4, -8 };
+				ent->maxs = { 4, 4, 0 };
+				ent->s.origin = ent->s.origin + (tr.plane.normal * TRAP_CEILING_OFFSET);
+				ent->s.origin[2] += TRAP_ORB_OFFSET_CEIL;
+			}
+		}
+		else {
+			vec3_t dir = vectoangles(tr.plane.normal);
+			vec3_t forward;
+			AngleVectors(dir, &forward, nullptr, nullptr);
+
+			// Check if it's a flat wall
+			const bool is_flat_wall = (fabs(tr.plane.normal[0]) > 0.95f || fabs(tr.plane.normal[1]) > 0.95f);
+
+			if (is_flat_wall) {
+				ent->s.angles[PITCH] = dir[PITCH] + 90;
+				ent->s.angles[YAW] = dir[YAW];
+				ent->s.angles[ROLL] = 0;
+				ent->mins = { 0, -4, -4 };
+				ent->maxs = { 8, 4, 4 };
+				ent->s.origin = ent->s.origin + (forward * -TRAP_WALL_OFFSET);
+			}
+			else {
+				ent->s.angles = dir;
+				ent->s.angles[PITCH] += 90;
+				ent->mins = { -4, -4, -4 };
+				ent->maxs = { 4, 4, 4 };
+				ent->s.origin = ent->s.origin + (forward * -TRAP_WALL_OFFSET);
+			}
+		}
+	}
+
+	// Stop movement and set up trap behavior
+	ent->velocity = {};
+	ent->avelocity = {};
+	ent->movetype = MOVETYPE_NONE;
+	ent->touch = nullptr;
+	ent->solid = SOLID_BBOX;
+
+	// Keep existing trap behavior but now it's stuck
+	ent->think = Trap_Think;
+	ent->nextthink = level.time + 10_hz;
+	gi.linkentity(ent);
+
+	// Play stick sound
+	gi.sound(ent, CHAN_VOICE, gi.soundindex("weapons/hgrenb1a.wav"), 1, ATTN_NORM, 0);
+}
+
 // RAFAEL
 THINK(Trap_Think) (edict_t* ent) -> void
 {
@@ -403,8 +511,8 @@ THINK(Trap_Think) (edict_t* ent) -> void
 
 	ent->nextthink = level.time + 10_hz;
 
-	if (!ent->groundentity)
-		return;
+	//if (!ent->groundentity)
+	//	return;
 
 	// ok lets do the blood effect
 	if (ent->s.frame > 4)
@@ -579,8 +687,8 @@ THINK(Trap_Think) (edict_t* ent) -> void
 void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int speed)
 {
 	edict_t* trap;
-	vec3_t	 dir;
-	vec3_t	 forward, right, up;
+	vec3_t dir;
+	vec3_t forward, right, up;
 
 	dir = vectoangles(aimdir);
 	AngleVectors(dir, forward, right, up);
@@ -606,7 +714,7 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 	trap->s.modelindex = gi.modelindex("models/weapons/z_trap/tris.md2");
 	trap->owner = trap->teammaster = self;
 
-	// Asigna el equipo como una cadena de caracteres
+	// Team assignment
 	const char* trap_team;
 	if (self->client->resp.ctf_team == CTF_TEAM1) {
 		trap_team = TEAM1;
@@ -615,21 +723,22 @@ void fire_trap(edict_t* self, const vec3_t& start, const vec3_t& aimdir, int spe
 		trap_team = TEAM2;
 	}
 	else {
-		trap_team = "neutral"; // O cualquier valor por defecto que quieras
+		trap_team = "neutral";
 	}
 	trap->team = trap_team;
 	trap->teammaster->team = trap_team;
+
 	trap->nextthink = level.time + 1_sec;
 	trap->think = Trap_Think;
 	trap->classname = "food_cube_trap";
-	// RAFAEL 16-APR-98
 	trap->s.sound = gi.soundindex("weapons/traploop.wav");
-	// END 16-APR-98
 
 	trap->flags |= (FL_DAMAGEABLE | FL_MECHANICAL | FL_TRAP);
 	trap->clipmask = MASK_PROJECTILE & ~CONTENTS_DEADMONSTER;
 
-	// [Paril-KEX]
+	// New touch function for sticking behavior
+	trap->touch = trap_stick;
+
 	if (self->client && !G_ShouldPlayersCollide(true))
 		trap->clipmask &= ~CONTENTS_PLAYER;
 
