@@ -456,26 +456,36 @@ void TankGrenades(edict_t* self)
 	else // FRAME_attak116
 		offset = { 19.8f, -23.9f, 32.1f };
 
-	// Calcular punto de inicio usando M_ProjectFlashSource
 	vec3_t const start = M_ProjectFlashSource(self, offset, forward, right);
-
-	// Determinar si es disparo de mortero
 	const bool is_mortar = (self->s.frame == FRAME_attak110);
 	const float speed = is_mortar ? MORTAR_SPEED : GRENADE_SPEED;
-
 	vec3_t aim, aimpoint;
-	// Calcular dirección de disparo con PredictAim
-	PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
 
-	// Añadir ligera dispersión
-	aim += right * 0.05f;
-	aim.normalize();
+	const float dist = range_to(self, self->enemy);
 
-	// Intentar encontrar el mejor pitch
-	if (M_CalculatePitchToFire(self, aimpoint, start, aim, speed, 2.5f, is_mortar))
-		monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0, crandom_open() * 10.0f, frandom() * 10.f);
+	// Para distancias cortas, usar solo PredictAim
+	if (dist < 400 && !is_mortar)  // No aplicar a disparos de mortero
+	{
+		PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
+		aim += right * (crandom() * 0.02f);  // Pequeño ajuste aleatorio
+		aim.normalize();
+		monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0,
+			crandom_open() * 10.0f, 200.f + (crandom_open() * 10.0f));
+	}
+	// Para distancias largas o mortero, mantener la lógica original
 	else
-		monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0, crandom_open() * 10.0f, 200.f + (crandom_open() * 10.0f));
+	{
+		PredictAim(self, self->enemy, start, speed, true, 0, &aim, &aimpoint);
+		aim += right * 0.05f;
+		aim.normalize();
+
+		if (M_CalculatePitchToFire(self, aimpoint, start, aim, speed, 2.5f, is_mortar))
+			monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0,
+				crandom_open() * 10.0f, frandom() * 10.f);
+		else
+			monster_fire_grenade(self, start, aim, 50, speed, MZ2_UNUSED_0,
+				crandom_open() * 10.0f, 200.f + (crandom_open() * 10.0f));
+	}
 
 	gi.sound(self, CHAN_WEAPON, sound_grenade, 1, ATTN_NORM, 0);
 }
