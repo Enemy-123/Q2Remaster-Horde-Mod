@@ -1215,8 +1215,8 @@ private:
 		int32_t config_string_id{ -1 };
 		gtime_t last_update{ 0_ms };
 
-		bool needsUpdate(std::string_view newInfo, gtime_t currentTime) const noexcept {
-			// Only update if the content actually changed AND enough time has passed
+		// Keep the original memcmp for string comparison as it was working correctly
+		[[nodiscard]] bool needsUpdate(std::string_view newInfo, gtime_t currentTime) const noexcept {
 			const bool content_changed = length != newInfo.length() ||
 				std::memcmp(data.data(), newInfo.data(), newInfo.length()) != 0;
 
@@ -1224,6 +1224,7 @@ private:
 				(currentTime - last_update > UPDATE_INTERVAL);
 		}
 
+		// Keep the original update logic that was working
 		void update(std::string_view newInfo, gtime_t currentTime) noexcept {
 			std::memcpy(data.data(), newInfo.data(), newInfo.length());
 			length = static_cast<uint16_t>(newInfo.length());
@@ -1240,16 +1241,16 @@ private:
 public:
 	EntityInfoManager() noexcept {
 		m_freeSlots.reserve(MAX_ENTITY_INFOS);
+		m_entityToSlot.resize(MAX_EDICTS, -1);
+
+		// Initialize all entities
 		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
 			m_freeSlots.push_back(i);
-			// Use explicit offset from CONFIG_ENTITY_INFO_START
 			m_entities[i].config_string_id = CONFIG_ENTITY_INFO_START + i;
 		}
-		m_entityToSlot.resize(MAX_EDICTS, -1);
 	}
 
-	bool updateEntityInfo(int entityIndex, std::string_view info) noexcept {
-		// Add bounds check for entity index
+	[[nodiscard]] bool updateEntityInfo(int entityIndex, std::string_view info) noexcept {
 		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
 			return false;
 		}
@@ -1260,18 +1261,16 @@ public:
 
 		int slotIndex = m_entityToSlot[entityIndex];
 
-		// If no slot is assigned
+		// If no slot is assigned, get one from free slots
 		if (slotIndex == -1) {
 			if (m_freeSlots.empty()) {
-				// You could also optionally call cleanupStaleEntries() here
-				// but be mindful of the potential performance impact.
 				return false;
 			}
 
 			slotIndex = m_freeSlots.back();
 			m_freeSlots.pop_back();
 			m_entityToSlot[entityIndex] = slotIndex;
-			m_activeCount++;
+			++m_activeCount;
 		}
 
 		// Update only if necessary
@@ -1284,34 +1283,32 @@ public:
 		return true;
 	}
 
-	static constexpr bool isValidConfigStringId(int32_t id) noexcept {
-		return id >= CONFIG_ENTITY_INFO_START &&
-			id < (CONFIG_ENTITY_INFO_START + MAX_ENTITY_INFOS);
-	}
-
 	void removeEntityInfo(int entityIndex) noexcept {
-		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
+		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
 			return;
+		}
 
 		int const slotIndex = m_entityToSlot[entityIndex];
-		if (slotIndex == -1)
-			return; // Entity not found or already removed
-
-		if (slotIndex < 0 || slotIndex >= MAX_ENTITY_INFOS)
+		if (slotIndex == -1 || slotIndex < 0 || slotIndex >= MAX_ENTITY_INFOS) {
 			return;
+		}
 
 		auto& entity = m_entities[slotIndex];
 
+		// Clear the config string if valid
 		if (isValidConfigStringId(entity.config_string_id)) {
 			gi.configstring(entity.config_string_id, "");
 		}
 
+		// Reset entity data
 		entity.length = 0;
 		entity.data[0] = '\0';
 		entity.last_update = 0_ms;
 
+		// Return slot to free pool
 		m_freeSlots.push_back(slotIndex);
-		m_entityToSlot[entityIndex] = -1; // Mark slot as free		m_activeCount--;
+		m_entityToSlot[entityIndex] = -1;
+		--m_activeCount;
 	}
 
 	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
@@ -1320,19 +1317,22 @@ public:
 		}
 
 		int const slotIndex = m_entityToSlot[entityIndex];
-		if (slotIndex != -1) {
-			// Add an assertion for extra safety during development
-			assert(slotIndex >= 0 && slotIndex < MAX_ENTITY_INFOS && "Slot index out of bounds!");
-			if (slotIndex >= 0 && slotIndex < MAX_ENTITY_INFOS)
-				return m_entities[slotIndex].config_string_id;
+		if (slotIndex >= 0 && slotIndex < MAX_ENTITY_INFOS) {
+			return m_entities[slotIndex].config_string_id;
 		}
+
 		return -1;
 	}
 
+	[[nodiscard]] static constexpr bool isValidConfigStringId(int32_t id) noexcept {
+		return id >= CONFIG_ENTITY_INFO_START &&
+			id < (CONFIG_ENTITY_INFO_START + MAX_ENTITY_INFOS);
+	}
+
 	[[nodiscard]] bool hasEntityInfo(int entityIndex) const noexcept {
-		if (entityIndex < 0 || entityIndex >= MAX_EDICTS)
-			return false;
-		return m_entityToSlot[entityIndex] != -1;
+		return entityIndex >= 0 &&
+			entityIndex < MAX_EDICTS &&
+			m_entityToSlot[entityIndex] != -1;
 	}
 
 	[[nodiscard]] size_t getActiveCount() const noexcept {
