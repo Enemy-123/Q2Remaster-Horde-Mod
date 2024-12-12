@@ -107,7 +107,8 @@ void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, co
 	if (targ->svflags & SVF_MONSTER)
 		return;
 
-	targ->die(targ, inflictor, attacker, damage, point, mod);
+	if (targ && targ->die)
+	targ->die(targ, inflictor, attacker, damage, point, mod); //crashed here
 
 	if (targ->monsterinfo.setskin)
 		targ->monsterinfo.setskin(targ);
@@ -1268,17 +1269,31 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 
 		if (targ->health <= 0)
 		{
+			if (!targ) {
+				return;
+			}
+
 			if ((targ->svflags & SVF_MONSTER) || (client))
 			{
 				targ->flags |= FL_ALIVE_KNOCKBACK_ONLY;
 				targ->dead_time = level.time;
 			}
-			targ->monsterinfo.damage_blood += take;
-			targ->monsterinfo.damage_attacker = attacker;
-			targ->monsterinfo.damage_inflictor = inflictor;
-			targ->monsterinfo.damage_from = point;
-			targ->monsterinfo.damage_mod = mod;
-			targ->monsterinfo.damage_knockback += knockback;
+
+			// Safety checks for all parameters
+			if (!targ || !inflictor || !attacker) {
+				return;
+			}
+
+			// Initialize monsterinfo if necessary
+			if (&targ->monsterinfo) {
+				targ->monsterinfo.damage_blood += take;
+				targ->monsterinfo.damage_attacker = attacker;
+				targ->monsterinfo.damage_inflictor = inflictor;
+				targ->monsterinfo.damage_from = point;
+				targ->monsterinfo.damage_mod = mod;
+				targ->monsterinfo.damage_knockback += knockback;
+			}
+
 			Killed(targ, inflictor, attacker, take, point, mod);
 			return;
 		}
@@ -1425,7 +1440,8 @@ void T_RadiusDamage(edict_t* inflictor, edict_t* attacker, float damage, edict_t
 				dir = (ent->s.origin - inflictor_center).normalized();
 				// Aplicar el modificador de daño aquí
 				const float modified_points = points * damage_modifier;
-				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir,
+				if (ent && inflictor && attacker)
+				T_Damage(ent, inflictor, attacker, dir, closest_point_to_box(inflictor_center, ent->absmin, ent->absmax), dir, //crash here
 					(int)modified_points, (int)modified_points,
 					dflags | DAMAGE_RADIUS, mod);
 			}
