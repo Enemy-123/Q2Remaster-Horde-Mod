@@ -1119,11 +1119,12 @@ enum class EntityType {
 
 	switch (type) {
 	case EntityType::Monster: {
-		// Use the edict_t* overload for monsters
- std::string name = GetDisplayName(ent->classname ? ent->classname : "Unknown Monster");
-	//	if (name.empty()) return {};
+		// Get the title first for monsters
+		std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
+		std::string name = GetDisplayName(ent->classname ? ent->classname : "Unknown Monster");
 
-		fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, ent->health);
+		fmt::format_to(std::back_inserter(info), "{}{}\nH: {}",
+			title, FormatClassname(name), ent->health);
 
 		if (ent->monsterinfo.armor_power >= 1) {
 			fmt::format_to(std::back_inserter(info), " A: {}", ent->monsterinfo.armor_power);
@@ -1383,47 +1384,70 @@ struct TargetSearchResult {
 };
 
 [[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) noexcept {
-    TargetSearchResult result;
-    vec3_t const& viewer_pos = ent->s.origin;
+	TargetSearchResult result;
+	vec3_t const& viewer_pos = ent->s.origin;
 
-    // Check players first
-    for (edict_t* who : active_players()) {
-        if (!IsValidTarget(ent, who, false)) continue;
+	// Check players first
+	for (edict_t* who : active_players()) {
+		if (!IsValidTarget(ent, who, false)) continue;
 
-        vec3_t dir = who->s.origin - viewer_pos;
-        float const dist = dir.normalize();
+		vec3_t dir = who->s.origin - viewer_pos;
+		float const dist = dir.normalize();
 
-        float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
-            ? CTFIDViewConfig::CLOSE_MIN_DOT
-            : CTFIDViewConfig::MIN_DOT;
+		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+			? CTFIDViewConfig::CLOSE_MIN_DOT
+			: CTFIDViewConfig::MIN_DOT;
 
-        if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
-        if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
+		if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
+		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
 
-        result.distance = dist;
-        result.target = who;
-    }
+		result.distance = dist;
+		result.target = who;
+	}
 
-    // Then check monsters
-    for (edict_t* who : active_monsters()) {
-        if (!IsValidTarget(ent, who, false)) continue;
+	// Then check monsters
+	for (edict_t* who : active_monsters()) {
+		if (!IsValidTarget(ent, who, false)) continue;
 
-        vec3_t dir = who->s.origin - viewer_pos;
-        float const dist = dir.normalize();
+		vec3_t dir = who->s.origin - viewer_pos;
+		float const dist = dir.normalize();
 
-        float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
-            ? CTFIDViewConfig::CLOSE_MIN_DOT
-            : CTFIDViewConfig::MIN_DOT;
+		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+			? CTFIDViewConfig::CLOSE_MIN_DOT
+			: CTFIDViewConfig::MIN_DOT;
 
-        if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
-        if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
+		if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
+		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
 
-        result.distance = dist;
-        result.target = who;
-    }
+		result.distance = dist;
+		result.target = who;
+	}
 
-    return result;
+	// Finally check other valid entities (tesla mines, traps, etc)
+	for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
+		// Skip players and monsters as we already checked them
+		if (who->client || (who->svflags & SVF_MONSTER)) continue;
+
+		// Check if it's a valid other entity
+		if (!IsValidTarget(ent, who, false)) continue;
+
+		vec3_t dir = who->s.origin - viewer_pos;
+		float const dist = dir.normalize();
+
+		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+			? CTFIDViewConfig::CLOSE_MIN_DOT
+			: CTFIDViewConfig::MIN_DOT;
+
+		if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
+		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
+
+		result.distance = dist;
+		result.target = who;
+	}
+
+	return result;
 }
+
 void CTFSetIDView(edict_t* ent) {
 	static bool is_processing = false;
 
