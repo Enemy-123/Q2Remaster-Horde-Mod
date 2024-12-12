@@ -517,8 +517,10 @@ void flyer_fireright(edict_t* self)
 
 void flyer_reattack_blaster(edict_t* self)
 {
-	if (frandom() < 0.7f)
+	if (frandom() < 0.7f && visible(self, self->enemy))
 		self->monsterinfo.nextframe = FRAME_attak204;
+	else
+		flyer_run(self);
 }
 
 
