@@ -1094,19 +1094,36 @@ int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
 	return std::max(0, static_cast<int>((end_time - current_time).template seconds<float>()));
 }
 
+enum class EntityType {
+	Player,
+	Monster,
+	Other
+};
+
+[[nodiscard]] inline EntityType GetEntityType(edict_t* ent) {
+	if (!ent) return EntityType::Other;
+	if (ent->client) return EntityType::Player;
+	if (ent->svflags & SVF_MONSTER) return EntityType::Monster;
+	return EntityType::Other;
+}
+
 [[nodiscard]] inline std::string FormatEntityInfo(edict_t* ent) {
-	if (!ent) {
-		return "";
+	if (!ent || !ent->inuse) {
+		return {};
 	}
 
 	std::string info;
 	info.reserve(256);
 
-	if (ent->svflags & SVF_MONSTER) {
-		std::string title = GetTitleFromFlags(ent->monsterinfo.bonus_flags);
-		std::string name = GetDisplayName(ent->classname ? ent->classname : "Unknown Monster");
-		fmt::format_to(std::back_inserter(info), "{}{}\nH: {}",
-			title, FormatClassname(name), ent->health);
+	EntityType type = GetEntityType(ent);
+
+	switch (type) {
+	case EntityType::Monster: {
+		// Use the edict_t* overload for monsters
+ std::string name = GetDisplayName(ent->classname ? ent->classname : "Unknown Monster");
+	//	if (name.empty()) return {};
+
+		fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, ent->health);
 
 		if (ent->monsterinfo.armor_power >= 1) {
 			fmt::format_to(std::back_inserter(info), " A: {}", ent->monsterinfo.armor_power);
@@ -1134,37 +1151,50 @@ int GetRemainingTime(gtime_t current_time, gtime_t end_time) {
 					powerup.label, GetRemainingTime<float>(level.time, powerup.time));
 			}
 		}
+		break;
 	}
-	else if (ent->client) {
+
+	case EntityType::Player: {
 		std::string playerName = GetPlayerName(ent);
+	//	if (playerName.empty()) return {};
+
 		fmt::format_to(std::back_inserter(info), "{}\nH: {}", playerName, ent->health);
 
 		if (int armor = GetArmorInfo(ent); armor > 0) {
 			fmt::format_to(std::back_inserter(info), " A: {}", armor);
 		}
+		break;
 	}
-	else if (const char* classname = ent->classname) {
-		std::string name = GetDisplayName(classname);
+
+	case EntityType::Other: {
+		if (!ent->classname) return {};
+		// Use the char* overload for other entities
+		std::string name = GetDisplayName(ent->classname);
+		if (name.empty()) return {};
+
 		fmt::format_to(std::back_inserter(info), "{}\nH: {}", name, ent->health);
 
-		if (strcmp(classname, "tesla_mine") == 0 || strcmp(classname, "food_cube_trap") == 0) {
+		if (strcmp(ent->classname, "tesla_mine") == 0 ||
+			strcmp(ent->classname, "food_cube_trap") == 0) {
+
 			gtime_t const time_active = level.time - ent->timestamp;
-			gtime_t const time_remaining = (strcmp(classname, "tesla_mine") == 0)
+			gtime_t const time_remaining = (strcmp(ent->classname, "tesla_mine") == 0)
 				? TESLA_TIME_TO_LIVE - time_active
 				: -time_active;
 
 			fmt::format_to(std::back_inserter(info), " T: {}s",
 				GetRemainingTime<float>(gtime_t{}, time_remaining));
 		}
-		else if (strcmp(classname, "emitter") == 0 && ent->owner && ent->owner->inuse) {
+		else if (strcmp(ent->classname, "emitter") == 0 &&
+			ent->owner && ent->owner->inuse) {
 			fmt::format_to(std::back_inserter(info), " DMG: {}", ent->owner->health);
-
 			gtime_t const time_active = level.time - ent->owner->timestamp;
 			gtime_t const time_remaining = ent->timestamp - time_active;
-
 			fmt::format_to(std::back_inserter(info), " T: {}s",
 				GetRemainingTime<float>(gtime_t{}, time_remaining));
 		}
+		break;
+	}
 	}
 
 	return info;
@@ -1211,10 +1241,9 @@ public:
 		m_freeSlots.reserve(MAX_ENTITY_INFOS);
 		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
 			m_freeSlots.push_back(i);
+			// Use explicit offset from CONFIG_ENTITY_INFO_START
 			m_entities[i].config_string_id = CONFIG_ENTITY_INFO_START + i;
 		}
-
-		// Initialize m_entityToSlot with -1 (indicating no entity in that slot)
 		m_entityToSlot.resize(MAX_EDICTS, -1);
 	}
 
@@ -1255,7 +1284,8 @@ public:
 	}
 
 	static constexpr bool isValidConfigStringId(int32_t id) noexcept {
-		return id >= CONFIG_ENTITY_INFO_START && id <= CONFIG_ENTITY_INFO_END;
+		return id >= CONFIG_ENTITY_INFO_START &&
+			id < (CONFIG_ENTITY_INFO_START + MAX_ENTITY_INFOS);
 	}
 
 	void removeEntityInfo(int entityIndex) noexcept {
@@ -1352,42 +1382,51 @@ struct TargetSearchResult {
 	float distance{ CTFIDViewConfig::MAX_DISTANCE };
 };
 
-[[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, std::span<edict_t> edicts, const vec3_t& forward) noexcept {
-	TargetSearchResult result;
-	vec3_t const& viewer_pos = ent->s.origin;
+[[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) noexcept {
+    TargetSearchResult result;
+    vec3_t const& viewer_pos = ent->s.origin;
 
-	for (auto& who : edicts) {
-		if (!IsValidTarget(ent, &who, false)) {
-			continue;
-		}
+    // Check players first
+    for (edict_t* who : active_players()) {
+        if (!IsValidTarget(ent, who, false)) continue;
 
-		vec3_t dir = who.s.origin - viewer_pos;
-		float const dist = dir.normalize();
+        vec3_t dir = who->s.origin - viewer_pos;
+        float const dist = dir.normalize();
 
-		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
-			? CTFIDViewConfig::CLOSE_MIN_DOT
-			: CTFIDViewConfig::MIN_DOT;
+        float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+            ? CTFIDViewConfig::CLOSE_MIN_DOT
+            : CTFIDViewConfig::MIN_DOT;
 
-		if (dist >= result.distance || forward.dot(dir) <= min_dot) {
-			continue;
-		}
+        if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
+        if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
 
-		if (!CanSeeTarget(ent, viewer_pos, &who, who.s.origin)) {
-			continue;
-		}
+        result.distance = dist;
+        result.target = who;
+    }
 
-		result.distance = dist;
-		result.target = &who;
-	}
+    // Then check monsters
+    for (edict_t* who : active_monsters()) {
+        if (!IsValidTarget(ent, who, false)) continue;
 
-	return result;
+        vec3_t dir = who->s.origin - viewer_pos;
+        float const dist = dir.normalize();
+
+        float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+            ? CTFIDViewConfig::CLOSE_MIN_DOT
+            : CTFIDViewConfig::MIN_DOT;
+
+        if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
+        if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
+
+        result.distance = dist;
+        result.target = who;
+    }
+
+    return result;
 }
-
 void CTFSetIDView(edict_t* ent) {
-	// Make processing static within the function
 	static bool is_processing = false;
 
-	// Early exit checks
 	if (is_processing || level.intermissiontime ||
 		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
 		return;
@@ -1399,13 +1438,14 @@ void CTFSetIDView(edict_t* ent) {
 	} guard;
 
 	ent->client->resp.lastidtime = level.time;
+	// Clear both stats initially
 	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	vec3_t forward;
 	AngleVectors(ent->client->v_angle, forward, nullptr, nullptr);
 
-	TargetSearchResult result = FindBestTarget(ent, { g_edicts + 1, globals.num_edicts }, forward);
+	TargetSearchResult result = FindBestTarget(ent, forward);
 	edict_t* best = result.target;
 
 	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
@@ -1417,25 +1457,23 @@ void CTFSetIDView(edict_t* ent) {
 		std::string info_string = FormatEntityInfo(best);
 		int const entity_index = best - g_edicts;
 
-		// Update entity info and get config string index in one step
 		if (g_entityInfoManager.updateEntityInfo(entity_index, info_string)) {
 			int const config_string_id = g_entityInfoManager.getConfigStringIndex(entity_index);
 			if (config_string_id != -1) {
-			//	gi.unicast(ent, true);
-				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = config_string_id;
+				// Use appropriate stat based on entity type
+				if (best->client) {
+					ent->client->ps.stats[STAT_CTF_ID_VIEW] = config_string_id;
+				}
+				else {
+					ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = config_string_id;
+				}
 				return;
 			}
 		}
+	}
 
-		// If we get here, something failed - clear the stat
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
-	}
-	else {
-		ent->client->idtarget = nullptr;
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
-	}
+	ent->client->idtarget = nullptr;
 }
-
 void OnEntityDeath(edict_t* self) noexcept
 {
 	// Early exit checks
@@ -1523,7 +1561,7 @@ void SetCTFStats(edict_t* ent)
 		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_human;
 
 		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-		ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
+	//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 
 		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
 
