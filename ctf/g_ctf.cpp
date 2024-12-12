@@ -1100,7 +1100,7 @@ enum class EntityType {
 	Other
 };
 
-[[nodiscard]] inline EntityType GetEntityType(edict_t* ent) {
+[[nodiscard]] inline EntityType GetEntityType(const edict_t* ent) {
 	if (!ent) return EntityType::Other;
 	if (ent->client) return EntityType::Player;
 	if (ent->svflags & SVF_MONSTER) return EntityType::Monster;
@@ -1115,7 +1115,7 @@ enum class EntityType {
 	std::string info;
 	info.reserve(256);
 
-	EntityType type = GetEntityType(ent);
+	const EntityType type = GetEntityType(ent);
 
 	switch (type) {
 	case EntityType::Monster: {
