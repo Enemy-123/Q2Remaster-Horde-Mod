@@ -85,6 +85,9 @@ Killed
 */
 void Killed(edict_t* targ, edict_t* inflictor, edict_t* attacker, int damage, const vec3_t& point, mod_t mod)
 {
+	if (!targ)  // First check if targ is valid
+		return;
+
 	if (targ->health < -999)
 		targ->health = -999;
 
