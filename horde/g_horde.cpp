@@ -3294,29 +3294,31 @@ static void ResetRecentBosses() noexcept {
 void ResetWaveAdvanceState() noexcept;
 
 static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReason& reason) {
+	// Cache valores usados frecuentemente
 	const gtime_t currentTime = level.time;
 	const int32_t remainingMonsters = CalculateRemainingMonsters();
-	const float percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
 
-	// Initialize wave end time if not set
-	if (g_horde_local.waveEndTime == 0_sec) {
-		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
+	// Usar shortcuts para condiciones comunes
+	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
+		reason = WaveEndReason::TimeLimitReached;
+		return true;
 	}
 
-	// Priority 1: Check for instant win conditions
 	if (allowWaveAdvance || Horde_AllMonstersDead()) {
 		reason = WaveEndReason::AllMonstersDead;
 		ResetWaveAdvanceState();
 		return true;
 	}
 
-	// Priority 2: Check global time limit
-	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
-		reason = WaveEndReason::TimeLimitReached;
-		return true;
+	// Calcular porcentaje una sola vez si se necesita
+	const float percentageRemaining = static_cast<float>(remainingMonsters) / g_totalMonstersInWave;
+
+	// Inicializar tiempo final si es necesario
+	if (g_horde_local.waveEndTime == 0_sec) {
+		g_horde_local.waveEndTime = g_independent_timer_start + g_lastParams.independentTimeThreshold;
 	}
 
-	// Priority 3: Check and handle condition triggers
+	// Combinar condiciones de trigger
 	if (!g_horde_local.conditionTriggered) {
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
 		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
@@ -3325,61 +3327,47 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Select appropriate time threshold
+			// Usar operador ternario para simplificar la selección del threshold
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
 				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
-				maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold;
+				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
 
-			// Set initial wave end time
 			g_horde_local.waveEndTime = currentTime + g_horde_local.conditionTimeThreshold;
 
-			// Apply aggressive time reduction if very few monsters remain
+			// Aplicar reducción de tiempo agresiva si quedan muy pocos monstruos
 			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-				g_horde_local.waveEndTime = std::min(g_horde_local.waveEndTime, currentTime + reduction);
-				gi.LocBroadcast_Print(PRINT_HIGH, "Wave time reduced!\n");
+				g_horde_local.waveEndTime = std::min(
+					g_horde_local.waveEndTime,
+					currentTime + (AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
+						(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters))
+				);
 			}
 		}
 	}
 
-	// Priority 4: Handle active condition state
+	// Manejar advertencias de tiempo
 	if (g_horde_local.conditionTriggered) {
-		// Check for condition expiration
-		if (currentTime >= g_horde_local.waveEndTime) {
-			reason = WaveEndReason::MonstersRemaining;
-			return true;
-		}
-
-		// Handle dynamic time adjustments for low monster counts
-		if (!g_lowPercentageTriggered &&
-			percentageRemaining <= g_lastParams.lowPercentageThreshold) {
-
-			g_lowPercentageTriggered = true;
-
-			if (remainingMonsters <= MONSTERS_FOR_AGGRESSIVE_REDUCTION) {
-				const gtime_t reduction = AGGRESSIVE_TIME_REDUCTION_PER_MONSTER *
-					(MONSTERS_FOR_AGGRESSIVE_REDUCTION - remainingMonsters);
-				const gtime_t newEndTime = currentTime + reduction;
-
-				if (newEndTime < g_horde_local.waveEndTime) {
-					g_horde_local.waveEndTime = newEndTime;
-				//	gi.LocBroadcast_Print(PRINT_HIGH, "Time reduced due to few remaining monsters!\n");
-				}
-			}
-		}
-
-		// Handle warning messages
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
+
+		// Usar array estático para tiempos de advertencia
+		static constexpr std::array<float, WARNING_TIMES.size()> WARNING_FRAMES = {
+			0.0f, 1.0f, 2.0f
+		};
+
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
 			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] &&
 				remainingTime <= warningTime &&
-				remainingTime > (warningTime - 1_sec)) {
+				remainingTime > warningTime - 1_sec) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
 					static_cast<int>(WARNING_TIMES[i]));
 				g_horde_local.warningIssued[i] = true;
 			}
+		}
+
+		if (currentTime >= g_horde_local.waveEndTime) {
+			reason = WaveEndReason::MonstersRemaining;
+			return true;
 		}
 	}
 
