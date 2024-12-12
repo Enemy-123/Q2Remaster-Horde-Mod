@@ -1157,7 +1157,7 @@ enum class EntityType {
 
 	case EntityType::Player: {
 		std::string playerName = GetPlayerName(ent);
-	//	if (playerName.empty()) return {};
+		//	if (playerName.empty()) return {};
 
 		fmt::format_to(std::back_inserter(info), "{}\nH: {}", playerName, ent->health);
 
@@ -1206,7 +1206,7 @@ public:
 	static constexpr size_t MAX_ENTITY_INFOS = ENTITY_INFO_COUNT;
 	static constexpr size_t MAX_STRING_LENGTH = 256;
 	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
-	static constexpr gtime_t STALE_THRESHOLD = 3000_ms;
+	static constexpr gtime_t STALE_THRESHOLD = 10_sec;
 
 private:
 	struct EntityInfo {
@@ -1217,11 +1217,11 @@ private:
 
 		// Keep the original memcmp for string comparison as it was working correctly
 		[[nodiscard]] bool needsUpdate(std::string_view newInfo, gtime_t currentTime) const noexcept {
-			const bool content_changed = length != newInfo.length() ||
-				std::memcmp(data.data(), newInfo.data(), newInfo.length()) != 0;
-
-			return content_changed &&
-				(currentTime - last_update > UPDATE_INTERVAL);
+			if (currentTime - last_update > UPDATE_INTERVAL) {
+				return length != newInfo.length() ||
+					std::memcmp(data.data(), newInfo.data(), newInfo.length()) != 0;
+			}
+			return false;
 		}
 
 		// Keep the original update logic that was working
@@ -1254,32 +1254,26 @@ public:
 		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
 			return false;
 		}
-
 		if (info.length() >= MAX_STRING_LENGTH) {
 			return false;
 		}
-
 		int slotIndex = m_entityToSlot[entityIndex];
-
 		// If no slot is assigned, get one from free slots
 		if (slotIndex == -1) {
 			if (m_freeSlots.empty()) {
 				return false;
 			}
-
 			slotIndex = m_freeSlots.back();
 			m_freeSlots.pop_back();
 			m_entityToSlot[entityIndex] = slotIndex;
 			++m_activeCount;
 		}
-
 		// Update only if necessary
 		auto& entity = m_entities[slotIndex];
 		if (entity.needsUpdate(info, level.time)) {
 			entity.update(info, level.time);
 			gi.configstring(entity.config_string_id, entity.data.data());
 		}
-
 		return true;
 	}
 
@@ -1347,6 +1341,10 @@ public:
 		for (int entityIndex = 0; entityIndex < MAX_EDICTS; ++entityIndex) {
 			int const slotIndex = m_entityToSlot[entityIndex];
 			if (slotIndex != -1) {
+				// Skip stale cleanup for players and during intermission
+				if (g_edicts[entityIndex].client || level.intermissiontime)
+					continue;
+
 				if (level.time - m_entities[slotIndex].last_update > STALE_THRESHOLD) {
 					removeEntityInfo(entityIndex);
 				}
@@ -1474,11 +1472,21 @@ void CTFSetIDView(edict_t* ent) {
 		best = ent->client->idtarget;
 	}
 
-	// Clear previous target if it's different
+	// Handle previous target
 	if (ent->client->idtarget && ent->client->idtarget != best) {
 		int const old_index = ent->client->idtarget - g_edicts;
 		if (!ent->client->idtarget->inuse) {
 			g_entityInfoManager.removeEntityInfo(old_index);
+		}
+		else if (ent->client->idtarget->client) {
+			// Update previous target's info to maintain it for other players
+			std::string info_string = FormatEntityInfo(ent->client->idtarget);
+			if (!info_string.empty()) {
+				if (!g_entityInfoManager.updateEntityInfo(old_index, info_string)) {
+					// Handle update failure if needed
+					g_entityInfoManager.removeEntityInfo(old_index);
+				}
+			}
 		}
 	}
 
@@ -1561,6 +1569,10 @@ void SetCTFStats(edict_t* ent)
 	int		 p1, p2;
 	edict_t* e;
 
+	if (level.exitintermission) {
+		g_entityInfoManager.cleanupStaleEntries();
+	}
+
 	//if (ctfgame.match > MATCH_NONE)
 	//	ent->client->ps.stats[STAT_CTF_MATCH] = CONFIG_CTF_MATCH;     //unused so it works on horde hud 
 	//else
@@ -1584,8 +1596,8 @@ void SetCTFStats(edict_t* ent)
 	{
 		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_human;
 
-	//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
-	//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+		//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+		//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 
 		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;
 
@@ -1753,9 +1765,6 @@ void SetCTFStats(edict_t* ent)
 		ent->client->ps.stats[STAT_CTF_JOINED_TEAM1_PIC] = imageindex_i_ctfj;
 	else if (ent->client->resp.ctf_team == CTF_TEAM2)
 		ent->client->ps.stats[STAT_CTF_JOINED_TEAM2_PIC] = imageindex_i_ctfj;
-
-
-
 }
 
 /*------------------------------------------------------------------------*/
