@@ -1198,7 +1198,7 @@ void G_SetStats(edict_t* ent)
 
 		else
 		{
-			ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+		//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 			ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 		}
 

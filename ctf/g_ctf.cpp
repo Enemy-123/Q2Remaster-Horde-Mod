@@ -1462,8 +1462,7 @@ void CTFSetIDView(edict_t* ent) {
 	} guard;
 
 	ent->client->resp.lastidtime = level.time;
-	// Clear both stats initially
-	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+	// Clear only the target health string stat
 	ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = 0;
 
 	vec3_t forward;
@@ -1478,20 +1477,22 @@ void CTFSetIDView(edict_t* ent) {
 
 	if (best) {
 		ent->client->idtarget = best;
-		std::string info_string = FormatEntityInfo(best);
 		int const entity_index = best - g_edicts;
 
+		// Use EntityInfoManager for all entities (players and monsters)
+		std::string info_string = FormatEntityInfo(best);
 		if (g_entityInfoManager.updateEntityInfo(entity_index, info_string)) {
 			int const config_string_id = g_entityInfoManager.getConfigStringIndex(entity_index);
 			if (config_string_id != -1) {
 				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = config_string_id;
-				return;
 			}
 		}
+		return;
 	}
 
 	ent->client->idtarget = nullptr;
 }
+
 void OnEntityDeath(edict_t* self) noexcept
 {
 	// Early exit checks
@@ -1578,7 +1579,7 @@ void SetCTFStats(edict_t* ent)
 	{
 		ent->client->ps.stats[STAT_CTF_TEAM1_HEADER] = imageindex_human;
 
-		ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
+	//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 	//	ent->client->ps.stats[STAT_CTF_ID_VIEW] = 0;
 
 		ent->client->ps.stats[STAT_CTF_TEAM2_HEADER] = imageindex_strogg;

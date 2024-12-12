@@ -1858,7 +1858,7 @@ static void G_InitStatusbar()
 
 
 
-		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+	//	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 		sb.xr(-53).yt(12).num(3, STAT_FRAGS).xr(-45).yt(1).string2("Frags");
@@ -1905,7 +1905,7 @@ static void G_InitStatusbar()
 
 		// HORDE MODE specific HUD elements
 
-		sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
+	//	sb.ifstat(STAT_CTF_ID_VIEW).xv(127).yb(-80).stat_pname(STAT_CTF_ID_VIEW).endifstat();
 		sb.ifstat(STAT_TARGET_HEALTH_STRING).xv(127).yb(-80).stat_string(STAT_TARGET_HEALTH_STRING).endifstat();
 
 		// HORDE WAVE
