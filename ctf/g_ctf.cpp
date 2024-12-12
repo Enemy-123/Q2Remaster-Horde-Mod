@@ -1460,13 +1460,7 @@ void CTFSetIDView(edict_t* ent) {
 		if (g_entityInfoManager.updateEntityInfo(entity_index, info_string)) {
 			int const config_string_id = g_entityInfoManager.getConfigStringIndex(entity_index);
 			if (config_string_id != -1) {
-				// Use appropriate stat based on entity type
-				if (best->client) {
-					ent->client->ps.stats[STAT_CTF_ID_VIEW] = config_string_id;
-				}
-				else {
-					ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = config_string_id;
-				}
+				ent->client->ps.stats[STAT_TARGET_HEALTH_STRING] = config_string_id;
 				return;
 			}
 		}
