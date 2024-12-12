@@ -329,6 +329,32 @@ void fire_plasma(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	gi.linkentity(plasma);
 }
 
+void trap_throwsparks(edict_t* self)
+{
+	if (!self || !self->inuse || !self->enemy)
+		return;
+
+	// Calculate spark origin and direction
+	vec3_t forward, right, up;
+	AngleVectors(self->s.angles, forward, right, up);
+
+	// Offset the sparks from the trap's origin
+	const vec3_t spark_origin = self->s.origin + (up * 12.0f);
+
+	// Direction will be towards the enemy being pulled
+	vec3_t dir = (self->enemy->s.origin - spark_origin).normalized();
+
+	// Create the spark effect
+	gi.WriteByte(svc_temp_entity);
+	gi.WriteByte(TE_SPLASH);
+	gi.WriteByte(16);  // number of sparks
+	gi.WritePosition(spark_origin);
+	gi.WriteDir(dir);
+	gi.WriteByte(SPLASH_SLIME);
+	gi.multicast(spark_origin, MULTICAST_PVS, false);
+}
+
+
 THINK(Trap_Gib_Think) (edict_t* ent) -> void
 {
 
@@ -539,6 +565,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			ent->nextthink = level.time + 1_sec;
 			ent->think = G_FreeEdict;
 			ent->s.effects &= ~EF_BLUEHYPERBLASTER;
+			ent->s.effects &= ~EF_BARREL_EXPLODING;
 
 			best = G_Spawn();
 			best->count = ent->mass;
@@ -612,21 +639,24 @@ THINK(Trap_Think) (edict_t* ent) -> void
     }
 
 	// pull the enemy in
-	if (best)
-	{
-		if (best->groundentity)
-		{
+	if (best) {
+		if (best->groundentity) {
 			best->s.origin[2] += 1;
 			best->groundentity = nullptr;
 		}
 		vec = ent->s.origin - best->s.origin;
 		len = vec.normalize();
 
-		const	float max_speed = best->client ? 290.f : 190.f;
-
+		const float max_speed = best->client ? 290.f : 190.f;
 		best->velocity += (vec * clamp(max_speed - len, 64.f, max_speed));
 
 		ent->s.sound = gi.soundindex("weapons/trapsuck.wav");
+
+		// Set the enemy for spark direction
+		ent->enemy = best;
+
+		// Create sparks while pulling
+		trap_throwsparks(ent);
 
 		if (len < 48)
 		{
@@ -674,6 +704,7 @@ THINK(Trap_Think) (edict_t* ent) -> void
 			}
 			else
 			{
+				ent->s.effects &= ~EF_BARREL_EXPLODING;
 				// Before exploding, deal damage
 				T_RadiusDamage(ent, ent->teammaster, 300, nullptr, 100, DAMAGE_ENERGY, MOD_TRAP);
 				BecomeExplosion1(ent);

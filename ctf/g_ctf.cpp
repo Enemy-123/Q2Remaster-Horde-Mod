@@ -1206,7 +1206,7 @@ public:
 	static constexpr size_t MAX_ENTITY_INFOS = ENTITY_INFO_COUNT;
 	static constexpr size_t MAX_STRING_LENGTH = 256;
 	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
-	static constexpr gtime_t STALE_THRESHOLD = 10_sec;
+	static constexpr gtime_t STALE_THRESHOLD = 6_sec;
 
 private:
 	struct EntityInfo {
