@@ -2787,7 +2787,7 @@ bool CTFBeginElection(edict_t* ent, elect_t type, const char* msg) {
 	return true;
 }
 void UpdateVoteHUD() {
-	static constexpr size_t MAX_VOTE_STRING = 128;
+	//static constexpr size_t MAX_VOTE_STRING = 128;
 
 	if (ctfgame.election != ELECT_NONE) {
 		// Format with bounds checking
