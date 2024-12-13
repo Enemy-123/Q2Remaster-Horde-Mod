@@ -1386,7 +1386,8 @@ struct TargetSearchResult {
 	TargetSearchResult result;
 	vec3_t const& viewer_pos = ent->s.origin;
 
-	auto checkTarget = [&](edict_t* who) {
+	// Process entities in priority order: players -> monsters -> other entities
+	auto checkEntity = [&](edict_t* who) {
 		if (!IsValidTarget(ent, who, false)) return;
 		vec3_t dir = who->s.origin - viewer_pos;
 		float const dist = dir.normalize();
@@ -1399,24 +1400,26 @@ struct TargetSearchResult {
 		result.target = who;
 		};
 
-	// Check players
+	// Check in priority order
 	for (edict_t* who : active_players()) {
-		checkTarget(who);
+		checkEntity(who);
+		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result; // Early exit if we found something very close
 	}
 
-	// Check monsters
 	for (edict_t* who : active_monsters()) {
-		checkTarget(who);
+		checkEntity(who);
+		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
 	}
 
-	// Check other entities
 	for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
 		if (who->client || (who->svflags & SVF_MONSTER)) continue;
-		checkTarget(who);
+		checkEntity(who);
+		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
 	}
 
 	return result;
 }
+
 void CTFSetIDView(edict_t* ent) {
 	static bool is_processing = false;
 
