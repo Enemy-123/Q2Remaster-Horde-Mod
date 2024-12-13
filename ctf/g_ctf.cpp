@@ -3445,49 +3445,66 @@ void OpenHUDMenu(edict_t* ent) {
 }
 
 void UpdateHUDMenu(edict_t* ent, pmenuhnd_t* p) {
-	// Update ID toggle entry
-	PMenu_UpdateEntry(p->entries + 2,
-		G_Fmt("Enable/Disable ID [{}]", ent->client->pers.id_state ? "ON" : "OFF").data(),
-		PMENU_ALIGN_LEFT,
-		HUDMenuHandler);
+	if (!ent || !ent->client || !p || !p->entries) {
+		return;
+	}
 
-	// Update ID-DMG toggle entry
-	PMenu_UpdateEntry(p->entries + 3,
-		G_Fmt("Enable/Disable ID-DMG [{}]", ent->client->pers.iddmg_state ? "ON" : "OFF").data(),
-		PMENU_ALIGN_LEFT,
-		HUDMenuHandler);
+	// Convert G_Fmt result to std::string explicitly
+	std::string id_status = std::string(G_Fmt("Enable/Disable ID [{}]",
+		ent->client->pers.id_state ? "ON" : "OFF"));
+	std::string dmg_status = std::string(G_Fmt("Enable/Disable ID-DMG [{}]",
+		ent->client->pers.iddmg_state ? "ON" : "OFF"));
+
+	// Ensure we don't exceed menu bounds
+	if (p->entries && p->entries + 2 && p->entries + 3) {
+		PMenu_UpdateEntry(p->entries + 2, id_status.c_str(),
+			PMENU_ALIGN_LEFT, HUDMenuHandler);
+		PMenu_UpdateEntry(p->entries + 3, dmg_status.c_str(),
+			PMENU_ALIGN_LEFT, HUDMenuHandler);
+	}
 
 	PMenu_Update(ent);
 }
 
 void HUDMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p) {
+	if (!ent || !ent->client || !p || p->cur < 0) {
 		return;
 	}
 
+	// Define valid option range
+	constexpr int MIN_OPTION = 2;
+	constexpr int MAX_OPTION = 6;
+
 	const int option = p->cur;
+	if (option < MIN_OPTION || option > MAX_OPTION) {
+		PMenu_Close(ent);
+		return;
+	}
 
 	switch (option) {
 	case 2: // Toggle ID
 	case 3: { // Toggle ID-DMG
-		bool& state = (option == 2) ? ent->client->pers.id_state : ent->client->pers.iddmg_state;
+		bool& state = (option == 2) ?
+			ent->client->pers.id_state :
+			ent->client->pers.iddmg_state;
 		state = !state;
-		gi.LocCenter_Print(ent, "\n\n\n{} state toggled to {}\n",
+
+		// Use safer string handling
+		std::string msg = fmt::format("\n\n\n{} state toggled to {}\n",
 			(option == 2) ? "ID" : "ID-DMG",
 			state ? "ON" : "OFF");
+
+		gi.LocCenter_Print(ent, msg.c_str());
 		UpdateHUDMenu(ent, p);
 		break;
 	}
 	case 5: // Back to Horde Menu
 		PMenu_Close(ent);
-		OpenHordeMenu(ent);
+		if (ent->inuse) { // Extra validation
+			OpenHordeMenu(ent);
+		}
 		break;
 	case 6: // Close
-		PMenu_Close(ent);
-		break;
-	default:
-		gi.Com_PrintFmt("Invalid menu option {} for player {}\n",
-			option, ent->client->pers.netname);
 		PMenu_Close(ent);
 		break;
 	}
@@ -3624,7 +3641,99 @@ std::string format_string(std::string_view fmt, auto&&... args) {
 	return fmt::format(fmt, std::forward<decltype(args)>(args)...);
 }
 
-// Modificar UpdateVoteMenu para usar format_string en lugar de va
+
+void OpenMapCategoryMenu(edict_t* ent) {
+	if (!ent || !ent->client) {
+		return;
+	}
+
+	// Initialize menu with proper handlers
+	for (size_t i = 0; i < sizeof(map_category_menu) / sizeof(map_category_menu[0]); i++) {
+		if (i >= 2 && i <= 4) { // Menu item indices for categories
+			map_category_menu[i].SelectFunc = MapCategoryHandler;
+		}
+		if (i == 6 || i == 7) { // Back and Close options
+			map_category_menu[i].SelectFunc = MapCategoryHandler;
+		}
+	}
+
+	PMenu_Open(ent, map_category_menu, -1,
+		sizeof(map_category_menu) / sizeof(map_category_menu[0]), nullptr, nullptr);
+}
+
+void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
+	if (!ent || !ent->client || !p || p->cur < 0) {
+		return;
+	}
+
+	const int option = p->cur;
+	std::vector<std::string>* current_map_list = nullptr;
+
+	// Get current map list based on category
+	if (categorized_maps.current_category.isBigMap) {
+		current_map_list = &categorized_maps.big_maps;
+	}
+	else if (categorized_maps.current_category.isSmallMap) {
+		current_map_list = &categorized_maps.small_maps;
+	}
+	else {
+		current_map_list = &categorized_maps.medium_maps;
+	}
+
+	if (!current_map_list) {
+		PMenu_Close(ent);
+		return;
+	}
+
+	// Calculate the actual map index based on current page and selection
+	size_t map_index = (categorized_maps.current_page * MAX_MAPS_PER_PAGE) + (option - 2);
+
+	// Handle map selection
+	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
+		if (map_index < current_map_list->size() && !vote_menu[option].text[0]) {
+			return; // Empty slot
+		}
+
+		if (map_index >= current_map_list->size()) {
+			return; // Invalid map index
+		}
+
+		const std::string& map_name = (*current_map_list)[map_index];
+
+		// Check if it's current map
+		if (Q_strcasecmp(map_name.c_str(), level.mapname) == 0) {
+			gi.LocClient_Print(ent, PRINT_HIGH, "Can't vote for the current map.\n");
+			return;
+		}
+
+		// Initiate vote
+		Q_strlcpy(ctfgame.elevel, map_name.c_str(), sizeof(ctfgame.elevel));
+		std::string vote_msg = fmt::format("Change map to {}?", map_name);
+		if (CTFBeginElection(ent, ELECT_MAP, vote_msg.c_str())) {
+			PMenu_Close(ent);
+		}
+		return;
+	}
+
+	// Handle navigation
+	if (option == MAX_MAPS_PER_PAGE + 3) { // Next
+		if ((categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size()) {
+			categorized_maps.current_page++;
+			UpdateVoteMenu();
+			// Re-render menu
+			PMenu_Close(ent);
+			PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(vote_menu[0]), nullptr, nullptr);
+		}
+	}
+	else if (option == MAX_MAPS_PER_PAGE + 4) { // Back
+		PMenu_Close(ent);
+		OpenMapCategoryMenu(ent);
+	}
+	else if (option == MAX_MAPS_PER_PAGE + 5) { // Close
+		PMenu_Close(ent);
+	}
+}
+
 void UpdateVoteMenu() {
 	std::vector<std::string>* current_map_list = nullptr;
 
@@ -3642,35 +3751,45 @@ void UpdateVoteMenu() {
 		return;
 	}
 
-	int start = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
-	int end = start + MAX_MAPS_PER_PAGE;
-	if (end > current_map_list->size()) end = current_map_list->size();
+	size_t start = categorized_maps.current_page * MAX_MAPS_PER_PAGE;
+	size_t end = std::min(start + MAX_MAPS_PER_PAGE, current_map_list->size());
 
-	// Actualizar título según la categoría
+	if (start >= current_map_list->size()) {
+		categorized_maps.current_page = 0;
+		start = 0;
+		end = std::min(MAX_MAPS_PER_PAGE, current_map_list->size());
+	}
+
+	// Update category title
 	const char* category_name = categorized_maps.current_category.isBigMap ? "Big Maps" :
-		categorized_maps.current_category.isSmallMap ? "Small Maps" : "Medium Maps";
+		categorized_maps.current_category.isSmallMap ? "Small Maps" :
+		"Medium Maps";
+
 	std::string category_title = "*" + std::string(category_name);
 	Q_strlcpy(vote_menu[0].text, category_title.c_str(), sizeof(vote_menu[0].text));
 
-	for (int i = 2; i < 2 + MAX_MAPS_PER_PAGE; i++) {
-		if (start < end) {
-			Q_strlcpy(vote_menu[i].text, (*current_map_list)[start].c_str(), sizeof(vote_menu[i].text));
-			vote_menu[i].SelectFunc = VoteMenuHandler;
-			start++;
-		}
-		else {
-			vote_menu[i].text[0] = '\0';
-			vote_menu[i].SelectFunc = nullptr;
+	// Clear existing entries
+	for (size_t i = 2; i < 2 + MAX_MAPS_PER_PAGE; i++) {
+		vote_menu[i].text[0] = '\0';
+		vote_menu[i].SelectFunc = nullptr;
+	}
+
+	// Fill map entries
+	for (size_t i = 0; i < (end - start); i++) {
+		if ((i + 2) < std::size(vote_menu)) {
+			Q_strlcpy(vote_menu[i + 2].text, (*current_map_list)[start + i].c_str(),
+				sizeof(vote_menu[i + 2].text));
+			vote_menu[i + 2].SelectFunc = VoteMenuHandler;
 		}
 	}
 
-	// Línea vacía entre los mapas y las opciones de menú
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 2].text, "", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 2].text));
-	vote_menu[MAX_MAPS_PER_PAGE + 2].SelectFunc = nullptr;
+	// Update navigation buttons
+	bool has_next_page = (categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size();
 
-	// Actualizar opciones de navegación
-	if ((categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size()) {
-		Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Next", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
+	// Next button
+	if (has_next_page) {
+		Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 3].text, "Next",
+			sizeof(vote_menu[MAX_MAPS_PER_PAGE + 3].text));
 		vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = VoteMenuHandler;
 	}
 	else {
@@ -3678,71 +3797,15 @@ void UpdateVoteMenu() {
 		vote_menu[MAX_MAPS_PER_PAGE + 3].SelectFunc = nullptr;
 	}
 
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 4].text, "Back", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 4].text));
+	// Back button
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 4].text, "Back",
+		sizeof(vote_menu[MAX_MAPS_PER_PAGE + 4].text));
 	vote_menu[MAX_MAPS_PER_PAGE + 4].SelectFunc = VoteMenuHandler;
 
-	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 5].text, "Close", sizeof(vote_menu[MAX_MAPS_PER_PAGE + 5].text));
+	// Close button
+	Q_strlcpy(vote_menu[MAX_MAPS_PER_PAGE + 5].text, "Close",
+		sizeof(vote_menu[MAX_MAPS_PER_PAGE + 5].text));
 	vote_menu[MAX_MAPS_PER_PAGE + 5].SelectFunc = VoteMenuHandler;
-}
-
-
-void VoteMenuHandler(edict_t* ent, pmenuhnd_t* p) {
-	if (!ent || !ent->client || !p) {
-		return;
-	}
-
-	const int option = p->cur;
-	std::vector<std::string>* current_map_list = nullptr;
-
-	if (categorized_maps.current_category.isBigMap) {
-		current_map_list = &categorized_maps.big_maps;
-	}
-	else if (categorized_maps.current_category.isSmallMap) {
-		current_map_list = &categorized_maps.small_maps;
-	}
-	else {
-		current_map_list = &categorized_maps.medium_maps;
-	}
-
-	if (!current_map_list) {
-		PMenu_Close(ent);
-		return;
-	}
-
-	// Manejo de selección de mapa
-	if (option >= 2 && option < 2 + MAX_MAPS_PER_PAGE) {
-		const char* voted_map = vote_menu[option].text;
-		if (!voted_map[0]) {
-			return;
-		}
-
-		if (Q_strcasecmp(voted_map, level.mapname) == 0) {
-			gi.LocClient_Print(ent, PRINT_HIGH, "This map is already in progress. Please choose a different one.\n");
-			return;
-		}
-
-		gi.LocCenter_Print(ent, "You voted for Map: {}\n", voted_map);
-		Q_strlcpy(ent->client->voted_map, voted_map, sizeof(ent->client->voted_map));
-		CTFWarp(ent, voted_map);
-		PMenu_Close(ent);
-		return;
-	}
-
-	// Manejo de navegación
-	if (option == MAX_MAPS_PER_PAGE + 3 && // Next
-		(categorized_maps.current_page + 1) * MAX_MAPS_PER_PAGE < current_map_list->size()) {
-		categorized_maps.current_page++;
-		UpdateVoteMenu();
-		PMenu_Close(ent);
-		PMenu_Open(ent, vote_menu, -1, sizeof(vote_menu) / sizeof(pmenu_t), nullptr, nullptr);
-	}
-	else if (option == MAX_MAPS_PER_PAGE + 4) { // Back
-		PMenu_Close(ent);
-		OpenVoteMenu(ent); // Volver al menú de categorías
-	}
-	else if (option == MAX_MAPS_PER_PAGE + 5) { // Close
-		PMenu_Close(ent);
-	}
 }
 
 void OpenVoteMenu(edict_t* ent) {
@@ -3758,6 +3821,7 @@ void OpenVoteMenu(edict_t* ent) {
 
 	PMenu_Open(ent, map_category_menu, -1, sizeof(map_category_menu) / sizeof(pmenu_t), nullptr, nullptr);
 }
+
 
 void HordeMenuHandler(edict_t* ent, pmenuhnd_t* p) {
 	const int option = p->cur;
