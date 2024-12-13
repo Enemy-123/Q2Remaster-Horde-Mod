@@ -2795,10 +2795,10 @@ void UpdateVoteHUD() {
 			ctfgame.emsg,
 			static_cast<int>((ctfgame.electtime - level.time).seconds()));
 
-		if (vote_info.length() >= MAX_VOTE_STRING) {
-			vote_info.resize(MAX_VOTE_STRING - 1);
-			vote_info += "...";
-		}
+		//if (vote_info.length() >= MAX_VOTE_STRING) {
+		//	vote_info.resize(MAX_VOTE_STRING - 1);
+		//	vote_info += "...";
+		//}
 
 		gi.configstring(CONFIG_VOTE_INFO, vote_info.c_str());
 		ClearHordeMessage();
