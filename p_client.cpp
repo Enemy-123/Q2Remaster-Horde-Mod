@@ -2913,7 +2913,7 @@ void ClientUserinfoChanged(edict_t* ent, const char* userinfo)
 
 	// ZOID
 	//  set player name field (used in id_state view)
-	gi.configstring(CONFIG_ENTITY_INFO_START + playernum, ent->client->pers.netname);
+	gi.configstring(CONFIG_CTF_PLAYER_NAME + playernum, ent->client->pers.netname);
 	// ZOID
 
 	// [Kex] netname is used for a couple of other things, so we update this after those.

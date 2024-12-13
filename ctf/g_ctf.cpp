@@ -1203,7 +1203,7 @@ enum class EntityType {
 
 class EntityInfoManager {
 public:
-	static constexpr size_t MAX_ENTITY_INFOS = ENTITY_INFO_COUNT;
+	static constexpr size_t MAX_ENTITY_INFOS = MAX_CLIENTS;
 	static constexpr size_t MAX_STRING_LENGTH = 256;
 	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
 	static constexpr gtime_t STALE_THRESHOLD = 6_sec;
@@ -1247,7 +1247,7 @@ public:
 		// Initialize all entities
 		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
 			m_freeSlots.push_back(i);
-			m_entities[i].config_string_id = CONFIG_ENTITY_INFO_START + i;
+			m_entities[i].config_string_id = CONFIG_CTF_PLAYER_NAME + i;
 		}
 	}
 
@@ -1320,8 +1320,8 @@ public:
 	}
 
 	[[nodiscard]] static constexpr bool isValidConfigStringId(int32_t id) noexcept {
-		return id >= CONFIG_ENTITY_INFO_START &&
-			id < (CONFIG_ENTITY_INFO_START + MAX_ENTITY_INFOS);
+		return id >= CONFIG_CTF_PLAYER_NAME &&
+			id < (CONFIG_CTF_PLAYER_NAME + MAX_ENTITY_INFOS);
 	}
 
 	[[nodiscard]] bool hasEntityInfo(int entityIndex) const noexcept {

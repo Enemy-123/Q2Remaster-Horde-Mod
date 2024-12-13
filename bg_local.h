@@ -86,8 +86,8 @@ enum
 {
 	CONFIG_CTF_MATCH = CS_GENERAL,
 	CONFIG_CTF_TEAMINFO,
-	//CONFIG_CTF_PLAYER_NAME,
-	//CONFIG_CTF_PLAYER_NAME_END = CONFIG_CTF_PLAYER_NAME + MAX_CLIENTS,
+	CONFIG_CTF_PLAYER_NAME,
+	CONFIG_CTF_PLAYER_NAME_END = CONFIG_CTF_PLAYER_NAME + MAX_CLIENTS,
 	// nb: offset by 1 since NONE is zero
 	CONFIG_COOP_RESPAWN_STRING,
 	CONFIG_COOP_RESPAWN_STRING_END = CONFIG_COOP_RESPAWN_STRING + (COOP_RESPAWN_TOTAL - 1),
@@ -105,36 +105,13 @@ enum
 // Original assertion
 static_assert(CONFIG_LAST <= CS_GENERAL + MAX_GENERAL, "Exceeded maximum allowed general configstrings");
 
-// custom configstrings - added after CONFIG_LAST, for horde mod
-constexpr int ENTITY_INFO_COUNT = 80; // CTFIDVIEW CS HERE: Increased to 80 for safety, adjust as needed
 
 enum
 {
 	CONFIG_HORDEMSG = CONFIG_LAST,
 	CONFIG_VOTE_INFO,
-	CONFIG_ENTITY_INFO_START,
-	CONFIG_ENTITY_INFO_END = CONFIG_ENTITY_INFO_START + ENTITY_INFO_COUNT - 1,
 	CUSTOM_CONFIG_LAST
 };
-
-// Ensure we don't exceed the maximum allowed general configstrings with custom configs
-static_assert(CUSTOM_CONFIG_LAST <= CS_GENERAL + MAX_GENERAL, "Exceeded maximum allowed general configstrings including custom configs");
-
-// Ensure CONFIG_HORDEMSG doesn't overlap with CONFIG_VOTE_INFO
-static_assert(CONFIG_HORDEMSG != CONFIG_VOTE_INFO, "CONFIG_HORDEMSG must not overlap with CONFIG_VOTE_INFO");
-
-// Ensure  CONFIG_HEALTH_BAR_NAME doesn't overlap with other custom configs
-static_assert(CONFIG_HEALTH_BAR_NAME != CONFIG_HORDEMSG && CONFIG_HEALTH_BAR_NAME != CONFIG_VOTE_INFO,
-	" CONFIG_HEALTH_BAR_NAME must not overlap with other custom configs");
-
-// Ensure entity info range doesn't overlap with other custom configs
-static_assert(CONFIG_ENTITY_INFO_START > CONFIG_HEALTH_BAR_NAME,
-	"CONFIG_ENTITY_INFO_START must be after  CONFIG_HEALTH_BAR_NAME");
-
-// Ensure we have at least 70 entity info slots
-static_assert(CONFIG_ENTITY_INFO_END - CONFIG_ENTITY_INFO_START + 1 >= 70,
-	"Not enough space allocated for entity info");
-
 
 // ammo IDs
 enum ammo_t : uint8_t
