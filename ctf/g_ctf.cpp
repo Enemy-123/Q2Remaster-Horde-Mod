@@ -1201,243 +1201,69 @@ enum class EntityType {
 	return info;
 }
 
-//class EntityInfoManager {
-//public:
-//	static constexpr size_t MAX_ENTITY_INFOS = MAX_CLIENTS;
-//	static constexpr size_t MAX_STRING_LENGTH = 256;
-//	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
-//	static constexpr gtime_t STALE_THRESHOLD = 6_sec;
-//
-//private:
-//	struct EntityInfo {
-//		std::array<char, MAX_STRING_LENGTH> data{};
-//		uint16_t length{ 0 };
-//		int32_t config_string_id{ -1 };
-//		gtime_t last_update{ 0_ms };
-//
-//		// Keep the original memcmp for string comparison as it was working correctly
-//		[[nodiscard]] bool needsUpdate(std::string_view newInfo, gtime_t currentTime) const noexcept {
-//			if (currentTime - last_update > UPDATE_INTERVAL) {
-//				return length != newInfo.length() ||
-//					std::memcmp(data.data(), newInfo.data(), newInfo.length()) != 0;
-//			}
-//			return false;
-//		}
-//
-//
-//		// Keep the original update logic that was working
-//		void update(std::string_view newInfo, gtime_t currentTime) noexcept {
-//			std::memcpy(data.data(), newInfo.data(), newInfo.length());
-//			length = static_cast<uint16_t>(newInfo.length());
-//			data[newInfo.length()] = '\0';
-//			last_update = currentTime;
-//		}
-//	};
-//
-//	std::array<EntityInfo, MAX_ENTITY_INFOS> m_entities;
-//	std::vector<int> m_entityToSlot;
-//	std::vector<int> m_freeSlots;
-//	uint16_t m_activeCount{ 0 };
-//
-//public:
-//	EntityInfoManager() noexcept {
-//		m_freeSlots.reserve(MAX_ENTITY_INFOS);
-//		m_entityToSlot.resize(MAX_EDICTS, -1);
-//
-//		// Initialize all entities
-//		for (int i = 0; i < MAX_ENTITY_INFOS; ++i) {
-//			m_freeSlots.push_back(i);
-//			m_entities[i].config_string_id = CONFIG_CTF_PLAYER_NAME + i;
-//		}
-//	}
-//
-//	[[nodiscard]] bool updateEntityInfo(int entityIndex, std::string_view info) noexcept {
-//		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
-//			return false;
-//		}
-//		if (info.length() >= MAX_STRING_LENGTH) {
-//			return false;
-//		}
-//		int slotIndex = m_entityToSlot[entityIndex];
-//		// If no slot is assigned, get one from free slots
-//		if (slotIndex == -1) {
-//			if (m_freeSlots.empty()) {
-//				return false;
-//			}
-//			slotIndex = m_freeSlots.back();
-//			m_freeSlots.pop_back();
-//			m_entityToSlot[entityIndex] = slotIndex;
-//			++m_activeCount;
-//		}
-//		// Update only if necessary
-//		auto& entity = m_entities[slotIndex];
-//		if (entity.needsUpdate(info, level.time)) {
-//			entity.update(info, level.time);
-//			gi.configstring(entity.config_string_id, entity.data.data());
-//		}
-//		return true;
-//	}
-//
-//	void removeEntityInfo(int entityIndex) noexcept {
-//		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
-//			return;
-//		}
-//
-//		int const slotIndex = m_entityToSlot[entityIndex];
-//		if (slotIndex == -1 || slotIndex < 0 || slotIndex >= MAX_ENTITY_INFOS) {
-//			return;
-//		}
-//
-//		auto& entity = m_entities[slotIndex];
-//
-//		// Clear the config string if valid
-//		if (isValidConfigStringId(entity.config_string_id)) {
-//			gi.configstring(entity.config_string_id, "");
-//		}
-//
-//		// Reset entity data
-//		entity.length = 0;
-//		entity.data[0] = '\0';
-//		entity.last_update = 0_ms;
-//
-//		// Return slot to free pool
-//		m_freeSlots.push_back(slotIndex);
-//		m_entityToSlot[entityIndex] = -1;
-//		--m_activeCount;
-//	}
-//
-//	[[nodiscard]] int getConfigStringIndex(int entityIndex) const noexcept {
-//		if (entityIndex < 0 || entityIndex >= MAX_EDICTS) {
-//			return -1;
-//		}
-//
-//		int const slotIndex = m_entityToSlot[entityIndex];
-//		if (slotIndex >= 0 && slotIndex < MAX_ENTITY_INFOS) {
-//			return m_entities[slotIndex].config_string_id;
-//		}
-//
-//		return -1;
-//	}
-//
-//	[[nodiscard]] static constexpr bool isValidConfigStringId(int32_t id) noexcept {
-//		return id >= CONFIG_CTF_PLAYER_NAME &&
-//			id < (CONFIG_CTF_PLAYER_NAME + MAX_ENTITY_INFOS);
-//	}
-//
-//	[[nodiscard]] bool hasEntityInfo(int entityIndex) const noexcept {
-//		return entityIndex >= 0 &&
-//			entityIndex < MAX_EDICTS &&
-//			m_entityToSlot[entityIndex] != -1;
-//	}
-//
-//	[[nodiscard]] size_t getActiveCount() const noexcept {
-//		return m_activeCount;
-//	}
-//
-//	[[nodiscard]] size_t getAvailableSlots() const noexcept {
-//		return m_freeSlots.size();
-//	}
-//
-//	void cleanupStaleEntries() noexcept {
-//		for (int entityIndex = 0; entityIndex < MAX_EDICTS; ++entityIndex) {
-//			int const slotIndex = m_entityToSlot[entityIndex];
-//			if (slotIndex != -1) {
-//				// Skip stale cleanup for players and during intermission
-//				if (g_edicts[entityIndex].client || level.intermissiontime)
-//					continue;
-//
-//				if (level.time - m_entities[slotIndex].last_update > STALE_THRESHOLD) {
-//					removeEntityInfo(entityIndex);
-//				}
-//			}
-//		}
-//	}
-//};
-
-//
-// inline EntityInfoManager g_entityInfoManager;
-//struct CTFIDViewConfig {
-//	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
-//	static constexpr float MAX_DISTANCE = 2048.0f;
-//	static constexpr float MIN_DOT = 0.98f;
-//	static constexpr float CLOSE_DISTANCE = 100.0f;
-//	static constexpr float CLOSE_MIN_DOT = 0.5f;
-//};
-//
-//[[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
-//	const vec3_t& target_pos, float min_dot, float max_distance) noexcept {
-//	vec3_t dir = target_pos - viewer_pos;
-//	float const dist = dir.normalize();
-//
-//	return dist < max_distance && viewer_forward.dot(dir) > min_dot;
-//}
-//
-//[[nodiscard]] bool CanSeeTarget(const edict_t* viewer, const vec3_t& start,
-//	const edict_t* target, const vec3_t& end) noexcept {
-//	trace_t const tr = gi.traceline(start, end, viewer, MASK_SOLID);
-//	return tr.fraction == 1.0f || tr.ent == target;
-//}
-
-
-struct TargetSearchResult {
-	edict_t* target = nullptr;
-	float distance = 2048.0f;
+// Configuration constants
+struct CTFIDViewConfig {
+	static constexpr gtime_t UPDATE_INTERVAL = 108_ms;
+	static constexpr float MAX_DISTANCE = 2048.0f;
+	static constexpr float MIN_DOT = 0.98f;
+	static constexpr float CLOSE_DISTANCE = 100.0f;
+	static constexpr float CLOSE_MIN_DOT = 0.5f;
 };
 
-[[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) {
+[[nodiscard]] bool IsInFieldOfView(const vec3_t& viewer_pos, const vec3_t& viewer_forward,
+	const vec3_t& target_pos, float min_dot, float max_distance) noexcept {
+	vec3_t dir = target_pos - viewer_pos;
+	float const dist = dir.normalize();
+	return dist < max_distance && viewer_forward.dot(dir) > min_dot;
+}
+
+[[nodiscard]] bool CanSeeTarget(const edict_t* viewer, const vec3_t& start,
+	const edict_t* target, const vec3_t& end) noexcept {
+	trace_t const tr = gi.traceline(start, end, viewer, MASK_SOLID);
+	return tr.fraction == 1.0f || tr.ent == target;
+}
+
+struct TargetSearchResult {
+	edict_t* target{ nullptr };
+	float distance{ CTFIDViewConfig::MAX_DISTANCE };
+};
+
+[[nodiscard]] TargetSearchResult FindBestTarget(edict_t* ent, const vec3_t& forward) noexcept {
 	TargetSearchResult result;
-	constexpr float CLOSE_DIST = 100.0f;
-	constexpr float MIN_DOT = 0.98f;
-	constexpr float CLOSE_MIN_DOT = 0.5f;
+	vec3_t const& viewer_pos = ent->s.origin;
 
-	auto check_entity = [&](edict_t* who) {
-		if (!IsValidTarget(ent, who, false)) {
-			return;
-		}
+	// Process entities in priority order: players -> monsters -> other entities
+	auto checkEntity = [&](edict_t* who) {
+		if (!IsValidTarget(ent, who, false)) return;
 
-		vec3_t dir = who->s.origin - ent->s.origin;
-		float const dist = dir.length();
-		if (dist >= result.distance) {
-			return;
-		}
+		vec3_t dir = who->s.origin - viewer_pos;
+		float const dist = dir.normalize();
+		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+			? CTFIDViewConfig::CLOSE_MIN_DOT
+			: CTFIDViewConfig::MIN_DOT;
 
-		dir.normalize();
-		float const dot = forward.dot(dir);
+		if (dist >= result.distance || forward.dot(dir) <= min_dot) return;
+		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) return;
 
-		// More forgiving dot product check when very close
-		float const min_dot = (dist < CLOSE_DIST) ? CLOSE_MIN_DOT : MIN_DOT;
-		if (dot <= min_dot) {
-			return;
-		}
-
-		// Visibility check
-		trace_t tr = gi.traceline(ent->s.origin, who->s.origin, ent, MASK_SOLID);
-		if (tr.fraction != 1.0f && tr.ent != who) {
-			return;
-		}
-
-		result.target = who;
 		result.distance = dist;
+		result.target = who;
 		};
 
-	// Check entities in priority order
-	for (auto player : active_players()) {
-		check_entity(player);
-		if (result.distance <= CLOSE_DIST) return result;
+	// Check in priority order with early exits for close targets
+	for (edict_t* who : active_players()) {
+		checkEntity(who);
+		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
 	}
 
-	for (auto monster : active_monsters()) {
-		check_entity(monster);
-		if (result.distance <= CLOSE_DIST) return result;
+	for (edict_t* who : active_monsters()) {
+		checkEntity(who);
+		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
 	}
 
-	for (unsigned int i = 1; i < globals.num_edicts; i++) {
-		edict_t* who = &g_edicts[i];
-		if (who->client || (who->svflags & SVF_MONSTER)) {
-			continue;  // Already checked
-		}
-		check_entity(who);
-		if (result.distance <= CLOSE_DIST) return result;
+	for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
+		if (who->client || (who->svflags & SVF_MONSTER)) continue;
+		checkEntity(who);
+		if (result.distance <= CTFIDViewConfig::CLOSE_DISTANCE) return result;
 	}
 
 	return result;
@@ -1447,7 +1273,7 @@ void CTFSetIDView(edict_t* ent) {
 	static bool is_processing = false;
 
 	if (is_processing || level.intermissiontime ||
-		level.time - ent->client->resp.lastidtime < 108_ms) {
+		level.time - ent->client->resp.lastidtime < CTFIDViewConfig::UPDATE_INTERVAL) {
 		return;
 	}
 
