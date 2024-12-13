@@ -2789,7 +2789,7 @@ std::unordered_map<std::string, std::array<int, 3>> mapOrigins = {
 
 
 // Incluye otras cabeceras y definiciones necesarias
-static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = {
+static const std::unordered_map<std::string_view, std::string_view> bossMessagesMap = { 
 	{"monster_boss2", "***** Boss incoming! Hornet is here, ready for some fresh Marine meat! *****\n"},
 	{"monster_boss2kl", "***** Boss incoming! Hornet 'the swarm' is about to strike! *****\n"},
 	{"monster_carrier_mini", "***** Boss incoming! Carrier Mini is delivering pain right to your face! *****\n"},
@@ -4190,27 +4190,28 @@ static void PrintRemainingMonsterCounts() {
 }
 
 static void SendCleanupMessage(WaveEndReason reason) {
-	gtime_t duration = 2_sec;
-	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
-		duration = 0_sec;
-	}
+	// Pre-calculate duration
+	const gtime_t duration = (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) ? 0_sec : 2_sec;
 
+	// Calculate top damager stats once
 	PlayerStats topDamager;
 	float percentage = 0.0f;
 	CalculateTopDamager(topDamager, percentage);
 
-	// Simplificar el mensaje usando condicionales directos
+	// Format message based on reason
 	std::string message;
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
-		if (developer->integer)
+		if (developer->integer) {
 			PrintRemainingMonsterCounts();
+		}
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
-		if (developer->integer)
-	//		PrintRemainingMonsterCounts();
+		if (developer->integer) {
+			//PrintRemainingMonsterCounts();
+		}
 		break;
 	case WaveEndReason::TimeLimitReached:
 		message = fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level);
@@ -4219,26 +4220,29 @@ static void SendCleanupMessage(WaveEndReason reason) {
 
 	UpdateHordeMessage(message, duration);
 
+	// Handle top damager reward
 	if (topDamager.player) {
-		const std::string playerName = GetPlayerName(topDamager.player);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
-			playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
+		std::string const playerName = GetPlayerName(topDamager.player);
+
+		gi.LocBroadcast_Print(PRINT_HIGH,
+			"{} dealt the most damage with {}! ({}% of total)\n",
+			playerName.c_str(),
+			topDamager.total_damage,
+			static_cast<int>(percentage));
 
 		// Give reward and reset stats if successful
 		if (GiveTopDamagerReward(topDamager, playerName)) {
-
-			for (auto player : active_players()) {
+			for (auto* player : active_players()) {
 				if (player->client) {
-					// Reset damage counters
-					player->client->total_damage = 0;
-					player->lastdmg = level.time;
-					player->client->dmg_counter = 0;
-					player->client->ps.stats[STAT_ID_DAMAGE] = 0;
-
-					//revive all players waiting on squad
-					player->client->respawn_time = 0_sec;
-					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-					player->client->last_damage_time = level.time;
+					// Reset all counters in one block
+					auto* client = player->client;
+					client->total_damage = 0;
+					client->lastdmg  = level.time;
+					client->dmg_counter = 0;
+					client->ps.stats[STAT_ID_DAMAGE] = 0;
+					client->respawn_time = 0_sec;
+					client->coop_respawn_state = COOP_RESPAWN_NONE;
+					client->last_damage_time = level.time;
 				}
 			}
 		}

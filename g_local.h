@@ -3155,6 +3155,7 @@ struct gclient_t
 	gtime_t	 last_firing_time;
 
 	// HORDE STUFF
+	gtime_t lastdmg; // ID DMG
 
 	float hook_release_time;
 	bool    hook_out;
@@ -3432,7 +3433,6 @@ struct edict_t
 
 	// Kyper
 	gtime_t lasthbshot; // Machinegun & Chaingun Tracers per client
-	gtime_t lastdmg; // ID DMG
 	gtime_t beam_hit_time; // heatbeam piercing balance
 
 	int bounce_count; // max blaster/hb bounces to avoid sound overflow

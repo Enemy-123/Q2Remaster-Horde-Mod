@@ -797,12 +797,12 @@ static void HandleIDDamage(edict_t* attacker, const edict_t* targ, int real_dama
 	}
 
 	auto& client = *attacker->client;
-	const bool should_reset = level.time - attacker->lastdmg > 1.65_sec ||
+	const bool should_reset = level.time - attacker->client->lastdmg  > 1.65_sec ||
 		client.dmg_counter > 99999;
 
 	client.dmg_counter = should_reset ? real_damage : client.dmg_counter + real_damage;
 	client.ps.stats[STAT_ID_DAMAGE] = client.dmg_counter;
-	attacker->lastdmg = level.time;
+	attacker->client->lastdmg  = level.time;
 
 	if ((targ->svflags & SVF_MONSTER) && targ->health >= 1) {
 		client.total_damage += real_damage;
