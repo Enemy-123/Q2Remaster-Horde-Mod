@@ -957,6 +957,9 @@ static void InitializeWaveType(int32_t lvl);
 
 static void Horde_InitLevel(const int32_t lvl) {
 
+
+	CleanupStaleCS();
+
 	// Only initialize wave type for non-boss waves
 	if (!(lvl >= 10 && lvl % 5 == 0)) {
 		InitializeWaveType(lvl);

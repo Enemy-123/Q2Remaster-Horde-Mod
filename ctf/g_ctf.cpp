@@ -1224,6 +1224,7 @@ private:
 			return false;
 		}
 
+
 		// Keep the original update logic that was working
 		void update(std::string_view newInfo, gtime_t currentTime) noexcept {
 			std::memcpy(data.data(), newInfo.data(), newInfo.length());
@@ -1385,67 +1386,37 @@ struct TargetSearchResult {
 	TargetSearchResult result;
 	vec3_t const& viewer_pos = ent->s.origin;
 
-	// Check players first
+	auto checkTarget = [&](edict_t* who) {
+		if (!IsValidTarget(ent, who, false)) return;
+		vec3_t dir = who->s.origin - viewer_pos;
+		float const dist = dir.normalize();
+		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
+			? CTFIDViewConfig::CLOSE_MIN_DOT
+			: CTFIDViewConfig::MIN_DOT;
+		if (dist >= result.distance || forward.dot(dir) <= min_dot) return;
+		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) return;
+		result.distance = dist;
+		result.target = who;
+		};
+
+	// Check players
 	for (edict_t* who : active_players()) {
-		if (!IsValidTarget(ent, who, false)) continue;
-
-		vec3_t dir = who->s.origin - viewer_pos;
-		float const dist = dir.normalize();
-
-		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
-			? CTFIDViewConfig::CLOSE_MIN_DOT
-			: CTFIDViewConfig::MIN_DOT;
-
-		if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
-		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
-
-		result.distance = dist;
-		result.target = who;
+		checkTarget(who);
 	}
 
-	// Then check monsters
+	// Check monsters
 	for (edict_t* who : active_monsters()) {
-		if (!IsValidTarget(ent, who, false)) continue;
-
-		vec3_t dir = who->s.origin - viewer_pos;
-		float const dist = dir.normalize();
-
-		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
-			? CTFIDViewConfig::CLOSE_MIN_DOT
-			: CTFIDViewConfig::MIN_DOT;
-
-		if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
-		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
-
-		result.distance = dist;
-		result.target = who;
+		checkTarget(who);
 	}
 
-	// Finally check other valid entities (tesla mines, traps, etc)
+	// Check other entities
 	for (edict_t* who = g_edicts + 1; who < g_edicts + globals.num_edicts; who++) {
-		// Skip players and monsters as we already checked them
 		if (who->client || (who->svflags & SVF_MONSTER)) continue;
-
-		// Check if it's a valid other entity
-		if (!IsValidTarget(ent, who, false)) continue;
-
-		vec3_t dir = who->s.origin - viewer_pos;
-		float const dist = dir.normalize();
-
-		float const min_dot = (dist < CTFIDViewConfig::CLOSE_DISTANCE)
-			? CTFIDViewConfig::CLOSE_MIN_DOT
-			: CTFIDViewConfig::MIN_DOT;
-
-		if (dist >= result.distance || forward.dot(dir) <= min_dot) continue;
-		if (!CanSeeTarget(ent, viewer_pos, who, who->s.origin)) continue;
-
-		result.distance = dist;
-		result.target = who;
+		checkTarget(who);
 	}
 
 	return result;
 }
-
 void CTFSetIDView(edict_t* ent) {
 	static bool is_processing = false;
 
@@ -1468,27 +1439,21 @@ void CTFSetIDView(edict_t* ent) {
 	TargetSearchResult result = FindBestTarget(ent, forward);
 	edict_t* best = result.target;
 
-	if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
-		best = ent->client->idtarget;
-	}
+	//// Check previous target validity
+	//if (!best && ent->client->idtarget && IsValidTarget(ent, ent->client->idtarget, true)) {
+	//	best = ent->client->idtarget;
+	//}
 
-	// Handle previous target
-	if (ent->client->idtarget && ent->client->idtarget != best) {
-		int const old_index = ent->client->idtarget - g_edicts;
-		if (!ent->client->idtarget->inuse) {
-			g_entityInfoManager.removeEntityInfo(old_index);
-		}
-		else if (ent->client->idtarget->client) {
-			// Update previous target's info to maintain it for other players
-			std::string info_string = FormatEntityInfo(ent->client->idtarget);
-			if (!info_string.empty()) {
-				if (!g_entityInfoManager.updateEntityInfo(old_index, info_string)) {
-					// Handle update failure if needed
-					g_entityInfoManager.removeEntityInfo(old_index);
-				}
-			}
-		}
-	}
+	//// Handle previous target more carefully
+	//if (ent->client->idtarget && ent->client->idtarget != best) {
+	//	int const old_index = ent->client->idtarget - g_edicts;
+
+	//	// Only remove if entity is not in use AND not a client
+	//	if (!ent->client->idtarget->inuse && !ent->client->idtarget->client) {
+	//		g_entityInfoManager.removeEntityInfo(old_index);
+	//	}
+	//}
+
 
 	if (best) {
 		ent->client->idtarget = best;
@@ -1563,15 +1528,24 @@ void CleanupInvalidEntities() {
 	}
 }
 
+
+void CleanupStaleCS() {
+	//if (level.intermissiontime) {
+	//	return;
+	//}
+
+	g_entityInfoManager.cleanupStaleEntries();
+}
+
 void SetCTFStats(edict_t* ent)
 {
+
+
 	uint32_t i;
 	int		 p1, p2;
 	edict_t* e;
 
-	if (level.exitintermission) {
-		g_entityInfoManager.cleanupStaleEntries();
-	}
+
 
 	//if (ctfgame.match > MATCH_NONE)
 	//	ent->client->ps.stats[STAT_CTF_MATCH] = CONFIG_CTF_MATCH;     //unused so it works on horde hud 

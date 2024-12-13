@@ -943,6 +943,7 @@ inline void G_RunFrame_(bool main_loop)
 
 	if (g_horde->integer) {
 
+		//CleanupStaleCS();
 		CheckAndUpdateMenus();
 
 		// Verificaciones constantes de alto rendimiento 
