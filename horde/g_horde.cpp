@@ -4058,39 +4058,48 @@ enum class MessageType {
 };
 
 static void CalculateTopDamager(PlayerStats& topDamager, float& percentage) {
-	constexpr int32_t MAX_DAMAGE = 100000; // Añadir límite máximo de daño
+	constexpr int32_t MAX_DAMAGE = 100000;
 	int32_t total_damage = 0;
-	topDamager = PlayerStats(); // Reset usando el constructor por defecto
+	topDamager = PlayerStats(); // Reset stats
 
+	// First pass - calculate total damage
 	for (const auto& player : active_players()) {
-		if (!player->client)
+		if (!player || !player->client || !player->inuse)
 			continue;
 
-		const int32_t player_damage = std::min(player->client->total_damage, MAX_DAMAGE);
-
-		// Solo considerar jugadores que hayan hecho daño
+		const int32_t player_damage = std::clamp(player->client->total_damage, 0, MAX_DAMAGE);
 		if (player_damage > 0) {
 			total_damage += player_damage;
-			if (player_damage > topDamager.total_damage) {
-				topDamager.total_damage = player_damage;
-				topDamager.player = player;
-			}
 		}
 	}
 
-	// Calcular porcentaje solo si hubo daño total
-	percentage = (total_damage > 0) ?
-		(static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f : 0.0f;
+	// Second pass - find top damager
+	for (const auto& player : active_players()) {
+		if (!player || !player->client || !player->inuse)
+			continue;
 
-	// Redondear el porcentaje a dos decimales
-	percentage = std::round(percentage * 100) / 100;
+		const int32_t player_damage = std::clamp(player->client->total_damage, 0, MAX_DAMAGE);
+		if (player_damage > topDamager.total_damage) {
+			topDamager.total_damage = player_damage;
+			topDamager.player = player;
+		}
+	}
+
+	// Calculate percentage with extra safety
+	percentage = 0.0f;
+	if (total_damage > 0 && topDamager.total_damage > 0) {
+		percentage = std::clamp(
+			(static_cast<float>(topDamager.total_damage) / total_damage) * 100.0f,
+			0.0f, 100.0f
+		);
+		percentage = std::round(percentage * 100.0f) / 100.0f;
+	}
 }
 
 // Enumeration for different reward types with their relative weights
 enum class RewardType {
 	BANDOLIER = 0,
-	AMMO_TESLA = 1,
-	SENTRY_GUN = 2
+	SENTRY_GUN = 1
 };
 
 struct RewardInfo {
@@ -4098,65 +4107,71 @@ struct RewardInfo {
 	int weight;  // Higher weight = more common
 };
 
-// Define reward table with weights
+// Simplified reward table without tesla ammo
 static const std::unordered_map<RewardType, RewardInfo> REWARD_TABLE = {
-	{RewardType::BANDOLIER, {IT_ITEM_BANDOLIER, 50}},    // Most common
-	{RewardType::AMMO_TESLA, {IT_AMMO_TESLA, 30}},         // Medium rarity
-	{RewardType::SENTRY_GUN, {IT_ITEM_SENTRYGUN, 20}} // Least common
+	{RewardType::BANDOLIER, {IT_ITEM_BANDOLIER, 60}},    // More common
+	{RewardType::SENTRY_GUN, {IT_ITEM_SENTRYGUN, 40}}    // Less common
 };
 
 // Function to handle reward selection and distribution
 static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::string& playerName) {
-	if (!topDamager.player)
+	if (!topDamager.player || !topDamager.player->inuse || !topDamager.player->client)
 		return false;
 
-	// Calculate total weight for weighted random selection
-	int totalWeight = 0;
-	for (const auto& reward : REWARD_TABLE)
-		totalWeight += reward.second.weight;
+	try {
+		// Calculate total weight
+		int totalWeight = std::accumulate(REWARD_TABLE.begin(), REWARD_TABLE.end(), 0,
+			[](int sum, const auto& pair) { return sum + pair.second.weight; });
 
-	// Generate random number within total weight range
-	std::uniform_int_distribution<int> dist(1, totalWeight);
-	const int randomNum = dist(mt_rand);
+		// Select reward
+		std::uniform_int_distribution<int> dist(1, totalWeight);
+		const int randomNum = dist(mt_rand);
 
-	// Select reward based on weights
-	item_id_t selectedItemId = IT_ITEM_BANDOLIER; // Default fallback
-	int currentWeight = 0;
-
-	for (const auto& reward : REWARD_TABLE) {
-		currentWeight += reward.second.weight;
-		if (randomNum <= currentWeight) {
-			selectedItemId = reward.second.item_id;
-			break;
+		item_id_t selectedItemId = IT_ITEM_BANDOLIER; // Default fallback
+		int currentWeight = 0;
+		for (const auto& [type, info] : REWARD_TABLE) {
+			currentWeight += info.weight;
+			if (randomNum <= currentWeight) {
+				selectedItemId = info.item_id;
+				break;
+			}
 		}
-	}
 
-	// Spawn and give the selected item
-	if (gitem_t* it = GetItemByIndex(selectedItemId)) {
+		// Spawn and give item
+		gitem_t* it = GetItemByIndex(selectedItemId);
+		if (!it || !it->classname)
+			return false;
+
 		edict_t* it_ent = G_Spawn();
 		if (!it_ent)
 			return false;
 
 		it_ent->classname = it->classname;
 		it_ent->item = it;
-
 		SpawnItem(it_ent, it, spawn_temp_t::empty);
-		if (it_ent->inuse) {
-			Touch_Item(it_ent, topDamager.player, null_trace, true);
-			if (it_ent->inuse)
-				G_FreeEdict(it_ent);
 
-			// Announce reward
-			gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
-				playerName.c_str(), it->use_name);
-			return true;
-		}
+		if (!it_ent->inuse)
+			return false;
+
+		Touch_Item(it_ent, topDamager.player, null_trace, true);
+		if (it_ent->inuse)
+			G_FreeEdict(it_ent);
+
+		// Safe announcement
+		const char* itemName = it->use_name ? it->use_name : it->classname;
+		gi.LocBroadcast_Print(PRINT_HIGH, "{} receives a {} for top damage!\n",
+			playerName.empty() ? "Unknown Player" : playerName.c_str(),
+			itemName ? itemName : "reward");
+
+		return true;
 	}
-	return false;
+	catch (const std::exception& e) {
+		gi.Com_PrintFmt("Error giving reward: {}\n", e.what());
+		return false;
+	}
 }
 
 //debugging
-
 static void PrintRemainingMonsterCounts() {
 	std::unordered_map<std::string, int> monster_counts;
 
@@ -4190,28 +4205,29 @@ static void PrintRemainingMonsterCounts() {
 }
 
 static void SendCleanupMessage(WaveEndReason reason) {
-	gtime_t duration = 2_sec;
-	if (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) {
-		duration = 0_sec;
-	}
+	// Pre-calculate duration
+	const gtime_t duration = (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) ? 0_sec : 2_sec;
 
+	// Calculate top damager stats once
 	PlayerStats topDamager;
 	float percentage = 0.0f;
 	CalculateTopDamager(topDamager, percentage);
 
-	// Simplificar el mensaje usando condicionales directos
+	// Format message based on reason
 	std::string message;
 	switch (reason) {
 	case WaveEndReason::AllMonstersDead:
 		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
-		if (developer->integer)
+		if (developer->integer) {
 			PrintRemainingMonsterCounts();
+		}
 		break;
 	case WaveEndReason::MonstersRemaining:
 		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
-		if (developer->integer)
-			//		PrintRemainingMonsterCounts();
-			break;
+		if (developer->integer) {
+			//PrintRemainingMonsterCounts();
+		}
+		break;
 	case WaveEndReason::TimeLimitReached:
 		message = fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level);
 		break;
@@ -4219,26 +4235,29 @@ static void SendCleanupMessage(WaveEndReason reason) {
 
 	UpdateHordeMessage(message, duration);
 
+	// Handle top damager reward
 	if (topDamager.player) {
-		const std::string playerName = GetPlayerName(topDamager.player);
-		gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
-			playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
+		std::string const playerName = GetPlayerName(topDamager.player);
+
+		gi.LocBroadcast_Print(PRINT_HIGH,
+			"{} dealt the most damage with {}! ({}% of total)\n",
+			playerName.c_str(),
+			topDamager.total_damage,
+			static_cast<int>(percentage));
 
 		// Give reward and reset stats if successful
 		if (GiveTopDamagerReward(topDamager, playerName)) {
-
-			for (auto player : active_players()) {
+			for (auto* player : active_players()) {
 				if (player->client) {
-					// Reset damage counters
-					player->client->total_damage = 0;
-					player->client->lastdmg = level.time;
-					player->client->dmg_counter = 0;
-					player->client->ps.stats[STAT_ID_DAMAGE] = 0;
-
-					//revive all players waiting on squad
-					player->client->respawn_time = 0_sec;
-					player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-					player->client->last_damage_time = level.time;
+					// Reset all counters in one block
+					auto* client = player->client;
+					client->total_damage = 0;
+					client->lastdmg = level.time;
+					client->dmg_counter = 0;
+					client->ps.stats[STAT_ID_DAMAGE] = 0;
+					client->respawn_time = 0_sec;
+					client->coop_respawn_state = COOP_RESPAWN_NONE;
+					client->last_damage_time = level.time;
 				}
 			}
 		}
