@@ -901,8 +901,10 @@ static bool g_lowPercentageTriggered = false;
 static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHumanPlayers, int32_t lvl) {
 	ConditionParams params;
 
-	if (g_horde_local.level == 0)
-		return params; //maybe this will prevent wave timer pre wave 1
+	// Validación inicial
+	if (g_horde_local.level < 0 || lvl < 0) {
+		return params; // Retorna parámetros por defecto seguros
+	}
 
 	auto configureMapParams = [&](ConditionParams& params) {
 		if (mapSize.isBigMap) {
@@ -921,21 +923,20 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 
 	configureMapParams(params);
 
-
 	// Ajuste progresivo basado en el nivel - más agresivo
-	params.maxMonsters += std::min(lvl / 4, 8); // Ajustado de lvl/5,10 a lvl/4,8
-	params.timeThreshold += gtime_t::from_ms(75ll * std::min(lvl / 3, 4)); // Reducido el incremento de tiempo
+	params.maxMonsters += std::min(lvl / 4, 8);
+	params.timeThreshold += gtime_t::from_ms(75ll * std::min(lvl / 3, 4));
 
-	// Ajuste para niveles altos - más dinámico
+	// Ajuste para niveles altos
 	if (lvl > 10) {
-		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f); // Reducido de 1.3 a 1.2
-		params.timeThreshold += 0.15_sec; // Reducido de 0.2 a 0.15
+		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.2f);
+		params.timeThreshold += 0.15_sec;
 	}
 
-	// Ajuste basado en dificultad - más agresivo
+	// Ajuste basado en dificultad
 	if (g_chaotic->integer || g_insane->integer) {
 		if (numHumanPlayers <= 3) {
-			params.timeThreshold += random_time(5_sec, 8_sec); // Reducido de 5-10 a 5-8
+			params.timeThreshold += random_time(5_sec, 8_sec);
 		}
 		params.maxMonsters = static_cast<int32_t>(params.maxMonsters * 1.1f);
 	}
@@ -946,6 +947,12 @@ static ConditionParams GetConditionParams(const MapSize& mapSize, int32_t numHum
 
 	// Configuración para tiempo independiente basado en el nivel
 	params.independentTimeThreshold = calculate_max_wave_time(lvl);
+
+	// Validación final de parámetros
+	params.maxMonsters = std::max(1, params.maxMonsters);
+	params.timeThreshold = std::max(1_sec, params.timeThreshold);
+	params.lowPercentageTimeThreshold = std::max(1_sec, params.lowPercentageTimeThreshold);
+	params.independentTimeThreshold = std::max(1_sec, params.independentTimeThreshold);
 
 	return params;
 }
@@ -991,6 +998,11 @@ static void Horde_InitLevel(const int32_t lvl) {
 	g_horde_local.lastPrintTime = 0_sec;
 
 	g_lastParams = GetConditionParams(g_horde_local.current_map_size, GetNumHumanPlayers(), lvl);
+
+	if (developer->integer) {
+		gi.Com_PrintFmt("Debug: Wave {} init - Timer threshold: {:.2f}s\n",
+			lvl, g_lastParams.timeThreshold.seconds());
+	}
 
 	// Ajustar la escala de daño según el nivel
 	switch (lvl) {
@@ -3301,7 +3313,21 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	const gtime_t currentTime = level.time;
 	const int32_t remainingMonsters = CalculateRemainingMonsters();
 
-	// Usar shortcuts para condiciones comunes
+	// Transición segura del timer cuando se completa el despliegue
+	if (next_wave_message_sent && !g_horde_local.conditionTriggered) {
+		// Reiniciar el timer independiente cuando se complete el despliegue
+		g_independent_timer_start = currentTime;
+		g_horde_local.waveEndTime = currentTime + g_lastParams.timeThreshold;
+		g_horde_local.conditionTriggered = true;
+		g_horde_local.conditionTimeThreshold = g_lastParams.timeThreshold;
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("Debug: Timer reset after wave deployment. New end time: {:.2f}s\n",
+				g_lastParams.timeThreshold.seconds());
+		}
+	}
+
+	// Si el tiempo independiente se alcanza
 	if (currentTime >= g_independent_timer_start + g_lastParams.independentTimeThreshold) {
 		reason = WaveEndReason::TimeLimitReached;
 		return true;
@@ -3322,7 +3348,7 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	}
 
 	// Combinar condiciones de trigger
-	if (!g_horde_local.conditionTriggered) {
+	if (!g_horde_local.conditionTriggered && !next_wave_message_sent) {
 		const bool maxMonstersReached = remainingMonsters <= g_lastParams.maxMonsters;
 		const bool lowPercentageReached = percentageRemaining <= g_lastParams.lowPercentageThreshold;
 
@@ -3330,7 +3356,6 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 			g_horde_local.conditionTriggered = true;
 			g_horde_local.conditionStartTime = currentTime;
 
-			// Usar operador ternario para simplificar la selección del threshold
 			g_horde_local.conditionTimeThreshold = (maxMonstersReached && lowPercentageReached) ?
 				std::min(g_lastParams.timeThreshold, g_lastParams.lowPercentageTimeThreshold) :
 				(maxMonstersReached ? g_lastParams.timeThreshold : g_lastParams.lowPercentageTimeThreshold);
@@ -3352,16 +3377,10 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 	if (g_horde_local.conditionTriggered) {
 		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
 
-		// Usar array estático para tiempos de advertencia
-		static constexpr std::array<float, WARNING_TIMES.size()> WARNING_FRAMES = {
-			0.0f, 1.0f, 2.0f
-		};
-
 		for (size_t i = 0; i < WARNING_TIMES.size(); ++i) {
-			const gtime_t warningTime = gtime_t::from_sec(WARNING_TIMES[i]);
 			if (!g_horde_local.warningIssued[i] &&
-				remainingTime <= warningTime &&
-				remainingTime > warningTime - 1_sec) {
+				remainingTime <= gtime_t::from_sec(WARNING_TIMES[i]) &&
+				remainingTime > gtime_t::from_sec(WARNING_TIMES[i]) - 1_sec) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} seconds remaining!\n",
 					static_cast<int>(WARNING_TIMES[i]));
 				g_horde_local.warningIssued[i] = true;
@@ -3374,19 +3393,9 @@ static bool CheckRemainingMonstersCondition(const MapSize& mapSize, WaveEndReaso
 		}
 	}
 
-	// Debug output
-	if (developer->integer && currentTime - g_horde_local.lastPrintTime >= 10_sec) {
-		const gtime_t remainingTime = g_horde_local.waveEndTime - currentTime;
-		gi.Com_PrintFmt("Wave status: {} monsters remaining ({:.2f}%). Time remaining: {:.1f}s. Condition {}\n",
-			remainingMonsters,
-			(percentageRemaining * 100.0f),  // no change needed to the value itself
-			remainingTime.seconds(),
-			g_horde_local.conditionTriggered ? "triggered" : "not triggered");
-		g_horde_local.lastPrintTime = currentTime;
-	}
-
 	return false;
 }
+
 //
 // game resetting
 //
@@ -4205,62 +4214,79 @@ static void PrintRemainingMonsterCounts() {
 }
 
 static void SendCleanupMessage(WaveEndReason reason) {
-	// Pre-calculate duration
-	const gtime_t duration = (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) ? 0_sec : 2_sec;
+	try {
+		// Pre-calculate duration
+		const gtime_t duration = (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) ?
+			0_sec : 2_sec;
 
-	// Calculate top damager stats once
-	PlayerStats topDamager;
-	float percentage = 0.0f;
-	CalculateTopDamager(topDamager, percentage);
+		// Calculate top damager stats once
+		PlayerStats topDamager;
+		float percentage = 0.0f;
+		CalculateTopDamager(topDamager, percentage);
 
-	// Format message based on reason
-	std::string message;
-	switch (reason) {
-	case WaveEndReason::AllMonstersDead:
-		message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", g_horde_local.level);
-		if (developer->integer) {
-			PrintRemainingMonsterCounts();
+		// Asegurar nivel válido
+		const int32_t safeLevel = std::max(0, g_horde_local.level);
+
+		// Format message based on reason
+		std::string message;
+		switch (reason) {
+		case WaveEndReason::AllMonstersDead:
+			message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", safeLevel);
+			if (developer->integer) {
+				PrintRemainingMonsterCounts();
+			}
+			break;
+		case WaveEndReason::MonstersRemaining:
+			message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", safeLevel);
+			if (developer->integer) {
+				PrintRemainingMonsterCounts();
+			}
+			break;
+		case WaveEndReason::TimeLimitReached:
+			message = fmt::format("Wave {} Contained - Time Limit Reached!\n", safeLevel);
+			break;
+		default:
+			message = fmt::format("Wave {} Completed!\n", safeLevel);
+			break;
 		}
-		break;
-	case WaveEndReason::MonstersRemaining:
-		message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", g_horde_local.level);
-		if (developer->integer) {
-			//PrintRemainingMonsterCounts();
-		}
-		break;
-	case WaveEndReason::TimeLimitReached:
-		message = fmt::format("Wave {} Contained - Time Limit Reached!\n", g_horde_local.level);
-		break;
-	}
 
-	UpdateHordeMessage(message, duration);
+		UpdateHordeMessage(message, duration);
 
-	// Handle top damager reward
-	if (topDamager.player) {
-		std::string const playerName = GetPlayerName(topDamager.player);
+		// Handle top damager reward
+		if (topDamager.player && topDamager.player->inuse && topDamager.player->client) {
+			std::string playerName = GetPlayerName(topDamager.player);
+			if (playerName.empty()) {
+				playerName = "Unknown Player";
+			}
 
-		gi.LocBroadcast_Print(PRINT_HIGH,
-			"{} dealt the most damage with {}! ({}% of total)\n",
-			playerName.c_str(),
-			topDamager.total_damage,
-			static_cast<int>(percentage));
+			gi.LocBroadcast_Print(PRINT_HIGH,
+				"{} dealt the most damage with {}! ({}% of total)\n",
+				playerName.c_str(),
+				topDamager.total_damage,
+				static_cast<int>(percentage));
 
-		// Give reward and reset stats if successful
-		if (GiveTopDamagerReward(topDamager, playerName)) {
-			for (auto* player : active_players()) {
-				if (player->client) {
-					// Reset all counters in one block
-					auto* client = player->client;
-					client->total_damage = 0;
-					client->lastdmg = level.time;
-					client->dmg_counter = 0;
-					client->ps.stats[STAT_ID_DAMAGE] = 0;
-					client->respawn_time = 0_sec;
-					client->coop_respawn_state = COOP_RESPAWN_NONE;
-					client->last_damage_time = level.time;
+			// Give reward and reset stats if successful
+			if (GiveTopDamagerReward(topDamager, playerName)) {
+				// Reset all player stats safely
+				for (auto* player : active_players()) {
+					if (player && player->inuse && player->client) {
+						auto* client = player->client;
+						client->total_damage = 0;
+						client->lastdmg = level.time;
+						client->dmg_counter = 0;
+						client->ps.stats[STAT_ID_DAMAGE] = 0;
+						client->respawn_time = 0_sec;
+						client->coop_respawn_state = COOP_RESPAWN_NONE;
+						client->last_damage_time = level.time;
+					}
 				}
 			}
 		}
+	}
+	catch (const std::exception& e) {
+		// Log error y usar mensaje de fallback
+		gi.Com_PrintFmt("Error in SendCleanupMessage: {}\n", e.what());
+		UpdateHordeMessage("Wave Completed!\n", 2_sec);
 	}
 }
 
