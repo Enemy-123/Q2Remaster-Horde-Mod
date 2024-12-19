@@ -962,7 +962,7 @@ inline void G_RunFrame_(bool main_loop)
 		// Verificaciones de estado de monstruos/cleanup
 		// Procesamiento rotativo de monstruos
 		static uint32_t start_index = 0;
-		const uint32_t BATCH_SIZE = 32;
+		constexpr uint32_t BATCH_SIZE = 32;
 		uint32_t processed = 0;
 
 		// Procesar un número limitado de monstruos por frame

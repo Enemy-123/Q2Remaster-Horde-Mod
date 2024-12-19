@@ -4215,81 +4215,65 @@ static void PrintRemainingMonsterCounts() {
 
 static void SendCleanupMessage(WaveEndReason reason) {
 	try {
-		// Pre-calculate duration
-		const gtime_t duration = (allowWaveAdvance && reason == WaveEndReason::AllMonstersDead) ?
-			0_sec : 2_sec;
+		// Wave completion message - these are safe since they only use level number
+		switch (reason) {
+		case WaveEndReason::AllMonstersDead:
+			gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Completely Cleared - Perfect Victory!\n",
+				g_horde_local.level);
+			break;
+		case WaveEndReason::MonstersRemaining:
+			gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Pushed Back - But Still Threatening!\n",
+				g_horde_local.level);
+			break;
+		case WaveEndReason::TimeLimitReached:
+			gi.LocBroadcast_Print(PRINT_HIGH, "Wave {} Contained - Time Limit Reached!\n",
+				g_horde_local.level);
+			break;
+		}
 
-		// Calculate top damager stats once
+		// Top damager calculation and announcement
 		PlayerStats topDamager;
 		float percentage = 0.0f;
 		CalculateTopDamager(topDamager, percentage);
 
-		// Asegurar nivel válido
-		const int32_t safeLevel = std::max(0, g_horde_local.level);
-
-		// Format message based on reason
-		std::string message;
-		switch (reason) {
-		case WaveEndReason::AllMonstersDead:
-			message = fmt::format("Wave {} Completely Cleared - Perfect Victory!\n", safeLevel);
-			if (developer->integer) {
-				PrintRemainingMonsterCounts();
-			}
-			break;
-		case WaveEndReason::MonstersRemaining:
-			message = fmt::format("Wave {} Pushed Back - But Still Threatening!\n", safeLevel);
-			if (developer->integer) {
-				PrintRemainingMonsterCounts();
-			}
-			break;
-		case WaveEndReason::TimeLimitReached:
-			message = fmt::format("Wave {} Contained - Time Limit Reached!\n", safeLevel);
-			break;
-		default:
-			message = fmt::format("Wave {} Completed!\n", safeLevel);
-			break;
-		}
-
-		UpdateHordeMessage(message, duration);
-
-		// Handle top damager reward
 		if (topDamager.player && topDamager.player->inuse && topDamager.player->client) {
-			std::string playerName = GetPlayerName(topDamager.player);
-			if (playerName.empty()) {
-				playerName = "Unknown Player";
-			}
+			// Use client->pers.netname directly since we want to show actual player names
+			if (topDamager.player->client->pers.netname) {
+				gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
+					topDamager.player->client->pers.netname,
+					topDamager.total_damage,
+					static_cast<int>(percentage));
 
-			gi.LocBroadcast_Print(PRINT_HIGH,
-				"{} dealt the most damage with {}! ({}% of total)\n",
-				playerName.c_str(),
-				topDamager.total_damage,
-				static_cast<int>(percentage));
-
-			// Give reward and reset stats if successful
-			if (GiveTopDamagerReward(topDamager, playerName)) {
-				// Reset all player stats safely
-				for (auto* player : active_players()) {
-					if (player && player->inuse && player->client) {
-						auto* client = player->client;
-						client->total_damage = 0;
-						client->lastdmg = level.time;
-						client->dmg_counter = 0;
-						client->ps.stats[STAT_ID_DAMAGE] = 0;
-						client->respawn_time = 0_sec;
-						client->coop_respawn_state = COOP_RESPAWN_NONE;
-						client->last_damage_time = level.time;
+				// Give reward and reset stats if successful
+				if (GiveTopDamagerReward(topDamager, topDamager.player->client->pers.netname)) {
+					for (auto* player : active_players()) {
+						if (player && player->inuse && player->client) {
+							player->client->total_damage = 0;
+							player->client->lastdmg = level.time;
+							player->client->dmg_counter = 0;
+							player->client->ps.stats[STAT_ID_DAMAGE] = 0;
+							player->client->respawn_time = 0_sec;
+							player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+							player->client->last_damage_time = level.time;
+						}
 					}
 				}
 			}
 		}
 	}
 	catch (const std::exception& e) {
-		// Log error y usar mensaje de fallback
 		gi.Com_PrintFmt("Error in SendCleanupMessage: {}\n", e.what());
-		UpdateHordeMessage("Wave Completed!\n", 2_sec);
 	}
 }
 
+// Also modify GetPlayerName to be more defensive:
+inline std::string GetPlayerName(const edict_t* player) {
+	if (!player || !player->client || !player->inuse) {
+		return "Unknown Player";
+	}
+	const char* name = player->client->pers.netname;
+	return name ? name : "Unknown Player";
+}
 // Add this function in the appropriate source file that deals with spawn management.
 void CheckAndResetDisabledSpawnPoints() {
 	std::vector<edict_t*> disabled_spawns;
@@ -4370,13 +4354,17 @@ void Horde_RunFrame() {
 				SpawnMonsters();
 			}
 
-			if (g_horde_local.num_to_spawn <= 0) {
+			if (g_horde_local.num_to_spawn == 0) {
 				if (!next_wave_message_sent) {
 					VerifyAndAdjustBots();
-					gi.LocBroadcast_Print(PRINT_CENTER, "\n\n\nWave Fully Deployed.\nWave Level: {}\n", currentLevel);
+					gi.LocBroadcast_Print(PRINT_CENTER,
+						"\n\n\nWave Fully Deployed.\nWave Level: {}\n",
+						currentLevel);
 					next_wave_message_sent = true;
 				}
 				g_horde_local.state = horde_state_t::active_wave;
+			}
+			
 
 				//if (developer->integer) {
 				//    gi.Com_PrintFmt("PRINT: Wave {} fully spawned.\n", current_wave_level);
@@ -4385,7 +4373,7 @@ void Horde_RunFrame() {
 				//    gi.Com_PrintFmt("PRINT: Spawn Cooldown: {:.2f}\n", SPAWN_POINT_COOLDOWN.seconds());
 				//    gi.Com_PrintFmt("PRINT: Queued Monsters: {}\n", g_horde_local.queued_monsters);
 				//}
-			}
+			
 		}
 		break;
 	}

@@ -1157,12 +1157,11 @@ enum class EntityType {
 
 	case EntityType::Player: {
 		std::string playerName = GetPlayerName(ent);
-		//	if (playerName.empty()) return {};
+		info = fmt::format("{}\nH: {}", playerName, ent->health);
 
-		fmt::format_to(std::back_inserter(info), "{}\nH: {}", playerName, ent->health);
-
-		if (int armor = GetArmorInfo(ent); armor > 0) {
-			fmt::format_to(std::back_inserter(info), " A: {}", armor);
+		int armor_value = GetArmorInfo(ent);
+		if (armor_value > 0) {
+			info += fmt::format(" A: {}", armor_value);
 		}
 		break;
 	}
