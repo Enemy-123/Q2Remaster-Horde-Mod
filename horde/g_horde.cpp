@@ -4266,14 +4266,6 @@ static void SendCleanupMessage(WaveEndReason reason) {
 	}
 }
 
-// Also modify GetPlayerName to be more defensive:
-inline std::string GetPlayerName(const edict_t* player) {
-	if (!player || !player->client || !player->inuse) {
-		return "Unknown Player";
-	}
-	const char* name = player->client->pers.netname;
-	return name ? name : "Unknown Player";
-}
 // Add this function in the appropriate source file that deals with spawn management.
 void CheckAndResetDisabledSpawnPoints() {
 	std::vector<edict_t*> disabled_spawns;
@@ -4456,7 +4448,7 @@ void HandleResetEvent() {
 }
 
 // Get the remaining time for the current wave
-gtime_t GetWaveTimer() {
+inline gtime_t GetWaveTimer() {
 	const gtime_t currentTime = level.time;
 	gtime_t remainingTime = 0_sec;
 

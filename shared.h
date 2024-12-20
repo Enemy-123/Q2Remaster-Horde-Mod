@@ -43,8 +43,8 @@ extern void SetHealthBarName(const edict_t* boss);
 //extern void CleanupStaleCS();
 
 // Declarar funciones globales name strings
-std::string GetDisplayName(const char* classname);
-std::string GetDisplayName(const edict_t* ent);
+[[nodiscard]]  inline std::string GetDisplayName(const char* classname);
+[[nodiscard]]  inline std::string GetDisplayName(const edict_t* ent);
 
 // Mantén el mapa de nombres como una variable externa
 extern const std::unordered_map<std::string_view, std::string_view> name_replacements;
@@ -56,7 +56,7 @@ void ApplyBossEffects(edict_t* boss);
 //extern [[nodiscard]] constexpr float M_DamageModifier(edict_t* monster) noexcept;
 void UpdatePowerUpTimes(edict_t* monster);
 
-std::string GetPlayerName(const edict_t* player);
+[[nodiscard]]  inline std::string GetPlayerName(const edict_t* player);
 // healthbar
 extern void SP_target_healthbar(edict_t* self);
 extern void use_target_healthbar(edict_t* self, edict_t* other, edict_t* activator);
@@ -73,8 +73,8 @@ struct MapSize {
 
 MapSize GetMapSize(const char* mapname);
 
-extern gtime_t GetWaveTimer();
-extern int32_t GetStroggsNum() noexcept;
+extern inline gtime_t GetWaveTimer();
+extern inline int32_t GetStroggsNum() noexcept;
 extern inline bool IsBossWave() noexcept;
 
 bool TeleportSelf(edict_t* ent);

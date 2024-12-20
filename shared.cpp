@@ -511,15 +511,22 @@ void ApplyBossEffects(edict_t* boss)
 }
 
 //getting real name
-std::string GetPlayerName(const edict_t* player) {
-	if (player && player->client) {
-		char playerName[MAX_INFO_VALUE] = { 0 };
-		gi.Info_ValueForKey(player->client->pers.userinfo, "name", playerName, sizeof(playerName));
-		return std::string(playerName);
+[[nodiscard]] inline std::string GetPlayerName(const edict_t* player) {
+	if (!player || !player->client) {
+		return "N/A";
 	}
-	return "N/A";
-}
 
+	char playerName[MAX_INFO_VALUE] = { 0 }; // Using MAX_INFO_VALUE since we're getting a value
+	size_t written = gi.Info_ValueForKey(player->client->pers.userinfo, "name",
+		playerName, MAX_INFO_VALUE);
+
+	// Check if we got a valid result and it fits within our buffer
+	if (written == 0 || written >= MAX_INFO_VALUE) {
+		return "N/A";
+	}
+
+	return std::string(playerName);
+}
 
 extern void SP_target_earthquake(edict_t* self);
 constexpr spawnflags_t SPAWNFLAGS_EARTHQUAKE_SILENT = 1_spawnflag;
