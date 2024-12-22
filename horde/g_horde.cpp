@@ -4180,38 +4180,38 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 	}
 }
 
-//debugging
-static void PrintRemainingMonsterCounts() {
-	std::unordered_map<std::string, int> monster_counts;
-
-	for (const auto* const ent : active_monsters()) {
-		// Ignorar monstruos con AI_DO_NOT_COUNT
-		//if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
-		//	continue;
-
-		// Solo contar monstruos activos y vivos
-		if (ent->inuse && !ent->deadflag && ent->health > 0) {
-			monster_counts[ent->classname]++;
-		}
-	}
-
-	// Solo mostrar advertencia si hay una discrepancia real
-	const bool has_discrepancy = (level.total_monsters != level.killed_monsters);
-	const bool has_remaining = !monster_counts.empty();
-
-	if (has_discrepancy || has_remaining) {
-		gi.Com_PrintFmt("WARNING: Monster count discrepancy detected:\n");
-		gi.Com_PrintFmt("Total monsters according to level: {}\n", level.total_monsters);
-		gi.Com_PrintFmt("Killed monsters: {}\n", level.killed_monsters);
-
-		if (has_remaining) {
-			gi.Com_PrintFmt("Remaining monster types:\n");
-			for (const auto& [classname, count] : monster_counts) {
-				gi.Com_PrintFmt("- {} : {}\n", classname, count);
-			}
-		}
-	}
-}
+////debugging
+//static void PrintRemainingMonsterCounts() {
+//	std::unordered_map<std::string, int> monster_counts;
+//
+//	for (const auto* const ent : active_monsters()) {
+//		// Ignorar monstruos con AI_DO_NOT_COUNT
+//		//if (ent->monsterinfo.aiflags & AI_DO_NOT_COUNT)
+//		//	continue;
+//
+//		// Solo contar monstruos activos y vivos
+//		if (ent->inuse && !ent->deadflag && ent->health > 0) {
+//			monster_counts[ent->classname]++;
+//		}
+//	}
+//
+//	// Solo mostrar advertencia si hay una discrepancia real
+//	const bool has_discrepancy = (level.total_monsters != level.killed_monsters);
+//	const bool has_remaining = !monster_counts.empty();
+//
+//	if (has_discrepancy || has_remaining) {
+//		gi.Com_PrintFmt("WARNING: Monster count discrepancy detected:\n");
+//		gi.Com_PrintFmt("Total monsters according to level: {}\n", level.total_monsters);
+//		gi.Com_PrintFmt("Killed monsters: {}\n", level.killed_monsters);
+//
+//		if (has_remaining) {
+//			gi.Com_PrintFmt("Remaining monster types:\n");
+//			for (const auto& [classname, count] : monster_counts) {
+//				gi.Com_PrintFmt("- {} : {}\n", classname, count);
+//			}
+//		}
+//	}
+//}
 
 static void SendCleanupMessage(WaveEndReason reason) {
 	try {
@@ -4236,30 +4236,34 @@ static void SendCleanupMessage(WaveEndReason reason) {
 		float percentage = 0.0f;
 		CalculateTopDamager(topDamager, percentage);
 
-		if (topDamager.player && topDamager.player->inuse && topDamager.player->client) {
-			// Use client->pers.netname directly since we want to show actual player names
-			if (topDamager.player->client->pers.netname) {
-				gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
-					topDamager.player->client->pers.netname,
-					topDamager.total_damage,
-					static_cast<int>(percentage));
 
-				// Give reward and reset stats if successful
-				if (GiveTopDamagerReward(topDamager, topDamager.player->client->pers.netname)) {
-					for (auto* player : active_players()) {
-						if (player && player->inuse && player->client) {
-							player->client->total_damage = 0;
-							player->client->lastdmg = level.time;
-							player->client->dmg_counter = 0;
-							player->client->ps.stats[STAT_ID_DAMAGE] = 0;
-							player->client->respawn_time = 0_sec;
-							player->client->coop_respawn_state = COOP_RESPAWN_NONE;
-							player->client->last_damage_time = level.time;
-						}
+		// Give reward and reset stats if successful
+		if (topDamager.player) {
+			const std::string playerName = GetPlayerName(topDamager.player);
+			gi.LocBroadcast_Print(PRINT_HIGH, "{} dealt the most damage with {}! ({}% of total)\n",
+				playerName.c_str(), topDamager.total_damage, static_cast<int>(percentage));
+
+			// Give reward and reset stats if successful
+			if (GiveTopDamagerReward(topDamager, playerName)) {
+
+				for (auto player : active_players()) {
+					if (player->client) {
+						// Reset damage counters
+						player->client->total_damage = 0;
+						player->client->lastdmg = level.time;
+						player->client->dmg_counter = 0;
+						player->client->ps.stats[STAT_ID_DAMAGE] = 0;
+
+						//revive all players waiting on squad
+						player->client->respawn_time = 0_sec;
+						player->client->coop_respawn_state = COOP_RESPAWN_NONE;
+						player->client->last_damage_time = level.time;
 					}
 				}
 			}
 		}
+
+
 	}
 	catch (const std::exception& e) {
 		gi.Com_PrintFmt("Error in SendCleanupMessage: {}\n", e.what());
