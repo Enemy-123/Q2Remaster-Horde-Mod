@@ -1319,6 +1319,7 @@ int calculate_bfg_range(const edict_t* self)
 	else if (g_bfgpull->integer && self->owner->client)
 	{
 		return 1536; // Range for g_bfgpull mode
+	//	return 1136; // Range for g_bfgpull mode reduced test
 	}
 	else
 	{
