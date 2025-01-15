@@ -1016,7 +1016,7 @@ static void Horde_InitLevel(const int32_t lvl) {
 		gi.cvar_set("g_damage_scale", "3.0");
 		break;
 	case 45:
-		gi.cvar_set("g_damage_scale", "3.75");
+		gi.cvar_set("g_damage_scale", "4.5");
 		break;
 	default:
 		break;
@@ -3615,7 +3615,7 @@ static void DisplayWaveMessage(gtime_t duration = 5_sec) {
 	static const std::array<const char*, 3> messages = {
 		"Horde Menu available upon opening Inventory or using TURTLE on POWERUP WHEEL\n\nMAKE THEM PAY!\n",
 		"Welcome to Hell.\n\nUse FlipOff <Key> looking at walls to spawn lasers (cost: 25 cells)\n",
-		"New Tactics!\n\nTeslas can now be placed on walls and ceilings!\n\nUse them wisely!"
+		"New Tactics!\n\nTeslas and Traps can now be placed on walls and ceilings!\n\nUse them wisely!"
 	};
 
 	// Usar distribución uniforme con mt_rand
