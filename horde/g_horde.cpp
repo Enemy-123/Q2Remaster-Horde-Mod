@@ -1051,11 +1051,13 @@ static void adjust_weight_powerup(const weighted_item_t& item, float& weight) no
 
 constexpr struct weighted_item_t {
 	const char* classname;
-	int32_t min_level = -1, max_level = -1;
 	float weight = 1.0f;
+	int32_t min_level = -1;
+	int32_t max_level = -1;
 	weight_adjust_func_t adjust_weight = nullptr;
 	uint32_t flags = 0;
 } items[] = {
+	// classname,  min_lvl, max_lvl    weight,  , adjust_func,         flags
 	{ "item_health", 3, 5, 0.20f, adjust_weight_health },
 	{ "item_health_large", -1, 4, 0.06f, adjust_weight_health },
 	{ "item_health_large", 5, -1, 0.12f, adjust_weight_health },
@@ -4137,7 +4139,7 @@ static bool GiveTopDamagerReward(const PlayerStats& topDamager, const std::strin
 
 	try {
 		// Calculate total weight
-		int totalWeight = std::accumulate(REWARD_TABLE.begin(), REWARD_TABLE.end(), 0,
+	const	int totalWeight = std::accumulate(REWARD_TABLE.begin(), REWARD_TABLE.end(), 0,
 			[](int sum, const auto& pair) { return sum + pair.second.weight; });
 
 		// Select reward
