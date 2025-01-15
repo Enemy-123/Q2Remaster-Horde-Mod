@@ -1799,7 +1799,7 @@ struct SelectionCache {
 	};
 	_Field_range_(0, MAX_ENTRIES) size_t count = 0;
 	float total_weight = 0.0f;
-	_Field_size_(MAX_ENTRIES) Entry entries[MAX_ENTRIES] = { 0 };  // Inicializar array
+	_Field_size_(MAX_ENTRIES) Entry entries[MAX_ENTRIES] = { {} }; // Doble llaves  // Inicializar array
 
 	void clear() noexcept {
 		count = 0;
@@ -3931,7 +3931,7 @@ static edict_t* SpawnMonsters() {
 			ED_CallSpawn(monster);
 
 			if (monster->inuse) {
-				if (g_horde_local.level >= 14 && !monster->monsterinfo.power_armor_type != IT_NULL)
+				if (g_horde_local.level >= 14 && monster->monsterinfo.power_armor_type == IT_NULL)
 					SetMonsterArmor(monster);
 				if (frandom() < drop_chance)
 					monster->item = G_HordePickItem();
