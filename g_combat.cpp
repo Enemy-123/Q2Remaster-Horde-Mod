@@ -1170,7 +1170,11 @@ void T_Damage(edict_t* targ, edict_t* inflictor, edict_t* attacker, const vec3_t
 	}
 
 	// Handle Horde Bonus Stuff
-	if ((attacker && attacker->client && g_horde->integer &&  !ClientIsSpectating(attacker->client) || (!g_horde->integer))) {
+	// Simpler and clearer
+	if (attacker && attacker->client &&              // 1. Check if attacker and client exist
+		(g_horde->integer == 0 ||                    // 2. Either not in horde mode
+			!ClientIsSpectating(attacker->client)))      // 3. Or attacker is not spectating 
+	{
 		HandleAutoHaste(attacker, targ, damage);
 		HandleVampireEffect(attacker, targ, damage);
 		HandleIDDamage(attacker, targ, real_damage);

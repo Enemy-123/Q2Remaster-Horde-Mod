@@ -49,7 +49,7 @@ struct pm_config_t
 
 extern pm_config_t pm_config;
 
-extern bool PM_IsQ64Map();
+//extern bool PM_IsQ64Map();
 
 
 void Pmove(pmove_t* pmove);

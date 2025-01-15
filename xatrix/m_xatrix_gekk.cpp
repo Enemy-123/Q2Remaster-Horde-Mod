@@ -720,7 +720,7 @@ void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 	loogie->touch = loogie_touch;
 	loogie->nextthink = level.time + 2_sec;
 	loogie->think = G_FreeEdict;
-	loogie->dmg = damage;
+	loogie->dmg = damage *= M_DamageModifier(self);
 	loogie->svflags |= SVF_PROJECTILE;
 	gi.linkentity(loogie);
 
@@ -730,7 +730,6 @@ void fire_loogie(edict_t* self, const vec3_t& start, const vec3_t& dir, int dama
 		loogie->s.origin = tr.endpos + (tr.plane.normal * 1.f);
 		loogie->touch(loogie, tr.ent, tr, false);
 	}
-	damage *= M_DamageModifier(self); // multiplying if powerup, check shared.cpp
 }
 
 void loogie(edict_t* self)

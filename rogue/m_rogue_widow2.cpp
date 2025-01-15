@@ -1608,8 +1608,8 @@ void WidowExplosion7(edict_t* self)
 void WidowExplosionLeg(edict_t* self)
 {
 	vec3_t f, r, u, startpoint;
-	vec3_t offset1 = { -31.89f, -47.86f, 67.02f };
-	vec3_t offset2 = { -44.9f, -82.14f, 54.72f };
+	const vec3_t offset1 = { -31.89f, -47.86f, 67.02f };
+	const vec3_t offset2 = { -44.9f, -82.14f, 54.72f };
 
 	AngleVectors(self->s.angles, f, r, u);
 	startpoint = G_ProjectSource2(self->s.origin, offset1, f, r, u);
