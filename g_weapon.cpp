@@ -1312,19 +1312,17 @@ THINK(bfg_explode) (edict_t* self) -> void
 
 int calculate_bfg_range(const edict_t* self)
 {
+	const int MAX_SAFE_RANGE = 2048; // Example safety limit
+	int range;
+
 	if (self->owner->svflags & SVF_MONSTER)
-	{
-		return 256; // Range for monsters
-	}
+		range = 256;
 	else if (g_bfgpull->integer && self->owner->client)
-	{
-		return 1536; // Range for g_bfgpull mode
-	//	return 1136; // Range for g_bfgpull mode reduced test
-	}
+		range = 1536;
 	else
-	{
-		return 256; // Default range for all other cases
-	}
+		range = 256;
+
+	return min(range, MAX_SAFE_RANGE); // Safety clamp
 }
 
 
@@ -1369,6 +1367,13 @@ struct bfg_laser_pierce_t : pierce_args_t
 		return true;
 	}
 };
+
+int calculate_pull_force(const edict_t* ent)
+{
+	constexpr int MAX_FORCE = 100;
+	const int force = ent->groundentity ? 20 : 10;
+	return std::min(force, MAX_FORCE);
+}
 
 THINK(bfg_think) (edict_t* self) -> void
 {
@@ -1434,7 +1439,12 @@ if ((self->timestamp != 0_ms && level.time >= self->timestamp) ||
 		{
 			if (ent->movetype != MOVETYPE_NONE && ent->movetype != MOVETYPE_PUSH)
 			{
-				T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0, (ent->groundentity) ? 20 : 10, DAMAGE_ENERGY, MOD_BFG_LASER);
+				// Replace the hardcoded force values with calculate_pull_force
+				const int knockback = calculate_pull_force(ent);
+				T_Damage(ent, self, self->owner, dir, point, vec3_origin, 0,  // No direct damage 
+					knockback, // Use calculated force for knockback
+					DAMAGE_ENERGY,
+					MOD_BFG_LASER);
 			}
 		}
 
