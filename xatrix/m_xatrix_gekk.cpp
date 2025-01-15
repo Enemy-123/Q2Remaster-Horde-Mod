@@ -71,7 +71,7 @@ bool gekk_check_melee(edict_t* self)
 
 bool gekk_check_jump(edict_t* self)
 {
-	vec3_t v;
+	vec3_t v{};
 	float  distance;
 
 	// don't jump if there's no way we can reach standing height
@@ -98,7 +98,7 @@ bool gekk_check_jump(edict_t* self)
 
 bool gekk_check_jump_close(edict_t* self)
 {
-	vec3_t v;
+	vec3_t v{};
 	float  distance;
 
 	v[0] = self->s.origin[0] - self->enemy->s.origin[0];
