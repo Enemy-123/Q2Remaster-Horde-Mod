@@ -7,7 +7,7 @@
 #include <span>
 
 namespace HordeConstants {
-	constexpr float PLAYER_MULTIPLIER = 0.2f;
+//	constexpr float PLAYER_MULTIPLIER = 0.2f;
 	constexpr float TIME_REDUCTION_MULTIPLIER = 0.95f;
 	constexpr float DIFFICULTY_PLAYER_FACTOR = 0.075f;
 	constexpr float BASE_DIFFICULTY_MULTIPLIER = 1.0f;
@@ -1306,15 +1306,16 @@ inline MonsterWaveType GetWaveComposition(int waveNumber, bool forceSpecialWave 
 }
 
 // Wave difficulty multiplier
-inline static float GetWaveDifficultyMultiplier(int waveNumber) noexcept {
-	if (waveNumber <= 5) return 1.0f;
-	if (waveNumber <= 10) return 1.2f;
-	if (waveNumber <= 15) return 1.4f;
-	if (waveNumber <= 20) return 1.6f;
-	if (waveNumber <= 25) return 1.8f;
-	if (waveNumber <= 30) return 2.0f;
-	return 2.0f + ((waveNumber - 30) * 0.1f);
-}
+//inline static float GetWaveDifficultyMultiplier(int waveNumber) noexcept {
+//	if (waveNumber <= 5) return 1.0f;
+//	if (waveNumber <= 10) return 1.2f;
+//	if (waveNumber <= 15) return 1.4f;
+//	if (waveNumber <= 20) return 1.6f;
+//	if (waveNumber <= 25) return 1.8f;
+//	if (waveNumber <= 30) return 2.0f;
+//	return 2.0f + ((waveNumber - 30) * 0.1f);
+//}
+
 inline MonsterWaveType GetMonsterWaveTypes(const char* classname) noexcept;
 // Example function to filter monsters by wave type
 // First the IsValidMonsterForWave function:
@@ -1905,21 +1906,21 @@ static float adjustFlyingSpawnProbability(int32_t flyingSpawns) noexcept {
 	}
 }
 
-inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
-	// Check for flying wave requirement
-	const bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
-
-	// During flying waves, only allow flying monsters
-	if (isFlyingWave) {
-		return isFlyingMonster &&
-			!(spawn_point->style == 1 && !isFlyingMonster) &&
-			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
-	}
-
-	// For non-flying waves, just check spawn point compatibility and level requirements
-	return !(spawn_point->style == 1 && !isFlyingMonster) &&
-		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
-}
+//inline static bool IsMonsterEligible(const edict_t* spawn_point, const weighted_item_t& item, bool isFlyingMonster, int32_t currentWave, int32_t flyingSpawns) noexcept {
+//	// Check for flying wave requirement
+//	const bool isFlyingWave = HasWaveType(current_wave_type, MonsterWaveType::Flying);
+//
+//	// During flying waves, only allow flying monsters
+//	if (isFlyingWave) {
+//		return isFlyingMonster &&
+//			!(spawn_point->style == 1 && !isFlyingMonster) &&
+//			!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
+//	}
+//
+//	// For non-flying waves, just check spawn point compatibility and level requirements
+//	return !(spawn_point->style == 1 && !isFlyingMonster) &&
+//		!(item.min_level > currentWave || (item.max_level != -1 && item.max_level < currentWave));
+//}
 
 static void UpdateCooldowns(edict_t* spawn_point, const char* chosen_monster) {
 	auto& data = spawnPointsData[spawn_point];
