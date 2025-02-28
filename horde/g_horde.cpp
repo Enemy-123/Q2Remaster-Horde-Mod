@@ -7,6 +7,8 @@
 #include <span>
 
 
+// Maximum number of spawn points to track
+constexpr size_t MAX_SPAWN_POINTS = 32;
 
 namespace HordeConstants {
 // constexpr float PLAYER_MULTIPLIER = 0.2f;
@@ -326,7 +328,6 @@ struct SpawnMonsterFilter {
 // Definir tamaños máximos para arrays estáticos
 constexpr size_t MAX_ELIGIBLE_BOSSES = 16;
 constexpr size_t MAX_RECENT_BOSSES = 4;
-constexpr size_t MAX_SPAWN_POINTS = 32;
 
 static constexpr size_t NUM_WAVE_SOUNDS = 12;
 static constexpr size_t NUM_START_SOUNDS = 8;
@@ -3087,8 +3088,8 @@ THINK(BossSpawnThink)(edict_t* self) -> void {
 	static const std::unordered_map<std::string_view, std::pair<MonsterWaveType, const char*>> bossTypeMap = {
 		{"monster_redmutant", {MonsterWaveType::Mutant, "\n\n\nMutant's invasion approaches!\n"}},
 		{"monster_shamblerkl", {MonsterWaveType::Shambler, "\n\n\nMutant's invasion approaches!\n"}},
-		{"monster_widow", {MonsterWaveType::Small | MonsterWaveType::Arachnophobic, "\n\n\nWidow swarm incoming!\n"}},
-		{"monster_widow2", {MonsterWaveType::Small | MonsterWaveType::Arachnophobic, "\n\n\nWidow swarm incoming!\n"}},
+		{"monster_widow", {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
+		{"monster_widow2", {MonsterWaveType::Small, "\n\n\nWidow swarm incoming!\n"}},
 		{"monster_psxarachnid", {MonsterWaveType::Arachnophobic, "\n\n\nArachnophobia wave incoming!\n"}},
 		{"monster_boss2", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
 		{"monster_carrier", {MonsterWaveType::Flying | MonsterWaveType::Boss, "\n\n\nAerial squadron incoming!\n"}},
