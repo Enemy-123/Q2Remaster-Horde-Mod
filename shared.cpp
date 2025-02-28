@@ -50,97 +50,94 @@ void RemovePlayerOwnedEntities(edict_t* player)
 
 bool IsRemovableEntity(const edict_t* ent)
 {
-	static const std::unordered_set<std::string> removableEntities = {
-		"tesla_mine", "food_cube_trap", "prox_mine", "monster_sentrygun",
-		"emitter", "laser"
-	};
+	if (!ent || !ent->classname)
+		return false;
 
-	return removableEntities.find(ent->classname) != removableEntities.end();
+	const char* classname = ent->classname;
+	return !strcmp(classname, "tesla_mine") ||
+		!strcmp(classname, "food_cube_trap") ||
+		!strcmp(classname, "prox_mine") ||
+		!strcmp(classname, "monster_sentrygun") ||
+		!strcmp(classname, "emitter") ||
+		!strcmp(classname, "laser");
 }
 
 void RemoveEntity(edict_t* ent)
 {
-	if (!strcmp(ent->classname, "monster_sentrygun") && ent->health > 0)
-	{
+	if (!ent || !ent->inuse || !ent->classname)
+		return;
+
+	const char* classname = ent->classname;
+
+	if (!strcmp(classname, "monster_sentrygun") && ent->health > 0) {
 		ent->health = -1;
 		turret2_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-	else if (!strcmp(ent->classname, "tesla_mine"))
-	{
+	else if (!strcmp(classname, "tesla_mine")) {
 		tesla_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-	else if (!strcmp(ent->classname, "prox_mine"))
-	{
+	else if (!strcmp(classname, "prox_mine")) {
 		prox_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-	else if (!strcmp(ent->classname, "food_cube_trap"))
-	{
+	else if (!strcmp(classname, "food_cube_trap")) {
 		trap_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-	else if (!strcmp(ent->classname, "emitter") || !strcmp(ent->classname, "laser"))
-	{
+	else if (!strcmp(classname, "emitter") || !strcmp(classname, "laser")) {
 		laser_die(ent, nullptr, nullptr, 0, ent->s.origin, mod_t{});
 	}
-	else
-	{
+	else {
 		BecomeExplosion1(ent);
 	}
 }
 
-
 void UpdatePowerUpTimes(edict_t* monster) {
+	if (!monster)
+		return;
 
-	if (monster->monsterinfo.quad_time <= level.time) {
-		monster->monsterinfo.damage_modifier_applied = false;
-	}
+	const bool quad_expired = monster->monsterinfo.quad_time <= level.time;
+	const bool double_expired = monster->monsterinfo.double_time <= level.time;
 
-	if (monster->monsterinfo.double_time <= level.time)
-	{
+	if (quad_expired && double_expired) {
 		monster->monsterinfo.damage_modifier_applied = false;
 	}
 }
 
 constexpr float M_DamageModifier(edict_t* monster) noexcept {
+	if (!monster)
+		return 1.0f;
+
 	if (monster->monsterinfo.damage_modifier_applied)
 		return 1.0f;
 
-	float mod = 1.0f;
-	const bool has_quad = monster->monsterinfo.quad_time > level.time;
-	const bool has_double = monster->monsterinfo.double_time > level.time;
-
-	if (has_quad)
-		mod = 4.0f;
-	else if (has_double)
-		mod = 2.0f;
-
 	monster->monsterinfo.damage_modifier_applied = true;
-	return mod;
+
+	// Check quad first (higher priority)
+	if (monster->monsterinfo.quad_time > level.time)
+		return 4.0f;
+
+	if (monster->monsterinfo.double_time > level.time)
+		return 2.0f;
+
+	return 1.0f;
 }
 
 [[nodiscard]] inline std::string GetTitleFromFlags(int bonus_flags) {
-	std::string title;
-	title.reserve(100); // Reservar espacio anticipadamente
-
-	static const struct {
-		int flag;
-		std::string_view name;
-	} flagTitles[] = {
-		{BF_CHAMPION, "Champion "},
-		{BF_CORRUPTED, "Corrupted "},
-		{BF_RAGEQUITTER, "Ragequitter "},
-		{BF_BERSERKING, "Berserking "},
-		{BF_POSSESSED, "Possessed "},
-		{BF_STYGIAN, "Stygian "},
-		{BF_FRIENDLY, "Friendly "}
-	};
-
-	for (auto [flag, name] : flagTitles) {
-		if (bonus_flags & flag) {
-			title += name;
-		}
-	}
-
-	return title;
+    if (bonus_flags == 0)
+        return "";
+        
+    std::string title;
+    title.reserve(64); // More reasonable reservation size
+    
+    // Direct flag checks for a small set of flags is likely faster than iterating
+    if (bonus_flags & BF_CHAMPION)   title += "Champion ";
+    if (bonus_flags & BF_CORRUPTED)  title += "Corrupted ";
+    if (bonus_flags & BF_RAGEQUITTER) title += "Ragequitter ";
+    if (bonus_flags & BF_BERSERKING) title += "Berserking ";
+    if (bonus_flags & BF_POSSESSED)  title += "Possessed ";
+    if (bonus_flags & BF_STYGIAN)    title += "Stygian ";
+    if (bonus_flags & BF_FRIENDLY)   title += "Friendly ";
+    
+    return title;
 }
 
 // Sobrecarga para edict_t*
@@ -516,16 +513,16 @@ void ApplyBossEffects(edict_t* boss)
 		return "N/A";
 	}
 
-	char playerName[MAX_INFO_VALUE] = { 0 }; // Using MAX_INFO_VALUE since we're getting a value
+	char buffer[MAX_INFO_VALUE] = { 0 };
 	size_t written = gi.Info_ValueForKey(player->client->pers.userinfo, "name",
-		playerName, MAX_INFO_VALUE);
+		buffer, sizeof(buffer) - 1);
 
-	// Check if we got a valid result and it fits within our buffer
-	if (written == 0 || written >= MAX_INFO_VALUE) {
+	if (written == 0 || written >= sizeof(buffer)) {
 		return "N/A";
 	}
 
-	return std::string(playerName);
+	buffer[written] = '\0'; // Ensure null termination
+	return std::string(buffer);
 }
 
 extern void SP_target_earthquake(edict_t* self);
@@ -655,11 +652,14 @@ void fire_touch(edict_t* self, edict_t* other, const trace_t& tr, bool other_tou
 edict_t* SelectSingleSpawnPoint(edict_t* ent);
 
 bool EntitiesOverlap(const edict_t* ent, const vec3_t& area_mins, const vec3_t& area_maxs) {
-	// Calculate bounds using vec3_t operations
+	if (!ent)
+		return false;
+
+	// Calculate entity bounds
 	const vec3_t ent_mins = ent->s.origin + ent->mins;
 	const vec3_t ent_maxs = ent->s.origin + ent->maxs;
 
-	// Use boxes_intersect from g_local
+	// Use the existing boxes_intersect function directly
 	return boxes_intersect(ent_mins, ent_maxs, area_mins, area_maxs);
 }
 
@@ -673,36 +673,42 @@ namespace {
 }
 
 void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs) {
-	// Validar todos los vectores de entrada
+	// Validate all input vectors
 	if (!is_valid_vector(origin) || !is_valid_vector(mins) || !is_valid_vector(maxs))
 		return;
 
-	// Calcular bounds con límites seguros
-	vec3_t area_mins = origin + mins;
-	vec3_t area_maxs = origin + maxs;
+	// Calculate bounds with safe limits
+	vec3_t area_mins, area_maxs;
+	for (int i = 0; i < 3; i++) {
+		area_mins[i] = origin[i] + mins[i] - 26.0f;
+		area_maxs[i] = origin[i] + maxs[i] + 26.0f;
+	}
 
-	// Expandir área con límites
-	const vec3_t expansion{ 26.0f, 26.0f, 26.0f };
-	area_mins -= expansion;
-	area_maxs += expansion;
+	// Safe radius for search
+	const float max_dim = std::max({
+		maxs[0] - mins[0],
+		maxs[1] - mins[1],
+		maxs[2] - mins[2]
+		});
+	const float safe_radius = std::min(max_dim + 42.0f, 2048.0f);
 
-	// Radio seguro para búsqueda
-	const float safe_radius = std::min(maxs.length() + 16.0f, 2048.0f);
-
-	// Recolectar entidades de forma segura
+	// Safely collect entities
 	int entity_count = 0;
-	for (edict_t* ent = nullptr; (ent = findradius(ent, origin, safe_radius)) != nullptr;) {
+	edict_t* ent = nullptr;
+
+	while ((ent = findradius(ent, origin, safe_radius)) != nullptr) {
 		if (!ent || !ent->inuse || entity_count >= MAX_ENTITIES)
 			continue;
 
-		if (ent->svflags & SVF_MONSTER)
+		if ((ent->svflags & SVF_MONSTER) ||
+			ent->solid == SOLID_NOT ||
+			ent->solid == SOLID_TRIGGER)
 			continue;
 
-		if (ent->solid == SOLID_NOT || ent->solid == SOLID_TRIGGER)
-			continue;
-
-		// Validación adicional
-		if (!is_valid_vector(ent->s.origin) || !is_valid_vector(ent->mins) || !is_valid_vector(ent->maxs))
+		// Additional validation
+		if (!is_valid_vector(ent->s.origin) ||
+			!is_valid_vector(ent->mins) ||
+			!is_valid_vector(ent->maxs))
 			continue;
 
 		if (!EntitiesOverlap(ent, area_mins, area_maxs))
@@ -711,9 +717,9 @@ void ClearSpawnArea(const vec3_t& origin, const vec3_t& mins, const vec3_t& maxs
 		g_spawn_area_entities[entity_count++] = ent;
 	}
 
-	// Procesar entidades recolectadas
+	// Process collected entities
 	for (int i = 0; i < entity_count; i++) {
-		edict_t* ent = g_spawn_area_entities[i];
+		ent = g_spawn_area_entities[i];
 		if (!ent || !ent->inuse)
 			continue;
 
@@ -940,57 +946,60 @@ const std::unordered_map<std::string_view, std::string_view> name_replacements =
 bool SpawnPointClear(edict_t* spot);
 float PlayersRangeFromSpot(edict_t* spot);
 
-
 bool TeleportSelf(edict_t* ent)
 {
+	// Basic validation
 	if (!ent || !ent->inuse || !ent->client || !ent->solid || ent->deadflag)
 		return false;
 
 	// Check cooldown
 	if (ent->client->teleport_cooldown > level.time)
 	{
-		// Optional: Inform player of remaining cooldown
+		// Inform player of remaining cooldown
 		float remaining = std::floor((ent->client->teleport_cooldown - level.time).seconds() * 10.0f) / 10.0f;
 		gi.LocClient_Print(ent, PRINT_HIGH, "Teleport on cooldown for {} seconds\n", remaining);
 		return false;
 	}
 
-	// Set cooldown for 3 seconds
+	// Set cooldown
 	ent->client->teleport_cooldown = level.time + 3_sec;
 	std::string playerName = GetPlayerName(ent);
 
+	// Define spawn point structure
 	struct spawn_point_t
 	{
 		edict_t* point;
 		float dist;
 	};
-	std::vector<spawn_point_t> spawn_points;
 
-	// Gather all valid deathmatch spawn points with style == 0
+	// Pre-allocate a reasonable capacity
+	std::vector<spawn_point_t> spawn_points;
+	spawn_points.reserve(16);
+
+	// Find valid spawn points
 	edict_t* spot = nullptr;
 	while ((spot = G_FindByString<&edict_t::classname>(spot, "info_player_deathmatch")) != nullptr) {
-		if (spot->style == 0) {  // Only use spawn points with style == 0
+		if (spot->style == 0) {
 			spawn_points.push_back({ spot, PlayersRangeFromSpot(spot) });
 		}
 	}
 
 	// No valid spawn points found
-	if (spawn_points.size() == 0) {
-		if (developer->integer) gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+	if (spawn_points.empty()) {
+		if (developer->integer) {
+			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: No valid spawn points found for teleport.\n");
+		}
 		return false;
 	}
 
-	// If there's only one spawn point, use it if clear
+	// Handle single spawn point case
 	if (spawn_points.size() == 1) {
 		if (SpawnPointClear(spawn_points[0].point)) {
-			// Hide entity temporarily
-			ent->svflags |= SVF_NOCLIENT;
-
+			// Perform teleport
 			TeleportEntity(ent, spawn_points[0].point);
 
-			// [Paril-KEX] move sphere, if we own it
-			if (ent->client->owned_sphere)
-			{
+			// Move sphere if owned
+			if (ent->client->owned_sphere) {
 				edict_t* sphere = ent->client->owned_sphere;
 				sphere->s.origin = ent->s.origin;
 				sphere->s.origin[2] = ent->absmax[2];
@@ -998,16 +1007,19 @@ bool TeleportSelf(edict_t* ent)
 				gi.linkentity(sphere);
 			}
 
-			// Make entity visible again
-			ent->svflags &= ~SVF_NOCLIENT;
-
+			// Announce teleport
 			if (!ent->client->emergency_teleport) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 			}
+
+			// Grant invincibility
 			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 			return true;
 		}
-		if (developer->integer) gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
+
+		if (developer->integer) {
+			gi.Com_PrintFmt("PRINT TeleportSelf WARNING: Only spawn point is blocked.\n");
+		}
 		return false;
 	}
 
@@ -1020,14 +1032,11 @@ bool TeleportSelf(edict_t* ent)
 	// Try to find the farthest clear spawn point
 	for (int32_t i = spawn_points.size() - 1; i >= 0; --i) {
 		if (SpawnPointClear(spawn_points[i].point)) {
-			// Hide entity temporarily
-			ent->svflags |= SVF_NOCLIENT;
-
+			// Perform teleport
 			TeleportEntity(ent, spawn_points[i].point);
 
-			// [Paril-KEX] move sphere, if we own it
-			if (ent->client->owned_sphere)
-			{
+			// Move sphere if owned
+			if (ent->client->owned_sphere) {
 				edict_t* sphere = ent->client->owned_sphere;
 				sphere->s.origin = ent->s.origin;
 				sphere->s.origin[2] = ent->absmax[2];
@@ -1035,28 +1044,25 @@ bool TeleportSelf(edict_t* ent)
 				gi.linkentity(sphere);
 			}
 
-			// Make entity visible again
-			ent->svflags &= ~SVF_NOCLIENT;
-
+			// Announce teleport
 			if (!ent->client->emergency_teleport) {
 				gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 			}
+
+			// Grant invincibility
 			ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 			return true;
 		}
 	}
 
-	// If no clear points found, use a random one
+	// If no clear points found, use a random one with telefrags allowed
 	const size_t random_index = rand() % spawn_points.size();
 
-	// Hide entity temporarily
-	ent->svflags |= SVF_NOCLIENT;
-
+	// Perform teleport
 	TeleportEntity(ent, spawn_points[random_index].point);
 
-	// [Paril-KEX] move sphere, if we own it
-	if (ent->client->owned_sphere)
-	{
+	// Move sphere if owned
+	if (ent->client->owned_sphere) {
 		edict_t* sphere = ent->client->owned_sphere;
 		sphere->s.origin = ent->s.origin;
 		sphere->s.origin[2] = ent->absmax[2];
@@ -1064,14 +1070,18 @@ bool TeleportSelf(edict_t* ent)
 		gi.linkentity(sphere);
 	}
 
-	// Make entity visible again
-	ent->svflags &= ~SVF_NOCLIENT;
-
+	// Announce teleport
 	if (!ent->client->emergency_teleport) {
 		gi.LocBroadcast_Print(PRINT_HIGH, "{} Teleported Away!\n", playerName.c_str());
 	}
+
+	// Grant invincibility and reset emergency flag
 	ent->client->invincible_time = max(level.time, ent->client->invincible_time) + 2_sec;
 	ent->client->emergency_teleport = false;
-	if (developer->integer) gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
+
+	if (developer->integer) {
+		gi.Com_PrintFmt("PRINT WARNING TeleportSelf: No clear spawn points found, using random location.\n");
+	}
+
 	return true;
 }
